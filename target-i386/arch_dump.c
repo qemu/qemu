@@ -12,8 +12,8 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
-#include "dump.h"
+#include "exec/cpu-all.h"
+#include "sysemu/dump.h"
 #include "elf.h"
 
 #ifdef TARGET_X86_64
@@ -403,7 +403,7 @@ int cpu_get_dump_info(ArchDumpInfo *info)
     } else {
         info->d_class = ELFCLASS32;
 
-        QLIST_FOREACH(block, &ram_list.blocks, next) {
+        QTAILQ_FOREACH(block, &ram_list.blocks, next) {
             if (block->offset + block->length > UINT_MAX) {
                 /* The memory size is greater than 4G */
                 info->d_class = ELFCLASS64;

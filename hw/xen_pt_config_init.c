@@ -12,7 +12,7 @@
  * This file implements direct PCI assignment to a HVM guest
  */
 
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "xen_backend.h"
 #include "xen_pt.h"
 

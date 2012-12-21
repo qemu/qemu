@@ -21,8 +21,8 @@
 #include "hw.h"
 #include "flash.h"
 #include "omap.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 
 /* General-Purpose Memory Controller */
 struct omap_gpmc_s {

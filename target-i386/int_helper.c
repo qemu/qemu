@@ -18,7 +18,7 @@
  */
 
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 #include "helper.h"
 
 //#define DEBUG_MULDIV

@@ -19,7 +19,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qxl.h"
 
 static const char *qxl_type[] = {

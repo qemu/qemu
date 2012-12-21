@@ -19,25 +19,25 @@
 #include <spice-experimental.h>
 
 #include <netdb.h>
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #include "qemu-common.h"
-#include "qemu-spice.h"
-#include "qemu-thread.h"
-#include "qemu-timer.h"
-#include "qemu-queue.h"
+#include "ui/qemu-spice.h"
+#include "qemu/thread.h"
+#include "qemu/timer.h"
+#include "qemu/queue.h"
 #include "qemu-x509.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "qmp-commands.h"
-#include "qint.h"
-#include "qbool.h"
-#include "qstring.h"
-#include "qjson.h"
-#include "notify.h"
-#include "migration.h"
-#include "monitor.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qjson.h"
+#include "qemu/notify.h"
+#include "migration/migration.h"
+#include "monitor/monitor.h"
 #include "hw/hw.h"
-#include "spice-display.h"
+#include "ui/spice-display.h"
 
 /* core bits */
 

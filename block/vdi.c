@@ -50,15 +50,15 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
-#include "module.h"
-#include "migration.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
+#include "migration/migration.h"
 
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
 #else
 /* TODO: move uuid emulation to some central place in QEMU. */
-#include "sysemu.h"     /* UUID_FMT */
+#include "sysemu/sysemu.h"     /* UUID_FMT */
 typedef unsigned char uuid_t[16];
 #endif
 

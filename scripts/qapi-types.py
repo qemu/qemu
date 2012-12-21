@@ -248,7 +248,7 @@ fdef.write(mcgen('''
  *
  */
 
-#include "qapi/qapi-dealloc-visitor.h"
+#include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
 

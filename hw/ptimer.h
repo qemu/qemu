@@ -9,8 +9,8 @@
 #define PTIMER_H
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
-#include "vmstate.h"
+#include "qemu/timer.h"
+#include "migration/vmstate.h"
 
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;

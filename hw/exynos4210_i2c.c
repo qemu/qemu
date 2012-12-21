@@ -20,7 +20,7 @@
  *
  */
 
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysbus.h"
 #include "i2c.h"
 

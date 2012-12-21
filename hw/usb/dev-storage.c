@@ -8,15 +8,15 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "hw/scsi.h"
-#include "console.h"
-#include "monitor.h"
-#include "sysemu.h"
-#include "blockdev.h"
+#include "ui/console.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/blockdev.h"
 
 //#define DEBUG_MSD
 

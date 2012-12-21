@@ -39,7 +39,7 @@
 #include <linux/if_bridge.h>
 #endif
 
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 #include "net/tap-linux.h"
 

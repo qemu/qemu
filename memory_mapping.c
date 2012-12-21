@@ -12,8 +12,8 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
-#include "memory_mapping.h"
+#include "exec/cpu-all.h"
+#include "sysemu/memory_mapping.h"
 
 static void memory_mapping_list_add_mapping_sorted(MemoryMappingList *list,
                                                    MemoryMapping *mapping)
@@ -200,7 +200,7 @@ int qemu_get_guest_memory_mapping(MemoryMappingList *list)
      * If the guest doesn't use paging, the virtual address is equal to physical
      * address.
      */
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         offset = block->offset;
         length = block->length;
         create_new_memory_mapping(list, offset, offset, length);
@@ -213,7 +213,7 @@ void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list)
 {
     RAMBlock *block;
 
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         create_new_memory_mapping(list, block->offset, 0, block->length);
     }
 }

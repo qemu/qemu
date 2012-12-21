@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "trace.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #define DEBUG_PCALL
 

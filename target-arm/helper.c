@@ -1,9 +1,9 @@
 #include "cpu.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "helper.h"
-#include "host-utils.h"
-#include "sysemu.h"
-#include "bitops.h"
+#include "qemu/host-utils.h"
+#include "sysemu/sysemu.h"
+#include "qemu/bitops.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline int get_phys_addr(CPUARMState *env, uint32_t address,

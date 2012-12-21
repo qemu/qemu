@@ -25,11 +25,10 @@
 
 #include <libvdeplug.h>
 
-#include "net.h"
+#include "net/net.h"
 #include "clients.h"
-#include "qemu-char.h"
 #include "qemu-common.h"
-#include "qemu-option.h"
+#include "qemu/option.h"
 
 typedef struct VDEState {
     NetClientState nc;

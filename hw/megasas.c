@@ -19,10 +19,10 @@
  */
 
 #include "hw.h"
-#include "pci.h"
-#include "dma.h"
-#include "msix.h"
-#include "iov.h"
+#include "pci/pci.h"
+#include "sysemu/dma.h"
+#include "pci/msix.h"
+#include "qemu/iov.h"
 #include "scsi.h"
 #include "scsi-defs.h"
 #include "trace.h"

@@ -29,14 +29,14 @@
 
 #include "hw.h"
 #include "fdc.h"
-#include "qemu-error.h"
-#include "qemu-timer.h"
+#include "qemu/error-report.h"
+#include "qemu/timer.h"
 #include "isa.h"
 #include "sysbus.h"
 #include "qdev-addr.h"
-#include "blockdev.h"
-#include "sysemu.h"
-#include "qemu-log.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
+#include "qemu/log.h"
 
 /********************************************************/
 /* debug Floppy devices */

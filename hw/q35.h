@@ -23,14 +23,14 @@
 #define HW_Q35_H
 
 #include "hw.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "isa.h"
 #include "sysbus.h"
 #include "pc.h"
 #include "apm.h"
 #include "apic.h"
-#include "pci.h"
-#include "pcie_host.h"
+#include "pci/pci.h"
+#include "pci/pcie_host.h"
 #include "acpi.h"
 #include "acpi_ich9.h"
 #include "pam.h"

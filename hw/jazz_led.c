@@ -22,8 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "console.h"
-#include "pixel_ops.h"
+#include "qemu-common.h"
+#include "ui/console.h"
+#include "ui/pixel_ops.h"
 #include "trace.h"
 #include "sysbus.h"
 

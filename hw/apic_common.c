@@ -20,7 +20,7 @@
 #include "apic.h"
 #include "apic_internal.h"
 #include "trace.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 static int apic_irq_delivered;
 bool apic_report_tpr_access;

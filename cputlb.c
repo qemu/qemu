@@ -19,13 +19,13 @@
 
 #include "config.h"
 #include "cpu.h"
-#include "exec-all.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/exec-all.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 
-#include "cputlb.h"
+#include "exec/cputlb.h"
 
-#include "memory-internal.h"
+#include "exec/memory-internal.h"
 
 //#define DEBUG_TLB
 //#define DEBUG_TLB_CHECK
@@ -347,15 +347,15 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
 #define SOFTMMU_CODE_ACCESS
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #undef env

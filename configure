@@ -278,7 +278,7 @@ QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wall -Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
-QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/fpu"
+QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/include"
 if test "$debug_info" = "yes"; then
     CFLAGS="-g $CFLAGS"
     LDFLAGS="-g $LDFLAGS"
@@ -3343,7 +3343,6 @@ fi
 if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak
   echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
-  QEMU_INCLUDES="-I\$(SRC_PATH)/slirp $QEMU_INCLUDES"
 fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
@@ -3698,11 +3697,6 @@ if test -f ${config_host_ld}~ ; then
   fi
 fi
 
-for d in libdis libdis-user; do
-    symlink "$source_path/Makefile.dis" "$d/Makefile"
-    echo > $d/config.mak
-done
-
 # use included Linux headers
 if test "$linux" = "yes" ; then
   mkdir -p linux-headers
@@ -4044,83 +4038,77 @@ if test "$linux" = "yes" ; then
   includes="-I\$(SRC_PATH)/linux-headers $includes"
 fi
 
-if test "$target_user_only" = "yes" ; then
-    libdis_config_mak=libdis-user/config.mak
-else
-    libdis_config_mak=libdis/config.mak
-fi
-
 for i in $ARCH $TARGET_BASE_ARCH ; do
   case "$i" in
   alpha)
     echo "CONFIG_ALPHA_DIS=y"  >> $config_target_mak
-    echo "CONFIG_ALPHA_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_ALPHA_DIS=y"  >> config-all-disas.mak
   ;;
   arm)
     echo "CONFIG_ARM_DIS=y"  >> $config_target_mak
-    echo "CONFIG_ARM_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_ARM_DIS=y"  >> config-all-disas.mak
   ;;
   cris)
     echo "CONFIG_CRIS_DIS=y"  >> $config_target_mak
-    echo "CONFIG_CRIS_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_CRIS_DIS=y"  >> config-all-disas.mak
   ;;
   hppa)
     echo "CONFIG_HPPA_DIS=y"  >> $config_target_mak
-    echo "CONFIG_HPPA_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_HPPA_DIS=y"  >> config-all-disas.mak
   ;;
   i386|x86_64)
     echo "CONFIG_I386_DIS=y"  >> $config_target_mak
-    echo "CONFIG_I386_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_I386_DIS=y"  >> config-all-disas.mak
   ;;
   ia64*)
     echo "CONFIG_IA64_DIS=y"  >> $config_target_mak
-    echo "CONFIG_IA64_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_IA64_DIS=y"  >> config-all-disas.mak
   ;;
   lm32)
     echo "CONFIG_LM32_DIS=y"  >> $config_target_mak
-    echo "CONFIG_LM32_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_LM32_DIS=y"  >> config-all-disas.mak
   ;;
   m68k)
     echo "CONFIG_M68K_DIS=y"  >> $config_target_mak
-    echo "CONFIG_M68K_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_M68K_DIS=y"  >> config-all-disas.mak
   ;;
   microblaze*)
     echo "CONFIG_MICROBLAZE_DIS=y"  >> $config_target_mak
-    echo "CONFIG_MICROBLAZE_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_MICROBLAZE_DIS=y"  >> config-all-disas.mak
   ;;
   mips*)
     echo "CONFIG_MIPS_DIS=y"  >> $config_target_mak
-    echo "CONFIG_MIPS_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_MIPS_DIS=y"  >> config-all-disas.mak
   ;;
   or32)
     echo "CONFIG_OPENRISC_DIS=y"  >> $config_target_mak
-    echo "CONFIG_OPENRISC_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_OPENRISC_DIS=y"  >> config-all-disas.mak
   ;;
   ppc*)
     echo "CONFIG_PPC_DIS=y"  >> $config_target_mak
-    echo "CONFIG_PPC_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_PPC_DIS=y"  >> config-all-disas.mak
   ;;
   s390*)
     echo "CONFIG_S390_DIS=y"  >> $config_target_mak
-    echo "CONFIG_S390_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_S390_DIS=y"  >> config-all-disas.mak
   ;;
   sh4)
     echo "CONFIG_SH4_DIS=y"  >> $config_target_mak
-    echo "CONFIG_SH4_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_SH4_DIS=y"  >> config-all-disas.mak
   ;;
   sparc*)
     echo "CONFIG_SPARC_DIS=y"  >> $config_target_mak
-    echo "CONFIG_SPARC_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_SPARC_DIS=y"  >> config-all-disas.mak
   ;;
   xtensa*)
     echo "CONFIG_XTENSA_DIS=y"  >> $config_target_mak
-    echo "CONFIG_XTENSA_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_XTENSA_DIS=y"  >> config-all-disas.mak
   ;;
   esac
 done
 if test "$tcg_interpreter" = "yes" ; then
   echo "CONFIG_TCI_DIS=y"  >> $config_target_mak
-  echo "CONFIG_TCI_DIS=y"  >> $libdis_config_mak
+  echo "CONFIG_TCI_DIS=y"  >> config-all-disas.mak
 fi
 
 case "$ARCH" in
@@ -4159,7 +4147,7 @@ fi
 if test "$ARCH" = "tci"; then
   linker_script=""
 else
-  linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
+  linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/ldscripts/\$(ARCH).ld"
 fi
 
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
@@ -4223,9 +4211,6 @@ for rom in seabios vgabios ; do
     echo "IASL=iasl" >> $config_mak
     echo "LD=$ld" >> $config_mak
 done
-
-d=libuser
-symlink "$source_path/Makefile.user" "$d/Makefile"
 
 if test "$docs" = "yes" ; then
   mkdir -p QMP

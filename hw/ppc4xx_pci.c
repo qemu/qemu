@@ -22,9 +22,9 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppc4xx.h"
-#include "pci.h"
-#include "pci_host.h"
-#include "exec-memory.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
+#include "exec/address-spaces.h"
 
 #undef DEBUG
 #ifdef DEBUG

@@ -24,7 +24,7 @@
 
 #include "hw.h"
 #include "mips.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 /********************************************************/
 /* debug rc4030 */

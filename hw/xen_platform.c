@@ -27,13 +27,12 @@
 
 #include "hw.h"
 #include "pc.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "irq.h"
 #include "xen_common.h"
-#include "net.h"
 #include "xen_backend.h"
 #include "trace.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include <xenguest.h>
 

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 /***********************************************************/
 /* real time host monotonic timer */

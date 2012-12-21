@@ -17,13 +17,13 @@
 #include "devices.h"
 #include "sharpsl.h"
 #include "pcmcia.h"
-#include "block.h"
+#include "block/block.h"
 #include "boards.h"
 #include "i2c.h"
 #include "ssi.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000

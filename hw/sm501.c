@@ -25,11 +25,12 @@
 #include <stdio.h>
 #include "hw.h"
 #include "serial.h"
-#include "console.h"
+#include "ui/console.h"
 #include "devices.h"
 #include "sysbus.h"
 #include "qdev-addr.h"
-#include "range.h"
+#include "qemu/range.h"
+#include "ui/pixel_ops.h"
 
 /*
  * Status: 2010/05/07
@@ -1162,8 +1163,6 @@ static const MemoryRegionOps sm501_2d_engine_ops = {
 };
 
 /* draw line functions for all console modes */
-
-#include "pixel_ops.h"
 
 typedef void draw_line_func(uint8_t *d, const uint8_t *s,
 			    int width, const uint32_t *pal);

@@ -26,7 +26,7 @@
  */
 
 #include "qdev.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 /* Constants related to the USB / PCI interaction */
 #define USB_SBRN    0x60 /* Serial Bus Release Number Register */

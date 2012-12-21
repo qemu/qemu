@@ -25,11 +25,11 @@
    inherit from a particular bus (e.g. PCI or I2C) rather than
    this API directly.  */
 
-#include "net.h"
+#include "net/net.h"
 #include "qdev.h"
-#include "sysemu.h"
-#include "error.h"
-#include "qapi/qapi-visit-core.h"
+#include "sysemu/sysemu.h"
+#include "qapi/error.h"
+#include "qapi/visitor.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;

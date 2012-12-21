@@ -9,12 +9,12 @@
 
 #include "sysbus.h"
 #include "pxa.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "serial.h"
 #include "i2c.h"
 #include "ssi.h"
-#include "qemu-char.h"
-#include "blockdev.h"
+#include "char/char.h"
+#include "sysemu/blockdev.h"
 
 static struct {
     hwaddr io_base;

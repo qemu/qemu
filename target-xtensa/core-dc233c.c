@@ -26,10 +26,10 @@
  */
 
 #include "cpu.h"
-#include "exec-all.h"
-#include "gdbstub.h"
+#include "exec/exec-all.h"
+#include "exec/gdbstub.h"
 #include "qemu-common.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #include "core-dc233c/core-isa.h"
 #include "overlay_tool.h"

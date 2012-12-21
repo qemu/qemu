@@ -21,8 +21,8 @@
 #include <linux/magic.h>
 #endif
 #include "qemu-common.h"
-#include "qemu_socket.h"
-#include "qemu-xattr.h"
+#include "qemu/sockets.h"
+#include "qemu/xattr.h"
 #include "virtio-9p-marshal.h"
 #include "hw/9pfs/virtio-9p-proxy.h"
 #include "fsdev/virtio-9p-marshal.h"

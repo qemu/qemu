@@ -10,11 +10,12 @@
 #include "config.h"
 #include "hw.h"
 #include "arm-misc.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
+#include "qemu/config-file.h"
 
 #define KERNEL_ARGS_ADDR 0x100
 #define KERNEL_LOAD_ADDR 0x00010000

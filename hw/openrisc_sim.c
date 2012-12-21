@@ -22,12 +22,12 @@
 #include "boards.h"
 #include "elf.h"
 #include "serial.h"
-#include "net.h"
+#include "net/net.h"
 #include "loader.h"
-#include "exec-memory.h"
-#include "sysemu.h"
+#include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
-#include "qtest.h"
+#include "sysemu/qtest.h"
 
 #define KERNEL_LOAD_ADDR 0x100
 

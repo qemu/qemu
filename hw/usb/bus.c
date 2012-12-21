@@ -1,8 +1,8 @@
 #include "hw/hw.h"
 #include "hw/usb.h"
 #include "hw/qdev.h"
-#include "sysemu.h"
-#include "monitor.h"
+#include "sysemu/sysemu.h"
+#include "monitor/monitor.h"
 #include "trace.h"
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);

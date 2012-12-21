@@ -19,7 +19,7 @@
  */
 
 #include "qemu-common.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 Monitor *cur_mon;
 

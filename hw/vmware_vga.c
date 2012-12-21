@@ -23,8 +23,8 @@
  */
 #include "hw.h"
 #include "loader.h"
-#include "console.h"
-#include "pci.h"
+#include "ui/console.h"
+#include "pci/pci.h"
 
 #undef VERBOSE
 #define HW_RECT_ACCEL

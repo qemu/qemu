@@ -24,10 +24,9 @@
 
 #include "config-host.h"
 #include "qemu-common.h"
-#include "qemu-char.h"
-#include "qemu-queue.h"
-#include "qemu-aio.h"
-#include "main-loop.h"
+#include "qemu/queue.h"
+#include "block/aio.h"
+#include "qemu/main-loop.h"
 
 #ifndef _WIN32
 #include <sys/wait.h>

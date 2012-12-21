@@ -24,11 +24,11 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "pc.h"
 #include "vga_int.h"
-#include "pixel_ops.h"
-#include "qemu-timer.h"
+#include "ui/pixel_ops.h"
+#include "qemu/timer.h"
 #include "loader.h"
 
 typedef struct ISAVGAState {

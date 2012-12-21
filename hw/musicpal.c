@@ -12,18 +12,19 @@
 #include "sysbus.h"
 #include "arm-misc.h"
 #include "devices.h"
-#include "net.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "serial.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
-#include "block.h"
+#include "block/block.h"
 #include "flash.h"
-#include "console.h"
+#include "ui/console.h"
 #include "i2c.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
+#include "ui/pixel_ops.h"
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000
@@ -491,8 +492,6 @@ static inline void glue(set_lcd_pixel, depth) \
 SET_LCD_PIXEL(8, uint8_t)
 SET_LCD_PIXEL(16, uint16_t)
 SET_LCD_PIXEL(32, uint32_t)
-
-#include "pixel_ops.h"
 
 static void lcd_refresh(void *opaque)
 {

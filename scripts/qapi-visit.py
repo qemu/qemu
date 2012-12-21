@@ -298,6 +298,7 @@ fdef.write(mcgen('''
  *
  */
 
+#include "qemu-common.h"
 #include "%(header)s"
 ''',
                  header=basename(h_file)))
@@ -321,7 +322,7 @@ fdecl.write(mcgen('''
 #ifndef %(guard)s
 #define %(guard)s
 
-#include "qapi/qapi-visit-core.h"
+#include "qapi/visitor.h"
 #include "%(prefix)sqapi-types.h"
 ''',
                   prefix=prefix, guard=guardname(h_file)))

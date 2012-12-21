@@ -13,8 +13,8 @@
 #include <netdb.h>
 
 #include "qemu-common.h"
-#include "qemu-thread.h"
-#include "qemu_socket.h"
+#include "qemu/thread.h"
+#include "qemu/sockets.h"
 
 #include "vscard_common.h"
 

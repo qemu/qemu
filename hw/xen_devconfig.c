@@ -1,5 +1,5 @@
 #include "xen_backend.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 /* ------------------------------------------------------------- */
 

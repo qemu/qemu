@@ -1,9 +1,9 @@
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/error-report.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "hw/qdev.h"
-#include "error.h"
+#include "qapi/error.h"
 
 static QemuOptsList qemu_drive_opts = {
     .name = "drive",

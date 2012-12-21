@@ -11,7 +11,7 @@
    implement one.  Most of the commends relating to brightness and geometry
    setup are ignored. */
 #include "ssi.h"
-#include "console.h"
+#include "ui/console.h"
 
 //#define DEBUG_SSD0323 1
 

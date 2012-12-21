@@ -13,14 +13,14 @@
 
 #include "hw/virtio.h"
 #include "hw/pc.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "hw/virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-xattr.h"
 #include "virtio-9p-coth.h"
 #include "trace.h"
-#include "migration.h"
+#include "migration/migration.h"
 
 int open_fd_hw;
 int total_open_fd;

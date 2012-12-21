@@ -19,7 +19,7 @@
 #include <grp.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include "qemu-xattr.h"
+#include "qemu/xattr.h"
 #include <unistd.h>
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H

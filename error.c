@@ -11,11 +11,11 @@
  */
 
 #include "qemu-common.h"
-#include "error.h"
-#include "qjson.h"
-#include "qdict.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi-types.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 
 struct Error
 {

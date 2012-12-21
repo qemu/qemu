@@ -18,9 +18,9 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-char.h"
-#include "net.h"
+#include "bt/bt.h"
 #include "hw/bt.h"
+#include "qemu/main-loop.h"
 
 #define VHCI_DEV	"/dev/vhci"
 #define VHCI_UDEV	"/dev/hci_vhci"

@@ -23,6 +23,7 @@
  */
 #include "hw.h"
 #include "isa.h"
+#include "qemu/main-loop.h"
 
 /* #define DEBUG_DMA */
 

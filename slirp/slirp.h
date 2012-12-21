@@ -133,8 +133,8 @@ void free(void *ptr);
 
 #include "debug.h"
 
-#include "qemu-queue.h"
-#include "qemu_socket.h"
+#include "qemu/queue.h"
+#include "qemu/sockets.h"
 
 #include "libslirp.h"
 #include "ip.h"

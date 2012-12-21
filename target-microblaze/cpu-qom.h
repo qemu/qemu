@@ -20,7 +20,7 @@
 #ifndef QEMU_MICROBLAZE_CPU_QOM_H
 #define QEMU_MICROBLAZE_CPU_QOM_H
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 
 #define TYPE_MICROBLAZE_CPU "microblaze-cpu"
 

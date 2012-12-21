@@ -20,12 +20,12 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
-#include "qemu-queue.h"
-#include "qemu-objects.h"
-#include "monitor.h"
-#include "sysemu.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
+#include "qemu/queue.h"
+#include "qapi/qmp/types.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
 #include "hw/watchdog.h"
 
 /* Possible values for action parameter. */

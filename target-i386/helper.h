@@ -1,4 +1,4 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 DEF_HELPER_FLAGS_2(cc_compute_all, TCG_CALL_NO_SE, i32, env, int)
 DEF_HELPER_FLAGS_2(cc_compute_c, TCG_CALL_NO_SE, i32, env, int)
@@ -220,4 +220,4 @@ DEF_HELPER_3(rclq, tl, env, tl, tl)
 DEF_HELPER_3(rcrq, tl, env, tl, tl)
 #endif
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

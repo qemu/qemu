@@ -18,10 +18,10 @@
  */
 #include "config.h"
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg.h"
-#include "qemu-barrier.h"
-#include "qtest.h"
+#include "qemu/atomic.h"
+#include "sysemu/qtest.h"
 
 int tb_invalidated_flag;
 

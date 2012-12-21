@@ -1,3 +1,6 @@
+#ifndef HW_NE2000_H
+#define HW_NE2000_H 1
+
 #define NE2000_PMEM_SIZE    (32*1024)
 #define NE2000_PMEM_START   (16*1024)
 #define NE2000_PMEM_END     (NE2000_PMEM_SIZE+NE2000_PMEM_START)
@@ -33,3 +36,5 @@ extern const VMStateDescription vmstate_ne2000;
 void ne2000_reset(NE2000State *s);
 int ne2000_can_receive(NetClientState *nc);
 ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_);
+
+#endif

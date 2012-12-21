@@ -24,11 +24,11 @@
 
 #include "hw.h"
 #include "pc.h"
-#include "pci.h"
-#include "pci_host.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
 #include "isa.h"
 #include "sysbus.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "xen.h"
 #include "pam.h"
 

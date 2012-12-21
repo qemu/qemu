@@ -20,9 +20,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci_ids.h"
-#include "msi.h"
-#include "pcie.h"
+#include "pci/pci_ids.h"
+#include "pci/msi.h"
+#include "pci/pcie.h"
 #include "ioh3420.h"
 
 #define PCI_DEVICE_ID_IOH_EPORT         0x3420  /* D0:F0 express mode */

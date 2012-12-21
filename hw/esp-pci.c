@@ -23,11 +23,11 @@
  * THE SOFTWARE.
  */
 
-#include "pci.h"
+#include "pci/pci.h"
 #include "eeprom93xx.h"
 #include "esp.h"
 #include "trace.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 #define TYPE_AM53C974_DEVICE "am53c974"
 

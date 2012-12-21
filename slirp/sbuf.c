@@ -6,7 +6,7 @@
  */
 
 #include <slirp.h>
-#include <main-loop.h>
+#include <qemu/main-loop.h>
 
 static void sbappendsb(struct sbuf *sb, struct mbuf *m);
 

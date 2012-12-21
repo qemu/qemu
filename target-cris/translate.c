@@ -24,7 +24,7 @@
  */
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
 #include "helper.h"
 #include "mmu.h"
@@ -70,7 +70,7 @@ static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_pc;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {

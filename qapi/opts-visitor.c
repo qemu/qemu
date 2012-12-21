@@ -10,10 +10,12 @@
  *
  */
 
-#include "opts-visitor.h"
-#include "qemu-queue.h"
-#include "qemu-option-internal.h"
-#include "qapi-visit-impl.h"
+#include "qemu-common.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/opts-visitor.h"
+#include "qemu/queue.h"
+#include "qemu/option_int.h"
+#include "qapi/visitor-impl.h"
 
 
 struct OptsVisitor

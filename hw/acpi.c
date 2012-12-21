@@ -18,11 +18,11 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "hw.h"
 #include "pc.h"
 #include "acpi.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */

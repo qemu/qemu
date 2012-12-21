@@ -29,8 +29,8 @@
 #ifndef VNC_PALETTE_H
 #define VNC_PALETTE_H
 
-#include "qlist.h"
-#include "qemu-queue.h"
+#include "qapi/qmp/qlist.h"
+#include "qemu/queue.h"
 #include <stdint.h>
 #include <stdbool.h>
 

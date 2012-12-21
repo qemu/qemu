@@ -26,13 +26,13 @@
  */
 
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qemu-common.h"
 #include "ptimer.h"
 
 #include "hw.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
 
 #include "exynos4210.h"
 

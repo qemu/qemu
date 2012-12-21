@@ -12,8 +12,8 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
-#include "memory_mapping.h"
+#include "exec/cpu-all.h"
+#include "sysemu/memory_mapping.h"
 
 /* PAE Paging or IA-32e Paging */
 static void walk_pte(MemoryMappingList *list, hwaddr pte_start_addr,

@@ -36,7 +36,7 @@
 
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "net/slirp.h"
 #include "qemu-options.h"
 

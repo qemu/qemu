@@ -1,11 +1,12 @@
 #include "config-host.h"
 #include "trace.h"
 #include "ui/qemu-spice.h"
+#include "char/char.h"
 #include <spice.h>
 #include <spice-experimental.h>
 #include <spice/protocol.h>
 
-#include "osdep.h"
+#include "qemu/osdep.h"
 
 #define dprintf(_scd, _level, _fmt, ...)                                \
     do {                                                                \

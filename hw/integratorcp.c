@@ -11,9 +11,9 @@
 #include "devices.h"
 #include "boards.h"
 #include "arm-misc.h"
-#include "net.h"
-#include "exec-memory.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 
 typedef struct {
     SysBusDevice busdev;

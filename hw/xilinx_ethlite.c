@@ -24,7 +24,7 @@
 
 #include "sysbus.h"
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 
 #define D(x)
 #define R_TX_BUF0     0

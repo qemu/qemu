@@ -27,11 +27,11 @@
  */
 
 #include "qemu-common.h"
-#include "nbd.h"
-#include "uri.h"
-#include "block_int.h"
-#include "module.h"
-#include "qemu_socket.h"
+#include "block/nbd.h"
+#include "qemu/uri.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
+#include "qemu/sockets.h"
 
 #include <sys/types.h>
 #include <unistd.h>
