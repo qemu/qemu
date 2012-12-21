@@ -7,17 +7,15 @@ libcacard_includedir=$(includedir)/cacard
 $(call set-vpath, $(SRC_PATH))
 
 # objects linked into a shared library, built with libtool with -fPIC if required
-QEMU_OBJS=$(oslib-obj-y) qemu-timer-common.o error.o $(trace-obj-y) $(stub-obj-y)
-QEMU_OBJS_LIB=$(patsubst %.o,%.lo,$(QEMU_OBJS))
+libcacard-obj-y=$(oslib-obj-y) error.o $(trace-obj-y) $(stub-obj-y) $(libcacard-y)
+libcacard-lobj-y=$(patsubst %.o,%.lo,$(libcacard-obj-y))
 
 # libtool will build the .o files, too
 $(libcacard-obj-y): | $(libcacard-lobj-y)
 
 QEMU_CFLAGS+=-I../
 
-libcacard.lib-y=$(patsubst %.o,%.lo,$(libcacard-y))
-
-vscclient: $(libcacard-y) $(QEMU_OBJS) vscclient.o cutils.o
+vscclient: vscclient.o $(libcacard-obj-y)
 	$(call quiet-command,$(CC) -o $@ $^ $(libcacard_libs) $(LIBS),"  LINK  $@")
 
 clean:
@@ -31,7 +29,7 @@ all: libcacard.la libcacard.pc
 #########################################################################
 # Rules for building libcacard standalone library
 
-libcacard.la: $(libcacard.lib-y) $(QEMU_OBJS_LIB)
+libcacard.la: $(libcacard-lobj-y)
 	$(call quiet-command,$(LIBTOOL) --mode=link --tag=CC $(CC) -rpath $(libdir) -o $@ $^ $(libcacard_libs),"  lt LINK $@")
 
 libcacard_srcpath=$(SRC_PATH)/libcacard
