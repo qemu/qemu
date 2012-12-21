@@ -189,7 +189,9 @@ typedef struct IRQQueue {
 typedef struct IRQSource {
     uint32_t ivpr;  /* IRQ vector/priority register */
     uint32_t idr;   /* IRQ destination register */
+    uint32_t destmask; /* bitmap of CPU destinations */
     int last_cpu;
+    int output;     /* IRQ level, e.g. OPENPIC_OUTPUT_INT */
     int pending;    /* TRUE if IRQ is pending */
 } IRQSource;
 
@@ -264,8 +266,6 @@ typedef struct OpenPICState {
     uint32_t irq_msi;
 } OpenPICState;
 
-static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQSource *src);
-
 static inline void IRQ_setbit(IRQQueue *q, int n_IRQ)
 {
     q->pending++;
@@ -330,6 +330,19 @@ static void IRQ_local_pipe(OpenPICState *opp, int n_CPU, int n_IRQ)
 
     dst = &opp->dst[n_CPU];
     src = &opp->src[n_IRQ];
+
+    if (src->output != OPENPIC_OUTPUT_INT) {
+        /* On Freescale MPIC, critical interrupts ignore priority,
+         * IACK, EOI, etc.  Before MPIC v4.1 they also ignore
+         * masking.
+         */
+        src->ivpr |= IVPR_ACTIVITY_MASK;
+        DPRINTF("%s: Raise OpenPIC output %d cpu %d irq %d\n",
+                __func__, src->output, n_CPU, n_IRQ);
+        qemu_irq_raise(opp->dst[n_CPU].irqs[src->output]);
+        return;
+    }
+
     priority = IVPR_PRIORITY(src->ivpr);
     if (priority <= dst->ctpr) {
         /* Too low priority */
@@ -360,7 +373,7 @@ static void IRQ_local_pipe(OpenPICState *opp, int n_CPU, int n_IRQ)
         return;
     }
     DPRINTF("Raise OpenPIC INT output cpu %d irq %d\n", n_CPU, n_IRQ);
-    openpic_irq_raise(opp, n_CPU, src);
+    qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
 }
 
 /* update pic state because registers for n_IRQ have changed value */
@@ -403,7 +416,7 @@ static void openpic_update_irq(OpenPICState *opp, int n_IRQ)
     } else if (!(src->ivpr & IVPR_MODE_MASK)) {
         /* Directed delivery mode */
         for (i = 0; i < opp->nb_cpus; i++) {
-            if (src->idr & (1 << i)) {
+            if (src->destmask & (1 << i)) {
                 IRQ_local_pipe(opp, i, n_IRQ);
             }
         }
@@ -413,7 +426,7 @@ static void openpic_update_irq(OpenPICState *opp, int n_IRQ)
             if (i == opp->nb_cpus) {
                 i = 0;
             }
-            if (src->idr & (1 << i)) {
+            if (src->destmask & (1 << i)) {
                 IRQ_local_pipe(opp, i, n_IRQ);
                 src->last_cpu = i;
                 break;
@@ -493,12 +506,45 @@ static inline uint32_t read_IRQreg_ivpr(OpenPICState *opp, int n_IRQ)
 
 static inline void write_IRQreg_idr(OpenPICState *opp, int n_IRQ, uint32_t val)
 {
-    uint32_t tmp;
+    IRQSource *src = &opp->src[n_IRQ];
+    uint32_t normal_mask = (1UL << opp->nb_cpus) - 1;
+    uint32_t crit_mask = 0;
+    uint32_t mask = normal_mask;
+    int crit_shift = IDR_EP_SHIFT - opp->nb_cpus;
+    int i;
 
-    tmp = val & (IDR_EP | IDR_CI);
-    tmp |= val & ((1ULL << MAX_CPU) - 1);
-    opp->src[n_IRQ].idr = tmp;
-    DPRINTF("Set IDR %d to 0x%08x\n", n_IRQ, opp->src[n_IRQ].idr);
+    if (opp->flags & OPENPIC_FLAG_IDR_CRIT) {
+        crit_mask = mask << crit_shift;
+        mask |= crit_mask | IDR_EP;
+    }
+
+    src->idr = val & mask;
+    DPRINTF("Set IDR %d to 0x%08x\n", n_IRQ, src->idr);
+
+    if (opp->flags & OPENPIC_FLAG_IDR_CRIT) {
+        if (src->idr & crit_mask) {
+            if (src->idr & normal_mask) {
+                DPRINTF("%s: IRQ configured for multiple output types, using "
+                        "critical\n", __func__);
+            }
+
+            src->output = OPENPIC_OUTPUT_CINT;
+            src->destmask = 0;
+
+            for (i = 0; i < opp->nb_cpus; i++) {
+                int n_ci = IDR_CI0_SHIFT - i;
+
+                if (src->idr & (1UL << n_ci)) {
+                    src->destmask |= 1UL << i;
+                }
+            }
+        } else {
+            src->output = OPENPIC_OUTPUT_INT;
+            src->destmask = src->idr & normal_mask;
+        }
+    } else {
+        src->destmask = src->idr;
+    }
 }
 
 static inline void write_IRQreg_ivpr(OpenPICState *opp, int n_IRQ, uint32_t val)
@@ -878,7 +924,7 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
              IVPR_PRIORITY(src->ivpr) > dst->servicing.priority)) {
             DPRINTF("Raise OpenPIC INT output cpu %d irq %d\n",
                     idx, n_IRQ);
-            openpic_irq_raise(opp, idx, src);
+            qemu_irq_raise(opp->dst[idx].irqs[OPENPIC_OUTPUT_INT]);
         }
         break;
     default:
@@ -1101,13 +1147,6 @@ static void openpic_save(QEMUFile* f, void *opaque)
     qemu_put_be32s(f, &opp->spve);
     qemu_put_be32s(f, &opp->tfrr);
 
-    for (i = 0; i < opp->max_irq; i++) {
-        qemu_put_be32s(f, &opp->src[i].ivpr);
-        qemu_put_be32s(f, &opp->src[i].idr);
-        qemu_put_sbe32s(f, &opp->src[i].last_cpu);
-        qemu_put_sbe32s(f, &opp->src[i].pending);
-    }
-
     qemu_put_be32s(f, &opp->nb_cpus);
 
     for (i = 0; i < opp->nb_cpus; i++) {
@@ -1119,6 +1158,13 @@ static void openpic_save(QEMUFile* f, void *opaque)
     for (i = 0; i < MAX_TMR; i++) {
         qemu_put_be32s(f, &opp->timers[i].tccr);
         qemu_put_be32s(f, &opp->timers[i].tbcr);
+    }
+
+    for (i = 0; i < opp->max_irq; i++) {
+        qemu_put_be32s(f, &opp->src[i].ivpr);
+        qemu_put_be32s(f, &opp->src[i].idr);
+        qemu_put_sbe32s(f, &opp->src[i].last_cpu);
+        qemu_put_sbe32s(f, &opp->src[i].pending);
     }
 }
 
@@ -1148,13 +1194,6 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
     qemu_get_be32s(f, &opp->spve);
     qemu_get_be32s(f, &opp->tfrr);
 
-    for (i = 0; i < opp->max_irq; i++) {
-        qemu_get_be32s(f, &opp->src[i].ivpr);
-        qemu_get_be32s(f, &opp->src[i].idr);
-        qemu_get_sbe32s(f, &opp->src[i].last_cpu);
-        qemu_get_sbe32s(f, &opp->src[i].pending);
-    }
-
     qemu_get_be32s(f, &opp->nb_cpus);
 
     for (i = 0; i < opp->nb_cpus; i++) {
@@ -1168,18 +1207,21 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
         qemu_get_be32s(f, &opp->timers[i].tbcr);
     }
 
-    return 0;
-}
+    for (i = 0; i < opp->max_irq; i++) {
+        uint32_t val;
 
-static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQSource *src)
-{
-    int n_ci = IDR_CI0_SHIFT - n_CPU;
+        val = qemu_get_be32(f);
+        write_IRQreg_idr(opp, i, val);
+        val = qemu_get_be32(f);
+        write_IRQreg_ivpr(opp, i, val);
 
-    if ((opp->flags & OPENPIC_FLAG_IDR_CRIT) && (src->idr & (1 << n_ci))) {
-        qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_CINT]);
-    } else {
-        qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
+        qemu_get_be32s(f, &opp->src[i].ivpr);
+        qemu_get_be32s(f, &opp->src[i].idr);
+        qemu_get_sbe32s(f, &opp->src[i].last_cpu);
+        qemu_get_sbe32s(f, &opp->src[i].pending);
     }
+
+    return 0;
 }
 
 typedef struct MemReg {
