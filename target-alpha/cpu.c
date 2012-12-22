@@ -21,7 +21,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
-#include "error.h"
+#include "qapi/error.h"
 
 
 static void alpha_cpu_realize(Object *obj, Error **errp)

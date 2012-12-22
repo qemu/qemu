@@ -14,8 +14,8 @@
  */
 
 #include "qemu-common.h"
-#include "sysemu.h"
-#include "kvm.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/kvm.h"
 #include "hw/sysbus.h"
 #include "hw/kvm/clock.h"
 

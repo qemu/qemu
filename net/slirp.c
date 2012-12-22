@@ -29,12 +29,13 @@
 #include <pwd.h>
 #include <sys/wait.h>
 #endif
-#include "net.h"
+#include "net/net.h"
 #include "clients.h"
 #include "hub.h"
-#include "monitor.h"
-#include "qemu_socket.h"
+#include "monitor/monitor.h"
+#include "qemu/sockets.h"
 #include "slirp/libslirp.h"
+#include "char/char.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {

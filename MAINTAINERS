@@ -490,6 +490,7 @@ F: hw/omap*
 PCI
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
+F: hw/pci/*
 F: hw/pci*
 F: hw/piix*
 

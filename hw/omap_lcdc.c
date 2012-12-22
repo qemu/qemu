@@ -17,9 +17,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "omap.h"
 #include "framebuffer.h"
+#include "ui/pixel_ops.h"
 
 struct omap_lcd_panel_s {
     MemoryRegion *sysmem;
@@ -65,8 +66,6 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
 
     qemu_irq_lower(s->irq);
 }
-
-#include "pixel_ops.h"
 
 #define draw_line_func drawfn
 

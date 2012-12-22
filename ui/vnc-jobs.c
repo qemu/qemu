@@ -28,7 +28,7 @@
 
 #include "vnc.h"
 #include "vnc-jobs.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 /*
  * Locking:

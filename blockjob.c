@@ -26,14 +26,14 @@
 #include "config-host.h"
 #include "qemu-common.h"
 #include "trace.h"
-#include "monitor.h"
-#include "block.h"
-#include "blockjob.h"
-#include "block_int.h"
-#include "qjson.h"
-#include "qemu-coroutine.h"
+#include "monitor/monitor.h"
+#include "block/block.h"
+#include "block/blockjob.h"
+#include "block/block_int.h"
+#include "qapi/qmp/qjson.h"
+#include "block/coroutine.h"
 #include "qmp-commands.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
                        int64_t speed, BlockDriverCompletionFunc *cb,

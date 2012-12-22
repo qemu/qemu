@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 
+#ifndef QEMU_CURSES_KEYS_H
+#define QEMU_CURSES_KEYS_H 1
+
 #include <curses.h>
 #include "keymaps.h"
 
@@ -507,3 +510,5 @@ static const name2keysym_t name2keysym[] = {
 
     { NULL, 0 },
 };
+
+#endif

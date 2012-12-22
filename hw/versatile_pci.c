@@ -8,9 +8,9 @@
  */
 
 #include "sysbus.h"
-#include "pci.h"
-#include "pci_host.h"
-#include "exec-memory.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
+#include "exec/address-spaces.h"
 
 typedef struct {
     SysBusDevice busdev;

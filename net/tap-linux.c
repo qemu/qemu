@@ -23,15 +23,16 @@
  * THE SOFTWARE.
  */
 
+#include "tap_int.h"
+#include "tap-linux.h"
 #include "net/tap.h"
-#include "net/tap-linux.h"
 
 #include <net/if.h>
 #include <sys/ioctl.h>
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 #define PATH_NET_TUN "/dev/net/tun"
 
@@ -39,6 +40,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
 {
     struct ifreq ifr;
     int fd, ret;
+    int len = sizeof(struct virtio_net_hdr);
 
     TFR(fd = open(PATH_NET_TUN, O_RDWR));
     if (fd < 0) {
@@ -65,6 +67,13 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
             close(fd);
             return -1;
         }
+        /*
+         * Make sure vnet header size has the default value: for a persistent
+         * tap it might have been modified e.g. by another instance of qemu.
+         * Ignore errors since old kernels do not support this ioctl: in this
+         * case the header size implicitly has the correct value.
+         */
+        ioctl(fd, TUNSETVNETHDRSZ, &len);
     }
 
     if (ifname[0] != '\0')

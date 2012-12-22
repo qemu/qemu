@@ -12,8 +12,8 @@
  */
 
 #include "qemu-common.h"
-#include "dump.h"
-#include "qerror.h"
+#include "sysemu/dump.h"
+#include "qapi/qmp/qerror.h"
 #include "qmp-commands.h"
 
 /* we need this function in hmp.c */

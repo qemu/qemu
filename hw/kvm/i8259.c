@@ -11,7 +11,7 @@
  */
 #include "hw/i8259_internal.h"
 #include "hw/apic_internal.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 static void kvm_pic_get(PICCommonState *s)
 {

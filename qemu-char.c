@@ -22,12 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "net.h"
-#include "monitor.h"
-#include "console.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
+#include "monitor/monitor.h"
+#include "ui/console.h"
+#include "sysemu/sysemu.h"
+#include "qemu/timer.h"
+#include "char/char.h"
 #include "hw/usb.h"
 #include "hw/baum.h"
 #include "hw/msmouse.h"
@@ -95,7 +94,7 @@
 #endif
 #endif
 
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "ui/qemu-spice.h"
 
 #define READ_BUF_LEN 4096

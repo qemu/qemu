@@ -10,7 +10,7 @@ obj-y += ppc_newworld.o
 # IBM pSeries (sPAPR)
 obj-$(CONFIG_PSERIES) += spapr.o spapr_hcall.o spapr_rtas.o spapr_vio.o
 obj-$(CONFIG_PSERIES) += xics.o spapr_vty.o spapr_llan.o spapr_vscsi.o
-obj-$(CONFIG_PSERIES) += spapr_pci.o pci-hotplug.o spapr_iommu.o
+obj-$(CONFIG_PSERIES) += spapr_pci.o pci/pci-hotplug.o spapr_iommu.o
 obj-$(CONFIG_PSERIES) += spapr_events.o spapr_nvram.o
 # PowerPC 4xx boards
 obj-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o

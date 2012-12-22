@@ -30,14 +30,14 @@
 #endif
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 /* global register indexes */
 static TCGv_ptr cpu_env;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 #include "helper.h"
 #define GEN_HELPER 1
 #include "helper.h"

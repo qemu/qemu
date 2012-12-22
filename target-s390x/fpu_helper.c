@@ -22,7 +22,7 @@
 #include "helper.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif
 
 /* #define DEBUG_HELPER */

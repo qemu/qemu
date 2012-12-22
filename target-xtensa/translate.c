@@ -31,11 +31,11 @@
 #include <stdio.h>
 
 #include "cpu.h"
-#include "exec-all.h"
-#include "disas.h"
+#include "exec/exec-all.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-log.h"
-#include "sysemu.h"
+#include "qemu/log.h"
+#include "sysemu/sysemu.h"
 
 #include "helper.h"
 #define GEN_HELPER 1
@@ -76,7 +76,7 @@ static TCGv_i32 cpu_FR[16];
 static TCGv_i32 cpu_SR[256];
 static TCGv_i32 cpu_UR[256];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 typedef struct XtensaReg {
     const char *name;
@@ -3005,7 +3005,11 @@ static void gen_intermediate_code_internal(
     gen_icount_end(tb, insn_count);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
-    if (!search_pc) {
+    if (search_pc) {
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
+        memset(tcg_ctx.gen_opc_instr_start + lj + 1, 0,
+                (j - lj) * sizeof(tcg_ctx.gen_opc_instr_start[0]));
+    } else {
         tb->size = dc.pc - pc_start;
         tb->icount = insn_count;
     }

@@ -24,7 +24,7 @@
 #include <sys/mman.h>
 #include <libfdt.h>
 
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 #include "hw/sysbus.h"
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"

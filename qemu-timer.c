@@ -22,14 +22,13 @@
  * THE SOFTWARE.
  */
 
-#include "sysemu.h"
-#include "net.h"
-#include "monitor.h"
-#include "console.h"
+#include "sysemu/sysemu.h"
+#include "monitor/monitor.h"
+#include "ui/console.h"
 
 #include "hw/hw.h"
 
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #ifdef CONFIG_POSIX
 #include <pthread.h>
 #endif
@@ -478,7 +477,7 @@ static void host_alarm_handler(int host_signum)
 
 #if defined(__linux__)
 
-#include "compatfd.h"
+#include "qemu/compatfd.h"
 
 static int dynticks_start_timer(struct qemu_alarm_timer *t)
 {

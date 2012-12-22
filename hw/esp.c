@@ -26,7 +26,7 @@
 #include "sysbus.h"
 #include "esp.h"
 #include "trace.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 /*
  * On Sparc32, this is the ESP (NCR53C90) part of chip STP2000 (Master I/O),

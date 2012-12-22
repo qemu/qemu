@@ -18,12 +18,12 @@
  */
 #include <stdlib.h>
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #include "helper.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #ifndef CONFIG_USER_ONLY
@@ -2116,16 +2116,16 @@ static void QEMU_NORETURN do_unaligned_access(CPUMIPSState *env,
 #define ALIGNED_ONLY
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 static void do_unaligned_access(CPUMIPSState *env, target_ulong addr,
                                 int is_write, int is_user, uintptr_t retaddr)

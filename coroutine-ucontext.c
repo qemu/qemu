@@ -28,7 +28,7 @@
 #include <pthread.h>
 #include <ucontext.h>
 #include "qemu-common.h"
-#include "qemu-coroutine-int.h"
+#include "block/coroutine_int.h"
 
 #ifdef CONFIG_VALGRIND_H
 #include <valgrind/valgrind.h>

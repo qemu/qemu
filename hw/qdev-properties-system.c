@@ -10,13 +10,14 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "net.h"
+#include "net/net.h"
 #include "qdev.h"
-#include "qerror.h"
-#include "blockdev.h"
+#include "qapi/qmp/qerror.h"
+#include "sysemu/blockdev.h"
 #include "hw/block-common.h"
 #include "net/hub.h"
-#include "qapi/qapi-visit-core.h"
+#include "qapi/visitor.h"
+#include "char/char.h"
 
 static void get_pointer(Object *obj, Visitor *v, Property *prop,
                         const char *(*print)(void *ptr),

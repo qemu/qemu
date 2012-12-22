@@ -24,14 +24,14 @@
  */
 #include <hw/hw.h>
 #include <hw/pc.h>
-#include <hw/pci.h>
+#include <hw/pci/pci.h>
 #include <hw/isa.h>
-#include "qemu-error.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
-#include "dma.h"
+#include "qemu/error-report.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 #include "hw/block-common.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 #include <hw/ide/internal.h>
 

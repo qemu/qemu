@@ -18,7 +18,7 @@
  */
 
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "framebuffer.h"
 
 /* Render an image from a shared memory framebuffer.  */

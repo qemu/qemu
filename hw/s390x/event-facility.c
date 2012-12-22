@@ -15,8 +15,8 @@
  *
  */
 
-#include "monitor.h"
-#include "sysemu.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
 
 #include "sclp.h"
 #include "event-facility.h"

@@ -37,10 +37,10 @@
 
 #include "hw.h"
 #include "flash.h"
-#include "qemu-timer.h"
-#include "block.h"
-#include "exec-memory.h"
-#include "host-utils.h"
+#include "qemu/timer.h"
+#include "block/block.h"
+#include "exec/address-spaces.h"
+#include "qemu/host-utils.h"
 #include "sysbus.h"
 
 //#define PFLASH_DEBUG

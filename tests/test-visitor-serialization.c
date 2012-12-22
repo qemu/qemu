@@ -14,9 +14,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <float.h>
+
+#include "qemu-common.h"
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
-#include "qemu-objects.h"
+#include "qapi/qmp/types.h"
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/string-input-visitor.h"

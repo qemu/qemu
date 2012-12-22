@@ -15,19 +15,19 @@
 #include "vt82c686.h"
 #include "i2c.h"
 #include "smbus.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "isa.h"
 #include "sysbus.h"
 #include "mips.h"
 #include "apm.h"
 #include "acpi.h"
 #include "pm_smbus.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
-#include "exec-memory.h"
+#include "sysemu/sysemu.h"
+#include "qemu/timer.h"
+#include "exec/address-spaces.h"
 
 typedef uint32_t pci_addr_t;
-#include "pci_host.h"
+#include "pci/pci_host.h"
 //#define DEBUG_VT82C686B
 
 #ifdef DEBUG_VT82C686B

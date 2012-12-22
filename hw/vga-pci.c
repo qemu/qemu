@@ -24,11 +24,11 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "console.h"
-#include "pci.h"
+#include "ui/console.h"
+#include "pci/pci.h"
 #include "vga_int.h"
-#include "pixel_ops.h"
-#include "qemu-timer.h"
+#include "ui/pixel_ops.h"
+#include "qemu/timer.h"
 #include "loader.h"
 
 #define PCI_VGA_IOPORT_OFFSET 0x400

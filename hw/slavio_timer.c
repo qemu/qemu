@@ -23,7 +23,7 @@
  */
 
 #include "sun4m.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
 #include "sysbus.h"
 #include "trace.h"

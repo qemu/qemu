@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 #include <math.h>
 
-#include "qemu_socket.h"
-#include "iov.h"
+#include "qemu/sockets.h"
+#include "qemu/iov.h"
 
 void strpadcpy(char *buf, int buf_size, const char *str, char pad)
 {

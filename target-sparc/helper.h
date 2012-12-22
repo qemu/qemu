@@ -1,4 +1,4 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 #ifndef TARGET_SPARC64
 DEF_HELPER_1(rett, void, env)
@@ -173,4 +173,4 @@ VIS_CMPHELPER(cmpne);
 DEF_HELPER_1(compute_psr, void, env);
 DEF_HELPER_1(compute_C_icc, i32, env);
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

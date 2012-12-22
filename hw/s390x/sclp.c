@@ -13,8 +13,8 @@
  */
 
 #include "cpu.h"
-#include "kvm.h"
-#include "memory.h"
+#include "sysemu/kvm.h"
+#include "exec/memory.h"
 
 #include "sclp.h"
 

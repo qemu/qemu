@@ -24,7 +24,7 @@
 #ifndef QEMU_NET_CLIENTS_H
 #define QEMU_NET_CLIENTS_H
 
-#include "net.h"
+#include "net/net.h"
 #include "qapi-types.h"
 
 int net_init_dump(const NetClientOptions *opts, const char *name,

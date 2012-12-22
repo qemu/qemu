@@ -19,9 +19,9 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "usb.h"
-#include "net.h"
+#include "bt/bt.h"
 #include "bt.h"
 
 struct bt_hci_s {

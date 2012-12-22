@@ -9,10 +9,10 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "qemu-char.h"
+#include "char/char.h"
 
 //#define DEBUG_Serial
 

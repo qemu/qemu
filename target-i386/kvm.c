@@ -21,17 +21,18 @@
 #include <linux/kvm_para.h>
 
 #include "qemu-common.h"
-#include "sysemu.h"
-#include "kvm.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/kvm.h"
 #include "kvm_i386.h"
 #include "cpu.h"
-#include "gdbstub.h"
-#include "host-utils.h"
+#include "exec/gdbstub.h"
+#include "qemu/host-utils.h"
+#include "qemu/config-file.h"
 #include "hw/pc.h"
 #include "hw/apic.h"
-#include "ioport.h"
+#include "exec/ioport.h"
 #include "hyperv.h"
-#include "hw/pci.h"
+#include "hw/pci/pci.h"
 
 //#define DEBUG_KVM
 

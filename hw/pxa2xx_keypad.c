@@ -13,7 +13,7 @@
 
 #include "hw.h"
 #include "pxa.h"
-#include "console.h"
+#include "ui/console.h"
 
 /*
  * Keypad

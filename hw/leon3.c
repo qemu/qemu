@@ -22,15 +22,15 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
-#include "qemu-char.h"
-#include "sysemu.h"
+#include "char/char.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
 #include "trace.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include "grlib.h"
 

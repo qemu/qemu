@@ -20,7 +20,7 @@
 #ifndef QEMU_ARM_CPU_QOM_H
 #define QEMU_ARM_CPU_QOM_H
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 
 #define TYPE_ARM_CPU "arm-cpu"
 

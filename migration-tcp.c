@@ -14,11 +14,10 @@
  */
 
 #include "qemu-common.h"
-#include "qemu_socket.h"
-#include "migration.h"
-#include "qemu-char.h"
-#include "buffered_file.h"
-#include "block.h"
+#include "qemu/sockets.h"
+#include "migration/migration.h"
+#include "migration/qemu-file.h"
+#include "block/block.h"
 
 //#define DEBUG_MIGRATION_TCP
 
@@ -61,6 +60,7 @@ static void tcp_wait_for_connect(int fd, void *opaque)
     } else {
         DPRINTF("migrate connect success\n");
         s->fd = fd;
+        socket_set_block(s->fd);
         migrate_fd_connect(s);
     }
 }

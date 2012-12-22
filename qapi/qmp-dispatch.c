@@ -11,12 +11,12 @@
  *
  */
 
-#include "qemu-objects.h"
-#include "qapi/qmp-core.h"
-#include "json-parser.h"
+#include "qapi/qmp/types.h"
+#include "qapi/qmp/dispatch.h"
+#include "qapi/qmp/json-parser.h"
 #include "qapi-types.h"
-#include "error.h"
-#include "qerror.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 
 static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 {

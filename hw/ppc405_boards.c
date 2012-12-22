@@ -26,13 +26,13 @@
 #include "ppc405.h"
 #include "nvram.h"
 #include "flash.h"
-#include "sysemu.h"
-#include "block.h"
+#include "sysemu/sysemu.h"
+#include "block/block.h"
 #include "boards.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "loader.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"
 #define BIOS_SIZE (2048 * 1024)

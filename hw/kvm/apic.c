@@ -10,8 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 #include "hw/apic_internal.h"
-#include "hw/msi.h"
-#include "kvm.h"
+#include "hw/pci/msi.h"
+#include "sysemu/kvm.h"
 
 static inline void kvm_apic_set_reg(struct kvm_lapic_state *kapic,
                                     int reg_id, uint32_t val)

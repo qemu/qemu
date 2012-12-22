@@ -11,15 +11,15 @@
  *
  */
 
-#include "json-lexer.h"
-#include "json-parser.h"
-#include "json-streamer.h"
-#include "qjson.h"
-#include "qint.h"
-#include "qlist.h"
-#include "qbool.h"
-#include "qfloat.h"
-#include "qdict.h"
+#include "qapi/qmp/json-lexer.h"
+#include "qapi/qmp/json-parser.h"
+#include "qapi/qmp/json-streamer.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qfloat.h"
+#include "qapi/qmp/qdict.h"
 
 typedef struct JSONParsingState
 {

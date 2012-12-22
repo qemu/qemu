@@ -28,14 +28,14 @@
 #include <sys/stat.h>
 #include "hw/hw.h"
 #include "hw/pc.h"
-#include "qemu-error.h"
-#include "console.h"
+#include "qemu/error-report.h"
+#include "ui/console.h"
 #include "hw/loader.h"
-#include "monitor.h"
-#include "range.h"
-#include "sysemu.h"
-#include "hw/pci.h"
-#include "hw/msi.h"
+#include "monitor/monitor.h"
+#include "qemu/range.h"
+#include "sysemu/sysemu.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
 #include "kvm_i386.h"
 
 #define MSIX_PAGE_SIZE 0x1000

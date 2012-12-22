@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "tap.h"
+#include "tap_int.h"
 
 #include "config-host.h"
 
@@ -33,15 +33,14 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
-#include "net.h"
+#include "net/net.h"
 #include "clients.h"
-#include "monitor.h"
-#include "sysemu.h"
-#include "qemu-char.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
-#include "net/tap-linux.h"
+#include "net/tap.h"
 
 #include "hw/vhost_net.h"
 

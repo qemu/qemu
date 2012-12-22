@@ -24,9 +24,9 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
-#include "module.h"
-#include "migration.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
+#include "migration/migration.h"
 #include <zlib.h>
 
 #define VMDK3_MAGIC (('C' << 24) | ('O' << 16) | ('W' << 8) | 'D')

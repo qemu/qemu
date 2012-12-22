@@ -12,11 +12,11 @@
  *
  */
 
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "trace.h"
 #include "qed.h"
-#include "qerror.h"
-#include "migration.h"
+#include "qapi/qmp/qerror.h"
+#include "migration/migration.h"
 
 static void qed_aio_cancel(BlockDriverAIOCB *blockacb)
 {

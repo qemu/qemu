@@ -31,9 +31,9 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
-#include "monitor.h"
-#include "sysemu.h"
+#include "qemu/timer.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 
 #include <dirent.h>

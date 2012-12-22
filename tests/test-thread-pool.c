@@ -1,8 +1,8 @@
 #include <glib.h>
 #include "qemu-common.h"
-#include "qemu-aio.h"
-#include "thread-pool.h"
-#include "block.h"
+#include "block/aio.h"
+#include "block/thread-pool.h"
+#include "block/block.h"
 
 static int active;
 

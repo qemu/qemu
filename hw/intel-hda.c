@@ -18,13 +18,13 @@
  */
 
 #include "hw.h"
-#include "pci.h"
-#include "msi.h"
-#include "qemu-timer.h"
+#include "pci/pci.h"
+#include "pci/msi.h"
+#include "qemu/timer.h"
 #include "audiodev.h"
 #include "intel-hda.h"
 #include "intel-hda-defs.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */

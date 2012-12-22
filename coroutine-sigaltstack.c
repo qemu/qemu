@@ -31,7 +31,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include "qemu-common.h"
-#include "qemu-coroutine-int.h"
+#include "block/coroutine_int.h"
 
 enum {
     /* Maximum free pool size prevents holding too many freed coroutines */

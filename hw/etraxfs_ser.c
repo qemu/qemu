@@ -23,8 +23,8 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
-#include "qemu-log.h"
+#include "char/char.h"
+#include "qemu/log.h"
 
 #define D(x)
 

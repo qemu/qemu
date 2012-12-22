@@ -1,4 +1,4 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 DEF_HELPER_2(exception, void, env, i32)
 DEF_HELPER_4(nc, i32, env, i32, i64, i64)
@@ -149,4 +149,4 @@ DEF_HELPER_3(cksm, void, env, i32, i32)
 DEF_HELPER_FLAGS_5(calc_cc, TCG_CALL_NO_RWG_SE,
                    i32, env, i32, i64, i64, i64)
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

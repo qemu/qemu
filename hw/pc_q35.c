@@ -28,15 +28,15 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "arch_init.h"
+#include "sysemu/arch_init.h"
 #include "smbus.h"
 #include "boards.h"
 #include "mc146818rtc.h"
 #include "xen.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm/clock.h"
 #include "q35.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "ich9.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci.h"

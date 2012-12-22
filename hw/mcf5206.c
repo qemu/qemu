@@ -7,10 +7,10 @@
  */
 #include "hw.h"
 #include "mcf.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
-#include "sysemu.h"
-#include "exec-memory.h"
+#include "sysemu/sysemu.h"
+#include "exec/address-spaces.h"
 
 /* General purpose timer module.  */
 typedef struct {

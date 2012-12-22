@@ -25,10 +25,10 @@
  *
  */
 #include "cpu.h"
-#include "sysemu.h"
-#include "qemu-char.h"
+#include "sysemu/sysemu.h"
+#include "char/char.h"
 #include "hw/qdev.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"

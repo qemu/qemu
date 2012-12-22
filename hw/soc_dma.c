@@ -18,7 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "soc_dma.h"
 
 static void transfer_mem2mem(struct soc_dma_ch_s *ch)

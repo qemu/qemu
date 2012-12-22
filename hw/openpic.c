@@ -35,10 +35,10 @@
  */
 #include "hw.h"
 #include "ppc_mac.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "openpic.h"
 #include "sysbus.h"
-#include "msi.h"
+#include "pci/msi.h"
 
 //#define DEBUG_OPENPIC
 

@@ -36,10 +36,9 @@
 #include <sys/uio.h>
 
 #include "hw.h"
-#include "qemu-char.h"
 #include "xen_backend.h"
 #include "xen_blkif.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 /* ------------------------------------------------------------- */
 

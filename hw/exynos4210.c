@@ -22,7 +22,7 @@
  */
 
 #include "boards.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
 #include "arm-misc.h"
 #include "loader.h"

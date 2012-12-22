@@ -26,7 +26,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "pam.h"
 
 void smram_update(MemoryRegion *smram_region, uint8_t smram,

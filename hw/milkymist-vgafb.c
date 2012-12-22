@@ -25,10 +25,10 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "console.h"
+#include "ui/console.h"
 #include "framebuffer.h"
-#include "pixel_ops.h"
-#include "qemu-error.h"
+#include "ui/pixel_ops.h"
+#include "qemu/error-report.h"
 
 #define BITS 8
 #include "milkymist-vgafb_template.h"

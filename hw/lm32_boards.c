@@ -19,16 +19,15 @@
 
 #include "sysbus.h"
 #include "hw.h"
-#include "net.h"
 #include "flash.h"
 #include "devices.h"
 #include "boards.h"
 #include "loader.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "elf.h"
 #include "lm32_hwsetup.h"
 #include "lm32.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 typedef struct {
     LM32CPU *cpu;

@@ -1,7 +1,7 @@
 #ifndef QEMU_HID_H
 #define QEMU_HID_H
 
-#include "vmstate.h"
+#include "migration/vmstate.h"
 
 #define HID_MOUSE     1
 #define HID_TABLET    2

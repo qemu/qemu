@@ -2,7 +2,7 @@
 #define HW_MIPS_H
 /* Definitions for mips board emulation.  */
 
-#include "memory.h"
+#include "exec/memory.h"
 
 /* gt64xxx.c */
 PCIBus *gt64120_register(qemu_irq *pic);

@@ -27,9 +27,9 @@
 */
 
 #include "hw/hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "hw/usb.h"
-#include "hw/pci.h"
+#include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-dma.h"
 

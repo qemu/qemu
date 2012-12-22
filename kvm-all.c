@@ -21,18 +21,18 @@
 #include <linux/kvm.h>
 
 #include "qemu-common.h"
-#include "qemu-barrier.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
-#include "sysemu.h"
+#include "qemu/atomic.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
+#include "sysemu/sysemu.h"
 #include "hw/hw.h"
-#include "hw/msi.h"
-#include "gdbstub.h"
-#include "kvm.h"
-#include "bswap.h"
-#include "memory.h"
-#include "exec-memory.h"
-#include "event_notifier.h"
+#include "hw/pci/msi.h"
+#include "exec/gdbstub.h"
+#include "sysemu/kvm.h"
+#include "qemu/bswap.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
+#include "qemu/event_notifier.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
@@ -992,8 +992,6 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
         }
     }
     clear_gsi(s, virq);
-
-    kvm_irqchip_commit_routes(s);
 }
 
 static unsigned int kvm_hash_msi(uint32_t data)

@@ -2,7 +2,7 @@
 #define STREAM_H 1
 
 #include "qemu-common.h"
-#include "qemu/object.h"
+#include "qom/object.h"
 
 /* stream slave. Used until qdev provides a generic way.  */
 #define TYPE_STREAM_SLAVE "stream-slave"

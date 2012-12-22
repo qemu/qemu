@@ -8,10 +8,10 @@
  */
 
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysbus.h"
 #include "primecell.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #define LOCK_VALUE 0xa05f
 

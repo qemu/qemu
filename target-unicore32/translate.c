@@ -15,9 +15,9 @@
 #include <inttypes.h>
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 #include "helper.h"
 #define GEN_HELPER 1
@@ -55,7 +55,7 @@ static TCGv_i32 cpu_R[32];
 static TCGv cpu_F0s, cpu_F1s;
 static TCGv_i64 cpu_F0d, cpu_F1d;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 static const char *regnames[] = {
       "r00", "r01", "r02", "r03", "r04", "r05", "r06", "r07",

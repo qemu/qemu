@@ -66,10 +66,9 @@ endif
 # single QEMU executable should support all CPUs and machines.
 
 common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
-common-obj-y += net.o net/
+common-obj-y += net/
 common-obj-y += qom/
-common-obj-y += readline.o console.o cursor.o
-common-obj-y += qemu-pixman.o
+common-obj-y += readline.o
 common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
@@ -78,8 +77,8 @@ common-obj-$(CONFIG_LINUX) += fsdev/
 extra-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += tcg-runtime.o host-utils.o main-loop.o
-common-obj-y += input.o
-common-obj-y += buffered_file.o migration.o migration-tcp.o
+common-obj-y += migration.o migration-tcp.o
+common-obj-y += migration.o migration-tcp.o
 common-obj-y += qemu-char.o #aio.o
 common-obj-y += block-migration.o iohandler.o
 common-obj-y += bitmap.o bitops.o
@@ -92,6 +91,8 @@ common-obj-$(CONFIG_SPICE) += spice-qemu-char.o
 
 common-obj-y += audio/
 common-obj-y += hw/
+extra-obj-y += hw/
+
 common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
 
@@ -121,28 +122,13 @@ user-obj-y += tcg-runtime.o host-utils.o
 user-obj-y += cache-utils.o
 user-obj-y += module.o
 user-obj-y += qemu-user.o
-user-obj-y += $(trace-obj-y)
 user-obj-y += qom/
 
 ######################################################################
-# libdis
+# disassemblers
 # NOTE: the disassembler code is only needed for debugging
 
-libdis-y =
-libdis-$(CONFIG_ALPHA_DIS) += alpha-dis.o
-libdis-$(CONFIG_ARM_DIS) += arm-dis.o
-libdis-$(CONFIG_CRIS_DIS) += cris-dis.o
-libdis-$(CONFIG_HPPA_DIS) += hppa-dis.o
-libdis-$(CONFIG_I386_DIS) += i386-dis.o
-libdis-$(CONFIG_IA64_DIS) += ia64-dis.o
-libdis-$(CONFIG_M68K_DIS) += m68k-dis.o
-libdis-$(CONFIG_MICROBLAZE_DIS) += microblaze-dis.o
-libdis-$(CONFIG_MIPS_DIS) += mips-dis.o
-libdis-$(CONFIG_PPC_DIS) += ppc-dis.o
-libdis-$(CONFIG_S390_DIS) += s390-dis.o
-libdis-$(CONFIG_SH4_DIS) += sh4-dis.o
-libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o
-libdis-$(CONFIG_LM32_DIS) += lm32-dis.o
+universal-obj-y += disas/
 
 ######################################################################
 # trace
@@ -208,6 +194,8 @@ trace-obj-y += trace/control.o
 
 $(trace-obj-y): $(GENERATED_HEADERS)
 
+universal-obj-y += $(trace-obj-y)
+
 ######################################################################
 # smartcard
 
@@ -233,7 +221,7 @@ universal-obj-y += $(qapi-obj-y)
 ######################################################################
 # guest agent
 
-qga-obj-y = qga/ qemu-ga.o module.o qemu-tool.o
+qga-obj-y = qga/ module.o qemu-tool.o
 qga-obj-$(CONFIG_POSIX) += qemu-sockets.o qemu-option.o
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
@@ -250,5 +238,6 @@ nested-vars += \
 	block-obj-y \
 	user-obj-y \
 	common-obj-y \
+	universal-obj-y \
 	extra-obj-y
 dummy := $(call unnest-vars)

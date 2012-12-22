@@ -19,19 +19,19 @@
  */
 
 #include "cpu.h"
-#include "memory.h"
-#include "host-utils.h"
+#include "exec/memory.h"
+#include "qemu/host-utils.h"
 #include "helper.h"
 #include <string.h>
-#include "kvm.h"
-#include "qemu-timer.h"
+#include "sysemu/kvm.h"
+#include "qemu/timer.h"
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
-#include "sysemu.h"
+#include "exec/softmmu_exec.h"
+#include "sysemu/sysemu.h"
 #endif
 
 /* #define DEBUG_HELPER */

@@ -1,3 +1,6 @@
+#ifndef HW_PPC_H
+#define HW_PPC_H 1
+
 void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level);
 
 /* PowerPC hardware exceptions management helpers */
@@ -90,3 +93,5 @@ enum {
 
 /* ppc_booke.c */
 void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags);
+
+#endif

@@ -1,5 +1,5 @@
 #include "qdev.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
 

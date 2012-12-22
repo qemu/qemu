@@ -24,11 +24,10 @@
 
 #include "hw.h"
 #include "boards.h"
-#include "net.h"
-#include "blockdev.h"
-#include "qemu-config.h"
-#include "sysemu.h"
-#include "monitor.h"
+#include "sysemu/blockdev.h"
+#include "qemu/config-file.h"
+#include "sysemu/sysemu.h"
+#include "monitor/monitor.h"
 
 DriveInfo *add_init_drive(const char *optstr)
 {

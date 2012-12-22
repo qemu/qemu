@@ -15,8 +15,7 @@
 #define _QEMU_VIRTIO_NET_H
 
 #include "virtio.h"
-#include "net.h"
-#include "pci.h"
+#include "pci/pci.h"
 
 #define ETH_ALEN    6
 
@@ -73,33 +72,6 @@ struct virtio_net_config
     /* See VIRTIO_NET_F_STATUS and VIRTIO_NET_S_* above */
     uint16_t status;
 } QEMU_PACKED;
-
-/* This is the first element of the scatter-gather list.  If you don't
- * specify GSO or CSUM features, you can simply ignore the header. */
-struct virtio_net_hdr
-{
-#define VIRTIO_NET_HDR_F_NEEDS_CSUM     1       // Use csum_start, csum_offset
-#define VIRTIO_NET_HDR_F_DATA_VALID	2	// Csum is valid
-    uint8_t flags;
-#define VIRTIO_NET_HDR_GSO_NONE         0       // Not a GSO frame
-#define VIRTIO_NET_HDR_GSO_TCPV4        1       // GSO frame, IPv4 TCP (TSO)
-#define VIRTIO_NET_HDR_GSO_UDP          3       // GSO frame, IPv4 UDP (UFO)
-#define VIRTIO_NET_HDR_GSO_TCPV6        4       // GSO frame, IPv6 TCP
-#define VIRTIO_NET_HDR_GSO_ECN          0x80    // TCP has ECN set
-    uint8_t gso_type;
-    uint16_t hdr_len;
-    uint16_t gso_size;
-    uint16_t csum_start;
-    uint16_t csum_offset;
-};
-
-/* This is the version of the header to use when the MRG_RXBUF
- * feature has been negotiated. */
-struct virtio_net_hdr_mrg_rxbuf
-{
-    struct virtio_net_hdr hdr;
-    uint16_t num_buffers;   /* Number of merged rx buffers */
-};
 
 /*
  * Control virtqueue data structures

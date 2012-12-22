@@ -7,10 +7,10 @@
  * (GNU GPL), version 2 or later.
  */
 
-#include "dma.h"
+#include "sysemu/dma.h"
 #include "trace.h"
-#include "range.h"
-#include "qemu-thread.h"
+#include "qemu/range.h"
+#include "qemu/thread.h"
 
 /* #define DEBUG_IOMMU */
 

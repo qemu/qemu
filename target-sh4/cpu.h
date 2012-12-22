@@ -39,9 +39,9 @@
 
 #define CPUArchState struct CPUSH4State
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_PAGE_BITS 12	/* 4k XXXXX */
 
@@ -230,8 +230,6 @@ static inline void cpu_set_tls(CPUSH4State *env, target_ulong newtls)
 
 void cpu_load_tlb(CPUSH4State * env);
 
-#include "softfloat.h"
-
 static inline CPUSH4State *cpu_init(const char *cpu_model)
 {
     SuperHCPU *cpu = cpu_sh4_init(cpu_model);
@@ -264,7 +262,7 @@ static inline void cpu_clone_regs(CPUSH4State *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 /* Memory access type */
 enum {
@@ -378,7 +376,7 @@ static inline bool cpu_has_work(CPUState *cpu)
     return env->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUSH4State *env, TranslationBlock *tb)
 {

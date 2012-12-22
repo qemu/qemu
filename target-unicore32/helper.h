@@ -6,7 +6,7 @@
  * published by the Free Software Foundation, or (at your option) any
  * later version. See the COPYING file in the top-level directory.
  */
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_4(cp0_set, void, env, i32, i32, i32)
@@ -65,4 +65,4 @@ DEF_HELPER_2(ucf64_si2df, f64, f32, env)
 DEF_HELPER_2(ucf64_sf2si, f32, f32, env)
 DEF_HELPER_2(ucf64_df2si, f32, f64, env)
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

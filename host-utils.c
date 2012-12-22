@@ -25,7 +25,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 //#define DEBUG_MULDIV
 

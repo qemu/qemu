@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
 #include "sd.h"
 

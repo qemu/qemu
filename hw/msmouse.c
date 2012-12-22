@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 #include <stdlib.h>
-#include "../qemu-common.h"
-#include "../qemu-char.h"
-#include "../console.h"
+#include "qemu-common.h"
+#include "char/char.h"
+#include "ui/console.h"
 #include "msmouse.h"
 
 #define MSMOUSE_LO6(n) ((n) & 0x3f)

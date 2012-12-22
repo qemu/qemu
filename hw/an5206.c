@@ -11,7 +11,7 @@
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define KERNEL_LOAD_ADDR 0x10000
 #define AN5206_MBAR_ADDR 0x10000000

@@ -1,7 +1,7 @@
 #include <assert.h>
 #include "cpu.h"
 #include "helper.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #include "hw/lm32_pic.h"
 #include "hw/lm32_juart.h"
@@ -9,13 +9,13 @@
 #if !defined(CONFIG_USER_ONLY)
 #define MMUSUFFIX _mmu
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 void helper_raise_exception(CPULM32State *env, uint32_t index)
 {

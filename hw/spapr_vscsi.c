@@ -34,7 +34,6 @@
 #include "hw.h"
 #include "scsi.h"
 #include "scsi-defs.h"
-#include "net.h" /* Remove that when we can */
 #include "srp.h"
 #include "hw/qdev.h"
 #include "hw/spapr.h"

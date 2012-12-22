@@ -17,6 +17,8 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef CRISV32_DECODE_H
+#define CRISV32_DECODE_H 1
 
 /* Convenient binary macros.  */
 #define HEX__(n) 0x##n##LU
@@ -126,3 +128,5 @@
 
 #define DEC_FTAG_FIDX_D_M {B8(10101011), B8(11111111)}
 #define DEC_FTAG_FIDX_I_M {B8(11010011), B8(11111111)}
+
+#endif

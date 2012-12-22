@@ -8,7 +8,7 @@
  */
 
 #include "cpu.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 #if !defined(CONFIG_USER_ONLY)
 /* service interrupts are floating therefore we must not pass an cpustate */

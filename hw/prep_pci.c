@@ -23,10 +23,10 @@
  */
 
 #include "hw.h"
-#include "pci.h"
-#include "pci_host.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
 #include "pc.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define TYPE_RAVEN_PCI_HOST_BRIDGE "raven-pcihost"
 

@@ -18,8 +18,8 @@
  */
 
 #include "cpu.h"
-#include "disas.h"
-#include "host-utils.h"
+#include "disas/disas.h"
+#include "qemu/host-utils.h"
 #include "tcg-op.h"
 
 #include "helper.h"
@@ -88,7 +88,7 @@ static TCGv cpu_usp;
 /* register names */
 static char cpu_reg_names[10*4+21*5 + 10*5+21*6];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 void alpha_translate_init(void)
 {
@@ -611,7 +611,7 @@ static void gen_qual_roundmode(DisasContext *ctx, int fn11)
     }
 
 #if defined(CONFIG_SOFTFLOAT_INLINE)
-    /* ??? The "softfloat.h" interface is to call set_float_rounding_mode.
+    /* ??? The "fpu/softfloat.h" interface is to call set_float_rounding_mode.
        With CONFIG_SOFTFLOAT that expands to an out-of-line call that just
        sets the one field.  */
     tcg_gen_st8_i32(tmp, cpu_env,
