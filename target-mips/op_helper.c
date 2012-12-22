@@ -2175,7 +2175,7 @@ static unsigned int ieee_rm[] = {
     set_float_rounding_mode(ieee_rm[env->active_fpu.fcr31 & 3], &env->active_fpu.fp_status)
 
 #define RESTORE_FLUSH_MODE \
-    set_flush_to_zero((env->active_fpu.fcr31 & (1 << 24)) != 0, &env->active_fpu.fp_status);
+    set_flush_to_zero((env->active_fpu.fcr31 & (1 << 24)) != 0, &env->active_fpu.fp_status)
 
 target_ulong helper_cfc1(CPUMIPSState *env, uint32_t reg)
 {
