@@ -16,6 +16,7 @@
 #include "hw/xen_backend.h"
 #include "qmp-commands.h"
 
+#include "char/char.h"
 #include "qemu/range.h"
 #include "sysemu/xen-mapcache.h"
 #include "trace.h"

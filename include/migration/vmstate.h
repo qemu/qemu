@@ -35,6 +35,7 @@ typedef struct SaveVMHandlers {
     int (*save_live_setup)(QEMUFile *f, void *opaque);
     int (*save_live_iterate)(QEMUFile *f, void *opaque);
     int (*save_live_complete)(QEMUFile *f, void *opaque);
+    uint64_t (*save_live_pending)(QEMUFile *f, void *opaque, uint64_t max_size);
     void (*cancel)(void *opaque);
     LoadStateHandler *load_state;
     bool (*is_active)(void *opaque);

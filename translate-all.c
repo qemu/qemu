@@ -759,19 +759,17 @@ static void tb_page_check(void)
 
 #endif
 
-/* invalidate one TB */
-static inline void tb_remove(TranslationBlock **ptb, TranslationBlock *tb,
-                             int next_offset)
+static inline void tb_hash_remove(TranslationBlock **ptb, TranslationBlock *tb)
 {
     TranslationBlock *tb1;
 
     for (;;) {
         tb1 = *ptb;
         if (tb1 == tb) {
-            *ptb = *(TranslationBlock **)((char *)tb1 + next_offset);
+            *ptb = tb1->phys_hash_next;
             break;
         }
-        ptb = (TranslationBlock **)((char *)tb1 + next_offset);
+        ptb = &tb1->phys_hash_next;
     }
 }
 
@@ -828,6 +826,7 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
     tb_set_jmp_target(tb, n, (uintptr_t)(tb->tc_ptr + tb->tb_next_offset[n]));
 }
 
+/* invalidate one TB */
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
     CPUArchState *env;
@@ -839,8 +838,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
     h = tb_phys_hash_func(phys_pc);
-    tb_remove(&tb_phys_hash[h], tb,
-              offsetof(TranslationBlock, phys_hash_next));
+    tb_hash_remove(&tb_phys_hash[h], tb);
 
     /* remove the TB from the page list */
     if (tb->page_addr[0] != page_addr) {

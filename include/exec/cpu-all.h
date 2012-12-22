@@ -22,6 +22,7 @@
 #include "qemu-common.h"
 #include "qemu/tls.h"
 #include "exec/cpu-common.h"
+#include "qemu/thread.h"
 
 /* some important defines:
  *
@@ -487,15 +488,23 @@ typedef struct RAMBlock {
     ram_addr_t length;
     uint32_t flags;
     char idstr[256];
-    QLIST_ENTRY(RAMBlock) next;
+    /* Reads can take either the iothread or the ramlist lock.
+     * Writes must take both locks.
+     */
+    QTAILQ_ENTRY(RAMBlock) next;
 #if defined(__linux__) && !defined(TARGET_S390X)
     int fd;
 #endif
 } RAMBlock;
 
 typedef struct RAMList {
+    QemuMutex mutex;
+    /* Protected by the iothread lock.  */
     uint8_t *phys_dirty;
-    QLIST_HEAD(, RAMBlock) blocks;
+    RAMBlock *mru_block;
+    /* Protected by the ramlist lock.  */
+    QTAILQ_HEAD(, RAMBlock) blocks;
+    uint32_t version;
 } RAMList;
 extern RAMList ram_list;
 
@@ -514,6 +523,8 @@ extern int mem_prealloc;
 
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 ram_addr_t last_ram_offset(void);
+void qemu_mutex_lock_ramlist(void);
+void qemu_mutex_unlock_ramlist(void);
 #endif /* !CONFIG_USER_ONLY */
 
 int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,

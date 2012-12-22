@@ -555,11 +555,6 @@ int qemu_fclose(QEMUFile *f)
     return ret;
 }
 
-int qemu_file_put_notify(QEMUFile *f)
-{
-    return f->ops->put_buffer(f->opaque, NULL, 0, 0);
-}
-
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
     int l;
@@ -1756,6 +1751,25 @@ int qemu_savevm_state_complete(QEMUFile *f)
     qemu_put_byte(f, QEMU_VM_EOF);
 
     return qemu_file_get_error(f);
+}
+
+uint64_t qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size)
+{
+    SaveStateEntry *se;
+    uint64_t ret = 0;
+
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+        if (!se->ops || !se->ops->save_live_pending) {
+            continue;
+        }
+        if (se->ops && se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
+        ret += se->ops->save_live_pending(f, se->opaque, max_size);
+    }
+    return ret;
 }
 
 void qemu_savevm_state_cancel(QEMUFile *f)

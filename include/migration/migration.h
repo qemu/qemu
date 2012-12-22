@@ -16,6 +16,7 @@
 
 #include "qapi/qmp/qdict.h"
 #include "qemu-common.h"
+#include "qemu/thread.h"
 #include "qemu/notify.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
@@ -31,6 +32,13 @@ typedef struct MigrationState MigrationState;
 struct MigrationState
 {
     int64_t bandwidth_limit;
+    size_t bytes_xfer;
+    size_t xfer_limit;
+    uint8_t *buffer;
+    size_t buffer_size;
+    size_t buffer_capacity;
+    QemuThread thread;
+
     QEMUFile *file;
     int fd;
     int state;
@@ -45,6 +53,8 @@ struct MigrationState
     int64_t dirty_pages_rate;
     bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
     int64_t xbzrle_cache_size;
+    bool complete;
+    bool first_time;
 };
 
 void process_incoming_migration(QEMUFile *f);
@@ -79,8 +89,6 @@ void migrate_fd_connect(MigrationState *s);
 
 ssize_t migrate_fd_put_buffer(MigrationState *s, const void *data,
                               size_t size);
-void migrate_fd_put_ready(MigrationState *s);
-int migrate_fd_wait_for_unfreeze(MigrationState *s);
 int migrate_fd_close(MigrationState *s);
 
 void add_migration_state_change_notifier(Notifier *notify);
@@ -127,5 +135,4 @@ int migrate_use_xbzrle(void);
 int64_t migrate_xbzrle_cache_size(void);
 
 int64_t xbzrle_cache_resize(int64_t new_size);
-
 #endif
