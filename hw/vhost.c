@@ -612,7 +612,7 @@ static void vhost_log_stop(MemoryListener *listener,
     /* FIXME: implement */
 }
 
-static int vhost_virtqueue_init(struct vhost_dev *dev,
+static int vhost_virtqueue_start(struct vhost_dev *dev,
                                 struct VirtIODevice *vdev,
                                 struct vhost_virtqueue *vq,
                                 unsigned idx)
@@ -681,16 +681,11 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
         goto fail_kick;
     }
 
-    file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq));
-    r = ioctl(dev->control, VHOST_SET_VRING_CALL, &file);
-    if (r) {
-        r = -errno;
-        goto fail_call;
-    }
+    /* Clear and discard previous events if any. */
+    event_notifier_test_and_clear(&vq->masked_notifier);
 
     return 0;
 
-fail_call:
 fail_kick:
 fail_alloc:
     cpu_physical_memory_unmap(vq->ring, virtio_queue_get_ring_size(vdev, idx),
@@ -708,7 +703,7 @@ fail_alloc_desc:
     return r;
 }
 
-static void vhost_virtqueue_cleanup(struct vhost_dev *dev,
+static void vhost_virtqueue_stop(struct vhost_dev *dev,
                                     struct VirtIODevice *vdev,
                                     struct vhost_virtqueue *vq,
                                     unsigned idx)
@@ -746,11 +741,39 @@ static void vhost_eventfd_del(MemoryListener *listener,
 {
 }
 
+static int vhost_virtqueue_init(struct vhost_dev *dev,
+                                struct vhost_virtqueue *vq, int n)
+{
+    struct vhost_vring_file file = {
+        .index = n,
+    };
+    int r = event_notifier_init(&vq->masked_notifier, 0);
+    if (r < 0) {
+        return r;
+    }
+
+    file.fd = event_notifier_get_fd(&vq->masked_notifier);
+    r = ioctl(dev->control, VHOST_SET_VRING_CALL, &file);
+    if (r) {
+        r = -errno;
+        goto fail_call;
+    }
+    return 0;
+fail_call:
+    event_notifier_cleanup(&vq->masked_notifier);
+    return r;
+}
+
+static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
+{
+    event_notifier_cleanup(&vq->masked_notifier);
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
                    bool force)
 {
     uint64_t features;
-    int r;
+    int i, r;
     if (devfd >= 0) {
         hdev->control = devfd;
     } else {
@@ -767,6 +790,13 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
     r = ioctl(hdev->control, VHOST_GET_FEATURES, &features);
     if (r < 0) {
         goto fail;
+    }
+
+    for (i = 0; i < hdev->nvqs; ++i) {
+        r = vhost_virtqueue_init(hdev, hdev->vqs + i, i);
+        if (r < 0) {
+            goto fail_vq;
+        }
     }
     hdev->features = features;
 
@@ -795,6 +825,10 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     hdev->force = force;
     return 0;
+fail_vq:
+    while (--i >= 0) {
+        vhost_virtqueue_cleanup(hdev->vqs + i);
+    }
 fail:
     r = -errno;
     close(hdev->control);
@@ -803,6 +837,10 @@ fail:
 
 void vhost_dev_cleanup(struct vhost_dev *hdev)
 {
+    int i;
+    for (i = 0; i < hdev->nvqs; ++i) {
+        vhost_virtqueue_cleanup(hdev->vqs + i);
+    }
     memory_listener_unregister(&hdev->memory_listener);
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
@@ -869,6 +907,37 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     }
 }
 
+/* Test and clear event pending status.
+ * Should be called after unmask to avoid losing events.
+ */
+bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n)
+{
+    struct vhost_virtqueue *vq = hdev->vqs + n;
+    assert(hdev->started);
+    return event_notifier_test_and_clear(&vq->masked_notifier);
+}
+
+/* Mask/unmask events from this vq. */
+void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
+                         bool mask)
+{
+    struct VirtQueue *vvq = virtio_get_queue(vdev, n);
+    int r;
+
+    assert(hdev->started);
+
+    struct vhost_vring_file file = {
+        .index = n,
+    };
+    if (mask) {
+        file.fd = event_notifier_get_fd(&hdev->vqs[n].masked_notifier);
+    } else {
+        file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq));
+    }
+    r = ioctl(hdev->control, VHOST_SET_VRING_CALL, &file);
+    assert(r >= 0);
+}
+
 /* Host notifiers must be enabled at this point. */
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
@@ -900,7 +969,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         goto fail_mem;
     }
     for (i = 0; i < hdev->nvqs; ++i) {
-        r = vhost_virtqueue_init(hdev,
+        r = vhost_virtqueue_start(hdev,
                                  vdev,
                                  hdev->vqs + i,
                                  i);
@@ -925,7 +994,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 fail_log:
 fail_vq:
     while (--i >= 0) {
-        vhost_virtqueue_cleanup(hdev,
+        vhost_virtqueue_stop(hdev,
                                 vdev,
                                 hdev->vqs + i,
                                 i);
@@ -946,7 +1015,7 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
     int i, r;
 
     for (i = 0; i < hdev->nvqs; ++i) {
-        vhost_virtqueue_cleanup(hdev,
+        vhost_virtqueue_stop(hdev,
                                 vdev,
                                 hdev->vqs + i,
                                 i);

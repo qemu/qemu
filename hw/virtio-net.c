@@ -1010,6 +1010,22 @@ static NetClientInfo net_virtio_info = {
     .link_status_changed = virtio_net_set_link_status,
 };
 
+static bool virtio_net_guest_notifier_pending(VirtIODevice *vdev, int idx)
+{
+    VirtIONet *n = to_virtio_net(vdev);
+    assert(n->vhost_started);
+    return vhost_net_virtqueue_pending(tap_get_vhost_net(n->nic->nc.peer), idx);
+}
+
+static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
+                                           bool mask)
+{
+    VirtIONet *n = to_virtio_net(vdev);
+    assert(n->vhost_started);
+    vhost_net_virtqueue_mask(tap_get_vhost_net(n->nic->nc.peer),
+                             vdev, idx, mask);
+}
+
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
                               virtio_net_conf *net)
 {
@@ -1026,6 +1042,8 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
     n->vdev.bad_features = virtio_net_bad_features;
     n->vdev.reset = virtio_net_reset;
     n->vdev.set_status = virtio_net_set_status;
+    n->vdev.guest_notifier_mask = virtio_net_guest_notifier_mask;
+    n->vdev.guest_notifier_pending = virtio_net_guest_notifier_pending;
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
 
     if (net->tx && strcmp(net->tx, "timer") && strcmp(net->tx, "bh")) {
