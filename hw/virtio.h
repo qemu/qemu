@@ -126,6 +126,19 @@ struct VirtIODevice
     void (*set_config)(VirtIODevice *vdev, const uint8_t *config);
     void (*reset)(VirtIODevice *vdev);
     void (*set_status)(VirtIODevice *vdev, uint8_t val);
+    /* Test and clear event pending status.
+     * Should be called after unmask to avoid losing events.
+     * If backend does not support masking,
+     * must check in frontend instead.
+     */
+    bool (*guest_notifier_pending)(VirtIODevice *vdev, int n);
+    /* Mask/unmask events from this vq. Any events reported
+     * while masked will become pending.
+     * If backend does not support masking,
+     * must mask in frontend instead.
+     */
+    void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask);
+
     VirtQueue *vq;
     const VirtIOBindings *binding;
     DeviceState *binding_opaque;
