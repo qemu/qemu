@@ -873,6 +873,9 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     int i, r;
+
+    hdev->started = true;
+
     if (!vdev->binding->set_guest_notifiers) {
         fprintf(stderr, "binding does not support guest notifiers\n");
         r = -ENOSYS;
@@ -918,8 +921,6 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         }
     }
 
-    hdev->started = true;
-
     return 0;
 fail_log:
 fail_vq:
@@ -934,6 +935,8 @@ fail_features:
     vdev->binding->set_guest_notifiers(vdev->binding_opaque, hdev->nvqs, false);
 fail_notifiers:
 fail:
+
+    hdev->started = false;
     return r;
 }
 
