@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
 #include "helper.h"
 #include "microblaze-decode.h"
@@ -50,7 +50,7 @@ static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_iflags;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
@@ -1788,11 +1788,11 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
             }
-            gen_opc_pc[lj] = dc->pc;
-            gen_opc_instr_start[lj] = 1;
-                        gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_pc[lj] = dc->pc;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
+                        tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
 
         /* Pretty disas.  */
@@ -1902,7 +1902,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = dc->pc - pc_start;
                 tb->icount = num_insns;
@@ -2014,5 +2014,5 @@ MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->sregs[SR_PC] = gen_opc_pc[pc_pos];
+    env->sregs[SR_PC] = tcg_ctx.gen_opc_pc[pc_pos];
 }

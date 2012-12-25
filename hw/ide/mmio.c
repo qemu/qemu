@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 #include <hw/hw.h>
-#include "block.h"
-#include "dma.h"
+#include "block/block.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/internal.h>
 

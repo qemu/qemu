@@ -23,15 +23,14 @@
  */
 #include "config-host.h"
 
-#include "net.h"
+#include "net/net.h"
 #include "clients.h"
-#include "monitor.h"
-#include "qemu-char.h"
+#include "monitor/monitor.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "qemu-option.h"
-#include "qemu_socket.h"
-#include "iov.h"
+#include "qemu/error-report.h"
+#include "qemu/option.h"
+#include "qemu/sockets.h"
+#include "qemu/iov.h"
 
 typedef struct NetSocketState {
     NetClientState nc;

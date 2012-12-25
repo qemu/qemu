@@ -13,10 +13,11 @@
  */
 
 #include <hw/qdev.h>
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 
 #include "sclp.h"
 #include "event-facility.h"
+#include "char/char.h"
 
 typedef struct ASCIIConsoleData {
     EventBufferHeader ebh;
@@ -179,8 +180,8 @@ static int read_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr,
 }
 
 /* triggered by SCLP's write_event_data
- *  - write console data into character layer
- *  returns < 0 if an error occured
+ *  - write console data to character layer
+ *  returns < 0 if an error occurred
  */
 static ssize_t write_console_data(SCLPEvent *event, const uint8_t *buf,
                                   size_t len)

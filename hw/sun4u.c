@@ -22,15 +22,15 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "apb_pci.h"
 #include "pc.h"
 #include "serial.h"
 #include "nvram.h"
 #include "fdc.h"
-#include "net.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "firmware_abi.h"
 #include "fw_cfg.h"
@@ -38,8 +38,8 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_IRQ
 //#define DEBUG_EBUS

@@ -10,7 +10,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "ssi.h"
 #include "sd.h"
 

@@ -24,13 +24,13 @@
  * THE SOFTWARE.
  *
  */
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "hw.h"
 #include "elf.h"
-#include "net.h"
-#include "blockdev.h"
-#include "cpus.h"
-#include "kvm.h"
+#include "net/net.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/cpus.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 
 #include "hw/boards.h"
@@ -41,14 +41,15 @@
 #include "hw/spapr_vio.h"
 #include "hw/spapr_pci.h"
 #include "hw/xics.h"
-#include "hw/msi.h"
+#include "hw/pci/msi.h"
 
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "pci.h"
+#include "pci/pci.h"
 
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "hw/usb.h"
+#include "qemu/config-file.h"
 
 #include <libfdt.h>
 
@@ -657,6 +658,36 @@ static void spapr_cpu_reset(void *opaque)
         (spapr->htab_shift - 18);
 }
 
+static void spapr_create_nvram(sPAPREnvironment *spapr)
+{
+    QemuOpts *machine_opts;
+    DeviceState *dev;
+
+    dev = qdev_create(&spapr->vio_bus->bus, "spapr-nvram");
+
+    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        const char *drivename;
+
+        drivename = qemu_opt_get(machine_opts, "nvram");
+        if (drivename) {
+            BlockDriverState *bs;
+
+            bs = bdrv_find(drivename);
+            if (!bs) {
+                fprintf(stderr, "No such block device \"%s\" for nvram\n",
+                        drivename);
+                exit(1);
+            }
+            qdev_prop_set_drive_nofail(dev, "drive", bs);
+        }
+    }
+
+    qdev_init_nofail(dev);
+
+    spapr->nvram = (struct sPAPRNVRAM *)dev;
+}
+
 /* Returns whether we want to use VGA or not */
 static int spapr_vga_init(PCIBus *pci_bus)
 {
@@ -801,7 +832,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
 
     /* Set up Interrupt Controller */
     spapr->icp = xics_system_init(XICS_IRQS);
-    spapr->next_irq = 16;
+    spapr->next_irq = XICS_IRQ_BASE;
 
     /* Set up EPOW events infrastructure */
     spapr_events_init(spapr);
@@ -817,6 +848,9 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
             spapr_vty_create(spapr->vio_bus, serial_hds[i]);
         }
     }
+
+    /* We always have at least the nvram device on VIO */
+    spapr_create_nvram(spapr);
 
     /* Set up PCI */
     spapr_pci_rtas_init();
@@ -924,9 +958,9 @@ static QEMUMachine spapr_machine = {
     .desc = "pSeries Logical Partition (PAPR compliant)",
     .init = ppc_spapr_init,
     .reset = ppc_spapr_reset,
+    .block_default_type = IF_SCSI,
     .max_cpus = MAX_CPUS,
     .no_parallel = 1,
-    .use_scsi = 1,
 };
 
 static void spapr_machine_init(void)

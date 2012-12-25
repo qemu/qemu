@@ -114,6 +114,7 @@
 #define BUFF_SIZE        5*4096   // Max bytes to transfer per transaction
 #define MAX_QH           100      // Max allowable queue heads in a chain
 #define MIN_FR_PER_TICK  3        // Min frames to process when catching up
+#define PERIODIC_ACTIVE  64
 
 /*  Internal periodic / asynchronous schedule state machine states
  */
@@ -738,6 +739,19 @@ static int ehci_register_companion(USBBus *bus, USBPort *ports[],
     return 0;
 }
 
+static void ehci_wakeup_endpoint(USBBus *bus, USBEndpoint *ep)
+{
+    EHCIState *s = container_of(bus, EHCIState, bus);
+    uint32_t portsc = s->portsc[ep->dev->port->index];
+
+    if (portsc & PORTSC_POWNER) {
+        return;
+    }
+
+    s->periodic_sched_active = PERIODIC_ACTIVE;
+    qemu_bh_schedule(s->async_bh);
+}
+
 static USBDevice *ehci_find_device(EHCIState *ehci, uint8_t addr)
 {
     USBDevice *dev;
@@ -1188,9 +1202,10 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
     trace_usb_ehci_packet_action(p->queue, p, "wakeup");
     p->async = EHCI_ASYNC_FINISHED;
 
-    if (p->queue->async) {
-        qemu_bh_schedule(p->queue->ehci->async_bh);
+    if (!p->queue->async) {
+        s->periodic_sched_active = PERIODIC_ACTIVE;
     }
+    qemu_bh_schedule(s->async_bh);
 }
 
 static void ehci_execute_complete(EHCIQueue *q)
@@ -1343,6 +1358,8 @@ static int ehci_process_itd(EHCIState *ehci,
     USBEndpoint *ep;
     uint32_t i, len, pid, dir, devaddr, endp;
     uint32_t pg, off, ptr1, ptr2, max, mult;
+
+    ehci->periodic_sched_active = PERIODIC_ACTIVE;
 
     dir =(itd->bufptr[1] & ITD_BUFPTR_DIRECTION);
     devaddr = get_field(itd->bufptr[0], ITD_BUFPTR_DEVADDR);
@@ -2033,6 +2050,9 @@ static void ehci_advance_state(EHCIState *ehci, int async)
         case EST_WRITEBACK:
             assert(q != NULL);
             again = ehci_state_writeback(q);
+            if (!async) {
+                ehci->periodic_sched_active = PERIODIC_ACTIVE;
+            }
             break;
 
         default:
@@ -2198,7 +2218,6 @@ static void ehci_frame_timer(void *opaque)
 
     if (ehci_periodic_enabled(ehci) || ehci->pstate != EST_INACTIVE) {
         need_timer++;
-        ehci->async_stepdown = 0;
 
         if (frames > ehci->maxframes) {
             skipped_frames = frames - ehci->maxframes;
@@ -2222,16 +2241,23 @@ static void ehci_frame_timer(void *opaque)
                     break;
                 }
             }
+            if (ehci->periodic_sched_active) {
+                ehci->periodic_sched_active--;
+            }
             ehci_update_frindex(ehci, 1);
             ehci_advance_periodic_state(ehci);
             ehci->last_run_ns += FRAME_TIMER_NS;
         }
     } else {
-        if (ehci->async_stepdown < ehci->maxframes / 2) {
-            ehci->async_stepdown++;
-        }
+        ehci->periodic_sched_active = 0;
         ehci_update_frindex(ehci, frames);
         ehci->last_run_ns += FRAME_TIMER_NS * frames;
+    }
+
+    if (ehci->periodic_sched_active) {
+        ehci->async_stepdown = 0;
+    } else if (ehci->async_stepdown < ehci->maxframes / 2) {
+        ehci->async_stepdown++;
     }
 
     /*  Async is not inside loop since it executes everything it can once
@@ -2301,6 +2327,7 @@ static USBPortOps ehci_port_ops = {
 
 static USBBusOps ehci_bus_ops = {
     .register_companion = ehci_register_companion,
+    .wakeup_endpoint = ehci_wakeup_endpoint,
 };
 
 static int usb_ehci_post_load(void *opaque, int version_id)

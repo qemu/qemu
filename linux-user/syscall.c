@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <limits.h>
+#include <grp.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -72,7 +73,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/epoll.h>
 #endif
 #ifdef CONFIG_ATTR
-#include "qemu-xattr.h"
+#include "qemu/xattr.h"
 #endif
 
 #define termios host_termios
@@ -584,7 +585,6 @@ extern int personality(int);
 extern int flock(int, int);
 extern int setfsuid(int);
 extern int setfsgid(int);
-extern int setgroups(int, gid_t *);
 
 /* ARM EABI and MIPS expect 64bit types aligned even on pairs or registers */
 #ifdef TARGET_ARM
@@ -7448,24 +7448,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #else
         goto unimplemented;
 #endif
-#endif
-#ifdef TARGET_NR_pread
-    case TARGET_NR_pread:
-        if (regpairs_aligned(cpu_env))
-            arg4 = arg5;
-        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
-            goto efault;
-        ret = get_errno(pread(arg1, p, arg3, arg4));
-        unlock_user(p, arg2, ret);
-        break;
-    case TARGET_NR_pwrite:
-        if (regpairs_aligned(cpu_env))
-            arg4 = arg5;
-        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
-            goto efault;
-        ret = get_errno(pwrite(arg1, p, arg3, arg4));
-        unlock_user(p, arg2, 0);
-        break;
 #endif
 #ifdef TARGET_NR_pread64
     case TARGET_NR_pread64:

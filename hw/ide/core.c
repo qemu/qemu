@@ -24,14 +24,14 @@
  */
 #include <hw/hw.h>
 #include <hw/pc.h>
-#include <hw/pci.h>
+#include <hw/pci/pci.h>
 #include <hw/isa.h>
-#include "qemu-error.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
-#include "dma.h"
+#include "qemu/error-report.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 #include "hw/block-common.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 #include <hw/ide/internal.h>
 
@@ -1897,6 +1897,8 @@ static void ide_reset(IDEState *s)
     s->io_buffer_index = 0;
     s->cd_sector_size = 0;
     s->atapi_dma = 0;
+    s->tray_locked = 0;
+    s->tray_open = 0;
     /* ATA DMA state */
     s->io_buffer_size = 0;
     s->req_nb_sectors = 0;

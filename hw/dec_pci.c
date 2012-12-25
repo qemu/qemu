@@ -25,10 +25,10 @@
 
 #include "dec_pci.h"
 #include "sysbus.h"
-#include "pci.h"
-#include "pci_host.h"
-#include "pci_bridge.h"
-#include "pci_internals.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
+#include "pci/pci_bridge.h"
+#include "pci/pci_bus.h"
 
 /* debug DEC */
 //#define DEBUG_DEC

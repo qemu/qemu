@@ -70,9 +70,8 @@ obj-y = exec.o translate-all.o cpu-exec.o
 obj-y += tcg/tcg.o tcg/optimize.o
 obj-$(CONFIG_TCG_INTERPRETER) += tci.o
 obj-y += fpu/softfloat.o
-obj-y += disas.o
-obj-$(CONFIG_TCI_DIS) += tci-dis.o
 obj-y += target-$(TARGET_BASE_ARCH)/
+obj-y += disas.o
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 
 tci-dis.o: QEMU_CFLAGS += -I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/tci
@@ -121,11 +120,6 @@ obj-$(CONFIG_NO_GET_MEMORY_MAPPING) += memory_mapping-stub.o
 obj-$(CONFIG_NO_CORE_DUMP) += dump-stub.o
 LIBS+=-lz
 
-QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
-QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
-QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
-QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
-
 # xen support
 obj-$(CONFIG_XEN) += xen-all.o xen-mapcache.o
 obj-$(CONFIG_NO_XEN) += xen-stub.o
@@ -156,11 +150,8 @@ all-obj-y += $(addprefix ../, $(universal-obj-y))
 
 ifdef CONFIG_SOFTMMU
 all-obj-y += $(addprefix ../, $(common-obj-y))
-all-obj-y += $(addprefix ../libdis/, $(libdis-y))
-all-obj-y += $(addprefix ../, $(trace-obj-y))
 else
-all-obj-y += $(addprefix ../libuser/, $(user-obj-y))
-all-obj-y += $(addprefix ../libdis-user/, $(libdis-y))
+all-obj-y += $(addprefix ../, $(user-obj-y))
 endif #CONFIG_LINUX_USER
 
 ifdef QEMU_PROGW

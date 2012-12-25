@@ -13,12 +13,12 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "net.h"
+#include "net/net.h"
 #include "net/tap.h"
 
 #include "virtio-net.h"
 #include "vhost_net.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 #include "config.h"
 

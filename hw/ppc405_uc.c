@@ -25,10 +25,10 @@
 #include "ppc.h"
 #include "ppc405.h"
 #include "serial.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
-#include "qemu-log.h"
-#include "exec-memory.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
+#include "qemu/log.h"
+#include "exec/address-spaces.h"
 
 #define DEBUG_OPBA
 #define DEBUG_SDRAM

@@ -17,14 +17,15 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "isa.h"
 #include "sysbus.h"
 #include "pc.h"
-#include "pci.h"
-#include "pci_bridge.h"
-#include "pci_internals.h"
-#include "exec-memory.h"
+#include "pci/pci.h"
+#include "pci/pci_bus.h"
+#include "pci/pci_bridge.h"
+#include "exec/address-spaces.h"
+
 #include "acpi_xbox.h"
 #include "amd_smbus.h"
 #include "qemu-common.h"

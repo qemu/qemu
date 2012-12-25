@@ -10,7 +10,7 @@
  * later. See the COPYING file in the top-level directory.
  */
 #include "hw/apic_internal.h"
-#include "hw/msi.h"
+#include "hw/pci/msi.h"
 #include "xen.h"
 
 static uint64_t xen_apic_mem_read(void *opaque, hwaddr addr,

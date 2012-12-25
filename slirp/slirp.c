@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
+#include "qemu/timer.h"
+#include "char/char.h"
 #include "slirp.h"
 #include "hw/hw.h"
 

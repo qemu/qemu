@@ -23,12 +23,12 @@
  */
 #include "hw.h"
 #include "vga.h"
-#include "console.h"
+#include "ui/console.h"
 #include "pc.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "vga_int.h"
-#include "pixel_ops.h"
-#include "qemu-timer.h"
+#include "ui/pixel_ops.h"
+#include "qemu/timer.h"
 #include "xen.h"
 #include "trace.h"
 
@@ -2413,7 +2413,7 @@ void ppm_save(const char *filename, struct DisplaySurface *ds, Error **errp)
     }
     linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
     for (y = 0; y < height; y++) {
-        qemu_pixman_linebuf_fill(linebuf, ds->image, width, y);
+        qemu_pixman_linebuf_fill(linebuf, ds->image, width, 0, y);
         clearerr(f);
         ret = fwrite(pixman_image_get_data(linebuf), 1,
                      pixman_image_get_stride(linebuf), f);

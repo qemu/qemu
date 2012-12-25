@@ -1,4 +1,4 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 DEF_HELPER_3(excp, noreturn, env, int, int)
 DEF_HELPER_FLAGS_1(load_pcc, TCG_CALL_NO_RWG_SE, i64, env)
@@ -119,4 +119,4 @@ DEF_HELPER_FLAGS_0(get_time, TCG_CALL_NO_RWG, i64)
 DEF_HELPER_FLAGS_2(set_alarm, TCG_CALL_NO_RWG, void, env, i64)
 #endif
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

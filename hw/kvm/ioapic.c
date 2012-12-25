@@ -13,7 +13,7 @@
 #include "hw/pc.h"
 #include "hw/ioapic_internal.h"
 #include "hw/apic_internal.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 /* PC Utility function */
 void kvm_pc_setup_irq_routing(bool pci_enabled)

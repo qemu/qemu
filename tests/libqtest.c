@@ -26,8 +26,8 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "compiler.h"
-#include "osdep.h"
+#include "qemu/compiler.h"
+#include "qemu/osdep.h"
 
 #define MAX_IRQ 256
 

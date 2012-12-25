@@ -15,18 +15,19 @@
 #include "vt82c686.h"
 #include "i2c.h"
 #include "smbus.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "isa.h"
 #include "sysbus.h"
 #include "mips.h"
 #include "apm.h"
 #include "acpi.h"
 #include "pm_smbus.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
+#include "sysemu/sysemu.h"
+#include "qemu/timer.h"
+#include "exec/address-spaces.h"
 
 typedef uint32_t pci_addr_t;
-#include "pci_host.h"
+#include "pci/pci_host.h"
 //#define DEBUG_VT82C686B
 
 #ifdef DEBUG_VT82C686B
@@ -159,6 +160,7 @@ static void vt82c686b_write_config(PCIDevice * d, uint32_t address,
 
 typedef struct VT686PMState {
     PCIDevice dev;
+    MemoryRegion io;
     ACPIREGS ar;
     APMState apm;
     PMSMBus smb;
@@ -195,92 +197,17 @@ static void pm_tmr_timer(ACPIREGS *ar)
     pm_update_sci(s);
 }
 
-static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
-{
-    VT686PMState *s = opaque;
-
-    addr &= 0x0f;
-    switch (addr) {
-    case 0x00:
-        acpi_pm1_evt_write_sts(&s->ar, val);
-        pm_update_sci(s);
-        break;
-    case 0x02:
-        acpi_pm1_evt_write_en(&s->ar, val);
-        pm_update_sci(s);
-        break;
-    case 0x04:
-        acpi_pm1_cnt_write(&s->ar, val, 0);
-        break;
-    default:
-        break;
-    }
-    DPRINTF("PM writew port=0x%04x val=0x%02x\n", addr, val);
-}
-
-static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
-{
-    VT686PMState *s = opaque;
-    uint32_t val;
-
-    addr &= 0x0f;
-    switch (addr) {
-    case 0x00:
-        val = acpi_pm1_evt_get_sts(&s->ar);
-        break;
-    case 0x02:
-        val = s->ar.pm1.evt.en;
-        break;
-    case 0x04:
-        val = s->ar.pm1.cnt.cnt;
-        break;
-    default:
-        val = 0;
-        break;
-    }
-    DPRINTF("PM readw port=0x%04x val=0x%02x\n", addr, val);
-    return val;
-}
-
-static void pm_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    addr &= 0x0f;
-    DPRINTF("PM writel port=0x%04x val=0x%08x\n", addr, val);
-}
-
-static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
-{
-    VT686PMState *s = opaque;
-    uint32_t val;
-
-    addr &= 0x0f;
-    switch (addr) {
-    case 0x08:
-        val = acpi_pm_tmr_get(&s->ar);
-        break;
-    default:
-        val = 0;
-        break;
-    }
-    DPRINTF("PM readl port=0x%04x val=0x%08x\n", addr, val);
-    return val;
-}
-
 static void pm_io_space_update(VT686PMState *s)
 {
     uint32_t pm_io_base;
 
-    if (s->dev.config[0x80] & 1) {
-        pm_io_base = pci_get_long(s->dev.config + 0x40);
-        pm_io_base &= 0xffc0;
+    pm_io_base = pci_get_long(s->dev.config + 0x40);
+    pm_io_base &= 0xffc0;
 
-        /* XXX: need to improve memory and ioport allocation */
-        DPRINTF("PM: mapping to 0x%x\n", pm_io_base);
-        register_ioport_write(pm_io_base, 64, 2, pm_ioport_writew, s);
-        register_ioport_read(pm_io_base, 64, 2, pm_ioport_readw, s);
-        register_ioport_write(pm_io_base, 64, 4, pm_ioport_writel, s);
-        register_ioport_read(pm_io_base, 64, 4, pm_ioport_readl, s);
-    }
+    memory_region_transaction_begin();
+    memory_region_set_enabled(&s->io, s->dev.config[0x80] & 1);
+    memory_region_set_address(&s->io, pm_io_base);
+    memory_region_transaction_commit();
 }
 
 static void pm_write_config(PCIDevice *d,
@@ -424,15 +351,18 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     pci_conf[0x90] = s->smb_io_base | 1;
     pci_conf[0x91] = s->smb_io_base >> 8;
     pci_conf[0xd2] = 0x90;
-    register_ioport_write(s->smb_io_base, 0xf, 1, smb_ioport_writeb, &s->smb);
-    register_ioport_read(s->smb_io_base, 0xf, 1, smb_ioport_readb, &s->smb);
-
-    apm_init(&s->apm, NULL, s);
-
-    acpi_pm_tmr_init(&s->ar, pm_tmr_timer);
-    acpi_pm1_cnt_init(&s->ar);
-
     pm_smbus_init(&s->dev.qdev, &s->smb);
+    memory_region_add_subregion(get_system_io(), s->smb_io_base, &s->smb.io);
+
+    apm_init(dev, &s->apm, NULL, s);
+
+    memory_region_init(&s->io, "vt82c686-pm", 64);
+    memory_region_set_enabled(&s->io, false);
+    memory_region_add_subregion(get_system_io(), 0, &s->io);
+
+    acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
+    acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
+    acpi_pm1_cnt_init(&s->ar, &s->io);
 
     return 0;
 }

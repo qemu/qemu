@@ -14,7 +14,7 @@
  */
 #include <stdio.h>
 #include <seccomp.h>
-#include "qemu-seccomp.h"
+#include "sysemu/seccomp.h"
 
 struct QemuSeccompSyscall {
     int32_t num;

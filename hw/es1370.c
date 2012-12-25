@@ -29,8 +29,8 @@
 #include "hw.h"
 #include "audiodev.h"
 #include "audio/audio.h"
-#include "pci.h"
-#include "dma.h"
+#include "pci/pci.h"
+#include "sysemu/dma.h"
 
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC

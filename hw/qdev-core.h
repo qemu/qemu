@@ -1,21 +1,12 @@
 #ifndef QDEV_CORE_H
 #define QDEV_CORE_H
 
-#include "qemu-queue.h"
-#include "qemu-option.h"
-#include "qemu/object.h"
+#include "qemu/queue.h"
+#include "qemu/option.h"
+#include "qemu/typedefs.h"
+#include "qom/object.h"
 #include "hw/irq.h"
-#include "error.h"
-
-typedef struct Property Property;
-
-typedef struct PropertyInfo PropertyInfo;
-
-typedef struct CompatProperty CompatProperty;
-
-typedef struct BusState BusState;
-
-typedef struct BusClass BusClass;
+#include "qapi/error.h"
 
 enum DevState {
     DEV_STATE_CREATED = 1,

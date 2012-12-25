@@ -17,11 +17,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "isa.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static ISABus *isabus;
 hwaddr isa_mem_base = 0;
@@ -262,6 +262,15 @@ static char *isabus_get_fw_dev_path(DeviceState *dev)
 MemoryRegion *isa_address_space(ISADevice *dev)
 {
     return get_system_memory();
+}
+
+MemoryRegion *isa_address_space_io(ISADevice *dev)
+{
+    if (dev) {
+        return isa_bus_from_device(dev)->address_space_io;
+    }
+
+    return isabus->address_space_io;
 }
 
 type_init(isabus_register_types)

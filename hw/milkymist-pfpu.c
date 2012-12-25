@@ -25,8 +25,8 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "qemu-log.h"
-#include "qemu-error.h"
+#include "qemu/log.h"
+#include "qemu/error-report.h"
 #include <math.h>
 
 /* #define TRACE_EXEC */

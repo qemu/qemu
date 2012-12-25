@@ -15,10 +15,10 @@
 #define _QEMU_VIRTIO_H
 
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 #include "qdev.h"
-#include "sysemu.h"
-#include "event_notifier.h"
+#include "sysemu/sysemu.h"
+#include "qemu/event_notifier.h"
 #ifdef CONFIG_LINUX
 #include "9p.h"
 #endif

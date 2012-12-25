@@ -27,17 +27,17 @@
 #include <linux/vfio.h>
 
 #include "config.h"
-#include "event_notifier.h"
-#include "exec-memory.h"
-#include "kvm.h"
-#include "memory.h"
-#include "msi.h"
-#include "msix.h"
-#include "pci.h"
+#include "qemu/event_notifier.h"
+#include "exec/address-spaces.h"
+#include "sysemu/kvm.h"
+#include "exec/memory.h"
+#include "pci/msi.h"
+#include "pci/msix.h"
+#include "pci/pci.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "qemu-queue.h"
-#include "range.h"
+#include "qemu/error-report.h"
+#include "qemu/queue.h"
+#include "qemu/range.h"
 
 /* #define DEBUG_VFIO */
 #ifdef DEBUG_VFIO
@@ -275,7 +275,7 @@ static void vfio_enable_intx_kvm(VFIODevice *vdev)
     int ret, argsz;
     int32_t *pfd;
 
-    if (!kvm_irqchip_in_kernel() ||
+    if (!kvm_irqfds_enabled() ||
         vdev->intx.route.mode != PCI_INTX_ENABLED ||
         !kvm_check_extension(kvm_state, KVM_CAP_IRQFD_RESAMPLE)) {
         return;
@@ -438,7 +438,8 @@ static int vfio_enable_intx(VFIODevice *vdev)
      * Only conditional to avoid generating error messages on platforms
      * where we won't actually use the result anyway.
      */
-    if (kvm_check_extension(kvm_state, KVM_CAP_IRQFD_RESAMPLE)) {
+    if (kvm_irqfds_enabled() &&
+        kvm_check_extension(kvm_state, KVM_CAP_IRQFD_RESAMPLE)) {
         vdev->intx.route = pci_device_route_intx_to_irq(&vdev->pdev,
                                                         vdev->intx.pin);
     }

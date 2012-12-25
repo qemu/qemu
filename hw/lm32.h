@@ -1,3 +1,6 @@
+#ifndef HW_LM32_H
+#define HW_LM32_H 1
+
 
 #include "qemu-common.h"
 
@@ -23,3 +26,5 @@ static inline DeviceState *lm32_juart_init(void)
 
     return dev;
 }
+
+#endif

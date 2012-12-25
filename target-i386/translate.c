@@ -24,7 +24,7 @@
 #include <signal.h>
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
 
 #include "helper.h"
@@ -65,7 +65,7 @@ static TCGv cpu_tmp5;
 
 static uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 #ifdef TARGET_X86_64
 static int x86_64_hregs;
@@ -7988,12 +7988,12 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
             }
-            gen_opc_pc[lj] = pc_ptr;
+            tcg_ctx.gen_opc_pc[lj] = pc_ptr;
             gen_opc_cc_op[lj] = dc->cc_op;
-            gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
@@ -8037,7 +8037,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
     }
 
 #ifdef DEBUG_DISAS
@@ -8080,16 +8080,17 @@ void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, int pc_pos)
         int i;
         qemu_log("RESTORE:\n");
         for(i = 0;i <= pc_pos; i++) {
-            if (gen_opc_instr_start[i]) {
-                qemu_log("0x%04x: " TARGET_FMT_lx "\n", i, gen_opc_pc[i]);
+            if (tcg_ctx.gen_opc_instr_start[i]) {
+                qemu_log("0x%04x: " TARGET_FMT_lx "\n", i,
+                        tcg_ctx.gen_opc_pc[i]);
             }
         }
         qemu_log("pc_pos=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n",
-                pc_pos, gen_opc_pc[pc_pos] - tb->cs_base,
+                pc_pos, tcg_ctx.gen_opc_pc[pc_pos] - tb->cs_base,
                 (uint32_t)tb->cs_base);
     }
 #endif
-    env->eip = gen_opc_pc[pc_pos] - tb->cs_base;
+    env->eip = tcg_ctx.gen_opc_pc[pc_pos] - tb->cs_base;
     cc_op = gen_opc_cc_op[pc_pos];
     if (cc_op != CC_OP_DYNAMIC)
         env->cc_op = cc_op;

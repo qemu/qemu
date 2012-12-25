@@ -25,11 +25,11 @@
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
-#include "net.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
-#include "exec-memory.h"
-#include "blockdev.h"
+#include "exec/address-spaces.h"
+#include "sysemu/blockdev.h"
 #include "flash.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0
@@ -477,7 +477,7 @@ static QEMUMachine vexpress_a9_machine = {
     .name = "vexpress-a9",
     .desc = "ARM Versatile Express for Cortex-A9",
     .init = vexpress_a9_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 4,
 };
 
@@ -485,7 +485,7 @@ static QEMUMachine vexpress_a15_machine = {
     .name = "vexpress-a15",
     .desc = "ARM Versatile Express for Cortex-A15",
     .init = vexpress_a15_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 4,
 };
 

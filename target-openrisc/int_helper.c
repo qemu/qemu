@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "helper.h"
 #include "exception.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 target_ulong HELPER(ff1)(target_ulong x)
 {

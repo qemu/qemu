@@ -84,22 +84,26 @@ typedef void (*acpi_update_sci_fn)(ACPIREGS *ar);
 
 struct ACPIPMTimer {
     QEMUTimer *timer;
+    MemoryRegion io;
     int64_t overflow_time;
 
     acpi_update_sci_fn update_sci;
 };
 
 struct ACPIPM1EVT {
+    MemoryRegion io;
     uint16_t sts;
     uint16_t en;
+    acpi_update_sci_fn update_sci;
 };
 
 struct ACPIPM1CNT {
+    MemoryRegion io;
     uint16_t cnt;
+    uint8_t s4_val;
 };
 
 struct ACPIGPE {
-    uint32_t blk;
     uint8_t len;
 
     uint8_t *sts;
@@ -119,11 +123,11 @@ struct ACPIREGS {
 /* PM_TMR */
 void acpi_pm_tmr_update(ACPIREGS *ar, bool enable);
 void acpi_pm_tmr_calc_overflow_time(ACPIREGS *ar);
-uint32_t acpi_pm_tmr_get(ACPIREGS *ar);
-void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci);
+void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
+                      MemoryRegion *parent);
 void acpi_pm_tmr_reset(ACPIREGS *ar);
 
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 static inline int64_t acpi_pm_tmr_get_clock(void)
 {
     return muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY,
@@ -132,21 +136,19 @@ static inline int64_t acpi_pm_tmr_get_clock(void)
 
 /* PM1a_EVT: piix and ich9 don't implement PM1b. */
 uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar);
-void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val);
-void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val);
 void acpi_pm1_evt_power_down(ACPIREGS *ar);
 void acpi_pm1_evt_reset(ACPIREGS *ar);
+void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
+                       MemoryRegion *parent);
 
 /* PM1a_CNT: piix and ich9 don't implement PM1b CNT. */
-void acpi_pm1_cnt_init(ACPIREGS *ar);
-void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val, char s4);
+void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent);
 void acpi_pm1_cnt_update(ACPIREGS *ar,
                          bool sci_enable, bool sci_disable);
 void acpi_pm1_cnt_reset(ACPIREGS *ar);
 
 /* GPE0 */
 void acpi_gpe_init(ACPIREGS *ar, uint8_t len);
-void acpi_gpe_blk(ACPIREGS *ar, uint32_t blk);
 void acpi_gpe_reset(ACPIREGS *ar);
 
 void acpi_gpe_ioport_writeb(ACPIREGS *ar, uint32_t addr, uint32_t val);

@@ -17,8 +17,8 @@
  */
 
 #include "qemu-common.h"
-#include "block.h"
-#include "nbd.h"
+#include "block/block.h"
+#include "block/nbd.h"
 
 #include <stdarg.h>
 #include <stdio.h>

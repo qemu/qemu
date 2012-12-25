@@ -18,8 +18,8 @@
  */
 
 #include "cpu.h"
-#include "disas.h"
-#include "host-utils.h"
+#include "disas/disas.h"
+#include "qemu/host-utils.h"
 #include "tcg-op.h"
 
 #include "helper.h"
@@ -88,7 +88,7 @@ static TCGv cpu_usp;
 /* register names */
 static char cpu_reg_names[10*4+21*5 + 10*5+21*6];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 static void alpha_translate_init(void)
 {
@@ -611,7 +611,7 @@ static void gen_qual_roundmode(DisasContext *ctx, int fn11)
     }
 
 #if defined(CONFIG_SOFTFLOAT_INLINE)
-    /* ??? The "softfloat.h" interface is to call set_float_rounding_mode.
+    /* ??? The "fpu/softfloat.h" interface is to call set_float_rounding_mode.
        With CONFIG_SOFTFLOAT that expands to an out-of-line call that just
        sets the one field.  */
     tcg_gen_st8_i32(tmp, cpu_env,
@@ -3410,11 +3410,11 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
             }
-            gen_opc_pc[lj] = ctx.pc;
-            gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_pc[lj] = ctx.pc;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
@@ -3468,7 +3468,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = ctx.pc - pc_start;
         tb->icount = num_insns;
@@ -3551,5 +3551,5 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 
 void restore_state_to_opc(CPUAlphaState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
 }

@@ -14,14 +14,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef HW_USB_EHCI_H
+#define HW_USB_EHCI_H 1
 
 #include "hw/hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "hw/usb.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "trace.h"
-#include "dma.h"
-#include "sysemu.h"
+#include "sysemu/dma.h"
+#include "sysemu/sysemu.h"
 
 #ifndef EHCI_DEBUG
 #define EHCI_DEBUG   0
@@ -311,9 +313,12 @@ struct EHCIState {
 
     uint64_t last_run_ns;
     uint32_t async_stepdown;
+    uint32_t periodic_sched_active;
     bool int_req_by_async;
 };
 
 extern const VMStateDescription vmstate_ehci;
 
 void usb_ehci_initfn(EHCIState *s, DeviceState *dev);
+
+#endif

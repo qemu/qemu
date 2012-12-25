@@ -23,8 +23,8 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-aio.h"
-#include "main-loop.h"
+#include "block/aio.h"
+#include "qemu/main-loop.h"
 
 /***********************************************************/
 /* bottom halves (can be seen as timers which expire ASAP) */
@@ -214,9 +214,4 @@ void aio_context_ref(AioContext *ctx)
 void aio_context_unref(AioContext *ctx)
 {
     g_source_unref(&ctx->source);
-}
-
-void aio_flush(AioContext *ctx)
-{
-    while (aio_poll(ctx, true));
 }

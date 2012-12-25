@@ -18,12 +18,12 @@
 #include "i2c.h"
 #include "ssi.h"
 #include "boards.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "flash.h"
-#include "blockdev.h"
-#include "console.h"
+#include "sysemu/blockdev.h"
+#include "ui/console.h"
 #include "audio/audio.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #ifdef DEBUG_Z2
 #define DPRINTF(fmt, ...) \

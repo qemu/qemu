@@ -43,7 +43,7 @@ def qemu_img(*args):
     return subprocess.call(qemu_img_args + list(args), stdin=devnull, stdout=devnull)
 
 def qemu_img_verbose(*args):
-    '''Run qemu-img without supressing its output and return the exit code'''
+    '''Run qemu-img without suppressing its output and return the exit code'''
     return subprocess.call(qemu_img_args + list(args))
 
 def qemu_io(*args):
@@ -77,6 +77,18 @@ class VM(object):
         self._args.append('-drive')
         self._args.append(','.join(options))
         self._num_drives += 1
+        return self
+
+    def add_fd(self, fd, fdset, opaque, opts=''):
+        '''Pass a file descriptor to the VM'''
+        options = ['fd=%d' % fd,
+                   'set=%d' % fdset,
+                   'opaque=%s' % opaque]
+        if opts:
+            options.append(opts)
+
+        self._args.append('-add-fd')
+        self._args.append(','.join(options))
         return self
 
     def launch(self):

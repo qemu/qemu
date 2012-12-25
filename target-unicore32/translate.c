@@ -15,9 +15,9 @@
 #include <inttypes.h>
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 #include "helper.h"
 #define GEN_HELPER 1
@@ -55,7 +55,7 @@ static TCGv_i32 cpu_R[32];
 static TCGv cpu_F0s, cpu_F1s;
 static TCGv_i64 cpu_F0d, cpu_F1d;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 static const char *regnames[] = {
       "r00", "r01", "r02", "r03", "r04", "r05", "r06", "r07",
@@ -2003,12 +2003,12 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
             if (lj < j) {
                 lj++;
                 while (lj < j) {
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
                 }
             }
-            gen_opc_pc[lj] = dc->pc;
-            gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_pc[lj] = dc->pc;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
 
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
@@ -2117,7 +2117,7 @@ done_generating:
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j) {
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
         }
     } else {
         tb->size = dc->pc - pc_start;
@@ -2203,5 +2203,5 @@ void cpu_dump_state(CPUUniCore32State *env, FILE *f,
 
 void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb, int pc_pos)
 {
-    env->regs[31] = gen_opc_pc[pc_pos];
+    env->regs[31] = tcg_ctx.gen_opc_pc[pc_pos];
 }

@@ -1,4 +1,4 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 DEF_HELPER_3(raise_exception_err, noreturn, env, i32, int)
 DEF_HELPER_2(raise_exception, noreturn, env, i32)
@@ -707,4 +707,4 @@ DEF_HELPER_FLAGS_2(rddsp, 0, tl, tl, env)
 
 
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

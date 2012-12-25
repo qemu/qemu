@@ -17,7 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci.h"
+#include "pci/pci.h"
 #include "pc.h"
 #include "i8254.h"
 #include "pcspk.h"

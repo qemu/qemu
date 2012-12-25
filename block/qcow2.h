@@ -25,8 +25,8 @@
 #ifndef BLOCK_QCOW2_H
 #define BLOCK_QCOW2_H
 
-#include "aes.h"
-#include "qemu-coroutine.h"
+#include "block/aes.h"
+#include "block/coroutine.h"
 
 //#define DEBUG_ALLOC
 //#define DEBUG_ALLOC2
@@ -196,16 +196,55 @@ typedef struct QCowCreateState {
 
 struct QCowAIOCB;
 
-/* XXX This could be private for qcow2-cluster.c */
+typedef struct Qcow2COWRegion {
+    /**
+     * Offset of the COW region in bytes from the start of the first cluster
+     * touched by the request.
+     */
+    uint64_t    offset;
+
+    /** Number of sectors to copy */
+    int         nb_sectors;
+} Qcow2COWRegion;
+
+/**
+ * Describes an in-flight (part of a) write request that writes to clusters
+ * that are not referenced in their L2 table yet.
+ */
 typedef struct QCowL2Meta
 {
+    /** Guest offset of the first newly allocated cluster */
     uint64_t offset;
-    uint64_t cluster_offset;
+
+    /** Host offset of the first newly allocated cluster */
     uint64_t alloc_offset;
-    int n_start;
+
+    /**
+     * Number of sectors from the start of the first allocated cluster to
+     * the end of the (possibly shortened) request
+     */
     int nb_available;
+
+    /** Number of newly allocated clusters */
     int nb_clusters;
+
+    /**
+     * Requests that overlap with this allocation and wait to be restarted
+     * when the allocating request has completed.
+     */
     CoQueue dependent_requests;
+
+    /**
+     * The COW Region between the start of the first allocated cluster and the
+     * area the guest actually writes to.
+     */
+    Qcow2COWRegion cow_start;
+
+    /**
+     * The COW Region between the area the guest actually writes to and the
+     * end of the last allocated cluster.
+     */
+    Qcow2COWRegion cow_end;
 
     QLIST_ENTRY(QCowL2Meta) next_in_flight;
 } QCowL2Meta;
@@ -264,6 +303,8 @@ static inline bool qcow2_need_accurate_refcounts(BDRVQcowState *s)
 /* qcow2.c functions */
 int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
                   int64_t sector_num, int nb_sectors);
+
+int qcow2_mark_dirty(BlockDriverState *bs);
 int qcow2_update_header(BlockDriverState *bs);
 
 /* qcow2-refcount.c functions */
@@ -297,7 +338,7 @@ void qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
 int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     int *num, uint64_t *cluster_offset);
 int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int n_start, int n_end, int *num, QCowL2Meta *m);
+    int n_start, int n_end, int *num, uint64_t *host_offset, QCowL2Meta **m);
 uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
                                          uint64_t offset,
                                          int compressed_size);

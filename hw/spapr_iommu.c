@@ -17,11 +17,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "qdev.h"
 #include "kvm_ppc.h"
-#include "dma.h"
-#include "exec-memory.h"
+#include "sysemu/dma.h"
+#include "exec/address-spaces.h"
 
 #include "hw/spapr.h"
 
@@ -119,6 +119,12 @@ static int spapr_tce_translate(DMAContext *dma,
 DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size)
 {
     sPAPRTCETable *tcet;
+
+    if (spapr_tce_find_by_liobn(liobn)) {
+        fprintf(stderr, "Attempted to create TCE table with duplicate"
+                " LIOBN 0x%x\n", liobn);
+        return NULL;
+    }
 
     if (!window_size) {
         return NULL;

@@ -29,19 +29,19 @@
 #include "serial.h"
 #include "isa.h"
 #include "fdc.h"
-#include "sysemu.h"
-#include "arch_init.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/arch_init.h"
 #include "boards.h"
-#include "net.h"
+#include "net/net.h"
 #include "esp.h"
 #include "mips-bios.h"
 #include "loader.h"
 #include "mc146818rtc.h"
 #include "i8254.h"
 #include "pcspk.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 enum jazz_model_e
 {
@@ -324,14 +324,14 @@ static QEMUMachine mips_magnum_machine = {
     .name = "magnum",
     .desc = "MIPS Magnum",
     .init = mips_magnum_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static QEMUMachine mips_pica61_machine = {
     .name = "pica61",
     .desc = "Acer Pica 61",
     .init = mips_pica61_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static void mips_jazz_machine_init(void)

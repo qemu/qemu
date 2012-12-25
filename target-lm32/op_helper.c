@@ -1,7 +1,7 @@
 #include <assert.h>
 #include "cpu.h"
 #include "helper.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #include "hw/lm32_pic.h"
 #include "hw/lm32_juart.h"
@@ -9,13 +9,13 @@
 #if !defined(CONFIG_USER_ONLY)
 #define MMUSUFFIX _mmu
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 void helper_raise_exception(CPULM32State *env, uint32_t index)
 {
@@ -76,19 +76,13 @@ uint32_t helper_rcsr_jrx(CPULM32State *env)
 void tlb_fill(CPULM32State *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    TranslationBlock *tb;
     int ret;
 
     ret = cpu_lm32_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            tb = tb_find_pc(retaddr);
-            if (tb) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, retaddr);
-            }
+            cpu_restore_state(env, retaddr);
         }
         cpu_loop_exit(env);
     }

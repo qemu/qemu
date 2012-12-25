@@ -22,8 +22,8 @@
  */
 
 #include "net/queue.h"
-#include "qemu-queue.h"
-#include "net.h"
+#include "qemu/queue.h"
+#include "net/net.h"
 
 /* The delivery handler may only return zero if it will call
  * qemu_net_queue_flush() when it determines that it is once again able

@@ -3,7 +3,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "bswap.h"
+#include "qemu/bswap.h"
 
 #if !defined(TARGET_SPARC64)
 #define TARGET_LONG_BITS 32
@@ -25,9 +25,9 @@
 
 #define CPUArchState struct CPUSPARCState
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
 
@@ -392,7 +392,6 @@ struct CPUSPARCState {
     target_ulong cc_dst;
     uint32_t cc_op;
 
-    target_ulong t0, t1; /* temporaries live across basic blocks */
     target_ulong cond; /* conditional branch result (XXX: save it in a
                           temporary register when possible) */
 
@@ -702,7 +701,7 @@ static inline void cpu_clone_regs(CPUSPARCState *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 #ifdef TARGET_SPARC64
 /* sun4u.c */
@@ -711,7 +710,6 @@ uint64_t cpu_tick_get_count(CPUTimer *timer);
 void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit);
 trap_state* cpu_tsptr(CPUSPARCState* env);
 #endif
-void cpu_restore_state2(CPUSPARCState *env, uintptr_t retaddr);
 
 #define TB_FLAG_FPU_ENABLED (1 << 4)
 #define TB_FLAG_AM_ENABLED (1 << 5)
@@ -769,7 +767,7 @@ static inline bool cpu_has_work(CPUState *cpu)
            cpu_interrupts_enabled(env1);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUSPARCState *env, TranslationBlock *tb)
 {

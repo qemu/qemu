@@ -25,7 +25,7 @@
 #include "hw.h"
 #include "pc.h"
 #include "isa.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "i8254.h"
 #include "i8254_internal.h"
 

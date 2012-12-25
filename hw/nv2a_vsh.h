@@ -22,7 +22,7 @@
 #ifndef HW_NV2A_VSH_H
 #define HW_NV2A_VSH_H
 
-#include "qstring.h"
+#include "qapi/qmp/qstring.h"
 
 // vs.1.1, not an official value
 #define VSH_VERSION_VS                     0xF078

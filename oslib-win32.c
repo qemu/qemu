@@ -27,10 +27,10 @@
  */
 #include <windows.h>
 #include "config-host.h"
-#include "sysemu.h"
-#include "main-loop.h"
+#include "sysemu/sysemu.h"
+#include "qemu/main-loop.h"
 #include "trace.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 void *qemu_oom_check(void *ptr)
 {

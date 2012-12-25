@@ -18,3 +18,5 @@ endif
 common-obj-y += stream.o
 common-obj-y += commit.o
 common-obj-y += mirror.o
+
+$(obj)/curl.o: QEMU_CFLAGS+=$(CURL_CFLAGS)

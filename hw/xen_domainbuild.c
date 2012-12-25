@@ -1,8 +1,8 @@
 #include <signal.h>
 #include "xen_backend.h"
 #include "xen_domainbuild.h"
-#include "qemu-timer.h"
-#include "qemu-log.h"
+#include "qemu/timer.h"
+#include "qemu/log.h"
 
 #include <xenguest.h>
 

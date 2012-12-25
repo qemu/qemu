@@ -13,14 +13,14 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "memory.h"
-#include "exec-memory.h"
-#include "ioport.h"
-#include "bitops.h"
-#include "kvm.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
+#include "exec/ioport.h"
+#include "qemu/bitops.h"
+#include "sysemu/kvm.h"
 #include <assert.h>
 
-#include "memory-internal.h"
+#include "exec/memory-internal.h"
 
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
@@ -1080,6 +1080,22 @@ void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
     assert(mr->terminates);
     return cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size, -1);
 }
+
+bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
+                                        hwaddr size, unsigned client)
+{
+    bool ret;
+    assert(mr->terminates);
+    ret = cpu_physical_memory_get_dirty(mr->ram_addr + addr, size,
+                                        1 << client);
+    if (ret) {
+        cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
+                                        mr->ram_addr + addr + size,
+                                        1 << client);
+    }
+    return ret;
+}
+
 
 void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 {

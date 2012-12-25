@@ -26,8 +26,8 @@
 
 #include "hw.h"
 #include "pc.h"
-#include "console.h"
-#include "qemu-timer.h"
+#include "ui/console.h"
+#include "qemu/timer.h"
 #include "hpet_emul.h"
 #include "sysbus.h"
 #include "mc146818rtc.h"

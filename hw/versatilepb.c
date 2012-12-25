@@ -10,13 +10,13 @@
 #include "sysbus.h"
 #include "arm-misc.h"
 #include "devices.h"
-#include "net.h"
-#include "sysemu.h"
-#include "pci.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
+#include "pci/pci.h"
 #include "i2c.h"
 #include "boards.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 #include "flash.h"
 
 #define VERSATILE_FLASH_ADDR 0x34000000
@@ -358,14 +358,14 @@ static QEMUMachine versatilepb_machine = {
     .name = "versatilepb",
     .desc = "ARM Versatile/PB (ARM926EJ-S)",
     .init = vpb_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static QEMUMachine versatileab_machine = {
     .name = "versatileab",
     .desc = "ARM Versatile/AB (ARM926EJ-S)",
     .init = vab_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static void versatile_machine_init(void)

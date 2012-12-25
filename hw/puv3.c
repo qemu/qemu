@@ -8,9 +8,11 @@
  * published by the Free Software Foundation, or any later version.
  * See the COPYING file in the top-level directory.
  */
-#include "console.h"
+
+#include "qemu-common.h"
+#include "ui/console.h"
 #include "elf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "sysbus.h"
 #include "boards.h"
 #include "loader.h"
@@ -122,7 +124,6 @@ static QEMUMachine puv3_machine = {
     .desc = "PKUnity Version-3 based on UniCore32",
     .init = puv3_init,
     .is_default = 1,
-    .use_scsi = 0,
 };
 
 static void puv3_machine_init(void)

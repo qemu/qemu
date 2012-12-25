@@ -24,7 +24,7 @@
  */
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
 #include "helper.h"
 #include "mmu.h"
@@ -70,7 +70,7 @@ static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_pc;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
@@ -3301,16 +3301,16 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
             if (lj < j) {
                 lj++;
                 while (lj < j) {
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
                 }
             }
             if (dc->delayed_branch == 1) {
-                gen_opc_pc[lj] = dc->ppc | 1;
+                tcg_ctx.gen_opc_pc[lj] = dc->ppc | 1;
             } else {
-                gen_opc_pc[lj] = dc->pc;
+                tcg_ctx.gen_opc_pc[lj] = dc->pc;
             }
-            gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
 
         /* Pretty disas.  */
@@ -3439,7 +3439,7 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j) {
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
         }
     } else {
         tb->size = dc->pc - pc_start;
@@ -3621,5 +3621,5 @@ CRISCPU *cpu_cris_init(const char *cpu_model)
 
 void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
 }

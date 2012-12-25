@@ -62,8 +62,8 @@
 #define TARGET_NR_getpagesize         64 /* Common                                      */
 #define TARGET_NR_msync               65 /* Common in newer 1.3.x revs...               */
 #define TARGET_NR_vfork               66 /* Common                                      */
-#define TARGET_NR_pread               67 /* Linux Specific                              */
-#define TARGET_NR_pwrite              68 /* Linux Specific                              */
+#define TARGET_NR_pread64             67 /* Linux Specific */
+#define TARGET_NR_pwrite64            68 /* Linux Specific */
 #define TARGET_NR_geteuid32           69 /* Linux sparc32, sbrk under SunOS             */
 #define TARGET_NR_getegid32           70 /* Linux sparc32, sstk under SunOS             */
 #define TARGET_NR_mmap                71 /* Common                                      */

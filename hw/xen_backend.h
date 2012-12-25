@@ -2,9 +2,8 @@
 #define QEMU_HW_XEN_BACKEND_H 1
 
 #include "xen_common.h"
-#include "sysemu.h"
-#include "net.h"
-#include "net/hub.h"
+#include "sysemu/sysemu.h"
+#include "net/net.h"
 
 /* ------------------------------------------------------------- */
 

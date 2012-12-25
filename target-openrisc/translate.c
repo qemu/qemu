@@ -19,13 +19,13 @@
  */
 
 #include "cpu.h"
-#include "exec-all.h"
-#include "disas.h"
+#include "exec/exec-all.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "config.h"
-#include "bitops.h"
+#include "qemu/bitops.h"
 
 #include "helper.h"
 #define GEN_HELPER 1
@@ -61,7 +61,7 @@ static TCGv_i32 fpcsr;
 static TCGv machi, maclo;
 static TCGv fpmaddhi, fpmaddlo;
 static TCGv_i32 env_flags;
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 void openrisc_translate_init(void)
 {
@@ -1707,12 +1707,12 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
             if (k < j) {
                 k++;
                 while (k < j) {
-                    gen_opc_instr_start[k++] = 0;
+                    tcg_ctx.gen_opc_instr_start[k++] = 0;
                 }
             }
-            gen_opc_pc[k] = dc->pc;
-            gen_opc_instr_start[k] = 1;
-            gen_opc_icount[k] = num_insns;
+            tcg_ctx.gen_opc_pc[k] = dc->pc;
+            tcg_ctx.gen_opc_instr_start[k] = 1;
+            tcg_ctx.gen_opc_icount[k] = num_insns;
         }
 
         if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
@@ -1787,7 +1787,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         k++;
         while (k <= j) {
-            gen_opc_instr_start[k++] = 0;
+            tcg_ctx.gen_opc_instr_start[k++] = 0;
         }
     } else {
         tb->size = dc->pc - pc_start;
@@ -1832,5 +1832,5 @@ void cpu_dump_state(CPUOpenRISCState *env, FILE *f,
 void restore_state_to_opc(CPUOpenRISCState *env, TranslationBlock *tb,
                           int pc_pos)
 {
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
 }

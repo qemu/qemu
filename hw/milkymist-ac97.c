@@ -25,7 +25,7 @@
 #include "sysbus.h"
 #include "trace.h"
 #include "audio/audio.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 enum {
     R_AC97_CTRL = 0,

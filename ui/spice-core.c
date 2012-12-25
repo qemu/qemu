@@ -19,25 +19,25 @@
 #include <spice-experimental.h>
 
 #include <netdb.h>
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #include "qemu-common.h"
-#include "qemu-spice.h"
-#include "qemu-thread.h"
-#include "qemu-timer.h"
-#include "qemu-queue.h"
+#include "ui/qemu-spice.h"
+#include "qemu/thread.h"
+#include "qemu/timer.h"
+#include "qemu/queue.h"
 #include "qemu-x509.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "qmp-commands.h"
-#include "qint.h"
-#include "qbool.h"
-#include "qstring.h"
-#include "qjson.h"
-#include "notify.h"
-#include "migration.h"
-#include "monitor.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qjson.h"
+#include "qemu/notify.h"
+#include "migration/migration.h"
+#include "monitor/monitor.h"
 #include "hw/hw.h"
-#include "spice-display.h"
+#include "ui/spice-display.h"
 
 /* core bits */
 
@@ -714,6 +714,10 @@ void qemu_spice_init(void)
     g_free(x509_key_file);
     g_free(x509_cert_file);
     g_free(x509_cacert_file);
+
+#if SPICE_SERVER_VERSION >= 0x000c02
+    qemu_spice_register_ports();
+#endif
 }
 
 int qemu_spice_add_interface(SpiceBaseInstance *sin)
@@ -732,6 +736,8 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
          */
         spice_server = spice_server_new();
         spice_server_init(spice_server, &core_interface);
+        qemu_add_vm_change_state_handler(vm_change_state_handler,
+                                         &spice_server);
     }
 
     return spice_server_add_interface(spice_server, sin);

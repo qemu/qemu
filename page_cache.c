@@ -24,7 +24,7 @@
 #include <strings.h>
 
 #include "qemu-common.h"
-#include "qemu/page_cache.h"
+#include "migration/page_cache.h"
 
 #ifdef DEBUG_CACHE
 #define DPRINTF(fmt, ...) \

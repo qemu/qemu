@@ -25,8 +25,8 @@
 #include "hw.h"
 #include "ppc_mac.h"
 #include "adb.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
 
 /* XXX: implement all timer modes */
 

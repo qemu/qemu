@@ -21,11 +21,11 @@
  *
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include "arm-misc.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "exynos4210.h"
 #include "boards.h"
 

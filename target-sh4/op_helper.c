@@ -21,37 +21,22 @@
 #include "cpu.h"
 #include "helper.h"
 
-static inline void cpu_restore_state_from_retaddr(CPUSH4State *env,
-                                                  uintptr_t retaddr)
-{
-    TranslationBlock *tb;
-
-    if (retaddr) {
-        tb = tb_find_pc(retaddr);
-        if (tb) {
-            /* the PC is inside the translated code. It means that we have
-               a virtual CPU fault */
-            cpu_restore_state(tb, env, retaddr);
-        }
-    }
-}
-
 #ifndef CONFIG_USER_ONLY
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 void tlb_fill(CPUSH4State *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
@@ -61,7 +46,9 @@ void tlb_fill(CPUSH4State *env, target_ulong addr, int is_write, int mmu_idx,
     ret = cpu_sh4_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (ret) {
         /* now we have a real cpu fault */
-        cpu_restore_state_from_retaddr(env, retaddr);
+        if (retaddr) {
+            cpu_restore_state(env, retaddr);
+        }
         cpu_loop_exit(env);
     }
 }
@@ -82,7 +69,9 @@ static inline void QEMU_NORETURN raise_exception(CPUSH4State *env, int index,
                                                  uintptr_t retaddr)
 {
     env->exception_index = index;
-    cpu_restore_state_from_retaddr(env, retaddr);
+    if (retaddr) {
+        cpu_restore_state(env, retaddr);
+    }
     cpu_loop_exit(env);
 }
 

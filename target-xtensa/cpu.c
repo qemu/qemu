@@ -48,6 +48,9 @@ static void xtensa_cpu_reset(CPUState *s)
             XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;
     env->sregs[VECBASE] = env->config->vecbase;
     env->sregs[IBREAKENABLE] = 0;
+    env->sregs[CACHEATTR] = 0x22222222;
+    env->sregs[ATOMCTL] = xtensa_option_enabled(env->config,
+            XTENSA_OPTION_ATOMCTL) ? 0x28 : 0x15;
 
     env->pending_irq_level = 0;
     reset_mmu(env);

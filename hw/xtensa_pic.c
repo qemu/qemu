@@ -26,8 +26,8 @@
  */
 
 #include "hw.h"
-#include "qemu-log.h"
-#include "qemu-timer.h"
+#include "qemu/log.h"
+#include "qemu/timer.h"
 
 void xtensa_advance_ccount(CPUXtensaState *env, uint32_t d)
 {

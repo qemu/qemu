@@ -11,13 +11,13 @@
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
-#include "pci.h"
-#include "net.h"
-#include "sysemu.h"
+#include "pci/pci.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "i2c.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
@@ -364,14 +364,14 @@ static QEMUMachine realview_eb_machine = {
     .name = "realview-eb",
     .desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)",
     .init = realview_eb_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static QEMUMachine realview_eb_mpcore_machine = {
     .name = "realview-eb-mpcore",
     .desc = "ARM RealView Emulation Baseboard (ARM11MPCore)",
     .init = realview_eb_mpcore_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 4,
 };
 
@@ -385,7 +385,7 @@ static QEMUMachine realview_pbx_a9_machine = {
     .name = "realview-pbx-a9",
     .desc = "ARM RealView Platform Baseboard Explore for Cortex-A9",
     .init = realview_pbx_a9_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 4,
 };
 

@@ -4,6 +4,10 @@
    most of them stay the same, so we handle it by putting ifdefs if
    necessary */
 
+#ifndef SYSCALL_DEFS_H
+#define SYSCALL_DEFS_H 1
+
+
 #include "syscall_nr.h"
 
 #define SOCKOP_socket           1
@@ -2425,3 +2429,5 @@ struct target_ucred {
     uint32_t uid;
     uint32_t gid;
 };
+
+#endif

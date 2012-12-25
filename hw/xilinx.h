@@ -1,6 +1,10 @@
+#ifndef HW_XILINX_H
+#define HW_XILINX_H 1
+
+
 #include "stream.h"
 #include "qemu-common.h"
-#include "net.h"
+#include "net/net.h"
 
 static inline DeviceState *
 xilinx_intc_create(hwaddr base, qemu_irq irq, int kind_of_intr)
@@ -90,3 +94,5 @@ xilinx_axiethernetdma_init(DeviceState *dev, StreamSlave *peer,
     sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
     sysbus_connect_irq(sysbus_from_qdev(dev), 1, irq2);
 }
+
+#endif

@@ -29,14 +29,14 @@
 #include "mips_cpudevs.h"
 #include "serial.h"
 #include "isa.h"
-#include "net.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "mips-bios.h"
 #include "loader.h"
 #include "elf.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static struct _loaderparams {
     int ram_size;
@@ -217,7 +217,8 @@ mips_mipssim_init(QEMUMachineInitArgs *args)
     /* A single 16450 sits at offset 0x3f8. It is attached to
        MIPS CPU INT2, which is interrupt 4. */
     if (serial_hds[0])
-        serial_init(0x3f8, env->irq[4], 115200, serial_hds[0]);
+        serial_init(0x3f8, env->irq[4], 115200, serial_hds[0],
+                    get_system_io());
 
     if (nd_table[0].used)
         /* MIPSnet uses the MIPS CPU INT0, which is interrupt 2. */

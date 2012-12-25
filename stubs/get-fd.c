@@ -1,5 +1,5 @@
 #include "qemu-common.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 int monitor_get_fd(Monitor *mon, const char *name, Error **errp)
 {

@@ -920,7 +920,7 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
 
 #if defined(CONFIG_SOFTMMU)
 
-#include "../../softmmu_defs.h"
+#include "exec/softmmu_defs.h"
 
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */

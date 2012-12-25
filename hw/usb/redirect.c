@@ -26,10 +26,10 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
-#include "monitor.h"
-#include "sysemu.h"
-#include "iov.h"
+#include "qemu/timer.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
+#include "qemu/iov.h"
 
 #include <dirent.h>
 #include <sys/ioctl.h>
@@ -1642,6 +1642,10 @@ static void usbredir_interrupt_packet(void *priv, uint64_t id,
             DPRINTF("received int packet while not started ep %02X\n", ep);
             free(data);
             return;
+        }
+
+        if (QTAILQ_EMPTY(&dev->endpoint[EP2I(ep)].bufpq)) {
+            usb_wakeup(usb_ep_get(&dev->dev, USB_TOKEN_IN, ep & 0x0f));
         }
 
         /* bufp_alloc also adds the packet to the ep queue */

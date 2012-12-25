@@ -20,12 +20,12 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
-#include "qemu-queue.h"
-#include "qemu-objects.h"
-#include "monitor.h"
-#include "sysemu.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
+#include "qemu/queue.h"
+#include "qapi/qmp/types.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
 #include "hw/watchdog.h"
 
 /* Possible values for action parameter. */
@@ -66,7 +66,7 @@ int select_watchdog(const char *p)
     QLIST_FOREACH(model, &watchdog_list, entry) {
         if (strcasecmp(model->wdt_name, p) == 0) {
             /* add the device */
-            opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0, NULL);
+            opts = qemu_opts_create_nofail(qemu_find_opts("device"));
             qemu_opt_set(opts, "driver", p);
             return 0;
         }

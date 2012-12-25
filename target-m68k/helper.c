@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 
 #include "helpers.h"
 

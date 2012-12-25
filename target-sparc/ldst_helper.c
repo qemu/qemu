@@ -68,21 +68,21 @@
 static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
                                               target_ulong addr, int is_write,
                                               int is_user, uintptr_t retaddr);
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 #endif
 
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
@@ -2393,22 +2393,6 @@ void cpu_unassigned_access(CPUSPARCState *env, hwaddr addr,
 #endif
 #endif
 
-/* XXX: make it generic ? */
-void cpu_restore_state2(CPUSPARCState *env, uintptr_t retaddr)
-{
-    TranslationBlock *tb;
-
-    if (retaddr) {
-        /* now we have a real cpu fault */
-        tb = tb_find_pc(retaddr);
-        if (tb) {
-            /* the PC is inside the translated code. It means that we have
-               a virtual CPU fault */
-            cpu_restore_state(tb, env, retaddr);
-        }
-    }
-}
-
 #if !defined(CONFIG_USER_ONLY)
 static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
                                               target_ulong addr, int is_write,
@@ -2418,7 +2402,9 @@ static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
     printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx
            "\n", addr, env->pc);
 #endif
-    cpu_restore_state2(env, retaddr);
+    if (retaddr) {
+        cpu_restore_state(env, retaddr);
+    }
     helper_raise_exception(env, TT_UNALIGNED);
 }
 
@@ -2433,7 +2419,9 @@ void tlb_fill(CPUSPARCState *env, target_ulong addr, int is_write, int mmu_idx,
 
     ret = cpu_sparc_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (ret) {
-        cpu_restore_state2(env, retaddr);
+        if (retaddr) {
+            cpu_restore_state(env, retaddr);
+        }
         cpu_loop_exit(env);
     }
 }

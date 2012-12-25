@@ -14,13 +14,11 @@
  */
 
 #include "qemu-common.h"
-#include "qemu_socket.h"
-#include "migration.h"
-#include "monitor.h"
-#include "qemu-char.h"
-#include "buffered_file.h"
-#include "block.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
+#include "migration/migration.h"
+#include "monitor/monitor.h"
+#include "migration/qemu-file.h"
+#include "block/block.h"
 
 //#define DEBUG_MIGRATION_FD
 
@@ -77,7 +75,6 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
         return;
     }
 
-    fcntl(s->fd, F_SETFL, O_NONBLOCK);
     s->get_error = fd_errno;
     s->write = fd_write;
     s->close = fd_close;

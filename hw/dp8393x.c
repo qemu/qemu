@@ -18,8 +18,8 @@
  */
 
 #include "hw.h"
-#include "qemu-timer.h"
-#include "net.h"
+#include "qemu/timer.h"
+#include "net/net.h"
 #include "mips.h"
 
 //#define DEBUG_SONIC

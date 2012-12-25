@@ -18,7 +18,7 @@
  */
 
 #include "hw/hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ui/qemu-spice.h"
 
 #define AUDIO_CAP "spice"

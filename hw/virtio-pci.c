@@ -22,16 +22,15 @@
 #include "virtio-net.h"
 #include "virtio-serial.h"
 #include "virtio-scsi.h"
-#include "pci.h"
-#include "qemu-error.h"
-#include "msi.h"
-#include "msix.h"
-#include "net.h"
+#include "pci/pci.h"
+#include "qemu/error-report.h"
+#include "pci/msi.h"
+#include "pci/msix.h"
 #include "loader.h"
-#include "kvm.h"
-#include "blockdev.h"
+#include "sysemu/kvm.h"
+#include "sysemu/blockdev.h"
 #include "virtio-pci.h"
-#include "range.h"
+#include "qemu/range.h"
 
 /* from Linux's linux/virtio_pci.h */
 
@@ -895,7 +894,6 @@ static Property virtio_blk_properties[] = {
 #ifdef __linux__
     DEFINE_PROP_BIT("scsi", VirtIOPCIProxy, blk.scsi, 0, true),
 #endif
-    DEFINE_PROP_BIT("config-wce", VirtIOPCIProxy, blk.config_wce, 0, true),
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),

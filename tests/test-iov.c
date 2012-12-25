@@ -1,7 +1,7 @@
 #include <glib.h>
 #include "qemu-common.h"
-#include "iov.h"
-#include "qemu_socket.h"
+#include "qemu/iov.h"
+#include "qemu/sockets.h"
 
 /* create a randomly-sized iovec with random vectors */
 static void iov_random(struct iovec **iovp, unsigned *iov_cntp)

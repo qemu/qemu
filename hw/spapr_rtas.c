@@ -25,10 +25,10 @@
  *
  */
 #include "cpu.h"
-#include "sysemu.h"
-#include "qemu-char.h"
+#include "sysemu/sysemu.h"
+#include "char/char.h"
 #include "hw/qdev.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
@@ -242,7 +242,7 @@ target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
     return H_PARAMETER;
 }
 
-void spapr_rtas_register(const char *name, spapr_rtas_fn fn)
+int spapr_rtas_register(const char *name, spapr_rtas_fn fn)
 {
     int i;
 
@@ -258,7 +258,7 @@ void spapr_rtas_register(const char *name, spapr_rtas_fn fn)
     rtas_next->name = name;
     rtas_next->fn = fn;
 
-    rtas_next++;
+    return (rtas_next++ - rtas_table) + TOKEN_BASE;
 }
 
 int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
@@ -301,7 +301,7 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
     for (i = 0; i < TOKEN_MAX; i++) {
         struct rtas_call *call = &rtas_table[i];
 
-        if (!call->fn) {
+        if (!call->name) {
             continue;
         }
 

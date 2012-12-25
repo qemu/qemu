@@ -1,5 +1,6 @@
 config-devices.*
 config-all-devices.*
+config-all-disas.*
 config-host.*
 config-target.*
 trace.h
@@ -47,6 +48,7 @@ test-qmp-output-visitor
 test-string-input-visitor
 test-string-output-visitor
 test-visitor-serialization
+fsdev/virtfs-proxy-helper
 fsdev/virtfs-proxy-helper.1
 fsdev/virtfs-proxy-helper.pod
 .gdbinit

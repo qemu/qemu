@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "net/tap.h"
-#include "sysemu.h"
+#include "tap_int.h"
+#include "sysemu/sysemu.h"
 
 #include <sys/stat.h>
 #include <sys/ethernet.h>
@@ -38,7 +38,7 @@
 #include <net/if.h>
 #include <syslog.h>
 #include <stropts.h>
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 {

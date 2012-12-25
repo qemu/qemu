@@ -18,12 +18,12 @@
  */
 #include <stdlib.h>
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #include "helper.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #ifndef CONFIG_USER_ONLY
@@ -38,7 +38,6 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
                                                         int error_code,
                                                         uintptr_t pc)
 {
-    TranslationBlock *tb;
 #if 1
     if (exception < 0x100)
         qemu_log("%s: %d %d\n", __func__, exception, error_code);
@@ -48,12 +47,7 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
 
     if (pc) {
         /* now we have a real cpu fault */
-        tb = tb_find_pc(pc);
-        if (tb) {
-            /* the PC is inside the translated code. It means that we have
-               a virtual CPU fault */
-            cpu_restore_state(tb, env, pc);
-        }
+        cpu_restore_state(env, pc);
     }
 
     cpu_loop_exit(env);
@@ -2122,16 +2116,16 @@ static void QEMU_NORETURN do_unaligned_access(CPUMIPSState *env,
 #define ALIGNED_ONLY
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 static void do_unaligned_access(CPUMIPSState *env, target_ulong addr,
                                 int is_write, int is_user, uintptr_t retaddr)

@@ -14,13 +14,13 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "hw/hw.h"
-#include "qemu-queue.h"
-#include "qemu-timer.h"
-#include "block-migration.h"
-#include "migration.h"
-#include "blockdev.h"
+#include "qemu/queue.h"
+#include "qemu/timer.h"
+#include "migration/block.h"
+#include "migration/migration.h"
+#include "sysemu/blockdev.h"
 #include <assert.h>
 
 #define BLOCK_SIZE (BDRV_SECTORS_PER_DIRTY_CHUNK << BDRV_SECTOR_BITS)
@@ -77,9 +77,7 @@ typedef struct BlkMigState {
     int64_t total_sector_sum;
     int prev_progress;
     int bulk_completed;
-    long double total_time;
     long double prev_time_offset;
-    int reads;
 } BlkMigState;
 
 static BlkMigState block_mig_state;
@@ -130,12 +128,6 @@ uint64_t blk_mig_bytes_total(void)
         sum += bmds->total_sectors;
     }
     return sum << BDRV_SECTOR_BITS;
-}
-
-static inline long double compute_read_bwidth(void)
-{
-    assert(block_mig_state.total_time != 0);
-    return (block_mig_state.reads / block_mig_state.total_time) * BLOCK_SIZE;
 }
 
 static int bmds_aio_inflight(BlkMigDevState *bmds, int64_t sector)
@@ -191,8 +183,6 @@ static void blk_mig_read_cb(void *opaque, int ret)
 
     blk->ret = ret;
 
-    block_mig_state.reads++;
-    block_mig_state.total_time += (curr_time - block_mig_state.prev_time_offset);
     block_mig_state.prev_time_offset = curr_time;
 
     QSIMPLEQ_INSERT_TAIL(&block_mig_state.blk_list, blk, entry);
@@ -310,8 +300,6 @@ static void init_blk_migration(QEMUFile *f)
     block_mig_state.total_sector_sum = 0;
     block_mig_state.prev_progress = -1;
     block_mig_state.bulk_completed = 0;
-    block_mig_state.total_time = 0;
-    block_mig_state.reads = 0;
 
     bdrv_iterate(init_blk_migration_it, NULL);
 }
@@ -493,32 +481,6 @@ static int64_t get_remaining_dirty(void)
     return dirty * BLOCK_SIZE;
 }
 
-static int is_stage2_completed(void)
-{
-    int64_t remaining_dirty;
-    long double bwidth;
-
-    if (block_mig_state.bulk_completed == 1) {
-
-        remaining_dirty = get_remaining_dirty();
-        if (remaining_dirty == 0) {
-            return 1;
-        }
-
-        bwidth = compute_read_bwidth();
-
-        if ((remaining_dirty / bwidth) <=
-            migrate_max_downtime()) {
-            /* finish stage2 because we think that we can finish remaining work
-               below max_downtime */
-
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
 static void blk_mig_cleanup(void)
 {
     BlkMigDevState *bmds;
@@ -619,7 +581,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
-    return is_stage2_completed();
+    return 0;
 }
 
 static int block_save_complete(QEMUFile *f, void *opaque)
@@ -657,6 +619,14 @@ static int block_save_complete(QEMUFile *f, void *opaque)
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
     return 0;
+}
+
+static uint64_t block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
+{
+
+    DPRINTF("Enter save live pending  %ld\n", get_remaining_dirty());
+
+    return get_remaining_dirty();
 }
 
 static int block_load(QEMUFile *f, void *opaque, int version_id)
@@ -755,6 +725,7 @@ SaveVMHandlers savevm_block_handlers = {
     .save_live_setup = block_save_setup,
     .save_live_iterate = block_save_iterate,
     .save_live_complete = block_save_complete,
+    .save_live_pending = block_save_pending,
     .load_state = block_load,
     .cancel = block_migration_cancel,
     .is_active = block_is_active,

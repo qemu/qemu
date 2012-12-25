@@ -13,7 +13,7 @@
 #include "qemu-common.h"
 #include "e500.h"
 #include "../boards.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 
 static void mpc8544ds_fixup_devtree(PPCE500Params *params, void *fdt)
 {
@@ -40,6 +40,8 @@ static void mpc8544ds_init(QEMUMachineInitArgs *args)
         .kernel_cmdline = kernel_cmdline,
         .initrd_filename = initrd_filename,
         .cpu_model = cpu_model,
+        .pci_first_slot = 0x11,
+        .pci_nr_slots = 2,
         .fixup_devtree = mpc8544ds_fixup_devtree,
     };
 

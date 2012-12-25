@@ -23,8 +23,8 @@
 #include "hw.h"
 #include "audiodev.h"
 #include "audio/audio.h"
-#include "pci.h"
-#include "dma.h"
+#include "pci/pci.h"
+#include "sysemu/dma.h"
 
 enum {
     PI_INDEX = 0,   /* PCM in */

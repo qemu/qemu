@@ -22,13 +22,13 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "qemu-timer.h"
-#include "block_int.h"
-#include "module.h"
+#include "qemu/timer.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
 #include "raw-aio.h"
 #include "trace.h"
-#include "thread-pool.h"
-#include "iov.h"
+#include "block/thread-pool.h"
+#include "qemu/iov.h"
 #include <windows.h>
 #include <winioctl.h>
 
@@ -303,13 +303,24 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
 {
     BDRVRawState *s = bs->opaque;
     LONG low, high;
+    DWORD dwPtrLow;
 
     low = offset;
     high = offset >> 32;
-    if (!SetFilePointer(s->hfile, low, &high, FILE_BEGIN))
-	return -EIO;
-    if (!SetEndOfFile(s->hfile))
+
+    /*
+     * An error has occurred if the return value is INVALID_SET_FILE_POINTER
+     * and GetLastError doesn't return NO_ERROR.
+     */
+    dwPtrLow = SetFilePointer(s->hfile, low, &high, FILE_BEGIN);
+    if (dwPtrLow == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
+        fprintf(stderr, "SetFilePointer error: %d\n", GetLastError());
         return -EIO;
+    }
+    if (SetEndOfFile(s->hfile) == 0) {
+        fprintf(stderr, "SetEndOfFile error: %d\n", GetLastError());
+        return -EIO;
+    }
     return 0;
 }
 

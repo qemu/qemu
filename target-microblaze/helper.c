@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #define D(x)
 #define DMMU(x)
@@ -198,7 +198,7 @@ void do_interrupt(CPUMBState *env)
             t = (env->sregs[SR_MSR] & (MSR_VM | MSR_UM)) << 1;
 
 #if 0
-#include "disas.h"
+#include "disas/disas.h"
 
 /* Useful instrumentation when debugging interrupt issues in either
    the models or in sw.  */

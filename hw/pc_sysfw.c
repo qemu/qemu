@@ -23,15 +23,15 @@
  * THE SOFTWARE.
  */
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
 #include "hw.h"
 #include "pc.h"
 #include "hw/boards.h"
 #include "loader.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "flash.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 #define BIOS_FILENAME "bios.bin"
 
@@ -98,7 +98,9 @@ static void pc_fw_add_pflash_drv(void)
       return;
     }
 
-    drive_init(opts, machine->use_scsi);
+    if (!drive_init(opts, machine->block_default_type)) {
+        qemu_opts_del(opts);
+    }
 }
 
 static void pc_system_flash_init(MemoryRegion *rom_memory,

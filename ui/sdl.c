@@ -29,8 +29,8 @@
 #include <SDL_syswm.h>
 
 #include "qemu-common.h"
-#include "console.h"
-#include "sysemu.h"
+#include "ui/console.h"
+#include "sysemu/sysemu.h"
 #include "x_keymap.h"
 #include "sdl_zoom.h"
 

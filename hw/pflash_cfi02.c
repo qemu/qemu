@@ -37,17 +37,17 @@
 
 #include "hw.h"
 #include "flash.h"
-#include "qemu-timer.h"
-#include "block.h"
-#include "exec-memory.h"
-#include "host-utils.h"
+#include "qemu/timer.h"
+#include "block/block.h"
+#include "exec/address-spaces.h"
+#include "qemu/host-utils.h"
 #include "sysbus.h"
 
 //#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
-#define DPRINTF(fmt, ...)                          \
-do {                                               \
-    printf("PFLASH: " fmt , ## __VA_ARGS__);       \
+#define DPRINTF(fmt, ...)                                  \
+do {                                                       \
+    fprintf(stderr "PFLASH: " fmt , ## __VA_ARGS__);       \
 } while (0)
 #else
 #define DPRINTF(fmt, ...) do { } while (0)

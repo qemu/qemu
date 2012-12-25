@@ -19,11 +19,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw/hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "hw/usb.h"
-#include "hw/pci.h"
-#include "hw/msi.h"
-#include "hw/msix.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
 #include "trace.h"
 
 //#define DEBUG_XHCI

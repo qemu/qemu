@@ -1,9 +1,9 @@
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/error-report.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "hw/qdev.h"
-#include "error.h"
+#include "qapi/error.h"
 
 static QemuOptsList qemu_drive_opts = {
     .name = "drive",
@@ -421,54 +421,6 @@ static QemuOptsList qemu_trace_opts = {
     },
 };
 
-static QemuOptsList qemu_cpudef_opts = {
-    .name = "cpudef",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_cpudef_opts.head),
-    .desc = {
-        {
-            .name = "name",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "level",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "vendor",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "family",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "model",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "stepping",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "feature_edx",      /* cpuid 0000_0001.edx */
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "feature_ecx",      /* cpuid 0000_0001.ecx */
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "extfeature_edx",   /* cpuid 8000_0001.edx */
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "extfeature_ecx",   /* cpuid 8000_0001.ecx */
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "xlevel",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "model_id",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "vendor_override",
-            .type = QEMU_OPT_NUMBER,
-        },
-        { /* end of list */ }
-    },
-};
-
 QemuOptsList qemu_spice_opts = {
     .name = "spice",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_spice_opts.head),
@@ -631,6 +583,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "usb",
             .type = QEMU_OPT_BOOL,
             .help = "Set on/off to enable/disable usb",
+        }, {
+            .name = "nvram",
+            .type = QEMU_OPT_STRING,
+            .help = "Drive backing persistent NVRAM",
         },
         { /* End of list */ }
     },
@@ -704,7 +660,6 @@ static QemuOptsList *vm_config_groups[32] = {
     &qemu_rtc_opts,
     &qemu_global_opts,
     &qemu_mon_opts,
-    &qemu_cpudef_opts,
     &qemu_trace_opts,
     &qemu_option_rom_opts,
     &qemu_machine_opts,
@@ -809,7 +764,7 @@ int qemu_global_option(const char *str)
         return -1;
     }
 
-    opts = qemu_opts_create(&qemu_global_opts, NULL, 0, NULL);
+    opts = qemu_opts_create_nofail(&qemu_global_opts);
     qemu_opt_set(opts, "driver", driver);
     qemu_opt_set(opts, "property", property);
     qemu_opt_set(opts, "value", str+offset+1);
@@ -896,7 +851,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
                 error_free(local_err);
                 goto out;
             }
-            opts = qemu_opts_create(list, NULL, 0, NULL);
+            opts = qemu_opts_create_nofail(list);
             continue;
         }
         if (sscanf(line, " %63s = \"%1023[^\"]\"", arg, value) == 2) {

@@ -13,7 +13,7 @@
 #include <glib.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 
 /* Note: in some situations, like with the fsfreeze, logging may be
  * temporarilly disabled. if it is necessary that a command be able

@@ -11,8 +11,8 @@
  */
 
 #include "qemu-common.h"
-#include "event_notifier.h"
-#include "main-loop.h"
+#include "qemu/event_notifier.h"
+#include "qemu/main-loop.h"
 
 int event_notifier_init(EventNotifier *e, int active)
 {

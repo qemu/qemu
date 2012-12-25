@@ -24,8 +24,8 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppc4xx.h"
-#include "qemu-log.h"
-#include "exec-memory.h"
+#include "qemu/log.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_MMIO
 //#define DEBUG_UNASSIGNED

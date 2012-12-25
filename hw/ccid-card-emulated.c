@@ -31,9 +31,9 @@
 #include <vreader.h>
 #include <vcard_emul.h>
 
-#include "qemu-thread.h"
-#include "qemu-char.h"
-#include "monitor.h"
+#include "qemu/thread.h"
+#include "char/char.h"
+#include "monitor/monitor.h"
 #include "hw/ccid.h"
 
 #define DPRINTF(card, lvl, fmt, ...) \

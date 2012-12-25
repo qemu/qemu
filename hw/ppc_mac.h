@@ -25,7 +25,7 @@
 #if !defined(__PPC_MAC_H__)
 #define __PPC_MAC_H__
 
-#include "memory.h"
+#include "exec/memory.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1

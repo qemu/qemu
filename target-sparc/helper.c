@@ -18,9 +18,9 @@
  */
 
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 #include "helper.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 void helper_raise_exception(CPUSPARCState *env, int tt)
 {
@@ -75,7 +75,7 @@ static target_ulong helper_udiv_common(CPUSPARCState *env, target_ulong a,
     x1 = (b & 0xffffffff);
 
     if (x1 == 0) {
-        cpu_restore_state2(env, GETPC());
+        cpu_restore_state(env, GETPC());
         helper_raise_exception(env, TT_DIV_ZERO);
     }
 
@@ -114,7 +114,7 @@ static target_ulong helper_sdiv_common(CPUSPARCState *env, target_ulong a,
     x1 = (b & 0xffffffff);
 
     if (x1 == 0) {
-        cpu_restore_state2(env, GETPC());
+        cpu_restore_state(env, GETPC());
         helper_raise_exception(env, TT_DIV_ZERO);
     }
 
@@ -147,7 +147,7 @@ int64_t helper_sdivx(CPUSPARCState *env, int64_t a, int64_t b)
 {
     if (b == 0) {
         /* Raise divide by zero trap.  */
-        cpu_restore_state2(env, GETPC());
+        cpu_restore_state(env, GETPC());
         helper_raise_exception(env, TT_DIV_ZERO);
     } else if (b == -1) {
         /* Avoid overflow trap with i386 divide insn.  */
@@ -161,7 +161,7 @@ uint64_t helper_udivx(CPUSPARCState *env, uint64_t a, uint64_t b)
 {
     if (b == 0) {
         /* Raise divide by zero trap.  */
-        cpu_restore_state2(env, GETPC());
+        cpu_restore_state(env, GETPC());
         helper_raise_exception(env, TT_DIV_ZERO);
     }
     return a / b;
@@ -193,7 +193,7 @@ target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
     return dst;
 
  tag_overflow:
-    cpu_restore_state2(env, GETPC());
+    cpu_restore_state(env, GETPC());
     helper_raise_exception(env, TT_TOVF);
 }
 
@@ -222,6 +222,6 @@ target_ulong helper_tsubcctv(CPUSPARCState *env, target_ulong src1,
     return dst;
 
  tag_overflow:
-    cpu_restore_state2(env, GETPC());
+    cpu_restore_state(env, GETPC());
     helper_raise_exception(env, TT_TOVF);
 }

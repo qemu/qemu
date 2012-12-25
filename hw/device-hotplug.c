@@ -24,11 +24,10 @@
 
 #include "hw.h"
 #include "boards.h"
-#include "net.h"
-#include "blockdev.h"
-#include "qemu-config.h"
-#include "sysemu.h"
-#include "monitor.h"
+#include "sysemu/blockdev.h"
+#include "qemu/config-file.h"
+#include "sysemu/sysemu.h"
+#include "monitor/monitor.h"
 
 DriveInfo *add_init_drive(const char *optstr)
 {
@@ -39,7 +38,7 @@ DriveInfo *add_init_drive(const char *optstr)
     if (!opts)
         return NULL;
 
-    dinfo = drive_init(opts, current_machine->use_scsi);
+    dinfo = drive_init(opts, current_machine->block_default_type);
     if (!dinfo) {
         qemu_opts_del(opts);
         return NULL;
@@ -49,18 +48,16 @@ DriveInfo *add_init_drive(const char *optstr)
 }
 
 #if !defined(TARGET_I386)
-int pci_drive_hot_add(Monitor *mon, const QDict *qdict,
-                      DriveInfo *dinfo, int type)
+int pci_drive_hot_add(Monitor *mon, const QDict *qdict, DriveInfo *dinfo)
 {
     /* On non-x86 we don't do PCI hotplug */
-    monitor_printf(mon, "Can't hot-add drive to type %d\n", type);
+    monitor_printf(mon, "Can't hot-add drive to type %d\n", dinfo->type);
     return -1;
 }
 #endif
 
 void drive_hot_add(Monitor *mon, const QDict *qdict)
 {
-    int type;
     DriveInfo *dinfo = NULL;
     const char *opts = qdict_get_str(qdict, "opts");
 
@@ -72,14 +69,13 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Parameter addr not supported\n");
         goto err;
     }
-    type = dinfo->type;
 
-    switch (type) {
+    switch (dinfo->type) {
     case IF_NONE:
         monitor_printf(mon, "OK\n");
         break;
     default:
-        if (pci_drive_hot_add(mon, qdict, dinfo, type)) {
+        if (pci_drive_hot_add(mon, qdict, dinfo)) {
             goto err;
         }
     }

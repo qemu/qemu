@@ -18,7 +18,7 @@
  */
 #include "hw.h"
 #include "pc.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "ac97_int.h"
 
 #include "mcpx_apu.h"

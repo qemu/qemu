@@ -10,10 +10,10 @@
  */
 
 #include "cpu.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "helper.h"
-#include "host-utils.h"
-#include "console.h"
+#include "qemu/host-utils.h"
+#include "ui/console.h"
 
 #undef DEBUG_UC32
 

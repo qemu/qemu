@@ -20,7 +20,7 @@
 #ifndef QEMU_SUPERH_CPU_QOM_H
 #define QEMU_SUPERH_CPU_QOM_H
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 
 #define TYPE_SUPERH_CPU "superh-cpu"
 

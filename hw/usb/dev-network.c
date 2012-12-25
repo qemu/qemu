@@ -26,10 +26,11 @@
 #include "qemu-common.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "net.h"
-#include "qemu-queue.h"
-#include "sysemu.h"
-#include "iov.h"
+#include "net/net.h"
+#include "qemu/queue.h"
+#include "qemu/config-file.h"
+#include "sysemu/sysemu.h"
+#include "qemu/iov.h"
 
 /*#define TRAFFIC_DEBUG*/
 /* Thanks to NetChip Technologies for donating this product ID.
@@ -639,6 +640,8 @@ typedef struct USBNetState {
     unsigned int in_ptr, in_len;
     uint8_t in_buf[2048];
 
+    USBEndpoint *intr;
+
     char usbstring_mac[13];
     NICState *nic;
     NICConf conf;
@@ -850,6 +853,10 @@ static void *rndis_queue_response(USBNetState *s, unsigned int length)
 {
     struct rndis_response *r =
             g_malloc0(sizeof(struct rndis_response) + length);
+
+    if (QTAILQ_EMPTY(&s->rndis_resp)) {
+        usb_wakeup(s->intr);
+    }
 
     QTAILQ_INSERT_TAIL(&s->rndis_resp, r, entries);
     r->length = length;
@@ -1349,6 +1356,7 @@ static int usb_net_initfn(USBDevice *dev)
     s->media_state = 0;	/* NDIS_MEDIA_STATE_CONNECTED */;
     s->filter = 0;
     s->vendorid = 0x1234;
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_usbnet_info, &s->conf,

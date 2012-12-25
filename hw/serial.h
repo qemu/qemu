@@ -22,10 +22,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef HW_SERIAL_H
+#define HW_SERIAL_H 1
 
 #include "hw.h"
-#include "sysemu.h"
-#include "memory.h"
+#include "sysemu/sysemu.h"
+#include "exec/memory.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
 
@@ -89,7 +91,7 @@ void serial_set_frequency(SerialState *s, uint32_t frequency);
 
 /* legacy pre qom */
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
-                         CharDriverState *chr);
+                         CharDriverState *chr, MemoryRegion *system_io);
 SerialState *serial_mm_init(MemoryRegion *address_space,
                             hwaddr base, int it_shift,
                             qemu_irq irq, int baudbase,
@@ -97,3 +99,5 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
 /* serial-isa.c */
 bool serial_isa_init(ISABus *bus, int index, CharDriverState *chr);
+
+#endif

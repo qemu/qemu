@@ -11,7 +11,7 @@
  *
  */
 #include "qemu-common.h"
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 #include <process.h>
 #include <assert.h>
 #include <limits.h>

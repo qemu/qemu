@@ -24,8 +24,9 @@
 
 #include "hw.h"
 #include "isa.h"
-#include "pci.h"
-#include "pci_host.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
+#include "pci/pci_bus.h"
 #include "amd_smbus.h"
 #include "acpi.h"
 #include "acpi_xbox.h"

@@ -8,9 +8,9 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu-char.h"
-#include "qemu_socket.h"
-#include "monitor.h"
+#include "char/char.h"
+#include "qemu/sockets.h"
+#include "monitor/monitor.h"
 #include "hw/ccid.h"
 #include "libcacard/vscard_common.h"
 

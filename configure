@@ -116,7 +116,7 @@ audio_drv_list=""
 audio_card_list="ac97 es1370 sb16 hda"
 audio_possible_cards="ac97 es1370 sb16 cs4231a adlib gus hda"
 block_drv_whitelist=""
-host_cc="gcc"
+host_cc="cc"
 libs_softmmu=""
 libs_tools=""
 audio_pt_int=""
@@ -250,7 +250,16 @@ done
 # Using uname is really, really broken.  Once we have the right set of checks
 # we can eliminate its usage altogether.
 
-cc="${CC-${cross_prefix}gcc}"
+# Preferred compiler:
+#  ${CC} (if set)
+#  ${cross_prefix}gcc (if cross-prefix specified)
+#  system compiler
+if test -z "${CC}${cross_prefix}"; then
+  cc="$host_cc"
+else
+  cc="${CC-${cross_prefix}gcc}"
+fi
+
 ar="${AR-${cross_prefix}ar}"
 objcopy="${OBJCOPY-${cross_prefix}objcopy}"
 ld="${LD-${cross_prefix}ld}"
@@ -269,7 +278,7 @@ QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wall -Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
-QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/fpu"
+QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/include"
 if test "$debug_info" = "yes"; then
     CFLAGS="-g $CFLAGS"
     LDFLAGS="-g $LDFLAGS"
@@ -1351,6 +1360,14 @@ esac
 fi
 
 ##########################################
+# pkg-config probe
+
+if ! has "$pkg_config_exe"; then
+  echo "Error: pkg-config binary '$pkg_config_exe' not found"
+  exit 1
+fi
+
+##########################################
 # NPTL probe
 
 if test "$nptl" != "no" ; then
@@ -1581,14 +1598,6 @@ if test "$xen_pci_passthrough" != "no"; then
 fi
 
 ##########################################
-# pkg-config probe
-
-if ! has "$pkg_config_exe"; then
-  echo "Error: pkg-config binary '$pkg_config_exe' not found"
-  exit 1
-fi
-
-##########################################
 # libtool probe
 
 if ! has $libtool; then
@@ -1703,6 +1712,7 @@ EOF
   if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
     vnc_tls=yes
     libs_softmmu="$vnc_tls_libs $libs_softmmu"
+    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_tls_cflags"
   else
     if test "$vnc_tls" = "yes" ; then
       feature_not_found "vnc-tls"
@@ -1725,6 +1735,7 @@ EOF
   if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
     vnc_sasl=yes
     libs_softmmu="$vnc_sasl_libs $libs_softmmu"
+    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_sasl_cflags"
   else
     if test "$vnc_sasl" = "yes" ; then
       feature_not_found "vnc-sasl"
@@ -1746,6 +1757,7 @@ EOF
   if compile_prog "$vnc_jpeg_cflags" "$vnc_jpeg_libs" ; then
     vnc_jpeg=yes
     libs_softmmu="$vnc_jpeg_libs $libs_softmmu"
+    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_jpeg_cflags"
   else
     if test "$vnc_jpeg" = "yes" ; then
       feature_not_found "vnc-jpeg"
@@ -2130,7 +2142,7 @@ if test "$pixman" = "system"; then
 else
   if test ! -d ${source_path}/pixman/pixman; then
     echo "ERROR: pixman not present. Your options:"
-    echo "  (1) Prefered: Install the pixman devel package (any recent"
+    echo "  (1) Preferred: Install the pixman devel package (any recent"
     echo "      distro should have packages as Xorg needs pixman too)."
     echo "  (2) Fetch the pixman submodule, using:"
     echo "      git submodule update --init pixman"
@@ -2982,8 +2994,6 @@ EOF
     else
 	coroutine_backend=gthread
     fi
-  else
-    echo "Silently falling back into gthread backend under darwin"
   fi
 elif test "$coroutine" = "gthread" ; then
   coroutine_backend=gthread
@@ -3349,7 +3359,6 @@ fi
 if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak
   echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
-  QEMU_INCLUDES="-I\$(SRC_PATH)/slirp $QEMU_INCLUDES"
 fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
@@ -3384,19 +3393,15 @@ if test "$vnc" = "yes" ; then
 fi
 if test "$vnc_tls" = "yes" ; then
   echo "CONFIG_VNC_TLS=y" >> $config_host_mak
-  echo "VNC_TLS_CFLAGS=$vnc_tls_cflags" >> $config_host_mak
 fi
 if test "$vnc_sasl" = "yes" ; then
   echo "CONFIG_VNC_SASL=y" >> $config_host_mak
-  echo "VNC_SASL_CFLAGS=$vnc_sasl_cflags" >> $config_host_mak
 fi
 if test "$vnc_jpeg" = "yes" ; then
   echo "CONFIG_VNC_JPEG=y" >> $config_host_mak
-  echo "VNC_JPEG_CFLAGS=$vnc_jpeg_cflags" >> $config_host_mak
 fi
 if test "$vnc_png" = "yes" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
-  echo "VNC_PNG_CFLAGS=$vnc_png_cflags" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
@@ -3703,11 +3708,6 @@ if test -f ${config_host_ld}~ ; then
     rm ${config_host_ld}~
   fi
 fi
-
-for d in libdis libdis-user; do
-    symlink "$source_path/Makefile.dis" "$d/Makefile"
-    echo > $d/config.mak
-done
 
 # use included Linux headers
 if test "$linux" = "yes" ; then
@@ -4049,83 +4049,77 @@ if test "$linux" = "yes" ; then
   includes="-I\$(SRC_PATH)/linux-headers $includes"
 fi
 
-if test "$target_user_only" = "yes" ; then
-    libdis_config_mak=libdis-user/config.mak
-else
-    libdis_config_mak=libdis/config.mak
-fi
-
 for i in $ARCH $TARGET_BASE_ARCH ; do
   case "$i" in
   alpha)
     echo "CONFIG_ALPHA_DIS=y"  >> $config_target_mak
-    echo "CONFIG_ALPHA_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_ALPHA_DIS=y"  >> config-all-disas.mak
   ;;
   arm)
     echo "CONFIG_ARM_DIS=y"  >> $config_target_mak
-    echo "CONFIG_ARM_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_ARM_DIS=y"  >> config-all-disas.mak
   ;;
   cris)
     echo "CONFIG_CRIS_DIS=y"  >> $config_target_mak
-    echo "CONFIG_CRIS_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_CRIS_DIS=y"  >> config-all-disas.mak
   ;;
   hppa)
     echo "CONFIG_HPPA_DIS=y"  >> $config_target_mak
-    echo "CONFIG_HPPA_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_HPPA_DIS=y"  >> config-all-disas.mak
   ;;
   i386|x86_64)
     echo "CONFIG_I386_DIS=y"  >> $config_target_mak
-    echo "CONFIG_I386_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_I386_DIS=y"  >> config-all-disas.mak
   ;;
   ia64*)
     echo "CONFIG_IA64_DIS=y"  >> $config_target_mak
-    echo "CONFIG_IA64_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_IA64_DIS=y"  >> config-all-disas.mak
   ;;
   lm32)
     echo "CONFIG_LM32_DIS=y"  >> $config_target_mak
-    echo "CONFIG_LM32_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_LM32_DIS=y"  >> config-all-disas.mak
   ;;
   m68k)
     echo "CONFIG_M68K_DIS=y"  >> $config_target_mak
-    echo "CONFIG_M68K_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_M68K_DIS=y"  >> config-all-disas.mak
   ;;
   microblaze*)
     echo "CONFIG_MICROBLAZE_DIS=y"  >> $config_target_mak
-    echo "CONFIG_MICROBLAZE_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_MICROBLAZE_DIS=y"  >> config-all-disas.mak
   ;;
   mips*)
     echo "CONFIG_MIPS_DIS=y"  >> $config_target_mak
-    echo "CONFIG_MIPS_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_MIPS_DIS=y"  >> config-all-disas.mak
   ;;
   or32)
     echo "CONFIG_OPENRISC_DIS=y"  >> $config_target_mak
-    echo "CONFIG_OPENRISC_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_OPENRISC_DIS=y"  >> config-all-disas.mak
   ;;
   ppc*)
     echo "CONFIG_PPC_DIS=y"  >> $config_target_mak
-    echo "CONFIG_PPC_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_PPC_DIS=y"  >> config-all-disas.mak
   ;;
   s390*)
     echo "CONFIG_S390_DIS=y"  >> $config_target_mak
-    echo "CONFIG_S390_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_S390_DIS=y"  >> config-all-disas.mak
   ;;
   sh4)
     echo "CONFIG_SH4_DIS=y"  >> $config_target_mak
-    echo "CONFIG_SH4_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_SH4_DIS=y"  >> config-all-disas.mak
   ;;
   sparc*)
     echo "CONFIG_SPARC_DIS=y"  >> $config_target_mak
-    echo "CONFIG_SPARC_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_SPARC_DIS=y"  >> config-all-disas.mak
   ;;
   xtensa*)
     echo "CONFIG_XTENSA_DIS=y"  >> $config_target_mak
-    echo "CONFIG_XTENSA_DIS=y"  >> $libdis_config_mak
+    echo "CONFIG_XTENSA_DIS=y"  >> config-all-disas.mak
   ;;
   esac
 done
 if test "$tcg_interpreter" = "yes" ; then
   echo "CONFIG_TCI_DIS=y"  >> $config_target_mak
-  echo "CONFIG_TCI_DIS=y"  >> $libdis_config_mak
+  echo "CONFIG_TCI_DIS=y"  >> config-all-disas.mak
 fi
 
 case "$ARCH" in
@@ -4164,7 +4158,7 @@ fi
 if test "$ARCH" = "tci"; then
   linker_script=""
 else
-  linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
+  linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/ldscripts/\$(ARCH).ld"
 fi
 
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
@@ -4228,9 +4222,6 @@ for rom in seabios vgabios ; do
     echo "IASL=iasl" >> $config_mak
     echo "LD=$ld" >> $config_mak
 done
-
-d=libuser
-symlink "$source_path/Makefile.user" "$d/Makefile"
 
 if test "$docs" = "yes" ; then
   mkdir -p QMP

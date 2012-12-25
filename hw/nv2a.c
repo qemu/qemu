@@ -18,13 +18,13 @@
  */
 #include "hw.h"
 #include "pc.h"
-#include "console.h"
-#include "pci.h"
+#include "ui/console.h"
+#include "pci/pci.h"
 #include "vga.h"
 #include "vga_int.h"
-#include "qemu-queue.h"
-#include "qemu-thread.h"
-#include "qstring.h"
+#include "qemu/queue.h"
+#include "qemu/thread.h"
+#include "qapi/qmp/qstring.h"
 
 #include "nv2a_vsh.h"
 

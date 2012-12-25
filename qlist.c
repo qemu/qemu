@@ -10,9 +10,9 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-#include "qlist.h"
-#include "qobject.h"
-#include "qemu-queue.h"
+#include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qobject.h"
+#include "qemu/queue.h"
 #include "qemu-common.h"
 
 static void qlist_destroy_obj(QObject *obj);

@@ -1,8 +1,8 @@
 #include "hw/hw.h"
 #include "hw/usb.h"
 #include "hw/qdev.h"
-#include "sysemu.h"
-#include "monitor.h"
+#include "sysemu/sysemu.h"
+#include "monitor/monitor.h"
 #include "trace.h"
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
@@ -166,6 +166,9 @@ const char *usb_device_get_product_desc(USBDevice *dev)
 const USBDesc *usb_device_get_usb_desc(USBDevice *dev)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (dev->usb_desc) {
+        return dev->usb_desc;
+    }
     return klass->usb_desc;
 }
 

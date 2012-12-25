@@ -10,8 +10,8 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-#include "qobject.h"
-#include "qstring.h"
+#include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu-common.h"
 
 static void qstring_destroy_obj(QObject *obj);

@@ -25,7 +25,7 @@
  */
 
 #include "qemu-common.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "hw/usb.h"
 
 /* usb.h declares these */
@@ -292,6 +292,7 @@ static void usb_host_handle_destroy(USBDevice *opaque)
 
 static int usb_host_initfn(USBDevice *dev)
 {
+    dev->flags |= (1 << USB_DEV_FLAG_IS_HOST);
     return 0;
 }
 
