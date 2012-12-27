@@ -237,6 +237,17 @@ void store_booke_tcr(CPUPPCState *env, target_ulong val)
 
 }
 
+static void ppc_booke_timer_reset_handle(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+
+    env->spr[SPR_BOOKE_TSR] = 0;
+    env->spr[SPR_BOOKE_TCR] = 0;
+
+    booke_update_irq(cpu);
+}
+
 void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags)
 {
     ppc_tb_t *tb_env;
@@ -257,4 +268,6 @@ void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags)
         qemu_new_timer_ns(vm_clock, &booke_fit_cb, cpu);
     booke_timer->wdt_timer =
         qemu_new_timer_ns(vm_clock, &booke_wdt_cb, cpu);
+
+    qemu_register_reset(ppc_booke_timer_reset_handle, cpu);
 }
