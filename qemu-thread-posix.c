@@ -213,6 +213,7 @@ int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
     while (sem->count < 0) {
         rc = pthread_cond_timedwait(&sem->cond, &sem->lock, &ts);
         if (rc == ETIMEDOUT) {
+            ++sem->count;
             break;
         }
         if (rc != 0) {
