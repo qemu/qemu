@@ -122,7 +122,7 @@ void qemu_sem_init(QemuSemaphore *sem, int init)
 {
     int rc;
 
-#if defined(__OpenBSD__) || defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__NetBSD__)
     rc = pthread_mutex_init(&sem->lock, NULL);
     if (rc != 0) {
         error_exit(rc, __func__);
@@ -147,7 +147,7 @@ void qemu_sem_destroy(QemuSemaphore *sem)
 {
     int rc;
 
-#if defined(__OpenBSD__) || defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__NetBSD__)
     rc = pthread_cond_destroy(&sem->cond);
     if (rc < 0) {
         error_exit(rc, __func__);
@@ -168,7 +168,7 @@ void qemu_sem_post(QemuSemaphore *sem)
 {
     int rc;
 
-#if defined(__OpenBSD__) || defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__NetBSD__)
     pthread_mutex_lock(&sem->lock);
     if (sem->count == INT_MAX) {
         rc = EINVAL;
@@ -206,7 +206,7 @@ int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
     int rc;
     struct timespec ts;
 
-#if defined(__OpenBSD__) || defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__NetBSD__)
     compute_abs_deadline(&ts, ms);
     pthread_mutex_lock(&sem->lock);
     --sem->count;
@@ -248,7 +248,7 @@ int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
 
 void qemu_sem_wait(QemuSemaphore *sem)
 {
-#if defined(__OpenBSD__) || defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__NetBSD__)
     pthread_mutex_lock(&sem->lock);
     --sem->count;
     while (sem->count < 0) {
