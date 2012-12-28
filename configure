@@ -3086,6 +3086,21 @@ if compile_prog "" "" ; then
     has_environ=yes
 fi
 
+########################################
+# check if cpuid.h is usable.
+
+cpuid_h=no
+cat > $TMPC << EOF
+#include <cpuid.h>
+int main(void) {
+  return 0;
+}
+EOF
+if compile_prog "" "" ; then
+    cpuid_h=yes
+fi
+
+
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
@@ -3609,6 +3624,10 @@ fi
 
 if test "$has_environ" = "yes" ; then
   echo "CONFIG_HAS_ENVIRON=y" >> $config_host_mak
+fi
+
+if test "$cpuid_h" = "yes" ; then
+  echo "CONFIG_CPUID_H=y" >> $config_host_mak
 fi
 
 if test "$glusterfs" = "yes" ; then

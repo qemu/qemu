@@ -91,12 +91,7 @@ typedef enum {
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_nor_i32          0
 #define TCG_TARGET_HAS_deposit_i32      1
-#if defined(__x86_64__) || defined(__i686__)
-/* Use cmov only if the compiler is already doing so.  */
 #define TCG_TARGET_HAS_movcond_i32      1
-#else
-#define TCG_TARGET_HAS_movcond_i32      0
-#endif
 
 #if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_div2_i64         1

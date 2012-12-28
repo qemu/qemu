@@ -97,6 +97,18 @@ static const int tcg_target_call_oarg_regs[] = {
 # define TCG_REG_L1 TCG_REG_EDX
 #endif
 
+/* For 32-bit, we are going to attempt to determine at runtime whether cmov
+   is available.  However, the host compiler must supply <cpuid.h>, as we're
+   not going to go so far as our own inline assembly.  */
+#if TCG_TARGET_REG_BITS == 64
+# define have_cmov 1
+#elif defined(CONFIG_CPUID_H)
+#include <cpuid.h>
+static bool have_cmov;
+#else
+# define have_cmov 0
+#endif
+
 static uint8_t *tb_ret_addr;
 
 static void patch_reloc(uint8_t *code_ptr, int type,
@@ -943,7 +955,14 @@ static void tcg_out_movcond32(TCGContext *s, TCGCond cond, TCGArg dest,
                               TCGArg v1)
 {
     tcg_out_cmp(s, c1, c2, const_c2, 0);
-    tcg_out_modrm(s, OPC_CMOVCC | tcg_cond_to_jcc[cond], dest, v1);
+    if (have_cmov) {
+        tcg_out_modrm(s, OPC_CMOVCC | tcg_cond_to_jcc[cond], dest, v1);
+    } else {
+        int over = gen_new_label();
+        tcg_out_jxx(s, tcg_cond_to_jcc[tcg_invert_cond(cond)], over, 1);
+        tcg_out_mov(s, TCG_TYPE_I32, dest, v1);
+        tcg_out_label(s, over, s->code_ptr);
+    }
 }
 
 #if TCG_TARGET_REG_BITS == 64
@@ -2243,6 +2262,16 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 static void tcg_target_init(TCGContext *s)
 {
+    /* For 32-bit, 99% certainty that we're running on hardware that supports
+       cmov, but we still need to check.  In case cmov is not available, we'll
+       use a small forward branch.  */
+#ifndef have_cmov
+    {
+        unsigned a, b, c, d;
+        have_cmov = (__get_cpuid(1, &a, &b, &c, &d) && (d & bit_CMOV));
+    }
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
     /* fail safe */
     if ((1 << CPU_TLB_ENTRY_BITS) != sizeof(CPUTLBEntry))
