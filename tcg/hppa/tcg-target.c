@@ -824,7 +824,7 @@ static void tcg_out_brcond2(TCGContext *s, int cond, TCGArg al, TCGArg ah,
         tcg_out_brcond(s, TCG_COND_EQ, ah, bh, bhconst, label_index);
         break;
     case TCG_COND_NE:
-        tcg_out_brcond(s, TCG_COND_NE, al, bl, bhconst, label_index);
+        tcg_out_brcond(s, TCG_COND_NE, al, bl, blconst, label_index);
         tcg_out_brcond(s, TCG_COND_NE, ah, bh, bhconst, label_index);
         break;
     default:
