@@ -90,7 +90,7 @@ static char cpu_reg_names[10*4+21*5 + 10*5+21*6];
 
 #include "exec/gen-icount.h"
 
-static void alpha_translate_init(void)
+void alpha_translate_init(void)
 {
     int i;
     char *p;
@@ -3491,62 +3491,6 @@ void gen_intermediate_code (CPUAlphaState *env, struct TranslationBlock *tb)
 void gen_intermediate_code_pc (CPUAlphaState *env, struct TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 1);
-}
-
-struct cpu_def_t {
-    const char *name;
-    int implver, amask;
-};
-
-static const struct cpu_def_t cpu_defs[] = {
-    { "ev4",   IMPLVER_2106x, 0 },
-    { "ev5",   IMPLVER_21164, 0 },
-    { "ev56",  IMPLVER_21164, AMASK_BWX },
-    { "pca56", IMPLVER_21164, AMASK_BWX | AMASK_MVI },
-    { "ev6",   IMPLVER_21264, AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP },
-    { "ev67",  IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
-			       | AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), },
-    { "ev68",  IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
-			       | AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), },
-    { "21064", IMPLVER_2106x, 0 },
-    { "21164", IMPLVER_21164, 0 },
-    { "21164a", IMPLVER_21164, AMASK_BWX },
-    { "21164pc", IMPLVER_21164, AMASK_BWX | AMASK_MVI },
-    { "21264", IMPLVER_21264, AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP },
-    { "21264a", IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
-				| AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), }
-};
-
-CPUAlphaState * cpu_alpha_init (const char *cpu_model)
-{
-    AlphaCPU *cpu;
-    CPUAlphaState *env;
-    int implver, amask, i, max;
-
-    cpu = ALPHA_CPU(object_new(TYPE_ALPHA_CPU));
-    env = &cpu->env;
-
-    alpha_translate_init();
-
-    /* Default to ev67; no reason not to emulate insns by default.  */
-    implver = IMPLVER_21264;
-    amask = (AMASK_BWX | AMASK_FIX | AMASK_CIX | AMASK_MVI
-	     | AMASK_TRAP | AMASK_PREFETCH);
-
-    max = ARRAY_SIZE(cpu_defs);
-    for (i = 0; i < max; i++) {
-        if (strcmp (cpu_model, cpu_defs[i].name) == 0) {
-            implver = cpu_defs[i].implver;
-            amask = cpu_defs[i].amask;
-            break;
-        }
-    }
-    env->implver = implver;
-    env->amask = amask;
-    env->cpu_model_str = cpu_model;
-
-    qemu_init_vcpu(env);
-    return env;
 }
 
 void restore_state_to_opc(CPUAlphaState *env, TranslationBlock *tb, int pc_pos)

@@ -21,7 +21,210 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "qapi/error.h"
 
+
+static void alpha_cpu_realize(Object *obj, Error **errp)
+{
+#ifndef CONFIG_USER_ONLY
+    AlphaCPU *cpu = ALPHA_CPU(obj);
+
+    qemu_init_vcpu(&cpu->env);
+#endif
+}
+
+/* Sort alphabetically by type name. */
+static gint alpha_cpu_list_compare(gconstpointer a, gconstpointer b)
+{
+    ObjectClass *class_a = (ObjectClass *)a;
+    ObjectClass *class_b = (ObjectClass *)b;
+    const char *name_a, *name_b;
+
+    name_a = object_class_get_name(class_a);
+    name_b = object_class_get_name(class_b);
+    return strcmp(name_a, name_b);
+}
+
+static void alpha_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    CPUListState *s = user_data;
+
+    (*s->cpu_fprintf)(s->file, "  %s\n",
+                      object_class_get_name(oc));
+}
+
+void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+{
+    CPUListState s = {
+        .file = f,
+        .cpu_fprintf = cpu_fprintf,
+    };
+    GSList *list;
+
+    list = object_class_get_list(TYPE_ALPHA_CPU, false);
+    list = g_slist_sort(list, alpha_cpu_list_compare);
+    (*cpu_fprintf)(f, "Available CPUs:\n");
+    g_slist_foreach(list, alpha_cpu_list_entry, &s);
+    g_slist_free(list);
+}
+
+/* Models */
+
+#define TYPE(model) model "-" TYPE_ALPHA_CPU
+
+typedef struct AlphaCPUAlias {
+    const char *alias;
+    const char *typename;
+} AlphaCPUAlias;
+
+static const AlphaCPUAlias alpha_cpu_aliases[] = {
+    { "21064",   TYPE("ev4") },
+    { "21164",   TYPE("ev5") },
+    { "21164a",  TYPE("ev56") },
+    { "21164pc", TYPE("pca56") },
+    { "21264",   TYPE("ev6") },
+    { "21264a",  TYPE("ev67") },
+};
+
+static ObjectClass *alpha_cpu_class_by_name(const char *cpu_model)
+{
+    ObjectClass *oc = NULL;
+    char *typename;
+    int i;
+
+    if (cpu_model == NULL) {
+        return NULL;
+    }
+
+    oc = object_class_by_name(cpu_model);
+    if (oc != NULL) {
+        return oc;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(alpha_cpu_aliases); i++) {
+        if (strcmp(cpu_model, alpha_cpu_aliases[i].alias) == 0) {
+            oc = object_class_by_name(alpha_cpu_aliases[i].typename);
+            assert(oc != NULL);
+            return oc;
+        }
+    }
+
+    typename = g_strdup_printf("%s-" TYPE_ALPHA_CPU, cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
+    return oc;
+}
+
+AlphaCPU *cpu_alpha_init(const char *cpu_model)
+{
+    AlphaCPU *cpu;
+    CPUAlphaState *env;
+    ObjectClass *cpu_class;
+
+    cpu_class = alpha_cpu_class_by_name(cpu_model);
+    if (cpu_class == NULL) {
+        /* Default to ev67; no reason not to emulate insns by default.  */
+        cpu_class = object_class_by_name(TYPE("ev67"));
+    }
+    cpu = ALPHA_CPU(object_new(object_class_get_name(cpu_class)));
+    env = &cpu->env;
+
+    env->cpu_model_str = cpu_model;
+
+    alpha_cpu_realize(OBJECT(cpu), NULL);
+    return cpu;
+}
+
+static void ev4_cpu_initfn(Object *obj)
+{
+    AlphaCPU *cpu = ALPHA_CPU(obj);
+    CPUAlphaState *env = &cpu->env;
+
+    env->implver = IMPLVER_2106x;
+}
+
+static const TypeInfo ev4_cpu_type_info = {
+    .name = TYPE("ev4"),
+    .parent = TYPE_ALPHA_CPU,
+    .instance_init = ev4_cpu_initfn,
+};
+
+static void ev5_cpu_initfn(Object *obj)
+{
+    AlphaCPU *cpu = ALPHA_CPU(obj);
+    CPUAlphaState *env = &cpu->env;
+
+    env->implver = IMPLVER_21164;
+}
+
+static const TypeInfo ev5_cpu_type_info = {
+    .name = TYPE("ev5"),
+    .parent = TYPE_ALPHA_CPU,
+    .instance_init = ev5_cpu_initfn,
+};
+
+static void ev56_cpu_initfn(Object *obj)
+{
+    AlphaCPU *cpu = ALPHA_CPU(obj);
+    CPUAlphaState *env = &cpu->env;
+
+    env->amask |= AMASK_BWX;
+}
+
+static const TypeInfo ev56_cpu_type_info = {
+    .name = TYPE("ev56"),
+    .parent = TYPE("ev5"),
+    .instance_init = ev56_cpu_initfn,
+};
+
+static void pca56_cpu_initfn(Object *obj)
+{
+    AlphaCPU *cpu = ALPHA_CPU(obj);
+    CPUAlphaState *env = &cpu->env;
+
+    env->amask |= AMASK_MVI;
+}
+
+static const TypeInfo pca56_cpu_type_info = {
+    .name = TYPE("pca56"),
+    .parent = TYPE("ev56"),
+    .instance_init = pca56_cpu_initfn,
+};
+
+static void ev6_cpu_initfn(Object *obj)
+{
+    AlphaCPU *cpu = ALPHA_CPU(obj);
+    CPUAlphaState *env = &cpu->env;
+
+    env->implver = IMPLVER_21264;
+    env->amask = AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP;
+}
+
+static const TypeInfo ev6_cpu_type_info = {
+    .name = TYPE("ev6"),
+    .parent = TYPE_ALPHA_CPU,
+    .instance_init = ev6_cpu_initfn,
+};
+
+static void ev67_cpu_initfn(Object *obj)
+{
+    AlphaCPU *cpu = ALPHA_CPU(obj);
+    CPUAlphaState *env = &cpu->env;
+
+    env->amask |= AMASK_CIX | AMASK_PREFETCH;
+}
+
+static const TypeInfo ev67_cpu_type_info = {
+    .name = TYPE("ev67"),
+    .parent = TYPE("ev6"),
+    .instance_init = ev67_cpu_initfn,
+};
+
+static const TypeInfo ev68_cpu_type_info = {
+    .name = TYPE("ev68"),
+    .parent = TYPE("ev67"),
+};
 
 static void alpha_cpu_initfn(Object *obj)
 {
@@ -30,6 +233,8 @@ static void alpha_cpu_initfn(Object *obj)
 
     cpu_exec_init(env);
     tlb_flush(env, 1);
+
+    alpha_translate_init();
 
 #if defined(CONFIG_USER_ONLY)
     env->ps = PS_USER_MODE;
@@ -46,13 +251,20 @@ static const TypeInfo alpha_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(AlphaCPU),
     .instance_init = alpha_cpu_initfn,
-    .abstract = false,
+    .abstract = true,
     .class_size = sizeof(AlphaCPUClass),
 };
 
 static void alpha_cpu_register_types(void)
 {
     type_register_static(&alpha_cpu_type_info);
+    type_register_static(&ev4_cpu_type_info);
+    type_register_static(&ev5_cpu_type_info);
+    type_register_static(&ev56_cpu_type_info);
+    type_register_static(&pca56_cpu_type_info);
+    type_register_static(&ev6_cpu_type_info);
+    type_register_static(&ev67_cpu_type_info);
+    type_register_static(&ev68_cpu_type_info);
 }
 
 type_init(alpha_cpu_register_types)

@@ -2111,12 +2111,14 @@ CPUPPCState *ppc405cr_init(MemoryRegion *address_space_mem,
 {
     clk_setup_t clk_setup[PPC405CR_CLK_NB];
     qemu_irq dma_irqs[4];
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     qemu_irq *pic, *irqs;
 
     memset(clk_setup, 0, sizeof(clk_setup));
-    env = ppc4xx_init("405cr", &clk_setup[PPC405CR_CPU_CLK],
+    cpu = ppc4xx_init("405cr", &clk_setup[PPC405CR_CPU_CLK],
                       &clk_setup[PPC405CR_TMR_CLK], sysclk);
+    env = &cpu->env;
     /* Memory mapped devices registers */
     /* PLB arbitrer */
     ppc4xx_plb_init(env);
@@ -2460,13 +2462,15 @@ CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
 {
     clk_setup_t clk_setup[PPC405EP_CLK_NB], tlb_clk_setup;
     qemu_irq dma_irqs[4], gpt_irqs[5], mal_irqs[4];
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     qemu_irq *pic, *irqs;
 
     memset(clk_setup, 0, sizeof(clk_setup));
     /* init CPUs */
-    env = ppc4xx_init("405ep", &clk_setup[PPC405EP_CPU_CLK],
+    cpu = ppc4xx_init("405ep", &clk_setup[PPC405EP_CPU_CLK],
                       &tlb_clk_setup, sysclk);
+    env = &cpu->env;
     clk_setup[PPC405EP_CPU_CLK].cb = tlb_clk_setup.cb;
     clk_setup[PPC405EP_CPU_CLK].opaque = tlb_clk_setup.opaque;
     /* Internal devices init */
@@ -2478,7 +2482,7 @@ CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
     /* OBP arbitrer */
     ppc4xx_opba_init(0xef600600);
     /* Initialize timers */
-    ppc_booke_timers_init(env, sysclk, 0);
+    ppc_booke_timers_init(cpu, sysclk, 0);
     /* Universal interrupt controller */
     irqs = g_malloc0(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
     irqs[PPCUIC_OUTPUT_INT] =

@@ -20,8 +20,8 @@ uint64_t kvmppc_get_clockfreq(void);
 uint32_t kvmppc_get_vmx(void);
 uint32_t kvmppc_get_dfp(void);
 int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len);
-int kvmppc_set_interrupt(CPUPPCState *env, int irq, int level);
-void kvmppc_set_papr(CPUPPCState *env);
+int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
+void kvmppc_set_papr(PowerPCCPU *cpu);
 int kvmppc_smt_threads(void);
 #ifndef CONFIG_USER_ONLY
 off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
@@ -65,12 +65,12 @@ static inline int kvmppc_read_segment_page_sizes(uint32_t *prop, int maxcells)
     return -1;
 }
 
-static inline int kvmppc_set_interrupt(CPUPPCState *env, int irq, int level)
+static inline int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level)
 {
     return -1;
 }
 
-static inline void kvmppc_set_papr(CPUPPCState *env)
+static inline void kvmppc_set_papr(PowerPCCPU *cpu)
 {
 }
 

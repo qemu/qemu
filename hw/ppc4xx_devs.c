@@ -47,9 +47,9 @@ static void ppc4xx_reset(void *opaque)
 
 /*****************************************************************************/
 /* Generic PowerPC 4xx processor instantiation */
-CPUPPCState *ppc4xx_init (const char *cpu_model,
-                       clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
-                       uint32_t sysclk)
+PowerPCCPU *ppc4xx_init(const char *cpu_model,
+                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
+                        uint32_t sysclk)
 {
     PowerPCCPU *cpu;
     CPUPPCState *env;
@@ -72,7 +72,7 @@ CPUPPCState *ppc4xx_init (const char *cpu_model,
     /* Register qemu callbacks */
     qemu_register_reset(ppc4xx_reset, cpu);
 
-    return env;
+    return cpu;
 }
 
 /*****************************************************************************/

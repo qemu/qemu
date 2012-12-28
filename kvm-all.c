@@ -209,13 +209,14 @@ static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
 
 static void kvm_reset_vcpu(void *opaque)
 {
-    CPUArchState *env = opaque;
+    CPUState *cpu = opaque;
 
-    kvm_arch_reset_vcpu(env);
+    kvm_arch_reset_vcpu(cpu);
 }
 
 int kvm_init_vcpu(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     KVMState *s = kvm_state;
     long mmap_size;
     int ret;
@@ -228,9 +229,9 @@ int kvm_init_vcpu(CPUArchState *env)
         goto err;
     }
 
-    env->kvm_fd = ret;
-    env->kvm_state = s;
-    env->kvm_vcpu_dirty = 1;
+    cpu->kvm_fd = ret;
+    cpu->kvm_state = s;
+    cpu->kvm_vcpu_dirty = true;
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {
@@ -239,9 +240,9 @@ int kvm_init_vcpu(CPUArchState *env)
         goto err;
     }
 
-    env->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-                        env->kvm_fd, 0);
-    if (env->kvm_run == MAP_FAILED) {
+    cpu->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+                        cpu->kvm_fd, 0);
+    if (cpu->kvm_run == MAP_FAILED) {
         ret = -errno;
         DPRINTF("mmap'ing vcpu state failed\n");
         goto err;
@@ -249,13 +250,13 @@ int kvm_init_vcpu(CPUArchState *env)
 
     if (s->coalesced_mmio && !s->coalesced_mmio_ring) {
         s->coalesced_mmio_ring =
-            (void *)env->kvm_run + s->coalesced_mmio * PAGE_SIZE;
+            (void *)cpu->kvm_run + s->coalesced_mmio * PAGE_SIZE;
     }
 
-    ret = kvm_arch_init_vcpu(env);
+    ret = kvm_arch_init_vcpu(cpu);
     if (ret == 0) {
-        qemu_register_reset(kvm_reset_vcpu, env);
-        kvm_arch_reset_vcpu(env);
+        qemu_register_reset(kvm_reset_vcpu, cpu);
+        kvm_arch_reset_vcpu(cpu);
     }
 err:
     return ret;
@@ -1435,6 +1436,8 @@ static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
 
 static int kvm_handle_internal_error(CPUArchState *env, struct kvm_run *run)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+
     fprintf(stderr, "KVM internal error.");
     if (kvm_check_extension(kvm_state, KVM_CAP_INTERNAL_ERROR_DATA)) {
         int i;
@@ -1449,7 +1452,7 @@ static int kvm_handle_internal_error(CPUArchState *env, struct kvm_run *run)
     }
     if (run->internal.suberror == KVM_INTERNAL_ERROR_EMULATION) {
         fprintf(stderr, "emulation failure\n");
-        if (!kvm_arch_stop_on_emulation_error(env)) {
+        if (!kvm_arch_stop_on_emulation_error(cpu)) {
             cpu_dump_state(env, stderr, fprintf, CPU_DUMP_CODE);
             return EXCP_INTERRUPT;
         }
@@ -1486,13 +1489,13 @@ void kvm_flush_coalesced_mmio_buffer(void)
     s->coalesced_flush_in_progress = false;
 }
 
-static void do_kvm_cpu_synchronize_state(void *_env)
+static void do_kvm_cpu_synchronize_state(void *arg)
 {
-    CPUArchState *env = _env;
+    CPUState *cpu = arg;
 
-    if (!env->kvm_vcpu_dirty) {
-        kvm_arch_get_registers(env);
-        env->kvm_vcpu_dirty = 1;
+    if (!cpu->kvm_vcpu_dirty) {
+        kvm_arch_get_registers(cpu);
+        cpu->kvm_vcpu_dirty = true;
     }
 }
 
@@ -1500,42 +1503,47 @@ void kvm_cpu_synchronize_state(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
 
-    if (!env->kvm_vcpu_dirty) {
-        run_on_cpu(cpu, do_kvm_cpu_synchronize_state, env);
+    if (!cpu->kvm_vcpu_dirty) {
+        run_on_cpu(cpu, do_kvm_cpu_synchronize_state, cpu);
     }
 }
 
 void kvm_cpu_synchronize_post_reset(CPUArchState *env)
 {
-    kvm_arch_put_registers(env, KVM_PUT_RESET_STATE);
-    env->kvm_vcpu_dirty = 0;
+    CPUState *cpu = ENV_GET_CPU(env);
+
+    kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE);
+    cpu->kvm_vcpu_dirty = false;
 }
 
 void kvm_cpu_synchronize_post_init(CPUArchState *env)
 {
-    kvm_arch_put_registers(env, KVM_PUT_FULL_STATE);
-    env->kvm_vcpu_dirty = 0;
+    CPUState *cpu = ENV_GET_CPU(env);
+
+    kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
+    cpu->kvm_vcpu_dirty = false;
 }
 
 int kvm_cpu_exec(CPUArchState *env)
 {
-    struct kvm_run *run = env->kvm_run;
+    CPUState *cpu = ENV_GET_CPU(env);
+    struct kvm_run *run = cpu->kvm_run;
     int ret, run_ret;
 
     DPRINTF("kvm_cpu_exec()\n");
 
-    if (kvm_arch_process_async_events(env)) {
+    if (kvm_arch_process_async_events(cpu)) {
         env->exit_request = 0;
         return EXCP_HLT;
     }
 
     do {
-        if (env->kvm_vcpu_dirty) {
-            kvm_arch_put_registers(env, KVM_PUT_RUNTIME_STATE);
-            env->kvm_vcpu_dirty = 0;
+        if (cpu->kvm_vcpu_dirty) {
+            kvm_arch_put_registers(cpu, KVM_PUT_RUNTIME_STATE);
+            cpu->kvm_vcpu_dirty = false;
         }
 
-        kvm_arch_pre_run(env, run);
+        kvm_arch_pre_run(cpu, run);
         if (env->exit_request) {
             DPRINTF("interrupt exit requested\n");
             /*
@@ -1547,10 +1555,10 @@ int kvm_cpu_exec(CPUArchState *env)
         }
         qemu_mutex_unlock_iothread();
 
-        run_ret = kvm_vcpu_ioctl(env, KVM_RUN, 0);
+        run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
 
         qemu_mutex_lock_iothread();
-        kvm_arch_post_run(env, run);
+        kvm_arch_post_run(cpu, run);
 
         if (run_ret < 0) {
             if (run_ret == -EINTR || run_ret == -EAGAIN) {
@@ -1600,7 +1608,7 @@ int kvm_cpu_exec(CPUArchState *env)
             break;
         default:
             DPRINTF("kvm_arch_handle_exit\n");
-            ret = kvm_arch_handle_exit(env, run);
+            ret = kvm_arch_handle_exit(cpu, run);
             break;
         }
     } while (ret == 0);
@@ -1648,7 +1656,7 @@ int kvm_vm_ioctl(KVMState *s, int type, ...)
     return ret;
 }
 
-int kvm_vcpu_ioctl(CPUArchState *env, int type, ...)
+int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
 {
     int ret;
     void *arg;
@@ -1658,7 +1666,7 @@ int kvm_vcpu_ioctl(CPUArchState *env, int type, ...)
     arg = va_arg(ap, void *);
     va_end(ap);
 
-    ret = ioctl(env->kvm_fd, type, arg);
+    ret = ioctl(cpu->kvm_fd, type, arg);
     if (ret == -1) {
         ret = -errno;
     }
@@ -1753,12 +1761,12 @@ void kvm_setup_guest_memory(void *start, size_t size)
 }
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
-struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUArchState *env,
+struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
                                                  target_ulong pc)
 {
     struct kvm_sw_breakpoint *bp;
 
-    QTAILQ_FOREACH(bp, &env->kvm_state->kvm_sw_breakpoints, entry) {
+    QTAILQ_FOREACH(bp, &cpu->kvm_state->kvm_sw_breakpoints, entry) {
         if (bp->pc == pc) {
             return bp;
         }
@@ -1766,23 +1774,23 @@ struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUArchState *env,
     return NULL;
 }
 
-int kvm_sw_breakpoints_active(CPUArchState *env)
+int kvm_sw_breakpoints_active(CPUState *cpu)
 {
-    return !QTAILQ_EMPTY(&env->kvm_state->kvm_sw_breakpoints);
+    return !QTAILQ_EMPTY(&cpu->kvm_state->kvm_sw_breakpoints);
 }
 
 struct kvm_set_guest_debug_data {
     struct kvm_guest_debug dbg;
-    CPUArchState *env;
+    CPUState *cpu;
     int err;
 };
 
 static void kvm_invoke_set_guest_debug(void *data)
 {
     struct kvm_set_guest_debug_data *dbg_data = data;
-    CPUArchState *env = dbg_data->env;
 
-    dbg_data->err = kvm_vcpu_ioctl(env, KVM_SET_GUEST_DEBUG, &dbg_data->dbg);
+    dbg_data->err = kvm_vcpu_ioctl(dbg_data->cpu, KVM_SET_GUEST_DEBUG,
+                                   &dbg_data->dbg);
 }
 
 int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
@@ -1795,8 +1803,8 @@ int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
     if (env->singlestep_enabled) {
         data.dbg.control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP;
     }
-    kvm_arch_update_guest_debug(env, &data.dbg);
-    data.env = env;
+    kvm_arch_update_guest_debug(cpu, &data.dbg);
+    data.cpu = cpu;
 
     run_on_cpu(cpu, kvm_invoke_set_guest_debug, &data);
     return data.err;
@@ -1805,12 +1813,13 @@ int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
 int kvm_insert_breakpoint(CPUArchState *current_env, target_ulong addr,
                           target_ulong len, int type)
 {
+    CPUState *current_cpu = ENV_GET_CPU(current_env);
     struct kvm_sw_breakpoint *bp;
     CPUArchState *env;
     int err;
 
     if (type == GDB_BREAKPOINT_SW) {
-        bp = kvm_find_sw_breakpoint(current_env, addr);
+        bp = kvm_find_sw_breakpoint(current_cpu, addr);
         if (bp) {
             bp->use_count++;
             return 0;
@@ -1823,13 +1832,13 @@ int kvm_insert_breakpoint(CPUArchState *current_env, target_ulong addr,
 
         bp->pc = addr;
         bp->use_count = 1;
-        err = kvm_arch_insert_sw_breakpoint(current_env, bp);
+        err = kvm_arch_insert_sw_breakpoint(current_cpu, bp);
         if (err) {
             g_free(bp);
             return err;
         }
 
-        QTAILQ_INSERT_HEAD(&current_env->kvm_state->kvm_sw_breakpoints,
+        QTAILQ_INSERT_HEAD(&current_cpu->kvm_state->kvm_sw_breakpoints,
                           bp, entry);
     } else {
         err = kvm_arch_insert_hw_breakpoint(addr, len, type);
@@ -1850,12 +1859,13 @@ int kvm_insert_breakpoint(CPUArchState *current_env, target_ulong addr,
 int kvm_remove_breakpoint(CPUArchState *current_env, target_ulong addr,
                           target_ulong len, int type)
 {
+    CPUState *current_cpu = ENV_GET_CPU(current_env);
     struct kvm_sw_breakpoint *bp;
     CPUArchState *env;
     int err;
 
     if (type == GDB_BREAKPOINT_SW) {
-        bp = kvm_find_sw_breakpoint(current_env, addr);
+        bp = kvm_find_sw_breakpoint(current_cpu, addr);
         if (!bp) {
             return -ENOENT;
         }
@@ -1865,12 +1875,12 @@ int kvm_remove_breakpoint(CPUArchState *current_env, target_ulong addr,
             return 0;
         }
 
-        err = kvm_arch_remove_sw_breakpoint(current_env, bp);
+        err = kvm_arch_remove_sw_breakpoint(current_cpu, bp);
         if (err) {
             return err;
         }
 
-        QTAILQ_REMOVE(&current_env->kvm_state->kvm_sw_breakpoints, bp, entry);
+        QTAILQ_REMOVE(&current_cpu->kvm_state->kvm_sw_breakpoints, bp, entry);
         g_free(bp);
     } else {
         err = kvm_arch_remove_hw_breakpoint(addr, len, type);
@@ -1890,15 +1900,18 @@ int kvm_remove_breakpoint(CPUArchState *current_env, target_ulong addr,
 
 void kvm_remove_all_breakpoints(CPUArchState *current_env)
 {
+    CPUState *current_cpu = ENV_GET_CPU(current_env);
     struct kvm_sw_breakpoint *bp, *next;
-    KVMState *s = current_env->kvm_state;
+    KVMState *s = current_cpu->kvm_state;
     CPUArchState *env;
+    CPUState *cpu;
 
     QTAILQ_FOREACH_SAFE(bp, &s->kvm_sw_breakpoints, entry, next) {
-        if (kvm_arch_remove_sw_breakpoint(current_env, bp) != 0) {
+        if (kvm_arch_remove_sw_breakpoint(current_cpu, bp) != 0) {
             /* Try harder to find a CPU that currently sees the breakpoint. */
             for (env = first_cpu; env != NULL; env = env->next_cpu) {
-                if (kvm_arch_remove_sw_breakpoint(env, bp) == 0) {
+                cpu = ENV_GET_CPU(env);
+                if (kvm_arch_remove_sw_breakpoint(cpu, bp) == 0) {
                     break;
                 }
             }
@@ -1939,18 +1952,19 @@ void kvm_remove_all_breakpoints(CPUArchState *current_env)
 
 int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     struct kvm_signal_mask *sigmask;
     int r;
 
     if (!sigset) {
-        return kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, NULL);
+        return kvm_vcpu_ioctl(cpu, KVM_SET_SIGNAL_MASK, NULL);
     }
 
     sigmask = g_malloc(sizeof(*sigmask) + sizeof(*sigset));
 
     sigmask->len = 8;
     memcpy(sigmask->sigset, sigset, sizeof(*sigset));
-    r = kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, sigmask);
+    r = kvm_vcpu_ioctl(cpu, KVM_SET_SIGNAL_MASK, sigmask);
     g_free(sigmask);
 
     return r;
@@ -2010,7 +2024,8 @@ int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
 
 int kvm_on_sigbus_vcpu(CPUArchState *env, int code, void *addr)
 {
-    return kvm_arch_on_sigbus_vcpu(env, code, addr);
+    CPUState *cpu = ENV_GET_CPU(env);
+    return kvm_arch_on_sigbus_vcpu(cpu, code, addr);
 }
 
 int kvm_on_sigbus(int code, void *addr)

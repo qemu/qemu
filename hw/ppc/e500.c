@@ -496,7 +496,7 @@ void ppce500_init(PPCE500Params *params)
         env->mpic_cpu_base = MPC8544_CCSRBAR_BASE +
                               MPC8544_MPIC_REGS_OFFSET + 0x20000;
 
-        ppc_booke_timers_init(env, 400000000, PPC_TIMER_E500);
+        ppc_booke_timers_init(cpu, 400000000, PPC_TIMER_E500);
 
         /* Register reset handler */
         if (!i) {

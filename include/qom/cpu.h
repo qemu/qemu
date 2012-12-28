@@ -52,11 +52,15 @@ typedef struct CPUClass {
     void (*reset)(CPUState *cpu);
 } CPUClass;
 
+struct KVMState;
+struct kvm_run;
+
 /**
  * CPUState:
  * @created: Indicates whether the CPU thread has been successfully created.
  * @stop: Indicates a pending stop request.
  * @stopped: Indicates the CPU has been artificially stopped.
+ * @kvm_fd: vCPU file descriptor for KVM.
  *
  * State of one CPU core or thread.
  */
@@ -76,6 +80,13 @@ struct CPUState {
     bool created;
     bool stop;
     bool stopped;
+
+#if !defined(CONFIG_USER_ONLY)
+    int kvm_fd;
+    bool kvm_vcpu_dirty;
+#endif
+    struct KVMState *kvm_state;
+    struct kvm_run *kvm_run;
 
     /* TODO Move common fields from CPUArchState here. */
 };
