@@ -1571,21 +1571,6 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
         env->cpuid_ext2_features |= (def->features & CPUID_EXT2_AMD_ALIASES);
     }
 
-    if (!kvm_enabled()) {
-        env->cpuid_features &= TCG_FEATURES;
-        env->cpuid_ext_features &= TCG_EXT_FEATURES;
-        env->cpuid_ext2_features &= (TCG_EXT2_FEATURES
-#ifdef TARGET_X86_64
-            | CPUID_EXT2_SYSCALL | CPUID_EXT2_LM
-#endif
-            );
-        env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
-        env->cpuid_svm_features &= TCG_SVM_FEATURES;
-    } else {
-#ifdef CONFIG_KVM
-        filter_features_for_kvm(cpu);
-#endif
-    }
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
     if (error) {
         fprintf(stderr, "%s\n", error_get_pretty(error));
@@ -2104,6 +2089,22 @@ void x86_cpu_realize(Object *obj, Error **errp)
 
     if (env->cpuid_7_0_ebx_features && env->cpuid_level < 7) {
         env->cpuid_level = 7;
+    }
+
+    if (!kvm_enabled()) {
+        env->cpuid_features &= TCG_FEATURES;
+        env->cpuid_ext_features &= TCG_EXT_FEATURES;
+        env->cpuid_ext2_features &= (TCG_EXT2_FEATURES
+#ifdef TARGET_X86_64
+            | CPUID_EXT2_SYSCALL | CPUID_EXT2_LM
+#endif
+            );
+        env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
+        env->cpuid_svm_features &= TCG_SVM_FEATURES;
+    } else {
+#ifdef CONFIG_KVM
+        filter_features_for_kvm(cpu);
+#endif
     }
 
 #ifndef CONFIG_USER_ONLY
