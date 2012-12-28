@@ -166,6 +166,11 @@ static void
 set_phy_ctrl(E1000State *s, int index, uint16_t val)
 {
     if ((val & MII_CR_AUTO_NEG_EN) && (val & MII_CR_RESTART_AUTO_NEG)) {
+        /* no need auto-negotiation if link was down */
+        if (s->nic->nc.link_down) {
+            s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+            return;
+        }
         s->nic->nc.link_down = true;
         e1000_link_down(s);
         s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
