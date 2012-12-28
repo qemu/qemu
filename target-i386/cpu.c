@@ -1561,16 +1561,6 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     object_property_set_int(OBJECT(cpu), (int64_t)def->tsc_khz * 1000,
                             "tsc-frequency", &error);
 
-    /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
-     * CPUID[1].EDX.
-     */
-    if (env->cpuid_vendor1 == CPUID_VENDOR_AMD_1 &&
-            env->cpuid_vendor2 == CPUID_VENDOR_AMD_2 &&
-            env->cpuid_vendor3 == CPUID_VENDOR_AMD_3) {
-        env->cpuid_ext2_features &= ~CPUID_EXT2_AMD_ALIASES;
-        env->cpuid_ext2_features |= (def->features & CPUID_EXT2_AMD_ALIASES);
-    }
-
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
     if (error) {
         fprintf(stderr, "%s\n", error_get_pretty(error));
@@ -2089,6 +2079,17 @@ void x86_cpu_realize(Object *obj, Error **errp)
 
     if (env->cpuid_7_0_ebx_features && env->cpuid_level < 7) {
         env->cpuid_level = 7;
+    }
+
+    /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
+     * CPUID[1].EDX.
+     */
+    if (env->cpuid_vendor1 == CPUID_VENDOR_AMD_1 &&
+        env->cpuid_vendor2 == CPUID_VENDOR_AMD_2 &&
+        env->cpuid_vendor3 == CPUID_VENDOR_AMD_3) {
+        env->cpuid_ext2_features &= ~CPUID_EXT2_AMD_ALIASES;
+        env->cpuid_ext2_features |= (env->cpuid_features
+           & CPUID_EXT2_AMD_ALIASES);
     }
 
     if (!kvm_enabled()) {
