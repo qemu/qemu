@@ -3637,6 +3637,30 @@ int main(int argc, char **argv, char **envp)
         default_sdcard = 0;
     }
 
+    if (is_daemonized()) {
+        /* According to documentation and historically, -nographic redirects
+         * serial port, parallel port and monitor to stdio, which does not work
+         * with -daemonize.  We can redirect these to null instead, but since
+         * -nographic is legacy, let's just error out.
+         * We disallow -nographic only if all other ports are not redirected
+         * explicitly, to not break existing legacy setups which uses
+         * -nographic _and_ redirects all ports explicitly - this is valid
+         * usage, -nographic is just a no-op in this case.
+         */
+        if (display_type == DT_NOGRAPHIC
+            && (default_parallel || default_serial
+                || default_monitor || default_virtcon)) {
+            fprintf(stderr, "-nographic can not be used with -daemonize\n");
+            exit(1);
+        }
+#ifdef CONFIG_CURSES
+        if (display_type == DT_CURSES) {
+            fprintf(stderr, "curses display can not be used with -daemonize\n");
+            exit(1);
+        }
+#endif
+    }
+
     if (display_type == DT_NOGRAPHIC) {
         if (default_parallel)
             add_device_config(DEV_PARALLEL, "null");
@@ -3903,9 +3927,7 @@ int main(int argc, char **argv, char **envp)
         break;
 #if defined(CONFIG_CURSES)
     case DT_CURSES:
-        if (!is_daemonized()) {
-            curses_display_init(ds, full_screen);
-        }
+        curses_display_init(ds, full_screen);
         break;
 #endif
 #if defined(CONFIG_SDL)
