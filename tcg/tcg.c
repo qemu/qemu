@@ -800,7 +800,6 @@ static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
 
     assert(idx >= 0 && idx < s->nb_temps);
     ts = &s->temps[idx];
-    assert(ts);
     if (idx < s->nb_globals) {
         pstrcpy(buf, buf_size, ts->name);
     } else {
