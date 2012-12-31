@@ -980,6 +980,7 @@ static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
     CharDriverState *chr;
     PtyCharDriver *s;
     struct termios tty;
+    const char *label;
     int master_fd, slave_fd, len;
 #if defined(__OpenBSD__) || defined(__DragonFly__)
     char pty_name[PATH_MAX];
@@ -1005,7 +1006,12 @@ static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
     chr->filename = g_malloc(len);
     snprintf(chr->filename, len, "pty:%s", q_ptsname(master_fd));
     qemu_opt_set(opts, "path", q_ptsname(master_fd));
-    fprintf(stderr, "char device redirected to %s\n", q_ptsname(master_fd));
+
+    label = qemu_opts_id(opts);
+    fprintf(stderr, "char device%s%s redirected to %s\n",
+            label ? " " : "",
+            label ?: "",
+            q_ptsname(master_fd));
 
     s = g_malloc0(sizeof(PtyCharDriver));
     chr->opaque = s;

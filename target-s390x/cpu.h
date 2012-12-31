@@ -296,21 +296,21 @@ void s390x_cpu_timer(void *opaque);
 int s390_virtio_hypercall(CPUS390XState *env, uint64_t mem, uint64_t hypercall);
 
 #ifdef CONFIG_KVM
-void kvm_s390_interrupt(CPUS390XState *env, int type, uint32_t code);
-void kvm_s390_virtio_irq(CPUS390XState *env, int config_change, uint64_t token);
-void kvm_s390_interrupt_internal(CPUS390XState *env, int type, uint32_t parm,
+void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code);
+void kvm_s390_virtio_irq(S390CPU *cpu, int config_change, uint64_t token);
+void kvm_s390_interrupt_internal(S390CPU *cpu, int type, uint32_t parm,
                                  uint64_t parm64, int vm);
 #else
-static inline void kvm_s390_interrupt(CPUS390XState *env, int type, uint32_t code)
+static inline void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code)
 {
 }
 
-static inline void kvm_s390_virtio_irq(CPUS390XState *env, int config_change,
+static inline void kvm_s390_virtio_irq(S390CPU *cpu, int config_change,
                                        uint64_t token)
 {
 }
 
-static inline void kvm_s390_interrupt_internal(CPUS390XState *env, int type,
+static inline void kvm_s390_interrupt_internal(S390CPU *cpu, int type,
                                                uint32_t parm, uint64_t parm64,
                                                int vm)
 {

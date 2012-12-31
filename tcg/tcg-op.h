@@ -2329,6 +2329,7 @@ static inline void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret,
 #define tcg_gen_qemu_ldst_op tcg_gen_op3i_i32
 #define tcg_gen_qemu_ldst_op_i64 tcg_gen_qemu_ldst_op_i64_i32
 #define TCGV_UNUSED(x) TCGV_UNUSED_I32(x)
+#define TCGV_IS_UNUSED(x) TCGV_IS_UNUSED_I32(x)
 #define TCGV_EQUAL(a, b) TCGV_EQUAL_I32(a, b)
 #else
 #define TCGv TCGv_i64
@@ -2340,6 +2341,7 @@ static inline void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret,
 #define tcg_gen_qemu_ldst_op tcg_gen_op3i_i64
 #define tcg_gen_qemu_ldst_op_i64 tcg_gen_qemu_ldst_op_i64_i64
 #define TCGV_UNUSED(x) TCGV_UNUSED_I64(x)
+#define TCGV_IS_UNUSED(x) TCGV_IS_UNUSED_I64(x)
 #define TCGV_EQUAL(a, b) TCGV_EQUAL_I64(a, b)
 #endif
 

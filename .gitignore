@@ -3,10 +3,10 @@ config-all-devices.*
 config-all-disas.*
 config-host.*
 config-target.*
-trace.h
-trace.c
-trace-dtrace.h
-trace-dtrace.dtrace
+trace/generated-tracers.h
+trace/generated-tracers.c
+trace/generated-tracers-dtrace.h
+trace/generated-tracers-dtrace.dtrace
 *-timestamp
 *-softmmu
 *-darwin-user

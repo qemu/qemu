@@ -110,10 +110,12 @@ VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
     return bus;
 }
 
-static void s390_virtio_irq(CPUS390XState *env, int config_change, uint64_t token)
+static void s390_virtio_irq(S390CPU *cpu, int config_change, uint64_t token)
 {
+    CPUS390XState *env = &cpu->env;
+
     if (kvm_enabled()) {
-        kvm_s390_virtio_irq(env, config_change, token);
+        kvm_s390_virtio_irq(cpu, config_change, token);
     } else {
         cpu_inject_ext(env, VIRTIO_EXT_CODE, config_change, token);
     }
@@ -142,8 +144,7 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
     s390_virtio_reset_idx(dev);
     if (dev->qdev.hotplugged) {
         S390CPU *cpu = s390_cpu_addr2state(0);
-        CPUS390XState *env = &cpu->env;
-        s390_virtio_irq(env, VIRTIO_PARAM_DEV_ADD, dev->dev_offs);
+        s390_virtio_irq(cpu, VIRTIO_PARAM_DEV_ADD, dev->dev_offs);
     }
 
     return 0;
@@ -368,9 +369,8 @@ static void virtio_s390_notify(void *opaque, uint16_t vector)
     VirtIOS390Device *dev = (VirtIOS390Device*)opaque;
     uint64_t token = s390_virtio_device_vq_token(dev, vector);
     S390CPU *cpu = s390_cpu_addr2state(0);
-    CPUS390XState *env = &cpu->env;
 
-    s390_virtio_irq(env, 0, token);
+    s390_virtio_irq(cpu, 0, token);
 }
 
 static unsigned virtio_s390_get_features(void *opaque)

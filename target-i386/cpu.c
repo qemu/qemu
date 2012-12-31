@@ -1634,6 +1634,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
     /* test if maximum index reached */
     if (index & 0x80000000) {
         if (index > env->cpuid_xlevel) {
@@ -1645,7 +1648,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                     index = env->cpuid_xlevel;
                 }
             } else {
-                index =  env->cpuid_xlevel;
+                /* Intel documentation states that invalid EAX input will
+                 * return the same information as EAX=cpuid_level
+                 * (Intel SDM Vol. 2A - Instruction Set Reference - CPUID)
+                 */
+                index =  env->cpuid_level;
             }
         }
     } else {
@@ -1750,7 +1757,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0xA:
         /* Architectural Performance Monitoring Leaf */
         if (kvm_enabled()) {
-            KVMState *s = env->kvm_state;
+            KVMState *s = cs->kvm_state;
 
             *eax = kvm_arch_get_supported_cpuid(s, 0xA, count, R_EAX);
             *ebx = kvm_arch_get_supported_cpuid(s, 0xA, count, R_EBX);
@@ -1773,7 +1780,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             break;
         }
         if (kvm_enabled()) {
-            KVMState *s = env->kvm_state;
+            KVMState *s = cs->kvm_state;
 
             *eax = kvm_arch_get_supported_cpuid(s, 0xd, count, R_EAX);
             *ebx = kvm_arch_get_supported_cpuid(s, 0xd, count, R_EBX);

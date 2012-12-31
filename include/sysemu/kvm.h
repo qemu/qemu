@@ -152,20 +152,20 @@ int kvm_ioctl(KVMState *s, int type, ...);
 
 int kvm_vm_ioctl(KVMState *s, int type, ...);
 
-int kvm_vcpu_ioctl(CPUArchState *env, int type, ...);
+int kvm_vcpu_ioctl(CPUState *cpu, int type, ...);
 
 /* Arch specific hooks */
 
 extern const KVMCapabilityInfo kvm_arch_required_capabilities[];
 
-void kvm_arch_pre_run(CPUArchState *env, struct kvm_run *run);
-void kvm_arch_post_run(CPUArchState *env, struct kvm_run *run);
+void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run);
+void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run);
 
-int kvm_arch_handle_exit(CPUArchState *env, struct kvm_run *run);
+int kvm_arch_handle_exit(CPUState *cpu, struct kvm_run *run);
 
-int kvm_arch_process_async_events(CPUArchState *env);
+int kvm_arch_process_async_events(CPUState *cpu);
 
-int kvm_arch_get_registers(CPUArchState *env);
+int kvm_arch_get_registers(CPUState *cpu);
 
 /* state subset only touched by the VCPU itself during runtime */
 #define KVM_PUT_RUNTIME_STATE   1
@@ -174,15 +174,15 @@ int kvm_arch_get_registers(CPUArchState *env);
 /* full state set, modified during initialization or on vmload */
 #define KVM_PUT_FULL_STATE      3
 
-int kvm_arch_put_registers(CPUArchState *env, int level);
+int kvm_arch_put_registers(CPUState *cpu, int level);
 
 int kvm_arch_init(KVMState *s);
 
-int kvm_arch_init_vcpu(CPUArchState *env);
+int kvm_arch_init_vcpu(CPUState *cpu);
 
-void kvm_arch_reset_vcpu(CPUArchState *env);
+void kvm_arch_reset_vcpu(CPUState *cpu);
 
-int kvm_arch_on_sigbus_vcpu(CPUArchState *env, int code, void *addr);
+int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_arch_on_sigbus(int code, void *addr);
 
 void kvm_arch_init_irq_routing(KVMState *s);
@@ -207,14 +207,14 @@ struct kvm_sw_breakpoint {
 
 QTAILQ_HEAD(kvm_sw_breakpoint_head, kvm_sw_breakpoint);
 
-struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUArchState *env,
+struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
                                                  target_ulong pc);
 
-int kvm_sw_breakpoints_active(CPUArchState *env);
+int kvm_sw_breakpoints_active(CPUState *cpu);
 
-int kvm_arch_insert_sw_breakpoint(CPUArchState *current_env,
+int kvm_arch_insert_sw_breakpoint(CPUState *current_cpu,
                                   struct kvm_sw_breakpoint *bp);
-int kvm_arch_remove_sw_breakpoint(CPUArchState *current_env,
+int kvm_arch_remove_sw_breakpoint(CPUState *current_cpu,
                                   struct kvm_sw_breakpoint *bp);
 int kvm_arch_insert_hw_breakpoint(target_ulong addr,
                                   target_ulong len, int type);
@@ -222,9 +222,9 @@ int kvm_arch_remove_hw_breakpoint(target_ulong addr,
                                   target_ulong len, int type);
 void kvm_arch_remove_all_hw_breakpoints(void);
 
-void kvm_arch_update_guest_debug(CPUArchState *env, struct kvm_guest_debug *dbg);
+void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg);
 
-bool kvm_arch_stop_on_emulation_error(CPUArchState *env);
+bool kvm_arch_stop_on_emulation_error(CPUState *cpu);
 
 int kvm_check_extension(KVMState *s, unsigned int extension);
 

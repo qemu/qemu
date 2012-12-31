@@ -71,17 +71,19 @@ struct booke_timer_t {
     uint32_t flags;
 };
 
-static void booke_update_irq(CPUPPCState *env)
+static void booke_update_irq(PowerPCCPU *cpu)
 {
-    ppc_set_irq(env, PPC_INTERRUPT_DECR,
+    CPUPPCState *env = &cpu->env;
+
+    ppc_set_irq(cpu, PPC_INTERRUPT_DECR,
                 (env->spr[SPR_BOOKE_TSR] & TSR_DIS
                  && env->spr[SPR_BOOKE_TCR] & TCR_DIE));
 
-    ppc_set_irq(env, PPC_INTERRUPT_WDT,
+    ppc_set_irq(cpu, PPC_INTERRUPT_WDT,
                 (env->spr[SPR_BOOKE_TSR] & TSR_WIS
                  && env->spr[SPR_BOOKE_TCR] & TCR_WIE));
 
-    ppc_set_irq(env, PPC_INTERRUPT_FIT,
+    ppc_set_irq(cpu, PPC_INTERRUPT_FIT,
                 (env->spr[SPR_BOOKE_TSR] & TSR_FIS
                  && env->spr[SPR_BOOKE_TCR] & TCR_FIE));
 }
@@ -153,10 +155,11 @@ static void booke_update_fixed_timer(CPUPPCState         *env,
 
 static void booke_decr_cb(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
 
     env->spr[SPR_BOOKE_TSR] |= TSR_DIS;
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 
     if (env->spr[SPR_BOOKE_TCR] & TCR_ARE) {
         /* Auto Reload */
@@ -166,16 +169,16 @@ static void booke_decr_cb(void *opaque)
 
 static void booke_fit_cb(void *opaque)
 {
-    CPUPPCState *env;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
-    env = opaque;
     tb_env = env->tb_env;
     booke_timer = tb_env->opaque;
     env->spr[SPR_BOOKE_TSR] |= TSR_FIS;
 
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 
     booke_update_fixed_timer(env,
                              booke_get_fit_target(env, tb_env),
@@ -185,17 +188,17 @@ static void booke_fit_cb(void *opaque)
 
 static void booke_wdt_cb(void *opaque)
 {
-    CPUPPCState *env;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
-    env = opaque;
     tb_env = env->tb_env;
     booke_timer = tb_env->opaque;
 
     /* TODO: There's lots of complicated stuff to do here */
 
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 
     booke_update_fixed_timer(env,
                              booke_get_wdt_target(env, tb_env),
@@ -205,19 +208,22 @@ static void booke_wdt_cb(void *opaque)
 
 void store_booke_tsr(CPUPPCState *env, target_ulong val)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     env->spr[SPR_BOOKE_TSR] &= ~val;
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 }
 
 void store_booke_tcr(CPUPPCState *env, target_ulong val)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_tb_t *tb_env = env->tb_env;
     booke_timer_t *booke_timer = tb_env->opaque;
 
     tb_env = env->tb_env;
     env->spr[SPR_BOOKE_TCR] = val;
 
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 
     booke_update_fixed_timer(env,
                              booke_get_fit_target(env, tb_env),
@@ -231,7 +237,7 @@ void store_booke_tcr(CPUPPCState *env, target_ulong val)
 
 }
 
-void ppc_booke_timers_init(CPUPPCState *env, uint32_t freq, uint32_t flags)
+void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags)
 {
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
@@ -239,16 +245,16 @@ void ppc_booke_timers_init(CPUPPCState *env, uint32_t freq, uint32_t flags)
     tb_env      = g_malloc0(sizeof(ppc_tb_t));
     booke_timer = g_malloc0(sizeof(booke_timer_t));
 
-    env->tb_env = tb_env;
+    cpu->env.tb_env = tb_env;
     tb_env->flags = flags | PPC_TIMER_BOOKE | PPC_DECR_ZERO_TRIGGERED;
 
     tb_env->tb_freq    = freq;
     tb_env->decr_freq  = freq;
     tb_env->opaque     = booke_timer;
-    tb_env->decr_timer = qemu_new_timer_ns(vm_clock, &booke_decr_cb, env);
+    tb_env->decr_timer = qemu_new_timer_ns(vm_clock, &booke_decr_cb, cpu);
 
     booke_timer->fit_timer =
-        qemu_new_timer_ns(vm_clock, &booke_fit_cb, env);
+        qemu_new_timer_ns(vm_clock, &booke_fit_cb, cpu);
     booke_timer->wdt_timer =
-        qemu_new_timer_ns(vm_clock, &booke_wdt_cb, env);
+        qemu_new_timer_ns(vm_clock, &booke_wdt_cb, cpu);
 }

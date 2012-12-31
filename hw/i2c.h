@@ -73,9 +73,6 @@ void *wm8750_dac_buffer(void *opaque, int samples);
 void wm8750_dac_commit(void *opaque);
 void wm8750_set_bclk_in(void *opaque, int new_hz);
 
-/* tmp105.c */
-void tmp105_set(I2CSlave *i2c, int temp);
-
 /* lm832x.c */
 void lm832x_key_event(DeviceState *dev, int key, int state);
 

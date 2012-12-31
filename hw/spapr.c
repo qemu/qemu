@@ -798,7 +798,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
 
         /* Tell KVM that we're in PAPR mode */
         if (kvm_enabled()) {
-            kvmppc_set_papr(env);
+            kvmppc_set_papr(cpu);
         }
 
         qemu_register_reset(spapr_cpu_reset, cpu);

@@ -37,7 +37,7 @@ def c(events):
 
 
 def h(events):
-    out('#include "trace-dtrace.h"',
+    out('#include "trace/generated-tracers-dtrace.h"',
         '')
 
     for e in events:

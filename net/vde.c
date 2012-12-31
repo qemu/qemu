@@ -28,7 +28,6 @@
 #include "net/net.h"
 #include "clients.h"
 #include "qemu-common.h"
-#include "qemu/main-loop.h"     /* qemu_set_fd_handler */
 #include "qemu/option.h"
 #include "qemu/main-loop.h"
 

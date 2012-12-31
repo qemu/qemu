@@ -12,6 +12,18 @@
 #include "qemu/bswap.h"
 #include "qemu/queue.h"
 
+/**
+ * CPUListState:
+ * @cpu_fprintf: Print function.
+ * @file: File to print to using @cpu_fprint.
+ *
+ * State commonly used for iterating over CPU models.
+ */
+typedef struct CPUListState {
+    fprintf_function cpu_fprintf;
+    FILE *file;
+} CPUListState;
+
 #if !defined(CONFIG_USER_ONLY)
 
 enum device_endian {
