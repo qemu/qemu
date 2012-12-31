@@ -1339,6 +1339,14 @@ float128 int64_to_float128( int64 a STATUS_PARAM )
 
 }
 
+float128 uint64_to_float128(uint64 a STATUS_PARAM)
+{
+    if (a == 0) {
+        return float128_zero;
+    }
+    return normalizeRoundAndPackFloat128(0, 0x406E, a, 0 STATUS_VAR);
+}
+
 /*----------------------------------------------------------------------------
 | Returns the result of converting the single-precision floating-point value
 | `a' to the 32-bit two's complement integer format.  The conversion is
