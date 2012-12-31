@@ -682,7 +682,7 @@ print_timeval(abi_ulong tv_addr, int last)
         if (!tv)
             return;
         gemu_log("{" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "}%s",
-            tv->tv_sec, tv->tv_usec, get_comma(last));
+            tswapal(tv->tv_sec), tswapal(tv->tv_usec), get_comma(last));
         unlock_user(tv, tv_addr, 0);
     } else
         gemu_log("NULL%s", get_comma(last));
