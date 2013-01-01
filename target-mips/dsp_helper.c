@@ -1110,6 +1110,48 @@ static inline int32_t mipsdsp_cmpu_lt(uint32_t a, uint32_t b)
 #endif
 
 /** DSP Arithmetic Sub-class insns **/
+#define MIPSDSP32_UNOP_ENV(name, func, element)                            \
+target_ulong helper_##name(target_ulong rt, CPUMIPSState *env)             \
+{                                                                          \
+    DSP32Value dt;                                                         \
+    unsigned int i, n;                                                     \
+                                                                           \
+    n = sizeof(DSP32Value) / sizeof(dt.element[0]);                        \
+    dt.sw[0] = rt;                                                         \
+                                                                           \
+    for (i = 0; i < n; i++) {                                              \
+        dt.element[i] = mipsdsp_##func(dt.element[i], env);                \
+    }                                                                      \
+                                                                           \
+    return (target_long)dt.sw[0];                                          \
+}
+MIPSDSP32_UNOP_ENV(absq_s_ph, sat_abs16, sh)
+MIPSDSP32_UNOP_ENV(absq_s_qb, sat_abs8, sb)
+MIPSDSP32_UNOP_ENV(absq_s_w, sat_abs32, sw)
+#undef MIPSDSP32_UNOP_ENV
+
+#if defined(TARGET_MIPS64)
+#define MIPSDSP64_UNOP_ENV(name, func, element)                            \
+target_ulong helper_##name(target_ulong rt, CPUMIPSState *env)             \
+{                                                                          \
+    DSP64Value dt;                                                         \
+    unsigned int i, n;                                                     \
+                                                                           \
+    n = sizeof(DSP64Value) / sizeof(dt.element[0]);                        \
+    dt.sl[0] = rt;                                                         \
+                                                                           \
+    for (i = 0; i < n; i++) {                                              \
+        dt.element[i] = mipsdsp_##func(dt.element[i], env);                \
+    }                                                                      \
+                                                                           \
+    return dt.sl[0];                                                       \
+}
+MIPSDSP64_UNOP_ENV(absq_s_ob, sat_abs8, sb)
+MIPSDSP64_UNOP_ENV(absq_s_qh, sat_abs16, sh)
+MIPSDSP64_UNOP_ENV(absq_s_pw, sat_abs32, sw)
+#undef MIPSDSP64_UNOP_ENV
+#endif
+
 #define MIPSDSP32_BINOP(name, func, element)                               \
 target_ulong helper_##name(target_ulong rs, target_ulong rt)               \
 {                                                                          \
@@ -1231,16 +1273,6 @@ MIPSDSP64_BINOP_ENV(subu_s_qh, satu16_sub_u16_u16, uh);
 
 #endif
 
-target_ulong helper_absq_s_w(target_ulong rt, CPUMIPSState *env)
-{
-    uint32_t rd;
-
-    rd = mipsdsp_sat_abs32(rt, env);
-
-    return (target_ulong)rd;
-}
-
-
 #define SUBUH_QB(name, var) \
 target_ulong helper_##name##_qb(target_ulong rs, target_ulong rt) \
 {                                                                 \
@@ -1345,78 +1377,6 @@ target_ulong helper_raddu_l_ob(target_ulong rs)
     }
 
     return temp;
-}
-#endif
-
-target_ulong helper_absq_s_qb(target_ulong rt, CPUMIPSState *env)
-{
-    uint8_t tempD, tempC, tempB, tempA;
-
-    MIPSDSP_SPLIT32_8(rt, tempD, tempC, tempB, tempA);
-
-    tempD = mipsdsp_sat_abs8(tempD, env);
-    tempC = mipsdsp_sat_abs8(tempC, env);
-    tempB = mipsdsp_sat_abs8(tempB, env);
-    tempA = mipsdsp_sat_abs8(tempA, env);
-
-    return MIPSDSP_RETURN32_8(tempD, tempC, tempB, tempA);
-}
-
-target_ulong helper_absq_s_ph(target_ulong rt, CPUMIPSState *env)
-{
-    uint16_t tempB, tempA;
-
-    MIPSDSP_SPLIT32_16(rt, tempB, tempA);
-
-    tempB = mipsdsp_sat_abs16 (tempB, env);
-    tempA = mipsdsp_sat_abs16 (tempA, env);
-
-    return MIPSDSP_RETURN32_16(tempB, tempA);
-}
-
-#if defined(TARGET_MIPS64)
-target_ulong helper_absq_s_ob(target_ulong rt, CPUMIPSState *env)
-{
-    int i;
-    int8_t temp[8];
-    uint64_t result;
-
-    for (i = 0; i < 8; i++) {
-        temp[i] = (rt >> (8 * i)) & MIPSDSP_Q0;
-        temp[i] = mipsdsp_sat_abs8(temp[i], env);
-    }
-
-    for (i = 0; i < 8; i++) {
-        result = (uint64_t)(uint8_t)temp[i] << (8 * i);
-    }
-
-    return result;
-}
-
-target_ulong helper_absq_s_qh(target_ulong rt, CPUMIPSState *env)
-{
-    int16_t tempD, tempC, tempB, tempA;
-
-    MIPSDSP_SPLIT64_16(rt, tempD, tempC, tempB, tempA);
-
-    tempD = mipsdsp_sat_abs16(tempD, env);
-    tempC = mipsdsp_sat_abs16(tempC, env);
-    tempB = mipsdsp_sat_abs16(tempB, env);
-    tempA = mipsdsp_sat_abs16(tempA, env);
-
-    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);
-}
-
-target_ulong helper_absq_s_pw(target_ulong rt, CPUMIPSState *env)
-{
-    int32_t tempB, tempA;
-
-    MIPSDSP_SPLIT64_32(rt, tempB, tempA);
-
-    tempB = mipsdsp_sat_abs32(tempB, env);
-    tempA = mipsdsp_sat_abs32(tempA, env);
-
-    return MIPSDSP_RETURN64_32(tempB, tempA);
 }
 #endif
 
