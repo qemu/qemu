@@ -1394,14 +1394,22 @@ static inline void check_cp1_registers(DisasContext *ctx, int regs)
 static inline void check_dsp(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_DSP))) {
-        generate_exception(ctx, EXCP_DSPDIS);
+        if (ctx->insn_flags & ASE_DSP) {
+            generate_exception(ctx, EXCP_DSPDIS);
+        } else {
+            generate_exception(ctx, EXCP_RI);
+        }
     }
 }
 
 static inline void check_dspr2(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_DSPR2))) {
-        generate_exception(ctx, EXCP_DSPDIS);
+        if (ctx->insn_flags & ASE_DSP) {
+            generate_exception(ctx, EXCP_DSPDIS);
+        } else {
+            generate_exception(ctx, EXCP_RI);
+        }
     }
 }
 
