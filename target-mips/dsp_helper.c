@@ -1352,31 +1352,29 @@ target_ulong helper_modsub(target_ulong rs, target_ulong rt)
 
 target_ulong helper_raddu_w_qb(target_ulong rs)
 {
-    uint8_t  rs3, rs2, rs1, rs0;
-    uint16_t temp;
+    target_ulong ret = 0;
+    DSP32Value ds;
+    unsigned int i;
 
-    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);
-
-    temp = (uint16_t)rs3 + (uint16_t)rs2 + (uint16_t)rs1 + (uint16_t)rs0;
-
-    return (target_ulong)temp;
+    ds.uw[0] = rs;
+    for (i = 0; i < 4; i++) {
+        ret += ds.ub[i];
+    }
+    return ret;
 }
 
 #if defined(TARGET_MIPS64)
 target_ulong helper_raddu_l_ob(target_ulong rs)
 {
-    int i;
-    uint16_t rs_t[8];
-    uint64_t temp;
+    target_ulong ret = 0;
+    DSP64Value ds;
+    unsigned int i;
 
-    temp = 0;
-
+    ds.ul[0] = rs;
     for (i = 0; i < 8; i++) {
-        rs_t[i] = (rs >> (8 * i)) & MIPSDSP_Q0;
-        temp += (uint64_t)rs_t[i];
+        ret += ds.ub[i];
     }
-
-    return temp;
+    return ret;
 }
 #endif
 
