@@ -69,12 +69,11 @@ all: $(PROGS) stap
 obj-y = exec.o translate-all.o cpu-exec.o
 obj-y += tcg/tcg.o tcg/optimize.o
 obj-$(CONFIG_TCG_INTERPRETER) += tci.o
+obj-$(CONFIG_TCG_INTERPRETER) += disas/tci.o
 obj-y += fpu/softfloat.o
 obj-y += target-$(TARGET_BASE_ARCH)/
 obj-y += disas.o
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
-
-tci-dis.o: QEMU_CFLAGS += -I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/tci
 
 #########################################################
 # Linux user emulator target
