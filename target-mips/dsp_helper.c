@@ -20,6 +20,28 @@
 #include "cpu.h"
 #include "helper.h"
 
+/* As the byte ordering doesn't matter, i.e. all columns are treated
+   identically, these unions can be used directly.  */
+typedef union {
+    uint8_t  ub[4];
+    int8_t   sb[4];
+    uint16_t uh[2];
+    int16_t  sh[2];
+    uint32_t uw[1];
+    int32_t  sw[1];
+} DSP32Value;
+
+typedef union {
+    uint8_t  ub[8];
+    int8_t   sb[8];
+    uint16_t uh[4];
+    int16_t  sh[4];
+    uint32_t uw[2];
+    int32_t  sw[2];
+    uint64_t ul[1];
+    int64_t  sl[1];
+} DSP64Value;
+
 /*** MIPS DSP internal functions begin ***/
 #define MIPSDSP_ABS(x) (((x) >= 0) ? x : -x)
 #define MIPSDSP_OVERFLOW(a, b, c, d) (!(!((a ^ b ^ -1) & (a ^ c) & d)))
