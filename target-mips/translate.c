@@ -12657,11 +12657,6 @@ static void gen_mipsdsp_ld(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
     const char *opn = "ldx";
     TCGv t0;
 
-    if (rd == 0) {
-        MIPS_DEBUG("NOP");
-        return;
-    }
-
     check_dsp(ctx);
     t0 = tcg_temp_new();
 
