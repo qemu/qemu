@@ -336,7 +336,7 @@ enum {
     /* DSP Bit/Manipulation Sub-class */
     OPC_INSV_DSP       = 0x0C | OPC_SPECIAL3,
     OPC_DINSV_DSP      = 0x0D | OPC_SPECIAL3,
-    /* MIPS DSP Compare-Pick Sub-class */
+    /* MIPS DSP Append Sub-class */
     OPC_APPEND_DSP     = 0x31 | OPC_SPECIAL3,
     OPC_DAPPEND_DSP    = 0x35 | OPC_SPECIAL3,
     /* MIPS DSP Accumulator and DSPControl Access Sub-class */
@@ -543,7 +543,7 @@ enum {
 
 #define MASK_APPEND(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
-    /* MIPS DSP Compare-Pick Sub-class */
+    /* MIPS DSP Append Sub-class */
     OPC_APPEND  = (0x00 << 6) | OPC_APPEND_DSP,
     OPC_PREPEND = (0x01 << 6) | OPC_APPEND_DSP,
     OPC_BALIGN  = (0x10 << 6) | OPC_APPEND_DSP,
@@ -667,7 +667,7 @@ enum {
 
 #define MASK_DAPPEND(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
-    /* DSP Compare-Pick Sub-class */
+    /* DSP Append Sub-class */
     OPC_DAPPEND  = (0x00 << 6) | OPC_DAPPEND_DSP,
     OPC_PREPENDD = (0x03 << 6) | OPC_DAPPEND_DSP,
     OPC_PREPENDW = (0x01 << 6) | OPC_DAPPEND_DSP,
@@ -13868,7 +13868,6 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
                                      int ret, int v1, int v2, int check_ret)
 {
     const char *opn = "mipsdsp add compare pick";
-    TCGv_i32 t0;
     TCGv t1;
     TCGv v1_t;
     TCGv v2_t;
@@ -13879,7 +13878,6 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
         return;
     }
 
-    t0 = tcg_temp_new_i32();
     t1 = tcg_temp_new();
     v1_t = tcg_temp_new();
     v2_t = tcg_temp_new();
@@ -13888,26 +13886,6 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
     gen_load_gpr(v2_t, v2);
 
     switch (op1) {
-    case OPC_APPEND_DSP:
-        switch (op2) {
-        case OPC_APPEND:
-            tcg_gen_movi_i32(t0, v2);
-            gen_helper_append(cpu_gpr[ret], cpu_gpr[ret], v1_t, t0);
-            break;
-        case OPC_PREPEND:
-            tcg_gen_movi_i32(t0, v2);
-            gen_helper_prepend(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
-            break;
-        case OPC_BALIGN:
-            tcg_gen_movi_i32(t0, v2);
-            gen_helper_balign(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
-            break;
-        default:            /* Invid */
-            MIPS_INVAL("MASK APPEND");
-            generate_exception(ctx, EXCP_RI);
-            break;
-        }
-        break;
     case OPC_CMPU_EQ_QB_DSP:
         switch (op2) {
         case OPC_CMPU_EQ_QB:
@@ -14065,23 +14043,95 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
             break;
         }
         break;
+#endif
+    }
+
+    tcg_temp_free(t1);
+    tcg_temp_free(v1_t);
+    tcg_temp_free(v2_t);
+
+    (void)opn; /* avoid a compiler warning */
+    MIPS_DEBUG("%s", opn);
+}
+
+static void gen_mipsdsp_append(CPUMIPSState *env, DisasContext *ctx,
+                               uint32_t op1, int rt, int rs, int sa)
+{
+    const char *opn = "mipsdsp append/dappend";
+    TCGv t0;
+
+    check_dspr2(ctx);
+
+    if (rt == 0) {
+        /* Treat as NOP. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rs);
+
+    switch (op1) {
+    case OPC_APPEND_DSP:
+        switch (MASK_APPEND(ctx->opcode)) {
+        case OPC_APPEND:
+            if (sa != 0) {
+                tcg_gen_deposit_tl(cpu_gpr[rt], t0, cpu_gpr[rt], sa, 32 - sa);
+            }
+            tcg_gen_ext32s_tl(cpu_gpr[rt], cpu_gpr[rt]);
+            break;
+        case OPC_PREPEND:
+            if (sa != 0) {
+                tcg_gen_ext32u_tl(cpu_gpr[rt], cpu_gpr[rt]);
+                tcg_gen_shri_tl(cpu_gpr[rt], cpu_gpr[rt], sa);
+                tcg_gen_shli_tl(t0, t0, 32 - sa);
+                tcg_gen_or_tl(cpu_gpr[rt], cpu_gpr[rt], t0);
+            }
+            tcg_gen_ext32s_tl(cpu_gpr[rt], cpu_gpr[rt]);
+            break;
+        case OPC_BALIGN:
+            sa &= 3;
+            if (sa != 0 && sa != 2) {
+                tcg_gen_shli_tl(cpu_gpr[rt], cpu_gpr[rt], 8 * sa);
+                tcg_gen_ext32u_tl(t0, t0);
+                tcg_gen_shri_tl(t0, t0, 8 * (4 - sa));
+                tcg_gen_or_tl(cpu_gpr[rt], cpu_gpr[rt], t0);
+            }
+            tcg_gen_ext32s_tl(cpu_gpr[rt], cpu_gpr[rt]);
+            break;
+        default:            /* Invalid */
+            MIPS_INVAL("MASK APPEND");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
+        break;
+#ifdef TARGET_MIPS64
     case OPC_DAPPEND_DSP:
-        switch (op2) {
+        switch (MASK_DAPPEND(ctx->opcode)) {
         case OPC_DAPPEND:
-            tcg_gen_movi_i32(t0, v2);
-            gen_helper_dappend(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            if (sa != 0) {
+                tcg_gen_deposit_tl(cpu_gpr[rt], t0, cpu_gpr[rt], sa, 64 - sa);
+            }
             break;
         case OPC_PREPENDD:
-            tcg_gen_movi_i32(t0, v2);
-            gen_helper_prependd(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            tcg_gen_shri_tl(cpu_gpr[rt], cpu_gpr[rt], 0x20 | sa);
+            tcg_gen_shli_tl(t0, t0, 64 - (0x20 | sa));
+            tcg_gen_or_tl(cpu_gpr[rt], t0, t0);
             break;
         case OPC_PREPENDW:
-            tcg_gen_movi_i32(t0, v2);
-            gen_helper_prependw(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            if (sa != 0) {
+                tcg_gen_shri_tl(cpu_gpr[rt], cpu_gpr[rt], sa);
+                tcg_gen_shli_tl(t0, t0, 64 - sa);
+                tcg_gen_or_tl(cpu_gpr[rt], cpu_gpr[rt], t0);
+            }
             break;
         case OPC_DBALIGN:
-            tcg_gen_movi_i32(t0, v2);
-            gen_helper_dbalign(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            sa &= 7;
+            if (sa != 0 && sa != 2 && sa != 4) {
+                tcg_gen_shli_tl(cpu_gpr[rt], cpu_gpr[rt], 8 * sa);
+                tcg_gen_shri_tl(t0, t0, 8 * (8 - sa));
+                tcg_gen_or_tl(cpu_gpr[rt], cpu_gpr[rt], t0);
+            }
             break;
         default:            /* Invalid */
             MIPS_INVAL("MASK DAPPEND");
@@ -14091,12 +14141,7 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
         break;
 #endif
     }
-
-    tcg_temp_free_i32(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(v1_t);
-    tcg_temp_free(v2_t);
-
+    tcg_temp_free(t0);
     (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s", opn);
 }
@@ -14915,9 +14960,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             }
             break;
         case OPC_APPEND_DSP:
-            check_dspr2(ctx);
-            op2 = MASK_APPEND(ctx->opcode);
-            gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rt, rs, rd, 1);
+            gen_mipsdsp_append(env, ctx, op1, rt, rs, rd);
             break;
         case OPC_EXTR_W_DSP:
             op2 = MASK_EXTR_W(ctx->opcode);
@@ -15091,9 +15134,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             }
             break;
         case OPC_DAPPEND_DSP:
-            check_dspr2(ctx);
-            op2 = MASK_DAPPEND(ctx->opcode);
-            gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rt, rs, rd, 1);
+            gen_mipsdsp_append(env, ctx, op1, rt, rs, rd);
             break;
         case OPC_DEXTR_W_DSP:
             op2 = MASK_DEXTR_W(ctx->opcode);
