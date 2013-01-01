@@ -13769,9 +13769,10 @@ static void gen_mipsdsp_bitinsn(CPUMIPSState *env, DisasContext *ctx,
             check_dsp(ctx);
             {
                 imm = (ctx->opcode >> 16) & 0x03FF;
+                imm = (int16_t)(imm << 6) >> 6;
                 tcg_gen_movi_tl(cpu_gpr[ret], \
                                 (target_long)((int32_t)imm << 16 | \
-                                (uint32_t)(uint16_t)imm));
+                                (uint16_t)imm));
             }
             break;
         case OPC_REPLV_PH:
