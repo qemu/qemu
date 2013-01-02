@@ -71,6 +71,11 @@ typedef struct {
     virtio_net_conf net;
 } SyborgVirtIOProxy;
 
+static SyborgVirtIOProxy *to_virtio_syborg_device(DeviceState *d)
+{
+    return container_of(d, SyborgVirtIOProxy, busdev.qdev);
+}
+
 static uint32_t syborg_virtio_readl(void *opaque, hwaddr offset)
 {
     SyborgVirtIOProxy *s = opaque;
@@ -230,9 +235,9 @@ static const MemoryRegionOps syborg_virtio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void syborg_virtio_update_irq(void *opaque, uint16_t vector)
+static void syborg_virtio_update_irq(DeviceState *d, uint16_t vector)
 {
-    SyborgVirtIOProxy *proxy = opaque;
+    SyborgVirtIOProxy *proxy = to_virtio_syborg_device(d);
     int level;
 
     level = proxy->int_enable & proxy->vdev->isr;
@@ -240,9 +245,9 @@ static void syborg_virtio_update_irq(void *opaque, uint16_t vector)
     qemu_set_irq(proxy->irq, level != 0);
 }
 
-static unsigned syborg_virtio_get_features(void *opaque)
+static unsigned syborg_virtio_get_features(DeviceState *d)
 {
-    SyborgVirtIOProxy *proxy = opaque;
+    SyborgVirtIOProxy *proxy = to_virtio_syborg_device(d);
     return proxy->host_features;
 }
 
@@ -266,7 +271,7 @@ static int syborg_virtio_init(SyborgVirtIOProxy *proxy, VirtIODevice *vdev)
 
     qemu_register_reset(virtio_reset, vdev);
 
-    virtio_bind_device(vdev, &syborg_virtio_bindings, proxy);
+    virtio_bind_device(vdev, &syborg_virtio_bindings, DEVICE(proxy));
     proxy->host_features |= (0x1 << VIRTIO_F_NOTIFY_ON_EMPTY);
     proxy->host_features = vdev->get_features(vdev, proxy->host_features);
     return 0;

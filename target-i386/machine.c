@@ -328,6 +328,24 @@ static const VMStateDescription vmstate_fpop_ip_dp = {
     }
 };
 
+static bool tsc_adjust_needed(void *opaque)
+{
+    CPUX86State *env = opaque;
+
+    return env->tsc_adjust != 0;
+}
+
+static const VMStateDescription vmstate_msr_tsc_adjust = {
+    .name = "cpu/msr_tsc_adjust",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT64(tsc_adjust, CPUX86State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool tscdeadline_needed(void *opaque)
 {
     CPUX86State *env = opaque;
@@ -477,6 +495,9 @@ static const VMStateDescription vmstate_cpu = {
         } , {
             .vmsd = &vmstate_fpop_ip_dp,
             .needed = fpop_ip_dp_needed,
+        }, {
+            .vmsd = &vmstate_msr_tsc_adjust,
+            .needed = tsc_adjust_needed,
         }, {
             .vmsd = &vmstate_msr_tscdeadline,
             .needed = tscdeadline_needed,

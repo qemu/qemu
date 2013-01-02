@@ -65,7 +65,7 @@ static int msix_is_pending(PCIDevice *dev, int vector)
     return *msix_pending_byte(dev, vector) & msix_pending_mask(vector);
 }
 
-static void msix_set_pending(PCIDevice *dev, int vector)
+void msix_set_pending(PCIDevice *dev, unsigned int vector)
 {
     *msix_pending_byte(dev, vector) |= msix_pending_mask(vector);
 }
@@ -75,13 +75,13 @@ static void msix_clr_pending(PCIDevice *dev, int vector)
     *msix_pending_byte(dev, vector) &= ~msix_pending_mask(vector);
 }
 
-static bool msix_vector_masked(PCIDevice *dev, int vector, bool fmask)
+static bool msix_vector_masked(PCIDevice *dev, unsigned int vector, bool fmask)
 {
     unsigned offset = vector * PCI_MSIX_ENTRY_SIZE + PCI_MSIX_ENTRY_VECTOR_CTRL;
     return fmask || dev->msix_table[offset] & PCI_MSIX_ENTRY_CTRL_MASKBIT;
 }
 
-static bool msix_is_masked(PCIDevice *dev, int vector)
+bool msix_is_masked(PCIDevice *dev, unsigned int vector)
 {
     return msix_vector_masked(dev, vector, dev->msix_function_masked);
 }
@@ -191,6 +191,11 @@ static uint64_t msix_pba_mmio_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     PCIDevice *dev = opaque;
+    if (dev->msix_vector_poll_notifier) {
+        unsigned vector_start = addr * 8;
+        unsigned vector_end = MIN(addr + size * 8, dev->msix_entries_nr);
+        dev->msix_vector_poll_notifier(dev, vector_start, vector_end);
+    }
 
     return pci_get_long(dev->msix_pba + addr);
 }
@@ -513,7 +518,8 @@ static void msix_unset_notifier_for_vector(PCIDevice *dev, unsigned int vector)
 
 int msix_set_vector_notifiers(PCIDevice *dev,
                               MSIVectorUseNotifier use_notifier,
-                              MSIVectorReleaseNotifier release_notifier)
+                              MSIVectorReleaseNotifier release_notifier,
+                              MSIVectorPollNotifier poll_notifier)
 {
     int vector, ret;
 
@@ -521,6 +527,7 @@ int msix_set_vector_notifiers(PCIDevice *dev,
 
     dev->msix_vector_use_notifier = use_notifier;
     dev->msix_vector_release_notifier = release_notifier;
+    dev->msix_vector_poll_notifier = poll_notifier;
 
     if ((dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &
         (MSIX_ENABLE_MASK | MSIX_MASKALL_MASK)) == MSIX_ENABLE_MASK) {
@@ -530,6 +537,9 @@ int msix_set_vector_notifiers(PCIDevice *dev,
                 goto undo;
             }
         }
+    }
+    if (dev->msix_vector_poll_notifier) {
+        dev->msix_vector_poll_notifier(dev, 0, dev->msix_entries_nr);
     }
     return 0;
 
@@ -557,4 +567,5 @@ void msix_unset_vector_notifiers(PCIDevice *dev)
     }
     dev->msix_vector_use_notifier = NULL;
     dev->msix_vector_release_notifier = NULL;
+    dev->msix_vector_poll_notifier = NULL;
 }

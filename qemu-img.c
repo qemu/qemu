@@ -348,9 +348,13 @@ static int img_create(int argc, char **argv)
         char *end;
         sval = strtosz_suffix(argv[optind++], &end, STRTOSZ_DEFSUFFIX_B);
         if (sval < 0 || *end) {
-            error_report("Invalid image size specified! You may use k, M, G or "
-                  "T suffixes for ");
-            error_report("kilobytes, megabytes, gigabytes and terabytes.");
+            if (sval == -ERANGE) {
+                error_report("Image size must be less than 8 EiB!");
+            } else {
+                error_report("Invalid image size specified! You may use k, M, "
+                      "G or T suffixes for ");
+                error_report("kilobytes, megabytes, gigabytes and terabytes.");
+            }
             return 1;
         }
         img_size = (uint64_t)sval;

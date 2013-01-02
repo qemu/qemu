@@ -1,4 +1,4 @@
-common-obj-y = usb/ ide/ pci/
+common-obj-y = usb/ ide/ pci/ dataplane/
 common-obj-y += loader.o
 common-obj-$(CONFIG_VIRTIO) += virtio-console.o
 common-obj-$(CONFIG_VIRTIO) += virtio-rng.o
