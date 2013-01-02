@@ -187,6 +187,9 @@ typedef void (*PCIINTxRoutingNotifier)(PCIDevice *dev);
 typedef int (*MSIVectorUseNotifier)(PCIDevice *dev, unsigned int vector,
                                       MSIMessage msg);
 typedef void (*MSIVectorReleaseNotifier)(PCIDevice *dev, unsigned int vector);
+typedef void (*MSIVectorPollNotifier)(PCIDevice *dev,
+                                      unsigned int vector_start,
+                                      unsigned int vector_end);
 
 struct PCIDevice {
     DeviceState qdev;
@@ -271,6 +274,7 @@ struct PCIDevice {
     /* MSI-X notifiers */
     MSIVectorUseNotifier msix_vector_use_notifier;
     MSIVectorReleaseNotifier msix_vector_release_notifier;
+    MSIVectorPollNotifier msix_vector_poll_notifier;
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,

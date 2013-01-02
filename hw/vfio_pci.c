@@ -698,7 +698,7 @@ static void vfio_enable_msix(VFIODevice *vdev)
     vdev->interrupt = VFIO_INT_MSIX;
 
     if (msix_set_vector_notifiers(&vdev->pdev, vfio_msix_vector_use,
-                                  vfio_msix_vector_release)) {
+                                  vfio_msix_vector_release, NULL)) {
         error_report("vfio: msix_set_vector_notifiers failed\n");
     }
 

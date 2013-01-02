@@ -96,35 +96,48 @@
 bool virtio_is_big_endian(void);
 
 /* virtio device */
-
-static void virtio_pci_notify(void *opaque, uint16_t vector)
+/* DeviceState to VirtIOPCIProxy. For use off data-path. TODO: use QOM. */
+static inline VirtIOPCIProxy *to_virtio_pci_proxy(DeviceState *d)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    return container_of(d, VirtIOPCIProxy, pci_dev.qdev);
+}
+
+/* DeviceState to VirtIOPCIProxy. Note: used on datapath,
+ * be careful and test performance if you change this.
+ */
+static inline VirtIOPCIProxy *to_virtio_pci_proxy_fast(DeviceState *d)
+{
+    return container_of(d, VirtIOPCIProxy, pci_dev.qdev);
+}
+
+static void virtio_pci_notify(DeviceState *d, uint16_t vector)
+{
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy_fast(d);
     if (msix_enabled(&proxy->pci_dev))
         msix_notify(&proxy->pci_dev, vector);
     else
         qemu_set_irq(proxy->pci_dev.irq[0], proxy->vdev->isr & 1);
 }
 
-static void virtio_pci_save_config(void * opaque, QEMUFile *f)
+static void virtio_pci_save_config(DeviceState *d, QEMUFile *f)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     pci_device_save(&proxy->pci_dev, f);
     msix_save(&proxy->pci_dev, f);
     if (msix_present(&proxy->pci_dev))
         qemu_put_be16(f, proxy->vdev->config_vector);
 }
 
-static void virtio_pci_save_queue(void * opaque, int n, QEMUFile *f)
+static void virtio_pci_save_queue(DeviceState *d, int n, QEMUFile *f)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     if (msix_present(&proxy->pci_dev))
         qemu_put_be16(f, virtio_queue_vector(proxy->vdev, n));
 }
 
-static int virtio_pci_load_config(void * opaque, QEMUFile *f)
+static int virtio_pci_load_config(DeviceState *d, QEMUFile *f)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     int ret;
     ret = pci_device_load(&proxy->pci_dev, f);
     if (ret) {
@@ -143,9 +156,9 @@ static int virtio_pci_load_config(void * opaque, QEMUFile *f)
     return 0;
 }
 
-static int virtio_pci_load_queue(void * opaque, int n, QEMUFile *f)
+static int virtio_pci_load_queue(DeviceState *d, int n, QEMUFile *f)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     uint16_t vector;
     if (msix_present(&proxy->pci_dev)) {
         qemu_get_be16s(f, &vector);
@@ -243,7 +256,7 @@ static void virtio_pci_stop_ioeventfd(VirtIOPCIProxy *proxy)
 
 void virtio_pci_reset(DeviceState *d)
 {
-    VirtIOPCIProxy *proxy = container_of(d, VirtIOPCIProxy, pci_dev.qdev);
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     virtio_pci_stop_ioeventfd(proxy);
     virtio_reset(proxy->vdev);
     msix_unuse_all_vectors(&proxy->pci_dev);
@@ -463,9 +476,9 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
     }
 }
 
-static unsigned virtio_pci_get_features(void *opaque)
+static unsigned virtio_pci_get_features(DeviceState *d)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     return proxy->host_features;
 }
 
@@ -495,8 +508,6 @@ static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
         }
         return ret;
     }
-
-    virtio_queue_set_guest_notifier_fd_handler(vq, true, true);
     return 0;
 }
 
@@ -515,8 +526,6 @@ static void kvm_virtio_pci_vq_vector_release(VirtIOPCIProxy *proxy,
     if (--irqfd->users == 0) {
         kvm_irqchip_release_virq(kvm_state, irqfd->virq);
     }
-
-    virtio_queue_set_guest_notifier_fd_handler(vq, true, false);
 }
 
 static int kvm_virtio_pci_vector_use(PCIDevice *dev, unsigned vector,
@@ -567,9 +576,38 @@ static void kvm_virtio_pci_vector_release(PCIDevice *dev, unsigned vector)
     }
 }
 
-static int virtio_pci_set_guest_notifier(void *opaque, int n, bool assign)
+static void kvm_virtio_pci_vector_poll(PCIDevice *dev,
+                                       unsigned int vector_start,
+                                       unsigned int vector_end)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = container_of(dev, VirtIOPCIProxy, pci_dev);
+    VirtIODevice *vdev = proxy->vdev;
+    int queue_no;
+    unsigned int vector;
+    EventNotifier *notifier;
+    VirtQueue *vq;
+
+    for (queue_no = 0; queue_no < VIRTIO_PCI_QUEUE_MAX; queue_no++) {
+        if (!virtio_queue_get_num(vdev, queue_no)) {
+            break;
+        }
+        vector = virtio_queue_vector(vdev, queue_no);
+        if (vector < vector_start || vector >= vector_end ||
+            !msix_is_masked(dev, vector)) {
+            continue;
+        }
+        vq = virtio_get_queue(vdev, queue_no);
+        notifier = virtio_queue_get_guest_notifier(vq);
+        if (event_notifier_test_and_clear(notifier)) {
+            msix_set_pending(dev, vector);
+        }
+    }
+}
+
+static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign,
+                                         bool with_irqfd)
+{
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtQueue *vq = virtio_get_queue(proxy->vdev, n);
     EventNotifier *notifier = virtio_queue_get_guest_notifier(vq);
 
@@ -578,29 +616,31 @@ static int virtio_pci_set_guest_notifier(void *opaque, int n, bool assign)
         if (r < 0) {
             return r;
         }
-        virtio_queue_set_guest_notifier_fd_handler(vq, true, false);
+        virtio_queue_set_guest_notifier_fd_handler(vq, true, with_irqfd);
     } else {
-        virtio_queue_set_guest_notifier_fd_handler(vq, false, false);
+        virtio_queue_set_guest_notifier_fd_handler(vq, false, with_irqfd);
         event_notifier_cleanup(notifier);
     }
 
     return 0;
 }
 
-static bool virtio_pci_query_guest_notifiers(void *opaque)
+static bool virtio_pci_query_guest_notifiers(DeviceState *d)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     return msix_enabled(&proxy->pci_dev);
 }
 
-static int virtio_pci_set_guest_notifiers(void *opaque, bool assign)
+static int virtio_pci_set_guest_notifiers(DeviceState *d, bool assign)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtIODevice *vdev = proxy->vdev;
     int r, n;
+    bool with_irqfd = msix_enabled(&proxy->pci_dev) &&
+        kvm_msi_via_irqfd_enabled();
 
     /* Must unset vector notifier while guest notifier is still assigned */
-    if (kvm_msi_via_irqfd_enabled() && !assign) {
+    if (proxy->vector_irqfd && !assign) {
         msix_unset_vector_notifiers(&proxy->pci_dev);
         g_free(proxy->vector_irqfd);
         proxy->vector_irqfd = NULL;
@@ -611,20 +651,22 @@ static int virtio_pci_set_guest_notifiers(void *opaque, bool assign)
             break;
         }
 
-        r = virtio_pci_set_guest_notifier(opaque, n, assign);
+        r = virtio_pci_set_guest_notifier(d, n, assign,
+                                          kvm_msi_via_irqfd_enabled());
         if (r < 0) {
             goto assign_error;
         }
     }
 
     /* Must set vector notifier after guest notifier has been assigned */
-    if (kvm_msi_via_irqfd_enabled() && assign) {
+    if (with_irqfd && assign) {
         proxy->vector_irqfd =
             g_malloc0(sizeof(*proxy->vector_irqfd) *
                       msix_nr_vectors_allocated(&proxy->pci_dev));
         r = msix_set_vector_notifiers(&proxy->pci_dev,
                                       kvm_virtio_pci_vector_use,
-                                      kvm_virtio_pci_vector_release);
+                                      kvm_virtio_pci_vector_release,
+                                      kvm_virtio_pci_vector_poll);
         if (r < 0) {
             goto assign_error;
         }
@@ -636,14 +678,14 @@ assign_error:
     /* We get here on assignment failure. Recover by undoing for VQs 0 .. n. */
     assert(assign);
     while (--n >= 0) {
-        virtio_pci_set_guest_notifier(opaque, n, !assign);
+        virtio_pci_set_guest_notifier(d, n, !assign, with_irqfd);
     }
     return r;
 }
 
-static int virtio_pci_set_host_notifier(void *opaque, int n, bool assign)
+static int virtio_pci_set_host_notifier(DeviceState *d, int n, bool assign)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
 
     /* Stop using ioeventfd for virtqueue kick if the device starts using host
      * notifiers.  This makes it easy to avoid stepping on each others' toes.
@@ -659,9 +701,9 @@ static int virtio_pci_set_host_notifier(void *opaque, int n, bool assign)
     return virtio_pci_set_host_notifier_internal(proxy, n, assign, false);
 }
 
-static void virtio_pci_vmstate_change(void *opaque, bool running)
+static void virtio_pci_vmstate_change(DeviceState *d, bool running)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
 
     if (running) {
         /* Try to find out if the guest has bus master disabled, but is
@@ -726,7 +768,7 @@ void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev)
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
     }
 
-    virtio_bind_device(vdev, &virtio_pci_bindings, proxy);
+    virtio_bind_device(vdev, &virtio_pci_bindings, DEVICE(proxy));
     proxy->host_features |= 0x1 << VIRTIO_F_NOTIFY_ON_EMPTY;
     proxy->host_features |= 0x1 << VIRTIO_F_BAD_FEATURE;
     proxy->host_features = vdev->get_features(vdev, proxy->host_features);
