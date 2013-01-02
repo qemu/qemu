@@ -314,11 +314,11 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
      */
     dwPtrLow = SetFilePointer(s->hfile, low, &high, FILE_BEGIN);
     if (dwPtrLow == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
-        fprintf(stderr, "SetFilePointer error: %d\n", GetLastError());
+        fprintf(stderr, "SetFilePointer error: %lu\n", GetLastError());
         return -EIO;
     }
     if (SetEndOfFile(s->hfile) == 0) {
-        fprintf(stderr, "SetEndOfFile error: %d\n", GetLastError());
+        fprintf(stderr, "SetEndOfFile error: %lu\n", GetLastError());
         return -EIO;
     }
     return 0;
