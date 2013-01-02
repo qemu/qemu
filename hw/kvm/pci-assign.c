@@ -46,6 +46,7 @@
 #define IORESOURCE_IRQ      0x00000400
 #define IORESOURCE_DMA      0x00000800
 #define IORESOURCE_PREFETCH 0x00002000  /* No side effects */
+#define IORESOURCE_MEM_64   0x00100000
 
 //#define DEVICE_ASSIGNMENT_DEBUG
 
@@ -442,9 +443,13 @@ static int assigned_dev_register_regions(PCIRegion *io_regions,
 
         /* handle memory io regions */
         if (cur_region->type & IORESOURCE_MEM) {
-            int t = cur_region->type & IORESOURCE_PREFETCH
-                ? PCI_BASE_ADDRESS_MEM_PREFETCH
-                : PCI_BASE_ADDRESS_SPACE_MEMORY;
+            int t = PCI_BASE_ADDRESS_SPACE_MEMORY;
+            if (cur_region->type & IORESOURCE_PREFETCH) {
+                t |= PCI_BASE_ADDRESS_MEM_PREFETCH;
+            }
+            if (cur_region->type & IORESOURCE_MEM_64) {
+                t |= PCI_BASE_ADDRESS_MEM_TYPE_64;
+            }
 
             /* map physical memory */
             pci_dev->v_addrs[i].u.r_virtbase = mmap(NULL, cur_region->size,
@@ -632,7 +637,8 @@ again:
         rp->valid = 0;
         rp->resource_fd = -1;
         size = end - start + 1;
-        flags &= IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH;
+        flags &= IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH
+                 | IORESOURCE_MEM_64;
         if (size == 0 || (flags & ~IORESOURCE_PREFETCH) == 0) {
             continue;
         }

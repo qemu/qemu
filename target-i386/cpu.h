@@ -295,6 +295,7 @@
 #define MSR_IA32_APICBASE_BSP           (1<<8)
 #define MSR_IA32_APICBASE_ENABLE        (1<<11)
 #define MSR_IA32_APICBASE_BASE          (0xfffff<<12)
+#define MSR_TSC_ADJUST                  0x0000003b
 #define MSR_IA32_TSCDEADLINE            0x6e0
 
 #define MSR_MTRRcap			0xfe
@@ -774,6 +775,7 @@ typedef struct CPUX86State {
     uint64_t pv_eoi_en_msr;
 
     uint64_t tsc;
+    uint64_t tsc_adjust;
     uint64_t tsc_deadline;
 
     uint64_t mcg_status;

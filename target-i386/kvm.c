@@ -63,6 +63,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 
 static bool has_msr_star;
 static bool has_msr_hsave_pa;
+static bool has_msr_tsc_adjust;
 static bool has_msr_tsc_deadline;
 static bool has_msr_async_pf_en;
 static bool has_msr_pv_eoi_en;
@@ -683,6 +684,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                     has_msr_hsave_pa = true;
                     continue;
                 }
+                if (kvm_msr_list->indices[i] == MSR_TSC_ADJUST) {
+                    has_msr_tsc_adjust = true;
+                    continue;
+                }
                 if (kvm_msr_list->indices[i] == MSR_IA32_TSCDEADLINE) {
                     has_msr_tsc_deadline = true;
                     continue;
@@ -1026,6 +1031,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     if (has_msr_hsave_pa) {
         kvm_msr_entry_set(&msrs[n++], MSR_VM_HSAVE_PA, env->vm_hsave);
     }
+    if (has_msr_tsc_adjust) {
+        kvm_msr_entry_set(&msrs[n++], MSR_TSC_ADJUST, env->tsc_adjust);
+    }
     if (has_msr_tsc_deadline) {
         kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSCDEADLINE, env->tsc_deadline);
     }
@@ -1291,6 +1299,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_hsave_pa) {
         msrs[n++].index = MSR_VM_HSAVE_PA;
     }
+    if (has_msr_tsc_adjust) {
+        msrs[n++].index = MSR_TSC_ADJUST;
+    }
     if (has_msr_tsc_deadline) {
         msrs[n++].index = MSR_IA32_TSCDEADLINE;
     }
@@ -1367,6 +1378,9 @@ static int kvm_get_msrs(X86CPU *cpu)
 #endif
         case MSR_IA32_TSC:
             env->tsc = msrs[i].data;
+            break;
+        case MSR_TSC_ADJUST:
+            env->tsc_adjust = msrs[i].data;
             break;
         case MSR_IA32_TSCDEADLINE:
             env->tsc_deadline = msrs[i].data;
