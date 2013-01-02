@@ -2473,7 +2473,7 @@ DP_OB(dpsu_h_obr, 0, 24, 16, 8, 0, 24, 16, 8, 0);
 void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,              \
                    CPUMIPSState *env)                                          \
 {                                                                              \
-    uint16_t rsB, rsA, rtB, rtA;                                               \
+    int16_t rsB, rsA, rtB, rtA;                                                \
     int32_t  tempA, tempB;                                                     \
     int64_t  acc;                                                              \
                                                                                \

@@ -23,5 +23,22 @@ int main()
     assert(ach == resulth);
     assert(acl == resultl);
 
+    ach = 6, acl = 7;
+    rs     = 0xFFFF00FF;
+    rt     = 0xFFFF0002;
+    resulth = 0x05;
+    resultl = 0xFFFFFF06;
+    __asm
+        ("mthi  %0, $ac1\n\t"
+         "mtlo  %1, $ac1\n\t"
+         "dpax.w.ph $ac1, %2, %3\n\t"
+         "mfhi  %0, $ac1\n\t"
+         "mflo  %1, $ac1\n\t"
+         : "+r"(ach), "+r"(acl)
+         : "r"(rs), "r"(rt)
+        );
+    assert(ach == resulth);
+    assert(acl == resultl);
+
     return 0;
 }
