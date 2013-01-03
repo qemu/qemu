@@ -461,40 +461,11 @@ static const VMStateDescription vmstate_uhci = {
     }
 };
 
-static void uhci_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void uhci_port_write(void *opaque, hwaddr addr,
+                            uint64_t val, unsigned size)
 {
     UHCIState *s = opaque;
 
-    addr &= 0x1f;
-    switch(addr) {
-    case 0x0c:
-        s->sof_timing = val;
-        break;
-    }
-}
-
-static uint32_t uhci_ioport_readb(void *opaque, uint32_t addr)
-{
-    UHCIState *s = opaque;
-    uint32_t val;
-
-    addr &= 0x1f;
-    switch(addr) {
-    case 0x0c:
-        val = s->sof_timing;
-        break;
-    default:
-        val = 0xff;
-        break;
-    }
-    return val;
-}
-
-static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
-{
-    UHCIState *s = opaque;
-
-    addr &= 0x1f;
     trace_usb_uhci_mmio_writew(addr, val);
 
     switch(addr) {
@@ -543,6 +514,17 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         if (s->status & UHCI_STS_HCHALTED)
             s->frnum = val & 0x7ff;
         break;
+    case 0x08:
+        s->fl_base_addr &= 0xffff0000;
+        s->fl_base_addr |= val & ~0xfff;
+        break;
+    case 0x0a:
+        s->fl_base_addr &= 0x0000ffff;
+        s->fl_base_addr |= (val << 16);
+        break;
+    case 0x0c:
+        s->sof_timing = val & 0xff;
+        break;
     case 0x10 ... 0x1f:
         {
             UHCIPort *port;
@@ -574,12 +556,11 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t uhci_ioport_readw(void *opaque, uint32_t addr)
+static uint64_t uhci_port_read(void *opaque, hwaddr addr, unsigned size)
 {
     UHCIState *s = opaque;
     uint32_t val;
 
-    addr &= 0x1f;
     switch(addr) {
     case 0x00:
         val = s->cmd;
@@ -592,6 +573,15 @@ static uint32_t uhci_ioport_readw(void *opaque, uint32_t addr)
         break;
     case 0x06:
         val = s->frnum;
+        break;
+    case 0x08:
+        val = s->fl_base_addr & 0xffff;
+        break;
+    case 0x0a:
+        val = (s->fl_base_addr >> 16) & 0xffff;
+        break;
+    case 0x0c:
+        val = s->sof_timing;
         break;
     case 0x10 ... 0x1f:
         {
@@ -612,38 +602,6 @@ static uint32_t uhci_ioport_readw(void *opaque, uint32_t addr)
 
     trace_usb_uhci_mmio_readw(addr, val);
 
-    return val;
-}
-
-static void uhci_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    UHCIState *s = opaque;
-
-    addr &= 0x1f;
-    trace_usb_uhci_mmio_writel(addr, val);
-
-    switch(addr) {
-    case 0x08:
-        s->fl_base_addr = val & ~0xfff;
-        break;
-    }
-}
-
-static uint32_t uhci_ioport_readl(void *opaque, uint32_t addr)
-{
-    UHCIState *s = opaque;
-    uint32_t val;
-
-    addr &= 0x1f;
-    switch(addr) {
-    case 0x08:
-        val = s->fl_base_addr;
-        break;
-    default:
-        val = 0xffffffff;
-        break;
-    }
-    trace_usb_uhci_mmio_readl(addr, val);
     return val;
 }
 
@@ -1236,18 +1194,14 @@ static void uhci_frame_timer(void *opaque)
     qemu_mod_timer(s->frame_timer, t_now + frame_t);
 }
 
-static const MemoryRegionPortio uhci_portio[] = {
-    { 0, 32, 2, .write = uhci_ioport_writew, },
-    { 0, 32, 2, .read = uhci_ioport_readw, },
-    { 0, 32, 4, .write = uhci_ioport_writel, },
-    { 0, 32, 4, .read = uhci_ioport_readl, },
-    { 0, 32, 1, .write = uhci_ioport_writeb, },
-    { 0, 32, 1, .read = uhci_ioport_readb, },
-    PORTIO_END_OF_LIST()
-};
-
 static const MemoryRegionOps uhci_ioport_ops = {
-    .old_portio = uhci_portio,
+    .read  = uhci_port_read,
+    .write = uhci_port_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 2,
+    .impl.max_access_size = 2,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static USBPortOps uhci_port_ops = {
