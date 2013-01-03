@@ -1,4 +1,4 @@
-common-obj-y = usb/ ide/ pci/ dataplane/
+common-obj-y = usb/ ide/ pci/
 common-obj-y += loader.o
 common-obj-$(CONFIG_VIRTIO) += virtio-console.o
 common-obj-$(CONFIG_VIRTIO) += virtio-rng.o
@@ -191,6 +191,7 @@ common-obj-$(CONFIG_XEN_BACKEND) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 # Per-target files
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
+obj-$(CONFIG_VIRTIO) += dataplane/
 obj-$(CONFIG_VIRTIO) += virtio.o virtio-blk.o virtio-balloon.o virtio-net.o
 obj-$(CONFIG_VIRTIO) += virtio-serial-bus.o virtio-scsi.o
 obj-$(CONFIG_SOFTMMU) += vhost_net.o
