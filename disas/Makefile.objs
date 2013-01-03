@@ -13,4 +13,6 @@ universal-obj-$(CONFIG_SH4_DIS) += sh4.o
 universal-obj-$(CONFIG_SPARC_DIS) += sparc.o
 universal-obj-$(CONFIG_LM32_DIS) += lm32.o
 
-universal-obj-$(CONFIG_TCI_DIS) += tci.o
+# TODO: As long as the TCG interpreter and its generated code depend
+# on the QEMU target, we cannot compile the disassembler here.
+#universal-obj-$(CONFIG_TCI_DIS) += tci.o
