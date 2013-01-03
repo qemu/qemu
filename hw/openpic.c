@@ -277,21 +277,25 @@ static inline int IRQ_testbit(IRQQueue *q, int n_IRQ)
 
 static void IRQ_check(OpenPICState *opp, IRQQueue *q)
 {
-    int next, i;
-    int priority;
+    int irq = -1;
+    int next = -1;
+    int priority = -1;
 
-    next = -1;
-    priority = -1;
-    for (i = 0; i < opp->max_irq; i++) {
-        if (IRQ_testbit(q, i)) {
-            DPRINTF("IRQ_check: irq %d set ivpr_pr=%d pr=%d\n",
-                    i, IVPR_PRIORITY(opp->src[i].ivpr), priority);
-            if (IVPR_PRIORITY(opp->src[i].ivpr) > priority) {
-                next = i;
-                priority = IVPR_PRIORITY(opp->src[i].ivpr);
-            }
+    for (;;) {
+        irq = find_next_bit(q->queue, opp->max_irq, irq + 1);
+        if (irq == opp->max_irq) {
+            break;
+        }
+
+        DPRINTF("IRQ_check: irq %d set ivpr_pr=%d pr=%d\n",
+                irq, IVPR_PRIORITY(opp->src[irq].ivpr), priority);
+
+        if (IVPR_PRIORITY(opp->src[irq].ivpr) > priority) {
+            next = irq;
+            priority = IVPR_PRIORITY(opp->src[irq].ivpr);
         }
     }
+
     q->next = next;
     q->priority = priority;
 }
