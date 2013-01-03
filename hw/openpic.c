@@ -162,6 +162,12 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
 static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
                                        uint32_t val, int idx);
 
+typedef enum IRQType {
+    IRQ_TYPE_NORMAL = 0,
+    IRQ_TYPE_FSLINT,        /* FSL internal interrupt -- level only */
+    IRQ_TYPE_FSLSPECIAL,    /* FSL timer/IPI interrupt, edge, no polarity */
+} IRQType;
+
 typedef struct IRQQueue {
     /* Round up to the nearest 64 IRQs so that the queue length
      * won't change when moving between 32 and 64 bit hosts.
@@ -178,6 +184,8 @@ typedef struct IRQSource {
     int last_cpu;
     int output;     /* IRQ level, e.g. OPENPIC_OUTPUT_INT */
     int pending;    /* TRUE if IRQ is pending */
+    IRQType type;
+    bool level:1;   /* level-triggered */
     bool nomask:1;  /* critical interrupts ignore mask on some FSL MPICs */
 } IRQSource;
 
@@ -422,7 +430,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     src = &opp->src[n_IRQ];
     DPRINTF("openpic: set irq %d = %d ivpr=0x%08x\n",
             n_IRQ, level, src->ivpr);
-    if (src->ivpr & IVPR_SENSE_MASK) {
+    if (src->level) {
         /* level-sensitive irq */
         src->pending = level;
         if (!level) {
@@ -455,6 +463,19 @@ static void openpic_reset(DeviceState *d)
     for (i = 0; i < opp->max_irq; i++) {
         opp->src[i].ivpr = opp->ivpr_reset;
         opp->src[i].idr  = opp->idr_reset;
+
+        switch (opp->src[i].type) {
+        case IRQ_TYPE_NORMAL:
+            opp->src[i].level = !!(opp->ivpr_reset & IVPR_SENSE_MASK);
+            break;
+
+        case IRQ_TYPE_FSLINT:
+            opp->src[i].ivpr |= IVPR_POLARITY_MASK;
+            break;
+
+        case IRQ_TYPE_FSLSPECIAL:
+            break;
+        }
     }
     /* Initialise IRQ destinations */
     for (i = 0; i < MAX_CPU; i++) {
@@ -530,10 +551,36 @@ static inline void write_IRQreg_idr(OpenPICState *opp, int n_IRQ, uint32_t val)
 
 static inline void write_IRQreg_ivpr(OpenPICState *opp, int n_IRQ, uint32_t val)
 {
-    /* NOTE: not fully accurate for special IRQs, but simple and sufficient */
+    uint32_t mask;
+
+    /* NOTE when implementing newer FSL MPIC models: starting with v4.0,
+     * the polarity bit is read-only on internal interrupts.
+     */
+    mask = IVPR_MASK_MASK | IVPR_PRIORITY_MASK | IVPR_SENSE_MASK |
+           IVPR_POLARITY_MASK | opp->vector_mask;
+
     /* ACTIVITY bit is read-only */
-    opp->src[n_IRQ].ivpr = (opp->src[n_IRQ].ivpr & IVPR_ACTIVITY_MASK) |
-        (val & (IVPR_MASK_MASK | IVPR_PRIORITY_MASK | opp->vector_mask));
+    opp->src[n_IRQ].ivpr =
+        (opp->src[n_IRQ].ivpr & IVPR_ACTIVITY_MASK) | (val & mask);
+
+    /* For FSL internal interrupts, The sense bit is reserved and zero,
+     * and the interrupt is always level-triggered.  Timers and IPIs
+     * have no sense or polarity bits, and are edge-triggered.
+     */
+    switch (opp->src[n_IRQ].type) {
+    case IRQ_TYPE_NORMAL:
+        opp->src[n_IRQ].level = !!(opp->src[n_IRQ].ivpr & IVPR_SENSE_MASK);
+        break;
+
+    case IRQ_TYPE_FSLINT:
+        opp->src[n_IRQ].ivpr &= ~IVPR_SENSE_MASK;
+        break;
+
+    case IRQ_TYPE_FSLSPECIAL:
+        opp->src[n_IRQ].ivpr &= ~(IVPR_POLARITY_MASK | IVPR_SENSE_MASK);
+        break;
+    }
+
     openpic_update_irq(opp, n_IRQ);
     DPRINTF("Set IVPR %d to 0x%08x -> 0x%08x\n", n_IRQ, val,
             opp->src[n_IRQ].ivpr);
@@ -976,7 +1023,7 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
                 retval = IVPR_VECTOR(opp, src->ivpr);
             }
             IRQ_resetbit(&dst->raised, n_IRQ);
-            if (!(src->ivpr & IVPR_SENSE_MASK)) {
+            if (!src->level) {
                 /* edge-sensitive IRQ */
                 src->ivpr &= ~IVPR_ACTIVITY_MASK;
                 src->pending = 0;
@@ -984,7 +1031,7 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
 
             if ((n_IRQ >= opp->irq_ipi0) &&  (n_IRQ < (opp->irq_ipi0 + MAX_IPI))) {
                 src->idr &= ~(1 << idx);
-                if (src->idr && !(src->ivpr & IVPR_SENSE_MASK)) {
+                if (src->idr && !src->level) {
                     /* trigger on CPUs that didn't know about it yet */
                     openpic_set_irq(opp, n_IRQ, 1);
                     openpic_set_irq(opp, n_IRQ, 0);
@@ -1282,7 +1329,25 @@ static int openpic_init(SysBusDevice *dev)
         opp->brr1 = FSL_BRR1_IPID | FSL_BRR1_IPMJ | FSL_BRR1_IPMN;
         msi_supported = true;
         list = list_be;
+
+        for (i = 0; i < FSL_MPIC_20_MAX_EXT; i++) {
+            opp->src[i].level = false;
+        }
+
+        /* Internal interrupts, including message and MSI */
+        for (i = 16; i < MAX_SRC; i++) {
+            opp->src[i].type = IRQ_TYPE_FSLINT;
+            opp->src[i].level = true;
+        }
+
+        /* timers and IPIs */
+        for (i = MAX_SRC; i < MAX_IRQ; i++) {
+            opp->src[i].type = IRQ_TYPE_FSLSPECIAL;
+            opp->src[i].level = false;
+        }
+
         break;
+
     case OPENPIC_MODEL_RAVEN:
         opp->nb_irqs = RAVEN_MAX_EXT;
         opp->vid = VID_REVISION_1_3;
