@@ -709,7 +709,7 @@ typedef struct NV2AState {
 
 
 
-static void nv2a_update_irq(NV2AState *d)
+static void update_irq(NV2AState *d)
 {
     /* PFIFO */
     if (d->pfifo.pending_interrupts & d->pfifo.enabled_interrupts) {
@@ -739,8 +739,7 @@ static void nv2a_update_irq(NV2AState *d)
     }
 }
 
-static uint32_t nv2a_ramht_hash(NV2AState *d,
-                                uint32_t handle)
+static uint32_t ramht_hash(NV2AState *d, uint32_t handle)
 {
     uint32_t hash = 0;
     /* XXX: Think this is different to what nouveau calculates... */
@@ -756,7 +755,7 @@ static uint32_t nv2a_ramht_hash(NV2AState *d,
 }
 
 
-static RAMHTEntry nv2a_lookup_ramht(NV2AState *d, uint32_t handle)
+static RAMHTEntry ramht_lookup(NV2AState *d, uint32_t handle)
 {
     uint32_t hash;
     uint8_t *entry_ptr;
@@ -764,7 +763,7 @@ static RAMHTEntry nv2a_lookup_ramht(NV2AState *d, uint32_t handle)
     uint32_t entry_context;
 
 
-    hash = nv2a_ramht_hash(d, handle);
+    hash = ramht_hash(d, handle);
     assert(hash * 8 < d->pfifo.ramht_size);
 
     entry_ptr = d->ramin_ptr + d->pfifo.ramht_address + hash * 8;
@@ -782,8 +781,7 @@ static RAMHTEntry nv2a_lookup_ramht(NV2AState *d, uint32_t handle)
 }
 
 
-static DMAObject nv2a_load_dma_object(NV2AState *d,
-                                      hwaddr address)
+static DMAObject load_dma_object(NV2AState *d, hwaddr address)
 {
     uint8_t *dma_ptr;
     uint32_t flags;
@@ -800,8 +798,8 @@ static DMAObject nv2a_load_dma_object(NV2AState *d,
     };
 }
 
-static GraphicsObject nv2a_load_graphics_object(NV2AState *d,
-                                                hwaddr address)
+static GraphicsObject load_graphics_object(NV2AState *d,
+                                           hwaddr address)
 {
     int i;
     uint8_t *obj_ptr;
@@ -876,9 +874,9 @@ static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
             qemu_mutex_lock_iothread();
 
             if (kelvin->vertex_attribute_offsets[i].dma_select) {
-                vertex_dma = nv2a_load_dma_object(d, kelvin->dma_vertex_b);
+                vertex_dma = load_dma_object(d, kelvin->dma_vertex_b);
             } else {
-                vertex_dma = nv2a_load_dma_object(d, kelvin->dma_vertex_a);
+                vertex_dma = load_dma_object(d, kelvin->dma_vertex_a);
             }
             uint32_t offset = kelvin->vertex_attribute_offsets[i].offset;
             assert(offset < vertex_dma.limit);
@@ -971,7 +969,7 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
 }
 
 
-static void nv2a_pgraph_context_init(GraphicsContext *context)
+static void pgraph_context_init(GraphicsContext *context)
 {
     /* TODO: context creation on linux */
     CGLPixelFormatAttribute attributes[] = {
@@ -1026,7 +1024,7 @@ static void nv2a_pgraph_context_init(GraphicsContext *context)
     CGLSetCurrentContext(NULL);
 }
 
-static void nv2a_pgraph_context_set_current(GraphicsContext *context)
+static void pgraph_context_set_current(GraphicsContext *context)
 {
     if (context) {
         CGLSetCurrentContext(context->gl_context);
@@ -1035,7 +1033,7 @@ static void nv2a_pgraph_context_set_current(GraphicsContext *context)
     }
 }
 
-static void nv2a_pgraph_context_destroy(GraphicsContext *context)
+static void pgraph_context_destroy(GraphicsContext *context)
 {
     CGLSetCurrentContext(context->gl_context);
 
@@ -1047,10 +1045,10 @@ static void nv2a_pgraph_context_destroy(GraphicsContext *context)
     CGLDestroyContext(context->gl_context);
 }
 
-static void nv2a_pgraph_method(NV2AState *d,
-                               unsigned int subchannel,
-                               unsigned int method,
-                               uint32_t parameter)
+static void pgraph_method(NV2AState *d,
+                          unsigned int subchannel,
+                          unsigned int method,
+                          uint32_t parameter)
 {
     GraphicsContext *context;
     GraphicsSubchannel *subchannel_data;
@@ -1076,14 +1074,14 @@ static void nv2a_pgraph_method(NV2AState *d,
                  subchannel, method, parameter);
 
 
-    nv2a_pgraph_context_set_current(context);
+    pgraph_context_set_current(context);
 
     if (method == NV_SET_OBJECT) {
         subchannel_data->object_instance = parameter;
 
         qemu_mutex_unlock(&d->pgraph.lock);
         qemu_mutex_lock_iothread();
-        *object = nv2a_load_graphics_object(d, parameter);
+        *object = load_graphics_object(d, parameter);
         qemu_mutex_unlock_iothread();
         return;
     }
@@ -1255,7 +1253,7 @@ static void nv2a_pgraph_method(NV2AState *d,
         qemu_mutex_unlock(&d->pgraph.lock);
         qemu_mutex_lock_iothread();
 
-        dma_semaphore = nv2a_load_dma_object(d, kelvin->dma_semaphore);
+        dma_semaphore = load_dma_object(d, kelvin->dma_semaphore);
         assert(kelvin->semaphore_offset < dma_semaphore.limit);
 
         stl_le_phys(dma_semaphore.start + kelvin->semaphore_offset,
@@ -1318,11 +1316,11 @@ static void nv2a_pgraph_method(NV2AState *d,
 
 
 
-static void nv2a_pgraph_wait_context_switch(NV2AState *d)
+static void pgraph_wait_context_switch(NV2AState *d)
 {
     qemu_mutex_lock_iothread();
     d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_CONTEXT_SWITCH;
-    nv2a_update_irq(d);
+    update_irq(d);
     qemu_mutex_unlock_iothread();
 
     qemu_mutex_lock(&d->pgraph.lock);
@@ -1332,7 +1330,7 @@ static void nv2a_pgraph_wait_context_switch(NV2AState *d)
     qemu_mutex_unlock(&d->pgraph.lock);
 }
 
-static void nv2a_pgraph_ensure_channel(NV2AState *d, unsigned int channel_id)
+static void pgraph_ensure_channel(NV2AState *d, unsigned int channel_id)
 {
     bool valid;
     qemu_mutex_lock(&d->pgraph.lock);
@@ -1342,11 +1340,11 @@ static void nv2a_pgraph_ensure_channel(NV2AState *d, unsigned int channel_id)
     }
     qemu_mutex_unlock(&d->pgraph.lock);
     if (!valid) {
-        nv2a_pgraph_wait_context_switch(d);
+        pgraph_wait_context_switch(d);
     }
 }
 
-static void *nv2a_pfifo_puller_thread(void *arg)
+static void *pfifo_puller_thread(void *arg)
 {
     NV2AState *d = arg;
     Cache1State *state = &d->pfifo.cache1;
@@ -1380,7 +1378,7 @@ static void *nv2a_pfifo_puller_thread(void *arg)
 
         if (command->method == 0) {
             qemu_mutex_lock_iothread();
-            entry = nv2a_lookup_ramht(d, command->parameter);
+            entry = ramht_lookup(d, command->parameter);
             assert(entry.valid);
 
             assert(entry.channel_id == state->channel_id);
@@ -1392,8 +1390,8 @@ static void *nv2a_pfifo_puller_thread(void *arg)
                 assert(false);
                 break;
             case ENGINE_GRAPHICS:
-                nv2a_pgraph_ensure_channel(d, entry.channel_id);
-                nv2a_pgraph_method(d, command->subchannel, 0, entry.instance);
+                pgraph_ensure_channel(d, entry.channel_id);
+                pgraph_method(d, command->subchannel, 0, entry.instance);
                 break;
             default:
                 assert(false);
@@ -1414,7 +1412,7 @@ static void *nv2a_pfifo_puller_thread(void *arg)
              * TODO: Check this range is correct for the nv2a */
             if (command->method >= 0x180 && command->method < 0x200) {
                 qemu_mutex_lock_iothread();
-                entry = nv2a_lookup_ramht(d, parameter);
+                entry = ramht_lookup(d, parameter);
                 assert(entry.valid);
                 assert(entry.channel_id == state->channel_id);
                 parameter = entry.instance;
@@ -1430,7 +1428,7 @@ static void *nv2a_pfifo_puller_thread(void *arg)
                 assert(false);
                 break;
             case ENGINE_GRAPHICS:
-                nv2a_pgraph_method(d, command->subchannel,
+                pgraph_method(d, command->subchannel,
                                    command->method, parameter);
                 break;
             default:
@@ -1449,7 +1447,7 @@ static void *nv2a_pfifo_puller_thread(void *arg)
 
 /* pusher should be fine to run from a mimo handler
  * whenever's it's convenient */
-static void nv2a_pfifo_run_pusher(NV2AState *d) {
+static void pfifo_run_pusher(NV2AState *d) {
     uint8_t channel_id;
     ChannelControl *control;
     Cache1State *state;
@@ -1477,7 +1475,7 @@ static void nv2a_pfifo_run_pusher(NV2AState *d) {
     /* We're running so there should be no pending errors... */
     assert(state->error == NV_PFIFO_CACHE1_DMA_STATE_ERROR_NONE);
 
-    dma = nv2a_load_dma_object(d, state->dma_instance);
+    dma = load_dma_object(d, state->dma_instance);
     assert(dma.dma_class == NV_DMA_FROM_MEMORY_CLASS);
 
     NV2A_DPRINTF("nv2a DMA pusher: 0x%llx - 0x%llx, 0x%llx - 0x%llx\n",
@@ -1572,7 +1570,7 @@ static void nv2a_pfifo_run_pusher(NV2AState *d) {
         state->dma_push_suspended = true;
 
         d->pfifo.pending_interrupts |= NV_PFIFO_INTR_0_DMA_PUSHER;
-        nv2a_update_irq(d);
+        update_irq(d);
     }
 }
 
@@ -1581,7 +1579,7 @@ static void nv2a_pfifo_run_pusher(NV2AState *d) {
 
 
 /* PMC - card master control */
-static uint64_t nv2a_pmc_read(void *opaque,
+static uint64_t pmc_read(void *opaque,
                               hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -1609,7 +1607,7 @@ static uint64_t nv2a_pmc_read(void *opaque,
     NV2A_DPRINTF("nv2a PMC: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
-static void nv2a_pmc_write(void *opaque, hwaddr addr,
+static void pmc_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -1620,11 +1618,11 @@ static void nv2a_pmc_write(void *opaque, hwaddr addr,
     case NV_PMC_INTR_0:
         /* the bits of the interrupts to clear are wrtten */
         d->pmc.pending_interrupts &= ~val;
-        nv2a_update_irq(d);
+        update_irq(d);
         break;
     case NV_PMC_INTR_EN_0:
         d->pmc.enabled_interrupts = val;
-        nv2a_update_irq(d);
+        update_irq(d);
         break;
     default:
         break;
@@ -1633,7 +1631,7 @@ static void nv2a_pmc_write(void *opaque, hwaddr addr,
 
 
 /* PBUS - bus control */
-static uint64_t nv2a_pbus_read(void *opaque,
+static uint64_t pbus_read(void *opaque,
                                hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -1656,7 +1654,7 @@ static uint64_t nv2a_pbus_read(void *opaque,
     NV2A_DPRINTF("nv2a PBUS: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
-static void nv2a_pbus_write(void *opaque, hwaddr addr,
+static void pbus_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -1673,7 +1671,7 @@ static void nv2a_pbus_write(void *opaque, hwaddr addr,
 
 
 /* PFIFO - MMIO and DMA FIFO submission to PGRAPH and VPE */
-static uint64_t nv2a_pfifo_read(void *opaque,
+static uint64_t pfifo_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     int i;
@@ -1795,7 +1793,7 @@ static uint64_t nv2a_pfifo_read(void *opaque,
     NV2A_DPRINTF("nv2a PFIFO: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
-static void nv2a_pfifo_write(void *opaque, hwaddr addr,
+static void pfifo_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     int i;
@@ -1806,11 +1804,11 @@ static void nv2a_pfifo_write(void *opaque, hwaddr addr,
     switch (addr) {
     case NV_PFIFO_INTR_0:
         d->pfifo.pending_interrupts &= ~val;
-        nv2a_update_irq(d);
+        update_irq(d);
         break;
     case NV_PFIFO_INTR_EN_0:
         d->pfifo.enabled_interrupts = val;
-        nv2a_update_irq(d);
+        update_irq(d);
         break;
     case NV_PFIFO_RAMHT:
         d->pfifo.ramht_address =
@@ -1862,7 +1860,7 @@ static void nv2a_pfifo_write(void *opaque, hwaddr addr,
         if (d->pfifo.cache1.dma_push_suspended
              && !(val & NV_PFIFO_CACHE1_DMA_PUSH_STATUS)) {
             d->pfifo.cache1.dma_push_suspended = false;
-            nv2a_pfifo_run_pusher(d);
+            pfifo_run_pusher(d);
         }
         d->pfifo.cache1.dma_push_suspended =
             (val & NV_PFIFO_CACHE1_DMA_PUSH_STATUS);
@@ -1902,7 +1900,7 @@ static void nv2a_pfifo_write(void *opaque, hwaddr addr,
 
             /* fire up puller thread */
             qemu_thread_create(&d->pfifo.puller_thread,
-                               nv2a_pfifo_puller_thread,
+                               pfifo_puller_thread,
                                d, QEMU_THREAD_DETACHED);
         } else if (!(val & NV_PFIFO_CACHE1_PULL0_ACCESS)
                      && d->pfifo.cache1.pull_enabled) {
@@ -1940,26 +1938,26 @@ static void nv2a_pfifo_write(void *opaque, hwaddr addr,
 }
 
 
-static uint64_t nv2a_prma_read(void *opaque,
+static uint64_t prma_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMA: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_prma_write(void *opaque, hwaddr addr,
+static void prma_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMA: [0x%llx] = 0x%02llx\n", addr, val);
 }
 
 
-static uint64_t nv2a_pvideo_read(void *opaque,
+static uint64_t pvideo_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PVIDEO: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pvideo_write(void *opaque, hwaddr addr,
+static void pvideo_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PVIDEO: [0x%llx] = 0x%02llx\n", addr, val);
@@ -1969,13 +1967,13 @@ static void nv2a_pvideo_write(void *opaque, hwaddr addr,
 
 
 /* PIMTER - time measurement and time-based alarms */
-static uint64_t nv2a_ptimer_get_clock(NV2AState *d)
+static uint64_t ptimer_get_clock(NV2AState *d)
 {
     return muldiv64(qemu_get_clock_ns(vm_clock),
                     d->pramdac.core_clock_freq * d->ptimer.numerator,
                     get_ticks_per_sec() * d->ptimer.denominator);
 }
-static uint64_t nv2a_ptimer_read(void *opaque,
+static uint64_t ptimer_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -1995,10 +1993,10 @@ static uint64_t nv2a_ptimer_read(void *opaque,
         r = d->ptimer.denominator;
         break;
     case NV_PTIMER_TIME_0:
-        r = (nv2a_ptimer_get_clock(d) & 0x7ffffff) << 5;
+        r = (ptimer_get_clock(d) & 0x7ffffff) << 5;
         break;
     case NV_PTIMER_TIME_1:
-        r = (nv2a_ptimer_get_clock(d) >> 27) & 0x1fffffff;
+        r = (ptimer_get_clock(d) >> 27) & 0x1fffffff;
         break;
     default:
         break;
@@ -2007,7 +2005,7 @@ static uint64_t nv2a_ptimer_read(void *opaque,
     NV2A_DPRINTF("nv2a PTIMER: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
-static void nv2a_ptimer_write(void *opaque, hwaddr addr,
+static void ptimer_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2017,11 +2015,11 @@ static void nv2a_ptimer_write(void *opaque, hwaddr addr,
     switch (addr) {
     case NV_PTIMER_INTR_0:
         d->ptimer.pending_interrupts &= ~val;
-        nv2a_update_irq(d);
+        update_irq(d);
         break;
     case NV_PTIMER_INTR_EN_0:
         d->ptimer.enabled_interrupts = val;
-        nv2a_update_irq(d);
+        update_irq(d);
         break;
     case NV_PTIMER_DENOMINATOR:
         d->ptimer.denominator = val;
@@ -2038,52 +2036,52 @@ static void nv2a_ptimer_write(void *opaque, hwaddr addr,
 }
 
 
-static uint64_t nv2a_pcounter_read(void *opaque,
+static uint64_t pcounter_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PCOUNTER: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pcounter_write(void *opaque, hwaddr addr,
+static void pcounter_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PCOUNTER: [0x%llx] = 0x%02llx\n", addr, val);
 }
 
 
-static uint64_t nv2a_pvpe_read(void *opaque,
+static uint64_t pvpe_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PVPE: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pvpe_write(void *opaque, hwaddr addr,
+static void pvpe_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PVPE: [0x%llx] = 0x%02llx\n", addr, val);
 }
 
 
-static uint64_t nv2a_ptv_read(void *opaque,
+static uint64_t ptv_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PTV: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_ptv_write(void *opaque, hwaddr addr,
+static void ptv_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PTV: [0x%llx] = 0x%02llx\n", addr, val);
 }
 
 
-static uint64_t nv2a_prmfb_read(void *opaque,
+static uint64_t prmfb_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMFB: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_prmfb_write(void *opaque, hwaddr addr,
+static void prmfb_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMFB: [0x%llx] = 0x%02llx\n", addr, val);
@@ -2091,7 +2089,7 @@ static void nv2a_prmfb_write(void *opaque, hwaddr addr,
 
 
 /* PRMVIO - aliases VGA sequencer and graphics controller registers */
-static uint64_t nv2a_prmvio_read(void *opaque,
+static uint64_t prmvio_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2100,7 +2098,7 @@ static uint64_t nv2a_prmvio_read(void *opaque,
     NV2A_DPRINTF("nv2a PRMVIO: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
-static void nv2a_prmvio_write(void *opaque, hwaddr addr,
+static void prmvio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2111,7 +2109,7 @@ static void nv2a_prmvio_write(void *opaque, hwaddr addr,
 }
 
 
-static uint64_t nv2a_pfb_read(void *opaque,
+static uint64_t pfb_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2132,27 +2130,27 @@ static uint64_t nv2a_pfb_read(void *opaque,
     NV2A_DPRINTF("nv2a PFB: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
-static void nv2a_pfb_write(void *opaque, hwaddr addr,
+static void pfb_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PFB: [0x%llx] = 0x%02llx\n", addr, val);
 }
 
 
-static uint64_t nv2a_pstraps_read(void *opaque,
+static uint64_t pstraps_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PSTRAPS: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pstraps_write(void *opaque, hwaddr addr,
+static void pstraps_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PSTRAPS: [0x%llx] = 0x%02llx\n", addr, val);
 }
 
 /* PGRAPH - accelerated 2d/3d drawing engine */
-static uint64_t nv2a_pgraph_read(void *opaque,
+static uint64_t pgraph_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2186,7 +2184,7 @@ static uint64_t nv2a_pgraph_read(void *opaque,
     NV2A_DPRINTF("nv2a PGRAPH: read [0x%llx]\n", addr);
     return r;
 }
-static void nv2a_pgraph_set_context_user(NV2AState *d, uint32_t val)
+static void pgraph_set_context_user(NV2AState *d, uint32_t val)
 {
     d->pgraph.channel_id = (val & NV_PGRAPH_CTX_USER_CHID) >> 24;
 
@@ -2195,7 +2193,7 @@ static void nv2a_pgraph_set_context_user(NV2AState *d, uint32_t val)
     d->pgraph.context[d->pgraph.channel_id].subchannel =
         (val & NV_PGRAPH_CTX_USER_SUBCH) >> 13;
 }
-static void nv2a_pgraph_write(void *opaque, hwaddr addr,
+static void pgraph_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2213,7 +2211,7 @@ static void nv2a_pgraph_write(void *opaque, hwaddr addr,
         if (!(val & NV_PGRAPH_CTX_CONTROL_TIME)) {
             /* time expired */
             d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_CONTEXT_SWITCH;
-            nv2a_update_irq(d);
+            update_irq(d);
         }
 
         qemu_mutex_lock(&d->pgraph.lock);
@@ -2225,7 +2223,7 @@ static void nv2a_pgraph_write(void *opaque, hwaddr addr,
         break;
     case NV_PGRAPH_CTX_USER:
         qemu_mutex_lock(&d->pgraph.lock);
-        nv2a_pgraph_set_context_user(d, val);
+        pgraph_set_context_user(d, val);
         qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
@@ -2246,7 +2244,7 @@ static void nv2a_pgraph_write(void *opaque, hwaddr addr,
             uint8_t *context_ptr = d->ramin_ptr + d->pgraph.context_address;
             uint32_t context_user = le32_to_cpupu((uint32_t*)context_ptr);
 
-            nv2a_pgraph_set_context_user(d, context_user);
+            pgraph_set_context_user(d, context_user);
         }
         if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT) {
             /* do stuff ... */
@@ -2260,7 +2258,7 @@ static void nv2a_pgraph_write(void *opaque, hwaddr addr,
 }
 
 
-static uint64_t nv2a_pcrtc_read(void *opaque,
+static uint64_t pcrtc_read(void *opaque,
                                 hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2283,7 +2281,7 @@ static uint64_t nv2a_pcrtc_read(void *opaque,
     NV2A_DPRINTF("nv2a PCRTC: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
-static void nv2a_pcrtc_write(void *opaque, hwaddr addr,
+static void pcrtc_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2293,11 +2291,11 @@ static void nv2a_pcrtc_write(void *opaque, hwaddr addr,
     switch (addr) {
     case NV_PCRTC_INTR_0:
         d->pcrtc.pending_interrupts &= ~val;
-        nv2a_update_irq(d);
+        update_irq(d);
         break;
     case NV_PCRTC_INTR_EN_0:
         d->pcrtc.enabled_interrupts = val;
-        nv2a_update_irq(d);
+        update_irq(d);
         break;
     case NV_PCRTC_START:
         val &= 0x03FFFFFF;
@@ -2316,7 +2314,7 @@ static void nv2a_pcrtc_write(void *opaque, hwaddr addr,
 
 
 /* PRMCIO - aliases VGA CRTC and attribute controller registers */
-static uint64_t nv2a_prmcio_read(void *opaque,
+static uint64_t prmcio_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2325,7 +2323,7 @@ static uint64_t nv2a_prmcio_read(void *opaque,
     NV2A_DPRINTF("nv2a PRMCIO: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
-static void nv2a_prmcio_write(void *opaque, hwaddr addr,
+static void prmcio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2351,7 +2349,7 @@ static void nv2a_prmcio_write(void *opaque, hwaddr addr,
 }
 
 
-static uint64_t nv2a_pramdac_read(void *opaque,
+static uint64_t pramdac_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2383,7 +2381,7 @@ static uint64_t nv2a_pramdac_read(void *opaque,
     NV2A_DPRINTF("nv2a PRAMDAC: read %d [0x%llx] -> %llx\n", size, addr, r);
     return r;
 }
-static void nv2a_pramdac_write(void *opaque, hwaddr addr,
+static void pramdac_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2419,13 +2417,13 @@ static void nv2a_pramdac_write(void *opaque, hwaddr addr,
 }
 
 
-static uint64_t nv2a_prmdio_read(void *opaque,
+static uint64_t prmdio_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMDIO: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_prmdio_write(void *opaque, hwaddr addr,
+static void prmdio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMDIO: [0x%llx] = 0x%02llx\n", addr, val);
@@ -2434,13 +2432,13 @@ static void nv2a_prmdio_write(void *opaque, hwaddr addr,
 
 /* PRAMIN - RAMIN access */
 /*
-static uint64_t nv2a_pramin_read(void *opaque,
+static uint64_t pramin_read(void *opaque,
                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRAMIN: read [0x%llx] -> 0x%llx\n", addr, r);
     return 0;
 }
-static void nv2a_pramin_write(void *opaque, hwaddr addr,
+static void pramin_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRAMIN: [0x%llx] = 0x%02llx\n", addr, val);
@@ -2448,7 +2446,7 @@ static void nv2a_pramin_write(void *opaque, hwaddr addr,
 
 
 /* USER - PFIFO MMIO and DMA submission area */
-static uint64_t nv2a_user_read(void *opaque,
+static uint64_t user_read(void *opaque,
                                hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2482,7 +2480,7 @@ static uint64_t nv2a_user_read(void *opaque,
     NV2A_DPRINTF("nv2a USER: read [0x%llx] -> %llx\n", addr, r);
     return r;
 }
-static void nv2a_user_write(void *opaque, hwaddr addr,
+static void user_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -2501,7 +2499,7 @@ static void nv2a_user_write(void *opaque, hwaddr addr,
             control->dma_put = val;
 
             if (d->pfifo.cache1.push_enabled) {
-                nv2a_pfifo_run_pusher(d);
+                pfifo_run_pusher(d);
             }
             break;
         case NV_USER_DMA_GET:
@@ -2536,8 +2534,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x000000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_pmc_read,
-            .write = nv2a_pmc_write,
+            .read = pmc_read,
+            .write = pmc_write,
         },
     },
     [ NV_PBUS ]  = {
@@ -2545,8 +2543,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x001000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_pbus_read,
-            .write = nv2a_pbus_write,
+            .read = pbus_read,
+            .write = pbus_write,
         },
     },
     [ NV_PFIFO ]  = {
@@ -2554,8 +2552,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x002000,
         .size   = 0x002000,
         .ops = {
-            .read = nv2a_pfifo_read,
-            .write = nv2a_pfifo_write,
+            .read = pfifo_read,
+            .write = pfifo_write,
         },
     },
     [ NV_PRMA ]  = {
@@ -2563,8 +2561,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x007000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_prma_read,
-            .write = nv2a_prma_write,
+            .read = prma_read,
+            .write = prma_write,
         },
     },
     [ NV_PVIDEO ]  = {
@@ -2572,8 +2570,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x008000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_pvideo_read,
-            .write = nv2a_pvideo_write,
+            .read = pvideo_read,
+            .write = pvideo_write,
         },
     },
     [ NV_PTIMER ]  = {
@@ -2581,8 +2579,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x009000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_ptimer_read,
-            .write = nv2a_ptimer_write,
+            .read = ptimer_read,
+            .write = ptimer_write,
         },
     },
     [ NV_PCOUNTER ]  = {
@@ -2590,8 +2588,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x00a000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_pcounter_read,
-            .write = nv2a_pcounter_write,
+            .read = pcounter_read,
+            .write = pcounter_write,
         },
     },
     [ NV_PVPE ]  = {
@@ -2599,8 +2597,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x00b000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_pvpe_read,
-            .write = nv2a_pvpe_write,
+            .read = pvpe_read,
+            .write = pvpe_write,
         },
     },
     [ NV_PTV ]  = {
@@ -2608,8 +2606,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x00d000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_ptv_read,
-            .write = nv2a_ptv_write,
+            .read = ptv_read,
+            .write = ptv_write,
         },
     },
     [ NV_PRMFB ]  = {
@@ -2617,8 +2615,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x0a0000,
         .size   = 0x020000,
         .ops = {
-            .read = nv2a_prmfb_read,
-            .write = nv2a_prmfb_write,
+            .read = prmfb_read,
+            .write = prmfb_write,
         },
     },
     [ NV_PRMVIO ]  = {
@@ -2626,8 +2624,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x0c0000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_prmvio_read,
-            .write = nv2a_prmvio_write,
+            .read = prmvio_read,
+            .write = prmvio_write,
         },
     },
     [ NV_PFB ]  = {
@@ -2635,8 +2633,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x100000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_pfb_read,
-            .write = nv2a_pfb_write,
+            .read = pfb_read,
+            .write = pfb_write,
         },
     },
     [ NV_PSTRAPS ]  = {
@@ -2644,8 +2642,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x101000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_pstraps_read,
-            .write = nv2a_pstraps_write,
+            .read = pstraps_read,
+            .write = pstraps_write,
         },
     },
     [ NV_PGRAPH ]  = {
@@ -2653,8 +2651,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x400000,
         .size   = 0x002000,
         .ops = {
-            .read = nv2a_pgraph_read,
-            .write = nv2a_pgraph_write,
+            .read = pgraph_read,
+            .write = pgraph_write,
         },
     },
     [ NV_PCRTC ]  = {
@@ -2662,8 +2660,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x600000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_pcrtc_read,
-            .write = nv2a_pcrtc_write,
+            .read = pcrtc_read,
+            .write = pcrtc_write,
         },
     },
     [ NV_PRMCIO ]  = {
@@ -2671,8 +2669,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x601000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_prmcio_read,
-            .write = nv2a_prmcio_write,
+            .read = prmcio_read,
+            .write = prmcio_write,
         },
     },
     [ NV_PRAMDAC ]  = {
@@ -2680,8 +2678,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x680000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_pramdac_read,
-            .write = nv2a_pramdac_write,
+            .read = pramdac_read,
+            .write = pramdac_write,
         },
     },
     [ NV_PRMDIO ]  = {
@@ -2689,8 +2687,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x681000,
         .size   = 0x001000,
         .ops = {
-            .read = nv2a_prmdio_read,
-            .write = nv2a_prmdio_write,
+            .read = prmdio_read,
+            .write = prmdio_write,
         },
     },
     /*[ NV_PRAMIN ]  = {
@@ -2698,8 +2696,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x700000,
         .size   = 0x100000,
         .ops = {
-            .read = nv2a_pramin_read,
-            .write = nv2a_pramin_write,
+            .read = pramin_read,
+            .write = pramin_write,
         },
     },*/
     [ NV_USER ]  = {
@@ -2707,8 +2705,8 @@ static const struct NV2ABlockInfo blocktable[] = {
         .offset = 0x800000,
         .size   = 0x800000,
         .ops = {
-            .read = nv2a_user_read,
-            .write = nv2a_user_write,
+            .read = user_read,
+            .write = user_write,
         },
     },
 };
@@ -2736,7 +2734,7 @@ static void nv2a_vga_update(void *opaque)
     if (context->channel_3d) {
         printf("3d ping! %d\n", nv2a_get_bpp(&d->vga));
 
-        nv2a_pgraph_context_set_current(context);
+        pgraph_context_set_current(context);
 
         //glClearColor(1, 0, 0, 1);
         //glClear(GL_COLOR_BUFFER_BIT);
@@ -2745,14 +2743,14 @@ static void nv2a_vga_update(void *opaque)
         assert(glGetError() == GL_NO_ERROR);
         memory_region_set_dirty(&d->vga.vram, 0, 640*480*4);
 
-        nv2a_pgraph_context_set_current(NULL);
+        pgraph_context_set_current(NULL);
     }
     qemu_mutex_unlock(&d->pgraph.lock);
 
     d->vga.update(&d->vga);
 
     d->pcrtc.pending_interrupts |= NV_PCRTC_INTR_0_VBLANK;
-    nv2a_update_irq(d);
+    update_irq(d);
 }
 static void nv2a_vga_invalidate(void *opaque)
 {
@@ -2842,7 +2840,7 @@ static int nv2a_initfn(PCIDevice *dev)
 
     /* fire up graphics contexts */
     for (i=0; i<NV2A_NUM_CHANNELS; i++) {
-        nv2a_pgraph_context_init(&d->pgraph.context[i]);
+        pgraph_context_init(&d->pgraph.context[i]);
     }
 
     return 0;
@@ -2862,7 +2860,7 @@ static void nv2a_exitfn(PCIDevice *dev)
     qemu_cond_destroy(&d->pgraph.context_cond);
 
     for (i=0; i<NV2A_NUM_CHANNELS; i++) {
-        nv2a_pgraph_context_destroy(&d->pgraph.context[i]);
+        pgraph_context_destroy(&d->pgraph.context[i]);
     }
 }
 
