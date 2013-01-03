@@ -225,6 +225,10 @@ static int ppce500_load_device_tree(CPUPPCState *env,
         kvmppc_get_hypercall(env, hypercall, sizeof(hypercall));
         qemu_devtree_setprop(fdt, "/hypervisor", "hcall-instructions",
                              hypercall, sizeof(hypercall));
+        /* if KVM supports the idle hcall, set property indicating this */
+        if (kvmppc_get_hasidle(env)) {
+            qemu_devtree_setprop(fdt, "/hypervisor", "has-idle", NULL, 0);
+        }
     }
 
     /* Create CPU nodes */

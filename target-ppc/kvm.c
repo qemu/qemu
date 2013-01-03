@@ -989,18 +989,38 @@ uint32_t kvmppc_get_dfp(void)
     return kvmppc_read_int_cpu_dt("ibm,dfp");
 }
 
-int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
-{
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
-    uint32_t *hc = (uint32_t*)buf;
-
-    struct kvm_ppc_pvinfo pvinfo;
+static int kvmppc_get_pvinfo(CPUPPCState *env, struct kvm_ppc_pvinfo *pvinfo)
+ {
+     PowerPCCPU *cpu = ppc_env_get_cpu(env);
+     CPUState *cs = CPU(cpu);
 
     if (kvm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_PVINFO) &&
-        !kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_PVINFO, &pvinfo)) {
-        memcpy(buf, pvinfo.hcall, buf_len);
+        !kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_PVINFO, pvinfo)) {
+        return 0;
+    }
 
+    return 1;
+}
+
+int kvmppc_get_hasidle(CPUPPCState *env)
+{
+    struct kvm_ppc_pvinfo pvinfo;
+
+    if (!kvmppc_get_pvinfo(env, &pvinfo) &&
+        (pvinfo.flags & KVM_PPC_PVINFO_FLAGS_EV_IDLE)) {
+        return 1;
+    }
+
+    return 0;
+}
+
+int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
+{
+    uint32_t *hc = (uint32_t*)buf;
+    struct kvm_ppc_pvinfo pvinfo;
+
+    if (!kvmppc_get_pvinfo(env, &pvinfo)) {
+        memcpy(buf, pvinfo.hcall, buf_len);
         return 0;
     }
 
