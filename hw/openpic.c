@@ -213,6 +213,9 @@ typedef struct IRQDest {
     IRQQueue raised;
     IRQQueue servicing;
     qemu_irq *irqs;
+
+    /* Count of IRQ sources asserting on non-INT outputs */
+    uint32_t outputs_active[OPENPIC_OUTPUT_NB];
 } IRQDest;
 
 typedef struct OpenPICState {
@@ -308,7 +311,8 @@ static int IRQ_get_next(OpenPICState *opp, IRQQueue *q)
     return q->next;
 }
 
-static void IRQ_local_pipe(OpenPICState *opp, int n_CPU, int n_IRQ)
+static void IRQ_local_pipe(OpenPICState *opp, int n_CPU, int n_IRQ,
+                           bool active, bool was_active)
 {
     IRQDest *dst;
     IRQSource *src;
@@ -317,79 +321,113 @@ static void IRQ_local_pipe(OpenPICState *opp, int n_CPU, int n_IRQ)
     dst = &opp->dst[n_CPU];
     src = &opp->src[n_IRQ];
 
+    DPRINTF("%s: IRQ %d active %d was %d\n",
+            __func__, n_IRQ, active, was_active);
+
     if (src->output != OPENPIC_OUTPUT_INT) {
+        DPRINTF("%s: output %d irq %d active %d was %d count %d\n",
+                __func__, src->output, n_IRQ, active, was_active,
+                dst->outputs_active[src->output]);
+
         /* On Freescale MPIC, critical interrupts ignore priority,
          * IACK, EOI, etc.  Before MPIC v4.1 they also ignore
          * masking.
          */
-        src->ivpr |= IVPR_ACTIVITY_MASK;
-        DPRINTF("%s: Raise OpenPIC output %d cpu %d irq %d\n",
-                __func__, src->output, n_CPU, n_IRQ);
-        qemu_irq_raise(opp->dst[n_CPU].irqs[src->output]);
+        if (active) {
+            if (!was_active && dst->outputs_active[src->output]++ == 0) {
+                DPRINTF("%s: Raise OpenPIC output %d cpu %d irq %d\n",
+                        __func__, src->output, n_CPU, n_IRQ);
+                qemu_irq_raise(dst->irqs[src->output]);
+            }
+        } else {
+            if (was_active && --dst->outputs_active[src->output] == 0) {
+                DPRINTF("%s: Lower OpenPIC output %d cpu %d irq %d\n",
+                        __func__, src->output, n_CPU, n_IRQ);
+                qemu_irq_lower(dst->irqs[src->output]);
+            }
+        }
+
         return;
     }
 
     priority = IVPR_PRIORITY(src->ivpr);
-    if (priority <= dst->ctpr) {
-        /* Too low priority */
-        DPRINTF("%s: IRQ %d has too low priority on CPU %d\n",
-                __func__, n_IRQ, n_CPU);
-        return;
+
+    /* Even if the interrupt doesn't have enough priority,
+     * it is still raised, in case ctpr is lowered later.
+     */
+    if (active) {
+        IRQ_setbit(&dst->raised, n_IRQ);
+    } else {
+        IRQ_resetbit(&dst->raised, n_IRQ);
     }
-    if (IRQ_testbit(&dst->raised, n_IRQ)) {
-        /* Interrupt miss */
-        DPRINTF("%s: IRQ %d was missed on CPU %d\n",
-                __func__, n_IRQ, n_CPU);
-        return;
-    }
-    src->ivpr |= IVPR_ACTIVITY_MASK;
-    IRQ_setbit(&dst->raised, n_IRQ);
-    if (priority < dst->raised.priority) {
-        /* An higher priority IRQ is already raised */
-        DPRINTF("%s: IRQ %d is hidden by raised IRQ %d on CPU %d\n",
-                __func__, n_IRQ, dst->raised.next, n_CPU);
-        return;
-    }
+
     IRQ_check(opp, &dst->raised);
-    if (IRQ_get_next(opp, &dst->servicing) != -1 &&
-        priority <= dst->servicing.priority) {
-        DPRINTF("%s: IRQ %d is hidden by servicing IRQ %d on CPU %d\n",
-                __func__, n_IRQ, dst->servicing.next, n_CPU);
-        /* Already servicing a higher priority IRQ */
-        return;
+
+    if (active && priority <= dst->ctpr) {
+        DPRINTF("%s: IRQ %d priority %d too low for ctpr %d on CPU %d\n",
+                __func__, n_IRQ, priority, dst->ctpr, n_CPU);
+        active = 0;
     }
-    DPRINTF("Raise OpenPIC INT output cpu %d irq %d\n", n_CPU, n_IRQ);
-    qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
+
+    if (active) {
+        if (IRQ_get_next(opp, &dst->servicing) >= 0 &&
+                priority <= dst->servicing.priority) {
+            DPRINTF("%s: IRQ %d is hidden by servicing IRQ %d on CPU %d\n",
+                    __func__, n_IRQ, dst->servicing.next, n_CPU);
+        } else {
+            DPRINTF("%s: Raise OpenPIC INT output cpu %d irq %d/%d\n",
+                    __func__, n_CPU, n_IRQ, dst->raised.next);
+            qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
+        }
+    } else {
+        IRQ_get_next(opp, &dst->servicing);
+        if (dst->raised.priority > dst->ctpr &&
+                dst->raised.priority > dst->servicing.priority) {
+            DPRINTF("%s: IRQ %d inactive, IRQ %d prio %d above %d/%d, CPU %d\n",
+                    __func__, n_IRQ, dst->raised.next, dst->raised.priority,
+                    dst->ctpr, dst->servicing.priority, n_CPU);
+            /* IRQ line stays asserted */
+        } else {
+            DPRINTF("%s: IRQ %d inactive, current prio %d/%d, CPU %d\n",
+                    __func__, n_IRQ, dst->ctpr, dst->servicing.priority, n_CPU);
+            qemu_irq_lower(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
+        }
+    }
 }
 
 /* update pic state because registers for n_IRQ have changed value */
 static void openpic_update_irq(OpenPICState *opp, int n_IRQ)
 {
     IRQSource *src;
+    bool active, was_active;
     int i;
 
     src = &opp->src[n_IRQ];
+    active = src->pending;
 
-    if (!src->pending) {
-        /* no irq pending */
-        DPRINTF("%s: IRQ %d is not pending\n", __func__, n_IRQ);
-        return;
-    }
     if ((src->ivpr & IVPR_MASK_MASK) && !src->nomask) {
         /* Interrupt source is disabled */
         DPRINTF("%s: IRQ %d is disabled\n", __func__, n_IRQ);
+        active = false;
+    }
+
+    was_active = !!(src->ivpr & IVPR_ACTIVITY_MASK);
+
+    /*
+     * We don't have a similar check for already-active because
+     * ctpr may have changed and we need to withdraw the interrupt.
+     */
+    if (!active && !was_active) {
+        DPRINTF("%s: IRQ %d is already inactive\n", __func__, n_IRQ);
         return;
     }
-    if (IVPR_PRIORITY(src->ivpr) == 0) {
-        /* Priority set to zero */
-        DPRINTF("%s: IRQ %d has 0 priority\n", __func__, n_IRQ);
-        return;
+
+    if (active) {
+        src->ivpr |= IVPR_ACTIVITY_MASK;
+    } else {
+        src->ivpr &= ~IVPR_ACTIVITY_MASK;
     }
-    if (src->ivpr & IVPR_ACTIVITY_MASK) {
-        /* IRQ already active */
-        DPRINTF("%s: IRQ %d is already active\n", __func__, n_IRQ);
-        return;
-    }
+
     if (src->idr == 0) {
         /* No target */
         DPRINTF("%s: IRQ %d has no target\n", __func__, n_IRQ);
@@ -398,12 +436,12 @@ static void openpic_update_irq(OpenPICState *opp, int n_IRQ)
 
     if (src->idr == (1 << src->last_cpu)) {
         /* Only one CPU is allowed to receive this IRQ */
-        IRQ_local_pipe(opp, src->last_cpu, n_IRQ);
+        IRQ_local_pipe(opp, src->last_cpu, n_IRQ, active, was_active);
     } else if (!(src->ivpr & IVPR_MODE_MASK)) {
         /* Directed delivery mode */
         for (i = 0; i < opp->nb_cpus; i++) {
             if (src->destmask & (1 << i)) {
-                IRQ_local_pipe(opp, i, n_IRQ);
+                IRQ_local_pipe(opp, i, n_IRQ, active, was_active);
             }
         }
     } else {
@@ -413,7 +451,7 @@ static void openpic_update_irq(OpenPICState *opp, int n_IRQ)
                 i = 0;
             }
             if (src->destmask & (1 << i)) {
-                IRQ_local_pipe(opp, i, n_IRQ);
+                IRQ_local_pipe(opp, i, n_IRQ, active, was_active);
                 src->last_cpu = i;
                 break;
             }
@@ -437,16 +475,25 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     if (src->level) {
         /* level-sensitive irq */
         src->pending = level;
-        if (!level) {
-            src->ivpr &= ~IVPR_ACTIVITY_MASK;
-        }
+        openpic_update_irq(opp, n_IRQ);
     } else {
         /* edge-sensitive irq */
         if (level) {
             src->pending = 1;
+            openpic_update_irq(opp, n_IRQ);
+        }
+
+        if (src->output != OPENPIC_OUTPUT_INT) {
+            /* Edge-triggered interrupts shouldn't be used
+             * with non-INT delivery, but just in case,
+             * try to make it do something sane rather than
+             * cause an interrupt storm.  This is close to
+             * what you'd probably see happen in real hardware.
+             */
+            src->pending = 0;
+            openpic_update_irq(opp, n_IRQ);
         }
     }
-    openpic_update_irq(opp, n_IRQ);
 }
 
 static void openpic_reset(DeviceState *d)
@@ -934,6 +981,21 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
         break;
     case 0x80: /* CTPR */
         dst->ctpr = val & 0x0000000F;
+
+        DPRINTF("%s: set CPU %d ctpr to %d, raised %d servicing %d\n",
+                __func__, idx, dst->ctpr, dst->raised.priority,
+                dst->servicing.priority);
+
+        if (dst->raised.priority <= dst->ctpr) {
+            DPRINTF("%s: Lower OpenPIC INT output cpu %d due to ctpr\n",
+                    __func__, idx);
+            qemu_irq_lower(dst->irqs[OPENPIC_OUTPUT_INT]);
+        } else if (dst->raised.priority > dst->servicing.priority) {
+            DPRINTF("%s: Raise OpenPIC INT output cpu %d irq %d\n",
+                    __func__, idx, dst->raised.next);
+            qemu_irq_raise(dst->irqs[OPENPIC_OUTPUT_INT]);
+        }
+
         break;
     case 0x90: /* WHOAMI */
         /* Read-only register */
@@ -995,22 +1057,21 @@ static uint32_t openpic_iack(OpenPICState *opp, IRQDest *dst, int cpu)
     src = &opp->src[irq];
     if (!(src->ivpr & IVPR_ACTIVITY_MASK) ||
             !(IVPR_PRIORITY(src->ivpr) > dst->ctpr)) {
-        /* - Spurious level-sensitive IRQ
-         * - Priorities has been changed
-         *   and the pending IRQ isn't allowed anymore
-         */
-        src->ivpr &= ~IVPR_ACTIVITY_MASK;
+        fprintf(stderr, "%s: bad raised IRQ %d ctpr %d ivpr 0x%08x\n",
+                __func__, irq, dst->ctpr, src->ivpr);
+        openpic_update_irq(opp, irq);
         retval = opp->spve;
     } else {
         /* IRQ enter servicing state */
         IRQ_setbit(&dst->servicing, irq);
         retval = IVPR_VECTOR(opp, src->ivpr);
     }
-    IRQ_resetbit(&dst->raised, irq);
+
     if (!src->level) {
         /* edge-sensitive IRQ */
         src->ivpr &= ~IVPR_ACTIVITY_MASK;
         src->pending = 0;
+        IRQ_resetbit(&dst->raised, irq);
     }
 
     if ((irq >= opp->irq_ipi0) &&  (irq < (opp->irq_ipi0 + MAX_IPI))) {
@@ -1208,6 +1269,8 @@ static void openpic_save(QEMUFile* f, void *opaque)
         qemu_put_sbe32s(f, &opp->dst[i].ctpr);
         openpic_save_IRQ_queue(f, &opp->dst[i].raised);
         openpic_save_IRQ_queue(f, &opp->dst[i].servicing);
+        qemu_put_buffer(f, (uint8_t *)&opp->dst[i].outputs_active,
+                        sizeof(opp->dst[i].outputs_active));
     }
 
     for (i = 0; i < MAX_TMR; i++) {
@@ -1264,6 +1327,8 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
         qemu_get_sbe32s(f, &opp->dst[i].ctpr);
         openpic_load_IRQ_queue(f, &opp->dst[i].raised);
         openpic_load_IRQ_queue(f, &opp->dst[i].servicing);
+        qemu_get_buffer(f, (uint8_t *)&opp->dst[i].outputs_active,
+                        sizeof(opp->dst[i].outputs_active));
     }
 
     for (i = 0; i < MAX_TMR; i++) {
