@@ -698,16 +698,18 @@ static void device_class_base_init(ObjectClass *class, void *data)
     klass->props = NULL;
 }
 
-static void qdev_remove_from_bus(Object *obj)
+static void device_unparent(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
 
-    bus_remove_child(dev->parent_bus, dev);
+    if (dev->parent_bus != NULL) {
+        bus_remove_child(dev->parent_bus, dev);
+    }
 }
 
 static void device_class_init(ObjectClass *class, void *data)
 {
-    class->unparent = qdev_remove_from_bus;
+    class->unparent = device_unparent;
 }
 
 void device_reset(DeviceState *dev)
