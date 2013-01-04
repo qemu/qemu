@@ -359,7 +359,7 @@ static void m5206_mbar_write(m5206_mbar_state *s, uint32_t offset,
 
 /* Internal peripherals use a variety of register widths.
    This lookup table allows a single routine to handle all of them.  */
-static const int m5206_mbar_width[] =
+static const uint8_t m5206_mbar_width[] =
 {
   /* 000-040 */ 1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  2, 2, 2, 2,
   /* 040-080 */ 1, 2, 2, 2,  4, 1, 2, 4,  1, 2, 4, 2,  2, 4, 2, 2,

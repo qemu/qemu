@@ -84,6 +84,10 @@ static void pc_fw_add_pflash_drv(void)
         bios_name = BIOS_FILENAME;
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!filename) {
+        error_report("Can't open BIOS image %s", bios_name);
+        exit(1);
+    }
 
     opts = drive_add(IF_PFLASH, -1, filename, "readonly=on");
 

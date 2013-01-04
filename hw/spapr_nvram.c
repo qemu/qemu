@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <sys/mman.h>
+
 #include <libfdt.h>
 
 #include "sysemu/device_tree.h"
