@@ -305,6 +305,16 @@ typedef struct AHCIPCIState {
     AHCIState ahci;
 } AHCIPCIState;
 
+extern const VMStateDescription vmstate_ahci;
+
+#define VMSTATE_AHCI(_field, _state) {                               \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(AHCIState),                                 \
+    .vmsd       = &vmstate_ahci,                                     \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, AHCIState),   \
+}
+
 typedef struct NCQFrame {
     uint8_t fis_type;
     uint8_t c;
