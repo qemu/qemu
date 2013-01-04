@@ -4614,7 +4614,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     /* Set up registers for signal handler.  */
     env->gpr[1] = newsp;
     env->gpr[3] = signal;
-    env->gpr[4] = (target_ulong) h2g(sc);
+    env->gpr[4] = frame_addr + offsetof(struct target_sigframe, sctx);
     env->nip = (target_ulong) ka->_sa_handler;
     /* Signal handlers are entered in big-endian mode.  */
     env->msr &= ~MSR_LE;
