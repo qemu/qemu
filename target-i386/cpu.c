@@ -963,7 +963,7 @@ static int kvm_check_features_against_host(x86_def_t *guest_def)
         {&guest_def->ext2_features, &host_def.ext2_features,
             ~0, ext2_feature_name, 0x80000001, R_EDX},
         {&guest_def->ext3_features, &host_def.ext3_features,
-            ~CPUID_EXT3_SVM, ext3_feature_name, 0x80000001, R_ECX}
+            ~0, ext3_feature_name, 0x80000001, R_ECX}
     };
 
     assert(kvm_enabled());
