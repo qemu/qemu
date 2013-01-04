@@ -959,7 +959,7 @@ static int kvm_check_features_against_host(x86_def_t *guest_def)
         {&guest_def->features, &host_def.features,
             ~0, feature_name, 0x00000001, R_EDX},
         {&guest_def->ext_features, &host_def.ext_features,
-            ~CPUID_EXT_HYPERVISOR, ext_feature_name, 0x00000001, R_ECX},
+            ~0, ext_feature_name, 0x00000001, R_ECX},
         {&guest_def->ext2_features, &host_def.ext2_features,
             ~PPRO_FEATURES, ext2_feature_name, 0x80000001, R_EDX},
         {&guest_def->ext3_features, &host_def.ext3_features,
