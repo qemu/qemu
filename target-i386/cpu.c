@@ -148,7 +148,6 @@ const char *get_register_name_32(unsigned int reg)
 typedef struct model_features_t {
     uint32_t *guest_feat;
     uint32_t *host_feat;
-    uint32_t check_feat;
     const char **flag_names;
     uint32_t cpuid;
     int reg;
@@ -945,8 +944,7 @@ static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
 }
 
 /* best effort attempt to inform user requested cpu flags aren't making
- * their way to the guest.  Note: ft[].check_feat ideally should be
- * specified via a guest_def field to suppress report of extraneous flags.
+ * their way to the guest.
  *
  * This function may be called only if KVM is enabled.
  */
@@ -957,13 +955,13 @@ static int kvm_check_features_against_host(x86_def_t *guest_def)
     int rv, i;
     struct model_features_t ft[] = {
         {&guest_def->features, &host_def.features,
-            ~0, feature_name, 0x00000001, R_EDX},
+            feature_name, 0x00000001, R_EDX},
         {&guest_def->ext_features, &host_def.ext_features,
-            ~0, ext_feature_name, 0x00000001, R_ECX},
+            ext_feature_name, 0x00000001, R_ECX},
         {&guest_def->ext2_features, &host_def.ext2_features,
-            ~0, ext2_feature_name, 0x80000001, R_EDX},
+            ext2_feature_name, 0x80000001, R_EDX},
         {&guest_def->ext3_features, &host_def.ext3_features,
-            ~0, ext3_feature_name, 0x80000001, R_ECX}
+            ext3_feature_name, 0x80000001, R_ECX}
     };
 
     assert(kvm_enabled());
@@ -971,7 +969,7 @@ static int kvm_check_features_against_host(x86_def_t *guest_def)
     kvm_cpu_fill_host(&host_def);
     for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i)
         for (mask = 1; mask; mask <<= 1)
-            if (ft[i].check_feat & mask && *ft[i].guest_feat & mask &&
+            if (*ft[i].guest_feat & mask &&
                 !(*ft[i].host_feat & mask)) {
                     unavailable_host_feature(&ft[i], mask);
                     rv = 1;
