@@ -281,11 +281,9 @@ struct AHCIDevice {
     QEMUBH *check_bh;
     uint8_t *lst;
     uint8_t *res_fis;
-    int dma_status;
     int done_atapi_packet;
     int busy_slot;
     int init_d2h_sent;
-    BlockDriverCompletionFunc *dma_cb;
     AHCICmdHdr *cur_cmd;
     NCQTransferState ncq_tfs[AHCI_MAX_CMDS];
 };

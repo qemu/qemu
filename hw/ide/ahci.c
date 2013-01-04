@@ -1035,11 +1035,10 @@ out:
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,
                            BlockDriverCompletionFunc *dma_cb)
 {
+#ifdef DEBUG_AHCI
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
-
+#endif
     DPRINTF(ad->port_no, "\n");
-    ad->dma_cb = dma_cb;
-    ad->dma_status |= BM_STATUS_DMAING;
     s->io_buffer_offset = 0;
     dma_cb(s, 0);
 }
@@ -1095,7 +1094,6 @@ static int ahci_dma_set_unit(IDEDMA *dma, int unit)
 static int ahci_dma_add_status(IDEDMA *dma, int status)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
-    ad->dma_status |= status;
     DPRINTF(ad->port_no, "set status: %x\n", status);
 
     if (status & BM_STATUS_INT) {
@@ -1113,8 +1111,6 @@ static int ahci_dma_set_inactive(IDEDMA *dma)
 
     /* update d2h status */
     ahci_write_fis_d2h(ad, NULL);
-
-    ad->dma_cb = NULL;
 
     if (!ad->check_bh) {
         /* maybe we still have something to process, check later */
