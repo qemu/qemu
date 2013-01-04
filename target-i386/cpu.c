@@ -900,6 +900,8 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
     /* Other KVM-specific feature fields: */
     x86_cpu_def->svm_features =
         kvm_arch_get_supported_cpuid(s, 0x8000000A, 0, R_EDX);
+    x86_cpu_def->kvm_features =
+        kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
 
 #endif /* CONFIG_KVM */
 }
