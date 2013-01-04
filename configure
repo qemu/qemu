@@ -240,8 +240,10 @@ for opt do
   --cpu=*) cpu="$optarg"
   ;;
   --extra-cflags=*) QEMU_CFLAGS="$optarg $QEMU_CFLAGS"
+                    EXTRA_CFLAGS="$optarg"
   ;;
   --extra-ldflags=*) LDFLAGS="$optarg $LDFLAGS"
+                     EXTRA_LDFLAGS="$optarg"
   ;;
   --enable-debug-info) debug_info="yes"
   ;;
@@ -3349,6 +3351,8 @@ echo "qemu_datadir=$qemu_datadir" >> $config_host_mak
 echo "qemu_docdir=$qemu_docdir" >> $config_host_mak
 echo "qemu_localstatedir=$local_statedir" >> $config_host_mak
 echo "qemu_helperdir=$libexecdir" >> $config_host_mak
+echo "extra_cflags=$EXTRA_CFLAGS" >> $config_host_mak
+echo "extra_ldflags=$EXTRA_LDFLAGS" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
