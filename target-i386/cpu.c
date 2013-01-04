@@ -897,13 +897,10 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
         }
     }
 
-    /*
-     * Every SVM feature requires emulation support in KVM - so we can't just
-     * read the host features here. KVM might even support SVM features not
-     * available on the host hardware. Just set all bits and mask out the
-     * unsupported ones later.
-     */
-    x86_cpu_def->svm_features = -1;
+    /* Other KVM-specific feature fields: */
+    x86_cpu_def->svm_features =
+        kvm_arch_get_supported_cpuid(s, 0x8000000A, 0, R_EDX);
+
 #endif /* CONFIG_KVM */
 }
 
