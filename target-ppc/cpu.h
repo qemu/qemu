@@ -1067,7 +1067,9 @@ struct CPUPPCState {
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;
-    hwaddr mpic_cpu_base;
+    hwaddr mpic_iack;
+    /* true when the external proxy facility mode is enabled */
+    bool mpic_proxy;
 #endif
 
     /* Those resources are used only during code translation */

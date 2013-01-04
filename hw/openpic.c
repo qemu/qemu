@@ -131,6 +131,9 @@ static const int debug_openpic = 0;
 #define VIR_GENERIC      0x00000000 /* Generic Vendor ID */
 
 #define GCR_RESET        0x80000000
+#define GCR_MODE_PASS    0x00000000
+#define GCR_MODE_MIXED   0x20000000
+#define GCR_MODE_PROXY   0x60000000
 
 #define TBCR_CI           0x80000000 /* count inhibit */
 #define TCCR_TOG          0x80000000 /* toggles when decrement to zero */
@@ -233,6 +236,7 @@ typedef struct OpenPICState {
     uint32_t ivpr_reset;
     uint32_t idr_reset;
     uint32_t brr1;
+    uint32_t mpic_mode_mask;
 
     /* Sub-regions */
     MemoryRegion sub_io_mem[5];
@@ -667,6 +671,20 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x1020: /* GCR */
         if (val & GCR_RESET) {
             openpic_reset(&opp->busdev.qdev);
+        } else if (opp->mpic_mode_mask) {
+            CPUArchState *env;
+            int mpic_proxy = 0;
+
+            opp->gcr &= ~opp->mpic_mode_mask;
+            opp->gcr |= val & opp->mpic_mode_mask;
+
+            /* Set external proxy mode */
+            if ((val & opp->mpic_mode_mask) == GCR_MODE_PROXY) {
+                mpic_proxy = 1;
+            }
+            for (env = first_cpu; env != NULL; env = env->next_cpu) {
+                env->mpic_proxy = mpic_proxy;
+            }
         }
         break;
     case 0x1080: /* VIR */
@@ -1407,6 +1425,9 @@ static int openpic_init(SysBusDevice *dev)
         opp->irq_tim0 = FSL_MPIC_20_TMR_IRQ;
         opp->irq_msi = FSL_MPIC_20_MSI_IRQ;
         opp->brr1 = FSL_BRR1_IPID | FSL_BRR1_IPMJ | FSL_BRR1_IPMN;
+        /* XXX really only available as of MPIC 4.0 */
+        opp->mpic_mode_mask = GCR_MODE_PROXY;
+
         msi_supported = true;
         list = list_be;
 

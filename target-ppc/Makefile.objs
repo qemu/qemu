@@ -9,4 +9,3 @@ obj-y += mmu_helper.o
 obj-y += timebase_helper.o
 obj-y += misc_helper.o
 obj-y += mem_helper.o
-obj-y += mpic_helper.o

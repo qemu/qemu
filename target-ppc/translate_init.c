@@ -4493,11 +4493,6 @@ static void spr_read_mas73(void *opaque, int gprn, int sprn)
     tcg_temp_free(mas7);
 }
 
-static void spr_load_epr(void *opaque, int gprn, int sprn)
-{
-    gen_helper_load_epr(cpu_gpr[gprn], cpu_env);
-}
-
 #endif
 
 enum fsl_e500_version {
@@ -4656,7 +4651,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
                  0x00000000);
     spr_register(env, SPR_BOOKE_EPR, "EPR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_load_epr, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
                  0x00000000);
     /* XXX better abstract into Emb.xxx features */
     if (version == fsl_e5500) {
