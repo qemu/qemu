@@ -124,6 +124,25 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
+const char *get_register_name_32(unsigned int reg)
+{
+    static const char *reg_names[CPU_NB_REGS32] = {
+        [R_EAX] = "EAX",
+        [R_ECX] = "ECX",
+        [R_EDX] = "EDX",
+        [R_EBX] = "EBX",
+        [R_ESP] = "ESP",
+        [R_EBP] = "EBP",
+        [R_ESI] = "ESI",
+        [R_EDI] = "EDI",
+    };
+
+    if (reg > CPU_NB_REGS32) {
+        return NULL;
+    }
+    return reg_names[reg];
+}
+
 /* collects per-function cpuid data
  */
 typedef struct model_features_t {
@@ -132,7 +151,8 @@ typedef struct model_features_t {
     uint32_t check_feat;
     const char **flag_names;
     uint32_t cpuid;
-    } model_features_t;
+    int reg;
+} model_features_t;
 
 int check_cpuid = 0;
 int enforce_cpuid = 0;
@@ -912,10 +932,13 @@ static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
 
     for (i = 0; i < 32; ++i)
         if (1 << i & mask) {
-            fprintf(stderr, "warning: host cpuid %04x_%04x lacks requested"
-                " flag '%s' [0x%08x]\n",
-                f->cpuid >> 16, f->cpuid & 0xffff,
-                f->flag_names[i] ? f->flag_names[i] : "[reserved]", mask);
+            const char *reg = get_register_name_32(f->reg);
+            assert(reg);
+            fprintf(stderr, "warning: host doesn't support requested feature: "
+                "CPUID.%02XH:%s%s%s [bit %d]\n",
+                f->cpuid, reg,
+                f->flag_names[i] ? "." : "",
+                f->flag_names[i] ? f->flag_names[i] : "", i);
             break;
         }
     return 0;
@@ -934,13 +957,14 @@ static int kvm_check_features_against_host(x86_def_t *guest_def)
     int rv, i;
     struct model_features_t ft[] = {
         {&guest_def->features, &host_def.features,
-            ~0, feature_name, 0x00000000},
+            ~0, feature_name, 0x00000001, R_EDX},
         {&guest_def->ext_features, &host_def.ext_features,
-            ~CPUID_EXT_HYPERVISOR, ext_feature_name, 0x00000001},
+            ~CPUID_EXT_HYPERVISOR, ext_feature_name, 0x00000001, R_ECX},
         {&guest_def->ext2_features, &host_def.ext2_features,
-            ~PPRO_FEATURES, ext2_feature_name, 0x80000000},
+            ~PPRO_FEATURES, ext2_feature_name, 0x80000001, R_EDX},
         {&guest_def->ext3_features, &host_def.ext3_features,
-            ~CPUID_EXT3_SVM, ext3_feature_name, 0x80000001}};
+            ~CPUID_EXT3_SVM, ext3_feature_name, 0x80000001, R_ECX}
+    };
 
     assert(kvm_enabled());
 
