@@ -147,15 +147,12 @@ static void arm_cpu_finalizefn(Object *obj)
     g_hash_table_destroy(cpu->cp_regs);
 }
 
-void arm_cpu_realize(ARMCPU *cpu)
+static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    /* This function is called by cpu_arm_init() because it
-     * needs to do common actions based on feature bits, etc
-     * that have been set by the subclass init functions.
-     * When we have QOM realize support it should become
-     * a true realize function instead.
-     */
+    ARMCPU *cpu = ARM_CPU(dev);
+    ARMCPUClass *acc = ARM_CPU_GET_CLASS(dev);
     CPUARMState *env = &cpu->env;
+
     /* Some features automatically imply others: */
     if (arm_feature(env, ARM_FEATURE_V7)) {
         set_feature(env, ARM_FEATURE_VAPA);
@@ -197,6 +194,12 @@ void arm_cpu_realize(ARMCPU *cpu)
     }
 
     register_cp_regs_for_features(cpu);
+    arm_cpu_register_gdb_regs_for_features(cpu);
+
+    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(env);
+
+    acc->parent_realize(dev, errp);
 }
 
 /* CPU models */
@@ -782,6 +785,10 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(acc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    acc->parent_realize = dc->realize;
+    dc->realize = arm_cpu_realizefn;
 
     acc->parent_reset = cc->reset;
     cc->reset = arm_cpu_reset;

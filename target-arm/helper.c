@@ -1272,14 +1272,22 @@ ARMCPU *cpu_arm_init(const char *cpu_model)
     cpu = ARM_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
     env->cpu_model_str = cpu_model;
-    arm_cpu_realize(cpu);
+
+    /* TODO this should be set centrally, once possible */
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
     if (tcg_enabled() && !inited) {
         inited = 1;
         arm_translate_init();
     }
 
-    cpu_reset(CPU(cpu));
+    return cpu;
+}
+
+void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
+{
+    CPUARMState *env = &cpu->env;
+
     if (arm_feature(env, ARM_FEATURE_NEON)) {
         gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  51, "arm-neon.xml", 0);
@@ -1290,8 +1298,6 @@ ARMCPU *cpu_arm_init(const char *cpu_model)
         gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  19, "arm-vfp.xml", 0);
     }
-    qemu_init_vcpu(env);
-    return cpu;
 }
 
 /* Sort alphabetically by type name, except for "any". */
