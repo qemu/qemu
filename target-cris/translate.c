@@ -3558,8 +3558,7 @@ CRISCPU *cpu_cris_init(const char *cpu_model)
 
     env->pregs[PR_VR] = vr_by_name(cpu_model);
 
-    cpu_reset(CPU(cpu));
-    qemu_init_vcpu(env);
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
     if (tcg_initialized) {
         return cpu;

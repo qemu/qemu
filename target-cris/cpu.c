@@ -55,6 +55,17 @@ static void cris_cpu_reset(CPUState *s)
 #endif
 }
 
+static void cris_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    CRISCPU *cpu = CRIS_CPU(dev);
+    CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(dev);
+
+    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(&cpu->env);
+
+    ccc->parent_realize(dev, errp);
+}
+
 static void cris_cpu_initfn(Object *obj)
 {
     CRISCPU *cpu = CRIS_CPU(obj);
@@ -65,8 +76,12 @@ static void cris_cpu_initfn(Object *obj)
 
 static void cris_cpu_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     CRISCPUClass *ccc = CRIS_CPU_CLASS(oc);
+
+    ccc->parent_realize = dc->realize;
+    dc->realize = cris_cpu_realizefn;
 
     ccc->parent_reset = cc->reset;
     cc->reset = cris_cpu_reset;
