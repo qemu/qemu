@@ -226,6 +226,8 @@ static inline uint32_t qemu_bswap_len(uint32_t value, int len)
     return bswap32(value) >> (32 - 8 * len);
 }
 
+/* Unions for reinterpreting between floats and integers.  */
+
 typedef union {
     float32 f;
     uint32_t l;
@@ -309,7 +311,7 @@ typedef union {
  *   q: 64 bits
  *
  * endian is:
- * (empty): 8 bit access
+ * (empty): host endian
  *   be   : big endian
  *   le   : little endian
  */
@@ -326,6 +328,53 @@ static inline int ldsb_p(const void *ptr)
 static inline void stb_p(void *ptr, int v)
 {
     *(uint8_t *)ptr = v;
+}
+
+/* Any compiler worth its salt will turn these memcpy into native unaligned
+   operations.  Thus we don't need to play games with packed attributes, or
+   inline byte-by-byte stores.  */
+
+static inline int lduw_p(const void *ptr)
+{
+    uint16_t r;
+    memcpy(&r, ptr, sizeof(r));
+    return r;
+}
+
+static inline int ldsw_p(const void *ptr)
+{
+    int16_t r;
+    memcpy(&r, ptr, sizeof(r));
+    return r;
+}
+
+static inline void stw_p(void *ptr, uint16_t v)
+{
+    memcpy(ptr, &v, sizeof(v));
+}
+
+static inline int ldl_p(const void *ptr)
+{
+    int32_t r;
+    memcpy(&r, ptr, sizeof(r));
+    return r;
+}
+
+static inline void stl_p(void *ptr, uint32_t v)
+{
+    memcpy(ptr, &v, sizeof(v));
+}
+
+static inline uint64_t ldq_p(const void *ptr)
+{
+    uint64_t r;
+    memcpy(&r, ptr, sizeof(r));
+    return r;
+}
+
+static inline void stq_p(void *ptr, uint64_t v)
+{
+    memcpy(ptr, &v, sizeof(v));
 }
 
 /* NOTE: on arm, putting 2 in /proc/sys/debug/alignment so that the
