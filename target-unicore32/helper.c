@@ -45,7 +45,8 @@ CPUUniCore32State *uc32_cpu_init(const char *cpu_model)
         uc32_translate_init();
     }
 
-    qemu_init_vcpu(env);
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
     return env;
 }
 

@@ -25,6 +25,7 @@
 
 /**
  * UniCore32CPUClass:
+ * @parent_realize: The parent class' realize handler.
  *
  * A UniCore32 CPU model.
  */
@@ -32,6 +33,8 @@ typedef struct UniCore32CPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
+
+    DeviceRealize parent_realize;
 } UniCore32CPUClass;
 
 /**
