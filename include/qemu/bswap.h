@@ -121,100 +121,6 @@ CPU_CONVERT(le, 16, uint16_t)
 CPU_CONVERT(le, 32, uint32_t)
 CPU_CONVERT(le, 64, uint64_t)
 
-/* unaligned versions (optimized for frequent unaligned accesses)*/
-
-#if defined(__i386__) || defined(_ARCH_PPC)
-
-#define cpu_to_le16wu(p, v) cpu_to_le16w(p, v)
-#define cpu_to_le32wu(p, v) cpu_to_le32w(p, v)
-#define le16_to_cpupu(p) le16_to_cpup(p)
-#define le32_to_cpupu(p) le32_to_cpup(p)
-#define be32_to_cpupu(p) be32_to_cpup(p)
-
-#define cpu_to_be16wu(p, v) cpu_to_be16w(p, v)
-#define cpu_to_be32wu(p, v) cpu_to_be32w(p, v)
-#define cpu_to_be64wu(p, v) cpu_to_be64w(p, v)
-
-#else
-
-static inline void cpu_to_le16wu(uint16_t *p, uint16_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v & 0xff;
-    p1[1] = v >> 8;
-}
-
-static inline void cpu_to_le32wu(uint32_t *p, uint32_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v & 0xff;
-    p1[1] = v >> 8;
-    p1[2] = v >> 16;
-    p1[3] = v >> 24;
-}
-
-static inline uint16_t le16_to_cpupu(const uint16_t *p)
-{
-    const uint8_t *p1 = (const uint8_t *)p;
-    return p1[0] | (p1[1] << 8);
-}
-
-static inline uint32_t le32_to_cpupu(const uint32_t *p)
-{
-    const uint8_t *p1 = (const uint8_t *)p;
-    return p1[0] | (p1[1] << 8) | (p1[2] << 16) | (p1[3] << 24);
-}
-
-static inline uint32_t be32_to_cpupu(const uint32_t *p)
-{
-    const uint8_t *p1 = (const uint8_t *)p;
-    return p1[3] | (p1[2] << 8) | (p1[1] << 16) | (p1[0] << 24);
-}
-
-static inline void cpu_to_be16wu(uint16_t *p, uint16_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v >> 8;
-    p1[1] = v & 0xff;
-}
-
-static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v >> 24;
-    p1[1] = v >> 16;
-    p1[2] = v >> 8;
-    p1[3] = v & 0xff;
-}
-
-static inline void cpu_to_be64wu(uint64_t *p, uint64_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v >> 56;
-    p1[1] = v >> 48;
-    p1[2] = v >> 40;
-    p1[3] = v >> 32;
-    p1[4] = v >> 24;
-    p1[5] = v >> 16;
-    p1[6] = v >> 8;
-    p1[7] = v & 0xff;
-}
-
-#endif
-
-#ifdef HOST_WORDS_BIGENDIAN
-#define cpu_to_32wu cpu_to_be32wu
-#define leul_to_cpu(v) glue(glue(le,HOST_LONG_BITS),_to_cpu)(v)
-#else
-#define cpu_to_32wu cpu_to_le32wu
-#define leul_to_cpu(v) (v)
-#endif
-
 /* len must be one of 1, 2, 4 */
 static inline uint32_t qemu_bswap_len(uint32_t value, int len)
 {
@@ -310,6 +216,7 @@ typedef union {
  *   be   : big endian
  *   le   : little endian
  */
+
 static inline int ldub_p(const void *ptr)
 {
     return *(uint8_t *)ptr;
@@ -500,6 +407,58 @@ static inline void stfq_be_p(void *ptr, float64 v)
     CPU_DoubleU u;
     u.d = v;
     stq_be_p(ptr, u.ll);
+}
+
+/* Legacy unaligned versions.  Note that we never had a complete set.  */
+
+static inline void cpu_to_le16wu(uint16_t *p, uint16_t v)
+{
+    stw_le_p(p, v);
+}
+
+static inline void cpu_to_le32wu(uint32_t *p, uint32_t v)
+{
+    stl_le_p(p, v);
+}
+
+static inline uint16_t le16_to_cpupu(const uint16_t *p)
+{
+    return lduw_le_p(p);
+}
+
+static inline uint32_t le32_to_cpupu(const uint32_t *p)
+{
+    return ldl_le_p(p);
+}
+
+static inline uint32_t be32_to_cpupu(const uint32_t *p)
+{
+    return ldl_be_p(p);
+}
+
+static inline void cpu_to_be16wu(uint16_t *p, uint16_t v)
+{
+    stw_be_p(p, v);
+}
+
+static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
+{
+    stl_be_p(p, v);
+}
+
+static inline void cpu_to_be64wu(uint64_t *p, uint64_t v)
+{
+    stq_be_p(p, v);
+}
+
+static inline void cpu_to_32wu(uint32_t *p, uint32_t v)
+{
+    stl_p(p, v);
+}
+
+static inline unsigned long leul_to_cpu(unsigned long v)
+{
+    return le_bswap(v, HOST_LONG_BITS);
 }
 
 #undef le_bswap
