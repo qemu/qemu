@@ -170,11 +170,6 @@ OpenRISCCPU *cpu_openrisc_init(const char *cpu_model)
     return cpu;
 }
 
-typedef struct OpenRISCCPUList {
-    fprintf_function cpu_fprintf;
-    FILE *file;
-} OpenRISCCPUList;
-
 /* Sort alphabetically by type name, except for "any". */
 static gint openrisc_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
@@ -196,7 +191,7 @@ static gint openrisc_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void openrisc_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
-    OpenRISCCPUList *s = user_data;
+    CPUListState *s = user_data;
 
     (*s->cpu_fprintf)(s->file, "  %s\n",
                       object_class_get_name(oc));
@@ -204,7 +199,7 @@ static void openrisc_cpu_list_entry(gpointer data, gpointer user_data)
 
 void cpu_openrisc_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    OpenRISCCPUList s = {
+    CPUListState s = {
         .file = f,
         .cpu_fprintf = cpu_fprintf,
     };
