@@ -21,14 +21,16 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
-#include "qapi/error.h"
 
 
-static void alpha_cpu_realize(Object *obj, Error **errp)
+static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    AlphaCPU *cpu = ALPHA_CPU(obj);
+    AlphaCPU *cpu = ALPHA_CPU(dev);
+    AlphaCPUClass *acc = ALPHA_CPU_GET_CLASS(dev);
 
     qemu_init_vcpu(&cpu->env);
+
+    acc->parent_realize(dev, errp);
 }
 
 /* Sort alphabetically by type name. */
@@ -134,7 +136,8 @@ AlphaCPU *cpu_alpha_init(const char *cpu_model)
 
     env->cpu_model_str = cpu_model;
 
-    alpha_cpu_realize(OBJECT(cpu), NULL);
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
     return cpu;
 }
 
@@ -250,7 +253,12 @@ static void alpha_cpu_initfn(Object *obj)
 
 static void alpha_cpu_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
+    AlphaCPUClass *acc = ALPHA_CPU_CLASS(oc);
+
+    acc->parent_realize = dc->realize;
+    dc->realize = alpha_cpu_realizefn;
 
     cc->class_by_name = alpha_cpu_class_by_name;
 }
