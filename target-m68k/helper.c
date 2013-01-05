@@ -120,15 +120,21 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
     env->cpu_model_str = cpu_model;
 
     register_m68k_insns(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
+    return env;
+}
+
+void m68k_cpu_init_gdb(M68kCPU *cpu)
+{
+    CPUM68KState *env = &cpu->env;
+
     if (m68k_feature(env, M68K_FEATURE_CF_FPU)) {
         gdb_register_coprocessor(env, fpu_gdb_get_reg, fpu_gdb_set_reg,
                                  11, "cf-fp.xml", 18);
     }
     /* TODO: Add [E]MAC registers.  */
-
-    cpu_reset(ENV_GET_CPU(env));
-    qemu_init_vcpu(env);
-    return env;
 }
 
 void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)

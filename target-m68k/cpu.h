@@ -116,6 +116,7 @@ typedef struct CPUM68KState {
 #include "cpu-qom.h"
 
 void m68k_tcg_init(void);
+void m68k_cpu_init_gdb(M68kCPU *cpu);
 CPUM68KState *cpu_m68k_init(const char *cpu_model);
 int cpu_m68k_exec(CPUM68KState *s);
 void do_interrupt(CPUM68KState *env1);
