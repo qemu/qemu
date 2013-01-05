@@ -87,6 +87,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     qemu_irq *cmos_s3;
 
     pc_cpus_init(cpu_model);
+    pc_acpi_init("q35-acpi-dsdt.aml");
 
     kvmclock_create();
 

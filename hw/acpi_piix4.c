@@ -57,6 +57,7 @@ struct pci_status {
 
 typedef struct PIIX4PMState {
     PCIDevice dev;
+
     MemoryRegion io;
     MemoryRegion io_gpe;
     MemoryRegion io_pci;
@@ -83,7 +84,8 @@ typedef struct PIIX4PMState {
     uint8_t s4_val;
 } PIIX4PMState;
 
-static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s);
+static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
+                                           PCIBus *bus, PIIX4PMState *s);
 
 #define ACPI_ENABLE 0xf1
 #define ACPI_DISABLE 0xf0
@@ -406,11 +408,13 @@ static int piix4_pm_initfn(PCIDevice *dev)
     pci_conf[0xd2] = 0x09;
     pm_smbus_init(&s->dev.qdev, &s->smb);
     memory_region_set_enabled(&s->smb.io, pci_conf[0xd2] & 1);
-    memory_region_add_subregion(get_system_io(), s->smb_io_base, &s->smb.io);
+    memory_region_add_subregion(pci_address_space_io(dev),
+                                s->smb_io_base, &s->smb.io);
 
     memory_region_init(&s->io, "piix4-pm", 64);
     memory_region_set_enabled(&s->io, false);
-    memory_region_add_subregion(get_system_io(), 0, &s->io);
+    memory_region_add_subregion(pci_address_space_io(dev),
+                                0, &s->io);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
@@ -423,7 +427,8 @@ static int piix4_pm_initfn(PCIDevice *dev)
     s->machine_ready.notify = piix4_pm_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);
     qemu_register_reset(piix4_reset, s);
-    piix4_acpi_system_hot_add_init(dev->bus, s);
+
+    piix4_acpi_system_hot_add_init(pci_address_space_io(dev), dev->bus, s);
 
     return 0;
 }
@@ -593,15 +598,16 @@ static const MemoryRegionOps piix4_pci_ops = {
 static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
                                 PCIHotplugState state);
 
-static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
+static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
+                                           PCIBus *bus, PIIX4PMState *s)
 {
     memory_region_init_io(&s->io_gpe, &piix4_gpe_ops, s, "apci-gpe0",
                           GPE_LEN);
-    memory_region_add_subregion(get_system_io(), GPE_BASE, &s->io_gpe);
+    memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
 
     memory_region_init_io(&s->io_pci, &piix4_pci_ops, s, "apci-pci-hotplug",
                           PCI_HOTPLUG_SIZE);
-    memory_region_add_subregion(get_system_io(), PCI_HOTPLUG_ADDR,
+    memory_region_add_subregion(parent, PCI_HOTPLUG_ADDR,
                                 &s->io_pci);
     pci_bus_hotplug(bus, piix4_device_hotplug, &s->dev.qdev);
 }
