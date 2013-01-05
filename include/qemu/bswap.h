@@ -7,48 +7,11 @@
 #include "fpu/softfloat.h"
 
 #ifdef CONFIG_MACHINE_BSWAP_H
-#include <sys/endian.h>
-#include <sys/types.h>
-#include <machine/bswap.h>
-#else
-
-#ifdef CONFIG_BYTESWAP_H
-#include <byteswap.h>
-#else
-
-#define bswap_16(x) \
-({ \
-	uint16_t __x = (x); \
-	((uint16_t)( \
-		(((uint16_t)(__x) & (uint16_t)0x00ffU) << 8) | \
-		(((uint16_t)(__x) & (uint16_t)0xff00U) >> 8) )); \
-})
-
-#define bswap_32(x) \
-({ \
-	uint32_t __x = (x); \
-	((uint32_t)( \
-		(((uint32_t)(__x) & (uint32_t)0x000000ffUL) << 24) | \
-		(((uint32_t)(__x) & (uint32_t)0x0000ff00UL) <<  8) | \
-		(((uint32_t)(__x) & (uint32_t)0x00ff0000UL) >>  8) | \
-		(((uint32_t)(__x) & (uint32_t)0xff000000UL) >> 24) )); \
-})
-
-#define bswap_64(x) \
-({ \
-	uint64_t __x = (x); \
-	((uint64_t)( \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x00000000000000ffULL) << 56) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x000000000000ff00ULL) << 40) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x0000000000ff0000ULL) << 24) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x00000000ff000000ULL) <<  8) | \
-	        (uint64_t)(((uint64_t)(__x) & (uint64_t)0x000000ff00000000ULL) >>  8) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x0000ff0000000000ULL) >> 24) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x00ff000000000000ULL) >> 40) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0xff00000000000000ULL) >> 56) )); \
-})
-
-#endif /* !CONFIG_BYTESWAP_H */
+# include <sys/endian.h>
+# include <sys/types.h>
+# include <machine/bswap.h>
+#elif defined(CONFIG_BYTESWAP_H)
+# include <byteswap.h>
 
 static inline uint16_t bswap16(uint16_t x)
 {
@@ -64,7 +27,32 @@ static inline uint64_t bswap64(uint64_t x)
 {
     return bswap_64(x);
 }
+# else
+static inline uint16_t bswap16(uint16_t x)
+{
+    return (((x & 0x00ff) << 8) |
+            ((x & 0xff00) >> 8));
+}
 
+static inline uint32_t bswap32(uint32_t x)
+{
+    return (((x & 0x000000ffU) << 24) |
+            ((x & 0x0000ff00U) <<  8) |
+            ((x & 0x00ff0000U) >>  8) |
+            ((x & 0xff000000U) >> 24));
+}
+
+static inline uint64_t bswap64(uint64_t x)
+{
+    return (((x & 0x00000000000000ffULL) << 56) |
+            ((x & 0x000000000000ff00ULL) << 40) |
+            ((x & 0x0000000000ff0000ULL) << 24) |
+            ((x & 0x00000000ff000000ULL) <<  8) |
+            ((x & 0x000000ff00000000ULL) >>  8) |
+            ((x & 0x0000ff0000000000ULL) >> 24) |
+            ((x & 0x00ff000000000000ULL) >> 40) |
+            ((x & 0xff00000000000000ULL) >> 56));
+}
 #endif /* ! CONFIG_MACHINE_BSWAP_H */
 
 static inline void bswap16s(uint16_t *s)
