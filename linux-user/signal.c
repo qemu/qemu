@@ -607,28 +607,22 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             sig, act, oact);
 #endif
     if (oact) {
-        oact->_sa_handler = tswapal(k->_sa_handler);
-#if defined(TARGET_MIPS) || defined (TARGET_ALPHA)
-        oact->sa_flags = bswap32(k->sa_flags);
-#else
-        oact->sa_flags = tswapal(k->sa_flags);
-#endif
+        __put_user(k->_sa_handler, &oact->_sa_handler);
+        __put_user(k->sa_flags, &oact->sa_flags);
 #if !defined(TARGET_MIPS)
-        oact->sa_restorer = tswapal(k->sa_restorer);
+        __put_user(k->sa_restorer, &oact->sa_restorer);
 #endif
+        /* Not swapped.  */
         oact->sa_mask = k->sa_mask;
     }
     if (act) {
         /* FIXME: This is not threadsafe.  */
-        k->_sa_handler = tswapal(act->_sa_handler);
-#if defined(TARGET_MIPS) || defined (TARGET_ALPHA)
-        k->sa_flags = bswap32(act->sa_flags);
-#else
-        k->sa_flags = tswapal(act->sa_flags);
-#endif
+        __get_user(k->_sa_handler, &act->_sa_handler);
+        __get_user(k->sa_flags, &act->sa_flags);
 #if !defined(TARGET_MIPS)
-        k->sa_restorer = tswapal(act->sa_restorer);
+        __get_user(k->sa_restorer, &act->sa_restorer);
 #endif
+        /* To be swapped in target_to_host_sigset.  */
         k->sa_mask = act->sa_mask;
 
         /* we update the host linux signal state */
