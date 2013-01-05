@@ -215,11 +215,6 @@ static inline void cpu_to_be64wu(uint64_t *p, uint64_t v)
 #define leul_to_cpu(v) (v)
 #endif
 
-#undef le_bswap
-#undef be_bswap
-#undef le_bswaps
-#undef be_bswaps
-
 /* len must be one of 1, 2, 4 */
 static inline uint32_t qemu_bswap_len(uint32_t value, int len)
 {
@@ -377,115 +372,61 @@ static inline void stq_p(void *ptr, uint64_t v)
     memcpy(ptr, &v, sizeof(v));
 }
 
-/* NOTE: on arm, putting 2 in /proc/sys/debug/alignment so that the
-   kernel handles unaligned load/stores may give better results, but
-   it is a system wide setting : bad */
-#if defined(HOST_WORDS_BIGENDIAN) || defined(WORDS_ALIGNED)
-
-/* conservative code for little endian unaligned accesses */
 static inline int lduw_le_p(const void *ptr)
 {
-#ifdef _ARCH_PPC
-    int val;
-    __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
-    return val;
-#else
-    const uint8_t *p = ptr;
-    return p[0] | (p[1] << 8);
-#endif
+    return (uint16_t)le_bswap(lduw_p(ptr), 16);
 }
 
 static inline int ldsw_le_p(const void *ptr)
 {
-#ifdef _ARCH_PPC
-    int val;
-    __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
-    return (int16_t)val;
-#else
-    const uint8_t *p = ptr;
-    return (int16_t)(p[0] | (p[1] << 8));
-#endif
+    return (int16_t)le_bswap(lduw_p(ptr), 16);
 }
 
 static inline int ldl_le_p(const void *ptr)
 {
-#ifdef _ARCH_PPC
-    int val;
-    __asm__ __volatile__ ("lwbrx %0,0,%1" : "=r" (val) : "r" (ptr));
-    return val;
-#else
-    const uint8_t *p = ptr;
-    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
-#endif
+    return le_bswap(ldl_p(ptr), 32);
 }
 
 static inline uint64_t ldq_le_p(const void *ptr)
 {
-    const uint8_t *p = ptr;
-    uint32_t v1, v2;
-    v1 = ldl_le_p(p);
-    v2 = ldl_le_p(p + 4);
-    return v1 | ((uint64_t)v2 << 32);
+    return le_bswap(ldq_p(ptr), 64);
 }
 
 static inline void stw_le_p(void *ptr, int v)
 {
-#ifdef _ARCH_PPC
-    __asm__ __volatile__ ("sthbrx %1,0,%2" : "=m" (*(uint16_t *)ptr) : "r" (v), "r" (ptr));
-#else
-    uint8_t *p = ptr;
-    p[0] = v;
-    p[1] = v >> 8;
-#endif
+    stw_p(ptr, le_bswap(v, 16));
 }
 
 static inline void stl_le_p(void *ptr, int v)
 {
-#ifdef _ARCH_PPC
-    __asm__ __volatile__ ("stwbrx %1,0,%2" : "=m" (*(uint32_t *)ptr) : "r" (v), "r" (ptr));
-#else
-    uint8_t *p = ptr;
-    p[0] = v;
-    p[1] = v >> 8;
-    p[2] = v >> 16;
-    p[3] = v >> 24;
-#endif
+    stl_p(ptr, le_bswap(v, 32));
 }
 
 static inline void stq_le_p(void *ptr, uint64_t v)
 {
-    uint8_t *p = ptr;
-    stl_le_p(p, (uint32_t)v);
-    stl_le_p(p + 4, v >> 32);
+    stq_p(ptr, le_bswap(v, 64));
 }
 
 /* float access */
 
 static inline float32 ldfl_le_p(const void *ptr)
 {
-    union {
-        float32 f;
-        uint32_t i;
-    } u;
-    u.i = ldl_le_p(ptr);
+    CPU_FloatU u;
+    u.l = ldl_le_p(ptr);
     return u.f;
 }
 
 static inline void stfl_le_p(void *ptr, float32 v)
 {
-    union {
-        float32 f;
-        uint32_t i;
-    } u;
+    CPU_FloatU u;
     u.f = v;
-    stl_le_p(ptr, u.i);
+    stl_le_p(ptr, u.l);
 }
 
 static inline float64 ldfq_le_p(const void *ptr)
 {
     CPU_DoubleU u;
-    u.l.lower = ldl_le_p(ptr);
-    u.l.upper = ldl_le_p(ptr + 4);
+    u.ll = ldq_le_p(ptr);
     return u.d;
 }
 
@@ -493,188 +434,64 @@ static inline void stfq_le_p(void *ptr, float64 v)
 {
     CPU_DoubleU u;
     u.d = v;
-    stl_le_p(ptr, u.l.lower);
-    stl_le_p(ptr + 4, u.l.upper);
+    stq_le_p(ptr, u.ll);
 }
-
-#else
-
-static inline int lduw_le_p(const void *ptr)
-{
-    return *(uint16_t *)ptr;
-}
-
-static inline int ldsw_le_p(const void *ptr)
-{
-    return *(int16_t *)ptr;
-}
-
-static inline int ldl_le_p(const void *ptr)
-{
-    return *(uint32_t *)ptr;
-}
-
-static inline uint64_t ldq_le_p(const void *ptr)
-{
-    return *(uint64_t *)ptr;
-}
-
-static inline void stw_le_p(void *ptr, int v)
-{
-    *(uint16_t *)ptr = v;
-}
-
-static inline void stl_le_p(void *ptr, int v)
-{
-    *(uint32_t *)ptr = v;
-}
-
-static inline void stq_le_p(void *ptr, uint64_t v)
-{
-    *(uint64_t *)ptr = v;
-}
-
-/* float access */
-
-static inline float32 ldfl_le_p(const void *ptr)
-{
-    return *(float32 *)ptr;
-}
-
-static inline float64 ldfq_le_p(const void *ptr)
-{
-    return *(float64 *)ptr;
-}
-
-static inline void stfl_le_p(void *ptr, float32 v)
-{
-    *(float32 *)ptr = v;
-}
-
-static inline void stfq_le_p(void *ptr, float64 v)
-{
-    *(float64 *)ptr = v;
-}
-#endif
-
-#if !defined(HOST_WORDS_BIGENDIAN) || defined(WORDS_ALIGNED)
 
 static inline int lduw_be_p(const void *ptr)
 {
-#if defined(__i386__)
-    int val;
-    asm volatile ("movzwl %1, %0\n"
-                  "xchgb %b0, %h0\n"
-                  : "=q" (val)
-                  : "m" (*(uint16_t *)ptr));
-    return val;
-#else
-    const uint8_t *b = ptr;
-    return ((b[0] << 8) | b[1]);
-#endif
+    return (uint16_t)be_bswap(lduw_p(ptr), 16);
 }
 
 static inline int ldsw_be_p(const void *ptr)
 {
-#if defined(__i386__)
-    int val;
-    asm volatile ("movzwl %1, %0\n"
-                  "xchgb %b0, %h0\n"
-                  : "=q" (val)
-                  : "m" (*(uint16_t *)ptr));
-    return (int16_t)val;
-#else
-    const uint8_t *b = ptr;
-    return (int16_t)((b[0] << 8) | b[1]);
-#endif
+    return (int16_t)be_bswap(lduw_p(ptr), 16);
 }
 
 static inline int ldl_be_p(const void *ptr)
 {
-#if defined(__i386__) || defined(__x86_64__)
-    int val;
-    asm volatile ("movl %1, %0\n"
-                  "bswap %0\n"
-                  : "=r" (val)
-                  : "m" (*(uint32_t *)ptr));
-    return val;
-#else
-    const uint8_t *b = ptr;
-    return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];
-#endif
+    return be_bswap(ldl_p(ptr), 32);
 }
 
 static inline uint64_t ldq_be_p(const void *ptr)
 {
-    uint32_t a,b;
-    a = ldl_be_p(ptr);
-    b = ldl_be_p((uint8_t *)ptr + 4);
-    return (((uint64_t)a<<32)|b);
+    return be_bswap(ldq_p(ptr), 64);
 }
 
 static inline void stw_be_p(void *ptr, int v)
 {
-#if defined(__i386__)
-    asm volatile ("xchgb %b0, %h0\n"
-                  "movw %w0, %1\n"
-                  : "=q" (v)
-                  : "m" (*(uint16_t *)ptr), "0" (v));
-#else
-    uint8_t *d = (uint8_t *) ptr;
-    d[0] = v >> 8;
-    d[1] = v;
-#endif
+    stw_p(ptr, be_bswap(v, 16));
 }
 
 static inline void stl_be_p(void *ptr, int v)
 {
-#if defined(__i386__) || defined(__x86_64__)
-    asm volatile ("bswap %0\n"
-                  "movl %0, %1\n"
-                  : "=r" (v)
-                  : "m" (*(uint32_t *)ptr), "0" (v));
-#else
-    uint8_t *d = (uint8_t *) ptr;
-    d[0] = v >> 24;
-    d[1] = v >> 16;
-    d[2] = v >> 8;
-    d[3] = v;
-#endif
+    stl_p(ptr, be_bswap(v, 32));
 }
 
 static inline void stq_be_p(void *ptr, uint64_t v)
 {
-    stl_be_p(ptr, v >> 32);
-    stl_be_p((uint8_t *)ptr + 4, v);
+    stq_p(ptr, be_bswap(v, 64));
 }
 
 /* float access */
 
 static inline float32 ldfl_be_p(const void *ptr)
 {
-    union {
-        float32 f;
-        uint32_t i;
-    } u;
-    u.i = ldl_be_p(ptr);
+    CPU_FloatU u;
+    u.l = ldl_be_p(ptr);
     return u.f;
 }
 
 static inline void stfl_be_p(void *ptr, float32 v)
 {
-    union {
-        float32 f;
-        uint32_t i;
-    } u;
+    CPU_FloatU u;
     u.f = v;
-    stl_be_p(ptr, u.i);
+    stl_be_p(ptr, u.l);
 }
 
 static inline float64 ldfq_be_p(const void *ptr)
 {
     CPU_DoubleU u;
-    u.l.upper = ldl_be_p(ptr);
-    u.l.lower = ldl_be_p((uint8_t *)ptr + 4);
+    u.ll = ldq_be_p(ptr);
     return u.d;
 }
 
@@ -682,69 +499,12 @@ static inline void stfq_be_p(void *ptr, float64 v)
 {
     CPU_DoubleU u;
     u.d = v;
-    stl_be_p(ptr, u.l.upper);
-    stl_be_p((uint8_t *)ptr + 4, u.l.lower);
+    stq_be_p(ptr, u.ll);
 }
 
-#else
-
-static inline int lduw_be_p(const void *ptr)
-{
-    return *(uint16_t *)ptr;
-}
-
-static inline int ldsw_be_p(const void *ptr)
-{
-    return *(int16_t *)ptr;
-}
-
-static inline int ldl_be_p(const void *ptr)
-{
-    return *(uint32_t *)ptr;
-}
-
-static inline uint64_t ldq_be_p(const void *ptr)
-{
-    return *(uint64_t *)ptr;
-}
-
-static inline void stw_be_p(void *ptr, int v)
-{
-    *(uint16_t *)ptr = v;
-}
-
-static inline void stl_be_p(void *ptr, int v)
-{
-    *(uint32_t *)ptr = v;
-}
-
-static inline void stq_be_p(void *ptr, uint64_t v)
-{
-    *(uint64_t *)ptr = v;
-}
-
-/* float access */
-
-static inline float32 ldfl_be_p(const void *ptr)
-{
-    return *(float32 *)ptr;
-}
-
-static inline float64 ldfq_be_p(const void *ptr)
-{
-    return *(float64 *)ptr;
-}
-
-static inline void stfl_be_p(void *ptr, float32 v)
-{
-    *(float32 *)ptr = v;
-}
-
-static inline void stfq_be_p(void *ptr, float64 v)
-{
-    *(float64 *)ptr = v;
-}
-
-#endif
+#undef le_bswap
+#undef be_bswap
+#undef le_bswaps
+#undef be_bswaps
 
 #endif /* BSWAP_H */
