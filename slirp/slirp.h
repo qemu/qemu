@@ -215,7 +215,6 @@ struct Slirp {
     char client_hostname[33];
 
     int restricted;
-    struct timeval tt;
     struct ex_list *exec_list;
 
     /* mbuf states */
