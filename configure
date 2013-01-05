@@ -2705,7 +2705,7 @@ if compile_prog "" "" ; then
   byteswap_h=yes
 fi
 
-# Search for bswap_32 function
+# Search for bswap32 function
 bswap_h=no
 cat > $TMPC << EOF
 #include <sys/endian.h>
