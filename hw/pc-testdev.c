@@ -35,7 +35,10 @@
  * git://git.kernel.org/pub/scm/virt/kvm/kvm-unit-tests.git
 */
 
+#include "config-host.h"
+#if defined(CONFIG_POSIX)
 #include <sys/mman.h>
+#endif
 #include "hw.h"
 #include "qdev.h"
 #include "isa.h"
@@ -100,8 +103,10 @@ static void test_flush_page(void *opaque, hwaddr addr, uint64_t data,
 
     /* We might not be able to get the full page, only mprotect what we actually
        have mapped */
+#if defined(CONFIG_POSIX)
     mprotect(a, page, PROT_NONE);
     mprotect(a, page, PROT_READ|PROT_WRITE);
+#endif
     cpu_physical_memory_unmap(a, page, 0, 0);
 }
 
