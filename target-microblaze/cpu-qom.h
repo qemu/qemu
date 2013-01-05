@@ -33,6 +33,7 @@
 
 /**
  * MicroBlazeCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * A MicroBlaze CPU model.
@@ -42,6 +43,7 @@ typedef struct MicroBlazeCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } MicroBlazeCPUClass;
 

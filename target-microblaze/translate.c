@@ -1970,8 +1970,7 @@ MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
 
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
 
-    cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
     if (tcg_initialized) {
         return cpu;
