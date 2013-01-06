@@ -1232,7 +1232,15 @@ static void alter_insns(uint64_t *word, uint64_t flags, bool on)
 
 static void kvmppc_host_cpu_initfn(Object *obj)
 {
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(obj);
+
     assert(kvm_enabled());
+
+    if (pcc->info->pvr != mfpvr()) {
+        fprintf(stderr, "Your host CPU is unsupported.\n"
+                "Please choose a supported model instead, see -cpu ?.\n");
+        exit(1);
+    }
 }
 
 static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
