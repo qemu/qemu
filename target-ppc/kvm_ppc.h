@@ -11,6 +11,8 @@
 
 #include "exec/memory.h"
 
+#define TYPE_HOST_POWERPC_CPU "host-" TYPE_POWERPC_CPU
+
 void kvmppc_init(void);
 
 #ifdef CONFIG_KVM
@@ -31,7 +33,6 @@ int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
 #endif /* !CONFIG_USER_ONLY */
-const ppc_def_t *kvmppc_host_cpu_def(void);
 int kvmppc_fixup_cpu(CPUPPCState *env);
 
 #else
@@ -120,11 +121,6 @@ static inline int kvmppc_update_sdr1(CPUPPCState *env)
 }
 
 #endif /* !CONFIG_USER_ONLY */
-
-static inline const ppc_def_t *kvmppc_host_cpu_def(void)
-{
-    return NULL;
-}
 
 static inline int kvmppc_fixup_cpu(CPUPPCState *env)
 {

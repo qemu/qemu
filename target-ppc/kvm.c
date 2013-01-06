@@ -1230,18 +1230,29 @@ static void alter_insns(uint64_t *word, uint64_t flags, bool on)
     }
 }
 
-const ppc_def_t *kvmppc_host_cpu_def(void)
+static void kvmppc_host_cpu_initfn(Object *obj)
 {
+    assert(kvm_enabled());
+}
+
+static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     uint32_t host_pvr = mfpvr();
-    const ppc_def_t *base_spec;
+    PowerPCCPUClass *pvr_pcc;
     ppc_def_t *spec;
     uint32_t vmx = kvmppc_get_vmx();
     uint32_t dfp = kvmppc_get_dfp();
 
-    base_spec = ppc_find_by_pvr(host_pvr);
-
     spec = g_malloc0(sizeof(*spec));
-    memcpy(spec, base_spec, sizeof(*spec));
+
+    pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
+    if (pvr_pcc != NULL) {
+        memcpy(spec, pvr_pcc->info, sizeof(*spec));
+    }
+    pcc->info = spec;
+    /* Override the display name for -cpu ? and QMP */
+    pcc->info->name = "host";
 
     /* Now fix up the spec with information we can query from the host */
 
@@ -1254,8 +1265,6 @@ const ppc_def_t *kvmppc_host_cpu_def(void)
         /* Only override when we know what the host supports */
         alter_insns(&spec->insns_flags2, PPC2_DFP, dfp);
     }
-
-    return spec;
 }
 
 int kvmppc_fixup_cpu(CPUPPCState *env)
@@ -1285,3 +1294,17 @@ int kvm_arch_on_sigbus(int code, void *addr)
 {
     return 1;
 }
+
+static const TypeInfo kvm_host_cpu_type_info = {
+    .name = TYPE_HOST_POWERPC_CPU,
+    .parent = TYPE_POWERPC_CPU,
+    .instance_init = kvmppc_host_cpu_initfn,
+    .class_init = kvmppc_host_cpu_class_init,
+};
+
+static void kvm_ppc_register_types(void)
+{
+    type_register_static(&kvm_host_cpu_type_info);
+}
+
+type_init(kvm_ppc_register_types)
