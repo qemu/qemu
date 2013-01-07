@@ -1016,8 +1016,9 @@ static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
     return 0;
 }
 
-/* best effort attempt to inform user requested cpu flags aren't making
- * their way to the guest.
+/* Check if all requested cpu flags are making their way to the guest
+ *
+ * Returns 0 if all flags are supported by the host, non-zero otherwise.
  *
  * This function may be called only if KVM is enabled.
  */
@@ -1035,6 +1036,14 @@ static int kvm_check_features_against_host(x86_def_t *guest_def)
             FEAT_8000_0001_EDX },
         {&guest_def->ext3_features, &host_def.ext3_features,
             FEAT_8000_0001_ECX },
+        {&guest_def->ext4_features, &host_def.ext4_features,
+            FEAT_C000_0001_EDX },
+        {&guest_def->cpuid_7_0_ebx_features, &host_def.cpuid_7_0_ebx_features,
+            FEAT_7_0_EBX },
+        {&guest_def->svm_features, &host_def.svm_features,
+            FEAT_SVM },
+        {&guest_def->kvm_features, &host_def.kvm_features,
+            FEAT_KVM },
     };
 
     assert(kvm_enabled());
