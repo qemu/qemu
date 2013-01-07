@@ -126,16 +126,39 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
 
 typedef struct FeatureWordInfo {
     const char **feat_names;
+    uint32_t cpuid_eax; /* Input EAX for CPUID */
+    int cpuid_reg;      /* R_* register constant */
 } FeatureWordInfo;
 
 static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
-    [FEAT_1_EDX] = { .feat_names = feature_name },
-    [FEAT_1_ECX] = { .feat_names = ext_feature_name },
-    [FEAT_8000_0001_EDX] = { .feat_names = ext2_feature_name },
-    [FEAT_8000_0001_ECX] = { .feat_names = ext3_feature_name },
-    [FEAT_KVM]   = { .feat_names = kvm_feature_name },
-    [FEAT_SVM]   = { .feat_names = svm_feature_name },
-    [FEAT_7_0_EBX] = { .feat_names = cpuid_7_0_ebx_feature_name },
+    [FEAT_1_EDX] = {
+        .feat_names = feature_name,
+        .cpuid_eax = 1, .cpuid_reg = R_EDX,
+    },
+    [FEAT_1_ECX] = {
+        .feat_names = ext_feature_name,
+        .cpuid_eax = 1, .cpuid_reg = R_ECX,
+    },
+    [FEAT_8000_0001_EDX] = {
+        .feat_names = ext2_feature_name,
+        .cpuid_eax = 0x80000001, .cpuid_reg = R_EDX,
+    },
+    [FEAT_8000_0001_ECX] = {
+        .feat_names = ext3_feature_name,
+        .cpuid_eax = 0x80000001, .cpuid_reg = R_ECX,
+    },
+    [FEAT_KVM] = {
+        .feat_names = kvm_feature_name,
+        .cpuid_eax = KVM_CPUID_FEATURES, .cpuid_reg = R_EAX,
+    },
+    [FEAT_SVM] = {
+        .feat_names = svm_feature_name,
+        .cpuid_eax = 0x8000000A, .cpuid_reg = R_EDX,
+    },
+    [FEAT_7_0_EBX] = {
+        .feat_names = cpuid_7_0_ebx_feature_name,
+        .cpuid_eax = 7, .cpuid_reg = R_EBX,
+    },
 };
 
 const char *get_register_name_32(unsigned int reg)
@@ -162,9 +185,7 @@ const char *get_register_name_32(unsigned int reg)
 typedef struct model_features_t {
     uint32_t *guest_feat;
     uint32_t *host_feat;
-    const char **flag_names;
-    uint32_t cpuid;
-    int reg;
+    FeatureWord feat_word;
 } model_features_t;
 
 int check_cpuid = 0;
@@ -962,19 +983,19 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
 #endif /* CONFIG_KVM */
 }
 
-static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
+static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
 {
     int i;
 
     for (i = 0; i < 32; ++i)
         if (1 << i & mask) {
-            const char *reg = get_register_name_32(f->reg);
+            const char *reg = get_register_name_32(f->cpuid_reg);
             assert(reg);
             fprintf(stderr, "warning: host doesn't support requested feature: "
                 "CPUID.%02XH:%s%s%s [bit %d]\n",
-                f->cpuid, reg,
-                f->flag_names[i] ? "." : "",
-                f->flag_names[i] ? f->flag_names[i] : "", i);
+                f->cpuid_eax, reg,
+                f->feat_names[i] ? "." : "",
+                f->feat_names[i] ? f->feat_names[i] : "", i);
             break;
         }
     return 0;
@@ -992,25 +1013,29 @@ static int kvm_check_features_against_host(x86_def_t *guest_def)
     int rv, i;
     struct model_features_t ft[] = {
         {&guest_def->features, &host_def.features,
-            feature_name, 0x00000001, R_EDX},
+            FEAT_1_EDX },
         {&guest_def->ext_features, &host_def.ext_features,
-            ext_feature_name, 0x00000001, R_ECX},
+            FEAT_1_ECX },
         {&guest_def->ext2_features, &host_def.ext2_features,
-            ext2_feature_name, 0x80000001, R_EDX},
+            FEAT_8000_0001_EDX },
         {&guest_def->ext3_features, &host_def.ext3_features,
-            ext3_feature_name, 0x80000001, R_ECX}
+            FEAT_8000_0001_ECX },
     };
 
     assert(kvm_enabled());
 
     kvm_cpu_fill_host(&host_def);
-    for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i)
-        for (mask = 1; mask; mask <<= 1)
+    for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i) {
+        FeatureWord w = ft[i].feat_word;
+        FeatureWordInfo *wi = &feature_word_info[w];
+        for (mask = 1; mask; mask <<= 1) {
             if (*ft[i].guest_feat & mask &&
                 !(*ft[i].host_feat & mask)) {
-                    unavailable_host_feature(&ft[i], mask);
-                    rv = 1;
-                }
+                unavailable_host_feature(wi, mask);
+                rv = 1;
+            }
+        }
+    }
     return rv;
 }
 
