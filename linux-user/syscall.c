@@ -101,6 +101,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/fb.h>
 #include <linux/vt.h>
 #include <linux/dm-ioctl.h>
+#include <linux/reboot.h>
 #include "linux_loop.h"
 #include "cpu-uname.h"
 
@@ -6451,10 +6452,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_reboot:
-        if (!(p = lock_user_string(arg4)))
-            goto efault;
-        ret = reboot(arg1, arg2, arg3, p);
-        unlock_user(p, arg4, 0);
+        if (arg3 == LINUX_REBOOT_CMD_RESTART2) {
+           /* arg4 must be ignored in all other cases */
+           p = lock_user_string(arg4);
+           if (!p) {
+              goto efault;
+           }
+           ret = get_errno(reboot(arg1, arg2, arg3, p));
+           unlock_user(p, arg4, 0);
+        } else {
+           ret = get_errno(reboot(arg1, arg2, arg3, NULL));
+        }
         break;
 #ifdef TARGET_NR_readdir
     case TARGET_NR_readdir:
