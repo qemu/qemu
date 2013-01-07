@@ -124,6 +124,20 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
+typedef struct FeatureWordInfo {
+    const char **feat_names;
+} FeatureWordInfo;
+
+static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
+    [FEAT_1_EDX] = { .feat_names = feature_name },
+    [FEAT_1_ECX] = { .feat_names = ext_feature_name },
+    [FEAT_8000_0001_EDX] = { .feat_names = ext2_feature_name },
+    [FEAT_8000_0001_ECX] = { .feat_names = ext3_feature_name },
+    [FEAT_KVM]   = { .feat_names = kvm_feature_name },
+    [FEAT_SVM]   = { .feat_names = svm_feature_name },
+    [FEAT_7_0_EBX] = { .feat_names = cpuid_7_0_ebx_feature_name },
+};
+
 const char *get_register_name_32(unsigned int reg)
 {
     static const char *reg_names[CPU_NB_REGS32] = {
@@ -271,23 +285,20 @@ static bool lookup_feature(uint32_t *pval, const char *s, const char *e,
     return found;
 }
 
-static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features,
-                                    uint32_t *ext_features,
-                                    uint32_t *ext2_features,
-                                    uint32_t *ext3_features,
-                                    uint32_t *kvm_features,
-                                    uint32_t *svm_features,
-                                    uint32_t *cpuid_7_0_ebx_features)
+static void add_flagname_to_bitmaps(const char *flagname,
+                                    FeatureWordArray words)
 {
-    if (!lookup_feature(features, flagname, NULL, feature_name) &&
-        !lookup_feature(ext_features, flagname, NULL, ext_feature_name) &&
-        !lookup_feature(ext2_features, flagname, NULL, ext2_feature_name) &&
-        !lookup_feature(ext3_features, flagname, NULL, ext3_feature_name) &&
-        !lookup_feature(kvm_features, flagname, NULL, kvm_feature_name) &&
-        !lookup_feature(svm_features, flagname, NULL, svm_feature_name) &&
-        !lookup_feature(cpuid_7_0_ebx_features, flagname, NULL,
-                        cpuid_7_0_ebx_feature_name))
-            fprintf(stderr, "CPU feature %s not found\n", flagname);
+    FeatureWord w;
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        FeatureWordInfo *wi = &feature_word_info[w];
+        if (wi->feat_names &&
+            lookup_feature(&words[w], flagname, NULL, wi->feat_names)) {
+            break;
+        }
+    }
+    if (w == FEATURE_WORDS) {
+        fprintf(stderr, "CPU feature %s not found\n", flagname);
+    }
 }
 
 typedef struct x86_def_t {
@@ -1283,35 +1294,23 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
     unsigned int i;
     char *featurestr; /* Single 'key=value" string being parsed */
     /* Features to be added */
-    uint32_t plus_features = 0, plus_ext_features = 0;
-    uint32_t plus_ext2_features = 0, plus_ext3_features = 0;
-    uint32_t plus_kvm_features = kvm_default_features, plus_svm_features = 0;
-    uint32_t plus_7_0_ebx_features = 0;
+    FeatureWordArray plus_features = {
+        [FEAT_KVM] = kvm_default_features,
+    };
     /* Features to be removed */
-    uint32_t minus_features = 0, minus_ext_features = 0;
-    uint32_t minus_ext2_features = 0, minus_ext3_features = 0;
-    uint32_t minus_kvm_features = 0, minus_svm_features = 0;
-    uint32_t minus_7_0_ebx_features = 0;
+    FeatureWordArray minus_features = { 0 };
     uint32_t numvalue;
 
-    add_flagname_to_bitmaps("hypervisor", &plus_features,
-            &plus_ext_features, &plus_ext2_features, &plus_ext3_features,
-            &plus_kvm_features, &plus_svm_features,  &plus_7_0_ebx_features);
+    add_flagname_to_bitmaps("hypervisor", plus_features);
 
     featurestr = features ? strtok(features, ",") : NULL;
 
     while (featurestr) {
         char *val;
         if (featurestr[0] == '+') {
-            add_flagname_to_bitmaps(featurestr + 1, &plus_features,
-                            &plus_ext_features, &plus_ext2_features,
-                            &plus_ext3_features, &plus_kvm_features,
-                            &plus_svm_features, &plus_7_0_ebx_features);
+            add_flagname_to_bitmaps(featurestr + 1, plus_features);
         } else if (featurestr[0] == '-') {
-            add_flagname_to_bitmaps(featurestr + 1, &minus_features,
-                            &minus_ext_features, &minus_ext2_features,
-                            &minus_ext3_features, &minus_kvm_features,
-                            &minus_svm_features, &minus_7_0_ebx_features);
+            add_flagname_to_bitmaps(featurestr + 1, minus_features);
         } else if ((val = strchr(featurestr, '='))) {
             *val = 0; val++;
             if (!strcmp(featurestr, "family")) {
@@ -1411,20 +1410,20 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
         }
         featurestr = strtok(NULL, ",");
     }
-    x86_cpu_def->features |= plus_features;
-    x86_cpu_def->ext_features |= plus_ext_features;
-    x86_cpu_def->ext2_features |= plus_ext2_features;
-    x86_cpu_def->ext3_features |= plus_ext3_features;
-    x86_cpu_def->kvm_features |= plus_kvm_features;
-    x86_cpu_def->svm_features |= plus_svm_features;
-    x86_cpu_def->cpuid_7_0_ebx_features |= plus_7_0_ebx_features;
-    x86_cpu_def->features &= ~minus_features;
-    x86_cpu_def->ext_features &= ~minus_ext_features;
-    x86_cpu_def->ext2_features &= ~minus_ext2_features;
-    x86_cpu_def->ext3_features &= ~minus_ext3_features;
-    x86_cpu_def->kvm_features &= ~minus_kvm_features;
-    x86_cpu_def->svm_features &= ~minus_svm_features;
-    x86_cpu_def->cpuid_7_0_ebx_features &= ~minus_7_0_ebx_features;
+    x86_cpu_def->features |= plus_features[FEAT_1_EDX];
+    x86_cpu_def->ext_features |= plus_features[FEAT_1_ECX];
+    x86_cpu_def->ext2_features |= plus_features[FEAT_8000_0001_EDX];
+    x86_cpu_def->ext3_features |= plus_features[FEAT_8000_0001_ECX];
+    x86_cpu_def->kvm_features |= plus_features[FEAT_KVM];
+    x86_cpu_def->svm_features |= plus_features[FEAT_SVM];
+    x86_cpu_def->cpuid_7_0_ebx_features |= plus_features[FEAT_7_0_EBX];
+    x86_cpu_def->features &= ~minus_features[FEAT_1_EDX];
+    x86_cpu_def->ext_features &= ~minus_features[FEAT_1_ECX];
+    x86_cpu_def->ext2_features &= ~minus_features[FEAT_8000_0001_EDX];
+    x86_cpu_def->ext3_features &= ~minus_features[FEAT_8000_0001_ECX];
+    x86_cpu_def->kvm_features &= ~minus_features[FEAT_KVM];
+    x86_cpu_def->svm_features &= ~minus_features[FEAT_SVM];
+    x86_cpu_def->cpuid_7_0_ebx_features &= ~minus_features[FEAT_7_0_EBX];
     if (check_cpuid && kvm_enabled()) {
         if (kvm_check_features_against_host(x86_cpu_def) && enforce_cpuid)
             goto error;
