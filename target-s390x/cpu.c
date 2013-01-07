@@ -126,6 +126,15 @@ static void s390_cpu_initfn(Object *obj)
     cpu_reset(CPU(cpu));
 }
 
+static void s390_cpu_finalize(Object *obj)
+{
+#if !defined(CONFIG_USER_ONLY)
+    S390CPU *cpu = S390_CPU(obj);
+
+    qemu_unregister_reset(s390_cpu_machine_reset_cb, cpu);
+#endif
+}
+
 static void s390_cpu_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *scc = S390_CPU_CLASS(oc);
@@ -140,6 +149,7 @@ static const TypeInfo s390_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(S390CPU),
     .instance_init = s390_cpu_initfn,
+    .instance_finalize = s390_cpu_finalize,
     .abstract = false,
     .class_size = sizeof(S390CPUClass),
     .class_init = s390_cpu_class_init,
