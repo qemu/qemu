@@ -22,6 +22,20 @@
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
+#else
+/* These constants must never be used at runtime if kvm_enabled() is false.
+ * They exist so we don't need #ifdefs around KVM-specific code that already
+ * checks kvm_enabled() properly.
+ */
+#define KVM_CPUID_SIGNATURE      0
+#define KVM_CPUID_FEATURES       0
+#define KVM_FEATURE_CLOCKSOURCE  0
+#define KVM_FEATURE_NOP_IO_DELAY 0
+#define KVM_FEATURE_MMU_OP       0
+#define KVM_FEATURE_CLOCKSOURCE2 0
+#define KVM_FEATURE_ASYNC_PF     0
+#define KVM_FEATURE_STEAL_TIME   0
+#define KVM_FEATURE_PV_EOI       0
 #endif
 
 extern int kvm_allowed;
