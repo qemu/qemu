@@ -95,6 +95,17 @@ static const char *ext3_feature_name[] = {
     NULL, NULL, NULL, NULL,
 };
 
+static const char *ext4_feature_name[] = {
+    NULL, NULL, "xstore", "xstore-en",
+    NULL, NULL, "xcrypt", "xcrypt-en",
+    "ace2", "ace2-en", "phe", "phe-en",
+    "pmm", "pmm-en", NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
 static const char *kvm_feature_name[] = {
     "kvmclock", "kvm_nopiodelay", "kvm_mmu", "kvmclock",
     "kvm_asyncpf", "kvm_steal_time", "kvm_pv_eoi", NULL,
@@ -146,6 +157,10 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_8000_0001_ECX] = {
         .feat_names = ext3_feature_name,
         .cpuid_eax = 0x80000001, .cpuid_reg = R_ECX,
+    },
+    [FEAT_C000_0001_EDX] = {
+        .feat_names = ext4_feature_name,
+        .cpuid_eax = 0xC0000001, .cpuid_reg = R_EDX,
     },
     [FEAT_KVM] = {
         .feat_names = kvm_feature_name,
@@ -1439,6 +1454,7 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
     x86_cpu_def->ext_features |= plus_features[FEAT_1_ECX];
     x86_cpu_def->ext2_features |= plus_features[FEAT_8000_0001_EDX];
     x86_cpu_def->ext3_features |= plus_features[FEAT_8000_0001_ECX];
+    x86_cpu_def->ext4_features |= plus_features[FEAT_C000_0001_EDX];
     x86_cpu_def->kvm_features |= plus_features[FEAT_KVM];
     x86_cpu_def->svm_features |= plus_features[FEAT_SVM];
     x86_cpu_def->cpuid_7_0_ebx_features |= plus_features[FEAT_7_0_EBX];
@@ -1446,6 +1462,7 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
     x86_cpu_def->ext_features &= ~minus_features[FEAT_1_ECX];
     x86_cpu_def->ext2_features &= ~minus_features[FEAT_8000_0001_EDX];
     x86_cpu_def->ext3_features &= ~minus_features[FEAT_8000_0001_ECX];
+    x86_cpu_def->ext4_features &= ~minus_features[FEAT_C000_0001_EDX];
     x86_cpu_def->kvm_features &= ~minus_features[FEAT_KVM];
     x86_cpu_def->svm_features &= ~minus_features[FEAT_SVM];
     x86_cpu_def->cpuid_7_0_ebx_features &= ~minus_features[FEAT_7_0_EBX];
