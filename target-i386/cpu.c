@@ -159,7 +159,6 @@ int enforce_cpuid = 0;
 #if defined(CONFIG_KVM)
 static uint32_t kvm_default_features = (1 << KVM_FEATURE_CLOCKSOURCE) |
         (1 << KVM_FEATURE_NOP_IO_DELAY) |
-        (1 << KVM_FEATURE_MMU_OP) |
         (1 << KVM_FEATURE_CLOCKSOURCE2) |
         (1 << KVM_FEATURE_ASYNC_PF) |
         (1 << KVM_FEATURE_STEAL_TIME) |
