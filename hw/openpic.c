@@ -1470,6 +1470,7 @@ static int openpic_init(SysBusDevice *dev)
         opp->irq_ipi0 = RAVEN_IPI_IRQ;
         opp->irq_tim0 = RAVEN_TMR_IRQ;
         opp->brr1 = -1;
+        opp->mpic_mode_mask = GCR_MODE_MIXED;
         list = list_le;
         /* Don't map MSI region */
         list[2].map = false;
