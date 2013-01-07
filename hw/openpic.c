@@ -646,22 +646,23 @@ static inline void write_IRQreg_ivpr(OpenPICState *opp, int n_IRQ, uint32_t val)
 
 static void openpic_gcr_write(OpenPICState *opp, uint64_t val)
 {
+    CPUArchState *env;
+    int mpic_proxy = 0;
+
     if (val & GCR_RESET) {
         openpic_reset(&opp->busdev.qdev);
-    } else if (opp->mpic_mode_mask) {
-        CPUArchState *env;
-        int mpic_proxy = 0;
+        return;
+    }
 
-        opp->gcr &= ~opp->mpic_mode_mask;
-        opp->gcr |= val & opp->mpic_mode_mask;
+    opp->gcr &= ~opp->mpic_mode_mask;
+    opp->gcr |= val & opp->mpic_mode_mask;
 
-        /* Set external proxy mode */
-        if ((val & opp->mpic_mode_mask) == GCR_MODE_PROXY) {
-            mpic_proxy = 1;
-        }
-        for (env = first_cpu; env != NULL; env = env->next_cpu) {
-            env->mpic_proxy = mpic_proxy;
-        }
+    /* Set external proxy mode */
+    if ((val & opp->mpic_mode_mask) == GCR_MODE_PROXY) {
+        mpic_proxy = 1;
+    }
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        env->mpic_proxy = mpic_proxy;
     }
 }
 
