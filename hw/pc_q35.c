@@ -209,9 +209,9 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 }
 
 static QEMUMachine pc_q35_machine = {
-    .name = "q35-next",
+    .name = "pc-q35-1.4",
     .alias = "q35",
-    .desc = "Q35 chipset PC",
+    .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init,
     .max_cpus = 255,
 };
