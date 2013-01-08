@@ -206,7 +206,8 @@ static QEMUMachine milkymist_machine = {
     .name = "milkymist",
     .desc = "Milkymist One",
     .init = milkymist_init,
-    .is_default = 0
+    .is_default = 0,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void milkymist_machine_init(void)

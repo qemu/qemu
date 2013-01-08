@@ -263,6 +263,7 @@ static QEMUMachine virtex_machine = {
     .name = "virtex-ml507",
     .desc = "Xilinx Virtex ML507 reference design",
     .init = virtex_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void virtex_machine_init(void)

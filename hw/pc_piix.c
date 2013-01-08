@@ -289,6 +289,7 @@ static QEMUMachine pc_i440fx_machine_v1_4 = {
     .init = pc_init_pci_1_3,
     .max_cpus = 255,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_3 \
@@ -307,6 +308,7 @@ static QEMUMachine pc_machine_v1_3 = {
         PC_COMPAT_1_3,
         { /* end of list */ }
     },
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_2 \
@@ -346,6 +348,7 @@ static QEMUMachine pc_machine_v1_2 = {
         PC_COMPAT_1_2,
         { /* end of list */ }
     },
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_1 \
@@ -389,6 +392,7 @@ static QEMUMachine pc_machine_v1_1 = {
         PC_COMPAT_1_1,
         { /* end of list */ }
     },
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_1_0 \
@@ -425,6 +429,7 @@ static QEMUMachine pc_machine_v1_0 = {
         { /* end of list */ }
     },
     .hw_version = "1.0",
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_15 \
@@ -440,6 +445,7 @@ static QEMUMachine pc_machine_v0_15 = {
         { /* end of list */ }
     },
     .hw_version = "0.15",
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_14 \
@@ -481,6 +487,7 @@ static QEMUMachine pc_machine_v0_14 = {
         { /* end of list */ }
     },
     .hw_version = "0.14",
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_13 \
@@ -518,6 +525,7 @@ static QEMUMachine pc_machine_v0_13 = {
         { /* end of list */ }
     },
     .hw_version = "0.13",
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_12 \
@@ -551,6 +559,7 @@ static QEMUMachine pc_machine_v0_12 = {
         { /* end of list */ }
     },
     .hw_version = "0.12",
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #define PC_COMPAT_0_11 \
@@ -584,6 +593,7 @@ static QEMUMachine pc_machine_v0_11 = {
         { /* end of list */ }
     },
     .hw_version = "0.11",
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine pc_machine_v0_10 = {
@@ -617,6 +627,7 @@ static QEMUMachine pc_machine_v0_10 = {
         { /* end of list */ }
     },
     .hw_version = "0.10",
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine isapc_machine = {
@@ -632,6 +643,7 @@ static QEMUMachine isapc_machine = {
         },
         { /* end of list */ }
     },
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 #ifdef CONFIG_XEN
@@ -641,6 +653,7 @@ static QEMUMachine xenfv_machine = {
     .init = pc_xen_hvm_init,
     .max_cpus = HVM_MAX_VCPUS,
     .default_machine_opts = "accel=xen",
+    DEFAULT_MACHINE_OPTIONS,
 };
 #endif
 

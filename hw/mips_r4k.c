@@ -302,6 +302,7 @@ static QEMUMachine mips_machine = {
     .name = "mips",
     .desc = "mips r4k platform",
     .init = mips_r4k_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void mips_machine_init(void)

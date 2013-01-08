@@ -24,6 +24,7 @@ static QEMUMachine machine_none = {
     .desc = "empty machine",
     .init = machine_none_init,
     .max_cpus = 0,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void register_machines(void)

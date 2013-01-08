@@ -139,6 +139,7 @@ static QEMUMachine openrisc_sim_machine = {
     .init = openrisc_sim_init,
     .max_cpus = 1,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void openrisc_sim_machine_init(void)

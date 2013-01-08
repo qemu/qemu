@@ -330,6 +330,7 @@ static QEMUMachine s390_machine = {
     .use_virtcon = 1,
     .max_cpus = 255,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void s390_machine_init(void)

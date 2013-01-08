@@ -150,12 +150,14 @@ static QEMUMachine exynos4_machines[EXYNOS4_NUM_OF_BOARDS] = {
         .desc = "Samsung NURI board (Exynos4210)",
         .init = nuri_init,
         .max_cpus = EXYNOS4210_NCPUS,
+        DEFAULT_MACHINE_OPTIONS,
     },
     [EXYNOS4_BOARD_SMDKC210] = {
         .name = "smdkc210",
         .desc = "Samsung SMDKC210 board (Exynos4210)",
         .init = smdkc210_init,
         .max_cpus = EXYNOS4210_NCPUS,
+        DEFAULT_MACHINE_OPTIONS,
     },
 };
 

@@ -92,6 +92,7 @@ static QEMUMachine shix_machine = {
     .desc = "shix card",
     .init = shix_init,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void shix_machine_init(void)

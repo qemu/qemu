@@ -54,6 +54,7 @@ static QEMUMachine ppce500_machine = {
     .desc = "mpc8544ds",
     .init = mpc8544ds_init,
     .max_cpus = 15,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void ppce500_machine_init(void)

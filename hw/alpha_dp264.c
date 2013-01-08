@@ -171,6 +171,7 @@ static QEMUMachine clipper_machine = {
     .init = clipper_init,
     .max_cpus = 4,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void clipper_machine_init(void)

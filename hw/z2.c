@@ -373,6 +373,7 @@ static QEMUMachine z2_machine = {
     .name = "z2",
     .desc = "Zipit Z2 (PXA27x)",
     .init = z2_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void z2_machine_init(void)

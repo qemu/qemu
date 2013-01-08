@@ -964,6 +964,7 @@ static QEMUMachine spapr_machine = {
     .block_default_type = IF_SCSI,
     .max_cpus = MAX_CPUS,
     .no_parallel = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void spapr_machine_init(void)

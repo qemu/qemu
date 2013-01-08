@@ -649,6 +649,7 @@ static QEMUMachine taihu_machine = {
     .name = "taihu",
     .desc = "taihu",
     .init = taihu_405ep_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void ppc405_machine_init(void)

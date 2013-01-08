@@ -400,6 +400,7 @@ static QEMUMachine mips_fulong2e_machine = {
     .name = "fulong2e",
     .desc = "Fulong 2e mini pc",
     .init = mips_fulong2e_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void mips_fulong2e_machine_init(void)

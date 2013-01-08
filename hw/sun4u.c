@@ -978,6 +978,7 @@ static QEMUMachine sun4u_machine = {
     .init = sun4u_init,
     .max_cpus = 1, // XXX for now
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine sun4v_machine = {
@@ -985,6 +986,7 @@ static QEMUMachine sun4v_machine = {
     .desc = "Sun4v platform",
     .init = sun4v_init,
     .max_cpus = 1, // XXX for now
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine niagara_machine = {
@@ -992,6 +994,7 @@ static QEMUMachine niagara_machine = {
     .desc = "Sun4v platform, Niagara",
     .init = niagara_init,
     .max_cpus = 1, // XXX for now
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void sun4u_register_types(void)

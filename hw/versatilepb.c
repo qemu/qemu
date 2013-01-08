@@ -359,6 +359,7 @@ static QEMUMachine versatilepb_machine = {
     .desc = "ARM Versatile/PB (ARM926EJ-S)",
     .init = vpb_init,
     .block_default_type = IF_SCSI,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine versatileab_machine = {
@@ -366,6 +367,7 @@ static QEMUMachine versatileab_machine = {
     .desc = "ARM Versatile/AB (ARM926EJ-S)",
     .init = vab_init,
     .block_default_type = IF_SCSI,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void versatile_machine_init(void)

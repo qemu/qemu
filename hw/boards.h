@@ -6,6 +6,9 @@
 #include "sysemu/blockdev.h"
 #include "qdev.h"
 
+#define DEFAULT_MACHINE_OPTIONS \
+    .boot_order = "cad"
+
 typedef struct QEMUMachineInitArgs {
     ram_addr_t ram_size;
     const char *boot_device;
@@ -35,6 +38,7 @@ typedef struct QEMUMachine {
         no_sdcard:1;
     int is_default;
     const char *default_machine_opts;
+    const char *boot_order;
     GlobalProperty *compat_props;
     struct QEMUMachine *next;
     const char *hw_version;

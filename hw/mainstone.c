@@ -179,6 +179,7 @@ static QEMUMachine mainstone2_machine = {
     .name = "mainstone",
     .desc = "Mainstone II (PXA27x)",
     .init = mainstone_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void mainstone_machine_init(void)

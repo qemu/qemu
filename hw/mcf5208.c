@@ -292,6 +292,7 @@ static QEMUMachine mcf5208evb_machine = {
     .desc = "MCF5206EVB",
     .init = mcf5208evb_init,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void mcf5208evb_machine_init(void)

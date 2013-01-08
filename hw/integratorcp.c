@@ -512,6 +512,7 @@ static QEMUMachine integratorcp_machine = {
     .desc = "ARM Integrator/CP (ARM926EJ-S)",
     .init = integratorcp_init,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void integratorcp_machine_init(void)

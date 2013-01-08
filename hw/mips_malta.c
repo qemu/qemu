@@ -1020,6 +1020,7 @@ static QEMUMachine mips_malta_machine = {
     .init = mips_malta_init,
     .max_cpus = 16,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void mips_malta_register_types(void)
