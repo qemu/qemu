@@ -1220,4 +1220,7 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
 void enable_kvm_pv_eoi(void);
 
+/* Return name of 32-bit register, from a R_* constant */
+const char *get_register_name_32(unsigned int reg);
+
 #endif /* CPU_I386_H */

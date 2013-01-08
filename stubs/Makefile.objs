@@ -5,4 +5,7 @@ stub-obj-y += fdset-get-fd.o
 stub-obj-y += fdset-remove-fd.o
 stub-obj-y += get-fd.o
 stub-obj-y += set-fd-handler.o
+stub-obj-y += reset.o
+stub-obj-y += vmstate.o
+stub-obj-y += sysbus.o
 stub-obj-$(CONFIG_WIN32) += fd-register.o

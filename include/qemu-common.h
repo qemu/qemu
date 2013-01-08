@@ -288,7 +288,9 @@ struct qemu_work_item {
 };
 
 #ifdef CONFIG_USER_ONLY
-#define qemu_init_vcpu(env) do { } while (0)
+static inline void qemu_init_vcpu(void *env)
+{
+}
 #else
 void qemu_init_vcpu(void *env);
 #endif

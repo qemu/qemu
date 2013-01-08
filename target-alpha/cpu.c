@@ -26,11 +26,9 @@
 
 static void alpha_cpu_realize(Object *obj, Error **errp)
 {
-#ifndef CONFIG_USER_ONLY
     AlphaCPU *cpu = ALPHA_CPU(obj);
 
     qemu_init_vcpu(&cpu->env);
-#endif
 }
 
 /* Sort alphabetically by type name. */

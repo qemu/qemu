@@ -20,7 +20,7 @@
 #ifndef QEMU_CPU_H
 #define QEMU_CPU_H
 
-#include "qom/object.h"
+#include "hw/qdev-core.h"
 #include "qemu/thread.h"
 
 /**
@@ -46,7 +46,7 @@ typedef struct CPUState CPUState;
  */
 typedef struct CPUClass {
     /*< private >*/
-    ObjectClass parent_class;
+    DeviceClass parent_class;
     /*< public >*/
 
     void (*reset)(CPUState *cpu);
@@ -66,7 +66,7 @@ struct kvm_run;
  */
 struct CPUState {
     /*< private >*/
-    Object parent_obj;
+    DeviceState parent_obj;
     /*< public >*/
 
     struct QemuThread *thread;

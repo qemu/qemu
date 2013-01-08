@@ -124,15 +124,34 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
+const char *get_register_name_32(unsigned int reg)
+{
+    static const char *reg_names[CPU_NB_REGS32] = {
+        [R_EAX] = "EAX",
+        [R_ECX] = "ECX",
+        [R_EDX] = "EDX",
+        [R_EBX] = "EBX",
+        [R_ESP] = "ESP",
+        [R_EBP] = "EBP",
+        [R_ESI] = "ESI",
+        [R_EDI] = "EDI",
+    };
+
+    if (reg > CPU_NB_REGS32) {
+        return NULL;
+    }
+    return reg_names[reg];
+}
+
 /* collects per-function cpuid data
  */
 typedef struct model_features_t {
     uint32_t *guest_feat;
     uint32_t *host_feat;
-    uint32_t check_feat;
     const char **flag_names;
     uint32_t cpuid;
-    } model_features_t;
+    int reg;
+} model_features_t;
 
 int check_cpuid = 0;
 int enforce_cpuid = 0;
@@ -388,6 +407,9 @@ static x86_def_t builtin_x86_defs[] = {
     {
         .name = "core2duo",
         .level = 10,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
         .family = 6,
         .model = 15,
         .stepping = 11,
@@ -432,6 +454,9 @@ static x86_def_t builtin_x86_defs[] = {
     {
         .name = "qemu32",
         .level = 4,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
         .family = 6,
         .model = 3,
         .stepping = 3,
@@ -442,6 +467,9 @@ static x86_def_t builtin_x86_defs[] = {
     {
         .name = "kvm32",
         .level = 5,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
         .family = 15,
         .model = 6,
         .stepping = 1,
@@ -456,6 +484,9 @@ static x86_def_t builtin_x86_defs[] = {
     {
         .name = "coreduo",
         .level = 10,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
         .family = 6,
         .model = 14,
         .stepping = 8,
@@ -471,6 +502,9 @@ static x86_def_t builtin_x86_defs[] = {
     {
         .name = "486",
         .level = 1,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
         .family = 4,
         .model = 0,
         .stepping = 0,
@@ -480,6 +514,9 @@ static x86_def_t builtin_x86_defs[] = {
     {
         .name = "pentium",
         .level = 1,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
         .family = 5,
         .model = 4,
         .stepping = 3,
@@ -489,6 +526,9 @@ static x86_def_t builtin_x86_defs[] = {
     {
         .name = "pentium2",
         .level = 2,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
         .family = 6,
         .model = 5,
         .stepping = 2,
@@ -498,6 +538,9 @@ static x86_def_t builtin_x86_defs[] = {
     {
         .name = "pentium3",
         .level = 2,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
         .family = 6,
         .model = 7,
         .stepping = 3,
@@ -523,6 +566,9 @@ static x86_def_t builtin_x86_defs[] = {
         .name = "n270",
         /* original is on level 10 */
         .level = 5,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
         .family = 6,
         .model = 28,
         .stepping = 2,
@@ -897,13 +943,12 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
         }
     }
 
-    /*
-     * Every SVM feature requires emulation support in KVM - so we can't just
-     * read the host features here. KVM might even support SVM features not
-     * available on the host hardware. Just set all bits and mask out the
-     * unsupported ones later.
-     */
-    x86_cpu_def->svm_features = -1;
+    /* Other KVM-specific feature fields: */
+    x86_cpu_def->svm_features =
+        kvm_arch_get_supported_cpuid(s, 0x8000000A, 0, R_EDX);
+    x86_cpu_def->kvm_features =
+        kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
+
 #endif /* CONFIG_KVM */
 }
 
@@ -913,18 +958,20 @@ static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
 
     for (i = 0; i < 32; ++i)
         if (1 << i & mask) {
-            fprintf(stderr, "warning: host cpuid %04x_%04x lacks requested"
-                " flag '%s' [0x%08x]\n",
-                f->cpuid >> 16, f->cpuid & 0xffff,
-                f->flag_names[i] ? f->flag_names[i] : "[reserved]", mask);
+            const char *reg = get_register_name_32(f->reg);
+            assert(reg);
+            fprintf(stderr, "warning: host doesn't support requested feature: "
+                "CPUID.%02XH:%s%s%s [bit %d]\n",
+                f->cpuid, reg,
+                f->flag_names[i] ? "." : "",
+                f->flag_names[i] ? f->flag_names[i] : "", i);
             break;
         }
     return 0;
 }
 
 /* best effort attempt to inform user requested cpu flags aren't making
- * their way to the guest.  Note: ft[].check_feat ideally should be
- * specified via a guest_def field to suppress report of extraneous flags.
+ * their way to the guest.
  *
  * This function may be called only if KVM is enabled.
  */
@@ -935,20 +982,21 @@ static int kvm_check_features_against_host(x86_def_t *guest_def)
     int rv, i;
     struct model_features_t ft[] = {
         {&guest_def->features, &host_def.features,
-            ~0, feature_name, 0x00000000},
+            feature_name, 0x00000001, R_EDX},
         {&guest_def->ext_features, &host_def.ext_features,
-            ~CPUID_EXT_HYPERVISOR, ext_feature_name, 0x00000001},
+            ext_feature_name, 0x00000001, R_ECX},
         {&guest_def->ext2_features, &host_def.ext2_features,
-            ~PPRO_FEATURES, ext2_feature_name, 0x80000000},
+            ext2_feature_name, 0x80000001, R_EDX},
         {&guest_def->ext3_features, &host_def.ext3_features,
-            ~CPUID_EXT3_SVM, ext3_feature_name, 0x80000001}};
+            ext3_feature_name, 0x80000001, R_ECX}
+    };
 
     assert(kvm_enabled());
 
     kvm_cpu_fill_host(&host_def);
     for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i)
         for (mask = 1; mask; mask <<= 1)
-            if (ft[i].check_feat & mask && *ft[i].guest_feat & mask &&
+            if (*ft[i].guest_feat & mask &&
                 !(*ft[i].host_feat & mask)) {
                     unavailable_host_feature(&ft[i], mask);
                     rv = 1;
@@ -1513,15 +1561,10 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     if (cpu_x86_parse_featurestr(def, features) < 0) {
         goto error;
     }
-    if (def->vendor1) {
-        env->cpuid_vendor1 = def->vendor1;
-        env->cpuid_vendor2 = def->vendor2;
-        env->cpuid_vendor3 = def->vendor3;
-    } else {
-        env->cpuid_vendor1 = CPUID_VENDOR_INTEL_1;
-        env->cpuid_vendor2 = CPUID_VENDOR_INTEL_2;
-        env->cpuid_vendor3 = CPUID_VENDOR_INTEL_3;
-    }
+    assert(def->vendor1);
+    env->cpuid_vendor1 = def->vendor1;
+    env->cpuid_vendor2 = def->vendor2;
+    env->cpuid_vendor3 = def->vendor3;
     env->cpuid_vendor_override = def->vendor_override;
     object_property_set_int(OBJECT(cpu), def->level, "level", &error);
     object_property_set_int(OBJECT(cpu), def->family, "family", &error);
@@ -1540,31 +1583,6 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     object_property_set_int(OBJECT(cpu), (int64_t)def->tsc_khz * 1000,
                             "tsc-frequency", &error);
 
-    /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
-     * CPUID[1].EDX.
-     */
-    if (env->cpuid_vendor1 == CPUID_VENDOR_AMD_1 &&
-            env->cpuid_vendor2 == CPUID_VENDOR_AMD_2 &&
-            env->cpuid_vendor3 == CPUID_VENDOR_AMD_3) {
-        env->cpuid_ext2_features &= ~CPUID_EXT2_AMD_ALIASES;
-        env->cpuid_ext2_features |= (def->features & CPUID_EXT2_AMD_ALIASES);
-    }
-
-    if (!kvm_enabled()) {
-        env->cpuid_features &= TCG_FEATURES;
-        env->cpuid_ext_features &= TCG_EXT_FEATURES;
-        env->cpuid_ext2_features &= (TCG_EXT2_FEATURES
-#ifdef TARGET_X86_64
-            | CPUID_EXT2_SYSCALL | CPUID_EXT2_LM
-#endif
-            );
-        env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
-        env->cpuid_svm_features &= TCG_SVM_FEATURES;
-    } else {
-#ifdef CONFIG_KVM
-        filter_features_for_kvm(cpu);
-#endif
-    }
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
     if (error) {
         fprintf(stderr, "%s\n", error_get_pretty(error));
@@ -2083,6 +2101,33 @@ void x86_cpu_realize(Object *obj, Error **errp)
 
     if (env->cpuid_7_0_ebx_features && env->cpuid_level < 7) {
         env->cpuid_level = 7;
+    }
+
+    /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
+     * CPUID[1].EDX.
+     */
+    if (env->cpuid_vendor1 == CPUID_VENDOR_AMD_1 &&
+        env->cpuid_vendor2 == CPUID_VENDOR_AMD_2 &&
+        env->cpuid_vendor3 == CPUID_VENDOR_AMD_3) {
+        env->cpuid_ext2_features &= ~CPUID_EXT2_AMD_ALIASES;
+        env->cpuid_ext2_features |= (env->cpuid_features
+           & CPUID_EXT2_AMD_ALIASES);
+    }
+
+    if (!kvm_enabled()) {
+        env->cpuid_features &= TCG_FEATURES;
+        env->cpuid_ext_features &= TCG_EXT_FEATURES;
+        env->cpuid_ext2_features &= (TCG_EXT2_FEATURES
+#ifdef TARGET_X86_64
+            | CPUID_EXT2_SYSCALL | CPUID_EXT2_LM
+#endif
+            );
+        env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
+        env->cpuid_svm_features &= TCG_SVM_FEATURES;
+    } else {
+#ifdef CONFIG_KVM
+        filter_features_for_kvm(cpu);
+#endif
     }
 
 #ifndef CONFIG_USER_ONLY
