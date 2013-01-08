@@ -2198,6 +2198,23 @@ static unsigned int xhci_get_slot(XHCIState *xhci, XHCIEvent *event, XHCITRB *tr
     return slotid;
 }
 
+/* cleanup slot state on usb device detach */
+static void xhci_detach_slot(XHCIState *xhci, USBPort *uport)
+{
+    int slot;
+
+    for (slot = 0; slot < xhci->numslots; slot++) {
+        if (xhci->slots[slot].uport == uport) {
+            break;
+        }
+    }
+    if (slot == xhci->numslots) {
+        return;
+    }
+
+    xhci->slots[slot].uport = NULL;
+}
+
 static TRBCCode xhci_get_port_bandwidth(XHCIState *xhci, uint64_t pctx)
 {
     dma_addr_t ctx;
@@ -2971,13 +2988,8 @@ static void xhci_child_detach(USBPort *uport, USBDevice *child)
 {
     USBBus *bus = usb_bus_from_device(child);
     XHCIState *xhci = container_of(bus, XHCIState, bus);
-    int i;
 
-    for (i = 0; i < xhci->numslots; i++) {
-        if (xhci->slots[i].uport == uport) {
-            xhci->slots[i].uport = NULL;
-        }
-    }
+    xhci_detach_slot(xhci, uport);
 }
 
 static USBPortOps xhci_uport_ops = {
