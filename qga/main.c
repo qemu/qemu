@@ -261,6 +261,19 @@ void ga_set_response_delimited(GAState *s)
     s->delimit_response = true;
 }
 
+static FILE *ga_open_logfile(const char *logfile)
+{
+    FILE *f;
+
+    f = fopen(logfile, "a");
+    if (!f) {
+        return NULL;
+    }
+
+    qemu_set_cloexec(fileno(f));
+    return f;
+}
+
 #ifndef _WIN32
 static bool ga_open_pidfile(const char *pidfile)
 {
@@ -402,7 +415,7 @@ void ga_unset_frozen(GAState *s)
      * in a frozen state at start up, do it now
      */
     if (s->deferred_options.log_filepath) {
-        s->log_file = fopen(s->deferred_options.log_filepath, "a");
+        s->log_file = ga_open_logfile(s->deferred_options.log_filepath);
         if (!s->log_file) {
             s->log_file = stderr;
         }
@@ -884,7 +897,7 @@ int main(int argc, char **argv)
             become_daemon(pid_filepath);
         }
         if (log_filepath) {
-            FILE *log_file = fopen(log_filepath, "a");
+            FILE *log_file = ga_open_logfile(log_filepath);
             if (!log_file) {
                 g_critical("unable to open specified log file: %s",
                            strerror(errno));
