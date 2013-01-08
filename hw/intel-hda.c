@@ -1232,7 +1232,7 @@ static Property intel_hda_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void intel_hda_class_init(ObjectClass *klass, void *data)
+static void intel_hda_class_init_common(ObjectClass *klass)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1240,20 +1240,46 @@ static void intel_hda_class_init(ObjectClass *klass, void *data)
     k->init = intel_hda_init;
     k->exit = intel_hda_exit;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = 0x2668;
-    k->revision = 1;
     k->class_id = PCI_CLASS_MULTIMEDIA_HD_AUDIO;
-    dc->desc = "Intel HD Audio Controller";
     dc->reset = intel_hda_reset;
     dc->vmsd = &vmstate_intel_hda;
     dc->props = intel_hda_properties;
 }
 
-static TypeInfo intel_hda_info = {
+static void intel_hda_class_init_ich6(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    intel_hda_class_init_common(klass);
+    k->device_id = 0x2668;
+    k->revision = 1;
+    dc->desc = "Intel HD Audio Controller (ich6)";
+}
+
+static void intel_hda_class_init_ich9(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    intel_hda_class_init_common(klass);
+    k->device_id = 0x293e;
+    k->revision = 3;
+    dc->desc = "Intel HD Audio Controller (ich9)";
+}
+
+static TypeInfo intel_hda_info_ich6 = {
     .name          = "intel-hda",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IntelHDAState),
-    .class_init    = intel_hda_class_init,
+    .class_init    = intel_hda_class_init_ich6,
+};
+
+static TypeInfo intel_hda_info_ich9 = {
+    .name          = "ich9-intel-hda",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(IntelHDAState),
+    .class_init    = intel_hda_class_init_ich9,
 };
 
 static void hda_codec_device_class_init(ObjectClass *klass, void *data)
@@ -1277,7 +1303,8 @@ static TypeInfo hda_codec_device_type_info = {
 static void intel_hda_register_types(void)
 {
     type_register_static(&hda_codec_bus_info);
-    type_register_static(&intel_hda_info);
+    type_register_static(&intel_hda_info_ich6);
+    type_register_static(&intel_hda_info_ich9);
     type_register_static(&hda_codec_device_type_info);
 }
 
