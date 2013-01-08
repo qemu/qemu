@@ -287,7 +287,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 
         _FDT((fdt_property(fdt, "qemu,boot-kernel", &kprop, sizeof(kprop))));
     }
-    _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
+    if (boot_device) {
+        _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
+    }
     _FDT((fdt_property_cell(fdt, "qemu,graphic-width", graphic_width)));
     _FDT((fdt_property_cell(fdt, "qemu,graphic-height", graphic_height)));
     _FDT((fdt_property_cell(fdt, "qemu,graphic-depth", graphic_depth)));
@@ -964,7 +966,7 @@ static QEMUMachine spapr_machine = {
     .block_default_type = IF_SCSI,
     .max_cpus = MAX_CPUS,
     .no_parallel = 1,
-    DEFAULT_MACHINE_OPTIONS,
+    .boot_order = NULL,
 };
 
 static void spapr_machine_init(void)
