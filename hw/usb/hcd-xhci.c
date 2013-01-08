@@ -1197,6 +1197,7 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
             ep = epctx->transfers[xferi].packet.ep;
         }
         killed += xhci_ep_nuke_one_xfer(&epctx->transfers[xferi]);
+        epctx->transfers[xferi].packet.ep = NULL;
         xferi = (xferi + 1) % TD_QUEUE;
     }
     if (ep) {
@@ -2201,7 +2202,7 @@ static unsigned int xhci_get_slot(XHCIState *xhci, XHCIEvent *event, XHCITRB *tr
 /* cleanup slot state on usb device detach */
 static void xhci_detach_slot(XHCIState *xhci, USBPort *uport)
 {
-    int slot;
+    int slot, ep;
 
     for (slot = 0; slot < xhci->numslots; slot++) {
         if (xhci->slots[slot].uport == uport) {
@@ -2212,6 +2213,11 @@ static void xhci_detach_slot(XHCIState *xhci, USBPort *uport)
         return;
     }
 
+    for (ep = 0; ep < 31; ep++) {
+        if (xhci->slots[slot].eps[ep]) {
+            xhci_ep_nuke_xfers(xhci, slot+1, ep+1);
+        }
+    }
     xhci->slots[slot].uport = NULL;
 }
 
