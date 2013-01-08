@@ -330,7 +330,7 @@ void qemu_fd_register(int fd)
 static int os_host_main_loop_wait(uint32_t timeout)
 {
     GMainContext *context = g_main_context_default();
-    int ret, i;
+    int select_ret, g_poll_ret, ret, i;
     PollingEntry *pe;
     WaitObjects *w = &wait_objects;
     gint poll_timeout;
@@ -343,13 +343,6 @@ static int os_host_main_loop_wait(uint32_t timeout)
     }
     if (ret != 0) {
         return ret;
-    }
-
-    if (nfds >= 0) {
-        ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
-        if (ret != 0) {
-            timeout = 0;
-        }
     }
 
     g_main_context_prepare(context, &max_priority);
@@ -367,9 +360,9 @@ static int os_host_main_loop_wait(uint32_t timeout)
     }
 
     qemu_mutex_unlock_iothread();
-    ret = g_poll(poll_fds, n_poll_fds + w->num, poll_timeout);
+    g_poll_ret = g_poll(poll_fds, n_poll_fds + w->num, poll_timeout);
     qemu_mutex_lock_iothread();
-    if (ret > 0) {
+    if (g_poll_ret > 0) {
         for (i = 0; i < w->num; i++) {
             w->revents[i] = poll_fds[n_poll_fds + i].revents;
         }
@@ -384,12 +377,18 @@ static int os_host_main_loop_wait(uint32_t timeout)
         g_main_context_dispatch(context);
     }
 
-    /* If an edge-triggered socket event occurred, select will return a
-     * positive result on the next iteration.  We do not need to do anything
-     * here.
+    /* Call select after g_poll to avoid a useless iteration and therefore
+     * improve socket latency.
      */
 
-    return ret;
+    if (nfds >= 0) {
+        select_ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
+        if (select_ret != 0) {
+            timeout = 0;
+        }
+    }
+
+    return select_ret || g_poll_ret;
 }
 #endif
 
