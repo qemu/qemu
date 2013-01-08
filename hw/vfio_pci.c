@@ -1837,13 +1837,13 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
         error_report("Warning, device %s does not support reset\n", name);
     }
 
-    if (dev_info.num_regions != VFIO_PCI_NUM_REGIONS) {
+    if (dev_info.num_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
         error_report("vfio: unexpected number of io regions %u\n",
                      dev_info.num_regions);
         goto error;
     }
 
-    if (dev_info.num_irqs != VFIO_PCI_NUM_IRQS) {
+    if (dev_info.num_irqs < VFIO_PCI_MSIX_IRQ_INDEX + 1) {
         error_report("vfio: unexpected number of irqs %u\n", dev_info.num_irqs);
         goto error;
     }
