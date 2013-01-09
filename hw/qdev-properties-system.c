@@ -42,7 +42,7 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
     char *str;
     int ret;
 
-    if (dev->state != DEV_STATE_CREATED) {
+    if (dev->realized) {
         error_set(errp, QERR_PERMISSION_DENIED);
         return;
     }
@@ -254,7 +254,7 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
     int32_t id;
     NetClientState *hubport;
 
-    if (dev->state != DEV_STATE_CREATED) {
+    if (dev->realized) {
         error_set(errp, QERR_PERMISSION_DENIED);
         return;
     }

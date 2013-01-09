@@ -8,11 +8,6 @@
 #include "hw/irq.h"
 #include "qapi/error.h"
 
-enum DevState {
-    DEV_STATE_CREATED = 1,
-    DEV_STATE_INITIALIZED,
-};
-
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
 };
@@ -49,13 +44,20 @@ typedef struct DeviceClass {
     const char *bus_type;
 } DeviceClass;
 
-/* This structure should not be accessed directly.  We declare it here
-   so that it can be embedded in individual device state structures.  */
+/**
+ * DeviceState:
+ * @realized: Indicates whether the device has been fully constructed.
+ *
+ * This structure should not be accessed directly.  We declare it here
+ * so that it can be embedded in individual device state structures.
+ */
 struct DeviceState {
+    /*< private >*/
     Object parent_obj;
+    /*< public >*/
 
     const char *id;
-    enum DevState state;
+    bool realized;
     QemuOpts *opts;
     int hotplugged;
     BusState *parent_bus;
