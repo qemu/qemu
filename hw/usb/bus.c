@@ -189,6 +189,14 @@ void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep)
     }
 }
 
+void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->ep_stopped) {
+        klass->ep_stopped(dev, ep);
+    }
+}
+
 static int usb_qdev_init(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);

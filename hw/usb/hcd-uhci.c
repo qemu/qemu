@@ -75,6 +75,11 @@
 
 #define FRAME_MAX_LOOPS  256
 
+/* Must be large enough to handle 10 frame delay for initial isoc requests */
+#define QH_VALID         32
+
+#define MAX_FRAMES_PER_TICK    (QH_VALID / 2)
+
 #define NB_PORTS 2
 
 enum {
@@ -166,6 +171,7 @@ struct UHCIState {
     /* Properties */
     char *masterbus;
     uint32_t firstport;
+    uint32_t maxframes;
 };
 
 typedef struct UHCI_TD {
@@ -206,9 +212,7 @@ static UHCIQueue *uhci_queue_new(UHCIState *s, uint32_t qh_addr, UHCI_TD *td,
     queue->ep = ep;
     QTAILQ_INIT(&queue->asyncs);
     QTAILQ_INSERT_HEAD(&s->queues, queue, next);
-    /* valid needs to be large enough to handle 10 frame delay
-     * for initial isochronous requests */
-    queue->valid = 32;
+    queue->valid = QH_VALID;
     trace_usb_uhci_queue_add(queue->token);
     return queue;
 }
@@ -222,6 +226,7 @@ static void uhci_queue_free(UHCIQueue *queue, const char *reason)
         async = QTAILQ_FIRST(&queue->asyncs);
         uhci_async_cancel(async);
     }
+    usb_device_ep_stopped(queue->ep->dev, queue->ep);
 
     trace_usb_uhci_queue_del(queue->token, reason);
     QTAILQ_REMOVE(&s->queues, queue, next);
@@ -433,7 +438,7 @@ static int uhci_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_uhci = {
     .name = "uhci",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .post_load = uhci_post_load,
@@ -451,44 +456,16 @@ static const VMStateDescription vmstate_uhci = {
         VMSTATE_UINT8(status2, UHCIState),
         VMSTATE_TIMER(frame_timer, UHCIState),
         VMSTATE_INT64_V(expire_time, UHCIState, 2),
+        VMSTATE_UINT32_V(pending_int_mask, UHCIState, 3),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static void uhci_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void uhci_port_write(void *opaque, hwaddr addr,
+                            uint64_t val, unsigned size)
 {
     UHCIState *s = opaque;
 
-    addr &= 0x1f;
-    switch(addr) {
-    case 0x0c:
-        s->sof_timing = val;
-        break;
-    }
-}
-
-static uint32_t uhci_ioport_readb(void *opaque, uint32_t addr)
-{
-    UHCIState *s = opaque;
-    uint32_t val;
-
-    addr &= 0x1f;
-    switch(addr) {
-    case 0x0c:
-        val = s->sof_timing;
-        break;
-    default:
-        val = 0xff;
-        break;
-    }
-    return val;
-}
-
-static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
-{
-    UHCIState *s = opaque;
-
-    addr &= 0x1f;
     trace_usb_uhci_mmio_writew(addr, val);
 
     switch(addr) {
@@ -498,7 +475,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             trace_usb_uhci_schedule_start();
             s->expire_time = qemu_get_clock_ns(vm_clock) +
                 (get_ticks_per_sec() / FRAME_TIMER_FREQ);
-            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
+            qemu_mod_timer(s->frame_timer, s->expire_time);
             s->status &= ~UHCI_STS_HCHALTED;
         } else if (!(val & UHCI_CMD_RS)) {
             s->status |= UHCI_STS_HCHALTED;
@@ -537,6 +514,17 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         if (s->status & UHCI_STS_HCHALTED)
             s->frnum = val & 0x7ff;
         break;
+    case 0x08:
+        s->fl_base_addr &= 0xffff0000;
+        s->fl_base_addr |= val & ~0xfff;
+        break;
+    case 0x0a:
+        s->fl_base_addr &= 0x0000ffff;
+        s->fl_base_addr |= (val << 16);
+        break;
+    case 0x0c:
+        s->sof_timing = val & 0xff;
+        break;
     case 0x10 ... 0x1f:
         {
             UHCIPort *port;
@@ -568,12 +556,11 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t uhci_ioport_readw(void *opaque, uint32_t addr)
+static uint64_t uhci_port_read(void *opaque, hwaddr addr, unsigned size)
 {
     UHCIState *s = opaque;
     uint32_t val;
 
-    addr &= 0x1f;
     switch(addr) {
     case 0x00:
         val = s->cmd;
@@ -586,6 +573,15 @@ static uint32_t uhci_ioport_readw(void *opaque, uint32_t addr)
         break;
     case 0x06:
         val = s->frnum;
+        break;
+    case 0x08:
+        val = s->fl_base_addr & 0xffff;
+        break;
+    case 0x0a:
+        val = (s->fl_base_addr >> 16) & 0xffff;
+        break;
+    case 0x0c:
+        val = s->sof_timing;
         break;
     case 0x10 ... 0x1f:
         {
@@ -606,38 +602,6 @@ static uint32_t uhci_ioport_readw(void *opaque, uint32_t addr)
 
     trace_usb_uhci_mmio_readw(addr, val);
 
-    return val;
-}
-
-static void uhci_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    UHCIState *s = opaque;
-
-    addr &= 0x1f;
-    trace_usb_uhci_mmio_writel(addr, val);
-
-    switch(addr) {
-    case 0x08:
-        s->fl_base_addr = val & ~0xfff;
-        break;
-    }
-}
-
-static uint32_t uhci_ioport_readl(void *opaque, uint32_t addr)
-{
-    UHCIState *s = opaque;
-    uint32_t val;
-
-    addr &= 0x1f;
-    switch(addr) {
-    case 0x08:
-        val = s->fl_base_addr;
-        break;
-    default:
-        val = 0xffffffff;
-        break;
-    }
-    trace_usb_uhci_mmio_readl(addr, val);
     return val;
 }
 
@@ -853,7 +817,7 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
     }
 
     if (q) {
-        q->valid = 32;
+        q->valid = QH_VALID;
     }
 
     /* Is active ? */
@@ -1174,10 +1138,10 @@ static void uhci_bh(void *opaque)
 static void uhci_frame_timer(void *opaque)
 {
     UHCIState *s = opaque;
+    uint64_t t_now, t_last_run;
+    int i, frames;
+    const uint64_t frame_t = get_ticks_per_sec() / FRAME_TIMER_FREQ;
 
-    /* prepare the timer for the next frame */
-    s->expire_time += (get_ticks_per_sec() / FRAME_TIMER_FREQ);
-    s->frame_bytes = 0;
     s->completions_only = false;
     qemu_bh_cancel(s->bh);
 
@@ -1191,7 +1155,35 @@ static void uhci_frame_timer(void *opaque)
         return;
     }
 
-    /* Complete the previous frame */
+    /* We still store expire_time in our state, for migration */
+    t_last_run = s->expire_time - frame_t;
+    t_now = qemu_get_clock_ns(vm_clock);
+
+    /* Process up to MAX_FRAMES_PER_TICK frames */
+    frames = (t_now - t_last_run) / frame_t;
+    if (frames > s->maxframes) {
+        int skipped = frames - s->maxframes;
+        s->expire_time += skipped * frame_t;
+        s->frnum = (s->frnum + skipped) & 0x7ff;
+        frames -= skipped;
+    }
+    if (frames > MAX_FRAMES_PER_TICK) {
+        frames = MAX_FRAMES_PER_TICK;
+    }
+
+    for (i = 0; i < frames; i++) {
+        s->frame_bytes = 0;
+        trace_usb_uhci_frame_start(s->frnum);
+        uhci_async_validate_begin(s);
+        uhci_process_frame(s);
+        uhci_async_validate_end(s);
+        /* The spec says frnum is the frame currently being processed, and
+         * the guest must look at frnum - 1 on interrupt, so inc frnum now */
+        s->frnum = (s->frnum + 1) & 0x7ff;
+        s->expire_time += frame_t;
+    }
+
+    /* Complete the previous frame(s) */
     if (s->pending_int_mask) {
         s->status2 |= s->pending_int_mask;
         s->status  |= UHCI_STS_USBINT;
@@ -1199,32 +1191,17 @@ static void uhci_frame_timer(void *opaque)
     }
     s->pending_int_mask = 0;
 
-    /* Start new frame */
-    s->frnum = (s->frnum + 1) & 0x7ff;
-
-    trace_usb_uhci_frame_start(s->frnum);
-
-    uhci_async_validate_begin(s);
-
-    uhci_process_frame(s);
-
-    uhci_async_validate_end(s);
-
-    qemu_mod_timer(s->frame_timer, s->expire_time);
+    qemu_mod_timer(s->frame_timer, t_now + frame_t);
 }
 
-static const MemoryRegionPortio uhci_portio[] = {
-    { 0, 32, 2, .write = uhci_ioport_writew, },
-    { 0, 32, 2, .read = uhci_ioport_readw, },
-    { 0, 32, 4, .write = uhci_ioport_writel, },
-    { 0, 32, 4, .read = uhci_ioport_readl, },
-    { 0, 32, 1, .write = uhci_ioport_writeb, },
-    { 0, 32, 1, .read = uhci_ioport_readb, },
-    PORTIO_END_OF_LIST()
-};
-
 static const MemoryRegionOps uhci_ioport_ops = {
-    .old_portio = uhci_portio,
+    .read  = uhci_port_read,
+    .write = uhci_port_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 2,
+    .impl.max_access_size = 2,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static USBPortOps uhci_port_ops = {
@@ -1311,6 +1288,7 @@ static Property uhci_properties[] = {
     DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
     DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
     DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
+    DEFINE_PROP_UINT32("maxframes", UHCIState, maxframes, 128),
     DEFINE_PROP_END_OF_LIST(),
 };
 

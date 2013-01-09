@@ -26,8 +26,8 @@ int main()
     ach = 6, acl = 7;
     rs     = 0xFFFF00FF;
     rt     = 0xFFFF0002;
-    resulth = 0x05;
-    resultl = 0xfffe0206;
+    resulth = 0x06;
+    resultl = 0x206;
     __asm
         ("mthi  %0, $ac1\n\t"
          "mtlo  %1, $ac1\n\t"

@@ -2174,11 +2174,17 @@ static unsigned int ieee_rm[] = {
     float_round_down
 };
 
-#define RESTORE_ROUNDING_MODE \
-    set_float_rounding_mode(ieee_rm[env->active_fpu.fcr31 & 3], &env->active_fpu.fp_status)
+static inline void restore_rounding_mode(CPUMIPSState *env)
+{
+    set_float_rounding_mode(ieee_rm[env->active_fpu.fcr31 & 3],
+                            &env->active_fpu.fp_status);
+}
 
-#define RESTORE_FLUSH_MODE \
-    set_flush_to_zero((env->active_fpu.fcr31 & (1 << 24)) != 0, &env->active_fpu.fp_status)
+static inline void restore_flush_mode(CPUMIPSState *env)
+{
+    set_flush_to_zero((env->active_fpu.fcr31 & (1 << 24)) != 0,
+                      &env->active_fpu.fp_status);
+}
 
 target_ulong helper_cfc1(CPUMIPSState *env, uint32_t reg)
 {
@@ -2234,9 +2240,9 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t reg)
         return;
     }
     /* set rounding mode */
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     /* set flush-to-zero mode */
-    RESTORE_FLUSH_MODE;
+    restore_flush_mode(env);
     set_float_exception_flags(0, &env->active_fpu.fp_status);
     if ((GET_FP_ENABLE(env->active_fpu.fcr31) | 0x20) & GET_FP_CAUSE(env->active_fpu.fcr31)) {
         do_raise_exception(env, EXCP_FPE, GETPC());
@@ -2469,7 +2475,7 @@ uint64_t helper_float_roundl_d(CPUMIPSState *env, uint64_t fdt0)
 
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FP_TO_INT64_OVERFLOW;
@@ -2484,7 +2490,7 @@ uint64_t helper_float_roundl_s(CPUMIPSState *env, uint32_t fst0)
 
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FP_TO_INT64_OVERFLOW;
@@ -2499,7 +2505,7 @@ uint32_t helper_float_roundw_d(CPUMIPSState *env, uint64_t fdt0)
 
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FP_TO_INT32_OVERFLOW;
@@ -2514,7 +2520,7 @@ uint32_t helper_float_roundw_s(CPUMIPSState *env, uint32_t fst0)
 
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FP_TO_INT32_OVERFLOW;
@@ -2581,7 +2587,7 @@ uint64_t helper_float_ceill_d(CPUMIPSState *env, uint64_t fdt0)
 
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FP_TO_INT64_OVERFLOW;
@@ -2596,7 +2602,7 @@ uint64_t helper_float_ceill_s(CPUMIPSState *env, uint32_t fst0)
 
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FP_TO_INT64_OVERFLOW;
@@ -2611,7 +2617,7 @@ uint32_t helper_float_ceilw_d(CPUMIPSState *env, uint64_t fdt0)
 
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FP_TO_INT32_OVERFLOW;
@@ -2626,7 +2632,7 @@ uint32_t helper_float_ceilw_s(CPUMIPSState *env, uint32_t fst0)
 
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FP_TO_INT32_OVERFLOW;
@@ -2641,7 +2647,7 @@ uint64_t helper_float_floorl_d(CPUMIPSState *env, uint64_t fdt0)
 
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FP_TO_INT64_OVERFLOW;
@@ -2656,7 +2662,7 @@ uint64_t helper_float_floorl_s(CPUMIPSState *env, uint32_t fst0)
 
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FP_TO_INT64_OVERFLOW;
@@ -2671,7 +2677,7 @@ uint32_t helper_float_floorw_d(CPUMIPSState *env, uint64_t fdt0)
 
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FP_TO_INT32_OVERFLOW;
@@ -2686,7 +2692,7 @@ uint32_t helper_float_floorw_s(CPUMIPSState *env, uint32_t fst0)
 
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
-    RESTORE_ROUNDING_MODE;
+    restore_rounding_mode(env);
     if (get_float_exception_flags(&env->active_fpu.fp_status)
         & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FP_TO_INT32_OVERFLOW;

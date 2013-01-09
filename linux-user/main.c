@@ -55,7 +55,12 @@ int have_guest_base;
  * This way we will never overlap with our own libraries or binaries or stack
  * or anything else that QEMU maps.
  */
+# ifdef TARGET_MIPS
+/* MIPS only supports 31 bits of virtual address space for user space */
+uintptr_t reserved_va = 0x77000000;
+# else
 uintptr_t reserved_va = 0xf7000000;
+# endif
 #else
 uintptr_t reserved_va;
 #endif

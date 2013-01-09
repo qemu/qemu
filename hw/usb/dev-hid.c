@@ -501,7 +501,7 @@ static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         break;
     case SET_IDLE:
         hs->idle = (uint8_t) (value >> 8);
-        hid_set_next_idle(hs, qemu_get_clock_ns(vm_clock));
+        hid_set_next_idle(hs);
         if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
             hid_pointer_activate(hs);
         }
@@ -523,16 +523,14 @@ static void usb_hid_handle_data(USBDevice *dev, USBPacket *p)
     switch (p->pid) {
     case USB_TOKEN_IN:
         if (p->ep->nr == 1) {
-            int64_t curtime = qemu_get_clock_ns(vm_clock);
             if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
                 hid_pointer_activate(hs);
             }
-            if (!hid_has_events(hs) &&
-                (!hs->idle || hs->next_idle_clock - curtime > 0)) {
+            if (!hid_has_events(hs)) {
                 p->status = USB_RET_NAK;
                 return;
             }
-            hid_set_next_idle(hs, curtime);
+            hid_set_next_idle(hs);
             if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
                 len = hid_pointer_poll(hs, buf, p->iov.size);
             } else if (hs->kind == HID_KEYBOARD) {

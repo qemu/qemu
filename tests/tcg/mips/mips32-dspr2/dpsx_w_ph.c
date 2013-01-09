@@ -9,8 +9,8 @@ int main()
 
     rs      = 0xBC0123AD;
     rt      = 0x01643721;
-    resulth = 0x04;
-    resultl = 0xD751F050;
+    resulth = 0x05;
+    resultl = 0xE72F050;
     __asm
         ("mthi  %0, $ac1\n\t"
          "mtlo  %1, $ac1\n\t"

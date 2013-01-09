@@ -1258,7 +1258,8 @@ static void rtl8139_reset(DeviceState *d)
     s->BasicModeStatus  = 0x7809;
     //s->BasicModeStatus |= 0x0040; /* UTP medium */
     s->BasicModeStatus |= 0x0020; /* autonegotiation completed */
-    s->BasicModeStatus |= 0x0004; /* link is up */
+    /* preserve link state */
+    s->BasicModeStatus |= s->nic->nc.link_down ? 0 : 0x04;
 
     s->NWayAdvert    = 0x05e1; /* all modes, full duplex */
     s->NWayLPAR      = 0x05e1; /* all modes, full duplex */

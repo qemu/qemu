@@ -16,13 +16,7 @@
  */
 
 #include "hw/usb/hcd-ehci.h"
-#include "hw/pci/pci.h"
 #include "qemu/range.h"
-
-typedef struct EHCIPCIState {
-    PCIDevice pcidev;
-    EHCIState ehci;
-} EHCIPCIState;
 
 typedef struct EHCIPCIInfo {
     const char *name;
@@ -33,7 +27,7 @@ typedef struct EHCIPCIInfo {
 
 static int usb_ehci_pci_initfn(PCIDevice *dev)
 {
-    EHCIPCIState *i = DO_UPCAST(EHCIPCIState, pcidev, dev);
+    EHCIPCIState *i = PCI_EHCI(dev);
     EHCIState *s = &i->ehci;
     uint8_t *pci_conf = dev->config;
 
@@ -83,7 +77,7 @@ static int usb_ehci_pci_initfn(PCIDevice *dev)
 static void usb_ehci_pci_write_config(PCIDevice *dev, uint32_t addr,
                                       uint32_t val, int l)
 {
-    EHCIPCIState *i = DO_UPCAST(EHCIPCIState, pcidev, dev);
+    EHCIPCIState *i = PCI_EHCI(dev);
     bool busmaster;
 
     pci_default_write_config(dev, addr, val, l);
@@ -115,17 +109,31 @@ static void ehci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    EHCIPCIInfo *i = data;
 
     k->init = usb_ehci_pci_initfn;
-    k->vendor_id = i->vendor_id;
-    k->device_id = i->device_id;
-    k->revision = i->revision;
     k->class_id = PCI_CLASS_SERIAL_USB;
     k->config_write = usb_ehci_pci_write_config;
     k->no_hotplug = 1;
     dc->vmsd = &vmstate_ehci_pci;
     dc->props = ehci_pci_properties;
+}
+
+static const TypeInfo ehci_pci_type_info = {
+    .name = TYPE_PCI_EHCI,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(EHCIPCIState),
+    .abstract = true,
+    .class_init = ehci_class_init,
+};
+
+static void ehci_data_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    EHCIPCIInfo *i = data;
+
+    k->vendor_id = i->vendor_id;
+    k->device_id = i->device_id;
+    k->revision = i->revision;
 }
 
 static struct EHCIPCIInfo ehci_pci_info[] = {
@@ -150,11 +158,12 @@ static struct EHCIPCIInfo ehci_pci_info[] = {
 static void ehci_pci_register_types(void)
 {
     TypeInfo ehci_type_info = {
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(EHCIPCIState),
-        .class_init    = ehci_class_init,
+        .parent        = TYPE_PCI_EHCI,
+        .class_init    = ehci_data_class_init,
     };
     int i;
+
+    type_register_static(&ehci_pci_type_info);
 
     for (i = 0; i < ARRAY_SIZE(ehci_pci_info); i++) {
         ehci_type_info.name = ehci_pci_info[i].name;

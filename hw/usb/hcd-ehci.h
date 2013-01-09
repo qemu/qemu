@@ -24,6 +24,8 @@
 #include "trace.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
+#include "hw/pci/pci.h"
+#include "hw/sysbus.h"
 
 #ifndef EHCI_DEBUG
 #define EHCI_DEBUG   0
@@ -248,6 +250,7 @@ struct EHCIQueue {
     EHCIqh qh;             /* copy of current QH (being worked on) */
     uint32_t qhaddr;       /* address QH read from                 */
     uint32_t qtdaddr;      /* address QTD read from                */
+    int last_pid;          /* pid of last packet executed          */
     USBDevice *dev;
     QTAILQ_HEAD(pkts_head, EHCIPacket) packets;
 };
@@ -320,5 +323,44 @@ struct EHCIState {
 extern const VMStateDescription vmstate_ehci;
 
 void usb_ehci_initfn(EHCIState *s, DeviceState *dev);
+
+#define TYPE_PCI_EHCI "pci-ehci-usb"
+#define PCI_EHCI(obj) OBJECT_CHECK(EHCIPCIState, (obj), TYPE_PCI_EHCI)
+
+typedef struct EHCIPCIState {
+    /*< private >*/
+    PCIDevice pcidev;
+    /*< public >*/
+
+    EHCIState ehci;
+} EHCIPCIState;
+
+
+#define TYPE_SYS_BUS_EHCI "sysbus-ehci-usb"
+#define TYPE_EXYNOS4210_EHCI "exynos4210-ehci-usb"
+
+#define SYS_BUS_EHCI(obj) \
+    OBJECT_CHECK(EHCISysBusState, (obj), TYPE_SYS_BUS_EHCI)
+#define SYS_BUS_EHCI_CLASS(class) \
+    OBJECT_CLASS_CHECK(SysBusEHCIClass, (class), TYPE_SYS_BUS_EHCI)
+#define SYS_BUS_EHCI_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(SysBusEHCIClass, (obj), TYPE_SYS_BUS_EHCI)
+
+typedef struct EHCISysBusState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    EHCIState ehci;
+} EHCISysBusState;
+
+typedef struct SysBusEHCIClass {
+    /*< private >*/
+    SysBusDeviceClass parent_class;
+    /*< public >*/
+
+    uint16_t capsbase;
+    uint16_t opregbase;
+} SysBusEHCIClass;
 
 #endif
