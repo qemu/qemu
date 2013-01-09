@@ -34,6 +34,7 @@ void ga_set_response_delimited(GAState *s);
 bool ga_is_frozen(GAState *s);
 void ga_set_frozen(GAState *s);
 void ga_unset_frozen(GAState *s);
+const char *ga_fsfreeze_hook(GAState *s);
 
 #ifndef _WIN32
 void reopen_fd_to_null(int fd);
