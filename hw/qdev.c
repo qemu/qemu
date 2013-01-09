@@ -148,37 +148,30 @@ DeviceState *qdev_try_create(BusState *bus, const char *type)
    Return 0 on success.  */
 int qdev_init(DeviceState *dev)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
-    int rc;
+    Error *local_err = NULL;
 
     assert(!dev->realized);
 
-    rc = dc->init(dev);
-    if (rc < 0) {
+    object_property_set_bool(OBJECT(dev), true, "realized", &local_err);
+    if (local_err != NULL) {
+        error_free(local_err);
         qdev_free(dev);
-        return rc;
-    }
-
-    if (!OBJECT(dev)->parent) {
-        static int unattached_count = 0;
-        gchar *name = g_strdup_printf("device[%d]", unattached_count++);
-
-        object_property_add_child(container_get(qdev_get_machine(),
-                                                "/unattached"),
-                                  name, OBJECT(dev), NULL);
-        g_free(name);
-    }
-
-    if (qdev_get_vmsd(dev)) {
-        vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
-                                       dev->instance_id_alias,
-                                       dev->alias_required_for_version);
-    }
-    dev->realized = true;
-    if (dev->hotplugged) {
-        device_reset(dev);
+        return -1;
     }
     return 0;
+}
+
+static void device_realize(DeviceState *dev, Error **err)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (dc->init) {
+        int rc = dc->init(dev);
+        if (rc < 0) {
+            error_setg(err, "Device initialization failed.");
+            return;
+        }
+    }
 }
 
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
@@ -641,6 +634,55 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
     assert_no_error(local_err);
 }
 
+static bool device_get_realized(Object *obj, Error **err)
+{
+    DeviceState *dev = DEVICE(obj);
+    return dev->realized;
+}
+
+static void device_set_realized(Object *obj, bool value, Error **err)
+{
+    DeviceState *dev = DEVICE(obj);
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    if (value && !dev->realized) {
+        if (dc->realize) {
+            dc->realize(dev, &local_err);
+        }
+
+        if (!obj->parent && local_err == NULL) {
+            static int unattached_count;
+            gchar *name = g_strdup_printf("device[%d]", unattached_count++);
+
+            object_property_add_child(container_get(qdev_get_machine(),
+                                                    "/unattached"),
+                                      name, obj, &local_err);
+            g_free(name);
+        }
+
+        if (qdev_get_vmsd(dev) && local_err == NULL) {
+            vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
+                                           dev->instance_id_alias,
+                                           dev->alias_required_for_version);
+        }
+        if (dev->hotplugged && local_err == NULL) {
+            device_reset(dev);
+        }
+    } else if (!value && dev->realized) {
+        if (dc->unrealize) {
+            dc->unrealize(dev, &local_err);
+        }
+    }
+
+    if (local_err != NULL) {
+        error_propagate(err, local_err);
+        return;
+    }
+
+    dev->realized = value;
+}
+
 static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -654,6 +696,9 @@ static void device_initfn(Object *obj)
 
     dev->instance_id_alias = -1;
     dev->realized = false;
+
+    object_property_add_bool(obj, "realized",
+                             device_get_realized, device_set_realized, NULL);
 
     class = object_get_class(OBJECT(dev));
     do {
@@ -714,7 +759,10 @@ static void device_unparent(Object *obj)
 
 static void device_class_init(ObjectClass *class, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(class);
+
     class->unparent = device_unparent;
+    dc->realize = device_realize;
 }
 
 void device_reset(DeviceState *dev)
