@@ -3078,7 +3078,7 @@ int main(void) {
 }
 EOF
 if compile_prog "-Werror" "" ; then
-    pragma_disable_unused_but_set=yes
+    pragma_diagnostic_available=yes
 fi
 
 ########################################
@@ -3648,8 +3648,8 @@ if test "$linux_magic_h" = "yes" ; then
   echo "CONFIG_LINUX_MAGIC_H=y" >> $config_host_mak
 fi
 
-if test "$pragma_disable_unused_but_set" = "yes" ; then
-  echo "CONFIG_PRAGMA_DISABLE_UNUSED_BUT_SET=y" >> $config_host_mak
+if test "$pragma_diagnostic_available" = "yes" ; then
+  echo "CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE=y" >> $config_host_mak
 fi
 
 if test "$valgrind_h" = "yes" ; then
