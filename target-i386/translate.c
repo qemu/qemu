@@ -3837,11 +3837,13 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             reg = ((modrm >> 3) & 7) | rex_r;
             gen_op_mov_reg_T0(OT_LONG, reg);
             break;
+
         case 0x138:
-            if (s->prefix & PREFIX_REPNZ)
-                goto crc32;
         case 0x038:
             b = modrm;
+            if ((b & 0xf0) == 0xf0) {
+                goto do_0f_38_fx;
+            }
             modrm = cpu_ldub_code(env, s->pc++);
             rm = modrm & 7;
             reg = ((modrm >> 3) & 7) | rex_r;
@@ -3914,36 +3916,106 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 set_cc_op(s, CC_OP_EFLAGS);
             }
             break;
-        case 0x338: /* crc32 */
-        crc32:
-            b = modrm;
+
+        case 0x238:
+        case 0x338:
+        do_0f_38_fx:
+            /* Various integer extensions at 0f 38 f[0-f].  */
+            b = modrm | (b1 << 8);
             modrm = cpu_ldub_code(env, s->pc++);
             reg = ((modrm >> 3) & 7) | rex_r;
 
-            if (b != 0xf0 && b != 0xf1)
+            switch (b) {
+            case 0x3f0: /* crc32 Gd,Eb */
+            case 0x3f1: /* crc32 Gd,Ey */
+            do_crc32:
+                if (!(s->cpuid_ext_features & CPUID_EXT_SSE42)) {
+                    goto illegal_op;
+                }
+                if ((b & 0xff) == 0xf0) {
+                    ot = OT_BYTE;
+                } else if (s->dflag != 2) {
+                    ot = (s->prefix & PREFIX_DATA ? OT_WORD : OT_LONG);
+                } else {
+                    ot = OT_QUAD;
+                }
+
+                gen_op_mov_TN_reg(OT_LONG, 0, reg);
+                tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
+                gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                gen_helper_crc32(cpu_T[0], cpu_tmp2_i32,
+                                 cpu_T[0], tcg_const_i32(8 << ot));
+
+                ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
+                gen_op_mov_reg_T0(ot, reg);
+                break;
+
+            case 0x1f0: /* crc32 or movbe */
+            case 0x1f1:
+                /* For these insns, the f3 prefix is supposed to have priority
+                   over the 66 prefix, but that's not what we implement above
+                   setting b1.  */
+                if (s->prefix & PREFIX_REPNZ) {
+                    goto do_crc32;
+                }
+                /* FALLTHRU */
+            case 0x0f0: /* movbe Gy,My */
+            case 0x0f1: /* movbe My,Gy */
+                if (!(s->cpuid_ext_features & CPUID_EXT_MOVBE)) {
+                    goto illegal_op;
+                }
+                if (s->dflag != 2) {
+                    ot = (s->prefix & PREFIX_DATA ? OT_WORD : OT_LONG);
+                } else {
+                    ot = OT_QUAD;
+                }
+
+                /* Load the data incoming to the bswap.  Note that the TCG
+                   implementation of bswap requires the input be zero
+                   extended.  In the case of the loads, we simply know that
+                   gen_op_ld_v via gen_ldst_modrm does that already.  */
+                if ((b & 1) == 0) {
+                    gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                } else {
+                    switch (ot) {
+                    case OT_WORD:
+                        tcg_gen_ext16u_tl(cpu_T[0], cpu_regs[reg]);
+                        break;
+                    default:
+                        tcg_gen_ext32u_tl(cpu_T[0], cpu_regs[reg]);
+                        break;
+                    case OT_QUAD:
+                        tcg_gen_mov_tl(cpu_T[0], cpu_regs[reg]);
+                        break;
+                    }
+                }
+
+                switch (ot) {
+                case OT_WORD:
+                    tcg_gen_bswap16_tl(cpu_T[0], cpu_T[0]);
+                    break;
+                default:
+                    tcg_gen_bswap32_tl(cpu_T[0], cpu_T[0]);
+                    break;
+#ifdef TARGET_X86_64
+                case OT_QUAD:
+                    tcg_gen_bswap64_tl(cpu_T[0], cpu_T[0]);
+                    break;
+#endif
+                }
+
+                if ((b & 1) == 0) {
+                    gen_op_mov_reg_T0(ot, reg);
+                } else {
+                    gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
+                }
+                break;
+
+            default:
                 goto illegal_op;
-            if (!(s->cpuid_ext_features & CPUID_EXT_SSE42))
-                goto illegal_op;
-
-            if (b == 0xf0)
-                ot = OT_BYTE;
-            else if (b == 0xf1 && s->dflag != 2)
-                if (s->prefix & PREFIX_DATA)
-                    ot = OT_WORD;
-                else
-                    ot = OT_LONG;
-            else
-                ot = OT_QUAD;
-
-            gen_op_mov_TN_reg(OT_LONG, 0, reg);
-            tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
-            gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
-            gen_helper_crc32(cpu_T[0], cpu_tmp2_i32,
-                             cpu_T[0], tcg_const_i32(8 << ot));
-
-            ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
-            gen_op_mov_reg_T0(ot, reg);
+            }
             break;
+
         case 0x03a:
         case 0x13a:
             b = modrm;
