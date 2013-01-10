@@ -233,6 +233,11 @@ static void fuzz_registers(void)
         reg = (uint8_t)g_test_rand_int_range(0, 16);
         val = (uint8_t)g_test_rand_int_range(0, 256);
 
+        if (reg == 7) {
+            /* watchdog setup register, may trigger system reset, skip */
+            continue;
+        }
+
         cmos_write(reg, val);
         cmos_read(reg);
     }
