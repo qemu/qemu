@@ -951,9 +951,11 @@ static void interface_set_client_capabilities(QXLInstance *sin,
     }
 
     qxl->shadow_rom.client_present = client_present;
-    memcpy(qxl->shadow_rom.client_capabilities, caps, sizeof(caps));
+    memcpy(qxl->shadow_rom.client_capabilities, caps,
+           sizeof(qxl->shadow_rom.client_capabilities));
     qxl->rom->client_present = client_present;
-    memcpy(qxl->rom->client_capabilities, caps, sizeof(caps));
+    memcpy(qxl->rom->client_capabilities, caps,
+           sizeof(qxl->rom->client_capabilities));
     qxl_rom_set_dirty(qxl);
 
     qxl_send_events(qxl, QXL_INTERRUPT_CLIENT);
