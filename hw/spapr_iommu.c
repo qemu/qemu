@@ -17,10 +17,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "qdev.h"
 #include "kvm_ppc.h"
-#include "dma.h"
+#include "sysemu/dma.h"
+#include "exec/address-spaces.h"
 
 #include "hw/spapr.h"
 
@@ -42,6 +43,7 @@ struct sPAPRTCETable {
     uint32_t liobn;
     uint32_t window_size;
     sPAPRTCE *table;
+    bool bypass;
     int fd;
     QLIST_ENTRY(sPAPRTCETable) list;
 };
@@ -64,8 +66,8 @@ static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
 
 static int spapr_tce_translate(DMAContext *dma,
                                dma_addr_t addr,
-                               target_phys_addr_t *paddr,
-                               target_phys_addr_t *len,
+                               hwaddr *paddr,
+                               hwaddr *len,
                                DMADirection dir)
 {
     sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
@@ -77,6 +79,12 @@ static int spapr_tce_translate(DMAContext *dma,
     fprintf(stderr, "spapr_tce_translate liobn=0x%" PRIx32 " addr=0x"
             DMA_ADDR_FMT "\n", tcet->liobn, addr);
 #endif
+
+    if (tcet->bypass) {
+        *paddr = addr;
+        *len = (hwaddr)-1;
+        return 0;
+    }
 
     /* Check if we are in bound */
     if (addr >= tcet->window_size) {
@@ -112,12 +120,18 @@ DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size)
 {
     sPAPRTCETable *tcet;
 
+    if (spapr_tce_find_by_liobn(liobn)) {
+        fprintf(stderr, "Attempted to create TCE table with duplicate"
+                " LIOBN 0x%x\n", liobn);
+        return NULL;
+    }
+
     if (!window_size) {
         return NULL;
     }
 
     tcet = g_malloc0(sizeof(*tcet));
-    dma_context_init(&tcet->dma, spapr_tce_translate, NULL, NULL);
+    dma_context_init(&tcet->dma, &address_space_memory, spapr_tce_translate, NULL, NULL);
 
     tcet->liobn = liobn;
     tcet->window_size = window_size;
@@ -162,6 +176,23 @@ void spapr_tce_free(DMAContext *dma)
     }
 }
 
+void spapr_tce_set_bypass(DMAContext *dma, bool bypass)
+{
+    sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
+
+    tcet->bypass = bypass;
+}
+
+void spapr_tce_reset(DMAContext *dma)
+{
+    sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
+    size_t table_size = (tcet->window_size >> SPAPR_TCE_PAGE_SHIFT)
+        * sizeof(sPAPRTCE);
+
+    tcet->bypass = false;
+    memset(tcet->table, 0, table_size);
+}
+
 static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
                                 target_ulong tce)
 {
@@ -179,7 +210,7 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
     return H_SUCCESS;
 }
 
-static target_ulong h_put_tce(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                               target_ulong opcode, target_ulong *args)
 {
     target_ulong liobn = args[0];
@@ -216,31 +247,47 @@ void spapr_iommu_init(void)
 }
 
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
-                 DMAContext *dma)
+                 uint32_t liobn, uint64_t window, uint32_t size)
 {
-    if (dma) {
-        sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
-        uint32_t dma_prop[] = {cpu_to_be32(tcet->liobn),
-                               0, 0,
-                               0, cpu_to_be32(tcet->window_size)};
-        int ret;
+    uint32_t dma_prop[5];
+    int ret;
 
-        ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-address-cells", 2);
-        if (ret < 0) {
-            return ret;
-        }
+    dma_prop[0] = cpu_to_be32(liobn);
+    dma_prop[1] = cpu_to_be32(window >> 32);
+    dma_prop[2] = cpu_to_be32(window & 0xFFFFFFFF);
+    dma_prop[3] = 0; /* window size is 32 bits */
+    dma_prop[4] = cpu_to_be32(size);
 
-        ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-size-cells", 2);
-        if (ret < 0) {
-            return ret;
-        }
+    ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-address-cells", 2);
+    if (ret < 0) {
+        return ret;
+    }
 
-        ret = fdt_setprop(fdt, node_off, propname, dma_prop,
-                          sizeof(dma_prop));
-        if (ret < 0) {
-            return ret;
-        }
+    ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-size-cells", 2);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = fdt_setprop(fdt, node_off, propname, dma_prop, sizeof(dma_prop));
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
+}
+
+int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
+                      DMAContext *iommu)
+{
+    if (!iommu) {
+        return 0;
+    }
+
+    if (iommu->translate == spapr_tce_translate) {
+        sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, iommu);
+        return spapr_dma_dt(fdt, node_off, propname,
+                tcet->liobn, 0, tcet->window_size);
+    }
+
+    return -1;
 }

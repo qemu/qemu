@@ -26,9 +26,9 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define MAX_QREGS 32
 
@@ -102,9 +102,6 @@ typedef struct CPUM68KState {
     uint32_t mbar;
     uint32_t rambar0;
     uint32_t cacr;
-
-    /* ??? remove this.  */
-    uint32_t t1;
 
     int pending_vector;
     int pending_level;
@@ -245,7 +242,7 @@ static inline void cpu_clone_regs(CPUM68KState *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
@@ -257,12 +254,14 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
             | ((env->macsr >> 4) & 0xf);        /* Bits 0-3 */
 }
 
-static inline bool cpu_has_work(CPUM68KState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUM68KState *env = &M68K_CPU(cpu)->env;
+
     return env->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUM68KState *env, TranslationBlock *tb)
 {

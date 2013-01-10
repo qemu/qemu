@@ -21,7 +21,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "dma.h"
+#include "sysemu/dma.h"
 
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
 #define VIO_SPAPR_DEVICE(obj) \
@@ -60,9 +60,7 @@ typedef struct VIOsPAPRDeviceClass {
 struct VIOsPAPRDevice {
     DeviceState qdev;
     uint32_t reg;
-    uint32_t flags;
-    qemu_irq qirq;
-    uint32_t vio_irq_num;
+    uint32_t irq;
     target_ulong signal_state;
     VIOsPAPR_CRQ crq;
     DMAContext *dma;
@@ -84,6 +82,11 @@ extern int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt);
 extern int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus);
 
 extern int spapr_vio_signal(VIOsPAPRDevice *dev, target_ulong mode);
+
+static inline qemu_irq spapr_vio_qirq(VIOsPAPRDevice *dev)
+{
+    return xics_get_qirq(spapr->icp, dev->irq);
+}
 
 static inline bool spapr_vio_dma_valid(VIOsPAPRDevice *dev, uint64_t taddr,
                                        uint32_t size, DMADirection dir)
@@ -128,7 +131,6 @@ void spapr_vscsi_create(VIOsPAPRBus *bus);
 
 VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus);
 
-int spapr_tce_set_bypass(uint32_t unit, uint32_t enable);
 void spapr_vio_quiesce(void);
 
 #endif /* _HW_SPAPR_VIO_H */

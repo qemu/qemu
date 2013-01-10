@@ -36,7 +36,7 @@
 027 rw auto quick
 028 rw backing auto
 029 rw auto quick
-030 rw auto
+030 rw auto backing
 031 rw auto quick
 032 rw auto
 033 rw auto
@@ -46,3 +46,10 @@
 037 rw auto backing
 038 rw auto backing
 039 rw auto
+040 rw auto
+041 rw auto backing
+042 rw auto quick
+043 rw auto backing
+044 rw auto
+045 rw auto
+046 rw auto aio

@@ -7,7 +7,7 @@
  */
 #include "hw.h"
 #include "mcf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 typedef struct {
     MemoryRegion iomem;
@@ -43,7 +43,7 @@ static void mcf_intc_update(mcf_intc_state *s)
     m68k_set_irq_level(s->env, best_level, s->active_vector);
 }
 
-static uint64_t mcf_intc_read(void *opaque, target_phys_addr_t addr,
+static uint64_t mcf_intc_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     int offset;
@@ -76,7 +76,7 @@ static uint64_t mcf_intc_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void mcf_intc_write(void *opaque, target_phys_addr_t addr,
+static void mcf_intc_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     int offset;
@@ -138,7 +138,7 @@ static const MemoryRegionOps mcf_intc_ops = {
 };
 
 qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
-                        target_phys_addr_t base,
+                        hwaddr base,
                         CPUM68KState *env)
 {
     mcf_intc_state *s;

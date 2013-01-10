@@ -26,7 +26,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 struct CPULM32State;
 typedef struct CPULM32State CPULM32State;
 
@@ -238,7 +238,7 @@ static inline int cpu_interrupts_enabled(CPULM32State *env)
     return env->ie & IE_IE;
 }
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 static inline target_ulong cpu_get_pc(CPULM32State *env)
 {
@@ -253,12 +253,14 @@ static inline void cpu_get_tb_cpu_state(CPULM32State *env, target_ulong *pc,
     *flags = 0;
 }
 
-static inline bool cpu_has_work(CPULM32State *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPULM32State *env = &LM32_CPU(cpu)->env;
+
     return env->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPULM32State *env, TranslationBlock *tb)
 {

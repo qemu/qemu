@@ -12,14 +12,14 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
-#include "memory_mapping.h"
+#include "exec/cpu-all.h"
+#include "sysemu/memory_mapping.h"
 
 /* PAE Paging or IA-32e Paging */
-static void walk_pte(MemoryMappingList *list, target_phys_addr_t pte_start_addr,
+static void walk_pte(MemoryMappingList *list, hwaddr pte_start_addr,
                      int32_t a20_mask, target_ulong start_line_addr)
 {
-    target_phys_addr_t pte_addr, start_paddr;
+    hwaddr pte_addr, start_paddr;
     uint64_t pte;
     target_ulong start_vaddr;
     int i;
@@ -46,10 +46,10 @@ static void walk_pte(MemoryMappingList *list, target_phys_addr_t pte_start_addr,
 
 /* 32-bit Paging */
 static void walk_pte2(MemoryMappingList *list,
-                      target_phys_addr_t pte_start_addr, int32_t a20_mask,
+                      hwaddr pte_start_addr, int32_t a20_mask,
                       target_ulong start_line_addr)
 {
-    target_phys_addr_t pte_addr, start_paddr;
+    hwaddr pte_addr, start_paddr;
     uint32_t pte;
     target_ulong start_vaddr;
     int i;
@@ -75,10 +75,10 @@ static void walk_pte2(MemoryMappingList *list,
 }
 
 /* PAE Paging or IA-32e Paging */
-static void walk_pde(MemoryMappingList *list, target_phys_addr_t pde_start_addr,
+static void walk_pde(MemoryMappingList *list, hwaddr pde_start_addr,
                      int32_t a20_mask, target_ulong start_line_addr)
 {
-    target_phys_addr_t pde_addr, pte_start_addr, start_paddr;
+    hwaddr pde_addr, pte_start_addr, start_paddr;
     uint64_t pde;
     target_ulong line_addr, start_vaddr;
     int i;
@@ -112,10 +112,10 @@ static void walk_pde(MemoryMappingList *list, target_phys_addr_t pde_start_addr,
 
 /* 32-bit Paging */
 static void walk_pde2(MemoryMappingList *list,
-                      target_phys_addr_t pde_start_addr, int32_t a20_mask,
+                      hwaddr pde_start_addr, int32_t a20_mask,
                       bool pse)
 {
-    target_phys_addr_t pde_addr, pte_start_addr, start_paddr;
+    hwaddr pde_addr, pte_start_addr, start_paddr;
     uint32_t pde;
     target_ulong line_addr, start_vaddr;
     int i;
@@ -149,9 +149,9 @@ static void walk_pde2(MemoryMappingList *list,
 
 /* PAE Paging */
 static void walk_pdpe2(MemoryMappingList *list,
-                       target_phys_addr_t pdpe_start_addr, int32_t a20_mask)
+                       hwaddr pdpe_start_addr, int32_t a20_mask)
 {
-    target_phys_addr_t pdpe_addr, pde_start_addr;
+    hwaddr pdpe_addr, pde_start_addr;
     uint64_t pdpe;
     target_ulong line_addr;
     int i;
@@ -173,10 +173,10 @@ static void walk_pdpe2(MemoryMappingList *list,
 #ifdef TARGET_X86_64
 /* IA-32e Paging */
 static void walk_pdpe(MemoryMappingList *list,
-                      target_phys_addr_t pdpe_start_addr, int32_t a20_mask,
+                      hwaddr pdpe_start_addr, int32_t a20_mask,
                       target_ulong start_line_addr)
 {
-    target_phys_addr_t pdpe_addr, pde_start_addr, start_paddr;
+    hwaddr pdpe_addr, pde_start_addr, start_paddr;
     uint64_t pdpe;
     target_ulong line_addr, start_vaddr;
     int i;
@@ -210,9 +210,9 @@ static void walk_pdpe(MemoryMappingList *list,
 
 /* IA-32e Paging */
 static void walk_pml4e(MemoryMappingList *list,
-                       target_phys_addr_t pml4e_start_addr, int32_t a20_mask)
+                       hwaddr pml4e_start_addr, int32_t a20_mask)
 {
-    target_phys_addr_t pml4e_addr, pdpe_start_addr;
+    hwaddr pml4e_addr, pdpe_start_addr;
     uint64_t pml4e;
     target_ulong line_addr;
     int i;
@@ -242,20 +242,20 @@ int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env)
     if (env->cr[4] & CR4_PAE_MASK) {
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
-            target_phys_addr_t pml4e_addr;
+            hwaddr pml4e_addr;
 
             pml4e_addr = (env->cr[3] & ~0xfff) & env->a20_mask;
             walk_pml4e(list, pml4e_addr, env->a20_mask);
         } else
 #endif
         {
-            target_phys_addr_t pdpe_addr;
+            hwaddr pdpe_addr;
 
             pdpe_addr = (env->cr[3] & ~0x1f) & env->a20_mask;
             walk_pdpe2(list, pdpe_addr, env->a20_mask);
         }
     } else {
-        target_phys_addr_t pde_addr;
+        hwaddr pde_addr;
         bool pse;
 
         pde_addr = (env->cr[3] & ~0xfff) & env->a20_mask;

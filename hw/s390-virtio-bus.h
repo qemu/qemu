@@ -16,9 +16,12 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef HW_S390_VIRTIO_BUS_H
+#define HW_S390_VIRTIO_BUS_H 1
 
 #include "virtio-blk.h"
 #include "virtio-net.h"
+#include "virtio-rng.h"
 #include "virtio-serial.h"
 #include "virtio-scsi.h"
 
@@ -75,6 +78,7 @@ struct VirtIOS390Device {
     virtio_serial_conf serial;
     virtio_net_conf net;
     VirtIOSCSIConf scsi;
+    VirtIORNGConf rng;
 };
 
 typedef struct VirtIOS390Bus {
@@ -98,3 +102,5 @@ VirtIOS390Device *s390_virtio_bus_find_mem(VirtIOS390Bus *bus, ram_addr_t mem);
 void s390_virtio_device_sync(VirtIOS390Device *dev);
 void s390_virtio_reset_idx(VirtIOS390Device *dev);
 
+
+#endif

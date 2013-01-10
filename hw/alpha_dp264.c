@@ -11,10 +11,11 @@
 #include "loader.h"
 #include "boards.h"
 #include "alpha_sys.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "mc146818rtc.h"
 #include "ide.h"
 #include "i8254.h"
+#include "serial.h"
 
 #define MAX_IDE_BUS 2
 
@@ -42,14 +43,14 @@ static int clipper_pci_map_irq(PCIDevice *d, int irq_num)
     return (slot + 1) * 4 + irq_num;
 }
 
-static void clipper_init(ram_addr_t ram_size,
-                         const char *boot_device,
-                         const char *kernel_filename,
-                         const char *kernel_cmdline,
-                         const char *initrd_filename,
-                         const char *cpu_model)
+static void clipper_init(QEMUMachineInitArgs *args)
 {
-    CPUAlphaState *cpus[4];
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    AlphaCPU *cpus[4];
     PCIBus *pci_bus;
     ISABus *isa_bus;
     qemu_irq rtc_irq;
@@ -61,12 +62,12 @@ static void clipper_init(ram_addr_t ram_size,
     /* Create up to 4 cpus.  */
     memset(cpus, 0, sizeof(cpus));
     for (i = 0; i < smp_cpus; ++i) {
-        cpus[i] = cpu_init(cpu_model ? cpu_model : "ev67");
+        cpus[i] = cpu_alpha_init(cpu_model ? cpu_model : "ev67");
     }
 
-    cpus[0]->trap_arg0 = ram_size;
-    cpus[0]->trap_arg1 = 0;
-    cpus[0]->trap_arg2 = smp_cpus;
+    cpus[0]->env.trap_arg0 = ram_size;
+    cpus[0]->env.trap_arg1 = 0;
+    cpus[0]->env.trap_arg2 = smp_cpus;
 
     /* Init the chipset.  */
     pci_bus = typhoon_init(ram_size, &isa_bus, &rtc_irq, cpus,
@@ -77,7 +78,7 @@ static void clipper_init(ram_addr_t ram_size,
     isa_create_simple(isa_bus, "i8042");
 
     /* VGA setup.  Don't bother loading the bios.  */
-    alpha_pci_vga_setup(pci_bus);
+    pci_vga_init(pci_bus);
 
     /* Serial code setup.  */
     for (i = 0; i < MAX_SERIAL_PORTS; ++i) {
@@ -118,9 +119,9 @@ static void clipper_init(ram_addr_t ram_size,
 
     /* Start all cpus at the PALcode RESET entry point.  */
     for (i = 0; i < smp_cpus; ++i) {
-        cpus[i]->pal_mode = 1;
-        cpus[i]->pc = palcode_entry;
-        cpus[i]->palbr = palcode_entry;
+        cpus[i]->env.pal_mode = 1;
+        cpus[i]->env.pc = palcode_entry;
+        cpus[i]->env.palbr = palcode_entry;
     }
 
     /* Load a kernel.  */
@@ -135,7 +136,7 @@ static void clipper_init(ram_addr_t ram_size,
             exit(1);
         }
 
-        cpus[0]->trap_arg1 = kernel_entry;
+        cpus[0]->env.trap_arg1 = kernel_entry;
 
         param_offset = kernel_low - 0x6000;
 

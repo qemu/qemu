@@ -1,14 +1,14 @@
 #include "cpu.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "helper.h"
-#include "host-utils.h"
-#include "sysemu.h"
-#include "bitops.h"
+#include "qemu/host-utils.h"
+#include "sysemu/sysemu.h"
+#include "qemu/bitops.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline int get_phys_addr(CPUARMState *env, uint32_t address,
                                 int access_type, int is_user,
-                                target_phys_addr_t *phys_ptr, int *prot,
+                                hwaddr *phys_ptr, int *prot,
                                 target_ulong *page_size);
 #endif
 
@@ -517,7 +517,7 @@ static inline bool extended_addresses_enabled(CPUARMState *env)
 
 static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
     target_ulong page_size;
     int prot;
     int ret, is_user = ri->opc2 & 2;
@@ -645,7 +645,7 @@ static int pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
 static int arm946_prbs_read(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t *value)
 {
-    if (ri->crm > 8) {
+    if (ri->crm >= 8) {
         return EXCP_UDEF;
     }
     *value = env->cp15.c6_region[ri->crm];
@@ -655,7 +655,7 @@ static int arm946_prbs_read(CPUARMState *env, const ARMCPRegInfo *ri,
 static int arm946_prbs_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
-    if (ri->crm > 8) {
+    if (ri->crm >= 8) {
         return EXCP_UDEF;
     }
     env->cp15.c6_region[ri->crm] = value;
@@ -1291,11 +1291,6 @@ ARMCPU *cpu_arm_init(const char *cpu_model)
     return cpu;
 }
 
-typedef struct ARMCPUListState {
-    fprintf_function cpu_fprintf;
-    FILE *file;
-} ARMCPUListState;
-
 /* Sort alphabetically by type name, except for "any". */
 static gint arm_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
@@ -1317,7 +1312,7 @@ static gint arm_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void arm_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
-    ARMCPUListState *s = user_data;
+    CPUListState *s = user_data;
 
     (*s->cpu_fprintf)(s->file, "  %s\n",
                       object_class_get_name(oc));
@@ -1325,7 +1320,7 @@ static void arm_cpu_list_entry(gpointer data, gpointer user_data)
 
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    ARMCPUListState s = {
+    CPUListState s = {
         .file = f,
         .cpu_fprintf = cpu_fprintf,
     };
@@ -1562,11 +1557,6 @@ uint32_t HELPER(rbit)(uint32_t x)
     return x;
 }
 
-uint32_t HELPER(abs)(uint32_t x)
-{
-    return ((int32_t)x < 0) ? -x : x;
-}
-
 #if defined(CONFIG_USER_ONLY)
 
 void do_interrupt (CPUARMState *env)
@@ -1756,7 +1746,7 @@ static void do_interrupt_v7m(CPUARMState *env)
     case EXCP_BKPT:
         if (semihosting_enabled) {
             int nr;
-            nr = arm_lduw_code(env->regs[15], env->bswap_code) & 0xff;
+            nr = arm_lduw_code(env, env->regs[15], env->bswap_code) & 0xff;
             if (nr == 0xab) {
                 env->regs[15] += 2;
                 env->regs[0] = do_arm_semihosting(env);
@@ -1828,9 +1818,10 @@ void do_interrupt(CPUARMState *env)
         if (semihosting_enabled) {
             /* Check for semihosting interrupt.  */
             if (env->thumb) {
-                mask = arm_lduw_code(env->regs[15] - 2, env->bswap_code) & 0xff;
+                mask = arm_lduw_code(env, env->regs[15] - 2, env->bswap_code)
+                    & 0xff;
             } else {
-                mask = arm_ldl_code(env->regs[15] - 4, env->bswap_code)
+                mask = arm_ldl_code(env, env->regs[15] - 4, env->bswap_code)
                     & 0xffffff;
             }
             /* Only intercept calls from privileged modes, to provide some
@@ -1851,7 +1842,7 @@ void do_interrupt(CPUARMState *env)
     case EXCP_BKPT:
         /* See if this is a semihosting syscall.  */
         if (env->thumb && semihosting_enabled) {
-            mask = arm_lduw_code(env->regs[15], env->bswap_code) & 0xff;
+            mask = arm_lduw_code(env, env->regs[15], env->bswap_code) & 0xff;
             if (mask == 0xab
                   && (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {
                 env->regs[15] += 2;
@@ -1979,7 +1970,7 @@ static uint32_t get_level1_table_address(CPUARMState *env, uint32_t address)
 }
 
 static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
-                            int is_user, target_phys_addr_t *phys_ptr,
+                            int is_user, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
     int code;
@@ -1989,7 +1980,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
     int ap;
     int domain;
     int domain_prot;
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
@@ -2074,7 +2065,7 @@ do_fault:
 }
 
 static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
-                            int is_user, target_phys_addr_t *phys_ptr,
+                            int is_user, hwaddr *phys_ptr,
                             int *prot, target_ulong *page_size)
 {
     int code;
@@ -2086,7 +2077,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
     int ap;
     int domain = 0;
     int domain_prot;
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
@@ -2196,7 +2187,7 @@ typedef enum {
 
 static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
                               int access_type, int is_user,
-                              target_phys_addr_t *phys_ptr, int *prot,
+                              hwaddr *phys_ptr, int *prot,
                               target_ulong *page_size_ptr)
 {
     /* Read an LPAE long-descriptor translation table. */
@@ -2207,7 +2198,7 @@ static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
     uint64_t ttbr;
     int ttbr_select;
     int n;
-    target_phys_addr_t descaddr;
+    hwaddr descaddr;
     uint32_t tableattrs;
     target_ulong page_size;
     uint32_t attrs;
@@ -2365,7 +2356,7 @@ do_fault:
 
 static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
                              int access_type, int is_user,
-                             target_phys_addr_t *phys_ptr, int *prot)
+                             hwaddr *phys_ptr, int *prot)
 {
     int n;
     uint32_t mask;
@@ -2449,7 +2440,7 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
  */
 static inline int get_phys_addr(CPUARMState *env, uint32_t address,
                                 int access_type, int is_user,
-                                target_phys_addr_t *phys_ptr, int *prot,
+                                hwaddr *phys_ptr, int *prot,
                                 target_ulong *page_size)
 {
     /* Fast Context Switch Extension.  */
@@ -2481,7 +2472,7 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
 int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
                               int access_type, int mmu_idx)
 {
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
     target_ulong page_size;
     int prot;
     int ret, is_user;
@@ -2491,7 +2482,7 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
                         &page_size);
     if (ret == 0) {
         /* Map a single [sub]page.  */
-        phys_addr &= ~(target_phys_addr_t)0x3ff;
+        phys_addr &= ~(hwaddr)0x3ff;
         address &= ~(uint32_t)0x3ff;
         tlb_set_page (env, address, phys_addr, prot, mmu_idx, page_size);
         return 0;
@@ -2511,9 +2502,9 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
 {
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
     target_ulong page_size;
     int prot;
     int ret;

@@ -24,9 +24,9 @@
 
 #include "config-host.h"
 #include "qemu-common.h"
-#include "qemu-char.h"
-#include "qemu-queue.h"
-#include "main-loop.h"
+#include "qemu/queue.h"
+#include "block/aio.h"
+#include "qemu/main-loop.h"
 
 #ifndef _WIN32
 #include <sys/wait.h>
@@ -56,6 +56,8 @@ int qemu_set_fd_handler2(int fd,
 {
     IOHandlerRecord *ioh;
 
+    assert(fd >= 0);
+
     if (!fd_read && !fd_write) {
         QLIST_FOREACH(ioh, &io_handlers, next) {
             if (ioh->fd == fd) {
@@ -77,6 +79,7 @@ int qemu_set_fd_handler2(int fd,
         ioh->fd_write = fd_write;
         ioh->opaque = opaque;
         ioh->deleted = 0;
+        qemu_notify_event();
     }
     return 0;
 }

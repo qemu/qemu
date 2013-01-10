@@ -1,5 +1,5 @@
-#ifndef _LINUX_VIRTIO_CONFIG_H
-#define _LINUX_VIRTIO_CONFIG_H
+#ifndef _UAPI_LINUX_VIRTIO_CONFIG_H
+#define _UAPI_LINUX_VIRTIO_CONFIG_H
 /* This header, excluding the #ifdef __KERNEL__ part, is BSD licensed so
  * anyone can use the definitions to implement compatible drivers/servers.
  *
@@ -51,4 +51,4 @@
  * suppressed them? */
 #define VIRTIO_F_NOTIFY_ON_EMPTY	24
 
-#endif /* _LINUX_VIRTIO_CONFIG_H */
+#endif /* _UAPI_LINUX_VIRTIO_CONFIG_H */

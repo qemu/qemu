@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
 #include "trace.h"
 
@@ -107,7 +107,7 @@ static void slavio_set_power_fail(void *opaque, int irq, int power_failing)
     slavio_misc_update_irq(s);
 }
 
-static void slavio_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
+static void slavio_cfg_mem_writeb(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
@@ -117,7 +117,7 @@ static void slavio_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
     slavio_misc_update_irq(s);
 }
 
-static uint64_t slavio_cfg_mem_readb(void *opaque, target_phys_addr_t addr,
+static uint64_t slavio_cfg_mem_readb(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     MiscState *s = opaque;
@@ -138,7 +138,7 @@ static const MemoryRegionOps slavio_cfg_mem_ops = {
     },
 };
 
-static void slavio_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
+static void slavio_diag_mem_writeb(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
@@ -147,7 +147,7 @@ static void slavio_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
     s->diag = val & 0xff;
 }
 
-static uint64_t slavio_diag_mem_readb(void *opaque, target_phys_addr_t addr,
+static uint64_t slavio_diag_mem_readb(void *opaque, hwaddr addr,
                                       unsigned size)
 {
     MiscState *s = opaque;
@@ -168,7 +168,7 @@ static const MemoryRegionOps slavio_diag_mem_ops = {
     },
 };
 
-static void slavio_mdm_mem_writeb(void *opaque, target_phys_addr_t addr,
+static void slavio_mdm_mem_writeb(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
@@ -177,7 +177,7 @@ static void slavio_mdm_mem_writeb(void *opaque, target_phys_addr_t addr,
     s->mctrl = val & 0xff;
 }
 
-static uint64_t slavio_mdm_mem_readb(void *opaque, target_phys_addr_t addr,
+static uint64_t slavio_mdm_mem_readb(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     MiscState *s = opaque;
@@ -198,7 +198,7 @@ static const MemoryRegionOps slavio_mdm_mem_ops = {
     },
 };
 
-static void slavio_aux1_mem_writeb(void *opaque, target_phys_addr_t addr,
+static void slavio_aux1_mem_writeb(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
@@ -215,7 +215,7 @@ static void slavio_aux1_mem_writeb(void *opaque, target_phys_addr_t addr,
     s->aux1 = val & 0xff;
 }
 
-static uint64_t slavio_aux1_mem_readb(void *opaque, target_phys_addr_t addr,
+static uint64_t slavio_aux1_mem_readb(void *opaque, hwaddr addr,
                                       unsigned size)
 {
     MiscState *s = opaque;
@@ -236,7 +236,7 @@ static const MemoryRegionOps slavio_aux1_mem_ops = {
     },
 };
 
-static void slavio_aux2_mem_writeb(void *opaque, target_phys_addr_t addr,
+static void slavio_aux2_mem_writeb(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
@@ -252,7 +252,7 @@ static void slavio_aux2_mem_writeb(void *opaque, target_phys_addr_t addr,
     slavio_misc_update_irq(s);
 }
 
-static uint64_t slavio_aux2_mem_readb(void *opaque, target_phys_addr_t addr,
+static uint64_t slavio_aux2_mem_readb(void *opaque, hwaddr addr,
                                       unsigned size)
 {
     MiscState *s = opaque;
@@ -273,7 +273,7 @@ static const MemoryRegionOps slavio_aux2_mem_ops = {
     },
 };
 
-static void apc_mem_writeb(void *opaque, target_phys_addr_t addr,
+static void apc_mem_writeb(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     APCState *s = opaque;
@@ -282,7 +282,7 @@ static void apc_mem_writeb(void *opaque, target_phys_addr_t addr,
     qemu_irq_raise(s->cpu_halt);
 }
 
-static uint64_t apc_mem_readb(void *opaque, target_phys_addr_t addr,
+static uint64_t apc_mem_readb(void *opaque, hwaddr addr,
                               unsigned size)
 {
     uint32_t ret = 0;
@@ -301,7 +301,7 @@ static const MemoryRegionOps apc_mem_ops = {
     }
 };
 
-static uint64_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr,
+static uint64_t slavio_sysctrl_mem_readl(void *opaque, hwaddr addr,
                                          unsigned size)
 {
     MiscState *s = opaque;
@@ -318,7 +318,7 @@ static uint64_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
+static void slavio_sysctrl_mem_writel(void *opaque, hwaddr addr,
                                       uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
@@ -346,7 +346,7 @@ static const MemoryRegionOps slavio_sysctrl_mem_ops = {
     },
 };
 
-static uint64_t slavio_led_mem_readw(void *opaque, target_phys_addr_t addr,
+static uint64_t slavio_led_mem_readw(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     MiscState *s = opaque;
@@ -363,7 +363,7 @@ static uint64_t slavio_led_mem_readw(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void slavio_led_mem_writew(void *opaque, target_phys_addr_t addr,
+static void slavio_led_mem_writew(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
     MiscState *s = opaque;

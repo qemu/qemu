@@ -24,10 +24,10 @@
  */
 #include <hw/hw.h>
 #include <hw/pc.h>
-#include <hw/pci.h>
+#include <hw/pci/pci.h>
 #include <hw/isa.h>
-#include "block.h"
-#include "dma.h"
+#include "block/block.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/pci.h>
 
@@ -188,7 +188,7 @@ static void bmdma_restart_bh(void *opaque)
 {
     BMDMAState *bm = opaque;
     IDEBus *bus = bm->bus;
-    int is_read;
+    bool is_read;
     int error_status;
 
     qemu_bh_delete(bm->bh);
@@ -198,7 +198,7 @@ static void bmdma_restart_bh(void *opaque)
         return;
     }
 
-    is_read = !!(bus->error_status & BM_STATUS_RETRY_READ);
+    is_read = (bus->error_status & BM_STATUS_RETRY_READ) != 0;
 
     /* The error status must be cleared before resubmitting the request: The
      * request may fail again, and this case can only be distinguished if the
@@ -327,7 +327,7 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
     bm->cmd = val & 0x09;
 }
 
-static uint64_t bmdma_addr_read(void *opaque, target_phys_addr_t addr,
+static uint64_t bmdma_addr_read(void *opaque, hwaddr addr,
                                 unsigned width)
 {
     BMDMAState *bm = opaque;
@@ -341,7 +341,7 @@ static uint64_t bmdma_addr_read(void *opaque, target_phys_addr_t addr,
     return data;
 }
 
-static void bmdma_addr_write(void *opaque, target_phys_addr_t addr,
+static void bmdma_addr_write(void *opaque, hwaddr addr,
                              uint64_t data, unsigned width)
 {
     BMDMAState *bm = opaque;

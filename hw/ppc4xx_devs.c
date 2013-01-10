@@ -24,8 +24,8 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppc4xx.h"
-#include "qemu-log.h"
-#include "exec-memory.h"
+#include "qemu/log.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_MMIO
 //#define DEBUG_UNASSIGNED
@@ -47,9 +47,9 @@ static void ppc4xx_reset(void *opaque)
 
 /*****************************************************************************/
 /* Generic PowerPC 4xx processor instantiation */
-CPUPPCState *ppc4xx_init (const char *cpu_model,
-                       clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
-                       uint32_t sysclk)
+PowerPCCPU *ppc4xx_init(const char *cpu_model,
+                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
+                        uint32_t sysclk)
 {
     PowerPCCPU *cpu;
     CPUPPCState *env;
@@ -72,7 +72,7 @@ CPUPPCState *ppc4xx_init (const char *cpu_model,
     /* Register qemu callbacks */
     qemu_register_reset(ppc4xx_reset, cpu);
 
-    return env;
+    return cpu;
 }
 
 /*****************************************************************************/
@@ -326,8 +326,8 @@ struct ppc4xx_sdram_t {
     int nbanks;
     MemoryRegion containers[4]; /* used for clipping */
     MemoryRegion *ram_memories;
-    target_phys_addr_t ram_bases[4];
-    target_phys_addr_t ram_sizes[4];
+    hwaddr ram_bases[4];
+    hwaddr ram_sizes[4];
     uint32_t besr0;
     uint32_t besr1;
     uint32_t bear;
@@ -348,11 +348,11 @@ enum {
 };
 
 /* XXX: TOFIX: some patches have made this code become inconsistent:
- *      there are type inconsistencies, mixing target_phys_addr_t, target_ulong
+ *      there are type inconsistencies, mixing hwaddr, target_ulong
  *      and uint32_t
  */
-static uint32_t sdram_bcr (target_phys_addr_t ram_base,
-                           target_phys_addr_t ram_size)
+static uint32_t sdram_bcr (hwaddr ram_base,
+                           hwaddr ram_size)
 {
     uint32_t bcr;
 
@@ -389,7 +389,7 @@ static uint32_t sdram_bcr (target_phys_addr_t ram_base,
     return bcr;
 }
 
-static inline target_phys_addr_t sdram_base(uint32_t bcr)
+static inline hwaddr sdram_base(uint32_t bcr)
 {
     return bcr & 0xFF800000;
 }
@@ -646,8 +646,8 @@ static void sdram_reset (void *opaque)
 
 void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
                         MemoryRegion *ram_memories,
-                        target_phys_addr_t *ram_bases,
-                        target_phys_addr_t *ram_sizes,
+                        hwaddr *ram_bases,
+                        hwaddr *ram_sizes,
                         int do_init)
 {
     ppc4xx_sdram_t *sdram;
@@ -656,12 +656,12 @@ void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
     sdram->irq = irq;
     sdram->nbanks = nbanks;
     sdram->ram_memories = ram_memories;
-    memset(sdram->ram_bases, 0, 4 * sizeof(target_phys_addr_t));
+    memset(sdram->ram_bases, 0, 4 * sizeof(hwaddr));
     memcpy(sdram->ram_bases, ram_bases,
-           nbanks * sizeof(target_phys_addr_t));
-    memset(sdram->ram_sizes, 0, 4 * sizeof(target_phys_addr_t));
+           nbanks * sizeof(hwaddr));
+    memset(sdram->ram_sizes, 0, 4 * sizeof(hwaddr));
     memcpy(sdram->ram_sizes, ram_sizes,
-           nbanks * sizeof(target_phys_addr_t));
+           nbanks * sizeof(hwaddr));
     qemu_register_reset(&sdram_reset, sdram);
     ppc_dcr_register(env, SDRAM0_CFGADDR,
                      sdram, &dcr_read_sdram, &dcr_write_sdram);
@@ -680,8 +680,8 @@ void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
  * sizes varies by SoC. */
 ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
                                MemoryRegion ram_memories[],
-                               target_phys_addr_t ram_bases[],
-                               target_phys_addr_t ram_sizes[],
+                               hwaddr ram_bases[],
+                               hwaddr ram_sizes[],
                                const unsigned int sdram_bank_sizes[])
 {
     ram_addr_t size_left = ram_size;

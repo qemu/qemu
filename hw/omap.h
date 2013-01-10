@@ -17,8 +17,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef hw_omap_h
-#include "memory.h"
+#include "exec/memory.h"
 # define hw_omap_h		"omap.h"
+#include "hw/irq.h"
 
 # define OMAP_EMIFS_BASE	0x00000000
 # define OMAP2_Q0_BASE		0x00000000
@@ -65,7 +66,7 @@ void omap_clk_reparent(omap_clk clk, omap_clk parent);
 /* OMAP2 l4 Interconnect */
 struct omap_l4_s;
 struct omap_l4_region_s {
-    target_phys_addr_t offset;
+    hwaddr offset;
     size_t size;
     int access;
 };
@@ -80,13 +81,13 @@ struct omap_target_agent_s {
     struct omap_l4_s *bus;
     int regions;
     const struct omap_l4_region_s *start;
-    target_phys_addr_t base;
+    hwaddr base;
     uint32_t component;
     uint32_t control;
     uint32_t status;
 };
 struct omap_l4_s *omap_l4_init(MemoryRegion *address_space,
-                               target_phys_addr_t base, int ta_num);
+                               hwaddr base, int ta_num);
 
 struct omap_target_agent_s;
 struct omap_target_agent_s *omap_l4ta_get(
@@ -94,23 +95,23 @@ struct omap_target_agent_s *omap_l4ta_get(
     const struct omap_l4_region_s *regions,
     const struct omap_l4_agent_info_s *agents,
     int cs);
-target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta,
+hwaddr omap_l4_attach(struct omap_target_agent_s *ta,
                                          int region, MemoryRegion *mr);
-target_phys_addr_t omap_l4_region_base(struct omap_target_agent_s *ta,
+hwaddr omap_l4_region_base(struct omap_target_agent_s *ta,
                                        int region);
-target_phys_addr_t omap_l4_region_size(struct omap_target_agent_s *ta,
+hwaddr omap_l4_region_size(struct omap_target_agent_s *ta,
                                        int region);
 
 /* OMAP2 SDRAM controller */
 struct omap_sdrc_s;
 struct omap_sdrc_s *omap_sdrc_init(MemoryRegion *sysmem,
-                                   target_phys_addr_t base);
+                                   hwaddr base);
 void omap_sdrc_reset(struct omap_sdrc_s *s);
 
 /* OMAP2 general purpose memory controller */
 struct omap_gpmc_s;
 struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
-                                   target_phys_addr_t base,
+                                   hwaddr base,
                                    qemu_irq irq, qemu_irq drq);
 void omap_gpmc_reset(struct omap_gpmc_s *s);
 void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem);
@@ -433,11 +434,11 @@ enum omap_dma_model {
 };
 
 struct soc_dma_s;
-struct soc_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
+struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
                 MemoryRegion *sysmem,
                 qemu_irq lcd_irq, struct omap_mpu_state_s *mpu, omap_clk clk,
                 enum omap_dma_model model);
-struct soc_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
+struct soc_dma_s *omap_dma4_init(hwaddr base, qemu_irq *irqs,
                 MemoryRegion *sysmem,
                 struct omap_mpu_state_s *mpu, int fifo,
                 int chans, omap_clk iclk, omap_clk fclk);
@@ -469,10 +470,10 @@ typedef enum {
 /* Only used in OMAP DMA 3.x gigacells */
 struct omap_dma_lcd_channel_s {
     enum omap_dma_port src;
-    target_phys_addr_t src_f1_top;
-    target_phys_addr_t src_f1_bottom;
-    target_phys_addr_t src_f2_top;
-    target_phys_addr_t src_f2_bottom;
+    hwaddr src_f1_top;
+    hwaddr src_f1_bottom;
+    hwaddr src_f2_top;
+    hwaddr src_f2_bottom;
 
     /* Used in OMAP DMA 3.2 gigacell */
     unsigned char brust_f1;
@@ -508,7 +509,7 @@ struct omap_dma_lcd_channel_s {
     int dual;
 
     int current_frame;
-    target_phys_addr_t phys_framebuffer[2];
+    hwaddr phys_framebuffer[2];
     qemu_irq irq;
     struct omap_mpu_state_s *mpu;
 } *omap_dma_get_lcdch(struct soc_dma_s *s);
@@ -659,7 +660,7 @@ struct omap_synctimer_s *omap_synctimer_init(struct omap_target_agent_s *ta,
 void omap_synctimer_reset(struct omap_synctimer_s *s);
 
 struct omap_uart_s;
-struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
+struct omap_uart_s *omap_uart_init(hwaddr base,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
                 qemu_irq txdma, qemu_irq rxdma,
                 const char *label, CharDriverState *chr);
@@ -728,7 +729,7 @@ void omap_tap_init(struct omap_target_agent_s *ta,
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
 struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
-                                        target_phys_addr_t base,
+                                        hwaddr base,
                                         qemu_irq irq,
                                         struct omap_dma_lcd_channel_s *dma,
                                         omap_clk clk);
@@ -744,7 +745,7 @@ struct omap_dss_s;
 void omap_dss_reset(struct omap_dss_s *s);
 struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
                 MemoryRegion *sysmem,
-                target_phys_addr_t l3_base,
+                hwaddr l3_base,
                 qemu_irq irq, qemu_irq drq,
                 omap_clk fck1, omap_clk fck2, omap_clk ck54m,
                 omap_clk ick1, omap_clk ick2);
@@ -752,7 +753,7 @@ void omap_rfbi_attach(struct omap_dss_s *s, int cs, struct rfbi_chip_s *chip);
 
 /* omap_mmc.c */
 struct omap_mmc_s;
-struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
+struct omap_mmc_s *omap_mmc_init(hwaddr base,
                 MemoryRegion *sysmem,
                 BlockDriverState *bd,
                 qemu_irq irq, qemu_irq dma[], omap_clk clk);
@@ -829,11 +830,11 @@ struct omap_mpu_state_s {
 
     struct omap_dma_port_if_s {
         uint32_t (*read[3])(struct omap_mpu_state_s *s,
-                        target_phys_addr_t offset);
+                        hwaddr offset);
         void (*write[3])(struct omap_mpu_state_s *s,
-                        target_phys_addr_t offset, uint32_t value);
+                        hwaddr offset, uint32_t value);
         int (*addr_valid)(struct omap_mpu_state_s *s,
-                        target_phys_addr_t addr);
+                        hwaddr addr);
     } port[__omap_dma_port_last];
 
     unsigned long sdram_size;
@@ -942,16 +943,16 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
                 unsigned long sdram_size,
                 const char *core);
 
-#define OMAP_FMT_plx "%#08" TARGET_PRIxPHYS
+#define OMAP_FMT_plx "%#08" HWADDR_PRIx
 
-uint32_t omap_badwidth_read8(void *opaque, target_phys_addr_t addr);
-void omap_badwidth_write8(void *opaque, target_phys_addr_t addr,
+uint32_t omap_badwidth_read8(void *opaque, hwaddr addr);
+void omap_badwidth_write8(void *opaque, hwaddr addr,
                 uint32_t value);
-uint32_t omap_badwidth_read16(void *opaque, target_phys_addr_t addr);
-void omap_badwidth_write16(void *opaque, target_phys_addr_t addr,
+uint32_t omap_badwidth_read16(void *opaque, hwaddr addr);
+void omap_badwidth_write16(void *opaque, hwaddr addr,
                 uint32_t value);
-uint32_t omap_badwidth_read32(void *opaque, target_phys_addr_t addr);
-void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
+uint32_t omap_badwidth_read32(void *opaque, hwaddr addr);
+void omap_badwidth_write32(void *opaque, hwaddr addr,
                 uint32_t value);
 
 void omap_mpu_wakeup(void *opaque, int irq, int req);

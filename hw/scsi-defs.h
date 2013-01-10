@@ -19,6 +19,8 @@
  * This header file contains public constants and structures used by
  * the scsi code for linux.
  */
+#ifndef HW_SCSI_DEFS_H
+#define HW_SCSI_DEFS_H 1
 
 /*
  *      SCSI opcodes
@@ -301,3 +303,5 @@
 #define MMC_PROFILE_HDDVD_R_DL          0x0058
 #define MMC_PROFILE_HDDVD_RW_DL         0x005A
 #define MMC_PROFILE_INVALID             0xFFFF
+
+#endif

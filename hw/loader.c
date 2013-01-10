@@ -43,14 +43,14 @@
  */
 
 #include "hw.h"
-#include "disas.h"
-#include "monitor.h"
-#include "sysemu.h"
+#include "disas/disas.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
 #include "uboot_image.h"
 #include "loader.h"
 #include "fw_cfg.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 
 #include <zlib.h>
 
@@ -88,7 +88,7 @@ int load_image(const char *filename, uint8_t *addr)
 
 /* read()-like version */
 ssize_t read_targphys(const char *name,
-                      int fd, target_phys_addr_t dst_addr, size_t nbytes)
+                      int fd, hwaddr dst_addr, size_t nbytes)
 {
     uint8_t *buf;
     ssize_t did;
@@ -103,7 +103,7 @@ ssize_t read_targphys(const char *name,
 
 /* return the size or -1 if error */
 int load_image_targphys(const char *filename,
-                        target_phys_addr_t addr, uint64_t max_sz)
+                        hwaddr addr, uint64_t max_sz)
 {
     int size;
 
@@ -117,7 +117,7 @@ int load_image_targphys(const char *filename,
     return size;
 }
 
-void pstrcpy_targphys(const char *name, target_phys_addr_t dest, int buf_size,
+void pstrcpy_targphys(const char *name, hwaddr dest, int buf_size,
                       const char *source)
 {
     const char *nulp;
@@ -179,8 +179,8 @@ static void bswap_ahdr(struct exec *e)
      : (_N_SEGMENT_ROUND (_N_TXTENDADDR(x, target_page_size), target_page_size)))
 
 
-int load_aout(const char *filename, target_phys_addr_t addr, int max_sz,
-              int bswap_needed, target_phys_addr_t target_page_size)
+int load_aout(const char *filename, hwaddr addr, int max_sz,
+              int bswap_needed, hwaddr target_page_size)
 {
     int fd;
     ssize_t size, ret;
@@ -434,8 +434,8 @@ static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
 }
 
 /* Load a U-Boot image.  */
-int load_uimage(const char *filename, target_phys_addr_t *ep,
-                target_phys_addr_t *loadaddr, int *is_linux)
+int load_uimage(const char *filename, hwaddr *ep,
+                hwaddr *loadaddr, int *is_linux)
 {
     int fd;
     int size;
@@ -539,7 +539,7 @@ struct Rom {
     char *fw_dir;
     char *fw_file;
 
-    target_phys_addr_t addr;
+    hwaddr addr;
     QTAILQ_ENTRY(Rom) next;
 };
 
@@ -565,7 +565,7 @@ static void rom_insert(Rom *rom)
 }
 
 int rom_add_file(const char *file, const char *fw_dir,
-                 target_phys_addr_t addr, int32_t bootindex)
+                 hwaddr addr, int32_t bootindex)
 {
     Rom *rom;
     int rc, fd = -1;
@@ -633,7 +633,7 @@ err:
 }
 
 int rom_add_blob(const char *name, const void *blob, size_t len,
-                 target_phys_addr_t addr)
+                 hwaddr addr)
 {
     Rom *rom;
 
@@ -679,7 +679,7 @@ static void rom_reset(void *unused)
 
 int rom_load_all(void)
 {
-    target_phys_addr_t addr = 0;
+    hwaddr addr = 0;
     MemoryRegionSection section;
     Rom *rom;
 
@@ -709,7 +709,7 @@ void rom_set_fw(void *f)
     fw_cfg = f;
 }
 
-static Rom *find_rom(target_phys_addr_t addr)
+static Rom *find_rom(hwaddr addr)
 {
     Rom *rom;
 
@@ -733,9 +733,9 @@ static Rom *find_rom(target_phys_addr_t addr)
  * a ROM between addr and addr + size is copied. Note that this can involve
  * multiple ROMs, which need not start at addr and need not end at addr + size.
  */
-int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
+int rom_copy(uint8_t *dest, hwaddr addr, size_t size)
 {
-    target_phys_addr_t end = addr + size;
+    hwaddr end = addr + size;
     uint8_t *s, *d = dest;
     size_t l = 0;
     Rom *rom;
@@ -768,7 +768,7 @@ int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
     return (d + l) - dest;
 }
 
-void *rom_ptr(target_phys_addr_t addr)
+void *rom_ptr(hwaddr addr)
 {
     Rom *rom;
 

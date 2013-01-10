@@ -11,7 +11,7 @@
    implement one.  Most of the commends relating to brightness and geometry
    setup are ignored. */
 #include "i2c.h"
-#include "console.h"
+#include "ui/console.h"
 
 //#define DEBUG_SSD0303 1
 
@@ -252,7 +252,7 @@ static void ssd0303_update_display(void *opaque)
         }
     }
     s->redraw = 0;
-    dpy_update(s->ds, 0, 0, 96 * MAGNIFY, 16 * MAGNIFY);
+    dpy_gfx_update(s->ds, 0, 0, 96 * MAGNIFY, 16 * MAGNIFY);
 }
 
 static void ssd0303_invalidate_display(void * opaque)

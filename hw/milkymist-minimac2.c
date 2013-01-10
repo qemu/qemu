@@ -25,8 +25,8 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "net.h"
-#include "qemu-error.h"
+#include "net/net.h"
+#include "qemu/error-report.h"
 #include "qdev-addr.h"
 
 #include <zlib.h>
@@ -96,7 +96,7 @@ struct MilkymistMinimac2State {
     NICState *nic;
     NICConf conf;
     char *phy_model;
-    target_phys_addr_t buffers_base;
+    hwaddr buffers_base;
     MemoryRegion buffers;
     MemoryRegion regs_region;
 
@@ -323,7 +323,7 @@ static ssize_t minimac2_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 }
 
 static uint64_t
-minimac2_read(void *opaque, target_phys_addr_t addr, unsigned size)
+minimac2_read(void *opaque, hwaddr addr, unsigned size)
 {
     MilkymistMinimac2State *s = opaque;
     uint32_t r = 0;
@@ -352,7 +352,7 @@ minimac2_read(void *opaque, target_phys_addr_t addr, unsigned size)
 }
 
 static void
-minimac2_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+minimac2_write(void *opaque, hwaddr addr, uint64_t value,
                unsigned size)
 {
     MilkymistMinimac2State *s = opaque;

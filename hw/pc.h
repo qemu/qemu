@@ -2,42 +2,15 @@
 #define HW_PC_H
 
 #include "qemu-common.h"
-#include "memory.h"
-#include "ioport.h"
+#include "exec/memory.h"
+#include "exec/ioport.h"
 #include "isa.h"
 #include "fdc.h"
-#include "net.h"
-#include "memory.h"
+#include "net/net.h"
+#include "exec/memory.h"
 #include "ioapic.h"
 
 /* PC-style peripherals (also used by other machines).  */
-
-/* serial.c */
-
-SerialState *serial_init(int base, qemu_irq irq, int baudbase,
-                         CharDriverState *chr);
-SerialState *serial_mm_init(MemoryRegion *address_space,
-                            target_phys_addr_t base, int it_shift,
-                            qemu_irq irq, int baudbase,
-                            CharDriverState *chr, enum device_endian);
-static inline bool serial_isa_init(ISABus *bus, int index,
-                                   CharDriverState *chr)
-{
-    ISADevice *dev;
-
-    dev = isa_try_create(bus, "isa-serial");
-    if (!dev) {
-        return false;
-    }
-    qdev_prop_set_uint32(&dev->qdev, "index", index);
-    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
-    if (qdev_init(&dev->qdev) < 0) {
-        return false;
-    }
-    return true;
-}
-
-void serial_set_frequency(SerialState *s, uint32_t frequency);
 
 /* parallel.c */
 static inline bool parallel_init(ISABus *bus, int index, CharDriverState *chr)
@@ -57,7 +30,7 @@ static inline bool parallel_init(ISABus *bus, int index, CharDriverState *chr)
 }
 
 bool parallel_mm_init(MemoryRegion *address_space,
-                      target_phys_addr_t base, int it_shift, qemu_irq irq,
+                      hwaddr base, int it_shift, qemu_irq irq,
                       CharDriverState *chr);
 
 /* i8259.c */
@@ -95,7 +68,7 @@ void vmmouse_set_data(const uint32_t *data);
 void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    MemoryRegion *region, ram_addr_t size,
-                   target_phys_addr_t mask);
+                   hwaddr mask);
 void i8042_isa_mouse_fake_event(void *opaque);
 void i8042_setup_a20_line(ISADevice *dev, qemu_irq *a20_out);
 
@@ -106,6 +79,7 @@ void pc_register_ferr_irq(qemu_irq irq);
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 
 void pc_cpus_init(const char *cpu_model);
+void pc_acpi_init(const char *default_dsdt);
 void *pc_memory_init(MemoryRegion *system_memory,
                     const char *kernel_filename,
                     const char *kernel_cmdline,
@@ -125,10 +99,13 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device,
                   ISADevice *floppy, BusState *ide0, BusState *ide1,
                   ISADevice *s);
+void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_pci_device_init(PCIBus *pci_bus);
 
 typedef void (*cpu_set_smm_t)(int smm, void *arg);
 void cpu_smm_register(cpu_set_smm_t callback, void *arg);
+
+void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 /* acpi.c */
 extern int acpi_enabled;
@@ -157,10 +134,10 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
                     ram_addr_t ram_size,
-                    target_phys_addr_t pci_hole_start,
-                    target_phys_addr_t pci_hole_size,
-                    target_phys_addr_t pci_hole64_start,
-                    target_phys_addr_t pci_hole64_size,
+                    hwaddr pci_hole_start,
+                    hwaddr pci_hole_size,
+                    hwaddr pci_hole64_start,
+                    hwaddr pci_hole64_size,
                     MemoryRegion *pci_memory,
                     MemoryRegion *ram_memory);
 
@@ -176,26 +153,9 @@ enum vga_retrace_method {
 
 extern enum vga_retrace_method vga_retrace_method;
 
-static inline DeviceState *isa_vga_init(ISABus *bus)
-{
-    ISADevice *dev;
-
-    dev = isa_try_create(bus, "isa-vga");
-    if (!dev) {
-        fprintf(stderr, "Warning: isa-vga not available\n");
-        return NULL;
-    }
-    qdev_init_nofail(&dev->qdev);
-    return &dev->qdev;
-}
-
-DeviceState *pci_vga_init(PCIBus *bus);
-int isa_vga_mm_init(target_phys_addr_t vram_base,
-                    target_phys_addr_t ctrl_base, int it_shift,
+int isa_vga_mm_init(hwaddr vram_base,
+                    hwaddr ctrl_base, int it_shift,
                     MemoryRegion *address_space);
-
-/* cirrus_vga.c */
-DeviceState *pci_cirrus_vga_init(PCIBus *bus);
 
 /* ne2000.c */
 static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)

@@ -50,7 +50,8 @@ Emitted when a block job has been cancelled.
 
 Data:
 
-- "type":     Job type ("stream" for image streaming, json-string)
+- "type":     Job type (json-string; "stream" for image streaming
+                                     "commit" for block commit)
 - "device":   Device name (json-string)
 - "len":      Maximum progress value (json-int)
 - "offset":   Current progress value (json-int)
@@ -73,7 +74,8 @@ Emitted when a block job has completed.
 
 Data:
 
-- "type":     Job type ("stream" for image streaming, json-string)
+- "type":     Job type (json-string; "stream" for image streaming
+                                     "commit" for block commit)
 - "device":   Device name (json-string)
 - "len":      Maximum progress value (json-int)
 - "offset":   Current progress value (json-int)
@@ -93,6 +95,46 @@ Example:
                "len": 10737418240, "offset": 10737418240,
                "speed": 0 },
      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+
+BLOCK_JOB_ERROR
+---------------
+
+Emitted when a block job encounters an error.
+
+Data:
+
+- "device": device name (json-string)
+- "operation": I/O operation (json-string, "read" or "write")
+- "action": action that has been taken, it's one of the following (json-string):
+    "ignore": error has been ignored, the job may fail later
+    "report": error will be reported and the job canceled
+    "stop": error caused job to be paused
+
+Example:
+
+{ "event": "BLOCK_JOB_ERROR",
+    "data": { "device": "ide0-hd1",
+              "operation": "write",
+              "action": "stop" },
+    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
+BLOCK_JOB_READY
+---------------
+
+Emitted when a block job is ready to complete.
+
+Data:
+
+- "device": device name (json-string)
+
+Example:
+
+{ "event": "BLOCK_JOB_READY",
+    "data": { "device": "ide0-hd1" },
+    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
+Note: The "ready to complete" status is always reset by a BLOCK_JOB_ERROR
+event.
 
 DEVICE_TRAY_MOVED
 -----------------

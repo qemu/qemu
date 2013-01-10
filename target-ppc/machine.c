@@ -1,11 +1,12 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 void cpu_save(QEMUFile *f, void *opaque)
 {
     CPUPPCState *env = (CPUPPCState *)opaque;
     unsigned int i, j;
+    uint32_t fpscr;
 
     for (i = 0; i < 32; i++)
         qemu_put_betls(f, &env->gpr[i]);
@@ -30,7 +31,8 @@ void cpu_save(QEMUFile *f, void *opaque)
         u.d = env->fpr[i];
         qemu_put_be64(f, u.l);
     }
-    qemu_put_be32s(f, &env->fpscr);
+    fpscr = env->fpscr;
+    qemu_put_be32s(f, &fpscr);
     qemu_put_sbe32s(f, &env->access_type);
 #if defined(TARGET_PPC64)
     qemu_put_betls(f, &env->asr);
@@ -82,7 +84,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_betls(f, &env->hflags);
     qemu_put_betls(f, &env->hflags_nmsr);
     qemu_put_sbe32s(f, &env->mmu_idx);
-    qemu_put_sbe32s(f, &env->power_mode);
+    qemu_put_sbe32(f, 0);
 }
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
@@ -90,6 +92,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     CPUPPCState *env = (CPUPPCState *)opaque;
     unsigned int i, j;
     target_ulong sdr1;
+    uint32_t fpscr;
 
     for (i = 0; i < 32; i++)
         qemu_get_betls(f, &env->gpr[i]);
@@ -114,7 +117,8 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         u.l = qemu_get_be64(f);
         env->fpr[i] = u.d;
     }
-    qemu_get_be32s(f, &env->fpscr);
+    qemu_get_be32s(f, &fpscr);
+    env->fpscr = fpscr;
     qemu_get_sbe32s(f, &env->access_type);
 #if defined(TARGET_PPC64)
     qemu_get_betls(f, &env->asr);
@@ -167,7 +171,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_betls(f, &env->hflags);
     qemu_get_betls(f, &env->hflags_nmsr);
     qemu_get_sbe32s(f, &env->mmu_idx);
-    qemu_get_sbe32s(f, &env->power_mode);
+    qemu_get_sbe32(f); /* Discard unused power_mode */
 
     return 0;
 }

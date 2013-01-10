@@ -17,13 +17,9 @@
 
 #include "qemu-common.h"
 
-int net_init_hubport(const NetClientOptions *opts, const char *name,
-                     NetClientState *peer);
 NetClientState *net_hub_add_port(int hub_id, const char *name);
 NetClientState *net_hub_find_client_by_name(int hub_id, const char *name);
 void net_hub_info(Monitor *mon);
-int net_hub_id_for_client(NetClientState *nc, int *id);
 void net_hub_check_clients(void);
-NetClientState *net_hub_port_find(int hub_id);
 
 #endif /* NET_HUB_H */

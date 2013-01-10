@@ -19,13 +19,12 @@
  */
 
 #include "hw.h"
-#include "pci.h"
-#include "dma.h"
-#include "msix.h"
-#include "iov.h"
+#include "pci/pci.h"
+#include "sysemu/dma.h"
+#include "pci/msix.h"
+#include "qemu/iov.h"
 #include "scsi.h"
 #include "scsi-defs.h"
-#include "block_int.h"
 #include "trace.h"
 
 #include "mfi.h"
@@ -38,6 +37,7 @@
 #define MEGASAS_MAX_SECTORS 0xFFFF      /* No real limit */
 #define MEGASAS_MAX_ARRAYS 128
 
+#define MEGASAS_HBA_SERIAL "QEMU123456"
 #define NAA_LOCALLY_ASSIGNED_ID 0x3ULL
 #define IEEE_COMPANY_LOCALLY_ASSIGNED 0x525400
 
@@ -58,8 +58,8 @@ typedef struct MegasasCmd {
     uint16_t count;
     uint64_t context;
 
-    target_phys_addr_t pa;
-    target_phys_addr_t pa_size;
+    hwaddr pa;
+    hwaddr pa_size;
     union mfi_frame *frame;
     SCSIRequest *req;
     QEMUSGList qsg;
@@ -93,6 +93,7 @@ typedef struct MegasasState {
     int boot_event;
 
     uint64_t sas_addr;
+    char *hba_serial;
 
     uint64_t reply_queue_pa;
     void *reply_queue;
@@ -275,7 +276,7 @@ static int megasas_build_sense(MegasasCmd *cmd, uint8_t *sense_ptr,
     uint8_t sense_len)
 {
     uint32_t pa_hi = 0, pa_lo;
-    target_phys_addr_t pa;
+    hwaddr pa;
 
     if (sense_len > cmd->frame->header.sense_len) {
         sense_len = cmd->frame->header.sense_len;
@@ -402,7 +403,7 @@ static int megasas_next_index(MegasasState *s, int index, int limit)
 }
 
 static MegasasCmd *megasas_lookup_frame(MegasasState *s,
-    target_phys_addr_t frame)
+    hwaddr frame)
 {
     MegasasCmd *cmd = NULL;
     int num = 0, index;
@@ -422,7 +423,7 @@ static MegasasCmd *megasas_lookup_frame(MegasasState *s,
 }
 
 static MegasasCmd *megasas_next_frame(MegasasState *s,
-    target_phys_addr_t frame)
+    hwaddr frame)
 {
     MegasasCmd *cmd = NULL;
     int num = 0, index;
@@ -450,11 +451,11 @@ static MegasasCmd *megasas_next_frame(MegasasState *s,
 }
 
 static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
-    target_phys_addr_t frame, uint64_t context, int count)
+    hwaddr frame, uint64_t context, int count)
 {
     MegasasCmd *cmd = NULL;
     int frame_size = MFI_FRAME_SIZE * 16;
-    target_phys_addr_t frame_size_p = frame_size;
+    hwaddr frame_size_p = frame_size;
 
     cmd = megasas_next_frame(s, frame);
     /* All frames busy */
@@ -559,7 +560,7 @@ static void megasas_abort_command(MegasasCmd *cmd)
 static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
 {
     uint32_t pa_hi, pa_lo;
-    target_phys_addr_t iq_pa, initq_size;
+    hwaddr iq_pa, initq_size;
     struct mfi_init_qinfo *initq;
     uint32_t flags;
     int ret = MFI_STAT_OK;
@@ -650,7 +651,6 @@ static void megasas_finish_dcmd(MegasasCmd *cmd, uint32_t iov_size)
         }
     }
     cmd->iov_size = 0;
-    return;
 }
 
 static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
@@ -698,8 +698,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     }
 
     memcpy(info.product_name, "MegaRAID SAS 8708EM2", 20);
-    snprintf(info.serial_number, 32, "QEMU%08lx",
-             (unsigned long)s & 0xFFFFFFFF);
+    snprintf(info.serial_number, 32, "%s", s->hba_serial);
     snprintf(info.package_version, 0x60, "%s-QEMU", QEMU_VERSION);
     memcpy(info.image_component[0].name, "APP", 3);
     memcpy(info.image_component[0].version, MEGASAS_VERSION "-QEMU", 9);
@@ -1080,6 +1079,7 @@ static int megasas_dcmd_ld_get_list(MegasasState *s, MegasasCmd *cmd)
         /* Logical device size is in blocks */
         bdrv_get_geometry(conf->bs, &ld_size);
         info.ld_list[num_ld_disks].ld.v.target_id = sdev->id;
+        info.ld_list[num_ld_disks].ld.v.lun_id = sdev->lun;
         info.ld_list[num_ld_disks].state = MFI_LD_STATE_OPTIMAL;
         info.ld_list[num_ld_disks].size = cpu_to_le64(ld_size);
         num_ld_disks++;
@@ -1296,7 +1296,7 @@ static int megasas_dcmd_get_properties(MegasasState *s, MegasasCmd *cmd)
 
 static int megasas_cache_flush(MegasasState *s, MegasasCmd *cmd)
 {
-    qemu_aio_flush();
+    bdrv_drain_all();
     return MFI_STAT_OK;
 }
 
@@ -1771,7 +1771,7 @@ static void megasas_command_cancel(SCSIRequest *req)
 static int megasas_handle_abort(MegasasState *s, MegasasCmd *cmd)
 {
     uint64_t abort_ctx = le64_to_cpu(cmd->frame->abort.abort_context);
-    target_phys_addr_t abort_addr, addr_hi, addr_lo;
+    hwaddr abort_addr, addr_hi, addr_lo;
     MegasasCmd *abort_cmd;
 
     addr_hi = le32_to_cpu(cmd->frame->abort.abort_mfi_addr_hi);
@@ -1861,7 +1861,7 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
     }
 }
 
-static uint64_t megasas_mmio_read(void *opaque, target_phys_addr_t addr,
+static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     MegasasState *s = opaque;
@@ -1897,7 +1897,7 @@ static uint64_t megasas_mmio_read(void *opaque, target_phys_addr_t addr,
     return retval;
 }
 
-static void megasas_mmio_write(void *opaque, target_phys_addr_t addr,
+static void megasas_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     MegasasState *s = opaque;
@@ -1977,13 +1977,13 @@ static const MemoryRegionOps megasas_mmio_ops = {
     }
 };
 
-static uint64_t megasas_port_read(void *opaque, target_phys_addr_t addr,
+static uint64_t megasas_port_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     return megasas_mmio_read(opaque, addr & 0xff, size);
 }
 
-static void megasas_port_write(void *opaque, target_phys_addr_t addr,
+static void megasas_port_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     megasas_mmio_write(opaque, addr & 0xff, val, size);
@@ -1999,7 +1999,7 @@ static const MemoryRegionOps megasas_port_ops = {
     }
 };
 
-static uint64_t megasas_queue_read(void *opaque, target_phys_addr_t addr,
+static uint64_t megasas_queue_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     return 0;
@@ -2132,6 +2132,9 @@ static int megasas_scsi_init(PCIDevice *dev)
         s->sas_addr |= (PCI_SLOT(dev->devfn) << 8);
         s->sas_addr |= PCI_FUNC(dev->devfn);
     }
+    if (!s->hba_serial) {
+	s->hba_serial = g_strdup(MEGASAS_HBA_SERIAL);
+    }
     if (s->fw_sge >= MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE) {
         s->fw_sge = MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE;
     } else if (s->fw_sge >= 128 - MFI_PASS_FRAME_SIZE) {
@@ -2166,6 +2169,7 @@ static Property megasas_properties[] = {
                        MEGASAS_DEFAULT_SGE),
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
                        MEGASAS_DEFAULT_FRAMES),
+    DEFINE_PROP_STRING("hba_serial", MegasasState, hba_serial),
     DEFINE_PROP_HEX64("sas_address", MegasasState, sas_addr, 0),
 #ifdef USE_MSIX
     DEFINE_PROP_BIT("use_msix", MegasasState, flags,

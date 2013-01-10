@@ -25,12 +25,12 @@
 #if !defined(PPC_4XX_H)
 #define PPC_4XX_H
 
-#include "pci.h"
+#include "pci/pci.h"
 
 /* PowerPC 4xx core initialization */
-CPUPPCState *ppc4xx_init (const char *cpu_model,
-                       clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
-                       uint32_t sysclk);
+PowerPCCPU *ppc4xx_init(const char *cpu_model,
+                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
+                        uint32_t sysclk);
 
 /* PowerPC 4xx universal interrupt controller */
 enum {
@@ -43,20 +43,22 @@ qemu_irq *ppcuic_init (CPUPPCState *env, qemu_irq *irqs,
 
 ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
                                MemoryRegion ram_memories[],
-                               target_phys_addr_t ram_bases[],
-                               target_phys_addr_t ram_sizes[],
+                               hwaddr ram_bases[],
+                               hwaddr ram_sizes[],
                                const unsigned int sdram_bank_sizes[]);
 
 void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
                         MemoryRegion ram_memories[],
-                        target_phys_addr_t *ram_bases,
-                        target_phys_addr_t *ram_sizes,
+                        hwaddr *ram_bases,
+                        hwaddr *ram_sizes,
                         int do_init);
 
+#define TYPE_PPC4xx_PCI_HOST_BRIDGE "ppc4xx-pcihost"
+
 PCIBus *ppc4xx_pci_init(CPUPPCState *env, qemu_irq pci_irqs[4],
-                        target_phys_addr_t config_space,
-                        target_phys_addr_t int_ack,
-                        target_phys_addr_t special_cycle,
-                        target_phys_addr_t registers);
+                        hwaddr config_space,
+                        hwaddr int_ack,
+                        hwaddr special_cycle,
+                        hwaddr registers);
 
 #endif /* !defined(PPC_4XX_H) */

@@ -23,7 +23,7 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
+#include "char/char.h"
 
 #define DUART(x)
 
@@ -84,7 +84,7 @@ static void uart_update_status(struct xlx_uartlite *s)
 }
 
 static uint64_t
-uart_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+uart_read(void *opaque, hwaddr addr, unsigned int size)
 {
     struct xlx_uartlite *s = opaque;
     uint32_t r = 0;
@@ -97,6 +97,7 @@ uart_read(void *opaque, target_phys_addr_t addr, unsigned int size)
                 s->rx_fifo_len--;
             uart_update_status(s);
             uart_update_irq(s);
+            qemu_chr_accept_input(s->chr);
             break;
 
         default:
@@ -109,7 +110,7 @@ uart_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 }
 
 static void
-uart_write(void *opaque, target_phys_addr_t addr,
+uart_write(void *opaque, hwaddr addr,
            uint64_t val64, unsigned int size)
 {
     struct xlx_uartlite *s = opaque;
@@ -182,12 +183,8 @@ static void uart_rx(void *opaque, const uint8_t *buf, int size)
 static int uart_can_rx(void *opaque)
 {
     struct xlx_uartlite *s = opaque;
-    int r;
 
-    r = s->rx_fifo_len < sizeof(s->rx_fifo);
-    if (!r)
-        printf("cannot receive!\n");
-    return r;
+    return s->rx_fifo_len < sizeof(s->rx_fifo);
 }
 
 static void uart_event(void *opaque, int event)

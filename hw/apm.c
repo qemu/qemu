@@ -22,6 +22,7 @@
 
 #include "apm.h"
 #include "hw.h"
+#include "pci/pci.h"
 
 //#define DEBUG
 
@@ -35,7 +36,8 @@
 #define APM_CNT_IOPORT  0xb2
 #define APM_STS_IOPORT  0xb3
 
-static void apm_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void apm_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
 {
     APMState *apm = opaque;
     addr &= 1;
@@ -51,7 +53,7 @@ static void apm_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t apm_ioport_readb(void *opaque, uint32_t addr)
+static uint64_t apm_ioport_readb(void *opaque, hwaddr addr, unsigned size)
 {
     APMState *apm = opaque;
     uint32_t val;
@@ -78,12 +80,23 @@ const VMStateDescription vmstate_apm = {
     }
 };
 
-void apm_init(APMState *apm, apm_ctrl_changed_t callback, void *arg)
+static const MemoryRegionOps apm_ops = {
+    .read = apm_ioport_readb,
+    .write = apm_ioport_writeb,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+void apm_init(PCIDevice *dev, APMState *apm, apm_ctrl_changed_t callback,
+              void *arg)
 {
     apm->callback = callback;
     apm->arg = arg;
 
     /* ioport 0xb2, 0xb3 */
-    register_ioport_write(APM_CNT_IOPORT, 2, 1, apm_ioport_writeb, apm);
-    register_ioport_read(APM_CNT_IOPORT, 2, 1, apm_ioport_readb, apm);
+    memory_region_init_io(&apm->io, &apm_ops, apm, "apm-io", 2);
+    memory_region_add_subregion(pci_address_space_io(dev), APM_CNT_IOPORT,
+                                &apm->io);
 }

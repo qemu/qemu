@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include <curl/curl.h>
 
 // #define DEBUG
@@ -438,7 +438,7 @@ static void curl_aio_cancel(BlockDriverAIOCB *blockacb)
     // Do we have to implement canceling? Seems to work without...
 }
 
-static AIOPool curl_aio_pool = {
+static const AIOCBInfo curl_aiocb_info = {
     .aiocb_size         = sizeof(CURLAIOCB),
     .cancel             = curl_aio_cancel,
 };
@@ -505,7 +505,7 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
 {
     CURLAIOCB *acb;
 
-    acb = qemu_aio_get(&curl_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&curl_aiocb_info, bs, cb, opaque);
 
     acb->qiov = qiov;
     acb->sector_num = sector_num;
@@ -542,8 +542,7 @@ static void curl_close(BlockDriverState *bs)
     }
     if (s->multi)
         curl_multi_cleanup(s->multi);
-    if (s->url)
-        free(s->url);
+    g_free(s->url);
 }
 
 static int64_t curl_getlength(BlockDriverState *bs)

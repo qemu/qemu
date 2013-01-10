@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#ifndef TCG_TARGET_HPPA
 #define TCG_TARGET_HPPA 1
 
 #if TCG_TARGET_REG_BITS != 32
@@ -96,15 +97,13 @@ typedef enum {
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_nor_i32          0
 #define TCG_TARGET_HAS_deposit_i32      1
+#define TCG_TARGET_HAS_movcond_i32      1
 
 /* optional instructions automatically implemented */
 #define TCG_TARGET_HAS_neg_i32          0 /* sub rd, 0, rs */
 #define TCG_TARGET_HAS_ext8u_i32        0 /* and rd, rs, 0xff */
 #define TCG_TARGET_HAS_ext16u_i32       0 /* and rd, rs, 0xffff */
 
-#define TCG_TARGET_HAS_GUEST_BASE
-
-/* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_R17
 
 
@@ -121,3 +120,5 @@ static inline void flush_icache_range(tcg_target_ulong start,
         start += 32;
     }
 }
+
+#endif

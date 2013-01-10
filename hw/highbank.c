@@ -21,12 +21,12 @@
 #include "arm-misc.h"
 #include "devices.h"
 #include "loader.h"
-#include "net.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "sysbus.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 #define SMP_BOOT_ADDR 0x100
 #define SMP_BOOT_REG  0x40
@@ -44,9 +44,12 @@ static void hb_write_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
         0xe210000f, /* ands r0, r0, #0x0f */
         0xe3a03040, /* mov r3, #0x40 - jump address is 0x40 + 0x10 * core id */
         0xe0830200, /* add r0, r3, r0, lsl #4 */
-        0xe59f2018, /* ldr r2, privbase */
+        0xe59f2024, /* ldr r2, privbase */
         0xe3a01001, /* mov r1, #1 */
-        0xe5821100, /* str r1, [r2, #256] */
+        0xe5821100, /* str r1, [r2, #256] - set GICC_CTLR.Enable */
+        0xe3a010ff, /* mov r1, #0xff */
+        0xe5821104, /* str r1, [r2, #260] - set GICC_PMR.Priority to 0xff */
+        0xf57ff04f, /* dsb */
         0xe320f003, /* wfi */
         0xe5901000, /* ldr     r1, [r0] */
         0xe1110001, /* tst     r1, r1 */
@@ -79,7 +82,7 @@ static void hb_reset_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 }
 
 #define NUM_REGS      0x200
-static void hb_regs_write(void *opaque, target_phys_addr_t offset,
+static void hb_regs_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     uint32_t *regs = opaque;
@@ -95,7 +98,7 @@ static void hb_regs_write(void *opaque, target_phys_addr_t offset,
     regs[offset/4] = value;
 }
 
-static uint64_t hb_regs_read(void *opaque, target_phys_addr_t offset,
+static uint64_t hb_regs_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
     uint32_t *regs = opaque;
@@ -187,11 +190,13 @@ static struct arm_boot_info highbank_binfo;
  * 32-bit host, set the reg value of memory to 0xf7ff00000 in the
  * device tree and pass -m 2047 to QEMU.
  */
-static void highbank_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void highbank_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     DeviceState *dev;
     SysBusDevice *busdev;
     qemu_irq *irqp;
@@ -324,7 +329,7 @@ static QEMUMachine highbank_machine = {
     .name = "highbank",
     .desc = "Calxeda Highbank (ECX-1000)",
     .init = highbank_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 4,
 };
 

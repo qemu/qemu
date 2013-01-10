@@ -12,11 +12,14 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/block-common.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "virtio-blk.h"
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+#include "hw/dataplane/virtio-blk.h"
+#endif
 #include "scsi-defs.h"
 #ifdef __linux__
 # include <scsi/sg.h>
@@ -33,6 +36,9 @@ typedef struct VirtIOBlock
     VirtIOBlkConf *blk;
     unsigned short sector_mask;
     DeviceState *qdev;
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    VirtIOBlockDataPlane *dataplane;
+#endif
 } VirtIOBlock;
 
 static VirtIOBlock *to_virtio_blk(VirtIODevice *vdev)
@@ -64,31 +70,22 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
 }
 
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
-    int is_read)
+    bool is_read)
 {
-    BlockErrorAction action = bdrv_get_on_error(req->dev->bs, is_read);
+    BlockErrorAction action = bdrv_get_error_action(req->dev->bs, is_read, error);
     VirtIOBlock *s = req->dev;
 
-    if (action == BLOCK_ERR_IGNORE) {
-        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_IGNORE, is_read);
-        return 0;
-    }
-
-    if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
-            || action == BLOCK_ERR_STOP_ANY) {
+    if (action == BDRV_ACTION_STOP) {
         req->next = s->rq;
         s->rq = req;
-        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(RUN_STATE_IO_ERROR);
-        bdrv_iostatus_set_err(s->bs, error);
-    } else {
+    } else if (action == BDRV_ACTION_REPORT) {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
         bdrv_acct_done(s->bs, &req->acct);
         g_free(req);
-        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_REPORT, is_read);
     }
 
-    return 1;
+    bdrv_error_action(s->bs, action, is_read, error);
+    return action != BDRV_ACTION_IGNORE;
 }
 
 static void virtio_blk_rw_complete(void *opaque, int ret)
@@ -98,7 +95,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
     trace_virtio_blk_rw_complete(req, ret);
 
     if (ret) {
-        int is_read = !(ldl_p(&req->out->type) & VIRTIO_BLK_T_OUT);
+        bool is_read = !(ldl_p(&req->out->type) & VIRTIO_BLK_T_OUT);
         if (virtio_blk_handle_rw_error(req, -ret, is_read))
             return;
     }
@@ -401,10 +398,14 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
         qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
                                  req->elem.out_num - 1);
         virtio_blk_handle_write(req, mrb);
-    } else {
+    } else if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_BARRIER) {
+        /* VIRTIO_BLK_T_IN is 0, so we can't just & it. */
         qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
                                  req->elem.in_num - 1);
         virtio_blk_handle_read(req);
+    } else {
+        virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
+        g_free(req);
     }
 }
 
@@ -415,6 +416,16 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     MultiReqBuffer mrb = {
         .num_writes = 0,
     };
+
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    /* Some guests kick before setting VIRTIO_CONFIG_S_DRIVER_OK so start
+     * dataplane here instead of waiting for .set_status().
+     */
+    if (s->dataplane) {
+        virtio_blk_data_plane_start(s->dataplane);
+        return;
+    }
+#endif
 
     while ((req = virtio_blk_get_request(s))) {
         virtio_blk_handle_request(req, &mrb);
@@ -455,8 +466,9 @@ static void virtio_blk_dma_restart_cb(void *opaque, int running,
 {
     VirtIOBlock *s = opaque;
 
-    if (!running)
+    if (!running) {
         return;
+    }
 
     if (!s->bh) {
         s->bh = qemu_bh_new(virtio_blk_dma_restart_bh, s);
@@ -466,6 +478,14 @@ static void virtio_blk_dma_restart_cb(void *opaque, int running,
 
 static void virtio_blk_reset(VirtIODevice *vdev)
 {
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    VirtIOBlock *s = to_virtio_blk(vdev);
+
+    if (s->dataplane) {
+        virtio_blk_data_plane_stop(s->dataplane);
+    }
+#endif
+
     /*
      * This should cancel pending requests, but can't do nicely until there
      * are per-device request lists.
@@ -533,7 +553,9 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
     features |= (1 << VIRTIO_BLK_F_BLK_SIZE);
     features |= (1 << VIRTIO_BLK_F_SCSI);
 
-    features |= (1 << VIRTIO_BLK_F_CONFIG_WCE);
+    if (s->blk->config_wce) {
+        features |= (1 << VIRTIO_BLK_F_CONFIG_WCE);
+    }
     if (bdrv_enable_write_cache(s->bs))
         features |= (1 << VIRTIO_BLK_F_WCE);
 
@@ -547,6 +569,12 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VirtIOBlock *s = to_virtio_blk(vdev);
     uint32_t features;
+
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    if (s->dataplane && !(status & VIRTIO_CONFIG_S_DRIVER)) {
+        virtio_blk_data_plane_stop(s->dataplane);
+    }
+#endif
 
     if (!(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         return;
@@ -645,6 +673,12 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
     s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
 
     s->vq = virtio_add_queue(&s->vdev, 128, virtio_blk_handle_output);
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    if (!virtio_blk_data_plane_create(&s->vdev, blk, &s->dataplane)) {
+        virtio_cleanup(&s->vdev);
+        return NULL;
+    }
+#endif
 
     qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
     s->qdev = dev;
@@ -662,6 +696,11 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
 void virtio_blk_exit(VirtIODevice *vdev)
 {
     VirtIOBlock *s = to_virtio_blk(vdev);
+
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    virtio_blk_data_plane_destroy(s->dataplane);
+    s->dataplane = NULL;
+#endif
     unregister_savevm(s->qdev, "virtio-blk", s);
     blockdev_mark_auto_del(s->bs);
     virtio_cleanup(vdev);

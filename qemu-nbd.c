@@ -17,8 +17,8 @@
  */
 
 #include "qemu-common.h"
-#include "block.h"
-#include "nbd.h"
+#include "block/block.h"
+#include "block/nbd.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -41,8 +41,8 @@ static NBDExport *exp;
 static int verbose;
 static char *srcpath;
 static char *sockpath;
-static bool sigterm_reported;
-static bool nbd_started;
+static int persistent = 0;
+static enum { RUNNING, TERMINATE, TERMINATING, TERMINATED } state;
 static int shared = 1;
 static int nb_fds;
 
@@ -186,7 +186,7 @@ static int find_partition(BlockDriverState *bs, int partition,
 
 static void termsig_handler(int signum)
 {
-    sigterm_reported = true;
+    state = TERMINATE;
     qemu_notify_event();
 }
 
@@ -269,10 +269,20 @@ static int nbd_can_accept(void *opaque)
     return nb_fds < shared;
 }
 
+static void nbd_export_closed(NBDExport *exp)
+{
+    assert(state == TERMINATING);
+    state = TERMINATED;
+}
+
 static void nbd_client_closed(NBDClient *client)
 {
     nb_fds--;
+    if (nb_fds == 0 && !persistent && state == RUNNING) {
+        state = TERMINATE;
+    }
     qemu_notify_event();
+    nbd_client_put(client);
 }
 
 static void nbd_accept(void *opaque)
@@ -282,7 +292,11 @@ static void nbd_accept(void *opaque)
     socklen_t addr_len = sizeof(addr);
 
     int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
-    nbd_started = true;
+    if (state >= TERMINATE) {
+        close(fd);
+        return;
+    }
+
     if (fd >= 0 && nbd_client_new(exp, fd, nbd_client_closed)) {
         nb_fds++;
     }
@@ -329,7 +343,6 @@ int main(int argc, char **argv)
     int partition = -1;
     int ret;
     int fd;
-    int persistent = 0;
     bool seen_cache = false;
 #ifdef CONFIG_LINUX_AIO
     bool seen_aio = false;
@@ -526,6 +539,7 @@ int main(int argc, char **argv)
         snprintf(sockpath, 128, SOCKET_PATH, basename(device));
     }
 
+    qemu_init_main_loop();
     bdrv_init();
     atexit(bdrv_close_all);
 
@@ -546,7 +560,7 @@ int main(int argc, char **argv)
         }
     }
 
-    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags);
+    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags, nbd_export_closed);
 
     if (sockpath) {
         fd = unix_socket_incoming(sockpath);
@@ -571,7 +585,6 @@ int main(int argc, char **argv)
         memset(&client_thread, 0, sizeof(client_thread));
     }
 
-    qemu_init_main_loop();
     qemu_set_fd_handler2(fd, nbd_can_accept, nbd_accept, NULL,
                          (void *)(uintptr_t)fd);
 
@@ -581,11 +594,18 @@ int main(int argc, char **argv)
         err(EXIT_FAILURE, "Could not chdir to root directory");
     }
 
+    state = RUNNING;
     do {
         main_loop_wait(false);
-    } while (!sigterm_reported && (persistent || !nbd_started || nb_fds > 0));
+        if (state == TERMINATE) {
+            state = TERMINATING;
+            nbd_export_close(exp);
+            nbd_export_put(exp);
+            exp = NULL;
+        }
+    } while (state != TERMINATED);
 
-    nbd_export_close(exp);
+    bdrv_close(bs);
     if (sockpath) {
         unlink(sockpath);
     }

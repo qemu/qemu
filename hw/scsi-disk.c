@@ -29,13 +29,13 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #endif
 
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "scsi.h"
 #include "scsi-defs.h"
-#include "sysemu.h"
-#include "blockdev.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/blockdev.h"
 #include "hw/block-common.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 #ifdef __linux
 #include <scsi/sg.h>
@@ -386,23 +386,11 @@ static void scsi_read_data(SCSIRequest *req)
  */
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
 {
-    int is_read = (r->req.cmd.xfer == SCSI_XFER_FROM_DEV);
+    bool is_read = (r->req.cmd.xfer == SCSI_XFER_FROM_DEV);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    BlockErrorAction action = bdrv_get_on_error(s->qdev.conf.bs, is_read);
+    BlockErrorAction action = bdrv_get_error_action(s->qdev.conf.bs, is_read, error);
 
-    if (action == BLOCK_ERR_IGNORE) {
-        bdrv_emit_qmp_error_event(s->qdev.conf.bs, BDRV_ACTION_IGNORE, is_read);
-        return 0;
-    }
-
-    if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
-            || action == BLOCK_ERR_STOP_ANY) {
-
-        bdrv_emit_qmp_error_event(s->qdev.conf.bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(RUN_STATE_IO_ERROR);
-        bdrv_iostatus_set_err(s->qdev.conf.bs, error);
-        scsi_req_retry(&r->req);
-    } else {
+    if (action == BDRV_ACTION_REPORT) {
         switch (error) {
         case ENOMEDIUM:
             scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
@@ -417,9 +405,12 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
             scsi_check_condition(r, SENSE_CODE(IO_ERROR));
             break;
         }
-        bdrv_emit_qmp_error_event(s->qdev.conf.bs, BDRV_ACTION_REPORT, is_read);
     }
-    return 1;
+    bdrv_error_action(s->qdev.conf.bs, action, is_read, error);
+    if (action == BDRV_ACTION_STOP) {
+        scsi_req_retry(&r->req);
+    }
+    return action != BDRV_ACTION_IGNORE;
 }
 
 static void scsi_write_complete(void * opaque, int ret)
@@ -661,7 +652,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     if (buflen > SCSI_MAX_INQUIRY_LEN) {
         buflen = SCSI_MAX_INQUIRY_LEN;
     }
-    memset(outbuf, 0, buflen);
 
     outbuf[0] = s->qdev.type & 0x1f;
     outbuf[1] = (s->features & (1 << SCSI_DISK_F_REMOVABLE)) ? 0x80 : 0;
@@ -678,7 +668,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
      * is actually implemented, but we're good enough.
      */
     outbuf[2] = 5;
-    outbuf[3] = 2; /* Format 2 */
+    outbuf[3] = 2 | 0x10; /* Format 2, HiSup */
 
     if (buflen > 36) {
         outbuf[4] = buflen - 5; /* Additional Length = (Len - 1) - 4 */
@@ -1397,6 +1387,7 @@ invalid_param_len:
 
 static void scsi_disk_emulate_mode_select(SCSIDiskReq *r, uint8_t *inbuf)
 {
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint8_t *p = inbuf;
     int cmd = r->req.cmd.buf[0];
     int len = r->req.cmd.xfer;
@@ -1433,6 +1424,14 @@ static void scsi_disk_emulate_mode_select(SCSIDiskReq *r, uint8_t *inbuf)
             return;
         }
     }
+    if (!bdrv_enable_write_cache(s->qdev.conf.bs)) {
+        /* The request is used as the AIO opaque value, so add a ref.  */
+        scsi_req_ref(&r->req);
+        bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
+        r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
+        return;
+    }
+
     scsi_req_complete(&r->req, GOOD);
     return;
 
@@ -1446,7 +1445,22 @@ invalid_param_len:
 
 invalid_field:
     scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
-    return;
+}
+
+static inline bool check_lba_range(SCSIDiskState *s,
+                                   uint64_t sector_num, uint32_t nb_sectors)
+{
+    /*
+     * The first line tests that no overflow happens when computing the last
+     * sector.  The second line tests that the last accessed sector is in
+     * range.
+     *
+     * Careful, the computations should not underflow for nb_sectors == 0,
+     * and a 0-block read to the first LBA beyond the end of device is
+     * valid.
+     */
+    return (sector_num <= sector_num + nb_sectors &&
+            sector_num + nb_sectors <= s->qdev.max_lba + 1);
 }
 
 typedef struct UnmapCBData {
@@ -1461,7 +1475,7 @@ static void scsi_unmap_complete(void *opaque, int ret)
     SCSIDiskReq *r = data->r;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint64_t sector_num;
-    uint32 nb_sectors;
+    uint32_t nb_sectors;
 
     r->req.aiocb = NULL;
     if (ret < 0) {
@@ -1473,8 +1487,7 @@ static void scsi_unmap_complete(void *opaque, int ret)
     if (data->count > 0 && !r->req.io_canceled) {
         sector_num = ldq_be_p(&data->inbuf[0]);
         nb_sectors = ldl_be_p(&data->inbuf[8]) & 0xffffffffULL;
-        if (sector_num > sector_num + nb_sectors ||
-            sector_num + nb_sectors - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, sector_num, nb_sectors)) {
             scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
             goto done;
         }
@@ -1529,7 +1542,6 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
 
 invalid_param_len:
     scsi_check_condition(r, SENSE_CODE(INVALID_PARAM_LEN));
-    return;
 }
 
 static void scsi_disk_emulate_write_data(SCSIRequest *req)
@@ -1592,24 +1604,26 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         break;
     }
 
+    /*
+     * FIXME: we shouldn't return anything bigger than 4k, but the code
+     * requires the buffer to be as big as req->cmd.xfer in several
+     * places.  So, do not allow CDBs with a very large ALLOCATION
+     * LENGTH.  The real fix would be to modify scsi_read_data and
+     * dma_buf_read, so that they return data beyond the buflen
+     * as all zeros.
+     */
+    if (req->cmd.xfer > 65536) {
+        goto illegal_request;
+    }
+    r->buflen = MAX(4096, req->cmd.xfer);
+
     if (!r->iov.iov_base) {
-        /*
-         * FIXME: we shouldn't return anything bigger than 4k, but the code
-         * requires the buffer to be as big as req->cmd.xfer in several
-         * places.  So, do not allow CDBs with a very large ALLOCATION
-         * LENGTH.  The real fix would be to modify scsi_read_data and
-         * dma_buf_read, so that they return data beyond the buflen
-         * as all zeros.
-         */
-        if (req->cmd.xfer > 65536) {
-            goto illegal_request;
-        }
-        r->buflen = MAX(4096, req->cmd.xfer);
         r->iov.iov_base = qemu_blockalign(s->qdev.conf.bs, r->buflen);
     }
 
     buflen = req->cmd.xfer;
     outbuf = r->iov.iov_base;
+    memset(outbuf, 0, r->buflen);
     switch (req->cmd.buf[0]) {
     case TEST_UNIT_READY:
         assert(!s->tray_open && bdrv_is_inserted(s->qdev.conf.bs));
@@ -1690,12 +1704,14 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         outbuf[5] = 0;
         outbuf[6] = s->qdev.blocksize >> 8;
         outbuf[7] = 0;
-        buflen = 8;
         break;
     case REQUEST_SENSE:
         /* Just return "NO SENSE".  */
         buflen = scsi_build_sense(NULL, 0, outbuf, r->buflen,
                                   (req->cmd.buf[1] & 1) == 0);
+        if (buflen < 0) {
+            goto illegal_request;
+        }
         break;
     case MECHANISM_STATUS:
         buflen = scsi_emulate_mechanism_status(s, outbuf);
@@ -1766,7 +1782,6 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
             }
 
             /* Protection, exponent and lowest lba field left blank. */
-            buflen = req->cmd.xfer;
             break;
         }
         DPRINTF("Unsupported Service Action In\n");
@@ -1793,17 +1808,13 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         DPRINTF("Unmap (len %lu)\n", (long)r->req.cmd.xfer);
         break;
     case WRITE_SAME_10:
-        nb_sectors = lduw_be_p(&req->cmd.buf[7]);
-        goto write_same;
     case WRITE_SAME_16:
-        nb_sectors = ldl_be_p(&req->cmd.buf[10]) & 0xffffffffULL;
-    write_same:
+        nb_sectors = scsi_data_cdb_length(r->req.cmd.buf);
         if (bdrv_is_read_only(s->qdev.conf.bs)) {
             scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
             return 0;
         }
-        if (r->req.cmd.lba > r->req.cmd.lba + nb_sectors ||
-            r->req.cmd.lba + nb_sectors - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, r->req.cmd.lba, nb_sectors)) {
             goto illegal_lba;
         }
 
@@ -1827,7 +1838,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         return 0;
     }
     assert(!r->req.aiocb);
-    r->iov.iov_len = MIN(buflen, req->cmd.xfer);
+    r->iov.iov_len = MIN(r->buflen, req->cmd.xfer);
     if (r->iov.iov_len == 0) {
         scsi_req_complete(&r->req, GOOD);
     }
@@ -1858,7 +1869,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
-    int32_t len;
+    uint32_t len;
     uint8_t command;
 
     command = buf[0];
@@ -1868,18 +1879,17 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         return 0;
     }
 
+    len = scsi_data_cdb_length(r->req.cmd.buf);
     switch (command) {
     case READ_6:
     case READ_10:
     case READ_12:
     case READ_16:
-        len = r->req.cmd.xfer / s->qdev.blocksize;
-        DPRINTF("Read (sector %" PRId64 ", count %d)\n", r->req.cmd.lba, len);
+        DPRINTF("Read (sector %" PRId64 ", count %u)\n", r->req.cmd.lba, len);
         if (r->req.cmd.buf[1] & 0xe0) {
             goto illegal_request;
         }
-        if (r->req.cmd.lba > r->req.cmd.lba + len ||
-            r->req.cmd.lba + len - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, r->req.cmd.lba, len)) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
@@ -1900,15 +1910,13 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
     case VERIFY_10:
     case VERIFY_12:
     case VERIFY_16:
-        len = r->req.cmd.xfer / s->qdev.blocksize;
-        DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
+        DPRINTF("Write %s(sector %" PRId64 ", count %u)\n",
                 (command & 0xe) == 0xe ? "And Verify " : "",
                 r->req.cmd.lba, len);
         if (r->req.cmd.buf[1] & 0xe0) {
             goto illegal_request;
         }
-        if (r->req.cmd.lba > r->req.cmd.lba + len ||
-            r->req.cmd.lba + len - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, r->req.cmd.lba, len)) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
@@ -1965,7 +1973,6 @@ static void scsi_disk_resize_cb(void *opaque)
      * direct-access devices.
      */
     if (s->qdev.type == TYPE_DISK) {
-        scsi_device_set_ua(&s->qdev, SENSE_CODE(CAPACITY_CHANGED));
         scsi_device_report_change(&s->qdev, SENSE_CODE(CAPACITY_CHANGED));
     }
 }
@@ -2421,6 +2428,7 @@ static TypeInfo scsi_cd_info = {
 #ifdef __linux__
 static Property scsi_block_properties[] = {
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.bs),
+    DEFINE_PROP_INT32("bootindex", SCSIDiskState, qdev.conf.bootindex, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

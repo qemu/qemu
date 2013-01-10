@@ -11,8 +11,8 @@
  *
  */
 
-#include "qbool.h"
-#include "qobject.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
 
 static void qbool_destroy_obj(QObject *obj);

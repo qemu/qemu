@@ -1,19 +1,18 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
-DEF_HELPER_1(clz, i32, i32)
-DEF_HELPER_1(sxtb16, i32, i32)
-DEF_HELPER_1(uxtb16, i32, i32)
+DEF_HELPER_FLAGS_1(clz, TCG_CALL_NO_RWG_SE, i32, i32)
+DEF_HELPER_FLAGS_1(sxtb16, TCG_CALL_NO_RWG_SE, i32, i32)
+DEF_HELPER_FLAGS_1(uxtb16, TCG_CALL_NO_RWG_SE, i32, i32)
 
-DEF_HELPER_2(add_setq, i32, i32, i32)
-DEF_HELPER_2(add_saturate, i32, i32, i32)
-DEF_HELPER_2(sub_saturate, i32, i32, i32)
-DEF_HELPER_2(add_usaturate, i32, i32, i32)
-DEF_HELPER_2(sub_usaturate, i32, i32, i32)
-DEF_HELPER_1(double_saturate, i32, s32)
-DEF_HELPER_2(sdiv, s32, s32, s32)
-DEF_HELPER_2(udiv, i32, i32, i32)
-DEF_HELPER_1(rbit, i32, i32)
-DEF_HELPER_1(abs, i32, i32)
+DEF_HELPER_3(add_setq, i32, env, i32, i32)
+DEF_HELPER_3(add_saturate, i32, env, i32, i32)
+DEF_HELPER_3(sub_saturate, i32, env, i32, i32)
+DEF_HELPER_3(add_usaturate, i32, env, i32, i32)
+DEF_HELPER_3(sub_usaturate, i32, env, i32, i32)
+DEF_HELPER_2(double_saturate, i32, env, s32)
+DEF_HELPER_FLAGS_2(sdiv, TCG_CALL_NO_RWG_SE, s32, s32, s32)
+DEF_HELPER_FLAGS_2(udiv, TCG_CALL_NO_RWG_SE, i32, i32, i32)
+DEF_HELPER_FLAGS_1(rbit, TCG_CALL_NO_RWG_SE, i32, i32)
 
 #define PAS_OP(pfx)  \
     DEF_HELPER_3(pfx ## add8, i32, i32, i32, ptr) \
@@ -40,21 +39,22 @@ PAS_OP(uq)
 PAS_OP(uh)
 #undef PAS_OP
 
-DEF_HELPER_2(ssat, i32, i32, i32)
-DEF_HELPER_2(usat, i32, i32, i32)
-DEF_HELPER_2(ssat16, i32, i32, i32)
-DEF_HELPER_2(usat16, i32, i32, i32)
+DEF_HELPER_3(ssat, i32, env, i32, i32)
+DEF_HELPER_3(usat, i32, env, i32, i32)
+DEF_HELPER_3(ssat16, i32, env, i32, i32)
+DEF_HELPER_3(usat16, i32, env, i32, i32)
 
-DEF_HELPER_2(usad8, i32, i32, i32)
+DEF_HELPER_FLAGS_2(usad8, TCG_CALL_NO_RWG_SE, i32, i32, i32)
 
 DEF_HELPER_1(logicq_cc, i32, i64)
 
-DEF_HELPER_3(sel_flags, i32, i32, i32, i32)
-DEF_HELPER_1(exception, void, i32)
-DEF_HELPER_0(wfi, void)
+DEF_HELPER_FLAGS_3(sel_flags, TCG_CALL_NO_RWG_SE,
+                   i32, i32, i32, i32)
+DEF_HELPER_2(exception, void, env, i32)
+DEF_HELPER_1(wfi, void, env)
 
-DEF_HELPER_2(cpsr_write, void, i32, i32)
-DEF_HELPER_0(cpsr_read, i32)
+DEF_HELPER_3(cpsr_write, void, env, i32, i32)
+DEF_HELPER_1(cpsr_read, i32, env)
 
 DEF_HELPER_3(v7m_msr, void, env, i32, i32)
 DEF_HELPER_2(v7m_mrs, i32, env, i32)
@@ -67,8 +67,8 @@ DEF_HELPER_2(get_cp_reg64, i64, env, ptr)
 DEF_HELPER_2(get_r13_banked, i32, env, i32)
 DEF_HELPER_3(set_r13_banked, void, env, i32, i32)
 
-DEF_HELPER_1(get_user_reg, i32, i32)
-DEF_HELPER_2(set_user_reg, void, i32, i32)
+DEF_HELPER_2(get_user_reg, i32, env, i32)
+DEF_HELPER_3(set_user_reg, void, env, i32, i32)
 
 DEF_HELPER_1(vfp_get_fpscr, i32, env)
 DEF_HELPER_2(vfp_set_fpscr, void, env, i32)
@@ -140,20 +140,15 @@ DEF_HELPER_2(recpe_f32, f32, f32, env)
 DEF_HELPER_2(rsqrte_f32, f32, f32, env)
 DEF_HELPER_2(recpe_u32, i32, i32, env)
 DEF_HELPER_2(rsqrte_u32, i32, i32, env)
-DEF_HELPER_4(neon_tbl, i32, i32, i32, i32, i32)
+DEF_HELPER_5(neon_tbl, i32, env, i32, i32, i32, i32)
 
-DEF_HELPER_2(add_cc, i32, i32, i32)
-DEF_HELPER_2(adc_cc, i32, i32, i32)
-DEF_HELPER_2(sub_cc, i32, i32, i32)
-DEF_HELPER_2(sbc_cc, i32, i32, i32)
+DEF_HELPER_3(adc_cc, i32, env, i32, i32)
+DEF_HELPER_3(sbc_cc, i32, env, i32, i32)
 
-DEF_HELPER_2(shl, i32, i32, i32)
-DEF_HELPER_2(shr, i32, i32, i32)
-DEF_HELPER_2(sar, i32, i32, i32)
-DEF_HELPER_2(shl_cc, i32, i32, i32)
-DEF_HELPER_2(shr_cc, i32, i32, i32)
-DEF_HELPER_2(sar_cc, i32, i32, i32)
-DEF_HELPER_2(ror_cc, i32, i32, i32)
+DEF_HELPER_3(shl_cc, i32, env, i32, i32)
+DEF_HELPER_3(shr_cc, i32, env, i32, i32)
+DEF_HELPER_3(sar_cc, i32, env, i32, i32)
+DEF_HELPER_3(ror_cc, i32, env, i32, i32)
 
 /* neon_helper.c */
 DEF_HELPER_3(neon_qadd_u8, i32, env, i32, i32)
@@ -343,7 +338,6 @@ DEF_HELPER_2(neon_mull_s16, i64, i32, i32)
 
 DEF_HELPER_1(neon_negl_u16, i64, i64)
 DEF_HELPER_1(neon_negl_u32, i64, i64)
-DEF_HELPER_1(neon_negl_u64, i64, i64)
 
 DEF_HELPER_2(neon_qabs_s8, i32, env, i32)
 DEF_HELPER_2(neon_qabs_s16, i32, env, i32)
@@ -469,4 +463,4 @@ DEF_HELPER_3(neon_qzip8, void, env, i32, i32)
 DEF_HELPER_3(neon_qzip16, void, env, i32, i32)
 DEF_HELPER_3(neon_qzip32, void, env, i32, i32)
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

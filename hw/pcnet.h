@@ -1,10 +1,13 @@
+#ifndef HW_PCNET_H
+#define HW_PCNET_H 1
+
 #define PCNET_IOPORT_SIZE       0x20
 #define PCNET_PNPMMIO_SIZE      0x20
 
 #define PCNET_LOOPTEST_CRC	1
 #define PCNET_LOOPTEST_NOCRC	2
 
-#include "memory.h"
+#include "exec/memory.h"
 
 /* BUS CONFIGURATION REGISTERS */
 #define BCR_MSRDA    0
@@ -42,9 +45,9 @@ struct PCNetState_st {
     MemoryRegion mmio;
     uint8_t buffer[4096];
     qemu_irq irq;
-    void (*phys_mem_read)(void *dma_opaque, target_phys_addr_t addr,
+    void (*phys_mem_read)(void *dma_opaque, hwaddr addr,
                          uint8_t *buf, int len, int do_bswap);
-    void (*phys_mem_write)(void *dma_opaque, target_phys_addr_t addr,
+    void (*phys_mem_write)(void *dma_opaque, hwaddr addr,
                           uint8_t *buf, int len, int do_bswap);
     void *dma_opaque;
     int tx_busy;
@@ -63,3 +66,5 @@ void pcnet_set_link_status(NetClientState *nc);
 void pcnet_common_cleanup(PCNetState *d);
 int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info);
 extern const VMStateDescription vmstate_pcnet;
+
+#endif

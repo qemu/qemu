@@ -1,139 +1,148 @@
-hw-obj-y = usb/ ide/
-hw-obj-y += loader.o
-hw-obj-$(CONFIG_VIRTIO) += virtio-console.o
-hw-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
-hw-obj-y += fw_cfg.o
-hw-obj-$(CONFIG_PCI) += pci.o pci_bridge.o pci_bridge_dev.o
-hw-obj-$(CONFIG_PCI) += msix.o msi.o
-hw-obj-$(CONFIG_PCI) += shpc.o
-hw-obj-$(CONFIG_PCI) += slotid_cap.o
-hw-obj-$(CONFIG_PCI) += pci_host.o pcie_host.o
-hw-obj-$(CONFIG_PCI) += ioh3420.o xio3130_upstream.o xio3130_downstream.o
-hw-obj-y += watchdog.o
-hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
-hw-obj-$(CONFIG_ECC) += ecc.o
-hw-obj-$(CONFIG_NAND) += nand.o
-hw-obj-$(CONFIG_PFLASH_CFI01) += pflash_cfi01.o
-hw-obj-$(CONFIG_PFLASH_CFI02) += pflash_cfi02.o
+# core qdev-related obj files, also used by *-user:
+hw-core-obj-y += qdev.o qdev-properties.o
+# irq.o needed for qdev GPIO handling:
+hw-core-obj-y += irq.o
 
-hw-obj-$(CONFIG_M48T59) += m48t59.o
-hw-obj-$(CONFIG_ESCC) += escc.o
-hw-obj-$(CONFIG_EMPTY_SLOT) += empty_slot.o
 
-hw-obj-$(CONFIG_SERIAL) += serial.o
-hw-obj-$(CONFIG_PARALLEL) += parallel.o
-hw-obj-$(CONFIG_I8254) += i8254_common.o i8254.o
-hw-obj-$(CONFIG_PCSPK) += pcspk.o
-hw-obj-$(CONFIG_PCKBD) += pckbd.o
-hw-obj-$(CONFIG_FDC) += fdc.o
-hw-obj-$(CONFIG_ACPI) += acpi.o acpi_piix4.o
-hw-obj-$(CONFIG_APM) += pm_smbus.o apm.o
-hw-obj-$(CONFIG_DMA) += dma.o
-hw-obj-$(CONFIG_I82374) += i82374.o
-hw-obj-$(CONFIG_HPET) += hpet.o
-hw-obj-$(CONFIG_APPLESMC) += applesmc.o
-hw-obj-$(CONFIG_SMARTCARD) += ccid-card-passthru.o
-hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
-hw-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
+common-obj-y = usb/ ide/ pci/
+common-obj-y += loader.o
+common-obj-$(CONFIG_VIRTIO) += virtio-console.o
+common-obj-$(CONFIG_VIRTIO) += virtio-rng.o
+common-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
+common-obj-y += fw_cfg.o
+common-obj-$(CONFIG_PCI) += pci_bridge_dev.o
+common-obj-$(CONFIG_PCI) += ioh3420.o xio3130_upstream.o xio3130_downstream.o
+common-obj-$(CONFIG_PCI) += i82801b11.o
+common-obj-y += watchdog.o
+common-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
+common-obj-$(CONFIG_ECC) += ecc.o
+common-obj-$(CONFIG_NAND) += nand.o
+common-obj-$(CONFIG_PFLASH_CFI01) += pflash_cfi01.o
+common-obj-$(CONFIG_PFLASH_CFI02) += pflash_cfi02.o
+
+common-obj-$(CONFIG_M48T59) += m48t59.o
+common-obj-$(CONFIG_ESCC) += escc.o
+common-obj-$(CONFIG_EMPTY_SLOT) += empty_slot.o
+
+common-obj-$(CONFIG_SERIAL) += serial.o serial-isa.o
+common-obj-$(CONFIG_SERIAL_PCI) += serial-pci.o
+common-obj-$(CONFIG_PARALLEL) += parallel.o
+common-obj-$(CONFIG_I8254) += i8254_common.o i8254.o
+common-obj-$(CONFIG_PCSPK) += pcspk.o
+common-obj-$(CONFIG_PCKBD) += pckbd.o
+common-obj-$(CONFIG_FDC) += fdc.o
+common-obj-$(CONFIG_ACPI) += acpi.o acpi_piix4.o acpi_ich9.o smbus_ich9.o
+common-obj-$(CONFIG_APM) += pm_smbus.o apm.o
+common-obj-$(CONFIG_DMA) += dma.o
+common-obj-$(CONFIG_I82374) += i82374.o
+common-obj-$(CONFIG_HPET) += hpet.o
+common-obj-$(CONFIG_APPLESMC) += applesmc.o
+common-obj-$(CONFIG_SMARTCARD) += ccid-card-passthru.o
+common-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
+common-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
+common-obj-y += fifo.o
+common-obj-y += pam.o
+
+extra-obj-y += pci/
 
 # PPC devices
-hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
-hw-obj-$(CONFIG_I82378) += i82378.o
-hw-obj-$(CONFIG_PC87312) += pc87312.o
+common-obj-$(CONFIG_PREP_PCI) += prep_pci.o
+common-obj-$(CONFIG_I82378) += i82378.o
+common-obj-$(CONFIG_PC87312) += pc87312.o
 # Mac shared devices
-hw-obj-$(CONFIG_MACIO) += macio.o
-hw-obj-$(CONFIG_CUDA) += cuda.o
-hw-obj-$(CONFIG_ADB) += adb.o
-hw-obj-$(CONFIG_MAC_NVRAM) += mac_nvram.o
-hw-obj-$(CONFIG_MAC_DBDMA) += mac_dbdma.o
+common-obj-$(CONFIG_MACIO) += macio.o
+common-obj-$(CONFIG_CUDA) += cuda.o
+common-obj-$(CONFIG_ADB) += adb.o
+common-obj-$(CONFIG_MAC_NVRAM) += mac_nvram.o
+common-obj-$(CONFIG_MAC_DBDMA) += mac_dbdma.o
 # OldWorld PowerMac
-hw-obj-$(CONFIG_HEATHROW_PIC) += heathrow_pic.o
-hw-obj-$(CONFIG_GRACKLE_PCI) += grackle_pci.o
+common-obj-$(CONFIG_HEATHROW_PIC) += heathrow_pic.o
+common-obj-$(CONFIG_GRACKLE_PCI) += grackle_pci.o
 # NewWorld PowerMac
-hw-obj-$(CONFIG_UNIN_PCI) += unin_pci.o
-hw-obj-$(CONFIG_DEC_PCI) += dec_pci.o
+common-obj-$(CONFIG_UNIN_PCI) += unin_pci.o
+common-obj-$(CONFIG_DEC_PCI) += dec_pci.o
 # PowerPC E500 boards
-hw-obj-$(CONFIG_PPCE500_PCI) += ppce500_pci.o
+common-obj-$(CONFIG_PPCE500_PCI) += ppce500_pci.o
 
 # MIPS devices
-hw-obj-$(CONFIG_PIIX4) += piix4.o
-hw-obj-$(CONFIG_G364FB) += g364fb.o
-hw-obj-$(CONFIG_JAZZ_LED) += jazz_led.o
+common-obj-$(CONFIG_PIIX4) += piix4.o
+common-obj-$(CONFIG_G364FB) += g364fb.o
+common-obj-$(CONFIG_JAZZ_LED) += jazz_led.o
 
 # Xilinx devices
-hw-obj-$(CONFIG_XILINX) += xilinx_intc.o
-hw-obj-$(CONFIG_XILINX) += xilinx_timer.o
-hw-obj-$(CONFIG_XILINX) += xilinx_uartlite.o
-hw-obj-$(CONFIG_XILINX_AXI) += xilinx_axidma.o
-hw-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
-hw-obj-$(CONFIG_XILINX_AXI) += stream.o
+common-obj-$(CONFIG_XILINX) += xilinx_intc.o
+common-obj-$(CONFIG_XILINX) += xilinx_timer.o
+common-obj-$(CONFIG_XILINX) += xilinx_uartlite.o
+common-obj-$(CONFIG_XILINX_AXI) += xilinx_axidma.o
+common-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
+common-obj-$(CONFIG_XILINX_AXI) += stream.o
 
 # PKUnity SoC devices
-hw-obj-$(CONFIG_PUV3) += puv3_intc.o
-hw-obj-$(CONFIG_PUV3) += puv3_ost.o
-hw-obj-$(CONFIG_PUV3) += puv3_gpio.o
-hw-obj-$(CONFIG_PUV3) += puv3_pm.o
-hw-obj-$(CONFIG_PUV3) += puv3_dma.o
+common-obj-$(CONFIG_PUV3) += puv3_intc.o
+common-obj-$(CONFIG_PUV3) += puv3_ost.o
+common-obj-$(CONFIG_PUV3) += puv3_gpio.o
+common-obj-$(CONFIG_PUV3) += puv3_pm.o
+common-obj-$(CONFIG_PUV3) += puv3_dma.o
 
 # ARM devices
-hw-obj-$(CONFIG_ARM_TIMER) += arm_timer.o
-hw-obj-$(CONFIG_PL011) += pl011.o
-hw-obj-$(CONFIG_PL022) += pl022.o
-hw-obj-$(CONFIG_PL031) += pl031.o
-hw-obj-$(CONFIG_PL041) += pl041.o lm4549.o
-hw-obj-$(CONFIG_PL050) += pl050.o
-hw-obj-$(CONFIG_PL061) += pl061.o
-hw-obj-$(CONFIG_PL080) += pl080.o
-hw-obj-$(CONFIG_PL110) += pl110.o
-hw-obj-$(CONFIG_PL181) += pl181.o
-hw-obj-$(CONFIG_PL190) += pl190.o
-hw-obj-$(CONFIG_PL310) += arm_l2x0.o
-hw-obj-$(CONFIG_VERSATILE_PCI) += versatile_pci.o
-hw-obj-$(CONFIG_VERSATILE_I2C) += versatile_i2c.o
-hw-obj-$(CONFIG_CADENCE) += cadence_uart.o
-hw-obj-$(CONFIG_CADENCE) += cadence_ttc.o
-hw-obj-$(CONFIG_CADENCE) += cadence_gem.o
-hw-obj-$(CONFIG_XGMAC) += xgmac.o
+common-obj-$(CONFIG_ARM_TIMER) += arm_timer.o
+common-obj-$(CONFIG_PL011) += pl011.o
+common-obj-$(CONFIG_PL022) += pl022.o
+common-obj-$(CONFIG_PL031) += pl031.o
+common-obj-$(CONFIG_PL041) += pl041.o lm4549.o
+common-obj-$(CONFIG_PL050) += pl050.o
+common-obj-$(CONFIG_PL061) += pl061.o
+common-obj-$(CONFIG_PL080) += pl080.o
+common-obj-$(CONFIG_PL110) += pl110.o
+common-obj-$(CONFIG_PL181) += pl181.o
+common-obj-$(CONFIG_PL190) += pl190.o
+common-obj-$(CONFIG_PL310) += arm_l2x0.o
+common-obj-$(CONFIG_VERSATILE_PCI) += versatile_pci.o
+common-obj-$(CONFIG_VERSATILE_I2C) += versatile_i2c.o
+common-obj-$(CONFIG_CADENCE) += cadence_uart.o
+common-obj-$(CONFIG_CADENCE) += cadence_ttc.o
+common-obj-$(CONFIG_CADENCE) += cadence_gem.o
+common-obj-$(CONFIG_XGMAC) += xgmac.o
 
 # PCI watchdog devices
-hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
-
-hw-obj-$(CONFIG_PCI) += pcie.o pcie_aer.o pcie_port.o
+common-obj-$(CONFIG_PCI) += wdt_i6300esb.o
 
 # PCI network cards
-hw-obj-$(CONFIG_NE2000_PCI) += ne2000.o
-hw-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
-hw-obj-$(CONFIG_PCNET_PCI) += pcnet-pci.o
-hw-obj-$(CONFIG_PCNET_COMMON) += pcnet.o
-hw-obj-$(CONFIG_E1000_PCI) += e1000.o
-hw-obj-$(CONFIG_RTL8139_PCI) += rtl8139.o
+common-obj-$(CONFIG_NE2000_PCI) += ne2000.o
+common-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
+common-obj-$(CONFIG_PCNET_PCI) += pcnet-pci.o
+common-obj-$(CONFIG_PCNET_COMMON) += pcnet.o
+common-obj-$(CONFIG_E1000_PCI) += e1000.o
+common-obj-$(CONFIG_RTL8139_PCI) += rtl8139.o
 
-hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
-hw-obj-$(CONFIG_LAN9118) += lan9118.o
-hw-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
-hw-obj-$(CONFIG_OPENCORES_ETH) += opencores_eth.o
+common-obj-$(CONFIG_SMC91C111) += smc91c111.o
+common-obj-$(CONFIG_LAN9118) += lan9118.o
+common-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
+common-obj-$(CONFIG_OPENCORES_ETH) += opencores_eth.o
 
 # SCSI layer
-hw-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
-hw-obj-$(CONFIG_MEGASAS_SCSI_PCI) += megasas.o
-hw-obj-$(CONFIG_ESP) += esp.o
-hw-obj-$(CONFIG_ESP_PCI) += esp-pci.o
+common-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
+common-obj-$(CONFIG_MEGASAS_SCSI_PCI) += megasas.o
+common-obj-$(CONFIG_ESP) += esp.o
+common-obj-$(CONFIG_ESP_PCI) += esp-pci.o
 
-hw-obj-y += sysbus.o isa-bus.o
-hw-obj-y += qdev-addr.o
+common-obj-y += sysbus.o isa-bus.o
+common-obj-y += qdev-addr.o
 
 # VGA
-hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o
-hw-obj-$(CONFIG_VGA_ISA) += vga-isa.o
-hw-obj-$(CONFIG_VGA_ISA_MM) += vga-isa-mm.o
-hw-obj-$(CONFIG_VMWARE_VGA) += vmware_vga.o
-hw-obj-$(CONFIG_VMMOUSE) += vmmouse.o
-hw-obj-$(CONFIG_VGA_CIRRUS) += cirrus_vga.o
+common-obj-$(CONFIG_VGA_PCI) += vga-pci.o
+common-obj-$(CONFIG_VGA_ISA) += vga-isa.o
+common-obj-$(CONFIG_VGA_ISA_MM) += vga-isa-mm.o
+common-obj-$(CONFIG_VMWARE_VGA) += vmware_vga.o
+common-obj-$(CONFIG_VMMOUSE) += vmmouse.o
+common-obj-$(CONFIG_VGA_CIRRUS) += cirrus_vga.o
 
-hw-obj-$(CONFIG_RC4030) += rc4030.o
-hw-obj-$(CONFIG_DP8393X) += dp8393x.o
-hw-obj-$(CONFIG_DS1225Y) += ds1225y.o
-hw-obj-$(CONFIG_MIPSNET) += mipsnet.o
+common-obj-$(CONFIG_RC4030) += rc4030.o
+common-obj-$(CONFIG_DP8393X) += dp8393x.o
+common-obj-$(CONFIG_DS1225Y) += ds1225y.o
+common-obj-$(CONFIG_MIPSNET) += mipsnet.o
+
+common-obj-y += null-machine.o
 
 # Sound
 sound-obj-y =
@@ -147,12 +156,11 @@ sound-obj-$(CONFIG_HDA) += intel-hda.o hda-audio.o
 
 $(obj)/adlib.o $(obj)/fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0
 
-hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
+common-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 
-hw-obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/
+common-obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/
 
 common-obj-y += usb/
-common-obj-y += irq.o
 common-obj-$(CONFIG_PTIMER) += ptimer.o
 common-obj-$(CONFIG_MAX7310) += max7310.o
 common-obj-$(CONFIG_WM8750) += wm8750.o
@@ -172,12 +180,14 @@ common-obj-y += scsi-disk.o cdrom.o hd-geometry.o block-common.o
 common-obj-y += scsi-generic.o scsi-bus.o
 common-obj-y += hid.o
 common-obj-$(CONFIG_SSI) += ssi.o
+common-obj-$(CONFIG_SSI_M25P80) += m25p80.o
 common-obj-$(CONFIG_SSI_SD) += ssi-sd.o
 common-obj-$(CONFIG_SD) += sd.o
 common-obj-y += bt.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o
 common-obj-y += bt-hci-csr.o
 common-obj-y += msmouse.o ps2.o
-common-obj-y += qdev.o qdev-properties.o qdev-monitor.o
+common-obj-y += qdev-monitor.o
+common-obj-y += qdev-properties-system.o
 common-obj-$(CONFIG_BRLAPI) += baum.o
 
 # xen backend driver support
@@ -187,17 +197,20 @@ common-obj-$(CONFIG_XEN_BACKEND) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 # Per-target files
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
+obj-$(CONFIG_VIRTIO) += dataplane/
 obj-$(CONFIG_VIRTIO) += virtio.o virtio-blk.o virtio-balloon.o virtio-net.o
 obj-$(CONFIG_VIRTIO) += virtio-serial-bus.o virtio-scsi.o
 obj-$(CONFIG_SOFTMMU) += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/
-obj-$(CONFIG_NO_PCI) += pci-stub.o
 obj-$(CONFIG_VGA) += vga.o
 obj-$(CONFIG_SOFTMMU) += device-hotplug.o
 obj-$(CONFIG_XEN) += xen_domainbuild.o xen_machine_pv.o
 
-# Inter-VM PCI shared memory
+# Inter-VM PCI shared memory & VFIO PCI device assignment
 ifeq ($(CONFIG_PCI), y)
 obj-$(CONFIG_KVM) += ivshmem.o
+obj-$(CONFIG_LINUX) += vfio_pci.o
 endif
+
+$(obj)/baum.o: QEMU_CFLAGS += $(SDL_CFLAGS) 

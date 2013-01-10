@@ -10,7 +10,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "ssi.h"
 #include "sd.h"
 
@@ -197,6 +197,7 @@ static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
 
 static void ssi_sd_save(QEMUFile *f, void *opaque)
 {
+    SSISlave *ss = SSI_SLAVE(opaque);
     ssi_sd_state *s = (ssi_sd_state *)opaque;
     int i;
 
@@ -209,10 +210,13 @@ static void ssi_sd_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->arglen);
     qemu_put_be32(f, s->response_pos);
     qemu_put_be32(f, s->stopping);
+
+    qemu_put_be32(f, ss->cs);
 }
 
 static int ssi_sd_load(QEMUFile *f, void *opaque, int version_id)
 {
+    SSISlave *ss = SSI_SLAVE(opaque);
     ssi_sd_state *s = (ssi_sd_state *)opaque;
     int i;
 
@@ -228,6 +232,8 @@ static int ssi_sd_load(QEMUFile *f, void *opaque, int version_id)
     s->arglen = qemu_get_be32(f);
     s->response_pos = qemu_get_be32(f);
     s->stopping = qemu_get_be32(f);
+
+    ss->cs = qemu_get_be32(f);
 
     return 0;
 }
@@ -250,6 +256,7 @@ static void ssi_sd_class_init(ObjectClass *klass, void *data)
 
     k->init = ssi_sd_init;
     k->transfer = ssi_sd_transfer;
+    k->cs_polarity = SSI_CS_LOW;
 }
 
 static TypeInfo ssi_sd_info = {

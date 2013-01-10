@@ -1,12 +1,13 @@
 #include "qdev.h"
 #include "qdev-addr.h"
-#include "targphys.h"
+#include "exec/hwaddr.h"
+#include "qapi/visitor.h"
 
 /* --- target physical address --- */
 
 static int parse_taddr(DeviceState *dev, Property *prop, const char *str)
 {
-    target_phys_addr_t *ptr = qdev_get_prop_ptr(dev, prop);
+    hwaddr *ptr = qdev_get_prop_ptr(dev, prop);
 
     *ptr = strtoull(str, NULL, 16);
     return 0;
@@ -14,7 +15,7 @@ static int parse_taddr(DeviceState *dev, Property *prop, const char *str)
 
 static int print_taddr(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
-    target_phys_addr_t *ptr = qdev_get_prop_ptr(dev, prop);
+    hwaddr *ptr = qdev_get_prop_ptr(dev, prop);
     return snprintf(dest, len, "0x" TARGET_FMT_plx, *ptr);
 }
 
@@ -23,7 +24,7 @@ static void get_taddr(Object *obj, Visitor *v, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    target_phys_addr_t *ptr = qdev_get_prop_ptr(dev, prop);
+    hwaddr *ptr = qdev_get_prop_ptr(dev, prop);
     int64_t value;
 
     value = *ptr;
@@ -35,7 +36,7 @@ static void set_taddr(Object *obj, Visitor *v, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    target_phys_addr_t *ptr = qdev_get_prop_ptr(dev, prop);
+    hwaddr *ptr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
     int64_t value;
 
@@ -49,12 +50,12 @@ static void set_taddr(Object *obj, Visitor *v, void *opaque,
         error_propagate(errp, local_err);
         return;
     }
-    if ((uint64_t)value <= (uint64_t) ~(target_phys_addr_t)0) {
+    if ((uint64_t)value <= (uint64_t) ~(hwaddr)0) {
         *ptr = value;
     } else {
         error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
                   dev->id?:"", name, value, (uint64_t) 0,
-                  (uint64_t) ~(target_phys_addr_t)0);
+                  (uint64_t) ~(hwaddr)0);
     }
 }
 
@@ -67,7 +68,7 @@ PropertyInfo qdev_prop_taddr = {
     .set   = set_taddr,
 };
 
-void qdev_prop_set_taddr(DeviceState *dev, const char *name, target_phys_addr_t value)
+void qdev_prop_set_taddr(DeviceState *dev, const char *name, hwaddr value)
 {
     Error *errp = NULL;
     object_property_set_int(OBJECT(dev), value, name, &errp);

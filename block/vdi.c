@@ -50,19 +50,16 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
-#include "module.h"
-#include "migration.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
+#include "migration/migration.h"
 
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
 #else
 /* TODO: move uuid emulation to some central place in QEMU. */
-#include "sysemu.h"     /* UUID_FMT */
+#include "sysemu/sysemu.h"     /* UUID_FMT */
 typedef unsigned char uuid_t[16];
-void uuid_generate(uuid_t out);
-int uuid_is_null(const uuid_t uu);
-void uuid_unparse(const uuid_t uu, char *out);
 #endif
 
 /* Code configuration options. */
@@ -124,18 +121,18 @@ void uuid_unparse(const uuid_t uu, char *out);
 #define VDI_IS_ALLOCATED(X) ((X) < VDI_DISCARDED)
 
 #if !defined(CONFIG_UUID)
-void uuid_generate(uuid_t out)
+static inline void uuid_generate(uuid_t out)
 {
     memset(out, 0, sizeof(uuid_t));
 }
 
-int uuid_is_null(const uuid_t uu)
+static inline int uuid_is_null(const uuid_t uu)
 {
     uuid_t null_uuid = { 0 };
     return memcmp(uu, null_uuid, sizeof(uuid_t)) == 0;
 }
 
-void uuid_unparse(const uuid_t uu, char *out)
+static inline void uuid_unparse(const uuid_t uu, char *out)
 {
     snprintf(out, 37, UUID_FMT,
             uu[0], uu[1], uu[2], uu[3], uu[4], uu[5], uu[6], uu[7],
@@ -454,6 +451,12 @@ static int vdi_open(BlockDriverState *bs, int flags)
     return -1;
 }
 
+static int vdi_reopen_prepare(BDRVReopenState *state,
+                              BlockReopenQueue *queue, Error **errp)
+{
+    return 0;
+}
+
 static int coroutine_fn vdi_co_is_allocated(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
@@ -628,7 +631,6 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     VdiHeader header;
     size_t i;
     size_t bmap_size;
-    uint32_t *bmap;
 
     logout("\n");
 
@@ -693,21 +695,21 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
         result = -errno;
     }
 
-    bmap = NULL;
     if (bmap_size > 0) {
-        bmap = (uint32_t *)g_malloc0(bmap_size);
-    }
-    for (i = 0; i < blocks; i++) {
-        if (image_type == VDI_TYPE_STATIC) {
-            bmap[i] = i;
-        } else {
-            bmap[i] = VDI_UNALLOCATED;
+        uint32_t *bmap = g_malloc0(bmap_size);
+        for (i = 0; i < blocks; i++) {
+            if (image_type == VDI_TYPE_STATIC) {
+                bmap[i] = i;
+            } else {
+                bmap[i] = VDI_UNALLOCATED;
+            }
         }
+        if (write(fd, bmap, bmap_size) < 0) {
+            result = -errno;
+        }
+        g_free(bmap);
     }
-    if (write(fd, bmap, bmap_size) < 0) {
-        result = -errno;
-    }
-    g_free(bmap);
+
     if (image_type == VDI_TYPE_STATIC) {
         if (ftruncate(fd, sizeof(header) + bmap_size + blocks * block_size)) {
             result = -errno;
@@ -762,6 +764,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_probe = vdi_probe,
     .bdrv_open = vdi_open,
     .bdrv_close = vdi_close,
+    .bdrv_reopen_prepare = vdi_reopen_prepare,
     .bdrv_create = vdi_create,
     .bdrv_co_is_allocated = vdi_co_is_allocated,
     .bdrv_make_empty = vdi_make_empty,

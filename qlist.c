@@ -10,9 +10,9 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-#include "qlist.h"
-#include "qobject.h"
-#include "qemu-queue.h"
+#include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qobject.h"
+#include "qemu/queue.h"
 #include "qemu-common.h"
 
 static void qlist_destroy_obj(QObject *obj);
@@ -122,6 +122,19 @@ QObject *qlist_peek(QList *qlist)
 int qlist_empty(const QList *qlist)
 {
     return QTAILQ_EMPTY(&qlist->head);
+}
+
+static void qlist_size_iter(QObject *obj, void *opaque)
+{
+    size_t *count = opaque;
+    (*count)++;
+}
+
+size_t qlist_size(const QList *qlist)
+{
+    size_t count = 0;
+    qlist_iter(qlist, qlist_size_iter, &count);
+    return count;
 }
 
 /**

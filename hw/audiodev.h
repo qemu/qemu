@@ -1,3 +1,6 @@
+#ifndef HW_AUDIODEV_H
+#define HW_AUDIODEV_H 1
+
 /* es1370.c */
 int es1370_init(PCIBus *bus);
 
@@ -18,3 +21,5 @@ int cs4231a_init(ISABus *bus);
 
 /* intel-hda.c + hda-audio.c */
 int intel_hda_and_codec_init(PCIBus *bus);
+
+#endif

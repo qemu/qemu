@@ -24,23 +24,22 @@
 
 #include "sysbus.h"
 #include "hw.h"
-#include "pc.h"
-#include "net.h"
+#include "serial.h"
 #include "flash.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "devices.h"
 #include "boards.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 #include "loader.h"
 #include "elf.h"
-#include "qemu-log.h"
-#include "exec-memory.h"
+#include "qemu/log.h"
+#include "exec/address-spaces.h"
 
 #include "ppc.h"
 #include "ppc4xx.h"
 #include "ppc405.h"
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "xilinx.h"
 
 #define EPAPR_MAGIC    (0x45504150)
@@ -58,7 +57,7 @@ static struct boot_info
 /* Create reset TLB entries for BookE, spanning the 32bit addr space.  */
 static void mmubooke_create_initial_mapping(CPUPPCState *env,
                                      target_ulong va,
-                                     target_phys_addr_t pa)
+                                     hwaddr pa)
 {
     ppcemb_tlb_t *tlb = &env->tlb.tlbe[0];
 
@@ -94,7 +93,7 @@ static PowerPCCPU *ppc440_init_xilinx(ram_addr_t *ram_size,
     }
     env = &cpu->env;
 
-    ppc_booke_timers_init(env, sysclk, 0/* no flags */);
+    ppc_booke_timers_init(cpu, sysclk, 0/* no flags */);
 
     ppc_dcr_init(env, NULL, NULL);
 
@@ -134,10 +133,10 @@ static void main_cpu_reset(void *opaque)
 }
 
 #define BINARY_DEVICE_TREE_FILE "virtex-ml507.dtb"
-static int xilinx_load_device_tree(target_phys_addr_t addr,
+static int xilinx_load_device_tree(hwaddr addr,
                                       uint32_t ramsize,
-                                      target_phys_addr_t initrd_base,
-                                      target_phys_addr_t initrd_size,
+                                      hwaddr initrd_base,
+                                      hwaddr initrd_size,
                                       const char *kernel_cmdline)
 {
     char *path;
@@ -183,17 +182,17 @@ static int xilinx_load_device_tree(target_phys_addr_t addr,
     return fdt_size;
 }
 
-static void virtex_init(ram_addr_t ram_size,
-                        const char *boot_device,
-                        const char *kernel_filename,
-                        const char *kernel_cmdline,
-                        const char *initrd_filename, const char *cpu_model)
+static void virtex_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
     PowerPCCPU *cpu;
     CPUPPCState *env;
-    target_phys_addr_t ram_base = 0;
+    hwaddr ram_base = 0;
     DriveInfo *dinfo;
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
     qemu_irq irq[32], *cpu_irq;
@@ -233,7 +232,7 @@ static void virtex_init(ram_addr_t ram_size,
 
     if (kernel_filename) {
         uint64_t entry, low, high;
-        target_phys_addr_t boot_offset;
+        hwaddr boot_offset;
 
         /* Boots a kernel elf binary.  */
         kernel_size = load_elf(kernel_filename, NULL, NULL,

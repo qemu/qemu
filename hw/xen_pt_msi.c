@@ -321,7 +321,7 @@ static int xen_pt_msix_update_one(XenPCIPassthroughState *s, int entry_nr)
 
     pirq = entry->pirq;
 
-    rc = msi_msix_setup(s, entry->data, entry->data, &pirq, true, entry_nr,
+    rc = msi_msix_setup(s, entry->addr, entry->data, &pirq, true, entry_nr,
                         entry->pirq == XEN_PT_UNASSIGNED_PIRQ);
     if (rc) {
         return rc;
@@ -427,7 +427,7 @@ static void set_entry_value(XenPTMSIXEntry *e, int offset, uint32_t val)
     }
 }
 
-static void pci_msix_write(void *opaque, target_phys_addr_t addr,
+static void pci_msix_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     XenPCIPassthroughState *s = opaque;
@@ -475,7 +475,7 @@ static void pci_msix_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t pci_msix_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pci_msix_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     XenPCIPassthroughState *s = opaque;

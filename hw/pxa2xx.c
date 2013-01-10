@@ -9,15 +9,15 @@
 
 #include "sysbus.h"
 #include "pxa.h"
-#include "sysemu.h"
-#include "pc.h"
+#include "sysemu/sysemu.h"
+#include "serial.h"
 #include "i2c.h"
 #include "ssi.h"
-#include "qemu-char.h"
-#include "blockdev.h"
+#include "char/char.h"
+#include "sysemu/blockdev.h"
 
 static struct {
-    target_phys_addr_t io_base;
+    hwaddr io_base;
     int irqn;
 } pxa255_serial[] = {
     { 0x40100000, PXA2XX_PIC_FFUART },
@@ -33,7 +33,7 @@ static struct {
 };
 
 typedef struct PXASSPDef {
-    target_phys_addr_t io_base;
+    hwaddr io_base;
     int irqn;
 } PXASSPDef;
 
@@ -88,7 +88,7 @@ static PXASSPDef pxa27x_ssp[] = {
 #define PCMD0	0x80	/* Power Manager I2C Command register File 0 */
 #define PCMD31	0xfc	/* Power Manager I2C Command register File 31 */
 
-static uint64_t pxa2xx_pm_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pxa2xx_pm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -107,7 +107,7 @@ static uint64_t pxa2xx_pm_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_pm_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -160,7 +160,7 @@ static const VMStateDescription vmstate_pxa2xx_pm = {
 #define OSCC	0x08	/* Oscillator Configuration register */
 #define CCSR	0x0c	/* Core Clock Status register */
 
-static uint64_t pxa2xx_cm_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pxa2xx_cm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -181,7 +181,7 @@ static uint64_t pxa2xx_cm_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void pxa2xx_cm_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_cm_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -405,7 +405,7 @@ static void pxa2xx_setup_cp14(PXA2xxState *s)
 #define BSCNTR3		0x60	/* Memory Buffer Strength Control register 3 */
 #define SA1110		0x64	/* SA-1110 Memory Compatibility register */
 
-static uint64_t pxa2xx_mm_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pxa2xx_mm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -422,7 +422,7 @@ static uint64_t pxa2xx_mm_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void pxa2xx_mm_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_mm_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     PXA2xxState *s = (PXA2xxState *) opaque;
@@ -567,7 +567,7 @@ static void pxa2xx_ssp_fifo_update(PXA2xxSSPState *s)
     pxa2xx_ssp_int_update(s);
 }
 
-static uint64_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pxa2xx_ssp_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
@@ -613,7 +613,7 @@ static uint64_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_ssp_write(void *opaque, hwaddr addr,
                              uint64_t value64, unsigned size)
 {
     PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
@@ -943,7 +943,7 @@ static inline void pxa2xx_rtc_pi_tick(void *opaque)
     pxa2xx_rtc_int_update(s);
 }
 
-static uint64_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pxa2xx_rtc_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
@@ -989,7 +989,7 @@ static uint64_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void pxa2xx_rtc_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_rtc_write(void *opaque, hwaddr addr,
                              uint64_t value64, unsigned size)
 {
     PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
@@ -1294,7 +1294,7 @@ static int pxa2xx_i2c_tx(I2CSlave *i2c, uint8_t data)
     return 1;
 }
 
-static uint64_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pxa2xx_i2c_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
@@ -1322,7 +1322,7 @@ static uint64_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void pxa2xx_i2c_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_i2c_write(void *opaque, hwaddr addr,
                              uint64_t value64, unsigned size)
 {
     PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
@@ -1449,7 +1449,7 @@ static TypeInfo pxa2xx_i2c_slave_info = {
     .class_init    = pxa2xx_i2c_slave_class_init,
 };
 
-PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
+PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
                 qemu_irq irq, uint32_t region_size)
 {
     DeviceState *dev;
@@ -1572,7 +1572,7 @@ static inline void pxa2xx_i2s_update(PXA2xxI2SState *i2s)
 #define SADIV	0x60	/* Serial Audio Clock Divider register */
 #define SADR	0x80	/* Serial Audio Data register */
 
-static uint64_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pxa2xx_i2s_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
@@ -1604,7 +1604,7 @@ static uint64_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void pxa2xx_i2s_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_i2s_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
     PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
@@ -1706,7 +1706,7 @@ static void pxa2xx_i2s_data_req(void *opaque, int tx, int rx)
 }
 
 static PXA2xxI2SState *pxa2xx_i2s_init(MemoryRegion *sysmem,
-                target_phys_addr_t base,
+                hwaddr base,
                 qemu_irq irq, qemu_irq rx_dma, qemu_irq tx_dma)
 {
     PXA2xxI2SState *s = (PXA2xxI2SState *)
@@ -1801,7 +1801,7 @@ static inline void pxa2xx_fir_update(PXA2xxFIrState *s)
 #define ICSR1	0x18	/* FICP Status register 1 */
 #define ICFOR	0x1c	/* FICP FIFO Occupancy Status register */
 
-static uint64_t pxa2xx_fir_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pxa2xx_fir_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
@@ -1839,7 +1839,7 @@ static uint64_t pxa2xx_fir_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void pxa2xx_fir_write(void *opaque, target_phys_addr_t addr,
+static void pxa2xx_fir_write(void *opaque, hwaddr addr,
                              uint64_t value64, unsigned size)
 {
     PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
@@ -1963,7 +1963,7 @@ static int pxa2xx_fir_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 static PXA2xxFIrState *pxa2xx_fir_init(MemoryRegion *sysmem,
-                target_phys_addr_t base,
+                hwaddr base,
                 qemu_irq irq, qemu_irq rx_dma, qemu_irq tx_dma,
                 CharDriverState *chr)
 {
@@ -2108,7 +2108,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
         s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
 
-    if (usb_enabled) {
+    if (usb_enabled(false)) {
         sysbus_create_simple("sysbus-ohci", 0x4c000000,
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
     }
@@ -2239,7 +2239,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
         s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
 
-    if (usb_enabled) {
+    if (usb_enabled(false)) {
         sysbus_create_simple("sysbus-ohci", 0x4c000000,
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
     }

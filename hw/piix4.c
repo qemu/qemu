@@ -24,7 +24,7 @@
 
 #include "hw.h"
 #include "pc.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "isa.h"
 #include "sysbus.h"
 

@@ -14,15 +14,16 @@
  */
 
 #include "qemu-common.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qmp-commands.h"
+#include "char/char.h"
 #include "ui/qemu-spice.h"
 #include "ui/vnc.h"
-#include "kvm.h"
-#include "arch_init.h"
+#include "sysemu/kvm.h"
+#include "sysemu/arch_init.h"
 #include "hw/qdev.h"
-#include "blockdev.h"
-#include "qemu/qom-qobject.h"
+#include "sysemu/blockdev.h"
+#include "qom/qom-qobject.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -85,7 +86,11 @@ void qmp_quit(Error **err)
 
 void qmp_stop(Error **errp)
 {
-    vm_stop(RUN_STATE_PAUSED);
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        autostart = 0;
+    } else {
+        vm_stop(RUN_STATE_PAUSED);
+    }
 }
 
 void qmp_system_reset(Error **errp)
@@ -144,10 +149,7 @@ void qmp_cont(Error **errp)
 {
     Error *local_err = NULL;
 
-    if (runstate_check(RUN_STATE_INMIGRATE)) {
-        error_set(errp, QERR_MIGRATION_EXPECTED);
-        return;
-    } else if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
+    if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
                runstate_check(RUN_STATE_SHUTDOWN)) {
         error_set(errp, QERR_RESET_REQUIRED);
         return;
@@ -162,7 +164,11 @@ void qmp_cont(Error **errp)
         return;
     }
 
-    vm_start();
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        autostart = 1;
+    } else {
+        vm_start();
+    }
 }
 
 void qmp_system_wakeup(Error **errp)
@@ -349,11 +355,9 @@ void qmp_change_vnc_password(const char *password, Error **errp)
     }
 }
 
-static void qmp_change_vnc_listen(const char *target, Error **err)
+static void qmp_change_vnc_listen(const char *target, Error **errp)
 {
-    if (vnc_display_open(NULL, target) < 0) {
-        error_set(err, QERR_VNC_SERVER_FAILED, target);
-    }
+    vnc_display_open(NULL, target, errp);
 }
 
 static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
@@ -468,14 +472,51 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
     return prop_list;
 }
 
-CpuDefinitionInfoList GCC_WEAK *arch_query_cpu_definitions(Error **errp)
-{
-    error_set(errp, QERR_NOT_SUPPORTED);
-    return NULL;
-}
-
 CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 {
     return arch_query_cpu_definitions(errp);
 }
 
+void qmp_add_client(const char *protocol, const char *fdname,
+                    bool has_skipauth, bool skipauth, bool has_tls, bool tls,
+                    Error **errp)
+{
+    CharDriverState *s;
+    int fd;
+
+    fd = monitor_get_fd(cur_mon, fdname, errp);
+    if (fd < 0) {
+        return;
+    }
+
+    if (strcmp(protocol, "spice") == 0) {
+        if (!using_spice) {
+            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+            close(fd);
+            return;
+        }
+        skipauth = has_skipauth ? skipauth : false;
+        tls = has_tls ? tls : false;
+        if (qemu_spice_display_add_client(fd, skipauth, tls) < 0) {
+            error_setg(errp, "spice failed to add client");
+            close(fd);
+        }
+        return;
+#ifdef CONFIG_VNC
+    } else if (strcmp(protocol, "vnc") == 0) {
+        skipauth = has_skipauth ? skipauth : false;
+        vnc_display_add_client(NULL, fd, skipauth);
+        return;
+#endif
+    } else if ((s = qemu_chr_find(protocol)) != NULL) {
+        if (qemu_chr_add_client(s, fd) < 0) {
+            error_setg(errp, "failed to add client");
+            close(fd);
+            return;
+        }
+        return;
+    }
+
+    error_setg(errp, "protocol '%s' is invalid", protocol);
+    close(fd);
+}

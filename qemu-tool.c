@@ -14,12 +14,13 @@
  */
 
 #include "qemu-common.h"
-#include "monitor.h"
-#include "qemu-timer.h"
-#include "qemu-log.h"
-#include "migration.h"
-#include "main-loop.h"
-#include "qemu_socket.h"
+#include "monitor/monitor.h"
+#include "qemu/timer.h"
+#include "qemu/log.h"
+#include "migration/migration.h"
+#include "qemu/main-loop.h"
+#include "sysemu/sysemu.h"
+#include "qemu/sockets.h"
 #include "slirp/libslirp.h"
 
 #include <sys/time.h>
@@ -36,6 +37,11 @@ const char *qemu_get_vm_name(void)
 }
 
 Monitor *cur_mon;
+
+void vm_stop(RunState state)
+{
+    abort();
+}
 
 int monitor_cur_is_qmp(void)
 {
@@ -62,29 +68,9 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
 {
 }
 
-int monitor_fdset_get_fd(int64_t fdset_id, int flags)
-{
-    return -1;
-}
-
-int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd)
-{
-    return -1;
-}
-
-int monitor_fdset_dup_fd_remove(int dup_fd)
-{
-    return -1;
-}
-
-int monitor_fdset_dup_fd_find(int dup_fd)
-{
-    return -1;
-}
-
 int64_t cpu_get_clock(void)
 {
-    return qemu_get_clock_ns(rt_clock);
+    return get_clock_realtime();
 }
 
 int64_t cpu_get_icount(void)
@@ -104,13 +90,6 @@ int use_icount;
 
 void qemu_clock_warp(QEMUClock *clock)
 {
-}
-
-int qemu_init_main_loop(void)
-{
-    init_clocks();
-    init_timer_alarm();
-    return main_loop_init();
 }
 
 void slirp_update_timeout(uint32_t *timeout)

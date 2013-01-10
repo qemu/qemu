@@ -15,9 +15,9 @@
 #include <inttypes.h>
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 #include "helper.h"
 #define GEN_HELPER 1
@@ -55,7 +55,7 @@ static TCGv_i32 cpu_R[32];
 static TCGv cpu_F0s, cpu_F1s;
 static TCGv_i64 cpu_F0d, cpu_F1d;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 static const char *regnames[] = {
       "r00", "r01", "r02", "r03", "r04", "r05", "r06", "r07",
@@ -253,7 +253,7 @@ static void disas_ocd_insn(CPUUniCore32State *env, DisasContext *s,
 static inline void gen_set_asr(TCGv var, uint32_t mask)
 {
     TCGv tmp_mask = tcg_const_i32(mask);
-    gen_helper_asr_write(var, tmp_mask);
+    gen_helper_asr_write(cpu_env, var, tmp_mask);
     tcg_temp_free_i32(tmp_mask);
 }
 /* Set NZCV flags from the high 4 bits of var.  */
@@ -263,7 +263,7 @@ static void gen_exception(int excp)
 {
     TCGv tmp = new_tmp();
     tcg_gen_movi_i32(tmp, excp);
-    gen_helper_exception(tmp);
+    gen_helper_exception(cpu_env, tmp);
     dead_tmp(tmp);
 }
 
@@ -416,16 +416,16 @@ static inline void gen_uc32_shift_reg(TCGv var, int shiftop,
     if (flags) {
         switch (shiftop) {
         case 0:
-            gen_helper_shl_cc(var, var, shift);
+            gen_helper_shl_cc(var, cpu_env, var, shift);
             break;
         case 1:
-            gen_helper_shr_cc(var, var, shift);
+            gen_helper_shr_cc(var, cpu_env, var, shift);
             break;
         case 2:
-            gen_helper_sar_cc(var, var, shift);
+            gen_helper_sar_cc(var, cpu_env, var, shift);
             break;
         case 3:
-            gen_helper_ror_cc(var, var, shift);
+            gen_helper_ror_cc(var, cpu_env, var, shift);
             break;
         }
     } else {
@@ -1323,11 +1323,11 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
             if (IS_USER(s)) {
                 ILLEGAL;
             }
-            gen_helper_sub_cc(tmp, tmp, tmp2);
+            gen_helper_sub_cc(tmp, cpu_env, tmp, tmp2);
             gen_exception_return(s, tmp);
         } else {
             if (UCOP_SET_S) {
-                gen_helper_sub_cc(tmp, tmp, tmp2);
+                gen_helper_sub_cc(tmp, cpu_env, tmp, tmp2);
             } else {
                 tcg_gen_sub_i32(tmp, tmp, tmp2);
             }
@@ -1336,7 +1336,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x03:
         if (UCOP_SET_S) {
-            gen_helper_sub_cc(tmp, tmp2, tmp);
+            gen_helper_sub_cc(tmp, cpu_env, tmp2, tmp);
         } else {
             tcg_gen_sub_i32(tmp, tmp2, tmp);
         }
@@ -1344,7 +1344,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x04:
         if (UCOP_SET_S) {
-            gen_helper_add_cc(tmp, tmp, tmp2);
+            gen_helper_add_cc(tmp, cpu_env, tmp, tmp2);
         } else {
             tcg_gen_add_i32(tmp, tmp, tmp2);
         }
@@ -1352,7 +1352,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x05:
         if (UCOP_SET_S) {
-            gen_helper_adc_cc(tmp, tmp, tmp2);
+            gen_helper_adc_cc(tmp, cpu_env, tmp, tmp2);
         } else {
             gen_add_carry(tmp, tmp, tmp2);
         }
@@ -1360,7 +1360,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x06:
         if (UCOP_SET_S) {
-            gen_helper_sbc_cc(tmp, tmp, tmp2);
+            gen_helper_sbc_cc(tmp, cpu_env, tmp, tmp2);
         } else {
             gen_sub_carry(tmp, tmp, tmp2);
         }
@@ -1368,7 +1368,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x07:
         if (UCOP_SET_S) {
-            gen_helper_sbc_cc(tmp, tmp2, tmp);
+            gen_helper_sbc_cc(tmp, cpu_env, tmp2, tmp);
         } else {
             gen_sub_carry(tmp, tmp2, tmp);
         }
@@ -1390,13 +1390,13 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x0a:
         if (UCOP_SET_S) {
-            gen_helper_sub_cc(tmp, tmp, tmp2);
+            gen_helper_sub_cc(tmp, cpu_env, tmp, tmp2);
         }
         dead_tmp(tmp);
         break;
     case 0x0b:
         if (UCOP_SET_S) {
-            gen_helper_add_cc(tmp, tmp, tmp2);
+            gen_helper_add_cc(tmp, cpu_env, tmp, tmp2);
         }
         dead_tmp(tmp);
         break;
@@ -1536,7 +1536,7 @@ static void do_misc(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
             tmp = load_cpu_field(bsr);
         } else {
             tmp = new_tmp();
-            gen_helper_asr_read(tmp);
+            gen_helper_asr_read(tmp, cpu_env);
         }
         store_reg(s, UCOP_REG_D, tmp);
         return;
@@ -1760,7 +1760,7 @@ static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
                     gen_bx(s, tmp);
                 } else if (user) {
                     tmp2 = tcg_const_i32(reg);
-                    gen_helper_set_user_reg(tmp2, tmp);
+                    gen_helper_set_user_reg(cpu_env, tmp2, tmp);
                     tcg_temp_free_i32(tmp2);
                     dead_tmp(tmp);
                 } else if (reg == UCOP_REG_N) {
@@ -1778,7 +1778,7 @@ static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
                 } else if (user) {
                     tmp = new_tmp();
                     tmp2 = tcg_const_i32(reg);
-                    gen_helper_get_user_reg(tmp, tmp2);
+                    gen_helper_get_user_reg(tmp, cpu_env, tmp2);
                     tcg_temp_free_i32(tmp2);
                 } else {
                     tmp = load_reg(s, reg);
@@ -1861,7 +1861,11 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 {
     unsigned int insn;
 
-    insn = ldl_code(s->pc);
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
+        tcg_gen_debug_insn_start(s->pc);
+    }
+
+    insn = cpu_ldl_code(env, s->pc);
     s->pc += 4;
 
     /* UniCore instructions class:
@@ -1928,8 +1932,6 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
         }
         ILLEGAL;
     }
-
-    return;
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
@@ -1954,7 +1956,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
 
     dc->tb = tb;
 
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
@@ -1997,16 +1999,16 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
             }
         }
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j) {
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
                 }
             }
-            gen_opc_pc[lj] = dc->pc;
-            gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_pc[lj] = dc->pc;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
 
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
@@ -2029,7 +2031,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
          * Also stop translation when a page boundary is reached.  This
          * ensures prefetch aborts occur at the right place.  */
         num_insns++;
-    } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
+    } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
              !singlestep &&
              dc->pc < next_page_start &&
@@ -2101,21 +2103,21 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
 
 done_generating:
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(pc_start, dc->pc - pc_start, 0);
+        log_target_disas(env, pc_start, dc->pc - pc_start, 0);
         qemu_log("\n");
     }
 #endif
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j) {
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
         }
     } else {
         tb->size = dc->pc - pc_start;
@@ -2201,5 +2203,5 @@ void cpu_dump_state(CPUUniCore32State *env, FILE *f,
 
 void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb, int pc_pos)
 {
-    env->regs[31] = gen_opc_pc[pc_pos];
+    env->regs[31] = tcg_ctx.gen_opc_pc[pc_pos];
 }

@@ -17,7 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci.h"
+#include "pci/pci.h"
 #include "pc.h"
 #include "i8254.h"
 #include "pcspk.h"
@@ -59,7 +59,7 @@ static const VMStateDescription vmstate_pci_i82378 = {
     },
 };
 
-static void i82378_io_write(void *opaque, target_phys_addr_t addr,
+static void i82378_io_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned int size)
 {
     switch (size) {
@@ -83,7 +83,7 @@ static void i82378_io_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t i82378_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t i82378_io_read(void *opaque, hwaddr addr,
                                unsigned int size)
 {
     DPRINTF("%s: " TARGET_FMT_plx "\n", __func__, addr);
@@ -105,7 +105,7 @@ static const MemoryRegionOps i82378_io_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void i82378_mem_write(void *opaque, target_phys_addr_t addr,
+static void i82378_mem_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned int size)
 {
     switch (size) {
@@ -129,7 +129,7 @@ static void i82378_mem_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t i82378_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t i82378_mem_read(void *opaque, hwaddr addr,
                                 unsigned int size)
 {
     DPRINTF("%s: " TARGET_FMT_plx "\n", __func__, addr);
@@ -225,7 +225,6 @@ static int pci_i82378_init(PCIDevice *dev)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->io);
 
     memory_region_init_io(&s->mem, &i82378_mem_ops, s, "i82378-mem", 0x01000000);
-    memory_region_set_coalescing(&s->mem);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
     /* Make I/O address read only */

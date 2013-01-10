@@ -1,10 +1,13 @@
+#ifndef HW_QXL_H
+#define HW_QXL_H 1
+
 #include "qemu-common.h"
 
-#include "console.h"
+#include "ui/console.h"
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "vga_int.h"
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 
 #include "ui/qemu-spice.h"
 #include "ui/spice-display.h"
@@ -40,7 +43,6 @@ typedef struct PCIQXLDevice {
     uint32_t           revision;
 
     int32_t            num_memslots;
-    int32_t            num_surfaces;
 
     uint32_t           current_async;
     QemuMutex          async_lock;
@@ -65,11 +67,13 @@ typedef struct PCIQXLDevice {
     } guest_primary;
 
     struct surfaces {
-        QXLPHYSICAL    cmds[NUM_SURFACES];
+        QXLPHYSICAL    *cmds;
         uint32_t       count;
         uint32_t       max;
     } guest_surfaces;
     QXLPHYSICAL        guest_cursor;
+
+    QXLPHYSICAL        guest_monitors_config;
 
     QemuMutex          track_lock;
 
@@ -128,7 +132,7 @@ typedef struct PCIQXLDevice {
         }                                                               \
     } while (0)
 
-#define QXL_DEFAULT_REVISION QXL_REVISION_STABLE_V10
+#define QXL_DEFAULT_REVISION QXL_REVISION_STABLE_V12
 
 /* qxl.c */
 void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL phys, int group_id);
@@ -157,3 +161,5 @@ void qxl_render_update(PCIQXLDevice *qxl);
 int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext);
 void qxl_render_update_area_done(PCIQXLDevice *qxl, QXLCookie *cookie);
 void qxl_render_update_area_bh(void *opaque);
+
+#endif

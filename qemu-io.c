@@ -15,8 +15,8 @@
 #include <libgen.h>
 
 #include "qemu-common.h"
-#include "main-loop.h"
-#include "block_int.h"
+#include "qemu/main-loop.h"
+#include "block/block_int.h"
 #include "cmd.h"
 #include "trace/control.h"
 
@@ -263,6 +263,18 @@ static int do_co_write_zeroes(int64_t offset, int count, int *total)
     } else {
         return 1;
     }
+}
+
+static int do_write_compressed(char *buf, int64_t offset, int count, int *total)
+{
+    int ret;
+
+    ret = bdrv_write_compressed(bs, offset >> 9, (uint8_t *)buf, count >> 9);
+    if (ret < 0) {
+        return ret;
+    }
+    *total = count;
+    return 1;
 }
 
 static int do_load_vmstate(char *buf, int64_t offset, int count, int *total)
@@ -687,6 +699,7 @@ static void write_help(void)
 " Writes into a segment of the currently open file, using a buffer\n"
 " filled with a set pattern (0xcdcdcdcd).\n"
 " -b, -- write to the VM state rather than the virtual disk\n"
+" -c, -- write compressed data with bdrv_write_compressed\n"
 " -p, -- use bdrv_pwrite to write the file\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
@@ -703,7 +716,7 @@ static const cmdinfo_t write_cmd = {
     .cfunc      = write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-bCpqz] [-P pattern ] off len",
+    .args       = "[-bcCpqz] [-P pattern ] off len",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = write_help,
 };
@@ -712,6 +725,7 @@ static int write_f(int argc, char **argv)
 {
     struct timeval t1, t2;
     int Cflag = 0, pflag = 0, qflag = 0, bflag = 0, Pflag = 0, zflag = 0;
+    int cflag = 0;
     int c, cnt;
     char *buf = NULL;
     int64_t offset;
@@ -720,10 +734,13 @@ static int write_f(int argc, char **argv)
     int total = 0;
     int pattern = 0xcd;
 
-    while ((c = getopt(argc, argv, "bCpP:qz")) != EOF) {
+    while ((c = getopt(argc, argv, "bcCpP:qz")) != EOF) {
         switch (c) {
         case 'b':
             bflag = 1;
+            break;
+        case 'c':
+            cflag = 1;
             break;
         case 'C':
             Cflag = 1;
@@ -801,6 +818,8 @@ static int write_f(int argc, char **argv)
         cnt = do_save_vmstate(buf, offset, count, &total);
     } else if (zflag) {
         cnt = do_co_write_zeroes(offset, count, &total);
+    } else if (cflag) {
+        cnt = do_write_compressed(buf, offset, count, &total);
     } else {
         cnt = do_write(buf, offset, count, &total);
     }
@@ -1362,7 +1381,7 @@ static int aio_write_f(int argc, char **argv)
 
 static int aio_flush_f(int argc, char **argv)
 {
-    qemu_aio_flush();
+    bdrv_drain_all();
     return 0;
 }
 
@@ -1652,6 +1671,67 @@ static const cmdinfo_t map_cmd = {
        .oneline        = "prints the allocated areas of a file",
 };
 
+static int break_f(int argc, char **argv)
+{
+    int ret;
+
+    ret = bdrv_debug_breakpoint(bs, argv[1], argv[2]);
+    if (ret < 0) {
+        printf("Could not set breakpoint: %s\n", strerror(-ret));
+    }
+
+    return 0;
+}
+
+static const cmdinfo_t break_cmd = {
+       .name           = "break",
+       .argmin         = 2,
+       .argmax         = 2,
+       .cfunc          = break_f,
+       .args           = "event tag",
+       .oneline        = "sets a breakpoint on event and tags the stopped "
+                         "request as tag",
+};
+
+static int resume_f(int argc, char **argv)
+{
+    int ret;
+
+    ret = bdrv_debug_resume(bs, argv[1]);
+    if (ret < 0) {
+        printf("Could not resume request: %s\n", strerror(-ret));
+    }
+
+    return 0;
+}
+
+static const cmdinfo_t resume_cmd = {
+       .name           = "resume",
+       .argmin         = 1,
+       .argmax         = 1,
+       .cfunc          = resume_f,
+       .args           = "tag",
+       .oneline        = "resumes the request tagged as tag",
+};
+
+static int wait_break_f(int argc, char **argv)
+{
+    while (!bdrv_debug_is_suspended(bs, argv[1])) {
+        qemu_aio_wait();
+    }
+
+    return 0;
+}
+
+static const cmdinfo_t wait_break_cmd = {
+       .name           = "wait_break",
+       .argmin         = 1,
+       .argmax         = 1,
+       .cfunc          = wait_break_f,
+       .args           = "tag",
+       .oneline        = "waits for the suspension of a request",
+};
+
 static int abort_f(int argc, char **argv)
 {
     abort();
@@ -1892,9 +1972,8 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    bdrv_init();
-
     qemu_init_main_loop();
+    bdrv_init();
 
     /* initialize commands */
     quit_init();
@@ -1916,6 +1995,9 @@ int main(int argc, char **argv)
     add_command(&discard_cmd);
     add_command(&alloc_cmd);
     add_command(&map_cmd);
+    add_command(&break_cmd);
+    add_command(&resume_cmd);
+    add_command(&wait_break_cmd);
     add_command(&abort_cmd);
 
     add_args_command(init_args_command);

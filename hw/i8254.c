@@ -24,7 +24,7 @@
 #include "hw.h"
 #include "pc.h"
 #include "isa.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "i8254.h"
 #include "i8254_internal.h"
 
@@ -111,7 +111,8 @@ static void pit_latch_count(PITChannelState *s)
     }
 }
 
-static void pit_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void pit_ioport_write(void *opaque, hwaddr addr,
+                             uint64_t val, unsigned size)
 {
     PITCommonState *pit = opaque;
     int channel, access;
@@ -178,7 +179,8 @@ static void pit_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t pit_ioport_read(void *opaque, uint32_t addr)
+static uint64_t pit_ioport_read(void *opaque, hwaddr addr,
+                                unsigned size)
 {
     PITCommonState *pit = opaque;
     int ret, count;
@@ -290,14 +292,14 @@ static void pit_irq_control(void *opaque, int n, int enable)
     }
 }
 
-static const MemoryRegionPortio pit_portio[] = {
-    { 0, 4, 1, .write = pit_ioport_write },
-    { 0, 3, 1, .read = pit_ioport_read },
-    PORTIO_END_OF_LIST()
-};
-
 static const MemoryRegionOps pit_ioport_ops = {
-    .old_portio = pit_portio
+    .read = pit_ioport_read,
+    .write = pit_ioport_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void pit_post_load(PITCommonState *s)

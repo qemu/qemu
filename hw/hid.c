@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "console.h"
-#include "qemu-timer.h"
+#include "ui/console.h"
+#include "qemu/timer.h"
 #include "hid.h"
 
 #define HID_USAGE_ERROR_ROLLOVER        0x01
@@ -71,12 +71,38 @@ static const uint8_t hid_usage_keys[0x100] = {
 
 bool hid_has_events(HIDState *hs)
 {
-    return hs->n > 0;
+    return hs->n > 0 || hs->idle_pending;
 }
 
-void hid_set_next_idle(HIDState *hs, int64_t curtime)
+static void hid_idle_timer(void *opaque)
 {
-    hs->next_idle_clock = curtime + (get_ticks_per_sec() * hs->idle * 4) / 1000;
+    HIDState *hs = opaque;
+
+    hs->idle_pending = true;
+    hs->event(hs);
+}
+
+static void hid_del_idle_timer(HIDState *hs)
+{
+    if (hs->idle_timer) {
+        qemu_del_timer(hs->idle_timer);
+        qemu_free_timer(hs->idle_timer);
+        hs->idle_timer = NULL;
+    }
+}
+
+void hid_set_next_idle(HIDState *hs)
+{
+    if (hs->idle) {
+        uint64_t expire_time = qemu_get_clock_ns(vm_clock) +
+                               get_ticks_per_sec() * hs->idle * 4 / 1000;
+        if (!hs->idle_timer) {
+            hs->idle_timer = qemu_new_timer_ns(vm_clock, hid_idle_timer, hs);
+        }
+        qemu_mod_timer_ns(hs->idle_timer, expire_time);
+    } else {
+        hid_del_idle_timer(hs);
+    }
 }
 
 static void hid_pointer_event_clear(HIDPointerEvent *e, int buttons)
@@ -232,6 +258,8 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
     int index;
     HIDPointerEvent *e;
 
+    hs->idle_pending = false;
+
     hid_pointer_activate(hs);
 
     /* When the buffer is empty, return the last event.  Relative
@@ -319,6 +347,8 @@ int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 
 int hid_keyboard_poll(HIDState *hs, uint8_t *buf, int len)
 {
+    hs->idle_pending = false;
+
     if (len < 2) {
         return 0;
     }
@@ -377,6 +407,8 @@ void hid_reset(HIDState *hs)
     hs->n = 0;
     hs->protocol = 1;
     hs->idle = 0;
+    hs->idle_pending = false;
+    hid_del_idle_timer(hs);
 }
 
 void hid_free(HIDState *hs)
@@ -390,6 +422,7 @@ void hid_free(HIDState *hs)
         qemu_remove_mouse_event_handler(hs->ptr.eh_entry);
         break;
     }
+    hid_del_idle_timer(hs);
 }
 
 void hid_init(HIDState *hs, int kind, HIDEventFunc event)
@@ -412,9 +445,7 @@ static int hid_post_load(void *opaque, int version_id)
 {
     HIDState *s = opaque;
 
-    if (s->idle) {
-        hid_set_next_idle(s, qemu_get_clock_ns(vm_clock));
-    }
+    hid_set_next_idle(s);
     return 0;
 }
 

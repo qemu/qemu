@@ -24,9 +24,9 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 #define DEFAULT_FREQUENCY (50*1000000)
 
@@ -72,7 +72,7 @@ static void timer_update_irq(LM32TimerState *s)
     qemu_set_irq(s->irq, state);
 }
 
-static uint64_t timer_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t timer_read(void *opaque, hwaddr addr, unsigned size)
 {
     LM32TimerState *s = opaque;
     uint32_t r = 0;
@@ -97,7 +97,7 @@ static uint64_t timer_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return r;
 }
 
-static void timer_write(void *opaque, target_phys_addr_t addr,
+static void timer_write(void *opaque, hwaddr addr,
                         uint64_t value, unsigned size)
 {
     LM32TimerState *s = opaque;

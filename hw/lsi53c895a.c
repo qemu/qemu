@@ -13,9 +13,9 @@
 #include <assert.h>
 
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "scsi.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 //#define DEBUG_LSI
 //#define DEBUG_LSI_REG
@@ -1878,7 +1878,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
 #undef CASE_SET_REG32
 }
 
-static void lsi_mmio_write(void *opaque, target_phys_addr_t addr,
+static void lsi_mmio_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     LSIState *s = opaque;
@@ -1886,7 +1886,7 @@ static void lsi_mmio_write(void *opaque, target_phys_addr_t addr,
     lsi_reg_writeb(s, addr & 0xff, val);
 }
 
-static uint64_t lsi_mmio_read(void *opaque, target_phys_addr_t addr,
+static uint64_t lsi_mmio_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     LSIState *s = opaque;
@@ -1904,7 +1904,7 @@ static const MemoryRegionOps lsi_mmio_ops = {
     },
 };
 
-static void lsi_ram_write(void *opaque, target_phys_addr_t addr,
+static void lsi_ram_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     LSIState *s = opaque;
@@ -1920,7 +1920,7 @@ static void lsi_ram_write(void *opaque, target_phys_addr_t addr,
     s->script_ram[addr >> 2] = newval;
 }
 
-static uint64_t lsi_ram_read(void *opaque, target_phys_addr_t addr,
+static uint64_t lsi_ram_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     LSIState *s = opaque;
@@ -1939,14 +1939,14 @@ static const MemoryRegionOps lsi_ram_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t lsi_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t lsi_io_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
     LSIState *s = opaque;
     return lsi_reg_readb(s, addr & 0xff);
 }
 
-static void lsi_io_write(void *opaque, target_phys_addr_t addr,
+static void lsi_io_write(void *opaque, hwaddr addr,
                          uint64_t val, unsigned size)
 {
     LSIState *s = opaque;

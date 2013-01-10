@@ -1,9 +1,6 @@
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "cpu.h"
-#include "dyngen-exec.h"
-#include "qemu-char.h"
-#include "sysemu.h"
-#include "qemu-char.h"
+#include "sysemu/sysemu.h"
 #include "helper_regs.h"
 #include "hw/spapr.h"
 
@@ -39,22 +36,6 @@
 
 #define HPTE_V_1TB_SEG          0x4000000000000000ULL
 #define HPTE_V_VRMA_MASK        0x4001ffffff000000ULL
-
-#define HPTE_V_HVLOCK           0x40ULL
-
-static inline int lock_hpte(void *hpte, target_ulong bits)
-{
-    uint64_t pteh;
-
-    pteh = ldq_p(hpte);
-
-    /* We're protected by qemu's global lock here */
-    if (pteh & bits) {
-        return 0;
-    }
-    stq_p(hpte, pteh | HPTE_V_HVLOCK);
-    return 1;
-}
 
 static target_ulong compute_tlbie_rb(target_ulong v, target_ulong r,
                                      target_ulong pte_index)
@@ -92,9 +73,10 @@ static target_ulong compute_tlbie_rb(target_ulong v, target_ulong r,
     return rb;
 }
 
-static target_ulong h_enter(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                             target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
     target_ulong pteh = args[2];
@@ -152,8 +134,7 @@ static target_ulong h_enter(CPUPPCState *env, sPAPREnvironment *spapr,
             if (i == 8) {
                 return H_PTEG_FULL;
             }
-            if (((ldq_p(hpte) & HPTE_V_VALID) == 0) &&
-                lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID)) {
+            if ((ldq_p(hpte) & HPTE_V_VALID) == 0) {
                 break;
             }
             hpte += HASH_PTE_SIZE_64;
@@ -161,7 +142,7 @@ static target_ulong h_enter(CPUPPCState *env, sPAPREnvironment *spapr,
     } else {
         i = 0;
         hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
-        if (!lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID)) {
+        if (ldq_p(hpte) & HPTE_V_VALID) {
             return H_PTEG_FULL;
         }
     }
@@ -169,7 +150,6 @@ static target_ulong h_enter(CPUPPCState *env, sPAPREnvironment *spapr,
     /* eieio();  FIXME: need some sort of barrier for smp? */
     stq_p(hpte, pteh);
 
-    assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
     args[0] = pte_index + i;
     return H_SUCCESS;
 }
@@ -194,11 +174,6 @@ static target_ulong remove_hpte(CPUPPCState *env, target_ulong ptex,
     }
 
     hpte = env->external_htab + (ptex * HASH_PTE_SIZE_64);
-    while (!lock_hpte(hpte, HPTE_V_HVLOCK)) {
-        /* We have no real concurrency in qemu soft-emulation, so we
-         * will never actually have a contested lock */
-        assert(0);
-    }
 
     v = ldq_p(hpte);
     r = ldq_p(hpte + (HASH_PTE_SIZE_64/2));
@@ -206,22 +181,20 @@ static target_ulong remove_hpte(CPUPPCState *env, target_ulong ptex,
     if ((v & HPTE_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn) ||
         ((flags & H_ANDCOND) && (v & avpn) != 0)) {
-        stq_p(hpte, v & ~HPTE_V_HVLOCK);
-        assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
         return REMOVE_NOT_FOUND;
     }
-    *vp = v & ~HPTE_V_HVLOCK;
+    *vp = v;
     *rp = r;
     stq_p(hpte, 0);
     rb = compute_tlbie_rb(v, r, ptex);
     ppc_tlb_invalidate_one(env, rb);
-    assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
     return REMOVE_SUCCESS;
 }
 
-static target_ulong h_remove(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                              target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
     target_ulong avpn = args[2];
@@ -265,9 +238,10 @@ static target_ulong h_remove(CPUPPCState *env, sPAPREnvironment *spapr,
 
 #define H_BULK_REMOVE_MAX_BATCH        4
 
-static target_ulong h_bulk_remove(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                   target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
     int i;
 
     for (i = 0; i < H_BULK_REMOVE_MAX_BATCH; i++) {
@@ -311,9 +285,10 @@ static target_ulong h_bulk_remove(CPUPPCState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_protect(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_protect(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                               target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
     target_ulong avpn = args[2];
@@ -325,19 +300,12 @@ static target_ulong h_protect(CPUPPCState *env, sPAPREnvironment *spapr,
     }
 
     hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
-    while (!lock_hpte(hpte, HPTE_V_HVLOCK)) {
-        /* We have no real concurrency in qemu soft-emulation, so we
-         * will never actually have a contested lock */
-        assert(0);
-    }
 
     v = ldq_p(hpte);
     r = ldq_p(hpte + (HASH_PTE_SIZE_64/2));
 
     if ((v & HPTE_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn)) {
-        stq_p(hpte, v & ~HPTE_V_HVLOCK);
-        assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
         return H_NOT_FOUND;
     }
 
@@ -351,12 +319,11 @@ static target_ulong h_protect(CPUPPCState *env, sPAPREnvironment *spapr,
     ppc_tlb_invalidate_one(env, rb);
     stq_p(hpte + (HASH_PTE_SIZE_64/2), r);
     /* Don't need a memory barrier, due to qemu's global lock */
-    stq_p(hpte, v & ~HPTE_V_HVLOCK);
-    assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
+    stq_p(hpte, v);
     return H_SUCCESS;
 }
 
-static target_ulong h_set_dabr(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_set_dabr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                target_ulong opcode, target_ulong *args)
 {
     /* FIXME: actually implement this */
@@ -401,26 +368,26 @@ static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
         return H_PARAMETER;
     }
 
-    env->vpa = vpa;
+    env->vpa_addr = vpa;
 
-    tmp = ldub_phys(env->vpa + VPA_SHARED_PROC_OFFSET);
+    tmp = ldub_phys(env->vpa_addr + VPA_SHARED_PROC_OFFSET);
     tmp |= VPA_SHARED_PROC_VAL;
-    stb_phys(env->vpa + VPA_SHARED_PROC_OFFSET, tmp);
+    stb_phys(env->vpa_addr + VPA_SHARED_PROC_OFFSET, tmp);
 
     return H_SUCCESS;
 }
 
 static target_ulong deregister_vpa(CPUPPCState *env, target_ulong vpa)
 {
-    if (env->slb_shadow) {
+    if (env->slb_shadow_addr) {
         return H_RESOURCE;
     }
 
-    if (env->dispatch_trace_log) {
+    if (env->dtl_addr) {
         return H_RESOURCE;
     }
 
-    env->vpa = 0;
+    env->vpa_addr = 0;
     return H_SUCCESS;
 }
 
@@ -442,18 +409,20 @@ static target_ulong register_slb_shadow(CPUPPCState *env, target_ulong addr)
         return H_PARAMETER;
     }
 
-    if (!env->vpa) {
+    if (!env->vpa_addr) {
         return H_RESOURCE;
     }
 
-    env->slb_shadow = addr;
+    env->slb_shadow_addr = addr;
+    env->slb_shadow_size = size;
 
     return H_SUCCESS;
 }
 
 static target_ulong deregister_slb_shadow(CPUPPCState *env, target_ulong addr)
 {
-    env->slb_shadow = 0;
+    env->slb_shadow_addr = 0;
+    env->slb_shadow_size = 0;
     return H_SUCCESS;
 }
 
@@ -472,11 +441,11 @@ static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
         return H_PARAMETER;
     }
 
-    if (!env->vpa) {
+    if (!env->vpa_addr) {
         return H_RESOURCE;
     }
 
-    env->dispatch_trace_log = addr;
+    env->dtl_addr = addr;
     env->dtl_size = size;
 
     return H_SUCCESS;
@@ -484,13 +453,13 @@ static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
 
 static target_ulong deregister_dtl(CPUPPCState *env, target_ulong addr)
 {
-    env->dispatch_trace_log = 0;
+    env->dtl_addr = 0;
     env->dtl_size = 0;
 
     return H_SUCCESS;
 }
 
-static target_ulong h_register_vpa(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_register_vpa(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     target_ulong flags = args[0];
@@ -538,18 +507,22 @@ static target_ulong h_register_vpa(CPUPPCState *env, sPAPREnvironment *spapr,
     return ret;
 }
 
-static target_ulong h_cede(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_cede(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
+
     env->msr |= (1ULL << MSR_EE);
     hreg_compute_hflags(env);
-    if (!cpu_has_work(env)) {
+    if (!cpu_has_work(CPU(cpu))) {
         env->halted = 1;
+        env->exception_index = EXCP_HLT;
+        env->exit_request = 1;
     }
     return H_SUCCESS;
 }
 
-static target_ulong h_rtas(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_rtas(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     target_ulong rtas_r3 = args[0];
@@ -561,7 +534,7 @@ static target_ulong h_rtas(CPUPPCState *env, sPAPREnvironment *spapr,
                            nret, rtas_r3 + 12 + 4*nargs);
 }
 
-static target_ulong h_logical_load(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     target_ulong size = args[0];
@@ -584,7 +557,7 @@ static target_ulong h_logical_load(CPUPPCState *env, sPAPREnvironment *spapr,
     return H_PARAMETER;
 }
 
-static target_ulong h_logical_store(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_logical_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
     target_ulong size = args[0];
@@ -608,7 +581,7 @@ static target_ulong h_logical_store(CPUPPCState *env, sPAPREnvironment *spapr,
     return H_PARAMETER;
 }
 
-static target_ulong h_logical_memop(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
     target_ulong dst   = args[0]; /* Destination address */
@@ -675,14 +648,14 @@ static target_ulong h_logical_memop(CPUPPCState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_logical_icbi(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_logical_icbi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     /* Nothing to do on emulation, KVM will trap this in the kernel */
     return H_SUCCESS;
 }
 
-static target_ulong h_logical_dcbf(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_logical_dcbf(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     /* Nothing to do on emulation, KVM will trap this in the kernel */
@@ -703,35 +676,29 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
     } else {
         assert((opcode >= KVMPPC_HCALL_BASE) && (opcode <= KVMPPC_HCALL_MAX));
 
-
         slot = &kvmppc_hypercall_table[opcode - KVMPPC_HCALL_BASE];
     }
 
-    assert(!(*slot) || (fn == *slot));
+    assert(!(*slot));
     *slot = fn;
 }
 
-target_ulong spapr_hypercall(CPUPPCState *env, target_ulong opcode,
+target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
                              target_ulong *args)
 {
-    if (msr_pr) {
-        hcall_dprintf("Hypercall made with MSR[PR]=1\n");
-        return H_PRIVILEGE;
-    }
-
     if ((opcode <= MAX_HCALL_OPCODE)
         && ((opcode & 0x3) == 0)) {
         spapr_hcall_fn fn = papr_hypercall_table[opcode / 4];
 
         if (fn) {
-            return fn(env, spapr, opcode, args);
+            return fn(cpu, spapr, opcode, args);
         }
     } else if ((opcode >= KVMPPC_HCALL_BASE) &&
                (opcode <= KVMPPC_HCALL_MAX)) {
         spapr_hcall_fn fn = kvmppc_hypercall_table[opcode - KVMPPC_HCALL_BASE];
 
         if (fn) {
-            return fn(env, spapr, opcode, args);
+            return fn(cpu, spapr, opcode, args);
         }
     }
 

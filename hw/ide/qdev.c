@@ -17,12 +17,12 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <hw/hw.h>
-#include "dma.h"
-#include "qemu-error.h"
+#include "sysemu/dma.h"
+#include "qemu/error-report.h"
 #include <hw/ide/internal.h>
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "hw/block-common.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 /* --------------------------------- */
 
@@ -60,7 +60,7 @@ static char *idebus_get_fw_dev_path(DeviceState *dev)
     snprintf(path, sizeof(path), "%s@%d", qdev_fw_name(dev),
              ((IDEBus*)dev->parent_bus)->bus_id);
 
-    return strdup(path);
+    return g_strdup(path);
 }
 
 static int ide_qdev_init(DeviceState *qdev)

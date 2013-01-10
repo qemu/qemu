@@ -18,7 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "soc_dma.h"
 
 static void transfer_mem2mem(struct soc_dma_ch_s *ch)
@@ -64,7 +64,7 @@ struct dma_s {
 
     struct memmap_entry_s {
         enum soc_dma_port_type type;
-        target_phys_addr_t addr;
+        hwaddr addr;
         union {
            struct {
                void *opaque;
@@ -105,7 +105,7 @@ static void soc_dma_ch_run(void *opaque)
 }
 
 static inline struct memmap_entry_s *soc_dma_lookup(struct dma_s *dma,
-                target_phys_addr_t addr)
+                hwaddr addr)
 {
     struct memmap_entry_s *lo;
     int hi;
@@ -255,7 +255,7 @@ struct soc_dma_s *soc_dma_init(int n)
     return &s->soc;
 }
 
-void soc_dma_port_add_fifo(struct soc_dma_s *soc, target_phys_addr_t virt_base,
+void soc_dma_port_add_fifo(struct soc_dma_s *soc, hwaddr virt_base,
                 soc_dma_io_t fn, void *opaque, int out)
 {
     struct memmap_entry_s *entry;
@@ -308,7 +308,7 @@ void soc_dma_port_add_fifo(struct soc_dma_s *soc, target_phys_addr_t virt_base,
 }
 
 void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
-                target_phys_addr_t virt_base, size_t size)
+                hwaddr virt_base, size_t size)
 {
     struct memmap_entry_s *entry;
     struct dma_s *dma = (struct dma_s *) soc;

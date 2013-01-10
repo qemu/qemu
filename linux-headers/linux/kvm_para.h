@@ -1,5 +1,5 @@
-#ifndef __LINUX_KVM_PARA_H
-#define __LINUX_KVM_PARA_H
+#ifndef _UAPI__LINUX_KVM_PARA_H
+#define _UAPI__LINUX_KVM_PARA_H
 
 /*
  * This header file provides a method for making a hypercall to the host
@@ -25,4 +25,4 @@
  */
 #include <asm/kvm_para.h>
 
-#endif /* __LINUX_KVM_PARA_H */
+#endif /* _UAPI__LINUX_KVM_PARA_H */

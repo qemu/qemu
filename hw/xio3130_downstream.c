@@ -19,9 +19,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci_ids.h"
-#include "msi.h"
-#include "pcie.h"
+#include "pci/pci_ids.h"
+#include "pci/msi.h"
+#include "pci/pcie.h"
 #include "xio3130_downstream.h"
 
 #define PCI_DEVICE_ID_TI_XIO3130D       0x8233  /* downstream port */

@@ -20,27 +20,33 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "cpu-common.h"
+#include "exec/cpu-common.h"
 #include "hw/usb.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl)
 {
     DMADirection dir = (p->pid == USB_TOKEN_IN) ?
         DMA_DIRECTION_FROM_DEVICE : DMA_DIRECTION_TO_DEVICE;
-    dma_addr_t len;
     void *mem;
     int i;
 
     for (i = 0; i < sgl->nsg; i++) {
-        len = sgl->sg[i].len;
-        mem = dma_memory_map(sgl->dma, sgl->sg[i].base, &len, dir);
-        if (!mem) {
-            goto err;
-        }
-        qemu_iovec_add(&p->iov, mem, len);
-        if (len != sgl->sg[i].len) {
-            goto err;
+        dma_addr_t base = sgl->sg[i].base;
+        dma_addr_t len = sgl->sg[i].len;
+
+        while (len) {
+            dma_addr_t xlen = len;
+            mem = dma_memory_map(sgl->dma, base, &xlen, dir);
+            if (!mem) {
+                goto err;
+            }
+            if (xlen > len) {
+                xlen = len;
+            }
+            qemu_iovec_add(&p->iov, mem, xlen);
+            len -= xlen;
+            base += xlen;
         }
     }
     return 0;

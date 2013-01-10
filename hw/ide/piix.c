@@ -25,15 +25,15 @@
 
 #include <hw/hw.h>
 #include <hw/pc.h>
-#include <hw/pci.h>
+#include <hw/pci/pci.h>
 #include <hw/isa.h>
-#include "blockdev.h"
-#include "sysemu.h"
-#include "dma.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/pci.h>
 
-static uint64_t bmdma_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t bmdma_read(void *opaque, hwaddr addr, unsigned size)
 {
     BMDMAState *bm = opaque;
     uint32_t val;
@@ -59,7 +59,7 @@ static uint64_t bmdma_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return val;
 }
 
-static void bmdma_write(void *opaque, target_phys_addr_t addr,
+static void bmdma_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
     BMDMAState *bm = opaque;

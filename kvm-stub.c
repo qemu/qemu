@@ -12,10 +12,10 @@
 
 #include "qemu-common.h"
 #include "hw/hw.h"
-#include "hw/msi.h"
+#include "hw/pci/msi.h"
 #include "cpu.h"
-#include "gdbstub.h"
-#include "kvm.h"
+#include "exec/gdbstub.h"
+#include "sysemu/kvm.h"
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
@@ -25,16 +25,6 @@ bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
 
 int kvm_init_vcpu(CPUArchState *env)
-{
-    return -ENOSYS;
-}
-
-int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
-{
-    return -ENOSYS;
-}
-
-int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
 {
     return -ENOSYS;
 }
@@ -141,22 +131,12 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
 {
 }
 
-int kvm_irqchip_add_irqfd(KVMState *s, int fd, int virq)
+int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
     return -ENOSYS;
 }
 
-int kvm_irqchip_add_irq_notifier(KVMState *s, EventNotifier *n, int virq)
-{
-    return -ENOSYS;
-}
-
-int kvm_irqchip_remove_irqfd(KVMState *s, int fd, int virq)
-{
-    return -ENOSYS;
-}
-
-int kvm_irqchip_remove_irq_notifier(KVMState *s, EventNotifier *n, int virq)
+int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
     return -ENOSYS;
 }

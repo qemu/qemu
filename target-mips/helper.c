@@ -36,7 +36,7 @@ enum {
 #if !defined(CONFIG_USER_ONLY)
 
 /* no MMU emulation */
-int no_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
+int no_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                         target_ulong address, int rw, int access_type)
 {
     *physical = address;
@@ -45,7 +45,7 @@ int no_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *pr
 }
 
 /* fixed mapping MMU emulation */
-int fixed_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
+int fixed_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                            target_ulong address, int rw, int access_type)
 {
     if (address <= (int32_t)0x7FFFFFFFUL) {
@@ -63,7 +63,7 @@ int fixed_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int 
 }
 
 /* MIPS32/MIPS64 R4000-style MMU emulation */
-int r4k_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
+int r4k_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                      target_ulong address, int rw, int access_type)
 {
     uint8_t ASID = env->CP0_EntryHi & 0xFF;
@@ -99,7 +99,7 @@ int r4k_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
     return TLBRET_NOMATCH;
 }
 
-static int get_physical_address (CPUMIPSState *env, target_phys_addr_t *physical,
+static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
                                 int *prot, target_ulong address,
                                 int rw, int access_type)
 {
@@ -254,9 +254,9 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-target_phys_addr_t cpu_get_phys_page_debug(CPUMIPSState *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUMIPSState *env, target_ulong addr)
 {
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
     int prot;
 
     if (get_physical_address(env, &phys_addr, &prot, addr, 0, ACCESS_INT) != 0)
@@ -269,7 +269,7 @@ int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
                                int mmu_idx)
 {
 #if !defined(CONFIG_USER_ONLY)
-    target_phys_addr_t physical;
+    hwaddr physical;
     int prot;
     int access_type;
 #endif
@@ -308,9 +308,9 @@ int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-target_phys_addr_t cpu_mips_translate_address(CPUMIPSState *env, target_ulong address, int rw)
+hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address, int rw)
 {
-    target_phys_addr_t physical;
+    hwaddr physical;
     int prot;
     int access_type;
     int ret = 0;
@@ -591,6 +591,9 @@ void do_interrupt (CPUMIPSState *env)
         goto set_EPC;
     case EXCP_THREAD:
         cause = 25;
+        goto set_EPC;
+    case EXCP_DSPDIS:
+        cause = 26;
         goto set_EPC;
     case EXCP_CACHE:
         cause = 30;

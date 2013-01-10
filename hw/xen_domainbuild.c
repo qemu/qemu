@@ -1,8 +1,8 @@
 #include <signal.h>
 #include "xen_backend.h"
 #include "xen_domainbuild.h"
-#include "qemu-timer.h"
-#include "qemu-log.h"
+#include "qemu/timer.h"
+#include "qemu/log.h"
 
 #include <xenguest.h>
 
@@ -153,7 +153,6 @@ static void xen_domain_poll(void *opaque)
 
 quit:
     qemu_system_shutdown_request();
-    return;
 }
 
 static int xen_domain_watcher(void)

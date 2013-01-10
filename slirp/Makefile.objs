@@ -1,3 +1,3 @@
-common-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
+common-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o dnssearch.o
 common-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
 common-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o arp_table.o

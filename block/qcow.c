@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "block_int.h"
-#include "module.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
 #include <zlib.h>
-#include "aes.h"
-#include "migration.h"
+#include "block/aes.h"
+#include "migration/migration.h"
 
 /**************************************************************/
 /* QEMU COW block driver with compression and encryption support */
@@ -195,6 +195,15 @@ static int qcow_open(BlockDriverState *bs, int flags)
     g_free(s->cluster_cache);
     g_free(s->cluster_data);
     return ret;
+}
+
+
+/* We have nothing to do for QCOW reopen, stubs just return
+ * success */
+static int qcow_reopen_prepare(BDRVReopenState *state,
+                               BlockReopenQueue *queue, Error **errp)
+{
+    return 0;
 }
 
 static int qcow_set_key(BlockDriverState *bs, const char *key)
@@ -868,6 +877,7 @@ static BlockDriver bdrv_qcow = {
     .bdrv_probe		= qcow_probe,
     .bdrv_open		= qcow_open,
     .bdrv_close		= qcow_close,
+    .bdrv_reopen_prepare = qcow_reopen_prepare,
     .bdrv_create	= qcow_create,
 
     .bdrv_co_readv          = qcow_co_readv,

@@ -27,17 +27,17 @@
 #include "hw.h"
 #include "sh.h"
 #include "devices.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
-#include "pci.h"
-#include "net.h"
+#include "pci/pci.h"
+#include "net/net.h"
 #include "sh7750_regs.h"
 #include "ide.h"
 #include "loader.h"
 #include "usb.h"
 #include "flash.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 #define FLASH_BASE 0x00000000
 #define FLASH_SIZE 0x02000000
@@ -127,7 +127,7 @@ static void r2d_fpga_irq_set(void *opaque, int n, int level)
     update_irl(fpga);
 }
 
-static uint32_t r2d_fpga_read(void *opaque, target_phys_addr_t addr)
+static uint32_t r2d_fpga_read(void *opaque, hwaddr addr)
 {
     r2d_fpga_t *s = opaque;
 
@@ -146,7 +146,7 @@ static uint32_t r2d_fpga_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void
-r2d_fpga_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+r2d_fpga_write(void *opaque, hwaddr addr, uint32_t value)
 {
     r2d_fpga_t *s = opaque;
 
@@ -178,7 +178,7 @@ static const MemoryRegionOps r2d_fpga_ops = {
 };
 
 static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
-                               target_phys_addr_t base, qemu_irq irl)
+                               hwaddr base, qemu_irq irl)
 {
     r2d_fpga_t *s;
 
@@ -219,11 +219,12 @@ static struct QEMU_PACKED
     char kernel_cmdline[256];
 } boot_params;
 
-static void r2d_init(ram_addr_t ram_size,
-              const char *boot_device,
-	      const char *kernel_filename, const char *kernel_cmdline,
-	      const char *initrd_filename, const char *cpu_model)
+static void r2d_init(QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     SuperHCPU *cpu;
     CPUSH4State *env;
     ResetData *reset_info;
@@ -332,6 +333,8 @@ static void r2d_init(ram_addr_t ram_size,
     }
 
     if (kernel_cmdline) {
+        /* I see no evidence that this .kernel_cmdline buffer requires
+           NUL-termination, so using strncpy should be ok. */
         strncpy(boot_params.kernel_cmdline, kernel_cmdline,
                 sizeof(boot_params.kernel_cmdline));
     }

@@ -13,20 +13,20 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "net.h"
+#include "net/net.h"
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "boards.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 #include "loader.h"
 #include "elf.h"
-#include "exec-memory.h"
-#include "pc.h"
+#include "exec/address-spaces.h"
+#include "serial.h"
 #include "ppc.h"
 #include "ppc405.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
@@ -49,17 +49,17 @@ static const unsigned int ppc440ep_sdram_bank_sizes[] = {
     256<<20, 128<<20, 64<<20, 32<<20, 16<<20, 8<<20, 0
 };
 
-static target_phys_addr_t entry;
+static hwaddr entry;
 
-static int bamboo_load_device_tree(target_phys_addr_t addr,
+static int bamboo_load_device_tree(hwaddr addr,
                                      uint32_t ramsize,
-                                     target_phys_addr_t initrd_base,
-                                     target_phys_addr_t initrd_size,
+                                     hwaddr initrd_base,
+                                     hwaddr initrd_size,
                                      const char *kernel_cmdline)
 {
     int ret = -1;
 #ifdef CONFIG_FDT
-    uint32_t mem_reg_property[] = { 0, 0, ramsize };
+    uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(ramsize) };
     char *filename;
     int fdt_size;
     void *fdt;
@@ -123,7 +123,7 @@ out:
 /* Create reset TLB entries for BookE, spanning the 32bit addr space.  */
 static void mmubooke_create_initial_mapping(CPUPPCState *env,
                                      target_ulong va,
-                                     target_phys_addr_t pa)
+                                     hwaddr pa)
 {
     ppcemb_tlb_t *tlb = &env->tlb.tlbe[0];
 
@@ -157,19 +157,19 @@ static void main_cpu_reset(void *opaque)
     mmubooke_create_initial_mapping(env, 0, 0);
 }
 
-static void bamboo_init(ram_addr_t ram_size,
-                        const char *boot_device,
-                        const char *kernel_filename,
-                        const char *kernel_cmdline,
-                        const char *initrd_filename,
-                        const char *cpu_model)
+static void bamboo_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     unsigned int pci_irq_nrs[4] = { 28, 27, 26, 25 };
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram_memories
         = g_malloc(PPC440EP_SDRAM_NR_BANKS * sizeof(*ram_memories));
-    target_phys_addr_t ram_bases[PPC440EP_SDRAM_NR_BANKS];
-    target_phys_addr_t ram_sizes[PPC440EP_SDRAM_NR_BANKS];
+    hwaddr ram_bases[PPC440EP_SDRAM_NR_BANKS];
+    hwaddr ram_sizes[PPC440EP_SDRAM_NR_BANKS];
     qemu_irq *pic;
     qemu_irq *irqs;
     PCIBus *pcibus;
@@ -177,7 +177,7 @@ static void bamboo_init(ram_addr_t ram_size,
     CPUPPCState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
-    target_phys_addr_t loadaddr = 0;
+    hwaddr loadaddr = 0;
     target_long initrd_size = 0;
     DeviceState *dev;
     int success;
@@ -195,7 +195,7 @@ static void bamboo_init(ram_addr_t ram_size,
     env = &cpu->env;
 
     qemu_register_reset(main_cpu_reset, cpu);
-    ppc_booke_timers_init(env, 400000000, 0);
+    ppc_booke_timers_init(cpu, 400000000, 0);
     ppc_dcr_init(env, NULL, NULL);
 
     /* interrupt controller */
@@ -216,7 +216,8 @@ static void bamboo_init(ram_addr_t ram_size,
                       ram_bases, ram_sizes, 1);
 
     /* PCI */
-    dev = sysbus_create_varargs("ppc4xx-pcihost", PPC440EP_PCI_CONFIG,
+    dev = sysbus_create_varargs(TYPE_PPC4xx_PCI_HOST_BRIDGE,
+                                PPC440EP_PCI_CONFIG,
                                 pic[pci_irq_nrs[0]], pic[pci_irq_nrs[1]],
                                 pic[pci_irq_nrs[2]], pic[pci_irq_nrs[3]],
                                 NULL);

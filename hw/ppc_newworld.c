@@ -52,10 +52,9 @@
 #include "adb.h"
 #include "mac_dbdma.h"
 #include "nvram.h"
-#include "pc.h"
-#include "pci.h"
-#include "net.h"
-#include "sysemu.h"
+#include "pci/pci.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "fw_cfg.h"
 #include "escc.h"
@@ -63,11 +62,12 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "hw/usb.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
+#include "sysbus.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
@@ -83,13 +83,13 @@
 #endif
 
 /* UniN device */
-static void unin_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void unin_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     UNIN_DPRINTF("write addr " TARGET_FMT_plx " val %"PRIx64"\n", addr, value);
 }
 
-static uint64_t unin_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
 {
     uint32_t value;
 
@@ -116,7 +116,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return (addr & 0x0fffffff) + KERNEL_LOAD_ADDR;
 }
 
-static target_phys_addr_t round_page(target_phys_addr_t addr)
+static hwaddr round_page(hwaddr addr)
 {
     return (addr + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
 }
@@ -129,21 +129,22 @@ static void ppc_core99_reset(void *opaque)
 }
 
 /* PowerPC Mac99 hardware initialisation */
-static void ppc_core99_init (ram_addr_t ram_size,
-                             const char *boot_device,
-                             const char *kernel_filename,
-                             const char *kernel_cmdline,
-                             const char *initrd_filename,
-                             const char *cpu_model)
+static void ppc_core99_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
     qemu_irq *pic, **openpic_irqs;
     MemoryRegion *unin_memory = g_new(MemoryRegion, 1);
-    int linux_boot, i;
+    int linux_boot, i, j, k;
     MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
-    target_phys_addr_t kernel_base, initrd_base, cmdline_base = 0;
+    hwaddr kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
@@ -156,6 +157,8 @@ static void ppc_core99_init (ram_addr_t ram_size,
     void *fw_cfg;
     void *dbdma;
     int machine_arch;
+    SysBusDevice *s;
+    DeviceState *dev;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -320,7 +323,25 @@ static void ppc_core99_init (ram_addr_t ram_size,
             exit(1);
         }
     }
-    pic = openpic_init(&pic_mem, smp_cpus, openpic_irqs, NULL);
+
+    pic = g_new(qemu_irq, 64);
+
+    dev = qdev_create(NULL, "openpic");
+    qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_RAVEN);
+    qdev_init_nofail(dev);
+    s = sysbus_from_qdev(dev);
+    pic_mem = s->mmio[0].memory;
+    k = 0;
+    for (i = 0; i < smp_cpus; i++) {
+        for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
+            sysbus_connect_irq(s, k++, openpic_irqs[i][j]);
+        }
+    }
+
+    for (i = 0; i < 64; i++) {
+        pic[i] = qdev_get_gpio_in(dev, i);
+    }
+
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
         /* 970 gets a U3 bus */
         pci_bus = pci_pmac_u3_init(pic, get_system_memory(), get_system_io());
@@ -348,10 +369,6 @@ static void ppc_core99_init (ram_addr_t ram_size,
     ide_mem[1] = pmac_ide_init(hd, pic[0x0d], dbdma, 0x16, pic[0x02]);
     ide_mem[2] = pmac_ide_init(&hd[MAX_IDE_DEVS], pic[0x0e], dbdma, 0x1a, pic[0x02]);
 
-    /* cuda also initialize ADB */
-    if (machine_arch == ARCH_MAC99_U3) {
-        usb_enabled = 1;
-    }
     cuda_init(&cuda_mem, pic[0x19]);
 
     adb_kbd_init(&adb_bus);
@@ -360,15 +377,14 @@ static void ppc_core99_init (ram_addr_t ram_size,
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem,
                dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_bar);
 
-    if (usb_enabled) {
+    if (usb_enabled(machine_arch == ARCH_MAC99_U3)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
-    }
-
-    /* U3 needs to use USB for input because Linux doesn't support via-cuda
-       on PPC64 */
-    if (machine_arch == ARCH_MAC99_U3) {
-        usbdevice_create("keyboard");
-        usbdevice_create("mouse");
+        /* U3 needs to use USB for input because Linux doesn't support via-cuda
+        on PPC64 */
+        if (machine_arch == ARCH_MAC99_U3) {
+            usbdevice_create("keyboard");
+            usbdevice_create("mouse");
+        }
     }
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)

@@ -13,7 +13,7 @@
  */
 
 #include "trace.h"
-#include "qemu_socket.h" /* for EINPROGRESS on Windows */
+#include "qemu/sockets.h" /* for EINPROGRESS on Windows */
 #include "qed.h"
 
 typedef struct {
@@ -103,7 +103,6 @@ static void qed_write_table_cb(void *opaque, int ret)
 out:
     qemu_vfree(write_table_cb->table);
     gencb_complete(&write_table_cb->gencb, ret);
-    return;
 }
 
 /**

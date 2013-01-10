@@ -24,22 +24,23 @@
 #include "hw.h"
 #include "nvram.h"
 #include "pc.h"
+#include "serial.h"
 #include "fdc.h"
-#include "net.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "isa.h"
-#include "pci.h"
-#include "pci_host.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
 #include "ppc.h"
 #include "boards.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "ide.h"
 #include "loader.h"
 #include "mc146818rtc.h"
 #include "pc87312.h"
-#include "blockdev.h"
-#include "arch_init.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/arch_init.h"
+#include "exec/address-spaces.h"
 
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO
@@ -115,27 +116,27 @@ static struct {
 } XCSR;
 
 static void PPC_XCSR_writeb (void *opaque,
-                             target_phys_addr_t addr, uint32_t value)
+                             hwaddr addr, uint32_t value)
 {
     printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
            value);
 }
 
 static void PPC_XCSR_writew (void *opaque,
-                             target_phys_addr_t addr, uint32_t value)
+                             hwaddr addr, uint32_t value)
 {
     printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
            value);
 }
 
 static void PPC_XCSR_writel (void *opaque,
-                             target_phys_addr_t addr, uint32_t value)
+                             hwaddr addr, uint32_t value)
 {
     printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
            value);
 }
 
-static uint32_t PPC_XCSR_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_XCSR_readb (void *opaque, hwaddr addr)
 {
     uint32_t retval = 0;
 
@@ -145,7 +146,7 @@ static uint32_t PPC_XCSR_readb (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t PPC_XCSR_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_XCSR_readw (void *opaque, hwaddr addr)
 {
     uint32_t retval = 0;
 
@@ -155,7 +156,7 @@ static uint32_t PPC_XCSR_readw (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t PPC_XCSR_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_XCSR_readl (void *opaque, hwaddr addr)
 {
     uint32_t retval = 0;
 
@@ -324,8 +325,8 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
     return retval;
 }
 
-static inline target_phys_addr_t prep_IO_address(sysctrl_t *sysctrl,
-                                                 target_phys_addr_t addr)
+static inline hwaddr prep_IO_address(sysctrl_t *sysctrl,
+                                                 hwaddr addr)
 {
     if (sysctrl->contiguous_map == 0) {
         /* 64 KB contiguous space for IOs */
@@ -338,7 +339,7 @@ static inline target_phys_addr_t prep_IO_address(sysctrl_t *sysctrl,
     return addr;
 }
 
-static void PPC_prep_io_writeb (void *opaque, target_phys_addr_t addr,
+static void PPC_prep_io_writeb (void *opaque, hwaddr addr,
                                 uint32_t value)
 {
     sysctrl_t *sysctrl = opaque;
@@ -347,7 +348,7 @@ static void PPC_prep_io_writeb (void *opaque, target_phys_addr_t addr,
     cpu_outb(addr, value);
 }
 
-static uint32_t PPC_prep_io_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_prep_io_readb (void *opaque, hwaddr addr)
 {
     sysctrl_t *sysctrl = opaque;
     uint32_t ret;
@@ -358,7 +359,7 @@ static uint32_t PPC_prep_io_readb (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void PPC_prep_io_writew (void *opaque, target_phys_addr_t addr,
+static void PPC_prep_io_writew (void *opaque, hwaddr addr,
                                 uint32_t value)
 {
     sysctrl_t *sysctrl = opaque;
@@ -368,7 +369,7 @@ static void PPC_prep_io_writew (void *opaque, target_phys_addr_t addr,
     cpu_outw(addr, value);
 }
 
-static uint32_t PPC_prep_io_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_prep_io_readw (void *opaque, hwaddr addr)
 {
     sysctrl_t *sysctrl = opaque;
     uint32_t ret;
@@ -380,7 +381,7 @@ static uint32_t PPC_prep_io_readw (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void PPC_prep_io_writel (void *opaque, target_phys_addr_t addr,
+static void PPC_prep_io_writel (void *opaque, hwaddr addr,
                                 uint32_t value)
 {
     sysctrl_t *sysctrl = opaque;
@@ -390,7 +391,7 @@ static void PPC_prep_io_writel (void *opaque, target_phys_addr_t addr,
     cpu_outl(addr, value);
 }
 
-static uint32_t PPC_prep_io_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t PPC_prep_io_readl (void *opaque, hwaddr addr)
 {
     sysctrl_t *sysctrl = opaque;
     uint32_t ret;
@@ -429,13 +430,14 @@ static void ppc_prep_reset(void *opaque)
 }
 
 /* PowerPC PREP hardware initialisation */
-static void ppc_prep_init (ram_addr_t ram_size,
-                           const char *boot_device,
-                           const char *kernel_filename,
-                           const char *kernel_cmdline,
-                           const char *initrd_filename,
-                           const char *cpu_model)
+static void ppc_prep_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     MemoryRegion *sysmem = get_system_memory();
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
@@ -452,7 +454,6 @@ static void ppc_prep_init (ram_addr_t ram_size,
     uint32_t kernel_base, initrd_base;
     long kernel_size, initrd_size;
     DeviceState *dev;
-    SysBusDevice *sys;
     PCIHostState *pcihost;
     PCIBus *pci_bus;
     PCIDevice *pci;
@@ -506,7 +507,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
         bios_size = -1;
     }
     if (bios_size > 0 && bios_size <= BIOS_SIZE) {
-        target_phys_addr_t bios_addr;
+        hwaddr bios_addr;
         bios_size = (bios_size + 0xfff) & ~0xfff;
         bios_addr = (uint32_t)(-bios_size);
         bios_size = load_image_targphys(filename, bios_addr, bios_size);
@@ -565,8 +566,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     }
 
     dev = qdev_create(NULL, "raven-pcihost");
-    sys = sysbus_from_qdev(dev);
-    pcihost = DO_UPCAST(PCIHostState, busdev, sys);
+    pcihost = PCI_HOST_BRIDGE(dev);
     pcihost->address_space = get_system_memory();
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
@@ -636,7 +636,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     memory_region_add_subregion(sysmem, 0xFEFF0000, xcsr);
 #endif
 
-    if (usb_enabled) {
+    if (usb_enabled(false)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 

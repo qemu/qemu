@@ -23,10 +23,10 @@
  */
 #include "sysbus.h"
 #include "sh.h"
-#include "pci.h"
-#include "pci_host.h"
-#include "bswap.h"
-#include "exec-memory.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
+#include "qemu/bswap.h"
+#include "exec/address-spaces.h"
 
 typedef struct SHPCIState {
     SysBusDevice busdev;
@@ -41,7 +41,7 @@ typedef struct SHPCIState {
     uint32_t iobr;
 } SHPCIState;
 
-static void sh_pci_reg_write (void *p, target_phys_addr_t addr, uint64_t val,
+static void sh_pci_reg_write (void *p, hwaddr addr, uint64_t val,
                               unsigned size)
 {
     SHPCIState *pcic = p;
@@ -69,7 +69,7 @@ static void sh_pci_reg_write (void *p, target_phys_addr_t addr, uint64_t val,
     }
 }
 
-static uint64_t sh_pci_reg_read (void *p, target_phys_addr_t addr,
+static uint64_t sh_pci_reg_read (void *p, hwaddr addr,
                                  unsigned size)
 {
     SHPCIState *pcic = p;

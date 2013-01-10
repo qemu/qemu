@@ -36,7 +36,7 @@ static const uint8_t gic_id[] = {
 
 #define NUM_CPU(s) ((s)->num_cpu)
 
-static inline int gic_get_current_cpu(gic_state *s)
+static inline int gic_get_current_cpu(GICState *s)
 {
     if (s->num_cpu > 1) {
         return cpu_single_env->cpu_index;
@@ -46,7 +46,7 @@ static inline int gic_get_current_cpu(gic_state *s)
 
 /* TODO: Many places that call this routine could be optimized.  */
 /* Update interrupt status after enabled or pending bits have been changed.  */
-void gic_update(gic_state *s)
+void gic_update(GICState *s)
 {
     int best_irq;
     int best_prio;
@@ -73,10 +73,10 @@ void gic_update(gic_state *s)
             }
         }
         level = 0;
-        if (best_prio <= s->priority_mask[cpu]) {
+        if (best_prio < s->priority_mask[cpu]) {
             s->current_pending[cpu] = best_irq;
             if (best_prio < s->running_priority[cpu]) {
-                DPRINTF("Raised pending IRQ %d\n", best_irq);
+                DPRINTF("Raised pending IRQ %d (cpu %d)\n", best_irq, cpu);
                 level = 1;
             }
         }
@@ -84,7 +84,7 @@ void gic_update(gic_state *s)
     }
 }
 
-void gic_set_pending_private(gic_state *s, int cpu, int irq)
+void gic_set_pending_private(GICState *s, int cpu, int irq)
 {
     int cm = 1 << cpu;
 
@@ -105,7 +105,7 @@ static void gic_set_irq(void *opaque, int irq, int level)
      *  [N+32..N+63] : PPI (internal interrupts for CPU 1
      *  ...
      */
-    gic_state *s = (gic_state *)opaque;
+    GICState *s = (GICState *)opaque;
     int cm, target;
     if (irq < (s->num_irq - GIC_INTERNAL)) {
         /* The first external input line is internal interrupt 32.  */
@@ -137,7 +137,7 @@ static void gic_set_irq(void *opaque, int irq, int level)
     gic_update(s);
 }
 
-static void gic_set_running_irq(gic_state *s, int cpu, int irq)
+static void gic_set_running_irq(GICState *s, int cpu, int irq)
 {
     s->running_irq[cpu] = irq;
     if (irq == 1023) {
@@ -148,7 +148,7 @@ static void gic_set_running_irq(gic_state *s, int cpu, int irq)
     gic_update(s);
 }
 
-uint32_t gic_acknowledge_irq(gic_state *s, int cpu)
+uint32_t gic_acknowledge_irq(GICState *s, int cpu)
 {
     int new_irq;
     int cm = 1 << cpu;
@@ -167,7 +167,7 @@ uint32_t gic_acknowledge_irq(gic_state *s, int cpu)
     return new_irq;
 }
 
-void gic_complete_irq(gic_state *s, int cpu, int irq)
+void gic_complete_irq(GICState *s, int cpu, int irq)
 {
     int update = 0;
     int cm = 1 << cpu;
@@ -212,9 +212,9 @@ void gic_complete_irq(gic_state *s, int cpu, int irq)
     }
 }
 
-static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
+static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
 {
-    gic_state *s = (gic_state *)opaque;
+    GICState *s = (GICState *)opaque;
     uint32_t res;
     int irq;
     int i;
@@ -324,11 +324,12 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
     }
     return res;
 bad_reg:
-    hw_error("gic_dist_readb: Bad offset %x\n", (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "gic_dist_readb: Bad offset %x\n", (int)offset);
     return 0;
 }
 
-static uint32_t gic_dist_readw(void *opaque, target_phys_addr_t offset)
+static uint32_t gic_dist_readw(void *opaque, hwaddr offset)
 {
     uint32_t val;
     val = gic_dist_readb(opaque, offset);
@@ -336,7 +337,7 @@ static uint32_t gic_dist_readw(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static uint32_t gic_dist_readl(void *opaque, target_phys_addr_t offset)
+static uint32_t gic_dist_readl(void *opaque, hwaddr offset)
 {
     uint32_t val;
     val = gic_dist_readw(opaque, offset);
@@ -344,10 +345,10 @@ static uint32_t gic_dist_readl(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
+static void gic_dist_writeb(void *opaque, hwaddr offset,
                             uint32_t value)
 {
-    gic_state *s = (gic_state *)opaque;
+    GICState *s = (GICState *)opaque;
     int irq;
     int i;
     int cpu;
@@ -373,7 +374,8 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
           value = 0xff;
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
-                int mask = (irq < GIC_INTERNAL) ? (1 << cpu) : GIC_TARGET(irq);
+                int mask =
+                    (irq < GIC_INTERNAL) ? (1 << cpu) : GIC_TARGET(irq + i);
                 int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
 
                 if (!GIC_TEST_ENABLED(irq + i, cm)) {
@@ -416,7 +418,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
 
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
-                GIC_SET_PENDING(irq + i, GIC_TARGET(irq));
+                GIC_SET_PENDING(irq + i, GIC_TARGET(irq + i));
             }
         }
     } else if (offset < 0x300) {
@@ -487,20 +489,21 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     gic_update(s);
     return;
 bad_reg:
-    hw_error("gic_dist_writeb: Bad offset %x\n", (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "gic_dist_writeb: Bad offset %x\n", (int)offset);
 }
 
-static void gic_dist_writew(void *opaque, target_phys_addr_t offset,
+static void gic_dist_writew(void *opaque, hwaddr offset,
                             uint32_t value)
 {
     gic_dist_writeb(opaque, offset, value & 0xff);
     gic_dist_writeb(opaque, offset + 1, value >> 8);
 }
 
-static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
+static void gic_dist_writel(void *opaque, hwaddr offset,
                             uint32_t value)
 {
-    gic_state *s = (gic_state *)opaque;
+    GICState *s = (GICState *)opaque;
     if (offset == 0xf00) {
         int cpu;
         int irq;
@@ -539,7 +542,7 @@ static const MemoryRegionOps gic_dist_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint32_t gic_cpu_read(gic_state *s, int cpu, int offset)
+static uint32_t gic_cpu_read(GICState *s, int cpu, int offset)
 {
     switch (offset) {
     case 0x00: /* Control */
@@ -556,17 +559,18 @@ static uint32_t gic_cpu_read(gic_state *s, int cpu, int offset)
     case 0x18: /* Highest Pending Interrupt */
         return s->current_pending[cpu];
     default:
-        hw_error("gic_cpu_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gic_cpu_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
 
-static void gic_cpu_write(gic_state *s, int cpu, int offset, uint32_t value)
+static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
 {
     switch (offset) {
     case 0x00: /* Control */
         s->cpu_enabled[cpu] = (value & 1);
-        DPRINTF("CPU %d %sabled\n", cpu, s->cpu_enabled ? "En" : "Dis");
+        DPRINTF("CPU %d %sabled\n", cpu, s->cpu_enabled[cpu] ? "En" : "Dis");
         break;
     case 0x04: /* Priority mask */
         s->priority_mask[cpu] = (value & 0xff);
@@ -577,44 +581,45 @@ static void gic_cpu_write(gic_state *s, int cpu, int offset, uint32_t value)
     case 0x10: /* End Of Interrupt */
         return gic_complete_irq(s, cpu, value & 0x3ff);
     default:
-        hw_error("gic_cpu_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gic_cpu_write: Bad offset %x\n", (int)offset);
         return;
     }
     gic_update(s);
 }
 
 /* Wrappers to read/write the GIC CPU interface for the current CPU */
-static uint64_t gic_thiscpu_read(void *opaque, target_phys_addr_t addr,
+static uint64_t gic_thiscpu_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    gic_state *s = (gic_state *)opaque;
+    GICState *s = (GICState *)opaque;
     return gic_cpu_read(s, gic_get_current_cpu(s), addr);
 }
 
-static void gic_thiscpu_write(void *opaque, target_phys_addr_t addr,
+static void gic_thiscpu_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
-    gic_state *s = (gic_state *)opaque;
+    GICState *s = (GICState *)opaque;
     gic_cpu_write(s, gic_get_current_cpu(s), addr, value);
 }
 
 /* Wrappers to read/write the GIC CPU interface for a specific CPU.
- * These just decode the opaque pointer into gic_state* + cpu id.
+ * These just decode the opaque pointer into GICState* + cpu id.
  */
-static uint64_t gic_do_cpu_read(void *opaque, target_phys_addr_t addr,
+static uint64_t gic_do_cpu_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    gic_state **backref = (gic_state **)opaque;
-    gic_state *s = *backref;
+    GICState **backref = (GICState **)opaque;
+    GICState *s = *backref;
     int id = (backref - s->backref);
     return gic_cpu_read(s, id, addr);
 }
 
-static void gic_do_cpu_write(void *opaque, target_phys_addr_t addr,
+static void gic_do_cpu_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
-    gic_state **backref = (gic_state **)opaque;
-    gic_state *s = *backref;
+    GICState **backref = (GICState **)opaque;
+    GICState *s = *backref;
     int id = (backref - s->backref);
     gic_cpu_write(s, id, addr, value);
 }
@@ -631,7 +636,7 @@ static const MemoryRegionOps gic_cpu_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void gic_init_irqs_and_distributor(gic_state *s, int num_irq)
+void gic_init_irqs_and_distributor(GICState *s, int num_irq)
 {
     int i;
 
@@ -657,7 +662,7 @@ static int arm_gic_init(SysBusDevice *dev)
 {
     /* Device instance init function for the GIC sysbus device */
     int i;
-    gic_state *s = FROM_SYSBUS(gic_state, dev);
+    GICState *s = FROM_SYSBUS(GICState, dev);
     ARMGICClass *agc = ARM_GIC_GET_CLASS(s);
 
     agc->parent_init(dev);
@@ -701,8 +706,9 @@ static void arm_gic_class_init(ObjectClass *klass, void *data)
 static TypeInfo arm_gic_info = {
     .name = TYPE_ARM_GIC,
     .parent = TYPE_ARM_GIC_COMMON,
-    .instance_size = sizeof(gic_state),
+    .instance_size = sizeof(GICState),
     .class_init = arm_gic_class_init,
+    .class_size = sizeof(ARMGICClass),
 };
 
 static void arm_gic_register_types(void)

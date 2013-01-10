@@ -3,7 +3,7 @@
 
 #include "hw/hw.h"
 #include "hw/virtio.h"
-#include "memory.h"
+#include "exec/memory.h"
 
 /* Generic structures common for any vhost based device. */
 struct vhost_virtqueue {
@@ -44,7 +44,8 @@ struct vhost_dev {
     bool force;
 };
 
-int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force);
+int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
+                   bool force);
 void vhost_dev_cleanup(struct vhost_dev *hdev);
 bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev);
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);

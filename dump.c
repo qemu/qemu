@@ -14,16 +14,16 @@
 #include "qemu-common.h"
 #include "elf.h"
 #include "cpu.h"
-#include "cpu-all.h"
-#include "targphys.h"
-#include "monitor.h"
-#include "kvm.h"
-#include "dump.h"
-#include "sysemu.h"
-#include "memory_mapping.h"
-#include "error.h"
+#include "exec/cpu-all.h"
+#include "exec/hwaddr.h"
+#include "monitor/monitor.h"
+#include "sysemu/kvm.h"
+#include "sysemu/dump.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/memory_mapping.h"
+#include "qapi/error.h"
 #include "qmp-commands.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 
 static uint16_t cpu_convert_to_target16(uint16_t val, int endian)
 {
@@ -66,7 +66,7 @@ typedef struct DumpState {
     bool have_section;
     bool resume;
     size_t note_size;
-    target_phys_addr_t memory_offset;
+    hwaddr memory_offset;
     int fd;
 
     RAMBlock *block;
@@ -100,18 +100,11 @@ static void dump_error(DumpState *s, const char *reason)
 static int fd_write_vmcore(void *buf, size_t size, void *opaque)
 {
     DumpState *s = opaque;
-    int fd = s->fd;
-    size_t writen_size;
+    size_t written_size;
 
-    /* The fd may be passed from user, and it can be non-blocked */
-    while (size) {
-        writen_size = qemu_write_full(fd, buf, size);
-        if (writen_size != size && errno != EAGAIN) {
-            return -1;
-        }
-
-        buf += writen_size;
-        size -= writen_size;
+    written_size = qemu_write_full(s->fd, buf, size);
+    if (written_size != size) {
+        return -1;
     }
 
     return 0;
@@ -194,7 +187,7 @@ static int write_elf32_header(DumpState *s)
 }
 
 static int write_elf64_load(DumpState *s, MemoryMapping *memory_mapping,
-                            int phdr_index, target_phys_addr_t offset)
+                            int phdr_index, hwaddr offset)
 {
     Elf64_Phdr phdr;
     int ret;
@@ -223,7 +216,7 @@ static int write_elf64_load(DumpState *s, MemoryMapping *memory_mapping,
 }
 
 static int write_elf32_load(DumpState *s, MemoryMapping *memory_mapping,
-                            int phdr_index, target_phys_addr_t offset)
+                            int phdr_index, hwaddr offset)
 {
     Elf32_Phdr phdr;
     int ret;
@@ -255,7 +248,7 @@ static int write_elf64_note(DumpState *s)
 {
     Elf64_Phdr phdr;
     int endian = s->dump_info.d_endian;
-    target_phys_addr_t begin = s->memory_offset - s->note_size;
+    hwaddr begin = s->memory_offset - s->note_size;
     int ret;
 
     memset(&phdr, 0, sizeof(Elf64_Phdr));
@@ -303,7 +296,7 @@ static int write_elf64_notes(DumpState *s)
 
 static int write_elf32_note(DumpState *s)
 {
-    target_phys_addr_t begin = s->memory_offset - s->note_size;
+    hwaddr begin = s->memory_offset - s->note_size;
     Elf32_Phdr phdr;
     int endian = s->dump_info.d_endian;
     int ret;
@@ -421,11 +414,11 @@ static int write_memory(DumpState *s, RAMBlock *block, ram_addr_t start,
 }
 
 /* get the memory's offset in the vmcore */
-static target_phys_addr_t get_offset(target_phys_addr_t phys_addr,
+static hwaddr get_offset(hwaddr phys_addr,
                                      DumpState *s)
 {
     RAMBlock *block;
-    target_phys_addr_t offset = s->memory_offset;
+    hwaddr offset = s->memory_offset;
     int64_t size_in_block, start;
 
     if (s->has_filter) {
@@ -434,7 +427,7 @@ static target_phys_addr_t get_offset(target_phys_addr_t phys_addr,
         }
     }
 
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         if (s->has_filter) {
             if (block->offset >= s->begin + s->length ||
                 block->offset + block->length <= s->begin) {
@@ -470,7 +463,7 @@ static target_phys_addr_t get_offset(target_phys_addr_t phys_addr,
 
 static int write_elf_loads(DumpState *s)
 {
-    target_phys_addr_t offset;
+    hwaddr offset;
     MemoryMapping *memory_mapping;
     uint32_t phdr_index = 1;
     int ret;
@@ -601,7 +594,7 @@ static int dump_completed(DumpState *s)
 static int get_next_block(DumpState *s, RAMBlock *block)
 {
     while (1) {
-        block = QLIST_NEXT(block, next);
+        block = QTAILQ_NEXT(block, next);
         if (!block) {
             /* no more block */
             return 1;
@@ -677,11 +670,11 @@ static ram_addr_t get_start_block(DumpState *s)
     RAMBlock *block;
 
     if (!s->has_filter) {
-        s->block = QLIST_FIRST(&ram_list.blocks);
+        s->block = QTAILQ_FIRST(&ram_list.blocks);
         return 0;
     }
 
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         if (block->offset >= s->begin + s->length ||
             block->offset + block->length <= s->begin) {
             /* This block is out of the range */
@@ -836,9 +829,8 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
 
 #if !defined(WIN32)
     if (strstart(file, "fd:", &p)) {
-        fd = monitor_get_fd(cur_mon, p);
+        fd = monitor_get_fd(cur_mon, p, errp);
         if (fd == -1) {
-            error_set(errp, QERR_FD_NOT_FOUND, p);
             return;
         }
     }

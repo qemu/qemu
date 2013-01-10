@@ -54,11 +54,12 @@
 
 #include <sys/ioctl.h>
 
-#include "pci.h"
+#include "pci/pci.h"
 #include "xen.h"
 #include "xen_backend.h"
 #include "xen_pt.h"
-#include "range.h"
+#include "qemu/range.h"
+#include "exec/address-spaces.h"
 
 #define XEN_PT_NR_IRQS (256)
 static uint8_t xen_pt_mapped_machine_irq[XEN_PT_NR_IRQS] = {0};
@@ -362,7 +363,7 @@ out:
 
 /* register regions */
 
-static uint64_t xen_pt_bar_read(void *o, target_phys_addr_t addr,
+static uint64_t xen_pt_bar_read(void *o, hwaddr addr,
                                 unsigned size)
 {
     PCIDevice *d = o;
@@ -372,7 +373,7 @@ static uint64_t xen_pt_bar_read(void *o, target_phys_addr_t addr,
                addr);
     return 0;
 }
-static void xen_pt_bar_write(void *o, target_phys_addr_t addr, uint64_t val,
+static void xen_pt_bar_write(void *o, hwaddr addr, uint64_t val,
                              unsigned size)
 {
     PCIDevice *d = o;
@@ -410,14 +411,17 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
             if (r->type & XEN_HOST_PCI_REGION_TYPE_PREFETCH) {
                 type |= PCI_BASE_ADDRESS_MEM_PREFETCH;
             }
+            if (r->type & XEN_HOST_PCI_REGION_TYPE_MEM_64) {
+                type |= PCI_BASE_ADDRESS_MEM_TYPE_64;
+            }
         }
 
         memory_region_init_io(&s->bar[i], &ops, &s->dev,
                               "xen-pci-pt-bar", r->size);
         pci_register_bar(&s->dev, i, type, &s->bar[i]);
 
-        XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%08"PRIx64
-                   " base_addr=0x%08"PRIx64" type: %#x)\n",
+        XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%lx"PRIx64
+                   " base_addr=0x%lx"PRIx64" type: %#x)\n",
                    i, r->size, r->base_addr, type);
     }
 
@@ -597,14 +601,6 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
     }
 }
 
-static void xen_pt_begin(MemoryListener *l)
-{
-}
-
-static void xen_pt_commit(MemoryListener *l)
-{
-}
-
 static void xen_pt_region_add(MemoryListener *l, MemoryRegionSection *sec)
 {
     XenPCIPassthroughState *s = container_of(l, XenPCIPassthroughState,
@@ -621,36 +617,31 @@ static void xen_pt_region_del(MemoryListener *l, MemoryRegionSection *sec)
     xen_pt_region_update(s, sec, false);
 }
 
-static void xen_pt_region_nop(MemoryListener *l, MemoryRegionSection *s)
+static void xen_pt_io_region_add(MemoryListener *l, MemoryRegionSection *sec)
 {
+    XenPCIPassthroughState *s = container_of(l, XenPCIPassthroughState,
+                                             io_listener);
+
+    xen_pt_region_update(s, sec, true);
 }
 
-static void xen_pt_log_fns(MemoryListener *l, MemoryRegionSection *s)
+static void xen_pt_io_region_del(MemoryListener *l, MemoryRegionSection *sec)
 {
-}
+    XenPCIPassthroughState *s = container_of(l, XenPCIPassthroughState,
+                                             io_listener);
 
-static void xen_pt_log_global_fns(MemoryListener *l)
-{
-}
-
-static void xen_pt_eventfd_fns(MemoryListener *l, MemoryRegionSection *s,
-                               bool match_data, uint64_t data, EventNotifier *n)
-{
+    xen_pt_region_update(s, sec, false);
 }
 
 static const MemoryListener xen_pt_memory_listener = {
-    .begin = xen_pt_begin,
-    .commit = xen_pt_commit,
     .region_add = xen_pt_region_add,
-    .region_nop = xen_pt_region_nop,
     .region_del = xen_pt_region_del,
-    .log_start = xen_pt_log_fns,
-    .log_stop = xen_pt_log_fns,
-    .log_sync = xen_pt_log_fns,
-    .log_global_start = xen_pt_log_global_fns,
-    .log_global_stop = xen_pt_log_global_fns,
-    .eventfd_add = xen_pt_eventfd_fns,
-    .eventfd_del = xen_pt_eventfd_fns,
+    .priority = 10,
+};
+
+static const MemoryListener xen_pt_io_listener = {
+    .region_add = xen_pt_io_region_add,
+    .region_del = xen_pt_io_region_del,
     .priority = 10,
 };
 
@@ -680,7 +671,8 @@ static int xen_pt_initfn(PCIDevice *d)
     s->is_virtfn = s->real_device.is_virtfn;
     if (s->is_virtfn) {
         XEN_PT_LOG(d, "%04x:%02x:%02x.%d is a SR-IOV Virtual Function\n",
-                   s->real_device.domain, bus, slot, func);
+                   s->real_device.domain, s->real_device.bus,
+                   s->real_device.dev, s->real_device.func);
     }
 
     /* Initialize virtualized PCI configuration (Extended 256 Bytes) */
@@ -691,6 +683,7 @@ static int xen_pt_initfn(PCIDevice *d)
     }
 
     s->memory_listener = xen_pt_memory_listener;
+    s->io_listener = xen_pt_io_listener;
 
     /* Handle real device's MMIO/PIO BARs */
     xen_pt_register_regions(s);
@@ -757,9 +750,10 @@ static int xen_pt_initfn(PCIDevice *d)
     }
 
 out:
-    memory_listener_register(&s->memory_listener, NULL);
+    memory_listener_register(&s->memory_listener, &address_space_memory);
+    memory_listener_register(&s->io_listener, &address_space_io);
     XEN_PT_LOG(d, "Real physical device %02x:%02x.%d registered successfuly!\n",
-               bus, slot, func);
+               s->hostaddr.bus, s->hostaddr.slot, s->hostaddr.function);
 
     return 0;
 }
@@ -812,6 +806,7 @@ static void xen_pt_unregister_device(PCIDevice *d)
 
     xen_pt_unregister_regions(s);
     memory_listener_unregister(&s->memory_listener);
+    memory_listener_unregister(&s->io_listener);
 
     xen_host_pci_device_put(&s->real_device);
 }

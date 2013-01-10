@@ -8,7 +8,7 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
+#include "char/char.h"
 
 typedef struct {
     SysBusDevice busdev;
@@ -54,7 +54,7 @@ static void pl011_update(pl011_state *s)
     qemu_set_irq(s->irq, flags != 0);
 }
 
-static uint64_t pl011_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pl011_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     pl011_state *s = (pl011_state *)opaque;
@@ -107,7 +107,8 @@ static uint64_t pl011_read(void *opaque, target_phys_addr_t offset,
     case 18: /* UARTDMACR */
         return s->dmacr;
     default:
-        hw_error("pl011_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl011_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -126,7 +127,7 @@ static void pl011_set_read_trigger(pl011_state *s)
         s->read_trigger = 1;
 }
 
-static void pl011_write(void *opaque, target_phys_addr_t offset,
+static void pl011_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     pl011_state *s = (pl011_state *)opaque;
@@ -178,11 +179,13 @@ static void pl011_write(void *opaque, target_phys_addr_t offset,
         break;
     case 18: /* UARTDMACR */
         s->dmacr = value;
-        if (value & 3)
-            hw_error("PL011: DMA not implemented\n");
+        if (value & 3) {
+            qemu_log_mask(LOG_UNIMP, "pl011: DMA not implemented\n");
+        }
         break;
     default:
-        hw_error("pl011_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl011_write: Bad offset %x\n", (int)offset);
     }
 }
 

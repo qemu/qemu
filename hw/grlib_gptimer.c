@@ -23,7 +23,7 @@
  */
 
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
 
 #include "trace.h"
@@ -155,11 +155,11 @@ static void grlib_gptimer_hit(void *opaque)
     }
 }
 
-static uint64_t grlib_gptimer_read(void *opaque, target_phys_addr_t addr,
+static uint64_t grlib_gptimer_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     GPTimerUnit        *unit  = opaque;
-    target_phys_addr_t  timer_addr;
+    hwaddr  timer_addr;
     int                 id;
     uint32_t            value = 0;
 
@@ -214,11 +214,11 @@ static uint64_t grlib_gptimer_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void grlib_gptimer_write(void *opaque, target_phys_addr_t addr,
+static void grlib_gptimer_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
     GPTimerUnit        *unit = opaque;
-    target_phys_addr_t  timer_addr;
+    hwaddr  timer_addr;
     int                 id;
 
     addr &= 0xff;

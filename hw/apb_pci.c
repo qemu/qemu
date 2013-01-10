@@ -27,13 +27,13 @@
    the secondary PCI bridge.  */
 
 #include "sysbus.h"
-#include "pci.h"
-#include "pci_host.h"
-#include "pci_bridge.h"
-#include "pci_internals.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
+#include "pci/pci_bridge.h"
+#include "pci/pci_bus.h"
 #include "apb_pci.h"
-#include "sysemu.h"
-#include "exec-memory.h"
+#include "sysemu/sysemu.h"
+#include "exec/address-spaces.h"
 
 /* debug APB */
 //#define DEBUG_APB
@@ -87,7 +87,7 @@ typedef struct APBState {
 
 static void pci_apb_set_irq(void *opaque, int irq_num, int level);
 
-static void apb_config_writel (void *opaque, target_phys_addr_t addr,
+static void apb_config_writel (void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     APBState *s = opaque;
@@ -152,7 +152,7 @@ static void apb_config_writel (void *opaque, target_phys_addr_t addr,
 }
 
 static uint64_t apb_config_readl (void *opaque,
-                                  target_phys_addr_t addr, unsigned size)
+                                  hwaddr addr, unsigned size)
 {
     APBState *s = opaque;
     uint32_t val;
@@ -212,7 +212,7 @@ static const MemoryRegionOps apb_config_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void apb_pci_config_write(void *opaque, target_phys_addr_t addr,
+static void apb_pci_config_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
     APBState *s = opaque;
@@ -222,7 +222,7 @@ static void apb_pci_config_write(void *opaque, target_phys_addr_t addr,
     pci_data_write(s->bus, addr, val, size);
 }
 
-static uint64_t apb_pci_config_read(void *opaque, target_phys_addr_t addr,
+static uint64_t apb_pci_config_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
     uint32_t ret;
@@ -234,25 +234,25 @@ static uint64_t apb_pci_config_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void pci_apb_iowriteb (void *opaque, target_phys_addr_t addr,
+static void pci_apb_iowriteb (void *opaque, hwaddr addr,
                                   uint32_t val)
 {
     cpu_outb(addr & IOPORTS_MASK, val);
 }
 
-static void pci_apb_iowritew (void *opaque, target_phys_addr_t addr,
+static void pci_apb_iowritew (void *opaque, hwaddr addr,
                                   uint32_t val)
 {
     cpu_outw(addr & IOPORTS_MASK, bswap16(val));
 }
 
-static void pci_apb_iowritel (void *opaque, target_phys_addr_t addr,
+static void pci_apb_iowritel (void *opaque, hwaddr addr,
                                 uint32_t val)
 {
     cpu_outl(addr & IOPORTS_MASK, bswap32(val));
 }
 
-static uint32_t pci_apb_ioreadb (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_apb_ioreadb (void *opaque, hwaddr addr)
 {
     uint32_t val;
 
@@ -260,7 +260,7 @@ static uint32_t pci_apb_ioreadb (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t pci_apb_ioreadw (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_apb_ioreadw (void *opaque, hwaddr addr)
 {
     uint32_t val;
 
@@ -268,7 +268,7 @@ static uint32_t pci_apb_ioreadw (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t pci_apb_ioreadl (void *opaque, target_phys_addr_t addr)
+static uint32_t pci_apb_ioreadl (void *opaque, hwaddr addr)
 {
     uint32_t val;
 
@@ -351,8 +351,8 @@ static int apb_pci_bridge_initfn(PCIDevice *dev)
     return 0;
 }
 
-PCIBus *pci_apb_init(target_phys_addr_t special_base,
-                     target_phys_addr_t mem_base,
+PCIBus *pci_apb_init(hwaddr special_base,
+                     hwaddr mem_base,
                      qemu_irq *ivec_irqs, PCIBus **bus2, PCIBus **bus3,
                      qemu_irq **pbm_irqs)
 {

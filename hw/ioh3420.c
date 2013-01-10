@@ -20,9 +20,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci_ids.h"
-#include "msi.h"
-#include "pcie.h"
+#include "pci/pci_ids.h"
+#include "pci/msi.h"
+#include "pci/pcie.h"
 #include "ioh3420.h"
 
 #define PCI_DEVICE_ID_IOH_EPORT         0x3420  /* D0:F0 express mode */
@@ -125,7 +125,6 @@ static int ioh3420_initfn(PCIDevice *d)
     rc = pcie_chassis_add_slot(s);
     if (rc < 0) {
         goto err_pcie_cap;
-        return rc;
     }
     pcie_cap_root_init(d);
     rc = pcie_aer_init(d, IOH_EP_AER_OFFSET);

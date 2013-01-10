@@ -25,12 +25,12 @@
 #include <stdio.h>
 #include "hw.h"
 #include "sh.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
 #include "sh_intc.h"
 #include "cpu.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define NB_DEVICES 4
 
@@ -197,19 +197,19 @@ static void portb_changed(SH7750State * s, uint16_t prev)
  Memory
 **********************************************************************/
 
-static void error_access(const char *kind, target_phys_addr_t addr)
+static void error_access(const char *kind, hwaddr addr)
 {
     fprintf(stderr, "%s to %s (0x" TARGET_FMT_plx ") not supported\n",
 	    kind, regname(addr), addr);
 }
 
-static void ignore_access(const char *kind, target_phys_addr_t addr)
+static void ignore_access(const char *kind, hwaddr addr)
 {
     fprintf(stderr, "%s to %s (0x" TARGET_FMT_plx ") ignored\n",
 	    kind, regname(addr), addr);
 }
 
-static uint32_t sh7750_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t sh7750_mem_readb(void *opaque, hwaddr addr)
 {
     switch (addr) {
     default:
@@ -218,7 +218,7 @@ static uint32_t sh7750_mem_readb(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t sh7750_mem_readw(void *opaque, hwaddr addr)
 {
     SH7750State *s = opaque;
 
@@ -252,7 +252,7 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t sh7750_mem_readl(void *opaque, hwaddr addr)
 {
     SH7750State *s = opaque;
 
@@ -301,7 +301,7 @@ static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
 
 #define is_in_sdrmx(a, x) (a >= SH7750_SDMR ## x ## _A7 \
 			&& a <= (SH7750_SDMR ## x ## _A7 + SH7750_SDMR ## x ## _REGNB))
-static void sh7750_mem_writeb(void *opaque, target_phys_addr_t addr,
+static void sh7750_mem_writeb(void *opaque, hwaddr addr,
 			      uint32_t mem_value)
 {
 
@@ -314,7 +314,7 @@ static void sh7750_mem_writeb(void *opaque, target_phys_addr_t addr,
     abort();
 }
 
-static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
+static void sh7750_mem_writew(void *opaque, hwaddr addr,
 			      uint32_t mem_value)
 {
     SH7750State *s = opaque;
@@ -366,7 +366,7 @@ static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
+static void sh7750_mem_writel(void *opaque, hwaddr addr,
 			      uint32_t mem_value)
 {
     SH7750State *s = opaque;
@@ -624,14 +624,14 @@ static struct intc_group groups_irl[] = {
 #define MM_UTLB_DATA     (7)
 #define MM_REGION_TYPE(addr)  ((addr & MM_REGION_MASK) >> 24)
 
-static uint64_t invalid_read(void *opaque, target_phys_addr_t addr)
+static uint64_t invalid_read(void *opaque, hwaddr addr)
 {
     abort();
 
     return 0;
 }
 
-static uint64_t sh7750_mmct_read(void *opaque, target_phys_addr_t addr,
+static uint64_t sh7750_mmct_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     SH7750State *s = opaque;
@@ -669,13 +669,13 @@ static uint64_t sh7750_mmct_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void invalid_write(void *opaque, target_phys_addr_t addr,
+static void invalid_write(void *opaque, hwaddr addr,
                           uint64_t mem_value)
 {
     abort();
 }
 
-static void sh7750_mmct_write(void *opaque, target_phys_addr_t addr,
+static void sh7750_mmct_write(void *opaque, hwaddr addr,
                               uint64_t mem_value, unsigned size)
 {
     SH7750State *s = opaque;

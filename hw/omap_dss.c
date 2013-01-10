@@ -18,7 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "omap.h"
 
 struct omap_dss_s {
@@ -60,7 +60,7 @@ struct omap_dss_s {
             int nx;
             int ny;
 
-            target_phys_addr_t addr[3];
+            hwaddr addr[3];
 
             uint32_t attr;
             uint32_t tresh;
@@ -168,7 +168,7 @@ void omap_dss_reset(struct omap_dss_s *s)
     omap_dispc_interrupt_update(s);
 }
 
-static uint64_t omap_diss_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_diss_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
@@ -206,7 +206,7 @@ static uint64_t omap_diss_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_diss_write(void *opaque, target_phys_addr_t addr,
+static void omap_diss_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
@@ -246,7 +246,7 @@ static const MemoryRegionOps omap_diss_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t omap_disc_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_disc_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
@@ -371,7 +371,7 @@ static uint64_t omap_disc_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_disc_write(void *opaque, target_phys_addr_t addr,
+static void omap_disc_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
@@ -502,11 +502,11 @@ static void omap_disc_write(void *opaque, target_phys_addr_t addr,
         s->dispc.invalidate = 1;
         break;
     case 0x080:	/* DISPC_GFX_BA0 */
-        s->dispc.l[0].addr[0] = (target_phys_addr_t) value;
+        s->dispc.l[0].addr[0] = (hwaddr) value;
         s->dispc.invalidate = 1;
         break;
     case 0x084:	/* DISPC_GFX_BA1 */
-        s->dispc.l[0].addr[1] = (target_phys_addr_t) value;
+        s->dispc.l[0].addr[1] = (hwaddr) value;
         s->dispc.invalidate = 1;
         break;
     case 0x088:	/* DISPC_GFX_POSITION */
@@ -543,7 +543,7 @@ static void omap_disc_write(void *opaque, target_phys_addr_t addr,
         s->dispc.l[0].wininc = value;
         break;
     case 0x0b8:	/* DISPC_GFX_TABLE_BA */
-        s->dispc.l[0].addr[2] = (target_phys_addr_t) value;
+        s->dispc.l[0].addr[2] = (hwaddr) value;
         s->dispc.invalidate = 1;
         break;
 
@@ -602,11 +602,11 @@ static void omap_rfbi_transfer_stop(struct omap_dss_s *s)
 static void omap_rfbi_transfer_start(struct omap_dss_s *s)
 {
     void *data;
-    target_phys_addr_t len;
-    target_phys_addr_t data_addr;
+    hwaddr len;
+    hwaddr data_addr;
     int pitch;
     static void *bounce_buffer;
-    static target_phys_addr_t bounce_len;
+    static hwaddr bounce_len;
 
     if (!s->rfbi.enable || s->rfbi.busy)
         return;
@@ -663,7 +663,7 @@ static void omap_rfbi_transfer_start(struct omap_dss_s *s)
     omap_dispc_interrupt_update(s);
 }
 
-static uint64_t omap_rfbi_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_rfbi_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
@@ -730,7 +730,7 @@ static uint64_t omap_rfbi_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_rfbi_write(void *opaque, target_phys_addr_t addr,
+static void omap_rfbi_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
@@ -864,7 +864,7 @@ static const MemoryRegionOps omap_rfbi_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t omap_venc_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_venc_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     if (size != 4) {
@@ -924,7 +924,7 @@ static uint64_t omap_venc_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_venc_write(void *opaque, target_phys_addr_t addr,
+static void omap_venc_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     if (size != 4) {
@@ -986,7 +986,7 @@ static const MemoryRegionOps omap_venc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t omap_im3_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_im3_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     if (size != 4) {
@@ -1012,7 +1012,7 @@ static uint64_t omap_im3_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_im3_write(void *opaque, target_phys_addr_t addr,
+static void omap_im3_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
     if (size != 4) {
@@ -1041,7 +1041,7 @@ static const MemoryRegionOps omap_im3_ops = {
 
 struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
                 MemoryRegion *sysmem,
-                target_phys_addr_t l3_base,
+                hwaddr l3_base,
                 qemu_irq irq, qemu_irq drq,
                 omap_clk fck1, omap_clk fck2, omap_clk ck54m,
                 omap_clk ick1, omap_clk ick2)

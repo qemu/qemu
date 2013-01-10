@@ -20,7 +20,7 @@
  */
 
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 /* This device implements the per-cpu private timer and watchdog block
  * which is used in both the ARM11MPCore and Cortex-A9MP.
@@ -92,7 +92,7 @@ static void timerblock_tick(void *opaque)
     timerblock_update_irq(tb);
 }
 
-static uint64_t timerblock_read(void *opaque, target_phys_addr_t addr,
+static uint64_t timerblock_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     timerblock *tb = (timerblock *)opaque;
@@ -120,7 +120,7 @@ static uint64_t timerblock_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void timerblock_write(void *opaque, target_phys_addr_t addr,
+static void timerblock_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
     timerblock *tb = (timerblock *)opaque;
@@ -159,7 +159,7 @@ static void timerblock_write(void *opaque, target_phys_addr_t addr,
 /* Wrapper functions to implement the "read timer/watchdog for
  * the current CPU" memory regions.
  */
-static uint64_t arm_thistimer_read(void *opaque, target_phys_addr_t addr,
+static uint64_t arm_thistimer_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     arm_mptimer_state *s = (arm_mptimer_state *)opaque;
@@ -167,7 +167,7 @@ static uint64_t arm_thistimer_read(void *opaque, target_phys_addr_t addr,
     return timerblock_read(&s->timerblock[id * 2], addr, size);
 }
 
-static void arm_thistimer_write(void *opaque, target_phys_addr_t addr,
+static void arm_thistimer_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
     arm_mptimer_state *s = (arm_mptimer_state *)opaque;
@@ -175,7 +175,7 @@ static void arm_thistimer_write(void *opaque, target_phys_addr_t addr,
     timerblock_write(&s->timerblock[id * 2], addr, value, size);
 }
 
-static uint64_t arm_thiswdog_read(void *opaque, target_phys_addr_t addr,
+static uint64_t arm_thiswdog_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     arm_mptimer_state *s = (arm_mptimer_state *)opaque;
@@ -183,7 +183,7 @@ static uint64_t arm_thiswdog_read(void *opaque, target_phys_addr_t addr,
     return timerblock_read(&s->timerblock[id * 2 + 1], addr, size);
 }
 
-static void arm_thiswdog_write(void *opaque, target_phys_addr_t addr,
+static void arm_thiswdog_write(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
     arm_mptimer_state *s = (arm_mptimer_state *)opaque;

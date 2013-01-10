@@ -1,7 +1,7 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
-DEF_HELPER_FLAGS_2(cc_compute_all, TCG_CALL_PURE, i32, env, int)
-DEF_HELPER_FLAGS_2(cc_compute_c, TCG_CALL_PURE, i32, env, int)
+DEF_HELPER_FLAGS_2(cc_compute_all, TCG_CALL_NO_SE, i32, env, int)
+DEF_HELPER_FLAGS_2(cc_compute_c, TCG_CALL_NO_SE, i32, env, int)
 
 DEF_HELPER_0(lock, void)
 DEF_HELPER_0(unlock, void)
@@ -67,6 +67,8 @@ DEF_HELPER_3(raise_interrupt, void, env, int, int)
 DEF_HELPER_2(raise_exception, void, env, int)
 DEF_HELPER_1(cli, void, env)
 DEF_HELPER_1(sti, void, env)
+DEF_HELPER_1(clac, void, env)
+DEF_HELPER_1(stac, void, env)
 DEF_HELPER_1(set_inhibit_irq, void, env)
 DEF_HELPER_1(reset_inhibit_irq, void, env)
 DEF_HELPER_3(boundw, void, env, tl, int)
@@ -218,4 +220,4 @@ DEF_HELPER_3(rclq, tl, env, tl, tl)
 DEF_HELPER_3(rcrq, tl, env, tl, tl)
 #endif
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

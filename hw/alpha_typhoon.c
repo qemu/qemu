@@ -7,13 +7,15 @@
  */
 
 #include "cpu.h"
-#include "exec-all.h"
+#include "exec/exec-all.h"
 #include "hw.h"
 #include "devices.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "alpha_sys.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
+
+#define TYPE_TYPHOON_PCI_HOST_BRIDGE "typhoon-pcihost"
 
 typedef struct TyphoonCchip {
     MemoryRegion region;
@@ -21,7 +23,7 @@ typedef struct TyphoonCchip {
     uint64_t drir;
     uint64_t dim[4];
     uint32_t iic[4];
-    CPUAlphaState *cpu[4];
+    AlphaCPU *cpu[4];
 } TyphoonCchip;
 
 typedef struct TyphoonWindow {
@@ -40,8 +42,12 @@ typedef struct TyphoonPchip {
     TyphoonWindow win[4];
 } TyphoonPchip;
 
+#define TYPHOON_PCI_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(TyphoonState, (obj), TYPE_TYPHOON_PCI_HOST_BRIDGE)
+
 typedef struct TyphoonState {
-    PCIHostState host;
+    PCIHostState parent_obj;
+
     TyphoonCchip cchip;
     TyphoonPchip pchip;
     MemoryRegion dchip_region;
@@ -52,10 +58,11 @@ typedef struct TyphoonState {
 } TyphoonState;
 
 /* Called when one of DRIR or DIM changes.  */
-static void cpu_irq_change(CPUAlphaState *env, uint64_t req)
+static void cpu_irq_change(AlphaCPU *cpu, uint64_t req)
 {
     /* If there are any non-masked interrupts, tell the cpu.  */
-    if (env) {
+    if (cpu != NULL) {
+        CPUAlphaState *env = &cpu->env;
         if (req) {
             cpu_interrupt(env, CPU_INTERRUPT_HARD);
         } else {
@@ -64,7 +71,7 @@ static void cpu_irq_change(CPUAlphaState *env, uint64_t req)
     }
 }
 
-static uint64_t cchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     CPUAlphaState *env = cpu_single_env;
     TyphoonState *s = opaque;
@@ -197,13 +204,13 @@ static uint64_t cchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return ret;
 }
 
-static uint64_t dchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t dchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     /* Skip this.  It's all related to DRAM timing and setup.  */
     return 0;
 }
 
-static uint64_t pchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     TyphoonState *s = opaque;
     uint64_t ret = 0;
@@ -300,7 +307,7 @@ static uint64_t pchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return ret;
 }
 
-static void cchip_write(void *opaque, target_phys_addr_t addr,
+static void cchip_write(void *opaque, hwaddr addr,
                         uint64_t v32, unsigned size)
 {
     TyphoonState *s = opaque;
@@ -347,8 +354,9 @@ static void cchip_write(void *opaque, target_phys_addr_t addr,
         if ((newval ^ oldval) & 0xff0) {
             int i;
             for (i = 0; i < 4; ++i) {
-                CPUAlphaState *env = s->cchip.cpu[i];
-                if (env) {
+                AlphaCPU *cpu = s->cchip.cpu[i];
+                if (cpu != NULL) {
+                    CPUAlphaState *env = &cpu->env;
                     /* IPI can be either cleared or set by the write.  */
                     if (newval & (1 << (i + 8))) {
                         cpu_interrupt(env, CPU_INTERRUPT_SMP);
@@ -457,13 +465,13 @@ static void cchip_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void dchip_write(void *opaque, target_phys_addr_t addr,
+static void dchip_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
     /* Skip this.  It's all related to DRAM timing and setup.  */
 }
 
-static void pchip_write(void *opaque, target_phys_addr_t addr,
+static void pchip_write(void *opaque, hwaddr addr,
                         uint64_t v32, unsigned size)
 {
     TyphoonState *s = opaque;
@@ -655,8 +663,8 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
 
     /* Deliver the interrupt to each CPU, considering each CPU's IIC.  */
     for (i = 0; i < 4; ++i) {
-        CPUAlphaState *env = s->cchip.cpu[i];
-        if (env) {
+        AlphaCPU *cpu = s->cchip.cpu[i];
+        if (cpu != NULL) {
             uint32_t iic = s->cchip.iic[i];
 
             /* ??? The verbage in Section 10.2.2.10 isn't 100% clear.
@@ -675,7 +683,7 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
                 /* Set the ITI bit for this cpu.  */
                 s->cchip.misc |= 1 << (i + 4);
                 /* And signal the interrupt.  */
-                cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+                cpu_interrupt(&cpu->env, CPU_INTERRUPT_TIMER);
             }
         }
     }
@@ -688,35 +696,35 @@ static void typhoon_alarm_timer(void *opaque)
 
     /* Set the ITI bit for this cpu.  */
     s->cchip.misc |= 1 << (cpu + 4);
-    cpu_interrupt(s->cchip.cpu[cpu], CPU_INTERRUPT_TIMER);
+    cpu_interrupt(&s->cchip.cpu[cpu]->env, CPU_INTERRUPT_TIMER);
 }
 
 PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
                      qemu_irq *p_rtc_irq,
-                     CPUAlphaState *cpus[4], pci_map_irq_fn sys_map_irq)
+                     AlphaCPU *cpus[4], pci_map_irq_fn sys_map_irq)
 {
     const uint64_t MB = 1024 * 1024;
     const uint64_t GB = 1024 * MB;
     MemoryRegion *addr_space = get_system_memory();
     MemoryRegion *addr_space_io = get_system_io();
     DeviceState *dev;
-    PCIHostState *p;
     TyphoonState *s;
+    PCIHostState *phb;
     PCIBus *b;
     int i;
 
-    dev = qdev_create(NULL, "typhoon-pcihost");
+    dev = qdev_create(NULL, TYPE_TYPHOON_PCI_HOST_BRIDGE);
     qdev_init_nofail(dev);
 
-    p = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
-    s = container_of(p, TyphoonState, host);
+    s = TYPHOON_PCI_HOST_BRIDGE(dev);
+    phb = PCI_HOST_BRIDGE(dev);
 
     /* Remember the CPUs so that we can deliver interrupts to them.  */
     for (i = 0; i < 4; i++) {
-        CPUAlphaState *env = cpus[i];
-        s->cchip.cpu[i] = env;
-        if (env) {
-            env->alarm_timer = qemu_new_timer_ns(rtc_clock,
+        AlphaCPU *cpu = cpus[i];
+        s->cchip.cpu[i] = cpu;
+        if (cpu != NULL) {
+            cpu->alarm_timer = qemu_new_timer_ns(rtc_clock,
                                                  typhoon_alarm_timer,
                                                  (void *)((uintptr_t)s + i));
         }
@@ -763,10 +771,10 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     memory_region_add_subregion(addr_space, 0x801fc000000ULL,
                                 &s->pchip.reg_io);
 
-    b = pci_register_bus(&s->host.busdev.qdev, "pci",
+    b = pci_register_bus(dev, "pci",
                          typhoon_set_irq, sys_map_irq, s,
                          &s->pchip.reg_mem, addr_space_io, 0, 64);
-    s->host.bus = b;
+    phb->bus = b;
 
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
     memory_region_init_io(&s->pchip.reg_iack, &alpha_pci_iack_ops, b,
@@ -817,9 +825,9 @@ static void typhoon_pcihost_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo typhoon_pcihost_info = {
-    .name          = "typhoon-pcihost",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+static const TypeInfo typhoon_pcihost_info = {
+    .name          = TYPE_TYPHOON_PCI_HOST_BRIDGE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(TyphoonState),
     .class_init    = typhoon_pcihost_class_init,
 };

@@ -18,9 +18,10 @@
  */
 
 #include "qdev.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qmp-commands.h"
-#include "arch_init.h"
+#include "sysemu/arch_init.h"
+#include "qemu/config-file.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -44,6 +45,7 @@ static const QDevAlias qdev_alias_table[] = {
     { "virtio-serial-s390", "virtio-serial", QEMU_ARCH_S390X },
     { "lsi53c895a", "lsi" },
     { "ich9-ahci", "ahci" },
+    { "kvm-pci-assign", "pci-assign" },
     { }
 };
 
@@ -288,8 +290,7 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
     if (name && (strcmp(bus->name, name) != 0)) {
         match = 0;
     }
-    if (bus_typename &&
-        (strcmp(object_get_typename(OBJECT(bus)), bus_typename) != 0)) {
+    if (bus_typename && !object_dynamic_cast(OBJECT(bus), bus_typename)) {
         match = 0;
     }
     if (match) {
@@ -434,7 +435,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         if (!bus) {
             return NULL;
         }
-        if (strcmp(object_get_typename(OBJECT(bus)), k->bus_type) != 0) {
+        if (!object_dynamic_cast(OBJECT(bus), k->bus_type)) {
             qerror_report(QERR_BAD_BUS_FOR_DEVICE,
                           driver, object_get_typename(OBJECT(bus)));
             return NULL;
@@ -543,7 +544,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
         qdev_print_props(mon, dev, DEVICE_CLASS(class)->props, indent);
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
-    bus_print_dev(dev->parent_bus, mon, dev, indent + 2);
+    bus_print_dev(dev->parent_bus, mon, dev, indent);
     QLIST_FOREACH(child, &dev->child_bus, sibling) {
         qbus_print(mon, child, indent);
     }

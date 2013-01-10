@@ -30,10 +30,10 @@ struct OpenRISCCPU;
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
-#include "softfloat.h"
-#include "qemu/cpu.h"
-#include "error.h"
+#include "exec/cpu-defs.h"
+#include "fpu/softfloat.h"
+#include "qom/cpu.h"
+#include "qapi/error.h"
 
 #define TYPE_OPENRISC_CPU "or32-cpu"
 
@@ -88,24 +88,6 @@ enum {
 
 /* Interrupt */
 #define NR_IRQS  32
-
-/* Registers */
-enum {
-    R0 = 0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
-    R11, R12, R13, R14, R15, R16, R17, R18, R19, R20,
-    R21, R22, R23, R24, R25, R26, R27, R28, R29, R30,
-    R31
-};
-
-/* Register aliases */
-enum {
-    R_ZERO = R0,
-    R_SP = R1,
-    R_FP = R2,
-    R_LR = R9,
-    R_RV = R11,
-    R_RVH = R12
-};
 
 /* Unit presece register */
 enum {
@@ -279,11 +261,11 @@ typedef struct CPUOpenRISCTLBContext {
     OpenRISCTLBEntry dtlb[DTLB_WAYS][DTLB_SIZE];
 
     int (*cpu_openrisc_map_address_code)(struct OpenRISCCPU *cpu,
-                                         target_phys_addr_t *physical,
+                                         hwaddr *physical,
                                          int *prot,
                                          target_ulong address, int rw);
     int (*cpu_openrisc_map_address_data)(struct OpenRISCCPU *cpu,
-                                         target_phys_addr_t *physical,
+                                         hwaddr *physical,
                                          int *prot,
                                          target_ulong address, int rw);
 } CPUOpenRISCTLBContext;
@@ -387,13 +369,13 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 
 void cpu_openrisc_mmu_init(OpenRISCCPU *cpu);
 int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
-                                target_phys_addr_t *physical,
+                                hwaddr *physical,
                                 int *prot, target_ulong address, int rw);
 int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
-                               target_phys_addr_t *physical,
+                               hwaddr *physical,
                                int *prot, target_ulong address, int rw);
 int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
-                               target_phys_addr_t *physical,
+                               hwaddr *physical,
                                int *prot, target_ulong address, int rw);
 #endif
 
@@ -416,7 +398,7 @@ static inline void cpu_clone_regs(CPUOpenRISCState *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,
                                         target_ulong *pc,
@@ -437,13 +419,15 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env)
 }
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
-static inline bool cpu_has_work(CPUOpenRISCState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUOpenRISCState *env = &OPENRISC_CPU(cpu)->env;
+
     return env->interrupt_request & (CPU_INTERRUPT_HARD |
                                      CPU_INTERRUPT_TIMER);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline target_ulong cpu_get_pc(CPUOpenRISCState *env)
 {

@@ -3,8 +3,8 @@
 
 /* ISA bus */
 
-#include "ioport.h"
-#include "memory.h"
+#include "exec/ioport.h"
+#include "exec/memory.h"
 #include "qdev.h"
 
 #define ISA_NUM_IRQS 16
@@ -43,9 +43,12 @@ void isa_bus_irqs(ISABus *bus, qemu_irq *irqs);
 qemu_irq isa_get_irq(ISADevice *dev, int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq);
 MemoryRegion *isa_address_space(ISADevice *dev);
+MemoryRegion *isa_address_space_io(ISADevice *dev);
 ISADevice *isa_create(ISABus *bus, const char *name);
 ISADevice *isa_try_create(ISABus *bus, const char *name);
 ISADevice *isa_create_simple(ISABus *bus, const char *name);
+
+ISADevice *isa_vga_init(ISABus *bus);
 
 /**
  * isa_register_ioport: Install an I/O port region on the ISA bus.
@@ -82,10 +85,10 @@ static inline ISABus *isa_bus_from_device(ISADevice *d)
     return DO_UPCAST(ISABus, qbus, d->qdev.parent_bus);
 }
 
-extern target_phys_addr_t isa_mem_base;
+extern hwaddr isa_mem_base;
 
-void isa_mmio_setup(MemoryRegion *mr, target_phys_addr_t size);
-void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size);
+void isa_mmio_setup(MemoryRegion *mr, hwaddr size);
+void isa_mmio_init(hwaddr base, hwaddr size);
 
 /* dma.c */
 int DMA_get_channel_mode (int nchan);

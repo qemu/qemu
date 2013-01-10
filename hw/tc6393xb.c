@@ -13,9 +13,9 @@
 #include "hw.h"
 #include "devices.h"
 #include "flash.h"
-#include "console.h"
-#include "pixel_ops.h"
-#include "blockdev.h"
+#include "ui/console.h"
+#include "ui/pixel_ops.h"
+#include "sysemu/blockdev.h"
 
 #define IRQ_TC6393_NAND		0
 #define IRQ_TC6393_MMC		1
@@ -215,7 +215,7 @@ static void tc6393xb_sub_irq(void *opaque, int line, int level) {
     case SCR_ ##N(1): return s->scr.N[1];       \
     case SCR_ ##N(2): return s->scr.N[2]
 
-static uint32_t tc6393xb_scr_readb(TC6393xbState *s, target_phys_addr_t addr)
+static uint32_t tc6393xb_scr_readb(TC6393xbState *s, hwaddr addr)
 {
     switch (addr) {
         case SCR_REVID:
@@ -276,7 +276,7 @@ static uint32_t tc6393xb_scr_readb(TC6393xbState *s, target_phys_addr_t addr)
     case SCR_ ##N(1): s->scr.N[1] = value; return;   \
     case SCR_ ##N(2): s->scr.N[2] = value; return
 
-static void tc6393xb_scr_writeb(TC6393xbState *s, target_phys_addr_t addr, uint32_t value)
+static void tc6393xb_scr_writeb(TC6393xbState *s, hwaddr addr, uint32_t value)
 {
     switch (addr) {
         SCR_REG_B(ISR);
@@ -327,7 +327,7 @@ static void tc6393xb_nand_irq(TC6393xbState *s) {
             (s->nand.imr & 0x80) && (s->nand.imr & s->nand.isr));
 }
 
-static uint32_t tc6393xb_nand_cfg_readb(TC6393xbState *s, target_phys_addr_t addr) {
+static uint32_t tc6393xb_nand_cfg_readb(TC6393xbState *s, hwaddr addr) {
     switch (addr) {
         case NAND_CFG_COMMAND:
             return s->nand_enable ? 2 : 0;
@@ -340,7 +340,7 @@ static uint32_t tc6393xb_nand_cfg_readb(TC6393xbState *s, target_phys_addr_t add
     fprintf(stderr, "tc6393xb_nand_cfg: unhandled read at %08x\n", (uint32_t) addr);
     return 0;
 }
-static void tc6393xb_nand_cfg_writeb(TC6393xbState *s, target_phys_addr_t addr, uint32_t value) {
+static void tc6393xb_nand_cfg_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) {
     switch (addr) {
         case NAND_CFG_COMMAND:
             s->nand_enable = (value & 0x2);
@@ -357,7 +357,7 @@ static void tc6393xb_nand_cfg_writeb(TC6393xbState *s, target_phys_addr_t addr, 
 					(uint32_t) addr, value & 0xff);
 }
 
-static uint32_t tc6393xb_nand_readb(TC6393xbState *s, target_phys_addr_t addr) {
+static uint32_t tc6393xb_nand_readb(TC6393xbState *s, hwaddr addr) {
     switch (addr) {
         case NAND_DATA + 0:
         case NAND_DATA + 1:
@@ -376,7 +376,7 @@ static uint32_t tc6393xb_nand_readb(TC6393xbState *s, target_phys_addr_t addr) {
     fprintf(stderr, "tc6393xb_nand: unhandled read at %08x\n", (uint32_t) addr);
     return 0;
 }
-static void tc6393xb_nand_writeb(TC6393xbState *s, target_phys_addr_t addr, uint32_t value) {
+static void tc6393xb_nand_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) {
 //    fprintf(stderr, "tc6393xb_nand: write at %08x: %02x\n",
 //					(uint32_t) addr, value & 0xff);
     switch (addr) {
@@ -454,7 +454,7 @@ static void tc6393xb_draw_graphic(TC6393xbState *s, int full_update)
             return;
     }
 
-    dpy_update(s->ds, 0, 0, s->scr_width, s->scr_height);
+    dpy_gfx_update(s->ds, 0, 0, s->scr_width, s->scr_height);
 }
 
 static void tc6393xb_draw_blank(TC6393xbState *s, int full_update)
@@ -472,7 +472,7 @@ static void tc6393xb_draw_blank(TC6393xbState *s, int full_update)
         d += ds_get_linesize(s->ds);
     }
 
-    dpy_update(s->ds, 0, 0, s->scr_width, s->scr_height);
+    dpy_gfx_update(s->ds, 0, 0, s->scr_width, s->scr_height);
 }
 
 static void tc6393xb_update_display(void *opaque)
@@ -499,7 +499,7 @@ static void tc6393xb_update_display(void *opaque)
 }
 
 
-static uint64_t tc6393xb_readb(void *opaque, target_phys_addr_t addr,
+static uint64_t tc6393xb_readb(void *opaque, hwaddr addr,
                                unsigned size)
 {
     TC6393xbState *s = opaque;
@@ -522,7 +522,7 @@ static uint64_t tc6393xb_readb(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr,
+static void tc6393xb_writeb(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size) {
     TC6393xbState *s = opaque;
 

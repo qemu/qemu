@@ -18,7 +18,12 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "memory.h"
+#ifndef HW_SOC_DMA_H
+#define HW_SOC_DMA_H 1
+
+
+#include "exec/memory.h"
+#include "hw/irq.h"
 
 struct soc_dma_s;
 struct soc_dma_ch_s;
@@ -51,7 +56,7 @@ struct soc_dma_ch_s {
     int bytes;
     /* Initialised by the DMA module, call soc_dma_ch_update after writing.  */
     enum soc_dma_access_type type[2];
-    target_phys_addr_t vaddr[2];	/* Updated by .transfer_fn().  */
+    hwaddr vaddr[2];	/* Updated by .transfer_fn().  */
     /* Private */
     void *paddr[2];
     soc_dma_io_t io_fn[2];
@@ -91,19 +96,21 @@ void soc_dma_ch_update(struct soc_dma_ch_s *ch);
 void soc_dma_reset(struct soc_dma_s *s);
 struct soc_dma_s *soc_dma_init(int n);
 
-void soc_dma_port_add_fifo(struct soc_dma_s *dma, target_phys_addr_t virt_base,
+void soc_dma_port_add_fifo(struct soc_dma_s *dma, hwaddr virt_base,
                 soc_dma_io_t fn, void *opaque, int out);
 void soc_dma_port_add_mem(struct soc_dma_s *dma, uint8_t *phys_base,
-                target_phys_addr_t virt_base, size_t size);
+                hwaddr virt_base, size_t size);
 
 static inline void soc_dma_port_add_fifo_in(struct soc_dma_s *dma,
-                target_phys_addr_t virt_base, soc_dma_io_t fn, void *opaque)
+                hwaddr virt_base, soc_dma_io_t fn, void *opaque)
 {
     return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 0);
 }
 
 static inline void soc_dma_port_add_fifo_out(struct soc_dma_s *dma,
-                target_phys_addr_t virt_base, soc_dma_io_t fn, void *opaque)
+                hwaddr virt_base, soc_dma_io_t fn, void *opaque)
 {
     return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 1);
 }
+
+#endif

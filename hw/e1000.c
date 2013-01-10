@@ -26,12 +26,12 @@
 
 
 #include "hw.h"
-#include "pci.h"
-#include "net.h"
+#include "pci/pci.h"
+#include "net/net.h"
 #include "net/checksum.h"
 #include "loader.h"
-#include "sysemu.h"
-#include "dma.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 
 #include "e1000_hw.h"
 
@@ -58,6 +58,11 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 #define IOPORT_SIZE       0x40
 #define PNPMMIO_SIZE      0x20000
 #define MIN_BUF_SIZE      60 /* Min. octets in an ethernet frame sans FCS */
+
+/* this is the size past which hardware will drop packets when setting LPE=0 */
+#define MAXIMUM_ETHERNET_VLAN_SIZE 1522
+/* this is the size past which hardware will drop packets when setting LPE=1 */
+#define MAXIMUM_ETHERNET_LPE_SIZE 16384
 
 /*
  * HW models:
@@ -92,7 +97,6 @@ typedef struct E1000State_st {
 
     uint32_t rxbuf_size;
     uint32_t rxbuf_min_shift;
-    int check_rxov;
     struct e1000_tx {
         unsigned char header[256];
         unsigned char vlan_header[4];
@@ -162,6 +166,11 @@ static void
 set_phy_ctrl(E1000State *s, int index, uint16_t val)
 {
     if ((val & MII_CR_AUTO_NEG_EN) && (val & MII_CR_RESTART_AUTO_NEG)) {
+        /* no need auto-negotiation if link was down */
+        if (s->nic->nc.link_down) {
+            s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+            return;
+        }
         s->nic->nc.link_down = true;
         e1000_link_down(s);
         s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
@@ -266,6 +275,8 @@ rxbufsize(uint32_t v)
 static void e1000_reset(void *opaque)
 {
     E1000State *d = opaque;
+    uint8_t *macaddr = d->conf.macaddr.a;
+    int i;
 
     qemu_del_timer(d->autoneg_timer);
     memset(d->phy_reg, 0, sizeof d->phy_reg);
@@ -277,6 +288,14 @@ static void e1000_reset(void *opaque)
 
     if (d->nic->nc.link_down) {
         e1000_link_down(d);
+    }
+
+    /* Some guests expect pre-initialized RAH/RAL (AddrValid flag + MACaddr) */
+    d->mac_reg[RA] = 0;
+    d->mac_reg[RA + 1] = E1000_RAH_AV;
+    for (i = 0; i < 4; i++) {
+        d->mac_reg[RA] |= macaddr[i] << (8 * i);
+        d->mac_reg[RA + 1] |= (i < 2) ? macaddr[i + 4] << (8 * i) : 0;
     }
 }
 
@@ -295,6 +314,7 @@ set_rx_control(E1000State *s, int index, uint32_t val)
     s->rxbuf_min_shift = ((val / E1000_RCTL_RDMTS_QUAT) & 3) + 1;
     DBGOUT(RX, "RCTL: %d, mac_reg[RCTL] = 0x%x\n", s->mac_reg[RDT],
            s->mac_reg[RCTL]);
+    qemu_flush_queued_packets(&s->nic->nc);
 }
 
 static void
@@ -740,11 +760,11 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
     int bufs;
     /* Fast-path short packets */
     if (total_size <= s->rxbuf_size) {
-        return s->mac_reg[RDH] != s->mac_reg[RDT] || !s->check_rxov;
+        return s->mac_reg[RDH] != s->mac_reg[RDT];
     }
     if (s->mac_reg[RDH] < s->mac_reg[RDT]) {
         bufs = s->mac_reg[RDT] - s->mac_reg[RDH];
-    } else if (s->mac_reg[RDH] > s->mac_reg[RDT] || !s->check_rxov) {
+    } else if (s->mac_reg[RDH] > s->mac_reg[RDT]) {
         bufs = s->mac_reg[RDLEN] /  sizeof(struct e1000_rx_desc) +
             s->mac_reg[RDT] - s->mac_reg[RDH];
     } else {
@@ -793,6 +813,14 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         memset(&min_buf[size], 0, sizeof(min_buf) - size);
         buf = min_buf;
         size = sizeof(min_buf);
+    }
+
+    /* Discard oversized packets if !LPE and !SBP. */
+    if ((size > MAXIMUM_ETHERNET_LPE_SIZE ||
+        (size > MAXIMUM_ETHERNET_VLAN_SIZE
+        && !(s->mac_reg[RCTL] & E1000_RCTL_LPE)))
+        && !(s->mac_reg[RCTL] & E1000_RCTL_SBP)) {
+        return size;
     }
 
     if (!receive_filter(s, buf, size))
@@ -847,7 +875,6 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
         if (++s->mac_reg[RDH] * sizeof(desc) >= s->mac_reg[RDLEN])
             s->mac_reg[RDH] = 0;
-        s->check_rxov = 1;
         /* see comment in start_xmit; same here */
         if (s->mac_reg[RDH] == rdh_start) {
             DBGOUT(RXERR, "RDH wraparound @%x, RDT %x, RDLEN %x\n",
@@ -924,8 +951,10 @@ mac_writereg(E1000State *s, int index, uint32_t val)
 static void
 set_rdt(E1000State *s, int index, uint32_t val)
 {
-    s->check_rxov = 0;
     s->mac_reg[index] = val & 0xffff;
+    if (e1000_has_rxbufs(s, 1)) {
+        qemu_flush_queued_packets(&s->nic->nc);
+    }
 }
 
 static void
@@ -1007,7 +1036,7 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
 enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
 
 static void
-e1000_mmio_write(void *opaque, target_phys_addr_t addr, uint64_t val,
+e1000_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                  unsigned size)
 {
     E1000State *s = opaque;
@@ -1024,7 +1053,7 @@ e1000_mmio_write(void *opaque, target_phys_addr_t addr, uint64_t val,
 }
 
 static uint64_t
-e1000_mmio_read(void *opaque, target_phys_addr_t addr, unsigned size)
+e1000_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     E1000State *s = opaque;
     unsigned int index = (addr & 0x1ffff) >> 2;
@@ -1047,7 +1076,7 @@ static const MemoryRegionOps e1000_mmio_ops = {
     },
 };
 
-static uint64_t e1000_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t e1000_io_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     E1000State *s = opaque;
@@ -1056,7 +1085,7 @@ static uint64_t e1000_io_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void e1000_io_write(void *opaque, target_phys_addr_t addr,
+static void e1000_io_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     E1000State *s = opaque;
@@ -1075,11 +1104,23 @@ static bool is_version_1(void *opaque, int version_id)
     return version_id == 1;
 }
 
+static int e1000_post_load(void *opaque, int version_id)
+{
+    E1000State *s = opaque;
+
+    /* nc.link_down can't be migrated, so infer link_down according
+     * to link status bit in mac_reg[STATUS] */
+    s->nic->nc.link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_e1000 = {
     .name = "e1000",
     .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .post_load = e1000_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, E1000State),
         VMSTATE_UNUSED_TEST(is_version_1, 4), /* was instance id */

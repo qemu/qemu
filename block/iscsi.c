@@ -27,8 +27,9 @@
 #include <poll.h>
 #include <arpa/inet.h>
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "block_int.h"
+#include "qemu/config-file.h"
+#include "qemu/error-report.h"
+#include "block/block_int.h"
 #include "trace.h"
 #include "hw/scsi-defs.h"
 
@@ -65,21 +66,44 @@ typedef struct IscsiAIOCB {
 #endif
 } IscsiAIOCB;
 
-struct IscsiTask {
-    IscsiLun *iscsilun;
-    BlockDriverState *bs;
-    int status;
-    int complete;
-};
+static void
+iscsi_bh_cb(void *p)
+{
+    IscsiAIOCB *acb = p;
+
+    qemu_bh_delete(acb->bh);
+
+    if (acb->canceled == 0) {
+        acb->common.cb(acb->common.opaque, acb->status);
+    }
+
+    if (acb->task != NULL) {
+        scsi_free_scsi_task(acb->task);
+        acb->task = NULL;
+    }
+
+    qemu_aio_release(acb);
+}
+
+static void
+iscsi_schedule_bh(IscsiAIOCB *acb)
+{
+    if (acb->bh) {
+        return;
+    }
+    acb->bh = qemu_bh_new(iscsi_bh_cb, acb);
+    qemu_bh_schedule(acb->bh);
+}
+
 
 static void
 iscsi_abort_task_cb(struct iscsi_context *iscsi, int status, void *command_data,
                     void *private_data)
 {
-    IscsiAIOCB *acb = (IscsiAIOCB *)private_data;
+    IscsiAIOCB *acb = private_data;
 
-    scsi_free_scsi_task(acb->task);
-    acb->task = NULL;
+    acb->status = -ECANCELED;
+    iscsi_schedule_bh(acb);
 }
 
 static void
@@ -88,18 +112,22 @@ iscsi_aio_cancel(BlockDriverAIOCB *blockacb)
     IscsiAIOCB *acb = (IscsiAIOCB *)blockacb;
     IscsiLun *iscsilun = acb->iscsilun;
 
+    if (acb->status != -EINPROGRESS) {
+        return;
+    }
+
     acb->canceled = 1;
 
-    acb->common.cb(acb->common.opaque, -ECANCELED);
-
-    /* send a task mgmt call to the target to cancel the task on the target
-     * this also cancels the task in libiscsi
-     */
+    /* send a task mgmt call to the target to cancel the task on the target */
     iscsi_task_mgmt_abort_task_async(iscsilun->iscsi, acb->task,
-                                     iscsi_abort_task_cb, &acb);
+                                     iscsi_abort_task_cb, acb);
+
+    while (acb->status == -EINPROGRESS) {
+        qemu_aio_wait();
+    }
 }
 
-static AIOPool iscsi_aio_pool = {
+static const AIOCBInfo iscsi_aiocb_info = {
     .aiocb_size         = sizeof(IscsiAIOCB),
     .cancel             = iscsi_aio_cancel,
 };
@@ -133,12 +161,6 @@ iscsi_set_events(IscsiLun *iscsilun)
 
     }
 
-    /* If we just added an event, the callback might be delayed
-     * unless we call qemu_notify_event().
-     */
-    if (ev & ~iscsilun->events) {
-        qemu_notify_event();
-    }
     iscsilun->events = ev;
 }
 
@@ -163,41 +185,6 @@ iscsi_process_write(void *arg)
 }
 
 
-static int
-iscsi_schedule_bh(QEMUBHFunc *cb, IscsiAIOCB *acb)
-{
-    acb->bh = qemu_bh_new(cb, acb);
-    if (!acb->bh) {
-        error_report("oom: could not create iscsi bh");
-        return -EIO;
-    }
-
-    qemu_bh_schedule(acb->bh);
-    return 0;
-}
-
-static void
-iscsi_readv_writev_bh_cb(void *p)
-{
-    IscsiAIOCB *acb = p;
-
-    qemu_bh_delete(acb->bh);
-
-    if (!acb->canceled) {
-        acb->common.cb(acb->common.opaque, acb->status);
-    }
-
-    qemu_aio_release(acb);
-
-    if (acb->canceled) {
-        return;
-    }
-
-    scsi_free_scsi_task(acb->task);
-    acb->task = NULL;
-}
-
-
 static void
 iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
                      void *command_data, void *opaque)
@@ -208,8 +195,7 @@ iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
 
     g_free(acb->buf);
 
-    if (acb->canceled) {
-        qemu_aio_release(acb);
+    if (acb->canceled != 0) {
         return;
     }
 
@@ -220,7 +206,7 @@ iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
         acb->status = -EIO;
     }
 
-    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    iscsi_schedule_bh(acb);
 }
 
 static int64_t sector_qemu2lun(int64_t sector, IscsiLun *iscsilun)
@@ -242,13 +228,15 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     uint64_t lba;
     struct iscsi_data data;
 
-    acb = qemu_aio_get(&iscsi_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
     trace_iscsi_aio_writev(iscsi, sector_num, nb_sectors, opaque, acb);
 
     acb->iscsilun = iscsilun;
     acb->qiov     = qiov;
 
     acb->canceled   = 0;
+    acb->bh         = NULL;
+    acb->status     = -EINPROGRESS;
 
     /* XXX we should pass the iovec to write16 to avoid the extra copy */
     /* this will allow us to get rid of 'buf' completely */
@@ -268,10 +256,6 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     acb->task->xfer_dir = SCSI_XFER_WRITE;
     acb->task->cdb_size = 16;
     acb->task->cdb[0] = 0x8a;
-    if (!(bs->open_flags & BDRV_O_CACHE_WB)) {
-        /* set FUA on writes when cache mode is write through */
-        acb->task->cdb[1] |= 0x04;
-    }
     lba = sector_qemu2lun(sector_num, iscsilun);
     *(uint32_t *)&acb->task->cdb[2]  = htonl(lba >> 32);
     *(uint32_t *)&acb->task->cdb[6]  = htonl(lba & 0xffffffff);
@@ -305,8 +289,7 @@ iscsi_aio_read16_cb(struct iscsi_context *iscsi, int status,
 
     trace_iscsi_aio_read16_cb(iscsi, status, acb, acb->canceled);
 
-    if (acb->canceled) {
-        qemu_aio_release(acb);
+    if (acb->canceled != 0) {
         return;
     }
 
@@ -317,7 +300,7 @@ iscsi_aio_read16_cb(struct iscsi_context *iscsi, int status,
         acb->status = -EIO;
     }
 
-    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    iscsi_schedule_bh(acb);
 }
 
 static BlockDriverAIOCB *
@@ -336,13 +319,15 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
 
     qemu_read_size = BDRV_SECTOR_SIZE * (size_t)nb_sectors;
 
-    acb = qemu_aio_get(&iscsi_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
     trace_iscsi_aio_readv(iscsi, sector_num, nb_sectors, opaque, acb);
 
     acb->iscsilun = iscsilun;
     acb->qiov     = qiov;
 
     acb->canceled    = 0;
+    acb->bh          = NULL;
+    acb->status      = -EINPROGRESS;
     acb->read_size   = qemu_read_size;
     acb->buf         = NULL;
 
@@ -389,7 +374,7 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
         *(uint16_t *)&acb->task->cdb[7] = htons(num_sectors);
         break;
     }
-    
+
     if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
                                  iscsi_aio_read16_cb,
                                  NULL,
@@ -417,8 +402,7 @@ iscsi_synccache10_cb(struct iscsi_context *iscsi, int status,
 {
     IscsiAIOCB *acb = opaque;
 
-    if (acb->canceled) {
-        qemu_aio_release(acb);
+    if (acb->canceled != 0) {
         return;
     }
 
@@ -429,7 +413,7 @@ iscsi_synccache10_cb(struct iscsi_context *iscsi, int status,
         acb->status = -EIO;
     }
 
-    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    iscsi_schedule_bh(acb);
 }
 
 static BlockDriverAIOCB *
@@ -440,10 +424,12 @@ iscsi_aio_flush(BlockDriverState *bs,
     struct iscsi_context *iscsi = iscsilun->iscsi;
     IscsiAIOCB *acb;
 
-    acb = qemu_aio_get(&iscsi_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
 
     acb->iscsilun = iscsilun;
     acb->canceled   = 0;
+    acb->bh         = NULL;
+    acb->status     = -EINPROGRESS;
 
     acb->task = iscsi_synchronizecache10_task(iscsi, iscsilun->lun,
                                          0, 0, 0, 0,
@@ -467,8 +453,7 @@ iscsi_unmap_cb(struct iscsi_context *iscsi, int status,
 {
     IscsiAIOCB *acb = opaque;
 
-    if (acb->canceled) {
-        qemu_aio_release(acb);
+    if (acb->canceled != 0) {
         return;
     }
 
@@ -479,7 +464,7 @@ iscsi_unmap_cb(struct iscsi_context *iscsi, int status,
         acb->status = -EIO;
     }
 
-    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    iscsi_schedule_bh(acb);
 }
 
 static BlockDriverAIOCB *
@@ -492,10 +477,12 @@ iscsi_aio_discard(BlockDriverState *bs,
     IscsiAIOCB *acb;
     struct unmap_list list[1];
 
-    acb = qemu_aio_get(&iscsi_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
 
     acb->iscsilun = iscsilun;
     acb->canceled   = 0;
+    acb->bh         = NULL;
+    acb->status     = -EINPROGRESS;
 
     list[0].lba = sector_qemu2lun(sector_num, iscsilun);
     list[0].num = nb_sectors * BDRV_SECTOR_SIZE / iscsilun->block_size;
@@ -523,8 +510,7 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
 {
     IscsiAIOCB *acb = opaque;
 
-    if (acb->canceled) {
-        qemu_aio_release(acb);
+    if (acb->canceled != 0) {
         return;
     }
 
@@ -552,7 +538,7 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
         memcpy(acb->ioh->sbp, &acb->task->datain.data[2], ss);
     }
 
-    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    iscsi_schedule_bh(acb);
 }
 
 static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
@@ -566,10 +552,12 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
 
     assert(req == SG_IO);
 
-    acb = qemu_aio_get(&iscsi_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
 
     acb->iscsilun = iscsilun;
     acb->canceled    = 0;
+    acb->bh          = NULL;
+    acb->status      = -EINPROGRESS;
     acb->buf         = NULL;
     acb->ioh         = buf;
 
@@ -624,9 +612,17 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     return &acb->common;
 }
 
+
+static void ioctl_cb(void *opaque, int status)
+{
+    int *p_status = opaque;
+    *p_status = status;
+}
+
 static int iscsi_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
     IscsiLun *iscsilun = bs->opaque;
+    int status;
 
     switch (req) {
     case SG_GET_VERSION_NUM:
@@ -635,6 +631,15 @@ static int iscsi_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
     case SG_GET_SCSI_ID:
         ((struct sg_scsi_id *)buf)->scsi_type = iscsilun->type;
         break;
+    case SG_IO:
+        status = -EINPROGRESS;
+        iscsi_aio_ioctl(bs, req, buf, ioctl_cb, &status);
+
+        while (status == -EINPROGRESS) {
+            qemu_aio_wait();
+        }
+
+        return 0;
     default:
         return -1;
     }
@@ -652,158 +657,6 @@ iscsi_getlength(BlockDriverState *bs)
     len *= iscsilun->block_size;
 
     return len;
-}
-
-static void
-iscsi_readcapacity16_cb(struct iscsi_context *iscsi, int status,
-                        void *command_data, void *opaque)
-{
-    struct IscsiTask *itask = opaque;
-    struct scsi_readcapacity16 *rc16;
-    struct scsi_task *task = command_data;
-
-    if (status != 0) {
-        error_report("iSCSI: Failed to read capacity of iSCSI lun. %s",
-                     iscsi_get_error(iscsi));
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    rc16 = scsi_datain_unmarshall(task);
-    if (rc16 == NULL) {
-        error_report("iSCSI: Failed to unmarshall readcapacity16 data.");
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    itask->iscsilun->block_size = rc16->block_length;
-    itask->iscsilun->num_blocks = rc16->returned_lba + 1;
-    itask->bs->total_sectors    = itask->iscsilun->num_blocks *
-                               itask->iscsilun->block_size / BDRV_SECTOR_SIZE ;
-
-    itask->status   = 0;
-    itask->complete = 1;
-    scsi_free_scsi_task(task);
-}
-
-static void
-iscsi_readcapacity10_cb(struct iscsi_context *iscsi, int status,
-                        void *command_data, void *opaque)
-{
-    struct IscsiTask *itask = opaque;
-    struct scsi_readcapacity10 *rc10;
-    struct scsi_task *task = command_data;
-
-    if (status != 0) {
-        error_report("iSCSI: Failed to read capacity of iSCSI lun. %s",
-                     iscsi_get_error(iscsi));
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    rc10 = scsi_datain_unmarshall(task);
-    if (rc10 == NULL) {
-        error_report("iSCSI: Failed to unmarshall readcapacity10 data.");
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    itask->iscsilun->block_size = rc10->block_size;
-    itask->iscsilun->num_blocks = rc10->lba + 1;
-    itask->bs->total_sectors    = itask->iscsilun->num_blocks *
-                               itask->iscsilun->block_size / BDRV_SECTOR_SIZE ;
-
-    itask->status   = 0;
-    itask->complete = 1;
-    scsi_free_scsi_task(task);
-}
-
-static void
-iscsi_inquiry_cb(struct iscsi_context *iscsi, int status, void *command_data,
-                 void *opaque)
-{
-    struct IscsiTask *itask = opaque;
-    struct scsi_task *task = command_data;
-    struct scsi_inquiry_standard *inq;
-
-    if (status != 0) {
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    inq = scsi_datain_unmarshall(task);
-    if (inq == NULL) {
-        error_report("iSCSI: Failed to unmarshall inquiry data.");
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    itask->iscsilun->type = inq->periperal_device_type;
-
-    scsi_free_scsi_task(task);
-
-    switch (itask->iscsilun->type) {
-    case TYPE_DISK:
-        task = iscsi_readcapacity16_task(iscsi, itask->iscsilun->lun,
-                                   iscsi_readcapacity16_cb, opaque);
-        if (task == NULL) {
-            error_report("iSCSI: failed to send readcapacity16 command.");
-            itask->status   = 1;
-            itask->complete = 1;
-            return;
-        }
-        break;
-    case TYPE_ROM:
-        task = iscsi_readcapacity10_task(iscsi, itask->iscsilun->lun,
-                                   0, 0,
-                                   iscsi_readcapacity10_cb, opaque);
-        if (task == NULL) {
-            error_report("iSCSI: failed to send readcapacity16 command.");
-            itask->status   = 1;
-            itask->complete = 1;
-            return;
-        }
-        break;
-    default:
-        itask->status   = 0;
-        itask->complete = 1;
-    }
-}
-
-static void
-iscsi_connect_cb(struct iscsi_context *iscsi, int status, void *command_data,
-                 void *opaque)
-{
-    struct IscsiTask *itask = opaque;
-    struct scsi_task *task;
-
-    if (status != 0) {
-        itask->status   = 1;
-        itask->complete = 1;
-        return;
-    }
-
-    task = iscsi_inquiry_task(iscsi, itask->iscsilun->lun,
-                              0, 0, 36,
-                              iscsi_inquiry_cb, opaque);
-    if (task == NULL) {
-        error_report("iSCSI: failed to send inquiry command.");
-        itask->status   = 1;
-        itask->complete = 1;
-        return;
-    }
 }
 
 static int parse_chap(struct iscsi_context *iscsi, const char *target)
@@ -918,7 +771,10 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = NULL;
     struct iscsi_url *iscsi_url = NULL;
-    struct IscsiTask task;
+    struct scsi_task *task = NULL;
+    struct scsi_inquiry_standard *inq = NULL;
+    struct scsi_readcapacity10 *rc10 = NULL;
+    struct scsi_readcapacity16 *rc16 = NULL;
     char *initiator_name = NULL;
     int ret;
 
@@ -931,8 +787,7 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
 
     iscsi_url = iscsi_parse_full_url(iscsi, filename);
     if (iscsi_url == NULL) {
-        error_report("Failed to parse URL : %s %s", filename,
-                     iscsi_get_error(iscsi));
+        error_report("Failed to parse URL : %s", filename);
         ret = -EINVAL;
         goto out;
     }
@@ -982,32 +837,79 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     /* check if we got HEADER_DIGEST via the options */
     parse_header_digest(iscsi, iscsi_url->target);
 
-    task.iscsilun = iscsilun;
-    task.status = 0;
-    task.complete = 0;
-    task.bs = bs;
+    if (iscsi_full_connect_sync(iscsi, iscsi_url->portal, iscsi_url->lun) != 0) {
+        error_report("iSCSI: Failed to connect to LUN : %s",
+            iscsi_get_error(iscsi));
+        ret = -EINVAL;
+        goto out;
+    }
 
     iscsilun->iscsi = iscsi;
     iscsilun->lun   = iscsi_url->lun;
 
-    if (iscsi_full_connect_async(iscsi, iscsi_url->portal, iscsi_url->lun,
-                                 iscsi_connect_cb, &task)
-        != 0) {
-        error_report("iSCSI: Failed to start async connect.");
+    task = iscsi_inquiry_sync(iscsi, iscsilun->lun, 0, 0, 36);
+
+    if (task == NULL || task->status != SCSI_STATUS_GOOD) {
+        error_report("iSCSI: failed to send inquiry command.");
         ret = -EINVAL;
         goto out;
     }
 
-    while (!task.complete) {
-        iscsi_set_events(iscsilun);
-        qemu_aio_wait();
-    }
-    if (task.status != 0) {
-        error_report("iSCSI: Failed to connect to LUN : %s",
-                     iscsi_get_error(iscsi));
+    inq = scsi_datain_unmarshall(task);
+    if (inq == NULL) {
+        error_report("iSCSI: Failed to unmarshall inquiry data.");
         ret = -EINVAL;
         goto out;
     }
+
+    iscsilun->type = inq->periperal_device_type;
+
+    scsi_free_scsi_task(task);
+
+    switch (iscsilun->type) {
+    case TYPE_DISK:
+        task = iscsi_readcapacity16_sync(iscsi, iscsilun->lun);
+        if (task == NULL || task->status != SCSI_STATUS_GOOD) {
+            error_report("iSCSI: failed to send readcapacity16 command.");
+            ret = -EINVAL;
+            goto out;
+        }
+        rc16 = scsi_datain_unmarshall(task);
+        if (rc16 == NULL) {
+            error_report("iSCSI: Failed to unmarshall readcapacity16 data.");
+            ret = -EINVAL;
+            goto out;
+        }
+        iscsilun->block_size = rc16->block_length;
+        iscsilun->num_blocks = rc16->returned_lba + 1;
+        break;
+    case TYPE_ROM:
+        task = iscsi_readcapacity10_sync(iscsi, iscsilun->lun, 0, 0);
+        if (task == NULL || task->status != SCSI_STATUS_GOOD) {
+            error_report("iSCSI: failed to send readcapacity10 command.");
+            ret = -EINVAL;
+            goto out;
+        }
+        rc10 = scsi_datain_unmarshall(task);
+        if (rc10 == NULL) {
+            error_report("iSCSI: Failed to unmarshall readcapacity10 data.");
+            ret = -EINVAL;
+            goto out;
+        }
+        iscsilun->block_size = rc10->block_size;
+        if (rc10->lba == 0) {
+            /* blank disk loaded */
+            iscsilun->num_blocks = 0;
+        } else {
+            iscsilun->num_blocks = rc10->lba + 1;
+        }
+        break;
+    default:
+        break;
+    }
+
+    bs->total_sectors    = iscsilun->num_blocks *
+                           iscsilun->block_size / BDRV_SECTOR_SIZE ;
 
     /* Medium changer or tape. We dont have any emulation for this so this must
      * be sg ioctl compatible. We force it to be sg, otherwise qemu will try
@@ -1026,6 +928,9 @@ out:
     }
     if (iscsi_url != NULL) {
         iscsi_destroy_url(iscsi_url);
+    }
+    if (task != NULL) {
+        scsi_free_scsi_task(task);
     }
 
     if (ret) {
@@ -1047,6 +952,11 @@ static void iscsi_close(BlockDriverState *bs)
     memset(iscsilun, 0, sizeof(IscsiLun));
 }
 
+static int iscsi_has_zero_init(BlockDriverState *bs)
+{
+    return 0;
+}
+
 static BlockDriver bdrv_iscsi = {
     .format_name     = "iscsi",
     .protocol_name   = "iscsi",
@@ -1062,6 +972,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_aio_flush  = iscsi_aio_flush,
 
     .bdrv_aio_discard = iscsi_aio_discard,
+    .bdrv_has_zero_init = iscsi_has_zero_init,
 
 #ifdef __linux__
     .bdrv_ioctl       = iscsi_ioctl,

@@ -24,7 +24,7 @@
  */
 #include "hw.h"
 #include "firmware_abi.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "ppc_mac.h"
 
 /* debug NVR */
@@ -71,7 +71,7 @@ void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val)
 }
 
 /* macio style NVRAM device */
-static void macio_nvram_writeb(void *opaque, target_phys_addr_t addr,
+static void macio_nvram_writeb(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
     MacIONVRAMState *s = opaque;
@@ -81,7 +81,7 @@ static void macio_nvram_writeb(void *opaque, target_phys_addr_t addr,
     NVR_DPRINTF("writeb addr %04x val %x\n", (int)addr, value);
 }
 
-static uint64_t macio_nvram_readb(void *opaque, target_phys_addr_t addr,
+static uint64_t macio_nvram_readb(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     MacIONVRAMState *s = opaque;
@@ -116,7 +116,7 @@ static void macio_nvram_reset(void *opaque)
 {
 }
 
-MacIONVRAMState *macio_nvram_init (target_phys_addr_t size,
+MacIONVRAMState *macio_nvram_init (hwaddr size,
                                    unsigned int it_shift)
 {
     MacIONVRAMState *s;
@@ -135,7 +135,7 @@ MacIONVRAMState *macio_nvram_init (target_phys_addr_t size,
 }
 
 void macio_nvram_setup_bar(MacIONVRAMState *s, MemoryRegion *bar,
-                           target_phys_addr_t mem_base)
+                           hwaddr mem_base)
 {
     memory_region_add_subregion(bar, mem_base, &s->mem);
 }

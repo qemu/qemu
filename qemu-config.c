@@ -1,9 +1,9 @@
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/error-report.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "hw/qdev.h"
-#include "error.h"
+#include "qapi/error.h"
 
 static QemuOptsList qemu_drive_opts = {
     .name = "drive",
@@ -114,6 +114,10 @@ static QemuOptsList qemu_drive_opts = {
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,
             .help = "copy read data from backing file into image file",
+        },{
+            .name = "boot",
+            .type = QEMU_OPT_BOOL,
+            .help = "(deprecated, ignored)",
         },
         { /* end of list */ }
     },
@@ -362,6 +366,19 @@ static QemuOptsList qemu_global_opts = {
     },
 };
 
+QemuOptsList qemu_sandbox_opts = {
+    .name = "sandbox",
+    .implied_opt_name = "enable",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_sandbox_opts.head),
+    .desc = {
+        {
+            .name = "enable",
+            .type = QEMU_OPT_BOOL,
+        },
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList qemu_mon_opts = {
     .name = "mon",
     .implied_opt_name = "chardev",
@@ -395,54 +412,6 @@ static QemuOptsList qemu_trace_opts = {
         },{
             .name = "file",
             .type = QEMU_OPT_STRING,
-        },
-        { /* end of list */ }
-    },
-};
-
-static QemuOptsList qemu_cpudef_opts = {
-    .name = "cpudef",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_cpudef_opts.head),
-    .desc = {
-        {
-            .name = "name",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "level",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "vendor",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "family",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "model",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "stepping",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "feature_edx",      /* cpuid 0000_0001.edx */
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "feature_ecx",      /* cpuid 0000_0001.ecx */
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "extfeature_edx",   /* cpuid 8000_0001.edx */
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "extfeature_ecx",   /* cpuid 8000_0001.ecx */
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "xlevel",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "model_id",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "vendor_override",
-            .type = QEMU_OPT_NUMBER,
         },
         { /* end of list */ }
     },
@@ -524,6 +493,9 @@ QemuOptsList qemu_spice_opts = {
         },{
             .name = "playback-compression",
             .type = QEMU_OPT_BOOL,
+        }, {
+            .name = "seamless-migration",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },
@@ -595,6 +567,22 @@ static QemuOptsList qemu_machine_opts = {
             .name = "dt_compatible",
             .type = QEMU_OPT_STRING,
             .help = "Overrides the \"compatible\" property of the dt root node",
+        }, {
+            .name = "dump-guest-core",
+            .type = QEMU_OPT_BOOL,
+            .help = "Include guest memory in  a core dump",
+        }, {
+            .name = "mem-merge",
+            .type = QEMU_OPT_BOOL,
+            .help = "enable/disable memory merge support",
+        },{
+            .name = "usb",
+            .type = QEMU_OPT_BOOL,
+            .help = "Set on/off to enable/disable usb",
+        }, {
+            .name = "nvram",
+            .type = QEMU_OPT_STRING,
+            .help = "Drive backing persistent NVRAM",
         },
         { /* End of list */ }
     },
@@ -621,8 +609,41 @@ QemuOptsList qemu_boot_opts = {
         }, {
             .name = "splash-time",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "reboot-timeout",
+            .type = QEMU_OPT_STRING,
         },
         { /*End of list */ }
+    },
+};
+
+static QemuOptsList qemu_add_fd_opts = {
+    .name = "add-fd",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_add_fd_opts.head),
+    .desc = {
+        {
+            .name = "fd",
+            .type = QEMU_OPT_NUMBER,
+            .help = "file descriptor of which a duplicate is added to fd set",
+        },{
+            .name = "set",
+            .type = QEMU_OPT_NUMBER,
+            .help = "ID of the fd set to add fd to",
+        },{
+            .name = "opaque",
+            .type = QEMU_OPT_STRING,
+            .help = "free-form string used to describe fd",
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_object_opts = {
+    .name = "object",
+    .implied_opt_name = "qom-type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
+    .desc = {
+        { }
     },
 };
 
@@ -635,12 +656,14 @@ static QemuOptsList *vm_config_groups[32] = {
     &qemu_rtc_opts,
     &qemu_global_opts,
     &qemu_mon_opts,
-    &qemu_cpudef_opts,
     &qemu_trace_opts,
     &qemu_option_rom_opts,
     &qemu_machine_opts,
     &qemu_boot_opts,
     &qemu_iscsi_opts,
+    &qemu_sandbox_opts,
+    &qemu_add_fd_opts,
+    &qemu_object_opts,
     NULL,
 };
 
@@ -737,7 +760,7 @@ int qemu_global_option(const char *str)
         return -1;
     }
 
-    opts = qemu_opts_create(&qemu_global_opts, NULL, 0, NULL);
+    opts = qemu_opts_create_nofail(&qemu_global_opts);
     qemu_opt_set(opts, "driver", driver);
     qemu_opt_set(opts, "property", property);
     qemu_opt_set(opts, "value", str+offset+1);
@@ -824,7 +847,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
                 error_free(local_err);
                 goto out;
             }
-            opts = qemu_opts_create(list, NULL, 0, NULL);
+            opts = qemu_opts_create_nofail(list);
             continue;
         }
         if (sscanf(line, " %63s = \"%1023[^\"]\"", arg, value) == 2) {

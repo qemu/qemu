@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include <zlib.h>
 
 //#define DEBUG_STELLARIS_ENET 1
@@ -130,7 +130,7 @@ static int stellaris_enet_can_receive(NetClientState *nc)
     return (s->np < 31);
 }
 
-static uint64_t stellaris_enet_read(void *opaque, target_phys_addr_t offset,
+static uint64_t stellaris_enet_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;
@@ -198,7 +198,7 @@ static uint64_t stellaris_enet_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void stellaris_enet_write(void *opaque, target_phys_addr_t offset,
+static void stellaris_enet_write(void *opaque, hwaddr offset,
                                  uint64_t value, unsigned size)
 {
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;

@@ -31,7 +31,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include "qemu-common.h"
-#include "qemu-coroutine-int.h"
+#include "block/coroutine_int.h"
 
 enum {
     /* Maximum free pool size prevents holding too many freed coroutines */
@@ -171,8 +171,8 @@ static Coroutine *coroutine_new(void)
     CoroutineThreadState *coTS;
     struct sigaction sa;
     struct sigaction osa;
-    struct sigaltstack ss;
-    struct sigaltstack oss;
+    stack_t ss;
+    stack_t oss;
     sigset_t sigs;
     sigset_t osigs;
     jmp_buf old_env;

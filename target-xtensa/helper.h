@@ -1,12 +1,12 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 DEF_HELPER_2(exception, noreturn, env, i32)
 DEF_HELPER_3(exception_cause, noreturn, env, i32, i32)
 DEF_HELPER_4(exception_cause_vaddr, noreturn, env, i32, i32, i32)
 DEF_HELPER_3(debug_exception, noreturn, env, i32, i32)
 
-DEF_HELPER_FLAGS_1(nsa, TCG_CALL_CONST | TCG_CALL_PURE, i32, i32)
-DEF_HELPER_FLAGS_1(nsau, TCG_CALL_CONST | TCG_CALL_PURE, i32, i32)
+DEF_HELPER_FLAGS_1(nsa, TCG_CALL_NO_RWG_SE, i32, i32)
+DEF_HELPER_FLAGS_1(nsau, TCG_CALL_NO_RWG_SE, i32, i32)
 DEF_HELPER_2(wsr_windowbase, void, env, i32)
 DEF_HELPER_4(entry, void, env, i32, i32, i32)
 DEF_HELPER_2(retw, i32, env, i32)
@@ -23,10 +23,11 @@ DEF_HELPER_3(waiti, void, env, i32, i32)
 DEF_HELPER_3(timer_irq, void, env, i32, i32)
 DEF_HELPER_2(advance_ccount, void, env, i32)
 DEF_HELPER_1(check_interrupts, void, env)
+DEF_HELPER_3(check_atomctl, void, env, i32, i32)
 
 DEF_HELPER_2(wsr_rasid, void, env, i32)
-DEF_HELPER_FLAGS_3(rtlb0, TCG_CALL_CONST | TCG_CALL_PURE, i32, env, i32, i32)
-DEF_HELPER_FLAGS_3(rtlb1, TCG_CALL_CONST | TCG_CALL_PURE, i32, env, i32, i32)
+DEF_HELPER_FLAGS_3(rtlb0, TCG_CALL_NO_RWG_SE, i32, env, i32, i32)
+DEF_HELPER_FLAGS_3(rtlb1, TCG_CALL_NO_RWG_SE, i32, env, i32, i32)
 DEF_HELPER_3(itlb, void, env, i32, i32)
 DEF_HELPER_3(ptlb, i32, env, i32, i32)
 DEF_HELPER_4(wtlb, void, env, i32, i32, i32)
@@ -36,4 +37,25 @@ DEF_HELPER_3(wsr_ibreaka, void, env, i32, i32)
 DEF_HELPER_3(wsr_dbreaka, void, env, i32, i32)
 DEF_HELPER_3(wsr_dbreakc, void, env, i32, i32)
 
-#include "def-helper.h"
+DEF_HELPER_2(wur_fcr, void, env, i32)
+DEF_HELPER_FLAGS_1(abs_s, TCG_CALL_NO_RWG_SE, f32, f32)
+DEF_HELPER_FLAGS_1(neg_s, TCG_CALL_NO_RWG_SE, f32, f32)
+DEF_HELPER_3(add_s, f32, env, f32, f32)
+DEF_HELPER_3(sub_s, f32, env, f32, f32)
+DEF_HELPER_3(mul_s, f32, env, f32, f32)
+DEF_HELPER_4(madd_s, f32, env, f32, f32, f32)
+DEF_HELPER_4(msub_s, f32, env, f32, f32, f32)
+DEF_HELPER_FLAGS_3(ftoi, TCG_CALL_NO_RWG_SE, i32, f32, i32, i32)
+DEF_HELPER_FLAGS_3(ftoui, TCG_CALL_NO_RWG_SE, i32, f32, i32, i32)
+DEF_HELPER_3(itof, f32, env, i32, i32)
+DEF_HELPER_3(uitof, f32, env, i32, i32)
+
+DEF_HELPER_4(un_s, void, env, i32, f32, f32)
+DEF_HELPER_4(oeq_s, void, env, i32, f32, f32)
+DEF_HELPER_4(ueq_s, void, env, i32, f32, f32)
+DEF_HELPER_4(olt_s, void, env, i32, f32, f32)
+DEF_HELPER_4(ult_s, void, env, i32, f32, f32)
+DEF_HELPER_4(ole_s, void, env, i32, f32, f32)
+DEF_HELPER_4(ule_s, void, env, i32, f32, f32)
+
+#include "exec/def-helper.h"

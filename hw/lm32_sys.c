@@ -31,10 +31,10 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "qemu-log.h"
-#include "qemu-error.h"
-#include "sysemu.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
+#include "qemu/error-report.h"
+#include "sysemu/sysemu.h"
+#include "qemu/log.h"
 
 enum {
     R_CTRL = 0,
@@ -61,7 +61,7 @@ static void copy_testname(LM32SysState *s)
     s->testname[MAX_TESTNAME_LEN - 1] = '\0';
 }
 
-static void sys_write(void *opaque, target_phys_addr_t addr,
+static void sys_write(void *opaque, hwaddr addr,
                       uint64_t value, unsigned size)
 {
     LM32SysState *s = opaque;
@@ -91,7 +91,7 @@ static void sys_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static bool sys_ops_accepts(void *opaque, target_phys_addr_t addr,
+static bool sys_ops_accepts(void *opaque, hwaddr addr,
                             unsigned size, bool is_write)
 {
     return is_write && size == 4;

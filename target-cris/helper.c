@@ -20,7 +20,7 @@
 
 #include "cpu.h"
 #include "mmu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 
 //#define CRIS_HELPER_DEBUG
@@ -151,7 +151,7 @@ static void do_interruptv10(CPUCRISState *env)
 	}
 
 	/* Now that we are in kernel mode, load the handlers address.  */
-	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
+        env->pc = cpu_ldl_code(env, env->pregs[PR_EBP] + ex_vec * 4);
 	env->locked_irq = 1;
 	env->pregs[PR_CCS] |= F_FLAG_V10; /* set F.  */
 
@@ -233,7 +233,7 @@ void do_interrupt(CPUCRISState *env)
 	/* Now that we are in kernel mode, load the handlers address.
 	   This load may not fault, real hw leaves that behaviour as
 	   undefined.  */
-	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
+        env->pc = cpu_ldl_code(env, env->pregs[PR_EBP] + ex_vec * 4);
 
 	/* Clear the excption_index to avoid spurios hw_aborts for recursive
 	   bus faults.  */
@@ -246,7 +246,7 @@ void do_interrupt(CPUCRISState *env)
 		   env->pregs[PR_ERP]);
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUCRISState * env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUCRISState * env, target_ulong addr)
 {
 	uint32_t phy = addr;
 	struct cris_mmu_result res;

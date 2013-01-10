@@ -29,21 +29,20 @@
 #include "adb.h"
 #include "mac_dbdma.h"
 #include "nvram.h"
-#include "pc.h"
-#include "sysemu.h"
-#include "net.h"
+#include "sysemu/sysemu.h"
+#include "net/net.h"
 #include "isa.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "boards.h"
 #include "fw_cfg.h"
 #include "escc.h"
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
@@ -60,7 +59,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return (addr & 0x0fffffff) + KERNEL_LOAD_ADDR;
 }
 
-static target_phys_addr_t round_page(target_phys_addr_t addr)
+static hwaddr round_page(hwaddr addr)
 {
     return (addr + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
 }
@@ -72,13 +71,14 @@ static void ppc_heathrow_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-static void ppc_heathrow_init (ram_addr_t ram_size,
-                               const char *boot_device,
-                               const char *kernel_filename,
-                               const char *kernel_cmdline,
-                               const char *initrd_filename,
-                               const char *cpu_model)
+static void ppc_heathrow_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     MemoryRegion *sysmem = get_system_memory();
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
@@ -286,7 +286,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_343S1201, 1, pic_mem,
                dbdma_mem, cuda_mem, nvr, 2, ide_mem, escc_bar);
 
-    if (usb_enabled) {
+    if (usb_enabled(false)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 

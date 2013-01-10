@@ -63,6 +63,37 @@ typedef struct USBDescriptor {
             uint8_t           bRefresh;        /* only audio ep */
             uint8_t           bSynchAddress;   /* only audio ep */
         } endpoint;
+        struct {
+            uint8_t           bMaxBurst;
+            uint8_t           bmAttributes;
+            uint8_t           wBytesPerInterval_lo;
+            uint8_t           wBytesPerInterval_hi;
+        } super_endpoint;
+        struct {
+            uint8_t           wTotalLength_lo;
+            uint8_t           wTotalLength_hi;
+            uint8_t           bNumDeviceCaps;
+        } bos;
+        struct {
+            uint8_t           bDevCapabilityType;
+            union {
+                struct {
+                    uint8_t   bmAttributes_1;
+                    uint8_t   bmAttributes_2;
+                    uint8_t   bmAttributes_3;
+                    uint8_t   bmAttributes_4;
+                } usb2_ext;
+                struct {
+                    uint8_t   bmAttributes;
+                    uint8_t   wSpeedsSupported_lo;
+                    uint8_t   wSpeedsSupported_hi;
+                    uint8_t   bFunctionalitySupport;
+                    uint8_t   bU1DevExitLat;
+                    uint8_t   wU2DevExitLat_lo;
+                    uint8_t   wU2DevExitLat_hi;
+                } super;
+            } u;
+        } cap;
     } u;
 } QEMU_PACKED USBDescriptor;
 
@@ -139,6 +170,11 @@ struct USBDescEndpoint {
 
     uint8_t                   is_audio; /* has bRefresh + bSynchAddress */
     uint8_t                   *extra;
+
+    /* superspeed endpoint companion */
+    uint8_t                   bMaxBurst;
+    uint8_t                   bmAttributes_super;
+    uint16_t                  wBytesPerInterval;
 };
 
 struct USBDescOther {
@@ -152,19 +188,25 @@ struct USBDesc {
     USBDescID                 id;
     const USBDescDevice       *full;
     const USBDescDevice       *high;
+    const USBDescDevice       *super;
     const char* const         *str;
 };
+
+#define USB_DESC_FLAG_SUPER (1 << 1)
 
 /* generate usb packages from structs */
 int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
                     uint8_t *dest, size_t len);
 int usb_desc_device_qualifier(const USBDescDevice *dev,
                               uint8_t *dest, size_t len);
-int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len);
-int usb_desc_iface_group(const USBDescIfaceAssoc *iad, uint8_t *dest,
-                         size_t len);
-int usb_desc_iface(const USBDescIface *iface, uint8_t *dest, size_t len);
-int usb_desc_endpoint(const USBDescEndpoint *ep, uint8_t *dest, size_t len);
+int usb_desc_config(const USBDescConfig *conf, int flags,
+                    uint8_t *dest, size_t len);
+int usb_desc_iface_group(const USBDescIfaceAssoc *iad, int flags,
+                         uint8_t *dest, size_t len);
+int usb_desc_iface(const USBDescIface *iface, int flags,
+                   uint8_t *dest, size_t len);
+int usb_desc_endpoint(const USBDescEndpoint *ep, int flags,
+                      uint8_t *dest, size_t len);
 int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len);
 
 /* control message emulation helpers */
@@ -174,7 +216,8 @@ void usb_desc_set_string(USBDevice *dev, uint8_t index, const char *str);
 void usb_desc_create_serial(USBDevice *dev);
 const char *usb_desc_get_string(USBDevice *dev, uint8_t index);
 int usb_desc_string(USBDevice *dev, int index, uint8_t *dest, size_t len);
-int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len);
+int usb_desc_get_descriptor(USBDevice *dev, USBPacket *p,
+        int value, uint8_t *dest, size_t len);
 int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         int request, int value, int index, int length, uint8_t *data);
 

@@ -25,7 +25,7 @@
 #include "sysbus.h"
 #include "trace.h"
 #include "audio/audio.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 enum {
     R_AC97_CTRL = 0,
@@ -83,7 +83,7 @@ static void update_voices(MilkymistAC97State *s)
     }
 }
 
-static uint64_t ac97_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ac97_read(void *opaque, hwaddr addr,
                           unsigned size)
 {
     MilkymistAC97State *s = opaque;
@@ -115,7 +115,7 @@ static uint64_t ac97_read(void *opaque, target_phys_addr_t addr,
     return r;
 }
 
-static void ac97_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void ac97_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     MilkymistAC97State *s = opaque;

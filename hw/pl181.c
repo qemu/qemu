@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
 #include "sd.h"
 
@@ -285,7 +285,7 @@ static void pl181_fifo_run(pl181_state *s)
     }
 }
 
-static uint64_t pl181_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pl181_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     pl181_state *s = (pl181_state *)opaque;
@@ -352,7 +352,7 @@ static uint64_t pl181_read(void *opaque, target_phys_addr_t offset,
     case 0xa0: case 0xa4: case 0xa8: case 0xac:
     case 0xb0: case 0xb4: case 0xb8: case 0xbc:
         if (s->fifo_len == 0) {
-            fprintf(stderr, "pl181: Unexpected FIFO read\n");
+            qemu_log_mask(LOG_GUEST_ERROR, "pl181: Unexpected FIFO read\n");
             return 0;
         } else {
             uint32_t value;
@@ -363,12 +363,13 @@ static uint64_t pl181_read(void *opaque, target_phys_addr_t offset,
             return value;
         }
     default:
-        hw_error("pl181_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl181_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
 
-static void pl181_write(void *opaque, target_phys_addr_t offset,
+static void pl181_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     pl181_state *s = (pl181_state *)opaque;
@@ -387,11 +388,11 @@ static void pl181_write(void *opaque, target_phys_addr_t offset,
         s->cmd = value;
         if (s->cmd & PL181_CMD_ENABLE) {
             if (s->cmd & PL181_CMD_INTERRUPT) {
-                fprintf(stderr, "pl181: Interrupt mode not implemented\n");
-                abort();
+                qemu_log_mask(LOG_UNIMP,
+                              "pl181: Interrupt mode not implemented\n");
             } if (s->cmd & PL181_CMD_PENDING) {
-                fprintf(stderr, "pl181: Pending commands not implemented\n");
-                abort();
+                qemu_log_mask(LOG_UNIMP,
+                              "pl181: Pending commands not implemented\n");
             } else {
                 pl181_send_command(s);
                 pl181_fifo_run(s);
@@ -427,14 +428,15 @@ static void pl181_write(void *opaque, target_phys_addr_t offset,
     case 0xa0: case 0xa4: case 0xa8: case 0xac:
     case 0xb0: case 0xb4: case 0xb8: case 0xbc:
         if (s->datacnt == 0) {
-            fprintf(stderr, "pl181: Unexpected FIFO write\n");
+            qemu_log_mask(LOG_GUEST_ERROR, "pl181: Unexpected FIFO write\n");
         } else {
             pl181_fifo_push(s, value);
             pl181_fifo_run(s);
         }
         break;
     default:
-        hw_error("pl181_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl181_write: Bad offset %x\n", (int)offset);
     }
     pl181_update(s);
 }

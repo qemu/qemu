@@ -1,7 +1,7 @@
 #ifndef QEMU_HID_H
 #define QEMU_HID_H
 
-#include "vmstate.h"
+#include "migration/vmstate.h"
 
 #define HID_MOUSE     1
 #define HID_TABLET    2
@@ -43,7 +43,8 @@ struct HIDState {
     int kind;
     int32_t protocol;
     uint8_t idle;
-    int64_t next_idle_clock;
+    bool idle_pending;
+    QEMUTimer *idle_timer;
     HIDEventFunc event;
 };
 
@@ -52,7 +53,7 @@ void hid_reset(HIDState *hs);
 void hid_free(HIDState *hs);
 
 bool hid_has_events(HIDState *hs);
-void hid_set_next_idle(HIDState *hs, int64_t curtime);
+void hid_set_next_idle(HIDState *hs);
 void hid_pointer_activate(HIDState *hs);
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len);
 int hid_keyboard_poll(HIDState *hs, uint8_t *buf, int len);

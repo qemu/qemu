@@ -11,7 +11,7 @@
  */
 
 #include <stdio.h>
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 /*
  * Print to current monitor if we have one, else to stderr.

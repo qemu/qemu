@@ -1,8 +1,8 @@
 #include "hw/hw.h"
 #include "hw/usb.h"
 #include "hw/qdev.h"
-#include "sysemu.h"
-#include "monitor.h"
+#include "sysemu/sysemu.h"
+#include "monitor/monitor.h"
 #include "trace.h"
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
@@ -140,24 +140,21 @@ void usb_device_handle_reset(USBDevice *dev)
     }
 }
 
-int usb_device_handle_control(USBDevice *dev, USBPacket *p, int request,
-                              int value, int index, int length, uint8_t *data)
+void usb_device_handle_control(USBDevice *dev, USBPacket *p, int request,
+                               int value, int index, int length, uint8_t *data)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->handle_control) {
-        return klass->handle_control(dev, p, request, value, index, length,
-                                         data);
+        klass->handle_control(dev, p, request, value, index, length, data);
     }
-    return -ENOSYS;
 }
 
-int usb_device_handle_data(USBDevice *dev, USBPacket *p)
+void usb_device_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->handle_data) {
-        return klass->handle_data(dev, p);
+        klass->handle_data(dev, p);
     }
-    return -ENOSYS;
 }
 
 const char *usb_device_get_product_desc(USBDevice *dev)
@@ -169,6 +166,9 @@ const char *usb_device_get_product_desc(USBDevice *dev)
 const USBDesc *usb_device_get_usb_desc(USBDevice *dev)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (dev->usb_desc) {
+        return dev->usb_desc;
+    }
     return klass->usb_desc;
 }
 
@@ -178,6 +178,22 @@ void usb_device_set_interface(USBDevice *dev, int interface,
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->set_interface) {
         klass->set_interface(dev, interface, alt_old, alt_new);
+    }
+}
+
+void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->flush_ep_queue) {
+        klass->flush_ep_queue(dev, ep);
+    }
+}
+
+void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->ep_stopped) {
+        klass->ep_stopped(dev, ep);
     }
 }
 
@@ -582,6 +598,13 @@ USBDevice *usbdevice_create(const char *cmdline)
         /* no error because some drivers are not converted (yet) */
         error_report("usbdevice %s not found", driver);
 #endif
+        return NULL;
+    }
+
+    if (!bus) {
+        error_report("Error: no usb bus to attach usbdevice %s, "
+                     "please try -machine usb=on and check that "
+                     "the machine model supports USB", driver);
         return NULL;
     }
 

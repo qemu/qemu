@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include "net/tap.h"
+#include "tap_int.h"
 #include "qemu-common.h"
-#include "sysemu.h"
-#include "qemu-error.h"
+#include "sysemu/sysemu.h"
+#include "qemu/error-report.h"
 
 #ifdef __NetBSD__
 #include <sys/ioctl.h>

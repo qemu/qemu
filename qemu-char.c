@@ -22,12 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "net.h"
-#include "monitor.h"
-#include "console.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
+#include "monitor/monitor.h"
+#include "ui/console.h"
+#include "sysemu/sysemu.h"
+#include "qemu/timer.h"
+#include "char/char.h"
 #include "hw/usb.h"
 #include "hw/baum.h"
 #include "hw/msmouse.h"
@@ -95,7 +94,7 @@
 #endif
 #endif
 
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "ui/qemu-spice.h"
 
 #define READ_BUF_LEN 4096
@@ -123,19 +122,20 @@ void qemu_chr_be_event(CharDriverState *s, int event)
     s->chr_event(s->handler_opaque, event);
 }
 
-static void qemu_chr_generic_open_bh(void *opaque)
+static void qemu_chr_fire_open_event(void *opaque)
 {
     CharDriverState *s = opaque;
     qemu_chr_be_event(s, CHR_EVENT_OPENED);
-    qemu_bh_delete(s->bh);
-    s->bh = NULL;
+    qemu_free_timer(s->open_timer);
+    s->open_timer = NULL;
 }
 
 void qemu_chr_generic_open(CharDriverState *s)
 {
-    if (s->bh == NULL) {
-	s->bh = qemu_bh_new(qemu_chr_generic_open_bh, s);
-	qemu_bh_schedule(s->bh);
+    if (s->open_timer == NULL) {
+        s->open_timer = qemu_new_timer_ms(rt_clock,
+                                          qemu_chr_fire_open_event, s);
+        qemu_mod_timer(s->open_timer, qemu_get_clock_ms(rt_clock) - 1);
     }
 }
 
@@ -772,6 +772,10 @@ static CharDriverState *qemu_chr_open_stdio(QemuOpts *opts)
     if (stdio_nb_clients >= STDIO_MAX_CLIENTS) {
         return NULL;
     }
+    if (is_daemonized()) {
+        error_report("cannot use stdio with -daemonize");
+        return NULL;
+    }
     if (stdio_nb_clients == 0) {
         old_fd0_flags = fcntl(0, F_GETFL);
         tcgetattr (0, &oldtty);
@@ -980,6 +984,7 @@ static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
     CharDriverState *chr;
     PtyCharDriver *s;
     struct termios tty;
+    const char *label;
     int master_fd, slave_fd, len;
 #if defined(__OpenBSD__) || defined(__DragonFly__)
     char pty_name[PATH_MAX];
@@ -1005,7 +1010,13 @@ static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
     chr->filename = g_malloc(len);
     snprintf(chr->filename, len, "pty:%s", q_ptsname(master_fd));
     qemu_opt_set(opts, "path", q_ptsname(master_fd));
-    fprintf(stderr, "char device redirected to %s\n", q_ptsname(master_fd));
+
+    label = qemu_opts_id(opts);
+    fprintf(stderr, "char device redirected to %s%s%s%s\n",
+            q_ptsname(master_fd),
+            label ? " (label " : "",
+            label ? label      : "",
+            label ? ")"        : "");
 
     s = g_malloc0(sizeof(PtyCharDriver));
     chr->opaque = s;
@@ -2097,14 +2108,14 @@ static CharDriverState *qemu_chr_open_udp(QemuOpts *opts)
 {
     CharDriverState *chr = NULL;
     NetCharDriver *s = NULL;
+    Error *local_err = NULL;
     int fd = -1;
 
     chr = g_malloc0(sizeof(CharDriverState));
     s = g_malloc0(sizeof(NetCharDriver));
 
-    fd = inet_dgram_opts(opts);
+    fd = inet_dgram_opts(opts, &local_err);
     if (fd < 0) {
-        fprintf(stderr, "inet_dgram_opts failed\n");
         goto return_err;
     }
 
@@ -2118,6 +2129,10 @@ static CharDriverState *qemu_chr_open_udp(QemuOpts *opts)
     return chr;
 
 return_err:
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
     g_free(chr);
     g_free(s);
     if (fd >= 0) {
@@ -2329,8 +2344,10 @@ static void tcp_chr_connect(void *opaque)
     TCPCharDriver *s = chr->opaque;
 
     s->connected = 1;
-    qemu_set_fd_handler2(s->fd, tcp_chr_read_poll,
-                         tcp_chr_read, NULL, chr);
+    if (s->fd >= 0) {
+        qemu_set_fd_handler2(s->fd, tcp_chr_read_poll,
+                             tcp_chr_read, NULL, chr);
+    }
     qemu_chr_generic_open(chr);
 }
 
@@ -2426,6 +2443,7 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
 {
     CharDriverState *chr = NULL;
     TCPCharDriver *s = NULL;
+    Error *local_err = NULL;
     int fd = -1;
     int is_listen;
     int is_waitconnect;
@@ -2446,15 +2464,15 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
 
     if (is_unix) {
         if (is_listen) {
-            fd = unix_listen_opts(opts);
+            fd = unix_listen_opts(opts, &local_err);
         } else {
-            fd = unix_connect_opts(opts);
+            fd = unix_connect_opts(opts, &local_err, NULL, NULL);
         }
     } else {
         if (is_listen) {
-            fd = inet_listen_opts(opts, 0, NULL);
+            fd = inet_listen_opts(opts, 0, &local_err);
         } else {
-            fd = inet_connect_opts(opts, NULL, NULL);
+            fd = inet_connect_opts(opts, &local_err, NULL, NULL);
         }
     }
     if (fd < 0) {
@@ -2515,8 +2533,13 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
     return chr;
 
  fail:
-    if (fd >= 0)
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
+    if (fd >= 0) {
         closesocket(fd);
+    }
     g_free(s);
     g_free(chr);
     return NULL;
@@ -2749,6 +2772,9 @@ static const struct {
 #endif
 #ifdef CONFIG_SPICE
     { .name = "spicevmc",     .open = qemu_chr_open_spice },
+#if SPICE_SERVER_VERSION >= 0x000c02
+    { .name = "spiceport",    .open = qemu_chr_open_spice_port },
+#endif
 #endif
 };
 

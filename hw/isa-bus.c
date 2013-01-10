@@ -17,13 +17,14 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysbus.h"
+#include "sysemu/sysemu.h"
 #include "isa.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static ISABus *isabus;
-target_phys_addr_t isa_mem_base = 0;
+hwaddr isa_mem_base = 0;
 
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *isabus_get_fw_dev_path(DeviceState *dev);
@@ -166,6 +167,25 @@ ISADevice *isa_create_simple(ISABus *bus, const char *name)
     return dev;
 }
 
+ISADevice *isa_vga_init(ISABus *bus)
+{
+    switch (vga_interface_type) {
+    case VGA_CIRRUS:
+        return isa_create_simple(bus, "isa-cirrus-vga");
+    case VGA_QXL:
+        fprintf(stderr, "%s: qxl: no PCI bus\n", __func__);
+        return NULL;
+    case VGA_STD:
+        return isa_create_simple(bus, "isa-vga");
+    case VGA_VMWARE:
+        fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __func__);
+        return NULL;
+    case VGA_NONE:
+    default:
+        return NULL;
+    }
+}
+
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     ISADevice *d = ISA_DEVICE(dev);
@@ -236,12 +256,21 @@ static char *isabus_get_fw_dev_path(DeviceState *dev)
         snprintf(path + off, sizeof(path) - off, "@%04x", d->ioport_id);
     }
 
-    return strdup(path);
+    return g_strdup(path);
 }
 
 MemoryRegion *isa_address_space(ISADevice *dev)
 {
     return get_system_memory();
+}
+
+MemoryRegion *isa_address_space_io(ISADevice *dev)
+{
+    if (dev) {
+        return isa_bus_from_device(dev)->address_space_io;
+    }
+
+    return isabus->address_space_io;
 }
 
 type_init(isabus_register_types)

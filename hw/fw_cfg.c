@@ -22,11 +22,12 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "isa.h"
 #include "fw_cfg.h"
 #include "sysbus.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
+#include "qemu/config-file.h"
 
 /* debug firmware config */
 //#define DEBUG_FW_CFG
@@ -183,6 +184,30 @@ static void fw_cfg_bootsplash(FWCfgState *s)
     }
 }
 
+static void fw_cfg_reboot(FWCfgState *s)
+{
+    int reboot_timeout = -1;
+    char *p;
+    const char *temp;
+
+    /* get user configuration */
+    QemuOptsList *plist = qemu_find_opts("boot-opts");
+    QemuOpts *opts = QTAILQ_FIRST(&plist->head);
+    if (opts != NULL) {
+        temp = qemu_opt_get(opts, "reboot-timeout");
+        if (temp != NULL) {
+            p = (char *)temp;
+            reboot_timeout = strtol(p, (char **)&p, 10);
+        }
+    }
+    /* validate the input */
+    if (reboot_timeout > 0xffff) {
+        error_report("reboot timeout is larger than 65535, force it to 65535.");
+        reboot_timeout = 0xffff;
+    }
+    fw_cfg_add_file(s, "etc/boot-fail-wait", g_memdup(&reboot_timeout, 4), 4);
+}
+
 static void fw_cfg_write(FWCfgState *s, uint8_t value)
 {
     int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
@@ -234,37 +259,37 @@ static uint8_t fw_cfg_read(FWCfgState *s)
     return ret;
 }
 
-static uint64_t fw_cfg_data_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t fw_cfg_data_mem_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     return fw_cfg_read(opaque);
 }
 
-static void fw_cfg_data_mem_write(void *opaque, target_phys_addr_t addr,
+static void fw_cfg_data_mem_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     fw_cfg_write(opaque, (uint8_t)value);
 }
 
-static void fw_cfg_ctl_mem_write(void *opaque, target_phys_addr_t addr,
+static void fw_cfg_ctl_mem_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
     fw_cfg_select(opaque, (uint16_t)value);
 }
 
-static bool fw_cfg_ctl_mem_valid(void *opaque, target_phys_addr_t addr,
+static bool fw_cfg_ctl_mem_valid(void *opaque, hwaddr addr,
                                  unsigned size, bool is_write)
 {
     return is_write && size == 2;
 }
 
-static uint64_t fw_cfg_comb_read(void *opaque, target_phys_addr_t addr,
+static uint64_t fw_cfg_comb_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     return fw_cfg_read(opaque);
 }
 
-static void fw_cfg_comb_write(void *opaque, target_phys_addr_t addr,
+static void fw_cfg_comb_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
     switch (size) {
@@ -277,7 +302,7 @@ static void fw_cfg_comb_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static bool fw_cfg_comb_valid(void *opaque, target_phys_addr_t addr,
+static bool fw_cfg_comb_valid(void *opaque, hwaddr addr,
                                   unsigned size, bool is_write)
 {
     return (size == 1) || (is_write && size == 2);
@@ -470,7 +495,7 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 }
 
 FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-                        target_phys_addr_t ctl_addr, target_phys_addr_t data_addr)
+                        hwaddr ctl_addr, hwaddr data_addr)
 {
     DeviceState *dev;
     SysBusDevice *d;
@@ -497,6 +522,7 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     fw_cfg_add_i16(s, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
     fw_cfg_add_i16(s, FW_CFG_BOOT_MENU, (uint16_t)boot_menu);
     fw_cfg_bootsplash(s);
+    fw_cfg_reboot(s);
 
     s->machine_ready.notify = fw_cfg_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);

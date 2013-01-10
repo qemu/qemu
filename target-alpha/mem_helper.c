@@ -94,7 +94,9 @@ static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
     uint64_t pc;
     uint32_t insn;
 
-    do_restore_state(env, retaddr);
+    if (retaddr) {
+        cpu_restore_state(env, retaddr);
+    }
 
     pc = env->pc;
     insn = cpu_ldl_code(env, pc);
@@ -107,7 +109,7 @@ static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
     cpu_loop_exit(env);
 }
 
-void cpu_unassigned_access(CPUAlphaState *env, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUAlphaState *env, hwaddr addr,
                            int is_write, int is_exec, int unused, int size)
 {
     env->trap_arg0 = addr;
@@ -115,22 +117,22 @@ void cpu_unassigned_access(CPUAlphaState *env, target_phys_addr_t addr,
     dynamic_excp(env, 0, EXCP_MCHK, 0);
 }
 
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 /* try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
@@ -143,7 +145,9 @@ void tlb_fill(CPUAlphaState *env, target_ulong addr, int is_write,
 
     ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
-        do_restore_state(env, retaddr);
+        if (retaddr) {
+            cpu_restore_state(env, retaddr);
+        }
         /* Exception index and error code are already set */
         cpu_loop_exit(env);
     }

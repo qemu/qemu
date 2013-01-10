@@ -23,10 +23,9 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "qdev-addr.h"
 
 #include "stream.h"
@@ -140,7 +139,7 @@ static void stream_reset(struct Stream *s)
 }
 
 /* Map an offset addr into a channel index.  */
-static inline int streamid_from_addr(target_phys_addr_t addr)
+static inline int streamid_from_addr(hwaddr addr)
 {
     int sid;
 
@@ -159,7 +158,7 @@ static void stream_desc_show(struct SDesc *d)
 }
 #endif
 
-static void stream_desc_load(struct Stream *s, target_phys_addr_t addr)
+static void stream_desc_load(struct Stream *s, hwaddr addr)
 {
     struct SDesc *d = &s->desc;
     int i;
@@ -176,7 +175,7 @@ static void stream_desc_load(struct Stream *s, target_phys_addr_t addr)
     }
 }
 
-static void stream_desc_store(struct Stream *s, target_phys_addr_t addr)
+static void stream_desc_store(struct Stream *s, hwaddr addr)
 {
     struct SDesc *d = &s->desc;
     int i;
@@ -364,7 +363,7 @@ axidma_push(StreamSlave *obj, unsigned char *buf, size_t len, uint32_t *app)
     stream_update_irq(s);
 }
 
-static uint64_t axidma_read(void *opaque, target_phys_addr_t addr,
+static uint64_t axidma_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
     struct XilinxAXIDMA *d = opaque;
@@ -399,7 +398,7 @@ static uint64_t axidma_read(void *opaque, target_phys_addr_t addr,
 
 }
 
-static void axidma_write(void *opaque, target_phys_addr_t addr,
+static void axidma_write(void *opaque, hwaddr addr,
                          uint64_t value, unsigned size)
 {
     struct XilinxAXIDMA *d = opaque;

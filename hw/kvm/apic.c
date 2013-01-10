@@ -10,8 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 #include "hw/apic_internal.h"
-#include "hw/msi.h"
-#include "kvm.h"
+#include "hw/pci/msi.h"
+#include "sysemu/kvm.h"
 
 static inline void kvm_apic_set_reg(struct kvm_lapic_state *kapic,
                                     int reg_id, uint32_t val)
@@ -104,7 +104,7 @@ static void kvm_apic_enable_tpr_reporting(APICCommonState *s, bool enable)
         .enabled = enable
     };
 
-    kvm_vcpu_ioctl(s->cpu_env, KVM_TPR_ACCESS_REPORTING, &ctl);
+    kvm_vcpu_ioctl(CPU(s->cpu), KVM_TPR_ACCESS_REPORTING, &ctl);
 }
 
 static void kvm_apic_vapic_base_update(APICCommonState *s)
@@ -114,7 +114,7 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
     };
     int ret;
 
-    ret = kvm_vcpu_ioctl(s->cpu_env, KVM_SET_VAPIC_ADDR, &vapid_addr);
+    ret = kvm_vcpu_ioctl(CPU(s->cpu), KVM_SET_VAPIC_ADDR, &vapid_addr);
     if (ret < 0) {
         fprintf(stderr, "KVM: setting VAPIC address failed (%s)\n",
                 strerror(-ret));
@@ -125,15 +125,15 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
 static void do_inject_external_nmi(void *data)
 {
     APICCommonState *s = data;
-    CPUX86State *env = s->cpu_env;
+    CPUState *cpu = CPU(s->cpu);
     uint32_t lvt;
     int ret;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(&s->cpu->env);
 
     lvt = s->lvt[APIC_LVT_LINT1];
     if (!(lvt & APIC_LVT_MASKED) && ((lvt >> 8) & 7) == APIC_DM_NMI) {
-        ret = kvm_vcpu_ioctl(env, KVM_NMI);
+        ret = kvm_vcpu_ioctl(cpu, KVM_NMI);
         if (ret < 0) {
             fprintf(stderr, "KVM: injection failed, NMI lost (%s)\n",
                     strerror(-ret));
@@ -143,16 +143,16 @@ static void do_inject_external_nmi(void *data)
 
 static void kvm_apic_external_nmi(APICCommonState *s)
 {
-    run_on_cpu(s->cpu_env, do_inject_external_nmi, s);
+    run_on_cpu(CPU(s->cpu), do_inject_external_nmi, s);
 }
 
-static uint64_t kvm_apic_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t kvm_apic_mem_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     return ~(uint64_t)0;
 }
 
-static void kvm_apic_mem_write(void *opaque, target_phys_addr_t addr,
+static void kvm_apic_mem_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
     MSIMessage msg = { .address = addr, .data = data };

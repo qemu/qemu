@@ -416,11 +416,13 @@ snapshots.
 * vm_snapshots::              VM snapshots
 * qemu_img_invocation::       qemu-img Invocation
 * qemu_nbd_invocation::       qemu-nbd Invocation
+* disk_images_formats::       Disk image file formats
 * host_drives::               Using host drives
 * disk_images_fat_images::    Virtual FAT disk images
 * disk_images_nbd::           NBD access
 * disk_images_sheepdog::      Sheepdog disk images
 * disk_images_iscsi::         iSCSI LUNs
+* disk_images_gluster::       GlusterFS disk images
 @end menu
 
 @node disk_images_quickstart
@@ -505,6 +507,172 @@ state is not saved or restored properly (in particular USB).
 @subsection @code{qemu-nbd} Invocation
 
 @include qemu-nbd.texi
+
+@node disk_images_formats
+@subsection Disk image file formats
+
+QEMU supports many image file formats that can be used with VMs as well as with
+any of the tools (like @code{qemu-img}). This includes the preferred formats
+raw and qcow2 as well as formats that are supported for compatibility with
+older QEMU versions or other hypervisors.
+
+Depending on the image format, different options can be passed to
+@code{qemu-img create} and @code{qemu-img convert} using the @code{-o} option.
+This section describes each format and the options that are supported for it.
+
+@table @option
+@item raw
+
+Raw disk image format. This format has the advantage of
+being simple and easily exportable to all other emulators. If your
+file system supports @emph{holes} (for example in ext2 or ext3 on
+Linux or NTFS on Windows), then only the written sectors will reserve
+space. Use @code{qemu-img info} to know the real size used by the
+image or @code{ls -ls} on Unix/Linux.
+
+@item qcow2
+QEMU image format, the most versatile format. Use it to have smaller
+images (useful if your filesystem does not supports holes, for example
+on Windows), optional AES encryption, zlib based compression and
+support of multiple VM snapshots.
+
+Supported options:
+@table @code
+@item compat
+Determines the qcow2 version to use. @code{compat=0.10} uses the traditional
+image format that can be read by any QEMU since 0.10 (this is the default).
+@code{compat=1.1} enables image format extensions that only QEMU 1.1 and
+newer understand. Amongst others, this includes zero clusters, which allow
+efficient copy-on-read for sparse images.
+
+@item backing_file
+File name of a base image (see @option{create} subcommand)
+@item backing_fmt
+Image format of the base image
+@item encryption
+If this option is set to @code{on}, the image is encrypted.
+
+Encryption uses the AES format which is very secure (128 bit keys). Use
+a long password (16 characters) to get maximum protection.
+
+@item cluster_size
+Changes the qcow2 cluster size (must be between 512 and 2M). Smaller cluster
+sizes can improve the image file size whereas larger cluster sizes generally
+provide better performance.
+
+@item preallocation
+Preallocation mode (allowed values: off, metadata). An image with preallocated
+metadata is initially larger but can improve performance when the image needs
+to grow.
+
+@item lazy_refcounts
+If this option is set to @code{on}, reference count updates are postponed with
+the goal of avoiding metadata I/O and improving performance. This is
+particularly interesting with @option{cache=writethrough} which doesn't batch
+metadata updates. The tradeoff is that after a host crash, the reference count
+tables must be rebuilt, i.e. on the next open an (automatic) @code{qemu-img
+check -r all} is required, which may take some time.
+
+This option can only be enabled if @code{compat=1.1} is specified.
+
+@end table
+
+@item qed
+Old QEMU image format with support for backing files and compact image files
+(when your filesystem or transport medium does not support holes).
+
+When converting QED images to qcow2, you might want to consider using the
+@code{lazy_refcounts=on} option to get a more QED-like behaviour.
+
+Supported options:
+@table @code
+@item backing_file
+File name of a base image (see @option{create} subcommand).
+@item backing_fmt
+Image file format of backing file (optional).  Useful if the format cannot be
+autodetected because it has no header, like some vhd/vpc files.
+@item cluster_size
+Changes the cluster size (must be power-of-2 between 4K and 64K). Smaller
+cluster sizes can improve the image file size whereas larger cluster sizes
+generally provide better performance.
+@item table_size
+Changes the number of clusters per L1/L2 table (must be power-of-2 between 1
+and 16).  There is normally no need to change this value but this option can be
+used for performance benchmarking.
+@end table
+
+@item qcow
+Old QEMU image format with support for backing files, compact image files,
+encryption and compression.
+
+Supported options:
+@table @code
+@item backing_file
+File name of a base image (see @option{create} subcommand)
+@item encryption
+If this option is set to @code{on}, the image is encrypted.
+@end table
+
+@item cow
+User Mode Linux Copy On Write image format. It is supported only for
+compatibility with previous versions.
+Supported options:
+@table @code
+@item backing_file
+File name of a base image (see @option{create} subcommand)
+@end table
+
+@item vdi
+VirtualBox 1.1 compatible image format.
+Supported options:
+@table @code
+@item static
+If this option is set to @code{on}, the image is created with metadata
+preallocation.
+@end table
+
+@item vmdk
+VMware 3 and 4 compatible image format.
+
+Supported options:
+@table @code
+@item backing_file
+File name of a base image (see @option{create} subcommand).
+@item compat6
+Create a VMDK version 6 image (instead of version 4)
+@item subformat
+Specifies which VMDK subformat to use. Valid options are
+@code{monolithicSparse} (default),
+@code{monolithicFlat},
+@code{twoGbMaxExtentSparse},
+@code{twoGbMaxExtentFlat} and
+@code{streamOptimized}.
+@end table
+
+@item vpc
+VirtualPC compatible image format (VHD).
+Supported options:
+@table @code
+@item subformat
+Specifies which VHD subformat to use. Valid options are
+@code{dynamic} (default) and @code{fixed}.
+@end table
+@end table
+
+@subsubsection Read-only formats
+More disk image file formats are supported in a read-only mode.
+@table @option
+@item bochs
+Bochs images of @code{growing} type.
+@item cloop
+Linux Compressed Loop image, useful only to reuse directly compressed
+CD-ROM images present for example in the Knoppix CD-ROMs.
+@item dmg
+Apple disk image.
+@item parallels
+Parallels disk image format.
+@end table
+
 
 @node host_drives
 @subsection Using host drives
@@ -610,14 +778,14 @@ QEMU can access directly to block device exported using the Network Block Device
 protocol.
 
 @example
-qemu-system-i386 linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
+qemu-system-i386 linux.img -hdb nbd://my_nbd_server.mydomain.org:1024/
 @end example
 
 If the NBD server is located on the same host, you can use an unix socket instead
 of an inet socket:
 
 @example
-qemu-system-i386 linux.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 linux.img -hdb nbd+unix://?socket=/tmp/my_socket
 @end example
 
 In this case, the block device must be exported using qemu-nbd:
@@ -631,17 +799,26 @@ The use of qemu-nbd allows to share a disk between several guests:
 qemu-nbd --socket=/tmp/my_socket --share=2 my_disk.qcow2
 @end example
 
+@noindent
 and then you can use it with two guests:
 @example
-qemu-system-i386 linux1.img -hdb nbd:unix:/tmp/my_socket
-qemu-system-i386 linux2.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 linux1.img -hdb nbd+unix://?socket=/tmp/my_socket
+qemu-system-i386 linux2.img -hdb nbd+unix://?socket=/tmp/my_socket
 @end example
 
-If the nbd-server uses named exports (since NBD 2.9.18), you must use the
-"exportname" option:
+If the nbd-server uses named exports (supported since NBD 2.9.18, or with QEMU's
+own embedded NBD server), you must specify an export name in the URI:
 @example
-qemu-system-i386 -cdrom nbd:localhost:exportname=debian-500-ppc-netinst
-qemu-system-i386 -cdrom nbd:localhost:exportname=openSUSE-11.1-ppc-netinst
+qemu-system-i386 -cdrom nbd://localhost/debian-500-ppc-netinst
+qemu-system-i386 -cdrom nbd://localhost/openSUSE-11.1-ppc-netinst
+@end example
+
+The URI syntax for NBD is supported since QEMU 1.3.  An alternative syntax is
+also available.  Here are some example of the older syntax:
+@example
+qemu-system-i386 linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
+qemu-system-i386 linux2.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 -cdrom nbd:localhost:10809:exportname=debian-500-ppc-netinst
 @end example
 
 @node disk_images_sheepdog
@@ -805,7 +982,55 @@ qemu-system-i386 -iscsi initiator-name=iqn.qemu.test:my-initiator \
     -cdrom iscsi://127.0.0.1/iqn.qemu.test/2
 @end example
 
+@node disk_images_gluster
+@subsection GlusterFS disk images
 
+GlusterFS is an user space distributed file system.
+
+You can boot from the GlusterFS disk image with the command:
+@example
+qemu-system-x86_64 -drive file=gluster[+@var{transport}]://[@var{server}[:@var{port}]]/@var{volname}/@var{image}[?socket=...]
+@end example
+
+@var{gluster} is the protocol.
+
+@var{transport} specifies the transport type used to connect to gluster
+management daemon (glusterd). Valid transport types are
+tcp, unix and rdma. If a transport type isn't specified, then tcp
+type is assumed.
+
+@var{server} specifies the server where the volume file specification for
+the given volume resides. This can be either hostname, ipv4 address
+or ipv6 address. ipv6 address needs to be within square brackets [ ].
+If transport type is unix, then @var{server} field should not be specifed.
+Instead @var{socket} field needs to be populated with the path to unix domain
+socket.
+
+@var{port} is the port number on which glusterd is listening. This is optional
+and if not specified, QEMU will send 0 which will make gluster to use the
+default port. If the transport type is unix, then @var{port} should not be
+specified.
+
+@var{volname} is the name of the gluster volume which contains the disk image.
+
+@var{image} is the path to the actual disk image that resides on gluster volume.
+
+You can create a GlusterFS disk image with the command:
+@example
+qemu-img create gluster://@var{server}/@var{volname}/@var{image} @var{size}
+@end example
+
+Examples
+@example
+qemu-system-x86_64 -drive file=gluster://1.2.3.4/testvol/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://1.2.3.4/testvol/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://1.2.3.4:24007/testvol/dir/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]/testvol/dir/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]:24007/testvol/dir/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://server.domain.com:24007/testvol/dir/a.img
+qemu-system-x86_64 -drive file=gluster+unix:///testvol/dir/a.img?socket=/tmp/glusterd.socket
+qemu-system-x86_64 -drive file=gluster+rdma://1.2.3.4:24007/testvol/a.img
+@end example
 
 @node pcsys_network
 @section Network emulation

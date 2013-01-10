@@ -11,11 +11,11 @@
  */
 
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "pxa.h"
-#include "pixel_ops.h"
+#include "ui/pixel_ops.h"
 /* FIXME: For graphic_rotate. Should probably be done in common code.  */
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "framebuffer.h"
 
 struct DMAChannel {
@@ -23,7 +23,7 @@ struct DMAChannel {
     uint8_t up;
     uint8_t palette[1024];
     uint8_t pbuffer[1024];
-    void (*redraw)(PXA2xxLCDState *s, target_phys_addr_t addr,
+    void (*redraw)(PXA2xxLCDState *s, hwaddr addr,
                    int *miny, int *maxy);
 
     uint32_t descriptor;
@@ -291,7 +291,7 @@ static inline void pxa2xx_dma_rdst_set(PXA2xxLCDState *s)
 static void pxa2xx_descriptor_load(PXA2xxLCDState *s)
 {
     PXAFrameDescriptor desc;
-    target_phys_addr_t descptr;
+    hwaddr descptr;
     int i;
 
     for (i = 0; i < PXA_LCDDMA_CHANS; i ++) {
@@ -323,7 +323,7 @@ static void pxa2xx_descriptor_load(PXA2xxLCDState *s)
     }
 }
 
-static uint64_t pxa2xx_lcdc_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pxa2xx_lcdc_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
     PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
@@ -417,7 +417,7 @@ static uint64_t pxa2xx_lcdc_read(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static void pxa2xx_lcdc_write(void *opaque, target_phys_addr_t offset,
+static void pxa2xx_lcdc_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
     PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
@@ -674,7 +674,7 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
 }
 
 static void pxa2xx_lcdc_dma0_redraw_rot0(PXA2xxLCDState *s,
-                target_phys_addr_t addr, int *miny, int *maxy)
+                hwaddr addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
     drawfn fn = NULL;
@@ -701,7 +701,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot0(PXA2xxLCDState *s,
 }
 
 static void pxa2xx_lcdc_dma0_redraw_rot90(PXA2xxLCDState *s,
-               target_phys_addr_t addr, int *miny, int *maxy)
+               hwaddr addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
     drawfn fn = NULL;
@@ -729,7 +729,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot90(PXA2xxLCDState *s,
 }
 
 static void pxa2xx_lcdc_dma0_redraw_rot180(PXA2xxLCDState *s,
-                target_phys_addr_t addr, int *miny, int *maxy)
+                hwaddr addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
     drawfn fn = NULL;
@@ -759,7 +759,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot180(PXA2xxLCDState *s,
 }
 
 static void pxa2xx_lcdc_dma0_redraw_rot270(PXA2xxLCDState *s,
-               target_phys_addr_t addr, int *miny, int *maxy)
+               hwaddr addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
     drawfn fn = NULL;
@@ -813,7 +813,7 @@ static void pxa2xx_lcdc_resize(PXA2xxLCDState *s)
 static void pxa2xx_update_display(void *opaque)
 {
     PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
-    target_phys_addr_t fbptr;
+    hwaddr fbptr;
     int miny, maxy;
     int ch;
     if (!(s->control[0] & LCCR0_ENB))
@@ -871,20 +871,20 @@ static void pxa2xx_update_display(void *opaque)
     if (miny >= 0) {
         switch (s->orientation) {
         case 0:
-            dpy_update(s->ds, 0, miny, s->xres, maxy - miny + 1);
+            dpy_gfx_update(s->ds, 0, miny, s->xres, maxy - miny + 1);
             break;
         case 90:
-            dpy_update(s->ds, miny, 0, maxy - miny + 1, s->xres);
+            dpy_gfx_update(s->ds, miny, 0, maxy - miny + 1, s->xres);
             break;
         case 180:
             maxy = s->yres - maxy - 1;
             miny = s->yres - miny - 1;
-            dpy_update(s->ds, 0, maxy, s->xres, miny - maxy + 1);
+            dpy_gfx_update(s->ds, 0, maxy, s->xres, miny - maxy + 1);
             break;
         case 270:
             maxy = s->yres - maxy - 1;
             miny = s->yres - miny - 1;
-            dpy_update(s->ds, maxy, 0, miny - maxy + 1, s->xres);
+            dpy_gfx_update(s->ds, maxy, 0, miny - maxy + 1, s->xres);
             break;
         }
     }
@@ -987,7 +987,7 @@ static const VMStateDescription vmstate_pxa2xx_lcdc = {
 #include "pxa2xx_template.h"
 
 PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
-                                 target_phys_addr_t base, qemu_irq irq)
+                                 hwaddr base, qemu_irq irq)
 {
     PXA2xxLCDState *s;
 

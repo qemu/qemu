@@ -28,11 +28,11 @@
 
 #include "qemu.h"
 #include "qemu-common.h"
-#include "cache-utils.h"
+#include "qemu/cache-utils.h"
 #include "cpu.h"
 #include "tcg.h"
-#include "qemu-timer.h"
-#include "envlist.h"
+#include "qemu/timer.h"
+#include "qemu/envlist.h"
 #include "elf.h"
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
@@ -57,7 +57,12 @@ int have_guest_base;
  * This way we will never overlap with our own libraries or binaries or stack
  * or anything else that QEMU maps.
  */
+# ifdef TARGET_MIPS
+/* MIPS only supports 31 bits of virtual address space for user space */
+unsigned long reserved_va = 0x77000000;
+# else
 unsigned long reserved_va = 0xf7000000;
+# endif
 #else
 unsigned long reserved_va;
 #endif
@@ -87,19 +92,6 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 {
     return -1;
 }
-#endif
-
-/* timers for rdtsc */
-
-#if 0
-
-static uint64_t emu_time;
-
-int64_t cpu_get_real_ticks(void)
-{
-    return emu_time++;
-}
-
 #endif
 
 #if defined(CONFIG_USE_NPTL)
@@ -1126,6 +1118,11 @@ void cpu_loop (CPUSPARCState *env)
 
     while (1) {
         trapnr = cpu_sparc_exec (env);
+
+        /* Compute PSR before exposing state.  */
+        if (env->cc_op != CC_OP_FLAGS) {
+            cpu_get_psr(env);
+        }
 
         switch (trapnr) {
 #ifndef TARGET_SPARC64
@@ -2294,6 +2291,12 @@ done_syscall:
                 queue_signal(env, info.si_signo, &info);
             }
             break;
+        case EXCP_DSPDIS:
+            info.si_signo = TARGET_SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPC;
+            queue_signal(env, info.si_signo, &info);
+            break;
         default:
             //        error:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
@@ -2535,6 +2538,7 @@ void cpu_loop(CPUMBState *env)
         case EXCP_BREAK:
             /* Return address is 4 bytes after the call.  */
             env->regs[14] += 4;
+            env->sregs[SR_PC] = env->regs[14];
             ret = do_syscall(env, 
                              env->regs[12], 
                              env->regs[5], 
@@ -2545,7 +2549,6 @@ void cpu_loop(CPUMBState *env)
                              env->regs[10],
                              0, 0);
             env->regs[3] = ret;
-            env->sregs[SR_PC] = env->regs[14];
             break;
         case EXCP_HW_EXCP:
             env->regs[17] = env->sregs[SR_PC] + 4;
@@ -3143,10 +3146,8 @@ static void handle_arg_cpu(const char *arg)
     cpu_model = strdup(arg);
     if (cpu_model == NULL || is_help_option(cpu_model)) {
         /* XXX: implement xxx_cpu_list for targets that still miss it */
-#if defined(cpu_list_id)
-        cpu_list_id(stdout, &fprintf, "");
-#elif defined(cpu_list)
-        cpu_list(stdout, &fprintf); /* deprecated */
+#if defined(cpu_list)
+        cpu_list(stdout, &fprintf);
 #endif
         exit(1);
     }
@@ -3222,7 +3223,7 @@ struct qemu_argument {
     const char *help;
 };
 
-struct qemu_argument arg_table[] = {
+static const struct qemu_argument arg_table[] = {
     {"h",          "",                 false, handle_arg_help,
      "",           "print this help"},
     {"g",          "QEMU_GDB",         true,  handle_arg_gdb,
@@ -3264,7 +3265,7 @@ struct qemu_argument arg_table[] = {
 
 static void usage(void)
 {
-    struct qemu_argument *arginfo;
+    const struct qemu_argument *arginfo;
     int maxarglen;
     int maxenvlen;
 
@@ -3330,7 +3331,7 @@ static int parse_args(int argc, char **argv)
 {
     const char *r;
     int optind;
-    struct qemu_argument *arginfo;
+    const struct qemu_argument *arginfo;
 
     for (arginfo = arg_table; arginfo->handle_opt != NULL; arginfo++) {
         if (arginfo->env == NULL) {
@@ -3519,7 +3520,10 @@ int main(int argc, char **argv, char **envp)
         guest_base = init_guest_space(guest_base, reserved_va, 0,
                                       have_guest_base);
         if (guest_base == (unsigned long)-1) {
-            fprintf(stderr, "Unable to reserve guest address space\n");
+            fprintf(stderr, "Unable to reserve 0x%lx bytes of virtual address "
+                    "space for use as guest address space (check your virtual "
+                    "memory ulimit setting or reserve less using -R option)\n",
+                    reserved_va);
             exit(1);
         }
 
@@ -3581,7 +3585,7 @@ int main(int argc, char **argv, char **envp)
     ret = loader_exec(filename, target_argv, target_environ, regs,
         info, &bprm);
     if (ret != 0) {
-        printf("Error %d while loading %s\n", ret, filename);
+        printf("Error while loading %s: %s\n", filename, strerror(-ret));
         _exit(1);
     }
 

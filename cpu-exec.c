@@ -18,18 +18,18 @@
  */
 #include "config.h"
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg.h"
-#include "qemu-barrier.h"
-#include "qtest.h"
+#include "qemu/atomic.h"
+#include "sysemu/qtest.h"
 
 int tb_invalidated_flag;
 
 //#define CONFIG_DEBUG_EXEC
 
-bool qemu_cpu_has_work(CPUArchState *env)
+bool qemu_cpu_has_work(CPUState *cpu)
 {
-    return cpu_has_work(env);
+    return cpu_has_work(cpu);
 }
 
 void cpu_loop_exit(CPUArchState *env)
@@ -181,16 +181,14 @@ volatile sig_atomic_t exit_request;
 
 int cpu_exec(CPUArchState *env)
 {
-#ifdef TARGET_PPC
     CPUState *cpu = ENV_GET_CPU(env);
-#endif
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
     tcg_target_ulong next_tb;
 
     if (env->halted) {
-        if (!cpu_has_work(env)) {
+        if (!cpu_has_work(cpu)) {
             return EXCP_HALTED;
         }
 
@@ -552,7 +550,7 @@ int cpu_exec(CPUArchState *env)
 #if defined(TARGET_I386)
                     env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
                         | (DF & DF_MASK);
-                    log_cpu_state(env, X86_DUMP_CCOP);
+                    log_cpu_state(env, CPU_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_M68K)
                     cpu_m68k_flush_flags(env, env->cc_op);

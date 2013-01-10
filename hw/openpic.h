@@ -11,8 +11,7 @@ enum {
     OPENPIC_OUTPUT_NB,
 };
 
-qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
-                        qemu_irq **irqs, qemu_irq irq_out);
-qemu_irq *mpic_init (MemoryRegion *address_space, target_phys_addr_t base,
-                     int nb_cpus, qemu_irq **irqs, qemu_irq irq_out);
+#define OPENPIC_MODEL_RAVEN       0
+#define OPENPIC_MODEL_FSL_MPIC_20 1
+
 #endif /* __OPENPIC_H__ */

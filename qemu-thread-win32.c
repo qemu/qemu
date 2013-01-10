@@ -11,7 +11,7 @@
  *
  */
 #include "qemu-common.h"
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 #include <process.h>
 #include <assert.h>
 #include <limits.h>
@@ -192,6 +192,41 @@ void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex)
     qemu_mutex_lock(mutex);
 }
 
+void qemu_sem_init(QemuSemaphore *sem, int init)
+{
+    /* Manual reset.  */
+    sem->sema = CreateSemaphore(NULL, init, LONG_MAX, NULL);
+}
+
+void qemu_sem_destroy(QemuSemaphore *sem)
+{
+    CloseHandle(sem->sema);
+}
+
+void qemu_sem_post(QemuSemaphore *sem)
+{
+    ReleaseSemaphore(sem->sema, 1, NULL);
+}
+
+int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
+{
+    int rc = WaitForSingleObject(sem->sema, ms);
+    if (rc == WAIT_OBJECT_0) {
+        return 0;
+    }
+    if (rc != WAIT_TIMEOUT) {
+        error_exit(GetLastError(), __func__);
+    }
+    return -1;
+}
+
+void qemu_sem_wait(QemuSemaphore *sem)
+{
+    if (WaitForSingleObject(sem->sema, INFINITE) != WAIT_OBJECT_0) {
+        error_exit(GetLastError(), __func__);
+    }
+}
+
 struct QemuThreadData {
     /* Passed to win32_start_routine.  */
     void             *(*start_routine)(void *);
@@ -204,7 +239,7 @@ struct QemuThreadData {
     CRITICAL_SECTION  cs;
 };
 
-static int qemu_thread_tls_index = TLS_OUT_OF_INDEXES;
+static __thread QemuThreadData *qemu_thread_data;
 
 static unsigned __stdcall win32_start_routine(void *arg)
 {
@@ -216,14 +251,15 @@ static unsigned __stdcall win32_start_routine(void *arg)
         g_free(data);
         data = NULL;
     }
-    TlsSetValue(qemu_thread_tls_index, data);
+    qemu_thread_data = data;
     qemu_thread_exit(start_routine(thread_arg));
     abort();
 }
 
 void qemu_thread_exit(void *arg)
 {
-    QemuThreadData *data = TlsGetValue(qemu_thread_tls_index);
+    QemuThreadData *data = qemu_thread_data;
+
     if (data) {
         assert(data->mode != QEMU_THREAD_DETACHED);
         data->ret = arg;
@@ -263,25 +299,13 @@ void *qemu_thread_join(QemuThread *thread)
     return ret;
 }
 
-static inline void qemu_thread_init(void)
-{
-    if (qemu_thread_tls_index == TLS_OUT_OF_INDEXES) {
-        qemu_thread_tls_index = TlsAlloc();
-        if (qemu_thread_tls_index == TLS_OUT_OF_INDEXES) {
-            error_exit(ERROR_NO_SYSTEM_RESOURCES, __func__);
-        }
-    }
-}
-
-
 void qemu_thread_create(QemuThread *thread,
                        void *(*start_routine)(void *),
                        void *arg, int mode)
 {
     HANDLE hThread;
-
     struct QemuThreadData *data;
-    qemu_thread_init();
+
     data = g_malloc(sizeof *data);
     data->start_routine = start_routine;
     data->arg = arg;
@@ -303,8 +327,7 @@ void qemu_thread_create(QemuThread *thread,
 
 void qemu_thread_get_self(QemuThread *thread)
 {
-    qemu_thread_init();
-    thread->data = TlsGetValue(qemu_thread_tls_index);
+    thread->data = qemu_thread_data;
     thread->tid = GetCurrentThreadId();
 }
 

@@ -4,6 +4,10 @@
    most of them stay the same, so we handle it by putting ifdefs if
    necessary */
 
+#ifndef SYSCALL_DEFS_H
+#define SYSCALL_DEFS_H 1
+
+
 #include "syscall_nr.h"
 
 #define SOCKOP_socket           1
@@ -255,10 +259,10 @@ struct kernel_statfs {
 };
 
 struct target_dirent {
-	abi_long	d_ino;
-	abi_long	d_off;
-	unsigned short	d_reclen;
-	char		d_name[256]; /* We must not include limits.h! */
+        abi_long        d_ino;
+        abi_long        d_off;
+        unsigned short  d_reclen;
+        char            d_name[];
 };
 
 struct target_dirent64 {
@@ -2425,3 +2429,5 @@ struct target_ucred {
     uint32_t uid;
     uint32_t gid;
 };
+
+#endif

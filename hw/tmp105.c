@@ -20,6 +20,7 @@
 
 #include "hw.h"
 #include "i2c.h"
+#include "tmp105.h"
 
 typedef struct {
     I2CSlave i2c;
@@ -92,22 +93,22 @@ static void tmp105_read(TMP105State *s)
     }
 
     switch (s->pointer & 3) {
-    case 0:	/* Temperature */
+    case TMP105_REG_TEMPERATURE:
         s->buf[s->len ++] = (((uint16_t) s->temperature) >> 8);
         s->buf[s->len ++] = (((uint16_t) s->temperature) >> 0) &
                 (0xf0 << ((~s->config >> 5) & 3));		/* R */
         break;
 
-    case 1:	/* Configuration */
+    case TMP105_REG_CONFIG:
         s->buf[s->len ++] = s->config;
         break;
 
-    case 2:	/* T_LOW */
+    case TMP105_REG_T_LOW:
         s->buf[s->len ++] = ((uint16_t) s->limit[0]) >> 8;
         s->buf[s->len ++] = ((uint16_t) s->limit[0]) >> 0;
         break;
 
-    case 3:	/* T_HIGH */
+    case TMP105_REG_T_HIGH:
         s->buf[s->len ++] = ((uint16_t) s->limit[1]) >> 8;
         s->buf[s->len ++] = ((uint16_t) s->limit[1]) >> 0;
         break;
@@ -117,10 +118,10 @@ static void tmp105_read(TMP105State *s)
 static void tmp105_write(TMP105State *s)
 {
     switch (s->pointer & 3) {
-    case 0:	/* Temperature */
+    case TMP105_REG_TEMPERATURE:
         break;
 
-    case 1:	/* Configuration */
+    case TMP105_REG_CONFIG:
         if (s->buf[0] & ~s->config & (1 << 0))			/* SD */
             printf("%s: TMP105 shutdown\n", __FUNCTION__);
         s->config = s->buf[0];
@@ -128,8 +129,8 @@ static void tmp105_write(TMP105State *s)
         tmp105_alarm_update(s);
         break;
 
-    case 2:	/* T_LOW */
-    case 3:	/* T_HIGH */
+    case TMP105_REG_T_LOW:
+    case TMP105_REG_T_HIGH:
         if (s->len >= 3)
             s->limit[s->pointer & 1] = (int16_t)
                     ((((uint16_t) s->buf[0]) << 8) | s->buf[1]);

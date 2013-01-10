@@ -33,7 +33,7 @@
 #define ARM_ANGEL_HEAP_SIZE (128 * 1024 * 1024)
 #else
 #include "qemu-common.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "hw/arm-misc.h"
 #endif
 
@@ -113,7 +113,7 @@ static inline uint32_t set_swi_errno(CPUARMState *env, uint32_t code)
     return code;
 }
 
-#include "softmmu-semi.h"
+#include "exec/softmmu-semi.h"
 #endif
 
 static target_ulong arm_semi_syscall_len;
@@ -166,17 +166,20 @@ static void arm_semi_flen_cb(CPUARMState *env, target_ulong ret, target_ulong er
 #endif
 }
 
-#define ARG(n)					\
-({						\
-    target_ulong __arg;				\
-    /* FIXME - handle get_user() failure */	\
-    get_user_ual(__arg, args + (n) * 4);	\
-    __arg;					\
-})
+/* Read the input value from the argument block; fail the semihosting
+ * call if the memory read fails.
+ */
+#define GET_ARG(n) do {                                 \
+    if (get_user_ual(arg ## n, args + (n) * 4)) {       \
+        return (uint32_t)-1;                            \
+    }                                                   \
+} while (0)
+
 #define SET_ARG(n, val) put_user_ual(val, args + (n) * 4)
 uint32_t do_arm_semihosting(CPUARMState *env)
 {
     target_ulong args;
+    target_ulong arg0, arg1, arg2, arg3;
     char * s;
     int nr;
     uint32_t ret;
@@ -191,32 +194,39 @@ uint32_t do_arm_semihosting(CPUARMState *env)
     args = env->regs[1];
     switch (nr) {
     case TARGET_SYS_OPEN:
-        if (!(s = lock_user_string(ARG(0))))
+        GET_ARG(0);
+        GET_ARG(1);
+        GET_ARG(2);
+        s = lock_user_string(arg0);
+        if (!s) {
             /* FIXME - should this error code be -TARGET_EFAULT ? */
             return (uint32_t)-1;
-        if (ARG(1) >= 12)
+        }
+        if (arg1 >= 12) {
+            unlock_user(s, arg0, 0);
             return (uint32_t)-1;
+        }
         if (strcmp(s, ":tt") == 0) {
-            if (ARG(1) < 4)
-                return STDIN_FILENO;
-            else
-                return STDOUT_FILENO;
+            int result_fileno = arg1 < 4 ? STDIN_FILENO : STDOUT_FILENO;
+            unlock_user(s, arg0, 0);
+            return result_fileno;
         }
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "open,%s,%x,1a4", ARG(0),
-			   (int)ARG(2)+1, gdb_open_modeflags[ARG(1)]);
-            return env->regs[0];
+            gdb_do_syscall(arm_semi_cb, "open,%s,%x,1a4", arg0,
+                           (int)arg2+1, gdb_open_modeflags[arg1]);
+            ret = env->regs[0];
         } else {
-            ret = set_swi_errno(ts, open(s, open_modeflags[ARG(1)], 0644));
+            ret = set_swi_errno(ts, open(s, open_modeflags[arg1], 0644));
         }
-        unlock_user(s, ARG(0), 0);
+        unlock_user(s, arg0, 0);
         return ret;
     case TARGET_SYS_CLOSE:
+        GET_ARG(0);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "close,%x", ARG(0));
+            gdb_do_syscall(arm_semi_cb, "close,%x", arg0);
             return env->regs[0];
         } else {
-            return set_swi_errno(ts, close(ARG(0)));
+            return set_swi_errno(ts, close(arg0));
         }
     case TARGET_SYS_WRITEC:
         {
@@ -247,35 +257,45 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         unlock_user(s, args, 0);
         return ret;
     case TARGET_SYS_WRITE:
-        len = ARG(2);
+        GET_ARG(0);
+        GET_ARG(1);
+        GET_ARG(2);
+        len = arg2;
         if (use_gdb_syscalls()) {
             arm_semi_syscall_len = len;
-            gdb_do_syscall(arm_semi_cb, "write,%x,%x,%x", ARG(0), ARG(1), len);
+            gdb_do_syscall(arm_semi_cb, "write,%x,%x,%x", arg0, arg1, len);
             return env->regs[0];
         } else {
-            if (!(s = lock_user(VERIFY_READ, ARG(1), len, 1)))
+            s = lock_user(VERIFY_READ, arg1, len, 1);
+            if (!s) {
                 /* FIXME - should this error code be -TARGET_EFAULT ? */
                 return (uint32_t)-1;
-            ret = set_swi_errno(ts, write(ARG(0), s, len));
-            unlock_user(s, ARG(1), 0);
+            }
+            ret = set_swi_errno(ts, write(arg0, s, len));
+            unlock_user(s, arg1, 0);
             if (ret == (uint32_t)-1)
                 return -1;
             return len - ret;
         }
     case TARGET_SYS_READ:
-        len = ARG(2);
+        GET_ARG(0);
+        GET_ARG(1);
+        GET_ARG(2);
+        len = arg2;
         if (use_gdb_syscalls()) {
             arm_semi_syscall_len = len;
-            gdb_do_syscall(arm_semi_cb, "read,%x,%x,%x", ARG(0), ARG(1), len);
+            gdb_do_syscall(arm_semi_cb, "read,%x,%x,%x", arg0, arg1, len);
             return env->regs[0];
         } else {
-            if (!(s = lock_user(VERIFY_WRITE, ARG(1), len, 0)))
+            s = lock_user(VERIFY_WRITE, arg1, len, 0);
+            if (!s) {
                 /* FIXME - should this error code be -TARGET_EFAULT ? */
                 return (uint32_t)-1;
-            do
-              ret = set_swi_errno(ts, read(ARG(0), s, len));
-            while (ret == -1 && errno == EINTR);
-            unlock_user(s, ARG(1), len);
+            }
+            do {
+                ret = set_swi_errno(ts, read(arg0, s, len));
+            } while (ret == -1 && errno == EINTR);
+            unlock_user(s, arg1, len);
             if (ret == (uint32_t)-1)
                 return -1;
             return len - ret;
@@ -284,30 +304,34 @@ uint32_t do_arm_semihosting(CPUARMState *env)
        /* XXX: Read from debug console. Not implemented.  */
         return 0;
     case TARGET_SYS_ISTTY:
+        GET_ARG(0);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "isatty,%x", ARG(0));
+            gdb_do_syscall(arm_semi_cb, "isatty,%x", arg0);
             return env->regs[0];
         } else {
-            return isatty(ARG(0));
+            return isatty(arg0);
         }
     case TARGET_SYS_SEEK:
+        GET_ARG(0);
+        GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "lseek,%x,%x,0", ARG(0), ARG(1));
+            gdb_do_syscall(arm_semi_cb, "lseek,%x,%x,0", arg0, arg1);
             return env->regs[0];
         } else {
-            ret = set_swi_errno(ts, lseek(ARG(0), ARG(1), SEEK_SET));
+            ret = set_swi_errno(ts, lseek(arg0, arg1, SEEK_SET));
             if (ret == (uint32_t)-1)
               return -1;
             return 0;
         }
     case TARGET_SYS_FLEN:
+        GET_ARG(0);
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_flen_cb, "fstat,%x,%x",
-			   ARG(0), env->regs[13]-64);
+                           arg0, env->regs[13]-64);
             return env->regs[0];
         } else {
             struct stat buf;
-            ret = set_swi_errno(ts, fstat(ARG(0), &buf));
+            ret = set_swi_errno(ts, fstat(arg0, &buf));
             if (ret == (uint32_t)-1)
                 return -1;
             return buf.st_size;
@@ -316,35 +340,43 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         /* XXX: Not implemented.  */
         return -1;
     case TARGET_SYS_REMOVE:
+        GET_ARG(0);
+        GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "unlink,%s", ARG(0), (int)ARG(1)+1);
+            gdb_do_syscall(arm_semi_cb, "unlink,%s", arg0, (int)arg1+1);
             ret = env->regs[0];
         } else {
-            if (!(s = lock_user_string(ARG(0))))
+            s = lock_user_string(arg0);
+            if (!s) {
                 /* FIXME - should this error code be -TARGET_EFAULT ? */
                 return (uint32_t)-1;
+            }
             ret =  set_swi_errno(ts, remove(s));
-            unlock_user(s, ARG(0), 0);
+            unlock_user(s, arg0, 0);
         }
         return ret;
     case TARGET_SYS_RENAME:
+        GET_ARG(0);
+        GET_ARG(1);
+        GET_ARG(2);
+        GET_ARG(3);
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_cb, "rename,%s,%s",
-                           ARG(0), (int)ARG(1)+1, ARG(2), (int)ARG(3)+1);
+                           arg0, (int)arg1+1, arg2, (int)arg3+1);
             return env->regs[0];
         } else {
             char *s2;
-            s = lock_user_string(ARG(0));
-            s2 = lock_user_string(ARG(2));
+            s = lock_user_string(arg0);
+            s2 = lock_user_string(arg2);
             if (!s || !s2)
                 /* FIXME - should this error code be -TARGET_EFAULT ? */
                 ret = (uint32_t)-1;
             else
                 ret = set_swi_errno(ts, rename(s, s2));
             if (s2)
-                unlock_user(s2, ARG(2), 0);
+                unlock_user(s2, arg2, 0);
             if (s)
-                unlock_user(s, ARG(0), 0);
+                unlock_user(s, arg0, 0);
             return ret;
         }
     case TARGET_SYS_CLOCK:
@@ -352,15 +384,19 @@ uint32_t do_arm_semihosting(CPUARMState *env)
     case TARGET_SYS_TIME:
         return set_swi_errno(ts, time(NULL));
     case TARGET_SYS_SYSTEM:
+        GET_ARG(0);
+        GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "system,%s", ARG(0), (int)ARG(1)+1);
+            gdb_do_syscall(arm_semi_cb, "system,%s", arg0, (int)arg1+1);
             return env->regs[0];
         } else {
-            if (!(s = lock_user_string(ARG(0))))
+            s = lock_user_string(arg0);
+            if (!s) {
                 /* FIXME - should this error code be -TARGET_EFAULT ? */
                 return (uint32_t)-1;
+            }
             ret = set_swi_errno(ts, system(s));
-            unlock_user(s, ARG(0), 0);
+            unlock_user(s, arg0, 0);
             return ret;
         }
     case TARGET_SYS_ERRNO:
@@ -374,22 +410,24 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             /* Build a command-line from the original argv.
              *
              * The inputs are:
-             *     * ARG(0), pointer to a buffer of at least the size
-             *               specified in ARG(1).
-             *     * ARG(1), size of the buffer pointed to by ARG(0) in
+             *     * arg0, pointer to a buffer of at least the size
+             *               specified in arg1.
+             *     * arg1, size of the buffer pointed to by arg0 in
              *               bytes.
              *
              * The outputs are:
-             *     * ARG(0), pointer to null-terminated string of the
+             *     * arg0, pointer to null-terminated string of the
              *               command line.
-             *     * ARG(1), length of the string pointed to by ARG(0).
+             *     * arg1, length of the string pointed to by arg0.
              */
 
             char *output_buffer;
-            size_t input_size = ARG(1);
+            size_t input_size;
             size_t output_size;
             int status = 0;
-
+            GET_ARG(0);
+            GET_ARG(1);
+            input_size = arg1;
             /* Compute the size of the output string.  */
 #if !defined(CONFIG_USER_ONLY)
             output_size = strlen(ts->boot_info->kernel_filename)
@@ -413,10 +451,13 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             }
 
             /* Adjust the command-line length.  */
-            SET_ARG(1, output_size - 1);
+            if (SET_ARG(1, output_size - 1)) {
+                /* Couldn't write back to argument block */
+                return -1;
+            }
 
             /* Lock the buffer on the ARM side.  */
-            output_buffer = lock_user(VERIFY_WRITE, ARG(0), output_size, 0);
+            output_buffer = lock_user(VERIFY_WRITE, arg0, output_size, 0);
             if (!output_buffer) {
                 return -1;
             }
@@ -448,7 +489,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         out:
 #endif
             /* Unlock the buffer on the ARM side.  */
-            unlock_user(output_buffer, ARG(0), output_size);
+            unlock_user(output_buffer, arg0, output_size);
 
             return status;
         }
@@ -456,6 +497,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         {
             uint32_t *ptr;
             uint32_t limit;
+            GET_ARG(0);
 
 #ifdef CONFIG_USER_ONLY
             /* Some C libraries assume the heap immediately follows .bss, so
@@ -476,25 +518,29 @@ uint32_t do_arm_semihosting(CPUARMState *env)
                 ts->heap_limit = limit;
             }
 
-            if (!(ptr = lock_user(VERIFY_WRITE, ARG(0), 16, 0)))
+            ptr = lock_user(VERIFY_WRITE, arg0, 16, 0);
+            if (!ptr) {
                 /* FIXME - should this error code be -TARGET_EFAULT ? */
                 return (uint32_t)-1;
+            }
             ptr[0] = tswap32(ts->heap_base);
             ptr[1] = tswap32(ts->heap_limit);
             ptr[2] = tswap32(ts->stack_base);
             ptr[3] = tswap32(0); /* Stack limit.  */
-            unlock_user(ptr, ARG(0), 16);
+            unlock_user(ptr, arg0, 16);
 #else
             limit = ram_size;
-            if (!(ptr = lock_user(VERIFY_WRITE, ARG(0), 16, 0)))
+            ptr = lock_user(VERIFY_WRITE, arg0, 16, 0);
+            if (!ptr) {
                 /* FIXME - should this error code be -TARGET_EFAULT ? */
                 return (uint32_t)-1;
+            }
             /* TODO: Make this use the limit of the loaded application.  */
             ptr[0] = tswap32(limit / 2);
             ptr[1] = tswap32(limit);
             ptr[2] = tswap32(limit); /* Stack base */
             ptr[3] = tswap32(0); /* Stack limit.  */
-            unlock_user(ptr, ARG(0), 16);
+            unlock_user(ptr, arg0, 16);
 #endif
             return 0;
         }

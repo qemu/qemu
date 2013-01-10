@@ -21,7 +21,7 @@
 #include "helper.h"
 #include "trace.h"
 
-//#define DEBUG_PCALL
+#define DEBUG_PCALL
 
 #ifdef DEBUG_PCALL
 static const char * const excp_names[0x80] = {
@@ -64,6 +64,11 @@ void do_interrupt(CPUSPARCState *env)
     int intno = env->exception_index;
     trap_state *tsptr;
 
+    /* Compute PSR before exposing state.  */
+    if (env->cc_op != CC_OP_FLAGS) {
+        cpu_get_psr(env);
+    }
+
 #ifdef DEBUG_PCALL
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
@@ -84,11 +89,7 @@ void do_interrupt(CPUSPARCState *env)
             }
         }
 
-        qemu_log("%6d: %s (v=%04x) pc=%016" PRIx64 " npc=%016" PRIx64
-                " SP=%016" PRIx64 "\n",
-                count, name, intno,
-                env->pc,
-                env->npc, env->regwptr[6]);
+        qemu_log("%6d: %s (v=%04x)\n", count, name, intno);
         log_cpu_state(env, 0);
 #if 0
         {

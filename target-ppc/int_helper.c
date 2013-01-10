@@ -17,7 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 #include "helper.h"
 
 #include "helper_regs.h"
@@ -287,23 +287,6 @@ target_ulong helper_602_mfrom(target_ulong arg)
     for (index = ARRAY_SIZE(r->element)-1; index >= 0; index--)
 #endif
 
-/* If X is a NaN, store the corresponding QNaN into RESULT.  Otherwise,
- * execute the following block.  */
-#define DO_HANDLE_NAN(result, x)                        \
-    if (float32_is_any_nan(x)) {                        \
-        CPU_FloatU __f;                                 \
-        __f.f = x;                                      \
-        __f.l = __f.l | (1 << 22);  /* Set QNaN bit. */ \
-        result = __f.f;                                 \
-    } else
-
-#define HANDLE_NAN1(result, x)                  \
-    DO_HANDLE_NAN(result, x)
-#define HANDLE_NAN2(result, x, y)                       \
-    DO_HANDLE_NAN(result, x) DO_HANDLE_NAN(result, y)
-#define HANDLE_NAN3(result, x, y, z)                                    \
-    DO_HANDLE_NAN(result, x) DO_HANDLE_NAN(result, y) DO_HANDLE_NAN(result, z)
-
 /* Saturating arithmetic helpers.  */
 #define SATCVT(from, to, from_type, to_type, min, max)          \
     static inline to_type cvt##from##to(from_type x, int *sat)  \
@@ -409,14 +392,28 @@ VARITH(uwm, u32)
         int i;                                                          \
                                                                         \
         for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
-            HANDLE_NAN2(r->f[i], a->f[i], b->f[i]) {                    \
-                r->f[i] = func(a->f[i], b->f[i], &env->vec_status);     \
-            }                                                           \
+            r->f[i] = func(a->f[i], b->f[i], &env->vec_status);         \
         }                                                               \
     }
 VARITHFP(addfp, float32_add)
 VARITHFP(subfp, float32_sub)
+VARITHFP(minfp, float32_min)
+VARITHFP(maxfp, float32_max)
 #undef VARITHFP
+
+#define VARITHFPFMA(suffix, type)                                       \
+    void helper_v##suffix(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, \
+                           ppc_avr_t *b, ppc_avr_t *c)                  \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            r->f[i] = float32_muladd(a->f[i], c->f[i], b->f[i],         \
+                                     type, &env->vec_status);           \
+        }                                                               \
+    }
+VARITHFPFMA(maddfp, 0);
+VARITHFPFMA(nmsubfp, float_muladd_negate_result | float_muladd_negate_c);
+#undef VARITHFPFMA
 
 #define VARITHSAT_CASE(type, op, cvt, element)                          \
     {                                                                   \
@@ -649,27 +646,6 @@ VCT(uxs, cvtsduw, u32)
 VCT(sxs, cvtsdsw, s32)
 #undef VCT
 
-void helper_vmaddfp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
-                    ppc_avr_t *c)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN3(r->f[i], a->f[i], b->f[i], c->f[i]) {
-            /* Need to do the computation in higher precision and round
-             * once at the end.  */
-            float64 af, bf, cf, t;
-
-            af = float32_to_float64(a->f[i], &env->vec_status);
-            bf = float32_to_float64(b->f[i], &env->vec_status);
-            cf = float32_to_float64(c->f[i], &env->vec_status);
-            t = float64_mul(af, cf, &env->vec_status);
-            t = float64_add(t, bf, &env->vec_status);
-            r->f[i] = float64_to_float32(t, &env->vec_status);
-        }
-    }
-}
-
 void helper_vmhaddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
                       ppc_avr_t *b, ppc_avr_t *c)
 {
@@ -729,27 +705,6 @@ VMINMAX(uh, u16)
 VMINMAX(uw, u32)
 #undef VMINMAX_DO
 #undef VMINMAX
-
-#define VMINMAXFP(suffix, rT, rF)                                       \
-    void helper_v##suffix(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, \
-                          ppc_avr_t *b)                                 \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
-            HANDLE_NAN2(r->f[i], a->f[i], b->f[i]) {                    \
-                if (float32_lt_quiet(a->f[i], b->f[i],                  \
-                                     &env->vec_status)) {               \
-                    r->f[i] = rT->f[i];                                 \
-                } else {                                                \
-                    r->f[i] = rF->f[i];                                 \
-                }                                                       \
-            }                                                           \
-        }                                                               \
-    }
-VMINMAXFP(minfp, a, b)
-VMINMAXFP(maxfp, b, a)
-#undef VMINMAXFP
 
 void helper_vmladduhm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
@@ -930,28 +885,6 @@ VMUL(uh, u16, u32)
 #undef VMUL_DO
 #undef VMUL
 
-void helper_vnmsubfp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
-                     ppc_avr_t *b, ppc_avr_t *c)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN3(r->f[i], a->f[i], b->f[i], c->f[i]) {
-            /* Need to do the computation is higher precision and round
-             * once at the end.  */
-            float64 af, bf, cf, t;
-
-            af = float32_to_float64(a->f[i], &env->vec_status);
-            bf = float32_to_float64(b->f[i], &env->vec_status);
-            cf = float32_to_float64(c->f[i], &env->vec_status);
-            t = float64_mul(af, cf, &env->vec_status);
-            t = float64_sub(t, bf, &env->vec_status);
-            t = float64_chs(t);
-            r->f[i] = float64_to_float32(t, &env->vec_status);
-        }
-    }
-}
-
 void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
                   ppc_avr_t *c)
 {
@@ -1039,9 +972,7 @@ void helper_vrefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN1(r->f[i], b->f[i]) {
-            r->f[i] = float32_div(float32_one, b->f[i], &env->vec_status);
-        }
+        r->f[i] = float32_div(float32_one, b->f[i], &env->vec_status);
     }
 }
 
@@ -1054,9 +985,7 @@ void helper_vrefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
                                                                 \
         set_float_rounding_mode(rounding, &s);                  \
         for (i = 0; i < ARRAY_SIZE(r->f); i++) {                \
-            HANDLE_NAN1(r->f[i], b->f[i]) {                     \
-                r->f[i] = float32_round_to_int (b->f[i], &s);   \
-            }                                                   \
+            r->f[i] = float32_round_to_int (b->f[i], &s);       \
         }                                                       \
     }
 VRFI(n, float_round_nearest_even)
@@ -1089,11 +1018,9 @@ void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN1(r->f[i], b->f[i]) {
-            float32 t = float32_sqrt(b->f[i], &env->vec_status);
+        float32 t = float32_sqrt(b->f[i], &env->vec_status);
 
-            r->f[i] = float32_div(float32_one, t, &env->vec_status);
-        }
+        r->f[i] = float32_div(float32_one, t, &env->vec_status);
     }
 }
 
@@ -1109,9 +1036,7 @@ void helper_vexptefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN1(r->f[i], b->f[i]) {
-            r->f[i] = float32_exp2(b->f[i], &env->vec_status);
-        }
+        r->f[i] = float32_exp2(b->f[i], &env->vec_status);
     }
 }
 
@@ -1120,9 +1045,7 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN1(r->f[i], b->f[i]) {
-            r->f[i] = float32_log2(b->f[i], &env->vec_status);
-        }
+        r->f[i] = float32_log2(b->f[i], &env->vec_status);
     }
 }
 
@@ -1473,10 +1396,6 @@ VUPK(lsh, s32, s16, UPKLO)
 #undef UPKHI
 #undef UPKLO
 
-#undef DO_HANDLE_NAN
-#undef HANDLE_NAN1
-#undef HANDLE_NAN2
-#undef HANDLE_NAN3
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX
 #undef LO_IDX

@@ -17,6 +17,7 @@
 
 #include "virtio-blk.h"
 #include "virtio-net.h"
+#include "virtio-rng.h"
 #include "virtio-serial.h"
 #include "virtio-scsi.h"
 
@@ -46,6 +47,7 @@ typedef struct {
     virtio_serial_conf serial;
     virtio_net_conf net;
     VirtIOSCSIConf scsi;
+    VirtIORNGConf rng;
     bool ioeventfd_disabled;
     bool ioeventfd_started;
     VirtIOIRQFD *vector_irqfd;

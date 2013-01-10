@@ -27,7 +27,7 @@
 #include "multiboot.h"
 #include "loader.h"
 #include "elf.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 /* Show multiboot debug output */
 //#define DEBUG_MULTIBOOT
@@ -80,15 +80,15 @@ typedef struct {
     /* buffer holding kernel, cmdlines and mb_infos */
     void *mb_buf;
     /* address in target */
-    target_phys_addr_t mb_buf_phys;
+    hwaddr mb_buf_phys;
     /* size of mb_buf in bytes */
     unsigned mb_buf_size;
     /* offset of mb-info's in bytes */
-    target_phys_addr_t offset_mbinfo;
+    hwaddr offset_mbinfo;
     /* offset in buffer for cmdlines in bytes */
-    target_phys_addr_t offset_cmdlines;
+    hwaddr offset_cmdlines;
     /* offset of modules in bytes */
-    target_phys_addr_t offset_mods;
+    hwaddr offset_mods;
     /* available slots for mb modules infos */
     int mb_mods_avail;
     /* currently used slots of mb modules */
@@ -97,7 +97,7 @@ typedef struct {
 
 static uint32_t mb_add_cmdline(MultibootState *s, const char *cmdline)
 {
-    target_phys_addr_t p = s->offset_cmdlines;
+    hwaddr p = s->offset_cmdlines;
     char *b = (char *)s->mb_buf + p;
 
     get_opt_value(b, strlen(cmdline) + 1, cmdline);
@@ -106,8 +106,8 @@ static uint32_t mb_add_cmdline(MultibootState *s, const char *cmdline)
 }
 
 static void mb_add_mod(MultibootState *s,
-                       target_phys_addr_t start, target_phys_addr_t end,
-                       target_phys_addr_t cmdline_phys)
+                       hwaddr start, hwaddr end,
+                       hwaddr cmdline_phys)
 {
     char *p;
     assert(s->mb_mods_count < s->mb_mods_avail);
@@ -276,7 +276,7 @@ int load_multiboot(void *fw_cfg,
             *next_initrd = '\0';
             /* if a space comes after the module filename, treat everything
                after that as parameters */
-            target_phys_addr_t c = mb_add_cmdline(&mbs, initrd_filename);
+            hwaddr c = mb_add_cmdline(&mbs, initrd_filename);
             if ((next_space = strchr(initrd_filename, ' ')))
                 *next_space = '\0';
             mb_debug("multiboot loading module: %s\n", initrd_filename);

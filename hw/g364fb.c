@@ -18,8 +18,8 @@
  */
 
 #include "hw.h"
-#include "console.h"
-#include "pixel_ops.h"
+#include "ui/console.h"
+#include "ui/pixel_ops.h"
 #include "trace.h"
 #include "sysbus.h"
 
@@ -197,7 +197,8 @@ static void g364fb_draw_graphic8(G364State *s)
                 reset_dirty(s, page_min, page_max);
                 page_min = (ram_addr_t)-1;
                 page_max = 0;
-                dpy_update(s->ds, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
+                dpy_gfx_update(s->ds, xmin, ymin,
+                               xmax - xmin + 1, ymax - ymin + 1);
                 xmin = s->width;
                 xmax = 0;
                 ymin = s->height;
@@ -216,7 +217,7 @@ static void g364fb_draw_graphic8(G364State *s)
 
 done:
     if (page_min != (ram_addr_t)-1) {
-        dpy_update(s->ds, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
+        dpy_gfx_update(s->ds, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
         reset_dirty(s, page_min, page_max);
     }
 }
@@ -238,7 +239,7 @@ static void g364fb_draw_blank(G364State *s)
         d += ds_get_linesize(s->ds);
     }
 
-    dpy_update(s->ds, 0, 0, s->width, s->height);
+    dpy_gfx_update(s->ds, 0, 0, s->width, s->height);
     s->blanked = 1;
 }
 
@@ -289,10 +290,11 @@ static void g364fb_reset(G364State *s)
     g364fb_invalidate_display(s);
 }
 
-static void g364fb_screen_dump(void *opaque, const char *filename, bool cswitch)
+static void g364fb_screen_dump(void *opaque, const char *filename, bool cswitch,
+                               Error **errp)
 {
     G364State *s = opaque;
-    int y, x;
+    int ret, y, x;
     uint8_t index;
     uint8_t *data_buffer;
     FILE *f;
@@ -300,40 +302,68 @@ static void g364fb_screen_dump(void *opaque, const char *filename, bool cswitch)
     qemu_flush_coalesced_mmio_buffer();
 
     if (s->depth != 8) {
-        error_report("g364: unknown guest depth %d", s->depth);
+        error_setg(errp, "g364: unknown guest depth %d", s->depth);
         return;
     }
 
     f = fopen(filename, "wb");
-    if (!f)
+    if (!f) {
+        error_setg(errp, "failed to open file '%s': %s", filename,
+                   strerror(errno));
         return;
+    }
 
     if (s->ctla & CTLA_FORCE_BLANK) {
         /* blank screen */
-        fprintf(f, "P4\n%d %d\n",
-            s->width, s->height);
+        ret = fprintf(f, "P4\n%d %d\n", s->width, s->height);
+        if (ret < 0) {
+            goto write_err;
+        }
         for (y = 0; y < s->height; y++)
-            for (x = 0; x < s->width; x++)
-                fputc(0, f);
+            for (x = 0; x < s->width; x++) {
+                ret = fputc(0, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+            }
     } else {
         data_buffer = s->vram + s->top_of_screen;
-        fprintf(f, "P6\n%d %d\n%d\n",
-            s->width, s->height, 255);
+        ret = fprintf(f, "P6\n%d %d\n%d\n", s->width, s->height, 255);
+        if (ret < 0) {
+            goto write_err;
+        }
         for (y = 0; y < s->height; y++)
             for (x = 0; x < s->width; x++, data_buffer++) {
                 index = *data_buffer;
-                fputc(s->color_palette[index][0], f);
-                fputc(s->color_palette[index][1], f);
-                fputc(s->color_palette[index][2], f);
+                ret = fputc(s->color_palette[index][0], f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc(s->color_palette[index][1], f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc(s->color_palette[index][2], f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
         }
     }
 
+out:
     fclose(f);
+    return;
+
+write_err:
+    error_setg(errp, "failed to write to file '%s': %s", filename,
+               strerror(errno));
+    unlink(filename);
+    goto out;
 }
 
 /* called for accesses to io ports */
 static uint64_t g364fb_ctrl_read(void *opaque,
-                                 target_phys_addr_t addr,
+                                 hwaddr addr,
                                  unsigned int size)
 {
     G364State *s = opaque;
@@ -395,7 +425,7 @@ static void g364_invalidate_cursor_position(G364State *s)
 }
 
 static void g364fb_ctrl_write(void *opaque,
-                              target_phys_addr_t addr,
+                              hwaddr addr,
                               uint64_t val,
                               unsigned int size)
 {

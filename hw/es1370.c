@@ -29,8 +29,8 @@
 #include "hw.h"
 #include "audiodev.h"
 #include "audio/audio.h"
-#include "pci.h"
-#include "dma.h"
+#include "pci/pci.h"
+#include "sysemu/dma.h"
 
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC
@@ -908,18 +908,44 @@ static void es1370_adc_callback (void *opaque, int avail)
     es1370_run_channel (s, ADC_CHANNEL, avail);
 }
 
-static const MemoryRegionPortio es1370_portio[] = {
-    { 0, 0x40 * 4, 1, .write = es1370_writeb, },
-    { 0, 0x40 * 2, 2, .write = es1370_writew, },
-    { 0, 0x40, 4, .write = es1370_writel, },
-    { 0, 0x40 * 4, 1, .read = es1370_readb, },
-    { 0, 0x40 * 2, 2, .read = es1370_readw, },
-    { 0, 0x40, 4, .read = es1370_readl, },
-    PORTIO_END_OF_LIST ()
-};
+static uint64_t es1370_read(void *opaque, hwaddr addr,
+                            unsigned size)
+{
+    switch (size) {
+    case 1:
+        return es1370_readb(opaque, addr);
+    case 2:
+        return es1370_readw(opaque, addr);
+    case 4:
+        return es1370_readl(opaque, addr);
+    default:
+        return -1;
+    }
+}
+
+static void es1370_write(void *opaque, hwaddr addr, uint64_t val,
+                      unsigned size)
+{
+    switch (size) {
+    case 1:
+        es1370_writeb(opaque, addr, val);
+        break;
+    case 2:
+        es1370_writew(opaque, addr, val);
+        break;
+    case 4:
+        es1370_writel(opaque, addr, val);
+        break;
+    }
+}
 
 static const MemoryRegionOps es1370_io_ops = {
-    .old_portio = es1370_portio,
+    .read = es1370_read,
+    .write = es1370_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

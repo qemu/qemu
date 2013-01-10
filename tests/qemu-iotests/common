@@ -136,6 +136,7 @@ check options
     -vmdk               test vmdk
     -rbd                test rbd
     -sheepdog           test sheepdog
+    -nbd                test nbd
     -xdiff		graphical mode diff
     -nocache		use O_DIRECT on backing file
     -misalign		misalign memory allocations
@@ -197,12 +198,14 @@ testlist options
 	    IMGPROTO=rbd
 	    xpand=false
 	    ;;
-
 	-sheepdog)
 	    IMGPROTO=sheepdog
 	    xpand=false
 	    ;;
-
+	-nbd)
+	    IMGPROTO=nbd
+	    xpand=false
+	    ;;
 	-nocache)
 	    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --nocache"
 	    xpand=false
@@ -350,7 +353,11 @@ fi
 
 [ "$QEMU" = "" ] && _fatal "qemu not found"
 [ "$QEMU_IMG" = "" ] && _fatal "qemu-img not found"
-[ "$QEMU_IO" = "" ] && _fatal "qemu-img not found"
+[ "$QEMU_IO" = "" ] && _fatal "qemu-io not found"
+
+if [ "$IMGPROTO" = "nbd" ] ; then
+    [ "$QEMU_NBD" = "" ] && _fatal "qemu-nbd not found"
+fi
 
 if $valgrind; then
     export REAL_QEMU_IO="$QEMU_IO_PROG"

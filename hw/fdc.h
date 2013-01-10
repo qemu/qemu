@@ -15,8 +15,8 @@ typedef enum FDriveType {
 
 ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds);
 void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
-                        target_phys_addr_t mmio_base, DriveInfo **fds);
-void sun4m_fdctrl_init(qemu_irq irq, target_phys_addr_t io_base,
+                        hwaddr mmio_base, DriveInfo **fds);
+void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
                        DriveInfo **fds, qemu_irq *fdc_tc);
 
 FDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i);

@@ -13,12 +13,12 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "net.h"
+#include "net/net.h"
 #include "net/tap.h"
 
 #include "virtio-net.h"
 #include "vhost_net.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 #include "config.h"
 
@@ -109,7 +109,7 @@ struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
         (1 << VHOST_NET_F_VIRTIO_NET_HDR);
     net->backend = r;
 
-    r = vhost_dev_init(&net->dev, devfd, force);
+    r = vhost_dev_init(&net->dev, devfd, "/dev/vhost-net", force);
     if (r < 0) {
         goto fail;
     }
@@ -150,10 +150,6 @@ int vhost_net_start(struct vhost_net *net,
     if (r < 0) {
         goto fail_notifiers;
     }
-    if (net->dev.acked_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        tap_set_vnet_hdr_len(net->nc,
-                             sizeof(struct virtio_net_hdr_mrg_rxbuf));
-    }
 
     r = vhost_dev_start(&net->dev, dev);
     if (r < 0) {
@@ -179,9 +175,6 @@ fail:
     }
     net->nc->info->poll(net->nc, true);
     vhost_dev_stop(&net->dev, dev);
-    if (net->dev.acked_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        tap_set_vnet_hdr_len(net->nc, sizeof(struct virtio_net_hdr));
-    }
 fail_start:
     vhost_dev_disable_notifiers(&net->dev, dev);
 fail_notifiers:
@@ -199,18 +192,12 @@ void vhost_net_stop(struct vhost_net *net,
     }
     net->nc->info->poll(net->nc, true);
     vhost_dev_stop(&net->dev, dev);
-    if (net->dev.acked_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        tap_set_vnet_hdr_len(net->nc, sizeof(struct virtio_net_hdr));
-    }
     vhost_dev_disable_notifiers(&net->dev, dev);
 }
 
 void vhost_net_cleanup(struct vhost_net *net)
 {
     vhost_dev_cleanup(&net->dev);
-    if (net->dev.acked_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        tap_set_vnet_hdr_len(net->nc, sizeof(struct virtio_net_hdr));
-    }
     g_free(net);
 }
 #else

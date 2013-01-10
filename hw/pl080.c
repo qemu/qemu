@@ -218,7 +218,7 @@ again:
     }
 }
 
-static uint64_t pl080_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pl080_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     pl080_state *s = (pl080_state *)opaque;
@@ -281,12 +281,13 @@ static uint64_t pl080_read(void *opaque, target_phys_addr_t offset,
         return s->sync;
     default:
     bad_offset:
-        hw_error("pl080_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl080_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
 
-static void pl080_write(void *opaque, target_phys_addr_t offset,
+static void pl080_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     pl080_state *s = (pl080_state *)opaque;
@@ -327,12 +328,13 @@ static void pl080_write(void *opaque, target_phys_addr_t offset,
     case 10: /* SoftLBReq */
     case 11: /* SoftLSReq */
         /* ??? Implement these.  */
-        hw_error("pl080_write: Soft DMA not implemented\n");
+        qemu_log_mask(LOG_UNIMP, "pl080_write: Soft DMA not implemented\n");
         break;
     case 12: /* Configuration */
         s->conf = value;
         if (s->conf & (PL080_CONF_M1 | PL080_CONF_M1)) {
-            hw_error("pl080_write: Big-endian DMA not implemented\n");
+            qemu_log_mask(LOG_UNIMP,
+                          "pl080_write: Big-endian DMA not implemented\n");
         }
         pl080_run(s);
         break;
@@ -341,7 +343,8 @@ static void pl080_write(void *opaque, target_phys_addr_t offset,
         break;
     default:
     bad_offset:
-        hw_error("pl080_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl080_write: Bad offset %x\n", (int)offset);
     }
     pl080_update(s);
 }

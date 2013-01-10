@@ -27,10 +27,10 @@
  */
 #include <windows.h>
 #include "config-host.h"
-#include "sysemu.h"
-#include "main-loop.h"
+#include "sysemu/sysemu.h"
+#include "qemu/main-loop.h"
 #include "trace.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 void *qemu_oom_check(void *ptr)
 {
@@ -72,6 +72,30 @@ void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);
     VirtualFree(ptr, 0, MEM_RELEASE);
+}
+
+/* FIXME: add proper locking */
+struct tm *gmtime_r(const time_t *timep, struct tm *result)
+{
+    struct tm *p = gmtime(timep);
+    memset(result, 0, sizeof(*result));
+    if (p) {
+        *result = *p;
+        p = result;
+    }
+    return p;
+}
+
+/* FIXME: add proper locking */
+struct tm *localtime_r(const time_t *timep, struct tm *result)
+{
+    struct tm *p = localtime(timep);
+    memset(result, 0, sizeof(*result));
+    if (p) {
+        *result = *p;
+        p = result;
+    }
+    return p;
 }
 
 void socket_set_block(int fd)

@@ -23,16 +23,14 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-aio.h"
-#include "main-loop.h"
-
-/* Anchor of the list of Bottom Halves belonging to the context */
-static struct QEMUBH *first_bh;
+#include "block/aio.h"
+#include "qemu/main-loop.h"
 
 /***********************************************************/
 /* bottom halves (can be seen as timers which expire ASAP) */
 
 struct QEMUBH {
+    AioContext *ctx;
     QEMUBHFunc *cb;
     void *opaque;
     QEMUBH *next;
@@ -41,27 +39,27 @@ struct QEMUBH {
     bool deleted;
 };
 
-QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
+QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
 {
     QEMUBH *bh;
     bh = g_malloc0(sizeof(QEMUBH));
+    bh->ctx = ctx;
     bh->cb = cb;
     bh->opaque = opaque;
-    bh->next = first_bh;
-    first_bh = bh;
+    bh->next = ctx->first_bh;
+    ctx->first_bh = bh;
     return bh;
 }
 
-int qemu_bh_poll(void)
+int aio_bh_poll(AioContext *ctx)
 {
     QEMUBH *bh, **bhp, *next;
     int ret;
-    static int nesting = 0;
 
-    nesting++;
+    ctx->walking_bh++;
 
     ret = 0;
-    for (bh = first_bh; bh; bh = next) {
+    for (bh = ctx->first_bh; bh; bh = next) {
         next = bh->next;
         if (!bh->deleted && bh->scheduled) {
             bh->scheduled = 0;
@@ -72,11 +70,11 @@ int qemu_bh_poll(void)
         }
     }
 
-    nesting--;
+    ctx->walking_bh--;
 
     /* remove deleted bhs */
-    if (!nesting) {
-        bhp = &first_bh;
+    if (!ctx->walking_bh) {
+        bhp = &ctx->first_bh;
         while (*bhp) {
             bh = *bhp;
             if (bh->deleted) {
@@ -105,8 +103,7 @@ void qemu_bh_schedule(QEMUBH *bh)
         return;
     bh->scheduled = 1;
     bh->idle = 0;
-    /* stop the currently executing CPU to execute the BH ASAP */
-    qemu_notify_event();
+    aio_notify(bh->ctx);
 }
 
 void qemu_bh_cancel(QEMUBH *bh)
@@ -120,23 +117,101 @@ void qemu_bh_delete(QEMUBH *bh)
     bh->deleted = 1;
 }
 
-void qemu_bh_update_timeout(uint32_t *timeout)
+static gboolean
+aio_ctx_prepare(GSource *source, gint    *timeout)
 {
+    AioContext *ctx = (AioContext *) source;
     QEMUBH *bh;
 
-    for (bh = first_bh; bh; bh = bh->next) {
+    for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
             if (bh->idle) {
                 /* idle bottom halves will be polled at least
                  * every 10ms */
-                *timeout = MIN(10, *timeout);
+                *timeout = 10;
             } else {
                 /* non-idle bottom halves will be executed
                  * immediately */
                 *timeout = 0;
-                break;
+                return true;
             }
         }
     }
+
+    return false;
 }
 
+static gboolean
+aio_ctx_check(GSource *source)
+{
+    AioContext *ctx = (AioContext *) source;
+    QEMUBH *bh;
+
+    for (bh = ctx->first_bh; bh; bh = bh->next) {
+        if (!bh->deleted && bh->scheduled) {
+            return true;
+	}
+    }
+    return aio_pending(ctx);
+}
+
+static gboolean
+aio_ctx_dispatch(GSource     *source,
+                 GSourceFunc  callback,
+                 gpointer     user_data)
+{
+    AioContext *ctx = (AioContext *) source;
+
+    assert(callback == NULL);
+    aio_poll(ctx, false);
+    return true;
+}
+
+static void
+aio_ctx_finalize(GSource     *source)
+{
+    AioContext *ctx = (AioContext *) source;
+
+    aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL);
+    event_notifier_cleanup(&ctx->notifier);
+}
+
+static GSourceFuncs aio_source_funcs = {
+    aio_ctx_prepare,
+    aio_ctx_check,
+    aio_ctx_dispatch,
+    aio_ctx_finalize
+};
+
+GSource *aio_get_g_source(AioContext *ctx)
+{
+    g_source_ref(&ctx->source);
+    return &ctx->source;
+}
+
+void aio_notify(AioContext *ctx)
+{
+    event_notifier_set(&ctx->notifier);
+}
+
+AioContext *aio_context_new(void)
+{
+    AioContext *ctx;
+    ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+    event_notifier_init(&ctx->notifier, false);
+    aio_set_event_notifier(ctx, &ctx->notifier, 
+                           (EventNotifierHandler *)
+                           event_notifier_test_and_clear, NULL);
+
+    return ctx;
+}
+
+void aio_context_ref(AioContext *ctx)
+{
+    g_source_ref(&ctx->source);
+}
+
+void aio_context_unref(AioContext *ctx)
+{
+    g_source_unref(&ctx->source);
+}

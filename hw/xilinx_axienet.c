@@ -23,9 +23,8 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
-#include "qemu-log.h"
-#include "net.h"
+#include "qemu/log.h"
+#include "net/net.h"
 #include "net/checksum.h"
 
 #include "stream.h"
@@ -412,7 +411,7 @@ static void enet_update_irq(struct XilinxAXIEnet *s)
     qemu_set_irq(s->irq, !!s->regs[R_IP]);
 }
 
-static uint64_t enet_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 {
     struct XilinxAXIEnet *s = opaque;
     uint32_t r = 0;
@@ -503,7 +502,7 @@ static uint64_t enet_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return r;
 }
 
-static void enet_write(void *opaque, target_phys_addr_t addr,
+static void enet_write(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
     struct XilinxAXIEnet *s = opaque;
@@ -589,6 +588,10 @@ static void enet_write(void *opaque, target_phys_addr_t addr,
         case R_AF0:
         case R_AF1:
             s->maddr[s->fmi & 3][addr & 1] = value;
+            break;
+
+        case R_IS:
+            s->regs[addr] &= ~value;
             break;
 
         case 0x8000 ... 0x83ff:

@@ -8,9 +8,9 @@
  */
 #include <hw/ide.h>
 #include <hw/isa.h>
-#include "iorange.h"
-#include "dma.h"
-#include "sysemu.h"
+#include "exec/iorange.h"
+#include "sysemu/dma.h"
+#include "sysemu/sysemu.h"
 #include "hw/block-common.h"
 #include "hw/scsi-defs.h"
 

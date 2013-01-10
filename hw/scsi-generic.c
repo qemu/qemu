@@ -12,9 +12,9 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "scsi.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 #ifdef __linux__
 
@@ -400,11 +400,11 @@ static int scsi_generic_initfn(SCSIDevice *s)
         return -1;
     }
 
-    if (bdrv_get_on_error(s->conf.bs, 0) != BLOCK_ERR_STOP_ENOSPC) {
+    if (bdrv_get_on_error(s->conf.bs, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
         error_report("Device doesn't support drive option werror");
         return -1;
     }
-    if (bdrv_get_on_error(s->conf.bs, 1) != BLOCK_ERR_REPORT) {
+    if (bdrv_get_on_error(s->conf.bs, 1) != BLOCKDEV_ON_ERROR_REPORT) {
         error_report("Device doesn't support drive option rerror");
         return -1;
     }
@@ -479,7 +479,8 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
 }
 
 static Property scsi_generic_properties[] = {
-    DEFINE_BLOCK_PROPERTIES(SCSIDevice, conf),
+    DEFINE_PROP_DRIVE("drive", SCSIDevice, conf.bs),
+    DEFINE_PROP_INT32("bootindex", SCSIDevice, conf.bootindex, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -8,6 +8,7 @@
  */
 #include <inttypes.h>
 
+#include "hw/irq.h"
 #include "qemu-common.h"
 
 /* xen-machine.c */
@@ -48,6 +49,7 @@ void xenstore_store_pv_console_info(int i, struct CharDriverState *chr);
 struct MemoryRegion;
 void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
                    struct MemoryRegion *mr);
+void xen_modified_memory(ram_addr_t start, ram_addr_t length);
 #endif
 
 struct MemoryRegion;

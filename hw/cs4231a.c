@@ -26,7 +26,7 @@
 #include "audio/audio.h"
 #include "isa.h"
 #include "qdev.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 /*
   Missing features:
@@ -346,7 +346,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
     }
 }
 
-static uint64_t cs_read (void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t cs_read (void *opaque, hwaddr addr, unsigned size)
 {
     CSState *s = opaque;
     uint32_t saddr, iaddr, ret;
@@ -383,7 +383,7 @@ static uint64_t cs_read (void *opaque, target_phys_addr_t addr, unsigned size)
     return ret;
 }
 
-static void cs_write (void *opaque, target_phys_addr_t addr,
+static void cs_write (void *opaque, hwaddr addr,
                       uint64_t val64, unsigned size)
 {
     CSState *s = opaque;

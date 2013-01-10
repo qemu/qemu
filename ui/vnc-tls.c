@@ -26,7 +26,7 @@
 
 #include "qemu-x509.h"
 #include "vnc.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 #if defined(_VNC_DEBUG) && _VNC_DEBUG >= 2
 /* Very verbose, so only enabled for _VNC_DEBUG >= 2 */
@@ -49,7 +49,7 @@ static int vnc_tls_initialize(void)
     if (gnutls_global_init () < 0)
         return 0;
 
-    /* XXX ought to re-generate diffie-hellmen params periodically */
+    /* XXX ought to re-generate diffie-hellman params periodically */
     if (gnutls_dh_params_init (&dh_params) < 0)
         return 0;
     if (gnutls_dh_params_generate2 (dh_params, DH_BITS) < 0)

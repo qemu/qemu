@@ -51,7 +51,7 @@ static const VMStateDescription vmstate_l2x0 = {
 };
 
 
-static uint64_t l2x0_priv_read(void *opaque, target_phys_addr_t offset,
+static uint64_t l2x0_priv_read(void *opaque, hwaddr offset,
                                unsigned size)
 {
     uint32_t cache_data;
@@ -87,13 +87,14 @@ static uint64_t l2x0_priv_read(void *opaque, target_phys_addr_t offset,
     case 0xF80:
         return 0;
     default:
-        fprintf(stderr, "l2x0_priv_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "l2x0_priv_read: Bad offset %x\n", (int)offset);
         break;
     }
     return 0;
 }
 
-static void l2x0_priv_write(void *opaque, target_phys_addr_t offset,
+static void l2x0_priv_write(void *opaque, hwaddr offset,
                             uint64_t value, unsigned size)
 {
     l2x0_state *s = (l2x0_state *)opaque;
@@ -128,7 +129,8 @@ static void l2x0_priv_write(void *opaque, target_phys_addr_t offset,
     case 0xF80:
         return;
     default:
-        fprintf(stderr, "l2x0_priv_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "l2x0_priv_write: Bad offset %x\n", (int)offset);
         break;
     }
 }

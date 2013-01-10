@@ -22,11 +22,11 @@
 #include "hw.h"
 #include "flash.h"
 #include "irq.h"
-#include "blockdev.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 #include "sysbus.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 /* 11 for 2kB-page OneNAND ("2nd generation") and 10 for 1kB-page chips */
 #define PAGE_SHIFT	11
@@ -42,7 +42,7 @@ typedef struct {
         uint16_t ver;
     } id;
     int shift;
-    target_phys_addr_t base;
+    hwaddr base;
     qemu_irq intr;
     qemu_irq rdy;
     BlockDriverState *bdrv;
@@ -351,7 +351,7 @@ static inline int onenand_erase(OneNANDState *s, int sec, int num)
     for (; num > 0; num--, sec++) {
         if (s->bdrv_cur) {
             int erasesec = s->secs_cur + (sec >> 5);
-            if (bdrv_write(s->bdrv_cur, sec, blankbuf, 1)) {
+            if (bdrv_write(s->bdrv_cur, sec, blankbuf, 1) < 0) {
                 goto fail;
             }
             if (bdrv_read(s->bdrv_cur, erasesec, tmpbuf, 1) < 0) {
@@ -588,7 +588,7 @@ static void onenand_command(OneNANDState *s)
     onenand_intr_update(s);
 }
 
-static uint64_t onenand_read(void *opaque, target_phys_addr_t addr,
+static uint64_t onenand_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     OneNANDState *s = (OneNANDState *) opaque;
@@ -653,7 +653,7 @@ static uint64_t onenand_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void onenand_write(void *opaque, target_phys_addr_t addr,
+static void onenand_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned size)
 {
     OneNANDState *s = (OneNANDState *) opaque;
@@ -760,7 +760,7 @@ static int onenand_initfn(SysBusDevice *dev)
     OneNANDState *s = (OneNANDState *)dev;
     uint32_t size = 1 << (24 + ((s->id.dev >> 4) & 7));
     void *ram;
-    s->base = (target_phys_addr_t)-1;
+    s->base = (hwaddr)-1;
     s->rdy = NULL;
     s->blocks = size >> BLOCK_SHIFT;
     s->secs = size >> 9;

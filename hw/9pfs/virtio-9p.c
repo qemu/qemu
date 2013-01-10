@@ -13,14 +13,14 @@
 
 #include "hw/virtio.h"
 #include "hw/pc.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "hw/virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-xattr.h"
 #include "virtio-9p-coth.h"
 #include "trace.h"
-#include "migration.h"
+#include "migration/migration.h"
 
 int open_fd_hw;
 int total_open_fd;
@@ -505,7 +505,6 @@ static void virtfs_reset(V9fsPDU *pdu)
         error_report("9pfs:%s: One or more uncluncked fids "
                      "found during reset", __func__);
     }
-    return;
 }
 
 #define P9_QID_TYPE_DIR         0x80
@@ -934,7 +933,6 @@ static void v9fs_version(void *opaque)
 out:
     complete_pdu(s, pdu, offset);
     v9fs_string_free(&version);
-    return;
 }
 
 static void v9fs_attach(void *opaque)
@@ -1314,7 +1312,6 @@ out_nofid:
         g_free(wnames);
         g_free(qids);
     }
-    return;
 }
 
 static int32_t get_iounit(V9fsPDU *pdu, V9fsPath *path)
@@ -2257,7 +2254,6 @@ static void v9fs_flush(void *opaque)
         free_pdu(pdu->s, cancel_pdu);
     }
     complete_pdu(s, pdu, 7);
-    return;
 }
 
 static void v9fs_link(void *opaque)
@@ -2763,7 +2759,6 @@ out:
     put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, retval);
-    return;
 }
 
 static void v9fs_mknod(void *opaque)

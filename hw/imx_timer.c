@@ -3,16 +3,16 @@
  *
  * Copyright (c) 2008 OK Labs
  * Copyright (c) 2011 NICTA Pty Ltd
- * Originally Written by Hans Jiang
+ * Originally written by Hans Jiang
  * Updated by Peter Chubb
  *
- * This code is licenced under GPL version 2 or later.  See
+ * This code is licensed under GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
  *
  */
 
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
 #include "sysbus.h"
 #include "imx.h"
@@ -194,7 +194,7 @@ static void imx_timerg_reload(IMXTimerGState *s, uint32_t timeout)
     ptimer_set_count(s->timer, diff_cnt);
 }
 
-static uint64_t imx_timerg_read(void *opaque, target_phys_addr_t offset,
+static uint64_t imx_timerg_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
     IMXTimerGState *s = (IMXTimerGState *)opaque;
@@ -251,7 +251,7 @@ static void imx_timerg_reset(DeviceState *dev)
     imx_timerg_set_freq(s);
 }
 
-static void imx_timerg_write(void *opaque, target_phys_addr_t offset,
+static void imx_timerg_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
     IMXTimerGState *s = (IMXTimerGState *)opaque;
@@ -468,7 +468,7 @@ static void imx_timerp_reset(DeviceState *dev)
     ptimer_set_count(s->timer, TIMER_MAX);
 }
 
-static uint64_t imx_timerp_read(void *opaque, target_phys_addr_t offset,
+static uint64_t imx_timerp_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
     IMXTimerPState *s = (IMXTimerPState *)opaque;
@@ -517,7 +517,7 @@ static void set_timerp_freq(IMXTimerPState *s)
     }
 }
 
-static void imx_timerp_write(void *opaque, target_phys_addr_t offset,
+static void imx_timerp_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
     IMXTimerPState *s = (IMXTimerPState *)opaque;
@@ -580,7 +580,7 @@ static void imx_timerp_tick(void *opaque)
     imx_timerp_update(s);
 }
 
-void imx_timerp_create(const target_phys_addr_t addr,
+void imx_timerp_create(const hwaddr addr,
                               qemu_irq irq,
                               DeviceState *ccm)
 {
@@ -634,7 +634,7 @@ static int imx_timerp_init(SysBusDevice *dev)
 }
 
 
-void imx_timerg_create(const target_phys_addr_t addr,
+void imx_timerg_create(const hwaddr addr,
                               qemu_irq irq,
                               DeviceState *ccm)
 {

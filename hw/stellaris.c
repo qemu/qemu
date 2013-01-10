@@ -11,11 +11,11 @@
 #include "ssi.h"
 #include "arm-misc.h"
 #include "devices.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "i2c.h"
-#include "net.h"
+#include "net/net.h"
 #include "boards.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define GPIO_A 0
 #define GPIO_B 1
@@ -141,7 +141,7 @@ static void gptm_tick(void *opaque)
     gptm_update_irq(s);
 }
 
-static uint64_t gptm_read(void *opaque, target_phys_addr_t offset,
+static uint64_t gptm_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
     gptm_state *s = (gptm_state *)opaque;
@@ -190,7 +190,7 @@ static uint64_t gptm_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void gptm_write(void *opaque, target_phys_addr_t offset,
+static void gptm_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     gptm_state *s = (gptm_state *)opaque;
@@ -410,7 +410,7 @@ static int ssys_board_class(const ssys_state *s)
     }
 }
 
-static uint64_t ssys_read(void *opaque, target_phys_addr_t offset,
+static uint64_t ssys_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
     ssys_state *s = (ssys_state *)opaque;
@@ -515,7 +515,7 @@ static void ssys_calculate_system_clock(ssys_state *s)
     }
 }
 
-static void ssys_write(void *opaque, target_phys_addr_t offset,
+static void ssys_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     ssys_state *s = (ssys_state *)opaque;
@@ -701,7 +701,7 @@ typedef struct {
 #define STELLARIS_I2C_MCS_IDLE    0x20
 #define STELLARIS_I2C_MCS_BUSBSY  0x40
 
-static uint64_t stellaris_i2c_read(void *opaque, target_phys_addr_t offset,
+static uint64_t stellaris_i2c_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
@@ -738,7 +738,7 @@ static void stellaris_i2c_update(stellaris_i2c_state *s)
     qemu_set_irq(s->irq, level);
 }
 
-static void stellaris_i2c_write(void *opaque, target_phys_addr_t offset,
+static void stellaris_i2c_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
@@ -989,7 +989,7 @@ static void stellaris_adc_reset(stellaris_adc_state *s)
     }
 }
 
-static uint64_t stellaris_adc_read(void *opaque, target_phys_addr_t offset,
+static uint64_t stellaris_adc_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
@@ -1037,7 +1037,7 @@ static uint64_t stellaris_adc_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
+static void stellaris_adc_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
@@ -1154,57 +1154,6 @@ static int stellaris_adc_init(SysBusDevice *dev)
     return 0;
 }
 
-/* Some boards have both an OLED controller and SD card connected to
-   the same SSI port, with the SD card chip select connected to a
-   GPIO pin.  Technically the OLED chip select is connected to the SSI
-   Fss pin.  We do not bother emulating that as both devices should
-   never be selected simultaneously, and our OLED controller ignores stray
-   0xff commands that occur when deselecting the SD card.  */
-
-typedef struct {
-    SSISlave ssidev;
-    qemu_irq irq;
-    int current_dev;
-    SSIBus *bus[2];
-} stellaris_ssi_bus_state;
-
-static void stellaris_ssi_bus_select(void *opaque, int irq, int level)
-{
-    stellaris_ssi_bus_state *s = (stellaris_ssi_bus_state *)opaque;
-
-    s->current_dev = level;
-}
-
-static uint32_t stellaris_ssi_bus_transfer(SSISlave *dev, uint32_t val)
-{
-    stellaris_ssi_bus_state *s = FROM_SSI_SLAVE(stellaris_ssi_bus_state, dev);
-
-    return ssi_transfer(s->bus[s->current_dev], val);
-}
-
-static const VMStateDescription vmstate_stellaris_ssi_bus = {
-    .name = "stellaris_ssi_bus",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
-        VMSTATE_INT32(current_dev, stellaris_ssi_bus_state),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static int stellaris_ssi_bus_init(SSISlave *dev)
-{
-    stellaris_ssi_bus_state *s = FROM_SSI_SLAVE(stellaris_ssi_bus_state, dev);
-
-    s->bus[0] = ssi_create_bus(&dev->qdev, "ssi0");
-    s->bus[1] = ssi_create_bus(&dev->qdev, "ssi1");
-    qdev_init_gpio_in(&dev->qdev, stellaris_ssi_bus_select, 1);
-
-    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_ssi_bus, s);
-    return 0;
-}
-
 /* Board init.  */
 static stellaris_board_info stellaris_boards[] = {
   { "LM3S811EVB",
@@ -1305,19 +1254,25 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     if (board->dc2 & (1 << 4)) {
         dev = sysbus_create_simple("pl022", 0x40008000, pic[7]);
         if (board->peripherals & BP_OLED_SSI) {
-            DeviceState *mux;
             void *bus;
+            DeviceState *sddev;
+            DeviceState *ssddev;
 
+            /* Some boards have both an OLED controller and SD card connected to
+             * the same SSI port, with the SD card chip select connected to a
+             * GPIO pin.  Technically the OLED chip select is connected to the
+             * SSI Fss pin.  We do not bother emulating that as both devices
+             * should never be selected simultaneously, and our OLED controller
+             * ignores stray 0xff commands that occur when deselecting the SD
+             * card.
+             */
             bus = qdev_get_child_bus(dev, "ssi");
-            mux = ssi_create_slave(bus, "evb6965-ssi");
-            gpio_out[GPIO_D][0] = qdev_get_gpio_in(mux, 0);
 
-            bus = qdev_get_child_bus(mux, "ssi0");
-            ssi_create_slave(bus, "ssi-sd");
-
-            bus = qdev_get_child_bus(mux, "ssi1");
-            dev = ssi_create_slave(bus, "ssd0323");
-            gpio_out[GPIO_C][7] = qdev_get_gpio_in(dev, 0);
+            sddev = ssi_create_slave(bus, "ssi-sd");
+            ssddev = ssi_create_slave(bus, "ssd0323");
+            gpio_out[GPIO_D][0] = qemu_irq_split(qdev_get_gpio_in(sddev, 0),
+                                                 qdev_get_gpio_in(ssddev, 0));
+            gpio_out[GPIO_C][7] = qdev_get_gpio_in(ssddev, 1);
 
             /* Make sure the select pin is high.  */
             qemu_irq_raise(gpio_out[GPIO_D][0]);
@@ -1358,19 +1313,17 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 }
 
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
-static void lm3s811evb_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void lm3s811evb_init(QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
     stellaris_init(kernel_filename, cpu_model, &stellaris_boards[0]);
 }
 
-static void lm3s6965evb_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void lm3s6965evb_init(QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
     stellaris_init(kernel_filename, cpu_model, &stellaris_boards[1]);
 }
 
@@ -1393,21 +1346,6 @@ static void stellaris_machine_init(void)
 }
 
 machine_init(stellaris_machine_init);
-
-static void stellaris_ssi_bus_class_init(ObjectClass *klass, void *data)
-{
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
-
-    k->init = stellaris_ssi_bus_init;
-    k->transfer = stellaris_ssi_bus_transfer;
-}
-
-static TypeInfo stellaris_ssi_bus_info = {
-    .name          = "evb6965-ssi",
-    .parent        = TYPE_SSI_SLAVE,
-    .instance_size = sizeof(stellaris_ssi_bus_state),
-    .class_init    = stellaris_ssi_bus_class_init,
-};
 
 static void stellaris_i2c_class_init(ObjectClass *klass, void *data)
 {
@@ -1456,7 +1394,6 @@ static void stellaris_register_types(void)
     type_register_static(&stellaris_i2c_info);
     type_register_static(&stellaris_gptm_info);
     type_register_static(&stellaris_adc_info);
-    type_register_static(&stellaris_ssi_bus_info);
 }
 
 type_init(stellaris_register_types)

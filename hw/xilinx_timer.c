@@ -24,6 +24,7 @@
 
 #include "sysbus.h"
 #include "ptimer.h"
+#include "qemu/log.h"
 
 #define D(x)
 
@@ -71,7 +72,7 @@ static inline unsigned int num_timers(struct timerblock *t)
     return 2 - t->one_timer_only;
 }
 
-static inline unsigned int timer_from_addr(target_phys_addr_t addr)
+static inline unsigned int timer_from_addr(hwaddr addr)
 {
     /* Timers get a 4x32bit control reg area each.  */
     return addr >> 2;
@@ -92,7 +93,7 @@ static void timer_update_irq(struct timerblock *t)
 }
 
 static uint64_t
-timer_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+timer_read(void *opaque, hwaddr addr, unsigned int size)
 {
     struct timerblock *t = opaque;
     struct xlx_timer *xt;
@@ -119,7 +120,7 @@ timer_read(void *opaque, target_phys_addr_t addr, unsigned int size)
             break;
 
     }
-    D(printf("%s timer=%d %x=%x\n", __func__, timer, addr * 4, r));
+    D(fprintf(stderr, "%s timer=%d %x=%x\n", __func__, timer, addr * 4, r));
     return r;
 }
 
@@ -127,7 +128,7 @@ static void timer_enable(struct xlx_timer *xt)
 {
     uint64_t count;
 
-    D(printf("%s timer=%d down=%d\n", __func__,
+    D(fprintf(stderr, "%s timer=%d down=%d\n", __func__,
               xt->nr, xt->regs[R_TCSR] & TCSR_UDT));
 
     ptimer_stop(xt->ptimer);
@@ -141,7 +142,7 @@ static void timer_enable(struct xlx_timer *xt)
 }
 
 static void
-timer_write(void *opaque, target_phys_addr_t addr,
+timer_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
     struct timerblock *t = opaque;
@@ -152,7 +153,7 @@ timer_write(void *opaque, target_phys_addr_t addr,
     addr >>= 2;
     timer = timer_from_addr(addr);
     xt = &t->timers[timer];
-    D(printf("%s addr=%x val=%x (timer=%d off=%d)\n",
+    D(fprintf(stderr, "%s addr=%x val=%x (timer=%d off=%d)\n",
              __func__, addr * 4, value, timer, addr & 3));
     /* Further decoding to address a specific timers reg.  */
     addr &= 3;
@@ -189,7 +190,7 @@ static void timer_hit(void *opaque)
 {
     struct xlx_timer *xt = opaque;
     struct timerblock *t = xt->parent;
-    D(printf("%s %d\n", __func__, timer));
+    D(fprintf(stderr, "%s %d\n", __func__, xt->nr));
     xt->regs[R_TCSR] |= TCSR_TINT;
 
     if (xt->regs[R_TCSR] & TCSR_ARHT)
@@ -217,14 +218,15 @@ static int xilinx_timer_init(SysBusDevice *dev)
         ptimer_set_freq(xt->ptimer, t->freq_hz);
     }
 
-    memory_region_init_io(&t->mmio, &timer_ops, t, "xlnx,xps-timer",
+    memory_region_init_io(&t->mmio, &timer_ops, t, "xlnx.xps-timer",
                           R_MAX * 4 * num_timers(t));
     sysbus_init_mmio(dev, &t->mmio);
     return 0;
 }
 
 static Property xilinx_timer_properties[] = {
-    DEFINE_PROP_UINT32("frequency", struct timerblock, freq_hz,   62 * 1000000),
+    DEFINE_PROP_UINT32("clock-frequency", struct timerblock, freq_hz,
+                                                                62 * 1000000),
     DEFINE_PROP_UINT8("one-timer-only", struct timerblock, one_timer_only, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -239,7 +241,7 @@ static void xilinx_timer_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo xilinx_timer_info = {
-    .name          = "xlnx,xps-timer",
+    .name          = "xlnx.xps-timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct timerblock),
     .class_init    = xilinx_timer_class_init,

@@ -8,9 +8,11 @@
  * published by the Free Software Foundation, or any later version.
  * See the COPYING file in the top-level directory.
  */
-#include "console.h"
+
+#include "qemu-common.h"
+#include "ui/console.h"
 #include "elf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "sysbus.h"
 #include "boards.h"
 #include "loader.h"
@@ -91,10 +93,12 @@ static void puv3_load_kernel(const char *kernel_filename)
     graphic_console_init(NULL, NULL, NULL, NULL, NULL);
 }
 
-static void puv3_init(ram_addr_t ram_size, const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void puv3_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *initrd_filename = args->initrd_filename;
     CPUUniCore32State *env;
 
     if (initrd_filename) {
@@ -120,7 +124,6 @@ static QEMUMachine puv3_machine = {
     .desc = "PKUnity Version-3 based on UniCore32",
     .init = puv3_init,
     .is_default = 1,
-    .use_scsi = 0,
 };
 
 static void puv3_machine_init(void)

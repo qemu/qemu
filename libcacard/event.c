@@ -6,7 +6,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 
 #include "vcard.h"
 #include "vreader.h"

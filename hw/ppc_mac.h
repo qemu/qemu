@@ -25,7 +25,7 @@
 #if !defined(__PPC_MAC_H__)
 #define __PPC_MAC_H__
 
-#include "memory.h"
+#include "exec/memory.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -55,6 +55,7 @@ qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
                             int nb_cpus, qemu_irq **irqs);
 
 /* Grackle PCI */
+#define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
 PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io);
@@ -70,10 +71,10 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
 /* Mac NVRAM */
 typedef struct MacIONVRAMState MacIONVRAMState;
 
-MacIONVRAMState *macio_nvram_init (target_phys_addr_t size,
+MacIONVRAMState *macio_nvram_init (hwaddr size,
                                    unsigned int it_shift);
 void macio_nvram_setup_bar(MacIONVRAMState *s, MemoryRegion *bar,
-                           target_phys_addr_t mem_base);
+                           hwaddr mem_base);
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
 uint32_t macio_nvram_read (void *opaque, uint32_t addr);
 void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val);

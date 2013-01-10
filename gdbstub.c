@@ -29,17 +29,17 @@
 
 #include "qemu.h"
 #else
-#include "monitor.h"
-#include "qemu-char.h"
-#include "sysemu.h"
-#include "gdbstub.h"
+#include "monitor/monitor.h"
+#include "char/char.h"
+#include "sysemu/sysemu.h"
+#include "exec/gdbstub.h"
 #endif
 
 #define MAX_PACKET_LENGTH 4096
 
 #include "cpu.h"
-#include "qemu_socket.h"
-#include "kvm.h"
+#include "qemu/sockets.h"
+#include "sysemu/kvm.h"
 
 #ifndef TARGET_CPU_MEMORY_RW_DEBUG
 static inline int target_memory_rw_debug(CPUArchState *env, target_ulong addr,
@@ -1226,33 +1226,48 @@ static int cpu_gdb_write_register(CPUOpenRISCState *env,
 
 static int cpu_gdb_read_register(CPUSH4State *env, uint8_t *mem_buf, int n)
 {
-    if (n < 8) {
+    switch (n) {
+    case 0 ... 7:
         if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
             GET_REGL(env->gregs[n + 16]);
         } else {
             GET_REGL(env->gregs[n]);
         }
-    } else if (n < 16) {
+    case 8 ... 15:
         GET_REGL(env->gregs[n]);
-    } else if (n >= 25 && n < 41) {
-	GET_REGL(env->fregs[(n - 25) + ((env->fpscr & FPSCR_FR) ? 16 : 0)]);
-    } else if (n >= 43 && n < 51) {
-	GET_REGL(env->gregs[n - 43]);
-    } else if (n >= 51 && n < 59) {
-	GET_REGL(env->gregs[n - (51 - 16)]);
-    }
-    switch (n) {
-    case 16: GET_REGL(env->pc);
-    case 17: GET_REGL(env->pr);
-    case 18: GET_REGL(env->gbr);
-    case 19: GET_REGL(env->vbr);
-    case 20: GET_REGL(env->mach);
-    case 21: GET_REGL(env->macl);
-    case 22: GET_REGL(env->sr);
-    case 23: GET_REGL(env->fpul);
-    case 24: GET_REGL(env->fpscr);
-    case 41: GET_REGL(env->ssr);
-    case 42: GET_REGL(env->spc);
+    case 16:
+        GET_REGL(env->pc);
+    case 17:
+        GET_REGL(env->pr);
+    case 18:
+        GET_REGL(env->gbr);
+    case 19:
+        GET_REGL(env->vbr);
+    case 20:
+        GET_REGL(env->mach);
+    case 21:
+        GET_REGL(env->macl);
+    case 22:
+        GET_REGL(env->sr);
+    case 23:
+        GET_REGL(env->fpul);
+    case 24:
+        GET_REGL(env->fpscr);
+    case 25 ... 40:
+        if (env->fpscr & FPSCR_FR) {
+            stfl_p(mem_buf, env->fregs[n - 9]);
+        } else {
+            stfl_p(mem_buf, env->fregs[n - 25]);
+        }
+        return 4;
+    case 41:
+        GET_REGL(env->ssr);
+    case 42:
+        GET_REGL(env->spc);
+    case 43 ... 50:
+        GET_REGL(env->gregs[n - 43]);
+    case 51 ... 58:
+        GET_REGL(env->gregs[n - (51 - 16)]);
     }
 
     return 0;
@@ -1260,42 +1275,63 @@ static int cpu_gdb_read_register(CPUSH4State *env, uint8_t *mem_buf, int n)
 
 static int cpu_gdb_write_register(CPUSH4State *env, uint8_t *mem_buf, int n)
 {
-    uint32_t tmp;
-
-    tmp = ldl_p(mem_buf);
-
-    if (n < 8) {
-        if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
-            env->gregs[n + 16] = tmp;
-        } else {
-            env->gregs[n] = tmp;
-        }
-	return 4;
-    } else if (n < 16) {
-        env->gregs[n] = tmp;
-	return 4;
-    } else if (n >= 25 && n < 41) {
-	env->fregs[(n - 25) + ((env->fpscr & FPSCR_FR) ? 16 : 0)] = tmp;
-	return 4;
-    } else if (n >= 43 && n < 51) {
-	env->gregs[n - 43] = tmp;
-	return 4;
-    } else if (n >= 51 && n < 59) {
-	env->gregs[n - (51 - 16)] = tmp;
-	return 4;
-    }
     switch (n) {
-    case 16: env->pc = tmp; break;
-    case 17: env->pr = tmp; break;
-    case 18: env->gbr = tmp; break;
-    case 19: env->vbr = tmp; break;
-    case 20: env->mach = tmp; break;
-    case 21: env->macl = tmp; break;
-    case 22: env->sr = tmp; break;
-    case 23: env->fpul = tmp; break;
-    case 24: env->fpscr = tmp; break;
-    case 41: env->ssr = tmp; break;
-    case 42: env->spc = tmp; break;
+    case 0 ... 7:
+        if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
+            env->gregs[n + 16] = ldl_p(mem_buf);
+        } else {
+            env->gregs[n] = ldl_p(mem_buf);
+        }
+        break;
+    case 8 ... 15:
+        env->gregs[n] = ldl_p(mem_buf);
+        break;
+    case 16:
+        env->pc = ldl_p(mem_buf);
+        break;
+    case 17:
+        env->pr = ldl_p(mem_buf);
+        break;
+    case 18:
+        env->gbr = ldl_p(mem_buf);
+        break;
+    case 19:
+        env->vbr = ldl_p(mem_buf);
+        break;
+    case 20:
+        env->mach = ldl_p(mem_buf);
+        break;
+    case 21:
+        env->macl = ldl_p(mem_buf);
+        break;
+    case 22:
+        env->sr = ldl_p(mem_buf);
+        break;
+    case 23:
+        env->fpul = ldl_p(mem_buf);
+        break;
+    case 24:
+        env->fpscr = ldl_p(mem_buf);
+        break;
+    case 25 ... 40:
+        if (env->fpscr & FPSCR_FR) {
+            env->fregs[n - 9] = ldfl_p(mem_buf);
+        } else {
+            env->fregs[n - 25] = ldfl_p(mem_buf);
+        }
+        break;
+    case 41:
+        env->ssr = ldl_p(mem_buf);
+        break;
+    case 42:
+        env->spc = ldl_p(mem_buf);
+        break;
+    case 43 ... 50:
+        env->gregs[n - 43] = ldl_p(mem_buf);
+        break;
+    case 51 ... 58:
+        env->gregs[n - (51 - 16)] = ldl_p(mem_buf);
+        break;
     default: return 0;
     }
 
@@ -1660,6 +1696,10 @@ static int cpu_gdb_read_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
         GET_REG32(env->uregs[reg->targno & 0xff]);
         break;
 
+    case 4: /*f*/
+        GET_REG32(float32_val(env->fregs[reg->targno & 0x0f]));
+        break;
+
     case 8: /*a*/
         GET_REG32(env->regs[reg->targno & 0x0f]);
         break;
@@ -1698,6 +1738,10 @@ static int cpu_gdb_write_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
 
     case 3: /*UR*/
         env->uregs[reg->targno & 0xff] = tmp;
+        break;
+
+    case 4: /*f*/
+        env->fregs[reg->targno & 0x0f] = make_float32(tmp);
         break;
 
     case 8: /*a*/

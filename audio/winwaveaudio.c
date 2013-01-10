@@ -1,7 +1,7 @@
 /* public domain */
 
 #include "qemu-common.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "audio.h"
 
 #define AUDIO_CAP "winwave"
@@ -349,21 +349,15 @@ static int winwave_ctl_out (HWVoiceOut *hw, int cmd, ...)
             else {
                 hw->poll_mode = 0;
             }
-            if (wave->paused) {
-                mr = waveOutRestart (wave->hwo);
-                if (mr != MMSYSERR_NOERROR) {
-                    winwave_logerr (mr, "waveOutRestart");
-                }
-                wave->paused = 0;
-            }
+            wave->paused = 0;
         }
         return 0;
 
     case VOICE_DISABLE:
         if (!wave->paused) {
-            mr = waveOutPause (wave->hwo);
+            mr = waveOutReset (wave->hwo);
             if (mr != MMSYSERR_NOERROR) {
-                winwave_logerr (mr, "waveOutPause");
+                winwave_logerr (mr, "waveOutReset");
             }
             else {
                 wave->paused = 1;

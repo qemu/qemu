@@ -97,7 +97,7 @@ static const char *pl041_regs_name[] = {
 
 
 #if defined(PL041_DEBUG_LEVEL)
-static const char *get_reg_name(target_phys_addr_t offset)
+static const char *get_reg_name(hwaddr offset)
 {
     if (offset <= PL041_dr1_7) {
         return pl041_regs_name[offset >> 2];
@@ -327,7 +327,7 @@ static void pl041_request_data(void *opaque)
     pl041_isr1_update(s);
 }
 
-static uint64_t pl041_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pl041_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
     pl041_state *s = (pl041_state *)opaque;
@@ -361,7 +361,7 @@ static uint64_t pl041_read(void *opaque, target_phys_addr_t offset,
     return value;
 }
 
-static void pl041_write(void *opaque, target_phys_addr_t offset,
+static void pl041_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
     pl041_state *s = (pl041_state *)opaque;
@@ -536,8 +536,9 @@ static int pl041_init(SysBusDevice *dev)
     default:
         /* NC FIFO depth of 16 is not allowed because its id bits in
            AACIPERIPHID3 overlap with the id for the default NC FIFO depth */
-        fprintf(stderr, "pl041: unsupported non-compact fifo depth [%i]\n",
-                s->fifo_depth);
+        qemu_log_mask(LOG_UNIMP,
+                      "pl041: unsupported non-compact fifo depth [%i]\n",
+                      s->fifo_depth);
         return -1;
     }
 

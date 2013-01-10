@@ -6,9 +6,9 @@
  *
  * Copyright (c) 2008 OKL
  * Copyright (c) 2011 NICTA Pty Ltd
- * Originally Written by Hans Jiang
+ * Originally written by Hans Jiang
  *
- * This code is licenced under the GPL version 2 or later.  See
+ * This code is licensed under the GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
  *
  * TODO: implement vectors.
@@ -16,7 +16,7 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #define DEBUG_INT 1
 #undef DEBUG_INT /* comment out for debugging */
@@ -152,7 +152,7 @@ static void imx_avic_set_irq(void *opaque, int irq, int level)
 
 
 static uint64_t imx_avic_read(void *opaque,
-                             target_phys_addr_t offset, unsigned size)
+                             hwaddr offset, unsigned size)
 {
     IMXAVICState *s = (IMXAVICState *)opaque;
 
@@ -259,7 +259,7 @@ static uint64_t imx_avic_read(void *opaque,
     }
 }
 
-static void imx_avic_write(void *opaque, target_phys_addr_t offset,
+static void imx_avic_write(void *opaque, hwaddr offset,
                           uint64_t val, unsigned size)
 {
     IMXAVICState *s = (IMXAVICState *)opaque;

@@ -10,8 +10,8 @@
 
 #include "hw.h"
 #include "sh.h"
-#include "qemu-timer.h"
-#include "exec-memory.h"
+#include "qemu/timer.h"
+#include "exec/address-spaces.h"
 #include "ptimer.h"
 
 //#define DEBUG_TIMER
@@ -59,7 +59,7 @@ static void sh_timer_update(sh_timer_state *s)
     s->int_level = new_level;
 }
 
-static uint32_t sh_timer_read(void *opaque, target_phys_addr_t offset)
+static uint32_t sh_timer_read(void *opaque, hwaddr offset)
 {
     sh_timer_state *s = (sh_timer_state *)opaque;
 
@@ -79,7 +79,7 @@ static uint32_t sh_timer_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void sh_timer_write(void *opaque, target_phys_addr_t offset,
+static void sh_timer_write(void *opaque, hwaddr offset,
                             uint32_t value)
 {
     sh_timer_state *s = (sh_timer_state *)opaque;
@@ -222,7 +222,7 @@ typedef struct {
     int feat;
 } tmu012_state;
 
-static uint64_t tmu012_read(void *opaque, target_phys_addr_t offset,
+static uint64_t tmu012_read(void *opaque, hwaddr offset,
                             unsigned size)
 {
     tmu012_state *s = (tmu012_state *)opaque;
@@ -253,7 +253,7 @@ static uint64_t tmu012_read(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static void tmu012_write(void *opaque, target_phys_addr_t offset,
+static void tmu012_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     tmu012_state *s = (tmu012_state *)opaque;
@@ -303,7 +303,7 @@ static const MemoryRegionOps tmu012_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void tmu012_init(MemoryRegion *sysmem, target_phys_addr_t base,
+void tmu012_init(MemoryRegion *sysmem, hwaddr base,
                  int feat, uint32_t freq,
 		 qemu_irq ch0_irq, qemu_irq ch1_irq,
 		 qemu_irq ch2_irq0, qemu_irq ch2_irq1)

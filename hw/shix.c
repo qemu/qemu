@@ -29,19 +29,17 @@
 */
 #include "hw.h"
 #include "sh.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define BIOS_FILENAME "shix_bios.bin"
 #define BIOS_ADDRESS 0xA0000000
 
-static void shix_init(ram_addr_t ram_size,
-               const char *boot_device,
-	       const char *kernel_filename, const char *kernel_cmdline,
-	       const char *initrd_filename, const char *cpu_model)
+static void shix_init(QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
     int ret;
     CPUSH4State *env;
     struct SH7750State *s;

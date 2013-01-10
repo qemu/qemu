@@ -25,10 +25,10 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "console.h"
+#include "ui/console.h"
 #include "framebuffer.h"
-#include "pixel_ops.h"
-#include "qemu-error.h"
+#include "ui/pixel_ops.h"
+#include "qemu/error-report.h"
 
 #define BITS 8
 #include "milkymist-vgafb_template.h"
@@ -134,7 +134,7 @@ static void vgafb_update_display(void *opaque)
                                &first, &last);
 
     if (first >= 0) {
-        dpy_update(s->ds, 0, first, s->regs[R_HRES], last - first + 1);
+        dpy_gfx_update(s->ds, 0, first, s->regs[R_HRES], last - first + 1);
     }
     s->invalidate = 0;
 }
@@ -155,7 +155,7 @@ static void vgafb_resize(MilkymistVgafbState *s)
     s->invalidate = 1;
 }
 
-static uint64_t vgafb_read(void *opaque, target_phys_addr_t addr,
+static uint64_t vgafb_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
     MilkymistVgafbState *s = opaque;
@@ -193,7 +193,7 @@ static uint64_t vgafb_read(void *opaque, target_phys_addr_t addr,
     return r;
 }
 
-static void vgafb_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void vgafb_write(void *opaque, hwaddr addr, uint64_t value,
                         unsigned size)
 {
     MilkymistVgafbState *s = opaque;

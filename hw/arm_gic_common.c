@@ -22,7 +22,7 @@
 
 static void gic_save(QEMUFile *f, void *opaque)
 {
-    gic_state *s = (gic_state *)opaque;
+    GICState *s = (GICState *)opaque;
     int i;
     int j;
 
@@ -56,7 +56,7 @@ static void gic_save(QEMUFile *f, void *opaque)
 
 static int gic_load(QEMUFile *f, void *opaque, int version_id)
 {
-    gic_state *s = (gic_state *)opaque;
+    GICState *s = (GICState *)opaque;
     int i;
     int j;
 
@@ -96,7 +96,7 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
 
 static int arm_gic_common_init(SysBusDevice *dev)
 {
-    gic_state *s = FROM_SYSBUS(gic_state, dev);
+    GICState *s = FROM_SYSBUS(GICState, dev);
     int num_irq = s->num_irq;
 
     if (s->num_cpu > NCPU) {
@@ -123,11 +123,15 @@ static int arm_gic_common_init(SysBusDevice *dev)
 
 static void arm_gic_common_reset(DeviceState *dev)
 {
-    gic_state *s = FROM_SYSBUS(gic_state, sysbus_from_qdev(dev));
+    GICState *s = FROM_SYSBUS(GICState, sysbus_from_qdev(dev));
     int i;
     memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < s->num_cpu; i++) {
-        s->priority_mask[i] = 0xf0;
+        if (s->revision == REV_11MPCORE) {
+            s->priority_mask[i] = 0xf0;
+        } else {
+            s->priority_mask[i] = 0;
+        }
         s->current_pending[i] = 1023;
         s->running_irq[i] = 1023;
         s->running_priority[i] = 0x100;
@@ -147,13 +151,13 @@ static void arm_gic_common_reset(DeviceState *dev)
 }
 
 static Property arm_gic_common_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", gic_state, num_cpu, 1),
-    DEFINE_PROP_UINT32("num-irq", gic_state, num_irq, 32),
+    DEFINE_PROP_UINT32("num-cpu", GICState, num_cpu, 1),
+    DEFINE_PROP_UINT32("num-irq", GICState, num_irq, 32),
     /* Revision can be 1 or 2 for GIC architecture specification
      * versions 1 or 2, or 0 to indicate the legacy 11MPCore GIC.
      * (Internally, 0xffffffff also indicates "not a GIC but an NVIC".)
      */
-    DEFINE_PROP_UINT32("revision", gic_state, revision, 1),
+    DEFINE_PROP_UINT32("revision", GICState, revision, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -170,7 +174,7 @@ static void arm_gic_common_class_init(ObjectClass *klass, void *data)
 static TypeInfo arm_gic_common_type = {
     .name = TYPE_ARM_GIC_COMMON,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(gic_state),
+    .instance_size = sizeof(GICState),
     .class_size = sizeof(ARMGICCommonClass),
     .class_init = arm_gic_common_class_init,
     .abstract = true,

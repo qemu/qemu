@@ -22,14 +22,17 @@
  * THE SOFTWARE.
  */
 
-#include "net.h"
+#ifndef HW_EXTRAXFS_H
+#define HW_EXTRAXFS_H 1
+
+#include "net/net.h"
 #include "etraxfs_dma.h"
 
 qemu_irq *cris_pic_init_cpu(CPUCRISState *env);
 
 /* Instantiate an ETRAXFS Ethernet MAC.  */
 static inline DeviceState *
-etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr,
+etraxfs_eth_init(NICInfo *nd, hwaddr base, int phyaddr,
                  void *dma_out, void *dma_in)
 {
     DeviceState *dev;
@@ -44,3 +47,5 @@ etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr,
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
     return dev;
 }
+
+#endif

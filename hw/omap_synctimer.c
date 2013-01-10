@@ -18,7 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "omap.h"
 struct omap_synctimer_s {
     MemoryRegion iomem;
@@ -36,7 +36,7 @@ void omap_synctimer_reset(struct omap_synctimer_s *s)
     s->val = omap_synctimer_read(s);
 }
 
-static uint32_t omap_synctimer_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t omap_synctimer_readw(void *opaque, hwaddr addr)
 {
     struct omap_synctimer_s *s = (struct omap_synctimer_s *) opaque;
 
@@ -52,7 +52,7 @@ static uint32_t omap_synctimer_readw(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static uint32_t omap_synctimer_readh(void *opaque, target_phys_addr_t addr)
+static uint32_t omap_synctimer_readh(void *opaque, hwaddr addr)
 {
     struct omap_synctimer_s *s = (struct omap_synctimer_s *) opaque;
     uint32_t ret;
@@ -66,7 +66,7 @@ static uint32_t omap_synctimer_readh(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static void omap_synctimer_write(void *opaque, target_phys_addr_t addr,
+static void omap_synctimer_write(void *opaque, hwaddr addr,
                 uint32_t value)
 {
     OMAP_BAD_REG(addr);

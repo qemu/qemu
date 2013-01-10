@@ -1,11 +1,11 @@
 #include "hw.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "scsi.h"
 #include "scsi-defs.h"
 #include "qdev.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "trace.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 static char *scsibus_get_dev_path(DeviceState *dev);
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
@@ -761,6 +761,7 @@ static int ata_passthrough_12_xfer_size(SCSIDevice *dev, uint8_t *buf)
     switch (length) {
     case 0:
     case 3: /* USB-specific.  */
+    default:
         xfer = 0;
         break;
     case 1:
@@ -784,6 +785,7 @@ static int ata_passthrough_16_xfer_size(SCSIDevice *dev, uint8_t *buf)
     switch (length) {
     case 0:
     case 3: /* USB-specific.  */
+    default:
         xfer = 0;
         break;
     case 1:
@@ -799,26 +801,39 @@ static int ata_passthrough_16_xfer_size(SCSIDevice *dev, uint8_t *buf)
     return xfer * unit;
 }
 
-static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
+uint32_t scsi_data_cdb_length(uint8_t *buf)
+{
+    if ((buf[0] >> 5) == 0 && buf[4] == 0) {
+        return 256;
+    } else {
+        return scsi_cdb_length(buf);
+    }
+}
+
+uint32_t scsi_cdb_length(uint8_t *buf)
 {
     switch (buf[0] >> 5) {
     case 0:
-        cmd->xfer = buf[4];
+        return buf[4];
         break;
     case 1:
     case 2:
-        cmd->xfer = lduw_be_p(&buf[7]);
+        return lduw_be_p(&buf[7]);
         break;
     case 4:
-        cmd->xfer = ldl_be_p(&buf[10]) & 0xffffffffULL;
+        return ldl_be_p(&buf[10]) & 0xffffffffULL;
         break;
     case 5:
-        cmd->xfer = ldl_be_p(&buf[6]) & 0xffffffffULL;
+        return ldl_be_p(&buf[6]) & 0xffffffffULL;
         break;
     default:
         return -1;
     }
+}
 
+static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
+{
+    cmd->xfer = scsi_cdb_length(buf);
     switch (buf[0]) {
     case TEST_UNIT_READY:
     case REWIND:
@@ -1708,12 +1723,8 @@ static char *scsibus_get_dev_path(DeviceState *dev)
 static char *scsibus_get_fw_dev_path(DeviceState *dev)
 {
     SCSIDevice *d = SCSI_DEVICE(dev);
-    char path[100];
-
-    snprintf(path, sizeof(path), "channel@%x/%s@%x,%x", d->channel,
-             qdev_fw_name(dev), d->id, d->lun);
-
-    return strdup(path);
+    return g_strdup_printf("channel@%x/%s@%x,%x", d->channel,
+                           qdev_fw_name(dev), d->id, d->lun);
 }
 
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)

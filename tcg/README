@@ -77,19 +77,27 @@ destroyed, but local temporaries and globals are preserved.
 Using the tcg_gen_helper_x_y it is possible to call any function
 taking i32, i64 or pointer types. By default, before calling a helper,
 all globals are stored at their canonical location and it is assumed
-that the function can modify them. This can be overridden by the
-TCG_CALL_CONST function modifier. By default, the helper is allowed to
-modify the CPU state or raise an exception. This can be overridden by
-the TCG_CALL_PURE function modifier, in which case the call to the
-function is removed if the return value is not used.
+that the function can modify them. By default, the helper is allowed to
+modify the CPU state or raise an exception.
+
+This can be overridden using the following function modifiers:
+- TCG_CALL_NO_READ_GLOBALS means that the helper does not read globals,
+  either directly or via an exception. They will not be saved to their
+  canonical locations before calling the helper.
+- TCG_CALL_NO_WRITE_GLOBALS means that the helper does not modify any globals.
+  They will only be saved to their canonical location before calling helpers,
+  but they won't be reloaded afterwise.
+- TCG_CALL_NO_SIDE_EFFECTS means that the call to the function is removed if
+  the return value is not used.
+
+Note that TCG_CALL_NO_READ_GLOBALS implies TCG_CALL_NO_WRITE_GLOBALS.
 
 On some TCG targets (e.g. x86), several calling conventions are
 supported.
 
 * Branches:
 
-Use the instruction 'br' to jump to a label. Use 'jmp' to jump to an
-explicit address. Conditional branches can only jump to labels.
+Use the instruction 'br' to jump to a label.
 
 3.3) Code Optimizations
 
@@ -129,10 +137,6 @@ call function 'ptr' (pointer type)
 
 ********* Jumps/Labels
 
-* jmp t0
-
-Absolute jump to address t0 (pointer type).
-
 * set_label $label
 
 Define label 'label' at the current program point.
@@ -141,7 +145,7 @@ Define label 'label' at the current program point.
 
 Jump to label.
 
-* brcond_i32/i64 cond, t0, t1, label
+* brcond_i32/i64 t0, t1, cond, label
 
 Conditional jump if t0 cond t1 is true. cond can be:
     TCG_COND_EQ
@@ -301,11 +305,17 @@ This operation would be equivalent to
 
 ********* Conditional moves
 
-* setcond_i32/i64 cond, dest, t1, t2
+* setcond_i32/i64 dest, t1, t2, cond
 
 dest = (t1 cond t2)
 
 Set DEST to 1 if (T1 cond T2) is true, otherwise set to 0.
+
+* movcond_i32/i64 dest, c1, c2, v1, v2, cond
+
+dest = (c1 cond c2 ? v1 : v2)
+
+Set DEST to V1 if (C1 cond C2) is true, otherwise set to V2.
 
 ********* Type conversions
 
@@ -348,13 +358,16 @@ st32_i64 t0, t1, offset
 write(t0, t1 + offset)
 Write 8, 16, 32 or 64 bits to host memory.
 
+All this opcodes assume that the pointed host memory doesn't correspond
+to a global. In the latter case the behaviour is unpredictable.
+
 ********* 64-bit target on 32-bit host support
 
 The following opcodes are internal to TCG.  Thus they are to be implemented by
 32-bit host code generators, but are not to be emitted by guest translators.
 They are emitted as needed by inline functions within "tcg-op.h".
 
-* brcond2_i32 cond, t0_low, t0_high, t1_low, t1_high, label
+* brcond2_i32 t0_low, t0_high, t1_low, t1_high, cond, label
 
 Similar to brcond, except that the 64-bit values T0 and T1
 are formed from two 32-bit arguments.
@@ -371,7 +384,7 @@ is returned in two 32-bit outputs.
 Similar to mul, except two 32-bit (unsigned) inputs T1 and T2 yielding
 the full 64-bit product T0.  The later is returned in two 32-bit outputs.
 
-* setcond2_i32 cond, dest, t1_low, t1_high, t2_low, t2_high
+* setcond2_i32 dest, t1_low, t1_high, t2_low, t2_high, cond
 
 Similar to setcond, except that the 64-bit values T1 and T2 are
 formed from two 32-bit arguments.  The result is a 32-bit value.
@@ -386,7 +399,8 @@ Exit the current TB and return the value t0 (word type).
 
 Exit the current TB and jump to the TB index 'index' (constant) if the
 current TB was linked to this TB. Otherwise execute the next
-instructions.
+instructions. Only indices 0 and 1 are valid and tcg_gen_goto_tb may be issued
+at most once with each slot index per TB.
 
 * qemu_ld8u t0, t1, flags
 qemu_ld8s t0, t1, flags

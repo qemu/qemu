@@ -19,19 +19,19 @@
  */
 
 #include "cpu.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "helper.h"
 
 //#define DEBUG_PCALL
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #ifdef DEBUG_PCALL
 # define LOG_PCALL(...) qemu_log_mask(CPU_LOG_PCALL, ## __VA_ARGS__)
 # define LOG_PCALL_STATE(env)                                  \
-    log_cpu_state_mask(CPU_LOG_PCALL, (env), X86_DUMP_CCOP)
+    log_cpu_state_mask(CPU_LOG_PCALL, (env), CPU_DUMP_CCOP)
 #else
 # define LOG_PCALL(...) do { } while (0)
 # define LOG_PCALL_STATE(env) do { } while (0)
@@ -1177,7 +1177,7 @@ static void do_interrupt_all(CPUX86State *env, int intno, int is_int,
                 qemu_log(" EAX=" TARGET_FMT_lx, EAX);
             }
             qemu_log("\n");
-            log_cpu_state(env, X86_DUMP_CCOP);
+            log_cpu_state(env, CPU_DUMP_CCOP);
 #if 0
             {
                 int i;

@@ -24,12 +24,13 @@
 
 #include <stdio.h>
 #include "hw.h"
-#include "pc.h"
-#include "console.h"
+#include "serial.h"
+#include "ui/console.h"
 #include "devices.h"
 #include "sysbus.h"
 #include "qdev-addr.h"
-#include "range.h"
+#include "qemu/range.h"
+#include "ui/pixel_ops.h"
 
 /*
  * Status: 2010/05/07
@@ -456,7 +457,7 @@ typedef struct SM501State {
     DisplayState *ds;
 
     /* status & internal resources */
-    target_phys_addr_t base;
+    hwaddr base;
     uint32_t local_mem_size_index;
     uint8_t * local_mem;
     MemoryRegion local_mem_region;
@@ -726,7 +727,7 @@ static void sm501_2d_operation(SM501State * s)
     }
 }
 
-static uint64_t sm501_system_config_read(void *opaque, target_phys_addr_t addr,
+static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
                                          unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -779,7 +780,7 @@ static uint64_t sm501_system_config_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void sm501_system_config_write(void *opaque, target_phys_addr_t addr,
+static void sm501_system_config_write(void *opaque, hwaddr addr,
                                       uint64_t value, unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -837,7 +838,7 @@ static const MemoryRegionOps sm501_system_config_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
+static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 palette read addr=%x\n", (int)addr);
@@ -850,7 +851,7 @@ static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void sm501_palette_write(void *opaque,
-				target_phys_addr_t addr, uint32_t value)
+				hwaddr addr, uint32_t value)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 palette write addr=%x, val=%x\n",
@@ -863,7 +864,7 @@ static void sm501_palette_write(void *opaque,
     *(uint32_t*)&s->dc_palette[addr] = value;
 }
 
-static uint64_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr,
+static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -958,7 +959,7 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void sm501_disp_ctrl_write(void *opaque, target_phys_addr_t addr,
+static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -1073,7 +1074,7 @@ static const MemoryRegionOps sm501_disp_ctrl_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t sm501_2d_engine_read(void *opaque, target_phys_addr_t addr,
+static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -1093,7 +1094,7 @@ static uint64_t sm501_2d_engine_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void sm501_2d_engine_write(void *opaque, target_phys_addr_t addr,
+static void sm501_2d_engine_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -1162,8 +1163,6 @@ static const MemoryRegionOps sm501_2d_engine_ops = {
 };
 
 /* draw line functions for all console modes */
-
-#include "pixel_ops.h"
 
 typedef void draw_line_func(uint8_t *d, const uint8_t *s,
 			    int width, const uint32_t *pal);
@@ -1351,7 +1350,7 @@ static void sm501_draw_crt(SM501State * s)
 	} else {
 	    if (y_start >= 0) {
 		/* flush to display */
-		dpy_update(s->ds, 0, y_start, width, y - y_start);
+                dpy_gfx_update(s->ds, 0, y_start, width, y - y_start);
 		y_start = -1;
 	    }
 	}
@@ -1362,7 +1361,7 @@ static void sm501_draw_crt(SM501State * s)
 
     /* complete flush to display */
     if (y_start >= 0)
-	dpy_update(s->ds, 0, y_start, width, y - y_start);
+        dpy_gfx_update(s->ds, 0, y_start, width, y - y_start);
 
     /* clear dirty flags */
     if (page_min != ~0l) {

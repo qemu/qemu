@@ -25,16 +25,15 @@
    inherit from a particular bus (e.g. PCI or I2C) rather than
    this API directly.  */
 
-#include "net.h"
 #include "qdev.h"
-#include "sysemu.h"
-#include "error.h"
+#include "sysemu/sysemu.h"
+#include "qapi/error.h"
+#include "qapi/visitor.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
 static bool qdev_hot_removed = false;
 
-/* Register a new device type.  */
 const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
@@ -50,11 +49,6 @@ const char *qdev_fw_name(DeviceState *dev)
     }
 
     return object_get_typename(OBJECT(dev));
-}
-
-bool qdev_exists(const char *name)
-{
-    return !!object_class_by_name(name);
 }
 
 static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
@@ -114,10 +108,12 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     dev = qdev_try_create(bus, name);
     if (!dev) {
         if (bus) {
-            hw_error("Unknown device '%s' for bus '%s'\n", name,
-                     object_get_typename(OBJECT(bus)));
+            error_report("Unknown device '%s' for bus '%s'\n", name,
+                         object_get_typename(OBJECT(bus)));
+            abort();
         } else {
-            hw_error("Unknown device '%s' for default sysbus\n", name);
+            error_report("Unknown device '%s' for default sysbus\n", name);
+            abort();
         }
     }
 
@@ -159,7 +155,6 @@ int qdev_init(DeviceState *dev)
 
     rc = dc->init(dev);
     if (rc < 0) {
-        object_unparent(OBJECT(dev));
         qdev_free(dev);
         return rc;
     }
@@ -243,7 +238,6 @@ void qbus_reset_all_fn(void *opaque)
 int qdev_simple_unplug_cb(DeviceState *dev)
 {
     /* just zap it */
-    object_unparent(OBJECT(dev));
     qdev_free(dev);
     return 0;
 }
@@ -293,9 +287,9 @@ BusState *qdev_get_parent_bus(DeviceState *dev)
 
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n)
 {
-    assert(dev->num_gpio_in == 0);
-    dev->num_gpio_in = n;
-    dev->gpio_in = qemu_allocate_irqs(handler, dev, n);
+    dev->gpio_in = qemu_extend_irqs(dev->gpio_in, dev->num_gpio_in, handler,
+                                        dev, n);
+    dev->num_gpio_in += n;
 }
 
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n)
@@ -315,18 +309,6 @@ void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
 {
     assert(n >= 0 && n < dev->num_gpio_out);
     dev->gpio_out[n] = pin;
-}
-
-void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
-{
-    qdev_prop_set_macaddr(dev, "mac", nd->macaddr.a);
-    if (nd->netdev)
-        qdev_prop_set_netdev(dev, "netdev", nd->netdev);
-    if (nd->nvectors != DEV_NVECTORS_UNSPECIFIED &&
-        object_property_find(OBJECT(dev), "vectors", NULL)) {
-        qdev_prop_set_uint32(dev, "vectors", nd->nvectors);
-    }
-    nd->instantiated = 1;
 }
 
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
@@ -461,7 +443,6 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
     BusState *bus;
 
     bus = BUS(object_new(typename));
-    bus->qom_allocated = true;
 
     bus->parent = parent;
     bus->name = name ? g_strdup(name) : NULL;
@@ -472,14 +453,7 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
 
 void qbus_free(BusState *bus)
 {
-    if (bus->qom_allocated) {
-        object_delete(OBJECT(bus));
-    } else {
-        object_finalize(OBJECT(bus));
-        if (bus->glib_allocated) {
-            g_free(bus);
-        }
-    }
+    object_delete(OBJECT(bus));
 }
 
 static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)
@@ -522,7 +496,7 @@ char* qdev_get_fw_dev_path(DeviceState *dev)
 
     path[l-1] = '\0';
 
-    return strdup(path);
+    return g_strdup(path);
 }
 
 char *qdev_get_dev_path(DeviceState *dev)
@@ -712,9 +686,6 @@ static void device_finalize(Object *obj)
             qemu_opts_del(dev->opts);
         }
     }
-    if (dev->parent_bus) {
-        bus_remove_child(dev->parent_bus, dev);
-    }
 }
 
 static void device_class_base_init(ObjectClass *class, void *data)
@@ -725,6 +696,20 @@ static void device_class_base_init(ObjectClass *class, void *data)
      * so do not propagate them to the subclasses.
      */
     klass->props = NULL;
+}
+
+static void device_unparent(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    if (dev->parent_bus != NULL) {
+        bus_remove_child(dev->parent_bus, dev);
+    }
+}
+
+static void device_class_init(ObjectClass *class, void *data)
+{
+    class->unparent = device_unparent;
 }
 
 void device_reset(DeviceState *dev)
@@ -754,6 +739,7 @@ static TypeInfo device_type_info = {
     .instance_init = device_initfn,
     .instance_finalize = device_finalize,
     .class_base_init = device_class_base_init,
+    .class_init = device_class_init,
     .abstract = true,
     .class_size = sizeof(DeviceClass),
 };

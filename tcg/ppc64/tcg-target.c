@@ -208,12 +208,6 @@ static void patch_reloc (uint8_t *code_ptr, int type,
     }
 }
 
-/* maximum number of register used for input function arguments */
-static int tcg_target_get_call_iarg_regs_count (int flags)
-{
-    return ARRAY_SIZE (tcg_target_call_iarg_regs);
-}
-
 /* parse target specific constraints */
 static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
 {
@@ -235,9 +229,7 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
 #ifdef CONFIG_SOFTMMU
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
-#ifdef CONFIG_TCG_PASS_AREG0
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R5);
-#endif
 #endif
         break;
     case 'S':                   /* qemu_st constraint */
@@ -247,9 +239,7 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
 #ifdef CONFIG_SOFTMMU
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R5);
-#ifdef CONFIG_TCG_PASS_AREG0
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R6);
-#endif
 #endif
         break;
     case 'Z':
@@ -428,7 +418,7 @@ enum {
     CR_SO
 };
 
-static const uint32_t tcg_to_bc[10] = {
+static const uint32_t tcg_to_bc[] = {
     [TCG_COND_EQ]  = BC | BI (7, CR_EQ) | BO_COND_TRUE,
     [TCG_COND_NE]  = BC | BI (7, CR_EQ) | BO_COND_FALSE,
     [TCG_COND_LT]  = BC | BI (7, CR_LT) | BO_COND_TRUE,
@@ -556,9 +546,8 @@ static void tcg_out_ldsta (TCGContext *s, int ret, int addr,
 
 #if defined (CONFIG_SOFTMMU)
 
-#include "../../softmmu_defs.h"
+#include "exec/softmmu_defs.h"
 
-#ifdef CONFIG_TCG_PASS_AREG0
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -576,25 +565,6 @@ static const void * const qemu_st_helpers[4] = {
     helper_stl_mmu,
     helper_stq_mmu,
 };
-#else
-/* legacy helper signature: __ld_mmu(target_ulong addr, int
-   mmu_idx) */
-static void *qemu_ld_helpers[4] = {
-    __ldb_mmu,
-    __ldw_mmu,
-    __ldl_mmu,
-    __ldq_mmu,
-};
-
-/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
-   int mmu_idx) */
-static void *qemu_st_helpers[4] = {
-    __stb_mmu,
-    __stw_mmu,
-    __stl_mmu,
-    __stq_mmu,
-};
-#endif
 
 static void tcg_out_tlb_read (TCGContext *s, int r0, int r1, int r2,
                               int addr_reg, int s_bits, int offset)
@@ -676,9 +646,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
     /* slow path */
     ir = 3;
-#ifdef CONFIG_TCG_PASS_AREG0
     tcg_out_mov (s, TCG_TYPE_I64, ir++, TCG_AREG0);
-#endif
     tcg_out_mov (s, TCG_TYPE_I64, ir++, addr_reg);
     tcg_out_movi (s, TCG_TYPE_I64, ir++, mem_index);
 
@@ -827,9 +795,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 
     /* slow path */
     ir = 3;
-#ifdef CONFIG_TCG_PASS_AREG0
     tcg_out_mov (s, TCG_TYPE_I64, ir++, TCG_AREG0);
-#endif
     tcg_out_mov (s, TCG_TYPE_I64, ir++, addr_reg);
     tcg_out_rld (s, RLDICL, ir++, data_reg, 0, 64 - (1 << (3 + opc)));
     tcg_out_movi (s, TCG_TYPE_I64, ir++, mem_index);
@@ -1279,15 +1245,6 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_call:
         tcg_out_call (s, args[0], const_args[0]);
         break;
-    case INDEX_op_jmp:
-        if (const_args[0]) {
-            tcg_out_b (s, 0, args[0]);
-        }
-        else {
-            tcg_out32 (s, MTSPR | RS (args[0]) | CTR);
-            tcg_out32 (s, BCCTR | BO_ALWAYS);
-        }
-        break;
     case INDEX_op_movi_i32:
         tcg_out_movi (s, TCG_TYPE_I32, args[0], args[1]);
         break;
@@ -1622,7 +1579,6 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_call, { "ri" } },
-    { INDEX_op_jmp, { "ri" } },
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },

@@ -36,10 +36,9 @@
 #include <sys/wait.h>
 
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/checksum.h"
 #include "net/util.h"
-#include "qemu-char.h"
 #include "xen_backend.h"
 
 #include <xen/io/netif.h>
@@ -415,6 +414,7 @@ static void net_event(struct XenDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
     net_tx_packets(netdev);
+    qemu_flush_queued_packets(&netdev->nic->nc);
 }
 
 static int net_free(struct XenDevice *xendev)

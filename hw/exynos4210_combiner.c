@@ -174,7 +174,7 @@ void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs, DeviceState *dev,
 }
 
 static uint64_t
-exynos4210_combiner_read(void *opaque, target_phys_addr_t offset, unsigned size)
+exynos4210_combiner_read(void *opaque, hwaddr offset, unsigned size)
 {
     struct Exynos4210CombinerState *s =
             (struct Exynos4210CombinerState *)opaque;
@@ -266,7 +266,7 @@ static void exynos4210_combiner_update(void *opaque, uint8_t group_n)
     }
 }
 
-static void exynos4210_combiner_write(void *opaque, target_phys_addr_t offset,
+static void exynos4210_combiner_write(void *opaque, hwaddr offset,
         uint64_t val, unsigned size)
 {
     struct Exynos4210CombinerState *s =
@@ -347,8 +347,6 @@ static void exynos4210_combiner_write(void *opaque, target_phys_addr_t offset,
                 TARGET_FMT_plx "\n", offset);
         break;
     }
-
-    return;
 }
 
 /* Get combiner group and bit from irq number */
@@ -380,8 +378,6 @@ static void exynos4210_combiner_handler(void *opaque, int irq, int level)
     }
 
     exynos4210_combiner_update(s, group_n);
-
-    return;
 }
 
 static void exynos4210_combiner_reset(DeviceState *d)

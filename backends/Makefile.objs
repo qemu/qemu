@@ -1,0 +1,2 @@
+common-obj-y += rng.o rng-egd.o
+common-obj-$(CONFIG_POSIX) += rng-random.o

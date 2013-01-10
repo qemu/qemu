@@ -130,16 +130,16 @@ typedef struct IOMMUState {
     SysBusDevice busdev;
     MemoryRegion iomem;
     uint32_t regs[IOMMU_NREGS];
-    target_phys_addr_t iostart;
+    hwaddr iostart;
     qemu_irq irq;
     uint32_t version;
 } IOMMUState;
 
-static uint64_t iommu_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t iommu_mem_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     IOMMUState *s = opaque;
-    target_phys_addr_t saddr;
+    hwaddr saddr;
     uint32_t ret;
 
     saddr = addr >> 2;
@@ -157,11 +157,11 @@ static uint64_t iommu_mem_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void iommu_mem_write(void *opaque, target_phys_addr_t addr,
+static void iommu_mem_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
     IOMMUState *s = opaque;
-    target_phys_addr_t saddr;
+    hwaddr saddr;
 
     saddr = addr >> 2;
     trace_sun4m_iommu_mem_writel(saddr, val);
@@ -249,11 +249,11 @@ static const MemoryRegionOps iommu_mem_ops = {
     },
 };
 
-static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
+static uint32_t iommu_page_get_flags(IOMMUState *s, hwaddr addr)
 {
     uint32_t ret;
-    target_phys_addr_t iopte;
-    target_phys_addr_t pa = addr;
+    hwaddr iopte;
+    hwaddr pa = addr;
 
     iopte = s->regs[IOMMU_BASE] << 4;
     addr &= ~s->iostart;
@@ -264,17 +264,17 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
     return ret;
 }
 
-static target_phys_addr_t iommu_translate_pa(target_phys_addr_t addr,
+static hwaddr iommu_translate_pa(hwaddr addr,
                                              uint32_t pte)
 {
-    target_phys_addr_t pa;
+    hwaddr pa;
 
     pa = ((pte & IOPTE_PAGE) << 4) + (addr & ~IOMMU_PAGE_MASK);
     trace_sun4m_iommu_translate_pa(addr, pa, pte);
     return pa;
 }
 
-static void iommu_bad_addr(IOMMUState *s, target_phys_addr_t addr,
+static void iommu_bad_addr(IOMMUState *s, hwaddr addr,
                            int is_write)
 {
     trace_sun4m_iommu_bad_addr(addr);
@@ -286,12 +286,12 @@ static void iommu_bad_addr(IOMMUState *s, target_phys_addr_t addr,
     qemu_irq_raise(s->irq);
 }
 
-void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
+void sparc_iommu_memory_rw(void *opaque, hwaddr addr,
                            uint8_t *buf, int len, int is_write)
 {
     int l;
     uint32_t flags;
-    target_phys_addr_t page, phys_addr;
+    hwaddr page, phys_addr;
 
     while (len > 0) {
         page = addr & IOMMU_PAGE_MASK;

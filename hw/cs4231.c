@@ -55,7 +55,7 @@ static void cs_reset(DeviceState *d)
     s->dregs[25] = CS_VER;
 }
 
-static uint64_t cs_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t cs_mem_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
     CSState *s = opaque;
@@ -82,7 +82,7 @@ static uint64_t cs_mem_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void cs_mem_write(void *opaque, target_phys_addr_t addr,
+static void cs_mem_write(void *opaque, hwaddr addr,
                          uint64_t val, unsigned size)
 {
     CSState *s = opaque;

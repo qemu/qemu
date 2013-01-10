@@ -63,7 +63,7 @@ int fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
 int fw_cfg_add_file(FWCfgState *s, const char *filename, uint8_t *data,
                     uint32_t len);
 FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-                        target_phys_addr_t crl_addr, target_phys_addr_t data_addr);
+                        hwaddr crl_addr, hwaddr data_addr);
 
 #endif /* NO_QEMU_PROTOS */
 

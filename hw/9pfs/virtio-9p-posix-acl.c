@@ -12,7 +12,7 @@
  */
 
 #include <sys/types.h>
-#include "qemu-xattr.h"
+#include "qemu/xattr.h"
 #include "hw/virtio.h"
 #include "virtio-9p.h"
 #include "fsdev/file-op-9p.h"
@@ -44,7 +44,8 @@ static ssize_t mp_pacl_listxattr(FsContext *ctx, const char *path,
         return -1;
     }
 
-    strncpy(value, ACL_ACCESS, len);
+    /* len includes the trailing NUL */
+    memcpy(value, ACL_ACCESS, len);
     return 0;
 }
 
@@ -95,7 +96,8 @@ static ssize_t mp_dacl_listxattr(FsContext *ctx, const char *path,
         return -1;
     }
 
-    strncpy(value, ACL_DEFAULT, len);
+    /* len includes the trailing NUL */
+    memcpy(value, ACL_ACCESS, len);
     return 0;
 }
 

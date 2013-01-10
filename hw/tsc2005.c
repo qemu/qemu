@@ -19,8 +19,8 @@
  */
 
 #include "hw.h"
-#include "qemu-timer.h"
-#include "console.h"
+#include "qemu/timer.h"
+#include "ui/console.h"
 #include "devices.h"
 
 #define TSC_CUT_RESOLUTION(value, p)	((value) >> (16 - (p ? 12 : 10)))

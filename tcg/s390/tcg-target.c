@@ -268,7 +268,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #define S390_CC_ALWAYS  15
 
 /* Condition codes that result from a COMPARE and COMPARE LOGICAL.  */
-static const uint8_t tcg_cond_to_s390_cond[10] = {
+static const uint8_t tcg_cond_to_s390_cond[] = {
     [TCG_COND_EQ]  = S390_CC_EQ,
     [TCG_COND_NE]  = S390_CC_NE,
     [TCG_COND_LT]  = S390_CC_LT,
@@ -284,7 +284,7 @@ static const uint8_t tcg_cond_to_s390_cond[10] = {
 /* Condition codes that result from a LOAD AND TEST.  Here, we have no
    unsigned instruction variation, however since the test is vs zero we
    can re-map the outcomes appropriately.  */
-static const uint8_t tcg_cond_to_ltr_cond[10] = {
+static const uint8_t tcg_cond_to_ltr_cond[] = {
     [TCG_COND_EQ]  = S390_CC_EQ,
     [TCG_COND_NE]  = S390_CC_NE,
     [TCG_COND_LT]  = S390_CC_LT,
@@ -299,9 +299,8 @@ static const uint8_t tcg_cond_to_ltr_cond[10] = {
 
 #ifdef CONFIG_SOFTMMU
 
-#include "../../softmmu_defs.h"
+#include "exec/softmmu_defs.h"
 
-#ifdef CONFIG_TCG_PASS_AREG0
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -319,25 +318,6 @@ static const void * const qemu_st_helpers[4] = {
     helper_stl_mmu,
     helper_stq_mmu,
 };
-#else
-/* legacy helper signature: __ld_mmu(target_ulong addr, int
-   mmu_idx) */
-static void *qemu_ld_helpers[4] = {
-    __ldb_mmu,
-    __ldw_mmu,
-    __ldl_mmu,
-    __ldq_mmu,
-};
-
-/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
-   int mmu_idx) */
-static void *qemu_st_helpers[4] = {
-    __stb_mmu,
-    __stw_mmu,
-    __stl_mmu,
-    __stq_mmu,
-};
-#endif
 #endif
 
 static uint8_t *tb_ret_addr;
@@ -374,11 +354,6 @@ static void patch_reloc(uint8_t *code_ptr, int type,
         tcg_abort();
         break;
     }
-}
-
-static int tcg_target_get_call_iarg_regs_count(int flags)
-{
-    return sizeof(tcg_target_call_iarg_regs) / sizeof(int);
 }
 
 /* parse target specific constraints */
@@ -1138,7 +1113,7 @@ static void tgen64_xori(TCGContext *s, TCGReg dest, tcg_target_ulong val)
 static int tgen_cmp(TCGContext *s, TCGType type, TCGCond c, TCGReg r1,
                     TCGArg c2, int c2const)
 {
-    bool is_unsigned = (c > TCG_COND_GT);
+    bool is_unsigned = is_unsigned_cond(c);
     if (c2const) {
         if (c2 == 0) {
             if (type == TCG_TYPE_I32) {
@@ -1507,29 +1482,25 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
             tcg_abort();
         }
         tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R4, mem_index);
-#ifdef CONFIG_TCG_PASS_AREG0
         /* XXX/FIXME: suboptimal */
-        tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
-                    tcg_target_call_iarg_regs[1]);
-        tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
-                    tcg_target_call_iarg_regs[0]);
-        tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
-                    TCG_AREG0);
-#endif
-        tgen_calli(s, (tcg_target_ulong)qemu_st_helpers[s_bits]);
-    } else {
-        tcg_out_movi(s, TCG_TYPE_I32, arg1, mem_index);
-#ifdef CONFIG_TCG_PASS_AREG0
-        /* XXX/FIXME: suboptimal */
-        tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[3],
                     tcg_target_call_iarg_regs[2]);
         tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
                     tcg_target_call_iarg_regs[1]);
-        tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[1],
                     tcg_target_call_iarg_regs[0]);
-        tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0],
                     TCG_AREG0);
-#endif
+        tgen_calli(s, (tcg_target_ulong)qemu_st_helpers[s_bits]);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_I32, arg1, mem_index);
+        /* XXX/FIXME: suboptimal */
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
+                    tcg_target_call_iarg_regs[1]);
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[1],
+                    tcg_target_call_iarg_regs[0]);
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0],
+                    TCG_AREG0);
         tgen_calli(s, (tcg_target_ulong)qemu_ld_helpers[s_bits]);
 
         /* sign extension */
@@ -2066,11 +2037,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
-    case INDEX_op_jmp:
-        /* This one is obsolete and never emitted.  */
-        tcg_abort();
-        break;
-
     default:
         fprintf(stderr,"unimplemented opc 0x%x\n",opc);
         tcg_abort();
@@ -2081,7 +2047,6 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_call, { "ri" } },
-    { INDEX_op_jmp, { "ri" } },
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },

@@ -22,15 +22,15 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
-#include "qemu-char.h"
-#include "sysemu.h"
+#include "char/char.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
 #include "trace.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include "grlib.h"
 
@@ -94,13 +94,11 @@ static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
     }
 }
 
-static void leon3_generic_hw_init(ram_addr_t  ram_size,
-                                  const char *boot_device,
-                                  const char *kernel_filename,
-                                  const char *kernel_cmdline,
-                                  const char *initrd_filename,
-                                  const char *cpu_model)
+static void leon3_generic_hw_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
     SPARCCPU *cpu;
     CPUSPARCState   *env;
     MemoryRegion *address_space_mem = get_system_memory();
@@ -210,11 +208,10 @@ static void leon3_generic_hw_init(ram_addr_t  ram_size,
     }
 }
 
-QEMUMachine leon3_generic_machine = {
+static QEMUMachine leon3_generic_machine = {
     .name     = "leon3_generic",
     .desc     = "Leon-3 generic",
     .init     = leon3_generic_hw_init,
-    .use_scsi = 0,
 };
 
 static void leon3_machine_init(void)

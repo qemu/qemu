@@ -46,7 +46,7 @@ static void puv3_intc_handler(void *opaque, int irq, int level)
     puv3_intc_update(s);
 }
 
-static uint64_t puv3_intc_read(void *opaque, target_phys_addr_t offset,
+static uint64_t puv3_intc_read(void *opaque, hwaddr offset,
         unsigned size)
 {
     PUV3INTCState *s = opaque;
@@ -66,7 +66,7 @@ static uint64_t puv3_intc_read(void *opaque, target_phys_addr_t offset,
     return ret;
 }
 
-static void puv3_intc_write(void *opaque, target_phys_addr_t offset,
+static void puv3_intc_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     PUV3INTCState *s = opaque;

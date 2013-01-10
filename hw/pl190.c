@@ -85,7 +85,7 @@ static void pl190_update_vectors(pl190_state *s)
     pl190_update(s);
 }
 
-static uint64_t pl190_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pl190_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     pl190_state *s = (pl190_state *)opaque;
@@ -117,12 +117,18 @@ static uint64_t pl190_read(void *opaque, target_phys_addr_t offset,
         return s->protected;
     case 12: /* VECTADDR */
         /* Read vector address at the start of an ISR.  Increases the
-           current priority level to that of the current interrupt.  */
-        for (i = 0; i < s->priority; i++)
-          {
-            if ((s->level | s->soft_level) & s->prio_mask[i])
-              break;
-          }
+         * current priority level to that of the current interrupt.
+         *
+         * Since an enabled interrupt X at priority P causes prio_mask[Y]
+         * to have bit X set for all Y > P, this loop will stop with
+         * i == the priority of the highest priority set interrupt.
+         */
+        for (i = 0; i < s->priority; i++) {
+            if ((s->level | s->soft_level) & s->prio_mask[i + 1]) {
+                break;
+            }
+        }
+
         /* Reading this value with no pending interrupts is undefined.
            We return the default address.  */
         if (i == PL190_NUM_PRIO)
@@ -137,12 +143,13 @@ static uint64_t pl190_read(void *opaque, target_phys_addr_t offset,
     case 13: /* DEFVECTADDR */
         return s->vect_addr[16];
     default:
-        hw_error("pl190_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl190_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
 
-static void pl190_write(void *opaque, target_phys_addr_t offset,
+static void pl190_write(void *opaque, hwaddr offset,
                         uint64_t val, unsigned size)
 {
     pl190_state *s = (pl190_state *)opaque;
@@ -192,11 +199,12 @@ static void pl190_write(void *opaque, target_phys_addr_t offset,
         break;
     case 0xc0: /* ITCR */
         if (val) {
-            hw_error("pl190: Test mode not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "pl190: Test mode not implemented\n");
         }
         break;
     default:
-        hw_error("pl190_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                     "pl190_write: Bad offset %x\n", (int)offset);
         return;
     }
     pl190_update(s);

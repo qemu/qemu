@@ -24,7 +24,7 @@
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
     uint8_t *src;
-    uint8_t *dst = qxl->vga.ds->surface->data;
+    uint8_t *dst = ds_get_data(qxl->vga.ds);
     int len, i;
 
     if (is_buffer_shared(qxl->vga.ds->surface)) {
@@ -99,7 +99,6 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
 {
     VGACommonState *vga = &qxl->vga;
     int i;
-    DisplaySurface *surface = vga->ds->surface;
 
     if (qxl->guest_primary.resized) {
         qxl->guest_primary.resized = 0;
@@ -112,32 +111,30 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                qxl->guest_primary.qxl_stride,
                qxl->guest_primary.bytes_pp,
                qxl->guest_primary.bits_pp);
-    }
-    if (surface->width != qxl->guest_primary.surface.width ||
-        surface->height != qxl->guest_primary.surface.height) {
         if (qxl->guest_primary.qxl_stride > 0) {
             qemu_free_displaysurface(vga->ds);
-            qemu_create_displaysurface_from(qxl->guest_primary.surface.width,
-                                            qxl->guest_primary.surface.height,
-                                            qxl->guest_primary.bits_pp,
-                                            qxl->guest_primary.abs_stride,
-                                            qxl->guest_primary.data);
+            vga->ds->surface = qemu_create_displaysurface_from
+                (qxl->guest_primary.surface.width,
+                 qxl->guest_primary.surface.height,
+                 qxl->guest_primary.bits_pp,
+                 qxl->guest_primary.abs_stride,
+                 qxl->guest_primary.data);
         } else {
             qemu_resize_displaysurface(vga->ds,
                     qxl->guest_primary.surface.width,
                     qxl->guest_primary.surface.height);
         }
-        dpy_resize(vga->ds);
+        dpy_gfx_resize(vga->ds);
     }
     for (i = 0; i < qxl->num_dirty_rects; i++) {
         if (qemu_spice_rect_is_empty(qxl->dirty+i)) {
             break;
         }
         qxl_blit(qxl, qxl->dirty+i);
-        dpy_update(vga->ds,
-                   qxl->dirty[i].left, qxl->dirty[i].top,
-                   qxl->dirty[i].right - qxl->dirty[i].left,
-                   qxl->dirty[i].bottom - qxl->dirty[i].top);
+        dpy_gfx_update(vga->ds,
+                       qxl->dirty[i].left, qxl->dirty[i].top,
+                       qxl->dirty[i].right - qxl->dirty[i].left,
+                       qxl->dirty[i].bottom - qxl->dirty[i].top);
     }
     qxl->num_dirty_rects = 0;
 }
@@ -238,7 +235,7 @@ int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
         return 1;
     }
 
-    if (!qxl->ssd.ds->mouse_set || !qxl->ssd.ds->cursor_define) {
+    if (!dpy_cursor_define_supported(qxl->ssd.ds)) {
         return 0;
     }
 

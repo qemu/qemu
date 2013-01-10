@@ -25,8 +25,7 @@
 #endif
 
 #include "qemu-common.h"
-#include "dyngen-exec.h"        /* env */
-#include "exec-all.h"           /* MAX_OPC_PARAM_IARGS */
+#include "exec/exec-all.h"           /* MAX_OPC_PARAM_IARGS */
 #include "tcg-op.h"
 
 /* Marker for missing code. */
@@ -37,17 +36,19 @@
         tcg_abort(); \
     } while (0)
 
-#if MAX_OPC_PARAM_IARGS != 4
+#if MAX_OPC_PARAM_IARGS != 5
 # error Fix needed, number of supported input arguments changed!
 #endif
 #if TCG_TARGET_REG_BITS == 32
 typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong, tcg_target_ulong,
+                                    tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong, tcg_target_ulong);
 #else
 typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
-                                    tcg_target_ulong, tcg_target_ulong);
+                                    tcg_target_ulong, tcg_target_ulong,
+                                    tcg_target_ulong);
 #endif
 
 /* TCI can optionally use a global register variable for env. */
@@ -62,17 +63,6 @@ uintptr_t tci_tb_ptr;
 #endif
 
 static tcg_target_ulong tci_reg[TCG_TARGET_NB_REGS];
-
-#if !defined(CONFIG_TCG_PASS_AREG0)
-# define helper_ldb_mmu(env, addr, mmu_idx) __ldb_mmu(addr, mmu_idx)
-# define helper_ldw_mmu(env, addr, mmu_idx) __ldw_mmu(addr, mmu_idx)
-# define helper_ldl_mmu(env, addr, mmu_idx) __ldl_mmu(addr, mmu_idx)
-# define helper_ldq_mmu(env, addr, mmu_idx) __ldq_mmu(addr, mmu_idx)
-# define helper_stb_mmu(env, addr, val, mmu_idx) __stb_mmu(addr, val, mmu_idx)
-# define helper_stw_mmu(env, addr, val, mmu_idx) __stw_mmu(addr, val, mmu_idx)
-# define helper_stl_mmu(env, addr, val, mmu_idx) __stl_mmu(addr, val, mmu_idx)
-# define helper_stq_mmu(env, addr, val, mmu_idx) __stq_mmu(addr, val, mmu_idx)
-#endif /* !CONFIG_TCG_PASS_AREG0 */
 
 static tcg_target_ulong tci_read_reg(TCGReg index)
 {
@@ -348,9 +338,9 @@ static uint64_t tci_read_ri64(uint8_t **tb_ptr)
 }
 #endif
 
-static target_ulong tci_read_label(uint8_t **tb_ptr)
+static tcg_target_ulong tci_read_label(uint8_t **tb_ptr)
 {
-    target_ulong label = tci_read_i(tb_ptr);
+    tcg_target_ulong label = tci_read_i(tb_ptr);
     assert(label != 0);
     return label;
 }
@@ -501,18 +491,20 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
                                           tci_read_reg(TCG_REG_R5),
                                           tci_read_reg(TCG_REG_R6),
                                           tci_read_reg(TCG_REG_R7),
-                                          tci_read_reg(TCG_REG_R8));
+                                          tci_read_reg(TCG_REG_R8),
+                                          tci_read_reg(TCG_REG_R9),
+                                          tci_read_reg(TCG_REG_R10));
             tci_write_reg(TCG_REG_R0, tmp64);
             tci_write_reg(TCG_REG_R1, tmp64 >> 32);
 #else
             tmp64 = ((helper_function)t0)(tci_read_reg(TCG_REG_R0),
                                           tci_read_reg(TCG_REG_R1),
                                           tci_read_reg(TCG_REG_R2),
-                                          tci_read_reg(TCG_REG_R3));
+                                          tci_read_reg(TCG_REG_R3),
+                                          tci_read_reg(TCG_REG_R5));
             tci_write_reg(TCG_REG_R0, tmp64);
 #endif
             break;
-        case INDEX_op_jmp:
         case INDEX_op_br:
             label = tci_read_label(&tb_ptr);
             assert(tb_ptr == old_code_ptr + op_size);
@@ -695,6 +687,17 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             t1 = tci_read_ri32(&tb_ptr);
             t2 = tci_read_ri32(&tb_ptr);
             tci_write_reg32(t0, (t1 >> t2) | (t1 << (32 - t2)));
+            break;
+#endif
+#if TCG_TARGET_HAS_deposit_i32
+        case INDEX_op_deposit_i32:
+            t0 = *tb_ptr++;
+            t1 = tci_read_r32(&tb_ptr);
+            t2 = tci_read_r32(&tb_ptr);
+            tmp16 = *tb_ptr++;
+            tmp8 = *tb_ptr++;
+            tmp32 = (((1 << tmp8) - 1) << tmp16);
+            tci_write_reg32(t0, (t1 & ~tmp32) | ((t2 << tmp16) & tmp32));
             break;
 #endif
         case INDEX_op_brcond_i32:
@@ -942,6 +945,17 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
         case INDEX_op_rotl_i64:
         case INDEX_op_rotr_i64:
             TODO();
+            break;
+#endif
+#if TCG_TARGET_HAS_deposit_i64
+        case INDEX_op_deposit_i64:
+            t0 = *tb_ptr++;
+            t1 = tci_read_r64(&tb_ptr);
+            t2 = tci_read_r64(&tb_ptr);
+            tmp16 = *tb_ptr++;
+            tmp8 = *tb_ptr++;
+            tmp64 = (((1ULL << tmp8) - 1) << tmp16);
+            tci_write_reg64(t0, (t1 & ~tmp64) | ((t2 << tmp16) & tmp64));
             break;
 #endif
         case INDEX_op_brcond_i64:

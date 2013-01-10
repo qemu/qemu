@@ -4,9 +4,6 @@ include ../config-host.mak
 include config-devices.mak
 include config-target.mak
 include $(SRC_PATH)/rules.mak
-ifneq ($(HWDIR),)
-include $(HWDIR)/config.mak
-endif
 
 $(call set-vpath, $(SRC_PATH))
 ifdef CONFIG_LINUX
@@ -72,21 +69,11 @@ all: $(PROGS) stap
 obj-y = exec.o translate-all.o cpu-exec.o
 obj-y += tcg/tcg.o tcg/optimize.o
 obj-$(CONFIG_TCG_INTERPRETER) += tci.o
+obj-$(CONFIG_TCG_INTERPRETER) += disas/tci.o
 obj-y += fpu/softfloat.o
-obj-y += disas.o
-obj-$(CONFIG_TCI_DIS) += tci-dis.o
 obj-y += target-$(TARGET_BASE_ARCH)/
+obj-y += disas.o
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
-
-tci-dis.o: QEMU_CFLAGS += -I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/tci
-
-# HELPER_CFLAGS is used for all the legacy code compiled with static register
-# variables
-user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-
-# Note: this is a workaround. The real fix is to avoid compiling
-# cpu_signal_handler() in user-exec.c.
-%/signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 #########################################################
 # Linux user emulator target
@@ -132,11 +119,6 @@ obj-$(CONFIG_NO_GET_MEMORY_MAPPING) += memory_mapping-stub.o
 obj-$(CONFIG_NO_CORE_DUMP) += dump-stub.o
 LIBS+=-lz
 
-QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
-QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
-QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
-QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
-
 # xen support
 obj-$(CONFIG_XEN) += xen-all.o xen-mapcache.o
 obj-$(CONFIG_NO_XEN) += xen-stub.o
@@ -154,6 +136,9 @@ GENERATED_HEADERS += hmp-commands.h qmp-commands-old.h
 
 endif # CONFIG_SOFTMMU
 
+# Workaround for http://gcc.gnu.org/PR55489, see configure.
+%/translate.o: QEMU_CFLAGS += $(TRANSLATE_OPT_CFLAGS)
+
 nested-vars += obj-y
 
 # This resolves all nested paths, so it must come last
@@ -164,22 +149,18 @@ all-obj-y += $(addprefix ../, $(universal-obj-y))
 
 ifdef CONFIG_SOFTMMU
 all-obj-y += $(addprefix ../, $(common-obj-y))
-all-obj-y += $(addprefix ../libdis/, $(libdis-y))
-all-obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
-all-obj-y += $(addprefix ../, $(trace-obj-y))
 else
-all-obj-y += $(addprefix ../libuser/, $(user-obj-y))
-all-obj-y += $(addprefix ../libdis-user/, $(libdis-y))
+all-obj-y += $(addprefix ../, $(user-obj-y))
 endif #CONFIG_LINUX_USER
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.
-$(QEMU_PROGW): $(all-obj-y)
+$(QEMU_PROGW): $(all-obj-y) ../libqemustub.a
 	$(call LINK,$^)
 $(QEMU_PROG): $(QEMU_PROGW)
 	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
 else
-$(QEMU_PROG): $(all-obj-y)
+$(QEMU_PROG): $(all-obj-y) ../libqemustub.a
 	$(call LINK,$^)
 endif
 

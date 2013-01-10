@@ -19,17 +19,16 @@
 
 #include "sysbus.h"
 #include "hw.h"
-#include "net.h"
 #include "flash.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "devices.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "milkymist-hw.h"
 #include "lm32.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define BIOS_FILENAME    "mmone-bios.bin"
 #define BIOS_OFFSET      0x00860000
@@ -38,11 +37,11 @@
 
 typedef struct {
     LM32CPU *cpu;
-    target_phys_addr_t bootstrap_pc;
-    target_phys_addr_t flash_base;
-    target_phys_addr_t initrd_base;
+    hwaddr bootstrap_pc;
+    hwaddr flash_base;
+    hwaddr initrd_base;
     size_t initrd_size;
-    target_phys_addr_t cmdline_base;
+    hwaddr cmdline_base;
 } ResetInfo;
 
 static void cpu_irq_handler(void *opaque, int irq, int level)
@@ -73,12 +72,12 @@ static void main_cpu_reset(void *opaque)
 }
 
 static void
-milkymist_init(ram_addr_t ram_size_not_used,
-                          const char *boot_device,
-                          const char *kernel_filename,
-                          const char *kernel_cmdline,
-                          const char *initrd_filename, const char *cpu_model)
+milkymist_init(QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     LM32CPU *cpu;
     CPULM32State *env;
     int kernel_size;
@@ -91,14 +90,14 @@ milkymist_init(ram_addr_t ram_size_not_used,
     ResetInfo *reset_info;
 
     /* memory map */
-    target_phys_addr_t flash_base   = 0x00000000;
+    hwaddr flash_base   = 0x00000000;
     size_t flash_sector_size        = 128 * 1024;
     size_t flash_size               = 32 * 1024 * 1024;
-    target_phys_addr_t sdram_base   = 0x40000000;
+    hwaddr sdram_base   = 0x40000000;
     size_t sdram_size               = 128 * 1024 * 1024;
 
-    target_phys_addr_t initrd_base  = sdram_base + 0x1002000;
-    target_phys_addr_t cmdline_base = sdram_base + 0x1000000;
+    hwaddr initrd_base  = sdram_base + 0x1002000;
+    hwaddr cmdline_base = sdram_base + 0x1000000;
     size_t initrd_max = sdram_size - 0x1002000;
 
     reset_info = g_malloc0(sizeof(ResetInfo));

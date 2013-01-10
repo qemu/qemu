@@ -18,7 +18,7 @@
  */
 
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
                               int mmu_idx)
@@ -37,7 +37,7 @@ int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
     return 0;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPULM32State *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPULM32State *env, target_ulong addr)
 {
     return addr & TARGET_PAGE_MASK;
 }

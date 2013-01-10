@@ -14,7 +14,7 @@
 #include <time.h>
 
 #include "qemu.h"
-#include "disas.h"
+#include "disas/disas.h"
 
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
@@ -2442,7 +2442,7 @@ static void fill_prstatus(struct target_elf_prstatus *prstatus,
 
 static int fill_psinfo(struct target_elf_prpsinfo *psinfo, const TaskState *ts)
 {
-    char *filename, *base_filename;
+    char *base_filename;
     unsigned int i, len;
 
     (void) memset(psinfo, 0, sizeof (*psinfo));
@@ -2464,13 +2464,15 @@ static int fill_psinfo(struct target_elf_prpsinfo *psinfo, const TaskState *ts)
     psinfo->pr_uid = getuid();
     psinfo->pr_gid = getgid();
 
-    filename = strdup(ts->bprm->filename);
-    base_filename = strdup(basename(filename));
+    base_filename = g_path_get_basename(ts->bprm->filename);
+    /*
+     * Using strncpy here is fine: at max-length,
+     * this field is not NUL-terminated.
+     */
     (void) strncpy(psinfo->pr_fname, base_filename,
                    sizeof(psinfo->pr_fname));
-    free(base_filename);
-    free(filename);
 
+    g_free(base_filename);
     bswap_psinfo(psinfo);
     return (0);
 }

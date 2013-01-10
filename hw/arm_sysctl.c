@@ -8,10 +8,10 @@
  */
 
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysbus.h"
 #include "primecell.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #define LOCK_VALUE 0xa05f
 
@@ -92,7 +92,7 @@ static void arm_sysctl_reset(DeviceState *d)
     }
 }
 
-static uint64_t arm_sysctl_read(void *opaque, target_phys_addr_t offset,
+static uint64_t arm_sysctl_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;
@@ -184,12 +184,14 @@ static uint64_t arm_sysctl_read(void *opaque, target_phys_addr_t offset,
         return s->sys_cfgstat;
     default:
     bad_reg:
-        printf ("arm_sysctl_read: Bad register offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "arm_sysctl_read: Bad register offset 0x%x\n",
+                      (int)offset);
         return 0;
     }
 }
 
-static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
+static void arm_sysctl_write(void *opaque, hwaddr offset,
                              uint64_t val, unsigned size)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;
@@ -339,7 +341,9 @@ static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
         return;
     default:
     bad_reg:
-        printf ("arm_sysctl_write: Bad register offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "arm_sysctl_write: Bad register offset 0x%x\n",
+                      (int)offset);
         return;
     }
 }

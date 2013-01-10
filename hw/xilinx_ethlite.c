@@ -24,7 +24,7 @@
 
 #include "sysbus.h"
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 
 #define D(x)
 #define R_TX_BUF0     0
@@ -72,7 +72,7 @@ static inline void eth_pulse_irq(struct xlx_ethlite *s)
 }
 
 static uint64_t
-eth_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+eth_read(void *opaque, hwaddr addr, unsigned int size)
 {
     struct xlx_ethlite *s = opaque;
     uint32_t r = 0;
@@ -100,7 +100,7 @@ eth_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 }
 
 static void
-eth_write(void *opaque, target_phys_addr_t addr,
+eth_write(void *opaque, hwaddr addr,
           uint64_t val64, unsigned int size)
 {
     struct xlx_ethlite *s = opaque;

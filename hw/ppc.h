@@ -1,4 +1,7 @@
-void ppc_set_irq (CPUPPCState *env, int n_IRQ, int level);
+#ifndef HW_PPC_H
+#define HW_PPC_H 1
+
+void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level);
 
 /* PowerPC hardware exceptions management helpers */
 typedef void (*clk_setup_cb)(void *opaque, uint32_t freq);
@@ -89,4 +92,6 @@ enum {
 #define PPC_SERIAL_MM_BAUDBASE 399193
 
 /* ppc_booke.c */
-void ppc_booke_timers_init(CPUPPCState *env, uint32_t freq, uint32_t flags);
+void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags);
+
+#endif

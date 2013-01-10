@@ -25,9 +25,9 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
-#include "qemu-log.h"
-#include "net.h"
+#include "char/char.h"
+#include "qemu/log.h"
+#include "net/net.h"
 #include "net/checksum.h"
 
 #ifdef DEBUG_XGMAC
@@ -252,7 +252,7 @@ static void enet_update_irq(struct XgmacState *s)
     qemu_set_irq(s->sbd_irq, !!stat);
 }
 
-static uint64_t enet_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 {
     struct XgmacState *s = opaque;
     uint64_t r = 0;
@@ -271,7 +271,7 @@ static uint64_t enet_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return r;
 }
 
-static void enet_write(void *opaque, target_phys_addr_t addr,
+static void enet_write(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
     struct XgmacState *s = opaque;

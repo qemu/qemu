@@ -23,7 +23,7 @@
 #define QEMU_IOAPIC_INTERNAL_H
 
 #include "hw.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "sysbus.h"
 
 #define MAX_IOAPICS                     1

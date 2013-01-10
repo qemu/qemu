@@ -26,13 +26,13 @@
  */
 
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qemu-common.h"
 #include "ptimer.h"
 
 #include "hw.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
 
 #include "exynos4210.h"
 
@@ -299,7 +299,7 @@ static void exynos4210_rtc_1Hz_tick(void *opaque)
 /*
  * RTC Read
  */
-static uint64_t exynos4210_rtc_read(void *opaque, target_phys_addr_t offset,
+static uint64_t exynos4210_rtc_read(void *opaque, hwaddr offset,
         unsigned size)
 {
     uint32_t value = 0;
@@ -376,7 +376,7 @@ static uint64_t exynos4210_rtc_read(void *opaque, target_phys_addr_t offset,
 /*
  * RTC Write
  */
-static void exynos4210_rtc_write(void *opaque, target_phys_addr_t offset,
+static void exynos4210_rtc_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     Exynos4210RTCState *s = (Exynos4210RTCState *)opaque;

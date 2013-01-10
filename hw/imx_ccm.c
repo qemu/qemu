@@ -12,7 +12,7 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "imx.h"
 
 #define CKIH_FREQ 26000000 /* 26MHz crystal input */
@@ -191,7 +191,7 @@ static void imx_ccm_reset(DeviceState *dev)
     update_clocks(s);
 }
 
-static uint64_t imx_ccm_read(void *opaque, target_phys_addr_t offset,
+static uint64_t imx_ccm_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
     IMXCCMState *s = (IMXCCMState *)opaque;
@@ -232,7 +232,7 @@ static uint64_t imx_ccm_read(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static void imx_ccm_write(void *opaque, target_phys_addr_t offset,
+static void imx_ccm_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     IMXCCMState *s = (IMXCCMState *)opaque;

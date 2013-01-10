@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #endif /* DEBUG_REMAP */
 
-#include "qemu-types.h"
+#include "exec/user/abitypes.h"
 
 enum BSDType {
     target_freebsd,
@@ -23,7 +23,7 @@ extern enum BSDType bsd_type;
 #include "syscall_defs.h"
 #include "syscall.h"
 #include "target_signal.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 
 #if defined(CONFIG_USE_NPTL)
 #define THREAD __thread
@@ -146,7 +146,7 @@ int get_osversion(void);
 void fork_start(void);
 void fork_end(int child);
 
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 /* strace.c */
 void

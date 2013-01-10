@@ -27,9 +27,9 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
 
@@ -423,8 +423,6 @@ void armv7m_nvic_complete_irq(void *opaque, int irq);
     (((cp) << 16) | ((is64) << 15) | ((crn) << 11) |    \
      ((crm) << 7) | ((opc1) << 3) | (opc2))
 
-#define DECODE_CPREG_CRN(enc) (((enc) >> 7) & 0xf)
-
 /* ARMCPRegInfo type field bits. If the SPECIAL bit is set this is a
  * special-behaviour cp reg and bits [15..8] indicate what behaviour
  * it has. Otherwise it is a simple cp reg, where CONST indicates that
@@ -661,7 +659,7 @@ static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 /* Bit usage in the TB flags field: */
 #define ARM_TBFLAG_THUMB_SHIFT      0
@@ -720,13 +718,15 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     }
 }
 
-static inline bool cpu_has_work(CPUARMState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUARMState *env = &ARM_CPU(cpu)->env;
+
     return env->interrupt_request &
         (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
 {
@@ -734,9 +734,10 @@ static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
 }
 
 /* Load an instruction and return it in the standard little-endian order */
-static inline uint32_t arm_ldl_code(uint32_t addr, bool do_swap)
+static inline uint32_t arm_ldl_code(CPUARMState *env, uint32_t addr,
+                                    bool do_swap)
 {
-    uint32_t insn = ldl_code(addr);
+    uint32_t insn = cpu_ldl_code(env, addr);
     if (do_swap) {
         return bswap32(insn);
     }
@@ -744,9 +745,10 @@ static inline uint32_t arm_ldl_code(uint32_t addr, bool do_swap)
 }
 
 /* Ditto, for a halfword (Thumb) instruction */
-static inline uint16_t arm_lduw_code(uint32_t addr, bool do_swap)
+static inline uint16_t arm_lduw_code(CPUARMState *env, uint32_t addr,
+                                     bool do_swap)
 {
-    uint16_t insn = lduw_code(addr);
+    uint16_t insn = cpu_lduw_code(env, addr);
     if (do_swap) {
         return bswap16(insn);
     }

@@ -71,7 +71,7 @@ static inline void hwsetup_free(HWSetup *hw)
 }
 
 static inline void hwsetup_create_rom(HWSetup *hw,
-        target_phys_addr_t base)
+        hwaddr base)
 {
     rom_add_blob("hwsetup", hw->data, TARGET_PAGE_SIZE, base);
 }
@@ -96,7 +96,7 @@ static inline void hwsetup_add_tag(HWSetup *hw, enum hwsetup_tag t)
 
 static inline void hwsetup_add_str(HWSetup *hw, const char *str)
 {
-    strncpy(hw->ptr, str, 31); /* make sure last byte is zero */
+    pstrcpy(hw->ptr, 32, str);
     hw->ptr += 32;
 }
 

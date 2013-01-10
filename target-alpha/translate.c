@@ -18,8 +18,8 @@
  */
 
 #include "cpu.h"
-#include "disas.h"
-#include "host-utils.h"
+#include "disas/disas.h"
+#include "qemu/host-utils.h"
 #include "tcg-op.h"
 
 #include "helper.h"
@@ -88,9 +88,9 @@ static TCGv cpu_usp;
 /* register names */
 static char cpu_reg_names[10*4+21*5 + 10*5+21*6];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
-static void alpha_translate_init(void)
+void alpha_translate_init(void)
 {
     int i;
     char *p;
@@ -426,27 +426,15 @@ static ExitStatus gen_bcond_internal(DisasContext *ctx, TCGCond cond,
 
         return EXIT_GOTO_TB;
     } else {
-        int lab_over = gen_new_label();
+        TCGv_i64 z = tcg_const_i64(0);
+        TCGv_i64 d = tcg_const_i64(dest);
+        TCGv_i64 p = tcg_const_i64(ctx->pc);
 
-        /* ??? Consider using either
-             movi pc, next
-             addi tmp, pc, disp
-             movcond pc, cond, 0, tmp, pc
-           or
-             setcond tmp, cond, 0
-             movi pc, next
-             neg tmp, tmp
-             andi tmp, tmp, disp
-             add pc, pc, tmp
-           The current diamond subgraph surely isn't efficient.  */
+        tcg_gen_movcond_i64(cond, cpu_pc, cmp, z, d, p);
 
-        tcg_gen_brcondi_i64(cond, cmp, 0, lab_true);
-        tcg_gen_movi_i64(cpu_pc, ctx->pc);
-        tcg_gen_br(lab_over);
-        gen_set_label(lab_true);
-        tcg_gen_movi_i64(cpu_pc, dest);
-        gen_set_label(lab_over);
-
+        tcg_temp_free_i64(z);
+        tcg_temp_free_i64(d);
+        tcg_temp_free_i64(p);
         return EXIT_PC_UPDATED;
     }
 }
@@ -521,61 +509,67 @@ static ExitStatus gen_fbcond(DisasContext *ctx, TCGCond cond, int ra,
 static void gen_cmov(TCGCond cond, int ra, int rb, int rc,
                      int islit, uint8_t lit, int mask)
 {
-    TCGCond inv_cond = tcg_invert_cond(cond);
-    int l1;
-
-    if (unlikely(rc == 31))
-        return;
-
-    l1 = gen_new_label();
-
-    if (ra != 31) {
-        if (mask) {
-            TCGv tmp = tcg_temp_new();
-            tcg_gen_andi_i64(tmp, cpu_ir[ra], 1);
-            tcg_gen_brcondi_i64(inv_cond, tmp, 0, l1);
-            tcg_temp_free(tmp);
-        } else
-            tcg_gen_brcondi_i64(inv_cond, cpu_ir[ra], 0, l1);
-    } else {
-        /* Very uncommon case - Do not bother to optimize.  */
-        TCGv tmp = tcg_const_i64(0);
-        tcg_gen_brcondi_i64(inv_cond, tmp, 0, l1);
-        tcg_temp_free(tmp);
-    }
-
-    if (islit)
-        tcg_gen_movi_i64(cpu_ir[rc], lit);
-    else
-        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
-    gen_set_label(l1);
-}
-
-static void gen_fcmov(TCGCond cond, int ra, int rb, int rc)
-{
-    TCGv cmp_tmp;
-    int l1;
+    TCGv_i64 c1, z, v1;
 
     if (unlikely(rc == 31)) {
         return;
     }
 
-    cmp_tmp = tcg_temp_new();
-    if (unlikely(ra == 31)) {
-        tcg_gen_movi_i64(cmp_tmp, 0);
+    if (ra == 31) {
+        /* Very uncommon case - Do not bother to optimize.  */
+        c1 = tcg_const_i64(0);
+    } else if (mask) {
+        c1 = tcg_const_i64(1);
+        tcg_gen_and_i64(c1, c1, cpu_ir[ra]);
     } else {
-        gen_fold_mzero(cond, cmp_tmp, cpu_fir[ra]);
+        c1 = cpu_ir[ra];
+    }
+    if (islit) {
+        v1 = tcg_const_i64(lit);
+    } else {
+        v1 = cpu_ir[rb];
+    }
+    z = tcg_const_i64(0);
+
+    tcg_gen_movcond_i64(cond, cpu_ir[rc], c1, z, v1, cpu_ir[rc]);
+
+    tcg_temp_free_i64(z);
+    if (ra == 31 || mask) {
+        tcg_temp_free_i64(c1);
+    }
+    if (islit) {
+        tcg_temp_free_i64(v1);
+    }
+}
+
+static void gen_fcmov(TCGCond cond, int ra, int rb, int rc)
+{
+    TCGv_i64 c1, z, v1;
+
+    if (unlikely(rc == 31)) {
+        return;
     }
 
-    l1 = gen_new_label();
-    tcg_gen_brcondi_i64(tcg_invert_cond(cond), cmp_tmp, 0, l1);
-    tcg_temp_free(cmp_tmp);
+    c1 = tcg_temp_new_i64();
+    if (unlikely(ra == 31)) {
+        tcg_gen_movi_i64(c1, 0);
+    } else {
+        gen_fold_mzero(cond, c1, cpu_fir[ra]);
+    }
+    if (rb == 31) {
+        v1 = tcg_const_i64(0);
+    } else {
+        v1 = cpu_fir[rb];
+    }
+    z = tcg_const_i64(0);
 
-    if (rb != 31)
-        tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[rb]);
-    else
-        tcg_gen_movi_i64(cpu_fir[rc], 0);
-    gen_set_label(l1);
+    tcg_gen_movcond_i64(cond, cpu_fir[rc], c1, z, v1, cpu_fir[rc]);
+
+    tcg_temp_free_i64(z);
+    tcg_temp_free_i64(c1);
+    if (rb == 31) {
+        tcg_temp_free_i64(v1);
+    }
 }
 
 #define QUAL_RM_N       0x080   /* Round mode nearest even */
@@ -617,7 +611,7 @@ static void gen_qual_roundmode(DisasContext *ctx, int fn11)
     }
 
 #if defined(CONFIG_SOFTFLOAT_INLINE)
-    /* ??? The "softfloat.h" interface is to call set_float_rounding_mode.
+    /* ??? The "fpu/softfloat.h" interface is to call set_float_rounding_mode.
        With CONFIG_SOFTFLOAT that expands to an out-of-line call that just
        sets the one field.  */
     tcg_gen_st8_i32(tmp, cpu_env,
@@ -3379,7 +3373,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
     int max_insns;
 
     pc_start = tb->pc;
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     ctx.tb = tb;
     ctx.env = env;
@@ -3412,22 +3406,22 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
             }
         }
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
             }
-            gen_opc_pc[lj] = ctx.pc;
-            gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_pc[lj] = ctx.pc;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
         insn = cpu_ldl_code(env, ctx.pc);
         num_insns++;
 
-	if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
+	if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
             tcg_gen_debug_insn_start(ctx.pc);
         }
 
@@ -3438,7 +3432,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
            or exhaust instruction count, stop generation.  */
         if (ret == NO_EXIT
             && ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0
-                || gen_opc_ptr >= gen_opc_end
+                || tcg_ctx.gen_opc_ptr >= gen_opc_end
                 || num_insns >= max_insns
                 || singlestep
                 || env->singlestep_enabled)) {
@@ -3469,12 +3463,12 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
     }
 
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = ctx.pc - pc_start;
         tb->icount = num_insns;
@@ -3483,7 +3477,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(pc_start, ctx.pc - pc_start, 1);
+        log_target_disas(env, pc_start, ctx.pc - pc_start, 1);
         qemu_log("\n");
     }
 #endif
@@ -3499,62 +3493,7 @@ void gen_intermediate_code_pc (CPUAlphaState *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-struct cpu_def_t {
-    const char *name;
-    int implver, amask;
-};
-
-static const struct cpu_def_t cpu_defs[] = {
-    { "ev4",   IMPLVER_2106x, 0 },
-    { "ev5",   IMPLVER_21164, 0 },
-    { "ev56",  IMPLVER_21164, AMASK_BWX },
-    { "pca56", IMPLVER_21164, AMASK_BWX | AMASK_MVI },
-    { "ev6",   IMPLVER_21264, AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP },
-    { "ev67",  IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
-			       | AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), },
-    { "ev68",  IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
-			       | AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), },
-    { "21064", IMPLVER_2106x, 0 },
-    { "21164", IMPLVER_21164, 0 },
-    { "21164a", IMPLVER_21164, AMASK_BWX },
-    { "21164pc", IMPLVER_21164, AMASK_BWX | AMASK_MVI },
-    { "21264", IMPLVER_21264, AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP },
-    { "21264a", IMPLVER_21264, (AMASK_BWX | AMASK_FIX | AMASK_CIX
-				| AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), }
-};
-
-CPUAlphaState * cpu_alpha_init (const char *cpu_model)
-{
-    AlphaCPU *cpu;
-    CPUAlphaState *env;
-    int implver, amask, i, max;
-
-    cpu = ALPHA_CPU(object_new(TYPE_ALPHA_CPU));
-    env = &cpu->env;
-
-    alpha_translate_init();
-
-    /* Default to ev67; no reason not to emulate insns by default.  */
-    implver = IMPLVER_21264;
-    amask = (AMASK_BWX | AMASK_FIX | AMASK_CIX | AMASK_MVI
-	     | AMASK_TRAP | AMASK_PREFETCH);
-
-    max = ARRAY_SIZE(cpu_defs);
-    for (i = 0; i < max; i++) {
-        if (strcmp (cpu_model, cpu_defs[i].name) == 0) {
-            implver = cpu_defs[i].implver;
-            amask = cpu_defs[i].amask;
-            break;
-        }
-    }
-    env->implver = implver;
-    env->amask = amask;
-
-    qemu_init_vcpu(env);
-    return env;
-}
-
 void restore_state_to_opc(CPUAlphaState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
 }

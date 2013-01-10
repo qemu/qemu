@@ -22,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef TCG_TARGET_ARM 
 #define TCG_TARGET_ARM 1
 
 #undef TCG_TARGET_WORDS_BIGENDIAN
@@ -73,11 +74,9 @@ typedef enum {
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_nor_i32          0
 #define TCG_TARGET_HAS_deposit_i32      0
-
-#define TCG_TARGET_HAS_GUEST_BASE
+#define TCG_TARGET_HAS_movcond_i32      1
 
 enum {
-    /* Note: must be synced with dyngen-exec.h */
     TCG_AREG0 = TCG_REG_R6,
 };
 
@@ -93,3 +92,5 @@ static inline void flush_icache_range(tcg_target_ulong start,
     __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
 #endif
 }
+
+#endif

@@ -4,7 +4,7 @@
 #include "hw/isa.h"
 
 #include "cpu.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 static const VMStateDescription vmstate_segment = {
     .name = "segment",
@@ -279,6 +279,13 @@ static bool async_pf_msr_needed(void *opaque)
     return cpu->async_pf_en_msr != 0;
 }
 
+static bool pv_eoi_msr_needed(void *opaque)
+{
+    CPUX86State *cpu = opaque;
+
+    return cpu->pv_eoi_en_msr != 0;
+}
+
 static const VMStateDescription vmstate_async_pf_msr = {
     .name = "cpu/async_pf_msr",
     .version_id = 1,
@@ -286,6 +293,17 @@ static const VMStateDescription vmstate_async_pf_msr = {
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_UINT64(async_pf_en_msr, CPUX86State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_pv_eoi_msr = {
+    .name = "cpu/async_pv_eoi_msr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(pv_eoi_en_msr, CPUX86State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -306,6 +324,24 @@ static const VMStateDescription vmstate_fpop_ip_dp = {
         VMSTATE_UINT16(fpop, CPUX86State),
         VMSTATE_UINT64(fpip, CPUX86State),
         VMSTATE_UINT64(fpdp, CPUX86State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool tsc_adjust_needed(void *opaque)
+{
+    CPUX86State *env = opaque;
+
+    return env->tsc_adjust != 0;
+}
+
+static const VMStateDescription vmstate_msr_tsc_adjust = {
+    .name = "cpu/msr_tsc_adjust",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT64(tsc_adjust, CPUX86State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -454,8 +490,14 @@ static const VMStateDescription vmstate_cpu = {
             .vmsd = &vmstate_async_pf_msr,
             .needed = async_pf_msr_needed,
         } , {
+            .vmsd = &vmstate_pv_eoi_msr,
+            .needed = pv_eoi_msr_needed,
+        } , {
             .vmsd = &vmstate_fpop_ip_dp,
             .needed = fpop_ip_dp_needed,
+        }, {
+            .vmsd = &vmstate_msr_tsc_adjust,
+            .needed = tsc_adjust_needed,
         }, {
             .vmsd = &vmstate_msr_tscdeadline,
             .needed = tscdeadline_needed,

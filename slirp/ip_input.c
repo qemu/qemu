@@ -39,7 +39,7 @@
  */
 
 #include <slirp.h>
-#include <osdep.h>
+#include <qemu/osdep.h>
 #include "ip_icmp.h"
 
 static struct ip *ip_reass(Slirp *slirp, struct ip *ip, struct ipq *fp);
@@ -213,7 +213,6 @@ ip_input(struct mbuf *m)
 	return;
 bad:
 	m_free(m);
-	return;
 }
 
 #define iptofrag(P) ((struct ipasfrag *)(((char*)(P)) - sizeof(struct qlink)))

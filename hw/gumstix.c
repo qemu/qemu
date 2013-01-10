@@ -36,19 +36,16 @@
 
 #include "hw.h"
 #include "pxa.h"
-#include "net.h"
+#include "net/net.h"
 #include "flash.h"
 #include "devices.h"
 #include "boards.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 static const int sector_len = 128 * 1024;
 
-static void connex_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void connex_init(QEMUMachineInitArgs *args)
 {
     PXA2xxState *cpu;
     DriveInfo *dinfo;
@@ -84,11 +81,9 @@ static void connex_init(ram_addr_t ram_size,
                     qdev_get_gpio_in(cpu->gpio, 36));
 }
 
-static void verdex_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void verdex_init(QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
     PXA2xxState *cpu;
     DriveInfo *dinfo;
     int be;

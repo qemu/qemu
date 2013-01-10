@@ -23,13 +23,17 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
-#include "module.h"
+#include "qemu/config-file.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
 
 typedef struct BDRVBlkdebugState {
     int state;
+    int new_state;
+
     QLIST_HEAD(, BlkdebugRule) rules[BLKDBG_EVENT_MAX];
     QSIMPLEQ_HEAD(, BlkdebugRule) active_rules;
+    QLIST_HEAD(, BlkdebugSuspendedReq) suspended_reqs;
 } BDRVBlkdebugState;
 
 typedef struct BlkdebugAIOCB {
@@ -38,9 +42,15 @@ typedef struct BlkdebugAIOCB {
     int ret;
 } BlkdebugAIOCB;
 
+typedef struct BlkdebugSuspendedReq {
+    Coroutine *co;
+    char *tag;
+    QLIST_ENTRY(BlkdebugSuspendedReq) next;
+} BlkdebugSuspendedReq;
+
 static void blkdebug_aio_cancel(BlockDriverAIOCB *blockacb);
 
-static AIOPool blkdebug_aio_pool = {
+static const AIOCBInfo blkdebug_aiocb_info = {
     .aiocb_size = sizeof(BlkdebugAIOCB),
     .cancel     = blkdebug_aio_cancel,
 };
@@ -48,6 +58,7 @@ static AIOPool blkdebug_aio_pool = {
 enum {
     ACTION_INJECT_ERROR,
     ACTION_SET_STATE,
+    ACTION_SUSPEND,
 };
 
 typedef struct BlkdebugRule {
@@ -64,6 +75,9 @@ typedef struct BlkdebugRule {
         struct {
             int new_state;
         } set_state;
+        struct {
+            char *tag;
+        } suspend;
     } options;
     QLIST_ENTRY(BlkdebugRule) next;
     QSIMPLEQ_ENTRY(BlkdebugRule) active_next;
@@ -225,6 +239,11 @@ static int add_rule(QemuOpts *opts, void *opaque)
         rule->options.set_state.new_state =
             qemu_opt_get_number(opts, "new_state", 0);
         break;
+
+    case ACTION_SUSPEND:
+        rule->options.suspend.tag =
+            g_strdup(qemu_opt_get(opts, "tag"));
+        break;
     };
 
     /* Add the rule */
@@ -233,11 +252,31 @@ static int add_rule(QemuOpts *opts, void *opaque)
     return 0;
 }
 
+static void remove_rule(BlkdebugRule *rule)
+{
+    switch (rule->action) {
+    case ACTION_INJECT_ERROR:
+    case ACTION_SET_STATE:
+        break;
+    case ACTION_SUSPEND:
+        g_free(rule->options.suspend.tag);
+        break;
+    }
+
+    QLIST_REMOVE(rule, next);
+    g_free(rule);
+}
+
 static int read_config(BDRVBlkdebugState *s, const char *filename)
 {
     FILE *f;
     int ret;
     struct add_rule_data d;
+
+    /* Allow usage without config file */
+    if (!*filename) {
+        return 0;
+    }
 
     f = fopen(filename, "r");
     if (f == NULL) {
@@ -334,7 +373,7 @@ static BlockDriverAIOCB *inject_error(BlockDriverState *bs,
         return NULL;
     }
 
-    acb = qemu_aio_get(&blkdebug_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&blkdebug_aiocb_info, bs, cb, opaque);
     acb->ret = -error;
 
     bh = qemu_bh_new(error_callback_bh, acb);
@@ -388,6 +427,7 @@ static BlockDriverAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
     return bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
 }
 
+
 static void blkdebug_close(BlockDriverState *bs)
 {
     BDRVBlkdebugState *s = bs->opaque;
@@ -396,19 +436,39 @@ static void blkdebug_close(BlockDriverState *bs)
 
     for (i = 0; i < BLKDBG_EVENT_MAX; i++) {
         QLIST_FOREACH_SAFE(rule, &s->rules[i], next, next) {
-            QLIST_REMOVE(rule, next);
-            g_free(rule);
+            remove_rule(rule);
         }
     }
 }
 
+static void suspend_request(BlockDriverState *bs, BlkdebugRule *rule)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    BlkdebugSuspendedReq r;
+
+    r = (BlkdebugSuspendedReq) {
+        .co         = qemu_coroutine_self(),
+        .tag        = g_strdup(rule->options.suspend.tag),
+    };
+
+    remove_rule(rule);
+    QLIST_INSERT_HEAD(&s->suspended_reqs, &r, next);
+
+    printf("blkdebug: Suspended request '%s'\n", r.tag);
+    qemu_coroutine_yield();
+    printf("blkdebug: Resuming request '%s'\n", r.tag);
+
+    QLIST_REMOVE(&r, next);
+    g_free(r.tag);
+}
+
 static bool process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
-    int old_state, bool injected)
+    bool injected)
 {
     BDRVBlkdebugState *s = bs->opaque;
 
     /* Only process rules for the current state */
-    if (rule->state && rule->state != old_state) {
+    if (rule->state && rule->state != s->state) {
         return injected;
     }
 
@@ -423,7 +483,11 @@ static bool process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
         break;
 
     case ACTION_SET_STATE:
-        s->state = rule->options.set_state.new_state;
+        s->new_state = rule->options.set_state.new_state;
+        break;
+
+    case ACTION_SUSPEND:
+        suspend_request(bs, rule);
         break;
     }
     return injected;
@@ -432,16 +496,70 @@ static bool process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
 static void blkdebug_debug_event(BlockDriverState *bs, BlkDebugEvent event)
 {
     BDRVBlkdebugState *s = bs->opaque;
-    struct BlkdebugRule *rule;
-    int old_state = s->state;
+    struct BlkdebugRule *rule, *next;
     bool injected;
 
     assert((int)event >= 0 && event < BLKDBG_EVENT_MAX);
 
     injected = false;
-    QLIST_FOREACH(rule, &s->rules[event], next) {
-        injected = process_rule(bs, rule, old_state, injected);
+    s->new_state = s->state;
+    QLIST_FOREACH_SAFE(rule, &s->rules[event], next, next) {
+        injected = process_rule(bs, rule, injected);
     }
+    s->state = s->new_state;
+}
+
+static int blkdebug_debug_breakpoint(BlockDriverState *bs, const char *event,
+                                     const char *tag)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    struct BlkdebugRule *rule;
+    BlkDebugEvent blkdebug_event;
+
+    if (get_event_by_name(event, &blkdebug_event) < 0) {
+        return -ENOENT;
+    }
+
+
+    rule = g_malloc(sizeof(*rule));
+    *rule = (struct BlkdebugRule) {
+        .event  = blkdebug_event,
+        .action = ACTION_SUSPEND,
+        .state  = 0,
+        .options.suspend.tag = g_strdup(tag),
+    };
+
+    QLIST_INSERT_HEAD(&s->rules[blkdebug_event], rule, next);
+
+    return 0;
+}
+
+static int blkdebug_debug_resume(BlockDriverState *bs, const char *tag)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    BlkdebugSuspendedReq *r;
+
+    QLIST_FOREACH(r, &s->suspended_reqs, next) {
+        if (!strcmp(r->tag, tag)) {
+            qemu_coroutine_enter(r->co, NULL);
+            return 0;
+        }
+    }
+    return -ENOENT;
+}
+
+
+static bool blkdebug_debug_is_suspended(BlockDriverState *bs, const char *tag)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    BlkdebugSuspendedReq *r;
+
+    QLIST_FOREACH(r, &s->suspended_reqs, next) {
+        if (!strcmp(r->tag, tag)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static int64_t blkdebug_getlength(BlockDriverState *bs)
@@ -462,7 +580,10 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_aio_readv     = blkdebug_aio_readv,
     .bdrv_aio_writev    = blkdebug_aio_writev,
 
-    .bdrv_debug_event   = blkdebug_debug_event,
+    .bdrv_debug_event           = blkdebug_debug_event,
+    .bdrv_debug_breakpoint      = blkdebug_debug_breakpoint,
+    .bdrv_debug_resume          = blkdebug_debug_resume,
+    .bdrv_debug_is_suspended    = blkdebug_debug_is_suspended,
 };
 
 static void bdrv_blkdebug_init(void)

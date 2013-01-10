@@ -18,7 +18,7 @@
  */
 
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "framebuffer.h"
 
 /* Render an image from a shared memory framebuffer.  */
@@ -26,7 +26,7 @@
 void framebuffer_update_display(
     DisplayState *ds,
     MemoryRegion *address_space,
-    target_phys_addr_t base,
+    hwaddr base,
     int cols, /* Width in pixels.  */
     int rows, /* Height in pixels.  */
     int src_width, /* Length of source line, in bytes.  */
@@ -38,7 +38,7 @@ void framebuffer_update_display(
     int *first_row, /* Input and output.  */
     int *last_row /* Output only */)
 {
-    target_phys_addr_t src_len;
+    hwaddr src_len;
     uint8_t *dest;
     uint8_t *src;
     uint8_t *src_base;
@@ -107,5 +107,4 @@ void framebuffer_update_display(
                               DIRTY_MEMORY_VGA);
     *first_row = first;
     *last_row = last;
-    return;
 }

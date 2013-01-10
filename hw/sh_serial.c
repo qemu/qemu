@@ -26,8 +26,8 @@
  */
 #include "hw.h"
 #include "sh.h"
-#include "qemu-char.h"
-#include "exec-memory.h"
+#include "char/char.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_SERIAL
 
@@ -78,7 +78,7 @@ static void sh_serial_clear_fifo(sh_serial_state * s)
     s->rx_tail = 0;
 }
 
-static void sh_serial_write(void *opaque, target_phys_addr_t offs,
+static void sh_serial_write(void *opaque, hwaddr offs,
                             uint64_t val, unsigned size)
 {
     sh_serial_state *s = opaque;
@@ -187,11 +187,11 @@ static void sh_serial_write(void *opaque, target_phys_addr_t offs,
     }
 
     fprintf(stderr, "sh_serial: unsupported write to 0x%02"
-            TARGET_PRIxPHYS "\n", offs);
+            HWADDR_PRIx "\n", offs);
     abort();
 }
 
-static uint64_t sh_serial_read(void *opaque, target_phys_addr_t offs,
+static uint64_t sh_serial_read(void *opaque, hwaddr offs,
                                unsigned size)
 {
     sh_serial_state *s = opaque;
@@ -289,7 +289,7 @@ static uint64_t sh_serial_read(void *opaque, target_phys_addr_t offs,
 
     if (ret & ~((1 << 16) - 1)) {
         fprintf(stderr, "sh_serial: unsupported read from 0x%02"
-                TARGET_PRIxPHYS "\n", offs);
+                HWADDR_PRIx "\n", offs);
         abort();
     }
 
@@ -353,7 +353,7 @@ static const MemoryRegionOps sh_serial_ops = {
 };
 
 void sh_serial_init(MemoryRegion *sysmem,
-                    target_phys_addr_t base, int feat,
+                    hwaddr base, int feat,
                     uint32_t freq, CharDriverState *chr,
                     qemu_irq eri_source,
                     qemu_irq rxi_source,

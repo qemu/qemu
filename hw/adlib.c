@@ -32,7 +32,7 @@
 #define ADLIB_KILL_TIMERS 1
 
 #ifdef DEBUG
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #endif
 
 #define dolog(...) AUD_log ("adlib", __VA_ARGS__)

@@ -18,20 +18,21 @@
  */
 
 #include "hw.h"
-#include "block.h"
-#include "blockdev.h"
-#include "sysemu.h"
-#include "net.h"
+#include "block/block.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
+#include "net/net.h"
 #include "boards.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "loader.h"
 #include "elf.h"
 #include "hw/virtio.h"
 #include "hw/sysbus.h"
-#include "kvm.h"
-#include "exec-memory.h"
+#include "sysemu/kvm.h"
+#include "exec/address-spaces.h"
 
 #include "hw/s390-virtio-bus.h"
+#include "hw/s390x/sclp.h"
 
 //#define DEBUG_S390
 
@@ -151,13 +152,13 @@ unsigned s390_del_running_cpu(CPUS390XState *env)
 }
 
 /* PC hardware initialisation */
-static void s390_init(ram_addr_t my_ram_size,
-                      const char *boot_device,
-                      const char *kernel_filename,
-                      const char *kernel_cmdline,
-                      const char *initrd_filename,
-                      const char *cpu_model)
+static void s390_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t my_ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     CPUS390XState *env = NULL;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -167,8 +168,8 @@ static void s390_init(ram_addr_t my_ram_size,
     int shift = 0;
     uint8_t *storage_keys;
     void *virtio_region;
-    target_phys_addr_t virtio_region_len;
-    target_phys_addr_t virtio_region_start;
+    hwaddr virtio_region_len;
+    hwaddr virtio_region_start;
     int i;
 
     /* s390x ram size detection needs a 16bit multiplier + an increment. So
@@ -183,6 +184,7 @@ static void s390_init(ram_addr_t my_ram_size,
 
     /* get a BUS */
     s390_bus = s390_virtio_bus_init(&my_ram_size);
+    s390_sclp_init();
 
     /* allocate RAM */
     memory_region_init_ram(ram, "s390.ram", my_ram_size);
@@ -284,8 +286,8 @@ static void s390_init(ram_addr_t my_ram_size,
         }
 
         /* we have to overwrite values in the kernel image, which are "rom" */
-        memcpy(rom_ptr(INITRD_PARM_START), &initrd_offset, 8);
-        memcpy(rom_ptr(INITRD_PARM_SIZE), &initrd_size, 8);
+        stq_p(rom_ptr(INITRD_PARM_START), initrd_offset);
+        stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
     }
 
     if (rom_ptr(KERN_PARM_AREA)) {
@@ -312,21 +314,6 @@ static void s390_init(ram_addr_t my_ram_size,
         qdev_set_nic_properties(dev, nd);
         qdev_init_nofail(dev);
     }
-
-    /* Create VirtIO disk drives */
-    for(i = 0; i < MAX_BLK_DEVS; i++) {
-        DriveInfo *dinfo;
-        DeviceState *dev;
-
-        dinfo = drive_get(IF_IDE, 0, i);
-        if (!dinfo) {
-            continue;
-        }
-
-        dev = qdev_create((BusState *)s390_bus, "virtio-blk-s390");
-        qdev_prop_set_drive_nofail(dev, "drive", dinfo->bdrv);
-        qdev_init_nofail(dev);
-    }
 }
 
 static QEMUMachine s390_machine = {
@@ -334,6 +321,7 @@ static QEMUMachine s390_machine = {
     .alias = "s390",
     .desc = "VirtIO based S390 machine",
     .init = s390_init,
+    .block_default_type = IF_VIRTIO,
     .no_cdrom = 1,
     .no_floppy = 1,
     .no_serial = 1,
@@ -350,3 +338,4 @@ static void s390_machine_init(void)
 }
 
 machine_init(s390_machine_init);
+

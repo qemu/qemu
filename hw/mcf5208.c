@@ -7,14 +7,14 @@
  */
 #include "hw.h"
 #include "mcf.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
-#include "sysemu.h"
-#include "net.h"
+#include "sysemu/sysemu.h"
+#include "net/net.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define SYS_FREQ 66000000
 
@@ -45,7 +45,7 @@ static void m5208_timer_update(m5208_timer_state *s)
         qemu_irq_lower(s->irq);
 }
 
-static void m5208_timer_write(void *opaque, target_phys_addr_t offset,
+static void m5208_timer_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
     m5208_timer_state *s = (m5208_timer_state *)opaque;
@@ -107,7 +107,7 @@ static void m5208_timer_trigger(void *opaque)
     m5208_timer_update(s);
 }
 
-static uint64_t m5208_timer_read(void *opaque, target_phys_addr_t addr,
+static uint64_t m5208_timer_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     m5208_timer_state *s = (m5208_timer_state *)opaque;
@@ -130,7 +130,7 @@ static const MemoryRegionOps m5208_timer_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t m5208_sys_read(void *opaque, target_phys_addr_t addr,
+static uint64_t m5208_sys_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     switch (addr) {
@@ -152,7 +152,7 @@ static uint64_t m5208_sys_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void m5208_sys_write(void *opaque, target_phys_addr_t addr,
+static void m5208_sys_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     hw_error("m5208_sys_write: Bad offset 0x%x\n", (int)addr);
@@ -187,15 +187,15 @@ static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic)
     }
 }
 
-static void mcf5208evb_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void mcf5208evb_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
     CPUM68KState *env;
     int kernel_size;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    hwaddr entry;
     qemu_irq *pic;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);

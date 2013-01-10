@@ -19,16 +19,11 @@
  */
 
 #include "cpu.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 
 #include "helpers.h"
 
 #define SIGNBIT (1u << 31)
-
-typedef struct M68kCPUListState {
-    fprintf_function cpu_fprintf;
-    FILE *file;
-} M68kCPUListState;
 
 /* Sort alphabetically, except for "any". */
 static gint m68k_cpu_list_compare(gconstpointer a, gconstpointer b)
@@ -51,7 +46,7 @@ static gint m68k_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void m68k_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *c = data;
-    M68kCPUListState *s = user_data;
+    CPUListState *s = user_data;
 
     (*s->cpu_fprintf)(s->file, "%s\n",
                       object_class_get_name(c));
@@ -59,7 +54,7 @@ static void m68k_cpu_list_entry(gpointer data, gpointer user_data)
 
 void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    M68kCPUListState s = {
+    CPUListState s = {
         .file = f,
         .cpu_fprintf = cpu_fprintf,
     };
@@ -289,7 +284,7 @@ int cpu_m68k_handle_mmu_fault (CPUM68KState *env, target_ulong address, int rw,
 /* MMU */
 
 /* TODO: This will need fixing once the MMU is implemented.  */
-target_phys_addr_t cpu_get_phys_page_debug(CPUM68KState *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUM68KState *env, target_ulong addr)
 {
     return addr;
 }

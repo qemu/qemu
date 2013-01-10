@@ -11,7 +11,8 @@
 #ifndef ARM_MISC_H
 #define ARM_MISC_H 1
 
-#include "memory.h"
+#include "exec/memory.h"
+#include "hw/irq.h"
 
 /* The CPU is also modeled as an interrupt controller.  */
 #define ARM_PIC_CPU_IRQ 0
@@ -30,15 +31,15 @@ struct arm_boot_info {
     const char *kernel_cmdline;
     const char *initrd_filename;
     const char *dtb_filename;
-    target_phys_addr_t loader_start;
+    hwaddr loader_start;
     /* multicore boards that use the default secondary core boot functions
      * need to put the address of the secondary boot code, the boot reg,
      * and the GIC address in the next 3 values, respectively. boards that
      * have their own boot functions can use these values as they want.
      */
-    target_phys_addr_t smp_loader_start;
-    target_phys_addr_t smp_bootreg_addr;
-    target_phys_addr_t gic_cpu_if_addr;
+    hwaddr smp_loader_start;
+    hwaddr smp_bootreg_addr;
+    hwaddr gic_cpu_if_addr;
     int nb_cpus;
     int board_id;
     int (*atag_board)(const struct arm_boot_info *info, void *p);
@@ -56,8 +57,9 @@ struct arm_boot_info {
                                      const struct arm_boot_info *info);
     /* Used internally by arm_boot.c */
     int is_linux;
-    target_phys_addr_t initrd_size;
-    target_phys_addr_t entry;
+    hwaddr initrd_start;
+    hwaddr initrd_size;
+    hwaddr entry;
 };
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
 

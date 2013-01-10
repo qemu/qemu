@@ -11,9 +11,9 @@
  */
 
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include "devices.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "ptimer.h"
 /* For crc32 */
 #include <zlib.h>
@@ -500,7 +500,7 @@ static int lan9118_filter(lan9118_state *s, const uint8_t *addr)
         }
     } else {
         /* Hash matching  */
-        hash = (crc32(~0, addr, 6) >> 26);
+        hash = compute_mcast_idx(addr);
         if (hash & 0x20) {
             return (s->mac_hashh >> (hash & 0x1f)) & 1;
         } else {
@@ -1000,7 +1000,7 @@ static void lan9118_tick(void *opaque)
     lan9118_update(s);
 }
 
-static void lan9118_writel(void *opaque, target_phys_addr_t offset,
+static void lan9118_writel(void *opaque, hwaddr offset,
                            uint64_t val, unsigned size)
 {
     lan9118_state *s = (lan9118_state *)opaque;
@@ -1134,7 +1134,7 @@ static void lan9118_writel(void *opaque, target_phys_addr_t offset,
     lan9118_update(s);
 }
 
-static void lan9118_writew(void *opaque, target_phys_addr_t offset,
+static void lan9118_writew(void *opaque, hwaddr offset,
                            uint32_t val)
 {
     lan9118_state *s = (lan9118_state *)opaque;
@@ -1161,7 +1161,7 @@ static void lan9118_writew(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void lan9118_16bit_mode_write(void *opaque, target_phys_addr_t offset,
+static void lan9118_16bit_mode_write(void *opaque, hwaddr offset,
                                      uint64_t val, unsigned size)
 {
     switch (size) {
@@ -1176,7 +1176,7 @@ static void lan9118_16bit_mode_write(void *opaque, target_phys_addr_t offset,
     hw_error("lan9118_write: Bad size 0x%x\n", size);
 }
 
-static uint64_t lan9118_readl(void *opaque, target_phys_addr_t offset,
+static uint64_t lan9118_readl(void *opaque, hwaddr offset,
                               unsigned size)
 {
     lan9118_state *s = (lan9118_state *)opaque;
@@ -1250,7 +1250,7 @@ static uint64_t lan9118_readl(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static uint32_t lan9118_readw(void *opaque, target_phys_addr_t offset)
+static uint32_t lan9118_readw(void *opaque, hwaddr offset)
 {
     lan9118_state *s = (lan9118_state *)opaque;
     uint32_t val;
@@ -1278,7 +1278,7 @@ static uint32_t lan9118_readw(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static uint64_t lan9118_16bit_mode_read(void *opaque, target_phys_addr_t offset,
+static uint64_t lan9118_16bit_mode_read(void *opaque, hwaddr offset,
                                         unsigned size)
 {
     switch (size) {

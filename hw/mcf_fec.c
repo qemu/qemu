@@ -6,11 +6,11 @@
  * This code is licensed under the GPL
  */
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 #include "mcf.h"
 /* For crc32 */
 #include <zlib.h>
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_FEC 1
 
@@ -216,7 +216,7 @@ static void mcf_fec_reset(mcf_fec_state *s)
     s->rfsr = 0x500;
 }
 
-static uint64_t mcf_fec_read(void *opaque, target_phys_addr_t addr,
+static uint64_t mcf_fec_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     mcf_fec_state *s = (mcf_fec_state *)opaque;
@@ -254,7 +254,7 @@ static uint64_t mcf_fec_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void mcf_fec_write(void *opaque, target_phys_addr_t addr,
+static void mcf_fec_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned size)
 {
     mcf_fec_state *s = (mcf_fec_state *)opaque;
@@ -458,7 +458,7 @@ static NetClientInfo net_mcf_fec_info = {
 };
 
 void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd,
-                  target_phys_addr_t base, qemu_irq *irq)
+                  hwaddr base, qemu_irq *irq)
 {
     mcf_fec_state *s;
 

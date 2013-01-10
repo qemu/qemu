@@ -132,7 +132,7 @@ Guest CPU Cores (KVM):
 ----------------------
 
 Overall
-M: Avi Kivity <avi@redhat.com>
+M: Gleb Natapov <gleb@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
@@ -150,7 +150,7 @@ S: Maintained
 F: target-s390x/kvm.c
 
 X86
-M: Avi Kivity <avi@redhat.com>
+M: Gleb Natapov <gleb@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
@@ -268,6 +268,7 @@ S: Maintained
 F: hw/xilinx_zynq.c
 F: hw/zynq_slcr.c
 F: hw/cadence_*
+F: hw/xilinx_spips.c
 
 CRIS Machines
 -------------
@@ -349,8 +350,30 @@ PowerPC Machines
 405
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/ppc405_boards.c
+
+Bamboo
+M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
+S: Odd Fixes
+F: hw/ppc440_bamboo.c
+
+e500
+M: Alexander Graf <agraf@suse.de>
+M: Scott Wood <scottwood@freescale.com>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/ppc/e500.[hc]
+F: hw/ppc/e500plat.c
+
+mpc8544ds
+M: Alexander Graf <agraf@suse.de>
+M: Scott Wood <scottwood@freescale.com>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/ppc/mpc8544ds.c
+F: hw/mpc8544_guts.c
 
 New World
 M: Alexander Graf <agraf@suse.de>
@@ -375,6 +398,19 @@ F: hw/ppc_prep.c
 F: hw/prep_pci.[hc]
 F: hw/pc87312.[hc]
 
+sPAPR
+M: David Gibson <david@gibson.dropbear.id.au>
+M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/spapr*
+
+virtex_ml507
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+L: qemu-ppc@nongnu.org
+S: Odd Fixes
+F: hw/virtex_ml507.c
+
 SH4 Machines
 ------------
 R2D
@@ -398,6 +434,12 @@ Sun4u
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
 F: hw/sun4u.c
+
+Leon3
+M: Fabien Chouteau <chouteau@adacore.com>
+S: Maintained
+F: hw/leon3.c
+F: hw/grlib*
 
 S390 Machines
 -------------
@@ -449,8 +491,22 @@ F: hw/omap*
 PCI
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
+F: hw/pci/*
 F: hw/pci*
 F: hw/piix*
+
+ppc4xx
+M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
+S: Odd Fixes
+F: hw/ppc4xx*.[hc]
+
+ppce500
+M: Alexander Graf <agraf@suse.de>
+M: Scott Wood <scottwood@freescale.com>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/ppce500_*
 
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -464,10 +520,21 @@ M: Paul Brook <paul@codesourcery.com>
 S: Odd Fixes
 F: hw/lsi53c895a.c
 
+SSI
+M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+S: Maintained
+F: hw/ssi.*
+F: hw/m25p80.c
+
 USB
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: hw/usb*
+
+VFIO
+M: Alex Williamson <alex.williamson@redhat.com>
+S: Supported
+F: hw/vfio*
 
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
@@ -488,6 +555,7 @@ T: git git://github.com/kvaneesh/QEMU.git
 
 virtio-blk
 M: Kevin Wolf <kwolf@redhat.com>
+M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
 F: hw/virtio-blk*
 
@@ -507,6 +575,7 @@ F: hw/xilinx_intc.c
 F: hw/xilinx_ethlite.c
 F: hw/xilinx_timer.c
 F: hw/xilinx.h
+F: hw/xilinx_spi.c
 
 Subsystems
 ----------
@@ -517,6 +586,7 @@ F: audio/
 
 Block
 M: Kevin Wolf <kwolf@redhat.com>
+M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
 F: block*
 F: block/
@@ -525,6 +595,13 @@ Character Devices
 M: Anthony Liguori <aliguori@us.ibm.com>
 S: Maintained
 F: qemu-char.c
+
+CPU
+M: Andreas Färber <afaerber@suse.de>
+S: Supported
+F: qom/cpu.c
+F: include/qemu/cpu.h
+F: target-i386/cpu.c
 
 Device Tree
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
@@ -569,7 +646,7 @@ F: monitor.c
 
 Network device layer
 M: Anthony Liguori <aliguori@us.ibm.com>
-M: Stefan Hajnoczi <stefanha@gmail.com>
+M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
 F: net/
 T: git git://github.com/stefanha/qemu.git net
@@ -589,7 +666,7 @@ F: slirp/
 T: git git://git.kiszka.org/qemu.git queues/slirp
 
 Tracing
-M: Stefan Hajnoczi <stefanha@gmail.com>
+M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
 F: trace/
 F: scripts/tracetool.py

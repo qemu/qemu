@@ -24,8 +24,9 @@
  */
 
 #include "pc87312.h"
-#include "blockdev.h"
-#include "sysemu.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
+#include "char/char.h"
 #include "trace.h"
 
 

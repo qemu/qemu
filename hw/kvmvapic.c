@@ -8,9 +8,9 @@
  * (at your option) any later version. See the COPYING file in the
  * top-level directory.
  */
-#include "sysemu.h"
-#include "cpus.h"
-#include "kvm.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/cpus.h"
+#include "sysemu/kvm.h"
 #include "apic_internal.h"
 
 #define APIC_DEFAULT_ADDRESS    0xfee00000
@@ -144,7 +144,7 @@ static void update_guest_rom_state(VAPICROMState *s)
 
 static int find_real_tpr_addr(VAPICROMState *s, CPUX86State *env)
 {
-    target_phys_addr_t paddr;
+    hwaddr paddr;
     target_ulong addr;
 
     if (s->state == VAPIC_ACTIVE) {
@@ -269,7 +269,7 @@ instruction_ok:
 
 static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong ip)
 {
-    target_phys_addr_t paddr;
+    hwaddr paddr;
     uint32_t rom_state_vaddr;
     uint32_t pos, patch, offset;
 
@@ -350,14 +350,14 @@ static int get_kpcr_number(CPUX86State *env)
 static int vapic_enable(VAPICROMState *s, CPUX86State *env)
 {
     int cpu_number = get_kpcr_number(env);
-    target_phys_addr_t vapic_paddr;
+    hwaddr vapic_paddr;
     static const uint8_t enabled = 1;
 
     if (cpu_number < 0) {
         return -1;
     }
     vapic_paddr = s->vapic_paddr +
-        (((target_phys_addr_t)cpu_number) << VAPIC_CPU_SHIFT);
+        (((hwaddr)cpu_number) << VAPIC_CPU_SHIFT);
     cpu_physical_memory_rw(vapic_paddr + offsetof(VAPICState, enabled),
                            (void *)&enabled, sizeof(enabled), 1);
     apic_enable_vapic(env->apic_state, vapic_paddr);
@@ -384,15 +384,23 @@ static void patch_call(VAPICROMState *s, CPUX86State *env, target_ulong ip,
 
 static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong ip)
 {
-    target_phys_addr_t paddr;
     VAPICHandlers *handlers;
     uint8_t opcode[2];
     uint32_t imm32;
+    target_ulong current_pc = 0;
+    target_ulong current_cs_base = 0;
+    int current_flags = 0;
 
     if (smp_cpus == 1) {
         handlers = &s->rom_state.up;
     } else {
         handlers = &s->rom_state.mp;
+    }
+
+    if (!kvm_enabled()) {
+        cpu_restore_state(env, env->mem_io_pc);
+        cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
+                             &current_flags);
     }
 
     pause_all_vcpus();
@@ -430,9 +438,11 @@ static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong i
 
     resume_all_vcpus();
 
-    paddr = cpu_get_phys_page_debug(env, ip);
-    paddr += ip & ~TARGET_PAGE_MASK;
-    tb_invalidate_phys_page_range(paddr, paddr + 1, 1);
+    if (!kvm_enabled()) {
+        env->current_tb = NULL;
+        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
+        cpu_resume_from_signal(env, NULL);
+    }
 }
 
 void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
@@ -475,11 +485,13 @@ static void vapic_enable_tpr_reporting(bool enable)
     VAPICEnableTPRReporting info = {
         .enable = enable,
     };
+    X86CPU *cpu;
     CPUX86State *env;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = x86_env_get_cpu(env);
         info.apic = env->apic_state;
-        run_on_cpu(env, vapic_do_enable_tpr_reporting, &info);
+        run_on_cpu(CPU(cpu), vapic_do_enable_tpr_reporting, &info);
     }
 }
 
@@ -500,7 +512,7 @@ static void vapic_reset(DeviceState *dev)
  */
 static int patch_hypercalls(VAPICROMState *s)
 {
-    target_phys_addr_t rom_paddr = s->rom_state_paddr & ROM_BLOCK_MASK;
+    hwaddr rom_paddr = s->rom_state_paddr & ROM_BLOCK_MASK;
     static const uint8_t vmcall_pattern[] = { /* vmcall */
         0xb8, 0x1, 0, 0, 0, 0xf, 0x1, 0xc1
     };
@@ -557,7 +569,7 @@ static int patch_hypercalls(VAPICROMState *s)
  */
 static void vapic_map_rom_writable(VAPICROMState *s)
 {
-    target_phys_addr_t rom_paddr = s->rom_state_paddr & ROM_BLOCK_MASK;
+    hwaddr rom_paddr = s->rom_state_paddr & ROM_BLOCK_MASK;
     MemoryRegionSection section;
     MemoryRegion *as;
     size_t rom_size;
@@ -603,11 +615,11 @@ static int vapic_prepare(VAPICROMState *s)
     return 0;
 }
 
-static void vapic_write(void *opaque, target_phys_addr_t addr, uint64_t data,
+static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
                         unsigned int size)
 {
     CPUX86State *env = cpu_single_env;
-    target_phys_addr_t rom_paddr;
+    hwaddr rom_paddr;
     VAPICROMState *s = opaque;
 
     cpu_synchronize_state(env);
@@ -717,7 +729,7 @@ static int vapic_post_load(void *opaque, int version_id)
     }
     if (s->state == VAPIC_ACTIVE) {
         if (smp_cpus == 1) {
-            run_on_cpu(first_cpu, do_vapic_enable, s);
+            run_on_cpu(ENV_GET_CPU(first_cpu), do_vapic_enable, s);
         } else {
             zero = g_malloc0(s->rom_state.vapic_size);
             cpu_physical_memory_rw(s->vapic_paddr, zero,

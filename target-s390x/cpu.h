@@ -28,15 +28,15 @@
 
 #define CPUArchState struct CPUS390XState
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 #define TARGET_PAGE_BITS 12
 
 #define TARGET_PHYS_ADDR_SPACE_BITS 64
 #define TARGET_VIRT_ADDR_SPACE_BITS 64
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define NB_MMU_MODES 3
 
@@ -296,21 +296,21 @@ void s390x_cpu_timer(void *opaque);
 int s390_virtio_hypercall(CPUS390XState *env, uint64_t mem, uint64_t hypercall);
 
 #ifdef CONFIG_KVM
-void kvm_s390_interrupt(CPUS390XState *env, int type, uint32_t code);
-void kvm_s390_virtio_irq(CPUS390XState *env, int config_change, uint64_t token);
-void kvm_s390_interrupt_internal(CPUS390XState *env, int type, uint32_t parm,
+void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code);
+void kvm_s390_virtio_irq(S390CPU *cpu, int config_change, uint64_t token);
+void kvm_s390_interrupt_internal(S390CPU *cpu, int type, uint32_t parm,
                                  uint64_t parm64, int vm);
 #else
-static inline void kvm_s390_interrupt(CPUS390XState *env, int type, uint32_t code)
+static inline void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code)
 {
 }
 
-static inline void kvm_s390_virtio_irq(CPUS390XState *env, int config_change,
+static inline void kvm_s390_virtio_irq(S390CPU *cpu, int config_change,
                                        uint64_t token)
 {
 }
 
-static inline void kvm_s390_interrupt_internal(CPUS390XState *env, int type,
+static inline void kvm_s390_interrupt_internal(S390CPU *cpu, int type,
                                                uint32_t parm, uint64_t parm64,
                                                int vm)
 {
@@ -320,8 +320,11 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 void s390_add_running_cpu(CPUS390XState *env);
 unsigned s390_del_running_cpu(CPUS390XState *env);
 
+/* service interrupts are floating therefore we must not pass an cpustate */
+void s390_sclp_extint(uint32_t parm);
+
 /* from s390-virtio-bus */
-extern const target_phys_addr_t virtio_size;
+extern const hwaddr virtio_size;
 
 #else
 static inline void s390_add_running_cpu(CPUS390XState *env)
@@ -347,7 +350,7 @@ static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
 #define cpu_gen_code cpu_s390x_gen_code
 #define cpu_signal_handler cpu_s390x_signal_handler
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 #ifdef CONFIG_USER_ONLY
 
@@ -592,17 +595,6 @@ static inline const char *cc_name(int cc_op)
 {
     return cc_names[cc_op];
 }
-
-/* SCLP PV interface defines */
-#define SCLP_CMDW_READ_SCP_INFO         0x00020001
-#define SCLP_CMDW_READ_SCP_INFO_FORCED  0x00120001
-
-#define SCP_LENGTH                      0x00
-#define SCP_FUNCTION_CODE               0x02
-#define SCP_CONTROL_MASK                0x03
-#define SCP_RESPONSE_CODE               0x06
-#define SCP_MEM_CODE                    0x08
-#define SCP_INCREMENT                   0x0a
 
 typedef struct LowCore
 {
@@ -952,7 +944,7 @@ static inline void ebcdic_put(uint8_t *p, const char *ascii, int len)
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags);
-int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code);
+int sclp_service_call(uint32_t sccb, uint64_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
 
@@ -985,8 +977,10 @@ static inline void cpu_inject_ext(CPUS390XState *env, uint32_t code, uint32_t pa
     cpu_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
-static inline bool cpu_has_work(CPUS390XState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUS390XState *env = &S390_CPU(cpu)->env;
+
     return (env->interrupt_request & CPU_INTERRUPT_HARD) &&
         (env->psw.mask & PSW_MASK_EXT);
 }
@@ -995,5 +989,14 @@ static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
 {
     env->psw.addr = tb->pc;
 }
+
+/* fpu_helper.c */
+uint32_t set_cc_f32(CPUS390XState *env, float32 v1, float32 v2);
+uint32_t set_cc_f64(CPUS390XState *env, float64 v1, float64 v2);
+uint32_t set_cc_nz_f32(float32 v);
+uint32_t set_cc_nz_f64(float64 v);
+
+/* misc_helper.c */
+void program_interrupt(CPUS390XState *env, uint32_t code, int ilc);
 
 #endif

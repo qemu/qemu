@@ -1,22 +1,25 @@
+#ifndef HW_FLASH_H
+#define HW_FLASH_H 1
+
 /* NOR flash devices */
 
-#include "memory.h"
+#include "exec/memory.h"
 
 typedef struct pflash_t pflash_t;
 
 /* pflash_cfi01.c */
-pflash_t *pflash_cfi01_register(target_phys_addr_t base,
+pflash_t *pflash_cfi01_register(hwaddr base,
                                 DeviceState *qdev, const char *name,
-                                target_phys_addr_t size,
+                                hwaddr size,
                                 BlockDriverState *bs,
                                 uint32_t sector_len, int nb_blocs, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3, int be);
 
 /* pflash_cfi02.c */
-pflash_t *pflash_cfi02_register(target_phys_addr_t base,
+pflash_t *pflash_cfi02_register(hwaddr base,
                                 DeviceState *qdev, const char *name,
-                                target_phys_addr_t size,
+                                hwaddr size,
                                 BlockDriverState *bs, uint32_t sector_len,
                                 int nb_blocs, int nb_mappings, int width,
                                 uint16_t id0, uint16_t id1,
@@ -57,3 +60,5 @@ typedef struct {
 uint8_t ecc_digest(ECCState *s, uint8_t sample);
 void ecc_reset(ECCState *s);
 extern VMStateDescription vmstate_ecc_state;
+
+#endif

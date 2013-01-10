@@ -12,11 +12,11 @@
  *
  */
 
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "trace.h"
 #include "qed.h"
-#include "qerror.h"
-#include "migration.h"
+#include "qapi/qmp/qerror.h"
+#include "migration/migration.h"
 
 static void qed_aio_cancel(BlockDriverAIOCB *blockacb)
 {
@@ -30,7 +30,7 @@ static void qed_aio_cancel(BlockDriverAIOCB *blockacb)
     }
 }
 
-static AIOPool qed_aio_pool = {
+static const AIOCBInfo qed_aiocb_info = {
     .aiocb_size         = sizeof(QEDAIOCB),
     .cancel             = qed_aio_cancel,
 };
@@ -503,6 +503,14 @@ out:
         qemu_vfree(s->l1_table);
     }
     return ret;
+}
+
+/* We have nothing to do for QED reopen, stubs just return
+ * success */
+static int bdrv_qed_reopen_prepare(BDRVReopenState *state,
+                                   BlockReopenQueue *queue, Error **errp)
+{
+    return 0;
 }
 
 static void bdrv_qed_close(BlockDriverState *bs)
@@ -1303,7 +1311,7 @@ static BlockDriverAIOCB *qed_aio_setup(BlockDriverState *bs,
                                        BlockDriverCompletionFunc *cb,
                                        void *opaque, int flags)
 {
-    QEDAIOCB *acb = qemu_aio_get(&qed_aio_pool, bs, cb, opaque);
+    QEDAIOCB *acb = qemu_aio_get(&qed_aiocb_info, bs, cb, opaque);
 
     trace_qed_aio_setup(bs->opaque, acb, sector_num, nb_sectors,
                         opaque, flags);
@@ -1363,9 +1371,20 @@ static int coroutine_fn bdrv_qed_co_write_zeroes(BlockDriverState *bs,
                                                  int nb_sectors)
 {
     BlockDriverAIOCB *blockacb;
+    BDRVQEDState *s = bs->opaque;
     QEDWriteZeroesCB cb = { .done = false };
     QEMUIOVector qiov;
     struct iovec iov;
+
+    /* Refuse if there are untouched backing file sectors */
+    if (bs->backing_hd) {
+        if (qed_offset_into_cluster(s, sector_num * BDRV_SECTOR_SIZE) != 0) {
+            return -ENOTSUP;
+        }
+        if (qed_offset_into_cluster(s, nb_sectors * BDRV_SECTOR_SIZE) != 0) {
+            return -ENOTSUP;
+        }
+    }
 
     /* Zero writes start without an I/O buffer.  If a buffer becomes necessary
      * then it will be allocated during request processing.
@@ -1553,6 +1572,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_rebind              = bdrv_qed_rebind,
     .bdrv_open                = bdrv_qed_open,
     .bdrv_close               = bdrv_qed_close,
+    .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
     .bdrv_create              = bdrv_qed_create,
     .bdrv_co_is_allocated     = bdrv_qed_co_is_allocated,
     .bdrv_make_empty          = bdrv_qed_make_empty,

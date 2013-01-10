@@ -73,9 +73,9 @@
 
 #define CPUArchState struct CPUPPCState
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
 
@@ -355,7 +355,7 @@ struct ppc6xx_tlb_t {
 
 typedef struct ppcemb_tlb_t ppcemb_tlb_t;
 struct ppcemb_tlb_t {
-    target_phys_addr_t RPN;
+    uint64_t RPN;
     target_ulong EPN;
     target_ulong PID;
     target_ulong size;
@@ -963,7 +963,7 @@ struct CPUPPCState {
     /* floating point registers */
     float64 fpr[32];
     /* floating point status and control register */
-    uint32_t fpscr;
+    target_ulong fpscr;
 
     /* Next instruction pointer */
     target_ulong nip;
@@ -983,8 +983,8 @@ struct CPUPPCState {
     int slb_nr;
 #endif
     /* segment registers */
-    target_phys_addr_t htab_base;
-    target_phys_addr_t htab_mask;
+    hwaddr htab_base;
+    hwaddr htab_mask;
     target_ulong sr[32];
     /* externally stored hash table */
     uint8_t *external_htab;
@@ -1014,6 +1014,8 @@ struct CPUPPCState {
     /* Altivec registers */
     ppc_avr_t avr[32];
     uint32_t vscr;
+    /* VSX registers */
+    uint64_t vsr[32];
     /* SPE registers */
     uint64_t spe_acc;
     uint32_t spe_fscr;
@@ -1045,10 +1047,9 @@ struct CPUPPCState {
 #endif
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-    target_phys_addr_t vpa;
-    target_phys_addr_t slb_shadow;
-    target_phys_addr_t dispatch_trace_log;
-    uint32_t dtl_size;
+    uint64_t vpa_addr;
+    uint64_t slb_shadow_addr, slb_shadow_size;
+    uint64_t dtl_addr, dtl_size;
 #endif /* TARGET_PPC64 */
 
     int error_code;
@@ -1066,7 +1067,7 @@ struct CPUPPCState {
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;
-    target_phys_addr_t mpic_cpu_base;
+    hwaddr mpic_cpu_base;
 #endif
 
     /* Those resources are used only during code translation */
@@ -1079,7 +1080,6 @@ struct CPUPPCState {
     int mmu_idx;         /* precomputed MMU index to speed up mem accesses */
 
     /* Power management */
-    int power_mode;
     int (*check_pow)(CPUPPCState *env);
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1118,10 +1118,10 @@ do {                                            \
 /* Context used internally during MMU translations */
 typedef struct mmu_ctx_t mmu_ctx_t;
 struct mmu_ctx_t {
-    target_phys_addr_t raddr;      /* Real address              */
-    target_phys_addr_t eaddr;      /* Effective address         */
+    hwaddr raddr;      /* Real address              */
+    hwaddr eaddr;      /* Effective address         */
     int prot;                      /* Protection bits           */
-    target_phys_addr_t hash[2];    /* Pagetable hash values     */
+    hwaddr hash[2];    /* Pagetable hash values     */
     target_ulong ptem;             /* Virtual segment ID | API  */
     int key;                       /* Access key                */
     int nx;                        /* Non-execute area          */
@@ -1142,10 +1142,6 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
 int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
-#if !defined(CONFIG_USER_ONLY)
-int get_physical_address (CPUPPCState *env, mmu_ctx_t *ctx, target_ulong vaddr,
-                          int rw, int access_type);
-#endif
 void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
 
@@ -1179,7 +1175,6 @@ void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 uint32_t cpu_ppc_load_hdecr (CPUPPCState *env);
 void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value);
 uint64_t cpu_ppc_load_purr (CPUPPCState *env);
-void cpu_ppc_store_purr (CPUPPCState *env, uint64_t value);
 uint32_t cpu_ppc601_load_rtcl (CPUPPCState *env);
 uint32_t cpu_ppc601_load_rtcu (CPUPPCState *env);
 #if !defined(CONFIG_USER_ONLY)
@@ -1191,10 +1186,8 @@ void store_40x_dbcr0 (CPUPPCState *env, uint32_t val);
 void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
-void booke206_flush_tlb(CPUPPCState *env, int flags, const int check_iprot);
-target_phys_addr_t booke206_tlb_to_page_size(CPUPPCState *env, ppcmas_tlb_t *tlb);
 int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
-                     target_phys_addr_t *raddrp, target_ulong address,
+                     hwaddr *raddrp, target_ulong address,
                      uint32_t pid);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
 void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
@@ -1258,7 +1251,7 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 /*****************************************************************************/
 /* CRF definitions */
@@ -2222,14 +2215,16 @@ static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
     return msr & (1ULL << MSR_SF);
 }
 
-extern void (*cpu_ppc_hypercall)(CPUPPCState *);
+extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
-static inline bool cpu_has_work(CPUPPCState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUPPCState *env = &POWERPC_CPU(cpu)->env;
+
     return msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUPPCState *env, TranslationBlock *tb)
 {

@@ -33,7 +33,7 @@ typedef struct PICCommonState PICCommonState;
 
 #define TYPE_PIC_COMMON "pic-common"
 #define PIC_COMMON(obj) \
-     OBJECT_CHECK(PICCommon, (obj), TYPE_PIC_COMMON)
+     OBJECT_CHECK(PICCommonState, (obj), TYPE_PIC_COMMON)
 #define PIC_COMMON_CLASS(klass) \
      OBJECT_CLASS_CHECK(PICCommonClass, (klass), TYPE_PIC_COMMON)
 #define PIC_COMMON_GET_CLASS(obj) \

@@ -26,8 +26,8 @@
 
 #define CPUArchState struct CPUMBState
 
-#include "cpu-defs.h"
-#include "softfloat.h"
+#include "exec/cpu-defs.h"
+#include "fpu/softfloat.h"
 struct CPUMBState;
 typedef struct CPUMBState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
@@ -345,6 +345,7 @@ static inline void cpu_clone_regs(CPUMBState *env, target_ulong newsp)
 
 static inline void cpu_set_tls(CPUMBState *env, target_ulong newtls)
 {
+    env->regs[21] = newtls;
 }
 
 static inline int cpu_interrupts_enabled(CPUMBState *env)
@@ -352,7 +353,7 @@ static inline int cpu_interrupts_enabled(CPUMBState *env)
     return env->sregs[SR_MSR] & MSR_IE;
 }
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 static inline target_ulong cpu_get_pc(CPUMBState *env)
 {
@@ -369,16 +370,18 @@ static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_unassigned_access(CPUMBState *env1, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUMBState *env1, hwaddr addr,
                            int is_write, int is_exec, int is_asi, int size);
 #endif
 
-static inline bool cpu_has_work(CPUMBState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUMBState *env = &MICROBLAZE_CPU(cpu)->env;
+
     return env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUMBState *env, TranslationBlock *tb)
 {

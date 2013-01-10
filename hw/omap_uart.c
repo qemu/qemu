@@ -17,17 +17,16 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "qemu-char.h"
+#include "char/char.h"
 #include "hw.h"
 #include "omap.h"
-/* We use pc-style serial ports.  */
-#include "pc.h"
-#include "exec-memory.h"
+#include "serial.h"
+#include "exec/address-spaces.h"
 
 /* UARTs */
 struct omap_uart_s {
     MemoryRegion iomem;
-    target_phys_addr_t base;
+    hwaddr base;
     SerialState *serial; /* TODO */
     struct omap_target_agent_s *ta;
     omap_clk fclk;
@@ -51,7 +50,7 @@ void omap_uart_reset(struct omap_uart_s *s)
     s->clksel = 0;
 }
 
-struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
+struct omap_uart_s *omap_uart_init(hwaddr base,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
                 qemu_irq txdma, qemu_irq rxdma,
                 const char *label, CharDriverState *chr)
@@ -69,7 +68,7 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
     return s;
 }
 
-static uint64_t omap_uart_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_uart_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_uart_s *s = (struct omap_uart_s *) opaque;
@@ -107,7 +106,7 @@ static uint64_t omap_uart_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_uart_write(void *opaque, target_phys_addr_t addr,
+static void omap_uart_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_uart_s *s = (struct omap_uart_s *) opaque;
@@ -165,7 +164,7 @@ struct omap_uart_s *omap2_uart_init(MemoryRegion *sysmem,
                 qemu_irq txdma, qemu_irq rxdma,
                 const char *label, CharDriverState *chr)
 {
-    target_phys_addr_t base = omap_l4_attach(ta, 0, NULL);
+    hwaddr base = omap_l4_attach(ta, 0, NULL);
     struct omap_uart_s *s = omap_uart_init(base, irq,
                     fclk, iclk, txdma, rxdma, label, chr);
 

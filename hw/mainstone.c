@@ -14,13 +14,13 @@
 #include "hw.h"
 #include "pxa.h"
 #include "arm-misc.h"
-#include "net.h"
+#include "net/net.h"
 #include "devices.h"
 #include "boards.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 /* Device addresses */
 #define MST_FPGA_PHYS	0x08000000
@@ -95,19 +95,18 @@ static struct arm_boot_info mainstone_binfo = {
 };
 
 static void mainstone_common_init(MemoryRegion *address_space_mem,
-                ram_addr_t ram_size,
-                const char *kernel_filename,
-                const char *kernel_cmdline, const char *initrd_filename,
-                const char *cpu_model, enum mainstone_model_e model, int arm_id)
+                                  QEMUMachineInitArgs *args,
+                                  enum mainstone_model_e model, int arm_id)
 {
     uint32_t sector_len = 256 * 1024;
-    target_phys_addr_t mainstone_flash_base[] = { MST_FLASH_0, MST_FLASH_1 };
+    hwaddr mainstone_flash_base[] = { MST_FLASH_0, MST_FLASH_1 };
     PXA2xxState *mpu;
     DeviceState *mst_irq;
     DriveInfo *dinfo;
     int i;
     int be;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
+    const char *cpu_model = args->cpu_model;
 
     if (!cpu_model)
         cpu_model = "pxa270-c5";
@@ -164,20 +163,16 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     smc91c111_init(&nd_table[0], MST_ETH_PHYS,
                     qdev_get_gpio_in(mst_irq, ETHERNET_IRQ));
 
-    mainstone_binfo.kernel_filename = kernel_filename;
-    mainstone_binfo.kernel_cmdline = kernel_cmdline;
-    mainstone_binfo.initrd_filename = initrd_filename;
+    mainstone_binfo.kernel_filename = args->kernel_filename;
+    mainstone_binfo.kernel_cmdline = args->kernel_cmdline;
+    mainstone_binfo.initrd_filename = args->initrd_filename;
     mainstone_binfo.board_id = arm_id;
     arm_load_kernel(mpu->cpu, &mainstone_binfo);
 }
 
-static void mainstone_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void mainstone_init(QEMUMachineInitArgs *args)
 {
-    mainstone_common_init(get_system_memory(), ram_size, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, mainstone, 0x196);
+    mainstone_common_init(get_system_memory(), args, mainstone, 0x196);
 }
 
 static QEMUMachine mainstone2_machine = {

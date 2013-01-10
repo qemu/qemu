@@ -49,9 +49,9 @@ extern int daemon(int, int);
 #endif
 
 #include "config-host.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 #if defined(CONFIG_VALGRIND)
 static int running_on_valgrind = -1;
@@ -60,9 +60,6 @@ static int running_on_valgrind = -1;
 #endif
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
-#endif
-#ifdef CONFIG_EVENTFD
-#include <sys/eventfd.h>
 #endif
 
 int qemu_get_thread_id(void)
@@ -181,34 +178,6 @@ int qemu_pipe(int pipefd[2])
     }
 
     return ret;
-}
-
-/*
- * Creates an eventfd that looks like a pipe and has EFD_CLOEXEC set.
- */
-int qemu_eventfd(int fds[2])
-{
-#ifdef CONFIG_EVENTFD
-    int ret;
-
-    ret = eventfd(0, 0);
-    if (ret >= 0) {
-        fds[0] = ret;
-        fds[1] = dup(ret);
-        if (fds[1] == -1) {
-            close(ret);
-            return -1;
-        }
-        qemu_set_cloexec(ret);
-        qemu_set_cloexec(fds[1]);
-        return 0;
-    }
-    if (errno != ENOSYS) {
-        return -1;
-    }
-#endif
-
-    return qemu_pipe(fds);
 }
 
 int qemu_utimens(const char *path, const struct timespec *times)

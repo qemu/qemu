@@ -67,7 +67,7 @@
 #define TCG_TARGET_HAS_ext8u_i32        1
 #define TCG_TARGET_HAS_ext16u_i32       1
 #define TCG_TARGET_HAS_andc_i32         0
-#define TCG_TARGET_HAS_deposit_i32      0
+#define TCG_TARGET_HAS_deposit_i32      1
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_nor_i32          0
@@ -75,12 +75,13 @@
 #define TCG_TARGET_HAS_not_i32          1
 #define TCG_TARGET_HAS_orc_i32          0
 #define TCG_TARGET_HAS_rot_i32          1
+#define TCG_TARGET_HAS_movcond_i32      0
 
 #if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_bswap16_i64      1
 #define TCG_TARGET_HAS_bswap32_i64      1
 #define TCG_TARGET_HAS_bswap64_i64      1
-#define TCG_TARGET_HAS_deposit_i64      0
+#define TCG_TARGET_HAS_deposit_i64      1
 /* Not more than one of the next two defines must be 1. */
 #define TCG_TARGET_HAS_div_i64          0
 #define TCG_TARGET_HAS_div2_i64         0
@@ -98,10 +99,8 @@
 #define TCG_TARGET_HAS_not_i64          1
 #define TCG_TARGET_HAS_orc_i64          0
 #define TCG_TARGET_HAS_rot_i64          1
+#define TCG_TARGET_HAS_movcond_i64      0
 #endif /* TCG_TARGET_REG_BITS == 64 */
-
-/* Offset to user memory in user mode. */
-#define TCG_TARGET_HAS_GUEST_BASE
 
 /* Number of registers available.
    For 32 bit hosts, we need more than 8 registers (call arguments). */

@@ -62,7 +62,7 @@ static struct elf_shdr *glue(find_section, SZ)(struct elf_shdr *shdr_table,
 
 static int glue(symfind, SZ)(const void *s0, const void *s1)
 {
-    target_phys_addr_t addr = *(target_phys_addr_t *)s0;
+    hwaddr addr = *(hwaddr *)s0;
     struct elf_sym *sym = (struct elf_sym *)s1;
     int result = 0;
     if (addr < sym->st_value) {
@@ -74,7 +74,7 @@ static int glue(symfind, SZ)(const void *s0, const void *s1)
 }
 
 static const char *glue(lookup_symbol, SZ)(struct syminfo *s,
-                                           target_phys_addr_t orig_addr)
+                                           hwaddr orig_addr)
 {
     struct elf_sym *syms = glue(s->disas_symtab.elf, SZ);
     struct elf_sym *sym;
@@ -267,6 +267,17 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 addr = translate_fn(translate_opaque, ph->p_paddr);
             } else {
                 addr = ph->p_paddr;
+            }
+
+            /* the entry pointer in the ELF header is a virtual
+             * address, if the text segments paddr and vaddr differ
+             * we need to adjust the entry */
+            if (pentry && !translate_fn &&
+                    ph->p_vaddr != ph->p_paddr &&
+                    ehdr.e_entry >= ph->p_vaddr &&
+                    ehdr.e_entry < ph->p_vaddr + ph->p_filesz &&
+                    ph->p_flags & PF_X) {
+                *pentry = ehdr.e_entry - ph->p_vaddr + ph->p_paddr;
             }
 
             snprintf(label, sizeof(label), "phdr #%d: %s", i, name);

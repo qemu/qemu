@@ -35,7 +35,8 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
 
@@ -64,6 +65,7 @@ enum {
     XTENSA_OPTION_FP_COPROCESSOR,
     XTENSA_OPTION_MP_SYNCHRO,
     XTENSA_OPTION_CONDITIONAL_STORE,
+    XTENSA_OPTION_ATOMCTL,
 
     /* Interrupts and exceptions */
     XTENSA_OPTION_EXCEPTION,
@@ -92,6 +94,7 @@ enum {
     XTENSA_OPTION_REGION_PROTECTION,
     XTENSA_OPTION_REGION_TRANSLATION,
     XTENSA_OPTION_MMU,
+    XTENSA_OPTION_CACHEATTR,
 
     /* Other */
     XTENSA_OPTION_WINDOWED_REGISTER,
@@ -127,6 +130,8 @@ enum {
     ITLBCFG = 91,
     DTLBCFG = 92,
     IBREAKENABLE = 96,
+    CACHEATTR = 98,
+    ATOMCTL = 99,
     IBREAKA = 128,
     DBREAKA = 144,
     DBREAKC = 160,
@@ -148,6 +153,7 @@ enum {
     ICOUNTLEVEL = 237,
     EXCVADDR = 238,
     CCOMPARE = 240,
+    MISC = 244,
 };
 
 #define PS_INTLEVEL 0xf
@@ -191,6 +197,14 @@ enum {
 #define MAX_NDBREAK 2
 
 #define REGION_PAGE_MASK 0xe0000000
+
+#define PAGE_CACHE_MASK    0x700
+#define PAGE_CACHE_SHIFT   8
+#define PAGE_CACHE_INVALID 0x000
+#define PAGE_CACHE_BYPASS  0x100
+#define PAGE_CACHE_WT      0x200
+#define PAGE_CACHE_WB      0x400
+#define PAGE_CACHE_ISOLATE 0x600
 
 enum {
     /* Static vectors */
@@ -325,6 +339,8 @@ typedef struct CPUXtensaState {
     uint32_t sregs[256];
     uint32_t uregs[256];
     uint32_t phys_regs[MAX_NAREG];
+    float32 fregs[16];
+    float_status fp_status;
 
     xtensa_tlb_entry itlb[7][MAX_TLB_WAY_SIZE];
     xtensa_tlb_entry dtlb[10][MAX_TLB_WAY_SIZE];
@@ -401,6 +417,7 @@ void debug_exception_env(CPUXtensaState *new_env, uint32_t cause);
 
 
 #define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))
+#define XTENSA_OPTION_ALL (~(uint64_t)0)
 
 static inline bool xtensa_option_bits_enabled(const XtensaConfig *config,
         uint64_t opt)
@@ -465,6 +482,8 @@ static inline int cpu_mmu_index(CPUXtensaState *env)
 #define XTENSA_TBFLAG_LITBASE 0x8
 #define XTENSA_TBFLAG_DEBUG 0x10
 #define XTENSA_TBFLAG_ICOUNT 0x20
+#define XTENSA_TBFLAG_CPENABLE_MASK 0x3fc0
+#define XTENSA_TBFLAG_CPENABLE_SHIFT 6
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
@@ -488,13 +507,18 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
             *flags |= XTENSA_TBFLAG_ICOUNT;
         }
     }
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_COPROCESSOR)) {
+        *flags |= env->sregs[CPENABLE] << XTENSA_TBFLAG_CPENABLE_SHIFT;
+    }
 }
 
-#include "cpu-all.h"
-#include "exec-all.h"
+#include "exec/cpu-all.h"
+#include "exec/exec-all.h"
 
-static inline int cpu_has_work(CPUXtensaState *env)
+static inline int cpu_has_work(CPUState *cpu)
 {
+    CPUXtensaState *env = &XTENSA_CPU(cpu)->env;
+
     return env->pending_irq_level;
 }
 

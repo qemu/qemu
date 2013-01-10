@@ -22,8 +22,8 @@
  */
 
 #include "net/queue.h"
-#include "qemu-queue.h"
-#include "net.h"
+#include "qemu/queue.h"
+#include "net/net.h"
 
 /* The delivery handler may only return zero if it will call
  * qemu_net_queue_flush() when it determines that it is once again able
@@ -83,12 +83,12 @@ void qemu_del_net_queue(NetQueue *queue)
     g_free(queue);
 }
 
-static ssize_t qemu_net_queue_append(NetQueue *queue,
-                                     NetClientState *sender,
-                                     unsigned flags,
-                                     const uint8_t *buf,
-                                     size_t size,
-                                     NetPacketSent *sent_cb)
+static void qemu_net_queue_append(NetQueue *queue,
+                                  NetClientState *sender,
+                                  unsigned flags,
+                                  const uint8_t *buf,
+                                  size_t size,
+                                  NetPacketSent *sent_cb)
 {
     NetPacket *packet;
 
@@ -100,16 +100,14 @@ static ssize_t qemu_net_queue_append(NetQueue *queue,
     memcpy(packet->data, buf, size);
 
     QTAILQ_INSERT_TAIL(&queue->packets, packet, entry);
-
-    return size;
 }
 
-static ssize_t qemu_net_queue_append_iov(NetQueue *queue,
-                                         NetClientState *sender,
-                                         unsigned flags,
-                                         const struct iovec *iov,
-                                         int iovcnt,
-                                         NetPacketSent *sent_cb)
+static void qemu_net_queue_append_iov(NetQueue *queue,
+                                      NetClientState *sender,
+                                      unsigned flags,
+                                      const struct iovec *iov,
+                                      int iovcnt,
+                                      NetPacketSent *sent_cb)
 {
     NetPacket *packet;
     size_t max_len = 0;
@@ -133,8 +131,6 @@ static ssize_t qemu_net_queue_append_iov(NetQueue *queue,
     }
 
     QTAILQ_INSERT_TAIL(&queue->packets, packet, entry);
-
-    return packet->size;
 }
 
 static ssize_t qemu_net_queue_deliver(NetQueue *queue,
@@ -177,7 +173,8 @@ ssize_t qemu_net_queue_send(NetQueue *queue,
     ssize_t ret;
 
     if (queue->delivering || !qemu_can_send_packet(sender)) {
-        return qemu_net_queue_append(queue, sender, flags, data, size, sent_cb);
+        qemu_net_queue_append(queue, sender, flags, data, size, sent_cb);
+        return 0;
     }
 
     ret = qemu_net_queue_deliver(queue, sender, flags, data, size);
@@ -201,8 +198,8 @@ ssize_t qemu_net_queue_send_iov(NetQueue *queue,
     ssize_t ret;
 
     if (queue->delivering || !qemu_can_send_packet(sender)) {
-        return qemu_net_queue_append_iov(queue, sender, flags,
-                                         iov, iovcnt, sent_cb);
+        qemu_net_queue_append_iov(queue, sender, flags, iov, iovcnt, sent_cb);
+        return 0;
     }
 
     ret = qemu_net_queue_deliver_iov(queue, sender, flags, iov, iovcnt);
@@ -228,7 +225,7 @@ void qemu_net_queue_purge(NetQueue *queue, NetClientState *from)
     }
 }
 
-void qemu_net_queue_flush(NetQueue *queue)
+bool qemu_net_queue_flush(NetQueue *queue)
 {
     while (!QTAILQ_EMPTY(&queue->packets)) {
         NetPacket *packet;
@@ -244,7 +241,7 @@ void qemu_net_queue_flush(NetQueue *queue)
                                      packet->size);
         if (ret == 0) {
             QTAILQ_INSERT_HEAD(&queue->packets, packet, entry);
-            break;
+            return false;
         }
 
         if (packet->sent_cb) {
@@ -253,4 +250,5 @@ void qemu_net_queue_flush(NetQueue *queue)
 
         g_free(packet);
     }
+    return true;
 }

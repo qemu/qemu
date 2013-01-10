@@ -12,7 +12,7 @@
  * or (at your option) any later version.
  */
 
-#include "cpu-qom.h"
+#include "cpu.h"
 #include "qemu-common.h"
 
 static inline void set_feature(CPUUniCore32State *env, int feature)

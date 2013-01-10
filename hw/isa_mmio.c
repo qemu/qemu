@@ -24,37 +24,37 @@
 
 #include "hw.h"
 #include "isa.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
-static void isa_mmio_writeb (void *opaque, target_phys_addr_t addr,
+static void isa_mmio_writeb (void *opaque, hwaddr addr,
                                   uint32_t val)
 {
     cpu_outb(addr & IOPORTS_MASK, val);
 }
 
-static void isa_mmio_writew(void *opaque, target_phys_addr_t addr,
+static void isa_mmio_writew(void *opaque, hwaddr addr,
                                uint32_t val)
 {
     cpu_outw(addr & IOPORTS_MASK, val);
 }
 
-static void isa_mmio_writel(void *opaque, target_phys_addr_t addr,
+static void isa_mmio_writel(void *opaque, hwaddr addr,
                                uint32_t val)
 {
     cpu_outl(addr & IOPORTS_MASK, val);
 }
 
-static uint32_t isa_mmio_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t isa_mmio_readb (void *opaque, hwaddr addr)
 {
     return cpu_inb(addr & IOPORTS_MASK);
 }
 
-static uint32_t isa_mmio_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t isa_mmio_readw(void *opaque, hwaddr addr)
 {
     return cpu_inw(addr & IOPORTS_MASK);
 }
 
-static uint32_t isa_mmio_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t isa_mmio_readl(void *opaque, hwaddr addr)
 {
     return cpu_inl(addr & IOPORTS_MASK);
 }
@@ -67,12 +67,12 @@ static const MemoryRegionOps isa_mmio_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-void isa_mmio_setup(MemoryRegion *mr, target_phys_addr_t size)
+void isa_mmio_setup(MemoryRegion *mr, hwaddr size)
 {
     memory_region_init_io(mr, &isa_mmio_ops, NULL, "isa-mmio", size);
 }
 
-void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size)
+void isa_mmio_init(hwaddr base, hwaddr size)
 {
     MemoryRegion *mr = g_malloc(sizeof(*mr));
 

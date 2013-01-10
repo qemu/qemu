@@ -19,25 +19,24 @@
 
 #include "sysbus.h"
 #include "hw.h"
-#include "net.h"
 #include "flash.h"
 #include "devices.h"
 #include "boards.h"
 #include "loader.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "elf.h"
 #include "lm32_hwsetup.h"
 #include "lm32.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 typedef struct {
     LM32CPU *cpu;
-    target_phys_addr_t bootstrap_pc;
-    target_phys_addr_t flash_base;
-    target_phys_addr_t hwsetup_base;
-    target_phys_addr_t initrd_base;
+    hwaddr bootstrap_pc;
+    hwaddr flash_base;
+    hwaddr hwsetup_base;
+    hwaddr initrd_base;
     size_t initrd_size;
-    target_phys_addr_t cmdline_base;
+    hwaddr cmdline_base;
 } ResetInfo;
 
 static void cpu_irq_handler(void *opaque, int irq, int level)
@@ -69,12 +68,10 @@ static void main_cpu_reset(void *opaque)
     env->deba = reset_info->flash_base;
 }
 
-static void lm32_evr_init(ram_addr_t ram_size_not_used,
-                          const char *boot_device,
-                          const char *kernel_filename,
-                          const char *kernel_cmdline,
-                          const char *initrd_filename, const char *cpu_model)
+static void lm32_evr_init(QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
     LM32CPU *cpu;
     CPULM32State *env;
     DriveInfo *dinfo;
@@ -85,14 +82,14 @@ static void lm32_evr_init(ram_addr_t ram_size_not_used,
     int i;
 
     /* memory map */
-    target_phys_addr_t flash_base  = 0x04000000;
+    hwaddr flash_base  = 0x04000000;
     size_t flash_sector_size       = 256 * 1024;
     size_t flash_size              = 32 * 1024 * 1024;
-    target_phys_addr_t ram_base    = 0x08000000;
+    hwaddr ram_base    = 0x08000000;
     size_t ram_size                = 64 * 1024 * 1024;
-    target_phys_addr_t timer0_base = 0x80002000;
-    target_phys_addr_t uart0_base  = 0x80006000;
-    target_phys_addr_t timer1_base = 0x8000a000;
+    hwaddr timer0_base = 0x80002000;
+    hwaddr uart0_base  = 0x80006000;
+    hwaddr timer1_base = 0x8000a000;
     int uart0_irq                  = 0;
     int timer0_irq                 = 1;
     int timer1_irq                 = 3;
@@ -159,12 +156,12 @@ static void lm32_evr_init(ram_addr_t ram_size_not_used,
     qemu_register_reset(main_cpu_reset, reset_info);
 }
 
-static void lm32_uclinux_init(ram_addr_t ram_size_not_used,
-                          const char *boot_device,
-                          const char *kernel_filename,
-                          const char *kernel_cmdline,
-                          const char *initrd_filename, const char *cpu_model)
+static void lm32_uclinux_init(QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     LM32CPU *cpu;
     CPULM32State *env;
     DriveInfo *dinfo;
@@ -176,22 +173,22 @@ static void lm32_uclinux_init(ram_addr_t ram_size_not_used,
     int i;
 
     /* memory map */
-    target_phys_addr_t flash_base   = 0x04000000;
+    hwaddr flash_base   = 0x04000000;
     size_t flash_sector_size        = 256 * 1024;
     size_t flash_size               = 32 * 1024 * 1024;
-    target_phys_addr_t ram_base     = 0x08000000;
+    hwaddr ram_base     = 0x08000000;
     size_t ram_size                 = 64 * 1024 * 1024;
-    target_phys_addr_t uart0_base   = 0x80000000;
-    target_phys_addr_t timer0_base  = 0x80002000;
-    target_phys_addr_t timer1_base  = 0x80010000;
-    target_phys_addr_t timer2_base  = 0x80012000;
+    hwaddr uart0_base   = 0x80000000;
+    hwaddr timer0_base  = 0x80002000;
+    hwaddr timer1_base  = 0x80010000;
+    hwaddr timer2_base  = 0x80012000;
     int uart0_irq                   = 0;
     int timer0_irq                  = 1;
     int timer1_irq                  = 20;
     int timer2_irq                  = 21;
-    target_phys_addr_t hwsetup_base = 0x0bffe000;
-    target_phys_addr_t cmdline_base = 0x0bfff000;
-    target_phys_addr_t initrd_base  = 0x08400000;
+    hwaddr hwsetup_base = 0x0bffe000;
+    hwaddr cmdline_base = 0x0bfff000;
+    hwaddr initrd_base  = 0x08400000;
     size_t initrd_max               = 0x01000000;
 
     reset_info = g_malloc0(sizeof(ResetInfo));

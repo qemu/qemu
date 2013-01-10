@@ -27,7 +27,7 @@
 
 #include "cpu.h"
 #include "helper.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 static void do_unaligned_access(CPUXtensaState *env,
         target_ulong addr, int is_write, int is_user, uintptr_t retaddr);
@@ -36,33 +36,23 @@ static void do_unaligned_access(CPUXtensaState *env,
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
-
-static void do_restore_state(CPUXtensaState *env, uintptr_t pc)
-{
-    TranslationBlock *tb;
-
-    tb = tb_find_pc(pc);
-    if (tb) {
-        cpu_restore_state(tb, env, pc);
-    }
-}
+#include "exec/softmmu_template.h"
 
 static void do_unaligned_access(CPUXtensaState *env,
         target_ulong addr, int is_write, int is_user, uintptr_t retaddr)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
             !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {
-        do_restore_state(env, retaddr);
+        cpu_restore_state(env, retaddr);
         HELPER(exception_cause_vaddr)(env,
                 env->pc, LOAD_STORE_ALIGNMENT_CAUSE, addr);
     }
@@ -86,7 +76,7 @@ void tlb_fill(CPUXtensaState *env,
                 paddr & TARGET_PAGE_MASK,
                 access, mmu_idx, page_size);
     } else {
-        do_restore_state(env, retaddr);
+        cpu_restore_state(env, retaddr);
         HELPER(exception_cause_vaddr)(env, env->pc, ret, vaddr);
     }
 }
@@ -413,6 +403,63 @@ void HELPER(advance_ccount)(CPUXtensaState *env, uint32_t d)
 void HELPER(check_interrupts)(CPUXtensaState *env)
 {
     check_interrupts(env);
+}
+
+/*!
+ * Check vaddr accessibility/cache attributes and raise an exception if
+ * specified by the ATOMCTL SR.
+ *
+ * Note: local memory exclusion is not implemented
+ */
+void HELPER(check_atomctl)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr)
+{
+    uint32_t paddr, page_size, access;
+    uint32_t atomctl = env->sregs[ATOMCTL];
+    int rc = xtensa_get_physical_addr(env, true, vaddr, 1,
+            xtensa_get_cring(env), &paddr, &page_size, &access);
+
+    /*
+     * s32c1i never causes LOAD_PROHIBITED_CAUSE exceptions,
+     * see opcode description in the ISA
+     */
+    if (rc == 0 &&
+            (access & (PAGE_READ | PAGE_WRITE)) != (PAGE_READ | PAGE_WRITE)) {
+        rc = STORE_PROHIBITED_CAUSE;
+    }
+
+    if (rc) {
+        HELPER(exception_cause_vaddr)(env, pc, rc, vaddr);
+    }
+
+    /*
+     * When data cache is not configured use ATOMCTL bypass field.
+     * See ISA, 4.3.12.4 The Atomic Operation Control Register (ATOMCTL)
+     * under the Conditional Store Option.
+     */
+    if (!xtensa_option_enabled(env->config, XTENSA_OPTION_DCACHE)) {
+        access = PAGE_CACHE_BYPASS;
+    }
+
+    switch (access & PAGE_CACHE_MASK) {
+    case PAGE_CACHE_WB:
+        atomctl >>= 2;
+    case PAGE_CACHE_WT:
+        atomctl >>= 2;
+    case PAGE_CACHE_BYPASS:
+        if ((atomctl & 0x3) == 0) {
+            HELPER(exception_cause_vaddr)(env, pc,
+                    LOAD_STORE_ERROR_CAUSE, vaddr);
+        }
+        break;
+
+    case PAGE_CACHE_ISOLATE:
+        HELPER(exception_cause_vaddr)(env, pc,
+                LOAD_STORE_ERROR_CAUSE, vaddr);
+        break;
+
+    default:
+        break;
+    }
 }
 
 void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)
@@ -770,4 +817,138 @@ void HELPER(wsr_dbreakc)(CPUXtensaState *env, uint32_t i, uint32_t v)
         }
     }
     env->sregs[DBREAKC + i] = v;
+}
+
+void HELPER(wur_fcr)(CPUXtensaState *env, uint32_t v)
+{
+    static const int rounding_mode[] = {
+        float_round_nearest_even,
+        float_round_to_zero,
+        float_round_up,
+        float_round_down,
+    };
+
+    env->uregs[FCR] = v & 0xfffff07f;
+    set_float_rounding_mode(rounding_mode[v & 3], &env->fp_status);
+}
+
+float32 HELPER(abs_s)(float32 v)
+{
+    return float32_abs(v);
+}
+
+float32 HELPER(neg_s)(float32 v)
+{
+    return float32_chs(v);
+}
+
+float32 HELPER(add_s)(CPUXtensaState *env, float32 a, float32 b)
+{
+    return float32_add(a, b, &env->fp_status);
+}
+
+float32 HELPER(sub_s)(CPUXtensaState *env, float32 a, float32 b)
+{
+    return float32_sub(a, b, &env->fp_status);
+}
+
+float32 HELPER(mul_s)(CPUXtensaState *env, float32 a, float32 b)
+{
+    return float32_mul(a, b, &env->fp_status);
+}
+
+float32 HELPER(madd_s)(CPUXtensaState *env, float32 a, float32 b, float32 c)
+{
+    return float32_muladd(b, c, a, 0,
+            &env->fp_status);
+}
+
+float32 HELPER(msub_s)(CPUXtensaState *env, float32 a, float32 b, float32 c)
+{
+    return float32_muladd(b, c, a, float_muladd_negate_product,
+            &env->fp_status);
+}
+
+uint32_t HELPER(ftoi)(float32 v, uint32_t rounding_mode, uint32_t scale)
+{
+    float_status fp_status = {0};
+
+    set_float_rounding_mode(rounding_mode, &fp_status);
+    return float32_to_int32(
+            float32_scalbn(v, scale, &fp_status), &fp_status);
+}
+
+uint32_t HELPER(ftoui)(float32 v, uint32_t rounding_mode, uint32_t scale)
+{
+    float_status fp_status = {0};
+    float32 res;
+
+    set_float_rounding_mode(rounding_mode, &fp_status);
+
+    res = float32_scalbn(v, scale, &fp_status);
+
+    if (float32_is_neg(v) && !float32_is_any_nan(v)) {
+        return float32_to_int32(res, &fp_status);
+    } else {
+        return float32_to_uint32(res, &fp_status);
+    }
+}
+
+float32 HELPER(itof)(CPUXtensaState *env, uint32_t v, uint32_t scale)
+{
+    return float32_scalbn(int32_to_float32(v, &env->fp_status),
+            (int32_t)scale, &env->fp_status);
+}
+
+float32 HELPER(uitof)(CPUXtensaState *env, uint32_t v, uint32_t scale)
+{
+    return float32_scalbn(uint32_to_float32(v, &env->fp_status),
+            (int32_t)scale, &env->fp_status);
+}
+
+static inline void set_br(CPUXtensaState *env, bool v, uint32_t br)
+{
+    if (v) {
+        env->sregs[BR] |= br;
+    } else {
+        env->sregs[BR] &= ~br;
+    }
+}
+
+void HELPER(un_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    set_br(env, float32_unordered_quiet(a, b, &env->fp_status), br);
+}
+
+void HELPER(oeq_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    set_br(env, float32_eq_quiet(a, b, &env->fp_status), br);
+}
+
+void HELPER(ueq_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    int v = float32_compare_quiet(a, b, &env->fp_status);
+    set_br(env, v == float_relation_equal || v == float_relation_unordered, br);
+}
+
+void HELPER(olt_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    set_br(env, float32_lt_quiet(a, b, &env->fp_status), br);
+}
+
+void HELPER(ult_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    int v = float32_compare_quiet(a, b, &env->fp_status);
+    set_br(env, v == float_relation_less || v == float_relation_unordered, br);
+}
+
+void HELPER(ole_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    set_br(env, float32_le_quiet(a, b, &env->fp_status), br);
+}
+
+void HELPER(ule_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    int v = float32_compare_quiet(a, b, &env->fp_status);
+    set_br(env, v != float_relation_greater, br);
 }

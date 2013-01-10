@@ -13,7 +13,7 @@
 
 #include "hw.h"
 #include "pxa.h"
-#include "console.h"
+#include "ui/console.h"
 
 /*
  * Keypad
@@ -172,10 +172,9 @@ static void pxa27x_keyboard_event (PXA2xxKeyPadState *kp, int keycode)
         kp->kpc |= KPC_MI;
         qemu_irq_raise(kp->irq);
     }
-    return;
 }
 
-static uint64_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pxa2xx_keypad_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     PXA2xxKeyPadState *s = (PXA2xxKeyPadState *) opaque;
@@ -237,7 +236,7 @@ static uint64_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static void pxa2xx_keypad_write(void *opaque, target_phys_addr_t offset,
+static void pxa2xx_keypad_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     PXA2xxKeyPadState *s = (PXA2xxKeyPadState *) opaque;
@@ -306,7 +305,7 @@ static const VMStateDescription vmstate_pxa2xx_keypad = {
 };
 
 PXA2xxKeyPadState *pxa27x_keypad_init(MemoryRegion *sysmem,
-                                      target_phys_addr_t base,
+                                      hwaddr base,
                                       qemu_irq irq)
 {
     PXA2xxKeyPadState *s;

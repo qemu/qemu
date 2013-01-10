@@ -20,8 +20,8 @@
 #include "hw.h"
 #include "audiodev.h"
 #include "audio/audio.h"
-#include "pci.h"
-#include "dma.h"
+#include "pci/pci.h"
+#include "sysemu/dma.h"
 
 enum {
     AC97_Reset                     = 0x00,
@@ -1226,32 +1226,101 @@ static const VMStateDescription vmstate_ac97 = {
     }
 };
 
-static const MemoryRegionPortio nam_portio[] = {
-    { 0, 256 * 1, 1, .read = nam_readb, },
-    { 0, 256 * 2, 2, .read = nam_readw, },
-    { 0, 256 * 4, 4, .read = nam_readl, },
-    { 0, 256 * 1, 1, .write = nam_writeb, },
-    { 0, 256 * 2, 2, .write = nam_writew, },
-    { 0, 256 * 4, 4, .write = nam_writel, },
-    PORTIO_END_OF_LIST (),
-};
+static uint64_t nam_read(void *opaque, hwaddr addr, unsigned size)
+{
+    if ((addr / size) > 256) {
+        return -1;
+    }
+
+    switch (size) {
+    case 1:
+        return nam_readb(opaque, addr);
+    case 2:
+        return nam_readw(opaque, addr);
+    case 4:
+        return nam_readl(opaque, addr);
+    default:
+        return -1;
+    }
+}
+
+static void nam_write(void *opaque, hwaddr addr, uint64_t val,
+                      unsigned size)
+{
+    if ((addr / size) > 256) {
+        return;
+    }
+
+    switch (size) {
+    case 1:
+        nam_writeb(opaque, addr, val);
+        break;
+    case 2:
+        nam_writew(opaque, addr, val);
+        break;
+    case 4:
+        nam_writel(opaque, addr, val);
+        break;
+    }
+}
 
 static const MemoryRegionOps ac97_io_nam_ops = {
-    .old_portio = nam_portio,
+    .read = nam_read,
+    .write = nam_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static const MemoryRegionPortio nabm_portio[] = {
-    { 0, 64 * 1, 1, .read = nabm_readb, },
-    { 0, 64 * 2, 2, .read = nabm_readw, },
-    { 0, 64 * 4, 4, .read = nabm_readl, },
-    { 0, 64 * 1, 1, .write = nabm_writeb, },
-    { 0, 64 * 2, 2, .write = nabm_writew, },
-    { 0, 64 * 4, 4, .write = nabm_writel, },
-    PORTIO_END_OF_LIST ()
-};
+static uint64_t nabm_read(void *opaque, hwaddr addr, unsigned size)
+{
+    if ((addr / size) > 64) {
+        return -1;
+    }
+
+    switch (size) {
+    case 1:
+        return nabm_readb(opaque, addr);
+    case 2:
+        return nabm_readw(opaque, addr);
+    case 4:
+        return nabm_readl(opaque, addr);
+    default:
+        return -1;
+    }
+}
+
+static void nabm_write(void *opaque, hwaddr addr, uint64_t val,
+                      unsigned size)
+{
+    if ((addr / size) > 64) {
+        return;
+    }
+
+    switch (size) {
+    case 1:
+        nabm_writeb(opaque, addr, val);
+        break;
+    case 2:
+        nabm_writew(opaque, addr, val);
+        break;
+    case 4:
+        nabm_writel(opaque, addr, val);
+        break;
+    }
+}
+
 
 static const MemoryRegionOps ac97_io_nabm_ops = {
-    .old_portio = nabm_portio,
+    .read = nabm_read,
+    .write = nabm_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void ac97_on_reset (void *opaque)

@@ -21,12 +21,13 @@
 #include "hw.h"
 #include "boards.h"
 #include "elf.h"
-#include "pc.h"
+#include "serial.h"
+#include "net/net.h"
 #include "loader.h"
-#include "exec-memory.h"
-#include "sysemu.h"
+#include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
-#include "qtest.h"
+#include "sysemu/qtest.h"
 
 #define KERNEL_LOAD_ADDR 0x100
 
@@ -38,8 +39,8 @@ static void main_cpu_reset(void *opaque)
 }
 
 static void openrisc_sim_net_init(MemoryRegion *address_space,
-                                  target_phys_addr_t base,
-                                  target_phys_addr_t descriptors,
+                                  hwaddr base,
+                                  hwaddr descriptors,
                                   qemu_irq irq, NICInfo *nd)
 {
     DeviceState *dev;
@@ -63,7 +64,7 @@ static void cpu_openrisc_load_kernel(ram_addr_t ram_size,
 {
     long kernel_size;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    hwaddr entry;
 
     if (kernel_filename && !qtest_enabled()) {
         kernel_size = load_elf(kernel_filename, NULL, NULL,
@@ -90,13 +91,11 @@ static void cpu_openrisc_load_kernel(ram_addr_t ram_size,
     cpu->env.pc = entry;
 }
 
-static void openrisc_sim_init(ram_addr_t ram_size,
-                              const char *boot_device,
-                              const char *kernel_filename,
-                              const char *kernel_cmdline,
-                              const char *initrd_filename,
-                              const char *cpu_model)
+static void openrisc_sim_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
    OpenRISCCPU *cpu = NULL;
     MemoryRegion *ram;
     int n;

@@ -1,0 +1,66 @@
+QA output created by 043
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+
+== backing file references self ==
+qemu-img: Backing file 'TEST_DIR/t.IMGFMT' creates an infinite loop.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file='TEST_DIR/t.IMGFMT.base' 
+
+== parent references self ==
+qemu-img: Backing file 'TEST_DIR/t.IMGFMT' creates an infinite loop.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file='TEST_DIR/t.IMGFMT.1.base' 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file='TEST_DIR/t.IMGFMT.2.base' 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file='TEST_DIR/t.IMGFMT.3.base' 
+
+== ancestor references another ancestor ==
+qemu-img: Backing file 'TEST_DIR/t.IMGFMT.2.base' creates an infinite loop.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file='TEST_DIR/t.IMGFMT.1.base' 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file='TEST_DIR/t.IMGFMT.2.base' 
+
+== finite chain of length 3 (human) ==
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 128M (134217728 bytes)
+cluster_size: 65536
+backing file: TEST_DIR/t.IMGFMT.2.base
+
+image: TEST_DIR/t.IMGFMT.2.base
+file format: IMGFMT
+virtual size: 128M (134217728 bytes)
+cluster_size: 65536
+backing file: TEST_DIR/t.IMGFMT.1.base
+
+image: TEST_DIR/t.IMGFMT.1.base
+file format: IMGFMT
+virtual size: 128M (134217728 bytes)
+cluster_size: 65536
+
+== finite chain of length 3 (json) ==
+[
+    {
+        "virtual-size": 134217728, 
+        "filename": "TEST_DIR/t.IMGFMT", 
+        "cluster-size": 65536, 
+        "format": "IMGFMT", 
+        "backing-filename": "TEST_DIR/t.IMGFMT.2.base", 
+        "dirty-flag": false
+    }, 
+    {
+        "virtual-size": 134217728, 
+        "filename": "TEST_DIR/t.IMGFMT.2.base", 
+        "cluster-size": 65536, 
+        "format": "IMGFMT", 
+        "backing-filename": "TEST_DIR/t.IMGFMT.1.base", 
+        "dirty-flag": false
+    }, 
+    {
+        "virtual-size": 134217728, 
+        "filename": "TEST_DIR/t.IMGFMT.1.base", 
+        "cluster-size": 65536, 
+        "format": "IMGFMT", 
+        "dirty-flag": false
+    }
+]
+*** done

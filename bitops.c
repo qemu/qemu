@@ -11,7 +11,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include "bitops.h"
+#include "qemu/bitops.h"
 
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 

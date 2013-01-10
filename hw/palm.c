@@ -18,34 +18,34 @@
  */
 #include "hw.h"
 #include "audio/audio.h"
-#include "sysemu.h"
-#include "console.h"
+#include "sysemu/sysemu.h"
+#include "ui/console.h"
 #include "omap.h"
 #include "boards.h"
 #include "arm-misc.h"
 #include "devices.h"
 #include "loader.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
-static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
+static uint32_t static_readb(void *opaque, hwaddr offset)
 {
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 3) << 3);
 }
 
-static uint32_t static_readh(void *opaque, target_phys_addr_t offset)
+static uint32_t static_readh(void *opaque, hwaddr offset)
 {
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 1) << 3);
 }
 
-static uint32_t static_readw(void *opaque, target_phys_addr_t offset)
+static uint32_t static_readw(void *opaque, hwaddr offset)
 {
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 0) << 3);
 }
 
-static void static_write(void *opaque, target_phys_addr_t offset,
+static void static_write(void *opaque, hwaddr offset,
                 uint32_t value)
 {
 #ifdef SPY
@@ -190,11 +190,12 @@ static struct arm_boot_info palmte_binfo = {
     .board_id = 0x331,
 };
 
-static void palmte_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void palmte_init(QEMUMachineInitArgs *args)
 {
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     MemoryRegion *address_space_mem = get_system_memory();
     struct omap_mpu_state_s *mpu;
     int flash_size = 0x00800000;
@@ -272,7 +273,7 @@ static void palmte_init(ram_addr_t ram_size,
        will set the size once configured, so this just sets an initial
        size until the guest activates the display.  */
     ds->surface = qemu_resize_displaysurface(ds, 320, 320);
-    dpy_resize(ds);
+    dpy_gfx_resize(ds);
 }
 
 static QEMUMachine palmte_machine = {

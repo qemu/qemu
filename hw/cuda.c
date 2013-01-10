@@ -25,8 +25,8 @@
 #include "hw.h"
 #include "ppc_mac.h"
 #include "adb.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
 
 /* XXX: implement all timer modes */
 
@@ -252,7 +252,7 @@ static void cuda_timer1(void *opaque)
     cuda_update_irq(s);
 }
 
-static uint32_t cuda_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t cuda_readb(void *opaque, hwaddr addr)
 {
     CUDAState *s = opaque;
     uint32_t val;
@@ -325,7 +325,7 @@ static uint32_t cuda_readb(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static void cuda_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
 {
     CUDAState *s = opaque;
 
@@ -616,20 +616,20 @@ static void cuda_receive_packet_from_host(CUDAState *s,
     }
 }
 
-static void cuda_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void cuda_writew (void *opaque, hwaddr addr, uint32_t value)
 {
 }
 
-static void cuda_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void cuda_writel (void *opaque, hwaddr addr, uint32_t value)
 {
 }
 
-static uint32_t cuda_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t cuda_readw (void *opaque, hwaddr addr)
 {
     return 0;
 }
 
-static uint32_t cuda_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t cuda_readl (void *opaque, hwaddr addr)
 {
     return 0;
 }

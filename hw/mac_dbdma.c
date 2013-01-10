@@ -39,6 +39,7 @@
 #include "hw.h"
 #include "isa.h"
 #include "mac_dbdma.h"
+#include "qemu/main-loop.h"
 
 /* debug DBDMA */
 //#define DEBUG_DBDMA
@@ -699,7 +700,7 @@ dbdma_control_write(DBDMA_channel *ch)
         ch->flush(&ch->io);
 }
 
-static void dbdma_write(void *opaque, target_phys_addr_t addr,
+static void dbdma_write(void *opaque, hwaddr addr,
                         uint64_t value, unsigned size)
 {
     int channel = addr >> DBDMA_CHANNEL_SHIFT;
@@ -749,7 +750,7 @@ static void dbdma_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t dbdma_read(void *opaque, target_phys_addr_t addr,
+static uint64_t dbdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
     uint32_t value;

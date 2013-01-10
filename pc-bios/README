@@ -12,12 +12,12 @@
   1275-1994 (referred to as Open Firmware) compliant firmware.
   The included images for PowerPC (for 32 and 64 bit PPC CPUs),
   Sparc32 and Sparc64 are built from OpenBIOS SVN revision
-  1060.
+  1063.
 
 - SLOF (Slimline Open Firmware) is a free IEEE 1275 Open Firmware
   implementation for certain IBM POWER hardware.  The sources are at
   https://github.com/dgibson/SLOF, and the image currently in qemu is
-  built from git tag qemu-slof-20120217.
+  built from git tag qemu-slof-20121018.
 
 - sgabios (the Serial Graphics Adapter option ROM) provides a means for
   legacy x86 software to communicate with an attached serial console as

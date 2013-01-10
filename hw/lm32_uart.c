@@ -25,8 +25,8 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "qemu-char.h"
-#include "qemu-error.h"
+#include "char/char.h"
+#include "qemu/error-report.h"
 
 enum {
     R_RXTX = 0,
@@ -125,7 +125,7 @@ static void uart_update_irq(LM32UartState *s)
     qemu_set_irq(s->irq, irq);
 }
 
-static uint64_t uart_read(void *opaque, target_phys_addr_t addr,
+static uint64_t uart_read(void *opaque, hwaddr addr,
                           unsigned size)
 {
     LM32UartState *s = opaque;
@@ -160,7 +160,7 @@ static uint64_t uart_read(void *opaque, target_phys_addr_t addr,
     return r;
 }
 
-static void uart_write(void *opaque, target_phys_addr_t addr,
+static void uart_write(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
     LM32UartState *s = opaque;

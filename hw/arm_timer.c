@@ -8,7 +8,7 @@
  */
 
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qemu-common.h"
 #include "qdev.h"
 #include "ptimer.h"
@@ -45,7 +45,7 @@ static void arm_timer_update(arm_timer_state *s)
     }
 }
 
-static uint32_t arm_timer_read(void *opaque, target_phys_addr_t offset)
+static uint32_t arm_timer_read(void *opaque, hwaddr offset)
 {
     arm_timer_state *s = (arm_timer_state *)opaque;
 
@@ -64,7 +64,8 @@ static uint32_t arm_timer_read(void *opaque, target_phys_addr_t offset)
             return 0;
         return s->int_level;
     default:
-        hw_error("%s: Bad offset %x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Bad offset %x\n", __func__, (int)offset);
         return 0;
     }
 }
@@ -87,7 +88,7 @@ static void arm_timer_recalibrate(arm_timer_state *s, int reload)
     ptimer_set_limit(s->timer, limit, reload);
 }
 
-static void arm_timer_write(void *opaque, target_phys_addr_t offset,
+static void arm_timer_write(void *opaque, hwaddr offset,
                             uint32_t value)
 {
     arm_timer_state *s = (arm_timer_state *)opaque;
@@ -131,7 +132,8 @@ static void arm_timer_write(void *opaque, target_phys_addr_t offset,
         arm_timer_recalibrate(s, 0);
         break;
     default:
-        hw_error("%s: Bad offset %x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Bad offset %x\n", __func__, (int)offset);
     }
     arm_timer_update(s);
 }
@@ -202,7 +204,7 @@ static void sp804_set_irq(void *opaque, int irq, int level)
     qemu_set_irq(s->irq, s->level[0] || s->level[1]);
 }
 
-static uint64_t sp804_read(void *opaque, target_phys_addr_t offset,
+static uint64_t sp804_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     sp804_state *s = (sp804_state *)opaque;
@@ -223,14 +225,18 @@ static uint64_t sp804_read(void *opaque, target_phys_addr_t offset,
     /* Integration Test control registers, which we won't support */
     case 0xf00: /* TimerITCR */
     case 0xf04: /* TimerITOP (strictly write only but..) */
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: integration test registers unimplemented\n",
+                      __func__);
         return 0;
     }
 
-    hw_error("%s: Bad offset %x\n", __func__, (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: Bad offset %x\n", __func__, (int)offset);
     return 0;
 }
 
-static void sp804_write(void *opaque, target_phys_addr_t offset,
+static void sp804_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     sp804_state *s = (sp804_state *)opaque;
@@ -246,7 +252,8 @@ static void sp804_write(void *opaque, target_phys_addr_t offset,
     }
 
     /* Technically we could be writing to the Test Registers, but not likely */
-    hw_error("%s: Bad offset %x\n", __func__, (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %x\n",
+                  __func__, (int)offset);
 }
 
 static const MemoryRegionOps sp804_ops = {
@@ -291,7 +298,7 @@ typedef struct {
     arm_timer_state *timer[3];
 } icp_pit_state;
 
-static uint64_t icp_pit_read(void *opaque, target_phys_addr_t offset,
+static uint64_t icp_pit_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
     icp_pit_state *s = (icp_pit_state *)opaque;
@@ -300,13 +307,13 @@ static uint64_t icp_pit_read(void *opaque, target_phys_addr_t offset,
     /* ??? Don't know the PrimeCell ID for this device.  */
     n = offset >> 8;
     if (n > 2) {
-        hw_error("%s: Bad timer %d\n", __func__, n);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad timer %d\n", __func__, n);
     }
 
     return arm_timer_read(s->timer[n], offset & 0xff);
 }
 
-static void icp_pit_write(void *opaque, target_phys_addr_t offset,
+static void icp_pit_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     icp_pit_state *s = (icp_pit_state *)opaque;
@@ -314,7 +321,7 @@ static void icp_pit_write(void *opaque, target_phys_addr_t offset,
 
     n = offset >> 8;
     if (n > 2) {
-        hw_error("%s: Bad timer %d\n", __func__, n);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad timer %d\n", __func__, n);
     }
 
     arm_timer_write(s->timer[n], offset & 0xff, value);

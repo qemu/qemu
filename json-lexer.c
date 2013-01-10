@@ -11,12 +11,12 @@
  *
  */
 
-#include "qstring.h"
-#include "qlist.h"
-#include "qdict.h"
-#include "qint.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qint.h"
 #include "qemu-common.h"
-#include "json-lexer.h"
+#include "qapi/qmp/json-lexer.h"
 
 #define MAX_TOKEN_SIZE (64ULL << 20)
 

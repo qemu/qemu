@@ -11,9 +11,9 @@
 #include "devices.h"
 #include "boards.h"
 #include "arm-misc.h"
-#include "net.h"
-#include "exec-memory.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 
 typedef struct {
     SysBusDevice busdev;
@@ -38,7 +38,7 @@ static uint8_t integrator_spd[128] = {
    0xe, 4, 0x1c, 1, 2, 0x20, 0xc0, 0, 0, 0, 0, 0x30, 0x28, 0x30, 0x28, 0x40
 };
 
-static uint64_t integratorcm_read(void *opaque, target_phys_addr_t offset,
+static uint64_t integratorcm_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
@@ -141,7 +141,7 @@ static void integratorcm_update(integratorcm_state *s)
         hw_error("Core module interrupt\n");
 }
 
-static void integratorcm_write(void *opaque, target_phys_addr_t offset,
+static void integratorcm_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
@@ -295,7 +295,7 @@ static void icp_pic_set_irq(void *opaque, int irq, int level)
     icp_pic_update(s);
 }
 
-static uint64_t icp_pic_read(void *opaque, target_phys_addr_t offset,
+static uint64_t icp_pic_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
@@ -324,7 +324,7 @@ static uint64_t icp_pic_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void icp_pic_write(void *opaque, target_phys_addr_t offset,
+static void icp_pic_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
@@ -381,7 +381,7 @@ static int icp_pic_init(SysBusDevice *dev)
 
 /* CP control registers.  */
 
-static uint64_t icp_control_read(void *opaque, target_phys_addr_t offset,
+static uint64_t icp_control_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
     switch (offset >> 2) {
@@ -399,7 +399,7 @@ static uint64_t icp_control_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void icp_control_write(void *opaque, target_phys_addr_t offset,
+static void icp_control_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     switch (offset >> 2) {
@@ -419,7 +419,7 @@ static const MemoryRegionOps icp_control_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void icp_control_init(target_phys_addr_t base)
+static void icp_control_init(hwaddr base)
 {
     MemoryRegion *io;
 
@@ -438,11 +438,13 @@ static struct arm_boot_info integrator_binfo = {
     .board_id = 0x113,
 };
 
-static void integratorcp_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void integratorcp_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);

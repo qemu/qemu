@@ -23,8 +23,8 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
-#include "softfloat.h"
+#include "exec/cpu-defs.h"
+#include "fpu/softfloat.h"
 
 #define NB_MMU_MODES            2
 
@@ -157,9 +157,9 @@ static inline void cpu_set_tls(CPUUniCore32State *env, target_ulong newtls)
     env->regs[16] = newtls;
 }
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 #include "cpu-qom.h"
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUUniCore32State *env, TranslationBlock *tb)
 {
@@ -181,8 +181,10 @@ void uc32_translate_init(void);
 void do_interrupt(CPUUniCore32State *);
 void switch_mode(CPUUniCore32State *, int);
 
-static inline bool cpu_has_work(CPUUniCore32State *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUUniCore32State *env = &UNICORE32_CPU(cpu)->env;
+
     return env->interrupt_request &
         (CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
 }

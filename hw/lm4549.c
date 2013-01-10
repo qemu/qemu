@@ -150,7 +150,7 @@ static void lm4549_audio_out_callback(void *opaque, int free)
     }
 }
 
-uint32_t lm4549_read(lm4549_state *s, target_phys_addr_t offset)
+uint32_t lm4549_read(lm4549_state *s, hwaddr offset)
 {
     uint16_t *regfile = s->regfile;
     uint32_t value = 0;
@@ -165,7 +165,7 @@ uint32_t lm4549_read(lm4549_state *s, target_phys_addr_t offset)
 }
 
 void lm4549_write(lm4549_state *s,
-                  target_phys_addr_t offset, uint32_t value)
+                  hwaddr offset, uint32_t value)
 {
     uint16_t *regfile = s->regfile;
 
@@ -224,7 +224,7 @@ uint32_t lm4549_write_samples(lm4549_state *s, uint32_t left, uint32_t right)
        This model supports 16-bit playback.
     */
 
-    if (s->buffer_level >= LM4549_BUFFER_SIZE) {
+    if (s->buffer_level > LM4549_BUFFER_SIZE - 2) {
         DPRINTF("write_sample Buffer full\n");
         return 0;
     }

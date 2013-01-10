@@ -16,7 +16,7 @@
 #include <powrprof.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 
 #ifndef SHTDN_REASON_FLAG_PLANNED
 #define SHTDN_REASON_FLAG_PLANNED 0x80000000
@@ -180,8 +180,6 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
 {
     error_set(err, QERR_UNSUPPORTED);
-
-    return;
 }
 
 typedef enum {

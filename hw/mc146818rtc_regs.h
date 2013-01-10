@@ -44,6 +44,10 @@
 #define RTC_REG_C               12
 #define RTC_REG_D               13
 
+/* PC cmos mappings */
+#define RTC_CENTURY              0x32
+#define RTC_IBM_PS2_CENTURY_BYTE 0x37
+
 #define REG_A_UIP 0x80
 
 #define REG_B_SET  0x80
@@ -58,5 +62,6 @@
 #define REG_C_IRQF 0x80
 #define REG_C_PF   0x40
 #define REG_C_AF   0x20
+#define REG_C_MASK 0x70
 
 #endif

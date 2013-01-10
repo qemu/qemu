@@ -23,10 +23,10 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-coroutine.h"
-#include "qemu-coroutine-int.h"
-#include "qemu-queue.h"
-#include "main-loop.h"
+#include "block/coroutine.h"
+#include "block/coroutine_int.h"
+#include "qemu/queue.h"
+#include "block/aio.h"
 #include "trace.h"
 
 static QTAILQ_HEAD(, Coroutine) unlock_bh_queue =

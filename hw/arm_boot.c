@@ -10,15 +10,15 @@
 #include "config.h"
 #include "hw.h"
 #include "arm-misc.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
+#include "qemu/config-file.h"
 
 #define KERNEL_ARGS_ADDR 0x100
 #define KERNEL_LOAD_ADDR 0x00010000
-#define INITRD_LOAD_ADDR 0x00d00000
 
 /* The worlds second smallest bootloader.  Set r0-r2, then jump to kernel.  */
 static uint32_t bootloader[] = {
@@ -45,11 +45,17 @@ static uint32_t bootloader[] = {
  * for an interprocessor interrupt and polling a configurable
  * location for the kernel secondary CPU entry point.
  */
+#define DSB_INSN 0xf57ff04f
+#define CP15_DSB_INSN 0xee070f9a /* mcr cp15, 0, r0, c7, c10, 4 */
+
 static uint32_t smpboot[] = {
-  0xe59f201c, /* ldr r2, gic_cpu_if */
-  0xe59f001c, /* ldr r0, startaddr */
+  0xe59f2028, /* ldr r2, gic_cpu_if */
+  0xe59f0028, /* ldr r0, startaddr */
   0xe3a01001, /* mov r1, #1 */
-  0xe5821000, /* str r1, [r2] */
+  0xe5821000, /* str r1, [r2] - set GICC_CTLR.Enable */
+  0xe3a010ff, /* mov r1, #0xff */
+  0xe5821004, /* str r1, [r2, 4] - set GIC_PMR.Priority to 0xff */
+  DSB_INSN,   /* dsb */
   0xe320f003, /* wfi */
   0xe5901000, /* ldr     r1, [r0] */
   0xe1110001, /* tst     r1, r1 */
@@ -66,6 +72,11 @@ static void default_write_secondary(ARMCPU *cpu,
     smpboot[ARRAY_SIZE(smpboot) - 1] = info->smp_bootreg_addr;
     smpboot[ARRAY_SIZE(smpboot) - 2] = info->gic_cpu_if_addr;
     for (n = 0; n < ARRAY_SIZE(smpboot); n++) {
+        /* Replace DSB with the pre-v7 DSB if necessary. */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V7) &&
+            smpboot[n] == DSB_INSN) {
+            smpboot[n] = CP15_DSB_INSN;
+        }
         smpboot[n] = tswap32(smpboot[n]);
     }
     rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot),
@@ -89,8 +100,8 @@ static void default_reset_secondary(ARMCPU *cpu,
 static void set_kernel_args(const struct arm_boot_info *info)
 {
     int initrd_size = info->initrd_size;
-    target_phys_addr_t base = info->loader_start;
-    target_phys_addr_t p;
+    hwaddr base = info->loader_start;
+    hwaddr p;
 
     p = base + KERNEL_ARGS_ADDR;
     /* ATAG_CORE */
@@ -109,7 +120,7 @@ static void set_kernel_args(const struct arm_boot_info *info)
         /* ATAG_INITRD2 */
         WRITE_WORD(p, 4);
         WRITE_WORD(p, 0x54420005);
-        WRITE_WORD(p, info->loader_start + INITRD_LOAD_ADDR);
+        WRITE_WORD(p, info->initrd_start);
         WRITE_WORD(p, initrd_size);
     }
     if (info->kernel_cmdline && *info->kernel_cmdline) {
@@ -142,10 +153,10 @@ static void set_kernel_args(const struct arm_boot_info *info)
 
 static void set_kernel_args_old(const struct arm_boot_info *info)
 {
-    target_phys_addr_t p;
+    hwaddr p;
     const char *s;
     int initrd_size = info->initrd_size;
-    target_phys_addr_t base = info->loader_start;
+    hwaddr base = info->loader_start;
 
     /* see linux/include/asm-arm/setup.h */
     p = base + KERNEL_ARGS_ADDR;
@@ -185,10 +196,11 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     /* pages_in_vram */
     WRITE_WORD(p, 0);
     /* initrd_start */
-    if (initrd_size)
-        WRITE_WORD(p, info->loader_start + INITRD_LOAD_ADDR);
-    else
+    if (initrd_size) {
+        WRITE_WORD(p, info->initrd_start);
+    } else {
         WRITE_WORD(p, 0);
+    }
     /* initrd_size */
     WRITE_WORD(p, initrd_size);
     /* rd_start */
@@ -213,7 +225,7 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     }
 }
 
-static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
+static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
 {
 #ifdef CONFIG_FDT
     uint32_t *mem_reg_property;
@@ -281,14 +293,13 @@ static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
 
     if (binfo->initrd_size) {
         rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-start",
-                binfo->loader_start + INITRD_LOAD_ADDR);
+                binfo->initrd_start);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
         }
 
         rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-end",
-                    binfo->loader_start + INITRD_LOAD_ADDR +
-                    binfo->initrd_size);
+                    binfo->initrd_start + binfo->initrd_size);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
         }
@@ -342,7 +353,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     int n;
     int is_linux = 0;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    hwaddr entry;
     int big_endian;
     QemuOpts *machine_opts;
 
@@ -375,6 +386,19 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     big_endian = 0;
 #endif
 
+    /* We want to put the initrd far enough into RAM that when the
+     * kernel is uncompressed it will not clobber the initrd. However
+     * on boards without much RAM we must ensure that we still leave
+     * enough room for a decent sized initrd, and on boards with large
+     * amounts of RAM we must avoid the initrd being so far up in RAM
+     * that it is outside lowmem and inaccessible to the kernel.
+     * So for boards with less  than 256MB of RAM we put the initrd
+     * halfway into RAM, and for boards with 256MB of RAM or more we put
+     * the initrd at 128MB.
+     */
+    info->initrd_start = info->loader_start +
+        MIN(info->ram_size / 2, 128 * 1024 * 1024);
+
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = load_elf(info->kernel_filename, NULL, NULL, &elf_entry,
                            NULL, NULL, big_endian, ELF_MACHINE, 1);
@@ -398,10 +422,9 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     if (is_linux) {
         if (info->initrd_filename) {
             initrd_size = load_image_targphys(info->initrd_filename,
-                                              info->loader_start
-                                              + INITRD_LOAD_ADDR,
-                                              info->ram_size
-                                              - INITRD_LOAD_ADDR);
+                                              info->initrd_start,
+                                              info->ram_size -
+                                              info->initrd_start);
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initrd '%s'\n",
                         info->initrd_filename);
@@ -419,9 +442,8 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
          */
         if (info->dtb_filename) {
             /* Place the DTB after the initrd in memory */
-            target_phys_addr_t dtb_start = TARGET_PAGE_ALIGN(info->loader_start
-                                                             + INITRD_LOAD_ADDR
-                                                             + initrd_size);
+            hwaddr dtb_start = TARGET_PAGE_ALIGN(info->initrd_start +
+                                                 initrd_size);
             if (load_dtb(dtb_start, info)) {
                 exit(1);
             }

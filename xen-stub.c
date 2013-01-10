@@ -10,7 +10,8 @@
 
 #include "qemu-common.h"
 #include "hw/xen.h"
-#include "memory.h"
+#include "exec/memory.h"
+#include "qmp-commands.h"
 
 void xenstore_store_pv_console_info(int i, CharDriverState *chr)
 {
@@ -52,5 +53,13 @@ int xen_init(void)
 }
 
 void xen_register_framebuffer(MemoryRegion *mr)
+{
+}
+
+void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
+{
+}
+
+void xen_modified_memory(ram_addr_t start, ram_addr_t length)
 {
 }

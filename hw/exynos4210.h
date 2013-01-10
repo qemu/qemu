@@ -27,7 +27,7 @@
 #define EXYNOS4210_H_
 
 #include "qemu-common.h"
-#include "memory.h"
+#include "exec/memory.h"
 
 #define EXYNOS4210_NCPUS                    2
 
@@ -128,7 +128,7 @@ void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs, DeviceState *dev,
 /*
  * exynos4210 UART
  */
-DeviceState *exynos4210_uart_create(target_phys_addr_t addr,
+DeviceState *exynos4210_uart_create(hwaddr addr,
                                     int fifo_size,
                                     int channel,
                                     CharDriverState *chr,

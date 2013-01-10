@@ -58,7 +58,7 @@ static V9fsSynthNode *v9fs_add_dir_node(V9fsSynthNode *parent, int mode,
         node->attr->read  = NULL;
     }
     node->private = node;
-    strncpy(node->name, name, sizeof(node->name));
+    pstrcpy(node->name, sizeof(node->name), name);
     QLIST_INSERT_HEAD_RCU(&parent->child, node, sibling);
     return node;
 }
@@ -132,7 +132,7 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
     node->attr->write  = write;
     node->attr->mode   = mode;
     node->private      = arg;
-    strncpy(node->name, name, sizeof(node->name));
+    pstrcpy(node->name, sizeof(node->name), name);
     QLIST_INSERT_HEAD_RCU(&parent->child, node, sibling);
     ret = 0;
 err_out:

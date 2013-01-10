@@ -41,6 +41,13 @@ these four paragraphs for those parts of this code that are retained.
 #define SNAN_BIT_IS_ONE		0
 #endif
 
+#if defined(TARGET_XTENSA)
+/* Define for architectures which deviate from IEEE in not supporting
+ * signaling NaNs (so all NaNs are treated as quiet).
+ */
+#define NO_SIGNALING_NANS 1
+#endif
+
 /*----------------------------------------------------------------------------
 | The pattern for a default generated half-precision NaN.
 *----------------------------------------------------------------------------*/
@@ -57,7 +64,8 @@ const float16 float16_default_nan = const_float16(0xFE00);
 *----------------------------------------------------------------------------*/
 #if defined(TARGET_SPARC)
 const float32 float32_default_nan = const_float32(0x7FFFFFFF);
-#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
+#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
+      defined(TARGET_XTENSA)
 const float32 float32_default_nan = const_float32(0x7FC00000);
 #elif SNAN_BIT_IS_ONE
 const float32 float32_default_nan = const_float32(0x7FBFFFFF);
@@ -127,6 +135,17 @@ typedef struct {
     uint64_t high, low;
 } commonNaNT;
 
+#ifdef NO_SIGNALING_NANS
+int float16_is_quiet_nan(float16 a_)
+{
+    return float16_is_any_nan(a_);
+}
+
+int float16_is_signaling_nan(float16 a_)
+{
+    return 0;
+}
+#else
 /*----------------------------------------------------------------------------
 | Returns 1 if the half-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
@@ -156,6 +175,7 @@ int float16_is_signaling_nan(float16 a_)
     return (((a >> 9) & 0x3F) == 0x3E) && (a & 0x1FF);
 #endif
 }
+#endif
 
 /*----------------------------------------------------------------------------
 | Returns a quiet NaN if the half-precision floating point value `a' is a
@@ -217,6 +237,17 @@ static float16 commonNaNToFloat16(commonNaNT a STATUS_PARAM)
     }
 }
 
+#ifdef NO_SIGNALING_NANS
+int float32_is_quiet_nan(float32 a_)
+{
+    return float32_is_any_nan(a_);
+}
+
+int float32_is_signaling_nan(float32 a_)
+{
+    return 0;
+}
+#else
 /*----------------------------------------------------------------------------
 | Returns 1 if the single-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
@@ -246,6 +277,7 @@ int float32_is_signaling_nan( float32 a_ )
     return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
 #endif
 }
+#endif
 
 /*----------------------------------------------------------------------------
 | Returns a quiet NaN if the single-precision floating point value `a' is a
@@ -372,7 +404,7 @@ static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
         return 1;
     }
 }
-#elif defined(TARGET_PPC)
+#elif defined(TARGET_PPC) || defined(TARGET_XTENSA)
 static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
                    flag aIsLargerSignificand)
 {
@@ -452,6 +484,33 @@ static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
         return 0;
     } else {
         return 1;
+    }
+}
+#elif defined(TARGET_MIPS)
+static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
+                         flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)
+{
+    /* For MIPS, the (inf,zero,qnan) case sets InvalidOp and returns
+     * the default NaN
+     */
+    if (infzero) {
+        float_raise(float_flag_invalid STATUS_VAR);
+        return 3;
+    }
+
+    /* Prefer sNaN over qNaN, in the a, b, c order. */
+    if (aIsSNaN) {
+        return 0;
+    } else if (bIsSNaN) {
+        return 1;
+    } else if (cIsSNaN) {
+        return 2;
+    } else if (aIsQNaN) {
+        return 0;
+    } else if (bIsQNaN) {
+        return 1;
+    } else {
+        return 2;
     }
 }
 #elif defined(TARGET_PPC)
@@ -586,6 +645,17 @@ static float32 propagateFloat32MulAddNaN(float32 a, float32 b,
     }
 }
 
+#ifdef NO_SIGNALING_NANS
+int float64_is_quiet_nan(float64 a_)
+{
+    return float64_is_any_nan(a_);
+}
+
+int float64_is_signaling_nan(float64 a_)
+{
+    return 0;
+}
+#else
 /*----------------------------------------------------------------------------
 | Returns 1 if the double-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
@@ -619,6 +689,7 @@ int float64_is_signaling_nan( float64 a_ )
         && ( a & LIT64( 0x0007FFFFFFFFFFFF ) );
 #endif
 }
+#endif
 
 /*----------------------------------------------------------------------------
 | Returns a quiet NaN if the double-precision floating point value `a' is a
@@ -773,6 +844,17 @@ static float64 propagateFloat64MulAddNaN(float64 a, float64 b,
     }
 }
 
+#ifdef NO_SIGNALING_NANS
+int floatx80_is_quiet_nan(floatx80 a_)
+{
+    return floatx80_is_any_nan(a_);
+}
+
+int floatx80_is_signaling_nan(floatx80 a_)
+{
+    return 0;
+}
+#else
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is a
 | quiet NaN; otherwise returns 0. This slightly differs from the same
@@ -816,6 +898,7 @@ int floatx80_is_signaling_nan( floatx80 a )
         && ( a.low == aLow );
 #endif
 }
+#endif
 
 /*----------------------------------------------------------------------------
 | Returns a quiet NaN if the extended double-precision floating point value
@@ -929,6 +1012,17 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
     }
 }
 
+#ifdef NO_SIGNALING_NANS
+int float128_is_quiet_nan(float128 a_)
+{
+    return float128_is_any_nan(a_);
+}
+
+int float128_is_signaling_nan(float128 a_)
+{
+    return 0;
+}
+#else
 /*----------------------------------------------------------------------------
 | Returns 1 if the quadruple-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
@@ -964,6 +1058,7 @@ int float128_is_signaling_nan( float128 a )
         && ( a.low || ( a.high & LIT64( 0x00007FFFFFFFFFFF ) ) );
 #endif
 }
+#endif
 
 /*----------------------------------------------------------------------------
 | Returns a quiet NaN if the quadruple-precision floating point value `a' is

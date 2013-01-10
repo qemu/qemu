@@ -1,4 +1,2 @@
-obj-y += translate.o op_helper.o helper.o cpu.o
+obj-y += translate.o dsp_helper.o op_helper.o lmi_helper.o helper.o cpu.o
 obj-$(CONFIG_SOFTMMU) += machine.o
-
-$(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

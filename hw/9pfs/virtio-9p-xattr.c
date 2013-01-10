@@ -53,7 +53,8 @@ ssize_t pt_listxattr(FsContext *ctx, const char *path,
         return -1;
     }
 
-    strncpy(value, name, name_size);
+    /* no need for strncpy: name_size is strlen(name)+1 */
+    memcpy(value, name, name_size);
     return name_size;
 }
 

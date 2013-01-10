@@ -21,12 +21,13 @@
 #include "qemu-common.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "net.h"
+#include "bt/bt.h"
 #include "hw/bt.h"
 
 struct USBBtState {
     USBDevice dev;
     struct HCIInfo *hci;
+    USBEndpoint *intr;
 
     int config;
 
@@ -285,13 +286,12 @@ static void usb_bt_fifo_enqueue(struct usb_hci_in_fifo_s *fifo,
     fifo->fifo[off].len = len;
 }
 
-static inline int usb_bt_fifo_dequeue(struct usb_hci_in_fifo_s *fifo,
+static inline void usb_bt_fifo_dequeue(struct usb_hci_in_fifo_s *fifo,
                 USBPacket *p)
 {
     int len;
 
-    if (likely(!fifo->len))
-        return USB_RET_STALL;
+    assert(fifo->len != 0);
 
     len = MIN(p->iov.size, fifo->fifo[fifo->start].len);
     usb_packet_copy(p, fifo->fifo[fifo->start].data, len);
@@ -310,8 +310,6 @@ static inline int usb_bt_fifo_dequeue(struct usb_hci_in_fifo_s *fifo,
         fifo->dstart = 0;
         fifo->dsize = DFIFO_LEN_MASK + 1;
     }
-
-    return len;
 }
 
 static inline void usb_bt_fifo_out_enqueue(struct USBBtState *s,
@@ -363,7 +361,7 @@ static void usb_bt_handle_reset(USBDevice *dev)
     s->outsco.len = 0;
 }
 
-static int usb_bt_handle_control(USBDevice *dev, USBPacket *p,
+static void usb_bt_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
     struct USBBtState *s = (struct USBBtState *) dev->opaque;
@@ -382,16 +380,15 @@ static int usb_bt_handle_control(USBDevice *dev, USBPacket *p,
             usb_bt_fifo_reset(&s->sco);
             break;
         }
-        return ret;
+        return;
     }
 
-    ret = 0;
     switch (request) {
     case InterfaceRequest | USB_REQ_GET_STATUS:
     case EndpointRequest | USB_REQ_GET_STATUS:
         data[0] = 0x00;
         data[1] = 0x00;
-        ret = 2;
+        p->actual_length = 2;
         break;
     case InterfaceOutRequest | USB_REQ_CLEAR_FEATURE:
     case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
@@ -407,16 +404,14 @@ static int usb_bt_handle_control(USBDevice *dev, USBPacket *p,
         break;
     default:
     fail:
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
-static int usb_bt_handle_data(USBDevice *dev, USBPacket *p)
+static void usb_bt_handle_data(USBDevice *dev, USBPacket *p)
 {
     struct USBBtState *s = (struct USBBtState *) dev->opaque;
-    int ret = 0;
 
     if (!s->config)
         goto fail;
@@ -425,15 +420,27 @@ static int usb_bt_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         switch (p->ep->nr) {
         case USB_EVT_EP:
-            ret = usb_bt_fifo_dequeue(&s->evt, p);
+            if (s->evt.len == 0) {
+                p->status = USB_RET_NAK;
+                break;
+            }
+            usb_bt_fifo_dequeue(&s->evt, p);
             break;
 
         case USB_ACL_EP:
-            ret = usb_bt_fifo_dequeue(&s->acl, p);
+            if (s->evt.len == 0) {
+                p->status = USB_RET_STALL;
+                break;
+            }
+            usb_bt_fifo_dequeue(&s->acl, p);
             break;
 
         case USB_SCO_EP:
-            ret = usb_bt_fifo_dequeue(&s->sco, p);
+            if (s->evt.len == 0) {
+                p->status = USB_RET_STALL;
+                break;
+            }
+            usb_bt_fifo_dequeue(&s->sco, p);
             break;
 
         default:
@@ -460,11 +467,9 @@ static int usb_bt_handle_data(USBDevice *dev, USBPacket *p)
 
     default:
     fail:
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-
-    return ret;
 }
 
 static void usb_bt_out_hci_packet_event(void *opaque,
@@ -472,6 +477,9 @@ static void usb_bt_out_hci_packet_event(void *opaque,
 {
     struct USBBtState *s = (struct USBBtState *) opaque;
 
+    if (s->evt.len == 0) {
+        usb_wakeup(s->intr);
+    }
     usb_bt_fifo_enqueue(&s->evt, data, len);
 }
 
@@ -494,8 +502,12 @@ static void usb_bt_handle_destroy(USBDevice *dev)
 
 static int usb_bt_initfn(USBDevice *dev)
 {
+    struct USBBtState *s = DO_UPCAST(struct USBBtState, dev, dev);
+
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, USB_EVT_EP);
+
     return 0;
 }
 

@@ -18,11 +18,11 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 #include "helper.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 /* Secure Virtual Machine helpers */
@@ -85,7 +85,7 @@ void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
 }
 #else
 
-static inline void svm_save_seg(CPUX86State *env, target_phys_addr_t addr,
+static inline void svm_save_seg(CPUX86State *env, hwaddr addr,
                                 const SegmentCache *sc)
 {
     stw_phys(addr + offsetof(struct vmcb_seg, selector),
@@ -98,7 +98,7 @@ static inline void svm_save_seg(CPUX86State *env, target_phys_addr_t addr,
              ((sc->flags >> 8) & 0xff) | ((sc->flags >> 12) & 0x0f00));
 }
 
-static inline void svm_load_seg(CPUX86State *env, target_phys_addr_t addr,
+static inline void svm_load_seg(CPUX86State *env, hwaddr addr,
                                 SegmentCache *sc)
 {
     unsigned int flags;
@@ -110,7 +110,7 @@ static inline void svm_load_seg(CPUX86State *env, target_phys_addr_t addr,
     sc->flags = ((flags & 0xff) << 8) | ((flags & 0x0f00) << 12);
 }
 
-static inline void svm_load_seg_cache(CPUX86State *env, target_phys_addr_t addr,
+static inline void svm_load_seg_cache(CPUX86State *env, hwaddr addr,
                                       int seg_reg)
 {
     SegmentCache sc1, *sc = &sc1;

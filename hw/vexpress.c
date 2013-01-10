@@ -25,12 +25,16 @@
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
-#include "net.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
+#include "sysemu/blockdev.h"
+#include "flash.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0
+#define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)
+#define VEXPRESS_FLASH_SECT_SIZE (256 * 1024)
 
 static struct arm_boot_info vexpress_binfo;
 
@@ -62,7 +66,6 @@ enum {
     VE_COMPACTFLASH,
     VE_CLCD,
     VE_NORFLASH0,
-    VE_NORFLASH0ALIAS,
     VE_NORFLASH1,
     VE_SRAM,
     VE_VIDEORAM,
@@ -71,7 +74,7 @@ enum {
     VE_DAPROM,
 };
 
-static target_phys_addr_t motherboard_legacy_map[] = {
+static hwaddr motherboard_legacy_map[] = {
     /* CS7: 0x10000000 .. 0x10020000 */
     [VE_SYSREGS] = 0x10000000,
     [VE_SP810] = 0x10001000,
@@ -103,10 +106,9 @@ static target_phys_addr_t motherboard_legacy_map[] = {
     [VE_USB] = 0x4f000000,
 };
 
-static target_phys_addr_t motherboard_aseries_map[] = {
-    /* CS0: 0x00000000 .. 0x0c000000 */
-    [VE_NORFLASH0] = 0x00000000,
-    [VE_NORFLASH0ALIAS] = 0x08000000,
+static hwaddr motherboard_aseries_map[] = {
+    /* CS0: 0x08000000 .. 0x0c000000 */
+    [VE_NORFLASH0] = 0x08000000,
     /* CS4: 0x0c000000 .. 0x10000000 */
     [VE_NORFLASH1] = 0x0c000000,
     /* CS5: 0x10000000 .. 0x14000000 */
@@ -148,9 +150,9 @@ typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
                           qemu_irq *pic, uint32_t *proc_id);
 
 struct VEDBoardInfo {
-    const target_phys_addr_t *motherboard_map;
-    target_phys_addr_t loader_start;
-    const target_phys_addr_t gic_cpu_if_addr;
+    const hwaddr *motherboard_map;
+    hwaddr loader_start;
+    const hwaddr gic_cpu_if_addr;
     DBoardInitFn *init;
 };
 
@@ -346,24 +348,21 @@ static const VEDBoardInfo a15_daughterboard = {
 };
 
 static void vexpress_common_init(const VEDBoardInfo *daughterboard,
-                                 ram_addr_t ram_size,
-                                 const char *boot_device,
-                                 const char *kernel_filename,
-                                 const char *kernel_cmdline,
-                                 const char *initrd_filename,
-                                 const char *cpu_model)
+                                 QEMUMachineInitArgs *args)
 {
     DeviceState *dev, *sysctl, *pl041;
     qemu_irq pic[64];
     uint32_t proc_id;
     uint32_t sys_id;
+    DriveInfo *dinfo;
     ram_addr_t vram_size, sram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *vram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
-    const target_phys_addr_t *map = daughterboard->motherboard_map;
+    const hwaddr *map = daughterboard->motherboard_map;
 
-    daughterboard->init(daughterboard, ram_size, cpu_model, pic, &proc_id);
+    daughterboard->init(daughterboard, args->ram_size, args->cpu_model,
+                        pic, &proc_id);
 
     /* Motherboard peripherals: the wiring is the same but the
      * addresses vary between the legacy and A-Series memory maps.
@@ -412,9 +411,25 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     sysbus_create_simple("pl111", map[VE_CLCD], pic[14]);
 
-    /* VE_NORFLASH0: not modelled */
-    /* VE_NORFLASH0ALIAS: not modelled */
-    /* VE_NORFLASH1: not modelled */
+    dinfo = drive_get_next(IF_PFLASH);
+    if (!pflash_cfi01_register(map[VE_NORFLASH0], NULL, "vexpress.flash0",
+            VEXPRESS_FLASH_SIZE, dinfo ? dinfo->bdrv : NULL,
+            VEXPRESS_FLASH_SECT_SIZE,
+            VEXPRESS_FLASH_SIZE / VEXPRESS_FLASH_SECT_SIZE, 4,
+            0x00, 0x89, 0x00, 0x18, 0)) {
+        fprintf(stderr, "vexpress: error registering flash 0.\n");
+        exit(1);
+    }
+
+    dinfo = drive_get_next(IF_PFLASH);
+    if (!pflash_cfi01_register(map[VE_NORFLASH1], NULL, "vexpress.flash1",
+            VEXPRESS_FLASH_SIZE, dinfo ? dinfo->bdrv : NULL,
+            VEXPRESS_FLASH_SECT_SIZE,
+            VEXPRESS_FLASH_SIZE / VEXPRESS_FLASH_SECT_SIZE, 4,
+            0x00, 0x89, 0x00, 0x18, 0)) {
+        fprintf(stderr, "vexpress: error registering flash 1.\n");
+        exit(1);
+    }
 
     sram_size = 0x2000000;
     memory_region_init_ram(sram, "vexpress.sram", sram_size);
@@ -435,10 +450,10 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     /* VE_DAPROM: not modelled */
 
-    vexpress_binfo.ram_size = ram_size;
-    vexpress_binfo.kernel_filename = kernel_filename;
-    vexpress_binfo.kernel_cmdline = kernel_cmdline;
-    vexpress_binfo.initrd_filename = initrd_filename;
+    vexpress_binfo.ram_size = args->ram_size;
+    vexpress_binfo.kernel_filename = args->kernel_filename;
+    vexpress_binfo.kernel_cmdline = args->kernel_cmdline;
+    vexpress_binfo.initrd_filename = args->initrd_filename;
     vexpress_binfo.nb_cpus = smp_cpus;
     vexpress_binfo.board_id = VEXPRESS_BOARD_ID;
     vexpress_binfo.loader_start = daughterboard->loader_start;
@@ -448,35 +463,21 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     arm_load_kernel(arm_env_get_cpu(first_cpu), &vexpress_binfo);
 }
 
-static void vexpress_a9_init(ram_addr_t ram_size,
-                             const char *boot_device,
-                             const char *kernel_filename,
-                             const char *kernel_cmdline,
-                             const char *initrd_filename,
-                             const char *cpu_model)
+static void vexpress_a9_init(QEMUMachineInitArgs *args)
 {
-    vexpress_common_init(&a9_daughterboard,
-                         ram_size, boot_device, kernel_filename,
-                         kernel_cmdline, initrd_filename, cpu_model);
+    vexpress_common_init(&a9_daughterboard, args);
 }
 
-static void vexpress_a15_init(ram_addr_t ram_size,
-                              const char *boot_device,
-                              const char *kernel_filename,
-                              const char *kernel_cmdline,
-                              const char *initrd_filename,
-                              const char *cpu_model)
+static void vexpress_a15_init(QEMUMachineInitArgs *args)
 {
-    vexpress_common_init(&a15_daughterboard,
-                         ram_size, boot_device, kernel_filename,
-                         kernel_cmdline, initrd_filename, cpu_model);
+    vexpress_common_init(&a15_daughterboard, args);
 }
 
 static QEMUMachine vexpress_a9_machine = {
     .name = "vexpress-a9",
     .desc = "ARM Versatile Express for Cortex-A9",
     .init = vexpress_a9_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 4,
 };
 
@@ -484,7 +485,7 @@ static QEMUMachine vexpress_a15_machine = {
     .name = "vexpress-a15",
     .desc = "ARM Versatile Express for Cortex-A15",
     .init = vexpress_a15_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 4,
 };
 

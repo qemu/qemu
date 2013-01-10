@@ -25,16 +25,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "memory.h"
-#include "exec-memory.h"
-#include "pc.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
+#include "serial.h"
+#include "net/net.h"
 #include "sysbus.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
+#include "char/char.h"
 #include "xtensa_bootparam.h"
 
 typedef struct LxBoardDesc {
@@ -57,7 +59,7 @@ static void lx60_fpga_reset(void *opaque)
     s->switches = 0;
 }
 
-static uint64_t lx60_fpga_read(void *opaque, target_phys_addr_t addr,
+static uint64_t lx60_fpga_read(void *opaque, hwaddr addr,
         unsigned size)
 {
     Lx60FpgaState *s = opaque;
@@ -78,7 +80,7 @@ static uint64_t lx60_fpga_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void lx60_fpga_write(void *opaque, target_phys_addr_t addr,
+static void lx60_fpga_write(void *opaque, hwaddr addr,
         uint64_t val, unsigned size)
 {
     Lx60FpgaState *s = opaque;
@@ -103,7 +105,7 @@ static const MemoryRegionOps lx60_fpga_ops = {
 };
 
 static Lx60FpgaState *lx60_fpga_init(MemoryRegion *address_space,
-        target_phys_addr_t base)
+        hwaddr base)
 {
     Lx60FpgaState *s = g_malloc(sizeof(Lx60FpgaState));
 
@@ -116,9 +118,9 @@ static Lx60FpgaState *lx60_fpga_init(MemoryRegion *address_space,
 }
 
 static void lx60_net_init(MemoryRegion *address_space,
-        target_phys_addr_t base,
-        target_phys_addr_t descriptors,
-        target_phys_addr_t buffers,
+        hwaddr base,
+        hwaddr descriptors,
+        hwaddr buffers,
         qemu_irq irq, NICInfo *nd)
 {
     DeviceState *dev;
@@ -154,10 +156,7 @@ static void lx60_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-static void lx_init(const LxBoardDesc *board,
-        ram_addr_t ram_size, const char *boot_device,
-        const char *kernel_filename, const char *kernel_cmdline,
-        const char *initrd_filename, const char *cpu_model)
+static void lx_init(const LxBoardDesc *board, QEMUMachineInitArgs *args)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
     int be = 1;
@@ -170,6 +169,9 @@ static void lx_init(const LxBoardDesc *board,
     MemoryRegion *ram, *rom, *system_io;
     DriveInfo *dinfo;
     pflash_t *flash = NULL;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
     int n;
 
     if (!cpu_model) {
@@ -193,7 +195,7 @@ static void lx_init(const LxBoardDesc *board,
     }
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, "lx60.dram", ram_size);
+    memory_region_init_ram(ram, "lx60.dram", args->ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(system_memory, 0, ram);
 
@@ -268,34 +270,24 @@ static void lx_init(const LxBoardDesc *board,
     }
 }
 
-static void xtensa_lx60_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void xtensa_lx60_init(QEMUMachineInitArgs *args)
 {
     static const LxBoardDesc lx60_board = {
         .flash_size = 0x400000,
         .flash_sector_size = 0x10000,
         .sram_size = 0x20000,
     };
-    lx_init(&lx60_board, ram_size, boot_device,
-            kernel_filename, kernel_cmdline,
-            initrd_filename, cpu_model);
+    lx_init(&lx60_board, args);
 }
 
-static void xtensa_lx200_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void xtensa_lx200_init(QEMUMachineInitArgs *args)
 {
     static const LxBoardDesc lx200_board = {
         .flash_size = 0x1000000,
         .flash_sector_size = 0x20000,
         .sram_size = 0x2000000,
     };
-    lx_init(&lx200_board, ram_size, boot_device,
-            kernel_filename, kernel_cmdline,
-            initrd_filename, cpu_model);
+    lx_init(&lx200_board, args);
 }
 
 static QEMUMachine xtensa_lx60_machine = {

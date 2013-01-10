@@ -39,9 +39,9 @@
 
 #define CPUArchState struct CPUSH4State
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_PAGE_BITS 12	/* 4k XXXXX */
 
@@ -204,20 +204,20 @@ void sh4_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #if !defined(CONFIG_USER_ONLY)
 void cpu_sh4_invalidate_tlb(CPUSH4State *s);
 uint32_t cpu_sh4_read_mmaped_itlb_addr(CPUSH4State *s,
-                                       target_phys_addr_t addr);
-void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+                                       hwaddr addr);
+void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, hwaddr addr,
                                     uint32_t mem_value);
 uint32_t cpu_sh4_read_mmaped_itlb_data(CPUSH4State *s,
-                                       target_phys_addr_t addr);
-void cpu_sh4_write_mmaped_itlb_data(CPUSH4State *s, target_phys_addr_t addr,
+                                       hwaddr addr);
+void cpu_sh4_write_mmaped_itlb_data(CPUSH4State *s, hwaddr addr,
                                     uint32_t mem_value);
 uint32_t cpu_sh4_read_mmaped_utlb_addr(CPUSH4State *s,
-                                       target_phys_addr_t addr);
-void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+                                       hwaddr addr);
+void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
                                     uint32_t mem_value);
 uint32_t cpu_sh4_read_mmaped_utlb_data(CPUSH4State *s,
-                                       target_phys_addr_t addr);
-void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, target_phys_addr_t addr,
+                                       hwaddr addr);
+void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, hwaddr addr,
                                     uint32_t mem_value);
 #endif
 
@@ -229,8 +229,6 @@ static inline void cpu_set_tls(CPUSH4State *env, target_ulong newtls)
 }
 
 void cpu_load_tlb(CPUSH4State * env);
-
-#include "softfloat.h"
 
 static inline CPUSH4State *cpu_init(const char *cpu_model)
 {
@@ -264,7 +262,7 @@ static inline void cpu_clone_regs(CPUSH4State *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 /* Memory access type */
 enum {
@@ -371,12 +369,14 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
             | (env->movcal_backup ? TB_FLAG_PENDING_MOVCA : 0); /* Bit 4 */
 }
 
-static inline bool cpu_has_work(CPUSH4State *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUSH4State *env = &SUPERH_CPU(cpu)->env;
+
     return env->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUSH4State *env, TranslationBlock *tb)
 {

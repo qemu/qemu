@@ -19,13 +19,13 @@
  */
 
 #include "cpu.h"
-#include "exec-all.h"
-#include "disas.h"
+#include "exec/exec-all.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "config.h"
-#include "bitops.h"
+#include "qemu/bitops.h"
 
 #include "helper.h"
 #define GEN_HELPER 1
@@ -61,7 +61,7 @@ static TCGv_i32 fpcsr;
 static TCGv machi, maclo;
 static TCGv fpmaddhi, fpmaddlo;
 static TCGv_i32 env_flags;
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 void openrisc_translate_init(void)
 {
@@ -1675,7 +1675,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     pc_start = tb->pc;
     dc->tb = tb;
 
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     dc->is_jmp = DISAS_NEXT;
     dc->ppc = pc_start;
     dc->pc = pc_start;
@@ -1703,19 +1703,19 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     do {
         check_breakpoint(cpu, dc);
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (k < j) {
                 k++;
                 while (k < j) {
-                    gen_opc_instr_start[k++] = 0;
+                    tcg_ctx.gen_opc_instr_start[k++] = 0;
                 }
             }
-            gen_opc_pc[k] = dc->pc;
-            gen_opc_instr_start[k] = 1;
-            gen_opc_icount[k] = num_insns;
+            tcg_ctx.gen_opc_pc[k] = dc->pc;
+            tcg_ctx.gen_opc_instr_start[k] = 1;
+            tcg_ctx.gen_opc_icount[k] = num_insns;
         }
 
-        if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
+        if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
             tcg_gen_debug_insn_start(dc->pc);
         }
 
@@ -1744,7 +1744,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
             }
         }
     } while (!dc->is_jmp
-             && gen_opc_ptr < gen_opc_end
+             && tcg_ctx.gen_opc_ptr < gen_opc_end
              && !cpu->env.singlestep_enabled
              && !singlestep
              && (dc->pc < next_page_start)
@@ -1782,12 +1782,12 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     }
 
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         k++;
         while (k <= j) {
-            gen_opc_instr_start[k++] = 0;
+            tcg_ctx.gen_opc_instr_start[k++] = 0;
         }
     } else {
         tb->size = dc->pc - pc_start;
@@ -1797,9 +1797,10 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("\n");
-        log_target_disas(pc_start, dc->pc - pc_start, 0);
+        log_target_disas(&cpu->env, pc_start, dc->pc - pc_start, 0);
         qemu_log("\nisize=%d osize=%td\n",
-            dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
+            dc->pc - pc_start, tcg_ctx.gen_opc_ptr -
+            tcg_ctx.gen_opc_buf);
     }
 #endif
 }
@@ -1831,5 +1832,5 @@ void cpu_dump_state(CPUOpenRISCState *env, FILE *f,
 void restore_state_to_opc(CPUOpenRISCState *env, TranslationBlock *tb,
                           int pc_pos)
 {
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
 }

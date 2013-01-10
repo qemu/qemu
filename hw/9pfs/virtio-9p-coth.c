@@ -12,10 +12,9 @@
  *
  */
 
-#include "qemu-char.h"
 #include "fsdev/qemu-fsdev.h"
-#include "qemu-thread.h"
-#include "qemu-coroutine.h"
+#include "qemu/thread.h"
+#include "block/coroutine.h"
 #include "virtio-9p-coth.h"
 
 /* v9fs glib thread pool */

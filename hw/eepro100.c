@@ -42,11 +42,11 @@
 
 #include <stddef.h>             /* offsetof */
 #include "hw.h"
-#include "pci.h"
-#include "net.h"
+#include "pci/pci.h"
+#include "net/net.h"
 #include "eeprom93xx.h"
-#include "sysemu.h"
-#include "dma.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 
 /* QEMU sends frames smaller than 60 bytes to ethernet nics.
  * Such frames are rejected by real nics and their emulations.
@@ -1036,6 +1036,7 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
         }
         set_ru_state(s, ru_ready);
         s->ru_offset = e100_read_reg4(s, SCBPointer);
+        qemu_flush_queued_packets(&s->nic->nc);
         TRACE(OTHER, logout("val=0x%02x (rx start)\n", val));
         break;
     case RX_RESUME:
@@ -1577,7 +1578,7 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
     }
 }
 
-static uint64_t eepro100_read(void *opaque, target_phys_addr_t addr,
+static uint64_t eepro100_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     EEPRO100State *s = opaque;
@@ -1590,7 +1591,7 @@ static uint64_t eepro100_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void eepro100_write(void *opaque, target_phys_addr_t addr,
+static void eepro100_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
 {
     EEPRO100State *s = opaque;
@@ -1770,7 +1771,8 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     if (rfd_command & COMMAND_EL) {
         /* EL bit is set, so this was the last frame. */
         logout("receive: Running out of frames\n");
-        set_ru_state(s, ru_suspended);
+        set_ru_state(s, ru_no_resources);
+        eepro100_rnr_interrupt(s);
     }
     if (rfd_command & COMMAND_S) {
         /* S bit is set. */

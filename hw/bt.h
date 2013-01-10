@@ -23,6 +23,11 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef HW_BT_H
+#define HW_BT_H 1
+
+#include "hw/irq.h"
+
 /* BD Address */
 typedef struct {
     uint8_t b[6];
@@ -2181,3 +2186,5 @@ enum bt_sdp_attribute_id {
     SDP_ATTR_NORMALLY_CONNECTABLE		= 0x020d,
     SDP_ATTR_BOOT_DEVICE			= 0x020e,
 };
+
+#endif

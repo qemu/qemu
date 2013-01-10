@@ -23,11 +23,11 @@
  * THE SOFTWARE.
  */
 
-#include "pci.h"
+#include "pci/pci.h"
 #include "eeprom93xx.h"
 #include "esp.h"
 #include "trace.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 #define TYPE_AM53C974_DEVICE "am53c974"
 
@@ -159,7 +159,7 @@ static uint32_t esp_pci_dma_read(PCIESPState *pci, uint32_t saddr)
     return val;
 }
 
-static void esp_pci_io_write(void *opaque, target_phys_addr_t addr,
+static void esp_pci_io_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned int size)
 {
     PCIESPState *pci = opaque;
@@ -202,7 +202,7 @@ static void esp_pci_io_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t esp_pci_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t esp_pci_io_read(void *opaque, hwaddr addr,
                                 unsigned int size)
 {
     PCIESPState *pci = opaque;

@@ -24,29 +24,29 @@
 
 #include "hw.h"
 #include "pc.h"
+#include "serial.h"
 #include "fdc.h"
-#include "net.h"
+#include "net/net.h"
 #include "boards.h"
 #include "smbus.h"
-#include "block.h"
+#include "block/block.h"
 #include "flash.h"
 #include "mips.h"
 #include "mips_cpudevs.h"
-#include "pci.h"
-#include "vmware_vga.h"
-#include "qemu-char.h"
-#include "sysemu.h"
-#include "arch_init.h"
+#include "pci/pci.h"
+#include "char/char.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/arch_init.h"
 #include "boards.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "mips-bios.h"
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
 #include "mc146818rtc.h"
 #include "i8254.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 #include "sysbus.h"             /* SysBusDevice */
 
 //#define DEBUG_BOARD_INIT
@@ -231,7 +231,7 @@ static void eeprom24c0x_write(int scl, int sda)
     eeprom.sda = sda;
 }
 
-static uint64_t malta_fpga_read(void *opaque, target_phys_addr_t addr,
+static uint64_t malta_fpga_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     MaltaFPGAState *s = opaque;
@@ -319,7 +319,7 @@ static uint64_t malta_fpga_read(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void malta_fpga_write(void *opaque, target_phys_addr_t addr,
+static void malta_fpga_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
     MaltaFPGAState *s = opaque;
@@ -441,7 +441,7 @@ static void malta_fpga_led_init(CharDriverState *chr)
 }
 
 static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
-         target_phys_addr_t base, qemu_irq uart_irq, CharDriverState *uart_chr)
+         hwaddr base, qemu_irq uart_irq, CharDriverState *uart_chr)
 {
     MaltaFPGAState *s;
 
@@ -776,11 +776,13 @@ static void cpu_request_exit(void *opaque, int irq, int level)
 }
 
 static
-void mips_malta_init (ram_addr_t ram_size,
-                      const char *boot_device,
-                      const char *kernel_filename, const char *kernel_cmdline,
-                      const char *initrd_filename, const char *cpu_model)
+void mips_malta_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     char *filename;
     pflash_t *fl;
     MemoryRegion *system_memory = get_system_memory();
@@ -859,7 +861,8 @@ void mips_malta_init (ram_addr_t ram_size,
     be = 0;
 #endif
     /* FPGA */
-    malta_fpga_init(system_memory, FPGA_ADDRESS, env->irq[2], serial_hds[2]);
+    /* The CBUS UART is attached to the MIPS CPU INT2 pin, ie interrupt 4 */
+    malta_fpga_init(system_memory, FPGA_ADDRESS, env->irq[4], serial_hds[2]);
 
     /* Load firmware in flash / BIOS. */
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
@@ -986,13 +989,7 @@ void mips_malta_init (ram_addr_t ram_size,
     network_init();
 
     /* Optional PCI video card */
-    if (cirrus_vga_enabled) {
-        pci_cirrus_vga_init(pci_bus);
-    } else if (vmsvga_enabled) {
-        pci_vmsvga_init(pci_bus);
-    } else if (std_vga_enabled) {
-        pci_vga_init(pci_bus);
-    }
+    pci_vga_init(pci_bus);
 }
 
 static int mips_malta_sysbus_device_init(SysBusDevice *sysbusdev)

@@ -23,7 +23,7 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "block/qcow2.h"
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, int64_t size);
@@ -301,7 +301,8 @@ static int alloc_refcount_block(BlockDriverState *bs,
     uint64_t last_table_size;
     uint64_t blocks_clusters;
     do {
-        uint64_t table_clusters = size_to_clusters(s, table_size);
+        uint64_t table_clusters =
+            size_to_clusters(s, table_size * sizeof(uint64_t));
         blocks_clusters = 1 +
             ((table_clusters + refcount_block_clusters - 1)
             / refcount_block_clusters);

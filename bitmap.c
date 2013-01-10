@@ -9,8 +9,8 @@
  * Version 2.
  */
 
-#include "bitops.h"
-#include "bitmap.h"
+#include "qemu/bitops.h"
+#include "qemu/bitmap.h"
 
 /*
  * bitmaps provide an array of bits, implemented using an an

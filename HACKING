@@ -32,7 +32,7 @@ mandatory for VMState fields.
 
 Don't use Linux kernel internal types like u32, __u32 or __le32.
 
-Use target_phys_addr_t for guest physical addresses except pcibus_t
+Use hwaddr for guest physical addresses except pcibus_t
 for PCI addresses.  In addition, ram_addr_t is a QEMU internal address
 space that maps guest RAM physical addresses into an intermediate
 address space that can map to host virtual address spaces.  Generally
@@ -91,10 +91,11 @@ emulators.
 
 4. String manipulation
 
-Do not use the strncpy function.  According to the man page, it does
-*not* guarantee a NULL-terminated buffer, which makes it extremely dangerous
-to use.  Instead, use functionally equivalent function:
-void pstrcpy(char *buf, int buf_size, const char *str)
+Do not use the strncpy function.  As mentioned in the man page, it does *not*
+guarantee a NULL-terminated buffer, which makes it extremely dangerous to use.
+It also zeros trailing destination bytes out to the specified length.  Instead,
+use this similar function when possible, but note its different signature:
+void pstrcpy(char *dest, int dest_buf_size, const char *src)
 
 Don't use strcat because it can't check for buffer overflows, but:
 char *pstrcat(char *buf, int buf_size, const char *s)
@@ -122,3 +123,23 @@ gcc's printf attribute directive in the prototype.
 This makes it so gcc's -Wformat and -Wformat-security options can do
 their jobs and cross-check format strings with the number and types
 of arguments.
+
+6. C standard, implementation defined and undefined behaviors
+
+C code in QEMU should be written to the C99 language specification. A copy
+of the final version of the C99 standard with corrigenda TC1, TC2, and TC3
+included, formatted as a draft, can be downloaded from:
+ http://www.open-std.org/jtc1/sc22/WG14/www/docs/n1256.pdf
+
+The C language specification defines regions of undefined behavior and
+implementation defined behavior (to give compiler authors enough leeway to
+produce better code).  In general, code in QEMU should follow the language
+specification and avoid both undefined and implementation defined
+constructs. ("It works fine on the gcc I tested it with" is not a valid
+argument...) However there are a few areas where we allow ourselves to
+assume certain behaviors because in practice all the platforms we care about
+behave in the same way and writing strictly conformant code would be
+painful. These are:
+ * you may assume that integers are 2s complement representation
+ * you may assume that right shift of a signed integer duplicates
+   the sign bit (ie it is an arithmetic shift, not a logical shift)

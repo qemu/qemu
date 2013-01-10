@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import time
 import os
 import iotests
 from iotests import qemu_img, qemu_io
@@ -98,6 +99,43 @@ class TestSingleDrive(ImageStreamingTestCase):
                          qemu_io('-c', 'map', test_img),
                          'image file map does not match backing file after streaming')
 
+    def test_stream_pause(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block-stream', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-job-pause', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        offset = self.dictpath(result, 'return[0]/offset')
+
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/offset', offset)
+
+        result = self.vm.qmp('block-job-resume', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+        self.vm.shutdown()
+
+        self.assertEqual(qemu_io('-c', 'map', backing_img),
+                         qemu_io('-c', 'map', test_img),
+                         'image file map does not match backing file after streaming')
+
     def test_stream_partial(self):
         self.assert_no_active_streams()
 
@@ -125,6 +163,259 @@ class TestSingleDrive(ImageStreamingTestCase):
         result = self.vm.qmp('block-stream', device='nonexistent')
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
 
+
+class TestSmallerBackingFile(ImageStreamingTestCase):
+    backing_len = 1 * 1024 * 1024 # MB
+    image_len = 2 * backing_len
+
+    def setUp(self):
+        self.create_image(backing_img, self.backing_len)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img, str(self.image_len))
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    # If this hangs, then you are missing a fix to complete streaming when the
+    # end of the backing file is reached.
+    def test_stream(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block-stream', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+        self.vm.shutdown()
+
+class TestErrors(ImageStreamingTestCase):
+    image_len = 2 * 1024 * 1024 # MB
+
+    # this should match STREAM_BUFFER_SIZE/512 in block/stream.c
+    STREAM_BUFFER_SIZE = 512 * 1024
+
+    def create_blkdebug_file(self, name, event, errno):
+        file = open(name, 'w')
+        file.write('''
+[inject-error]
+state = "1"
+event = "%s"
+errno = "%d"
+immediately = "off"
+once = "on"
+sector = "%d"
+
+[set-state]
+state = "1"
+event = "%s"
+new_state = "2"
+
+[set-state]
+state = "2"
+event = "%s"
+new_state = "1"
+''' % (event, errno, self.STREAM_BUFFER_SIZE / 512, event, event))
+        file.close()
+
+class TestEIO(TestErrors):
+    def setUp(self):
+        self.blkdebug_file = backing_img + ".blkdebug"
+        self.create_image(backing_img, TestErrors.image_len)
+        self.create_blkdebug_file(self.blkdebug_file, "read_aio", 5)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=blkdebug:%s:%s,backing_fmt=raw'
+                       % (self.blkdebug_file, backing_img),
+                 test_img)
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(backing_img)
+        os.remove(self.blkdebug_file)
+
+    def test_report(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block-stream', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        error = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_ERROR':
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/operation', 'read')
+                    error = True
+                elif event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assertTrue(error, 'job completed unexpectedly')
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/error', 'Input/output error')
+                    self.assert_qmp(event, 'data/offset', self.STREAM_BUFFER_SIZE)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+        self.vm.shutdown()
+
+    def test_ignore(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block-stream', device='drive0', on_error='ignore')
+        self.assert_qmp(result, 'return', {})
+
+        error = False
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_ERROR':
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/operation', 'read')
+                    result = self.vm.qmp('query-block-jobs')
+                    self.assert_qmp(result, 'return[0]/paused', False)
+                    error = True
+                elif event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assertTrue(error, 'job completed unexpectedly')
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/error', 'Input/output error')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+        self.vm.shutdown()
+
+    def test_stop(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block-stream', device='drive0', on_error='stop')
+        self.assert_qmp(result, 'return', {})
+
+        error = False
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_ERROR':
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/operation', 'read')
+
+                    result = self.vm.qmp('query-block-jobs')
+                    self.assert_qmp(result, 'return[0]/paused', True)
+                    self.assert_qmp(result, 'return[0]/offset', self.STREAM_BUFFER_SIZE)
+                    self.assert_qmp(result, 'return[0]/io-status', 'failed')
+
+                    result = self.vm.qmp('block-job-resume', device='drive0')
+                    self.assert_qmp(result, 'return', {})
+
+                    result = self.vm.qmp('query-block-jobs')
+                    self.assert_qmp(result, 'return[0]/paused', False)
+                    self.assert_qmp(result, 'return[0]/io-status', 'ok')
+                    error = True
+                elif event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assertTrue(error, 'job completed unexpectedly')
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp_absent(event, 'data/error')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+        self.vm.shutdown()
+
+    def test_enospc(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block-stream', device='drive0', on_error='enospc')
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        error = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_ERROR':
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/operation', 'read')
+                    error = True
+                elif event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assertTrue(error, 'job completed unexpectedly')
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/error', 'Input/output error')
+                    self.assert_qmp(event, 'data/offset', self.STREAM_BUFFER_SIZE)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+        self.vm.shutdown()
+
+class TestENOSPC(TestErrors):
+    def setUp(self):
+        self.blkdebug_file = backing_img + ".blkdebug"
+        self.create_image(backing_img, TestErrors.image_len)
+        self.create_blkdebug_file(self.blkdebug_file, "read_aio", 28)
+        qemu_img('create', '-f', iotests.imgfmt,
+                 '-o', 'backing_file=blkdebug:%s:%s,backing_fmt=raw'
+                       % (self.blkdebug_file, backing_img),
+                 test_img)
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(backing_img)
+        os.remove(self.blkdebug_file)
+
+    def test_enospc(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block-stream', device='drive0', on_error='enospc')
+        self.assert_qmp(result, 'return', {})
+
+        error = False
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_ERROR':
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/operation', 'read')
+
+                    result = self.vm.qmp('query-block-jobs')
+                    self.assert_qmp(result, 'return[0]/paused', True)
+                    self.assert_qmp(result, 'return[0]/offset', self.STREAM_BUFFER_SIZE)
+                    self.assert_qmp(result, 'return[0]/io-status', 'nospace')
+
+                    result = self.vm.qmp('block-job-resume', device='drive0')
+                    self.assert_qmp(result, 'return', {})
+
+                    result = self.vm.qmp('query-block-jobs')
+                    self.assert_qmp(result, 'return[0]/paused', False)
+                    self.assert_qmp(result, 'return[0]/io-status', 'ok')
+                    error = True
+                elif event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assertTrue(error, 'job completed unexpectedly')
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp_absent(event, 'data/error')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+        self.vm.shutdown()
+
 class TestStreamStop(ImageStreamingTestCase):
     image_len = 8 * 1024 * 1024 * 1024 # GB
 
@@ -140,8 +431,6 @@ class TestStreamStop(ImageStreamingTestCase):
         os.remove(backing_img)
 
     def test_stream_stop(self):
-        import time
-
         self.assert_no_active_streams()
 
         result = self.vm.qmp('block-stream', device='drive0')

@@ -20,9 +20,9 @@
 #ifndef QEMU_APIC_INTERNAL_H
 #define QEMU_APIC_INTERNAL_H
 
-#include "memory.h"
+#include "exec/memory.h"
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 /* APIC Local Vector Table */
 #define APIC_LVT_TIMER                  0
@@ -95,8 +95,9 @@ typedef struct APICCommonClass
 
 struct APICCommonState {
     SysBusDevice busdev;
+
     MemoryRegion io_memory;
-    void *cpu_env;
+    X86CPU *cpu;
     uint32_t apicbase;
     uint8_t id;
     uint8_t arb_id;
@@ -124,7 +125,7 @@ struct APICCommonState {
 
     uint32_t vapic_control;
     DeviceState *vapic;
-    target_phys_addr_t vapic_paddr; /* note: persistence via kvmvapic */
+    hwaddr vapic_paddr; /* note: persistence via kvmvapic */
 };
 
 typedef struct VAPICState {
@@ -140,7 +141,7 @@ extern bool apic_report_tpr_access;
 void apic_report_irq_delivered(int delivered);
 bool apic_next_timer(APICCommonState *s, int64_t current_time);
 void apic_enable_tpr_access_reporting(DeviceState *d, bool enable);
-void apic_enable_vapic(DeviceState *d, target_phys_addr_t paddr);
+void apic_enable_vapic(DeviceState *d, hwaddr paddr);
 
 void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
                              TPRAccess access);

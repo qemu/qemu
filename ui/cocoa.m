@@ -26,8 +26,8 @@
 #include <crt_externs.h>
 
 #include "qemu-common.h"
-#include "console.h"
-#include "sysemu.h"
+#include "ui/console.h"
+#include "sysemu/sysemu.h"
 
 #ifndef MAC_OS_X_VERSION_10_4
 #define MAC_OS_X_VERSION_10_4 1040
@@ -1017,8 +1017,8 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
     dcl = g_malloc0(sizeof(DisplayChangeListener));
 
     // register vga output callbacks
-    dcl->dpy_update = cocoa_update;
-    dcl->dpy_resize = cocoa_resize;
+    dcl->dpy_gfx_update = cocoa_update;
+    dcl->dpy_gfx_resize = cocoa_resize;
     dcl->dpy_refresh = cocoa_refresh;
 
 	register_displaychangelistener(ds, dcl);

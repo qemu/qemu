@@ -17,9 +17,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "omap.h"
 #include "framebuffer.h"
+#include "ui/pixel_ops.h"
 
 struct omap_lcd_panel_s {
     MemoryRegion *sysmem;
@@ -65,8 +66,6 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
 
     qemu_irq_lower(s->irq);
 }
-
-#include "pixel_ops.h"
 
 #define draw_line_func drawfn
 
@@ -117,7 +116,7 @@ static void omap_update_display(void *opaque)
     draw_line_func draw_line;
     int size, height, first, last;
     int width, linesize, step, bpp, frame_offset;
-    target_phys_addr_t frame_base;
+    hwaddr frame_base;
 
     if (!omap_lcd || omap_lcd->plm == 1 ||
                     !omap_lcd->enable || !ds_get_bits_per_pixel(omap_lcd->state))
@@ -219,23 +218,29 @@ static void omap_update_display(void *opaque)
                                draw_line, omap_lcd->palette,
                                &first, &last);
     if (first >= 0) {
-        dpy_update(omap_lcd->state, 0, first, width, last - first + 1);
+        dpy_gfx_update(omap_lcd->state, 0, first, width, last - first + 1);
     }
     omap_lcd->invalidate = 0;
 }
 
-static int ppm_save(const char *filename, uint8_t *data,
-                int w, int h, int linesize)
+static void omap_ppm_save(const char *filename, uint8_t *data,
+                    int w, int h, int linesize, Error **errp)
 {
     FILE *f;
     uint8_t *d, *d1;
     unsigned int v;
-    int y, x, bpp;
+    int ret, y, x, bpp;
 
     f = fopen(filename, "wb");
-    if (!f)
-        return -1;
-    fprintf(f, "P6\n%d %d\n%d\n", w, h, 255);
+    if (!f) {
+        error_setg(errp, "failed to open file '%s': %s", filename,
+                   strerror(errno));
+        return;
+    }
+    ret = fprintf(f, "P6\n%d %d\n%d\n", w, h, 255);
+    if (ret < 0) {
+        goto write_err;
+    }
     d1 = data;
     bpp = linesize / w;
     for (y = 0; y < h; y ++) {
@@ -244,35 +249,61 @@ static int ppm_save(const char *filename, uint8_t *data,
             v = *(uint32_t *) d;
             switch (bpp) {
             case 2:
-                fputc((v >> 8) & 0xf8, f);
-                fputc((v >> 3) & 0xfc, f);
-                fputc((v << 3) & 0xf8, f);
+                ret = fputc((v >> 8) & 0xf8, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc((v >> 3) & 0xfc, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc((v << 3) & 0xf8, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
                 break;
             case 3:
             case 4:
             default:
-                fputc((v >> 16) & 0xff, f);
-                fputc((v >> 8) & 0xff, f);
-                fputc((v) & 0xff, f);
+                ret = fputc((v >> 16) & 0xff, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc((v >> 8) & 0xff, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc((v) & 0xff, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
                 break;
             }
             d += bpp;
         }
         d1 += linesize;
     }
+out:
     fclose(f);
-    return 0;
+    return;
+
+write_err:
+    error_setg(errp, "failed to write to file '%s': %s", filename,
+               strerror(errno));
+    unlink(filename);
+    goto out;
 }
 
-static void omap_screen_dump(void *opaque, const char *filename, bool cswitch)
+static void omap_screen_dump(void *opaque, const char *filename, bool cswitch,
+                             Error **errp)
 {
     struct omap_lcd_panel_s *omap_lcd = opaque;
 
     omap_update_display(opaque);
     if (omap_lcd && ds_get_data(omap_lcd->state))
-        ppm_save(filename, ds_get_data(omap_lcd->state),
-                omap_lcd->width, omap_lcd->height,
-                ds_get_linesize(omap_lcd->state));
+        omap_ppm_save(filename, ds_get_data(omap_lcd->state),
+                    omap_lcd->width, omap_lcd->height,
+                    ds_get_linesize(omap_lcd->state), errp);
 }
 
 static void omap_invalidate_display(void *opaque) {
@@ -327,7 +358,7 @@ static void omap_lcd_update(struct omap_lcd_panel_s *s) {
     }
 }
 
-static uint64_t omap_lcdc_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_lcdc_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
@@ -360,7 +391,7 @@ static uint64_t omap_lcdc_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_lcdc_write(void *opaque, target_phys_addr_t addr,
+static void omap_lcdc_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
@@ -433,7 +464,7 @@ void omap_lcdc_reset(struct omap_lcd_panel_s *s)
 }
 
 struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
-                                        target_phys_addr_t base,
+                                        hwaddr base,
                                         qemu_irq irq,
                                         struct omap_dma_lcd_channel_s *dma,
                                         omap_clk clk)

@@ -19,10 +19,10 @@
  */
 
 #include "qemu-common.h"
-#include "console.h"
+#include "ui/console.h"
 #include "devices.h"
 #include "vga_int.h"
-#include "pixel_ops.h"
+#include "ui/pixel_ops.h"
 
 typedef void (*blizzard_fn_t)(uint8_t *, const uint8_t *, unsigned int);
 
@@ -878,8 +878,6 @@ void s1d13745_write_block(void *opaque, int dc,
         len -= 2;
         buf += 2;
     }
-
-    return;
 }
 
 static void blizzard_update_display(void *opaque)
@@ -923,8 +921,8 @@ static void blizzard_update_display(void *opaque)
     for (; y < s->my[1]; y ++, src += bypl, dst += bypl)
         memcpy(dst, src, bwidth);
 
-    dpy_update(s->state, s->mx[0], s->my[0],
-                    s->mx[1] - s->mx[0], y - s->my[0]);
+    dpy_gfx_update(s->state, s->mx[0], s->my[0],
+                   s->mx[1] - s->mx[0], y - s->my[0]);
 
     s->mx[0] = s->x;
     s->mx[1] = 0;
@@ -933,13 +931,13 @@ static void blizzard_update_display(void *opaque)
 }
 
 static void blizzard_screen_dump(void *opaque, const char *filename,
-                                 bool cswitch)
+                                 bool cswitch, Error **errp)
 {
     BlizzardState *s = (BlizzardState *) opaque;
 
     blizzard_update_display(opaque);
     if (s && ds_get_data(s->state))
-        ppm_save(filename, s->state->surface);
+        ppm_save(filename, s->state->surface, errp);
 }
 
 #define DEPTH 8

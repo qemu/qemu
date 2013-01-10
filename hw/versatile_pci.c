@@ -8,9 +8,9 @@
  */
 
 #include "sysbus.h"
-#include "pci.h"
-#include "pci_host.h"
-#include "exec-memory.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
+#include "exec/address-spaces.h"
 
 typedef struct {
     SysBusDevice busdev;
@@ -21,18 +21,18 @@ typedef struct {
     MemoryRegion isa;
 } PCIVPBState;
 
-static inline uint32_t vpb_pci_config_addr(target_phys_addr_t addr)
+static inline uint32_t vpb_pci_config_addr(hwaddr addr)
 {
     return addr & 0xffffff;
 }
 
-static void pci_vpb_config_write(void *opaque, target_phys_addr_t addr,
+static void pci_vpb_config_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
     pci_data_write(opaque, vpb_pci_config_addr(addr), val, size);
 }
 
-static uint64_t pci_vpb_config_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pci_vpb_config_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
     uint32_t val;

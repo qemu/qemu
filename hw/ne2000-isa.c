@@ -25,9 +25,9 @@
 #include "pc.h"
 #include "isa.h"
 #include "qdev.h"
-#include "net.h"
+#include "net/net.h"
 #include "ne2000.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 typedef struct ISANE2000State {
     ISADevice dev;

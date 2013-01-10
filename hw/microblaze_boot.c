@@ -24,10 +24,10 @@
  * THE SOFTWARE.
  */
 
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "qemu-common.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 #include "loader.h"
 #include "elf.h"
 
@@ -55,7 +55,7 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-static int microblaze_load_dtb(target_phys_addr_t addr,
+static int microblaze_load_dtb(hwaddr addr,
                                       uint32_t ramsize,
                                       const char *kernel_cmdline,
                                       const char *dtb_filename)
@@ -100,7 +100,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return addr - 0x30000000LL;
 }
 
-void microblaze_load_kernel(MicroBlazeCPU *cpu, target_phys_addr_t ddr_base,
+void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
                             uint32_t ramsize, const char *dtb_filename,
                             void (*machine_cpu_reset)(MicroBlazeCPU *))
 {
@@ -149,7 +149,7 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, target_phys_addr_t ddr_base,
 
         /* If it wasn't an ELF image, try an u-boot image.  */
         if (kernel_size < 0) {
-            target_phys_addr_t uentry, loadaddr;
+            hwaddr uentry, loadaddr;
 
             kernel_size = load_uimage(kernel_filename, &uentry, &loadaddr, 0);
             boot_info.bootstrap_pc = uentry;

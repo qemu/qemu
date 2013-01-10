@@ -19,13 +19,13 @@
 
 #include "config.h"
 #include "cpu.h"
-#include "exec-all.h"
-#include "memory.h"
+#include "exec/exec-all.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 
-#include "cputlb.h"
+#include "exec/cputlb.h"
 
-#define WANT_EXEC_OBSOLETE
-#include "exec-obsolete.h"
+#include "exec/memory-internal.h"
 
 //#define DEBUG_TLB
 //#define DEBUG_TLB_CHECK
@@ -237,7 +237,7 @@ static void tlb_add_large_page(CPUArchState *env, target_ulong vaddr,
    is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
    supplied size is only used by tlb_flush_page.  */
 void tlb_set_page(CPUArchState *env, target_ulong vaddr,
-                  target_phys_addr_t paddr, int prot,
+                  hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size)
 {
     MemoryRegionSection *section;
@@ -246,13 +246,13 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     target_ulong code_address;
     uintptr_t addend;
     CPUTLBEntry *te;
-    target_phys_addr_t iotlb;
+    hwaddr iotlb;
 
     assert(size >= TARGET_PAGE_SIZE);
     if (size != TARGET_PAGE_SIZE) {
         tlb_add_large_page(env, vaddr, size);
     }
-    section = phys_page_find(paddr >> TARGET_PAGE_BITS);
+    section = phys_page_find(address_space_memory.dispatch, paddr >> TARGET_PAGE_BITS);
 #if defined(DEBUG_TLB)
     printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x" TARGET_FMT_plx
            " prot=%x idx=%d pd=0x%08lx\n",
@@ -325,11 +325,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     mmu_idx = cpu_mmu_index(env1);
     if (unlikely(env1->tlb_table[mmu_idx][page_index].addr_code !=
                  (addr & TARGET_PAGE_MASK))) {
-#ifdef CONFIG_TCG_PASS_AREG0
         cpu_ldub_code(env1, addr);
-#else
-        ldub_code(addr);
-#endif
     }
     pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
     mr = iotlb_to_region(pd);
@@ -348,19 +344,18 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
 #define MMUSUFFIX _cmmu
 #undef GETPC
 #define GETPC() ((uintptr_t)0)
-#define env cpu_single_env
 #define SOFTMMU_CODE_ACCESS
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #undef env

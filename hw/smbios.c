@@ -13,7 +13,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "smbios.h"
 #include "loader.h"
 

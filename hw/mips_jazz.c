@@ -26,21 +26,22 @@
 #include "mips.h"
 #include "mips_cpudevs.h"
 #include "pc.h"
+#include "serial.h"
 #include "isa.h"
 #include "fdc.h"
-#include "sysemu.h"
-#include "arch_init.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/arch_init.h"
 #include "boards.h"
-#include "net.h"
+#include "net/net.h"
 #include "esp.h"
 #include "mips-bios.h"
 #include "loader.h"
 #include "mc146818rtc.h"
 #include "i8254.h"
 #include "pcspk.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 enum jazz_model_e
 {
@@ -55,12 +56,12 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-static uint64_t rtc_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t rtc_read(void *opaque, hwaddr addr, unsigned size)
 {
     return cpu_inw(0x71);
 }
 
-static void rtc_write(void *opaque, target_phys_addr_t addr,
+static void rtc_write(void *opaque, hwaddr addr,
                       uint64_t val, unsigned size)
 {
     cpu_outw(0x71, val & 0xff);
@@ -72,7 +73,7 @@ static const MemoryRegionOps rtc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t dma_dummy_read(void *opaque, target_phys_addr_t addr,
+static uint64_t dma_dummy_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     /* Nothing to do. That is only to ensure that
@@ -80,7 +81,7 @@ static uint64_t dma_dummy_read(void *opaque, target_phys_addr_t addr,
     return 0xff;
 }
 
-static void dma_dummy_write(void *opaque, target_phys_addr_t addr,
+static void dma_dummy_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
     /* Nothing to do. That is only to ensure that
@@ -302,21 +303,19 @@ static void mips_jazz_init(MemoryRegion *address_space,
 }
 
 static
-void mips_magnum_init (ram_addr_t ram_size,
-                       const char *boot_device,
-                       const char *kernel_filename, const char *kernel_cmdline,
-                       const char *initrd_filename, const char *cpu_model)
+void mips_magnum_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
         mips_jazz_init(get_system_memory(), get_system_io(),
                        ram_size, cpu_model, JAZZ_MAGNUM);
 }
 
 static
-void mips_pica61_init (ram_addr_t ram_size,
-                       const char *boot_device,
-                       const char *kernel_filename, const char *kernel_cmdline,
-                       const char *initrd_filename, const char *cpu_model)
+void mips_pica61_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
     mips_jazz_init(get_system_memory(), get_system_io(),
                    ram_size, cpu_model, JAZZ_PICA61);
 }
@@ -325,14 +324,14 @@ static QEMUMachine mips_magnum_machine = {
     .name = "magnum",
     .desc = "MIPS Magnum",
     .init = mips_magnum_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static QEMUMachine mips_pica61_machine = {
     .name = "pica61",
     .desc = "Acer Pica 61",
     .init = mips_pica61_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static void mips_jazz_machine_init(void)

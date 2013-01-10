@@ -24,7 +24,7 @@ typedef struct {
     uint32_t reg_CFG[PUV3_DMA_CH_NR];
 } PUV3DMAState;
 
-static uint64_t puv3_dma_read(void *opaque, target_phys_addr_t offset,
+static uint64_t puv3_dma_read(void *opaque, hwaddr offset,
         unsigned size)
 {
     PUV3DMAState *s = opaque;
@@ -44,7 +44,7 @@ static uint64_t puv3_dma_read(void *opaque, target_phys_addr_t offset,
     return ret;
 }
 
-static void puv3_dma_write(void *opaque, target_phys_addr_t offset,
+static void puv3_dma_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     PUV3DMAState *s = opaque;

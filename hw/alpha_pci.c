@@ -8,15 +8,14 @@
 
 #include "config.h"
 #include "alpha_sys.h"
-#include "qemu-log.h"
-#include "sysemu.h"
-#include "vmware_vga.h"
+#include "qemu/log.h"
+#include "sysemu/sysemu.h"
 
 
 /* PCI IO reads/writes, to byte-word addressable memory.  */
 /* ??? Doesn't handle multiple PCI busses.  */
 
-static uint64_t bw_io_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t bw_io_read(void *opaque, hwaddr addr, unsigned size)
 {
     switch (size) {
     case 1:
@@ -29,7 +28,7 @@ static uint64_t bw_io_read(void *opaque, target_phys_addr_t addr, unsigned size)
     abort();
 }
 
-static void bw_io_write(void *opaque, target_phys_addr_t addr,
+static void bw_io_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
     switch (size) {
@@ -58,14 +57,14 @@ const MemoryRegionOps alpha_pci_bw_io_ops = {
 };
 
 /* PCI config space reads/writes, to byte-word addressable memory.  */
-static uint64_t bw_conf1_read(void *opaque, target_phys_addr_t addr,
+static uint64_t bw_conf1_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     PCIBus *b = opaque;
     return pci_data_read(b, addr, size);
 }
 
-static void bw_conf1_write(void *opaque, target_phys_addr_t addr,
+static void bw_conf1_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     PCIBus *b = opaque;
@@ -84,12 +83,12 @@ const MemoryRegionOps alpha_pci_conf1_ops = {
 
 /* PCI/EISA Interrupt Acknowledge Cycle.  */
 
-static uint64_t iack_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t iack_read(void *opaque, hwaddr addr, unsigned size)
 {
     return pic_read_irq(isa_pic);
 }
 
-static void special_write(void *opaque, target_phys_addr_t addr,
+static void special_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     qemu_log("pci: special write cycle");
@@ -108,25 +107,3 @@ const MemoryRegionOps alpha_pci_iack_ops = {
         .max_access_size = 4,
     },
 };
-
-void alpha_pci_vga_setup(PCIBus *pci_bus)
-{
-    switch (vga_interface_type) {
-#ifdef CONFIG_SPICE
-    case VGA_QXL:
-        pci_create_simple(pci_bus, -1, "qxl-vga");
-        return;
-#endif
-    case VGA_CIRRUS:
-        pci_cirrus_vga_init(pci_bus);
-        return;
-    case VGA_VMWARE:
-        pci_vmsvga_init(pci_bus);
-        return;
-    }
-    /* If VGA is enabled at all, and one of the above didn't work, then
-       fallback to Standard VGA.  */
-    if (vga_interface_type != VGA_NONE) {
-        pci_vga_init(pci_bus);
-    }
-}

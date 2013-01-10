@@ -1,7 +1,7 @@
 #ifndef QEMU_FRAMEBUFFER_H
 #define QEMU_FRAMEBUFFER_H
 
-#include "memory.h"
+#include "exec/memory.h"
 
 /* Framebuffer device helper routines.  */
 
@@ -10,7 +10,7 @@ typedef void (*drawfn)(void *, uint8_t *, const uint8_t *, int, int);
 void framebuffer_update_display(
     DisplayState *ds,
     MemoryRegion *address_space,
-    target_phys_addr_t base,
+    hwaddr base,
     int cols,
     int rows,
     int src_width,

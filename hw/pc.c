@@ -23,12 +23,12 @@
  */
 #include "hw.h"
 #include "pc.h"
+#include "serial.h"
 #include "apic.h"
 #include "fdc.h"
 #include "ide.h"
-#include "pci.h"
-#include "vmware_vga.h"
-#include "monitor.h"
+#include "pci/pci.h"
+#include "monitor/monitor.h"
 #include "fw_cfg.h"
 #include "hpet_emul.h"
 #include "smbios.h"
@@ -38,22 +38,19 @@
 #include "mc146818rtc.h"
 #include "i8254.h"
 #include "pcspk.h"
-#include "msi.h"
+#include "pci/msi.h"
 #include "sysbus.h"
-#include "sysemu.h"
-#include "kvm.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/kvm.h"
 #include "kvm_i386.h"
 #include "xen.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "hw/block-common.h"
 #include "ui/qemu-spice.h"
-#include "memory.h"
-#include "exec-memory.h"
-#include "arch_init.h"
-#include "bitmap.h"
-
-/* output Bochs bios info messages */
-//#define DEBUG_BIOS
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
+#include "sysemu/arch_init.h"
+#include "qemu/bitmap.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -73,8 +70,6 @@
 #define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)
 #define FW_CFG_E820_TABLE (FW_CFG_ARCH_LOCAL + 3)
 #define FW_CFG_HPET (FW_CFG_ARCH_LOCAL + 4)
-
-#define MSI_ADDR_BASE 0xfee00000
 
 #define E820_NR_ENTRIES		16
 
@@ -103,7 +98,8 @@ void gsi_handler(void *opaque, int n, int level)
     qemu_set_irq(s->ioapic_irq[n], level);
 }
 
-static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
+static void ioport80_write(void *opaque, hwaddr addr, uint64_t data,
+                           unsigned size)
 {
 }
 
@@ -121,7 +117,8 @@ void cpu_set_ferr(CPUX86State *s)
     qemu_irq_raise(ferr_irq);
 }
 
-static void ioportF0_write(void *opaque, uint32_t addr, uint32_t data)
+static void ioportF0_write(void *opaque, hwaddr addr, uint64_t data,
+                           unsigned size)
 {
     qemu_irq_lower(ferr_irq);
 }
@@ -337,32 +334,37 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     /* various important CMOS locations needed by PC/Bochs bios */
 
     /* memory size */
-    val = 640; /* base memory in K */
+    /* base memory (first MiB) */
+    val = MIN(ram_size / 1024, 640);
     rtc_set_memory(s, 0x15, val);
     rtc_set_memory(s, 0x16, val >> 8);
-
-    val = (ram_size / 1024) - 1024;
+    /* extended memory (next 64MiB) */
+    if (ram_size > 1024 * 1024) {
+        val = (ram_size - 1024 * 1024) / 1024;
+    } else {
+        val = 0;
+    }
     if (val > 65535)
         val = 65535;
     rtc_set_memory(s, 0x17, val);
     rtc_set_memory(s, 0x18, val >> 8);
     rtc_set_memory(s, 0x30, val);
     rtc_set_memory(s, 0x31, val >> 8);
-
-    if (above_4g_mem_size) {
-        rtc_set_memory(s, 0x5b, (unsigned int)above_4g_mem_size >> 16);
-        rtc_set_memory(s, 0x5c, (unsigned int)above_4g_mem_size >> 24);
-        rtc_set_memory(s, 0x5d, (uint64_t)above_4g_mem_size >> 32);
-    }
-
-    if (ram_size > (16 * 1024 * 1024))
-        val = (ram_size / 65536) - ((16 * 1024 * 1024) / 65536);
-    else
+    /* memory between 16MiB and 4GiB */
+    if (ram_size > 16 * 1024 * 1024) {
+        val = (ram_size - 16 * 1024 * 1024) / 65536;
+    } else {
         val = 0;
+    }
     if (val > 65535)
         val = 65535;
     rtc_set_memory(s, 0x34, val);
     rtc_set_memory(s, 0x35, val >> 8);
+    /* memory above 4GiB */
+    val = above_4g_mem_size / 65536;
+    rtc_set_memory(s, 0x5b, val);
+    rtc_set_memory(s, 0x5c, val >> 8);
+    rtc_set_memory(s, 0x5d, val >> 16);
 
     /* set the number of CPU */
     rtc_set_memory(s, 0x5f, smp_cpus - 1);
@@ -419,7 +421,8 @@ typedef struct Port92State {
     qemu_irq *a20_out;
 } Port92State;
 
-static void port92_write(void *opaque, uint32_t addr, uint32_t val)
+static void port92_write(void *opaque, hwaddr addr, uint64_t val,
+                         unsigned size)
 {
     Port92State *s = opaque;
 
@@ -431,7 +434,8 @@ static void port92_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t port92_read(void *opaque, uint32_t addr)
+static uint64_t port92_read(void *opaque, hwaddr addr,
+                            unsigned size)
 {
     Port92State *s = opaque;
     uint32_t ret;
@@ -466,13 +470,14 @@ static void port92_reset(DeviceState *d)
     s->outport &= ~1;
 }
 
-static const MemoryRegionPortio port92_portio[] = {
-    { 0, 1, 1, .read = port92_read, .write = port92_write },
-    PORTIO_END_OF_LIST(),
-};
-
 static const MemoryRegionOps port92_ops = {
-    .old_portio = port92_portio
+    .read = port92_read,
+    .write = port92_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int port92_initfn(ISADevice *dev)
@@ -519,52 +524,6 @@ static void handle_a20_line_change(void *opaque, int irq, int level)
     cpu_x86_set_a20(cpu, level);
 }
 
-/***********************************************************/
-/* Bochs BIOS debug ports */
-
-static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
-{
-    static const char shutdown_str[8] = "Shutdown";
-    static int shutdown_index = 0;
-
-    switch(addr) {
-        /* Bochs BIOS messages */
-    case 0x400:
-    case 0x401:
-        /* used to be panic, now unused */
-        break;
-    case 0x402:
-    case 0x403:
-#ifdef DEBUG_BIOS
-        fprintf(stderr, "%c", val);
-#endif
-        break;
-    case 0x8900:
-        /* same as Bochs power off */
-        if (val == shutdown_str[shutdown_index]) {
-            shutdown_index++;
-            if (shutdown_index == 8) {
-                shutdown_index = 0;
-                qemu_system_shutdown_request();
-            }
-        } else {
-            shutdown_index = 0;
-        }
-        break;
-
-        /* LGPL'ed VGA BIOS messages */
-    case 0x501:
-    case 0x502:
-        exit((val << 1) | 1);
-    case 0x500:
-    case 0x503:
-#ifdef DEBUG_BIOS
-        fprintf(stderr, "%c", val);
-#endif
-        break;
-    }
-}
-
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
 {
     int index = le32_to_cpu(e820_table.count);
@@ -589,18 +548,6 @@ static void *bochs_bios_init(void)
     size_t smbios_len;
     uint64_t *numa_fw_cfg;
     int i, j;
-
-    register_ioport_write(0x400, 1, 2, bochs_bios_write, NULL);
-    register_ioport_write(0x401, 1, 2, bochs_bios_write, NULL);
-    register_ioport_write(0x402, 1, 1, bochs_bios_write, NULL);
-    register_ioport_write(0x403, 1, 1, bochs_bios_write, NULL);
-    register_ioport_write(0x8900, 1, 1, bochs_bios_write, NULL);
-
-    register_ioport_write(0x501, 1, 1, bochs_bios_write, NULL);
-    register_ioport_write(0x501, 1, 2, bochs_bios_write, NULL);
-    register_ioport_write(0x502, 1, 2, bochs_bios_write, NULL);
-    register_ioport_write(0x500, 1, 1, bochs_bios_write, NULL);
-    register_ioport_write(0x503, 1, 1, bochs_bios_write, NULL);
 
     fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
 
@@ -660,13 +607,13 @@ static void load_linux(void *fw_cfg,
                        const char *kernel_filename,
 		       const char *initrd_filename,
 		       const char *kernel_cmdline,
-                       target_phys_addr_t max_ram_size)
+                       hwaddr max_ram_size)
 {
     uint16_t protocol;
     int setup_size, kernel_size, initrd_size = 0, cmdline_size;
     uint32_t initrd_max;
     uint8_t header[8192], *setup, *kernel, *initrd_data;
-    target_phys_addr_t real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
+    hwaddr real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
     FILE *f;
     char *vmode;
 
@@ -868,35 +815,6 @@ DeviceState *cpu_get_current_apic(void)
     }
 }
 
-static DeviceState *apic_init(void *env, uint8_t apic_id)
-{
-    DeviceState *dev;
-    static int apic_mapped;
-
-    if (kvm_irqchip_in_kernel()) {
-        dev = qdev_create(NULL, "kvm-apic");
-    } else if (xen_enabled()) {
-        dev = qdev_create(NULL, "xen-apic");
-    } else {
-        dev = qdev_create(NULL, "apic");
-    }
-
-    qdev_prop_set_uint8(dev, "id", apic_id);
-    qdev_prop_set_ptr(dev, "cpu_env", env);
-    qdev_init_nofail(dev);
-
-    /* XXX: mapping more APICs at the same memory location */
-    if (apic_mapped == 0) {
-        /* NOTE: the APIC is directly connected to the CPU - it is not
-           on the global memory bus. */
-        /* XXX: what if the base changes? */
-        sysbus_mmio_map(sysbus_from_qdev(dev), 0, MSI_ADDR_BASE);
-        apic_mapped = 1;
-    }
-
-    return dev;
-}
-
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
 {
     CPUX86State *s = opaque;
@@ -904,24 +822,6 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     if (level) {
         cpu_interrupt(s, CPU_INTERRUPT_SMI);
     }
-}
-
-static X86CPU *pc_new_cpu(const char *cpu_model)
-{
-    X86CPU *cpu;
-    CPUX86State *env;
-
-    cpu = cpu_x86_init(cpu_model);
-    if (cpu == NULL) {
-        fprintf(stderr, "Unable to find x86 CPU definition\n");
-        exit(1);
-    }
-    env = &cpu->env;
-    if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
-        env->apic_state = apic_init(env, env->cpuid_apic_id);
-    }
-    cpu_reset(CPU(cpu));
-    return cpu;
 }
 
 void pc_cpus_init(const char *cpu_model)
@@ -937,9 +837,35 @@ void pc_cpus_init(const char *cpu_model)
 #endif
     }
 
-    for(i = 0; i < smp_cpus; i++) {
-        pc_new_cpu(cpu_model);
+    for (i = 0; i < smp_cpus; i++) {
+        if (!cpu_x86_init(cpu_model)) {
+            fprintf(stderr, "Unable to find x86 CPU definition\n");
+            exit(1);
+        }
     }
+}
+
+void pc_acpi_init(const char *default_dsdt)
+{
+    char *filename = NULL, *arg = NULL;
+
+    if (acpi_tables != NULL) {
+        /* manually set via -acpitable, leave it alone */
+        return;
+    }
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, default_dsdt);
+    if (filename == NULL) {
+        fprintf(stderr, "WARNING: failed to find %s\n", default_dsdt);
+        return;
+    }
+
+    arg = g_strdup_printf("file=%s", filename);
+    if (acpi_table_add(arg) != 0) {
+        fprintf(stderr, "WARNING: failed to load %s\n", filename);
+    }
+    g_free(arg);
+    g_free(filename);
 }
 
 void *pc_memory_init(MemoryRegion *system_memory,
@@ -1013,34 +939,13 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
 {
     DeviceState *dev = NULL;
 
-    if (cirrus_vga_enabled) {
-        if (pci_bus) {
-            dev = pci_cirrus_vga_init(pci_bus);
-        } else {
-            dev = &isa_create_simple(isa_bus, "isa-cirrus-vga")->qdev;
-        }
-    } else if (vmsvga_enabled) {
-        if (pci_bus) {
-            dev = pci_vmsvga_init(pci_bus);
-        } else {
-            fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
-        }
-#ifdef CONFIG_SPICE
-    } else if (qxl_enabled) {
-        if (pci_bus) {
-            dev = &pci_create_simple(pci_bus, -1, "qxl-vga")->qdev;
-        } else {
-            fprintf(stderr, "%s: qxl: no PCI bus\n", __FUNCTION__);
-        }
-#endif
-    } else if (std_vga_enabled) {
-        if (pci_bus) {
-            dev = pci_vga_init(pci_bus);
-        } else {
-            dev = isa_vga_init(isa_bus);
-        }
+    if (pci_bus) {
+        PCIDevice *pcidev = pci_vga_init(pci_bus);
+        dev = pcidev ? &pcidev->qdev : NULL;
+    } else if (isa_bus) {
+        ISADevice *isadev = isa_vga_init(isa_bus);
+        dev = isadev ? &isadev->qdev : NULL;
     }
-
     return dev;
 }
 
@@ -1052,6 +957,24 @@ static void cpu_request_exit(void *opaque, int irq, int level)
         cpu_exit(env);
     }
 }
+
+static const MemoryRegionOps ioport80_io_ops = {
+    .write = ioport80_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+static const MemoryRegionOps ioportF0_io_ops = {
+    .write = ioportF0_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
 
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
@@ -1067,10 +990,14 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     qemu_irq *a20_line;
     ISADevice *i8042, *port92, *vmmouse, *pit = NULL;
     qemu_irq *cpu_exit_irq;
+    MemoryRegion *ioport80_io = g_new(MemoryRegion, 1);
+    MemoryRegion *ioportF0_io = g_new(MemoryRegion, 1);
 
-    register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
+    memory_region_init_io(ioport80_io, &ioport80_io_ops, NULL, "ioport80", 1);
+    memory_region_add_subregion(isa_bus->address_space_io, 0x80, ioport80_io);
 
-    register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
+    memory_region_init_io(ioportF0_io, &ioportF0_io_ops, NULL, "ioportF0", 1);
+    memory_region_add_subregion(isa_bus->address_space_io, 0xf0, ioportF0_io);
 
     /*
      * Check if an HPET shall be created.
@@ -1144,6 +1071,21 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     *floppy = fdctrl_init_isa(isa_bus, fd);
 }
 
+void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus)
+{
+    int i;
+
+    for (i = 0; i < nb_nics; i++) {
+        NICInfo *nd = &nd_table[i];
+
+        if (!pci_bus || (nd->model && strcmp(nd->model, "ne2k_isa") == 0)) {
+            pc_init_ne2k_isa(isa_bus, nd);
+        } else {
+            pci_nic_init_nofail(nd, "e1000", NULL);
+        }
+    }
+}
+
 void pc_pci_device_init(PCIBus *pci_bus)
 {
     int max_bus;
@@ -1152,5 +1094,29 @@ void pc_pci_device_init(PCIBus *pci_bus)
     max_bus = drive_get_max_bus(IF_SCSI);
     for (bus = 0; bus <= max_bus; bus++) {
         pci_create_simple(pci_bus, -1, "lsi53c895a");
+    }
+}
+
+void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
+{
+    DeviceState *dev;
+    SysBusDevice *d;
+    unsigned int i;
+
+    if (kvm_irqchip_in_kernel()) {
+        dev = qdev_create(NULL, "kvm-ioapic");
+    } else {
+        dev = qdev_create(NULL, "ioapic");
+    }
+    if (parent_name) {
+        object_property_add_child(object_resolve_path(parent_name, NULL),
+                                  "ioapic", OBJECT(dev), NULL);
+    }
+    qdev_init_nofail(dev);
+    d = sysbus_from_qdev(dev);
+    sysbus_mmio_map(d, 0, 0xfec00000);
+
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        gsi_state->ioapic_irq[i] = qdev_get_gpio_in(dev, i);
     }
 }

@@ -25,7 +25,7 @@
 #include <zlib.h> /* For crc32 */
 
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/checksum.h"
 
 #ifdef CADENCE_GEM_ERR_DEBUG
@@ -605,7 +605,7 @@ static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
 static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     unsigned    desc[2];
-    target_phys_addr_t packet_desc_addr, last_desc_addr;
+    hwaddr packet_desc_addr, last_desc_addr;
     GemState *s;
     unsigned   rxbufsize, bytes_to_copy;
     unsigned   rxbuf_offset;
@@ -824,7 +824,7 @@ static void gem_transmit_updatestats(GemState *s, const uint8_t *packet,
 static void gem_transmit(GemState *s)
 {
     unsigned    desc[2];
-    target_phys_addr_t packet_desc_addr;
+    hwaddr packet_desc_addr;
     uint8_t     tx_packet[2048];
     uint8_t     *p;
     unsigned    total_bytes;
@@ -1021,7 +1021,7 @@ static void gem_phy_write(GemState *s, unsigned reg_num, uint16_t val)
  * gem_read32:
  * Read a GEM register.
  */
-static uint64_t gem_read(void *opaque, target_phys_addr_t offset, unsigned size)
+static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
 {
     GemState *s;
     uint32_t retval;
@@ -1067,7 +1067,7 @@ static uint64_t gem_read(void *opaque, target_phys_addr_t offset, unsigned size)
  * gem_write32:
  * Write a GEM register.
  */
-static void gem_write(void *opaque, target_phys_addr_t offset, uint64_t val,
+static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         unsigned size)
 {
     GemState *s = (GemState *)opaque;

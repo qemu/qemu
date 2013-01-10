@@ -1,5 +1,5 @@
 #include "qdev.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
 
@@ -26,7 +26,7 @@ static void vty_receive(void *opaque, const uint8_t *buf, int size)
 
     if ((dev->in == dev->out) && size) {
         /* toggle line to simulate edge interrupt */
-        qemu_irq_pulse(dev->sdev.qirq);
+        qemu_irq_pulse(spapr_vio_qirq(&dev->sdev));
     }
     for (i = 0; i < size; i++) {
         assert((dev->in - dev->out) < VTERM_BUFSIZE);
@@ -70,7 +70,7 @@ static int spapr_vty_init(VIOsPAPRDevice *sdev)
 }
 
 /* Forward declaration */
-static target_ulong h_put_term_char(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_put_term_char(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
     target_ulong reg = args[0];
@@ -97,7 +97,7 @@ static target_ulong h_put_term_char(CPUPPCState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_get_term_char(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_get_term_char(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
     target_ulong reg = args[0];

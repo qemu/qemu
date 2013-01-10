@@ -33,6 +33,7 @@
 import qmp
 import readline
 import sys
+import pprint
 
 class QMPCompleter(list):
     def complete(self, text, state):
@@ -52,10 +53,11 @@ class QMPShellBadPort(QMPShellError):
 # TODO: QMPShell's interface is a bit ugly (eg. _fill_completion() and
 #       _execute_cmd()). Let's design a better one.
 class QMPShell(qmp.QEMUMonitorProtocol):
-    def __init__(self, address):
+    def __init__(self, address, pp=None):
         qmp.QEMUMonitorProtocol.__init__(self, self.__get_address(address))
         self._greeting = None
         self._completer = None
+        self._pp = pp
 
     def __get_address(self, arg):
         """
@@ -114,7 +116,11 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         if resp is None:
             print 'Disconnected'
             return False
-        print resp
+
+        if self._pp is not None:
+            self._pp.pprint(resp)
+        else:
+            print resp
         return True
 
     def connect(self):
@@ -222,22 +228,36 @@ def die(msg):
 def fail_cmdline(option=None):
     if option:
         sys.stderr.write('ERROR: bad command-line option \'%s\'\n' % option)
-    sys.stderr.write('qemu-shell [ -H ] < UNIX socket path> | < TCP address:port >\n')
+    sys.stderr.write('qemu-shell [ -p ] [ -H ] < UNIX socket path> | < TCP address:port >\n')
     sys.exit(1)
 
 def main():
     addr = ''
+    qemu = None
+    hmp = False
+    pp = None
+
     try:
-        if len(sys.argv) == 2:
-            qemu = QMPShell(sys.argv[1])
-            addr = sys.argv[1]
-        elif len(sys.argv) == 3:
-            if sys.argv[1] != '-H':
-                fail_cmdline(sys.argv[1])
-            qemu = HMPShell(sys.argv[2])
-            addr = sys.argv[2]
-        else:
-                fail_cmdline()
+        for arg in sys.argv[1:]:
+            if arg == "-H":
+                if qemu is not None:
+                    fail_cmdline(arg)
+                hmp = True
+            elif arg == "-p":
+                if pp is not None:
+                    fail_cmdline(arg)
+                pp = pprint.PrettyPrinter(indent=4)
+            else:
+                if qemu is not None:
+                    fail_cmdline(arg)
+                if hmp:
+                    qemu = HMPShell(arg)
+                else:
+                    qemu = QMPShell(arg, pp)
+                addr = arg
+
+        if qemu is None:
+            fail_cmdline()
     except QMPShellBadPort:
         die('bad port number in command-line')
 

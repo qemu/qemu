@@ -13,21 +13,21 @@
 #include "hw.h"
 #include "pxa.h"
 #include "arm-misc.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "pcmcia.h"
 #include "i2c.h"
 #include "ssi.h"
 #include "flash.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "devices.h"
 #include "sharpsl.h"
-#include "console.h"
-#include "block.h"
+#include "ui/console.h"
+#include "block/block.h"
 #include "audio/audio.h"
 #include "boards.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
@@ -60,7 +60,7 @@ typedef struct {
     ECCState ecc;
 } SLNANDState;
 
-static uint64_t sl_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t sl_read(void *opaque, hwaddr addr, unsigned size)
 {
     SLNANDState *s = (SLNANDState *) opaque;
     int ryby;
@@ -102,7 +102,7 @@ static uint64_t sl_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return 0;
 }
 
-static void sl_write(void *opaque, target_phys_addr_t addr,
+static void sl_write(void *opaque, hwaddr addr,
                      uint64_t value, unsigned size)
 {
     SLNANDState *s = (SLNANDState *) opaque;
@@ -879,15 +879,14 @@ static struct arm_boot_info spitz_binfo = {
     .ram_size = 0x04000000,
 };
 
-static void spitz_common_init(ram_addr_t ram_size,
-                const char *kernel_filename,
-                const char *kernel_cmdline, const char *initrd_filename,
-                const char *cpu_model, enum spitz_model_e model, int arm_id)
+static void spitz_common_init(QEMUMachineInitArgs *args,
+                              enum spitz_model_e model, int arm_id)
 {
     PXA2xxState *mpu;
     DeviceState *scp0, *scp1 = NULL;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
+    const char *cpu_model = args->cpu_model;
 
     if (!cpu_model)
         cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
@@ -928,48 +927,32 @@ static void spitz_common_init(ram_addr_t ram_size,
         /* A 4.0 GB microdrive is permanently sitting in CF slot 0.  */
         spitz_microdrive_attach(mpu, 0);
 
-    spitz_binfo.kernel_filename = kernel_filename;
-    spitz_binfo.kernel_cmdline = kernel_cmdline;
-    spitz_binfo.initrd_filename = initrd_filename;
+    spitz_binfo.kernel_filename = args->kernel_filename;
+    spitz_binfo.kernel_cmdline = args->kernel_cmdline;
+    spitz_binfo.initrd_filename = args->initrd_filename;
     spitz_binfo.board_id = arm_id;
     arm_load_kernel(mpu->cpu, &spitz_binfo);
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
-static void spitz_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void spitz_init(QEMUMachineInitArgs *args)
 {
-    spitz_common_init(ram_size, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, spitz, 0x2c9);
+    spitz_common_init(args, spitz, 0x2c9);
 }
 
-static void borzoi_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void borzoi_init(QEMUMachineInitArgs *args)
 {
-    spitz_common_init(ram_size, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, borzoi, 0x33f);
+    spitz_common_init(args, borzoi, 0x33f);
 }
 
-static void akita_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void akita_init(QEMUMachineInitArgs *args)
 {
-    spitz_common_init(ram_size, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, akita, 0x2e8);
+    spitz_common_init(args, akita, 0x2e8);
 }
 
-static void terrier_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void terrier_init(QEMUMachineInitArgs *args)
 {
-    spitz_common_init(ram_size, kernel_filename,
-                kernel_cmdline, initrd_filename, cpu_model, terrier, 0x33f);
+    spitz_common_init(args, terrier, 0x33f);
 }
 
 static QEMUMachine akitapda_machine = {
@@ -1083,10 +1066,11 @@ static TypeInfo spitz_keyboard_info = {
 
 static const VMStateDescription vmstate_corgi_ssp_regs = {
     .name = "corgi-ssp",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields = (VMStateField []) {
+        VMSTATE_SSI_SLAVE(ssidev, CorgiSSPState),
         VMSTATE_UINT32_ARRAY(enable, CorgiSSPState, 3),
         VMSTATE_END_OF_LIST(),
     }
@@ -1115,6 +1099,7 @@ static const VMStateDescription vmstate_spitz_lcdtg_regs = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField []) {
+        VMSTATE_SSI_SLAVE(ssidev, SpitzLCDTG),
         VMSTATE_UINT32(bl_intensity, SpitzLCDTG),
         VMSTATE_UINT32(bl_power, SpitzLCDTG),
         VMSTATE_END_OF_LIST(),

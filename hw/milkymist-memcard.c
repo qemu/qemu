@@ -23,10 +23,10 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
-#include "qemu-error.h"
-#include "blockdev.h"
+#include "qemu/error-report.h"
+#include "sysemu/blockdev.h"
 #include "sd.h"
 
 enum {
@@ -117,7 +117,7 @@ static void memcard_sd_command(MilkymistMemcardState *s)
     }
 }
 
-static uint64_t memcard_read(void *opaque, target_phys_addr_t addr,
+static uint64_t memcard_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     MilkymistMemcardState *s = opaque;
@@ -166,7 +166,7 @@ static uint64_t memcard_read(void *opaque, target_phys_addr_t addr,
     return r;
 }
 
-static void memcard_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void memcard_write(void *opaque, hwaddr addr, uint64_t value,
                           unsigned size)
 {
     MilkymistMemcardState *s = opaque;

@@ -1281,8 +1281,6 @@ drop:
 	 * Drop space held by incoming segment and return.
 	 */
 	m_free(m);
-
-	return;
 }
 
 static void

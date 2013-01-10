@@ -23,7 +23,7 @@
  */
 
 #include "sun4m.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysbus.h"
 #include "trace.h"
 
@@ -78,7 +78,7 @@ typedef struct SLAVIO_INTCTLState {
 static void slavio_check_interrupts(SLAVIO_INTCTLState *s, int set_irqs);
 
 // per-cpu interrupt controller
-static uint64_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr,
+static uint64_t slavio_intctl_mem_readl(void *opaque, hwaddr addr,
                                         unsigned size)
 {
     SLAVIO_CPUINTCTLState *s = opaque;
@@ -98,7 +98,7 @@ static uint64_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr,
+static void slavio_intctl_mem_writel(void *opaque, hwaddr addr,
                                      uint64_t val, unsigned size)
 {
     SLAVIO_CPUINTCTLState *s = opaque;
@@ -135,7 +135,7 @@ static const MemoryRegionOps slavio_intctl_mem_ops = {
 };
 
 // master system interrupt controller
-static uint64_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr,
+static uint64_t slavio_intctlm_mem_readl(void *opaque, hwaddr addr,
                                          unsigned size)
 {
     SLAVIO_INTCTLState *s = opaque;
@@ -161,7 +161,7 @@ static uint64_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr,
+static void slavio_intctlm_mem_writel(void *opaque, hwaddr addr,
                                       uint64_t val, unsigned size)
 {
     SLAVIO_INTCTLState *s = opaque;

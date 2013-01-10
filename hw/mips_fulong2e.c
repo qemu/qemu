@@ -20,19 +20,20 @@
 
 #include "hw.h"
 #include "pc.h"
+#include "serial.h"
 #include "fdc.h"
-#include "net.h"
+#include "net/net.h"
 #include "boards.h"
 #include "smbus.h"
-#include "block.h"
+#include "block/block.h"
 #include "flash.h"
 #include "mips.h"
 #include "mips_cpudevs.h"
-#include "pci.h"
-#include "qemu-char.h"
-#include "sysemu.h"
+#include "pci/pci.h"
+#include "char/char.h"
+#include "sysemu/sysemu.h"
 #include "audio/audio.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "loader.h"
 #include "mips-bios.h"
 #include "ide.h"
@@ -40,8 +41,8 @@
 #include "vt82c686.h"
 #include "mc146818rtc.h"
 #include "i8254.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 #define DEBUG_FULONG2E_INIT
 
@@ -256,10 +257,13 @@ static void cpu_request_exit(void *opaque, int irq, int level)
     }
 }
 
-static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
-                        const char *kernel_filename, const char *kernel_cmdline,
-                        const char *initrd_filename, const char *cpu_model)
+static void mips_fulong2e_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     char *filename;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -392,7 +396,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     network_init();
 }
 
-QEMUMachine mips_fulong2e_machine = {
+static QEMUMachine mips_fulong2e_machine = {
     .name = "fulong2e",
     .desc = "Fulong 2e mini pc",
     .init = mips_fulong2e_init,

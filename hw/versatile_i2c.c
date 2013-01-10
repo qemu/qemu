@@ -32,7 +32,7 @@ typedef struct {
     int in;
 } VersatileI2CState;
 
-static uint64_t versatile_i2c_read(void *opaque, target_phys_addr_t offset,
+static uint64_t versatile_i2c_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     VersatileI2CState *s = (VersatileI2CState *)opaque;
@@ -40,12 +40,13 @@ static uint64_t versatile_i2c_read(void *opaque, target_phys_addr_t offset,
     if (offset == 0) {
         return (s->out & 1) | (s->in << 1);
     } else {
-        hw_error("%s: Bad offset 0x%x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Bad offset 0x%x\n", __func__, (int)offset);
         return -1;
     }
 }
 
-static void versatile_i2c_write(void *opaque, target_phys_addr_t offset,
+static void versatile_i2c_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     VersatileI2CState *s = (VersatileI2CState *)opaque;
@@ -58,7 +59,8 @@ static void versatile_i2c_write(void *opaque, target_phys_addr_t offset,
         s->out &= ~value;
         break;
     default:
-        hw_error("%s: Bad offset 0x%x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Bad offset 0x%x\n", __func__, (int)offset);
     }
     bitbang_i2c_set(s->bitbang, BITBANG_I2C_SCL, (s->out & 1) != 0);
     s->in = bitbang_i2c_set(s->bitbang, BITBANG_I2C_SDA, (s->out & 2) != 0);

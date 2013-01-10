@@ -26,8 +26,8 @@
 #include "audio/audio.h"
 #include "isa.h"
 #include "qdev.h"
-#include "qemu-timer.h"
-#include "host-utils.h"
+#include "qemu/timer.h"
+#include "qemu/host-utils.h"
 
 #define dolog(...) AUD_log ("sb16", __VA_ARGS__)
 
@@ -822,7 +822,6 @@ static void complete (SB16State *s)
 
     ldebug ("\n");
     s->cmd = -1;
-    return;
 }
 
 static void legacy_reset (SB16State *s)

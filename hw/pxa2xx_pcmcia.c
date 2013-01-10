@@ -27,7 +27,7 @@ struct PXA2xxPCMCIAState {
 };
 
 static uint64_t pxa2xx_pcmcia_common_read(void *opaque,
-                target_phys_addr_t offset, unsigned size)
+                hwaddr offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -38,7 +38,7 @@ static uint64_t pxa2xx_pcmcia_common_read(void *opaque,
     return 0;
 }
 
-static void pxa2xx_pcmcia_common_write(void *opaque, target_phys_addr_t offset,
+static void pxa2xx_pcmcia_common_write(void *opaque, hwaddr offset,
                                        uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
@@ -49,7 +49,7 @@ static void pxa2xx_pcmcia_common_write(void *opaque, target_phys_addr_t offset,
 }
 
 static uint64_t pxa2xx_pcmcia_attr_read(void *opaque,
-                target_phys_addr_t offset, unsigned size)
+                hwaddr offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -60,7 +60,7 @@ static uint64_t pxa2xx_pcmcia_attr_read(void *opaque,
     return 0;
 }
 
-static void pxa2xx_pcmcia_attr_write(void *opaque, target_phys_addr_t offset,
+static void pxa2xx_pcmcia_attr_write(void *opaque, hwaddr offset,
                                      uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
@@ -71,7 +71,7 @@ static void pxa2xx_pcmcia_attr_write(void *opaque, target_phys_addr_t offset,
 }
 
 static uint64_t pxa2xx_pcmcia_io_read(void *opaque,
-                target_phys_addr_t offset, unsigned size)
+                hwaddr offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -82,7 +82,7 @@ static uint64_t pxa2xx_pcmcia_io_read(void *opaque,
     return 0;
 }
 
-static void pxa2xx_pcmcia_io_write(void *opaque, target_phys_addr_t offset,
+static void pxa2xx_pcmcia_io_write(void *opaque, hwaddr offset,
                                    uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
@@ -120,7 +120,7 @@ static void pxa2xx_pcmcia_set_irq(void *opaque, int line, int level)
 }
 
 PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
-                                      target_phys_addr_t base)
+                                      hwaddr base)
 {
     PXA2xxPCMCIAState *s;
 

@@ -6,7 +6,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 
 #include "vcard.h"
 #include "vcard_emul.h"
@@ -93,7 +93,6 @@ vreader_free(VReader *reader)
         reader->reader_private_free(reader->reader_private);
     }
     g_free(reader);
-    return;
 }
 
 static VCard *

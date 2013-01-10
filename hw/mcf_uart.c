@@ -7,8 +7,8 @@
  */
 #include "hw.h"
 #include "mcf.h"
-#include "qemu-char.h"
-#include "exec-memory.h"
+#include "char/char.h"
+#include "exec/address-spaces.h"
 
 typedef struct {
     MemoryRegion iomem;
@@ -66,7 +66,7 @@ static void mcf_uart_update(mcf_uart_state *s)
     qemu_set_irq(s->irq, (s->isr & s->imr) != 0);
 }
 
-uint64_t mcf_uart_read(void *opaque, target_phys_addr_t addr,
+uint64_t mcf_uart_read(void *opaque, hwaddr addr,
                        unsigned size)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
@@ -185,7 +185,7 @@ static void mcf_do_command(mcf_uart_state *s, uint8_t cmd)
     }
 }
 
-void mcf_uart_write(void *opaque, target_phys_addr_t addr,
+void mcf_uart_write(void *opaque, hwaddr addr,
                     uint64_t val, unsigned size)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
@@ -294,7 +294,7 @@ static const MemoryRegionOps mcf_uart_ops = {
 };
 
 void mcf_uart_mm_init(MemoryRegion *sysmem,
-                      target_phys_addr_t base,
+                      hwaddr base,
                       qemu_irq irq,
                       CharDriverState *chr)
 {

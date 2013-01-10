@@ -21,8 +21,8 @@
 #include "hw.h"
 #include "flash.h"
 #include "omap.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 
 /* General-Purpose Memory Controller */
 struct omap_gpmc_s {
@@ -121,7 +121,7 @@ static void omap_gpmc_dma_update(struct omap_gpmc_s *s, int value)
  * all addresses in the region behave like accesses to the relevant
  * GPMC_NAND_DATA_i register (which is actually implemented to call these)
  */
-static uint64_t omap_nand_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_nand_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_gpmc_cs_file_s *f = (struct omap_gpmc_cs_file_s *)opaque;
@@ -200,7 +200,7 @@ static void omap_nand_setio(DeviceState *dev, uint64_t value,
     }
 }
 
-static void omap_nand_write(void *opaque, target_phys_addr_t addr,
+static void omap_nand_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_gpmc_cs_file_s *f = (struct omap_gpmc_cs_file_s *)opaque;
@@ -281,7 +281,7 @@ static void fill_prefetch_fifo(struct omap_gpmc_s *s)
  * engine is enabled -- all addresses in the region behave alike:
  * data is read or written to the FIFO.
  */
-static uint64_t omap_gpmc_prefetch_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_gpmc_prefetch_read(void *opaque, hwaddr addr,
                                         unsigned size)
 {
     struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
@@ -311,7 +311,7 @@ static uint64_t omap_gpmc_prefetch_read(void *opaque, target_phys_addr_t addr,
     return data;
 }
 
-static void omap_gpmc_prefetch_write(void *opaque, target_phys_addr_t addr,
+static void omap_gpmc_prefetch_write(void *opaque, hwaddr addr,
                                      uint64_t value, unsigned size)
 {
     struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
@@ -484,7 +484,7 @@ void omap_gpmc_reset(struct omap_gpmc_s *s)
         ecc_reset(&s->ecc[i]);
 }
 
-static int gpmc_wordaccess_only(target_phys_addr_t addr)
+static int gpmc_wordaccess_only(hwaddr addr)
 {
     /* Return true if the register offset is to a register that
      * only permits word width accesses.
@@ -502,7 +502,7 @@ static int gpmc_wordaccess_only(target_phys_addr_t addr)
     return 1;
 }
 
-static uint64_t omap_gpmc_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_gpmc_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
@@ -614,7 +614,7 @@ static uint64_t omap_gpmc_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
+static void omap_gpmc_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
@@ -819,7 +819,7 @@ static const MemoryRegionOps omap_gpmc_ops = {
 };
 
 struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
-                                   target_phys_addr_t base,
+                                   hwaddr base,
                                    qemu_irq irq, qemu_irq drq)
 {
     int cs;

@@ -26,8 +26,8 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "compiler.h"
-#include "osdep.h"
+#include "qemu/compiler.h"
+#include "qemu/osdep.h"
 
 #define MAX_IRQ 256
 
@@ -85,6 +85,22 @@ static int socket_accept(int sock)
     return ret;
 }
 
+static pid_t qtest_qemu_pid(QTestState *s)
+{
+    FILE *f;
+    char buffer[1024];
+    pid_t pid = -1;
+
+    f = fopen(s->pid_file, "r");
+    if (f) {
+        if (fgets(buffer, sizeof(buffer), f)) {
+            pid = atoi(buffer);
+        }
+    }
+    fclose(f);
+    return pid;
+}
+
 QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
@@ -136,25 +152,21 @@ QTestState *qtest_init(const char *extra_args)
     qtest_qmp(s, "");
     qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }");
 
+    if (getenv("QTEST_STOP")) {
+        kill(qtest_qemu_pid(s), SIGSTOP);
+    }
+
     return s;
 }
 
 void qtest_quit(QTestState *s)
 {
-    FILE *f;
-    char buffer[1024];
+    int status;
 
-    f = fopen(s->pid_file, "r");
-    if (f) {
-        if (fgets(buffer, sizeof(buffer), f)) {
-            pid_t pid = atoi(buffer);
-            int status = 0;
-
-            kill(pid, SIGTERM);
-            waitpid(pid, &status, 0);
-        }
-
-        fclose(f);
+    pid_t pid = qtest_qemu_pid(s);
+    if (pid != -1) {
+        kill(pid, SIGTERM);
+        waitpid(pid, &status, 0);
     }
 
     unlink(s->pid_file);

@@ -31,7 +31,7 @@
 #include <stddef.h>
 #include "cpu.h"
 #include "helper.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 enum {
     TARGET_SYS_exit = 1,
@@ -54,6 +54,102 @@ enum {
     SELECT_ONE_EXCEPT = 3,
 };
 
+enum {
+    TARGET_EPERM        =  1,
+    TARGET_ENOENT       =  2,
+    TARGET_ESRCH        =  3,
+    TARGET_EINTR        =  4,
+    TARGET_EIO          =  5,
+    TARGET_ENXIO        =  6,
+    TARGET_E2BIG        =  7,
+    TARGET_ENOEXEC      =  8,
+    TARGET_EBADF        =  9,
+    TARGET_ECHILD       = 10,
+    TARGET_EAGAIN       = 11,
+    TARGET_ENOMEM       = 12,
+    TARGET_EACCES       = 13,
+    TARGET_EFAULT       = 14,
+    TARGET_ENOTBLK      = 15,
+    TARGET_EBUSY        = 16,
+    TARGET_EEXIST       = 17,
+    TARGET_EXDEV        = 18,
+    TARGET_ENODEV       = 19,
+    TARGET_ENOTDIR      = 20,
+    TARGET_EISDIR       = 21,
+    TARGET_EINVAL       = 22,
+    TARGET_ENFILE       = 23,
+    TARGET_EMFILE       = 24,
+    TARGET_ENOTTY       = 25,
+    TARGET_ETXTBSY      = 26,
+    TARGET_EFBIG        = 27,
+    TARGET_ENOSPC       = 28,
+    TARGET_ESPIPE       = 29,
+    TARGET_EROFS        = 30,
+    TARGET_EMLINK       = 31,
+    TARGET_EPIPE        = 32,
+    TARGET_EDOM         = 33,
+    TARGET_ERANGE       = 34,
+    TARGET_ENOSYS       = 88,
+    TARGET_ELOOP        = 92,
+};
+
+static uint32_t errno_h2g(int host_errno)
+{
+    static const uint32_t guest_errno[] = {
+        [EPERM]         = TARGET_EPERM,
+        [ENOENT]        = TARGET_ENOENT,
+        [ESRCH]         = TARGET_ESRCH,
+        [EINTR]         = TARGET_EINTR,
+        [EIO]           = TARGET_EIO,
+        [ENXIO]         = TARGET_ENXIO,
+        [E2BIG]         = TARGET_E2BIG,
+        [ENOEXEC]       = TARGET_ENOEXEC,
+        [EBADF]         = TARGET_EBADF,
+        [ECHILD]        = TARGET_ECHILD,
+        [EAGAIN]        = TARGET_EAGAIN,
+        [ENOMEM]        = TARGET_ENOMEM,
+        [EACCES]        = TARGET_EACCES,
+        [EFAULT]        = TARGET_EFAULT,
+#ifdef ENOTBLK
+        [ENOTBLK]       = TARGET_ENOTBLK,
+#endif
+        [EBUSY]         = TARGET_EBUSY,
+        [EEXIST]        = TARGET_EEXIST,
+        [EXDEV]         = TARGET_EXDEV,
+        [ENODEV]        = TARGET_ENODEV,
+        [ENOTDIR]       = TARGET_ENOTDIR,
+        [EISDIR]        = TARGET_EISDIR,
+        [EINVAL]        = TARGET_EINVAL,
+        [ENFILE]        = TARGET_ENFILE,
+        [EMFILE]        = TARGET_EMFILE,
+        [ENOTTY]        = TARGET_ENOTTY,
+#ifdef ETXTBSY
+        [ETXTBSY]       = TARGET_ETXTBSY,
+#endif
+        [EFBIG]         = TARGET_EFBIG,
+        [ENOSPC]        = TARGET_ENOSPC,
+        [ESPIPE]        = TARGET_ESPIPE,
+        [EROFS]         = TARGET_EROFS,
+        [EMLINK]        = TARGET_EMLINK,
+        [EPIPE]         = TARGET_EPIPE,
+        [EDOM]          = TARGET_EDOM,
+        [ERANGE]        = TARGET_ERANGE,
+        [ENOSYS]        = TARGET_ENOSYS,
+#ifdef ELOOP
+        [ELOOP]         = TARGET_ELOOP,
+#endif
+    };
+
+    if (host_errno == 0) {
+        return 0;
+    } else if (host_errno > 0 && host_errno < ARRAY_SIZE(guest_errno) &&
+            guest_errno[host_errno]) {
+        return guest_errno[host_errno];
+    } else {
+        return TARGET_EINVAL;
+    }
+}
+
 void HELPER(simcall)(CPUXtensaState *env)
 {
     uint32_t *regs = env->regs;
@@ -73,12 +169,12 @@ void HELPER(simcall)(CPUXtensaState *env)
             uint32_t len = regs[5];
 
             while (len > 0) {
-                target_phys_addr_t paddr =
+                hwaddr paddr =
                     cpu_get_phys_page_debug(env, vaddr);
                 uint32_t page_left =
                     TARGET_PAGE_SIZE - (vaddr & (TARGET_PAGE_SIZE - 1));
                 uint32_t io_sz = page_left < len ? page_left : len;
-                target_phys_addr_t sz = io_sz;
+                hwaddr sz = io_sz;
                 void *buf = cpu_physical_memory_map(paddr, &sz, is_write);
 
                 if (buf) {
@@ -87,14 +183,14 @@ void HELPER(simcall)(CPUXtensaState *env)
                     regs[2] = is_write ?
                         write(fd, buf, io_sz) :
                         read(fd, buf, io_sz);
-                    regs[3] = errno;
+                    regs[3] = errno_h2g(errno);
                     cpu_physical_memory_unmap(buf, sz, is_write, sz);
                     if (regs[2] == -1) {
                         break;
                     }
                 } else {
                     regs[2] = -1;
-                    regs[3] = EINVAL;
+                    regs[3] = TARGET_EINVAL;
                     break;
                 }
             }
@@ -117,10 +213,10 @@ void HELPER(simcall)(CPUXtensaState *env)
 
             if (rc == 0 && i < ARRAY_SIZE(name)) {
                 regs[2] = open(name, regs[4], regs[5]);
-                regs[3] = errno;
+                regs[3] = errno_h2g(errno);
             } else {
                 regs[2] = -1;
-                regs[3] = EINVAL;
+                regs[3] = TARGET_EINVAL;
             }
         }
         break;
@@ -130,13 +226,13 @@ void HELPER(simcall)(CPUXtensaState *env)
             regs[2] = regs[3] = 0;
         } else {
             regs[2] = close(regs[3]);
-            regs[3] = errno;
+            regs[3] = errno_h2g(errno);
         }
         break;
 
     case TARGET_SYS_lseek:
         regs[2] = lseek(regs[3], (off_t)(int32_t)regs[4], regs[5]);
-        regs[3] = errno;
+        regs[3] = errno_h2g(errno);
         break;
 
     case TARGET_SYS_select_one:
@@ -163,7 +259,7 @@ void HELPER(simcall)(CPUXtensaState *env)
                     rq == SELECT_ONE_WRITE  ? &fdset : NULL,
                     rq == SELECT_ONE_EXCEPT ? &fdset : NULL,
                     target_tv ? &tv : NULL);
-            regs[3] = errno;
+            regs[3] = errno_h2g(errno);
         }
         break;
 
@@ -199,7 +295,7 @@ void HELPER(simcall)(CPUXtensaState *env)
             uint32_t sz = regs[5];
 
             while (sz) {
-                target_phys_addr_t len = sz;
+                hwaddr len = sz;
                 void *buf = cpu_physical_memory_map(base, &len, 1);
 
                 if (buf && len) {
@@ -218,6 +314,8 @@ void HELPER(simcall)(CPUXtensaState *env)
 
     default:
         qemu_log("%s(%d): not implemented\n", __func__, regs[2]);
+        regs[2] = -1;
+        regs[3] = TARGET_ENOSYS;
         break;
     }
 }

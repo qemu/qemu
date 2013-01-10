@@ -168,7 +168,6 @@ vcard_emul_delete_key(VCardKey *key)
     if (key->slot) {
         PK11_FreeSlot(key->slot);
     }
-    return;
 }
 
 /*
@@ -418,7 +417,6 @@ vcard_emul_reset(VCard *card, VCardPower power)
     /* TODO: we may also need to send insertion/removal events? */
     slot = vcard_emul_card_get_slot(card);
     PK11_Logout(slot); /* NOTE: ignoring SECStatus return value */
-    return;
 }
 
 
@@ -535,7 +533,6 @@ vcard_emul_get_atr(VCard *card, unsigned char *atr, int *atr_len)
 
     memcpy(atr, nss_atr, len);
     *atr_len = len;
-    return;
 }
 
 /*
@@ -1169,8 +1166,7 @@ vcard_emul_options(const char *args)
             NEXT_TOKEN(vname)
             NEXT_TOKEN(type_params)
             type_params_length = MIN(type_params_length, sizeof(type_str)-1);
-            strncpy(type_str, type_params, type_params_length);
-            type_str[type_params_length] = 0;
+            pstrcpy(type_str, type_params_length, type_params);
             type = vcard_emul_type_from_string(type_str);
 
             NEXT_TOKEN(type_params)

@@ -2,8 +2,8 @@
 #define HW_IDE_H
 
 #include "isa.h"
-#include "pci.h"
-#include "memory.h"
+#include "pci/pci.h"
+#include "exec/memory.h"
 
 #define MAX_IDE_DEVS	2
 
@@ -24,7 +24,7 @@ MemoryRegion *pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
 		   void *dbdma, int channel, qemu_irq dma_irq);
 
 /* ide-mmio.c */
-void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
+void mmio_ide_init (hwaddr membase, hwaddr membase2,
                     MemoryRegion *address_space,
                     qemu_irq irq, int shift,
                     DriveInfo *hd0, DriveInfo *hd1);

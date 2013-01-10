@@ -1,6 +1,7 @@
 obj-y = petalogix_s3adsp1800_mmu.o
 obj-y += petalogix_ml605_mmu.o
 obj-y += microblaze_boot.o
+obj-y += xilinx_spi.o
 
 obj-y += microblaze_pic_cpu.o
 obj-y += xilinx_ethlite.o
