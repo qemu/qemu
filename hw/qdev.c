@@ -228,10 +228,15 @@ void qdev_reset_all(DeviceState *dev)
     qdev_walk_children(dev, qdev_reset_one, qbus_reset_one, NULL);
 }
 
+void qbus_reset_all(BusState *bus)
+{
+    qbus_walk_children(bus, qdev_reset_one, qbus_reset_one, NULL);
+}
+
 void qbus_reset_all_fn(void *opaque)
 {
     BusState *bus = opaque;
-    qbus_walk_children(bus, qdev_reset_one, qbus_reset_one, NULL);
+    qbus_reset_all(bus);
 }
 
 /* can be used as ->unplug() callback for the simple cases */
