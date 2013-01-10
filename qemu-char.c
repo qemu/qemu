@@ -1367,17 +1367,10 @@ static void pp_close(CharDriverState *chr)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_pp_fd(int fd)
 {
-    const char *filename = qemu_opt_get(opts, "path");
     CharDriverState *chr;
     ParallelCharDriver *drv;
-    int fd;
-
-    TFR(fd = qemu_open(filename, O_RDWR));
-    if (fd < 0) {
-        return NULL;
-    }
 
     if (ioctl(fd, PPCLAIM) < 0) {
         close(fd);
@@ -1441,16 +1434,9 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
-static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_pp_fd(int fd)
 {
-    const char *filename = qemu_opt_get(opts, "path");
     CharDriverState *chr;
-    int fd;
-
-    fd = qemu_open(filename, O_RDWR);
-    if (fd < 0) {
-        return NULL;
-    }
 
     chr = g_malloc0(sizeof(CharDriverState));
     chr->opaque = (void *)(intptr_t)fd;
@@ -2750,6 +2736,22 @@ fail:
     return NULL;
 }
 
+#ifdef HAVE_CHARDEV_PARPORT
+
+static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
+{
+    const char *filename = qemu_opt_get(opts, "path");
+    int fd;
+
+    fd = qemu_open(filename, O_RDWR);
+    if (fd < 0) {
+        return NULL;
+    }
+    return qemu_chr_open_pp_fd(fd);
+}
+
+#endif
+
 static const struct {
     const char *name;
     CharDriverState *(*open)(QemuOpts *opts);
@@ -2779,6 +2781,7 @@ static const struct {
     { .name = "pty",       .open = qemu_chr_open_pty },
 #endif
 #ifdef HAVE_CHARDEV_PARPORT
+    { .name = "parallel",  .open = qemu_chr_open_pp },
     { .name = "parport",   .open = qemu_chr_open_pp },
 #endif
 #ifdef CONFIG_SPICE
@@ -3103,6 +3106,15 @@ static CharDriverState *qmp_chardev_open_port(ChardevPort *port, Error **errp)
         }
         socket_set_nonblock(fd);
         return qemu_chr_open_tty_fd(fd);
+#endif
+#ifdef HAVE_CHARDEV_PARPORT
+    case CHARDEV_PORT_KIND_PARALLEL:
+        flags = O_RDWR;
+        fd = qmp_chardev_open_file_source(port->device, flags, errp);
+        if (error_is_set(errp)) {
+            return NULL;
+        }
+        return qemu_chr_open_pp_fd(fd);
 #endif
     default:
         error_setg(errp, "unknown chardev port (%d)", port->type);

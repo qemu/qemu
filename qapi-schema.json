@@ -3042,7 +3042,8 @@
 #
 # Since: 1.4
 ##
-{ 'enum': 'ChardevPortKind', 'data': [ 'serial' ] }
+{ 'enum': 'ChardevPortKind', 'data': [ 'serial',
+                                       'parallel' ] }
 
 { 'type': 'ChardevPort', 'data': { 'device' : 'str',
                                    'type'   : 'ChardevPortKind'} }
