@@ -2017,6 +2017,12 @@ struct target_statfs64 {
 #define TARGET_F_SETLKW        9
 #define TARGET_F_SETOWN        5       /*  for sockets. */
 #define TARGET_F_GETOWN        6       /*  for sockets. */
+
+#define TARGET_F_RDLCK         1
+#define TARGET_F_WRLCK         2
+#define TARGET_F_UNLCK         8
+#define TARGET_F_EXLCK         16
+#define TARGET_F_SHLCK         32
 #elif defined(TARGET_MIPS)
 #define TARGET_F_GETLK         14
 #define TARGET_F_SETLK         6
@@ -2030,6 +2036,18 @@ struct target_statfs64 {
 #define TARGET_F_SETOWN        8       /*  for sockets. */
 #define TARGET_F_GETOWN        9       /*  for sockets. */
 #endif
+
+#ifndef TARGET_F_RDLCK
+#define TARGET_F_RDLCK         0
+#define TARGET_F_WRLCK         1
+#define TARGET_F_UNLCK         2
+#endif
+
+#ifndef TARGET_F_EXLCK
+#define TARGET_F_EXLCK         4
+#define TARGET_F_SHLCK         8
+#endif
+
 
 #define TARGET_F_SETSIG        10      /*  for sockets. */
 #define TARGET_F_GETSIG        11      /*  for sockets. */
