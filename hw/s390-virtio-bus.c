@@ -508,6 +508,13 @@ static int s390_virtio_busdev_init(DeviceState *dev)
     return _info->init(_dev);
 }
 
+static void s390_virtio_busdev_reset(DeviceState *dev)
+{
+    VirtIOS390Device *_dev = (VirtIOS390Device *)dev;
+
+    virtio_reset(_dev->vdev);
+}
+
 static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -515,6 +522,7 @@ static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
     dc->init = s390_virtio_busdev_init;
     dc->bus_type = TYPE_S390_VIRTIO_BUS;
     dc->unplug = qdev_simple_unplug_cb;
+    dc->reset = s390_virtio_busdev_reset;
 }
 
 static const TypeInfo virtio_s390_device_info = {
