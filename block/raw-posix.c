@@ -455,15 +455,7 @@ static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
         return -errno;
     }
 
-    /*
-     * This looks weird, but the aio code only considers a request
-     * successful if it has written the full number of bytes.
-     *
-     * Now we overload aio_nbytes as aio_ioctl_cmd for the ioctl command,
-     * so in fact we return the ioctl command here to make posix_aio_read()
-     * happy..
-     */
-    return aiocb->aio_nbytes;
+    return 0;
 }
 
 static ssize_t handle_aiocb_flush(RawPosixAIOData *aiocb)
