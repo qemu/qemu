@@ -1314,7 +1314,7 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
 
     dev->bus_num = bus_num;
     dev->addr = addr;
-    strcpy(dev->port, port);
+    pstrcpy(dev->port, sizeof(dev->port), port);
     dev->fd = fd;
 
     /* read the device description */
