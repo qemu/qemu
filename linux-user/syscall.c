@@ -6227,8 +6227,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = get_errno(settimeofday(&tv, NULL));
         }
         break;
-#if defined(TARGET_NR_select) && !defined(TARGET_S390X) && !defined(TARGET_S390)
+#if defined(TARGET_NR_select)
     case TARGET_NR_select:
+#if defined(TARGET_S390X) || defined(TARGET_ALPHA)
+        ret = do_select(arg1, arg2, arg3, arg4, arg5);
+#else
         {
             struct target_sel_arg_struct *sel;
             abi_ulong inp, outp, exp, tvp;
@@ -6244,6 +6247,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user_struct(sel, arg1, 0);
             ret = do_select(nsel, inp, outp, exp, tvp);
         }
+#endif
         break;
 #endif
 #ifdef TARGET_NR_pselect6
@@ -7167,12 +7171,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
 #endif /* TARGET_NR_getdents64 */
-#if defined(TARGET_NR__newselect) || defined(TARGET_S390X)
-#ifdef TARGET_S390X
-    case TARGET_NR_select:
-#else
+#if defined(TARGET_NR__newselect)
     case TARGET_NR__newselect:
-#endif
         ret = do_select(arg1, arg2, arg3, arg4, arg5);
         break;
 #endif
