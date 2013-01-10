@@ -1760,7 +1760,7 @@ static int usb_host_auto_scan(void *opaque, int bus_num,
         if (f->addr > 0 && f->addr != addr) {
             continue;
         }
-        if (f->port != NULL && (port == NULL || strcmp(f->port, port) != 0)) {
+        if (f->port != NULL && strcmp(f->port, port) != 0) {
             continue;
         }
 
