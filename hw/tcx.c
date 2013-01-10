@@ -716,7 +716,7 @@ static void tcx_class_init(ObjectClass *klass, void *data)
     dc->props = tcx_properties;
 }
 
-static TypeInfo tcx_info = {
+static const TypeInfo tcx_info = {
     .name          = "SUNW,tcx",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TCXState),

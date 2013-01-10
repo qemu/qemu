@@ -456,7 +456,7 @@ static void slavio_intctl_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_intctl;
 }
 
-static TypeInfo slavio_intctl_info = {
+static const TypeInfo slavio_intctl_info = {
     .name          = "slavio_intctl",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_INTCTLState),

@@ -83,7 +83,7 @@ static void empty_slot_class_init(ObjectClass *klass, void *data)
     k->init = empty_slot_init1;
 }
 
-static TypeInfo empty_slot_info = {
+static const TypeInfo empty_slot_info = {
     .name          = "empty_slot",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(EmptySlot),

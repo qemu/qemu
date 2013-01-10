@@ -128,7 +128,7 @@ static void mpc8544_guts_class_init(ObjectClass *klass, void *data)
     k->init = mpc8544_guts_initfn;
 }
 
-static TypeInfo mpc8544_guts_info = {
+static const TypeInfo mpc8544_guts_info = {
     .name          = "mpc8544-guts",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GutsState),

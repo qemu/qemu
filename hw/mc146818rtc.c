@@ -898,7 +898,7 @@ static void rtc_class_initfn(ObjectClass *klass, void *data)
     dc->props = mc146818rtc_properties;
 }
 
-static TypeInfo mc146818rtc_info = {
+static const TypeInfo mc146818rtc_info = {
     .name          = "mc146818rtc",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(RTCState),

@@ -262,7 +262,7 @@ static void pci_i82378_class_init(ObjectClass *klass, void *data)
     dc->props = i82378_properties;
 }
 
-static TypeInfo pci_i82378_info = {
+static const TypeInfo pci_i82378_info = {
     .name = "i82378",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIi82378State),

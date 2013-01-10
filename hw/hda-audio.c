@@ -1039,7 +1039,7 @@ static void hda_audio_output_class_init(ObjectClass *klass, void *data)
     dc->props = hda_audio_properties;
 }
 
-static TypeInfo hda_audio_output_info = {
+static const TypeInfo hda_audio_output_info = {
     .name          = "hda-output",
     .parent        = TYPE_HDA_CODEC_DEVICE,
     .instance_size = sizeof(HDAAudioState),
@@ -1060,7 +1060,7 @@ static void hda_audio_duplex_class_init(ObjectClass *klass, void *data)
     dc->props = hda_audio_properties;
 }
 
-static TypeInfo hda_audio_duplex_info = {
+static const TypeInfo hda_audio_duplex_info = {
     .name          = "hda-duplex",
     .parent        = TYPE_HDA_CODEC_DEVICE,
     .instance_size = sizeof(HDAAudioState),
@@ -1081,7 +1081,7 @@ static void hda_audio_micro_class_init(ObjectClass *klass, void *data)
     dc->props = hda_audio_properties;
 }
 
-static TypeInfo hda_audio_micro_info = {
+static const TypeInfo hda_audio_micro_info = {
     .name          = "hda-micro",
     .parent        = TYPE_HDA_CODEC_DEVICE,
     .instance_size = sizeof(HDAAudioState),

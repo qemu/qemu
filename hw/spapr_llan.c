@@ -502,7 +502,7 @@ static void spapr_vlan_class_init(ObjectClass *klass, void *data)
     k->rtce_window_size = 0x10000000;
 }
 
-static TypeInfo spapr_vlan_info = {
+static const TypeInfo spapr_vlan_info = {
     .name          = "spapr-vlan",
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(VIOsPAPRVLANDevice),

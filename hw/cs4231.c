@@ -166,7 +166,7 @@ static void cs4231_class_init(ObjectClass *klass, void *data)
     dc->props = cs4231_properties;
 }
 
-static TypeInfo cs4231_info = {
+static const TypeInfo cs4231_info = {
     .name          = "SUNW,CS4231",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(CSState),

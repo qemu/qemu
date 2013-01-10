@@ -144,7 +144,7 @@ static void pic_common_class_init(ObjectClass *klass, void *data)
     ic->init = pic_init_common;
 }
 
-static TypeInfo pic_common_type = {
+static const TypeInfo pic_common_type = {
     .name = TYPE_PIC_COMMON,
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PICCommonState),

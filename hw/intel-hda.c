@@ -1249,7 +1249,7 @@ static void intel_hda_class_init(ObjectClass *klass, void *data)
     dc->props = intel_hda_properties;
 }
 
-static TypeInfo intel_hda_info = {
+static const TypeInfo intel_hda_info = {
     .name          = "intel-hda",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IntelHDAState),
@@ -1265,7 +1265,7 @@ static void hda_codec_device_class_init(ObjectClass *klass, void *data)
     k->props = hda_props;
 }
 
-static TypeInfo hda_codec_device_type_info = {
+static const TypeInfo hda_codec_device_type_info = {
     .name = TYPE_HDA_CODEC_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(HDACodecDevice),

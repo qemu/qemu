@@ -407,7 +407,7 @@ static void exynos4210_pwm_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_exynos4210_pwm_state;
 }
 
-static TypeInfo exynos4210_pwm_info = {
+static const TypeInfo exynos4210_pwm_info = {
     .name          = "exynos4210.pwm",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PWMState),

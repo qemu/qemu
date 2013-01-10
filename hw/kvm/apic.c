@@ -194,7 +194,7 @@ static void kvm_apic_class_init(ObjectClass *klass, void *data)
     k->external_nmi = kvm_apic_external_nmi;
 }
 
-static TypeInfo kvm_apic_info = {
+static const TypeInfo kvm_apic_info = {
     .name = "kvm-apic",
     .parent = TYPE_APIC_COMMON,
     .instance_size = sizeof(APICCommonState),

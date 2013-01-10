@@ -103,7 +103,7 @@ static void ioapic_common_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo ioapic_common_type = {
+static const TypeInfo ioapic_common_type = {
     .name = TYPE_IOAPIC_COMMON,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IOAPICCommonState),

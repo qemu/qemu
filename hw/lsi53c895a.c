@@ -2126,7 +2126,7 @@ static void lsi_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_lsi_scsi;
 }
 
-static TypeInfo lsi_info = {
+static const TypeInfo lsi_info = {
     .name          = "lsi53c895a",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(LSIState),

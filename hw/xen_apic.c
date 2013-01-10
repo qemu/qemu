@@ -80,7 +80,7 @@ static void xen_apic_class_init(ObjectClass *klass, void *data)
     k->external_nmi = xen_apic_external_nmi;
 }
 
-static TypeInfo xen_apic_info = {
+static const TypeInfo xen_apic_info = {
     .name = "xen-apic",
     .parent = TYPE_APIC_COMMON,
     .instance_size = sizeof(APICCommonState),

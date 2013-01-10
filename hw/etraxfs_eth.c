@@ -630,7 +630,7 @@ static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
     dc->props = etraxfs_eth_properties;
 }
 
-static TypeInfo etraxfs_eth_info = {
+static const TypeInfo etraxfs_eth_info = {
     .name          = "etraxfs-eth",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct fs_eth),

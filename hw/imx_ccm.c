@@ -306,7 +306,7 @@ static void imx_ccm_class_init(ObjectClass *klass, void *data)
     dc->desc = "i.MX Clock Control Module";
 }
 
-static TypeInfo imx_ccm_info = {
+static const TypeInfo imx_ccm_info = {
     .name = "imx_ccm",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IMXCCMState),

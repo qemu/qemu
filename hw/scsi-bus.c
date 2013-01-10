@@ -1863,7 +1863,7 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
     k->props    = scsi_props;
 }
 
-static TypeInfo scsi_device_type_info = {
+static const TypeInfo scsi_device_type_info = {
     .name = TYPE_SCSI_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SCSIDevice),

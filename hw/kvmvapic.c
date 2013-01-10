@@ -804,7 +804,7 @@ static void vapic_class_init(ObjectClass *klass, void *data)
     sc->init    = vapic_init;
 }
 
-static TypeInfo vapic_type = {
+static const TypeInfo vapic_type = {
     .name          = "kvmvapic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VAPICROMState),

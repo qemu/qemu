@@ -2389,7 +2389,7 @@ static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
-static TypeInfo scsi_hd_info = {
+static const TypeInfo scsi_hd_info = {
     .name          = "scsi-hd",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDiskState),
@@ -2418,7 +2418,7 @@ static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
-static TypeInfo scsi_cd_info = {
+static const TypeInfo scsi_cd_info = {
     .name          = "scsi-cd",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDiskState),
@@ -2447,7 +2447,7 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
-static TypeInfo scsi_block_info = {
+static const TypeInfo scsi_block_info = {
     .name          = "scsi-block",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDiskState),
@@ -2481,7 +2481,7 @@ static void scsi_disk_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
-static TypeInfo scsi_disk_info = {
+static const TypeInfo scsi_disk_info = {
     .name          = "scsi-disk",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDiskState),

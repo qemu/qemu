@@ -2150,7 +2150,7 @@ void pci_setup_iommu(PCIBus *bus, PCIDMAContextFunc fn, void *opaque)
     bus->dma_context_opaque = opaque;
 }
 
-static TypeInfo pci_device_type_info = {
+static const TypeInfo pci_device_type_info = {
     .name = TYPE_PCI_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(PCIDevice),

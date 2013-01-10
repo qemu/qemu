@@ -628,7 +628,7 @@ static void usb_device_class_init(ObjectClass *klass, void *data)
     k->props    = usb_props;
 }
 
-static TypeInfo usb_device_type_info = {
+static const TypeInfo usb_device_type_info = {
     .name = TYPE_USB_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(USBDevice),

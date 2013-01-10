@@ -60,7 +60,7 @@ static void debug_exit_class_initfn(ObjectClass *klass, void *data)
     dc->props = debug_exit_properties;
 }
 
-static TypeInfo debug_exit_info = {
+static const TypeInfo debug_exit_info = {
     .name          = TYPE_ISA_DEBUG_EXIT_DEVICE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISADebugExitState),

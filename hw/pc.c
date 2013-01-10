@@ -501,7 +501,7 @@ static void port92_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_port92_isa;
 }
 
-static TypeInfo port92_info = {
+static const TypeInfo port92_info = {
     .name          = "port92",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(Port92State),

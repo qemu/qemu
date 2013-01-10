@@ -821,7 +821,7 @@ static void onenand_class_init(ObjectClass *klass, void *data)
     dc->props = onenand_properties;
 }
 
-static TypeInfo onenand_info = {
+static const TypeInfo onenand_info = {
     .name          = "onenand",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OneNANDState),

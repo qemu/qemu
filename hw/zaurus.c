@@ -236,7 +236,7 @@ static void scoop_sysbus_class_init(ObjectClass *klass, void *data)
     dc->props = scoop_sysbus_properties;
 }
 
-static TypeInfo scoop_sysbus_info = {
+static const TypeInfo scoop_sysbus_info = {
     .name          = "scoop",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ScoopInfo),

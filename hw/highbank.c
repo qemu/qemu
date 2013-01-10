@@ -168,7 +168,7 @@ static void highbank_regs_class_init(ObjectClass *klass, void *data)
     dc->reset = highbank_regs_reset;
 }
 
-static TypeInfo highbank_regs_info = {
+static const TypeInfo highbank_regs_info = {
     .name          = "highbank-regs",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(HighbankRegsState),

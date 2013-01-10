@@ -118,7 +118,7 @@ static void kvmclock_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &kvmclock_vmsd;
 }
 
-static TypeInfo kvmclock_info = {
+static const TypeInfo kvmclock_info = {
     .name          = "kvmclock",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(KVMClockState),

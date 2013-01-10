@@ -1433,7 +1433,7 @@ static void usb_net_class_initfn(ObjectClass *klass, void *data)
     dc->props = net_properties;
 }
 
-static TypeInfo net_info = {
+static const TypeInfo net_info = {
     .name          = "usb-net",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBNetState),

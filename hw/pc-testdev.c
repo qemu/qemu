@@ -172,7 +172,7 @@ static void testdev_class_init(ObjectClass *klass, void *data)
     k->init = init_test_device;
 }
 
-static TypeInfo testdev_info = {
+static const TypeInfo testdev_info = {
     .name           = TYPE_TESTDEV,
     .parent         = TYPE_ISA_DEVICE,
     .instance_size  = sizeof(struct PCTestdev),

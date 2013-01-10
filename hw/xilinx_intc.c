@@ -175,7 +175,7 @@ static void xilinx_intc_class_init(ObjectClass *klass, void *data)
     dc->props = xilinx_intc_properties;
 }
 
-static TypeInfo xilinx_intc_info = {
+static const TypeInfo xilinx_intc_info = {
     .name          = "xlnx.xps-intc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct xlx_pic),

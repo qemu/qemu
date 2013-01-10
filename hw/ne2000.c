@@ -773,7 +773,7 @@ static void ne2000_class_init(ObjectClass *klass, void *data)
     dc->props = ne2000_properties;
 }
 
-static TypeInfo ne2000_info = {
+static const TypeInfo ne2000_info = {
     .name          = "ne2k_pci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCINE2000State),

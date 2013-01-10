@@ -286,7 +286,7 @@ static void vmmouse_class_initfn(ObjectClass *klass, void *data)
     dc->props = vmmouse_properties;
 }
 
-static TypeInfo vmmouse_info = {
+static const TypeInfo vmmouse_info = {
     .name          = "vmmouse",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(VMMouseState),

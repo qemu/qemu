@@ -600,7 +600,7 @@ static void usb_serial_class_initfn(ObjectClass *klass, void *data)
     dc->props = serial_properties;
 }
 
-static TypeInfo serial_info = {
+static const TypeInfo serial_info = {
     .name          = "usb-serial",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBSerialState),
@@ -628,7 +628,7 @@ static void usb_braille_class_initfn(ObjectClass *klass, void *data)
     dc->props = braille_properties;
 }
 
-static TypeInfo braille_info = {
+static const TypeInfo braille_info = {
     .name          = "usb-braille",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBSerialState),

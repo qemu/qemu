@@ -255,7 +255,7 @@ static void sysbus_device_class_init(ObjectClass *klass, void *data)
     k->bus_type = TYPE_SYSTEM_BUS;
 }
 
-static TypeInfo sysbus_device_type_info = {
+static const TypeInfo sysbus_device_type_info = {
     .name = TYPE_SYS_BUS_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SysBusDevice),

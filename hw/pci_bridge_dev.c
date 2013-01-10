@@ -156,7 +156,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &pci_bridge_dev_vmstate;
 }
 
-static TypeInfo pci_bridge_dev_info = {
+static const TypeInfo pci_bridge_dev_info = {
     .name = "pci-bridge",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBridgeDev),

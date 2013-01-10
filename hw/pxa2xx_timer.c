@@ -495,7 +495,7 @@ static void pxa25x_timer_dev_class_init(ObjectClass *klass, void *data)
     dc->props = pxa25x_timer_dev_properties;
 }
 
-static TypeInfo pxa25x_timer_dev_info = {
+static const TypeInfo pxa25x_timer_dev_info = {
     .name          = "pxa25x-timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxTimerInfo),
@@ -520,7 +520,7 @@ static void pxa27x_timer_dev_class_init(ObjectClass *klass, void *data)
     dc->props = pxa27x_timer_dev_properties;
 }
 
-static TypeInfo pxa27x_timer_dev_info = {
+static const TypeInfo pxa27x_timer_dev_info = {
     .name          = "pxa27x-timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxTimerInfo),

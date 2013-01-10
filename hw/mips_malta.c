@@ -1004,7 +1004,7 @@ static void mips_malta_class_init(ObjectClass *klass, void *data)
     k->init = mips_malta_sysbus_device_init;
 }
 
-static TypeInfo mips_malta_device = {
+static const TypeInfo mips_malta_device = {
     .name          = "mips-malta",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MaltaState),

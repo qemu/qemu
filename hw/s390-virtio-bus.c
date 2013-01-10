@@ -419,7 +419,7 @@ static void s390_virtio_net_class_init(ObjectClass *klass, void *data)
     dc->props = s390_virtio_net_properties;
 }
 
-static TypeInfo s390_virtio_net = {
+static const TypeInfo s390_virtio_net = {
     .name          = "virtio-net-s390",
     .parent        = TYPE_VIRTIO_S390_DEVICE,
     .instance_size = sizeof(VirtIOS390Device),
@@ -445,7 +445,7 @@ static void s390_virtio_blk_class_init(ObjectClass *klass, void *data)
     dc->props = s390_virtio_blk_properties;
 }
 
-static TypeInfo s390_virtio_blk = {
+static const TypeInfo s390_virtio_blk = {
     .name          = "virtio-blk-s390",
     .parent        = TYPE_VIRTIO_S390_DEVICE,
     .instance_size = sizeof(VirtIOS390Device),
@@ -467,7 +467,7 @@ static void s390_virtio_serial_class_init(ObjectClass *klass, void *data)
     dc->props = s390_virtio_serial_properties;
 }
 
-static TypeInfo s390_virtio_serial = {
+static const TypeInfo s390_virtio_serial = {
     .name          = "virtio-serial-s390",
     .parent        = TYPE_VIRTIO_S390_DEVICE,
     .instance_size = sizeof(VirtIOS390Device),
@@ -489,7 +489,7 @@ static void s390_virtio_rng_class_init(ObjectClass *klass, void *data)
     k->init = s390_virtio_rng_init;
 }
 
-static TypeInfo s390_virtio_rng = {
+static const TypeInfo s390_virtio_rng = {
     .name          = "virtio-rng-s390",
     .parent        = TYPE_VIRTIO_S390_DEVICE,
     .instance_size = sizeof(VirtIOS390Device),
@@ -514,7 +514,7 @@ static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
     dc->unplug = qdev_simple_unplug_cb;
 }
 
-static TypeInfo virtio_s390_device_info = {
+static const TypeInfo virtio_s390_device_info = {
     .name = TYPE_VIRTIO_S390_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(VirtIOS390Device),
@@ -537,7 +537,7 @@ static void s390_virtio_scsi_class_init(ObjectClass *klass, void *data)
     dc->props = s390_virtio_scsi_properties;
 }
 
-static TypeInfo s390_virtio_scsi = {
+static const TypeInfo s390_virtio_scsi = {
     .name          = "virtio-scsi-s390",
     .parent        = TYPE_VIRTIO_S390_DEVICE,
     .instance_size = sizeof(VirtIOS390Device),
@@ -562,7 +562,7 @@ static void s390_virtio_bridge_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo s390_virtio_bridge_info = {
+static const TypeInfo s390_virtio_bridge_info = {
     .name          = "s390-virtio-bridge",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusDevice),

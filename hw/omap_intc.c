@@ -389,7 +389,7 @@ static void omap_intc_class_init(ObjectClass *klass, void *data)
     dc->props = omap_intc_properties;
 }
 
-static TypeInfo omap_intc_info = {
+static const TypeInfo omap_intc_info = {
     .name          = "omap-intc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap_intr_handler_s),
@@ -633,7 +633,7 @@ static void omap2_intc_class_init(ObjectClass *klass, void *data)
     dc->props = omap2_intc_properties;
 }
 
-static TypeInfo omap2_intc_info = {
+static const TypeInfo omap2_intc_info = {
     .name          = "omap2-intc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap_intr_handler_s),

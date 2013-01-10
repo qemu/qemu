@@ -434,7 +434,7 @@ static void stellaris_enet_class_init(ObjectClass *klass, void *data)
     dc->props = stellaris_enet_properties;
 }
 
-static TypeInfo stellaris_enet_info = {
+static const TypeInfo stellaris_enet_info = {
     .name          = "stellaris_enet",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_enet_state),

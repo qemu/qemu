@@ -474,7 +474,7 @@ static void cadence_ttc_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_cadence_ttc;
 }
 
-static TypeInfo cadence_ttc_info = {
+static const TypeInfo cadence_ttc_info = {
     .name  = "cadence_ttc",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(CadenceTTCState),

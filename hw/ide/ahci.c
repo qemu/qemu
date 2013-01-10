@@ -1247,7 +1247,7 @@ static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
     dc->reset = sysbus_ahci_reset;
 }
 
-static TypeInfo sysbus_ahci_info = {
+static const TypeInfo sysbus_ahci_info = {
     .name          = "sysbus-ahci",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysbusAHCIState),

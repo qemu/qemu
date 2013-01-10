@@ -221,21 +221,21 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     dc->props = multi_4x_serial_pci_properties;
 }
 
-static TypeInfo serial_pci_info = {
+static const TypeInfo serial_pci_info = {
     .name          = "pci-serial",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCISerialState),
     .class_init    = serial_pci_class_initfn,
 };
 
-static TypeInfo multi_2x_serial_pci_info = {
+static const TypeInfo multi_2x_serial_pci_info = {
     .name          = "pci-serial-2x",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIMultiSerialState),
     .class_init    = multi_2x_serial_pci_class_initfn,
 };
 
-static TypeInfo multi_4x_serial_pci_info = {
+static const TypeInfo multi_4x_serial_pci_info = {
     .name          = "pci-serial-4x",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIMultiSerialState),

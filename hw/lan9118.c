@@ -1368,7 +1368,7 @@ static void lan9118_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_lan9118;
 }
 
-static TypeInfo lan9118_info = {
+static const TypeInfo lan9118_info = {
     .name          = "lan9118",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(lan9118_state),

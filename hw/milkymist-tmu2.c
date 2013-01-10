@@ -475,7 +475,7 @@ static void milkymist_tmu2_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_milkymist_tmu2;
 }
 
-static TypeInfo milkymist_tmu2_info = {
+static const TypeInfo milkymist_tmu2_info = {
     .name          = "milkymist-tmu2",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistTMU2State),

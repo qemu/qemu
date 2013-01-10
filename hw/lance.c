@@ -155,7 +155,7 @@ static void lance_class_init(ObjectClass *klass, void *data)
     dc->props = lance_properties;
 }
 
-static TypeInfo lance_info = {
+static const TypeInfo lance_info = {
     .name          = "lance",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusPCNetState),

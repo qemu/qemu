@@ -499,7 +499,7 @@ static void scsi_generic_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_device;
 }
 
-static TypeInfo scsi_generic_info = {
+static const TypeInfo scsi_generic_info = {
     .name          = "scsi-generic",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDevice),

@@ -150,7 +150,7 @@ static void nvram_sysbus_class_init(ObjectClass *klass, void *data)
     dc->props = nvram_sysbus_properties;
 }
 
-static TypeInfo nvram_sysbus_info = {
+static const TypeInfo nvram_sysbus_info = {
     .name          = "ds1225y",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusNvRamState),

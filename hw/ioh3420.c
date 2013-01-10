@@ -226,7 +226,7 @@ static void ioh3420_class_init(ObjectClass *klass, void *data)
     dc->props = ioh3420_properties;
 }
 
-static TypeInfo ioh3420_info = {
+static const TypeInfo ioh3420_info = {
     .name          = "ioh3420",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIESlot),

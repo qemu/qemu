@@ -418,7 +418,7 @@ static void xgmac_enet_class_init(ObjectClass *klass, void *data)
     dc->props = xgmac_properties;
 }
 
-static TypeInfo xgmac_enet_info = {
+static const TypeInfo xgmac_enet_info = {
     .name          = "xgmac",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct XgmacState),

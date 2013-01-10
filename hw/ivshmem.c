@@ -807,7 +807,7 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     dc->props = ivshmem_properties;
 }
 
-static TypeInfo ivshmem_info = {
+static const TypeInfo ivshmem_info = {
     .name          = "ivshmem",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IVShmemState),

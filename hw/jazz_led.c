@@ -277,7 +277,7 @@ static void jazz_led_class_init(ObjectClass *klass, void *data)
     dc->reset = jazz_led_reset;
 }
 
-static TypeInfo jazz_led_info = {
+static const TypeInfo jazz_led_info = {
     .name          = "jazz-led",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LedState),

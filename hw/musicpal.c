@@ -428,7 +428,7 @@ static void mv88w8618_eth_class_init(ObjectClass *klass, void *data)
     dc->props = mv88w8618_eth_properties;
 }
 
-static TypeInfo mv88w8618_eth_info = {
+static const TypeInfo mv88w8618_eth_info = {
     .name          = "mv88w8618_eth",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_eth_state),
@@ -643,7 +643,7 @@ static void musicpal_lcd_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &musicpal_lcd_vmsd;
 }
 
-static TypeInfo musicpal_lcd_info = {
+static const TypeInfo musicpal_lcd_info = {
     .name          = "musicpal_lcd",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_lcd_state),
@@ -762,7 +762,7 @@ static void mv88w8618_pic_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &mv88w8618_pic_vmsd;
 }
 
-static TypeInfo mv88w8618_pic_info = {
+static const TypeInfo mv88w8618_pic_info = {
     .name          = "mv88w8618_pic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_pic_state),
@@ -939,7 +939,7 @@ static void mv88w8618_pit_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &mv88w8618_pit_vmsd;
 }
 
-static TypeInfo mv88w8618_pit_info = {
+static const TypeInfo mv88w8618_pit_info = {
     .name          = "mv88w8618_pit",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_pit_state),
@@ -1019,7 +1019,7 @@ static void mv88w8618_flashcfg_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &mv88w8618_flashcfg_vmsd;
 }
 
-static TypeInfo mv88w8618_flashcfg_info = {
+static const TypeInfo mv88w8618_flashcfg_info = {
     .name          = "mv88w8618_flashcfg",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_flashcfg_state),
@@ -1341,7 +1341,7 @@ static void musicpal_gpio_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &musicpal_gpio_vmsd;
 }
 
-static TypeInfo musicpal_gpio_info = {
+static const TypeInfo musicpal_gpio_info = {
     .name          = "musicpal_gpio",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_gpio_state),
@@ -1495,7 +1495,7 @@ static void musicpal_key_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &musicpal_key_vmsd;
 }
 
-static TypeInfo musicpal_key_info = {
+static const TypeInfo musicpal_key_info = {
     .name          = "musicpal_key",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_key_state),
@@ -1674,7 +1674,7 @@ static void mv88w8618_wlan_class_init(ObjectClass *klass, void *data)
     sdc->init = mv88w8618_wlan_init;
 }
 
-static TypeInfo mv88w8618_wlan_info = {
+static const TypeInfo mv88w8618_wlan_info = {
     .name          = "mv88w8618_wlan",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusDevice),

@@ -568,7 +568,7 @@ static void usb_hub_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_usb_hub;
 }
 
-static TypeInfo hub_info = {
+static const TypeInfo hub_info = {
     .name          = "usb-hub",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHubState),

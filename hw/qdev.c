@@ -732,7 +732,7 @@ Object *qdev_get_machine(void)
     return dev;
 }
 
-static TypeInfo device_type_info = {
+static const TypeInfo device_type_info = {
     .name = TYPE_DEVICE,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(DeviceState),

@@ -207,7 +207,7 @@ static void rng_egd_class_init(ObjectClass *klass, void *data)
     rbc->opened = rng_egd_opened;
 }
 
-static TypeInfo rng_egd_info = {
+static const TypeInfo rng_egd_info = {
     .name = TYPE_RNG_EGD,
     .parent = TYPE_RNG_BACKEND,
     .instance_size = sizeof(RngEgd),

@@ -346,7 +346,7 @@ static void exynos4210_gic_class_init(ObjectClass *klass, void *data)
     dc->props = exynos4210_gic_properties;
 }
 
-static TypeInfo exynos4210_gic_info = {
+static const TypeInfo exynos4210_gic_info = {
     .name          = "exynos4210.gic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210GicState),
@@ -447,7 +447,7 @@ static void exynos4210_irq_gate_class_init(ObjectClass *klass, void *data)
     dc->props = exynos4210_irq_gate_properties;
 }
 
-static TypeInfo exynos4210_irq_gate_info = {
+static const TypeInfo exynos4210_irq_gate_info = {
     .name          = "exynos4210.irq_gate",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210IRQGateState),

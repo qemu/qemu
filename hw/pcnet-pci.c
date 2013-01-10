@@ -361,7 +361,7 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
     dc->props = pcnet_properties;
 }
 
-static TypeInfo pcnet_info = {
+static const TypeInfo pcnet_info = {
     .name          = "pcnet",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIPCNetState),

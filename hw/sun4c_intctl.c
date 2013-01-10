@@ -193,7 +193,7 @@ static void sun4c_intctl_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_sun4c_intctl;
 }
 
-static TypeInfo sun4c_intctl_info = {
+static const TypeInfo sun4c_intctl_info = {
     .name          = "sun4c_intctl",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Sun4c_INTCTLState),

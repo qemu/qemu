@@ -288,7 +288,7 @@ static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
     dc->props = mv88w8618_audio_properties;
 }
 
-static TypeInfo mv88w8618_audio_info = {
+static const TypeInfo mv88w8618_audio_info = {
     .name          = "mv88w8618_audio",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_audio_state),

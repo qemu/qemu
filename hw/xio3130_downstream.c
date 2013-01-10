@@ -193,7 +193,7 @@ static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
     dc->props = xio3130_downstream_properties;
 }
 
-static TypeInfo xio3130_downstream_info = {
+static const TypeInfo xio3130_downstream_info = {
     .name          = "xio3130-downstream",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIESlot),

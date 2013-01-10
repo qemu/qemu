@@ -701,7 +701,7 @@ static void wm8750_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_wm8750;
 }
 
-static TypeInfo wm8750_info = {
+static const TypeInfo wm8750_info = {
     .name          = "wm8750",
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(WM8750State),

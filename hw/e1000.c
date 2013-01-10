@@ -1327,7 +1327,7 @@ static void e1000_class_init(ObjectClass *klass, void *data)
     dc->props = e1000_properties;
 }
 
-static TypeInfo e1000_info = {
+static const TypeInfo e1000_info = {
     .name          = "e1000",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(E1000State),

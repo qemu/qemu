@@ -3540,7 +3540,7 @@ static void rtl8139_class_init(ObjectClass *klass, void *data)
     dc->props = rtl8139_properties;
 }
 
-static TypeInfo rtl8139_info = {
+static const TypeInfo rtl8139_info = {
     .name          = "rtl8139",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(RTL8139State),

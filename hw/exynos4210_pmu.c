@@ -484,7 +484,7 @@ static void exynos4210_pmu_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &exynos4210_pmu_vmstate;
 }
 
-static TypeInfo exynos4210_pmu_info = {
+static const TypeInfo exynos4210_pmu_info = {
     .name          = "exynos4210.pmu",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PmuState),

@@ -316,7 +316,7 @@ static void milkymist_softusb_class_init(ObjectClass *klass, void *data)
     dc->props = milkymist_softusb_properties;
 }
 
-static TypeInfo milkymist_softusb_info = {
+static const TypeInfo milkymist_softusb_info = {
     .name          = "milkymist-softusb",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistSoftUsbState),

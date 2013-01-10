@@ -420,7 +420,7 @@ static void xen_platform_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_xen_platform;
 }
 
-static TypeInfo xen_platform_info = {
+static const TypeInfo xen_platform_info = {
     .name          = "xen-platform",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIXenPlatformState),

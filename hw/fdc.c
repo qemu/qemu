@@ -2210,7 +2210,7 @@ static void isabus_fdc_class_init1(ObjectClass *klass, void *data)
     dc->props = isa_fdc_properties;
 }
 
-static TypeInfo isa_fdc_info = {
+static const TypeInfo isa_fdc_info = {
     .name          = "isa-fdc",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(FDCtrlISABus),
@@ -2244,7 +2244,7 @@ static void sysbus_fdc_class_init(ObjectClass *klass, void *data)
     dc->props = sysbus_fdc_properties;
 }
 
-static TypeInfo sysbus_fdc_info = {
+static const TypeInfo sysbus_fdc_info = {
     .name          = "sysbus-fdc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FDCtrlSysBus),
@@ -2267,7 +2267,7 @@ static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
     dc->props = sun4m_fdc_properties;
 }
 
-static TypeInfo sun4m_fdc_info = {
+static const TypeInfo sun4m_fdc_info = {
     .name          = "SUNW,fdtwo",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FDCtrlSysBus),

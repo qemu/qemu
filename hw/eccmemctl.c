@@ -324,7 +324,7 @@ static void ecc_class_init(ObjectClass *klass, void *data)
     dc->props = ecc_properties;
 }
 
-static TypeInfo ecc_info = {
+static const TypeInfo ecc_info = {
     .name          = "eccmemctl",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ECCState),

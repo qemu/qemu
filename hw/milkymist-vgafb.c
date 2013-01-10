@@ -319,7 +319,7 @@ static void milkymist_vgafb_class_init(ObjectClass *klass, void *data)
     dc->props = milkymist_vgafb_properties;
 }
 
-static TypeInfo milkymist_vgafb_info = {
+static const TypeInfo milkymist_vgafb_info = {
     .name          = "milkymist-vgafb",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistVgafbState),

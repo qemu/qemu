@@ -323,7 +323,7 @@ static void milkymist_sysctl_class_init(ObjectClass *klass, void *data)
     dc->props = milkymist_sysctl_properties;
 }
 
-static TypeInfo milkymist_sysctl_info = {
+static const TypeInfo milkymist_sysctl_info = {
     .name          = "milkymist-sysctl",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistSysctlState),

@@ -420,7 +420,7 @@ static void slavio_timer_class_init(ObjectClass *klass, void *data)
     dc->props = slavio_timer_properties;
 }
 
-static TypeInfo slavio_timer_info = {
+static const TypeInfo slavio_timer_info = {
     .name          = "slavio_timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_TIMERState),

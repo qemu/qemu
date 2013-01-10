@@ -269,7 +269,7 @@ static void bitband_class_init(ObjectClass *klass, void *data)
     dc->props = bitband_properties;
 }
 
-static TypeInfo bitband_info = {
+static const TypeInfo bitband_info = {
     .name          = "ARM,bitband-memory",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BitBandState),

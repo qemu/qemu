@@ -407,7 +407,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     uc->handle_destroy = usb_host_handle_destroy;
 }
 
-static TypeInfo usb_host_dev_info = {
+static const TypeInfo usb_host_dev_info = {
     .name          = "usb-host",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHostDevice),

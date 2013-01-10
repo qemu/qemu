@@ -78,7 +78,7 @@ static void ssi_slave_class_init(ObjectClass *klass, void *data)
     }
 }
 
-static TypeInfo ssi_slave_info = {
+static const TypeInfo ssi_slave_info = {
     .name = TYPE_SSI_SLAVE,
     .parent = TYPE_DEVICE,
     .class_init = ssi_slave_class_init,

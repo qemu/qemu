@@ -1058,7 +1058,7 @@ static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
     k->props = virtser_props;
 }
 
-static TypeInfo virtio_serial_port_type_info = {
+static const TypeInfo virtio_serial_port_type_info = {
     .name = TYPE_VIRTIO_SERIAL_PORT,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(VirtIOSerialPort),

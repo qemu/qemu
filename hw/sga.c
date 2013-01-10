@@ -48,7 +48,7 @@ static void sga_class_initfn(ObjectClass *klass, void *data)
     dc->desc = "Serial Graphics Adapter";
 }
 
-static TypeInfo sga_info = {
+static const TypeInfo sga_info = {
     .name          = "sga",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISASGAState),

@@ -718,7 +718,7 @@ static void open_eth_class_init(ObjectClass *klass, void *data)
     dc->props = open_eth_properties;
 }
 
-static TypeInfo open_eth_info = {
+static const TypeInfo open_eth_info = {
     .name          = "open_eth",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OpenEthState),

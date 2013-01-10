@@ -256,7 +256,7 @@ static void pcsysfw_class_init (ObjectClass *klass, void *data)
     dc->props = pcsysfw_properties;
 }
 
-static TypeInfo pcsysfw_info = {
+static const TypeInfo pcsysfw_info = {
     .name          = "pc-sysfw",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof (PcSysFwDevice),

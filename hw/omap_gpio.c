@@ -747,7 +747,7 @@ static void omap_gpio_class_init(ObjectClass *klass, void *data)
     dc->props = omap_gpio_properties;
 }
 
-static TypeInfo omap_gpio_info = {
+static const TypeInfo omap_gpio_info = {
     .name          = "omap-gpio",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap_gpif_s),
@@ -776,7 +776,7 @@ static void omap2_gpio_class_init(ObjectClass *klass, void *data)
     dc->props = omap2_gpio_properties;
 }
 
-static TypeInfo omap2_gpio_info = {
+static const TypeInfo omap2_gpio_info = {
     .name          = "omap2-gpio",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap2_gpif_s),

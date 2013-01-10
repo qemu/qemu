@@ -215,7 +215,7 @@ static void isabus_bridge_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo isabus_bridge_info = {
+static const TypeInfo isabus_bridge_info = {
     .name          = "isabus-bridge",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusDevice),
@@ -229,7 +229,7 @@ static void isa_device_class_init(ObjectClass *klass, void *data)
     k->bus_type = TYPE_ISA_BUS;
 }
 
-static TypeInfo isa_device_type_info = {
+static const TypeInfo isa_device_type_info = {
     .name = TYPE_ISA_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ISADevice),

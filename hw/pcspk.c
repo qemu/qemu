@@ -187,7 +187,7 @@ static void pcspk_class_initfn(ObjectClass *klass, void *data)
     dc->props = pcspk_properties;
 }
 
-static TypeInfo pcspk_info = {
+static const TypeInfo pcspk_info = {
     .name           = "isa-pcspk",
     .parent         = TYPE_ISA_DEVICE,
     .instance_size  = sizeof(PCSpkState),

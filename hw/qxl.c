@@ -2310,7 +2310,7 @@ static void qxl_primary_class_init(ObjectClass *klass, void *data)
     dc->props = qxl_properties;
 }
 
-static TypeInfo qxl_primary_info = {
+static const TypeInfo qxl_primary_info = {
     .name          = "qxl-vga",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIQXLDevice),
@@ -2332,7 +2332,7 @@ static void qxl_secondary_class_init(ObjectClass *klass, void *data)
     dc->props = qxl_properties;
 }
 
-static TypeInfo qxl_secondary_info = {
+static const TypeInfo qxl_secondary_info = {
     .name          = "qxl",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIQXLDevice),

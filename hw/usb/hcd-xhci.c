@@ -3182,7 +3182,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     k->no_hotplug   = 1;
 }
 
-static TypeInfo xhci_info = {
+static const TypeInfo xhci_info = {
     .name          = "nec-usb-xhci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XHCIState),

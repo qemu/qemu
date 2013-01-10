@@ -226,7 +226,7 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo via_ide_info = {
+static const TypeInfo via_ide_info = {
     .name          = "via-ide",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIIDEState),

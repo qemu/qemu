@@ -967,7 +967,7 @@ static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
     k->rtce_window_size = 0x10000000;
 }
 
-static TypeInfo spapr_vscsi_info = {
+static const TypeInfo spapr_vscsi_info = {
     .name          = "spapr-vscsi",
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(VSCSIState),

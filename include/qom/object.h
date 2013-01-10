@@ -65,7 +65,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     int reg0, reg1, reg2;
  * } MyDevice;
  *
- * static TypeInfo my_device_info = {
+ * static const TypeInfo my_device_info = {
  *     .name = TYPE_MY_DEVICE,
  *     .parent = TYPE_DEVICE,
  *     .instance_size = sizeof(MyDevice),
@@ -138,7 +138,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     dc->reset = my_device_reset;
  * }
  *
- * static TypeInfo my_device_info = {
+ * static const TypeInfo my_device_info = {
  *     .name = TYPE_MY_DEVICE,
  *     .parent = TYPE_DEVICE,
  *     .instance_size = sizeof(MyDevice),
@@ -163,7 +163,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     void (*frobnicate) (MyDevice *obj);
  * } MyDeviceClass;
  *
- * static TypeInfo my_device_info = {
+ * static const TypeInfo my_device_info = {
  *     .name = TYPE_MY_DEVICE,
  *     .parent = TYPE_DEVICE,
  *     .instance_size = sizeof(MyDevice),

@@ -1270,7 +1270,7 @@ static void openpic_class_init(ObjectClass *klass, void *data)
     dc->reset = openpic_reset;
 }
 
-static TypeInfo openpic_info = {
+static const TypeInfo openpic_info = {
     .name          = "openpic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OpenPICState),
