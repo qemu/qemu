@@ -4267,44 +4267,44 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
  next_byte:
     b = cpu_ldub_code(env, s->pc);
     s->pc++;
-    /* check prefixes */
+    /* Collect prefixes.  */
+    switch (b) {
+    case 0xf3:
+        prefixes |= PREFIX_REPZ;
+        goto next_byte;
+    case 0xf2:
+        prefixes |= PREFIX_REPNZ;
+        goto next_byte;
+    case 0xf0:
+        prefixes |= PREFIX_LOCK;
+        goto next_byte;
+    case 0x2e:
+        s->override = R_CS;
+        goto next_byte;
+    case 0x36:
+        s->override = R_SS;
+        goto next_byte;
+    case 0x3e:
+        s->override = R_DS;
+        goto next_byte;
+    case 0x26:
+        s->override = R_ES;
+        goto next_byte;
+    case 0x64:
+        s->override = R_FS;
+        goto next_byte;
+    case 0x65:
+        s->override = R_GS;
+        goto next_byte;
+    case 0x66:
+        prefixes |= PREFIX_DATA;
+        goto next_byte;
+    case 0x67:
+        prefixes |= PREFIX_ADR;
+        goto next_byte;
 #ifdef TARGET_X86_64
-    if (CODE64(s)) {
-        switch (b) {
-        case 0xf3:
-            prefixes |= PREFIX_REPZ;
-            goto next_byte;
-        case 0xf2:
-            prefixes |= PREFIX_REPNZ;
-            goto next_byte;
-        case 0xf0:
-            prefixes |= PREFIX_LOCK;
-            goto next_byte;
-        case 0x2e:
-            s->override = R_CS;
-            goto next_byte;
-        case 0x36:
-            s->override = R_SS;
-            goto next_byte;
-        case 0x3e:
-            s->override = R_DS;
-            goto next_byte;
-        case 0x26:
-            s->override = R_ES;
-            goto next_byte;
-        case 0x64:
-            s->override = R_FS;
-            goto next_byte;
-        case 0x65:
-            s->override = R_GS;
-            goto next_byte;
-        case 0x66:
-            prefixes |= PREFIX_DATA;
-            goto next_byte;
-        case 0x67:
-            prefixes |= PREFIX_ADR;
-            goto next_byte;
-        case 0x40 ... 0x4f:
+    case 0x40 ... 0x4f:
+        if (CODE64(s)) {
             /* REX prefix */
             rex_w = (b >> 3) & 1;
             rex_r = (b & 0x4) << 1;
@@ -4313,58 +4313,28 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             x86_64_hregs = 1; /* select uniform byte register addressing */
             goto next_byte;
         }
+        break;
+#endif
+    }
+
+    /* Post-process prefixes.  */
+    if (prefixes & PREFIX_DATA) {
+        dflag ^= 1;
+    }
+    if (prefixes & PREFIX_ADR) {
+        aflag ^= 1;
+    }
+#ifdef TARGET_X86_64
+    if (CODE64(s)) {
         if (rex_w == 1) {
             /* 0x66 is ignored if rex.w is set */
             dflag = 2;
-        } else {
-            if (prefixes & PREFIX_DATA)
-                dflag ^= 1;
         }
-        if (!(prefixes & PREFIX_ADR))
+        if (!(prefixes & PREFIX_ADR)) {
             aflag = 2;
-    } else
-#endif
-    {
-        switch (b) {
-        case 0xf3:
-            prefixes |= PREFIX_REPZ;
-            goto next_byte;
-        case 0xf2:
-            prefixes |= PREFIX_REPNZ;
-            goto next_byte;
-        case 0xf0:
-            prefixes |= PREFIX_LOCK;
-            goto next_byte;
-        case 0x2e:
-            s->override = R_CS;
-            goto next_byte;
-        case 0x36:
-            s->override = R_SS;
-            goto next_byte;
-        case 0x3e:
-            s->override = R_DS;
-            goto next_byte;
-        case 0x26:
-            s->override = R_ES;
-            goto next_byte;
-        case 0x64:
-            s->override = R_FS;
-            goto next_byte;
-        case 0x65:
-            s->override = R_GS;
-            goto next_byte;
-        case 0x66:
-            prefixes |= PREFIX_DATA;
-            goto next_byte;
-        case 0x67:
-            prefixes |= PREFIX_ADR;
-            goto next_byte;
         }
-        if (prefixes & PREFIX_DATA)
-            dflag ^= 1;
-        if (prefixes & PREFIX_ADR)
-            aflag ^= 1;
     }
+#endif
 
     s->prefix = prefixes;
     s->aflag = aflag;
