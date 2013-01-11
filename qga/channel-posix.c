@@ -46,6 +46,7 @@ static gboolean ga_channel_listen_accept(GIOChannel *channel,
     ret = ga_channel_client_add(c, client_fd);
     if (ret) {
         g_warning("error setting up connection");
+        close(client_fd);
         goto out;
     }
     accepted = true;
