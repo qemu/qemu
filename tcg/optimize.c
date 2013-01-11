@@ -484,7 +484,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                                     TCGArg *args, TCGOpDef *tcg_op_defs)
 {
     int i, nb_ops, op_index, nb_temps, nb_globals, nb_call_args;
-    tcg_target_ulong mask;
+    tcg_target_ulong mask, affected;
     TCGOpcode op;
     const TCGOpDef *def;
     TCGArg *gen_args;
@@ -629,6 +629,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
 
         /* Simplify using known-zero bits */
         mask = -1;
+        affected = -1;
         switch (op) {
         CASE_OP_32_64(ext8s):
             if ((temps[args[1]].mask & 0x80) != 0) {
@@ -656,7 +657,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             mask = temps[args[2]].mask;
             if (temps[args[2]].state == TCG_TEMP_CONST) {
         and_const:
-                ;
+                affected = temps[args[1]].mask & ~mask;
             }
             mask = temps[args[1]].mask & mask;
             break;
@@ -706,6 +707,31 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
 
         default:
             break;
+        }
+
+        if (mask == 0) {
+            assert(def->nb_oargs == 1);
+            s->gen_opc_buf[op_index] = op_to_movi(op);
+            tcg_opt_gen_movi(gen_args, args[0], 0);
+            args += def->nb_oargs + def->nb_iargs + def->nb_cargs;
+            gen_args += 2;
+            continue;
+        }
+        if (affected == 0) {
+            assert(def->nb_oargs == 1);
+            if (temps_are_copies(args[0], args[1])) {
+                s->gen_opc_buf[op_index] = INDEX_op_nop;
+            } else if (temps[args[1]].state != TCG_TEMP_CONST) {
+                s->gen_opc_buf[op_index] = op_to_mov(op);
+                tcg_opt_gen_mov(s, gen_args, args[0], args[1]);
+                gen_args += 2;
+            } else {
+                s->gen_opc_buf[op_index] = op_to_movi(op);
+                tcg_opt_gen_movi(gen_args, args[0], temps[args[1]].val);
+                gen_args += 2;
+            }
+            args += def->nb_iargs + 1;
+            continue;
         }
 
         /* Simplify expression for "op r, a, 0 => movi r, 0" cases */
