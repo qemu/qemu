@@ -299,10 +299,12 @@ static bool ga_open_pidfile(const char *pidfile)
         goto fail;
     }
 
+    /* keep pidfile open & locked forever */
     return true;
 
 fail:
     unlink(pidfile);
+    close(pidfd);
     return false;
 }
 #else /* _WIN32 */
