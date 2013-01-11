@@ -65,6 +65,15 @@ static void reset_temp(TCGArg temp)
     temps[temp].state = TCG_TEMP_UNDEF;
 }
 
+/* Reset all temporaries, given that there are NB_TEMPS of them.  */
+static void reset_all_temps(int nb_temps)
+{
+    int i;
+    for (i = 0; i < nb_temps; i++) {
+        temps[i].state = TCG_TEMP_UNDEF;
+    }
+}
+
 static int op_bits(TCGOpcode op)
 {
     const TCGOpDef *def = &tcg_op_defs[op];
@@ -482,7 +491,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
 
     nb_temps = s->nb_temps;
     nb_globals = s->nb_globals;
-    memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
+    reset_all_temps(nb_temps);
 
     nb_ops = tcg_opc_ptr - s->gen_opc_buf;
     gen_args = args;
@@ -768,7 +777,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             tmp = do_constant_folding_cond(op, args[0], args[1], args[2]);
             if (tmp != 2) {
                 if (tmp) {
-                    memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
+                    reset_all_temps(nb_temps);
                     s->gen_opc_buf[op_index] = INDEX_op_br;
                     gen_args[0] = args[3];
                     gen_args += 1;
@@ -861,7 +870,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             tmp = do_constant_folding_cond2(&args[0], &args[2], args[4]);
             if (tmp != 2) {
                 if (tmp) {
-                    memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
+                    reset_all_temps(nb_temps);
                     s->gen_opc_buf[op_index] = INDEX_op_br;
                     gen_args[0] = args[5];
                     gen_args += 1;
@@ -875,7 +884,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                        && temps[args[3]].val == 0) {
                 /* Simplify LT/GE comparisons vs zero to a single compare
                    vs the high word of the input.  */
-                memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
+                reset_all_temps(nb_temps);
                 s->gen_opc_buf[op_index] = INDEX_op_brcond_i32;
                 gen_args[0] = args[1];
                 gen_args[1] = args[3];
@@ -940,7 +949,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                We trash everything if the operation is the end of a basic
                block, otherwise we only trash the output args.  */
             if (def->flags & TCG_OPF_BB_END) {
-                memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
+                reset_all_temps(nb_temps);
             } else {
                 for (i = 0; i < def->nb_oargs; i++) {
                     reset_temp(args[i]);
