@@ -105,7 +105,7 @@ static void ioport80_write(void *opaque, hwaddr addr, uint64_t data,
 
 static uint64_t ioport80_read(void *opaque, hwaddr addr, unsigned size)
 {
-    return 0xffffffffffffffff;
+    return 0xffffffffffffffffULL;
 }
 
 /* MSDOS compatibility mode FPU exception support */
@@ -130,7 +130,7 @@ static void ioportF0_write(void *opaque, hwaddr addr, uint64_t data,
 
 static uint64_t ioportF0_read(void *opaque, hwaddr addr, unsigned size)
 {
-    return 0xffffffffffffffff;
+    return 0xffffffffffffffffULL;
 }
 
 /* TSC handling */
