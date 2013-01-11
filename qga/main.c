@@ -618,6 +618,7 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
         if (!s->virtio) {
             return false;
         }
+        /* fall through */
     case G_IO_STATUS_AGAIN:
         /* virtio causes us to spin here when no process is attached to
          * host-side chardev. sleep a bit to mitigate this
