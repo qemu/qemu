@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <string.h>
 #include "qemu/osdep.h"
 #include "qemu/sockets.h"
 #include "qga/channel.h"

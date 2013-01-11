@@ -448,21 +448,18 @@ StatusInfo *qmp_query_status(Error **errp)
 void qemu_get_timedate(struct tm *tm, int offset)
 {
     time_t ti;
-    struct tm *ret;
 
     time(&ti);
     ti += offset;
     if (rtc_date_offset == -1) {
         if (rtc_utc)
-            ret = gmtime(&ti);
+            gmtime_r(&ti, tm);
         else
-            ret = localtime(&ti);
+            localtime_r(&ti, tm);
     } else {
         ti -= rtc_date_offset;
-        ret = gmtime(&ti);
+        gmtime_r(&ti, tm);
     }
-
-    memcpy(tm, ret, sizeof(struct tm));
 }
 
 int qemu_timedate_diff(struct tm *tm)

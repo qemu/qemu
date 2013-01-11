@@ -23,15 +23,6 @@
  */
 
 #include "config-host.h"
-
-#ifndef _WIN32
-#include <arpa/inet.h>
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include "qemu-common.h"
 #include "hw/hw.h"
 #include "hw/qdev.h"
@@ -2093,13 +2084,8 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     QEMUFile *f;
     int saved_vm_running;
     uint64_t vm_state_size;
-#ifdef _WIN32
-    struct _timeb tb;
-    struct tm *ptm;
-#else
-    struct timeval tv;
+    qemu_timeval tv;
     struct tm tm;
-#endif
     const char *name = qdict_get_try_str(qdict, "name");
 
     /* Verify if there is a device that doesn't support snapshots and is writable */
@@ -2129,15 +2115,9 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     memset(sn, 0, sizeof(*sn));
 
     /* fill auxiliary fields */
-#ifdef _WIN32
-    _ftime(&tb);
-    sn->date_sec = tb.time;
-    sn->date_nsec = tb.millitm * 1000000;
-#else
-    gettimeofday(&tv, NULL);
+    qemu_gettimeofday(&tv);
     sn->date_sec = tv.tv_sec;
     sn->date_nsec = tv.tv_usec * 1000;
-#endif
     sn->vm_clock_nsec = qemu_get_clock_ns(vm_clock);
 
     if (name) {
@@ -2149,15 +2129,9 @@ void do_savevm(Monitor *mon, const QDict *qdict)
             pstrcpy(sn->name, sizeof(sn->name), name);
         }
     } else {
-#ifdef _WIN32
-        time_t t = tb.time;
-        ptm = localtime(&t);
-        strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", ptm);
-#else
         /* cast below needed for OpenBSD where tv_sec is still 'long' */
         localtime_r((const time_t *)&tv.tv_sec, &tm);
         strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", &tm);
-#endif
     }
 
     /* Delete old snapshots of the same name */
