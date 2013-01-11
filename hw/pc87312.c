@@ -194,7 +194,8 @@ static void pc87312_hard_reset(PC87312State *s)
     pc87312_soft_reset(s);
 }
 
-static void pc87312_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void pc87312_io_write(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned int size)
 {
     PC87312State *s = opaque;
 
@@ -213,7 +214,7 @@ static void pc87312_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t pc87312_ioport_read(void *opaque, uint32_t addr)
+static uint64_t pc87312_io_read(void *opaque, hwaddr addr, unsigned int size)
 {
     PC87312State *s = opaque;
     uint32_t val;
@@ -240,6 +241,16 @@ static uint32_t pc87312_ioport_read(void *opaque, uint32_t addr)
     trace_pc87312_io_read(addr, val);
     return val;
 }
+
+static const MemoryRegionOps pc87312_io_ops = {
+    .read  = pc87312_io_read,
+    .write = pc87312_io_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
 
 static int pc87312_post_load(void *opaque, int version_id)
 {
@@ -270,6 +281,7 @@ static int pc87312_init(ISADevice *dev)
     s = PC87312(dev);
     bus = isa_bus_from_device(dev);
     pc87312_hard_reset(s);
+    isa_register_ioport(dev, &s->io, s->iobase);
 
     if (is_parallel_enabled(s)) {
         chr = parallel_hds[0];
@@ -337,9 +349,14 @@ static int pc87312_init(ISADevice *dev)
         trace_pc87312_info_ide(get_ide_iobase(s));
     }
 
-    register_ioport_write(s->iobase, 2, 1, pc87312_ioport_write, s);
-    register_ioport_read(s->iobase, 2, 1, pc87312_ioport_read, s);
     return 0;
+}
+
+static void pc87312_initfn(Object *obj)
+{
+    PC87312State *s = PC87312(obj);
+
+    memory_region_init_io(&s->io, &pc87312_io_ops, s, "pc87312", 2);
 }
 
 static const VMStateDescription vmstate_pc87312 = {
@@ -376,6 +393,7 @@ static const TypeInfo pc87312_type_info = {
     .name          = TYPE_PC87312,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PC87312State),
+    .instance_init = pc87312_initfn,
     .class_init    = pc87312_class_init,
 };
 
