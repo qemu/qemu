@@ -289,7 +289,7 @@ static bool ga_open_pidfile(const char *pidfile)
         return false;
     }
 
-    if (ftruncate(pidfd, 0) || lseek(pidfd, 0, SEEK_SET)) {
+    if (ftruncate(pidfd, 0)) {
         g_critical("Failed to truncate pid file");
         goto fail;
     }
