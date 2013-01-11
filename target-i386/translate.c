@@ -37,6 +37,7 @@
 #define PREFIX_LOCK   0x04
 #define PREFIX_DATA   0x08
 #define PREFIX_ADR    0x10
+#define PREFIX_VEX    0x20
 
 #ifdef TARGET_X86_64
 #define CODE64(s) ((s)->code64)
@@ -98,6 +99,8 @@ typedef struct DisasContext {
     int code64; /* 64 bit code segment */
     int rex_x, rex_b;
 #endif
+    int vex_l;  /* vex vector length */
+    int vex_v;  /* vex vvvv register, without 1's compliment.  */
     int ss32;   /* 32 bit stack segment */
     CCOp cc_op;  /* current CC operation */
     bool cc_op_dirty;
@@ -4264,6 +4267,8 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     x86_64_hregs = 0;
 #endif
     s->rip_offset = 0; /* for relative ip address */
+    s->vex_l = 0;
+    s->vex_v = 0;
  next_byte:
     b = cpu_ldub_code(env, s->pc);
     s->pc++;
@@ -4315,6 +4320,63 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         }
         break;
 #endif
+    case 0xc5: /* 2-byte VEX */
+    case 0xc4: /* 3-byte VEX */
+        /* VEX prefixes cannot be used except in 32-bit mode.
+           Otherwise the instruction is LES or LDS.  */
+        if (s->code32 && !s->vm86) {
+            static const int pp_prefix[4] = {
+                0, PREFIX_DATA, PREFIX_REPZ, PREFIX_REPNZ
+            };
+            int vex3, vex2 = cpu_ldub_code(env, s->pc);
+
+            if (!CODE64(s) && (vex2 & 0xc0) != 0xc0) {
+                /* 4.1.4.6: In 32-bit mode, bits [7:6] must be 11b,
+                   otherwise the instruction is LES or LDS.  */
+                break;
+            }
+            s->pc++;
+
+            /* 4.1.1-4.1.3: No preceeding lock, 66, f2, f3, or rex prefixes. */
+            if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ
+                            | PREFIX_LOCK | PREFIX_DATA)) {
+                goto illegal_op;
+            }
+#ifdef TARGET_X86_64
+            if (x86_64_hregs) {
+                goto illegal_op;
+            }
+#endif
+            rex_r = (~vex2 >> 4) & 8;
+            if (b == 0xc5) {
+                vex3 = vex2;
+                b = cpu_ldub_code(env, s->pc++);
+            } else {
+#ifdef TARGET_X86_64
+                s->rex_x = (~vex2 >> 3) & 8;
+                s->rex_b = (~vex2 >> 2) & 8;
+#endif
+                vex3 = cpu_ldub_code(env, s->pc++);
+                rex_w = (vex3 >> 7) & 1;
+                switch (vex2 & 0x1f) {
+                case 0x01: /* Implied 0f leading opcode bytes.  */
+                    b = cpu_ldub_code(env, s->pc++) | 0x100;
+                    break;
+                case 0x02: /* Implied 0f 38 leading opcode bytes.  */
+                    b = 0x138;
+                    break;
+                case 0x03: /* Implied 0f 3a leading opcode bytes.  */
+                    b = 0x13a;
+                    break;
+                default:   /* Reserved for future use.  */
+                    goto illegal_op;
+                }
+            }
+            s->vex_v = (~vex3 >> 3) & 0xf;
+            s->vex_l = (vex3 >> 2) & 1;
+            prefixes |= pp_prefix[vex3 & 3] | PREFIX_VEX;
+        }
+        break;
     }
 
     /* Post-process prefixes.  */
@@ -5461,13 +5523,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         }
         break;
     case 0xc4: /* les Gv */
-        if (CODE64(s))
-            goto illegal_op;
+        /* In CODE64 this is VEX3; see above.  */
         op = R_ES;
         goto do_lxx;
     case 0xc5: /* lds Gv */
-        if (CODE64(s))
-            goto illegal_op;
+        /* In CODE64 this is VEX2; see above.  */
         op = R_DS;
         goto do_lxx;
     case 0x1b2: /* lss Gv */
