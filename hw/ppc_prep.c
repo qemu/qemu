@@ -37,6 +37,7 @@
 #include "ide.h"
 #include "loader.h"
 #include "mc146818rtc.h"
+#include "pc87312.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/arch_init.h"
 #include "exec/address-spaces.h"
@@ -181,7 +182,6 @@ typedef struct sysctrl_t {
     M48t59State *nvram;
     uint8_t state;
     uint8_t syscontrol;
-    uint8_t fake_io[2];
     int contiguous_map;
     int endian;
 } sysctrl_t;
@@ -191,24 +191,6 @@ enum {
 };
 
 static sysctrl_t *sysctrl;
-
-static void PREP_io_write (void *opaque, uint32_t addr, uint32_t val)
-{
-    sysctrl_t *sysctrl = opaque;
-
-    PPC_IO_DPRINTF("0x%08" PRIx32 " => 0x%02" PRIx32 "\n", addr - PPC_IO_BASE,
-                   val);
-    sysctrl->fake_io[addr - 0x0398] = val;
-}
-
-static uint32_t PREP_io_read (void *opaque, uint32_t addr)
-{
-    sysctrl_t *sysctrl = opaque;
-
-    PPC_IO_DPRINTF("0x%08" PRIx32 " <= 0x%02" PRIx32 "\n", addr - PPC_IO_BASE,
-                   sysctrl->fake_io[addr - 0x0398]);
-    return sysctrl->fake_io[addr - 0x0398];
-}
 
 static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
 {
@@ -476,10 +458,10 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     PCIBus *pci_bus;
     PCIDevice *pci;
     ISABus *isa_bus;
+    ISADevice *isa;
     qemu_irq *cpu_exit_irq;
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DriveInfo *fd[MAX_FD];
 
     sysctrl = g_malloc0(sizeof(sysctrl_t));
 
@@ -606,6 +588,11 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     sysbus_connect_irq(&pcihost->busdev, 3, qdev_get_gpio_in(&pci->qdev, 11));
     isa_bus = DO_UPCAST(ISABus, qbus, qdev_get_child_bus(&pci->qdev, "isa.0"));
 
+    /* Super I/O (parallel + serial ports) */
+    isa = isa_create(isa_bus, TYPE_PC87312);
+    qdev_prop_set_uint8(&isa->qdev, "config", 13); /* fdc, ser0, ser1, par0 */
+    qdev_init_nofail(&isa->qdev);
+
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
     memory_region_init_io(PPC_io_memory, &PPC_prep_io_ops, sysctrl,
                           "ppc-io", 0x00800000);
@@ -614,8 +601,6 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     /* init basic PC hardware */
     pci_vga_init(pci_bus);
 
-    if (serial_hds[0])
-        serial_isa_init(isa_bus, 0, serial_hds[0]);
     nb_nics1 = nb_nics;
     if (nb_nics1 > NE2000_NB_MAX)
         nb_nics1 = NE2000_NB_MAX;
@@ -639,17 +624,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     }
     isa_create_simple(isa_bus, "i8042");
 
-    //    SB16_init();
-
-    for(i = 0; i < MAX_FD; i++) {
-        fd[i] = drive_get(IF_FLOPPY, 0, i);
-    }
-    fdctrl_init_isa(isa_bus, fd);
-
-    /* Register fake IO ports for PREP */
     sysctrl->reset_irq = first_cpu->irq_inputs[PPC6xx_INPUT_HRESET];
-    register_ioport_read(0x398, 2, 1, &PREP_io_read, sysctrl);
-    register_ioport_write(0x398, 2, 1, &PREP_io_write, sysctrl);
     /* System control ports */
     register_ioport_read(0x0092, 0x01, 1, &PREP_io_800_readb, sysctrl);
     register_ioport_write(0x0092, 0x01, 1, &PREP_io_800_writeb, sysctrl);

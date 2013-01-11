@@ -48,6 +48,7 @@ extra-obj-y += pci/
 # PPC devices
 common-obj-$(CONFIG_PREP_PCI) += prep_pci.o
 common-obj-$(CONFIG_I82378) += i82378.o
+common-obj-$(CONFIG_PC87312) += pc87312.o
 # Mac shared devices
 common-obj-$(CONFIG_MACIO) += macio.o
 common-obj-$(CONFIG_CUDA) += cuda.o

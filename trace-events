@@ -733,6 +733,14 @@ mipsnet_read(uint64_t addr, uint32_t val) "read addr=0x%" PRIx64 " val=0x%x"
 mipsnet_write(uint64_t addr, uint64_t val) "write addr=0x%" PRIx64 " val=0x%" PRIx64 ""
 mipsnet_irq(uint32_t isr, uint32_t intctl) "set irq to %d (%02x)"
 
+# hw/pc87312.c
+pc87312_io_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+pc87312_io_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
+pc87312_info_floppy(uint32_t base) "base 0x%x"
+pc87312_info_ide(uint32_t base) "base 0x%x"
+pc87312_info_parallel(uint32_t base, uint32_t irq) "base 0x%x, irq %u"
+pc87312_info_serial(int n, uint32_t base, uint32_t irq) "id=%d, base 0x%x, irq %u"
+
 # xen-all.c
 xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#lx, size %#lx"
 xen_client_set_memory(uint64_t start_addr, unsigned long size, bool log_dirty) "%#"PRIx64" size %#lx, log_dirty %i"
