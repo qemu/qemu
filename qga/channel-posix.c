@@ -154,6 +154,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path, GAChannelMethod
         ret = ga_channel_client_add(c, fd);
         if (ret) {
             g_critical("error adding channel to main loop");
+            close(fd);
             return false;
         }
         break;
