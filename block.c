@@ -4313,6 +4313,22 @@ void *qemu_blockalign(BlockDriverState *bs, size_t size)
     return qemu_memalign((bs && bs->buffer_alignment) ? bs->buffer_alignment : 512, size);
 }
 
+/*
+ * Check if all memory in this vector is sector aligned.
+ */
+bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
+{
+    int i;
+
+    for (i = 0; i < qiov->niov; i++) {
+        if ((uintptr_t) qiov->iov[i].iov_base % bs->buffer_alignment) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable)
 {
     int64_t bitmap_size;
