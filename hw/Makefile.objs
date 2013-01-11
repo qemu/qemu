@@ -107,7 +107,7 @@ common-obj-$(CONFIG_XGMAC) += xgmac.o
 common-obj-$(CONFIG_PCI) += wdt_i6300esb.o
 
 # IndustryPack
-common-obj-$(CONFIG_IPACK) += tpci200.o ipack.o
+common-obj-$(CONFIG_IPACK) += tpci200.o ipoctal232.o ipack.o
 
 # PCI network cards
 common-obj-$(CONFIG_NE2000_PCI) += ne2000.o
