@@ -778,7 +778,7 @@ static void cpu_register(const ARMCPUInfo *info)
         .class_size = sizeof(ARMCPUClass),
     };
 
-    type_register_static(&type_info);
+    type_register(&type_info);
 }
 
 static const TypeInfo arm_cpu_type_info = {
