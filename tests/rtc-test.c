@@ -299,6 +299,197 @@ static void alarm_time(void)
     g_assert(cmos_read(RTC_REG_C) == 0);
 }
 
+static void set_time(int mode, int h, int m, int s)
+{
+    /* set BCD 12 hour mode */
+    cmos_write(RTC_REG_B, mode);
+
+    cmos_write(RTC_REG_A, 0x76);
+    cmos_write(RTC_HOURS, h);
+    cmos_write(RTC_MINUTES, m);
+    cmos_write(RTC_SECONDS, s);
+    cmos_write(RTC_REG_A, 0x26);
+}
+
+#define assert_time(h, m, s) \
+    do { \
+        g_assert_cmpint(cmos_read(RTC_HOURS), ==, h); \
+        g_assert_cmpint(cmos_read(RTC_MINUTES), ==, m); \
+        g_assert_cmpint(cmos_read(RTC_SECONDS), ==, s); \
+    } while(0)
+
+static void basic_12h_bcd(void)
+{
+    /* set BCD 12 hour mode */
+    set_time(0, 0x81, 0x59, 0x00);
+    clock_step(1000000000LL);
+    assert_time(0x81, 0x59, 0x01);
+    clock_step(59000000000LL);
+    assert_time(0x82, 0x00, 0x00);
+
+    /* test BCD wraparound */
+    set_time(0, 0x09, 0x59, 0x59);
+    clock_step(60000000000LL);
+    assert_time(0x10, 0x00, 0x59);
+
+    /* 12 AM -> 1 AM */
+    set_time(0, 0x12, 0x59, 0x59);
+    clock_step(1000000000LL);
+    assert_time(0x01, 0x00, 0x00);
+
+    /* 12 PM -> 1 PM */
+    set_time(0, 0x92, 0x59, 0x59);
+    clock_step(1000000000LL);
+    assert_time(0x81, 0x00, 0x00);
+
+    /* 11 AM -> 12 PM */
+    set_time(0, 0x11, 0x59, 0x59);
+    clock_step(1000000000LL);
+    assert_time(0x92, 0x00, 0x00);
+    /* TODO: test day wraparound */
+
+    /* 11 PM -> 12 AM */
+    set_time(0, 0x91, 0x59, 0x59);
+    clock_step(1000000000LL);
+    assert_time(0x12, 0x00, 0x00);
+    /* TODO: test day wraparound */
+}
+
+static void basic_12h_dec(void)
+{
+    /* set decimal 12 hour mode */
+    set_time(REG_B_DM, 0x81, 59, 0);
+    clock_step(1000000000LL);
+    assert_time(0x81, 59, 1);
+    clock_step(59000000000LL);
+    assert_time(0x82, 0, 0);
+
+    /* 12 PM -> 1 PM */
+    set_time(REG_B_DM, 0x8c, 59, 59);
+    clock_step(1000000000LL);
+    assert_time(0x81, 0, 0);
+
+    /* 12 AM -> 1 AM */
+    set_time(REG_B_DM, 0x0c, 59, 59);
+    clock_step(1000000000LL);
+    assert_time(0x01, 0, 0);
+
+    /* 11 AM -> 12 PM */
+    set_time(REG_B_DM, 0x0b, 59, 59);
+    clock_step(1000000000LL);
+    assert_time(0x8c, 0, 0);
+
+    /* 11 PM -> 12 AM */
+    set_time(REG_B_DM, 0x8b, 59, 59);
+    clock_step(1000000000LL);
+    assert_time(0x0c, 0, 0);
+    /* TODO: test day wraparound */
+}
+
+static void basic_24h_bcd(void)
+{
+    /* set BCD 24 hour mode */
+    set_time(REG_B_24H, 0x09, 0x59, 0x00);
+    clock_step(1000000000LL);
+    assert_time(0x09, 0x59, 0x01);
+    clock_step(59000000000LL);
+    assert_time(0x10, 0x00, 0x00);
+
+    /* test BCD wraparound */
+    set_time(REG_B_24H, 0x09, 0x59, 0x00);
+    clock_step(60000000000LL);
+    assert_time(0x10, 0x00, 0x00);
+
+    /* TODO: test day wraparound */
+    set_time(REG_B_24H, 0x23, 0x59, 0x00);
+    clock_step(60000000000LL);
+    assert_time(0x00, 0x00, 0x00);
+}
+
+static void basic_24h_dec(void)
+{
+    /* set decimal 24 hour mode */
+    set_time(REG_B_24H | REG_B_DM, 9, 59, 0);
+    clock_step(1000000000LL);
+    assert_time(9, 59, 1);
+    clock_step(59000000000LL);
+    assert_time(10, 0, 0);
+
+    /* test BCD wraparound */
+    set_time(REG_B_24H | REG_B_DM, 9, 59, 0);
+    clock_step(60000000000LL);
+    assert_time(10, 0, 0);
+
+    /* TODO: test day wraparound */
+    set_time(REG_B_24H | REG_B_DM, 23, 59, 0);
+    clock_step(60000000000LL);
+    assert_time(0, 0, 0);
+}
+
+static void am_pm_alarm(void)
+{
+    cmos_write(RTC_MINUTES_ALARM, 0xC0);
+    cmos_write(RTC_SECONDS_ALARM, 0xC0);
+
+    /* set BCD 12 hour mode */
+    cmos_write(RTC_REG_B, 0);
+
+    /* Set time and alarm hour.  */
+    cmos_write(RTC_REG_A, 0x76);
+    cmos_write(RTC_HOURS_ALARM, 0x82);
+    cmos_write(RTC_HOURS, 0x81);
+    cmos_write(RTC_MINUTES, 0x59);
+    cmos_write(RTC_SECONDS, 0x00);
+    cmos_read(RTC_REG_C);
+    cmos_write(RTC_REG_A, 0x26);
+
+    /* Check that alarm triggers when AM/PM is set.  */
+    clock_step(60000000000LL);
+    g_assert(cmos_read(RTC_HOURS) == 0x82);
+    g_assert((cmos_read(RTC_REG_C) & REG_C_AF) != 0);
+
+    /*
+     * Each of the following two tests takes over 60 seconds due to the time
+     * needed to report the PIT interrupts.  Unfortunately, our PIT device
+     * model keeps counting even when GATE=0, so we cannot simply disable
+     * it in main().
+     */
+    if (g_test_quick()) {
+        return;
+    }
+
+    /* set DEC 12 hour mode */
+    cmos_write(RTC_REG_B, REG_B_DM);
+
+    /* Set time and alarm hour.  */
+    cmos_write(RTC_REG_A, 0x76);
+    cmos_write(RTC_HOURS_ALARM, 0x82);
+    cmos_write(RTC_HOURS, 3);
+    cmos_write(RTC_MINUTES, 0);
+    cmos_write(RTC_SECONDS, 0);
+    cmos_read(RTC_REG_C);
+    cmos_write(RTC_REG_A, 0x26);
+
+    /* Check that alarm triggers.  */
+    clock_step(3600 * 11 * 1000000000LL);
+    g_assert(cmos_read(RTC_HOURS) == 0x82);
+    g_assert((cmos_read(RTC_REG_C) & REG_C_AF) != 0);
+
+    /* Same as above, with inverted HOURS and HOURS_ALARM.  */
+    cmos_write(RTC_REG_A, 0x76);
+    cmos_write(RTC_HOURS_ALARM, 2);
+    cmos_write(RTC_HOURS, 3);
+    cmos_write(RTC_MINUTES, 0);
+    cmos_write(RTC_SECONDS, 0);
+    cmos_read(RTC_REG_C);
+    cmos_write(RTC_REG_A, 0x26);
+
+    /* Check that alarm does not trigger if hours differ only by AM/PM.  */
+    clock_step(3600 * 11 * 1000000000LL);
+    g_assert(cmos_read(RTC_HOURS) == 0x82);
+    g_assert((cmos_read(RTC_REG_C) & REG_C_AF) == 0);
+}
+
 /* success if no crash or abort */
 static void fuzz_registers(void)
 {
@@ -364,9 +555,14 @@ int main(int argc, char **argv)
     s = qtest_start("-display none -rtc clock=vm");
     qtest_irq_intercept_in(s, "ioapic");
 
-    qtest_add_func("/rtc/bcd/check-time", bcd_check_time);
-    qtest_add_func("/rtc/dec/check-time", dec_check_time);
-    qtest_add_func("/rtc/alarm-time", alarm_time);
+    qtest_add_func("/rtc/check-time/bcd", bcd_check_time);
+    qtest_add_func("/rtc/check-time/dec", dec_check_time);
+    qtest_add_func("/rtc/alarm/interrupt", alarm_time);
+    qtest_add_func("/rtc/alarm/am-pm", am_pm_alarm);
+    qtest_add_func("/rtc/basic/dec-24h", basic_24h_dec);
+    qtest_add_func("/rtc/basic/bcd-24h", basic_24h_bcd);
+    qtest_add_func("/rtc/basic/dec-12h", basic_12h_dec);
+    qtest_add_func("/rtc/basic/bcd-12h", basic_12h_bcd);
     qtest_add_func("/rtc/set-year/20xx", set_year_20xx);
     qtest_add_func("/rtc/set-year/1980", set_year_1980);
     qtest_add_func("/rtc/register_b_set_flag", register_b_set_flag);
