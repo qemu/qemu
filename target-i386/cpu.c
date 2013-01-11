@@ -1022,27 +1022,28 @@ static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
  *
  * This function may be called only if KVM is enabled.
  */
-static int kvm_check_features_against_host(x86_def_t *guest_def)
+static int kvm_check_features_against_host(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
     x86_def_t host_def;
     uint32_t mask;
     int rv, i;
     struct model_features_t ft[] = {
-        {&guest_def->features, &host_def.features,
+        {&env->cpuid_features, &host_def.features,
             FEAT_1_EDX },
-        {&guest_def->ext_features, &host_def.ext_features,
+        {&env->cpuid_ext_features, &host_def.ext_features,
             FEAT_1_ECX },
-        {&guest_def->ext2_features, &host_def.ext2_features,
+        {&env->cpuid_ext2_features, &host_def.ext2_features,
             FEAT_8000_0001_EDX },
-        {&guest_def->ext3_features, &host_def.ext3_features,
+        {&env->cpuid_ext3_features, &host_def.ext3_features,
             FEAT_8000_0001_ECX },
-        {&guest_def->ext4_features, &host_def.ext4_features,
+        {&env->cpuid_ext4_features, &host_def.ext4_features,
             FEAT_C000_0001_EDX },
-        {&guest_def->cpuid_7_0_ebx_features, &host_def.cpuid_7_0_ebx_features,
+        {&env->cpuid_7_0_ebx_features, &host_def.cpuid_7_0_ebx_features,
             FEAT_7_0_EBX },
-        {&guest_def->svm_features, &host_def.svm_features,
+        {&env->cpuid_svm_features, &host_def.svm_features,
             FEAT_SVM },
-        {&guest_def->kvm_features, &host_def.kvm_features,
+        {&env->cpuid_kvm_features, &host_def.kvm_features,
             FEAT_KVM },
     };
 
@@ -1471,10 +1472,6 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
     x86_cpu_def->kvm_features &= ~minus_features[FEAT_KVM];
     x86_cpu_def->svm_features &= ~minus_features[FEAT_SVM];
     x86_cpu_def->cpuid_7_0_ebx_features &= ~minus_features[FEAT_7_0_EBX];
-    if (check_cpuid && kvm_enabled()) {
-        if (kvm_check_features_against_host(x86_cpu_def) && enforce_cpuid)
-            goto error;
-    }
     return 0;
 
 error:
@@ -2177,6 +2174,11 @@ void x86_cpu_realize(Object *obj, Error **errp)
 #ifdef CONFIG_KVM
         filter_features_for_kvm(cpu);
 #endif
+        if (check_cpuid && kvm_check_features_against_host(cpu)
+            && enforce_cpuid) {
+            error_setg(errp, "Host's CPU doesn't support requested features");
+            return;
+        }
     }
 
 #ifndef CONFIG_USER_ONLY
