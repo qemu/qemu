@@ -2341,7 +2341,7 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     dc->props          = usbredir_properties;
 }
 
-static TypeInfo usbredir_dev_info = {
+static const TypeInfo usbredir_dev_info = {
     .name          = "usb-redir",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBRedirDevice),

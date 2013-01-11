@@ -212,7 +212,7 @@ static void strongarm_pic_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_strongarm_pic_regs;
 }
 
-static TypeInfo strongarm_pic_info = {
+static const TypeInfo strongarm_pic_info = {
     .name          = "strongarm_pic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPICState),
@@ -433,7 +433,7 @@ static void strongarm_rtc_sysbus_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_strongarm_rtc_regs;
 }
 
-static TypeInfo strongarm_rtc_sysbus_info = {
+static const TypeInfo strongarm_rtc_sysbus_info = {
     .name          = "strongarm-rtc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMRTCState),
@@ -674,7 +674,7 @@ static void strongarm_gpio_class_init(ObjectClass *klass, void *data)
     dc->desc = "StrongARM GPIO controller";
 }
 
-static TypeInfo strongarm_gpio_info = {
+static const TypeInfo strongarm_gpio_info = {
     .name          = "strongarm-gpio",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMGPIOInfo),
@@ -840,7 +840,7 @@ static void strongarm_ppc_class_init(ObjectClass *klass, void *data)
     dc->desc = "StrongARM PPC controller";
 }
 
-static TypeInfo strongarm_ppc_info = {
+static const TypeInfo strongarm_ppc_info = {
     .name          = "strongarm-ppc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPPCInfo),
@@ -1299,7 +1299,7 @@ static void strongarm_uart_class_init(ObjectClass *klass, void *data)
     dc->props = strongarm_uart_properties;
 }
 
-static TypeInfo strongarm_uart_info = {
+static const TypeInfo strongarm_uart_info = {
     .name          = "strongarm-uart",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMUARTState),
@@ -1538,7 +1538,7 @@ static void strongarm_ssp_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_strongarm_ssp_regs;
 }
 
-static TypeInfo strongarm_ssp_info = {
+static const TypeInfo strongarm_ssp_info = {
     .name          = "strongarm-ssp",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMSSPState),

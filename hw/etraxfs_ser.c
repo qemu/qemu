@@ -233,7 +233,7 @@ static void etraxfs_ser_class_init(ObjectClass *klass, void *data)
     dc->reset = etraxfs_ser_reset;
 }
 
-static TypeInfo etraxfs_ser_info = {
+static const TypeInfo etraxfs_ser_info = {
     .name          = "etraxfs,serial",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct etrax_serial),

@@ -895,7 +895,7 @@ static void apic_class_init(ObjectClass *klass, void *data)
     k->post_load = apic_post_load;
 }
 
-static TypeInfo apic_info = {
+static const TypeInfo apic_info = {
     .name          = "apic",
     .instance_size = sizeof(APICCommonState),
     .parent        = TYPE_APIC_COMMON,

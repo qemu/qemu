@@ -288,7 +288,7 @@ static void milkymist_memcard_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_milkymist_memcard;
 }
 
-static TypeInfo milkymist_memcard_info = {
+static const TypeInfo milkymist_memcard_info = {
     .name          = "milkymist-memcard",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistMemcardState),

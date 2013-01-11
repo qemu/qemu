@@ -200,7 +200,7 @@ static void vga_class_init(ObjectClass *klass, void *data)
     dc->props = vga_pci_properties;
 }
 
-static TypeInfo vga_info = {
+static const TypeInfo vga_info = {
     .name          = "VGA",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIVGAState),

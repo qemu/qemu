@@ -317,7 +317,7 @@ static void gus_class_initfn (ObjectClass *klass, void *data)
     dc->props = gus_properties;
 }
 
-static TypeInfo gus_info = {
+static const TypeInfo gus_info = {
     .name          = "gus",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (GUSState),

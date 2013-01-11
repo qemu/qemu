@@ -167,7 +167,7 @@ static void xio3130_upstream_class_init(ObjectClass *klass, void *data)
     dc->props = xio3130_upstream_properties;
 }
 
-static TypeInfo xio3130_upstream_info = {
+static const TypeInfo xio3130_upstream_info = {
     .name          = "x3130-upstream",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIEPort),

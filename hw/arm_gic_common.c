@@ -171,7 +171,7 @@ static void arm_gic_common_class_init(ObjectClass *klass, void *data)
     sc->init = arm_gic_common_init;
 }
 
-static TypeInfo arm_gic_common_type = {
+static const TypeInfo arm_gic_common_type = {
     .name = TYPE_ARM_GIC_COMMON,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GICState),

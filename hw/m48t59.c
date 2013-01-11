@@ -738,7 +738,7 @@ static void m48t59_init_class_isa1(ObjectClass *klass, void *data)
     dc->props = m48t59_isa_properties;
 }
 
-static TypeInfo m48t59_isa_info = {
+static const TypeInfo m48t59_isa_info = {
     .name          = "m48t59_isa",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(M48t59ISAState),
@@ -762,7 +762,7 @@ static void m48t59_class_init(ObjectClass *klass, void *data)
     dc->props = m48t59_properties;
 }
 
-static TypeInfo m48t59_info = {
+static const TypeInfo m48t59_info = {
     .name          = "m48t59",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(M48t59SysBusState),

@@ -2933,7 +2933,7 @@ static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)
     dc->props = isa_vga_cirrus_properties;
 }
 
-static TypeInfo isa_cirrus_vga_info = {
+static const TypeInfo isa_cirrus_vga_info = {
     .name          = "isa-cirrus-vga",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISACirrusVGAState),
@@ -3003,7 +3003,7 @@ static void cirrus_vga_class_init(ObjectClass *klass, void *data)
     dc->props = pci_vga_cirrus_properties;
 }
 
-static TypeInfo cirrus_vga_info = {
+static const TypeInfo cirrus_vga_info = {
     .name          = "cirrus-vga",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCICirrusVGAState),

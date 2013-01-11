@@ -185,7 +185,7 @@ static void zipit_lcd_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_zipit_lcd_state;
 }
 
-static TypeInfo zipit_lcd_info = {
+static const TypeInfo zipit_lcd_info = {
     .name          = "zipit-lcd",
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(ZipitLCD),
@@ -288,7 +288,7 @@ static void aer915_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_aer915_state;
 }
 
-static TypeInfo aer915_info = {
+static const TypeInfo aer915_info = {
     .name          = "aer915",
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(AER915State),

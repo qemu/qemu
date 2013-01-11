@@ -284,7 +284,7 @@ static void via_ac97_class_init(ObjectClass *klass, void *data)
     dc->desc = "AC97";
 }
 
-static TypeInfo via_ac97_info = {
+static const TypeInfo via_ac97_info = {
     .name          = "VT82C686B_AC97",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT686AC97State),
@@ -325,7 +325,7 @@ static void via_mc97_class_init(ObjectClass *klass, void *data)
     dc->desc = "MC97";
 }
 
-static TypeInfo via_mc97_info = {
+static const TypeInfo via_mc97_info = {
     .name          = "VT82C686B_MC97",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT686MC97State),
@@ -404,7 +404,7 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
     dc->props = via_pm_properties;
 }
 
-static TypeInfo via_pm_info = {
+static const TypeInfo via_pm_info = {
     .name          = "VT82C686B_PM",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT686PMState),
@@ -471,7 +471,7 @@ static void via_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_via;
 }
 
-static TypeInfo via_info = {
+static const TypeInfo via_info = {
     .name          = "VT82C686B",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT82C686BState),

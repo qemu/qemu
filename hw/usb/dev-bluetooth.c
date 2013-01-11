@@ -555,7 +555,7 @@ static void usb_bt_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_usb_bt;
 }
 
-static TypeInfo bt_info = {
+static const TypeInfo bt_info = {
     .name          = "usb-bt-dongle",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(struct USBBtState),

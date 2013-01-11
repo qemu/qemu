@@ -487,7 +487,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     dc->props = piix4_pm_properties;
 }
 
-static TypeInfo piix4_pm_info = {
+static const TypeInfo piix4_pm_info = {
     .name          = "PIIX4_PM",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX4PMState),

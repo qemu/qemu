@@ -1534,7 +1534,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     dc->props = usb_host_dev_properties;
 }
 
-static TypeInfo usb_host_dev_info = {
+static const TypeInfo usb_host_dev_info = {
     .name          = "usb-host",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHostDevice),

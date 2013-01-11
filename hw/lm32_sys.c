@@ -157,7 +157,7 @@ static void lm32_sys_class_init(ObjectClass *klass, void *data)
     dc->props = lm32_sys_properties;
 }
 
-static TypeInfo lm32_sys_info = {
+static const TypeInfo lm32_sys_info = {
     .name          = "lm32-sys",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32SysState),

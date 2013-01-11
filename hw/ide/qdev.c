@@ -216,7 +216,7 @@ static void ide_hd_class_init(ObjectClass *klass, void *data)
     dc->props = ide_hd_properties;
 }
 
-static TypeInfo ide_hd_info = {
+static const TypeInfo ide_hd_info = {
     .name          = "ide-hd",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
@@ -238,7 +238,7 @@ static void ide_cd_class_init(ObjectClass *klass, void *data)
     dc->props = ide_cd_properties;
 }
 
-static TypeInfo ide_cd_info = {
+static const TypeInfo ide_cd_info = {
     .name          = "ide-cd",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
@@ -260,7 +260,7 @@ static void ide_drive_class_init(ObjectClass *klass, void *data)
     dc->props = ide_drive_properties;
 }
 
-static TypeInfo ide_drive_info = {
+static const TypeInfo ide_drive_info = {
     .name          = "ide-drive",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
@@ -275,7 +275,7 @@ static void ide_device_class_init(ObjectClass *klass, void *data)
     k->props = ide_props;
 }
 
-static TypeInfo ide_device_type_info = {
+static const TypeInfo ide_device_type_info = {
     .name = TYPE_IDE_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(IDEDevice),

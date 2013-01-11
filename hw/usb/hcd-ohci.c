@@ -1909,7 +1909,7 @@ static void ohci_pci_class_init(ObjectClass *klass, void *data)
     dc->props = ohci_pci_properties;
 }
 
-static TypeInfo ohci_pci_info = {
+static const TypeInfo ohci_pci_info = {
     .name          = "pci-ohci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(OHCIPCIState),
@@ -1932,7 +1932,7 @@ static void ohci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->props = ohci_sysbus_properties;
 }
 
-static TypeInfo ohci_sysbus_info = {
+static const TypeInfo ohci_sysbus_info = {
     .name          = "sysbus-ohci",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OHCISysBusState),

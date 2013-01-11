@@ -361,7 +361,7 @@ static void icp_pit_class_init(ObjectClass *klass, void *data)
     sdc->init = icp_pit_init;
 }
 
-static TypeInfo icp_pit_info = {
+static const TypeInfo icp_pit_info = {
     .name          = "integrator_pit",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(icp_pit_state),
@@ -383,7 +383,7 @@ static void sp804_class_init(ObjectClass *klass, void *data)
     k->props = sp804_properties;
 }
 
-static TypeInfo sp804_info = {
+static const TypeInfo sp804_info = {
     .name          = "sp804",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(sp804_state),

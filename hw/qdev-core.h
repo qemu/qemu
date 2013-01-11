@@ -182,6 +182,18 @@ int qbus_walk_children(BusState *bus, qdev_walkerfn *devfn,
 int qdev_walk_children(DeviceState *dev, qdev_walkerfn *devfn,
                        qbus_walkerfn *busfn, void *opaque);
 void qdev_reset_all(DeviceState *dev);
+
+/**
+ * @qbus_reset_all:
+ * @bus: Bus to be reset.
+ *
+ * Reset @bus and perform a bus-level ("hard") reset of all devices connected
+ * to it, including recursive processing of all buses below @bus itself.  A
+ * hard reset means that qbus_reset_all will reset all state of the device.
+ * For PCI devices, for example, this will include the base address registers
+ * or configuration space.
+ */
+void qbus_reset_all(BusState *bus);
 void qbus_reset_all_fn(void *opaque);
 
 void qbus_free(BusState *bus);

@@ -1194,7 +1194,7 @@ static void pxa2xx_rtc_sysbus_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pxa2xx_rtc_regs;
 }
 
-static TypeInfo pxa2xx_rtc_sysbus_info = {
+static const TypeInfo pxa2xx_rtc_sysbus_info = {
     .name          = "pxa2xx_rtc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxRTCState),
@@ -1442,7 +1442,7 @@ static void pxa2xx_i2c_slave_class_init(ObjectClass *klass, void *data)
     k->send = pxa2xx_i2c_tx;
 }
 
-static TypeInfo pxa2xx_i2c_slave_info = {
+static const TypeInfo pxa2xx_i2c_slave_info = {
     .name          = "pxa2xx-i2c-slave",
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(PXA2xxI2CSlaveState),
@@ -1510,7 +1510,7 @@ static void pxa2xx_i2c_class_init(ObjectClass *klass, void *data)
     dc->props = pxa2xx_i2c_properties;
 }
 
-static TypeInfo pxa2xx_i2c_info = {
+static const TypeInfo pxa2xx_i2c_info = {
     .name          = "pxa2xx_i2c",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxI2CState),
@@ -2273,7 +2273,7 @@ static void pxa2xx_ssp_class_init(ObjectClass *klass, void *data)
     sdc->init = pxa2xx_ssp_init;
 }
 
-static TypeInfo pxa2xx_ssp_info = {
+static const TypeInfo pxa2xx_ssp_info = {
     .name          = "pxa2xx-ssp",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxSSPState),

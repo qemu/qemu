@@ -2830,7 +2830,7 @@ static void omap_rtc_tick(void *opaque)
         s->round = 0;
     }
 
-    memcpy(&s->current_tm, localtime(&s->ti), sizeof(s->current_tm));
+    localtime_r(&s->ti, &s->current_tm);
 
     if ((s->interrupts & 0x08) && s->ti == s->alarm_ti) {
         s->status |= 0x40;

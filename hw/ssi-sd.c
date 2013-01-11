@@ -259,7 +259,7 @@ static void ssi_sd_class_init(ObjectClass *klass, void *data)
     k->cs_polarity = SSI_CS_LOW;
 }
 
-static TypeInfo ssi_sd_info = {
+static const TypeInfo ssi_sd_info = {
     .name          = "ssi-sd",
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(ssi_sd_state),

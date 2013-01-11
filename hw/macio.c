@@ -90,7 +90,7 @@ static void macio_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_OTHERS << 8;
 }
 
-static TypeInfo macio_info = {
+static const TypeInfo macio_info = {
     .name          = "macio",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MacIOState),

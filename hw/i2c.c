@@ -228,7 +228,7 @@ static void i2c_slave_class_init(ObjectClass *klass, void *data)
     k->props = i2c_props;
 }
 
-static TypeInfo i2c_slave_type_info = {
+static const TypeInfo i2c_slave_type_info = {
     .name = TYPE_I2C_SLAVE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(I2CSlave),

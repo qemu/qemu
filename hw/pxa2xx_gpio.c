@@ -334,7 +334,7 @@ static void pxa2xx_gpio_class_init(ObjectClass *klass, void *data)
     dc->props = pxa2xx_gpio_properties;
 }
 
-static TypeInfo pxa2xx_gpio_info = {
+static const TypeInfo pxa2xx_gpio_info = {
     .name          = "pxa2xx-gpio",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxGPIOInfo),

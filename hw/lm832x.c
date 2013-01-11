@@ -506,7 +506,7 @@ static void lm8323_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_lm_kbd;
 }
 
-static TypeInfo lm8323_info = {
+static const TypeInfo lm8323_info = {
     .name          = "lm8323",
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(LM823KbdState),

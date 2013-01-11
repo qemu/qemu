@@ -111,7 +111,7 @@ static void isa_ide_class_initfn(ObjectClass *klass, void *data)
     dc->props = isa_ide_properties;
 }
 
-static TypeInfo isa_ide_info = {
+static const TypeInfo isa_ide_info = {
     .name          = "isa-ide",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAIDEState),

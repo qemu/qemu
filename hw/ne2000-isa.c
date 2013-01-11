@@ -97,7 +97,7 @@ static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
     dc->props = ne2000_isa_properties;
 }
 
-static TypeInfo ne2000_isa_info = {
+static const TypeInfo ne2000_isa_info = {
     .name          = "ne2k_isa",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISANE2000State),

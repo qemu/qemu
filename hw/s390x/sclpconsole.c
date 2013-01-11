@@ -291,7 +291,7 @@ static void console_class_init(ObjectClass *klass, void *data)
     ec->write_event_data = write_event_data;
 }
 
-static TypeInfo sclp_console_info = {
+static const TypeInfo sclp_console_info = {
     .name          = "sclpconsole",
     .parent        = TYPE_SCLP_EVENT,
     .instance_size = sizeof(SCLPConsole),

@@ -239,7 +239,7 @@ static void tmp105_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_tmp105;
 }
 
-static TypeInfo tmp105_info = {
+static const TypeInfo tmp105_info = {
     .name          = "tmp105",
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TMP105State),

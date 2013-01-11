@@ -201,6 +201,10 @@ static void set_year_20xx(void)
     g_assert_cmpint(cmos_read(RTC_YEAR), ==, 0x11);
     g_assert_cmpint(cmos_read(RTC_CENTURY), ==, 0x20);
 
+    if (sizeof(time_t) == 4) {
+        return;
+    }
+
     /* Set a date in 2080 to ensure there is no year-2038 overflow.  */
     cmos_write(RTC_REG_A, 0x76);
     cmos_write(RTC_YEAR, 0x80);

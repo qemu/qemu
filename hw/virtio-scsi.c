@@ -565,6 +565,10 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
 {
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
 
+    s->resetting++;
+    qbus_reset_all(&s->bus.qbus);
+    s->resetting--;
+
     s->sense_size = VIRTIO_SCSI_SENSE_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_SIZE;
     s->events_dropped = false;

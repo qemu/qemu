@@ -215,7 +215,7 @@ static void lm32_timer_class_init(ObjectClass *klass, void *data)
     dc->props = lm32_timer_properties;
 }
 
-static TypeInfo lm32_timer_info = {
+static const TypeInfo lm32_timer_info = {
     .name          = "lm32-timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32TimerState),

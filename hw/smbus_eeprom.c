@@ -123,7 +123,7 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     dc->props = smbus_eeprom_properties;
 }
 
-static TypeInfo smbus_eeprom_info = {
+static const TypeInfo smbus_eeprom_info = {
     .name          = "smbus-eeprom",
     .parent        = TYPE_SMBUS_DEVICE,
     .instance_size = sizeof(SMBusEEPROMDevice),

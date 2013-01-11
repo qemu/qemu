@@ -142,7 +142,7 @@ static void virtconsole_class_init(ObjectClass *klass, void *data)
     dc->props = virtconsole_properties;
 }
 
-static TypeInfo virtconsole_info = {
+static const TypeInfo virtconsole_info = {
     .name          = "virtconsole",
     .parent        = TYPE_VIRTIO_SERIAL_PORT,
     .instance_size = sizeof(VirtConsole),
@@ -166,7 +166,7 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
     dc->props = virtserialport_properties;
 }
 
-static TypeInfo virtserialport_info = {
+static const TypeInfo virtserialport_info = {
     .name          = "virtserialport",
     .parent        = TYPE_VIRTIO_SERIAL_PORT,
     .instance_size = sizeof(VirtConsole),

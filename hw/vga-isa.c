@@ -86,7 +86,7 @@ static void vga_class_initfn(ObjectClass *klass, void *data)
     dc->props = vga_isa_properties;
 }
 
-static TypeInfo vga_info = {
+static const TypeInfo vga_info = {
     .name          = "isa-vga",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAVGAState),

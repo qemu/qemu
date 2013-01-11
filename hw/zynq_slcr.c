@@ -521,7 +521,7 @@ static void zynq_slcr_class_init(ObjectClass *klass, void *data)
     dc->reset = zynq_slcr_reset;
 }
 
-static TypeInfo zynq_slcr_info = {
+static const TypeInfo zynq_slcr_info = {
     .class_init = zynq_slcr_class_init,
     .name  = "xilinx,zynq_slcr",
     .parent = TYPE_SYS_BUS_DEVICE,

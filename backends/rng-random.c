@@ -144,7 +144,7 @@ static void rng_random_class_init(ObjectClass *klass, void *data)
     rbc->opened = rng_random_opened;
 }
 
-static TypeInfo rng_random_info = {
+static const TypeInfo rng_random_info = {
     .name = TYPE_RNG_RANDOM,
     .parent = TYPE_RNG_BACKEND,
     .instance_size = sizeof(RndRandom),

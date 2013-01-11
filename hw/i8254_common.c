@@ -294,7 +294,7 @@ static void pit_common_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo pit_common_type = {
+static const TypeInfo pit_common_type = {
     .name          = TYPE_PIT_COMMON,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PITCommonState),

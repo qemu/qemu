@@ -302,7 +302,7 @@ static void kvm_pit_class_init(ObjectClass *klass, void *data)
     dc->props = kvm_pit_properties;
 }
 
-static TypeInfo kvm_pit_info = {
+static const TypeInfo kvm_pit_info = {
     .name          = "kvm-pit",
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(KVMPITState),

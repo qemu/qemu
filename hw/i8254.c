@@ -347,7 +347,7 @@ static void pit_class_initfn(ObjectClass *klass, void *data)
     dc->props = pit_properties;
 }
 
-static TypeInfo pit_info = {
+static const TypeInfo pit_info = {
     .name          = "isa-pit",
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(PITCommonState),

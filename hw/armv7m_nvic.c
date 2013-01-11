@@ -535,7 +535,7 @@ static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
     dc->reset = armv7m_nvic_reset;
 }
 
-static TypeInfo armv7m_nvic_info = {
+static const TypeInfo armv7m_nvic_info = {
     .name          = TYPE_NVIC,
     .parent        = TYPE_ARM_GIC_COMMON,
     .instance_init = armv7m_nvic_instance_init,

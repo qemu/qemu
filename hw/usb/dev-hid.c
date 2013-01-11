@@ -657,7 +657,7 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     dc->props = usb_tablet_properties;
 }
 
-static TypeInfo usb_tablet_info = {
+static const TypeInfo usb_tablet_info = {
     .name          = "usb-tablet",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHIDState),
@@ -676,7 +676,7 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_usb_ptr;
 }
 
-static TypeInfo usb_mouse_info = {
+static const TypeInfo usb_mouse_info = {
     .name          = "usb-mouse",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHIDState),
@@ -695,7 +695,7 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_usb_kbd;
 }
 
-static TypeInfo usb_keyboard_info = {
+static const TypeInfo usb_keyboard_info = {
     .name          = "usb-kbd",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHIDState),

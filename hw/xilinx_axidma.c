@@ -503,7 +503,7 @@ static void axidma_class_init(ObjectClass *klass, void *data)
     ssc->push = axidma_push;
 }
 
-static TypeInfo axidma_info = {
+static const TypeInfo axidma_info = {
     .name          = "xlnx.axi-dma",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct XilinxAXIDMA),

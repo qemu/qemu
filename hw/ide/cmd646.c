@@ -342,7 +342,7 @@ static void cmd646_ide_class_init(ObjectClass *klass, void *data)
     dc->props = cmd646_ide_properties;
 }
 
-static TypeInfo cmd646_ide_info = {
+static const TypeInfo cmd646_ide_info = {
     .name          = "cmd646-ide",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIIDEState),

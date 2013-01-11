@@ -575,7 +575,7 @@ static void fw_cfg_class_init(ObjectClass *klass, void *data)
     dc->props = fw_cfg_properties;
 }
 
-static TypeInfo fw_cfg_info = {
+static const TypeInfo fw_cfg_info = {
     .name          = "fw_cfg",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FWCfgState),

@@ -587,7 +587,7 @@ static void emulated_class_initfn(ObjectClass *klass, void *data)
     dc->props = emulated_card_properties;
 }
 
-static TypeInfo emulated_card_info = {
+static const TypeInfo emulated_card_info = {
     .name          = EMULATED_DEV_NAME,
     .parent        = TYPE_CCID_CARD,
     .instance_size = sizeof(EmulatedState),

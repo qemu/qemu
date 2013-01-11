@@ -559,7 +559,7 @@ static void pxa2xx_dma_class_init(ObjectClass *klass, void *data)
     dc->props = pxa2xx_dma_properties;
 }
 
-static TypeInfo pxa2xx_dma_info = {
+static const TypeInfo pxa2xx_dma_info = {
     .name          = "pxa2xx-dma",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxDMAState),

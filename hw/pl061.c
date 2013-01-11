@@ -304,7 +304,7 @@ static void pl061_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pl061;
 }
 
-static TypeInfo pl061_info = {
+static const TypeInfo pl061_info = {
     .name          = "pl061",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl061_state),
@@ -320,7 +320,7 @@ static void pl061_luminary_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pl061;
 }
 
-static TypeInfo pl061_luminary_info = {
+static const TypeInfo pl061_luminary_info = {
     .name          = "pl061_luminary",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl061_state),

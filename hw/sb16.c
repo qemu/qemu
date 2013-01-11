@@ -1409,7 +1409,7 @@ static void sb16_class_initfn (ObjectClass *klass, void *data)
     dc->props = sb16_properties;
 }
 
-static TypeInfo sb16_info = {
+static const TypeInfo sb16_info = {
     .name          = "sb16",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (SB16State),

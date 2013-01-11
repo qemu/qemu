@@ -222,7 +222,7 @@ static void mpcore_rirq_class_init(ObjectClass *klass, void *data)
     dc->props = mpcore_rirq_properties;
 }
 
-static TypeInfo mpcore_rirq_info = {
+static const TypeInfo mpcore_rirq_info = {
     .name          = "realview_mpcore",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mpcore_rirq_state),
@@ -252,7 +252,7 @@ static void mpcore_priv_class_init(ObjectClass *klass, void *data)
     dc->props = mpcore_priv_properties;
 }
 
-static TypeInfo mpcore_priv_info = {
+static const TypeInfo mpcore_priv_info = {
     .name          = "arm11mpcore_priv",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mpcore_priv_state),

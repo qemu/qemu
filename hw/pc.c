@@ -103,6 +103,11 @@ static void ioport80_write(void *opaque, hwaddr addr, uint64_t data,
 {
 }
 
+static uint64_t ioport80_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0xffffffffffffffff;
+}
+
 /* MSDOS compatibility mode FPU exception support */
 static qemu_irq ferr_irq;
 
@@ -121,6 +126,11 @@ static void ioportF0_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned size)
 {
     qemu_irq_lower(ferr_irq);
+}
+
+static uint64_t ioportF0_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0xffffffffffffffff;
 }
 
 /* TSC handling */
@@ -501,7 +511,7 @@ static void port92_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_port92_isa;
 }
 
-static TypeInfo port92_info = {
+static const TypeInfo port92_info = {
     .name          = "port92",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(Port92State),
@@ -960,6 +970,7 @@ static void cpu_request_exit(void *opaque, int irq, int level)
 
 static const MemoryRegionOps ioport80_io_ops = {
     .write = ioport80_write,
+    .read = ioport80_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -969,6 +980,7 @@ static const MemoryRegionOps ioport80_io_ops = {
 
 static const MemoryRegionOps ioportF0_io_ops = {
     .write = ioportF0_write,
+    .read = ioportF0_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,

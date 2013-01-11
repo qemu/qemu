@@ -439,7 +439,7 @@ static void i6300esb_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_i6300esb;
 }
 
-static TypeInfo i6300esb_info = {
+static const TypeInfo i6300esb_info = {
     .name          = "i6300esb",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(I6300State),

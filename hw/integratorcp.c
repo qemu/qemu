@@ -535,7 +535,7 @@ static void core_class_init(ObjectClass *klass, void *data)
     dc->props = core_properties;
 }
 
-static TypeInfo core_info = {
+static const TypeInfo core_info = {
     .name          = "integrator_core",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(integratorcm_state),
@@ -549,7 +549,7 @@ static void icp_pic_class_init(ObjectClass *klass, void *data)
     sdc->init = icp_pic_init;
 }
 
-static TypeInfo icp_pic_info = {
+static const TypeInfo icp_pic_info = {
     .name          = "integrator_pic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(icp_pic_state),

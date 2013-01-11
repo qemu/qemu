@@ -228,7 +228,7 @@ static void milkymist_uart_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_milkymist_uart;
 }
 
-static TypeInfo milkymist_uart_info = {
+static const TypeInfo milkymist_uart_info = {
     .name          = "milkymist-uart",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistUartState),

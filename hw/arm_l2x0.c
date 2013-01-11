@@ -179,7 +179,7 @@ static void l2x0_class_init(ObjectClass *klass, void *data)
     dc->reset = l2x0_priv_reset;
 }
 
-static TypeInfo l2x0_info = {
+static const TypeInfo l2x0_info = {
     .name = "l2x0",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(l2x0_state),

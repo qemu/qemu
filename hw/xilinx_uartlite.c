@@ -216,7 +216,7 @@ static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
     sdc->init = xilinx_uartlite_init;
 }
 
-static TypeInfo xilinx_uartlite_info = {
+static const TypeInfo xilinx_uartlite_info = {
     .name          = "xlnx.xps-uartlite",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof (struct xlx_uartlite),

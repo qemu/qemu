@@ -162,7 +162,7 @@ static void ads7846_class_init(ObjectClass *klass, void *data)
     k->transfer = ads7846_transfer;
 }
 
-static TypeInfo ads7846_info = {
+static const TypeInfo ads7846_info = {
     .name          = "ads7846",
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(ADS7846State),

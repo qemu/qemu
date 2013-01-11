@@ -230,7 +230,7 @@ static void gpio_i2c_class_init(ObjectClass *klass, void *data)
     dc->desc = "Virtual GPIO to I2C bridge";
 }
 
-static TypeInfo gpio_i2c_info = {
+static const TypeInfo gpio_i2c_info = {
     .name          = "gpio_i2c",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GPIOI2CState),

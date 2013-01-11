@@ -829,7 +829,7 @@ static void xen_pci_passthrough_class_init(ObjectClass *klass, void *data)
     dc->props = xen_pci_passthrough_properties;
 };
 
-static TypeInfo xen_pci_passthrough_info = {
+static const TypeInfo xen_pci_passthrough_info = {
     .name = "xen-pci-passthrough",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XenPCIPassthroughState),

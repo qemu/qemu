@@ -632,7 +632,7 @@ static void pl041_device_class_init(ObjectClass *klass, void *data)
     dc->props = pl041_device_properties;
 }
 
-static TypeInfo pl041_device_info = {
+static const TypeInfo pl041_device_info = {
     .name          = "pl041",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl041_state),

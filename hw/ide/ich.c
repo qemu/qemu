@@ -156,7 +156,7 @@ static void ich_ahci_class_init(ObjectClass *klass, void *data)
     dc->reset = pci_ich9_reset;
 }
 
-static TypeInfo ich_ahci_info = {
+static const TypeInfo ich_ahci_info = {
     .name          = "ich9-ahci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AHCIPCIState),

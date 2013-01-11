@@ -500,7 +500,7 @@ static void pl181_class_init(ObjectClass *klass, void *data)
     k->no_user = 1;
 }
 
-static TypeInfo pl181_info = {
+static const TypeInfo pl181_info = {
     .name          = "pl181",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl181_state),

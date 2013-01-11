@@ -703,7 +703,7 @@ static void arm_gic_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo arm_gic_info = {
+static const TypeInfo arm_gic_info = {
     .name = TYPE_ARM_GIC,
     .parent = TYPE_ARM_GIC_COMMON,
     .instance_size = sizeof(GICState),

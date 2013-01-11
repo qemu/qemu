@@ -501,7 +501,7 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_cadence_uart;
 }
 
-static TypeInfo cadence_uart_info = {
+static const TypeInfo cadence_uart_info = {
     .name          = "cadence_uart",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UartState),

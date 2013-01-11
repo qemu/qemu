@@ -1,7 +1,8 @@
 /*
- * QEMU dummy ISA device for loading sgabios option rom.
+ * QEMU National Semiconductor PC87312 (Super I/O)
  *
- * Copyright (c) 2011 Glauber Costa, Red Hat Inc.
+ * Copyright (c) 2010-2012 Herve Poussineau
+ * Copyright (c) 2011-2012 Andreas Färber
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,44 +21,46 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- *
- * sgabios code originally available at code.google.com/p/sgabios
- *
  */
-#include "pci/pci.h"
-#include "pc.h"
-#include "loader.h"
-#include "sysemu/sysemu.h"
+#ifndef QEMU_PC87312_H
+#define QEMU_PC87312_H
 
-#define SGABIOS_FILENAME "sgabios.bin"
+#include "isa.h"
 
-typedef struct ISAGAState {
+
+#define TYPE_PC87312 "pc87312"
+#define PC87312(obj) OBJECT_CHECK(PC87312State, (obj), TYPE_PC87312)
+
+typedef struct PC87312State {
     ISADevice dev;
-} ISASGAState;
 
-static int sga_initfn(ISADevice *dev)
-{
-    rom_add_vga(SGABIOS_FILENAME);
-    return 0;
-}
-static void sga_class_initfn(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = sga_initfn;
-    dc->desc = "Serial Graphics Adapter";
-}
+    uint32_t iobase;
+    uint8_t config; /* initial configuration */
 
-static const TypeInfo sga_info = {
-    .name          = "sga",
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISASGAState),
-    .class_init    = sga_class_initfn,
-};
+    struct {
+        ISADevice *dev;
+    } parallel;
 
-static void sga_register_types(void)
-{
-    type_register_static(&sga_info);
-}
+    struct {
+        ISADevice *dev;
+    } uart[2];
 
-type_init(sga_register_types)
+    struct {
+        ISADevice *dev;
+        BlockDriverState *drive[2];
+        uint32_t base;
+    } fdc;
+
+    struct {
+        ISADevice *dev;
+        uint32_t base;
+    } ide;
+
+    uint8_t read_id_step;
+    uint8_t selected_index;
+
+    uint8_t regs[3];
+} PC87312State;
+
+
+#endif

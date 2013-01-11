@@ -59,7 +59,7 @@ static void realview_gic_class_init(ObjectClass *klass, void *data)
     sdc->init = realview_gic_init;
 }
 
-static TypeInfo realview_gic_info = {
+static const TypeInfo realview_gic_info = {
     .name          = "realview_gic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RealViewGICState),

@@ -716,7 +716,7 @@ static void usb_msd_class_initfn(ObjectClass *klass, void *data)
     dc->props = msd_properties;
 }
 
-static TypeInfo msd_info = {
+static const TypeInfo msd_info = {
     .name          = "usb-storage",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(MSDState),

@@ -633,7 +633,7 @@ static void idreg_class_init(ObjectClass *klass, void *data)
     k->init = idreg_init1;
 }
 
-static TypeInfo idreg_info = {
+static const TypeInfo idreg_info = {
     .name          = "macio_idreg",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IDRegState),
@@ -675,7 +675,7 @@ static void afx_class_init(ObjectClass *klass, void *data)
     k->init = afx_init1;
 }
 
-static TypeInfo afx_info = {
+static const TypeInfo afx_info = {
     .name          = "tcx_afx",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AFXState),
@@ -752,7 +752,7 @@ static void prom_class_init(ObjectClass *klass, void *data)
     dc->props = prom_properties;
 }
 
-static TypeInfo prom_info = {
+static const TypeInfo prom_info = {
     .name          = "openprom",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PROMState),
@@ -816,7 +816,7 @@ static void ram_class_init(ObjectClass *klass, void *data)
     dc->props = ram_properties;
 }
 
-static TypeInfo ram_info = {
+static const TypeInfo ram_info = {
     .name          = "memory",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RamDevice),

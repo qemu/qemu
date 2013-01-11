@@ -117,7 +117,7 @@ static void piix4_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_piix4;
 }
 
-static TypeInfo piix4_info = {
+static const TypeInfo piix4_info = {
     .name          = "PIIX4",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX4State),

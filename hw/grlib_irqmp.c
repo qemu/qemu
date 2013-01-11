@@ -370,7 +370,7 @@ static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
     dc->props = grlib_irqmp_properties;
 }
 
-static TypeInfo grlib_irqmp_info = {
+static const TypeInfo grlib_irqmp_info = {
     .name          = "grlib,irqmp",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IRQMP),

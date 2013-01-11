@@ -168,7 +168,7 @@ static void pl050_kbd_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pl050;
 }
 
-static TypeInfo pl050_kbd_info = {
+static const TypeInfo pl050_kbd_info = {
     .name          = "pl050_keyboard",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl050_state),
@@ -184,7 +184,7 @@ static void pl050_mouse_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pl050;
 }
 
-static TypeInfo pl050_mouse_info = {
+static const TypeInfo pl050_mouse_info = {
     .name          = "pl050_mouse",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl050_state),

@@ -512,7 +512,7 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_kbd_isa;
 }
 
-static TypeInfo i8042_info = {
+static const TypeInfo i8042_info = {
     .name          = "i8042",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAKBDState),

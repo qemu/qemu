@@ -282,10 +282,10 @@ static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
 }
 #endif
 
-static QEMUMachine pc_machine_v1_4 = {
-    .name = "pc-1.4",
+static QEMUMachine pc_i440fx_machine_v1_4 = {
+    .name = "pc-i440fx-1.4",
     .alias = "pc",
-    .desc = "Standard PC",
+    .desc = "Standard PC (i440FX + PIIX, 1996)",
     .init = pc_init_pci_1_3,
     .max_cpus = 255,
     .is_default = 1,
@@ -646,7 +646,7 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
-    qemu_register_machine(&pc_machine_v1_4);
+    qemu_register_machine(&pc_i440fx_machine_v1_4);
     qemu_register_machine(&pc_machine_v1_3);
     qemu_register_machine(&pc_machine_v1_2);
     qemu_register_machine(&pc_machine_v1_1);

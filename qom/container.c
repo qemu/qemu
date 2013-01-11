@@ -14,7 +14,7 @@
 #include "qemu/module.h"
 #include <assert.h>
 
-static TypeInfo container_info = {
+static const TypeInfo container_info = {
     .name          = "container",
     .instance_size = sizeof(Object),
     .parent        = TYPE_OBJECT,

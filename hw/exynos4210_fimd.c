@@ -1913,7 +1913,7 @@ static void exynos4210_fimd_class_init(ObjectClass *klass, void *data)
     k->init = exynos4210_fimd_init;
 }
 
-static TypeInfo exynos4210_fimd_info = {
+static const TypeInfo exynos4210_fimd_info = {
     .name = "exynos4210.fimd",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210fimdState),

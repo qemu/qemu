@@ -144,7 +144,7 @@ static void lm32_juart_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_lm32_juart;
 }
 
-static TypeInfo lm32_juart_info = {
+static const TypeInfo lm32_juart_info = {
     .name          = "lm32-juart",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32JuartState),

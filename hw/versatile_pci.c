@@ -119,7 +119,7 @@ static void versatile_pci_host_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_PROCESSOR_CO;
 }
 
-static TypeInfo versatile_pci_host_info = {
+static const TypeInfo versatile_pci_host_info = {
     .name          = "versatile_pci_host",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -133,7 +133,7 @@ static void pci_vpb_class_init(ObjectClass *klass, void *data)
     sdc->init = pci_vpb_init;
 }
 
-static TypeInfo pci_vpb_info = {
+static const TypeInfo pci_vpb_info = {
     .name          = "versatile_pci",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PCIVPBState),
@@ -147,7 +147,7 @@ static void pci_realview_class_init(ObjectClass *klass, void *data)
     sdc->init = pci_realview_init;
 }
 
-static TypeInfo pci_realview_info = {
+static const TypeInfo pci_realview_info = {
     .name          = "realview_pci",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PCIVPBState),

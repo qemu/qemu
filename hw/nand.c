@@ -435,7 +435,7 @@ static void nand_class_init(ObjectClass *klass, void *data)
     dc->props = nand_properties;
 }
 
-static TypeInfo nand_info = {
+static const TypeInfo nand_info = {
     .name          = "nand",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(NANDFlashState),

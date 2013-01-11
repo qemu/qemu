@@ -244,7 +244,7 @@ static void ioapic_class_init(ObjectClass *klass, void *data)
     dc->reset = ioapic_reset_common;
 }
 
-static TypeInfo ioapic_info = {
+static const TypeInfo ioapic_info = {
     .name          = "ioapic",
     .parent        = TYPE_IOAPIC_COMMON,
     .instance_size = sizeof(IOAPICCommonState),

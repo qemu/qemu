@@ -226,7 +226,7 @@ static void a9mp_priv_class_init(ObjectClass *klass, void *data)
     dc->reset = a9mp_priv_reset;
 }
 
-static TypeInfo a9mp_priv_info = {
+static const TypeInfo a9mp_priv_info = {
     .name          = "a9mpcore_priv",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(a9mp_priv_state),
