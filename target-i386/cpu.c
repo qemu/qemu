@@ -1594,20 +1594,23 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
 
     model_pieces = g_strsplit(cpu_model, ",", 2);
     if (!model_pieces[0]) {
-        goto error;
+        error_setg(&error, "Invalid/empty CPU model name");
+        goto out;
     }
     name = model_pieces[0];
     features = model_pieces[1];
 
     if (cpu_x86_find_by_name(def, name) < 0) {
-        goto error;
+        error_setg(&error, "Unable to find CPU definition: %s", name);
+        goto out;
     }
 
     def->kvm_features |= kvm_default_features;
     def->ext_features |= CPUID_EXT_HYPERVISOR;
 
     if (cpu_x86_parse_featurestr(def, features) < 0) {
-        goto error;
+        error_setg(&error, "Invalid cpu_model string format: %s", cpu_model);
+        goto out;
     }
     assert(def->vendor1);
     env->cpuid_vendor1 = def->vendor1;
@@ -1632,17 +1635,15 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
                             "tsc-frequency", &error);
 
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
+
+out:
+    g_strfreev(model_pieces);
     if (error) {
         fprintf(stderr, "%s\n", error_get_pretty(error));
         error_free(error);
-        goto error;
+        return -1;
     }
-
-    g_strfreev(model_pieces);
     return 0;
-error:
-    g_strfreev(model_pieces);
-    return -1;
 }
 
 #if !defined(CONFIG_USER_ONLY)
