@@ -106,6 +106,9 @@ common-obj-$(CONFIG_XGMAC) += xgmac.o
 # PCI watchdog devices
 common-obj-$(CONFIG_PCI) += wdt_i6300esb.o
 
+# IndustryPack
+common-obj-$(CONFIG_IPACK) += tpci200.o ipack.o
+
 # PCI network cards
 common-obj-$(CONFIG_NE2000_PCI) += ne2000.o
 common-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
