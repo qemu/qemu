@@ -1343,14 +1343,10 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
     unsigned int i;
     char *featurestr; /* Single 'key=value" string being parsed */
     /* Features to be added */
-    FeatureWordArray plus_features = {
-        [FEAT_KVM] = kvm_default_features,
-    };
+    FeatureWordArray plus_features = { 0 };
     /* Features to be removed */
     FeatureWordArray minus_features = { 0 };
     uint32_t numvalue;
-
-    add_flagname_to_bitmaps("hypervisor", plus_features);
 
     featurestr = features ? strtok(features, ",") : NULL;
 
@@ -1606,6 +1602,9 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     if (cpu_x86_find_by_name(def, name) < 0) {
         goto error;
     }
+
+    def->kvm_features |= kvm_default_features;
+    def->ext_features |= CPUID_EXT_HYPERVISOR;
 
     if (cpu_x86_parse_featurestr(def, features) < 0) {
         goto error;
