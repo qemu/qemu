@@ -26,11 +26,6 @@ static int bcd2dec(int value)
     return (((value >> 4) & 0x0F) * 10) + (value & 0x0F);
 }
 
-static int dec2bcd(int value)
-{
-    return ((value / 10) << 4) | (value % 10);
-}
-
 static uint8_t cmos_read(uint8_t reg)
 {
     outb(base + 0, reg);
@@ -184,7 +179,7 @@ static int wiggle = 2;
 static void set_year_20xx(void)
 {
     /* Set BCD mode */
-    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) & ~REG_B_DM);
+    cmos_write(RTC_REG_B, REG_B_24H);
     cmos_write(RTC_REG_A, 0x76);
     cmos_write(RTC_YEAR, 0x11);
     cmos_write(RTC_CENTURY, 0x20);
@@ -236,7 +231,7 @@ static void set_year_20xx(void)
 static void set_year_1980(void)
 {
     /* Set BCD mode */
-    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) & ~REG_B_DM);
+    cmos_write(RTC_REG_B, REG_B_24H);
     cmos_write(RTC_REG_A, 0x76);
     cmos_write(RTC_YEAR, 0x80);
     cmos_write(RTC_CENTURY, 0x19);
@@ -259,30 +254,15 @@ static void set_year_1980(void)
 static void bcd_check_time(void)
 {
     /* Set BCD mode */
-    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) & ~REG_B_DM);
+    cmos_write(RTC_REG_B, REG_B_24H);
     check_time(wiggle);
 }
 
 static void dec_check_time(void)
 {
     /* Set DEC mode */
-    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_DM);
+    cmos_write(RTC_REG_B, REG_B_24H | REG_B_DM);
     check_time(wiggle);
-}
-
-static void set_alarm_time(struct tm *tm)
-{
-    int sec;
-
-    sec = tm->tm_sec;
-
-    if ((cmos_read(RTC_REG_B) & REG_B_DM) == 0) {
-        sec = dec2bcd(sec);
-    }
-
-    cmos_write(RTC_SECONDS_ALARM, sec);
-    cmos_write(RTC_MINUTES_ALARM, RTC_ALARM_DONT_CARE);
-    cmos_write(RTC_HOURS_ALARM, RTC_ALARM_DONT_CARE);
 }
 
 static void alarm_time(void)
@@ -295,13 +275,15 @@ static void alarm_time(void)
     gmtime_r(&ts, &now);
 
     /* set DEC mode */
-    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_DM);
+    cmos_write(RTC_REG_B, REG_B_24H | REG_B_DM);
 
     g_assert(!get_irq(RTC_ISA_IRQ));
     cmos_read(RTC_REG_C);
 
     now.tm_sec = (now.tm_sec + 2) % 60;
-    set_alarm_time(&now);
+    cmos_write(RTC_SECONDS_ALARM, now.tm_sec);
+    cmos_write(RTC_MINUTES_ALARM, RTC_ALARM_DONT_CARE);
+    cmos_write(RTC_HOURS_ALARM, RTC_ALARM_DONT_CARE);
     cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_AIE);
 
     for (i = 0; i < 2 + wiggle; i++) {
@@ -336,7 +318,7 @@ static void fuzz_registers(void)
 static void register_b_set_flag(void)
 {
     /* Enable binary-coded decimal (BCD) mode and SET flag in Register B*/
-    cmos_write(RTC_REG_B, (cmos_read(RTC_REG_B) & ~REG_B_DM) | REG_B_SET);
+    cmos_write(RTC_REG_B, REG_B_24H | REG_B_SET);
 
     cmos_write(RTC_REG_A, 0x76);
     cmos_write(RTC_YEAR, 0x11);
