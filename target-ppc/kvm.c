@@ -989,18 +989,38 @@ uint32_t kvmppc_get_dfp(void)
     return kvmppc_read_int_cpu_dt("ibm,dfp");
 }
 
-int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
-{
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
-    uint32_t *hc = (uint32_t*)buf;
-
-    struct kvm_ppc_pvinfo pvinfo;
+static int kvmppc_get_pvinfo(CPUPPCState *env, struct kvm_ppc_pvinfo *pvinfo)
+ {
+     PowerPCCPU *cpu = ppc_env_get_cpu(env);
+     CPUState *cs = CPU(cpu);
 
     if (kvm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_PVINFO) &&
-        !kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_PVINFO, &pvinfo)) {
-        memcpy(buf, pvinfo.hcall, buf_len);
+        !kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_PVINFO, pvinfo)) {
+        return 0;
+    }
 
+    return 1;
+}
+
+int kvmppc_get_hasidle(CPUPPCState *env)
+{
+    struct kvm_ppc_pvinfo pvinfo;
+
+    if (!kvmppc_get_pvinfo(env, &pvinfo) &&
+        (pvinfo.flags & KVM_PPC_PVINFO_FLAGS_EV_IDLE)) {
+        return 1;
+    }
+
+    return 0;
+}
+
+int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
+{
+    uint32_t *hc = (uint32_t*)buf;
+    struct kvm_ppc_pvinfo pvinfo;
+
+    if (!kvmppc_get_pvinfo(env, &pvinfo)) {
+        memcpy(buf, pvinfo.hcall, buf_len);
         return 0;
     }
 
@@ -1210,18 +1230,37 @@ static void alter_insns(uint64_t *word, uint64_t flags, bool on)
     }
 }
 
-const ppc_def_t *kvmppc_host_cpu_def(void)
+static void kvmppc_host_cpu_initfn(Object *obj)
 {
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(obj);
+
+    assert(kvm_enabled());
+
+    if (pcc->info->pvr != mfpvr()) {
+        fprintf(stderr, "Your host CPU is unsupported.\n"
+                "Please choose a supported model instead, see -cpu ?.\n");
+        exit(1);
+    }
+}
+
+static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     uint32_t host_pvr = mfpvr();
-    const ppc_def_t *base_spec;
+    PowerPCCPUClass *pvr_pcc;
     ppc_def_t *spec;
     uint32_t vmx = kvmppc_get_vmx();
     uint32_t dfp = kvmppc_get_dfp();
 
-    base_spec = ppc_find_by_pvr(host_pvr);
-
     spec = g_malloc0(sizeof(*spec));
-    memcpy(spec, base_spec, sizeof(*spec));
+
+    pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
+    if (pvr_pcc != NULL) {
+        memcpy(spec, pvr_pcc->info, sizeof(*spec));
+    }
+    pcc->info = spec;
+    /* Override the display name for -cpu ? and QMP */
+    pcc->info->name = "host";
 
     /* Now fix up the spec with information we can query from the host */
 
@@ -1234,8 +1273,6 @@ const ppc_def_t *kvmppc_host_cpu_def(void)
         /* Only override when we know what the host supports */
         alter_insns(&spec->insns_flags2, PPC2_DFP, dfp);
     }
-
-    return spec;
 }
 
 int kvmppc_fixup_cpu(CPUPPCState *env)
@@ -1265,3 +1302,17 @@ int kvm_arch_on_sigbus(int code, void *addr)
 {
     return 1;
 }
+
+static const TypeInfo kvm_host_cpu_type_info = {
+    .name = TYPE_HOST_POWERPC_CPU,
+    .parent = TYPE_POWERPC_CPU,
+    .instance_init = kvmppc_host_cpu_initfn,
+    .class_init = kvmppc_host_cpu_class_init,
+};
+
+static void kvm_ppc_register_types(void)
+{
+    type_register_static(&kvm_host_cpu_type_info);
+}
+
+type_init(kvm_ppc_register_types)

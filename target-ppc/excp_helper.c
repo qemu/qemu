@@ -84,7 +84,11 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                   " => %08x (%02x)\n", env->nip, excp, env->error_code);
 
     /* new srr1 value excluding must-be-zero bits */
-    msr = env->msr & ~0x783f0000ULL;
+    if (excp_model == POWERPC_EXCP_BOOKE) {
+        msr = env->msr;
+    } else {
+        msr = env->msr & ~0x783f0000ULL;
+    }
 
     /* new interrupt handler msr */
     new_msr = env->msr & ((target_ulong)1 << MSR_ME);
@@ -145,6 +149,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             srr1 = SPR_40x_SRR3;
             break;
         case POWERPC_EXCP_BOOKE:
+            /* FIXME: choose one or the other based on CPU type */
             srr0 = SPR_BOOKE_MCSRR0;
             srr1 = SPR_BOOKE_MCSRR1;
             asrr0 = SPR_BOOKE_CSRR0;
@@ -172,6 +177,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     case POWERPC_EXCP_EXTERNAL:  /* External input                           */
         if (lpes0 == 1) {
             new_msr |= (target_ulong)MSR_HVB;
+        }
+        if (env->mpic_proxy) {
+            /* IACK the IRQ on delivery */
+            env->spr[SPR_BOOKE_EPR] = ldl_phys(env->mpic_iack);
         }
         goto store_next;
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
@@ -275,6 +284,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     case POWERPC_EXCP_DEBUG:     /* Debug interrupt                          */
         switch (excp_model) {
         case POWERPC_EXCP_BOOKE:
+            /* FIXME: choose one or the other based on CPU type */
             srr0 = SPR_BOOKE_DSRR0;
             srr1 = SPR_BOOKE_DSRR1;
             asrr0 = SPR_BOOKE_CSRR0;
@@ -836,8 +846,13 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
 
 void helper_rfi(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-           ~((target_ulong)0x783F0000), 1);
+    if (env->excp_model == POWERPC_EXCP_BOOKE) {
+        do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+               ~((target_ulong)0), 0);
+    } else {
+        do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+               ~((target_ulong)0x783F0000), 1);
+    }
 }
 
 #if defined(TARGET_PPC64)
@@ -864,20 +879,22 @@ void helper_40x_rfci(CPUPPCState *env)
 
 void helper_rfci(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_BOOKE_CSRR0], SPR_BOOKE_CSRR1,
-           ~((target_ulong)0x3FFF0000), 0);
+    do_rfi(env, env->spr[SPR_BOOKE_CSRR0], env->spr[SPR_BOOKE_CSRR1],
+           ~((target_ulong)0), 0);
 }
 
 void helper_rfdi(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_BOOKE_DSRR0], SPR_BOOKE_DSRR1,
-           ~((target_ulong)0x3FFF0000), 0);
+    /* FIXME: choose CSRR1 or DSRR1 based on cpu type */
+    do_rfi(env, env->spr[SPR_BOOKE_DSRR0], env->spr[SPR_BOOKE_DSRR1],
+           ~((target_ulong)0), 0);
 }
 
 void helper_rfmci(CPUPPCState *env)
 {
-    do_rfi(env, env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
-           ~((target_ulong)0x3FFF0000), 0);
+    /* FIXME: choose CSRR1 or MCSRR1 based on cpu type */
+    do_rfi(env, env->spr[SPR_BOOKE_MCSRR0], env->spr[SPR_BOOKE_MCSRR1],
+           ~((target_ulong)0), 0);
 }
 #endif
 
