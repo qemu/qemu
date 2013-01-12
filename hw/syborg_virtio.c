@@ -307,7 +307,7 @@ static void syborg_virtio_net_class_init(ObjectClass *klass, void *data)
     k->init = syborg_virtio_net_init;
 }
 
-static TypeInfo syborg_virtio_net_info = {
+static const TypeInfo syborg_virtio_net_info = {
     .name  = "syborg,virtio-net",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SyborgVirtIOProxy),

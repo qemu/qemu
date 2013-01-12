@@ -324,7 +324,7 @@ static void syborg_serial_class_init(ObjectClass *klass, void *data)
     k->init = syborg_serial_init;
 }
 
-static TypeInfo syborg_serial_info = {
+static const TypeInfo syborg_serial_info = {
     .name  = "syborg,serial",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SyborgSerialState),

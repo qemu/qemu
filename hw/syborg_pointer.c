@@ -215,7 +215,7 @@ static void syborg_pointer_class_init(ObjectClass *klass, void *data)
     k->init = syborg_pointer_init;
 }
 
-static TypeInfo syborg_pointer_info = {
+static const TypeInfo syborg_pointer_info = {
     .name  = "syborg,pointer",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SyborgPointerState),

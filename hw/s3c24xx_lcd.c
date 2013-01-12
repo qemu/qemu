@@ -576,7 +576,7 @@ static void s3c24xx_lcd_class_init(ObjectClass *klass, void *data)
     k->init = s3c24xx_lcd_init;
 }
 
-static TypeInfo s3c24xx_lcd_info = {
+static const TypeInfo s3c24xx_lcd_info = {
     .name = "s3c24xx_lcd",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C24xxLCD_State),

@@ -271,7 +271,7 @@ static void s3c24xx_gpio_class_init(ObjectClass *klass, void *data)
     k->init = s3c24xx_gpio_init_;
 }
 
-static TypeInfo s3c24xx_gpio_info = {
+static const TypeInfo s3c24xx_gpio_info = {
     .name = "s3c24xx_gpio",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C24xxGpioState),

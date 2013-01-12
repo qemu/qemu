@@ -1433,14 +1433,14 @@ static void dp8381x_class_init(ObjectClass *klass, void *data)
 }
 
 #if defined(DP83815)
-static TypeInfo dp8381x_info = {
+static const TypeInfo dp8381x_info = {
     .name = "dp83815",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(DP8381xState),
     .class_init = dp8381x_class_init,
 };
 #else
-static TypeInfo dp8381x_info = {
+static const TypeInfo dp8381x_info = {
     .name = "dp83816",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(DP8381xState),

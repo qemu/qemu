@@ -854,7 +854,7 @@ static void tnetw1130_class_init(ObjectClass *klass, void *data)
     k->subsystem_id = 0x9067;
 }
 
-static TypeInfo pci_tnetw1130_info = {
+static const TypeInfo pci_tnetw1130_info = {
     .name = "tnetw1130",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(TNETW1130State),

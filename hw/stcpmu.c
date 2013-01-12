@@ -135,7 +135,7 @@ static void stcpmu_class_init(ObjectClass *klass, void *data)
     k->send = stcpmu_tx;
 }
 
-static TypeInfo stcpmu_info = {
+static const TypeInfo stcpmu_info = {
     .name ="stcpmu",
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(StcPMUState),

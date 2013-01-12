@@ -96,7 +96,7 @@ static void ch7xx_class_init(ObjectClass *klass, void *data)
     k->send = ch7xxx_tx;
 }
 
-static TypeInfo ch7xxx_info = {
+static const TypeInfo ch7xxx_info = {
     .name ="ch7xxx",
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(CH7xxxState),

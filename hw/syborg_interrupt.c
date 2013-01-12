@@ -228,7 +228,7 @@ static void syborg_int_class_init(ObjectClass *klass, void *data)
     k->init = syborg_int_init;
 }
 
-static TypeInfo syborg_int_info = {
+static const TypeInfo syborg_int_info = {
     .name  = "syborg,interrupt",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(SyborgIntState),

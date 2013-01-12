@@ -705,7 +705,7 @@ static void dm9000_class_init(ObjectClass *klass, void *data)
     k->init = dm9000_init;
 }
 
-static TypeInfo dm9000_info = {
+static const TypeInfo dm9000_info = {
     .name = "dm9000",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(dm9000_state),

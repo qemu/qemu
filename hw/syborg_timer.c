@@ -220,7 +220,7 @@ static void syborg_timer_class_init(ObjectClass *klass, void *data)
     k->init = syborg_timer_init;
 }
 
-static TypeInfo syborg_timer_info = {
+static const TypeInfo syborg_timer_info = {
     .name  = "syborg,timer",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SyborgTimerState),

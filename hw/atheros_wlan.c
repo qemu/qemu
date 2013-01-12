@@ -364,7 +364,7 @@ static void atheros_class_init(ObjectClass *klass, void *data)
     //~ k->subsystem_id = info->subsystem_id;
 }
 
-static TypeInfo atheros_info = {
+static const TypeInfo atheros_info = {
     .name = "Atheros_WLAN",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIAtheros_WLANState),

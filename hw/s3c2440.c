@@ -145,7 +145,7 @@ static void s3c24xx_cam_class_init(ObjectClass *klass, void *data)
     k->init = s3c24xx_cam_init;
 }
 
-static TypeInfo s3c24xx_cam_info = {
+static const TypeInfo s3c24xx_cam_info = {
     .name = "s3c24xx_cam",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C24xxCamState),
@@ -238,7 +238,7 @@ static void s3c24xx_wdg_class_init(ObjectClass *klass, void *data)
     k->init = s3c24xx_wdg_init;
 }
 
-static TypeInfo s3c24xx_wdg_info = {
+static const TypeInfo s3c24xx_wdg_info = {
     .name = "s3c24xx_wdg",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C24xxWdgState),
@@ -343,7 +343,7 @@ static void s3c24xx_adc_class_init(ObjectClass *klass, void *data)
     k->init = s3c24xx_adc_init;
 }
 
-static TypeInfo s3c24xx_adc_info = {
+static const TypeInfo s3c24xx_adc_info = {
     .name = "s3c24xx_adc",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S3C24xxAdcState),

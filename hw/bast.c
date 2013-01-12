@@ -367,7 +367,7 @@ static void ax88796_class_init(ObjectClass *klass, void *data)
     k->init = ax88796_init;
 }
 
-static TypeInfo ax88796_info = {
+static const TypeInfo ax88796_info = {
     .name = "ax88796",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AX88796State),

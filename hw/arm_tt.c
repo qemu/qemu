@@ -342,7 +342,7 @@ static void tt_lcd_class_init(ObjectClass *klass, void *data)
     k->init = tt_lcd_init;
 }
 
-static TypeInfo tt_lcd_info = {
+static const TypeInfo tt_lcd_info = {
     .name = "tt_lcd",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(tt_lcd_state),
@@ -741,7 +741,7 @@ static void tt_gpio_class_init(ObjectClass *klass, void *data)
     k->init = tt_gpio_init;
 }
 
-static TypeInfo tt_gpio_info = {
+static const TypeInfo tt_gpio_info = {
     .name  = "tt_gpio",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(tt_gpio_state),
@@ -893,7 +893,7 @@ static void tt_key_class_init(ObjectClass *klass, void *data)
     k->init = tt_key_init;
 }
 
-static TypeInfo tt_key_info = {
+static const TypeInfo tt_key_info = {
     .name  = "tt_key",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(tt_key_state),

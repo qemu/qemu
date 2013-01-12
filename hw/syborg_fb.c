@@ -549,7 +549,7 @@ static void syborg_fb_class_init(ObjectClass *klass, void *data)
     k->init = syborg_fb_init;
 }
 
-static TypeInfo syborg_fb_info = {
+static const TypeInfo syborg_fb_info = {
     .name  = "syborg,framebuffer",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(SyborgFBState),

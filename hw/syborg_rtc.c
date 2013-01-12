@@ -136,7 +136,7 @@ static void syborg_rtc_class_init(ObjectClass *klass, void *data)
     k->init = syborg_rtc_init;
 }
 
-static TypeInfo syborg_rtc_info = {
+static const TypeInfo syborg_rtc_info = {
     .name = "syborg,rtc",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SyborgRTCState),

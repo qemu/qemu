@@ -4193,7 +4193,7 @@ static void ar7_class_init(ObjectClass *klass, void *data)
     k->init = ar7_sysbus_device_init;
 }
 
-static TypeInfo ar7_info = {
+static const TypeInfo ar7_info = {
     .name = "ar7",
     //~ .alias = "tnetd7xxx",
     .parent = TYPE_SYS_BUS_DEVICE,
@@ -4242,7 +4242,7 @@ static void ar7_cpmac_class_init(ObjectClass *klass, void *data)
     //~ k->exit = cpmac_exit;
 }
 
-static TypeInfo ar7_cpmac_info = {
+static const TypeInfo ar7_cpmac_info = {
     .name = "ar7-cpmac",
     .parent = TYPE_SYS_BUS_DEVICE,
     //~ .alias = "cpmac",

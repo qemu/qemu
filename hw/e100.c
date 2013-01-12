@@ -2423,7 +2423,7 @@ static void e100_class_init(ObjectClass *klass, void *data)
     //~ k->subsystem_id = info->subsystem_id;
 }
 
-static TypeInfo e100_info = {
+static const TypeInfo e100_info = {
     .name = "e100",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(E100State),

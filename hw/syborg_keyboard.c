@@ -210,7 +210,7 @@ static void syborg_keyboard_class_init(ObjectClass *klass, void *data)
     k->init = syborg_keyboard_init;
 }
 
-static TypeInfo syborg_keyboard_info = {
+static const TypeInfo syborg_keyboard_info = {
     .name  = "syborg,keyboard",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(SyborgKeyboardState),
