@@ -98,6 +98,7 @@ S: Maintained
 F: target-ppc/
 
 S390
+M: Richard Henderson <rth@twiddle.net>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target-s390x/

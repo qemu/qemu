@@ -30,46 +30,97 @@
 #endif
 
 /* 64/64 -> 128 unsigned multiplication */
-void HELPER(mlg)(CPUS390XState *env, uint32_t r1, uint64_t v2)
+uint64_t HELPER(mul128)(CPUS390XState *env, uint64_t v1, uint64_t v2)
 {
-#if HOST_LONG_BITS == 64 && defined(__GNUC__)
-    /* assuming 64-bit hosts have __uint128_t */
-    __uint128_t res = (__uint128_t)env->regs[r1 + 1];
+    uint64_t reth;
+    mulu64(&env->retxl, &reth, v1, v2);
+    return reth;
+}
 
-    res *= (__uint128_t)v2;
-    env->regs[r1] = (uint64_t)(res >> 64);
-    env->regs[r1 + 1] = (uint64_t)res;
-#else
-    mulu64(&env->regs[r1 + 1], &env->regs[r1], env->regs[r1 + 1], v2);
-#endif
+/* 64/32 -> 32 signed division */
+int64_t HELPER(divs32)(CPUS390XState *env, int64_t a, int64_t b64)
+{
+    int32_t ret, b = b64;
+    int64_t q;
+
+    if (b == 0) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+
+    ret = q = a / b;
+    env->retxl = a % b;
+
+    /* Catch non-representable quotient.  */
+    if (ret != q) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+
+    return ret;
+}
+
+/* 64/32 -> 32 unsigned division */
+uint64_t HELPER(divu32)(CPUS390XState *env, uint64_t a, uint64_t b64)
+{
+    uint32_t ret, b = b64;
+    uint64_t q;
+
+    if (b == 0) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+
+    ret = q = a / b;
+    env->retxl = a % b;
+
+    /* Catch non-representable quotient.  */
+    if (ret != q) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+
+    return ret;
+}
+
+/* 64/64 -> 64 signed division */
+int64_t HELPER(divs64)(CPUS390XState *env, int64_t a, int64_t b)
+{
+    /* Catch divide by zero, and non-representable quotient (MIN / -1).  */
+    if (b == 0 || (b == -1 && a == (1ll << 63))) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+    env->retxl = a % b;
+    return a / b;
 }
 
 /* 128 -> 64/64 unsigned division */
-void HELPER(dlg)(CPUS390XState *env, uint32_t r1, uint64_t v2)
+uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
+                        uint64_t b)
 {
-    uint64_t divisor = v2;
-
-    if (!env->regs[r1]) {
+    uint64_t ret;
+    /* Signal divide by zero.  */
+    if (b == 0) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+    if (ah == 0) {
         /* 64 -> 64/64 case */
-        env->regs[r1] = env->regs[r1 + 1] % divisor;
-        env->regs[r1 + 1] = env->regs[r1 + 1] / divisor;
-        return;
+        env->retxl = al % b;
+        ret = al / b;
     } else {
+        /* ??? Move i386 idivq helper to host-utils.  */
 #if HOST_LONG_BITS == 64 && defined(__GNUC__)
         /* assuming 64-bit hosts have __uint128_t */
-        __uint128_t dividend = (((__uint128_t)env->regs[r1]) << 64) |
-            (env->regs[r1 + 1]);
-        __uint128_t quotient = dividend / divisor;
-        __uint128_t remainder = dividend % divisor;
-
-        env->regs[r1 + 1] = quotient;
-        env->regs[r1] = remainder;
+        __uint128_t a = ((__uint128_t)ah << 64) | al;
+        __uint128_t q = a / b;
+        env->retxl = a % b;
+        ret = q;
+        if (ret != q) {
+            runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+        }
 #else
         /* 32-bit hosts would need special wrapper functionality - just abort if
            we encounter such a case; it's very unlikely anyways. */
         cpu_abort(env, "128 -> 64/64 division not implemented\n");
 #endif
     }
+    return ret;
 }
 
 /* absolute value 32-bit */
@@ -114,69 +165,10 @@ int64_t HELPER(nabs_i64)(int64_t val)
     }
 }
 
-/* add with carry 32-bit unsigned */
-uint32_t HELPER(addc_u32)(uint32_t cc, uint32_t v1, uint32_t v2)
+/* count leading zeros, for find leftmost one */
+uint64_t HELPER(clz)(uint64_t v)
 {
-    uint32_t res;
-
-    res = v1 + v2;
-    if (cc & 2) {
-        res++;
-    }
-
-    return res;
-}
-
-/* subtract unsigned v2 from v1 with borrow */
-uint32_t HELPER(slb)(CPUS390XState *env, uint32_t cc, uint32_t r1, uint32_t v2)
-{
-    uint32_t v1 = env->regs[r1];
-    uint32_t res = v1 + (~v2) + (cc >> 1);
-
-    env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) | res;
-    if (cc & 2) {
-        /* borrow */
-        return v1 ? 1 : 0;
-    } else {
-        return v1 ? 3 : 2;
-    }
-}
-
-/* subtract unsigned v2 from v1 with borrow */
-uint32_t HELPER(slbg)(CPUS390XState *env, uint32_t cc, uint32_t r1,
-                      uint64_t v1, uint64_t v2)
-{
-    uint64_t res = v1 + (~v2) + (cc >> 1);
-
-    env->regs[r1] = res;
-    if (cc & 2) {
-        /* borrow */
-        return v1 ? 1 : 0;
-    } else {
-        return v1 ? 3 : 2;
-    }
-}
-
-/* find leftmost one */
-uint32_t HELPER(flogr)(CPUS390XState *env, uint32_t r1, uint64_t v2)
-{
-    uint64_t res = 0;
-    uint64_t ov2 = v2;
-
-    while (!(v2 & 0x8000000000000000ULL) && v2) {
-        v2 <<= 1;
-        res++;
-    }
-
-    if (!v2) {
-        env->regs[r1] = 64;
-        env->regs[r1 + 1] = 0;
-        return 0;
-    } else {
-        env->regs[r1] = res;
-        env->regs[r1 + 1] = ov2 & ~(0x8000000000000000ULL >> res);
-        return 2;
-    }
+    return clz64(v);
 }
 
 uint64_t HELPER(cvd)(int32_t bin)
@@ -198,4 +190,16 @@ uint64_t HELPER(cvd)(int32_t bin)
     }
 
     return dec;
+}
+
+uint64_t HELPER(popcnt)(uint64_t r2)
+{
+    uint64_t ret = 0;
+    int i;
+
+    for (i = 0; i < 64; i += 8) {
+        uint64_t t = ctpop32((r2 >> i) & 0xff);
+        ret |= t << i;
+    }
+    return ret;
 }
