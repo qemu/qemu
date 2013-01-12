@@ -1736,7 +1736,7 @@ static void do_interrupt_v7m(CPUARMState *env)
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
         return;
     case EXCP_SWI:
-        env->regs[15] += 2;
+        /* The PC already points to the next instruction.  */
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SVC);
         return;
     case EXCP_PREFETCH_ABORT:

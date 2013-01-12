@@ -7,48 +7,11 @@
 #include "fpu/softfloat.h"
 
 #ifdef CONFIG_MACHINE_BSWAP_H
-#include <sys/endian.h>
-#include <sys/types.h>
-#include <machine/bswap.h>
-#else
-
-#ifdef CONFIG_BYTESWAP_H
-#include <byteswap.h>
-#else
-
-#define bswap_16(x) \
-({ \
-	uint16_t __x = (x); \
-	((uint16_t)( \
-		(((uint16_t)(__x) & (uint16_t)0x00ffU) << 8) | \
-		(((uint16_t)(__x) & (uint16_t)0xff00U) >> 8) )); \
-})
-
-#define bswap_32(x) \
-({ \
-	uint32_t __x = (x); \
-	((uint32_t)( \
-		(((uint32_t)(__x) & (uint32_t)0x000000ffUL) << 24) | \
-		(((uint32_t)(__x) & (uint32_t)0x0000ff00UL) <<  8) | \
-		(((uint32_t)(__x) & (uint32_t)0x00ff0000UL) >>  8) | \
-		(((uint32_t)(__x) & (uint32_t)0xff000000UL) >> 24) )); \
-})
-
-#define bswap_64(x) \
-({ \
-	uint64_t __x = (x); \
-	((uint64_t)( \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x00000000000000ffULL) << 56) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x000000000000ff00ULL) << 40) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x0000000000ff0000ULL) << 24) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x00000000ff000000ULL) <<  8) | \
-	        (uint64_t)(((uint64_t)(__x) & (uint64_t)0x000000ff00000000ULL) >>  8) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x0000ff0000000000ULL) >> 24) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0x00ff000000000000ULL) >> 40) | \
-		(uint64_t)(((uint64_t)(__x) & (uint64_t)0xff00000000000000ULL) >> 56) )); \
-})
-
-#endif /* !CONFIG_BYTESWAP_H */
+# include <sys/endian.h>
+# include <sys/types.h>
+# include <machine/bswap.h>
+#elif defined(CONFIG_BYTESWAP_H)
+# include <byteswap.h>
 
 static inline uint16_t bswap16(uint16_t x)
 {
@@ -64,7 +27,32 @@ static inline uint64_t bswap64(uint64_t x)
 {
     return bswap_64(x);
 }
+# else
+static inline uint16_t bswap16(uint16_t x)
+{
+    return (((x & 0x00ff) << 8) |
+            ((x & 0xff00) >> 8));
+}
 
+static inline uint32_t bswap32(uint32_t x)
+{
+    return (((x & 0x000000ffU) << 24) |
+            ((x & 0x0000ff00U) <<  8) |
+            ((x & 0x00ff0000U) >>  8) |
+            ((x & 0xff000000U) >> 24));
+}
+
+static inline uint64_t bswap64(uint64_t x)
+{
+    return (((x & 0x00000000000000ffULL) << 56) |
+            ((x & 0x000000000000ff00ULL) << 40) |
+            ((x & 0x0000000000ff0000ULL) << 24) |
+            ((x & 0x00000000ff000000ULL) <<  8) |
+            ((x & 0x000000ff00000000ULL) >>  8) |
+            ((x & 0x0000ff0000000000ULL) >> 24) |
+            ((x & 0x00ff000000000000ULL) >> 40) |
+            ((x & 0xff00000000000000ULL) >> 56));
+}
 #endif /* ! CONFIG_MACHINE_BSWAP_H */
 
 static inline void bswap16s(uint16_t *s)
@@ -133,110 +121,13 @@ CPU_CONVERT(le, 16, uint16_t)
 CPU_CONVERT(le, 32, uint32_t)
 CPU_CONVERT(le, 64, uint64_t)
 
-/* unaligned versions (optimized for frequent unaligned accesses)*/
-
-#if defined(__i386__) || defined(_ARCH_PPC)
-
-#define cpu_to_le16wu(p, v) cpu_to_le16w(p, v)
-#define cpu_to_le32wu(p, v) cpu_to_le32w(p, v)
-#define le16_to_cpupu(p) le16_to_cpup(p)
-#define le32_to_cpupu(p) le32_to_cpup(p)
-#define be32_to_cpupu(p) be32_to_cpup(p)
-
-#define cpu_to_be16wu(p, v) cpu_to_be16w(p, v)
-#define cpu_to_be32wu(p, v) cpu_to_be32w(p, v)
-#define cpu_to_be64wu(p, v) cpu_to_be64w(p, v)
-
-#else
-
-static inline void cpu_to_le16wu(uint16_t *p, uint16_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v & 0xff;
-    p1[1] = v >> 8;
-}
-
-static inline void cpu_to_le32wu(uint32_t *p, uint32_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v & 0xff;
-    p1[1] = v >> 8;
-    p1[2] = v >> 16;
-    p1[3] = v >> 24;
-}
-
-static inline uint16_t le16_to_cpupu(const uint16_t *p)
-{
-    const uint8_t *p1 = (const uint8_t *)p;
-    return p1[0] | (p1[1] << 8);
-}
-
-static inline uint32_t le32_to_cpupu(const uint32_t *p)
-{
-    const uint8_t *p1 = (const uint8_t *)p;
-    return p1[0] | (p1[1] << 8) | (p1[2] << 16) | (p1[3] << 24);
-}
-
-static inline uint32_t be32_to_cpupu(const uint32_t *p)
-{
-    const uint8_t *p1 = (const uint8_t *)p;
-    return p1[3] | (p1[2] << 8) | (p1[1] << 16) | (p1[0] << 24);
-}
-
-static inline void cpu_to_be16wu(uint16_t *p, uint16_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v >> 8;
-    p1[1] = v & 0xff;
-}
-
-static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v >> 24;
-    p1[1] = v >> 16;
-    p1[2] = v >> 8;
-    p1[3] = v & 0xff;
-}
-
-static inline void cpu_to_be64wu(uint64_t *p, uint64_t v)
-{
-    uint8_t *p1 = (uint8_t *)p;
-
-    p1[0] = v >> 56;
-    p1[1] = v >> 48;
-    p1[2] = v >> 40;
-    p1[3] = v >> 32;
-    p1[4] = v >> 24;
-    p1[5] = v >> 16;
-    p1[6] = v >> 8;
-    p1[7] = v & 0xff;
-}
-
-#endif
-
-#ifdef HOST_WORDS_BIGENDIAN
-#define cpu_to_32wu cpu_to_be32wu
-#define leul_to_cpu(v) glue(glue(le,HOST_LONG_BITS),_to_cpu)(v)
-#else
-#define cpu_to_32wu cpu_to_le32wu
-#define leul_to_cpu(v) (v)
-#endif
-
-#undef le_bswap
-#undef be_bswap
-#undef le_bswaps
-#undef be_bswaps
-
 /* len must be one of 1, 2, 4 */
 static inline uint32_t qemu_bswap_len(uint32_t value, int len)
 {
     return bswap32(value) >> (32 - 8 * len);
 }
+
+/* Unions for reinterpreting between floats and integers.  */
 
 typedef union {
     float32 f;
@@ -321,10 +212,11 @@ typedef union {
  *   q: 64 bits
  *
  * endian is:
- * (empty): 8 bit access
+ * (empty): host endian
  *   be   : big endian
  *   le   : little endian
  */
+
 static inline int ldub_p(const void *ptr)
 {
     return *(uint8_t *)ptr;
@@ -340,115 +232,108 @@ static inline void stb_p(void *ptr, int v)
     *(uint8_t *)ptr = v;
 }
 
-/* NOTE: on arm, putting 2 in /proc/sys/debug/alignment so that the
-   kernel handles unaligned load/stores may give better results, but
-   it is a system wide setting : bad */
-#if defined(HOST_WORDS_BIGENDIAN) || defined(WORDS_ALIGNED)
+/* Any compiler worth its salt will turn these memcpy into native unaligned
+   operations.  Thus we don't need to play games with packed attributes, or
+   inline byte-by-byte stores.  */
 
-/* conservative code for little endian unaligned accesses */
+static inline int lduw_p(const void *ptr)
+{
+    uint16_t r;
+    memcpy(&r, ptr, sizeof(r));
+    return r;
+}
+
+static inline int ldsw_p(const void *ptr)
+{
+    int16_t r;
+    memcpy(&r, ptr, sizeof(r));
+    return r;
+}
+
+static inline void stw_p(void *ptr, uint16_t v)
+{
+    memcpy(ptr, &v, sizeof(v));
+}
+
+static inline int ldl_p(const void *ptr)
+{
+    int32_t r;
+    memcpy(&r, ptr, sizeof(r));
+    return r;
+}
+
+static inline void stl_p(void *ptr, uint32_t v)
+{
+    memcpy(ptr, &v, sizeof(v));
+}
+
+static inline uint64_t ldq_p(const void *ptr)
+{
+    uint64_t r;
+    memcpy(&r, ptr, sizeof(r));
+    return r;
+}
+
+static inline void stq_p(void *ptr, uint64_t v)
+{
+    memcpy(ptr, &v, sizeof(v));
+}
+
 static inline int lduw_le_p(const void *ptr)
 {
-#ifdef _ARCH_PPC
-    int val;
-    __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
-    return val;
-#else
-    const uint8_t *p = ptr;
-    return p[0] | (p[1] << 8);
-#endif
+    return (uint16_t)le_bswap(lduw_p(ptr), 16);
 }
 
 static inline int ldsw_le_p(const void *ptr)
 {
-#ifdef _ARCH_PPC
-    int val;
-    __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
-    return (int16_t)val;
-#else
-    const uint8_t *p = ptr;
-    return (int16_t)(p[0] | (p[1] << 8));
-#endif
+    return (int16_t)le_bswap(lduw_p(ptr), 16);
 }
 
 static inline int ldl_le_p(const void *ptr)
 {
-#ifdef _ARCH_PPC
-    int val;
-    __asm__ __volatile__ ("lwbrx %0,0,%1" : "=r" (val) : "r" (ptr));
-    return val;
-#else
-    const uint8_t *p = ptr;
-    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
-#endif
+    return le_bswap(ldl_p(ptr), 32);
 }
 
 static inline uint64_t ldq_le_p(const void *ptr)
 {
-    const uint8_t *p = ptr;
-    uint32_t v1, v2;
-    v1 = ldl_le_p(p);
-    v2 = ldl_le_p(p + 4);
-    return v1 | ((uint64_t)v2 << 32);
+    return le_bswap(ldq_p(ptr), 64);
 }
 
 static inline void stw_le_p(void *ptr, int v)
 {
-#ifdef _ARCH_PPC
-    __asm__ __volatile__ ("sthbrx %1,0,%2" : "=m" (*(uint16_t *)ptr) : "r" (v), "r" (ptr));
-#else
-    uint8_t *p = ptr;
-    p[0] = v;
-    p[1] = v >> 8;
-#endif
+    stw_p(ptr, le_bswap(v, 16));
 }
 
 static inline void stl_le_p(void *ptr, int v)
 {
-#ifdef _ARCH_PPC
-    __asm__ __volatile__ ("stwbrx %1,0,%2" : "=m" (*(uint32_t *)ptr) : "r" (v), "r" (ptr));
-#else
-    uint8_t *p = ptr;
-    p[0] = v;
-    p[1] = v >> 8;
-    p[2] = v >> 16;
-    p[3] = v >> 24;
-#endif
+    stl_p(ptr, le_bswap(v, 32));
 }
 
 static inline void stq_le_p(void *ptr, uint64_t v)
 {
-    uint8_t *p = ptr;
-    stl_le_p(p, (uint32_t)v);
-    stl_le_p(p + 4, v >> 32);
+    stq_p(ptr, le_bswap(v, 64));
 }
 
 /* float access */
 
 static inline float32 ldfl_le_p(const void *ptr)
 {
-    union {
-        float32 f;
-        uint32_t i;
-    } u;
-    u.i = ldl_le_p(ptr);
+    CPU_FloatU u;
+    u.l = ldl_le_p(ptr);
     return u.f;
 }
 
 static inline void stfl_le_p(void *ptr, float32 v)
 {
-    union {
-        float32 f;
-        uint32_t i;
-    } u;
+    CPU_FloatU u;
     u.f = v;
-    stl_le_p(ptr, u.i);
+    stl_le_p(ptr, u.l);
 }
 
 static inline float64 ldfq_le_p(const void *ptr)
 {
     CPU_DoubleU u;
-    u.l.lower = ldl_le_p(ptr);
-    u.l.upper = ldl_le_p(ptr + 4);
+    u.ll = ldq_le_p(ptr);
     return u.d;
 }
 
@@ -456,188 +341,64 @@ static inline void stfq_le_p(void *ptr, float64 v)
 {
     CPU_DoubleU u;
     u.d = v;
-    stl_le_p(ptr, u.l.lower);
-    stl_le_p(ptr + 4, u.l.upper);
+    stq_le_p(ptr, u.ll);
 }
-
-#else
-
-static inline int lduw_le_p(const void *ptr)
-{
-    return *(uint16_t *)ptr;
-}
-
-static inline int ldsw_le_p(const void *ptr)
-{
-    return *(int16_t *)ptr;
-}
-
-static inline int ldl_le_p(const void *ptr)
-{
-    return *(uint32_t *)ptr;
-}
-
-static inline uint64_t ldq_le_p(const void *ptr)
-{
-    return *(uint64_t *)ptr;
-}
-
-static inline void stw_le_p(void *ptr, int v)
-{
-    *(uint16_t *)ptr = v;
-}
-
-static inline void stl_le_p(void *ptr, int v)
-{
-    *(uint32_t *)ptr = v;
-}
-
-static inline void stq_le_p(void *ptr, uint64_t v)
-{
-    *(uint64_t *)ptr = v;
-}
-
-/* float access */
-
-static inline float32 ldfl_le_p(const void *ptr)
-{
-    return *(float32 *)ptr;
-}
-
-static inline float64 ldfq_le_p(const void *ptr)
-{
-    return *(float64 *)ptr;
-}
-
-static inline void stfl_le_p(void *ptr, float32 v)
-{
-    *(float32 *)ptr = v;
-}
-
-static inline void stfq_le_p(void *ptr, float64 v)
-{
-    *(float64 *)ptr = v;
-}
-#endif
-
-#if !defined(HOST_WORDS_BIGENDIAN) || defined(WORDS_ALIGNED)
 
 static inline int lduw_be_p(const void *ptr)
 {
-#if defined(__i386__)
-    int val;
-    asm volatile ("movzwl %1, %0\n"
-                  "xchgb %b0, %h0\n"
-                  : "=q" (val)
-                  : "m" (*(uint16_t *)ptr));
-    return val;
-#else
-    const uint8_t *b = ptr;
-    return ((b[0] << 8) | b[1]);
-#endif
+    return (uint16_t)be_bswap(lduw_p(ptr), 16);
 }
 
 static inline int ldsw_be_p(const void *ptr)
 {
-#if defined(__i386__)
-    int val;
-    asm volatile ("movzwl %1, %0\n"
-                  "xchgb %b0, %h0\n"
-                  : "=q" (val)
-                  : "m" (*(uint16_t *)ptr));
-    return (int16_t)val;
-#else
-    const uint8_t *b = ptr;
-    return (int16_t)((b[0] << 8) | b[1]);
-#endif
+    return (int16_t)be_bswap(lduw_p(ptr), 16);
 }
 
 static inline int ldl_be_p(const void *ptr)
 {
-#if defined(__i386__) || defined(__x86_64__)
-    int val;
-    asm volatile ("movl %1, %0\n"
-                  "bswap %0\n"
-                  : "=r" (val)
-                  : "m" (*(uint32_t *)ptr));
-    return val;
-#else
-    const uint8_t *b = ptr;
-    return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];
-#endif
+    return be_bswap(ldl_p(ptr), 32);
 }
 
 static inline uint64_t ldq_be_p(const void *ptr)
 {
-    uint32_t a,b;
-    a = ldl_be_p(ptr);
-    b = ldl_be_p((uint8_t *)ptr + 4);
-    return (((uint64_t)a<<32)|b);
+    return be_bswap(ldq_p(ptr), 64);
 }
 
 static inline void stw_be_p(void *ptr, int v)
 {
-#if defined(__i386__)
-    asm volatile ("xchgb %b0, %h0\n"
-                  "movw %w0, %1\n"
-                  : "=q" (v)
-                  : "m" (*(uint16_t *)ptr), "0" (v));
-#else
-    uint8_t *d = (uint8_t *) ptr;
-    d[0] = v >> 8;
-    d[1] = v;
-#endif
+    stw_p(ptr, be_bswap(v, 16));
 }
 
 static inline void stl_be_p(void *ptr, int v)
 {
-#if defined(__i386__) || defined(__x86_64__)
-    asm volatile ("bswap %0\n"
-                  "movl %0, %1\n"
-                  : "=r" (v)
-                  : "m" (*(uint32_t *)ptr), "0" (v));
-#else
-    uint8_t *d = (uint8_t *) ptr;
-    d[0] = v >> 24;
-    d[1] = v >> 16;
-    d[2] = v >> 8;
-    d[3] = v;
-#endif
+    stl_p(ptr, be_bswap(v, 32));
 }
 
 static inline void stq_be_p(void *ptr, uint64_t v)
 {
-    stl_be_p(ptr, v >> 32);
-    stl_be_p((uint8_t *)ptr + 4, v);
+    stq_p(ptr, be_bswap(v, 64));
 }
 
 /* float access */
 
 static inline float32 ldfl_be_p(const void *ptr)
 {
-    union {
-        float32 f;
-        uint32_t i;
-    } u;
-    u.i = ldl_be_p(ptr);
+    CPU_FloatU u;
+    u.l = ldl_be_p(ptr);
     return u.f;
 }
 
 static inline void stfl_be_p(void *ptr, float32 v)
 {
-    union {
-        float32 f;
-        uint32_t i;
-    } u;
+    CPU_FloatU u;
     u.f = v;
-    stl_be_p(ptr, u.i);
+    stl_be_p(ptr, u.l);
 }
 
 static inline float64 ldfq_be_p(const void *ptr)
 {
     CPU_DoubleU u;
-    u.l.upper = ldl_be_p(ptr);
-    u.l.lower = ldl_be_p((uint8_t *)ptr + 4);
+    u.ll = ldq_be_p(ptr);
     return u.d;
 }
 
@@ -645,69 +406,64 @@ static inline void stfq_be_p(void *ptr, float64 v)
 {
     CPU_DoubleU u;
     u.d = v;
-    stl_be_p(ptr, u.l.upper);
-    stl_be_p((uint8_t *)ptr + 4, u.l.lower);
+    stq_be_p(ptr, u.ll);
 }
 
-#else
+/* Legacy unaligned versions.  Note that we never had a complete set.  */
 
-static inline int lduw_be_p(const void *ptr)
+static inline void cpu_to_le16wu(uint16_t *p, uint16_t v)
 {
-    return *(uint16_t *)ptr;
+    stw_le_p(p, v);
 }
 
-static inline int ldsw_be_p(const void *ptr)
+static inline void cpu_to_le32wu(uint32_t *p, uint32_t v)
 {
-    return *(int16_t *)ptr;
+    stl_le_p(p, v);
 }
 
-static inline int ldl_be_p(const void *ptr)
+static inline uint16_t le16_to_cpupu(const uint16_t *p)
 {
-    return *(uint32_t *)ptr;
+    return lduw_le_p(p);
 }
 
-static inline uint64_t ldq_be_p(const void *ptr)
+static inline uint32_t le32_to_cpupu(const uint32_t *p)
 {
-    return *(uint64_t *)ptr;
+    return ldl_le_p(p);
 }
 
-static inline void stw_be_p(void *ptr, int v)
+static inline uint32_t be32_to_cpupu(const uint32_t *p)
 {
-    *(uint16_t *)ptr = v;
+    return ldl_be_p(p);
 }
 
-static inline void stl_be_p(void *ptr, int v)
+static inline void cpu_to_be16wu(uint16_t *p, uint16_t v)
 {
-    *(uint32_t *)ptr = v;
+    stw_be_p(p, v);
 }
 
-static inline void stq_be_p(void *ptr, uint64_t v)
+static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
 {
-    *(uint64_t *)ptr = v;
+    stl_be_p(p, v);
 }
 
-/* float access */
-
-static inline float32 ldfl_be_p(const void *ptr)
+static inline void cpu_to_be64wu(uint64_t *p, uint64_t v)
 {
-    return *(float32 *)ptr;
+    stq_be_p(p, v);
 }
 
-static inline float64 ldfq_be_p(const void *ptr)
+static inline void cpu_to_32wu(uint32_t *p, uint32_t v)
 {
-    return *(float64 *)ptr;
+    stl_p(p, v);
 }
 
-static inline void stfl_be_p(void *ptr, float32 v)
+static inline unsigned long leul_to_cpu(unsigned long v)
 {
-    *(float32 *)ptr = v;
+    return le_bswap(v, HOST_LONG_BITS);
 }
 
-static inline void stfq_be_p(void *ptr, float64 v)
-{
-    *(float64 *)ptr = v;
-}
-
-#endif
+#undef le_bswap
+#undef be_bswap
+#undef le_bswaps
+#undef be_bswaps
 
 #endif /* BSWAP_H */

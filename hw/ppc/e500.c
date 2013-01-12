@@ -225,6 +225,10 @@ static int ppce500_load_device_tree(CPUPPCState *env,
         kvmppc_get_hypercall(env, hypercall, sizeof(hypercall));
         qemu_devtree_setprop(fdt, "/hypervisor", "hcall-instructions",
                              hypercall, sizeof(hypercall));
+        /* if KVM supports the idle hcall, set property indicating this */
+        if (kvmppc_get_hasidle(env)) {
+            qemu_devtree_setprop(fdt, "/hypervisor", "has-idle", NULL, 0);
+        }
     }
 
     /* Create CPU nodes */
@@ -493,8 +497,8 @@ void ppce500_init(PPCE500Params *params)
         irqs[i][OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
         irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
         env->spr[SPR_BOOKE_PIR] = env->cpu_index = i;
-        env->mpic_cpu_base = MPC8544_CCSRBAR_BASE +
-                              MPC8544_MPIC_REGS_OFFSET + 0x20000;
+        env->mpic_iack = MPC8544_CCSRBAR_BASE +
+                         MPC8544_MPIC_REGS_OFFSET + 0x200A0;
 
         ppc_booke_timers_init(cpu, 400000000, PPC_TIMER_E500);
 

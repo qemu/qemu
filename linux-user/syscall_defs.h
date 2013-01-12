@@ -544,7 +544,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 struct target_old_sigaction {
     abi_ulong _sa_handler;
     abi_ulong sa_mask;
-    abi_ulong sa_flags;
+    int32_t sa_flags;
 };
 
 struct target_rt_sigaction {

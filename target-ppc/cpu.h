@@ -1067,7 +1067,9 @@ struct CPUPPCState {
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;
-    hwaddr mpic_cpu_base;
+    hwaddr mpic_iack;
+    /* true when the external proxy facility mode is enabled */
+    bool mpic_proxy;
 #endif
 
     /* Those resources are used only during code translation */
@@ -1155,10 +1157,6 @@ int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
 void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
-
-const ppc_def_t *ppc_find_by_pvr(uint32_t pvr);
-const ppc_def_t *cpu_ppc_find_by_name (const char *name);
-int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def);
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS

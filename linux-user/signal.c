@@ -601,28 +601,22 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             sig, act, oact);
 #endif
     if (oact) {
-        oact->_sa_handler = tswapal(k->_sa_handler);
-#if defined(TARGET_MIPS) || defined (TARGET_ALPHA)
-        oact->sa_flags = bswap32(k->sa_flags);
-#else
-        oact->sa_flags = tswapal(k->sa_flags);
-#endif
+        __put_user(k->_sa_handler, &oact->_sa_handler);
+        __put_user(k->sa_flags, &oact->sa_flags);
 #if !defined(TARGET_MIPS)
-        oact->sa_restorer = tswapal(k->sa_restorer);
+        __put_user(k->sa_restorer, &oact->sa_restorer);
 #endif
+        /* Not swapped.  */
         oact->sa_mask = k->sa_mask;
     }
     if (act) {
         /* FIXME: This is not threadsafe.  */
-        k->_sa_handler = tswapal(act->_sa_handler);
-#if defined(TARGET_MIPS) || defined (TARGET_ALPHA)
-        k->sa_flags = bswap32(act->sa_flags);
-#else
-        k->sa_flags = tswapal(act->sa_flags);
-#endif
+        __get_user(k->_sa_handler, &act->_sa_handler);
+        __get_user(k->sa_flags, &act->sa_flags);
 #if !defined(TARGET_MIPS)
-        k->sa_restorer = tswapal(act->sa_restorer);
+        __get_user(k->sa_restorer, &act->sa_restorer);
 #endif
+        /* To be swapped in target_to_host_sigset.  */
         k->sa_mask = act->sa_mask;
 
         /* we update the host linux signal state */
@@ -4578,7 +4572,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     signal = current_exec_domain_sig(sig);
 
-    err |= __put_user(h2g(ka->_sa_handler), &sc->handler);
+    err |= __put_user(ka->_sa_handler, &sc->handler);
     err |= __put_user(set->sig[0], &sc->oldmask);
 #if defined(TARGET_PPC64)
     err |= __put_user(set->sig[0] >> 32, &sc->_unused[3]);
@@ -4600,7 +4594,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
     /* Create a stack frame for the caller of the handler.  */
     newsp = frame_addr - SIGNAL_FRAMESIZE;
-    err |= __put_user(env->gpr[1], (target_ulong *)(uintptr_t) newsp);
+    err |= put_user(env->gpr[1], newsp, target_ulong);
 
     if (err)
         goto sigsegv;
@@ -4608,7 +4602,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     /* Set up registers for signal handler.  */
     env->gpr[1] = newsp;
     env->gpr[3] = signal;
-    env->gpr[4] = (target_ulong) h2g(sc);
+    env->gpr[4] = frame_addr + offsetof(struct target_sigframe, sctx);
     env->nip = (target_ulong) ka->_sa_handler;
     /* Signal handlers are entered in big-endian mode.  */
     env->msr &= ~MSR_LE;

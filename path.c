@@ -58,9 +58,10 @@ static struct pathelem *new_entry(const char *root,
 #define streq(a,b) (strcmp((a), (b)) == 0)
 
 /* Not all systems provide this feature */
-#if defined(DT_DIR) && defined(DT_UNKNOWN)
+#if defined(DT_DIR) && defined(DT_UNKNOWN) && defined(DT_LNK)
 # define dirent_type(dirent) ((dirent)->d_type)
-# define is_dir_maybe(type)  ((type) == DT_DIR || (type) == DT_UNKNOWN)
+# define is_dir_maybe(type) \
+    ((type) == DT_DIR || (type) == DT_UNKNOWN || (type) == DT_LNK)
 #else
 # define dirent_type(dirent) (1)
 # define is_dir_maybe(type)  (type)

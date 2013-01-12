@@ -60,17 +60,20 @@ typedef struct ExtQueue {
 } ExtQueue;
 
 typedef struct CPUS390XState {
-    uint64_t regs[16];	/* GP registers */
-
-    uint32_t aregs[16];	/* access registers */
-
-    uint32_t fpc;	/* floating-point control register */
+    uint64_t regs[16];     /* GP registers */
     CPU_DoubleU fregs[16]; /* FP registers */
+    uint32_t aregs[16];    /* access registers */
+
+    uint32_t fpc;          /* floating-point control register */
+    uint32_t cc_op;
+
     float_status fpu_status; /* passed to softfloat lib */
+
+    /* The low part of a 128-bit return, or remainder of a divide.  */
+    uint64_t retxl;
 
     PSW psw;
 
-    uint32_t cc_op;
     uint64_t cc_src;
     uint64_t cc_dst;
     uint64_t cc_vr;
@@ -79,15 +82,15 @@ typedef struct CPUS390XState {
     uint64_t psa;
 
     uint32_t int_pgm_code;
-    uint32_t int_pgm_ilc;
+    uint32_t int_pgm_ilen;
 
     uint32_t int_svc_code;
-    uint32_t int_svc_ilc;
+    uint32_t int_svc_ilen;
 
     uint64_t cregs[16]; /* control registers */
 
-    int pending_int;
     ExtQueue ext_queue[MAX_EXT_QUEUE];
+    int pending_int;
 
     int ext_index;
 
@@ -113,7 +116,7 @@ static inline void cpu_clone_regs(CPUS390XState *env, target_ulong newsp)
     if (newsp) {
         env->regs[15] = newsp;
     }
-    env->regs[0] = 0;
+    env->regs[2] = 0;
 }
 #endif
 
@@ -253,25 +256,31 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
              ((env->psw.mask & PSW_MASK_32) ? FLAG_MASK_32 : 0);
 }
 
-static inline int get_ilc(uint8_t opc)
+/* While the PoO talks about ILC (a number between 1-3) what is actually
+   stored in LowCore is shifted left one bit (an even between 2-6).  As
+   this is the actual length of the insn and therefore more useful, that
+   is what we want to pass around and manipulate.  To make sure that we
+   have applied this distinction universally, rename the "ILC" to "ILEN".  */
+static inline int get_ilen(uint8_t opc)
 {
     switch (opc >> 6) {
     case 0:
-        return 1;
+        return 2;
     case 1:
     case 2:
-        return 2;
-    case 3:
-        return 3;
+        return 4;
+    default:
+        return 6;
     }
-
-    return 0;
 }
 
-#define ILC_LATER       0x20
-#define ILC_LATER_INC   0x21
-#define ILC_LATER_INC_2 0x22
-
+#ifndef CONFIG_USER_ONLY
+/* In several cases of runtime exceptions, we havn't recorded the true
+   instruction length.  Use these codes when raising exceptions in order
+   to re-compute the length by examining the insn in memory.  */
+#define ILEN_LATER       0x20
+#define ILEN_LATER_INC   0x21
+#endif
 
 S390CPU *cpu_s390x_init(const char *cpu_model);
 void s390x_translate_init(void);
@@ -352,20 +361,9 @@ static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
 
 #include "exec/exec-all.h"
 
-#ifdef CONFIG_USER_ONLY
-
-#define EXCP_OPEX 1 /* operation exception (sigill) */
-#define EXCP_SVC 2 /* supervisor call (syscall) */
-#define EXCP_ADDR 5 /* addressing exception */
-#define EXCP_SPEC 6 /* specification exception */
-
-#else
-
 #define EXCP_EXT 1 /* external interrupt */
 #define EXCP_SVC 2 /* supervisor call (syscall) */
 #define EXCP_PGM 3 /* program interruption */
-
-#endif /* CONFIG_USER_ONLY */
 
 #define INTERRUPT_EXT        (1 << 0)
 #define INTERRUPT_TOD        (1 << 1)
@@ -430,79 +428,6 @@ static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
 /* Total.  */
 #define S390_NUM_REGS 51
 
-/* Pseudo registers -- PC and condition code.  */
-#define S390_PC_REGNUM S390_NUM_REGS
-#define S390_CC_REGNUM (S390_NUM_REGS+1)
-#define S390_NUM_PSEUDO_REGS 2
-#define S390_NUM_TOTAL_REGS (S390_NUM_REGS+2)
-
-
-
-/* Program Status Word.  */
-#define S390_PSWM_REGNUM 0
-#define S390_PSWA_REGNUM 1
-/* General Purpose Registers.  */
-#define S390_R0_REGNUM 2
-#define S390_R1_REGNUM 3
-#define S390_R2_REGNUM 4
-#define S390_R3_REGNUM 5
-#define S390_R4_REGNUM 6
-#define S390_R5_REGNUM 7
-#define S390_R6_REGNUM 8
-#define S390_R7_REGNUM 9
-#define S390_R8_REGNUM 10
-#define S390_R9_REGNUM 11
-#define S390_R10_REGNUM 12
-#define S390_R11_REGNUM 13
-#define S390_R12_REGNUM 14
-#define S390_R13_REGNUM 15
-#define S390_R14_REGNUM 16
-#define S390_R15_REGNUM 17
-/* Access Registers.  */
-#define S390_A0_REGNUM 18
-#define S390_A1_REGNUM 19
-#define S390_A2_REGNUM 20
-#define S390_A3_REGNUM 21
-#define S390_A4_REGNUM 22
-#define S390_A5_REGNUM 23
-#define S390_A6_REGNUM 24
-#define S390_A7_REGNUM 25
-#define S390_A8_REGNUM 26
-#define S390_A9_REGNUM 27
-#define S390_A10_REGNUM 28
-#define S390_A11_REGNUM 29
-#define S390_A12_REGNUM 30
-#define S390_A13_REGNUM 31
-#define S390_A14_REGNUM 32
-#define S390_A15_REGNUM 33
-/* Floating Point Control Word.  */
-#define S390_FPC_REGNUM 34
-/* Floating Point Registers.  */
-#define S390_F0_REGNUM 35
-#define S390_F1_REGNUM 36
-#define S390_F2_REGNUM 37
-#define S390_F3_REGNUM 38
-#define S390_F4_REGNUM 39
-#define S390_F5_REGNUM 40
-#define S390_F6_REGNUM 41
-#define S390_F7_REGNUM 42
-#define S390_F8_REGNUM 43
-#define S390_F9_REGNUM 44
-#define S390_F10_REGNUM 45
-#define S390_F11_REGNUM 46
-#define S390_F12_REGNUM 47
-#define S390_F13_REGNUM 48
-#define S390_F14_REGNUM 49
-#define S390_F15_REGNUM 50
-/* Total.  */
-#define S390_NUM_REGS 51
-
-/* Pseudo registers -- PC and condition code.  */
-#define S390_PC_REGNUM S390_NUM_REGS
-#define S390_CC_REGNUM (S390_NUM_REGS+1)
-#define S390_NUM_PSEUDO_REGS 2
-#define S390_NUM_TOTAL_REGS (S390_NUM_REGS+2)
-
 /* CC optimization */
 
 enum cc_op {
@@ -524,15 +449,19 @@ enum cc_op {
 
     CC_OP_ADD_64,               /* overflow on add (64bit) */
     CC_OP_ADDU_64,              /* overflow on unsigned add (64bit) */
+    CC_OP_ADDC_64,              /* overflow on unsigned add-carry (64bit) */
     CC_OP_SUB_64,               /* overflow on subtraction (64bit) */
     CC_OP_SUBU_64,              /* overflow on unsigned subtraction (64bit) */
+    CC_OP_SUBB_64,              /* overflow on unsigned sub-borrow (64bit) */
     CC_OP_ABS_64,               /* sign eval on abs (64bit) */
     CC_OP_NABS_64,              /* sign eval on nabs (64bit) */
 
     CC_OP_ADD_32,               /* overflow on add (32bit) */
     CC_OP_ADDU_32,              /* overflow on unsigned add (32bit) */
+    CC_OP_ADDC_32,              /* overflow on unsigned add-carry (32bit) */
     CC_OP_SUB_32,               /* overflow on subtraction (32bit) */
     CC_OP_SUBU_32,              /* overflow on unsigned subtraction (32bit) */
+    CC_OP_SUBB_32,              /* overflow on unsigned sub-borrow (32bit) */
     CC_OP_ABS_32,               /* sign eval on abs (64bit) */
     CC_OP_NABS_32,              /* sign eval on nabs (64bit) */
 
@@ -542,14 +471,14 @@ enum cc_op {
     CC_OP_TM_32,                /* test under mask (32bit) */
     CC_OP_TM_64,                /* test under mask (64bit) */
 
-    CC_OP_LTGT_F32,             /* FP compare (32bit) */
-    CC_OP_LTGT_F64,             /* FP compare (64bit) */
-
     CC_OP_NZ_F32,               /* FP dst != 0 (32bit) */
     CC_OP_NZ_F64,               /* FP dst != 0 (64bit) */
+    CC_OP_NZ_F128,              /* FP dst != 0 (128bit) */
 
     CC_OP_ICM,                  /* insert characters under mask */
-    CC_OP_SLAG,                 /* Calculate shift left signed */
+    CC_OP_SLA_32,               /* Calculate shift left signed (32bit) */
+    CC_OP_SLA_64,               /* Calculate shift left signed (64bit) */
+    CC_OP_FLOGR,                /* find leftmost one */
     CC_OP_MAX
 };
 
@@ -569,26 +498,31 @@ static const char *cc_names[] = {
     [CC_OP_LTGT0_64]  = "CC_OP_LTGT0_64",
     [CC_OP_ADD_64]    = "CC_OP_ADD_64",
     [CC_OP_ADDU_64]   = "CC_OP_ADDU_64",
+    [CC_OP_ADDC_64]   = "CC_OP_ADDC_64",
     [CC_OP_SUB_64]    = "CC_OP_SUB_64",
     [CC_OP_SUBU_64]   = "CC_OP_SUBU_64",
+    [CC_OP_SUBB_64]   = "CC_OP_SUBB_64",
     [CC_OP_ABS_64]    = "CC_OP_ABS_64",
     [CC_OP_NABS_64]   = "CC_OP_NABS_64",
     [CC_OP_ADD_32]    = "CC_OP_ADD_32",
     [CC_OP_ADDU_32]   = "CC_OP_ADDU_32",
+    [CC_OP_ADDC_32]   = "CC_OP_ADDC_32",
     [CC_OP_SUB_32]    = "CC_OP_SUB_32",
     [CC_OP_SUBU_32]   = "CC_OP_SUBU_32",
+    [CC_OP_SUBB_32]   = "CC_OP_SUBB_32",
     [CC_OP_ABS_32]    = "CC_OP_ABS_32",
     [CC_OP_NABS_32]   = "CC_OP_NABS_32",
     [CC_OP_COMP_32]   = "CC_OP_COMP_32",
     [CC_OP_COMP_64]   = "CC_OP_COMP_64",
     [CC_OP_TM_32]     = "CC_OP_TM_32",
     [CC_OP_TM_64]     = "CC_OP_TM_64",
-    [CC_OP_LTGT_F32]  = "CC_OP_LTGT_F32",
-    [CC_OP_LTGT_F64]  = "CC_OP_LTGT_F64",
     [CC_OP_NZ_F32]    = "CC_OP_NZ_F32",
     [CC_OP_NZ_F64]    = "CC_OP_NZ_F64",
+    [CC_OP_NZ_F128]   = "CC_OP_NZ_F128",
     [CC_OP_ICM]       = "CC_OP_ICM",
-    [CC_OP_SLAG]      = "CC_OP_SLAG",
+    [CC_OP_SLA_32]    = "CC_OP_SLA_32",
+    [CC_OP_SLA_64]    = "CC_OP_SLA_64",
+    [CC_OP_FLOGR]     = "CC_OP_FLOGR",
 };
 
 static inline const char *cc_name(int cc_op)
@@ -605,9 +539,9 @@ typedef struct LowCore
     uint32_t        ext_params;               /* 0x080 */
     uint16_t        cpu_addr;                 /* 0x084 */
     uint16_t        ext_int_code;             /* 0x086 */
-    uint16_t        svc_ilc;                  /* 0x088 */
+    uint16_t        svc_ilen;                 /* 0x088 */
     uint16_t        svc_code;                 /* 0x08a */
-    uint16_t        pgm_ilc;                  /* 0x08c */
+    uint16_t        pgm_ilen;                 /* 0x08c */
     uint16_t        pgm_code;                 /* 0x08e */
     uint32_t        data_exc_code;            /* 0x090 */
     uint16_t        mon_class_num;            /* 0x094 */
@@ -991,12 +925,13 @@ static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
 }
 
 /* fpu_helper.c */
-uint32_t set_cc_f32(CPUS390XState *env, float32 v1, float32 v2);
-uint32_t set_cc_f64(CPUS390XState *env, float64 v1, float64 v2);
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);
+uint32_t set_cc_nz_f128(float128 v);
 
 /* misc_helper.c */
-void program_interrupt(CPUS390XState *env, uint32_t code, int ilc);
+void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
+void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
+                                     uintptr_t retaddr);
 
 #endif

@@ -2099,7 +2099,7 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_st32_i64, { "ri", "r" } },
     { INDEX_op_st_i64, { "re", "r" } },
 
-    { INDEX_op_add_i64, { "r", "0", "re" } },
+    { INDEX_op_add_i64, { "r", "r", "re" } },
     { INDEX_op_mul_i64, { "r", "0", "re" } },
     { INDEX_op_div2_i64, { "a", "d", "0", "1", "r" } },
     { INDEX_op_divu2_i64, { "a", "d", "0", "1", "r" } },
