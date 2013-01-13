@@ -72,45 +72,45 @@ static inline void bswap64s(uint64_t *s)
 
 #if defined(HOST_WORDS_BIGENDIAN)
 #define be_bswap(v, size) (v)
-#define le_bswap(v, size) bswap ## size(v)
+#define le_bswap(v, size) glue(bswap, size)(v)
 #define be_bswaps(v, size)
-#define le_bswaps(p, size) *p = bswap ## size(*p);
+#define le_bswaps(p, size) do { *p = glue(bswap, size)(*p); } while(0)
 #else
 #define le_bswap(v, size) (v)
-#define be_bswap(v, size) bswap ## size(v)
+#define be_bswap(v, size) glue(bswap, size)(v)
 #define le_bswaps(v, size)
-#define be_bswaps(p, size) *p = bswap ## size(*p);
+#define be_bswaps(p, size) do { *p = glue(bswap, size)(*p); } while(0)
 #endif
 
 #define CPU_CONVERT(endian, size, type)\
 static inline type endian ## size ## _to_cpu(type v)\
 {\
-    return endian ## _bswap(v, size);\
+    return glue(endian, _bswap)(v, size);\
 }\
 \
 static inline type cpu_to_ ## endian ## size(type v)\
 {\
-    return endian ## _bswap(v, size);\
+    return glue(endian, _bswap)(v, size);\
 }\
 \
 static inline void endian ## size ## _to_cpus(type *p)\
 {\
-    endian ## _bswaps(p, size)\
+    glue(endian, _bswaps)(p, size);\
 }\
 \
 static inline void cpu_to_ ## endian ## size ## s(type *p)\
 {\
-    endian ## _bswaps(p, size)\
+    glue(endian, _bswaps)(p, size);\
 }\
 \
 static inline type endian ## size ## _to_cpup(const type *p)\
 {\
-    return endian ## size ## _to_cpu(*p);\
+    return glue(glue(endian, size), _to_cpu)(*p);\
 }\
 \
 static inline void cpu_to_ ## endian ## size ## w(type *p, type v)\
 {\
-     *p = cpu_to_ ## endian ## size(v);\
+    *p = glue(glue(cpu_to_, endian), size)(v);\
 }
 
 CPU_CONVERT(be, 16, uint16_t)
