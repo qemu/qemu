@@ -34,10 +34,6 @@
 #define REG_FAR 1
 #define REG_PTR 2
 
-#define FER regs[REG_FER]
-#define FAR regs[REG_FAR]
-#define PTR regs[REG_PTR]
-
 #define FER_PARALLEL_EN   0x01
 #define FER_UART1_EN      0x02
 #define FER_UART2_EN      0x04
@@ -66,14 +62,14 @@
 
 static inline bool is_parallel_enabled(PC87312State *s)
 {
-    return s->FER & FER_PARALLEL_EN;
+    return s->regs[REG_FER] & FER_PARALLEL_EN;
 }
 
 static const uint32_t parallel_base[] = { 0x378, 0x3bc, 0x278, 0x00 };
 
 static inline uint32_t get_parallel_iobase(PC87312State *s)
 {
-    return parallel_base[s->FAR & FAR_PARALLEL_ADDR];
+    return parallel_base[s->regs[REG_FAR] & FAR_PARALLEL_ADDR];
 }
 
 static const uint32_t parallel_irq[] = { 5, 7, 5, 0 };
@@ -81,9 +77,9 @@ static const uint32_t parallel_irq[] = { 5, 7, 5, 0 };
 static inline uint32_t get_parallel_irq(PC87312State *s)
 {
     int idx;
-    idx = (s->FAR & FAR_PARALLEL_ADDR);
+    idx = (s->regs[REG_FAR] & FAR_PARALLEL_ADDR);
     if (idx == 0) {
-        return (s->PTR & PTR_IRQ_5_7) ? 7 : 5;
+        return (s->regs[REG_PTR] & PTR_IRQ_5_7) ? 7 : 5;
     } else {
         return parallel_irq[idx];
     }
@@ -91,7 +87,7 @@ static inline uint32_t get_parallel_irq(PC87312State *s)
 
 static inline bool is_parallel_epp(PC87312State *s)
 {
-    return s->PTR & PTR_EPP_MODE;
+    return s->regs[REG_PTR] & PTR_EPP_MODE;
 }
 
 
@@ -105,26 +101,26 @@ static const uint32_t uart_base[2][4] = {
 static inline uint32_t get_uart_iobase(PC87312State *s, int i)
 {
     int idx;
-    idx = (s->FAR >> (2 * i + 2)) & 0x3;
+    idx = (s->regs[REG_FAR] >> (2 * i + 2)) & 0x3;
     if (idx == 0) {
         return 0x3f8;
     } else if (idx == 1) {
         return 0x2f8;
     } else {
-        return uart_base[idx & 1][(s->FAR & FAR_UART_3_4) >> 6];
+        return uart_base[idx & 1][(s->regs[REG_FAR] & FAR_UART_3_4) >> 6];
     }
 }
 
 static inline uint32_t get_uart_irq(PC87312State *s, int i)
 {
     int idx;
-    idx = (s->FAR >> (2 * i + 2)) & 0x3;
+    idx = (s->regs[REG_FAR] >> (2 * i + 2)) & 0x3;
     return (idx & 1) ? 3 : 4;
 }
 
 static inline bool is_uart_enabled(PC87312State *s, int i)
 {
-    return s->FER & (FER_UART1_EN << i);
+    return s->regs[REG_FER] & (FER_UART1_EN << i);
 }
 
 
@@ -132,12 +128,12 @@ static inline bool is_uart_enabled(PC87312State *s, int i)
 
 static inline bool is_fdc_enabled(PC87312State *s)
 {
-    return s->FER & FER_FDC_EN;
+    return s->regs[REG_FER] & FER_FDC_EN;
 }
 
 static inline uint32_t get_fdc_iobase(PC87312State *s)
 {
-    return (s->FER & FER_FDC_ADDR) ? 0x370 : 0x3f0;
+    return (s->regs[REG_FER] & FER_FDC_ADDR) ? 0x370 : 0x3f0;
 }
 
 
@@ -145,19 +141,19 @@ static inline uint32_t get_fdc_iobase(PC87312State *s)
 
 static inline bool is_ide_enabled(PC87312State *s)
 {
-    return s->FER & FER_IDE_EN;
+    return s->regs[REG_FER] & FER_IDE_EN;
 }
 
 static inline uint32_t get_ide_iobase(PC87312State *s)
 {
-    return (s->FER & FER_IDE_ADDR) ? 0x170 : 0x1f0;
+    return (s->regs[REG_FER] & FER_IDE_ADDR) ? 0x170 : 0x1f0;
 }
 
 
 static void reconfigure_devices(PC87312State *s)
 {
     error_report("pc87312: unsupported device reconfiguration (%02x %02x %02x)",
-                 s->FER, s->FAR, s->PTR);
+                 s->regs[REG_FER], s->regs[REG_FAR], s->regs[REG_PTR]);
 }
 
 static void pc87312_soft_reset(PC87312State *s)
@@ -184,9 +180,9 @@ static void pc87312_soft_reset(PC87312State *s)
     s->read_id_step = 0;
     s->selected_index = REG_FER;
 
-    s->FER = fer_init[s->config & 0x1f];
-    s->FAR = far_init[s->config & 0x1f];
-    s->PTR = ptr_init[s->config & 0x1f];
+    s->regs[REG_FER] = fer_init[s->config & 0x1f];
+    s->regs[REG_FAR] = far_init[s->config & 0x1f];
+    s->regs[REG_PTR] = ptr_init[s->config & 0x1f];
 }
 
 static void pc87312_hard_reset(PC87312State *s)
