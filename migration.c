@@ -330,7 +330,7 @@ static void migrate_fd_cancel(MigrationState *s)
 
     s->state = MIG_STATE_CANCELLED;
     notifier_list_notify(&migration_state_notifiers, s);
-    qemu_savevm_state_cancel(s->file);
+    qemu_savevm_state_cancel();
 
     migrate_fd_cleanup(s);
 }
