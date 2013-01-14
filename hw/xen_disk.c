@@ -112,6 +112,31 @@ struct XenBlkDev {
 
 /* ------------------------------------------------------------- */
 
+static void ioreq_reset(struct ioreq *ioreq)
+{
+    memset(&ioreq->req, 0, sizeof(ioreq->req));
+    ioreq->status = 0;
+    ioreq->start = 0;
+    ioreq->presync = 0;
+    ioreq->postsync = 0;
+    ioreq->mapped = 0;
+
+    memset(ioreq->domids, 0, sizeof(ioreq->domids));
+    memset(ioreq->refs, 0, sizeof(ioreq->refs));
+    ioreq->prot = 0;
+    memset(ioreq->page, 0, sizeof(ioreq->page));
+    ioreq->pages = NULL;
+
+    ioreq->aio_inflight = 0;
+    ioreq->aio_errors = 0;
+
+    ioreq->blkdev = NULL;
+    memset(&ioreq->list, 0, sizeof(ioreq->list));
+    memset(&ioreq->acct, 0, sizeof(ioreq->acct));
+
+    qemu_iovec_reset(&ioreq->v);
+}
+
 static struct ioreq *ioreq_start(struct XenBlkDev *blkdev)
 {
     struct ioreq *ioreq = NULL;
@@ -129,7 +154,6 @@ static struct ioreq *ioreq_start(struct XenBlkDev *blkdev)
         /* get one from freelist */
         ioreq = QLIST_FIRST(&blkdev->freelist);
         QLIST_REMOVE(ioreq, list);
-        qemu_iovec_reset(&ioreq->v);
     }
     QLIST_INSERT_HEAD(&blkdev->inflight, ioreq, list);
     blkdev->requests_inflight++;
@@ -153,7 +177,7 @@ static void ioreq_release(struct ioreq *ioreq, bool finish)
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
     QLIST_REMOVE(ioreq, list);
-    memset(ioreq, 0, sizeof(*ioreq));
+    ioreq_reset(ioreq);
     ioreq->blkdev = blkdev;
     QLIST_INSERT_HEAD(&blkdev->freelist, ioreq, list);
     if (finish) {
