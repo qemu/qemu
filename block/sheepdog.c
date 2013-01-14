@@ -427,12 +427,11 @@ static const AIOCBInfo sd_aiocb_info = {
 };
 
 static SheepdogAIOCB *sd_aio_setup(BlockDriverState *bs, QEMUIOVector *qiov,
-                                   int64_t sector_num, int nb_sectors,
-                                   BlockDriverCompletionFunc *cb, void *opaque)
+                                   int64_t sector_num, int nb_sectors)
 {
     SheepdogAIOCB *acb;
 
-    acb = qemu_aio_get(&sd_aiocb_info, bs, cb, opaque);
+    acb = qemu_aio_get(&sd_aiocb_info, bs, NULL, NULL);
 
     acb->qiov = qiov;
 
@@ -1672,7 +1671,7 @@ static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
         bs->total_sectors = sector_num + nb_sectors;
     }
 
-    acb = sd_aio_setup(bs, qiov, sector_num, nb_sectors, NULL, NULL);
+    acb = sd_aio_setup(bs, qiov, sector_num, nb_sectors);
     acb->aio_done_func = sd_write_done;
     acb->aiocb_type = AIOCB_WRITE_UDATA;
 
@@ -1693,7 +1692,7 @@ static coroutine_fn int sd_co_readv(BlockDriverState *bs, int64_t sector_num,
     SheepdogAIOCB *acb;
     int ret;
 
-    acb = sd_aio_setup(bs, qiov, sector_num, nb_sectors, NULL, NULL);
+    acb = sd_aio_setup(bs, qiov, sector_num, nb_sectors);
     acb->aiocb_type = AIOCB_READ_UDATA;
     acb->aio_done_func = sd_finish_aiocb;
 
@@ -1719,7 +1718,7 @@ static int coroutine_fn sd_co_flush_to_disk(BlockDriverState *bs)
         return 0;
     }
 
-    acb = sd_aio_setup(bs, NULL, 0, 0, NULL, NULL);
+    acb = sd_aio_setup(bs, NULL, 0, 0);
     acb->aiocb_type = AIOCB_FLUSH_CACHE;
     acb->aio_done_func = sd_finish_aiocb;
 
