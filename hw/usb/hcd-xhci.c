@@ -1197,6 +1197,7 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
             ep = epctx->transfers[xferi].packet.ep;
         }
         killed += xhci_ep_nuke_one_xfer(&epctx->transfers[xferi]);
+        epctx->transfers[xferi].packet.ep = NULL;
         xferi = (xferi + 1) % TD_QUEUE;
     }
     if (ep) {
@@ -2198,6 +2199,28 @@ static unsigned int xhci_get_slot(XHCIState *xhci, XHCIEvent *event, XHCITRB *tr
     return slotid;
 }
 
+/* cleanup slot state on usb device detach */
+static void xhci_detach_slot(XHCIState *xhci, USBPort *uport)
+{
+    int slot, ep;
+
+    for (slot = 0; slot < xhci->numslots; slot++) {
+        if (xhci->slots[slot].uport == uport) {
+            break;
+        }
+    }
+    if (slot == xhci->numslots) {
+        return;
+    }
+
+    for (ep = 0; ep < 31; ep++) {
+        if (xhci->slots[slot].eps[ep]) {
+            xhci_ep_nuke_xfers(xhci, slot+1, ep+1);
+        }
+    }
+    xhci->slots[slot].uport = NULL;
+}
+
 static TRBCCode xhci_get_port_bandwidth(XHCIState *xhci, uint64_t pctx)
 {
     dma_addr_t ctx;
@@ -2940,6 +2963,7 @@ static void xhci_detach(USBPort *usbport)
     XHCIState *xhci = usbport->opaque;
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
 
+    xhci_detach_slot(xhci, usbport);
     xhci_port_update(port, 1);
 }
 
@@ -2971,13 +2995,8 @@ static void xhci_child_detach(USBPort *uport, USBDevice *child)
 {
     USBBus *bus = usb_bus_from_device(child);
     XHCIState *xhci = container_of(bus, XHCIState, bus);
-    int i;
 
-    for (i = 0; i < xhci->numslots; i++) {
-        if (xhci->slots[i].uport == uport) {
-            xhci->slots[i].uport = NULL;
-        }
-    }
+    xhci_detach_slot(xhci, uport);
 }
 
 static USBPortOps xhci_uport_ops = {
