@@ -2433,12 +2433,6 @@ int monitor_handle_fd_param(Monitor *mon, const char *fdname)
     return fd;
 }
 
-/* mon_cmds and info_cmds would be sorted at runtime */
-static mon_cmd_t mon_cmds[] = {
-#include "hmp-commands.h"
-    { NULL, NULL, },
-};
-
 /* Please update hmp-commands.hx when adding or changing commands */
 static mon_cmd_t info_cmds[] = {
     {
@@ -2750,6 +2744,12 @@ static mon_cmd_t info_cmds[] = {
     {
         .name       = NULL,
     },
+};
+
+/* mon_cmds and info_cmds would be sorted at runtime */
+static mon_cmd_t mon_cmds[] = {
+#include "hmp-commands.h"
+    { NULL, NULL, },
 };
 
 static const mon_cmd_t qmp_cmds[] = {
