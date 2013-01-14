@@ -32,6 +32,7 @@
 #include "sysemu/kvm.h"
 
 #include "hw/s390-virtio-bus.h"
+#include "hw/virtio-bus.h"
 
 /* #define DEBUG_S390 */
 
@@ -569,8 +570,36 @@ static const TypeInfo s390_virtio_bridge_info = {
     .class_init    = s390_virtio_bridge_class_init,
 };
 
+/* virtio-s390-bus */
+
+void virtio_s390_bus_new(VirtioBusState *bus, VirtIOS390Device *dev)
+{
+    DeviceState *qdev = DEVICE(dev);
+    BusState *qbus;
+    qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_S390_BUS, qdev, NULL);
+    qbus = BUS(bus);
+    qbus->allow_hotplug = 0;
+}
+
+static void virtio_s390_bus_class_init(ObjectClass *klass, void *data)
+{
+    VirtioBusClass *k = VIRTIO_BUS_CLASS(klass);
+    BusClass *bus_class = BUS_CLASS(klass);
+    bus_class->max_dev = 1;
+    k->notify = virtio_s390_notify;
+    k->get_features = virtio_s390_get_features;
+}
+
+static const TypeInfo virtio_s390_bus_info = {
+    .name          = TYPE_VIRTIO_S390_BUS,
+    .parent        = TYPE_VIRTIO_BUS,
+    .instance_size = sizeof(VirtioS390BusState),
+    .class_init    = virtio_s390_bus_class_init,
+};
+
 static void s390_virtio_register_types(void)
 {
+    type_register_static(&virtio_s390_bus_info);
     type_register_static(&s390_virtio_bus_info);
     type_register_static(&virtio_s390_device_info);
     type_register_static(&s390_virtio_serial);
