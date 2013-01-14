@@ -1345,6 +1345,40 @@ static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
     return thread_pool_submit_aio(aio_worker, acb, cb, opaque);
 }
 
+static coroutine_fn int hdev_co_discard(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    if (s->has_discard == 0) {
+        return 0;
+    }
+    ret = fd_open(bs);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = -EOPNOTSUPP;
+#ifdef BLKDISCARD
+    do {
+        uint64_t range[2] = { sector_num * 512, (uint64_t)nb_sectors * 512 };
+        if (ioctl(s->fd, BLKDISCARD, range) == 0) {
+            return 0;
+        }
+    } while (errno == EINTR);
+
+    ret = -errno;
+#endif
+    if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
+        ret == -ENOTTY) {
+        s->has_discard = 0;
+        ret = 0;
+    }
+    return ret;
+
+}
+
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 static int fd_open(BlockDriverState *bs)
 {
@@ -1412,6 +1446,8 @@ static BlockDriver bdrv_host_device = {
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
     .bdrv_has_zero_init = hdev_has_zero_init,
+
+    .bdrv_co_discard    = hdev_co_discard,
 
     .bdrv_aio_readv	= raw_aio_readv,
     .bdrv_aio_writev	= raw_aio_writev,
