@@ -170,7 +170,7 @@ static void virtio_9p_class_init(ObjectClass *klass, void *data)
 
     k->init = virtio_9p_init_pci;
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
-    k->device_id = 0x1009;
+    k->device_id = PCI_DEVICE_ID_VIRTIO_9P;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = 0x2;
     dc->props = virtio_9p_properties;

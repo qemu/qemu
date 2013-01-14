@@ -2092,18 +2092,22 @@ static void ehci_advance_state(EHCIState *ehci, int async)
             break;
 
         case EST_ADVANCEQUEUE:
+            assert(q != NULL);
             again = ehci_state_advqueue(q);
             break;
 
         case EST_FETCHQTD:
+            assert(q != NULL);
             again = ehci_state_fetchqtd(q);
             break;
 
         case EST_HORIZONTALQH:
+            assert(q != NULL);
             again = ehci_state_horizqh(q);
             break;
 
         case EST_EXECUTE:
+            assert(q != NULL);
             again = ehci_state_execute(q);
             if (async) {
                 ehci->async_stepdown = 0;

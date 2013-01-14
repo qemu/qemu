@@ -527,7 +527,7 @@ static int find_image_format(BlockDriverState *bs, const char *filename,
     int ret = 0;
 
     /* Return the raw BlockDriver * to scsi-generic devices or empty drives */
-    if (bs->sg || !bdrv_is_inserted(bs)) {
+    if (bs->sg || !bdrv_is_inserted(bs) || bdrv_getlength(bs) == 0) {
         drv = bdrv_find_format("raw");
         if (!drv) {
             ret = -ENOENT;
@@ -4311,6 +4311,22 @@ void bdrv_set_buffer_alignment(BlockDriverState *bs, int align)
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
 {
     return qemu_memalign((bs && bs->buffer_alignment) ? bs->buffer_alignment : 512, size);
+}
+
+/*
+ * Check if all memory in this vector is sector aligned.
+ */
+bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
+{
+    int i;
+
+    for (i = 0; i < qiov->niov; i++) {
+        if ((uintptr_t) qiov->iov[i].iov_base % bs->buffer_alignment) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable)

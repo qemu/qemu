@@ -58,13 +58,13 @@ typedef struct PCTestdev {
 
 #define TYPE_TESTDEV "pc-testdev"
 #define TESTDEV(obj) \
-     OBJECT_CHECK(struct PCTestdev, (obj), TYPE_TESTDEV)
+     OBJECT_CHECK(PCTestdev, (obj), TYPE_TESTDEV)
 
 static void test_irq_line(void *opaque, hwaddr addr, uint64_t data,
                           unsigned len)
 {
-    struct PCTestdev *dev = opaque;
-    struct ISADevice *isa = ISA_DEVICE(dev);
+    PCTestdev *dev = opaque;
+    ISADevice *isa = ISA_DEVICE(dev);
 
     qemu_set_irq(isa_get_irq(isa, addr), !!data);
 }
@@ -79,13 +79,13 @@ static const MemoryRegionOps test_irq_ops = {
 static void test_ioport_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned len)
 {
-    struct PCTestdev *dev = opaque;
+    PCTestdev *dev = opaque;
     dev->ioport_data = data;
 }
 
 static uint64_t test_ioport_read(void *opaque, hwaddr addr, unsigned len)
 {
-    struct PCTestdev *dev = opaque;
+    PCTestdev *dev = opaque;
     return dev->ioport_data;
 }
 
@@ -119,7 +119,7 @@ static const MemoryRegionOps test_flush_ops = {
 
 static uint64_t test_iomem_read(void *opaque, hwaddr addr, unsigned len)
 {
-    struct PCTestdev *dev = opaque;
+    PCTestdev *dev = opaque;
     uint64_t ret = 0;
     memcpy(&ret, &dev->iomem_buf[addr], len);
     ret = le64_to_cpu(ret);
@@ -130,7 +130,7 @@ static uint64_t test_iomem_read(void *opaque, hwaddr addr, unsigned len)
 static void test_iomem_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned len)
 {
-    struct PCTestdev *dev = opaque;
+    PCTestdev *dev = opaque;
     val = cpu_to_le64(val);
     memcpy(&dev->iomem_buf[addr], &val, len);
     dev->iomem_buf[addr] = val;
@@ -144,7 +144,7 @@ static const MemoryRegionOps test_iomem_ops = {
 
 static int init_test_device(ISADevice *isa)
 {
-    struct PCTestdev *dev = TESTDEV(isa);
+    PCTestdev *dev = TESTDEV(isa);
     MemoryRegion *mem = isa_address_space(isa);
     MemoryRegion *io = isa_address_space_io(isa);
 
@@ -175,7 +175,7 @@ static void testdev_class_init(ObjectClass *klass, void *data)
 static const TypeInfo testdev_info = {
     .name           = TYPE_TESTDEV,
     .parent         = TYPE_ISA_DEVICE,
-    .instance_size  = sizeof(struct PCTestdev),
+    .instance_size  = sizeof(PCTestdev),
     .class_init     = testdev_class_init,
 };
 

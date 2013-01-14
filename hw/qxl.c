@@ -37,33 +37,25 @@
  */
 #undef SPICE_RING_PROD_ITEM
 #define SPICE_RING_PROD_ITEM(qxl, r, ret) {                             \
-        typeof(r) start = r;                                            \
-        typeof(r) end = r + 1;                                          \
         uint32_t prod = (r)->prod & SPICE_RING_INDEX_MASK(r);           \
-        typeof(&(r)->items[prod]) m_item = &(r)->items[prod];           \
-        if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
+        if (prod >= ARRAY_SIZE((r)->items)) {                           \
             qxl_set_guest_bug(qxl, "SPICE_RING_PROD_ITEM indices mismatch " \
-                          "! %p <= %p < %p", (uint8_t *)start,          \
-                          (uint8_t *)m_item, (uint8_t *)end);           \
+                          "%u >= %zu", prod, ARRAY_SIZE((r)->items));   \
             ret = NULL;                                                 \
         } else {                                                        \
-            ret = &m_item->el;                                          \
+            ret = &(r)->items[prod].el;                                 \
         }                                                               \
     }
 
 #undef SPICE_RING_CONS_ITEM
 #define SPICE_RING_CONS_ITEM(qxl, r, ret) {                             \
-        typeof(r) start = r;                                            \
-        typeof(r) end = r + 1;                                          \
         uint32_t cons = (r)->cons & SPICE_RING_INDEX_MASK(r);           \
-        typeof(&(r)->items[cons]) m_item = &(r)->items[cons];           \
-        if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
+        if (cons >= ARRAY_SIZE((r)->items)) {                           \
             qxl_set_guest_bug(qxl, "SPICE_RING_CONS_ITEM indices mismatch " \
-                          "! %p <= %p < %p", (uint8_t *)start,          \
-                          (uint8_t *)m_item, (uint8_t *)end);           \
+                          "%u >= %zu", cons, ARRAY_SIZE((r)->items));   \
             ret = NULL;                                                 \
         } else {                                                        \
-            ret = &m_item->el;                                          \
+            ret = &(r)->items[cons].el;                                 \
         }                                                               \
     }
 
@@ -959,9 +951,11 @@ static void interface_set_client_capabilities(QXLInstance *sin,
     }
 
     qxl->shadow_rom.client_present = client_present;
-    memcpy(qxl->shadow_rom.client_capabilities, caps, sizeof(caps));
+    memcpy(qxl->shadow_rom.client_capabilities, caps,
+           sizeof(qxl->shadow_rom.client_capabilities));
     qxl->rom->client_present = client_present;
-    memcpy(qxl->rom->client_capabilities, caps, sizeof(caps));
+    memcpy(qxl->rom->client_capabilities, caps,
+           sizeof(qxl->rom->client_capabilities));
     qxl_rom_set_dirty(qxl);
 
     qxl_send_events(qxl, QXL_INTERRUPT_CLIENT);

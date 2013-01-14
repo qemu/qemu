@@ -97,11 +97,3 @@ FsDriverEntry *get_fsdev_fsentry(char *id)
     }
     return NULL;
 }
-
-static void fsdev_register_config(void)
-{
-    qemu_add_opts(&qemu_fsdev_opts);
-    qemu_add_opts(&qemu_virtfs_opts);
-}
-machine_init(fsdev_register_config);
-

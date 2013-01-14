@@ -185,8 +185,8 @@ static void serial_pci_class_initfn(ObjectClass *klass, void *data)
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
     pc->init = serial_pci_init;
     pc->exit = serial_pci_exit;
-    pc->vendor_id = 0x1b36; /* Red Hat */
-    pc->device_id = 0x0002;
+    pc->vendor_id = PCI_VENDOR_ID_REDHAT;
+    pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL;
     pc->revision = 1;
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_serial;
@@ -199,8 +199,8 @@ static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
     pc->init = multi_serial_pci_init;
     pc->exit = multi_serial_pci_exit;
-    pc->vendor_id = 0x1b36; /* Red Hat */
-    pc->device_id = 0x0003;
+    pc->vendor_id = PCI_VENDOR_ID_REDHAT;
+    pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL2;
     pc->revision = 1;
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_multi_serial;
@@ -213,8 +213,8 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
     pc->init = multi_serial_pci_init;
     pc->exit = multi_serial_pci_exit;
-    pc->vendor_id = 0x1b36; /* Red Hat */
-    pc->device_id = 0x0004;
+    pc->vendor_id = PCI_VENDOR_ID_REDHAT;
+    pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL4;
     pc->revision = 1;
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_multi_serial;

@@ -115,7 +115,7 @@ static void walk_pde2(MemoryMappingList *list,
                       hwaddr pde_start_addr, int32_t a20_mask,
                       bool pse)
 {
-    hwaddr pde_addr, pte_start_addr, start_paddr;
+    hwaddr pde_addr, pte_start_addr, start_paddr, high_paddr;
     uint32_t pde;
     target_ulong line_addr, start_vaddr;
     int i;
@@ -130,8 +130,13 @@ static void walk_pde2(MemoryMappingList *list,
 
         line_addr = (((unsigned int)i & 0x3ff) << 22);
         if ((pde & PG_PSE_MASK) && pse) {
-            /* 4 MB page */
-            start_paddr = (pde & ~0x3fffff) | ((pde & 0x1fe000) << 19);
+            /*
+             * 4 MB page:
+             * bits 39:32 are bits 20:13 of the PDE
+             * bit3 31:22 are bits 31:22 of the PDE
+             */
+            high_paddr = ((hwaddr)(pde & 0x1fe000) << 19);
+            start_paddr = (pde & ~0x3fffff) | high_paddr;
             if (cpu_physical_memory_is_io(start_paddr)) {
                 /* I/O region */
                 continue;

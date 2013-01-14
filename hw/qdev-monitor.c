@@ -615,3 +615,54 @@ void qdev_machine_init(void)
     qdev_get_peripheral_anon();
     qdev_get_peripheral();
 }
+
+QemuOptsList qemu_device_opts = {
+    .name = "device",
+    .implied_opt_name = "driver",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_device_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any
+         * sanity checking will happen later
+         * when setting device properties
+         */
+        { /* end of list */ }
+    },
+};
+
+QemuOptsList qemu_global_opts = {
+    .name = "global",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_global_opts.head),
+    .desc = {
+        {
+            .name = "driver",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "property",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "value",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
+int qemu_global_option(const char *str)
+{
+    char driver[64], property[64];
+    QemuOpts *opts;
+    int rc, offset;
+
+    rc = sscanf(str, "%63[^.].%63[^=]%n", driver, property, &offset);
+    if (rc < 2 || str[offset] != '=') {
+        error_report("can't parse: \"%s\"", str);
+        return -1;
+    }
+
+    opts = qemu_opts_create_nofail(&qemu_global_opts);
+    qemu_opt_set(opts, "driver", driver);
+    qemu_opt_set(opts, "property", property);
+    qemu_opt_set(opts, "value", str+offset+1);
+    return 0;
+}

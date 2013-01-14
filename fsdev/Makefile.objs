@@ -7,3 +7,4 @@ extra-obj-y = qemu-fsdev-dummy.o
 else
 common-obj-y = qemu-fsdev-dummy.o
 endif
+common-obj-y += qemu-fsdev-opts.o

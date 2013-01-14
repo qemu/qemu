@@ -21,11 +21,22 @@ QEMU_CFLAGS += -I$(<D) -I$(@D)
 	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 
 ifeq ($(LIBTOOL),)
-%.lo: %.c
-	@echo "missing libtool. please install and rerun configure"; exit 1
+LIBTOOL = /bin/false
+LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
+       $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
+LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
-	$(call quiet-command,$(LIBTOOL) --mode=compile --quiet --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
+%.lo: %.dtrace
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, " lt GEN $(TARGET_DIR)$@")
+
+LINK = $(call quiet-command,\
+       $(if $(filter %.lo %.la,$^),$(LIBTOOL) --mode=link --tag=CC \
+       )$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
+       $(LIBS),$(if $(filter %.lo %.la,$^),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
 endif
 
 %.asm: %.S
@@ -37,7 +48,8 @@ endif
 %.o: %.m
 	$(call quiet-command,$(OBJCC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  OBJC  $(TARGET_DIR)$@")
 
-LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(LIBS),"  LINK  $(TARGET_DIR)$@")
+%.o: %.dtrace
+	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   $(TARGET_DIR)$@")
 
 %$(EXESUF): %.o
 	$(call LINK,$^)

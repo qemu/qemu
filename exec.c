@@ -78,7 +78,7 @@ DEFINE_TLS(CPUArchState *,cpu_single_env);
 /* 0 = Do not count executed instructions.
    1 = Precise instruction counting.
    2 = Adaptive rate instruction counting.  */
-int use_icount = 0;
+int use_icount;
 
 #if !defined(CONFIG_USER_ONLY)
 
