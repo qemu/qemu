@@ -374,7 +374,7 @@ BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
             uint16_t count = entry >> 48;
 
             if (count == 0) {
-                break;
+                continue;
             }
 
             ret = bdrv_discard(bs, sector, count);
