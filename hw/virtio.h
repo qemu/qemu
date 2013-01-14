@@ -108,8 +108,17 @@ typedef struct {
 
 #define VIRTIO_NO_VECTOR 0xffff
 
+#define TYPE_VIRTIO_DEVICE "virtio-device"
+#define VIRTIO_DEVICE_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(VirtioDeviceClass, obj, TYPE_VIRTIO_DEVICE)
+#define VIRTIO_DEVICE_CLASS(klass) \
+        OBJECT_CLASS_CHECK(VirtioDeviceClass, klass, TYPE_VIRTIO_DEVICE)
+#define VIRTIO_DEVICE(obj) \
+        OBJECT_CHECK(VirtIODevice, (obj), TYPE_VIRTIO_DEVICE)
+
 struct VirtIODevice
 {
+    DeviceState parent_obj;
     const char *name;
     uint8_t status;
     uint8_t isr;
@@ -119,6 +128,10 @@ struct VirtIODevice
     void *config;
     uint16_t config_vector;
     int nvectors;
+    /*
+     * Function pointers will be removed at the end of the series as they are in
+     * VirtioDeviceClass.
+     */
     uint32_t (*get_features)(VirtIODevice *vdev, uint32_t requested_features);
     uint32_t (*bad_features)(VirtIODevice *vdev);
     void (*set_features)(VirtIODevice *vdev, uint32_t val);
@@ -146,6 +159,23 @@ struct VirtIODevice
     bool vm_running;
     VMChangeStateEntry *vmstate;
 };
+
+typedef struct VirtioDeviceClass {
+    /* This is what a VirtioDevice must implement */
+    DeviceClass parent;
+    int (*init)(VirtIODevice *vdev);
+    uint32_t (*get_features)(VirtIODevice *vdev, uint32_t requested_features);
+    uint32_t (*bad_features)(VirtIODevice *vdev);
+    void (*set_features)(VirtIODevice *vdev, uint32_t val);
+    void (*get_config)(VirtIODevice *vdev, uint8_t *config);
+    void (*set_config)(VirtIODevice *vdev, const uint8_t *config);
+    void (*reset)(VirtIODevice *vdev);
+    void (*set_status)(VirtIODevice *vdev, uint8_t val);
+} VirtioDeviceClass;
+
+void virtio_init(VirtIODevice *vdev, const char *name,
+                         uint16_t device_id, size_t config_size);
+void virtio_common_cleanup(VirtIODevice *vdev);
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             void (*handle_output)(VirtIODevice *,
