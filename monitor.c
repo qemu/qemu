@@ -123,7 +123,7 @@ typedef struct mon_cmd_t {
     const char *help;
     void (*user_print)(Monitor *mon, const QObject *data);
     union {
-        void (*info)(Monitor *mon);
+        void (*info)(Monitor *mon, const QDict *qdict);
         void (*cmd)(Monitor *mon, const QDict *qdict);
         int  (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
         int  (*cmd_async)(Monitor *mon, const QDict *params,
@@ -825,7 +825,7 @@ static void do_info(Monitor *mon, const QDict *qdict)
         goto help;
     }
 
-    cmd->mhandler.info(mon);
+    cmd->mhandler.info(mon, NULL);
     return;
 
 help:
@@ -899,19 +899,19 @@ int monitor_get_cpu_index(void)
     return cpu->cpu_index;
 }
 
-static void do_info_registers(Monitor *mon)
+static void do_info_registers(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
     env = mon_get_cpu();
     cpu_dump_state(env, (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
 }
 
-static void do_info_jit(Monitor *mon)
+static void do_info_jit(Monitor *mon, const QDict *qdict)
 {
     dump_exec_info((FILE *)mon, monitor_fprintf);
 }
 
-static void do_info_history(Monitor *mon)
+static void do_info_history(Monitor *mon, const QDict *qdict)
 {
     int i;
     const char *str;
@@ -930,7 +930,7 @@ static void do_info_history(Monitor *mon)
 
 #if defined(TARGET_PPC)
 /* XXX: not implemented in other targets */
-static void do_info_cpu_stats(Monitor *mon)
+static void do_info_cpu_stats(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
@@ -939,7 +939,7 @@ static void do_info_cpu_stats(Monitor *mon)
 }
 #endif
 
-static void do_trace_print_events(Monitor *mon)
+static void do_trace_print_events(Monitor *mon, const QDict *qdict)
 {
     trace_print_events((FILE *)mon, &monitor_fprintf);
 }
@@ -1491,7 +1491,7 @@ static void tlb_info_64(Monitor *mon, CPUArchState *env)
 }
 #endif
 
-static void tlb_info(Monitor *mon)
+static void tlb_info(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
@@ -1714,7 +1714,7 @@ static void mem_info_64(Monitor *mon, CPUArchState *env)
 }
 #endif
 
-static void mem_info(Monitor *mon)
+static void mem_info(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
@@ -1753,7 +1753,7 @@ static void print_tlb(Monitor *mon, int idx, tlb_t *tlb)
                    tlb->d, tlb->wt);
 }
 
-static void tlb_info(Monitor *mon)
+static void tlb_info(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env = mon_get_cpu();
     int i;
@@ -1769,7 +1769,7 @@ static void tlb_info(Monitor *mon)
 #endif
 
 #if defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_XTENSA)
-static void tlb_info(Monitor *mon)
+static void tlb_info(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env1 = mon_get_cpu();
 
@@ -1777,12 +1777,12 @@ static void tlb_info(Monitor *mon)
 }
 #endif
 
-static void do_info_mtree(Monitor *mon)
+static void do_info_mtree(Monitor *mon, const QDict *qdict)
 {
     mtree_info((fprintf_function)monitor_printf, mon);
 }
 
-static void do_info_numa(Monitor *mon)
+static void do_info_numa(Monitor *mon, const QDict *qdict)
 {
     int i;
     CPUArchState *env;
@@ -1808,7 +1808,7 @@ static void do_info_numa(Monitor *mon)
 int64_t qemu_time;
 int64_t dev_time;
 
-static void do_info_profile(Monitor *mon)
+static void do_info_profile(Monitor *mon, const QDict *qdict)
 {
     int64_t total;
     total = qemu_time;
@@ -1822,7 +1822,7 @@ static void do_info_profile(Monitor *mon)
     dev_time = 0;
 }
 #else
-static void do_info_profile(Monitor *mon)
+static void do_info_profile(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "Internal profiler not compiled\n");
 }
@@ -1831,7 +1831,7 @@ static void do_info_profile(Monitor *mon)
 /* Capture support */
 static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
 
-static void do_info_capture(Monitor *mon)
+static void do_info_capture(Monitor *mon, const QDict *qdict)
 {
     int i;
     CaptureState *s;

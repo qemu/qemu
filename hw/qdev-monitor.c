@@ -564,13 +564,13 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent)
 }
 #undef qdev_printf
 
-void do_info_qtree(Monitor *mon)
+void do_info_qtree(Monitor *mon, const QDict *qdict)
 {
     if (sysbus_get_default())
         qbus_print(mon, sysbus_get_default(), 0);
 }
 
-void do_info_qdm(Monitor *mon)
+void do_info_qdm(Monitor *mon, const QDict *qdict)
 {
     object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, NULL);
 }

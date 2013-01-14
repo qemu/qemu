@@ -1998,7 +1998,7 @@ static void hex2str(int val, char *str, size_t size)
     }
 }
 
-void usb_host_info(Monitor *mon)
+void usb_host_info(Monitor *mon, const QDict *qdict)
 {
     struct USBAutoFilter *f;
     struct USBHostDevice *s;
