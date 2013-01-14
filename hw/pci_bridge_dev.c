@@ -27,10 +27,6 @@
 #include "exec/memory.h"
 #include "pci/pci_bus.h"
 
-#define REDHAT_PCI_VENDOR_ID 0x1b36
-#define PCI_BRIDGE_DEV_VENDOR_ID REDHAT_PCI_VENDOR_ID
-#define PCI_BRIDGE_DEV_DEVICE_ID 0x1
-
 struct PCIBridgeDev {
     PCIBridge bridge;
     MemoryRegion bar;
@@ -146,8 +142,8 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     k->init = pci_bridge_dev_initfn;
     k->exit = pci_bridge_dev_exitfn;
     k->config_write = pci_bridge_dev_write_config;
-    k->vendor_id = PCI_BRIDGE_DEV_VENDOR_ID;
-    k->device_id = PCI_BRIDGE_DEV_DEVICE_ID;
+    k->vendor_id = PCI_VENDOR_ID_REDHAT;
+    k->device_id = PCI_DEVICE_ID_REDHAT_BRIDGE;
     k->class_id = PCI_CLASS_BRIDGE_PCI;
     k->is_bridge = 1,
     dc->desc = "Standard PCI Bridge";
