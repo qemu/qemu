@@ -430,22 +430,6 @@ static void raw_reopen_abort(BDRVReopenState *state)
 #endif
 */
 
-/*
- * Check if all memory in this vector is sector aligned.
- */
-static int qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
-{
-    int i;
-
-    for (i = 0; i < qiov->niov; i++) {
-        if ((uintptr_t) qiov->iov[i].iov_base % bs->buffer_alignment) {
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
 static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
 {
     int ret;
@@ -455,15 +439,7 @@ static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
         return -errno;
     }
 
-    /*
-     * This looks weird, but the aio code only considers a request
-     * successful if it has written the full number of bytes.
-     *
-     * Now we overload aio_nbytes as aio_ioctl_cmd for the ioctl command,
-     * so in fact we return the ioctl command here to make posix_aio_read()
-     * happy..
-     */
-    return aiocb->aio_nbytes;
+    return 0;
 }
 
 static ssize_t handle_aiocb_flush(RawPosixAIOData *aiocb)
@@ -722,7 +698,7 @@ static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
      * driver that it needs to copy the buffer.
      */
     if ((bs->open_flags & BDRV_O_NOCACHE)) {
-        if (!qiov_is_aligned(bs, qiov)) {
+        if (!bdrv_qiov_is_aligned(bs, qiov)) {
             type |= QEMU_AIO_MISALIGNED;
 #ifdef CONFIG_LINUX_AIO
         } else if (s->use_aio) {
