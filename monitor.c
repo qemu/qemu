@@ -129,6 +129,11 @@ typedef struct mon_cmd_t {
                           MonitorCompletion *cb, void *opaque);
     } mhandler;
     int flags;
+    /* @sub_table is a list of 2nd level of commands. If it do not exist,
+     * mhandler should be used. If it exist, sub_table[?].mhandler should be
+     * used, and mhandler of 1st level plays the role of help function.
+     */
+    struct mon_cmd_t *sub_table;
 } mon_cmd_t;
 
 /* file descriptors passed via SCM_RIGHTS */
@@ -3541,18 +3546,27 @@ static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
     return NULL;
 }
 
-static const mon_cmd_t *monitor_find_command(const char *cmdname)
-{
-    return search_dispatch_table(mon_cmds, cmdname);
-}
-
 static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
 {
     return search_dispatch_table(qmp_cmds, cmdname);
 }
 
+/*
+ * Parse @cmdline according to command table @table.
+ * If @cmdline is blank, return NULL.
+ * If it can't be parsed, report to @mon, and return NULL.
+ * Else, insert command arguments into @qdict, and return the command.
+ * If sub-command table exist, and if @cmdline contains addtional string for
+ * sub-command, this function will try search sub-command table. if no
+ * addtional string for sub-command exist, this function will return the found
+ * one in @table.
+ * Do not assume the returned command points into @table!  It doesn't
+ * when the command is a sub-command.
+ */
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                                               const char *cmdline,
+                                              int start,
+                                              mon_cmd_t *table,
                                               QDict *qdict)
 {
     const char *p, *typestr;
@@ -3563,18 +3577,33 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     char *key;
 
 #ifdef DEBUG
-    monitor_printf(mon, "command='%s'\n", cmdline);
+    monitor_printf(mon, "command='%s', start='%d'\n", cmdline, start);
 #endif
 
     /* extract the command name */
-    p = get_command_name(cmdline, cmdname, sizeof(cmdname));
+    p = get_command_name(cmdline + start, cmdname, sizeof(cmdname));
     if (!p)
         return NULL;
 
-    cmd = monitor_find_command(cmdname);
+    cmd = search_dispatch_table(table, cmdname);
     if (!cmd) {
-        monitor_printf(mon, "unknown command: '%s'\n", cmdname);
+        monitor_printf(mon, "unknown command: '%.*s'\n",
+                       (int)(p - cmdline), cmdline);
         return NULL;
+    }
+
+    /* filter out following useless space */
+    while (qemu_isspace(*p)) {
+        p++;
+    }
+    /* search sub command */
+    if (cmd->sub_table != NULL) {
+        /* check if user set additional command */
+        if (*p == '\0') {
+            return cmd;
+        }
+        return monitor_parse_command(mon, cmdline, p - cmdline,
+                                     cmd->sub_table, qdict);
     }
 
     /* parse the parameters */
@@ -3932,7 +3961,7 @@ static void handle_user_command(Monitor *mon, const char *cmdline)
 
     qdict = qdict_new();
 
-    cmd = monitor_parse_command(mon, cmdline, qdict);
+    cmd = monitor_parse_command(mon, cmdline, 0, mon_cmds, qdict);
     if (!cmd)
         goto out;
 
