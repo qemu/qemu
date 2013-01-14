@@ -123,7 +123,6 @@ typedef struct mon_cmd_t {
     const char *help;
     void (*user_print)(Monitor *mon, const QObject *data);
     union {
-        void (*info)(Monitor *mon, const QDict *qdict);
         void (*cmd)(Monitor *mon, const QDict *qdict);
         int  (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
         int  (*cmd_async)(Monitor *mon, const QDict *params,
@@ -825,7 +824,7 @@ static void do_info(Monitor *mon, const QDict *qdict)
         goto help;
     }
 
-    cmd->mhandler.info(mon, NULL);
+    cmd->mhandler.cmd(mon, NULL);
     return;
 
 help:
@@ -2442,63 +2441,63 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the version of QEMU",
-        .mhandler.info = hmp_info_version,
+        .mhandler.cmd = hmp_info_version,
     },
     {
         .name       = "network",
         .args_type  = "",
         .params     = "",
         .help       = "show the network state",
-        .mhandler.info = do_info_network,
+        .mhandler.cmd = do_info_network,
     },
     {
         .name       = "chardev",
         .args_type  = "",
         .params     = "",
         .help       = "show the character devices",
-        .mhandler.info = hmp_info_chardev,
+        .mhandler.cmd = hmp_info_chardev,
     },
     {
         .name       = "block",
         .args_type  = "",
         .params     = "",
         .help       = "show the block devices",
-        .mhandler.info = hmp_info_block,
+        .mhandler.cmd = hmp_info_block,
     },
     {
         .name       = "blockstats",
         .args_type  = "",
         .params     = "",
         .help       = "show block device statistics",
-        .mhandler.info = hmp_info_blockstats,
+        .mhandler.cmd = hmp_info_blockstats,
     },
     {
         .name       = "block-jobs",
         .args_type  = "",
         .params     = "",
         .help       = "show progress of ongoing block device operations",
-        .mhandler.info = hmp_info_block_jobs,
+        .mhandler.cmd = hmp_info_block_jobs,
     },
     {
         .name       = "registers",
         .args_type  = "",
         .params     = "",
         .help       = "show the cpu registers",
-        .mhandler.info = do_info_registers,
+        .mhandler.cmd = do_info_registers,
     },
     {
         .name       = "cpus",
         .args_type  = "",
         .params     = "",
         .help       = "show infos for each CPU",
-        .mhandler.info = hmp_info_cpus,
+        .mhandler.cmd = hmp_info_cpus,
     },
     {
         .name       = "history",
         .args_type  = "",
         .params     = "",
         .help       = "show the command line history",
-        .mhandler.info = do_info_history,
+        .mhandler.cmd = do_info_history,
     },
 #if defined(TARGET_I386) || defined(TARGET_PPC) || defined(TARGET_MIPS) || \
     defined(TARGET_LM32) || (defined(TARGET_SPARC) && !defined(TARGET_SPARC64))
@@ -2508,11 +2507,11 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show the interrupts statistics (if available)",
 #ifdef TARGET_SPARC
-        .mhandler.info = sun4m_irq_info,
+        .mhandler.cmd = sun4m_irq_info,
 #elif defined(TARGET_LM32)
-        .mhandler.info = lm32_irq_info,
+        .mhandler.cmd = lm32_irq_info,
 #else
-        .mhandler.info = irq_info,
+        .mhandler.cmd = irq_info,
 #endif
     },
     {
@@ -2521,11 +2520,11 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show i8259 (PIC) state",
 #ifdef TARGET_SPARC
-        .mhandler.info = sun4m_pic_info,
+        .mhandler.cmd = sun4m_pic_info,
 #elif defined(TARGET_LM32)
-        .mhandler.info = lm32_do_pic_info,
+        .mhandler.cmd = lm32_do_pic_info,
 #else
-        .mhandler.info = pic_info,
+        .mhandler.cmd = pic_info,
 #endif
     },
 #endif
@@ -2534,7 +2533,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show PCI info",
-        .mhandler.info = hmp_info_pci,
+        .mhandler.cmd = hmp_info_pci,
     },
 #if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC) || \
     defined(TARGET_PPC) || defined(TARGET_XTENSA)
@@ -2543,7 +2542,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show virtual to physical memory mappings",
-        .mhandler.info = tlb_info,
+        .mhandler.cmd = tlb_info,
     },
 #endif
 #if defined(TARGET_I386)
@@ -2552,7 +2551,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the active virtual memory mappings",
-        .mhandler.info = mem_info,
+        .mhandler.cmd = mem_info,
     },
 #endif
     {
@@ -2560,91 +2559,91 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show memory tree",
-        .mhandler.info = do_info_mtree,
+        .mhandler.cmd = do_info_mtree,
     },
     {
         .name       = "jit",
         .args_type  = "",
         .params     = "",
         .help       = "show dynamic compiler info",
-        .mhandler.info = do_info_jit,
+        .mhandler.cmd = do_info_jit,
     },
     {
         .name       = "kvm",
         .args_type  = "",
         .params     = "",
         .help       = "show KVM information",
-        .mhandler.info = hmp_info_kvm,
+        .mhandler.cmd = hmp_info_kvm,
     },
     {
         .name       = "numa",
         .args_type  = "",
         .params     = "",
         .help       = "show NUMA information",
-        .mhandler.info = do_info_numa,
+        .mhandler.cmd = do_info_numa,
     },
     {
         .name       = "usb",
         .args_type  = "",
         .params     = "",
         .help       = "show guest USB devices",
-        .mhandler.info = usb_info,
+        .mhandler.cmd = usb_info,
     },
     {
         .name       = "usbhost",
         .args_type  = "",
         .params     = "",
         .help       = "show host USB devices",
-        .mhandler.info = usb_host_info,
+        .mhandler.cmd = usb_host_info,
     },
     {
         .name       = "profile",
         .args_type  = "",
         .params     = "",
         .help       = "show profiling information",
-        .mhandler.info = do_info_profile,
+        .mhandler.cmd = do_info_profile,
     },
     {
         .name       = "capture",
         .args_type  = "",
         .params     = "",
         .help       = "show capture information",
-        .mhandler.info = do_info_capture,
+        .mhandler.cmd = do_info_capture,
     },
     {
         .name       = "snapshots",
         .args_type  = "",
         .params     = "",
         .help       = "show the currently saved VM snapshots",
-        .mhandler.info = do_info_snapshots,
+        .mhandler.cmd = do_info_snapshots,
     },
     {
         .name       = "status",
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM status (running|paused)",
-        .mhandler.info = hmp_info_status,
+        .mhandler.cmd = hmp_info_status,
     },
     {
         .name       = "pcmcia",
         .args_type  = "",
         .params     = "",
         .help       = "show guest PCMCIA status",
-        .mhandler.info = pcmcia_info,
+        .mhandler.cmd = pcmcia_info,
     },
     {
         .name       = "mice",
         .args_type  = "",
         .params     = "",
         .help       = "show which guest mouse is receiving events",
-        .mhandler.info = hmp_info_mice,
+        .mhandler.cmd = hmp_info_mice,
     },
     {
         .name       = "vnc",
         .args_type  = "",
         .params     = "",
         .help       = "show the vnc server status",
-        .mhandler.info = hmp_info_vnc,
+        .mhandler.cmd = hmp_info_vnc,
     },
 #if defined(CONFIG_SPICE)
     {
@@ -2652,7 +2651,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the spice server status",
-        .mhandler.info = hmp_info_spice,
+        .mhandler.cmd = hmp_info_spice,
     },
 #endif
     {
@@ -2660,14 +2659,14 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM name",
-        .mhandler.info = hmp_info_name,
+        .mhandler.cmd = hmp_info_name,
     },
     {
         .name       = "uuid",
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM UUID",
-        .mhandler.info = hmp_info_uuid,
+        .mhandler.cmd = hmp_info_uuid,
     },
 #if defined(TARGET_PPC)
     {
@@ -2675,7 +2674,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show CPU statistics",
-        .mhandler.info = do_info_cpu_stats,
+        .mhandler.cmd = do_info_cpu_stats,
     },
 #endif
 #if defined(CONFIG_SLIRP)
@@ -2684,7 +2683,7 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show user network stack connection states",
-        .mhandler.info = do_info_usernet,
+        .mhandler.cmd = do_info_usernet,
     },
 #endif
     {
@@ -2692,56 +2691,56 @@ static mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show migration status",
-        .mhandler.info = hmp_info_migrate,
+        .mhandler.cmd = hmp_info_migrate,
     },
     {
         .name       = "migrate_capabilities",
         .args_type  = "",
         .params     = "",
         .help       = "show current migration capabilities",
-        .mhandler.info = hmp_info_migrate_capabilities,
+        .mhandler.cmd = hmp_info_migrate_capabilities,
     },
     {
         .name       = "migrate_cache_size",
         .args_type  = "",
         .params     = "",
         .help       = "show current migration xbzrle cache size",
-        .mhandler.info = hmp_info_migrate_cache_size,
+        .mhandler.cmd = hmp_info_migrate_cache_size,
     },
     {
         .name       = "balloon",
         .args_type  = "",
         .params     = "",
         .help       = "show balloon information",
-        .mhandler.info = hmp_info_balloon,
+        .mhandler.cmd = hmp_info_balloon,
     },
     {
         .name       = "qtree",
         .args_type  = "",
         .params     = "",
         .help       = "show device tree",
-        .mhandler.info = do_info_qtree,
+        .mhandler.cmd = do_info_qtree,
     },
     {
         .name       = "qdm",
         .args_type  = "",
         .params     = "",
         .help       = "show qdev device model list",
-        .mhandler.info = do_info_qdm,
+        .mhandler.cmd = do_info_qdm,
     },
     {
         .name       = "roms",
         .args_type  = "",
         .params     = "",
         .help       = "show roms",
-        .mhandler.info = do_info_roms,
+        .mhandler.cmd = do_info_roms,
     },
     {
         .name       = "trace-events",
         .args_type  = "",
         .params     = "",
         .help       = "show available trace-events & their state",
-        .mhandler.info = do_trace_print_events,
+        .mhandler.cmd = do_trace_print_events,
     },
     {
         .name       = NULL,
