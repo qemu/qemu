@@ -447,7 +447,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
     event_poll_init(&s->event_poll);
 
     /* Set up guest notifier (irq) */
-    if (s->vdev->binding->set_guest_notifiers(s->vdev->binding_opaque,
+    if (s->vdev->binding->set_guest_notifiers(s->vdev->binding_opaque, 1,
                                               true) != 0) {
         fprintf(stderr, "virtio-blk failed to set guest notifier, "
                 "ensure -enable-kvm is set\n");
@@ -508,7 +508,7 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
     event_poll_cleanup(&s->event_poll);
 
     /* Clean up guest notifier (irq) */
-    s->vdev->binding->set_guest_notifiers(s->vdev->binding_opaque, false);
+    s->vdev->binding->set_guest_notifiers(s->vdev->binding_opaque, 1, false);
 
     vring_teardown(&s->vring);
 }
