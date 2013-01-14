@@ -15,6 +15,7 @@
 #ifndef QEMU_VIRTIO_PCI_H
 #define QEMU_VIRTIO_PCI_H
 
+#include "hw/pci/msi.h"
 #include "virtio-blk.h"
 #include "virtio-net.h"
 #include "virtio-rng.h"
