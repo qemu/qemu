@@ -31,6 +31,7 @@
 #include "sysemu/blockdev.h"
 #include "virtio-pci.h"
 #include "qemu/range.h"
+#include "virtio-bus.h"
 
 /* from Linux's linux/virtio_pci.h */
 
@@ -1311,6 +1312,41 @@ static const TypeInfo virtio_scsi_info = {
     .class_init    = virtio_scsi_class_init,
 };
 
+/* virtio-pci-bus */
+
+void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev)
+{
+    DeviceState *qdev = DEVICE(dev);
+    BusState *qbus;
+    qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_PCI_BUS, qdev, NULL);
+    qbus = BUS(bus);
+    qbus->allow_hotplug = 0;
+}
+
+static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *bus_class = BUS_CLASS(klass);
+    VirtioBusClass *k = VIRTIO_BUS_CLASS(klass);
+    bus_class->max_dev = 1;
+    k->notify = virtio_pci_notify;
+    k->save_config = virtio_pci_save_config;
+    k->load_config = virtio_pci_load_config;
+    k->save_queue = virtio_pci_save_queue;
+    k->load_queue = virtio_pci_load_queue;
+    k->get_features = virtio_pci_get_features;
+    k->query_guest_notifiers = virtio_pci_query_guest_notifiers;
+    k->set_host_notifier = virtio_pci_set_host_notifier;
+    k->set_guest_notifiers = virtio_pci_set_guest_notifiers;
+    k->vmstate_change = virtio_pci_vmstate_change;
+}
+
+static const TypeInfo virtio_pci_bus_info = {
+    .name          = TYPE_VIRTIO_PCI_BUS,
+    .parent        = TYPE_VIRTIO_BUS,
+    .instance_size = sizeof(VirtioPCIBusState),
+    .class_init    = virtio_pci_bus_class_init,
+};
+
 static void virtio_pci_register_types(void)
 {
     type_register_static(&virtio_blk_info);
@@ -1319,6 +1355,7 @@ static void virtio_pci_register_types(void)
     type_register_static(&virtio_balloon_info);
     type_register_static(&virtio_scsi_info);
     type_register_static(&virtio_rng_info);
+    type_register_static(&virtio_pci_bus_info);
 }
 
 type_init(virtio_pci_register_types)
