@@ -104,6 +104,14 @@ defconfig:
 -include config-all-devices.mak
 -include config-all-disas.mak
 
+ifneq ($(wildcard config-host.mak),)
+include $(SRC_PATH)/Makefile.objs
+include $(SRC_PATH)/tests/Makefile
+endif
+ifeq ($(CONFIG_SMARTCARD_NSS),y)
+include $(SRC_PATH)/libcacard/Makefile
+endif
+
 all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all
 
 config-host.h: config-host.h-timestamp
@@ -116,12 +124,6 @@ SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 subdir-%:
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
 
-ifneq ($(wildcard config-host.mak),)
-include $(SRC_PATH)/Makefile.objs
-endif
-
-subdir-libcacard: $(oslib-obj-y) $(trace-obj-y) qemu-timer-common.o
-
 subdir-pixman: pixman/Makefile
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C pixman V="$(V)" all,)
 
@@ -131,11 +133,11 @@ pixman/Makefile: $(SRC_PATH)/pixman/configure
 $(SRC_PATH)/pixman/configure:
 	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
 
-$(SUBDIR_RULES): libqemustub.a
+$(SUBDIR_RULES): libqemuutil.a libqemustub.a
 
-$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(common-obj-y) $(extra-obj-y)
+$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(common-obj-y) $(extra-obj-y)
 
-$(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(user-obj-y)
+$(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(user-obj-y)
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
@@ -153,39 +155,22 @@ version.o: $(SRC_PATH)/version.rc config-host.h
 version-obj-$(CONFIG_WIN32) += version.o
 
 ######################################################################
-# Build library with stubs
+# Build libraries
 
 libqemustub.a: $(stub-obj-y)
-
-######################################################################
-# Support building shared library libcacard
-
-.PHONY: libcacard.la install-libcacard
-libcacard.la: $(oslib-obj-y) qemu-timer-common.o $(trace-obj-y)
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" libcacard.la,)
-
-install-libcacard: libcacard.la
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" install-libcacard,)
+libqemuutil.a: $(util-obj-y)
 
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
 
-tools-obj-y = $(oslib-obj-y) $(trace-obj-y) qemu-tool.o qemu-timer.o \
-	main-loop.o iohandler.o error.o
-tools-obj-$(CONFIG_POSIX) += compatfd.o
-
-qemu-img$(EXESUF): qemu-img.o $(tools-obj-y) $(block-obj-y) libqemustub.a
-qemu-nbd$(EXESUF): qemu-nbd.o $(tools-obj-y) $(block-obj-y) libqemustub.a
-qemu-io$(EXESUF): qemu-io.o cmd.o $(tools-obj-y) $(block-obj-y) libqemustub.a
+qemu-img$(EXESUF): qemu-img.o $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-nbd$(EXESUF): qemu-nbd.o $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-io$(EXESUF): qemu-io.o cmd.o $(block-obj-y) libqemuutil.a libqemustub.a
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o
 
-vscclient$(EXESUF): LIBS += $(libcacard_libs)
-vscclient$(EXESUF): $(libcacard-y) $(oslib-obj-y) $(trace-obj-y) libcacard/vscclient.o libqemustub.a
-	$(call LINK, $^)
-
-fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/virtio-9p-marshal.o oslib-posix.o $(trace-obj-y)
+fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/virtio-9p-marshal.o libqemuutil.a libqemustub.a
 fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
@@ -195,10 +180,6 @@ qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 qemu-ga$(EXESUF): QEMU_CFLAGS += -I qga/qapi-generated
 
 gen-out-type = $(subst .,-,$(suffix $@))
-
-ifneq ($(wildcard config-host.mak),)
-include $(SRC_PATH)/tests/Makefile
-endif
 
 qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
 
@@ -225,7 +206,7 @@ $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
-qemu-ga$(EXESUF): $(qga-obj-y) $(oslib-obj-y) $(trace-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y) libqemustub.a
+qemu-ga$(EXESUF): $(qga-obj-y) libqemuutil.a libqemustub.a
 	$(call LINK, $^)
 
 clean:
@@ -234,6 +215,7 @@ clean:
 	rm -f qemu-options.def
 	find . -name '*.[od]' -type f -exec rm -f {} +
 	rm -f *.a *.lo $(TOOLS) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
+	rm -f *.la
 	rm -Rf .libs
 	rm -f qemu-img-cmds.h
 	@# May not be present in GENERATED_HEADERS

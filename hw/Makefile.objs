@@ -1,8 +1,7 @@
 # core qdev-related obj files, also used by *-user:
-hw-core-obj-y += qdev.o qdev-properties.o
+universal-obj-y += qdev.o qdev-properties.o
 # irq.o needed for qdev GPIO handling:
-hw-core-obj-y += irq.o
-
+universal-obj-y += irq.o
 
 common-obj-y = usb/ ide/ pci/
 common-obj-y += loader.o
@@ -37,7 +36,7 @@ common-obj-$(CONFIG_DMA) += dma.o
 common-obj-$(CONFIG_I82374) += i82374.o
 common-obj-$(CONFIG_HPET) += hpet.o
 common-obj-$(CONFIG_APPLESMC) += applesmc.o
-common-obj-$(CONFIG_SMARTCARD) += ccid-card-passthru.o
+common-obj-y += ccid-card-passthru.o
 common-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 common-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
 common-obj-y += fifo.o

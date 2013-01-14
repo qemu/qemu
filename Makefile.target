@@ -54,7 +54,7 @@ $(QEMU_PROG).stp: $(SRC_PATH)/trace-events
 		--binary=$(bindir)/$(QEMU_PROG) \
 		--target-arch=$(TARGET_ARCH) \
 		--target-type=$(TARGET_TYPE) \
-		< $< > $@,"  GEN   $(QEMU_PROG).stp")
+		< $< > $@,"  GEN   $(TARGET_DIR)$(QEMU_PROG).stp")
 else
 stap:
 endif
@@ -83,7 +83,7 @@ ifdef CONFIG_LINUX_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
 
 obj-y += linux-user/
-obj-y += gdbstub.o thunk.o user-exec.o $(oslib-obj-y)
+obj-y += gdbstub.o thunk.o user-exec.o
 
 endif #CONFIG_LINUX_USER
 
@@ -95,7 +95,7 @@ ifdef CONFIG_BSD_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y += bsd-user/
-obj-y += gdbstub.o user-exec.o $(oslib-obj-y)
+obj-y += gdbstub.o user-exec.o
 
 endif #CONFIG_BSD_USER
 
@@ -146,21 +146,16 @@ include $(SRC_PATH)/Makefile.objs
 
 all-obj-y = $(obj-y)
 all-obj-y += $(addprefix ../, $(universal-obj-y))
-
-ifdef CONFIG_SOFTMMU
-all-obj-y += $(addprefix ../, $(common-obj-y))
-else
-all-obj-y += $(addprefix ../, $(user-obj-y))
-endif #CONFIG_LINUX_USER
+all-obj-$(CONFIG_SOFTMMU) += $(addprefix ../, $(common-obj-y))
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.
-$(QEMU_PROGW): $(all-obj-y) ../libqemustub.a
+$(QEMU_PROGW): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)
 $(QEMU_PROG): $(QEMU_PROGW)
 	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
 else
-$(QEMU_PROG): $(all-obj-y) ../libqemustub.a
+$(QEMU_PROG): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)
 endif
 

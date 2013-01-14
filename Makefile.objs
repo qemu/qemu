@@ -1,67 +1,31 @@
 #######################################################################
-# Stub library, linked in tools
+# Common libraries for tools and emulators
 stub-obj-y = stubs/
-
-#######################################################################
-# Target-independent parts used in system and user emulation
-universal-obj-y =
-universal-obj-y += qemu-log.o
-
-#######################################################################
-# QObject
-qobject-obj-y = qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o
-qobject-obj-y += qjson.o json-lexer.o json-streamer.o json-parser.o
-qobject-obj-y += qerror.o error.o qemu-error.o
-
-universal-obj-y += $(qobject-obj-y)
-
-#######################################################################
-# QOM
-qom-obj-y = qom/
-
-universal-obj-y += $(qom-obj-y)
-
-#######################################################################
-# Core hw code (qdev core)
-hw-core-obj-y += hw/
-hw-core-obj-y += qemu-option.o
-
-universal-obj-y += $(hw-core-obj-y)
-
-#######################################################################
-# oslib-obj-y is code depending on the OS (win32 vs posix)
-oslib-obj-y = osdep.o cutils.o qemu-timer-common.o
-oslib-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
-oslib-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
-
-#######################################################################
-# coroutines
-coroutine-obj-y = qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
-coroutine-obj-y += qemu-coroutine-sleep.o
-
-# If you change this logic, please also check tests/Makefile
-ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
-coroutine-obj-$(CONFIG_POSIX) += coroutine-ucontext.o
-else
-ifeq ($(CONFIG_SIGALTSTACK_COROUTINE),y)
-coroutine-obj-$(CONFIG_POSIX) += coroutine-sigaltstack.o
-else
-coroutine-obj-$(CONFIG_POSIX) += coroutine-gthread.o
-endif
-endif
-coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
+util-obj-y = util/ qobject/ qapi/ trace/
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
-block-obj-y = iov.o cache-utils.o qemu-option.o module.o async.o
-block-obj-y += nbd.o block.o blockjob.o aes.o qemu-config.o
-block-obj-y += thread-pool.o qemu-progress.o qemu-sockets.o uri.o notify.o
-block-obj-y += $(coroutine-obj-y) $(qobject-obj-y) $(version-obj-y)
-block-obj-$(CONFIG_POSIX) += event_notifier-posix.o aio-posix.o
-block-obj-$(CONFIG_WIN32) += event_notifier-win32.o aio-win32.o
+block-obj-y = async.o thread-pool.o
+block-obj-y += nbd.o block.o blockjob.o
+block-obj-y += main-loop.o iohandler.o qemu-timer.o
+block-obj-$(CONFIG_POSIX) += aio-posix.o
+block-obj-$(CONFIG_WIN32) += aio-win32.o
 block-obj-y += block/
-block-obj-y += $(qapi-obj-y) qapi-types.o qapi-visit.o
+block-obj-y += qapi-types.o qapi-visit.o
+
+block-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
+block-obj-y += qemu-coroutine-sleep.o
+ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
+block-obj-$(CONFIG_POSIX) += coroutine-ucontext.o
+else
+ifeq ($(CONFIG_SIGALTSTACK_COROUTINE),y)
+block-obj-$(CONFIG_POSIX) += coroutine-sigaltstack.o
+else
+block-obj-$(CONFIG_POSIX) += coroutine-gthread.o
+endif
+endif
+block-obj-$(CONFIG_WIN32) += coroutine-win32.o
 
 ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
 # Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
@@ -76,25 +40,19 @@ endif
 
 common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
 common-obj-y += net/
-common-obj-y += qom/
 common-obj-y += readline.o
-common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
 
 common-obj-$(CONFIG_LINUX) += fsdev/
 extra-obj-$(CONFIG_LINUX) += fsdev/
 
-common-obj-y += tcg-runtime.o host-utils.o main-loop.o
-common-obj-y += migration.o migration-tcp.o
 common-obj-y += migration.o migration-tcp.o
 common-obj-y += qemu-char.o #aio.o
-common-obj-y += block-migration.o iohandler.o
-common-obj-y += bitmap.o bitops.o
+common-obj-y += block-migration.o
 common-obj-y += page_cache.o
 
 common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
-common-obj-$(CONFIG_WIN32) += version.o
 
 common-obj-$(CONFIG_SPICE) += spice-qemu-char.o
 
@@ -106,9 +64,6 @@ common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
 
 common-obj-y += dma-helpers.o
-common-obj-y += acl.o
-common-obj-$(CONFIG_POSIX) += compatfd.o
-common-obj-y += qemu-timer.o qemu-timer-common.o
 common-obj-y += qtest.o
 common-obj-y += vl.o
 
@@ -121,30 +76,6 @@ common-obj-y += backends/
 ifeq ($(CONFIG_SECCOMP),y)
 common-obj-y += qemu-seccomp.o
 endif
-
-######################################################################
-# libuser
-
-user-obj-y =
-user-obj-y += envlist.o path.o
-user-obj-y += tcg-runtime.o host-utils.o
-user-obj-y += cache-utils.o
-user-obj-y += module.o
-user-obj-y += qemu-user.o
-user-obj-y += qom/
-
-######################################################################
-# disassemblers
-# NOTE: the disassembler code is only needed for debugging
-
-universal-obj-y += disas/
-
-######################################################################
-# trace
-
-trace-obj-y += trace/
-
-universal-obj-y += $(trace-obj-y)
 
 ######################################################################
 # smartcard
@@ -160,19 +91,24 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 ######################################################################
 # qapi
 
-qapi-obj-y = qapi/
-qapi-obj-y += qapi-types.o qapi-visit.o
-
 common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
 common-obj-y += qmp.o hmp.o
 
-universal-obj-y += $(qapi-obj-y)
+#######################################################################
+# Target-independent parts used in system and user emulation
+universal-obj-y =
+universal-obj-y += qemu-log.o
+universal-obj-y += tcg-runtime.o
+universal-obj-y += hw/
+universal-obj-y += qom/
+universal-obj-y += disas/
 
 ######################################################################
 # guest agent
 
-qga-obj-y = qga/ module.o qemu-tool.o
-qga-obj-$(CONFIG_POSIX) += qemu-sockets.o qemu-option.o
+# FIXME: a few definitions from qapi-types.o/qapi-visit.o are needed
+# by libqemuutil.a.  These should be moved to a separate .json schema.
+qga-obj-y = qga/ qapi-types.o qapi-visit.o
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
@@ -182,14 +118,10 @@ QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 nested-vars += \
 	stub-obj-y \
+	util-obj-y \
 	qga-obj-y \
-	qom-obj-y \
-	qapi-obj-y \
 	block-obj-y \
-	user-obj-y \
 	common-obj-y \
 	universal-obj-y \
-	hw-core-obj-y \
-	extra-obj-y \
-	trace-obj-y
+	extra-obj-y
 dummy := $(call unnest-vars)
