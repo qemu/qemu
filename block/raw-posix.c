@@ -59,6 +59,9 @@
 #ifdef CONFIG_FIEMAP
 #include <linux/fiemap.h>
 #endif
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+#include <linux/falloc.h>
+#endif
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <sys/disk.h>
 #include <sys/cdio.h>
@@ -1074,15 +1077,34 @@ static int xfs_discard(BDRVRawState *s, int64_t sector_num, int nb_sectors)
 static coroutine_fn int raw_co_discard(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors)
 {
-#ifdef CONFIG_XFS
+    int ret = -EOPNOTSUPP;
+
+#if defined(CONFIG_FALLOCATE_PUNCH_HOLE) || defined(CONFIG_XFS)
     BDRVRawState *s = bs->opaque;
 
+#ifdef CONFIG_XFS
     if (s->is_xfs) {
         return xfs_discard(s, sector_num, nb_sectors);
     }
 #endif
 
-    return 0;
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+    do {
+        if (fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                      sector_num << BDRV_SECTOR_BITS,
+                      (int64_t)nb_sectors << BDRV_SECTOR_BITS) == 0) {
+            return 0;
+        }
+    } while (errno == EINTR);
+
+    ret = -errno;
+#endif
+#endif
+
+    if (ret == -EOPNOTSUPP) {
+        return 0;
+    }
+    return ret;
 }
 
 static QEMUOptionParameter raw_create_options[] = {
