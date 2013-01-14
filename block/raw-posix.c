@@ -141,6 +141,7 @@ typedef struct BDRVRawState {
 #ifdef CONFIG_XFS
     bool is_xfs : 1;
 #endif
+    bool has_discard : 1;
 } BDRVRawState;
 
 typedef struct BDRVRawReopenState {
@@ -292,6 +293,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     }
 #endif
 
+    s->has_discard = 1;
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
         s->is_xfs = 1;
@@ -1078,9 +1080,11 @@ static coroutine_fn int raw_co_discard(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors)
 {
     int ret = -EOPNOTSUPP;
-
-#if defined(CONFIG_FALLOCATE_PUNCH_HOLE) || defined(CONFIG_XFS)
     BDRVRawState *s = bs->opaque;
+
+    if (!s->has_discard) {
+        return 0;
+    }
 
 #ifdef CONFIG_XFS
     if (s->is_xfs) {
@@ -1098,7 +1102,6 @@ static coroutine_fn int raw_co_discard(BlockDriverState *bs,
     } while (errno == EINTR);
 
     ret = -errno;
-#endif
 #endif
 
     if (ret == -EOPNOTSUPP) {
