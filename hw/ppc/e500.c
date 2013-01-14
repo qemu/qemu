@@ -463,7 +463,8 @@ void ppce500_init(PPCE500Params *params)
     target_long kernel_size=0;
     target_ulong dt_base = 0;
     target_ulong initrd_base = 0;
-    target_long initrd_size=0;
+    target_long initrd_size = 0;
+    target_ulong cur_base = 0;
     int i = 0, j, k;
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq **irqs, *mpic;
@@ -626,12 +627,13 @@ void ppce500_init(PPCE500Params *params)
                     params->kernel_filename);
             exit(1);
         }
+
+        cur_base = loadaddr + kernel_size;
     }
 
     /* Load initrd. */
     if (params->initrd_filename) {
-        initrd_base = (loadaddr + kernel_size + INITRD_LOAD_PAD) &
-            ~INITRD_PAD_MASK;
+        initrd_base = (cur_base + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
         initrd_size = load_image_targphys(params->initrd_filename, initrd_base,
                                           ram_size - initrd_base);
 
@@ -640,6 +642,8 @@ void ppce500_init(PPCE500Params *params)
                     params->initrd_filename);
             exit(1);
         }
+
+        cur_base = initrd_base + initrd_size;
     }
 
     /* If we're loading a kernel directly, we must load the device tree too. */
@@ -647,7 +651,7 @@ void ppce500_init(PPCE500Params *params)
         struct boot_info *boot_info;
         int dt_size;
 
-        dt_base = (loadaddr + kernel_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
+        dt_base = (cur_base + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
         dt_size = ppce500_load_device_tree(env, params, dt_base, initrd_base,
                                            initrd_size);
         if (dt_size < 0) {
