@@ -1312,6 +1312,121 @@ static const TypeInfo virtio_scsi_info = {
     .class_init    = virtio_scsi_class_init,
 };
 
+/*
+ * virtio-pci: This is the PCIDevice which has a virtio-pci-bus.
+ */
+
+/* This is called by virtio-bus just after the device is plugged. */
+static void virtio_pci_device_plugged(DeviceState *d)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
+    VirtioBusState *bus = &proxy->bus;
+    uint8_t *config;
+    uint32_t size;
+
+    proxy->vdev = bus->vdev;
+
+    config = proxy->pci_dev.config;
+    if (proxy->class_code) {
+        pci_config_set_class(config, proxy->class_code);
+    }
+    pci_set_word(config + PCI_SUBSYSTEM_VENDOR_ID,
+                 pci_get_word(config + PCI_VENDOR_ID));
+    pci_set_word(config + PCI_SUBSYSTEM_ID, virtio_bus_get_vdev_id(bus));
+    config[PCI_INTERRUPT_PIN] = 1;
+
+    if (proxy->nvectors &&
+        msix_init_exclusive_bar(&proxy->pci_dev, proxy->nvectors, 1)) {
+        proxy->nvectors = 0;
+    }
+
+    proxy->pci_dev.config_write = virtio_write_config;
+
+    size = VIRTIO_PCI_REGION_SIZE(&proxy->pci_dev)
+         + virtio_bus_get_vdev_config_len(bus);
+    if (size & (size - 1)) {
+        size = 1 << qemu_fls(size);
+    }
+
+    memory_region_init_io(&proxy->bar, &virtio_pci_config_ops, proxy,
+                          "virtio-pci", size);
+    pci_register_bar(&proxy->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
+                     &proxy->bar);
+
+    if (!kvm_has_many_ioeventfds()) {
+        proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
+    }
+
+    proxy->host_features |= 0x1 << VIRTIO_F_NOTIFY_ON_EMPTY;
+    proxy->host_features |= 0x1 << VIRTIO_F_BAD_FEATURE;
+    proxy->host_features = virtio_bus_get_vdev_features(bus,
+                                                      proxy->host_features);
+}
+
+/* This is called by virtio-bus just before the device is unplugged. */
+static void virtio_pci_device_unplug(DeviceState *d)
+{
+    VirtIOPCIProxy *dev = VIRTIO_PCI(d);
+    virtio_pci_stop_ioeventfd(dev);
+}
+
+static int virtio_pci_init(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *dev = VIRTIO_PCI(pci_dev);
+    VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
+    virtio_pci_bus_new(&dev->bus, dev);
+    if (k->init != NULL) {
+        return k->init(dev);
+    }
+    return 0;
+}
+
+static void virtio_pci_exit(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
+    VirtioBusState *bus = VIRTIO_BUS(&proxy->bus);
+    BusState *qbus = BUS(&proxy->bus);
+    virtio_bus_destroy_device(bus);
+    qbus_free(qbus);
+    virtio_exit_pci(pci_dev);
+}
+
+/*
+ * This will be renamed virtio_pci_reset at the end of the series.
+ * virtio_pci_reset is still in use at this moment.
+ */
+static void virtio_pci_rst(DeviceState *qdev)
+{
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(qdev);
+    VirtioBusState *bus = VIRTIO_BUS(&proxy->bus);
+    virtio_pci_stop_ioeventfd(proxy);
+    virtio_bus_reset(bus);
+    msix_unuse_all_vectors(&proxy->pci_dev);
+    proxy->flags &= ~VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
+}
+
+static void virtio_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = virtio_pci_init;
+    k->exit = virtio_pci_exit;
+    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    k->revision = VIRTIO_PCI_ABI_VERSION;
+    k->class_id = PCI_CLASS_OTHERS;
+    dc->reset = virtio_pci_rst;
+}
+
+static const TypeInfo virtio_pci_info = {
+    .name          = TYPE_VIRTIO_PCI,
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(VirtIOPCIProxy),
+    .class_init    = virtio_pci_class_init,
+    .class_size    = sizeof(VirtioPCIClass),
+    .abstract      = true,
+};
+
 /* virtio-pci-bus */
 
 void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev)
@@ -1338,6 +1453,8 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->set_host_notifier = virtio_pci_set_host_notifier;
     k->set_guest_notifiers = virtio_pci_set_guest_notifiers;
     k->vmstate_change = virtio_pci_vmstate_change;
+    k->device_plugged = virtio_pci_device_plugged;
+    k->device_unplug = virtio_pci_device_unplug;
 }
 
 static const TypeInfo virtio_pci_bus_info = {
@@ -1356,6 +1473,7 @@ static void virtio_pci_register_types(void)
     type_register_static(&virtio_scsi_info);
     type_register_static(&virtio_rng_info);
     type_register_static(&virtio_pci_bus_info);
+    type_register_static(&virtio_pci_info);
 }
 
 type_init(virtio_pci_register_types)
