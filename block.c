@@ -4170,7 +4170,13 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return -EIO;
     } else if (bs->read_only) {
         return -EROFS;
-    } else if (bs->drv->bdrv_co_discard) {
+    }
+
+    if (bs->dirty_bitmap) {
+        set_dirty_bitmap(bs, sector_num, nb_sectors, 0);
+    }
+
+    if (bs->drv->bdrv_co_discard) {
         return bs->drv->bdrv_co_discard(bs, sector_num, nb_sectors);
     } else if (bs->drv->bdrv_aio_discard) {
         BlockDriverAIOCB *acb;
