@@ -243,12 +243,11 @@ static int ioreq_parse(struct ioreq *ioreq)
     case BLKIF_OP_READ:
         ioreq->prot = PROT_WRITE; /* to memory */
         break;
-    case BLKIF_OP_WRITE_BARRIER:
+    case BLKIF_OP_FLUSH_DISKCACHE:
+        ioreq->presync = 1;
         if (!ioreq->req.nr_segments) {
-            ioreq->presync = 1;
             return 0;
         }
-        ioreq->presync = ioreq->postsync = 1;
         /* fall through */
     case BLKIF_OP_WRITE:
         ioreq->prot = PROT_READ; /* from memory */
@@ -509,7 +508,7 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
                        qemu_aio_complete, ioreq);
         break;
     case BLKIF_OP_WRITE:
-    case BLKIF_OP_WRITE_BARRIER:
+    case BLKIF_OP_FLUSH_DISKCACHE:
         if (!ioreq->req.nr_segments) {
             break;
         }
@@ -794,7 +793,7 @@ static int blk_init(struct XenDevice *xendev)
                   blkdev->file_size, blkdev->file_size >> 20);
 
     /* fill info */
-    xenstore_write_be_int(&blkdev->xendev, "feature-barrier", 1);
+    xenstore_write_be_int(&blkdev->xendev, "feature-flush-cache", 1);
     xenstore_write_be_int(&blkdev->xendev, "feature-persistent", 1);
     xenstore_write_be_int(&blkdev->xendev, "info",            info);
     xenstore_write_be_int(&blkdev->xendev, "sector-size",     blkdev->file_blk);
