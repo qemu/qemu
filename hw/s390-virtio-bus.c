@@ -503,6 +503,8 @@ static int s390_virtio_busdev_init(DeviceState *dev)
     VirtIOS390Device *_dev = (VirtIOS390Device *)dev;
     VirtIOS390DeviceClass *_info = VIRTIO_S390_DEVICE_GET_CLASS(dev);
 
+    virtio_s390_bus_new(&_dev->bus, _dev);
+
     return _info->init(_dev);
 }
 
