@@ -241,7 +241,7 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             if ((pr->cmd & PORT_CMD_FIS_ON) &&
                 !s->dev[port].init_d2h_sent) {
                 ahci_init_d2h(&s->dev[port]);
-                s->dev[port].init_d2h_sent = 1;
+                s->dev[port].init_d2h_sent = true;
             }
 
             check_cmd(s, port);
@@ -494,7 +494,7 @@ static void ahci_reset_port(AHCIState *s, int port)
     pr->scr_err = 0;
     pr->scr_act = 0;
     d->busy_slot = -1;
-    d->init_d2h_sent = 0;
+    d->init_d2h_sent = false;
 
     ide_state = &s->dev[port].port.ifs[0];
     if (!ide_state->bs) {
@@ -946,7 +946,7 @@ static int handle_cmd(AHCIState *s, int port, int slot)
             ide_state->hcyl = 0xeb;
             debug_print_fis(ide_state->io_buffer, 0x10);
             ide_state->feature = IDE_FEATURE_DMA;
-            s->dev[port].done_atapi_packet = 0;
+            s->dev[port].done_atapi_packet = false;
             /* XXX send PIO setup FIS */
         }
 
@@ -991,7 +991,7 @@ static int ahci_start_transfer(IDEDMA *dma)
 
     if (is_atapi && !ad->done_atapi_packet) {
         /* already prepopulated iobuffer */
-        ad->done_atapi_packet = 1;
+        ad->done_atapi_packet = true;
         goto out;
     }
 

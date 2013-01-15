@@ -281,9 +281,9 @@ struct AHCIDevice {
     QEMUBH *check_bh;
     uint8_t *lst;
     uint8_t *res_fis;
-    int done_atapi_packet;
-    int busy_slot;
-    int init_d2h_sent;
+    bool done_atapi_packet;
+    int32_t busy_slot;
+    bool init_d2h_sent;
     AHCICmdHdr *cur_cmd;
     NCQTransferState ncq_tfs[AHCI_MAX_CMDS];
 };
@@ -295,7 +295,7 @@ typedef struct AHCIState {
     MemoryRegion idp;       /* Index-Data Pair I/O port space */
     unsigned idp_offset;    /* Offset of index in I/O port space */
     uint32_t idp_index;     /* Current IDP index */
-    int ports;
+    int32_t ports;
     qemu_irq irq;
     DMAContext *dma;
 } AHCIState;
