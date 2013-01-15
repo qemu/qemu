@@ -970,9 +970,10 @@ void hw_breakpoint_insert(CPUX86State *env, int index)
 
     switch (hw_breakpoint_type(env->dr[7], index)) {
     case DR7_TYPE_BP_INST:
-        if (hw_breakpoint_enabled(env->dr[7], index))
+        if (hw_breakpoint_enabled(env->dr[7], index)) {
             err = cpu_breakpoint_insert(env, env->dr[index], BP_CPU,
                                         &env->cpu_breakpoint[index]);
+        }
         break;
     case DR7_TYPE_DATA_WR:
         type = BP_CPU | BP_MEM_WRITE;
@@ -998,8 +999,9 @@ void hw_breakpoint_remove(CPUX86State *env, int index)
         return;
     switch (hw_breakpoint_type(env->dr[7], index)) {
     case DR7_TYPE_BP_INST:
-        if (hw_breakpoint_enabled(env->dr[7], index))
+        if (hw_breakpoint_enabled(env->dr[7], index)) {
             cpu_breakpoint_remove_by_ref(env, env->cpu_breakpoint[index]);
+        }
         break;
     case DR7_TYPE_DATA_WR:
     case DR7_TYPE_DATA_RW:
@@ -1024,8 +1026,9 @@ int check_hw_breakpoints(CPUX86State *env, int force_dr6_update)
             ((type & 1) && env->cpu_watchpoint[reg] &&
              (env->cpu_watchpoint[reg]->flags & BP_WATCHPOINT_HIT))) {
             dr6 |= 1 << reg;
-            if (hw_breakpoint_enabled(env->dr[7], reg))
+            if (hw_breakpoint_enabled(env->dr[7], reg)) {
                 hit_enabled = 1;
+            }
         }
     }
     if (hit_enabled || force_dr6_update)

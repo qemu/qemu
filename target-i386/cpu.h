@@ -1014,9 +1014,20 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 #define cpu_handle_mmu_fault cpu_x86_handle_mmu_fault
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
 
-static inline int hw_breakpoint_enabled(unsigned long dr7, int index)
+static inline bool hw_local_breakpoint_enabled(unsigned long dr7, int index)
 {
-    return (dr7 >> (index * 2)) & 3;
+    return (dr7 >> (index * 2)) & 1;
+}
+
+static inline bool hw_global_breakpoint_enabled(unsigned long dr7, int index)
+{
+    return (dr7 >> (index * 2)) & 2;
+
+}
+static inline bool hw_breakpoint_enabled(unsigned long dr7, int index)
+{
+    return hw_global_breakpoint_enabled(dr7, index) ||
+           hw_local_breakpoint_enabled(dr7, index);
 }
 
 static inline int hw_breakpoint_type(unsigned long dr7, int index)
