@@ -261,13 +261,26 @@ void ga_set_response_delimited(GAState *s)
     s->delimit_response = true;
 }
 
+static FILE *ga_open_logfile(const char *logfile)
+{
+    FILE *f;
+
+    f = fopen(logfile, "a");
+    if (!f) {
+        return NULL;
+    }
+
+    qemu_set_cloexec(fileno(f));
+    return f;
+}
+
 #ifndef _WIN32
 static bool ga_open_pidfile(const char *pidfile)
 {
     int pidfd;
     char pidstr[32];
 
-    pidfd = open(pidfile, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR);
+    pidfd = qemu_open(pidfile, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR);
     if (pidfd == -1 || lockf(pidfd, F_TLOCK, 0)) {
         g_critical("Cannot lock pid file, %s", strerror(errno));
         if (pidfd != -1) {
@@ -276,7 +289,7 @@ static bool ga_open_pidfile(const char *pidfile)
         return false;
     }
 
-    if (ftruncate(pidfd, 0) || lseek(pidfd, 0, SEEK_SET)) {
+    if (ftruncate(pidfd, 0)) {
         g_critical("Failed to truncate pid file");
         goto fail;
     }
@@ -286,10 +299,12 @@ static bool ga_open_pidfile(const char *pidfile)
         goto fail;
     }
 
+    /* keep pidfile open & locked forever */
     return true;
 
 fail:
     unlink(pidfile);
+    close(pidfd);
     return false;
 }
 #else /* _WIN32 */
@@ -402,7 +417,7 @@ void ga_unset_frozen(GAState *s)
      * in a frozen state at start up, do it now
      */
     if (s->deferred_options.log_filepath) {
-        s->log_file = fopen(s->deferred_options.log_filepath, "a");
+        s->log_file = ga_open_logfile(s->deferred_options.log_filepath);
         if (!s->log_file) {
             s->log_file = stderr;
         }
@@ -605,6 +620,7 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
         if (!s->virtio) {
             return false;
         }
+        /* fall through */
     case G_IO_STATUS_AGAIN:
         /* virtio causes us to spin here when no process is attached to
          * host-side chardev. sleep a bit to mitigate this
@@ -884,7 +900,7 @@ int main(int argc, char **argv)
             become_daemon(pid_filepath);
         }
         if (log_filepath) {
-            FILE *log_file = fopen(log_filepath, "a");
+            FILE *log_file = ga_open_logfile(log_filepath);
             if (!log_file) {
                 g_critical("unable to open specified log file: %s",
                            strerror(errno));
