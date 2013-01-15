@@ -103,8 +103,8 @@ void qemu_acl_reset(qemu_acl *acl)
     acl->defaultDeny = 1;
     QTAILQ_FOREACH_SAFE(entry, &acl->entries, next, next_entry) {
         QTAILQ_REMOVE(&acl->entries, entry, next);
-        free(entry->match);
-        free(entry);
+        g_free(entry->match);
+        g_free(entry);
     }
     acl->nentries = 0;
 }
