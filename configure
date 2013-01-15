@@ -2581,6 +2581,22 @@ if compile_prog "" "" ; then
   fallocate=yes
 fi
 
+# check for fallocate hole punching
+fallocate_punch_hole=no
+cat > $TMPC << EOF
+#include <fcntl.h>
+#include <linux/falloc.h>
+
+int main(void)
+{
+    fallocate(0, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0, 0);
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  fallocate_punch_hole=yes
+fi
+
 # check for sync_file_range
 sync_file_range=no
 cat > $TMPC << EOF
@@ -3489,6 +3505,9 @@ if test "$eventfd" = "yes" ; then
 fi
 if test "$fallocate" = "yes" ; then
   echo "CONFIG_FALLOCATE=y" >> $config_host_mak
+fi
+if test "$fallocate_punch_hole" = "yes" ; then
+  echo "CONFIG_FALLOCATE_PUNCH_HOLE=y" >> $config_host_mak
 fi
 if test "$sync_file_range" = "yes" ; then
   echo "CONFIG_SYNC_FILE_RANGE=y" >> $config_host_mak

@@ -759,7 +759,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
     QEMUIOVector hd_qiov;
     uint64_t bytes_done = 0;
     uint8_t *cluster_data = NULL;
-    QCowL2Meta *l2meta;
+    QCowL2Meta *l2meta = NULL;
 
     trace_qcow2_writev_start_req(qemu_coroutine_self(), sector_num,
                                  remaining_sectors);

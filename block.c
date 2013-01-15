@@ -155,10 +155,6 @@ void bdrv_io_limits_enable(BlockDriverState *bs)
 {
     qemu_co_queue_init(&bs->throttled_reqs);
     bs->block_timer = qemu_new_timer_ns(vm_clock, bdrv_block_timer, bs);
-    bs->slice_time  = 5 * BLOCK_IO_SLICE_TIME;
-    bs->slice_start = qemu_get_clock_ns(vm_clock);
-    bs->slice_end   = bs->slice_start + bs->slice_time;
-    memset(&bs->io_base, 0, sizeof(bs->io_base));
     bs->io_limits_enabled = true;
 }
 
@@ -4174,7 +4170,13 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return -EIO;
     } else if (bs->read_only) {
         return -EROFS;
-    } else if (bs->drv->bdrv_co_discard) {
+    }
+
+    if (bs->dirty_bitmap) {
+        set_dirty_bitmap(bs, sector_num, nb_sectors, 0);
+    }
+
+    if (bs->drv->bdrv_co_discard) {
         return bs->drv->bdrv_co_discard(bs, sector_num, nb_sectors);
     } else if (bs->drv->bdrv_aio_discard) {
         BlockDriverAIOCB *acb;
