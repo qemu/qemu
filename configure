@@ -2039,7 +2039,7 @@ fi
 if test "$mingw32" = "yes" ; then
     curses_list="-lpdcurses"
 else
-    curses_list="-lncurses -lcurses"
+    curses_list="-lncurses:-lcurses:$($pkg_config --libs ncurses)"
 fi
 
 if test "$curses" != "no" ; then
@@ -2052,13 +2052,16 @@ int main(void) {
   return s != 0;
 }
 EOF
+  IFS=:
   for curses_lib in $curses_list; do
+    unset IFS
     if compile_prog "" "$curses_lib" ; then
       curses_found=yes
       libs_softmmu="$curses_lib $libs_softmmu"
       break
     fi
   done
+  unset IFS
   if test "$curses_found" = "yes" ; then
     curses=yes
   else
