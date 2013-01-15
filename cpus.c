@@ -390,13 +390,15 @@ void hw_error(const char *fmt, ...)
 {
     va_list ap;
     CPUArchState *env;
+    CPUState *cpu;
 
     va_start(ap, fmt);
     fprintf(stderr, "qemu: hardware error: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        fprintf(stderr, "CPU #%d:\n", env->cpu_index);
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = ENV_GET_CPU(env);
+        fprintf(stderr, "CPU #%d:\n", cpu->cpu_index);
         cpu_dump_state(env, stderr, fprintf, CPU_DUMP_FPU);
     }
     va_end(ap);
@@ -740,7 +742,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     cpu->thread_id = qemu_get_thread_id();
     cpu_single_env = env;
 
-    r = kvm_init_vcpu(env);
+    r = kvm_init_vcpu(cpu);
     if (r < 0) {
         fprintf(stderr, "kvm_init_vcpu failed: %s\n", strerror(-r));
         exit(1);
@@ -1041,8 +1043,8 @@ void qemu_init_vcpu(void *_env)
     CPUArchState *env = _env;
     CPUState *cpu = ENV_GET_CPU(env);
 
-    env->nr_cores = smp_cores;
-    env->nr_threads = smp_threads;
+    cpu->nr_cores = smp_cores;
+    cpu->nr_threads = smp_threads;
     cpu->stopped = true;
     if (kvm_enabled()) {
         qemu_kvm_start_vcpu(env);
@@ -1160,12 +1162,14 @@ static void tcg_exec_all(void)
 void set_numa_modes(void)
 {
     CPUArchState *env;
+    CPUState *cpu;
     int i;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = ENV_GET_CPU(env);
         for (i = 0; i < nb_numa_nodes; i++) {
-            if (test_bit(env->cpu_index, node_cpumask[i])) {
-                env->numa_node = i;
+            if (test_bit(cpu->cpu_index, node_cpumask[i])) {
+                cpu->numa_node = i;
             }
         }
     }
@@ -1213,7 +1217,7 @@ CpuInfoList *qmp_query_cpus(Error **errp)
 
         info = g_malloc0(sizeof(*info));
         info->value = g_malloc0(sizeof(*info->value));
-        info->value->CPU = env->cpu_index;
+        info->value->CPU = cpu->cpu_index;
         info->value->current = (env == first_cpu);
         info->value->halted = env->halted;
         info->value->thread_id = cpu->thread_id;
@@ -1251,6 +1255,7 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
     FILE *f;
     uint32_t l;
     CPUArchState *env;
+    CPUState *cpu;
     uint8_t buf[1024];
 
     if (!has_cpu) {
@@ -1258,7 +1263,8 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
     }
 
     for (env = first_cpu; env; env = env->next_cpu) {
-        if (cpu_index == env->cpu_index) {
+        cpu = ENV_GET_CPU(env);
+        if (cpu_index == cpu->cpu_index) {
             break;
         }
     }

@@ -743,10 +743,13 @@ static int64_t load_kernel (void)
     return kernel_entry;
 }
 
-static void malta_mips_config(CPUMIPSState *env)
+static void malta_mips_config(MIPSCPU *cpu)
 {
+    CPUMIPSState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
     env->mvp->CP0_MVPConf0 |= ((smp_cpus - 1) << CP0MVPC0_PVPE) |
-                         ((smp_cpus * env->nr_threads - 1) << CP0MVPC0_PTC);
+                         ((smp_cpus * cs->nr_threads - 1) << CP0MVPC0_PTC);
 }
 
 static void main_cpu_reset(void *opaque)
@@ -763,7 +766,7 @@ static void main_cpu_reset(void *opaque)
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
     }
 
-    malta_mips_config(env);
+    malta_mips_config(cpu);
 }
 
 static void cpu_request_exit(void *opaque, int irq, int level)

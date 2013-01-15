@@ -357,10 +357,10 @@ void xics_set_irq_type(struct icp_state *icp, int irq, bool lsi)
 static target_ulong h_cppr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
-    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     target_ulong cppr = args[0];
 
-    icp_set_cppr(spapr->icp, env->cpu_index, cppr);
+    icp_set_cppr(spapr->icp, cs->cpu_index, cppr);
     return H_SUCCESS;
 }
 
@@ -376,14 +376,13 @@ static target_ulong h_ipi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     icp_set_mfrr(spapr->icp, server, mfrr);
     return H_SUCCESS;
-
 }
 
 static target_ulong h_xirr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
-    CPUPPCState *env = &cpu->env;
-    uint32_t xirr = icp_accept(spapr->icp->ss + env->cpu_index);
+    CPUState *cs = CPU(cpu);
+    uint32_t xirr = icp_accept(spapr->icp->ss + cs->cpu_index);
 
     args[0] = xirr;
     return H_SUCCESS;
@@ -392,10 +391,10 @@ static target_ulong h_xirr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 static target_ulong h_eoi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                           target_ulong opcode, target_ulong *args)
 {
-    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     target_ulong xirr = args[0];
 
-    icp_eoi(spapr->icp, env->cpu_index, xirr);
+    icp_eoi(spapr->icp, cs->cpu_index, xirr);
     return H_SUCCESS;
 }
 
@@ -525,14 +524,16 @@ static void xics_reset(void *opaque)
 struct icp_state *xics_system_init(int nr_irqs)
 {
     CPUPPCState *env;
+    CPUState *cpu;
     int max_server_num;
     struct icp_state *icp;
     struct ics_state *ics;
 
     max_server_num = -1;
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        if (env->cpu_index > max_server_num) {
-            max_server_num = env->cpu_index;
+        cpu = CPU(ppc_env_get_cpu(env));
+        if (cpu->cpu_index > max_server_num) {
+            max_server_num = cpu->cpu_index;
         }
     }
 
@@ -541,7 +542,8 @@ struct icp_state *xics_system_init(int nr_irqs)
     icp->ss = g_malloc0(icp->nr_servers*sizeof(struct icp_server_state));
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        struct icp_server_state *ss = &icp->ss[env->cpu_index];
+        cpu = CPU(ppc_env_get_cpu(env));
+        struct icp_server_state *ss = &icp->ss[cpu->cpu_index];
 
         switch (PPC_INPUT(env)) {
         case PPC_FLAGS_INPUT_POWER7:

@@ -95,6 +95,17 @@ static const char *ext3_feature_name[] = {
     NULL, NULL, NULL, NULL,
 };
 
+static const char *ext4_feature_name[] = {
+    NULL, NULL, "xstore", "xstore-en",
+    NULL, NULL, "xcrypt", "xcrypt-en",
+    "ace2", "ace2-en", "phe", "phe-en",
+    "pmm", "pmm-en", NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
 static const char *kvm_feature_name[] = {
     "kvmclock", "kvm_nopiodelay", "kvm_mmu", "kvmclock",
     "kvm_asyncpf", "kvm_steal_time", "kvm_pv_eoi", NULL,
@@ -124,6 +135,47 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
+typedef struct FeatureWordInfo {
+    const char **feat_names;
+    uint32_t cpuid_eax; /* Input EAX for CPUID */
+    int cpuid_reg;      /* R_* register constant */
+} FeatureWordInfo;
+
+static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
+    [FEAT_1_EDX] = {
+        .feat_names = feature_name,
+        .cpuid_eax = 1, .cpuid_reg = R_EDX,
+    },
+    [FEAT_1_ECX] = {
+        .feat_names = ext_feature_name,
+        .cpuid_eax = 1, .cpuid_reg = R_ECX,
+    },
+    [FEAT_8000_0001_EDX] = {
+        .feat_names = ext2_feature_name,
+        .cpuid_eax = 0x80000001, .cpuid_reg = R_EDX,
+    },
+    [FEAT_8000_0001_ECX] = {
+        .feat_names = ext3_feature_name,
+        .cpuid_eax = 0x80000001, .cpuid_reg = R_ECX,
+    },
+    [FEAT_C000_0001_EDX] = {
+        .feat_names = ext4_feature_name,
+        .cpuid_eax = 0xC0000001, .cpuid_reg = R_EDX,
+    },
+    [FEAT_KVM] = {
+        .feat_names = kvm_feature_name,
+        .cpuid_eax = KVM_CPUID_FEATURES, .cpuid_reg = R_EAX,
+    },
+    [FEAT_SVM] = {
+        .feat_names = svm_feature_name,
+        .cpuid_eax = 0x8000000A, .cpuid_reg = R_EDX,
+    },
+    [FEAT_7_0_EBX] = {
+        .feat_names = cpuid_7_0_ebx_feature_name,
+        .cpuid_eax = 7, .cpuid_reg = R_EBX,
+    },
+};
+
 const char *get_register_name_32(unsigned int reg)
 {
     static const char *reg_names[CPU_NB_REGS32] = {
@@ -148,9 +200,7 @@ const char *get_register_name_32(unsigned int reg)
 typedef struct model_features_t {
     uint32_t *guest_feat;
     uint32_t *host_feat;
-    const char **flag_names;
-    uint32_t cpuid;
-    int reg;
+    FeatureWord feat_word;
 } model_features_t;
 
 int check_cpuid = 0;
@@ -159,7 +209,6 @@ int enforce_cpuid = 0;
 #if defined(CONFIG_KVM)
 static uint32_t kvm_default_features = (1 << KVM_FEATURE_CLOCKSOURCE) |
         (1 << KVM_FEATURE_NOP_IO_DELAY) |
-        (1 << KVM_FEATURE_MMU_OP) |
         (1 << KVM_FEATURE_CLOCKSOURCE2) |
         (1 << KVM_FEATURE_ASYNC_PF) |
         (1 << KVM_FEATURE_STEAL_TIME) |
@@ -272,23 +321,20 @@ static bool lookup_feature(uint32_t *pval, const char *s, const char *e,
     return found;
 }
 
-static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features,
-                                    uint32_t *ext_features,
-                                    uint32_t *ext2_features,
-                                    uint32_t *ext3_features,
-                                    uint32_t *kvm_features,
-                                    uint32_t *svm_features,
-                                    uint32_t *cpuid_7_0_ebx_features)
+static void add_flagname_to_bitmaps(const char *flagname,
+                                    FeatureWordArray words)
 {
-    if (!lookup_feature(features, flagname, NULL, feature_name) &&
-        !lookup_feature(ext_features, flagname, NULL, ext_feature_name) &&
-        !lookup_feature(ext2_features, flagname, NULL, ext2_feature_name) &&
-        !lookup_feature(ext3_features, flagname, NULL, ext3_feature_name) &&
-        !lookup_feature(kvm_features, flagname, NULL, kvm_feature_name) &&
-        !lookup_feature(svm_features, flagname, NULL, svm_feature_name) &&
-        !lookup_feature(cpuid_7_0_ebx_features, flagname, NULL,
-                        cpuid_7_0_ebx_feature_name))
-            fprintf(stderr, "CPU feature %s not found\n", flagname);
+    FeatureWord w;
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        FeatureWordInfo *wi = &feature_word_info[w];
+        if (wi->feat_names &&
+            lookup_feature(&words[w], flagname, NULL, wi->feat_names)) {
+            break;
+        }
+    }
+    if (w == FEATURE_WORDS) {
+        fprintf(stderr, "CPU feature %s not found\n", flagname);
+    }
 }
 
 typedef struct x86_def_t {
@@ -952,55 +998,69 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
 #endif /* CONFIG_KVM */
 }
 
-static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
+static int unavailable_host_feature(FeatureWordInfo *f, uint32_t mask)
 {
     int i;
 
     for (i = 0; i < 32; ++i)
         if (1 << i & mask) {
-            const char *reg = get_register_name_32(f->reg);
+            const char *reg = get_register_name_32(f->cpuid_reg);
             assert(reg);
             fprintf(stderr, "warning: host doesn't support requested feature: "
                 "CPUID.%02XH:%s%s%s [bit %d]\n",
-                f->cpuid, reg,
-                f->flag_names[i] ? "." : "",
-                f->flag_names[i] ? f->flag_names[i] : "", i);
+                f->cpuid_eax, reg,
+                f->feat_names[i] ? "." : "",
+                f->feat_names[i] ? f->feat_names[i] : "", i);
             break;
         }
     return 0;
 }
 
-/* best effort attempt to inform user requested cpu flags aren't making
- * their way to the guest.
+/* Check if all requested cpu flags are making their way to the guest
+ *
+ * Returns 0 if all flags are supported by the host, non-zero otherwise.
  *
  * This function may be called only if KVM is enabled.
  */
-static int kvm_check_features_against_host(x86_def_t *guest_def)
+static int kvm_check_features_against_host(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
     x86_def_t host_def;
     uint32_t mask;
     int rv, i;
     struct model_features_t ft[] = {
-        {&guest_def->features, &host_def.features,
-            feature_name, 0x00000001, R_EDX},
-        {&guest_def->ext_features, &host_def.ext_features,
-            ext_feature_name, 0x00000001, R_ECX},
-        {&guest_def->ext2_features, &host_def.ext2_features,
-            ext2_feature_name, 0x80000001, R_EDX},
-        {&guest_def->ext3_features, &host_def.ext3_features,
-            ext3_feature_name, 0x80000001, R_ECX}
+        {&env->cpuid_features, &host_def.features,
+            FEAT_1_EDX },
+        {&env->cpuid_ext_features, &host_def.ext_features,
+            FEAT_1_ECX },
+        {&env->cpuid_ext2_features, &host_def.ext2_features,
+            FEAT_8000_0001_EDX },
+        {&env->cpuid_ext3_features, &host_def.ext3_features,
+            FEAT_8000_0001_ECX },
+        {&env->cpuid_ext4_features, &host_def.ext4_features,
+            FEAT_C000_0001_EDX },
+        {&env->cpuid_7_0_ebx_features, &host_def.cpuid_7_0_ebx_features,
+            FEAT_7_0_EBX },
+        {&env->cpuid_svm_features, &host_def.svm_features,
+            FEAT_SVM },
+        {&env->cpuid_kvm_features, &host_def.kvm_features,
+            FEAT_KVM },
     };
 
     assert(kvm_enabled());
 
     kvm_cpu_fill_host(&host_def);
-    for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i)
-        for (mask = 1; mask; mask <<= 1)
+    for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i) {
+        FeatureWord w = ft[i].feat_word;
+        FeatureWordInfo *wi = &feature_word_info[w];
+        for (mask = 1; mask; mask <<= 1) {
             if (*ft[i].guest_feat & mask &&
                 !(*ft[i].host_feat & mask)) {
-                    unavailable_host_feature(&ft[i], mask);
-                    rv = 1;
-                }
+                unavailable_host_feature(wi, mask);
+                rv = 1;
+            }
+        }
+    }
     return rv;
 }
 
@@ -1284,35 +1344,19 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
     unsigned int i;
     char *featurestr; /* Single 'key=value" string being parsed */
     /* Features to be added */
-    uint32_t plus_features = 0, plus_ext_features = 0;
-    uint32_t plus_ext2_features = 0, plus_ext3_features = 0;
-    uint32_t plus_kvm_features = kvm_default_features, plus_svm_features = 0;
-    uint32_t plus_7_0_ebx_features = 0;
+    FeatureWordArray plus_features = { 0 };
     /* Features to be removed */
-    uint32_t minus_features = 0, minus_ext_features = 0;
-    uint32_t minus_ext2_features = 0, minus_ext3_features = 0;
-    uint32_t minus_kvm_features = 0, minus_svm_features = 0;
-    uint32_t minus_7_0_ebx_features = 0;
+    FeatureWordArray minus_features = { 0 };
     uint32_t numvalue;
-
-    add_flagname_to_bitmaps("hypervisor", &plus_features,
-            &plus_ext_features, &plus_ext2_features, &plus_ext3_features,
-            &plus_kvm_features, &plus_svm_features,  &plus_7_0_ebx_features);
 
     featurestr = features ? strtok(features, ",") : NULL;
 
     while (featurestr) {
         char *val;
         if (featurestr[0] == '+') {
-            add_flagname_to_bitmaps(featurestr + 1, &plus_features,
-                            &plus_ext_features, &plus_ext2_features,
-                            &plus_ext3_features, &plus_kvm_features,
-                            &plus_svm_features, &plus_7_0_ebx_features);
+            add_flagname_to_bitmaps(featurestr + 1, plus_features);
         } else if (featurestr[0] == '-') {
-            add_flagname_to_bitmaps(featurestr + 1, &minus_features,
-                            &minus_ext_features, &minus_ext2_features,
-                            &minus_ext3_features, &minus_kvm_features,
-                            &minus_svm_features, &minus_7_0_ebx_features);
+            add_flagname_to_bitmaps(featurestr + 1, minus_features);
         } else if ((val = strchr(featurestr, '='))) {
             *val = 0; val++;
             if (!strcmp(featurestr, "family")) {
@@ -1412,24 +1456,22 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
         }
         featurestr = strtok(NULL, ",");
     }
-    x86_cpu_def->features |= plus_features;
-    x86_cpu_def->ext_features |= plus_ext_features;
-    x86_cpu_def->ext2_features |= plus_ext2_features;
-    x86_cpu_def->ext3_features |= plus_ext3_features;
-    x86_cpu_def->kvm_features |= plus_kvm_features;
-    x86_cpu_def->svm_features |= plus_svm_features;
-    x86_cpu_def->cpuid_7_0_ebx_features |= plus_7_0_ebx_features;
-    x86_cpu_def->features &= ~minus_features;
-    x86_cpu_def->ext_features &= ~minus_ext_features;
-    x86_cpu_def->ext2_features &= ~minus_ext2_features;
-    x86_cpu_def->ext3_features &= ~minus_ext3_features;
-    x86_cpu_def->kvm_features &= ~minus_kvm_features;
-    x86_cpu_def->svm_features &= ~minus_svm_features;
-    x86_cpu_def->cpuid_7_0_ebx_features &= ~minus_7_0_ebx_features;
-    if (check_cpuid && kvm_enabled()) {
-        if (kvm_check_features_against_host(x86_cpu_def) && enforce_cpuid)
-            goto error;
-    }
+    x86_cpu_def->features |= plus_features[FEAT_1_EDX];
+    x86_cpu_def->ext_features |= plus_features[FEAT_1_ECX];
+    x86_cpu_def->ext2_features |= plus_features[FEAT_8000_0001_EDX];
+    x86_cpu_def->ext3_features |= plus_features[FEAT_8000_0001_ECX];
+    x86_cpu_def->ext4_features |= plus_features[FEAT_C000_0001_EDX];
+    x86_cpu_def->kvm_features |= plus_features[FEAT_KVM];
+    x86_cpu_def->svm_features |= plus_features[FEAT_SVM];
+    x86_cpu_def->cpuid_7_0_ebx_features |= plus_features[FEAT_7_0_EBX];
+    x86_cpu_def->features &= ~minus_features[FEAT_1_EDX];
+    x86_cpu_def->ext_features &= ~minus_features[FEAT_1_ECX];
+    x86_cpu_def->ext2_features &= ~minus_features[FEAT_8000_0001_EDX];
+    x86_cpu_def->ext3_features &= ~minus_features[FEAT_8000_0001_ECX];
+    x86_cpu_def->ext4_features &= ~minus_features[FEAT_C000_0001_EDX];
+    x86_cpu_def->kvm_features &= ~minus_features[FEAT_KVM];
+    x86_cpu_def->svm_features &= ~minus_features[FEAT_SVM];
+    x86_cpu_def->cpuid_7_0_ebx_features &= ~minus_features[FEAT_7_0_EBX];
     return 0;
 
 error:
@@ -1549,17 +1591,23 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
 
     model_pieces = g_strsplit(cpu_model, ",", 2);
     if (!model_pieces[0]) {
-        goto error;
+        error_setg(&error, "Invalid/empty CPU model name");
+        goto out;
     }
     name = model_pieces[0];
     features = model_pieces[1];
 
     if (cpu_x86_find_by_name(def, name) < 0) {
-        goto error;
+        error_setg(&error, "Unable to find CPU definition: %s", name);
+        goto out;
     }
 
+    def->kvm_features |= kvm_default_features;
+    def->ext_features |= CPUID_EXT_HYPERVISOR;
+
     if (cpu_x86_parse_featurestr(def, features) < 0) {
-        goto error;
+        error_setg(&error, "Invalid cpu_model string format: %s", cpu_model);
+        goto out;
     }
     assert(def->vendor1);
     env->cpuid_vendor1 = def->vendor1;
@@ -1584,17 +1632,15 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
                             "tsc-frequency", &error);
 
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
+
+out:
+    g_strfreev(model_pieces);
     if (error) {
         fprintf(stderr, "%s\n", error_get_pretty(error));
         error_free(error);
-        goto error;
+        return -1;
     }
-
-    g_strfreev(model_pieces);
     return 0;
-error:
-    g_strfreev(model_pieces);
-    return -1;
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1691,8 +1737,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = (env->cpuid_apic_id << 24) | 8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
         *ecx = env->cpuid_ext_features;
         *edx = env->cpuid_features;
-        if (env->nr_cores * env->nr_threads > 1) {
-            *ebx |= (env->nr_cores * env->nr_threads) << 16;
+        if (cs->nr_cores * cs->nr_threads > 1) {
+            *ebx |= (cs->nr_cores * cs->nr_threads) << 16;
             *edx |= 1 << 28;    /* HTT bit */
         }
         break;
@@ -1705,8 +1751,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 4:
         /* cache info: needed for Core compatibility */
-        if (env->nr_cores > 1) {
-            *eax = (env->nr_cores - 1) << 26;
+        if (cs->nr_cores > 1) {
+            *eax = (cs->nr_cores - 1) << 26;
         } else {
             *eax = 0;
         }
@@ -1725,8 +1771,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                 break;
             case 2: /* L2 cache info */
                 *eax |= 0x0000143;
-                if (env->nr_threads > 1) {
-                    *eax |= (env->nr_threads - 1) << 14;
+                if (cs->nr_threads > 1) {
+                    *eax |= (cs->nr_threads - 1) << 14;
                 }
                 *ebx = 0x3c0003f;
                 *ecx = 0x0000fff;
@@ -1830,7 +1876,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
          * discards multiple thread information if it is set.
          * So dont set it here for Intel to make Linux guests happy.
          */
-        if (env->nr_cores * env->nr_threads > 1) {
+        if (cs->nr_cores * cs->nr_threads > 1) {
             uint32_t tebx, tecx, tedx;
             get_cpuid_vendor(env, &tebx, &tecx, &tedx);
             if (tebx != CPUID_VENDOR_INTEL_1 ||
@@ -1878,8 +1924,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = 0;
         *ecx = 0;
         *edx = 0;
-        if (env->nr_cores * env->nr_threads > 1) {
-            *ecx |= (env->nr_cores * env->nr_threads) - 1;
+        if (cs->nr_cores * cs->nr_threads > 1) {
+            *ecx |= (cs->nr_cores * cs->nr_threads) - 1;
         }
         break;
     case 0x8000000A:
@@ -1936,7 +1982,7 @@ static void x86_cpu_reset(CPUState *s)
     int i;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
         log_cpu_state(env, CPU_DUMP_FPU | CPU_DUMP_CCOP);
     }
 
@@ -2010,7 +2056,7 @@ static void x86_cpu_reset(CPUState *s)
 
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
-    if (env->cpu_index == 0) {
+    if (s->cpu_index == 0) {
         apic_designate_bsp(env->apic_state);
     }
 
@@ -2128,6 +2174,11 @@ void x86_cpu_realize(Object *obj, Error **errp)
 #ifdef CONFIG_KVM
         filter_features_for_kvm(cpu);
 #endif
+        if (check_cpuid && kvm_check_features_against_host(cpu)
+            && enforce_cpuid) {
+            error_setg(errp, "Host's CPU doesn't support requested features");
+            return;
+        }
     }
 
 #ifndef CONFIG_USER_ONLY
@@ -2148,6 +2199,7 @@ void x86_cpu_realize(Object *obj, Error **errp)
 
 static void x86_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
     static int inited;
@@ -2179,7 +2231,7 @@ static void x86_cpu_initfn(Object *obj)
                         x86_cpuid_get_tsc_freq,
                         x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
 
-    env->cpuid_apic_id = env->cpu_index;
+    env->cpuid_apic_id = cs->cpu_index;
 
     /* init various static tables used in TCG mode */
     if (tcg_enabled() && !inited) {

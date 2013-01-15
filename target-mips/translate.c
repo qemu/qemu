@@ -15878,13 +15878,10 @@ MIPSCPU *cpu_mips_init(const char *cpu_model)
 
 void cpu_state_reset(CPUMIPSState *env)
 {
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
-    memset(env, 0, offsetof(CPUMIPSState, breakpoints));
-    tlb_flush(env, 1);
+#ifndef CONFIG_USER_ONLY
+    MIPSCPU *cpu = mips_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+#endif
 
     /* Reset registers to their default values */
     env->CP0_PRid = env->cpu_model->CP0_PRid;
@@ -15953,7 +15950,7 @@ void cpu_state_reset(CPUMIPSState *env)
     env->CP0_Random = env->tlb->nb_tlb - 1;
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
     env->CP0_Wired = 0;
-    env->CP0_EBase = 0x80000000 | (env->cpu_index & 0x3FF);
+    env->CP0_EBase = 0x80000000 | (cs->cpu_index & 0x3FF);
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
     /* vectored interrupts not implemented, timer on int 7,
        no performance counters. */
@@ -15976,13 +15973,13 @@ void cpu_state_reset(CPUMIPSState *env)
 
         /* Only TC0 on VPE 0 starts as active.  */
         for (i = 0; i < ARRAY_SIZE(env->tcs); i++) {
-            env->tcs[i].CP0_TCBind = env->cpu_index << CP0TCBd_CurVPE;
+            env->tcs[i].CP0_TCBind = cs->cpu_index << CP0TCBd_CurVPE;
             env->tcs[i].CP0_TCHalt = 1;
         }
         env->active_tc.CP0_TCHalt = 1;
         env->halted = 1;
 
-        if (!env->cpu_index) {
+        if (cs->cpu_index == 0) {
             /* VPE0 starts up enabled.  */
             env->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
             env->CP0_VPEConf0 |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);

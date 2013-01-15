@@ -110,7 +110,7 @@ void helper_into(CPUX86State *env, int next_eip_addend)
 void helper_single_step(CPUX86State *env)
 {
 #ifndef CONFIG_USER_ONLY
-    check_hw_breakpoints(env, 1);
+    check_hw_breakpoints(env, true);
     env->dr[6] |= DR6_BS;
 #endif
     raise_exception(env, EXCP01_DB);
@@ -197,11 +197,11 @@ void helper_movl_drN_T0(CPUX86State *env, int reg, target_ulong t0)
         env->dr[reg] = t0;
         hw_breakpoint_insert(env, reg);
     } else if (reg == 7) {
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < DR7_MAX_BP; i++) {
             hw_breakpoint_remove(env, i);
         }
         env->dr[7] = t0;
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < DR7_MAX_BP; i++) {
             hw_breakpoint_insert(env, i);
         }
     } else {
@@ -580,14 +580,17 @@ void helper_monitor(CPUX86State *env, target_ulong ptr)
 
 void helper_mwait(CPUX86State *env, int next_eip_addend)
 {
+    CPUState *cpu;
+
     if ((uint32_t)ECX != 0) {
         raise_exception(env, EXCP0D_GPF);
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0);
     EIP += next_eip_addend;
 
+    cpu = CPU(x86_env_get_cpu(env));
     /* XXX: not complete but not completely erroneous */
-    if (env->cpu_index != 0 || env->next_cpu != NULL) {
+    if (cpu->cpu_index != 0 || env->next_cpu != NULL) {
         /* more than one CPU: do not sleep because another CPU may
            wake this one */
     } else {

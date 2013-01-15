@@ -140,6 +140,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 {
     int ret = 0, offset;
     CPUPPCState *env;
+    CPUState *cpu;
     char cpu_model[32];
     int smt = kvmppc_smt_threads();
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
@@ -147,19 +148,20 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
     assert(spapr->cpu_model);
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = CPU(ppc_env_get_cpu(env));
         uint32_t associativity[] = {cpu_to_be32(0x5),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
-                                    cpu_to_be32(env->numa_node),
-                                    cpu_to_be32(env->cpu_index)};
+                                    cpu_to_be32(cpu->numa_node),
+                                    cpu_to_be32(cpu->cpu_index)};
 
-        if ((env->cpu_index % smt) != 0) {
+        if ((cpu->cpu_index % smt) != 0) {
             continue;
         }
 
         snprintf(cpu_model, 32, "/cpus/%s@%x", spapr->cpu_model,
-                 env->cpu_index);
+                 cpu->cpu_index);
 
         offset = fdt_path_offset(fdt, cpu_model);
         if (offset < 0) {
@@ -308,7 +310,8 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     spapr->cpu_model = g_strdup(modelname);
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        int index = env->cpu_index;
+        CPUState *cpu = CPU(ppc_env_get_cpu(env));
+        int index = cpu->cpu_index;
         uint32_t servers_prop[smp_threads];
         uint32_t gservers_prop[smp_threads * 2];
         char *nodename;

@@ -75,6 +75,7 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     CPUAlphaState *env = cpu_single_env;
     TyphoonState *s = opaque;
+    CPUState *cpu;
     uint64_t ret = 0;
 
     if (addr & 4) {
@@ -95,7 +96,8 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
 
     case 0x0080:
         /* MISC: Miscellaneous Register.  */
-        ret = s->cchip.misc | (env->cpu_index & 3);
+        cpu = ENV_GET_CPU(env);
+        ret = s->cchip.misc | (cpu->cpu_index & 3);
         break;
 
     case 0x00c0:

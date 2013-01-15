@@ -214,16 +214,15 @@ static void kvm_reset_vcpu(void *opaque)
     kvm_arch_reset_vcpu(cpu);
 }
 
-int kvm_init_vcpu(CPUArchState *env)
+int kvm_init_vcpu(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     KVMState *s = kvm_state;
     long mmap_size;
     int ret;
 
     DPRINTF("kvm_init_vcpu\n");
 
-    ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU, env->cpu_index);
+    ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU, cpu->cpu_index);
     if (ret < 0) {
         DPRINTF("kvm_create_vcpu failed\n");
         goto err;

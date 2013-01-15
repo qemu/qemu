@@ -572,17 +572,23 @@ static inline void mips_tc_sleep(MIPSCPU *cpu, int tc)
     }
 }
 
-/* tc should point to an int with the value of the global TC index.
-   This function will transform it into a local index within the
-   returned CPUMIPSState.
-
-   FIXME: This code assumes that all VPEs have the same number of TCs,
+/**
+ * mips_cpu_map_tc:
+ * @env: CPU from which mapping is performed.
+ * @tc: Should point to an int with the value of the global TC index.
+ *
+ * This function will transform @tc into a local index within the
+ * returned #CPUMIPSState.
+ */
+/* FIXME: This code assumes that all VPEs have the same number of TCs,
           which depends on runtime setup. Can probably be fixed by
           walking the list of CPUMIPSStates.  */
 static CPUMIPSState *mips_cpu_map_tc(CPUMIPSState *env, int *tc)
 {
-    CPUMIPSState *other;
-    int vpe_idx, nr_threads = env->nr_threads;
+    MIPSCPU *cpu;
+    CPUState *cs;
+    CPUState *other_cs;
+    int vpe_idx;
     int tc_idx = *tc;
 
     if (!(env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP))) {
@@ -591,10 +597,15 @@ static CPUMIPSState *mips_cpu_map_tc(CPUMIPSState *env, int *tc)
         return env;
     }
 
-    vpe_idx = tc_idx / nr_threads;
-    *tc = tc_idx % nr_threads;
-    other = qemu_get_cpu(vpe_idx);
-    return other ? other : env;
+    cs = CPU(mips_env_get_cpu(env));
+    vpe_idx = tc_idx / cs->nr_threads;
+    *tc = tc_idx % cs->nr_threads;
+    other_cs = qemu_get_cpu(vpe_idx);
+    if (other_cs == NULL) {
+        return env;
+    }
+    cpu = MIPS_CPU(other_cs);
+    return &cpu->env;
 }
 
 /* The per VPE CP0_Status register shares some fields with the per TC

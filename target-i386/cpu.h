@@ -231,6 +231,12 @@
 #define DR7_TYPE_SHIFT  16
 #define DR7_LEN_SHIFT   18
 #define DR7_FIXED_1     0x00000400
+#define DR7_LOCAL_BP_MASK    0x55
+#define DR7_MAX_BP           4
+#define DR7_TYPE_BP_INST     0x0
+#define DR7_TYPE_DATA_WR     0x1
+#define DR7_TYPE_IO_RW       0x2
+#define DR7_TYPE_DATA_RW     0x3
 
 #define PG_PRESENT_BIT	0
 #define PG_RW_BIT	1
@@ -360,6 +366,21 @@
 #define MSR_TSC_AUX                     0xc0000103
 
 #define MSR_VM_HSAVE_PA                 0xc0010117
+
+/* CPUID feature words */
+typedef enum FeatureWord {
+    FEAT_1_EDX,         /* CPUID[1].EDX */
+    FEAT_1_ECX,         /* CPUID[1].ECX */
+    FEAT_7_0_EBX,       /* CPUID[EAX=7,ECX=0].EBX */
+    FEAT_8000_0001_EDX, /* CPUID[8000_0001].EDX */
+    FEAT_8000_0001_ECX, /* CPUID[8000_0001].ECX */
+    FEAT_C000_0001_EDX, /* CPUID[C000_0001].EDX */
+    FEAT_KVM,           /* CPUID[4000_0001].EAX (KVM_CPUID_FEATURES) */
+    FEAT_SVM,           /* CPUID[8000_000A].EDX */
+    FEATURE_WORDS,
+} FeatureWord;
+
+typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 
 /* cpuid_features bits */
 #define CPUID_FP87 (1 << 0)
@@ -993,9 +1014,20 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 #define cpu_handle_mmu_fault cpu_x86_handle_mmu_fault
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
 
-static inline int hw_breakpoint_enabled(unsigned long dr7, int index)
+static inline bool hw_local_breakpoint_enabled(unsigned long dr7, int index)
 {
-    return (dr7 >> (index * 2)) & 3;
+    return (dr7 >> (index * 2)) & 1;
+}
+
+static inline bool hw_global_breakpoint_enabled(unsigned long dr7, int index)
+{
+    return (dr7 >> (index * 2)) & 2;
+
+}
+static inline bool hw_breakpoint_enabled(unsigned long dr7, int index)
+{
+    return hw_global_breakpoint_enabled(dr7, index) ||
+           hw_local_breakpoint_enabled(dr7, index);
 }
 
 static inline int hw_breakpoint_type(unsigned long dr7, int index)
@@ -1011,7 +1043,7 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index)
 
 void hw_breakpoint_insert(CPUX86State *env, int index);
 void hw_breakpoint_remove(CPUX86State *env, int index);
-int check_hw_breakpoints(CPUX86State *env, int force_dr6_update);
+bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update);
 void breakpoint_handler(CPUX86State *env);
 
 /* will be suppressed */
