@@ -168,6 +168,9 @@ int qemu_acl_remove(qemu_acl *acl,
         i++;
         if (strcmp(entry->match, match) == 0) {
             QTAILQ_REMOVE(&acl->entries, entry, next);
+            acl->nentries--;
+            g_free(entry->match);
+            g_free(entry);
             return i;
         }
     }
