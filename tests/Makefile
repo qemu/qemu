@@ -1,17 +1,17 @@
 export SRC_PATH
 
 check-unit-y = tests/check-qdict$(EXESUF)
-gcov-files-check-qdict-y = qdict.c
+gcov-files-check-qdict-y = qobject/qdict.c
 check-unit-y += tests/check-qfloat$(EXESUF)
-gcov-files-check-qfloat-y = qfloat.c
+gcov-files-check-qfloat-y = qobject/qfloat.c
 check-unit-y += tests/check-qint$(EXESUF)
-gcov-files-check-qint-y = qint.c
+gcov-files-check-qint-y = qobject/qint.c
 check-unit-y += tests/check-qstring$(EXESUF)
-gcov-files-check-qstring-y = qstring.c
+gcov-files-check-qstring-y = qobject/qstring.c
 check-unit-y += tests/check-qlist$(EXESUF)
-gcov-files-check-qlist-y = qlist.c
+gcov-files-check-qlist-y = qobject/qlist.c
 check-unit-y += tests/check-qjson$(EXESUF)
-gcov-files-check-qjson-y = qjson.c
+gcov-files-check-qjson-y = qobject/qjson.c
 check-unit-y += tests/test-qmp-output-visitor$(EXESUF)
 gcov-files-test-qmp-output-visitor-y = qapi/qmp-output-visitor.c
 check-unit-y += tests/test-qmp-input-visitor$(EXESUF)
@@ -39,7 +39,7 @@ endif
 endif
 check-unit-y += tests/test-visitor-serialization$(EXESUF)
 check-unit-y += tests/test-iov$(EXESUF)
-gcov-files-test-iov-y = iov.c
+gcov-files-test-iov-y = util/iov.c
 check-unit-y += tests/test-aio$(EXESUF)
 gcov-files-test-aio-$(CONFIG_WIN32) = aio-win32.c
 gcov-files-test-aio-$(CONFIG_POSIX) = aio-posix.c
