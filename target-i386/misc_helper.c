@@ -197,11 +197,11 @@ void helper_movl_drN_T0(CPUX86State *env, int reg, target_ulong t0)
         env->dr[reg] = t0;
         hw_breakpoint_insert(env, reg);
     } else if (reg == 7) {
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < DR7_MAX_BP; i++) {
             hw_breakpoint_remove(env, i);
         }
         env->dr[7] = t0;
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < DR7_MAX_BP; i++) {
             hw_breakpoint_insert(env, i);
         }
     } else {

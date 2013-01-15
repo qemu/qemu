@@ -465,13 +465,13 @@ static void switch_tss(CPUX86State *env, int tss_selector,
 
 #ifndef CONFIG_USER_ONLY
     /* reset local breakpoints */
-    if (env->dr[7] & 0x55) {
-        for (i = 0; i < 4; i++) {
+    if (env->dr[7] & DR7_LOCAL_BP_MASK) {
+        for (i = 0; i < DR7_MAX_BP; i++) {
             if (hw_breakpoint_enabled(env->dr[7], i) == 0x1) {
                 hw_breakpoint_remove(env, i);
             }
         }
-        env->dr[7] &= ~0x55;
+        env->dr[7] &= ~DR7_LOCAL_BP_MASK;
     }
 #endif
 }

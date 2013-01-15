@@ -231,6 +231,12 @@
 #define DR7_TYPE_SHIFT  16
 #define DR7_LEN_SHIFT   18
 #define DR7_FIXED_1     0x00000400
+#define DR7_LOCAL_BP_MASK    0x55
+#define DR7_MAX_BP           4
+#define DR7_TYPE_BP_INST     0x0
+#define DR7_TYPE_DATA_WR     0x1
+#define DR7_TYPE_IO_RW       0x2
+#define DR7_TYPE_DATA_RW     0x3
 
 #define PG_PRESENT_BIT	0
 #define PG_RW_BIT	1

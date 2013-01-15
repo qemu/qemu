@@ -969,18 +969,18 @@ void hw_breakpoint_insert(CPUX86State *env, int index)
     int type, err = 0;
 
     switch (hw_breakpoint_type(env->dr[7], index)) {
-    case 0:
+    case DR7_TYPE_BP_INST:
         if (hw_breakpoint_enabled(env->dr[7], index))
             err = cpu_breakpoint_insert(env, env->dr[index], BP_CPU,
                                         &env->cpu_breakpoint[index]);
         break;
-    case 1:
+    case DR7_TYPE_DATA_WR:
         type = BP_CPU | BP_MEM_WRITE;
         goto insert_wp;
-    case 2:
+    case DR7_TYPE_IO_RW:
          /* No support for I/O watchpoints yet */
         break;
-    case 3:
+    case DR7_TYPE_DATA_RW:
         type = BP_CPU | BP_MEM_ACCESS;
     insert_wp:
         err = cpu_watchpoint_insert(env, env->dr[index],
@@ -997,15 +997,15 @@ void hw_breakpoint_remove(CPUX86State *env, int index)
     if (!env->cpu_breakpoint[index])
         return;
     switch (hw_breakpoint_type(env->dr[7], index)) {
-    case 0:
+    case DR7_TYPE_BP_INST:
         if (hw_breakpoint_enabled(env->dr[7], index))
             cpu_breakpoint_remove_by_ref(env, env->cpu_breakpoint[index]);
         break;
-    case 1:
-    case 3:
+    case DR7_TYPE_DATA_WR:
+    case DR7_TYPE_DATA_RW:
         cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[index]);
         break;
-    case 2:
+    case DR7_TYPE_IO_RW:
         /* No support for I/O watchpoints yet */
         break;
     }
@@ -1018,7 +1018,7 @@ int check_hw_breakpoints(CPUX86State *env, int force_dr6_update)
     int hit_enabled = 0;
 
     dr6 = env->dr[6] & ~0xf;
-    for (reg = 0; reg < 4; reg++) {
+    for (reg = 0; reg < DR7_MAX_BP; reg++) {
         type = hw_breakpoint_type(env->dr[7], reg);
         if ((type == 0 && env->dr[reg] == env->eip) ||
             ((type & 1) && env->cpu_watchpoint[reg] &&
