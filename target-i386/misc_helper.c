@@ -110,7 +110,7 @@ void helper_into(CPUX86State *env, int next_eip_addend)
 void helper_single_step(CPUX86State *env)
 {
 #ifndef CONFIG_USER_ONLY
-    check_hw_breakpoints(env, 1);
+    check_hw_breakpoints(env, true);
     env->dr[6] |= DR6_BS;
 #endif
     raise_exception(env, EXCP01_DB);

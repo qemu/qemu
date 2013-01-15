@@ -1017,26 +1017,45 @@ void hw_breakpoint_remove(CPUX86State *env, int index)
     }
 }
 
-int check_hw_breakpoints(CPUX86State *env, int force_dr6_update)
+bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update)
 {
     target_ulong dr6;
-    int reg, type;
-    int hit_enabled = 0;
+    int reg;
+    bool hit_enabled = false;
 
     dr6 = env->dr[6] & ~0xf;
     for (reg = 0; reg < DR7_MAX_BP; reg++) {
-        type = hw_breakpoint_type(env->dr[7], reg);
-        if ((type == 0 && env->dr[reg] == env->eip) ||
-            ((type & 1) && env->cpu_watchpoint[reg] &&
-             (env->cpu_watchpoint[reg]->flags & BP_WATCHPOINT_HIT))) {
+        bool bp_match = false;
+        bool wp_match = false;
+
+        switch (hw_breakpoint_type(env->dr[7], reg)) {
+        case DR7_TYPE_BP_INST:
+            if (env->dr[reg] == env->eip) {
+                bp_match = true;
+            }
+            break;
+        case DR7_TYPE_DATA_WR:
+        case DR7_TYPE_DATA_RW:
+            if (env->cpu_watchpoint[reg] &&
+                env->cpu_watchpoint[reg]->flags & BP_WATCHPOINT_HIT) {
+                wp_match = true;
+            }
+            break;
+        case DR7_TYPE_IO_RW:
+            break;
+        }
+        if (bp_match || wp_match) {
             dr6 |= 1 << reg;
             if (hw_breakpoint_enabled(env->dr[7], reg)) {
-                hit_enabled = 1;
+                hit_enabled = true;
             }
         }
     }
-    if (hit_enabled || force_dr6_update)
+
+    if (hit_enabled || force_dr6_update) {
         env->dr[6] = dr6;
+    }
+
     return hit_enabled;
 }
 
@@ -1047,16 +1066,17 @@ void breakpoint_handler(CPUX86State *env)
     if (env->watchpoint_hit) {
         if (env->watchpoint_hit->flags & BP_CPU) {
             env->watchpoint_hit = NULL;
-            if (check_hw_breakpoints(env, 0))
+            if (check_hw_breakpoints(env, false)) {
                 raise_exception(env, EXCP01_DB);
-            else
+            } else {
                 cpu_resume_from_signal(env, NULL);
+            }
         }
     } else {
         QTAILQ_FOREACH(bp, &env->breakpoints, entry)
             if (bp->pc == env->eip) {
                 if (bp->flags & BP_CPU) {
-                    check_hw_breakpoints(env, 1);
+                    check_hw_breakpoints(env, true);
                     raise_exception(env, EXCP01_DB);
                 }
                 break;
