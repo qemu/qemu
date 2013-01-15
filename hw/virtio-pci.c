@@ -576,7 +576,7 @@ undo:
             continue;
         }
         if (proxy->vdev->guest_notifier_mask) {
-            kvm_virtio_pci_irqfd_release(proxy, vector, queue_no);
+            kvm_virtio_pci_irqfd_release(proxy, queue_no, vector);
         }
         kvm_virtio_pci_vq_vector_release(proxy, vector);
     }
@@ -602,7 +602,7 @@ static void kvm_virtio_pci_vector_release(VirtIOPCIProxy *proxy, int nvqs)
          * Otherwise, it was cleaned when masked in the frontend.
          */
         if (proxy->vdev->guest_notifier_mask) {
-            kvm_virtio_pci_irqfd_release(proxy, vector, queue_no);
+            kvm_virtio_pci_irqfd_release(proxy, queue_no, vector);
         }
         kvm_virtio_pci_vq_vector_release(proxy, vector);
     }
@@ -651,7 +651,7 @@ static void kvm_virtio_pci_vq_vector_mask(VirtIOPCIProxy *proxy,
     if (proxy->vdev->guest_notifier_mask) {
         proxy->vdev->guest_notifier_mask(proxy->vdev, queue_no, true);
     } else {
-        kvm_virtio_pci_irqfd_release(proxy, vector, queue_no);
+        kvm_virtio_pci_irqfd_release(proxy, queue_no, vector);
     }
 }
 
