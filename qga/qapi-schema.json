@@ -31,7 +31,7 @@
 #
 # Since: 1.1
 # ##
-{ 'command': 'guest-sync-delimited'
+{ 'command': 'guest-sync-delimited',
   'data':    { 'id': 'int' },
   'returns': 'int' }
 
@@ -69,7 +69,7 @@
 #
 # Since: 0.15.0
 ##
-{ 'command': 'guest-sync'
+{ 'command': 'guest-sync',
   'data':    { 'id': 'int' },
   'returns': 'int' }
 
