@@ -71,7 +71,9 @@ void *qemu_vmalloc(size_t size)
 void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);
-    VirtualFree(ptr, 0, MEM_RELEASE);
+    if (ptr) {
+        VirtualFree(ptr, 0, MEM_RELEASE);
+    }
 }
 
 /* FIXME: add proper locking */
