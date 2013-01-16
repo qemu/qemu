@@ -22,20 +22,6 @@
 #include "i2c.h"
 #include "tmp105.h"
 
-typedef struct {
-    I2CSlave i2c;
-    uint8_t len;
-    uint8_t buf[2];
-    qemu_irq pin;
-
-    uint8_t pointer;
-    uint8_t config;
-    int16_t temperature;
-    int16_t limit[2];
-    int faults;
-    uint8_t alarm;
-} TMP105State;
-
 static void tmp105_interrupt_update(TMP105State *s)
 {
     qemu_set_irq(s->pin, s->alarm ^ ((~s->config >> 2) & 1));	/* POL */
@@ -68,7 +54,7 @@ static void tmp105_alarm_update(TMP105State *s)
 /* Units are 0.001 centigrades relative to 0 C.  */
 void tmp105_set(I2CSlave *i2c, int temp)
 {
-    TMP105State *s = (TMP105State *) i2c;
+    TMP105State *s = TMP105(i2c);
 
     if (temp >= 128000 || temp < -128000) {
         fprintf(stderr, "%s: values is out of range (%i.%03i C)\n",
@@ -141,17 +127,18 @@ static void tmp105_write(TMP105State *s)
 
 static int tmp105_rx(I2CSlave *i2c)
 {
-    TMP105State *s = (TMP105State *) i2c;
+    TMP105State *s = TMP105(i2c);
 
-    if (s->len < 2)
+    if (s->len < 2) {
         return s->buf[s->len ++];
-    else
+    } else {
         return 0xff;
+    }
 }
 
 static int tmp105_tx(I2CSlave *i2c, uint8_t data)
 {
-    TMP105State *s = (TMP105State *) i2c;
+    TMP105State *s = TMP105(i2c);
 
     if (s->len == 0) {
         s->pointer = data;
@@ -169,10 +156,11 @@ static int tmp105_tx(I2CSlave *i2c, uint8_t data)
 
 static void tmp105_event(I2CSlave *i2c, enum i2c_event event)
 {
-    TMP105State *s = (TMP105State *) i2c;
+    TMP105State *s = TMP105(i2c);
 
-    if (event == I2C_START_RECV)
+    if (event == I2C_START_RECV) {
         tmp105_read(s);
+    }
 
     s->len = 0;
 }
@@ -208,7 +196,7 @@ static const VMStateDescription vmstate_tmp105 = {
 
 static void tmp105_reset(I2CSlave *i2c)
 {
-    TMP105State *s = (TMP105State *) i2c;
+    TMP105State *s = TMP105(i2c);
 
     s->temperature = 0;
     s->pointer = 0;
@@ -221,7 +209,7 @@ static void tmp105_reset(I2CSlave *i2c)
 
 static int tmp105_init(I2CSlave *i2c)
 {
-    TMP105State *s = FROM_I2C_SLAVE(TMP105State, i2c);
+    TMP105State *s = TMP105(i2c);
 
     qdev_init_gpio_out(&i2c->qdev, &s->pin, 1);
 
@@ -243,7 +231,7 @@ static void tmp105_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo tmp105_info = {
-    .name          = "tmp105",
+    .name          = TYPE_TMP105,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TMP105State),
     .class_init    = tmp105_class_init,
