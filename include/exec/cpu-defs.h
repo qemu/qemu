@@ -148,7 +148,6 @@ typedef struct CPUWatchpoint {
 
 #define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
-    struct TranslationBlock *current_tb; /* currently executing TB  */  \
     /* soft mmu support */                                              \
     /* in order to avoid passing too many arguments to the MMIO         \
        helpers, we store some rarely used information in the CPU        \

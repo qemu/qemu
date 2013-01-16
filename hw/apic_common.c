@@ -103,7 +103,7 @@ void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
 {
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
 
-    vapic_report_tpr_access(s->vapic, &s->cpu->env, ip, access);
+    vapic_report_tpr_access(s->vapic, CPU(s->cpu), ip, access);
 }
 
 void apic_report_irq_delivered(int delivered)

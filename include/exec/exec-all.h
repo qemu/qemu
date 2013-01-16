@@ -404,11 +404,13 @@ extern volatile sig_atomic_t exit_request;
    instruction of a TB so that interrupts take effect immediately.  */
 static inline int can_do_io(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+
     if (!use_icount) {
         return 1;
     }
     /* If not executing code then assume we are ok.  */
-    if (!env->current_tb) {
+    if (cpu->current_tb == NULL) {
         return 1;
     }
     return env->can_do_io != 0;

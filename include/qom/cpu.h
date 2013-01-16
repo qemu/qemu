@@ -71,6 +71,7 @@ struct kvm_run;
  * @created: Indicates whether the CPU thread has been successfully created.
  * @stop: Indicates a pending stop request.
  * @stopped: Indicates the CPU has been artificially stopped.
+ * @current_tb: Currently executing TB.
  * @kvm_fd: vCPU file descriptor for KVM.
  *
  * State of one CPU core or thread.
@@ -98,6 +99,8 @@ struct CPUState {
     bool stop;
     bool stopped;
     volatile sig_atomic_t exit_request;
+
+    struct TranslationBlock *current_tb;
 
     int kvm_fd;
     bool kvm_vcpu_dirty;

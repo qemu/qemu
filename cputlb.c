@@ -54,6 +54,7 @@ static const CPUTLBEntry s_cputlb_empty_entry = {
  */
 void tlb_flush(CPUArchState *env, int flush_global)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int i;
 
 #if defined(DEBUG_TLB)
@@ -61,7 +62,7 @@ void tlb_flush(CPUArchState *env, int flush_global)
 #endif
     /* must reset current TB so that interrupts cannot modify the
        links while we are modifying them */
-    env->current_tb = NULL;
+    cpu->current_tb = NULL;
 
     for (i = 0; i < CPU_TLB_SIZE; i++) {
         int mmu_idx;
@@ -92,6 +93,7 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 
 void tlb_flush_page(CPUArchState *env, target_ulong addr)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int i;
     int mmu_idx;
 
@@ -110,7 +112,7 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr)
     }
     /* must reset current TB so that interrupts cannot modify the
        links while we are modifying them */
-    env->current_tb = NULL;
+    cpu->current_tb = NULL;
 
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
