@@ -57,6 +57,16 @@ static void xtensa_cpu_reset(CPUState *s)
     reset_mmu(env);
 }
 
+static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    XtensaCPU *cpu = XTENSA_CPU(dev);
+    XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(dev);
+
+    qemu_init_vcpu(&cpu->env);
+
+    xcc->parent_realize(dev, errp);
+}
+
 static void xtensa_cpu_initfn(Object *obj)
 {
     XtensaCPU *cpu = XTENSA_CPU(obj);
@@ -75,6 +85,9 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     XtensaCPUClass *xcc = XTENSA_CPU_CLASS(cc);
+
+    xcc->parent_realize = dc->realize;
+    dc->realize = xtensa_cpu_realizefn;
 
     xcc->parent_reset = cc->reset;
     cc->reset = xtensa_cpu_reset;

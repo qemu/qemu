@@ -104,7 +104,9 @@ XtensaCPU *cpu_xtensa_init(const char *cpu_model)
     }
 
     xtensa_irq_init(env);
-    qemu_init_vcpu(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
     return cpu;
 }
 
