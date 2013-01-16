@@ -828,9 +828,9 @@ QemuCocoaView *cocoaView;
 
         [sheet close];
 
-        asprintf(&argv[0], "%s", bin);
-        asprintf(&argv[1], "-hda");
-        asprintf(&argv[2], "%s", img);
+        argv[0] = g_strdup_printf("%s", bin);
+        argv[1] = g_strdup_printf("-hda");
+        argv[2] = g_strdup_printf("%s", img);
 
         printf("Using argc %d argv %s -hda %s\n", 3, bin, img);
 
