@@ -122,7 +122,8 @@ SPARCCPU *cpu_sparc_init(const char *cpu_model)
         object_unref(OBJECT(cpu));
         return NULL;
     }
-    qemu_init_vcpu(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
     return cpu;
 }
@@ -851,6 +852,16 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "\n");
 }
 
+static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    SPARCCPU *cpu = SPARC_CPU(dev);
+    SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(dev);
+
+    qemu_init_vcpu(&cpu->env);
+
+    scc->parent_realize(dev, errp);
+}
+
 static void sparc_cpu_initfn(Object *obj)
 {
     SPARCCPU *cpu = SPARC_CPU(obj);
@@ -871,6 +882,10 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 {
     SPARCCPUClass *scc = SPARC_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    scc->parent_realize = dc->realize;
+    dc->realize = sparc_cpu_realizefn;
 
     scc->parent_reset = cc->reset;
     cc->reset = sparc_cpu_reset;
