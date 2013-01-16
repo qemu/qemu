@@ -863,18 +863,16 @@ static void *file_ram_alloc(RAMBlock *block,
         return NULL;
     }
 
-    if (asprintf(&filename, "%s/qemu_back_mem.XXXXXX", path) == -1) {
-        return NULL;
-    }
+    filename = g_strdup_printf("%s/qemu_back_mem.XXXXXX", path);
 
     fd = mkstemp(filename);
     if (fd < 0) {
         perror("unable to create backing store for hugepages");
-        free(filename);
+        g_free(filename);
         return NULL;
     }
     unlink(filename);
-    free(filename);
+    g_free(filename);
 
     memory = (memory+hpagesize-1) & ~(hpagesize-1);
 

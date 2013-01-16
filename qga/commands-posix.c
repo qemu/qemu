@@ -939,14 +939,11 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 
             mac_addr = (unsigned char *) &ifr.ifr_hwaddr.sa_data;
 
-            if (asprintf(&info->value->hardware_address,
-                         "%02x:%02x:%02x:%02x:%02x:%02x",
-                         (int) mac_addr[0], (int) mac_addr[1],
-                         (int) mac_addr[2], (int) mac_addr[3],
-                         (int) mac_addr[4], (int) mac_addr[5]) == -1) {
-                error_setg_errno(errp, errno, "failed to format MAC");
-                goto error;
-            }
+            info->value->hardware_address =
+                g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x",
+                                (int) mac_addr[0], (int) mac_addr[1],
+                                (int) mac_addr[2], (int) mac_addr[3],
+                                (int) mac_addr[4], (int) mac_addr[5]);
 
             info->value->has_hardware_address = true;
             close(sock);
