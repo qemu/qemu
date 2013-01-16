@@ -111,8 +111,9 @@ static void prep_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num] , level);
 }
 
-static int raven_pcihost_init(SysBusDevice *dev)
+static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 {
+    SysBusDevice *dev = SYS_BUS_DEVICE(d);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
     PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(dev);
     MemoryRegion *address_space_mem = get_system_memory();
@@ -141,7 +142,7 @@ static int raven_pcihost_init(SysBusDevice *dev)
     memory_region_add_subregion(address_space_mem, 0xbffffff0, &s->intack);
 
     /* TODO Remove once realize propagates to child devices. */
-    return qdev_init(DEVICE(&s->pci_dev));
+    object_property_set_bool(OBJECT(&s->pci_dev), true, "realized", errp);
 }
 
 static void raven_pcihost_initfn(Object *obj)
@@ -207,10 +208,9 @@ static const TypeInfo raven_info = {
 
 static void raven_pcihost_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = raven_pcihost_init;
+    dc->realize = raven_pcihost_realizefn;
     dc->fw_name = "pci";
     dc->no_user = 1;
 }
