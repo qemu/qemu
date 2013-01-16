@@ -199,6 +199,7 @@ static void virtio_net_reset(VirtIODevice *vdev)
     n->mac_table.multi_overflow = 0;
     n->mac_table.uni_overflow = 0;
     memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
+    memcpy(&n->mac[0], &n->nic->conf->macaddr, sizeof(n->mac));
     memset(n->vlans, 0, MAX_VLAN >> 3);
 }
 
