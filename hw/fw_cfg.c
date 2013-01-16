@@ -26,18 +26,9 @@
 #include "isa.h"
 #include "fw_cfg.h"
 #include "sysbus.h"
+#include "trace.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
-
-/* debug firmware config */
-//#define DEBUG_FW_CFG
-
-#ifdef DEBUG_FW_CFG
-#define FW_CFG_DPRINTF(fmt, ...)                        \
-    do { printf("FW_CFG: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define FW_CFG_DPRINTF(fmt, ...)
-#endif
 
 #define FW_CFG_SIZE 2
 #define FW_CFG_DATA_SIZE 1
@@ -213,7 +204,7 @@ static void fw_cfg_write(FWCfgState *s, uint8_t value)
     int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
     FWCfgEntry *e = &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
 
-    FW_CFG_DPRINTF("write %d\n", value);
+    trace_fw_cfg_write(s, value);
 
     if (s->cur_entry & FW_CFG_WRITE_CHANNEL && e->callback &&
         s->cur_offset < e->len) {
@@ -238,8 +229,7 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
         ret = 1;
     }
 
-    FW_CFG_DPRINTF("select key %d (%sfound)\n", key, ret ? "" : "not ");
-
+    trace_fw_cfg_select(s, key, ret);
     return ret;
 }
 
@@ -254,8 +244,7 @@ static uint8_t fw_cfg_read(FWCfgState *s)
     else
         ret = e->data[s->cur_offset++];
 
-    FW_CFG_DPRINTF("read %d\n", ret);
-
+    trace_fw_cfg_read(s, ret);
     return ret;
 }
 
@@ -470,16 +459,14 @@ int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
             filename);
     for (i = 0; i < index; i++) {
         if (strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
-            FW_CFG_DPRINTF("%s: skip duplicate: %s\n", __FUNCTION__,
-                           s->files->f[index].name);
+            trace_fw_cfg_add_file_dupe(s, s->files->f[index].name);
             return 1;
         }
     }
 
     s->files->f[index].size   = cpu_to_be32(len);
     s->files->f[index].select = cpu_to_be16(FW_CFG_FILE_FIRST + index);
-    FW_CFG_DPRINTF("%s: #%d: %s (%d bytes)\n", __FUNCTION__,
-                   index, s->files->f[index].name, len);
+    trace_fw_cfg_add_file(s, index, s->files->f[index].name, len);
 
     s->files->count = cpu_to_be32(index+1);
     return 1;
