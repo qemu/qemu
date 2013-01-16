@@ -328,14 +328,11 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
             continue;
         }
 
-        if (asprintf(&nodename, "%s@%x", modelname, index) < 0) {
-            fprintf(stderr, "Allocation failure\n");
-            exit(1);
-        }
+        nodename = g_strdup_printf("%s@%x", modelname, index);
 
         _FDT((fdt_begin_node(fdt, nodename)));
 
-        free(nodename);
+        g_free(nodename);
 
         _FDT((fdt_property_cell(fdt, "reg", index)));
         _FDT((fdt_property_string(fdt, "device_type", "cpu")));

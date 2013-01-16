@@ -80,9 +80,7 @@ static char *vio_format_dev_name(VIOsPAPRDevice *dev)
     char *name;
 
     /* Device tree style name device@reg */
-    if (asprintf(&name, "%s@%x", pc->dt_name, dev->reg) < 0) {
-        return NULL;
-    }
+    name = g_strdup_printf("%s@%x", pc->dt_name, dev->reg);
 
     return name;
 }
@@ -101,12 +99,8 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
     }
 
     dt_name = vio_format_dev_name(dev);
-    if (!dt_name) {
-        return -ENOMEM;
-    }
-
     node_off = fdt_add_subnode(fdt, vdevice_off, dt_name);
-    free(dt_name);
+    g_free(dt_name);
     if (node_off < 0) {
         return node_off;
     }
@@ -444,9 +438,6 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
     /* Don't overwrite ids assigned on the command line */
     if (!dev->qdev.id) {
         id = vio_format_dev_name(dev);
-        if (!id) {
-            return -1;
-        }
         dev->qdev.id = id;
     }
 
@@ -646,20 +637,12 @@ int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus)
     }
 
     name = vio_format_dev_name(dev);
-    if (!name) {
-        return -ENOMEM;
-    }
-
-    if (asprintf(&path, "/vdevice/%s", name) < 0) {
-        path = NULL;
-        ret = -ENOMEM;
-        goto out;
-    }
+    path = g_strdup_printf("/vdevice/%s", name);
 
     ret = fdt_setprop_string(fdt, offset, "linux,stdout-path", path);
-out:
-    free(name);
-    free(path);
+
+    g_free(name);
+    g_free(path);
 
     return ret;
 }
