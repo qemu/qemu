@@ -886,9 +886,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     if (kernel_cmdline) {
         fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
                        strlen(kernel_cmdline) + 1);
-        fw_cfg_add_bytes(fw_cfg, FW_CFG_CMDLINE_DATA,
-                         (uint8_t*)strdup(kernel_cmdline),
-                         strlen(kernel_cmdline) + 1);
+        fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
     } else {
         fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, 0);
     }
