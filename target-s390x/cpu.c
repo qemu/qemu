@@ -97,6 +97,17 @@ static void s390_cpu_machine_reset_cb(void *opaque)
 }
 #endif
 
+static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    S390CPU *cpu = S390_CPU(dev);
+    S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
+
+    qemu_init_vcpu(&cpu->env);
+    cpu_reset(CPU(cpu));
+
+    scc->parent_realize(dev, errp);
+}
+
 static void s390_cpu_initfn(Object *obj)
 {
     S390CPU *cpu = S390_CPU(obj);
@@ -122,8 +133,6 @@ static void s390_cpu_initfn(Object *obj)
 #endif
     env->cpu_num = cpu_num++;
     env->ext_index = -1;
-
-    cpu_reset(CPU(cpu));
 }
 
 static void s390_cpu_finalize(Object *obj)
@@ -145,6 +154,9 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     S390CPUClass *scc = S390_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(scc);
     DeviceClass *dc = DEVICE_CLASS(oc);
+
+    scc->parent_realize = dc->realize;
+    dc->realize = s390_cpu_realizefn;
 
     scc->parent_reset = cc->reset;
     cc->reset = s390_cpu_reset;

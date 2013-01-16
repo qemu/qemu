@@ -85,7 +85,9 @@ S390CPU *cpu_s390x_init(const char *cpu_model)
     }
 
     env->cpu_model_str = cpu_model;
-    qemu_init_vcpu(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
     return cpu;
 }
 
