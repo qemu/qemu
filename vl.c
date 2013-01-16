@@ -1198,15 +1198,15 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
  * memory pointed by "size" is assigned total length of the array in bytes
  *
  */
-char *get_boot_devices_list(uint32_t *size)
+char *get_boot_devices_list(size_t *size)
 {
     FWBootEntry *i;
-    uint32_t total = 0;
+    size_t total = 0;
     char *list = NULL;
 
     QTAILQ_FOREACH(i, &fw_boot_order, link) {
         char *devpath = NULL, *bootpath;
-        int len;
+        size_t len;
 
         if (i->dev) {
             devpath = qdev_get_fw_dev_path(i->dev);

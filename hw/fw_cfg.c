@@ -471,7 +471,7 @@ void fw_cfg_add_file(FWCfgState *s,  const char *filename,
 
 static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 {
-    uint32_t len;
+    size_t len;
     FWCfgState *s = container_of(n, FWCfgState, machine_ready);
     char *bootindex = get_boot_devices_list(&len);
 

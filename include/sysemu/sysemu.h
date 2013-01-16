@@ -179,7 +179,7 @@ void register_devices(void);
 
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);
-char *get_boot_devices_list(uint32_t *size);
+char *get_boot_devices_list(size_t *size);
 
 bool usb_enabled(bool default_usb);
 
