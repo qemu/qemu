@@ -116,6 +116,7 @@ QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TA
 check-qtest-$(CONFIG_POSIX)=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
 
 qtest-obj-y = tests/libqtest.o libqemuutil.a libqemustub.a
+qtest-obj-y += tests/libi2c.o tests/libi2c-omap.o
 $(check-qtest-y): $(qtest-obj-y)
 
 .PHONY: check-help
