@@ -15916,8 +15916,9 @@ MIPSCPU *cpu_mips_init(const char *cpu_model)
     fpu_init(env, def);
     mvp_init(env, def);
     mips_tcg_init();
-    cpu_reset(CPU(cpu));
-    qemu_init_vcpu(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
     return cpu;
 }
 
