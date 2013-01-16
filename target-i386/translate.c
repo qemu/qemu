@@ -4433,6 +4433,38 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             tcg_gen_addi_ptr(cpu_ptr1, cpu_env, op2_offset);
             sse_fn_eppi(cpu_env, cpu_ptr0, cpu_ptr1, tcg_const_i32(val));
             break;
+
+        case 0x33a:
+            /* Various integer extensions at 0f 3a f[0-f].  */
+            b = modrm | (b1 << 8);
+            modrm = cpu_ldub_code(env, s->pc++);
+            reg = ((modrm >> 3) & 7) | rex_r;
+
+            switch (b) {
+            case 0x3f0: /* rorx Gy,Ey, Ib */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI2)
+                    || !(s->prefix & PREFIX_VEX)
+                    || s->vex_l != 0) {
+                    goto illegal_op;
+                }
+                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                b = cpu_ldub_code(env, s->pc++);
+                if (ot == OT_QUAD) {
+                    tcg_gen_rotri_tl(cpu_T[0], cpu_T[0], b & 63);
+                } else {
+                    tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
+                    tcg_gen_rotri_i32(cpu_tmp2_i32, cpu_tmp2_i32, b & 31);
+                    tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
+                }
+                gen_op_mov_reg_T0(ot, reg);
+                break;
+
+            default:
+                goto illegal_op;
+            }
+            break;
+
         default:
             goto illegal_op;
         }
