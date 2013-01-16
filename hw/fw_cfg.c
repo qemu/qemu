@@ -373,71 +373,64 @@ static const VMStateDescription vmstate_fw_cfg = {
     }
 };
 
-int fw_cfg_add_bytes(FWCfgState *s, uint16_t key, uint8_t *data, uint32_t len)
+void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, uint8_t *data, uint32_t len)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
     key &= FW_CFG_ENTRY_MASK;
 
-    if (key >= FW_CFG_MAX_ENTRY)
-        return 0;
+    assert(key < FW_CFG_MAX_ENTRY);
 
     s->entries[arch][key].data = data;
     s->entries[arch][key].len = len;
-
-    return 1;
 }
 
-int fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
+void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 {
     uint16_t *copy;
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le16(value);
-    return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
+    fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
 }
 
-int fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
+void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 {
     uint32_t *copy;
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le32(value);
-    return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
+    fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
 }
 
-int fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
+void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
 {
     uint64_t *copy;
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le64(value);
-    return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
+    fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
 }
 
-int fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
-                        void *callback_opaque, uint8_t *data, size_t len)
+void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
+                         void *callback_opaque, uint8_t *data, size_t len)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
-    if (!(key & FW_CFG_WRITE_CHANNEL))
-        return 0;
+    assert(key & FW_CFG_WRITE_CHANNEL);
 
     key &= FW_CFG_ENTRY_MASK;
 
-    if (key >= FW_CFG_MAX_ENTRY || len > 65535)
-        return 0;
+    assert(key < FW_CFG_MAX_ENTRY && len <= 65535);
 
     s->entries[arch][key].data = data;
     s->entries[arch][key].len = len;
     s->entries[arch][key].callback_opaque = callback_opaque;
     s->entries[arch][key].callback = callback;
-
-    return 1;
 }
 
-int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
-                    uint32_t len)
+void fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
+                     uint32_t len)
 {
     int i, index;
 
@@ -448,10 +441,7 @@ int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
     }
 
     index = be32_to_cpu(s->files->count);
-    if (index == FW_CFG_FILE_SLOTS) {
-        fprintf(stderr, "fw_cfg: out of file slots\n");
-        return 0;
-    }
+    assert(index < FW_CFG_FILE_SLOTS);
 
     fw_cfg_add_bytes(s, FW_CFG_FILE_FIRST + index, data, len);
 
@@ -460,7 +450,7 @@ int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
     for (i = 0; i < index; i++) {
         if (strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
             trace_fw_cfg_add_file_dupe(s, s->files->f[index].name);
-            return 1;
+            return;
         }
     }
 
@@ -469,7 +459,6 @@ int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
     trace_fw_cfg_add_file(s, index, s->files->f[index].name, len);
 
     s->files->count = cpu_to_be32(index+1);
-    return 1;
 }
 
 static void fw_cfg_machine_ready(struct Notifier *n, void *data)
