@@ -572,7 +572,7 @@ static void *bochs_bios_init(void)
         fw_cfg_add_bytes(fw_cfg, FW_CFG_SMBIOS_ENTRIES,
                          smbios_table, smbios_len);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_E820_TABLE, (uint8_t *)&e820_table,
-                     sizeof(struct e820_table));
+                     sizeof(e820_table));
 
     fw_cfg_add_bytes(fw_cfg, FW_CFG_HPET, (uint8_t *)&hpet_cfg,
                      sizeof(struct hpet_fw_config));
@@ -580,7 +580,7 @@ static void *bochs_bios_init(void)
      * of nodes, one word for each VCPU->node and one word for each node to
      * hold the amount of memory.
      */
-    numa_fw_cfg = g_malloc0((1 + max_cpus + nb_numa_nodes) * 8);
+    numa_fw_cfg = g_new0(uint64_t, 1 + max_cpus + nb_numa_nodes);
     numa_fw_cfg[0] = cpu_to_le64(nb_numa_nodes);
     for (i = 0; i < max_cpus; i++) {
         for (j = 0; j < nb_numa_nodes; j++) {
@@ -594,7 +594,7 @@ static void *bochs_bios_init(void)
         numa_fw_cfg[max_cpus + 1 + i] = cpu_to_le64(node_mem[i]);
     }
     fw_cfg_add_bytes(fw_cfg, FW_CFG_NUMA, (uint8_t *)numa_fw_cfg,
-                     (1 + max_cpus + nb_numa_nodes) * 8);
+                     (1 + max_cpus + nb_numa_nodes) * sizeof(*numa_fw_cfg));
 
     return fw_cfg;
 }
