@@ -55,6 +55,7 @@ typedef void (*FWCfgCallback)(void *opaque, uint8_t *data);
 
 typedef struct FWCfgState FWCfgState;
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, uint8_t *data, uint32_t len);
+void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value);
 void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value);
 void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value);
 void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value);

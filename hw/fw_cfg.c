@@ -385,6 +385,13 @@ void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, uint8_t *data, uint32_t len)
     s->entries[arch][key].len = len;
 }
 
+void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
+{
+    size_t sz = strlen(value) + 1;
+
+    return fw_cfg_add_bytes(s, key, (uint8_t *)g_memdup(value, sz), sz);
+}
+
 void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 {
     uint16_t *copy;
