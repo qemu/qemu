@@ -280,6 +280,7 @@ static QEMUMachine palmte_machine = {
     .name = "cheetah",
     .desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)",
     .init = palmte_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void palmte_machine_init(void)

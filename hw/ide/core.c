@@ -325,14 +325,26 @@ typedef struct TrimAIOCB {
     BlockDriverAIOCB common;
     QEMUBH *bh;
     int ret;
+    QEMUIOVector *qiov;
+    BlockDriverAIOCB *aiocb;
+    int i, j;
 } TrimAIOCB;
 
 static void trim_aio_cancel(BlockDriverAIOCB *acb)
 {
     TrimAIOCB *iocb = container_of(acb, TrimAIOCB, common);
 
+    /* Exit the loop in case bdrv_aio_cancel calls ide_issue_trim_cb again.  */
+    iocb->j = iocb->qiov->niov - 1;
+    iocb->i = (iocb->qiov->iov[iocb->j].iov_len / 8) - 1;
+
+    /* Tell ide_issue_trim_cb not to trigger the completion, too.  */
     qemu_bh_delete(iocb->bh);
     iocb->bh = NULL;
+
+    if (iocb->aiocb) {
+        bdrv_aio_cancel(iocb->aiocb);
+    }
     qemu_aio_release(iocb);
 }
 
@@ -349,8 +361,45 @@ static void ide_trim_bh_cb(void *opaque)
 
     qemu_bh_delete(iocb->bh);
     iocb->bh = NULL;
-
     qemu_aio_release(iocb);
+}
+
+static void ide_issue_trim_cb(void *opaque, int ret)
+{
+    TrimAIOCB *iocb = opaque;
+    if (ret >= 0) {
+        while (iocb->j < iocb->qiov->niov) {
+            int j = iocb->j;
+            while (++iocb->i < iocb->qiov->iov[j].iov_len / 8) {
+                int i = iocb->i;
+                uint64_t *buffer = iocb->qiov->iov[j].iov_base;
+
+                /* 6-byte LBA + 2-byte range per entry */
+                uint64_t entry = le64_to_cpu(buffer[i]);
+                uint64_t sector = entry & 0x0000ffffffffffffULL;
+                uint16_t count = entry >> 48;
+
+                if (count == 0) {
+                    continue;
+                }
+
+                /* Got an entry! Submit and exit.  */
+                iocb->aiocb = bdrv_aio_discard(iocb->common.bs, sector, count,
+                                               ide_issue_trim_cb, opaque);
+                return;
+            }
+
+            iocb->j++;
+            iocb->i = -1;
+        }
+    } else {
+        iocb->ret = ret;
+    }
+
+    iocb->aiocb = NULL;
+    if (iocb->bh) {
+        qemu_bh_schedule(iocb->bh);
+    }
 }
 
 BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
@@ -358,34 +407,14 @@ BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     TrimAIOCB *iocb;
-    int i, j, ret;
 
     iocb = qemu_aio_get(&trim_aiocb_info, bs, cb, opaque);
     iocb->bh = qemu_bh_new(ide_trim_bh_cb, iocb);
     iocb->ret = 0;
-
-    for (j = 0; j < qiov->niov; j++) {
-        uint64_t *buffer = qiov->iov[j].iov_base;
-
-        for (i = 0; i < qiov->iov[j].iov_len / 8; i++) {
-            /* 6-byte LBA + 2-byte range per entry */
-            uint64_t entry = le64_to_cpu(buffer[i]);
-            uint64_t sector = entry & 0x0000ffffffffffffULL;
-            uint16_t count = entry >> 48;
-
-            if (count == 0) {
-                break;
-            }
-
-            ret = bdrv_discard(bs, sector, count);
-            if (!iocb->ret) {
-                iocb->ret = ret;
-            }
-        }
-    }
-
-    qemu_bh_schedule(iocb->bh);
-
+    iocb->qiov = qiov;
+    iocb->i = -1;
+    iocb->j = 0;
+    ide_issue_trim_cb(iocb, 0);
     return &iocb->common;
 }
 

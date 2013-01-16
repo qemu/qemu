@@ -15,53 +15,33 @@
 #define QEMU_TMP105_H
 
 #include "i2c.h"
+#include "tmp105_regs.h"
+
+#define TYPE_TMP105 "tmp105"
+#define TMP105(obj) OBJECT_CHECK(TMP105State, (obj), TYPE_TMP105)
 
 /**
- * TMP105Reg:
- * @TMP105_REG_TEMPERATURE: Temperature register
- * @TMP105_REG_CONFIG: Configuration register
- * @TMP105_REG_T_LOW: Low temperature register (also known as T_hyst)
- * @TMP105_REG_T_HIGH: High temperature register (also known as T_OS)
+ * TMP105State:
+ * @config: Bits 5 and 6 (value 32 and 64) determine the precision of the
+ * temperature. See Table 8 in the data sheet.
  *
- * The following temperature sensors are
- * compatible with the TMP105 registers:
- * - adt75
- * - ds1775
- * - ds75
- * - lm75
- * - lm75a
- * - max6625
- * - max6626
- * - mcp980x
- * - stds75
- * - tcn75
- * - tmp100
- * - tmp101
- * - tmp105
- * - tmp175
- * - tmp275
- * - tmp75
- **/
-typedef enum TMP105Reg {
-    TMP105_REG_TEMPERATURE = 0,
-    TMP105_REG_CONFIG,
-    TMP105_REG_T_LOW,
-    TMP105_REG_T_HIGH,
-} TMP105Reg;
-
-/**
- * tmp105_set:
- * @i2c: dispatcher to TMP105 hardware model
- * @temp: temperature with 0.001 centigrades units in the range -40 C to +125 C
- *
- * Sets the temperature of the TMP105 hardware model.
- *
- * Bits 5 and 6 (value 32 and 64) in the register indexed by TMP105_REG_CONFIG
- * determine the precision of the temperature. See Table 8 in the data sheet.
- *
- * @see_also: I2C_SLAVE macro
  * @see_also: http://www.ti.com/lit/gpn/tmp105
  */
-void tmp105_set(I2CSlave *i2c, int temp);
+typedef struct TMP105State {
+    /*< private >*/
+    I2CSlave i2c;
+    /*< public >*/
+
+    uint8_t len;
+    uint8_t buf[2];
+    qemu_irq pin;
+
+    uint8_t pointer;
+    uint8_t config;
+    int16_t temperature;
+    int16_t limit[2];
+    int faults;
+    uint8_t alarm;
+} TMP105State;
 
 #endif

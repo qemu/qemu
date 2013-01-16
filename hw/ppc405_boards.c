@@ -362,6 +362,7 @@ static QEMUMachine ref405ep_machine = {
     .name = "ref405ep",
     .desc = "ref405ep",
     .init = ref405ep_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 /*****************************************************************************/
@@ -649,6 +650,7 @@ static QEMUMachine taihu_machine = {
     .name = "taihu",
     .desc = "taihu",
     .init = taihu_405ep_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void ppc405_machine_init(void)

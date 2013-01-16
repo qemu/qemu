@@ -479,6 +479,7 @@ static QEMUMachine vexpress_a9_machine = {
     .init = vexpress_a9_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine vexpress_a15_machine = {
@@ -487,6 +488,7 @@ static QEMUMachine vexpress_a15_machine = {
     .init = vexpress_a15_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void vexpress_machine_init(void)

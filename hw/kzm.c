@@ -146,6 +146,7 @@ static QEMUMachine kzm_machine = {
     .name = "kzm",
     .desc = "ARM KZM Emulation Baseboard (ARM1136)",
     .init = kzm_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void kzm_machine_init(void)

@@ -966,30 +966,35 @@ hwaddr cpu_get_phys_page_debug(CPUX86State *env, target_ulong addr)
 
 void hw_breakpoint_insert(CPUX86State *env, int index)
 {
-    int type, err = 0;
+    int type = 0, err = 0;
 
     switch (hw_breakpoint_type(env->dr[7], index)) {
-    case 0:
-        if (hw_breakpoint_enabled(env->dr[7], index))
+    case DR7_TYPE_BP_INST:
+        if (hw_breakpoint_enabled(env->dr[7], index)) {
             err = cpu_breakpoint_insert(env, env->dr[index], BP_CPU,
                                         &env->cpu_breakpoint[index]);
+        }
         break;
-    case 1:
+    case DR7_TYPE_DATA_WR:
         type = BP_CPU | BP_MEM_WRITE;
-        goto insert_wp;
-    case 2:
-         /* No support for I/O watchpoints yet */
         break;
-    case 3:
+    case DR7_TYPE_IO_RW:
+        /* No support for I/O watchpoints yet */
+        break;
+    case DR7_TYPE_DATA_RW:
         type = BP_CPU | BP_MEM_ACCESS;
-    insert_wp:
+        break;
+    }
+
+    if (type != 0) {
         err = cpu_watchpoint_insert(env, env->dr[index],
                                     hw_breakpoint_len(env->dr[7], index),
                                     type, &env->cpu_watchpoint[index]);
-        break;
     }
-    if (err)
+
+    if (err) {
         env->cpu_breakpoint[index] = NULL;
+    }
 }
 
 void hw_breakpoint_remove(CPUX86State *env, int index)
@@ -997,39 +1002,60 @@ void hw_breakpoint_remove(CPUX86State *env, int index)
     if (!env->cpu_breakpoint[index])
         return;
     switch (hw_breakpoint_type(env->dr[7], index)) {
-    case 0:
-        if (hw_breakpoint_enabled(env->dr[7], index))
+    case DR7_TYPE_BP_INST:
+        if (hw_breakpoint_enabled(env->dr[7], index)) {
             cpu_breakpoint_remove_by_ref(env, env->cpu_breakpoint[index]);
+        }
         break;
-    case 1:
-    case 3:
+    case DR7_TYPE_DATA_WR:
+    case DR7_TYPE_DATA_RW:
         cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[index]);
         break;
-    case 2:
+    case DR7_TYPE_IO_RW:
         /* No support for I/O watchpoints yet */
         break;
     }
 }
 
-int check_hw_breakpoints(CPUX86State *env, int force_dr6_update)
+bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update)
 {
     target_ulong dr6;
-    int reg, type;
-    int hit_enabled = 0;
+    int reg;
+    bool hit_enabled = false;
 
     dr6 = env->dr[6] & ~0xf;
-    for (reg = 0; reg < 4; reg++) {
-        type = hw_breakpoint_type(env->dr[7], reg);
-        if ((type == 0 && env->dr[reg] == env->eip) ||
-            ((type & 1) && env->cpu_watchpoint[reg] &&
-             (env->cpu_watchpoint[reg]->flags & BP_WATCHPOINT_HIT))) {
+    for (reg = 0; reg < DR7_MAX_BP; reg++) {
+        bool bp_match = false;
+        bool wp_match = false;
+
+        switch (hw_breakpoint_type(env->dr[7], reg)) {
+        case DR7_TYPE_BP_INST:
+            if (env->dr[reg] == env->eip) {
+                bp_match = true;
+            }
+            break;
+        case DR7_TYPE_DATA_WR:
+        case DR7_TYPE_DATA_RW:
+            if (env->cpu_watchpoint[reg] &&
+                env->cpu_watchpoint[reg]->flags & BP_WATCHPOINT_HIT) {
+                wp_match = true;
+            }
+            break;
+        case DR7_TYPE_IO_RW:
+            break;
+        }
+        if (bp_match || wp_match) {
             dr6 |= 1 << reg;
-            if (hw_breakpoint_enabled(env->dr[7], reg))
-                hit_enabled = 1;
+            if (hw_breakpoint_enabled(env->dr[7], reg)) {
+                hit_enabled = true;
+            }
         }
     }
-    if (hit_enabled || force_dr6_update)
+
+    if (hit_enabled || force_dr6_update) {
         env->dr[6] = dr6;
+    }
+
     return hit_enabled;
 }
 
@@ -1040,16 +1066,17 @@ void breakpoint_handler(CPUX86State *env)
     if (env->watchpoint_hit) {
         if (env->watchpoint_hit->flags & BP_CPU) {
             env->watchpoint_hit = NULL;
-            if (check_hw_breakpoints(env, 0))
+            if (check_hw_breakpoints(env, false)) {
                 raise_exception(env, EXCP01_DB);
-            else
+            } else {
                 cpu_resume_from_signal(env, NULL);
+            }
         }
     } else {
         QTAILQ_FOREACH(bp, &env->breakpoints, entry)
             if (bp->pc == env->eip) {
                 if (bp->flags & BP_CPU) {
-                    check_hw_breakpoints(env, 1);
+                    check_hw_breakpoints(env, true);
                     raise_exception(env, EXCP01_DB);
                 }
                 break;
@@ -1059,7 +1086,7 @@ void breakpoint_handler(CPUX86State *env)
 
 typedef struct MCEInjectionParams {
     Monitor *mon;
-    CPUX86State *env;
+    X86CPU *cpu;
     int bank;
     uint64_t status;
     uint64_t mcg_status;
@@ -1071,7 +1098,8 @@ typedef struct MCEInjectionParams {
 static void do_inject_x86_mce(void *data)
 {
     MCEInjectionParams *params = data;
-    CPUX86State *cenv = params->env;
+    CPUX86State *cenv = &params->cpu->env;
+    CPUState *cpu = CPU(params->cpu);
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
 
     cpu_synchronize_state(cenv);
@@ -1094,7 +1122,7 @@ static void do_inject_x86_mce(void *data)
         if ((cenv->mcg_cap & MCG_CTL_P) && cenv->mcg_ctl != ~(uint64_t)0) {
             monitor_printf(params->mon,
                            "CPU %d: Uncorrected error reporting disabled\n",
-                           cenv->cpu_index);
+                           cpu->cpu_index);
             return;
         }
 
@@ -1106,7 +1134,7 @@ static void do_inject_x86_mce(void *data)
             monitor_printf(params->mon,
                            "CPU %d: Uncorrected error reporting disabled for"
                            " bank %d\n",
-                           cenv->cpu_index, params->bank);
+                           cpu->cpu_index, params->bank);
             return;
         }
 
@@ -1115,7 +1143,7 @@ static void do_inject_x86_mce(void *data)
             monitor_printf(params->mon,
                            "CPU %d: Previous MCE still in progress, raising"
                            " triple fault\n",
-                           cenv->cpu_index);
+                           cpu->cpu_index);
             qemu_log_mask(CPU_LOG_RESET, "Triple fault\n");
             qemu_system_reset_request();
             return;
@@ -1148,7 +1176,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
     CPUX86State *cenv = &cpu->env;
     MCEInjectionParams params = {
         .mon = mon,
-        .env = cenv,
+        .cpu = cpu,
         .bank = bank,
         .status = status,
         .mcg_status = mcg_status,
@@ -1188,7 +1216,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
             if (cenv == env) {
                 continue;
             }
-            params.env = env;
+            params.cpu = x86_env_get_cpu(env);
             run_on_cpu(CPU(cpu), do_inject_x86_mce, &params);
         }
     }

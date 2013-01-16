@@ -354,7 +354,6 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 #endif
 
 CPUArchState *cpu_copy(CPUArchState *env);
-CPUArchState *qemu_get_cpu(int cpu);
 
 #define CPU_DUMP_CODE 0x00010000
 #define CPU_DUMP_FPU 0x00020000 /* dump FPU register state, not just integer */

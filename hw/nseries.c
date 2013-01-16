@@ -1411,12 +1411,14 @@ static QEMUMachine n800_machine = {
     .name = "n800",
     .desc = "Nokia N800 tablet aka. RX-34 (OMAP2420)",
     .init = n800_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine n810_machine = {
     .name = "n810",
     .desc = "Nokia N810 tablet aka. RX-44 (OMAP2420)",
     .init = n810_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void nseries_machine_init(void)

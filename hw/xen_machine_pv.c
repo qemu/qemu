@@ -115,6 +115,7 @@ static QEMUMachine xenpv_machine = {
     .init = xen_init_pv,
     .max_cpus = 1,
     .default_machine_opts = "accel=xen",
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void xenpv_machine_init(void)

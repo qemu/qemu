@@ -39,7 +39,8 @@ static const uint8_t gic_id[] = {
 static inline int gic_get_current_cpu(GICState *s)
 {
     if (s->num_cpu > 1) {
-        return cpu_single_env->cpu_index;
+        CPUState *cpu = ENV_GET_CPU(cpu_single_env);
+        return cpu->cpu_index;
     }
     return 0;
 }

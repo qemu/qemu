@@ -214,6 +214,7 @@ static QEMUMachine pc_q35_machine = {
     .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init,
     .max_cpus = 255,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void pc_q35_machine_init(void)

@@ -531,68 +531,58 @@ static const MemoryRegionOps piix4_gpe_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static uint32_t pci_up_read(void *opaque, uint32_t addr)
+static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
 {
     PIIX4PMState *s = opaque;
-    uint32_t val;
+    uint32_t val = 0;
 
-    /* Manufacture an "up" value to cause a device check on any hotplug
-     * slot with a device.  Extra device checks are harmless. */
-    val = s->pci0_slot_device_present & s->pci0_hotplug_enable;
+    switch (addr) {
+    case PCI_UP_BASE - PCI_HOTPLUG_ADDR:
+        /* Manufacture an "up" value to cause a device check on any hotplug
+         * slot with a device.  Extra device checks are harmless. */
+        val = s->pci0_slot_device_present & s->pci0_hotplug_enable;
+        PIIX4_DPRINTF("pci_up_read %x\n", val);
+        break;
+    case PCI_DOWN_BASE - PCI_HOTPLUG_ADDR:
+        val = s->pci0_status.down;
+        PIIX4_DPRINTF("pci_down_read %x\n", val);
+        break;
+    case PCI_EJ_BASE - PCI_HOTPLUG_ADDR:
+        /* No feature defined yet */
+        PIIX4_DPRINTF("pci_features_read %x\n", val);
+        break;
+    case PCI_RMV_BASE - PCI_HOTPLUG_ADDR:
+        val = s->pci0_hotplug_enable;
+        break;
+    default:
+        break;
+    }
 
-    PIIX4_DPRINTF("pci_up_read %x\n", val);
     return val;
 }
 
-static uint32_t pci_down_read(void *opaque, uint32_t addr)
+static void pci_write(void *opaque, hwaddr addr, uint64_t data,
+                      unsigned int size)
 {
-    PIIX4PMState *s = opaque;
-    uint32_t val = s->pci0_status.down;
-
-    PIIX4_DPRINTF("pci_down_read %x\n", val);
-    return val;
-}
-
-static uint32_t pci_features_read(void *opaque, uint32_t addr)
-{
-    /* No feature defined yet */
-    PIIX4_DPRINTF("pci_features_read %x\n", 0);
-    return 0;
-}
-
-static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
-{
-    acpi_piix_eject_slot(opaque, val);
-
-    PIIX4_DPRINTF("pciej write %x <== %d\n", addr, val);
-}
-
-static uint32_t pcirmv_read(void *opaque, uint32_t addr)
-{
-    PIIX4PMState *s = opaque;
-
-    return s->pci0_hotplug_enable;
+    switch (addr) {
+    case PCI_EJ_BASE - PCI_HOTPLUG_ADDR:
+        acpi_piix_eject_slot(opaque, (uint32_t)data);
+        PIIX4_DPRINTF("pciej write %" HWADDR_PRIx " <== % " PRIu64 "\n",
+                      addr, data);
+        break;
+    default:
+        break;
+    }
 }
 
 static const MemoryRegionOps piix4_pci_ops = {
-    .old_portio = (MemoryRegionPortio[]) {
-        {
-            .offset = PCI_UP_BASE - PCI_HOTPLUG_ADDR,   .len = 4, .size = 4,
-            .read = pci_up_read,
-        },{
-            .offset = PCI_DOWN_BASE - PCI_HOTPLUG_ADDR, .len = 4, .size = 4,
-            .read = pci_down_read,
-        },{
-            .offset = PCI_EJ_BASE - PCI_HOTPLUG_ADDR,   .len = 4, .size = 4,
-            .read = pci_features_read,
-            .write = pciej_write,
-        },{
-            .offset = PCI_RMV_BASE - PCI_HOTPLUG_ADDR,  .len = 4, .size = 4,
-            .read = pcirmv_read,
-        },
-        PORTIO_END_OF_LIST()
-    },
+    .read = pci_read,
+    .write = pci_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,

@@ -1579,7 +1579,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
         case 0x3C:
             /* WHAMI */
             tcg_gen_ld32s_i64(cpu_ir[IR_V0], cpu_env,
-                              offsetof(CPUAlphaState, cpu_index));
+                -offsetof(AlphaCPU, env) + offsetof(CPUState, cpu_index));
             break;
 
         default:

@@ -20,11 +20,14 @@
 #define QEMU_AIO_WRITE        0x0002
 #define QEMU_AIO_IOCTL        0x0004
 #define QEMU_AIO_FLUSH        0x0008
+#define QEMU_AIO_DISCARD      0x0010
 #define QEMU_AIO_TYPE_MASK \
-	(QEMU_AIO_READ|QEMU_AIO_WRITE|QEMU_AIO_IOCTL|QEMU_AIO_FLUSH)
+        (QEMU_AIO_READ|QEMU_AIO_WRITE|QEMU_AIO_IOCTL|QEMU_AIO_FLUSH| \
+         QEMU_AIO_DISCARD)
 
 /* AIO flags */
 #define QEMU_AIO_MISALIGNED   0x1000
+#define QEMU_AIO_BLKDEV       0x2000
 
 
 /* linux-aio.c - Linux native implementation */

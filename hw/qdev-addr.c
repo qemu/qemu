@@ -40,7 +40,7 @@ static void set_taddr(Object *obj, Visitor *v, void *opaque,
     Error *local_err = NULL;
     int64_t value;
 
-    if (dev->state != DEV_STATE_CREATED) {
+    if (dev->realized) {
         error_set(errp, QERR_PERMISSION_DENIED);
         return;
     }

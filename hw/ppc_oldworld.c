@@ -341,6 +341,7 @@ static QEMUMachine heathrow_machine = {
 #ifndef TARGET_PPC64
     .is_default = 1,
 #endif
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void heathrow_machine_init(void)

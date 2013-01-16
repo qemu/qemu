@@ -225,7 +225,7 @@ static void coroutine_fn mirror_run(void *opaque)
     }
 
 immediate_exit:
-    g_free(s->buf);
+    qemu_vfree(s->buf);
     bdrv_set_dirty_tracking(bs, false);
     bdrv_iostatus_disable(s->target);
     if (s->should_complete && ret == 0) {

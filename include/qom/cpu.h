@@ -57,6 +57,10 @@ struct kvm_run;
 
 /**
  * CPUState:
+ * @cpu_index: CPU index (informative).
+ * @nr_cores: Number of cores within this CPU package.
+ * @nr_threads: Number of threads within this CPU.
+ * @numa_node: NUMA node this CPU is belonging to.
  * @created: Indicates whether the CPU thread has been successfully created.
  * @stop: Indicates a pending stop request.
  * @stopped: Indicates the CPU has been artificially stopped.
@@ -68,6 +72,10 @@ struct CPUState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
+
+    int nr_cores;
+    int nr_threads;
+    int numa_node;
 
     struct QemuThread *thread;
 #ifdef _WIN32
@@ -89,6 +97,7 @@ struct CPUState {
     struct kvm_run *kvm_run;
 
     /* TODO Move common fields from CPUArchState here. */
+    int cpu_index; /* used by alpha TCG */
 };
 
 
@@ -146,6 +155,16 @@ bool cpu_is_stopped(CPUState *cpu);
  * Schedules the function @func for execution on the vCPU @cpu.
  */
 void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
+
+/**
+ * qemu_get_cpu:
+ * @index: The CPUState@cpu_index value of the CPU to obtain.
+ *
+ * Gets a CPU matching @index.
+ *
+ * Returns: The CPU or %NULL if there is no matching CPU.
+ */
+CPUState *qemu_get_cpu(int index);
 
 
 #endif

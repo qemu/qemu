@@ -106,6 +106,7 @@ static QEMUMachine xtensa_sim_machine = {
     .is_default = true,
     .init = xtensa_sim_init,
     .max_cpus = 4,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void xtensa_sim_machine_init(void)

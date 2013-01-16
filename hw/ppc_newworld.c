@@ -442,6 +442,7 @@ static QEMUMachine core99_machine = {
 #ifdef TARGET_PPC64
     .is_default = 1,
 #endif
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void core99_machine_init(void)

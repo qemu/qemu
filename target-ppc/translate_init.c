@@ -10005,8 +10005,10 @@ static int gdb_set_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int ppc_fixup_cpu(CPUPPCState *env)
+static int ppc_fixup_cpu(PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
+
     /* TCG doesn't (yet) emulate some groups of instructions that
      * are implemented on some otherwise supported CPUs (e.g. VSX
      * and decimal floating point instructions on POWER7).  We
@@ -10036,12 +10038,12 @@ static void ppc_cpu_realize(Object *obj, Error **errp)
     Error *local_err = NULL;
 
     if (kvm_enabled()) {
-        if (kvmppc_fixup_cpu(env) != 0) {
+        if (kvmppc_fixup_cpu(cpu) != 0) {
             error_setg(errp, "Unable to virtualize selected CPU with KVM");
             return;
         }
     } else {
-        if (ppc_fixup_cpu(env) != 0) {
+        if (ppc_fixup_cpu(cpu) != 0) {
             error_setg(errp, "Unable to emulate selected CPU with TCG");
             return;
         }
@@ -10460,7 +10462,7 @@ static void ppc_cpu_reset(CPUState *s)
     target_ulong msr;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
         log_cpu_state(env, 0);
     }
 

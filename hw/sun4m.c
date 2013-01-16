@@ -1428,6 +1428,7 @@ static QEMUMachine ss5_machine = {
     .init = ss5_init,
     .block_default_type = IF_SCSI,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine ss10_machine = {
@@ -1436,6 +1437,7 @@ static QEMUMachine ss10_machine = {
     .init = ss10_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine ss600mp_machine = {
@@ -1444,6 +1446,7 @@ static QEMUMachine ss600mp_machine = {
     .init = ss600mp_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine ss20_machine = {
@@ -1452,6 +1455,7 @@ static QEMUMachine ss20_machine = {
     .init = ss20_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine voyager_machine = {
@@ -1459,6 +1463,7 @@ static QEMUMachine voyager_machine = {
     .desc = "Sun4m platform, SPARCstation Voyager",
     .init = vger_init,
     .block_default_type = IF_SCSI,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine ss_lx_machine = {
@@ -1466,6 +1471,7 @@ static QEMUMachine ss_lx_machine = {
     .desc = "Sun4m platform, SPARCstation LX",
     .init = ss_lx_init,
     .block_default_type = IF_SCSI,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine ss4_machine = {
@@ -1473,6 +1479,7 @@ static QEMUMachine ss4_machine = {
     .desc = "Sun4m platform, SPARCstation 4",
     .init = ss4_init,
     .block_default_type = IF_SCSI,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine scls_machine = {
@@ -1480,6 +1487,7 @@ static QEMUMachine scls_machine = {
     .desc = "Sun4m platform, SPARCClassic",
     .init = scls_init,
     .block_default_type = IF_SCSI,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine sbook_machine = {
@@ -1487,6 +1495,7 @@ static QEMUMachine sbook_machine = {
     .desc = "Sun4m platform, SPARCbook",
     .init = sbook_init,
     .block_default_type = IF_SCSI,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static const struct sun4d_hwdef sun4d_hwdefs[] = {
@@ -1711,6 +1720,7 @@ static QEMUMachine ss1000_machine = {
     .init = ss1000_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 8,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine ss2000_machine = {
@@ -1719,6 +1729,7 @@ static QEMUMachine ss2000_machine = {
     .init = ss2000_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 20,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static const struct sun4c_hwdef sun4c_hwdefs[] = {
@@ -1897,6 +1908,7 @@ static QEMUMachine ss2_machine = {
     .desc = "Sun4c platform, SPARCstation 2",
     .init = ss2_init,
     .block_default_type = IF_SCSI,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void sun4m_register_types(void)

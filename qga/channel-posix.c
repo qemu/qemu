@@ -46,6 +46,7 @@ static gboolean ga_channel_listen_accept(GIOChannel *channel,
     ret = ga_channel_client_add(c, client_fd);
     if (ret) {
         g_warning("error setting up connection");
+        close(client_fd);
         goto out;
     }
     accepted = true;
@@ -140,19 +141,21 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path, GAChannelMethod
                            );
         if (fd == -1) {
             g_critical("error opening channel: %s", strerror(errno));
-            exit(EXIT_FAILURE);
+            return false;
         }
 #ifdef CONFIG_SOLARIS
         ret = ioctl(fd, I_SETSIG, S_OUTPUT | S_INPUT | S_HIPRI);
         if (ret == -1) {
             g_critical("error setting event mask for channel: %s",
                        strerror(errno));
-            exit(EXIT_FAILURE);
+            close(fd);
+            return false;
         }
 #endif
         ret = ga_channel_client_add(c, fd);
         if (ret) {
             g_critical("error adding channel to main loop");
+            close(fd);
             return false;
         }
         break;
@@ -162,7 +165,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path, GAChannelMethod
         int fd = qemu_open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
         if (fd == -1) {
             g_critical("error opening channel: %s", strerror(errno));
-            exit(EXIT_FAILURE);
+            return false;
         }
         tcgetattr(fd, &tio);
         /* set up serial port for non-canonical, dumb byte streaming */
@@ -182,7 +185,9 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path, GAChannelMethod
         tcsetattr(fd, TCSANOW, &tio);
         ret = ga_channel_client_add(c, fd);
         if (ret) {
-            g_error("error adding channel to main loop");
+            g_critical("error adding channel to main loop");
+            close(fd);
+            return false;
         }
         break;
     }

@@ -287,14 +287,16 @@ static QEMUMachine lm32_evr_machine = {
     .name = "lm32-evr",
     .desc = "LatticeMico32 EVR32 eval system",
     .init = lm32_evr_init,
-    .is_default = 1
+    .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine lm32_uclinux_machine = {
     .name = "lm32-uclinux",
     .desc = "lm32 platform for uClinux and u-boot by Theobroma Systems",
     .init = lm32_uclinux_init,
-    .is_default = 0
+    .is_default = 0,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void lm32_machine_init(void)

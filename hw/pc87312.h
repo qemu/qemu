@@ -56,6 +56,8 @@ typedef struct PC87312State {
         uint32_t base;
     } ide;
 
+    MemoryRegion io;
+
     uint8_t read_id_step;
     uint8_t selected_index;
 

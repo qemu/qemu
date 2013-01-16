@@ -900,7 +900,7 @@ Object *object_resolve_path_type(const char *path, const char *typename,
  *
  * Returns: The resolved object or NULL on path lookup failure.
  */
-Object *object_resolve_path_component(Object *parent, gchar *part);
+Object *object_resolve_path_component(Object *parent, const gchar *part);
 
 /**
  * object_property_add_child:

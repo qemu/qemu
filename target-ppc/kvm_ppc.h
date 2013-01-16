@@ -33,7 +33,7 @@ int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
 #endif /* !CONFIG_USER_ONLY */
-int kvmppc_fixup_cpu(CPUPPCState *env);
+int kvmppc_fixup_cpu(PowerPCCPU *cpu);
 
 #else
 
@@ -122,7 +122,7 @@ static inline int kvmppc_update_sdr1(CPUPPCState *env)
 
 #endif /* !CONFIG_USER_ONLY */
 
-static inline int kvmppc_fixup_cpu(CPUPPCState *env)
+static inline int kvmppc_fixup_cpu(PowerPCCPU *cpu)
 {
     return -1;
 }

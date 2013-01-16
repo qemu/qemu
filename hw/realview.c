@@ -365,6 +365,7 @@ static QEMUMachine realview_eb_machine = {
     .desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)",
     .init = realview_eb_init,
     .block_default_type = IF_SCSI,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine realview_eb_mpcore_machine = {
@@ -373,12 +374,14 @@ static QEMUMachine realview_eb_mpcore_machine = {
     .init = realview_eb_mpcore_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine realview_pb_a8_machine = {
     .name = "realview-pb-a8",
     .desc = "ARM RealView Platform Baseboard for Cortex-A8",
     .init = realview_pb_a8_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine realview_pbx_a9_machine = {
@@ -387,6 +390,7 @@ static QEMUMachine realview_pbx_a9_machine = {
     .init = realview_pbx_a9_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void realview_machine_init(void)

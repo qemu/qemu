@@ -35,7 +35,8 @@ static inline int cpu_index(CPUArchState *env)
 #if defined(CONFIG_USER_ONLY) && defined(CONFIG_USE_NPTL)
     return env->host_tid;
 #else
-    return env->cpu_index + 1;
+    CPUState *cpu = ENV_GET_CPU(env);
+    return cpu->cpu_index + 1;
 #endif
 }
 

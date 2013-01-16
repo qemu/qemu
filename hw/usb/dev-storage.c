@@ -427,7 +427,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             scsi_req_print(s->req);
 #endif
             scsi_req_enqueue(s->req);
-            if (s->req && s->req->cmd.xfer != SCSI_XFER_NONE) {
+            if (s->req->cmd.xfer != SCSI_XFER_NONE) {
                 scsi_req_continue(s->req);
             }
             break;

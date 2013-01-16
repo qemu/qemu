@@ -347,6 +347,7 @@ static QEMUMachine r2d_machine = {
     .name = "r2d",
     .desc = "r2d-plus board",
     .init = r2d_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void r2d_machine_init(void)

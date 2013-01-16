@@ -86,6 +86,7 @@ static QEMUMachine an5206_machine = {
     .name = "an5206",
     .desc = "Arnewsh 5206",
     .init = an5206_init,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void an5206_machine_init(void)
