@@ -264,5 +264,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
         }
     }
 
-    return progress;
+    assert(progress || busy);
+    return true;
 }
