@@ -693,9 +693,7 @@ static void load_linux(void *fw_cfg,
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, strlen(kernel_cmdline)+1);
-    fw_cfg_add_bytes(fw_cfg, FW_CFG_CMDLINE_DATA,
-                     (uint8_t*)strdup(kernel_cmdline),
-                     strlen(kernel_cmdline)+1);
+    fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
 
     if (protocol >= 0x202) {
 	stl_p(header+0x228, cmdline_addr);
