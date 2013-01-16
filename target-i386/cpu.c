@@ -2060,10 +2060,14 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
 }
 #endif
 
-void x86_cpu_realize(Object *obj, Error **errp)
+static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    X86CPU *cpu = X86_CPU(obj);
+    X86CPU *cpu = X86_CPU(dev);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
+#ifndef CONFIG_USER_ONLY
+    Error *local_err = NULL;
+#endif
 
     if (env->cpuid_7_0_ebx_features && env->cpuid_level < 7) {
         env->cpuid_level = 7;
@@ -2105,8 +2109,9 @@ void x86_cpu_realize(Object *obj, Error **errp)
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
 
     if (cpu->env.cpuid_features & CPUID_APIC || smp_cpus > 1) {
-        x86_cpu_apic_init(cpu, errp);
-        if (error_is_set(errp)) {
+        x86_cpu_apic_init(cpu, &local_err);
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
             return;
         }
     }
@@ -2115,6 +2120,8 @@ void x86_cpu_realize(Object *obj, Error **errp)
     mce_init(cpu);
     qemu_init_vcpu(&cpu->env);
     cpu_reset(CPU(cpu));
+
+    xcc->parent_realize(dev, errp);
 }
 
 /* Enables contiguous-apic-ID mode, for compatibility */
@@ -2200,6 +2207,10 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 {
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    xcc->parent_realize = dc->realize;
+    dc->realize = x86_cpu_realizefn;
 
     xcc->parent_reset = cc->reset;
     cc->reset = x86_cpu_reset;
