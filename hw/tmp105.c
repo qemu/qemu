@@ -21,6 +21,7 @@
 #include "hw.h"
 #include "i2c.h"
 #include "tmp105.h"
+#include "qapi/visitor.h"
 
 static void tmp105_interrupt_update(TMP105State *s)
 {
@@ -51,15 +52,30 @@ static void tmp105_alarm_update(TMP105State *s)
     tmp105_interrupt_update(s);
 }
 
-/* Units are 0.001 centigrades relative to 0 C.  */
-void tmp105_set(I2CSlave *i2c, int temp)
+static void tmp105_get_temperature(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
 {
-    TMP105State *s = TMP105(i2c);
+    TMP105State *s = TMP105(obj);
+    int64_t value = s->temperature;
 
+    visit_type_int(v, &value, name, errp);
+}
+
+/* Units are 0.001 centigrades relative to 0 C.  */
+static void tmp105_set_temperature(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    TMP105State *s = TMP105(obj);
+    int64_t temp;
+
+    visit_type_int(v, &temp, name, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
     if (temp >= 128000 || temp < -128000) {
-        fprintf(stderr, "%s: values is out of range (%i.%03i C)\n",
-                        __FUNCTION__, temp / 1000, temp % 1000);
-        exit(-1);
+        error_setg(errp, "value %" PRId64 ".%03" PRIu64 " °C is out of range",
+                   temp / 1000, temp % 1000);
+        return;
     }
 
     s->temperature = ((int16_t) (temp * 0x800 / 128000)) << 4;
@@ -218,6 +234,13 @@ static int tmp105_init(I2CSlave *i2c)
     return 0;
 }
 
+static void tmp105_initfn(Object *obj)
+{
+    object_property_add(obj, "temperature", "int",
+                        tmp105_get_temperature,
+                        tmp105_set_temperature, NULL, NULL, NULL);
+}
+
 static void tmp105_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -234,6 +257,7 @@ static const TypeInfo tmp105_info = {
     .name          = TYPE_TMP105,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TMP105State),
+    .instance_init = tmp105_initfn,
     .class_init    = tmp105_class_init,
 };
 
