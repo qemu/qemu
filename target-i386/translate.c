@@ -2417,35 +2417,30 @@ static inline void gen_jcc(DisasContext *s, int b,
 static void gen_cmovcc1(CPUX86State *env, DisasContext *s, int ot, int b,
                         int modrm, int reg)
 {
-    int l1, mod = (modrm >> 6) & 3;
-    TCGv t0 = tcg_temp_local_new();
+    CCPrepare cc;
 
-    if (mod != 3) {
-        int reg_addr, offset_addr;
-        gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-        gen_op_ld_v(ot + s->mem_index, t0, cpu_A0);
-    } else {
-        int rm = (modrm & 7) | REX_B(s);
-        gen_op_mov_v_reg(ot, t0, rm);
+    gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+
+    cc = gen_prepare_cc(s, b, cpu_T[1]);
+    if (cc.mask != -1) {
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_andi_tl(t0, cc.reg, cc.mask);
+        cc.reg = t0;
+    }
+    if (!cc.use_reg2) {
+        cc.reg2 = tcg_const_tl(cc.imm);
     }
 
-    l1 = gen_new_label();
-    gen_jcc1(s, b ^ 1, l1);
-    switch (ot) {
-#ifdef TARGET_X86_64
-    case OT_LONG:
-        tcg_gen_mov_tl(cpu_regs[reg], t0);
-        gen_set_label(l1);
-        tcg_gen_ext32u_tl(cpu_regs[reg], cpu_regs[reg]);
-        break;
-#endif
-    default:
-        gen_op_mov_reg_v(ot, reg, t0);
-        gen_set_label(l1);
-        break;
-    }
+    tcg_gen_movcond_tl(cc.cond, cpu_T[0], cc.reg, cc.reg2,
+                       cpu_T[0], cpu_regs[reg]);
+    gen_op_mov_reg_T0(ot, reg);
 
-    tcg_temp_free(t0);
+    if (cc.mask != -1) {
+        tcg_temp_free(cc.reg);
+    }
+    if (!cc.use_reg2) {
+        tcg_temp_free(cc.reg2);
+    }
 }
 
 static inline void gen_op_movl_T0_seg(int seg_reg)
