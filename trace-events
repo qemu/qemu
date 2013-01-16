@@ -172,7 +172,7 @@ fw_cfg_write(void *s, uint8_t value) "%p %d"
 fw_cfg_select(void *s, uint16_t key, int ret) "%p key %d = %d"
 fw_cfg_read(void *s, uint8_t ret) "%p = %d"
 fw_cfg_add_file_dupe(void *s, char *name) "%p %s"
-fw_cfg_add_file(void *s, int index, char *name, uint32_t len) "%p #%d: %s (%d bytes)"
+fw_cfg_add_file(void *s, int index, char *name, size_t len) "%p #%d: %s (%zd bytes)"
 
 # hw/hd-geometry.c
 hd_geometry_lchs_guess(void *bs, int cyls, int heads, int secs) "bs %p LCHS %d %d %d"

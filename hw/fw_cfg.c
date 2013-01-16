@@ -373,23 +373,23 @@ static const VMStateDescription vmstate_fw_cfg = {
     }
 };
 
-void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, uint8_t *data, uint32_t len)
+void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
     key &= FW_CFG_ENTRY_MASK;
 
-    assert(key < FW_CFG_MAX_ENTRY);
+    assert(key < FW_CFG_MAX_ENTRY && len < UINT32_MAX);
 
     s->entries[arch][key].data = data;
-    s->entries[arch][key].len = len;
+    s->entries[arch][key].len = (uint32_t)len;
 }
 
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
 {
     size_t sz = strlen(value) + 1;
 
-    return fw_cfg_add_bytes(s, key, (uint8_t *)g_memdup(value, sz), sz);
+    return fw_cfg_add_bytes(s, key, g_memdup(value, sz), sz);
 }
 
 void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
@@ -398,7 +398,7 @@ void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le16(value);
-    fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
+    fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
 void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
@@ -407,7 +407,7 @@ void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le32(value);
-    fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
+    fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
 void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
@@ -416,11 +416,11 @@ void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le64(value);
-    fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
+    fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
 void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
-                         void *callback_opaque, uint8_t *data, size_t len)
+                         void *callback_opaque, void *data, size_t len)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
@@ -428,23 +428,24 @@ void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
 
     key &= FW_CFG_ENTRY_MASK;
 
-    assert(key < FW_CFG_MAX_ENTRY && len <= 65535);
+    assert(key < FW_CFG_MAX_ENTRY && len <= UINT32_MAX);
 
     s->entries[arch][key].data = data;
-    s->entries[arch][key].len = len;
+    s->entries[arch][key].len = (uint32_t)len;
     s->entries[arch][key].callback_opaque = callback_opaque;
     s->entries[arch][key].callback = callback;
 }
 
-void fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
-                     uint32_t len)
+void fw_cfg_add_file(FWCfgState *s,  const char *filename,
+                     void *data, size_t len)
 {
     int i, index;
+    size_t dsize;
 
     if (!s->files) {
-        int dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * FW_CFG_FILE_SLOTS;
+        dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * FW_CFG_FILE_SLOTS;
         s->files = g_malloc0(dsize);
-        fw_cfg_add_bytes(s, FW_CFG_FILE_DIR, (uint8_t*)s->files, dsize);
+        fw_cfg_add_bytes(s, FW_CFG_FILE_DIR, s->files, dsize);
     }
 
     index = be32_to_cpu(s->files->count);
@@ -498,7 +499,7 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     if (data_addr) {
         sysbus_mmio_map(d, 1, data_addr);
     }
-    fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (uint8_t *)"QEMU", 4);
+    fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (char *)"QEMU", 4);
     fw_cfg_add_bytes(s, FW_CFG_UUID, qemu_uuid, 16);
     fw_cfg_add_i16(s, FW_CFG_NOGRAPHIC, (uint16_t)(display_type == DT_NOGRAPHIC));
     fw_cfg_add_i16(s, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
