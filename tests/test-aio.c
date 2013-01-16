@@ -315,13 +315,13 @@ static void test_wait_event_notifier_noflush(void)
     event_notifier_set(&data.e);
     g_assert(aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 1);
-    g_assert(!aio_poll(ctx, false));
+    g_assert(aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 1);
 
     event_notifier_set(&data.e);
     g_assert(aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 2);
-    g_assert(!aio_poll(ctx, false));
+    g_assert(aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 2);
 
     event_notifier_set(&dummy.e);

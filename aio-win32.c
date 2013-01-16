@@ -214,5 +214,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
         events[ret - WAIT_OBJECT_0] = events[--count];
     }
 
-    return progress;
+    assert(progress || busy);
+    return true;
 }
