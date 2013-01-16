@@ -87,8 +87,8 @@ static void win32_aio_process_completion(QEMUWin32AIOState *s,
                 memcpy(qiov->iov[i].iov_base, p, qiov->iov[i].iov_len);
                 p += qiov->iov[i].iov_len;
             }
-            qemu_vfree(waiocb->buf);
         }
+        qemu_vfree(waiocb->buf);
     }
 
 
