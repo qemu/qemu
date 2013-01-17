@@ -495,7 +495,7 @@ void cpu_exit(CPUArchState *env)
     CPUState *cpu = ENV_GET_CPU(env);
 
     cpu->exit_request = 1;
-    cpu_unlink_tb(env);
+    cpu_unlink_tb(cpu);
 }
 
 void cpu_abort(CPUArchState *env, const char *fmt, ...)
