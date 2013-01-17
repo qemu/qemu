@@ -778,7 +778,7 @@ void *rom_ptr(hwaddr addr)
     return rom->data + (addr - rom->addr);
 }
 
-void do_info_roms(Monitor *mon)
+void do_info_roms(Monitor *mon, const QDict *qdict)
 {
     Rom *rom;
 

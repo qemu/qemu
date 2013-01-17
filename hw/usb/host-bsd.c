@@ -633,7 +633,7 @@ static int usb_host_info_device(void *opaque,
     return 0;
 }
 
-void usb_host_info(Monitor *mon)
+void usb_host_info(Monitor *mon, const QDict *qdict)
 {
     usb_host_scan(mon, usb_host_info_device);
 }
