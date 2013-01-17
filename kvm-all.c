@@ -2026,9 +2026,8 @@ int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
     return 0;
 }
 
-int kvm_on_sigbus_vcpu(CPUArchState *env, int code, void *addr)
+int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     return kvm_arch_on_sigbus_vcpu(cpu, code, addr);
 }
 
