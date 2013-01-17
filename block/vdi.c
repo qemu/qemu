@@ -246,7 +246,7 @@ static void vdi_header_print(VdiHeader *header)
 {
     char uuid[37];
     logout("text        %s", header->text);
-    logout("signature   0x%04x\n", header->signature);
+    logout("signature   0x%08x\n", header->signature);
     logout("header size 0x%04x\n", header->header_size);
     logout("image type  0x%04x\n", header->image_type);
     logout("image flags 0x%04x\n", header->image_flags);
