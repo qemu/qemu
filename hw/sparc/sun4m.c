@@ -230,6 +230,8 @@ void sun4m_irq_info(Monitor *mon, const QDict *qdict)
 
 void cpu_check_irqs(CPUSPARCState *env)
 {
+    CPUState *cs;
+
     if (env->pil_in && (env->interrupt_index == 0 ||
                         (env->interrupt_index & ~15) == TT_EXTINT)) {
         unsigned int i;
@@ -247,9 +249,10 @@ void cpu_check_irqs(CPUSPARCState *env)
             }
         }
     } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
+        cs = CPU(sparc_env_get_cpu(env));
         trace_sun4m_cpu_reset_interrupt(env->interrupt_index & 15);
         env->interrupt_index = 0;
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
 

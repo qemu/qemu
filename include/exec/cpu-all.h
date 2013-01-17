@@ -434,8 +434,6 @@ static inline void cpu_interrupt(CPUArchState *s, int mask)
 void cpu_interrupt(CPUArchState *env, int mask);
 #endif /* USER_ONLY */
 
-void cpu_reset_interrupt(CPUArchState *env, int mask);
-
 void cpu_exit(CPUArchState *s);
 
 /* Breakpoint/watchpoint flags */

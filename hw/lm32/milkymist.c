@@ -46,12 +46,14 @@ typedef struct {
 
 static void cpu_irq_handler(void *opaque, int irq, int level)
 {
-    CPULM32State *env = opaque;
+    LM32CPU *cpu = opaque;
+    CPULM32State *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
     if (level) {
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
     } else {
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -123,7 +125,7 @@ milkymist_init(QEMUMachineInitArgs *args)
                           0x00, 0x89, 0x00, 0x1d, 1);
 
     /* create irq lines */
-    cpu_irq = qemu_allocate_irqs(cpu_irq_handler, env, 1);
+    cpu_irq = qemu_allocate_irqs(cpu_irq_handler, cpu, 1);
     env->pic_state = lm32_pic_init(*cpu_irq);
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(env->pic_state, i);

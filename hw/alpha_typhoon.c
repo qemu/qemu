@@ -63,10 +63,11 @@ static void cpu_irq_change(AlphaCPU *cpu, uint64_t req)
     /* If there are any non-masked interrupts, tell the cpu.  */
     if (cpu != NULL) {
         CPUAlphaState *env = &cpu->env;
+        CPUState *cs = CPU(cpu);
         if (req) {
             cpu_interrupt(env, CPU_INTERRUPT_HARD);
         } else {
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         }
     }
 }
@@ -359,16 +360,17 @@ static void cchip_write(void *opaque, hwaddr addr,
                 AlphaCPU *cpu = s->cchip.cpu[i];
                 if (cpu != NULL) {
                     CPUAlphaState *env = &cpu->env;
+                    CPUState *cs = CPU(cpu);
                     /* IPI can be either cleared or set by the write.  */
                     if (newval & (1 << (i + 8))) {
                         cpu_interrupt(env, CPU_INTERRUPT_SMP);
                     } else {
-                        cpu_reset_interrupt(env, CPU_INTERRUPT_SMP);
+                        cpu_reset_interrupt(cs, CPU_INTERRUPT_SMP);
                     }
 
                     /* ITI can only be cleared by the write.  */
                     if ((newval & (1 << (i + 4))) == 0) {
-                        cpu_reset_interrupt(env, CPU_INTERRUPT_TIMER);
+                        cpu_reset_interrupt(cs, CPU_INTERRUPT_TIMER);
                     }
                 }
             }

@@ -492,13 +492,6 @@ void cpu_single_step(CPUArchState *env, int enabled)
 #endif
 }
 
-void cpu_reset_interrupt(CPUArchState *env, int mask)
-{
-    CPUState *cpu = ENV_GET_CPU(env);
-
-    cpu->interrupt_request &= ~mask;
-}
-
 void cpu_exit(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);

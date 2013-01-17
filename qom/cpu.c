@@ -21,6 +21,11 @@
 #include "qom/cpu.h"
 #include "qemu-common.h"
 
+void cpu_reset_interrupt(CPUState *cpu, int mask)
+{
+    cpu->interrupt_request &= ~mask;
+}
+
 void cpu_reset(CPUState *cpu)
 {
     CPUClass *klass = CPU_GET_CLASS(cpu);

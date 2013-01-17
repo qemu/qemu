@@ -26,13 +26,15 @@
 
 static void puv3_intc_cpu_handler(void *opaque, int irq, int level)
 {
-    CPUUniCore32State *env = opaque;
+    UniCore32CPU *cpu = opaque;
+    CPUUniCore32State *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
     assert(irq == 0);
     if (level) {
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
     } else {
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -44,7 +46,8 @@ static void puv3_soc_init(CPUUniCore32State *env)
     int i;
 
     /* Initialize interrupt controller */
-    cpu_intc = qemu_allocate_irqs(puv3_intc_cpu_handler, env, 1);
+    cpu_intc = qemu_allocate_irqs(puv3_intc_cpu_handler,
+                                  uc32_env_get_cpu(env), 1);
     dev = sysbus_create_simple("puv3_intc", PUV3_INTC_BASE, *cpu_intc);
     for (i = 0; i < PUV3_IRQS_NR; i++) {
         irqs[i] = qdev_get_gpio_in(dev, i);

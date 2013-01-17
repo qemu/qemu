@@ -221,5 +221,14 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
  */
 CPUState *qemu_get_cpu(int index);
 
+/**
+ * cpu_reset_interrupt:
+ * @cpu: The CPU to clear the interrupt on.
+ * @mask: The interrupt mask to clear.
+ *
+ * Resets interrupts on the vCPU @cpu.
+ */
+void cpu_reset_interrupt(CPUState *cpu, int mask);
+
 
 #endif

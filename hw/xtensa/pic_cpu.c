@@ -80,7 +80,7 @@ void check_interrupts(CPUXtensaState *env)
         }
     }
     env->pending_irq_level = 0;
-    cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
 }
 
 static void xtensa_set_irq(void *opaque, int irq, int active)

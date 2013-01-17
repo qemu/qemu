@@ -67,6 +67,7 @@ void leon3_irq_ack(void *irq_manager, int intno)
 static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
 {
     CPUSPARCState *env = (CPUSPARCState *)opaque;
+    CPUState *cs;
 
     assert(env != NULL);
 
@@ -89,9 +90,10 @@ static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
             }
         }
     } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
+        cs = CPU(sparc_env_get_cpu(env));
         trace_leon3_reset_irq(env->interrupt_index & 15);
         env->interrupt_index = 0;
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
 

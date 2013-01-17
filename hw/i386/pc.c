@@ -190,10 +190,12 @@ static void pic_irq_request(void *opaque, int irq, int level)
             env = env->next_cpu;
         }
     } else {
-        if (level)
+        CPUState *cs = CPU(x86_env_get_cpu(env));
+        if (level) {
             cpu_interrupt(env, CPU_INTERRUPT_HARD);
-        else
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        } else {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
     }
 }
 

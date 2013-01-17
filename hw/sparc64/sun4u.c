@@ -276,7 +276,7 @@ void cpu_check_irqs(CPUSPARCState *env)
             CPUIRQ_DPRINTF("Reset CPU IRQ (current interrupt %x)\n",
                            env->interrupt_index);
             env->interrupt_index = 0;
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         }
         return;
     }
@@ -309,7 +309,7 @@ void cpu_check_irqs(CPUSPARCState *env)
                        "current interrupt %x\n",
                        pil, env->pil_in, env->softint, env->interrupt_index);
         env->interrupt_index = 0;
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -344,8 +344,9 @@ static void cpu_set_ivec_irq(void *opaque, int irq, int level)
     } else {
         if (env->ivec_status & 0x20) {
             CPUIRQ_DPRINTF("Lower IVEC IRQ %d\n", irq);
+            cs = CPU(cpu);
             env->ivec_status &= ~0x20;
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         }
     }
 }

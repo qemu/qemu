@@ -52,6 +52,7 @@ static void cpu_ppc_tb_start (CPUPPCState *env);
 
 void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
 {
+    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     unsigned int old_pending = env->pending_interrupts;
 
@@ -60,8 +61,9 @@ void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
     } else {
         env->pending_interrupts &= ~(1 << n_IRQ);
-        if (env->pending_interrupts == 0)
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        if (env->pending_interrupts == 0) {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
     }
 
     if (old_pending != env->pending_interrupts) {

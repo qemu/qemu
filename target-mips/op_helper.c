@@ -534,12 +534,11 @@ static inline void mips_vpe_wake(CPUMIPSState *c)
 static inline void mips_vpe_sleep(MIPSCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    CPUMIPSState *c = &cpu->env;
 
     /* The VPE was shut off, really go to bed.
        Reset any old _WAKE requests.  */
     cs->halted = 1;
-    cpu_reset_interrupt(c, CPU_INTERRUPT_WAKE);
+    cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);
 }
 
 static inline void mips_tc_wake(MIPSCPU *cpu, int tc)
@@ -2104,7 +2103,7 @@ void helper_wait(CPUMIPSState *env)
     CPUState *cs = CPU(mips_env_get_cpu(env));
 
     cs->halted = 1;
-    cpu_reset_interrupt(env, CPU_INTERRUPT_WAKE);
+    cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);
     helper_raise_exception(env, EXCP_HLT);
 }
 

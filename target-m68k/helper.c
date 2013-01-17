@@ -312,14 +312,16 @@ int cpu_m68k_handle_mmu_fault (CPUM68KState *env, target_ulong address, int rw,
    simplicitly we calculate it when the interrupt is signalled.  */
 void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector)
 {
+    CPUState *cs = CPU(cpu);
     CPUM68KState *env = &cpu->env;
 
     env->pending_level = level;
     env->pending_vector = vector;
-    if (level)
+    if (level) {
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
-    else
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+    } else {
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
 }
 
 #endif

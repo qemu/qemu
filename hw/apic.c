@@ -187,7 +187,7 @@ void apic_deliver_pic_intr(DeviceState *d, int level)
             reset_bit(s->irr, lvt & 0xff);
             /* fall through */
         case APIC_DM_EXTINT:
-            cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+            cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_HARD);
             break;
         }
     }
@@ -485,7 +485,7 @@ void apic_sipi(DeviceState *d)
 {
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
 
-    cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_SIPI);
+    cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_SIPI);
 
     if (!s->wait_for_sipi)
         return;
