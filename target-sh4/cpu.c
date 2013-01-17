@@ -67,9 +67,11 @@ static void superh_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void superh_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     SuperHCPU *cpu = SUPERH_CPU(obj);
     CPUSH4State *env = &cpu->env;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     env->movcal_backup_tail = &(env->movcal_backup);

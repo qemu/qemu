@@ -93,10 +93,12 @@ static void uc32_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void uc32_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     UniCore32CPU *cpu = UNICORE32_CPU(obj);
     CPUUniCore32State *env = &cpu->env;
     static bool inited;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
 #ifdef CONFIG_USER_ONLY

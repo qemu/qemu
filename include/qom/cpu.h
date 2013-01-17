@@ -71,6 +71,7 @@ struct kvm_run;
  * @created: Indicates whether the CPU thread has been successfully created.
  * @stop: Indicates a pending stop request.
  * @stopped: Indicates the CPU has been artificially stopped.
+ * @env_ptr: Pointer to subclass-specific CPUArchState field.
  * @current_tb: Currently executing TB.
  * @kvm_fd: vCPU file descriptor for KVM.
  *
@@ -100,6 +101,7 @@ struct CPUState {
     bool stopped;
     volatile sig_atomic_t exit_request;
 
+    void *env_ptr; /* CPUArchState */
     struct TranslationBlock *current_tb;
 
     int kvm_fd;

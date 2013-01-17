@@ -154,10 +154,12 @@ static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void m68k_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     M68kCPU *cpu = M68K_CPU(obj);
     CPUM68KState *env = &cpu->env;
     static bool inited;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     if (tcg_enabled() && !inited) {

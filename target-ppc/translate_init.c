@@ -10529,11 +10529,13 @@ static void ppc_cpu_reset(CPUState *s)
 
 static void ppc_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     PowerPCCPU *cpu = POWERPC_CPU(obj);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
     ppc_def_t *def = pcc->info;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     env->msr_mask = def->msr_mask;

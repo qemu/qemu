@@ -110,6 +110,7 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void s390_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     S390CPU *cpu = S390_CPU(obj);
     CPUS390XState *env = &cpu->env;
     static bool inited;
@@ -118,6 +119,7 @@ static void s390_cpu_initfn(Object *obj)
     struct tm tm;
 #endif
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 #if !defined(CONFIG_USER_ONLY)
     qemu_register_reset(s390_cpu_machine_reset_cb, cpu);

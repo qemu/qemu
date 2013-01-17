@@ -233,9 +233,11 @@ static const TypeInfo ev68_cpu_type_info = {
 
 static void alpha_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     AlphaCPU *cpu = ALPHA_CPU(obj);
     CPUAlphaState *env = &cpu->env;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
     tlb_flush(env, 1);
 

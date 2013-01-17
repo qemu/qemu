@@ -146,11 +146,13 @@ static void cris_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void cris_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     CRISCPU *cpu = CRIS_CPU(obj);
     CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
     CPUCRISState *env = &cpu->env;
     static bool tcg_initialized;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     env->pregs[PR_VR] = ccc->vr;

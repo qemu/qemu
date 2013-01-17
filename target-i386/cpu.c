@@ -2164,6 +2164,7 @@ static void x86_cpu_initfn(Object *obj)
     CPUX86State *env = &cpu->env;
     static int inited;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     object_property_add(obj, "family", "int",

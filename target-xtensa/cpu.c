@@ -69,10 +69,12 @@ static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void xtensa_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     XtensaCPU *cpu = XTENSA_CPU(obj);
     CPUXtensaState *env = &cpu->env;
     static bool tcg_inited;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     if (tcg_enabled() && !tcg_inited) {
