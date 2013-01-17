@@ -392,7 +392,11 @@ static int vdi_open(BlockDriverState *bs, int flags)
         header.disk_size &= ~(SECTOR_SIZE - 1);
     }
 
-    if (header.version != VDI_VERSION_1_1) {
+    if (header.signature != VDI_SIGNATURE) {
+        logout("bad vdi signature %08x\n", header.signature);
+        ret = -EMEDIUMTYPE;
+        goto fail;
+    } else if (header.version != VDI_VERSION_1_1) {
         logout("unsupported version %u.%u\n",
                header.version >> 16, header.version & 0xffff);
         ret = -ENOTSUP;
