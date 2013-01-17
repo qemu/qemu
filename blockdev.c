@@ -617,8 +617,13 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
 
     ret = bdrv_open(dinfo->bdrv, file, bdrv_flags, drv);
     if (ret < 0) {
-        error_report("could not open disk image %s: %s",
-                     file, strerror(-ret));
+        if (ret == -EMEDIUMTYPE) {
+            error_report("could not open disk image %s: not in %s format",
+                         file, drv->format_name);
+        } else {
+            error_report("could not open disk image %s: %s",
+                         file, strerror(-ret));
+        }
         goto err;
     }
 

@@ -68,6 +68,9 @@
 #if !defined(ECANCELED)
 #define ECANCELED 4097
 #endif
+#if !defined(EMEDIUMTYPE)
+#define EMEDIUMTYPE 4098
+#endif
 #ifndef TIME_MAX
 #define TIME_MAX LONG_MAX
 #endif
