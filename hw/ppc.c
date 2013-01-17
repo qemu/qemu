@@ -428,6 +428,17 @@ void ppce500_irq_init(CPUPPCState *env)
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppce500_set_irq,
                                                   cpu, PPCE500_INPUT_NB);
 }
+
+/* Enable or Disable the E500 EPR capability */
+void ppce500_set_mpic_proxy(bool enabled)
+{
+    CPUPPCState *env;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        env->mpic_proxy = enabled;
+    }
+}
+
 /*****************************************************************************/
 /* PowerPC time base and decrementer emulation */
 

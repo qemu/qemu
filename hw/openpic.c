@@ -40,6 +40,7 @@
 #include "sysbus.h"
 #include "pci/msi.h"
 #include "qemu/bitops.h"
+#include "ppc.h"
 
 //#define DEBUG_OPENPIC
 
@@ -646,8 +647,7 @@ static inline void write_IRQreg_ivpr(OpenPICState *opp, int n_IRQ, uint32_t val)
 
 static void openpic_gcr_write(OpenPICState *opp, uint64_t val)
 {
-    CPUArchState *env;
-    int mpic_proxy = 0;
+    bool mpic_proxy = false;
 
     if (val & GCR_RESET) {
         openpic_reset(&opp->busdev.qdev);
@@ -659,11 +659,10 @@ static void openpic_gcr_write(OpenPICState *opp, uint64_t val)
 
     /* Set external proxy mode */
     if ((val & opp->mpic_mode_mask) == GCR_MODE_PROXY) {
-        mpic_proxy = 1;
+        mpic_proxy = true;
     }
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        env->mpic_proxy = mpic_proxy;
-    }
+
+    ppce500_set_mpic_proxy(mpic_proxy);
 }
 
 static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
