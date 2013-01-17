@@ -206,22 +206,16 @@ typedef struct model_features_t {
 int check_cpuid = 0;
 int enforce_cpuid = 0;
 
-#if defined(CONFIG_KVM)
 static uint32_t kvm_default_features = (1 << KVM_FEATURE_CLOCKSOURCE) |
         (1 << KVM_FEATURE_NOP_IO_DELAY) |
         (1 << KVM_FEATURE_CLOCKSOURCE2) |
         (1 << KVM_FEATURE_ASYNC_PF) |
         (1 << KVM_FEATURE_STEAL_TIME) |
         (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT);
-static const uint32_t kvm_pv_eoi_features = (0x1 << KVM_FEATURE_PV_EOI);
-#else
-static uint32_t kvm_default_features = 0;
-static const uint32_t kvm_pv_eoi_features = 0;
-#endif
 
 void enable_kvm_pv_eoi(void)
 {
-    kvm_default_features |= kvm_pv_eoi_features;
+    kvm_default_features |= (1UL << KVM_FEATURE_PV_EOI);
 }
 
 void host_cpuid(uint32_t function, uint32_t count,
@@ -1602,7 +1596,9 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
         goto out;
     }
 
-    def->kvm_features |= kvm_default_features;
+    if (kvm_enabled()) {
+        def->kvm_features |= kvm_default_features;
+    }
     def->ext_features |= CPUID_EXT_HYPERVISOR;
 
     if (cpu_x86_parse_featurestr(def, features) < 0) {
