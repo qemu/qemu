@@ -188,7 +188,7 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
     switch (num) {
     case 0x500:
         /* KVM hypercall */
-        r = s390_virtio_hypercall(env, mem, code);
+        r = s390_virtio_hypercall(env);
         break;
     case 0x44:
         /* yield */

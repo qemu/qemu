@@ -36,6 +36,7 @@
 
 #include "hw/s390-virtio-bus.h"
 #include "hw/s390x/sclp.h"
+#include "hw/s390-virtio.h"
 
 //#define DEBUG_S390
 
@@ -46,10 +47,6 @@
 #define dprintf(fmt, ...) \
     do { } while (0)
 #endif
-
-#define KVM_S390_VIRTIO_NOTIFY          0
-#define KVM_S390_VIRTIO_RESET           1
-#define KVM_S390_VIRTIO_SET_STATUS      2
 
 #define MAX_BLK_DEVS                    10
 
@@ -65,54 +62,61 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
     return ipi_states[cpu_addr];
 }
 
-int s390_virtio_hypercall(CPUS390XState *env, uint64_t mem, uint64_t hypercall)
+static int s390_virtio_hcall_notify(const uint64_t *args)
 {
+    uint64_t mem = args[0];
     int r = 0, i;
 
-    dprintf("KVM hypercall: %ld\n", hypercall);
-    switch (hypercall) {
-    case KVM_S390_VIRTIO_NOTIFY:
-        if (mem > ram_size) {
-            VirtIOS390Device *dev = s390_virtio_bus_find_vring(s390_bus,
-                                                               mem, &i);
-            if (dev) {
-                virtio_queue_notify(dev->vdev, i);
-            } else {
-                r = -EINVAL;
-            }
-        } else {
-            /* Early printk */
-        }
-        break;
-    case KVM_S390_VIRTIO_RESET:
-    {
-        VirtIOS390Device *dev;
-
-        dev = s390_virtio_bus_find_mem(s390_bus, mem);
-        virtio_reset(dev->vdev);
-        stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
-        s390_virtio_device_sync(dev);
-        s390_virtio_reset_idx(dev);
-        break;
-    }
-    case KVM_S390_VIRTIO_SET_STATUS:
-    {
-        VirtIOS390Device *dev;
-
-        dev = s390_virtio_bus_find_mem(s390_bus, mem);
+    if (mem > ram_size) {
+        VirtIOS390Device *dev = s390_virtio_bus_find_vring(s390_bus, mem, &i);
         if (dev) {
-            s390_virtio_device_update_status(dev);
+            virtio_queue_notify(dev->vdev, i);
         } else {
             r = -EINVAL;
         }
-        break;
+    } else {
+        /* Early printk */
     }
-    default:
-        r = -EINVAL;
-        break;
-    }
-
     return r;
+}
+
+static int s390_virtio_hcall_reset(const uint64_t *args)
+{
+    uint64_t mem = args[0];
+    VirtIOS390Device *dev;
+
+    dev = s390_virtio_bus_find_mem(s390_bus, mem);
+    virtio_reset(dev->vdev);
+    stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
+    s390_virtio_device_sync(dev);
+    s390_virtio_reset_idx(dev);
+
+    return 0;
+}
+
+static int s390_virtio_hcall_set_status(const uint64_t *args)
+{
+    uint64_t mem = args[0];
+    int r = 0;
+    VirtIOS390Device *dev;
+
+    dev = s390_virtio_bus_find_mem(s390_bus, mem);
+    if (dev) {
+        s390_virtio_device_update_status(dev);
+    } else {
+        r = -EINVAL;
+    }
+    return r;
+}
+
+static void s390_virtio_register_hcalls(void)
+{
+    s390_register_virtio_hypercall(KVM_S390_VIRTIO_NOTIFY,
+                                   s390_virtio_hcall_notify);
+    s390_register_virtio_hypercall(KVM_S390_VIRTIO_RESET,
+                                   s390_virtio_hcall_reset);
+    s390_register_virtio_hypercall(KVM_S390_VIRTIO_SET_STATUS,
+                                   s390_virtio_hcall_set_status);
 }
 
 /*
@@ -181,6 +185,9 @@ static void s390_init(QEMUMachineInitArgs *args)
     }
     qdev_prop_set_string(dev, "cmdline", args->kernel_cmdline);
     qdev_init_nofail(dev);
+
+    /* register hypercalls */
+    s390_virtio_register_hcalls();
 
     /* allocate RAM */
     memory_region_init_ram(ram, "s390.ram", my_ram_size);
@@ -265,4 +272,3 @@ static void s390_machine_init(void)
 }
 
 machine_init(s390_machine_init);
-

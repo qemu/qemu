@@ -305,7 +305,7 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
 
-int s390_virtio_hypercall(CPUS390XState *env, uint64_t mem, uint64_t hypercall);
+int s390_virtio_hypercall(CPUS390XState *env);
 
 #ifdef CONFIG_KVM
 void kvm_s390_interrupt(S390CPU *cpu, int type, uint32_t code);
