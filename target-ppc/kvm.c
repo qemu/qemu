@@ -846,6 +846,11 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         ret = 0;
         break;
 #endif
+    case KVM_EXIT_EPR:
+        dprintf("handle epr\n");
+        run->epr.epr = ldl_phys(env->mpic_iack);
+        ret = 0;
+        break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;
@@ -1054,6 +1059,22 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
 
     if (ret) {
         cpu_abort(env, "This KVM version does not support PAPR\n");
+    }
+}
+
+void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
+{
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+    struct kvm_enable_cap cap = {};
+    int ret;
+
+    cap.cap = KVM_CAP_PPC_EPR;
+    cap.args[0] = mpic_proxy;
+    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &cap);
+
+    if (ret && mpic_proxy) {
+        cpu_abort(env, "This KVM version does not support EPR\n");
     }
 }
 

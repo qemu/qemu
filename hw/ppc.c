@@ -435,7 +435,13 @@ void ppce500_set_mpic_proxy(bool enabled)
     CPUPPCState *env;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        PowerPCCPU *cpu = ppc_env_get_cpu(env);
+        CPUState *cs = CPU(cpu);
+
         env->mpic_proxy = enabled;
+        if (kvm_enabled()) {
+            kvmppc_set_mpic_proxy(POWERPC_CPU(cs), enabled);
+        }
     }
 }
 
