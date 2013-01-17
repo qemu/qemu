@@ -582,7 +582,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPU_INTERRUPT_TPR       CPU_INTERRUPT_TGT_INT_3
 
 
-enum {
+typedef enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
     CC_OP_EFLAGS,  /* all cc are explicitly computed, CC_SRC = flags */
 
@@ -637,7 +637,7 @@ enum {
     CC_OP_SARQ,
 
     CC_OP_NB,
-};
+} CCOp;
 
 typedef struct SegmentCache {
     uint32_t selector;

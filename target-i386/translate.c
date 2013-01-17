@@ -89,7 +89,7 @@ typedef struct DisasContext {
     int rex_x, rex_b;
 #endif
     int ss32;   /* 32 bit stack segment */
-    int cc_op;  /* current CC operation */
+    CCOp cc_op;  /* current CC operation */
     int addseg; /* non zero if either DS/ES/SS have a non zero base */
     int f_st;   /* currently unused */
     int vm86;   /* vm86 mode */
