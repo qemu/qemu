@@ -211,11 +211,12 @@ static uint32_t kvm_default_features = (1 << KVM_FEATURE_CLOCKSOURCE) |
         (1 << KVM_FEATURE_CLOCKSOURCE2) |
         (1 << KVM_FEATURE_ASYNC_PF) |
         (1 << KVM_FEATURE_STEAL_TIME) |
+        (1 << KVM_FEATURE_PV_EOI) |
         (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT);
 
-void enable_kvm_pv_eoi(void)
+void disable_kvm_pv_eoi(void)
 {
-    kvm_default_features |= (1UL << KVM_FEATURE_PV_EOI);
+    kvm_default_features &= ~(1UL << KVM_FEATURE_PV_EOI);
 }
 
 void host_cpuid(uint32_t function, uint32_t count,
