@@ -36,6 +36,7 @@
 #define KVM_FEATURE_ASYNC_PF     0
 #define KVM_FEATURE_STEAL_TIME   0
 #define KVM_FEATURE_PV_EOI       0
+#define KVM_FEATURE_CLOCKSOURCE_STABLE_BIT 0
 #endif
 
 extern int kvm_allowed;
