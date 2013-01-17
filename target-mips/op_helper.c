@@ -515,11 +515,12 @@ void helper_sdm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 /* SMP helpers.  */
 static bool mips_vpe_is_wfi(MIPSCPU *c)
 {
+    CPUState *cpu = CPU(c);
     CPUMIPSState *env = &c->env;
 
     /* If the VPE is halted but otherwise active, it means it's waiting for
        an interrupt.  */
-    return env->halted && mips_vpe_active(env);
+    return cpu->halted && mips_vpe_active(env);
 }
 
 static inline void mips_vpe_wake(CPUMIPSState *c)
@@ -532,11 +533,12 @@ static inline void mips_vpe_wake(CPUMIPSState *c)
 
 static inline void mips_vpe_sleep(MIPSCPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
     CPUMIPSState *c = &cpu->env;
 
     /* The VPE was shut off, really go to bed.
        Reset any old _WAKE requests.  */
-    c->halted = 1;
+    cs->halted = 1;
     cpu_reset_interrupt(c, CPU_INTERRUPT_WAKE);
 }
 
@@ -2099,7 +2101,9 @@ void helper_pmon(CPUMIPSState *env, int function)
 
 void helper_wait(CPUMIPSState *env)
 {
-    env->halted = 1;
+    CPUState *cs = CPU(mips_env_get_cpu(env));
+
+    cs->halted = 1;
     cpu_reset_interrupt(env, CPU_INTERRUPT_WAKE);
     helper_raise_exception(env, EXCP_HLT);
 }

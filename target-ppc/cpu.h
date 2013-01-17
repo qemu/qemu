@@ -2217,9 +2217,10 @@ extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUPPCState *env = &POWERPC_CPU(cpu)->env;
+    PowerPCCPU *ppc_cpu = POWERPC_CPU(cpu);
+    CPUPPCState *env = &ppc_cpu->env;
 
-    return msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD);
+    return msr_ee && (cpu->interrupt_request & CPU_INTERRUPT_HARD);
 }
 
 #include "exec/exec-all.h"

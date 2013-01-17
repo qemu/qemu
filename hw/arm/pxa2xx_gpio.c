@@ -93,6 +93,7 @@ static const int pxa2xx_gpio_wake[PXA2XX_GPIO_BANKS] = {
 static void pxa2xx_gpio_set(void *opaque, int line, int level)
 {
     PXA2xxGPIOInfo *s = (PXA2xxGPIOInfo *) opaque;
+    CPUState *cpu = CPU(s->cpu);
     int bank;
     uint32_t mask;
 
@@ -118,7 +119,7 @@ static void pxa2xx_gpio_set(void *opaque, int line, int level)
         pxa2xx_gpio_irq_update(s);
 
     /* Wake-up GPIOs */
-    if (s->cpu->env.halted && (mask & ~s->dir[bank] & pxa2xx_gpio_wake[bank])) {
+    if (cpu->halted && (mask & ~s->dir[bank] & pxa2xx_gpio_wake[bank])) {
         cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_EXITTB);
     }
 }

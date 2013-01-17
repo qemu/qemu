@@ -84,6 +84,7 @@ static void do_rte(CPUM68KState *env)
 
 static void do_interrupt_all(CPUM68KState *env, int is_hw)
 {
+    CPUState *cs;
     uint32_t sp;
     uint32_t fmt;
     uint32_t retaddr;
@@ -108,7 +109,8 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
                 do_m68k_semihosting(env, env->dregs[0]);
                 return;
             }
-            env->halted = 1;
+            cs = CPU(m68k_env_get_cpu(env));
+            cs->halted = 1;
             env->exception_index = EXCP_HLT;
             cpu_loop_exit(env);
             return;

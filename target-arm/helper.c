@@ -1801,6 +1801,7 @@ static void do_interrupt_v7m(CPUARMState *env)
 /* Handle a CPU exception.  */
 void do_interrupt(CPUARMState *env)
 {
+    CPUState *cs;
     uint32_t addr;
     uint32_t mask;
     int new_mode;
@@ -1907,7 +1908,8 @@ void do_interrupt(CPUARMState *env)
     }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    cs = CPU(arm_env_get_cpu(env));
+    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
 /* Check section/page access permissions.

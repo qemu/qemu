@@ -1721,6 +1721,7 @@ static uint64_t omap_clkdsp_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    CPUState *cpu = CPU(s->cpu);
 
     if (size != 2) {
         return omap_badwidth_read16(opaque, addr);
@@ -1737,8 +1738,9 @@ static uint64_t omap_clkdsp_read(void *opaque, hwaddr addr,
         return s->clkm.dsp_rstct2;
 
     case 0x18:	/* DSP_SYSST */
+        cpu = CPU(s->cpu);
         return (s->clkm.clocking_scheme << 11) | s->clkm.cold_start |
-                (s->cpu->env.halted << 6);      /* Quite useless... */
+                (cpu->halted << 6);      /* Quite useless... */
     }
 
     OMAP_BAD_REG(addr);
@@ -3754,8 +3756,9 @@ static void omap_setup_dsp_mapping(MemoryRegion *system_memory,
 void omap_mpu_wakeup(void *opaque, int irq, int req)
 {
     struct omap_mpu_state_s *mpu = (struct omap_mpu_state_s *) opaque;
+    CPUState *cpu = CPU(mpu->cpu);
 
-    if (mpu->cpu->env.halted) {
+    if (cpu->halted) {
         cpu_interrupt(&mpu->cpu->env, CPU_INTERRUPT_EXITTB);
     }
 }

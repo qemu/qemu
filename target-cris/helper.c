@@ -66,6 +66,7 @@ static void cris_shift_ccs(CPUCRISState *env)
 int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
                               int mmu_idx)
 {
+    D(CPUState *cpu = CPU(cris_env_get_cpu(env)));
     struct cris_mmu_result res;
     int prot, miss;
     int r = -1;
@@ -99,7 +100,7 @@ int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
     }
     if (r > 0) {
         D_LOG("%s returns %d irqreq=%x addr=%x phy=%x vec=%x pc=%x\n",
-              __func__, r, env->interrupt_request, address, res.phy,
+              __func__, r, cpu->interrupt_request, address, res.phy,
               res.bf_vec, env->pc);
     }
     return r;
@@ -107,11 +108,12 @@ int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
 
 static void do_interruptv10(CPUCRISState *env)
 {
+    D(CPUState *cs = CPU(cris_env_get_cpu(env)));
     int ex_vec = -1;
 
     D_LOG("exception index=%d interrupt_req=%d\n",
           env->exception_index,
-          env->interrupt_request);
+          cs->interrupt_request);
 
     assert(!(env->pregs[PR_CCS] & PFIX_FLAG));
     switch (env->exception_index) {
@@ -162,6 +164,7 @@ static void do_interruptv10(CPUCRISState *env)
 
 void do_interrupt(CPUCRISState *env)
 {
+    D(CPUState *cs = CPU(cris_env_get_cpu(env)));
     int ex_vec = -1;
 
     if (env->pregs[PR_VR] < 32) {
@@ -170,7 +173,7 @@ void do_interrupt(CPUCRISState *env)
 
     D_LOG("exception index=%d interrupt_req=%d\n",
           env->exception_index,
-          env->interrupt_request);
+          cs->interrupt_request);
 
     switch (env->exception_index) {
     case EXCP_BREAK:

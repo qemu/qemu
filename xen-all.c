@@ -578,16 +578,18 @@ void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
 
 static void xen_reset_vcpu(void *opaque)
 {
-    CPUArchState *env = opaque;
+    CPUState *cpu = opaque;
 
-    env->halted = 1;
+    cpu->halted = 1;
 }
 
 void xen_vcpu_init(void)
 {
     if (first_cpu != NULL) {
-        qemu_register_reset(xen_reset_vcpu, first_cpu);
-        xen_reset_vcpu(first_cpu);
+        CPUState *cpu = ENV_GET_CPU(first_cpu);
+
+        qemu_register_reset(xen_reset_vcpu, cpu);
+        xen_reset_vcpu(cpu);
     }
     /* if rtc_clock is left to default (host_clock), disable it */
     if (rtc_clock == host_clock) {

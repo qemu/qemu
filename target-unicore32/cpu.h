@@ -181,9 +181,7 @@ void switch_mode(CPUUniCore32State *, int);
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUUniCore32State *env = &UNICORE32_CPU(cpu)->env;
-
-    return env->interrupt_request &
+    return cpu->interrupt_request &
         (CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
 }
 

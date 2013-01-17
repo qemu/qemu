@@ -254,9 +254,7 @@ static inline void cpu_get_tb_cpu_state(CPULM32State *env, target_ulong *pc,
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPULM32State *env = &LM32_CPU(cpu)->env;
-
-    return env->interrupt_request & CPU_INTERRUPT_HARD;
+    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
 #include "exec/exec-all.h"

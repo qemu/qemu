@@ -967,6 +967,7 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
 static inline void cpu_x86_load_seg_cache_sipi(X86CPU *cpu,
                                                int sipi_vector)
 {
+    CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
 
     env->eip = 0;
@@ -974,7 +975,7 @@ static inline void cpu_x86_load_seg_cache_sipi(X86CPU *cpu,
                            sipi_vector << 12,
                            env->segs[R_CS].limit,
                            env->segs[R_CS].flags);
-    env->halted = 0;
+    cs->halted = 0;
 }
 
 int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
@@ -1166,17 +1167,18 @@ static inline void cpu_clone_regs(CPUX86State *env, target_ulong newsp)
 #include "hw/apic.h"
 #endif
 
-static inline bool cpu_has_work(CPUState *cpu)
+static inline bool cpu_has_work(CPUState *cs)
 {
-    CPUX86State *env = &X86_CPU(cpu)->env;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
 
-    return ((env->interrupt_request & (CPU_INTERRUPT_HARD |
-                                       CPU_INTERRUPT_POLL)) &&
+    return ((cs->interrupt_request & (CPU_INTERRUPT_HARD |
+                                      CPU_INTERRUPT_POLL)) &&
             (env->eflags & IF_MASK)) ||
-           (env->interrupt_request & (CPU_INTERRUPT_NMI |
-                                      CPU_INTERRUPT_INIT |
-                                      CPU_INTERRUPT_SIPI |
-                                      CPU_INTERRUPT_MCE));
+           (cs->interrupt_request & (CPU_INTERRUPT_NMI |
+                                     CPU_INTERRUPT_INIT |
+                                     CPU_INTERRUPT_SIPI |
+                                     CPU_INTERRUPT_MCE));
 }
 
 #include "exec/exec-all.h"

@@ -437,6 +437,7 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     if (mask & PSW_MASK_WAIT) {
         S390CPU *cpu = s390_env_get_cpu(env);
+        CPUState *cs = CPU(cpu);
         if (!(mask & (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK))) {
             if (s390_del_running_cpu(cpu) == 0) {
 #ifndef CONFIG_USER_ONLY
@@ -444,7 +445,7 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 #endif
             }
         }
-        env->halted = 1;
+        cs->halted = 1;
         env->exception_index = EXCP_HLT;
     }
 
@@ -739,6 +740,7 @@ static void do_mchk_interrupt(CPUS390XState *env)
 void do_interrupt(CPUS390XState *env)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    CPUState *cs;
 
     qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
                   __func__, env->exception_index, env->psw.addr);
@@ -797,7 +799,8 @@ void do_interrupt(CPUS390XState *env)
     env->exception_index = -1;
 
     if (!env->pending_int) {
-        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+        cs = CPU(s390_env_get_cpu(env));
+        cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
     }
 }
 

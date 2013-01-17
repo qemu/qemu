@@ -145,7 +145,7 @@ static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
             continue;
         }
 
-        if (env->halted) {
+        if (cpu->halted) {
             rtas_st(rets, 1, 0);
         } else {
             rtas_st(rets, 1, 2);
@@ -184,7 +184,7 @@ static void rtas_start_cpu(sPAPREnvironment *spapr,
             continue;
         }
 
-        if (!env->halted) {
+        if (!cpu->halted) {
             rtas_st(rets, 0, -1);
             return;
         }
@@ -197,7 +197,7 @@ static void rtas_start_cpu(sPAPREnvironment *spapr,
         env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
         env->nip = start;
         env->gpr[3] = r3;
-        env->halted = 0;
+        cpu->halted = 0;
 
         qemu_cpu_kick(cpu);
 

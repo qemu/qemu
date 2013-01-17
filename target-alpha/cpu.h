@@ -517,8 +517,6 @@ static inline void cpu_set_tls(CPUAlphaState *env, target_ulong newtls)
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUAlphaState *env = &ALPHA_CPU(cpu)->env;
-
     /* Here we are checking to see if the CPU should wake up from HALT.
        We will have gotten into this state only for WTINT from PALmode.  */
     /* ??? I'm not sure how the IPL state works with WTINT to keep a CPU
@@ -526,7 +524,7 @@ static inline bool cpu_has_work(CPUState *cpu)
        assume that if a CPU really wants to stay asleep, it will mask
        interrupts at the chipset level, which will prevent these bits
        from being set in the first place.  */
-    return env->interrupt_request & (CPU_INTERRUPT_HARD
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD
                                      | CPU_INTERRUPT_TIMER
                                      | CPU_INTERRUPT_SMP
                                      | CPU_INTERRUPT_MCHK);

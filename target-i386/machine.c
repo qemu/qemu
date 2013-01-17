@@ -453,7 +453,7 @@ const VMStateDescription vmstate_x86_cpu = {
         VMSTATE_UINT64_V(env.pat, X86CPU, 5),
         VMSTATE_UINT32_V(env.hflags2, X86CPU, 5),
 
-        VMSTATE_UINT32_TEST(env.halted, X86CPU, version_is_5),
+        VMSTATE_UINT32_TEST(parent_obj.halted, X86CPU, version_is_5),
         VMSTATE_UINT64_V(env.vm_hsave, X86CPU, 5),
         VMSTATE_UINT64_V(env.vm_vmcb, X86CPU, 5),
         VMSTATE_UINT64_V(env.tsc_offset, X86CPU, 5),

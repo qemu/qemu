@@ -374,9 +374,7 @@ void cpu_unassigned_access(CPUMBState *env1, hwaddr addr,
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUMBState *env = &MICROBLAZE_CPU(cpu)->env;
-
-    return env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
 #include "exec/exec-all.h"

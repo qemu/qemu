@@ -78,9 +78,10 @@ int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 #define MMU_DADDR_ERROR_READ     (-12)
 #define MMU_DADDR_ERROR_WRITE    (-13)
 
-void do_interrupt(CPUSH4State * env)
+void do_interrupt(CPUSH4State *env)
 {
-    int do_irq = env->interrupt_request & CPU_INTERRUPT_HARD;
+    CPUState *cs = CPU(sh_env_get_cpu(env));
+    int do_irq = cs->interrupt_request & CPU_INTERRUPT_HARD;
     int do_exp, irq_vector = env->exception_index;
 
     /* prioritize exceptions over interrupts */

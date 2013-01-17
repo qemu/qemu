@@ -49,11 +49,12 @@ typedef struct ResetData {
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s   = (ResetData *)opaque;
+    CPUState *cpu = CPU(s->cpu);
     CPUSPARCState  *env = &s->cpu->env;
 
-    cpu_reset(CPU(s->cpu));
+    cpu_reset(cpu);
 
-    env->halted = 0;
+    cpu->halted = 0;
     env->pc     = s->entry;
     env->npc    = s->entry + 4;
 }

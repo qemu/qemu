@@ -289,9 +289,7 @@ void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUCRISState *env = &CRIS_CPU(cpu)->env;
-
-    return env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
 #include "exec/exec-all.h"

@@ -256,10 +256,11 @@ void cpu_check_irqs(CPUSPARCState *env)
 static void cpu_kick_irq(SPARCCPU *cpu)
 {
     CPUSPARCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
-    env->halted = 0;
+    cs->halted = 0;
     cpu_check_irqs(env);
-    qemu_cpu_kick(CPU(cpu));
+    qemu_cpu_kick(cs);
 }
 
 static void cpu_set_irq(void *opaque, int irq, int level)
@@ -285,19 +286,19 @@ static void dummy_cpu_set_irq(void *opaque, int irq, int level)
 static void main_cpu_reset(void *opaque)
 {
     SPARCCPU *cpu = opaque;
-    CPUSPARCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
-    cpu_reset(CPU(cpu));
-    env->halted = 0;
+    cpu_reset(cs);
+    cs->halted = 0;
 }
 
 static void secondary_cpu_reset(void *opaque)
 {
     SPARCCPU *cpu = opaque;
-    CPUSPARCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
-    cpu_reset(CPU(cpu));
-    env->halted = 1;
+    cpu_reset(cs);
+    cs->halted = 1;
 }
 
 static void cpu_halt_signal(void *opaque, int irq, int level)
@@ -826,6 +827,7 @@ static const TypeInfo ram_info = {
 static void cpu_devinit(const char *cpu_model, unsigned int id,
                         uint64_t prom_addr, qemu_irq **cpu_irqs)
 {
+    CPUState *cs;
     SPARCCPU *cpu;
     CPUSPARCState *env;
 
@@ -841,7 +843,8 @@ static void cpu_devinit(const char *cpu_model, unsigned int id,
         qemu_register_reset(main_cpu_reset, cpu);
     } else {
         qemu_register_reset(secondary_cpu_reset, cpu);
-        env->halted = 1;
+        cs = CPU(cpu);
+        cs->halted = 1;
     }
     *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, cpu, MAX_PILS);
     env->prom_addr = prom_addr;

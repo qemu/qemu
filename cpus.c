@@ -72,7 +72,7 @@ static bool cpu_thread_is_idle(CPUArchState *env)
     if (cpu->stopped || !runstate_is_running()) {
         return true;
     }
-    if (!env->halted || qemu_cpu_has_work(cpu) ||
+    if (!cpu->halted || qemu_cpu_has_work(cpu) ||
         kvm_async_interrupts_enabled()) {
         return false;
     }
@@ -1198,7 +1198,7 @@ CpuInfoList *qmp_query_cpus(Error **errp)
         info->value = g_malloc0(sizeof(*info->value));
         info->value->CPU = cpu->cpu_index;
         info->value->current = (env == first_cpu);
-        info->value->halted = env->halted;
+        info->value->halted = cpu->halted;
         info->value->thread_id = cpu->thread_id;
 #if defined(TARGET_I386)
         info->value->has_pc = true;

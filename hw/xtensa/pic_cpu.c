@@ -47,6 +47,7 @@ void xtensa_advance_ccount(CPUXtensaState *env, uint32_t d)
 
 void check_interrupts(CPUXtensaState *env)
 {
+    CPUState *cs = CPU(xtensa_env_get_cpu(env));
     int minlevel = xtensa_get_cintlevel(env);
     uint32_t int_set_enabled = env->sregs[INTSET] & env->sregs[INTENABLE];
     int level;
@@ -54,7 +55,7 @@ void check_interrupts(CPUXtensaState *env)
     /* If the CPU is halted advance CCOUNT according to the vm_clock time
      * elapsed since the moment when it was advanced last time.
      */
-    if (env->halted) {
+    if (cs->halted) {
         int64_t now = qemu_get_clock_ns(vm_clock);
 
         xtensa_advance_ccount(env,
@@ -127,11 +128,12 @@ static void xtensa_ccompare_cb(void *opaque)
 {
     XtensaCPU *cpu = opaque;
     CPUXtensaState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
-    if (env->halted) {
+    if (cs->halted) {
         env->halt_clock = qemu_get_clock_ns(vm_clock);
         xtensa_advance_ccount(env, env->wake_ccount - env->sregs[CCOUNT]);
-        if (!cpu_has_work(CPU(cpu))) {
+        if (!cpu_has_work(cs)) {
             env->sregs[CCOUNT] = env->wake_ccount + 1;
             xtensa_rearm_ccompare_timer(env);
         }

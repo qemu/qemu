@@ -1039,9 +1039,10 @@ static inline void cpu_inject_crw_mchk(S390CPU *cpu)
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUS390XState *env = &S390_CPU(cpu)->env;
+    S390CPU *s390_cpu = S390_CPU(cpu);
+    CPUS390XState *env = &s390_cpu->env;
 
-    return (env->interrupt_request & CPU_INTERRUPT_HARD) &&
+    return (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
         (env->psw.mask & PSW_MASK_EXT);
 }
 

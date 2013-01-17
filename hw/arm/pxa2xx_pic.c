@@ -46,8 +46,9 @@ static void pxa2xx_pic_update(void *opaque)
 {
     uint32_t mask[2];
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
+    CPUState *cpu = CPU(s->cpu);
 
-    if (s->cpu->env.halted) {
+    if (cpu->halted) {
         mask[0] = s->int_pending[0] & (s->int_enabled[0] | s->int_idle);
         mask[1] = s->int_pending[1] & (s->int_enabled[1] | s->int_idle);
         if (mask[0] || mask[1]) {

@@ -80,10 +80,10 @@ static void s390_cpu_reset(CPUState *s)
     env->cregs[0] = CR0_RESET;
     env->cregs[14] = CR14_RESET;
     /* set halted to 1 to make sure we can add the cpu in
-     * s390_ipl_cpu code, where env->halted is set back to 0
+     * s390_ipl_cpu code, where CPUState::halted is set back to 0
      * after incrementing the cpu counter */
 #if !defined(CONFIG_USER_ONLY)
-    env->halted = 1;
+    s->halted = 1;
 #endif
     tlb_flush(env, 1);
 }
@@ -129,10 +129,10 @@ static void s390_cpu_initfn(Object *obj)
     env->tod_basetime = 0;
     env->tod_timer = qemu_new_timer_ns(vm_clock, s390x_tod_timer, cpu);
     env->cpu_timer = qemu_new_timer_ns(vm_clock, s390x_cpu_timer, cpu);
-    /* set env->halted state to 1 to avoid decrementing the running
+    /* set CPUState::halted state to 1 to avoid decrementing the running
      * cpu counter in s390_cpu_reset to a negative number at
      * initial ipl */
-    env->halted = 1;
+    cs->halted = 1;
 #endif
     env->cpu_num = cpu_num++;
     env->ext_index = -1;
