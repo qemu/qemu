@@ -1145,7 +1145,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
                     TCG_REG_R0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
     /* We assume that the offset is contained within 20 bits.  */
     tlb_offset = offsetof(CPUArchState, tlb_table[mem_index][0].addr_read);
-    assert(tlb_offset & ~0xfffff == 0);
+    assert((tlb_offset & ~0xfffff) == 0);
     if (tlb_offset > 0xfff) {
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R0, TCG_REG_R0,
                         0xa00 | (tlb_offset >> 12));
@@ -1354,7 +1354,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
                     TCG_AREG0, TCG_REG_R0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
     /* We assume that the offset is contained within 20 bits.  */
     tlb_offset = offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
-    assert(tlb_offset & ~0xfffff == 0);
+    assert((tlb_offset & ~0xfffff) == 0);
     if (tlb_offset > 0xfff) {
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R0, TCG_REG_R0,
                         0xa00 | (tlb_offset >> 12));
