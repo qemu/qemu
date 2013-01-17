@@ -311,7 +311,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     be32_to_cpus(&header.nb_snapshots);
 
     if (header.magic != QCOW_MAGIC) {
-        ret = -EINVAL;
+        ret = -EMEDIUMTYPE;
         goto fail;
     }
     if (header.version < 2 || header.version > 3) {

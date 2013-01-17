@@ -126,7 +126,7 @@ static int bochs_open(BlockDriverState *bs, int flags)
         strcmp(bochs.subtype, GROWING_TYPE) ||
 	((le32_to_cpu(bochs.version) != HEADER_VERSION) &&
 	(le32_to_cpu(bochs.version) != HEADER_V1))) {
-        goto fail;
+        return -EMEDIUMTYPE;
     }
 
     if (le32_to_cpu(bochs.version) == HEADER_V1) {
