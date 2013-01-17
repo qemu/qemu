@@ -41,6 +41,7 @@
 #define UIMAGE_LOAD_BASE           0
 #define DTC_LOAD_PAD               0x1800000
 #define DTC_PAD_MASK               0xFFFFF
+#define DTB_MAX_SIZE               (8 * 1024 * 1024)
 #define INITRD_LOAD_PAD            0x2000000
 #define INITRD_PAD_MASK            0xFFFFFF
 
@@ -629,6 +630,10 @@ void ppce500_init(PPCE500Params *params)
         }
 
         cur_base = loadaddr + kernel_size;
+
+        /* Reserve space for dtb */
+        dt_base = (cur_base + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
+        cur_base += DTB_MAX_SIZE;
     }
 
     /* Load initrd. */
@@ -651,13 +656,13 @@ void ppce500_init(PPCE500Params *params)
         struct boot_info *boot_info;
         int dt_size;
 
-        dt_base = (cur_base + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
         dt_size = ppce500_load_device_tree(env, params, dt_base, initrd_base,
                                            initrd_size);
         if (dt_size < 0) {
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
         }
+        assert(dt_size < DTB_MAX_SIZE);
 
         boot_info = env->load_info;
         boot_info->entry = entry;
