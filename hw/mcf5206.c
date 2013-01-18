@@ -226,7 +226,7 @@ static void m5206_mbar_update(m5206_mbar_state *s)
         level = 0;
         vector = 0;
     }
-    m68k_set_irq_level(&s->cpu->env, level, vector);
+    m68k_set_irq_level(s->cpu, level, vector);
 }
 
 static void m5206_mbar_set_irq(void *opaque, int irq, int level)

@@ -310,8 +310,10 @@ int cpu_m68k_handle_mmu_fault (CPUM68KState *env, target_ulong address, int rw,
    be handled by the interrupt controller.  Real hardware only requests
    the vector when the interrupt is acknowledged by the CPU.  For
    simplicitly we calculate it when the interrupt is signalled.  */
-void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector)
+void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector)
 {
+    CPUM68KState *env = &cpu->env;
+
     env->pending_level = level;
     env->pending_vector = vector;
     if (level)

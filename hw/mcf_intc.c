@@ -40,7 +40,7 @@ static void mcf_intc_update(mcf_intc_state *s)
         }
     }
     s->active_vector = ((best == 64) ? 24 : (best + 64));
-    m68k_set_irq_level(&s->cpu->env, best_level, s->active_vector);
+    m68k_set_irq_level(s->cpu, best_level, s->active_vector);
 }
 
 static uint64_t mcf_intc_read(void *opaque, hwaddr addr,
