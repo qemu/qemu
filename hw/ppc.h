@@ -58,9 +58,9 @@ clk_setup_cb ppc_40x_timers_init (CPUPPCState *env, uint32_t freq,
                                   unsigned int decr_excp);
 
 /* Embedded PowerPC reset */
-void ppc40x_core_reset (CPUPPCState *env);
-void ppc40x_chip_reset (CPUPPCState *env);
-void ppc40x_system_reset (CPUPPCState *env);
+void ppc40x_core_reset(PowerPCCPU *cpu);
+void ppc40x_chip_reset(PowerPCCPU *cpu);
+void ppc40x_system_reset(PowerPCCPU *cpu);
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 extern CPUWriteMemoryFunc * const PPC_io_write[];

@@ -1770,8 +1770,9 @@ static void ppc405_mal_init(CPUPPCState *env, qemu_irq irqs[4])
 
 /*****************************************************************************/
 /* SPR */
-void ppc40x_core_reset (CPUPPCState *env)
+void ppc40x_core_reset(PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
     target_ulong dbsr;
 
     printf("Reset PowerPC core\n");
@@ -1782,8 +1783,9 @@ void ppc40x_core_reset (CPUPPCState *env)
     env->spr[SPR_40x_DBSR] = dbsr;
 }
 
-void ppc40x_chip_reset (CPUPPCState *env)
+void ppc40x_chip_reset(PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
     target_ulong dbsr;
 
     printf("Reset PowerPC chip\n");
@@ -1795,7 +1797,7 @@ void ppc40x_chip_reset (CPUPPCState *env)
     env->spr[SPR_40x_DBSR] = dbsr;
 }
 
-void ppc40x_system_reset (CPUPPCState *env)
+void ppc40x_system_reset(PowerPCCPU *cpu)
 {
     printf("Reset PowerPC system\n");
     qemu_system_reset_request();
@@ -1803,21 +1805,23 @@ void ppc40x_system_reset (CPUPPCState *env)
 
 void store_40x_dbcr0 (CPUPPCState *env, uint32_t val)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     switch ((val >> 28) & 0x3) {
     case 0x0:
         /* No action */
         break;
     case 0x1:
         /* Core reset */
-        ppc40x_core_reset(env);
+        ppc40x_core_reset(cpu);
         break;
     case 0x2:
         /* Chip reset */
-        ppc40x_chip_reset(env);
+        ppc40x_chip_reset(cpu);
         break;
     case 0x3:
         /* System reset */
-        ppc40x_system_reset(env);
+        ppc40x_system_reset(cpu);
         break;
     }
 }
