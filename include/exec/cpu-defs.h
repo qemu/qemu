@@ -134,8 +134,6 @@ typedef struct icount_decr_u16 {
 } icount_decr_u16;
 #endif
 
-struct qemu_work_item;
-
 typedef struct CPUBreakpoint {
     target_ulong pc;
     int flags; /* BP_* */
