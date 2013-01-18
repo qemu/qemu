@@ -98,7 +98,7 @@ static int fpu_gdb_set_reg(CPUM68KState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-CPUM68KState *cpu_m68k_init(const char *cpu_model)
+M68kCPU *cpu_m68k_init(const char *cpu_model)
 {
     M68kCPU *cpu;
     CPUM68KState *env;
@@ -116,7 +116,7 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
-    return env;
+    return cpu;
 }
 
 void m68k_cpu_init_gdb(M68kCPU *cpu)

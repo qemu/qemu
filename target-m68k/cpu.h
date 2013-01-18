@@ -117,7 +117,7 @@ typedef struct CPUM68KState {
 
 void m68k_tcg_init(void);
 void m68k_cpu_init_gdb(M68kCPU *cpu);
-CPUM68KState *cpu_m68k_init(const char *cpu_model);
+M68kCPU *cpu_m68k_init(const char *cpu_model);
 int cpu_m68k_exec(CPUM68KState *s);
 void do_interrupt(CPUM68KState *env1);
 void do_interrupt_m68k_hardirq(CPUM68KState *env1);
@@ -215,7 +215,15 @@ void register_m68k_insns (CPUM68KState *env);
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-#define cpu_init cpu_m68k_init
+static inline CPUM68KState *cpu_init(const char *cpu_model)
+{
+    M68kCPU *cpu = cpu_m68k_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
 #define cpu_exec cpu_m68k_exec
 #define cpu_gen_code cpu_m68k_gen_code
 #define cpu_signal_handler cpu_m68k_signal_handler
