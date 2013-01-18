@@ -24,6 +24,7 @@ static void an5206_init(QEMUMachineInitArgs *args)
     ram_addr_t ram_size = args->ram_size;
     const char *cpu_model = args->cpu_model;
     const char *kernel_filename = args->kernel_filename;
+    M68kCPU *cpu;
     CPUM68KState *env;
     int kernel_size;
     uint64_t elf_entry;
@@ -32,12 +33,14 @@ static void an5206_init(QEMUMachineInitArgs *args)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
-    if (!cpu_model)
+    if (!cpu_model) {
         cpu_model = "m5206";
-    env = cpu_init(cpu_model);
-    if (!env) {
+    }
+    cpu = cpu_m68k_init(cpu_model);
+    if (!cpu) {
         hw_error("Unable to find m68k CPU definition\n");
     }
+    env = &cpu->env;
 
     /* Initialize CPU registers.  */
     env->vbr = 0;
@@ -55,7 +58,7 @@ static void an5206_init(QEMUMachineInitArgs *args)
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(address_space_mem, AN5206_RAMBAR_ADDR, sram);
 
-    mcf5206_init(address_space_mem, AN5206_MBAR_ADDR, env);
+    mcf5206_init(address_space_mem, AN5206_MBAR_ADDR, cpu);
 
     /* Load kernel.  */
     if (!kernel_filename) {
