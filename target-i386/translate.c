@@ -1559,8 +1559,9 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
         gen_op_mov_reg_T0(ot, op1);
     }
 
-    /* update eflags */
+    /* Update eflags data because we cannot predict flags afterward.  */
     gen_update_cc_op(s);
+    set_cc_op(s, CC_OP_DYNAMIC);
 
     tcg_gen_mov_tl(t1, cpu_T[0]);
 
@@ -1587,7 +1588,6 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
     }
 
     gen_set_label(shift_label);
-    set_cc_op(s, CC_OP_DYNAMIC); /* cannot predict flags after */
 
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -1972,8 +1972,9 @@ static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
         gen_op_mov_reg_v(ot, op1, t0);
     }
     
-    /* update eflags */
+    /* Update eflags data because we cannot predict flags afterward.  */
     gen_update_cc_op(s);
+    set_cc_op(s, CC_OP_DYNAMIC);
 
     label2 = gen_new_label();
     tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, label2);
@@ -1986,7 +1987,6 @@ static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
         tcg_gen_movi_i32(cpu_cc_op, CC_OP_SHLB + ot);
     }
     gen_set_label(label2);
-    set_cc_op(s, CC_OP_DYNAMIC); /* cannot predict flags after */
 
     tcg_temp_free(t0);
     tcg_temp_free(t1);
