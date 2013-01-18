@@ -991,7 +991,7 @@ void helper_msgsnd(target_ulong rb)
     for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
         if ((rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir)) {
             cenv->pending_interrupts |= 1 << irq;
-            cpu_interrupt(cenv, CPU_INTERRUPT_HARD);
+            cpu_interrupt(CPU(ppc_env_get_cpu(cenv)), CPU_INTERRUPT_HARD);
         }
     }
 }

@@ -27,12 +27,11 @@
 static void puv3_intc_cpu_handler(void *opaque, int irq, int level)
 {
     UniCore32CPU *cpu = opaque;
-    CPUUniCore32State *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
     assert(irq == 0);
     if (level) {
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }

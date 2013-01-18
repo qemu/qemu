@@ -221,6 +221,30 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
  */
 CPUState *qemu_get_cpu(int index);
 
+#ifndef CONFIG_USER_ONLY
+
+typedef void (*CPUInterruptHandler)(CPUState *, int);
+
+extern CPUInterruptHandler cpu_interrupt_handler;
+
+/**
+ * cpu_interrupt:
+ * @cpu: The CPU to set an interrupt on.
+ * @mask: The interupts to set.
+ *
+ * Invokes the interrupt handler.
+ */
+static inline void cpu_interrupt(CPUState *cpu, int mask)
+{
+    cpu_interrupt_handler(cpu, mask);
+}
+
+#else /* USER_ONLY */
+
+void cpu_interrupt(CPUState *cpu, int mask);
+
+#endif /* USER_ONLY */
+
 /**
  * cpu_reset_interrupt:
  * @cpu: The CPU to clear the interrupt on.

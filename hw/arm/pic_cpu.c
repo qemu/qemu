@@ -15,20 +15,19 @@
 static void arm_pic_cpu_handler(void *opaque, int irq, int level)
 {
     ARMCPU *cpu = opaque;
-    CPUARMState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
     switch (irq) {
     case ARM_PIC_CPU_IRQ:
         if (level) {
-            cpu_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         }
         break;
     case ARM_PIC_CPU_FIQ:
         if (level) {
-            cpu_interrupt(env, CPU_INTERRUPT_FIQ);
+            cpu_interrupt(cs, CPU_INTERRUPT_FIQ);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_FIQ);
         }

@@ -299,7 +299,7 @@ void cpu_check_irqs(CPUSPARCState *env)
                     env->interrupt_index = new_interrupt;
                     CPUIRQ_DPRINTF("Set CPU IRQ %d old=%x new=%x\n", i,
                                    old_interrupt, new_interrupt);
-                    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+                    cpu_interrupt(cs, CPU_INTERRUPT_HARD);
                 }
                 break;
             }
@@ -339,7 +339,7 @@ static void cpu_set_ivec_irq(void *opaque, int irq, int level)
             env->ivec_data[0] = (0x1f << 6) | irq;
             env->ivec_data[1] = 0;
             env->ivec_data[2] = 0;
-            cpu_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         }
     } else {
         if (env->ivec_status & 0x20) {

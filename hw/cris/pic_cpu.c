@@ -31,12 +31,11 @@
 static void cris_pic_cpu_handler(void *opaque, int irq, int level)
 {
     CRISCPU *cpu = opaque;
-    CPUCRISState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     int type = irq ? CPU_INTERRUPT_NMI : CPU_INTERRUPT_HARD;
 
     if (level) {
-        cpu_interrupt(env, type);
+        cpu_interrupt(cs, type);
     } else {
         cpu_reset_interrupt(cs, type);
     }

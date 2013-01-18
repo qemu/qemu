@@ -57,7 +57,7 @@ void s390x_tod_timer(void *opaque)
     CPUS390XState *env = &cpu->env;
 
     env->pending_int |= INTERRUPT_TOD;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 void s390x_cpu_timer(void *opaque)
@@ -66,7 +66,7 @@ void s390x_cpu_timer(void *opaque)
     CPUS390XState *env = &cpu->env;
 
     env->pending_int |= INTERRUPT_CPUTIMER;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 #endif
 

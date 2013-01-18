@@ -45,8 +45,9 @@ void sh_intc_toggle_source(struct intc_source *source,
         CPUState *cpu = CPU(sh_env_get_cpu(first_cpu));
         if (source->pending) {
             source->parent->pending++;
-	    if (source->parent->pending == 1)
-                cpu_interrupt(first_cpu, CPU_INTERRUPT_HARD);
+            if (source->parent->pending == 1) {
+                cpu_interrupt(cpu, CPU_INTERRUPT_HARD);
+            }
         } else {
             source->parent->pending--;
             if (source->parent->pending == 0) {

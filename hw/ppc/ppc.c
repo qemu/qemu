@@ -58,7 +58,7 @@ void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
 
     if (level) {
         env->pending_interrupts |= 1 << n_IRQ;
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
         env->pending_interrupts &= ~(1 << n_IRQ);
         if (env->pending_interrupts == 0) {
@@ -137,7 +137,7 @@ static void ppc6xx_set_irq(void *opaque, int pin, int level)
             /* Level sensitive - active low */
             if (level) {
                 LOG_IRQ("%s: reset the CPU\n", __func__);
-                cpu_interrupt(env, CPU_INTERRUPT_RESET);
+                cpu_interrupt(cs, CPU_INTERRUPT_RESET);
             }
             break;
         case PPC6xx_INPUT_SRESET:
@@ -219,7 +219,7 @@ static void ppc970_set_irq(void *opaque, int pin, int level)
         case PPC970_INPUT_HRESET:
             /* Level sensitive - active low */
             if (level) {
-                cpu_interrupt(env, CPU_INTERRUPT_RESET);
+                cpu_interrupt(cs, CPU_INTERRUPT_RESET);
             }
             break;
         case PPC970_INPUT_SRESET:

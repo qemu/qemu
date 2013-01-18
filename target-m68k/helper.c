@@ -318,7 +318,7 @@ void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector)
     env->pending_level = level;
     env->pending_vector = vector;
     if (level) {
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }

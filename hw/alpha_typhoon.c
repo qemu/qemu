@@ -62,10 +62,9 @@ static void cpu_irq_change(AlphaCPU *cpu, uint64_t req)
 {
     /* If there are any non-masked interrupts, tell the cpu.  */
     if (cpu != NULL) {
-        CPUAlphaState *env = &cpu->env;
         CPUState *cs = CPU(cpu);
         if (req) {
-            cpu_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         }
@@ -359,11 +358,10 @@ static void cchip_write(void *opaque, hwaddr addr,
             for (i = 0; i < 4; ++i) {
                 AlphaCPU *cpu = s->cchip.cpu[i];
                 if (cpu != NULL) {
-                    CPUAlphaState *env = &cpu->env;
                     CPUState *cs = CPU(cpu);
                     /* IPI can be either cleared or set by the write.  */
                     if (newval & (1 << (i + 8))) {
-                        cpu_interrupt(env, CPU_INTERRUPT_SMP);
+                        cpu_interrupt(cs, CPU_INTERRUPT_SMP);
                     } else {
                         cpu_reset_interrupt(cs, CPU_INTERRUPT_SMP);
                     }
@@ -687,7 +685,7 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
                 /* Set the ITI bit for this cpu.  */
                 s->cchip.misc |= 1 << (i + 4);
                 /* And signal the interrupt.  */
-                cpu_interrupt(&cpu->env, CPU_INTERRUPT_TIMER);
+                cpu_interrupt(CPU(cpu), CPU_INTERRUPT_TIMER);
             }
         }
     }
@@ -700,7 +698,7 @@ static void typhoon_alarm_timer(void *opaque)
 
     /* Set the ITI bit for this cpu.  */
     s->cchip.misc |= 1 << (cpu + 4);
-    cpu_interrupt(&s->cchip.cpu[cpu]->env, CPU_INTERRUPT_TIMER);
+    cpu_interrupt(CPU(s->cchip.cpu[cpu]), CPU_INTERRUPT_TIMER);
 }
 
 PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,

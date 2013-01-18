@@ -523,12 +523,12 @@ static bool mips_vpe_is_wfi(MIPSCPU *c)
     return cpu->halted && mips_vpe_active(env);
 }
 
-static inline void mips_vpe_wake(CPUMIPSState *c)
+static inline void mips_vpe_wake(MIPSCPU *c)
 {
     /* Dont set ->halted = 0 directly, let it be done via cpu_has_work
        because there might be other conditions that state that c should
        be sleeping.  */
-    cpu_interrupt(c, CPU_INTERRUPT_WAKE);
+    cpu_interrupt(CPU(c), CPU_INTERRUPT_WAKE);
 }
 
 static inline void mips_vpe_sleep(MIPSCPU *cpu)
@@ -547,7 +547,7 @@ static inline void mips_tc_wake(MIPSCPU *cpu, int tc)
 
     /* FIXME: TC reschedule.  */
     if (mips_vpe_active(c) && !mips_vpe_is_wfi(cpu)) {
-        mips_vpe_wake(c);
+        mips_vpe_wake(cpu);
     }
 }
 
@@ -1725,7 +1725,7 @@ target_ulong helper_evpe(CPUMIPSState *env)
             && !mips_vpe_is_wfi(other_cpu)) {
             /* Enable the VPE.  */
             other_cpu_env->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
-            mips_vpe_wake(other_cpu_env); /* And wake it up.  */
+            mips_vpe_wake(other_cpu); /* And wake it up.  */
         }
         other_cpu_env = other_cpu_env->next_cpu;
     } while (other_cpu_env);

@@ -66,7 +66,7 @@ void check_interrupts(CPUXtensaState *env)
     for (level = env->config->nlevel; level > minlevel; --level) {
         if (env->config->level_mask[level] & int_set_enabled) {
             env->pending_irq_level = level;
-            cpu_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
             qemu_log_mask(CPU_LOG_INT,
                     "%s level = %d, cintlevel = %d, "
                     "pc = %08x, a0 = %08x, ps = %08x, "

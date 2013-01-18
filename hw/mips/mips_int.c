@@ -40,7 +40,7 @@ static void cpu_mips_irq_request(void *opaque, int irq, int level)
     }
 
     if (env->CP0_Cause & CP0Ca_IP_mask) {
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }

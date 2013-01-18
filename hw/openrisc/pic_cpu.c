@@ -41,7 +41,7 @@ static void openrisc_pic_cpu_handler(void *opaque, int irq, int level)
 
     for (i = 0; i < 32; i++) {
         if ((cpu->env.picsr && (1 << i)) && (cpu->env.picmr && (1 << i))) {
-            cpu_interrupt(&cpu->env, CPU_INTERRUPT_HARD);
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
             cpu->env.picsr &= ~(1 << i);

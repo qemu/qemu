@@ -1523,7 +1523,7 @@ static inline void omap_clkm_idlect1_update(struct omap_mpu_state_s *s,
     omap_clk clk;
 
     if (value & (1 << 11)) {                            /* SETARM_IDLE */
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HALT);
+        cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HALT);
     }
     if (!(value & (1 << 10)))				/* WKUP_MODE */
         qemu_system_shutdown_request();	/* XXX: disable wakeup from IRQ */
@@ -3759,7 +3759,7 @@ void omap_mpu_wakeup(void *opaque, int irq, int req)
     CPUState *cpu = CPU(mpu->cpu);
 
     if (cpu->halted) {
-        cpu_interrupt(&mpu->cpu->env, CPU_INTERRUPT_EXITTB);
+        cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
     }
 }
 

@@ -764,7 +764,7 @@ static int omap_wfi_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     /* Wait-for-interrupt (deprecated) */
-    cpu_interrupt(env, CPU_INTERRUPT_HALT);
+    cpu_interrupt(CPU(arm_env_get_cpu(env)), CPU_INTERRUPT_HALT);
     return 0;
 }
 

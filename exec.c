@@ -1467,7 +1467,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
         /* We re-entered the check after replacing the TB. Now raise
          * the debug interrupt so that is will trigger after the
          * current instruction. */
-        cpu_interrupt(env, CPU_INTERRUPT_DEBUG);
+        cpu_interrupt(ENV_GET_CPU(env), CPU_INTERRUPT_DEBUG);
         return;
     }
     vaddr = (env->mem_io_vaddr & TARGET_PAGE_MASK) + offset;

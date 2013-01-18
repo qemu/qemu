@@ -42,11 +42,10 @@ typedef struct {
 static void cpu_irq_handler(void *opaque, int irq, int level)
 {
     LM32CPU *cpu = opaque;
-    CPULM32State *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
     if (level) {
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }

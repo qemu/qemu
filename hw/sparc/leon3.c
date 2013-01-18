@@ -83,8 +83,9 @@ static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
 
                 env->interrupt_index = TT_EXTINT | i;
                 if (old_interrupt != env->interrupt_index) {
+                    cs = CPU(sparc_env_get_cpu(env));
                     trace_leon3_set_irq(i);
-                    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+                    cpu_interrupt(cs, CPU_INTERRUPT_HARD);
                 }
                 break;
             }

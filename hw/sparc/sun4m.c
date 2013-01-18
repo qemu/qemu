@@ -242,8 +242,9 @@ void cpu_check_irqs(CPUSPARCState *env)
 
                 env->interrupt_index = TT_EXTINT | i;
                 if (old_interrupt != env->interrupt_index) {
+                    cs = CPU(sparc_env_get_cpu(env));
                     trace_sun4m_cpu_interrupt(i);
-                    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+                    cpu_interrupt(cs, CPU_INTERRUPT_HARD);
                 }
                 break;
             }
@@ -306,8 +307,10 @@ static void secondary_cpu_reset(void *opaque)
 
 static void cpu_halt_signal(void *opaque, int irq, int level)
 {
-    if (level && cpu_single_env)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
+    if (level && cpu_single_env) {
+        cpu_interrupt(CPU(sparc_env_get_cpu(cpu_single_env)),
+                      CPU_INTERRUPT_HALT);
+    }
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)

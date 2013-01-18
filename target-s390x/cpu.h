@@ -992,7 +992,7 @@ static inline void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
     env->ext_queue[env->ext_index].param64 = param64;
 
     env->pending_int |= INTERRUPT_EXT;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 static inline void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
@@ -1016,7 +1016,7 @@ static inline void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
     env->io_queue[env->io_index[isc]][isc].word = io_int_word;
 
     env->pending_int |= INTERRUPT_IO;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 static inline void cpu_inject_crw_mchk(S390CPU *cpu)
@@ -1034,7 +1034,7 @@ static inline void cpu_inject_crw_mchk(S390CPU *cpu)
     env->mchk_queue[env->mchk_index].type = 1;
 
     env->pending_int |= INTERRUPT_MCHK;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 static inline bool cpu_has_work(CPUState *cpu)

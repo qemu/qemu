@@ -120,7 +120,7 @@ static void pxa2xx_gpio_set(void *opaque, int line, int level)
 
     /* Wake-up GPIOs */
     if (cpu->halted && (mask & ~s->dir[bank] & pxa2xx_gpio_wake[bank])) {
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_EXITTB);
+        cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
     }
 }
 

@@ -389,7 +389,7 @@ void x86_cpu_set_a20(X86CPU *cpu, int a20_state)
 #endif
         /* if the cpu is currently executing code, we must unlink it and
            all the potentially executing TB */
-        cpu_interrupt(env, CPU_INTERRUPT_EXITTB);
+        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_EXITTB);
 
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
@@ -1169,7 +1169,7 @@ static void do_inject_x86_mce(void *data)
         banks[3] = params->misc;
         cenv->mcg_status = params->mcg_status;
         banks[1] = params->status;
-        cpu_interrupt(cenv, CPU_INTERRUPT_MCE);
+        cpu_interrupt(cpu, CPU_INTERRUPT_MCE);
     } else if (!(banks[1] & MCI_STATUS_VAL)
                || !(banks[1] & MCI_STATUS_UC)) {
         if (banks[1] & MCI_STATUS_VAL) {
@@ -1241,7 +1241,7 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access)
     if (kvm_enabled()) {
         env->tpr_access_type = access;
 
-        cpu_interrupt(env, CPU_INTERRUPT_TPR);
+        cpu_interrupt(CPU(x86_env_get_cpu(env)), CPU_INTERRUPT_TPR);
     } else {
         cpu_restore_state(env, env->mem_io_pc);
 

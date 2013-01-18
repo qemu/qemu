@@ -192,7 +192,7 @@ static void pic_irq_request(void *opaque, int irq, int level)
     } else {
         CPUState *cs = CPU(x86_env_get_cpu(env));
         if (level) {
-            cpu_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         }
@@ -856,10 +856,10 @@ DeviceState *cpu_get_current_apic(void)
 
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
 {
-    CPUX86State *s = opaque;
+    X86CPU *cpu = opaque;
 
     if (level) {
-        cpu_interrupt(s, CPU_INTERRUPT_SMI);
+        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_SMI);
     }
 }
 
