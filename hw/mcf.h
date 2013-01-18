@@ -17,7 +17,7 @@ void mcf_uart_mm_init(struct MemoryRegion *sysmem,
 /* mcf_intc.c */
 qemu_irq *mcf_intc_init(struct MemoryRegion *sysmem,
                         hwaddr base,
-                        CPUM68KState *env);
+                        M68kCPU *cpu);
 
 /* mcf_fec.c */
 void mcf_fec_init(struct MemoryRegion *sysmem, NICInfo *nd,
