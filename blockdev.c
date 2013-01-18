@@ -642,21 +642,17 @@ void do_commit(Monitor *mon, const QDict *qdict)
 
     if (!strcmp(device, "all")) {
         ret = bdrv_commit_all();
-        if (ret == -EBUSY) {
-            qerror_report(QERR_DEVICE_IN_USE, device);
-            return;
-        }
     } else {
         bs = bdrv_find(device);
         if (!bs) {
-            qerror_report(QERR_DEVICE_NOT_FOUND, device);
+            monitor_printf(mon, "Device '%s' not found\n", device);
             return;
         }
         ret = bdrv_commit(bs);
-        if (ret == -EBUSY) {
-            qerror_report(QERR_DEVICE_IN_USE, device);
-            return;
-        }
+    }
+    if (ret < 0) {
+        monitor_printf(mon, "'commit' error for '%s': %s\n", device,
+                       strerror(-ret));
     }
 }
 
