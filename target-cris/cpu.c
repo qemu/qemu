@@ -70,8 +70,18 @@ static void cris_cpu_initfn(Object *obj)
 {
     CRISCPU *cpu = CRIS_CPU(obj);
     CPUCRISState *env = &cpu->env;
+    static bool tcg_initialized;
 
     cpu_exec_init(env);
+
+    if (tcg_enabled() && !tcg_initialized) {
+        tcg_initialized = true;
+        if (env->pregs[PR_VR] < 32) {
+            cris_initialize_crisv10_tcg();
+        } else {
+            cris_initialize_tcg();
+        }
+    }
 }
 
 static void cris_cpu_class_init(ObjectClass *oc, void *data)

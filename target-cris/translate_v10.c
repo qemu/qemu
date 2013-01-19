@@ -1257,7 +1257,7 @@ static unsigned int crisv10_decoder(CPUCRISState *env, DisasContext *dc)
     return insn_len;
 }
 
-static CPUCRISState *cpu_crisv10_init (CPUCRISState *env)
+void cris_initialize_crisv10_tcg(void)
 {
 	int i;
 
@@ -1300,7 +1300,4 @@ static CPUCRISState *cpu_crisv10_init (CPUCRISState *env)
 					       offsetof(CPUCRISState, pregs[i]),
 					       pregnames_v10[i]);
 	}
-
-	return env;
 }
-

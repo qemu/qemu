@@ -3550,8 +3550,6 @@ CRISCPU *cpu_cris_init(const char *cpu_model)
 {
     CRISCPU *cpu;
     CPUCRISState *env;
-    static int tcg_initialized = 0;
-    int i;
 
     cpu = CRIS_CPU(object_new(TYPE_CRIS_CPU));
     env = &cpu->env;
@@ -3560,20 +3558,15 @@ CRISCPU *cpu_cris_init(const char *cpu_model)
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
-    if (tcg_initialized) {
-        return cpu;
-    }
+    return cpu;
+}
 
-    tcg_initialized = 1;
+void cris_initialize_tcg(void)
+{
+    int i;
 
 #define GEN_HELPER 2
 #include "helper.h"
-
-    if (env->pregs[PR_VR] < 32) {
-        cpu_crisv10_init(env);
-        return cpu;
-    }
-
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     cc_x = tcg_global_mem_new(TCG_AREG0,
@@ -3614,8 +3607,6 @@ CRISCPU *cpu_cris_init(const char *cpu_model)
                                        offsetof(CPUCRISState, pregs[i]),
                                        pregnames[i]);
     }
-
-    return cpu;
 }
 
 void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb, int pc_pos)
