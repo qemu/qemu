@@ -46,6 +46,10 @@ static ObjectClass *cpu_common_class_by_name(const char *cpu_model)
     return NULL;
 }
 
+static void cpu_common_realizefn(DeviceState *dev, Error **errp)
+{
+}
+
 static void cpu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -53,6 +57,7 @@ static void cpu_class_init(ObjectClass *klass, void *data)
 
     k->class_by_name = cpu_common_class_by_name;
     k->reset = cpu_common_reset;
+    dc->realize = cpu_common_realizefn;
     dc->no_user = 1;
 }
 
