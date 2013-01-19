@@ -112,7 +112,7 @@ ssize_t qemu_deliver_packet_iov(NetClientState *sender,
                             void *opaque);
 
 void print_net_client(Monitor *mon, NetClientState *nc);
-void do_info_network(Monitor *mon);
+void do_info_network(Monitor *mon, const QDict *qdict);
 
 /* NIC info */
 

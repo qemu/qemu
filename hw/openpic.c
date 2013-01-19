@@ -40,6 +40,7 @@
 #include "sysbus.h"
 #include "pci/msi.h"
 #include "qemu/bitops.h"
+#include "ppc.h"
 
 //#define DEBUG_OPENPIC
 
@@ -644,6 +645,26 @@ static inline void write_IRQreg_ivpr(OpenPICState *opp, int n_IRQ, uint32_t val)
             opp->src[n_IRQ].ivpr);
 }
 
+static void openpic_gcr_write(OpenPICState *opp, uint64_t val)
+{
+    bool mpic_proxy = false;
+
+    if (val & GCR_RESET) {
+        openpic_reset(&opp->busdev.qdev);
+        return;
+    }
+
+    opp->gcr &= ~opp->mpic_mode_mask;
+    opp->gcr |= val & opp->mpic_mode_mask;
+
+    /* Set external proxy mode */
+    if ((val & opp->mpic_mode_mask) == GCR_MODE_PROXY) {
+        mpic_proxy = true;
+    }
+
+    ppce500_set_mpic_proxy(mpic_proxy);
+}
+
 static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned len)
 {
@@ -672,23 +693,7 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x1000: /* FRR */
         break;
     case 0x1020: /* GCR */
-        if (val & GCR_RESET) {
-            openpic_reset(&opp->busdev.qdev);
-        } else if (opp->mpic_mode_mask) {
-            CPUArchState *env;
-            int mpic_proxy = 0;
-
-            opp->gcr &= ~opp->mpic_mode_mask;
-            opp->gcr |= val & opp->mpic_mode_mask;
-
-            /* Set external proxy mode */
-            if ((val & opp->mpic_mode_mask) == GCR_MODE_PROXY) {
-                mpic_proxy = 1;
-            }
-            for (env = first_cpu; env != NULL; env = env->next_cpu) {
-                env->mpic_proxy = mpic_proxy;
-            }
-        }
+        openpic_gcr_write(opp, val);
         break;
     case 0x1080: /* VIR */
         break;
@@ -1464,6 +1469,7 @@ static int openpic_init(SysBusDevice *dev)
         opp->irq_ipi0 = RAVEN_IPI_IRQ;
         opp->irq_tim0 = RAVEN_TMR_IRQ;
         opp->brr1 = -1;
+        opp->mpic_mode_mask = GCR_MODE_MIXED;
         list = list_le;
         /* Don't map MSI region */
         list[2].map = false;

@@ -435,7 +435,7 @@ int set_usb_string(uint8_t *buf, const char *str);
 /* usb-linux.c */
 USBDevice *usb_host_device_open(USBBus *bus, const char *devname);
 int usb_host_device_close(const char *devname);
-void usb_host_info(Monitor *mon);
+void usb_host_info(Monitor *mon, const QDict *qdict);
 
 /* usb-bt.c */
 USBDevice *usb_bt_init(USBBus *bus, HCIInfo *hci);

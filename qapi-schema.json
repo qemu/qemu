@@ -3017,3 +3017,107 @@
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-stop' }
+
+##
+# @ChardevFile:
+#
+# Configuration info for file chardevs.
+#
+# @in:  #optional The name of the input file
+# @out: The name of the output file
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevFile', 'data': { '*in' : 'str',
+                                   'out' : 'str' } }
+
+##
+# @ChardevPort:
+#
+# Configuration info for device chardevs.
+#
+# @device: The name of the special file for the device,
+#          i.e. /dev/ttyS0 on Unix or COM1: on Windows
+# @type: What kind of device this is.
+#
+# Since: 1.4
+##
+{ 'enum': 'ChardevPortKind', 'data': [ 'serial',
+                                       'parallel' ] }
+
+{ 'type': 'ChardevPort', 'data': { 'device' : 'str',
+                                   'type'   : 'ChardevPortKind'} }
+
+##
+# @ChardevSocket:
+#
+# Configuration info for socket chardevs.
+#
+# @addr: socket address to listen on (server=true)
+#        or connect to (server=false)
+# @server: #optional create server socket (default: true)
+# @wait: #optional wait for connect (not used for server
+#        sockets, default: false)
+# @nodelay: #optional set TCP_NODELAY socket option (default: false)
+# @telnet: #optional enable telnet protocol (default: false)
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevSocket', 'data': { 'addr'     : 'SocketAddress',
+                                     '*server'  : 'bool',
+                                     '*wait'    : 'bool',
+                                     '*nodelay' : 'bool',
+                                     '*telnet'  : 'bool' } }
+
+##
+# @ChardevBackend:
+#
+# Configuration info for the new chardev backend.
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevDummy', 'data': { } }
+
+{ 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
+                                       'port'   : 'ChardevPort',
+                                       'socket' : 'ChardevSocket',
+                                       'pty'    : 'ChardevDummy',
+                                       'null'   : 'ChardevDummy' } }
+
+##
+# @ChardevReturn:
+#
+# Return info about the chardev backend just created.
+#
+# Since: 1.4
+##
+{ 'type' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
+
+##
+# @chardev-add:
+#
+# Add a file chardev
+#
+# @id: the chardev's ID, must be unique
+# @backend: backend type and parameters
+#
+# Returns: chardev info.
+#
+# Since: 1.4
+##
+{ 'command': 'chardev-add', 'data': {'id'      : 'str',
+                                     'backend' : 'ChardevBackend' },
+  'returns': 'ChardevReturn' }
+
+##
+# @chardev-remove:
+#
+# Remove a chardev
+#
+# @id: the chardev's ID, must exist and not be in use
+#
+# Returns: Nothing on success
+#
+# Since: 1.4
+##
+{ 'command': 'chardev-remove', 'data': {'id': 'str'} }

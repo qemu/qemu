@@ -852,7 +852,7 @@ void print_net_client(Monitor *mon, NetClientState *nc)
                    NetClientOptionsKind_lookup[nc->info->type], nc->info_str);
 }
 
-void do_info_network(Monitor *mon)
+void do_info_network(Monitor *mon, const QDict *qdict)
 {
     NetClientState *nc, *peer;
     NetClientOptionsKind type;

@@ -75,6 +75,7 @@ struct CharDriverState {
     char *filename;
     int opened;
     int avail_connections;
+    QemuOpts *opts;
     QTAILQ_ENTRY(CharDriverState) next;
 };
 
@@ -89,7 +90,8 @@ struct CharDriverState {
  * Returns: a new character backend
  */
 CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
-                                    void (*init)(struct CharDriverState *s));
+                                    void (*init)(struct CharDriverState *s),
+                                    Error **errp);
 
 /**
  * @qemu_chr_new:

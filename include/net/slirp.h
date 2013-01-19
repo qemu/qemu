@@ -40,7 +40,7 @@ int net_slirp_parse_legacy(QemuOptsList *opts_list, const char *optarg, int *ret
 
 int net_slirp_smb(const char *exported_dir);
 
-void do_info_usernet(Monitor *mon);
+void do_info_usernet(Monitor *mon, const QDict *qdict);
 
 #endif
 

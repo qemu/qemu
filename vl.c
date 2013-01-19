@@ -1205,15 +1205,15 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
  * memory pointed by "size" is assigned total length of the array in bytes
  *
  */
-char *get_boot_devices_list(uint32_t *size)
+char *get_boot_devices_list(size_t *size)
 {
     FWBootEntry *i;
-    uint32_t total = 0;
+    size_t total = 0;
     char *list = NULL;
 
     QTAILQ_FOREACH(i, &fw_boot_order, link) {
         char *devpath = NULL, *bootpath;
-        int len;
+        size_t len;
 
         if (i->dev) {
             devpath = qdev_get_fw_dev_path(i->dev);
@@ -1456,7 +1456,7 @@ void pcmcia_socket_unregister(PCMCIASocket *socket)
         }
 }
 
-void pcmcia_info(Monitor *mon)
+void pcmcia_info(Monitor *mon, const QDict *qdict)
 {
     struct pcmcia_socket_entry_s *iter;
 
@@ -2281,11 +2281,14 @@ static int device_init_func(QemuOpts *opts, void *opaque)
 
 static int chardev_init_func(QemuOpts *opts, void *opaque)
 {
-    CharDriverState *chr;
+    Error *local_err = NULL;
 
-    chr = qemu_chr_new_from_opts(opts, NULL);
-    if (!chr)
+    qemu_chr_new_from_opts(opts, NULL, &local_err);
+    if (error_is_set(&local_err)) {
+        fprintf(stderr, "%s\n", error_get_pretty(local_err));
+        error_free(local_err);
         return -1;
+    }
     return 0;
 }
 

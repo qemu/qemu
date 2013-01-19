@@ -1742,9 +1742,11 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
 #endif
 #if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
         || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    "-chardev serial,id=id,path=path[,mux=on|off]\n"
     "-chardev tty,id=id,path=path[,mux=on|off]\n"
 #endif
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
+    "-chardev parallel,id=id,path=path[,mux=on|off]\n"
     "-chardev parport,id=id,path=path[,mux=on|off]\n"
 #endif
 #if defined(CONFIG_SPICE)
@@ -1775,6 +1777,7 @@ Backend is one of:
 @option{stdio},
 @option{braille},
 @option{tty},
+@option{parallel},
 @option{parport},
 @option{spicevmc}.
 @option{spiceport}.
@@ -1910,8 +1913,8 @@ take any options.
 
 Send traffic from the guest to a serial device on the host.
 
-@option{serial} is
-only available on Windows hosts.
+On Unix hosts serial will actually accept any tty device,
+not only serial lines.
 
 @option{path} specifies the name of the serial device to open.
 
@@ -1937,16 +1940,15 @@ Connect to a local BrlAPI server. @option{braille} does not take any options.
 
 @item -chardev tty ,id=@var{id} ,path=@var{path}
 
-Connect to a local tty device.
-
 @option{tty} is only available on Linux, Sun, FreeBSD, NetBSD, OpenBSD and
-DragonFlyBSD hosts.
+DragonFlyBSD hosts.  It is an alias for -serial.
 
 @option{path} specifies the path to the tty. @option{path} is required.
 
+@item -chardev parallel ,id=@var{id} ,path=@var{path}
 @item -chardev parport ,id=@var{id} ,path=@var{path}
 
-@option{parport} is only available on Linux, FreeBSD and DragonFlyBSD hosts.
+@option{parallel} is only available on Linux, FreeBSD and DragonFlyBSD hosts.
 
 Connect to a local parallel port.
 

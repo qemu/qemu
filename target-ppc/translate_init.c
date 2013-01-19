@@ -8633,9 +8633,9 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("e500v2_v22",    CPU_POWERPC_e500v2_v22,             e500v2),
     /* PowerPC e500v2 v3.0 core                                              */
     POWERPC_DEF("e500v2_v30",    CPU_POWERPC_e500v2_v30,             e500v2),
-    POWERPC_DEF("e500mc",        CPU_POWERPC_e500mc,                 e500mc),
+    POWERPC_DEF_SVR("e500mc", CPU_POWERPC_e500mc, POWERPC_SVR_E500,  e500mc),
 #ifdef TARGET_PPC64
-    POWERPC_DEF("e5500",         CPU_POWERPC_e5500,                  e5500),
+    POWERPC_DEF_SVR("e5500",    CPU_POWERPC_e5500, POWERPC_SVR_E500, e5500),
 #endif
     /* PowerPC e500 microcontrollers                                         */
     /* MPC8533                                                               */

@@ -407,7 +407,7 @@ static void pic_init(PICCommonState *s)
     qdev_init_gpio_in(&s->dev.qdev, pic_set_irq, 8);
 }
 
-void pic_info(Monitor *mon)
+void pic_info(Monitor *mon, const QDict *qdict)
 {
     int i;
     PICCommonState *s;
@@ -425,7 +425,7 @@ void pic_info(Monitor *mon)
     }
 }
 
-void irq_info(Monitor *mon)
+void irq_info(Monitor *mon, const QDict *qdict)
 {
 #ifndef DEBUG_IRQ_COUNT
     monitor_printf(mon, "irq statistic code not compiled.\n");

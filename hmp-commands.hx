@@ -1485,11 +1485,44 @@ passed since 1970, i.e. unix epoch.
 ETEXI
 
     {
+        .name       = "chardev-add",
+        .args_type  = "args:s",
+        .params     = "args",
+        .help       = "add chardev",
+        .mhandler.cmd = hmp_chardev_add,
+    },
+
+STEXI
+@item chardev_add args
+@findex chardev_add
+
+chardev_add accepts the same parameters as the -chardev command line switch.
+
+ETEXI
+
+    {
+        .name       = "chardev-remove",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "remove chardev",
+        .mhandler.cmd = hmp_chardev_remove,
+    },
+
+STEXI
+@item chardev_remove id
+@findex chardev_remove
+
+Removes the chardev @var{id}.
+
+ETEXI
+
+    {
         .name       = "info",
         .args_type  = "item:s?",
         .params     = "[subcommand]",
         .help       = "show various information about the system state",
-        .mhandler.cmd = do_info,
+        .mhandler.cmd = do_info_help,
+        .sub_table = info_cmds,
     },
 
 STEXI

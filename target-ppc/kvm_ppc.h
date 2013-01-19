@@ -25,6 +25,7 @@ int kvmppc_get_hasidle(CPUPPCState *env);
 int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
 void kvmppc_set_papr(PowerPCCPU *cpu);
+void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
 int kvmppc_smt_threads(void);
 #ifndef CONFIG_USER_ONLY
 off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
@@ -78,6 +79,10 @@ static inline int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level)
 }
 
 static inline void kvmppc_set_papr(PowerPCCPU *cpu)
+{
+}
+
+static inline void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
 {
 }
 
