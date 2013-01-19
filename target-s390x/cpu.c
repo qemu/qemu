@@ -112,6 +112,7 @@ static void s390_cpu_initfn(Object *obj)
 {
     S390CPU *cpu = S390_CPU(obj);
     CPUS390XState *env = &cpu->env;
+    static bool inited;
     static int cpu_num = 0;
 #if !defined(CONFIG_USER_ONLY)
     struct tm tm;
@@ -133,6 +134,11 @@ static void s390_cpu_initfn(Object *obj)
 #endif
     env->cpu_num = cpu_num++;
     env->ext_index = -1;
+
+    if (tcg_enabled() && !inited) {
+        inited = true;
+        s390x_translate_init();
+    }
 }
 
 static void s390_cpu_finalize(Object *obj)

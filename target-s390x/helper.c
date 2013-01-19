@@ -74,16 +74,9 @@ S390CPU *cpu_s390x_init(const char *cpu_model)
 {
     S390CPU *cpu;
     CPUS390XState *env;
-    static int inited;
 
     cpu = S390_CPU(object_new(TYPE_S390_CPU));
     env = &cpu->env;
-
-    if (tcg_enabled() && !inited) {
-        inited = 1;
-        s390x_translate_init();
-    }
-
     env->cpu_model_str = cpu_model;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
