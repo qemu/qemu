@@ -4512,6 +4512,16 @@ static int target_to_host_fcntl_cmd(int cmd)
     return -TARGET_EINVAL;
 }
 
+#define TRANSTBL_CONVERT(a) { -1, TARGET_##a, -1, a }
+static const bitmask_transtbl flock_tbl[] = {
+    TRANSTBL_CONVERT(F_RDLCK),
+    TRANSTBL_CONVERT(F_WRLCK),
+    TRANSTBL_CONVERT(F_UNLCK),
+    TRANSTBL_CONVERT(F_EXLCK),
+    TRANSTBL_CONVERT(F_SHLCK),
+    { 0, 0, 0, 0 }
+};
+
 static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
 {
     struct flock fl;
@@ -4528,7 +4538,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_GETLK:
         if (!lock_user_struct(VERIFY_READ, target_fl, arg, 1))
             return -TARGET_EFAULT;
-        fl.l_type = tswap16(target_fl->l_type);
+        fl.l_type =
+                  target_to_host_bitmask(tswap16(target_fl->l_type), flock_tbl);
         fl.l_whence = tswap16(target_fl->l_whence);
         fl.l_start = tswapal(target_fl->l_start);
         fl.l_len = tswapal(target_fl->l_len);
@@ -4538,7 +4549,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         if (ret == 0) {
             if (!lock_user_struct(VERIFY_WRITE, target_fl, arg, 0))
                 return -TARGET_EFAULT;
-            target_fl->l_type = tswap16(fl.l_type);
+            target_fl->l_type =
+                          host_to_target_bitmask(tswap16(fl.l_type), flock_tbl);
             target_fl->l_whence = tswap16(fl.l_whence);
             target_fl->l_start = tswapal(fl.l_start);
             target_fl->l_len = tswapal(fl.l_len);
@@ -4551,7 +4563,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_SETLKW:
         if (!lock_user_struct(VERIFY_READ, target_fl, arg, 1))
             return -TARGET_EFAULT;
-        fl.l_type = tswap16(target_fl->l_type);
+        fl.l_type =
+                  target_to_host_bitmask(tswap16(target_fl->l_type), flock_tbl);
         fl.l_whence = tswap16(target_fl->l_whence);
         fl.l_start = tswapal(target_fl->l_start);
         fl.l_len = tswapal(target_fl->l_len);
@@ -4563,7 +4576,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_GETLK64:
         if (!lock_user_struct(VERIFY_READ, target_fl64, arg, 1))
             return -TARGET_EFAULT;
-        fl64.l_type = tswap16(target_fl64->l_type) >> 1;
+        fl64.l_type =
+           target_to_host_bitmask(tswap16(target_fl64->l_type), flock_tbl) >> 1;
         fl64.l_whence = tswap16(target_fl64->l_whence);
         fl64.l_start = tswap64(target_fl64->l_start);
         fl64.l_len = tswap64(target_fl64->l_len);
@@ -4573,7 +4587,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
         if (ret == 0) {
             if (!lock_user_struct(VERIFY_WRITE, target_fl64, arg, 0))
                 return -TARGET_EFAULT;
-            target_fl64->l_type = tswap16(fl64.l_type) >> 1;
+            target_fl64->l_type =
+                   host_to_target_bitmask(tswap16(fl64.l_type), flock_tbl) >> 1;
             target_fl64->l_whence = tswap16(fl64.l_whence);
             target_fl64->l_start = tswap64(fl64.l_start);
             target_fl64->l_len = tswap64(fl64.l_len);
@@ -4585,7 +4600,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
     case TARGET_F_SETLKW64:
         if (!lock_user_struct(VERIFY_READ, target_fl64, arg, 1))
             return -TARGET_EFAULT;
-        fl64.l_type = tswap16(target_fl64->l_type) >> 1;
+        fl64.l_type =
+           target_to_host_bitmask(tswap16(target_fl64->l_type), flock_tbl) >> 1;
         fl64.l_whence = tswap16(target_fl64->l_whence);
         fl64.l_start = tswap64(target_fl64->l_start);
         fl64.l_len = tswap64(target_fl64->l_len);
@@ -6211,8 +6227,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = get_errno(settimeofday(&tv, NULL));
         }
         break;
-#if defined(TARGET_NR_select) && !defined(TARGET_S390X) && !defined(TARGET_S390)
+#if defined(TARGET_NR_select)
     case TARGET_NR_select:
+#if defined(TARGET_S390X) || defined(TARGET_ALPHA)
+        ret = do_select(arg1, arg2, arg3, arg4, arg5);
+#else
         {
             struct target_sel_arg_struct *sel;
             abi_ulong inp, outp, exp, tvp;
@@ -6228,6 +6247,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user_struct(sel, arg1, 0);
             ret = do_select(nsel, inp, outp, exp, tvp);
         }
+#endif
         break;
 #endif
 #ifdef TARGET_NR_pselect6
@@ -7151,12 +7171,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
 #endif /* TARGET_NR_getdents64 */
-#if defined(TARGET_NR__newselect) || defined(TARGET_S390X)
-#ifdef TARGET_S390X
-    case TARGET_NR_select:
-#else
+#if defined(TARGET_NR__newselect)
     case TARGET_NR__newselect:
-#endif
         ret = do_select(arg1, arg2, arg3, arg4, arg5);
         break;
 #endif
