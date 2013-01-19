@@ -34,6 +34,15 @@ CONFIG_REALLY_VIRTFS=y
 endif
 
 ######################################################################
+# smartcard
+
+libcacard-y += libcacard/cac.o libcacard/event.o
+libcacard-y += libcacard/vcard.o libcacard/vreader.o
+libcacard-y += libcacard/vcard_emul_nss.o
+libcacard-y += libcacard/vcard_emul_type.o
+libcacard-y += libcacard/card_7816.o
+
+######################################################################
 # Target independent part of system emulation. The long term path is to
 # suppress *all* target specific code in case of system emulation, i.e. a
 # single QEMU executable should support all CPUs and machines.
@@ -76,15 +85,6 @@ common-obj-y += backends/
 ifeq ($(CONFIG_SECCOMP),y)
 common-obj-y += qemu-seccomp.o
 endif
-
-######################################################################
-# smartcard
-
-libcacard-y += libcacard/cac.o libcacard/event.o
-libcacard-y += libcacard/vcard.o libcacard/vreader.o
-libcacard-y += libcacard/vcard_emul_nss.o
-libcacard-y += libcacard/vcard_emul_type.o
-libcacard-y += libcacard/card_7816.o
 
 common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 
