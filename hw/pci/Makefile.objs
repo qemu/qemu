@@ -6,4 +6,4 @@ common-obj-$(CONFIG_PCI) += pci_host.o pcie_host.o
 common-obj-$(CONFIG_PCI) += pcie.o pcie_aer.o pcie_port.o
 common-obj-$(CONFIG_NO_PCI) += pci-stub.o
 
-extra-obj-y += pci-stub.o
+common-obj-$(CONFIG_ALL) += pci-stub.o
