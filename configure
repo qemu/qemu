@@ -1434,7 +1434,7 @@ fi
 
 if test "$seccomp" != "no" ; then
     if $pkg_config --atleast-version=1.0.0 libseccomp --modversion >/dev/null 2>&1; then
-        LIBS=`$pkg_config --libs libseccomp`
+        libs_softmmu="$libs_softmmu `$pkg_config --libs libseccomp`"
 	seccomp="yes"
     else
 	if test "$seccomp" = "yes"; then
