@@ -58,10 +58,16 @@ static void lm32_cpu_initfn(Object *obj)
 {
     LM32CPU *cpu = LM32_CPU(obj);
     CPULM32State *env = &cpu->env;
+    static bool tcg_initialized;
 
     cpu_exec_init(env);
 
     env->flags = 0;
+
+    if (tcg_enabled() && !tcg_initialized) {
+        tcg_initialized = true;
+        lm32_translate_init();
+    }
 }
 
 static void lm32_cpu_class_init(ObjectClass *oc, void *data)

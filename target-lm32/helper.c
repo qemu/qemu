@@ -197,7 +197,6 @@ LM32CPU *cpu_lm32_init(const char *cpu_model)
     LM32CPU *cpu;
     CPULM32State *env;
     const LM32Def *def;
-    static int tcg_initialized;
 
     def = cpu_lm32_find_by_name(cpu_model);
     if (!def) {
@@ -211,11 +210,6 @@ LM32CPU *cpu_lm32_init(const char *cpu_model)
     env->num_bps = def->num_breakpoints;
     env->num_wps = def->num_watchpoints;
     env->cfg = cfg_by_def(def);
-
-    if (tcg_enabled() && !tcg_initialized) {
-        tcg_initialized = 1;
-        lm32_translate_init();
-    }
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
