@@ -105,8 +105,6 @@ void *qemu_memalign(size_t alignment, size_t size)
     return ptr;
 }
 
-/* conflicts with qemu_vmalloc in bsd-user/mmap.c */
-#if !defined(CONFIG_BSD_USER)
 /* alloc shared memory pages */
 void *qemu_vmalloc(size_t size)
 {
@@ -129,7 +127,6 @@ void *qemu_vmalloc(size_t size)
     trace_qemu_vmalloc(size, ptr);
     return ptr;
 }
-#endif
 
 void qemu_vfree(void *ptr)
 {
