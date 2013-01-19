@@ -80,11 +80,7 @@ common-obj-$(CONFIG_SLIRP) += slirp/
 
 common-obj-y += backends/
 
-######################################################################
-# libseccomp
-ifeq ($(CONFIG_SECCOMP),y)
-common-obj-y += qemu-seccomp.o
-endif
+common-obj-$(CONFIG_SECCOMP) += qemu-seccomp.o
 
 common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 
