@@ -284,14 +284,8 @@ extern int tb_invalidated_flag;
 /* The return address may point to the start of the next instruction.
    Subtracting one gets us the call instruction itself.  */
 #if defined(CONFIG_TCG_INTERPRETER)
-/* Softmmu, Alpha, MIPS, SH4 and SPARC user mode emulations call GETPC().
-   For all others, GETPC remains undefined (which makes TCI a little faster. */
-# if defined(CONFIG_SOFTMMU) || \
-    defined(TARGET_ALPHA) || defined(TARGET_MIPS) || \
-    defined(TARGET_SH4) || defined(TARGET_SPARC)
 extern uintptr_t tci_tb_ptr;
-#  define GETPC() tci_tb_ptr
-# endif
+# define GETPC() tci_tb_ptr
 #elif defined(__s390__) && !defined(__s390x__)
 # define GETPC() \
     (((uintptr_t)__builtin_return_address(0) & 0x7fffffffUL) - 1)
