@@ -2,6 +2,7 @@
  * QEMU S390x KVM implementation
  *
  * Copyright (c) 2009 Alexander Graf <agraf@suse.de>
+ * Copyright IBM Corp. 2012
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -13,7 +14,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public
+ * Contributions after 2012-10-29 are licensed under the terms of the
+ * GNU GPL, version 2 or (at your option) any later version.
+ *
+ * You should have received a copy of the GNU (Lesser) General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -85,7 +89,14 @@ int kvm_arch_init_vcpu(CPUState *cpu)
 
 void kvm_arch_reset_vcpu(CPUState *cpu)
 {
-    /* FIXME: add code to reset vcpu. */
+    /* The initial reset call is needed here to reset in-kernel
+     * vcpu data that we can't access directly from QEMU
+     * (i.e. with older kernels which don't support sync_regs/ONE_REG).
+     * Before this ioctl cpu_synchronize_state() is called in common kvm
+     * code (kvm-all) */
+    if (kvm_vcpu_ioctl(cpu, KVM_S390_INITIAL_RESET, NULL)) {
+        perror("Can't reset vcpu\n");
+    }
 }
 
 int kvm_arch_put_registers(CPUState *cs, int level)
@@ -386,7 +397,7 @@ static int handle_priv(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 static int handle_hypercall(CPUS390XState *env, struct kvm_run *run)
 {
     cpu_synchronize_state(env);
-    env->regs[2] = s390_virtio_hypercall(env, env->regs[2], env->regs[1]);
+    env->regs[2] = s390_virtio_hypercall(env);
 
     return 0;
 }
