@@ -103,7 +103,6 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
     M68kCPU *cpu;
     CPUM68KState *env;
     ObjectClass *oc;
-    static int inited;
 
     oc = cpu_class_by_name(TYPE_M68K_CPU, cpu_model);
     if (oc == NULL) {
@@ -111,12 +110,6 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
     }
     cpu = M68K_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
-
-    if (!inited) {
-        inited = 1;
-        m68k_tcg_init();
-    }
-
     env->cpu_model_str = cpu_model;
 
     register_m68k_insns(env);

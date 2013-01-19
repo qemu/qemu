@@ -156,8 +156,14 @@ static void m68k_cpu_initfn(Object *obj)
 {
     M68kCPU *cpu = M68K_CPU(obj);
     CPUM68KState *env = &cpu->env;
+    static bool inited;
 
     cpu_exec_init(env);
+
+    if (tcg_enabled() && !inited) {
+        inited = true;
+        m68k_tcg_init();
+    }
 }
 
 static const VMStateDescription vmstate_m68k_cpu = {
