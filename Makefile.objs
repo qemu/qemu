@@ -47,6 +47,7 @@ libcacard-y += libcacard/card_7816.o
 # suppress *all* target specific code in case of system emulation, i.e. a
 # single QEMU executable should support all CPUs and machines.
 
+ifeq ($(CONFIG_SOFTMMU),y)
 common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
 common-obj-y += net/
 common-obj-y += readline.o
@@ -89,15 +90,15 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 
 common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
 common-obj-y += qmp.o hmp.o
+endif
 
 #######################################################################
 # Target-independent parts used in system and user emulation
-universal-obj-y =
-universal-obj-y += qemu-log.o
-universal-obj-y += tcg-runtime.o
-universal-obj-y += hw/
-universal-obj-y += qom/
-universal-obj-y += disas/
+common-obj-y += qemu-log.o
+common-obj-y += tcg-runtime.o
+common-obj-y += hw/
+common-obj-y += qom/
+common-obj-y += disas/
 
 ######################################################################
 # guest agent
@@ -118,6 +119,5 @@ nested-vars += \
 	qga-obj-y \
 	block-obj-y \
 	common-obj-y \
-	universal-obj-y \
 	extra-obj-y
 dummy := $(call unnest-vars)

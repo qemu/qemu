@@ -145,8 +145,7 @@ nested-vars += obj-y
 include $(SRC_PATH)/Makefile.objs
 
 all-obj-y = $(obj-y)
-all-obj-y += $(addprefix ../, $(universal-obj-y))
-all-obj-$(CONFIG_SOFTMMU) += $(addprefix ../, $(common-obj-y))
+all-obj-y += $(addprefix ../, $(common-obj-y))
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.

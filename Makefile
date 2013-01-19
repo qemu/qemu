@@ -103,6 +103,8 @@ defconfig:
 
 -include config-all-devices.mak
 -include config-all-disas.mak
+CONFIG_SOFTMMU := $(if $(filter %-softmmu,$(TARGET_DIRS)),y)
+CONFIG_USER_ONLY := $(if $(filter %-user,$(TARGET_DIRS)),y)
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/Makefile.objs
@@ -133,11 +135,7 @@ pixman/Makefile: $(SRC_PATH)/pixman/configure
 $(SRC_PATH)/pixman/configure:
 	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
 
-$(SUBDIR_RULES): libqemuutil.a libqemustub.a
-
-$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(common-obj-y) $(extra-obj-y)
-
-$(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(user-obj-y)
+$(SUBDIR_RULES): libqemuutil.a libqemustub.a $(common-obj-y) $(extra-obj-y)
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
