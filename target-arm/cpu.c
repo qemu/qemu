@@ -135,10 +135,16 @@ static inline void set_feature(CPUARMState *env, int feature)
 static void arm_cpu_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+    static bool inited;
 
     cpu_exec_init(&cpu->env);
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
                                          g_free, g_free);
+
+    if (tcg_enabled() && !inited) {
+        inited = true;
+        arm_translate_init();
+    }
 }
 
 static void arm_cpu_finalizefn(Object *obj)
