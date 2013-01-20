@@ -307,8 +307,6 @@ static inline CPUMBState *cpu_init(const char *cpu_model)
 #define cpu_gen_code cpu_mb_gen_code
 #define cpu_signal_handler cpu_mb_signal_handler
 
-#define CPU_SAVE_VERSION 1
-
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _nommu
 #define MMU_MODE1_SUFFIX _kernel
