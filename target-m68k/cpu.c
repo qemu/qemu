@@ -20,6 +20,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "migration/vmstate.h"
 
 
 static void m68k_set_feature(CPUM68KState *env, int feature)
@@ -143,15 +144,22 @@ static void m68k_cpu_initfn(Object *obj)
     cpu_exec_init(env);
 }
 
+static const VMStateDescription vmstate_m68k_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
 static void m68k_cpu_class_init(ObjectClass *c, void *data)
 {
     M68kCPUClass *mcc = M68K_CPU_CLASS(c);
     CPUClass *cc = CPU_CLASS(c);
+    DeviceClass *dc = DEVICE_CLASS(c);
 
     mcc->parent_reset = cc->reset;
     cc->reset = m68k_cpu_reset;
 
     cc->class_by_name = m68k_cpu_class_by_name;
+    dc->vmsd = &vmstate_m68k_cpu;
 }
 
 static void register_cpu_type(const M68kCPUInfo *info)
