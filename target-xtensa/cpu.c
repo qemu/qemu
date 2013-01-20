@@ -71,8 +71,15 @@ static void xtensa_cpu_initfn(Object *obj)
 {
     XtensaCPU *cpu = XTENSA_CPU(obj);
     CPUXtensaState *env = &cpu->env;
+    static bool tcg_inited;
 
     cpu_exec_init(env);
+
+    if (tcg_enabled() && !tcg_inited) {
+        tcg_inited = true;
+        xtensa_translate_init();
+        cpu_set_debug_excp_handler(xtensa_breakpoint_handler);
+    }
 }
 
 static const VMStateDescription vmstate_xtensa_cpu = {

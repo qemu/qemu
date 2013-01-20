@@ -385,6 +385,7 @@ static inline CPUXtensaState *cpu_init(const char *cpu_model)
 }
 
 void xtensa_translate_init(void);
+void xtensa_breakpoint_handler(CPUXtensaState *env);
 int cpu_xtensa_exec(CPUXtensaState *s);
 void xtensa_register_core(XtensaConfigList *node);
 void do_interrupt(CPUXtensaState *s);
