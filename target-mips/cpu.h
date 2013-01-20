@@ -629,6 +629,7 @@ enum {
 #define CPU_INTERRUPT_WAKE CPU_INTERRUPT_TGT_INT_0
 
 int cpu_mips_exec(CPUMIPSState *s);
+void mips_tcg_init(void);
 MIPSCPU *cpu_mips_init(const char *cpu_model);
 int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 

@@ -59,6 +59,10 @@ static void mips_cpu_initfn(Object *obj)
     CPUMIPSState *env = &cpu->env;
 
     cpu_exec_init(env);
+
+    if (tcg_enabled()) {
+        mips_tcg_init();
+    }
 }
 
 static void mips_cpu_class_init(ObjectClass *c, void *data)
