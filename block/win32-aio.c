@@ -29,6 +29,7 @@
 #include "block/aio.h"
 #include "raw-aio.h"
 #include "qemu/event_notifier.h"
+#include "qemu/iov.h"
 #include <windows.h>
 #include <winioctl.h>
 
@@ -80,15 +81,9 @@ static void win32_aio_process_completion(QEMUWin32AIOState *s,
     if (!waiocb->is_linear) {
         if (ret == 0 && waiocb->is_read) {
             QEMUIOVector *qiov = waiocb->qiov;
-            char *p = waiocb->buf;
-            int i;
-
-            for (i = 0; i < qiov->niov; ++i) {
-                memcpy(p, qiov->iov[i].iov_base, qiov->iov[i].iov_len);
-                p += qiov->iov[i].iov_len;
-            }
-            qemu_vfree(waiocb->buf);
+            iov_from_buf(qiov->iov, qiov->niov, 0, waiocb->buf, qiov->size);
         }
+        qemu_vfree(waiocb->buf);
     }
 
 
@@ -153,13 +148,7 @@ BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
     if (qiov->niov > 1) {
         waiocb->buf = qemu_blockalign(bs, qiov->size);
         if (type & QEMU_AIO_WRITE) {
-            char *p = waiocb->buf;
-            int i;
-
-            for (i = 0; i < qiov->niov; ++i) {
-                memcpy(p, qiov->iov[i].iov_base, qiov->iov[i].iov_len);
-                p += qiov->iov[i].iov_len;
-            }
+            iov_to_buf(qiov->iov, qiov->niov, 0, waiocb->buf, qiov->size);
         }
         waiocb->is_linear = false;
     } else {
