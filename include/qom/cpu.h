@@ -44,6 +44,7 @@ typedef struct CPUState CPUState;
  * @class_by_name: Callback to map -cpu command line model name to an
  * instantiatable CPU type.
  * @reset: Callback to reset the #CPUState to its initial state.
+ * @vmsd: State description for migration.
  *
  * Represents a CPU family or model.
  */
@@ -55,6 +56,8 @@ typedef struct CPUClass {
     ObjectClass *(*class_by_name)(const char *cpu_model);
 
     void (*reset)(CPUState *cpu);
+
+    const struct VMStateDescription *vmsd;
 } CPUClass;
 
 struct KVMState;

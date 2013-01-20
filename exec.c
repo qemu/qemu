@@ -219,7 +219,7 @@ void cpu_exec_init_all(void)
 #endif
 }
 
-#if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
 
 static int cpu_common_post_load(void *opaque, int version_id)
 {
@@ -245,6 +245,8 @@ static const VMStateDescription vmstate_cpu_common = {
         VMSTATE_END_OF_LIST()
     }
 };
+#else
+#define vmstate_cpu_common vmstate_dummy
 #endif
 
 CPUState *qemu_get_cpu(int index)
@@ -266,6 +268,7 @@ CPUState *qemu_get_cpu(int index)
 void cpu_exec_init(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
+    CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState **penv;
     int cpu_index;
 
@@ -290,11 +293,15 @@ void cpu_exec_init(CPUArchState *env)
 #if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
 #endif
-#if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
     vmstate_register(NULL, cpu_index, &vmstate_cpu_common, env);
+#if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
     register_savevm(NULL, "cpu", cpu_index, CPU_SAVE_VERSION,
                     cpu_save, cpu_load, env);
+    assert(cc->vmsd == NULL);
 #endif
+    if (cc->vmsd != NULL) {
+        vmstate_register(NULL, cpu_index, cc->vmsd, cpu);
+    }
 }
 
 #if defined(TARGET_HAS_ICE)
