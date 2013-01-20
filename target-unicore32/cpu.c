@@ -14,6 +14,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "migration/vmstate.h"
 
 static inline void set_feature(CPUUniCore32State *env, int feature)
 {
@@ -96,11 +97,18 @@ static void uc32_cpu_initfn(Object *obj)
     tlb_flush(env, 1);
 }
 
+static const VMStateDescription vmstate_uc32_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
 static void uc32_cpu_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
 
     cc->class_by_name = uc32_cpu_class_by_name;
+    dc->vmsd = &vmstate_uc32_cpu;
 }
 
 static void uc32_register_cpu_type(const UniCore32CPUInfo *info)
