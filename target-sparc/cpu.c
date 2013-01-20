@@ -114,10 +114,6 @@ SPARCCPU *cpu_sparc_init(const char *cpu_model)
     cpu = SPARC_CPU(object_new(TYPE_SPARC_CPU));
     env = &cpu->env;
 
-    if (tcg_enabled()) {
-        gen_intermediate_code_init(env);
-    }
-
     if (cpu_sparc_register(env, cpu_model) < 0) {
         object_unref(OBJECT(cpu));
         return NULL;
@@ -868,6 +864,10 @@ static void sparc_cpu_initfn(Object *obj)
     CPUSPARCState *env = &cpu->env;
 
     cpu_exec_init(env);
+
+    if (tcg_enabled()) {
+        gen_intermediate_code_init(env);
+    }
 }
 
 static void sparc_cpu_uninitfn(Object *obj)
