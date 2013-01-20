@@ -9446,7 +9446,7 @@ static void gen_mips16_restore (DisasContext *ctx,
 
 #define DECR_AND_LOAD(reg) do {                   \
         tcg_gen_subi_tl(t0, t0, 4);               \
-        tcg_gen_qemu_ld32u(t1, t0, ctx->mem_idx); \
+        tcg_gen_qemu_ld32s(t1, t0, ctx->mem_idx); \
         gen_store_gpr(t1, reg);                   \
     } while (0)
 
