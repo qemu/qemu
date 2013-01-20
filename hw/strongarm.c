@@ -619,9 +619,9 @@ static DeviceState *strongarm_gpio_init(hwaddr base,
     dev = qdev_create(NULL, "strongarm-gpio");
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     for (i = 0; i < 12; i++)
-        sysbus_connect_irq(sysbus_from_qdev(dev), i,
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
                     qdev_get_gpio_in(pic, SA_PIC_GPIO0_EDGE + i));
 
     return dev;
@@ -1597,9 +1597,9 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
         DeviceState *dev = qdev_create(NULL, "strongarm-uart");
         qdev_prop_set_chr(dev, "chardev", serial_hds[i]);
         qdev_init_nofail(dev);
-        sysbus_mmio_map(sysbus_from_qdev(dev), 0,
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
                 sa_serial[i].io_base);
-        sysbus_connect_irq(sysbus_from_qdev(dev), 0,
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                 qdev_get_gpio_in(s->pic, sa_serial[i].irq));
     }
 

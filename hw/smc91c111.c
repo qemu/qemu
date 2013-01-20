@@ -254,7 +254,7 @@ static void smc91c111_queue_tx(smc91c111_state *s, int packet)
 
 static void smc91c111_reset(DeviceState *dev)
 {
-    smc91c111_state *s = FROM_SYSBUS(smc91c111_state, sysbus_from_qdev(dev));
+    smc91c111_state *s = FROM_SYSBUS(smc91c111_state, SYS_BUS_DEVICE(dev));
     s->bank = 0;
     s->tx_fifo_len = 0;
     s->tx_fifo_done_len = 0;
@@ -797,7 +797,7 @@ void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     dev = qdev_create(NULL, "smc91c111");
     qdev_set_nic_properties(dev, nd);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, base);
     sysbus_connect_irq(s, 0, irq);
 }

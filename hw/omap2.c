@@ -2283,7 +2283,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     qdev_prop_set_ptr(s->ih[0], "fclk", omap_findclk(s, "mpu_intc_fclk"));
     qdev_prop_set_ptr(s->ih[0], "iclk", omap_findclk(s, "mpu_intc_iclk"));
     qdev_init_nofail(s->ih[0]);
-    busdev = sysbus_from_qdev(s->ih[0]);
+    busdev = SYS_BUS_DEVICE(s->ih[0]);
     sysbus_connect_irq(busdev, 0, cpu_irq[ARM_PIC_CPU_IRQ]);
     sysbus_connect_irq(busdev, 1, cpu_irq[ARM_PIC_CPU_FIQ]);
     sysbus_mmio_map(busdev, 0, 0x480fe000);
@@ -2398,7 +2398,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     qdev_prop_set_ptr(s->i2c[0], "iclk", omap_findclk(s, "i2c1.iclk"));
     qdev_prop_set_ptr(s->i2c[0], "fclk", omap_findclk(s, "i2c1.fclk"));
     qdev_init_nofail(s->i2c[0]);
-    busdev = sysbus_from_qdev(s->i2c[0]);
+    busdev = SYS_BUS_DEVICE(s->i2c[0]);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_I2C1_IRQ));
     sysbus_connect_irq(busdev, 1, s->drq[OMAP24XX_DMA_I2C1_TX]);
@@ -2410,7 +2410,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     qdev_prop_set_ptr(s->i2c[1], "iclk", omap_findclk(s, "i2c2.iclk"));
     qdev_prop_set_ptr(s->i2c[1], "fclk", omap_findclk(s, "i2c2.fclk"));
     qdev_init_nofail(s->i2c[1]);
-    busdev = sysbus_from_qdev(s->i2c[1]);
+    busdev = SYS_BUS_DEVICE(s->i2c[1]);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_I2C2_IRQ));
     sysbus_connect_irq(busdev, 1, s->drq[OMAP24XX_DMA_I2C2_TX]);
@@ -2428,7 +2428,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
         qdev_prop_set_ptr(s->gpio, "fclk4", omap_findclk(s, "gpio5_dbclk"));
     }
     qdev_init_nofail(s->gpio);
-    busdev = sysbus_from_qdev(s->gpio);
+    busdev = SYS_BUS_DEVICE(s->gpio);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_GPIO_BANK1));
     sysbus_connect_irq(busdev, 3,

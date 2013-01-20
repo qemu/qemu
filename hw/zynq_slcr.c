@@ -160,7 +160,7 @@ static void zynq_slcr_reset(DeviceState *d)
 {
     int i;
     ZynqSLCRState *s =
-            FROM_SYSBUS(ZynqSLCRState, sysbus_from_qdev(d));
+            FROM_SYSBUS(ZynqSLCRState, SYS_BUS_DEVICE(d));
 
     DB_PRINT("RESET\n");
 

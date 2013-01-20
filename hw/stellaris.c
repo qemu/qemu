@@ -1286,8 +1286,8 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         enet = qdev_create(NULL, "stellaris_enet");
         qdev_set_nic_properties(enet, &nd_table[0]);
         qdev_init_nofail(enet);
-        sysbus_mmio_map(sysbus_from_qdev(enet), 0, 0x40048000);
-        sysbus_connect_irq(sysbus_from_qdev(enet), 0, pic[42]);
+        sysbus_mmio_map(SYS_BUS_DEVICE(enet), 0, 0x40048000);
+        sysbus_connect_irq(SYS_BUS_DEVICE(enet), 0, pic[42]);
     }
     if (board->peripherals & BP_GAMEPAD) {
         qemu_irq gpad_irq[5];

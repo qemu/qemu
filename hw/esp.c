@@ -633,7 +633,7 @@ void esp_init(hwaddr espaddr, int it_shift,
     /* XXX for now until rc4030 has been changed to use DMA enable signal */
     esp->dma_enabled = 1;
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(s, 0, irq);
     sysbus_mmio_map(s, 0, espaddr);
     *reset = qdev_get_gpio_in(dev, 0);

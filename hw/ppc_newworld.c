@@ -329,7 +329,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     dev = qdev_create(NULL, "openpic");
     qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_RAVEN);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     pic_mem = s->mmio[0].memory;
     k = 0;
     for (i = 0; i < smp_cpus; i++) {

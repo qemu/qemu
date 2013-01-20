@@ -597,7 +597,7 @@ static int spapr_phb_init(SysBusDevice *s)
 
 static void spapr_phb_reset(DeviceState *qdev)
 {
-    SysBusDevice *s = sysbus_from_qdev(qdev);
+    SysBusDevice *s = SYS_BUS_DEVICE(qdev);
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
 
     /* Reset the IOMMU state */

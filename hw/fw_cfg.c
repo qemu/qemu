@@ -489,7 +489,7 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     qdev_prop_set_uint32(dev, "ctl_iobase", ctl_port);
     qdev_prop_set_uint32(dev, "data_iobase", data_port);
     qdev_init_nofail(dev);
-    d = sysbus_from_qdev(dev);
+    d = SYS_BUS_DEVICE(dev);
 
     s = DO_UPCAST(FWCfgState, busdev.qdev, dev);
 

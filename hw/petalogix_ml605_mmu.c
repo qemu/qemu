@@ -147,7 +147,7 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
         dev = qdev_create(NULL, "xlnx.xps-spi");
         qdev_prop_set_uint8(dev, "num-ss-bits", NUM_SPI_FLASHES);
         qdev_init_nofail(dev);
-        busdev = sysbus_from_qdev(dev);
+        busdev = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(busdev, 0, 0x40a00000);
         sysbus_connect_irq(busdev, 0, irq[4]);
 

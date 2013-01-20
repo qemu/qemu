@@ -365,7 +365,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
     /* Ultrasparc PBM main bus */
     dev = qdev_create(NULL, "pbm");
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     /* apb_config */
     sysbus_mmio_map(s, 0, special_base);
     /* PCI configuration space */

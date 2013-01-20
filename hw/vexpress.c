@@ -211,7 +211,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     dev = qdev_create(NULL, "a9mpcore_priv");
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, 0x1e000000);
     for (n = 0; n < smp_cpus; n++) {
         sysbus_connect_irq(busdev, n, cpu_irq[n]);
@@ -307,7 +307,7 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     dev = qdev_create(NULL, "a15mpcore_priv");
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, 0x2c000000);
     for (n = 0; n < smp_cpus; n++) {
         sysbus_connect_irq(busdev, n, cpu_irq[n]);
@@ -374,7 +374,7 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
     qdev_prop_set_uint32(sysctl, "proc_id", proc_id);
     qdev_init_nofail(sysctl);
-    sysbus_mmio_map(sysbus_from_qdev(sysctl), 0, map[VE_SYSREGS]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, map[VE_SYSREGS]);
 
     /* VE_SP810: not modelled */
     /* VE_SERIALPCI: not modelled */
@@ -382,8 +382,8 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     pl041 = qdev_create(NULL, "pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
     qdev_init_nofail(pl041);
-    sysbus_mmio_map(sysbus_from_qdev(pl041), 0, map[VE_PL041]);
-    sysbus_connect_irq(sysbus_from_qdev(pl041), 0, pic[11]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, map[VE_PL041]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, pic[11]);
 
     dev = sysbus_create_varargs("pl181", map[VE_MMCI], pic[9], pic[10], NULL);
     /* Wire up MMC card detect and read-only signals */

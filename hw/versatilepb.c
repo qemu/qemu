@@ -203,7 +203,7 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     qdev_prop_set_uint32(sysctl, "sys_id", 0x41007004);
     qdev_prop_set_uint32(sysctl, "proc_id", 0x02000000);
     qdev_init_nofail(sysctl);
-    sysbus_mmio_map(sysbus_from_qdev(sysctl), 0, 0x10000000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, 0x10000000);
 
     cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_varargs("pl190", 0x10140000,
@@ -214,7 +214,7 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     }
     dev = sysbus_create_simple("versatilepb_sic", 0x10003000, NULL);
     for (n = 0; n < 32; n++) {
-        sysbus_connect_irq(sysbus_from_qdev(dev), n, pic[n]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), n, pic[n]);
         sic[n] = qdev_get_gpio_in(dev, n);
     }
 
@@ -222,7 +222,7 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
 
     dev = qdev_create(NULL, "versatile_pci");
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     qdev_init_nofail(dev);
     sysbus_mmio_map(busdev, 0, 0x41000000); /* PCI self-config */
     sysbus_mmio_map(busdev, 1, 0x42000000); /* PCI config */
@@ -287,8 +287,8 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     pl041 = qdev_create(NULL, "pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
     qdev_init_nofail(pl041);
-    sysbus_mmio_map(sysbus_from_qdev(pl041), 0, 0x10004000);
-    sysbus_connect_irq(sysbus_from_qdev(pl041), 0, sic[24]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, 0x10004000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, sic[24]);
 
     /* Memory map for Versatile/PB:  */
     /* 0x10000000 System registers.  */

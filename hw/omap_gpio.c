@@ -588,7 +588,7 @@ static const MemoryRegionOps omap2_gpio_module_ops = {
 static void omap_gpif_reset(DeviceState *dev)
 {
     struct omap_gpif_s *s = FROM_SYSBUS(struct omap_gpif_s,
-                    sysbus_from_qdev(dev));
+                    SYS_BUS_DEVICE(dev));
     omap_gpio_reset(&s->omap1);
 }
 
@@ -596,7 +596,7 @@ static void omap2_gpif_reset(DeviceState *dev)
 {
     int i;
     struct omap2_gpif_s *s = FROM_SYSBUS(struct omap2_gpif_s,
-                    sysbus_from_qdev(dev));
+                    SYS_BUS_DEVICE(dev));
     for (i = 0; i < s->modulecount; i++) {
         omap2_gpio_module_reset(&s->modules[i]);
     }

@@ -740,7 +740,7 @@ static void tusb6010_irq(void *opaque, int source, int level)
 
 static void tusb6010_reset(DeviceState *dev)
 {
-    TUSBState *s = FROM_SYSBUS(TUSBState, sysbus_from_qdev(dev));
+    TUSBState *s = FROM_SYSBUS(TUSBState, SYS_BUS_DEVICE(dev));
     int i;
 
     s->test_reset = TUSB_PROD_TEST_RESET_VAL;

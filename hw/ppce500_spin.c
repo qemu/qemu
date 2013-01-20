@@ -196,7 +196,7 @@ static int ppce500_spin_initfn(SysBusDevice *dev)
 {
     SpinState *s;
 
-    s = FROM_SYSBUS(SpinState, sysbus_from_qdev(dev));
+    s = FROM_SYSBUS(SpinState, SYS_BUS_DEVICE(dev));
 
     memory_region_init_io(&s->iomem, &spin_rw_ops, s, "e500 spin pv device",
                           sizeof(SpinInfo) * MAX_CPUS);

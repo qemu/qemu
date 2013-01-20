@@ -12,8 +12,8 @@ static inline DeviceState *milkymist_uart_create(hwaddr base,
 
     dev = qdev_create(NULL, "milkymist-uart");
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     return dev;
 }
@@ -24,7 +24,7 @@ static inline DeviceState *milkymist_hpdmc_create(hwaddr base)
 
     dev = qdev_create(NULL, "milkymist-hpdmc");
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
     return dev;
 }
@@ -35,7 +35,7 @@ static inline DeviceState *milkymist_memcard_create(hwaddr base)
 
     dev = qdev_create(NULL, "milkymist-memcard");
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
     return dev;
 }
@@ -49,7 +49,7 @@ static inline DeviceState *milkymist_vgafb_create(hwaddr base,
     qdev_prop_set_uint32(dev, "fb_offset", fb_offset);
     qdev_prop_set_uint32(dev, "fb_mask", fb_mask);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
     return dev;
 }
@@ -67,10 +67,10 @@ static inline DeviceState *milkymist_sysctl_create(hwaddr base,
     qdev_prop_set_uint32(dev, "capabilities", capabilities);
     qdev_prop_set_uint32(dev, "gpio_strappings", gpio_strappings);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, gpio_irq);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 1, timer0_irq);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 2, timer1_irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, gpio_irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, timer0_irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 2, timer1_irq);
 
     return dev;
 }
@@ -82,8 +82,8 @@ static inline DeviceState *milkymist_pfpu_create(hwaddr base,
 
     dev = qdev_create(NULL, "milkymist-pfpu");
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
     return dev;
 }
 
@@ -144,8 +144,8 @@ static inline DeviceState *milkymist_tmu2_create(hwaddr base,
 
     dev = qdev_create(NULL, "milkymist-tmu2");
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     return dev;
 #else
@@ -161,11 +161,11 @@ static inline DeviceState *milkymist_ac97_create(hwaddr base,
 
     dev = qdev_create(NULL, "milkymist-ac97");
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, crrequest_irq);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 1, crreply_irq);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 2, dmar_irq);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 3, dmaw_irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, crrequest_irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, crreply_irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 2, dmar_irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 3, dmaw_irq);
 
     return dev;
 }
@@ -179,9 +179,9 @@ static inline DeviceState *milkymist_minimac_create(hwaddr base,
     dev = qdev_create(NULL, "milkymist-minimac");
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, rx_irq);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 1, tx_irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, rx_irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, tx_irq);
 
     return dev;
 }
@@ -196,9 +196,9 @@ static inline DeviceState *milkymist_minimac2_create(hwaddr base,
     qdev_prop_set_taddr(dev, "buffers_base", buffers_base);
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, rx_irq);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 1, tx_irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, rx_irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, tx_irq);
 
     return dev;
 }
@@ -215,8 +215,8 @@ static inline DeviceState *milkymist_softusb_create(hwaddr base,
     qdev_prop_set_uint32(dev, "dmem_base", dmem_base);
     qdev_prop_set_uint32(dev, "dmem_size", dmem_size);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     return dev;
 }

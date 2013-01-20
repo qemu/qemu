@@ -56,7 +56,7 @@ void empty_slot_init(hwaddr addr, uint64_t slot_size)
         EmptySlot *e;
 
         dev = qdev_create(NULL, "empty_slot");
-        s = sysbus_from_qdev(dev);
+        s = SYS_BUS_DEVICE(dev);
         e = FROM_SYSBUS(EmptySlot, s);
         e->size = slot_size;
 

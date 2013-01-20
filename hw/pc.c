@@ -1019,7 +1019,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
 
         if (hpet) {
             for (i = 0; i < GSI_NUM_PINS; i++) {
-                sysbus_connect_irq(sysbus_from_qdev(hpet), i, gsi[i]);
+                sysbus_connect_irq(SYS_BUS_DEVICE(hpet), i, gsi[i]);
             }
             pit_isa_irq = -1;
             pit_alt_irq = qdev_get_gpio_in(hpet, HPET_LEGACY_PIT_INT);
@@ -1122,7 +1122,7 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
                                   "ioapic", OBJECT(dev), NULL);
     }
     qdev_init_nofail(dev);
-    d = sysbus_from_qdev(dev);
+    d = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(d, 0, 0xfec00000);
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {

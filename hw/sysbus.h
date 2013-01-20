@@ -44,7 +44,6 @@ struct SysBusDevice {
 };
 
 /* Macros to compensate for lack of type inheritance in C.  */
-#define sysbus_from_qdev(dev) ((SysBusDevice *)(dev))
 #define FROM_SYSBUS(type, dev) DO_UPCAST(type, busdev, dev)
 
 void *sysbus_new(void);

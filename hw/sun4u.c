@@ -646,7 +646,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
 
     dev = qdev_create(NULL, "openprom");
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
 
     sysbus_mmio_map(s, 0, addr);
 
@@ -729,7 +729,7 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size)
 
     /* allocate RAM */
     dev = qdev_create(NULL, "memory");
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
 
     d = FROM_SYSBUS(RamDevice, s);
     d->size = RAM_size;

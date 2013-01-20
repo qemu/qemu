@@ -136,7 +136,7 @@ static VMStateDescription vmstate_highbank_regs = {
 
 static void highbank_regs_reset(DeviceState *dev)
 {
-    SysBusDevice *sys_dev = sysbus_from_qdev(dev);
+    SysBusDevice *sys_dev = SYS_BUS_DEVICE(dev);
     HighbankRegsState *s = FROM_SYSBUS(HighbankRegsState, sys_dev);
 
     s->regs[0x40] = 0x05F20121;
@@ -251,7 +251,7 @@ static void highbank_init(QEMUMachineInitArgs *args)
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_prop_set_uint32(dev, "num-irq", NIRQ_GIC);
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, GIC_BASE_ADDR);
     for (n = 0; n < smp_cpus; n++) {
         sysbus_connect_irq(busdev, n, cpu_irq[n]);
@@ -263,21 +263,21 @@ static void highbank_init(QEMUMachineInitArgs *args)
 
     dev = qdev_create(NULL, "l2x0");
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, 0xfff12000);
 
     dev = qdev_create(NULL, "sp804");
     qdev_prop_set_uint32(dev, "freq0", 150000000);
     qdev_prop_set_uint32(dev, "freq1", 150000000);
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, 0xfff34000);
     sysbus_connect_irq(busdev, 0, pic[18]);
     sysbus_create_simple("pl011", 0xfff36000, pic[20]);
 
     dev = qdev_create(NULL, "highbank-regs");
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, 0xfff3c000);
 
     sysbus_create_simple("pl061", 0xfff30000, pic[14]);
@@ -294,19 +294,19 @@ static void highbank_init(QEMUMachineInitArgs *args)
         dev = qdev_create(NULL, "xgmac");
         qdev_set_nic_properties(dev, &nd_table[0]);
         qdev_init_nofail(dev);
-        sysbus_mmio_map(sysbus_from_qdev(dev), 0, 0xfff50000);
-        sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[77]);
-        sysbus_connect_irq(sysbus_from_qdev(dev), 1, pic[78]);
-        sysbus_connect_irq(sysbus_from_qdev(dev), 2, pic[79]);
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xfff50000);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[77]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, pic[78]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 2, pic[79]);
 
         qemu_check_nic_model(&nd_table[1], "xgmac");
         dev = qdev_create(NULL, "xgmac");
         qdev_set_nic_properties(dev, &nd_table[1]);
         qdev_init_nofail(dev);
-        sysbus_mmio_map(sysbus_from_qdev(dev), 0, 0xfff51000);
-        sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[80]);
-        sysbus_connect_irq(sysbus_from_qdev(dev), 1, pic[81]);
-        sysbus_connect_irq(sysbus_from_qdev(dev), 2, pic[82]);
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xfff51000);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[80]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, pic[81]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 2, pic[82]);
     }
 
     highbank_binfo.ram_size = ram_size;

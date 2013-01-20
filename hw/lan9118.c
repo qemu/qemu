@@ -401,7 +401,7 @@ static void phy_reset(lan9118_state *s)
 
 static void lan9118_reset(DeviceState *d)
 {
-    lan9118_state *s = FROM_SYSBUS(lan9118_state, sysbus_from_qdev(d));
+    lan9118_state *s = FROM_SYSBUS(lan9118_state, SYS_BUS_DEVICE(d));
     s->irq_cfg &= (IRQ_TYPE | IRQ_POL);
     s->int_sts = 0;
     s->int_en = 0;
@@ -1391,7 +1391,7 @@ void lan9118_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     dev = qdev_create(NULL, "lan9118");
     qdev_set_nic_properties(dev, nd);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, base);
     sysbus_connect_irq(s, 0, irq);
 }

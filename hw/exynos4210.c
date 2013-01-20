@@ -154,7 +154,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         for (n = 0; n < EXYNOS4210_IRQ_GATE_NINPUTS; n++) {
             gate_irq[i][n] = qdev_get_gpio_in(dev, n);
         }
-        busdev = sysbus_from_qdev(dev);
+        busdev = SYS_BUS_DEVICE(dev);
 
         /* Connect IRQ Gate output to cpu_irq */
         sysbus_connect_irq(busdev, 0, cpu_irq[i]);
@@ -164,7 +164,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     dev = qdev_create(NULL, "a9mpcore_priv");
     qdev_prop_set_uint32(dev, "num-cpu", EXYNOS4210_NCPUS);
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_SMP_PRIVATE_BASE_ADDR);
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
         sysbus_connect_irq(busdev, n, gate_irq[n][0]);
@@ -180,7 +180,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     dev = qdev_create(NULL, "exynos4210.gic");
     qdev_prop_set_uint32(dev, "num-cpu", EXYNOS4210_NCPUS);
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     /* Map CPU interface */
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_GIC_CPU_BASE_ADDR);
     /* Map Distributer interface */
@@ -195,7 +195,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     /* Internal Interrupt Combiner */
     dev = qdev_create(NULL, "exynos4210.combiner");
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
         sysbus_connect_irq(busdev, n, s->irqs.int_gic_irq[n]);
     }
@@ -206,7 +206,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     dev = qdev_create(NULL, "exynos4210.combiner");
     qdev_prop_set_uint32(dev, "external", 1);
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
         sysbus_connect_irq(busdev, n, s->irqs.ext_gic_irq[n]);
     }
@@ -285,7 +285,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     /* Multi Core Timer */
     dev = qdev_create(NULL, "exynos4210.mct");
     qdev_init_nofail(dev);
-    busdev = sysbus_from_qdev(dev);
+    busdev = SYS_BUS_DEVICE(dev);
     for (n = 0; n < 4; n++) {
         /* Connect global timer interrupts to Combiner gpio_in */
         sysbus_connect_irq(busdev, n,
@@ -311,7 +311,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
 
         dev = qdev_create(NULL, "exynos4210.i2c");
         qdev_init_nofail(dev);
-        busdev = sysbus_from_qdev(dev);
+        busdev = SYS_BUS_DEVICE(dev);
         sysbus_connect_irq(busdev, 0, i2c_irq);
         sysbus_mmio_map(busdev, 0, addr);
         s->i2c_if[n] = (i2c_bus *)qdev_get_child_bus(dev, "i2c");

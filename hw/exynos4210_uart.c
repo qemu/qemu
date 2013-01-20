@@ -615,7 +615,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     qdev_prop_set_uint32(dev, "rx-size", fifo_size);
     qdev_prop_set_uint32(dev, "tx-size", fifo_size);
 
-    bus = sysbus_from_qdev(dev);
+    bus = SYS_BUS_DEVICE(dev);
     qdev_init_nofail(dev);
     if (addr != (hwaddr)-1) {
         sysbus_mmio_map(bus, 0, addr);

@@ -123,7 +123,7 @@ static int arm_gic_common_init(SysBusDevice *dev)
 
 static void arm_gic_common_reset(DeviceState *dev)
 {
-    GICState *s = FROM_SYSBUS(GICState, sysbus_from_qdev(dev));
+    GICState *s = FROM_SYSBUS(GICState, SYS_BUS_DEVICE(dev));
     int i;
     memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < s->num_cpu; i++) {

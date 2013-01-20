@@ -716,7 +716,7 @@ static void mv88w8618_pic_write(void *opaque, hwaddr offset,
 static void mv88w8618_pic_reset(DeviceState *d)
 {
     mv88w8618_pic_state *s = FROM_SYSBUS(mv88w8618_pic_state,
-                                         sysbus_from_qdev(d));
+                                         SYS_BUS_DEVICE(d));
 
     s->level = 0;
     s->enabled = 0;
@@ -873,7 +873,7 @@ static void mv88w8618_pit_write(void *opaque, hwaddr offset,
 static void mv88w8618_pit_reset(DeviceState *d)
 {
     mv88w8618_pit_state *s = FROM_SYSBUS(mv88w8618_pit_state,
-                                         sysbus_from_qdev(d));
+                                         SYS_BUS_DEVICE(d));
     int i;
 
     for (i = 0; i < 4; i++) {
@@ -1288,7 +1288,7 @@ static const MemoryRegionOps musicpal_gpio_ops = {
 static void musicpal_gpio_reset(DeviceState *d)
 {
     musicpal_gpio_state *s = FROM_SYSBUS(musicpal_gpio_state,
-                                         sysbus_from_qdev(d));
+                                         SYS_BUS_DEVICE(d));
 
     s->lcd_brightness = 0;
     s->out_state = 0;
@@ -1607,12 +1607,12 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     dev = qdev_create(NULL, "mv88w8618_eth");
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, MP_ETH_BASE);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[MP_ETH_IRQ]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, MP_ETH_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[MP_ETH_IRQ]);
 
     sysbus_create_simple("mv88w8618_wlan", MP_WLAN_BASE, NULL);
 
-    musicpal_misc_init(sysbus_from_qdev(dev));
+    musicpal_misc_init(SYS_BUS_DEVICE(dev));
 
     dev = sysbus_create_simple("musicpal_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
     i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
@@ -1641,7 +1641,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
 
     wm8750_dev = i2c_create_slave(i2c, "wm8750", MP_WM_ADDR);
     dev = qdev_create(NULL, "mv88w8618_audio");
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_ptr(dev, "wm8750", wm8750_dev);
     qdev_init_nofail(dev);
     sysbus_mmio_map(s, 0, MP_AUDIO_BASE);

@@ -634,7 +634,7 @@ static const MemoryRegionOps hpet_ram_ops = {
 
 static void hpet_reset(DeviceState *d)
 {
-    HPETState *s = FROM_SYSBUS(HPETState, sysbus_from_qdev(d));
+    HPETState *s = FROM_SYSBUS(HPETState, SYS_BUS_DEVICE(d));
     int i;
 
     for (i = 0; i < s->num_timers; i++) {
@@ -657,7 +657,7 @@ static void hpet_reset(DeviceState *d)
     s->hpet_offset = 0ULL;
     s->config = 0ULL;
     hpet_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
-    hpet_cfg.hpet[s->hpet_id].address = sysbus_from_qdev(d)->mmio[0].addr;
+    hpet_cfg.hpet[s->hpet_id].address = SYS_BUS_DEVICE(d)->mmio[0].addr;
 
     /* to document that the RTC lowers its output on reset as well */
     s->rtc_irq_level = 0;

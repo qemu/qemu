@@ -83,8 +83,8 @@ static void mpcore_priv_set_irq(void *opaque, int irq, int level)
 static void mpcore_priv_map_setup(mpcore_priv_state *s)
 {
     int i;
-    SysBusDevice *gicbusdev = sysbus_from_qdev(s->gic);
-    SysBusDevice *busdev = sysbus_from_qdev(s->mptimer);
+    SysBusDevice *gicbusdev = SYS_BUS_DEVICE(s->gic);
+    SysBusDevice *busdev = SYS_BUS_DEVICE(s->mptimer);
     memory_region_init(&s->container, "mpcode-priv-container", 0x2000);
     memory_region_init_io(&s->iomem, &mpcore_scu_ops, s, "mpcore-scu", 0x100);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
@@ -131,7 +131,7 @@ static int mpcore_priv_init(SysBusDevice *dev)
     qdev_init_nofail(s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(dev, sysbus_from_qdev(s->gic));
+    sysbus_pass_irq(dev, SYS_BUS_DEVICE(s->gic));
 
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(&s->busdev.qdev, mpcore_priv_set_irq, s->num_irq - 32);
@@ -190,7 +190,7 @@ static int realview_mpcore_init(SysBusDevice *dev)
     priv = qdev_create(NULL, "arm11mpcore_priv");
     qdev_prop_set_uint32(priv, "num-cpu", s->num_cpu);
     qdev_init_nofail(priv);
-    s->priv = sysbus_from_qdev(priv);
+    s->priv = SYS_BUS_DEVICE(priv);
     sysbus_pass_irq(dev, s->priv);
     for (i = 0; i < 32; i++) {
         s->cpuic[i] = qdev_get_gpio_in(priv, i);
