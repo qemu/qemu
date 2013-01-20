@@ -10349,11 +10349,6 @@ PowerPCCPU *cpu_ppc_init(const char *cpu_model)
 
     cpu = POWERPC_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
-
-    if (tcg_enabled()) {
-        ppc_translate_init();
-    }
-
     env->cpu_model_str = cpu_model;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", &err);
@@ -10571,6 +10566,10 @@ static void ppc_cpu_initfn(Object *obj)
         env->sps = defsps;
     }
 #endif /* defined(TARGET_PPC64) */
+
+    if (tcg_enabled()) {
+        ppc_translate_init();
+    }
 }
 
 static void ppc_cpu_class_init(ObjectClass *oc, void *data)
