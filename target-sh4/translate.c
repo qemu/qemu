@@ -71,7 +71,7 @@ static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 
 #include "exec/gen-icount.h"
 
-static void sh4_translate_init(void)
+void sh4_translate_init(void)
 {
     int i;
     static int done_init = 0;
@@ -251,7 +251,6 @@ SuperHCPU *cpu_sh4_init(const char *cpu_model)
     cpu = SUPERH_CPU(object_new(TYPE_SUPERH_CPU));
     env = &cpu->env;
     env->features = def->features;
-    sh4_translate_init();
     env->cpu_model_str = cpu_model;
     cpu_register(env, def);
 

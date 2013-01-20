@@ -73,6 +73,10 @@ static void superh_cpu_initfn(Object *obj)
     cpu_exec_init(env);
 
     env->movcal_backup_tail = &(env->movcal_backup);
+
+    if (tcg_enabled()) {
+        sh4_translate_init();
+    }
 }
 
 static const VMStateDescription vmstate_sh_cpu = {
