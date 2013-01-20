@@ -173,16 +173,14 @@ bool aio_pending(AioContext *ctx);
  * aio as a result of executing I/O completion or bh callbacks.
  *
  * If there is no pending AIO operation or completion (bottom half),
- * return false.  If there are pending bottom halves, return true.
+ * return false.  If there are pending AIO operations of bottom halves,
+ * return true.
  *
  * If there are no pending bottom halves, but there are pending AIO
  * operations, it may not be possible to make any progress without
  * blocking.  If @blocking is true, this function will wait until one
  * or more AIO events have completed, to ensure something has moved
  * before returning.
- *
- * If @blocking is false, this function will also return false if the
- * function cannot make any progress without blocking.
  */
 bool aio_poll(AioContext *ctx, bool blocking);
 

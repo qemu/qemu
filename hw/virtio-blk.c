@@ -571,7 +571,8 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
     uint32_t features;
 
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
-    if (s->dataplane && !(status & VIRTIO_CONFIG_S_DRIVER)) {
+    if (s->dataplane && !(status & (VIRTIO_CONFIG_S_DRIVER |
+                                    VIRTIO_CONFIG_S_DRIVER_OK))) {
         virtio_blk_data_plane_stop(s->dataplane);
     }
 #endif
