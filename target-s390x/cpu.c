@@ -26,8 +26,8 @@
 #include "cpu.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#ifndef CONFIG_USER_ONLY
 #include "hw/hw.h"
+#ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
 #endif
 
@@ -135,13 +135,21 @@ static void s390_cpu_finalize(Object *obj)
 #endif
 }
 
+static const VMStateDescription vmstate_s390_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
 static void s390_cpu_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *scc = S390_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(scc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
     scc->parent_reset = cc->reset;
     cc->reset = s390_cpu_reset;
+
+    dc->vmsd = &vmstate_s390_cpu;
 }
 
 static const TypeInfo s390_cpu_type_info = {
