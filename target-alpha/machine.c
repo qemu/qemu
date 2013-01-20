@@ -20,7 +20,7 @@ static const VMStateInfo vmstate_fpcr = {
     .put = put_fpcr,
 };
 
-static VMStateField vmstate_cpu_fields[] = {
+static VMStateField vmstate_env_fields[] = {
     VMSTATE_UINTTL_ARRAY(ir, CPUAlphaState, 31),
     VMSTATE_UINTTL_ARRAY(fir, CPUAlphaState, 31),
     /* Save the architecture value of the fpcr, not the internally
@@ -68,20 +68,24 @@ static VMStateField vmstate_cpu_fields[] = {
     VMSTATE_END_OF_LIST()
 };
 
-static const VMStateDescription vmstate_cpu = {
+static const VMStateDescription vmstate_env = {
+    .name = "env",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = vmstate_env_fields,
+};
+
+static VMStateField vmstate_cpu_fields[] = {
+    VMSTATE_CPU(),
+    VMSTATE_STRUCT(env, AlphaCPU, 1, vmstate_env, CPUAlphaState),
+    VMSTATE_END_OF_LIST()
+};
+
+const VMStateDescription vmstate_alpha_cpu = {
     .name = "cpu",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = vmstate_cpu_fields,
 };
-
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    vmstate_save_state(f, &vmstate_cpu, opaque);
-}
-
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    return vmstate_load_state(f, &vmstate_cpu, opaque, version_id);
-}

@@ -74,6 +74,10 @@ static inline AlphaCPU *alpha_env_get_cpu(CPUAlphaState *env)
 
 #define ENV_OFFSET offsetof(AlphaCPU, env)
 
+#ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_alpha_cpu;
+#endif
+
 void alpha_cpu_do_interrupt(CPUState *cpu);
 
 #endif
