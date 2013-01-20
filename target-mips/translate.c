@@ -1745,6 +1745,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         tcg_temp_free(t2);
         tcg_gen_or_tl(t0, t0, t1);
         tcg_temp_free(t1);
+        tcg_gen_ext32s_tl(t0, t0);
         gen_store_gpr(t0, rt);
         opn = "lwr";
         break;
