@@ -100,10 +100,16 @@ static void mb_cpu_initfn(Object *obj)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
     CPUMBState *env = &cpu->env;
+    static bool tcg_initialized;
 
     cpu_exec_init(env);
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+
+    if (tcg_enabled() && !tcg_initialized) {
+        tcg_initialized = true;
+        mb_tcg_init();
+    }
 }
 
 static const VMStateDescription vmstate_mb_cpu = {
