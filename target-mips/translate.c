@@ -2582,21 +2582,14 @@ static void gen_shift(DisasContext *ctx, uint32_t opc,
 }
 
 /* Arithmetic on HI/LO registers */
-static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
+static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
 {
     const char *opn = "hilo";
-    unsigned int acc;
 
     if (reg == 0 && (opc == OPC_MFHI || opc == OPC_MFLO)) {
         /* Treat as NOP. */
         MIPS_DEBUG("NOP");
         return;
-    }
-
-    if (opc == OPC_MFHI || opc == OPC_MFLO) {
-        acc = ((ctx->opcode) >> 21) & 0x03;
-    } else {
-        acc = ((ctx->opcode) >> 11) & 0x03;
     }
 
     if (acc != 0) {
@@ -2661,18 +2654,21 @@ static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
     MIPS_DEBUG("%s %s", opn, regnames[reg]);
 }
 
-static void gen_muldiv (DisasContext *ctx, uint32_t opc,
-                        int rs, int rt)
+static void gen_muldiv(DisasContext *ctx, uint32_t opc,
+                       int acc, int rs, int rt)
 {
     const char *opn = "mul/div";
     TCGv t0, t1;
-    unsigned int acc;
 
     t0 = tcg_temp_new();
     t1 = tcg_temp_new();
 
     gen_load_gpr(t0, rs);
     gen_load_gpr(t1, rt);
+
+    if (acc != 0) {
+        check_dsp(ctx);
+    }
 
     switch (opc) {
     case OPC_DIV:
@@ -2688,10 +2684,10 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_or_tl(t2, t2, t3);
             tcg_gen_movi_tl(t3, 0);
             tcg_gen_movcond_tl(TCG_COND_NE, t1, t2, t3, t2, t1);
-            tcg_gen_div_tl(cpu_LO[0], t0, t1);
-            tcg_gen_rem_tl(cpu_HI[0], t0, t1);
-            tcg_gen_ext32s_tl(cpu_LO[0], cpu_LO[0]);
-            tcg_gen_ext32s_tl(cpu_HI[0], cpu_HI[0]);
+            tcg_gen_div_tl(cpu_LO[acc], t0, t1);
+            tcg_gen_rem_tl(cpu_HI[acc], t0, t1);
+            tcg_gen_ext32s_tl(cpu_LO[acc], cpu_LO[acc]);
+            tcg_gen_ext32s_tl(cpu_HI[acc], cpu_HI[acc]);
             tcg_temp_free(t3);
             tcg_temp_free(t2);
         }
@@ -2704,10 +2700,10 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_ext32u_tl(t0, t0);
             tcg_gen_ext32u_tl(t1, t1);
             tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
-            tcg_gen_divu_tl(cpu_LO[0], t0, t1);
-            tcg_gen_remu_tl(cpu_HI[0], t0, t1);
-            tcg_gen_ext32s_tl(cpu_LO[0], cpu_LO[0]);
-            tcg_gen_ext32s_tl(cpu_HI[0], cpu_HI[0]);
+            tcg_gen_divu_tl(cpu_LO[acc], t0, t1);
+            tcg_gen_remu_tl(cpu_HI[acc], t0, t1);
+            tcg_gen_ext32s_tl(cpu_LO[acc], cpu_LO[acc]);
+            tcg_gen_ext32s_tl(cpu_HI[acc], cpu_HI[acc]);
             tcg_temp_free(t3);
             tcg_temp_free(t2);
         }
@@ -2717,11 +2713,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             TCGv_i32 t2 = tcg_temp_new_i32();
             TCGv_i32 t3 = tcg_temp_new_i32();
-            acc = ((ctx->opcode) >> 11) & 0x03;
-            if (acc != 0) {
-                check_dsp(ctx);
-            }
-
             tcg_gen_trunc_tl_i32(t2, t0);
             tcg_gen_trunc_tl_i32(t3, t1);
             tcg_gen_muls2_i32(t2, t3, t2, t3);
@@ -2736,11 +2727,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             TCGv_i32 t2 = tcg_temp_new_i32();
             TCGv_i32 t3 = tcg_temp_new_i32();
-            acc = ((ctx->opcode) >> 11) & 0x03;
-            if (acc != 0) {
-                check_dsp(ctx);
-            }
-
             tcg_gen_trunc_tl_i32(t2, t0);
             tcg_gen_trunc_tl_i32(t3, t1);
             tcg_gen_mulu2_i32(t2, t3, t2, t3);
@@ -2763,8 +2749,8 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_or_tl(t2, t2, t3);
             tcg_gen_movi_tl(t3, 0);
             tcg_gen_movcond_tl(TCG_COND_NE, t1, t2, t3, t2, t1);
-            tcg_gen_div_tl(cpu_LO[0], t0, t1);
-            tcg_gen_rem_tl(cpu_HI[0], t0, t1);
+            tcg_gen_div_tl(cpu_LO[acc], t0, t1);
+            tcg_gen_rem_tl(cpu_HI[acc], t0, t1);
             tcg_temp_free(t3);
             tcg_temp_free(t2);
         }
@@ -2775,19 +2761,19 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             TCGv t2 = tcg_const_tl(0);
             TCGv t3 = tcg_const_tl(1);
             tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
-            tcg_gen_divu_i64(cpu_LO[0], t0, t1);
-            tcg_gen_remu_i64(cpu_HI[0], t0, t1);
+            tcg_gen_divu_i64(cpu_LO[acc], t0, t1);
+            tcg_gen_remu_i64(cpu_HI[acc], t0, t1);
             tcg_temp_free(t3);
             tcg_temp_free(t2);
         }
         opn = "ddivu";
         break;
     case OPC_DMULT:
-        tcg_gen_muls2_i64(cpu_LO[0], cpu_HI[0], t0, t1);
+        tcg_gen_muls2_i64(cpu_LO[acc], cpu_HI[acc], t0, t1);
         opn = "dmult";
         break;
     case OPC_DMULTU:
-        tcg_gen_mulu2_i64(cpu_LO[0], cpu_HI[0], t0, t1);
+        tcg_gen_mulu2_i64(cpu_LO[acc], cpu_HI[acc], t0, t1);
         opn = "dmultu";
         break;
 #endif
@@ -2795,10 +2781,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
             TCGv_i64 t3 = tcg_temp_new_i64();
-            acc = ((ctx->opcode) >> 11) & 0x03;
-            if (acc != 0) {
-                check_dsp(ctx);
-            }
 
             tcg_gen_ext_tl_i64(t2, t0);
             tcg_gen_ext_tl_i64(t3, t1);
@@ -2819,10 +2801,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
             TCGv_i64 t3 = tcg_temp_new_i64();
-            acc = ((ctx->opcode) >> 11) & 0x03;
-            if (acc != 0) {
-                check_dsp(ctx);
-            }
 
             tcg_gen_ext32u_tl(t0, t0);
             tcg_gen_ext32u_tl(t1, t1);
@@ -2845,10 +2823,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
             TCGv_i64 t3 = tcg_temp_new_i64();
-            acc = ((ctx->opcode) >> 11) & 0x03;
-            if (acc != 0) {
-                check_dsp(ctx);
-            }
 
             tcg_gen_ext_tl_i64(t2, t0);
             tcg_gen_ext_tl_i64(t3, t1);
@@ -2869,10 +2843,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
             TCGv_i64 t3 = tcg_temp_new_i64();
-            acc = ((ctx->opcode) >> 11) & 0x03;
-            if (acc != 0) {
-                check_dsp(ctx);
-            }
 
             tcg_gen_ext32u_tl(t0, t0);
             tcg_gen_ext32u_tl(t1, t1);
@@ -10135,7 +10105,7 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
             gen_logic(ctx, OPC_NOR, rx, ry, 0);
             break;
         case RR_MFHI:
-            gen_HILO(ctx, OPC_MFHI, rx);
+            gen_HILO(ctx, OPC_MFHI, 0, rx);
             break;
         case RR_CNVT:
             switch (cnvt_op) {
@@ -10167,7 +10137,7 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
             }
             break;
         case RR_MFLO:
-            gen_HILO(ctx, OPC_MFLO, rx);
+            gen_HILO(ctx, OPC_MFLO, 0, rx);
             break;
 #if defined (TARGET_MIPS64)
         case RR_DSRA:
@@ -10188,33 +10158,33 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
             break;
 #endif
         case RR_MULT:
-            gen_muldiv(ctx, OPC_MULT, rx, ry);
+            gen_muldiv(ctx, OPC_MULT, 0, rx, ry);
             break;
         case RR_MULTU:
-            gen_muldiv(ctx, OPC_MULTU, rx, ry);
+            gen_muldiv(ctx, OPC_MULTU, 0, rx, ry);
             break;
         case RR_DIV:
-            gen_muldiv(ctx, OPC_DIV, rx, ry);
+            gen_muldiv(ctx, OPC_DIV, 0, rx, ry);
             break;
         case RR_DIVU:
-            gen_muldiv(ctx, OPC_DIVU, rx, ry);
+            gen_muldiv(ctx, OPC_DIVU, 0, rx, ry);
             break;
 #if defined (TARGET_MIPS64)
         case RR_DMULT:
             check_mips_64(ctx);
-            gen_muldiv(ctx, OPC_DMULT, rx, ry);
+            gen_muldiv(ctx, OPC_DMULT, 0, rx, ry);
             break;
         case RR_DMULTU:
             check_mips_64(ctx);
-            gen_muldiv(ctx, OPC_DMULTU, rx, ry);
+            gen_muldiv(ctx, OPC_DMULTU, 0, rx, ry);
             break;
         case RR_DDIV:
             check_mips_64(ctx);
-            gen_muldiv(ctx, OPC_DDIV, rx, ry);
+            gen_muldiv(ctx, OPC_DDIV, 0, rx, ry);
             break;
         case RR_DDIVU:
             check_mips_64(ctx);
-            gen_muldiv(ctx, OPC_DDIVU, rx, ry);
+            gen_muldiv(ctx, OPC_DDIVU, 0, rx, ry);
             break;
 #endif
         default:
@@ -10923,11 +10893,11 @@ static void gen_pool16c_insn(DisasContext *ctx, int *is_branch)
         break;
     case MFHI16 + 0:
     case MFHI16 + 1:
-        gen_HILO(ctx, OPC_MFHI, uMIPS_RS5(ctx->opcode));
+        gen_HILO(ctx, OPC_MFHI, 0, uMIPS_RS5(ctx->opcode));
         break;
     case MFLO16 + 0:
     case MFLO16 + 1:
-        gen_HILO(ctx, OPC_MFLO, uMIPS_RS5(ctx->opcode));
+        gen_HILO(ctx, OPC_MFLO, 0, uMIPS_RS5(ctx->opcode));
         break;
     case BREAK16:
         generate_exception(ctx, EXCP_BREAK);
@@ -11125,30 +11095,34 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
             break;
         case MULT:
             mips32_op = OPC_MULT;
-            goto do_muldiv;
+            goto do_mul;
         case MULTU:
             mips32_op = OPC_MULTU;
-            goto do_muldiv;
+            goto do_mul;
         case DIV:
             mips32_op = OPC_DIV;
-            goto do_muldiv;
+            goto do_div;
         case DIVU:
             mips32_op = OPC_DIVU;
-            goto do_muldiv;
+            goto do_div;
+        do_div:
+            check_insn(ctx, ISA_MIPS32);
+            gen_muldiv(ctx, mips32_op, 0, rs, rt);
+            break;
         case MADD:
             mips32_op = OPC_MADD;
-            goto do_muldiv;
+            goto do_mul;
         case MADDU:
             mips32_op = OPC_MADDU;
-            goto do_muldiv;
+            goto do_mul;
         case MSUB:
             mips32_op = OPC_MSUB;
-            goto do_muldiv;
+            goto do_mul;
         case MSUBU:
             mips32_op = OPC_MSUBU;
-        do_muldiv:
+        do_mul:
             check_insn(ctx, ISA_MIPS32);
-            gen_muldiv(ctx, mips32_op, rs, rt);
+            gen_muldiv(ctx, mips32_op, (ctx->opcode >> 14) & 3, rs, rt);
             break;
         default:
             goto pool32axf_invalid;
@@ -11285,18 +11259,18 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
         }
         break;
     case 0x35:
-        switch (minor) {
+        switch (minor & 3) {
         case MFHI32:
-            gen_HILO(ctx, OPC_MFHI, rs);
+            gen_HILO(ctx, OPC_MFHI, minor >> 2, rs);
             break;
         case MFLO32:
-            gen_HILO(ctx, OPC_MFLO, rs);
+            gen_HILO(ctx, OPC_MFLO, minor >> 2, rs);
             break;
         case MTHI32:
-            gen_HILO(ctx, OPC_MTHI, rs);
+            gen_HILO(ctx, OPC_MTHI, minor >> 2, rs);
             break;
         case MTLO32:
-            gen_HILO(ctx, OPC_MTLO, rs);
+            gen_HILO(ctx, OPC_MTLO, minor >> 2, rs);
             break;
         default:
             goto pool32axf_invalid;
@@ -14469,13 +14443,19 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
         case OPC_XOR:
             gen_logic(ctx, op1, rd, rs, rt);
             break;
-        case OPC_MULT ... OPC_DIVU:
+        case OPC_MULT:
+        case OPC_MULTU:
             if (sa) {
                 check_insn(ctx, INSN_VR54XX);
                 op1 = MASK_MUL_VR54XX(ctx->opcode);
                 gen_mul_vr54xx(ctx, op1, rd, rs, rt);
-            } else
-                gen_muldiv(ctx, op1, rs, rt);
+            } else {
+                gen_muldiv(ctx, op1, rd & 3, rs, rt);
+            }
+            break;
+        case OPC_DIV:
+        case OPC_DIVU:
+            gen_muldiv(ctx, op1, 0, rs, rt);
             break;
         case OPC_JR ... OPC_JALR:
             gen_compute_branch(ctx, op1, 4, rs, rd, sa);
@@ -14487,11 +14467,11 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             break;
         case OPC_MFHI:          /* Move from HI/LO */
         case OPC_MFLO:
-            gen_HILO(ctx, op1, rd);
+            gen_HILO(ctx, op1, rs & 3, rd);
             break;
         case OPC_MTHI:
         case OPC_MTLO:          /* Move to HI/LO */
-            gen_HILO(ctx, op1, rs);
+            gen_HILO(ctx, op1, rd & 3, rs);
             break;
         case OPC_PMON:          /* Pmon entry point, also R4010 selsl */
 #ifdef MIPS_STRICT_STANDARD
@@ -14611,7 +14591,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
         case OPC_DMULT ... OPC_DDIVU:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
-            gen_muldiv(ctx, op1, rs, rt);
+            gen_muldiv(ctx, op1, 0, rs, rt);
             break;
 #endif
         default:            /* Invalid */
@@ -14626,7 +14606,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
         case OPC_MADD ... OPC_MADDU: /* Multiply and add/sub */
         case OPC_MSUB ... OPC_MSUBU:
             check_insn(ctx, ISA_MIPS32);
-            gen_muldiv(ctx, op1, rs, rt);
+            gen_muldiv(ctx, op1, rd & 3, rs, rt);
             break;
         case OPC_MUL:
             gen_arith(ctx, op1, rd, rs, rt);
