@@ -792,19 +792,23 @@ static void openpic_tmr_write(void *opaque, hwaddr addr, uint64_t val,
     OpenPICState *opp = opaque;
     int idx;
 
+    addr += 0x10f0;
+
     DPRINTF("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
             __func__, addr, val);
     if (addr & 0xF) {
         return;
     }
-    idx = (addr >> 6) & 0x3;
-    addr = addr & 0x30;
 
-    if (addr == 0x0) {
+    if (addr == 0x10f0) {
         /* TFRR */
         opp->tfrr = val;
         return;
     }
+
+    idx = (addr >> 6) & 0x3;
+    addr = addr & 0x30;
+
     switch (addr & 0x30) {
     case 0x00: /* TCCR */
         break;
