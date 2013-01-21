@@ -1673,10 +1673,10 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
 /**
  * Round a region to cluster boundaries
  */
-static void round_to_clusters(BlockDriverState *bs,
-                              int64_t sector_num, int nb_sectors,
-                              int64_t *cluster_sector_num,
-                              int *cluster_nb_sectors)
+void bdrv_round_to_clusters(BlockDriverState *bs,
+                            int64_t sector_num, int nb_sectors,
+                            int64_t *cluster_sector_num,
+                            int *cluster_nb_sectors)
 {
     BlockDriverInfo bdi;
 
@@ -1718,8 +1718,8 @@ static void coroutine_fn wait_for_overlapping_requests(BlockDriverState *bs,
      * CoR read and write operations are atomic and guest writes cannot
      * interleave between them.
      */
-    round_to_clusters(bs, sector_num, nb_sectors,
-                      &cluster_sector_num, &cluster_nb_sectors);
+    bdrv_round_to_clusters(bs, sector_num, nb_sectors,
+                           &cluster_sector_num, &cluster_nb_sectors);
 
     do {
         retry = false;
@@ -2185,8 +2185,8 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
     /* Cover entire cluster so no additional backing file I/O is required when
      * allocating cluster in the image file.
      */
-    round_to_clusters(bs, sector_num, nb_sectors,
-                      &cluster_sector_num, &cluster_nb_sectors);
+    bdrv_round_to_clusters(bs, sector_num, nb_sectors,
+                           &cluster_sector_num, &cluster_nb_sectors);
 
     trace_bdrv_co_do_copy_on_readv(bs, sector_num, nb_sectors,
                                    cluster_sector_num, cluster_nb_sectors);
