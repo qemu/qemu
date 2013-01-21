@@ -96,7 +96,7 @@ static ObjectClass *alpha_cpu_class_by_name(const char *cpu_model)
     }
 
     oc = object_class_by_name(cpu_model);
-    if (oc != NULL) {
+    if (oc != NULL && object_class_dynamic_cast(oc, TYPE_ALPHA_CPU) != NULL) {
         return oc;
     }
 
