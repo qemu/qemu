@@ -84,6 +84,7 @@ mirror_before_flush(void *s) "s %p"
 mirror_before_drain(void *s, int64_t cnt) "s %p dirty count %"PRId64
 mirror_before_sleep(void *s, int64_t cnt, int synced) "s %p dirty count %"PRId64" synced %d"
 mirror_one_iteration(void *s, int64_t sector_num, int nb_sectors) "s %p sector_num %"PRId64" nb_sectors %d"
+mirror_cow(void *s, int64_t sector_num) "s %p sector_num %"PRId64
 
 # blockdev.c
 qmp_block_job_cancel(void *job) "job %p"

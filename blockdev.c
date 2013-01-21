@@ -1197,7 +1197,6 @@ void qmp_drive_mirror(const char *device, const char *target,
                       bool has_on_target_error, BlockdevOnError on_target_error,
                       Error **errp)
 {
-    BlockDriverInfo bdi;
     BlockDriverState *bs;
     BlockDriverState *source, *target_bs;
     BlockDriver *proto_drv;
@@ -1288,6 +1287,9 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
+    /* Mirroring takes care of copy-on-write using the source's backing
+     * file.
+     */
     target_bs = bdrv_new("");
     ret = bdrv_open(target_bs, target, flags | BDRV_O_NO_BACKING, drv);
 
@@ -1295,17 +1297,6 @@ void qmp_drive_mirror(const char *device, const char *target,
         bdrv_delete(target_bs);
         error_set(errp, QERR_OPEN_FILE_FAILED, target);
         return;
-    }
-
-    /* We need a backing file if we will copy parts of a cluster.  */
-    if (bdrv_get_info(target_bs, &bdi) >= 0 && bdi.cluster_size != 0 &&
-        bdi.cluster_size >= BDRV_SECTORS_PER_DIRTY_CHUNK * 512) {
-        ret = bdrv_open_backing_file(target_bs);
-        if (ret < 0) {
-            bdrv_delete(target_bs);
-            error_set(errp, QERR_OPEN_FILE_FAILED, target);
-            return;
-        }
     }
 
     mirror_start(bs, target_bs, speed, sync, on_source_error, on_target_error,

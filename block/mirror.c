@@ -15,6 +15,7 @@
 #include "block/blockjob.h"
 #include "block/block_int.h"
 #include "qemu/ratelimit.h"
+#include "qemu/bitmap.h"
 
 enum {
     /*
@@ -36,6 +37,8 @@ typedef struct MirrorBlockJob {
     bool synced;
     bool should_complete;
     int64_t sector_num;
+    size_t buf_size;
+    unsigned long *cow_bitmap;
     HBitmapIter hbi;
     uint8_t *buf;
 } MirrorBlockJob;
@@ -60,7 +63,7 @@ static int coroutine_fn mirror_iteration(MirrorBlockJob *s,
     BlockDriverState *target = s->target;
     QEMUIOVector qiov;
     int ret, nb_sectors;
-    int64_t end;
+    int64_t end, sector_num, chunk_num;
     struct iovec iov;
 
     s->sector_num = hbitmap_iter_next(&s->hbi);
@@ -71,32 +74,53 @@ static int coroutine_fn mirror_iteration(MirrorBlockJob *s,
         assert(s->sector_num >= 0);
     }
 
+    /* If we have no backing file yet in the destination, and the cluster size
+     * is very large, we need to do COW ourselves.  The first time a cluster is
+     * copied, copy it entirely.
+     *
+     * Because both BDRV_SECTORS_PER_DIRTY_CHUNK and the cluster size are
+     * powers of two, the number of sectors to copy cannot exceed one cluster.
+     */
+    sector_num = s->sector_num;
+    nb_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
+    chunk_num = sector_num / BDRV_SECTORS_PER_DIRTY_CHUNK;
+    if (s->cow_bitmap && !test_bit(chunk_num, s->cow_bitmap)) {
+        trace_mirror_cow(s, sector_num);
+        bdrv_round_to_clusters(s->target,
+                               sector_num, BDRV_SECTORS_PER_DIRTY_CHUNK,
+                               &sector_num, &nb_sectors);
+    }
+
     end = s->common.len >> BDRV_SECTOR_BITS;
-    nb_sectors = MIN(BDRV_SECTORS_PER_DIRTY_CHUNK, end - s->sector_num);
-    bdrv_reset_dirty(source, s->sector_num, nb_sectors);
+    nb_sectors = MIN(nb_sectors, end - sector_num);
+    bdrv_reset_dirty(source, sector_num, nb_sectors);
 
     /* Copy the dirty cluster.  */
     iov.iov_base = s->buf;
     iov.iov_len  = nb_sectors * 512;
     qemu_iovec_init_external(&qiov, &iov, 1);
 
-    trace_mirror_one_iteration(s, s->sector_num, nb_sectors);
-    ret = bdrv_co_readv(source, s->sector_num, nb_sectors, &qiov);
+    trace_mirror_one_iteration(s, sector_num, nb_sectors);
+    ret = bdrv_co_readv(source, sector_num, nb_sectors, &qiov);
     if (ret < 0) {
         *p_action = mirror_error_action(s, true, -ret);
         goto fail;
     }
-    ret = bdrv_co_writev(target, s->sector_num, nb_sectors, &qiov);
+    ret = bdrv_co_writev(target, sector_num, nb_sectors, &qiov);
     if (ret < 0) {
         *p_action = mirror_error_action(s, false, -ret);
         s->synced = false;
         goto fail;
     }
+    if (s->cow_bitmap) {
+        bitmap_set(s->cow_bitmap, sector_num / BDRV_SECTORS_PER_DIRTY_CHUNK,
+                   nb_sectors / BDRV_SECTORS_PER_DIRTY_CHUNK);
+    }
     return 0;
 
 fail:
     /* Try again later.  */
-    bdrv_set_dirty(source, s->sector_num, nb_sectors);
+    bdrv_set_dirty(source, sector_num, nb_sectors);
     return ret;
 }
 
@@ -104,7 +128,9 @@ static void coroutine_fn mirror_run(void *opaque)
 {
     MirrorBlockJob *s = opaque;
     BlockDriverState *bs = s->common.bs;
-    int64_t sector_num, end;
+    int64_t sector_num, end, length;
+    BlockDriverInfo bdi;
+    char backing_filename[1024];
     int ret = 0;
     int n;
 
@@ -118,8 +144,23 @@ static void coroutine_fn mirror_run(void *opaque)
         return;
     }
 
+    /* If we have no backing file yet in the destination, we cannot let
+     * the destination do COW.  Instead, we copy sectors around the
+     * dirty data if needed.  We need a bitmap to do that.
+     */
+    bdrv_get_backing_filename(s->target, backing_filename,
+                              sizeof(backing_filename));
+    if (backing_filename[0] && !s->target->backing_hd) {
+        bdrv_get_info(s->target, &bdi);
+        if (s->buf_size < bdi.cluster_size) {
+            s->buf_size = bdi.cluster_size;
+            length = (bdrv_getlength(bs) + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            s->cow_bitmap = bitmap_new(length);
+        }
+    }
+
     end = s->common.len >> BDRV_SECTOR_BITS;
-    s->buf = qemu_blockalign(bs, BLOCK_SIZE);
+    s->buf = qemu_blockalign(bs, s->buf_size);
 
     if (s->mode != MIRROR_SYNC_MODE_NONE) {
         /* First part, loop on the sectors and initialize the dirty bitmap.  */
@@ -234,6 +275,7 @@ static void coroutine_fn mirror_run(void *opaque)
 
 immediate_exit:
     qemu_vfree(s->buf);
+    g_free(s->cow_bitmap);
     bdrv_set_dirty_tracking(bs, false);
     bdrv_iostatus_disable(s->target);
     if (s->should_complete && ret == 0) {
@@ -320,6 +362,8 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     s->on_target_error = on_target_error;
     s->target = target;
     s->mode = mode;
+    s->buf_size = BLOCK_SIZE;
+
     bdrv_set_dirty_tracking(bs, true);
     bdrv_set_enable_write_cache(s->target, true);
     bdrv_set_on_error(s->target, on_target_error, on_target_error);
