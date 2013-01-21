@@ -354,7 +354,6 @@ typedef struct x86_def_t {
     int family;
     int model;
     int stepping;
-    int tsc_khz;
     uint32_t features, ext_features, ext2_features, ext3_features;
     uint32_t kvm_features, svm_features;
     uint32_t xlevel;
@@ -1560,8 +1559,6 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     env->cpuid_ext4_features = def->ext4_features;
     env->cpuid_7_0_ebx_features = def->cpuid_7_0_ebx_features;
     env->cpuid_xlevel2 = def->xlevel2;
-    object_property_set_int(OBJECT(cpu), (int64_t)def->tsc_khz * 1000,
-                            "tsc-frequency", &error);
 
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
     if (error) {
