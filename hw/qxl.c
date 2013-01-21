@@ -945,6 +945,12 @@ static void interface_set_client_capabilities(QXLInstance *sin,
 {
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
 
+    if (qxl->revision < 4) {
+        trace_qxl_set_client_capabilities_unsupported_by_revision(qxl->id,
+                                                              qxl->revision);
+        return;
+    }
+
     if (runstate_check(RUN_STATE_INMIGRATE) ||
         runstate_check(RUN_STATE_POSTMIGRATE)) {
         return;
@@ -979,6 +985,11 @@ static int interface_client_monitors_config(QXLInstance *sin,
     QXLRom *rom = memory_region_get_ram_ptr(&qxl->rom_bar);
     int i;
 
+    if (qxl->revision < 4) {
+        trace_qxl_client_monitors_config_unsupported_by_device(qxl->id,
+                                                               qxl->revision);
+        return 0;
+    }
     /*
      * Older windows drivers set int_mask to 0 when their ISR is called,
      * then later set it to ~0. So it doesn't relate to the actual interrupts
