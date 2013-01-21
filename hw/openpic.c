@@ -436,13 +436,13 @@ static void openpic_update_irq(OpenPICState *opp, int n_IRQ)
         src->ivpr &= ~IVPR_ACTIVITY_MASK;
     }
 
-    if (src->idr == 0) {
+    if (src->destmask == 0) {
         /* No target */
         DPRINTF("%s: IRQ %d has no target\n", __func__, n_IRQ);
         return;
     }
 
-    if (src->idr == (1 << src->last_cpu)) {
+    if (src->destmask == (1 << src->last_cpu)) {
         /* Only one CPU is allowed to receive this IRQ */
         IRQ_local_pipe(opp, src->last_cpu, n_IRQ, active, was_active);
     } else if (!(src->ivpr & IVPR_MODE_MASK)) {
@@ -1000,8 +1000,7 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
     case 0x70:
         idx = (addr - 0x40) >> 4;
         /* we use IDE as mask which CPUs to deliver the IPI to still. */
-        write_IRQreg_idr(opp, opp->irq_ipi0 + idx,
-                         opp->src[opp->irq_ipi0 + idx].idr | val);
+        opp->src[opp->irq_ipi0 + idx].destmask |= val;
         openpic_set_irq(opp, opp->irq_ipi0 + idx, 1);
         openpic_set_irq(opp, opp->irq_ipi0 + idx, 0);
         break;
@@ -1101,8 +1100,8 @@ static uint32_t openpic_iack(OpenPICState *opp, IRQDest *dst, int cpu)
     }
 
     if ((irq >= opp->irq_ipi0) &&  (irq < (opp->irq_ipi0 + MAX_IPI))) {
-        src->idr &= ~(1 << cpu);
-        if (src->idr && !src->level) {
+        src->destmask &= ~(1 << cpu);
+        if (src->destmask && !src->level) {
             /* trigger on CPUs that didn't know about it yet */
             openpic_set_irq(opp, irq, 1);
             openpic_set_irq(opp, irq, 0);
@@ -1307,6 +1306,7 @@ static void openpic_save(QEMUFile* f, void *opaque)
     for (i = 0; i < opp->max_irq; i++) {
         qemu_put_be32s(f, &opp->src[i].ivpr);
         qemu_put_be32s(f, &opp->src[i].idr);
+        qemu_get_be32s(f, &opp->src[i].destmask);
         qemu_put_sbe32s(f, &opp->src[i].last_cpu);
         qemu_put_sbe32s(f, &opp->src[i].pending);
     }
@@ -1372,6 +1372,7 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
 
         qemu_get_be32s(f, &opp->src[i].ivpr);
         qemu_get_be32s(f, &opp->src[i].idr);
+        qemu_get_be32s(f, &opp->src[i].destmask);
         qemu_get_sbe32s(f, &opp->src[i].last_cpu);
         qemu_get_sbe32s(f, &opp->src[i].pending);
     }
