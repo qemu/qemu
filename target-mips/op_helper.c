@@ -268,14 +268,16 @@ target_ulong helper_mulshiu(CPUMIPSState *env, target_ulong arg1,
 }
 
 #ifdef TARGET_MIPS64
-void helper_dmult(CPUMIPSState *env, target_ulong arg1, target_ulong arg2)
+void helper_dmult(CPUMIPSState *env, int acc, target_ulong arg1,
+                  target_ulong arg2)
 {
-    muls64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), arg1, arg2);
+    muls64(&(env->active_tc.LO[acc]), &(env->active_tc.HI[acc]), arg1, arg2);
 }
 
-void helper_dmultu(CPUMIPSState *env, target_ulong arg1, target_ulong arg2)
+void helper_dmultu(CPUMIPSState *env, int acc, target_ulong arg1,
+                   target_ulong arg2)
 {
-    mulu64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), arg1, arg2);
+    mulu64(&(env->active_tc.LO[acc]), &(env->active_tc.HI[acc]), arg1, arg2);
 }
 #endif
 
