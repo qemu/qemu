@@ -3859,7 +3859,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     qdev_prop_set_uint32(s->ih[0], "size", 0x100);
     qdev_prop_set_ptr(s->ih[0], "clk", omap_findclk(s, "arminth_ck"));
     qdev_init_nofail(s->ih[0]);
-    busdev = sysbus_from_qdev(s->ih[0]);
+    busdev = SYS_BUS_DEVICE(s->ih[0]);
     sysbus_connect_irq(busdev, 0, cpu_irq[ARM_PIC_CPU_IRQ]);
     sysbus_connect_irq(busdev, 1, cpu_irq[ARM_PIC_CPU_FIQ]);
     sysbus_mmio_map(busdev, 0, 0xfffecb00);
@@ -3867,7 +3867,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     qdev_prop_set_uint32(s->ih[1], "size", 0x800);
     qdev_prop_set_ptr(s->ih[1], "clk", omap_findclk(s, "arminth_ck"));
     qdev_init_nofail(s->ih[1]);
-    busdev = sysbus_from_qdev(s->ih[1]);
+    busdev = SYS_BUS_DEVICE(s->ih[1]);
     sysbus_connect_irq(busdev, 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_15XX_IH2_IRQ));
     /* The second interrupt controller's FIQ output is not wired up */
@@ -3980,9 +3980,9 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     qdev_prop_set_int32(s->gpio, "mpu_model", s->mpu_model);
     qdev_prop_set_ptr(s->gpio, "clk", omap_findclk(s, "arm_gpio_ck"));
     qdev_init_nofail(s->gpio);
-    sysbus_connect_irq(sysbus_from_qdev(s->gpio), 0,
+    sysbus_connect_irq(SYS_BUS_DEVICE(s->gpio), 0,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_GPIO_BANK1));
-    sysbus_mmio_map(sysbus_from_qdev(s->gpio), 0, 0xfffce000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(s->gpio), 0, 0xfffce000);
 
     s->microwire = omap_uwire_init(system_memory, 0xfffb3000,
                                    qdev_get_gpio_in(s->ih[1], OMAP_INT_uWireTX),
@@ -3998,7 +3998,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     qdev_prop_set_uint8(s->i2c[0], "revision", 0x11);
     qdev_prop_set_ptr(s->i2c[0], "fclk", omap_findclk(s, "mpuper_ck"));
     qdev_init_nofail(s->i2c[0]);
-    busdev = sysbus_from_qdev(s->i2c[0]);
+    busdev = SYS_BUS_DEVICE(s->i2c[0]);
     sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(s->ih[1], OMAP_INT_I2C));
     sysbus_connect_irq(busdev, 1, s->drq[OMAP_DMA_I2C_TX]);
     sysbus_connect_irq(busdev, 2, s->drq[OMAP_DMA_I2C_RX]);

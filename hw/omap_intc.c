@@ -329,7 +329,7 @@ static const MemoryRegionOps omap_inth_mem_ops = {
 static void omap_inth_reset(DeviceState *dev)
 {
     struct omap_intr_handler_s *s = FROM_SYSBUS(struct omap_intr_handler_s,
-                                                sysbus_from_qdev(dev));
+                                                SYS_BUS_DEVICE(dev));
     int i;
 
     for (i = 0; i < s->nbanks; ++i){

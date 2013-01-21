@@ -100,7 +100,7 @@ static void s3c24xx_cam_write(void *opaque, hwaddr offset,
 
 static void s3c24xx_cam_reset(DeviceState *d)
 {
-    //~ S3C24xxCamState *s = FROM_SYSBUS(S3C24xxCamState, sysbus_from_qdev(d));
+    //~ S3C24xxCamState *s = FROM_SYSBUS(S3C24xxCamState, SYS_BUS_DEVICE(d));
 }
 
 static const MemoryRegionOps s3c24xx_cam_ops = {
@@ -193,7 +193,7 @@ static void s3c24xx_wdg_write(void *opaque, hwaddr offset,
 
 static void s3c24xx_wdg_reset(DeviceState *d)
 {
-    //~ S3C24xxWdgState *s = FROM_SYSBUS(S3C24xxWdgState, sysbus_from_qdev(d));
+    //~ S3C24xxWdgState *s = FROM_SYSBUS(S3C24xxWdgState, SYS_BUS_DEVICE(d));
 }
 
 static const MemoryRegionOps s3c24xx_wdg_ops = {
@@ -298,7 +298,7 @@ static void s3c24xx_adc_write(void *opaque, hwaddr offset,
 
 static void s3c24xx_adc_reset(DeviceState *d)
 {
-    //~ S3C24xxAdcState *s = FROM_SYSBUS(S3C24xxAdcState, sysbus_from_qdev(d));
+    //~ S3C24xxAdcState *s = FROM_SYSBUS(S3C24xxAdcState, SYS_BUS_DEVICE(d));
 }
 
 static const MemoryRegionOps s3c24xx_adc_ops = {
@@ -426,8 +426,8 @@ s3c2440_init(int sdram_size)
     qdev_prop_set_uint32(dev, "num-ports", 2);
     //~ qdev_prop_set_taddr(dev, "dma-offset", base);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, CPU_S3C2440_OHCI_BASE);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, s3c24xx_get_irq(s->irq, 26));
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, CPU_S3C2440_OHCI_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, s3c24xx_get_irq(s->irq, 26));
 
     dev = sysbus_create_simple("s3c24xx_adc", CPU_S3C2440_ADC_BASE, NULL);
 

@@ -760,7 +760,7 @@ pflash_t *pflash_cfi02_register(hwaddr base,
                                 int be)
 {
     DeviceState *dev = qdev_create(NULL, "cfi.pflash02");
-    SysBusDevice *busdev = sysbus_from_qdev(dev);
+    SysBusDevice *busdev = SYS_BUS_DEVICE(dev);
     pflash_t *pfl = (pflash_t *)object_dynamic_cast(OBJECT(dev),
                                                     "cfi.pflash02");
 

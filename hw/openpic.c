@@ -506,7 +506,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 
 static void openpic_reset(DeviceState *d)
 {
-    OpenPICState *opp = FROM_SYSBUS(typeof (*opp), sysbus_from_qdev(d));
+    OpenPICState *opp = FROM_SYSBUS(typeof(*opp), SYS_BUS_DEVICE(d));
     int i;
 
     opp->gcr = GCR_RESET;

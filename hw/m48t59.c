@@ -646,7 +646,7 @@ M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
     qdev_prop_set_uint32(dev, "size", size);
     qdev_prop_set_uint32(dev, "io_base", io_base);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     d = FROM_SYSBUS(M48t59SysBusState, s);
     state = &d->state;
     sysbus_connect_irq(s, 0, IRQ);

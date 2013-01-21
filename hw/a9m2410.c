@@ -16,7 +16,7 @@
 
 #include "hw.h"
 #include "sysemu/blockdev.h"    /* drive_get */
-#include "sysbus.h"             /* sysbus_from_qdev, ... */
+#include "sysbus.h"             /* SYS_BUS_DEVICE, ... */
 #include "sysemu/sysemu.h"
 #include "arm-misc.h"
 #include "loader.h"             /* load_image_targphys */
@@ -343,7 +343,7 @@ static void stcb_init(QEMUMachineInitArgs *args)
         dev = qdev_create(NULL, "smc91c111");
         qdev_set_nic_properties(dev, nd);
         qdev_init_nofail(dev);
-        s = sysbus_from_qdev(dev);
+        s = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(s, 0, CPU_S3C2410X_CS1 + 0x300);
         sysbus_connect_irq(s, 0, s3c24xx_get_eirq(stcb->soc->gpio, 3));
     }
@@ -355,7 +355,7 @@ static void stcb_init(QEMUMachineInitArgs *args)
         dev = qdev_create(NULL, "ax88796");
         qdev_set_nic_properties(dev, nd);
         qdev_init_nofail(dev);
-        s = sysbus_from_qdev(dev);
+        s = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(s, 0, ASIXNET_BASE);
         logout("ASIXNET_BASE = 0x%08x\n", ASIXNET_BASE);
         //~ sysbus_connect_irq(s, 0, s3c24xx_get_eirq(stcb->soc->gpio, AX88796_IRQ));

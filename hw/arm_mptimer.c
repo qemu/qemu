@@ -238,7 +238,7 @@ static void timerblock_reset(timerblock *tb)
 static void arm_mptimer_reset(DeviceState *dev)
 {
     arm_mptimer_state *s =
-        FROM_SYSBUS(arm_mptimer_state, sysbus_from_qdev(dev));
+        FROM_SYSBUS(arm_mptimer_state, SYS_BUS_DEVICE(dev));
     int i;
     /* We reset every timer in the array, not just the ones we're using,
      * because vmsave will look at every array element.

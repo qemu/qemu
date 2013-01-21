@@ -31,7 +31,7 @@
 #define IP_INT_SPACE_ADDR_MASK 0x3F
 
 #define STATUS_INT(IP, INTNO) BIT((IP) * 2 + (INTNO))
-#define STATUS_TIMEOUT(IP)    BIT((IP) + 12)
+#define STATUS_TIME(IP)       BIT((IP) + 12)
 #define STATUS_ERR_ANY        0xF00
 
 #define CTRL_CLKRATE          BIT(0)
@@ -279,9 +279,9 @@ static void tpci200_write_las0(void *opaque, hwaddr addr, uint64_t val,
                     }
                 }
 
-                if (val & STATUS_TIMEOUT(i)) {
+                if (val & STATUS_TIME(i)) {
                     DPRINTF("Clear IP %c timeout\n", 'A' + i);
-                    s->status &= ~STATUS_TIMEOUT(i);
+                    s->status &= ~STATUS_TIME(i);
                 }
             }
 

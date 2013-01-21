@@ -18,7 +18,7 @@
 
 #include "hw.h"
 #include "sysemu/blockdev.h"    /* drive_get */
-#include "sysbus.h"             /* sysbus_from_qdev, ... */
+#include "sysbus.h"             /* SYS_BUS_DEVICE, ... */
 #include "sysemu/sysemu.h"
 #include "arm-misc.h"
 #include "char/char.h"          /* qemu_chr_new */
@@ -485,7 +485,7 @@ static void stcb_init(QEMUMachineInitArgs *args)
         dev = qdev_create(NULL, "dm9000");
         qdev_set_nic_properties(dev, nd);
         qdev_init_nofail(dev);
-        s = sysbus_from_qdev(dev);
+        s = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(s, 0, DM9000_BASE);
         sysbus_connect_irq(s, 0, s3c24xx_get_eirq(stcb->soc->gpio, DM9000_IRQ));
     }
@@ -496,7 +496,7 @@ static void stcb_init(QEMUMachineInitArgs *args)
         dev = qdev_create(NULL, "ax88796");
         qdev_set_nic_properties(dev, nd);
         qdev_init_nofail(dev);
-        s = sysbus_from_qdev(dev);
+        s = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(s, 0, ASIXNET_BASE);
         logout("ASIXNET_BASE = 0x%08x\n", ASIXNET_BASE);
         logout("AX88796_BASE = 0x%08x\n", AX88796_BASE);

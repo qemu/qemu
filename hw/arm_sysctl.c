@@ -75,7 +75,7 @@ static int board_id(arm_sysctl_state *s)
 
 static void arm_sysctl_reset(DeviceState *d)
 {
-    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, sysbus_from_qdev(d));
+    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, SYS_BUS_DEVICE(d));
 
     s->leds = 0;
     s->lockval = 0;

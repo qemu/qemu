@@ -44,7 +44,7 @@ etraxfs_eth_init(NICInfo *nd, hwaddr base, int phyaddr,
     qdev_prop_set_ptr(dev, "dma_out", dma_out);
     qdev_prop_set_ptr(dev, "dma_in", dma_in);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     return dev;
 }
 

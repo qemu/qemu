@@ -14,8 +14,8 @@ xilinx_intc_create(hwaddr base, qemu_irq irq, int kind_of_intr)
     dev = qdev_create(NULL, "xlnx.xps-intc");
     qdev_prop_set_uint32(dev, "kind-of-intr", kind_of_intr);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
     return dev;
 }
 
@@ -29,8 +29,8 @@ xilinx_timer_create(hwaddr base, qemu_irq irq, int oto, int freq)
     qdev_prop_set_uint32(dev, "one-timer-only", oto);
     qdev_prop_set_uint32(dev, "clock-frequency", freq);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
     return dev;
 }
 
@@ -48,8 +48,8 @@ xilinx_ethlite_create(NICInfo *nd, hwaddr base, qemu_irq irq,
     qdev_prop_set_uint32(dev, "tx-ping-pong", txpingpong);
     qdev_prop_set_uint32(dev, "rx-ping-pong", rxpingpong);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
     return dev;
 }
 
@@ -71,8 +71,8 @@ xilinx_axiethernet_create(NICInfo *nd, StreamSlave *peer,
                              &errp);
     assert_no_error(errp);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     return dev;
 }
@@ -90,9 +90,9 @@ xilinx_axiethernetdma_init(DeviceState *dev, StreamSlave *peer,
     assert_no_error(errp);
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 1, irq2);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, irq2);
 }
 
 #endif

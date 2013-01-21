@@ -283,6 +283,7 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
 static BusState *qbus_find_recursive(BusState *bus, const char *name,
                                      const char *bus_typename)
 {
+    BusClass *bus_class = BUS_GET_CLASS(bus);
     BusChild *kid;
     BusState *child, *ret;
     int match = 1;
@@ -292,6 +293,17 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
     }
     if (bus_typename && !object_dynamic_cast(OBJECT(bus), bus_typename)) {
         match = 0;
+    }
+    if ((bus_class->max_dev != 0) && (bus_class->max_dev <= bus->max_index)) {
+        if (name != NULL) {
+            /* bus was explicitly specified: return an error. */
+            qerror_report(ERROR_CLASS_GENERIC_ERROR, "Bus '%s' is full",
+                          bus->name);
+            return NULL;
+        } else {
+            /* bus was not specified: try to find another one. */
+            match = 0;
+        }
     }
     if (match) {
         return bus;

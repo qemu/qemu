@@ -109,7 +109,7 @@ void grlib_irqmp_ack(DeviceState *dev, int intno)
 
     assert(dev != NULL);
 
-    sdev = sysbus_from_qdev(dev);
+    sdev = SYS_BUS_DEVICE(dev);
     assert(sdev != NULL);
 
     irqmp = FROM_SYSBUS(typeof(*irqmp), sdev);
@@ -138,7 +138,7 @@ void grlib_irqmp_set_irq(void *opaque, int irq, int level)
 
     assert(opaque != NULL);
 
-    irqmp = FROM_SYSBUS(typeof(*irqmp), sysbus_from_qdev(opaque));
+    irqmp = FROM_SYSBUS(typeof(*irqmp), SYS_BUS_DEVICE(opaque));
     assert(irqmp != NULL);
 
     s = irqmp->state;

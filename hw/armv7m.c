@@ -137,12 +137,12 @@ static void armv7m_bitband_init(void)
     dev = qdev_create(NULL, "ARM,bitband-memory");
     qdev_prop_set_uint32(dev, "base", 0x20000000);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, 0x22000000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x22000000);
 
     dev = qdev_create(NULL, "ARM,bitband-memory");
     qdev_prop_set_uint32(dev, "base", 0x40000000);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, 0x42000000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x42000000);
 }
 
 /* Board init.  */
@@ -216,7 +216,7 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     env->nvic = nvic;
     qdev_init_nofail(nvic);
     cpu_pic = arm_pic_init_cpu(cpu);
-    sysbus_connect_irq(sysbus_from_qdev(nvic), 0, cpu_pic[ARM_PIC_CPU_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(nvic), 0, cpu_pic[ARM_PIC_CPU_IRQ]);
     for (i = 0; i < 64; i++) {
         pic[i] = qdev_get_gpio_in(nvic, i);
     }

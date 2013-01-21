@@ -222,7 +222,7 @@ static void mv88w8618_audio_write(void *opaque, hwaddr offset,
 static void mv88w8618_audio_reset(DeviceState *d)
 {
     mv88w8618_audio_state *s = FROM_SYSBUS(mv88w8618_audio_state,
-                                           sysbus_from_qdev(d));
+                                           SYS_BUS_DEVICE(d));
 
     s->playback_mode = 0;
     s->status = 0;

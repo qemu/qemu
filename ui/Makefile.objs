@@ -4,6 +4,7 @@ vnc-obj-y += vnc-enc-tight.o vnc-palette.o
 vnc-obj-y += vnc-enc-zrle.o
 vnc-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
 vnc-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
+vnc-obj-$(CONFIG_VNC_WS) += vnc-ws.o
 vnc-obj-y += vnc-jobs.o
 
 common-obj-y += keymaps.o console.o cursor.o input.o qemu-pixman.o

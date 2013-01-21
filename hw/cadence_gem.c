@@ -959,7 +959,7 @@ static void gem_phy_reset(GemState *s)
 
 static void gem_reset(DeviceState *d)
 {
-    GemState *s = FROM_SYSBUS(GemState, sysbus_from_qdev(d));
+    GemState *s = FROM_SYSBUS(GemState, SYS_BUS_DEVICE(d));
 
     DB_PRINT("\n");
 

@@ -137,8 +137,8 @@ s3c2410x_init(int sdram_size)
     qdev_prop_set_uint32(dev, "num-ports", 2);
     //~ qdev_prop_set_taddr(dev, "dma-offset", base);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, CPU_S3C2410X_OHCI_BASE);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, s3c24xx_get_irq(s->irq, 26));
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, CPU_S3C2410X_OHCI_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, s3c24xx_get_irq(s->irq, 26));
 
     dev = sysbus_create_simple("s3c24xx_wdg", CPU_S3C24XX_WDG_BASE, NULL);
     dev = sysbus_create_simple("s3c24xx_adc", CPU_S3C24XX_ADC_BASE, NULL);

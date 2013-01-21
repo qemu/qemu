@@ -302,8 +302,8 @@ static void migrate_fd_completed(MigrationState *s)
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
-ssize_t migrate_fd_put_buffer(MigrationState *s, const void *data,
-                              size_t size)
+static ssize_t migrate_fd_put_buffer(MigrationState *s, const void *data,
+                                     size_t size)
 {
     ssize_t ret;
 
@@ -330,7 +330,7 @@ static void migrate_fd_cancel(MigrationState *s)
 
     s->state = MIG_STATE_CANCELLED;
     notifier_list_notify(&migration_state_notifiers, s);
-    qemu_savevm_state_cancel(s->file);
+    qemu_savevm_state_cancel();
 
     migrate_fd_cleanup(s);
 }
@@ -605,7 +605,6 @@ static int buffered_close(void *opaque)
     if (ret >= 0) {
         ret = ret2;
     }
-    ret = migrate_fd_close(s);
     s->complete = true;
     return ret;
 }
@@ -633,7 +632,7 @@ static int buffered_rate_limit(void *opaque)
         return ret;
     }
 
-    if (s->bytes_xfer > s->xfer_limit) {
+    if (s->bytes_xfer >= s->xfer_limit) {
         return 1;
     }
 
@@ -650,7 +649,7 @@ static int64_t buffered_set_rate_limit(void *opaque, int64_t new_rate)
         new_rate = SIZE_MAX;
     }
 
-    s->xfer_limit = new_rate / 10;
+    s->xfer_limit = new_rate / XFER_LIMIT_RATIO;
 
 out:
     return s->xfer_limit;
@@ -663,84 +662,79 @@ static int64_t buffered_get_rate_limit(void *opaque)
     return s->xfer_limit;
 }
 
-static bool migrate_fd_put_ready(MigrationState *s, uint64_t max_size)
-{
-    int ret;
-    uint64_t pending_size;
-    bool last_round = false;
-
-    qemu_mutex_lock_iothread();
-    if (s->state != MIG_STATE_ACTIVE) {
-        DPRINTF("put_ready returning because of non-active state\n");
-        qemu_mutex_unlock_iothread();
-        return false;
-    }
-    if (s->first_time) {
-        s->first_time = false;
-        DPRINTF("beginning savevm\n");
-        ret = qemu_savevm_state_begin(s->file, &s->params);
-        if (ret < 0) {
-            DPRINTF("failed, %d\n", ret);
-            migrate_fd_error(s);
-            qemu_mutex_unlock_iothread();
-            return false;
-        }
-    }
-
-    DPRINTF("iterate\n");
-    pending_size = qemu_savevm_state_pending(s->file, max_size);
-    DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
-    if (pending_size >= max_size) {
-        ret = qemu_savevm_state_iterate(s->file);
-        if (ret < 0) {
-            migrate_fd_error(s);
-        }
-    } else {
-        int old_vm_running = runstate_is_running();
-        int64_t start_time, end_time;
-
-        DPRINTF("done iterating\n");
-        start_time = qemu_get_clock_ms(rt_clock);
-        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-        if (old_vm_running) {
-            vm_stop(RUN_STATE_FINISH_MIGRATE);
-        } else {
-            vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-        }
-
-        if (qemu_savevm_state_complete(s->file) < 0) {
-            migrate_fd_error(s);
-        } else {
-            migrate_fd_completed(s);
-        }
-        end_time = qemu_get_clock_ms(rt_clock);
-        s->total_time = end_time - s->total_time;
-        s->downtime = end_time - start_time;
-        if (s->state != MIG_STATE_COMPLETED) {
-            if (old_vm_running) {
-                vm_start();
-            }
-        }
-        last_round = true;
-    }
-    qemu_mutex_unlock_iothread();
-
-    return last_round;
-}
-
 static void *buffered_file_thread(void *opaque)
 {
     MigrationState *s = opaque;
     int64_t initial_time = qemu_get_clock_ms(rt_clock);
     int64_t max_size = 0;
     bool last_round = false;
+    int ret;
+
+    qemu_mutex_lock_iothread();
+    DPRINTF("beginning savevm\n");
+    ret = qemu_savevm_state_begin(s->file, &s->params);
+    if (ret < 0) {
+        DPRINTF("failed, %d\n", ret);
+        qemu_mutex_unlock_iothread();
+        goto out;
+    }
+    qemu_mutex_unlock_iothread();
 
     while (true) {
         int64_t current_time = qemu_get_clock_ms(rt_clock);
+        uint64_t pending_size;
 
-        if (s->complete) {
+        qemu_mutex_lock_iothread();
+        if (s->state != MIG_STATE_ACTIVE) {
+            DPRINTF("put_ready returning because of non-active state\n");
+            qemu_mutex_unlock_iothread();
             break;
         }
+        if (s->complete) {
+            qemu_mutex_unlock_iothread();
+            break;
+        }
+        if (s->bytes_xfer < s->xfer_limit) {
+            DPRINTF("iterate\n");
+            pending_size = qemu_savevm_state_pending(s->file, max_size);
+            DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
+            if (pending_size && pending_size >= max_size) {
+                ret = qemu_savevm_state_iterate(s->file);
+                if (ret < 0) {
+                    qemu_mutex_unlock_iothread();
+                    break;
+                }
+            } else {
+                int old_vm_running = runstate_is_running();
+                int64_t start_time, end_time;
+
+                DPRINTF("done iterating\n");
+                start_time = qemu_get_clock_ms(rt_clock);
+                qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+                if (old_vm_running) {
+                    vm_stop(RUN_STATE_FINISH_MIGRATE);
+                } else {
+                    vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+                }
+                ret = qemu_savevm_state_complete(s->file);
+                if (ret < 0) {
+                    qemu_mutex_unlock_iothread();
+                    break;
+                } else {
+                    migrate_fd_completed(s);
+                }
+                end_time = qemu_get_clock_ms(rt_clock);
+                s->total_time = end_time - s->total_time;
+                s->downtime = end_time - start_time;
+                if (s->state != MIG_STATE_COMPLETED) {
+                    if (old_vm_running) {
+                        vm_start();
+                    }
+                }
+                last_round = true;
+            }
+        }
+        qemu_mutex_unlock_iothread();
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = s->bytes_xfer;
             uint64_t time_spent = current_time - initial_time;
@@ -758,17 +752,16 @@ static void *buffered_file_thread(void *opaque)
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
         }
-        if (buffered_flush(s) < 0) {
+        ret = buffered_flush(s);
+        if (ret < 0) {
             break;
-        }
-
-        DPRINTF("file is ready\n");
-        if (s->bytes_xfer < s->xfer_limit) {
-            DPRINTF("notifying client\n");
-            last_round = migrate_fd_put_ready(s, max_size);
         }
     }
 
+out:
+    if (ret < 0) {
+        migrate_fd_error(s);
+    }
     g_free(s->buffer);
     return NULL;
 }
@@ -789,8 +782,6 @@ void migrate_fd_connect(MigrationState *s)
     s->buffer = NULL;
     s->buffer_size = 0;
     s->buffer_capacity = 0;
-
-    s->first_time = true;
 
     s->xfer_limit = s->bandwidth_limit / XFER_LIMIT_RATIO;
     s->complete = false;

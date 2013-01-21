@@ -8,6 +8,7 @@ common-obj-y += loader.o
 common-obj-$(CONFIG_VIRTIO) += virtio-console.o
 common-obj-$(CONFIG_VIRTIO) += virtio-rng.o
 common-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
+common-obj-$(CONFIG_VIRTIO) += virtio-bus.o
 common-obj-y += fw_cfg.o
 common-obj-$(CONFIG_PCI) += pci_bridge_dev.o
 common-obj-$(CONFIG_PCI) += ioh3420.o xio3130_upstream.o xio3130_downstream.o

@@ -3523,10 +3523,10 @@ static void ar7_nic_init(void)
             qemu_check_nic_model(nd, "ar7");
             if (n < 2) {
                 DeviceState *dev = qdev_create(NULL, "ar7-cpmac");
-                CpmacState *s = FROM_SYSBUS(CpmacState, sysbus_from_qdev(dev));
+                CpmacState *s = FROM_SYSBUS(CpmacState, SYS_BUS_DEVICE(dev));
                 qdev_set_nic_properties(dev, nd);
                 qdev_init_nofail(dev);
-                sysbus_connect_irq(sysbus_from_qdev(dev), 0,
+                sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                                    ar7->primary_irq[cpmac_interrupt[n]]);
                 s->addr = (n == 0) ? av.cpmac0 : av.cpmac1;
                 s->index = n;

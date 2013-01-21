@@ -1428,9 +1428,9 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
     qdev_prop_set_uint32(dev, "num-ports", 2);
     qdev_prop_set_taddr(dev, "dma-offset", base);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0,
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
                     base + MMIO_BASE_OFFSET + SM501_USB_HOST);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     /* bridge to serial emulation module */
     if (chr) {

@@ -145,6 +145,8 @@ struct BusClass {
      */
     char *(*get_fw_dev_path)(DeviceState *dev);
     int (*reset)(BusState *bus);
+    /* maximum devices allowed on the bus, 0: no limit. */
+    int max_dev;
 };
 
 typedef struct BusChild {

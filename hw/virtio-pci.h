@@ -21,6 +21,22 @@
 #include "virtio-rng.h"
 #include "virtio-serial.h"
 #include "virtio-scsi.h"
+#include "virtio-bus.h"
+
+typedef struct VirtIOPCIProxy VirtIOPCIProxy;
+
+/* virtio-pci-bus */
+
+typedef struct VirtioBusState VirtioPCIBusState;
+typedef struct VirtioBusClass VirtioPCIBusClass;
+
+#define TYPE_VIRTIO_PCI_BUS "virtio-pci-bus"
+#define VIRTIO_PCI_BUS(obj) \
+        OBJECT_CHECK(VirtioPCIBusState, (obj), TYPE_VIRTIO_PCI_BUS)
+#define VIRTIO_PCI_BUS_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(VirtioPCIBusClass, obj, TYPE_VIRTIO_PCI_BUS)
+#define VIRTIO_PCI_BUS_CLASS(klass) \
+        OBJECT_CLASS_CHECK(VirtioPCIBusClass, klass, TYPE_VIRTIO_PCI_BUS)
 
 /* Performance improves when virtqueue kick processing is decoupled from the
  * vcpu thread using ioeventfd for some devices. */
@@ -33,7 +49,23 @@ typedef struct {
     unsigned int users;
 } VirtIOIRQFD;
 
-typedef struct {
+/*
+ * virtio-pci: This is the PCIDevice which has a virtio-pci-bus.
+ */
+#define TYPE_VIRTIO_PCI "virtio-pci"
+#define VIRTIO_PCI_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(VirtioPCIClass, obj, TYPE_VIRTIO_PCI)
+#define VIRTIO_PCI_CLASS(klass) \
+        OBJECT_CLASS_CHECK(VirtioPCIClass, klass, TYPE_VIRTIO_PCI)
+#define VIRTIO_PCI(obj) \
+        OBJECT_CHECK(VirtIOPCIProxy, (obj), TYPE_VIRTIO_PCI)
+
+typedef struct VirtioPCIClass {
+    PCIDeviceClass parent_class;
+    int (*init)(VirtIOPCIProxy *vpci_dev);
+} VirtioPCIClass;
+
+struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     VirtIODevice *vdev;
     MemoryRegion bar;
@@ -54,10 +86,12 @@ typedef struct {
     bool ioeventfd_started;
     VirtIOIRQFD *vector_irqfd;
     int nvqs_with_notifiers;
-} VirtIOPCIProxy;
+    VirtioBusState bus;
+};
 
 void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev);
 void virtio_pci_reset(DeviceState *d);
+void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev);
 
 /* Virtio ABI version, if we increment this, we break the guest driver. */
 #define VIRTIO_PCI_ABI_VERSION          0

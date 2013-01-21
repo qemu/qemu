@@ -547,7 +547,7 @@ void ppce500_init(PPCE500Params *params)
     qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
     qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_FSL_MPIC_20);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
 
     k = 0;
     for (i = 0; i < smp_cpus; i++) {
@@ -599,7 +599,7 @@ void ppce500_init(PPCE500Params *params)
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 1, MPC8544_PCI_IO);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, MPC8544_PCI_IO);
 
     if (pci_bus) {
         /* Register network interfaces. */

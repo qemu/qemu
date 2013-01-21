@@ -260,12 +260,12 @@ DeviceState *pxa2xx_gpio_init(hwaddr base,
     qdev_prop_set_int32(dev, "ncpu", cs->cpu_index);
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0,
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                     qdev_get_gpio_in(pic, PXA2XX_PIC_GPIO_0));
-    sysbus_connect_irq(sysbus_from_qdev(dev), 1,
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1,
                     qdev_get_gpio_in(pic, PXA2XX_PIC_GPIO_1));
-    sysbus_connect_irq(sysbus_from_qdev(dev), 2,
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 2,
                     qdev_get_gpio_in(pic, PXA2XX_PIC_GPIO_X));
 
     return dev;
@@ -297,7 +297,7 @@ static int pxa2xx_gpio_initfn(SysBusDevice *dev)
  */
 void pxa2xx_gpio_read_notifier(DeviceState *dev, qemu_irq handler)
 {
-    PXA2xxGPIOInfo *s = FROM_SYSBUS(PXA2xxGPIOInfo, sysbus_from_qdev(dev));
+    PXA2xxGPIOInfo *s = FROM_SYSBUS(PXA2xxGPIOInfo, SYS_BUS_DEVICE(dev));
     s->read_notify = handler;
 }
 

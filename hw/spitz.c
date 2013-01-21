@@ -156,7 +156,7 @@ static void sl_flash_register(PXA2xxState *cpu, int size)
         qdev_prop_set_uint8(dev, "chip_id", 0xf1);
 
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, FLASH_BASE);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, FLASH_BASE);
 }
 
 static int sl_nand_init(SysBusDevice *dev) {
@@ -459,7 +459,7 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
     SpitzKeyboardState *s;
 
     dev = sysbus_create_simple("spitz-keyboard", -1, NULL);
-    s = FROM_SYSBUS(SpitzKeyboardState, sysbus_from_qdev(dev));
+    s = FROM_SYSBUS(SpitzKeyboardState, SYS_BUS_DEVICE(dev));
 
     for (i = 0; i < SPITZ_KEY_SENSE_NUM; i ++)
         qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(cpu->gpio, spitz_gpio_key_sense[i]));

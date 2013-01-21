@@ -61,7 +61,7 @@ DeviceState *grlib_irqmp_create(hwaddr   base,
 
     env->irq_manager = dev;
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
     *cpu_irqs = qemu_allocate_irqs(grlib_irqmp_set_irq,
                                    dev,
@@ -91,10 +91,10 @@ DeviceState *grlib_gptimer_create(hwaddr  base,
         return NULL;
     }
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
     for (i = 0; i < nr_timers; i++) {
-        sysbus_connect_irq(sysbus_from_qdev(dev), i, cpu_irqs[base_irq + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, cpu_irqs[base_irq + i]);
     }
 
     return dev;
@@ -116,9 +116,9 @@ DeviceState *grlib_apbuart_create(hwaddr  base,
         return NULL;
     }
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     return dev;
 }

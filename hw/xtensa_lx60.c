@@ -131,7 +131,7 @@ static void lx60_net_init(MemoryRegion *address_space,
     qdev_set_nic_properties(dev, nd);
     qdev_init_nofail(dev);
 
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(s, 0, irq);
     memory_region_add_subregion(address_space, base,
             sysbus_mmio_get_region(s, 0));

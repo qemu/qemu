@@ -224,7 +224,7 @@ static void onenand_reset(OneNANDState *s, int cold)
 
 static void onenand_system_reset(DeviceState *dev)
 {
-    onenand_reset(FROM_SYSBUS(OneNANDState, sysbus_from_qdev(dev)), 1);
+    onenand_reset(FROM_SYSBUS(OneNANDState, SYS_BUS_DEVICE(dev)), 1);
 }
 
 static inline int onenand_load_main(OneNANDState *s, int sec, int secn,
@@ -835,7 +835,7 @@ static void onenand_register_types(void)
 
 void *onenand_raw_otp(DeviceState *onenand_device)
 {
-    return FROM_SYSBUS(OneNANDState, sysbus_from_qdev(onenand_device))->otp;
+    return FROM_SYSBUS(OneNANDState, SYS_BUS_DEVICE(onenand_device))->otp;
 }
 
 type_init(onenand_register_types)

@@ -689,7 +689,7 @@ static const MemoryRegionOps tt_gpio_ops = {
 
 static void tt_gpio_reset(DeviceState *d)
 {
-    tt_gpio_state *s = FROM_SYSBUS(tt_gpio_state, sysbus_from_qdev(d));
+    tt_gpio_state *s = FROM_SYSBUS(tt_gpio_state, SYS_BUS_DEVICE(d));
 
     s->lcd_brightness = 0;
     s->out_state = 0;
@@ -988,7 +988,7 @@ static void tt_init(QEMUMachineInitArgs *args)
 
     wm8750_dev = i2c_create_slave(i2c, "wm8750", MP_WM_ADDR);
     dev = qdev_create(NULL, "mv88w8618_audio");
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_ptr(dev, "wm8750", wm8750_dev);
     qdev_init_nofail(dev);
     sysbus_mmio_map(s, 0, MP_AUDIO_BASE);
