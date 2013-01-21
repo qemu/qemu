@@ -80,9 +80,7 @@
 
 #define QXL_MODE_EX(x_res, y_res)                 \
     QXL_MODE_16_32(x_res, y_res, 0),              \
-    QXL_MODE_16_32(y_res, x_res, 1),              \
-    QXL_MODE_16_32(x_res, y_res, 2),              \
-    QXL_MODE_16_32(y_res, x_res, 3)
+    QXL_MODE_16_32(x_res, y_res, 1)
 
 static QXLMode qxl_modes[] = {
     QXL_MODE_EX(640, 480),
@@ -306,10 +304,13 @@ static inline uint32_t msb_mask(uint32_t val)
 
 static ram_addr_t qxl_rom_size(void)
 {
-    uint32_t rom_size = sizeof(QXLRom) + sizeof(QXLModes) + sizeof(qxl_modes);
+    uint32_t required_rom_size = sizeof(QXLRom) + sizeof(QXLModes) +
+                                 sizeof(qxl_modes);
+    uint32_t rom_size = 8192; /* two pages */
 
-    rom_size = MAX(rom_size, TARGET_PAGE_SIZE);
-    rom_size = msb_mask(rom_size * 2 - 1);
+    required_rom_size = MAX(required_rom_size, TARGET_PAGE_SIZE);
+    required_rom_size = msb_mask(required_rom_size * 2 - 1);
+    assert(required_rom_size <= rom_size);
     return rom_size;
 }
 
