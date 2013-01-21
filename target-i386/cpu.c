@@ -1318,20 +1318,22 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
 {
     x86_def_t *def;
 
-    for (def = x86_defs; def; def = def->next) {
-        if (name && !strcmp(name, def->name)) {
-            break;
-        }
-    }
-    if (kvm_enabled() && name && strcmp(name, "host") == 0) {
-        kvm_cpu_fill_host(x86_cpu_def);
-    } else if (!def) {
+    if (name == NULL) {
         return -1;
-    } else {
-        memcpy(x86_cpu_def, def, sizeof(*def));
+    }
+    if (kvm_enabled() && strcmp(name, "host") == 0) {
+        kvm_cpu_fill_host(x86_cpu_def);
+        return 0;
     }
 
-    return 0;
+    for (def = x86_defs; def; def = def->next) {
+        if (strcmp(name, def->name) == 0) {
+            memcpy(x86_cpu_def, def, sizeof(*def));
+            return 0;
+        }
+    }
+
+    return -1;
 }
 
 /* Parse "+feature,-feature,feature=foo" CPU feature string
