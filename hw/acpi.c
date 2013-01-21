@@ -104,7 +104,7 @@ int acpi_table_add(const char *t)
     /* now read in the data files, reallocating buffer as needed */
 
     for (f = strtok(buf, ":"); f; f = strtok(NULL, ":")) {
-        int fd = open(f, O_RDONLY);
+        int fd = open(f, O_RDONLY | O_BINARY);
 
         if (fd < 0) {
             fprintf(stderr, "can't open file %s: %s\n", f, strerror(errno));

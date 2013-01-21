@@ -107,7 +107,7 @@ static void openrisc_sim_init(QEMUMachineInitArgs *args)
     for (n = 0; n < smp_cpus; n++) {
         cpu = cpu_openrisc_init(cpu_model);
         if (cpu == NULL) {
-            qemu_log("Unable to find CPU defineition!\n");
+            qemu_log("Unable to find CPU definition!\n");
             exit(1);
         }
         qemu_register_reset(main_cpu_reset, cpu);
