@@ -15,7 +15,7 @@
 #pragma GCC diagnostic error "-Wredundant-decls"
 #endif
 
-#include "console.h"
+#include "qemu/typedefs.h"
 
 /*
  * pixman image formats are defined to be native endian,
