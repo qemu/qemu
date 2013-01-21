@@ -505,7 +505,7 @@ void ppce500_init(PPCE500Params *params)
         irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
         env->spr[SPR_BOOKE_PIR] = cs->cpu_index = i;
         env->mpic_iack = MPC8544_CCSRBAR_BASE +
-                         MPC8544_MPIC_REGS_OFFSET + 0x200A0;
+                         MPC8544_MPIC_REGS_OFFSET + 0xa0;
 
         ppc_booke_timers_init(cpu, 400000000, PPC_TIMER_E500);
 
