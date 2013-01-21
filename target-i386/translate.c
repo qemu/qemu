@@ -7157,46 +7157,58 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             tcg_gen_movi_tl(cpu_cc_dst, 0);
         }
         break;
-    case 0x1bc: /* bsf */
-    case 0x1bd: /* bsr */
-        {
-            int label1;
-            TCGv t0;
+    case 0x1bc: /* bsf / tzcnt */
+    case 0x1bd: /* bsr / lzcnt */
+        ot = dflag + OT_WORD;
+        modrm = cpu_ldub_code(env, s->pc++);
+        reg = ((modrm >> 3) & 7) | rex_r;
+        gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+        gen_extu(ot, cpu_T[0]);
 
-            ot = dflag + OT_WORD;
-            modrm = cpu_ldub_code(env, s->pc++);
-            reg = ((modrm >> 3) & 7) | rex_r;
-            gen_ldst_modrm(env, s,modrm, ot, OR_TMP0, 0);
-            gen_extu(ot, cpu_T[0]);
-            t0 = tcg_temp_local_new();
-            tcg_gen_mov_tl(t0, cpu_T[0]);
-            if ((b & 1) && (prefixes & PREFIX_REPZ) &&
-                (s->cpuid_ext3_features & CPUID_EXT3_ABM)) {
-                switch(ot) {
-                case OT_WORD: gen_helper_lzcnt(cpu_T[0], t0,
-                    tcg_const_i32(16)); break;
-                case OT_LONG: gen_helper_lzcnt(cpu_T[0], t0,
-                    tcg_const_i32(32)); break;
-                case OT_QUAD: gen_helper_lzcnt(cpu_T[0], t0,
-                    tcg_const_i32(64)); break;
-                }
-                gen_op_mov_reg_T0(ot, reg);
+        /* Note that lzcnt and tzcnt are in different extensions.  */
+        if ((prefixes & PREFIX_REPZ)
+            && (b & 1
+                ? s->cpuid_ext3_features & CPUID_EXT3_ABM
+                : s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)) {
+            int size = 8 << ot;
+            tcg_gen_mov_tl(cpu_cc_src, cpu_T[0]);
+            if (b & 1) {
+                /* For lzcnt, reduce the target_ulong result by the
+                   number of zeros that we expect to find at the top.  */
+                gen_helper_clz(cpu_T[0], cpu_T[0]);
+                tcg_gen_subi_tl(cpu_T[0], cpu_T[0], TARGET_LONG_BITS - size);
             } else {
-                label1 = gen_new_label();
-                tcg_gen_movi_tl(cpu_cc_dst, 0);
-                tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, label1);
-                if (b & 1) {
-                    gen_helper_bsr(cpu_T[0], t0);
-                } else {
-                    gen_helper_bsf(cpu_T[0], t0);
-                }
-                gen_op_mov_reg_T0(ot, reg);
-                tcg_gen_movi_tl(cpu_cc_dst, 1);
-                gen_set_label(label1);
-                set_cc_op(s, CC_OP_LOGICB + ot);
+                /* For tzcnt, a zero input must return the operand size:
+                   force all bits outside the operand size to 1.  */
+                target_ulong mask = (target_ulong)-2 << (size - 1);
+                tcg_gen_ori_tl(cpu_T[0], cpu_T[0], mask);
+                gen_helper_ctz(cpu_T[0], cpu_T[0]);
             }
-            tcg_temp_free(t0);
+            /* For lzcnt/tzcnt, C and Z bits are defined and are
+               related to the result.  */
+            gen_op_update1_cc();
+            set_cc_op(s, CC_OP_BMILGB + ot);
+        } else {
+            /* For bsr/bsf, only the Z bit is defined and it is related
+               to the input and not the result.  */
+            tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
+            set_cc_op(s, CC_OP_LOGICB + ot);
+            if (b & 1) {
+                /* For bsr, return the bit index of the first 1 bit,
+                   not the count of leading zeros.  */
+                gen_helper_clz(cpu_T[0], cpu_T[0]);
+                tcg_gen_xori_tl(cpu_T[0], cpu_T[0], TARGET_LONG_BITS - 1);
+            } else {
+                gen_helper_ctz(cpu_T[0], cpu_T[0]);
+            }
+            /* ??? The manual says that the output is undefined when the
+               input is zero, but real hardware leaves it unchanged, and
+               real programs appear to depend on that.  */
+            tcg_gen_movi_tl(cpu_tmp0, 0);
+            tcg_gen_movcond_tl(TCG_COND_EQ, cpu_T[0], cpu_cc_dst, cpu_tmp0,
+                               cpu_regs[reg], cpu_T[0]);
         }
+        gen_op_mov_reg_T0(ot, reg);
         break;
         /************************/
         /* bcd */

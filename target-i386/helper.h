@@ -195,9 +195,8 @@ DEF_HELPER_3(frstor, void, env, tl, int)
 DEF_HELPER_3(fxsave, void, env, tl, int)
 DEF_HELPER_3(fxrstor, void, env, tl, int)
 
-DEF_HELPER_FLAGS_1(bsf, TCG_CALL_NO_RWG_SE, tl, tl)
-DEF_HELPER_FLAGS_1(bsr, TCG_CALL_NO_RWG_SE, tl, tl)
-DEF_HELPER_FLAGS_2(lzcnt, TCG_CALL_NO_RWG_SE, tl, tl, int)
+DEF_HELPER_FLAGS_1(clz, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_1(ctz, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_2(pdep, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 DEF_HELPER_FLAGS_2(pext, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 

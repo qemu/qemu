@@ -456,19 +456,14 @@ void helper_idivq_EAX(CPUX86State *env, target_ulong t0)
 #endif
 
 /* bit operations */
-target_ulong helper_bsf(target_ulong t0)
+target_ulong helper_ctz(target_ulong t0)
 {
     return ctztl(t0);
 }
 
-target_ulong helper_lzcnt(target_ulong t0, int wordsize)
+target_ulong helper_clz(target_ulong t0)
 {
-    return clztl(t0) - (TARGET_LONG_BITS - wordsize);
-}
-
-target_ulong helper_bsr(target_ulong t0)
-{
-    return clztl(t0) ^ (TARGET_LONG_BITS - 1);
+    return clztl(t0);
 }
 
 target_ulong helper_pdep(target_ulong src, target_ulong mask)
