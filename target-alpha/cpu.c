@@ -244,6 +244,13 @@ static void alpha_cpu_initfn(Object *obj)
     env->fen = 1;
 }
 
+static void alpha_cpu_class_init(ObjectClass *oc, void *data)
+{
+    CPUClass *cc = CPU_CLASS(oc);
+
+    cc->class_by_name = alpha_cpu_class_by_name;
+}
+
 static const TypeInfo alpha_cpu_type_info = {
     .name = TYPE_ALPHA_CPU,
     .parent = TYPE_CPU,
@@ -251,6 +258,7 @@ static const TypeInfo alpha_cpu_type_info = {
     .instance_init = alpha_cpu_initfn,
     .abstract = true,
     .class_size = sizeof(AlphaCPUClass),
+    .class_init = alpha_cpu_class_init,
 };
 
 static void alpha_cpu_register_types(void)

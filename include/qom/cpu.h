@@ -40,6 +40,8 @@ typedef struct CPUState CPUState;
 
 /**
  * CPUClass:
+ * @class_by_name: Callback to map -cpu command line model name to an
+ * instantiatable CPU type.
  * @reset: Callback to reset the #CPUState to its initial state.
  *
  * Represents a CPU family or model.
@@ -48,6 +50,8 @@ typedef struct CPUClass {
     /*< private >*/
     DeviceClass parent_class;
     /*< public >*/
+
+    ObjectClass *(*class_by_name)(const char *cpu_model);
 
     void (*reset)(CPUState *cpu);
 } CPUClass;
@@ -106,6 +110,17 @@ struct CPUState {
  * @cpu: The CPU whose state is to be reset.
  */
 void cpu_reset(CPUState *cpu);
+
+/**
+ * cpu_class_by_name:
+ * @typename: The CPU base type.
+ * @cpu_model: The model string without any parameters.
+ *
+ * Looks up a CPU #ObjectClass matching name @cpu_model.
+ *
+ * Returns: A #CPUClass or %NULL if not matching class is found.
+ */
+ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
 
 /**
  * qemu_cpu_has_work:

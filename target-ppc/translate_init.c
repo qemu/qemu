@@ -10578,6 +10578,8 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 
     pcc->parent_reset = cc->reset;
     cc->reset = ppc_cpu_reset;
+
+    cc->class_by_name = ppc_cpu_class_by_name;
 }
 
 static const TypeInfo ppc_cpu_type_info = {
