@@ -442,6 +442,7 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             return;
         case 12: /* Early receive.  */
             s->ercv = value & 0x1f;
+            return;
         case 13:
             /* Ignore.  */
             return;
