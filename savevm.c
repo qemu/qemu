@@ -419,7 +419,9 @@ int qemu_file_get_error(QEMUFile *f)
 
 static void qemu_file_set_error(QEMUFile *f, int ret)
 {
-    f->last_error = ret;
+    if (f->last_error == 0) {
+        f->last_error = ret;
+    }
 }
 
 /** Flushes QEMUFile buffer
@@ -1588,13 +1590,13 @@ int qemu_savevm_state_begin(QEMUFile *f,
 
         ret = se->ops->save_live_setup(f, se->opaque);
         if (ret < 0) {
-            qemu_savevm_state_cancel(f);
+            qemu_savevm_state_cancel();
             return ret;
         }
     }
     ret = qemu_file_get_error(f);
     if (ret != 0) {
-        qemu_savevm_state_cancel(f);
+        qemu_savevm_state_cancel();
     }
 
     return ret;
@@ -1645,7 +1647,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     }
     ret = qemu_file_get_error(f);
     if (ret != 0) {
-        qemu_savevm_state_cancel(f);
+        qemu_savevm_state_cancel();
     }
     return ret;
 }
@@ -1725,7 +1727,7 @@ uint64_t qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size)
     return ret;
 }
 
-void qemu_savevm_state_cancel(QEMUFile *f)
+void qemu_savevm_state_cancel(void)
 {
     SaveStateEntry *se;
 
