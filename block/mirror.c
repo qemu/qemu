@@ -36,6 +36,7 @@ typedef struct MirrorBlockJob {
     bool synced;
     bool should_complete;
     int64_t sector_num;
+    HBitmapIter hbi;
     uint8_t *buf;
 } MirrorBlockJob;
 
@@ -62,8 +63,15 @@ static int coroutine_fn mirror_iteration(MirrorBlockJob *s,
     int64_t end;
     struct iovec iov;
 
+    s->sector_num = hbitmap_iter_next(&s->hbi);
+    if (s->sector_num < 0) {
+        bdrv_dirty_iter_init(source, &s->hbi);
+        s->sector_num = hbitmap_iter_next(&s->hbi);
+        trace_mirror_restart_iter(s, bdrv_get_dirty_count(source));
+        assert(s->sector_num >= 0);
+    }
+
     end = s->common.len >> BDRV_SECTOR_BITS;
-    s->sector_num = bdrv_get_next_dirty(source, s->sector_num);
     nb_sectors = MIN(BDRV_SECTORS_PER_DIRTY_CHUNK, end - s->sector_num);
     bdrv_reset_dirty(source, s->sector_num, nb_sectors);
 
@@ -136,7 +144,7 @@ static void coroutine_fn mirror_run(void *opaque)
         }
     }
 
-    s->sector_num = -1;
+    bdrv_dirty_iter_init(bs, &s->hbi);
     for (;;) {
         uint64_t delay_ns;
         int64_t cnt;
