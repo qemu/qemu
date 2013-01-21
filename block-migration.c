@@ -23,7 +23,8 @@
 #include "sysemu/blockdev.h"
 #include <assert.h>
 
-#define BLOCK_SIZE (BDRV_SECTORS_PER_DIRTY_CHUNK << BDRV_SECTOR_BITS)
+#define BLOCK_SIZE                       (1 << 20)
+#define BDRV_SECTORS_PER_DIRTY_CHUNK     (BLOCK_SIZE >> BDRV_SECTOR_BITS)
 
 #define BLK_MIG_FLAG_DEVICE_BLOCK       0x01
 #define BLK_MIG_FLAG_EOS                0x02
@@ -254,7 +255,7 @@ static void set_dirty_tracking(int enable)
     BlkMigDevState *bmds;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        bdrv_set_dirty_tracking(bmds->bs, enable);
+        bdrv_set_dirty_tracking(bmds->bs, enable ? BLOCK_SIZE : 0);
     }
 }
 

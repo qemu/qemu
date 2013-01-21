@@ -667,10 +667,12 @@
 #
 # @count: number of dirty bytes according to the dirty bitmap
 #
+# @granularity: granularity of the dirty bitmap in bytes (since 1.4)
+#
 # Since: 1.3
 ##
 { 'type': 'BlockDirtyInfo',
-  'data': {'count': 'int'} }
+  'data': {'count': 'int', 'granularity': 'int'} }
 
 ##
 # @BlockInfo:

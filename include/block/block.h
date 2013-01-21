@@ -355,11 +355,8 @@ void bdrv_set_buffer_alignment(BlockDriverState *bs, int align);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
 
-#define BDRV_SECTORS_PER_DIRTY_CHUNK     (1 << BDRV_LOG_SECTORS_PER_DIRTY_CHUNK)
-#define BDRV_LOG_SECTORS_PER_DIRTY_CHUNK 11
-
 struct HBitmapIter;
-void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable);
+void bdrv_set_dirty_tracking(BlockDriverState *bs, int granularity);
 int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
