@@ -359,7 +359,6 @@ typedef struct x86_def_t {
     uint32_t kvm_features, svm_features;
     uint32_t xlevel;
     char model_id[48];
-    int vendor_override;
     /* Store the results of Centaur's CPUID instructions */
     uint32_t ext4_features;
     uint32_t xlevel2;
@@ -927,7 +926,6 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
                 kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_ECX);
 
     cpu_x86_fill_model_id(x86_cpu_def->model_id);
-    x86_cpu_def->vendor_override = 0;
 
     /* Call Centaur's CPUID instruction. */
     if (!strcmp(x86_cpu_def->vendor, CPUID_VENDOR_VIA)) {
@@ -1194,7 +1192,6 @@ static void x86_cpuid_set_vendor(Object *obj, const char *value,
         env->cpuid_vendor2 |= ((uint8_t)value[i + 4]) << (8 * i);
         env->cpuid_vendor3 |= ((uint8_t)value[i + 8]) << (8 * i);
     }
-    env->cpuid_vendor_override = 1;
 }
 
 static char *x86_cpuid_get_model_id(Object *obj, Error **errp)
@@ -1282,6 +1279,18 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
         def = &builtin_x86_defs[i];
         if (strcmp(name, def->name) == 0) {
             memcpy(x86_cpu_def, def, sizeof(*def));
+            /* sysenter isn't supported in compatibility mode on AMD,
+             * syscall isn't supported in compatibility mode on Intel.
+             * Normally we advertise the actual CPU vendor, but you can
+             * override this using the 'vendor' property if you want to use
+             * KVM's sysenter/syscall emulation in compatibility mode and
+             * when doing cross vendor migration
+             */
+            if (kvm_enabled()) {
+                uint32_t  ebx = 0, ecx = 0, edx = 0;
+                host_cpuid(0, 0, NULL, &ebx, &ecx, &edx);
+                x86_cpu_vendor_words2str(x86_cpu_def->vendor, ebx, edx, ecx);
+            }
             return 0;
         }
     }
@@ -1357,7 +1366,6 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
                 x86_cpu_def->xlevel = numvalue;
             } else if (!strcmp(featurestr, "vendor")) {
                 pstrcpy(x86_cpu_def->vendor, sizeof(x86_cpu_def->vendor), val);
-                x86_cpu_def->vendor_override = 1;
             } else if (!strcmp(featurestr, "model_id")) {
                 pstrcpy(x86_cpu_def->model_id, sizeof(x86_cpu_def->model_id),
                         val);
@@ -1558,7 +1566,6 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
         goto out;
     }
     object_property_set_str(OBJECT(cpu), def->vendor, "vendor", &error);
-    env->cpuid_vendor_override = def->vendor_override;
     object_property_set_int(OBJECT(cpu), def->level, "level", &error);
     object_property_set_int(OBJECT(cpu), def->family, "family", &error);
     object_property_set_int(OBJECT(cpu), def->model, "model", &error);
@@ -1627,16 +1634,6 @@ static void get_cpuid_vendor(CPUX86State *env, uint32_t *ebx,
     *ebx = env->cpuid_vendor1;
     *edx = env->cpuid_vendor2;
     *ecx = env->cpuid_vendor3;
-
-    /* sysenter isn't supported on compatibility mode on AMD, syscall
-     * isn't supported in compatibility mode on Intel.
-     * Normally we advertise the actual cpu vendor, but you can override
-     * this if you want to use KVM's sysenter/syscall emulation
-     * in compatibility mode and when doing cross vendor migration
-     */
-    if (kvm_enabled() && ! env->cpuid_vendor_override) {
-        host_cpuid(0, 0, NULL, ebx, ecx, edx);
-    }
 }
 
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,

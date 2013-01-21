@@ -835,7 +835,6 @@ typedef struct CPUX86State {
     uint32_t cpuid_ext2_features;
     uint32_t cpuid_ext3_features;
     uint32_t cpuid_apic_id;
-    int cpuid_vendor_override;
     /* Store the results of Centaur's CPUID instructions */
     uint32_t cpuid_xlevel2;
     uint32_t cpuid_ext4_features;
