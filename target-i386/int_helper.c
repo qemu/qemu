@@ -447,52 +447,29 @@ void helper_idivq_EAX(CPUX86State *env, target_ulong t0)
 }
 #endif
 
+#if TARGET_LONG_BITS == 32
+# define ctztl  ctz32
+# define clztl  clz32
+#else
+# define ctztl  ctz64
+# define clztl  clz64
+#endif
+
 /* bit operations */
 target_ulong helper_bsf(target_ulong t0)
 {
-    int count;
-    target_ulong res;
-
-    res = t0;
-    count = 0;
-    while ((res & 1) == 0) {
-        count++;
-        res >>= 1;
-    }
-    return count;
+    return ctztl(t0);
 }
 
 target_ulong helper_lzcnt(target_ulong t0, int wordsize)
 {
-    int count;
-    target_ulong res, mask;
-
-    if (wordsize > 0 && t0 == 0) {
-        return wordsize;
-    }
-    res = t0;
-    count = TARGET_LONG_BITS - 1;
-    mask = (target_ulong)1 << (TARGET_LONG_BITS - 1);
-    while ((res & mask) == 0) {
-        count--;
-        res <<= 1;
-    }
-    if (wordsize > 0) {
-        return wordsize - 1 - count;
-    }
-    return count;
+    return clztl(t0) - (TARGET_LONG_BITS - wordsize);
 }
 
 target_ulong helper_bsr(target_ulong t0)
 {
-    return helper_lzcnt(t0, 0);
+    return clztl(t0) ^ (TARGET_LONG_BITS - 1);
 }
-
-#if TARGET_LONG_BITS == 32
-# define ctztl  ctz32
-#else
-# define ctztl  ctz64
-#endif
 
 target_ulong helper_pdep(target_ulong src, target_ulong mask)
 {
