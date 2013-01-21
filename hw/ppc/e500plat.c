@@ -15,6 +15,7 @@
 #include "../boards.h"
 #include "sysemu/device_tree.h"
 #include "hw/pci/pci.h"
+#include "hw/openpic.h"
 
 static void e500plat_fixup_devtree(PPCE500Params *params, void *fdt)
 {
@@ -44,6 +45,7 @@ static void e500plat_init(QEMUMachineInitArgs *args)
         .pci_first_slot = 0x1,
         .pci_nr_slots = PCI_SLOT_MAX - 1,
         .fixup_devtree = e500plat_fixup_devtree,
+        .mpic_version = OPENPIC_MODEL_FSL_MPIC_42,
     };
 
     ppce500_init(&params);
@@ -53,7 +55,7 @@ static QEMUMachine e500plat_machine = {
     .name = "ppce500",
     .desc = "generic paravirt e500 platform",
     .init = e500plat_init,
-    .max_cpus = 15,
+    .max_cpus = 32,
     DEFAULT_MACHINE_OPTIONS,
 };
 
