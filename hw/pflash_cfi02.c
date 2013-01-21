@@ -157,6 +157,7 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
         DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
         pfl->wcycle = 0;
         pfl->cmd = 0;
+        /* fall through to the read code */
     case 0x80:
         /* We accept reads during second unlock sequence... */
     case 0x00:
