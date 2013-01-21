@@ -510,6 +510,13 @@ void buffer_append(Buffer *buffer, const void *data, size_t len)
     buffer->offset += len;
 }
 
+void buffer_advance(Buffer *buf, size_t len)
+{
+    memmove(buf->buffer, buf->buffer + len,
+            (buf->offset - len));
+    buf->offset -= len;
+}
+
 static void vnc_desktop_resize(VncState *vs)
 {
     DisplayState *ds = vs->ds;
@@ -1166,8 +1173,7 @@ static long vnc_client_write_plain(VncState *vs)
     if (!ret)
         return 0;
 
-    memmove(vs->output.buffer, vs->output.buffer + ret, (vs->output.offset - ret));
-    vs->output.offset -= ret;
+    buffer_advance(&vs->output, ret);
 
     if (vs->output.offset == 0) {
         qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
@@ -1313,8 +1319,7 @@ void vnc_client_read(void *opaque)
         }
 
         if (!ret) {
-            memmove(vs->input.buffer, vs->input.buffer + len, (vs->input.offset - len));
-            vs->input.offset -= len;
+            buffer_advance(&vs->input, len);
         } else {
             vs->read_handler_expect = ret;
         }

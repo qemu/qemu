@@ -510,6 +510,7 @@ void buffer_reserve(Buffer *buffer, size_t len);
 void buffer_reset(Buffer *buffer);
 void buffer_free(Buffer *buffer);
 void buffer_append(Buffer *buffer, const void *data, size_t len);
+void buffer_advance(Buffer *buf, size_t len);
 
 
 /* Misc helpers */
