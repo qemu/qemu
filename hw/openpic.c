@@ -56,7 +56,7 @@ static const int debug_openpic = 0;
         } \
     } while (0)
 
-#define MAX_CPU     15
+#define MAX_CPU     32
 #define MAX_SRC     256
 #define MAX_TMR     4
 #define MAX_IPI     4
@@ -66,6 +66,7 @@ static const int debug_openpic = 0;
 
 /* OpenPIC capability flags */
 #define OPENPIC_FLAG_IDR_CRIT     (1 << 0)
+#define OPENPIC_FLAG_ILR          (2 << 0)
 
 /* OpenPIC address map */
 #define OPENPIC_GLB_REG_START        0x0
@@ -74,6 +75,8 @@ static const int debug_openpic = 0;
 #define OPENPIC_TMR_REG_SIZE         0x220
 #define OPENPIC_MSI_REG_START        0x1600
 #define OPENPIC_MSI_REG_SIZE         0x200
+#define OPENPIC_SUMMARY_REG_START   0x3800
+#define OPENPIC_SUMMARY_REG_SIZE    0x800
 #define OPENPIC_SRC_REG_START        0x10000
 #define OPENPIC_SRC_REG_SIZE         (MAX_SRC * 0x20)
 #define OPENPIC_CPU_REG_START        0x20000
@@ -94,33 +97,17 @@ static const int debug_openpic = 0;
 /* First doorbell IRQ */
 #define RAVEN_DBL_IRQ    (RAVEN_IPI_IRQ + (RAVEN_MAX_CPU * RAVEN_MAX_IPI))
 
-/* FSL_MPIC_20 */
-#define FSL_MPIC_20_MAX_CPU      1
-#define FSL_MPIC_20_MAX_EXT     12
-#define FSL_MPIC_20_MAX_INT     64
-#define FSL_MPIC_20_MAX_IRQ     MAX_IRQ
+typedef struct FslMpicInfo {
+    int max_ext;
+} FslMpicInfo;
 
-/* Interrupt definitions */
-/* IRQs, accessible through the IRQ region */
-#define FSL_MPIC_20_EXT_IRQ      0x00
-#define FSL_MPIC_20_INT_IRQ      0x10
-#define FSL_MPIC_20_MSG_IRQ      0xb0
-#define FSL_MPIC_20_MSI_IRQ      0xe0
-/* These are available through separate regions, but
-   for simplicity's sake mapped into the same number space */
-#define FSL_MPIC_20_TMR_IRQ      0x100
-#define FSL_MPIC_20_IPI_IRQ      0x104
+static FslMpicInfo fsl_mpic_20 = {
+    .max_ext = 12,
+};
 
-/*
- * Block Revision Register1 (BRR1): QEMU does not fully emulate
- * any version on MPIC. So to start with, set the IP version to 0.
- *
- * NOTE: This is Freescale MPIC specific register. Keep it here till
- * this code is refactored for different variants of OPENPIC and MPIC.
- */
-#define FSL_BRR1_IPID (0x0040 << 16) /* 16 bit IP-block ID */
-#define FSL_BRR1_IPMJ (0x00 << 8) /* 8 bit IP major number */
-#define FSL_BRR1_IPMN 0x00 /* 8 bit IP minor number */
+static FslMpicInfo fsl_mpic_42 = {
+    .max_ext = 12,
+};
 
 #define FRR_NIRQ_SHIFT    16
 #define FRR_NCPU_SHIFT     8
@@ -145,6 +132,49 @@ static const int debug_openpic = 0;
 #define IDR_CI1_SHIFT     29
 #define IDR_P1_SHIFT      1
 #define IDR_P0_SHIFT      0
+
+#define ILR_INTTGT_MASK   0x000000ff
+#define ILR_INTTGT_INT    0x00
+#define ILR_INTTGT_CINT   0x01 /* critical */
+#define ILR_INTTGT_MCP    0x02 /* machine check */
+
+/* The currently supported INTTGT values happen to be the same as QEMU's
+ * openpic output codes, but don't depend on this.  The output codes
+ * could change (unlikely, but...) or support could be added for
+ * more INTTGT values.
+ */
+static const int inttgt_output[][2] = {
+    { ILR_INTTGT_INT, OPENPIC_OUTPUT_INT },
+    { ILR_INTTGT_CINT, OPENPIC_OUTPUT_CINT },
+    { ILR_INTTGT_MCP, OPENPIC_OUTPUT_MCK },
+};
+
+static int inttgt_to_output(int inttgt)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(inttgt_output); i++) {
+        if (inttgt_output[i][0] == inttgt) {
+            return inttgt_output[i][1];
+        }
+    }
+
+    fprintf(stderr, "%s: unsupported inttgt %d\n", __func__, inttgt);
+    return OPENPIC_OUTPUT_INT;
+}
+
+static int output_to_inttgt(int output)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(inttgt_output); i++) {
+        if (inttgt_output[i][1] == output) {
+            return inttgt_output[i][0];
+        }
+    }
+
+    abort();
+}
 
 #define MSIIR_OFFSET       0x140
 #define MSIIR_SRS_SHIFT    29
@@ -230,6 +260,7 @@ typedef struct OpenPICState {
     MemoryRegion mem;
 
     /* Behavior control */
+    FslMpicInfo *fsl;
     uint32_t model;
     uint32_t flags;
     uint32_t nb_irqs;
@@ -243,7 +274,7 @@ typedef struct OpenPICState {
     uint32_t mpic_mode_mask;
 
     /* Sub-regions */
-    MemoryRegion sub_io_mem[5];
+    MemoryRegion sub_io_mem[6];
 
     /* Global registers */
     uint32_t frr; /* Feature reporting register */
@@ -558,6 +589,15 @@ static inline uint32_t read_IRQreg_idr(OpenPICState *opp, int n_IRQ)
     return opp->src[n_IRQ].idr;
 }
 
+static inline uint32_t read_IRQreg_ilr(OpenPICState *opp, int n_IRQ)
+{
+    if (opp->flags & OPENPIC_FLAG_ILR) {
+        return output_to_inttgt(opp->src[n_IRQ].output);
+    }
+
+    return 0xffffffff;
+}
+
 static inline uint32_t read_IRQreg_ivpr(OpenPICState *opp, int n_IRQ)
 {
     return opp->src[n_IRQ].ivpr;
@@ -605,6 +645,19 @@ static inline void write_IRQreg_idr(OpenPICState *opp, int n_IRQ, uint32_t val)
         }
     } else {
         src->destmask = src->idr;
+    }
+}
+
+static inline void write_IRQreg_ilr(OpenPICState *opp, int n_IRQ, uint32_t val)
+{
+    if (opp->flags & OPENPIC_FLAG_ILR) {
+        IRQSource *src = &opp->src[n_IRQ];
+
+        src->output = inttgt_to_output(val & ILR_INTTGT_MASK);
+        DPRINTF("Set ILR %d to 0x%08x, output %d\n", n_IRQ, src->idr,
+                src->output);
+
+        /* TODO: on MPIC v4.0 only, set nomask for non-INT */
     }
 }
 
@@ -874,17 +927,20 @@ static void openpic_src_write(void *opaque, hwaddr addr, uint64_t val,
 
     DPRINTF("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
             __func__, addr, val);
-    if (addr & 0xF) {
-        return;
-    }
-    addr = addr & 0xFFF0;
+
+    addr = addr & 0xffff;
     idx = addr >> 5;
-    if (addr & 0x10) {
-        /* EXDE / IFEDE / IEEDE */
-        write_IRQreg_idr(opp, idx, val);
-    } else {
-        /* EXVP / IFEVP / IEEVP */
+
+    switch (addr & 0x1f) {
+    case 0x00:
         write_IRQreg_ivpr(opp, idx, val);
+        break;
+    case 0x10:
+        write_IRQreg_idr(opp, idx, val);
+        break;
+    case 0x18:
+        write_IRQreg_ilr(opp, idx, val);
+        break;
     }
 }
 
@@ -896,20 +952,23 @@ static uint64_t openpic_src_read(void *opaque, uint64_t addr, unsigned len)
 
     DPRINTF("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
     retval = 0xFFFFFFFF;
-    if (addr & 0xF) {
-        return retval;
-    }
-    addr = addr & 0xFFF0;
-    idx = addr >> 5;
-    if (addr & 0x10) {
-        /* EXDE / IFEDE / IEEDE */
-        retval = read_IRQreg_idr(opp, idx);
-    } else {
-        /* EXVP / IFEVP / IEEVP */
-        retval = read_IRQreg_ivpr(opp, idx);
-    }
-    DPRINTF("%s: => 0x%08x\n", __func__, retval);
 
+    addr = addr & 0xffff;
+    idx = addr >> 5;
+
+    switch (addr & 0x1f) {
+    case 0x00:
+        retval = read_IRQreg_ivpr(opp, idx);
+        break;
+    case 0x10:
+        retval = read_IRQreg_idr(opp, idx);
+        break;
+    case 0x18:
+        retval = read_IRQreg_ilr(opp, idx);
+        break;
+    }
+
+    DPRINTF("%s: => 0x%08x\n", __func__, retval);
     return retval;
 }
 
@@ -975,6 +1034,26 @@ static uint64_t openpic_msi_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     return r;
+}
+
+static uint64_t openpic_summary_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t r = 0;
+
+    DPRINTF("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
+
+    /* TODO: EISR/EIMR */
+
+    return r;
+}
+
+static void openpic_summary_write(void *opaque, hwaddr addr, uint64_t val,
+                                  unsigned size)
+{
+    DPRINTF("%s: addr %#" HWADDR_PRIx " <= 0x%08" PRIx64 "\n",
+            __func__, addr, val);
+
+    /* TODO: EISR/EIMR */
 }
 
 static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
@@ -1242,19 +1321,19 @@ static const MemoryRegionOps openpic_src_ops_be = {
     },
 };
 
-static const MemoryRegionOps openpic_msi_ops_le = {
+static const MemoryRegionOps openpic_msi_ops_be = {
     .read = openpic_msi_read,
     .write = openpic_msi_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
 };
 
-static const MemoryRegionOps openpic_msi_ops_be = {
-    .read = openpic_msi_read,
-    .write = openpic_msi_write,
+static const MemoryRegionOps openpic_summary_ops_be = {
+    .read = openpic_summary_read,
+    .write = openpic_summary_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1387,78 +1466,128 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
 typedef struct MemReg {
     const char             *name;
     MemoryRegionOps const  *ops;
-    bool                   map;
     hwaddr      start_addr;
     ram_addr_t              size;
 } MemReg;
+
+static void fsl_common_init(OpenPICState *opp)
+{
+    int i;
+    int virq = MAX_SRC;
+
+    opp->vid = VID_REVISION_1_2;
+    opp->vir = VIR_GENERIC;
+    opp->vector_mask = 0xFFFF;
+    opp->tfrr_reset = 0;
+    opp->ivpr_reset = IVPR_MASK_MASK;
+    opp->idr_reset = 1 << 0;
+    opp->max_irq = MAX_IRQ;
+
+    opp->irq_ipi0 = virq;
+    virq += MAX_IPI;
+    opp->irq_tim0 = virq;
+    virq += MAX_TMR;
+
+    assert(virq <= MAX_IRQ);
+
+    opp->irq_msi = 224;
+
+    msi_supported = true;
+    for (i = 0; i < opp->fsl->max_ext; i++) {
+        opp->src[i].level = false;
+    }
+
+    /* Internal interrupts, including message and MSI */
+    for (i = 16; i < MAX_SRC; i++) {
+        opp->src[i].type = IRQ_TYPE_FSLINT;
+        opp->src[i].level = true;
+    }
+
+    /* timers and IPIs */
+    for (i = MAX_SRC; i < virq; i++) {
+        opp->src[i].type = IRQ_TYPE_FSLSPECIAL;
+        opp->src[i].level = false;
+    }
+}
+
+static void map_list(OpenPICState *opp, const MemReg *list, int *count)
+{
+    while (list->name) {
+        assert(*count < ARRAY_SIZE(opp->sub_io_mem));
+
+        memory_region_init_io(&opp->sub_io_mem[*count], list->ops, opp,
+                              list->name, list->size);
+
+        memory_region_add_subregion(&opp->mem, list->start_addr,
+                                    &opp->sub_io_mem[*count]);
+
+        (*count)++;
+        list++;
+    }
+}
 
 static int openpic_init(SysBusDevice *dev)
 {
     OpenPICState *opp = FROM_SYSBUS(typeof (*opp), dev);
     int i, j;
-    MemReg list_le[] = {
-        {"glb", &openpic_glb_ops_le, true,
+    int list_count = 0;
+    static const MemReg list_le[] = {
+        {"glb", &openpic_glb_ops_le,
                 OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
-        {"tmr", &openpic_tmr_ops_le, true,
+        {"tmr", &openpic_tmr_ops_le,
                 OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
-        {"msi", &openpic_msi_ops_le, true,
-                OPENPIC_MSI_REG_START, OPENPIC_MSI_REG_SIZE},
-        {"src", &openpic_src_ops_le, true,
+        {"src", &openpic_src_ops_le,
                 OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
-        {"cpu", &openpic_cpu_ops_le, true,
+        {"cpu", &openpic_cpu_ops_le,
                 OPENPIC_CPU_REG_START, OPENPIC_CPU_REG_SIZE},
+        {NULL}
     };
-    MemReg list_be[] = {
-        {"glb", &openpic_glb_ops_be, true,
+    static const MemReg list_be[] = {
+        {"glb", &openpic_glb_ops_be,
                 OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
-        {"tmr", &openpic_tmr_ops_be, true,
+        {"tmr", &openpic_tmr_ops_be,
                 OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
-        {"msi", &openpic_msi_ops_be, true,
-                OPENPIC_MSI_REG_START, OPENPIC_MSI_REG_SIZE},
-        {"src", &openpic_src_ops_be, true,
+        {"src", &openpic_src_ops_be,
                 OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
-        {"cpu", &openpic_cpu_ops_be, true,
+        {"cpu", &openpic_cpu_ops_be,
                 OPENPIC_CPU_REG_START, OPENPIC_CPU_REG_SIZE},
+        {NULL}
     };
-    MemReg *list;
+    static const MemReg list_fsl[] = {
+        {"msi", &openpic_msi_ops_be,
+                OPENPIC_MSI_REG_START, OPENPIC_MSI_REG_SIZE},
+        {"summary", &openpic_summary_ops_be,
+                OPENPIC_SUMMARY_REG_START, OPENPIC_SUMMARY_REG_SIZE},
+        {NULL}
+    };
+
+    memory_region_init(&opp->mem, "openpic", 0x40000);
 
     switch (opp->model) {
     case OPENPIC_MODEL_FSL_MPIC_20:
     default:
+        opp->fsl = &fsl_mpic_20;
+        opp->brr1 = 0x00400200;
         opp->flags |= OPENPIC_FLAG_IDR_CRIT;
         opp->nb_irqs = 80;
-        opp->vid = VID_REVISION_1_2;
-        opp->vir = VIR_GENERIC;
-        opp->vector_mask = 0xFFFF;
-        opp->tfrr_reset = 0;
-        opp->ivpr_reset = IVPR_MASK_MASK;
-        opp->idr_reset = 1 << 0;
-        opp->max_irq = FSL_MPIC_20_MAX_IRQ;
-        opp->irq_ipi0 = FSL_MPIC_20_IPI_IRQ;
-        opp->irq_tim0 = FSL_MPIC_20_TMR_IRQ;
-        opp->irq_msi = FSL_MPIC_20_MSI_IRQ;
-        opp->brr1 = FSL_BRR1_IPID | FSL_BRR1_IPMJ | FSL_BRR1_IPMN;
-        /* XXX really only available as of MPIC 4.0 */
+        opp->mpic_mode_mask = GCR_MODE_MIXED;
+
+        fsl_common_init(opp);
+        map_list(opp, list_be, &list_count);
+        map_list(opp, list_fsl, &list_count);
+
+        break;
+
+    case OPENPIC_MODEL_FSL_MPIC_42:
+        opp->fsl = &fsl_mpic_42;
+        opp->brr1 = 0x00400402;
+        opp->flags |= OPENPIC_FLAG_ILR;
+        opp->nb_irqs = 196;
         opp->mpic_mode_mask = GCR_MODE_PROXY;
 
-        msi_supported = true;
-        list = list_be;
-
-        for (i = 0; i < FSL_MPIC_20_MAX_EXT; i++) {
-            opp->src[i].level = false;
-        }
-
-        /* Internal interrupts, including message and MSI */
-        for (i = 16; i < MAX_SRC; i++) {
-            opp->src[i].type = IRQ_TYPE_FSLINT;
-            opp->src[i].level = true;
-        }
-
-        /* timers and IPIs */
-        for (i = MAX_SRC; i < MAX_IRQ; i++) {
-            opp->src[i].type = IRQ_TYPE_FSLSPECIAL;
-            opp->src[i].level = false;
-        }
+        fsl_common_init(opp);
+        map_list(opp, list_be, &list_count);
+        map_list(opp, list_fsl, &list_count);
 
         break;
 
@@ -1475,29 +1604,14 @@ static int openpic_init(SysBusDevice *dev)
         opp->irq_tim0 = RAVEN_TMR_IRQ;
         opp->brr1 = -1;
         opp->mpic_mode_mask = GCR_MODE_MIXED;
-        list = list_le;
-        /* Don't map MSI region */
-        list[2].map = false;
 
         /* Only UP supported today */
         if (opp->nb_cpus != 1) {
             return -EINVAL;
         }
+
+        map_list(opp, list_le, &list_count);
         break;
-    }
-
-    memory_region_init(&opp->mem, "openpic", 0x40000);
-
-    for (i = 0; i < ARRAY_SIZE(list_le); i++) {
-        if (!list[i].map) {
-            continue;
-        }
-
-        memory_region_init_io(&opp->sub_io_mem[i], list[i].ops, opp,
-                              list[i].name, list[i].size);
-
-        memory_region_add_subregion(&opp->mem, list[i].start_addr,
-                                    &opp->sub_io_mem[i]);
     }
 
     for (i = 0; i < opp->nb_cpus; i++) {
