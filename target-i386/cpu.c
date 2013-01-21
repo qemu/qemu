@@ -335,7 +335,6 @@ static void add_flagname_to_bitmaps(const char *flagname,
 }
 
 typedef struct x86_def_t {
-    struct x86_def_t *next;
     const char *name;
     uint32_t level;
     uint32_t vendor1, vendor2, vendor3;
@@ -393,11 +392,7 @@ typedef struct x86_def_t {
 #define TCG_SVM_FEATURES 0
 #define TCG_7_0_EBX_FEATURES (CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_SMAP)
 
-/* maintains list of cpu model definitions
- */
-static x86_def_t *x86_defs = {NULL};
-
-/* built-in cpu model definitions (deprecated)
+/* built-in CPU model definitions
  */
 static x86_def_t builtin_x86_defs[] = {
     {
@@ -1317,6 +1312,7 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
 static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
 {
     x86_def_t *def;
+    int i;
 
     if (name == NULL) {
         return -1;
@@ -1326,7 +1322,8 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
         return 0;
     }
 
-    for (def = x86_defs; def; def = def->next) {
+    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
+        def = &builtin_x86_defs[i];
         if (strcmp(name, def->name) == 0) {
             memcpy(x86_cpu_def, def, sizeof(*def));
             return 0;
@@ -1512,8 +1509,10 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
     x86_def_t *def;
     char buf[256];
+    int i;
 
-    for (def = x86_defs; def; def = def->next) {
+    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
+        def = &builtin_x86_defs[i];
         snprintf(buf, sizeof(buf), "%s", def->name);
         (*cpu_fprintf)(f, "x86 %16s  %-48s\n", buf, def->model_id);
     }
@@ -1535,11 +1534,13 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
     x86_def_t *def;
+    int i;
 
-    for (def = x86_defs; def; def = def->next) {
+    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
         CpuDefinitionInfoList *entry;
         CpuDefinitionInfo *info;
 
+        def = &builtin_x86_defs[i];
         info = g_malloc0(sizeof(*info));
         info->name = g_strdup(def->name);
 
@@ -1662,7 +1663,6 @@ void x86_cpudef_setup(void)
 
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); ++i) {
         x86_def_t *def = &builtin_x86_defs[i];
-        def->next = x86_defs;
 
         /* Look for specific "cpudef" models that */
         /* have the QEMU version in .model_id */
@@ -1675,8 +1675,6 @@ void x86_cpudef_setup(void)
                 break;
             }
         }
-
-        x86_defs = def;
     }
 }
 
