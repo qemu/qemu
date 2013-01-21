@@ -1300,7 +1300,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
 
 /* Parse "+feature,-feature,feature=foo" CPU feature string
  */
-static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
+static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
 {
     char *featurestr; /* Single 'key=value" string being parsed */
     /* Features to be added */
@@ -1308,6 +1308,7 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
     /* Features to be removed */
     FeatureWordArray minus_features = { 0 };
     uint32_t numvalue;
+    CPUX86State *env = &cpu->env;
 
     featurestr = features ? strtok(features, ",") : NULL;
 
@@ -1320,77 +1321,57 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
         } else if ((val = strchr(featurestr, '='))) {
             *val = 0; val++;
             if (!strcmp(featurestr, "family")) {
-                char *err;
-                numvalue = strtoul(val, &err, 0);
-                if (!*val || *err || numvalue > 0xff + 0xf) {
-                    fprintf(stderr, "bad numerical value %s\n", val);
-                    goto error;
-                }
-                x86_cpu_def->family = numvalue;
+                object_property_parse(OBJECT(cpu), val, featurestr, errp);
             } else if (!strcmp(featurestr, "model")) {
-                char *err;
-                numvalue = strtoul(val, &err, 0);
-                if (!*val || *err || numvalue > 0xff) {
-                    fprintf(stderr, "bad numerical value %s\n", val);
-                    goto error;
-                }
-                x86_cpu_def->model = numvalue;
+                object_property_parse(OBJECT(cpu), val, featurestr, errp);
             } else if (!strcmp(featurestr, "stepping")) {
-                char *err;
-                numvalue = strtoul(val, &err, 0);
-                if (!*val || *err || numvalue > 0xf) {
-                    fprintf(stderr, "bad numerical value %s\n", val);
-                    goto error;
-                }
-                x86_cpu_def->stepping = numvalue ;
+                object_property_parse(OBJECT(cpu), val, featurestr, errp);
             } else if (!strcmp(featurestr, "level")) {
-                char *err;
-                numvalue = strtoul(val, &err, 0);
-                if (!*val || *err) {
-                    fprintf(stderr, "bad numerical value %s\n", val);
-                    goto error;
-                }
-                x86_cpu_def->level = numvalue;
+                object_property_parse(OBJECT(cpu), val, featurestr, errp);
             } else if (!strcmp(featurestr, "xlevel")) {
                 char *err;
+                char num[32];
+
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    fprintf(stderr, "bad numerical value %s\n", val);
-                    goto error;
+                    error_setg(errp, "bad numerical value %s\n", val);
+                    goto out;
                 }
                 if (numvalue < 0x80000000) {
                     fprintf(stderr, "xlevel value shall always be >= 0x80000000"
                             ", fixup will be removed in future versions\n");
                     numvalue += 0x80000000;
                 }
-                x86_cpu_def->xlevel = numvalue;
+                snprintf(num, sizeof(num), "%" PRIu32, numvalue);
+                object_property_parse(OBJECT(cpu), num, featurestr, errp);
             } else if (!strcmp(featurestr, "vendor")) {
-                pstrcpy(x86_cpu_def->vendor, sizeof(x86_cpu_def->vendor), val);
+                object_property_parse(OBJECT(cpu), val, featurestr, errp);
             } else if (!strcmp(featurestr, "model_id")) {
-                pstrcpy(x86_cpu_def->model_id, sizeof(x86_cpu_def->model_id),
-                        val);
+                object_property_parse(OBJECT(cpu), val, "model-id", errp);
             } else if (!strcmp(featurestr, "tsc_freq")) {
                 int64_t tsc_freq;
                 char *err;
+                char num[32];
 
                 tsc_freq = strtosz_suffix_unit(val, &err,
                                                STRTOSZ_DEFSUFFIX_B, 1000);
                 if (tsc_freq < 0 || *err) {
-                    fprintf(stderr, "bad numerical value %s\n", val);
-                    goto error;
+                    error_setg(errp, "bad numerical value %s\n", val);
+                    goto out;
                 }
-                x86_cpu_def->tsc_khz = tsc_freq / 1000;
+                snprintf(num, sizeof(num), "%" PRId64, tsc_freq);
+                object_property_parse(OBJECT(cpu), num, "tsc-frequency", errp);
             } else if (!strcmp(featurestr, "hv_spinlocks")) {
                 char *err;
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    fprintf(stderr, "bad numerical value %s\n", val);
-                    goto error;
+                    error_setg(errp, "bad numerical value %s\n", val);
+                    goto out;
                 }
                 hyperv_set_spinlock_retries(numvalue);
             } else {
-                fprintf(stderr, "unrecognized feature %s\n", featurestr);
-                goto error;
+                error_setg(errp, "unrecognized feature %s\n", featurestr);
+                goto out;
             }
         } else if (!strcmp(featurestr, "check")) {
             check_cpuid = 1;
@@ -1401,31 +1382,34 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
         } else if (!strcmp(featurestr, "hv_vapic")) {
             hyperv_enable_vapic_recommended(true);
         } else {
-            fprintf(stderr, "feature string `%s' not in format (+feature|-feature|feature=xyz)\n", featurestr);
-            goto error;
+            error_setg(errp, "feature string `%s' not in format (+feature|"
+                       "-feature|feature=xyz)\n", featurestr);
+            goto out;
+        }
+        if (error_is_set(errp)) {
+            goto out;
         }
         featurestr = strtok(NULL, ",");
     }
-    x86_cpu_def->features |= plus_features[FEAT_1_EDX];
-    x86_cpu_def->ext_features |= plus_features[FEAT_1_ECX];
-    x86_cpu_def->ext2_features |= plus_features[FEAT_8000_0001_EDX];
-    x86_cpu_def->ext3_features |= plus_features[FEAT_8000_0001_ECX];
-    x86_cpu_def->ext4_features |= plus_features[FEAT_C000_0001_EDX];
-    x86_cpu_def->kvm_features |= plus_features[FEAT_KVM];
-    x86_cpu_def->svm_features |= plus_features[FEAT_SVM];
-    x86_cpu_def->cpuid_7_0_ebx_features |= plus_features[FEAT_7_0_EBX];
-    x86_cpu_def->features &= ~minus_features[FEAT_1_EDX];
-    x86_cpu_def->ext_features &= ~minus_features[FEAT_1_ECX];
-    x86_cpu_def->ext2_features &= ~minus_features[FEAT_8000_0001_EDX];
-    x86_cpu_def->ext3_features &= ~minus_features[FEAT_8000_0001_ECX];
-    x86_cpu_def->ext4_features &= ~minus_features[FEAT_C000_0001_EDX];
-    x86_cpu_def->kvm_features &= ~minus_features[FEAT_KVM];
-    x86_cpu_def->svm_features &= ~minus_features[FEAT_SVM];
-    x86_cpu_def->cpuid_7_0_ebx_features &= ~minus_features[FEAT_7_0_EBX];
-    return 0;
+    env->cpuid_features |= plus_features[FEAT_1_EDX];
+    env->cpuid_ext_features |= plus_features[FEAT_1_ECX];
+    env->cpuid_ext2_features |= plus_features[FEAT_8000_0001_EDX];
+    env->cpuid_ext3_features |= plus_features[FEAT_8000_0001_ECX];
+    env->cpuid_ext4_features |= plus_features[FEAT_C000_0001_EDX];
+    env->cpuid_kvm_features |= plus_features[FEAT_KVM];
+    env->cpuid_svm_features |= plus_features[FEAT_SVM];
+    env->cpuid_7_0_ebx_features |= plus_features[FEAT_7_0_EBX];
+    env->cpuid_features &= ~minus_features[FEAT_1_EDX];
+    env->cpuid_ext_features &= ~minus_features[FEAT_1_ECX];
+    env->cpuid_ext2_features &= ~minus_features[FEAT_8000_0001_EDX];
+    env->cpuid_ext3_features &= ~minus_features[FEAT_8000_0001_ECX];
+    env->cpuid_ext4_features &= ~minus_features[FEAT_C000_0001_EDX];
+    env->cpuid_kvm_features &= ~minus_features[FEAT_KVM];
+    env->cpuid_svm_features &= ~minus_features[FEAT_SVM];
+    env->cpuid_7_0_ebx_features &= ~minus_features[FEAT_7_0_EBX];
 
-error:
-    return -1;
+out:
+    return;
 }
 
 /* generate a composite string into buf of all cpuid names in featureset
@@ -1561,10 +1545,6 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     }
     def->ext_features |= CPUID_EXT_HYPERVISOR;
 
-    if (cpu_x86_parse_featurestr(def, features) < 0) {
-        error_setg(&error, "Invalid cpu_model string format: %s", cpu_model);
-        goto out;
-    }
     object_property_set_str(OBJECT(cpu), def->vendor, "vendor", &error);
     object_property_set_int(OBJECT(cpu), def->level, "level", &error);
     object_property_set_int(OBJECT(cpu), def->family, "family", &error);
@@ -1584,7 +1564,11 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
                             "tsc-frequency", &error);
 
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
+    if (error) {
+        goto out;
+    }
 
+    cpu_x86_parse_featurestr(cpu, features, &error);
 out:
     g_strfreev(model_pieces);
     if (error) {
