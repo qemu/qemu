@@ -199,6 +199,7 @@ static void arm_sysctl_write(void *opaque, hwaddr offset,
     switch (offset) {
     case 0x08: /* LED */
         s->leds = val;
+        break;
     case 0x0c: /* OSC0 */
     case 0x10: /* OSC1 */
     case 0x14: /* OSC2 */
@@ -295,6 +296,7 @@ static void arm_sysctl_write(void *opaque, hwaddr offset,
             /* On VExpress this register is unimplemented and will RAZ/WI */
             break;
         }
+        break;
     case 0x54: /* CLCDSER */
     case 0x64: /* DMAPSR0 */
     case 0x68: /* DMAPSR1 */
