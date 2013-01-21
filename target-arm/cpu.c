@@ -201,6 +201,21 @@ void arm_cpu_realize(ARMCPU *cpu)
 
 /* CPU models */
 
+static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
+{
+    ObjectClass *oc;
+
+    if (!cpu_model) {
+        return NULL;
+    }
+
+    oc = object_class_by_name(cpu_model);
+    if (!oc || !object_class_dynamic_cast(oc, TYPE_ARM_CPU)) {
+        return NULL;
+    }
+    return oc;
+}
+
 static void arm926_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -766,6 +781,8 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 
     acc->parent_reset = cc->reset;
     cc->reset = arm_cpu_reset;
+
+    cc->class_by_name = arm_cpu_class_by_name;
 }
 
 static void cpu_register(const ARMCPUInfo *info)
