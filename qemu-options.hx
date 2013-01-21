@@ -1096,6 +1096,14 @@ client is specified by the @var{display}. For reverse network
 connections (@var{host}:@var{d},@code{reverse}), the @var{d} argument
 is a TCP port number, not a display number.
 
+@item websocket
+
+Opens an additional TCP listening port dedicated to VNC Websocket connections.
+By defintion the Websocket port is 5700+@var{display}. If @var{host} is
+specified connections will only be allowed from this host.
+As an alternative the Websocket port could be specified by using
+@code{websocket}=@var{port}.
+
 @item password
 
 Require that password based authentication is used for client connections.

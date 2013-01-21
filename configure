@@ -158,6 +158,7 @@ vnc_tls=""
 vnc_sasl=""
 vnc_jpeg=""
 vnc_png=""
+vnc_ws=""
 xen=""
 xen_ctrl_version=""
 xen_pci_passthrough=""
@@ -724,6 +725,10 @@ for opt do
   ;;
   --enable-vnc-png) vnc_png="yes"
   ;;
+  --disable-vnc-ws) vnc_ws="no"
+  ;;
+  --enable-vnc-ws) vnc_ws="yes"
+  ;;
   --disable-slirp) slirp="no"
   ;;
   --disable-uuid) uuid="no"
@@ -1069,6 +1074,8 @@ echo "  --disable-vnc-jpeg       disable JPEG lossy compression for VNC server"
 echo "  --enable-vnc-jpeg        enable JPEG lossy compression for VNC server"
 echo "  --disable-vnc-png        disable PNG compression for VNC server (default)"
 echo "  --enable-vnc-png         enable PNG compression for VNC server"
+echo "  --disable-vnc-ws         disable Websockets support for VNC server"
+echo "  --enable-vnc-ws          enable Websockets support for VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
@@ -1712,8 +1719,8 @@ EOF
 fi
 
 ##########################################
-# VNC TLS detection
-if test "$vnc" = "yes" -a "$vnc_tls" != "no" ; then
+# VNC TLS/WS detection
+if test "$vnc" = "yes" -a \( "$vnc_tls" != "no" -o "$vnc_ws" != "no" \) ; then
   cat > $TMPC <<EOF
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
@@ -1721,14 +1728,23 @@ EOF
   vnc_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
   vnc_tls_libs=`$pkg_config --libs gnutls 2> /dev/null`
   if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
-    vnc_tls=yes
+    if test "$vnc_tls" != "no" ; then
+      vnc_tls=yes
+    fi
+    if test "$vnc_ws" != "no" ; then
+      vnc_ws=yes
+    fi
     libs_softmmu="$vnc_tls_libs $libs_softmmu"
     QEMU_CFLAGS="$QEMU_CFLAGS $vnc_tls_cflags"
   else
     if test "$vnc_tls" = "yes" ; then
       feature_not_found "vnc-tls"
     fi
+    if test "$vnc_ws" = "yes" ; then
+      feature_not_found "vnc-ws"
+    fi
     vnc_tls=no
+    vnc_ws=no
   fi
 fi
 
@@ -3283,6 +3299,7 @@ if test "$vnc" = "yes" ; then
     echo "VNC SASL support  $vnc_sasl"
     echo "VNC JPEG support  $vnc_jpeg"
     echo "VNC PNG support   $vnc_png"
+    echo "VNC WS support    $vnc_ws"
 fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
@@ -3460,6 +3477,10 @@ if test "$vnc_jpeg" = "yes" ; then
 fi
 if test "$vnc_png" = "yes" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
+fi
+if test "$vnc_ws" = "yes" ; then
+  echo "CONFIG_VNC_WS=y" >> $config_host_mak
+  echo "VNC_WS_CFLAGS=$vnc_ws_cflags" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
