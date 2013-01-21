@@ -1636,6 +1636,11 @@
 #        (all the disk, only the sectors allocated in the topmost image, or
 #        only new I/O).
 #
+# @granularity: #optional granularity of the dirty bitmap, default is 64K
+#               if the image format doesn't have clusters, 4K if the clusters
+#               are smaller than that, else the cluster size.  Must be a
+#               power of 2 between 512 and 64M (since 1.4).
+#
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
 #                   if the block device supports io-status (see BlockInfo).
@@ -1652,7 +1657,8 @@
 { 'command': 'drive-mirror',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*on-source-error': 'BlockdevOnError',
+            '*speed': 'int', '*granularity': 'uint32',
+            '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
 ##
