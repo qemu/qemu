@@ -537,14 +537,14 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_VENDOR_INTEL_1 0x756e6547 /* "Genu" */
 #define CPUID_VENDOR_INTEL_2 0x49656e69 /* "ineI" */
 #define CPUID_VENDOR_INTEL_3 0x6c65746e /* "ntel" */
+#define CPUID_VENDOR_INTEL "GenuineIntel"
 
 #define CPUID_VENDOR_AMD_1   0x68747541 /* "Auth" */
 #define CPUID_VENDOR_AMD_2   0x69746e65 /* "enti" */
 #define CPUID_VENDOR_AMD_3   0x444d4163 /* "cAMD" */
+#define CPUID_VENDOR_AMD   "AuthenticAMD"
 
-#define CPUID_VENDOR_VIA_1   0x746e6543 /* "Cent" */
-#define CPUID_VENDOR_VIA_2   0x48727561 /* "aurH" */
-#define CPUID_VENDOR_VIA_3   0x736c7561 /* "auls" */
+#define CPUID_VENDOR_VIA   "CentaurHauls"
 
 #define CPUID_MWAIT_IBE     (1 << 1) /* Interrupts can exit capability */
 #define CPUID_MWAIT_EMX     (1 << 0) /* enumeration supported */
