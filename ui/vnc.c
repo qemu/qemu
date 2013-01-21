@@ -1053,20 +1053,24 @@ void vnc_disconnect_finish(VncState *vs)
     audio_del(vs);
     vnc_release_modifiers(vs);
 
-    QTAILQ_REMOVE(&vs->vd->clients, vs, next);
+    if (vs->initialized) {
+        QTAILQ_REMOVE(&vs->vd->clients, vs, next);
+        qemu_remove_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
+    }
 
     if (QTAILQ_EMPTY(&vs->vd->clients)) {
         dcl->idle = 1;
     }
 
-    qemu_remove_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
     vnc_remove_timer(vs->vd);
     if (vs->vd->lock_key_sync)
         qemu_remove_led_event_handler(vs->led);
     vnc_unlock_output(vs);
 
     qemu_mutex_destroy(&vs->output_mutex);
-    qemu_bh_delete(vs->bh);
+    if (vs->bh != NULL) {
+        qemu_bh_delete(vs->bh);
+    }
     buffer_free(&vs->jobs_buffer);
 
     for (i = 0; i < VNC_STAT_ROWS; ++i) {
@@ -2749,6 +2753,7 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth, bool websocket)
 
 void vnc_init_state(VncState *vs)
 {
+    vs->initialized = true;
     VncDisplay *vd = vs->vd;
 
     vs->ds = vd->ds;
