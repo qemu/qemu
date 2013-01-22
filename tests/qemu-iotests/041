@@ -207,6 +207,37 @@ class TestSingleDrive(ImageMirroringTestCase):
         self.assertTrue(self.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
 
+    def test_small_buffer(self):
+        self.assert_no_active_mirrors()
+
+        # A small buffer is rounded up automatically
+        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
+                             buf_size=4096, target=target_img)
+        self.assert_qmp(result, 'return', {})
+
+        self.complete_and_wait()
+        result = self.vm.qmp('query-block')
+        self.assert_qmp(result, 'return[0]/inserted/file', target_img)
+        self.vm.shutdown()
+        self.assertTrue(self.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
+
+    def test_small_buffer2(self):
+        self.assert_no_active_mirrors()
+
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,size=%d'
+                        % (TestSingleDrive.image_len, TestSingleDrive.image_len), target_img)
+        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
+                             buf_size=65536, mode='existing', target=target_img)
+        self.assert_qmp(result, 'return', {})
+
+        self.complete_and_wait()
+        result = self.vm.qmp('query-block')
+        self.assert_qmp(result, 'return[0]/inserted/file', target_img)
+        self.vm.shutdown()
+        self.assertTrue(self.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
+
     def test_large_cluster(self):
         self.assert_no_active_mirrors()
 

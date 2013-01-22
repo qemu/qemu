@@ -939,7 +939,7 @@ EQMP
         .name       = "drive-mirror",
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
                       "on-source-error:s?,on-target-error:s?,"
-                      "granularity:i?",
+                      "granularity:i?,buf-size:i?",
         .mhandler.cmd_new = qmp_marshal_input_drive_mirror,
     },
 
@@ -964,6 +964,8 @@ Arguments:
 - "speed": maximum speed of the streaming job, in bytes per second
   (json-int)
 - "granularity": granularity of the dirty bitmap, in bytes (json-int, optional)
+- "buf_size": maximum amount of data in flight from source to target, in bytes
+  (json-int, default 10M)
 - "sync": what parts of the disk image should be copied to the destination;
   possibilities include "full" for all the disk, "top" for only the sectors
   allocated in the topmost image, or "none" to only replicate new I/O

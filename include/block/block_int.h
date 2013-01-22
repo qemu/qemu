@@ -345,6 +345,7 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
  * @target: Block device to write to.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @granularity: The chosen granularity for the dirty bitmap.
+ * @buf_size: The amount of data that can be in flight at one time.
  * @mode: Whether to collapse all images in the chain to the target.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
@@ -358,8 +359,8 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
  * @bs will be switched to read from @target.
  */
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
-                  int64_t speed, int64_t granularity, MirrorSyncMode mode,
-                  BlockdevOnError on_source_error,
+                  int64_t speed, int64_t granularity, int64_t buf_size,
+                  MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp);

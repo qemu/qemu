@@ -207,7 +207,7 @@ static void coroutine_fn mirror_run(void *opaque)
     if (backing_filename[0] && !s->target->backing_hd) {
         bdrv_get_info(s->target, &bdi);
         if (s->granularity < bdi.cluster_size) {
-            s->buf_size = bdi.cluster_size;
+            s->buf_size = MAX(s->buf_size, bdi.cluster_size);
             length = (bdrv_getlength(bs) + s->granularity - 1) / s->granularity;
             s->cow_bitmap = bitmap_new(length);
         }
@@ -416,8 +416,8 @@ static BlockJobType mirror_job_type = {
 };
 
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
-                  int64_t speed, int64_t granularity, MirrorSyncMode mode,
-                  BlockdevOnError on_source_error,
+                  int64_t speed, int64_t granularity, int64_t buf_size,
+                  MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp)
@@ -455,7 +455,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
     s->target = target;
     s->mode = mode;
     s->granularity = granularity;
-    s->buf_size = granularity;
+    s->buf_size = MAX(buf_size, granularity);
 
     bdrv_set_dirty_tracking(bs, granularity);
     bdrv_set_enable_write_cache(s->target, true);

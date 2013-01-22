@@ -1188,12 +1188,15 @@ void qmp_block_commit(const char *device,
     drive_get_ref(drive_get_by_blockdev(bs));
 }
 
+#define DEFAULT_MIRROR_BUF_SIZE   (10 << 20)
+
 void qmp_drive_mirror(const char *device, const char *target,
                       bool has_format, const char *format,
                       enum MirrorSyncMode sync,
                       bool has_mode, enum NewImageMode mode,
                       bool has_speed, int64_t speed,
                       bool has_granularity, uint32_t granularity,
+                      bool has_buf_size, int64_t buf_size,
                       bool has_on_source_error, BlockdevOnError on_source_error,
                       bool has_on_target_error, BlockdevOnError on_target_error,
                       Error **errp)
@@ -1222,6 +1225,10 @@ void qmp_drive_mirror(const char *device, const char *target,
     if (!has_granularity) {
         granularity = 0;
     }
+    if (!has_buf_size) {
+        buf_size = DEFAULT_MIRROR_BUF_SIZE;
+    }
+
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
         error_set(errp, QERR_INVALID_PARAMETER, device);
         return;
@@ -1311,7 +1318,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
-    mirror_start(bs, target_bs, speed, granularity, sync,
+    mirror_start(bs, target_bs, speed, granularity, buf_size, sync,
                  on_source_error, on_target_error,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
