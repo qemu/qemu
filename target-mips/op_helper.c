@@ -2878,14 +2878,26 @@ FLOAT_BINOP(mul)
 FLOAT_BINOP(div)
 #undef FLOAT_BINOP
 
+#define UNFUSED_FMA(prefix, a, b, c, flags)                          \
+{                                                                    \
+    a = prefix##_mul(a, b, &env->active_fpu.fp_status);              \
+    if ((flags) & float_muladd_negate_c) {                           \
+        a = prefix##_sub(a, c, &env->active_fpu.fp_status);          \
+    } else {                                                         \
+        a = prefix##_add(a, c, &env->active_fpu.fp_status);          \
+    }                                                                \
+    if ((flags) & float_muladd_negate_result) {                      \
+        a = prefix##_chs(a);                                         \
+    }                                                                \
+}
+
 /* FMA based operations */
 #define FLOAT_FMA(name, type)                                        \
 uint64_t helper_float_ ## name ## _d(CPUMIPSState *env,              \
                                      uint64_t fdt0, uint64_t fdt1,   \
                                      uint64_t fdt2)                  \
 {                                                                    \
-    fdt0 = float64_muladd(fdt0, fdt1, fdt2, type,                    \
-                         &env->active_fpu.fp_status);                \
+    UNFUSED_FMA(float64, fdt0, fdt1, fdt2, type);                    \
     update_fcr31(env, GETPC());                                      \
     return fdt0;                                                     \
 }                                                                    \
@@ -2894,8 +2906,7 @@ uint32_t helper_float_ ## name ## _s(CPUMIPSState *env,              \
                                      uint32_t fst0, uint32_t fst1,   \
                                      uint32_t fst2)                  \
 {                                                                    \
-    fst0 = float32_muladd(fst0, fst1, fst2, type,                    \
-                         &env->active_fpu.fp_status);                \
+    UNFUSED_FMA(float32, fst0, fst1, fst2, type);                    \
     update_fcr31(env, GETPC());                                      \
     return fst0;                                                     \
 }                                                                    \
@@ -2911,10 +2922,8 @@ uint64_t helper_float_ ## name ## _ps(CPUMIPSState *env,             \
     uint32_t fst2 = fdt2 & 0XFFFFFFFF;                               \
     uint32_t fsth2 = fdt2 >> 32;                                     \
                                                                      \
-    fst0 = float32_muladd(fst0, fst1, fst2, type,                    \
-                          &env->active_fpu.fp_status);               \
-    fsth0 = float32_muladd(fsth0, fsth1, fsth2, type,                \
-                           &env->active_fpu.fp_status);              \
+    UNFUSED_FMA(float32, fst0, fst1, fst2, type);                    \
+    UNFUSED_FMA(float32, fsth0, fsth1, fsth2, type);                 \
     update_fcr31(env, GETPC());                                      \
     return ((uint64_t)fsth0 << 32) | fst0;                           \
 }
