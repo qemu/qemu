@@ -400,6 +400,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     struct usb_msd_cbw cbw;
     uint8_t devep = p->ep->nr;
     SCSIDevice *scsi_dev;
+    uint32_t len;
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
@@ -441,8 +442,8 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
 #ifdef DEBUG_MSD
             scsi_req_print(s->req);
 #endif
-            scsi_req_enqueue(s->req);
-            if (s->req && s->req->cmd.xfer != SCSI_XFER_NONE) {
+            len = scsi_req_enqueue(s->req);
+            if (len) {
                 scsi_req_continue(s->req);
             }
             break;
