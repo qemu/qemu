@@ -84,7 +84,7 @@ void qemu_set_log(int log_flags, bool use_own_buffers)
 
 void cpu_set_log_filename(const char *filename)
 {
-    logfilename = strdup(filename);
+    logfilename = g_strdup(filename);
     if (qemu_logfile) {
         fclose(qemu_logfile);
         qemu_logfile = NULL;
