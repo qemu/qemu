@@ -86,6 +86,9 @@ static int s390_virtio_hcall_reset(const uint64_t *args)
     VirtIOS390Device *dev;
 
     dev = s390_virtio_bus_find_mem(s390_bus, mem);
+    if (dev == NULL) {
+        return -EINVAL;
+    }
     virtio_reset(dev->vdev);
     stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
     s390_virtio_device_sync(dev);
