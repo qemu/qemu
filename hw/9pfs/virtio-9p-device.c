@@ -94,7 +94,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         exit(1);
     }
 
-    s->tag = strdup(conf->tag);
+    s->tag = g_strdup(conf->tag);
     s->ctx.uid = -1;
 
     s->ops = fse->ops;
