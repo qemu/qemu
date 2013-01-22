@@ -147,6 +147,7 @@ void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first)
 
     hbi->hb = hb;
     pos = first >> hb->granularity;
+    assert(pos < hb->size);
     hbi->pos = pos >> BITS_PER_LEVEL;
     hbi->granularity = hb->granularity;
 

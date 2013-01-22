@@ -128,7 +128,8 @@ void hbitmap_free(HBitmap *hb);
  * hbitmap_iter_init:
  * @hbi: HBitmapIter to initialize.
  * @hb: HBitmap to iterate on.
- * @first: First bit to visit (0-based).
+ * @first: First bit to visit (0-based, must be strictly less than the
+ * size of the bitmap).
  *
  * Set up @hbi to iterate on the HBitmap @hb.  hbitmap_iter_next will return
  * the lowest-numbered bit that is set in @hb, starting at @first.

@@ -86,7 +86,9 @@ static void hbitmap_test_init(TestHBitmapData *data,
     data->bits = g_new0(unsigned long, n);
     data->size = size;
     data->granularity = granularity;
-    hbitmap_test_check(data, 0);
+    if (size) {
+        hbitmap_test_check(data, 0);
+    }
 }
 
 static void hbitmap_test_teardown(TestHBitmapData *data,
@@ -196,14 +198,6 @@ static void test_hbitmap_iter_partial(TestHBitmapData *data,
     hbitmap_test_check(data, L2 * 2 + L1);
     hbitmap_test_check(data, L2 * 2 + L1 * 2 - 1);
     hbitmap_test_check(data, L3 / 2);
-}
-
-static void test_hbitmap_iter_past(TestHBitmapData *data,
-                                    const void *unused)
-{
-    hbitmap_test_init(data, L3, 0);
-    hbitmap_test_set(data, 0, L3);
-    hbitmap_test_check(data, L3);
 }
 
 static void test_hbitmap_set_all(TestHBitmapData *data,
@@ -388,7 +382,6 @@ int main(int argc, char **argv)
     hbitmap_test_add("/hbitmap/size/0", test_hbitmap_zero);
     hbitmap_test_add("/hbitmap/size/unaligned", test_hbitmap_unaligned);
     hbitmap_test_add("/hbitmap/iter/empty", test_hbitmap_iter_empty);
-    hbitmap_test_add("/hbitmap/iter/past", test_hbitmap_iter_past);
     hbitmap_test_add("/hbitmap/iter/partial", test_hbitmap_iter_partial);
     hbitmap_test_add("/hbitmap/iter/granularity", test_hbitmap_iter_granularity);
     hbitmap_test_add("/hbitmap/get/all", test_hbitmap_get_all);
