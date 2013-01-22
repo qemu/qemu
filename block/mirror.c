@@ -33,7 +33,18 @@ typedef struct MirrorBlockJob {
     unsigned long *cow_bitmap;
     HBitmapIter hbi;
     uint8_t *buf;
+
+    int in_flight;
+    int ret;
 } MirrorBlockJob;
+
+typedef struct MirrorOp {
+    MirrorBlockJob *s;
+    QEMUIOVector qiov;
+    struct iovec iov;
+    int64_t sector_num;
+    int nb_sectors;
+} MirrorOp;
 
 static BlockErrorAction mirror_error_action(MirrorBlockJob *s, bool read,
                                             int error)
@@ -48,15 +59,70 @@ static BlockErrorAction mirror_error_action(MirrorBlockJob *s, bool read,
     }
 }
 
-static int coroutine_fn mirror_iteration(MirrorBlockJob *s,
-                                         BlockErrorAction *p_action)
+static void mirror_iteration_done(MirrorOp *op, int ret)
+{
+    MirrorBlockJob *s = op->s;
+    int64_t chunk_num;
+    int nb_chunks, sectors_per_chunk;
+
+    trace_mirror_iteration_done(s, op->sector_num, op->nb_sectors, ret);
+
+    s->in_flight--;
+    sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
+    chunk_num = op->sector_num / sectors_per_chunk;
+    nb_chunks = op->nb_sectors / sectors_per_chunk;
+    if (s->cow_bitmap && ret >= 0) {
+        bitmap_set(s->cow_bitmap, chunk_num, nb_chunks);
+    }
+
+    g_slice_free(MirrorOp, op);
+    qemu_coroutine_enter(s->common.co, NULL);
+}
+
+static void mirror_write_complete(void *opaque, int ret)
+{
+    MirrorOp *op = opaque;
+    MirrorBlockJob *s = op->s;
+    if (ret < 0) {
+        BlockDriverState *source = s->common.bs;
+        BlockErrorAction action;
+
+        bdrv_set_dirty(source, op->sector_num, op->nb_sectors);
+        action = mirror_error_action(s, false, -ret);
+        if (action == BDRV_ACTION_REPORT && s->ret >= 0) {
+            s->ret = ret;
+        }
+    }
+    mirror_iteration_done(op, ret);
+}
+
+static void mirror_read_complete(void *opaque, int ret)
+{
+    MirrorOp *op = opaque;
+    MirrorBlockJob *s = op->s;
+    if (ret < 0) {
+        BlockDriverState *source = s->common.bs;
+        BlockErrorAction action;
+
+        bdrv_set_dirty(source, op->sector_num, op->nb_sectors);
+        action = mirror_error_action(s, true, -ret);
+        if (action == BDRV_ACTION_REPORT && s->ret >= 0) {
+            s->ret = ret;
+        }
+
+        mirror_iteration_done(op, ret);
+        return;
+    }
+    bdrv_aio_writev(s->target, op->sector_num, &op->qiov, op->nb_sectors,
+                    mirror_write_complete, op);
+}
+
+static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
 {
     BlockDriverState *source = s->common.bs;
-    BlockDriverState *target = s->target;
-    QEMUIOVector qiov;
-    int ret, nb_sectors, sectors_per_chunk;
+    int nb_sectors, sectors_per_chunk;
     int64_t end, sector_num, chunk_num;
-    struct iovec iov;
+    MirrorOp *op;
 
     s->sector_num = hbitmap_iter_next(&s->hbi);
     if (s->sector_num < 0) {
@@ -85,35 +151,30 @@ static int coroutine_fn mirror_iteration(MirrorBlockJob *s,
 
     end = s->common.len >> BDRV_SECTOR_BITS;
     nb_sectors = MIN(nb_sectors, end - sector_num);
+
+    /* Allocate a MirrorOp that is used as an AIO callback.  */
+    op = g_slice_new(MirrorOp);
+    op->s = s;
+    op->iov.iov_base = s->buf;
+    op->iov.iov_len  = nb_sectors * 512;
+    op->sector_num = sector_num;
+    op->nb_sectors = nb_sectors;
+    qemu_iovec_init_external(&op->qiov, &op->iov, 1);
+
     bdrv_reset_dirty(source, sector_num, nb_sectors);
 
     /* Copy the dirty cluster.  */
-    iov.iov_base = s->buf;
-    iov.iov_len  = nb_sectors * 512;
-    qemu_iovec_init_external(&qiov, &iov, 1);
-
+    s->in_flight++;
     trace_mirror_one_iteration(s, sector_num, nb_sectors);
-    ret = bdrv_co_readv(source, sector_num, nb_sectors, &qiov);
-    if (ret < 0) {
-        *p_action = mirror_error_action(s, true, -ret);
-        goto fail;
-    }
-    ret = bdrv_co_writev(target, sector_num, nb_sectors, &qiov);
-    if (ret < 0) {
-        *p_action = mirror_error_action(s, false, -ret);
-        s->synced = false;
-        goto fail;
-    }
-    if (s->cow_bitmap) {
-        bitmap_set(s->cow_bitmap, sector_num / sectors_per_chunk,
-                   nb_sectors / sectors_per_chunk);
-    }
-    return 0;
+    bdrv_aio_readv(source, sector_num, &op->qiov, nb_sectors,
+                   mirror_read_complete, op);
+}
 
-fail:
-    /* Try again later.  */
-    bdrv_set_dirty(source, sector_num, nb_sectors);
-    return ret;
+static void mirror_drain(MirrorBlockJob *s)
+{
+    while (s->in_flight > 0) {
+        qemu_coroutine_yield();
+    }
 }
 
 static void coroutine_fn mirror_run(void *opaque)
@@ -121,6 +182,7 @@ static void coroutine_fn mirror_run(void *opaque)
     MirrorBlockJob *s = opaque;
     BlockDriverState *bs = s->common.bs;
     int64_t sector_num, end, sectors_per_chunk, length;
+    uint64_t last_pause_ns;
     BlockDriverInfo bdi;
     char backing_filename[1024];
     int ret = 0;
@@ -179,23 +241,38 @@ static void coroutine_fn mirror_run(void *opaque)
     }
 
     bdrv_dirty_iter_init(bs, &s->hbi);
+    last_pause_ns = qemu_get_clock_ns(rt_clock);
     for (;;) {
         uint64_t delay_ns;
         int64_t cnt;
         bool should_complete;
 
+        if (s->ret < 0) {
+            ret = s->ret;
+            goto immediate_exit;
+        }
+
         cnt = bdrv_get_dirty_count(bs);
-        if (cnt != 0) {
-            BlockErrorAction action = BDRV_ACTION_REPORT;
-            ret = mirror_iteration(s, &action);
-            if (ret < 0 && action == BDRV_ACTION_REPORT) {
-                goto immediate_exit;
+
+        /* Note that even when no rate limit is applied we need to yield
+         * periodically with no pending I/O so that qemu_aio_flush() returns.
+         * We do so every SLICE_TIME nanoseconds, or when there is an error,
+         * or when the source is clean, whichever comes first.
+         */
+        if (qemu_get_clock_ns(rt_clock) - last_pause_ns < SLICE_TIME &&
+            s->common.iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
+            if (s->in_flight > 0) {
+                trace_mirror_yield(s, s->in_flight, cnt);
+                qemu_coroutine_yield();
+                continue;
+            } else if (cnt != 0) {
+                mirror_iteration(s);
+                continue;
             }
-            cnt = bdrv_get_dirty_count(bs);
         }
 
         should_complete = false;
-        if (cnt == 0) {
+        if (s->in_flight == 0 && cnt == 0) {
             trace_mirror_before_flush(s);
             ret = bdrv_flush(s->target);
             if (ret < 0) {
@@ -246,15 +323,12 @@ static void coroutine_fn mirror_run(void *opaque)
                 delay_ns = 0;
             }
 
-            /* Note that even when no rate limit is applied we need to yield
-             * with no pending I/O here so that bdrv_drain_all() returns.
-             */
             block_job_sleep_ns(&s->common, rt_clock, delay_ns);
             if (block_job_is_cancelled(&s->common)) {
                 break;
             }
         } else if (!should_complete) {
-            delay_ns = (cnt == 0 ? SLICE_TIME : 0);
+            delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
             block_job_sleep_ns(&s->common, rt_clock, delay_ns);
         } else if (cnt == 0) {
             /* The two disks are in sync.  Exit and report successful
@@ -264,9 +338,20 @@ static void coroutine_fn mirror_run(void *opaque)
             s->common.cancelled = false;
             break;
         }
+        last_pause_ns = qemu_get_clock_ns(rt_clock);
     }
 
 immediate_exit:
+    if (s->in_flight > 0) {
+        /* We get here only if something went wrong.  Either the job failed,
+         * or it was cancelled prematurely so that we do not guarantee that
+         * the target is a copy of the source.
+         */
+        assert(ret < 0 || (!s->synced && block_job_is_cancelled(&s->common)));
+        mirror_drain(s);
+    }
+
+    assert(s->in_flight == 0);
     qemu_vfree(s->buf);
     g_free(s->cow_bitmap);
     bdrv_set_dirty_tracking(bs, 0);
