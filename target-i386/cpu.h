@@ -1256,5 +1256,6 @@ void disable_kvm_pv_eoi(void);
 const char *get_register_name_32(unsigned int reg);
 
 uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index);
+void enable_compat_apic_id_mode(void);
 
 #endif /* CPU_I386_H */

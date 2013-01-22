@@ -233,11 +233,17 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
              initrd_filename, cpu_model, 1, 1);
 }
 
+static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
+{
+    enable_compat_apic_id_mode();
+    pc_init_pci(args);
+}
+
 /* PC machine init function for pc-0.14 to pc-1.2 */
 static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
 {
     disable_kvm_pv_eoi();
-    pc_init_pci(args);
+    pc_init_pci_1_3(args);
 }
 
 /* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
@@ -250,6 +256,7 @@ static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
     const char *initrd_filename = args->initrd_filename;
     const char *boot_device = args->boot_device;
     disable_kvm_pv_eoi();
+    enable_compat_apic_id_mode();
     pc_init1(get_system_memory(),
              get_system_io(),
              ram_size, boot_device,
@@ -268,6 +275,7 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
     if (cpu_model == NULL)
         cpu_model = "486";
     disable_kvm_pv_eoi();
+    enable_compat_apic_id_mode();
     pc_init1(get_system_memory(),
              get_system_io(),
              ram_size, boot_device,
@@ -306,7 +314,7 @@ static QEMUMachine pc_i440fx_machine_v1_4 = {
 static QEMUMachine pc_machine_v1_3 = {
     .name = "pc-1.3",
     .desc = "Standard PC",
-    .init = pc_init_pci,
+    .init = pc_init_pci_1_3,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_3,

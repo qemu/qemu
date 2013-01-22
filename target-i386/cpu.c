@@ -23,6 +23,8 @@
 
 #include "cpu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/cpus.h"
+#include "topology.h"
 
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -2194,6 +2196,14 @@ void x86_cpu_realize(Object *obj, Error **errp)
     cpu_reset(CPU(cpu));
 }
 
+/* Enables contiguous-apic-ID mode, for compatibility */
+static bool compat_apic_id_mode;
+
+void enable_compat_apic_id_mode(void)
+{
+    compat_apic_id_mode = true;
+}
+
 /* Calculates initial APIC ID for a specific CPU index
  *
  * Currently we need to be able to calculate the APIC ID from the CPU index
@@ -2203,10 +2213,20 @@ void x86_cpu_realize(Object *obj, Error **errp)
  */
 uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index)
 {
-    /* right now APIC ID == CPU index. this will eventually change to use
-     * the CPU topology configuration properly
-     */
-    return cpu_index;
+    uint32_t correct_id;
+    static bool warned;
+
+    correct_id = x86_apicid_from_cpu_idx(smp_cores, smp_threads, cpu_index);
+    if (compat_apic_id_mode) {
+        if (cpu_index != correct_id && !warned) {
+            error_report("APIC IDs set in compatibility mode, "
+                         "CPU topology won't match the configuration");
+            warned = true;
+        }
+        return cpu_index;
+    } else {
+        return correct_id;
+    }
 }
 
 static void x86_cpu_initfn(Object *obj)
