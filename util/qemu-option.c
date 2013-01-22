@@ -643,9 +643,7 @@ static void opt_set(QemuOpts *opts, const char *name, const char *value,
         QTAILQ_INSERT_TAIL(&opts->head, opt, next);
     }
     opt->desc = desc;
-    if (value) {
-        opt->str = g_strdup(value);
-    }
+    opt->str = g_strdup(value);
     qemu_opt_parse(opt, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
@@ -792,9 +790,7 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
         }
     }
     opts = g_malloc0(sizeof(*opts));
-    if (id) {
-        opts->id = g_strdup(id);
-    }
+    opts->id = g_strdup(id);
     opts->list = list;
     loc_save(&opts->loc);
     QTAILQ_INIT(&opts->head);

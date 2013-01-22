@@ -566,9 +566,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
         assert(peer);
         nd->netdev = peer;
     }
-    if (name) {
-        nd->name = g_strdup(name);
-    }
+    nd->name = g_strdup(name);
     if (nic->has_model) {
         nd->model = g_strdup(nic->model);
     }
