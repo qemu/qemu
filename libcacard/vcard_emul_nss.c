@@ -454,7 +454,7 @@ vreader_emul_new(PK11SlotInfo *slot, VCardEmulType type, const char *params)
 
     new_reader_emul->slot = PK11_ReferenceSlot(slot);
     new_reader_emul->default_type = type;
-    new_reader_emul->type_params = strdup(params);
+    new_reader_emul->type_params = g_strdup(params);
     new_reader_emul->present = PR_FALSE;
     new_reader_emul->series = 0;
     new_reader_emul->saved_vcard = NULL;
@@ -997,7 +997,7 @@ vcard_emul_init(const VCardEmulOptions *options)
     /* We should control this with options. For now we mirror out any
      * removable hardware slot */
     default_card_type = options->hw_card_type;
-    default_type_params = strdup(options->hw_type_params);
+    default_type_params = g_strdup(options->hw_type_params);
 
     SECMOD_GetReadLock(module_lock);
     for (mlp = module_list; mlp; mlp = mlp->next) {
