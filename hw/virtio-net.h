@@ -99,13 +99,13 @@ typedef uint8_t virtio_net_ctrl_ack;
  * 0 and 1 are supported with the VIRTIO_NET_F_CTRL_RX feature.
  * Commands 2-5 are added with VIRTIO_NET_F_CTRL_RX_EXTRA.
  */
-#define VIRTIO_NET_CTRL_RX_MODE    0
- #define VIRTIO_NET_CTRL_RX_MODE_PROMISC      0
- #define VIRTIO_NET_CTRL_RX_MODE_ALLMULTI     1
- #define VIRTIO_NET_CTRL_RX_MODE_ALLUNI       2
- #define VIRTIO_NET_CTRL_RX_MODE_NOMULTI      3
- #define VIRTIO_NET_CTRL_RX_MODE_NOUNI        4
- #define VIRTIO_NET_CTRL_RX_MODE_NOBCAST      5
+#define VIRTIO_NET_CTRL_RX    0
+ #define VIRTIO_NET_CTRL_RX_PROMISC      0
+ #define VIRTIO_NET_CTRL_RX_ALLMULTI     1
+ #define VIRTIO_NET_CTRL_RX_ALLUNI       2
+ #define VIRTIO_NET_CTRL_RX_NOMULTI      3
+ #define VIRTIO_NET_CTRL_RX_NOUNI        4
+ #define VIRTIO_NET_CTRL_RX_NOBCAST      5
 
 /*
  * Control the MAC

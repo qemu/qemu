@@ -327,17 +327,17 @@ static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
         return VIRTIO_NET_ERR;
     }
 
-    if (cmd == VIRTIO_NET_CTRL_RX_MODE_PROMISC) {
+    if (cmd == VIRTIO_NET_CTRL_RX_PROMISC) {
         n->promisc = on;
-    } else if (cmd == VIRTIO_NET_CTRL_RX_MODE_ALLMULTI) {
+    } else if (cmd == VIRTIO_NET_CTRL_RX_ALLMULTI) {
         n->allmulti = on;
-    } else if (cmd == VIRTIO_NET_CTRL_RX_MODE_ALLUNI) {
+    } else if (cmd == VIRTIO_NET_CTRL_RX_ALLUNI) {
         n->alluni = on;
-    } else if (cmd == VIRTIO_NET_CTRL_RX_MODE_NOMULTI) {
+    } else if (cmd == VIRTIO_NET_CTRL_RX_NOMULTI) {
         n->nomulti = on;
-    } else if (cmd == VIRTIO_NET_CTRL_RX_MODE_NOUNI) {
+    } else if (cmd == VIRTIO_NET_CTRL_RX_NOUNI) {
         n->nouni = on;
-    } else if (cmd == VIRTIO_NET_CTRL_RX_MODE_NOBCAST) {
+    } else if (cmd == VIRTIO_NET_CTRL_RX_NOBCAST) {
         n->nobcast = on;
     } else {
         return VIRTIO_NET_ERR;
@@ -474,7 +474,7 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         iov_discard_front(&iov, &iov_cnt, sizeof(ctrl));
         if (s != sizeof(ctrl)) {
             status = VIRTIO_NET_ERR;
-        } else if (ctrl.class == VIRTIO_NET_CTRL_RX_MODE) {
+        } else if (ctrl.class == VIRTIO_NET_CTRL_RX) {
             status = virtio_net_handle_rx_mode(n, ctrl.cmd, iov, iov_cnt);
         } else if (ctrl.class == VIRTIO_NET_CTRL_MAC) {
             status = virtio_net_handle_mac(n, ctrl.cmd, iov, iov_cnt);
