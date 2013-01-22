@@ -309,6 +309,10 @@ static QEMUMachine pc_i440fx_machine_v1_4 = {
             .driver   = "usb-tablet",\
             .property = "usb_version",\
             .value    = stringify(1),\
+        },{\
+            .driver   = "virtio-net-pci",\
+            .property = "ctrl_mac_addr",\
+            .value    = "off",      \
         }
 
 static QEMUMachine pc_machine_v1_3 = {

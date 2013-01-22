@@ -93,7 +93,8 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
 
     memcpy(&netcfg, config, sizeof(netcfg));
 
-    if (memcmp(netcfg.mac, n->mac, ETH_ALEN)) {
+    if (!(n->vdev.guest_features >> VIRTIO_NET_F_CTRL_MAC_ADDR & 1) &&
+        memcmp(netcfg.mac, n->mac, ETH_ALEN)) {
         memcpy(n->mac, netcfg.mac, ETH_ALEN);
         qemu_format_nic_info_str(&n->nic->nc, n->mac);
     }
@@ -350,6 +351,16 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
 {
     struct virtio_net_ctrl_mac mac_data;
     size_t s;
+
+    if (cmd == VIRTIO_NET_CTRL_MAC_ADDR_SET) {
+        if (iov_size(iov, iov_cnt) != sizeof(n->mac)) {
+            return VIRTIO_NET_ERR;
+        }
+        s = iov_to_buf(iov, iov_cnt, 0, &n->mac, sizeof(n->mac));
+        assert(s == sizeof(n->mac));
+        qemu_format_nic_info_str(&n->nic->nc, n->mac);
+        return VIRTIO_NET_OK;
+    }
 
     if (cmd != VIRTIO_NET_CTRL_MAC_TABLE_SET) {
         return VIRTIO_NET_ERR;
