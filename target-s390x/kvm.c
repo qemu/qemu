@@ -76,6 +76,11 @@ int kvm_arch_init(KVMState *s)
     return 0;
 }
 
+unsigned long kvm_arch_vcpu_id(CPUState *cpu)
+{
+    return cpu->cpu_index;
+}
+
 int kvm_arch_init_vcpu(CPUState *cpu)
 {
     int ret = 0;

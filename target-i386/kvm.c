@@ -411,6 +411,11 @@ static void cpu_update_state(void *opaque, int running, RunState state)
     }
 }
 
+unsigned long kvm_arch_vcpu_id(CPUState *cpu)
+{
+    return cpu->cpu_index;
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     struct {
