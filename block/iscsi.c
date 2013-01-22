@@ -77,6 +77,9 @@ iscsi_bh_cb(void *p)
 
     qemu_bh_delete(acb->bh);
 
+    g_free(acb->buf);
+    acb->buf = NULL;
+
     if (acb->canceled == 0) {
         acb->common.cb(acb->common.opaque, acb->status);
     }
@@ -198,6 +201,7 @@ iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
     trace_iscsi_aio_write16_cb(iscsi, status, acb, acb->canceled);
 
     g_free(acb->buf);
+    acb->buf = NULL;
 
     if (acb->canceled != 0) {
         return;
@@ -241,6 +245,7 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     acb->canceled   = 0;
     acb->bh         = NULL;
     acb->status     = -EINPROGRESS;
+    acb->buf        = NULL;
 
     /* XXX we should pass the iovec to write16 to avoid the extra copy */
     /* this will allow us to get rid of 'buf' completely */
@@ -249,7 +254,6 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
 
     /* if the iovec only contains one buffer we can pass it directly */
     if (acb->qiov->niov == 1) {
-        acb->buf = NULL;
         data.data = acb->qiov->iov[0].iov_base;
     } else {
         acb->buf = g_malloc(data.size);
@@ -440,6 +444,7 @@ iscsi_aio_flush(BlockDriverState *bs,
     acb->canceled   = 0;
     acb->bh         = NULL;
     acb->status     = -EINPROGRESS;
+    acb->buf        = NULL;
 
     acb->task = iscsi_synchronizecache10_task(iscsi, iscsilun->lun,
                                          0, 0, 0, 0,
@@ -493,6 +498,7 @@ iscsi_aio_discard(BlockDriverState *bs,
     acb->canceled   = 0;
     acb->bh         = NULL;
     acb->status     = -EINPROGRESS;
+    acb->buf        = NULL;
 
     list[0].lba = sector_qemu2lun(sector_num, iscsilun);
     list[0].num = nb_sectors * BDRV_SECTOR_SIZE / iscsilun->block_size;
