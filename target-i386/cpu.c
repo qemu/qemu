@@ -2194,6 +2194,21 @@ void x86_cpu_realize(Object *obj, Error **errp)
     cpu_reset(CPU(cpu));
 }
 
+/* Calculates initial APIC ID for a specific CPU index
+ *
+ * Currently we need to be able to calculate the APIC ID from the CPU index
+ * alone (without requiring a CPU object), as the QEMU<->Seabios interfaces have
+ * no concept of "CPU index", and the NUMA tables on fw_cfg need the APIC ID of
+ * all CPUs up to max_cpus.
+ */
+uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index)
+{
+    /* right now APIC ID == CPU index. this will eventually change to use
+     * the CPU topology configuration properly
+     */
+    return cpu_index;
+}
+
 static void x86_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
@@ -2228,7 +2243,7 @@ static void x86_cpu_initfn(Object *obj)
                         x86_cpuid_get_tsc_freq,
                         x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
 
-    env->cpuid_apic_id = cs->cpu_index;
+    env->cpuid_apic_id = x86_cpu_apic_id_from_index(cs->cpu_index);
 
     /* init various static tables used in TCG mode */
     if (tcg_enabled() && !inited) {

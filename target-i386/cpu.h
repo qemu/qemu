@@ -1255,4 +1255,6 @@ void disable_kvm_pv_eoi(void);
 /* Return name of 32-bit register, from a R_* constant */
 const char *get_register_name_32(unsigned int reg);
 
+uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index);
+
 #endif /* CPU_I386_H */
