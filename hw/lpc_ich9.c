@@ -158,6 +158,7 @@ static void ich9_cc_write(void *opaque, hwaddr addr,
 
     ich9_cc_addr_len(&addr, &len);
     memcpy(lpc->chip_config + addr, &val, len);
+    pci_bus_fire_intx_routing_notifier(lpc->d.bus);
     ich9_cc_update(lpc);
 }
 
@@ -286,6 +287,32 @@ int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx)
     return lpc->irr[PCI_SLOT(pci_dev->devfn)][intx];
 }
 
+PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin)
+{
+    ICH9LPCState *lpc = opaque;
+    PCIINTxRoute route;
+    int pic_irq;
+    int pic_dis;
+
+    assert(0 <= pirq_pin);
+    assert(pirq_pin < ICH9_LPC_NB_PIRQS);
+
+    route.mode = PCI_INTX_ENABLED;
+    ich9_lpc_pic_irq(lpc, pirq_pin, &pic_irq, &pic_dis);
+    if (!pic_dis) {
+        if (pic_irq < ICH9_LPC_PIC_NUM_PINS) {
+            route.irq = pic_irq;
+        } else {
+            route.mode = PCI_INTX_DISABLED;
+            route.irq = -1;
+        }
+    } else {
+        route.irq = ich9_pirq_to_gsi(pirq_pin);
+    }
+
+    return route;
+}
+
 static int ich9_lpc_sci_irq(ICH9LPCState *lpc)
 {
     switch (lpc->d.config[ICH9_LPC_ACPI_CTRL] &
@@ -404,6 +431,12 @@ static void ich9_lpc_config_write(PCIDevice *d,
     }
     if (ranges_overlap(addr, len, ICH9_LPC_RCBA, 4)) {
         ich9_lpc_rcba_update(lpc, rbca_old);
+    }
+    if (ranges_overlap(addr, len, ICH9_LPC_PIRQA_ROUT, 4)) {
+        pci_bus_fire_intx_routing_notifier(lpc->d.bus);
+    }
+    if (ranges_overlap(addr, len, ICH9_LPC_PIRQE_ROUT, 4)) {
+        pci_bus_fire_intx_routing_notifier(lpc->d.bus);
     }
 }
 
