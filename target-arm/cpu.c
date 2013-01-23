@@ -210,7 +210,8 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
     }
 
     oc = object_class_by_name(cpu_model);
-    if (!oc || !object_class_dynamic_cast(oc, TYPE_ARM_CPU)) {
+    if (!oc || !object_class_dynamic_cast(oc, TYPE_ARM_CPU) ||
+        object_class_is_abstract(oc)) {
         return NULL;
     }
     return oc;
