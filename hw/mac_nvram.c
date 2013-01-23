@@ -96,7 +96,7 @@ static uint64_t macio_nvram_readb(void *opaque, hwaddr addr,
 static const MemoryRegionOps macio_nvram_ops = {
     .read = macio_nvram_readb,
     .write = macio_nvram_writeb,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static const VMStateDescription vmstate_macio_nvram = {
