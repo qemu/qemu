@@ -712,6 +712,9 @@ static void cuda_initfn(Object *obj)
     for (i = 0; i < ARRAY_SIZE(s->timers); i++) {
         s->timers[i].index = i;
     }
+
+    qbus_create_inplace((BusState *)&adb_bus, TYPE_ADB_BUS, DEVICE(obj),
+                        "adb.0");
 }
 
 static void cuda_class_init(ObjectClass *oc, void *data)

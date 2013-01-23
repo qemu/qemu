@@ -26,10 +26,13 @@
 #if !defined(__ADB_H__)
 #define __ADB_H__
 
+#include "qdev.h"
+
 #define MAX_ADB_DEVICES 16
 
 #define ADB_MAX_OUT_LEN 16
 
+typedef struct ADBBusState ADBBusState;
 typedef struct ADBDevice ADBDevice;
 
 /* buf = NULL means polling */
@@ -38,7 +41,7 @@ typedef int ADBDeviceRequest(ADBDevice *d, uint8_t *buf_out,
 typedef int ADBDeviceReset(ADBDevice *d);
 
 struct ADBDevice {
-    struct ADBBusState *bus;
+    ADBBusState *bus;
     int devaddr;
     int handler;
     ADBDeviceRequest *devreq;
@@ -46,11 +49,18 @@ struct ADBDevice {
     void *opaque;
 };
 
-typedef struct ADBBusState {
+#define TYPE_ADB_BUS "apple-desktop-bus"
+#define ADB_BUS(obj) OBJECT_CHECK(ADBBusState, (obj), TYPE_ADB_BUS)
+
+struct ADBBusState {
+    /*< private >*/
+    BusState parent_obj;
+    /*< public >*/
+
     ADBDevice devices[MAX_ADB_DEVICES];
     int nb_devices;
     int poll_index;
-} ADBBusState;
+};
 
 int adb_request(ADBBusState *s, uint8_t *buf_out,
                 const uint8_t *buf, int len);

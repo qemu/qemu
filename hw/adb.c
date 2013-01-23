@@ -126,6 +126,12 @@ static ADBDevice *adb_register_device(ADBBusState *s, int devaddr,
     return d;
 }
 
+static const TypeInfo adb_bus_type_info = {
+    .name = TYPE_ADB_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(ADBBusState),
+};
+
 /***************************************************************/
 /* Keyboard ADB device */
 
@@ -453,3 +459,11 @@ void adb_mouse_init(ADBBusState *bus)
     qemu_add_mouse_event_handler(adb_mouse_event, d, 0, "QEMU ADB Mouse");
     vmstate_register(NULL, -1, &vmstate_adb_mouse, s);
 }
+
+
+static void adb_register_types(void)
+{
+    type_register_static(&adb_bus_type_info);
+}
+
+type_init(adb_register_types)
