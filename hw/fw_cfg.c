@@ -60,8 +60,8 @@ static char *read_splashfile(char *filename, size_t *file_sizep,
     GError *err = NULL;
     gboolean res;
     gchar *content;
-    int file_type = -1;
-    unsigned int filehead = 0;
+    int file_type;
+    unsigned int filehead;
     int bmp_bpp;
 
     res = g_file_get_contents(filename, &content, file_sizep, &err);
@@ -113,7 +113,7 @@ static void fw_cfg_bootsplash(FWCfgState *s)
     char *p;
     char *filename, *file_data;
     size_t file_size;
-    int file_type = -1;
+    int file_type;
     const char *temp;
 
     /* get user configuration */
