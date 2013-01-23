@@ -1060,10 +1060,9 @@ static void gen_setcc_slow(DisasContext *s, int jcc_op, TCGv reg, bool inv)
         break;
     case JCC_BE:
         gen_compute_eflags(s);
-        tcg_gen_shri_tl(reg, cpu_cc_src, 6);
-        tcg_gen_or_tl(reg, reg, cpu_cc_src);
-        tcg_gen_andi_tl(reg, reg, 1);
-        break;
+        tcg_gen_andi_tl(reg, cpu_cc_src, CC_Z | CC_C);
+        tcg_gen_setcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, reg, reg, 0);
+        return;
     case JCC_S:
         gen_compute_eflags_s(s, reg, inv);
         inv = false;
