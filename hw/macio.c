@@ -27,9 +27,15 @@
 #include "pci/pci.h"
 #include "escc.h"
 
+#define TYPE_MACIO "macio"
+#define MACIO(obj) OBJECT_CHECK(MacIOState, (obj), TYPE_MACIO)
+
 typedef struct MacIOState
 {
+    /*< private >*/
     PCIDevice parent;
+    /*< public >*/
+
     int is_oldworld;
     MemoryRegion bar;
     MemoryRegion *pic_mem;
@@ -46,7 +52,6 @@ static void macio_bar_setup(MacIOState *macio_state)
     int i;
     MemoryRegion *bar = &macio_state->bar;
 
-    memory_region_init(bar, "macio", 0x80000);
     if (macio_state->pic_mem) {
         if (macio_state->is_oldworld) {
             /* Heathrow PIC */
@@ -81,6 +86,13 @@ static int macio_initfn(PCIDevice *d)
     return 0;
 }
 
+static void macio_instance_init(Object *obj)
+{
+    MacIOState *s = MACIO(obj);
+
+    memory_region_init(&s->bar, "macio", 0x80000);
+}
+
 static void macio_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -90,16 +102,17 @@ static void macio_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_OTHERS << 8;
 }
 
-static const TypeInfo macio_info = {
-    .name          = "macio",
+static const TypeInfo macio_type_info = {
+    .name          = TYPE_MACIO,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MacIOState),
+    .instance_init = macio_instance_init,
     .class_init    = macio_class_init,
 };
 
 static void macio_register_types(void)
 {
-    type_register_static(&macio_info);
+    type_register_static(&macio_type_info);
 }
 
 type_init(macio_register_types)
@@ -114,9 +127,9 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld,
     MacIOState *macio_state;
     int i;
 
-    d = pci_create_simple(bus, -1, "macio");
+    d = pci_create_simple(bus, -1, TYPE_MACIO);
 
-    macio_state = DO_UPCAST(MacIOState, parent, d);
+    macio_state = MACIO(d);
     macio_state->is_oldworld = is_oldworld;
     macio_state->pic_mem = pic_mem;
     macio_state->dbdma_mem = dbdma_mem;
