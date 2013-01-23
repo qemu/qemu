@@ -1042,14 +1042,6 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
 
 #define gen_compute_eflags_c(s, reg, inv) \
     gen_do_setcc(reg, gen_prepare_eflags_c(s, reg), inv)
-#define gen_compute_eflags_p(s, reg) \
-    gen_do_setcc(reg, gen_prepare_eflags_p(s, reg), false)
-#define gen_compute_eflags_s(s, reg, inv) \
-    gen_do_setcc(reg, gen_prepare_eflags_s(s, reg), inv)
-#define gen_compute_eflags_o(s, reg) \
-    gen_do_setcc(reg, gen_prepare_eflags_o(s, reg), false)
-#define gen_compute_eflags_z(s, reg, inv) \
-    gen_do_setcc(reg, gen_prepare_eflags_z(s, reg), inv)
 
 static void gen_do_setcc(TCGv reg, struct CCPrepare cc, bool inv)
 {
@@ -1074,6 +1066,7 @@ static void gen_do_setcc(TCGv reg, struct CCPrepare cc, bool inv)
     }
     if (cc.mask != -1) {
         tcg_gen_andi_tl(reg, cc.reg, cc.mask);
+        cc.reg = reg;
     }
     if (cc.use_reg2) {
         tcg_gen_setcond_tl(cc.cond, reg, cc.reg, cc.reg2);
@@ -1082,58 +1075,50 @@ static void gen_do_setcc(TCGv reg, struct CCPrepare cc, bool inv)
     }
 }
 
-static void gen_setcc_slow(DisasContext *s, int jcc_op, TCGv reg, bool inv)
+static CCPrepare gen_prepare_cc_slow(DisasContext *s, int jcc_op, TCGv reg)
 {
     switch(jcc_op) {
     case JCC_O:
-        gen_compute_eflags_o(s, reg);
-        break;
+        return gen_prepare_eflags_o(s, reg);
     case JCC_B:
-        gen_compute_eflags_c(s, reg, inv);
-        inv = false;
-        break;
+        return gen_prepare_eflags_c(s, reg);
     case JCC_Z:
-        gen_compute_eflags_z(s, reg, inv);
-        inv = false;
-        break;
+        return gen_prepare_eflags_z(s, reg);
     case JCC_BE:
         gen_compute_eflags(s);
-        tcg_gen_andi_tl(reg, cpu_cc_src, CC_Z | CC_C);
-        tcg_gen_setcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, reg, reg, 0);
-        return;
+        return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
+                             .mask = CC_Z | CC_C };
     case JCC_S:
-        gen_compute_eflags_s(s, reg, inv);
-        inv = false;
-        break;
+        return gen_prepare_eflags_s(s, reg);
     case JCC_P:
-        gen_compute_eflags_p(s, reg);
-        break;
+        return gen_prepare_eflags_p(s, reg);
     case JCC_L:
         gen_compute_eflags(s);
-        tcg_gen_shri_tl(cpu_tmp0, cpu_cc_src, 11); /* CC_O */
-        tcg_gen_shri_tl(reg, cpu_cc_src, 7); /* CC_S */
-        tcg_gen_xor_tl(reg, reg, cpu_tmp0);
-        tcg_gen_andi_tl(reg, reg, 1);
-        break;
+        if (TCGV_EQUAL(reg, cpu_cc_src)) {
+            reg = cpu_tmp0;
+        }
+        tcg_gen_shri_tl(reg, cpu_cc_src, 4); /* CC_O -> CC_S */
+        tcg_gen_xor_tl(reg, reg, cpu_cc_src);
+        return (CCPrepare) { .cond = TCG_COND_NE, .reg = reg, .mask = CC_S };
     default:
     case JCC_LE:
         gen_compute_eflags(s);
-        tcg_gen_shri_tl(cpu_tmp0, cpu_cc_src, 4); /* CC_O -> CC_S */
-        tcg_gen_xor_tl(reg, cpu_tmp0, cpu_cc_src);
-        tcg_gen_andi_tl(reg, reg, CC_S | CC_Z);
-        tcg_gen_setcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, reg, reg, 0);
-        break;
-    }
-    if (inv) {
-        tcg_gen_xori_tl(reg, reg, 1);
+        if (TCGV_EQUAL(reg, cpu_cc_src)) {
+            reg = cpu_tmp0;
+        }
+        tcg_gen_shri_tl(reg, cpu_cc_src, 4); /* CC_O -> CC_S */
+        tcg_gen_xor_tl(reg, reg, cpu_cc_src);
+        return (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
+                             .mask = CC_S | CC_Z };
     }
 }
 
 /* perform a conditional store into register 'reg' according to jump opcode
    value 'b'. In the fast case, T0 is guaranted not to be used. */
-static inline void gen_setcc1(DisasContext *s, int b, TCGv reg)
+static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
 {
     int inv, jcc_op, size, cond;
+    CCPrepare cc;
     TCGv t0;
 
     inv = b & 1;
@@ -1148,23 +1133,24 @@ static inline void gen_setcc1(DisasContext *s, int b, TCGv reg)
         size = s->cc_op - CC_OP_SUBB;
         switch (jcc_op) {
         case JCC_BE:
-            cond = inv ? TCG_COND_GTU : TCG_COND_LEU;
             tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
             gen_extu(size, cpu_tmp4);
             t0 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, false);
-            tcg_gen_setcond_tl(cond, reg, cpu_tmp4, t0);
+            cc = (CCPrepare) { .cond = TCG_COND_LEU, .reg = cpu_tmp4,
+                               .reg2 = t0, .mask = -1, .use_reg2 = true };
             break;
 
         case JCC_L:
-            cond = inv ? TCG_COND_GE : TCG_COND_LT;
+            cond = TCG_COND_LT;
             goto fast_jcc_l;
         case JCC_LE:
-            cond = inv ? TCG_COND_GT : TCG_COND_LE;
+            cond = TCG_COND_LE;
         fast_jcc_l:
             tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
             gen_exts(size, cpu_tmp4);
             t0 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, true);
-            tcg_gen_setcond_tl(cond, reg, cpu_tmp4, t0);
+            cc = (CCPrepare) { .cond = cond, .reg = cpu_tmp4,
+                               .reg2 = t0, .mask = -1, .use_reg2 = true };
             break;
 
         default:
@@ -1174,11 +1160,19 @@ static inline void gen_setcc1(DisasContext *s, int b, TCGv reg)
 
     default:
     slow_jcc:
-        /* gen_setcc_slow actually generates good code for JC, JZ and JS */
-        gen_setcc_slow(s, jcc_op, reg, inv);
+        /* gen_prepare_cc_slow actually generates good code for JC, JZ and JS */
+        cc = gen_prepare_cc_slow(s, jcc_op, reg);
         break;
     }
+
+    if (inv) {
+        cc.cond = tcg_invert_cond(cc.cond);
+    }
+    return cc;
 }
+
+#define gen_setcc1(s, b, reg) \
+    gen_do_setcc(reg, gen_prepare_cc(s, b, reg), false)
 
 /* generate a conditional jump to label 'l1' according to jump opcode
    value 'b'. In the fast case, T0 is guaranted not to be used. */
@@ -1292,9 +1286,8 @@ static inline void gen_jcc1(DisasContext *s, int b, int l1)
         break;
     default:
     slow_jcc:
-        gen_setcc_slow(s, jcc_op, cpu_T[0], false);
-        tcg_gen_brcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, 
-                           cpu_T[0], 0, l1);
+        gen_setcc1(s, b, cpu_T[0]);
+        tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
         break;
     }
 }
