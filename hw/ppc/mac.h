@@ -45,10 +45,12 @@
 void cuda_init (MemoryRegion **cuda_mem, qemu_irq irq);
 
 /* MacIO */
-void macio_init (PCIBus *bus, int device_id, int is_oldworld,
-                 MemoryRegion *pic_mem, MemoryRegion *dbdma_mem,
-                 MemoryRegion *cuda_mem, void *nvram,
-                 int nb_ide, MemoryRegion **ide_mem, MemoryRegion *escc_mem);
+#define TYPE_OLDWORLD_MACIO "macio-oldworld"
+#define TYPE_NEWWORLD_MACIO "macio-newworld"
+void macio_init(PCIDevice *dev,
+                MemoryRegion *pic_mem, MemoryRegion *dbdma_mem,
+                MemoryRegion *cuda_mem, void *nvram,
+                int nb_ide, MemoryRegion **ide_mem, MemoryRegion *escc_mem);
 
 /* Heathrow PIC */
 qemu_irq *heathrow_pic_init(MemoryRegion **pmem,

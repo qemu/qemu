@@ -147,6 +147,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
+    PCIDevice *macio;
     MacIONVRAMState *nvr;
     int bios_size;
     MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem, *escc_mem;
@@ -374,7 +375,8 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
 
-    macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem,
+    macio = pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO);
+    macio_init(macio, pic_mem,
                dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_bar);
 
     if (usb_enabled(machine_arch == ARCH_MAC99_U3)) {

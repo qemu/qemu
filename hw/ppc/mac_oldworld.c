@@ -90,6 +90,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     uint32_t kernel_base, initrd_base, cmdline_base = 0;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
+    PCIDevice *macio;
     MacIONVRAMState *nvr;
     int bios_size;
     MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem;
@@ -283,7 +284,8 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     nvr = macio_nvram_init(0x2000, 4);
     pmac_format_nvram_partition(nvr, 0x2000);
 
-    macio_init(pci_bus, PCI_DEVICE_ID_APPLE_343S1201, 1, pic_mem,
+    macio = pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO);
+    macio_init(macio, pic_mem,
                dbdma_mem, cuda_mem, nvr, 2, ide_mem, escc_bar);
 
     if (usb_enabled(false)) {
