@@ -82,7 +82,13 @@ static void macio_bar_setup(MacIOState *macio_state)
 
 static int macio_initfn(PCIDevice *d)
 {
+    MacIOState *s = MACIO(d);
+
     d->config[0x3d] = 0x01; // interrupt on pin 1
+
+    macio_bar_setup(s);
+    pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
+
     return 0;
 }
 
@@ -127,7 +133,7 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld,
     MacIOState *macio_state;
     int i;
 
-    d = pci_create_simple(bus, -1, TYPE_MACIO);
+    d = pci_create(bus, -1, TYPE_MACIO);
 
     macio_state = MACIO(d);
     macio_state->is_oldworld = is_oldworld;
@@ -148,6 +154,5 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld,
 
     pci_config_set_device_id(d->config, device_id);
 
-    macio_bar_setup(macio_state);
-    pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &macio_state->bar);
+    qdev_init_nofail(DEVICE(d));
 }
