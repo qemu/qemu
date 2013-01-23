@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "ppc_mac.h"
+#include "ppc/mac.h"
 
 /* debug PIC */
 //#define DEBUG_PIC

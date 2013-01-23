@@ -22,9 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <hw/hw.h>
-#include <hw/ppc_mac.h>
-#include <hw/mac_dbdma.h>
+#include "hw/hw.h"
+#include "hw/ppc/mac.h"
+#include "hw/mac_dbdma.h"
 #include "block/block.h"
 #include "sysemu/dma.h"
 

@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "ppc_mac.h"
+#include "ppc/mac.h"
 #include "pci/pci.h"
 #include "pci/pci_host.h"
 

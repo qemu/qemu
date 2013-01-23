@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "ppc_mac.h"
+#include "ppc/mac.h"
 #include "adb.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"

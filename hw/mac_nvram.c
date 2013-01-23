@@ -25,7 +25,7 @@
 #include "hw.h"
 #include "firmware_abi.h"
 #include "sysemu/sysemu.h"
-#include "ppc_mac.h"
+#include "ppc/mac.h"
 
 /* debug NVR */
 //#define DEBUG_NVR
