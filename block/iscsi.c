@@ -48,6 +48,7 @@ typedef struct IscsiLun {
     int block_size;
     uint64_t num_blocks;
     int events;
+    QEMUTimer *nop_timer;
 } IscsiLun;
 
 typedef struct IscsiAIOCB {
@@ -65,6 +66,9 @@ typedef struct IscsiAIOCB {
     sg_io_hdr_t *ioh;
 #endif
 } IscsiAIOCB;
+
+#define NOP_INTERVAL 5000
+#define MAX_NOP_FAILURES 3
 
 static void
 iscsi_bh_cb(void *p)
@@ -241,8 +245,17 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     /* XXX we should pass the iovec to write16 to avoid the extra copy */
     /* this will allow us to get rid of 'buf' completely */
     size = nb_sectors * BDRV_SECTOR_SIZE;
-    acb->buf = g_malloc(size);
-    qemu_iovec_to_buf(acb->qiov, 0, acb->buf, size);
+    data.size = MIN(size, acb->qiov->size);
+
+    /* if the iovec only contains one buffer we can pass it directly */
+    if (acb->qiov->niov == 1) {
+        acb->buf = NULL;
+        data.data = acb->qiov->iov[0].iov_base;
+    } else {
+        acb->buf = g_malloc(data.size);
+        qemu_iovec_to_buf(acb->qiov, 0, acb->buf, data.size);
+        data.data = acb->buf;
+    }
 
     acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {
@@ -262,9 +275,6 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     num_sectors = size / iscsilun->block_size;
     *(uint32_t *)&acb->task->cdb[10] = htonl(num_sectors);
     acb->task->expxferlen = size;
-
-    data.data = acb->buf;
-    data.size = size;
 
     if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
                                  iscsi_aio_write16_cb,
@@ -762,6 +772,26 @@ static char *parse_initiator_name(const char *target)
     }
 }
 
+#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
+static void iscsi_nop_timed_event(void *opaque)
+{
+    IscsiLun *iscsilun = opaque;
+
+    if (iscsi_get_nops_in_flight(iscsilun->iscsi) > MAX_NOP_FAILURES) {
+        error_report("iSCSI: NOP timeout. Reconnecting...");
+        iscsi_reconnect(iscsilun->iscsi);
+    }
+
+    if (iscsi_nop_out_async(iscsilun->iscsi, NULL, NULL, 0, NULL) != 0) {
+        error_report("iSCSI: failed to sent NOP-Out. Disabling NOP messages.");
+        return;
+    }
+
+    qemu_mod_timer(iscsilun->nop_timer, qemu_get_clock_ms(rt_clock) + NOP_INTERVAL);
+    iscsi_set_events(iscsilun);
+}
+#endif
+
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
@@ -922,6 +952,12 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
 
     ret = 0;
 
+#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
+    /* Set up a timer for sending out iSCSI NOPs */
+    iscsilun->nop_timer = qemu_new_timer_ms(rt_clock, iscsi_nop_timed_event, iscsilun);
+    qemu_mod_timer(iscsilun->nop_timer, qemu_get_clock_ms(rt_clock) + NOP_INTERVAL);
+#endif
+
 out:
     if (initiator_name != NULL) {
         g_free(initiator_name);
@@ -947,6 +983,10 @@ static void iscsi_close(BlockDriverState *bs)
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = iscsilun->iscsi;
 
+    if (iscsilun->nop_timer) {
+        qemu_del_timer(iscsilun->nop_timer);
+        qemu_free_timer(iscsilun->nop_timer);
+    }
     qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), NULL, NULL, NULL, NULL);
     iscsi_destroy_context(iscsi);
     memset(iscsilun, 0, sizeof(IscsiLun));
@@ -957,6 +997,60 @@ static int iscsi_has_zero_init(BlockDriverState *bs)
     return 0;
 }
 
+static int iscsi_create(const char *filename, QEMUOptionParameter *options)
+{
+    int ret = 0;
+    int64_t total_size = 0;
+    BlockDriverState bs;
+    IscsiLun *iscsilun = NULL;
+
+    memset(&bs, 0, sizeof(BlockDriverState));
+
+    /* Read out options */
+    while (options && options->name) {
+        if (!strcmp(options->name, "size")) {
+            total_size = options->value.n / BDRV_SECTOR_SIZE;
+        }
+        options++;
+    }
+
+    bs.opaque = g_malloc0(sizeof(struct IscsiLun));
+    iscsilun = bs.opaque;
+
+    ret = iscsi_open(&bs, filename, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    if (iscsilun->nop_timer) {
+        qemu_del_timer(iscsilun->nop_timer);
+        qemu_free_timer(iscsilun->nop_timer);
+    }
+    if (iscsilun->type != TYPE_DISK) {
+        ret = -ENODEV;
+        goto out;
+    }
+    if (bs.total_sectors < total_size) {
+        ret = -ENOSPC;
+    }
+
+    ret = 0;
+out:
+    if (iscsilun->iscsi != NULL) {
+        iscsi_destroy_context(iscsilun->iscsi);
+    }
+    g_free(bs.opaque);
+    return ret;
+}
+
+static QEMUOptionParameter iscsi_create_options[] = {
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size"
+    },
+    { NULL }
+};
+
 static BlockDriver bdrv_iscsi = {
     .format_name     = "iscsi",
     .protocol_name   = "iscsi",
@@ -964,6 +1058,8 @@ static BlockDriver bdrv_iscsi = {
     .instance_size   = sizeof(IscsiLun),
     .bdrv_file_open  = iscsi_open,
     .bdrv_close      = iscsi_close,
+    .bdrv_create     = iscsi_create,
+    .create_options  = iscsi_create_options,
 
     .bdrv_getlength  = iscsi_getlength,
 
