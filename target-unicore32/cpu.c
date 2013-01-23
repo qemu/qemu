@@ -111,7 +111,7 @@ static void uc32_register_cpu_type(const UniCore32CPUInfo *info)
         .instance_init = info->instance_init,
     };
 
-    type_register_static(&type_info);
+    type_register(&type_info);
 }
 
 static const TypeInfo uc32_cpu_type_info = {
