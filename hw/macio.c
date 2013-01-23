@@ -38,9 +38,9 @@ typedef struct MacIOState
     /*< public >*/
 
     MemoryRegion bar;
+    CUDAState cuda;
     void *dbdma;
     MemoryRegion *pic_mem;
-    MemoryRegion *cuda_mem;
     MemoryRegion *escc_mem;
 } MacIOState;
 
@@ -52,7 +52,7 @@ typedef struct OldWorldMacIOState {
     MacIOState parent_obj;
     /*< public >*/
 
-    qemu_irq irqs[2];
+    qemu_irq irqs[3];
 
     MacIONVRAMState nvram;
     MACIOIDEState ide;
@@ -65,7 +65,7 @@ typedef struct NewWorldMacIOState {
     /*< private >*/
     MacIOState parent_obj;
     /*< public >*/
-    qemu_irq irqs[4];
+    qemu_irq irqs[5];
     MACIOIDEState ide[2];
 } NewWorldMacIOState;
 
@@ -76,16 +76,23 @@ static void macio_bar_setup(MacIOState *macio_state)
     if (macio_state->escc_mem) {
         memory_region_add_subregion(bar, 0x13000, macio_state->escc_mem);
     }
-    if (macio_state->cuda_mem) {
-        memory_region_add_subregion(bar, 0x16000, macio_state->cuda_mem);
-    }
 }
 
 static int macio_common_initfn(PCIDevice *d)
 {
     MacIOState *s = MACIO(d);
+    SysBusDevice *sysbus_dev;
+    int ret;
 
     d->config[0x3d] = 0x01; // interrupt on pin 1
+
+    ret = qdev_init(DEVICE(&s->cuda));
+    if (ret < 0) {
+        return ret;
+    }
+    sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
+    memory_region_add_subregion(&s->bar, 0x16000,
+                                sysbus_mmio_get_region(sysbus_dev, 0));
 
     macio_bar_setup(s);
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
@@ -103,6 +110,9 @@ static int macio_oldworld_initfn(PCIDevice *d)
         return ret;
     }
 
+    sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
+    sysbus_connect_irq(sysbus_dev, 0, os->irqs[0]);
+
     ret = qdev_init(DEVICE(&os->nvram));
     if (ret < 0) {
         return ret;
@@ -118,8 +128,8 @@ static int macio_oldworld_initfn(PCIDevice *d)
     }
 
     sysbus_dev = SYS_BUS_DEVICE(&os->ide);
-    sysbus_connect_irq(sysbus_dev, 0, os->irqs[0]);
-    sysbus_connect_irq(sysbus_dev, 1, os->irqs[1]);
+    sysbus_connect_irq(sysbus_dev, 0, os->irqs[1]);
+    sysbus_connect_irq(sysbus_dev, 1, os->irqs[2]);
     macio_ide_register_dma(&os->ide, s->dbdma, 0x16);
     ret = qdev_init(DEVICE(&os->ide));
     if (ret < 0) {
@@ -158,14 +168,17 @@ static int macio_newworld_initfn(PCIDevice *d)
         return ret;
     }
 
+    sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
+    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[0]);
+
     if (s->pic_mem) {
         /* OpenPIC */
         memory_region_add_subregion(&s->bar, 0x40000, s->pic_mem);
     }
 
     sysbus_dev = SYS_BUS_DEVICE(&ns->ide[0]);
-    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[0]);
-    sysbus_connect_irq(sysbus_dev, 1, ns->irqs[1]);
+    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[1]);
+    sysbus_connect_irq(sysbus_dev, 1, ns->irqs[2]);
     macio_ide_register_dma(&ns->ide[0], s->dbdma, 0x16);
     ret = qdev_init(DEVICE(&ns->ide[0]));
     if (ret < 0) {
@@ -173,8 +186,8 @@ static int macio_newworld_initfn(PCIDevice *d)
     }
 
     sysbus_dev = SYS_BUS_DEVICE(&ns->ide[1]);
-    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[2]);
-    sysbus_connect_irq(sysbus_dev, 1, ns->irqs[3]);
+    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[3]);
+    sysbus_connect_irq(sysbus_dev, 1, ns->irqs[4]);
     macio_ide_register_dma(&ns->ide[0], s->dbdma, 0x1a);
     ret = qdev_init(DEVICE(&ns->ide[1]));
     if (ret < 0) {
@@ -210,6 +223,10 @@ static void macio_instance_init(Object *obj)
     MemoryRegion *dbdma_mem;
 
     memory_region_init(&s->bar, "macio", 0x80000);
+
+    object_initialize(&s->cuda, TYPE_CUDA);
+    qdev_set_parent_bus(DEVICE(&s->cuda), sysbus_get_default());
+    object_property_add_child(obj, "cuda", OBJECT(&s->cuda), NULL);
 
     s->dbdma = DBDMA_init(&dbdma_mem);
     memory_region_add_subregion(&s->bar, 0x08000, dbdma_mem);
@@ -275,13 +292,11 @@ type_init(macio_register_types)
 
 void macio_init(PCIDevice *d,
                 MemoryRegion *pic_mem,
-                MemoryRegion *cuda_mem,
                 MemoryRegion *escc_mem)
 {
     MacIOState *macio_state = MACIO(d);
 
     macio_state->pic_mem = pic_mem;
-    macio_state->cuda_mem = cuda_mem;
     macio_state->escc_mem = escc_mem;
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */

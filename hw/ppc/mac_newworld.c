@@ -151,7 +151,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     MACIOIDEState *macio_ide;
     MacIONVRAMState *nvr;
     int bios_size;
-    MemoryRegion *pic_mem, *cuda_mem, *escc_mem;
+    MemoryRegion *pic_mem, *escc_mem;
     MemoryRegion *escc_bar = g_new(MemoryRegion, 1);
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
@@ -363,18 +363,14 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
 
     ide_drive_get(hd, MAX_IDE_BUS);
 
-    cuda_init(&cuda_mem, pic[0x19]);
-
-    adb_kbd_init(&adb_bus);
-    adb_mouse_init(&adb_bus);
-
     macio = pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO);
     dev = DEVICE(macio);
-    qdev_connect_gpio_out(dev, 0, pic[0x0d]); /* IDE */
-    qdev_connect_gpio_out(dev, 1, pic[0x02]); /* IDE DMA */
-    qdev_connect_gpio_out(dev, 2, pic[0x0e]); /* IDE */
-    qdev_connect_gpio_out(dev, 3, pic[0x02]); /* IDE DMA */
-    macio_init(macio, pic_mem, cuda_mem, escc_bar);
+    qdev_connect_gpio_out(dev, 0, pic[0x19]); /* CUDA */
+    qdev_connect_gpio_out(dev, 1, pic[0x0d]); /* IDE */
+    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 3, pic[0x0e]); /* IDE */
+    qdev_connect_gpio_out(dev, 4, pic[0x02]); /* IDE DMA */
+    macio_init(macio, pic_mem, escc_bar);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
@@ -384,6 +380,9 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
                                                         "ide[1]"));
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
+
+    adb_kbd_init(&adb_bus);
+    adb_mouse_init(&adb_bus);
 
     if (usb_enabled(machine_arch == ARCH_MAC99_U3)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
