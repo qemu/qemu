@@ -19,10 +19,6 @@ PCIDevice *pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 PCIDevice *pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 void vt82c686b_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 
-/* ide-macio.c */
-MemoryRegion *pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
-		   void *dbdma, int channel, qemu_irq dma_irq);
-
 /* ide-mmio.c */
 void mmio_ide_init (hwaddr membase, hwaddr membase2,
                     MemoryRegion *address_space,

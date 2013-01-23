@@ -27,7 +27,6 @@
 #include "hw/ppc.h"
 #include "mac.h"
 #include "hw/adb.h"
-#include "hw/mac_dbdma.h"
 #include "hw/nvram.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
@@ -91,13 +90,14 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
     PCIDevice *macio;
+    MACIOIDEState *macio_ide;
+    DeviceState *dev;
     int bios_size;
-    MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem;
-    MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1), *ide_mem[2];
+    MemoryRegion *pic_mem, *cuda_mem;
+    MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1);
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
-    void *dbdma;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -263,17 +263,6 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
 
     ide_drive_get(hd, MAX_IDE_BUS);
 
-    /* First IDE channel is a MAC IDE on the MacIO bus */
-    dbdma = DBDMA_init(&dbdma_mem);
-    ide_mem[0] = NULL;
-    ide_mem[1] = pmac_ide_init(hd, pic[0x0D], dbdma, 0x16, pic[0x02]);
-
-    /* Second IDE channel is a CMD646 on the PCI bus */
-    hd[0] = hd[MAX_IDE_DEVS];
-    hd[1] = hd[MAX_IDE_DEVS + 1];
-    hd[3] = hd[2] = NULL;
-    pci_cmd646_ide_init(pci_bus, hd, 0);
-
     /* cuda also initialize ADB */
     cuda_init(&cuda_mem, pic[0x12]);
 
@@ -281,8 +270,21 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     adb_mouse_init(&adb_bus);
 
     macio = pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO);
-    macio_init(macio, pic_mem,
-               dbdma_mem, cuda_mem, 2, ide_mem, escc_bar);
+    dev = DEVICE(macio);
+    qdev_connect_gpio_out(dev, 0, pic[0x0D]); /* IDE */
+    qdev_connect_gpio_out(dev, 1, pic[0x02]); /* IDE DMA */
+    macio_init(macio, pic_mem, cuda_mem, escc_bar);
+
+    /* First IDE channel is a MAC IDE on the MacIO bus */
+    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
+                                                        "ide"));
+    macio_ide_init_drives(macio_ide, hd);
+
+    /* Second IDE channel is a CMD646 on the PCI bus */
+    hd[0] = hd[MAX_IDE_DEVS];
+    hd[1] = hd[MAX_IDE_DEVS + 1];
+    hd[3] = hd[2] = NULL;
+    pci_cmd646_ide_init(pci_bus, hd, 0);
 
     if (usb_enabled(false)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");

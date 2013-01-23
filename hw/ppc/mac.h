@@ -27,6 +27,7 @@
 
 #include "exec/memory.h"
 #include "hw/sysbus.h"
+#include "hw/ide/internal.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -48,10 +49,30 @@ void cuda_init (MemoryRegion **cuda_mem, qemu_irq irq);
 /* MacIO */
 #define TYPE_OLDWORLD_MACIO "macio-oldworld"
 #define TYPE_NEWWORLD_MACIO "macio-newworld"
+
+#define TYPE_MACIO_IDE "macio-ide"
+#define MACIO_IDE(obj) OBJECT_CHECK(MACIOIDEState, (obj), TYPE_MACIO_IDE)
+
+typedef struct MACIOIDEState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    qemu_irq irq;
+    qemu_irq dma_irq;
+
+    MemoryRegion mem;
+    IDEBus bus;
+    BlockDriverAIOCB *aiocb;
+} MACIOIDEState;
+
+void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);
+void macio_ide_register_dma(MACIOIDEState *ide, void *dbdma, int channel);
+
 void macio_init(PCIDevice *dev,
-                MemoryRegion *pic_mem, MemoryRegion *dbdma_mem,
+                MemoryRegion *pic_mem,
                 MemoryRegion *cuda_mem,
-                int nb_ide, MemoryRegion **ide_mem, MemoryRegion *escc_mem);
+                MemoryRegion *escc_mem);
 
 /* Heathrow PIC */
 qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
