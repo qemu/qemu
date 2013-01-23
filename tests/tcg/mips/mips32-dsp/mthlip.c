@@ -30,7 +30,7 @@ int main()
     assert(ach == resulth);
     assert(acl == resultl);
 
-    dsp = 0x3f;
+    dsp = 0x1f;
     ach = 0x05;
     acl = 0xB4CB;
     rs  = 0x00FFBBAA;
