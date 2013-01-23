@@ -149,6 +149,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     PCIBus *pci_bus;
     PCIDevice *macio;
     MACIOIDEState *macio_ide;
+    BusState *adb_bus;
     MacIONVRAMState *nvr;
     int bios_size;
     MemoryRegion *pic_mem, *escc_mem;
@@ -381,9 +382,11 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
                                                         "ide[1]"));
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
-    dev = qdev_create(BUS(&adb_bus), TYPE_ADB_KEYBOARD);
+    dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+    adb_bus = qdev_get_child_bus(dev, "adb.0");
+    dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
     qdev_init_nofail(dev);
-    dev = qdev_create(BUS(&adb_bus), TYPE_ADB_MOUSE);
+    dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
     qdev_init_nofail(dev);
 
     if (usb_enabled(machine_arch == ARCH_MAC99_U3)) {

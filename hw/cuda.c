@@ -108,8 +108,6 @@
 /* CUDA returns time_t's offset from Jan 1, 1904, not 1970 */
 #define RTC_OFFSET                      2082844800
 
-ADBBusState adb_bus;
-
 static void cuda_update(CUDAState *s);
 static void cuda_receive_packet_from_host(CUDAState *s,
                                           const uint8_t *data, int len);
@@ -459,7 +457,7 @@ static void cuda_adb_poll(void *opaque)
     uint8_t obuf[ADB_MAX_OUT_LEN + 2];
     int olen;
 
-    olen = adb_poll(&adb_bus, obuf + 2);
+    olen = adb_poll(&s->adb_bus, obuf + 2);
     if (olen > 0) {
         obuf[0] = ADB_PACKET;
         obuf[1] = 0x40; /* polled data */
@@ -555,7 +553,7 @@ static void cuda_receive_packet_from_host(CUDAState *s,
         {
             uint8_t obuf[ADB_MAX_OUT_LEN + 2];
             int olen;
-            olen = adb_request(&adb_bus, obuf + 2, data + 1, len - 1);
+            olen = adb_request(&s->adb_bus, obuf + 2, data + 1, len - 1);
             if (olen > 0) {
                 obuf[0] = ADB_PACKET;
                 obuf[1] = 0x00;
@@ -713,7 +711,7 @@ static void cuda_initfn(Object *obj)
         s->timers[i].index = i;
     }
 
-    qbus_create_inplace((BusState *)&adb_bus, TYPE_ADB_BUS, DEVICE(obj),
+    qbus_create_inplace((BusState *)&s->adb_bus, TYPE_ADB_BUS, DEVICE(obj),
                         "adb.0");
 }
 

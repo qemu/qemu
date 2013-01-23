@@ -84,5 +84,4 @@ int adb_poll(ADBBusState *s, uint8_t *buf_out);
 #define TYPE_ADB_KEYBOARD "adb-keyboard"
 #define TYPE_ADB_MOUSE "adb-mouse"
 
-extern ADBBusState adb_bus;
 #endif /* !defined(__ADB_H__) */

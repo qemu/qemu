@@ -28,6 +28,7 @@
 #include "exec/memory.h"
 #include "hw/sysbus.h"
 #include "hw/ide/internal.h"
+#include "hw/adb.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -93,6 +94,7 @@ typedef struct CUDAState {
     uint8_t ier;
     uint8_t anh;
 
+    ADBBusState adb_bus;
     CUDATimer timers[2];
 
     uint32_t tick_offset;

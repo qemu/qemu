@@ -92,6 +92,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     PCIDevice *macio;
     MACIOIDEState *macio_ide;
     DeviceState *dev;
+    BusState *adb_bus;
     int bios_size;
     MemoryRegion *pic_mem;
     MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1);
@@ -281,9 +282,11 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     hd[3] = hd[2] = NULL;
     pci_cmd646_ide_init(pci_bus, hd, 0);
 
-    dev = qdev_create(BUS(&adb_bus), TYPE_ADB_KEYBOARD);
+    dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+    adb_bus = qdev_get_child_bus(dev, "adb.0");
+    dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
     qdev_init_nofail(dev);
-    dev = qdev_create(BUS(&adb_bus), TYPE_ADB_MOUSE);
+    dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
     qdev_init_nofail(dev);
 
     if (usb_enabled(false)) {
