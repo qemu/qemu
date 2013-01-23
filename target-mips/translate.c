@@ -15978,10 +15978,8 @@ void cpu_state_reset(CPUMIPSState *env)
     if (env->CP0_Config1 & (1 << CP0C1_FP)) {
         env->CP0_Status |= (1 << CP0St_CU1);
     }
-    if (env->cpu_model->insn_flags & ASE_DSPR2) {
-        env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2;
-    } else if (env->cpu_model->insn_flags & ASE_DSP) {
-        env->hflags |= MIPS_HFLAG_DSP;
+    if (env->CP0_Config3 & (1 << CP0C3_DSPP)) {
+        env->CP0_Status |= (1 << CP0St_MX);
     }
 #else
     if (env->hflags & MIPS_HFLAG_BMASK) {
