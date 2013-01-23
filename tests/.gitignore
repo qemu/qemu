@@ -10,4 +10,5 @@ test-qmp-commands.h
 test-qmp-commands
 test-qmp-input-strict
 test-qmp-marshal.c
+test-x86-cpuid
 *-test
