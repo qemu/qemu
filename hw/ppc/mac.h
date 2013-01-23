@@ -78,6 +78,6 @@ MacIONVRAMState *macio_nvram_init (hwaddr size,
 void macio_nvram_setup_bar(MacIONVRAMState *s, MemoryRegion *bar,
                            hwaddr mem_base);
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
-uint32_t macio_nvram_read (void *opaque, uint32_t addr);
-void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val);
+uint8_t macio_nvram_read(MacIONVRAMState *s, uint32_t addr);
+void macio_nvram_write(MacIONVRAMState *s, uint32_t addr, uint8_t val);
 #endif /* !defined(__PPC_MAC_H__) */

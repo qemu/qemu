@@ -47,27 +47,26 @@ struct MacIONVRAMState {
 #define DEF_SYSTEM_SIZE 0xc10
 
 /* Direct access to NVRAM */
-uint32_t macio_nvram_read (void *opaque, uint32_t addr)
+uint8_t macio_nvram_read(MacIONVRAMState *s, uint32_t addr)
 {
-    MacIONVRAMState *s = opaque;
     uint32_t ret;
 
-    if (addr < s->size)
+    if (addr < s->size) {
         ret = s->data[addr];
-    else
+    } else {
         ret = -1;
-    NVR_DPRINTF("read addr %04x val %x\n", addr, ret);
+    }
+    NVR_DPRINTF("read addr %04" PRIx32 " val %" PRIx8 "\n", addr, ret);
 
     return ret;
 }
 
-void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val)
+void macio_nvram_write(MacIONVRAMState *s, uint32_t addr, uint8_t val)
 {
-    MacIONVRAMState *s = opaque;
-
-    NVR_DPRINTF("write addr %04x val %x\n", addr, val);
-    if (addr < s->size)
+    NVR_DPRINTF("write addr %04" PRIx32 " val %" PRIx8 "\n", addr, val);
+    if (addr < s->size) {
         s->data[addr] = val;
+    }
 }
 
 /* macio style NVRAM device */
@@ -78,7 +77,7 @@ static void macio_nvram_writeb(void *opaque, hwaddr addr,
 
     addr = (addr >> s->it_shift) & (s->size - 1);
     s->data[addr] = value;
-    NVR_DPRINTF("writeb addr %04x val %x\n", (int)addr, value);
+    NVR_DPRINTF("writeb addr %04" PHYS_PRIx " val %" PRIx64 "\n", addr, value);
 }
 
 static uint64_t macio_nvram_readb(void *opaque, hwaddr addr,
