@@ -3723,7 +3723,7 @@ fi
 # USB host support
 case "$usb" in
 linux)
-  echo "HOST_USB=linux" >> $config_host_mak
+  echo "HOST_USB=linux legacy" >> $config_host_mak
 ;;
 bsd)
   echo "HOST_USB=bsd" >> $config_host_mak

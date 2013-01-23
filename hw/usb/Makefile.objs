@@ -27,4 +27,4 @@ common-obj-$(CONFIG_USB_SMARTCARD)    += dev-smartcard-reader.o
 common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
 
 # usb pass-through
-common-obj-y += host-$(HOST_USB).o
+common-obj-y += $(patsubst %,host-%.o,$(HOST_USB))
