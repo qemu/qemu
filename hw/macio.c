@@ -41,10 +41,20 @@ typedef struct MacIOState
     MemoryRegion *dbdma_mem;
     MemoryRegion *cuda_mem;
     MemoryRegion *escc_mem;
-    void *nvram;
     int nb_ide;
     MemoryRegion *ide_mem[4];
 } MacIOState;
+
+#define OLDWORLD_MACIO(obj) \
+    OBJECT_CHECK(OldWorldMacIOState, (obj), TYPE_OLDWORLD_MACIO)
+
+typedef struct OldWorldMacIOState {
+    /*< private >*/
+    MacIOState parent_obj;
+    /*< public >*/
+
+    MacIONVRAMState nvram;
+} OldWorldMacIOState;
 
 static void macio_bar_setup(MacIOState *macio_state)
 {
@@ -66,8 +76,6 @@ static void macio_bar_setup(MacIOState *macio_state)
                                         macio_state->ide_mem[i]);
         }
     }
-    if (macio_state->nvram != NULL)
-        macio_nvram_setup_bar(macio_state->nvram, bar, 0x60000);
 }
 
 static int macio_common_initfn(PCIDevice *d)
@@ -85,10 +93,21 @@ static int macio_common_initfn(PCIDevice *d)
 static int macio_oldworld_initfn(PCIDevice *d)
 {
     MacIOState *s = MACIO(d);
+    OldWorldMacIOState *os = OLDWORLD_MACIO(d);
+    SysBusDevice *sysbus_dev;
     int ret = macio_common_initfn(d);
     if (ret < 0) {
         return ret;
     }
+
+    ret = qdev_init(DEVICE(&os->nvram));
+    if (ret < 0) {
+        return ret;
+    }
+    sysbus_dev = SYS_BUS_DEVICE(&os->nvram);
+    memory_region_add_subregion(&s->bar, 0x60000,
+                                sysbus_mmio_get_region(sysbus_dev, 0));
+    pmac_format_nvram_partition(&os->nvram, os->nvram.size);
 
     if (s->pic_mem) {
         /* Heathrow PIC */
@@ -96,6 +115,17 @@ static int macio_oldworld_initfn(PCIDevice *d)
     }
 
     return 0;
+}
+
+static void macio_oldworld_init(Object *obj)
+{
+    OldWorldMacIOState *os = OLDWORLD_MACIO(obj);
+    DeviceState *dev;
+
+    object_initialize(&os->nvram, TYPE_MACIO_NVRAM);
+    dev = DEVICE(&os->nvram);
+    qdev_prop_set_uint32(dev, "size", 0x2000);
+    qdev_prop_set_uint32(dev, "it_shift", 4);
 }
 
 static int macio_newworld_initfn(PCIDevice *d)
@@ -148,6 +178,8 @@ static void macio_class_init(ObjectClass *klass, void *data)
 static const TypeInfo macio_oldworld_type_info = {
     .name          = TYPE_OLDWORLD_MACIO,
     .parent        = TYPE_MACIO,
+    .instance_size = sizeof(OldWorldMacIOState),
+    .instance_init = macio_oldworld_init,
     .class_init    = macio_oldworld_class_init,
 };
 
@@ -177,7 +209,7 @@ type_init(macio_register_types)
 
 void macio_init(PCIDevice *d,
                 MemoryRegion *pic_mem, MemoryRegion *dbdma_mem,
-                MemoryRegion *cuda_mem, void *nvram,
+                MemoryRegion *cuda_mem,
                 int nb_ide, MemoryRegion **ide_mem,
                 MemoryRegion *escc_mem)
 {
@@ -188,7 +220,6 @@ void macio_init(PCIDevice *d,
     macio_state->dbdma_mem = dbdma_mem;
     macio_state->cuda_mem = cuda_mem;
     macio_state->escc_mem = escc_mem;
-    macio_state->nvram = nvram;
     if (nb_ide > 4)
         nb_ide = 4;
     macio_state->nb_ide = nb_ide;

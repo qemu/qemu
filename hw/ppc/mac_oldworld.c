@@ -91,7 +91,6 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
     PCIDevice *macio;
-    MacIONVRAMState *nvr;
     int bios_size;
     MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem;
     MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1), *ide_mem[2];
@@ -281,12 +280,9 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
 
-    nvr = macio_nvram_init(0x2000, 4);
-    pmac_format_nvram_partition(nvr, 0x2000);
-
     macio = pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO);
     macio_init(macio, pic_mem,
-               dbdma_mem, cuda_mem, nvr, 2, ide_mem, escc_bar);
+               dbdma_mem, cuda_mem, 2, ide_mem, escc_bar);
 
     if (usb_enabled(false)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");

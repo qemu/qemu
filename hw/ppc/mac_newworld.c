@@ -377,7 +377,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
 
     macio = pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO);
     macio_init(macio, pic_mem,
-               dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_bar);
+               dbdma_mem, cuda_mem, 3, ide_mem, escc_bar);
 
     if (usb_enabled(machine_arch == ARCH_MAC99_U3)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
@@ -393,9 +393,13 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
         graphic_depth = 15;
 
     /* The NewWorld NVRAM is not located in the MacIO device */
-    nvr = macio_nvram_init(0x2000, 1);
+    dev = qdev_create(NULL, TYPE_MACIO_NVRAM);
+    qdev_prop_set_uint32(dev, "size", 0x2000);
+    qdev_prop_set_uint32(dev, "it_shift", 1);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xFFF04000);
+    nvr = MACIO_NVRAM(dev);
     pmac_format_nvram_partition(nvr, 0x2000);
-    macio_nvram_setup_bar(nvr, get_system_memory(), 0xFFF04000);
     /* No PCI init: the BIOS will do it */
 
     fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);

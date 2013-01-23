@@ -26,6 +26,7 @@
 #define __PPC_MAC_H__
 
 #include "exec/memory.h"
+#include "hw/sysbus.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -49,7 +50,7 @@ void cuda_init (MemoryRegion **cuda_mem, qemu_irq irq);
 #define TYPE_NEWWORLD_MACIO "macio-newworld"
 void macio_init(PCIDevice *dev,
                 MemoryRegion *pic_mem, MemoryRegion *dbdma_mem,
-                MemoryRegion *cuda_mem, void *nvram,
+                MemoryRegion *cuda_mem,
                 int nb_ide, MemoryRegion **ide_mem, MemoryRegion *escc_mem);
 
 /* Heathrow PIC */
@@ -71,12 +72,22 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
                          MemoryRegion *address_space_io);
 
 /* Mac NVRAM */
-typedef struct MacIONVRAMState MacIONVRAMState;
+#define TYPE_MACIO_NVRAM "macio-nvram"
+#define MACIO_NVRAM(obj) \
+    OBJECT_CHECK(MacIONVRAMState, (obj), TYPE_MACIO_NVRAM)
 
-MacIONVRAMState *macio_nvram_init (hwaddr size,
-                                   unsigned int it_shift);
-void macio_nvram_setup_bar(MacIONVRAMState *s, MemoryRegion *bar,
-                           hwaddr mem_base);
+typedef struct MacIONVRAMState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    uint32_t size;
+    uint32_t it_shift;
+
+    MemoryRegion mem;
+    uint8_t *data;
+} MacIONVRAMState;
+
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
 uint8_t macio_nvram_read(MacIONVRAMState *s, uint32_t addr);
 void macio_nvram_write(MacIONVRAMState *s, uint32_t addr, uint8_t val);
