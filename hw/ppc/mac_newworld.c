@@ -381,8 +381,10 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
                                                         "ide[1]"));
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
-    adb_kbd_init(&adb_bus);
-    adb_mouse_init(&adb_bus);
+    dev = qdev_create(BUS(&adb_bus), TYPE_ADB_KEYBOARD);
+    qdev_init_nofail(dev);
+    dev = qdev_create(BUS(&adb_bus), TYPE_ADB_MOUSE);
+    qdev_init_nofail(dev);
 
     if (usb_enabled(machine_arch == ARCH_MAC99_U3)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");

@@ -281,8 +281,10 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     hd[3] = hd[2] = NULL;
     pci_cmd646_ide_init(pci_bus, hd, 0);
 
-    adb_kbd_init(&adb_bus);
-    adb_mouse_init(&adb_bus);
+    dev = qdev_create(BUS(&adb_bus), TYPE_ADB_KEYBOARD);
+    qdev_init_nofail(dev);
+    dev = qdev_create(BUS(&adb_bus), TYPE_ADB_MOUSE);
+    qdev_init_nofail(dev);
 
     if (usb_enabled(false)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");

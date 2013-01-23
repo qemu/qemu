@@ -38,16 +38,31 @@ typedef struct ADBDevice ADBDevice;
 /* buf = NULL means polling */
 typedef int ADBDeviceRequest(ADBDevice *d, uint8_t *buf_out,
                               const uint8_t *buf, int len);
-typedef int ADBDeviceReset(ADBDevice *d);
+
+#define TYPE_ADB_DEVICE "adb-device"
+#define ADB_DEVICE(obj) OBJECT_CHECK(ADBDevice, (obj), TYPE_ADB_DEVICE)
 
 struct ADBDevice {
-    ADBBusState *bus;
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
+
     int devaddr;
     int handler;
-    ADBDeviceRequest *devreq;
-    ADBDeviceReset *devreset;
-    void *opaque;
 };
+
+#define ADB_DEVICE_CLASS(cls) \
+    OBJECT_CLASS_CHECK(ADBDeviceClass, (cls), TYPE_ADB_DEVICE)
+#define ADB_DEVICE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(ADBDeviceClass, (obj), TYPE_ADB_DEVICE)
+
+typedef struct ADBDeviceClass {
+    /*< private >*/
+    DeviceClass parent_class;
+    /*< public >*/
+
+    ADBDeviceRequest *devreq;
+} ADBDeviceClass;
 
 #define TYPE_ADB_BUS "apple-desktop-bus"
 #define ADB_BUS(obj) OBJECT_CHECK(ADBBusState, (obj), TYPE_ADB_BUS)
@@ -57,7 +72,7 @@ struct ADBBusState {
     BusState parent_obj;
     /*< public >*/
 
-    ADBDevice devices[MAX_ADB_DEVICES];
+    ADBDevice *devices[MAX_ADB_DEVICES];
     int nb_devices;
     int poll_index;
 };
@@ -66,8 +81,8 @@ int adb_request(ADBBusState *s, uint8_t *buf_out,
                 const uint8_t *buf, int len);
 int adb_poll(ADBBusState *s, uint8_t *buf_out);
 
-void adb_kbd_init(ADBBusState *bus);
-void adb_mouse_init(ADBBusState *bus);
+#define TYPE_ADB_KEYBOARD "adb-keyboard"
+#define TYPE_ADB_MOUSE "adb-mouse"
 
 extern ADBBusState adb_bus;
 #endif /* !defined(__ADB_H__) */
