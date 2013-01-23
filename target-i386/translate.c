@@ -90,6 +90,7 @@ typedef struct DisasContext {
 #endif
     int ss32;   /* 32 bit stack segment */
     CCOp cc_op;  /* current CC operation */
+    bool cc_op_dirty;
     int addseg; /* non zero if either DS/ES/SS have a non zero base */
     int f_st;   /* currently unused */
     int vm86;   /* vm86 mode */
@@ -173,9 +174,27 @@ enum {
     OR_A0, /* temporary register used when doing address evaluation */
 };
 
-static inline void set_cc_op(DisasContext *s, CCOp op)
+static void set_cc_op(DisasContext *s, CCOp op)
 {
-    s->cc_op = op;
+    if (s->cc_op != op) {
+        s->cc_op = op;
+        /* The DYNAMIC setting is translator only, and should never be
+           stored.  Thus we always consider it clean.  */
+        s->cc_op_dirty = (op != CC_OP_DYNAMIC);
+    }
+}
+
+static inline void gen_op_set_cc_op(int32_t val)
+{
+    tcg_gen_movi_i32(cpu_cc_op, val);
+}
+
+static void gen_update_cc_op(DisasContext *s)
+{
+    if (s->cc_op_dirty) {
+        gen_op_set_cc_op(s->cc_op);
+        s->cc_op_dirty = false;
+    }
 }
 
 static inline void gen_op_movl_T0_0(void)
@@ -442,11 +461,6 @@ static inline void gen_op_add_reg_T0(int size, int reg)
         break;
 #endif
     }
-}
-
-static inline void gen_op_set_cc_op(int32_t val)
-{
-    tcg_gen_movi_i32(cpu_cc_op, val);
 }
 
 static inline void gen_op_addl_A0_reg_sN(int shift, int reg)
@@ -798,14 +812,6 @@ static inline void gen_movs(DisasContext *s, int ot)
     gen_op_movl_T0_Dshift(ot);
     gen_op_add_reg_T0(s->aflag, R_ESI);
     gen_op_add_reg_T0(s->aflag, R_EDI);
-}
-
-static inline void gen_update_cc_op(DisasContext *s)
-{
-    if (s->cc_op != CC_OP_DYNAMIC) {
-        gen_op_set_cc_op(s->cc_op);
-        set_cc_op(s, CC_OP_DYNAMIC);
-    }
 }
 
 static void gen_op_update1_cc(void)
@@ -7816,6 +7822,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
     dc->tf = (flags >> TF_SHIFT) & 1;
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->cc_op = CC_OP_DYNAMIC;
+    dc->cc_op_dirty = false;
     dc->cs_base = cs_base;
     dc->tb = tb;
     dc->popl_esp_hack = 0;
