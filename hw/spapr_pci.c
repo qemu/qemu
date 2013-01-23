@@ -435,7 +435,7 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
      */
     sPAPRPHBState *phb = opaque;
 
-    trace_spapr_pci_lsi_set(phb->busname, irq_num, phb->lsi_table[irq_num].irq);
+    trace_spapr_pci_lsi_set(phb->dtbusname, irq_num, phb->lsi_table[irq_num].irq);
     qemu_set_irq(spapr_phb_lsi_qirq(phb, irq_num), level);
 }
 
@@ -522,7 +522,63 @@ static int spapr_phb_init(SysBusDevice *s)
     int i;
     PCIBus *bus;
 
+    if (sphb->index != -1) {
+        hwaddr windows_base;
+
+        if ((sphb->buid != -1) || (sphb->dma_liobn != -1)
+            || (sphb->mem_win_addr != -1)
+            || (sphb->io_win_addr != -1)
+            || (sphb->msi_win_addr != -1)) {
+            fprintf(stderr, "Either \"index\" or other parameters must"
+                    " be specified for PAPR PHB, not both\n");
+            return -1;
+        }
+
+        sphb->buid = SPAPR_PCI_BASE_BUID + sphb->index;
+        sphb->dma_liobn = SPAPR_PCI_BASE_LIOBN + sphb->index;
+
+        windows_base = SPAPR_PCI_WINDOW_BASE
+            + sphb->index * SPAPR_PCI_WINDOW_SPACING;
+        sphb->mem_win_addr = windows_base + SPAPR_PCI_MMIO_WIN_OFF;
+        sphb->io_win_addr = windows_base + SPAPR_PCI_IO_WIN_OFF;
+        sphb->msi_win_addr = windows_base + SPAPR_PCI_MSI_WIN_OFF;
+    }
+
+    if (sphb->buid == -1) {
+        fprintf(stderr, "BUID not specified for PHB\n");
+        return -1;
+    }
+
+    if (sphb->dma_liobn == -1) {
+        fprintf(stderr, "LIOBN not specified for PHB\n");
+        return -1;
+    }
+
+    if (sphb->mem_win_addr == -1) {
+        fprintf(stderr, "Memory window address not specified for PHB\n");
+        return -1;
+    }
+
+    if (sphb->io_win_addr == -1) {
+        fprintf(stderr, "IO window address not specified for PHB\n");
+        return -1;
+    }
+
+    if (sphb->msi_win_addr == -1) {
+        fprintf(stderr, "MSI window address not specified for PHB\n");
+        return -1;
+    }
+
+    if (find_phb(spapr, sphb->buid)) {
+        fprintf(stderr, "PCI host bridges must have unique BUIDs\n");
+        return -1;
+    }
+
     sphb->dtbusname = g_strdup_printf("pci@%" PRIx64, sphb->buid);
+    if (!sphb->busname) {
+        sphb->busname = sphb->dtbusname;
+    }
+
     namebuf = alloca(strlen(sphb->dtbusname) + 32);
 
     /* Initialize memory regions */
@@ -565,17 +621,19 @@ static int spapr_phb_init(SysBusDevice *s)
                                     &sphb->msiwindow);
     }
 
-    bus = pci_register_bus(DEVICE(s),
-                           sphb->busname ? sphb->busname : sphb->dtbusname,
+    bus = pci_register_bus(DEVICE(s), sphb->busname,
                            pci_spapr_set_irq, pci_spapr_map_irq, sphb,
                            &sphb->memspace, &sphb->iospace,
                            PCI_DEVFN(0, 0), PCI_NUM_PINS);
     phb->bus = bus;
 
-    sphb->dma_liobn = SPAPR_PCI_BASE_LIOBN | (pci_find_domain(bus) << 16);
     sphb->dma_window_start = 0;
     sphb->dma_window_size = 0x40000000;
     sphb->dma = spapr_tce_new_dma_context(sphb->dma_liobn, sphb->dma_window_size);
+    if (!sphb->dma) {
+        fprintf(stderr, "Unable to create TCE table for %s\n", sphb->dtbusname);
+        return -1;
+    }
     pci_setup_iommu(bus, spapr_pci_dma_context_fn, sphb);
 
     QLIST_INSERT_HEAD(&spapr->phbs, sphb, list);
@@ -605,13 +663,17 @@ static void spapr_phb_reset(DeviceState *qdev)
 }
 
 static Property spapr_phb_properties[] = {
-    DEFINE_PROP_HEX64("buid", sPAPRPHBState, buid, 0),
     DEFINE_PROP_STRING("busname", sPAPRPHBState, busname),
-    DEFINE_PROP_HEX64("mem_win_addr", sPAPRPHBState, mem_win_addr, 0),
-    DEFINE_PROP_HEX64("mem_win_size", sPAPRPHBState, mem_win_size, 0x20000000),
-    DEFINE_PROP_HEX64("io_win_addr", sPAPRPHBState, io_win_addr, 0),
-    DEFINE_PROP_HEX64("io_win_size", sPAPRPHBState, io_win_size, 0x10000),
-    DEFINE_PROP_HEX64("msi_win_addr", sPAPRPHBState, msi_win_addr, 0),
+    DEFINE_PROP_INT32("index", sPAPRPHBState, index, -1),
+    DEFINE_PROP_HEX64("buid", sPAPRPHBState, buid, -1),
+    DEFINE_PROP_HEX32("liobn", sPAPRPHBState, dma_liobn, -1),
+    DEFINE_PROP_HEX64("mem_win_addr", sPAPRPHBState, mem_win_addr, -1),
+    DEFINE_PROP_HEX64("mem_win_size", sPAPRPHBState, mem_win_size,
+                      SPAPR_PCI_MMIO_WIN_SIZE),
+    DEFINE_PROP_HEX64("io_win_addr", sPAPRPHBState, io_win_addr, -1),
+    DEFINE_PROP_HEX64("io_win_size", sPAPRPHBState, io_win_size,
+                      SPAPR_PCI_IO_WIN_SIZE),
+    DEFINE_PROP_HEX64("msi_win_addr", sPAPRPHBState, msi_win_addr, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -632,25 +694,17 @@ static const TypeInfo spapr_phb_info = {
     .class_init    = spapr_phb_class_init,
 };
 
-void spapr_create_phb(sPAPREnvironment *spapr,
-                      const char *busname, uint64_t buid,
-                      uint64_t mem_win_addr, uint64_t mem_win_size,
-                      uint64_t io_win_addr, uint64_t msi_win_addr)
+PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index,
+                               const char *busname)
 {
     DeviceState *dev;
 
     dev = qdev_create(NULL, TYPE_SPAPR_PCI_HOST_BRIDGE);
-
-    if (busname) {
-        qdev_prop_set_string(dev, "busname", g_strdup(busname));
-    }
-    qdev_prop_set_uint64(dev, "buid", buid);
-    qdev_prop_set_uint64(dev, "mem_win_addr", mem_win_addr);
-    qdev_prop_set_uint64(dev, "mem_win_size", mem_win_size);
-    qdev_prop_set_uint64(dev, "io_win_addr", io_win_addr);
-    qdev_prop_set_uint64(dev, "msi_win_addr", msi_win_addr);
-
+    qdev_prop_set_uint32(dev, "index", index);
+    qdev_prop_set_string(dev, "busname", busname);
     qdev_init_nofail(dev);
+
+    return PCI_HOST_BRIDGE(dev);
 }
 
 /* Macros to operate with address in OF binding to PCI */
