@@ -98,7 +98,8 @@ static ObjectClass *openrisc_cpu_class_by_name(const char *cpu_model)
     }
 
     oc = object_class_by_name(cpu_model);
-    if (oc != NULL && !object_class_dynamic_cast(oc, TYPE_OPENRISC_CPU)) {
+    if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_OPENRISC_CPU) ||
+                       object_class_is_abstract(oc))) {
         return NULL;
     }
     return oc;
