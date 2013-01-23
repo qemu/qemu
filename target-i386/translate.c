@@ -1075,44 +1075,6 @@ static void gen_do_setcc(TCGv reg, struct CCPrepare cc, bool inv)
     }
 }
 
-static CCPrepare gen_prepare_cc_slow(DisasContext *s, int jcc_op, TCGv reg)
-{
-    switch(jcc_op) {
-    case JCC_O:
-        return gen_prepare_eflags_o(s, reg);
-    case JCC_B:
-        return gen_prepare_eflags_c(s, reg);
-    case JCC_Z:
-        return gen_prepare_eflags_z(s, reg);
-    case JCC_BE:
-        gen_compute_eflags(s);
-        return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
-                             .mask = CC_Z | CC_C };
-    case JCC_S:
-        return gen_prepare_eflags_s(s, reg);
-    case JCC_P:
-        return gen_prepare_eflags_p(s, reg);
-    case JCC_L:
-        gen_compute_eflags(s);
-        if (TCGV_EQUAL(reg, cpu_cc_src)) {
-            reg = cpu_tmp0;
-        }
-        tcg_gen_shri_tl(reg, cpu_cc_src, 4); /* CC_O -> CC_S */
-        tcg_gen_xor_tl(reg, reg, cpu_cc_src);
-        return (CCPrepare) { .cond = TCG_COND_NE, .reg = reg, .mask = CC_S };
-    default:
-    case JCC_LE:
-        gen_compute_eflags(s);
-        if (TCGV_EQUAL(reg, cpu_cc_src)) {
-            reg = cpu_tmp0;
-        }
-        tcg_gen_shri_tl(reg, cpu_cc_src, 4); /* CC_O -> CC_S */
-        tcg_gen_xor_tl(reg, reg, cpu_cc_src);
-        return (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
-                             .mask = CC_S | CC_Z };
-    }
-}
-
 /* perform a conditional store into register 'reg' according to jump opcode
    value 'b'. In the fast case, T0 is guaranted not to be used. */
 static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
@@ -1125,11 +1087,8 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
     jcc_op = (b >> 1) & 7;
 
     switch (s->cc_op) {
-        /* we optimize relational operators for the cmp/jcc case */
-    case CC_OP_SUBB:
-    case CC_OP_SUBW:
-    case CC_OP_SUBL:
-    case CC_OP_SUBQ:
+    case CC_OP_SUBB ... CC_OP_SUBQ:
+        /* We optimize relational operators for the cmp/jcc case.  */
         size = s->cc_op - CC_OP_SUBB;
         switch (jcc_op) {
         case JCC_BE:
@@ -1160,8 +1119,50 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
 
     default:
     slow_jcc:
-        /* gen_prepare_cc_slow actually generates good code for JC, JZ and JS */
-        cc = gen_prepare_cc_slow(s, jcc_op, reg);
+        /* This actually generates good code for JC, JZ and JS.  */
+        switch (jcc_op) {
+        case JCC_O:
+            cc = gen_prepare_eflags_o(s, reg);
+            break;
+        case JCC_B:
+            cc = gen_prepare_eflags_c(s, reg);
+            break;
+        case JCC_Z:
+            cc = gen_prepare_eflags_z(s, reg);
+            break;
+        case JCC_BE:
+            gen_compute_eflags(s);
+            cc = (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
+                               .mask = CC_Z | CC_C };
+            break;
+        case JCC_S:
+            cc = gen_prepare_eflags_s(s, reg);
+            break;
+        case JCC_P:
+            cc = gen_prepare_eflags_p(s, reg);
+            break;
+        case JCC_L:
+            gen_compute_eflags(s);
+            if (TCGV_EQUAL(reg, cpu_cc_src)) {
+                reg = cpu_tmp0;
+            }
+            tcg_gen_shri_tl(reg, cpu_cc_src, 4); /* CC_O -> CC_S */
+            tcg_gen_xor_tl(reg, reg, cpu_cc_src);
+            cc = (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
+                               .mask = CC_S };
+            break;
+        default:
+        case JCC_LE:
+            gen_compute_eflags(s);
+            if (TCGV_EQUAL(reg, cpu_cc_src)) {
+                reg = cpu_tmp0;
+            }
+            tcg_gen_shri_tl(reg, cpu_cc_src, 4); /* CC_O -> CC_S */
+            tcg_gen_xor_tl(reg, reg, cpu_cc_src);
+            cc = (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
+                               .mask = CC_S | CC_Z };
+            break;
+        }
         break;
     }
 
