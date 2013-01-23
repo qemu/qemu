@@ -174,14 +174,48 @@ enum {
     OR_A0, /* temporary register used when doing address evaluation */
 };
 
+enum {
+    USES_CC_DST = 1,
+    USES_CC_SRC = 2,
+};
+
+/* Bit set if the global variable is live after setting CC_OP to X.  */
+static const uint8_t cc_op_live[CC_OP_NB] = {
+    [CC_OP_DYNAMIC] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_EFLAGS] = USES_CC_SRC,
+    [CC_OP_MULB ... CC_OP_MULQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_ADDB ... CC_OP_ADDQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_ADCB ... CC_OP_ADCQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_SUBB ... CC_OP_SUBQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_SBBB ... CC_OP_SBBQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_LOGICB ... CC_OP_LOGICQ] = USES_CC_DST,
+    [CC_OP_INCB ... CC_OP_INCQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_DECB ... CC_OP_DECQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_SHLB ... CC_OP_SHLQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_SARB ... CC_OP_SARQ] = USES_CC_DST | USES_CC_SRC,
+};
+
 static void set_cc_op(DisasContext *s, CCOp op)
 {
-    if (s->cc_op != op) {
-        s->cc_op = op;
-        /* The DYNAMIC setting is translator only, and should never be
-           stored.  Thus we always consider it clean.  */
-        s->cc_op_dirty = (op != CC_OP_DYNAMIC);
+    int dead;
+
+    if (s->cc_op == op) {
+        return;
     }
+
+    /* Discard CC computation that will no longer be used.  */
+    dead = cc_op_live[s->cc_op] & ~cc_op_live[op];
+    if (dead & USES_CC_DST) {
+        tcg_gen_discard_tl(cpu_cc_dst);
+    }
+    if (dead & USES_CC_SRC) {
+        tcg_gen_discard_tl(cpu_cc_src);
+    }
+
+    s->cc_op = op;
+    /* The DYNAMIC setting is translator only, and should never be
+       stored.  Thus we always consider it clean.  */
+    s->cc_op_dirty = (op != CC_OP_DYNAMIC);
 }
 
 static void gen_update_cc_op(DisasContext *s)
@@ -809,7 +843,6 @@ static inline void gen_movs(DisasContext *s, int ot)
 
 static void gen_op_update1_cc(void)
 {
-    tcg_gen_discard_tl(cpu_cc_src);
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
 }
 
@@ -827,7 +860,6 @@ static inline void gen_op_cmpl_T0_T1_cc(void)
 
 static inline void gen_op_testl_T0_T1_cc(void)
 {
-    tcg_gen_discard_tl(cpu_cc_src);
     tcg_gen_and_tl(cpu_cc_dst, cpu_T[0], cpu_T[1]);
 }
 
@@ -853,7 +885,6 @@ static void gen_compute_eflags(DisasContext *s)
     }
     gen_update_cc_op(s);
     gen_helper_cc_compute_all(cpu_tmp2_i32, cpu_env, cpu_cc_op);
-    tcg_gen_discard_tl(cpu_cc_dst);
     set_cc_op(s, CC_OP_EFLAGS);
     tcg_gen_extu_i32_tl(cpu_cc_src, cpu_tmp2_i32);
 }
@@ -6640,7 +6671,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_op_mov_reg_T0(ot, reg);
                 tcg_gen_movi_tl(cpu_cc_dst, 1);
                 gen_set_label(label1);
-                tcg_gen_discard_tl(cpu_cc_src);
                 set_cc_op(s, CC_OP_LOGICB + ot);
             }
             tcg_temp_free(t0);
