@@ -151,7 +151,7 @@ static void cpu_register(const OpenRISCCPUInfo *info)
         .class_size = sizeof(OpenRISCCPUClass),
     };
 
-    type_register_static(&type_info);
+    type_register(&type_info);
 }
 
 static const TypeInfo openrisc_cpu_type_info = {
