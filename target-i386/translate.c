@@ -2303,8 +2303,8 @@ static inline void gen_jcc(DisasContext *s, int b,
 {
     int l1, l2;
 
-    gen_update_cc_op(s);
     if (s->jmp_opt) {
+        gen_update_cc_op(s);
         l1 = gen_new_label();
         gen_jcc1(s, b, l1);
         set_cc_op(s, CC_OP_DYNAMIC);
@@ -2315,11 +2315,9 @@ static inline void gen_jcc(DisasContext *s, int b,
         gen_goto_tb(s, 1, val);
         s->is_jmp = DISAS_TB_JUMP;
     } else {
-
         l1 = gen_new_label();
         l2 = gen_new_label();
         gen_jcc1(s, b, l1);
-        set_cc_op(s, CC_OP_DYNAMIC);
 
         gen_jmp_im(next_eip);
         tcg_gen_br(l2);
