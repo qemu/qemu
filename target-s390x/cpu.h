@@ -147,6 +147,9 @@ static inline void cpu_clone_regs(CPUS390XState *env, target_ulong newsp)
 }
 #endif
 
+/* distinguish between 24 bit and 31 bit addressing */
+#define HIGH_ORDER_BIT 0x80000000
+
 /* Interrupt Codes */
 /* Program Interrupts */
 #define PGM_OPERATION                   0x0001
@@ -331,6 +334,20 @@ void *s390_cpu_physical_memory_map(CPUS390XState *env, hwaddr addr, hwaddr *len,
                                    int is_write);
 void s390_cpu_physical_memory_unmap(CPUS390XState *env, void *addr, hwaddr len,
                                     int is_write);
+static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
+{
+    hwaddr addr = 0;
+    uint8_t reg;
+
+    reg = ipb >> 28;
+    if (reg > 0) {
+        addr = env->regs[reg];
+    }
+    addr += (ipb >> 16) & 0xfff;
+
+    return addr;
+}
+
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
 
@@ -379,6 +396,89 @@ static inline unsigned s390_del_running_cpu(CPUS390XState *env)
 #endif
 void cpu_lock(void);
 void cpu_unlock(void);
+
+typedef struct SubchDev SubchDev;
+
+static inline SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,
+                                       uint16_t schid)
+{
+    return NULL;
+}
+static inline bool css_subch_visible(SubchDev *sch)
+{
+    return false;
+}
+static inline void css_conditional_io_interrupt(SubchDev *sch)
+{
+}
+static inline int css_do_stsch(SubchDev *sch, SCHIB *schib)
+{
+    return -ENODEV;
+}
+static inline bool css_schid_final(uint8_t cssid, uint8_t ssid, uint16_t schid)
+{
+    return true;
+}
+static inline int css_do_msch(SubchDev *sch, SCHIB *schib)
+{
+    return -ENODEV;
+}
+static inline int css_do_xsch(SubchDev *sch)
+{
+    return -ENODEV;
+}
+static inline int css_do_csch(SubchDev *sch)
+{
+    return -ENODEV;
+}
+static inline int css_do_hsch(SubchDev *sch)
+{
+    return -ENODEV;
+}
+static inline int css_do_ssch(SubchDev *sch, ORB *orb)
+{
+    return -ENODEV;
+}
+static inline int css_do_tsch(SubchDev *sch, IRB *irb)
+{
+    return -ENODEV;
+}
+static inline int css_do_stcrw(CRW *crw)
+{
+    return 1;
+}
+static inline int css_do_tpi(uint64_t addr, int lowcore)
+{
+    return 0;
+}
+static inline int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid,
+                                       int rfmt, uint8_t l_chpid, void *buf)
+{
+    return 0;
+}
+static inline void css_do_schm(uint8_t mbk, int update, int dct, uint64_t mbo)
+{
+}
+static inline int css_enable_mss(void)
+{
+    return -EINVAL;
+}
+static inline int css_enable_mcsse(void)
+{
+    return -EINVAL;
+}
+static inline int css_do_rsch(SubchDev *sch)
+{
+    return -ENODEV;
+}
+static inline int css_do_rchp(uint8_t cssid, uint8_t chpid)
+{
+    return -ENODEV;
+}
+static inline bool css_present(uint8_t cssid)
+{
+    return false;
+}
 
 static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
 {

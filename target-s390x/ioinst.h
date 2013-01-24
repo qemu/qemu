@@ -204,4 +204,20 @@ typedef struct CRW {
 
 int ioinst_disassemble_sch_ident(uint32_t value, int *m, int *cssid, int *ssid,
                                  int *schid);
+int ioinst_handle_xsch(CPUS390XState *env, uint64_t reg1);
+int ioinst_handle_csch(CPUS390XState *env, uint64_t reg1);
+int ioinst_handle_hsch(CPUS390XState *env, uint64_t reg1);
+int ioinst_handle_msch(CPUS390XState *env, uint64_t reg1, uint32_t ipb);
+int ioinst_handle_ssch(CPUS390XState *env, uint64_t reg1, uint32_t ipb);
+int ioinst_handle_stcrw(CPUS390XState *env, uint32_t ipb);
+int ioinst_handle_stsch(CPUS390XState *env, uint64_t reg1, uint32_t ipb);
+int ioinst_handle_tsch(CPUS390XState *env, uint64_t reg1, uint32_t ipb);
+int ioinst_handle_chsc(CPUS390XState *env, uint32_t ipb);
+int ioinst_handle_tpi(CPUS390XState *env, uint32_t ipb);
+int ioinst_handle_schm(CPUS390XState *env, uint64_t reg1, uint64_t reg2,
+                       uint32_t ipb);
+int ioinst_handle_rsch(CPUS390XState *env, uint64_t reg1);
+int ioinst_handle_rchp(CPUS390XState *env, uint64_t reg1);
+int ioinst_handle_sal(CPUS390XState *env, uint64_t reg1);
+
 #endif
