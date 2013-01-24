@@ -570,15 +570,17 @@ void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len)
 
 void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes)
 {
+    QEMUIOVector *iov = p->combined ? &p->combined->iov : &p->iov;
+
     assert(p->actual_length >= 0);
-    assert(p->actual_length + bytes <= p->iov.size);
+    assert(p->actual_length + bytes <= iov->size);
     switch (p->pid) {
     case USB_TOKEN_SETUP:
     case USB_TOKEN_OUT:
-        iov_to_buf(p->iov.iov, p->iov.niov, p->actual_length, ptr, bytes);
+        iov_to_buf(iov->iov, iov->niov, p->actual_length, ptr, bytes);
         break;
     case USB_TOKEN_IN:
-        iov_from_buf(p->iov.iov, p->iov.niov, p->actual_length, ptr, bytes);
+        iov_from_buf(iov->iov, iov->niov, p->actual_length, ptr, bytes);
         break;
     default:
         fprintf(stderr, "%s: invalid pid: %x\n", __func__, p->pid);
@@ -589,12 +591,19 @@ void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes)
 
 void usb_packet_skip(USBPacket *p, size_t bytes)
 {
+    QEMUIOVector *iov = p->combined ? &p->combined->iov : &p->iov;
+
     assert(p->actual_length >= 0);
-    assert(p->actual_length + bytes <= p->iov.size);
+    assert(p->actual_length + bytes <= iov->size);
     if (p->pid == USB_TOKEN_IN) {
-        iov_memset(p->iov.iov, p->iov.niov, p->actual_length, 0, bytes);
+        iov_memset(iov->iov, iov->niov, p->actual_length, 0, bytes);
     }
     p->actual_length += bytes;
+}
+
+size_t usb_packet_size(USBPacket *p)
+{
+    return p->combined ? p->combined->iov.size : p->iov.size;
 }
 
 void usb_packet_cleanup(USBPacket *p)

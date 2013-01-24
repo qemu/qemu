@@ -390,6 +390,7 @@ int usb_packet_map(USBPacket *p, QEMUSGList *sgl);
 void usb_packet_unmap(USBPacket *p, QEMUSGList *sgl);
 void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes);
 void usb_packet_skip(USBPacket *p, size_t bytes);
+size_t usb_packet_size(USBPacket *p);
 void usb_packet_cleanup(USBPacket *p);
 
 static inline bool usb_packet_is_inflight(USBPacket *p)
