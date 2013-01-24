@@ -4138,6 +4138,42 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 }
                 break;
 
+            case 0x3f5: /* pdep Gy, By, Ey */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI2)
+                    || !(s->prefix & PREFIX_VEX)
+                    || s->vex_l != 0) {
+                    goto illegal_op;
+                }
+                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                /* Note that by zero-extending the mask operand, we
+                   automatically handle zero-extending the result.  */
+                if (s->dflag == 2) {
+                    tcg_gen_mov_tl(cpu_T[1], cpu_regs[s->vex_v]);
+                } else {
+                    tcg_gen_ext32u_tl(cpu_T[1], cpu_regs[s->vex_v]);
+                }
+                gen_helper_pdep(cpu_regs[reg], cpu_T[0], cpu_T[1]);
+                break;
+
+            case 0x2f5: /* pext Gy, By, Ey */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI2)
+                    || !(s->prefix & PREFIX_VEX)
+                    || s->vex_l != 0) {
+                    goto illegal_op;
+                }
+                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                /* Note that by zero-extending the mask operand, we
+                   automatically handle zero-extending the result.  */
+                if (s->dflag == 2) {
+                    tcg_gen_mov_tl(cpu_T[1], cpu_regs[s->vex_v]);
+                } else {
+                    tcg_gen_ext32u_tl(cpu_T[1], cpu_regs[s->vex_v]);
+                }
+                gen_helper_pext(cpu_regs[reg], cpu_T[0], cpu_T[1]);
+                break;
+
             case 0x0f3:
             case 0x1f3:
             case 0x2f3:

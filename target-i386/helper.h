@@ -194,9 +194,12 @@ DEF_HELPER_3(fsave, void, env, tl, int)
 DEF_HELPER_3(frstor, void, env, tl, int)
 DEF_HELPER_3(fxsave, void, env, tl, int)
 DEF_HELPER_3(fxrstor, void, env, tl, int)
+
 DEF_HELPER_1(bsf, tl, tl)
 DEF_HELPER_1(bsr, tl, tl)
 DEF_HELPER_2(lzcnt, tl, tl, int)
+DEF_HELPER_FLAGS_2(pdep, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(pext, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 
 /* MMX/SSE */
 

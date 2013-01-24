@@ -488,6 +488,38 @@ target_ulong helper_bsr(target_ulong t0)
     return helper_lzcnt(t0, 0);
 }
 
+#if TARGET_LONG_BITS == 32
+# define ctztl  ctz32
+#else
+# define ctztl  ctz64
+#endif
+
+target_ulong helper_pdep(target_ulong src, target_ulong mask)
+{
+    target_ulong dest = 0;
+    int i, o;
+
+    for (i = 0; mask != 0; i++) {
+        o = ctztl(mask);
+        mask &= mask - 1;
+        dest |= ((src >> i) & 1) << o;
+    }
+    return dest;
+}
+
+target_ulong helper_pext(target_ulong src, target_ulong mask)
+{
+    target_ulong dest = 0;
+    int i, o;
+
+    for (o = 0; mask != 0; o++) {
+        i = ctztl(mask);
+        mask &= mask - 1;
+        dest |= ((src >> i) & 1) << o;
+    }
+    return dest;
+}
+
 #define SHIFT 0
 #include "shift_helper_template.h"
 #undef SHIFT
