@@ -300,6 +300,7 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
                                 int mmu_idx);
 #define cpu_handle_mmu_fault cpu_s390x_handle_mmu_fault
 
+#include "ioinst.h"
 
 #ifndef CONFIG_USER_ONLY
 void *s390_cpu_physical_memory_map(CPUS390XState *env, hwaddr addr, hwaddr *len,
