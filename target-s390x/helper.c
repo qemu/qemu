@@ -471,13 +471,31 @@ static uint64_t get_psw_mask(CPUS390XState *env)
     return r;
 }
 
+static LowCore *cpu_map_lowcore(CPUS390XState *env)
+{
+    LowCore *lowcore;
+    hwaddr len = sizeof(LowCore);
+
+    lowcore = cpu_physical_memory_map(env->psa, &len, 1);
+
+    if (len < sizeof(LowCore)) {
+        cpu_abort(env, "Could not map lowcore\n");
+    }
+
+    return lowcore;
+}
+
+static void cpu_unmap_lowcore(LowCore *lowcore)
+{
+    cpu_physical_memory_unmap(lowcore, sizeof(LowCore), 1, sizeof(LowCore));
+}
+
 static void do_svc_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
     LowCore *lowcore;
-    hwaddr len = TARGET_PAGE_SIZE;
 
-    lowcore = cpu_physical_memory_map(env->psa, &len, 1);
+    lowcore = cpu_map_lowcore(env);
 
     lowcore->svc_code = cpu_to_be16(env->int_svc_code);
     lowcore->svc_ilen = cpu_to_be16(env->int_svc_ilen);
@@ -486,7 +504,7 @@ static void do_svc_interrupt(CPUS390XState *env)
     mask = be64_to_cpu(lowcore->svc_new_psw.mask);
     addr = be64_to_cpu(lowcore->svc_new_psw.addr);
 
-    cpu_physical_memory_unmap(lowcore, len, 1, len);
+    cpu_unmap_lowcore(lowcore);
 
     load_psw(env, mask, addr);
 }
@@ -495,7 +513,6 @@ static void do_program_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
     LowCore *lowcore;
-    hwaddr len = TARGET_PAGE_SIZE;
     int ilen = env->int_pgm_ilen;
 
     switch (ilen) {
@@ -513,7 +530,7 @@ static void do_program_interrupt(CPUS390XState *env)
     qemu_log_mask(CPU_LOG_INT, "%s: code=0x%x ilen=%d\n",
                   __func__, env->int_pgm_code, ilen);
 
-    lowcore = cpu_physical_memory_map(env->psa, &len, 1);
+    lowcore = cpu_map_lowcore(env);
 
     lowcore->pgm_ilen = cpu_to_be16(ilen);
     lowcore->pgm_code = cpu_to_be16(env->int_pgm_code);
@@ -522,7 +539,7 @@ static void do_program_interrupt(CPUS390XState *env)
     mask = be64_to_cpu(lowcore->program_new_psw.mask);
     addr = be64_to_cpu(lowcore->program_new_psw.addr);
 
-    cpu_physical_memory_unmap(lowcore, len, 1, len);
+    cpu_unmap_lowcore(lowcore);
 
     DPRINTF("%s: %x %x %" PRIx64 " %" PRIx64 "\n", __func__,
             env->int_pgm_code, ilen, env->psw.mask,
@@ -537,7 +554,6 @@ static void do_ext_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
     LowCore *lowcore;
-    hwaddr len = TARGET_PAGE_SIZE;
     ExtQueue *q;
 
     if (!(env->psw.mask & PSW_MASK_EXT)) {
@@ -549,7 +565,7 @@ static void do_ext_interrupt(CPUS390XState *env)
     }
 
     q = &env->ext_queue[env->ext_index];
-    lowcore = cpu_physical_memory_map(env->psa, &len, 1);
+    lowcore = cpu_map_lowcore(env);
 
     lowcore->ext_int_code = cpu_to_be16(q->code);
     lowcore->ext_params = cpu_to_be32(q->param);
@@ -560,7 +576,7 @@ static void do_ext_interrupt(CPUS390XState *env)
     mask = be64_to_cpu(lowcore->external_new_psw.mask);
     addr = be64_to_cpu(lowcore->external_new_psw.addr);
 
-    cpu_physical_memory_unmap(lowcore, len, 1, len);
+    cpu_unmap_lowcore(lowcore);
 
     env->ext_index--;
     if (env->ext_index == -1) {
