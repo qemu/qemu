@@ -4099,6 +4099,45 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 set_cc_op(s, CC_OP_BMILGB + ot);
                 break;
 
+            case 0x3f6: /* mulx By, Gy, rdx, Ey */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI2)
+                    || !(s->prefix & PREFIX_VEX)
+                    || s->vex_l != 0) {
+                    goto illegal_op;
+                }
+                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                switch (ot) {
+                    TCGv_i64 t0, t1;
+                default:
+                    t0 = tcg_temp_new_i64();
+                    t1 = tcg_temp_new_i64();
+#ifdef TARGET_X86_64
+                    tcg_gen_ext32u_i64(t0, cpu_T[0]);
+                    tcg_gen_ext32u_i64(t1, cpu_regs[R_EDX]);
+#else
+                    tcg_gen_extu_i32_i64(t0, cpu_T[0]);
+                    tcg_gen_extu_i32_i64(t0, cpu_regs[R_EDX]);
+#endif
+                    tcg_gen_mul_i64(t0, t0, t1);
+                    tcg_gen_trunc_i64_tl(cpu_T[0], t0);
+                    tcg_gen_shri_i64(t0, t0, 32);
+                    tcg_gen_trunc_i64_tl(cpu_T[1], t0);
+                    tcg_temp_free_i64(t0);
+                    tcg_temp_free_i64(t1);
+                    gen_op_mov_reg_T0(OT_LONG, s->vex_v);
+                    gen_op_mov_reg_T1(OT_LONG, reg);
+                    break;
+#ifdef TARGET_X86_64
+                case OT_QUAD:
+                    tcg_gen_mov_tl(cpu_T[1], cpu_regs[R_EDX]);
+                    tcg_gen_mul_tl(cpu_regs[s->vex_v], cpu_T[0], cpu_T[1]);
+                    gen_helper_umulh(cpu_regs[reg], cpu_T[0], cpu_T[1]);
+                    break;
+#endif
+                }
+                break;
+
             case 0x0f3:
             case 0x1f3:
             case 0x2f3:

@@ -385,6 +385,13 @@ void helper_mulq_EAX_T0(CPUX86State *env, target_ulong t0)
     CC_SRC = r1;
 }
 
+target_ulong helper_umulh(target_ulong t0, target_ulong t1)
+{
+    uint64_t h, l;
+    mulu64(&l, &h, t0, t1);
+    return h;
+}
+
 void helper_imulq_EAX_T0(CPUX86State *env, target_ulong t0)
 {
     uint64_t r0, r1;

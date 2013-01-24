@@ -19,6 +19,7 @@ DEF_HELPER_2(imulq_EAX_T0, void, env, tl)
 DEF_HELPER_3(imulq_T0_T1, tl, env, tl, tl)
 DEF_HELPER_2(divq_EAX, void, env, tl)
 DEF_HELPER_2(idivq_EAX, void, env, tl)
+DEF_HELPER_FLAGS_2(umulh, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 #endif
 
 DEF_HELPER_2(aam, void, env, int)
