@@ -2955,8 +2955,9 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xc6] = { (SSEFunc_0_epp)gen_helper_shufps,
                (SSEFunc_0_epp)gen_helper_shufpd }, /* XXX: casts */
 
-    [0x38] = { SSE_SPECIAL, SSE_SPECIAL, NULL, SSE_SPECIAL }, /* SSSE3/SSE4 */
-    [0x3a] = { SSE_SPECIAL, SSE_SPECIAL }, /* SSSE3/SSE4 */
+    /* SSSE3, SSE4, MOVBE, CRC32, BMI1, BMI2, ADX.  */
+    [0x38] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL },
+    [0x3a] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL },
 
     /* MMX ops and their SSE extensions */
     [0x60] = MMX_OP2(punpcklbw),
@@ -4009,6 +4010,20 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 } else {
                     gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
                 }
+                break;
+
+            case 0x0f2: /* andn Gy, By, Ey */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)
+                    || !(s->prefix & PREFIX_VEX)
+                    || s->vex_l != 0) {
+                    goto illegal_op;
+                }
+                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                tcg_gen_andc_tl(cpu_T[0], cpu_regs[s->vex_v], cpu_T[0]);
+                gen_op_mov_reg_T0(ot, reg);
+                gen_op_update1_cc();
+                set_cc_op(s, CC_OP_LOGICB + ot);
                 break;
 
             default:
