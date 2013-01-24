@@ -490,6 +490,31 @@ static void cpu_unmap_lowcore(LowCore *lowcore)
     cpu_physical_memory_unmap(lowcore, sizeof(LowCore), 1, sizeof(LowCore));
 }
 
+void *s390_cpu_physical_memory_map(CPUS390XState *env, hwaddr addr, hwaddr *len,
+                                   int is_write)
+{
+    hwaddr start = addr;
+
+    /* Mind the prefix area. */
+    if (addr < 8192) {
+        /* Map the lowcore. */
+        start += env->psa;
+        *len = MIN(*len, 8192 - addr);
+    } else if ((addr >= env->psa) && (addr < env->psa + 8192)) {
+        /* Map the 0 page. */
+        start -= env->psa;
+        *len = MIN(*len, 8192 - start);
+    }
+
+    return cpu_physical_memory_map(start, len, is_write);
+}
+
+void s390_cpu_physical_memory_unmap(CPUS390XState *env, void *addr, hwaddr len,
+                                    int is_write)
+{
+    cpu_physical_memory_unmap(addr, len, is_write, len);
+}
+
 static void do_svc_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;

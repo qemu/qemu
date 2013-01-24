@@ -302,6 +302,10 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 
 
 #ifndef CONFIG_USER_ONLY
+void *s390_cpu_physical_memory_map(CPUS390XState *env, hwaddr addr, hwaddr *len,
+                                   int is_write);
+void s390_cpu_physical_memory_unmap(CPUS390XState *env, void *addr, hwaddr len,
+                                    int is_write);
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
 
