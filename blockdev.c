@@ -1282,11 +1282,11 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
+    bdrv_get_geometry(bs, &size);
+    size *= 512;
     if (sync == MIRROR_SYNC_MODE_FULL && mode != NEW_IMAGE_MODE_EXISTING) {
         /* create new image w/o backing file */
         assert(format && drv);
-        bdrv_get_geometry(bs, &size);
-        size *= 512;
         bdrv_img_create(target, format,
                         NULL, NULL, NULL, size, flags, &local_err);
     } else {
@@ -1299,7 +1299,7 @@ void qmp_drive_mirror(const char *device, const char *target,
             bdrv_img_create(target, format,
                             source->filename,
                             source->drv->format_name,
-                            NULL, -1, flags, &local_err);
+                            NULL, size, flags, &local_err);
             break;
         default:
             abort();
