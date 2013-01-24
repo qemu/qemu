@@ -2557,8 +2557,8 @@ static int configure_accelerator(void)
     const char *p = NULL;
     char buf[10];
     int i, ret;
-    bool accel_initialised = 0;
-    bool init_failed = 0;
+    bool accel_initialised = false;
+    bool init_failed = false;
 
     QemuOptsList *list = qemu_find_opts("machine");
     if (!QTAILQ_EMPTY(&list->head)) {
@@ -2585,13 +2585,13 @@ static int configure_accelerator(void)
                 *(accel_list[i].allowed) = 1;
                 ret = accel_list[i].init();
                 if (ret < 0) {
-                    init_failed = 1;
+                    init_failed = true;
                     fprintf(stderr, "failed to initialize %s: %s\n",
                             accel_list[i].name,
                             strerror(-ret));
                     *(accel_list[i].allowed) = 0;
                 } else {
-                    accel_initialised = 1;
+                    accel_initialised = true;
                 }
                 break;
             }
@@ -2602,7 +2602,9 @@ static int configure_accelerator(void)
     }
 
     if (!accel_initialised) {
-        fprintf(stderr, "No accelerator found!\n");
+        if (!init_failed) {
+            fprintf(stderr, "No accelerator found!\n");
+        }
         exit(1);
     }
 
