@@ -155,6 +155,13 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
     case CC_OP_SARL:
         return compute_all_sarl(dst, src1);
 
+    case CC_OP_BMILGB:
+        return compute_all_bmilgb(dst, src1);
+    case CC_OP_BMILGW:
+        return compute_all_bmilgw(dst, src1);
+    case CC_OP_BMILGL:
+        return compute_all_bmilgl(dst, src1);
+
 #ifdef TARGET_X86_64
     case CC_OP_MULQ:
         return compute_all_mulq(dst, src1);
@@ -176,6 +183,8 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
         return compute_all_shlq(dst, src1);
     case CC_OP_SARQ:
         return compute_all_sarq(dst, src1);
+    case CC_OP_BMILGQ:
+        return compute_all_bmilgq(dst, src1);
 #endif
     }
 }
@@ -254,6 +263,13 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
     case CC_OP_SHLL:
         return compute_c_shll(dst, src1);
 
+    case CC_OP_BMILGB:
+        return compute_c_bmilgb(dst, src1);
+    case CC_OP_BMILGW:
+        return compute_c_bmilgw(dst, src1);
+    case CC_OP_BMILGL:
+        return compute_c_bmilgl(dst, src1);
+
 #ifdef TARGET_X86_64
     case CC_OP_ADDQ:
         return compute_c_addq(dst, src1);
@@ -265,6 +281,8 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
         return compute_c_sbbq(dst, src1, src2);
     case CC_OP_SHLQ:
         return compute_c_shlq(dst, src1);
+    case CC_OP_BMILGQ:
+        return compute_c_bmilgq(dst, src1);
 #endif
     }
 }

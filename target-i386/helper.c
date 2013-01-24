@@ -55,7 +55,7 @@ int cpu_x86_support_mca_broadcast(CPUX86State *env)
 /***********************************************************/
 /* x86 debug */
 
-static const char *cc_op_str[] = {
+static const char *cc_op_str[CC_OP_NB] = {
     "DYNAMIC",
     "EFLAGS",
 
@@ -108,6 +108,11 @@ static const char *cc_op_str[] = {
     "SARW",
     "SARL",
     "SARQ",
+
+    "BMILGB",
+    "BMILGW",
+    "BMILGL",
+    "BMILGQ",
 };
 
 static void

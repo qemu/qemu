@@ -217,6 +217,24 @@ static int glue(compute_all_mul, SUFFIX)(DATA_TYPE dst, target_long src1)
     return cf | pf | af | zf | sf | of;
 }
 
+static int glue(compute_all_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+{
+    int cf, pf, af, zf, sf, of;
+
+    cf = (src1 == 0);
+    pf = 0; /* undefined */
+    af = 0; /* undefined */
+    zf = (dst == 0) * CC_Z;
+    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    of = 0;
+    return cf | pf | af | zf | sf | of;
+}
+
+static int glue(compute_c_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+{
+    return src1 == 0;
+}
+
 #undef DATA_BITS
 #undef SIGN_MASK
 #undef DATA_TYPE

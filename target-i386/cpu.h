@@ -636,6 +636,11 @@ typedef enum {
     CC_OP_SARL,
     CC_OP_SARQ,
 
+    CC_OP_BMILGB, /* Z,S via CC_DST, C = SRC==0; O=0; P,A undefined */
+    CC_OP_BMILGW,
+    CC_OP_BMILGL,
+    CC_OP_BMILGQ,
+
     CC_OP_NB,
 } CCOp;
 

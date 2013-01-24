@@ -209,6 +209,7 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_DECB ... CC_OP_DECQ] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_SHLB ... CC_OP_SHLQ] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_SARB ... CC_OP_SARQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_BMILGB ... CC_OP_BMILGQ] = USES_CC_DST | USES_CC_SRC,
 };
 
 static void set_cc_op(DisasContext *s, CCOp op)
@@ -987,6 +988,11 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
     case CC_OP_MULB ... CC_OP_MULQ:
         return (CCPrepare) { .cond = TCG_COND_NE,
                              .reg = cpu_cc_src, .mask = -1 };
+
+    case CC_OP_BMILGB ... CC_OP_BMILGQ:
+        size = s->cc_op - CC_OP_BMILGB;
+        t0 = gen_ext_tl(reg, cpu_cc_src, size, false);
+        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = t0, .mask = -1 };
 
     case CC_OP_EFLAGS:
     case CC_OP_SARB ... CC_OP_SARQ:
@@ -4063,6 +4069,48 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     gen_op_mov_reg_T0(ot, reg);
                     gen_op_update1_cc();
                     set_cc_op(s, CC_OP_LOGICB + ot);
+                }
+                break;
+
+            case 0x0f3:
+            case 0x1f3:
+            case 0x2f3:
+            case 0x3f3: /* Group 17 */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)
+                    || !(s->prefix & PREFIX_VEX)
+                    || s->vex_l != 0) {
+                    goto illegal_op;
+                }
+                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+
+                switch (reg & 7) {
+                case 1: /* blsr By,Ey */
+                    tcg_gen_neg_tl(cpu_T[1], cpu_T[0]);
+                    tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+                    gen_op_mov_reg_T0(ot, s->vex_v);
+                    gen_op_update2_cc();
+                    set_cc_op(s, CC_OP_BMILGB + ot);
+                    break;
+
+                case 2: /* blsmsk By,Ey */
+                    tcg_gen_mov_tl(cpu_cc_src, cpu_T[0]);
+                    tcg_gen_subi_tl(cpu_T[0], cpu_T[0], 1);
+                    tcg_gen_xor_tl(cpu_T[0], cpu_T[0], cpu_cc_src);
+                    tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
+                    set_cc_op(s, CC_OP_BMILGB + ot);
+                    break;
+
+                case 3: /* blsi By, Ey */
+                    tcg_gen_mov_tl(cpu_cc_src, cpu_T[0]);
+                    tcg_gen_subi_tl(cpu_T[0], cpu_T[0], 1);
+                    tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_cc_src);
+                    tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
+                    set_cc_op(s, CC_OP_BMILGB + ot);
+                    break;
+
+                default:
+                    goto illegal_op;
                 }
                 break;
 
