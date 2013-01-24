@@ -50,6 +50,11 @@
 #define MMU_USER_IDX 1
 
 #define MAX_EXT_QUEUE 16
+#define MAX_IO_QUEUE 16
+#define MAX_MCHK_QUEUE 16
+
+#define PSW_MCHK_MASK 0x0004000000000000
+#define PSW_IO_MASK 0x0200000000000000
 
 typedef struct PSW {
     uint64_t mask;
@@ -61,6 +66,17 @@ typedef struct ExtQueue {
     uint32_t param;
     uint32_t param64;
 } ExtQueue;
+
+typedef struct IOIntQueue {
+    uint16_t id;
+    uint16_t nr;
+    uint32_t parm;
+    uint32_t word;
+} IOIntQueue;
+
+typedef struct MchkQueue {
+    uint16_t type;
+} MchkQueue;
 
 typedef struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
@@ -93,9 +109,17 @@ typedef struct CPUS390XState {
     uint64_t cregs[16]; /* control registers */
 
     ExtQueue ext_queue[MAX_EXT_QUEUE];
-    int pending_int;
+    IOIntQueue io_queue[MAX_IO_QUEUE][8];
+    MchkQueue mchk_queue[MAX_MCHK_QUEUE];
 
+    int pending_int;
     int ext_index;
+    int io_index[8];
+    int mchk_index;
+
+    uint64_t ckc;
+    uint64_t cputm;
+    uint32_t todpr;
 
     CPU_COMMON
 
@@ -375,10 +399,14 @@ void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #define EXCP_EXT 1 /* external interrupt */
 #define EXCP_SVC 2 /* supervisor call (syscall) */
 #define EXCP_PGM 3 /* program interruption */
+#define EXCP_IO  7 /* I/O interrupt */
+#define EXCP_MCHK 8 /* machine check */
 
 #define INTERRUPT_EXT        (1 << 0)
 #define INTERRUPT_TOD        (1 << 1)
 #define INTERRUPT_CPUTIMER   (1 << 2)
+#define INTERRUPT_IO         (1 << 3)
+#define INTERRUPT_MCHK       (1 << 4)
 
 /* Program Status Word.  */
 #define S390_PSWM_REGNUM 0
@@ -838,6 +866,45 @@ static inline void cpu_inject_ext(CPUS390XState *env, uint32_t code, uint32_t pa
     env->ext_queue[env->ext_index].param64 = param64;
 
     env->pending_int |= INTERRUPT_EXT;
+    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+}
+
+static inline void cpu_inject_io(CPUS390XState *env, uint16_t subchannel_id,
+                                 uint16_t subchannel_number,
+                                 uint32_t io_int_parm, uint32_t io_int_word)
+{
+    int isc = ffs(io_int_word << 2) - 1;
+
+    if (env->io_index[isc] == MAX_IO_QUEUE - 1) {
+        /* ugh - can't queue anymore. Let's drop. */
+        return;
+    }
+
+    env->io_index[isc]++;
+    assert(env->io_index[isc] < MAX_IO_QUEUE);
+
+    env->io_queue[env->io_index[isc]][isc].id = subchannel_id;
+    env->io_queue[env->io_index[isc]][isc].nr = subchannel_number;
+    env->io_queue[env->io_index[isc]][isc].parm = io_int_parm;
+    env->io_queue[env->io_index[isc]][isc].word = io_int_word;
+
+    env->pending_int |= INTERRUPT_IO;
+    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+}
+
+static inline void cpu_inject_crw_mchk(CPUS390XState *env)
+{
+    if (env->mchk_index == MAX_MCHK_QUEUE - 1) {
+        /* ugh - can't queue anymore. Let's drop. */
+        return;
+    }
+
+    env->mchk_index++;
+    assert(env->mchk_index < MAX_MCHK_QUEUE);
+
+    env->mchk_queue[env->mchk_index].type = 1;
+
+    env->pending_int |= INTERRUPT_MCHK;
     cpu_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
