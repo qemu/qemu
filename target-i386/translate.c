@@ -4174,6 +4174,37 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 gen_helper_pext(cpu_regs[reg], cpu_T[0], cpu_T[1]);
                 break;
 
+            case 0x1f7: /* shlx Gy, Ey, By */
+            case 0x2f7: /* sarx Gy, Ey, By */
+            case 0x3f7: /* shrx Gy, Ey, By */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI2)
+                    || !(s->prefix & PREFIX_VEX)
+                    || s->vex_l != 0) {
+                    goto illegal_op;
+                }
+                ot = (s->dflag == 2 ? OT_QUAD : OT_LONG);
+                gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                if (ot == OT_QUAD) {
+                    tcg_gen_andi_tl(cpu_T[1], cpu_regs[s->vex_v], 63);
+                } else {
+                    tcg_gen_andi_tl(cpu_T[1], cpu_regs[s->vex_v], 31);
+                }
+                if (b == 0x1f7) {
+                    tcg_gen_shl_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+                } else if (b == 0x2f7) {
+                    if (ot != OT_QUAD) {
+                        tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+                    }
+                    tcg_gen_sar_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+                } else {
+                    if (ot != OT_QUAD) {
+                        tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
+                    }
+                    tcg_gen_shr_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+                }
+                gen_op_mov_reg_T0(ot, reg);
+                break;
+
             case 0x0f3:
             case 0x1f3:
             case 0x2f3:
