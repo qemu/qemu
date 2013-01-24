@@ -325,6 +325,44 @@
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
 
 ##
+# @DataFormat:
+#
+# An enumeration of data format.
+#
+# @utf8: The data format is 'utf8'.
+#
+# @base64: The data format is 'base64'.
+#
+# Since: 1.4
+##
+{ 'enum': 'DataFormat'
+  'data': [ 'utf8', 'base64' ] }
+
+##
+# @memchar-write:
+#
+# Provide writing interface for memchardev. Write data to char
+# device 'memory'.
+#
+# @device: the name of the memory char device.
+#
+# @size: the size to write in bytes.
+#
+# @data: the source data write to memchar.
+#
+# @format: #optional the format of the data write to chardev 'memory',
+#          by default is 'utf8'.
+#
+# Returns: Nothing on success
+#          If @device is not a valid char device, DeviceNotFound
+#
+# Since: 1.4
+##
+{ 'command': 'memchar-write',
+  'data': {'device': 'str', 'size': 'int', 'data': 'str',
+           '*format': 'DataFormat'} }
+
+##
 # @CommandInfo:
 #
 # Information about a QMP command

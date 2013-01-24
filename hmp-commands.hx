@@ -837,6 +837,24 @@ STEXI
 @item nmi @var{cpu}
 @findex nmi
 Inject an NMI on the given CPU (x86 only).
+
+ETEXI
+
+    {
+        .name       = "memchar_write",
+        .args_type  = "device:s,data:s",
+        .params     = "device data",
+        .help       = "Provide writing interface for CirMemCharDriver. Write"
+                      "'data' to it.",
+        .mhandler.cmd = hmp_memchar_write,
+    },
+
+STEXI
+@item memchar_write @var{device} @var{data}
+@findex memchar_write
+Provide writing interface for CirMemCharDriver. Write @var{data}
+to char device 'memory'.
+
 ETEXI
 
     {

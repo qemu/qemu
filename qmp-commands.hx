@@ -466,6 +466,39 @@ Note: inject-nmi fails when the guest doesn't support injecting.
 EQMP
 
     {
+        .name       = "memchar-write",
+        .args_type  = "device:s,size:i,data:s,format:s?",
+        .mhandler.cmd_new = qmp_marshal_input_memchar_write,
+    },
+
+SQMP
+memchar-write
+-------------
+
+Provide writing interface for CirMemCharDriver. Write data to memory
+char device.
+
+Arguments:
+
+- "device": the name of the char device, must be unique (json-string)
+- "size": the memory size, in bytes, should be power of 2 (json-int)
+- "data": the source data write to memory (json-string)
+- "format": the data format write to memory, default is
+            utf8. (json-string, optional)
+          - Possible values: "utf8", "base64"
+
+Example:
+
+-> { "execute": "memchar-write",
+                "arguments": { "device": foo,
+                               "size": 8,
+                               "data": "abcdefgh",
+                               "format": "utf8" } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "xen-save-devices-state",
         .args_type  = "filename:F",
     .mhandler.cmd_new = qmp_marshal_input_xen_save_devices_state,
