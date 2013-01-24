@@ -641,6 +641,10 @@ typedef enum {
     CC_OP_BMILGL,
     CC_OP_BMILGQ,
 
+    CC_OP_ADCX, /* CC_DST = C, CC_SRC = rest.  */
+    CC_OP_ADOX, /* CC_DST = O, CC_SRC = rest.  */
+    CC_OP_ADCOX, /* CC_DST = C, CC_SRC2 = O, CC_SRC = rest.  */
+
     CC_OP_NB,
 } CCOp;
 

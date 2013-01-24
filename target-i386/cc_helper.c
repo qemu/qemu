@@ -75,6 +75,24 @@ const uint8_t parity_table[256] = {
 
 #endif
 
+static target_ulong compute_all_adcx(target_ulong dst, target_ulong src1,
+                                     target_ulong src2)
+{
+    return (src1 & ~CC_C) | (dst * CC_C);
+}
+
+static target_ulong compute_all_adox(target_ulong dst, target_ulong src1,
+                                     target_ulong src2)
+{
+    return (src1 & ~CC_O) | (src2 * CC_O);
+}
+
+static target_ulong compute_all_adcox(target_ulong dst, target_ulong src1,
+                                      target_ulong src2)
+{
+    return (src1 & ~(CC_C | CC_O)) | (dst * CC_C) | (src2 * CC_O);
+}
+
 target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
                                    target_ulong src2, int op)
 {
@@ -162,6 +180,13 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
     case CC_OP_BMILGL:
         return compute_all_bmilgl(dst, src1);
 
+    case CC_OP_ADCX:
+        return compute_all_adcx(dst, src1, src2);
+    case CC_OP_ADOX:
+        return compute_all_adox(dst, src1, src2);
+    case CC_OP_ADCOX:
+        return compute_all_adcox(dst, src1, src2);
+
 #ifdef TARGET_X86_64
     case CC_OP_MULQ:
         return compute_all_mulq(dst, src1);
@@ -210,6 +235,7 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
     case CC_OP_SARW:
     case CC_OP_SARL:
     case CC_OP_SARQ:
+    case CC_OP_ADOX:
         return src1 & 1;
 
     case CC_OP_INCB:
@@ -227,6 +253,10 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
     case CC_OP_MULL:
     case CC_OP_MULQ:
         return src1 != 0;
+
+    case CC_OP_ADCX:
+    case CC_OP_ADCOX:
+        return dst;
 
     case CC_OP_ADDB:
         return compute_c_addb(dst, src1);

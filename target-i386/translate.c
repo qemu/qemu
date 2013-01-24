@@ -210,6 +210,9 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_SHLB ... CC_OP_SHLQ] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_SARB ... CC_OP_SARQ] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_BMILGB ... CC_OP_BMILGQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_ADCX] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_ADOX] = USES_CC_SRC | USES_CC_SRC2,
+    [CC_OP_ADCOX] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
 };
 
 static void set_cc_op(DisasContext *s, CCOp op)
@@ -994,6 +997,11 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
         t0 = gen_ext_tl(reg, cpu_cc_src, size, false);
         return (CCPrepare) { .cond = TCG_COND_EQ, .reg = t0, .mask = -1 };
 
+    case CC_OP_ADCX:
+    case CC_OP_ADCOX:
+        return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_dst,
+                             .mask = -1, .no_setcond = true };
+
     case CC_OP_EFLAGS:
     case CC_OP_SARB ... CC_OP_SARQ:
         /* CC_SRC & 1 */
@@ -1027,6 +1035,9 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
         gen_compute_eflags(s);
         /* FALLTHRU */
     case CC_OP_EFLAGS:
+    case CC_OP_ADCX:
+    case CC_OP_ADOX:
+    case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
                              .mask = CC_S };
     default:
@@ -1041,9 +1052,17 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
 /* compute eflags.O to reg */
 static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
 {
-    gen_compute_eflags(s);
-    return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
-                         .mask = CC_O };
+    switch (s->cc_op) {
+    case CC_OP_ADOX:
+    case CC_OP_ADCOX:
+        return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src2,
+                             .mask = -1, .no_setcond = true };
+
+    default:
+        gen_compute_eflags(s);
+        return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
+                             .mask = CC_O };
+    }
 }
 
 /* compute eflags.Z to reg */
@@ -1054,6 +1073,9 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
         gen_compute_eflags(s);
         /* FALLTHRU */
     case CC_OP_EFLAGS:
+    case CC_OP_ADCX:
+    case CC_OP_ADOX:
+    case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
                              .mask = CC_Z };
     default:
@@ -4172,6 +4194,87 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     tcg_gen_ext32u_tl(cpu_T[1], cpu_regs[s->vex_v]);
                 }
                 gen_helper_pext(cpu_regs[reg], cpu_T[0], cpu_T[1]);
+                break;
+
+            case 0x1f6: /* adcx Gy, Ey */
+            case 0x2f6: /* adox Gy, Ey */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_ADX)) {
+                    goto illegal_op;
+                } else {
+                    TCGv carry_in, carry_out;
+                    int end_op;
+
+                    ot = (s->dflag == 2 ? OT_QUAD : OT_LONG);
+                    gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+
+                    /* Re-use the carry-out from a previous round.  */
+                    TCGV_UNUSED(carry_in);
+                    carry_out = (b == 0x1f6 ? cpu_cc_dst : cpu_cc_src2);
+                    switch (s->cc_op) {
+                    case CC_OP_ADCX:
+                        if (b == 0x1f6) {
+                            carry_in = cpu_cc_dst;
+                            end_op = CC_OP_ADCX;
+                        } else {
+                            end_op = CC_OP_ADCOX;
+                        }
+                        break;
+                    case CC_OP_ADOX:
+                        if (b == 0x1f6) {
+                            end_op = CC_OP_ADCOX;
+                        } else {
+                            carry_in = cpu_cc_src2;
+                            end_op = CC_OP_ADOX;
+                        }
+                        break;
+                    case CC_OP_ADCOX:
+                        end_op = CC_OP_ADCOX;
+                        carry_in = carry_out;
+                        break;
+                    default:
+                        end_op = (b == 0x1f6 ? CC_OP_ADCX : CC_OP_ADCOX);
+                        break;
+                    }
+                    /* If we can't reuse carry-out, get it out of EFLAGS.  */
+                    if (TCGV_IS_UNUSED(carry_in)) {
+                        if (s->cc_op != CC_OP_ADCX && s->cc_op != CC_OP_ADOX) {
+                            gen_compute_eflags(s);
+                        }
+                        carry_in = cpu_tmp0;
+                        tcg_gen_shri_tl(carry_in, cpu_cc_src,
+                                        ctz32(b == 0x1f6 ? CC_C : CC_O));
+                        tcg_gen_andi_tl(carry_in, carry_in, 1);
+                    }
+
+                    switch (ot) {
+#ifdef TARGET_X86_64
+                    case OT_LONG:
+                        /* If we know TL is 64-bit, and we want a 32-bit
+                           result, just do everything in 64-bit arithmetic.  */
+                        tcg_gen_ext32u_i64(cpu_regs[reg], cpu_regs[reg]);
+                        tcg_gen_ext32u_i64(cpu_T[0], cpu_T[0]);
+                        tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_regs[reg]);
+                        tcg_gen_add_i64(cpu_T[0], cpu_T[0], carry_in);
+                        tcg_gen_ext32u_i64(cpu_regs[reg], cpu_T[0]);
+                        tcg_gen_shri_i64(carry_out, cpu_T[0], 32);
+                        break;
+#endif
+                    default:
+                        /* Otherwise compute the carry-out in two steps.  */
+                        tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_regs[reg]);
+                        tcg_gen_setcond_tl(TCG_COND_LTU, cpu_tmp4,
+                                           cpu_T[0], cpu_regs[reg]);
+                        tcg_gen_add_tl(cpu_regs[reg], cpu_T[0], carry_in);
+                        tcg_gen_setcond_tl(TCG_COND_LTU, carry_out,
+                                           cpu_regs[reg], cpu_T[0]);
+                        tcg_gen_or_tl(carry_out, carry_out, cpu_tmp4);
+                        break;
+                    }
+                    /* We began with all flags computed to CC_SRC, and we
+                       have now placed the carry-out in CC_DST.  All that
+                       is left is to record the CC_OP.  */
+                    set_cc_op(s, end_op);
+                }
                 break;
 
             case 0x1f7: /* shlx Gy, Ey, By */
