@@ -4026,6 +4026,46 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 set_cc_op(s, CC_OP_LOGICB + ot);
                 break;
 
+            case 0x0f7: /* bextr Gy, Ey, By */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)
+                    || !(s->prefix & PREFIX_VEX)
+                    || s->vex_l != 0) {
+                    goto illegal_op;
+                }
+                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                {
+                    TCGv bound, zero;
+
+                    gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                    /* Extract START, and shift the operand.
+                       Shifts larger than operand size get zeros.  */
+                    tcg_gen_ext8u_tl(cpu_A0, cpu_regs[s->vex_v]);
+                    tcg_gen_shr_tl(cpu_T[0], cpu_T[0], cpu_A0);
+
+                    bound = tcg_const_tl(ot == OT_QUAD ? 63 : 31);
+                    zero = tcg_const_tl(0);
+                    tcg_gen_movcond_tl(TCG_COND_LEU, cpu_T[0], cpu_A0, bound,
+                                       cpu_T[0], zero);
+                    tcg_temp_free(zero);
+
+                    /* Extract the LEN into a mask.  Lengths larger than
+                       operand size get all ones.  */
+                    tcg_gen_shri_tl(cpu_A0, cpu_regs[s->vex_v], 8);
+                    tcg_gen_ext8u_tl(cpu_A0, cpu_A0);
+                    tcg_gen_movcond_tl(TCG_COND_LEU, cpu_A0, cpu_A0, bound,
+                                       cpu_A0, bound);
+                    tcg_temp_free(bound);
+                    tcg_gen_movi_tl(cpu_T[1], 1);
+                    tcg_gen_shl_tl(cpu_T[1], cpu_T[1], cpu_A0);
+                    tcg_gen_subi_tl(cpu_T[1], cpu_T[1], 1);
+                    tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+
+                    gen_op_mov_reg_T0(ot, reg);
+                    gen_op_update1_cc();
+                    set_cc_op(s, CC_OP_LOGICB + ot);
+                }
+                break;
+
             default:
                 goto illegal_op;
             }
