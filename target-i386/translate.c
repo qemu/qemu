@@ -61,7 +61,7 @@
 /* global register indexes */
 static TCGv_ptr cpu_env;
 static TCGv cpu_A0;
-static TCGv cpu_cc_src, cpu_cc_dst, cpu_cc_srcT;
+static TCGv cpu_cc_dst, cpu_cc_src, cpu_cc_src2, cpu_cc_srcT;
 static TCGv_i32 cpu_cc_op;
 static TCGv cpu_regs[CPU_NB_REGS];
 /* local temps */
@@ -188,18 +188,19 @@ enum {
 enum {
     USES_CC_DST  = 1,
     USES_CC_SRC  = 2,
-    USES_CC_SRCT = 4,
+    USES_CC_SRC2 = 4,
+    USES_CC_SRCT = 8,
 };
 
 /* Bit set if the global variable is live after setting CC_OP to X.  */
 static const uint8_t cc_op_live[CC_OP_NB] = {
-    [CC_OP_DYNAMIC] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_DYNAMIC] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_EFLAGS] = USES_CC_SRC,
     [CC_OP_MULB ... CC_OP_MULQ] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_ADDB ... CC_OP_ADDQ] = USES_CC_DST | USES_CC_SRC,
-    [CC_OP_ADCB ... CC_OP_ADCQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_ADCB ... CC_OP_ADCQ] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_SUBB ... CC_OP_SUBQ] = USES_CC_DST | USES_CC_SRC | USES_CC_SRCT,
-    [CC_OP_SBBB ... CC_OP_SBBQ] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_SBBB ... CC_OP_SBBQ] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_LOGICB ... CC_OP_LOGICQ] = USES_CC_DST,
     [CC_OP_INCB ... CC_OP_INCQ] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_DECB ... CC_OP_DECQ] = USES_CC_DST | USES_CC_SRC,
@@ -222,6 +223,9 @@ static void set_cc_op(DisasContext *s, CCOp op)
     }
     if (dead & USES_CC_SRC) {
         tcg_gen_discard_tl(cpu_cc_src);
+    }
+    if (dead & USES_CC_SRC2) {
+        tcg_gen_discard_tl(cpu_cc_src2);
     }
     if (dead & USES_CC_SRCT) {
         tcg_gen_discard_tl(cpu_cc_srcT);
@@ -867,6 +871,13 @@ static void gen_op_update2_cc(void)
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
 }
 
+static void gen_op_update3_cc(TCGv reg)
+{
+    tcg_gen_mov_tl(cpu_cc_src2, reg);
+    tcg_gen_mov_tl(cpu_cc_src, cpu_T[1]);
+    tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
+}
+
 static inline void gen_op_testl_T0_T1_cc(void)
 {
     tcg_gen_and_tl(cpu_cc_dst, cpu_T[0], cpu_T[1]);
@@ -882,7 +893,7 @@ static void gen_op_update_neg_cc(void)
 /* compute all eflags to cc_src */
 static void gen_compute_eflags(DisasContext *s)
 {
-    TCGv zero, dst, src1;
+    TCGv zero, dst, src1, src2;
     int live, dead;
 
     if (s->cc_op == CC_OP_EFLAGS) {
@@ -892,10 +903,11 @@ static void gen_compute_eflags(DisasContext *s)
     TCGV_UNUSED(zero);
     dst = cpu_cc_dst;
     src1 = cpu_cc_src;
+    src2 = cpu_cc_src2;
 
     /* Take care to not read values that are not live.  */
     live = cc_op_live[s->cc_op] & ~USES_CC_SRCT;
-    dead = live ^ (USES_CC_DST | USES_CC_SRC);
+    dead = live ^ (USES_CC_DST | USES_CC_SRC | USES_CC_SRC2);
     if (dead) {
         zero = tcg_const_tl(0);
         if (dead & USES_CC_DST) {
@@ -904,10 +916,13 @@ static void gen_compute_eflags(DisasContext *s)
         if (dead & USES_CC_SRC) {
             src1 = zero;
         }
+        if (dead & USES_CC_SRC2) {
+            src2 = zero;
+        }
     }
 
     gen_update_cc_op(s);
-    gen_helper_cc_compute_all(cpu_cc_src, dst, src1, cpu_cc_op);
+    gen_helper_cc_compute_all(cpu_cc_src, dst, src1, src2, cpu_cc_op);
     set_cc_op(s, CC_OP_EFLAGS);
 
     if (dead) {
@@ -951,30 +966,6 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
         return (CCPrepare) { .cond = TCG_COND_LTU, .reg = t0,
                              .reg2 = t1, .mask = -1, .use_reg2 = true };
 
-    case CC_OP_SBBB ... CC_OP_SBBQ:
-        /* (DATA_TYPE)(CC_DST + CC_SRC + 1) <= (DATA_TYPE)CC_SRC */
-        size = s->cc_op - CC_OP_SBBB;
-        t1 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, false);
-        if (TCGV_EQUAL(t1, reg) && TCGV_EQUAL(reg, cpu_cc_src)) {
-            tcg_gen_mov_tl(cpu_tmp0, cpu_cc_src);
-            t1 = cpu_tmp0;
-        }
-
-        tcg_gen_add_tl(reg, cpu_cc_dst, cpu_cc_src);
-        tcg_gen_addi_tl(reg, reg, 1);
-        gen_extu(size, reg);
-        t0 = reg;
-        goto adc_sbb;
-
-    case CC_OP_ADCB ... CC_OP_ADCQ:
-        /* (DATA_TYPE)CC_DST <= (DATA_TYPE)CC_SRC */
-        size = s->cc_op - CC_OP_ADCB;
-        t1 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, false);
-        t0 = gen_ext_tl(reg, cpu_cc_dst, size, false);
-    adc_sbb:
-        return (CCPrepare) { .cond = TCG_COND_LEU, .reg = t0,
-                             .reg2 = t1, .mask = -1, .use_reg2 = true };
-
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
         return (CCPrepare) { .cond = TCG_COND_NEVER, .mask = -1 };
 
@@ -1004,7 +995,8 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
        /* The need to compute only C from CC_OP_DYNAMIC is important
           in efficiently implementing e.g. INC at the start of a TB.  */
        gen_update_cc_op(s);
-       gen_helper_cc_compute_c(reg, cpu_cc_dst, cpu_cc_src, cpu_cc_op);
+       gen_helper_cc_compute_c(reg, cpu_cc_dst, cpu_cc_src,
+                               cpu_cc_src2, cpu_cc_op);
        return (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
                             .mask = -1, .no_setcond = true };
     }
@@ -1442,18 +1434,10 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
             gen_op_mov_reg_T0(ot, d);
         else
             gen_op_st_T0_A0(ot + s1->mem_index);
-        tcg_gen_mov_tl(cpu_cc_src, cpu_T[1]);
-        tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
-        tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_tmp4);
-        tcg_gen_shli_i32(cpu_tmp2_i32, cpu_tmp2_i32, 2);
-        tcg_gen_addi_i32(cpu_cc_op, cpu_tmp2_i32, CC_OP_ADDB + ot);
-        set_cc_op(s1, CC_OP_DYNAMIC);
+        gen_op_update3_cc(cpu_tmp4);
+        set_cc_op(s1, CC_OP_ADCB + ot);
         break;
     case OP_SBBL:
-        /*
-         * No need to store cpu_cc_srcT, because it is used only
-         * when the cc_op is known.
-         */
         gen_compute_eflags_c(s1, cpu_tmp4);
         tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
         tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_tmp4);
@@ -1461,12 +1445,8 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
             gen_op_mov_reg_T0(ot, d);
         else
             gen_op_st_T0_A0(ot + s1->mem_index);
-        tcg_gen_mov_tl(cpu_cc_src, cpu_T[1]);
-        tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
-        tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_tmp4);
-        tcg_gen_shli_i32(cpu_tmp2_i32, cpu_tmp2_i32, 2);
-        tcg_gen_addi_i32(cpu_cc_op, cpu_tmp2_i32, CC_OP_SUBB + ot);
-        set_cc_op(s1, CC_OP_DYNAMIC);
+        gen_op_update3_cc(cpu_tmp4);
+        set_cc_op(s1, CC_OP_SBBB + ot);
         break;
     case OP_ADDL:
         gen_op_addl_T0_T1();
@@ -7788,6 +7768,8 @@ void optimize_flags_init(void)
                                     "cc_dst");
     cpu_cc_src = tcg_global_mem_new(TCG_AREG0, offsetof(CPUX86State, cc_src),
                                     "cc_src");
+    cpu_cc_src2 = tcg_global_mem_new(TCG_AREG0, offsetof(CPUX86State, cc_src2),
+                                     "cc_src2");
 
 #ifdef TARGET_X86_64
     cpu_regs[R_EAX] = tcg_global_mem_new_i64(TCG_AREG0,

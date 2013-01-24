@@ -58,12 +58,13 @@ static int glue(compute_c_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return dst < src1;
 }
 
-static int glue(compute_all_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static int glue(compute_all_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
+                                         DATA_TYPE src3)
 {
     int cf, pf, af, zf, sf, of;
-    DATA_TYPE src2 = dst - src1 - 1;
+    DATA_TYPE src2 = dst - src1 - src3;
 
-    cf = dst <= src1;
+    cf = (src3 ? dst <= src1 : dst < src1);
     pf = parity_table[(uint8_t)dst];
     af = (dst ^ src1 ^ src2) & 0x10;
     zf = (dst == 0) << 6;
@@ -72,9 +73,10 @@ static int glue(compute_all_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_c_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static int glue(compute_c_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
+                                       DATA_TYPE src3)
 {
-    return dst <= src1;
+    return src3 ? dst <= src1 : dst < src1;
 }
 
 static int glue(compute_all_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
@@ -98,12 +100,13 @@ static int glue(compute_c_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
     return src1 < src2;
 }
 
-static int glue(compute_all_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
+static int glue(compute_all_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
+                                         DATA_TYPE src3)
 {
     int cf, pf, af, zf, sf, of;
-    DATA_TYPE src1 = dst + src2 + 1;
+    DATA_TYPE src1 = dst + src2 + src3;
 
-    cf = src1 <= src2;
+    cf = (src3 ? src1 <= src2 : src1 < src2);
     pf = parity_table[(uint8_t)dst];
     af = (dst ^ src1 ^ src2) & 0x10;
     zf = (dst == 0) << 6;
@@ -112,11 +115,12 @@ static int glue(compute_all_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_c_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
+static int glue(compute_c_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
+                                       DATA_TYPE src3)
 {
-    DATA_TYPE src1 = dst + src2 + 1;
+    DATA_TYPE src1 = dst + src2 + src3;
 
-    return src1 <= src2;
+    return (src3 ? src1 <= src2 : src1 < src2);
 }
 
 static int glue(compute_all_logic, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)

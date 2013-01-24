@@ -75,7 +75,8 @@ const uint8_t parity_table[256] = {
 
 #endif
 
-target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1, int op)
+target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
+                                   target_ulong src2, int op)
 {
     switch (op) {
     default: /* should never happen */
@@ -99,11 +100,11 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1, int op)
         return compute_all_addl(dst, src1);
 
     case CC_OP_ADCB:
-        return compute_all_adcb(dst, src1);
+        return compute_all_adcb(dst, src1, src2);
     case CC_OP_ADCW:
-        return compute_all_adcw(dst, src1);
+        return compute_all_adcw(dst, src1, src2);
     case CC_OP_ADCL:
-        return compute_all_adcl(dst, src1);
+        return compute_all_adcl(dst, src1, src2);
 
     case CC_OP_SUBB:
         return compute_all_subb(dst, src1);
@@ -113,11 +114,11 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1, int op)
         return compute_all_subl(dst, src1);
 
     case CC_OP_SBBB:
-        return compute_all_sbbb(dst, src1);
+        return compute_all_sbbb(dst, src1, src2);
     case CC_OP_SBBW:
-        return compute_all_sbbw(dst, src1);
+        return compute_all_sbbw(dst, src1, src2);
     case CC_OP_SBBL:
-        return compute_all_sbbl(dst, src1);
+        return compute_all_sbbl(dst, src1, src2);
 
     case CC_OP_LOGICB:
         return compute_all_logicb(dst, src1);
@@ -160,11 +161,11 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1, int op)
     case CC_OP_ADDQ:
         return compute_all_addq(dst, src1);
     case CC_OP_ADCQ:
-        return compute_all_adcq(dst, src1);
+        return compute_all_adcq(dst, src1, src2);
     case CC_OP_SUBQ:
         return compute_all_subq(dst, src1);
     case CC_OP_SBBQ:
-        return compute_all_sbbq(dst, src1);
+        return compute_all_sbbq(dst, src1, src2);
     case CC_OP_LOGICQ:
         return compute_all_logicq(dst, src1);
     case CC_OP_INCQ:
@@ -181,10 +182,11 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1, int op)
 
 uint32_t cpu_cc_compute_all(CPUX86State *env, int op)
 {
-    return helper_cc_compute_all(CC_DST, CC_SRC, op);
+    return helper_cc_compute_all(CC_DST, CC_SRC, CC_SRC2, op);
 }
 
-target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1, int op)
+target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
+                                 target_ulong src2, int op)
 {
     switch (op) {
     default: /* should never happen */
@@ -225,11 +227,11 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1, int op)
         return compute_c_addl(dst, src1);
 
     case CC_OP_ADCB:
-        return compute_c_adcb(dst, src1);
+        return compute_c_adcb(dst, src1, src2);
     case CC_OP_ADCW:
-        return compute_c_adcw(dst, src1);
+        return compute_c_adcw(dst, src1, src2);
     case CC_OP_ADCL:
-        return compute_c_adcl(dst, src1);
+        return compute_c_adcl(dst, src1, src2);
 
     case CC_OP_SUBB:
         return compute_c_subb(dst, src1);
@@ -239,11 +241,11 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1, int op)
         return compute_c_subl(dst, src1);
 
     case CC_OP_SBBB:
-        return compute_c_sbbb(dst, src1);
+        return compute_c_sbbb(dst, src1, src2);
     case CC_OP_SBBW:
-        return compute_c_sbbw(dst, src1);
+        return compute_c_sbbw(dst, src1, src2);
     case CC_OP_SBBL:
-        return compute_c_sbbl(dst, src1);
+        return compute_c_sbbl(dst, src1, src2);
 
     case CC_OP_SHLB:
         return compute_c_shlb(dst, src1);
@@ -256,11 +258,11 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1, int op)
     case CC_OP_ADDQ:
         return compute_c_addq(dst, src1);
     case CC_OP_ADCQ:
-        return compute_c_adcq(dst, src1);
+        return compute_c_adcq(dst, src1, src2);
     case CC_OP_SUBQ:
         return compute_c_subq(dst, src1);
     case CC_OP_SBBQ:
-        return compute_c_sbbq(dst, src1);
+        return compute_c_sbbq(dst, src1, src2);
     case CC_OP_SHLQ:
         return compute_c_shlq(dst, src1);
 #endif

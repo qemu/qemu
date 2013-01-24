@@ -725,8 +725,9 @@ typedef struct CPUX86State {
                         stored elsewhere */
 
     /* emulator internal eflags handling */
-    target_ulong cc_src;
     target_ulong cc_dst;
+    target_ulong cc_src;
+    target_ulong cc_src2;
     uint32_t cc_op;
     int32_t df; /* D flag : 1 if D = 0, -1 if D = 1 */
     uint32_t hflags; /* TB flags, see HF_xxx constants. These flags
@@ -1116,9 +1117,10 @@ static inline int cpu_mmu_index (CPUX86State *env)
 #define EIP (env->eip)
 #define DF  (env->df)
 
-#define CC_SRC (env->cc_src)
-#define CC_DST (env->cc_dst)
-#define CC_OP  (env->cc_op)
+#define CC_DST  (env->cc_dst)
+#define CC_SRC  (env->cc_src)
+#define CC_SRC2 (env->cc_src2)
+#define CC_OP   (env->cc_op)
 
 /* n must be a constant to be efficient */
 static inline target_long lshift(target_long x, int n)
