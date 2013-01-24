@@ -3129,11 +3129,11 @@ static CharDriverState *qmp_chardev_open_file(ChardevFile *file, Error **errp)
 
 static CharDriverState *qmp_chardev_open_port(ChardevPort *port, Error **errp)
 {
-    int flags, fd;
-
     switch (port->type) {
 #ifdef HAVE_CHARDEV_TTY
     case CHARDEV_PORT_KIND_SERIAL:
+    {
+        int flags, fd;
         flags = O_RDWR;
         fd = qmp_chardev_open_file_source(port->device, flags, errp);
         if (error_is_set(errp)) {
@@ -3141,15 +3141,19 @@ static CharDriverState *qmp_chardev_open_port(ChardevPort *port, Error **errp)
         }
         socket_set_nonblock(fd);
         return qemu_chr_open_tty_fd(fd);
+    }
 #endif
 #ifdef HAVE_CHARDEV_PARPORT
     case CHARDEV_PORT_KIND_PARALLEL:
+    {
+        int flags, fd;
         flags = O_RDWR;
         fd = qmp_chardev_open_file_source(port->device, flags, errp);
         if (error_is_set(errp)) {
             return NULL;
         }
         return qemu_chr_open_pp_fd(fd);
+    }
 #endif
     default:
         error_setg(errp, "unknown chardev port (%d)", port->type);
