@@ -2577,18 +2577,18 @@ static int configure_accelerator(void)
         p = get_opt_name(buf, sizeof (buf), p, ':');
         for (i = 0; i < ARRAY_SIZE(accel_list); i++) {
             if (strcmp(accel_list[i].opt_name, buf) == 0) {
+                if (!accel_list[i].available()) {
+                    printf("%s not supported for this target\n",
+                           accel_list[i].name);
+                    continue;
+                }
                 *(accel_list[i].allowed) = 1;
                 ret = accel_list[i].init();
                 if (ret < 0) {
                     init_failed = 1;
-                    if (!accel_list[i].available()) {
-                        printf("%s not supported for this target\n",
-                               accel_list[i].name);
-                    } else {
-                        fprintf(stderr, "failed to initialize %s: %s\n",
-                                accel_list[i].name,
-                                strerror(-ret));
-                    }
+                    fprintf(stderr, "failed to initialize %s: %s\n",
+                            accel_list[i].name,
+                            strerror(-ret));
                     *(accel_list[i].allowed) = 0;
                 } else {
                     accel_initialised = 1;
