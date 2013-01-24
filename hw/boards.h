@@ -33,6 +33,7 @@ typedef struct QEMUMachine {
     unsigned int no_serial:1,
         no_parallel:1,
         use_virtcon:1,
+        use_sclp:1,
         no_floppy:1,
         no_cdrom:1,
         no_sdcard:1;
