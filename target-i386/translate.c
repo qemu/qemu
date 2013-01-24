@@ -4072,6 +4072,33 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 }
                 break;
 
+            case 0x0f5: /* bzhi Gy, Ey, By */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI2)
+                    || !(s->prefix & PREFIX_VEX)
+                    || s->vex_l != 0) {
+                    goto illegal_op;
+                }
+                ot = s->dflag == 2 ? OT_QUAD : OT_LONG;
+                gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+                tcg_gen_ext8u_tl(cpu_T[1], cpu_regs[s->vex_v]);
+                {
+                    TCGv bound = tcg_const_tl(ot == OT_QUAD ? 63 : 31);
+                    /* Note that since we're using BMILG (in order to get O
+                       cleared) we need to store the inverse into C.  */
+                    tcg_gen_setcond_tl(TCG_COND_LT, cpu_cc_src,
+                                       cpu_T[1], bound);
+                    tcg_gen_movcond_tl(TCG_COND_GT, cpu_T[1], cpu_T[1],
+                                       bound, bound, cpu_T[1]);
+                    tcg_temp_free(bound);
+                }
+                tcg_gen_movi_tl(cpu_A0, -1);
+                tcg_gen_shl_tl(cpu_A0, cpu_A0, cpu_T[1]);
+                tcg_gen_andc_tl(cpu_T[0], cpu_T[0], cpu_A0);
+                gen_op_mov_reg_T0(ot, reg);
+                gen_op_update1_cc();
+                set_cc_op(s, CC_OP_BMILGB + ot);
+                break;
+
             case 0x0f3:
             case 0x1f3:
             case 0x2f3:
