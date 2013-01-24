@@ -441,9 +441,12 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
          * we point to the kernel args.
          */
         if (info->dtb_filename) {
-            /* Place the DTB after the initrd in memory */
-            hwaddr dtb_start = TARGET_PAGE_ALIGN(info->initrd_start +
-                                                 initrd_size);
+            /* Place the DTB after the initrd in memory. Note that some
+             * kernels will trash anything in the 4K page the initrd
+             * ends in, so make sure the DTB isn't caught up in that.
+             */
+            hwaddr dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size,
+                                             4096);
             if (load_dtb(dtb_start, info)) {
                 exit(1);
             }
