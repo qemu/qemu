@@ -675,6 +675,27 @@ void hmp_memchar_write(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &errp);
 }
 
+void hmp_memchar_read(Monitor *mon, const QDict *qdict)
+{
+    uint32_t size = qdict_get_int(qdict, "size");
+    const char *chardev = qdict_get_str(qdict, "device");
+    MemCharRead *meminfo;
+    Error *errp = NULL;
+
+    meminfo = qmp_memchar_read(chardev, size, false, 0, &errp);
+    if (errp) {
+        monitor_printf(mon, "%s\n", error_get_pretty(errp));
+        error_free(errp);
+        return;
+    }
+
+    if (meminfo->count > 0) {
+        monitor_printf(mon, "%s\n", meminfo->data);
+    }
+
+    qapi_free_MemCharRead(meminfo);
+}
+
 static void hmp_cont_cb(void *opaque, int err)
 {
     if (!err) {

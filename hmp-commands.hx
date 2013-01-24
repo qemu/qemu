@@ -858,6 +858,27 @@ to char device 'memory'.
 ETEXI
 
     {
+        .name       = "memchar_read",
+        .args_type  = "device:s,size:i",
+        .params     = "device size",
+        .help       = "Provide read interface for CirMemCharDriver. Read from"
+                      "it and return the data with size.",
+        .mhandler.cmd = hmp_memchar_read,
+    },
+
+STEXI
+@item memchar_read @var{device}
+@findex memchar_read
+Provide read interface for CirMemCharDriver. Read from char device
+'memory' and return the data.
+
+@var{size} is the size of data want to read from. Refer to unencoded
+size of the raw data, would adjust to the init size of the memchar
+if the requested size is larger than it.
+
+ETEXI
+
+    {
         .name       = "migrate",
         .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
         .params     = "[-d] [-b] [-i] uri",

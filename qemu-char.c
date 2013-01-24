@@ -2790,6 +2790,53 @@ void qmp_memchar_write(const char *device, int64_t size,
     }
 }
 
+MemCharRead *qmp_memchar_read(const char *device, int64_t size,
+                              bool has_format, enum DataFormat format,
+                              Error **errp)
+{
+    CharDriverState *chr;
+    guchar *read_data;
+    MemCharRead *meminfo;
+    size_t count;
+
+    chr = qemu_chr_find(device);
+    if (!chr) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return NULL;
+    }
+
+    if (qemu_is_chr(chr, "memory")) {
+        error_setg(errp,"%s is not memory char device", device);
+        return NULL;
+    }
+
+    if (size <= 0) {
+        error_setg(errp, "size must be greater than zero");
+        return NULL;
+    }
+
+    meminfo = g_malloc0(sizeof(MemCharRead));
+
+    count = qemu_chr_cirmem_count(chr);
+    if (count == 0) {
+        meminfo->data = g_strdup("");
+        return meminfo;
+    }
+
+    size = size > count ? count : size;
+    read_data = g_malloc0(size + 1);
+
+    meminfo->count = cirmem_chr_read(chr, read_data, size);
+
+    if (has_format && (format == DATA_FORMAT_BASE64)) {
+        meminfo->data = g_base64_encode(read_data, (size_t)meminfo->count);
+    } else {
+        meminfo->data = (char *)read_data;
+    }
+
+    return meminfo;
+}
+
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
 {
     char host[65], port[33], width[8], height[8];

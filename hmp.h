@@ -44,6 +44,7 @@ void hmp_cpu(Monitor *mon, const QDict *qdict);
 void hmp_memsave(Monitor *mon, const QDict *qdict);
 void hmp_pmemsave(Monitor *mon, const QDict *qdict);
 void hmp_memchar_write(Monitor *mon, const QDict *qdict);
+void hmp_memchar_read(Monitor *mon, const QDict *qdict);
 void hmp_cont(Monitor *mon, const QDict *qdict);
 void hmp_system_wakeup(Monitor *mon, const QDict *qdict);
 void hmp_inject_nmi(Monitor *mon, const QDict *qdict);
