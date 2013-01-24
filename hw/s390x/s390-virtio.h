@@ -15,6 +15,7 @@
 #define KVM_S390_VIRTIO_NOTIFY          0
 #define KVM_S390_VIRTIO_RESET           1
 #define KVM_S390_VIRTIO_SET_STATUS      2
+#define KVM_S390_VIRTIO_CCW_NOTIFY      3
 
 typedef int (*s390_virtio_fn)(const uint64_t *args);
 void s390_register_virtio_hypercall(uint64_t code, s390_virtio_fn fn);

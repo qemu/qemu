@@ -5,4 +5,5 @@ obj-y += event-facility.o
 obj-y += sclpquiesce.o sclpconsole.o
 obj-y += ipl.o
 obj-y += css.o
+obj-y += s390-virtio-ccw.o
 obj-y += virtio-ccw.o
