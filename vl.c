@@ -263,9 +263,9 @@ static NotifierList exit_notifiers =
 static NotifierList machine_init_done_notifiers =
     NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
 
-static int tcg_allowed = 1;
-int kvm_allowed = 0;
-int xen_allowed = 0;
+static bool tcg_allowed = true;
+bool kvm_allowed;
+bool xen_allowed;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
 static int tcg_tb_size;
@@ -2544,7 +2544,7 @@ static struct {
     const char *name;
     int (*available)(void);
     int (*init)(void);
-    int *allowed;
+    bool *allowed;
 } accel_list[] = {
     { "tcg", "tcg", tcg_available, tcg_init, &tcg_allowed },
     { "xen", "Xen", xen_available, xen_init, &xen_allowed },
@@ -2582,14 +2582,14 @@ static int configure_accelerator(void)
                            accel_list[i].name);
                     continue;
                 }
-                *(accel_list[i].allowed) = 1;
+                *(accel_list[i].allowed) = true;
                 ret = accel_list[i].init();
                 if (ret < 0) {
                     init_failed = true;
                     fprintf(stderr, "failed to initialize %s: %s\n",
                             accel_list[i].name,
                             strerror(-ret));
-                    *(accel_list[i].allowed) = 0;
+                    *(accel_list[i].allowed) = false;
                 } else {
                     accel_initialised = true;
                 }

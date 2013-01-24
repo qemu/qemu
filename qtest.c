@@ -24,7 +24,7 @@
 
 const char *qtest_chrdev;
 const char *qtest_log;
-int qtest_allowed = 0;
+bool qtest_allowed;
 
 static DeviceState *irq_intercept_dev;
 static FILE *qtest_log_fp;
