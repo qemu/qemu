@@ -75,10 +75,8 @@ const uint8_t parity_table[256] = {
 
 #endif
 
-uint32_t helper_cc_compute_all(CPUX86State *env, int op)
+target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1, int op)
 {
-    target_ulong dst = CC_DST, src1 = CC_SRC;
-
     switch (op) {
     default: /* should never happen */
         return 0;
@@ -183,13 +181,11 @@ uint32_t helper_cc_compute_all(CPUX86State *env, int op)
 
 uint32_t cpu_cc_compute_all(CPUX86State *env, int op)
 {
-    return helper_cc_compute_all(env, op);
+    return helper_cc_compute_all(CC_DST, CC_SRC, op);
 }
 
-uint32_t helper_cc_compute_c(CPUX86State *env, int op)
+target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1, int op)
 {
-    target_ulong dst = CC_DST, src1 = CC_SRC;
-
     switch (op) {
     default: /* should never happen */
     case CC_OP_LOGICB:
@@ -281,7 +277,7 @@ target_ulong helper_read_eflags(CPUX86State *env)
 {
     uint32_t eflags;
 
-    eflags = helper_cc_compute_all(env, CC_OP);
+    eflags = cpu_cc_compute_all(env, CC_OP);
     eflags |= (DF & DF_MASK);
     eflags |= env->eflags & ~(VM_MASK | RF_MASK);
     return eflags;

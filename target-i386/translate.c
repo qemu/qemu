@@ -882,13 +882,37 @@ static void gen_op_update_neg_cc(void)
 /* compute all eflags to cc_src */
 static void gen_compute_eflags(DisasContext *s)
 {
+    TCGv zero, dst, src1;
+    int live, dead;
+
     if (s->cc_op == CC_OP_EFLAGS) {
         return;
     }
+
+    TCGV_UNUSED(zero);
+    dst = cpu_cc_dst;
+    src1 = cpu_cc_src;
+
+    /* Take care to not read values that are not live.  */
+    live = cc_op_live[s->cc_op] & ~USES_CC_SRCT;
+    dead = live ^ (USES_CC_DST | USES_CC_SRC);
+    if (dead) {
+        zero = tcg_const_tl(0);
+        if (dead & USES_CC_DST) {
+            dst = zero;
+        }
+        if (dead & USES_CC_SRC) {
+            src1 = zero;
+        }
+    }
+
     gen_update_cc_op(s);
-    gen_helper_cc_compute_all(cpu_tmp2_i32, cpu_env, cpu_cc_op);
+    gen_helper_cc_compute_all(cpu_cc_src, dst, src1, cpu_cc_op);
     set_cc_op(s, CC_OP_EFLAGS);
-    tcg_gen_extu_i32_tl(cpu_cc_src, cpu_tmp2_i32);
+
+    if (dead) {
+        tcg_temp_free(zero);
+    }
 }
 
 typedef struct CCPrepare {
@@ -980,8 +1004,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
        /* The need to compute only C from CC_OP_DYNAMIC is important
           in efficiently implementing e.g. INC at the start of a TB.  */
        gen_update_cc_op(s);
-       gen_helper_cc_compute_c(cpu_tmp2_i32, cpu_env, cpu_cc_op);
-       tcg_gen_extu_i32_tl(reg, cpu_tmp2_i32);
+       gen_helper_cc_compute_c(reg, cpu_cc_dst, cpu_cc_src, cpu_cc_op);
        return (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
                             .mask = -1, .no_setcond = true };
     }
