@@ -1899,6 +1899,9 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
             (unsigned long)reg_info.flags);
 
     vdev->config_size = reg_info.size;
+    if (vdev->config_size == PCI_CONFIG_SPACE_SIZE) {
+        vdev->pdev.cap_present &= ~QEMU_PCI_CAP_EXPRESS;
+    }
     vdev->config_offset = reg_info.offset;
 
 error:
@@ -2121,6 +2124,7 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     pdc->exit = vfio_exitfn;
     pdc->config_read = vfio_pci_read_config;
     pdc->config_write = vfio_pci_write_config;
+    pdc->is_express = 1; /* We might be */
 }
 
 static const TypeInfo vfio_pci_dev_info = {
