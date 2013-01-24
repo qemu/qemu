@@ -399,6 +399,30 @@ void cpu_unlock(void);
 
 typedef struct SubchDev SubchDev;
 
+#ifndef CONFIG_USER_ONLY
+SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,
+                         uint16_t schid);
+bool css_subch_visible(SubchDev *sch);
+void css_conditional_io_interrupt(SubchDev *sch);
+int css_do_stsch(SubchDev *sch, SCHIB *schib);
+bool css_schid_final(uint8_t cssid, uint8_t ssid, uint16_t schid);
+int css_do_msch(SubchDev *sch, SCHIB *schib);
+int css_do_xsch(SubchDev *sch);
+int css_do_csch(SubchDev *sch);
+int css_do_hsch(SubchDev *sch);
+int css_do_ssch(SubchDev *sch, ORB *orb);
+int css_do_tsch(SubchDev *sch, IRB *irb);
+int css_do_stcrw(CRW *crw);
+int css_do_tpi(uint64_t addr, int lowcore);
+int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid, uint8_t l_chpid,
+                         int rfmt, void *buf);
+void css_do_schm(uint8_t mbk, int update, int dct, uint64_t mbo);
+int css_enable_mcsse(void);
+int css_enable_mss(void);
+int css_do_rsch(SubchDev *sch);
+int css_do_rchp(uint8_t cssid, uint8_t chpid);
+bool css_present(uint8_t cssid);
+#else
 static inline SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,
                                        uint16_t schid)
 {
@@ -479,6 +503,7 @@ static inline bool css_present(uint8_t cssid)
 {
     return false;
 }
+#endif
 
 static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
 {
@@ -1030,5 +1055,42 @@ uint32_t set_cc_nz_f128(float128 v);
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr);
+
+#include <sysemu/kvm.h>
+
+static inline void kvm_s390_io_interrupt(S390CPU *cpu,
+                                        uint16_t subchannel_id,
+                                        uint16_t subchannel_nr,
+                                        uint32_t io_int_parm,
+                                        uint32_t io_int_word)
+{
+}
+static inline void kvm_s390_crw_mchk(S390CPU *cpu)
+{
+}
+
+static inline void s390_io_interrupt(S390CPU *cpu,
+                                     uint16_t subchannel_id,
+                                     uint16_t subchannel_nr,
+                                     uint32_t io_int_parm,
+                                     uint32_t io_int_word)
+{
+    if (kvm_enabled()) {
+        kvm_s390_io_interrupt(cpu, subchannel_id, subchannel_nr, io_int_parm,
+                              io_int_word);
+    } else {
+        cpu_inject_io(&cpu->env, subchannel_id, subchannel_nr, io_int_parm,
+                      io_int_word);
+    }
+}
+
+static inline void s390_crw_mchk(S390CPU *cpu)
+{
+    if (kvm_enabled()) {
+        kvm_s390_crw_mchk(cpu);
+    } else {
+        cpu_inject_crw_mchk(&cpu->env);
+    }
+}
 
 #endif
