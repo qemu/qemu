@@ -1058,6 +1058,13 @@ void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
 
 #include <sysemu/kvm.h>
 
+#ifdef CONFIG_KVM
+void kvm_s390_io_interrupt(S390CPU *cpu, uint16_t subchannel_id,
+                           uint16_t subchannel_nr, uint32_t io_int_parm,
+                           uint32_t io_int_word);
+void kvm_s390_crw_mchk(S390CPU *cpu);
+void kvm_s390_enable_css_support(S390CPU *cpu);
+#else
 static inline void kvm_s390_io_interrupt(S390CPU *cpu,
                                         uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
@@ -1068,6 +1075,10 @@ static inline void kvm_s390_io_interrupt(S390CPU *cpu,
 static inline void kvm_s390_crw_mchk(S390CPU *cpu)
 {
 }
+static inline void kvm_s390_enable_css_support(S390CPU *cpu)
+{
+}
+#endif
 
 static inline void s390_io_interrupt(S390CPU *cpu,
                                      uint16_t subchannel_id,
