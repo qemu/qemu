@@ -100,6 +100,7 @@ static void bus_add_child(BusState *bus, DeviceState *child)
 void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
 {
     dev->parent_bus = bus;
+    object_ref(OBJECT(bus));
     bus_add_child(bus, dev);
 }
 
@@ -773,6 +774,8 @@ static void device_unparent(Object *obj)
     }
     if (dev->parent_bus) {
         bus_remove_child(dev->parent_bus, dev);
+        object_unref(OBJECT(dev->parent_bus));
+        dev->parent_bus = NULL;
     }
 }
 
