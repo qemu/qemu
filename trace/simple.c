@@ -166,13 +166,13 @@ static gpointer writeout_thread(gpointer opaque)
     for (;;) {
         wait_for_trace_records_available();
 
-        if (dropped_events) {
+        if (g_atomic_int_get(&dropped_events)) {
             dropped.rec.event = DROPPED_EVENT_ID,
             dropped.rec.timestamp_ns = get_clock();
             dropped.rec.length = sizeof(TraceRecord) + sizeof(uint64_t),
             dropped.rec.reserved = 0;
             while (1) {
-                dropped_count = dropped_events;
+                dropped_count = g_atomic_int_get(&dropped_events);
                 if (g_atomic_int_compare_and_exchange(&dropped_events,
                                                       dropped_count, 0)) {
                     break;
@@ -214,7 +214,7 @@ int trace_record_start(TraceBufferRecord *rec, TraceEventID event, size_t datasi
     uint64_t timestamp_ns = get_clock();
 
     while (1) {
-        old_idx = trace_idx;
+        old_idx = g_atomic_int_get(&trace_idx);
         smp_rmb();
         new_idx = old_idx + rec_len;
 
@@ -275,7 +275,8 @@ void trace_record_finish(TraceBufferRecord *rec)
     record.event |= TRACE_RECORD_VALID;
     write_to_buffer(rec->tbuf_idx, &record, sizeof(TraceRecord));
 
-    if ((trace_idx - writeout_idx) > TRACE_BUF_FLUSH_THRESHOLD) {
+    if ((g_atomic_int_get(&trace_idx) - writeout_idx)
+        > TRACE_BUF_FLUSH_THRESHOLD) {
         flush_trace_file(false);
     }
 }
