@@ -64,7 +64,10 @@ static void bus_remove_child(BusState *bus, DeviceState *child)
 
             snprintf(name, sizeof(name), "child[%d]", kid->index);
             QTAILQ_REMOVE(&bus->children, kid, sibling);
+
+            /* This gives back ownership of kid->child back to us.  */
             object_property_del(OBJECT(bus), name, NULL);
+            object_unref(OBJECT(kid->child));
             g_free(kid);
             return;
         }
@@ -82,9 +85,11 @@ static void bus_add_child(BusState *bus, DeviceState *child)
 
     kid->index = bus->max_index++;
     kid->child = child;
+    object_ref(OBJECT(kid->child));
 
     QTAILQ_INSERT_HEAD(&bus->children, kid, sibling);
 
+    /* This transfers ownership of kid->child to the property.  */
     snprintf(name, sizeof(name), "child[%d]", kid->index);
     object_property_add_link(OBJECT(bus), name,
                              object_get_typename(OBJECT(child)),
