@@ -10358,7 +10358,7 @@ PowerPCCPU *cpu_ppc_init(const char *cpu_model)
     if (err != NULL) {
         fprintf(stderr, "%s\n", error_get_pretty(err));
         error_free(err);
-        object_delete(OBJECT(cpu));
+        object_unref(OBJECT(cpu));
         return NULL;
     }
 

@@ -1278,14 +1278,14 @@ X86CPU *cpu_x86_init(const char *cpu_model)
     env->cpu_model_str = cpu_model;
 
     if (cpu_x86_register(cpu, cpu_model) < 0) {
-        object_delete(OBJECT(cpu));
+        object_unref(OBJECT(cpu));
         return NULL;
     }
 
     x86_cpu_realize(OBJECT(cpu), &error);
     if (error) {
         error_free(error);
-        object_delete(OBJECT(cpu));
+        object_unref(OBJECT(cpu));
         return NULL;
     }
     return cpu;

@@ -5202,7 +5202,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                         NULL, NULL, 0);
           }
           thread_env = NULL;
-          object_delete(OBJECT(ENV_GET_CPU(cpu_env)));
+          object_unref(OBJECT(ENV_GET_CPU(cpu_env)));
           g_free(ts);
           pthread_exit(NULL);
       }
