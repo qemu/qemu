@@ -2236,6 +2236,7 @@ static int device_init_func(QemuOpts *opts, void *opaque)
     dev = qdev_device_add(opts);
     if (!dev)
         return -1;
+    object_unref(OBJECT(dev));
     return 0;
 }
 

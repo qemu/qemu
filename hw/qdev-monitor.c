@@ -591,6 +591,7 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     Error *local_err = NULL;
     QemuOpts *opts;
+    DeviceState *dev;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
     if (error_is_set(&local_err)) {
@@ -602,10 +603,12 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
         qemu_opts_del(opts);
         return 0;
     }
-    if (!qdev_device_add(opts)) {
+    dev = qdev_device_add(opts);
+    if (!dev) {
         qemu_opts_del(opts);
         return -1;
     }
+    object_unref(OBJECT(dev));
     return 0;
 }
 

@@ -143,7 +143,7 @@ DeviceState *qdev_try_create(BusState *bus, const char *type)
     }
 
     qdev_set_parent_bus(dev, bus);
-
+    object_unref(OBJECT(dev));
     return dev;
 }
 
@@ -268,7 +268,6 @@ void qdev_init_nofail(DeviceState *dev)
 void qdev_free(DeviceState *dev)
 {
     object_unparent(OBJECT(dev));
-    object_unref(OBJECT(dev));
 }
 
 void qdev_machine_creation_done(void)
@@ -428,6 +427,7 @@ static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
         QLIST_INSERT_HEAD(&bus->parent->child_bus, bus, sibling);
         bus->parent->num_child_bus++;
         object_property_add_child(OBJECT(bus->parent), bus->name, OBJECT(bus), NULL);
+        object_unref(OBJECT(bus));
     } else if (bus != sysbus_get_default()) {
         /* TODO: once all bus devices are qdevified,
            only reset handler for main_system_bus should be registered here. */
@@ -474,7 +474,6 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
 void qbus_free(BusState *bus)
 {
     object_unparent(OBJECT(bus));
-    object_unref(OBJECT(bus));
 }
 
 static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)
