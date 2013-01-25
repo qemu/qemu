@@ -3652,6 +3652,7 @@ int main(int argc, char **argv, char **envp)
                 default_serial = 0;
                 default_parallel = 0;
                 default_virtcon = 0;
+                default_sclp = 0;
                 default_monitor = 0;
                 default_net = 0;
                 default_floppy = 0;
