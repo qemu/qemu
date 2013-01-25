@@ -428,7 +428,7 @@ static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
     }
 }
 
-void qbus_create_inplace(BusState *bus, const char *typename,
+void qbus_create_inplace(void *bus, const char *typename,
                          DeviceState *parent, const char *name)
 {
     object_initialize(bus, typename);
