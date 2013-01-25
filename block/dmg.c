@@ -355,15 +355,15 @@ static coroutine_fn int dmg_co_read(BlockDriverState *bs, int64_t sector_num,
 static void dmg_close(BlockDriverState *bs)
 {
     BDRVDMGState *s = bs->opaque;
-    if(s->n_chunks>0) {
-	free(s->types);
-	free(s->offsets);
-	free(s->lengths);
-	free(s->sectors);
-	free(s->sectorcounts);
-    }
-    free(s->compressed_chunk);
-    free(s->uncompressed_chunk);
+
+    g_free(s->types);
+    g_free(s->offsets);
+    g_free(s->lengths);
+    g_free(s->sectors);
+    g_free(s->sectorcounts);
+    g_free(s->compressed_chunk);
+    g_free(s->uncompressed_chunk);
+
     inflateEnd(&s->zstream);
 }
 
