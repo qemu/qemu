@@ -632,7 +632,7 @@ static void wm8750_fini(I2CSlave *i2c)
 void wm8750_data_req_set(DeviceState *dev,
                 void (*data_req)(void *, int, int), void *opaque)
 {
-    WM8750State *s = FROM_I2C_SLAVE(WM8750State, I2C_SLAVE_FROM_QDEV(dev));
+    WM8750State *s = FROM_I2C_SLAVE(WM8750State, I2C_SLAVE(dev));
     s->data_req = data_req;
     s->opaque = opaque;
 }

@@ -1468,7 +1468,7 @@ PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
     s = FROM_SYSBUS(PXA2xxI2CState, i2c_dev);
     /* FIXME: Should the slave device really be on a separate bus?  */
     dev = i2c_create_slave(i2c_init_bus(NULL, "dummy"), "pxa2xx-i2c-slave", 0);
-    s->slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, I2C_SLAVE_FROM_QDEV(dev));
+    s->slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, I2C_SLAVE(dev));
     s->slave->host = s;
 
     return s;

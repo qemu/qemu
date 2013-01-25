@@ -198,7 +198,7 @@ static int ds1338_init(I2CSlave *i2c)
 
 static void ds1338_reset(DeviceState *dev)
 {
-    DS1338State *s = FROM_I2C_SLAVE(DS1338State, I2C_SLAVE_FROM_QDEV(dev));
+    DS1338State *s = FROM_I2C_SLAVE(DS1338State, I2C_SLAVE(dev));
 
     /* The clock is running and synchronized with the host */
     s->offset = 0;

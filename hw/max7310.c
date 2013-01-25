@@ -25,7 +25,7 @@ typedef struct {
 
 static void max7310_reset(DeviceState *dev)
 {
-    MAX7310State *s = FROM_I2C_SLAVE(MAX7310State, I2C_SLAVE_FROM_QDEV(dev));
+    MAX7310State *s = FROM_I2C_SLAVE(MAX7310State, I2C_SLAVE(dev));
     s->level &= s->direction;
     s->direction = 0xff;
     s->polarity = 0xf0;

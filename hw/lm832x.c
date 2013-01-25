@@ -476,7 +476,7 @@ static int lm8323_init(I2CSlave *i2c)
 
 void lm832x_key_event(DeviceState *dev, int key, int state)
 {
-    LM823KbdState *s = FROM_I2C_SLAVE(LM823KbdState, I2C_SLAVE_FROM_QDEV(dev));
+    LM823KbdState *s = FROM_I2C_SLAVE(LM823KbdState, I2C_SLAVE(dev));
 
     if ((s->status & INT_ERROR) && (s->error & ERR_FIFOOVR))
         return;

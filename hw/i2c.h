@@ -59,7 +59,6 @@ void i2c_nack(i2c_bus *bus);
 int i2c_send(i2c_bus *bus, uint8_t data);
 int i2c_recv(i2c_bus *bus);
 
-#define I2C_SLAVE_FROM_QDEV(dev) DO_UPCAST(I2CSlave, qdev, dev)
 #define FROM_I2C_SLAVE(type, dev) DO_UPCAST(type, i2c, dev)
 
 DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, uint8_t addr);
