@@ -171,13 +171,10 @@ static gpointer writeout_thread(gpointer opaque)
             dropped.rec.timestamp_ns = get_clock();
             dropped.rec.length = sizeof(TraceRecord) + sizeof(uint64_t),
             dropped.rec.reserved = 0;
-            while (1) {
+            do {
                 dropped_count = g_atomic_int_get(&dropped_events);
-                if (g_atomic_int_compare_and_exchange(&dropped_events,
-                                                      dropped_count, 0)) {
-                    break;
-                }
-            }
+            } while (!g_atomic_int_compare_and_exchange(&dropped_events,
+                                                        dropped_count, 0));
             dropped.rec.arguments[0] = dropped_count;
             unused = fwrite(&dropped.rec, dropped.rec.length, 1, trace_fp);
         }
@@ -213,7 +210,7 @@ int trace_record_start(TraceBufferRecord *rec, TraceEventID event, size_t datasi
     uint32_t rec_len = sizeof(TraceRecord) + datasize;
     uint64_t timestamp_ns = get_clock();
 
-    while (1) {
+    do {
         old_idx = g_atomic_int_get(&trace_idx);
         smp_rmb();
         new_idx = old_idx + rec_len;
@@ -223,12 +220,7 @@ int trace_record_start(TraceBufferRecord *rec, TraceEventID event, size_t datasi
             g_atomic_int_inc(&dropped_events);
             return -ENOSPC;
         }
-
-        if (g_atomic_int_compare_and_exchange(&trace_idx,
-                                              old_idx, new_idx)) {
-            break;
-        }
-    }
+    } while (!g_atomic_int_compare_and_exchange(&trace_idx, old_idx, new_idx));
 
     idx = old_idx % TRACE_BUF_LEN;
 
