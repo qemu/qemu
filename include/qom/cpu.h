@@ -93,10 +93,8 @@ struct CPUState {
     bool stop;
     bool stopped;
 
-#if !defined(CONFIG_USER_ONLY)
     int kvm_fd;
     bool kvm_vcpu_dirty;
-#endif
     struct KVMState *kvm_state;
     struct kvm_run *kvm_run;
 
