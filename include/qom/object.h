@@ -553,9 +553,9 @@ struct InterfaceClass
  * object_new:
  * @typename: The name of the type of the object to instantiate.
  *
- * This function will initialize a new object using heap allocated memory.  This
- * function should be paired with object_delete() to free the resources
- * associated with the object.
+ * This function will initialize a new object using heap allocated memory.
+ * The returned object has a reference count of 1, and will be freed when
+ * the last reference is dropped.
  *
  * Returns: The newly allocated and instantiated object.
  */
@@ -565,22 +565,13 @@ Object *object_new(const char *typename);
  * object_new_with_type:
  * @type: The type of the object to instantiate.
  *
- * This function will initialize a new object using heap allocated memory.  This
- * function should be paired with object_delete() to free the resources
- * associated with the object.
+ * This function will initialize a new object using heap allocated memory.
+ * The returned object has a reference count of 1, and will be freed when
+ * the last reference is dropped.
  *
  * Returns: The newly allocated and instantiated object.
  */
 Object *object_new_with_type(Type type);
-
-/**
- * object_delete:
- * @obj: The object to free.
- *
- * Finalize an object and then free the memory associated with it.  This should
- * be paired with object_new() to free the resources associated with an object.
- */
-void object_delete(Object *obj);
 
 /**
  * object_initialize_with_type:
@@ -588,7 +579,8 @@ void object_delete(Object *obj);
  * @type: The type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
- * have already been allocated.
+ * have already been allocated.  The returned object has a reference count of 1,
+ * and will be finalized when the last reference is dropped.
  */
 void object_initialize_with_type(void *data, Type type);
 
@@ -598,7 +590,8 @@ void object_initialize_with_type(void *data, Type type);
  * @typename: The name of the type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
- * have already been allocated.
+ * have already been allocated.  The returned object has a reference count of 1,
+ * and will be finalized when the last reference is dropped.
  */
 void object_initialize(void *obj, const char *typename);
 

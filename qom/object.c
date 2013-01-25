@@ -417,13 +417,6 @@ Object *object_new(const char *typename)
     return object_new_with_type(ti);
 }
 
-void object_delete(Object *obj)
-{
-    object_unparent(obj);
-    g_assert(obj->ref == 1);
-    object_unref(obj);
-}
-
 Object *object_dynamic_cast(Object *obj, const char *typename)
 {
     if (obj && object_class_dynamic_cast(object_get_class(obj), typename)) {
