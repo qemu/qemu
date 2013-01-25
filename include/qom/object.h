@@ -1041,6 +1041,11 @@ void object_property_add_child(Object *obj, const char *name,
  * between objects.
  *
  * Links form the graph in the object model.
+ *
+ * Ownership of the pointer that @child points to is transferred to the
+ * link property.  The reference count for <code>*@child</code> is
+ * managed by the property from after the function returns till the
+ * property is deleted with object_property_del().
  */
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,
