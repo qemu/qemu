@@ -267,7 +267,8 @@ void qdev_init_nofail(DeviceState *dev)
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
-    object_delete(OBJECT(dev));
+    object_unparent(OBJECT(dev));
+    object_unref(OBJECT(dev));
 }
 
 void qdev_machine_creation_done(void)
@@ -472,7 +473,8 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
 
 void qbus_free(BusState *bus)
 {
-    object_delete(OBJECT(bus));
+    object_unparent(OBJECT(bus));
+    object_unref(OBJECT(bus));
 }
 
 static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)
