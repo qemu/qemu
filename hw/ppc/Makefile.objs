@@ -2,7 +2,6 @@
 obj-y = ppc.o ppc_booke.o
 # PREP target
 obj-y += mc146818rtc.o
-obj-y += ppc_prep.o
 # IBM pSeries (sPAPR)
 obj-$(CONFIG_PSERIES) += spapr.o spapr_hcall.o spapr_rtas.o spapr_vio.o
 obj-$(CONFIG_PSERIES) += xics.o spapr_vty.o spapr_llan.o spapr_vscsi.o
@@ -24,6 +23,8 @@ obj-y += xilinx_ethlite.o
 
 obj-y := $(addprefix ../,$(obj-y))
 
+# PReP
+obj-y += prep.o
 # OldWorld PowerMac
 obj-y += mac_oldworld.o
 # NewWorld PowerMac

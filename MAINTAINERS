@@ -395,7 +395,7 @@ PReP
 M: Andreas Färber <andreas.faerber@web.de>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
-F: hw/ppc_prep.c
+F: hw/ppc/prep.c
 F: hw/prep_pci.[hc]
 F: hw/pc87312.[hc]
 
