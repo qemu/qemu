@@ -61,7 +61,7 @@ check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
 check-qtest-sparc64-y = tests/m48t59-test$(EXESUF)
 gcov-files-sparc-y += hw/m48t59.c
 check-qtest-arm-y = tests/tmp105-test$(EXESUF)
-qcov-files-arm-y += hw/tmp105.c
+gcov-files-arm-y += hw/tmp105.c
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h tests/test-qmp-commands.h
 
