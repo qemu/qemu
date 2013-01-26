@@ -687,14 +687,15 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     packet_desc_addr = s->rx_desc_addr;
     while (1) {
-        DB_PRINT("read descriptor 0x%x\n", packet_desc_addr);
+        DB_PRINT("read descriptor 0x%x\n", (unsigned)packet_desc_addr);
         /* read current descriptor */
         cpu_physical_memory_read(packet_desc_addr,
                                  (uint8_t *)&desc[0], sizeof(desc));
 
         /* Descriptor owned by software ? */
         if (rx_desc_get_ownership(desc) == 1) {
-            DB_PRINT("descriptor 0x%x owned by sw.\n", packet_desc_addr);
+            DB_PRINT("descriptor 0x%x owned by sw.\n",
+                     (unsigned)packet_desc_addr);
             s->regs[GEM_RXSTATUS] |= GEM_RXSTATUS_NOBUF;
             /* Handle interrupt consequences */
             gem_update_int_status(s);
@@ -709,7 +710,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
          */
         if (rx_desc_get_buffer(desc) == 0) {
             DB_PRINT("Invalid RX buffer (NULL) for descriptor 0x%x\n",
-                       packet_desc_addr);
+                     (unsigned)packet_desc_addr);
             break;
         }
 
@@ -749,7 +750,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         s->rx_desc_addr += 8;
     }
 
-    DB_PRINT("set SOF, OWN on descriptor 0x%08x\n", packet_desc_addr);
+    DB_PRINT("set SOF, OWN on descriptor 0x%08x\n", (unsigned)packet_desc_addr);
 
     /* Count it */
     gem_receive_updatestats(s, buf, size);
@@ -861,7 +862,8 @@ static void gem_transmit(GemState *s)
          */
         if ((tx_desc_get_buffer(desc) == 0) ||
             (tx_desc_get_length(desc) == 0)) {
-            DB_PRINT("Invalid TX descriptor @ 0x%x\n", packet_desc_addr);
+            DB_PRINT("Invalid TX descriptor @ 0x%x\n",
+                     (unsigned)packet_desc_addr);
             break;
         }
 
@@ -1031,10 +1033,11 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
     offset >>= 2;
     retval = s->regs[offset];
 
-    DB_PRINT("offset: 0x%04x read: 0x%08x\n", offset*4, retval);
+    DB_PRINT("offset: 0x%04x read: 0x%08x\n", (unsigned)offset*4, retval);
 
     switch (offset) {
     case GEM_ISR:
+        DB_PRINT("lowering irq on ISR read\n");
         qemu_set_irq(s->irq, 0);
         break;
     case GEM_PHYMNTNC:
@@ -1073,7 +1076,7 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
     GemState *s = (GemState *)opaque;
     uint32_t readonly;
 
-    DB_PRINT("offset: 0x%04x write: 0x%08x ", offset, (unsigned)val);
+    DB_PRINT("offset: 0x%04x write: 0x%08x ", (unsigned)offset, (unsigned)val);
     offset >>= 2;
 
     /* Squash bits which are read only in write value */
