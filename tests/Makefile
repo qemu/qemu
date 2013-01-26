@@ -57,6 +57,7 @@ gcov-files-i386-y += hw/hd-geometry.c
 check-qtest-i386-y += tests/rtc-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/mc146818rtc.c
+gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
 check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
 check-qtest-sparc64-y = tests/m48t59-test$(EXESUF)
 gcov-files-sparc-y += hw/m48t59.c
