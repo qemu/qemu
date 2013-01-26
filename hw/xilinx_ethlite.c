@@ -163,9 +163,9 @@ static const MemoryRegionOps eth_ops = {
 static int eth_can_rx(NetClientState *nc)
 {
     struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
-    int r;
-    r = !(s->regs[R_RX_CTRL0] & CTRL_S);
-    return r;
+    unsigned int rxbase = s->rxbuf * (0x800 / 4);
+
+    return !(s->regs[rxbase + R_RX_CTRL0] & CTRL_S);
 }
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
