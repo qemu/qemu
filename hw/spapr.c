@@ -77,12 +77,6 @@
 #define MAX_CPUS                256
 #define XICS_IRQS               1024
 
-#define SPAPR_PCI_BUID          0x800000020000001ULL
-#define SPAPR_PCI_MEM_WIN_ADDR  (0x10000000000ULL + 0xA0000000)
-#define SPAPR_PCI_MEM_WIN_SIZE  0x20000000
-#define SPAPR_PCI_IO_WIN_ADDR   (0x10000000000ULL + 0x80000000)
-#define SPAPR_PCI_MSI_WIN_ADDR  (0x10000000000ULL + 0x90000000)
-
 #define PHANDLE_XICP            0x00001111
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
@@ -857,12 +851,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     /* Set up PCI */
     spapr_pci_rtas_init();
 
-    spapr_create_phb(spapr, "pci", SPAPR_PCI_BUID,
-                     SPAPR_PCI_MEM_WIN_ADDR,
-                     SPAPR_PCI_MEM_WIN_SIZE,
-                     SPAPR_PCI_IO_WIN_ADDR,
-                     SPAPR_PCI_MSI_WIN_ADDR);
-    phb = PCI_HOST_BRIDGE(QLIST_FIRST(&spapr->phbs));
+    phb = spapr_create_phb(spapr, 0, "pci");
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];

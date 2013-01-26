@@ -48,15 +48,20 @@ do { printf("ADB: " fmt , ## __VA_ARGS__); } while (0)
 #define ADB_CMD_CHANGE_ID_AND_ENABLE	0x00
 
 /* ADB default device IDs (upper 4 bits of ADB command byte) */
-#define ADB_DONGLE	1
-#define ADB_KEYBOARD	2
-#define ADB_MOUSE	3
-#define ADB_TABLET	4
-#define ADB_MODEM	5
-#define ADB_MISC	7
+#define ADB_DEVID_DONGLE   1
+#define ADB_DEVID_KEYBOARD 2
+#define ADB_DEVID_MOUSE    3
+#define ADB_DEVID_TABLET   4
+#define ADB_DEVID_MODEM    5
+#define ADB_DEVID_MISC     7
 
 /* error codes */
 #define ADB_RET_NOTPRESENT (-2)
+
+static void adb_device_reset(ADBDevice *d)
+{
+    qdev_reset_all(DEVICE(d));
+}
 
 int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
 {
@@ -66,18 +71,17 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
     cmd = buf[0] & 0xf;
     if (cmd == ADB_BUSRESET) {
         for(i = 0; i < s->nb_devices; i++) {
-            d = &s->devices[i];
-            if (d->devreset) {
-                d->devreset(d);
-            }
+            d = s->devices[i];
+            adb_device_reset(d);
         }
         return 0;
     }
     devaddr = buf[0] >> 4;
     for(i = 0; i < s->nb_devices; i++) {
-        d = &s->devices[i];
+        d = s->devices[i];
         if (d->devaddr == devaddr) {
-            return d->devreq(d, obuf, buf, len);
+            ADBDeviceClass *adc = ADB_DEVICE_GET_CLASS(d);
+            return adc->devreq(d, obuf, buf, len);
         }
     }
     return ADB_RET_NOTPRESENT;
@@ -94,7 +98,7 @@ int adb_poll(ADBBusState *s, uint8_t *obuf)
     for(i = 0; i < s->nb_devices; i++) {
         if (s->poll_index >= s->nb_devices)
             s->poll_index = 0;
-        d = &s->devices[s->poll_index];
+        d = s->devices[s->poll_index];
         buf[0] = ADB_READREG | (d->devaddr << 4);
         olen = adb_request(s, obuf + 1, buf, 1);
         /* if there is data, we poll again the same device */
@@ -108,31 +112,66 @@ int adb_poll(ADBBusState *s, uint8_t *obuf)
     return olen;
 }
 
-static ADBDevice *adb_register_device(ADBBusState *s, int devaddr,
-                                      ADBDeviceRequest *devreq,
-                                      ADBDeviceReset *devreset,
-                                      void *opaque)
+static const TypeInfo adb_bus_type_info = {
+    .name = TYPE_ADB_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(ADBBusState),
+};
+
+static void adb_device_realizefn(DeviceState *dev, Error **errp)
 {
-    ADBDevice *d;
-    if (s->nb_devices >= MAX_ADB_DEVICES)
-        return NULL;
-    d = &s->devices[s->nb_devices++];
-    d->bus = s;
-    d->devaddr = devaddr;
-    d->devreq = devreq;
-    d->devreset = devreset;
-    d->opaque = opaque;
-    qemu_register_reset((QEMUResetHandler *)devreset, d);
-    return d;
+    ADBDevice *d = ADB_DEVICE(dev);
+    ADBBusState *bus = ADB_BUS(qdev_get_parent_bus(dev));
+
+    if (bus->nb_devices >= MAX_ADB_DEVICES) {
+        return;
+    }
+
+    bus->devices[bus->nb_devices++] = d;
 }
+
+static void adb_device_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = adb_device_realizefn;
+    dc->bus_type = TYPE_ADB_BUS;
+}
+
+static const TypeInfo adb_device_type_info = {
+    .name = TYPE_ADB_DEVICE,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(ADBDevice),
+    .abstract = true,
+    .class_init = adb_device_class_init,
+};
 
 /***************************************************************/
 /* Keyboard ADB device */
 
+#define ADB_KEYBOARD(obj) OBJECT_CHECK(KBDState, (obj), TYPE_ADB_KEYBOARD)
+
 typedef struct KBDState {
+    /*< private >*/
+    ADBDevice parent_obj;
+    /*< public >*/
+
     uint8_t data[128];
     int rptr, wptr, count;
 } KBDState;
+
+#define ADB_KEYBOARD_CLASS(class) \
+    OBJECT_CLASS_CHECK(ADBKeyboardClass, (class), TYPE_ADB_KEYBOARD)
+#define ADB_KEYBOARD_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(ADBKeyboardClass, (obj), TYPE_ADB_KEYBOARD)
+
+typedef struct ADBKeyboardClass {
+    /*< private >*/
+    ADBDeviceClass parent_class;
+    /*< public >*/
+
+    DeviceRealize parent_realize;
+} ADBKeyboardClass;
 
 static const uint8_t pc_to_adb_keycode[256] = {
   0, 53, 18, 19, 20, 21, 23, 22, 26, 28, 25, 29, 27, 24, 51, 48,
@@ -155,8 +194,7 @@ static const uint8_t pc_to_adb_keycode[256] = {
 
 static void adb_kbd_put_keycode(void *opaque, int keycode)
 {
-    ADBDevice *d = opaque;
-    KBDState *s = d->opaque;
+    KBDState *s = opaque;
 
     if (s->count < sizeof(s->data)) {
         s->data[s->wptr] = keycode;
@@ -169,7 +207,7 @@ static void adb_kbd_put_keycode(void *opaque, int keycode)
 static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
 {
     static int ext_keycode;
-    KBDState *s = d->opaque;
+    KBDState *s = ADB_KEYBOARD(d);
     int adb_keycode, keycode;
     int olen;
 
@@ -203,7 +241,7 @@ static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
 static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
                            const uint8_t *buf, int len)
 {
-    KBDState *s = d->opaque;
+    KBDState *s = ADB_KEYBOARD(d);
     int cmd, reg, olen;
 
     if ((buf[0] & 0x0f) == ADB_FLUSH) {
@@ -275,41 +313,90 @@ static const VMStateDescription vmstate_adb_kbd = {
     }
 };
 
-static int adb_kbd_reset(ADBDevice *d)
+static void adb_kbd_reset(DeviceState *dev)
 {
-    KBDState *s = d->opaque;
+    ADBDevice *d = ADB_DEVICE(dev);
+    KBDState *s = ADB_KEYBOARD(dev);
 
     d->handler = 1;
-    d->devaddr = ADB_KEYBOARD;
-    memset(s, 0, sizeof(KBDState));
-
-    return 0;
+    d->devaddr = ADB_DEVID_KEYBOARD;
+    memset(s->data, 0, sizeof(s->data));
+    s->rptr = 0;
+    s->wptr = 0;
+    s->count = 0;
 }
 
-void adb_kbd_init(ADBBusState *bus)
+static void adb_kbd_realizefn(DeviceState *dev, Error **errp)
 {
-    ADBDevice *d;
-    KBDState *s;
-    s = g_malloc0(sizeof(KBDState));
-    d = adb_register_device(bus, ADB_KEYBOARD, adb_kbd_request,
-                            adb_kbd_reset, s);
+    ADBDevice *d = ADB_DEVICE(dev);
+    ADBKeyboardClass *akc = ADB_KEYBOARD_GET_CLASS(dev);
+
+    akc->parent_realize(dev, errp);
+
     qemu_add_kbd_event_handler(adb_kbd_put_keycode, d);
-    vmstate_register(NULL, -1, &vmstate_adb_kbd, s);
 }
+
+static void adb_kbd_initfn(Object *obj)
+{
+    ADBDevice *d = ADB_DEVICE(obj);
+
+    d->devaddr = ADB_DEVID_KEYBOARD;
+}
+
+static void adb_kbd_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    ADBDeviceClass *adc = ADB_DEVICE_CLASS(oc);
+    ADBKeyboardClass *akc = ADB_KEYBOARD_CLASS(oc);
+
+    akc->parent_realize = dc->realize;
+    dc->realize = adb_kbd_realizefn;
+
+    adc->devreq = adb_kbd_request;
+    dc->reset = adb_kbd_reset;
+    dc->vmsd = &vmstate_adb_kbd;
+}
+
+static const TypeInfo adb_kbd_type_info = {
+    .name = TYPE_ADB_KEYBOARD,
+    .parent = TYPE_ADB_DEVICE,
+    .instance_size = sizeof(KBDState),
+    .instance_init = adb_kbd_initfn,
+    .class_init = adb_kbd_class_init,
+    .class_size = sizeof(ADBKeyboardClass),
+};
 
 /***************************************************************/
 /* Mouse ADB device */
 
+#define ADB_MOUSE(obj) OBJECT_CHECK(MouseState, (obj), TYPE_ADB_MOUSE)
+
 typedef struct MouseState {
+    /*< public >*/
+    ADBDevice parent_obj;
+    /*< private >*/
+
     int buttons_state, last_buttons_state;
     int dx, dy, dz;
 } MouseState;
 
+#define ADB_MOUSE_CLASS(class) \
+    OBJECT_CLASS_CHECK(ADBMouseClass, (class), TYPE_ADB_MOUSE)
+#define ADB_MOUSE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(ADBMouseClass, (obj), TYPE_ADB_MOUSE)
+
+typedef struct ADBMouseClass {
+    /*< public >*/
+    ADBDeviceClass parent_class;
+    /*< private >*/
+
+    DeviceRealize parent_realize;
+} ADBMouseClass;
+
 static void adb_mouse_event(void *opaque,
                             int dx1, int dy1, int dz1, int buttons_state)
 {
-    ADBDevice *d = opaque;
-    MouseState *s = d->opaque;
+    MouseState *s = opaque;
 
     s->dx += dx1;
     s->dy += dy1;
@@ -320,7 +407,7 @@ static void adb_mouse_event(void *opaque,
 
 static int adb_mouse_poll(ADBDevice *d, uint8_t *obuf)
 {
-    MouseState *s = d->opaque;
+    MouseState *s = ADB_MOUSE(d);
     int dx, dy;
 
     if (s->last_buttons_state == s->buttons_state &&
@@ -359,7 +446,7 @@ static int adb_mouse_poll(ADBDevice *d, uint8_t *obuf)
 static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
                              const uint8_t *buf, int len)
 {
-    MouseState *s = d->opaque;
+    MouseState *s = ADB_MOUSE(d);
     int cmd, reg, olen;
 
     if ((buf[0] & 0x0f) == ADB_FLUSH) {
@@ -416,15 +503,15 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
     return olen;
 }
 
-static int adb_mouse_reset(ADBDevice *d)
+static void adb_mouse_reset(DeviceState *dev)
 {
-    MouseState *s = d->opaque;
+    ADBDevice *d = ADB_DEVICE(dev);
+    MouseState *s = ADB_MOUSE(dev);
 
     d->handler = 2;
-    d->devaddr = ADB_MOUSE;
-    memset(s, 0, sizeof(MouseState));
-
-    return 0;
+    d->devaddr = ADB_DEVID_MOUSE;
+    s->last_buttons_state = s->buttons_state = 0;
+    s->dx = s->dy = s->dz = 0;
 }
 
 static const VMStateDescription vmstate_adb_mouse = {
@@ -442,14 +529,53 @@ static const VMStateDescription vmstate_adb_mouse = {
     }
 };
 
-void adb_mouse_init(ADBBusState *bus)
+static void adb_mouse_realizefn(DeviceState *dev, Error **errp)
 {
-    ADBDevice *d;
-    MouseState *s;
+    MouseState *s = ADB_MOUSE(dev);
+    ADBMouseClass *amc = ADB_MOUSE_GET_CLASS(dev);
 
-    s = g_malloc0(sizeof(MouseState));
-    d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request,
-                            adb_mouse_reset, s);
-    qemu_add_mouse_event_handler(adb_mouse_event, d, 0, "QEMU ADB Mouse");
-    vmstate_register(NULL, -1, &vmstate_adb_mouse, s);
+    amc->parent_realize(dev, errp);
+
+    qemu_add_mouse_event_handler(adb_mouse_event, s, 0, "QEMU ADB Mouse");
 }
+
+static void adb_mouse_initfn(Object *obj)
+{
+    ADBDevice *d = ADB_DEVICE(obj);
+
+    d->devaddr = ADB_DEVID_MOUSE;
+}
+
+static void adb_mouse_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    ADBDeviceClass *adc = ADB_DEVICE_CLASS(oc);
+    ADBMouseClass *amc = ADB_MOUSE_CLASS(oc);
+
+    amc->parent_realize = dc->realize;
+    dc->realize = adb_mouse_realizefn;
+
+    adc->devreq = adb_mouse_request;
+    dc->reset = adb_mouse_reset;
+    dc->vmsd = &vmstate_adb_mouse;
+}
+
+static const TypeInfo adb_mouse_type_info = {
+    .name = TYPE_ADB_MOUSE,
+    .parent = TYPE_ADB_DEVICE,
+    .instance_size = sizeof(MouseState),
+    .instance_init = adb_mouse_initfn,
+    .class_init = adb_mouse_class_init,
+    .class_size = sizeof(ADBMouseClass),
+};
+
+
+static void adb_register_types(void)
+{
+    type_register_static(&adb_bus_type_info);
+    type_register_static(&adb_device_type_info);
+    type_register_static(&adb_kbd_type_info);
+    type_register_static(&adb_mouse_type_info);
+}
+
+type_init(adb_register_types)

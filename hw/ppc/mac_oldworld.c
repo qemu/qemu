@@ -23,21 +23,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "ppc.h"
-#include "ppc_mac.h"
-#include "adb.h"
-#include "mac_dbdma.h"
-#include "nvram.h"
+#include "hw/hw.h"
+#include "hw/ppc.h"
+#include "mac.h"
+#include "hw/adb.h"
+#include "hw/nvram.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
-#include "isa.h"
-#include "pci/pci.h"
-#include "boards.h"
-#include "fw_cfg.h"
-#include "escc.h"
-#include "ide.h"
-#include "loader.h"
+#include "hw/isa.h"
+#include "hw/pci/pci.h"
+#include "hw/boards.h"
+#include "hw/fw_cfg.h"
+#include "hw/escc.h"
+#include "hw/ide.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
@@ -90,14 +89,16 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     uint32_t kernel_base, initrd_base, cmdline_base = 0;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
-    MacIONVRAMState *nvr;
+    PCIDevice *macio;
+    MACIOIDEState *macio_ide;
+    DeviceState *dev;
+    BusState *adb_bus;
     int bios_size;
-    MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem;
-    MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1), *ide_mem[2];
+    MemoryRegion *pic_mem;
+    MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1);
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
-    void *dbdma;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -263,10 +264,17 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
 
     ide_drive_get(hd, MAX_IDE_BUS);
 
+    macio = pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO);
+    dev = DEVICE(macio);
+    qdev_connect_gpio_out(dev, 0, pic[0x12]); /* CUDA */
+    qdev_connect_gpio_out(dev, 1, pic[0x0D]); /* IDE */
+    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
+    macio_init(macio, pic_mem, escc_bar);
+
     /* First IDE channel is a MAC IDE on the MacIO bus */
-    dbdma = DBDMA_init(&dbdma_mem);
-    ide_mem[0] = NULL;
-    ide_mem[1] = pmac_ide_init(hd, pic[0x0D], dbdma, 0x16, pic[0x02]);
+    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
+                                                        "ide"));
+    macio_ide_init_drives(macio_ide, hd);
 
     /* Second IDE channel is a CMD646 on the PCI bus */
     hd[0] = hd[MAX_IDE_DEVS];
@@ -274,17 +282,12 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     hd[3] = hd[2] = NULL;
     pci_cmd646_ide_init(pci_bus, hd, 0);
 
-    /* cuda also initialize ADB */
-    cuda_init(&cuda_mem, pic[0x12]);
-
-    adb_kbd_init(&adb_bus);
-    adb_mouse_init(&adb_bus);
-
-    nvr = macio_nvram_init(0x2000, 4);
-    pmac_format_nvram_partition(nvr, 0x2000);
-
-    macio_init(pci_bus, PCI_DEVICE_ID_APPLE_343S1201, 1, pic_mem,
-               dbdma_mem, cuda_mem, nvr, 2, ide_mem, escc_bar);
+    dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+    adb_bus = qdev_get_child_bus(dev, "adb.0");
+    dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
+    qdev_init_nofail(dev);
+    dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
+    qdev_init_nofail(dev);
 
     if (usb_enabled(false)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");

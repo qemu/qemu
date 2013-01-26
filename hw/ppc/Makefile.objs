@@ -3,10 +3,6 @@ obj-y = ppc.o ppc_booke.o
 # PREP target
 obj-y += mc146818rtc.o
 obj-y += ppc_prep.o
-# OldWorld PowerMac
-obj-y += ppc_oldworld.o
-# NewWorld PowerMac
-obj-y += ppc_newworld.o
 # IBM pSeries (sPAPR)
 obj-$(CONFIG_PSERIES) += spapr.o spapr_hcall.o spapr_rtas.o spapr_vio.o
 obj-$(CONFIG_PSERIES) += xics.o spapr_vty.o spapr_llan.o spapr_vscsi.o
@@ -28,4 +24,9 @@ obj-y += xilinx_ethlite.o
 
 obj-y := $(addprefix ../,$(obj-y))
 
+# OldWorld PowerMac
+obj-y += mac_oldworld.o
+# NewWorld PowerMac
+obj-y += mac_newworld.o
+# e500
 obj-$(CONFIG_FDT) += e500.o mpc8544ds.o e500plat.o
