@@ -135,11 +135,14 @@ eth_write(void *opaque, hwaddr addr,
             break;
 
         /* Keep these native.  */
+        case R_RX_CTRL0:
+        case R_RX_CTRL1:
+            if (!(value & CTRL_S)) {
+                qemu_flush_queued_packets(&s->nic->nc);
+            }
         case R_TX_LEN0:
         case R_TX_LEN1:
         case R_TX_GIE0:
-        case R_RX_CTRL0:
-        case R_RX_CTRL1:
             D(qemu_log("%s addr=%x val=%x\n", __func__, addr * 4, value));
             s->regs[addr] = value;
             break;
