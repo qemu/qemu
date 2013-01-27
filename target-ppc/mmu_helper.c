@@ -2260,8 +2260,9 @@ void helper_store_601_batu(CPUPPCState *env, uint32_t nr, target_ulong value)
 
 void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
+#if !defined(FLUSH_ALL_TLBS)
     target_ulong mask;
-#if defined(FLUSH_ALL_TLBS)
+#else
     int do_inval;
 #endif
 
