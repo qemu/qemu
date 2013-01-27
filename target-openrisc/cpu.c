@@ -159,7 +159,7 @@ static const TypeInfo openrisc_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(OpenRISCCPU),
     .instance_init = openrisc_cpu_initfn,
-    .abstract = false,
+    .abstract = true,
     .class_size = sizeof(OpenRISCCPUClass),
     .class_init = openrisc_cpu_class_init,
 };
