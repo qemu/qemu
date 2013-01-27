@@ -26,12 +26,15 @@ static inline void set_feature(CPUUniCore32State *env, int feature)
 static ObjectClass *uc32_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
+    char *typename;
 
     if (cpu_model == NULL) {
         return NULL;
     }
 
-    oc = object_class_by_name(cpu_model);
+    typename = g_strdup_printf("%s-" TYPE_UNICORE32_CPU, cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
     if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_UNICORE32_CPU) ||
                        object_class_is_abstract(oc))) {
         oc = NULL;
@@ -84,7 +87,6 @@ static void uc32_cpu_initfn(Object *obj)
     CPUUniCore32State *env = &cpu->env;
 
     cpu_exec_init(env);
-    env->cpu_model_str = object_get_typename(obj);
 
 #ifdef CONFIG_USER_ONLY
     env->uncached_asr = ASR_MODE_USER;
@@ -114,12 +116,13 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
 static void uc32_register_cpu_type(const UniCore32CPUInfo *info)
 {
     TypeInfo type_info = {
-        .name = info->name,
         .parent = TYPE_UNICORE32_CPU,
         .instance_init = info->instance_init,
     };
 
+    type_info.name = g_strdup_printf("%s-" TYPE_UNICORE32_CPU, info->name);
     type_register(&type_info);
+    g_free((void *)type_info.name);
 }
 
 static const TypeInfo uc32_cpu_type_info = {
