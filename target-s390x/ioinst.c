@@ -619,16 +619,25 @@ int ioinst_handle_tpi(CPUS390XState *env, uint32_t ipb)
 {
     uint64_t addr;
     int lowcore;
+    IOIntCode *int_code;
+    hwaddr len, orig_len;
+    int ret;
 
     trace_ioinst("tpi");
     addr = decode_basedisp_s(env, ipb);
     lowcore = addr ? 0 : 1;
-    if (addr < 8192) {
-        addr += env->psa;
-    } else if ((env->psa <= addr) && (addr < env->psa + 8192)) {
-        addr -= env->psa;
+    len = lowcore ? 8 /* two words */ : 12 /* three words */;
+    orig_len = len;
+    int_code = s390_cpu_physical_memory_map(env, addr, &len, 1);
+    if (!int_code || (len != orig_len)) {
+        program_interrupt(env, PGM_SPECIFICATION, 2);
+        ret = -EIO;
+        goto out;
     }
-    return css_do_tpi(addr, lowcore);
+    ret = css_do_tpi(int_code, lowcore);
+out:
+    s390_cpu_physical_memory_unmap(env, int_code, len, 1);
+    return ret;
 }
 
 #define SCHM_REG1_RES(_reg) (_reg & 0x000000000ffffffc)

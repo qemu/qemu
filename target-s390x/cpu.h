@@ -413,7 +413,7 @@ int css_do_hsch(SubchDev *sch);
 int css_do_ssch(SubchDev *sch, ORB *orb);
 int css_do_tsch(SubchDev *sch, IRB *irb);
 int css_do_stcrw(CRW *crw);
-int css_do_tpi(uint64_t addr, int lowcore);
+int css_do_tpi(IOIntCode *int_code, int lowcore);
 int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid, uint8_t l_chpid,
                          int rfmt, void *buf);
 void css_do_schm(uint8_t mbk, int update, int dct, uint64_t mbo);
@@ -471,7 +471,7 @@ static inline int css_do_stcrw(CRW *crw)
 {
     return 1;
 }
-static inline int css_do_tpi(uint64_t addr, int lowcore)
+static inline int css_do_tpi(IOIntCode *int_code, int lowcore)
 {
     return 0;
 }

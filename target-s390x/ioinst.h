@@ -195,6 +195,13 @@ typedef struct CRW {
 #define CRW_RSC_SUBCH 0x3
 #define CRW_RSC_CHP   0x4
 
+/* I/O interruption code */
+typedef struct IOIntCode {
+    uint32_t subsys_id;
+    uint32_t intparm;
+    uint32_t interrupt_id;
+} QEMU_PACKED IOIntCode;
+
 /* schid disintegration */
 #define IOINST_SCHID_ONE(_schid)   ((_schid & 0x00010000) >> 16)
 #define IOINST_SCHID_M(_schid)     ((_schid & 0x00080000) >> 19)

@@ -852,7 +852,7 @@ int css_do_stcrw(CRW *crw)
     return ret;
 }
 
-int css_do_tpi(uint64_t addr, int lowcore)
+int css_do_tpi(IOIntCode *int_code, int lowcore)
 {
     /* No pending interrupts for !KVM. */
     return 0;
