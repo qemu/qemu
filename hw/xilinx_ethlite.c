@@ -89,7 +89,7 @@ eth_read(void *opaque, hwaddr addr, unsigned int size)
         case R_RX_CTRL1:
         case R_RX_CTRL0:
             r = s->regs[addr];
-            D(qemu_log("%s %x=%x\n", __func__, addr * 4, r));
+            D(qemu_log("%s " TARGET_FMT_plx "=%x\n", __func__, addr * 4, r));
             break;
 
         default:
@@ -115,7 +115,8 @@ eth_write(void *opaque, hwaddr addr,
             if (addr == R_TX_CTRL1)
                 base = 0x800 / 4;
 
-            D(qemu_log("%s addr=%x val=%x\n", __func__, addr * 4, value));
+            D(qemu_log("%s addr=" TARGET_FMT_plx " val=%x\n",
+                       __func__, addr * 4, value));
             if ((value & (CTRL_P | CTRL_S)) == CTRL_S) {
                 qemu_send_packet(&s->nic->nc,
                                  (void *) &s->regs[base],
@@ -143,7 +144,8 @@ eth_write(void *opaque, hwaddr addr,
         case R_TX_LEN0:
         case R_TX_LEN1:
         case R_TX_GIE0:
-            D(qemu_log("%s addr=%x val=%x\n", __func__, addr * 4, value));
+            D(qemu_log("%s addr=" TARGET_FMT_plx " val=%x\n",
+                       __func__, addr * 4, value));
             s->regs[addr] = value;
             break;
 
@@ -185,7 +187,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
         return -1;
     }
 
-    D(qemu_log("%s %d rxbase=%x\n", __func__, size, rxbase));
+    D(qemu_log("%s %zd rxbase=%x\n", __func__, size, rxbase));
     memcpy(&s->regs[rxbase + R_RX_BUF0], buf, size);
 
     s->regs[rxbase + R_RX_CTRL0] |= CTRL_S;
