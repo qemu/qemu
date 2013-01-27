@@ -1180,7 +1180,7 @@ fi
 z_version=`cut -f3 -d. $source_path/VERSION`
 
 if test -z "$werror" ; then
-    if test "$z_version" = "50" -a \
+    if test -d "$source_path/.git" -a \
         "$linux" = "yes" ; then
         werror="yes"
     else
