@@ -162,7 +162,7 @@ static void register_cpu_type(const M68kCPUInfo *info)
         .instance_init = info->instance_init,
     };
 
-    type_register_static(&type_info);
+    type_register(&type_info);
 }
 
 static const TypeInfo m68k_cpu_type_info = {
