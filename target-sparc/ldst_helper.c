@@ -1850,7 +1850,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 DPRINTF_MMU("LSU change: 0x%" PRIx64 " -> 0x%" PRIx64 "\n",
                             oldreg, env->lsu);
 #ifdef DEBUG_MMU
-                dump_mmu(stdout, fprintf, env1);
+                dump_mmu(stdout, fprintf, env);
 #endif
                 tlb_flush(env, 1);
             }
