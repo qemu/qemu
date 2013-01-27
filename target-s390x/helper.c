@@ -387,7 +387,7 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
     int prot;
 
     DPRINTF("%s: address 0x%" PRIx64 " rw %d mmu_idx %d\n",
-            __func__, _vaddr, rw, mmu_idx);
+            __func__, orig_vaddr, rw, mmu_idx);
 
     orig_vaddr &= TARGET_PAGE_MASK;
     vaddr = orig_vaddr;
