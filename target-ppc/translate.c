@@ -9689,7 +9689,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
         }
         LOG_DISAS("translate opcode %08x (%02x %02x %02x) (%s)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
-                    opc3(ctx.opcode), little_endian ? "little" : "big");
+                    opc3(ctx.opcode), ctx.le_mode ? "little" : "big");
         if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
             tcg_gen_debug_insn_start(ctx.nip);
         }
