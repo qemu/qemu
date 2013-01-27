@@ -404,8 +404,8 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
 
     /* check out of RAM access */
     if (raddr > (ram_size + virtio_size)) {
-        DPRINTF("%s: aaddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
-                (uint64_t)aaddr, (uint64_t)ram_size);
+        DPRINTF("%s: raddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
+                (uint64_t)raddr, (uint64_t)ram_size);
         trigger_pgm_exception(env, PGM_ADDRESSING, ILEN_LATER);
         return 1;
     }
