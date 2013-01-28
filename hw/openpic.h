@@ -13,5 +13,6 @@ enum {
 
 #define OPENPIC_MODEL_RAVEN       0
 #define OPENPIC_MODEL_FSL_MPIC_20 1
+#define OPENPIC_MODEL_FSL_MPIC_42 2
 
 #endif /* __OPENPIC_H__ */

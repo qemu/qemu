@@ -100,6 +100,9 @@ defconfig:
 
 -include config-all-devices.mak
 -include config-all-disas.mak
+CONFIG_SOFTMMU := $(if $(filter %-softmmu,$(TARGET_DIRS)),y)
+CONFIG_USER_ONLY := $(if $(filter %-user,$(TARGET_DIRS)),y)
+CONFIG_ALL=y
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/Makefile.objs
@@ -143,11 +146,7 @@ pixman/Makefile: $(SRC_PATH)/pixman/configure
 $(SRC_PATH)/pixman/configure:
 	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
 
-$(SUBDIR_RULES): libqemuutil.a libqemustub.a
-
-$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(common-obj-y) $(extra-obj-y)
-
-$(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(user-obj-y)
+$(SUBDIR_RULES): libqemuutil.a libqemustub.a $(common-obj-y)
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
@@ -224,9 +223,9 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
-	find . -name '*.[od]' -type f -exec rm -f {} +
-	rm -f *.a *.lo $(TOOLS) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
-	rm -f *.la
+	find . -name '*.[oda]' -type f -exec rm -f {} +
+	find . -name '*.l[oa]' -type f -exec rm -f {} +
+	rm -f $(TOOLS) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -Rf .libs
 	rm -f qemu-img-cmds.h
 	@# May not be present in GENERATED_HEADERS

@@ -34,10 +34,20 @@ CONFIG_REALLY_VIRTFS=y
 endif
 
 ######################################################################
+# smartcard
+
+libcacard-y += libcacard/cac.o libcacard/event.o
+libcacard-y += libcacard/vcard.o libcacard/vreader.o
+libcacard-y += libcacard/vcard_emul_nss.o
+libcacard-y += libcacard/vcard_emul_type.o
+libcacard-y += libcacard/card_7816.o
+
+######################################################################
 # Target independent part of system emulation. The long term path is to
 # suppress *all* target specific code in case of system emulation, i.e. a
 # single QEMU executable should support all CPUs and machines.
 
+ifeq ($(CONFIG_SOFTMMU),y)
 common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
 common-obj-y += net/
 common-obj-y += readline.o
@@ -45,7 +55,6 @@ common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
 
 common-obj-$(CONFIG_LINUX) += fsdev/
-extra-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += migration.o migration-tcp.o
 common-obj-y += qemu-char.o #aio.o
@@ -58,7 +67,6 @@ common-obj-$(CONFIG_SPICE) += spice-qemu-char.o
 
 common-obj-y += audio/
 common-obj-y += hw/
-extra-obj-y += hw/
 
 common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
@@ -71,20 +79,7 @@ common-obj-$(CONFIG_SLIRP) += slirp/
 
 common-obj-y += backends/
 
-######################################################################
-# libseccomp
-ifeq ($(CONFIG_SECCOMP),y)
-common-obj-y += qemu-seccomp.o
-endif
-
-######################################################################
-# smartcard
-
-libcacard-y += libcacard/cac.o libcacard/event.o
-libcacard-y += libcacard/vcard.o libcacard/vreader.o
-libcacard-y += libcacard/vcard_emul_nss.o
-libcacard-y += libcacard/vcard_emul_type.o
-libcacard-y += libcacard/card_7816.o
+common-obj-$(CONFIG_SECCOMP) += qemu-seccomp.o
 
 common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 
@@ -93,15 +88,15 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 
 common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
 common-obj-y += qmp.o hmp.o
+endif
 
 #######################################################################
 # Target-independent parts used in system and user emulation
-universal-obj-y =
-universal-obj-y += qemu-log.o
-universal-obj-y += tcg-runtime.o
-universal-obj-y += hw/
-universal-obj-y += qom/
-universal-obj-y += disas/
+common-obj-y += qemu-log.o
+common-obj-y += tcg-runtime.o
+common-obj-y += hw/
+common-obj-y += qom/
+common-obj-y += disas/
 
 ######################################################################
 # guest agent
@@ -121,7 +116,5 @@ nested-vars += \
 	util-obj-y \
 	qga-obj-y \
 	block-obj-y \
-	common-obj-y \
-	universal-obj-y \
-	extra-obj-y
+	common-obj-y
 dummy := $(call unnest-vars)

@@ -492,7 +492,7 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
 
     qbus = qbus_create(TYPE_SPAPR_VIO_BUS, dev, "spapr-vio");
     bus = DO_UPCAST(VIOsPAPRBus, bus, qbus);
-    bus->next_reg = 0x1000;
+    bus->next_reg = 0x71000000;
 
     /* hcall-vio */
     spapr_register_hypercall(H_VIO_SIGNAL, h_vio_signal);

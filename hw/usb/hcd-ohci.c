@@ -1736,6 +1736,7 @@ static void ohci_mem_write(void *opaque,
     /* PXA27x specific registers */
     case 24: /* HcStatus */
         ohci->hstatus &= ~(val & ohci->hmask);
+        break;
 
     case 25: /* HcHReset */
         ohci->hreset = val & ~OHCI_HRESET_FSBIR;

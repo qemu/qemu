@@ -54,16 +54,17 @@ struct FWCfgState {
 #define JPG_FILE 0
 #define BMP_FILE 1
 
-static char *read_splashfile(char *filename, int *file_sizep, int *file_typep)
+static char *read_splashfile(char *filename, size_t *file_sizep,
+                             int *file_typep)
 {
     GError *err = NULL;
     gboolean res;
     gchar *content;
-    int file_type = -1;
-    unsigned int filehead = 0;
+    int file_type;
+    unsigned int filehead;
     int bmp_bpp;
 
-    res = g_file_get_contents(filename, &content, (gsize *)file_sizep, &err);
+    res = g_file_get_contents(filename, &content, file_sizep, &err);
     if (res == FALSE) {
         error_report("failed to read splash file '%s'", filename);
         g_error_free(err);
@@ -111,8 +112,8 @@ static void fw_cfg_bootsplash(FWCfgState *s)
     const char *boot_splash_filename = NULL;
     char *p;
     char *filename, *file_data;
-    int file_size;
-    int file_type = -1;
+    size_t file_size;
+    int file_type;
     const char *temp;
 
     /* get user configuration */

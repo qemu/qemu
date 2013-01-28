@@ -1,10 +1,10 @@
 ifeq ($(CONFIG_REALLY_VIRTFS),y)
 common-obj-y = qemu-fsdev.o virtio-9p-marshal.o
-
-# Toplevel always builds this; targets without virtio will put it in
-# common-obj-y
-extra-obj-y = qemu-fsdev-dummy.o
 else
 common-obj-y = qemu-fsdev-dummy.o
 endif
 common-obj-y += qemu-fsdev-opts.o
+
+# Toplevel always builds this; targets without virtio will put it in
+# common-obj-y
+common-obj-$(CONFIG_ALL) += qemu-fsdev-dummy.o

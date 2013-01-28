@@ -2,7 +2,7 @@
 qemu usb storage emulation
 --------------------------
 
-QEMU has two emulations for usb storage devices.
+QEMU has three devices for usb storage emulation.
 
 Number one emulates the classic bulk-only transport protocol which is
 used by 99% of the usb sticks on the marked today and is called
@@ -30,6 +30,15 @@ with tree logical units:
        -device scsi-hd,bus=uas.0,scsi-id=0,lun=1,drive=uas-disk2       \
        -device scsi-cd,bus=uas.0,scsi-id=0,lun=5,drive=uas-cdrom
 
+
+Number three emulates the classic bulk-only transport protocol too.
+It's called "usb-bot".  It shares most code with "usb-storage", and
+the guest will not be able to see the difference.  The qemu command
+line interface is simliar to usb-uas though, i.e. no automatic scsi
+disk creation.  It also features support for up to 16 LUNs.  The LUN
+numbers must be continous, i.e. for three devices you must use 0+1+2.
+The 0+1+5 numbering from the "usb-uas" example isn't going to work
+with "usb-bot".
 
 enjoy,
   Gerd

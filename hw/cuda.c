@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "ppc_mac.h"
+#include "ppc/mac.h"
 #include "adb.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
@@ -107,50 +107,6 @@
 
 /* CUDA returns time_t's offset from Jan 1, 1904, not 1970 */
 #define RTC_OFFSET                      2082844800
-
-typedef struct CUDATimer {
-    int index;
-    uint16_t latch;
-    uint16_t counter_value; /* counter value at load time */
-    int64_t load_time;
-    int64_t next_irq_time;
-    QEMUTimer *timer;
-} CUDATimer;
-
-typedef struct CUDAState {
-    MemoryRegion mem;
-    /* cuda registers */
-    uint8_t b;      /* B-side data */
-    uint8_t a;      /* A-side data */
-    uint8_t dirb;   /* B-side direction (1=output) */
-    uint8_t dira;   /* A-side direction (1=output) */
-    uint8_t sr;     /* Shift register */
-    uint8_t acr;    /* Auxiliary control register */
-    uint8_t pcr;    /* Peripheral control register */
-    uint8_t ifr;    /* Interrupt flag register */
-    uint8_t ier;    /* Interrupt enable register */
-    uint8_t anh;    /* A-side data, no handshake */
-
-    CUDATimer timers[2];
-
-    uint32_t tick_offset;
-
-    uint8_t last_b; /* last value of B register */
-    uint8_t last_acr; /* last value of B register */
-
-    int data_in_size;
-    int data_in_index;
-    int data_out_index;
-
-    qemu_irq irq;
-    uint8_t autopoll;
-    uint8_t data_in[128];
-    uint8_t data_out[16];
-    QEMUTimer *adb_poll_timer;
-} CUDAState;
-
-static CUDAState cuda_state;
-ADBBusState adb_bus;
 
 static void cuda_update(CUDAState *s);
 static void cuda_receive_packet_from_host(CUDAState *s,
@@ -501,7 +457,7 @@ static void cuda_adb_poll(void *opaque)
     uint8_t obuf[ADB_MAX_OUT_LEN + 2];
     int olen;
 
-    olen = adb_poll(&adb_bus, obuf + 2);
+    olen = adb_poll(&s->adb_bus, obuf + 2);
     if (olen > 0) {
         obuf[0] = ADB_PACKET;
         obuf[1] = 0x40; /* polled data */
@@ -597,7 +553,7 @@ static void cuda_receive_packet_from_host(CUDAState *s,
         {
             uint8_t obuf[ADB_MAX_OUT_LEN + 2];
             int olen;
-            olen = adb_request(&adb_bus, obuf + 2, data + 1, len - 1);
+            olen = adb_request(&s->adb_bus, obuf + 2, data + 1, len - 1);
             if (olen > 0) {
                 obuf[0] = ADB_PACKET;
                 obuf[1] = 0x00;
@@ -701,9 +657,9 @@ static const VMStateDescription vmstate_cuda = {
     }
 };
 
-static void cuda_reset(void *opaque)
+static void cuda_reset(DeviceState *dev)
 {
-    CUDAState *s = opaque;
+    CUDAState *s = CUDA(dev);
 
     s->b = 0;
     s->a = 0;
@@ -728,25 +684,57 @@ static void cuda_reset(void *opaque)
     set_counter(s, &s->timers[1], 0xffff);
 }
 
-void cuda_init (MemoryRegion **cuda_mem, qemu_irq irq)
+static void cuda_realizefn(DeviceState *dev, Error **errp)
 {
+    CUDAState *s = CUDA(dev);
     struct tm tm;
-    CUDAState *s = &cuda_state;
 
-    s->irq = irq;
-
-    s->timers[0].index = 0;
     s->timers[0].timer = qemu_new_timer_ns(vm_clock, cuda_timer1, s);
-
-    s->timers[1].index = 1;
 
     qemu_get_timedate(&tm, 0);
     s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     s->adb_poll_timer = qemu_new_timer_ns(vm_clock, cuda_adb_poll, s);
-    memory_region_init_io(&s->mem, &cuda_ops, s, "cuda", 0x2000);
-
-    *cuda_mem = &s->mem;
-    vmstate_register(NULL, -1, &vmstate_cuda, s);
-    qemu_register_reset(cuda_reset, s);
 }
+
+static void cuda_initfn(Object *obj)
+{
+    SysBusDevice *d = SYS_BUS_DEVICE(obj);
+    CUDAState *s = CUDA(obj);
+    int i;
+
+    memory_region_init_io(&s->mem, &cuda_ops, s, "cuda", 0x2000);
+    sysbus_init_mmio(d, &s->mem);
+    sysbus_init_irq(d, &s->irq);
+
+    for (i = 0; i < ARRAY_SIZE(s->timers); i++) {
+        s->timers[i].index = i;
+    }
+
+    qbus_create_inplace((BusState *)&s->adb_bus, TYPE_ADB_BUS, DEVICE(obj),
+                        "adb.0");
+}
+
+static void cuda_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = cuda_realizefn;
+    dc->reset = cuda_reset;
+    dc->vmsd = &vmstate_cuda;
+}
+
+static const TypeInfo cuda_type_info = {
+    .name = TYPE_CUDA,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(CUDAState),
+    .instance_init = cuda_initfn,
+    .class_init = cuda_class_init,
+};
+
+static void cuda_register_types(void)
+{
+    type_register_static(&cuda_type_info);
+}
+
+type_init(cuda_register_types)

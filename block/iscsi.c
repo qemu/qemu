@@ -48,6 +48,7 @@ typedef struct IscsiLun {
     int block_size;
     uint64_t num_blocks;
     int events;
+    QEMUTimer *nop_timer;
 } IscsiLun;
 
 typedef struct IscsiAIOCB {
@@ -66,12 +67,18 @@ typedef struct IscsiAIOCB {
 #endif
 } IscsiAIOCB;
 
+#define NOP_INTERVAL 5000
+#define MAX_NOP_FAILURES 3
+
 static void
 iscsi_bh_cb(void *p)
 {
     IscsiAIOCB *acb = p;
 
     qemu_bh_delete(acb->bh);
+
+    g_free(acb->buf);
+    acb->buf = NULL;
 
     if (acb->canceled == 0) {
         acb->common.cb(acb->common.opaque, acb->status);
@@ -194,6 +201,7 @@ iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
     trace_iscsi_aio_write16_cb(iscsi, status, acb, acb->canceled);
 
     g_free(acb->buf);
+    acb->buf = NULL;
 
     if (acb->canceled != 0) {
         return;
@@ -226,7 +234,10 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     size_t size;
     uint32_t num_sectors;
     uint64_t lba;
+#if !defined(LIBISCSI_FEATURE_IOVECTOR)
     struct iscsi_data data;
+#endif
+    int ret;
 
     acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
     trace_iscsi_aio_writev(iscsi, sector_num, nb_sectors, opaque, acb);
@@ -237,12 +248,23 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     acb->canceled   = 0;
     acb->bh         = NULL;
     acb->status     = -EINPROGRESS;
+    acb->buf        = NULL;
 
-    /* XXX we should pass the iovec to write16 to avoid the extra copy */
     /* this will allow us to get rid of 'buf' completely */
     size = nb_sectors * BDRV_SECTOR_SIZE;
-    acb->buf = g_malloc(size);
-    qemu_iovec_to_buf(acb->qiov, 0, acb->buf, size);
+
+#if !defined(LIBISCSI_FEATURE_IOVECTOR)
+    data.size = MIN(size, acb->qiov->size);
+
+    /* if the iovec only contains one buffer we can pass it directly */
+    if (acb->qiov->niov == 1) {
+        data.data = acb->qiov->iov[0].iov_base;
+    } else {
+        acb->buf = g_malloc(data.size);
+        qemu_iovec_to_buf(acb->qiov, 0, acb->buf, data.size);
+        data.data = acb->buf;
+    }
+#endif
 
     acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {
@@ -263,18 +285,27 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     *(uint32_t *)&acb->task->cdb[10] = htonl(num_sectors);
     acb->task->expxferlen = size;
 
-    data.data = acb->buf;
-    data.size = size;
-
-    if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
-                                 iscsi_aio_write16_cb,
-                                 &data,
-                                 acb) != 0) {
+#if defined(LIBISCSI_FEATURE_IOVECTOR)
+    ret = iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
+                                   iscsi_aio_write16_cb,
+                                   NULL,
+                                   acb);
+#else
+    ret = iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
+                                   iscsi_aio_write16_cb,
+                                   &data,
+                                   acb);
+#endif
+    if (ret != 0) {
         scsi_free_scsi_task(acb->task);
         g_free(acb->buf);
         qemu_aio_release(acb);
         return NULL;
     }
+
+#if defined(LIBISCSI_FEATURE_IOVECTOR)
+    scsi_task_set_iov_out(acb->task, (struct scsi_iovec*) acb->qiov->iov, acb->qiov->niov);
+#endif
 
     iscsi_set_events(iscsilun);
 
@@ -313,7 +344,10 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
     struct iscsi_context *iscsi = iscsilun->iscsi;
     IscsiAIOCB *acb;
     size_t qemu_read_size;
+#if !defined(LIBISCSI_FEATURE_IOVECTOR)
     int i;
+#endif
+    int ret;
     uint64_t lba;
     uint32_t num_sectors;
 
@@ -375,20 +409,25 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
         break;
     }
 
-    if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
-                                 iscsi_aio_read16_cb,
-                                 NULL,
-                                 acb) != 0) {
+    ret = iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
+                                   iscsi_aio_read16_cb,
+                                   NULL,
+                                   acb);
+    if (ret != 0) {
         scsi_free_scsi_task(acb->task);
         qemu_aio_release(acb);
         return NULL;
     }
 
+#if defined(LIBISCSI_FEATURE_IOVECTOR)
+    scsi_task_set_iov_in(acb->task, (struct scsi_iovec*) acb->qiov->iov, acb->qiov->niov);
+#else
     for (i = 0; i < acb->qiov->niov; i++) {
         scsi_task_add_data_in_buffer(acb->task,
                 acb->qiov->iov[i].iov_len,
                 acb->qiov->iov[i].iov_base);
     }
+#endif
 
     iscsi_set_events(iscsilun);
 
@@ -430,6 +469,7 @@ iscsi_aio_flush(BlockDriverState *bs,
     acb->canceled   = 0;
     acb->bh         = NULL;
     acb->status     = -EINPROGRESS;
+    acb->buf        = NULL;
 
     acb->task = iscsi_synchronizecache10_task(iscsi, iscsilun->lun,
                                          0, 0, 0, 0,
@@ -483,6 +523,7 @@ iscsi_aio_discard(BlockDriverState *bs,
     acb->canceled   = 0;
     acb->bh         = NULL;
     acb->status     = -EINPROGRESS;
+    acb->buf        = NULL;
 
     list[0].lba = sector_qemu2lun(sector_num, iscsilun);
     list[0].num = nb_sectors * BDRV_SECTOR_SIZE / iscsilun->block_size;
@@ -762,6 +803,26 @@ static char *parse_initiator_name(const char *target)
     }
 }
 
+#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
+static void iscsi_nop_timed_event(void *opaque)
+{
+    IscsiLun *iscsilun = opaque;
+
+    if (iscsi_get_nops_in_flight(iscsilun->iscsi) > MAX_NOP_FAILURES) {
+        error_report("iSCSI: NOP timeout. Reconnecting...");
+        iscsi_reconnect(iscsilun->iscsi);
+    }
+
+    if (iscsi_nop_out_async(iscsilun->iscsi, NULL, NULL, 0, NULL) != 0) {
+        error_report("iSCSI: failed to sent NOP-Out. Disabling NOP messages.");
+        return;
+    }
+
+    qemu_mod_timer(iscsilun->nop_timer, qemu_get_clock_ms(rt_clock) + NOP_INTERVAL);
+    iscsi_set_events(iscsilun);
+}
+#endif
+
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
@@ -922,6 +983,12 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
 
     ret = 0;
 
+#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
+    /* Set up a timer for sending out iSCSI NOPs */
+    iscsilun->nop_timer = qemu_new_timer_ms(rt_clock, iscsi_nop_timed_event, iscsilun);
+    qemu_mod_timer(iscsilun->nop_timer, qemu_get_clock_ms(rt_clock) + NOP_INTERVAL);
+#endif
+
 out:
     if (initiator_name != NULL) {
         g_free(initiator_name);
@@ -947,6 +1014,10 @@ static void iscsi_close(BlockDriverState *bs)
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = iscsilun->iscsi;
 
+    if (iscsilun->nop_timer) {
+        qemu_del_timer(iscsilun->nop_timer);
+        qemu_free_timer(iscsilun->nop_timer);
+    }
     qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), NULL, NULL, NULL, NULL);
     iscsi_destroy_context(iscsi);
     memset(iscsilun, 0, sizeof(IscsiLun));
@@ -957,6 +1028,60 @@ static int iscsi_has_zero_init(BlockDriverState *bs)
     return 0;
 }
 
+static int iscsi_create(const char *filename, QEMUOptionParameter *options)
+{
+    int ret = 0;
+    int64_t total_size = 0;
+    BlockDriverState bs;
+    IscsiLun *iscsilun = NULL;
+
+    memset(&bs, 0, sizeof(BlockDriverState));
+
+    /* Read out options */
+    while (options && options->name) {
+        if (!strcmp(options->name, "size")) {
+            total_size = options->value.n / BDRV_SECTOR_SIZE;
+        }
+        options++;
+    }
+
+    bs.opaque = g_malloc0(sizeof(struct IscsiLun));
+    iscsilun = bs.opaque;
+
+    ret = iscsi_open(&bs, filename, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    if (iscsilun->nop_timer) {
+        qemu_del_timer(iscsilun->nop_timer);
+        qemu_free_timer(iscsilun->nop_timer);
+    }
+    if (iscsilun->type != TYPE_DISK) {
+        ret = -ENODEV;
+        goto out;
+    }
+    if (bs.total_sectors < total_size) {
+        ret = -ENOSPC;
+    }
+
+    ret = 0;
+out:
+    if (iscsilun->iscsi != NULL) {
+        iscsi_destroy_context(iscsilun->iscsi);
+    }
+    g_free(bs.opaque);
+    return ret;
+}
+
+static QEMUOptionParameter iscsi_create_options[] = {
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size"
+    },
+    { NULL }
+};
+
 static BlockDriver bdrv_iscsi = {
     .format_name     = "iscsi",
     .protocol_name   = "iscsi",
@@ -964,6 +1089,8 @@ static BlockDriver bdrv_iscsi = {
     .instance_size   = sizeof(IscsiLun),
     .bdrv_file_open  = iscsi_open,
     .bdrv_close      = iscsi_close,
+    .bdrv_create     = iscsi_create,
+    .create_options  = iscsi_create_options,
 
     .bdrv_getlength  = iscsi_getlength,
 

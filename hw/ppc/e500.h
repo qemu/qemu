@@ -16,6 +16,8 @@ typedef struct PPCE500Params {
 
     /* required -- must at least add toplevel board compatible */
     void (*fixup_devtree)(struct PPCE500Params *params, void *fdt);
+
+    int mpic_version;
 } PPCE500Params;
 
 void ppce500_init(PPCE500Params *params);

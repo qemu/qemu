@@ -28,6 +28,7 @@
 #include <sysemu/kvm.h>
 #include "kvm_ppc.h"
 #include "sysemu/arch_init.h"
+#include "sysemu/cpus.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -10036,6 +10037,17 @@ static void ppc_cpu_realize(Object *obj, Error **errp)
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     ppc_def_t *def = pcc->info;
     Error *local_err = NULL;
+#if !defined(CONFIG_USER_ONLY)
+    int max_smt = kvm_enabled() ? kvmppc_smt_threads() : 1;
+#endif
+
+#if !defined(CONFIG_USER_ONLY)
+    if (smp_threads > max_smt) {
+        fprintf(stderr, "Cannot support more than %d threads on PPC with %s\n",
+                max_smt, kvm_enabled() ? "KVM" : "TCG");
+        exit(1);
+    }
+#endif
 
     if (kvm_enabled()) {
         if (kvmppc_fixup_cpu(cpu) != 0) {

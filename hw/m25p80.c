@@ -358,6 +358,8 @@ static void complete_collecting_data(Flash *s)
     s->cur_addr |= s->data[1] << 8;
     s->cur_addr |= s->data[2];
 
+    s->state = STATE_IDLE;
+
     switch (s->cmd_in_progress) {
     case DPP:
     case QPP:

@@ -529,6 +529,7 @@ static uint64_t omap_ulpd_pm_read(void *opaque, hwaddr addr,
     case 0x28:	/* Reserved */
     case 0x2c:	/* Reserved */
         OMAP_BAD_REG(addr);
+        /* fall through */
     case 0x00:	/* COUNTER_32_LSB */
     case 0x04:	/* COUNTER_32_MSB */
     case 0x08:	/* COUNTER_HIGH_FREQ_LSB */
@@ -633,6 +634,7 @@ static void omap_ulpd_pm_write(void *opaque, hwaddr addr,
     case 0x28:	/* Reserved */
     case 0x2c:	/* Reserved */
         OMAP_BAD_REG(addr);
+        /* fall through */
     case 0x24:	/* SETUP_ANALOG_CELL3_ULPD1 */
     case 0x38:	/* COUNTER_32_FIQ */
     case 0x48:	/* LOCL_TIME */
@@ -1089,6 +1091,7 @@ static void omap_mpui_write(void *opaque, hwaddr addr,
     /* Not in OMAP310 */
     case 0x14:	/* DSP_STATUS */
         OMAP_RO_REG(addr);
+        break;
     case 0x18:	/* DSP_BOOT_CONFIG */
     case 0x1c:	/* DSP_MPUI_CONFIG */
         break;

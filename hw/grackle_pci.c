@@ -24,7 +24,7 @@
  */
 
 #include "pci/pci_host.h"
-#include "ppc_mac.h"
+#include "ppc/mac.h"
 #include "pci/pci.h"
 
 /* debug Grackle */

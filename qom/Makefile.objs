@@ -1,2 +1,2 @@
-universal-obj-y = object.o container.o qom-qobject.o
-universal-obj-y += cpu.o
+common-obj-y = object.o container.o qom-qobject.o
+common-obj-y += cpu.o

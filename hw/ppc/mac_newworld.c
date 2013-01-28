@@ -46,28 +46,28 @@
  * 0001:05:0c.0 IDE interface [0101]: Broadcom K2 SATA [1166:0240]
  *
  */
-#include "hw.h"
-#include "ppc.h"
-#include "ppc_mac.h"
-#include "adb.h"
-#include "mac_dbdma.h"
-#include "nvram.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/ppc.h"
+#include "hw/ppc/mac.h"
+#include "hw/adb.h"
+#include "hw/mac_dbdma.h"
+#include "hw/nvram.h"
+#include "hw/pci/pci.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "fw_cfg.h"
-#include "escc.h"
-#include "openpic.h"
-#include "ide.h"
-#include "loader.h"
+#include "hw/boards.h"
+#include "hw/fw_cfg.h"
+#include "hw/escc.h"
+#include "hw/openpic.h"
+#include "hw/ide.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "hw/usb.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
@@ -147,15 +147,16 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
+    PCIDevice *macio;
+    MACIOIDEState *macio_ide;
+    BusState *adb_bus;
     MacIONVRAMState *nvr;
     int bios_size;
-    MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem, *escc_mem;
+    MemoryRegion *pic_mem, *escc_mem;
     MemoryRegion *escc_bar = g_new(MemoryRegion, 1);
-    MemoryRegion *ide_mem[3];
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
-    void *dbdma;
     int machine_arch;
     SysBusDevice *s;
     DeviceState *dev;
@@ -362,20 +363,31 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
         pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
 
     ide_drive_get(hd, MAX_IDE_BUS);
-    dbdma = DBDMA_init(&dbdma_mem);
+
+    macio = pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO);
+    dev = DEVICE(macio);
+    qdev_connect_gpio_out(dev, 0, pic[0x19]); /* CUDA */
+    qdev_connect_gpio_out(dev, 1, pic[0x0d]); /* IDE */
+    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 3, pic[0x0e]); /* IDE */
+    qdev_connect_gpio_out(dev, 4, pic[0x02]); /* IDE DMA */
+    macio_init(macio, pic_mem, escc_bar);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
-    ide_mem[0] = NULL;
-    ide_mem[1] = pmac_ide_init(hd, pic[0x0d], dbdma, 0x16, pic[0x02]);
-    ide_mem[2] = pmac_ide_init(&hd[MAX_IDE_DEVS], pic[0x0e], dbdma, 0x1a, pic[0x02]);
+    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
+                                                        "ide[0]"));
+    macio_ide_init_drives(macio_ide, hd);
 
-    cuda_init(&cuda_mem, pic[0x19]);
+    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
+                                                        "ide[1]"));
+    macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
-    adb_kbd_init(&adb_bus);
-    adb_mouse_init(&adb_bus);
-
-    macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem,
-               dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_bar);
+    dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+    adb_bus = qdev_get_child_bus(dev, "adb.0");
+    dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
+    qdev_init_nofail(dev);
+    dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
+    qdev_init_nofail(dev);
 
     if (usb_enabled(machine_arch == ARCH_MAC99_U3)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
@@ -391,9 +403,13 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
         graphic_depth = 15;
 
     /* The NewWorld NVRAM is not located in the MacIO device */
-    nvr = macio_nvram_init(0x2000, 1);
+    dev = qdev_create(NULL, TYPE_MACIO_NVRAM);
+    qdev_prop_set_uint32(dev, "size", 0x2000);
+    qdev_prop_set_uint32(dev, "it_shift", 1);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xFFF04000);
+    nvr = MACIO_NVRAM(dev);
     pmac_format_nvram_partition(nvr, 0x2000);
-    macio_nvram_setup_bar(nvr, get_system_memory(), 0xFFF04000);
     /* No PCI init: the BIOS will do it */
 
     fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);

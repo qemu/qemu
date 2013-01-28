@@ -167,32 +167,47 @@ static uint64_t omap_mcspi_read(void *opaque, hwaddr addr,
         return s->control;
 
     case 0x68: ch ++;
+        /* fall through */
     case 0x54: ch ++;
+        /* fall through */
     case 0x40: ch ++;
+        /* fall through */
     case 0x2c:	/* MCSPI_CHCONF */
         return s->ch[ch].config;
 
     case 0x6c: ch ++;
+        /* fall through */
     case 0x58: ch ++;
+        /* fall through */
     case 0x44: ch ++;
+        /* fall through */
     case 0x30:	/* MCSPI_CHSTAT */
         return s->ch[ch].status;
 
     case 0x70: ch ++;
+        /* fall through */
     case 0x5c: ch ++;
+        /* fall through */
     case 0x48: ch ++;
+        /* fall through */
     case 0x34:	/* MCSPI_CHCTRL */
         return s->ch[ch].control;
 
     case 0x74: ch ++;
+        /* fall through */
     case 0x60: ch ++;
+        /* fall through */
     case 0x4c: ch ++;
+        /* fall through */
     case 0x38:	/* MCSPI_TX */
         return s->ch[ch].tx;
 
     case 0x78: ch ++;
+        /* fall through */
     case 0x64: ch ++;
+        /* fall through */
     case 0x50: ch ++;
+        /* fall through */
     case 0x3c:	/* MCSPI_RX */
         s->ch[ch].status &= ~(1 << 0);			/* RXS */
         ret = s->ch[ch].rx;
@@ -269,8 +284,11 @@ static void omap_mcspi_write(void *opaque, hwaddr addr,
         break;
 
     case 0x68: ch ++;
+        /* fall through */
     case 0x54: ch ++;
+        /* fall through */
     case 0x40: ch ++;
+        /* fall through */
     case 0x2c:	/* MCSPI_CHCONF */
         if ((value ^ s->ch[ch].config) & (3 << 14))	/* DMAR | DMAW */
             omap_mcspi_dmarequest_update(s->ch + ch);
@@ -283,8 +301,11 @@ static void omap_mcspi_write(void *opaque, hwaddr addr,
         break;
 
     case 0x70: ch ++;
+        /* fall through */
     case 0x5c: ch ++;
+        /* fall through */
     case 0x48: ch ++;
+        /* fall through */
     case 0x34:	/* MCSPI_CHCTRL */
         if (value & ~s->ch[ch].control & 1) {		/* EN */
             s->ch[ch].control |= 1;
@@ -294,8 +315,11 @@ static void omap_mcspi_write(void *opaque, hwaddr addr,
         break;
 
     case 0x74: ch ++;
+        /* fall through */
     case 0x60: ch ++;
+        /* fall through */
     case 0x4c: ch ++;
+        /* fall through */
     case 0x38:	/* MCSPI_TX */
         s->ch[ch].tx = value;
         s->ch[ch].status &= ~(1 << 1);			/* TXS */

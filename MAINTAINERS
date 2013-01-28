@@ -380,7 +380,7 @@ New World
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
-F: hw/ppc_newworld.c
+F: hw/ppc/mac_newworld.c
 F: hw/unin_pci.c
 F: hw/dec_pci.[hc]
 
@@ -388,7 +388,7 @@ Old World
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
-F: hw/ppc_oldworld.c
+F: hw/ppc/mac_oldworld.c
 F: hw/grackle_pci.c
 
 PReP
