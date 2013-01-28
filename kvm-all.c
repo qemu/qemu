@@ -222,7 +222,7 @@ int kvm_init_vcpu(CPUState *cpu)
 
     DPRINTF("kvm_init_vcpu\n");
 
-    ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU, cpu->cpu_index);
+    ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU, (void *)kvm_arch_vcpu_id(cpu));
     if (ret < 0) {
         DPRINTF("kvm_create_vcpu failed\n");
         goto err;
@@ -2026,9 +2026,8 @@ int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
     return 0;
 }
 
-int kvm_on_sigbus_vcpu(CPUArchState *env, int code, void *addr)
+int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     return kvm_arch_on_sigbus_vcpu(cpu, code, addr);
 }
 

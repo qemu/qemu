@@ -13,9 +13,16 @@ void cpu_synchronize_all_post_init(void);
 
 void qtest_clock_warp(int64_t dest);
 
+#ifndef CONFIG_USER_ONLY
 /* vl.c */
 extern int smp_cores;
 extern int smp_threads;
+#else
+/* *-user doesn't have configurable SMP topology */
+#define smp_cores   1
+#define smp_threads 1
+#endif
+
 void set_numa_modes(void);
 void set_cpu_log(const char *optarg);
 void set_cpu_log_filename(const char *optarg);

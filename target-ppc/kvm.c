@@ -384,6 +384,11 @@ static inline void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 
 #endif /* !defined (TARGET_PPC64) */
 
+unsigned long kvm_arch_vcpu_id(CPUState *cpu)
+{
+    return cpu->cpu_index;
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);

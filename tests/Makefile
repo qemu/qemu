@@ -47,6 +47,9 @@ check-unit-y += tests/test-thread-pool$(EXESUF)
 gcov-files-test-thread-pool-y = thread-pool.c
 gcov-files-test-hbitmap-y = util/hbitmap.c
 check-unit-y += tests/test-hbitmap$(EXESUF)
+check-unit-y += tests/test-x86-cpuid$(EXESUF)
+# all code tested by test-x86-cpuid is inside topology.h
+gcov-files-test-x86-cpuid-y =
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -74,11 +77,14 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-coroutine.o tests/test-string-output-visitor.o \
 	tests/test-string-input-visitor.o tests/test-qmp-output-visitor.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
-	tests/test-qmp-commands.o tests/test-visitor-serialization.o
+	tests/test-qmp-commands.o tests/test-visitor-serialization.o \
+	tests/test-x86-cpuid.o
 
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o
 
 $(test-obj-y): QEMU_INCLUDES += -Itests
+
+tests/test-x86-cpuid.o: QEMU_INCLUDES += -I$(SRC_PATH)/target-i386
 
 tests/check-qint$(EXESUF): tests/check-qint.o libqemuutil.a
 tests/check-qstring$(EXESUF): tests/check-qstring.o libqemuutil.a
@@ -91,6 +97,7 @@ tests/test-aio$(EXESUF): tests/test-aio.o $(block-obj-y) libqemuutil.a libqemust
 tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(block-obj-y) libqemuutil.a libqemustub.a
 tests/test-iov$(EXESUF): tests/test-iov.o libqemuutil.a
 tests/test-hbitmap$(EXESUF): tests/test-hbitmap.o libqemuutil.a libqemustub.a
+tests/test-x86-cpuid$(EXESUF): tests/test-x86-cpuid.o
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py

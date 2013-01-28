@@ -537,14 +537,14 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_VENDOR_INTEL_1 0x756e6547 /* "Genu" */
 #define CPUID_VENDOR_INTEL_2 0x49656e69 /* "ineI" */
 #define CPUID_VENDOR_INTEL_3 0x6c65746e /* "ntel" */
+#define CPUID_VENDOR_INTEL "GenuineIntel"
 
 #define CPUID_VENDOR_AMD_1   0x68747541 /* "Auth" */
 #define CPUID_VENDOR_AMD_2   0x69746e65 /* "enti" */
 #define CPUID_VENDOR_AMD_3   0x444d4163 /* "cAMD" */
+#define CPUID_VENDOR_AMD   "AuthenticAMD"
 
-#define CPUID_VENDOR_VIA_1   0x746e6543 /* "Cent" */
-#define CPUID_VENDOR_VIA_2   0x48727561 /* "aurH" */
-#define CPUID_VENDOR_VIA_3   0x736c7561 /* "auls" */
+#define CPUID_VENDOR_VIA   "CentaurHauls"
 
 #define CPUID_MWAIT_IBE     (1 << 1) /* Interrupts can exit capability */
 #define CPUID_MWAIT_EMX     (1 << 0) /* enumeration supported */
@@ -835,7 +835,6 @@ typedef struct CPUX86State {
     uint32_t cpuid_ext2_features;
     uint32_t cpuid_ext3_features;
     uint32_t cpuid_apic_id;
-    int cpuid_vendor_override;
     /* Store the results of Centaur's CPUID instructions */
     uint32_t cpuid_xlevel2;
     uint32_t cpuid_ext4_features;
@@ -1250,9 +1249,12 @@ void do_smm_enter(CPUX86State *env1);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
-void enable_kvm_pv_eoi(void);
+void disable_kvm_pv_eoi(void);
 
 /* Return name of 32-bit register, from a R_* constant */
 const char *get_register_name_32(unsigned int reg);
+
+uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index);
+void enable_compat_apic_id_mode(void);
 
 #endif /* CPU_I386_H */
