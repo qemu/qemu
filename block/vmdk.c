@@ -616,7 +616,7 @@ static int vmdk_open_sparse(BlockDriverState *bs,
             return vmdk_open_vmdk4(bs, file, flags);
             break;
         default:
-            return -EINVAL;
+            return -EMEDIUMTYPE;
             break;
     }
 }
@@ -718,7 +718,7 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
     }
     buf[2047] = '\0';
     if (vmdk_parse_description(buf, "createType", ct, sizeof(ct))) {
-        return -EINVAL;
+        return -EMEDIUMTYPE;
     }
     if (strcmp(ct, "monolithicFlat") &&
         strcmp(ct, "twoGbMaxExtentSparse") &&

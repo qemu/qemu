@@ -73,7 +73,7 @@ static int cow_open(BlockDriverState *bs, int flags)
     }
 
     if (be32_to_cpu(cow_header.magic) != COW_MAGIC) {
-        ret = -EINVAL;
+        ret = -EMEDIUMTYPE;
         goto fail;
     }
 

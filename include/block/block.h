@@ -309,6 +309,10 @@ int bdrv_get_flags(BlockDriverState *bs);
 int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
                           const uint8_t *buf, int nb_sectors);
 int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
+void bdrv_round_to_clusters(BlockDriverState *bs,
+                            int64_t sector_num, int nb_sectors,
+                            int64_t *cluster_sector_num,
+                            int *cluster_nb_sectors);
 
 const char *bdrv_get_encrypted_filename(BlockDriverState *bs);
 void bdrv_get_backing_filename(BlockDriverState *bs,
@@ -351,13 +355,12 @@ void bdrv_set_buffer_alignment(BlockDriverState *bs, int align);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
 
-#define BDRV_SECTORS_PER_DIRTY_CHUNK 2048
-
-void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable);
+struct HBitmapIter;
+void bdrv_set_dirty_tracking(BlockDriverState *bs, int granularity);
 int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
-int64_t bdrv_get_next_dirty(BlockDriverState *bs, int64_t sector);
+void bdrv_dirty_iter_init(BlockDriverState *bs, struct HBitmapIter *hbi);
 int64_t bdrv_get_dirty_count(BlockDriverState *bs);
 
 void bdrv_enable_copy_on_read(BlockDriverState *bs);
