@@ -475,6 +475,10 @@ static int img_check(int argc, char **argv)
         result.bfi.fragmented_clusters * 100.0 / result.bfi.allocated_clusters);
     }
 
+    if (result.image_end_offset > 0) {
+        printf("Image end offset: %" PRId64 "\n", result.image_end_offset);
+    }
+
     bdrv_delete(bs);
 
     if (ret < 0 || result.check_errors) {

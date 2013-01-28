@@ -213,6 +213,7 @@ typedef struct BdrvCheckResult {
     int check_errors;
     int corruptions_fixed;
     int leaks_fixed;
+    int64_t image_end_offset;
     BlockFragInfo bfi;
 } BdrvCheckResult;
 
