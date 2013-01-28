@@ -384,7 +384,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         }
         break;
     default:
-        ret = -EOPNOTSUPP;
+        ret = -ENOSYS;
         break;
     }
     return ret;

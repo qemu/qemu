@@ -223,7 +223,7 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
     }
 
     if (ccw.flags & CCW_FLAG_SUSPEND) {
-        return -ERESTART;
+        return -EINPROGRESS;
     }
 
     check_len = !((ccw.flags & CCW_FLAG_SLI) && !(ccw.flags & CCW_FLAG_DC));
@@ -291,7 +291,7 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
             /* Handle device specific commands. */
             ret = sch->ccw_cb(sch, ccw);
         } else {
-            ret = -EOPNOTSUPP;
+            ret = -ENOSYS;
         }
         break;
     }
@@ -347,7 +347,7 @@ static void sch_handle_start_func(SubchDev *sch)
                     SCSW_STCTL_STATUS_PEND;
             s->dstat = SCSW_DSTAT_CHANNEL_END | SCSW_DSTAT_DEVICE_END;
             break;
-        case -EOPNOTSUPP:
+        case -ENOSYS:
             /* unsupported command, generate unit check (command reject) */
             s->ctrl &= ~SCSW_ACTL_START_PEND;
             s->dstat = SCSW_DSTAT_UNIT_CHECK;
@@ -372,7 +372,7 @@ static void sch_handle_start_func(SubchDev *sch)
             s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
             s->ctrl |= SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
             break;
-        case -ERESTART:
+        case -EINPROGRESS:
             /* channel program has been suspended */
             s->ctrl &= ~SCSW_ACTL_START_PEND;
             s->ctrl |= SCSW_ACTL_SUSP;
