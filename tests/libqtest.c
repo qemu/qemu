@@ -39,7 +39,8 @@ struct QTestState
     int qmp_fd;
     bool irq_level[MAX_IRQ];
     GString *rx;
-    gchar *pid_file;
+    gchar *pid_file; /* QEMU PID file */
+    int child_pid;   /* Child process created to execute QEMU */
     char *socket_path, *qmp_socket_path;
 };
 
@@ -144,6 +145,7 @@ QTestState *qtest_init(const char *extra_args)
 
     s->rx = g_string_new("");
     s->pid_file = pid_file;
+    s->child_pid = pid;
     for (i = 0; i < MAX_IRQ; i++) {
         s->irq_level[i] = false;
     }
@@ -165,8 +167,9 @@ void qtest_quit(QTestState *s)
 
     pid_t pid = qtest_qemu_pid(s);
     if (pid != -1) {
+        /* kill QEMU, but wait for the child created by us to run system() */
         kill(pid, SIGTERM);
-        waitpid(pid, &status, 0);
+        waitpid(s->child_pid, &status, 0);
     }
 
     unlink(s->pid_file);
