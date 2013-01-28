@@ -465,29 +465,7 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "balloon: actual=%" PRId64, info->actual >> 20);
-    if (info->has_mem_swapped_in) {
-        monitor_printf(mon, " mem_swapped_in=%" PRId64, info->mem_swapped_in);
-    }
-    if (info->has_mem_swapped_out) {
-        monitor_printf(mon, " mem_swapped_out=%" PRId64, info->mem_swapped_out);
-    }
-    if (info->has_major_page_faults) {
-        monitor_printf(mon, " major_page_faults=%" PRId64,
-                       info->major_page_faults);
-    }
-    if (info->has_minor_page_faults) {
-        monitor_printf(mon, " minor_page_faults=%" PRId64,
-                       info->minor_page_faults);
-    }
-    if (info->has_free_mem) {
-        monitor_printf(mon, " free_mem=%" PRId64, info->free_mem);
-    }
-    if (info->has_total_mem) {
-        monitor_printf(mon, " total_mem=%" PRId64, info->total_mem);
-    }
-
-    monitor_printf(mon, "\n");
+    monitor_printf(mon, "balloon: actual=%" PRId64 "\n", info->actual >> 20);
 
     qapi_free_BalloonInfo(info);
 }
@@ -682,6 +660,40 @@ void hmp_pmemsave(Monitor *mon, const QDict *qdict)
 
     qmp_pmemsave(addr, size, filename, &errp);
     hmp_handle_error(mon, &errp);
+}
+
+void hmp_memchar_write(Monitor *mon, const QDict *qdict)
+{
+    uint32_t size;
+    const char *chardev = qdict_get_str(qdict, "device");
+    const char *data = qdict_get_str(qdict, "data");
+    Error *errp = NULL;
+
+    size = strlen(data);
+    qmp_memchar_write(chardev, size, data, false, 0, &errp);
+
+    hmp_handle_error(mon, &errp);
+}
+
+void hmp_memchar_read(Monitor *mon, const QDict *qdict)
+{
+    uint32_t size = qdict_get_int(qdict, "size");
+    const char *chardev = qdict_get_str(qdict, "device");
+    MemCharRead *meminfo;
+    Error *errp = NULL;
+
+    meminfo = qmp_memchar_read(chardev, size, false, 0, &errp);
+    if (errp) {
+        monitor_printf(mon, "%s\n", error_get_pretty(errp));
+        error_free(errp);
+        return;
+    }
+
+    if (meminfo->count > 0) {
+        monitor_printf(mon, "%s\n", meminfo->data);
+    }
+
+    qapi_free_MemCharRead(meminfo);
 }
 
 static void hmp_cont_cb(void *opaque, int err)
