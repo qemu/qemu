@@ -42,6 +42,16 @@ typedef struct img_cmd_t {
     int (*handler)(int argc, char **argv);
 } img_cmd_t;
 
+enum {
+    OPTION_OUTPUT = 256,
+    OPTION_BACKING_CHAIN = 257,
+};
+
+typedef enum OutputFormat {
+    OFORMAT_JSON,
+    OFORMAT_HUMAN,
+} OutputFormat;
+
 /* Default to cache=writeback as data integrity is not important for qemu-tcg. */
 #define BDRV_O_FLAGS BDRV_O_CACHE_WB
 #define BDRV_DEFAULT_CACHE "writeback"
@@ -375,6 +385,96 @@ static int img_create(int argc, char **argv)
     return 0;
 }
 
+static void dump_json_image_check(ImageCheck *check)
+{
+    Error *errp = NULL;
+    QString *str;
+    QmpOutputVisitor *ov = qmp_output_visitor_new();
+    QObject *obj;
+    visit_type_ImageCheck(qmp_output_get_visitor(ov),
+                          &check, NULL, &errp);
+    obj = qmp_output_get_qobject(ov);
+    str = qobject_to_json_pretty(obj);
+    assert(str != NULL);
+    printf("%s\n", qstring_get_str(str));
+    qobject_decref(obj);
+    qmp_output_visitor_cleanup(ov);
+    QDECREF(str);
+}
+
+static void dump_human_image_check(ImageCheck *check)
+{
+    if (!(check->corruptions || check->leaks || check->check_errors)) {
+        printf("No errors were found on the image.\n");
+    } else {
+        if (check->corruptions) {
+            printf("\n%" PRId64 " errors were found on the image.\n"
+                "Data may be corrupted, or further writes to the image "
+                "may corrupt it.\n",
+                check->corruptions);
+        }
+
+        if (check->leaks) {
+            printf("\n%" PRId64 " leaked clusters were found on the image.\n"
+                "This means waste of disk space, but no harm to data.\n",
+                check->leaks);
+        }
+
+        if (check->check_errors) {
+            printf("\n%" PRId64 " internal errors have occurred during the check.\n",
+                check->check_errors);
+        }
+    }
+
+    if (check->total_clusters != 0 && check->allocated_clusters != 0) {
+        printf("%" PRId64 "/%" PRId64 "= %0.2f%% allocated, %0.2f%% fragmented\n",
+        check->allocated_clusters, check->total_clusters,
+        check->allocated_clusters * 100.0 / check->total_clusters,
+        check->fragmented_clusters * 100.0 / check->allocated_clusters);
+    }
+
+    if (check->image_end_offset) {
+        printf("Image end offset: %" PRId64 "\n", check->image_end_offset);
+    }
+}
+
+static int collect_image_check(BlockDriverState *bs,
+                   ImageCheck *check,
+                   const char *filename,
+                   const char *fmt,
+                   int fix)
+{
+    int ret;
+    BdrvCheckResult result;
+
+    ret = bdrv_check(bs, &result, fix);
+    if (ret < 0) {
+        return ret;
+    }
+
+    check->filename                 = g_strdup(filename);
+    check->format                   = g_strdup(bdrv_get_format_name(bs));
+    check->check_errors             = result.check_errors;
+    check->corruptions              = result.corruptions;
+    check->has_corruptions          = result.corruptions != 0;
+    check->leaks                    = result.leaks;
+    check->has_leaks                = result.leaks != 0;
+    check->corruptions_fixed        = result.corruptions_fixed;
+    check->has_corruptions_fixed    = result.corruptions != 0;
+    check->leaks_fixed              = result.leaks_fixed;
+    check->has_leaks_fixed          = result.leaks != 0;
+    check->image_end_offset         = result.image_end_offset;
+    check->has_image_end_offset     = result.image_end_offset != 0;
+    check->total_clusters           = result.bfi.total_clusters;
+    check->has_total_clusters       = result.bfi.total_clusters != 0;
+    check->allocated_clusters       = result.bfi.allocated_clusters;
+    check->has_allocated_clusters   = result.bfi.allocated_clusters != 0;
+    check->fragmented_clusters      = result.bfi.fragmented_clusters;
+    check->has_fragmented_clusters  = result.bfi.fragmented_clusters != 0;
+
+    return 0;
+}
+
 /*
  * Checks an image for consistency. Exit codes:
  *
@@ -386,15 +486,26 @@ static int img_create(int argc, char **argv)
 static int img_check(int argc, char **argv)
 {
     int c, ret;
-    const char *filename, *fmt;
+    OutputFormat output_format = OFORMAT_HUMAN;
+    const char *filename, *fmt, *output;
     BlockDriverState *bs;
-    BdrvCheckResult result;
     int fix = 0;
     int flags = BDRV_O_FLAGS | BDRV_O_CHECK;
+    ImageCheck *check;
 
     fmt = NULL;
+    output = NULL;
     for(;;) {
-        c = getopt(argc, argv, "f:hr:");
+        int option_index = 0;
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"format", required_argument, 0, 'f'},
+            {"repair", no_argument, 0, 'r'},
+            {"output", required_argument, 0, OPTION_OUTPUT},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, "f:hr:",
+                        long_options, &option_index);
         if (c == -1) {
             break;
         }
@@ -417,6 +528,9 @@ static int img_check(int argc, char **argv)
                 help();
             }
             break;
+        case OPTION_OUTPUT:
+            output = optarg;
+            break;
         }
     }
     if (optind >= argc) {
@@ -424,77 +538,79 @@ static int img_check(int argc, char **argv)
     }
     filename = argv[optind++];
 
+    if (output && !strcmp(output, "json")) {
+        output_format = OFORMAT_JSON;
+    } else if (output && !strcmp(output, "human")) {
+        output_format = OFORMAT_HUMAN;
+    } else if (output) {
+        error_report("--output must be used with human or json as argument.");
+        return 1;
+    }
+
     bs = bdrv_new_open(filename, fmt, flags, true);
     if (!bs) {
         return 1;
     }
-    ret = bdrv_check(bs, &result, fix);
+
+    check = g_new0(ImageCheck, 1);
+    ret = collect_image_check(bs, check, filename, fmt, fix);
 
     if (ret == -ENOTSUP) {
-        error_report("This image format does not support checks");
-        bdrv_delete(bs);
-        return 1;
+        if (output_format == OFORMAT_HUMAN) {
+            error_report("This image format does not support checks");
+        }
+        ret = 1;
+        goto fail;
     }
 
-    if (result.corruptions_fixed || result.leaks_fixed) {
-        printf("The following inconsistencies were found and repaired:\n\n"
-               "    %d leaked clusters\n"
-               "    %d corruptions\n\n"
-               "Double checking the fixed image now...\n",
-               result.leaks_fixed,
-               result.corruptions_fixed);
-        ret = bdrv_check(bs, &result, 0);
+    if (check->corruptions_fixed || check->leaks_fixed) {
+        int corruptions_fixed, leaks_fixed;
+
+        leaks_fixed         = check->leaks_fixed;
+        corruptions_fixed   = check->corruptions_fixed;
+
+        if (output_format == OFORMAT_HUMAN) {
+            printf("The following inconsistencies were found and repaired:\n\n"
+                   "    %" PRId64 " leaked clusters\n"
+                   "    %" PRId64 " corruptions\n\n"
+                   "Double checking the fixed image now...\n",
+                   check->leaks_fixed,
+                   check->corruptions_fixed);
+        }
+
+        ret = collect_image_check(bs, check, filename, fmt, 0);
+
+        check->leaks_fixed          = leaks_fixed;
+        check->corruptions_fixed    = corruptions_fixed;
     }
 
-    if (!(result.corruptions || result.leaks || result.check_errors)) {
-        printf("No errors were found on the image.\n");
+    switch (output_format) {
+    case OFORMAT_HUMAN:
+        dump_human_image_check(check);
+        break;
+    case OFORMAT_JSON:
+        dump_json_image_check(check);
+        break;
+    }
+
+    if (ret || check->check_errors) {
+        ret = 1;
+        goto fail;
+    }
+
+    if (check->corruptions) {
+        ret = 2;
+    } else if (check->leaks) {
+        ret = 3;
     } else {
-        if (result.corruptions) {
-            printf("\n%d errors were found on the image.\n"
-                "Data may be corrupted, or further writes to the image "
-                "may corrupt it.\n",
-                result.corruptions);
-        }
-
-        if (result.leaks) {
-            printf("\n%d leaked clusters were found on the image.\n"
-                "This means waste of disk space, but no harm to data.\n",
-                result.leaks);
-        }
-
-        if (result.check_errors) {
-            printf("\n%d internal errors have occurred during the check.\n",
-                result.check_errors);
-        }
+        ret = 0;
     }
 
-    if (result.bfi.total_clusters != 0 && result.bfi.allocated_clusters != 0) {
-        printf("%" PRId64 "/%" PRId64 "= %0.2f%% allocated, %0.2f%% fragmented\n",
-        result.bfi.allocated_clusters, result.bfi.total_clusters,
-        result.bfi.allocated_clusters * 100.0 / result.bfi.total_clusters,
-        result.bfi.fragmented_clusters * 100.0 / result.bfi.allocated_clusters);
-    }
-
-    if (result.image_end_offset > 0) {
-        printf("Image end offset: %" PRId64 "\n", result.image_end_offset);
-    }
-
+fail:
+    qapi_free_ImageCheck(check);
     bdrv_delete(bs);
 
-    if (ret < 0 || result.check_errors) {
-        printf("\nAn error has occurred during the check: %s\n"
-            "The check is not complete and may have missed error.\n",
-            strerror(-ret));
-        return 1;
-    }
-
-    if (result.corruptions) {
-        return 2;
-    } else if (result.leaks) {
-        return 3;
-    } else {
-        return 0;
-    }
+    return ret;
 }
 
 static int img_commit(int argc, char **argv)
@@ -1395,16 +1511,6 @@ err:
     g_hash_table_destroy(filenames);
     return NULL;
 }
-
-enum {
-    OPTION_OUTPUT = 256,
-    OPTION_BACKING_CHAIN = 257,
-};
-
-typedef enum OutputFormat {
-    OFORMAT_JSON,
-    OFORMAT_HUMAN,
-} OutputFormat;
 
 static int img_info(int argc, char **argv)
 {

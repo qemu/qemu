@@ -84,9 +84,10 @@ lists all snapshots in the given image
 Command description:
 
 @table @option
-@item check [-f @var{fmt}] [-r [leaks | all]] @var{filename}
+@item check [-f @var{fmt}] [--output=@var{ofmt}] [-r [leaks | all]] @var{filename}
 
-Perform a consistency check on the disk image @var{filename}.
+Perform a consistency check on the disk image @var{filename}. The command can
+output in the format @var{ofmt} which is either @code{human} or @code{json}.
 
 If @code{-r} is specified, qemu-img tries to repair any inconsistencies found
 during the check. @code{-r leaks} repairs only cluster leaks, whereas

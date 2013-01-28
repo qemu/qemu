@@ -245,6 +245,52 @@
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'] } }
 
 ##
+# @ImageCheck:
+#
+# Information about a QEMU image file check
+#
+# @filename: name of the image file checked
+#
+# @format: format of the image file checked
+#
+# @check-errors: number of unexpected errors occurred during check
+#
+# @image-end-offset: #optional offset (in bytes) where the image ends, this
+#                    field is present if the driver for the image format
+#                    supports it
+#
+# @corruptions: #optional number of corruptions found during the check if any
+#
+# @leaks: #optional number of leaks found during the check if any
+#
+# @corruptions-fixed: #optional number of corruptions fixed during the check
+#                     if any
+#
+# @leaks-fixed: #optional number of leaks fixed during the check if any
+#
+# @total-clusters: #optional total number of clusters, this field is present
+#                  if the driver for the image format supports it
+#
+# @allocated-clusters: #optional total number of allocated clusters, this
+#                      field is present if the driver for the image format
+#                      supports it
+#
+# @fragmented-clusters: #optional total number of fragmented clusters, this
+#                       field is present if the driver for the image format
+#                       supports it
+#
+# Since: 1.4
+#
+##
+
+{ 'type': 'ImageCheck',
+  'data': {'filename': 'str', 'format': 'str', 'check-errors': 'int',
+           '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
+           '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
+           '*total-clusters': 'int', '*allocated-clusters': 'int',
+           '*fragmented-clusters': 'int' } }
+
+##
 # @StatusInfo:
 #
 # Information about VCPU run state
