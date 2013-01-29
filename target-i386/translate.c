@@ -213,6 +213,7 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_ADCX] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_ADOX] = USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_ADCOX] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
+    [CC_OP_CLR] = 0,
 };
 
 static void set_cc_op(DisasContext *s, CCOp op)
@@ -906,6 +907,11 @@ static void gen_compute_eflags(DisasContext *s)
     if (s->cc_op == CC_OP_EFLAGS) {
         return;
     }
+    if (s->cc_op == CC_OP_CLR) {
+        tcg_gen_movi_tl(cpu_cc_src, CC_Z);
+        set_cc_op(s, CC_OP_EFLAGS);
+        return;
+    }
 
     TCGV_UNUSED(zero);
     dst = cpu_cc_dst;
@@ -974,6 +980,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
                              .reg2 = t1, .mask = -1, .use_reg2 = true };
 
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
+    case CC_OP_CLR:
         return (CCPrepare) { .cond = TCG_COND_NEVER, .mask = -1 };
 
     case CC_OP_INCB ... CC_OP_INCQ:
@@ -1040,6 +1047,8 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
                              .mask = CC_S };
+    case CC_OP_CLR:
+        return (CCPrepare) { .cond = TCG_COND_NEVER, .mask = -1 };
     default:
         {
             int size = (s->cc_op - CC_OP_ADDB) & 3;
@@ -1057,7 +1066,8 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src2,
                              .mask = -1, .no_setcond = true };
-
+    case CC_OP_CLR:
+        return (CCPrepare) { .cond = TCG_COND_NEVER, .mask = -1 };
     default:
         gen_compute_eflags(s);
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
@@ -1078,6 +1088,8 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
                              .mask = CC_Z };
+    case CC_OP_CLR:
+        return (CCPrepare) { .cond = TCG_COND_ALWAYS, .mask = -1 };
     default:
         {
             int size = (s->cc_op - CC_OP_ADDB) & 3;
@@ -4890,10 +4902,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 } else if (op == OP_XORL && rm == reg) {
                 xor_zero:
                     /* xor reg, reg optimisation */
+                    set_cc_op(s, CC_OP_CLR);
                     gen_op_movl_T0_0();
-                    set_cc_op(s, CC_OP_LOGICB + ot);
                     gen_op_mov_reg_T0(ot, reg);
-                    gen_op_update1_cc();
                     break;
                 } else {
                     opreg = rm;

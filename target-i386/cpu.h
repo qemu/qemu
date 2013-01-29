@@ -645,6 +645,8 @@ typedef enum {
     CC_OP_ADOX, /* CC_DST = O, CC_SRC = rest.  */
     CC_OP_ADCOX, /* CC_DST = C, CC_SRC2 = O, CC_SRC = rest.  */
 
+    CC_OP_CLR, /* Z set, all other flags clear.  */
+
     CC_OP_NB,
 } CCOp;
 

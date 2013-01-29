@@ -117,6 +117,8 @@ static const char *cc_op_str[CC_OP_NB] = {
     "ADCX",
     "ADOX",
     "ADCOX",
+
+    "CLR",
 };
 
 static void
