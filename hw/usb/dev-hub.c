@@ -164,7 +164,7 @@ static void usb_hub_attach(USBPort *port1)
     } else {
         port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
     }
-    usb_wakeup(s->intr);
+    usb_wakeup(s->intr, 0);
 }
 
 static void usb_hub_detach(USBPort *port1)
@@ -173,7 +173,7 @@ static void usb_hub_detach(USBPort *port1)
     USBHubPort *port = &s->ports[port1->index];
 
     trace_usb_hub_detach(s->dev.addr, port1->index + 1);
-    usb_wakeup(s->intr);
+    usb_wakeup(s->intr, 0);
 
     /* Let upstream know the device on this port is gone */
     s->dev.port->ops->child_detach(s->dev.port, port1->dev);
@@ -184,7 +184,7 @@ static void usb_hub_detach(USBPort *port1)
         port->wPortStatus &= ~PORT_STAT_ENABLE;
         port->wPortChange |= PORT_STAT_C_ENABLE;
     }
-    usb_wakeup(s->intr);
+    usb_wakeup(s->intr, 0);
 }
 
 static void usb_hub_child_detach(USBPort *port1, USBDevice *child)
@@ -202,7 +202,7 @@ static void usb_hub_wakeup(USBPort *port1)
 
     if (port->wPortStatus & PORT_STAT_SUSPEND) {
         port->wPortChange |= PORT_STAT_C_SUSPEND;
-        usb_wakeup(s->intr);
+        usb_wakeup(s->intr, 0);
     }
 }
 
@@ -364,7 +364,7 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                     port->wPortChange |= PORT_STAT_C_RESET;
                     /* set enable bit */
                     port->wPortStatus |= PORT_STAT_ENABLE;
-                    usb_wakeup(s->intr);
+                    usb_wakeup(s->intr, 0);
                 }
                 break;
             case PORT_POWER:

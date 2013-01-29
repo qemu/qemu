@@ -71,7 +71,7 @@ void usb_device_reset(USBDevice *dev)
     usb_device_handle_reset(dev);
 }
 
-void usb_wakeup(USBEndpoint *ep)
+void usb_wakeup(USBEndpoint *ep, unsigned int stream)
 {
     USBDevice *dev = ep->dev;
     USBBus *bus = usb_bus_from_device(dev);
@@ -80,7 +80,7 @@ void usb_wakeup(USBEndpoint *ep)
         dev->port->ops->wakeup(dev->port);
     }
     if (bus->ops->wakeup_endpoint) {
-        bus->ops->wakeup_endpoint(bus, ep);
+        bus->ops->wakeup_endpoint(bus, ep, stream);
     }
 }
 
@@ -545,14 +545,16 @@ void usb_packet_set_state(USBPacket *p, USBPacketState state)
     p->state = state;
 }
 
-void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id,
-                      bool short_not_ok, bool int_req)
+void usb_packet_setup(USBPacket *p, int pid,
+                      USBEndpoint *ep, unsigned int stream,
+                      uint64_t id, bool short_not_ok, bool int_req)
 {
     assert(!usb_packet_is_inflight(p));
     assert(p->iov.iov != NULL);
     p->id = id;
     p->pid = pid;
     p->ep = ep;
+    p->stream = stream;
     p->status = USB_RET_SUCCESS;
     p->actual_length = 0;
     p->parameter = 0;

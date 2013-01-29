@@ -1518,8 +1518,8 @@ static int xhci_setup_packet(XHCITransfer *xfer)
     }
 
     xhci_xfer_create_sgl(xfer, dir == USB_TOKEN_IN); /* Also sets int_req */
-    usb_packet_setup(&xfer->packet, dir, ep, xfer->trbs[0].addr, false,
-                     xfer->int_req);
+    usb_packet_setup(&xfer->packet, dir, ep, 0,
+                     xfer->trbs[0].addr, false, xfer->int_req);
     usb_packet_map(&xfer->packet, &xfer->sgl);
     DPRINTF("xhci: setup packet pid 0x%x addr %d ep %d\n",
             xfer->packet.pid, dev->addr, ep->nr);
@@ -1977,7 +1977,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
         DPRINTF("xhci: device address is %d\n", slot->devaddr);
         usb_device_reset(dev);
         usb_packet_setup(&p, USB_TOKEN_OUT,
-                         usb_ep_get(dev, USB_TOKEN_OUT, 0),
+                         usb_ep_get(dev, USB_TOKEN_OUT, 0), 0,
                          0, false, false);
         usb_device_handle_control(dev, &p,
                                   DeviceOutRequest | USB_REQ_SET_ADDRESS,
@@ -3033,7 +3033,8 @@ static int xhci_find_epid(USBEndpoint *ep)
     }
 }
 
-static void xhci_wakeup_endpoint(USBBus *bus, USBEndpoint *ep)
+static void xhci_wakeup_endpoint(USBBus *bus, USBEndpoint *ep,
+                                 unsigned int stream)
 {
     XHCIState *xhci = container_of(bus, XHCIState, bus);
     int slotid;

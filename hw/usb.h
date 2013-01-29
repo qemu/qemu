@@ -361,6 +361,7 @@ struct USBPacket {
     int pid;
     uint64_t id;
     USBEndpoint *ep;
+    unsigned int stream;
     QEMUIOVector iov;
     uint64_t parameter; /* control transfers */
     bool short_not_ok;
@@ -383,8 +384,9 @@ struct USBCombinedPacket {
 void usb_packet_init(USBPacket *p);
 void usb_packet_set_state(USBPacket *p, USBPacketState state);
 void usb_packet_check_state(USBPacket *p, USBPacketState expected);
-void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id,
-                      bool short_not_ok, bool int_req);
+void usb_packet_setup(USBPacket *p, int pid,
+                      USBEndpoint *ep, unsigned int stream,
+                      uint64_t id, bool short_not_ok, bool int_req);
 void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len);
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl);
 void usb_packet_unmap(USBPacket *p, QEMUSGList *sgl);
@@ -430,7 +432,7 @@ void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);
 void usb_port_reset(USBPort *port);
 void usb_device_reset(USBDevice *dev);
-void usb_wakeup(USBEndpoint *ep);
+void usb_wakeup(USBEndpoint *ep, unsigned int stream);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
 
@@ -489,7 +491,7 @@ struct USBBus {
 struct USBBusOps {
     int (*register_companion)(USBBus *bus, USBPort *ports[],
                               uint32_t portcount, uint32_t firstport);
-    void (*wakeup_endpoint)(USBBus *bus, USBEndpoint *ep);
+    void (*wakeup_endpoint)(USBBus *bus, USBEndpoint *ep, unsigned int stream);
 };
 
 void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);

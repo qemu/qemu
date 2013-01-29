@@ -874,7 +874,8 @@ static int ehci_register_companion(USBBus *bus, USBPort *ports[],
     return 0;
 }
 
-static void ehci_wakeup_endpoint(USBBus *bus, USBEndpoint *ep)
+static void ehci_wakeup_endpoint(USBBus *bus, USBEndpoint *ep,
+                                 unsigned int stream)
 {
     EHCIState *s = container_of(bus, EHCIState, bus);
     uint32_t portsc = s->portsc[ep->dev->port->index];
@@ -1420,7 +1421,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
         }
 
         spd = (p->pid == USB_TOKEN_IN && NLPTR_TBIT(p->qtd.altnext) == 0);
-        usb_packet_setup(&p->packet, p->pid, ep, p->qtdaddr, spd,
+        usb_packet_setup(&p->packet, p->pid, ep, 0, p->qtdaddr, spd,
                          (p->qtd.token & QTD_TOKEN_IOC) != 0);
         usb_packet_map(&p->packet, &p->sgl);
         p->async = EHCI_ASYNC_INITIALIZED;
@@ -1493,7 +1494,7 @@ static int ehci_process_itd(EHCIState *ehci,
             dev = ehci_find_device(ehci, devaddr);
             ep = usb_ep_get(dev, pid, endp);
             if (ep && ep->type == USB_ENDPOINT_XFER_ISOC) {
-                usb_packet_setup(&ehci->ipacket, pid, ep, addr, false,
+                usb_packet_setup(&ehci->ipacket, pid, ep, 0, addr, false,
                                  (itd->transact[i] & ITD_XACT_IOC) != 0);
                 usb_packet_map(&ehci->ipacket, &ehci->isgl);
                 usb_handle_packet(dev, &ehci->ipacket);

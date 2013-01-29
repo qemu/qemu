@@ -879,7 +879,7 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
 
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     spd = (pid == USB_TOKEN_IN && (td->ctrl & TD_CTRL_SPD) != 0);
-    usb_packet_setup(&async->packet, pid, q->ep, td_addr, spd,
+    usb_packet_setup(&async->packet, pid, q->ep, 0, td_addr, spd,
                      (td->ctrl & TD_CTRL_IOC) != 0);
     qemu_sglist_add(&async->sgl, td->buffer, max_len);
     usb_packet_map(&async->packet, &async->sgl);

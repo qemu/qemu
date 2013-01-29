@@ -276,7 +276,7 @@ static void usb_uas_queue_status(UASDevice *uas, UASStatus *st, int length)
     } else {
         USBEndpoint *ep = usb_ep_get(&uas->dev, USB_TOKEN_IN,
                                      UAS_PIPE_ID_STATUS);
-        usb_wakeup(ep);
+        usb_wakeup(ep, 0);
     }
 }
 
