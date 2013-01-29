@@ -417,11 +417,13 @@ unsigned long kvm_arch_vcpu_id(CPUState *cs)
     return cpu->env.cpuid_apic_id;
 }
 
+#define KVM_MAX_CPUID_ENTRIES  100
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     struct {
         struct kvm_cpuid2 cpuid;
-        struct kvm_cpuid_entry2 entries[100];
+        struct kvm_cpuid_entry2 entries[KVM_MAX_CPUID_ENTRIES];
     } QEMU_PACKED cpuid_data;
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -508,6 +510,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
 
     for (i = 0; i <= limit; i++) {
+        if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
+            fprintf(stderr, "unsupported level value: 0x%x\n", limit);
+            abort();
+        }
         c = &cpuid_data.entries[cpuid_i++];
 
         switch (i) {
@@ -522,6 +528,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
             times = c->eax & 0xff;
 
             for (j = 1; j < times; ++j) {
+                if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
+                    fprintf(stderr, "cpuid_data is full, no space for "
+                            "cpuid(eax:2):eax & 0xf = 0x%x\n", times);
+                    abort();
+                }
                 c = &cpuid_data.entries[cpuid_i++];
                 c->function = i;
                 c->flags = KVM_CPUID_FLAG_STATEFUL_FUNC;
@@ -550,6 +561,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 if (i == 0xd && c->eax == 0) {
                     continue;
                 }
+                if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
+                    fprintf(stderr, "cpuid_data is full, no space for "
+                            "cpuid(eax:0x%x,ecx:0x%x)\n", i, j);
+                    abort();
+                }
                 c = &cpuid_data.entries[cpuid_i++];
             }
             break;
@@ -563,6 +579,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     cpu_x86_cpuid(env, 0x80000000, 0, &limit, &unused, &unused, &unused);
 
     for (i = 0x80000000; i <= limit; i++) {
+        if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
+            fprintf(stderr, "unsupported xlevel value: 0x%x\n", limit);
+            abort();
+        }
         c = &cpuid_data.entries[cpuid_i++];
 
         c->function = i;
@@ -575,6 +595,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
         cpu_x86_cpuid(env, 0xC0000000, 0, &limit, &unused, &unused, &unused);
 
         for (i = 0xC0000000; i <= limit; i++) {
+            if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
+                fprintf(stderr, "unsupported xlevel2 value: 0x%x\n", limit);
+                abort();
+            }
             c = &cpuid_data.entries[cpuid_i++];
 
             c->function = i;
