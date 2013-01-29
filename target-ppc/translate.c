@@ -4118,29 +4118,21 @@ static void gen_dcbtst(DisasContext *ctx)
 /* dcbz */
 static void gen_dcbz(DisasContext *ctx)
 {
-    TCGv t0;
-    gen_set_access_type(ctx, ACCESS_CACHE);
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    t0 = tcg_temp_new();
-    gen_addr_reg_index(ctx, t0);
-    gen_helper_dcbz(cpu_env, t0);
-    tcg_temp_free(t0);
-}
+    TCGv tcgv_addr;
+    TCGv_i32 tcgv_is_dcbzl;
+    int is_dcbzl = ctx->opcode & 0x00200000 ? 1 : 0;
 
-static void gen_dcbz_970(DisasContext *ctx)
-{
-    TCGv t0;
     gen_set_access_type(ctx, ACCESS_CACHE);
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    t0 = tcg_temp_new();
-    gen_addr_reg_index(ctx, t0);
-    if (ctx->opcode & 0x00200000)
-        gen_helper_dcbz(cpu_env, t0);
-    else
-        gen_helper_dcbz_970(cpu_env, t0);
-    tcg_temp_free(t0);
+    tcgv_addr = tcg_temp_new();
+    tcgv_is_dcbzl = tcg_const_i32(is_dcbzl);
+
+    gen_addr_reg_index(ctx, tcgv_addr);
+    gen_helper_dcbz(cpu_env, tcgv_addr, tcgv_is_dcbzl);
+
+    tcg_temp_free(tcgv_addr);
+    tcg_temp_free_i32(tcgv_is_dcbzl);
 }
 
 /* dst / dstt */
@@ -8648,8 +8640,7 @@ GEN_HANDLER(dcbi, 0x1F, 0x16, 0x0E, 0x03E00001, PPC_CACHE),
 GEN_HANDLER(dcbst, 0x1F, 0x16, 0x01, 0x03E00001, PPC_CACHE),
 GEN_HANDLER(dcbt, 0x1F, 0x16, 0x08, 0x02000001, PPC_CACHE),
 GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x02000001, PPC_CACHE),
-GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE_DCBZ),
-GEN_HANDLER2(dcbz_970, "dcbz", 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT),
+GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZ),
 GEN_HANDLER(dst, 0x1F, 0x16, 0x0A, 0x01800001, PPC_ALTIVEC),
 GEN_HANDLER(dstst, 0x1F, 0x16, 0x0B, 0x02000001, PPC_ALTIVEC),
 GEN_HANDLER(dss, 0x1F, 0x16, 0x19, 0x019FF801, PPC_ALTIVEC),

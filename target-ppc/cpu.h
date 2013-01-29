@@ -1857,10 +1857,8 @@ enum {
     PPC_CACHE          = 0x0000000200000000ULL,
     /*   icbi instruction                                                    */
     PPC_CACHE_ICBI     = 0x0000000400000000ULL,
-    /*   dcbz instruction with fixed cache line size                         */
+    /*   dcbz instruction                                                    */
     PPC_CACHE_DCBZ     = 0x0000000800000000ULL,
-    /*   dcbz instruction with tunable cache line size                       */
-    PPC_CACHE_DCBZT    = 0x0000001000000000ULL,
     /*   dcba instruction                                                    */
     PPC_CACHE_DCBA     = 0x0000002000000000ULL,
     /*   Freescale cache locking instructions                                */
@@ -1928,7 +1926,7 @@ enum {
                         | PPC_MEM_TLBIE | PPC_MEM_TLBSYNC \
                         | PPC_MEM_SYNC | PPC_MEM_EIEIO \
                         | PPC_CACHE | PPC_CACHE_ICBI \
-                        | PPC_CACHE_DCBZ | PPC_CACHE_DCBZT \
+                        | PPC_CACHE_DCBZ \
                         | PPC_CACHE_DCBA | PPC_CACHE_LOCK \
                         | PPC_EXTERN | PPC_SEGMENT | PPC_6xx_TLB \
                         | PPC_74xx_TLB | PPC_40x_TLB | PPC_SEGMENT_64B \
