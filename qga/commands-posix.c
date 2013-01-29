@@ -611,13 +611,14 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 
 static void guest_fsfreeze_cleanup(void)
 {
-    int64_t ret;
     Error *err = NULL;
 
     if (ga_is_frozen(ga_state) == GUEST_FSFREEZE_STATUS_FROZEN) {
-        ret = qmp_guest_fsfreeze_thaw(&err);
-        if (ret < 0 || err) {
-            slog("failed to clean up frozen filesystems");
+        qmp_guest_fsfreeze_thaw(&err);
+        if (err) {
+            slog("failed to clean up frozen filesystems: %s",
+                 error_get_pretty(err));
+            error_free(err);
         }
     }
 }
@@ -934,9 +935,11 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
                 error_setg_errno(errp, errno,
                                  "failed to get MAC address of %s",
                                  ifa->ifa_name);
+                close(sock);
                 goto error;
             }
 
+            close(sock);
             mac_addr = (unsigned char *) &ifr.ifr_hwaddr.sa_data;
 
             info->value->hardware_address =
@@ -946,20 +949,19 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
                                 (int) mac_addr[4], (int) mac_addr[5]);
 
             info->value->has_hardware_address = true;
-            close(sock);
         }
 
         if (ifa->ifa_addr &&
             ifa->ifa_addr->sa_family == AF_INET) {
             /* interface with IPv4 address */
-            address_item = g_malloc0(sizeof(*address_item));
-            address_item->value = g_malloc0(sizeof(*address_item->value));
             p = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
             if (!inet_ntop(AF_INET, p, addr4, sizeof(addr4))) {
                 error_setg_errno(errp, errno, "inet_ntop failed");
                 goto error;
             }
 
+            address_item = g_malloc0(sizeof(*address_item));
+            address_item->value = g_malloc0(sizeof(*address_item->value));
             address_item->value->ip_address = g_strdup(addr4);
             address_item->value->ip_address_type = GUEST_IP_ADDRESS_TYPE_IPV4;
 
@@ -972,14 +974,14 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
         } else if (ifa->ifa_addr &&
                    ifa->ifa_addr->sa_family == AF_INET6) {
             /* interface with IPv6 address */
-            address_item = g_malloc0(sizeof(*address_item));
-            address_item->value = g_malloc0(sizeof(*address_item->value));
             p = &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
             if (!inet_ntop(AF_INET6, p, addr6, sizeof(addr6))) {
                 error_setg_errno(errp, errno, "inet_ntop failed");
                 goto error;
             }
 
+            address_item = g_malloc0(sizeof(*address_item));
+            address_item->value = g_malloc0(sizeof(*address_item->value));
             address_item->value->ip_address = g_strdup(addr6);
             address_item->value->ip_address_type = GUEST_IP_ADDRESS_TYPE_IPV6;
 
