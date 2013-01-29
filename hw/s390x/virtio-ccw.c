@@ -662,12 +662,12 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
 
     if (vector < VIRTIO_PCI_QUEUE_MAX) {
         indicators = ldq_phys(dev->indicators);
-        set_bit(vector, &indicators);
+        indicators |= 1ULL << vector;
         stq_phys(dev->indicators, indicators);
     } else {
         vector = 0;
         indicators = ldq_phys(dev->indicators2);
-        set_bit(vector, &indicators);
+        indicators |= 1ULL << vector;
         stq_phys(dev->indicators2, indicators);
     }
 
