@@ -641,7 +641,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
          * RW [size in sectors] SPARSE "file-name.vmdk"
          */
         flat_offset = -1;
-        ret = sscanf(p, "%10s %" SCNd64 " %10s %511s %" SCNd64,
+        ret = sscanf(p, "%10s %" SCNd64 " %10s \"%511[^\n\r\"]\" %" SCNd64,
                 access, &sectors, type, fname, &flat_offset);
         if (ret < 4 || strcmp(access, "RW")) {
             goto next_line;
@@ -653,14 +653,6 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             return -EINVAL;
         }
 
-        /* trim the quotation marks around */
-        if (fname[0] == '"') {
-            memmove(fname, fname + 1, strlen(fname));
-            if (strlen(fname) <= 1 || fname[strlen(fname) - 1] != '"') {
-                return -EINVAL;
-            }
-            fname[strlen(fname) - 1] = '\0';
-        }
         if (sectors <= 0 ||
             (strcmp(type, "FLAT") && strcmp(type, "SPARSE")) ||
             (strcmp(access, "RW"))) {
