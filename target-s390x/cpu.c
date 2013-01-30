@@ -70,7 +70,7 @@ static void s390_cpu_reset(CPUState *s)
         log_cpu_state(env, 0);
     }
 
-    s390_del_running_cpu(env);
+    s390_del_running_cpu(cpu);
 
     scc->parent_reset(s);
 

@@ -130,8 +130,10 @@ static void s390_virtio_register_hcalls(void)
  */
 static unsigned s390_running_cpus;
 
-void s390_add_running_cpu(CPUS390XState *env)
+void s390_add_running_cpu(S390CPU *cpu)
 {
+    CPUS390XState *env = &cpu->env;
+
     if (env->halted) {
         s390_running_cpus++;
         env->halted = 0;
@@ -139,8 +141,10 @@ void s390_add_running_cpu(CPUS390XState *env)
     }
 }
 
-unsigned s390_del_running_cpu(CPUS390XState *env)
+unsigned s390_del_running_cpu(S390CPU *cpu)
 {
+    CPUS390XState *env = &cpu->env;
+
     if (env->halted == 0) {
         assert(s390_running_cpus >= 1);
         s390_running_cpus--;

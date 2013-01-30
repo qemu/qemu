@@ -570,12 +570,10 @@ static int handle_diag(CPUS390XState *env, struct kvm_run *run, int ipb_code)
 
 static int s390_cpu_restart(S390CPU *cpu)
 {
-    CPUS390XState *env = &cpu->env;
-
     kvm_s390_interrupt(cpu, KVM_S390_RESTART, 0);
-    s390_add_running_cpu(env);
+    s390_add_running_cpu(cpu);
     qemu_cpu_kick(CPU(cpu));
-    dprintf("DONE: SIGP cpu restart: %p\n", env);
+    dprintf("DONE: SIGP cpu restart: %p\n", &cpu->env);
     return 0;
 }
 
@@ -591,7 +589,7 @@ static int s390_cpu_initial_reset(S390CPU *cpu)
     CPUS390XState *env = &cpu->env;
     int i;
 
-    s390_del_running_cpu(env);
+    s390_del_running_cpu(cpu);
     if (kvm_vcpu_ioctl(CPU(cpu), KVM_S390_INITIAL_RESET, NULL) < 0) {
         perror("cannot init reset vcpu");
     }
@@ -701,7 +699,6 @@ static bool is_special_wait_psw(CPUState *cs)
 
 static int handle_intercept(S390CPU *cpu)
 {
-    CPUS390XState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     struct kvm_run *run = cs->kvm_run;
     int icpt_code = run->s390_sieic.icptcode;
@@ -714,14 +711,14 @@ static int handle_intercept(S390CPU *cpu)
             r = handle_instruction(cpu, run);
             break;
         case ICPT_WAITPSW:
-            if (s390_del_running_cpu(env) == 0 &&
+            if (s390_del_running_cpu(cpu) == 0 &&
                 is_special_wait_psw(cs)) {
                 qemu_system_shutdown_request();
             }
             r = EXCP_HALTED;
             break;
         case ICPT_CPU_STOP:
-            if (s390_del_running_cpu(env) == 0) {
+            if (s390_del_running_cpu(cpu) == 0) {
                 qemu_system_shutdown_request();
             }
             r = EXCP_HALTED;

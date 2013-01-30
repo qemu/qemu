@@ -375,8 +375,8 @@ static inline void kvm_s390_interrupt_internal(S390CPU *cpu, int type,
 }
 #endif
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
-void s390_add_running_cpu(CPUS390XState *env);
-unsigned s390_del_running_cpu(CPUS390XState *env);
+void s390_add_running_cpu(S390CPU *cpu);
+unsigned s390_del_running_cpu(S390CPU *cpu);
 
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
@@ -385,11 +385,11 @@ void s390_sclp_extint(uint32_t parm);
 extern const hwaddr virtio_size;
 
 #else
-static inline void s390_add_running_cpu(CPUS390XState *env)
+static inline void s390_add_running_cpu(S390CPU *cpu)
 {
 }
 
-static inline unsigned s390_del_running_cpu(CPUS390XState *env)
+static inline unsigned s390_del_running_cpu(S390CPU *cpu)
 {
     return 0;
 }
