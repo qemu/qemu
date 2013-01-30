@@ -236,28 +236,44 @@ NICState *qemu_new_nic(NetClientInfo *info,
                        void *opaque)
 {
     NetClientState *nc;
+    NetClientState **peers = conf->peers.ncs;
     NICState *nic;
+    int i;
 
     assert(info->type == NET_CLIENT_OPTIONS_KIND_NIC);
     assert(info->size >= sizeof(NICState));
 
-    nc = qemu_new_net_client(info, conf->peer, model, name);
+    nc = qemu_new_net_client(info, peers[0], model, name);
+    nc->queue_index = 0;
 
     nic = qemu_get_nic(nc);
     nic->conf = conf;
     nic->opaque = opaque;
 
+    for (i = 1; i < conf->queues; i++) {
+        qemu_net_client_setup(&nic->ncs[i], info, peers[i], model, nc->name,
+                              NULL);
+        nic->ncs[i].queue_index = i;
+    }
+
     return nic;
+}
+
+NetClientState *qemu_get_subqueue(NICState *nic, int queue_index)
+{
+    return &nic->ncs[queue_index];
 }
 
 NetClientState *qemu_get_queue(NICState *nic)
 {
-    return &nic->nc;
+    return qemu_get_subqueue(nic, 0);
 }
 
 NICState *qemu_get_nic(NetClientState *nc)
 {
-    return DO_UPCAST(NICState, nc, nc);
+    NetClientState *nc0 = nc - nc->queue_index;
+
+    return DO_UPCAST(NICState, ncs[0], nc0);
 }
 
 void *qemu_get_nic_opaque(NetClientState *nc)
@@ -271,9 +287,7 @@ static void qemu_cleanup_net_client(NetClientState *nc)
 {
     QTAILQ_REMOVE(&net_clients, nc, next);
 
-    if (nc->info->cleanup) {
-        nc->info->cleanup(nc);
-    }
+    nc->info->cleanup(nc);
 }
 
 static void qemu_free_net_client(NetClientState *nc)
@@ -293,6 +307,17 @@ static void qemu_free_net_client(NetClientState *nc)
 
 void qemu_del_net_client(NetClientState *nc)
 {
+    NetClientState *ncs[MAX_QUEUE_NUM];
+    int queues, i;
+
+    /* If the NetClientState belongs to a multiqueue backend, we will change all
+     * other NetClientStates also.
+     */
+    queues = qemu_find_net_clients_except(nc->name, ncs,
+                                          NET_CLIENT_OPTIONS_KIND_NIC,
+                                          MAX_QUEUE_NUM);
+    assert(queues != 0);
+
     /* If there is a peer NIC, delete and cleanup client, but do not free. */
     if (nc->peer && nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
         NICState *nic = qemu_get_nic(nc->peer);
@@ -300,34 +325,47 @@ void qemu_del_net_client(NetClientState *nc)
             return;
         }
         nic->peer_deleted = true;
-        /* Let NIC know peer is gone. */
-        nc->peer->link_down = true;
+
+        for (i = 0; i < queues; i++) {
+            ncs[i]->peer->link_down = true;
+        }
+
         if (nc->peer->info->link_status_changed) {
             nc->peer->info->link_status_changed(nc->peer);
         }
-        qemu_cleanup_net_client(nc);
+
+        for (i = 0; i < queues; i++) {
+            qemu_cleanup_net_client(ncs[i]);
+        }
+
         return;
     }
 
     assert(nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC);
 
-    qemu_cleanup_net_client(nc);
-    qemu_free_net_client(nc);
+    for (i = 0; i < queues; i++) {
+        qemu_cleanup_net_client(ncs[i]);
+        qemu_free_net_client(ncs[i]);
+    }
 }
 
 void qemu_del_nic(NICState *nic)
 {
-    NetClientState *nc = qemu_get_queue(nic);
+    int i, queues = nic->conf->queues;
+
     /* If this is a peer NIC and peer has already been deleted, free it now. */
-    if (nc->peer && nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-        NICState *nic = qemu_get_nic(nc);
-        if (nic->peer_deleted) {
-            qemu_free_net_client(nc->peer);
+    if (nic->peer_deleted) {
+        for (i = 0; i < queues; i++) {
+            qemu_free_net_client(qemu_get_subqueue(nic, i)->peer);
         }
     }
 
-    qemu_cleanup_net_client(nc);
-    qemu_free_net_client(nc);
+    for (i = queues - 1; i >= 0; i--) {
+        NetClientState *nc = qemu_get_subqueue(nic, i);
+
+        qemu_cleanup_net_client(nc);
+        qemu_free_net_client(nc);
+    }
 }
 
 void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
@@ -336,7 +374,9 @@ void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
 
     QTAILQ_FOREACH(nc, &net_clients, next) {
         if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-            func(qemu_get_nic(nc), opaque);
+            if (nc->queue_index == 0) {
+                func(qemu_get_nic(nc), opaque);
+            }
         }
     }
 }
@@ -911,8 +951,10 @@ void qmp_netdev_del(const char *id, Error **errp)
 
 void print_net_client(Monitor *mon, NetClientState *nc)
 {
-    monitor_printf(mon, "%s: type=%s,%s\n", nc->name,
-                   NetClientOptionsKind_lookup[nc->info->type], nc->info_str);
+    monitor_printf(mon, "%s: index=%d,type=%s,%s\n", nc->name,
+                   nc->queue_index,
+                   NetClientOptionsKind_lookup[nc->info->type],
+                   nc->info_str);
 }
 
 void do_info_network(Monitor *mon, const QDict *qdict)
@@ -943,20 +985,23 @@ void do_info_network(Monitor *mon, const QDict *qdict)
 
 void qmp_set_link(const char *name, bool up, Error **errp)
 {
-    NetClientState *nc = NULL;
+    NetClientState *ncs[MAX_QUEUE_NUM];
+    NetClientState *nc;
+    int queues, i;
 
-    QTAILQ_FOREACH(nc, &net_clients, next) {
-        if (!strcmp(nc->name, name)) {
-            goto done;
-        }
-    }
-done:
-    if (!nc) {
+    queues = qemu_find_net_clients_except(name, ncs,
+                                          NET_CLIENT_OPTIONS_KIND_MAX,
+                                          MAX_QUEUE_NUM);
+
+    if (queues == 0) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, name);
         return;
     }
+    nc = ncs[0];
 
-    nc->link_down = !up;
+    for (i = 0; i < queues; i++) {
+        ncs[i]->link_down = !up;
+    }
 
     if (nc->info->link_status_changed) {
         nc->info->link_status_changed(nc);
@@ -976,9 +1021,13 @@ done:
 
 void net_cleanup(void)
 {
-    NetClientState *nc, *next_vc;
+    NetClientState *nc;
 
-    QTAILQ_FOREACH_SAFE(nc, &net_clients, next, next_vc) {
+    /* We may del multiple entries during qemu_del_net_client(),
+     * so QTAILQ_FOREACH_SAFE() is also not safe here.
+     */
+    while (!QTAILQ_EMPTY(&net_clients)) {
+        nc = QTAILQ_FIRST(&net_clients);
         if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
             qemu_del_nic(qemu_get_nic(nc));
         } else {

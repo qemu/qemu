@@ -900,7 +900,7 @@ void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
     s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux */
 
     s->conf.macaddr = nd->macaddr;
-    s->conf.peer = nd->netdev;
+    s->conf.peers.ncs[0] = nd->netdev;
 
     s->nic = qemu_new_nic(&net_dp83932_info, &s->conf, nd->model, nd->name, s);
 

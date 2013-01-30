@@ -9,23 +9,31 @@
 #include "migration/vmstate.h"
 #include "qapi-types.h"
 
+#define MAX_QUEUE_NUM 1024
+
 struct MACAddr {
     uint8_t a[6];
 };
 
 /* qdev nic properties */
 
+typedef struct NICPeers {
+    NetClientState *ncs[MAX_QUEUE_NUM];
+} NICPeers;
+
 typedef struct NICConf {
     MACAddr macaddr;
-    NetClientState *peer;
+    NICPeers peers;
     int32_t bootindex;
+    int32_t queues;
 } NICConf;
 
 #define DEFINE_NIC_PROPERTIES(_state, _conf)                            \
     DEFINE_PROP_MACADDR("mac",   _state, _conf.macaddr),                \
-    DEFINE_PROP_VLAN("vlan",     _state, _conf.peer),                   \
-    DEFINE_PROP_NETDEV("netdev", _state, _conf.peer),                   \
+    DEFINE_PROP_VLAN("vlan",     _state, _conf.peers),                   \
+    DEFINE_PROP_NETDEV("netdev", _state, _conf.peers),                   \
     DEFINE_PROP_INT32("bootindex", _state, _conf.bootindex, -1)
+
 
 /* Net clients */
 
@@ -60,10 +68,11 @@ struct NetClientState {
     char info_str[256];
     unsigned receive_disabled : 1;
     NetClientDestructor *destructor;
+    unsigned int queue_index;
 };
 
 typedef struct NICState {
-    NetClientState nc;
+    NetClientState ncs[MAX_QUEUE_NUM];
     NICConf *conf;
     void *opaque;
     bool peer_deleted;
@@ -82,6 +91,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
                        const char *name,
                        void *opaque);
 void qemu_del_nic(NICState *nic);
+NetClientState *qemu_get_subqueue(NICState *nic, int queue_index);
 NetClientState *qemu_get_queue(NICState *nic);
 NICState *qemu_get_nic(NetClientState *nc);
 void *qemu_get_nic_opaque(NetClientState *nc);

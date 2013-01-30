@@ -31,7 +31,7 @@ extern PropertyInfo qdev_prop_pci_host_devaddr;
         .name      = (_name),                                    \
         .info      = &(_prop),                                   \
         .offset    = offsetof(_state, _field)                    \
-            + type_check(_type,typeof_field(_state, _field)),    \
+            + type_check(_type, typeof_field(_state, _field)),   \
         }
 #define DEFINE_PROP_DEFAULT(_name, _state, _field, _defval, _prop, _type) { \
         .name      = (_name),                                           \
@@ -77,9 +77,9 @@ extern PropertyInfo qdev_prop_pci_host_devaddr;
 #define DEFINE_PROP_STRING(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_string, char*)
 #define DEFINE_PROP_NETDEV(_n, _s, _f)             \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_netdev, NetClientState*)
+    DEFINE_PROP(_n, _s, _f, qdev_prop_netdev, NICPeers)
 #define DEFINE_PROP_VLAN(_n, _s, _f)             \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, NetClientState*)
+    DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, NICPeers)
 #define DEFINE_PROP_DRIVE(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockDriverState *)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
