@@ -257,7 +257,7 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
             len = desc.bytes;
             if (len < 2048) {
                 cpu_physical_memory_read(desc.buffer, buf, len);
-                qemu_send_packet(&s->nic->nc, buf, len);
+                qemu_send_packet(qemu_get_queue(s->nic), buf, len);
             }
             desc.cmdstat &= ~MP_ETH_TX_OWN;
             s->icr |= 1 << (MP_ETH_IRQ_TXLO_BIT - queue_index);

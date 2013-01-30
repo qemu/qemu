@@ -389,10 +389,10 @@ static void gem_init_register_masks(GemState *s)
  */
 static void phy_update_link(GemState *s)
 {
-    DB_PRINT("down %d\n", s->nic->nc.link_down);
+    DB_PRINT("down %d\n", qemu_get_queue(s->nic)->link_down);
 
     /* Autonegotiation status mirrors link status.  */
-    if (s->nic->nc.link_down) {
+    if (qemu_get_queue(s->nic)->link_down) {
         s->phy_regs[PHY_REG_STATUS] &= ~(PHY_REG_STATUS_ANEGCMPL |
                                          PHY_REG_STATUS_LINK);
         s->phy_regs[PHY_REG_INT_ST] |= PHY_REG_INT_ST_LINKC;
@@ -908,9 +908,10 @@ static void gem_transmit(GemState *s)
 
             /* Send the packet somewhere */
             if (s->phy_loop) {
-                gem_receive(&s->nic->nc, tx_packet, total_bytes);
+                gem_receive(qemu_get_queue(s->nic), tx_packet, total_bytes);
             } else {
-                qemu_send_packet(&s->nic->nc, tx_packet, total_bytes);
+                qemu_send_packet(qemu_get_queue(s->nic), tx_packet,
+                                 total_bytes);
             }
 
             /* Prepare for next packet */

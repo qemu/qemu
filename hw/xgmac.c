@@ -235,7 +235,7 @@ static void xgmac_enet_send(struct XgmacState *s)
         frame_size += len;
         if (bd.ctl_stat & 0x20000000) {
             /* Last buffer in frame.  */
-            qemu_send_packet(&s->nic->nc, frame, len);
+            qemu_send_packet(qemu_get_queue(s->nic), frame, len);
             ptr = frame;
             frame_size = 0;
             s->regs[DMA_STATUS] |= DMA_STATUS_TI | DMA_STATUS_NIS;
@@ -391,7 +391,7 @@ static int xgmac_enet_init(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xgmac_enet_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     s->regs[XGMAC_ADDR_HIGH(0)] = (s->conf.macaddr.a[5] << 8) |
                                    s->conf.macaddr.a[4];

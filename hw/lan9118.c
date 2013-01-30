@@ -341,7 +341,7 @@ static void lan9118_update(lan9118_state *s)
 
 static void lan9118_mac_changed(lan9118_state *s)
 {
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
 static void lan9118_reload_eeprom(lan9118_state *s)
@@ -373,7 +373,7 @@ static void phy_update_irq(lan9118_state *s)
 static void phy_update_link(lan9118_state *s)
 {
     /* Autonegotiation status mirrors link status.  */
-    if (s->nic->nc.link_down) {
+    if (qemu_get_queue(s->nic)->link_down) {
         s->phy_status &= ~0x0024;
         s->phy_int |= PHY_INT_DOWN;
     } else {
@@ -657,9 +657,9 @@ static void do_tx_packet(lan9118_state *s)
     /* FIXME: Honor TX disable, and allow queueing of packets.  */
     if (s->phy_control & 0x4000)  {
         /* This assumes the receive routine doesn't touch the VLANClient.  */
-        lan9118_receive(&s->nic->nc, s->txp->data, s->txp->len);
+        lan9118_receive(qemu_get_queue(s->nic), s->txp->data, s->txp->len);
     } else {
-        qemu_send_packet(&s->nic->nc, s->txp->data, s->txp->len);
+        qemu_send_packet(qemu_get_queue(s->nic), s->txp->data, s->txp->len);
     }
     s->txp->fifo_used = 0;
 
@@ -1335,7 +1335,7 @@ static int lan9118_init1(SysBusDevice *dev)
 
     s->nic = qemu_new_nic(&net_lan9118_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     s->eeprom[0] = 0xa5;
     for (i = 0; i < 6; i++) {
         s->eeprom[i + 1] = s->conf.macaddr.a[i];

@@ -234,6 +234,11 @@ NICState *qemu_new_nic(NetClientInfo *info,
     return nic;
 }
 
+NetClientState *qemu_get_queue(NICState *nic)
+{
+    return &nic->nc;
+}
+
 static void qemu_cleanup_net_client(NetClientState *nc)
 {
     QTAILQ_REMOVE(&net_clients, nc, next);

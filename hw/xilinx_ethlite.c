@@ -118,7 +118,7 @@ eth_write(void *opaque, hwaddr addr,
             D(qemu_log("%s addr=" TARGET_FMT_plx " val=%x\n",
                        __func__, addr * 4, value));
             if ((value & (CTRL_P | CTRL_S)) == CTRL_S) {
-                qemu_send_packet(&s->nic->nc,
+                qemu_send_packet(qemu_get_queue(s->nic),
                                  (void *) &s->regs[base],
                                  s->regs[base + R_TX_LEN0]);
                 D(qemu_log("eth_tx %d\n", s->regs[base + R_TX_LEN0]));
@@ -139,7 +139,7 @@ eth_write(void *opaque, hwaddr addr,
         case R_RX_CTRL0:
         case R_RX_CTRL1:
             if (!(value & CTRL_S)) {
-                qemu_flush_queued_packets(&s->nic->nc);
+                qemu_flush_queued_packets(qemu_get_queue(s->nic));
             }
         case R_TX_LEN0:
         case R_TX_LEN1:
@@ -228,7 +228,7 @@ static int xilinx_ethlite_init(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_ethlite_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     return 0;
 }
 

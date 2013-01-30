@@ -300,7 +300,8 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                     index -= NE2000_PMEM_SIZE;
                 /* fail safe: check range on the transmitted length  */
                 if (index + s->tcnt <= NE2000_PMEM_END) {
-                    qemu_send_packet(&s->nic->nc, s->mem + index, s->tcnt);
+                    qemu_send_packet(qemu_get_queue(s->nic), s->mem + index,
+                                     s->tcnt);
                 }
                 /* signal end of transfer */
                 s->tsr = ENTSR_PTX;
@@ -737,7 +738,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
 
     s->nic = qemu_new_nic(&net_ne2000_info, &s->c,
                           object_get_typename(OBJECT(pci_dev)), pci_dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 
     add_boot_device_path(s->c.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
 
@@ -750,7 +751,7 @@ static void pci_ne2000_exit(PCIDevice *pci_dev)
     NE2000State *s = &d->ne2000;
 
     memory_region_destroy(&s->io);
-    qemu_del_net_client(&s->nic->nc);
+    qemu_del_net_client(qemu_get_queue(s->nic));
 }
 
 static Property ne2000_properties[] = {

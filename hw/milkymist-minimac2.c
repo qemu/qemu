@@ -257,7 +257,7 @@ static void minimac2_tx(MilkymistMinimac2State *s)
     trace_milkymist_minimac2_tx_frame(txcount - 12);
 
     /* send packet, skipping preamble and sfd */
-    qemu_send_packet_raw(&s->nic->nc, buf + 8, txcount - 12);
+    qemu_send_packet_raw(qemu_get_queue(s->nic), buf + 8, txcount - 12);
 
     s->regs[R_TXCOUNT] = 0;
 
@@ -480,7 +480,7 @@ static int milkymist_minimac2_init(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_milkymist_minimac2_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     return 0;
 }

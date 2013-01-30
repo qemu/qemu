@@ -555,7 +555,7 @@ static int eth_tx_push(void *opaque, unsigned char *buf, int len, bool eop)
     struct fs_eth *eth = opaque;
 
     D(printf("%s buf=%p len=%d\n", __func__, buf, len));
-    qemu_send_packet(&eth->nic->nc, buf, len);
+    qemu_send_packet(qemu_get_queue(eth->nic), buf, len);
     return len;
 }
 
@@ -616,7 +616,8 @@ static int fs_eth_init(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_etraxfs_info, &s->conf,
                           object_get_typename(OBJECT(s)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+
 
     tdk_init(&s->phy);
     mdio_attach(&s->mdio_bus, &s->phy, s->phyaddr);

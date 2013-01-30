@@ -199,7 +199,7 @@ static int spapr_vlan_init(VIOsPAPRDevice *sdev)
 
     dev->nic = qemu_new_nic(&net_spapr_vlan_info, &dev->nicconf,
                             object_get_typename(OBJECT(sdev)), sdev->qdev.id, dev);
-    qemu_format_nic_info_str(&dev->nic->nc, dev->nicconf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 
     return 0;
 }
@@ -462,7 +462,7 @@ static target_ulong h_send_logical_lan(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         p += VLAN_BD_LEN(bufs[i]);
     }
 
-    qemu_send_packet(&dev->nic->nc, lbuf, total_len);
+    qemu_send_packet(qemu_get_queue(dev->nic), lbuf, total_len);
 
     return H_SUCCESS;
 }

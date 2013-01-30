@@ -339,7 +339,7 @@ static void open_eth_reset(void *opaque)
     s->rx_desc = 0x40;
 
     mii_reset(&s->mii);
-    open_eth_set_link_status(&s->nic->nc);
+    open_eth_set_link_status(qemu_get_queue(s->nic));
 }
 
 static int open_eth_can_receive(NetClientState *nc)
@@ -499,7 +499,7 @@ static void open_eth_start_xmit(OpenEthState *s, desc *tx)
     if (tx_len > len) {
         memset(buf + len, 0, tx_len - len);
     }
-    qemu_send_packet(&s->nic->nc, buf, tx_len);
+    qemu_send_packet(qemu_get_queue(s->nic), buf, tx_len);
 
     if (tx->len_flags & TXD_WR) {
         s->tx_desc = 0;
@@ -606,7 +606,7 @@ static void open_eth_mii_command_host_write(OpenEthState *s, uint32_t val)
         } else {
             s->regs[MIIRX_DATA] = 0xffff;
         }
-        SET_REGFIELD(s, MIISTATUS, LINKFAIL, s->nic->nc.link_down);
+        SET_REGFIELD(s, MIISTATUS, LINKFAIL, qemu_get_queue(s->nic)->link_down);
     }
 }
 

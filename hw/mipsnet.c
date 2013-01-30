@@ -173,7 +173,7 @@ static void mipsnet_ioport_write(void *opaque, hwaddr addr,
         if (s->tx_written == s->tx_count) {
             /* Send buffer. */
             trace_mipsnet_send(s->tx_count);
-            qemu_send_packet(&s->nic->nc, s->tx_buffer, s->tx_count);
+            qemu_send_packet(qemu_get_queue(s->nic), s->tx_buffer, s->tx_count);
             s->tx_count = s->tx_written = 0;
             s->intctl |= MIPSNET_INTCTL_TXDONE;
             s->busy = 1;
@@ -241,7 +241,7 @@ static int mipsnet_sysbus_init(SysBusDevice *dev)
 
     s->nic = qemu_new_nic(&net_mipsnet_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     return 0;
 }

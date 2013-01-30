@@ -339,6 +339,7 @@ static void do_receiver_disable(dp8393xState *s)
 
 static void do_transmit_packets(dp8393xState *s)
 {
+    NetClientState *nc = qemu_get_queue(s->nic);
     uint16_t data[12];
     int width, size;
     int tx_len, len;
@@ -408,13 +409,13 @@ static void do_transmit_packets(dp8393xState *s)
         if (s->regs[SONIC_RCR] & (SONIC_RCR_LB1 | SONIC_RCR_LB0)) {
             /* Loopback */
             s->regs[SONIC_TCR] |= SONIC_TCR_CRSL;
-            if (s->nic->nc.info->can_receive(&s->nic->nc)) {
+            if (nc->info->can_receive(nc)) {
                 s->loopback_packet = 1;
-                s->nic->nc.info->receive(&s->nic->nc, s->tx_buffer, tx_len);
+                nc->info->receive(nc, s->tx_buffer, tx_len);
             }
         } else {
             /* Transmit packet */
-            qemu_send_packet(&s->nic->nc, s->tx_buffer, tx_len);
+            qemu_send_packet(nc, s->tx_buffer, tx_len);
         }
         s->regs[SONIC_TCR] |= SONIC_TCR_PTX;
 
@@ -903,7 +904,7 @@ void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
 
     s->nic = qemu_new_nic(&net_dp83932_info, &s->conf, nd->model, nd->name, s);
 
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     qemu_register_reset(nic_reset, s);
     nic_reset(s);
 
