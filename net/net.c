@@ -182,17 +182,12 @@ static char *assign_name(NetClientState *nc1, const char *model)
     return g_strdup(buf);
 }
 
-NetClientState *qemu_new_net_client(NetClientInfo *info,
-                                    NetClientState *peer,
-                                    const char *model,
-                                    const char *name)
+static void qemu_net_client_setup(NetClientState *nc,
+                                  NetClientInfo *info,
+                                  NetClientState *peer,
+                                  const char *model,
+                                  const char *name)
 {
-    NetClientState *nc;
-
-    assert(info->size >= sizeof(NetClientState));
-
-    nc = g_malloc0(info->size);
-
     nc->info = info;
     nc->model = g_strdup(model);
     if (name) {
@@ -209,6 +204,20 @@ NetClientState *qemu_new_net_client(NetClientInfo *info,
     QTAILQ_INSERT_TAIL(&net_clients, nc, next);
 
     nc->send_queue = qemu_new_net_queue(nc);
+
+}
+
+NetClientState *qemu_new_net_client(NetClientInfo *info,
+                                    NetClientState *peer,
+                                    const char *model,
+                                    const char *name)
+{
+    NetClientState *nc;
+
+    assert(info->size >= sizeof(NetClientState));
+
+    nc = g_malloc0(info->size);
+    qemu_net_client_setup(nc, info, peer, model, name);
 
     return nc;
 }
