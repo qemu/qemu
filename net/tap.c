@@ -59,6 +59,7 @@ typedef struct TAPState {
     bool write_poll;
     bool using_vnet_hdr;
     bool has_ufo;
+    bool enabled;
     VHostNetState *vhost_net;
     unsigned host_vnet_hdr_len;
 } TAPState;
@@ -72,9 +73,9 @@ static void tap_writable(void *opaque);
 static void tap_update_fd_handler(TAPState *s)
 {
     qemu_set_fd_handler2(s->fd,
-                         s->read_poll  ? tap_can_send : NULL,
-                         s->read_poll  ? tap_send     : NULL,
-                         s->write_poll ? tap_writable : NULL,
+                         s->read_poll && s->enabled ? tap_can_send : NULL,
+                         s->read_poll && s->enabled ? tap_send     : NULL,
+                         s->write_poll && s->enabled ? tap_writable : NULL,
                          s);
 }
 
@@ -337,6 +338,7 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
     s->host_vnet_hdr_len = vnet_hdr ? sizeof(struct virtio_net_hdr) : 0;
     s->using_vnet_hdr = false;
     s->has_ufo = tap_probe_has_ufo(s->fd);
+    s->enabled = true;
     tap_set_offload(&s->nc, 0, 0, 0, 0, 0);
     /*
      * Make sure host header length is set correctly in tap:
@@ -734,4 +736,39 @@ VHostNetState *tap_get_vhost_net(NetClientState *nc)
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
     assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
     return s->vhost_net;
+}
+
+int tap_enable(NetClientState *nc)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    int ret;
+
+    if (s->enabled) {
+        return 0;
+    } else {
+        ret = tap_fd_enable(s->fd);
+        if (ret == 0) {
+            s->enabled = true;
+            tap_update_fd_handler(s);
+        }
+        return ret;
+    }
+}
+
+int tap_disable(NetClientState *nc)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    int ret;
+
+    if (s->enabled == 0) {
+        return 0;
+    } else {
+        ret = tap_fd_disable(s->fd);
+        if (ret == 0) {
+            qemu_purge_queued_packets(nc);
+            s->enabled = false;
+            tap_update_fd_handler(s);
+        }
+        return ret;
+    }
 }

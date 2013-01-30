@@ -764,3 +764,13 @@ void tap_set_vnet_hdr_len(NetClientState *nc, int len)
 {
     abort();
 }
+
+int tap_enable(NetClientState *nc)
+{
+    abort();
+}
+
+int tap_disable(NetClientState *nc)
+{
+    abort();
+}
