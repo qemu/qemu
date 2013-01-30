@@ -508,6 +508,27 @@ NetClientState *qemu_find_netdev(const char *id)
     return NULL;
 }
 
+int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
+                                 NetClientOptionsKind type, int max)
+{
+    NetClientState *nc;
+    int ret = 0;
+
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        if (nc->info->type == type) {
+            continue;
+        }
+        if (!strcmp(nc->name, id)) {
+            if (ret < max) {
+                ncs[ret] = nc;
+            }
+            ret++;
+        }
+    }
+
+    return ret;
+}
+
 static int nic_get_free_idx(void)
 {
     int index;

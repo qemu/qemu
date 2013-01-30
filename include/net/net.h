@@ -68,6 +68,8 @@ typedef struct NICState {
 } NICState;
 
 NetClientState *qemu_find_netdev(const char *id);
+int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
+                                 NetClientOptionsKind type, int max);
 NetClientState *qemu_new_net_client(NetClientInfo *info,
                                     NetClientState *peer,
                                     const char *model,
