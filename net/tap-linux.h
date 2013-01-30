@@ -29,6 +29,7 @@
 #define TUNSETSNDBUF   _IOW('T', 212, int)
 #define TUNGETVNETHDRSZ _IOR('T', 215, int)
 #define TUNSETVNETHDRSZ _IOW('T', 216, int)
+#define TUNSETQUEUE  _IOW('T', 217, int)
 
 #endif
 
@@ -36,6 +37,9 @@
 #define IFF_TAP		0x0002
 #define IFF_NO_PI	0x1000
 #define IFF_VNET_HDR	0x4000
+#define IFF_MULTI_QUEUE 0x0100
+#define IFF_ATTACH_QUEUE 0x0200
+#define IFF_DETACH_QUEUE 0x0400
 
 /* Features for GSO (TUNSETOFFLOAD). */
 #define TUN_F_CSUM	0x01	/* You can hand me unchecksummed packets. */
