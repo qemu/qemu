@@ -737,6 +737,8 @@ static void do_mchk_interrupt(CPUS390XState *env)
 
 void do_interrupt(CPUS390XState *env)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
+
     qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
                   __func__, env->exception_index, env->psw.addr);
 
@@ -755,12 +757,12 @@ void do_interrupt(CPUS390XState *env)
             /* code is already in env */
             env->exception_index = EXCP_EXT;
         } else if (env->pending_int & INTERRUPT_TOD) {
-            cpu_inject_ext(env, 0x1004, 0, 0);
+            cpu_inject_ext(cpu, 0x1004, 0, 0);
             env->exception_index = EXCP_EXT;
             env->pending_int &= ~INTERRUPT_EXT;
             env->pending_int &= ~INTERRUPT_TOD;
         } else if (env->pending_int & INTERRUPT_CPUTIMER) {
-            cpu_inject_ext(env, 0x1005, 0, 0);
+            cpu_inject_ext(cpu, 0x1005, 0, 0);
             env->exception_index = EXCP_EXT;
             env->pending_int &= ~INTERRUPT_EXT;
             env->pending_int &= ~INTERRUPT_TOD;
