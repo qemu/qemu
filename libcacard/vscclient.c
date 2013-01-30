@@ -503,8 +503,8 @@ main(
         command_line_options = vcard_emul_options(emul_args);
     }
 
-    qemu_host = strdup(argv[argc - 2]);
-    qemu_port = strdup(argv[argc - 1]);
+    qemu_host = g_strdup(argv[argc - 2]);
+    qemu_port = g_strdup(argv[argc - 1]);
     sock = connect_to_qemu(qemu_host, qemu_port);
     if (sock == -1) {
         fprintf(stderr, "error opening socket, exiting.\n");

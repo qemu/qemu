@@ -443,9 +443,7 @@ static int vdi_open(BlockDriverState *bs, int flags)
 
     bmap_size = header.blocks_in_image * sizeof(uint32_t);
     bmap_size = (bmap_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
-    if (bmap_size > 0) {
-        s->bmap = g_malloc(bmap_size * SECTOR_SIZE);
-    }
+    s->bmap = g_malloc(bmap_size * SECTOR_SIZE);
     ret = bdrv_read(bs->file, s->bmap_sector, (uint8_t *)s->bmap, bmap_size);
     if (ret < 0) {
         goto fail_free_bmap;

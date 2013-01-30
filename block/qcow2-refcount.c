@@ -737,11 +737,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
      * l1_table_offset when it is the current s->l1_table_offset! Be careful
      * when changing this! */
     if (l1_table_offset != s->l1_table_offset) {
-        if (l1_size2 != 0) {
-            l1_table = g_malloc0(align_offset(l1_size2, 512));
-        } else {
-            l1_table = NULL;
-        }
+        l1_table = g_malloc0(align_offset(l1_size2, 512));
         l1_allocated = 1;
         if (bdrv_pread(bs->file, l1_table_offset,
                        l1_table, l1_size2) != l1_size2)

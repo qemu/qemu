@@ -92,7 +92,7 @@ char **qmp_get_command_list(void)
     list_head = list = g_malloc0(count * sizeof(char *));
 
     QTAILQ_FOREACH(cmd, &qmp_commands, node) {
-        *list = strdup(cmd->name);
+        *list = g_strdup(cmd->name);
         list++;
     }
 

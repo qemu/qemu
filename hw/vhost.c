@@ -269,11 +269,8 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
     vhost_log_chunk_t *log;
     uint64_t log_base;
     int r, i;
-    if (size) {
-        log = g_malloc0(size * sizeof *log);
-    } else {
-        log = NULL;
-    }
+
+    log = g_malloc0(size * sizeof *log);
     log_base = (uint64_t)(unsigned long)log;
     r = ioctl(dev->control, VHOST_SET_LOG_BASE, &log_base);
     assert(r >= 0);

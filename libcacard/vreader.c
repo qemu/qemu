@@ -49,7 +49,7 @@ vreader_new(const char *name, VReaderEmul *private,
     reader = (VReader *)g_malloc(sizeof(VReader));
     qemu_mutex_init(&reader->lock);
     reader->reference_count = 1;
-    reader->name = name ? strdup(name) : NULL;
+    reader->name = g_strdup(name);
     reader->card = NULL;
     reader->id = (vreader_id_t)-1;
     reader->reader_private = private;

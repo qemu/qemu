@@ -142,7 +142,9 @@ static void cmos_get_date_time(struct tm *date)
     date->tm_mday = mday;
     date->tm_mon = mon - 1;
     date->tm_year = base_year + year - 1900;
+#ifndef __sun__
     date->tm_gmtoff = 0;
+#endif
 
     ts = mktime(date);
 }

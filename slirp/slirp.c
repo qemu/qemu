@@ -225,12 +225,8 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
         pstrcpy(slirp->client_hostname, sizeof(slirp->client_hostname),
                 vhostname);
     }
-    if (tftp_path) {
-        slirp->tftp_prefix = g_strdup(tftp_path);
-    }
-    if (bootfile) {
-        slirp->bootp_filename = g_strdup(bootfile);
-    }
+    slirp->tftp_prefix = g_strdup(tftp_path);
+    slirp->bootp_filename = g_strdup(bootfile);
     slirp->vdhcp_startaddr = vdhcp_start;
     slirp->vnameserver_addr = vnameserver;
 
