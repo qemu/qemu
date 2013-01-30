@@ -33,7 +33,8 @@
 #include <net/if_tap.h>
 #endif
 
-int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
+             int vnet_hdr_required, int mq_required)
 {
     int fd;
 #ifdef TAPGIFNAME

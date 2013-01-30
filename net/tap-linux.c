@@ -36,12 +36,12 @@
 
 #define PATH_NET_TUN "/dev/net/tun"
 
-int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
+             int vnet_hdr_required, int mq_required)
 {
     struct ifreq ifr;
     int fd, ret;
     int len = sizeof(struct virtio_net_hdr);
-    int mq_required = 0;
 
     TFR(fd = open(PATH_NET_TUN, O_RDWR));
     if (fd < 0) {

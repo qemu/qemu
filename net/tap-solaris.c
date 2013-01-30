@@ -173,7 +173,8 @@ static int tap_alloc(char *dev, size_t dev_size)
     return tap_fd;
 }
 
-int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
+             int vnet_hdr_required, int mq_required)
 {
     char  dev[10]="";
     int fd;

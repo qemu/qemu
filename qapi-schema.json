@@ -2533,6 +2533,7 @@
   'data': {
     '*ifname':     'str',
     '*fd':         'str',
+    '*fds':        'str',
     '*script':     'str',
     '*downscript': 'str',
     '*helper':     'str',
@@ -2540,7 +2541,9 @@
     '*vnet_hdr':   'bool',
     '*vhost':      'bool',
     '*vhostfd':    'str',
-    '*vhostforce': 'bool' } }
+    '*vhostfds':   'str',
+    '*vhostforce': 'bool',
+    '*queues':     'uint32'} }
 
 ##
 # @NetdevSocketOptions
