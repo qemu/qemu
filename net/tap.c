@@ -591,6 +591,73 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
     return fd;
 }
 
+static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
+                            const char *model, const char *name,
+                            const char *ifname, const char *script,
+                            const char *downscript, const char *vhostfdname,
+                            int vnet_hdr, int fd)
+{
+    TAPState *s;
+
+    s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
+    if (!s) {
+        close(fd);
+        return -1;
+    }
+
+    if (tap_set_sndbuf(s->fd, tap) < 0) {
+        return -1;
+    }
+
+    if (tap->has_fd) {
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str), "fd=%d", fd);
+    } else if (tap->has_helper) {
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str), "helper=%s",
+                 tap->helper);
+    } else {
+        const char *downscript;
+
+        downscript = tap->has_downscript ? tap->downscript :
+            DEFAULT_NETWORK_DOWN_SCRIPT;
+
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str),
+                 "ifname=%s,script=%s,downscript=%s", ifname, script,
+                 downscript);
+
+        if (strcmp(downscript, "no") != 0) {
+            snprintf(s->down_script, sizeof(s->down_script), "%s", downscript);
+            snprintf(s->down_script_arg, sizeof(s->down_script_arg),
+                     "%s", ifname);
+        }
+    }
+
+    if (tap->has_vhost ? tap->vhost :
+        vhostfdname || (tap->has_vhostforce && tap->vhostforce)) {
+        int vhostfd;
+
+        if (tap->has_vhostfd) {
+            vhostfd = monitor_handle_fd_param(cur_mon, vhostfdname);
+            if (vhostfd == -1) {
+                return -1;
+            }
+        } else {
+            vhostfd = -1;
+        }
+
+        s->vhost_net = vhost_net_init(&s->nc, vhostfd,
+                                      tap->has_vhostforce && tap->vhostforce);
+        if (!s->vhost_net) {
+            error_report("vhost-net requested but could not be initialized");
+            return -1;
+        }
+    } else if (tap->has_vhostfd) {
+        error_report("vhostfd= is not valid without vhost");
+        return -1;
+    }
+
+    return 0;
+}
+
 int net_init_tap(const NetClientOptions *opts, const char *name,
                  NetClientState *peer)
 {
@@ -598,10 +665,10 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
 
     int fd, vnet_hdr = 0;
     const char *model;
-    TAPState *s;
 
     /* for the no-fd, no-helper case */
     const char *script = NULL; /* suppress wrong "uninit'd use" gcc warning */
+    const char *downscript = NULL;
     char ifname[128];
 
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_TAP);
@@ -647,6 +714,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
 
     } else {
         script = tap->has_script ? tap->script : DEFAULT_NETWORK_SCRIPT;
+        downscript = tap->has_downscript ? tap->downscript :
+            DEFAULT_NETWORK_DOWN_SCRIPT;
         fd = net_tap_init(tap, &vnet_hdr, script, ifname, sizeof ifname);
         if (fd == -1) {
             return -1;
@@ -655,62 +724,9 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         model = "tap";
     }
 
-    s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
-    if (!s) {
-        close(fd);
-        return -1;
-    }
-
-    if (tap_set_sndbuf(s->fd, tap) < 0) {
-        return -1;
-    }
-
-    if (tap->has_fd) {
-        snprintf(s->nc.info_str, sizeof(s->nc.info_str), "fd=%d", fd);
-    } else if (tap->has_helper) {
-        snprintf(s->nc.info_str, sizeof(s->nc.info_str), "helper=%s",
-                 tap->helper);
-    } else {
-        const char *downscript;
-
-        downscript = tap->has_downscript ? tap->downscript :
-                                           DEFAULT_NETWORK_DOWN_SCRIPT;
-
-        snprintf(s->nc.info_str, sizeof(s->nc.info_str),
-                 "ifname=%s,script=%s,downscript=%s", ifname, script,
-                 downscript);
-
-        if (strcmp(downscript, "no") != 0) {
-            snprintf(s->down_script, sizeof(s->down_script), "%s", downscript);
-            snprintf(s->down_script_arg, sizeof(s->down_script_arg), "%s", ifname);
-        }
-    }
-
-    if (tap->has_vhost ? tap->vhost :
-        tap->has_vhostfd || (tap->has_vhostforce && tap->vhostforce)) {
-        int vhostfd;
-
-        if (tap->has_vhostfd) {
-            vhostfd = monitor_handle_fd_param(cur_mon, tap->vhostfd);
-            if (vhostfd == -1) {
-                return -1;
-            }
-        } else {
-            vhostfd = -1;
-        }
-
-        s->vhost_net = vhost_net_init(&s->nc, vhostfd,
-                                      tap->has_vhostforce && tap->vhostforce);
-        if (!s->vhost_net) {
-            error_report("vhost-net requested but could not be initialized");
-            return -1;
-        }
-    } else if (tap->has_vhostfd) {
-        error_report("vhostfd= is not valid without vhost");
-        return -1;
-    }
-
-    return 0;
+    return net_init_tap_one(tap, peer, model, name, ifname, script,
+                            downscript, tap->has_vhostfd ? tap->vhostfd : NULL,
+                            vnet_hdr, fd);
 }
 
 VHostNetState *tap_get_vhost_net(NetClientState *nc)
