@@ -130,14 +130,14 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
             return;
         }
         n->vhost_started = 1;
-        r = vhost_net_start(tap_get_vhost_net(nc->peer), &n->vdev);
+        r = vhost_net_start(&n->vdev, nc, 1);
         if (r < 0) {
             error_report("unable to start vhost net: %d: "
                          "falling back on userspace virtio", -r);
             n->vhost_started = 0;
         }
     } else {
-        vhost_net_stop(tap_get_vhost_net(nc->peer), &n->vdev);
+        vhost_net_stop(&n->vdev, nc, 1);
         n->vhost_started = 0;
     }
 }

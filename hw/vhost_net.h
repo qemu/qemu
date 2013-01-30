@@ -9,8 +9,8 @@ typedef struct vhost_net VHostNetState;
 VHostNetState *vhost_net_init(NetClientState *backend, int devfd, bool force);
 
 bool vhost_net_query(VHostNetState *net, VirtIODevice *dev);
-int vhost_net_start(VHostNetState *net, VirtIODevice *dev);
-void vhost_net_stop(VHostNetState *net, VirtIODevice *dev);
+int vhost_net_start(VirtIODevice *dev, NetClientState *ncs, int total_queues);
+void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs, int total_queues);
 
 void vhost_net_cleanup(VHostNetState *net);
 
