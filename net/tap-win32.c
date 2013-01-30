@@ -762,5 +762,5 @@ int tap_has_vnet_hdr_len(NetClientState *nc, int len)
 
 void tap_set_vnet_hdr_len(NetClientState *nc, int len)
 {
-    assert(0);
+    abort();
 }

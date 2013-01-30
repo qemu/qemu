@@ -164,7 +164,7 @@ int tap_probe_vnet_hdr_len(int fd, int len)
     if (ioctl(fd, TUNSETVNETHDRSZ, &orig) == -1) {
         fprintf(stderr, "TUNGETVNETHDRSZ ioctl() failed: %s. Exiting.\n",
                 strerror(errno));
-        assert(0);
+        abort();
         return -errno;
     }
     return 1;
@@ -175,7 +175,7 @@ void tap_fd_set_vnet_hdr_len(int fd, int len)
     if (ioctl(fd, TUNSETVNETHDRSZ, &len) == -1) {
         fprintf(stderr, "TUNSETVNETHDRSZ ioctl() failed: %s. Exiting.\n",
                 strerror(errno));
-        assert(0);
+        abort();
     }
 }
 
