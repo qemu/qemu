@@ -313,6 +313,10 @@ static QEMUMachine pc_i440fx_machine_v1_4 = {
             .driver   = "virtio-net-pci",\
             .property = "ctrl_mac_addr",\
             .value    = "off",      \
+        },{ \
+            .driver   = "virtio-net-pci", \
+            .property = "mq", \
+            .value    = "off", \
         }
 
 static QEMUMachine pc_machine_v1_3 = {
