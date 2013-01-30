@@ -59,3 +59,13 @@ void tap_fd_set_offload(int fd, int csum, int tso4,
                         int tso6, int ecn, int ufo)
 {
 }
+
+int tap_fd_enable(int fd)
+{
+    return -1;
+}
+
+int tap_fd_disable(int fd)
+{
+    return -1;
+}

@@ -41,6 +41,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
     struct ifreq ifr;
     int fd, ret;
     int len = sizeof(struct virtio_net_hdr);
+    int mq_required = 0;
 
     TFR(fd = open(PATH_NET_TUN, O_RDWR));
     if (fd < 0) {
@@ -74,6 +75,20 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
          * case the header size implicitly has the correct value.
          */
         ioctl(fd, TUNSETVNETHDRSZ, &len);
+    }
+
+    if (mq_required) {
+        unsigned int features;
+
+        if ((ioctl(fd, TUNGETFEATURES, &features) != 0) ||
+            !(features & IFF_MULTI_QUEUE)) {
+            error_report("multiqueue required, but no kernel "
+                         "support for IFF_MULTI_QUEUE available");
+            close(fd);
+            return -1;
+        } else {
+            ifr.ifr_flags |= IFF_MULTI_QUEUE;
+        }
     }
 
     if (ifname[0] != '\0')
@@ -209,3 +224,40 @@ void tap_fd_set_offload(int fd, int csum, int tso4,
         }
     }
 }
+
+/* Enable a specific queue of tap. */
+int tap_fd_enable(int fd)
+{
+    struct ifreq ifr;
+    int ret;
+
+    memset(&ifr, 0, sizeof(ifr));
+
+    ifr.ifr_flags = IFF_ATTACH_QUEUE;
+    ret = ioctl(fd, TUNSETQUEUE, (void *) &ifr);
+
+    if (ret != 0) {
+        error_report("could not enable queue");
+    }
+
+    return ret;
+}
+
+/* Disable a specific queue of tap/ */
+int tap_fd_disable(int fd)
+{
+    struct ifreq ifr;
+    int ret;
+
+    memset(&ifr, 0, sizeof(ifr));
+
+    ifr.ifr_flags = IFF_DETACH_QUEUE;
+    ret = ioctl(fd, TUNSETQUEUE, (void *) &ifr);
+
+    if (ret != 0) {
+        error_report("could not disable queue");
+    }
+
+    return ret;
+}
+

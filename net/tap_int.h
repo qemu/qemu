@@ -42,5 +42,7 @@ int tap_probe_vnet_hdr_len(int fd, int len);
 int tap_probe_has_ufo(int fd);
 void tap_fd_set_offload(int fd, int csum, int tso4, int tso6, int ecn, int ufo);
 void tap_fd_set_vnet_hdr_len(int fd, int len);
+int tap_fd_enable(int fd);
+int tap_fd_disable(int fd);
 
 #endif /* QEMU_TAP_H */
