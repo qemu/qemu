@@ -44,5 +44,6 @@ void tap_fd_set_offload(int fd, int csum, int tso4, int tso6, int ecn, int ufo);
 void tap_fd_set_vnet_hdr_len(int fd, int len);
 int tap_fd_enable(int fd);
 int tap_fd_disable(int fd);
+int tap_fd_get_ifname(int fd, char *ifname);
 
 #endif /* QEMU_TAP_H */

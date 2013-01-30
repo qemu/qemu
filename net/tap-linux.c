@@ -261,3 +261,16 @@ int tap_fd_disable(int fd)
     return ret;
 }
 
+int tap_fd_get_ifname(int fd, char *ifname)
+{
+    struct ifreq ifr;
+
+    if (ioctl(fd, TUNGETIFF, &ifr) != 0) {
+        error_report("TUNGETIFF ioctl() failed: %s",
+                     strerror(errno));
+        return -1;
+    }
+
+    pstrcpy(ifname, sizeof(ifr.ifr_name), ifr.ifr_name);
+    return 0;
+}

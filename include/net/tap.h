@@ -37,6 +37,7 @@ void tap_set_offload(NetClientState *nc, int csum, int tso4, int tso6, int ecn, 
 void tap_set_vnet_hdr_len(NetClientState *nc, int len);
 int tap_enable(NetClientState *nc);
 int tap_disable(NetClientState *nc);
+int tap_get_ifname(NetClientState *nc, char *ifname);
 
 int tap_get_fd(NetClientState *nc);
 

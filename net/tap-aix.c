@@ -69,3 +69,9 @@ int tap_fd_disable(int fd)
 {
     return -1;
 }
+
+int tap_fd_get_ifname(int fd, char *ifname)
+{
+    return -1;
+}
+
