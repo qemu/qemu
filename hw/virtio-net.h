@@ -43,6 +43,8 @@
 #define VIRTIO_NET_F_CTRL_RX    18      /* Control channel RX mode support */
 #define VIRTIO_NET_F_CTRL_VLAN  19      /* Control channel VLAN filtering */
 #define VIRTIO_NET_F_CTRL_RX_EXTRA 20   /* Extra RX mode control support */
+#define VIRTIO_NET_F_MQ         22      /* Device supports Receive Flow
+                                         * Steering */
 
 #define VIRTIO_NET_F_CTRL_MAC_ADDR   23 /* Set MAC address */
 
@@ -73,6 +75,8 @@ struct virtio_net_config
     uint8_t mac[ETH_ALEN];
     /* See VIRTIO_NET_F_STATUS and VIRTIO_NET_S_* above */
     uint16_t status;
+    /* Max virtqueue pairs supported by the device */
+    uint16_t max_virtqueue_pairs;
 } QEMU_PACKED;
 
 /*
@@ -147,6 +151,26 @@ struct virtio_net_ctrl_mac {
  #define VIRTIO_NET_CTRL_VLAN_ADD             0
  #define VIRTIO_NET_CTRL_VLAN_DEL             1
 
+/*
+ * Control Multiqueue
+ *
+ * The command VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET
+ * enables multiqueue, specifying the number of the transmit and
+ * receive queues that will be used. After the command is consumed and acked by
+ * the device, the device will not steer new packets on receive virtqueues
+ * other than specified nor read from transmit virtqueues other than specified.
+ * Accordingly, driver should not transmit new packets  on virtqueues other than
+ * specified.
+ */
+struct virtio_net_ctrl_mq {
+    uint16_t virtqueue_pairs;
+};
+
+#define VIRTIO_NET_CTRL_MQ   4
+ #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET        0
+ #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN        1
+ #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX        0x8000
+
 #define DEFINE_VIRTIO_NET_FEATURES(_state, _field) \
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field), \
         DEFINE_PROP_BIT("csum", _state, _field, VIRTIO_NET_F_CSUM, true), \
@@ -166,5 +190,7 @@ struct virtio_net_ctrl_mac {
         DEFINE_PROP_BIT("ctrl_rx", _state, _field, VIRTIO_NET_F_CTRL_RX, true), \
         DEFINE_PROP_BIT("ctrl_vlan", _state, _field, VIRTIO_NET_F_CTRL_VLAN, true), \
         DEFINE_PROP_BIT("ctrl_rx_extra", _state, _field, VIRTIO_NET_F_CTRL_RX_EXTRA, true), \
-        DEFINE_PROP_BIT("ctrl_mac_addr", _state, _field, VIRTIO_NET_F_CTRL_MAC_ADDR, true)
+        DEFINE_PROP_BIT("ctrl_mac_addr", _state, _field, VIRTIO_NET_F_CTRL_MAC_ADDR, true), \
+        DEFINE_PROP_BIT("mq", _state, _field, VIRTIO_NET_F_MQ, true)
+
 #endif
