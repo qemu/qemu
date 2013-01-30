@@ -408,7 +408,7 @@ static void net_disconnect(struct XenDevice *xendev)
         netdev->rxs = NULL;
     }
     if (netdev->nic) {
-        qemu_del_net_client(qemu_get_queue(netdev->nic));
+        qemu_del_nic(netdev->nic);
         netdev->nic = NULL;
     }
 }

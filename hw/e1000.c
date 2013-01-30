@@ -1249,7 +1249,7 @@ pci_e1000_uninit(PCIDevice *dev)
     qemu_free_timer(d->autoneg_timer);
     memory_region_destroy(&d->mmio);
     memory_region_destroy(&d->io);
-    qemu_del_net_client(qemu_get_queue(d->nic));
+    qemu_del_nic(d->nic);
 }
 
 static NetClientInfo net_e1000_info = {

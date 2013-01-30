@@ -77,6 +77,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
                        const char *model,
                        const char *name,
                        void *opaque);
+void qemu_del_nic(NICState *nic);
 NetClientState *qemu_get_queue(NICState *nic);
 NICState *qemu_get_nic(NetClientState *nc);
 void *qemu_get_nic_opaque(NetClientState *nc);

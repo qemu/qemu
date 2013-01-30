@@ -291,6 +291,15 @@ void qemu_del_net_client(NetClientState *nc)
         return;
     }
 
+    assert(nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC);
+
+    qemu_cleanup_net_client(nc);
+    qemu_free_net_client(nc);
+}
+
+void qemu_del_nic(NICState *nic)
+{
+    NetClientState *nc = qemu_get_queue(nic);
     /* If this is a peer NIC and peer has already been deleted, free it now. */
     if (nc->peer && nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
         NICState *nic = qemu_get_nic(nc);
@@ -931,7 +940,11 @@ void net_cleanup(void)
     NetClientState *nc, *next_vc;
 
     QTAILQ_FOREACH_SAFE(nc, &net_clients, next, next_vc) {
-        qemu_del_net_client(nc);
+        if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
+            qemu_del_nic(qemu_get_nic(nc));
+        } else {
+            qemu_del_net_client(nc);
+        }
     }
 }
 

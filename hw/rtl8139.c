@@ -3446,7 +3446,7 @@ static void pci_rtl8139_uninit(PCIDevice *dev)
     }
     qemu_del_timer(s->timer);
     qemu_free_timer(s->timer);
-    qemu_del_net_client(qemu_get_queue(s->nic));
+    qemu_del_nic(s->nic);
 }
 
 static void rtl8139_set_link_status(NetClientState *nc)

@@ -1330,7 +1330,7 @@ static void usb_net_handle_destroy(USBDevice *dev)
 
     /* TODO: remove the nd_table[] entry */
     rndis_clear_responsequeue(s);
-    qemu_del_net_client(qemu_get_queue(s->nic));
+    qemu_del_nic(s->nic);
 }
 
 static NetClientInfo net_usbnet_info = {

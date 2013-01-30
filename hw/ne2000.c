@@ -751,7 +751,7 @@ static void pci_ne2000_exit(PCIDevice *pci_dev)
     NE2000State *s = &d->ne2000;
 
     memory_region_destroy(&s->io);
-    qemu_del_net_client(qemu_get_queue(s->nic));
+    qemu_del_nic(s->nic);
 }
 
 static Property ne2000_properties[] = {
