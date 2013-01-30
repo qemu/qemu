@@ -35,6 +35,7 @@ typedef ssize_t (NetReceive)(NetClientState *, const uint8_t *, size_t);
 typedef ssize_t (NetReceiveIOV)(NetClientState *, const struct iovec *, int);
 typedef void (NetCleanup) (NetClientState *);
 typedef void (LinkStatusChanged)(NetClientState *);
+typedef void (NetClientDestructor)(NetClientState *);
 
 typedef struct NetClientInfo {
     NetClientOptionsKind type;
@@ -58,6 +59,7 @@ struct NetClientState {
     char *name;
     char info_str[256];
     unsigned receive_disabled : 1;
+    NetClientDestructor *destructor;
 };
 
 typedef struct NICState {

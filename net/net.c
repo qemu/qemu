@@ -182,11 +182,17 @@ static char *assign_name(NetClientState *nc1, const char *model)
     return g_strdup(buf);
 }
 
+static void qemu_net_client_destructor(NetClientState *nc)
+{
+    g_free(nc);
+}
+
 static void qemu_net_client_setup(NetClientState *nc,
                                   NetClientInfo *info,
                                   NetClientState *peer,
                                   const char *model,
-                                  const char *name)
+                                  const char *name,
+                                  NetClientDestructor *destructor)
 {
     nc->info = info;
     nc->model = g_strdup(model);
@@ -204,7 +210,7 @@ static void qemu_net_client_setup(NetClientState *nc,
     QTAILQ_INSERT_TAIL(&net_clients, nc, next);
 
     nc->send_queue = qemu_new_net_queue(nc);
-
+    nc->destructor = destructor;
 }
 
 NetClientState *qemu_new_net_client(NetClientInfo *info,
@@ -217,7 +223,8 @@ NetClientState *qemu_new_net_client(NetClientInfo *info,
     assert(info->size >= sizeof(NetClientState));
 
     nc = g_malloc0(info->size);
-    qemu_net_client_setup(nc, info, peer, model, name);
+    qemu_net_client_setup(nc, info, peer, model, name,
+                          qemu_net_client_destructor);
 
     return nc;
 }
@@ -279,7 +286,9 @@ static void qemu_free_net_client(NetClientState *nc)
     }
     g_free(nc->name);
     g_free(nc->model);
-    g_free(nc);
+    if (nc->destructor) {
+        nc->destructor(nc);
+    }
 }
 
 void qemu_del_net_client(NetClientState *nc)
