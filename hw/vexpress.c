@@ -271,7 +271,7 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
         cpu_model = "cortex-a15";
     }
 
-    *proc_id = 0x14000217;
+    *proc_id = 0x14000237;
 
     for (n = 0; n < smp_cpus; n++) {
         ARMCPU *cpu;
