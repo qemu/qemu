@@ -167,7 +167,7 @@ static const MemoryRegionOps eth_ops = {
 
 static int eth_can_rx(NetClientState *nc)
 {
-    struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct xlx_ethlite *s = qemu_get_nic_opaque(nc);
     unsigned int rxbase = s->rxbuf * (0x800 / 4);
 
     return !(s->regs[rxbase + R_RX_CTRL0] & CTRL_S);
@@ -175,7 +175,7 @@ static int eth_can_rx(NetClientState *nc)
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct xlx_ethlite *s = qemu_get_nic_opaque(nc);
     unsigned int rxbase = s->rxbuf * (0x800 / 4);
 
     /* DA filter.  */
@@ -201,7 +201,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 
 static void eth_cleanup(NetClientState *nc)
 {
-    struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct xlx_ethlite *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }

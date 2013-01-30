@@ -190,7 +190,7 @@ static int eth_can_receive(NetClientState *nc)
 
 static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    mv88w8618_eth_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    mv88w8618_eth_state *s = qemu_get_nic_opaque(nc);
     uint32_t desc_addr;
     mv88w8618_rx_desc desc;
     int i;
@@ -369,7 +369,7 @@ static const MemoryRegionOps mv88w8618_eth_ops = {
 
 static void eth_cleanup(NetClientState *nc)
 {
-    mv88w8618_eth_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    mv88w8618_eth_state *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }

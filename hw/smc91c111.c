@@ -631,7 +631,7 @@ static uint32_t smc91c111_readl(void *opaque, hwaddr offset)
 
 static int smc91c111_can_receive(NetClientState *nc)
 {
-    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    smc91c111_state *s = qemu_get_nic_opaque(nc);
 
     if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST))
         return 1;
@@ -642,7 +642,7 @@ static int smc91c111_can_receive(NetClientState *nc)
 
 static ssize_t smc91c111_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    smc91c111_state *s = qemu_get_nic_opaque(nc);
     int status;
     int packetsize;
     uint32_t crc;
@@ -731,7 +731,7 @@ static const MemoryRegionOps smc91c111_mem_ops = {
 
 static void smc91c111_cleanup(NetClientState *nc)
 {
-    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    smc91c111_state *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }

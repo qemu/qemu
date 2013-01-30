@@ -167,7 +167,7 @@ static int ne2000_buffer_full(NE2000State *s)
 
 int ne2000_can_receive(NetClientState *nc)
 {
-    NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    NE2000State *s = qemu_get_nic_opaque(nc);
 
     if (s->cmd & E8390_STOP)
         return 1;
@@ -178,7 +178,7 @@ int ne2000_can_receive(NetClientState *nc)
 
 ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 {
-    NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    NE2000State *s = qemu_get_nic_opaque(nc);
     int size = size_;
     uint8_t *p;
     unsigned int total_len, next, avail, len, index, mcast_idx;
@@ -706,7 +706,7 @@ void ne2000_setup_io(NE2000State *s, unsigned size)
 
 static void ne2000_cleanup(NetClientState *nc)
 {
-    NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    NE2000State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }

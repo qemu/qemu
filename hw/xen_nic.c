@@ -236,7 +236,7 @@ static void net_rx_response(struct XenNetDev *netdev,
 
 static int net_rx_ok(NetClientState *nc)
 {
-    struct XenNetDev *netdev = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XenNetDev *netdev = qemu_get_nic_opaque(nc);
     RING_IDX rc, rp;
 
     if (netdev->xendev.be_state != XenbusStateConnected) {
@@ -257,7 +257,7 @@ static int net_rx_ok(NetClientState *nc)
 
 static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct XenNetDev *netdev = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XenNetDev *netdev = qemu_get_nic_opaque(nc);
     netif_rx_request_t rxreq;
     RING_IDX rc, rp;
     void *page;

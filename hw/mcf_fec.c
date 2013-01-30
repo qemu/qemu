@@ -353,13 +353,13 @@ static void mcf_fec_write(void *opaque, hwaddr addr,
 
 static int mcf_fec_can_receive(NetClientState *nc)
 {
-    mcf_fec_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    mcf_fec_state *s = qemu_get_nic_opaque(nc);
     return s->rx_enabled;
 }
 
 static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    mcf_fec_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    mcf_fec_state *s = qemu_get_nic_opaque(nc);
     mcf_fec_bd bd;
     uint32_t flags = 0;
     uint32_t addr;
@@ -441,7 +441,7 @@ static const MemoryRegionOps mcf_fec_ops = {
 
 static void mcf_fec_cleanup(NetClientState *nc)
 {
-    mcf_fec_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    mcf_fec_state *s = qemu_get_nic_opaque(nc);
 
     memory_region_del_subregion(s->sysmem, &s->iomem);
     memory_region_destroy(&s->iomem);

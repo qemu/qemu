@@ -227,7 +227,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
 
     nc = qemu_new_net_client(info, conf->peer, model, name);
 
-    nic = DO_UPCAST(NICState, nc, nc);
+    nic = qemu_get_nic(nc);
     nic->conf = conf;
     nic->opaque = opaque;
 
@@ -237,6 +237,18 @@ NICState *qemu_new_nic(NetClientInfo *info,
 NetClientState *qemu_get_queue(NICState *nic)
 {
     return &nic->nc;
+}
+
+NICState *qemu_get_nic(NetClientState *nc)
+{
+    return DO_UPCAST(NICState, nc, nc);
+}
+
+void *qemu_get_nic_opaque(NetClientState *nc)
+{
+    NICState *nic = qemu_get_nic(nc);
+
+    return nic->opaque;
 }
 
 static void qemu_cleanup_net_client(NetClientState *nc)
@@ -265,7 +277,7 @@ void qemu_del_net_client(NetClientState *nc)
 {
     /* If there is a peer NIC, delete and cleanup client, but do not free. */
     if (nc->peer && nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-        NICState *nic = DO_UPCAST(NICState, nc, nc->peer);
+        NICState *nic = qemu_get_nic(nc->peer);
         if (nic->peer_deleted) {
             return;
         }
@@ -281,7 +293,7 @@ void qemu_del_net_client(NetClientState *nc)
 
     /* If this is a peer NIC and peer has already been deleted, free it now. */
     if (nc->peer && nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-        NICState *nic = DO_UPCAST(NICState, nc, nc);
+        NICState *nic = qemu_get_nic(nc);
         if (nic->peer_deleted) {
             qemu_free_net_client(nc->peer);
         }
@@ -297,7 +309,7 @@ void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
 
     QTAILQ_FOREACH(nc, &net_clients, next) {
         if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-            func(DO_UPCAST(NICState, nc, nc), opaque);
+            func(qemu_get_nic(nc), opaque);
         }
     }
 }

@@ -617,7 +617,7 @@ static const MemoryRegionOps enet_ops = {
 
 static int eth_can_rx(NetClientState *nc)
 {
-    struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
 
     /* RX enabled?  */
     return !axienet_rx_resetting(s) && axienet_rx_enabled(s);
@@ -640,7 +640,7 @@ static int enet_match_addr(const uint8_t *buf, uint32_t f0, uint32_t f1)
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
                                               0xff, 0xff, 0xff};
     static const unsigned char sa_ipmcast[3] = {0x01, 0x00, 0x52};
@@ -785,7 +785,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 static void eth_cleanup(NetClientState *nc)
 {
     /* FIXME.  */
-    struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
     g_free(s->rxmem);
     g_free(s);
 }

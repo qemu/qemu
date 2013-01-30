@@ -748,7 +748,7 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
 static void
 e1000_set_link_status(NetClientState *nc)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
     uint32_t old_status = s->mac_reg[STATUS];
 
     if (nc->link_down) {
@@ -782,7 +782,7 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
 static int
 e1000_can_receive(NetClientState *nc)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
 
     return (s->mac_reg[RCTL] & E1000_RCTL_EN) && e1000_has_rxbufs(s, 1);
 }
@@ -798,7 +798,7 @@ static uint64_t rx_desc_base(E1000State *s)
 static ssize_t
 e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
     struct e1000_rx_desc desc;
     dma_addr_t base;
     unsigned int n, rdt;
@@ -1235,7 +1235,7 @@ e1000_mmio_setup(E1000State *d)
 static void
 e1000_cleanup(NetClientState *nc)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }

@@ -386,7 +386,7 @@ static void phy_update_link(lan9118_state *s)
 
 static void lan9118_set_link(NetClientState *nc)
 {
-    phy_update_link(DO_UPCAST(NICState, nc, nc)->opaque);
+    phy_update_link(qemu_get_nic_opaque(nc));
 }
 
 static void phy_reset(lan9118_state *s)
@@ -512,7 +512,7 @@ static int lan9118_filter(lan9118_state *s, const uint8_t *addr)
 static ssize_t lan9118_receive(NetClientState *nc, const uint8_t *buf,
                                size_t size)
 {
-    lan9118_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    lan9118_state *s = qemu_get_nic_opaque(nc);
     int fifo_len;
     int offset;
     int src_pos;
@@ -1306,7 +1306,7 @@ static const MemoryRegionOps lan9118_16bit_mem_ops = {
 
 static void lan9118_cleanup(NetClientState *nc)
 {
-    lan9118_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    lan9118_state *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }

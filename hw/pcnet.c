@@ -1006,7 +1006,7 @@ static int pcnet_tdte_poll(PCNetState *s)
 
 int pcnet_can_receive(NetClientState *nc)
 {
-    PCNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    PCNetState *s = qemu_get_nic_opaque(nc);
     if (CSR_STOP(s) || CSR_SPND(s))
         return 0;
 
@@ -1017,7 +1017,7 @@ int pcnet_can_receive(NetClientState *nc)
 
 ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 {
-    PCNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    PCNetState *s = qemu_get_nic_opaque(nc);
     int is_padr = 0, is_bcast = 0, is_ladr = 0;
     uint8_t buf1[60];
     int remaining;
@@ -1199,7 +1199,7 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 
 void pcnet_set_link_status(NetClientState *nc)
 {
-    PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
+    PCNetState *d = qemu_get_nic_opaque(nc);
 
     d->lnkst = nc->link_down ? 0 : 0x40;
 }

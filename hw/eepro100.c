@@ -1619,7 +1619,7 @@ static const MemoryRegionOps eepro100_ops = {
 
 static int nic_can_receive(NetClientState *nc)
 {
-    EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    EEPRO100State *s = qemu_get_nic_opaque(nc);
     TRACE(RXTX, logout("%p\n", s));
     return get_ru_state(s) == ru_ready;
 #if 0
@@ -1633,7 +1633,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
      * - Magic packets should set bit 30 in power management driver register.
      * - Interesting packets should set bit 29 in power management driver register.
      */
-    EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    EEPRO100State *s = qemu_get_nic_opaque(nc);
     uint16_t rfd_status = 0xa000;
 #if defined(CONFIG_PAD_RECEIVED_FRAMES)
     uint8_t min_buf[60];
@@ -1835,7 +1835,7 @@ static const VMStateDescription vmstate_eepro100 = {
 
 static void nic_cleanup(NetClientState *nc)
 {
-    EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    EEPRO100State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }

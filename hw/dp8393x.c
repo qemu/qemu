@@ -676,7 +676,7 @@ static const MemoryRegionOps dp8393x_ops = {
 
 static int nic_can_receive(NetClientState *nc)
 {
-    dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    dp8393xState *s = qemu_get_nic_opaque(nc);
 
     if (!(s->regs[SONIC_CR] & SONIC_CR_RXEN))
         return 0;
@@ -725,7 +725,7 @@ static int receive_filter(dp8393xState *s, const uint8_t * buf, int size)
 
 static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
 {
-    dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    dp8393xState *s = qemu_get_nic_opaque(nc);
     uint16_t data[10];
     int packet_type;
     uint32_t available, address;
@@ -861,7 +861,7 @@ static void nic_reset(void *opaque)
 
 static void nic_cleanup(NetClientState *nc)
 {
-    dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    dp8393xState *s = qemu_get_nic_opaque(nc);
 
     memory_region_del_subregion(s->address_space, &s->mmio);
     memory_region_destroy(&s->mmio);

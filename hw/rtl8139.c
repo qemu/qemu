@@ -786,7 +786,7 @@ static bool rtl8139_cp_rx_valid(RTL8139State *s)
 
 static int rtl8139_can_receive(NetClientState *nc)
 {
-    RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    RTL8139State *s = qemu_get_nic_opaque(nc);
     int avail;
 
     /* Receive (drop) packets if card is disabled.  */
@@ -808,7 +808,7 @@ static int rtl8139_can_receive(NetClientState *nc)
 
 static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t size_, int do_interrupt)
 {
-    RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    RTL8139State *s = qemu_get_nic_opaque(nc);
     /* size is the length of the buffer passed to the driver */
     int size = size_;
     const uint8_t *dot1q_buf = NULL;
@@ -3429,7 +3429,7 @@ static void rtl8139_timer(void *opaque)
 
 static void rtl8139_cleanup(NetClientState *nc)
 {
-    RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    RTL8139State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -3451,7 +3451,7 @@ static void pci_rtl8139_uninit(PCIDevice *dev)
 
 static void rtl8139_set_link_status(NetClientState *nc)
 {
-    RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    RTL8139State *s = qemu_get_nic_opaque(nc);
 
     if (nc->link_down) {
         s->BasicModeStatus &= ~0x04;

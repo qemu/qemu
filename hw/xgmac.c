@@ -310,7 +310,7 @@ static const MemoryRegionOps enet_mem_ops = {
 
 static int eth_can_rx(NetClientState *nc)
 {
-    struct XgmacState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XgmacState *s = qemu_get_nic_opaque(nc);
 
     /* RX enabled?  */
     return s->regs[DMA_CONTROL] & DMA_CONTROL_SR;
@@ -318,7 +318,7 @@ static int eth_can_rx(NetClientState *nc)
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct XgmacState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XgmacState *s = qemu_get_nic_opaque(nc);
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
                                               0xff, 0xff, 0xff};
     int unicast, broadcast, multicast;
@@ -366,7 +366,7 @@ out:
 
 static void eth_cleanup(NetClientState *nc)
 {
-    struct XgmacState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XgmacState *s = qemu_get_nic_opaque(nc);
     s->nic = NULL;
 }
 

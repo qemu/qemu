@@ -1261,7 +1261,7 @@ static void usb_net_handle_data(USBDevice *dev, USBPacket *p)
 
 static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    USBNetState *s = qemu_get_nic_opaque(nc);
     uint8_t *in_buf = s->in_buf;
     size_t total_size = size;
 
@@ -1308,7 +1308,7 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
 
 static int usbnet_can_receive(NetClientState *nc)
 {
-    USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    USBNetState *s = qemu_get_nic_opaque(nc);
 
     if (is_rndis(s) && s->rndis_state != RNDIS_DATA_INITIALIZED) {
         return 1;
@@ -1319,7 +1319,7 @@ static int usbnet_can_receive(NetClientState *nc)
 
 static void usbnet_cleanup(NetClientState *nc)
 {
-    USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    USBNetState *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }

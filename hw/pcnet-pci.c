@@ -266,7 +266,7 @@ static void pci_physical_memory_read(void *dma_opaque, hwaddr addr,
 
 static void pci_pcnet_cleanup(NetClientState *nc)
 {
-    PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
+    PCNetState *d = qemu_get_nic_opaque(nc);
 
     pcnet_common_cleanup(d);
 }

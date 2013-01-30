@@ -409,7 +409,7 @@ static int gem_can_receive(NetClientState *nc)
 {
     GemState *s;
 
-    s = DO_UPCAST(NICState, nc, nc)->opaque;
+    s = qemu_get_nic_opaque(nc);
 
     DB_PRINT("\n");
 
@@ -612,7 +612,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     uint8_t    rxbuf[2048];
     uint8_t   *rxbuf_ptr;
 
-    s = DO_UPCAST(NICState, nc, nc)->opaque;
+    s = qemu_get_nic_opaque(nc);
 
     /* Do nothing if receive is not enabled. */
     if (!(s->regs[GEM_NWCTRL] & GEM_NWCTRL_RXENA)) {
@@ -1152,7 +1152,7 @@ static const MemoryRegionOps gem_ops = {
 
 static void gem_cleanup(NetClientState *nc)
 {
-    GemState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    GemState *s = qemu_get_nic_opaque(nc);
 
     DB_PRINT("\n");
     s->nic = NULL;
@@ -1161,7 +1161,7 @@ static void gem_cleanup(NetClientState *nc)
 static void gem_set_link(NetClientState *nc)
 {
     DB_PRINT("\n");
-    phy_update_link(DO_UPCAST(NICState, nc, nc)->opaque);
+    phy_update_link(qemu_get_nic_opaque(nc));
 }
 
 static NetClientInfo net_gem_info = {

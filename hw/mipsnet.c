@@ -64,7 +64,7 @@ static int mipsnet_buffer_full(MIPSnetState *s)
 
 static int mipsnet_can_receive(NetClientState *nc)
 {
-    MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    MIPSnetState *s = qemu_get_nic_opaque(nc);
 
     if (s->busy)
         return 0;
@@ -73,7 +73,7 @@ static int mipsnet_can_receive(NetClientState *nc)
 
 static ssize_t mipsnet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    MIPSnetState *s = qemu_get_nic_opaque(nc);
 
     trace_mipsnet_receive(size);
     if (!mipsnet_can_receive(nc))
@@ -211,7 +211,7 @@ static const VMStateDescription vmstate_mipsnet = {
 
 static void mipsnet_cleanup(NetClientState *nc)
 {
-    MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    MIPSnetState *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }

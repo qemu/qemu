@@ -523,7 +523,7 @@ static int eth_can_receive(NetClientState *nc)
 static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     unsigned char sa_bcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-    struct fs_eth *eth = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct fs_eth *eth = qemu_get_nic_opaque(nc);
     int use_ma0 = eth->regs[RW_REC_CTRL] & 1;
     int use_ma1 = eth->regs[RW_REC_CTRL] & 2;
     int r_bcast = eth->regs[RW_REC_CTRL] & 8;
@@ -561,7 +561,7 @@ static int eth_tx_push(void *opaque, unsigned char *buf, int len, bool eop)
 
 static void eth_set_link(NetClientState *nc)
 {
-    struct fs_eth *eth = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct fs_eth *eth = qemu_get_nic_opaque(nc);
     D(printf("%s %d\n", __func__, nc->link_down));
     eth->phy.link = !nc->link_down;
 }
@@ -578,7 +578,7 @@ static const MemoryRegionOps eth_ops = {
 
 static void eth_cleanup(NetClientState *nc)
 {
-    struct fs_eth *eth = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct fs_eth *eth = qemu_get_nic_opaque(nc);
 
     /* Disconnect the client.  */
     eth->dma_out->client.push = NULL;

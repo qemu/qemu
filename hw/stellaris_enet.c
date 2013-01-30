@@ -80,7 +80,7 @@ static void stellaris_enet_update(stellaris_enet_state *s)
 /* TODO: Implement MAC address filtering.  */
 static ssize_t stellaris_enet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    stellaris_enet_state *s = qemu_get_nic_opaque(nc);
     int n;
     uint8_t *p;
     uint32_t crc;
@@ -122,7 +122,7 @@ static ssize_t stellaris_enet_receive(NetClientState *nc, const uint8_t *buf, si
 
 static int stellaris_enet_can_receive(NetClientState *nc)
 {
-    stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    stellaris_enet_state *s = qemu_get_nic_opaque(nc);
 
     if ((s->rctl & SE_RCTL_RXEN) == 0)
         return 1;
@@ -384,7 +384,7 @@ static int stellaris_enet_load(QEMUFile *f, void *opaque, int version_id)
 
 static void stellaris_enet_cleanup(NetClientState *nc)
 {
-    stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    stellaris_enet_state *s = qemu_get_nic_opaque(nc);
 
     unregister_savevm(&s->busdev.qdev, "stellaris_enet", s);
 
