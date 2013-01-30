@@ -21,22 +21,22 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "block/block.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
-#include "boards.h"
+#include "hw/boards.h"
 #include "monitor/monitor.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "hw/virtio.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
 
-#include "hw/s390-virtio-bus.h"
+#include "hw/s390x/s390-virtio-bus.h"
 #include "hw/s390x/sclp.h"
-#include "hw/s390-virtio.h"
+#include "hw/s390x/s390-virtio.h"
 
 //#define DEBUG_S390
 
@@ -86,6 +86,9 @@ static int s390_virtio_hcall_reset(const uint64_t *args)
     VirtIOS390Device *dev;
 
     dev = s390_virtio_bus_find_mem(s390_bus, mem);
+    if (dev == NULL) {
+        return -EINVAL;
+    }
     virtio_reset(dev->vdev);
     stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
     s390_virtio_device_sync(dev);
@@ -147,13 +150,73 @@ unsigned s390_del_running_cpu(CPUS390XState *env)
     return s390_running_cpus;
 }
 
+void s390_init_ipl_dev(const char *kernel_filename,
+                       const char *kernel_cmdline,
+                       const char *initrd_filename)
+{
+    DeviceState *dev;
+
+    dev  = qdev_create(NULL, "s390-ipl");
+    if (kernel_filename) {
+        qdev_prop_set_string(dev, "kernel", kernel_filename);
+    }
+    if (initrd_filename) {
+        qdev_prop_set_string(dev, "initrd", initrd_filename);
+    }
+    qdev_prop_set_string(dev, "cmdline", kernel_cmdline);
+    qdev_init_nofail(dev);
+}
+
+void s390_init_cpus(const char *cpu_model, uint8_t *storage_keys)
+{
+    int i;
+
+    if (cpu_model == NULL) {
+        cpu_model = "host";
+    }
+
+    ipi_states = g_malloc(sizeof(S390CPU *) * smp_cpus);
+
+    for (i = 0; i < smp_cpus; i++) {
+        S390CPU *cpu;
+
+        cpu = cpu_s390x_init(cpu_model);
+
+        ipi_states[i] = cpu;
+        cpu->env.halted = 1;
+        cpu->env.exception_index = EXCP_HLT;
+        cpu->env.storage_keys = storage_keys;
+    }
+}
+
+
+void s390_create_virtio_net(BusState *bus, const char *name)
+{
+    int i;
+
+    for (i = 0; i < nb_nics; i++) {
+        NICInfo *nd = &nd_table[i];
+        DeviceState *dev;
+
+        if (!nd->model) {
+            nd->model = g_strdup("virtio");
+        }
+
+        if (strcmp(nd->model, "virtio")) {
+            fprintf(stderr, "S390 only supports VirtIO nics\n");
+            exit(1);
+        }
+
+        dev = qdev_create(bus, name);
+        qdev_set_nic_properties(dev, nd);
+        qdev_init_nofail(dev);
+    }
+}
+
 /* PC hardware initialisation */
 static void s390_init(QEMUMachineInitArgs *args)
 {
     ram_addr_t my_ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    CPUS390XState *env = NULL;
-    DeviceState *dev;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     int shift = 0;
@@ -161,7 +224,6 @@ static void s390_init(QEMUMachineInitArgs *args)
     void *virtio_region;
     hwaddr virtio_region_len;
     hwaddr virtio_region_start;
-    int i;
 
     /* s390x ram size detection needs a 16bit multiplier + an increment. So
        guests > 64GB can be specified in 2MB steps etc. */
@@ -176,15 +238,8 @@ static void s390_init(QEMUMachineInitArgs *args)
     /* get a BUS */
     s390_bus = s390_virtio_bus_init(&my_ram_size);
     s390_sclp_init();
-    dev  = qdev_create(NULL, "s390-ipl");
-    if (args->kernel_filename) {
-        qdev_prop_set_string(dev, "kernel", args->kernel_filename);
-    }
-    if (args->initrd_filename) {
-        qdev_prop_set_string(dev, "initrd", args->initrd_filename);
-    }
-    qdev_prop_set_string(dev, "cmdline", args->kernel_cmdline);
-    qdev_init_nofail(dev);
+    s390_init_ipl_dev(args->kernel_filename, args->kernel_cmdline,
+                      args->initrd_filename);
 
     /* register hypercalls */
     s390_virtio_register_hcalls();
@@ -207,46 +262,10 @@ static void s390_init(QEMUMachineInitArgs *args)
     storage_keys = g_malloc0(my_ram_size / TARGET_PAGE_SIZE);
 
     /* init CPUs */
-    if (cpu_model == NULL) {
-        cpu_model = "host";
-    }
-
-    ipi_states = g_malloc(sizeof(S390CPU *) * smp_cpus);
-
-    for (i = 0; i < smp_cpus; i++) {
-        S390CPU *cpu;
-        CPUS390XState *tmp_env;
-
-        cpu = cpu_s390x_init(cpu_model);
-        tmp_env = &cpu->env;
-        if (!env) {
-            env = tmp_env;
-        }
-        ipi_states[i] = cpu;
-        tmp_env->halted = 1;
-        tmp_env->exception_index = EXCP_HLT;
-        tmp_env->storage_keys = storage_keys;
-    }
-
+    s390_init_cpus(args->cpu_model, storage_keys);
 
     /* Create VirtIO network adapters */
-    for(i = 0; i < nb_nics; i++) {
-        NICInfo *nd = &nd_table[i];
-        DeviceState *dev;
-
-        if (!nd->model) {
-            nd->model = g_strdup("virtio");
-        }
-
-        if (strcmp(nd->model, "virtio")) {
-            fprintf(stderr, "S390 only supports VirtIO nics\n");
-            exit(1);
-        }
-
-        dev = qdev_create((BusState *)s390_bus, "virtio-net-s390");
-        qdev_set_nic_properties(dev, nd);
-        qdev_init_nofail(dev);
-    }
+    s390_create_virtio_net((BusState *)s390_bus, "virtio-net-s390");
 }
 
 static QEMUMachine s390_machine = {

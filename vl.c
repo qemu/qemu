@@ -176,6 +176,7 @@ int main(int argc, char **argv)
 #define DEFAULT_RAM_SIZE 128
 
 #define MAX_VIRTIO_CONSOLES 1
+#define MAX_SCLP_CONSOLES 1
 
 static const char *data_dir;
 const char *bios_name = NULL;
@@ -203,6 +204,7 @@ int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
+CharDriverState *sclp_hds[MAX_SCLP_CONSOLES];
 int win2k_install_hack = 0;
 int singlestep = 0;
 int smp_cpus = 1;
@@ -271,6 +273,7 @@ static int tcg_tb_size;
 static int default_serial = 1;
 static int default_parallel = 1;
 static int default_virtcon = 1;
+static int default_sclp = 1;
 static int default_monitor = 1;
 static int default_floppy = 1;
 static int default_cdrom = 1;
@@ -2340,6 +2343,7 @@ struct device_config {
         DEV_VIRTCON,   /* -virtioconsole */
         DEV_DEBUGCON,  /* -debugcon */
         DEV_GDB,       /* -gdb, -s */
+        DEV_SCLP,      /* s390 sclp */
     } type;
     const char *cmdline;
     Location loc;
@@ -2449,6 +2453,39 @@ static int virtcon_parse(const char *devname)
     virtcon_hds[index] = qemu_chr_new(label, devname, NULL);
     if (!virtcon_hds[index]) {
         fprintf(stderr, "qemu: could not connect virtio console"
+                " to character backend '%s'\n", devname);
+        return -1;
+    }
+    qemu_opt_set(dev_opts, "chardev", label);
+
+    index++;
+    return 0;
+}
+
+static int sclp_parse(const char *devname)
+{
+    QemuOptsList *device = qemu_find_opts("device");
+    static int index = 0;
+    char label[32];
+    QemuOpts *dev_opts;
+
+    if (strcmp(devname, "none") == 0) {
+        return 0;
+    }
+    if (index == MAX_SCLP_CONSOLES) {
+        fprintf(stderr, "qemu: too many sclp consoles\n");
+        exit(1);
+    }
+
+    assert(arch_type == QEMU_ARCH_S390X);
+
+    dev_opts = qemu_opts_create(device, NULL, 0, NULL);
+    qemu_opt_set(dev_opts, "driver", "sclpconsole");
+
+    snprintf(label, sizeof(label), "sclpcon%d", index);
+    sclp_hds[index] = qemu_chr_new(label, devname, NULL);
+    if (!sclp_hds[index]) {
+        fprintf(stderr, "qemu: could not connect sclp console"
                 " to character backend '%s'\n", devname);
         return -1;
     }
@@ -3615,6 +3652,7 @@ int main(int argc, char **argv, char **envp)
                 default_serial = 0;
                 default_parallel = 0;
                 default_virtcon = 0;
+                default_sclp = 0;
                 default_monitor = 0;
                 default_net = 0;
                 default_floppy = 0;
@@ -3832,6 +3870,9 @@ int main(int argc, char **argv, char **envp)
     if (!machine->use_virtcon) {
         default_virtcon = 0;
     }
+    if (!machine->use_sclp) {
+        default_sclp = 0;
+    }
     if (machine->no_floppy) {
         default_floppy = 0;
     }
@@ -3873,11 +3914,16 @@ int main(int argc, char **argv, char **envp)
             add_device_config(DEV_SERIAL, "mon:stdio");
         } else if (default_virtcon && default_monitor) {
             add_device_config(DEV_VIRTCON, "mon:stdio");
+        } else if (default_sclp && default_monitor) {
+            add_device_config(DEV_SCLP, "mon:stdio");
         } else {
             if (default_serial)
                 add_device_config(DEV_SERIAL, "stdio");
             if (default_virtcon)
                 add_device_config(DEV_VIRTCON, "stdio");
+            if (default_sclp) {
+                add_device_config(DEV_SCLP, "stdio");
+            }
             if (default_monitor)
                 monitor_parse("stdio", "readline");
         }
@@ -3890,6 +3936,9 @@ int main(int argc, char **argv, char **envp)
             monitor_parse("vc:80Cx24C", "readline");
         if (default_virtcon)
             add_device_config(DEV_VIRTCON, "vc:80Cx24C");
+        if (default_sclp) {
+            add_device_config(DEV_SCLP, "vc:80Cx24C");
+        }
     }
 
     socket_init();
@@ -4060,6 +4109,9 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     if (foreach_device_config(DEV_VIRTCON, virtcon_parse) < 0)
         exit(1);
+    if (foreach_device_config(DEV_SCLP, sclp_parse) < 0) {
+        exit(1);
+    }
     if (foreach_device_config(DEV_DEBUGCON, debugcon_parse) < 0)
         exit(1);
 

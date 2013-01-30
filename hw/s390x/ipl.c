@@ -159,7 +159,7 @@ static void s390_ipl_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo s390_ipl_info = {
+static const TypeInfo s390_ipl_info = {
     .class_init = s390_ipl_class_init,
     .parent = TYPE_SYS_BUS_DEVICE,
     .name  = "s390-ipl",
