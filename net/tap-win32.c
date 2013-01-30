@@ -722,9 +722,9 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     return 0;
 }
 
-int tap_has_ufo(NetClientState *nc)
+bool tap_has_ufo(NetClientState *nc)
 {
-    return 0;
+    return false;
 }
 
 int tap_has_vnet_hdr(NetClientState *nc)
@@ -741,7 +741,7 @@ void tap_fd_set_vnet_hdr_len(int fd, int len)
 {
 }
 
-void tap_using_vnet_hdr(NetClientState *nc, int using_vnet_hdr)
+void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr)
 {
 }
 

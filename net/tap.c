@@ -55,10 +55,10 @@ typedef struct TAPState {
     char down_script[1024];
     char down_script_arg[128];
     uint8_t buf[TAP_BUFSIZE];
-    unsigned int read_poll : 1;
-    unsigned int write_poll : 1;
-    unsigned int using_vnet_hdr : 1;
-    unsigned int has_ufo: 1;
+    bool read_poll;
+    bool write_poll;
+    bool using_vnet_hdr;
+    bool has_ufo;
     VHostNetState *vhost_net;
     unsigned host_vnet_hdr_len;
 } TAPState;
@@ -78,15 +78,15 @@ static void tap_update_fd_handler(TAPState *s)
                          s);
 }
 
-static void tap_read_poll(TAPState *s, int enable)
+static void tap_read_poll(TAPState *s, bool enable)
 {
-    s->read_poll = !!enable;
+    s->read_poll = enable;
     tap_update_fd_handler(s);
 }
 
-static void tap_write_poll(TAPState *s, int enable)
+static void tap_write_poll(TAPState *s, bool enable)
 {
-    s->write_poll = !!enable;
+    s->write_poll = enable;
     tap_update_fd_handler(s);
 }
 
@@ -94,7 +94,7 @@ static void tap_writable(void *opaque)
 {
     TAPState *s = opaque;
 
-    tap_write_poll(s, 0);
+    tap_write_poll(s, false);
 
     qemu_flush_queued_packets(&s->nc);
 }
@@ -108,7 +108,7 @@ static ssize_t tap_write_packet(TAPState *s, const struct iovec *iov, int iovcnt
     } while (len == -1 && errno == EINTR);
 
     if (len == -1 && errno == EAGAIN) {
-        tap_write_poll(s, 1);
+        tap_write_poll(s, true);
         return 0;
     }
 
@@ -186,7 +186,7 @@ ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 static void tap_send_completed(NetClientState *nc, ssize_t len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
-    tap_read_poll(s, 1);
+    tap_read_poll(s, true);
 }
 
 static void tap_send(void *opaque)
@@ -209,12 +209,12 @@ static void tap_send(void *opaque)
 
         size = qemu_send_packet_async(&s->nc, buf, size, tap_send_completed);
         if (size == 0) {
-            tap_read_poll(s, 0);
+            tap_read_poll(s, false);
         }
     } while (size > 0 && qemu_can_send_packet(&s->nc));
 }
 
-int tap_has_ufo(NetClientState *nc)
+bool tap_has_ufo(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -253,11 +253,9 @@ void tap_set_vnet_hdr_len(NetClientState *nc, int len)
     s->host_vnet_hdr_len = len;
 }
 
-void tap_using_vnet_hdr(NetClientState *nc, int using_vnet_hdr)
+void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
-
-    using_vnet_hdr = using_vnet_hdr != 0;
 
     assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
     assert(!!s->host_vnet_hdr_len == using_vnet_hdr);
@@ -290,8 +288,8 @@ static void tap_cleanup(NetClientState *nc)
     if (s->down_script[0])
         launch_script(s->down_script, s->down_script_arg, s->fd);
 
-    tap_read_poll(s, 0);
-    tap_write_poll(s, 0);
+    tap_read_poll(s, false);
+    tap_write_poll(s, false);
     close(s->fd);
     s->fd = -1;
 }
@@ -337,7 +335,7 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
 
     s->fd = fd;
     s->host_vnet_hdr_len = vnet_hdr ? sizeof(struct virtio_net_hdr) : 0;
-    s->using_vnet_hdr = 0;
+    s->using_vnet_hdr = false;
     s->has_ufo = tap_probe_has_ufo(s->fd);
     tap_set_offload(&s->nc, 0, 0, 0, 0, 0);
     /*
@@ -347,7 +345,7 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
     if (tap_probe_vnet_hdr_len(s->fd, s->host_vnet_hdr_len)) {
         tap_fd_set_vnet_hdr_len(s->fd, s->host_vnet_hdr_len);
     }
-    tap_read_poll(s, 1);
+    tap_read_poll(s, true);
     s->vhost_net = NULL;
     return s;
 }

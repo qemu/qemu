@@ -1102,7 +1102,7 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
     n->nic = qemu_new_nic(&net_virtio_info, conf, object_get_typename(OBJECT(dev)), dev->id, n);
     peer_test_vnet_hdr(n);
     if (peer_has_vnet_hdr(n)) {
-        tap_using_vnet_hdr(n->nic->nc.peer, 1);
+        tap_using_vnet_hdr(n->nic->nc.peer, true);
         n->host_hdr_len = sizeof(struct virtio_net_hdr);
     } else {
         n->host_hdr_len = 0;
