@@ -701,6 +701,15 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
     return &vdev->vq[i];
 }
 
+void virtio_del_queue(VirtIODevice *vdev, int n)
+{
+    if (n < 0 || n >= VIRTIO_PCI_QUEUE_MAX) {
+        abort();
+    }
+
+    vdev->vq[n].vring.num = 0;
+}
+
 void virtio_irq(VirtQueue *vq)
 {
     trace_virtio_irq(vq);

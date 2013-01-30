@@ -181,6 +181,8 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             void (*handle_output)(VirtIODevice *,
                                                   VirtQueue *));
 
+void virtio_del_queue(VirtIODevice *vdev, int n);
+
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len);
 void virtqueue_flush(VirtQueue *vq, unsigned int count);
