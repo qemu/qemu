@@ -1094,8 +1094,8 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue, int ctrl)
 
 static void virtio_net_save(QEMUFile *f, void *opaque)
 {
+    int i;
     VirtIONet *n = opaque;
-    VirtIONetQueue *q = &n->vqs[0];
 
     /* At this point, backend must be stopped, otherwise
      * it might keep writing to memory. */
@@ -1103,7 +1103,7 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     virtio_save(&n->vdev, f);
 
     qemu_put_buffer(f, n->mac, ETH_ALEN);
-    qemu_put_be32(f, q->tx_waiting);
+    qemu_put_be32(f, n->vqs[0].tx_waiting);
     qemu_put_be32(f, n->mergeable_rx_bufs);
     qemu_put_be16(f, n->status);
     qemu_put_byte(f, n->promisc);
@@ -1119,13 +1119,19 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_byte(f, n->nouni);
     qemu_put_byte(f, n->nobcast);
     qemu_put_byte(f, n->has_ufo);
+    if (n->max_queues > 1) {
+        qemu_put_be16(f, n->max_queues);
+        qemu_put_be16(f, n->curr_queues);
+        for (i = 1; i < n->curr_queues; i++) {
+            qemu_put_be32(f, n->vqs[i].tx_waiting);
+        }
+    }
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
-    VirtIONetQueue *q = &n->vqs[0];
-    int ret, i;
+    int ret, i, link_down;
 
     if (version_id < 2 || version_id > VIRTIO_NET_VM_VERSION)
         return -EINVAL;
@@ -1136,7 +1142,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     qemu_get_buffer(f, n->mac, ETH_ALEN);
-    q->tx_waiting = qemu_get_be32(f);
+    n->vqs[0].tx_waiting = qemu_get_be32(f);
 
     virtio_net_set_mrg_rx_bufs(n, qemu_get_be32(f));
 
@@ -1206,6 +1212,20 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
 
+    if (n->max_queues > 1) {
+        if (n->max_queues != qemu_get_be16(f)) {
+            error_report("virtio-net: different max_queues ");
+            return -1;
+        }
+
+        n->curr_queues = qemu_get_be16(f);
+        for (i = 1; i < n->curr_queues; i++) {
+            n->vqs[i].tx_waiting = qemu_get_be32(f);
+        }
+    }
+
+    virtio_net_set_queues(n);
+
     /* Find the first multicast entry in the saved MAC filter */
     for (i = 0; i < n->mac_table.in_use; i++) {
         if (n->mac_table.macs[i * ETH_ALEN] & 1) {
@@ -1216,7 +1236,10 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 
     /* nc.link_down can't be migrated, so infer link_down according
      * to link status bit in n->status */
-    qemu_get_queue(n->nic)->link_down = (n->status & VIRTIO_NET_S_LINK_UP) == 0;
+    link_down = (n->status & VIRTIO_NET_S_LINK_UP) == 0;
+    for (i = 0; i < n->max_queues; i++) {
+        qemu_get_subqueue(n->nic, i)->link_down = link_down;
+    }
 
     return 0;
 }
