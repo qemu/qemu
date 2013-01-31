@@ -336,11 +336,14 @@ static int tcg_target_const_match (tcg_target_long val,
 #define LWZU   OPCD( 33)
 #define STWU   OPCD( 37)
 
+#define RLWIMI OPCD( 20)
 #define RLWINM OPCD( 21)
+#define RLWNM  OPCD( 23)
 
 #define RLDICL XO30(  0)
 #define RLDICR XO30(  1)
 #define RLDIMI XO30(  3)
+#define RLDCL  XO30(  8)
 
 #define BCLR   XO19( 16)
 #define BCCTR  XO19(528)
@@ -1473,6 +1476,23 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         else
             tcg_out32 (s, SRAW | SAB (args[1], args[0], args[2]));
         break;
+    case INDEX_op_rotl_i32:
+        if (const_args[2]) {
+            tcg_out_rlw(s, RLWINM, args[0], args[1], args[2], 0, 31);
+        } else {
+            tcg_out32(s, RLWNM | SAB(args[1], args[0], args[2])
+                         | MB(0) | ME(31));
+        }
+        break;
+    case INDEX_op_rotr_i32:
+        if (const_args[2]) {
+            tcg_out_rlw(s, RLWINM, args[0], args[1], 32 - args[2], 0, 31);
+        } else {
+            tcg_out32(s, SUBFIC | TAI(0, args[2], 32));
+            tcg_out32(s, RLWNM | SAB(args[1], args[0], args[2])
+                         | MB(0) | ME(31));
+        }
+        break;
 
     case INDEX_op_brcond_i32:
         tcg_out_brcond (s, args[2], args[0], args[1], const_args[1], args[3], 0);
@@ -1560,6 +1580,21 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         else
             tcg_out32 (s, SRAD | SAB (args[1], args[0], args[2]));
+        break;
+    case INDEX_op_rotl_i64:
+        if (const_args[2]) {
+            tcg_out_rld(s, RLDICL, args[0], args[1], args[2], 0);
+        } else {
+            tcg_out32(s, RLDCL | SAB(args[1], args[0], args[2]) | MB64(0));
+        }
+        break;
+    case INDEX_op_rotr_i64:
+        if (const_args[2]) {
+            tcg_out_rld(s, RLDICL, args[0], args[1], 64 - args[2], 0);
+        } else {
+            tcg_out32(s, SUBFIC | TAI(0, args[2], 64));
+            tcg_out32(s, RLDCL | SAB(args[1], args[0], 0) | MB64(0));
+        }
         break;
 
     case INDEX_op_mul_i64:
@@ -1693,6 +1728,8 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_shl_i32, { "r", "r", "ri" } },
     { INDEX_op_shr_i32, { "r", "r", "ri" } },
     { INDEX_op_sar_i32, { "r", "r", "ri" } },
+    { INDEX_op_rotl_i32, { "r", "r", "ri" } },
+    { INDEX_op_rotr_i32, { "r", "r", "ri" } },
 
     { INDEX_op_brcond_i32, { "r", "ri" } },
     { INDEX_op_brcond_i64, { "r", "ri" } },
@@ -1709,6 +1746,8 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_shl_i64, { "r", "r", "ri" } },
     { INDEX_op_shr_i64, { "r", "r", "ri" } },
     { INDEX_op_sar_i64, { "r", "r", "ri" } },
+    { INDEX_op_rotl_i64, { "r", "r", "ri" } },
+    { INDEX_op_rotr_i64, { "r", "r", "ri" } },
 
     { INDEX_op_mul_i64, { "r", "r", "r" } },
     { INDEX_op_div_i64, { "r", "r", "r" } },
