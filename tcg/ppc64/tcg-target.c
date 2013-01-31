@@ -1796,6 +1796,15 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
 
+    case INDEX_op_deposit_i32:
+        tcg_out_rlw(s, RLWIMI, args[0], args[2], args[3],
+                    32 - args[3] - args[4], 31 - args[3]);
+        break;
+    case INDEX_op_deposit_i64:
+        tcg_out_rld(s, RLDIMI, args[0], args[2], args[3],
+                    64 - args[3] - args[4]);
+        break;
+
     default:
         tcg_dump_ops (s);
         tcg_abort ();
@@ -1916,6 +1925,9 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_bswap32_i32, { "r", "r" } },
     { INDEX_op_bswap32_i64, { "r", "r" } },
     { INDEX_op_bswap64_i64, { "r", "r" } },
+
+    { INDEX_op_deposit_i32, { "r", "0", "r" } },
+    { INDEX_op_deposit_i64, { "r", "0", "r" } },
 
     { -1 },
 };
