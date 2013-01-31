@@ -462,6 +462,15 @@ struct TCGContext {
     uint16_t gen_opc_icount[OPC_BUF_SIZE];
     uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
+    /* Code generation */
+    int code_gen_max_blocks;
+    uint8_t *code_gen_prologue;
+    uint8_t *code_gen_buffer;
+    size_t code_gen_buffer_size;
+    /* threshold to flush the translated code buffer */
+    size_t code_gen_buffer_max_size;
+    uint8_t *code_gen_ptr;
+
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
     /* labels info for qemu_ld/st IRs
        The labels help to generate TLB miss case codes at the end of TB */
@@ -658,12 +667,11 @@ TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
 
-extern uint8_t *code_gen_prologue;
-
 /* TCG targets may use a different definition of tcg_qemu_tb_exec. */
 #if !defined(tcg_qemu_tb_exec)
 # define tcg_qemu_tb_exec(env, tb_ptr) \
-    ((tcg_target_ulong (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
+    ((tcg_target_ulong (*)(void *, void *))tcg_ctx.code_gen_prologue)(env, \
+                                                                      tb_ptr)
 #endif
 
 void tcg_register_jit(void *buf, size_t buf_size);

@@ -72,20 +72,12 @@
 
 #define SMC_BITMAP_USE_THRESHOLD 10
 
-/* Code generation and translation blocks */
+/* Translation blocks */
 static TranslationBlock *tbs;
-static int code_gen_max_blocks;
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 static int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
-
-uint8_t *code_gen_prologue;
-static uint8_t *code_gen_buffer;
-static size_t code_gen_buffer_size;
-/* threshold to flush the translated code buffer */
-static size_t code_gen_buffer_max_size;
-static uint8_t *code_gen_ptr;
 
 typedef struct PageDesc {
     /* list of TBs intersecting this ram page */
@@ -514,7 +506,7 @@ static inline size_t size_code_gen_buffer(size_t tb_size)
     if (tb_size > MAX_CODE_GEN_BUFFER_SIZE) {
         tb_size = MAX_CODE_GEN_BUFFER_SIZE;
     }
-    code_gen_buffer_size = tb_size;
+    tcg_ctx.code_gen_buffer_size = tb_size;
     return tb_size;
 }
 
@@ -524,7 +516,7 @@ static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
 
 static inline void *alloc_code_gen_buffer(void)
 {
-    map_exec(static_code_gen_buffer, code_gen_buffer_size);
+    map_exec(static_code_gen_buffer, tcg_ctx.code_gen_buffer_size);
     return static_code_gen_buffer;
 }
 #elif defined(USE_MMAP)
@@ -547,8 +539,8 @@ static inline void *alloc_code_gen_buffer(void)
        Leave the choice of exact location with the kernel.  */
     flags |= MAP_32BIT;
     /* Cannot expect to map more than 800MB in low memory.  */
-    if (code_gen_buffer_size > 800u * 1024 * 1024) {
-        code_gen_buffer_size = 800u * 1024 * 1024;
+    if (tcg_ctx.code_gen_buffer_size > 800u * 1024 * 1024) {
+        tcg_ctx.code_gen_buffer_size = 800u * 1024 * 1024;
     }
 # elif defined(__sparc__)
     start = 0x40000000ul;
@@ -556,17 +548,17 @@ static inline void *alloc_code_gen_buffer(void)
     start = 0x90000000ul;
 # endif
 
-    buf = mmap((void *)start, code_gen_buffer_size,
+    buf = mmap((void *)start, tcg_ctx.code_gen_buffer_size,
                PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
     return buf == MAP_FAILED ? NULL : buf;
 }
 #else
 static inline void *alloc_code_gen_buffer(void)
 {
-    void *buf = g_malloc(code_gen_buffer_size);
+    void *buf = g_malloc(tcg_ctx.code_gen_buffer_size);
 
     if (buf) {
-        map_exec(buf, code_gen_buffer_size);
+        map_exec(buf, tcg_ctx.code_gen_buffer_size);
     }
     return buf;
 }
@@ -574,27 +566,30 @@ static inline void *alloc_code_gen_buffer(void)
 
 static inline void code_gen_alloc(size_t tb_size)
 {
-    code_gen_buffer_size = size_code_gen_buffer(tb_size);
-    code_gen_buffer = alloc_code_gen_buffer();
-    if (code_gen_buffer == NULL) {
+    tcg_ctx.code_gen_buffer_size = size_code_gen_buffer(tb_size);
+    tcg_ctx.code_gen_buffer = alloc_code_gen_buffer();
+    if (tcg_ctx.code_gen_buffer == NULL) {
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
         exit(1);
     }
 
-    qemu_madvise(code_gen_buffer, code_gen_buffer_size, QEMU_MADV_HUGEPAGE);
+    qemu_madvise(tcg_ctx.code_gen_buffer, tcg_ctx.code_gen_buffer_size,
+            QEMU_MADV_HUGEPAGE);
 
     /* Steal room for the prologue at the end of the buffer.  This ensures
        (via the MAX_CODE_GEN_BUFFER_SIZE limits above) that direct branches
        from TB's to the prologue are going to be in range.  It also means
        that we don't need to mark (additional) portions of the data segment
        as executable.  */
-    code_gen_prologue = code_gen_buffer + code_gen_buffer_size - 1024;
-    code_gen_buffer_size -= 1024;
+    tcg_ctx.code_gen_prologue = tcg_ctx.code_gen_buffer +
+            tcg_ctx.code_gen_buffer_size - 1024;
+    tcg_ctx.code_gen_buffer_size -= 1024;
 
-    code_gen_buffer_max_size = code_gen_buffer_size -
+    tcg_ctx.code_gen_buffer_max_size = tcg_ctx.code_gen_buffer_size -
         (TCG_MAX_OP_SIZE * OPC_BUF_SIZE);
-    code_gen_max_blocks = code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
-    tbs = g_malloc(code_gen_max_blocks * sizeof(TranslationBlock));
+    tcg_ctx.code_gen_max_blocks = tcg_ctx.code_gen_buffer_size /
+            CODE_GEN_AVG_BLOCK_SIZE;
+    tbs = g_malloc(tcg_ctx.code_gen_max_blocks * sizeof(TranslationBlock));
 }
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
@@ -604,8 +599,8 @@ void tcg_exec_init(unsigned long tb_size)
 {
     cpu_gen_init();
     code_gen_alloc(tb_size);
-    code_gen_ptr = code_gen_buffer;
-    tcg_register_jit(code_gen_buffer, code_gen_buffer_size);
+    tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
+    tcg_register_jit(tcg_ctx.code_gen_buffer, tcg_ctx.code_gen_buffer_size);
     page_init();
 #if !defined(CONFIG_USER_ONLY) || !defined(CONFIG_USE_GUEST_BASE)
     /* There's no guest base to take into account, so go ahead and
@@ -616,7 +611,7 @@ void tcg_exec_init(unsigned long tb_size)
 
 bool tcg_enabled(void)
 {
-    return code_gen_buffer != NULL;
+    return tcg_ctx.code_gen_buffer != NULL;
 }
 
 /* Allocate a new translation block. Flush the translation buffer if
@@ -625,8 +620,9 @@ static TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
 
-    if (nb_tbs >= code_gen_max_blocks ||
-        (code_gen_ptr - code_gen_buffer) >= code_gen_buffer_max_size) {
+    if (nb_tbs >= tcg_ctx.code_gen_max_blocks ||
+        (tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer) >=
+         tcg_ctx.code_gen_buffer_max_size) {
         return NULL;
     }
     tb = &tbs[nb_tbs++];
@@ -641,7 +637,7 @@ void tb_free(TranslationBlock *tb)
        Ignore the hard cases and just back up if this TB happens to
        be the last one generated.  */
     if (nb_tbs > 0 && tb == &tbs[nb_tbs - 1]) {
-        code_gen_ptr = tb->tc_ptr;
+        tcg_ctx.code_gen_ptr = tb->tc_ptr;
         nb_tbs--;
     }
 }
@@ -696,12 +692,13 @@ void tb_flush(CPUArchState *env1)
 
 #if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%ld\n",
-           (unsigned long)(code_gen_ptr - code_gen_buffer),
+           (unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer),
            nb_tbs, nb_tbs > 0 ?
-           ((unsigned long)(code_gen_ptr - code_gen_buffer)) / nb_tbs : 0);
+           ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)) /
+           nb_tbs : 0);
 #endif
-    if ((unsigned long)(code_gen_ptr - code_gen_buffer)
-        > code_gen_buffer_size) {
+    if ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)
+        > tcg_ctx.code_gen_buffer_size) {
         cpu_abort(env1, "Internal error: code buffer overflow\n");
     }
     nb_tbs = 0;
@@ -713,7 +710,7 @@ void tb_flush(CPUArchState *env1)
     memset(tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
     page_flush_tb();
 
-    code_gen_ptr = code_gen_buffer;
+    tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
     /* XXX: flush processor icache at this point if cache flush is
        expensive */
     tb_flush_count++;
@@ -960,14 +957,14 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
         /* Don't forget to invalidate previous TB info.  */
         tb_invalidated_flag = 1;
     }
-    tc_ptr = code_gen_ptr;
+    tc_ptr = tcg_ctx.code_gen_ptr;
     tb->tc_ptr = tc_ptr;
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
     cpu_gen_code(env, tb, &code_gen_size);
-    code_gen_ptr = (void *)(((uintptr_t)code_gen_ptr + code_gen_size +
-                             CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+    tcg_ctx.code_gen_ptr = (void *)(((uintptr_t)tcg_ctx.code_gen_ptr +
+            code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
 
     /* check next page if needed */
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
@@ -1312,8 +1309,9 @@ bool is_tcg_gen_code(uintptr_t tc_ptr)
 {
     /* This can be called during code generation, code_gen_buffer_max_size
        is used instead of code_gen_ptr for upper boundary checking */
-    return (tc_ptr >= (uintptr_t)code_gen_buffer &&
-            tc_ptr < (uintptr_t)(code_gen_buffer + code_gen_buffer_max_size));
+    return (tc_ptr >= (uintptr_t)tcg_ctx.code_gen_buffer &&
+            tc_ptr < (uintptr_t)(tcg_ctx.code_gen_buffer +
+                    tcg_ctx.code_gen_buffer_max_size));
 }
 #endif
 
@@ -1328,8 +1326,8 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
     if (nb_tbs <= 0) {
         return NULL;
     }
-    if (tc_ptr < (uintptr_t)code_gen_buffer ||
-        tc_ptr >= (uintptr_t)code_gen_ptr) {
+    if (tc_ptr < (uintptr_t)tcg_ctx.code_gen_buffer ||
+        tc_ptr >= (uintptr_t)tcg_ctx.code_gen_ptr) {
         return NULL;
     }
     /* binary search (cf Knuth) */
@@ -1587,16 +1585,19 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     /* XXX: avoid using doubles ? */
     cpu_fprintf(f, "Translation buffer state:\n");
     cpu_fprintf(f, "gen code size       %td/%zd\n",
-                code_gen_ptr - code_gen_buffer, code_gen_buffer_max_size);
+                tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer,
+                tcg_ctx.code_gen_buffer_max_size);
     cpu_fprintf(f, "TB count            %d/%d\n",
-                nb_tbs, code_gen_max_blocks);
+                nb_tbs, tcg_ctx.code_gen_max_blocks);
     cpu_fprintf(f, "TB avg target size  %d max=%d bytes\n",
                 nb_tbs ? target_code_size / nb_tbs : 0,
                 max_target_code_size);
     cpu_fprintf(f, "TB avg host size    %td bytes (expansion ratio: %0.1f)\n",
-                nb_tbs ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0,
-                target_code_size ? (double) (code_gen_ptr - code_gen_buffer)
-                / target_code_size : 0);
+                nb_tbs ? (tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer) /
+                        nb_tbs : 0,
+                target_code_size ?
+                (double) (tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer) /
+                    target_code_size : 0);
     cpu_fprintf(f, "cross page TB count %d (%d%%)\n",
             cross_page,
             nb_tbs ? (cross_page * 100) / nb_tbs : 0);
