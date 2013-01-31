@@ -345,9 +345,18 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
     raw_s->fd = -1;
 
-    int fcntl_flags = O_APPEND | O_ASYNC | O_NONBLOCK;
+    int fcntl_flags = O_APPEND | O_NONBLOCK;
 #ifdef O_NOATIME
     fcntl_flags |= O_NOATIME;
+#endif
+
+#ifdef O_ASYNC
+    /* Not all operating systems have O_ASYNC, and those that don't
+     * will not let us track the state into raw_s->open_flags (typically
+     * you achieve the same effect with an ioctl, for example I_SETSIG
+     * on Solaris). But we do not use O_ASYNC, so that's fine.
+     */
+    assert((s->open_flags & O_ASYNC) == 0);
 #endif
 
     if ((raw_s->open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
