@@ -1698,167 +1698,172 @@ static inline void tcg_gen_lshift(TCGv ret, TCGv arg1, target_long arg2)
         tcg_gen_shri_tl(ret, arg1, -arg2);
 }
 
-static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, 
-                          int is_right)
+static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right)
 {
-    target_ulong mask;
-    int label1, label2, data_bits;
-    TCGv t0, t1, t2, a0;
-
-    /* XXX: inefficient, but we must use local temps */
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
-    t2 = tcg_temp_local_new();
-    a0 = tcg_temp_local_new();
-
-    if (ot == OT_QUAD)
-        mask = 0x3f;
-    else
-        mask = 0x1f;
+    target_ulong mask = (ot == OT_QUAD ? 0x3f : 0x1f);
+    TCGv_i32 t0, t1;
 
     /* load */
     if (op1 == OR_TMP0) {
-        tcg_gen_mov_tl(a0, cpu_A0);
-        gen_op_ld_v(ot + s->mem_index, t0, a0);
+        gen_op_ld_T0_A0(ot + s->mem_index);
     } else {
-        gen_op_mov_v_reg(ot, t0, op1);
+        gen_op_mov_TN_reg(ot, 0, op1);
     }
 
-    tcg_gen_mov_tl(t1, cpu_T[1]);
+    tcg_gen_andi_tl(cpu_T[1], cpu_T[1], mask);
 
-    tcg_gen_andi_tl(t1, t1, mask);
-
-    /* Must test zero case to avoid using undefined behaviour in TCG
-       shifts. */
-    label1 = gen_new_label();
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, label1);
-    
-    if (ot <= OT_WORD)
-        tcg_gen_andi_tl(cpu_tmp0, t1, (1 << (3 + ot)) - 1);
-    else
-        tcg_gen_mov_tl(cpu_tmp0, t1);
-    
-    gen_extu(ot, t0);
-    tcg_gen_mov_tl(t2, t0);
-
-    data_bits = 8 << ot;
-    /* XXX: rely on behaviour of shifts when operand 2 overflows (XXX:
-       fix TCG definition) */
-    if (is_right) {
-        tcg_gen_shr_tl(cpu_tmp4, t0, cpu_tmp0);
-        tcg_gen_subfi_tl(cpu_tmp0, data_bits, cpu_tmp0);
-        tcg_gen_shl_tl(t0, t0, cpu_tmp0);
-    } else {
-        tcg_gen_shl_tl(cpu_tmp4, t0, cpu_tmp0);
-        tcg_gen_subfi_tl(cpu_tmp0, data_bits, cpu_tmp0);
-        tcg_gen_shr_tl(t0, t0, cpu_tmp0);
+    switch (ot) {
+    case OT_BYTE:
+        /* Replicate the 8-bit input so that a 32-bit rotate works.  */
+        tcg_gen_ext8u_tl(cpu_T[0], cpu_T[0]);
+        tcg_gen_muli_tl(cpu_T[0], cpu_T[0], 0x01010101);
+        goto do_long;
+    case OT_WORD:
+        /* Replicate the 16-bit input so that a 32-bit rotate works.  */
+        tcg_gen_deposit_tl(cpu_T[0], cpu_T[0], cpu_T[0], 16, 16);
+        goto do_long;
+    do_long:
+#ifdef TARGET_X86_64
+    case OT_LONG:
+        tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
+        tcg_gen_trunc_tl_i32(cpu_tmp3_i32, cpu_T[1]);
+        if (is_right) {
+            tcg_gen_rotr_i32(cpu_tmp2_i32, cpu_tmp2_i32, cpu_tmp3_i32);
+        } else {
+            tcg_gen_rotl_i32(cpu_tmp2_i32, cpu_tmp2_i32, cpu_tmp3_i32);
+        }
+        tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
+        break;
+#endif
+    default:
+        if (is_right) {
+            tcg_gen_rotr_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+        } else {
+            tcg_gen_rotl_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+        }
+        break;
     }
-    tcg_gen_or_tl(t0, t0, cpu_tmp4);
 
-    gen_set_label(label1);
     /* store */
     if (op1 == OR_TMP0) {
-        gen_op_st_v(ot + s->mem_index, t0, a0);
+        gen_op_st_T0_A0(ot + s->mem_index);
     } else {
-        gen_op_mov_reg_v(ot, op1, t0);
+        gen_op_mov_reg_T0(ot, op1);
     }
-    
-    /* update eflags.  It is needed anyway most of the time, do it always.  */
+
+    /* We'll need the flags computed into CC_SRC.  */
     gen_compute_eflags(s);
-    assert(s->cc_op == CC_OP_EFLAGS);
 
-    label2 = gen_new_label();
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, label2);
-
-    tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~(CC_O | CC_C));
-    tcg_gen_xor_tl(cpu_tmp0, t2, t0);
-    tcg_gen_lshift(cpu_tmp0, cpu_tmp0, 11 - (data_bits - 1));
-    tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, CC_O);
-    tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, cpu_tmp0);
+    /* The value that was "rotated out" is now present at the other end
+       of the word.  Compute C into CC_DST and O into CC_SRC2.  Note that
+       since we've computed the flags into CC_SRC, these variables are
+       currently dead.  */
     if (is_right) {
-        tcg_gen_shri_tl(t0, t0, data_bits - 1);
+        tcg_gen_shri_tl(cpu_cc_src2, cpu_T[0], mask - 1);
+        tcg_gen_shri_tl(cpu_cc_dst, cpu_T[0], mask);
+    } else {
+        tcg_gen_shri_tl(cpu_cc_src2, cpu_T[0], mask);
+        tcg_gen_andi_tl(cpu_cc_dst, cpu_T[0], 1);
     }
-    tcg_gen_andi_tl(t0, t0, CC_C);
-    tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, t0);
+    tcg_gen_andi_tl(cpu_cc_src2, cpu_cc_src2, 1);
+    tcg_gen_xor_tl(cpu_cc_src2, cpu_cc_src2, cpu_cc_dst);
 
-    gen_set_label(label2);
+    /* Now conditionally store the new CC_OP value.  If the shift count
+       is 0 we keep the CC_OP_EFLAGS setting so that only CC_SRC is live.
+       Otherwise reuse CC_OP_ADCOX which have the C and O flags split out
+       exactly as we computed above.  */
+    t0 = tcg_const_i32(0);
+    t1 = tcg_temp_new_i32();
+    tcg_gen_trunc_tl_i32(t1, cpu_T[1]);
+    tcg_gen_movi_i32(cpu_tmp2_i32, CC_OP_ADCOX); 
+    tcg_gen_movi_i32(cpu_tmp3_i32, CC_OP_EFLAGS);
+    tcg_gen_movcond_i32(TCG_COND_NE, cpu_cc_op, t1, t0,
+                        cpu_tmp2_i32, cpu_tmp3_i32);
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
 
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(t2);
-    tcg_temp_free(a0);
+    /* The CC_OP value is no longer predictable.  */ 
+    set_cc_op(s, CC_OP_DYNAMIC);
 }
 
 static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
                           int is_right)
 {
-    int mask;
-    int data_bits;
-    TCGv t0, t1, a0;
-
-    /* XXX: inefficient, but we must use local temps */
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
-    a0 = tcg_temp_local_new();
-
-    if (ot == OT_QUAD)
-        mask = 0x3f;
-    else
-        mask = 0x1f;
+    int mask = (ot == OT_QUAD ? 0x3f : 0x1f);
+    int shift;
 
     /* load */
     if (op1 == OR_TMP0) {
-        tcg_gen_mov_tl(a0, cpu_A0);
-        gen_op_ld_v(ot + s->mem_index, t0, a0);
+        gen_op_ld_T0_A0(ot + s->mem_index);
     } else {
-        gen_op_mov_v_reg(ot, t0, op1);
+        gen_op_mov_TN_reg(ot, 0, op1);
     }
 
-    gen_extu(ot, t0);
-    tcg_gen_mov_tl(t1, t0);
-
     op2 &= mask;
-    data_bits = 8 << ot;
     if (op2 != 0) {
-        int shift = op2 & ((1 << (3 + ot)) - 1);
-        if (is_right) {
-            tcg_gen_shri_tl(cpu_tmp4, t0, shift);
-            tcg_gen_shli_tl(t0, t0, data_bits - shift);
+        switch (ot) {
+#ifdef TARGET_X86_64
+        case OT_LONG:
+            tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
+            if (is_right) {
+                tcg_gen_rotri_i32(cpu_tmp2_i32, cpu_tmp2_i32, op2);
+            } else {
+                tcg_gen_rotli_i32(cpu_tmp2_i32, cpu_tmp2_i32, op2);
+            }
+            tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
+            break;
+#endif
+        default:
+            if (is_right) {
+                tcg_gen_rotri_tl(cpu_T[0], cpu_T[0], op2);
+            } else {
+                tcg_gen_rotli_tl(cpu_T[0], cpu_T[0], op2);
+            }
+            break;
+        case OT_BYTE:
+            mask = 7;
+            goto do_shifts;
+        case OT_WORD:
+            mask = 15;
+        do_shifts:
+            shift = op2 & mask;
+            if (is_right) {
+                shift = mask + 1 - shift;
+            }
+            gen_extu(ot, cpu_T[0]);
+            tcg_gen_shli_tl(cpu_tmp0, cpu_T[0], shift);
+            tcg_gen_shri_tl(cpu_T[0], cpu_T[0], mask + 1 - shift);
+            tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_tmp0);
+            break;
         }
-        else {
-            tcg_gen_shli_tl(cpu_tmp4, t0, shift);
-            tcg_gen_shri_tl(t0, t0, data_bits - shift);
-        }
-        tcg_gen_or_tl(t0, t0, cpu_tmp4);
     }
 
     /* store */
     if (op1 == OR_TMP0) {
-        gen_op_st_v(ot + s->mem_index, t0, a0);
+        gen_op_st_T0_A0(ot + s->mem_index);
     } else {
-        gen_op_mov_reg_v(ot, op1, t0);
+        gen_op_mov_reg_T0(ot, op1);
     }
 
     if (op2 != 0) {
-        /* update eflags */
+        /* Compute the flags into CC_SRC.  */
         gen_compute_eflags(s);
-        assert(s->cc_op == CC_OP_EFLAGS);
 
-        tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~(CC_O | CC_C));
-        tcg_gen_xor_tl(cpu_tmp0, t1, t0);
-        tcg_gen_lshift(cpu_tmp0, cpu_tmp0, 11 - (data_bits - 1));
-        tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, CC_O);
-        tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, cpu_tmp0);
+        /* The value that was "rotated out" is now present at the other end
+           of the word.  Compute C into CC_DST and O into CC_SRC2.  Note that
+           since we've computed the flags into CC_SRC, these variables are
+           currently dead.  */
         if (is_right) {
-            tcg_gen_shri_tl(t0, t0, data_bits - 1);
+            tcg_gen_shri_tl(cpu_cc_src2, cpu_T[0], mask - 1);
+            tcg_gen_shri_tl(cpu_cc_dst, cpu_T[0], mask);
+        } else {
+            tcg_gen_shri_tl(cpu_cc_src2, cpu_T[0], mask);
+            tcg_gen_andi_tl(cpu_cc_dst, cpu_T[0], 1);
         }
-        tcg_gen_andi_tl(t0, t0, CC_C);
-        tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, t0);
+        tcg_gen_andi_tl(cpu_cc_src2, cpu_cc_src2, 1);
+        tcg_gen_xor_tl(cpu_cc_src2, cpu_cc_src2, cpu_cc_dst);
+        set_cc_op(s, CC_OP_ADCOX);
     }
-
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(a0);
 }
 
 /* XXX: add faster immediate = 1 case */
