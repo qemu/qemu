@@ -1572,15 +1572,9 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
 static void gen_shift_rm_T1(DisasContext *s, int ot, int op1, 
                             int is_right, int is_arith)
 {
-    target_ulong mask;
-    int shift_label;
-    TCGv t0, t1, t2;
-
-    if (ot == OT_QUAD) {
-        mask = 0x3f;
-    } else {
-        mask = 0x1f;
-    }
+    target_ulong mask = (ot == OT_QUAD ? 0x3f : 0x1f);
+    TCGv_i32 z32, s32, oldop;
+    TCGv z_tl;
 
     /* load */
     if (op1 == OR_TMP0) {
@@ -1589,25 +1583,22 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
         gen_op_mov_TN_reg(ot, 0, op1);
     }
 
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
-    t2 = tcg_temp_local_new();
-
-    tcg_gen_andi_tl(t2, cpu_T[1], mask);
+    tcg_gen_andi_tl(cpu_T[1], cpu_T[1], mask);
+    tcg_gen_subi_tl(cpu_tmp0, cpu_T[1], 1);
 
     if (is_right) {
         if (is_arith) {
             gen_exts(ot, cpu_T[0]);
-            tcg_gen_mov_tl(t0, cpu_T[0]);
-            tcg_gen_sar_tl(cpu_T[0], cpu_T[0], t2);
+            tcg_gen_sar_tl(cpu_tmp0, cpu_T[0], cpu_tmp0);
+            tcg_gen_sar_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
         } else {
             gen_extu(ot, cpu_T[0]);
-            tcg_gen_mov_tl(t0, cpu_T[0]);
-            tcg_gen_shr_tl(cpu_T[0], cpu_T[0], t2);
+            tcg_gen_shr_tl(cpu_tmp0, cpu_T[0], cpu_tmp0);
+            tcg_gen_shr_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
         }
     } else {
-        tcg_gen_mov_tl(t0, cpu_T[0]);
-        tcg_gen_shl_tl(cpu_T[0], cpu_T[0], t2);
+        tcg_gen_shl_tl(cpu_tmp0, cpu_T[0], cpu_tmp0);
+        tcg_gen_shl_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
     }
 
     /* store */
@@ -1617,50 +1608,49 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
         gen_op_mov_reg_T0(ot, op1);
     }
 
-    /* Update eflags data because we cannot predict flags afterward.  */
-    gen_update_cc_op(s);
+    /* Store the results into the CC variables.  If we know that the
+       variable must be dead, store unconditionally.  Otherwise we'll
+       need to not disrupt the current contents.  */
+    z_tl = tcg_const_tl(0);
+    if (cc_op_live[s->cc_op] & USES_CC_DST) {
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_cc_dst, cpu_T[1], z_tl,
+                           cpu_T[0], cpu_cc_dst);
+    } else {
+        tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
+    }
+    if (cc_op_live[s->cc_op] & USES_CC_SRC) {
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_cc_src, cpu_T[1], z_tl,
+                           cpu_tmp0, cpu_cc_src);
+    } else {
+        tcg_gen_mov_tl(cpu_cc_src, cpu_tmp0);
+    }
+    tcg_temp_free(z_tl);
+
+    /* Get the two potential CC_OP values into temporaries.  */
+    tcg_gen_movi_i32(cpu_tmp2_i32, (is_right ? CC_OP_SARB : CC_OP_SHLB) + ot);
+    if (s->cc_op == CC_OP_DYNAMIC) {
+        oldop = cpu_cc_op;
+    } else {
+        tcg_gen_movi_i32(cpu_tmp3_i32, s->cc_op);
+        oldop = cpu_tmp3_i32;
+    }
+
+    /* Conditionally store the CC_OP value.  */
+    z32 = tcg_const_i32(0);
+    s32 = tcg_temp_new_i32();
+    tcg_gen_trunc_tl_i32(s32, cpu_T[1]);
+    tcg_gen_movcond_i32(TCG_COND_NE, cpu_cc_op, s32, z32, cpu_tmp2_i32, oldop);
+    tcg_temp_free_i32(z32);
+    tcg_temp_free_i32(s32);
+
+    /* The CC_OP value is no longer predictable.  */
     set_cc_op(s, CC_OP_DYNAMIC);
-
-    tcg_gen_mov_tl(t1, cpu_T[0]);
-
-    shift_label = gen_new_label();
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, shift_label);
-
-    tcg_gen_addi_tl(t2, t2, -1);
-    tcg_gen_mov_tl(cpu_cc_dst, t1);
-
-    if (is_right) {
-        if (is_arith) {
-            tcg_gen_sar_tl(cpu_cc_src, t0, t2);
-        } else {
-            tcg_gen_shr_tl(cpu_cc_src, t0, t2);
-        }
-    } else {
-        tcg_gen_shl_tl(cpu_cc_src, t0, t2);
-    }
-
-    if (is_right) {
-        tcg_gen_movi_i32(cpu_cc_op, CC_OP_SARB + ot);
-    } else {
-        tcg_gen_movi_i32(cpu_cc_op, CC_OP_SHLB + ot);
-    }
-
-    gen_set_label(shift_label);
-
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(t2);
 }
 
 static void gen_shift_rm_im(DisasContext *s, int ot, int op1, int op2,
                             int is_right, int is_arith)
 {
-    int mask;
-    
-    if (ot == OT_QUAD)
-        mask = 0x3f;
-    else
-        mask = 0x1f;
+    int mask = (ot == OT_QUAD ? 0x3f : 0x1f);
 
     /* load */
     if (op1 == OR_TMP0)
