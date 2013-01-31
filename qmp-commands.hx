@@ -2601,10 +2601,8 @@ Arguments:
 Example:
 
 -> { "execute": "query-migrate-capabilities" }
-<- { "return": {
-        "capabilities" :  [ { "capability" : "xbzrle", "state" : false } ]
-     }
-   }
+<- { "return": [ { "state": false, "capability": "xbzrle" } ] }
+
 EQMP
 
     {
