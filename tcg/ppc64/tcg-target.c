@@ -1471,17 +1471,12 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_mul_i32:
+        a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
-            if (args[2] == (int16_t) args[2])
-                tcg_out32 (s, MULLI | RT (args[0]) | RA (args[1])
-                           | (args[2] & 0xffff));
-            else {
-                tcg_out_movi (s, TCG_TYPE_I32, 0, args[2]);
-                tcg_out32 (s, MULLW | TAB (args[0], args[1], 0));
-            }
+            tcg_out32(s, MULLI | TAI(a0, a1, a2));
+        } else {
+            tcg_out32(s, MULLW | TAB(a0, a1, a2));
         }
-        else
-            tcg_out32 (s, MULLW | TAB (args[0], args[1], args[2]));
         break;
 
     case INDEX_op_div_i32:
@@ -1646,7 +1641,12 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_mul_i64:
-        tcg_out32 (s, MULLD | TAB (args[0], args[1], args[2]));
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        if (const_args[2]) {
+            tcg_out32(s, MULLI | TAI(a0, a1, a2));
+        } else {
+            tcg_out32(s, MULLD | TAB(a0, a1, a2));
+        }
         break;
     case INDEX_op_div_i64:
         tcg_out32 (s, DIVD | TAB (args[0], args[1], args[2]));
@@ -1844,7 +1844,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_ld32s_i64, { "r", "r" } },
 
     { INDEX_op_add_i32, { "r", "r", "ri" } },
-    { INDEX_op_mul_i32, { "r", "r", "ri" } },
+    { INDEX_op_mul_i32, { "r", "r", "rI" } },
     { INDEX_op_div_i32, { "r", "r", "r" } },
     { INDEX_op_divu_i32, { "r", "r", "r" } },
     { INDEX_op_rem_i32, { "r", "r", "r" } },
@@ -1888,7 +1888,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_rotl_i64, { "r", "r", "ri" } },
     { INDEX_op_rotr_i64, { "r", "r", "ri" } },
 
-    { INDEX_op_mul_i64, { "r", "r", "r" } },
+    { INDEX_op_mul_i64, { "r", "r", "rI" } },
     { INDEX_op_div_i64, { "r", "r", "r" } },
     { INDEX_op_divu_i64, { "r", "r", "r" } },
     { INDEX_op_rem_i64, { "r", "r", "r" } },
