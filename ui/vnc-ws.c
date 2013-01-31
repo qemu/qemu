@@ -120,10 +120,11 @@ static char *vncws_extract_handshake_entry(const char *handshake,
 static void vncws_send_handshake_response(VncState *vs, const char* key)
 {
     char combined_key[WS_CLIENT_KEY_LEN + WS_GUID_LEN + 1];
-    char hash[SHA1_DIGEST_LEN];
-    size_t hash_size = SHA1_DIGEST_LEN;
+    unsigned char hash[SHA1_DIGEST_LEN];
+    size_t hash_size = sizeof(hash);
     char *accept = NULL, *response = NULL;
     gnutls_datum_t in;
+    int ret;
 
     g_strlcpy(combined_key, key, WS_CLIENT_KEY_LEN + 1);
     g_strlcat(combined_key, WS_GUID, WS_CLIENT_KEY_LEN + WS_GUID_LEN + 1);
@@ -131,9 +132,9 @@ static void vncws_send_handshake_response(VncState *vs, const char* key)
     /* hash and encode it */
     in.data = (void *)combined_key;
     in.size = WS_CLIENT_KEY_LEN + WS_GUID_LEN;
-    if (gnutls_fingerprint(GNUTLS_DIG_SHA1, &in, hash, &hash_size)
-            == GNUTLS_E_SUCCESS) {
-        accept = g_base64_encode((guchar *)hash, SHA1_DIGEST_LEN);
+    ret = gnutls_fingerprint(GNUTLS_DIG_SHA1, &in, hash, &hash_size);
+    if (ret == GNUTLS_E_SUCCESS && hash_size <= SHA1_DIGEST_LEN) {
+        accept = g_base64_encode(hash, hash_size);
     }
     if (accept == NULL) {
         VNC_DEBUG("Hashing Websocket combined key failed\n");

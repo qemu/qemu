@@ -334,6 +334,7 @@ static void arm_sysctl_write(void *opaque, hwaddr offset,
         default:
             s->sys_cfgstat |= 2;        /* error */
         }
+        s->sys_cfgctrl &= ~(1 << 31);
         return;
     case 0xa8: /* SYS_CFGSTAT */
         if (board_id(s) != BOARD_ID_VEXPRESS) {

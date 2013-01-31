@@ -325,6 +325,80 @@
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
 
 ##
+# @DataFormat:
+#
+# An enumeration of data format.
+#
+# @utf8: The data format is 'utf8'.
+#
+# @base64: The data format is 'base64'.
+#
+# Since: 1.4
+##
+{ 'enum': 'DataFormat'
+  'data': [ 'utf8', 'base64' ] }
+
+##
+# @memchar-write:
+#
+# Provide writing interface for memchardev. Write data to char
+# device 'memory'.
+#
+# @device: the name of the memory char device.
+#
+# @size: the size to write in bytes.
+#
+# @data: the source data write to memchar.
+#
+# @format: #optional the format of the data write to chardev 'memory',
+#          by default is 'utf8'.
+#
+# Returns: Nothing on success
+#          If @device is not a valid char device, DeviceNotFound
+#
+# Since: 1.4
+##
+{ 'command': 'memchar-write',
+  'data': {'device': 'str', 'size': 'int', 'data': 'str',
+           '*format': 'DataFormat'} }
+
+##
+# @MemCharRead
+#
+# Result of QMP command memchar-read.
+#
+# @data: The data read from memchar as string.
+#
+# @count: The numbers of bytes read from.
+#
+# Since: 1.4
+##
+{ 'type': 'MemCharRead',
+  'data': { 'data': 'str', 'count': 'int' } }
+
+##
+# @memchar-read:
+#
+# Provide read interface for memchardev. Read from the char
+# device 'memory' and return the data.
+#
+# @device: the name of the memory char device.
+#
+# @size: the size to read in bytes.
+#
+# @format: #optional the format of the data want to read from
+#          memchardev, by default is 'utf8'.
+#
+# Returns: @MemCharRead
+#          If @device is not a valid memchr device, DeviceNotFound
+#
+# Since: 1.4
+##
+{ 'command': 'memchar-read',
+  'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
+  'returns': 'MemCharRead' }
+
+##
 # @CommandInfo:
 #
 # Information about a QMP command
@@ -667,10 +741,12 @@
 #
 # @count: number of dirty bytes according to the dirty bitmap
 #
+# @granularity: granularity of the dirty bitmap in bytes (since 1.4)
+#
 # Since: 1.3
 ##
 { 'type': 'BlockDirtyInfo',
-  'data': {'count': 'int'} }
+  'data': {'count': 'int', 'granularity': 'int'} }
 
 ##
 # @BlockInfo:
@@ -977,28 +1053,10 @@
 #
 # @actual: the number of bytes the balloon currently contains
 #
-# @mem_swapped_in: #optional number of pages swapped in within the guest
-#
-# @mem_swapped_out: #optional number of pages swapped out within the guest
-#
-# @major_page_faults: #optional number of major page faults within the guest
-#
-# @minor_page_faults: #optional number of minor page faults within the guest
-#
-# @free_mem: #optional amount of memory (in bytes) free in the guest
-#
-# @total_mem: #optional amount of memory (in bytes) visible to the guest
-#
 # Since: 0.14.0
 #
-# Notes: all current versions of QEMU do not fill out optional information in
-#        this structure.
 ##
-{ 'type': 'BalloonInfo',
-  'data': {'actual': 'int', '*mem_swapped_in': 'int',
-           '*mem_swapped_out': 'int', '*major_page_faults': 'int',
-           '*minor_page_faults': 'int', '*free_mem': 'int',
-           '*total_mem': 'int'} }
+{ 'type': 'BalloonInfo', 'data': {'actual': 'int' } }
 
 ##
 # @query-balloon:
@@ -1634,6 +1692,14 @@
 #        (all the disk, only the sectors allocated in the topmost image, or
 #        only new I/O).
 #
+# @granularity: #optional granularity of the dirty bitmap, default is 64K
+#               if the image format doesn't have clusters, 4K if the clusters
+#               are smaller than that, else the cluster size.  Must be a
+#               power of 2 between 512 and 64M (since 1.4).
+#
+# @buf-size: #optional maximum amount of data in flight from source to
+#            target (since 1.4).
+#
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
 #                   if the block device supports io-status (see BlockInfo).
@@ -1650,7 +1716,8 @@
 { 'command': 'drive-mirror',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*on-source-error': 'BlockdevOnError',
+            '*speed': 'int', '*granularity': 'uint32',
+            '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
 ##

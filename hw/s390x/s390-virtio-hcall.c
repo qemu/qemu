@@ -10,7 +10,7 @@
  */
 
 #include "cpu.h"
-#include "hw/s390-virtio.h"
+#include "hw/s390x/s390-virtio.h"
 
 #define MAX_DIAG_SUBCODES 255
 

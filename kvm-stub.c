@@ -112,7 +112,7 @@ int kvm_set_ioeventfd_mmio(int fd, uint32_t adr, uint32_t val, bool assign, uint
     return -ENOSYS;
 }
 
-int kvm_on_sigbus_vcpu(CPUArchState *env, int code, void *addr)
+int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
     return 1;
 }

@@ -22,6 +22,22 @@ static inline void set_feature(CPUUniCore32State *env, int feature)
 
 /* CPU models */
 
+static ObjectClass *uc32_cpu_class_by_name(const char *cpu_model)
+{
+    ObjectClass *oc;
+
+    if (cpu_model == NULL) {
+        return NULL;
+    }
+
+    oc = object_class_by_name(cpu_model);
+    if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_UNICORE32_CPU) ||
+                       object_class_is_abstract(oc))) {
+        oc = NULL;
+    }
+    return oc;
+}
+
 typedef struct UniCore32CPUInfo {
     const char *name;
     void (*instance_init)(Object *obj);
@@ -80,6 +96,13 @@ static void uc32_cpu_initfn(Object *obj)
     tlb_flush(env, 1);
 }
 
+static void uc32_cpu_class_init(ObjectClass *oc, void *data)
+{
+    CPUClass *cc = CPU_CLASS(oc);
+
+    cc->class_by_name = uc32_cpu_class_by_name;
+}
+
 static void uc32_register_cpu_type(const UniCore32CPUInfo *info)
 {
     TypeInfo type_info = {
@@ -88,7 +111,7 @@ static void uc32_register_cpu_type(const UniCore32CPUInfo *info)
         .instance_init = info->instance_init,
     };
 
-    type_register_static(&type_info);
+    type_register(&type_info);
 }
 
 static const TypeInfo uc32_cpu_type_info = {
@@ -98,6 +121,7 @@ static const TypeInfo uc32_cpu_type_info = {
     .instance_init = uc32_cpu_initfn,
     .abstract = true,
     .class_size = sizeof(UniCore32CPUClass),
+    .class_init = uc32_cpu_class_init,
 };
 
 static void uc32_cpu_register_types(void)

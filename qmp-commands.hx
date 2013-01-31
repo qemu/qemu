@@ -466,6 +466,72 @@ Note: inject-nmi fails when the guest doesn't support injecting.
 EQMP
 
     {
+        .name       = "memchar-write",
+        .args_type  = "device:s,size:i,data:s,format:s?",
+        .mhandler.cmd_new = qmp_marshal_input_memchar_write,
+    },
+
+SQMP
+memchar-write
+-------------
+
+Provide writing interface for CirMemCharDriver. Write data to memory
+char device.
+
+Arguments:
+
+- "device": the name of the char device, must be unique (json-string)
+- "size": the memory size, in bytes, should be power of 2 (json-int)
+- "data": the source data write to memory (json-string)
+- "format": the data format write to memory, default is
+            utf8. (json-string, optional)
+          - Possible values: "utf8", "base64"
+
+Example:
+
+-> { "execute": "memchar-write",
+                "arguments": { "device": foo,
+                               "size": 8,
+                               "data": "abcdefgh",
+                               "format": "utf8" } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "memchar-read",
+        .args_type  = "device:s,size:i,format:s?",
+        .mhandler.cmd_new = qmp_marshal_input_memchar_read,
+    },
+
+SQMP
+memchar-read
+-------------
+
+Provide read interface for CirMemCharDriver. Read from the char
+device memory and return the data with size.
+
+Arguments:
+
+- "device": the name of the char device, must be unique (json-string)
+- "size": the memory size wanted to read in bytes (refer to unencoded
+          size of the raw data), would adjust to the init size of the
+          memchar if the requested size is larger than it. (json-int)
+- "format": the data format write to memchardev, default is
+            utf8. (json-string, optional)
+          - Possible values: "utf8", "base64"
+
+Example:
+
+-> { "execute": "memchar-read",
+                "arguments": { "device": foo,
+                               "size": 1000,
+                               "format": "utf8" } }
+<- { "return": { "data": "data string...", "count": 1000 } }
+
+EQMP
+
+    {
         .name       = "xen-save-devices-state",
         .args_type  = "filename:F",
     .mhandler.cmd_new = qmp_marshal_input_xen_save_devices_state,
@@ -938,7 +1004,8 @@ EQMP
     {
         .name       = "drive-mirror",
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
-                      "on-source-error:s?,on-target-error:s?",
+                      "on-source-error:s?,on-target-error:s?,"
+                      "granularity:i?,buf-size:i?",
         .mhandler.cmd_new = qmp_marshal_input_drive_mirror,
     },
 
@@ -962,6 +1029,9 @@ Arguments:
   file/device (NewImageMode, optional, default 'absolute-paths')
 - "speed": maximum speed of the streaming job, in bytes per second
   (json-int)
+- "granularity": granularity of the dirty bitmap, in bytes (json-int, optional)
+- "buf_size": maximum amount of data in flight from source to target, in bytes
+  (json-int, default 10M)
 - "sync": what parts of the disk image should be copied to the destination;
   possibilities include "full" for all the disk, "top" for only the sectors
   allocated in the topmost image, or "none" to only replicate new I/O
@@ -971,6 +1041,10 @@ Arguments:
 - "on-target-error": the action to take on an error on the target
   (BlockdevOnError, default 'report')
 
+The default value of the granularity is the image cluster size clamped
+between 4096 and 65536, if the image format defines one.  If the format
+does not define a cluster size, the default value of the granularity
+is 65536.
 
 
 Example:
@@ -1585,7 +1659,7 @@ Each json-object contain the following:
          - Possible values: "unknown"
 - "removable": true if the device is removable, false otherwise (json-bool)
 - "locked": true if the device is locked, false otherwise (json-bool)
-- "tray-open": only present if removable, true if the device has a tray,
+- "tray_open": only present if removable, true if the device has a tray,
                and it is open (json-bool)
 - "inserted": only present if the device is inserted, it is a json-object
    containing the following:
@@ -2549,13 +2623,6 @@ Make an asynchronous request for balloon info. When the request completes a
 json-object will be returned containing the following data:
 
 - "actual": current balloon value in bytes (json-int)
-- "mem_swapped_in": Amount of memory swapped in bytes (json-int, optional)
-- "mem_swapped_out": Amount of memory swapped out in bytes (json-int, optional)
-- "major_page_faults": Number of major faults (json-int, optional)
-- "minor_page_faults": Number of minor faults (json-int, optional)
-- "free_mem": Total amount of free and unused memory in
-              bytes (json-int, optional)
-- "total_mem": Total amount of available memory in bytes (json-int, optional)
 
 Example:
 
@@ -2563,12 +2630,6 @@ Example:
 <- {
       "return":{
          "actual":1073741824,
-         "mem_swapped_in":0,
-         "mem_swapped_out":0,
-         "major_page_faults":142,
-         "minor_page_faults":239245,
-         "free_mem":1014185984,
-         "total_mem":1044668416
       }
    }
 

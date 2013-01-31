@@ -1039,7 +1039,7 @@ int main(int argc, char **argv)
         }
         switch (c) {
         case 'p':
-            rpath = strdup(optarg);
+            rpath = g_strdup(optarg);
             break;
         case 'n':
             is_daemon = false;
@@ -1048,7 +1048,7 @@ int main(int argc, char **argv)
             sock = atoi(optarg);
             break;
         case 's':
-            sock_name = strdup(optarg);
+            sock_name = g_strdup(optarg);
             break;
         case 'u':
             own_u = atoi(optarg);

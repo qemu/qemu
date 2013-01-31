@@ -241,7 +241,7 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             if ((pr->cmd & PORT_CMD_FIS_ON) &&
                 !s->dev[port].init_d2h_sent) {
                 ahci_init_d2h(&s->dev[port]);
-                s->dev[port].init_d2h_sent = 1;
+                s->dev[port].init_d2h_sent = true;
             }
 
             check_cmd(s, port);
@@ -494,7 +494,7 @@ static void ahci_reset_port(AHCIState *s, int port)
     pr->scr_err = 0;
     pr->scr_act = 0;
     d->busy_slot = -1;
-    d->init_d2h_sent = 0;
+    d->init_d2h_sent = false;
 
     ide_state = &s->dev[port].port.ifs[0];
     if (!ide_state->bs) {
@@ -946,7 +946,7 @@ static int handle_cmd(AHCIState *s, int port, int slot)
             ide_state->hcyl = 0xeb;
             debug_print_fis(ide_state->io_buffer, 0x10);
             ide_state->feature = IDE_FEATURE_DMA;
-            s->dev[port].done_atapi_packet = 0;
+            s->dev[port].done_atapi_packet = false;
             /* XXX send PIO setup FIS */
         }
 
@@ -991,7 +991,7 @@ static int ahci_start_transfer(IDEDMA *dma)
 
     if (is_atapi && !ad->done_atapi_packet) {
         /* already prepopulated iobuffer */
-        ad->done_atapi_packet = 1;
+        ad->done_atapi_packet = true;
         goto out;
     }
 
@@ -1035,11 +1035,10 @@ out:
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,
                            BlockDriverCompletionFunc *dma_cb)
 {
+#ifdef DEBUG_AHCI
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
-
+#endif
     DPRINTF(ad->port_no, "\n");
-    ad->dma_cb = dma_cb;
-    ad->dma_status |= BM_STATUS_DMAING;
     s->io_buffer_offset = 0;
     dma_cb(s, 0);
 }
@@ -1095,7 +1094,6 @@ static int ahci_dma_set_unit(IDEDMA *dma, int unit)
 static int ahci_dma_add_status(IDEDMA *dma, int status)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
-    ad->dma_status |= status;
     DPRINTF(ad->port_no, "set status: %x\n", status);
 
     if (status & BM_STATUS_INT) {
@@ -1113,8 +1111,6 @@ static int ahci_dma_set_inactive(IDEDMA *dma)
 
     /* update d2h status */
     ahci_write_fis_d2h(ad, NULL);
-
-    ad->dma_cb = NULL;
 
     if (!ad->check_bh) {
         /* maybe we still have something to process, check later */
@@ -1203,6 +1199,82 @@ void ahci_reset(AHCIState *s)
     }
 }
 
+static const VMStateDescription vmstate_ahci_device = {
+    .name = "ahci port",
+    .version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_IDE_BUS(port, AHCIDevice),
+        VMSTATE_UINT32(port_state, AHCIDevice),
+        VMSTATE_UINT32(finished, AHCIDevice),
+        VMSTATE_UINT32(port_regs.lst_addr, AHCIDevice),
+        VMSTATE_UINT32(port_regs.lst_addr_hi, AHCIDevice),
+        VMSTATE_UINT32(port_regs.fis_addr, AHCIDevice),
+        VMSTATE_UINT32(port_regs.fis_addr_hi, AHCIDevice),
+        VMSTATE_UINT32(port_regs.irq_stat, AHCIDevice),
+        VMSTATE_UINT32(port_regs.irq_mask, AHCIDevice),
+        VMSTATE_UINT32(port_regs.cmd, AHCIDevice),
+        VMSTATE_UINT32(port_regs.tfdata, AHCIDevice),
+        VMSTATE_UINT32(port_regs.sig, AHCIDevice),
+        VMSTATE_UINT32(port_regs.scr_stat, AHCIDevice),
+        VMSTATE_UINT32(port_regs.scr_ctl, AHCIDevice),
+        VMSTATE_UINT32(port_regs.scr_err, AHCIDevice),
+        VMSTATE_UINT32(port_regs.scr_act, AHCIDevice),
+        VMSTATE_UINT32(port_regs.cmd_issue, AHCIDevice),
+        VMSTATE_BOOL(done_atapi_packet, AHCIDevice),
+        VMSTATE_INT32(busy_slot, AHCIDevice),
+        VMSTATE_BOOL(init_d2h_sent, AHCIDevice),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static int ahci_state_post_load(void *opaque, int version_id)
+{
+    int i;
+    struct AHCIDevice *ad;
+    AHCIState *s = opaque;
+
+    for (i = 0; i < s->ports; i++) {
+        ad = &s->dev[i];
+        AHCIPortRegs *pr = &ad->port_regs;
+
+        map_page(&ad->lst,
+                 ((uint64_t)pr->lst_addr_hi << 32) | pr->lst_addr, 1024);
+        map_page(&ad->res_fis,
+                 ((uint64_t)pr->fis_addr_hi << 32) | pr->fis_addr, 256);
+        /*
+         * All pending i/o should be flushed out on a migrate. However,
+         * we might not have cleared the busy_slot since this is done
+         * in a bh. Also, issue i/o against any slots that are pending.
+         */
+        if ((ad->busy_slot != -1) &&
+            !(ad->port.ifs[0].status & (BUSY_STAT|DRQ_STAT))) {
+            pr->cmd_issue &= ~(1 << ad->busy_slot);
+            ad->busy_slot = -1;
+        }
+        check_cmd(s, i);
+    }
+
+    return 0;
+}
+
+const VMStateDescription vmstate_ahci = {
+    .name = "ahci",
+    .version_id = 1,
+    .post_load = ahci_state_post_load,
+    .fields = (VMStateField []) {
+        VMSTATE_STRUCT_VARRAY_POINTER_INT32(dev, AHCIState, ports,
+                                     vmstate_ahci_device, AHCIDevice),
+        VMSTATE_UINT32(control_regs.cap, AHCIState),
+        VMSTATE_UINT32(control_regs.ghc, AHCIState),
+        VMSTATE_UINT32(control_regs.irqstatus, AHCIState),
+        VMSTATE_UINT32(control_regs.impl, AHCIState),
+        VMSTATE_UINT32(control_regs.version, AHCIState),
+        VMSTATE_UINT32(idp_index, AHCIState),
+        VMSTATE_INT32(ports, AHCIState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 typedef struct SysbusAHCIState {
     SysBusDevice busdev;
     AHCIState ahci;
@@ -1211,7 +1283,11 @@ typedef struct SysbusAHCIState {
 
 static const VMStateDescription vmstate_sysbus_ahci = {
     .name = "sysbus-ahci",
-    .unmigratable = 1,
+    .unmigratable = 1, /* Still buggy under I/O load */
+    .fields = (VMStateField []) {
+        VMSTATE_AHCI(ahci, AHCIPCIState),
+        VMSTATE_END_OF_LIST()
+    },
 };
 
 static void sysbus_ahci_reset(DeviceState *dev)

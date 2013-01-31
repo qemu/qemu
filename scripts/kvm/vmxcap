@@ -147,6 +147,7 @@ controls = [
             5: 'Enable VPID',
             6: 'WBINVD exiting',
             7: 'Unrestricted guest',
+            9: 'Virtual interrupt delivery',
             10: 'PAUSE-loop exiting',
             11: 'RDRAND exiting',
             12: 'Enable INVPCID',

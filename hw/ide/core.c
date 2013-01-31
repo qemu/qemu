@@ -1149,8 +1149,10 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         }
         ide_set_irq(s->bus);
         break;
+
     case WIN_VERIFY_EXT:
-	lba48 = 1;
+        lba48 = 1;
+        /* fall through */
     case WIN_VERIFY:
     case WIN_VERIFY_ONCE:
         /* do sector number check ? */
@@ -1158,8 +1160,10 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
         break;
+
     case WIN_READ_EXT:
-	lba48 = 1;
+        lba48 = 1;
+        /* fall through */
     case WIN_READ:
     case WIN_READ_ONCE:
         if (s->drive_kind == IDE_CD) {
@@ -1173,8 +1177,10 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         s->req_nb_sectors = 1;
         ide_sector_read(s);
         break;
+
     case WIN_WRITE_EXT:
-	lba48 = 1;
+        lba48 = 1;
+        /* fall through */
     case WIN_WRITE:
     case WIN_WRITE_ONCE:
     case CFA_WRITE_SECT_WO_ERASE:
@@ -1189,8 +1195,10 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
         s->media_changed = 1;
         break;
+
     case WIN_MULTREAD_EXT:
-	lba48 = 1;
+        lba48 = 1;
+        /* fall through */
     case WIN_MULTREAD:
         if (!s->bs) {
             goto abort_cmd;
@@ -1202,8 +1210,10 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         s->req_nb_sectors = s->mult_sectors;
         ide_sector_read(s);
         break;
+
     case WIN_MULTWRITE_EXT:
-	lba48 = 1;
+        lba48 = 1;
+        /* fall through */
     case WIN_MULTWRITE:
     case CFA_WRITE_MULTI_WO_ERASE:
         if (!s->bs) {
@@ -1222,8 +1232,10 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
         s->media_changed = 1;
         break;
+
     case WIN_READDMA_EXT:
-	lba48 = 1;
+        lba48 = 1;
+        /* fall through */
     case WIN_READDMA:
     case WIN_READDMA_ONCE:
         if (!s->bs) {
@@ -1232,8 +1244,10 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 	ide_cmd_lba48_transform(s, lba48);
         ide_sector_start_dma(s, IDE_DMA_READ);
         break;
+
     case WIN_WRITEDMA_EXT:
-	lba48 = 1;
+        lba48 = 1;
+        /* fall through */
     case WIN_WRITEDMA:
     case WIN_WRITEDMA_ONCE:
         if (!s->bs) {
@@ -1243,14 +1257,17 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_sector_start_dma(s, IDE_DMA_WRITE);
         s->media_changed = 1;
         break;
+
     case WIN_READ_NATIVE_MAX_EXT:
-	lba48 = 1;
+        lba48 = 1;
+        /* fall through */
     case WIN_READ_NATIVE_MAX:
 	ide_cmd_lba48_transform(s, lba48);
         ide_set_sector(s, s->nb_sectors - 1);
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
         break;
+
     case WIN_CHECKPOWERMODE1:
     case WIN_CHECKPOWERMODE2:
         s->error = 0;

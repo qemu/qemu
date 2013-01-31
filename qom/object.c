@@ -501,6 +501,11 @@ ObjectClass *object_get_class(Object *obj)
     return obj->class;
 }
 
+bool object_class_is_abstract(ObjectClass *klass)
+{
+    return klass->type->abstract;
+}
+
 const char *object_class_get_name(ObjectClass *klass)
 {
     return klass->type->name;

@@ -97,12 +97,14 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
 {
     M68kCPU *cpu;
     CPUM68KState *env;
+    ObjectClass *oc;
     static int inited;
 
-    if (object_class_by_name(cpu_model) == NULL) {
+    oc = cpu_class_by_name(TYPE_M68K_CPU, cpu_model);
+    if (oc == NULL) {
         return NULL;
     }
-    cpu = M68K_CPU(object_new(cpu_model));
+    cpu = M68K_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
 
     if (!inited) {

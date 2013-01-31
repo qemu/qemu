@@ -691,6 +691,14 @@ ObjectClass *object_class_get_parent(ObjectClass *klass);
 const char *object_class_get_name(ObjectClass *klass);
 
 /**
+ * object_class_is_abstract:
+ * @klass: The class to obtain the abstractness for.
+ *
+ * Returns: %true if @klass is abstract, %false otherwise.
+ */
+bool object_class_is_abstract(ObjectClass *klass);
+
+/**
  * object_class_by_name:
  * @typename: The QOM typename to obtain the class for.
  *

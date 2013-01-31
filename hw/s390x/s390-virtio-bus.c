@@ -17,12 +17,12 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "block/block.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
+#include "hw/boards.h"
 #include "monitor/monitor.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "hw/virtio.h"
 #include "hw/virtio-rng.h"
@@ -31,7 +31,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
 
-#include "hw/s390-virtio-bus.h"
+#include "hw/s390x/s390-virtio-bus.h"
 #include "hw/virtio-bus.h"
 
 /* #define DEBUG_S390 */
@@ -508,6 +508,13 @@ static int s390_virtio_busdev_init(DeviceState *dev)
     return _info->init(_dev);
 }
 
+static void s390_virtio_busdev_reset(DeviceState *dev)
+{
+    VirtIOS390Device *_dev = (VirtIOS390Device *)dev;
+
+    virtio_reset(_dev->vdev);
+}
+
 static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -515,6 +522,7 @@ static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
     dc->init = s390_virtio_busdev_init;
     dc->bus_type = TYPE_S390_VIRTIO_BUS;
     dc->unplug = qdev_simple_unplug_cb;
+    dc->reset = s390_virtio_busdev_reset;
 }
 
 static const TypeInfo virtio_s390_device_info = {

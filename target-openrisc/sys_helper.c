@@ -30,7 +30,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
     int spr = (ra | offset);
     int idx;
 
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     switch (spr) {
     case TO_SPR(0, 0): /* VR */
@@ -177,7 +177,7 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
     int spr = (ra | offset);
     int idx;
 
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     switch (spr) {
     case TO_SPR(0, 0): /* VR */

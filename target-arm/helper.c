@@ -1262,12 +1262,14 @@ ARMCPU *cpu_arm_init(const char *cpu_model)
 {
     ARMCPU *cpu;
     CPUARMState *env;
+    ObjectClass *oc;
     static int inited = 0;
 
-    if (!object_class_by_name(cpu_model)) {
+    oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
+    if (!oc) {
         return NULL;
     }
-    cpu = ARM_CPU(object_new(cpu_model));
+    cpu = ARM_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
     env->cpu_model_str = cpu_model;
     arm_cpu_realize(cpu);

@@ -617,8 +617,13 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
 
     ret = bdrv_open(dinfo->bdrv, file, bdrv_flags, drv);
     if (ret < 0) {
-        error_report("could not open disk image %s: %s",
-                     file, strerror(-ret));
+        if (ret == -EMEDIUMTYPE) {
+            error_report("could not open disk image %s: not in %s format",
+                         file, drv->format_name);
+        } else {
+            error_report("could not open disk image %s: %s",
+                         file, strerror(-ret));
+        }
         goto err;
     }
 
@@ -642,21 +647,17 @@ void do_commit(Monitor *mon, const QDict *qdict)
 
     if (!strcmp(device, "all")) {
         ret = bdrv_commit_all();
-        if (ret == -EBUSY) {
-            qerror_report(QERR_DEVICE_IN_USE, device);
-            return;
-        }
     } else {
         bs = bdrv_find(device);
         if (!bs) {
-            qerror_report(QERR_DEVICE_NOT_FOUND, device);
+            monitor_printf(mon, "Device '%s' not found\n", device);
             return;
         }
         ret = bdrv_commit(bs);
-        if (ret == -EBUSY) {
-            qerror_report(QERR_DEVICE_IN_USE, device);
-            return;
-        }
+    }
+    if (ret < 0) {
+        monitor_printf(mon, "'commit' error for '%s': %s\n", device,
+                       strerror(-ret));
     }
 }
 
@@ -1188,16 +1189,19 @@ void qmp_block_commit(const char *device,
     drive_get_ref(drive_get_by_blockdev(bs));
 }
 
+#define DEFAULT_MIRROR_BUF_SIZE   (10 << 20)
+
 void qmp_drive_mirror(const char *device, const char *target,
                       bool has_format, const char *format,
                       enum MirrorSyncMode sync,
                       bool has_mode, enum NewImageMode mode,
                       bool has_speed, int64_t speed,
+                      bool has_granularity, uint32_t granularity,
+                      bool has_buf_size, int64_t buf_size,
                       bool has_on_source_error, BlockdevOnError on_source_error,
                       bool has_on_target_error, BlockdevOnError on_target_error,
                       Error **errp)
 {
-    BlockDriverInfo bdi;
     BlockDriverState *bs;
     BlockDriverState *source, *target_bs;
     BlockDriver *proto_drv;
@@ -1218,6 +1222,21 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
     if (!has_mode) {
         mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    }
+    if (!has_granularity) {
+        granularity = 0;
+    }
+    if (!has_buf_size) {
+        buf_size = DEFAULT_MIRROR_BUF_SIZE;
+    }
+
+    if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
+        error_set(errp, QERR_INVALID_PARAMETER, device);
+        return;
+    }
+    if (granularity & (granularity - 1)) {
+        error_set(errp, QERR_INVALID_PARAMETER, device);
+        return;
     }
 
     bs = bdrv_find(device);
@@ -1259,11 +1278,11 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
+    bdrv_get_geometry(bs, &size);
+    size *= 512;
     if (sync == MIRROR_SYNC_MODE_FULL && mode != NEW_IMAGE_MODE_EXISTING) {
         /* create new image w/o backing file */
         assert(format && drv);
-        bdrv_get_geometry(bs, &size);
-        size *= 512;
         bdrv_img_create(target, format,
                         NULL, NULL, NULL, size, flags, &local_err);
     } else {
@@ -1276,7 +1295,7 @@ void qmp_drive_mirror(const char *device, const char *target,
             bdrv_img_create(target, format,
                             source->filename,
                             source->drv->format_name,
-                            NULL, -1, flags, &local_err);
+                            NULL, size, flags, &local_err);
             break;
         default:
             abort();
@@ -1288,6 +1307,9 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
+    /* Mirroring takes care of copy-on-write using the source's backing
+     * file.
+     */
     target_bs = bdrv_new("");
     ret = bdrv_open(target_bs, target, flags | BDRV_O_NO_BACKING, drv);
 
@@ -1297,18 +1319,8 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
-    /* We need a backing file if we will copy parts of a cluster.  */
-    if (bdrv_get_info(target_bs, &bdi) >= 0 && bdi.cluster_size != 0 &&
-        bdi.cluster_size >= BDRV_SECTORS_PER_DIRTY_CHUNK * 512) {
-        ret = bdrv_open_backing_file(target_bs);
-        if (ret < 0) {
-            bdrv_delete(target_bs);
-            error_set(errp, QERR_OPEN_FILE_FAILED, target);
-            return;
-        }
-    }
-
-    mirror_start(bs, target_bs, speed, sync, on_source_error, on_target_error,
+    mirror_start(bs, target_bs, speed, granularity, buf_size, sync,
+                 on_source_error, on_target_error,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
         bdrv_delete(target_bs);

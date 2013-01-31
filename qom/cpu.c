@@ -34,11 +34,24 @@ static void cpu_common_reset(CPUState *cpu)
 {
 }
 
+ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
+{
+    CPUClass *cc = CPU_CLASS(object_class_by_name(typename));
+
+    return cc->class_by_name(cpu_model);
+}
+
+static ObjectClass *cpu_common_class_by_name(const char *cpu_model)
+{
+    return NULL;
+}
+
 static void cpu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CPUClass *k = CPU_CLASS(klass);
 
+    k->class_by_name = cpu_common_class_by_name;
     k->reset = cpu_common_reset;
     dc->no_user = 1;
 }

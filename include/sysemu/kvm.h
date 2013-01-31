@@ -36,6 +36,7 @@
 #define KVM_FEATURE_ASYNC_PF     0
 #define KVM_FEATURE_STEAL_TIME   0
 #define KVM_FEATURE_PV_EOI       0
+#define KVM_FEATURE_CLOCKSOURCE_STABLE_BIT 0
 #endif
 
 extern int kvm_allowed;
@@ -158,7 +159,7 @@ int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap);
 int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset);
 #endif
 
-int kvm_on_sigbus_vcpu(CPUArchState *env, int code, void *addr);
+int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
 
 /* internal API */
@@ -194,6 +195,9 @@ int kvm_arch_put_registers(CPUState *cpu, int level);
 int kvm_arch_init(KVMState *s);
 
 int kvm_arch_init_vcpu(CPUState *cpu);
+
+/* Returns VCPU ID to be used on KVM_CREATE_VCPU ioctl() */
+unsigned long kvm_arch_vcpu_id(CPUState *cpu);
 
 void kvm_arch_reset_vcpu(CPUState *cpu);
 

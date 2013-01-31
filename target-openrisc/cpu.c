@@ -88,6 +88,23 @@ static void openrisc_cpu_initfn(Object *obj)
 }
 
 /* CPU models */
+
+static ObjectClass *openrisc_cpu_class_by_name(const char *cpu_model)
+{
+    ObjectClass *oc;
+
+    if (cpu_model == NULL) {
+        return NULL;
+    }
+
+    oc = object_class_by_name(cpu_model);
+    if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_OPENRISC_CPU) ||
+                       object_class_is_abstract(oc))) {
+        return NULL;
+    }
+    return oc;
+}
+
 static void or1200_initfn(Object *obj)
 {
     OpenRISCCPU *cpu = OPENRISC_CPU(obj);
@@ -120,6 +137,8 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
 
     occ->parent_reset = cc->reset;
     cc->reset = openrisc_cpu_reset;
+
+    cc->class_by_name = openrisc_cpu_class_by_name;
 }
 
 static void cpu_register(const OpenRISCCPUInfo *info)
@@ -132,7 +151,7 @@ static void cpu_register(const OpenRISCCPUInfo *info)
         .class_size = sizeof(OpenRISCCPUClass),
     };
 
-    type_register_static(&type_info);
+    type_register(&type_info);
 }
 
 static const TypeInfo openrisc_cpu_type_info = {
@@ -158,22 +177,19 @@ static void openrisc_cpu_register_types(void)
 OpenRISCCPU *cpu_openrisc_init(const char *cpu_model)
 {
     OpenRISCCPU *cpu;
+    ObjectClass *oc;
 
-    if (!object_class_by_name(cpu_model)) {
+    oc = openrisc_cpu_class_by_name(cpu_model);
+    if (oc == NULL) {
         return NULL;
     }
-    cpu = OPENRISC_CPU(object_new(cpu_model));
+    cpu = OPENRISC_CPU(object_new(object_class_get_name(oc)));
     cpu->env.cpu_model_str = cpu_model;
 
     openrisc_cpu_realize(OBJECT(cpu), NULL);
 
     return cpu;
 }
-
-typedef struct OpenRISCCPUList {
-    fprintf_function cpu_fprintf;
-    FILE *file;
-} OpenRISCCPUList;
 
 /* Sort alphabetically by type name, except for "any". */
 static gint openrisc_cpu_list_compare(gconstpointer a, gconstpointer b)
@@ -196,7 +212,7 @@ static gint openrisc_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void openrisc_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
-    OpenRISCCPUList *s = user_data;
+    CPUListState *s = user_data;
 
     (*s->cpu_fprintf)(s->file, "  %s\n",
                       object_class_get_name(oc));
@@ -204,7 +220,7 @@ static void openrisc_cpu_list_entry(gpointer data, gpointer user_data)
 
 void cpu_openrisc_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    OpenRISCCPUList s = {
+    CPUListState s = {
         .file = f,
         .cpu_fprintf = cpu_fprintf,
     };

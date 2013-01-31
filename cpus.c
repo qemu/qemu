@@ -517,7 +517,7 @@ static void qemu_init_sigbus(void)
     prctl(PR_MCE_KILL, PR_MCE_KILL_SET, PR_MCE_KILL_EARLY, 0, 0);
 }
 
-static void qemu_kvm_eat_signals(CPUArchState *env)
+static void qemu_kvm_eat_signals(CPUState *cpu)
 {
     struct timespec ts = { 0, 0 };
     siginfo_t siginfo;
@@ -538,7 +538,7 @@ static void qemu_kvm_eat_signals(CPUArchState *env)
 
         switch (r) {
         case SIGBUS:
-            if (kvm_on_sigbus_vcpu(env, siginfo.si_code, siginfo.si_addr)) {
+            if (kvm_on_sigbus_vcpu(cpu, siginfo.si_code, siginfo.si_addr)) {
                 sigbus_reraise();
             }
             break;
@@ -560,7 +560,7 @@ static void qemu_init_sigbus(void)
 {
 }
 
-static void qemu_kvm_eat_signals(CPUArchState *env)
+static void qemu_kvm_eat_signals(CPUState *cpu)
 {
 }
 #endif /* !CONFIG_LINUX */
@@ -727,7 +727,7 @@ static void qemu_kvm_wait_io_event(CPUArchState *env)
         qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
     }
 
-    qemu_kvm_eat_signals(env);
+    qemu_kvm_eat_signals(cpu);
     qemu_wait_io_event_common(cpu);
 }
 
