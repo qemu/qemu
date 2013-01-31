@@ -480,32 +480,25 @@ static void tcg_out_movi32(TCGContext *s, TCGReg ret, int32_t arg)
     }
 }
 
-static void tcg_out_movi (TCGContext *s, TCGType type,
-                          TCGReg ret, tcg_target_long arg)
+static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg ret,
+                         tcg_target_long arg)
 {
-    int32_t arg32 = arg;
-    arg = type == TCG_TYPE_I32 ? arg & 0xffffffff : arg;
-
-    if (arg == arg32) {
-        tcg_out_movi32 (s, ret, arg32);
-    }
-    else {
-        if ((uint64_t) arg >> 32) {
-            uint16_t h16 = arg >> 16;
-            uint16_t l16 = arg;
-
-            tcg_out_movi32(s, ret, arg >> 32);
+    if (type == TCG_TYPE_I32 || arg == (int32_t)arg) {
+        tcg_out_movi32(s, ret, arg);
+    } else if (arg == (uint32_t)arg && !(arg & 0x8000)) {
+        tcg_out32(s, ADDI | TAI(ret, 0, arg));
+        tcg_out32(s, ORIS | SAI(ret, ret, arg >> 16));
+    } else {
+        int32_t high = arg >> 32;
+        tcg_out_movi32(s, ret, high);
+        if (high) {
             tcg_out_shli64(s, ret, ret, 32);
-            if (h16) {
-                tcg_out32(s, ORIS | SAI(ret, ret, h16));
-            }
-            if (l16) {
-                tcg_out32(s, ORI | SAI(ret, ret, l16));
-            }
-        } else {
-            tcg_out_movi32 (s, ret, arg32);
-            if (arg32 < 0)
-                tcg_out_ext32u(s, ret, ret);
+        }
+        if (arg & 0xffff0000) {
+            tcg_out32(s, ORIS | SAI(ret, ret, arg >> 16));
+        }
+        if (arg & 0xffff) {
+            tcg_out32(s, ORI | SAI(ret, ret, arg));
         }
     }
 }
