@@ -1676,6 +1676,44 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
                          const_args[2]);
         break;
 
+    case INDEX_op_bswap16_i32:
+    case INDEX_op_bswap16_i64:
+        a0 = args[0], a1 = args[1];
+        /* a1 = abcd */
+        if (a0 != a1) {
+            /* a0 = (a1 r<< 24) & 0xff # 000c */
+            tcg_out_rlw(s, RLWINM, a0, a1, 24, 24, 31);
+            /* a0 = (a0 & ~0xff00) | (a1 r<< 8) & 0xff00 # 00dc */
+            tcg_out_rlw(s, RLWIMI, a0, a1, 8, 16, 23);
+        } else {
+            /* r0 = (a1 r<< 8) & 0xff00 # 00d0 */
+            tcg_out_rlw(s, RLWINM, TCG_REG_R0, a1, 8, 16, 23);
+            /* a0 = (a1 r<< 24) & 0xff # 000c */
+            tcg_out_rlw(s, RLWINM, a0, a1, 24, 24, 31);
+            /* a0 = a0 | r0 # 00dc */
+            tcg_out32(s, OR | SAB(TCG_REG_R0, a0, a0));
+        }
+        break;
+
+    case INDEX_op_bswap32_i32:
+    case INDEX_op_bswap32_i64:
+        /* Stolen from gcc's builtin_bswap32 */
+        a1 = args[1];
+        a0 = args[0] == a1 ? TCG_REG_R0 : args[0];
+
+        /* a1 = args[1] # abcd */
+        /* a0 = rotate_left (a1, 8) # bcda */
+        tcg_out_rlw(s, RLWINM, a0, a1, 8, 0, 31);
+        /* a0 = (a0 & ~0xff000000) | ((a1 r<< 24) & 0xff000000) # dcda */
+        tcg_out_rlw(s, RLWIMI, a0, a1, 24, 0, 7);
+        /* a0 = (a0 & ~0x0000ff00) | ((a1 r<< 24) & 0x0000ff00) # dcba */
+        tcg_out_rlw(s, RLWIMI, a0, a1, 24, 16, 23);
+
+        if (a0 == TCG_REG_R0) {
+            tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
+        }
+        break;
+
     default:
         tcg_dump_ops (s);
         tcg_abort ();
@@ -1780,6 +1818,11 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_setcond_i32, { "r", "r", "ri" } },
     { INDEX_op_setcond_i64, { "r", "r", "ri" } },
+
+    { INDEX_op_bswap16_i32, { "r", "r" } },
+    { INDEX_op_bswap16_i64, { "r", "r" } },
+    { INDEX_op_bswap32_i32, { "r", "r" } },
+    { INDEX_op_bswap32_i64, { "r", "r" } },
 
     { -1 },
 };
