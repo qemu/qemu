@@ -111,7 +111,7 @@ static int pending_cpus;
 /* Make sure everything is in a consistent state for calling fork().  */
 void fork_start(void)
 {
-    pthread_mutex_lock(&tb_lock);
+    pthread_mutex_lock(&tcg_ctx.tb_ctx.tb_lock);
     pthread_mutex_lock(&exclusive_lock);
     mmap_fork_start();
 }
@@ -129,11 +129,11 @@ void fork_end(int child)
         pthread_mutex_init(&cpu_list_mutex, NULL);
         pthread_cond_init(&exclusive_cond, NULL);
         pthread_cond_init(&exclusive_resume, NULL);
-        pthread_mutex_init(&tb_lock, NULL);
+        pthread_mutex_init(&tcg_ctx.tb_ctx.tb_lock, NULL);
         gdbserver_fork(thread_env);
     } else {
         pthread_mutex_unlock(&exclusive_lock);
-        pthread_mutex_unlock(&tb_lock);
+        pthread_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
     }
 }
 

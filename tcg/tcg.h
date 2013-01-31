@@ -471,6 +471,8 @@ struct TCGContext {
     size_t code_gen_buffer_max_size;
     uint8_t *code_gen_ptr;
 
+    TBContext tb_ctx;
+
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
     /* labels info for qemu_ld/st IRs
        The labels help to generate TLB miss case codes at the end of TB */

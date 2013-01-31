@@ -23,8 +23,6 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 
-int tb_invalidated_flag;
-
 //#define CONFIG_DEBUG_EXEC
 
 bool qemu_cpu_has_work(CPUState *cpu)
@@ -90,13 +88,13 @@ static TranslationBlock *tb_find_slow(CPUArchState *env,
     tb_page_addr_t phys_pc, phys_page1;
     target_ulong virt_page2;
 
-    tb_invalidated_flag = 0;
+    tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
 
     /* find translated block using physical mappings */
     phys_pc = get_page_addr_code(env, pc);
     phys_page1 = phys_pc & TARGET_PAGE_MASK;
     h = tb_phys_hash_func(phys_pc);
-    ptb1 = &tb_phys_hash[h];
+    ptb1 = &tcg_ctx.tb_ctx.tb_phys_hash[h];
     for(;;) {
         tb = *ptb1;
         if (!tb)
@@ -128,8 +126,8 @@ static TranslationBlock *tb_find_slow(CPUArchState *env,
     /* Move the last found TB to the head of the list */
     if (likely(*ptb1)) {
         *ptb1 = tb->phys_hash_next;
-        tb->phys_hash_next = tb_phys_hash[h];
-        tb_phys_hash[h] = tb;
+        tb->phys_hash_next = tcg_ctx.tb_ctx.tb_phys_hash[h];
+        tcg_ctx.tb_ctx.tb_phys_hash[h] = tb;
     }
     /* we add the TB in the virtual pc hash table */
     env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
@@ -563,16 +561,16 @@ int cpu_exec(CPUArchState *env)
 #endif
                 }
 #endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */
-                spin_lock(&tb_lock);
+                spin_lock(&tcg_ctx.tb_ctx.tb_lock);
                 tb = tb_find_fast(env);
                 /* Note: we do it here to avoid a gcc bug on Mac OS X when
                    doing it in tb_find_slow */
-                if (tb_invalidated_flag) {
+                if (tcg_ctx.tb_ctx.tb_invalidated_flag) {
                     /* as some TB could have been invalidated because
                        of memory exceptions while generating the code, we
                        must recompute the hash index here */
                     next_tb = 0;
-                    tb_invalidated_flag = 0;
+                    tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
                 }
 #ifdef CONFIG_DEBUG_EXEC
                 qemu_log_mask(CPU_LOG_EXEC, "Trace %p [" TARGET_FMT_lx "] %s\n",
@@ -585,7 +583,7 @@ int cpu_exec(CPUArchState *env)
                 if (next_tb != 0 && tb->page_addr[1] == -1) {
                     tb_add_jump((TranslationBlock *)(next_tb & ~3), next_tb & 3, tb);
                 }
-                spin_unlock(&tb_lock);
+                spin_unlock(&tcg_ctx.tb_ctx.tb_lock);
 
                 /* cpu_interrupt might be called while translating the
                    TB, but before it is linked into a potentially
