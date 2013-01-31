@@ -385,6 +385,10 @@ static int tcg_target_const_match (tcg_target_long val,
 #define NOR    XO31(124)
 #define CNTLZW XO31( 26)
 #define CNTLZD XO31( 58)
+#define ANDC   XO31( 60)
+#define ORC    XO31(412)
+#define EQV    XO31(284)
+#define NAND   XO31(476)
 
 #define MULLD  XO31(233)
 #define MULHD  XO31( 73)
@@ -1421,6 +1425,26 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
             tcg_out32(s, XOR | SAB(a1, a0, a2));
         }
         break;
+    case INDEX_op_andc_i32:
+    case INDEX_op_andc_i64:
+        tcg_out32(s, ANDC | SAB(args[1], args[0], args[2]));
+        break;
+    case INDEX_op_orc_i32:
+    case INDEX_op_orc_i64:
+        tcg_out32(s, ORC | SAB(args[1], args[0], args[2]));
+        break;
+    case INDEX_op_eqv_i32:
+    case INDEX_op_eqv_i64:
+        tcg_out32(s, EQV | SAB(args[1], args[0], args[2]));
+        break;
+    case INDEX_op_nand_i32:
+    case INDEX_op_nand_i64:
+        tcg_out32(s, NAND | SAB(args[1], args[0], args[2]));
+        break;
+    case INDEX_op_nor_i32:
+    case INDEX_op_nor_i64:
+        tcg_out32(s, NOR | SAB(args[1], args[0], args[2]));
+        break;
 
     case INDEX_op_mul_i32:
         if (const_args[2]) {
@@ -1796,6 +1820,11 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_and_i32, { "r", "r", "ri" } },
     { INDEX_op_or_i32, { "r", "r", "ri" } },
     { INDEX_op_xor_i32, { "r", "r", "ri" } },
+    { INDEX_op_andc_i32, { "r", "r", "r" } },
+    { INDEX_op_orc_i32, { "r", "r", "r" } },
+    { INDEX_op_eqv_i32, { "r", "r", "r" } },
+    { INDEX_op_nand_i32, { "r", "r", "r" } },
+    { INDEX_op_nor_i32, { "r", "r", "r" } },
 
     { INDEX_op_shl_i32, { "r", "r", "ri" } },
     { INDEX_op_shr_i32, { "r", "r", "ri" } },
@@ -1814,6 +1843,11 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_and_i64, { "r", "r", "rU" } },
     { INDEX_op_or_i64, { "r", "r", "rU" } },
     { INDEX_op_xor_i64, { "r", "r", "rU" } },
+    { INDEX_op_andc_i64, { "r", "r", "r" } },
+    { INDEX_op_orc_i64, { "r", "r", "r" } },
+    { INDEX_op_eqv_i64, { "r", "r", "r" } },
+    { INDEX_op_nand_i64, { "r", "r", "r" } },
+    { INDEX_op_nor_i64, { "r", "r", "r" } },
 
     { INDEX_op_shl_i64, { "r", "r", "ri" } },
     { INDEX_op_shr_i64, { "r", "r", "ri" } },
