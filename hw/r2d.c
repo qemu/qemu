@@ -276,8 +276,14 @@ static void r2d_init(QEMUMachineInitArgs *args)
 
     /* onboard CF (True IDE mode, Master only). */
     dinfo = drive_get(IF_IDE, 0, 0);
-    mmio_ide_init(0x14001000, 0x1400080c, address_space_mem, irq[CF_IDE], 1,
-                  dinfo, NULL);
+    dev = qdev_create(NULL, "mmio-ide");
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(busdev, 0, irq[CF_IDE]);
+    qdev_prop_set_uint32(dev, "shift", 1);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(busdev, 0, 0x14001000);
+    sysbus_mmio_map(busdev, 1, 0x1400080c);
+    mmio_ide_init_drives(dev, dinfo, NULL);
 
     /* onboard flash memory */
     dinfo = drive_get(IF_PFLASH, 0, 0);
