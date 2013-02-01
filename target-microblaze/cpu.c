@@ -22,6 +22,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "migration/vmstate.h"
 
 
 /* CPUClass::reset() */
@@ -94,13 +95,21 @@ static void mb_cpu_initfn(Object *obj)
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
 }
 
+static const VMStateDescription vmstate_mb_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
 static void mb_cpu_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_CLASS(oc);
 
     mcc->parent_reset = cc->reset;
     cc->reset = mb_cpu_reset;
+
+    dc->vmsd = &vmstate_mb_cpu;
 }
 
 static const TypeInfo mb_cpu_type_info = {

@@ -20,10 +20,7 @@ PCIDevice *pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 void vt82c686b_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 
 /* ide-mmio.c */
-void mmio_ide_init (hwaddr membase, hwaddr membase2,
-                    MemoryRegion *address_space,
-                    qemu_irq irq, int shift,
-                    DriveInfo *hd0, DriveInfo *hd1);
+void mmio_ide_init_drives(DeviceState *dev, DriveInfo *hd0, DriveInfo *hd1);
 
 int ide_get_geometry(BusState *bus, int unit,
                      int16_t *cyls, int8_t *heads, int8_t *secs);

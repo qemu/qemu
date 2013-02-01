@@ -38,6 +38,7 @@ CPUUniCore32State *uc32_cpu_init(const char *cpu_model)
     }
     cpu = UNICORE32_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
+    env->cpu_model_str = cpu_model;
 
     if (inited) {
         inited = 0;
