@@ -774,6 +774,8 @@ void migrate_fd_connect(MigrationState *s)
     s->buffer = NULL;
     s->buffer_size = 0;
     s->buffer_capacity = 0;
+    /* This is a best 1st approximation. ns to ms */
+    s->expected_downtime = max_downtime/1000000;
 
     s->xfer_limit = s->bandwidth_limit / XFER_LIMIT_RATIO;
     s->complete = false;
