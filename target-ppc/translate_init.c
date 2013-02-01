@@ -6298,7 +6298,7 @@ static void init_proc_7457 (CPUPPCState *env)
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
                               PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
                               PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZT |  \
+                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_64B | PPC_ALTIVEC |                         \
@@ -6394,7 +6394,7 @@ static void init_proc_970 (CPUPPCState *env)
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
                               PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
                               PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZT |  \
+                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_64B | PPC_ALTIVEC |                         \
@@ -6496,7 +6496,7 @@ static void init_proc_970FX (CPUPPCState *env)
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
                               PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
                               PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZT |  \
+                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_64B | PPC_ALTIVEC |                         \
@@ -6586,7 +6586,7 @@ static void init_proc_970GX (CPUPPCState *env)
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
                               PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
                               PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZT |  \
+                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_64B | PPC_ALTIVEC |                         \
@@ -6677,7 +6677,7 @@ static void init_proc_970MP (CPUPPCState *env)
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
                               PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
                               PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZT |  \
+                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_64B | PPC_ALTIVEC |                         \
