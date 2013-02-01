@@ -57,27 +57,32 @@ static int cloop_open(BlockDriverState *bs, int flags)
 {
     BDRVCloopState *s = bs->opaque;
     uint32_t offsets_size, max_compressed_block_size = 1, i;
+    int ret;
 
     bs->read_only = 1;
 
     /* read header */
-    if (bdrv_pread(bs->file, 128, &s->block_size, 4) < 4) {
-        goto cloop_close;
+    ret = bdrv_pread(bs->file, 128, &s->block_size, 4);
+    if (ret < 0) {
+        return ret;
     }
     s->block_size = be32_to_cpu(s->block_size);
 
-    if (bdrv_pread(bs->file, 128 + 4, &s->n_blocks, 4) < 4) {
-        goto cloop_close;
+    ret = bdrv_pread(bs->file, 128 + 4, &s->n_blocks, 4);
+    if (ret < 0) {
+        return ret;
     }
     s->n_blocks = be32_to_cpu(s->n_blocks);
 
     /* read offsets */
     offsets_size = s->n_blocks * sizeof(uint64_t);
     s->offsets = g_malloc(offsets_size);
-    if (bdrv_pread(bs->file, 128 + 4 + 4, s->offsets, offsets_size) <
-            offsets_size) {
-        goto cloop_close;
+
+    ret = bdrv_pread(bs->file, 128 + 4 + 4, s->offsets, offsets_size);
+    if (ret < 0) {
+        goto fail;
     }
+
     for(i=0;i<s->n_blocks;i++) {
         s->offsets[i] = be64_to_cpu(s->offsets[i]);
         if (i > 0) {
@@ -92,7 +97,8 @@ static int cloop_open(BlockDriverState *bs, int flags)
     s->compressed_block = g_malloc(max_compressed_block_size + 1);
     s->uncompressed_block = g_malloc(s->block_size);
     if (inflateInit(&s->zstream) != Z_OK) {
-        goto cloop_close;
+        ret = -EINVAL;
+        goto fail;
     }
     s->current_block = s->n_blocks;
 
@@ -101,8 +107,11 @@ static int cloop_open(BlockDriverState *bs, int flags)
     qemu_co_mutex_init(&s->lock);
     return 0;
 
-cloop_close:
-    return -1;
+fail:
+    g_free(s->offsets);
+    g_free(s->compressed_block);
+    g_free(s->uncompressed_block);
+    return ret;
 }
 
 static inline int cloop_read_block(BlockDriverState *bs, int block_num)

@@ -163,24 +163,33 @@ static int vpc_open(BlockDriverState *bs, int flags)
     struct vhd_dyndisk_header* dyndisk_header;
     uint8_t buf[HEADER_SIZE];
     uint32_t checksum;
-    int err = -1;
     int disk_type = VHD_DYNAMIC;
+    int ret;
 
-    if (bdrv_pread(bs->file, 0, s->footer_buf, HEADER_SIZE) != HEADER_SIZE)
+    ret = bdrv_pread(bs->file, 0, s->footer_buf, HEADER_SIZE);
+    if (ret < 0) {
         goto fail;
+    }
 
     footer = (struct vhd_footer*) s->footer_buf;
     if (strncmp(footer->creator, "conectix", 8)) {
         int64_t offset = bdrv_getlength(bs->file);
-        if (offset < HEADER_SIZE) {
+        if (offset < 0) {
+            ret = offset;
+            goto fail;
+        } else if (offset < HEADER_SIZE) {
+            ret = -EINVAL;
             goto fail;
         }
+
         /* If a fixed disk, the footer is found only at the end of the file */
-        if (bdrv_pread(bs->file, offset-HEADER_SIZE, s->footer_buf, HEADER_SIZE)
-                != HEADER_SIZE) {
+        ret = bdrv_pread(bs->file, offset-HEADER_SIZE, s->footer_buf,
+                         HEADER_SIZE);
+        if (ret < 0) {
             goto fail;
         }
         if (strncmp(footer->creator, "conectix", 8)) {
+            ret = -EMEDIUMTYPE;
             goto fail;
         }
         disk_type = VHD_FIXED;
@@ -203,19 +212,21 @@ static int vpc_open(BlockDriverState *bs, int flags)
 
     /* Allow a maximum disk size of approximately 2 TB */
     if (bs->total_sectors >= 65535LL * 255 * 255) {
-        err = -EFBIG;
+        ret = -EFBIG;
         goto fail;
     }
 
     if (disk_type == VHD_DYNAMIC) {
-        if (bdrv_pread(bs->file, be64_to_cpu(footer->data_offset), buf,
-                HEADER_SIZE) != HEADER_SIZE) {
+        ret = bdrv_pread(bs->file, be64_to_cpu(footer->data_offset), buf,
+                         HEADER_SIZE);
+        if (ret < 0) {
             goto fail;
         }
 
         dyndisk_header = (struct vhd_dyndisk_header *) buf;
 
         if (strncmp(dyndisk_header->magic, "cxsparse", 8)) {
+            ret = -EINVAL;
             goto fail;
         }
 
@@ -226,8 +237,10 @@ static int vpc_open(BlockDriverState *bs, int flags)
         s->pagetable = g_malloc(s->max_table_entries * 4);
 
         s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
-        if (bdrv_pread(bs->file, s->bat_offset, s->pagetable,
-                s->max_table_entries * 4) != s->max_table_entries * 4) {
+
+        ret = bdrv_pread(bs->file, s->bat_offset, s->pagetable,
+                         s->max_table_entries * 4);
+        if (ret < 0) {
             goto fail;
         }
 
@@ -265,8 +278,13 @@ static int vpc_open(BlockDriverState *bs, int flags)
     migrate_add_blocker(s->migration_blocker);
 
     return 0;
- fail:
-    return err;
+
+fail:
+    g_free(s->pagetable);
+#ifdef CACHE
+    g_free(s->pageentry_u8);
+#endif
+    return ret;
 }
 
 static int vpc_reopen_prepare(BDRVReopenState *state,
