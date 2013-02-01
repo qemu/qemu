@@ -445,6 +445,12 @@ static inline void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
     tcg_out32 (s, op | RA (ra) | RS (rs) | sh | mb);
 }
 
+static inline void tcg_out_rlw(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                               int sh, int mb, int me)
+{
+    tcg_out32(s, op | RA(ra) | RS(rs) | SH(sh) | MB(mb) | ME(me));
+}
+
 static void tcg_out_movi32(TCGContext *s, TCGReg ret, int32_t arg)
 {
     if (arg == (int16_t) arg)
@@ -574,24 +580,14 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg r0, TCGReg r1, TCGReg r2,
 #if TARGET_LONG_BITS == 32
     tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
 
-    tcg_out32 (s, (RLWINM
-                   | RA (r0)
-                   | RS (addr_reg)
-                   | SH (32 - (TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS))
-                   | MB (32 - (CPU_TLB_BITS + CPU_TLB_ENTRY_BITS))
-                   | ME (31 - CPU_TLB_ENTRY_BITS)
-                   )
-        );
+    tcg_out_rlw(s, RLWINM, r0, addr_reg,
+                32 - (TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS),
+                32 - (CPU_TLB_BITS + CPU_TLB_ENTRY_BITS),
+                31 - CPU_TLB_ENTRY_BITS);
     tcg_out32 (s, ADD | RT (r0) | RA (r0) | RB (TCG_AREG0));
     tcg_out32 (s, (LWZU | RT (r1) | RA (r0) | offset));
-    tcg_out32 (s, (RLWINM
-                   | RA (r2)
-                   | RS (addr_reg)
-                   | SH (0)
-                   | MB ((32 - s_bits) & 31)
-                   | ME (31 - TARGET_PAGE_BITS)
-                   )
-        );
+    tcg_out_rlw(s, RLWINM, r2, addr_reg, 0,
+                (32 - s_bits) & 31, 31 - TARGET_PAGE_BITS);
 #else
     tcg_out_rld (s, RLDICL, r0, addr_reg,
                  64 - TARGET_PAGE_BITS,
@@ -1093,14 +1089,7 @@ static void tcg_out_setcond (TCGContext *s, TCGType type, TCGCond cond,
         }
         else {
             tcg_out32 (s, CNTLZW | RS (arg) | RA (0));
-            tcg_out32 (s, (RLWINM
-                           | RA (arg0)
-                           | RS (0)
-                           | SH (27)
-                           | MB (5)
-                           | ME (31)
-                           )
-                );
+            tcg_out_rlw(s, RLWINM, arg0, 0, 27, 5, 31);
         }
         break;
 
@@ -1161,14 +1150,7 @@ static void tcg_out_setcond (TCGContext *s, TCGType type, TCGCond cond,
         tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7, type == TCG_TYPE_I64);
         if (crop) tcg_out32 (s, crop);
         tcg_out32 (s, MFCR | RT (0));
-        tcg_out32 (s, (RLWINM
-                       | RA (arg0)
-                       | RS (0)
-                       | SH (sh)
-                       | MB (31)
-                       | ME (31)
-                       )
-            );
+        tcg_out_rlw(s, RLWINM, arg0, 0, sh, 31, 31);
         break;
 
     default:
@@ -1407,31 +1389,17 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     case INDEX_op_shl_i32:
         if (const_args[2]) {
-            tcg_out32 (s, (RLWINM
-                           | RA (args[0])
-                           | RS (args[1])
-                           | SH (args[2])
-                           | MB (0)
-                           | ME (31 - args[2])
-                           )
-                );
-        }
-        else
+            tcg_out_rlw(s, RLWINM, args[0], args[1], args[2], 0, 31 - args[2]);
+        } else {
             tcg_out32 (s, SLW | SAB (args[1], args[0], args[2]));
+        }
         break;
     case INDEX_op_shr_i32:
         if (const_args[2]) {
-            tcg_out32 (s, (RLWINM
-                           | RA (args[0])
-                           | RS (args[1])
-                           | SH (32 - args[2])
-                           | MB (args[2])
-                           | ME (31)
-                           )
-                );
-        }
-        else
+            tcg_out_rlw(s, RLWINM, args[0], args[1], 32 - args[2], args[2], 31);
+        } else {
             tcg_out32 (s, SRW | SAB (args[1], args[0], args[2]));
+        }
         break;
     case INDEX_op_sar_i32:
         if (const_args[2])
