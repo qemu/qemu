@@ -461,6 +461,11 @@ static inline void tcg_out_shli64(TCGContext *s, TCGReg dst, TCGReg src, int c)
     tcg_out_rld(s, RLDICR, dst, src, c, 63 - c);
 }
 
+static inline void tcg_out_shri64(TCGContext *s, TCGReg dst, TCGReg src, int c)
+{
+    tcg_out_rld(s, RLDICL, dst, src, 64 - c, c);
+}
+
 static void tcg_out_movi32(TCGContext *s, TCGReg ret, int32_t arg)
 {
     if (arg == (int16_t) arg)
@@ -864,7 +869,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
         if (bswap) {
             tcg_out32 (s, STWBRX | SAB (data_reg, rbase, r0));
             tcg_out32 (s, ADDI | RT (r1) | RA (r0) | 4);
-            tcg_out_rld (s, RLDICL, 0, data_reg, 32, 0);
+            tcg_out_shri64(s, 0, data_reg, 32);
             tcg_out32 (s, STWBRX | SAB (0, rbase, r1));
         }
         else tcg_out32 (s, STDX | SAB (data_reg, rbase, r0));
@@ -1455,7 +1460,7 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_shr_i64:
         if (const_args[2])
-            tcg_out_rld (s, RLDICL, args[0], args[1], 64 - args[2], args[2]);
+            tcg_out_shri64(s, args[0], args[1], args[2]);
         else
             tcg_out32 (s, SRD | SAB (args[1], args[0], args[2]));
         break;
