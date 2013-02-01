@@ -851,9 +851,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
         } else if (flags & RAM_SAVE_FLAG_XBZRLE) {
-            if (!migrate_use_xbzrle()) {
-                return -EINVAL;
-            }
             void *host = host_from_stream_offset(f, addr, flags);
             if (!host) {
                 return -EINVAL;

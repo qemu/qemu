@@ -50,6 +50,8 @@ check-unit-y += tests/test-hbitmap$(EXESUF)
 check-unit-y += tests/test-x86-cpuid$(EXESUF)
 # all code tested by test-x86-cpuid is inside topology.h
 gcov-files-test-x86-cpuid-y =
+check-unit-y += tests/test-xbzrle$(EXESUF)
+gcov-files-test-xbzrle-y = xbzrle.c
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -98,6 +100,7 @@ tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(block-obj-y) libqemu
 tests/test-iov$(EXESUF): tests/test-iov.o libqemuutil.a
 tests/test-hbitmap$(EXESUF): tests/test-hbitmap.o libqemuutil.a libqemustub.a
 tests/test-x86-cpuid$(EXESUF): tests/test-x86-cpuid.o
+tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o xbzrle.o page_cache.o libqemuutil.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py
