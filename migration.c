@@ -673,7 +673,7 @@ static void *buffered_file_thread(void *opaque)
     qemu_mutex_unlock_iothread();
 
     while (true) {
-        int64_t current_time = qemu_get_clock_ms(rt_clock);
+        int64_t current_time;
         uint64_t pending_size;
 
         qemu_mutex_lock_iothread();
@@ -727,6 +727,7 @@ static void *buffered_file_thread(void *opaque)
             }
         }
         qemu_mutex_unlock_iothread();
+        current_time = qemu_get_clock_ms(rt_clock);
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = s->bytes_xfer;
             uint64_t time_spent = current_time - initial_time;
