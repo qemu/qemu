@@ -170,7 +170,7 @@ static inline int64_t hbitmap_iter_next(HBitmapIter *hbi)
 
     /* The next call will resume work from the next bit.  */
     hbi->cur[HBITMAP_LEVELS - 1] = cur & (cur - 1);
-    item = ((uint64_t)hbi->pos << BITS_PER_LEVEL) + ffsl(cur) - 1;
+    item = ((uint64_t)hbi->pos << BITS_PER_LEVEL) + bitops_ctzl(cur);
 
     return item << hbi->granularity;
 }

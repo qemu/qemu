@@ -855,7 +855,7 @@ static uint64_t memory_region_dispatch_read1(MemoryRegion *mr,
     }
 
     if (!mr->ops->read) {
-        return mr->ops->old_mmio.read[bitops_ffsl(size)](mr->opaque, addr);
+        return mr->ops->old_mmio.read[bitops_ctzl(size)](mr->opaque, addr);
     }
 
     /* FIXME: support unaligned access */
@@ -908,7 +908,7 @@ static void memory_region_dispatch_write(MemoryRegion *mr,
     adjust_endianness(mr, &data, size);
 
     if (!mr->ops->write) {
-        mr->ops->old_mmio.write[bitops_ffsl(size)](mr->opaque, addr, data);
+        mr->ops->old_mmio.write[bitops_ctzl(size)](mr->opaque, addr, data);
         return;
     }
 

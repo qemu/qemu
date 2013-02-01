@@ -126,7 +126,7 @@ unsigned long hbitmap_iter_skip_words(HBitmapIter *hbi)
          * The index of this word's least significant set bit provides
          * the low-order bits.
          */
-        pos = (pos << BITS_PER_LEVEL) + ffsl(cur) - 1;
+        pos = (pos << BITS_PER_LEVEL) + bitops_ctzl(cur);
         hbi->cur[i] = cur & (cur - 1);
 
         /* Set up next level for iteration.  */

@@ -60,7 +60,7 @@ found_first:
         return result + size;	/* Nope. */
     }
 found_middle:
-    return result + bitops_ffsl(tmp);
+    return result + bitops_ctzl(tmp);
 }
 
 /*
@@ -109,7 +109,7 @@ found_first:
         return result + size;	/* Nope. */
     }
 found_middle:
-    return result + ffz(tmp);
+    return result + bitops_ctol(tmp);
 }
 
 unsigned long find_last_bit(const unsigned long *addr, unsigned long size)
