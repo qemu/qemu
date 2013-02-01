@@ -1321,6 +1321,54 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond,
     tcg_out_bc(s, tcg_to_bc[cond], label_index);
 }
 
+static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGArg dest, TCGArg c1, TCGArg c2, TCGArg v1,
+                            TCGArg v2, bool const_c2)
+{
+    /* If for some reason both inputs are zero, don't produce bad code.  */
+    if (v1 == 0 && v2 == 0) {
+        tcg_out_movi(s, type, dest, 0);
+        return;
+    }
+
+    tcg_out_cmp(s, cond, c1, c2, const_c2, 7, type);
+
+    if (HAVE_ISEL) {
+        int isel = tcg_to_isel[cond];
+
+        /* Swap the V operands if the operation indicates inversion.  */
+        if (isel & 1) {
+            int t = v1;
+            v1 = v2;
+            v2 = t;
+            isel &= ~1;
+        }
+        /* V1 == 0 is handled by isel; V2 == 0 must be handled by hand.  */
+        if (v2 == 0) {
+            tcg_out_movi(s, type, 0, 0);
+        }
+        tcg_out32(s, isel | TAB(dest, v1, v2));
+    } else {
+        if (dest == v2) {
+            cond = tcg_invert_cond(cond);
+            v2 = v1;
+        } else if (dest != v1) {
+            if (v1 == 0) {
+                tcg_out_movi(s, type, dest, 0);
+            } else {
+                tcg_out_mov(s, type, dest, v1);
+            }
+        }
+        /* Branch forward over one insn */
+        tcg_out32(s, tcg_to_bc[cond] | 8);
+        if (v2 == 0) {
+            tcg_out_movi(s, type, dest, 0);
+        } else {
+            tcg_out_mov(s, type, dest, v2);
+        }
+    }
+}
+
 void ppc_tb_set_jmp_target (unsigned long jmp_addr, unsigned long addr)
 {
     TCGContext s;
@@ -1871,6 +1919,15 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
                     64 - args[3] - args[4]);
         break;
 
+    case INDEX_op_movcond_i32:
+        tcg_out_movcond(s, TCG_TYPE_I32, args[5], args[0], args[1], args[2],
+                        args[3], args[4], const_args[2]);
+        break;
+    case INDEX_op_movcond_i64:
+        tcg_out_movcond(s, TCG_TYPE_I64, args[5], args[0], args[1], args[2],
+                        args[3], args[4], const_args[2]);
+        break;
+
     default:
         tcg_dump_ops (s);
         tcg_abort ();
@@ -1985,6 +2042,8 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_setcond_i32, { "r", "r", "ri" } },
     { INDEX_op_setcond_i64, { "r", "r", "ri" } },
+    { INDEX_op_movcond_i32, { "r", "r", "ri", "rZ", "rZ" } },
+    { INDEX_op_movcond_i64, { "r", "r", "ri", "rZ", "rZ" } },
 
     { INDEX_op_bswap16_i32, { "r", "r" } },
     { INDEX_op_bswap16_i64, { "r", "r" } },
