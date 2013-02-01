@@ -58,10 +58,12 @@ typedef struct S390IPLState {
 
 static void s390_ipl_cpu(uint64_t pswaddr)
 {
-    CPUS390XState *env = &S390_CPU(qemu_get_cpu(0))->env;
+    S390CPU *cpu = S390_CPU(qemu_get_cpu(0));
+    CPUS390XState *env = &cpu->env;
+
     env->psw.addr = pswaddr;
     env->psw.mask = IPL_PSW_MASK;
-    s390_add_running_cpu(env);
+    s390_add_running_cpu(cpu);
 }
 
 static int s390_ipl_init(SysBusDevice *dev)
