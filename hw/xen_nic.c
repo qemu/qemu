@@ -326,8 +326,6 @@ static int net_init(struct XenDevice *xendev)
         return -1;
     }
 
-    netdev->conf.peer = NULL;
-
     netdev->nic = qemu_new_nic(&net_xen_info, &netdev->conf,
                                "xen", NULL, netdev);
 
