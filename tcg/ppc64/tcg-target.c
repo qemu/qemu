@@ -431,19 +431,21 @@ static const uint32_t tcg_to_bc[] = {
     [TCG_COND_GTU] = BC | BI (7, CR_GT) | BO_COND_TRUE,
 };
 
-static void tcg_out_mov (TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type,
+                               TCGReg ret, TCGReg arg)
 {
     tcg_out32 (s, OR | SAB (arg, ret, arg));
 }
 
-static void tcg_out_rld (TCGContext *s, int op, int ra, int rs, int sh, int mb)
+static inline void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                               int sh, int mb)
 {
     sh = SH (sh & 0x1f) | (((sh >> 5) & 1) << 1);
     mb = MB64 ((mb >> 5) | ((mb << 1) & 0x3f));
     tcg_out32 (s, op | RA (ra) | RS (rs) | sh | mb);
 }
 
-static void tcg_out_movi32 (TCGContext *s, int ret, int32_t arg)
+static void tcg_out_movi32(TCGContext *s, TCGReg ret, int32_t arg)
 {
     if (arg == (int16_t) arg)
         tcg_out32 (s, ADDI | RT (ret) | RA (0) | (arg & 0xffff));
@@ -522,8 +524,8 @@ static void tcg_out_call (TCGContext *s, tcg_target_long arg, int const_arg)
 #endif
 }
 
-static void tcg_out_ldst (TCGContext *s, int ret, int addr,
-                          int offset, int op1, int op2)
+static void tcg_out_ldst(TCGContext *s, TCGReg ret, TCGReg addr,
+                         int offset, int op1, int op2)
 {
     if (offset == (int16_t) offset)
         tcg_out32 (s, op1 | RT (ret) | RA (addr) | (offset & 0xffff));
@@ -533,8 +535,8 @@ static void tcg_out_ldst (TCGContext *s, int ret, int addr,
     }
 }
 
-static void tcg_out_ldsta (TCGContext *s, int ret, int addr,
-                           int offset, int op1, int op2)
+static void tcg_out_ldsta(TCGContext *s, TCGReg ret, TCGReg addr,
+                          int offset, int op1, int op2)
 {
     if (offset == (int16_t) (offset & ~3))
         tcg_out32 (s, op1 | RT (ret) | RA (addr) | (offset & 0xffff));
@@ -566,8 +568,8 @@ static const void * const qemu_st_helpers[4] = {
     helper_stq_mmu,
 };
 
-static void tcg_out_tlb_read (TCGContext *s, int r0, int r1, int r2,
-                              int addr_reg, int s_bits, int offset)
+static void tcg_out_tlb_read(TCGContext *s, TCGReg r0, TCGReg r1, TCGReg r2,
+                             TCGReg addr_reg, int s_bits, int offset)
 {
 #if TARGET_LONG_BITS == 32
     tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
@@ -616,9 +618,11 @@ static void tcg_out_tlb_read (TCGContext *s, int r0, int r1, int r2,
 
 static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, data_reg, r0, r1, rbase, bswap;
+    TCGReg addr_reg, data_reg, r0, r1, rbase;
+    int bswap;
 #ifdef CONFIG_SOFTMMU
-    int r2, mem_index, s_bits, ir;
+    TCGReg r2, ir;
+    int mem_index, s_bits;
     void *label1_ptr, *label2_ptr;
 #endif
 
@@ -766,9 +770,11 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
 static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, r0, r1, rbase, data_reg, bswap;
+    TCGReg addr_reg, r0, r1, rbase, data_reg;
+    int bswap;
 #ifdef CONFIG_SOFTMMU
-    int r2, mem_index, ir;
+    TCGReg r2, ir;
+    int mem_index;
     void *label1_ptr, *label2_ptr;
 #endif
 
@@ -954,7 +960,7 @@ static void tcg_out_st (TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
         tcg_out_ldsta (s, arg, arg1, arg2, STD, STDX);
 }
 
-static void ppc_addi32 (TCGContext *s, int rt, int ra, tcg_target_long si)
+static void ppc_addi32(TCGContext *s, TCGReg rt, TCGReg ra, tcg_target_long si)
 {
     if (!si && rt == ra)
         return;
@@ -968,7 +974,7 @@ static void ppc_addi32 (TCGContext *s, int rt, int ra, tcg_target_long si)
     }
 }
 
-static void ppc_addi64 (TCGContext *s, int rt, int ra, tcg_target_long si)
+static void ppc_addi64(TCGContext *s, TCGReg rt, TCGReg ra, tcg_target_long si)
 {
     /* XXX: suboptimal */
     if (si == (int16_t) si
