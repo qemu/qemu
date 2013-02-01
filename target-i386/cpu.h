@@ -1002,7 +1002,6 @@ int cpu_x86_signal_handler(int host_signum, void *pinfo,
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx);
-int cpu_x86_register(X86CPU *cpu, const char *cpu_model);
 void cpu_clear_apic_feature(CPUX86State *env);
 void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
