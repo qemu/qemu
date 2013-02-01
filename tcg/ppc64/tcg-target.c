@@ -451,6 +451,11 @@ static inline void tcg_out_rlw(TCGContext *s, int op, TCGReg ra, TCGReg rs,
     tcg_out32(s, op | RA(ra) | RS(rs) | SH(sh) | MB(mb) | ME(me));
 }
 
+static inline void tcg_out_ext32u(TCGContext *s, TCGReg dst, TCGReg src)
+{
+    tcg_out_rld(s, RLDICL, dst, src, 0, 32);
+}
+
 static void tcg_out_movi32(TCGContext *s, TCGReg ret, int32_t arg)
 {
     if (arg == (int16_t) arg)
@@ -484,7 +489,7 @@ static void tcg_out_movi (TCGContext *s, TCGType type,
         else {
             tcg_out_movi32 (s, ret, arg32);
             if (arg32 < 0)
-                tcg_out_rld (s, RLDICL, ret, ret, 0, 32);
+                tcg_out_ext32u(s, ret, ret);
         }
     }
 }
@@ -578,7 +583,7 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg r0, TCGReg r1, TCGReg r2,
                              TCGReg addr_reg, int s_bits, int offset)
 {
 #if TARGET_LONG_BITS == 32
-    tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
+    tcg_out_ext32u(s, addr_reg, addr_reg);
 
     tcg_out_rlw(s, RLWINM, r0, addr_reg,
                 32 - (TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS),
@@ -691,7 +696,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
 #else  /* !CONFIG_SOFTMMU */
 #if TARGET_LONG_BITS == 32
-    tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
+    tcg_out_ext32u(s, addr_reg, addr_reg);
 #endif
     r0 = addr_reg;
     r1 = 3;
@@ -824,7 +829,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 
 #else  /* !CONFIG_SOFTMMU */
 #if TARGET_LONG_BITS == 32
-    tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
+    tcg_out_ext32u(s, addr_reg, addr_reg);
 #endif
     r1 = 3;
     r0 = addr_reg;
@@ -1531,7 +1536,7 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_ext32u_i64:
-        tcg_out_rld (s, RLDICL, args[0], args[1], 0, 32);
+        tcg_out_ext32u(s, args[0], args[1]);
         break;
 
     case INDEX_op_setcond_i32:
