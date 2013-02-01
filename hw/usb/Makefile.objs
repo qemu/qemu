@@ -20,7 +20,6 @@ common-obj-$(CONFIG_USB_NETWORK)      += dev-network.o
 
 # FIXME: make configurable too
 CONFIG_USB_BLUETOOTH := y
-CONFIG_USB_SMARTCARD := y
 common-obj-$(CONFIG_USB_BLUETOOTH)    += dev-bluetooth.o
 common-obj-$(CONFIG_USB_SMARTCARD)    += dev-smartcard-reader.o
 
