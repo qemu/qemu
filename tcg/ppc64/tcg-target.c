@@ -456,6 +456,11 @@ static inline void tcg_out_ext32u(TCGContext *s, TCGReg dst, TCGReg src)
     tcg_out_rld(s, RLDICL, dst, src, 0, 32);
 }
 
+static inline void tcg_out_shli64(TCGContext *s, TCGReg dst, TCGReg src, int c)
+{
+    tcg_out_rld(s, RLDICR, dst, src, c, 63 - c);
+}
+
 static void tcg_out_movi32(TCGContext *s, TCGReg ret, int32_t arg)
 {
     if (arg == (int16_t) arg)
@@ -482,7 +487,7 @@ static void tcg_out_movi (TCGContext *s, TCGType type,
             uint16_t l16 = arg;
 
             tcg_out_movi32 (s, ret, arg >> 32);
-            tcg_out_rld (s, RLDICR, ret, ret, 32, 31);
+            tcg_out_shli64(s, ret, ret, 32);
             if (h16) tcg_out32 (s, ORIS | RS (ret) | RA (ret) | h16);
             if (l16) tcg_out32 (s, ORI | RS (ret) | RA (ret) | l16);
         }
@@ -597,9 +602,7 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg r0, TCGReg r1, TCGReg r2,
     tcg_out_rld (s, RLDICL, r0, addr_reg,
                  64 - TARGET_PAGE_BITS,
                  64 - CPU_TLB_BITS);
-    tcg_out_rld (s, RLDICR, r0, r0,
-                 CPU_TLB_ENTRY_BITS,
-                 63 - CPU_TLB_ENTRY_BITS);
+    tcg_out_shli64(s, r0, r0, CPU_TLB_ENTRY_BITS);
 
     tcg_out32 (s, ADD | TAB (r0, r0, TCG_AREG0));
     tcg_out32 (s, LD_ADDR | RT (r1) | RA (r0) | offset);
@@ -1446,7 +1449,7 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
     case INDEX_op_shl_i64:
         if (const_args[2])
-            tcg_out_rld (s, RLDICR, args[0], args[1], args[2], 63 - args[2]);
+            tcg_out_shli64(s, args[0], args[1], args[2]);
         else
             tcg_out32 (s, SLD | SAB (args[1], args[0], args[2]));
         break;
