@@ -1,6 +1,7 @@
 # Default configuration for arm-softmmu
 
 include pci.mak
+include usb.mak
 CONFIG_GDBSTUB_XML=y
 CONFIG_VGA=y
 CONFIG_ISA_MMIO=y

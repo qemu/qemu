@@ -1,6 +1,7 @@
 # Default configuration for i386-softmmu
 
 include pci.mak
+include usb.mak
 CONFIG_VGA=y
 CONFIG_VGA_PCI=y
 CONFIG_VGA_ISA=y

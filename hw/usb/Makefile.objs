@@ -11,14 +11,18 @@ common-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
 # emulated usb devices
 common-obj-y += dev-hub.o
 common-obj-y += dev-hid.o
-common-obj-y += dev-wacom.o
-common-obj-y += dev-storage.o
-common-obj-y += dev-uas.o
-common-obj-y += dev-smartcard-reader.o
-common-obj-y += dev-audio.o
-common-obj-y += dev-serial.o
-common-obj-y += dev-network.o
-common-obj-y += dev-bluetooth.o
+common-obj-$(CONFIG_USB_TABLET_WACOM) += dev-wacom.o
+common-obj-$(CONFIG_USB_STORAGE_BOT)  += dev-storage.o
+common-obj-$(CONFIG_USB_STORAGE_UAS)  += dev-uas.o
+common-obj-$(CONFIG_USB_AUDIO)        += dev-audio.o
+common-obj-$(CONFIG_USB_SERIAL)       += dev-serial.o
+common-obj-$(CONFIG_USB_NETWORK)      += dev-network.o
+
+# FIXME: make configurable too
+CONFIG_USB_BLUETOOTH := y
+CONFIG_USB_SMARTCARD := y
+common-obj-$(CONFIG_USB_BLUETOOTH)    += dev-bluetooth.o
+common-obj-$(CONFIG_USB_SMARTCARD)    += dev-smartcard-reader.o
 
 # usb redirection
 common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o

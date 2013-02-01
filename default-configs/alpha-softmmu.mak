@@ -1,6 +1,7 @@
 # Default configuration for alpha-softmmu
 
 include pci.mak
+include usb.mak
 CONFIG_SERIAL=y
 CONFIG_I8254=y
 CONFIG_PCKBD=y
