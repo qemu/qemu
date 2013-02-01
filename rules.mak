@@ -82,12 +82,16 @@ TRACETOOL=$(PYTHON) $(SRC_PATH)/scripts/tracetool.py
 
 # Generate timestamp files for .h include files
 
-%.h: %.h-timestamp
-	@test -f $@ || cp $< $@
+config-%.h: config-%.h-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 
-%.h-timestamp: %.mak
-	$(call quiet-command, sh $(SRC_PATH)/scripts/create_config < $< > $@, "  GEN   $(TARGET_DIR)$*.h")
-	@cmp $@ $*.h >/dev/null 2>&1 || cp $@ $*.h
+config-%.h-timestamp: config-%.mak
+	$(call quiet-command, sh $(SRC_PATH)/scripts/create_config < $< > $@, "  GEN   $(TARGET_DIR)config-$*.h")
+
+.PHONY: clean-timestamp
+clean-timestamp:
+	rm -f *.timestamp
+clean: clean-timestamp
 
 # will delete the target of a rule if commands exit with a nonzero exit status
 .DELETE_ON_ERROR:

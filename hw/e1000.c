@@ -237,7 +237,17 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
         val |= E1000_ICR_INT_ASSERTED;
     }
     s->mac_reg[ICR] = val;
+
+    /*
+     * Make sure ICR and ICS registers have the same value.
+     * The spec says that the ICS register is write-only.  However in practice,
+     * on real hardware ICS is readable, and for reads it has the same value as
+     * ICR (except that ICS does not have the clear on read behaviour of ICR).
+     *
+     * The VxWorks PRO/1000 driver uses this behaviour.
+     */
     s->mac_reg[ICS] = val;
+
     qemu_set_irq(s->dev.irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
 }
 
