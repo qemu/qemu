@@ -738,6 +738,11 @@ static void *buffered_file_thread(void *opaque)
             DPRINTF("transferred %" PRIu64 " time_spent %" PRIu64
                     " bandwidth %g max_size %" PRId64 "\n",
                     transferred_bytes, time_spent, bandwidth, max_size);
+            /* if we haven't sent anything, we don't want to recalculate
+               10000 is a small enough number for our purposes */
+            if (s->dirty_bytes_rate && transferred_bytes > 10000) {
+                s->expected_downtime = s->dirty_bytes_rate / bandwidth;
+            }
 
             s->bytes_xfer = 0;
             sleep_time = 0;
