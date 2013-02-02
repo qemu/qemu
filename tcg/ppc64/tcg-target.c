@@ -527,6 +527,29 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg ret,
     }
 }
 
+static void tcg_out_zori32(TCGContext *s, TCGReg dst, TCGReg src, uint32_t c,
+                           int op_lo, int op_hi)
+{
+    if (c >> 16) {
+        tcg_out32(s, op_hi | SAI(src, dst, c >> 16));
+        src = dst;
+    }
+    if (c & 0xffff) {
+        tcg_out32(s, op_lo | SAI(src, dst, c));
+        src = dst;
+    }
+}
+
+static void tcg_out_ori32(TCGContext *s, TCGReg dst, TCGReg src, uint32_t c)
+{
+    tcg_out_zori32(s, dst, src, c, ORI, ORIS);
+}
+
+static void tcg_out_xori32(TCGContext *s, TCGReg dst, TCGReg src, uint32_t c)
+{
+    tcg_out_zori32(s, dst, src, c, XORI, XORIS);
+}
+
 static void tcg_out_b (TCGContext *s, int mask, tcg_target_long target)
 {
     tcg_target_long disp;
@@ -1349,37 +1372,21 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_or_i64:
     case INDEX_op_or_i32:
+        a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
-            if (args[2] & 0xffff) {
-                tcg_out32(s, ORI | SAI(args[1], args[0], args[2]));
-                if (args[2] >> 16) {
-                    tcg_out32(s, ORIS | SAI(args[0], args[0], args[2] >> 16));
-                }
-            }
-            else {
-                tcg_out32(s, ORIS | SAI(args[1], args[0], args[2] >> 16));
-            }
+            tcg_out_ori32(s, a0, a1, a2);
+        } else {
+            tcg_out32(s, OR | SAB(a1, a0, a2));
         }
-        else
-            tcg_out32 (s, OR | SAB (args[1], args[0], args[2]));
         break;
     case INDEX_op_xor_i64:
     case INDEX_op_xor_i32:
+        a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
-            if ((args[2] & 0xffff) == args[2]) {
-                tcg_out32(s, XORI | SAI(args[1], args[0], args[2]));
-            } else if ((args[2] & 0xffff0000) == args[2]) {
-                tcg_out32(s, XORIS | SAI(args[1], args[0], args[2] >> 16));
-            } else {
-                tcg_out_movi (s, (opc == INDEX_op_and_i32
-                                  ? TCG_TYPE_I32
-                                  : TCG_TYPE_I64),
-                              0, args[2]);
-                tcg_out32 (s, XOR | SAB (args[1], args[0], 0));
-            }
+            tcg_out_xori32(s, a0, a1, a2);
+        } else {
+            tcg_out32(s, XOR | SAB(a1, a0, a2));
         }
-        else
-            tcg_out32 (s, XOR | SAB (args[1], args[0], args[2]));
         break;
 
     case INDEX_op_mul_i32:
