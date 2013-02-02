@@ -891,6 +891,8 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 
     scc->parent_reset = cc->reset;
     cc->reset = sparc_cpu_reset;
+
+    cc->do_interrupt = sparc_cpu_do_interrupt;
 }
 
 static const TypeInfo sparc_cpu_type_info = {

@@ -169,6 +169,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     scc->parent_reset = cc->reset;
     cc->reset = s390_cpu_reset;
 
+    cc->do_interrupt = s390_cpu_do_interrupt;
     dc->vmsd = &vmstate_s390_cpu;
 }
 

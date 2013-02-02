@@ -396,10 +396,11 @@ static void set_hflags_for_handler (CPUMIPSState *env)
 }
 #endif
 
-void do_interrupt (CPUMIPSState *env)
+void mips_cpu_do_interrupt(CPUState *cs)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
 #if !defined(CONFIG_USER_ONLY)
-    MIPSCPU *cpu = mips_env_get_cpu(env);
     target_ulong offset;
     int cause = -1;
     const char *name;

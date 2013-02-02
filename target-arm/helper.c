@@ -1567,8 +1567,11 @@ uint32_t HELPER(rbit)(uint32_t x)
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt (CPUARMState *env)
+void arm_cpu_do_interrupt(CPUState *cs)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
     env->exception_index = -1;
 }
 
@@ -1799,9 +1802,10 @@ static void do_interrupt_v7m(CPUARMState *env)
 }
 
 /* Handle a CPU exception.  */
-void do_interrupt(CPUARMState *env)
+void arm_cpu_do_interrupt(CPUState *cs)
 {
-    CPUState *cs;
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     uint32_t addr;
     uint32_t mask;
     int new_mode;
@@ -1908,7 +1912,6 @@ void do_interrupt(CPUARMState *env)
     }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
-    cs = CPU(arm_env_get_cpu(env));
     cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 

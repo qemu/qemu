@@ -21,8 +21,11 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt(CPUM68KState *env)
+void m68k_cpu_do_interrupt(CPUState *cs)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+
     env->exception_index = -1;
 }
 
@@ -149,8 +152,11 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
     env->pc = cpu_ldl_kernel(env, env->vbr + vector);
 }
 
-void do_interrupt(CPUM68KState *env)
+void m68k_cpu_do_interrupt(CPUState *cs)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+
     do_interrupt_all(env, 0);
 }
 

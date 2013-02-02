@@ -263,6 +263,7 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = alpha_cpu_realizefn;
 
     cc->class_by_name = alpha_cpu_class_by_name;
+    cc->do_interrupt = alpha_cpu_do_interrupt;
 }
 
 static const TypeInfo alpha_cpu_type_info = {

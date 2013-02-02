@@ -236,7 +236,6 @@ ARMCPU *cpu_arm_init(const char *cpu_model);
 void arm_translate_init(void);
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);
 int cpu_arm_exec(CPUARMState *s);
-void do_interrupt(CPUARMState *);
 int bank_number(int mode);
 void switch_mode(CPUARMState *, int);
 uint32_t do_arm_semihosting(CPUARMState *env);

@@ -553,7 +553,6 @@ int cpu_cwp_dec(CPUSPARCState *env1, int cwp);
 void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 
 /* int_helper.c */
-void do_interrupt(CPUSPARCState *env);
 void leon3_irq_manager(CPUSPARCState *env, void *irq_manager, int intno);
 
 /* sun4m.c, sun4u.c */

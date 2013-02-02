@@ -80,4 +80,10 @@ static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
 extern const struct VMStateDescription vmstate_x86_cpu;
 #endif
 
+/**
+ * x86_cpu_do_interrupt:
+ * @cpu: vCPU the interrupt is to be handled by.
+ */
+void x86_cpu_do_interrupt(CPUState *cpu);
+
 #endif

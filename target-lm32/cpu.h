@@ -189,7 +189,6 @@ struct CPULM32State {
 LM32CPU *cpu_lm32_init(const char *cpu_model);
 void cpu_lm32_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_lm32_exec(CPULM32State *s);
-void do_interrupt(CPULM32State *env);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */

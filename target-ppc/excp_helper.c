@@ -38,8 +38,11 @@ void (*cpu_ppc_hypercall)(PowerPCCPU *);
 /*****************************************************************************/
 /* Exception processing */
 #if defined(CONFIG_USER_ONLY)
-void do_interrupt(CPUPPCState *env)
+void ppc_cpu_do_interrupt(CPUState *cs)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
     env->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
 }
@@ -654,9 +657,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     }
 }
 
-void do_interrupt(CPUPPCState *env)
+void ppc_cpu_do_interrupt(CPUState *cs)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
 
     powerpc_excp(cpu, env->excp_model, env->exception_index);
 }

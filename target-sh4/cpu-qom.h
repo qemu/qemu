@@ -83,4 +83,6 @@ static inline SuperHCPU *sh_env_get_cpu(CPUSH4State *env)
 
 #define ENV_OFFSET offsetof(SuperHCPU, env)
 
+void superh_cpu_do_interrupt(CPUState *cpu);
+
 #endif

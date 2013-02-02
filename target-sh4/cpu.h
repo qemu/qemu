@@ -196,7 +196,6 @@ int cpu_sh4_signal_handler(int host_signum, void *pinfo,
 int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
                              int mmu_idx);
 #define cpu_handle_mmu_fault cpu_sh4_handle_mmu_fault
-void do_interrupt(CPUSH4State * env);
 
 void sh4_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #if !defined(CONFIG_USER_ONLY)

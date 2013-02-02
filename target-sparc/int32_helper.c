@@ -58,8 +58,10 @@ static const char * const excp_names[0x80] = {
 };
 #endif
 
-void do_interrupt(CPUSPARCState *env)
+void sparc_cpu_do_interrupt(CPUState *cs)
 {
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
     int cwp, intno = env->exception_index;
 
     /* Compute PSR before exposing state.  */

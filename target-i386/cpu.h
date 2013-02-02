@@ -1252,8 +1252,7 @@ void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
                                    uint64_t param);
 void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
 
-/* op_helper.c */
-void do_interrupt(CPUX86State *env);
+/* seg_helper.c */
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 
 void do_smm_enter(CPUX86State *env1);

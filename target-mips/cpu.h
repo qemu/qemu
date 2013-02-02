@@ -663,7 +663,6 @@ void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level);
 int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
                                int mmu_idx);
 #define cpu_handle_mmu_fault cpu_mips_handle_mmu_fault
-void do_interrupt (CPUMIPSState *env);
 #if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra);
 hwaddr cpu_mips_translate_address (CPUMIPSState *env, target_ulong address,

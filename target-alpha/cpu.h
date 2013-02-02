@@ -449,7 +449,6 @@ int cpu_alpha_signal_handler(int host_signum, void *pinfo,
 int cpu_alpha_handle_mmu_fault (CPUAlphaState *env, uint64_t address, int rw,
                                 int mmu_idx);
 #define cpu_handle_mmu_fault cpu_alpha_handle_mmu_fault
-void do_interrupt (CPUAlphaState *env);
 void do_restore_state(CPUAlphaState *, uintptr_t retaddr);
 void QEMU_NORETURN dynamic_excp(CPUAlphaState *, uintptr_t, int, int);
 void QEMU_NORETURN arith_excp(CPUAlphaState *, uintptr_t, int, uint64_t);

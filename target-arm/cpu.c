@@ -802,6 +802,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = arm_cpu_reset;
 
     cc->class_by_name = arm_cpu_class_by_name;
+    cc->do_interrupt = arm_cpu_do_interrupt;
 }
 
 static void cpu_register(const ARMCPUInfo *info)

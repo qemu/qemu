@@ -25,8 +25,10 @@
 #include "hw/loader.h"
 #endif
 
-void do_interrupt(CPUOpenRISCState *env)
+void openrisc_cpu_do_interrupt(CPUState *cs)
 {
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
+    CPUOpenRISCState *env = &cpu->env;
 #ifndef CONFIG_USER_ONLY
     if (env->flags & D_FLAG) { /* Delay Slot insn */
         env->flags &= ~D_FLAG;

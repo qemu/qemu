@@ -71,4 +71,6 @@ static inline LM32CPU *lm32_env_get_cpu(CPULM32State *env)
 
 #define ENV_OFFSET offsetof(LM32CPU, env)
 
+void lm32_cpu_do_interrupt(CPUState *cpu);
+
 #endif

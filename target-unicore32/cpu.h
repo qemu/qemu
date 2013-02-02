@@ -176,7 +176,6 @@ static inline void cpu_get_tb_cpu_state(CPUUniCore32State *env, target_ulong *pc
 }
 
 void uc32_translate_init(void);
-void do_interrupt(CPUUniCore32State *);
 void switch_mode(CPUUniCore32State *, int);
 
 static inline bool cpu_has_work(CPUState *cpu)

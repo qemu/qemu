@@ -178,8 +178,11 @@ static void handle_interrupt(CPUXtensaState *env)
     }
 }
 
-void do_interrupt(CPUXtensaState *env)
+void xtensa_cpu_do_interrupt(CPUState *cs)
 {
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
+
     if (env->exception_index == EXC_IRQ) {
         qemu_log_mask(CPU_LOG_INT,
                 "%s(EXC_IRQ) level = %d, cintlevel = %d, "
