@@ -149,6 +149,7 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = openrisc_cpu_class_by_name;
     cc->do_interrupt = openrisc_cpu_do_interrupt;
+    device_class_set_vmsd(dc, &vmstate_openrisc_cpu);
 }
 
 static void cpu_register(const OpenRISCCPUInfo *info)

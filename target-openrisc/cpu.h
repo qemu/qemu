@@ -360,6 +360,8 @@ int cpu_openrisc_signal_handler(int host_signum, void *pinfo, void *puc);
 #define cpu_signal_handler cpu_openrisc_signal_handler
 
 #ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_openrisc_cpu;
+
 /* hw/openrisc_pic.c */
 void cpu_openrisc_pic_init(OpenRISCCPU *cpu);
 
