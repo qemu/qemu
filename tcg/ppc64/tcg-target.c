@@ -22,7 +22,11 @@
  * THE SOFTWARE.
  */
 
-#define TCG_CT_CONST_U32 0x100
+#define TCG_CT_CONST_S16  0x100
+#define TCG_CT_CONST_U16  0x200
+#define TCG_CT_CONST_S32  0x400
+#define TCG_CT_CONST_U32  0x800
+#define TCG_CT_CONST_ZERO 0x1000
 
 static uint8_t *tb_ret_addr;
 
@@ -242,8 +246,20 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R6);
 #endif
         break;
-    case 'Z':
+    case 'I':
+        ct->ct |= TCG_CT_CONST_S16;
+        break;
+    case 'J':
+        ct->ct |= TCG_CT_CONST_U16;
+        break;
+    case 'T':
+        ct->ct |= TCG_CT_CONST_S32;
+        break;
+    case 'U':
         ct->ct |= TCG_CT_CONST_U32;
+        break;
+    case 'Z':
+        ct->ct |= TCG_CT_CONST_ZERO;
         break;
     default:
         return -1;
@@ -257,13 +273,20 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
 static int tcg_target_const_match (tcg_target_long val,
                                    const TCGArgConstraint *arg_ct)
 {
-    int ct;
-
-    ct = arg_ct->ct;
-    if (ct & TCG_CT_CONST)
+    int ct = arg_ct->ct;
+    if (ct & TCG_CT_CONST) {
         return 1;
-    else if ((ct & TCG_CT_CONST_U32) && (val == (uint32_t) val))
+    } else if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
         return 1;
+    } else if ((ct & TCG_CT_CONST_U16) && val == (uint16_t)val) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
+        return 1;
+    }
     return 0;
 }
 
@@ -1613,9 +1636,9 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_add_i64, { "r", "r", "ri" } },
     { INDEX_op_sub_i64, { "r", "r", "ri" } },
-    { INDEX_op_and_i64, { "r", "r", "rZ" } },
-    { INDEX_op_or_i64, { "r", "r", "rZ" } },
-    { INDEX_op_xor_i64, { "r", "r", "rZ" } },
+    { INDEX_op_and_i64, { "r", "r", "rU" } },
+    { INDEX_op_or_i64, { "r", "r", "rU" } },
+    { INDEX_op_xor_i64, { "r", "r", "rU" } },
 
     { INDEX_op_shl_i64, { "r", "r", "ri" } },
     { INDEX_op_shr_i64, { "r", "r", "ri" } },
