@@ -527,6 +527,48 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg ret,
     }
 }
 
+static inline bool mask_operand(uint32_t c, int *mb, int *me)
+{
+    uint32_t lsb, test;
+
+    /* Accept a bit pattern like:
+           0....01....1
+           1....10....0
+           0..01..10..0
+       Keep track of the transitions.  */
+    if (c == 0 || c == -1) {
+        return false;
+    }
+    test = c;
+    lsb = test & -test;
+    test += lsb;
+    if (test & (test - 1)) {
+        return false;
+    }
+
+    *me = clz32(lsb);
+    *mb = test ? clz32(test & -test) + 1 : 0;
+    return true;
+}
+
+static void tcg_out_andi32(TCGContext *s, TCGReg dst, TCGReg src, uint32_t c)
+{
+    int mb, me;
+
+    if ((c & 0xffff) == c) {
+        tcg_out32(s, ANDI | SAI(src, dst, c));
+        return;
+    } else if ((c & 0xffff0000) == c) {
+        tcg_out32(s, ANDIS | SAI(src, dst, c >> 16));
+        return;
+    } else if (mask_operand(c, &mb, &me)) {
+        tcg_out_rlw(s, RLWINM, dst, src, 0, mb, me);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_I32, 0, c);
+        tcg_out32(s, AND | SAB(src, dst, 0));
+    }
+}
+
 static void tcg_out_zori32(TCGContext *s, TCGReg dst, TCGReg src, uint32_t c,
                            int op_lo, int op_hi)
 {
@@ -1352,8 +1394,14 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
 
-    case INDEX_op_and_i64:
     case INDEX_op_and_i32:
+        if (const_args[2]) {
+            tcg_out_andi32(s, args[0], args[1], args[2]);
+        } else {
+            tcg_out32(s, AND | SAB(args[1], args[0], args[2]));
+        }
+        break;
+    case INDEX_op_and_i64:
         if (const_args[2]) {
             if ((args[2] & 0xffff) == args[2]) {
                 tcg_out32(s, ANDI | SAI(args[1], args[0], args[2]));
