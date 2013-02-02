@@ -988,32 +988,6 @@ static void tcg_out_st (TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
         tcg_out_ldsta (s, arg, arg1, arg2, STD, STDX);
 }
 
-static void ppc_addi32(TCGContext *s, TCGReg rt, TCGReg ra, tcg_target_long si)
-{
-    if (!si && rt == ra)
-        return;
-
-    if (si == (int16_t) si)
-        tcg_out32(s, ADDI | TAI(rt, ra, si));
-    else {
-        uint16_t h = ((si >> 16) & 0xffff) + ((uint16_t) si >> 15);
-        tcg_out32(s, ADDIS | TAI(rt, ra, h));
-        tcg_out32(s, ADDI | TAI(rt, rt, si));
-    }
-}
-
-static void ppc_addi64(TCGContext *s, TCGReg rt, TCGReg ra, tcg_target_long si)
-{
-    /* XXX: suboptimal */
-    if (si == (int16_t) si
-        || ((((uint64_t) si >> 31) == 0) && (si & 0x8000) == 0))
-        ppc_addi32 (s, rt, ra, si);
-    else {
-        tcg_out_movi (s, TCG_TYPE_I64, 0, si);
-        tcg_out32(s, ADD | TAB(rt, ra, 0));
-    }
-}
-
 static void tcg_out_cmp (TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
                          int const_arg2, int cr, int arch64)
 {
@@ -1232,6 +1206,7 @@ void ppc_tb_set_jmp_target (unsigned long jmp_addr, unsigned long addr)
 static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
                         const int *const_args)
 {
+    TCGArg a0, a1, a2;
     int c;
 
     switch (opc) {
@@ -1320,16 +1295,31 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_add_i32:
-        if (const_args[2])
-            ppc_addi32 (s, args[0], args[1], args[2]);
-        else
-            tcg_out32 (s, ADD | TAB (args[0], args[1], args[2]));
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        if (const_args[2]) {
+            int32_t l, h;
+        do_addi_32:
+            l = (int16_t)a2;
+            h = a2 - l;
+            if (h) {
+                tcg_out32(s, ADDIS | TAI(a0, a1, h >> 16));
+                a1 = a0;
+            }
+            if (l || a0 != a1) {
+                tcg_out32(s, ADDI | TAI(a0, a1, l));
+            }
+        } else {
+            tcg_out32(s, ADD | TAB(a0, a1, a2));
+        }
         break;
     case INDEX_op_sub_i32:
-        if (const_args[2])
-            ppc_addi32 (s, args[0], args[1], -args[2]);
-        else
-            tcg_out32 (s, SUBF | TAB (args[0], args[2], args[1]));
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        if (const_args[2]) {
+            a2 = -a2;
+            goto do_addi_32;
+        } else {
+            tcg_out32(s, SUBF | TAB(a0, a2, a1));
+        }
         break;
 
     case INDEX_op_and_i64:
@@ -1459,16 +1449,46 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_add_i64:
-        if (const_args[2])
-            ppc_addi64 (s, args[0], args[1], args[2]);
-        else
-            tcg_out32 (s, ADD | TAB (args[0], args[1], args[2]));
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        if (const_args[2]) {
+            int32_t l0, h1, h2;
+        do_addi_64:
+            /* We can always split any 32-bit signed constant into 3 pieces.
+               Note the positive 0x80000000 coming from the sub_i64 path,
+               handled with the same code we need for eg 0x7fff8000.  */
+            assert(a2 == (int32_t)a2 || a2 == 0x80000000);
+            l0 = (int16_t)a2;
+            h1 = a2 - l0;
+            h2 = 0;
+            if (h1 < 0 && (int64_t)a2 > 0) {
+                h2 = 0x40000000;
+                h1 = a2 - h2 - l0;
+            }
+            assert((TCGArg)h2 + h1 + l0 == a2);
+
+            if (h2) {
+                tcg_out32(s, ADDIS | TAI(a0, a1, h2 >> 16));
+                a1 = a0;
+            }
+            if (h1) {
+                tcg_out32(s, ADDIS | TAI(a0, a1, h1 >> 16));
+                a1 = a0;
+            }
+            if (l0 || a0 != a1) {
+                tcg_out32(s, ADDI | TAI(a0, a1, l0));
+            }
+        } else {
+            tcg_out32(s, ADD | TAB(a0, a1, a2));
+        }
         break;
     case INDEX_op_sub_i64:
-        if (const_args[2])
-            ppc_addi64 (s, args[0], args[1], -args[2]);
-        else
-            tcg_out32 (s, SUBF | TAB (args[0], args[2], args[1]));
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        if (const_args[2]) {
+            a2 = -a2;
+            goto do_addi_64;
+        } else {
+            tcg_out32(s, SUBF | TAB(a0, a2, a1));
+        }
         break;
 
     case INDEX_op_shl_i64:
@@ -1634,8 +1654,8 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_neg_i32, { "r", "r" } },
     { INDEX_op_not_i32, { "r", "r" } },
 
-    { INDEX_op_add_i64, { "r", "r", "ri" } },
-    { INDEX_op_sub_i64, { "r", "r", "ri" } },
+    { INDEX_op_add_i64, { "r", "r", "rT" } },
+    { INDEX_op_sub_i64, { "r", "r", "rT" } },
     { INDEX_op_and_i64, { "r", "r", "rU" } },
     { INDEX_op_or_i64, { "r", "r", "rU" } },
     { INDEX_op_xor_i64, { "r", "r", "rU" } },
