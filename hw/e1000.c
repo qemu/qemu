@@ -166,12 +166,7 @@ static void
 set_phy_ctrl(E1000State *s, int index, uint16_t val)
 {
     if ((val & MII_CR_AUTO_NEG_EN) && (val & MII_CR_RESTART_AUTO_NEG)) {
-        /* no need auto-negotiation if link was down */
-        if (s->nic->nc.link_down) {
-            s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
-            return;
-        }
-        s->nic->nc.link_down = true;
+        qemu_get_queue(s->nic)->link_down = true;
         e1000_link_down(s);
         s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
         DBGOUT(PHY, "Start link auto negotiation\n");
@@ -183,7 +178,7 @@ static void
 e1000_autoneg_timer(void *opaque)
 {
     E1000State *s = opaque;
-    s->nic->nc.link_down = false;
+    qemu_get_queue(s->nic)->link_down = false;
     e1000_link_up(s);
     s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
     DBGOUT(PHY, "Auto negotiation is completed\n");
@@ -237,7 +232,17 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
         val |= E1000_ICR_INT_ASSERTED;
     }
     s->mac_reg[ICR] = val;
+
+    /*
+     * Make sure ICR and ICS registers have the same value.
+     * The spec says that the ICS register is write-only.  However in practice,
+     * on real hardware ICS is readable, and for reads it has the same value as
+     * ICR (except that ICS does not have the clear on read behaviour of ICR).
+     *
+     * The VxWorks PRO/1000 driver uses this behaviour.
+     */
     s->mac_reg[ICS] = val;
+
     qemu_set_irq(s->dev.irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
 }
 
@@ -286,7 +291,7 @@ static void e1000_reset(void *opaque)
     d->rxbuf_min_shift = 1;
     memset(&d->tx, 0, sizeof d->tx);
 
-    if (d->nic->nc.link_down) {
+    if (qemu_get_queue(d->nic)->link_down) {
         e1000_link_down(d);
     }
 
@@ -314,7 +319,7 @@ set_rx_control(E1000State *s, int index, uint32_t val)
     s->rxbuf_min_shift = ((val / E1000_RCTL_RDMTS_QUAT) & 3) + 1;
     DBGOUT(RX, "RCTL: %d, mac_reg[RCTL] = 0x%x\n", s->mac_reg[RDT],
            s->mac_reg[RCTL]);
-    qemu_flush_queued_packets(&s->nic->nc);
+    qemu_flush_queued_packets(qemu_get_queue(s->nic));
 }
 
 static void
@@ -465,10 +470,11 @@ fcs_len(E1000State *s)
 static void
 e1000_send_packet(E1000State *s, const uint8_t *buf, int size)
 {
+    NetClientState *nc = qemu_get_queue(s->nic);
     if (s->phy_reg[PHY_CTRL] & MII_CR_LOOPBACK) {
-        s->nic->nc.info->receive(&s->nic->nc, buf, size);
+        nc->info->receive(nc, buf, size);
     } else {
-        qemu_send_packet(&s->nic->nc, buf, size);
+        qemu_send_packet(nc, buf, size);
     }
 }
 
@@ -742,7 +748,7 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
 static void
 e1000_set_link_status(NetClientState *nc)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
     uint32_t old_status = s->mac_reg[STATUS];
 
     if (nc->link_down) {
@@ -776,7 +782,7 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
 static int
 e1000_can_receive(NetClientState *nc)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
 
     return (s->mac_reg[RCTL] & E1000_RCTL_EN) && e1000_has_rxbufs(s, 1);
 }
@@ -792,7 +798,7 @@ static uint64_t rx_desc_base(E1000State *s)
 static ssize_t
 e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
     struct e1000_rx_desc desc;
     dma_addr_t base;
     unsigned int n, rdt;
@@ -953,7 +959,7 @@ set_rdt(E1000State *s, int index, uint32_t val)
 {
     s->mac_reg[index] = val & 0xffff;
     if (e1000_has_rxbufs(s, 1)) {
-        qemu_flush_queued_packets(&s->nic->nc);
+        qemu_flush_queued_packets(qemu_get_queue(s->nic));
     }
 }
 
@@ -1107,10 +1113,11 @@ static bool is_version_1(void *opaque, int version_id)
 static int e1000_post_load(void *opaque, int version_id)
 {
     E1000State *s = opaque;
+    NetClientState *nc = qemu_get_queue(s->nic);
 
     /* nc.link_down can't be migrated, so infer link_down according
      * to link status bit in mac_reg[STATUS] */
-    s->nic->nc.link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
+    nc->link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
 
     return 0;
 }
@@ -1228,7 +1235,7 @@ e1000_mmio_setup(E1000State *d)
 static void
 e1000_cleanup(NetClientState *nc)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -1242,7 +1249,7 @@ pci_e1000_uninit(PCIDevice *dev)
     qemu_free_timer(d->autoneg_timer);
     memory_region_destroy(&d->mmio);
     memory_region_destroy(&d->io);
-    qemu_del_net_client(&d->nic->nc);
+    qemu_del_nic(d->nic);
 }
 
 static NetClientInfo net_e1000_info = {
@@ -1289,7 +1296,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     d->nic = qemu_new_nic(&net_e1000_info, &d->conf,
                           object_get_typename(OBJECT(d)), d->dev.qdev.id, d);
 
-    qemu_format_nic_info_str(&d->nic->nc, macaddr);
+    qemu_format_nic_info_str(qemu_get_queue(d->nic), macaddr);
 
     add_boot_device_path(d->conf.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
 

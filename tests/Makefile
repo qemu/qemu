@@ -50,6 +50,8 @@ check-unit-y += tests/test-hbitmap$(EXESUF)
 check-unit-y += tests/test-x86-cpuid$(EXESUF)
 # all code tested by test-x86-cpuid is inside topology.h
 gcov-files-test-x86-cpuid-y =
+check-unit-y += tests/test-xbzrle$(EXESUF)
+gcov-files-test-xbzrle-y = xbzrle.c
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -63,8 +65,8 @@ check-qtest-i386-y += tests/rtc-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 gcov-files-i386-y += i386-softmmu/hw/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
-check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
-check-qtest-sparc64-y = tests/m48t59-test$(EXESUF)
+#check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
+#check-qtest-sparc64-y = tests/m48t59-test$(EXESUF)
 gcov-files-sparc-y += hw/m48t59.c
 gcov-files-sparc64-y += hw/m48t59.c
 check-qtest-arm-y = tests/tmp105-test$(EXESUF)
@@ -98,6 +100,7 @@ tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(block-obj-y) libqemu
 tests/test-iov$(EXESUF): tests/test-iov.o libqemuutil.a
 tests/test-hbitmap$(EXESUF): tests/test-hbitmap.o libqemuutil.a libqemustub.a
 tests/test-x86-cpuid$(EXESUF): tests/test-x86-cpuid.o
+tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o xbzrle.o page_cache.o libqemuutil.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py

@@ -21,6 +21,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "migration/vmstate.h"
 
 
 /* CPUClass::reset() */
@@ -63,13 +64,21 @@ static void superh_cpu_initfn(Object *obj)
     env->movcal_backup_tail = &(env->movcal_backup);
 }
 
+static const VMStateDescription vmstate_sh_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
 static void superh_cpu_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
     scc->parent_reset = cc->reset;
     cc->reset = superh_cpu_reset;
+
+    dc->vmsd = &vmstate_sh_cpu;
 }
 
 static const TypeInfo superh_cpu_type_info = {

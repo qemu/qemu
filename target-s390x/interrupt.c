@@ -24,7 +24,7 @@ void s390_sclp_extint(uint32_t parm)
 #endif
     } else {
         env->psw.addr += 4;
-        cpu_inject_ext(env, EXT_SERVICE, parm, 0);
+        cpu_inject_ext(dummy_cpu, EXT_SERVICE, parm, 0);
     }
 }
 #endif

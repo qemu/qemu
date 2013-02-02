@@ -218,7 +218,8 @@ static void dm9000_do_transmit(dm9000_state *state)
     if( idx == 0x0C00 ) idx = 0;
     state->dm9k_trpa = idx;
     /* We have the copy buffer, now we do the transmit */
-    qemu_send_packet(&state->nic->nc, state->packet_copy_buffer, state->dm9k_txpl);
+    qemu_send_packet(qemu_get_queue(state->nic), state->packet_copy_buffer,
+                     state->dm9k_txpl);
     /* Clear the "please xmit" bit */
     state->dm9k_tcr &= ~DM9000_TCR_TXREQ;
     /* Set the TXEND bit */
@@ -576,7 +577,7 @@ static uint64_t dm9000_read(void *opaque, hwaddr address,
 
 static int dm9000_can_receive(NetClientState *nc)
 {
-    dm9000_state *state = DO_UPCAST(NICState, nc, nc)->opaque;
+    dm9000_state *state = qemu_get_nic_opaque(nc);
     uint16_t rx_space;
     if( state->dm9k_rwpa < state->dm9k_mrr )
         rx_space = state->dm9k_mrr - state->dm9k_rwpa;
@@ -593,7 +594,7 @@ static int dm9000_can_receive(NetClientState *nc)
 static ssize_t
 dm9000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    dm9000_state *state = DO_UPCAST(NICState, nc, nc)->opaque;
+    dm9000_state *state = qemu_get_nic_opaque(nc);
     uint16_t rxptr = state->dm9k_rwpa;
     uint8_t magic_padding = 4;
     if( size > 2048 ) {
@@ -667,7 +668,7 @@ static int dm9000_init(SysBusDevice *dev)
     memory_region_init_io(&s->mmio, &dm9000_ops, s, "dm9000", 0x1000);
     sysbus_init_mmio(dev, &s->mmio);
     dm9000_hard_reset(s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     return 0;
 }

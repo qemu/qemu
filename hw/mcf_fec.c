@@ -174,7 +174,7 @@ static void mcf_fec_do_tx(mcf_fec_state *s)
         if (bd.flags & FEC_BD_L) {
             /* Last buffer in frame.  */
             DPRINTF("Sending packet\n");
-            qemu_send_packet(&s->nic->nc, frame, len);
+            qemu_send_packet(qemu_get_queue(s->nic), frame, len);
             ptr = frame;
             frame_size = 0;
             s->eir |= FEC_INT_TXF;
@@ -353,13 +353,13 @@ static void mcf_fec_write(void *opaque, hwaddr addr,
 
 static int mcf_fec_can_receive(NetClientState *nc)
 {
-    mcf_fec_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    mcf_fec_state *s = qemu_get_nic_opaque(nc);
     return s->rx_enabled;
 }
 
 static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    mcf_fec_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    mcf_fec_state *s = qemu_get_nic_opaque(nc);
     mcf_fec_bd bd;
     uint32_t flags = 0;
     uint32_t addr;
@@ -441,7 +441,7 @@ static const MemoryRegionOps mcf_fec_ops = {
 
 static void mcf_fec_cleanup(NetClientState *nc)
 {
-    mcf_fec_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    mcf_fec_state *s = qemu_get_nic_opaque(nc);
 
     memory_region_del_subregion(s->sysmem, &s->iomem);
     memory_region_destroy(&s->iomem);
@@ -472,9 +472,9 @@ void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd,
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     s->conf.macaddr = nd->macaddr;
-    s->conf.peer = nd->netdev;
+    s->conf.peers.ncs[0] = nd->netdev;
 
     s->nic = qemu_new_nic(&net_mcf_fec_info, &s->conf, nd->model, nd->name, s);
 
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }

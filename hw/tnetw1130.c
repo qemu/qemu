@@ -647,7 +647,7 @@ static void nic_reset(void *opaque)
 
 static int nic_can_receive(NetClientState *ncs)
 {
-    //~ tnetw1130_t *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    //~ tnetw1130_t *s = qemu_get_nic_opaque(ncs);
 
     TRACE(TNETW, logout("\n"));
 
@@ -665,7 +665,7 @@ static ssize_t nic_receive(NetClientState *ncs,
 static void nic_cleanup(NetClientState *ncs)
 {
 #if 0
-    tnetw1130_t *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    tnetw1130_t *s = qemu_get_nic_opaque(ncs);
     qemu_del_timer(d->poll_timer);
     qemu_free_timer(d->poll_timer);
 #endif
@@ -727,7 +727,7 @@ static int tnetw1130_init(PCIDevice *pci_dev)
                           object_get_typename(OBJECT(pci_dev)),
                           pci_dev->qdev.id, s);
 
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     qemu_register_reset(nic_reset, d);
 
@@ -748,7 +748,7 @@ static void pci_tnetw1130_uninit(PCIDevice *pci_dev)
     TNETW1130State *s = DO_UPCAST(TNETW1130State, dev, pci_dev);
     memory_region_destroy(&s->mmio_bar0);
     memory_region_destroy(&s->mmio_bar1);
-    qemu_del_net_client(&s->tnetw1130.nic->nc);
+    qemu_del_nic(s->tnetw1130.nic);
 }
 
 static const VMStateDescription vmstate_pci_tnetw1130 = {

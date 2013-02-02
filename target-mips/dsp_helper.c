@@ -20,6 +20,28 @@
 #include "cpu.h"
 #include "helper.h"
 
+/* As the byte ordering doesn't matter, i.e. all columns are treated
+   identically, these unions can be used directly.  */
+typedef union {
+    uint8_t  ub[4];
+    int8_t   sb[4];
+    uint16_t uh[2];
+    int16_t  sh[2];
+    uint32_t uw[1];
+    int32_t  sw[1];
+} DSP32Value;
+
+typedef union {
+    uint8_t  ub[8];
+    int8_t   sb[8];
+    uint16_t uh[4];
+    int16_t  sh[4];
+    uint32_t uw[2];
+    int32_t  sw[2];
+    uint64_t ul[1];
+    int64_t  sl[1];
+} DSP64Value;
+
 /*** MIPS DSP internal functions begin ***/
 #define MIPSDSP_ABS(x) (((x) >= 0) ? x : -x)
 #define MIPSDSP_OVERFLOW(a, b, c, d) (!(!((a ^ b ^ -1) & (a ^ c) & d)))
@@ -1056,7 +1078,6 @@ static inline int32_t mipsdsp_cmpu_lt(uint32_t a, uint32_t b)
         b = num & MIPSDSP_LO;               \
     } while (0)
 
-#define MIPSDSP_RETURN32(a)             ((target_long)(int32_t)a)
 #define MIPSDSP_RETURN32_8(a, b, c, d)  ((target_long)(int32_t) \
                                          (((uint32_t)a << 24) | \
                                          (((uint32_t)b << 16) | \
@@ -1089,286 +1110,168 @@ static inline int32_t mipsdsp_cmpu_lt(uint32_t a, uint32_t b)
 #endif
 
 /** DSP Arithmetic Sub-class insns **/
-#define ARITH_PH(name, func)                                      \
-target_ulong helper_##name##_ph(target_ulong rs, target_ulong rt) \
-{                                                                 \
-    uint16_t  rsh, rsl, rth, rtl, temph, templ;                   \
-                                                                  \
-    MIPSDSP_SPLIT32_16(rs, rsh, rsl);                             \
-    MIPSDSP_SPLIT32_16(rt, rth, rtl);                             \
-                                                                  \
-    temph = mipsdsp_##func(rsh, rth);                             \
-    templ = mipsdsp_##func(rsl, rtl);                             \
-                                                                  \
-    return MIPSDSP_RETURN32_16(temph, templ);                     \
+#define MIPSDSP32_UNOP_ENV(name, func, element)                            \
+target_ulong helper_##name(target_ulong rt, CPUMIPSState *env)             \
+{                                                                          \
+    DSP32Value dt;                                                         \
+    unsigned int i, n;                                                     \
+                                                                           \
+    n = sizeof(DSP32Value) / sizeof(dt.element[0]);                        \
+    dt.sw[0] = rt;                                                         \
+                                                                           \
+    for (i = 0; i < n; i++) {                                              \
+        dt.element[i] = mipsdsp_##func(dt.element[i], env);                \
+    }                                                                      \
+                                                                           \
+    return (target_long)dt.sw[0];                                          \
 }
+MIPSDSP32_UNOP_ENV(absq_s_ph, sat_abs16, sh)
+MIPSDSP32_UNOP_ENV(absq_s_qb, sat_abs8, sb)
+MIPSDSP32_UNOP_ENV(absq_s_w, sat_abs32, sw)
+#undef MIPSDSP32_UNOP_ENV
 
-#define ARITH_PH_ENV(name, func)                                  \
-target_ulong helper_##name##_ph(target_ulong rs, target_ulong rt, \
-                                CPUMIPSState *env)                \
-{                                                                 \
-    uint16_t  rsh, rsl, rth, rtl, temph, templ;                   \
-                                                                  \
-    MIPSDSP_SPLIT32_16(rs, rsh, rsl);                             \
-    MIPSDSP_SPLIT32_16(rt, rth, rtl);                             \
-                                                                  \
-    temph = mipsdsp_##func(rsh, rth, env);                        \
-    templ = mipsdsp_##func(rsl, rtl, env);                        \
-                                                                  \
-    return MIPSDSP_RETURN32_16(temph, templ);                     \
+#if defined(TARGET_MIPS64)
+#define MIPSDSP64_UNOP_ENV(name, func, element)                            \
+target_ulong helper_##name(target_ulong rt, CPUMIPSState *env)             \
+{                                                                          \
+    DSP64Value dt;                                                         \
+    unsigned int i, n;                                                     \
+                                                                           \
+    n = sizeof(DSP64Value) / sizeof(dt.element[0]);                        \
+    dt.sl[0] = rt;                                                         \
+                                                                           \
+    for (i = 0; i < n; i++) {                                              \
+        dt.element[i] = mipsdsp_##func(dt.element[i], env);                \
+    }                                                                      \
+                                                                           \
+    return dt.sl[0];                                                       \
 }
+MIPSDSP64_UNOP_ENV(absq_s_ob, sat_abs8, sb)
+MIPSDSP64_UNOP_ENV(absq_s_qh, sat_abs16, sh)
+MIPSDSP64_UNOP_ENV(absq_s_pw, sat_abs32, sw)
+#undef MIPSDSP64_UNOP_ENV
+#endif
 
+#define MIPSDSP32_BINOP(name, func, element)                               \
+target_ulong helper_##name(target_ulong rs, target_ulong rt)               \
+{                                                                          \
+    DSP32Value ds, dt;                                                     \
+    unsigned int i, n;                                                     \
+                                                                           \
+    n = sizeof(DSP32Value) / sizeof(ds.element[0]);                        \
+    ds.sw[0] = rs;                                                         \
+    dt.sw[0] = rt;                                                         \
+                                                                           \
+    for (i = 0; i < n; i++) {                                              \
+        ds.element[i] = mipsdsp_##func(ds.element[i], dt.element[i]);      \
+    }                                                                      \
+                                                                           \
+    return (target_long)ds.sw[0];                                          \
+}
+MIPSDSP32_BINOP(addqh_ph, rshift1_add_q16, sh);
+MIPSDSP32_BINOP(addqh_r_ph, rrshift1_add_q16, sh);
+MIPSDSP32_BINOP(addqh_r_w, rrshift1_add_q32, sw);
+MIPSDSP32_BINOP(addqh_w, rshift1_add_q32, sw);
+MIPSDSP32_BINOP(adduh_qb, rshift1_add_u8, ub);
+MIPSDSP32_BINOP(adduh_r_qb, rrshift1_add_u8, ub);
+MIPSDSP32_BINOP(subqh_ph, rshift1_sub_q16, sh);
+MIPSDSP32_BINOP(subqh_r_ph, rrshift1_sub_q16, sh);
+MIPSDSP32_BINOP(subqh_r_w, rrshift1_sub_q32, sw);
+MIPSDSP32_BINOP(subqh_w, rshift1_sub_q32, sw);
+#undef MIPSDSP32_BINOP
 
-ARITH_PH_ENV(addq, add_i16);
-ARITH_PH_ENV(addq_s, sat_add_i16);
-ARITH_PH_ENV(addu, add_u16);
-ARITH_PH_ENV(addu_s, sat_add_u16);
-
-ARITH_PH(addqh, rshift1_add_q16);
-ARITH_PH(addqh_r, rrshift1_add_q16);
-
-ARITH_PH_ENV(subq, sub_i16);
-ARITH_PH_ENV(subq_s, sat16_sub);
-ARITH_PH_ENV(subu, sub_u16_u16);
-ARITH_PH_ENV(subu_s, satu16_sub_u16_u16);
-
-ARITH_PH(subqh, rshift1_sub_q16);
-ARITH_PH(subqh_r, rrshift1_sub_q16);
-
-#undef ARITH_PH
-#undef ARITH_PH_ENV
+#define MIPSDSP32_BINOP_ENV(name, func, element)                           \
+target_ulong helper_##name(target_ulong rs, target_ulong rt,               \
+                           CPUMIPSState *env)                              \
+{                                                                          \
+    DSP32Value ds, dt;                                                     \
+    unsigned int i, n;                                                     \
+                                                                           \
+    n = sizeof(DSP32Value) / sizeof(ds.element[0]);                        \
+    ds.sw[0] = rs;                                                         \
+    dt.sw[0] = rt;                                                         \
+                                                                           \
+    for (i = 0 ; i < n ; i++) {                                            \
+        ds.element[i] = mipsdsp_##func(ds.element[i], dt.element[i], env); \
+    }                                                                      \
+                                                                           \
+    return (target_long)ds.sw[0];                                          \
+}
+MIPSDSP32_BINOP_ENV(addq_ph, add_i16, sh)
+MIPSDSP32_BINOP_ENV(addq_s_ph, sat_add_i16, sh)
+MIPSDSP32_BINOP_ENV(addq_s_w, sat_add_i32, sw);
+MIPSDSP32_BINOP_ENV(addu_ph, add_u16, sh)
+MIPSDSP32_BINOP_ENV(addu_qb, add_u8, ub);
+MIPSDSP32_BINOP_ENV(addu_s_ph, sat_add_u16, sh)
+MIPSDSP32_BINOP_ENV(addu_s_qb, sat_add_u8, ub);
+MIPSDSP32_BINOP_ENV(subq_ph, sub_i16, sh);
+MIPSDSP32_BINOP_ENV(subq_s_ph, sat16_sub, sh);
+MIPSDSP32_BINOP_ENV(subq_s_w, sat32_sub, sw);
+MIPSDSP32_BINOP_ENV(subu_ph, sub_u16_u16, sh);
+MIPSDSP32_BINOP_ENV(subu_qb, sub_u8, ub);
+MIPSDSP32_BINOP_ENV(subu_s_ph, satu16_sub_u16_u16, sh);
+MIPSDSP32_BINOP_ENV(subu_s_qb, satu8_sub, ub);
+#undef MIPSDSP32_BINOP_ENV
 
 #ifdef TARGET_MIPS64
-#define ARITH_QH_ENV(name, func) \
-target_ulong helper_##name##_qh(target_ulong rs, target_ulong rt, \
-                                CPUMIPSState *env)           \
-{                                                            \
-    uint16_t rs3, rs2, rs1, rs0;                             \
-    uint16_t rt3, rt2, rt1, rt0;                             \
-    uint16_t tempD, tempC, tempB, tempA;                     \
-                                                             \
-    MIPSDSP_SPLIT64_16(rs, rs3, rs2, rs1, rs0);              \
-    MIPSDSP_SPLIT64_16(rt, rt3, rt2, rt1, rt0);              \
-                                                             \
-    tempD = mipsdsp_##func(rs3, rt3, env);                   \
-    tempC = mipsdsp_##func(rs2, rt2, env);                   \
-    tempB = mipsdsp_##func(rs1, rt1, env);                   \
-    tempA = mipsdsp_##func(rs0, rt0, env);                   \
-                                                             \
-    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);  \
+#define MIPSDSP64_BINOP(name, func, element)                               \
+target_ulong helper_##name(target_ulong rs, target_ulong rt)               \
+{                                                                          \
+    DSP64Value ds, dt;                                                     \
+    unsigned int i, n;                                                     \
+                                                                           \
+    n = sizeof(DSP64Value) / sizeof(ds.element[0]);                        \
+    ds.sl[0] = rs;                                                         \
+    dt.sl[0] = rt;                                                         \
+                                                                           \
+    for (i = 0 ; i < n ; i++) {                                            \
+        ds.element[i] = mipsdsp_##func(ds.element[i], dt.element[i]);      \
+    }                                                                      \
+                                                                           \
+    return ds.sl[0];                                                       \
 }
+MIPSDSP64_BINOP(adduh_ob, rshift1_add_u8, ub);
+MIPSDSP64_BINOP(adduh_r_ob, rrshift1_add_u8, ub);
+MIPSDSP64_BINOP(subuh_ob, rshift1_sub_u8, ub);
+MIPSDSP64_BINOP(subuh_r_ob, rrshift1_sub_u8, ub);
+#undef MIPSDSP64_BINOP
 
-ARITH_QH_ENV(addq, add_i16);
-ARITH_QH_ENV(addq_s, sat_add_i16);
-ARITH_QH_ENV(addu, add_u16);
-ARITH_QH_ENV(addu_s, sat_add_u16);
-
-ARITH_QH_ENV(subq, sub_i16);
-ARITH_QH_ENV(subq_s, sat16_sub);
-ARITH_QH_ENV(subu, sub_u16_u16);
-ARITH_QH_ENV(subu_s, satu16_sub_u16_u16);
-
-#undef ARITH_QH_ENV
+#define MIPSDSP64_BINOP_ENV(name, func, element)                           \
+target_ulong helper_##name(target_ulong rs, target_ulong rt,               \
+                           CPUMIPSState *env)                              \
+{                                                                          \
+    DSP64Value ds, dt;                                                     \
+    unsigned int i, n;                                                     \
+                                                                           \
+    n = sizeof(DSP64Value) / sizeof(ds.element[0]);                        \
+    ds.sl[0] = rs;                                                         \
+    dt.sl[0] = rt;                                                         \
+                                                                           \
+    for (i = 0 ; i < n ; i++) {                                            \
+        ds.element[i] = mipsdsp_##func(ds.element[i], dt.element[i], env); \
+    }                                                                      \
+                                                                           \
+    return ds.sl[0];                                                       \
+}
+MIPSDSP64_BINOP_ENV(addq_pw, add_i32, sw);
+MIPSDSP64_BINOP_ENV(addq_qh, add_i16, sh);
+MIPSDSP64_BINOP_ENV(addq_s_pw, sat_add_i32, sw);
+MIPSDSP64_BINOP_ENV(addq_s_qh, sat_add_i16, sh);
+MIPSDSP64_BINOP_ENV(addu_ob, add_u8, uh);
+MIPSDSP64_BINOP_ENV(addu_qh, add_u16, uh);
+MIPSDSP64_BINOP_ENV(addu_s_ob, sat_add_u8, uh);
+MIPSDSP64_BINOP_ENV(addu_s_qh, sat_add_u16, uh);
+MIPSDSP64_BINOP_ENV(subq_pw, sub32, sw);
+MIPSDSP64_BINOP_ENV(subq_qh, sub_i16, sh);
+MIPSDSP64_BINOP_ENV(subq_s_pw, sat32_sub, sw);
+MIPSDSP64_BINOP_ENV(subq_s_qh, sat16_sub, sh);
+MIPSDSP64_BINOP_ENV(subu_ob, sub_u8, uh);
+MIPSDSP64_BINOP_ENV(subu_qh, sub_u16_u16, uh);
+MIPSDSP64_BINOP_ENV(subu_s_ob, satu8_sub, uh);
+MIPSDSP64_BINOP_ENV(subu_s_qh, satu16_sub_u16_u16, uh);
+#undef MIPSDSP64_BINOP_ENV
 
 #endif
-
-#define ARITH_W(name, func) \
-target_ulong helper_##name##_w(target_ulong rs, target_ulong rt) \
-{                                                                \
-    uint32_t rd;                                                 \
-    rd = mipsdsp_##func(rs, rt);                                 \
-    return MIPSDSP_RETURN32(rd);                                 \
-}
-
-#define ARITH_W_ENV(name, func) \
-target_ulong helper_##name##_w(target_ulong rs, target_ulong rt, \
-                               CPUMIPSState *env)                \
-{                                                                \
-    uint32_t rd;                                                 \
-    rd = mipsdsp_##func(rs, rt, env);                            \
-    return MIPSDSP_RETURN32(rd);                                 \
-}
-
-ARITH_W_ENV(addq_s, sat_add_i32);
-
-ARITH_W(addqh, rshift1_add_q32);
-ARITH_W(addqh_r, rrshift1_add_q32);
-
-ARITH_W_ENV(subq_s, sat32_sub);
-
-ARITH_W(subqh, rshift1_sub_q32);
-ARITH_W(subqh_r, rrshift1_sub_q32);
-
-#undef ARITH_W
-#undef ARITH_W_ENV
-
-target_ulong helper_absq_s_w(target_ulong rt, CPUMIPSState *env)
-{
-    uint32_t rd;
-
-    rd = mipsdsp_sat_abs32(rt, env);
-
-    return (target_ulong)rd;
-}
-
-
-#if defined(TARGET_MIPS64)
-
-#define ARITH_PW_ENV(name, func) \
-target_ulong helper_##name##_pw(target_ulong rs, target_ulong rt, \
-                                CPUMIPSState *env)                \
-{                                                                 \
-    uint32_t rs1, rs0;                                            \
-    uint32_t rt1, rt0;                                            \
-    uint32_t tempB, tempA;                                        \
-                                                                  \
-    MIPSDSP_SPLIT64_32(rs, rs1, rs0);                             \
-    MIPSDSP_SPLIT64_32(rt, rt1, rt0);                             \
-                                                                  \
-    tempB = mipsdsp_##func(rs1, rt1, env);                        \
-    tempA = mipsdsp_##func(rs0, rt0, env);                        \
-                                                                  \
-    return MIPSDSP_RETURN64_32(tempB, tempA);                     \
-}
-
-ARITH_PW_ENV(addq, add_i32);
-ARITH_PW_ENV(addq_s, sat_add_i32);
-ARITH_PW_ENV(subq, sub32);
-ARITH_PW_ENV(subq_s, sat32_sub);
-
-#undef ARITH_PW_ENV
-
-#endif
-
-#define ARITH_QB(name, func) \
-target_ulong helper_##name##_qb(target_ulong rs, target_ulong rt) \
-{                                                                 \
-    uint8_t  rs0, rs1, rs2, rs3;                                  \
-    uint8_t  rt0, rt1, rt2, rt3;                                  \
-    uint8_t  temp0, temp1, temp2, temp3;                          \
-                                                                  \
-    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);                    \
-    MIPSDSP_SPLIT32_8(rt, rt3, rt2, rt1, rt0);                    \
-                                                                  \
-    temp0 = mipsdsp_##func(rs0, rt0);                             \
-    temp1 = mipsdsp_##func(rs1, rt1);                             \
-    temp2 = mipsdsp_##func(rs2, rt2);                             \
-    temp3 = mipsdsp_##func(rs3, rt3);                             \
-                                                                  \
-    return MIPSDSP_RETURN32_8(temp3, temp2, temp1, temp0);        \
-}
-
-#define ARITH_QB_ENV(name, func) \
-target_ulong helper_##name##_qb(target_ulong rs, target_ulong rt, \
-                                CPUMIPSState *env)          \
-{                                                           \
-    uint8_t  rs0, rs1, rs2, rs3;                            \
-    uint8_t  rt0, rt1, rt2, rt3;                            \
-    uint8_t  temp0, temp1, temp2, temp3;                    \
-                                                            \
-    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);              \
-    MIPSDSP_SPLIT32_8(rt, rt3, rt2, rt1, rt0);              \
-                                                            \
-    temp0 = mipsdsp_##func(rs0, rt0, env);                  \
-    temp1 = mipsdsp_##func(rs1, rt1, env);                  \
-    temp2 = mipsdsp_##func(rs2, rt2, env);                  \
-    temp3 = mipsdsp_##func(rs3, rt3, env);                  \
-                                                            \
-    return MIPSDSP_RETURN32_8(temp3, temp2, temp1, temp0);  \
-}
-
-ARITH_QB(adduh, rshift1_add_u8);
-ARITH_QB(adduh_r, rrshift1_add_u8);
-
-ARITH_QB_ENV(addu, add_u8);
-ARITH_QB_ENV(addu_s, sat_add_u8);
-
-#undef ADDU_QB
-#undef ADDU_QB_ENV
-
-#if defined(TARGET_MIPS64)
-#define ARITH_OB(name, func) \
-target_ulong helper_##name##_ob(target_ulong rs, target_ulong rt) \
-{                                                                 \
-    int i;                                                        \
-    uint8_t rs_t[8], rt_t[8];                                     \
-    uint8_t temp[8];                                              \
-    uint64_t result;                                              \
-                                                                  \
-    result = 0;                                                   \
-                                                                  \
-    for (i = 0; i < 8; i++) {                                     \
-        rs_t[i] = (rs >> (8 * i)) & MIPSDSP_Q0;                   \
-        rt_t[i] = (rt >> (8 * i)) & MIPSDSP_Q0;                   \
-        temp[i] = mipsdsp_##func(rs_t[i], rt_t[i]);               \
-        result |= (uint64_t)temp[i] << (8 * i);                   \
-    }                                                             \
-                                                                  \
-    return result;                                                \
-}
-
-#define ARITH_OB_ENV(name, func) \
-target_ulong helper_##name##_ob(target_ulong rs, target_ulong rt, \
-                                CPUMIPSState *env)                \
-{                                                                 \
-    int i;                                                        \
-    uint8_t rs_t[8], rt_t[8];                                     \
-    uint8_t temp[8];                                              \
-    uint64_t result;                                              \
-                                                                  \
-    result = 0;                                                   \
-                                                                  \
-    for (i = 0; i < 8; i++) {                                     \
-        rs_t[i] = (rs >> (8 * i)) & MIPSDSP_Q0;                   \
-        rt_t[i] = (rt >> (8 * i)) & MIPSDSP_Q0;                   \
-        temp[i] = mipsdsp_##func(rs_t[i], rt_t[i], env);          \
-        result |= (uint64_t)temp[i] << (8 * i);                   \
-    }                                                             \
-                                                                  \
-    return result;                                                \
-}
-
-ARITH_OB_ENV(addu, add_u8);
-ARITH_OB_ENV(addu_s, sat_add_u8);
-
-ARITH_OB(adduh, rshift1_add_u8);
-ARITH_OB(adduh_r, rrshift1_add_u8);
-
-ARITH_OB_ENV(subu, sub_u8);
-ARITH_OB_ENV(subu_s, satu8_sub);
-
-ARITH_OB(subuh, rshift1_sub_u8);
-ARITH_OB(subuh_r, rrshift1_sub_u8);
-
-#undef ARITH_OB
-#undef ARITH_OB_ENV
-
-#endif
-
-#define SUBU_QB(name, func) \
-target_ulong helper_##name##_qb(target_ulong rs,               \
-                                target_ulong rt,               \
-                                CPUMIPSState *env)             \
-{                                                              \
-    uint8_t rs3, rs2, rs1, rs0;                                \
-    uint8_t rt3, rt2, rt1, rt0;                                \
-    uint8_t tempD, tempC, tempB, tempA;                        \
-                                                               \
-    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);                 \
-    MIPSDSP_SPLIT32_8(rt, rt3, rt2, rt1, rt0);                 \
-                                                               \
-    tempD = mipsdsp_##func(rs3, rt3, env);                     \
-    tempC = mipsdsp_##func(rs2, rt2, env);                     \
-    tempB = mipsdsp_##func(rs1, rt1, env);                     \
-    tempA = mipsdsp_##func(rs0, rt0, env);                     \
-                                                               \
-    return MIPSDSP_RETURN32_8(tempD, tempC, tempB, tempA);     \
-}
-
-SUBU_QB(subu, sub_u8);
-SUBU_QB(subu_s, satu8_sub);
-
-#undef SUBU_QB
 
 #define SUBUH_QB(name, var) \
 target_ulong helper_##name##_qb(target_ulong rs, target_ulong rt) \
@@ -1449,103 +1352,29 @@ target_ulong helper_modsub(target_ulong rs, target_ulong rt)
 
 target_ulong helper_raddu_w_qb(target_ulong rs)
 {
-    uint8_t  rs3, rs2, rs1, rs0;
-    uint16_t temp;
+    target_ulong ret = 0;
+    DSP32Value ds;
+    unsigned int i;
 
-    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);
-
-    temp = (uint16_t)rs3 + (uint16_t)rs2 + (uint16_t)rs1 + (uint16_t)rs0;
-
-    return (target_ulong)temp;
+    ds.uw[0] = rs;
+    for (i = 0; i < 4; i++) {
+        ret += ds.ub[i];
+    }
+    return ret;
 }
 
 #if defined(TARGET_MIPS64)
 target_ulong helper_raddu_l_ob(target_ulong rs)
 {
-    int i;
-    uint16_t rs_t[8];
-    uint64_t temp;
+    target_ulong ret = 0;
+    DSP64Value ds;
+    unsigned int i;
 
-    temp = 0;
-
+    ds.ul[0] = rs;
     for (i = 0; i < 8; i++) {
-        rs_t[i] = (rs >> (8 * i)) & MIPSDSP_Q0;
-        temp += (uint64_t)rs_t[i];
+        ret += ds.ub[i];
     }
-
-    return temp;
-}
-#endif
-
-target_ulong helper_absq_s_qb(target_ulong rt, CPUMIPSState *env)
-{
-    uint8_t tempD, tempC, tempB, tempA;
-
-    MIPSDSP_SPLIT32_8(rt, tempD, tempC, tempB, tempA);
-
-    tempD = mipsdsp_sat_abs8(tempD, env);
-    tempC = mipsdsp_sat_abs8(tempC, env);
-    tempB = mipsdsp_sat_abs8(tempB, env);
-    tempA = mipsdsp_sat_abs8(tempA, env);
-
-    return MIPSDSP_RETURN32_8(tempD, tempC, tempB, tempA);
-}
-
-target_ulong helper_absq_s_ph(target_ulong rt, CPUMIPSState *env)
-{
-    uint16_t tempB, tempA;
-
-    MIPSDSP_SPLIT32_16(rt, tempB, tempA);
-
-    tempB = mipsdsp_sat_abs16 (tempB, env);
-    tempA = mipsdsp_sat_abs16 (tempA, env);
-
-    return MIPSDSP_RETURN32_16(tempB, tempA);
-}
-
-#if defined(TARGET_MIPS64)
-target_ulong helper_absq_s_ob(target_ulong rt, CPUMIPSState *env)
-{
-    int i;
-    int8_t temp[8];
-    uint64_t result;
-
-    for (i = 0; i < 8; i++) {
-        temp[i] = (rt >> (8 * i)) & MIPSDSP_Q0;
-        temp[i] = mipsdsp_sat_abs8(temp[i], env);
-    }
-
-    for (i = 0; i < 8; i++) {
-        result = (uint64_t)(uint8_t)temp[i] << (8 * i);
-    }
-
-    return result;
-}
-
-target_ulong helper_absq_s_qh(target_ulong rt, CPUMIPSState *env)
-{
-    int16_t tempD, tempC, tempB, tempA;
-
-    MIPSDSP_SPLIT64_16(rt, tempD, tempC, tempB, tempA);
-
-    tempD = mipsdsp_sat_abs16(tempD, env);
-    tempC = mipsdsp_sat_abs16(tempC, env);
-    tempB = mipsdsp_sat_abs16(tempB, env);
-    tempA = mipsdsp_sat_abs16(tempA, env);
-
-    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);
-}
-
-target_ulong helper_absq_s_pw(target_ulong rt, CPUMIPSState *env)
-{
-    int32_t tempB, tempA;
-
-    MIPSDSP_SPLIT64_32(rt, tempB, tempA);
-
-    tempB = mipsdsp_sat_abs32(tempB, env);
-    tempA = mipsdsp_sat_abs32(tempA, env);
-
-    return MIPSDSP_RETURN64_32(tempB, tempA);
+    return ret;
 }
 #endif
 
@@ -3282,73 +3111,6 @@ PICK_INSN(pick_pw, 2, MIPSDSP_LLO, 32, 0);
 #endif
 #undef PICK_INSN
 
-#define APPEND_INSN(name, ret_32) \
-target_ulong helper_##name(target_ulong rt, target_ulong rs, uint32_t sa) \
-{                                                                         \
-    target_ulong temp;                                                    \
-                                                                          \
-    if (ret_32) {                                                         \
-        temp = ((rt & MIPSDSP_LLO) << sa) |                               \
-               ((rs & MIPSDSP_LLO) & ((0x01 << sa) - 1));                 \
-        temp = (target_long)(int32_t)(temp & MIPSDSP_LLO);                \
-    } else {                                                              \
-        temp = (rt << sa) | (rs & ((0x01 << sa) - 1));                    \
-    }                                                                     \
-                                                                          \
-    return temp;                                                          \
-}
-
-APPEND_INSN(append, 1);
-#ifdef TARGET_MIPS64
-APPEND_INSN(dappend, 0);
-#endif
-#undef APPEND_INSN
-
-#define PREPEND_INSN(name, or_val, ret_32)                    \
-target_ulong helper_##name(target_ulong rs, target_ulong rt,  \
-                           uint32_t sa)                       \
-{                                                             \
-    sa |= or_val;                                             \
-                                                              \
-    if (1) {                                                  \
-        return (target_long)(int32_t)(uint32_t)               \
-            (((rs & MIPSDSP_LLO) << (32 - sa)) |              \
-             ((rt & MIPSDSP_LLO) >> sa));                     \
-    } else {                                                  \
-        return (rs << (64 - sa)) | (rt >> sa);                \
-    }                                                         \
-}
-
-PREPEND_INSN(prepend, 0, 1);
-#ifdef TARGET_MIPS64
-PREPEND_INSN(prependw, 0, 0);
-PREPEND_INSN(prependd, 0x20, 0);
-#endif
-#undef PREPEND_INSN
-
-#define BALIGN_INSN(name, filter, ret32) \
-target_ulong helper_##name(target_ulong rs, target_ulong rt, uint32_t bp) \
-{                                                                         \
-    bp = bp & 0x03;                                                       \
-                                                                          \
-    if ((bp & 1) == 0) {                                                  \
-        return rt;                                                        \
-    } else {                                                              \
-        if (ret32) {                                                      \
-            return (target_long)(int32_t)((rt << (8 * bp)) |              \
-                                          (rs >> (8 * (4 - bp))));        \
-        } else {                                                          \
-            return (rt << (8 * bp)) | (rs >> (8 * (8 - bp)));             \
-        }                                                                 \
-    }                                                                     \
-}
-
-BALIGN_INSN(balign, 0x03, 1);
-#if defined(TARGET_MIPS64)
-BALIGN_INSN(dbalign, 0x07, 0);
-#endif
-#undef BALIGN_INSN
-
 target_ulong helper_packrl_ph(target_ulong rs, target_ulong rt)
 {
     uint32_t rsl, rth;
@@ -4005,7 +3767,6 @@ target_ulong helper_rddsp(target_ulong masknum, CPUMIPSState *env)
 #undef MIPSDSP_SPLIT32_8
 #undef MIPSDSP_SPLIT32_16
 
-#undef MIPSDSP_RETURN32
 #undef MIPSDSP_RETURN32_8
 #undef MIPSDSP_RETURN32_16
 

@@ -119,7 +119,7 @@ SPARCCPU *cpu_sparc_init(const char *cpu_model)
     }
 
     if (cpu_sparc_register(env, cpu_model) < 0) {
-        object_delete(OBJECT(cpu));
+        object_unref(OBJECT(cpu));
         return NULL;
     }
     qemu_init_vcpu(env);

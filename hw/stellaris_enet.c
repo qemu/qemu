@@ -80,7 +80,7 @@ static void stellaris_enet_update(stellaris_enet_state *s)
 /* TODO: Implement MAC address filtering.  */
 static ssize_t stellaris_enet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    stellaris_enet_state *s = qemu_get_nic_opaque(nc);
     int n;
     uint8_t *p;
     uint32_t crc;
@@ -122,7 +122,7 @@ static ssize_t stellaris_enet_receive(NetClientState *nc, const uint8_t *buf, si
 
 static int stellaris_enet_can_receive(NetClientState *nc)
 {
-    stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    stellaris_enet_state *s = qemu_get_nic_opaque(nc);
 
     if ((s->rctl & SE_RCTL_RXEN) == 0)
         return 1;
@@ -259,7 +259,8 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
                     memset(&s->tx_fifo[s->tx_frame_len], 0, 60 - s->tx_frame_len);
                     s->tx_fifo_len = 60;
                 }
-                qemu_send_packet(&s->nic->nc, s->tx_fifo, s->tx_frame_len);
+                qemu_send_packet(qemu_get_queue(s->nic), s->tx_fifo,
+                                 s->tx_frame_len);
                 s->tx_frame_len = -1;
                 s->ris |= SE_INT_TXEMP;
                 stellaris_enet_update(s);
@@ -383,7 +384,7 @@ static int stellaris_enet_load(QEMUFile *f, void *opaque, int version_id)
 
 static void stellaris_enet_cleanup(NetClientState *nc)
 {
-    stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    stellaris_enet_state *s = qemu_get_nic_opaque(nc);
 
     unregister_savevm(&s->busdev.qdev, "stellaris_enet", s);
 
@@ -412,7 +413,7 @@ static int stellaris_enet_init(SysBusDevice *dev)
 
     s->nic = qemu_new_nic(&net_stellaris_enet_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     stellaris_enet_reset(s);
     register_savevm(&s->busdev.qdev, "stellaris_enet", -1, 1,

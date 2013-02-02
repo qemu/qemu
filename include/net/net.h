@@ -9,23 +9,31 @@
 #include "migration/vmstate.h"
 #include "qapi-types.h"
 
+#define MAX_QUEUE_NUM 1024
+
 struct MACAddr {
     uint8_t a[6];
 };
 
 /* qdev nic properties */
 
+typedef struct NICPeers {
+    NetClientState *ncs[MAX_QUEUE_NUM];
+} NICPeers;
+
 typedef struct NICConf {
     MACAddr macaddr;
-    NetClientState *peer;
+    NICPeers peers;
     int32_t bootindex;
+    int32_t queues;
 } NICConf;
 
 #define DEFINE_NIC_PROPERTIES(_state, _conf)                            \
     DEFINE_PROP_MACADDR("mac",   _state, _conf.macaddr),                \
-    DEFINE_PROP_VLAN("vlan",     _state, _conf.peer),                   \
-    DEFINE_PROP_NETDEV("netdev", _state, _conf.peer),                   \
+    DEFINE_PROP_VLAN("vlan",     _state, _conf.peers),                   \
+    DEFINE_PROP_NETDEV("netdev", _state, _conf.peers),                   \
     DEFINE_PROP_INT32("bootindex", _state, _conf.bootindex, -1)
+
 
 /* Net clients */
 
@@ -35,6 +43,7 @@ typedef ssize_t (NetReceive)(NetClientState *, const uint8_t *, size_t);
 typedef ssize_t (NetReceiveIOV)(NetClientState *, const struct iovec *, int);
 typedef void (NetCleanup) (NetClientState *);
 typedef void (LinkStatusChanged)(NetClientState *);
+typedef void (NetClientDestructor)(NetClientState *);
 
 typedef struct NetClientInfo {
     NetClientOptionsKind type;
@@ -58,16 +67,20 @@ struct NetClientState {
     char *name;
     char info_str[256];
     unsigned receive_disabled : 1;
+    NetClientDestructor *destructor;
+    unsigned int queue_index;
 };
 
 typedef struct NICState {
-    NetClientState nc;
+    NetClientState ncs[MAX_QUEUE_NUM];
     NICConf *conf;
     void *opaque;
     bool peer_deleted;
 } NICState;
 
 NetClientState *qemu_find_netdev(const char *id);
+int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
+                                 NetClientOptionsKind type, int max);
 NetClientState *qemu_new_net_client(NetClientInfo *info,
                                     NetClientState *peer,
                                     const char *model,
@@ -77,6 +90,11 @@ NICState *qemu_new_nic(NetClientInfo *info,
                        const char *model,
                        const char *name,
                        void *opaque);
+void qemu_del_nic(NICState *nic);
+NetClientState *qemu_get_subqueue(NICState *nic, int queue_index);
+NetClientState *qemu_get_queue(NICState *nic);
+NICState *qemu_get_nic(NetClientState *nc);
+void *qemu_get_nic_opaque(NetClientState *nc);
 void qemu_del_net_client(NetClientState *nc);
 NetClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
                                               const char *client_str);

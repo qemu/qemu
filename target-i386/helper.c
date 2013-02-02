@@ -366,8 +366,10 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf,
 /* x86 mmu */
 /* XXX: add PGE support */
 
-void cpu_x86_set_a20(CPUX86State *env, int a20_state)
+void x86_cpu_set_a20(X86CPU *cpu, int a20_state)
 {
+    CPUX86State *env = &cpu->env;
+
     a20_state = (a20_state != 0);
     if (a20_state != ((env->a20_mask >> 20) & 1)) {
 #if defined(DEBUG_MMU)
@@ -1276,14 +1278,14 @@ X86CPU *cpu_x86_init(const char *cpu_model)
     env->cpu_model_str = cpu_model;
 
     if (cpu_x86_register(cpu, cpu_model) < 0) {
-        object_delete(OBJECT(cpu));
+        object_unref(OBJECT(cpu));
         return NULL;
     }
 
     x86_cpu_realize(OBJECT(cpu), &error);
     if (error) {
         error_free(error);
-        object_delete(OBJECT(cpu));
+        object_unref(OBJECT(cpu));
         return NULL;
     }
     return cpu;

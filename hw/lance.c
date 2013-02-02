@@ -87,7 +87,7 @@ static const MemoryRegionOps lance_mem_ops = {
 
 static void lance_cleanup(NetClientState *nc)
 {
-    PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
+    PCNetState *d = qemu_get_nic_opaque(nc);
 
     pcnet_common_cleanup(d);
 }

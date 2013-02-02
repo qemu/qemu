@@ -133,8 +133,6 @@ int uc32_cpu_signal_handler(int host_signum, void *pinfo, void *puc);
 int uc32_cpu_handle_mmu_fault(CPUUniCore32State *env, target_ulong address, int rw,
                               int mmu_idx);
 
-#define CPU_SAVE_VERSION 2
-
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user

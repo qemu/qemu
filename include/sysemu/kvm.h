@@ -39,7 +39,7 @@
 #define KVM_FEATURE_CLOCKSOURCE_STABLE_BIT 0
 #endif
 
-extern int kvm_allowed;
+extern bool kvm_allowed;
 extern bool kvm_kernel_irqchip;
 extern bool kvm_async_interrupts_allowed;
 extern bool kvm_irqfds_allowed;

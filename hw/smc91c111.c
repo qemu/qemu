@@ -534,7 +534,7 @@ static void smc91c111_do_tx(smc91c111_state *s)
             smc91c111_release_packet(s, packetnum);
         else if (s->tx_fifo_done_len < NUM_PACKETS)
             s->tx_fifo_done[s->tx_fifo_done_len++] = packetnum;
-        qemu_send_packet(&s->nic->nc, p, len);
+        qemu_send_packet(qemu_get_queue(s->nic), p, len);
     }
     s->tx_fifo_len = 0;
     smc91c111_update(s);
@@ -958,7 +958,7 @@ static uint32_t smc91c111_readl(void *opaque, hwaddr offset)
 
 static int smc91c111_can_receive(NetClientState *nc)
 {
-    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    smc91c111_state *s = qemu_get_nic_opaque(nc);
 
     if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST))
         return 1;
@@ -969,7 +969,7 @@ static int smc91c111_can_receive(NetClientState *nc)
 
 static ssize_t smc91c111_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    smc91c111_state *s = qemu_get_nic_opaque(nc);
     int status;
     int packetsize;
     uint32_t crc;
@@ -1058,7 +1058,7 @@ static const MemoryRegionOps smc91c111_mem_ops = {
 
 static void smc91c111_cleanup(NetClientState *nc)
 {
-    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    smc91c111_state *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -1081,7 +1081,7 @@ static int smc91c111_init1(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_smc91c111_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     /* ??? Save/restore.  */
     return 0;
 }

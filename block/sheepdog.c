@@ -145,7 +145,7 @@ typedef struct SheepdogVdiReq {
     uint32_t id;
     uint32_t data_length;
     uint64_t vdi_size;
-    uint32_t base_vdi_id;
+    uint32_t vdi_id;
     uint32_t copies;
     uint32_t snapid;
     uint32_t pad[3];
@@ -1201,7 +1201,7 @@ static int do_sd_create(char *filename, int64_t vdi_size,
 
     memset(&hdr, 0, sizeof(hdr));
     hdr.opcode = SD_OP_NEW_VDI;
-    hdr.base_vdi_id = base_vid;
+    hdr.vdi_id = base_vid;
 
     wlen = SD_MAX_VDI_LEN;
 
@@ -1384,6 +1384,7 @@ static void sd_close(BlockDriverState *bs)
     memset(&hdr, 0, sizeof(hdr));
 
     hdr.opcode = SD_OP_RELEASE_VDI;
+    hdr.vdi_id = s->inode.vdi_id;
     wlen = strlen(s->name) + 1;
     hdr.data_length = wlen;
     hdr.flags = SD_FLAG_CMD_WRITE;

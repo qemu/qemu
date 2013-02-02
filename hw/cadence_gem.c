@@ -389,10 +389,10 @@ static void gem_init_register_masks(GemState *s)
  */
 static void phy_update_link(GemState *s)
 {
-    DB_PRINT("down %d\n", s->nic->nc.link_down);
+    DB_PRINT("down %d\n", qemu_get_queue(s->nic)->link_down);
 
     /* Autonegotiation status mirrors link status.  */
-    if (s->nic->nc.link_down) {
+    if (qemu_get_queue(s->nic)->link_down) {
         s->phy_regs[PHY_REG_STATUS] &= ~(PHY_REG_STATUS_ANEGCMPL |
                                          PHY_REG_STATUS_LINK);
         s->phy_regs[PHY_REG_INT_ST] |= PHY_REG_INT_ST_LINKC;
@@ -409,7 +409,7 @@ static int gem_can_receive(NetClientState *nc)
 {
     GemState *s;
 
-    s = DO_UPCAST(NICState, nc, nc)->opaque;
+    s = qemu_get_nic_opaque(nc);
 
     DB_PRINT("\n");
 
@@ -612,7 +612,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     uint8_t    rxbuf[2048];
     uint8_t   *rxbuf_ptr;
 
-    s = DO_UPCAST(NICState, nc, nc)->opaque;
+    s = qemu_get_nic_opaque(nc);
 
     /* Do nothing if receive is not enabled. */
     if (!(s->regs[GEM_NWCTRL] & GEM_NWCTRL_RXENA)) {
@@ -908,9 +908,10 @@ static void gem_transmit(GemState *s)
 
             /* Send the packet somewhere */
             if (s->phy_loop) {
-                gem_receive(&s->nic->nc, tx_packet, total_bytes);
+                gem_receive(qemu_get_queue(s->nic), tx_packet, total_bytes);
             } else {
-                qemu_send_packet(&s->nic->nc, tx_packet, total_bytes);
+                qemu_send_packet(qemu_get_queue(s->nic), tx_packet,
+                                 total_bytes);
             }
 
             /* Prepare for next packet */
@@ -1151,7 +1152,7 @@ static const MemoryRegionOps gem_ops = {
 
 static void gem_cleanup(NetClientState *nc)
 {
-    GemState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    GemState *s = qemu_get_nic_opaque(nc);
 
     DB_PRINT("\n");
     s->nic = NULL;
@@ -1160,7 +1161,7 @@ static void gem_cleanup(NetClientState *nc)
 static void gem_set_link(NetClientState *nc)
 {
     DB_PRINT("\n");
-    phy_update_link(DO_UPCAST(NICState, nc, nc)->opaque);
+    phy_update_link(qemu_get_nic_opaque(nc));
 }
 
 static NetClientInfo net_gem_info = {

@@ -375,8 +375,8 @@ static inline void kvm_s390_interrupt_internal(S390CPU *cpu, int type,
 }
 #endif
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
-void s390_add_running_cpu(CPUS390XState *env);
-unsigned s390_del_running_cpu(CPUS390XState *env);
+void s390_add_running_cpu(S390CPU *cpu);
+unsigned s390_del_running_cpu(S390CPU *cpu);
 
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
@@ -385,11 +385,11 @@ void s390_sclp_extint(uint32_t parm);
 extern const hwaddr virtio_size;
 
 #else
-static inline void s390_add_running_cpu(CPUS390XState *env)
+static inline void s390_add_running_cpu(S390CPU *cpu)
 {
 }
 
-static inline unsigned s390_del_running_cpu(CPUS390XState *env)
+static inline unsigned s390_del_running_cpu(S390CPU *cpu)
 {
     return 0;
 }
@@ -975,9 +975,11 @@ static inline uint64_t time2tod(uint64_t ns) {
     return (ns << 9) / 125;
 }
 
-static inline void cpu_inject_ext(CPUS390XState *env, uint32_t code, uint32_t param,
+static inline void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
                                   uint64_t param64)
 {
+    CPUS390XState *env = &cpu->env;
+
     if (env->ext_index == MAX_EXT_QUEUE - 1) {
         /* ugh - can't queue anymore. Let's drop. */
         return;
@@ -994,10 +996,11 @@ static inline void cpu_inject_ext(CPUS390XState *env, uint32_t code, uint32_t pa
     cpu_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
-static inline void cpu_inject_io(CPUS390XState *env, uint16_t subchannel_id,
+static inline void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
                                  uint16_t subchannel_number,
                                  uint32_t io_int_parm, uint32_t io_int_word)
 {
+    CPUS390XState *env = &cpu->env;
     int isc = ffs(io_int_word << 2) - 1;
 
     if (env->io_index[isc] == MAX_IO_QUEUE - 1) {
@@ -1017,8 +1020,10 @@ static inline void cpu_inject_io(CPUS390XState *env, uint16_t subchannel_id,
     cpu_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
-static inline void cpu_inject_crw_mchk(CPUS390XState *env)
+static inline void cpu_inject_crw_mchk(S390CPU *cpu)
 {
+    CPUS390XState *env = &cpu->env;
+
     if (env->mchk_index == MAX_MCHK_QUEUE - 1) {
         /* ugh - can't queue anymore. Let's drop. */
         return;
@@ -1090,7 +1095,7 @@ static inline void s390_io_interrupt(S390CPU *cpu,
         kvm_s390_io_interrupt(cpu, subchannel_id, subchannel_nr, io_int_parm,
                               io_int_word);
     } else {
-        cpu_inject_io(&cpu->env, subchannel_id, subchannel_nr, io_int_parm,
+        cpu_inject_io(cpu, subchannel_id, subchannel_nr, io_int_parm,
                       io_int_word);
     }
 }
@@ -1100,7 +1105,7 @@ static inline void s390_crw_mchk(S390CPU *cpu)
     if (kvm_enabled()) {
         kvm_s390_crw_mchk(cpu);
     } else {
-        cpu_inject_crw_mchk(&cpu->env);
+        cpu_inject_crw_mchk(cpu);
     }
 }
 

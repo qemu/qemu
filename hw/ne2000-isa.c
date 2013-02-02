@@ -38,7 +38,7 @@ typedef struct ISANE2000State {
 
 static void isa_ne2000_cleanup(NetClientState *nc)
 {
-    NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    NE2000State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -77,7 +77,7 @@ static int isa_ne2000_initfn(ISADevice *dev)
 
     s->nic = qemu_new_nic(&net_ne2000_isa_info, &s->c,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 
     return 0;
 }

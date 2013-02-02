@@ -322,7 +322,7 @@ static int pci_Atheros_WLAN_init(PCIDevice *pci_dev)
     // s->irq = 9; /* PCI interrupt */
     s->irq = d->dev.irq[0];
     s->pending_interrupts = NULL;
-    qemu_format_nic_info_str(&s->nic->nc, s->macaddr);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->macaddr);
 
 #define nd 0 // TODO: hack to allow compilation, fix it
     Atheros_WLAN_setup_type(nd, d);
@@ -341,7 +341,7 @@ static void Atheros_WLAN_exit(PCIDevice *pci_dev)
 {
     Atheros_WLANState *s = DO_UPCAST(Atheros_WLANState, dev, pci_dev);
     memory_region_destroy(&s->mmio_bar);
-    qemu_del_net_client(&s->nic->nc);
+    qemu_del_nic(s->nic);
 }
 
 static void atheros_class_init(ObjectClass *klass, void *data)

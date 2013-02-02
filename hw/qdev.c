@@ -64,7 +64,10 @@ static void bus_remove_child(BusState *bus, DeviceState *child)
 
             snprintf(name, sizeof(name), "child[%d]", kid->index);
             QTAILQ_REMOVE(&bus->children, kid, sibling);
+
+            /* This gives back ownership of kid->child back to us.  */
             object_property_del(OBJECT(bus), name, NULL);
+            object_unref(OBJECT(kid->child));
             g_free(kid);
             return;
         }
@@ -82,9 +85,11 @@ static void bus_add_child(BusState *bus, DeviceState *child)
 
     kid->index = bus->max_index++;
     kid->child = child;
+    object_ref(OBJECT(kid->child));
 
     QTAILQ_INSERT_HEAD(&bus->children, kid, sibling);
 
+    /* This transfers ownership of kid->child to the property.  */
     snprintf(name, sizeof(name), "child[%d]", kid->index);
     object_property_add_link(OBJECT(bus), name,
                              object_get_typename(OBJECT(child)),
@@ -95,6 +100,7 @@ static void bus_add_child(BusState *bus, DeviceState *child)
 void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
 {
     dev->parent_bus = bus;
+    object_ref(OBJECT(bus));
     bus_add_child(bus, dev);
 }
 
@@ -137,7 +143,7 @@ DeviceState *qdev_try_create(BusState *bus, const char *type)
     }
 
     qdev_set_parent_bus(dev, bus);
-
+    object_unref(OBJECT(dev));
     return dev;
 }
 
@@ -261,7 +267,7 @@ void qdev_init_nofail(DeviceState *dev)
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
-    object_delete(OBJECT(dev));
+    object_unparent(OBJECT(dev));
 }
 
 void qdev_machine_creation_done(void)
@@ -390,14 +396,16 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id)
     return NULL;
 }
 
-static void qbus_realize(BusState *bus)
+static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
 {
     const char *typename = object_get_typename(OBJECT(bus));
     char *buf;
     int i,len;
 
-    if (bus->name) {
-        /* use supplied name */
+    bus->parent = parent;
+
+    if (name) {
+        bus->name = g_strdup(name);
     } else if (bus->parent && bus->parent->id) {
         /* parent device has id -> use it for bus name */
         len = strlen(bus->parent->id) + 16;
@@ -419,6 +427,7 @@ static void qbus_realize(BusState *bus)
         QLIST_INSERT_HEAD(&bus->parent->child_bus, bus, sibling);
         bus->parent->num_child_bus++;
         object_property_add_child(OBJECT(bus->parent), bus->name, OBJECT(bus), NULL);
+        object_unref(OBJECT(bus));
     } else if (bus != sysbus_get_default()) {
         /* TODO: once all bus devices are qdevified,
            only reset handler for main_system_bus should be registered here. */
@@ -426,14 +435,30 @@ static void qbus_realize(BusState *bus)
     }
 }
 
-void qbus_create_inplace(BusState *bus, const char *typename,
+static void bus_unparent(Object *obj)
+{
+    BusState *bus = BUS(obj);
+    BusChild *kid;
+
+    while ((kid = QTAILQ_FIRST(&bus->children)) != NULL) {
+        DeviceState *dev = kid->child;
+        qdev_free(dev);
+    }
+    if (bus->parent) {
+        QLIST_REMOVE(bus, sibling);
+        bus->parent->num_child_bus--;
+        bus->parent = NULL;
+    } else {
+        assert(bus != sysbus_get_default()); /* main_system_bus is never freed */
+        qemu_unregister_reset(qbus_reset_all_fn, bus);
+    }
+}
+
+void qbus_create_inplace(void *bus, const char *typename,
                          DeviceState *parent, const char *name)
 {
     object_initialize(bus, typename);
-
-    bus->parent = parent;
-    bus->name = name ? g_strdup(name) : NULL;
-    qbus_realize(bus);
+    qbus_realize(bus, parent, name);
 }
 
 BusState *qbus_create(const char *typename, DeviceState *parent, const char *name)
@@ -441,17 +466,14 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
     BusState *bus;
 
     bus = BUS(object_new(typename));
-
-    bus->parent = parent;
-    bus->name = name ? g_strdup(name) : NULL;
-    qbus_realize(bus);
+    qbus_realize(bus, parent, name);
 
     return bus;
 }
 
 void qbus_free(BusState *bus)
 {
-    object_delete(OBJECT(bus));
+    object_unparent(OBJECT(bus));
 }
 
 static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)
@@ -718,23 +740,8 @@ static void device_initfn(Object *obj)
 static void device_finalize(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    BusState *bus;
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
-
-    if (dev->realized) {
-        while (dev->num_child_bus) {
-            bus = QLIST_FIRST(&dev->child_bus);
-            qbus_free(bus);
-        }
-        if (qdev_get_vmsd(dev)) {
-            vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
-        }
-        if (dc->exit) {
-            dc->exit(dev);
-        }
-        if (dev->opts) {
-            qemu_opts_del(dev->opts);
-        }
+    if (dev->opts) {
+        qemu_opts_del(dev->opts);
     }
 }
 
@@ -751,9 +758,25 @@ static void device_class_base_init(ObjectClass *class, void *data)
 static void device_unparent(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    BusState *bus;
 
-    if (dev->parent_bus != NULL) {
+    while (dev->num_child_bus) {
+        bus = QLIST_FIRST(&dev->child_bus);
+        qbus_free(bus);
+    }
+    if (dev->realized) {
+        if (qdev_get_vmsd(dev)) {
+            vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
+        }
+        if (dc->exit) {
+            dc->exit(dev);
+        }
+    }
+    if (dev->parent_bus) {
         bus_remove_child(dev->parent_bus, dev);
+        object_unref(OBJECT(dev->parent_bus));
+        dev->parent_bus = NULL;
     }
 }
 
@@ -804,22 +827,15 @@ static void qbus_initfn(Object *obj)
     QTAILQ_INIT(&bus->children);
 }
 
+static void bus_class_init(ObjectClass *class, void *data)
+{
+    class->unparent = bus_unparent;
+}
+
 static void qbus_finalize(Object *obj)
 {
     BusState *bus = BUS(obj);
-    BusChild *kid;
 
-    while ((kid = QTAILQ_FIRST(&bus->children)) != NULL) {
-        DeviceState *dev = kid->child;
-        qdev_free(dev);
-    }
-    if (bus->parent) {
-        QLIST_REMOVE(bus, sibling);
-        bus->parent->num_child_bus--;
-    } else {
-        assert(bus != sysbus_get_default()); /* main_system_bus is never freed */
-        qemu_unregister_reset(qbus_reset_all_fn, bus);
-    }
     g_free((char *)bus->name);
 }
 
@@ -831,6 +847,7 @@ static const TypeInfo bus_info = {
     .class_size = sizeof(BusClass),
     .instance_init = qbus_initfn,
     .instance_finalize = qbus_finalize,
+    .class_init = bus_class_init,
 };
 
 static void qdev_register_types(void)

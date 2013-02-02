@@ -82,7 +82,7 @@ void isa_register_portio_list(ISADevice *dev, uint16_t start,
 
 static inline ISABus *isa_bus_from_device(ISADevice *d)
 {
-    return DO_UPCAST(ISABus, qbus, d->qdev.parent_bus);
+    return ISA_BUS(qdev_get_parent_bus(DEVICE(d)));
 }
 
 extern hwaddr isa_mem_base;

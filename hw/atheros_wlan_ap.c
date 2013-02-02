@@ -201,7 +201,7 @@ timer_done:
 
 static int Atheros_WLAN_can_receive(NetClientState *ncs)
 {
-    Atheros_WLANState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    Atheros_WLANState *s = qemu_get_nic_opaque(ncs);
 
     if (s->ap_state != Atheros_WLAN__STATE_ASSOCIATED) {
         // we are currently not connected
@@ -220,7 +220,7 @@ static int Atheros_WLAN_can_receive(NetClientState *ncs)
 static ssize_t Atheros_WLAN_receive(NetClientState *ncs,
                                     const uint8_t *buf, size_t size)
 {
-    Atheros_WLANState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    Atheros_WLANState *s = qemu_get_nic_opaque(ncs);
     struct mac80211_frame *frame;
 
     if (!Atheros_WLAN_can_receive(ncs)) {
@@ -295,10 +295,8 @@ void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
 
     s->nic = qemu_new_nic(&net_info, &s->conf, nd->model, nd->name, s);
 
-    qemu_format_nic_info_str(&s->nic->nc, s->macaddr);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->macaddr);
 }
-
-
 
 void Atheros_WLAN_disable_irq(void *arg)
 {
@@ -717,7 +715,7 @@ void Atheros_WLAN_handle_frame(Atheros_WLANState *s, struct mac80211_frame *fram
         /*
          * Send 802.3 frame
          */
-        qemu_send_packet(&s->nic->nc, ethernet_frame, ethernet_frame_size);
+        qemu_send_packet(qemu_get_queue(s->nic), ethernet_frame, ethernet_frame_size);
     }
 
     if (reply) {

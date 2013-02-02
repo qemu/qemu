@@ -387,7 +387,7 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
     int prot;
 
     DPRINTF("%s: address 0x%" PRIx64 " rw %d mmu_idx %d\n",
-            __func__, _vaddr, rw, mmu_idx);
+            __func__, orig_vaddr, rw, mmu_idx);
 
     orig_vaddr &= TARGET_PAGE_MASK;
     vaddr = orig_vaddr;
@@ -404,8 +404,8 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
 
     /* check out of RAM access */
     if (raddr > (ram_size + virtio_size)) {
-        DPRINTF("%s: aaddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
-                (uint64_t)aaddr, (uint64_t)ram_size);
+        DPRINTF("%s: raddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
+                (uint64_t)raddr, (uint64_t)ram_size);
         trigger_pgm_exception(env, PGM_ADDRESSING, ILEN_LATER);
         return 1;
     }
@@ -441,8 +441,9 @@ hwaddr cpu_get_phys_page_debug(CPUS390XState *env,
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     if (mask & PSW_MASK_WAIT) {
+        S390CPU *cpu = s390_env_get_cpu(env);
         if (!(mask & (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK))) {
-            if (s390_del_running_cpu(env) == 0) {
+            if (s390_del_running_cpu(cpu) == 0) {
 #ifndef CONFIG_USER_ONLY
                 qemu_system_shutdown_request();
 #endif
@@ -737,10 +738,12 @@ static void do_mchk_interrupt(CPUS390XState *env)
 
 void do_interrupt(CPUS390XState *env)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
+
     qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
                   __func__, env->exception_index, env->psw.addr);
 
-    s390_add_running_cpu(env);
+    s390_add_running_cpu(cpu);
     /* handle machine checks */
     if ((env->psw.mask & PSW_MASK_MCHECK) &&
         (env->exception_index == -1)) {
@@ -755,12 +758,12 @@ void do_interrupt(CPUS390XState *env)
             /* code is already in env */
             env->exception_index = EXCP_EXT;
         } else if (env->pending_int & INTERRUPT_TOD) {
-            cpu_inject_ext(env, 0x1004, 0, 0);
+            cpu_inject_ext(cpu, 0x1004, 0, 0);
             env->exception_index = EXCP_EXT;
             env->pending_int &= ~INTERRUPT_EXT;
             env->pending_int &= ~INTERRUPT_TOD;
         } else if (env->pending_int & INTERRUPT_CPUTIMER) {
-            cpu_inject_ext(env, 0x1005, 0, 0);
+            cpu_inject_ext(cpu, 0x1005, 0, 0);
             env->exception_index = EXCP_EXT;
             env->pending_int &= ~INTERRUPT_EXT;
             env->pending_int &= ~INTERRUPT_TOD;

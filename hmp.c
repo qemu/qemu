@@ -892,7 +892,7 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
     qapi_free_MigrationCapabilityStatusList(caps);
 
     if (err) {
-        monitor_printf(mon, "migrate_set_parameter: %s\n",
+        monitor_printf(mon, "migrate_set_capability: %s\n",
                        error_get_pretty(err));
         error_free(err);
     }

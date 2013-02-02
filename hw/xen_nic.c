@@ -185,9 +185,11 @@ static void net_tx_packets(struct XenNetDev *netdev)
                 }
                 memcpy(tmpbuf, page + txreq.offset, txreq.size);
                 net_checksum_calculate(tmpbuf, txreq.size);
-                qemu_send_packet(&netdev->nic->nc, tmpbuf, txreq.size);
+                qemu_send_packet(qemu_get_queue(netdev->nic), tmpbuf,
+                                 txreq.size);
             } else {
-                qemu_send_packet(&netdev->nic->nc, page + txreq.offset, txreq.size);
+                qemu_send_packet(qemu_get_queue(netdev->nic),
+                                 page + txreq.offset, txreq.size);
             }
             xc_gnttab_munmap(netdev->xendev.gnttabdev, page, 1);
             net_tx_response(netdev, &txreq, NETIF_RSP_OKAY);
@@ -234,7 +236,7 @@ static void net_rx_response(struct XenNetDev *netdev,
 
 static int net_rx_ok(NetClientState *nc)
 {
-    struct XenNetDev *netdev = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XenNetDev *netdev = qemu_get_nic_opaque(nc);
     RING_IDX rc, rp;
 
     if (netdev->xendev.be_state != XenbusStateConnected) {
@@ -255,7 +257,7 @@ static int net_rx_ok(NetClientState *nc)
 
 static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct XenNetDev *netdev = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XenNetDev *netdev = qemu_get_nic_opaque(nc);
     netif_rx_request_t rxreq;
     RING_IDX rc, rp;
     void *page;
@@ -324,12 +326,11 @@ static int net_init(struct XenDevice *xendev)
         return -1;
     }
 
-    netdev->conf.peer = NULL;
-
     netdev->nic = qemu_new_nic(&net_xen_info, &netdev->conf,
                                "xen", NULL, netdev);
 
-    snprintf(netdev->nic->nc.info_str, sizeof(netdev->nic->nc.info_str),
+    snprintf(qemu_get_queue(netdev->nic)->info_str,
+             sizeof(qemu_get_queue(netdev->nic)->info_str),
              "nic: xenbus vif macaddr=%s", netdev->mac);
 
     /* fill info */
@@ -405,7 +406,7 @@ static void net_disconnect(struct XenDevice *xendev)
         netdev->rxs = NULL;
     }
     if (netdev->nic) {
-        qemu_del_net_client(&netdev->nic->nc);
+        qemu_del_nic(netdev->nic);
         netdev->nic = NULL;
     }
 }
@@ -414,7 +415,7 @@ static void net_event(struct XenDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
     net_tx_packets(netdev);
-    qemu_flush_queued_packets(&netdev->nic->nc);
+    qemu_flush_queued_packets(qemu_get_queue(netdev->nic));
 }
 
 static int net_free(struct XenDevice *xendev)

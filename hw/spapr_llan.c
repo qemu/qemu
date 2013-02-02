@@ -85,7 +85,7 @@ typedef struct VIOsPAPRVLANDevice {
 
 static int spapr_vlan_can_receive(NetClientState *nc)
 {
-    VIOsPAPRVLANDevice *dev = DO_UPCAST(NICState, nc, nc)->opaque;
+    VIOsPAPRVLANDevice *dev = qemu_get_nic_opaque(nc);
 
     return (dev->isopen && dev->rx_bufs > 0);
 }
@@ -93,7 +93,7 @@ static int spapr_vlan_can_receive(NetClientState *nc)
 static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
                                   size_t size)
 {
-    VIOsPAPRDevice *sdev = DO_UPCAST(NICState, nc, nc)->opaque;
+    VIOsPAPRDevice *sdev = qemu_get_nic_opaque(nc);
     VIOsPAPRVLANDevice *dev = (VIOsPAPRVLANDevice *)sdev;
     vlan_bd_t rxq_bd = vio_ldq(sdev, dev->buf_list + VLAN_RXQ_BD_OFF);
     vlan_bd_t bd;
@@ -199,7 +199,7 @@ static int spapr_vlan_init(VIOsPAPRDevice *sdev)
 
     dev->nic = qemu_new_nic(&net_spapr_vlan_info, &dev->nicconf,
                             object_get_typename(OBJECT(sdev)), sdev->qdev.id, dev);
-    qemu_format_nic_info_str(&dev->nic->nc, dev->nicconf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 
     return 0;
 }
@@ -462,7 +462,7 @@ static target_ulong h_send_logical_lan(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         p += VLAN_BD_LEN(bufs[i]);
     }
 
-    qemu_send_packet(&dev->nic->nc, lbuf, total_len);
+    qemu_send_packet(qemu_get_queue(dev->nic), lbuf, total_len);
 
     return H_SUCCESS;
 }

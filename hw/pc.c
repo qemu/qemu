@@ -527,11 +527,11 @@ type_init(port92_register_types)
 
 static void handle_a20_line_change(void *opaque, int irq, int level)
 {
-    CPUX86State *cpu = opaque;
+    X86CPU *cpu = opaque;
 
     /* XXX: send to all CPUs ? */
     /* XXX: add logic to handle multiple A20 line sources */
-    cpu_x86_set_a20(cpu, level);
+    x86_cpu_set_a20(cpu, level);
 }
 
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
@@ -1085,7 +1085,8 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         }
     }
 
-    a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
+    a20_line = qemu_allocate_irqs(handle_a20_line_change,
+                                  x86_env_get_cpu(first_cpu), 2);
     i8042 = isa_create_simple(isa_bus, "i8042");
     i8042_setup_a20_line(i8042, &a20_line[0]);
     if (!no_vmport) {

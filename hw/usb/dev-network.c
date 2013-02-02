@@ -1012,7 +1012,7 @@ static int rndis_keepalive_response(USBNetState *s,
 static void usb_net_reset_in_buf(USBNetState *s)
 {
     s->in_ptr = s->in_len = 0;
-    qemu_flush_queued_packets(&s->nic->nc);
+    qemu_flush_queued_packets(qemu_get_queue(s->nic));
 }
 
 static int rndis_parse(USBNetState *s, uint8_t *data, int length)
@@ -1196,7 +1196,7 @@ static void usb_net_handle_dataout(USBNetState *s, USBPacket *p)
 
     if (!is_rndis(s)) {
         if (p->iov.size < 64) {
-            qemu_send_packet(&s->nic->nc, s->out_buf, s->out_ptr);
+            qemu_send_packet(qemu_get_queue(s->nic), s->out_buf, s->out_ptr);
             s->out_ptr = 0;
         }
         return;
@@ -1209,7 +1209,7 @@ static void usb_net_handle_dataout(USBNetState *s, USBPacket *p)
         uint32_t offs = 8 + le32_to_cpu(msg->DataOffset);
         uint32_t size = le32_to_cpu(msg->DataLength);
         if (offs + size <= len)
-            qemu_send_packet(&s->nic->nc, s->out_buf + offs, size);
+            qemu_send_packet(qemu_get_queue(s->nic), s->out_buf + offs, size);
     }
     s->out_ptr -= len;
     memmove(s->out_buf, &s->out_buf[len], s->out_ptr);
@@ -1261,7 +1261,7 @@ static void usb_net_handle_data(USBDevice *dev, USBPacket *p)
 
 static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    USBNetState *s = qemu_get_nic_opaque(nc);
     uint8_t *in_buf = s->in_buf;
     size_t total_size = size;
 
@@ -1308,7 +1308,7 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
 
 static int usbnet_can_receive(NetClientState *nc)
 {
-    USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    USBNetState *s = qemu_get_nic_opaque(nc);
 
     if (is_rndis(s) && s->rndis_state != RNDIS_DATA_INITIALIZED) {
         return 1;
@@ -1319,7 +1319,7 @@ static int usbnet_can_receive(NetClientState *nc)
 
 static void usbnet_cleanup(NetClientState *nc)
 {
-    USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    USBNetState *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -1330,7 +1330,7 @@ static void usb_net_handle_destroy(USBDevice *dev)
 
     /* TODO: remove the nd_table[] entry */
     rndis_clear_responsequeue(s);
-    qemu_del_net_client(&s->nic->nc);
+    qemu_del_nic(s->nic);
 }
 
 static NetClientInfo net_usbnet_info = {
@@ -1361,7 +1361,7 @@ static int usb_net_initfn(USBDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_usbnet_info, &s->conf,
                           object_get_typename(OBJECT(s)), s->dev.qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     snprintf(s->usbstring_mac, sizeof(s->usbstring_mac),
              "%02x%02x%02x%02x%02x%02x",
              0x40,

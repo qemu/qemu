@@ -1586,7 +1586,7 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
 
                     if ( s->pkt_buf_len )
                     {
-                        qemu_send_packet(&s->nic->nc, s->pkt_buf, s->pkt_buf_len);
+                        qemu_send_packet(qemu_get_queue(s->nic), s->pkt_buf, s->pkt_buf_len);
                         s->statistics.tx_good_frames ++;
                         logout("Send out frame successful(size=%d,"
                                 "already sent %d frames)\n", s->pkt_buf_len,
@@ -2174,7 +2174,7 @@ static inline int buffer_tcp(E100State *s, const uint8_t *pkt)
 /* Eerpro100 receive functions */
 static int nic_can_receive(NetClientState *ncs)
 {
-    E100State *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    E100State *s = qemu_get_nic_opaque(ncs);
 
     int is_ready = (GET_RU_STATE == RU_READY);
     logout("%s\n", is_ready ? "EEPro100 receiver is ready"
@@ -2185,7 +2185,7 @@ static int nic_can_receive(NetClientState *ncs)
 static ssize_t
 nic_receive(NetClientState *ncs, const uint8_t *buf, size_t size)
 {
-    E100State *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    E100State *s = qemu_get_nic_opaque(ncs);
     uint32_t rfd_addr = 0;
     rfd_t rfd = {0};
 
@@ -2304,7 +2304,7 @@ nic_receive(NetClientState *ncs, const uint8_t *buf, size_t size)
 
 static void nic_cleanup(NetClientState *ncs)
 {
-    //~ E100State *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    //~ E100State *s = qemu_get_nic_opaque(ncs);
 
 #if 0
     qemu_del_timer(d->poll_timer);
@@ -2376,7 +2376,7 @@ static int e100_init(PCIDevice *pci_dev, uint32_t device)
                           object_get_typename(OBJECT(pci_dev)),
                           pci_dev->qdev.id, s);
 
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     qemu_register_reset(e100_reset, s);
 
@@ -2395,7 +2395,7 @@ static void e100_exit(PCIDevice *pci_dev)
     memory_region_destroy(&s->mmio_bar);
     memory_region_destroy(&s->io_bar);
     memory_region_destroy(&s->flash_bar);
-    qemu_del_net_client(&s->nic->nc);
+    qemu_del_nic(s->nic);
 }
 
 static Property e100_properties[] = {

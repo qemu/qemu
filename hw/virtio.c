@@ -73,6 +73,8 @@ struct VirtQueue
     /* Notification enabled? */
     bool notification;
 
+    uint16_t queue_index;
+
     int inuse;
 
     uint16_t vector;
@@ -701,6 +703,15 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
     return &vdev->vq[i];
 }
 
+void virtio_del_queue(VirtIODevice *vdev, int n)
+{
+    if (n < 0 || n >= VIRTIO_PCI_QUEUE_MAX) {
+        abort();
+    }
+
+    vdev->vq[n].vring.num = 0;
+}
+
 void virtio_irq(VirtQueue *vq)
 {
     trace_virtio_irq(vq);
@@ -922,6 +933,7 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
         vdev->vq[i].vdev = vdev;
+        vdev->vq[i].queue_index = i;
     }
 
     vdev->name = name;
@@ -1007,6 +1019,11 @@ void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
 VirtQueue *virtio_get_queue(VirtIODevice *vdev, int n)
 {
     return vdev->vq + n;
+}
+
+uint16_t virtio_get_queue_index(VirtQueue *vq)
+{
+    return vq->queue_index;
 }
 
 static void virtio_queue_guest_notifier_read(EventNotifier *n)

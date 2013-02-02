@@ -231,7 +231,7 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id);
 typedef int (qbus_walkerfn)(BusState *bus, void *opaque);
 typedef int (qdev_walkerfn)(DeviceState *dev, void *opaque);
 
-void qbus_create_inplace(BusState *bus, const char *typename,
+void qbus_create_inplace(void *bus, const char *typename,
                          DeviceState *parent, const char *name);
 BusState *qbus_create(const char *typename, DeviceState *parent, const char *name);
 /* Returns > 0 if either devfn or busfn skip walk somewhere in cursion,

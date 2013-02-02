@@ -1734,7 +1734,7 @@ static void emac_transmit(CpmacState *s, unsigned offset, uint32_t address)
             TRACE(RXTX,
                   logout("cpmac%u sent %u byte: %s\n", s->index, length,
                          dump(buffer, length)));
-            qemu_send_packet(&s->nic->nc, buffer, length);
+            qemu_send_packet(qemu_get_queue(s->nic), buffer, length);
         }
         statusreg_inc(s, CPMAC_TXGOODFRAMES);
         reg_write(cpmac, offset, next);
@@ -1853,9 +1853,9 @@ static void ar7_cpmac_write(CpmacState *s, unsigned offset, uint32_t val)
         phys[0] = cpmac[CPMAC_MACADDRHI + 0];
         // TODO: set address for qemu?
         if (s->nic) {
-            qemu_format_nic_info_str(&s->nic->nc, phys);
+            qemu_format_nic_info_str(qemu_get_queue(s->nic), phys);
             TRACE(CPMAC, logout("setting mac address %s\n",
-                                s->nic->nc.info_str));
+                                qemu_get_queue(s->nic)->info_str));
         }
     } else if (offset >= CPMAC_RXGOODFRAMES && offset <= CPMAC_RXDMAOVERRUNS) {
         /* Write access to statistics register. */
@@ -3345,7 +3345,7 @@ static void ar7_serial_init(CPUMIPSState * env)
 
 static int ar7_nic_can_receive(NetClientState *ncs)
 {
-    CpmacState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    CpmacState *s = qemu_get_nic_opaque(ncs);
     int enabled = (reg_read(s->addr, CPMAC_RXCONTROL) & RXCONTROL_RXEN) != 0;
 
     TRACE(CPMAC, logout("cpmac%u, enabled %d\n", s->index, enabled));
@@ -3356,7 +3356,7 @@ static int ar7_nic_can_receive(NetClientState *ncs)
 static ssize_t ar7_nic_receive(NetClientState *ncs,
                                const uint8_t *buf, size_t size)
 {
-    CpmacState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
+    CpmacState *s = qemu_get_nic_opaque(ncs);
     uint8_t *cpmac = s->addr;
     uint32_t rxmbpenable = reg_read(cpmac, CPMAC_RXMBPENABLE);
     uint32_t rxmaxlen = reg_read(cpmac, CPMAC_RXMAXLEN);

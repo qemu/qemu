@@ -265,6 +265,7 @@ static int cocoa_keycode_to_qemu(int keycode)
     BOOL isTabletEnabled;
 }
 - (void) resizeContentToWidth:(int)w height:(int)h displayState:(DisplayState *)ds;
+- (void) updateDataOffset:(DisplayState *)ds;
 - (void) grabMouse;
 - (void) ungrabMouse;
 - (void) toggleFullScreen:(id)sender;
@@ -427,6 +428,20 @@ QemuCocoaView *cocoaView;
 	[normalWindow center];
     [self setContentDimensions];
     [self setFrame:NSMakeRect(cx, cy, cw, ch)];
+}
+
+- (void) updateDataOffset:(DisplayState *)ds
+{
+    COCOA_DEBUG("QemuCocoaView: UpdateDataOffset\n");
+
+    // update screenBuffer
+    if (dataProviderRef) {
+        CGDataProviderRelease(dataProviderRef);
+    }
+
+    size_t size = ds_get_width(ds) * 4 * ds_get_height(ds);
+    dataProviderRef = CGDataProviderCreateWithData(NULL, ds_get_data(ds),
+                                                   size, NULL);
 }
 
 - (void) toggleFullScreen:(id)sender
@@ -813,9 +828,9 @@ QemuCocoaView *cocoaView;
 
         [sheet close];
 
-        asprintf(&argv[0], "%s", bin);
-        asprintf(&argv[1], "-hda");
-        asprintf(&argv[2], "%s", img);
+        argv[0] = g_strdup_printf("%s", bin);
+        argv[1] = g_strdup_printf("-hda");
+        argv[2] = g_strdup_printf("%s", img);
 
         printf("Using argc %d argv %s -hda %s\n", 3, bin, img);
 
@@ -1004,6 +1019,11 @@ static void cocoa_refresh(DisplayState *ds)
     vga_hw_update();
 }
 
+static void cocoa_setdata(DisplayState *ds)
+{
+    [cocoaView updateDataOffset:ds];
+}
+
 static void cocoa_cleanup(void)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_cleanup\n");
@@ -1020,6 +1040,7 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
     dcl->dpy_gfx_update = cocoa_update;
     dcl->dpy_gfx_resize = cocoa_resize;
     dcl->dpy_refresh = cocoa_refresh;
+    dcl->dpy_gfx_setdata = cocoa_setdata;
 
 	register_displaychangelistener(ds, dcl);
 

@@ -56,6 +56,7 @@
 #define BLOCK_OPT_SUBFMT            "subformat"
 #define BLOCK_OPT_COMPAT_LEVEL      "compat"
 #define BLOCK_OPT_LAZY_REFCOUNTS    "lazy_refcounts"
+#define BLOCK_OPT_ADAPTER_TYPE      "adapter_type"
 
 typedef struct BdrvTrackedRequest BdrvTrackedRequest;
 

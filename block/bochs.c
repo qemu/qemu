@@ -114,11 +114,13 @@ static int bochs_open(BlockDriverState *bs, int flags)
     int i;
     struct bochs_header bochs;
     struct bochs_header_v1 header_v1;
+    int ret;
 
     bs->read_only = 1; // no write support yet
 
-    if (bdrv_pread(bs->file, 0, &bochs, sizeof(bochs)) != sizeof(bochs)) {
-        goto fail;
+    ret = bdrv_pread(bs->file, 0, &bochs, sizeof(bochs));
+    if (ret < 0) {
+        return ret;
     }
 
     if (strcmp(bochs.magic, HEADER_MAGIC) ||
@@ -138,9 +140,13 @@ static int bochs_open(BlockDriverState *bs, int flags)
 
     s->catalog_size = le32_to_cpu(bochs.extra.redolog.catalog);
     s->catalog_bitmap = g_malloc(s->catalog_size * 4);
-    if (bdrv_pread(bs->file, le32_to_cpu(bochs.header), s->catalog_bitmap,
-                   s->catalog_size * 4) != s->catalog_size * 4)
-	goto fail;
+
+    ret = bdrv_pread(bs->file, le32_to_cpu(bochs.header), s->catalog_bitmap,
+                     s->catalog_size * 4);
+    if (ret < 0) {
+        goto fail;
+    }
+
     for (i = 0; i < s->catalog_size; i++)
 	le32_to_cpus(&s->catalog_bitmap[i]);
 
@@ -153,8 +159,10 @@ static int bochs_open(BlockDriverState *bs, int flags)
 
     qemu_co_mutex_init(&s->lock);
     return 0;
- fail:
-    return -1;
+
+fail:
+    g_free(s->catalog_bitmap);
+    return ret;
 }
 
 static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)

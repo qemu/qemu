@@ -173,16 +173,47 @@ PropertyInfo qdev_prop_chr = {
 
 static int parse_netdev(DeviceState *dev, const char *str, void **ptr)
 {
-    NetClientState *netdev = qemu_find_netdev(str);
+    NICPeers *peers_ptr = (NICPeers *)ptr;
+    NICConf *conf = container_of(peers_ptr, NICConf, peers);
+    NetClientState **ncs = peers_ptr->ncs;
+    NetClientState *peers[MAX_QUEUE_NUM];
+    int queues, i = 0;
+    int ret;
 
-    if (netdev == NULL) {
-        return -ENOENT;
+    queues = qemu_find_net_clients_except(str, peers,
+                                          NET_CLIENT_OPTIONS_KIND_NIC,
+                                          MAX_QUEUE_NUM);
+    if (queues == 0) {
+        ret = -ENOENT;
+        goto err;
     }
-    if (netdev->peer) {
-        return -EEXIST;
+
+    if (queues > MAX_QUEUE_NUM) {
+        ret = -E2BIG;
+        goto err;
     }
-    *ptr = netdev;
+
+    for (i = 0; i < queues; i++) {
+        if (peers[i] == NULL) {
+            ret = -ENOENT;
+            goto err;
+        }
+
+        if (peers[i]->peer) {
+            ret = -EEXIST;
+            goto err;
+        }
+
+        ncs[i] = peers[i];
+        ncs[i]->queue_index = i;
+    }
+
+    conf->queues = queues;
+
     return 0;
+
+err:
+    return ret;
 }
 
 static const char *print_netdev(void *ptr)
@@ -249,7 +280,8 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    NetClientState **ptr = qdev_get_prop_ptr(dev, prop);
+    NICPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
+    NetClientState **ptr = &peers_ptr->ncs[0];
     Error *local_err = NULL;
     int32_t id;
     NetClientState *hubport;

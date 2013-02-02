@@ -30,6 +30,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "migration/vmstate.h"
 
 
 /* CPUClass::reset() */
@@ -64,13 +65,21 @@ static void xtensa_cpu_initfn(Object *obj)
     cpu_exec_init(env);
 }
 
+static const VMStateDescription vmstate_xtensa_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
 static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     XtensaCPUClass *xcc = XTENSA_CPU_CLASS(cc);
 
     xcc->parent_reset = cc->reset;
     cc->reset = xtensa_cpu_reset;
+
+    dc->vmsd = &vmstate_xtensa_cpu;
 }
 
 static const TypeInfo xtensa_cpu_type_info = {

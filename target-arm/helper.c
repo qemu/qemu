@@ -1303,9 +1303,9 @@ static gint arm_cpu_list_compare(gconstpointer a, gconstpointer b)
 
     name_a = object_class_get_name(class_a);
     name_b = object_class_get_name(class_b);
-    if (strcmp(name_a, "any") == 0) {
+    if (strcmp(name_a, "any-" TYPE_ARM_CPU) == 0) {
         return 1;
-    } else if (strcmp(name_b, "any") == 0) {
+    } else if (strcmp(name_b, "any-" TYPE_ARM_CPU) == 0) {
         return -1;
     } else {
         return strcmp(name_a, name_b);
@@ -1316,9 +1316,14 @@ static void arm_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     CPUListState *s = user_data;
+    const char *typename;
+    char *name;
 
+    typename = object_class_get_name(oc);
+    name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_ARM_CPU));
     (*s->cpu_fprintf)(s->file, "  %s\n",
-                      object_class_get_name(oc));
+                      name);
+    g_free(name);
 }
 
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf)

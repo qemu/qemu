@@ -73,14 +73,18 @@ static int parallels_open(BlockDriverState *bs, int flags)
     BDRVParallelsState *s = bs->opaque;
     int i;
     struct parallels_header ph;
+    int ret;
 
     bs->read_only = 1; // no write support yet
 
-    if (bdrv_pread(bs->file, 0, &ph, sizeof(ph)) != sizeof(ph))
+    ret = bdrv_pread(bs->file, 0, &ph, sizeof(ph));
+    if (ret < 0) {
         goto fail;
+    }
 
     if (memcmp(ph.magic, HEADER_MAGIC, 16) ||
-	(le32_to_cpu(ph.version) != HEADER_VERSION)) {
+        (le32_to_cpu(ph.version) != HEADER_VERSION)) {
+        ret = -EMEDIUMTYPE;
         goto fail;
     }
 
@@ -90,18 +94,21 @@ static int parallels_open(BlockDriverState *bs, int flags)
 
     s->catalog_size = le32_to_cpu(ph.catalog_entries);
     s->catalog_bitmap = g_malloc(s->catalog_size * 4);
-    if (bdrv_pread(bs->file, 64, s->catalog_bitmap, s->catalog_size * 4) !=
-	s->catalog_size * 4)
-	goto fail;
+
+    ret = bdrv_pread(bs->file, 64, s->catalog_bitmap, s->catalog_size * 4);
+    if (ret < 0) {
+        goto fail;
+    }
+
     for (i = 0; i < s->catalog_size; i++)
 	le32_to_cpus(&s->catalog_bitmap[i]);
 
     qemu_co_mutex_init(&s->lock);
     return 0;
+
 fail:
-    if (s->catalog_bitmap)
-	g_free(s->catalog_bitmap);
-    return -1;
+    g_free(s->catalog_bitmap);
+    return ret;
 }
 
 static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)

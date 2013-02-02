@@ -1006,7 +1006,7 @@ static int pcnet_tdte_poll(PCNetState *s)
 
 int pcnet_can_receive(NetClientState *nc)
 {
-    PCNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    PCNetState *s = qemu_get_nic_opaque(nc);
     if (CSR_STOP(s) || CSR_SPND(s))
         return 0;
 
@@ -1017,7 +1017,7 @@ int pcnet_can_receive(NetClientState *nc)
 
 ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 {
-    PCNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    PCNetState *s = qemu_get_nic_opaque(nc);
     int is_padr = 0, is_bcast = 0, is_ladr = 0;
     uint8_t buf1[60];
     int remaining;
@@ -1199,7 +1199,7 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 
 void pcnet_set_link_status(NetClientState *nc)
 {
-    PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
+    PCNetState *d = qemu_get_nic_opaque(nc);
 
     d->lnkst = nc->link_down ? 0 : 0x40;
 }
@@ -1261,11 +1261,12 @@ static void pcnet_transmit(PCNetState *s)
                 if (BCR_SWSTYLE(s) == 1)
                     add_crc = !GET_FIELD(tmd.status, TMDS, NOFCS);
                 s->looptest = add_crc ? PCNET_LOOPTEST_CRC : PCNET_LOOPTEST_NOCRC;
-                pcnet_receive(&s->nic->nc, s->buffer, s->xmit_pos);
+                pcnet_receive(qemu_get_queue(s->nic), s->buffer, s->xmit_pos);
                 s->looptest = 0;
             } else
                 if (s->nic)
-                    qemu_send_packet(&s->nic->nc, s->buffer, s->xmit_pos);
+                    qemu_send_packet(qemu_get_queue(s->nic), s->buffer,
+                                     s->xmit_pos);
 
             s->csr[0] &= ~0x0008;   /* clear TDMD */
             s->csr[4] |= 0x0004;    /* set TXSTRT */
@@ -1730,7 +1731,7 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(info, &s->conf, object_get_typename(OBJECT(dev)), dev->id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     add_boot_device_path(s->conf.bootindex, dev, "/ethernet-phy@0");
 
