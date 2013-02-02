@@ -315,7 +315,6 @@ static inline int get_ilen(uint8_t opc)
 S390CPU *cpu_s390x_init(const char *cpu_model);
 void s390x_translate_init(void);
 int cpu_s390x_exec(CPUS390XState *s);
-void cpu_s390x_close(CPUS390XState *s);
 void do_interrupt (CPUS390XState *env);
 
 /* you can call this signal handler from your SIGBUS and SIGSEGV
