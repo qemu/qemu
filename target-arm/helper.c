@@ -1725,8 +1725,10 @@ static void do_v7m_exception_exit(CPUARMState *env)
        pointer.  */
 }
 
-static void do_interrupt_v7m(CPUARMState *env)
+void arm_v7m_cpu_do_interrupt(CPUState *cs)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     uint32_t xpsr = xpsr_read(env);
     uint32_t lr;
     uint32_t addr;
@@ -1811,10 +1813,8 @@ void arm_cpu_do_interrupt(CPUState *cs)
     int new_mode;
     uint32_t offset;
 
-    if (IS_M(env)) {
-        do_interrupt_v7m(env);
-        return;
-    }
+    assert(!IS_M(env));
+
     /* TODO: Vectored interrupt controller.  */
     switch (env->exception_index) {
     case EXCP_UDEF:
