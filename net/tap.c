@@ -711,7 +711,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
 
         vnet_hdr = tap_probe_vnet_hdr(fd);
 
-        if (net_init_tap_one(tap, peer, "tap", NULL, NULL,
+        if (net_init_tap_one(tap, peer, "tap", name, NULL,
                              script, downscript,
                              vhostfdname, vnet_hdr, fd)) {
             return -1;
