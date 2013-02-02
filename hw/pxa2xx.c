@@ -343,23 +343,23 @@ static int pxa2xx_cpccnt_read(CPUARMState *env, const ARMCPRegInfo *ri,
 }
 
 static const ARMCPRegInfo pxa_cp_reginfo[] = {
-    /* cp14 crn==1: perf registers */
-    { .name = "CPPMNC", .cp = 14, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
+    /* cp14 crm==1: perf registers */
+    { .name = "CPPMNC", .cp = 14, .crn = 0, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
       .readfn = pxa2xx_cppmnc_read, .writefn = pxa2xx_cppmnc_write },
     { .name = "CPCCNT", .cp = 14, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
       .readfn = pxa2xx_cpccnt_read, .writefn = arm_cp_write_ignore },
-    { .name = "CPINTEN", .cp = 14, .crn = 1, .crm = 4, .opc1 = 0, .opc2 = 0,
+    { .name = "CPINTEN", .cp = 14, .crn = 4, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
-    { .name = "CPFLAG", .cp = 14, .crn = 1, .crm = 5, .opc1 = 0, .opc2 = 0,
+    { .name = "CPFLAG", .cp = 14, .crn = 5, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
-    { .name = "CPEVTSEL", .cp = 14, .crn = 1, .crm = 8, .opc1 = 0, .opc2 = 0,
+    { .name = "CPEVTSEL", .cp = 14, .crn = 8, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
-    /* cp14 crn==2: performance count registers */
-    { .name = "CPPMN0", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+    /* cp14 crm==2: performance count registers */
+    { .name = "CPPMN0", .cp = 14, .crn = 0, .crm = 2, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
-    { .name = "CPPMN1", .cp = 14, .crn = 2, .crm = 1, .opc1 = 0, .opc2 = 0,
+    { .name = "CPPMN1", .cp = 14, .crn = 1, .crm = 2, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "CPPMN2", .cp = 14, .crn = 2, .crm = 2, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
