@@ -1092,8 +1092,6 @@ static inline CPUX86State *cpu_init(const char *cpu_model)
 #define cpu_list x86_cpu_list
 #define cpudef_setup	x86_cpudef_setup
 
-#define CPU_SAVE_VERSION 12
-
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user

@@ -76,4 +76,8 @@ static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
 
 #define ENV_OFFSET offsetof(X86CPU, env)
 
+#ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_x86_cpu;
+#endif
+
 #endif
