@@ -13,6 +13,7 @@
 #define BITOPS_H
 
 #include "qemu-common.h"
+#include "host-utils.h"
 
 #define BITS_PER_BYTE           CHAR_BIT
 #define BITS_PER_LONG           (sizeof (unsigned long) * BITS_PER_BYTE)
@@ -23,41 +24,29 @@
 #define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
 
 /**
- * bitops_ffs - find first bit in word.
+ * bitops_ctzl - count trailing zeroes in word.
  * @word: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Returns -1 if no bit exists.  Note that compared to the C library
+ * routine ffsl, this one returns one less.
  */
-static unsigned long bitops_ffsl(unsigned long word)
+static unsigned long bitops_ctzl(unsigned long word)
 {
-	int num = 0;
+#if QEMU_GNUC_PREREQ(3, 4)
+    return __builtin_ffsl(word) - 1;
+#else
+    if (!word) {
+        return -1;
+    }
 
-#if LONG_MAX > 0x7FFFFFFF
-	if ((word & 0xffffffff) == 0) {
-		num += 32;
-		word >>= 32;
-	}
+    if (sizeof(long) == 4) {
+        return ctz32(word);
+    } else if (sizeof(long) == 8) {
+        return ctz64(word);
+    } else {
+        abort();
+    }
 #endif
-	if ((word & 0xffff) == 0) {
-		num += 16;
-		word >>= 16;
-	}
-	if ((word & 0xff) == 0) {
-		num += 8;
-		word >>= 8;
-	}
-	if ((word & 0xf) == 0) {
-		num += 4;
-		word >>= 4;
-	}
-	if ((word & 0x3) == 0) {
-		num += 2;
-		word >>= 2;
-	}
-	if ((word & 0x1) == 0) {
-		num += 1;
-        }
-	return num;
 }
 
 /**
@@ -99,14 +88,14 @@ static inline unsigned long bitops_flsl(unsigned long word)
 }
 
 /**
- * ffz - find first zero in word.
+ * cto - count trailing ones in word.
  * @word: The word to search
  *
- * Undefined if no zero exists, so code should check against ~0UL first.
+ * Returns -1 if all bit are set.
  */
-static inline unsigned long ffz(unsigned long word)
+static inline unsigned long bitops_ctol(unsigned long word)
 {
-    return bitops_ffsl(~word);
+    return bitops_ctzl(~word);
 }
 
 /**

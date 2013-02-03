@@ -1,9 +1,4 @@
-#include <assert.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
+#include "qemu-common.h"
 #include "qemu/queue.h"
 #include "qemu/envlist.h"
 
