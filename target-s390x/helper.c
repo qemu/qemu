@@ -657,7 +657,7 @@ static void do_io_interrupt(CPUS390XState *env)
         cpu_unmap_lowcore(lowcore);
 
         env->io_index[isc]--;
-        if (env->io_index >= 0) {
+        if (env->io_index[isc] >= 0) {
             disable = 0;
         }
         break;
