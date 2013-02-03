@@ -28,8 +28,8 @@
 #include "qemu/timer.h"
 #include "char/char.h"
 #include "hw/usb.h"
-#include "hw/baum.h"
-#include "hw/msmouse.h"
+#include "char/baum.h"
+#include "char/msmouse.h"
 #include "qmp-commands.h"
 
 #include <unistd.h>
