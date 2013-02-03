@@ -12,7 +12,7 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "e500.h"
-#include "../boards.h"
+#include "hw/boards.h"
 #include "sysemu/device_tree.h"
 #include "hw/pci/pci.h"
 #include "hw/openpic.h"
