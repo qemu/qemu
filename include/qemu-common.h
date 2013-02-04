@@ -173,6 +173,10 @@ int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
 int qemu_parse_fd(const char *param);
 
+int parse_uint(const char *s, unsigned long long *value, char **endptr,
+               int base);
+int parse_uint_full(const char *s, unsigned long long *value, int base);
+
 /*
  * strtosz() suffixes used to specify the default treatment of an
  * argument passed to strtosz() without an explicit suffix.

@@ -270,6 +270,105 @@ int64_t strtosz(const char *nptr, char **end)
     return strtosz_suffix(nptr, end, STRTOSZ_DEFSUFFIX_MB);
 }
 
+/**
+ * parse_uint:
+ *
+ * @s: String to parse
+ * @value: Destination for parsed integer value
+ * @endptr: Destination for pointer to first character not consumed
+ * @base: integer base, between 2 and 36 inclusive, or 0
+ *
+ * Parse unsigned integer
+ *
+ * Parsed syntax is like strtoull()'s: arbitrary whitespace, a single optional
+ * '+' or '-', an optional "0x" if @base is 0 or 16, one or more digits.
+ *
+ * If @s is null, or @base is invalid, or @s doesn't start with an
+ * integer in the syntax above, set *@value to 0, *@endptr to @s, and
+ * return -EINVAL.
+ *
+ * Set *@endptr to point right beyond the parsed integer (even if the integer
+ * overflows or is negative, all digits will be parsed and *@endptr will
+ * point right beyond them).
+ *
+ * If the integer is negative, set *@value to 0, and return -ERANGE.
+ *
+ * If the integer overflows unsigned long long, set *@value to
+ * ULLONG_MAX, and return -ERANGE.
+ *
+ * Else, set *@value to the parsed integer, and return 0.
+ */
+int parse_uint(const char *s, unsigned long long *value, char **endptr,
+               int base)
+{
+    int r = 0;
+    char *endp = (char *)s;
+    unsigned long long val = 0;
+
+    if (!s) {
+        r = -EINVAL;
+        goto out;
+    }
+
+    errno = 0;
+    val = strtoull(s, &endp, base);
+    if (errno) {
+        r = -errno;
+        goto out;
+    }
+
+    if (endp == s) {
+        r = -EINVAL;
+        goto out;
+    }
+
+    /* make sure we reject negative numbers: */
+    while (isspace((unsigned char)*s)) {
+        s++;
+    }
+    if (*s == '-') {
+        val = 0;
+        r = -ERANGE;
+        goto out;
+    }
+
+out:
+    *value = val;
+    *endptr = endp;
+    return r;
+}
+
+/**
+ * parse_uint_full:
+ *
+ * @s: String to parse
+ * @value: Destination for parsed integer value
+ * @base: integer base, between 2 and 36 inclusive, or 0
+ *
+ * Parse unsigned integer from entire string
+ *
+ * Have the same behavior of parse_uint(), but with an additional check
+ * for additional data after the parsed number. If extra characters are present
+ * after the parsed number, the function will return -EINVAL, and *@v will
+ * be set to 0.
+ */
+int parse_uint_full(const char *s, unsigned long long *value, int base)
+{
+    char *endp;
+    int r;
+
+    r = parse_uint(s, value, &endp, base);
+    if (r < 0) {
+        return r;
+    }
+    if (*endp) {
+        *value = 0;
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 int qemu_parse_fd(const char *param)
 {
     int fd;
