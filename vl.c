@@ -1293,6 +1293,9 @@ static void numa_add(const char *optarg)
             bitmap_set(node_cpumask[nodenr], value, endvalue-value+1);
         }
         nb_numa_nodes++;
+    } else {
+        fprintf(stderr, "Invalid -numa option: %s\n", option);
+        exit(1);
     }
 }
 
