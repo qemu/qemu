@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "boards.h"
+#include "hw/hw.h"
+#include "hw/boards.h"
 #include "sysemu/blockdev.h"
 #include "qemu/config-file.h"
 #include "sysemu/sysemu.h"
@@ -46,15 +46,6 @@ DriveInfo *add_init_drive(const char *optstr)
 
     return dinfo;
 }
-
-#if !defined(TARGET_I386)
-int pci_drive_hot_add(Monitor *mon, const QDict *qdict, DriveInfo *dinfo)
-{
-    /* On non-x86 we don't do PCI hotplug */
-    monitor_printf(mon, "Can't hot-add drive to type %d\n", dinfo->type);
-    return -1;
-}
-#endif
 
 void drive_hot_add(Monitor *mon, const QDict *qdict)
 {
