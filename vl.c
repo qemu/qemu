@@ -1253,7 +1253,10 @@ static void numa_add(const char *optarg)
 
     value = endvalue = 0ULL;
 
-    optarg = get_opt_name(option, 128, optarg, ',') + 1;
+    optarg = get_opt_name(option, 128, optarg, ',');
+    if (*optarg == ',') {
+        optarg++;
+    }
     if (!strcmp(option, "node")) {
         if (get_param_value(option, 128, "nodeid", optarg) == 0) {
             nodenr = nb_numa_nodes;
