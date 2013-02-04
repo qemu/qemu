@@ -59,37 +59,45 @@ Alpha
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: target-alpha/
+F: hw/alpha/
 
 ARM
 M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: target-arm/
+F: hw/arm/
+F: hw/cpu/a*mpcore.c
 
 CRIS
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: target-cris/
+F: hw/cris/
 
 LM32
 M: Michael Walle <michael@walle.cc>
 S: Maintained
 F: target-lm32/
+F: hw/lm32/
 
 M68K
 M: Paul Brook <paul@codesourcery.com>
 S: Odd Fixes
 F: target-m68k/
+F: hw/m68k/
 
 MicroBlaze
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: target-microblaze/
+F: hw/microblaze/
 
 MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Odd Fixes
 F: target-mips/
+F: hw/mips/
 
 Moxie
 M: Anthony Green <green@moxielogic.com>
@@ -101,38 +109,46 @@ M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: target-ppc/
+F: hw/ppc/
 
 S390
 M: Richard Henderson <rth@twiddle.net>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target-s390x/
+F: hw/s390x/
 
 SH4
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Odd Fixes
 F: target-sh4/
+F: hw/sh4/
 
 SPARC
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
 F: target-sparc/
+F: hw/sparc/
+F: hw/sparc64/
 
 UniCore32
 M: Guan Xuetao <gxt@mprc.pku.edu.cn>
 S: Maintained
 F: target-unicore32/
+F: hw/unicore32/
 
 X86
 M: qemu-devel@nongnu.org
 S: Odd Fixes
 F: target-i386/
+F: hw/i386/
 
 Xtensa
 M: Max Filippov <jcmvbkbc@gmail.com>
 W: http://wiki.osll.spb.ru/doku.php?id=etc:users:jcmvbkbc:qemu-target-xtensa
 S: Maintained
 F: target-xtensa/
+F: hw/xtensa/
 
 Guest CPU Cores (KVM):
 ----------------------
@@ -205,156 +221,156 @@ M: Maksim Kozlov <m.kozlov@samsung.com>
 M: Igor Mitsyanko <i.mitsyanko@samsung.com>
 M: Dmitry Solodkiy <d.solodkiy@samsung.com>
 S: Maintained
-F: hw/exynos*
+F: hw/*/exynos*
 
 Calxeda Highbank
 M: Mark Langsdorf <mark.langsdorf@calxeda.com>
 S: Supported
-F: hw/highbank.c
-F: hw/xgmac.c
+F: hw/arm/highbank.c
+F: hw/net/xgmac.c
 
 Gumstix
 M: qemu-devel@nongnu.org
 S: Orphan
-F: hw/gumstix.c
+F: hw/arm/gumstix.c
 
 i.MX31
 M: Peter Chubb <peter.chubb@nicta.com.au>
 S: Odd fixes
-F: hw/imx*
-F: hw/kzm.c
+F: hw/*/imx*
+F: hw/arm/kzm.c
 
 Integrator CP
 M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
-F: hw/integratorcp.c
+F: hw/arm/integratorcp.c
 
 Mainstone
 M: qemu-devel@nongnu.org
 S: Orphan
-F: hw/mainstone.c
+F: hw/arm/mainstone.c
 
 Musicpal
 M: Jan Kiszka <jan.kiszka@web.de>
 S: Maintained
-F: hw/musicpal.c
+F: hw/arm/musicpal.c
 
 nSeries
 M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
-F: hw/nseries.c
+F: hw/arm/nseries.c
 
 Palm
 M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
-F: hw/palm.c
+F: hw/arm/palm.c
 
 Real View
 M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
-F: hw/realview*
+F: hw/arm/realview*
 
 Spitz
 M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
-F: hw/spitz.c
+F: hw/arm/spitz.c
 
 Stellaris
 M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
-F: hw/stellaris.c
+F: hw/*/stellaris*
 
 Versatile PB
 M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
-F: hw/versatilepb.c
+F: hw/*/versatile*
 
 Xilinx Zynq
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
 S: Maintained
-F: hw/xilinx_zynq.c
-F: hw/zynq_slcr.c
-F: hw/cadence_*
-F: hw/xilinx_spips.c
+F: hw/arm/xilinx_zynq.c
+F: hw/misc/zynq_slcr.c
+F: hw/*/cadence_*
+F: hw/ssi/xilinx_spips.c
 
 CRIS Machines
 -------------
 Axis Dev88
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
-F: hw/axis_dev88.c
+F: hw/cris/axis_dev88.c
 
 etraxfs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
-F: hw/etraxfs.c
+F: hw/cris/etraxfs.c
 
 LM32 Machines
 -------------
 EVR32 and uclinux BSP
 M: Michael Walle <michael@walle.cc>
 S: Maintained
-F: hw/lm32_boards.c
+F: hw/lm32/lm32_boards.c
 
 milkymist
 M: Michael Walle <michael@walle.cc>
 S: Maintained
-F: hw/milkymist.c
+F: hw/lm32/milkymist.c
 
 M68K Machines
 -------------
 an5206
 M: Paul Brook <paul@codesourcery.com>
 S: Maintained
-F: hw/an5206.c
+F: hw/m68k/an5206.c
 
 dummy_m68k
 M: Paul Brook <paul@codesourcery.com>
 S: Maintained
-F: hw/dummy_m68k.c
+F: hw/m68k/dummy_m68k.c
 
 mcf5208
 M: Paul Brook <paul@codesourcery.com>
 S: Maintained
-F: hw/mcf5208.c
+F: hw/m68k/mcf5208.c
 
 MicroBlaze Machines
 -------------------
 petalogix_s3adsp1800
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
-F: hw/petalogix_s3adsp1800.c
+F: hw/microblaze/petalogix_s3adsp1800.c
 
 petalogix_ml605
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
 S: Maintained
-F: hw/petalogix_ml605_mmu.c
+F: hw/microblaze/petalogix_ml605_mmu.c
 
 MIPS Machines
 -------------
 Jazz
 M: Hervé Poussineau <hpoussin@reactos.org>
 S: Maintained
-F: hw/mips_jazz.c
+F: hw/mips/mips_jazz.c
 
 Malta
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
-F: hw/mips_malta.c
+F: hw/mips/mips_malta.c
 
 Mipssim
 M: qemu-devel@nongnu.org
 S: Orphan
-F: hw/mips_mipssim.c
+F: hw/mips/mips_mipssim.c
 
 R4000
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
-F: hw/mips_r4k.c
+F: hw/mips/mips_r4k.c
 
 PowerPC Machines
 ----------------
@@ -362,13 +378,13 @@ PowerPC Machines
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
-F: hw/ppc405_boards.c
+F: hw/ppc/ppc405_boards.c
 
 Bamboo
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
-F: hw/ppc440_bamboo.c
+F: hw/ppc/ppc440_bamboo.c
 
 e500
 M: Alexander Graf <agraf@suse.de>
@@ -384,80 +400,82 @@ M: Scott Wood <scottwood@freescale.com>
 L: qemu-ppc@nongnu.org
 S: Supported
 F: hw/ppc/mpc8544ds.c
-F: hw/mpc8544_guts.c
+F: hw/ppc/mpc8544_guts.c
 
 New World
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/mac_newworld.c
-F: hw/unin_pci.c
-F: hw/dec_pci.[hc]
+F: hw/pci/devices/host-uninorth.c
+F: hw/pci/devices/host-dec.[hc]
+F: hw/misc/macio/
 
 Old World
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/mac_oldworld.c
-F: hw/grackle_pci.c
+F: hw/pci/devices/host-grackle.c
+F: hw/misc/macio/
 
 PReP
 M: Andreas Färber <andreas.faerber@web.de>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/prep.c
-F: hw/prep_pci.[hc]
-F: hw/pc87312.[hc]
+F: hw/pci/devices/host-prep.[hc]
+F: hw/isa/pc87312.[hc]
 
 sPAPR
 M: David Gibson <david@gibson.dropbear.id.au>
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Supported
-F: hw/spapr*
+F: hw/*/spapr*
 
 virtex_ml507
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
-F: hw/virtex_ml507.c
+F: hw/pci/virtex_ml507.c
 
 SH4 Machines
 ------------
 R2D
 M: Magnus Damm <magnus.damm@gmail.com>
 S: Maintained
-F: hw/r2d.c
+F: hw/sh/r2d.c
 
 Shix
 M: Magnus Damm <magnus.damm@gmail.com>
 S: Orphan
-F: hw/shix.c
+F: hw/sh/shix.c
 
 SPARC Machines
 --------------
 Sun4m
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
-F: hw/sun4m.c
+F: hw/sparc/sun4m.c
 
 Sun4u
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
-F: hw/sun4u.c
+F: hw/sparc64/sun4u.c
 
 Leon3
 M: Fabien Chouteau <chouteau@adacore.com>
 S: Maintained
-F: hw/leon3.c
-F: hw/grlib*
+F: hw/sparc/leon3.c
+F: hw/*/grlib*
 
 S390 Machines
 -------------
 S390 Virtio
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
-F: hw/s390-*.c
+F: hw/s390/s390-*.c
 
 S390 Virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -472,7 +490,7 @@ UniCore32 Machines
 PKUnity-3 SoC initramfs-with-busybox
 M: Guan Xuetao <gxt@mprc.pku.edu.cn>
 S: Maintained
-F: hw/puv3*
+F: hw/*/puv3*
 F: hw/unicore32/
 
 X86 Machines
@@ -480,90 +498,91 @@ X86 Machines
 PC
 M: Anthony Liguori <aliguori@us.ibm.com>
 S: Supported
-F: hw/pc.[ch]
-F: hw/pc_piix.c
+F: hw/i386/pc.[ch]
+F: hw/i386/pc_piix.c
 
 Xtensa Machines
 ---------------
 sim
 M: Max Filippov <jcmvbkbc@gmail.com>
 S: Maintained
-F: hw/xtensa_sim.c
+F: hw/xtensa/xtensa_sim.c
 
 Avnet LX60
 M: Max Filippov <jcmvbkbc@gmail.com>
 S: Maintained
-F: hw/xtensa_lx60.c
+F: hw/xtensa/xtensa_lx60.c
 
 Devices
 -------
 IDE
 M: Kevin Wolf <kwolf@redhat.com>
 S: Odd Fixes
+F: include/hw/ide.h
 F: hw/ide/
 
 OMAP
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
-F: hw/omap*
+F: hw/*/omap*
 
 PCI
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
+F: include/hw/pci/*
 F: hw/pci/*
-F: hw/pci*
-F: hw/piix*
+F: hw/acpi/*
 
 ppc4xx
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
-F: hw/ppc4xx*.[hc]
+F: hw/ppc/ppc4*.c
 
 ppce500
 M: Alexander Graf <agraf@suse.de>
 M: Scott Wood <scottwood@freescale.com>
 L: qemu-ppc@nongnu.org
 S: Supported
-F: hw/ppce500_*
+F: hw/ppc/e500_*
 
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Supported
-F: hw/virtio-scsi.*
-F: hw/scsi*
+F: include/hw/scsi*
+F: hw/scsi/*
 T: git git://github.com/bonzini/qemu.git scsi-next
 
 LSI53C895A
 M: Paul Brook <paul@codesourcery.com>
 S: Odd Fixes
-F: hw/lsi53c895a.c
+F: hw/scsi/lsi53c895a.c
 
 SSI
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
 S: Maintained
-F: hw/ssi.*
-F: hw/m25p80.c
+F: hw/ssi/*
+F: hw/block/m25p80.c
 
 USB
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
-F: hw/usb*
+F: hw/usb/*
 
 VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
 S: Supported
-F: hw/vfio*
+F: hw/pci/vfio.c
 
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
-F: hw/vhost*
+F: hw/*/*vhost*
 
 virtio
 M: Anthony Liguori <aliguori@us.ibm.com>
 S: Supported
-F: hw/virtio*
+F: hw/*/virtio*
 
 virtio-9p
 M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
@@ -576,7 +595,7 @@ virtio-blk
 M: Kevin Wolf <kwolf@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
-F: hw/virtio-blk*
+F: hw/block/virtio-blk.c
 
 virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -587,20 +606,15 @@ T: git git://github.com/cohuck/qemu virtio-ccw-upstr
 virtio-serial
 M: Amit Shah <amit.shah@redhat.com>
 S: Supported
-F: hw/virtio-serial*
-F: hw/virtio-console*
+F: hw/char/virtio-serial-bus.c
+F: hw/char/virtio-console.c
 
 Xilinx EDK
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
-F: hw/xilinx_axi*
-F: hw/xilinx_uartlite.c
-F: hw/xilinx_intc.c
-F: hw/xilinx_ethlite.c
-F: hw/xilinx_timer.c
-F: hw/xilinx.h
-F: hw/xilinx_spi.c
+F: hw/*/xilinx_*
+F: include/hw/xilinx.h
 
 Subsystems
 ----------
@@ -608,6 +622,7 @@ Audio
 M: Vassili Karpov (malc) <av1474@comtv.ru>
 S: Maintained
 F: audio/
+F: hw/audio/
 
 Block
 M: Kevin Wolf <kwolf@redhat.com>
@@ -615,6 +630,7 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
 F: block*
 F: block/
+F: hw/block/
 
 Character Devices
 M: Anthony Liguori <aliguori@us.ibm.com>
@@ -646,7 +662,7 @@ S: Supported
 F: ui/qemu-spice.h
 F: ui/spice-*.c
 F: audio/spiceaudio.c
-F: hw/qxl*
+F: hw/display/qxl*
 
 Graphics
 M: Anthony Liguori <aliguori@us.ibm.com>
