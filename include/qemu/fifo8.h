@@ -1,7 +1,7 @@
 #ifndef FIFO_H
 #define FIFO_H
 
-#include "hw.h"
+#include "migration/vmstate.h"
 
 typedef struct {
     /* All fields are private */

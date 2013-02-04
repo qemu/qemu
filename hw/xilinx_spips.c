@@ -26,7 +26,7 @@
 #include "sysemu/sysemu.h"
 #include "ptimer.h"
 #include "qemu/log.h"
-#include "fifo.h"
+#include "qemu/fifo8.h"
 #include "ssi.h"
 #include "qemu/bitops.h"
 

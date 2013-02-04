@@ -12,7 +12,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fifo.h"
+#include "qemu-common.h"
+#include "qemu/fifo8.h"
 
 void fifo8_create(Fifo8 *fifo, uint32_t capacity)
 {
