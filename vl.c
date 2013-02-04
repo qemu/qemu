@@ -1267,7 +1267,10 @@ static void numa_add(const char *optarg)
         if (get_param_value(option, 128, "nodeid", optarg) == 0) {
             nodenr = nb_numa_nodes;
         } else {
-            nodenr = strtoull(option, NULL, 10);
+            if (parse_uint_full(option, &nodenr, 10) < 0) {
+                fprintf(stderr, "qemu: Invalid NUMA nodeid: %s\n", option);
+                exit(1);
+            }
         }
 
         if (nodenr >= MAX_NODES) {
