@@ -120,15 +120,15 @@
 #define NV_PFIFO_RAMHT                                   0x00000210
 #   define NV_PFIFO_RAMHT_BASE_ADDRESS                        0x000001F0
 #   define NV_PFIFO_RAMHT_SIZE                                0x00030000
-#       define NV_PFIFO_RAMHT_SIZE_4K                             0x00000000
-#       define NV_PFIFO_RAMHT_SIZE_8K                             0x00010000
-#       define NV_PFIFO_RAMHT_SIZE_16K                            0x00020000
-#       define NV_PFIFO_RAMHT_SIZE_32K                            0x00030000
+#       define NV_PFIFO_RAMHT_SIZE_4K                             0
+#       define NV_PFIFO_RAMHT_SIZE_8K                             1
+#       define NV_PFIFO_RAMHT_SIZE_16K                            2
+#       define NV_PFIFO_RAMHT_SIZE_32K                            3
 #   define NV_PFIFO_RAMHT_SEARCH                              0x03000000
-#       define NV_PFIFO_RAMHT_SEARCH_16                           0x00000000
-#       define NV_PFIFO_RAMHT_SEARCH_32                           0x01000000
-#       define NV_PFIFO_RAMHT_SEARCH_64                           0x02000000
-#       define NV_PFIFO_RAMHT_SEARCH_128                          0x03000000
+#       define NV_PFIFO_RAMHT_SEARCH_16                           0
+#       define NV_PFIFO_RAMHT_SEARCH_32                           1
+#       define NV_PFIFO_RAMHT_SEARCH_64                           2
+#       define NV_PFIFO_RAMHT_SEARCH_128                          3
 #define NV_PFIFO_RAMFC                                   0x00000214
 #   define NV_PFIFO_RAMFC_BASE_ADDRESS1                       0x000001FC
 #   define NV_PFIFO_RAMFC_SIZE                                0x00010000
@@ -166,12 +166,12 @@
 #   define NV_PFIFO_CACHE1_DMA_STATE_SUBCHANNEL               0x0000E000
 #   define NV_PFIFO_CACHE1_DMA_STATE_METHOD_COUNT             0x1FFC0000
 #   define NV_PFIFO_CACHE1_DMA_STATE_ERROR                    0xE0000000
-#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_NONE               0x00000000
-#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_CALL               0x00000001
-#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_NON_CACHE          0x00000002
-#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_RETURN             0x00000003
-#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_RESERVED_CMD       0x00000004
-#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_PROTECTION         0x00000006
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_NONE               0
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_CALL               1
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_NON_CACHE          2
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_RETURN             3
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_RESERVED_CMD       4
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_PROTECTION         6
 #define NV_PFIFO_CACHE1_DMA_INSTANCE                     0x0000122C
 #   define NV_PFIFO_CACHE1_DMA_INSTANCE_ADDRESS               0x0000FFFF
 #define NV_PFIFO_CACHE1_DMA_PUT                          0x00001240
@@ -203,6 +203,8 @@
 #   define NV_PGRAPH_INTR_BUFFER_NOTIFY                      (1 << 16)
 #   define NV_PGRAPH_INTR_ERROR                              (1 << 20)
 #   define NV_PGRAPH_INTR_SINGLE_STEP                        (1 << 24)
+#define NV_PGRAPH_NSOURCE                                0x00000108
+#   define NV_PGRAPH_NSOURCE_NOTIFICATION                     (1 << 0) 
 #define NV_PGRAPH_INTR_EN                                0x00000140
 #   define NV_PGRAPH_INTR_EN_NOTIFY                           (1 << 0)
 #   define NV_PGRAPH_INTR_EN_MISSING_HW                       (1 << 4)
@@ -251,6 +253,7 @@
 #   define NV_PGRAPH_TRAPPED_ADDR_SUBCH                       0x00070000
 #   define NV_PGRAPH_TRAPPED_ADDR_CHID                        0x01F00000
 #   define NV_PGRAPH_TRAPPED_ADDR_DHV                         0x10000000
+#define NV_PGRAPH_TRAPPED_DATA_LOW                       0x00000708
 #define NV_PGRAPH_CHANNEL_CTX_TABLE                      0x00000780
 #   define NV_PGRAPH_CHANNEL_CTX_TABLE_INST                   0x0000FFFF
 #define NV_PGRAPH_CHANNEL_CTX_POINTER                    0x00000784
@@ -258,7 +261,7 @@
 #define NV_PGRAPH_CHANNEL_CTX_TRIGGER                    0x00000788
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN                (1 << 0)
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT              (1 << 1)
-
+#define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 
 #define NV_PCRTC_INTR_0                                  0x00000100
 #   define NV_PCRTC_INTR_0_VBLANK                               (1 << 0)
@@ -402,6 +405,7 @@
 #   define NV097_SET_TRANSFORM_PROGRAM_START                  0x00971EA0
 #   define NV097_SET_TRANSFORM_CONSTANT_LOAD                  0x00971EA4
 
+
 static const GLenum kelvin_primitive_map[] = {
     0,
     GL_POINTS,
@@ -422,18 +426,24 @@ static const GLenum kelvin_primitive_map[] = {
 #   define NV_MEMORY_TO_MEMORY_FORMAT_DMA_SOURCE                  0x00390184
 
 
-
-
 #define NV2A_CRYSTAL_FREQ 13500000
 #define NV2A_NUM_CHANNELS 32
 #define NV2A_NUM_SUBCHANNELS 8
-#define NV2A_MAX_PUSHBUFFER_METHOD 2048
+#define NV2A_MAX_BATCH_LENGTH 0xFFFF
 
 #define NV2A_VERTEXSHADER_SLOTS  32 /*???*/
 #define NV2A_MAX_VERTEXSHADER_LENGTH 136
 #define NV2A_VERTEXSHADER_CONSTANTS 192
 #define NV2A_VERTEXSHADER_ATTRIBUTES 16
 
+
+#define GET_MASK(v, mask) (((v) & (mask)) >> (ffs(mask)-1))
+
+#define SET_MASK(v, mask, val)                                       \
+    do {                                                             \
+        (v) &= ~(mask);                                              \
+        (v) |= ((val) << (ffs(mask)-1)) & (mask);                    \
+    } while (0)
 
 
 enum FifoMode {
@@ -515,10 +525,10 @@ typedef struct KelvinState {
     } vertex_attribute_offsets[NV2A_VERTEXSHADER_ATTRIBUTES];
 
     unsigned int inline_vertex_data_length;
-    uint32_t inline_vertex_data[NV2A_MAX_PUSHBUFFER_METHOD];
+    uint32_t inline_vertex_data[NV2A_MAX_BATCH_LENGTH];
 
     unsigned int array_batch_length;
-    uint32_t array_batch[NV2A_MAX_PUSHBUFFER_METHOD];
+    uint32_t array_batch[NV2A_MAX_BATCH_LENGTH];
 
     bool use_vertex_program;
     bool enable_vertex_program_write;
@@ -547,7 +557,7 @@ typedef struct GraphicsContext {
 
     GraphicsSubchannel subchannel_data[NV2A_NUM_SUBCHANNELS];
 
-
+    uint32_t zstencil_clear_value;
 
     CGLContextObj gl_context;
 
@@ -677,6 +687,8 @@ typedef struct NV2AState {
         unsigned int trapped_method;
         unsigned int trapped_subchannel;
         unsigned int trapped_channel_id;
+        uint32_t trapped_data[2];
+        uint32_t notify_source;
 
         unsigned int channel_id;
         bool channel_valid;
@@ -706,7 +718,6 @@ typedef struct NV2AState {
 
 #define NV2A_DEVICE(obj) \
     OBJECT_CHECK(NV2AState, (obj), "nv2a")
-
 
 
 static void update_irq(NV2AState *d)
@@ -786,6 +797,8 @@ static DMAObject load_dma_object(NV2AState *d, hwaddr address)
     uint8_t *dma_ptr;
     uint32_t flags;
 
+    assert(address < memory_region_size(&d->ramin));
+
     dma_ptr = d->ramin_ptr + address;
     flags = le32_to_cpupu((uint32_t*)dma_ptr);
 
@@ -798,12 +811,14 @@ static DMAObject load_dma_object(NV2AState *d, hwaddr address)
     };
 }
 
-static GraphicsObject load_graphics_object(NV2AState *d,
-                                           hwaddr address)
+static void load_graphics_object(NV2AState *d, hwaddr address,
+                                 GraphicsObject *obj)
 {
     int i;
     uint8_t *obj_ptr;
     uint32_t switch1, switch2, switch3;
+
+    assert(address < memory_region_size(&d->ramin));
 
     obj_ptr = d->ramin_ptr + address;
 
@@ -811,14 +826,13 @@ static GraphicsObject load_graphics_object(NV2AState *d,
     switch2 = le32_to_cpupu((uint32_t*)(obj_ptr+4));
     switch3 = le32_to_cpupu((uint32_t*)(obj_ptr+8));
 
-    GraphicsObject ret;
-    ret.graphics_class = switch1 & NV_PGRAPH_CTX_SWITCH1_GRCLASS;
+    obj->graphics_class = switch1 & NV_PGRAPH_CTX_SWITCH1_GRCLASS;
 
     /* init graphics object */
     KelvinState *kelvin;
-    switch (ret.graphics_class) {
+    switch (obj->graphics_class) {
     case NV_KELVIN_PRIMITIVE:
-        kelvin = &ret.data.kelvin;
+        kelvin = &obj->data.kelvin;
 
         /* generate vertex programs */
         for (i=0; i<NV2A_VERTEXSHADER_SLOTS; i++) {
@@ -831,8 +845,6 @@ static GraphicsObject load_graphics_object(NV2AState *d,
     default:
         break;
     }
-
-    return ret;
 }
 
 
@@ -1081,7 +1093,7 @@ static void pgraph_method(NV2AState *d,
 
         qemu_mutex_unlock(&d->pgraph.lock);
         qemu_mutex_lock_iothread();
-        *object = load_graphics_object(d, parameter);
+        load_graphics_object(d, parameter, object);
         qemu_mutex_unlock_iothread();
         return;
     }
@@ -1095,6 +1107,22 @@ static void pgraph_method(NV2AState *d,
 
 
     case NV097_NO_OPERATION:
+        /* The bios uses nop as a software method call -
+         * it seems to expect a notify interrupt if the parameter isn't 0.
+         * According to a nouveau guy it should still be a nop regardless
+         * of the parameter. It's possible a debug register enables this,
+         * but nothing obvious sticks out. Weird.
+         */
+        if (parameter != 0) {
+            d->pgraph.trapped_channel_id = d->pgraph.channel_id;
+            d->pgraph.trapped_subchannel = subchannel;
+            d->pgraph.trapped_method = method;
+            d->pgraph.trapped_data[0] = parameter;
+            d->pgraph.notify_source = NV_PGRAPH_NSOURCE_NOTIFICATION; /* TODO: check this */
+            d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_NOTIFY;
+            update_irq(d);
+            /* TODO: the puller should block on this */
+        }
         break;
     case NV097_WAIT_FOR_IDLE:
         break;
@@ -1204,20 +1232,21 @@ static void pgraph_method(NV2AState *d,
             if (kelvin->inline_vertex_data_length) {
                 unsigned int vertex_size =
                     kelvin_bind_inline_vertex_data(kelvin);
-                unsigned int vertex_count =
+                unsigned int index_count =
                     kelvin->inline_vertex_data_length*4 / vertex_size;
                 glDrawArrays(kelvin->gl_primitive_mode,
-                             0, vertex_count);
-            } else if (kelvin->array_batch_length) {
+                             0, index_count);
+            }
+            if (kelvin->array_batch_length) {
                 kelvin_bind_vertex_attribute_offsets(d, kelvin);
 
                 glDrawElements(kelvin->gl_primitive_mode,
                                kelvin->array_batch_length,
                                GL_UNSIGNED_INT,
                                kelvin->array_batch);
-            } else {
+            }/* else {
                 assert(false);
-            }
+            }*/
             assert(glGetError() == GL_NO_ERROR);
         } else {
             assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
@@ -1229,19 +1258,19 @@ static void pgraph_method(NV2AState *d,
         }
         break;
     case NV097_ARRAY_ELEMENT16:
-        assert(kelvin->array_batch_length < NV2A_MAX_PUSHBUFFER_METHOD);
+        assert(kelvin->array_batch_length < NV2A_MAX_BATCH_LENGTH);
         kelvin->array_batch[
             kelvin->array_batch_length++] = parameter & 0xFFFF;
         kelvin->array_batch[
             kelvin->array_batch_length++] = parameter >> 16;
         break;
     case NV097_ARRAY_ELEMENT32:
-        assert(kelvin->array_batch_length < NV2A_MAX_PUSHBUFFER_METHOD);
+        assert(kelvin->array_batch_length < NV2A_MAX_BATCH_LENGTH);
         kelvin->array_batch[
             kelvin->array_batch_length++] = parameter;
         break;
     case NV097_INLINE_ARRAY:
-        assert(kelvin->inline_vertex_data_length < NV2A_MAX_PUSHBUFFER_METHOD);
+        assert(kelvin->inline_vertex_data_length < NV2A_MAX_BATCH_LENGTH);
         kelvin->inline_vertex_data[
             kelvin->inline_vertex_data_length++] = parameter;
         break;
@@ -1264,9 +1293,13 @@ static void pgraph_method(NV2AState *d,
 
         break;
 
+    case NV097_SET_ZSTENCIL_CLEAR_VALUE:
+        context->zstencil_clear_value = parameter;
+        break;
+
     case NV097_CLEAR_SURFACE:
         /* QQQ */
-        printf("------------------CLEAR 0x%x---------------\n", parameter);
+        NV2A_DPRINTF("------------------CLEAR 0x%x---------------\n", parameter);
         glClearColor(1, 0, 0, 1);
 
         GLbitfield gl_mask = 0;
@@ -1303,7 +1336,7 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_TRANSFORM_CONSTANT_LOAD:
         assert(parameter < NV2A_VERTEXSHADER_CONSTANTS);
         kelvin->constant_load_slot = parameter;
-        printf("load to %d\n", parameter);
+        NV2A_DPRINTF("load to %d\n", parameter);
         break;
 
     default:
@@ -1325,6 +1358,8 @@ static void pgraph_wait_context_switch(NV2AState *d)
 
     qemu_mutex_lock(&d->pgraph.lock);
     if (!d->pgraph.channel_valid) {
+        /* TODO:  there should be some global puller suspention thing to 
+         * wait on instead */
         qemu_cond_wait(&d->pgraph.context_cond, &d->pgraph.lock);
     }
     qemu_mutex_unlock(&d->pgraph.lock);
@@ -1664,6 +1699,7 @@ static void pbus_write(void *opaque, hwaddr addr,
     switch (addr) {
     case NV_PBUS_PCI_NV_1:
         pci_set_long(d->dev.config + PCI_COMMAND, val);
+        break;
     default:
         break;
     }
@@ -1686,31 +1722,16 @@ static uint64_t pfifo_read(void *opaque,
         r = d->pfifo.enabled_interrupts;
         break;
     case NV_PFIFO_RAMHT:
-        r = ( (d->pfifo.ramht_address >> 12) << 4)
-             | (d->pfifo.ramht_search << 24);
-
-        switch (d->pfifo.ramht_size) {
-            case 4096:
-                r |= NV_PFIFO_RAMHT_SIZE_4K;
-                break;
-            case 8192:
-                r |= NV_PFIFO_RAMHT_SIZE_8K;
-                break;
-            case 16384:
-                r |= NV_PFIFO_RAMHT_SIZE_16K;
-                break;
-            case 32768:
-                r |= NV_PFIFO_RAMHT_SIZE_32K;
-                break;
-            default:
-                break;
-        }
-
+        SET_MASK(r, NV_PFIFO_RAMHT_BASE_ADDRESS, d->pfifo.ramht_address >> 12);
+        SET_MASK(r, NV_PFIFO_RAMHT_SEARCH, d->pfifo.ramht_search);
+        SET_MASK(r, NV_PFIFO_RAMHT_SIZE, ffs(d->pfifo.ramht_size)-13);
         break;
     case NV_PFIFO_RAMFC:
-        r = ( (d->pfifo.ramfc_address1 >> 10) << 2)
-             | (d->pfifo.ramfc_size << 16)
-             | ((d->pfifo.ramfc_address2 >> 10) << 17);
+        SET_MASK(r, NV_PFIFO_RAMFC_BASE_ADDRESS1,
+                 d->pfifo.ramfc_address1 >> 10);
+        SET_MASK(r, NV_PFIFO_RAMFC_BASE_ADDRESS2,
+                 d->pfifo.ramfc_address2 >> 10);
+        SET_MASK(r, NV_PFIFO_RAMFC_SIZE, d->pfifo.ramfc_size);
         break;
     case NV_PFIFO_RUNOUT_STATUS:
         r = NV_PFIFO_RUNOUT_STATUS_LOW_MARK; /* low mark empty */
@@ -1726,8 +1747,8 @@ static uint64_t pfifo_read(void *opaque,
         r = d->pfifo.cache1.push_enabled;
         break;
     case NV_PFIFO_CACHE1_PUSH1:
-        r = (d->pfifo.cache1.channel_id & NV_PFIFO_CACHE1_PUSH1_CHID)
-            | (d->pfifo.cache1.mode << 8);
+        SET_MASK(r, NV_PFIFO_CACHE1_PUSH1_CHID, d->pfifo.cache1.channel_id);
+        SET_MASK(r, NV_PFIFO_CACHE1_PUSH1_MODE, d->pfifo.cache1.mode);
         break;
     case NV_PFIFO_CACHE1_STATUS:
         qemu_mutex_lock(&d->pfifo.cache1.cache_lock);
@@ -1737,20 +1758,27 @@ static uint64_t pfifo_read(void *opaque,
         qemu_mutex_unlock(&d->pfifo.cache1.cache_lock);
         break;
     case NV_PFIFO_CACHE1_DMA_PUSH:
-        r = d->pfifo.cache1.dma_push_enabled
-            | (1 << 8) /* buffer empty */
-            | (d->pfifo.cache1.dma_push_suspended << 12);
+        SET_MASK(r, NV_PFIFO_CACHE1_DMA_PUSH_ACCESS,
+                 d->pfifo.cache1.dma_push_enabled);
+        SET_MASK(r, NV_PFIFO_CACHE1_DMA_PUSH_STATUS,
+                 d->pfifo.cache1.dma_push_suspended);
+        SET_MASK(r, NV_PFIFO_CACHE1_DMA_PUSH_BUFFER, 1); /* buffer emoty */
         break;
     case NV_PFIFO_CACHE1_DMA_STATE:
-        r = d->pfifo.cache1.method_nonincreasing
-            | (d->pfifo.cache1.method << 2)
-            | (d->pfifo.cache1.subchannel << 13)
-            | (d->pfifo.cache1.method_count << 18)
-            | (d->pfifo.cache1.error << 29);
+        SET_MASK(r, NV_PFIFO_CACHE1_DMA_STATE_METHOD_TYPE,
+                 d->pfifo.cache1.method_nonincreasing);
+        SET_MASK(r, NV_PFIFO_CACHE1_DMA_STATE_METHOD,
+                 d->pfifo.cache1.method >> 2);
+        SET_MASK(r, NV_PFIFO_CACHE1_DMA_STATE_SUBCHANNEL,
+                 d->pfifo.cache1.subchannel);
+        SET_MASK(r, NV_PFIFO_CACHE1_DMA_STATE_METHOD_COUNT,
+                 d->pfifo.cache1.method_count);
+        SET_MASK(r, NV_PFIFO_CACHE1_DMA_STATE_ERROR,
+                 d->pfifo.cache1.error);
         break;
     case NV_PFIFO_CACHE1_DMA_INSTANCE:
-        r = (d->pfifo.cache1.dma_instance >> 4)
-             & NV_PFIFO_CACHE1_DMA_INSTANCE_ADDRESS;
+        SET_MASK(r, NV_PFIFO_CACHE1_DMA_INSTANCE_ADDRESS,
+                 d->pfifo.cache1.dma_instance >> 4);
         break;
     case NV_PFIFO_CACHE1_DMA_PUT:
         r = d->user.channel_control[d->pfifo.cache1.channel_id].dma_put;
@@ -1794,7 +1822,7 @@ static uint64_t pfifo_read(void *opaque,
     return r;
 }
 static void pfifo_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned int size)
+                        uint64_t val, unsigned int size)
 {
     int i;
     NV2AState *d = opaque;
@@ -1812,32 +1840,16 @@ static void pfifo_write(void *opaque, hwaddr addr,
         break;
     case NV_PFIFO_RAMHT:
         d->pfifo.ramht_address =
-            ((val & NV_PFIFO_RAMHT_BASE_ADDRESS) >> 4) << 12;
-        switch (val & NV_PFIFO_RAMHT_SIZE) {
-            case NV_PFIFO_RAMHT_SIZE_4K:
-                d->pfifo.ramht_size = 4096;
-                break;
-            case NV_PFIFO_RAMHT_SIZE_8K:
-                d->pfifo.ramht_size = 8192;
-                break;
-            case NV_PFIFO_RAMHT_SIZE_16K:
-                d->pfifo.ramht_size = 16384;
-                break;
-            case NV_PFIFO_RAMHT_SIZE_32K:
-                d->pfifo.ramht_size = 32768;
-                break;
-            default:
-                d->pfifo.ramht_size = 0;
-                break;
-        }
-        d->pfifo.ramht_search = (val & NV_PFIFO_RAMHT_SEARCH) >> 24;
+            GET_MASK(val, NV_PFIFO_RAMHT_BASE_ADDRESS) << 12;
+        d->pfifo.ramht_size = 1 << (GET_MASK(val, NV_PFIFO_RAMHT_SIZE)+12);
+        d->pfifo.ramht_search = GET_MASK(val, NV_PFIFO_RAMHT_SEARCH);
         break;
     case NV_PFIFO_RAMFC:
         d->pfifo.ramfc_address1 =
-            ((val & NV_PFIFO_RAMFC_BASE_ADDRESS1) >> 2) << 10;
-        d->pfifo.ramfc_size = (val & NV_PFIFO_RAMFC_SIZE) >> 16;
+            GET_MASK(val, NV_PFIFO_RAMFC_BASE_ADDRESS1) << 10;
         d->pfifo.ramfc_address2 =
-            ((val & NV_PFIFO_RAMFC_BASE_ADDRESS2) >> 17) << 10;
+            GET_MASK(val, NV_PFIFO_RAMFC_BASE_ADDRESS2) << 10;
+        d->pfifo.ramfc_size = GET_MASK(val, NV_PFIFO_RAMFC_SIZE);
         break;
     case NV_PFIFO_MODE:
         d->pfifo.channel_modes = val;
@@ -1850,35 +1862,36 @@ static void pfifo_write(void *opaque, hwaddr addr,
         d->pfifo.cache1.push_enabled = val & NV_PFIFO_CACHE1_PUSH0_ACCESS;
         break;
     case NV_PFIFO_CACHE1_PUSH1:
-        d->pfifo.cache1.channel_id = val & NV_PFIFO_CACHE1_PUSH1_CHID;
-        d->pfifo.cache1.mode = (val & NV_PFIFO_CACHE1_PUSH1_MODE) >> 8;
+        d->pfifo.cache1.channel_id = GET_MASK(val, NV_PFIFO_CACHE1_PUSH1_CHID);
+        d->pfifo.cache1.mode = GET_MASK(val, NV_PFIFO_CACHE1_PUSH1_MODE);
         assert(d->pfifo.cache1.channel_id < NV2A_NUM_CHANNELS);
         break;
     case NV_PFIFO_CACHE1_DMA_PUSH:
         d->pfifo.cache1.dma_push_enabled =
-            (val & NV_PFIFO_CACHE1_DMA_PUSH_ACCESS);
+            GET_MASK(val, NV_PFIFO_CACHE1_DMA_PUSH_ACCESS);
         if (d->pfifo.cache1.dma_push_suspended
-             && !(val & NV_PFIFO_CACHE1_DMA_PUSH_STATUS)) {
+             && !GET_MASK(val, NV_PFIFO_CACHE1_DMA_PUSH_STATUS)) {
             d->pfifo.cache1.dma_push_suspended = false;
             pfifo_run_pusher(d);
         }
         d->pfifo.cache1.dma_push_suspended =
-            (val & NV_PFIFO_CACHE1_DMA_PUSH_STATUS);
+            GET_MASK(val, NV_PFIFO_CACHE1_DMA_PUSH_STATUS);
         break;
     case NV_PFIFO_CACHE1_DMA_STATE:
         d->pfifo.cache1.method_nonincreasing =
-            (val & NV_PFIFO_CACHE1_DMA_STATE_METHOD_TYPE);
-        d->pfifo.cache1.method = (val & NV_PFIFO_CACHE1_DMA_STATE_METHOD);
+            GET_MASK(val, NV_PFIFO_CACHE1_DMA_STATE_METHOD_TYPE);
+        d->pfifo.cache1.method =
+            GET_MASK(val, NV_PFIFO_CACHE1_DMA_STATE_METHOD) << 2;
         d->pfifo.cache1.subchannel =
-            (val & NV_PFIFO_CACHE1_DMA_STATE_SUBCHANNEL) >> 13;
+            GET_MASK(val, NV_PFIFO_CACHE1_DMA_STATE_SUBCHANNEL);
         d->pfifo.cache1.method_count =
-            (val & NV_PFIFO_CACHE1_DMA_STATE_METHOD_COUNT) >> 18;
+            GET_MASK(val, NV_PFIFO_CACHE1_DMA_STATE_METHOD_COUNT);
         d->pfifo.cache1.error =
-            (val & NV_PFIFO_CACHE1_DMA_STATE_ERROR) >> 29;
+            GET_MASK(val, NV_PFIFO_CACHE1_DMA_STATE_ERROR);
         break;
     case NV_PFIFO_CACHE1_DMA_INSTANCE:
         d->pfifo.cache1.dma_instance =
-            (val & NV_PFIFO_CACHE1_DMA_INSTANCE_ADDRESS) << 4;
+            GET_MASK(val, NV_PFIFO_CACHE1_DMA_INSTANCE_ADDRESS) << 4;
         break;
     case NV_PFIFO_CACHE1_DMA_PUT:
         d->user.channel_control[d->pfifo.cache1.channel_id].dma_put = val;
@@ -2163,19 +2176,35 @@ static uint64_t pgraph_read(void *opaque,
     case NV_PGRAPH_INTR_EN:
         r = d->pgraph.enabled_interrupts;
         break;
+    case NV_PGRAPH_NSOURCE:
+        r = d->pgraph.notify_source;
+        break;
     case NV_PGRAPH_CTX_USER:
         qemu_mutex_lock(&d->pgraph.lock);
-        r = d->pgraph.context[d->pgraph.channel_id].channel_3d
-            | NV_PGRAPH_CTX_USER_CHANNEL_3D_VALID
-            | (d->pgraph.context[d->pgraph.channel_id].subchannel << 13)
-            | (d->pgraph.channel_id << 24);
+        SET_MASK(r, NV_PGRAPH_CTX_USER_CHANNEL_3D,
+                 d->pgraph.context[d->pgraph.channel_id].channel_3d);
+        SET_MASK(r, NV_PGRAPH_CTX_USER_CHANNEL_3D_VALID, 1);
+        SET_MASK(r, NV_PGRAPH_CTX_USER_SUBCH, 
+                 d->pgraph.context[d->pgraph.channel_id].subchannel << 13);
+        SET_MASK(r, NV_PGRAPH_CTX_USER_CHID, d->pgraph.channel_id);
         qemu_mutex_unlock(&d->pgraph.lock);
+        break;
+    case NV_PGRAPH_TRAPPED_ADDR:
+        SET_MASK(r, NV_PGRAPH_TRAPPED_ADDR_CHID, d->pgraph.trapped_channel_id);
+        SET_MASK(r, NV_PGRAPH_TRAPPED_ADDR_SUBCH, d->pgraph.trapped_subchannel);
+        SET_MASK(r, NV_PGRAPH_TRAPPED_ADDR_MTHD, d->pgraph.trapped_method);
+        break;
+    case NV_PGRAPH_TRAPPED_DATA_LOW:
+        r = d->pgraph.trapped_data[0];
         break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
         r = d->pgraph.context_table >> 4;
         break;
     case NV_PGRAPH_CHANNEL_CTX_POINTER:
         r = d->pgraph.context_address >> 4;
+        break;
+    case NV_PGRAPH_ZSTENCILCLEARVALUE:
+        r = d->pgraph.context[d->pgraph.channel_id].zstencil_clear_value;
         break;
     default:
         break;
@@ -2189,9 +2218,9 @@ static void pgraph_set_context_user(NV2AState *d, uint32_t val)
     d->pgraph.channel_id = (val & NV_PGRAPH_CTX_USER_CHID) >> 24;
 
     d->pgraph.context[d->pgraph.channel_id].channel_3d =
-        val & NV_PGRAPH_CTX_USER_CHANNEL_3D;
+        GET_MASK(val, NV_PGRAPH_CTX_USER_CHANNEL_3D);
     d->pgraph.context[d->pgraph.channel_id].subchannel =
-        (val & NV_PGRAPH_CTX_USER_SUBCH) >> 13;
+        GET_MASK(val, NV_PGRAPH_CTX_USER_SUBCH);
 }
 static void pgraph_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
@@ -2251,6 +2280,9 @@ static void pgraph_write(void *opaque, hwaddr addr,
         }
 
         qemu_mutex_unlock(&d->pgraph.lock);
+        break;
+    case NV_PGRAPH_ZSTENCILCLEARVALUE:
+        d->pgraph.context[d->pgraph.channel_id].zstencil_clear_value = val;
         break;
     default:
         break;
@@ -2367,10 +2399,11 @@ static uint64_t pramdac_read(void *opaque,
         break;
     case NV_PRAMDAC_PLL_TEST_COUNTER:
         /* emulated PLLs locked instantly? */
-        return NV_PRAMDAC_PLL_TEST_COUNTER_VPLL2_LOCK
+        r = NV_PRAMDAC_PLL_TEST_COUNTER_VPLL2_LOCK
              | NV_PRAMDAC_PLL_TEST_COUNTER_NVPLL_LOCK
              | NV_PRAMDAC_PLL_TEST_COUNTER_MPLL_LOCK
              | NV_PRAMDAC_PLL_TEST_COUNTER_VPLL_LOCK;
+        break;
     default:
         break;
     }
@@ -2732,7 +2765,7 @@ static void nv2a_vga_update(void *opaque)
     qemu_mutex_lock(&d->pgraph.lock);
     GraphicsContext *context = &d->pgraph.context[d->pgraph.channel_id];
     if (context->channel_3d) {
-        printf("3d ping! %d\n", nv2a_get_bpp(&d->vga));
+        //NV2A_DPRINTF("3d ping! %d\n", nv2a_get_bpp(&d->vga));
 
         pgraph_context_set_current(context);
 
