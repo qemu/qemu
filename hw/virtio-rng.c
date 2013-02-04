@@ -11,6 +11,7 @@
 
 #include "qemu/iov.h"
 #include "qdev.h"
+#include "qapi/qmp/qerror.h"
 #include "virtio.h"
 #include "virtio-rng.h"
 #include "qemu/rng.h"

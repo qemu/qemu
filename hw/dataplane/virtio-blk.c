@@ -16,9 +16,11 @@
 #include "qemu/iov.h"
 #include "event-poll.h"
 #include "qemu/thread.h"
+#include "qemu/error-report.h"
 #include "vring.h"
 #include "ioq.h"
 #include "migration/migration.h"
+#include "block/block.h"
 #include "hw/virtio-blk.h"
 #include "hw/dataplane/virtio-blk.h"
 

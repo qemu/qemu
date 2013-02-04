@@ -16,6 +16,7 @@
 
 #include "trace.h"
 #include "hw/dataplane/vring.h"
+#include "qemu/error-report.h"
 
 /* Map the guest's vring to host memory */
 bool vring_setup(Vring *vring, VirtIODevice *vdev, int n)

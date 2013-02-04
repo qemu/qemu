@@ -26,6 +26,7 @@
 #include "qemu/log.h"
 #include "net/net.h"
 #include "net/checksum.h"
+#include "qapi/qmp/qerror.h"
 
 #include "stream.h"
 

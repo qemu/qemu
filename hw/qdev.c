@@ -28,6 +28,7 @@
 #include "qdev.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 
 int qdev_hotplug = 0;

@@ -24,6 +24,7 @@
  */
 
 #include "sysemu/blockdev.h"
+#include "qemu/error-report.h"
 #include "sysbus.h"
 #include "hw.h"
 #include "pc.h"

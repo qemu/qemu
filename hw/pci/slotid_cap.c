@@ -1,5 +1,6 @@
 #include "hw/pci/slotid_cap.h"
 #include "hw/pci/pci.h"
+#include "qemu/error-report.h"
 
 #define SLOTID_CAP_LENGTH 4
 #define SLOTID_NSLOTS_SHIFT (ffs(PCI_SID_ESR_NSLOTS) - 1)

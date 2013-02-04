@@ -17,8 +17,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "monitor/monitor.h"
+#include "monitor/qdev.h"
 #include "qmp-commands.h"
 #include "sysemu/arch_init.h"
 #include "qemu/config-file.h"

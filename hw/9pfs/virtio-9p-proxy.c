@@ -13,6 +13,7 @@
 #include <sys/un.h>
 #include "hw/virtio.h"
 #include "virtio-9p.h"
+#include "qemu/error-report.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-proxy.h"
 

@@ -126,6 +126,7 @@ int main(int argc, char **argv)
 #include "hw/xen.h"
 #include "hw/qdev.h"
 #include "hw/loader.h"
+#include "monitor/qdev.h"
 #include "bt/bt.h"
 #include "net/net.h"
 #include "net/slirp.h"

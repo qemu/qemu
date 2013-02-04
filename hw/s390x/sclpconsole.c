@@ -14,6 +14,7 @@
 
 #include <hw/qdev.h>
 #include "qemu/thread.h"
+#include "qemu/error-report.h"
 
 #include "sclp.h"
 #include "event-facility.h"
