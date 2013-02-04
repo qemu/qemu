@@ -19,7 +19,7 @@
 #include "qdev.h"
 #include "sysemu/sysemu.h"
 #include "qemu/event_notifier.h"
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
 #include "9p.h"
 #endif
 
@@ -252,7 +252,7 @@ typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *conf);
 typedef struct VirtIORNGConf VirtIORNGConf;
 VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf);
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
 VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf);
 #endif
 

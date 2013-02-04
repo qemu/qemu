@@ -75,7 +75,7 @@ struct VirtIOPCIProxy {
     VirtIOBlkConf blk;
     NICConf nic;
     uint32_t host_features;
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
     V9fsConf fsconf;
 #endif
     virtio_serial_conf serial;
