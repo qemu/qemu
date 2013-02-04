@@ -3,8 +3,38 @@ common-obj-y += qdev.o qdev-properties.o
 # irq.o needed for qdev GPIO handling:
 common-obj-y += irq.o
 
+devices-dirs-$(CONFIG_REALLY_VIRTFS) += 9pfs/
+devices-dirs-$(CONFIG_ACPI) += acpi/
+devices-dirs-$(CONFIG_SOFTMMU) += audio/
+devices-dirs-$(CONFIG_SOFTMMU) += block/
+devices-dirs-$(CONFIG_SOFTMMU) += bt/
+devices-dirs-$(CONFIG_SOFTMMU) += char/
+devices-dirs-$(CONFIG_SOFTMMU) += cpu/
+devices-dirs-$(CONFIG_SOFTMMU) += display/
+devices-dirs-$(CONFIG_SOFTMMU) += dma/
+devices-dirs-$(CONFIG_SOFTMMU) += gpio/
+devices-dirs-$(CONFIG_SOFTMMU) += i2c/
+devices-dirs-$(CONFIG_SOFTMMU) += ide/
+devices-dirs-$(CONFIG_SOFTMMU) += input/
+devices-dirs-$(CONFIG_SOFTMMU) += intc/
+devices-dirs-$(CONFIG_SOFTMMU) += isa/
+devices-dirs-$(CONFIG_SOFTMMU) += misc/
+devices-dirs-$(CONFIG_SOFTMMU) += net/
+devices-dirs-$(CONFIG_SOFTMMU) += nvram/
+devices-dirs-$(CONFIG_SOFTMMU) += pci/
+devices-dirs-$(CONFIG_SOFTMMU) += scsi/
+devices-dirs-$(CONFIG_SOFTMMU) += sd/
+devices-dirs-$(CONFIG_SOFTMMU) += ssi/
+devices-dirs-$(CONFIG_SOFTMMU) += timer/
+devices-dirs-$(CONFIG_SOFTMMU) += usb/
+devices-dirs-$(CONFIG_SOFTMMU) += virtio/
+devices-dirs-$(CONFIG_SOFTMMU) += watchdog/
+devices-dirs-$(CONFIG_SOFTMMU) += xen/
+devices-dirs-y += core/
+common-obj-y += $(devices-dirs-y)
+obj-y += $(devices-dirs-y)
+
 ifeq ($(CONFIG_SOFTMMU),y)
-common-obj-y += usb/ ide/ pci/
 common-obj-y += loader.o
 common-obj-$(CONFIG_VIRTIO) += virtio-console.o
 common-obj-$(CONFIG_VIRTIO) += virtio-rng.o
@@ -167,7 +197,6 @@ common-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 
 common-obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/
 
-common-obj-y += usb/
 common-obj-$(CONFIG_PTIMER) += ptimer.o
 common-obj-$(CONFIG_MAX7310) += max7310.o
 common-obj-$(CONFIG_WM8750) += wm8750.o
@@ -207,7 +236,6 @@ obj-$(CONFIG_VIRTIO) += virtio.o virtio-blk.o virtio-balloon.o virtio-net.o
 obj-$(CONFIG_VIRTIO) += virtio-serial-bus.o virtio-scsi.o
 obj-$(CONFIG_SOFTMMU) += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
-obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/
 obj-$(CONFIG_VGA) += vga.o
 
 # Inter-VM PCI shared memory & VFIO PCI device assignment
