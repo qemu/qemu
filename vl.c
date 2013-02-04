@@ -1249,21 +1249,43 @@ static void numa_node_parse_cpus(int nodenr, const char *cpus)
     char *endptr;
     unsigned long long value, endvalue;
 
-    value = strtoull(cpus, &endptr, 10);
-    if (*endptr == '-') {
-        endvalue = strtoull(endptr+1, &endptr, 10);
-    } else {
-        endvalue = value;
+    /* Empty CPU range strings will be considered valid, they will simply
+     * not set any bit in the CPU bitmap.
+     */
+    if (!*cpus) {
+        return;
     }
 
-    if (!(endvalue < MAX_CPUMASK_BITS)) {
+    if (parse_uint(cpus, &value, &endptr, 10) < 0) {
+        goto error;
+    }
+    if (*endptr == '-') {
+        if (parse_uint_full(endptr + 1, &endvalue, 10) < 0) {
+            goto error;
+        }
+    } else if (*endptr == '\0') {
+        endvalue = value;
+    } else {
+        goto error;
+    }
+
+    if (endvalue >= MAX_CPUMASK_BITS) {
         endvalue = MAX_CPUMASK_BITS - 1;
         fprintf(stderr,
-            "A max of %d CPUs are supported in a guest\n",
+            "qemu: NUMA: A max of %d VCPUs are supported\n",
              MAX_CPUMASK_BITS);
     }
 
+    if (endvalue < value) {
+        goto error;
+    }
+
     bitmap_set(node_cpumask[nodenr], value, endvalue-value+1);
+    return;
+
+error:
+    fprintf(stderr, "qemu: Invalid NUMA CPU range: %s\n", cpus);
+    exit(1);
 }
 
 static void numa_add(const char *optarg)
