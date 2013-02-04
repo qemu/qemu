@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef QEMU_9P_H
-#define QEMU_9P_H
+#ifndef QEMU_VIRTIO_9P_DEVICE_H
+#define QEMU_VIRTIO_9P_DEVICE_H
 
 typedef struct V9fsConf
 {

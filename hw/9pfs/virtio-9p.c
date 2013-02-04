@@ -14,7 +14,6 @@
 #include "hw/virtio.h"
 #include "hw/pc.h"
 #include "qemu/sockets.h"
-#include "hw/virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-xattr.h"
@@ -3269,7 +3268,7 @@ void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
     free_pdu(s, pdu);
 }
 
-void virtio_9p_set_fd_limit(void)
+static void __attribute__((__constructor__)) virtio_9p_set_fd_limit(void)
 {
     struct rlimit rlim;
     if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {

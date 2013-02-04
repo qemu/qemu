@@ -22,6 +22,7 @@
 #include "virtio-serial.h"
 #include "virtio-scsi.h"
 #include "virtio-bus.h"
+#include "9pfs/virtio-9p-device.h"
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 
@@ -90,7 +91,6 @@ struct VirtIOPCIProxy {
 };
 
 void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev);
-void virtio_pci_reset(DeviceState *d);
 void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev);
 
 /* Virtio ABI version, if we increment this, we break the guest driver. */

@@ -20,7 +20,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/event_notifier.h"
 #ifdef CONFIG_VIRTFS
-#include "9p.h"
+#include "9pfs/virtio-9p-device.h"
 #endif
 
 /* from Linux's linux/virtio_config.h */
