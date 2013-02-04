@@ -21,16 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "ppc.h"
-#include "ppc405.h"
-#include "nvram.h"
-#include "flash.h"
+#include "hw/hw.h"
+#include "hw/ppc.h"
+#include "hw/ppc405.h"
+#include "hw/nvram.h"
+#include "hw/flash.h"
 #include "sysemu/sysemu.h"
 #include "block/block.h"
-#include "boards.h"
+#include "hw/boards.h"
 #include "qemu/log.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 

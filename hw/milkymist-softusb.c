@@ -21,11 +21,11 @@
  *   not available yet
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "ui/console.h"
-#include "hid.h"
+#include "hw/hid.h"
 #include "qemu/error-report.h"
 
 enum {

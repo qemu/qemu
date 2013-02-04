@@ -16,14 +16,14 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "arm-misc.h"
-#include "omap.h"
+#include "hw/hw.h"
+#include "hw/arm-misc.h"
+#include "hw/omap.h"
 #include "sysemu/sysemu.h"
-#include "soc_dma.h"
+#include "hw/soc_dma.h"
 #include "sysemu/blockdev.h"
 #include "qemu/range.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 /* Should signal the TCMI/GPMC */
 uint32_t omap_badwidth_read8(void *opaque, hwaddr addr)

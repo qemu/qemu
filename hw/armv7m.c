@@ -7,9 +7,9 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
-#include "arm-misc.h"
-#include "loader.h"
+#include "hw/sysbus.h"
+#include "hw/arm-misc.h"
+#include "hw/loader.h"
 #include "elf.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */

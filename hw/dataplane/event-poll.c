@@ -13,7 +13,7 @@
  */
 
 #include <sys/epoll.h>
-#include "hw/dataplane/event-poll.h"
+#include "event-poll.h"
 
 /* Add an event notifier and its callback for polling */
 void event_poll_add(EventPoll *poll, EventHandler *handler,

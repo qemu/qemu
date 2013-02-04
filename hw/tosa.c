@@ -11,18 +11,18 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "pxa.h"
-#include "arm-misc.h"
-#include "devices.h"
-#include "sharpsl.h"
-#include "pcmcia.h"
+#include "hw/hw.h"
+#include "hw/pxa.h"
+#include "hw/arm-misc.h"
+#include "hw/devices.h"
+#include "hw/sharpsl.h"
+#include "hw/pcmcia.h"
 #include "block/block.h"
-#include "boards.h"
-#include "i2c.h"
-#include "ssi.h"
+#include "hw/boards.h"
+#include "hw/i2c.h"
+#include "hw/ssi.h"
 #include "sysemu/blockdev.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 
 #define TOSA_RAM    0x04000000

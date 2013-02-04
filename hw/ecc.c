@@ -11,8 +11,8 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "flash.h"
+#include "hw/hw.h"
+#include "hw/flash.h"
 
 /*
  * Pre-calculated 256-way 1 byte column parity.  Table borrowed from Linux.

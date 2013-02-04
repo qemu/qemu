@@ -34,12 +34,12 @@
  * # qemu-system-arm -M verdex -pflash flash -monitor null -nographic -m 289
  */
 
-#include "hw.h"
-#include "pxa.h"
+#include "hw/hw.h"
+#include "hw/pxa.h"
 #include "net/net.h"
-#include "flash.h"
-#include "devices.h"
-#include "boards.h"
+#include "hw/flash.h"
+#include "hw/devices.h"
+#include "hw/boards.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 

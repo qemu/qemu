@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "i2c.h"
-#include "smbus.h"
+#include "hw/hw.h"
+#include "hw/i2c.h"
+#include "hw/smbus.h"
 
 //#define DEBUG
 

@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "mips.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
-#include "pc.h"
+#include "hw/hw.h"
+#include "hw/mips.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
+#include "hw/pc.h"
 #include "exec/address-spaces.h"
 
 //#define DEBUG

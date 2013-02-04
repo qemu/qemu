@@ -17,17 +17,17 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
-#include "hw.h"
-#include "flash.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
+#include "hw/flash.h"
 #include "sysemu/sysemu.h"
-#include "devices.h"
-#include "boards.h"
-#include "loader.h"
+#include "hw/devices.h"
+#include "hw/boards.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "sysemu/blockdev.h"
-#include "milkymist-hw.h"
-#include "lm32.h"
+#include "hw/milkymist-hw.h"
+#include "hw/lm32.h"
 #include "exec/address-spaces.h"
 
 #define BIOS_FILENAME    "mmone-bios.bin"

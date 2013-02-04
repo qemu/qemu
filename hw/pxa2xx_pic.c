@@ -8,9 +8,9 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw.h"
-#include "pxa.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/pxa.h"
+#include "hw/sysbus.h"
 
 #define ICIP	0x00	/* Interrupt Controller IRQ Pending register */
 #define ICMR	0x04	/* Interrupt Controller Mask register */

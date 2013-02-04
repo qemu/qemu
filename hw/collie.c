@@ -8,13 +8,13 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include "hw.h"
-#include "sysbus.h"
-#include "boards.h"
-#include "devices.h"
-#include "strongarm.h"
-#include "arm-misc.h"
-#include "flash.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
+#include "hw/boards.h"
+#include "hw/devices.h"
+#include "hw/strongarm.h"
+#include "hw/arm-misc.h"
+#include "hw/flash.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 

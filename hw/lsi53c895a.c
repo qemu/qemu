@@ -12,9 +12,9 @@
 
 #include <assert.h>
 
-#include "hw.h"
-#include "pci/pci.h"
-#include "scsi.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
+#include "hw/scsi.h"
 #include "sysemu/dma.h"
 
 //#define DEBUG_LSI

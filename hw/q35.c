@@ -27,8 +27,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "q35.h"
+#include "hw/hw.h"
+#include "hw/q35.h"
 
 /****************************************************************************
  * Q35 host

@@ -25,15 +25,15 @@
  */
 
 
-#include "hw.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
 #include "net/net.h"
 #include "net/checksum.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 
-#include "e1000_hw.h"
+#include "hw/e1000_hw.h"
 
 #define E1000_DEBUG
 

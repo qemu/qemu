@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "microblaze_pic_cpu.h"
+#include "hw/hw.h"
+#include "hw/microblaze_pic_cpu.h"
 
 #define D(x)
 

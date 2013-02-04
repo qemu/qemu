@@ -22,25 +22,25 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "hw.h"
-#include "serial.h"
-#include "flash.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
+#include "hw/serial.h"
+#include "hw/flash.h"
 #include "sysemu/sysemu.h"
-#include "devices.h"
-#include "boards.h"
+#include "hw/devices.h"
+#include "hw/boards.h"
 #include "sysemu/device_tree.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 
-#include "ppc.h"
-#include "ppc4xx.h"
-#include "ppc405.h"
+#include "hw/ppc.h"
+#include "hw/ppc4xx.h"
+#include "hw/ppc405.h"
 
 #include "sysemu/blockdev.h"
-#include "xilinx.h"
+#include "hw/xilinx.h"
 
 #define EPAPR_MAGIC    (0x45504150)
 #define FLASH_SIZE     (16 * 1024 * 1024)

@@ -25,7 +25,7 @@
  *
  */
 #include "sysemu/sysemu.h"
-#include "hw.h"
+#include "hw/hw.h"
 #include "elf.h"
 #include "net/net.h"
 #include "sysemu/blockdev.h"
@@ -45,7 +45,7 @@
 
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 
 #include "exec/address-spaces.h"
 #include "hw/usb.h"

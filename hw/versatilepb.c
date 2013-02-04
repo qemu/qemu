@@ -7,17 +7,17 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
-#include "arm-misc.h"
-#include "devices.h"
+#include "hw/sysbus.h"
+#include "hw/arm-misc.h"
+#include "hw/devices.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
-#include "pci/pci.h"
-#include "i2c.h"
-#include "boards.h"
+#include "hw/pci/pci.h"
+#include "hw/i2c.h"
+#include "hw/boards.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
-#include "flash.h"
+#include "hw/flash.h"
 
 #define VERSATILE_FLASH_ADDR 0x34000000
 #define VERSATILE_FLASH_SIZE (64 * 1024 * 1024)

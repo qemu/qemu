@@ -11,8 +11,8 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "pxa.h"
+#include "hw/hw.h"
+#include "hw/pxa.h"
 #include "ui/console.h"
 
 /*

@@ -9,10 +9,10 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include "sysbus.h"
-#include "hw.h"
-#include "i2c.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
+#include "hw/i2c.h"
+#include "hw/sysbus.h"
 #include "audio/audio.h"
 
 #define MP_AUDIO_SIZE           0x00001000

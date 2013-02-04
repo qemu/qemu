@@ -18,7 +18,7 @@
  */
 
 #include "qemu-common.h"
-#include "bt.h"
+#include "hw/bt.h"
 
 struct bt_l2cap_sdp_state_s {
     struct bt_l2cap_conn_params_s *channel;

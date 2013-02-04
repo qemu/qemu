@@ -11,8 +11,8 @@
  */
 
 #include "sysemu/blockdev.h"
-#include "ssi.h"
-#include "sd.h"
+#include "hw/ssi.h"
+#include "hw/sd.h"
 
 //#define DEBUG_SSI_SD 1
 

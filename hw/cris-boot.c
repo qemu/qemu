@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "loader.h"
+#include "hw/hw.h"
+#include "hw/loader.h"
 #include "elf.h"
-#include "cris-boot.h"
+#include "hw/cris-boot.h"
 
 static void main_cpu_reset(void *opaque)
 {

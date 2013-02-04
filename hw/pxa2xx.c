@@ -7,12 +7,12 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
-#include "pxa.h"
+#include "hw/sysbus.h"
+#include "hw/pxa.h"
 #include "sysemu/sysemu.h"
-#include "serial.h"
-#include "i2c.h"
-#include "ssi.h"
+#include "hw/serial.h"
+#include "hw/i2c.h"
+#include "hw/ssi.h"
 #include "char/char.h"
 #include "sysemu/blockdev.h"
 

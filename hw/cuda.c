@@ -22,9 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "ppc/mac.h"
-#include "adb.h"
+#include "hw/hw.h"
+#include "hw/ppc/mac.h"
+#include "hw/adb.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 

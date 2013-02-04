@@ -7,7 +7,7 @@
  */
 
 #include "config.h"
-#include "alpha_sys.h"
+#include "hw/alpha_sys.h"
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
 

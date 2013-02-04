@@ -1,5 +1,5 @@
 #include "net/net.h"
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/blockdev.h"
 #include "hw/block-common.h"

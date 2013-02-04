@@ -16,7 +16,7 @@
 #include "sysemu/kvm.h"
 #include "exec/memory.h"
 
-#include "sclp.h"
+#include "hw/s390x/sclp.h"
 
 static inline S390SCLPDevice *get_event_facility(void)
 {

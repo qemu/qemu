@@ -14,8 +14,8 @@
  */
 
 #include "sysemu/sysemu.h"
-#include "smbios.h"
-#include "loader.h"
+#include "hw/smbios.h"
+#include "hw/loader.h"
 
 /*
  * Structures shared with the BIOS

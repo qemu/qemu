@@ -26,18 +26,18 @@
  */
 
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "loader.h"
+#include "hw/boards.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
-#include "serial.h"
+#include "hw/serial.h"
 #include "net/net.h"
-#include "sysbus.h"
-#include "flash.h"
+#include "hw/sysbus.h"
+#include "hw/flash.h"
 #include "sysemu/blockdev.h"
 #include "char/char.h"
-#include "xtensa_bootparam.h"
+#include "hw/xtensa_bootparam.h"
 
 typedef struct LxBoardDesc {
     size_t flash_size;

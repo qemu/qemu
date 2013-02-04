@@ -22,13 +22,13 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/log.h"
 #include "net/net.h"
 #include "net/checksum.h"
 #include "qapi/qmp/qerror.h"
 
-#include "stream.h"
+#include "hw/stream.h"
 
 #define DPHY(x)
 

@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "sun4m.h"
+#include "hw/sun4m.h"
 #include "monitor/monitor.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 //#define DEBUG_IRQ_COUNT

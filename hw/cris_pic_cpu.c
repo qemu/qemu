@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "hw.h"
-#include "etraxfs.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
+#include "hw/etraxfs.h"
 
 #define D(x)
 

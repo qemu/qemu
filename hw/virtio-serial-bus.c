@@ -21,9 +21,9 @@
 #include "qemu/iov.h"
 #include "monitor/monitor.h"
 #include "qemu/queue.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
-#include "virtio-serial.h"
+#include "hw/virtio-serial.h"
 
 /* The virtio-serial bus on top of which the ports will ride as devices */
 struct VirtIOSerialBus {

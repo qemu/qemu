@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "gusemu.h"
-#include "gustate.h"
+#include "hw/gusemu.h"
+#include "hw/gustate.h"
 
 #define GUSregb(position)  (*            (gusptr+(position)))
 #define GUSregw(position)  (*(GUSword *) (gusptr+(position)))

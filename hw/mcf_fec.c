@@ -5,9 +5,9 @@
  *
  * This code is licensed under the GPL
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "net/net.h"
-#include "mcf.h"
+#include "hw/mcf.h"
 /* For crc32 */
 #include <zlib.h>
 #include "exec/address-spaces.h"

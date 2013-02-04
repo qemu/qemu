@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
 

@@ -20,8 +20,8 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "mips_cpudevs.h"
+#include "hw/hw.h"
+#include "hw/mips_cpudevs.h"
 #include "cpu.h"
 
 static void cpu_mips_irq_request(void *opaque, int irq, int level)

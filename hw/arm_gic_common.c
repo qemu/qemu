@@ -18,7 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "arm_gic_internal.h"
+#include "hw/arm_gic_internal.h"
 
 static void gic_save(QEMUFile *f, void *opaque)
 {

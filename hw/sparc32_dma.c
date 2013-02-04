@@ -25,10 +25,10 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "sparc32_dma.h"
-#include "sun4m.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sparc32_dma.h"
+#include "hw/sun4m.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 /*

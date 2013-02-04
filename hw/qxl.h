@@ -4,9 +4,9 @@
 #include "qemu-common.h"
 
 #include "ui/console.h"
-#include "hw.h"
-#include "pci/pci.h"
-#include "vga_int.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
+#include "hw/vga_int.h"
 #include "qemu/thread.h"
 
 #include "ui/qemu-spice.h"

@@ -11,7 +11,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
-#include "apic_internal.h"
+#include "hw/apic_internal.h"
 
 #define APIC_DEFAULT_ADDRESS    0xfee00000
 

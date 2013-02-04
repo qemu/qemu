@@ -26,8 +26,8 @@
  */
 
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "loader.h"
+#include "hw/boards.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"

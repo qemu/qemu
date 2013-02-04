@@ -24,14 +24,14 @@
  * This driver attempts to emulate an HPET device in software.
  */
 
-#include "hw.h"
-#include "pc.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
-#include "hpet_emul.h"
-#include "sysbus.h"
-#include "mc146818rtc.h"
-#include "i8254.h"
+#include "hw/hpet_emul.h"
+#include "hw/sysbus.h"
+#include "hw/mc146818rtc.h"
+#include "hw/i8254.h"
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG

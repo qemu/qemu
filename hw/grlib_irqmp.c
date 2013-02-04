@@ -24,10 +24,10 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "cpu.h"
 
-#include "grlib.h"
+#include "hw/grlib.h"
 
 #include "trace.h"
 

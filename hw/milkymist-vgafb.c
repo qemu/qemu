@@ -22,24 +22,24 @@
  *   http://www.milkymist.org/socdoc/vgafb.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "ui/console.h"
-#include "framebuffer.h"
+#include "hw/framebuffer.h"
 #include "ui/pixel_ops.h"
 #include "qemu/error-report.h"
 
 #define BITS 8
-#include "milkymist-vgafb_template.h"
+#include "hw/milkymist-vgafb_template.h"
 #define BITS 15
-#include "milkymist-vgafb_template.h"
+#include "hw/milkymist-vgafb_template.h"
 #define BITS 16
-#include "milkymist-vgafb_template.h"
+#include "hw/milkymist-vgafb_template.h"
 #define BITS 24
-#include "milkymist-vgafb_template.h"
+#include "hw/milkymist-vgafb_template.h"
 #define BITS 32
-#include "milkymist-vgafb_template.h"
+#include "hw/milkymist-vgafb_template.h"
 
 enum {
     R_CTRL = 0,

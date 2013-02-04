@@ -19,9 +19,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
-#include "i2c.h"
+#include "hw/i2c.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
 

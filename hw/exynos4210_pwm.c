@@ -20,12 +20,12 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu-common.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 
-#include "exynos4210.h"
+#include "hw/exynos4210.h"
 
 //#define DEBUG_PWM
 

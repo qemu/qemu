@@ -22,11 +22,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "pci/pci.h"
-#include "pci/msi.h"
-#include "pci/msix.h"
-#include "pci/pci_host.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
+#include "hw/pci/pci_host.h"
 #include "hw/spapr.h"
 #include "hw/spapr_pci.h"
 #include "exec/address-spaces.h"

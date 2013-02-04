@@ -27,11 +27,11 @@
 
    More information in target-sh4/README.sh4
 */
-#include "hw.h"
-#include "sh.h"
+#include "hw/hw.h"
+#include "hw/sh.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "loader.h"
+#include "hw/boards.h"
+#include "hw/loader.h"
 #include "exec/address-spaces.h"
 
 #define BIOS_FILENAME "shix_bios.bin"

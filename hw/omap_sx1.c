@@ -25,12 +25,12 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
-#include "omap.h"
-#include "boards.h"
-#include "arm-misc.h"
-#include "flash.h"
+#include "hw/omap.h"
+#include "hw/boards.h"
+#include "hw/arm-misc.h"
+#include "hw/flash.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 

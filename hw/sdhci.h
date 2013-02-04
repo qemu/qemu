@@ -26,8 +26,8 @@
 #define SDHCI_H
 
 #include "qemu-common.h"
-#include "sysbus.h"
-#include "sd.h"
+#include "hw/sysbus.h"
+#include "hw/sd.h"
 
 /* R/W SDMA System Address register 0x0 */
 #define SDHC_SYSAD                     0x00

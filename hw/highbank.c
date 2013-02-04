@@ -17,14 +17,14 @@
  *
  */
 
-#include "sysbus.h"
-#include "arm-misc.h"
-#include "devices.h"
-#include "loader.h"
+#include "hw/sysbus.h"
+#include "hw/arm-misc.h"
+#include "hw/devices.h"
+#include "hw/loader.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "sysbus.h"
+#include "hw/boards.h"
+#include "hw/sysbus.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 

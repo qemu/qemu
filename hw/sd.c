@@ -29,9 +29,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "block/block.h"
-#include "sd.h"
+#include "hw/sd.h"
 #include "qemu/bitmap.h"
 
 //#define DEBUG_SD 1

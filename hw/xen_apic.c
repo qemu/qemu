@@ -11,7 +11,7 @@
  */
 #include "hw/apic_internal.h"
 #include "hw/pci/msi.h"
-#include "xen.h"
+#include "hw/xen.h"
 
 static uint64_t xen_apic_mem_read(void *opaque, hwaddr addr,
                                   unsigned size)

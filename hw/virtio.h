@@ -14,13 +14,13 @@
 #ifndef _QEMU_VIRTIO_H
 #define _QEMU_VIRTIO_H
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "net/net.h"
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "sysemu/sysemu.h"
 #include "qemu/event_notifier.h"
 #ifdef CONFIG_VIRTFS
-#include "9pfs/virtio-9p-device.h"
+#include "hw/9pfs/virtio-9p-device.h"
 #endif
 
 /* from Linux's linux/virtio_config.h */

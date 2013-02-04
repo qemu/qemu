@@ -23,9 +23,9 @@
  * THE SOFTWARE.
  */
 
-#include "pci/pci.h"
-#include "eeprom93xx.h"
-#include "esp.h"
+#include "hw/pci/pci.h"
+#include "hw/eeprom93xx.h"
+#include "hw/esp.h"
 #include "trace.h"
 #include "qemu/log.h"
 

@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "pc.h"
-#include "boards.h"
-#include "xen_backend.h"
-#include "xen_domainbuild.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/boards.h"
+#include "hw/xen_backend.h"
+#include "hw/xen_domainbuild.h"
 #include "sysemu/blockdev.h"
 
 static void xen_init_pv(QEMUMachineInitArgs *args)

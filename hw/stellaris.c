@@ -7,14 +7,14 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
-#include "ssi.h"
-#include "arm-misc.h"
-#include "devices.h"
+#include "hw/sysbus.h"
+#include "hw/ssi.h"
+#include "hw/arm-misc.h"
+#include "hw/devices.h"
 #include "qemu/timer.h"
-#include "i2c.h"
+#include "hw/i2c.h"
 #include "net/net.h"
-#include "boards.h"
+#include "hw/boards.h"
 #include "exec/address-spaces.h"
 
 #define GPIO_A 0

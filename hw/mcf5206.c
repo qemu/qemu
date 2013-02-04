@@ -5,10 +5,10 @@
  *
  * This code is licensed under the GPL
  */
-#include "hw.h"
-#include "mcf.h"
+#include "hw/hw.h"
+#include "hw/mcf.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 

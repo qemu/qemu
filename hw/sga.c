@@ -24,9 +24,9 @@
  * sgabios code originally available at code.google.com/p/sgabios
  *
  */
-#include "pci/pci.h"
-#include "pc.h"
-#include "loader.h"
+#include "hw/pci/pci.h"
+#include "hw/pc.h"
+#include "hw/loader.h"
 #include "sysemu/sysemu.h"
 
 #define SGABIOS_FILENAME "sgabios.bin"

@@ -24,10 +24,10 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "char/char.h"
-#include "isa.h"
-#include "pc.h"
+#include "hw/isa.h"
+#include "hw/pc.h"
 
 #define TYPE_ISA_DEBUGCON_DEVICE "isa-debugcon"
 #define ISA_DEBUGCON_DEVICE(obj) \

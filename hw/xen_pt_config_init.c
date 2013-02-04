@@ -13,8 +13,8 @@
  */
 
 #include "qemu/timer.h"
-#include "xen_backend.h"
-#include "xen_pt.h"
+#include "hw/xen_backend.h"
+#include "hw/xen_pt.h"
 
 #define XEN_PT_MERGE_VALUE(value, data, val_mask) \
     (((value) & (val_mask)) | ((data) & ~(val_mask)))

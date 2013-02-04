@@ -22,8 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "pc.h"
-#include "i8259_internal.h"
+#include "hw/pc.h"
+#include "hw/i8259_internal.h"
 
 void pic_reset_common(PICCommonState *s)
 {

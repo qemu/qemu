@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "fw_cfg.h"
-#include "multiboot.h"
-#include "loader.h"
+#include "hw/hw.h"
+#include "hw/fw_cfg.h"
+#include "hw/multiboot.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "sysemu/sysemu.h"
 

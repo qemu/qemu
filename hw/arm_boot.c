@@ -8,11 +8,11 @@
  */
 
 #include "config.h"
-#include "hw.h"
-#include "arm-misc.h"
+#include "hw/hw.h"
+#include "hw/arm-misc.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "loader.h"
+#include "hw/boards.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "sysemu/device_tree.h"
 #include "qemu/config-file.h"

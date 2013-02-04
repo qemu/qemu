@@ -11,15 +11,15 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "pxa.h"
-#include "arm-misc.h"
-#include "devices.h"
-#include "i2c.h"
-#include "ssi.h"
-#include "boards.h"
+#include "hw/hw.h"
+#include "hw/pxa.h"
+#include "hw/arm-misc.h"
+#include "hw/devices.h"
+#include "hw/i2c.h"
+#include "hw/ssi.h"
+#include "hw/boards.h"
 #include "sysemu/sysemu.h"
-#include "flash.h"
+#include "hw/flash.h"
 #include "sysemu/blockdev.h"
 #include "ui/console.h"
 #include "audio/audio.h"

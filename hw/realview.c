@@ -7,15 +7,15 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
-#include "arm-misc.h"
-#include "primecell.h"
-#include "devices.h"
-#include "pci/pci.h"
+#include "hw/sysbus.h"
+#include "hw/arm-misc.h"
+#include "hw/primecell.h"
+#include "hw/devices.h"
+#include "hw/pci/pci.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "i2c.h"
+#include "hw/boards.h"
+#include "hw/i2c.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 

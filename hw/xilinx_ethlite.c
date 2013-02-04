@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "hw.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
 #include "net/net.h"
 
 #define D(x)

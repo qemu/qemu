@@ -23,12 +23,12 @@
  * THE SOFTWARE.
  */
 #include <stdio.h>
-#include "hw.h"
-#include "sh.h"
+#include "hw/hw.h"
+#include "hw/sh.h"
 #include "sysemu/sysemu.h"
-#include "sh7750_regs.h"
-#include "sh7750_regnames.h"
-#include "sh_intc.h"
+#include "hw/sh7750_regs.h"
+#include "hw/sh7750_regnames.h"
+#include "hw/sh_intc.h"
 #include "cpu.h"
 #include "exec/address-spaces.h"
 

@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "sysbus.h"
-#include "escc.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
+#include "hw/escc.h"
 #include "char/char.h"
 #include "ui/console.h"
 #include "trace.h"

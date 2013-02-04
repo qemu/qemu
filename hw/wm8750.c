@@ -7,8 +7,8 @@
  * This file is licensed under GNU GPL.
  */
 
-#include "hw.h"
-#include "i2c.h"
+#include "hw/hw.h"
+#include "hw/i2c.h"
 #include "audio/audio.h"
 
 #define IN_PORT_N	3

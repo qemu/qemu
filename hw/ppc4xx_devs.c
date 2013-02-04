@@ -21,9 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "ppc.h"
-#include "ppc4xx.h"
+#include "hw/hw.h"
+#include "hw/ppc.h"
+#include "hw/ppc4xx.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 

@@ -14,12 +14,12 @@
  * (at your option) any later version.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "hw/ppc/e500-ccsr.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "qemu/bswap.h"
-#include "ppce500_pci.h"
+#include "hw/ppce500_pci.h"
 
 #ifdef DEBUG_PCI
 #define pci_debug(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)

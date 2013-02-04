@@ -23,12 +23,12 @@
  */
 #include <stdio.h>
 #include <sys/time.h>
-#include "hw.h"
+#include "hw/hw.h"
 #include "exec/address-spaces.h"
 #include "qemu-common.h"
 #include "sysemu/sysemu.h"
 
-#include "etraxfs_dma.h"
+#include "hw/etraxfs_dma.h"
 
 #define D(x)
 

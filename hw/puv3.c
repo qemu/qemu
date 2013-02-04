@@ -13,13 +13,13 @@
 #include "ui/console.h"
 #include "elf.h"
 #include "exec/address-spaces.h"
-#include "sysbus.h"
-#include "boards.h"
-#include "loader.h"
-#include "pc.h"
+#include "hw/sysbus.h"
+#include "hw/boards.h"
+#include "hw/loader.h"
+#include "hw/pc.h"
 
 #undef DEBUG_PUV3
-#include "puv3.h"
+#include "hw/puv3.h"
 
 #define KERNEL_LOAD_ADDR        0x03000000
 #define KERNEL_MAX_SIZE         0x00800000 /* Just a guess */

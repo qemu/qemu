@@ -15,7 +15,7 @@
  */
 
 #include "trace.h"
-#include "hw/dataplane/vring.h"
+#include "vring.h"
 #include "qemu/error-report.h"
 
 /* Map the guest's vring to host memory */

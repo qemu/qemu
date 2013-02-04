@@ -17,11 +17,11 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "trace.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 typedef struct G364State {
     /* hardware */

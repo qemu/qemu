@@ -16,15 +16,15 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "audio/audio.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
-#include "omap.h"
-#include "boards.h"
-#include "arm-misc.h"
-#include "devices.h"
-#include "loader.h"
+#include "hw/omap.h"
+#include "hw/boards.h"
+#include "hw/arm-misc.h"
+#include "hw/devices.h"
+#include "hw/loader.h"
 #include "exec/address-spaces.h"
 
 static uint32_t static_readb(void *opaque, hwaddr offset)

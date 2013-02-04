@@ -1,7 +1,7 @@
 #ifndef QEMU_XIO3130_DOWNSTREAM_H
 #define QEMU_XIO3130_DOWNSTREAM_H
 
-#include "pci/pcie_port.h"
+#include "hw/pci/pcie_port.h"
 
 PCIESlot *xio3130_downstream_init(PCIBus *bus, int devfn, bool multifunction,
                                   const char *bus_name, pci_map_irq_fn map_irq,

@@ -1,7 +1,7 @@
 #ifndef XEN_HOST_PCI_DEVICE_H
 #define XEN_HOST_PCI_DEVICE_H
 
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 
 enum {
     XEN_HOST_PCI_REGION_TYPE_IO = 1 << 1,

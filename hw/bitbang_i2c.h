@@ -1,7 +1,7 @@
 #ifndef BITBANG_I2C_H
 #define BITBANG_I2C_H
 
-#include "i2c.h"
+#include "hw/i2c.h"
 
 typedef struct bitbang_i2c_interface bitbang_i2c_interface;
 

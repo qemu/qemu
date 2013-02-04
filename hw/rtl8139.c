@@ -51,12 +51,12 @@
 /* For crc32 */
 #include <zlib.h>
 
-#include "hw.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
 #include "sysemu/dma.h"
 #include "qemu/timer.h"
 #include "net/net.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "sysemu/sysemu.h"
 #include "qemu/iov.h"
 

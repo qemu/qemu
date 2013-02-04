@@ -6,16 +6,16 @@
  * that we need to emulate as well.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "elf.h"
-#include "loader.h"
-#include "boards.h"
-#include "alpha_sys.h"
+#include "hw/loader.h"
+#include "hw/boards.h"
+#include "hw/alpha_sys.h"
 #include "sysemu/sysemu.h"
-#include "mc146818rtc.h"
-#include "ide.h"
-#include "i8254.h"
-#include "serial.h"
+#include "hw/mc146818rtc.h"
+#include "hw/ide.h"
+#include "hw/i8254.h"
+#include "hw/serial.h"
 
 #define MAX_IDE_BUS 2
 

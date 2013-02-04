@@ -19,15 +19,15 @@
  */
 
 #include "sysemu/blockdev.h"
-#include "hw.h"
-#include "arm-misc.h"
-#include "omap.h"
+#include "hw/hw.h"
+#include "hw/arm-misc.h"
+#include "hw/omap.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "char/char.h"
-#include "flash.h"
-#include "soc_dma.h"
-#include "sysbus.h"
+#include "hw/flash.h"
+#include "hw/soc_dma.h"
+#include "hw/sysbus.h"
 #include "audio/audio.h"
 
 /* Enhanced Audio Controller (CODEC only) */

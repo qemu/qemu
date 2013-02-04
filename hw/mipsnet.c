@@ -1,7 +1,7 @@
-#include "hw.h"
+#include "hw/hw.h"
 #include "net/net.h"
 #include "trace.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 /* MIPSnet register offsets */
 

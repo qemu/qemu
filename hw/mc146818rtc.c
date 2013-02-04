@@ -21,14 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
-#include "mc146818rtc.h"
+#include "hw/mc146818rtc.h"
 #include "qapi/visitor.h"
 
 #ifdef TARGET_I386
-#include "apic.h"
+#include "hw/apic.h"
 #endif
 
 //#define DEBUG_CMOS

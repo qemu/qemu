@@ -17,10 +17,10 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "audiodev.h"
+#include "hw/hw.h"
+#include "hw/audiodev.h"
 #include "audio/audio.h"
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 #include "sysemu/dma.h"
 
 enum {

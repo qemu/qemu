@@ -24,15 +24,15 @@
  * GNU GPL, version 2 or (at your option) any later version.
  *
  */
-#include "hw.h"
-#include "pc.h"
-#include "pm_smbus.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/pm_smbus.h"
+#include "hw/pci/pci.h"
 #include "sysemu/sysemu.h"
-#include "i2c.h"
-#include "smbus.h"
+#include "hw/i2c.h"
+#include "hw/smbus.h"
 
-#include "ich9.h"
+#include "hw/ich9.h"
 
 #define TYPE_ICH9_SMB_DEVICE "ICH9 SMB"
 #define ICH9_SMB_DEVICE(obj) \

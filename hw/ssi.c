@@ -12,7 +12,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "ssi.h"
+#include "hw/ssi.h"
 
 struct SSIBus {
     BusState qbus;

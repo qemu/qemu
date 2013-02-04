@@ -21,17 +21,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "loader.h"
+#include "hw/hw.h"
+#include "hw/loader.h"
 #include "ui/console.h"
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 
 #undef VERBOSE
 #define HW_RECT_ACCEL
 #define HW_FILL_ACCEL
 #define HW_MOUSE_ACCEL
 
-#include "vga_int.h"
+#include "hw/vga_int.h"
 
 /* See http://vmware-svga.sf.net/ for some documentation on VMWare SVGA */
 

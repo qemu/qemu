@@ -22,7 +22,7 @@
 #include "migration/migration.h"
 #include "block/block.h"
 #include "hw/virtio-blk.h"
-#include "hw/dataplane/virtio-blk.h"
+#include "virtio-blk.h"
 
 enum {
     SEG_MAX = 126,                  /* maximum number of I/O segments */

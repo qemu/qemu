@@ -15,16 +15,16 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
-#include "arm-misc.h"
+#include "hw/sysbus.h"
+#include "hw/arm-misc.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "flash.h"
+#include "hw/boards.h"
+#include "hw/flash.h"
 #include "sysemu/blockdev.h"
-#include "loader.h"
-#include "ssi.h"
+#include "hw/loader.h"
+#include "hw/ssi.h"
 
 #define NUM_SPI_FLASHES 4
 #define NUM_QSPI_FLASHES 2

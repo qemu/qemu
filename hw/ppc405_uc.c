@@ -21,10 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "ppc.h"
-#include "ppc405.h"
-#include "serial.h"
+#include "hw/hw.h"
+#include "hw/ppc.h"
+#include "hw/ppc405.h"
+#include "hw/serial.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"

@@ -7,10 +7,10 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
-#include "sysbus.h"
-#include "primecell.h"
+#include "hw/sysbus.h"
+#include "hw/primecell.h"
 #include "sysemu/sysemu.h"
 
 #define LOCK_VALUE 0xa05f

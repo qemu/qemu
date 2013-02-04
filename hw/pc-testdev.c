@@ -39,9 +39,9 @@
 #if defined(CONFIG_POSIX)
 #include <sys/mman.h>
 #endif
-#include "hw.h"
-#include "qdev.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/qdev.h"
+#include "hw/isa.h"
 
 #define IOMEM_LEN    0x10000
 

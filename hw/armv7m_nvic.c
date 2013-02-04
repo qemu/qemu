@@ -10,11 +10,11 @@
  * NVIC.  Much of that is also implemented here.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
-#include "arm-misc.h"
+#include "hw/arm-misc.h"
 #include "exec/address-spaces.h"
-#include "arm_gic_internal.h"
+#include "hw/arm_gic_internal.h"
 
 typedef struct {
     GICState gic;

@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
 
 #define TIMER_FREQ    (20 * 1000 * 1000)    /* 20MHz */

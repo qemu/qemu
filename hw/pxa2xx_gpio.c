@@ -7,9 +7,9 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw.h"
-#include "sysbus.h"
-#include "pxa.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
+#include "hw/pxa.h"
 
 #define PXA2XX_GPIO_BANKS	4
 

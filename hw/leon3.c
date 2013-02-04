@@ -21,18 +21,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 #include "char/char.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "loader.h"
+#include "hw/boards.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
 
-#include "grlib.h"
+#include "hw/grlib.h"
 
 /* Default system clock.  */
 #define CPU_CLK (40 * 1000 * 1000)

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "qemu-common.h"
-#include "hw.h"
+#include "hw/hw.h"
 #include "exec/memory.h"
 
 typedef void (*apm_ctrl_changed_t)(uint32_t val, void *arg);

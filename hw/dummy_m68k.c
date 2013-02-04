@@ -6,9 +6,9 @@
  * This code is licensed under the GPL
  */
 
-#include "hw.h"
-#include "boards.h"
-#include "loader.h"
+#include "hw/hw.h"
+#include "hw/boards.h"
+#include "hw/loader.h"
 #include "elf.h"
 #include "exec/address-spaces.h"
 

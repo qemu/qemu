@@ -25,23 +25,23 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "hw.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
 #include "net/net.h"
-#include "flash.h"
+#include "hw/flash.h"
 #include "sysemu/sysemu.h"
-#include "devices.h"
-#include "boards.h"
-#include "xilinx.h"
+#include "hw/devices.h"
+#include "hw/boards.h"
+#include "hw/xilinx.h"
 #include "sysemu/blockdev.h"
-#include "serial.h"
+#include "hw/serial.h"
 #include "exec/address-spaces.h"
-#include "ssi.h"
+#include "hw/ssi.h"
 
-#include "microblaze_boot.h"
-#include "microblaze_pic_cpu.h"
+#include "hw/microblaze_boot.h"
+#include "hw/microblaze_pic_cpu.h"
 
-#include "stream.h"
+#include "hw/stream.h"
 
 #define LMB_BRAM_SIZE  (128 * 1024)
 #define FLASH_SIZE     (32 * 1024 * 1024)

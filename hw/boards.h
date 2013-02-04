@@ -4,7 +4,7 @@
 #define HW_BOARDS_H
 
 #include "sysemu/blockdev.h"
-#include "qdev.h"
+#include "hw/qdev.h"
 
 #define DEFAULT_MACHINE_OPTIONS \
     .boot_order = "cad"

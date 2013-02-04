@@ -22,12 +22,12 @@
  */
 
 #include "sysemu/sysemu.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "net/net.h"
-#include "arm-misc.h"
+#include "hw/arm-misc.h"
 #include "exec/address-spaces.h"
-#include "exynos4210.h"
-#include "boards.h"
+#include "hw/exynos4210.h"
+#include "hw/boards.h"
 
 #undef DEBUG
 

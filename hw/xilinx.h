@@ -4,7 +4,7 @@
 
 #include "qemu-common.h"
 #include "qapi/qmp/qerror.h"
-#include "stream.h"
+#include "hw/stream.h"
 #include "net/net.h"
 
 static inline DeviceState *

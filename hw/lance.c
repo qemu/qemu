@@ -35,12 +35,12 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "net/net.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
-#include "sun4m.h"
-#include "pcnet.h"
+#include "hw/sun4m.h"
+#include "hw/pcnet.h"
 #include "trace.h"
 
 typedef struct {

@@ -25,7 +25,7 @@
 #ifndef QEMU_PC87312_H
 #define QEMU_PC87312_H
 
-#include "isa.h"
+#include "hw/isa.h"
 
 
 #define TYPE_PC87312 "pc87312"

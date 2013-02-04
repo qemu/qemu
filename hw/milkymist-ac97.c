@@ -21,8 +21,8 @@
  *   http://www.milkymist.org/socdoc/ac97.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "audio/audio.h"
 #include "qemu/error-report.h"

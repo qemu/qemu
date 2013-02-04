@@ -7,10 +7,10 @@
  * This code is licensed under the GPL
  */
 
-#include "sysbus.h"
-#include "devices.h"
-#include "boards.h"
-#include "arm-misc.h"
+#include "hw/sysbus.h"
+#include "hw/devices.h"
+#include "hw/boards.h"
+#include "hw/arm-misc.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"

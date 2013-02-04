@@ -22,10 +22,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "firmware_abi.h"
+#include "hw/hw.h"
+#include "hw/firmware_abi.h"
 #include "sysemu/sysemu.h"
-#include "ppc/mac.h"
+#include "hw/ppc/mac.h"
 
 /* debug NVR */
 //#define DEBUG_NVR

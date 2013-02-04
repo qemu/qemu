@@ -21,16 +21,16 @@
  *  GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "sysbus.h"
-#include "arm-misc.h"
-#include "primecell.h"
-#include "devices.h"
+#include "hw/sysbus.h"
+#include "hw/arm-misc.h"
+#include "hw/primecell.h"
+#include "hw/devices.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
+#include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "sysemu/blockdev.h"
-#include "flash.h"
+#include "hw/flash.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0
 #define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)

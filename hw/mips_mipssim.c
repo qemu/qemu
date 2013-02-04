@@ -24,18 +24,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "mips.h"
-#include "mips_cpudevs.h"
-#include "serial.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/mips.h"
+#include "hw/mips_cpudevs.h"
+#include "hw/serial.h"
+#include "hw/isa.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
-#include "boards.h"
-#include "mips-bios.h"
-#include "loader.h"
+#include "hw/boards.h"
+#include "hw/mips-bios.h"
+#include "hw/loader.h"
 #include "elf.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 
 static struct _loaderparams {

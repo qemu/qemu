@@ -17,10 +17,10 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "pci/pci.h"
-#include "intel-hda.h"
-#include "intel-hda-defs.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
+#include "hw/intel-hda.h"
+#include "hw/intel-hda-defs.h"
 #include "audio/audio.h"
 
 /* -------------------------------------------------------------------------- */

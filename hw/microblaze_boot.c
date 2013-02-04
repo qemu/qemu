@@ -28,10 +28,10 @@
 #include "qemu/config-file.h"
 #include "qemu-common.h"
 #include "sysemu/device_tree.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "elf.h"
 
-#include "microblaze_boot.h"
+#include "hw/microblaze_boot.h"
 
 static struct
 {

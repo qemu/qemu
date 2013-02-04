@@ -26,10 +26,10 @@
 /* #define VERBOSE_ES1370 */
 #define SILENT_ES1370
 
-#include "hw.h"
-#include "audiodev.h"
+#include "hw/hw.h"
+#include "hw/audiodev.h"
 #include "audio/audio.h"
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 #include "sysemu/dma.h"
 
 /* Missing stuff:

@@ -17,10 +17,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "net/net.h"
-#include "mips.h"
+#include "hw/mips.h"
 
 //#define DEBUG_SONIC
 

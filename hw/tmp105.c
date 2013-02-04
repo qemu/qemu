@@ -18,9 +18,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "i2c.h"
-#include "tmp105.h"
+#include "hw/hw.h"
+#include "hw/i2c.h"
+#include "hw/tmp105.h"
 #include "qapi/visitor.h"
 
 static void tmp105_interrupt_update(TMP105State *s)

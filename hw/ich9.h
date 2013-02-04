@@ -1,20 +1,20 @@
 #ifndef HW_ICH9_H
 #define HW_ICH9_H
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/range.h"
-#include "isa.h"
-#include "sysbus.h"
-#include "pc.h"
-#include "apm.h"
-#include "ioapic.h"
-#include "pci/pci.h"
-#include "pci/pcie_host.h"
-#include "pci/pci_bridge.h"
-#include "acpi.h"
-#include "acpi_ich9.h"
-#include "pam.h"
-#include "pci/pci_bus.h"
+#include "hw/isa.h"
+#include "hw/sysbus.h"
+#include "hw/pc.h"
+#include "hw/apm.h"
+#include "hw/ioapic.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pcie_host.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/acpi.h"
+#include "hw/acpi_ich9.h"
+#include "hw/pam.h"
+#include "hw/pci/pci_bus.h"
 
 void ich9_lpc_set_irq(void *opaque, int irq_num, int level);
 int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx);

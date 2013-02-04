@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "irq.h"
+#include "hw/irq.h"
 
 struct IRQState {
     qemu_irq_handler handler;

@@ -25,7 +25,7 @@
  *
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "trace.h"
 #include "hw/spapr.h"
 #include "hw/xics.h"
