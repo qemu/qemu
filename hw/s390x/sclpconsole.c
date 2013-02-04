@@ -44,12 +44,9 @@ typedef struct SCLPConsole {
 /* Return number of bytes that fit into iov buffer */
 static int chr_can_read(void *opaque)
 {
-    int can_read;
     SCLPConsole *scon = opaque;
 
-    can_read = SIZE_BUFFER_VT220 - scon->iov_data_len;
-
-    return can_read;
+    return scon->iov ? SIZE_BUFFER_VT220 - scon->iov_data_len : 0;
 }
 
 /* Receive n bytes from character layer, save in iov buffer,
