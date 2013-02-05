@@ -2,6 +2,8 @@
 #define SUN4M_H
 
 #include "qemu-common.h"
+#include "exec/hwaddr.h"
+#include "qapi/qmp/types.h"
 
 /* Devices used by sparc32 system.  */
 

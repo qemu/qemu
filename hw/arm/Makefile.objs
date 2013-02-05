@@ -3,23 +3,20 @@ obj-y += arm_gic.o arm_gic_common.o
 obj-y += a9scu.o
 obj-y += realview_gic.o arm_sysctl.o arm11mpcore.o a9mpcore.o
 obj-y += exynos4210_gic.o exynos4210_combiner.o
-obj-y += exynos4210_pwm.o
-obj-y += exynos4210_pmu.o exynos4210_mct.o
-obj-y += exynos4210_rtc.o
-obj-y += arm_mptimer.o a15mpcore.o
+obj-y += exynos4210_pmu.o
+obj-y += a15mpcore.o
 obj-y += armv7m_nvic.o
-obj-y += pxa2xx_timer.o pxa2xx_dma.o
-obj-y += pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
+obj-y += pxa2xx_dma.o
+obj-y += pxa2xx_mmci.o pxa2xx_pcmcia.o
 obj-y += zaurus.o
 obj-y += omap_dma.o omap_clk.o omap_mmc.o \
                 omap_gpio.o omap_intc.o
-obj-y += soc_dma.o omap_gptimer.o omap_synctimer.o \
+obj-y += soc_dma.o \
                 omap_gpmc.o omap_sdrc.o omap_tap.o omap_l4.o
-obj-y += tsc210x.o
-obj-y += cbus.o tusb6010.o
+obj-y += cbus.o
 obj-y += mst_fpga.o
 obj-y += strongarm.o
-obj-y += imx_ccm.o imx_timer.o imx_avic.o
+obj-y += imx_ccm.o imx_avic.o
 obj-$(CONFIG_KVM) += kvm/arm_gic.o
 
 obj-y := $(addprefix ../,$(obj-y))
