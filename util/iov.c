@@ -304,6 +304,10 @@ void qemu_iovec_concat_iov(QEMUIOVector *dst,
 {
     int i;
     size_t done;
+
+    if (!sbytes) {
+        return;
+    }
     assert(dst->nalloc != -1);
     for (i = 0, done = 0; done < sbytes && i < src_cnt; i++) {
         if (soffset < src_iov[i].iov_len) {
