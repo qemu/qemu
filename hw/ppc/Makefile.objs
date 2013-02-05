@@ -1,7 +1,5 @@
 # IBM pSeries (sPAPR)
 obj-$(CONFIG_PSERIES) += spapr_nvram.o
-# PowerPC OpenPIC
-obj-y += openpic.o
 
 obj-y := $(addprefix ../,$(obj-y))
 

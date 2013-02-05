@@ -1,9 +1,3 @@
-# IO blocks
-obj-y += etraxfs_pic.o
-
-obj-y := $(addprefix ../,$(obj-y))
-
-# Boards
 obj-y += pic_cpu.o
 obj-y += boot.o
 obj-y += axis_dev88.o

@@ -1,7 +1,3 @@
-obj-y += sh_intc.o
-
-obj-y := $(addprefix ../,$(obj-y))
-
 obj-y += shix.o r2d.o
 
 obj-y += sh7750.o sh7750_regnames.o

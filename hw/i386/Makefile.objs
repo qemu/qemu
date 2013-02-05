@@ -1,5 +1,4 @@
-obj-y += apic_common.o apic.o
-obj-y += sga.o ioapic_common.o ioapic.o
+obj-y += sga.o
 obj-y += vmport.o
 obj-y += debugexit.o
 obj-y += kvm/
