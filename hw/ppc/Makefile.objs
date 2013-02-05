@@ -11,7 +11,7 @@ obj-$(CONFIG_PSERIES) += spapr_events.o spapr_nvram.o
 obj-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 obj-y += ppc440_bamboo.o
 # PowerPC E500 boards
-obj-$(CONFIG_FDT) += mpc8544_guts.o ppce500_spin.o
+obj-$(CONFIG_E500) += mpc8544_guts.o ppce500_spin.o
 # PowerPC 440 Xilinx ML507 reference board.
 obj-y += virtex_ml507.o
 # PowerPC OpenPIC
@@ -29,4 +29,4 @@ obj-y += mac_oldworld.o
 # NewWorld PowerMac
 obj-y += mac_newworld.o
 # e500
-obj-$(CONFIG_FDT) += e500.o mpc8544ds.o e500plat.o
+obj-$(CONFIG_E500) += e500.o mpc8544ds.o e500plat.o
