@@ -73,7 +73,30 @@ typedef struct VirtIONet
     int multiqueue;
     uint16_t max_queues;
     uint16_t curr_queues;
+    size_t config_size;
 } VirtIONet;
+
+/*
+ * Calculate the number of bytes up to and including the given 'field' of
+ * 'container'.
+ */
+#define endof(container, field) \
+    (offsetof(container, field) + sizeof(((container *)0)->field))
+
+typedef struct VirtIOFeature {
+    uint32_t flags;
+    size_t end;
+} VirtIOFeature;
+
+static VirtIOFeature feature_sizes[] = {
+    {.flags = 1 << VIRTIO_NET_F_MAC,
+     .end = endof(struct virtio_net_config, mac)},
+    {.flags = 1 << VIRTIO_NET_F_STATUS,
+     .end = endof(struct virtio_net_config, status)},
+    {.flags = 1 << VIRTIO_NET_F_MQ,
+     .end = endof(struct virtio_net_config, max_virtqueue_pairs)},
+    {}
+};
 
 static VirtIONetQueue *virtio_net_get_subqueue(NetClientState *nc)
 {
@@ -104,15 +127,15 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     stw_p(&netcfg.status, n->status);
     stw_p(&netcfg.max_virtqueue_pairs, n->max_queues);
     memcpy(netcfg.mac, n->mac, ETH_ALEN);
-    memcpy(config, &netcfg, sizeof(netcfg));
+    memcpy(config, &netcfg, n->config_size);
 }
 
 static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
 {
     VirtIONet *n = to_virtio_net(vdev);
-    struct virtio_net_config netcfg;
+    struct virtio_net_config netcfg = {};
 
-    memcpy(&netcfg, config, sizeof(netcfg));
+    memcpy(&netcfg, config, n->config_size);
 
     if (!(n->vdev.guest_features >> VIRTIO_NET_F_CTRL_MAC_ADDR & 1) &&
         memcmp(netcfg.mac, n->mac, ETH_ALEN)) {
@@ -1279,16 +1302,21 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
 }
 
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
-                              virtio_net_conf *net,
-                              uint32_t host_features)
+                              virtio_net_conf *net, uint32_t host_features)
 {
     VirtIONet *n;
-    int i;
+    int i, config_size = 0;
+
+    for (i = 0; feature_sizes[i].flags != 0; i++) {
+        if (host_features & feature_sizes[i].flags) {
+            config_size = MAX(feature_sizes[i].end, config_size);
+        }
+    }
 
     n = (VirtIONet *)virtio_common_init("virtio-net", VIRTIO_ID_NET,
-                                        sizeof(struct virtio_net_config),
-                                        sizeof(VirtIONet));
+                                        config_size, sizeof(VirtIONet));
 
+    n->config_size = config_size;
     n->vdev.get_config = virtio_net_get_config;
     n->vdev.set_config = virtio_net_set_config;
     n->vdev.get_features = virtio_net_get_features;
