@@ -1,14 +1,12 @@
 # PREP target
 obj-y += mc146818rtc.o
 # IBM pSeries (sPAPR)
-obj-$(CONFIG_PSERIES) += spapr_hcall.o spapr_rtas.o spapr_vio.o
-obj-$(CONFIG_PSERIES) += xics.o spapr_vty.o spapr_llan.o spapr_vscsi.o
+obj-$(CONFIG_PSERIES) += spapr_hcall.o spapr_rtas.o
+obj-$(CONFIG_PSERIES) += spapr_vty.o spapr_llan.o spapr_vscsi.o
 obj-$(CONFIG_PSERIES) += spapr_pci.o pci/pci-hotplug.o spapr_iommu.o
 obj-$(CONFIG_PSERIES) += spapr_events.o spapr_nvram.o
 # PowerPC 4xx boards
-obj-y += ppc4xx_devs.o ppc4xx_pci.o
-# PowerPC E500 boards
-obj-$(CONFIG_E500) += mpc8544_guts.o ppce500_spin.o
+obj-y += ppc4xx_pci.o
 # PowerPC OpenPIC
 obj-y += openpic.o
 
@@ -20,9 +18,9 @@ obj-y := $(addprefix ../,$(obj-y))
 # shared objects
 obj-y += ppc.o ppc_booke.o
 # IBM pSeries (sPAPR)
-obj-$(CONFIG_PSERIES) += spapr.o
+obj-$(CONFIG_PSERIES) += spapr.o xics.o spapr_vio.o
 # PowerPC 4xx boards
-obj-y += ppc405_boards.o ppc405_uc.o ppc440_bamboo.o
+obj-y += ppc405_boards.o ppc4xx_devs.o ppc405_uc.o ppc440_bamboo.o
 # PReP
 obj-y += prep.o
 # OldWorld PowerMac
@@ -31,5 +29,6 @@ obj-y += mac_oldworld.o
 obj-y += mac_newworld.o
 # e500
 obj-$(CONFIG_E500) += e500.o mpc8544ds.o e500plat.o
+obj-$(CONFIG_E500) += mpc8544_guts.o ppce500_spin.o
 # PowerPC 440 Xilinx ML507 reference board.
 obj-y += virtex_ml507.o
