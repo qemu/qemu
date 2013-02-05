@@ -338,3 +338,17 @@ void net_hub_check_clients(void)
         }
     }
 }
+
+bool net_hub_flush(NetClientState *nc)
+{
+    NetHubPort *port;
+    NetHubPort *source_port = DO_UPCAST(NetHubPort, nc, nc);
+    int ret = 0;
+
+    QLIST_FOREACH(port, &source_port->hub->ports, next) {
+        if (port != source_port) {
+            ret += qemu_net_queue_flush(port->nc.send_queue);
+        }
+    }
+    return ret ? true : false;
+}

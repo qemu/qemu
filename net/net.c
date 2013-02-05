@@ -441,6 +441,12 @@ void qemu_flush_queued_packets(NetClientState *nc)
 {
     nc->receive_disabled = 0;
 
+    if (nc->peer && nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_HUBPORT) {
+        if (net_hub_flush(nc->peer)) {
+            qemu_notify_event();
+        }
+        return;
+    }
     if (qemu_net_queue_flush(nc->send_queue)) {
         /* We emptied the queue successfully, signal to the IO thread to repoll
          * the file descriptor (for tap, for example).
