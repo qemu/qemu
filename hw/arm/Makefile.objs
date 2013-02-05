@@ -11,7 +11,7 @@ obj-y += arm_mptimer.o a15mpcore.o
 obj-y += armv7m_nvic.o stellaris_enet.o
 obj-y += pxa2xx_timer.o pxa2xx_dma.o
 obj-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
-obj-y += zaurus.o ide/microdrive.o tc6393xb.o
+obj-y += zaurus.o tc6393xb.o
 obj-y += omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o \
                 omap_gpio.o omap_intc.o omap_uart.o
 obj-y += omap_dss.o soc_dma.o omap_gptimer.o omap_synctimer.o \
