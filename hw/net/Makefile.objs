@@ -20,3 +20,6 @@ common-obj-$(CONFIG_MIPSNET) += mipsnet.o
 common-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
 
 common-obj-$(CONFIG_CADENCE) += cadence_gem.o
+
+obj-$(CONFIG_VIRTIO) += virtio-net.o
+obj-y += vhost_net.o

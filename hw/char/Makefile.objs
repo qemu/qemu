@@ -8,3 +8,5 @@ common-obj-$(CONFIG_VIRTIO) += virtio-console.o
 common-obj-$(CONFIG_XILINX) += xilinx_uartlite.o
 common-obj-$(CONFIG_XEN_BACKEND) += xen_console.o
 common-obj-$(CONFIG_CADENCE) += cadence_uart.o
+
+obj-$(CONFIG_VIRTIO) += virtio-serial-bus.o
