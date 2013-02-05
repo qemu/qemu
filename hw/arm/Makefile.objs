@@ -31,6 +31,5 @@ obj-y += strongarm.o
 obj-y += collie.o
 obj-y += imx_serial.o imx_ccm.o imx_timer.o imx_avic.o
 obj-y += kzm.o
-obj-$(CONFIG_FDT) += ../device_tree.o
 
 obj-y := $(addprefix ../,$(obj-y))

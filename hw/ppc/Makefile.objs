@@ -16,7 +16,6 @@ obj-$(CONFIG_FDT) += mpc8544_guts.o ppce500_spin.o
 obj-y += virtex_ml507.o
 # PowerPC OpenPIC
 obj-y += openpic.o
-obj-$(CONFIG_FDT) += ../device_tree.o
 
 # Xilinx PPC peripherals
 obj-y += xilinx_ethlite.o
