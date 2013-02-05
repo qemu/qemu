@@ -3,18 +3,18 @@ obj-y += xilinx_spips.o
 obj-y += arm_gic.o arm_gic_common.o
 obj-y += a9scu.o
 obj-y += realview_gic.o arm_sysctl.o arm11mpcore.o a9mpcore.o
-obj-y += exynos4210_gic.o exynos4210_combiner.o exynos4210.o
+obj-y += exynos4210_gic.o exynos4210_combiner.o
 obj-y += exynos4210_uart.o exynos4210_pwm.o
 obj-y += exynos4210_pmu.o exynos4210_mct.o exynos4210_fimd.o
 obj-y += exynos4210_rtc.o exynos4210_i2c.o
 obj-y += arm_mptimer.o a15mpcore.o
-obj-y += armv7m.o armv7m_nvic.o stellaris_enet.o
-obj-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
+obj-y += armv7m_nvic.o stellaris_enet.o
+obj-y += pxa2xx_timer.o pxa2xx_dma.o
 obj-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 obj-y += zaurus.o ide/microdrive.o tc6393xb.o
-obj-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o \
+obj-y += omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o \
                 omap_gpio.o omap_intc.o omap_uart.o
-obj-y += omap2.o omap_dss.o soc_dma.o omap_gptimer.o omap_synctimer.o \
+obj-y += omap_dss.o soc_dma.o omap_gptimer.o omap_synctimer.o \
                 omap_gpmc.o omap_sdrc.o omap_spi.o omap_tap.o omap_l4.o
 obj-y += tsc210x.o
 obj-y += blizzard.o onenand.o cbus.o tusb6010.o usb/hcd-musb.o
@@ -30,3 +30,6 @@ obj-y += boot.o collie.o exynos4_boards.o gumstix.o highbank.o
 obj-y += integratorcp.o kzm.o mainstone.o musicpal.o nseries.o
 obj-y += omap_sx1.o palm.o pic_cpu.o realview.o spitz.o stellaris.o
 obj-y += tosa.o versatilepb.o vexpress.o xilinx_zynq.o z2.o
+
+obj-y += armv7m.o exynos4210.o pxa2xx.o pxa2xx_gpio.o pxa2xx_pic.o
+obj-y += omap1.o omap2.o
