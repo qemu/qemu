@@ -1,8 +1,3 @@
-# IBM pSeries (sPAPR)
-obj-$(CONFIG_PSERIES) += spapr_nvram.o
-
-obj-y := $(addprefix ../,$(obj-y))
-
 # shared objects
 obj-y += ppc.o ppc_booke.o
 # IBM pSeries (sPAPR)
