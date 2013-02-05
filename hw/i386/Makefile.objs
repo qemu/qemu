@@ -2,7 +2,6 @@ obj-y += apic_common.o apic.o
 obj-y += sga.o ioapic_common.o ioapic.o piix_pci.o
 obj-y += vmport.o
 obj-y += debugcon.o debugexit.o
-obj-y += pc_sysfw.o
 obj-y += lpc_ich9.o q35.o
 obj-$(CONFIG_XEN) += xen_platform.o xen_apic.o
 obj-$(CONFIG_XEN_PCI_PASSTHROUGH) += xen-host-pci-device.o
