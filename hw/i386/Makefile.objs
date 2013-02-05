@@ -1,7 +1,7 @@
 obj-y += apic_common.o apic.o
 obj-y += sga.o ioapic_common.o ioapic.o piix_pci.o
 obj-y += vmport.o
-obj-y += debugcon.o debugexit.o
+obj-y += debugexit.o
 obj-y += lpc_ich9.o q35.o
 obj-y += kvm/
 obj-y += pc-testdev.o

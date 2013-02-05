@@ -1,5 +1,6 @@
 # Default configuration for lm32-softmmu
 
+CONFIG_LM32=y
 CONFIG_MILKYMIST=y
 CONFIG_FRAMEBUFFER=y
 CONFIG_PTIMER=y

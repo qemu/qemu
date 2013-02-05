@@ -78,7 +78,6 @@ static uint64_t
 ser_read(void *opaque, hwaddr addr, unsigned int size)
 {
     struct etrax_serial *s = opaque;
-    D(CPUCRISState *env = s->env);
     uint32_t r = 0;
 
     addr >>= 2;
@@ -116,7 +115,6 @@ ser_write(void *opaque, hwaddr addr,
     struct etrax_serial *s = opaque;
     uint32_t value = val64;
     unsigned char ch = val64;
-    D(CPUCRISState *env = s->env);
 
     D(qemu_log("%s " TARGET_FMT_plx "=%x\n",  __func__, addr, value));
     addr >>= 2;

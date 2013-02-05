@@ -3,7 +3,7 @@ obj-y += slavio_timer.o slavio_misc.o sparc32_dma.o
 obj-y += eccmemctl.o sbi.o sun4c_intctl.o
 
 # GRLIB
-obj-y += grlib_gptimer.o grlib_irqmp.o grlib_apbuart.o
+obj-y += grlib_gptimer.o grlib_irqmp.o
 
 obj-y := $(addprefix ../,$(obj-y))
 

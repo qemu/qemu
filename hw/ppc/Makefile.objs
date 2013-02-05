@@ -1,5 +1,4 @@
 # IBM pSeries (sPAPR)
-obj-$(CONFIG_PSERIES) += spapr_vty.o
 obj-$(CONFIG_PSERIES) += spapr_pci.o
 obj-$(CONFIG_PSERIES) += spapr_nvram.o
 # PowerPC 4xx boards

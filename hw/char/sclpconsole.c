@@ -234,7 +234,7 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)
     return rc;
 }
 
-static void trigger_ascii_console_data(void *env, int n, int level)
+static void trigger_ascii_console_data(void *opaque, int n, int level)
 {
     sclp_service_interrupt(0);
 }

@@ -1,4 +1,4 @@
-obj-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o
+obj-y += sh_timer.o sh_intc.o sh_pci.o
 
 obj-y := $(addprefix ../,$(obj-y))
 
