@@ -206,7 +206,6 @@ obj-$(CONFIG_SOFTMMU) += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/
 obj-$(CONFIG_VGA) += vga.o
-obj-$(CONFIG_XEN) += xen_domainbuild.o xen_machine_pv.o
 
 # Inter-VM PCI shared memory & VFIO PCI device assignment
 ifeq ($(CONFIG_PCI), y)

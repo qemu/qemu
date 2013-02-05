@@ -1,6 +1,8 @@
-obj-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
-obj-y += mips_addr.o mips_timer.o mips_int.o
 obj-y += gt64xxx.o mc146818rtc.o
-obj-$(CONFIG_FULONG) += bonito.o vt82c686.o mips_fulong2e.o
+obj-$(CONFIG_FULONG) += bonito.o vt82c686.o
 
 obj-y := $(addprefix ../,$(obj-y))
+
+obj-y += mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
+obj-y += addr.o cputimer.o mips_int.o
+obj-$(CONFIG_FULONG) += mips_fulong2e.o
