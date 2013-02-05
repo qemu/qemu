@@ -9,10 +9,7 @@ obj-y += milkymist-memcard.o
 obj-y += milkymist-pfpu.o
 obj-y += milkymist-softusb.o
 obj-y += milkymist-sysctl.o
-obj-$(CONFIG_GLX) += milkymist-tmu2.o
 obj-y += milkymist-uart.o
-obj-y += milkymist-vgafb.o
-obj-y += framebuffer.o
 
 obj-y := $(addprefix ../,$(obj-y))
 

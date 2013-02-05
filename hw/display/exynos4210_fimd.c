@@ -23,7 +23,6 @@
  */
 
 #include "qemu-common.h"
-#include "exec/cpu-all.h"
 #include "hw/sysbus.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
@@ -783,7 +782,7 @@ static void glue(draw_line_palette_, N)(Exynos4210fimdWindow *w, uint8_t *src, \
     rgba p, p_old; \
     int i; \
     do { \
-        data = ldq_raw((void *)src); \
+        memcpy(&data, src, sizeof(data)); \
         src += 8; \
         fimd_swap_data(swap, &data); \
         for (i = (64 / (N) - 1); i >= 0; i--) { \
@@ -812,7 +811,7 @@ static void glue(draw_line_, N)(Exynos4210fimdWindow *w, uint8_t *src, \
     rgba p, p_old; \
     int i; \
     do { \
-        data = ldq_raw((void *)src); \
+        memcpy(&data, src, sizeof(data)); \
         src += 8; \
         fimd_swap_data(swap, &data); \
         for (i = (64 / (N) - 1); i >= 0; i--) { \

@@ -31,11 +31,6 @@ obj-y += $(devices-dirs-y)
 
 ifeq ($(CONFIG_SOFTMMU),y)
 
-# Per-target files
-# virtio has to be here due to weird dependency between PCI and virtio-net.
-# need to fix this properly
-obj-$(CONFIG_VGA) += vga.o
-
 # Inter-VM PCI shared memory & VFIO PCI device assignment
 ifeq ($(CONFIG_PCI), y)
 obj-$(CONFIG_KVM) += ivshmem.o

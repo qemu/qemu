@@ -55,7 +55,7 @@ static void glue(blizzard_draw_line16_, DEPTH)(PIXEL_TYPE *dest,
     unsigned int r, g, b;
     const uint16_t *end = (const void *) src + width;
     while (src < end) {
-        data = lduw_raw(src ++);
+        data = *src ++;
         b = (data & 0x1f) << 3;
         data >>= 5;
         g = (data & 0x3f) << 2;

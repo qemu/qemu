@@ -1,4 +1,4 @@
-obj-y = tcx.o sun4m_iommu.o slavio_intctl.o
+obj-y = sun4m_iommu.o slavio_intctl.o
 obj-y += slavio_timer.o slavio_misc.o sparc32_dma.o
 obj-y += eccmemctl.o sbi.o sun4c_intctl.o
 
