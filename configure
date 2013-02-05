@@ -2388,7 +2388,7 @@ fi
 ##########################################
 # opengl probe, used by milkymist-tmu2
 if test "$opengl" != "no" ; then
-  opengl_libs="-lGL"
+  opengl_libs="-lGL -lX11"
   cat > $TMPC << EOF
 #include <X11/Xlib.h>
 #include <GL/gl.h>
