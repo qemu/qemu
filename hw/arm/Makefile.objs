@@ -17,7 +17,7 @@ obj-y += omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o \
 obj-y += omap_dss.o soc_dma.o omap_gptimer.o omap_synctimer.o \
                 omap_gpmc.o omap_sdrc.o omap_spi.o omap_tap.o omap_l4.o
 obj-y += tsc210x.o
-obj-y += blizzard.o onenand.o cbus.o tusb6010.o usb/hcd-musb.o
+obj-y += blizzard.o onenand.o cbus.o tusb6010.o
 obj-y += mst_fpga.o
 obj-y += bitbang_i2c.o marvell_88w8618_audio.o
 obj-y += framebuffer.o
