@@ -235,7 +235,7 @@ static int acpi_load_old(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->ar.pm1.evt.en);
     qemu_get_be16s(f, &s->ar.pm1.cnt.cnt);
 
-    ret = vmstate_load_state(f, &vmstate_apm, opaque, 1);
+    ret = vmstate_load_state(f, &vmstate_apm, &s->apm, 1);
     if (ret) {
         return ret;
     }
@@ -253,7 +253,7 @@ static int acpi_load_old(QEMUFile *f, void *opaque, int version_id)
         qemu_get_be16s(f, &temp);
     }
 
-    ret = vmstate_load_state(f, &vmstate_pci_status, opaque, 1);
+    ret = vmstate_load_state(f, &vmstate_pci_status, &s->pci0_status, 1);
     return ret;
 }
 

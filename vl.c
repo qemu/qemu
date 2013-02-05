@@ -1251,21 +1251,79 @@ char *get_boot_devices_list(size_t *size)
     return list;
 }
 
+static void numa_node_parse_cpus(int nodenr, const char *cpus)
+{
+    char *endptr;
+    unsigned long long value, endvalue;
+
+    /* Empty CPU range strings will be considered valid, they will simply
+     * not set any bit in the CPU bitmap.
+     */
+    if (!*cpus) {
+        return;
+    }
+
+    if (parse_uint(cpus, &value, &endptr, 10) < 0) {
+        goto error;
+    }
+    if (*endptr == '-') {
+        if (parse_uint_full(endptr + 1, &endvalue, 10) < 0) {
+            goto error;
+        }
+    } else if (*endptr == '\0') {
+        endvalue = value;
+    } else {
+        goto error;
+    }
+
+    if (endvalue >= MAX_CPUMASK_BITS) {
+        endvalue = MAX_CPUMASK_BITS - 1;
+        fprintf(stderr,
+            "qemu: NUMA: A max of %d VCPUs are supported\n",
+             MAX_CPUMASK_BITS);
+    }
+
+    if (endvalue < value) {
+        goto error;
+    }
+
+    bitmap_set(node_cpumask[nodenr], value, endvalue-value+1);
+    return;
+
+error:
+    fprintf(stderr, "qemu: Invalid NUMA CPU range: %s\n", cpus);
+    exit(1);
+}
+
 static void numa_add(const char *optarg)
 {
     char option[128];
     char *endptr;
-    unsigned long long value, endvalue;
-    int nodenr;
+    unsigned long long nodenr;
 
-    value = endvalue = 0ULL;
-
-    optarg = get_opt_name(option, 128, optarg, ',') + 1;
+    optarg = get_opt_name(option, 128, optarg, ',');
+    if (*optarg == ',') {
+        optarg++;
+    }
     if (!strcmp(option, "node")) {
+
+        if (nb_numa_nodes >= MAX_NODES) {
+            fprintf(stderr, "qemu: too many NUMA nodes\n");
+            exit(1);
+        }
+
         if (get_param_value(option, 128, "nodeid", optarg) == 0) {
             nodenr = nb_numa_nodes;
         } else {
-            nodenr = strtoull(option, NULL, 10);
+            if (parse_uint_full(option, &nodenr, 10) < 0) {
+                fprintf(stderr, "qemu: Invalid NUMA nodeid: %s\n", option);
+                exit(1);
+            }
+        }
+
+        if (nodenr >= MAX_NODES) {
+            fprintf(stderr, "qemu: invalid NUMA nodeid: %llu\n", nodenr);
+            exit(1);
         }
 
         if (get_param_value(option, 128, "mem", optarg) == 0) {
@@ -1280,23 +1338,12 @@ static void numa_add(const char *optarg)
             node_mem[nodenr] = sval;
         }
         if (get_param_value(option, 128, "cpus", optarg) != 0) {
-            value = strtoull(option, &endptr, 10);
-            if (*endptr == '-') {
-                endvalue = strtoull(endptr+1, &endptr, 10);
-            } else {
-                endvalue = value;
-            }
-
-            if (!(endvalue < MAX_CPUMASK_BITS)) {
-                endvalue = MAX_CPUMASK_BITS - 1;
-                fprintf(stderr,
-                    "A max of %d CPUs are supported in a guest\n",
-                     MAX_CPUMASK_BITS);
-            }
-
-            bitmap_set(node_cpumask[nodenr], value, endvalue-value+1);
+            numa_node_parse_cpus(nodenr, option);
         }
         nb_numa_nodes++;
+    } else {
+        fprintf(stderr, "Invalid -numa option: %s\n", option);
+        exit(1);
     }
 }
 
@@ -3048,10 +3095,6 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_numa:
-                if (nb_numa_nodes >= MAX_NODES) {
-                    fprintf(stderr, "qemu: too many NUMA nodes\n");
-                    exit(1);
-                }
                 numa_add(optarg);
                 break;
             case QEMU_OPTION_display:

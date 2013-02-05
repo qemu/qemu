@@ -617,7 +617,7 @@ static void do_ext_interrupt(CPUS390XState *env)
 
 static void do_io_interrupt(CPUS390XState *env)
 {
-    uint64_t mask, addr;
+    uint64_t mask = 0, addr = 0;
     LowCore *lowcore;
     IOIntQueue *q;
     uint8_t isc;
@@ -657,7 +657,7 @@ static void do_io_interrupt(CPUS390XState *env)
         cpu_unmap_lowcore(lowcore);
 
         env->io_index[isc]--;
-        if (env->io_index >= 0) {
+        if (env->io_index[isc] >= 0) {
             disable = 0;
         }
         break;
