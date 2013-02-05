@@ -2,8 +2,8 @@
 #define BSWAP_H
 
 #include "config-host.h"
-
 #include <inttypes.h>
+#include <limits.h>
 #include "fpu/softfloat.h"
 
 #ifdef CONFIG_MACHINE_BSWAP_H
@@ -458,7 +458,15 @@ static inline void cpu_to_32wu(uint32_t *p, uint32_t v)
 
 static inline unsigned long leul_to_cpu(unsigned long v)
 {
-    return le_bswap(v, HOST_LONG_BITS);
+    /* In order to break an include loop between here and
+       qemu-common.h, don't rely on HOST_LONG_BITS.  */
+#if ULONG_MAX == UINT32_MAX
+    return le_bswap(v, 32);
+#elif ULONG_MAX == UINT64_MAX
+    return le_bswap(v, 64);
+#else
+# error Unknown sizeof long
+#endif
 }
 
 #undef le_bswap
