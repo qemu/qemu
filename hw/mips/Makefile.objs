@@ -1,5 +1,5 @@
 obj-y += gt64xxx.o
-obj-$(CONFIG_FULONG) += bonito.o vt82c686.o
+obj-$(CONFIG_FULONG) += bonito.o
 
 obj-y := $(addprefix ../,$(obj-y))
 
