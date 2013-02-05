@@ -1,5 +1,5 @@
 obj-y += mc146818rtc.o
-obj-y += apic_common.o apic.o kvmvapic.o
+obj-y += apic_common.o apic.o
 obj-y += sga.o ioapic_common.o ioapic.o piix_pci.o
 obj-y += vmport.o
 obj-y += pci/pci-hotplug.o wdt_ib700.o
@@ -18,3 +18,5 @@ obj-y := $(addprefix ../,$(obj-y))
 obj-y += multiboot.o smbios.o
 obj-y += pc.o pc_piix.o pc_q35.o
 obj-$(CONFIG_XEN) += xen_domainbuild.o xen_machine_pv.o
+
+obj-y += kvmvapic.o
