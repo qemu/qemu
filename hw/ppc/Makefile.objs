@@ -2,7 +2,7 @@
 obj-y += mc146818rtc.o
 # IBM pSeries (sPAPR)
 obj-$(CONFIG_PSERIES) += spapr_vty.o spapr_llan.o spapr_vscsi.o
-obj-$(CONFIG_PSERIES) += spapr_pci.o pci/pci-hotplug.o
+obj-$(CONFIG_PSERIES) += spapr_pci.o
 obj-$(CONFIG_PSERIES) += spapr_nvram.o
 # PowerPC 4xx boards
 obj-y += ppc4xx_pci.o

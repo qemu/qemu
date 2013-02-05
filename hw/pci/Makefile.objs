@@ -9,3 +9,5 @@ common-obj-$(CONFIG_NO_PCI) += pci-stub.o
 common-obj-$(CONFIG_ALL) += pci-stub.o
 
 common-obj-$(CONFIG_PCI) += bridge/ host/
+
+obj-$(CONFIG_PCI_HOTPLUG) += pci-hotplug.o
