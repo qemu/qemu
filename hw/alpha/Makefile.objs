@@ -1,4 +1,3 @@
-obj-y = mc146818rtc.o
 obj-y += alpha_typhoon.o
 
 obj-y := $(addprefix ../,$(obj-y))

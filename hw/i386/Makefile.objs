@@ -1,4 +1,3 @@
-obj-y += mc146818rtc.o
 obj-y += apic_common.o apic.o
 obj-y += sga.o ioapic_common.o ioapic.o piix_pci.o
 obj-y += vmport.o

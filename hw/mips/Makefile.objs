@@ -1,4 +1,4 @@
-obj-y += gt64xxx.o mc146818rtc.o
+obj-y += gt64xxx.o
 obj-$(CONFIG_FULONG) += bonito.o vt82c686.o
 
 obj-y := $(addprefix ../,$(obj-y))

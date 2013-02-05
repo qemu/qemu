@@ -8,3 +8,5 @@ common-obj-$(CONFIG_PL031) += pl031.o
 common-obj-$(CONFIG_PUV3) += puv3_ost.o
 common-obj-$(CONFIG_TWL92230) += twl92230.o
 common-obj-$(CONFIG_XILINX) += xilinx_timer.o
+
+obj-$(CONFIG_MC146818RTC) += mc146818rtc.o

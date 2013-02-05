@@ -1,5 +1,2 @@
 # moxie boards
-obj-y = mc146818rtc.o
-
-obj-y := $(addprefix ../,$(obj-y))
 obj-y += moxiesim.o
