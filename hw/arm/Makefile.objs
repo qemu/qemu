@@ -1,5 +1,4 @@
 obj-y += zynq_slcr.o
-obj-y += xilinx_spips.o
 obj-y += arm_gic.o arm_gic_common.o
 obj-y += a9scu.o
 obj-y += realview_gic.o arm_sysctl.o arm11mpcore.o a9mpcore.o
@@ -15,7 +14,7 @@ obj-y += zaurus.o
 obj-y += omap_dma.o omap_clk.o omap_mmc.o \
                 omap_gpio.o omap_intc.o omap_uart.o
 obj-y += soc_dma.o omap_gptimer.o omap_synctimer.o \
-                omap_gpmc.o omap_sdrc.o omap_spi.o omap_tap.o omap_l4.o
+                omap_gpmc.o omap_sdrc.o omap_tap.o omap_l4.o
 obj-y += tsc210x.o
 obj-y += cbus.o tusb6010.o
 obj-y += mst_fpga.o
