@@ -23,14 +23,14 @@
  */
 
 #include "hw/hw.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "hw/sysbus.h"
 #include "qemu/range.h"
-#include "hw/xen.h"
-#include "hw/pam.h"
+#include "hw/xen/xen.h"
+#include "hw/pci-host/pam.h"
 #include "sysemu/sysemu.h"
 
 /*

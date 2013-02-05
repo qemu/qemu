@@ -20,7 +20,7 @@
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "net/net.h"
-#include "hw/mips.h"
+#include "hw/mips/mips.h"
 
 //#define DEBUG_SONIC
 

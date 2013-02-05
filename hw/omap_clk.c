@@ -19,7 +19,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw/hw.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 
 struct clk {
     const char *name;

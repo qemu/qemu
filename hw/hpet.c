@@ -25,13 +25,13 @@
  */
 
 #include "hw/hw.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
-#include "hw/hpet_emul.h"
+#include "hw/timer/hpet.h"
 #include "hw/sysbus.h"
-#include "hw/mc146818rtc.h"
-#include "hw/i8254.h"
+#include "hw/timer/mc146818rtc.h"
+#include "hw/timer/i8254.h"
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG

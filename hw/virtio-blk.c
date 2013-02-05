@@ -14,14 +14,17 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "hw/block-common.h"
+#include "hw/block/block.h"
 #include "sysemu/blockdev.h"
-#include "hw/virtio-blk.h"
-#include "hw/scsi-defs.h"
+#include "hw/virtio/virtio-blk.h"
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+# include "dataplane/virtio-blk.h"
+#endif
+#include "block/scsi.h"
 #ifdef __linux__
 # include <scsi/sg.h>
 #endif
-#include "hw/virtio-bus.h"
+#include "hw/virtio/virtio-bus.h"
 
 typedef struct VirtIOBlockReq
 {

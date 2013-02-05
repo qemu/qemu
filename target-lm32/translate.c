@@ -22,7 +22,7 @@
 #include "helper.h"
 #include "tcg-op.h"
 
-#include "hw/lm32_pic.h"
+#include "hw/lm32/lm32_pic.h"
 
 #define GEN_HELPER 1
 #include "helper.h"

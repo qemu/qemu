@@ -39,7 +39,7 @@
 #include "net/net.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
-#include "hw/sun4m.h"
+#include "hw/sparc/sun4m.h"
 #include "hw/pcnet.h"
 #include "trace.h"
 

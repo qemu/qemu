@@ -8,7 +8,7 @@
  */
 
 #include "sysemu/blockdev.h"
-#include "hw/block-common.h"
+#include "hw/block/block.h"
 #include "qemu/error-report.h"
 
 void blkconf_serial(BlockConf *conf, char **serial)

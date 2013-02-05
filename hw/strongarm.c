@@ -29,7 +29,7 @@
 #include "hw/sysbus.h"
 #include "hw/strongarm.h"
 #include "qemu/error-report.h"
-#include "hw/arm-misc.h"
+#include "hw/arm.h"
 #include "char/char.h"
 #include "sysemu/sysemu.h"
 #include "hw/ssi.h"

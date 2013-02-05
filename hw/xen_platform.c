@@ -26,11 +26,11 @@
 #include <assert.h>
 
 #include "hw/hw.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "hw/irq.h"
-#include "hw/xen_common.h"
-#include "hw/xen_backend.h"
+#include "hw/xen/xen_common.h"
+#include "hw/xen/xen_backend.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
 

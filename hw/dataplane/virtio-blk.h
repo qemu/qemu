@@ -15,7 +15,7 @@
 #ifndef HW_DATAPLANE_VIRTIO_BLK_H
 #define HW_DATAPLANE_VIRTIO_BLK_H
 
-#include "hw/virtio.h"
+#include "hw/virtio/virtio.h"
 
 typedef struct VirtIOBlockDataPlane VirtIOBlockDataPlane;
 

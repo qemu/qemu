@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/isa.h"
+#include "hw/i386/pc.h"
+#include "hw/isa/isa.h"
 #include "hw/qdev.h"
 #include "net/net.h"
 #include "hw/ne2000.h"

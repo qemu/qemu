@@ -7,7 +7,7 @@
  * This code is licensed under the LGPL.
  */
 
-#include "hw/i2c.h"
+#include "hw/i2c/i2c.h"
 
 struct i2c_bus
 {

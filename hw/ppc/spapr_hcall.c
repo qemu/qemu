@@ -2,7 +2,7 @@
 #include "cpu.h"
 #include "sysemu/sysemu.h"
 #include "helper_regs.h"
-#include "hw/spapr.h"
+#include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"
 
 static target_ulong compute_tlbie_rb(target_ulong v, target_ulong r,

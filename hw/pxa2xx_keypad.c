@@ -12,7 +12,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/pxa.h"
+#include "hw/arm/pxa.h"
 #include "ui/console.h"
 
 /*

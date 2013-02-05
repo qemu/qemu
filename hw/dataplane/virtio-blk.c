@@ -16,12 +16,12 @@
 #include "qemu/iov.h"
 #include "qemu/thread.h"
 #include "qemu/error-report.h"
-#include "vring.h"
+#include "hw/virtio/dataplane/vring.h"
 #include "ioq.h"
 #include "migration/migration.h"
 #include "block/block.h"
-#include "hw/virtio-blk.h"
-#include "hw/dataplane/virtio-blk.h"
+#include "hw/virtio/virtio-blk.h"
+#include "virtio-blk.h"
 #include "block/aio.h"
 
 enum {

@@ -23,7 +23,7 @@
 #include "hw/sysbus.h"
 #include "qemu-common.h"
 #include "hw/irq.h"
-#include "hw/exynos4210.h"
+#include "hw/arm/exynos4210.h"
 
 enum ExtGicId {
     EXT_GIC_ID_MDMA_LCD0 = 66,

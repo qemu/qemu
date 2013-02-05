@@ -19,12 +19,12 @@
 #ifndef HW_S390_VIRTIO_BUS_H
 #define HW_S390_VIRTIO_BUS_H 1
 
-#include "hw/virtio-blk.h"
-#include "hw/virtio-net.h"
-#include "hw/virtio-rng.h"
-#include "hw/virtio-serial.h"
-#include "hw/virtio-scsi.h"
-#include "hw/virtio-bus.h"
+#include "hw/virtio/virtio-blk.h"
+#include "hw/virtio/virtio-net.h"
+#include "hw/virtio/virtio-rng.h"
+#include "hw/virtio/virtio-serial.h"
+#include "hw/virtio/virtio-scsi.h"
+#include "hw/virtio/virtio-bus.h"
 
 #define VIRTIO_DEV_OFFS_TYPE		0	/* 8 bits */
 #define VIRTIO_DEV_OFFS_NUM_VQ		1	/* 8 bits */

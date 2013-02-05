@@ -23,12 +23,12 @@
  */
 
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/isa.h"
+#include "hw/i386/pc.h"
+#include "hw/isa/isa.h"
 #include "audio/audio.h"
 #include "qemu/timer.h"
-#include "hw/i8254.h"
-#include "hw/pcspk.h"
+#include "hw/timer/i8254.h"
+#include "hw/audio/pcspk.h"
 
 #define PCSPK_BUF_LEN 1792
 #define PCSPK_SAMPLE_RATE 32000

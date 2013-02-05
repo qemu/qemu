@@ -10,9 +10,9 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "hw/pc.h"
-#include "hw/ioapic_internal.h"
-#include "hw/apic_internal.h"
+#include "hw/i386/pc.h"
+#include "hw/i386/ioapic_internal.h"
+#include "hw/i386/apic_internal.h"
 #include "sysemu/kvm.h"
 
 /* PC Utility function */

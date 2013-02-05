@@ -11,7 +11,7 @@
  */
 #include "hw/sysbus.h"
 #include "hw/hw.h"
-#include "hw/i2c.h"
+#include "hw/i2c/i2c.h"
 #include "hw/sysbus.h"
 #include "audio/audio.h"
 

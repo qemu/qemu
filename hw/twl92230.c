@@ -21,7 +21,7 @@
 
 #include "hw/hw.h"
 #include "qemu/timer.h"
-#include "hw/i2c.h"
+#include "hw/i2c/i2c.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
 

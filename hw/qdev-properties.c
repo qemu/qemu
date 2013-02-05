@@ -2,7 +2,7 @@
 #include "hw/qdev.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/blockdev.h"
-#include "hw/block-common.h"
+#include "hw/block/block.h"
 #include "net/hub.h"
 #include "qapi/visitor.h"
 #include "char/char.h"

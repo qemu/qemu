@@ -10,7 +10,7 @@
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
-#include "hw/pxa.h"
+#include "hw/arm/pxa.h"
 #include "hw/sysbus.h"
 
 #define OSMR0	0x00

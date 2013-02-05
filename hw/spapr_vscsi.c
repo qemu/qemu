@@ -32,12 +32,12 @@
  *  - Maybe do autosense (PAPR seems to mandate it, linux doesn't care)
  */
 #include "hw/hw.h"
-#include "hw/scsi.h"
-#include "hw/scsi-defs.h"
+#include "hw/scsi/scsi.h"
+#include "block/scsi.h"
 #include "hw/srp.h"
 #include "hw/qdev.h"
-#include "hw/spapr.h"
-#include "hw/spapr_vio.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
 #include "hw/ppc-viosrp.h"
 
 #include <libfdt.h>

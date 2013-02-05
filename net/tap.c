@@ -42,7 +42,7 @@
 
 #include "net/tap.h"
 
-#include "hw/vhost_net.h"
+#include "net/vhost_net.h"
 
 typedef struct TAPState {
     NetClientState nc;

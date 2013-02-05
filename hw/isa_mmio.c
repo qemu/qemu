@@ -23,7 +23,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "exec/address-spaces.h"
 
 static void isa_mmio_writeb (void *opaque, hwaddr addr,

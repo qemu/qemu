@@ -25,8 +25,8 @@
 #include "hw/hw.h"
 #include "qemu/error-report.h"
 #include "hw/qdev.h"
-#include "hw/virtio-bus.h"
-#include "hw/virtio.h"
+#include "hw/virtio/virtio-bus.h"
+#include "hw/virtio/virtio.h"
 
 /* #define DEBUG_VIRTIO_BUS */
 

@@ -29,7 +29,7 @@
 
 #include "hw/sysbus.h"
 
-#include "hw/exynos4210.h"
+#include "hw/arm/exynos4210.h"
 
 //#define DEBUG_COMBINER
 

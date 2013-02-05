@@ -27,8 +27,8 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci_host.h"
-#include "hw/spapr.h"
-#include "hw/spapr_pci.h"
+#include "hw/ppc/spapr.h"
+#include "hw/pci-host/spapr.h"
 #include "exec/address-spaces.h"
 #include <libfdt.h>
 #include "trace.h"

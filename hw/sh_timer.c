@@ -9,7 +9,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/sh.h"
+#include "hw/sh4/sh.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "hw/ptimer.h"

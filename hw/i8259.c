@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/isa.h"
+#include "hw/i386/pc.h"
+#include "hw/isa/isa.h"
 #include "monitor/monitor.h"
 #include "qemu/timer.h"
-#include "hw/i8259_internal.h"
+#include "hw/isa/i8259_internal.h"
 
 /* debug PIC */
 //#define DEBUG_PIC

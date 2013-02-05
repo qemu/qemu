@@ -26,13 +26,13 @@
  */
 #include "hw/sysbus.h"
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/isa.h"
+#include "hw/i386/pc.h"
+#include "hw/isa/isa.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "hw/serial.h"
+#include "hw/char/serial.h"
 #include "exec/address-spaces.h"
 
 #define PHYS_MEM_BASE 0x80000000

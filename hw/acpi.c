@@ -20,8 +20,8 @@
  */
 #include "sysemu/sysemu.h"
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/acpi.h"
+#include "hw/i386/pc.h"
+#include "hw/acpi/acpi.h"
 #include "monitor/monitor.h"
 #include "qemu/config-file.h"
 #include "qapi/opts-visitor.h"

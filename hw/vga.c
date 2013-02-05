@@ -24,12 +24,12 @@
 #include "hw/hw.h"
 #include "hw/vga.h"
 #include "ui/console.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "hw/vga_int.h"
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
-#include "hw/xen.h"
+#include "hw/xen/xen.h"
 #include "trace.h"
 
 //#define DEBUG_VGA

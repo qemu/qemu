@@ -1164,7 +1164,7 @@ static inline void cpu_clone_regs(CPUX86State *env, target_ulong newsp)
 #include "svm.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "hw/apic.h"
+#include "hw/i386/apic.h"
 #endif
 
 static inline bool cpu_has_work(CPUState *cs)

@@ -27,7 +27,7 @@
 #define SILENT_ES1370
 
 #include "hw/hw.h"
-#include "hw/audiodev.h"
+#include "hw/audio/audio.h"
 #include "audio/audio.h"
 #include "hw/pci/pci.h"
 #include "sysemu/dma.h"

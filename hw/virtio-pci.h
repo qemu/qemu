@@ -16,14 +16,14 @@
 #define QEMU_VIRTIO_PCI_H
 
 #include "hw/pci/msi.h"
-#include "hw/virtio-blk.h"
-#include "hw/virtio-net.h"
-#include "hw/virtio-rng.h"
-#include "hw/virtio-serial.h"
-#include "hw/virtio-scsi.h"
-#include "hw/virtio-balloon.h"
-#include "hw/virtio-bus.h"
-#include "hw/9pfs/virtio-9p-device.h"
+#include "hw/virtio/virtio-blk.h"
+#include "hw/virtio/virtio-net.h"
+#include "hw/virtio/virtio-rng.h"
+#include "hw/virtio/virtio-serial.h"
+#include "hw/virtio/virtio-scsi.h"
+#include "hw/virtio/virtio-balloon.h"
+#include "hw/virtio/virtio-bus.h"
+#include "hw/virtio/virtio-9p.h"
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 typedef struct VirtIOBlkPCI VirtIOBlkPCI;

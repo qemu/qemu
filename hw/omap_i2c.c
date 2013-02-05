@@ -17,8 +17,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw/hw.h"
-#include "hw/i2c.h"
-#include "hw/omap.h"
+#include "hw/i2c/i2c.h"
+#include "hw/arm/omap.h"
 #include "hw/sysbus.h"
 
 

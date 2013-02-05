@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw/sysbus.h"
-#include "hw/sh.h"
+#include "hw/sh4/sh.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "qemu/bswap.h"

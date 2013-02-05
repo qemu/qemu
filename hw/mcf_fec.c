@@ -7,7 +7,7 @@
  */
 #include "hw/hw.h"
 #include "net/net.h"
-#include "hw/mcf.h"
+#include "hw/m68k/mcf.h"
 /* For crc32 */
 #include <zlib.h>
 #include "exec/address-spaces.h"

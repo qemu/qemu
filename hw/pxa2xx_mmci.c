@@ -11,7 +11,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/pxa.h"
+#include "hw/arm/pxa.h"
 #include "hw/sd.h"
 #include "hw/qdev.h"
 

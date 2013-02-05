@@ -20,11 +20,11 @@
 #include <assert.h>
 
 #include "hw/hw.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "monitor/monitor.h"
 #include "hw/sysbus.h"
 #include "trace.h"
-#include "hw/lm32_pic.h"
+#include "hw/lm32/lm32_pic.h"
 
 struct LM32PicState {
     SysBusDevice busdev;

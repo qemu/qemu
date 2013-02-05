@@ -25,7 +25,7 @@
  *
  */
 #include "hw/pci/pci.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/loader.h"
 #include "sysemu/sysemu.h"
 

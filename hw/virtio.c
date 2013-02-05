@@ -15,9 +15,9 @@
 
 #include "trace.h"
 #include "qemu/error-report.h"
-#include "hw/virtio.h"
+#include "hw/virtio/virtio.h"
 #include "qemu/atomic.h"
-#include "hw/virtio-bus.h"
+#include "hw/virtio/virtio-bus.h"
 
 /* The alignment to use between consumer and producer parts of vring.
  * x86 pagesize again. */

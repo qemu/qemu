@@ -24,7 +24,7 @@
  */
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
-#include "hw/adb.h"
+#include "hw/input/adb.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 

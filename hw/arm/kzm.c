@@ -16,13 +16,13 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "hw/hw.h"
-#include "hw/arm-misc.h"
-#include "hw/devices.h"
+#include "hw/arm.h"
+#include "hw/arm/devices.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/serial.h"
-#include "hw/imx.h"
+#include "hw/char/serial.h"
+#include "hw/arm/imx.h"
 
     /* Memory map for Kzm Emulation Baseboard:
      * 0x00000000-0x00003fff 16k secure ROM       IGNORED

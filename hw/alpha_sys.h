@@ -6,7 +6,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "hw/ide.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/irq.h"
 
 

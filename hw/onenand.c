@@ -20,7 +20,7 @@
 
 #include "qemu-common.h"
 #include "hw/hw.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "hw/irq.h"
 #include "sysemu/blockdev.h"
 #include "exec/memory.h"

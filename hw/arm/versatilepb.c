@@ -8,16 +8,16 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm-misc.h"
-#include "hw/devices.h"
+#include "hw/arm.h"
+#include "hw/arm/devices.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
-#include "hw/i2c.h"
+#include "hw/i2c/i2c.h"
 #include "hw/boards.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 
 #define VERSATILE_FLASH_ADDR 0x34000000
 #define VERSATILE_FLASH_SIZE (64 * 1024 * 1024)

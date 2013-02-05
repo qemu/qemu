@@ -24,15 +24,15 @@
 #include "monitor/monitor.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "hw/virtio.h"
-#include "hw/virtio-rng.h"
-#include "hw/virtio-serial.h"
-#include "hw/virtio-net.h"
+#include "hw/virtio/virtio.h"
+#include "hw/virtio/virtio-rng.h"
+#include "hw/virtio/virtio-serial.h"
+#include "hw/virtio/virtio-net.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
 
 #include "hw/s390x/s390-virtio-bus.h"
-#include "hw/virtio-bus.h"
+#include "hw/virtio/virtio-bus.h"
 
 /* #define DEBUG_S390 */
 

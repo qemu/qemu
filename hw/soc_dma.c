@@ -19,7 +19,7 @@
  */
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "hw/soc_dma.h"
+#include "hw/arm/soc_dma.h"
 
 static void transfer_mem2mem(struct soc_dma_ch_s *ch)
 {

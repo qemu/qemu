@@ -12,7 +12,7 @@
 #include "qemu/config-file.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "hw/scsi.h"
+#include "hw/scsi/scsi.h"
 #include "ui/console.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"

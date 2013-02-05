@@ -8,7 +8,7 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/ps2.h"
+#include "hw/input/ps2.h"
 
 typedef struct {
     SysBusDevice busdev;

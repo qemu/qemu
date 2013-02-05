@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/ps2.h"
+#include "hw/input/ps2.h"
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
 

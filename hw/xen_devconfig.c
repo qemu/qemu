@@ -1,4 +1,4 @@
-#include "hw/xen_backend.h"
+#include "hw/xen/xen_backend.h"
 #include "sysemu/blockdev.h"
 
 /* ------------------------------------------------------------- */

@@ -13,11 +13,11 @@
  *
  */
 
-#include "hw/virtio-scsi.h"
+#include "hw/virtio/virtio-scsi.h"
 #include "qemu/error-report.h"
-#include <hw/scsi.h>
-#include <hw/scsi-defs.h>
-#include "hw/virtio-bus.h"
+#include <hw/scsi/scsi.h>
+#include <block/scsi.h>
+#include <hw/virtio/virtio-bus.h>
 
 #define VIRTIO_SCSI_VQ_SIZE     128
 #define VIRTIO_SCSI_CDB_SIZE    32

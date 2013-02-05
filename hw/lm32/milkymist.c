@@ -19,9 +19,9 @@
 
 #include "hw/sysbus.h"
 #include "hw/hw.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
-#include "hw/devices.h"
+#include "hw/arm/devices.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"

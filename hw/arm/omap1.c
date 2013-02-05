@@ -17,10 +17,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw/hw.h"
-#include "hw/arm-misc.h"
-#include "hw/omap.h"
+#include "hw/arm.h"
+#include "hw/arm/omap.h"
 #include "sysemu/sysemu.h"
-#include "hw/soc_dma.h"
+#include "hw/arm/soc_dma.h"
 #include "sysemu/blockdev.h"
 #include "qemu/range.h"
 #include "hw/sysbus.h"

@@ -27,7 +27,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "exec/address-spaces.h"
 
 #define TYPE_RAVEN_PCI_DEVICE "raven"

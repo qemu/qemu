@@ -12,7 +12,7 @@
 
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
-#include "hw/arm-misc.h"
+#include "hw/arm.h"
 #include "exec/address-spaces.h"
 #include "hw/arm_gic_internal.h"
 

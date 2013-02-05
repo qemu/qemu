@@ -23,9 +23,9 @@
  */
 
 #include "hw/hw.h"
-#include "hw/audiodev.h"
+#include "hw/audio/audio.h"
 #include "audio/audio.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 
 //#define DEBUG
 

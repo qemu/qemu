@@ -15,7 +15,7 @@
 #include "hw/boards.h"
 #include "sysemu/device_tree.h"
 #include "hw/pci/pci.h"
-#include "hw/openpic.h"
+#include "hw/ppc/openpic.h"
 
 static void e500plat_fixup_devtree(PPCE500Params *params, void *fdt)
 {

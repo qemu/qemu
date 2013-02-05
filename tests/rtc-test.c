@@ -11,7 +11,7 @@
  *
  */
 #include "libqtest.h"
-#include "hw/mc146818rtc_regs.h"
+#include "hw/timer/mc146818rtc_regs.h"
 
 #include <glib.h>
 #include <stdio.h>

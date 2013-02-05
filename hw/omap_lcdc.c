@@ -18,7 +18,7 @@
  */
 #include "hw/hw.h"
 #include "ui/console.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 #include "hw/framebuffer.h"
 #include "ui/pixel_ops.h"
 

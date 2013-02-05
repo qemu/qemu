@@ -28,7 +28,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/q35.h"
+#include "hw/pci-host/q35.h"
 
 /****************************************************************************
  * Q35 host

@@ -48,7 +48,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/uboot_image.h"
 #include "hw/loader.h"
-#include "hw/fw_cfg.h"
+#include "hw/nvram/fw_cfg.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 

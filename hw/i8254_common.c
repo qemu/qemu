@@ -23,11 +23,11 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/isa.h"
+#include "hw/i386/pc.h"
+#include "hw/isa/isa.h"
 #include "qemu/timer.h"
-#include "hw/i8254.h"
-#include "hw/i8254_internal.h"
+#include "hw/timer/i8254.h"
+#include "hw/timer/i8254_internal.h"
 
 /* val must be 0 or 1 */
 void pit_set_gate(ISADevice *dev, int channel, int val)

@@ -11,7 +11,7 @@
 #include "hw/sysbus.h"
 
 #undef DEBUG_PUV3
-#include "hw/puv3.h"
+#include "hw/unicore32/puv3.h"
 
 typedef struct {
     SysBusDevice busdev;

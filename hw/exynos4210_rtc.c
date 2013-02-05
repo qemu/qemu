@@ -34,7 +34,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 
-#include "hw/exynos4210.h"
+#include "hw/arm/exynos4210.h"
 
 #define DEBUG_RTC 0
 

@@ -9,7 +9,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/pxa.h"
+#include "hw/arm/pxa.h"
 #include "hw/sysbus.h"
 
 #define ICIP	0x00	/* Interrupt Controller IRQ Pending register */

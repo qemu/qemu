@@ -21,7 +21,7 @@
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "ui/console.h"
-#include "hw/hid.h"
+#include "hw/input/hid.h"
 #include "hw/bt.h"
 
 enum hid_transaction_req {

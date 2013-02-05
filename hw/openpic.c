@@ -36,11 +36,11 @@
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
 #include "hw/pci/pci.h"
-#include "hw/openpic.h"
+#include "hw/ppc/openpic.h"
 #include "hw/sysbus.h"
 #include "hw/pci/msi.h"
 #include "qemu/bitops.h"
-#include "hw/ppc.h"
+#include "hw/ppc/ppc.h"
 
 //#define DEBUG_OPENPIC
 

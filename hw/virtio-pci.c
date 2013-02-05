@@ -17,12 +17,12 @@
 
 #include <inttypes.h>
 
-#include "hw/virtio.h"
-#include "hw/virtio-blk.h"
-#include "hw/virtio-net.h"
-#include "hw/virtio-serial.h"
-#include "hw/virtio-scsi.h"
-#include "hw/virtio-balloon.h"
+#include "hw/virtio/virtio.h"
+#include "hw/virtio/virtio-blk.h"
+#include "hw/virtio/virtio-net.h"
+#include "hw/virtio/virtio-serial.h"
+#include "hw/virtio/virtio-scsi.h"
+#include "hw/virtio/virtio-balloon.h"
 #include "hw/pci/pci.h"
 #include "qemu/error-report.h"
 #include "hw/pci/msi.h"
@@ -32,7 +32,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/virtio-pci.h"
 #include "qemu/range.h"
-#include "hw/virtio-bus.h"
+#include "hw/virtio/virtio-bus.h"
 
 /* from Linux's linux/virtio_pci.h */
 

@@ -13,7 +13,7 @@
 #include "char/char.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "hw/virtio-serial.h"
+#include "hw/virtio/virtio-serial.h"
 
 typedef struct VirtConsole {
     VirtIOSerialPort port;

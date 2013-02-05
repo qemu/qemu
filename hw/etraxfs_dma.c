@@ -28,7 +28,7 @@
 #include "qemu-common.h"
 #include "sysemu/sysemu.h"
 
-#include "hw/etraxfs_dma.h"
+#include "hw/cris/etraxfs_dma.h"
 
 #define D(x)
 

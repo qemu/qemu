@@ -16,11 +16,11 @@
 #include "qemu/iov.h"
 #include "qemu/timer.h"
 #include "qemu-common.h"
-#include "hw/virtio.h"
-#include "hw/pc.h"
+#include "hw/virtio/virtio.h"
+#include "hw/i386/pc.h"
 #include "cpu.h"
 #include "sysemu/balloon.h"
-#include "hw/virtio-balloon.h"
+#include "hw/virtio/virtio-balloon.h"
 #include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
 #include "qapi/visitor.h"
@@ -29,7 +29,7 @@
 #include <sys/mman.h>
 #endif
 
-#include "hw/virtio-bus.h"
+#include "hw/virtio/virtio-bus.h"
 
 static void balloon_page(void *addr, int deflate)
 {

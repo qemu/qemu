@@ -19,8 +19,8 @@
  */
 #include "char/char.h"
 #include "hw/hw.h"
-#include "hw/omap.h"
-#include "hw/serial.h"
+#include "hw/arm/omap.h"
+#include "hw/char/serial.h"
 #include "exec/address-spaces.h"
 
 /* UARTs */

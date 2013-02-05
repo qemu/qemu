@@ -23,7 +23,7 @@
 #include "sysemu/sysemu.h"
 #include "char/char.h"
 
-#include "hw/exynos4210.h"
+#include "hw/arm/exynos4210.h"
 
 #undef DEBUG_UART
 #undef DEBUG_UART_EXTEND

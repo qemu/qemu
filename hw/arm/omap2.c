@@ -20,13 +20,13 @@
 
 #include "sysemu/blockdev.h"
 #include "hw/hw.h"
-#include "hw/arm-misc.h"
-#include "hw/omap.h"
+#include "hw/arm.h"
+#include "hw/arm/omap.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "char/char.h"
-#include "hw/flash.h"
-#include "hw/soc_dma.h"
+#include "hw/block/flash.h"
+#include "hw/arm/soc_dma.h"
 #include "hw/sysbus.h"
 #include "audio/audio.h"
 

@@ -25,7 +25,7 @@
 #include "hw/hw.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
-#include "hw/hid.h"
+#include "hw/input/hid.h"
 
 #define HID_USAGE_ERROR_ROLLOVER        0x01
 #define HID_USAGE_POSTFAIL              0x02

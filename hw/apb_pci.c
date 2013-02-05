@@ -31,7 +31,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
-#include "hw/apb_pci.h"
+#include "hw/pci-host/apb.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 

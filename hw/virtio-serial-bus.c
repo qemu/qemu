@@ -23,7 +23,7 @@
 #include "qemu/queue.h"
 #include "hw/sysbus.h"
 #include "trace.h"
-#include "hw/virtio-serial.h"
+#include "hw/virtio/virtio-serial.h"
 
 static VirtIOSerialPort *find_port_by_id(VirtIOSerial *vser, uint32_t id)
 {

@@ -23,8 +23,8 @@
 #include "sysemu/dma.h"
 #include "hw/pci/msix.h"
 #include "qemu/iov.h"
-#include "hw/scsi.h"
-#include "hw/scsi-defs.h"
+#include "hw/scsi/scsi.h"
+#include "block/scsi.h"
 #include "trace.h"
 
 #include "hw/mfi.h"

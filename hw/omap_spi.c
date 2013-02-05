@@ -20,7 +20,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #include "hw/hw.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 
 /* Multichannel SPI */
 struct omap_mcspi_s {

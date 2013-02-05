@@ -37,8 +37,8 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/isa.h"
-#include "hw/mac_dbdma.h"
+#include "hw/isa/isa.h"
+#include "hw/ppc/mac_dbdma.h"
 #include "qemu/main-loop.h"
 
 /* debug DBDMA */

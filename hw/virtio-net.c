@@ -12,14 +12,14 @@
  */
 
 #include "qemu/iov.h"
-#include "hw/virtio.h"
+#include "hw/virtio/virtio.h"
 #include "net/net.h"
 #include "net/checksum.h"
 #include "net/tap.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
-#include "hw/virtio-net.h"
-#include "hw/vhost_net.h"
+#include "hw/virtio/virtio-net.h"
+#include "net/vhost_net.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 

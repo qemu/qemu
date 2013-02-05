@@ -26,7 +26,7 @@
 #include "qapi/qmp/types.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
-#include "hw/watchdog.h"
+#include "sysemu/watchdog.h"
 
 /* Possible values for action parameter. */
 #define WDT_RESET        1	/* Hard reset. */

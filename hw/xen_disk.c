@@ -36,7 +36,7 @@
 #include <sys/uio.h>
 
 #include "hw/hw.h"
-#include "hw/xen_backend.h"
+#include "hw/xen/xen_backend.h"
 #include "hw/xen_blkif.h"
 #include "sysemu/blockdev.h"
 

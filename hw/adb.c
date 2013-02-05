@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/adb.h"
+#include "hw/input/adb.h"
 #include "ui/console.h"
 
 /* debug ADB */

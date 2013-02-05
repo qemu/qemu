@@ -8,7 +8,7 @@
  */
 #include "libqtest.h"
 #include "libi2c.h"
-#include "hw/tmp105_regs.h"
+#include "hw/misc/tmp105_regs.h"
 
 #include <glib.h>
 

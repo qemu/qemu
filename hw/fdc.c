@@ -28,10 +28,10 @@
  */
 
 #include "hw/hw.h"
-#include "hw/fdc.h"
+#include "hw/block/fdc.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-addr.h"
 #include "sysemu/blockdev.h"

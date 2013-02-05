@@ -19,7 +19,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/i2c.h"
+#include "hw/i2c/i2c.h"
 #include "hw/tmp105.h"
 #include "qapi/visitor.h"
 

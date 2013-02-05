@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "hw/sun4m.h"
+#include "hw/sparc/sun4m.h"
 #include "hw/sysbus.h"
 #include "trace.h"
 

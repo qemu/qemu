@@ -27,8 +27,8 @@
 #include "hw/hw.h"
 #include "net/net.h"
 #include "hw/qdev.h"
-#include "hw/spapr.h"
-#include "hw/spapr_vio.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
 
 #include <libfdt.h>
 

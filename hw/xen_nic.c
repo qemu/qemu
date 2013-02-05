@@ -39,7 +39,7 @@
 #include "net/net.h"
 #include "net/checksum.h"
 #include "net/util.h"
-#include "hw/xen_backend.h"
+#include "hw/xen/xen_backend.h"
 
 #include <xen/io/netif.h>
 

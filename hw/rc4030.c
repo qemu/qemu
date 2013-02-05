@@ -23,7 +23,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/mips.h"
+#include "hw/mips/mips.h"
 #include "qemu/timer.h"
 
 /********************************************************/

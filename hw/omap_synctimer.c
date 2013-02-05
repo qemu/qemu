@@ -19,7 +19,7 @@
  */
 #include "hw/hw.h"
 #include "qemu/timer.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 struct omap_synctimer_s {
     MemoryRegion iomem;
     uint32_t val;

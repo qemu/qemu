@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "hw/serial.h"
+#include "hw/char/serial.h"
 #include "char/char.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"

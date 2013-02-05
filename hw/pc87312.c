@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "hw/pc87312.h"
+#include "hw/isa/pc87312.h"
 #include "qemu/error-report.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"

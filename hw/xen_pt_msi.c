@@ -11,9 +11,9 @@
 
 #include <sys/mman.h>
 
-#include "hw/xen_backend.h"
+#include "hw/xen/xen_backend.h"
 #include "hw/xen_pt.h"
-#include "hw/apic-msidef.h"
+#include "hw/i386/apic-msidef.h"
 
 
 #define XEN_PT_AUTO_ASSIGN -1

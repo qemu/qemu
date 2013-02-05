@@ -19,7 +19,7 @@
  */
 #include "hw/hw.h"
 #include "ui/console.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 
 struct omap_dss_s {
     qemu_irq irq;

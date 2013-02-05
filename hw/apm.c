@@ -20,7 +20,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw/apm.h"
+#include "hw/isa/apm.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 

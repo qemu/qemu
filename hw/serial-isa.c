@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#include "hw/serial.h"
-#include "hw/isa.h"
+#include "hw/char/serial.h"
+#include "hw/isa/isa.h"
 
 typedef struct ISASerialState {
     ISADevice dev;

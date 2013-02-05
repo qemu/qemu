@@ -23,8 +23,8 @@
  */
 
 #include "hw/hw.h"
-#include "hw/i2c.h"
-#include "hw/smbus.h"
+#include "hw/i2c/i2c.h"
+#include "hw/i2c/smbus.h"
 
 //#define DEBUG
 

@@ -23,7 +23,7 @@
 
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "hw/watchdog.h"
+#include "sysemu/watchdog.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 

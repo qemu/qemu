@@ -12,7 +12,7 @@
  */
 
 #include "exec/address-spaces.h"
-#include "hostmem.h"
+#include "hw/virtio/dataplane/hostmem.h"
 
 static int hostmem_lookup_cmp(const void *phys_, const void *region_)
 {

@@ -25,7 +25,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/sh.h"
+#include "hw/sh4/sh.h"
 #include "char/char.h"
 #include "exec/address-spaces.h"
 

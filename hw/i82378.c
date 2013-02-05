@@ -18,9 +18,9 @@
  */
 
 #include "hw/pci/pci.h"
-#include "hw/pc.h"
-#include "hw/i8254.h"
-#include "hw/pcspk.h"
+#include "hw/i386/pc.h"
+#include "hw/timer/i8254.h"
+#include "hw/audio/pcspk.h"
 
 //#define DEBUG_I82378
 

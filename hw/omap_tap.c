@@ -19,7 +19,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 
 /* TEST-Chip-level TAP */
 static uint64_t omap_tap_read(void *opaque, hwaddr addr,

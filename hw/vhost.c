@@ -14,7 +14,7 @@
  */
 
 #include <sys/ioctl.h>
-#include "hw/vhost.h"
+#include "hw/virtio/vhost.h"
 #include "hw/hw.h"
 #include "qemu/range.h"
 #include <linux/vhost.h>

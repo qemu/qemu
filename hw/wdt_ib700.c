@@ -21,10 +21,10 @@
 
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "hw/watchdog.h"
+#include "sysemu/watchdog.h"
 #include "hw/hw.h"
-#include "hw/isa.h"
-#include "hw/pc.h"
+#include "hw/isa/isa.h"
+#include "hw/i386/pc.h"
 
 /*#define IB700_DEBUG 1*/
 

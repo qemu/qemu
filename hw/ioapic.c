@@ -21,10 +21,10 @@
  */
 
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/apic.h"
-#include "hw/ioapic.h"
-#include "hw/ioapic_internal.h"
+#include "hw/i386/pc.h"
+#include "hw/i386/apic.h"
+#include "hw/i386/ioapic.h"
+#include "hw/i386/ioapic_internal.h"
 
 //#define DEBUG_IOAPIC
 

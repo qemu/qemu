@@ -26,9 +26,9 @@
 #include "monitor/qdev.h"
 #include "hw/usb.h"
 #include "hw/pcmcia.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
-#include "hw/watchdog.h"
+#include "sysemu/watchdog.h"
 #include "hw/loader.h"
 #include "exec/gdbstub.h"
 #include "net/net.h"
@@ -71,9 +71,9 @@
 
 /* for pic/irq_info */
 #if defined(TARGET_SPARC)
-#include "hw/sun4m.h"
+#include "hw/sparc/sun4m.h"
 #endif
-#include "hw/lm32_pic.h"
+#include "hw/lm32/lm32_pic.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION

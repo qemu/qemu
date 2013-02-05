@@ -26,8 +26,8 @@
 
 #include "hw/hw.h"
 #include "char/char.h"
-#include "hw/isa.h"
-#include "hw/pc.h"
+#include "hw/isa/isa.h"
+#include "hw/i386/pc.h"
 
 #define TYPE_ISA_DEBUGCON_DEVICE "isa-debugcon"
 #define ISA_DEBUGCON_DEVICE(obj) \

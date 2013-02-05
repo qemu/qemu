@@ -25,14 +25,14 @@
  *
  */
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/pm_smbus.h"
+#include "hw/i386/pc.h"
+#include "hw/i2c/pm_smbus.h"
 #include "hw/pci/pci.h"
 #include "sysemu/sysemu.h"
-#include "hw/i2c.h"
-#include "hw/smbus.h"
+#include "hw/i2c/i2c.h"
+#include "hw/i2c/smbus.h"
 
-#include "hw/ich9.h"
+#include "hw/i386/ich9.h"
 
 #define TYPE_ICH9_SMB_DEVICE "ICH9 SMB"
 #define ICH9_SMB_DEVICE(obj) \

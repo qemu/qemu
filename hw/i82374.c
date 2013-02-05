@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 
 //#define DEBUG_I82374
 

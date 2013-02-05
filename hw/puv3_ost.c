@@ -12,7 +12,7 @@
 #include "hw/ptimer.h"
 
 #undef DEBUG_PUV3
-#include "hw/puv3.h"
+#include "hw/unicore32/puv3.h"
 
 /* puv3 ostimer implementation. */
 typedef struct {

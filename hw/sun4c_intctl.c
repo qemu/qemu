@@ -23,7 +23,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/sun4m.h"
+#include "hw/sparc/sun4m.h"
 #include "monitor/monitor.h"
 #include "hw/sysbus.h"
 

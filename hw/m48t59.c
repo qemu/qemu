@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/nvram.h"
+#include "hw/timer/m48t59.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "exec/address-spaces.h"
 
 //#define DEBUG_NVRAM

@@ -36,7 +36,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/eeprom93xx.h"
+#include "hw/nvram/eeprom93xx.h"
 
 /* Debug EEPROM emulation. */
 //~ #define DEBUG_EEPROM

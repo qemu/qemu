@@ -1,7 +1,7 @@
 #include "hw/qdev.h"
 #include "char/char.h"
-#include "hw/spapr.h"
-#include "hw/spapr_vio.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
 
 #define VTERM_BUFSIZE   16
 

@@ -57,7 +57,7 @@
 #include "qemu-common.h"
 #include "hw/ptimer.h"
 
-#include "hw/exynos4210.h"
+#include "hw/arm/exynos4210.h"
 
 //#define DEBUG_MCT
 

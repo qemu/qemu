@@ -7,7 +7,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/mcf.h"
+#include "hw/m68k/mcf.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"

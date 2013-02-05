@@ -44,7 +44,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
-#include "hw/eeprom93xx.h"
+#include "hw/nvram/eeprom93xx.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 

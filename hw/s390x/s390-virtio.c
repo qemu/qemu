@@ -29,7 +29,7 @@
 #include "hw/boards.h"
 #include "monitor/monitor.h"
 #include "hw/loader.h"
-#include "hw/virtio.h"
+#include "hw/virtio/virtio.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
 #include "exec/address-spaces.h"

@@ -13,7 +13,7 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
-#include "hw/imx.h"
+#include "hw/arm/imx.h"
 
 #define CKIH_FREQ 26000000 /* 26MHz crystal input */
 #define CKIL_FREQ    32768 /* nominal 32khz clock */

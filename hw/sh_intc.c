@@ -8,9 +8,9 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw/sh_intc.h"
+#include "hw/sh4/sh_intc.h"
 #include "hw/hw.h"
-#include "hw/sh.h"
+#include "hw/sh4/sh.h"
 
 //#define DEBUG_INTC
 //#define DEBUG_INTC_SOURCES

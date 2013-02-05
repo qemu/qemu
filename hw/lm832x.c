@@ -19,7 +19,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/i2c.h"
+#include "hw/i2c/i2c.h"
 #include "qemu/timer.h"
 #include "ui/console.h"
 

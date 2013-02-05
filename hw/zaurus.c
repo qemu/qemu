@@ -16,7 +16,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw/hw.h"
-#include "hw/sharpsl.h"
+#include "hw/arm/sharpsl.h"
 #include "hw/sysbus.h"
 
 #undef REG_FMT

@@ -21,7 +21,7 @@
 #include "qemu/error-report.h"
 #include <hw/ide/internal.h>
 #include "sysemu/blockdev.h"
-#include "hw/block-common.h"
+#include "hw/block/block.h"
 #include "sysemu/sysemu.h"
 
 /* --------------------------------- */

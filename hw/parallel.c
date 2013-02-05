@@ -24,8 +24,8 @@
  */
 #include "hw/hw.h"
 #include "char/char.h"
-#include "hw/isa.h"
-#include "hw/pc.h"
+#include "hw/isa/isa.h"
+#include "hw/i386/pc.h"
 #include "sysemu/sysemu.h"
 
 //#define DEBUG_PARALLEL

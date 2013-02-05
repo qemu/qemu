@@ -23,8 +23,8 @@
  */
 #include "hw/hw.h"
 #include "sysemu/sysemu.h"
-#include "hw/isa.h"
-#include "hw/fw_cfg.h"
+#include "hw/isa/isa.h"
+#include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "trace.h"
 #include "qemu/error-report.h"

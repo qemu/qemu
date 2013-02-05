@@ -19,7 +19,7 @@
  */
 #include "hw/hw.h"
 #include "qemu/timer.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 
 /* GP timers */
 struct omap_gp_timer_s {

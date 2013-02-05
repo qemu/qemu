@@ -14,7 +14,7 @@
 
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
-#include "hw/scsi.h"
+#include "hw/scsi/scsi.h"
 #include "sysemu/dma.h"
 
 //#define DEBUG_LSI

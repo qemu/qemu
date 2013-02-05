@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "hw/hw.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "hw/loader.h"

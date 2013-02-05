@@ -12,7 +12,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 
 /*
  * Pre-calculated 256-way 1 byte column parity.  Table borrowed from Linux.

@@ -25,7 +25,7 @@
 
 /* see docs/specs/pci-serial.txt */
 
-#include "hw/serial.h"
+#include "hw/char/serial.h"
 #include "hw/pci/pci.h"
 
 #define PCI_SERIAL_MAX_PORTS 4

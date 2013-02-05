@@ -12,7 +12,7 @@
 
 #include "hw/hw.h"
 #include "ui/console.h"
-#include "hw/pxa.h"
+#include "hw/arm/pxa.h"
 #include "ui/pixel_ops.h"
 /* FIXME: For graphic_rotate. Should probably be done in common code.  */
 #include "sysemu/sysemu.h"

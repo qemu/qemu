@@ -31,7 +31,7 @@
  */
 
 #include "block/block.h"
-#include "hw/block-common.h"
+#include "hw/block/block.h"
 #include "trace.h"
 
 struct partition {

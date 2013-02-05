@@ -20,7 +20,7 @@
 #include "monitor/monitor.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "exec/address-spaces.h"
 
 static ISABus *isabus;

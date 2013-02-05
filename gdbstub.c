@@ -1607,7 +1607,7 @@ static int cpu_gdb_write_register(CPUS390XState *env, uint8_t *mem_buf, int n)
 }
 #elif defined (TARGET_LM32)
 
-#include "hw/lm32_pic.h"
+#include "hw/lm32/lm32_pic.h"
 #define NUM_CORE_REGS (32 + 7)
 
 static int cpu_gdb_read_register(CPULM32State *env, uint8_t *mem_buf, int n)

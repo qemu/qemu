@@ -11,7 +11,7 @@
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "hw/sysbus.h"
-#include "hw/primecell.h"
+#include "hw/arm/primecell.h"
 #include "sysemu/sysemu.h"
 
 #define LOCK_VALUE 0xa05f

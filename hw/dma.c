@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "qemu/main-loop.h"
 
 /* #define DEBUG_DMA */

@@ -12,12 +12,12 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "hw/hw.h"
-#include "hw/pxa.h"
-#include "hw/arm-misc.h"
+#include "hw/arm/pxa.h"
+#include "hw/arm.h"
 #include "net/net.h"
-#include "hw/devices.h"
+#include "hw/arm/devices.h"
 #include "hw/boards.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"

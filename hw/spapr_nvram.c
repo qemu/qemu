@@ -26,8 +26,8 @@
 
 #include "sysemu/device_tree.h"
 #include "hw/sysbus.h"
-#include "hw/spapr.h"
-#include "hw/spapr_vio.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
 
 typedef struct sPAPRNVRAM {
     VIOsPAPRDevice sdev;

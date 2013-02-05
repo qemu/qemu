@@ -12,7 +12,7 @@
 #include "hw/sysbus.h"
 
 #undef DEBUG_PUV3
-#include "hw/puv3.h"
+#include "hw/unicore32/puv3.h"
 
 #define PUV3_DMA_CH_NR          (6)
 #define PUV3_DMA_CH_MASK        (0xff)

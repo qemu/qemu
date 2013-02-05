@@ -25,8 +25,8 @@
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
 #include "hw/pci/pci.h"
-#include "hw/mac_dbdma.h"
-#include "hw/escc.h"
+#include "hw/ppc/mac_dbdma.h"
+#include "hw/char/escc.h"
 
 #define TYPE_MACIO "macio"
 #define MACIO(obj) OBJECT_CHECK(MacIOState, (obj), TYPE_MACIO)

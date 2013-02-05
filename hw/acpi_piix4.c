@@ -19,15 +19,15 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/apm.h"
-#include "hw/pm_smbus.h"
+#include "hw/i386/pc.h"
+#include "hw/isa/apm.h"
+#include "hw/i2c/pm_smbus.h"
 #include "hw/pci/pci.h"
-#include "hw/acpi.h"
+#include "hw/acpi/acpi.h"
 #include "sysemu/sysemu.h"
 #include "qemu/range.h"
 #include "exec/ioport.h"
-#include "hw/fw_cfg.h"
+#include "hw/nvram/fw_cfg.h"
 #include "exec/address-spaces.h"
 
 //#define DEBUG

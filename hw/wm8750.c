@@ -8,7 +8,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/i2c.h"
+#include "hw/i2c/i2c.h"
 #include "audio/audio.h"
 
 #define IN_PORT_N	3

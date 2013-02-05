@@ -19,7 +19,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 #include "hw/sysbus.h"
 
 struct omap_gpio_s {

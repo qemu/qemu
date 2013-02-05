@@ -21,7 +21,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "char/char.h"
-#include "hw/imx.h"
+#include "hw/arm/imx.h"
 
 //#define DEBUG_SERIAL 1
 #ifdef DEBUG_SERIAL

@@ -31,7 +31,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
 

@@ -15,17 +15,16 @@
  *
  */
 
-#include "hw.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
 #include "net/net.h"
-#include "virtio-net.h"
 #include "net/tap.h"
 #include "net/checksum.h"
 #include "sysemu/sysemu.h"
 #include "qemu-common.h"
 #include "qemu/bswap.h"
-#include "pci/msix.h"
-#include "pci/msi.h"
+#include "hw/pci/msix.h"
+#include "hw/pci/msi.h"
 
 #include "vmxnet3.h"
 #include "vmxnet_debug.h"

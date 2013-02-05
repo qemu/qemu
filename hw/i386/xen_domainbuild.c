@@ -1,5 +1,5 @@
 #include <signal.h>
-#include "hw/xen_backend.h"
+#include "hw/xen/xen_backend.h"
 #include "hw/xen_domainbuild.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"

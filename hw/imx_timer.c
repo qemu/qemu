@@ -15,7 +15,7 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "hw/sysbus.h"
-#include "hw/imx.h"
+#include "hw/arm/imx.h"
 
 //#define DEBUG_TIMER 1
 #ifdef DEBUG_TIMER

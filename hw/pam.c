@@ -27,7 +27,7 @@
  * THE SOFTWARE.
  */
 #include "sysemu/sysemu.h"
-#include "hw/pam.h"
+#include "hw/pci-host/pam.h"
 
 void smram_update(MemoryRegion *smram_region, uint8_t smram,
                   uint8_t smm_enabled)

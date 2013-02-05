@@ -36,7 +36,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "qemu/timer.h"
 #include "block/block.h"
 #include "exec/address-spaces.h"

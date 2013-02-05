@@ -24,15 +24,15 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "hw/hw.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
-#include "hw/acpi.h"
+#include "hw/acpi/acpi.h"
 #include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
 
-#include "hw/ich9.h"
+#include "hw/i386/ich9.h"
 
 //#define DEBUG
 

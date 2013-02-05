@@ -11,9 +11,9 @@
 #include <sys/mman.h>
 
 #include "hw/pci/pci.h"
-#include "hw/pc.h"
-#include "hw/xen_common.h"
-#include "hw/xen_backend.h"
+#include "hw/i386/pc.h"
+#include "hw/xen/xen_common.h"
+#include "hw/xen/xen_backend.h"
 #include "qmp-commands.h"
 
 #include "char/char.h"

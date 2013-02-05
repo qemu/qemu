@@ -12,7 +12,7 @@
 
 #include <sys/resource.h>
 
-#include "hw/xen_backend.h"
+#include "hw/xen/xen_backend.h"
 #include "sysemu/blockdev.h"
 #include "qemu/bitmap.h"
 

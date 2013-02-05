@@ -24,11 +24,11 @@
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
-#include "hw/mc146818rtc.h"
+#include "hw/timer/mc146818rtc.h"
 #include "qapi/visitor.h"
 
 #ifdef TARGET_I386
-#include "hw/apic.h"
+#include "hw/i386/apic.h"
 #endif
 
 //#define DEBUG_CMOS

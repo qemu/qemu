@@ -21,9 +21,9 @@
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 #include "hw/irq.h"
-#include "hw/devices.h"
+#include "hw/arm/devices.h"
 #include "hw/sysbus.h"
 
 typedef struct TUSBState {
