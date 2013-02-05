@@ -997,7 +997,8 @@ static int virtio_net_init_pci(PCIDevice *pci_dev)
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
 
-    vdev = virtio_net_init(&pci_dev->qdev, &proxy->nic, &proxy->net);
+    vdev = virtio_net_init(&pci_dev->qdev, &proxy->nic, &proxy->net,
+                           proxy->host_features);
 
     vdev->nvectors = proxy->nvectors;
     virtio_init_pci(proxy, vdev);

@@ -1279,7 +1279,8 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
 }
 
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
-                              virtio_net_conf *net)
+                              virtio_net_conf *net,
+                              uint32_t host_features)
 {
     VirtIONet *n;
     int i;
