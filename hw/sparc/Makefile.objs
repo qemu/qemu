@@ -1,5 +1,5 @@
-obj-y = sun4m_iommu.o slavio_intctl.o
-obj-y += slavio_misc.o sparc32_dma.o
+obj-y = slavio_intctl.o
+obj-y += slavio_misc.o
 obj-y += eccmemctl.o sbi.o sun4c_intctl.o
 
 # GRLIB

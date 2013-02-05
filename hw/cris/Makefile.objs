@@ -1,5 +1,4 @@
 # IO blocks
-obj-y += etraxfs_dma.o
 obj-y += etraxfs_pic.o
 
 obj-y := $(addprefix ../,$(obj-y))
