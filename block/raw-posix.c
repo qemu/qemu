@@ -1257,9 +1257,43 @@ static int hdev_probe_device(const char *filename)
     return 0;
 }
 
+static int check_hdev_writable(BDRVRawState *s)
+{
+#if defined(BLKROGET)
+    /* Linux block devices can be configured "read-only" using blockdev(8).
+     * This is independent of device node permissions and therefore open(2)
+     * with O_RDWR succeeds.  Actual writes fail with EPERM.
+     *
+     * bdrv_open() is supposed to fail if the disk is read-only.  Explicitly
+     * check for read-only block devices so that Linux block devices behave
+     * properly.
+     */
+    struct stat st;
+    int readonly = 0;
+
+    if (fstat(s->fd, &st)) {
+        return -errno;
+    }
+
+    if (!S_ISBLK(st.st_mode)) {
+        return 0;
+    }
+
+    if (ioctl(s->fd, BLKROGET, &readonly) < 0) {
+        return -errno;
+    }
+
+    if (readonly) {
+        return -EACCES;
+    }
+#endif /* defined(BLKROGET) */
+    return 0;
+}
+
 static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
+    int ret;
 
 #if defined(__APPLE__) && defined(__MACH__)
     if (strstart(filename, "/dev/cdrom", NULL)) {
@@ -1300,7 +1334,20 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     }
 #endif
 
-    return raw_open_common(bs, filename, flags, 0);
+    ret = raw_open_common(bs, filename, flags, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (flags & BDRV_O_RDWR) {
+        ret = check_hdev_writable(s);
+        if (ret < 0) {
+            raw_close(bs);
+            return ret;
+        }
+    }
+
+    return ret;
 }
 
 #if defined(__linux__)
