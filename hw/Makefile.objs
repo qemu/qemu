@@ -29,13 +29,3 @@ devices-dirs-$(CONFIG_SOFTMMU) += xen/
 devices-dirs-y += core/
 common-obj-y += $(devices-dirs-y)
 obj-y += $(devices-dirs-y)
-
-ifeq ($(CONFIG_SOFTMMU),y)
-
-# Inter-VM PCI shared memory & VFIO PCI device assignment
-ifeq ($(CONFIG_PCI), y)
-obj-$(CONFIG_KVM) += ivshmem.o
-obj-$(CONFIG_LINUX) += vfio_pci.o
-endif
-
-endif
