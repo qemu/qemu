@@ -1,5 +1,1 @@
-obj-y = apb_pci.o
-
-obj-y := $(addprefix ../,$(obj-y))
-
 obj-y += sun4u.o

@@ -92,7 +92,7 @@ static void apb_config_writel (void *opaque, hwaddr addr,
 {
     APBState *s = opaque;
 
-    APB_DPRINTF("%s: addr " TARGET_FMT_lx " val %" PRIx64 "\n", __func__, addr, val);
+    APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
 
     switch (addr & 0xffff) {
     case 0x30 ... 0x4f: /* DMA error registers */
@@ -201,7 +201,7 @@ static uint64_t apb_config_readl (void *opaque,
         val = 0;
         break;
     }
-    APB_DPRINTF("%s: addr " TARGET_FMT_lx " -> %x\n", __func__, addr, val);
+    APB_DPRINTF("%s: addr " TARGET_FMT_plx " -> %x\n", __func__, addr, val);
 
     return val;
 }
@@ -218,7 +218,7 @@ static void apb_pci_config_write(void *opaque, hwaddr addr,
     APBState *s = opaque;
 
     val = qemu_bswap_len(val, size);
-    APB_DPRINTF("%s: addr " TARGET_FMT_lx " val %" PRIx64 "\n", __func__, addr, val);
+    APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
     pci_data_write(s->bus, addr, val, size);
 }
 
@@ -230,7 +230,7 @@ static uint64_t apb_pci_config_read(void *opaque, hwaddr addr,
 
     ret = pci_data_read(s->bus, addr, size);
     ret = qemu_bswap_len(ret, size);
-    APB_DPRINTF("%s: addr " TARGET_FMT_lx " -> %x\n", __func__, addr, ret);
+    APB_DPRINTF("%s: addr " TARGET_FMT_plx " -> %x\n", __func__, addr, ret);
     return ret;
 }
 
