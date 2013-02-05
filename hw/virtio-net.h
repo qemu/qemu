@@ -191,6 +191,6 @@ struct virtio_net_ctrl_mq {
         DEFINE_PROP_BIT("ctrl_vlan", _state, _field, VIRTIO_NET_F_CTRL_VLAN, true), \
         DEFINE_PROP_BIT("ctrl_rx_extra", _state, _field, VIRTIO_NET_F_CTRL_RX_EXTRA, true), \
         DEFINE_PROP_BIT("ctrl_mac_addr", _state, _field, VIRTIO_NET_F_CTRL_MAC_ADDR, true), \
-        DEFINE_PROP_BIT("mq", _state, _field, VIRTIO_NET_F_MQ, true)
+        DEFINE_PROP_BIT("mq", _state, _field, VIRTIO_NET_F_MQ, false)
 
 #endif
