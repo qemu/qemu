@@ -1,4 +1,4 @@
-obj-y = mcf_uart.o mcf_fec.o
+obj-y = mcf_uart.o
 
 obj-y := $(addprefix ../,$(obj-y))
 

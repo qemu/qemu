@@ -1,5 +1,4 @@
 obj-y += xilinx_spi.o
-obj-y += xilinx_ethlite.o
 
 obj-y := $(addprefix ../,$(obj-y))
 

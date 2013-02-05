@@ -1,14 +1,11 @@
 # IBM pSeries (sPAPR)
-obj-$(CONFIG_PSERIES) += spapr_vty.o spapr_llan.o spapr_vscsi.o
+obj-$(CONFIG_PSERIES) += spapr_vty.o spapr_vscsi.o
 obj-$(CONFIG_PSERIES) += spapr_pci.o
 obj-$(CONFIG_PSERIES) += spapr_nvram.o
 # PowerPC 4xx boards
 obj-y += ppc4xx_pci.o
 # PowerPC OpenPIC
 obj-y += openpic.o
-
-# Xilinx PPC peripherals
-obj-y += xilinx_ethlite.o
 
 obj-y := $(addprefix ../,$(obj-y))
 

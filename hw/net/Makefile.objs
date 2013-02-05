@@ -20,6 +20,14 @@ common-obj-$(CONFIG_MIPSNET) += mipsnet.o
 common-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
 
 common-obj-$(CONFIG_CADENCE) += cadence_gem.o
+common-obj-$(CONFIG_STELLARIS_ENET) += stellaris_enet.o
+common-obj-$(CONFIG_LANCE) += lance.o
+
+obj-$(CONFIG_ETRAXFS) += etraxfs_eth.o
+obj-$(CONFIG_COLDFIRE) += mcf_fec.o
+obj-$(CONFIG_MILKYMIST) += milkymist-minimac2.o
+obj-$(CONFIG_PSERIES) += spapr_llan.o
+obj-$(CONFIG_XILINX_ETHLITE) += xilinx_ethlite.o
 
 obj-$(CONFIG_VIRTIO) += virtio-net.o
 obj-y += vhost_net.o
