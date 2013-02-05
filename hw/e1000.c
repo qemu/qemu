@@ -166,7 +166,6 @@ static void
 set_phy_ctrl(E1000State *s, int index, uint16_t val)
 {
     if ((val & MII_CR_AUTO_NEG_EN) && (val & MII_CR_RESTART_AUTO_NEG)) {
-        qemu_get_queue(s->nic)->link_down = true;
         e1000_link_down(s);
         s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
         DBGOUT(PHY, "Start link auto negotiation\n");
@@ -178,8 +177,9 @@ static void
 e1000_autoneg_timer(void *opaque)
 {
     E1000State *s = opaque;
-    qemu_get_queue(s->nic)->link_down = false;
-    e1000_link_up(s);
+    if (!qemu_get_queue(s->nic)->link_down) {
+        e1000_link_up(s);
+    }
     s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
     DBGOUT(PHY, "Auto negotiation is completed\n");
 }
@@ -784,7 +784,8 @@ e1000_can_receive(NetClientState *nc)
 {
     E1000State *s = qemu_get_nic_opaque(nc);
 
-    return (s->mac_reg[RCTL] & E1000_RCTL_EN) && e1000_has_rxbufs(s, 1);
+    return (s->mac_reg[STATUS] & E1000_STATUS_LU) &&
+        (s->mac_reg[RCTL] & E1000_RCTL_EN) && e1000_has_rxbufs(s, 1);
 }
 
 static uint64_t rx_desc_base(E1000State *s)
@@ -810,8 +811,13 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     size_t desc_size;
     size_t total_size;
 
-    if (!(s->mac_reg[RCTL] & E1000_RCTL_EN))
+    if (!(s->mac_reg[STATUS] & E1000_STATUS_LU)) {
         return -1;
+    }
+
+    if (!(s->mac_reg[RCTL] & E1000_RCTL_EN)) {
+        return -1;
+    }
 
     /* Pad to minimum Ethernet frame length */
     if (size < sizeof(min_buf)) {
@@ -1110,14 +1116,37 @@ static bool is_version_1(void *opaque, int version_id)
     return version_id == 1;
 }
 
+static void e1000_pre_save(void *opaque)
+{
+    E1000State *s = opaque;
+    NetClientState *nc = qemu_get_queue(s->nic);
+    /*
+     * If link is down and auto-negotiation is ongoing, complete
+     * auto-negotiation immediately.  This allows is to look at
+     * MII_SR_AUTONEG_COMPLETE to infer link status on load.
+     */
+    if (nc->link_down &&
+        s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
+        s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG) {
+         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+    }
+}
+
 static int e1000_post_load(void *opaque, int version_id)
 {
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
 
     /* nc.link_down can't be migrated, so infer link_down according
-     * to link status bit in mac_reg[STATUS] */
+     * to link status bit in mac_reg[STATUS].
+     * Alternatively, restart link negotiation if it was in progress. */
     nc->link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
+    if (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
+        s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG &&
+        !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
+        nc->link_down = false;
+        qemu_mod_timer(s->autoneg_timer, qemu_get_clock_ms(vm_clock) + 500);
+    }
 
     return 0;
 }
@@ -1127,6 +1156,7 @@ static const VMStateDescription vmstate_e1000 = {
     .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .pre_save = e1000_pre_save,
     .post_load = e1000_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, E1000State),
