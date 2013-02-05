@@ -174,7 +174,6 @@ static void test_visitor_in_fuzz(TestInputVisitorData *data,
     double nres;
     char *sres;
     EnumOne eres;
-    Error *errp = NULL;
     Visitor *v;
     unsigned int i;
     char buf[10000];
@@ -193,21 +192,22 @@ static void test_visitor_in_fuzz(TestInputVisitorData *data,
         }
 
         v = visitor_input_test_init(data, buf);
-        visit_type_int(v, &ires, NULL, &errp);
+        visit_type_int(v, &ires, NULL, NULL);
 
         v = visitor_input_test_init(data, buf);
-        visit_type_bool(v, &bres, NULL, &errp);
+        visit_type_bool(v, &bres, NULL, NULL);
         visitor_input_teardown(data, NULL);
 
         v = visitor_input_test_init(data, buf);
-        visit_type_number(v, &nres, NULL, &errp);
+        visit_type_number(v, &nres, NULL, NULL);
 
         v = visitor_input_test_init(data, buf);
-        visit_type_str(v, &sres, NULL, &errp);
+        sres = NULL;
+        visit_type_str(v, &sres, NULL, NULL);
         g_free(sres);
 
         v = visitor_input_test_init(data, buf);
-        visit_type_EnumOne(v, &eres, NULL, &errp);
+        visit_type_EnumOne(v, &eres, NULL, NULL);
         visitor_input_teardown(data, NULL);
     }
 }
