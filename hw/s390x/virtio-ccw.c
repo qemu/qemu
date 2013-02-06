@@ -1,7 +1,7 @@
 /*
  * virtio ccw target implementation
  *
- * Copyright 2012 IBM Corp.
+ * Copyright 2012,2014 IBM Corp.
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or (at
@@ -188,6 +188,13 @@ typedef struct VirtioFeatDesc {
     uint8_t index;
 } QEMU_PACKED VirtioFeatDesc;
 
+typedef struct VirtioThinintInfo {
+    hwaddr summary_indicator;
+    hwaddr device_indicator;
+    uint64_t ind_bit;
+    uint8_t isc;
+} QEMU_PACKED VirtioThinintInfo;
+
 /* Specify where the virtqueues for the subchannel are in guest memory. */
 static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
                               uint16_t index, uint16_t num)
@@ -237,6 +244,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
     bool check_len;
     int len;
     hwaddr hw_len;
+    VirtioThinintInfo *thinint;
 
     if (!dev) {
         return -EINVAL;
@@ -428,6 +436,11 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EINVAL;
             break;
         }
+        if (sch->thinint_active) {
+            /* Trigger a command reject. */
+            ret = -ENOSYS;
+            break;
+        }
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
@@ -480,6 +493,42 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = 0;
         }
         break;
+    case CCW_CMD_SET_IND_ADAPTER:
+        if (check_len) {
+            if (ccw.count != sizeof(*thinint)) {
+                ret = -EINVAL;
+                break;
+            }
+        } else if (ccw.count < sizeof(*thinint)) {
+            /* Can't execute command. */
+            ret = -EINVAL;
+            break;
+        }
+        len = sizeof(*thinint);
+        hw_len = len;
+        if (!ccw.cda) {
+            ret = -EFAULT;
+        } else if (dev->indicators && !sch->thinint_active) {
+            /* Trigger a command reject. */
+            ret = -ENOSYS;
+        } else {
+            thinint = cpu_physical_memory_map(ccw.cda, &hw_len, 0);
+            if (!thinint) {
+                ret = -EFAULT;
+            } else {
+                len = hw_len;
+                dev->summary_indicator = thinint->summary_indicator;
+                dev->indicators = thinint->device_indicator;
+                dev->thinint_isc = thinint->isc;
+                dev->ind_bit = thinint->ind_bit;
+                cpu_physical_memory_unmap(thinint, hw_len, 0, hw_len);
+                sch->thinint_active = ((dev->indicators != 0) &&
+                                       (dev->summary_indicator != 0));
+                sch->curr_status.scsw.count = ccw.count - len;
+                ret = 0;
+            }
+        }
+        break;
     default:
         ret = -ENOSYS;
         break;
@@ -511,6 +560,7 @@ static int virtio_ccw_device_init(VirtioCcwDevice *dev, VirtIODevice *vdev)
     sch->channel_prog = 0x0;
     sch->last_cmd_valid = false;
     sch->orb = NULL;
+    sch->thinint_active = false;
     /*
      * Use a device number if provided. Otherwise, fall back to subchannel
      * number.
@@ -858,6 +908,28 @@ static inline VirtioCcwDevice *to_virtio_ccw_dev_fast(DeviceState *d)
     return container_of(d, VirtioCcwDevice, parent_obj);
 }
 
+static uint8_t virtio_set_ind_atomic(SubchDev *sch, uint64_t ind_loc,
+                                     uint8_t to_be_set)
+{
+    uint8_t ind_old, ind_new;
+    hwaddr len = 1;
+    uint8_t *ind_addr;
+
+    ind_addr = cpu_physical_memory_map(ind_loc, &len, 1);
+    if (!ind_addr) {
+        error_report("%s(%x.%x.%04x): unable to access indicator",
+                     __func__, sch->cssid, sch->ssid, sch->schid);
+        return -1;
+    }
+    do {
+        ind_old = *ind_addr;
+        ind_new = ind_old | to_be_set;
+    } while (atomic_cmpxchg(ind_addr, ind_old, ind_new) != ind_old);
+    cpu_physical_memory_unmap(ind_addr, len, 1, len);
+
+    return ind_old;
+}
+
 static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
 {
     VirtioCcwDevice *dev = to_virtio_ccw_dev_fast(d);
@@ -872,9 +944,26 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
         if (!dev->indicators) {
             return;
         }
-        indicators = ldq_phys(&address_space_memory, dev->indicators);
-        indicators |= 1ULL << vector;
-        stq_phys(&address_space_memory, dev->indicators, indicators);
+        if (sch->thinint_active) {
+            /*
+             * In the adapter interrupt case, indicators points to a
+             * memory area that may be (way) larger than 64 bit and
+             * ind_bit indicates the start of the indicators in a big
+             * endian notation.
+             */
+            virtio_set_ind_atomic(sch, dev->indicators +
+                                  (dev->ind_bit + vector) / 8,
+                                  0x80 >> ((dev->ind_bit + vector) % 8));
+            if (!virtio_set_ind_atomic(sch, dev->summary_indicator,
+                                       0x01)) {
+                css_adapter_interrupt(dev->thinint_isc);
+            }
+        } else {
+            indicators = ldq_phys(&address_space_memory, dev->indicators);
+            indicators |= 1ULL << vector;
+            stq_phys(&address_space_memory, dev->indicators, indicators);
+            css_conditional_io_interrupt(sch);
+        }
     } else {
         if (!dev->indicators2) {
             return;
@@ -883,10 +972,8 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
         indicators = ldq_phys(&address_space_memory, dev->indicators2);
         indicators |= 1ULL << vector;
         stq_phys(&address_space_memory, dev->indicators2, indicators);
+        css_conditional_io_interrupt(sch);
     }
-
-    css_conditional_io_interrupt(sch);
-
 }
 
 static unsigned virtio_ccw_get_features(DeviceState *d)
@@ -907,6 +994,7 @@ static void virtio_ccw_reset(DeviceState *d)
     css_reset_sch(dev->sch);
     dev->indicators = 0;
     dev->indicators2 = 0;
+    dev->summary_indicator = 0;
 }
 
 static void virtio_ccw_vmstate_change(DeviceState *d, bool running)
