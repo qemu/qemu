@@ -2818,10 +2818,6 @@ char *qmp_memchar_read(const char *device, int64_t size,
     }
 
     count = qemu_chr_cirmem_count(chr);
-    if (count == 0) {
-        return g_strdup("");
-    }
-
     size = size > count ? count : size;
     read_data = g_malloc0(size + 1);
 
