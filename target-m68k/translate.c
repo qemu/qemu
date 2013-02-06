@@ -574,7 +574,7 @@ static inline TCGv gen_ea_once(CPUM68KState *env, DisasContext *s,
     return gen_ldst(s, opsize, tmp, val, what);
 }
 
-/* Generate code to load/store a value ito/from an EA.  If VAL > 0 this is
+/* Generate code to load/store a value from/into an EA.  If VAL > 0 this is
    a write otherwise it is a read (0 == sign extend, -1 == zero extend).
    ADDRP is non-null for readwrite operands.  */
 static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
