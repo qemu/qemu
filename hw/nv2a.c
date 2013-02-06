@@ -387,6 +387,8 @@
 #   define NV097_ARRAY_ELEMENT16                              0x00971800
 #   define NV097_ARRAY_ELEMENT32                              0x00971808
 #   define NV097_DRAW_ARRAYS                                  0x00971810
+#       define NV097_DRAW_ARRAYS_COUNT                            0xFF000000
+#       define NV097_DRAW_ARRAYS_START_INDEX                      0x00FFFFFF
 #   define NV097_INLINE_ARRAY                                 0x00971818
 #   define NV097_SET_TEXTURE_OFFSET                           0x00971B00
 #   define NV097_SET_TEXTURE_FORMAT                           0x00971B04
@@ -472,14 +474,13 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
 #define NV2A_CRYSTAL_FREQ 13500000
 #define NV2A_NUM_CHANNELS 32
 #define NV2A_NUM_SUBCHANNELS 8
-#define NV2A_MAX_BATCH_LENGTH 0xFFFF
 
+#define NV2A_MAX_BATCH_LENGTH 0xFFFF
 #define NV2A_VERTEXSHADER_SLOTS  32 /*???*/
 #define NV2A_MAX_VERTEXSHADER_LENGTH 136
 #define NV2A_VERTEXSHADER_CONSTANTS 192
 #define NV2A_VERTEXSHADER_ATTRIBUTES 16
 #define NV2A_MAX_TEXTURES 4
-
 
 #define GET_MASK(v, mask) (((v) & (mask)) >> (ffs(mask)-1))
 
@@ -1446,6 +1447,12 @@ static void pgraph_method(NV2AState *d,
         assert(kelvin->array_batch_length < NV2A_MAX_BATCH_LENGTH);
         kelvin->array_batch[
             kelvin->array_batch_length++] = parameter;
+        break;
+    case NV097_DRAW_ARRAYS:
+        kelvin_bind_vertex_attribute_offsets(d, kelvin);
+        glDrawArrays(kelvin->gl_primitive_mode,
+                     GET_MASK(parameter, NV097_DRAW_ARRAYS_COUNT),
+                     GET_MASK(parameter, NV097_DRAW_ARRAYS_START_INDEX));
         break;
     case NV097_INLINE_ARRAY:
         assert(kelvin->inline_vertex_data_length < NV2A_MAX_BATCH_LENGTH);
