@@ -525,7 +525,7 @@ Example:
                 "arguments": { "device": foo,
                                "size": 1000,
                                "format": "utf8" } }
-<- { "return": { "data": "data string...", "count": 1000 } }
+<- {"return": "abcdefgh"}
 
 EQMP
 

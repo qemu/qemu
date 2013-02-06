@@ -2788,14 +2788,14 @@ void qmp_memchar_write(const char *device, const char *data,
     }
 }
 
-MemCharRead *qmp_memchar_read(const char *device, int64_t size,
-                              bool has_format, enum DataFormat format,
-                              Error **errp)
+char *qmp_memchar_read(const char *device, int64_t size,
+                       bool has_format, enum DataFormat format,
+                       Error **errp)
 {
     CharDriverState *chr;
     guchar *read_data;
-    MemCharRead *meminfo;
     size_t count;
+    char *data;
 
     chr = qemu_chr_find(device);
     if (!chr) {
@@ -2813,26 +2813,23 @@ MemCharRead *qmp_memchar_read(const char *device, int64_t size,
         return NULL;
     }
 
-    meminfo = g_malloc0(sizeof(MemCharRead));
-
     count = qemu_chr_cirmem_count(chr);
     if (count == 0) {
-        meminfo->data = g_strdup("");
-        return meminfo;
+        return g_strdup("");
     }
 
     size = size > count ? count : size;
     read_data = g_malloc0(size + 1);
 
-    meminfo->count = cirmem_chr_read(chr, read_data, size);
+    cirmem_chr_read(chr, read_data, size);
 
     if (has_format && (format == DATA_FORMAT_BASE64)) {
-        meminfo->data = g_base64_encode(read_data, (size_t)meminfo->count);
+        data = g_base64_encode(read_data, size);
     } else {
-        meminfo->data = (char *)read_data;
+        data = (char *)read_data;
     }
 
-    return meminfo;
+    return data;
 }
 
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)

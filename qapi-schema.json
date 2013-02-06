@@ -361,20 +361,6 @@
            '*format': 'DataFormat'} }
 
 ##
-# @MemCharRead
-#
-# Result of QMP command memchar-read.
-#
-# @data: The data read from memchar as string.
-#
-# @count: The numbers of bytes read from.
-#
-# Since: 1.4
-##
-{ 'type': 'MemCharRead',
-  'data': { 'data': 'str', 'count': 'int' } }
-
-##
 # @memchar-read:
 #
 # Provide read interface for memchardev. Read from the char
@@ -387,14 +373,14 @@
 # @format: #optional the format of the data want to read from
 #          memchardev, by default is 'utf8'.
 #
-# Returns: @MemCharRead
+# Returns: data read from the device
 #          If @device is not a valid memchr device, DeviceNotFound
 #
 # Since: 1.4
 ##
 { 'command': 'memchar-read',
   'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
-  'returns': 'MemCharRead' }
+  'returns': 'str' }
 
 ##
 # @CommandInfo:

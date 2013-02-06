@@ -677,21 +677,18 @@ void hmp_memchar_read(Monitor *mon, const QDict *qdict)
 {
     uint32_t size = qdict_get_int(qdict, "size");
     const char *chardev = qdict_get_str(qdict, "device");
-    MemCharRead *meminfo;
+    char *data;
     Error *errp = NULL;
 
-    meminfo = qmp_memchar_read(chardev, size, false, 0, &errp);
+    data = qmp_memchar_read(chardev, size, false, 0, &errp);
     if (errp) {
         monitor_printf(mon, "%s\n", error_get_pretty(errp));
         error_free(errp);
         return;
     }
 
-    if (meminfo->count > 0) {
-        monitor_printf(mon, "%s\n", meminfo->data);
-    }
-
-    qapi_free_MemCharRead(meminfo);
+    monitor_printf(mon, "%s\n", data);
+    g_free(data);
 }
 
 static void hmp_cont_cb(void *opaque, int err)
