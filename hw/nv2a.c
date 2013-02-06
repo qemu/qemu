@@ -261,6 +261,7 @@
 #define NV_PGRAPH_CHANNEL_CTX_TRIGGER                    0x00000788
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN                (1 << 0)
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT              (1 << 1)
+#define NV_PGRAPH_COLORCLEARVALUE                        0x0000186C
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 
 #define NV_PCRTC_INTR_0                                  0x00000100
@@ -625,6 +626,7 @@ typedef struct GraphicsContext {
     GraphicsSubchannel subchannel_data[NV2A_NUM_SUBCHANNELS];
 
     uint32_t zstencil_clear_value;
+    uint32_t color_clear_value;
 
     CGLContextObj gl_context;
 
@@ -1482,10 +1484,18 @@ static void pgraph_method(NV2AState *d,
         context->zstencil_clear_value = parameter;
         break;
 
+    case NV097_SET_COLOR_CLEAR_VALUE:
+        glClearColor( ((parameter >> 16) & 0xFF) / 255.0f, /* red */
+                      ((parameter >> 8) & 0xFF) / 255.0f,  /* green */
+                      (parameter & 0xFF) / 255.0f,         /* blue */
+                      ((parameter >> 24) & 0xFF) / 255.0f);/* alpha */
+        context->color_clear_value = parameter;
+        break;
+
     case NV097_CLEAR_SURFACE:
         /* QQQ */
         NV2A_DPRINTF("------------------CLEAR 0x%x---------------\n", parameter);
-        glClearColor(1, 0, 0, 1);
+        //glClearColor(1, 0, 0, 1);
 
         GLbitfield gl_mask = 0;
         if (parameter & NV097_CLEAR_SURFACE_Z) {
@@ -2387,6 +2397,9 @@ static uint64_t pgraph_read(void *opaque,
         break;
     case NV_PGRAPH_CHANNEL_CTX_POINTER:
         r = d->pgraph.context_address >> 4;
+        break;
+    case NV_PGRAPH_COLORCLEARVALUE:
+        r = d->pgraph.context[d->pgraph.channel_id].color_clear_value;
         break;
     case NV_PGRAPH_ZSTENCILCLEARVALUE:
         r = d->pgraph.context[d->pgraph.channel_id].zstencil_clear_value;
