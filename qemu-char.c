@@ -2883,11 +2883,6 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
         qemu_opt_set(opts, "path", filename);
         return opts;
     }
-    if (strstart(filename, "memory", &p)) {
-        qemu_opt_set(opts, "backend", "memory");
-        qemu_opt_set(opts, "maxcapacity", p);
-        return opts;
-    }
     if (strstart(filename, "file:", &p)) {
         qemu_opt_set(opts, "backend", "file");
         qemu_opt_set(opts, "path", p);
