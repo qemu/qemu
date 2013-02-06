@@ -53,7 +53,7 @@ enum {
 uint8_t trace_buf[TRACE_BUF_LEN];
 static unsigned int trace_idx;
 static unsigned int writeout_idx;
-static uint64_t dropped_events;
+static int dropped_events;
 static FILE *trace_fp;
 static char *trace_file_name;
 
@@ -63,7 +63,7 @@ typedef struct {
     uint64_t timestamp_ns;
     uint32_t length;   /*    in bytes */
     uint32_t reserved; /*    unused */
-    uint8_t arguments[];
+    uint64_t arguments[];
 } TraceRecord;
 
 typedef struct {
@@ -160,25 +160,22 @@ static gpointer writeout_thread(gpointer opaque)
         uint8_t bytes[sizeof(TraceRecord) + sizeof(uint64_t)];
     } dropped;
     unsigned int idx = 0;
-    uint64_t dropped_count;
+    int dropped_count;
     size_t unused __attribute__ ((unused));
 
     for (;;) {
         wait_for_trace_records_available();
 
-        if (dropped_events) {
+        if (g_atomic_int_get(&dropped_events)) {
             dropped.rec.event = DROPPED_EVENT_ID,
             dropped.rec.timestamp_ns = get_clock();
-            dropped.rec.length = sizeof(TraceRecord) + sizeof(dropped_events),
+            dropped.rec.length = sizeof(TraceRecord) + sizeof(uint64_t),
             dropped.rec.reserved = 0;
-            while (1) {
-                dropped_count = dropped_events;
-                if (g_atomic_int_compare_and_exchange((gint *)&dropped_events,
-                                                      dropped_count, 0)) {
-                    break;
-                }
-            }
-            memcpy(dropped.rec.arguments, &dropped_count, sizeof(uint64_t));
+            do {
+                dropped_count = g_atomic_int_get(&dropped_events);
+            } while (!g_atomic_int_compare_and_exchange(&dropped_events,
+                                                        dropped_count, 0));
+            dropped.rec.arguments[0] = dropped_count;
             unused = fwrite(&dropped.rec, dropped.rec.length, 1, trace_fp);
         }
 
@@ -213,22 +210,17 @@ int trace_record_start(TraceBufferRecord *rec, TraceEventID event, size_t datasi
     uint32_t rec_len = sizeof(TraceRecord) + datasize;
     uint64_t timestamp_ns = get_clock();
 
-    while (1) {
-        old_idx = trace_idx;
+    do {
+        old_idx = g_atomic_int_get(&trace_idx);
         smp_rmb();
         new_idx = old_idx + rec_len;
 
         if (new_idx - writeout_idx > TRACE_BUF_LEN) {
             /* Trace Buffer Full, Event dropped ! */
-            g_atomic_int_inc((gint *)&dropped_events);
+            g_atomic_int_inc(&dropped_events);
             return -ENOSPC;
         }
-
-        if (g_atomic_int_compare_and_exchange((gint *)&trace_idx,
-                                              old_idx, new_idx)) {
-            break;
-        }
-    }
+    } while (!g_atomic_int_compare_and_exchange(&trace_idx, old_idx, new_idx));
 
     idx = old_idx % TRACE_BUF_LEN;
 
@@ -275,7 +267,8 @@ void trace_record_finish(TraceBufferRecord *rec)
     record.event |= TRACE_RECORD_VALID;
     write_to_buffer(rec->tbuf_idx, &record, sizeof(TraceRecord));
 
-    if ((trace_idx - writeout_idx) > TRACE_BUF_FLUSH_THRESHOLD) {
+    if ((g_atomic_int_get(&trace_idx) - writeout_idx)
+        > TRACE_BUF_FLUSH_THRESHOLD) {
         flush_trace_file(false);
     }
 }
