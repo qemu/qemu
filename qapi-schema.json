@@ -329,9 +329,9 @@
 #
 # An enumeration of data format.
 #
-# @utf8: The data format is 'utf8'.
+# @utf8: Data is a UTF-8 string (RFC 3629)
 #
-# @base64: The data format is 'base64'.
+# @base64: Data is Base64 encoded binary (RFC 3548)
 #
 # Since: 1.4
 ##
@@ -339,44 +339,55 @@
   'data': [ 'utf8', 'base64' ] }
 
 ##
-# @memchar-write:
+# @ringbuf-write:
 #
-# Provide writing interface for memchardev. Write data to char
-# device 'memory'.
+# Write to a ring buffer character device.
 #
-# @device: the name of the memory char device.
+# @device: the ring buffer character device name
 #
-# @data: the source data write to memchar.
+# @data: data to write
 #
-# @format: #optional the format of the data write to chardev 'memory',
-#          by default is 'utf8'.
+# @format: #optional data encoding (default 'utf8').
+#          - base64: data must be base64 encoded text.  Its binary
+#            decoding gets written.
+#            Bug: invalid base64 is currently not rejected.
+#            Whitespace *is* invalid.
+#          - utf8: data's UTF-8 encoding is written
+#          - data itself is always Unicode regardless of format, like
+#            any other string.
 #
 # Returns: Nothing on success
 #
 # Since: 1.4
 ##
-{ 'command': 'memchar-write',
+{ 'command': 'ringbuf-write',
   'data': {'device': 'str', 'data': 'str',
            '*format': 'DataFormat'} }
 
 ##
-# @memchar-read:
+# @ringbuf-read:
 #
-# Provide read interface for memchardev. Read from the char
-# device 'memory' and return the data.
+# Read from a ring buffer character device.
 #
-# @device: the name of the memory char device.
+# @device: the ring buffer character device name
 #
-# @size: the size to read in bytes.
+# @size: how many bytes to read at most
 #
-# @format: #optional the format of the data want to read from
-#          memchardev, by default is 'utf8'.
+# @format: #optional data encoding (default 'utf8').
+#          - base64: the data read is returned in base64 encoding.
+#          - utf8: the data read is interpreted as UTF-8.
+#            Bug: can screw up when the buffer contains invalid UTF-8
+#            sequences, NUL characters, after the ring buffer lost
+#            data, and when reading stops because the size limit is
+#            reached.
+#          - The return value is always Unicode regardless of format,
+#            like any other string.
 #
 # Returns: data read from the device
 #
 # Since: 1.4
 ##
-{ 'command': 'memchar-read',
+{ 'command': 'ringbuf-read',
   'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
   'returns': 'str' }
 

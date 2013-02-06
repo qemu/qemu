@@ -466,30 +466,30 @@ Note: inject-nmi fails when the guest doesn't support injecting.
 EQMP
 
     {
-        .name       = "memchar-write",
+        .name       = "ringbuf-write",
         .args_type  = "device:s,data:s,format:s?",
-        .mhandler.cmd_new = qmp_marshal_input_memchar_write,
+        .mhandler.cmd_new = qmp_marshal_input_ringbuf_write,
     },
 
 SQMP
-memchar-write
+ringbuf-write
 -------------
 
-Provide writing interface for CirMemCharDriver. Write data to memory
-char device.
+Write to a ring buffer character device.
 
 Arguments:
 
-- "device": the name of the char device, must be unique (json-string)
-- "data": the source data write to memory (json-string)
-- "format": the data format write to memory, default is
-            utf8. (json-string, optional)
-          - Possible values: "utf8", "base64"
+- "device": ring buffer character device name (json-string)
+- "data": data to write (json-string)
+- "format": data format (json-string, optional)
+          - Possible values: "utf8" (default), "base64"
+            Bug: invalid base64 is currently not rejected.
+            Whitespace *is* invalid.
 
 Example:
 
--> { "execute": "memchar-write",
-                "arguments": { "device": foo,
+-> { "execute": "ringbuf-write",
+                "arguments": { "device": "foo",
                                "data": "abcdefgh",
                                "format": "utf8" } }
 <- { "return": {} }
@@ -497,32 +497,35 @@ Example:
 EQMP
 
     {
-        .name       = "memchar-read",
+        .name       = "ringbuf-read",
         .args_type  = "device:s,size:i,format:s?",
-        .mhandler.cmd_new = qmp_marshal_input_memchar_read,
+        .mhandler.cmd_new = qmp_marshal_input_ringbuf_read,
     },
 
 SQMP
-memchar-read
+ringbuf-read
 -------------
 
-Provide read interface for CirMemCharDriver. Read from the char
-device memory and return the data with size.
+Read from a ring buffer character device.
 
 Arguments:
 
-- "device": the name of the char device, must be unique (json-string)
-- "size": the memory size wanted to read in bytes (refer to unencoded
-          size of the raw data), would adjust to the init size of the
-          memchar if the requested size is larger than it. (json-int)
-- "format": the data format write to memchardev, default is
-            utf8. (json-string, optional)
-          - Possible values: "utf8", "base64"
+- "device": ring buffer character device name (json-string)
+- "size": how many bytes to read at most (json-int)
+          - Number of data bytes, not number of characters in encoded data
+- "format": data format (json-string, optional)
+          - Possible values: "utf8" (default), "base64"
+          - Naturally, format "utf8" works only when the ring buffer
+            contains valid UTF-8 text.  Invalid UTF-8 sequences get
+            replaced.  Bug: replacement doesn't work.  Bug: can screw
+            up on encountering NUL characters, after the ring buffer
+            lost data, and when reading stops because the size limit
+            is reached.
 
 Example:
 
--> { "execute": "memchar-read",
-                "arguments": { "device": foo,
+-> { "execute": "ringbuf-read",
+                "arguments": { "device": "foo",
                                "size": 1000,
                                "format": "utf8" } }
 <- {"return": "abcdefgh"}

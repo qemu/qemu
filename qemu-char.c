@@ -2645,25 +2645,25 @@ size_t qemu_chr_mem_osize(const CharDriverState *chr)
 }
 
 /*********************************************************/
-/* CircularMemory chardev */
+/* Ring buffer chardev */
 
 typedef struct {
     size_t size;
     size_t prod;
     size_t cons;
     uint8_t *cbuf;
-} CirMemCharDriver;
+} RingBufCharDriver;
 
-static size_t cirmem_count(const CharDriverState *chr)
+static size_t ringbuf_count(const CharDriverState *chr)
 {
-    const CirMemCharDriver *d = chr->opaque;
+    const RingBufCharDriver *d = chr->opaque;
 
     return d->prod - d->cons;
 }
 
-static int cirmem_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+static int ringbuf_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
-    CirMemCharDriver *d = chr->opaque;
+    RingBufCharDriver *d = chr->opaque;
     int i;
 
     if (!buf || (len < 0)) {
@@ -2680,9 +2680,9 @@ static int cirmem_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     return 0;
 }
 
-static int cirmem_chr_read(CharDriverState *chr, uint8_t *buf, int len)
+static int ringbuf_chr_read(CharDriverState *chr, uint8_t *buf, int len)
 {
-    CirMemCharDriver *d = chr->opaque;
+    RingBufCharDriver *d = chr->opaque;
     int i;
 
     for (i = 0; i < len && d->cons != d->prod; i++) {
@@ -2692,31 +2692,31 @@ static int cirmem_chr_read(CharDriverState *chr, uint8_t *buf, int len)
     return i;
 }
 
-static void cirmem_chr_close(struct CharDriverState *chr)
+static void ringbuf_chr_close(struct CharDriverState *chr)
 {
-    CirMemCharDriver *d = chr->opaque;
+    RingBufCharDriver *d = chr->opaque;
 
     g_free(d->cbuf);
     g_free(d);
     chr->opaque = NULL;
 }
 
-static CharDriverState *qemu_chr_open_cirmemchr(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_ringbuf(QemuOpts *opts)
 {
     CharDriverState *chr;
-    CirMemCharDriver *d;
+    RingBufCharDriver *d;
 
     chr = g_malloc0(sizeof(CharDriverState));
     d = g_malloc(sizeof(*d));
 
-    d->size = qemu_opt_get_number(opts, "maxcapacity", 0);
+    d->size = qemu_opt_get_number(opts, "size", 0);
     if (d->size == 0) {
         d->size = CBUFF_SIZE;
     }
 
     /* The size must be power of 2 */
     if (d->size & (d->size - 1)) {
-        fprintf(stderr, "chardev: size of memory device must be power of 2\n");
+        error_report("size of ringbuf device must be power of two");
         goto fail;
     }
 
@@ -2725,8 +2725,8 @@ static CharDriverState *qemu_chr_open_cirmemchr(QemuOpts *opts)
     d->cbuf = g_malloc0(d->size);
 
     chr->opaque = d;
-    chr->chr_write = cirmem_chr_write;
-    chr->chr_close = cirmem_chr_close;
+    chr->chr_write = ringbuf_chr_write;
+    chr->chr_close = ringbuf_chr_close;
 
     return chr;
 
@@ -2736,12 +2736,12 @@ fail:
     return NULL;
 }
 
-static bool chr_is_cirmem(const CharDriverState *chr)
+static bool chr_is_ringbuf(const CharDriverState *chr)
 {
-    return chr->chr_write == cirmem_chr_write;
+    return chr->chr_write == ringbuf_chr_write;
 }
 
-void qmp_memchar_write(const char *device, const char *data,
+void qmp_ringbuf_write(const char *device, const char *data,
                        bool has_format, enum DataFormat format,
                        Error **errp)
 {
@@ -2756,8 +2756,8 @@ void qmp_memchar_write(const char *device, const char *data,
         return;
     }
 
-    if (!chr_is_cirmem(chr)) {
-        error_setg(errp,"%s is not memory char device", device);
+    if (!chr_is_ringbuf(chr)) {
+        error_setg(errp,"%s is not a ringbuf device", device);
         return;
     }
 
@@ -2768,7 +2768,7 @@ void qmp_memchar_write(const char *device, const char *data,
         write_count = strlen(data);
     }
 
-    ret = cirmem_chr_write(chr, write_data, write_count);
+    ret = ringbuf_chr_write(chr, write_data, write_count);
 
     if (write_data != (uint8_t *)data) {
         g_free((void *)write_data);
@@ -2780,7 +2780,7 @@ void qmp_memchar_write(const char *device, const char *data,
     }
 }
 
-char *qmp_memchar_read(const char *device, int64_t size,
+char *qmp_ringbuf_read(const char *device, int64_t size,
                        bool has_format, enum DataFormat format,
                        Error **errp)
 {
@@ -2795,8 +2795,8 @@ char *qmp_memchar_read(const char *device, int64_t size,
         return NULL;
     }
 
-    if (!chr_is_cirmem(chr)) {
-        error_setg(errp,"%s is not memory char device", device);
+    if (!chr_is_ringbuf(chr)) {
+        error_setg(errp,"%s is not a ringbuf device", device);
         return NULL;
     }
 
@@ -2805,16 +2805,23 @@ char *qmp_memchar_read(const char *device, int64_t size,
         return NULL;
     }
 
-    count = cirmem_count(chr);
+    count = ringbuf_count(chr);
     size = size > count ? count : size;
     read_data = g_malloc(size + 1);
 
-    cirmem_chr_read(chr, read_data, size);
+    ringbuf_chr_read(chr, read_data, size);
 
     if (has_format && (format == DATA_FORMAT_BASE64)) {
         data = g_base64_encode(read_data, size);
         g_free(read_data);
     } else {
+        /*
+         * FIXME should read only complete, valid UTF-8 characters up
+         * to @size bytes.  Invalid sequences should be replaced by a
+         * suitable replacement character.  Except when (and only
+         * when) ring buffer lost characters since last read, initial
+         * continuation characters should be dropped.
+         */
         read_data[size] = 0;
         data = (char *)read_data;
     }
@@ -2975,7 +2982,7 @@ static const struct {
     { .name = "udp",       .open = qemu_chr_open_udp },
     { .name = "msmouse",   .open = qemu_chr_open_msmouse },
     { .name = "vc",        .open = text_console_init },
-    { .name = "memory",    .open = qemu_chr_open_cirmemchr },
+    { .name = "memory",    .open = qemu_chr_open_ringbuf },
 #ifdef _WIN32
     { .name = "file",      .open = qemu_chr_open_win_file_out },
     { .name = "pipe",      .open = qemu_chr_open_win_pipe },
@@ -3236,7 +3243,7 @@ QemuOptsList qemu_chardev_opts = {
             .name = "debug",
             .type = QEMU_OPT_NUMBER,
         },{
-            .name = "maxcapacity",
+            .name = "size",
             .type = QEMU_OPT_NUMBER,
         },
         { /* end of list */ }

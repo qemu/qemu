@@ -1736,7 +1736,7 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev msmouse,id=id[,mux=on|off]\n"
     "-chardev vc,id=id[[,width=width][,height=height]][[,cols=cols][,rows=rows]]\n"
     "         [,mux=on|off]\n"
-    "-chardev memory,id=id,maxcapacity=maxcapacity\n"
+    "-chardev ringbuf,id=id[,size=size]\n"
     "-chardev file,id=id,path=path[,mux=on|off]\n"
     "-chardev pipe,id=id,path=path[,mux=on|off]\n"
 #ifdef _WIN32
@@ -1778,7 +1778,7 @@ Backend is one of:
 @option{udp},
 @option{msmouse},
 @option{vc},
-@option{memory},
+@option{ringbuf},
 @option{file},
 @option{pipe},
 @option{console},
@@ -1887,13 +1887,10 @@ the console, in pixels.
 @option{cols} and @option{rows} specify that the console be sized to fit a text
 console with the given dimensions.
 
-@item -chardev memory ,id=@var{id} ,maxcapacity=@var{maxcapacity}
+@item -chardev ringbuf ,id=@var{id} [,size=@var{size}]
 
-Create a circular buffer with fixed size indicated by optionally @option{maxcapacity}
-which will be default 64K if it is not given.
-
-@option{maxcapacity} specifies the max capacity of the size of circular buffer
-to create. Should be power of 2.
+Create a ring buffer with fixed size @option{size}.
+@var{size} must be a power of two, and defaults to @code{64K}).
 
 @item -chardev file ,id=@var{id} ,path=@var{path}
 

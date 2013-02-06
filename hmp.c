@@ -662,25 +662,25 @@ void hmp_pmemsave(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &errp);
 }
 
-void hmp_memchar_write(Monitor *mon, const QDict *qdict)
+void hmp_ringbuf_write(Monitor *mon, const QDict *qdict)
 {
     const char *chardev = qdict_get_str(qdict, "device");
     const char *data = qdict_get_str(qdict, "data");
     Error *errp = NULL;
 
-    qmp_memchar_write(chardev, data, false, 0, &errp);
+    qmp_ringbuf_write(chardev, data, false, 0, &errp);
 
     hmp_handle_error(mon, &errp);
 }
 
-void hmp_memchar_read(Monitor *mon, const QDict *qdict)
+void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
 {
     uint32_t size = qdict_get_int(qdict, "size");
     const char *chardev = qdict_get_str(qdict, "device");
     char *data;
     Error *errp = NULL;
 
-    data = qmp_memchar_read(chardev, size, false, 0, &errp);
+    data = qmp_ringbuf_read(chardev, size, false, 0, &errp);
     if (errp) {
         monitor_printf(mon, "%s\n", error_get_pretty(errp));
         error_free(errp);
