@@ -98,7 +98,6 @@
 #include "ui/qemu-spice.h"
 
 #define READ_BUF_LEN 4096
-#define CBUFF_SIZE 65536
 
 /***********************************************************/
 /* character device */
@@ -2709,9 +2708,9 @@ static CharDriverState *qemu_chr_open_ringbuf(QemuOpts *opts)
     chr = g_malloc0(sizeof(CharDriverState));
     d = g_malloc(sizeof(*d));
 
-    d->size = qemu_opt_get_number(opts, "size", 0);
+    d->size = qemu_opt_get_size(opts, "size", 0);
     if (d->size == 0) {
-        d->size = CBUFF_SIZE;
+        d->size = 65536;
     }
 
     /* The size must be power of 2 */
@@ -3244,7 +3243,7 @@ QemuOptsList qemu_chardev_opts = {
             .type = QEMU_OPT_NUMBER,
         },{
             .name = "size",
-            .type = QEMU_OPT_NUMBER,
+            .type = QEMU_OPT_SIZE,
         },
         { /* end of list */ }
     },
