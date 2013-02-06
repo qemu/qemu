@@ -679,6 +679,7 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
     const char *chardev = qdict_get_str(qdict, "device");
     char *data;
     Error *errp = NULL;
+    int i;
 
     data = qmp_ringbuf_read(chardev, size, false, 0, &errp);
     if (errp) {
@@ -687,7 +688,19 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "%s\n", data);
+    for (i = 0; data[i]; i++) {
+        unsigned char ch = data[i];
+
+        if (ch == '\\') {
+            monitor_printf(mon, "\\\\");
+        } else if ((ch < 0x20 && ch != '\n' && ch != '\t') || ch == 0x7F) {
+            monitor_printf(mon, "\\u%04X", ch);
+        } else {
+            monitor_printf(mon, "%c", ch);
+        }
+
+    }
+    monitor_printf(mon, "\n");
     g_free(data);
 }
 

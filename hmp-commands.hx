@@ -869,6 +869,8 @@ STEXI
 @findex ringbuf_read
 Read and print up to @var{size} bytes from ring buffer character
 device @var{device}.
+Certain non-printable characters are printed \uXXXX, where XXXX is the
+character code in hexadecimal.  Character \ is printed \\.
 Bug: can screw up when the buffer contains invalid UTF-8 sequences,
 NUL characters, after the ring buffer lost data, and when reading
 stops because the size limit is reached.
