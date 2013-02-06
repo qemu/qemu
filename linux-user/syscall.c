@@ -101,6 +101,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/fb.h>
 #include <linux/vt.h>
 #include <linux/dm-ioctl.h>
+#include <linux/reboot.h>
 #include "linux_loop.h"
 #include "cpu-uname.h"
 
@@ -1489,6 +1490,28 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
         break;
     case TARGET_SOL_SOCKET:
         switch (optname) {
+        case TARGET_SO_RCVTIMEO:
+        {
+                struct timeval tv;
+
+                optname = SO_RCVTIMEO;
+
+set_timeout:
+                if (optlen != sizeof(struct target_timeval)) {
+                    return -TARGET_EINVAL;
+                }
+
+                if (copy_from_user_timeval(&tv, optval_addr)) {
+                    return -TARGET_EFAULT;
+                }
+
+                ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname,
+                                &tv, sizeof(tv)));
+                return ret;
+        }
+        case TARGET_SO_SNDTIMEO:
+                optname = SO_SNDTIMEO;
+                goto set_timeout;
             /* Options with 'int' argument.  */
         case TARGET_SO_DEBUG:
 		optname = SO_DEBUG;
@@ -1539,12 +1562,6 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
 		break;
         case TARGET_SO_RCVLOWAT:
 		optname = SO_RCVLOWAT;
-		break;
-        case TARGET_SO_RCVTIMEO:
-		optname = SO_RCVTIMEO;
-		break;
-        case TARGET_SO_SNDTIMEO:
-		optname = SO_SNDTIMEO;
 		break;
             break;
         default:
@@ -2897,7 +2914,7 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
         return -TARGET_EFAULT;
 
     host_mb = g_malloc(msgsz+sizeof(long));
-    ret = get_errno(msgrcv(msqid, host_mb, msgsz, tswapal(msgtyp), msgflg));
+    ret = get_errno(msgrcv(msqid, host_mb, msgsz, msgtyp, msgflg));
 
     if (ret > 0) {
         abi_ulong target_mtext_addr = msgp + sizeof(abi_ulong);
@@ -3189,7 +3206,7 @@ static abi_long do_ipc(unsigned int call, int first,
                     break;
                 }
 
-                ret = do_msgrcv(first, tmp->msgp, second, tmp->msgtyp, third);
+                ret = do_msgrcv(first, tswapal(tmp->msgp), second, tswapal(tmp->msgtyp), third);
 
                 unlock_user_struct(tmp, ptr, 0);
                 break;
@@ -6435,10 +6452,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_reboot:
-        if (!(p = lock_user_string(arg4)))
-            goto efault;
-        ret = reboot(arg1, arg2, arg3, p);
-        unlock_user(p, arg4, 0);
+        if (arg3 == LINUX_REBOOT_CMD_RESTART2) {
+           /* arg4 must be ignored in all other cases */
+           p = lock_user_string(arg4);
+           if (!p) {
+              goto efault;
+           }
+           ret = get_errno(reboot(arg1, arg2, arg3, p));
+           unlock_user(p, arg4, 0);
+        } else {
+           ret = get_errno(reboot(arg1, arg2, arg3, NULL));
+        }
         break;
 #ifdef TARGET_NR_readdir
     case TARGET_NR_readdir:
