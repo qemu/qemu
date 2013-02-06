@@ -352,7 +352,6 @@
 #          by default is 'utf8'.
 #
 # Returns: Nothing on success
-#          If @device is not a valid char device, DeviceNotFound
 #
 # Since: 1.4
 ##
@@ -374,7 +373,6 @@
 #          memchardev, by default is 'utf8'.
 #
 # Returns: data read from the device
-#          If @device is not a valid memchr device, DeviceNotFound
 #
 # Since: 1.4
 ##

@@ -2764,7 +2764,7 @@ void qmp_memchar_write(const char *device, const char *data,
 
     chr = qemu_chr_find(device);
     if (!chr) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_setg(errp, "Device '%s' not found", device);
         return;
     }
 
@@ -2799,7 +2799,7 @@ char *qmp_memchar_read(const char *device, int64_t size,
 
     chr = qemu_chr_find(device);
     if (!chr) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_setg(errp, "Device '%s' not found", device);
         return NULL;
     }
 
