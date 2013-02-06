@@ -478,11 +478,15 @@ typedef struct DMAObject {
 
 
 typedef struct VertexAttribute {
-    GLenum gl_type;
-    GLboolean gl_normalize;
+    bool dma_select;
+    hwaddr offset;
+
     unsigned int size; /* size of the data type */
     unsigned int count; /* number of components */
     uint32_t stride;
+
+    GLenum gl_type;
+    GLboolean gl_normalize;
 } VertexAttribute;
 
 typedef struct VertexShaderConstant {
@@ -518,11 +522,6 @@ typedef struct KelvinState {
     GLenum gl_primitive_mode;
 
     VertexAttribute vertex_attributes[NV2A_VERTEXSHADER_ATTRIBUTES];
-
-    struct {
-        uint32_t offset;
-        bool dma_select;
-    } vertex_attribute_offsets[NV2A_VERTEXSHADER_ATTRIBUTES];
 
     unsigned int inline_vertex_data_length;
     uint32_t inline_vertex_data[NV2A_MAX_BATCH_LENGTH];
@@ -885,13 +884,12 @@ static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
             qemu_mutex_unlock(&d->pgraph.lock);
             qemu_mutex_lock_iothread();
 
-            if (kelvin->vertex_attribute_offsets[i].dma_select) {
+            if (attribute->dma_select) {
                 vertex_dma = load_dma_object(d, kelvin->dma_vertex_b);
             } else {
                 vertex_dma = load_dma_object(d, kelvin->dma_vertex_a);
             }
-            uint32_t offset = kelvin->vertex_attribute_offsets[i].offset;
-            assert(offset < vertex_dma.limit);
+            assert(attribute->offset < vertex_dma.limit);
 
             if (vertex_dma.dma_class == NV_DMA_IN_MEMORY_CLASS) {
                 glVertexAttribPointer(i,
@@ -899,7 +897,7 @@ static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
                     attribute->gl_type,
                     attribute->gl_normalize,
                     attribute->stride,
-                    d->vram_ptr + vertex_dma.start + offset);
+                    d->vram_ptr + vertex_dma.start + attribute->offset);
             } else {
                 assert(false);
             }
@@ -1213,9 +1211,9 @@ static void pgraph_method(NV2AState *d,
 
         slot = (class_method - NV097_SET_VERTEX_DATA_ARRAY_OFFSET) / 4;
 
-        kelvin->vertex_attribute_offsets[slot].dma_select =
+        kelvin->vertex_attributes[slot].dma_select =
             parameter & 0x80000000;
-        kelvin->vertex_attribute_offsets[slot].offset =
+        kelvin->vertex_attributes[slot].offset =
             parameter & 0x7fffffff;
 
         break;
@@ -1236,8 +1234,7 @@ static void pgraph_method(NV2AState *d,
                     kelvin->inline_vertex_data_length*4 / vertex_size;
                 glDrawArrays(kelvin->gl_primitive_mode,
                              0, index_count);
-            }
-            if (kelvin->array_batch_length) {
+            } else if (kelvin->array_batch_length) {
                 kelvin_bind_vertex_attribute_offsets(d, kelvin);
 
                 glDrawElements(kelvin->gl_primitive_mode,
