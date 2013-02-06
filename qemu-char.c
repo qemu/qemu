@@ -2782,6 +2782,10 @@ void qmp_memchar_write(const char *device, const char *data,
 
     ret = cirmem_chr_write(chr, write_data, write_count);
 
+    if (write_data != (uint8_t *)data) {
+        g_free((void *)write_data);
+    }
+
     if (ret < 0) {
         error_setg(errp, "Failed to write to device %s", device);
         return;
@@ -2825,6 +2829,7 @@ char *qmp_memchar_read(const char *device, int64_t size,
 
     if (has_format && (format == DATA_FORMAT_BASE64)) {
         data = g_base64_encode(read_data, size);
+        g_free(read_data);
     } else {
         data = (char *)read_data;
     }
