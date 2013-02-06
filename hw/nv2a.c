@@ -388,6 +388,25 @@
 #   define NV097_ARRAY_ELEMENT32                              0x00971808
 #   define NV097_DRAW_ARRAYS                                  0x00971810
 #   define NV097_INLINE_ARRAY                                 0x00971818
+#   define NV097_SET_TEXTURE_OFFSET                           0x00971B00
+#   define NV097_SET_TEXTURE_FORMAT                           0x00971B04
+#       define NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA               0x00000003
+#       define NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY            0x000000F0
+#       define NV097_SET_TEXTURE_FORMAT_COLOR                     0x0000FF00
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8       0x06
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8       0x07
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8 0x12
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8             0x19
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8 0x1E
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED 0x30
+#   define NV097_SET_TEXTURE_ADDRESS                          0x00971B08
+#   define NV097_SET_TEXTURE_CONTROL0                         0x00971B0C
+#       define NV097_SET_TEXTURE_CONTROL0_ENABLE                 (1 << 30)
+#   define NV097_SET_TEXTURE_CONTROL1                         0x00971B10
+#       define NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH             0xFFFF0000
+#   define NV097_SET_TEXTURE_IMAGE_RECT                       0x00971B1C
+#       define NV097_SET_TEXTURE_IMAGE_RECT_WIDTH                 0xFFFF0000
+#       define NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT                0x0000FFFF
 #   define NV097_SET_SEMAPHORE_OFFSET                         0x00971D6C
 #   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE             0x00971D70
 #   define NV097_SET_ZSTENCIL_CLEAR_VALUE                     0x00971D8C
@@ -420,6 +439,30 @@ static const GLenum kelvin_primitive_map[] = {
     GL_POLYGON,
 };
 
+typedef struct ColorFormatInfo {
+    unsigned int bytes_per_pixel;
+    bool swizzled;
+    GLint gl_internal_format;
+    GLenum gl_format;
+    GLenum gl_type;
+} ColorFormatInfo;
+
+static const ColorFormatInfo kelvin_color_format_map[66] = {
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8] =
+        {4, true,  GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8] =
+        {4, true,  GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8] =
+        {4, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+    /* TODO: how do opengl alpha textures work? */
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8] =
+        {2, true,  GL_RED,  GL_RED,  GL_UNSIGNED_BYTE},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
+        {4, false, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED] =
+        {2, false, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_SHORT},
+};
+
 
 #define NV_MEMORY_TO_MEMORY_FORMAT                           0x00000039
 #   define NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY                  0x00390180
@@ -435,6 +478,7 @@ static const GLenum kelvin_primitive_map[] = {
 #define NV2A_MAX_VERTEXSHADER_LENGTH 136
 #define NV2A_VERTEXSHADER_CONSTANTS 192
 #define NV2A_VERTEXSHADER_ATTRIBUTES 16
+#define NV2A_MAX_TEXTURES 4
 
 
 #define GET_MASK(v, mask) (((v) & (mask)) >> (ffs(mask)-1))
@@ -444,6 +488,12 @@ static const GLenum kelvin_primitive_map[] = {
         (v) &= ~(mask);                                              \
         (v) |= ((val) << (ffs(mask)-1)) & (mask);                    \
     } while (0)
+
+#define CASE_4(v, step)                                              \
+    case (v):                                                        \
+    case (v)+(step):                                                 \
+    case (v)+(step)*2:                                               \
+    case (v)+(step)*3                                                \
 
 
 enum FifoMode {
@@ -494,12 +544,27 @@ typedef struct VertexShaderConstant {
 } VertexShaderConstant;
 
 typedef struct VertexShader {
+    bool dirty;
     unsigned int program_length;
     uint32_t program_data[NV2A_MAX_VERTEXSHADER_LENGTH];
 
-    bool dirty;
     GLuint gl_program;
 } VertexShader;
+
+typedef struct Texture {
+    bool dirty;
+    bool enabled;
+
+    bool dma_select;
+    hwaddr offset;
+    
+    unsigned int width, height;
+    unsigned int pitch;
+    unsigned int color_format;
+
+    GLenum gl_target;
+    GLuint gl_texture;
+} Texture;
 
 typedef struct KelvinState {
     hwaddr dma_notifies;
@@ -528,6 +593,8 @@ typedef struct KelvinState {
 
     unsigned int array_batch_length;
     uint32_t array_batch[NV2A_MAX_BATCH_LENGTH];
+
+    Texture textures[NV2A_MAX_TEXTURES];
 
     bool use_vertex_program;
     bool enable_vertex_program_write;
@@ -840,6 +907,12 @@ static void load_graphics_object(NV2AState *d, hwaddr address,
         }
         assert(glGetError() == GL_NO_ERROR);
 
+        /* generate textures */
+        for (i=0; i<NV2A_MAX_TEXTURES; i++) {
+            Texture *texture = &kelvin->textures[i];
+            glGenTextures(1, &texture->gl_texture);
+        }
+
         break;
     default:
         break;
@@ -976,6 +1049,57 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
     }
 
     assert(glGetError() == GL_NO_ERROR);
+}
+
+static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
+{
+    int i;
+
+    for (i=0; i<NV2A_MAX_TEXTURES; i++) {
+        Texture *texture = &kelvin->textures[i];
+
+        if (texture->gl_target != GL_TEXTURE_2D) continue;
+        
+        glActiveTexture(GL_TEXTURE0_ARB + i);
+        if (texture->enabled) {
+            glBindTexture(GL_TEXTURE_2D, texture->gl_texture);
+            if (!texture->dirty) continue;
+            
+            NV2A_DPRINTF("texture %d is color format %d (0x%x)\n",
+                i, texture->color_format, texture->color_format);
+            assert(texture->color_format
+                    < sizeof(kelvin_color_format_map)/sizeof(ColorFormatInfo));
+            ColorFormatInfo f = kelvin_color_format_map[texture->color_format];
+            assert(f.bytes_per_pixel != 0);
+
+            DMAObject dma;
+            if (texture->dma_select) {
+                dma = load_dma_object(d, kelvin->dma_b);
+            } else {
+                dma = load_dma_object(d, kelvin->dma_a);
+            }
+
+            assert(texture->offset < dma.limit);
+            assert(dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
+
+            /* TODO: handle weird texture pitches */
+            NV2A_DPRINTF("   ... width: %d , pitch: %d\n",
+                         texture->width, texture->pitch);
+            assert(texture->pitch == texture->width*f.bytes_per_pixel);
+
+            /* TODO: handle swizzling */
+
+            glTexImage2D(texture->gl_target, 0, f.gl_internal_format,
+                         texture->width, texture->height, 0,
+                         f.gl_format, f.gl_type,
+                         d->vram_ptr + dma.start + texture->offset);
+
+            texture->dirty = false;
+        } else {
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+
+    }
 }
 
 
@@ -1227,6 +1351,8 @@ static void pgraph_method(NV2AState *d,
                 glDisable(GL_VERTEX_PROGRAM_ARB);
             }
 
+            kelvin_bind_textures(d, kelvin);
+
             if (kelvin->inline_vertex_data_length) {
                 unsigned int vertex_size =
                     kelvin_bind_inline_vertex_data(kelvin);
@@ -1253,6 +1379,61 @@ static void pgraph_method(NV2AState *d,
             kelvin->array_batch_length = 0;
             kelvin->inline_vertex_data_length = 0;
         }
+        break;
+    CASE_4(NV097_SET_TEXTURE_OFFSET, 64):
+        slot = (class_method - NV097_SET_TEXTURE_OFFSET) / 64;
+        
+        kelvin->textures[slot].offset = parameter;
+
+        kelvin->textures[slot].dirty = true;
+        break;
+    CASE_4(NV097_SET_TEXTURE_FORMAT, 64):
+        slot = (class_method - NV097_SET_TEXTURE_FORMAT) / 64;
+        
+        kelvin->textures[slot].dma_select =
+            GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA) == 2;
+        switch (GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY)) {
+        case 1:
+            kelvin->textures[slot].gl_target = GL_TEXTURE_1D;
+            break;
+        case 2:
+            kelvin->textures[slot].gl_target = GL_TEXTURE_2D;
+            break;
+        case 3:
+            kelvin->textures[slot].gl_target = GL_TEXTURE_3D;
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        kelvin->textures[slot].color_format = 
+            GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_COLOR);
+        
+        kelvin->textures[slot].dirty = true;
+        break;
+    CASE_4(NV097_SET_TEXTURE_CONTROL0, 64):
+        slot = (class_method - NV097_SET_TEXTURE_CONTROL0) / 64;
+        
+        kelvin->textures[slot].enabled =
+            parameter & NV097_SET_TEXTURE_CONTROL0_ENABLE;
+        
+        break;
+    CASE_4(NV097_SET_TEXTURE_CONTROL1, 64):
+        slot = (class_method - NV097_SET_TEXTURE_CONTROL1) / 64;
+
+        kelvin->textures[slot].pitch =
+            GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH);
+
+        break;
+    CASE_4(NV097_SET_TEXTURE_IMAGE_RECT, 64):
+        slot = (class_method - NV097_SET_TEXTURE_IMAGE_RECT) / 64;
+        
+        kelvin->textures[slot].width = 
+            GET_MASK(parameter, NV097_SET_TEXTURE_IMAGE_RECT_WIDTH);
+        kelvin->textures[slot].height =
+            GET_MASK(parameter, NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT);
+        
+        kelvin->textures[slot].dirty = true;
         break;
     case NV097_ARRAY_ELEMENT16:
         assert(kelvin->array_batch_length < NV2A_MAX_BATCH_LENGTH);
