@@ -1522,37 +1522,38 @@ passed since 1970, i.e. unix epoch.
 @end table
 ETEXI
 
-    {
-        .name       = "chardev-add",
-        .args_type  = "args:s",
-        .params     = "args",
-        .help       = "add chardev",
-        .mhandler.cmd = hmp_chardev_add,
-    },
-
-STEXI
-@item chardev_add args
-@findex chardev_add
-
-chardev_add accepts the same parameters as the -chardev command line switch.
-
-ETEXI
-
-    {
-        .name       = "chardev-remove",
-        .args_type  = "id:s",
-        .params     = "id",
-        .help       = "remove chardev",
-        .mhandler.cmd = hmp_chardev_remove,
-    },
-
-STEXI
-@item chardev_remove id
-@findex chardev_remove
-
-Removes the chardev @var{id}.
-
-ETEXI
+HXCOMM Disabled for now, because it isn't built on top of QMP's chardev-add
+HXCOMM     {
+HXCOMM         .name       = "chardev-add",
+HXCOMM         .args_type  = "args:s",
+HXCOMM         .params     = "args",
+HXCOMM         .help       = "add chardev",
+HXCOMM         .mhandler.cmd = hmp_chardev_add,
+HXCOMM     },
+HXCOMM
+HXCOMM STEXI
+HXCOMM @item chardev_add args
+HXCOMM @findex chardev_add
+HXCOMM
+HXCOMM chardev_add accepts the same parameters as the -chardev command line switch.
+HXCOMM
+HXCOMM ETEXI
+HXCOMM
+HXCOMM     {
+HXCOMM         .name       = "chardev-remove",
+HXCOMM         .args_type  = "id:s",
+HXCOMM         .params     = "id",
+HXCOMM         .help       = "remove chardev",
+HXCOMM         .mhandler.cmd = hmp_chardev_remove,
+HXCOMM     },
+HXCOMM
+HXCOMM STEXI
+HXCOMM @item chardev_remove id
+HXCOMM @findex chardev_remove
+HXCOMM
+HXCOMM Removes the chardev @var{id}.
+HXCOMM
+HXCOMM ETEXI
 
     {
         .name       = "info",
