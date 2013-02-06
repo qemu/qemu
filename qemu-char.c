@@ -2678,11 +2678,6 @@ static int cirmem_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     }
 
     for (i = 0; i < len; i++ ) {
-        /* Avoid writing the IAC information to the queue. */
-        if ((unsigned char)buf[i] == IAC) {
-            continue;
-        }
-
         d->cbuf[d->prod++ % d->size] = buf[i];
         if ((d->prod - d->cons) > d->size) {
             d->cons = d->prod - d->size;
