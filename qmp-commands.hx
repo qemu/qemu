@@ -467,7 +467,7 @@ EQMP
 
     {
         .name       = "memchar-write",
-        .args_type  = "device:s,size:i,data:s,format:s?",
+        .args_type  = "device:s,data:s,format:s?",
         .mhandler.cmd_new = qmp_marshal_input_memchar_write,
     },
 
@@ -481,7 +481,6 @@ char device.
 Arguments:
 
 - "device": the name of the char device, must be unique (json-string)
-- "size": the memory size, in bytes, should be power of 2 (json-int)
 - "data": the source data write to memory (json-string)
 - "format": the data format write to memory, default is
             utf8. (json-string, optional)
@@ -491,7 +490,6 @@ Example:
 
 -> { "execute": "memchar-write",
                 "arguments": { "device": foo,
-                               "size": 8,
                                "data": "abcdefgh",
                                "format": "utf8" } }
 <- { "return": {} }

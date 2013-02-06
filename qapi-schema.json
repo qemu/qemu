@@ -346,8 +346,6 @@
 #
 # @device: the name of the memory char device.
 #
-# @size: the size to write in bytes.
-#
 # @data: the source data write to memchar.
 #
 # @format: #optional the format of the data write to chardev 'memory',
@@ -359,7 +357,7 @@
 # Since: 1.4
 ##
 { 'command': 'memchar-write',
-  'data': {'device': 'str', 'size': 'int', 'data': 'str',
+  'data': {'device': 'str', 'data': 'str',
            '*format': 'DataFormat'} }
 
 ##

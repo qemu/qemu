@@ -2753,9 +2753,8 @@ static bool qemu_is_chr(const CharDriverState *chr, const char *filename)
     return strcmp(chr->filename, filename);
 }
 
-void qmp_memchar_write(const char *device, int64_t size,
-                       const char *data, bool has_format,
-                       enum DataFormat format,
+void qmp_memchar_write(const char *device, const char *data,
+                       bool has_format, enum DataFormat format,
                        Error **errp)
 {
     CharDriverState *chr;
@@ -2774,12 +2773,11 @@ void qmp_memchar_write(const char *device, int64_t size,
         return;
     }
 
-    write_count = (gsize)size;
-
     if (has_format && (format == DATA_FORMAT_BASE64)) {
         write_data = g_base64_decode(data, &write_count);
     } else {
         write_data = (uint8_t *)data;
+        write_count = strlen(data);
     }
 
     ret = cirmem_chr_write(chr, write_data, write_count);
