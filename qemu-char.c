@@ -2645,7 +2645,7 @@ size_t qemu_chr_mem_osize(const CharDriverState *chr)
 }
 
 /*********************************************************/
-/*CircularMemory chardev*/
+/* CircularMemory chardev */
 
 typedef struct {
     size_t size;
@@ -2654,18 +2654,11 @@ typedef struct {
     uint8_t *cbuf;
 } CirMemCharDriver;
 
-static bool cirmem_chr_is_empty(const CharDriverState *chr)
+static size_t cirmem_count(const CharDriverState *chr)
 {
     const CirMemCharDriver *d = chr->opaque;
 
-    return d->cons == d->prod;
-}
-
-static size_t qemu_chr_cirmem_count(const CharDriverState *chr)
-{
-    const CirMemCharDriver *d = chr->opaque;
-
-    return (d->prod - d->cons);
+    return d->prod - d->cons;
 }
 
 static int cirmem_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
@@ -2678,8 +2671,8 @@ static int cirmem_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     }
 
     for (i = 0; i < len; i++ ) {
-        d->cbuf[d->prod++ % d->size] = buf[i];
-        if ((d->prod - d->cons) > d->size) {
+        d->cbuf[d->prod++ & (d->size - 1)] = buf[i];
+        if (d->prod - d->cons > d->size) {
             d->cons = d->prod - d->size;
         }
     }
@@ -2692,8 +2685,8 @@ static int cirmem_chr_read(CharDriverState *chr, uint8_t *buf, int len)
     CirMemCharDriver *d = chr->opaque;
     int i;
 
-    for (i = 0; i < len && !cirmem_chr_is_empty(chr); i++) {
-        buf[i] = d->cbuf[d->cons++ % d->size];
+    for (i = 0; i < len && d->cons != d->prod; i++) {
+        buf[i] = d->cbuf[d->cons++ & (d->size - 1)];
     }
 
     return i;
@@ -2743,9 +2736,9 @@ fail:
     return NULL;
 }
 
-static bool qemu_is_chr(const CharDriverState *chr, const char *filename)
+static bool chr_is_cirmem(const CharDriverState *chr)
 {
-    return strcmp(chr->filename, filename);
+    return chr->chr_write == cirmem_chr_write;
 }
 
 void qmp_memchar_write(const char *device, const char *data,
@@ -2763,7 +2756,7 @@ void qmp_memchar_write(const char *device, const char *data,
         return;
     }
 
-    if (qemu_is_chr(chr, "memory")) {
+    if (!chr_is_cirmem(chr)) {
         error_setg(errp,"%s is not memory char device", device);
         return;
     }
@@ -2802,7 +2795,7 @@ char *qmp_memchar_read(const char *device, int64_t size,
         return NULL;
     }
 
-    if (qemu_is_chr(chr, "memory")) {
+    if (!chr_is_cirmem(chr)) {
         error_setg(errp,"%s is not memory char device", device);
         return NULL;
     }
@@ -2812,7 +2805,7 @@ char *qmp_memchar_read(const char *device, int64_t size,
         return NULL;
     }
 
-    count = qemu_chr_cirmem_count(chr);
+    count = cirmem_count(chr);
     size = size > count ? count : size;
     read_data = g_malloc(size + 1);
 
