@@ -2758,9 +2758,9 @@ void qmp_memchar_write(const char *device, const char *data,
                        Error **errp)
 {
     CharDriverState *chr;
-    guchar *write_data;
+    const uint8_t *write_data;
     int ret;
-    gsize write_count;
+    size_t write_count;
 
     chr = qemu_chr_find(device);
     if (!chr) {
@@ -2793,7 +2793,7 @@ char *qmp_memchar_read(const char *device, int64_t size,
                        Error **errp)
 {
     CharDriverState *chr;
-    guchar *read_data;
+    uint8_t *read_data;
     size_t count;
     char *data;
 
