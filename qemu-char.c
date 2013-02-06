@@ -2819,7 +2819,7 @@ char *qmp_memchar_read(const char *device, int64_t size,
 
     count = qemu_chr_cirmem_count(chr);
     size = size > count ? count : size;
-    read_data = g_malloc0(size + 1);
+    read_data = g_malloc(size + 1);
 
     cirmem_chr_read(chr, read_data, size);
 
@@ -2827,6 +2827,7 @@ char *qmp_memchar_read(const char *device, int64_t size,
         data = g_base64_encode(read_data, size);
         g_free(read_data);
     } else {
+        read_data[size] = 0;
         data = (char *)read_data;
     }
 
