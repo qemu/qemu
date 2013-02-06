@@ -3513,54 +3513,6 @@ void cpu_dump_state (CPUCRISState *env, FILE *f, fprintf_function cpu_fprintf,
 
 }
 
-struct
-{
-    uint32_t vr;
-    const char *name;
-} cris_cores[] = {
-    {8, "crisv8"},
-    {9, "crisv9"},
-    {10, "crisv10"},
-    {11, "crisv11"},
-    {32, "crisv32"},
-};
-
-void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf)
-{
-    unsigned int i;
-
-    (*cpu_fprintf)(f, "Available CPUs:\n");
-    for (i = 0; i < ARRAY_SIZE(cris_cores); i++) {
-        (*cpu_fprintf)(f, "  %s\n", cris_cores[i].name);
-    }
-}
-
-static uint32_t vr_by_name(const char *name)
-{
-    unsigned int i;
-    for (i = 0; i < ARRAY_SIZE(cris_cores); i++) {
-        if (strcmp(name, cris_cores[i].name) == 0) {
-            return cris_cores[i].vr;
-        }
-    }
-    return 32;
-}
-
-CRISCPU *cpu_cris_init(const char *cpu_model)
-{
-    CRISCPU *cpu;
-    CPUCRISState *env;
-
-    cpu = CRIS_CPU(object_new(TYPE_CRIS_CPU));
-    env = &cpu->env;
-
-    env->pregs[PR_VR] = vr_by_name(cpu_model);
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
-}
-
 void cris_initialize_tcg(void)
 {
     int i;

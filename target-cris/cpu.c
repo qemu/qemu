@@ -55,6 +55,84 @@ static void cris_cpu_reset(CPUState *s)
 #endif
 }
 
+static ObjectClass *cris_cpu_class_by_name(const char *cpu_model)
+{
+    ObjectClass *oc;
+    char *typename;
+
+    if (cpu_model == NULL) {
+        return NULL;
+    }
+
+    typename = g_strdup_printf("%s-" TYPE_CRIS_CPU, cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
+    if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_CRIS_CPU) ||
+                       object_class_is_abstract(oc))) {
+        oc = NULL;
+    }
+    return oc;
+}
+
+CRISCPU *cpu_cris_init(const char *cpu_model)
+{
+    CRISCPU *cpu;
+    ObjectClass *oc;
+
+    oc = cris_cpu_class_by_name(cpu_model);
+    if (oc == NULL) {
+        return NULL;
+    }
+    cpu = CRIS_CPU(object_new(object_class_get_name(oc)));
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
+    return cpu;
+}
+
+/* Sort alphabetically by VR. */
+static gint cris_cpu_list_compare(gconstpointer a, gconstpointer b)
+{
+    CRISCPUClass *ccc_a = CRIS_CPU_CLASS(a);
+    CRISCPUClass *ccc_b = CRIS_CPU_CLASS(b);
+
+    /*  */
+    if (ccc_a->vr > ccc_b->vr) {
+        return 1;
+    } else if (ccc_a->vr < ccc_b->vr) {
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
+static void cris_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    CPUListState *s = user_data;
+    const char *typename = object_class_get_name(oc);
+    char *name;
+
+    name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_CRIS_CPU));
+    (*s->cpu_fprintf)(s->file, "  %s\n", name);
+    g_free(name);
+}
+
+void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+{
+    CPUListState s = {
+        .file = f,
+        .cpu_fprintf = cpu_fprintf,
+    };
+    GSList *list;
+
+    list = object_class_get_list(TYPE_CRIS_CPU, false);
+    list = g_slist_sort(list, cris_cpu_list_compare);
+    (*cpu_fprintf)(f, "Available CPUs:\n");
+    g_slist_foreach(list, cris_cpu_list_entry, &s);
+    g_slist_free(list);
+}
+
 static void cris_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CRISCPU *cpu = CRIS_CPU(dev);
@@ -69,10 +147,13 @@ static void cris_cpu_realizefn(DeviceState *dev, Error **errp)
 static void cris_cpu_initfn(Object *obj)
 {
     CRISCPU *cpu = CRIS_CPU(obj);
+    CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
     CPUCRISState *env = &cpu->env;
     static bool tcg_initialized;
 
     cpu_exec_init(env);
+
+    env->pregs[PR_VR] = ccc->vr;
 
     if (tcg_enabled() && !tcg_initialized) {
         tcg_initialized = true;
@@ -83,6 +164,69 @@ static void cris_cpu_initfn(Object *obj)
         }
     }
 }
+
+static void crisv8_cpu_class_init(ObjectClass *oc, void *data)
+{
+    CRISCPUClass *ccc = CRIS_CPU_CLASS(oc);
+
+    ccc->vr = 8;
+}
+
+static void crisv9_cpu_class_init(ObjectClass *oc, void *data)
+{
+    CRISCPUClass *ccc = CRIS_CPU_CLASS(oc);
+
+    ccc->vr = 9;
+}
+
+static void crisv10_cpu_class_init(ObjectClass *oc, void *data)
+{
+    CRISCPUClass *ccc = CRIS_CPU_CLASS(oc);
+
+    ccc->vr = 10;
+}
+
+static void crisv11_cpu_class_init(ObjectClass *oc, void *data)
+{
+    CRISCPUClass *ccc = CRIS_CPU_CLASS(oc);
+
+    ccc->vr = 11;
+}
+
+static void crisv32_cpu_class_init(ObjectClass *oc, void *data)
+{
+    CRISCPUClass *ccc = CRIS_CPU_CLASS(oc);
+
+    ccc->vr = 32;
+}
+
+#define TYPE(model) model "-" TYPE_CRIS_CPU
+
+static const TypeInfo cris_cpu_model_type_infos[] = {
+    {
+        .name = TYPE("crisv8"),
+        .parent = TYPE_CRIS_CPU,
+        .class_init = crisv8_cpu_class_init,
+    }, {
+        .name = TYPE("crisv9"),
+        .parent = TYPE_CRIS_CPU,
+        .class_init = crisv9_cpu_class_init,
+    }, {
+        .name = TYPE("crisv10"),
+        .parent = TYPE_CRIS_CPU,
+        .class_init = crisv10_cpu_class_init,
+    }, {
+        .name = TYPE("crisv11"),
+        .parent = TYPE_CRIS_CPU,
+        .class_init = crisv11_cpu_class_init,
+    }, {
+        .name = TYPE("crisv32"),
+        .parent = TYPE_CRIS_CPU,
+        .class_init = crisv32_cpu_class_init,
+    }
+};
+
+#undef TYPE
 
 static void cris_cpu_class_init(ObjectClass *oc, void *data)
 {
@@ -95,6 +239,8 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
 
     ccc->parent_reset = cc->reset;
     cc->reset = cris_cpu_reset;
+
+    cc->class_by_name = cris_cpu_class_by_name;
 }
 
 static const TypeInfo cris_cpu_type_info = {
@@ -102,14 +248,19 @@ static const TypeInfo cris_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(CRISCPU),
     .instance_init = cris_cpu_initfn,
-    .abstract = false,
+    .abstract = true,
     .class_size = sizeof(CRISCPUClass),
     .class_init = cris_cpu_class_init,
 };
 
 static void cris_cpu_register_types(void)
 {
+    int i;
+
     type_register_static(&cris_cpu_type_info);
+    for (i = 0; i < ARRAY_SIZE(cris_cpu_model_type_infos); i++) {
+        type_register_static(&cris_cpu_model_type_infos[i]);
+    }
 }
 
 type_init(cris_cpu_register_types)
