@@ -279,6 +279,10 @@
 #                       field is present if the driver for the image format
 #                       supports it
 #
+# @compressed-clusters: #optional total number of compressed clusters, this
+#                       field is present if the driver for the image format
+#                       supports it
+#
 # Since: 1.4
 #
 ##
@@ -288,7 +292,7 @@
            '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
            '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
            '*total-clusters': 'int', '*allocated-clusters': 'int',
-           '*fragmented-clusters': 'int' } }
+           '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
 
 ##
 # @StatusInfo:

@@ -428,10 +428,11 @@ static void dump_human_image_check(ImageCheck *check)
 
     if (check->total_clusters != 0 && check->allocated_clusters != 0) {
         printf("%" PRId64 "/%" PRId64 " = %0.2f%% allocated, "
-               "%0.2f%% fragmented\n",
+               "%0.2f%% fragmented, %0.2f%% compressed clusters\n",
                check->allocated_clusters, check->total_clusters,
                check->allocated_clusters * 100.0 / check->total_clusters,
-               check->fragmented_clusters * 100.0 / check->allocated_clusters);
+               check->fragmented_clusters * 100.0 / check->allocated_clusters,
+               check->compressed_clusters * 100.0 / check->allocated_clusters);
     }
 
     if (check->image_end_offset) {
@@ -472,6 +473,8 @@ static int collect_image_check(BlockDriverState *bs,
     check->has_allocated_clusters   = result.bfi.allocated_clusters != 0;
     check->fragmented_clusters      = result.bfi.fragmented_clusters;
     check->has_fragmented_clusters  = result.bfi.fragmented_clusters != 0;
+    check->compressed_clusters      = result.bfi.compressed_clusters;
+    check->has_compressed_clusters  = result.bfi.compressed_clusters != 0;
 
     return 0;
 }

@@ -24,6 +24,7 @@ typedef struct BlockFragInfo {
     uint64_t allocated_clusters;
     uint64_t total_clusters;
     uint64_t fragmented_clusters;
+    uint64_t compressed_clusters;
 } BlockFragInfo;
 
 typedef struct QEMUSnapshotInfo {
