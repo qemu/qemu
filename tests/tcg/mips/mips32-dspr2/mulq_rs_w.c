@@ -8,7 +8,7 @@ int main()
 
     rs = 0x80001234;
     rt = 0x80004321;
-    result = 0x80005555;
+    result = 0x7FFFAAAB;
 
     __asm
         ("mulq_rs.w %0, %1, %2\n\t"
