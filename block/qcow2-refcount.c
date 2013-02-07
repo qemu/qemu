@@ -968,6 +968,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
             if (flags & CHECK_FRAG_INFO) {
                 res->bfi.allocated_clusters++;
+                res->bfi.compressed_clusters++;
 
                 /* Compressed clusters are fragmented by nature.  Since they
                  * take up sub-sector space but we only have sector granularity
