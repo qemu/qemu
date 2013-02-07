@@ -917,6 +917,7 @@ static void inc_refcounts(BlockDriverState *bs,
 /* Flags for check_refcounts_l1() and check_refcounts_l2() */
 enum {
     CHECK_OFLAG_COPIED = 0x1,   /* check QCOW_OFLAG_COPIED matches refcount */
+    CHECK_FRAG_INFO = 0x2,      /* update BlockFragInfo counters */
 };
 
 /*
@@ -933,6 +934,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l2_table, l2_entry;
+    uint64_t next_contiguous_offset = 0;
     int i, l2_size, nb_csectors, refcount;
 
     /* Read L2 table from disk */
@@ -963,6 +965,17 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             l2_entry &= s->cluster_offset_mask;
             inc_refcounts(bs, res, refcount_table, refcount_table_size,
                 l2_entry & ~511, nb_csectors * 512);
+
+            if (flags & CHECK_FRAG_INFO) {
+                res->bfi.allocated_clusters++;
+
+                /* Compressed clusters are fragmented by nature.  Since they
+                 * take up sub-sector space but we only have sector granularity
+                 * I/O we need to re-read the same sectors even for adjacent
+                 * compressed clusters.
+                 */
+                res->bfi.fragmented_clusters++;
+            }
             break;
 
         case QCOW2_CLUSTER_ZERO:
@@ -988,6 +1001,15 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                         PRIx64 " refcount=%d\n", l2_entry, refcount);
                     res->corruptions++;
                 }
+            }
+
+            if (flags & CHECK_FRAG_INFO) {
+                res->bfi.allocated_clusters++;
+                if (next_contiguous_offset &&
+                    offset != next_contiguous_offset) {
+                    res->bfi.fragmented_clusters++;
+                }
+                next_contiguous_offset = offset + s->cluster_size;
             }
 
             /* Mark cluster as used */
@@ -1125,6 +1147,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
     size = bdrv_getlength(bs->file);
     nb_clusters = size_to_clusters(s, size);
+    res->bfi.total_clusters = nb_clusters;
     refcount_table = g_malloc0(nb_clusters * sizeof(uint16_t));
 
     /* header */
@@ -1134,7 +1157,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     /* current L1 table */
     ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
                              s->l1_table_offset, s->l1_size,
-                             CHECK_OFLAG_COPIED);
+                             CHECK_OFLAG_COPIED | CHECK_FRAG_INFO);
     if (ret < 0) {
         goto fail;
     }
