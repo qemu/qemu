@@ -2689,7 +2689,7 @@ MAQ_SA_W(maq_sa_w_phr, 0);
 target_ulong helper_##name(target_ulong rs, target_ulong rt,   \
                            CPUMIPSState *env)                  \
 {                                                              \
-    uint32_t rs_t, rt_t;                                       \
+    int32_t rs_t, rt_t;                                        \
     int32_t tempI;                                             \
     int64_t tempL;                                             \
                                                                \
