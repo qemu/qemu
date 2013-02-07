@@ -209,6 +209,9 @@ typedef struct IOIntCode {
 #define IOINST_SCHID_SSID(_schid)  ((_schid & 0x00060000) >> 17)
 #define IOINST_SCHID_NR(_schid)    (_schid & 0x0000ffff)
 
+#define IO_INT_WORD_ISC(_int_word) ((_int_word & 0x38000000) >> 24)
+#define ISC_TO_ISC_BITS(_isc)      ((0x80 >> _isc) << 24)
+
 int ioinst_disassemble_sch_ident(uint32_t value, int *m, int *cssid, int *ssid,
                                  int *schid);
 int ioinst_handle_xsch(CPUS390XState *env, uint64_t reg1);

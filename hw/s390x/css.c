@@ -87,7 +87,7 @@ static void css_inject_io_interrupt(SubchDev *sch)
                       css_build_subchannel_id(sch),
                       sch->schid,
                       sch->curr_status.pmcw.intparm,
-                      (0x80 >> isc) << 24);
+                      isc << 27);
 }
 
 void css_conditional_io_interrupt(SubchDev *sch)
@@ -111,7 +111,7 @@ void css_conditional_io_interrupt(SubchDev *sch)
                           css_build_subchannel_id(sch),
                           sch->schid,
                           sch->curr_status.pmcw.intparm,
-                          (0x80 >> isc) << 24);
+                          isc << 27);
     }
 }
 

@@ -628,6 +628,8 @@ static void do_io_interrupt(CPUS390XState *env)
     }
 
     for (isc = 0; isc < ARRAY_SIZE(env->io_index); isc++) {
+        uint64_t isc_bits;
+
         if (env->io_index[isc] < 0) {
             continue;
         }
@@ -637,7 +639,8 @@ static void do_io_interrupt(CPUS390XState *env)
         }
 
         q = &env->io_queue[env->io_index[isc]][isc];
-        if (!(env->cregs[6] & q->word)) {
+        isc_bits = ISC_TO_ISC_BITS(IO_INT_WORD_ISC(q->word));
+        if (!(env->cregs[6] & isc_bits)) {
             disable = 0;
             continue;
         }
