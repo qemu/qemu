@@ -914,6 +914,11 @@ static void inc_refcounts(BlockDriverState *bs,
     }
 }
 
+/* Flags for check_refcounts_l1() and check_refcounts_l2() */
+enum {
+    CHECK_OFLAG_COPIED = 0x1,   /* check QCOW_OFLAG_COPIED matches refcount */
+};
+
 /*
  * Increases the refcount in the given refcount table for the all clusters
  * referenced in the L2 table. While doing so, performs some checks on L2
@@ -924,7 +929,7 @@ static void inc_refcounts(BlockDriverState *bs,
  */
 static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
     uint16_t *refcount_table, int refcount_table_size, int64_t l2_offset,
-    int check_copied)
+    int flags)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l2_table, l2_entry;
@@ -971,7 +976,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             /* QCOW_OFLAG_COPIED must be set iff refcount == 1 */
             uint64_t offset = l2_entry & L2E_OFFSET_MASK;
 
-            if (check_copied) {
+            if (flags & CHECK_OFLAG_COPIED) {
                 refcount = get_refcount(bs, offset >> s->cluster_bits);
                 if (refcount < 0) {
                     fprintf(stderr, "Can't get refcount for offset %"
@@ -1028,7 +1033,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
                               uint16_t *refcount_table,
                               int refcount_table_size,
                               int64_t l1_table_offset, int l1_size,
-                              int check_copied)
+                              int flags)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l1_table, l2_offset, l1_size2;
@@ -1057,7 +1062,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
         l2_offset = l1_table[i];
         if (l2_offset) {
             /* QCOW_OFLAG_COPIED must be set iff refcount == 1 */
-            if (check_copied) {
+            if (flags & CHECK_OFLAG_COPIED) {
                 refcount = get_refcount(bs, (l2_offset & ~QCOW_OFLAG_COPIED)
                     >> s->cluster_bits);
                 if (refcount < 0) {
@@ -1086,7 +1091,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
 
             /* Process and check L2 entries */
             ret = check_refcounts_l2(bs, res, refcount_table,
-                refcount_table_size, l2_offset, check_copied);
+                                     refcount_table_size, l2_offset, flags);
             if (ret < 0) {
                 goto fail;
             }
@@ -1128,7 +1133,8 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
     /* current L1 table */
     ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
-                       s->l1_table_offset, s->l1_size, 1);
+                             s->l1_table_offset, s->l1_size,
+                             CHECK_OFLAG_COPIED);
     if (ret < 0) {
         goto fail;
     }
