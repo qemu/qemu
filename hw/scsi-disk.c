@@ -41,9 +41,11 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include <scsi/sg.h>
 #endif
 
-#define SCSI_DMA_BUF_SIZE    131072
-#define SCSI_MAX_INQUIRY_LEN 256
-#define SCSI_MAX_MODE_LEN    256
+#define SCSI_DMA_BUF_SIZE           131072
+#define SCSI_MAX_INQUIRY_LEN        256
+#define SCSI_MAX_MODE_LEN           256
+
+#define DEFAULT_DISCARD_GRANULARITY 4096
 
 typedef struct SCSIDiskState SCSIDiskState;
 
@@ -2057,6 +2059,11 @@ static int scsi_initfn(SCSIDevice *dev)
     if (dev->type == TYPE_DISK
         && blkconf_geometry(&dev->conf, NULL, 65535, 255, 255) < 0) {
         return -1;
+    }
+
+    if (s->qdev.conf.discard_granularity == -1) {
+        s->qdev.conf.discard_granularity =
+            MAX(s->qdev.conf.logical_block_size, DEFAULT_DISCARD_GRANULARITY);
     }
 
     if (!s->version) {

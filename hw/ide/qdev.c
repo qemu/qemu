@@ -143,7 +143,10 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
 
-    if (dev->conf.discard_granularity && dev->conf.discard_granularity != 512) {
+    if (dev->conf.discard_granularity == -1) {
+        dev->conf.discard_granularity = 512;
+    } else if (dev->conf.discard_granularity &&
+               dev->conf.discard_granularity != 512) {
         error_report("discard_granularity must be 512 for ide");
         return -1;
     }
