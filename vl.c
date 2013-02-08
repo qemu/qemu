@@ -3334,7 +3334,6 @@ int main(int argc, char **argv, char **envp)
                 }
                 opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
                 break;
@@ -3350,7 +3349,6 @@ int main(int argc, char **argv, char **envp)
                 }
                 opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
 
@@ -3521,7 +3519,6 @@ int main(int argc, char **argv, char **envp)
                 olist = qemu_find_opts("machine");
                 opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
                 optarg = qemu_opt_get(opts, "type");
@@ -3755,7 +3752,6 @@ int main(int argc, char **argv, char **envp)
                 }
                 opts = qemu_opts_parse(olist, optarg, 0);
                 if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
                 break;
