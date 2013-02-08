@@ -20,6 +20,6 @@
 #ifndef HW_NV2A_H
 #define HW_NV2A_H
 
-void nv2a_init(PCIBus *bus, int devfn, qemu_irq irq);
+void nv2a_init(PCIBus *bus, int devfn, qemu_irq irq, MemoryRegion *ram);
 
 #endif

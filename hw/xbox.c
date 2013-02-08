@@ -290,7 +290,7 @@ static void xbox_init(QEMUMachineInitArgs *args)
     mcpx_aci_init(host_bus, PCI_DEVFN(6, 0), gsi[6]);
 
     /* GPU! */
-    nv2a_init(agp_bus, PCI_DEVFN(0, 0), gsi[3]);
+    nv2a_init(agp_bus, PCI_DEVFN(0, 0), gsi[3], ram_memory);
 }
 
 static QEMUMachine xbox_machine = {

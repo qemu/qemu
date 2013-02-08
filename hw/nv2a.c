@@ -698,6 +698,7 @@ typedef struct NV2AState {
     VGACommonState vga;
 
     MemoryRegion vram;
+    MemoryRegion vram_pci;
     uint8_t *vram_ptr;
     MemoryRegion ramin;
     uint8_t *ramin_ptr;
@@ -3023,6 +3024,36 @@ static void nv2a_vga_text_update(void *opaque, console_ch_t *chardata)
     d->vga.text_update(&d->vga, chardata);
 }
 
+static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
+{
+    /* xbox is UMA - vram *is* ram */
+    memory_region_init_alias(&d->vram, "nv2a-vram", ram,
+                             0, memory_region_size(ram));
+
+     /* PCI exposed vram */
+    memory_region_init_alias(&d->vram_pci, "nv2a-vram-pci", &d->vram,
+                             0, memory_region_size(&d->vram));
+    pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, &d->vram_pci);
+
+
+    /* RAMIN - should be in vram somewhere, but not quite sure where atm */
+    memory_region_init_ram(&d->ramin, "nv2a-ramin", 0x100000);
+    /* memory_region_init_alias(&d->ramin, "nv2a-ramin", &d->vram,
+                         memory_region_size(&d->vram) - 0x100000,
+                         0x100000); */
+
+    memory_region_add_subregion(&d->mmio, 0x700000, &d->ramin);
+
+
+    d->vram_ptr = memory_region_get_ram_ptr(&d->vram);
+    d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
+
+
+    //memory_region_set_enabled(&vga->vram, false);
+    //memory_region_add_subregion(&d->vram, 0, &vga->vram);
+
+}
+
 static int nv2a_initfn(PCIDevice *dev)
 {
     int i;
@@ -3066,23 +3097,6 @@ static int nv2a_initfn(PCIDevice *dev)
         memory_region_add_subregion(&d->mmio, blocktable[i].offset,
                                     &d->block_mmio[i]);
     }
-
-
-    /* vram */
-    memory_region_init_ram(&d->vram, "nv2a-vram", 128 * 0x100000);
-    pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, &d->vram);
-
-    memory_region_init_alias(&d->ramin, "nv2a-ramin", &d->vram,
-                             memory_region_size(&d->vram) - 0x100000,
-                             0x100000);
-    memory_region_add_subregion(&d->mmio, 0x700000, &d->ramin);
-
-    d->vram_ptr = memory_region_get_ram_ptr(&d->vram);
-    d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
-
-    memory_region_set_enabled(&vga->vram, false);
-    memory_region_add_subregion(&d->vram, 0, &vga->vram);
-
 
     /* init fifo cache1 */
     qemu_mutex_init(&d->pfifo.cache1.pull_lock);
@@ -3151,11 +3165,14 @@ type_init(nv2a_register);
 
 
 
-void nv2a_init(PCIBus *bus, int devfn, qemu_irq irq)
+void nv2a_init(PCIBus *bus, int devfn, qemu_irq irq, MemoryRegion *ram)
 {
     PCIDevice *dev;
     NV2AState *d;
     dev = pci_create_simple(bus, devfn, "nv2a");
     d = NV2A_DEVICE(dev);
+
+    nv2a_init_memory(d, ram);
+
     d->irq = irq;
 }
