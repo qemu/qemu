@@ -8631,7 +8631,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
 #ifdef TARGET_NR_set_robust_list
     case TARGET_NR_set_robust_list:
-	goto unimplemented_nowarn;
+    case TARGET_NR_get_robust_list:
+        /* The ABI for supporting robust futexes has userspace pass
+         * the kernel a pointer to a linked list which is updated by
+         * userspace after the syscall; the list is walked by the kernel
+         * when the thread exits. Since the linked list in QEMU guest
+         * memory isn't a valid linked list for the host and we have
+         * no way to reliably intercept the thread-death event, we can't
+         * support these. Silently return ENOSYS so that guest userspace
+         * falls back to a non-robust futex implementation (which should
+         * be OK except in the corner case of the guest crashing while
+         * holding a mutex that is shared with another process via
+         * shared memory).
+         */
+        goto unimplemented_nowarn;
 #endif
 
 #if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
