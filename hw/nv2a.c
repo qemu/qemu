@@ -542,6 +542,7 @@ typedef struct VertexAttribute {
 } VertexAttribute;
 
 typedef struct VertexShaderConstant {
+    bool dirty;
     uint32 data[16];
 } VertexShaderConstant;
 
@@ -1043,9 +1044,12 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
     /* load constants */
     for (i=0; i<NV2A_VERTEXSHADER_CONSTANTS; i++) {
         VertexShaderConstant *constant = &kelvin->constants[i];
+        if (!constant->dirty) continue;
+
         glProgramEnvParameter4fvARB(GL_VERTEX_PROGRAM_ARB,
                                     i,
                                     (const GLfloat*)constant->data);
+        constant->dirty = false;
     }
 
     assert(glGetError() == GL_NO_ERROR);
@@ -1081,6 +1085,8 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
 
             assert(texture->offset < dma.limit);
             assert(dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
+
+            assert(dma.start + texture->offset < memory_region_size(&d->vram));
 
             /* TODO: handle weird texture pitches */
             NV2A_DPRINTF("   ... width: %d , pitch: %d\n",
@@ -1184,6 +1190,7 @@ static void pgraph_method(NV2AState *d,
                           unsigned int method,
                           uint32_t parameter)
 {
+    int i;
     GraphicsContext *context;
     GraphicsSubchannel *subchannel_data;
     GraphicsObject *object;
@@ -1293,6 +1300,7 @@ static void pgraph_method(NV2AState *d,
 
         constant = &kelvin->constants[kelvin->constant_load_slot];
         constant->data[slot] = parameter;
+        constant->dirty = true;
         break;
 
 
@@ -1329,9 +1337,9 @@ static void pgraph_method(NV2AState *d,
             break;
         }
         vertex_attribute->count =
-            (parameter & NV097_SET_VERTEX_DATA_ARRAY_FORMAT_SIZE) >> 4;
+            GET_MASK(parameter, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_SIZE);
         vertex_attribute->stride =
-            (parameter & NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE) >> 8;
+            GET_MASK(parameter, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE);
 
         break;
     case NV097_SET_VERTEX_DATA_ARRAY_OFFSET ...
@@ -1527,6 +1535,12 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_SET_TRANSFORM_PROGRAM_START:
         assert(parameter < NV2A_VERTEXSHADER_SLOTS);
+        /* if the shader changed, dirty all the constants */
+        if (parameter != kelvin->vertexshader_start_slot) {
+            for (i=0; i<NV2A_VERTEXSHADER_CONSTANTS; i++) {
+                kelvin->constants[i].dirty = true;
+            }
+        }
         kelvin->vertexshader_start_slot = parameter;
         break;
     case NV097_SET_TRANSFORM_CONSTANT_LOAD:
@@ -2531,6 +2545,7 @@ static void pcrtc_write(void *opaque, hwaddr addr,
     case NV_PCRTC_START:
         val &= 0x03FFFFFF;
         if (val != d->pcrtc.start) {
+            assert(val < memory_region_size(&d->vram));
             d->pcrtc.start = val;
             /* TODO: I think it's illegal to change subreginons
              * inside an existing transaction. Same goes for set_address
