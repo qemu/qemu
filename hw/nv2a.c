@@ -495,7 +495,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
     case (v):                                                        \
     case (v)+(step):                                                 \
     case (v)+(step)*2:                                               \
-    case (v)+(step)*3                                                \
+    case (v)+(step)*3
 
 
 enum FifoMode {
@@ -952,13 +952,13 @@ static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
                                                  KelvinState *kelvin)
 {
     int i;
+
     for (i=0; i<NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
         VertexAttribute *attribute = &kelvin->vertex_attributes[i];
         if (attribute->count) {
             DMAObject vertex_dma;
 
-            qemu_mutex_unlock(&d->pgraph.lock);
-            qemu_mutex_lock_iothread();
+            /* TODO: cache coherence */
 
             if (attribute->dma_select) {
                 vertex_dma = load_dma_object(d, kelvin->dma_vertex_b);
@@ -977,9 +977,6 @@ static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
             } else {
                 assert(false);
             }
-
-            qemu_mutex_lock(&d->pgraph.lock);
-            qemu_mutex_unlock_iothread();
 
 
             glEnableVertexAttribArray(i);
@@ -1245,8 +1242,12 @@ static void pgraph_method(NV2AState *d,
             d->pgraph.trapped_data[0] = parameter;
             d->pgraph.notify_source = NV_PGRAPH_NSOURCE_NOTIFICATION; /* TODO: check this */
             d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_NOTIFY;
+            /* TODO: puller should block on this??? */
+            qemu_mutex_unlock(&d->pgraph.lock);
+            qemu_mutex_lock_iothread();
             update_irq(d);
-            /* TODO: the puller should block on this */
+            qemu_mutex_lock(&d->pgraph.lock);
+            qemu_mutex_unlock_iothread();
         }
         break;
     case NV097_WAIT_FOR_IDLE:
@@ -1585,12 +1586,12 @@ static void *pfifo_puller_thread(void *arg)
         qemu_mutex_lock(&state->pull_lock);
         if (!state->pull_enabled) {
             qemu_mutex_unlock(&state->pull_lock);
-            break;
+            return NULL;
         }
         qemu_mutex_unlock(&state->pull_lock);
 
         qemu_mutex_lock(&state->cache_lock);
-        if (QSIMPLEQ_EMPTY(&state->cache)) {
+        while (QSIMPLEQ_EMPTY(&state->cache)) {
             qemu_cond_wait(&state->cache_cond, &state->cache_lock);
 
             /* we could have been woken up to tell us we should die */
@@ -1598,7 +1599,7 @@ static void *pfifo_puller_thread(void *arg)
             if (!state->pull_enabled) {
                 qemu_mutex_unlock(&state->pull_lock);
                 qemu_mutex_unlock(&state->cache_lock);
-                break;
+                return NULL;
             }
             qemu_mutex_unlock(&state->pull_lock);
         }
@@ -2465,7 +2466,7 @@ static void pgraph_write(void *opaque, hwaddr addr,
         qemu_mutex_lock(&d->pgraph.lock);
 
         if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN) {
-            NV2A_DPRINTF("nv2a PGRAPH: read channel context from %llx",
+            NV2A_DPRINTF("nv2a PGRAPH: read channel context from %llx\n",
                          d->pgraph.context_address);
 
             uint8_t *context_ptr = d->ramin_ptr + d->pgraph.context_address;
@@ -2530,11 +2531,16 @@ static void pcrtc_write(void *opaque, hwaddr addr,
     case NV_PCRTC_START:
         val &= 0x03FFFFFF;
         if (val != d->pcrtc.start) {
-            if (d->pcrtc.start) {
-                memory_region_del_subregion(&d->vram, &d->vga.vram);
-            }
             d->pcrtc.start = val;
-            memory_region_add_subregion(&d->vram, val, &d->vga.vram);
+            /* TODO: I think it's illegal to change subreginons
+             * inside an existing transaction. Same goes for set_address
+             * since it' just removes and adds it.
+             * Should really be using an alias or something,
+             * but that doesn't play nicely with vga.... */
+            /*memory_region_transaction_begin();
+            memory_region_set_enabled(&d->vga.vram, true);
+            memory_region_set_address(&d->vga.vram, val);
+            memory_region_transaction_commit();*/
         }
         break;
     default:
@@ -3058,6 +3064,9 @@ static int nv2a_initfn(PCIDevice *dev)
 
     d->vram_ptr = memory_region_get_ram_ptr(&d->vram);
     d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
+
+    memory_region_set_enabled(&vga->vram, false);
+    memory_region_add_subregion(&d->vram, 0, &vga->vram);
 
 
     /* init fifo cache1 */
