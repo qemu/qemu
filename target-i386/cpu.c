@@ -1333,7 +1333,7 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
 
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    error_setg(errp, "bad numerical value %s\n", val);
+                    error_setg(errp, "bad numerical value %s", val);
                     goto out;
                 }
                 if (numvalue < 0x80000000) {
@@ -1355,7 +1355,7 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 tsc_freq = strtosz_suffix_unit(val, &err,
                                                STRTOSZ_DEFSUFFIX_B, 1000);
                 if (tsc_freq < 0 || *err) {
-                    error_setg(errp, "bad numerical value %s\n", val);
+                    error_setg(errp, "bad numerical value %s", val);
                     goto out;
                 }
                 snprintf(num, sizeof(num), "%" PRId64, tsc_freq);
@@ -1364,12 +1364,12 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 char *err;
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
-                    error_setg(errp, "bad numerical value %s\n", val);
+                    error_setg(errp, "bad numerical value %s", val);
                     goto out;
                 }
                 hyperv_set_spinlock_retries(numvalue);
             } else {
-                error_setg(errp, "unrecognized feature %s\n", featurestr);
+                error_setg(errp, "unrecognized feature %s", featurestr);
                 goto out;
             }
         } else if (!strcmp(featurestr, "check")) {
@@ -1382,7 +1382,7 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
             hyperv_enable_vapic_recommended(true);
         } else {
             error_setg(errp, "feature string `%s' not in format (+feature|"
-                       "-feature|feature=xyz)\n", featurestr);
+                       "-feature|feature=xyz)", featurestr);
             goto out;
         }
         if (error_is_set(errp)) {

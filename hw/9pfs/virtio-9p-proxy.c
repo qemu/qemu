@@ -521,7 +521,7 @@ static int v9fs_request(V9fsProxy *proxy, int type,
         }
         break;
     default:
-        error_report("Invalid type %d\n", type);
+        error_report("Invalid type %d", type);
         retval = -EINVAL;
         break;
     }

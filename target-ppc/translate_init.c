@@ -9806,7 +9806,7 @@ static void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
             ((opc->handler.type2 & def->insns_flags2) != 0)) {
             if (register_insn(env->opcodes, opc) < 0) {
                 error_setg(errp, "ERROR initializing PowerPC instruction "
-                           "0x%02x 0x%02x 0x%02x\n", opc->opc1, opc->opc2,
+                           "0x%02x 0x%02x 0x%02x", opc->opc1, opc->opc2,
                            opc->opc3);
                 return;
             }

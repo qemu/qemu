@@ -3021,12 +3021,12 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
     int i;
 
     if (qemu_opts_id(opts) == NULL) {
-        error_setg(errp, "chardev: no id specified\n");
+        error_setg(errp, "chardev: no id specified");
         goto err;
     }
 
     if (qemu_opt_get(opts, "backend") == NULL) {
-        error_setg(errp, "chardev: \"%s\" missing backend\n",
+        error_setg(errp, "chardev: \"%s\" missing backend",
                    qemu_opts_id(opts));
         goto err;
     }
@@ -3035,14 +3035,14 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
             break;
     }
     if (i == ARRAY_SIZE(backend_table)) {
-        error_setg(errp, "chardev: backend \"%s\" not found\n",
+        error_setg(errp, "chardev: backend \"%s\" not found",
                    qemu_opt_get(opts, "backend"));
         goto err;
     }
 
     chr = backend_table[i].open(opts);
     if (!chr) {
-        error_setg(errp, "chardev: opening backend \"%s\" failed\n",
+        error_setg(errp, "chardev: opening backend \"%s\" failed",
                    qemu_opt_get(opts, "backend"));
         goto err;
     }

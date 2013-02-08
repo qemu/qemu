@@ -194,7 +194,7 @@ void qmp_screendump(const char *filename, Error **errp)
     if (consoles[0] && consoles[0]->hw_screen_dump) {
         consoles[0]->hw_screen_dump(consoles[0]->hw, filename, cswitch, errp);
     } else {
-        error_setg(errp, "device doesn't support screendump\n");
+        error_setg(errp, "device doesn't support screendump");
     }
 
     if (cswitch) {

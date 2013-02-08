@@ -214,7 +214,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     int r, i = 0;
 
     if (!dev->binding->set_guest_notifiers) {
-        error_report("binding does not support guest notifiers\n");
+        error_report("binding does not support guest notifiers");
         r = -ENOSYS;
         goto err;
     }
@@ -231,7 +231,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
                                           total_queues * 2,
                                           true);
     if (r < 0) {
-        error_report("Error binding guest notifier: %d\n", -r);
+        error_report("Error binding guest notifier: %d", -r);
         goto err;
     }
 
