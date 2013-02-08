@@ -1776,7 +1776,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         errno = 0;
         return NULL;
     }
-    if (count > IOV_MAX) {
+    if (count < 0 || count > IOV_MAX) {
         errno = EINVAL;
         return NULL;
     }
