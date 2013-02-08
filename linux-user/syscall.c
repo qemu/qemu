@@ -78,6 +78,9 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #ifdef CONFIG_ATTR
 #include "qemu/xattr.h"
 #endif
+#ifdef CONFIG_SENDFILE
+#include <sys/sendfile.h>
+#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -7531,8 +7534,58 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #else
         goto unimplemented;
 #endif
+
+#ifdef CONFIG_SENDFILE
     case TARGET_NR_sendfile:
+    {
+        off_t *offp = NULL;
+        off_t off;
+        if (arg3) {
+            ret = get_user_sal(off, arg3);
+            if (is_error(ret)) {
+                break;
+            }
+            offp = &off;
+        }
+        ret = get_errno(sendfile(arg1, arg2, offp, arg4));
+        if (!is_error(ret) && arg3) {
+            abi_long ret2 = put_user_sal(off, arg3);
+            if (is_error(ret2)) {
+                ret = ret2;
+            }
+        }
+        break;
+    }
+#ifdef TARGET_NR_sendfile64
+    case TARGET_NR_sendfile64:
+    {
+        off_t *offp = NULL;
+        off_t off;
+        if (arg3) {
+            ret = get_user_s64(off, arg3);
+            if (is_error(ret)) {
+                break;
+            }
+            offp = &off;
+        }
+        ret = get_errno(sendfile(arg1, arg2, offp, arg4));
+        if (!is_error(ret) && arg3) {
+            abi_long ret2 = put_user_s64(off, arg3);
+            if (is_error(ret2)) {
+                ret = ret2;
+            }
+        }
+        break;
+    }
+#endif
+#else
+    case TARGET_NR_sendfile:
+#ifdef TARGET_NR_sendfile64:
+    case TARGET_NR_sendfile64:
+#endif
         goto unimplemented;
+#endif
+
 #ifdef TARGET_NR_getpmsg
     case TARGET_NR_getpmsg:
         goto unimplemented;

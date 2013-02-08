@@ -2760,6 +2760,20 @@ if compile_prog "" "" ; then
   epoll_pwait=yes
 fi
 
+# check for sendfile support
+sendfile=no
+cat > $TMPC << EOF
+#include <sys/sendfile.h>
+
+int main(void)
+{
+    return sendfile(0, 0, 0, 0);
+}
+EOF
+if compile_prog "" "" ; then
+  sendfile=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
   if has makeinfo && has pod2man; then
@@ -3627,6 +3641,9 @@ if test "$epoll_create1" = "yes" ; then
 fi
 if test "$epoll_pwait" = "yes" ; then
   echo "CONFIG_EPOLL_PWAIT=y" >> $config_host_mak
+fi
+if test "$sendfile" = "yes" ; then
+  echo "CONFIG_SENDFILE=y" >> $config_host_mak
 fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak
