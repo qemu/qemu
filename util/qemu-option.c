@@ -231,8 +231,10 @@ static void parse_option_size(const char *name, const char *value,
             break;
         default:
             error_set(errp, QERR_INVALID_PARAMETER_VALUE, name, "a size");
+#if 0 /* conversion from qerror_report() to error_set() broke this: */
             error_printf_unless_qmp("You may use k, M, G or T suffixes for "
                     "kilobytes, megabytes, gigabytes and terabytes.\n");
+#endif
             return;
         }
     } else {
@@ -771,7 +773,9 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
     if (id) {
         if (!id_wellformed(id)) {
             error_set(errp,QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
+#if 0 /* conversion from qerror_report() to error_set() broke this: */
             error_printf_unless_qmp("Identifiers consist of letters, digits, '-', '.', '_', starting with a letter.\n");
+#endif
             return NULL;
         }
         opts = qemu_opts_find(list, id);
