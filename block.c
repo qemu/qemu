@@ -581,6 +581,26 @@ static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
 }
 
 /**
+ * Set open flags for a given discard mode
+ *
+ * Return 0 on success, -1 if the discard mode was invalid.
+ */
+int bdrv_parse_discard_flags(const char *mode, int *flags)
+{
+    *flags &= ~BDRV_O_UNMAP;
+
+    if (!strcmp(mode, "off") || !strcmp(mode, "ignore")) {
+        /* do nothing */
+    } else if (!strcmp(mode, "on") || !strcmp(mode, "unmap")) {
+        *flags |= BDRV_O_UNMAP;
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
  * Set open flags for a given cache mode
  *
  * Return 0 on success, -1 if the cache mode was invalid.
@@ -4189,6 +4209,11 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
 
     if (bs->dirty_bitmap) {
         bdrv_reset_dirty(bs, sector_num, nb_sectors);
+    }
+
+    /* Do nothing if disabled.  */
+    if (!(bs->open_flags & BDRV_O_UNMAP)) {
+        return 0;
     }
 
     if (bs->drv->bdrv_co_discard) {
