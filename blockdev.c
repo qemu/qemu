@@ -391,6 +391,13 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
 	}
     }
 
+    if ((buf = qemu_opt_get(opts, "discard")) != NULL) {
+        if (bdrv_parse_discard_flags(buf, &bdrv_flags) != 0) {
+            error_report("invalid discard option");
+            return NULL;
+        }
+    }
+
     bdrv_flags |= BDRV_O_CACHE_WB;
     if ((buf = qemu_opt_get(opts, "cache")) != NULL) {
         if (bdrv_parse_cache_flags(buf, &bdrv_flags) != 0) {
@@ -1500,6 +1507,10 @@ QemuOptsList qemu_drive_opts = {
             .name = "file",
             .type = QEMU_OPT_STRING,
             .help = "disk image",
+        },{
+            .name = "discard",
+            .type = QEMU_OPT_STRING,
+            .help = "discard operation (ignore/off, unmap/on)",
         },{
             .name = "cache",
             .type = QEMU_OPT_STRING,
