@@ -1806,9 +1806,9 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
 
     ret = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
     if (ret < 0) {
-        error_report("vfio: error getting device %s from group %d: %m\n",
+        error_report("vfio: error getting device %s from group %d: %m",
                      name, group->groupid);
-        error_report("Verify all devices in group %d are bound to vfio-pci "
+        error_printf("Verify all devices in group %d are bound to vfio-pci "
                      "or pci-stub and not already in use\n", group->groupid);
         return ret;
     }
