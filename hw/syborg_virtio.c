@@ -284,7 +284,9 @@ static int syborg_virtio_net_init(SysBusDevice *dev)
     VirtIODevice *vdev;
     SyborgVirtIOProxy *proxy = FROM_SYSBUS(SyborgVirtIOProxy, dev);
 
-    vdev = virtio_net_init(&dev->qdev, &proxy->nic, &proxy->net);
+    vdev = virtio_net_init(&dev->qdev, &proxy->nic, &proxy->net,
+                           proxy->host_features);
+
     return syborg_virtio_init(proxy, vdev);
 }
 
