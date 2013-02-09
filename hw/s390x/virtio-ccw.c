@@ -555,7 +555,8 @@ static int virtio_ccw_net_init(VirtioCcwDevice *dev)
 {
     VirtIODevice *vdev;
 
-    vdev = virtio_net_init((DeviceState *)dev, &dev->nic, &dev->net);
+    vdev = virtio_net_init((DeviceState *)dev, &dev->nic, &dev->net,
+                           dev->host_features[0]);
     if (!vdev) {
         return -1;
     }

@@ -351,7 +351,7 @@ void qemu_del_net_client(NetClientState *nc)
 
 void qemu_del_nic(NICState *nic)
 {
-    int i, queues = nic->conf->queues;
+    int i, queues = MAX(nic->conf->queues, 1);
 
     /* If this is a peer NIC and peer has already been deleted, free it now. */
     if (nic->peer_deleted) {

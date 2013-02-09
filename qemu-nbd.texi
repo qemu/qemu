@@ -29,7 +29,12 @@ Export QEMU disk image using NBD protocol.
 @item -s, --snapshot
   use snapshot file
 @item -n, --nocache
-  disable host cache
+@itemx --cache=@var{cache}
+  set cache mode to be used with the file.  See the documentation of
+  the emulator's @code{-drive cache=...} option for allowed values.
+@item --aio=@var{aio}
+  choose asynchronous I/O mode between @samp{threads} (the default)
+  and @samp{native} (Linux only).
 @item -c, --connect=@var{dev}
   connect @var{filename} to NBD device @var{dev}
 @item -d, --disconnect

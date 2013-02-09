@@ -153,7 +153,8 @@ static int s390_virtio_net_init(VirtIOS390Device *dev)
 {
     VirtIODevice *vdev;
 
-    vdev = virtio_net_init((DeviceState *)dev, &dev->nic, &dev->net);
+    vdev = virtio_net_init((DeviceState *)dev, &dev->nic, &dev->net,
+                           dev->host_features);
     if (!vdev) {
         return -1;
     }

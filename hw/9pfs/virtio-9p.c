@@ -327,7 +327,7 @@ static int free_fid(V9fsPDU *pdu, V9fsFidState *fidp)
     return retval;
 }
 
-static void put_fid(V9fsPDU *pdu, V9fsFidState *fidp)
+static int put_fid(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     BUG_ON(!fidp->ref);
     fidp->ref--;
@@ -348,8 +348,9 @@ static void put_fid(V9fsPDU *pdu, V9fsFidState *fidp)
                 pdu->s->migration_blocker = NULL;
             }
         }
-        free_fid(pdu, fidp);
+        return free_fid(pdu, fidp);
     }
+    return 0;
 }
 
 static V9fsFidState *clunk_fid(V9fsState *s, int32_t fid)
@@ -1537,9 +1538,10 @@ static void v9fs_clunk(void *opaque)
      * free the fid.
      */
     fidp->ref++;
-    err = offset;
-
-    put_fid(pdu, fidp);
+    err = put_fid(pdu, fidp);
+    if (!err) {
+        err = offset;
+    }
 out_nofid:
     complete_pdu(s, pdu, err);
 }

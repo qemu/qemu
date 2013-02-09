@@ -34,6 +34,10 @@
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
+#define PROTOCOLS (CURLPROTO_HTTP | CURLPROTO_HTTPS | \
+                   CURLPROTO_FTP | CURLPROTO_FTPS | \
+                   CURLPROTO_TFTP)
+
 #define CURL_NUM_STATES 8
 #define CURL_NUM_ACB    8
 #define SECTOR_SIZE     512
@@ -301,6 +305,13 @@ static CURLState *curl_init_state(BDRVCURLState *s)
     curl_easy_setopt(state->curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(state->curl, CURLOPT_ERRORBUFFER, state->errmsg);
     curl_easy_setopt(state->curl, CURLOPT_FAILONERROR, 1);
+
+    /* Restrict supported protocols to avoid security issues in the more
+     * obscure protocols.  For example, do not allow POP3/SMTP/IMAP see
+     * CVE-2013-0249.
+     */
+    curl_easy_setopt(state->curl, CURLOPT_PROTOCOLS, PROTOCOLS);
+    curl_easy_setopt(state->curl, CURLOPT_REDIR_PROTOCOLS, PROTOCOLS);
 
 #ifdef DEBUG_VERBOSE
     curl_easy_setopt(state->curl, CURLOPT_VERBOSE, 1);

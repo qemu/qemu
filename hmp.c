@@ -662,38 +662,46 @@ void hmp_pmemsave(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &errp);
 }
 
-void hmp_memchar_write(Monitor *mon, const QDict *qdict)
+void hmp_ringbuf_write(Monitor *mon, const QDict *qdict)
 {
-    uint32_t size;
     const char *chardev = qdict_get_str(qdict, "device");
     const char *data = qdict_get_str(qdict, "data");
     Error *errp = NULL;
 
-    size = strlen(data);
-    qmp_memchar_write(chardev, size, data, false, 0, &errp);
+    qmp_ringbuf_write(chardev, data, false, 0, &errp);
 
     hmp_handle_error(mon, &errp);
 }
 
-void hmp_memchar_read(Monitor *mon, const QDict *qdict)
+void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
 {
     uint32_t size = qdict_get_int(qdict, "size");
     const char *chardev = qdict_get_str(qdict, "device");
-    MemCharRead *meminfo;
+    char *data;
     Error *errp = NULL;
+    int i;
 
-    meminfo = qmp_memchar_read(chardev, size, false, 0, &errp);
+    data = qmp_ringbuf_read(chardev, size, false, 0, &errp);
     if (errp) {
         monitor_printf(mon, "%s\n", error_get_pretty(errp));
         error_free(errp);
         return;
     }
 
-    if (meminfo->count > 0) {
-        monitor_printf(mon, "%s\n", meminfo->data);
-    }
+    for (i = 0; data[i]; i++) {
+        unsigned char ch = data[i];
 
-    qapi_free_MemCharRead(meminfo);
+        if (ch == '\\') {
+            monitor_printf(mon, "\\\\");
+        } else if ((ch < 0x20 && ch != '\n' && ch != '\t') || ch == 0x7F) {
+            monitor_printf(mon, "\\u%04X", ch);
+        } else {
+            monitor_printf(mon, "%c", ch);
+        }
+
+    }
+    monitor_printf(mon, "\n");
+    g_free(data);
 }
 
 static void hmp_cont_cb(void *opaque, int err)

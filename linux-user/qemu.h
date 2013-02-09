@@ -306,12 +306,12 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
      ((hptr), (x)), 0)
 
 #define __get_user_e(x, hptr, e)                                        \
-  ((x) =                                                                \
+  ((x) = (typeof(*hptr))(                                               \
    __builtin_choose_expr(sizeof(*(hptr)) == 1, ldub_p,                  \
    __builtin_choose_expr(sizeof(*(hptr)) == 2, lduw_##e##_p,            \
    __builtin_choose_expr(sizeof(*(hptr)) == 4, ldl_##e##_p,             \
    __builtin_choose_expr(sizeof(*(hptr)) == 8, ldq_##e##_p, abort))))   \
-     (hptr), 0)
+     (hptr)), 0)
 
 #ifdef TARGET_WORDS_BIGENDIAN
 # define __put_user(x, hptr)  __put_user_e(x, hptr, be)

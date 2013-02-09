@@ -23,7 +23,7 @@ for debugging, profiling, and observing execution.
 
 4. Pretty-print the binary trace file:
 
-    ./simpletrace.py trace-events trace-*
+    ./scripts/simpletrace.py trace-events trace-*
 
 == Trace events ==
 
@@ -198,7 +198,7 @@ The "simple" backend produces binary trace files that can be formatted with the
 simpletrace.py script.  The script takes the "trace-events" file and the binary
 trace:
 
-    ./simpletrace.py trace-events trace-12345
+    ./scripts/simpletrace.py trace-events trace-12345
 
 You must ensure that the same "trace-events" file was used to build QEMU,
 otherwise trace event declarations may have changed and output will not be

@@ -841,40 +841,39 @@ Inject an NMI on the given CPU (x86 only).
 ETEXI
 
     {
-        .name       = "memchar_write",
+        .name       = "ringbuf_write",
         .args_type  = "device:s,data:s",
         .params     = "device data",
-        .help       = "Provide writing interface for CirMemCharDriver. Write"
-                      "'data' to it.",
-        .mhandler.cmd = hmp_memchar_write,
+        .help       = "Write to a ring buffer character device",
+        .mhandler.cmd = hmp_ringbuf_write,
     },
 
 STEXI
-@item memchar_write @var{device} @var{data}
-@findex memchar_write
-Provide writing interface for CirMemCharDriver. Write @var{data}
-to char device 'memory'.
+@item ringbuf_write @var{device} @var{data}
+@findex ringbuf_write
+Write @var{data} to ring buffer character device @var{device}.
+@var{data} must be a UTF-8 string.
 
 ETEXI
 
     {
-        .name       = "memchar_read",
+        .name       = "ringbuf_read",
         .args_type  = "device:s,size:i",
         .params     = "device size",
-        .help       = "Provide read interface for CirMemCharDriver. Read from"
-                      "it and return the data with size.",
-        .mhandler.cmd = hmp_memchar_read,
+        .help       = "Read from a ring buffer character device",
+        .mhandler.cmd = hmp_ringbuf_read,
     },
 
 STEXI
-@item memchar_read @var{device}
-@findex memchar_read
-Provide read interface for CirMemCharDriver. Read from char device
-'memory' and return the data.
-
-@var{size} is the size of data want to read from. Refer to unencoded
-size of the raw data, would adjust to the init size of the memchar
-if the requested size is larger than it.
+@item ringbuf_read @var{device}
+@findex ringbuf_read
+Read and print up to @var{size} bytes from ring buffer character
+device @var{device}.
+Certain non-printable characters are printed \uXXXX, where XXXX is the
+character code in hexadecimal.  Character \ is printed \\.
+Bug: can screw up when the buffer contains invalid UTF-8 sequences,
+NUL characters, after the ring buffer lost data, and when reading
+stops because the size limit is reached.
 
 ETEXI
 
@@ -1523,37 +1522,38 @@ passed since 1970, i.e. unix epoch.
 @end table
 ETEXI
 
-    {
-        .name       = "chardev-add",
-        .args_type  = "args:s",
-        .params     = "args",
-        .help       = "add chardev",
-        .mhandler.cmd = hmp_chardev_add,
-    },
-
-STEXI
-@item chardev_add args
-@findex chardev_add
-
-chardev_add accepts the same parameters as the -chardev command line switch.
-
-ETEXI
-
-    {
-        .name       = "chardev-remove",
-        .args_type  = "id:s",
-        .params     = "id",
-        .help       = "remove chardev",
-        .mhandler.cmd = hmp_chardev_remove,
-    },
-
-STEXI
-@item chardev_remove id
-@findex chardev_remove
-
-Removes the chardev @var{id}.
-
-ETEXI
+HXCOMM Disabled for now, because it isn't built on top of QMP's chardev-add
+HXCOMM     {
+HXCOMM         .name       = "chardev-add",
+HXCOMM         .args_type  = "args:s",
+HXCOMM         .params     = "args",
+HXCOMM         .help       = "add chardev",
+HXCOMM         .mhandler.cmd = hmp_chardev_add,
+HXCOMM     },
+HXCOMM
+HXCOMM STEXI
+HXCOMM @item chardev_add args
+HXCOMM @findex chardev_add
+HXCOMM
+HXCOMM chardev_add accepts the same parameters as the -chardev command line switch.
+HXCOMM
+HXCOMM ETEXI
+HXCOMM
+HXCOMM     {
+HXCOMM         .name       = "chardev-remove",
+HXCOMM         .args_type  = "id:s",
+HXCOMM         .params     = "id",
+HXCOMM         .help       = "remove chardev",
+HXCOMM         .mhandler.cmd = hmp_chardev_remove,
+HXCOMM     },
+HXCOMM
+HXCOMM STEXI
+HXCOMM @item chardev_remove id
+HXCOMM @findex chardev_remove
+HXCOMM
+HXCOMM Removes the chardev @var{id}.
+HXCOMM
+HXCOMM ETEXI
 
     {
         .name       = "info",

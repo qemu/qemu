@@ -243,7 +243,8 @@ typedef struct VirtIOBlkConf VirtIOBlkConf;
 VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk);
 struct virtio_net_conf;
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
-                              struct virtio_net_conf *net);
+                              struct virtio_net_conf *net,
+                              uint32_t host_features);
 typedef struct virtio_serial_conf virtio_serial_conf;
 VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *serial);
 VirtIODevice *virtio_balloon_init(DeviceState *dev);
