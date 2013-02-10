@@ -360,6 +360,8 @@
 #   define NV097_SET_CONTEXT_DMA_VERTEX_A                     0x0097019C
 #   define NV097_SET_CONTEXT_DMA_VERTEX_B                     0x009701A0
 #   define NV097_SET_CONTEXT_DMA_SEMAPHORE                    0x009701A4
+#   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
+#   define NV097_SET_VIEWPORT_SCALE                           0x00970AF0
 #   define NV097_SET_TRANSFORM_PROGRAM                        0x00970B00
 #   define NV097_SET_TRANSFORM_CONSTANT                       0x00970B80
 #   define NV097_SET_VERTEX_DATA_ARRAY_OFFSET                 0x00971720
@@ -543,7 +545,7 @@ typedef struct VertexAttribute {
 
 typedef struct VertexShaderConstant {
     bool dirty;
-    uint32 data[16];
+    uint32 data[4];
 } VertexShaderConstant;
 
 typedef struct VertexShader {
@@ -1282,6 +1284,25 @@ static void pgraph_method(NV2AState *d,
         kelvin->dma_semaphore = parameter;
         break;
 
+    case NV097_SET_VIEWPORT_OFFSET ...
+            NV097_SET_VIEWPORT_OFFSET + 12:
+
+        slot = (class_method - NV097_SET_VIEWPORT_OFFSET) / 4;
+
+        /* populate magic viewport offset constant */
+        kelvin->constants[59].data[slot] = parameter;
+        kelvin->constants[59].dirty = true;
+        break;
+    case NV097_SET_VIEWPORT_SCALE ...
+            NV097_SET_VIEWPORT_SCALE + 12:
+
+        slot = (class_method - NV097_SET_VIEWPORT_SCALE) / 4;
+
+        /* populate magic viewport scale constant */
+        kelvin->constants[58].data[slot] = parameter;
+        kelvin->constants[58].dirty = true;
+        break;
+
     case NV097_SET_TRANSFORM_PROGRAM ...
             NV097_SET_TRANSFORM_PROGRAM + 0x7c:
 
@@ -1299,8 +1320,8 @@ static void pgraph_method(NV2AState *d,
 
         slot = (class_method - NV097_SET_TRANSFORM_CONSTANT) / 4;
 
-        constant = &kelvin->constants[kelvin->constant_load_slot];
-        constant->data[slot] = parameter;
+        constant = &kelvin->constants[kelvin->constant_load_slot+slot/4];
+        constant->data[slot%4] = parameter;
         constant->dirty = true;
         break;
 
@@ -1357,14 +1378,6 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_BEGIN_END:
         if (parameter == NV097_SET_BEGIN_END_OP_END) {
-            if (kelvin->use_vertex_program) {
-                glEnable(GL_VERTEX_PROGRAM_ARB);
-                kelvin_bind_vertexshader(kelvin);
-            } else {
-                glDisable(GL_VERTEX_PROGRAM_ARB);
-            }
-
-            kelvin_bind_textures(d, kelvin);
 
             if (kelvin->inline_vertex_data_length) {
                 unsigned int vertex_size =
@@ -1374,8 +1387,6 @@ static void pgraph_method(NV2AState *d,
                 glDrawArrays(kelvin->gl_primitive_mode,
                              0, index_count);
             } else if (kelvin->array_batch_length) {
-                kelvin_bind_vertex_attribute_offsets(d, kelvin);
-
                 glDrawElements(kelvin->gl_primitive_mode,
                                kelvin->array_batch_length,
                                GL_UNSIGNED_INT,
@@ -1386,6 +1397,17 @@ static void pgraph_method(NV2AState *d,
             assert(glGetError() == GL_NO_ERROR);
         } else {
             assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
+
+            if (kelvin->use_vertex_program) {
+                glEnable(GL_VERTEX_PROGRAM_ARB);
+                kelvin_bind_vertexshader(kelvin);
+            } else {
+                glDisable(GL_VERTEX_PROGRAM_ARB);
+            }
+
+            kelvin_bind_textures(d, kelvin);
+            kelvin_bind_vertex_attribute_offsets(d, kelvin);
+
 
             kelvin->gl_primitive_mode = kelvin_primitive_map[parameter];
 
@@ -1461,10 +1483,9 @@ static void pgraph_method(NV2AState *d,
             kelvin->array_batch_length++] = parameter;
         break;
     case NV097_DRAW_ARRAYS:
-        kelvin_bind_vertex_attribute_offsets(d, kelvin);
         glDrawArrays(kelvin->gl_primitive_mode,
-                     GET_MASK(parameter, NV097_DRAW_ARRAYS_COUNT),
-                     GET_MASK(parameter, NV097_DRAW_ARRAYS_START_INDEX));
+                     GET_MASK(parameter, NV097_DRAW_ARRAYS_START_INDEX),
+                     GET_MASK(parameter, NV097_DRAW_ARRAYS_COUNT)+1);
         break;
     case NV097_INLINE_ARRAY:
         assert(kelvin->inline_vertex_data_length < NV2A_MAX_BATCH_LENGTH);

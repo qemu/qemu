@@ -662,14 +662,28 @@ QString* vsh_translate(uint16_t version,
     "MOV R12, R0;"
 */
 
-    /* Z coord [0;1]->[-1;1] mapping, see comment in transform_projection
-     * in state.c
-     *
-     * Basically we want (in homogeneous coordinates) z = z * 2 - 1. However,
-     * shaders are run before the homogeneous divide, so we have to take the w
-     * into account: z = ((z / w) * 2 - 1) * w, which is the same as
-     * z = z * 2 - w.
-     */
+
+        /* the shaders leave the result in screen space, while
+         * opengl expects it in normalised device coords.
+         * Use the magic viewport constants for now,
+         * but they're not necessarily present.
+         * Same idea as above I think, but dono what the mvp stuff is about...
+        */
+        "# un-screenspace transform\n"
+        "ADD R12, R12, -c[59];\n"
+        "RCP R1.x, c[58].x;\n"
+        "RCP R1.y, c[58].y;\n"
+        "RCP R1.z, c[58].z;\n"
+        "MUL R12.xyz, R12, R1;\n"
+        
+        /* Z coord [0;1]->[-1;1] mapping, see comment in transform_projection
+         * in state.c
+         *
+         * Basically we want (in homogeneous coordinates) z = z * 2 - 1. However,
+         * shaders are run before the homogeneous divide, so we have to take the w
+         * into account: z = ((z / w) * 2 - 1) * w, which is the same as
+         * z = z * 2 - w.
+         */
         "# Apply Z coord mapping\n"
         "ADD R12.z, R12.z, R12.z;\n"
         "ADD R12.z, R12.z, -R12.w;\n"
