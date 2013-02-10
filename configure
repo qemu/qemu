@@ -4012,9 +4012,10 @@ case "$target_arch2" in
     target_nptl="yes"
   ;;
   mipsn32|mipsn32el)
-    TARGET_ARCH=mipsn32
+    TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN32=y" >> $config_target_mak
+    echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   mips64|mips64el)
     TARGET_ARCH=mips64
