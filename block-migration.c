@@ -582,7 +582,12 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
-    return 0;
+    /* Complete when bulk transfer is done and all dirty blocks have been
+     * transferred.
+     */
+    return block_mig_state.bulk_completed &&
+           block_mig_state.submitted == 0 &&
+           block_mig_state.read_done == 0;
 }
 
 static int block_save_complete(QEMUFile *f, void *opaque)
