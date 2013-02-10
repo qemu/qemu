@@ -569,7 +569,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
             }
         }
     }
-    if (ret) {
+    if (ret < 0) {
         blk_mig_cleanup();
         return ret;
     }
@@ -609,7 +609,7 @@ static int block_save_complete(QEMUFile *f, void *opaque)
     } while (ret == 0);
 
     blk_mig_cleanup();
-    if (ret) {
+    if (ret < 0) {
         return ret;
     }
     /* report completion */
