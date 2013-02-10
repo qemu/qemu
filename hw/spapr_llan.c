@@ -175,11 +175,19 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
     return size;
 }
 
+static void spapr_vlan_cleanup(NetClientState *nc)
+{
+    VIOsPAPRVLANDevice *dev = qemu_get_nic_opaque(nc);
+
+    dev->nic = NULL;
+}
+
 static NetClientInfo net_spapr_vlan_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = spapr_vlan_can_receive,
     .receive = spapr_vlan_receive,
+    .cleanup = spapr_vlan_cleanup,
 };
 
 static void spapr_vlan_reset(VIOsPAPRDevice *sdev)
