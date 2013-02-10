@@ -15944,6 +15944,14 @@ void cpu_state_reset(CPUMIPSState *env)
 
 #if defined(CONFIG_USER_ONLY)
     env->CP0_Status = (MIPS_HFLAG_UM << CP0St_KSU);
+# ifdef TARGET_MIPS64
+    /* Enable 64-bit register mode.  */
+    env->CP0_Status |= (1 << CP0St_PX);
+# endif
+# ifdef TARGET_ABI_MIPSN64
+    /* Enable 64-bit address mode.  */
+    env->CP0_Status |= (1 << CP0St_UX);
+# endif
     /* Enable access to the CPUNum, SYNCI_Step, CC, and CCRes RDHWR
        hardware registers.  */
     env->CP0_HWREna |= 0x0000000F;
@@ -15952,6 +15960,10 @@ void cpu_state_reset(CPUMIPSState *env)
     }
     if (env->CP0_Config3 & (1 << CP0C3_DSPP)) {
         env->CP0_Status |= (1 << CP0St_MX);
+    }
+    /* Enable 64-bit FPU if the target cpu supports it.  */
+    if (env->active_fpu.fcr0 & (1 << FCR0_F64)) {
+        env->CP0_Status |= (1 << CP0St_FR);
     }
 #else
     if (env->hflags & MIPS_HFLAG_BMASK) {
