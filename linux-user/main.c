@@ -1787,8 +1787,8 @@ void cpu_loop(CPUPPCState *env)
 
 #ifdef TARGET_MIPS
 
-#define MIPS_SYS(name, args) args,
-
+# ifdef TARGET_ABI_MIPSO32
+#  define MIPS_SYS(name, args) args,
 static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_syscall	, 8)	/* 4000 */
 	MIPS_SYS(sys_exit	, 1)
@@ -2134,8 +2134,8 @@ static const uint8_t mips_syscall_args[] = {
         MIPS_SYS(sys_clock_adjtime, 2)
         MIPS_SYS(sys_syncfs, 1)
 };
-
-#undef MIPS_SYS
+#  undef MIPS_SYS
+# endif /* O32 */
 
 static int do_store_exclusive(CPUMIPSState *env)
 {
@@ -2217,8 +2217,11 @@ void cpu_loop(CPUMIPSState *env)
 {
     CPUState *cs = CPU(mips_env_get_cpu(env));
     target_siginfo_t info;
-    int trapnr, ret;
+    int trapnr;
+    abi_long ret;
+# ifdef TARGET_ABI_MIPSO32
     unsigned int syscall_num;
+# endif
 
     for(;;) {
         cpu_exec_start(cs);
@@ -2226,8 +2229,9 @@ void cpu_loop(CPUMIPSState *env)
         cpu_exec_end(cs);
         switch(trapnr) {
         case EXCP_SYSCALL:
-            syscall_num = env->active_tc.gpr[2] - 4000;
             env->active_tc.PC += 4;
+# ifdef TARGET_ABI_MIPSO32
+            syscall_num = env->active_tc.gpr[2] - 4000;
             if (syscall_num >= sizeof(mips_syscall_args)) {
                 ret = -TARGET_ENOSYS;
             } else {
@@ -2266,12 +2270,19 @@ void cpu_loop(CPUMIPSState *env)
                                  arg5, arg6, arg7, arg8);
             }
 done_syscall:
+# else
+            ret = do_syscall(env, env->active_tc.gpr[2],
+                             env->active_tc.gpr[4], env->active_tc.gpr[5],
+                             env->active_tc.gpr[6], env->active_tc.gpr[7],
+                             env->active_tc.gpr[8], env->active_tc.gpr[9],
+                             env->active_tc.gpr[10], env->active_tc.gpr[11]);
+# endif /* O32 */
             if (ret == -TARGET_QEMU_ESIGRETURN) {
                 /* Returning from a successful sigreturn syscall.
                    Avoid clobbering register state.  */
                 break;
             }
-            if ((unsigned int)ret >= (unsigned int)(-1133)) {
+            if ((abi_ulong)ret >= (abi_ulong)-1133) {
                 env->active_tc.gpr[7] = 1; /* error flag */
                 ret = -ret;
             } else {
