@@ -2438,8 +2438,9 @@ void sparc64_get_context(CPUSPARCState *env)
     force_sig(TARGET_SIGSEGV);
 }
 #endif
-#elif defined(TARGET_ABI_MIPSO32)
+#elif defined(TARGET_MIPS) || defined(TARGET_MIPS64)
 
+# if defined(TARGET_ABI_MIPSO32)
 struct target_sigcontext {
     uint32_t   sc_regmask;     /* Unused */
     uint32_t   sc_status;
@@ -2461,6 +2462,25 @@ struct target_sigcontext {
     target_ulong   sc_hi3;
     target_ulong   sc_lo3;
 };
+# else /* N32 || N64 */
+struct target_sigcontext {
+    uint64_t sc_regs[32];
+    uint64_t sc_fpregs[32];
+    uint64_t sc_mdhi;
+    uint64_t sc_hi1;
+    uint64_t sc_hi2;
+    uint64_t sc_hi3;
+    uint64_t sc_mdlo;
+    uint64_t sc_lo1;
+    uint64_t sc_lo2;
+    uint64_t sc_lo3;
+    uint64_t sc_pc;
+    uint32_t sc_fpc_csr;
+    uint32_t sc_used_math;
+    uint32_t sc_dsp;
+    uint32_t sc_reserved;
+};
+# endif /* O32 */
 
 struct sigframe {
     uint32_t sf_ass[4];			/* argument save space for o32 */
@@ -2646,6 +2666,7 @@ restore_sigcontext(CPUMIPSState *regs, struct target_sigcontext *sc)
 #endif
     return err;
 }
+
 /*
  * Determine which stack to use..
  */
@@ -2672,6 +2693,7 @@ get_sigframe(struct target_sigaction *ka, CPUMIPSState *regs, size_t frame_size)
     return (sp - frame_size) & ~7;
 }
 
+# if defined(TARGET_ABI_MIPSO32)
 /* compare linux/arch/mips/kernel/signal.c:setup_frame() */
 static void setup_frame(int sig, struct target_sigaction * ka,
                         target_sigset_t *set, CPUMIPSState *regs)
@@ -2769,6 +2791,7 @@ badframe:
     force_sig(TARGET_SIGSEGV/*, current*/);
     return 0;
 }
+# endif /* O32 */
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
                            target_siginfo_t *info,
@@ -5499,10 +5522,15 @@ void process_pending_signals(CPUArchState *cpu_env)
         }
 #endif
         /* prepare the stack frame of the virtual CPU */
+#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
+        /* These targets do not have traditional signals.  */
+        setup_rt_frame(sig, sa, &q->info, &target_old_set, cpu_env);
+#else
         if (sa->sa_flags & TARGET_SA_SIGINFO)
             setup_rt_frame(sig, sa, &q->info, &target_old_set, cpu_env);
         else
             setup_frame(sig, sa, &target_old_set, cpu_env);
+#endif
 	if (sa->sa_flags & TARGET_SA_RESETHAND)
             sa->_sa_handler = TARGET_SIG_DFL;
     }
