@@ -3643,7 +3643,7 @@ void helper_dmthlip(target_ulong rs, target_ulong ac, CPUMIPSState *env)
 }
 #endif
 
-void helper_wrdsp(target_ulong rs, target_ulong mask_num, CPUMIPSState *env)
+void cpu_wrdsp(uint32_t rs, uint32_t mask_num, CPUMIPSState *env)
 {
     uint8_t  mask[6];
     uint8_t  i;
@@ -3709,7 +3709,12 @@ void helper_wrdsp(target_ulong rs, target_ulong mask_num, CPUMIPSState *env)
     env->active_tc.DSPControl = dsp;
 }
 
-target_ulong helper_rddsp(target_ulong masknum, CPUMIPSState *env)
+void helper_wrdsp(target_ulong rs, target_ulong mask_num, CPUMIPSState *env)
+{
+    return cpu_wrdsp(rs, mask_num, env);
+}
+
+uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env)
 {
     uint8_t  mask[6];
     uint32_t ruler, i;
@@ -3718,7 +3723,7 @@ target_ulong helper_rddsp(target_ulong masknum, CPUMIPSState *env)
 
     ruler = 0x01;
     for (i = 0; i < 6; i++) {
-        mask[i] = (masknum & ruler) >> i ;
+        mask[i] = (mask_num & ruler) >> i ;
         ruler = ruler << 1;
     }
 
@@ -3758,6 +3763,11 @@ target_ulong helper_rddsp(target_ulong masknum, CPUMIPSState *env)
     }
 
     return temp;
+}
+
+target_ulong helper_rddsp(target_ulong mask_num, CPUMIPSState *env)
+{
+    return cpu_rddsp(mask_num, env);
 }
 
 

@@ -504,6 +504,9 @@ void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 #define cpu_signal_handler cpu_mips_signal_handler
 #define cpu_list mips_cpu_list
 
+extern void cpu_wrdsp(uint32_t rs, uint32_t mask_num, CPUMIPSState *env);
+extern uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env);
+
 #define CPU_SAVE_VERSION 3
 
 /* MMU modes definitions. We carefully match the indices with our
