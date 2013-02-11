@@ -975,7 +975,7 @@ static void do_log(Monitor *mon, const QDict *qdict)
     if (!strcmp(items, "none")) {
         mask = 0;
     } else {
-        mask = cpu_str_to_log_mask(items);
+        mask = qemu_str_to_log_mask(items);
         if (!mask) {
             help_cmd(mon, "log");
             return;

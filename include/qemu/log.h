@@ -155,7 +155,7 @@ static inline void cpu_set_log(int log_flags)
 }
 
 void qemu_set_log_filename(const char *filename);
-int cpu_str_to_log_mask(const char *str);
+int qemu_str_to_log_mask(const char *str);
 
 /* Print a usage message listing all the valid logging categories
  * to the specified FILE*.

@@ -865,7 +865,7 @@ int main(int argc, char **argv)
     if (log_mask) {
         int mask;
 
-        mask = cpu_str_to_log_mask(log_mask);
+        mask = qemu_str_to_log_mask(log_mask);
         if (!mask) {
             qemu_print_log_usage(stdout);
             exit(1);

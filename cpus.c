@@ -1179,7 +1179,7 @@ void set_cpu_log(const char *optarg)
 {
     int mask;
 
-    mask = cpu_str_to_log_mask(optarg);
+    mask = qemu_str_to_log_mask(optarg);
     if (!mask) {
         qemu_print_log_usage(stdout);
         exit(1);

@@ -3099,7 +3099,7 @@ static void handle_arg_log(const char *arg)
 {
     int mask;
 
-    mask = cpu_str_to_log_mask(arg);
+    mask = qemu_str_to_log_mask(arg);
     if (!mask) {
         qemu_print_log_usage(stdout);
         exit(1);

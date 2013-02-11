@@ -136,7 +136,7 @@ static int cmp1(const char *s1, int n, const char *s2)
 }
 
 /* takes a comma separated list of log masks. Return 0 if error. */
-int cpu_str_to_log_mask(const char *str)
+int qemu_str_to_log_mask(const char *str)
 {
     const CPULogItem *item;
     int mask;
