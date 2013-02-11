@@ -170,3 +170,12 @@ int cpu_str_to_log_mask(const char *str)
     }
     return mask;
 }
+
+void qemu_print_log_usage(FILE *f)
+{
+    const CPULogItem *item;
+    fprintf(f, "Log items (comma separated):\n");
+    for (item = cpu_log_items; item->mask != 0; item++) {
+        fprintf(f, "%-10s %s\n", item->name, item->help);
+    }
+}

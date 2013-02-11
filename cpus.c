@@ -1178,14 +1178,10 @@ void set_numa_modes(void)
 void set_cpu_log(const char *optarg)
 {
     int mask;
-    const CPULogItem *item;
 
     mask = cpu_str_to_log_mask(optarg);
     if (!mask) {
-        printf("Log items (comma separated):\n");
-        for (item = cpu_log_items; item->mask != 0; item++) {
-            printf("%-10s %s\n", item->name, item->help);
-        }
+        qemu_print_log_usage(stdout);
         exit(1);
     }
     cpu_set_log(mask);
