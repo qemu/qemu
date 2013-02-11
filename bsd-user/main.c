@@ -861,7 +861,7 @@ int main(int argc, char **argv)
     }
 
     /* init debug */
-    cpu_set_log_filename(log_file);
+    qemu_set_log_filename(log_file);
     if (log_mask) {
         int mask;
         const CPULogItem *item;

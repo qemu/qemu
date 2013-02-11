@@ -3865,7 +3865,7 @@ int main(int argc, char **argv, char **envp)
      */
     if (log_mask) {
         if (log_file) {
-            set_cpu_log_filename(log_file);
+            qemu_set_log_filename(log_file);
         }
         set_cpu_log(log_mask);
     }

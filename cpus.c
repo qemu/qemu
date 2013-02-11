@@ -1191,11 +1191,6 @@ void set_cpu_log(const char *optarg)
     cpu_set_log(mask);
 }
 
-void set_cpu_log_filename(const char *optarg)
-{
-    cpu_set_log_filename(optarg);
-}
-
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
 {
     /* XXX: implement xxx_cpu_list for targets that still miss it */

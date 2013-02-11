@@ -964,7 +964,7 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
 
 static void do_logfile(Monitor *mon, const QDict *qdict)
 {
-    cpu_set_log_filename(qdict_get_str(qdict, "filename"));
+    qemu_set_log_filename(qdict_get_str(qdict, "filename"));
 }
 
 static void do_log(Monitor *mon, const QDict *qdict)

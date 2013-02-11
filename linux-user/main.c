@@ -3113,7 +3113,7 @@ static void handle_arg_log(const char *arg)
 
 static void handle_arg_log_filename(const char *arg)
 {
-    cpu_set_log_filename(arg);
+    qemu_set_log_filename(arg);
 }
 
 static void handle_arg_set_env(const char *arg)
@@ -3480,7 +3480,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     /* init debug */
-    cpu_set_log_filename(log_file);
+    qemu_set_log_filename(log_file);
     optind = parse_args(argc, argv);
 
     /* Zero out regs */
