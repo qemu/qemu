@@ -3152,6 +3152,9 @@
 #
 # Return info about the chardev backend just created.
 #
+# @pty: #optional name of the slave pseudoterminal device, present if
+#       and only if a chardev of type 'pty' was created
+#
 # Since: 1.4
 ##
 { 'type' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
@@ -3159,12 +3162,12 @@
 ##
 # @chardev-add:
 #
-# Add a file chardev
+# Add a character device backend
 #
 # @id: the chardev's ID, must be unique
 # @backend: backend type and parameters
 #
-# Returns: chardev info.
+# Returns: ChardevReturn.
 #
 # Since: 1.4
 ##
@@ -3175,7 +3178,7 @@
 ##
 # @chardev-remove:
 #
-# Remove a chardev
+# Remove a character device backend
 #
 # @id: the chardev's ID, must exist and not be in use
 #
