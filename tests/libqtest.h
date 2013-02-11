@@ -109,7 +109,6 @@ void qtest_outl(QTestState *s, uint16_t addr, uint32_t value);
  * qtest_inb:
  * @s: QTestState instance to operate on.
  * @addr: I/O port to read from.
- * @value: Value being written.
  *
  * Returns an 8-bit value from an I/O port.
  */
@@ -119,7 +118,6 @@ uint8_t qtest_inb(QTestState *s, uint16_t addr);
  * qtest_inw:
  * @s: QTestState instance to operate on.
  * @addr: I/O port to read from.
- * @value: Value being written.
  *
  * Returns a 16-bit value from an I/O port.
  */
@@ -129,7 +127,6 @@ uint16_t qtest_inw(QTestState *s, uint16_t addr);
  * qtest_inl:
  * @s: QTestState instance to operate on.
  * @addr: I/O port to read from.
- * @value: Value being written.
  *
  * Returns a 32-bit value from an I/O port.
  */
@@ -279,7 +276,6 @@ void qtest_add_func(const char *str, void (*fn));
 /**
  * inb:
  * @addr: I/O port to read from.
- * @value: Value being written.
  *
  * Returns an 8-bit value from an I/O port.
  */
@@ -288,7 +284,6 @@ void qtest_add_func(const char *str, void (*fn));
 /**
  * inw:
  * @addr: I/O port to read from.
- * @value: Value being written.
  *
  * Returns a 16-bit value from an I/O port.
  */
@@ -297,7 +292,6 @@ void qtest_add_func(const char *str, void (*fn));
 /**
  * inl:
  * @addr: I/O port to read from.
- * @value: Value being written.
  *
  * Returns a 32-bit value from an I/O port.
  */
