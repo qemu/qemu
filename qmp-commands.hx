@@ -644,7 +644,7 @@ EQMP
 
 SQMP
 migrate-set-cache-size
----------------------
+----------------------
 
 Set cache size to be used by XBZRLE migration, the cache size will be rounded
 down to the nearest power of 2
@@ -667,7 +667,7 @@ EQMP
 
 SQMP
 query-migrate-cache-size
----------------------
+------------------------
 
 Show cache size to be used by XBZRLE migration
 
@@ -2431,32 +2431,42 @@ The main json-object contains the following:
      - Possible values: "active", "completed", "failed", "cancelled"
 - "total-time": total amount of ms since migration started.  If
                 migration has ended, it returns the total migration
-		 time (json-int)
+                time (json-int)
 - "downtime": only present when migration has finished correctly
               total amount in ms for downtime that happened (json-int)
 - "expected-downtime": only present while migration is active
                 total amount in ms for downtime that was calculated on
-		the last bitmap round (json-int)
+                the last bitmap round (json-int)
 - "ram": only present if "status" is "active", it is a json-object with the
-  following RAM information (in bytes):
-         - "transferred": amount transferred (json-int)
-         - "remaining": amount remaining (json-int)
-         - "total": total (json-int)
-         - "duplicate": number of duplicated pages (json-int)
-         - "normal" : number of normal pages transferred (json-int)
-         - "normal-bytes" : number of normal bytes transferred (json-int)
+  following RAM information:
+         - "transferred": amount transferred in bytes (json-int)
+         - "remaining": amount remaining to transfer in bytes (json-int)
+         - "total": total amount of memory in bytes (json-int)
+         - "duplicate": number of pages filled entirely with the same
+            byte (json-int)
+            These are sent over the wire much more efficiently.
+         - "normal" : number of whole pages transfered.  I.e. they
+            were not sent as duplicate or xbzrle pages (json-int)
+         - "normal-bytes" : number of bytes transferred in whole
+            pages. This is just normal pages times size of one page,
+            but this way upper levels don't need to care about page
+            size (json-int)
 - "disk": only present if "status" is "active" and it is a block migration,
-  it is a json-object with the following disk information (in bytes):
-         - "transferred": amount transferred (json-int)
-         - "remaining": amount remaining (json-int)
-         - "total": total (json-int)
+  it is a json-object with the following disk information:
+         - "transferred": amount transferred in bytes (json-int)
+         - "remaining": amount remaining to transfer in bytes json-int)
+         - "total": total disk size in bytes (json-int)
 - "xbzrle-cache": only present if XBZRLE is active.
   It is a json-object with the following XBZRLE information:
-         - "cache-size": XBZRLE cache size
-         - "bytes": total XBZRLE bytes transferred
+         - "cache-size": XBZRLE cache size in bytes
+         - "bytes": number of bytes transferred for XBZRLE compressed pages
          - "pages": number of XBZRLE compressed pages
-         - "cache-miss": number of cache misses
-         - "overflow": number of XBZRLE overflows
+         - "cache-miss": number of XBRZRLE page cache misses
+         - "overflow": number of times XBZRLE overflows.  This means
+           that the XBZRLE encoding was bigger than just sent the
+           whole page, and then we sent the whole page instead (as as
+           normal page).
+
 Examples:
 
 1. Before the first migration
@@ -2567,11 +2577,11 @@ EQMP
 
 SQMP
 migrate-set-capabilities
--------
+------------------------
 
 Enable/Disable migration capabilities
 
-- "xbzrle": xbzrle support
+- "xbzrle": XBZRLE support
 
 Arguments:
 
@@ -2590,7 +2600,7 @@ EQMP
     },
 SQMP
 query-migrate-capabilities
--------
+--------------------------
 
 Query current migration capabilities
 
