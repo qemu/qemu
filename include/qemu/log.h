@@ -135,13 +135,13 @@ static inline void qemu_log_try_set_file(FILE *f)
 }
 
 /* define log items */
-typedef struct CPULogItem {
+typedef struct QEMULogItem {
     int mask;
     const char *name;
     const char *help;
-} CPULogItem;
+} QEMULogItem;
 
-extern const CPULogItem cpu_log_items[];
+extern const QEMULogItem qemu_log_items[];
 
 /* This is the function that actually does the work of
  * changing the log level; it should only be accessed via

@@ -721,10 +721,10 @@ static void help_cmd(Monitor *mon, const char *name)
     } else {
         help_cmd_dump(mon, mon_cmds, "", name);
         if (name && !strcmp(name, "log")) {
-            const CPULogItem *item;
+            const QEMULogItem *item;
             monitor_printf(mon, "Log items (comma separated):\n");
             monitor_printf(mon, "%-10s %s\n", "none", "remove all logs");
-            for(item = cpu_log_items; item->mask != 0; item++) {
+            for (item = qemu_log_items; item->mask != 0; item++) {
                 monitor_printf(mon, "%-10s %s\n", item->name, item->help);
             }
         }
