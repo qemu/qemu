@@ -3864,10 +3864,17 @@ int main(int argc, char **argv, char **envp)
      * location or level of logging.
      */
     if (log_mask) {
+        int mask;
         if (log_file) {
             qemu_set_log_filename(log_file);
         }
-        set_cpu_log(log_mask);
+
+        mask = qemu_str_to_log_mask(log_mask);
+        if (!mask) {
+            qemu_print_log_usage(stdout);
+            exit(1);
+        }
+        qemu_set_log(mask);
     }
 
     if (!trace_backend_init(trace_events, trace_file)) {

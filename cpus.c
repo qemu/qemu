@@ -1175,18 +1175,6 @@ void set_numa_modes(void)
     }
 }
 
-void set_cpu_log(const char *optarg)
-{
-    int mask;
-
-    mask = qemu_str_to_log_mask(optarg);
-    if (!mask) {
-        qemu_print_log_usage(stdout);
-        exit(1);
-    }
-    qemu_set_log(mask);
-}
-
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
 {
     /* XXX: implement xxx_cpu_list for targets that still miss it */
