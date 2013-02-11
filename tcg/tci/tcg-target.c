@@ -888,7 +888,7 @@ static void tcg_target_init(TCGContext *s)
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
     const char *envval = getenv("DEBUG_TCG");
     if (envval) {
-        cpu_set_log(strtol(envval, NULL, 0));
+        qemu_set_log(strtol(envval, NULL, 0));
     }
 #endif
 

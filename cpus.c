@@ -1184,7 +1184,7 @@ void set_cpu_log(const char *optarg)
         qemu_print_log_usage(stdout);
         exit(1);
     }
-    cpu_set_log(mask);
+    qemu_set_log(mask);
 }
 
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)

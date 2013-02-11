@@ -3104,7 +3104,7 @@ static void handle_arg_log(const char *arg)
         qemu_print_log_usage(stdout);
         exit(1);
     }
-    cpu_set_log(mask);
+    qemu_set_log(mask);
 }
 
 static void handle_arg_log_filename(const char *arg)

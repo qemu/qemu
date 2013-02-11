@@ -981,7 +981,7 @@ static void do_log(Monitor *mon, const QDict *qdict)
             return;
         }
     }
-    cpu_set_log(mask);
+    qemu_set_log(mask);
 }
 
 static void do_singlestep(Monitor *mon, const QDict *qdict)

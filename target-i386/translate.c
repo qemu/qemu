@@ -6854,7 +6854,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 #else
         /* start debug */
         tb_flush(env);
-        cpu_set_log(CPU_LOG_INT | CPU_LOG_TB_IN_ASM);
+        qemu_set_log(CPU_LOG_INT | CPU_LOG_TB_IN_ASM);
 #endif
         break;
 #endif

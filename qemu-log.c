@@ -54,7 +54,7 @@ void qemu_log_mask(int mask, const char *fmt, ...)
 }
 
 /* enable or disable low levels log */
-void qemu_set_log(int log_flags, bool use_own_buffers)
+void do_qemu_set_log(int log_flags, bool use_own_buffers)
 {
     const char *fname = logfilename ?: DEFAULT_LOGFILENAME;
 
@@ -94,7 +94,7 @@ void qemu_set_log_filename(const char *filename)
         fclose(qemu_logfile);
         qemu_logfile = NULL;
     }
-    cpu_set_log(qemu_loglevel);
+    qemu_set_log(qemu_loglevel);
 }
 
 const CPULogItem cpu_log_items[] = {

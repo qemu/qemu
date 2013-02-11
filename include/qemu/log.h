@@ -143,14 +143,18 @@ typedef struct CPULogItem {
 
 extern const CPULogItem cpu_log_items[];
 
-void qemu_set_log(int log_flags, bool use_own_buffers);
+/* This is the function that actually does the work of
+ * changing the log level; it should only be accessed via
+ * the qemu_set_log() wrapper.
+ */
+void do_qemu_set_log(int log_flags, bool use_own_buffers);
 
-static inline void cpu_set_log(int log_flags)
+static inline void qemu_set_log(int log_flags)
 {
 #ifdef CONFIG_USER_ONLY
-    qemu_set_log(log_flags, true);
+    do_qemu_set_log(log_flags, true);
 #else
-    qemu_set_log(log_flags, false);
+    do_qemu_set_log(log_flags, false);
 #endif
 }
 
