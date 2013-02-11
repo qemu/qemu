@@ -140,6 +140,34 @@ typedef struct QEMUFileSocket
     QEMUFile *file;
 } QEMUFileSocket;
 
+typedef struct {
+    Coroutine *co;
+    int fd;
+} FDYieldUntilData;
+
+static void fd_coroutine_enter(void *opaque)
+{
+    FDYieldUntilData *data = opaque;
+    qemu_set_fd_handler(data->fd, NULL, NULL, NULL);
+    qemu_coroutine_enter(data->co, NULL);
+}
+
+/**
+ * Yield until a file descriptor becomes readable
+ *
+ * Note that this function clobbers the handlers for the file descriptor.
+ */
+static void coroutine_fn yield_until_fd_readable(int fd)
+{
+    FDYieldUntilData data;
+
+    assert(qemu_in_coroutine());
+    data.co = qemu_coroutine_self();
+    data.fd = fd;
+    qemu_set_fd_handler(fd, fd_coroutine_enter, NULL, &data);
+    qemu_coroutine_yield();
+}
+
 static int socket_get_fd(void *opaque)
 {
     QEMUFileSocket *s = opaque;
@@ -158,8 +186,7 @@ static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
             break;
         }
         if (socket_error() == EAGAIN) {
-            assert(qemu_in_coroutine());
-            qemu_coroutine_yield();
+            yield_until_fd_readable(s->fd);
         } else if (socket_error() != EINTR) {
             break;
         }
@@ -205,8 +232,7 @@ static int stdio_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
             break;
         }
         if (errno == EAGAIN) {
-            assert(qemu_in_coroutine());
-            qemu_coroutine_yield();
+            yield_until_fd_readable(fileno(fp));
         } else if (errno != EINTR) {
             break;
         }
