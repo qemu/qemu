@@ -51,9 +51,9 @@ enum {
 };
 
 uint8_t trace_buf[TRACE_BUF_LEN];
-static unsigned int trace_idx;
+static volatile gint trace_idx;
 static unsigned int writeout_idx;
-static int dropped_events;
+static volatile gint dropped_events;
 static FILE *trace_fp;
 static char *trace_file_name;
 
@@ -267,7 +267,7 @@ void trace_record_finish(TraceBufferRecord *rec)
     record.event |= TRACE_RECORD_VALID;
     write_to_buffer(rec->tbuf_idx, &record, sizeof(TraceRecord));
 
-    if ((g_atomic_int_get(&trace_idx) - writeout_idx)
+    if (((unsigned int)g_atomic_int_get(&trace_idx) - writeout_idx)
         > TRACE_BUF_FLUSH_THRESHOLD) {
         flush_trace_file(false);
     }
