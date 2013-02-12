@@ -40,8 +40,18 @@
  * records to become available, writes them out, and then waits again.
  */
 static GStaticMutex trace_lock = G_STATIC_MUTEX_INIT;
+
+/* g_cond_new() was deprecated in glib 2.31 but we still need to support it */
+#if GLIB_CHECK_VERSION(2, 31, 0)
+static GCond the_trace_available_cond;
+static GCond the_trace_empty_cond;
+static GCond *trace_available_cond = &the_trace_available_cond;
+static GCond *trace_empty_cond = &the_trace_empty_cond;
+#else
 static GCond *trace_available_cond;
 static GCond *trace_empty_cond;
+#endif
+
 static bool trace_available;
 static bool trace_writeout_enabled;
 
@@ -397,7 +407,13 @@ static GThread *trace_thread_create(GThreadFunc fn)
     sigfillset(&set);
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
 #endif
+
+#if GLIB_CHECK_VERSION(2, 31, 0)
+    thread = g_thread_new("trace-thread", fn, NULL);
+#else
     thread = g_thread_create(fn, NULL, FALSE, NULL);
+#endif
+
 #ifndef _WIN32
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 #endif
@@ -418,8 +434,10 @@ bool trace_backend_init(const char *events, const char *file)
 #endif
     }
 
+#if !GLIB_CHECK_VERSION(2, 31, 0)
     trace_available_cond = g_cond_new();
     trace_empty_cond = g_cond_new();
+#endif
 
     thread = trace_thread_create(writeout_thread);
     if (!thread) {
