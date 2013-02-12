@@ -1734,8 +1734,6 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
     int num_insns;
     int max_insns;
 
-    qemu_log_try_set_file(stderr);
-
     pc_start = tb->pc;
     dc->env = env;
     dc->tb = tb;

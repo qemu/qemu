@@ -1670,8 +1670,6 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     int num_insns;
     int max_insns;
 
-    qemu_log_try_set_file(stderr);
-
     pc_start = tb->pc;
     dc->tb = tb;
 

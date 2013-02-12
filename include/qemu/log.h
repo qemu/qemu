@@ -126,14 +126,6 @@ static inline void qemu_log_set_file(FILE *f)
     qemu_logfile = f;
 }
 
-/* Set up a new log file, only if none is set */
-static inline void qemu_log_try_set_file(FILE *f)
-{
-    if (!qemu_logfile) {
-        qemu_logfile = f;
-    }
-}
-
 /* define log items */
 typedef struct QEMULogItem {
     int mask;

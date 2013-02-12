@@ -3215,8 +3215,6 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
     int num_insns;
     int max_insns;
 
-    qemu_log_try_set_file(stderr);
-
     if (env->pregs[PR_VR] == 32) {
         dc->decoder = crisv32_decoder;
         dc->clear_locked_irq = 0;
