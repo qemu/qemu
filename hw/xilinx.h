@@ -71,9 +71,8 @@ xilinx_axiethernet_init(DeviceState *dev, NICInfo *nd, StreamSlave *peer,
 }
 
 static inline void
-xilinx_axiethernetdma_init(DeviceState *dev, StreamSlave *peer,
-                           hwaddr base, qemu_irq irq,
-                           qemu_irq irq2, int freqhz)
+xilinx_axidma_init(DeviceState *dev, StreamSlave *peer, hwaddr base,
+                   qemu_irq irq, qemu_irq irq2, int freqhz)
 {
     Error *errp = NULL;
 
