@@ -34,8 +34,6 @@
 
 #define HEADER_SIZE 512
 
-#define VHD_SECTOR_SIZE 512
-
 //#define CACHE
 
 enum vhd_type {
@@ -206,13 +204,11 @@ static int vpc_open(BlockDriverState *bs, int flags)
     /* Write 'checksum' back to footer, or else will leave it with zero. */
     footer->checksum = be32_to_cpu(checksum);
 
-    /* The visible size of a image in Virtual PC depends on the guest:
-     * QEMU and other emulators report the real size (here in sectors).
-     * All modern operating systems use this real size.
-     * Very old operating systems use CHS values to calculate the total size.
-     * This calculated size is usually smaller than the real size.
-     */
-    bs->total_sectors = be64_to_cpu(footer->size) / VHD_SECTOR_SIZE;
+    // The visible size of a image in Virtual PC depends on the geometry
+    // rather than on the size stored in the footer (the size in the footer
+    // is too large usually)
+    bs->total_sectors = (int64_t)
+        be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
 
     /* Allow a maximum disk size of approximately 2 TB */
     if (bs->total_sectors >= 65535LL * 255 * 255) {
