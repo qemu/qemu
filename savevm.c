@@ -673,9 +673,14 @@ int qemu_get_byte(QEMUFile *f)
     return result;
 }
 
-static int64_t qemu_ftell(QEMUFile *f)
+int64_t qemu_ftell(QEMUFile *f)
 {
-    return f->buf_offset - f->buf_size + f->buf_index;
+    /* buf_offset excludes buffer for writing but includes it for reading */
+    if (f->is_write) {
+        return f->buf_offset + f->buf_index;
+    } else {
+        return f->buf_offset - f->buf_size + f->buf_index;
+    }
 }
 
 int qemu_file_rate_limit(QEMUFile *f)
