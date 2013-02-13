@@ -3095,7 +3095,7 @@
                                    'out' : 'str' } }
 
 ##
-# @ChardevPort:
+# @ChardevHostdev:
 #
 # Configuration info for device chardevs.
 #
@@ -3105,11 +3105,7 @@
 #
 # Since: 1.4
 ##
-{ 'enum': 'ChardevPortKind', 'data': [ 'serial',
-                                       'parallel' ] }
-
-{ 'type': 'ChardevPort', 'data': { 'device' : 'str',
-                                   'type'   : 'ChardevPortKind'} }
+{ 'type': 'ChardevHostdev', 'data': { 'device' : 'str' } }
 
 ##
 # @ChardevSocket:
@@ -3142,7 +3138,8 @@
 { 'type': 'ChardevDummy', 'data': { } }
 
 { 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
-                                       'port'   : 'ChardevPort',
+                                       'serial' : 'ChardevHostdev',
+                                       'parallel': 'ChardevHostdev',
                                        'socket' : 'ChardevSocket',
                                        'pty'    : 'ChardevDummy',
                                        'null'   : 'ChardevDummy' } }
