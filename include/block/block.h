@@ -280,6 +280,8 @@ int bdrv_co_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
 int bdrv_has_zero_init(BlockDriverState *bs);
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                       int *pnum);
+int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
+                            int64_t sector_num, int nb_sectors, int *pnum);
 
 void bdrv_set_on_error(BlockDriverState *bs, BlockdevOnError on_read_error,
                        BlockdevOnError on_write_error);
