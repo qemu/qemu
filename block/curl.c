@@ -309,9 +309,13 @@ static CURLState *curl_init_state(BDRVCURLState *s)
     /* Restrict supported protocols to avoid security issues in the more
      * obscure protocols.  For example, do not allow POP3/SMTP/IMAP see
      * CVE-2013-0249.
+     *
+     * Restricting protocols is only supported from 7.19.4 upwards.
      */
+#if LIBCURL_VERSION_NUM >= 0x071304
     curl_easy_setopt(state->curl, CURLOPT_PROTOCOLS, PROTOCOLS);
     curl_easy_setopt(state->curl, CURLOPT_REDIR_PROTOCOLS, PROTOCOLS);
+#endif
 
 #ifdef DEBUG_VERBOSE
     curl_easy_setopt(state->curl, CURLOPT_VERBOSE, 1);
