@@ -538,9 +538,10 @@ ETEXI
 STEXI
 @end table
 ETEXI
+DEFHEADING()
 
+DEFHEADING(USB options:)
 STEXI
-USB options:
 @table @option
 ETEXI
 
