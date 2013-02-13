@@ -539,13 +539,15 @@ STEXI
 @end table
 ETEXI
 
+STEXI
+USB options:
+@table @option
+ETEXI
+
 DEF("usb", 0, QEMU_OPTION_usb,
     "-usb            enable the USB driver (will be the default soon)\n",
     QEMU_ARCH_ALL)
 STEXI
-USB options:
-@table @option
-
 @item -usb
 @findex -usb
 Enable the USB driver (will be the default soon)
@@ -612,9 +614,15 @@ possible drivers and properties, use @code{-device help} and
 @code{-device @var{driver},help}.
 ETEXI
 
+STEXI
+@end table
+ETEXI
 DEFHEADING()
 
 DEFHEADING(File system options:)
+STEXI
+@table @option
+ETEXI
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
     "-fsdev fsdriver,id=id[,path=path,][security_model={mapped-xattr|mapped-file|passthrough|none}]\n"
@@ -678,9 +686,15 @@ Specifies the tag name to be used by the guest to mount this export point
 
 ETEXI
 
+STEXI
+@end table
+ETEXI
 DEFHEADING()
 
 DEFHEADING(Virtual File system pass-through options:)
+STEXI
+@table @option
+ETEXI
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=[mapped-xattr|mapped-file|passthrough|none]\n"
@@ -771,11 +785,9 @@ ETEXI
 STEXI
 @end table
 ETEXI
-
 DEFHEADING()
 
 DEFHEADING(Display options:)
-
 STEXI
 @table @option
 ETEXI
@@ -1217,7 +1229,6 @@ ETEXI
 STEXI
 @end table
 ETEXI
-
 ARCHHEADING(, QEMU_ARCH_I386)
 
 ARCHHEADING(i386 target only:, QEMU_ARCH_I386)
@@ -1302,10 +1313,10 @@ Specify SMBIOS type 0 fields
 Specify SMBIOS type 1 fields
 ETEXI
 
-DEFHEADING()
 STEXI
 @end table
 ETEXI
+DEFHEADING()
 
 DEFHEADING(Network options:)
 STEXI
@@ -1720,13 +1731,19 @@ libpcap, so it can be analyzed with tools such as tcpdump or Wireshark.
 Indicate that no network devices should be configured. It is used to
 override the default configuration (@option{-net nic -net user}) which
 is activated if no @option{-net} options are provided.
-
-@end table
 ETEXI
 
+STEXI
+@end table
+ETEXI
 DEFHEADING()
 
 DEFHEADING(Character device options:)
+STEXI
+
+The general form of a character device option is:
+@table @option
+ETEXI
 
 DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev null,id=id[,mux=on|off]\n"
@@ -1768,10 +1785,6 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
 )
 
 STEXI
-
-The general form of a character device option is:
-@table @option
-
 @item -chardev @var{backend} ,id=@var{id} [,mux=on|off] [,@var{options}]
 @findex -chardev
 Backend is one of:
@@ -1992,14 +2005,15 @@ Connect to a spice virtual machine channel, such as vdiport.
 
 Connect to a spice port, allowing a Spice client to handle the traffic
 identified by a name (preferably a fqdn).
-
-@end table
 ETEXI
 
+STEXI
+@end table
+ETEXI
 DEFHEADING()
 
-STEXI
 DEFHEADING(Device URL Syntax:)
+STEXI
 
 In addition to using normal file images for the emulated storage devices,
 QEMU can also use networked resources such as iSCSI devices. These are
@@ -2115,10 +2129,16 @@ qemu-system-x86_84 --drive file=gluster://192.0.2.1/testvol/a.img
 @end example
 
 See also @url{http://www.gluster.org}.
+ETEXI
+
+STEXI
 @end table
 ETEXI
 
 DEFHEADING(Bluetooth(R) options:)
+STEXI
+@table @option
+ETEXI
 
 DEF("bt", HAS_ARG, QEMU_OPTION_bt, \
     "-bt hci,null    dumb bluetooth HCI - doesn't respond to commands\n" \
@@ -2132,8 +2152,6 @@ DEF("bt", HAS_ARG, QEMU_OPTION_bt, \
     "                emulate a bluetooth device 'dev' in scatternet 'n'\n",
     QEMU_ARCH_ALL)
 STEXI
-@table @option
-
 @item -bt hci[...]
 @findex -bt
 Defines the function of the corresponding Bluetooth HCI.  -bt options
@@ -2185,9 +2203,11 @@ currently:
 @item keyboard
 Virtual wireless keyboard implementing the HIDP bluetooth profile.
 @end table
-@end table
 ETEXI
 
+STEXI
+@end table
+ETEXI
 DEFHEADING()
 
 DEFHEADING(Linux/Multiboot boot specific:)
@@ -2244,11 +2264,9 @@ ETEXI
 STEXI
 @end table
 ETEXI
-
 DEFHEADING()
 
 DEFHEADING(Debug/Expert options:)
-
 STEXI
 @table @option
 ETEXI
