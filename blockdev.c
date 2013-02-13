@@ -274,6 +274,16 @@ static bool do_check_io_limits(BlockIOLimit *io_limits, Error **errp)
         return false;
     }
 
+    if (io_limits->bps[BLOCK_IO_LIMIT_TOTAL] < 0 ||
+        io_limits->bps[BLOCK_IO_LIMIT_WRITE] < 0 ||
+        io_limits->bps[BLOCK_IO_LIMIT_READ] < 0 ||
+        io_limits->iops[BLOCK_IO_LIMIT_TOTAL] < 0 ||
+        io_limits->iops[BLOCK_IO_LIMIT_WRITE] < 0 ||
+        io_limits->iops[BLOCK_IO_LIMIT_READ] < 0) {
+        error_setg(errp, "bps and iops values must be 0 or greater");
+        return false;
+    }
+
     return true;
 }
 
