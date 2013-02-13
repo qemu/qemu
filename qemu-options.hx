@@ -326,9 +326,9 @@ DEF("set", HAS_ARG, QEMU_OPTION_set,
     "                set <arg> parameter for item <id> of type <group>\n"
     "                i.e. -set drive.$id.file=/path/to/image\n", QEMU_ARCH_ALL)
 STEXI
-@item -set
+@item -set @var{group}.@var{id}.@var{arg}=@var{value}
 @findex -set
-TODO
+Set parameter @var{arg} for item @var{id} of type @var{group}\n"
 ETEXI
 
 DEF("global", HAS_ARG, QEMU_OPTION_global,
@@ -1000,7 +1000,7 @@ DEF("rotate", HAS_ARG, QEMU_OPTION_rotate,
     "-rotate <deg>   rotate graphical output some deg left (only PXA LCD)\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -rotate
+@item -rotate @var{deg}
 @findex -rotate
 Rotate graphical output some deg left (only PXA LCD).
 ETEXI
@@ -2858,7 +2858,7 @@ DEF("sandbox", HAS_ARG, QEMU_OPTION_sandbox, \
     "-sandbox <arg>  Enable seccomp mode 2 system call filter (default 'off').\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -sandbox
+@item -sandbox @var{arg}
 @findex -sandbox
 Enable Seccomp mode 2 system call filter. 'on' will enable syscall filtering and 'off' will
 disable it.  The default is 'off'.
@@ -2969,6 +2969,14 @@ DEF("object", HAS_ARG, QEMU_OPTION_object,
     "                property must be set.  These objects are placed in the\n"
     "                '/objects' path.\n",
     QEMU_ARCH_ALL)
+STEXI
+@item -object @var{typename}[,@var{prop1}=@var{value1},...]
+@findex -object
+Create an new object of type @var{typename} setting properties
+in the order they are specified.  Note that the 'id'
+property must be set.  These objects are placed in the
+'/objects' path.
+ETEXI
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI
