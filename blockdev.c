@@ -804,7 +804,7 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
             bdrv_img_create(new_image_file, format,
                             states->old_bs->filename,
                             states->old_bs->drv->format_name,
-                            NULL, -1, flags, &local_err);
+                            NULL, -1, flags, &local_err, false);
             if (error_is_set(&local_err)) {
                 error_propagate(errp, local_err);
                 goto delete_and_fail;
@@ -1296,7 +1296,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         /* create new image w/o backing file */
         assert(format && drv);
         bdrv_img_create(target, format,
-                        NULL, NULL, NULL, size, flags, &local_err);
+                        NULL, NULL, NULL, size, flags, &local_err, false);
     } else {
         switch (mode) {
         case NEW_IMAGE_MODE_EXISTING:
@@ -1307,7 +1307,7 @@ void qmp_drive_mirror(const char *device, const char *target,
             bdrv_img_create(target, format,
                             source->filename,
                             source->drv->format_name,
-                            NULL, size, flags, &local_err);
+                            NULL, size, flags, &local_err, false);
             break;
         default:
             abort();

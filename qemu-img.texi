@@ -54,6 +54,9 @@ indicates that target image must be compressed (qcow format only)
 with or without a command shows help and lists the supported formats
 @item -p
 display progress bar (convert and rebase commands only)
+@item -q
+Quiet mode - do not print any output (except errors). There's no progress bar
+in case both @var{-q} and @var{-p} options are used.
 @item -S @var{size}
 indicates the consecutive number of bytes that must contain only zeros
 for qemu-img to create a sparse image during conversion. This value is rounded
