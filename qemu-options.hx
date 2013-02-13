@@ -1956,7 +1956,7 @@ Connect to a local BrlAPI server. @option{braille} does not take any options.
 @item -chardev tty ,id=@var{id} ,path=@var{path}
 
 @option{tty} is only available on Linux, Sun, FreeBSD, NetBSD, OpenBSD and
-DragonFlyBSD hosts.  It is an alias for -serial.
+DragonFlyBSD hosts.  It is an alias for @option{serial}.
 
 @option{path} specifies the path to the tty. @option{path} is required.
 
