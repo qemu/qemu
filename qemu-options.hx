@@ -535,6 +535,45 @@ Enable virtio balloon device (default), optionally with PCI address
 @var{addr}.
 ETEXI
 
+DEF("device", HAS_ARG, QEMU_OPTION_device,
+    "-device driver[,prop[=value][,...]]\n"
+    "                add device (based on driver)\n"
+    "                prop=value,... sets driver properties\n"
+    "                use '-device help' to print all possible drivers\n"
+    "                use '-device driver,help' to print all possible properties\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -device @var{driver}[,@var{prop}[=@var{value}][,...]]
+@findex -device
+Add device @var{driver}.  @var{prop}=@var{value} sets driver
+properties.  Valid properties depend on the driver.  To get help on
+possible drivers and properties, use @code{-device help} and
+@code{-device @var{driver},help}.
+ETEXI
+
+DEF("name", HAS_ARG, QEMU_OPTION_name,
+    "-name string1[,process=string2]\n"
+    "                set the name of the guest\n"
+    "                string1 sets the window title and string2 the process name (on Linux)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -name @var{name}
+@findex -name
+Sets the @var{name} of the guest.
+This name will be displayed in the SDL window caption.
+The @var{name} will also be used for the VNC server.
+Also optionally set the top visible process name in Linux.
+ETEXI
+
+DEF("uuid", HAS_ARG, QEMU_OPTION_uuid,
+    "-uuid %08x-%04x-%04x-%04x-%012x\n"
+    "                specify machine UUID\n", QEMU_ARCH_ALL)
+STEXI
+@item -uuid @var{uuid}
+@findex -uuid
+Set system UUID.
+ETEXI
+
 STEXI
 @end table
 ETEXI
@@ -597,22 +636,6 @@ or fake device.
 Network adapter that supports CDC ethernet and RNDIS protocols.
 
 @end table
-ETEXI
-
-DEF("device", HAS_ARG, QEMU_OPTION_device,
-    "-device driver[,prop[=value][,...]]\n"
-    "                add device (based on driver)\n"
-    "                prop=value,... sets driver properties\n"
-    "                use '-device help' to print all possible drivers\n"
-    "                use '-device driver,help' to print all possible properties\n",
-    QEMU_ARCH_ALL)
-STEXI
-@item -device @var{driver}[,@var{prop}[=@var{value}][,...]]
-@findex -device
-Add device @var{driver}.  @var{prop}=@var{value} sets driver
-properties.  Valid properties depend on the driver.  To get help on
-possible drivers and properties, use @code{-device help} and
-@code{-device @var{driver},help}.
 ETEXI
 
 STEXI
@@ -756,31 +779,6 @@ STEXI
 @item -virtfs_synth
 @findex -virtfs_synth
 Create synthetic file system image
-ETEXI
-
-DEFHEADING()
-
-DEF("name", HAS_ARG, QEMU_OPTION_name,
-    "-name string1[,process=string2]\n"
-    "                set the name of the guest\n"
-    "                string1 sets the window title and string2 the process name (on Linux)\n",
-    QEMU_ARCH_ALL)
-STEXI
-@item -name @var{name}
-@findex -name
-Sets the @var{name} of the guest.
-This name will be displayed in the SDL window caption.
-The @var{name} will also be used for the VNC server.
-Also optionally set the top visible process name in Linux.
-ETEXI
-
-DEF("uuid", HAS_ARG, QEMU_OPTION_uuid,
-    "-uuid %08x-%04x-%04x-%04x-%012x\n"
-    "                specify machine UUID\n", QEMU_ARCH_ALL)
-STEXI
-@item -uuid @var{uuid}
-@findex -uuid
-Set system UUID.
 ETEXI
 
 STEXI
