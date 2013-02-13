@@ -96,6 +96,19 @@ class Misc(object):
             print '  %-40s %s' % (self.bits[bits], fmt(v))
 
 controls = [
+    Misc(
+        name = 'Basic VMX Information',
+        bits = {
+            (0, 31): 'Revision',
+            (32,44): 'VMCS size',
+            48: 'VMCS restricted to 32 bit addresses',
+            49: 'Dual-monitor support',
+            (50, 53): 'VMCS memory type',
+            54: 'INS/OUTS instruction information',
+            55: 'IA32_VMX_TRUE_*_CTLS support',
+            },
+        msr = MSR_IA32_VMX_BASIC,
+        ),
     Control(
         name = 'pin-based controls',
         bits = {
@@ -103,6 +116,7 @@ controls = [
             3: 'NMI exiting',
             5: 'Virtual NMIs',
             6: 'Activate VMX-preemption timer',
+            7: 'Process posted interrupts',
             },
         cap_msr = MSR_IA32_VMX_PINBASED_CTLS,
         true_cap_msr = MSR_IA32_VMX_TRUE_PINBASED_CTLS,
