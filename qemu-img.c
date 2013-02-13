@@ -113,7 +113,12 @@ static void help(void)
            "  '-a' applies a snapshot (revert disk to saved state)\n"
            "  '-c' creates a snapshot\n"
            "  '-d' deletes a snapshot\n"
-           "  '-l' lists all snapshots in the given image\n";
+           "  '-l' lists all snapshots in the given image\n"
+           "\n"
+           "Parameters to compare subcommand:\n"
+           "  '-f' first image format\n"
+           "  '-F' second image format\n"
+           "  '-s' run in Strict mode - fail on different image size or sector allocation\n";
 
     printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL);
@@ -819,6 +824,289 @@ static int compare_sectors(const uint8_t *buf1, const uint8_t *buf2, int n,
 }
 
 #define IO_BUF_SIZE (2 * 1024 * 1024)
+
+static int64_t sectors_to_bytes(int64_t sectors)
+{
+    return sectors << BDRV_SECTOR_BITS;
+}
+
+static int64_t sectors_to_process(int64_t total, int64_t from)
+{
+    return MIN(total - from, IO_BUF_SIZE >> BDRV_SECTOR_BITS);
+}
+
+/*
+ * Check if passed sectors are empty (not allocated or contain only 0 bytes)
+ *
+ * Returns 0 in case sectors are filled with 0, 1 if sectors contain non-zero
+ * data and negative value on error.
+ *
+ * @param bs:  Driver used for accessing file
+ * @param sect_num: Number of first sector to check
+ * @param sect_count: Number of sectors to check
+ * @param filename: Name of disk file we are checking (logging purpose)
+ * @param buffer: Allocated buffer for storing read data
+ * @param quiet: Flag for quiet mode
+ */
+static int check_empty_sectors(BlockDriverState *bs, int64_t sect_num,
+                               int sect_count, const char *filename,
+                               uint8_t *buffer, bool quiet)
+{
+    int pnum, ret = 0;
+    ret = bdrv_read(bs, sect_num, buffer, sect_count);
+    if (ret < 0) {
+        error_report("Error while reading offset %" PRId64 " of %s: %s",
+                     sectors_to_bytes(sect_num), filename, strerror(-ret));
+        return ret;
+    }
+    ret = is_allocated_sectors(buffer, sect_count, &pnum);
+    if (ret || pnum != sect_count) {
+        qprintf(quiet, "Content mismatch at offset %" PRId64 "!\n",
+                sectors_to_bytes(ret ? sect_num : sect_num + pnum));
+        return 1;
+    }
+
+    return 0;
+}
+
+/*
+ * Compares two images. Exit codes:
+ *
+ * 0 - Images are identical
+ * 1 - Images differ
+ * >1 - Error occurred
+ */
+static int img_compare(int argc, char **argv)
+{
+    const char *fmt1 = NULL, *fmt2 = NULL, *filename1, *filename2;
+    BlockDriverState *bs1, *bs2;
+    int64_t total_sectors1, total_sectors2;
+    uint8_t *buf1 = NULL, *buf2 = NULL;
+    int pnum1, pnum2;
+    int allocated1, allocated2;
+    int ret = 0; /* return value - 0 Ident, 1 Different, >1 Error */
+    bool progress = false, quiet = false, strict = false;
+    int64_t total_sectors;
+    int64_t sector_num = 0;
+    int64_t nb_sectors;
+    int c, pnum;
+    uint64_t bs_sectors;
+    uint64_t progress_base;
+
+    for (;;) {
+        c = getopt(argc, argv, "hpf:F:sq");
+        if (c == -1) {
+            break;
+        }
+        switch (c) {
+        case '?':
+        case 'h':
+            help();
+            break;
+        case 'f':
+            fmt1 = optarg;
+            break;
+        case 'F':
+            fmt2 = optarg;
+            break;
+        case 'p':
+            progress = true;
+            break;
+        case 'q':
+            quiet = true;
+            break;
+        case 's':
+            strict = true;
+            break;
+        }
+    }
+
+    /* Progress is not shown in Quiet mode */
+    if (quiet) {
+        progress = false;
+    }
+
+
+    if (optind > argc - 2) {
+        help();
+    }
+    filename1 = argv[optind++];
+    filename2 = argv[optind++];
+
+    /* Initialize before goto out */
+    qemu_progress_init(progress, 2.0);
+
+    bs1 = bdrv_new_open(filename1, fmt1, BDRV_O_FLAGS, true, quiet);
+    if (!bs1) {
+        error_report("Can't open file %s", filename1);
+        ret = 2;
+        goto out3;
+    }
+
+    bs2 = bdrv_new_open(filename2, fmt2, BDRV_O_FLAGS, true, quiet);
+    if (!bs2) {
+        error_report("Can't open file %s", filename2);
+        ret = 2;
+        goto out2;
+    }
+
+    buf1 = qemu_blockalign(bs1, IO_BUF_SIZE);
+    buf2 = qemu_blockalign(bs2, IO_BUF_SIZE);
+    bdrv_get_geometry(bs1, &bs_sectors);
+    total_sectors1 = bs_sectors;
+    bdrv_get_geometry(bs2, &bs_sectors);
+    total_sectors2 = bs_sectors;
+    total_sectors = MIN(total_sectors1, total_sectors2);
+    progress_base = MAX(total_sectors1, total_sectors2);
+
+    qemu_progress_print(0, 100);
+
+    if (strict && total_sectors1 != total_sectors2) {
+        ret = 1;
+        qprintf(quiet, "Strict mode: Image size mismatch!\n");
+        goto out;
+    }
+
+    for (;;) {
+        nb_sectors = sectors_to_process(total_sectors, sector_num);
+        if (nb_sectors <= 0) {
+            break;
+        }
+        allocated1 = bdrv_is_allocated_above(bs1, NULL, sector_num, nb_sectors,
+                                             &pnum1);
+        if (allocated1 < 0) {
+            ret = 3;
+            error_report("Sector allocation test failed for %s", filename1);
+            goto out;
+        }
+
+        allocated2 = bdrv_is_allocated_above(bs2, NULL, sector_num, nb_sectors,
+                                             &pnum2);
+        if (allocated2 < 0) {
+            ret = 3;
+            error_report("Sector allocation test failed for %s", filename2);
+            goto out;
+        }
+        nb_sectors = MIN(pnum1, pnum2);
+
+        if (allocated1 == allocated2) {
+            if (allocated1) {
+                ret = bdrv_read(bs1, sector_num, buf1, nb_sectors);
+                if (ret < 0) {
+                    error_report("Error while reading offset %" PRId64 " of %s:"
+                                 " %s", sectors_to_bytes(sector_num), filename1,
+                                 strerror(-ret));
+                    ret = 4;
+                    goto out;
+                }
+                ret = bdrv_read(bs2, sector_num, buf2, nb_sectors);
+                if (ret < 0) {
+                    error_report("Error while reading offset %" PRId64
+                                 " of %s: %s", sectors_to_bytes(sector_num),
+                                 filename2, strerror(-ret));
+                    ret = 4;
+                    goto out;
+                }
+                ret = compare_sectors(buf1, buf2, nb_sectors, &pnum);
+                if (ret || pnum != nb_sectors) {
+                    ret = 1;
+                    qprintf(quiet, "Content mismatch at offset %" PRId64 "!\n",
+                            sectors_to_bytes(
+                                ret ? sector_num : sector_num + pnum));
+                    goto out;
+                }
+            }
+        } else {
+            if (strict) {
+                ret = 1;
+                qprintf(quiet, "Strict mode: Offset %" PRId64
+                        " allocation mismatch!\n",
+                        sectors_to_bytes(sector_num));
+                goto out;
+            }
+
+            if (allocated1) {
+                ret = check_empty_sectors(bs1, sector_num, nb_sectors,
+                                          filename1, buf1, quiet);
+            } else {
+                ret = check_empty_sectors(bs2, sector_num, nb_sectors,
+                                          filename2, buf1, quiet);
+            }
+            if (ret) {
+                if (ret < 0) {
+                    ret = 4;
+                    error_report("Error while reading offset %" PRId64 ": %s",
+                                 sectors_to_bytes(sector_num), strerror(-ret));
+                }
+                goto out;
+            }
+        }
+        sector_num += nb_sectors;
+        qemu_progress_print(((float) nb_sectors / progress_base)*100, 100);
+    }
+
+    if (total_sectors1 != total_sectors2) {
+        BlockDriverState *bs_over;
+        int64_t total_sectors_over;
+        const char *filename_over;
+
+        qprintf(quiet, "Warning: Image size mismatch!\n");
+        if (total_sectors1 > total_sectors2) {
+            total_sectors_over = total_sectors1;
+            bs_over = bs1;
+            filename_over = filename1;
+        } else {
+            total_sectors_over = total_sectors2;
+            bs_over = bs2;
+            filename_over = filename2;
+        }
+
+        for (;;) {
+            nb_sectors = sectors_to_process(total_sectors_over, sector_num);
+            if (nb_sectors <= 0) {
+                break;
+            }
+            ret = bdrv_is_allocated_above(bs_over, NULL, sector_num,
+                                          nb_sectors, &pnum);
+            if (ret < 0) {
+                ret = 3;
+                error_report("Sector allocation test failed for %s",
+                             filename_over);
+                goto out;
+
+            }
+            nb_sectors = pnum;
+            if (ret) {
+                ret = check_empty_sectors(bs_over, sector_num, nb_sectors,
+                                          filename_over, buf1, quiet);
+                if (ret) {
+                    if (ret < 0) {
+                        ret = 4;
+                        error_report("Error while reading offset %" PRId64
+                                     " of %s: %s", sectors_to_bytes(sector_num),
+                                     filename_over, strerror(-ret));
+                    }
+                    goto out;
+                }
+            }
+            sector_num += nb_sectors;
+            qemu_progress_print(((float) nb_sectors / progress_base)*100, 100);
+        }
+    }
+
+    qprintf(quiet, "Images are identical.\n");
+    ret = 0;
+
+out:
+    bdrv_delete(bs2);
+    qemu_vfree(buf1);
+    qemu_vfree(buf2);
+out2:
+    bdrv_delete(bs1);
+out3:
+    qemu_progress_end();
+    return ret;
+}
 
 static int img_convert(int argc, char **argv)
 {
