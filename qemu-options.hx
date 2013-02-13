@@ -2928,13 +2928,9 @@ the @var{simple} tracing backend.
 @end table
 ETEXI
 
-DEF("qtest", HAS_ARG, QEMU_OPTION_qtest,
-    "-qtest CHR      specify tracing options\n",
-    QEMU_ARCH_ALL)
-
-DEF("qtest-log", HAS_ARG, QEMU_OPTION_qtest_log,
-    "-qtest-log LOG  specify tracing options\n",
-    QEMU_ARCH_ALL)
+HXCOMM Internal use
+DEF("qtest", HAS_ARG, QEMU_OPTION_qtest, "", QEMU_ARCH_ALL)
+DEF("qtest-log", HAS_ARG, QEMU_OPTION_qtest_log, "", QEMU_ARCH_ALL)
 
 #ifdef __linux__
 DEF("enable-fips", 0, QEMU_OPTION_enablefips,
