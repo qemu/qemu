@@ -446,6 +446,7 @@ DEF("mem-path", HAS_ARG, QEMU_OPTION_mempath,
     "-mem-path FILE  provide backing storage for guest RAM\n", QEMU_ARCH_ALL)
 STEXI
 @item -mem-path @var{path}
+@findex -mem-path
 Allocate guest RAM from a temporarily created file in @var{path}.
 ETEXI
 
@@ -455,6 +456,7 @@ DEF("mem-prealloc", 0, QEMU_OPTION_mem_prealloc,
     QEMU_ARCH_ALL)
 STEXI
 @item -mem-prealloc
+@findex -mem-prealloc
 Preallocate memory when using -mem-path.
 ETEXI
 #endif
@@ -827,7 +829,7 @@ DEF("curses", 0, QEMU_OPTION_curses,
     QEMU_ARCH_ALL)
 STEXI
 @item -curses
-@findex curses
+@findex -curses
 Normally, QEMU uses SDL to display the VGA output.  With this option,
 QEMU can display the VGA output when in text mode using a
 curses/ncurses interface.  Nothing is displayed in graphical mode.
@@ -1294,7 +1296,6 @@ STEXI
 Load SMBIOS entry from binary file.
 
 @item -smbios type=0[,vendor=@var{str}][,version=@var{str}][,date=@var{str}][,release=@var{%d.%d}]
-@findex -smbios
 Specify SMBIOS type 0 fields
 
 @item -smbios type=1[,manufacturer=@var{str}][,product=@var{str}] [,version=@var{str}][,serial=@var{str}][,uuid=@var{uuid}][,sku=@var{str}] [,family=@var{str}]
@@ -1409,6 +1410,7 @@ Not all devices are supported on all targets.  Use @code{-net nic,model=help}
 for a list of available devices for your target.
 
 @item -netdev user,id=@var{id}[,@var{option}][,@var{option}][,...]
+@findex -netdev
 @item -net user[,@var{option}][,@var{option}][,...]
 Use the user mode network stack which requires no administrator
 privilege to run. Valid options are:
@@ -2709,6 +2711,7 @@ DEF("watchdog-action", HAS_ARG, QEMU_OPTION_watchdog_action, \
     QEMU_ARCH_ALL)
 STEXI
 @item -watchdog-action @var{action}
+@findex -watchdog-action
 
 The @var{action} controls what QEMU will do when the watchdog timer
 expires.
