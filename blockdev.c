@@ -255,7 +255,7 @@ static int parse_block_error_action(const char *buf, bool is_read)
     }
 }
 
-static bool do_check_io_limits(BlockIOLimit *io_limits)
+static bool do_check_io_limits(BlockIOLimit *io_limits, Error **errp)
 {
     bool bps_flag;
     bool iops_flag;
@@ -269,6 +269,8 @@ static bool do_check_io_limits(BlockIOLimit *io_limits)
                  && ((io_limits->iops[BLOCK_IO_LIMIT_READ] != 0)
                  || (io_limits->iops[BLOCK_IO_LIMIT_WRITE] != 0));
     if (bps_flag || iops_flag) {
+        error_setg(errp, "bps(iops) and bps_rd/bps_wr(iops_rd/iops_wr) "
+                         "cannot be used at the same time");
         return false;
     }
 
@@ -297,6 +299,7 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
     int snapshot = 0;
     bool copy_on_read;
     int ret;
+    Error *error = NULL;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
     media = MEDIA_DISK;
@@ -427,9 +430,9 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
     io_limits.iops[BLOCK_IO_LIMIT_WRITE] =
                            qemu_opt_get_number(opts, "iops_wr", 0);
 
-    if (!do_check_io_limits(&io_limits)) {
-        error_report("bps(iops) and bps_rd/bps_wr(iops_rd/iops_wr) "
-                     "cannot be used at the same time");
+    if (!do_check_io_limits(&io_limits, &error)) {
+        error_report("%s", error_get_pretty(error));
+        error_free(error);
         return NULL;
     }
 
@@ -975,8 +978,7 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     io_limits.iops[BLOCK_IO_LIMIT_READ] = iops_rd;
     io_limits.iops[BLOCK_IO_LIMIT_WRITE]= iops_wr;
 
-    if (!do_check_io_limits(&io_limits)) {
-        error_set(errp, QERR_INVALID_PARAMETER_COMBINATION);
+    if (!do_check_io_limits(&io_limits, errp)) {
         return;
     }
 
