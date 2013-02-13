@@ -27,9 +27,9 @@ MSR_IA32_VMX_VMFUNC = 0x491
 class msr(object):
     def __init__(self):
         try:
-            self.f = file('/dev/cpu/0/msr')
+            self.f = open('/dev/cpu/0/msr', 'r', 0)
         except:
-            self.f = file('/dev/msr0')
+            self.f = open('/dev/msr0', 'r', 0)
     def read(self, index, default = None):
         import struct
         self.f.seek(index)
