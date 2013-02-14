@@ -60,7 +60,7 @@ found_first:
         return result + size;	/* Nope. */
     }
 found_middle:
-    return result + bitops_ctzl(tmp);
+    return result + ctzl(tmp);
 }
 
 /*
