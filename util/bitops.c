@@ -133,7 +133,7 @@ unsigned long find_last_bit(const unsigned long *addr, unsigned long size)
         tmp = addr[--words];
         if (tmp) {
         found:
-            return words * BITS_PER_LONG + bitops_flsl(tmp);
+            return words * BITS_PER_LONG + BITS_PER_LONG - 1 - clzl(tmp);
         }
     }
 
