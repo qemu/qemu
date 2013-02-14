@@ -26,6 +26,7 @@
 #define HOST_UTILS_H 1
 
 #include "qemu/compiler.h"   /* QEMU_GNUC_PREREQ */
+#include <limits.h>
 
 #if defined(__x86_64__)
 #define __HAVE_FAST_MULU64__
@@ -236,5 +237,23 @@ static inline int ctpop64(uint64_t val)
     return val;
 #endif
 }
+
+/* Host type specific sizes of these routines.  */
+
+#if ULONG_MAX == UINT32_MAX
+# define clzl   clz32
+# define ctzl   ctz32
+# define clol   clo32
+# define ctol   cto32
+# define ctpopl ctpop32
+#elif ULONG_MAX == UINT64_MAX
+# define clzl   clz64
+# define ctzl   ctz64
+# define clol   clo64
+# define ctol   cto64
+# define ctpopl ctpop64
+#else
+# error Unknown sizeof long
+#endif
 
 #endif
