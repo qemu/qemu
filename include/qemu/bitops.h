@@ -24,54 +24,6 @@
 #define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
 
 /**
- * bitops_ctzl - count trailing zeroes in word.
- * @word: The word to search
- *
- * Returns -1 if no bit exists.  Note that compared to the C library
- * routine ffsl, this one returns one less.
- */
-static unsigned long bitops_ctzl(unsigned long word)
-{
-#if QEMU_GNUC_PREREQ(3, 4)
-    return __builtin_ffsl(word) - 1;
-#else
-    if (!word) {
-        return -1;
-    }
-
-    if (sizeof(long) == 4) {
-        return ctz32(word);
-    } else if (sizeof(long) == 8) {
-        return ctz64(word);
-    } else {
-        abort();
-    }
-#endif
-}
-
-/**
- * bitops_fls - find last (most-significant) set bit in a long word
- * @word: the word to search
- *
- * Undefined if no set bit exists, so code should check against 0 first.
- */
-static inline unsigned long bitops_flsl(unsigned long word)
-{
-    return BITS_PER_LONG - 1 - clzl(word);
-}
-
-/**
- * cto - count trailing ones in word.
- * @word: The word to search
- *
- * Returns -1 if all bit are set.
- */
-static inline unsigned long bitops_ctol(unsigned long word)
-{
-    return bitops_ctzl(~word);
-}
-
-/**
  * set_bit - Set a bit in memory
  * @nr: the bit to set
  * @addr: the address to start counting from
