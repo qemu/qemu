@@ -876,7 +876,6 @@ void pc_cpus_init(const char *cpu_model)
 
     for (i = 0; i < smp_cpus; i++) {
         if (!cpu_x86_init(cpu_model)) {
-            fprintf(stderr, "Unable to find x86 CPU definition\n");
             exit(1);
         }
     }
