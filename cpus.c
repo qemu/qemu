@@ -1241,18 +1241,13 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
         cpu_index = 0;
     }
 
-    for (env = first_cpu; env; env = env->next_cpu) {
-        cpu = ENV_GET_CPU(env);
-        if (cpu_index == cpu->cpu_index) {
-            break;
-        }
-    }
-
-    if (env == NULL) {
+    cpu = qemu_get_cpu(cpu_index);
+    if (cpu == NULL) {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
                   "a CPU number");
         return;
     }
+    env = cpu->env_ptr;
 
     f = fopen(filename, "wb");
     if (!f) {
