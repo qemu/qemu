@@ -240,20 +240,15 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     /* We need to generate the cpu nodes in reverse order, so Linux can pick
        the first node as boot node and be happy */
     for (i = smp_cpus - 1; i >= 0; i--) {
-        CPUState *cpu = NULL;
+        CPUState *cpu;
         char cpu_name[128];
         uint64_t cpu_release_addr = MPC8544_SPIN_BASE + (i * 0x20);
 
-        for (env = first_cpu; env != NULL; env = env->next_cpu) {
-            cpu = ENV_GET_CPU(env);
-            if (cpu->cpu_index == i) {
-                break;
-            }
-        }
-
+        cpu = qemu_get_cpu(i);
         if (cpu == NULL) {
             continue;
         }
+        env = cpu->env_ptr;
 
         snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x",
                  cpu->cpu_index);
