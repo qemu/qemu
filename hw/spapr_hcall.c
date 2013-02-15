@@ -469,16 +469,11 @@ static target_ulong h_register_vpa(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     CPUPPCState *tenv;
     CPUState *tcpu;
 
-    for (tenv = first_cpu; tenv; tenv = tenv->next_cpu) {
-        tcpu = CPU(ppc_env_get_cpu(tenv));
-        if (tcpu->cpu_index == procno) {
-            break;
-        }
-    }
-
-    if (!tenv) {
+    tcpu = qemu_get_cpu(procno);
+    if (!tcpu) {
         return H_PARAMETER;
     }
+    tenv = tcpu->env_ptr;
 
     switch (flags) {
     case FLAGS_REGISTER_VPA:
