@@ -24,8 +24,6 @@ extern int smp_threads;
 #endif
 
 void set_numa_modes(void);
-void set_cpu_log(const char *optarg);
-void set_cpu_log_filename(const char *optarg);
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg);
 
 #endif

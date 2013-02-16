@@ -1001,7 +1001,7 @@ static inline void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
                                  uint32_t io_int_parm, uint32_t io_int_word)
 {
     CPUS390XState *env = &cpu->env;
-    int isc = ffs(io_int_word << 2) - 1;
+    int isc = IO_INT_WORD_ISC(io_int_word);
 
     if (env->io_index[isc] == MAX_IO_QUEUE - 1) {
         /* ugh - can't queue anymore. Let's drop. */

@@ -52,10 +52,8 @@ typedef uint32_t apic_id_t;
 static unsigned apicid_bitwidth_for_count(unsigned count)
 {
     g_assert(count >= 1);
-    if (count == 1) {
-        return 0;
-    }
-    return bitops_flsl(count - 1) + 1;
+    count -= 1;
+    return count ? 32 - clz32(count) : 0;
 }
 
 /* Bit width of the SMT_ID (thread ID) field on the APIC ID

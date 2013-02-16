@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "libqtest.h"
 
 enum OMAPI2CRegisters {
@@ -48,12 +49,35 @@ typedef struct OMAPI2C {
 } OMAPI2C;
 
 
+/* FIXME Use TBD readw qtest API */
+static inline uint16_t readw(uint64_t addr)
+{
+    uint16_t data;
+
+    memread(addr, &data, 2);
+    return le16_to_cpu(data);
+}
+
+/* FIXME Use TBD writew qtest API */
+static inline void writew(uint64_t addr, uint16_t data)
+{
+    data = cpu_to_le16(data);
+    memwrite(addr, &data, 2);
+}
+
+#ifdef __GNUC__
+#undef memread
+#undef memwrite
+#pragma GCC poison memread
+#pragma GCC poison memwrite
+#endif
+
 static void omap_i2c_set_slave_addr(OMAPI2C *s, uint8_t addr)
 {
     uint16_t data = addr;
 
-    memwrite(s->addr + OMAP_I2C_SA, &data, 2);
-    memread(s->addr + OMAP_I2C_SA, &data, 2);
+    writew(s->addr + OMAP_I2C_SA, data);
+    data = readw(s->addr + OMAP_I2C_SA);
     g_assert_cmphex(data, ==, addr);
 }
 
@@ -66,36 +90,38 @@ static void omap_i2c_send(I2CAdapter *i2c, uint8_t addr,
     omap_i2c_set_slave_addr(s, addr);
 
     data = len;
-    memwrite(s->addr + OMAP_I2C_CNT, &data, 2);
+    writew(s->addr + OMAP_I2C_CNT, data);
 
     data = OMAP_I2C_CON_I2C_EN |
            OMAP_I2C_CON_TRX |
            OMAP_I2C_CON_MST |
            OMAP_I2C_CON_STT |
            OMAP_I2C_CON_STP;
-    memwrite(s->addr + OMAP_I2C_CON, &data, 2);
-    memread(s->addr + OMAP_I2C_CON, &data, 2);
+    writew(s->addr + OMAP_I2C_CON, data);
+    data = readw(s->addr + OMAP_I2C_CON);
     g_assert((data & OMAP_I2C_CON_STP) != 0);
 
-    memread(s->addr + OMAP_I2C_STAT, &data, 2);
+    data = readw(s->addr + OMAP_I2C_STAT);
     g_assert((data & OMAP_I2C_STAT_NACK) == 0);
 
     while (len > 1) {
-        memread(s->addr + OMAP_I2C_STAT, &data, 2);
+        data = readw(s->addr + OMAP_I2C_STAT);
         g_assert((data & OMAP_I2C_STAT_XRDY) != 0);
 
-        memwrite(s->addr + OMAP_I2C_DATA, buf, 2);
+        data = buf[0] | ((uint16_t)buf[1] << 8);
+        writew(s->addr + OMAP_I2C_DATA, data);
         buf = (uint8_t *)buf + 2;
         len -= 2;
     }
     if (len == 1) {
-        memread(s->addr + OMAP_I2C_STAT, &data, 2);
+        data = readw(s->addr + OMAP_I2C_STAT);
         g_assert((data & OMAP_I2C_STAT_XRDY) != 0);
 
-        memwrite(s->addr + OMAP_I2C_DATA, buf, 1);
+        data = buf[0];
+        writew(s->addr + OMAP_I2C_DATA, data);
     }
 
-    memread(s->addr + OMAP_I2C_CON, &data, 2);
+    data = readw(s->addr + OMAP_I2C_CON);
     g_assert((data & OMAP_I2C_CON_STP) == 0);
 }
 
@@ -108,42 +134,46 @@ static void omap_i2c_recv(I2CAdapter *i2c, uint8_t addr,
     omap_i2c_set_slave_addr(s, addr);
 
     data = len;
-    memwrite(s->addr + OMAP_I2C_CNT, &data, 2);
+    writew(s->addr + OMAP_I2C_CNT, data);
 
     data = OMAP_I2C_CON_I2C_EN |
            OMAP_I2C_CON_MST |
            OMAP_I2C_CON_STT |
            OMAP_I2C_CON_STP;
-    memwrite(s->addr + OMAP_I2C_CON, &data, 2);
-    memread(s->addr + OMAP_I2C_CON, &data, 2);
+    writew(s->addr + OMAP_I2C_CON, data);
+    data = readw(s->addr + OMAP_I2C_CON);
     g_assert((data & OMAP_I2C_CON_STP) == 0);
 
-    memread(s->addr + OMAP_I2C_STAT, &data, 2);
+    data = readw(s->addr + OMAP_I2C_STAT);
     g_assert((data & OMAP_I2C_STAT_NACK) == 0);
 
-    memread(s->addr + OMAP_I2C_CNT, &data, 2);
+    data = readw(s->addr + OMAP_I2C_CNT);
     g_assert_cmpuint(data, ==, len);
 
     while (len > 0) {
-        memread(s->addr + OMAP_I2C_STAT, &data, 2);
+        data = readw(s->addr + OMAP_I2C_STAT);
         g_assert((data & OMAP_I2C_STAT_RRDY) != 0);
         g_assert((data & OMAP_I2C_STAT_ROVR) == 0);
 
-        memread(s->addr + OMAP_I2C_DATA, &data, 2);
+        data = readw(s->addr + OMAP_I2C_DATA);
 
-        memread(s->addr + OMAP_I2C_STAT, &stat, 2);
+        stat = readw(s->addr + OMAP_I2C_STAT);
+
         if (unlikely(len == 1)) {
-            *buf = data & 0xf;
+            g_assert((stat & OMAP_I2C_STAT_SBD) != 0);
+
+            buf[0] = data & 0xff;
             buf++;
             len--;
         } else {
-            memcpy(buf, &data, 2);
+            buf[0] = data & 0xff;
+            buf[1] = data >> 8;
             buf += 2;
             len -= 2;
         }
     }
 
-    memread(s->addr + OMAP_I2C_CON, &data, 2);
+    data = readw(s->addr + OMAP_I2C_CON);
     g_assert((data & OMAP_I2C_CON_STP) == 0);
 }
 
@@ -159,7 +189,7 @@ I2CAdapter *omap_i2c_create(uint64_t addr)
     i2c->recv = omap_i2c_recv;
 
     /* verify the mmio address by looking for a known signature */
-    memread(addr + OMAP_I2C_REV, &data, 2);
+    data = readw(addr + OMAP_I2C_REV);
     g_assert_cmphex(data, ==, 0x34);
 
     return i2c;

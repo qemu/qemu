@@ -3025,12 +3025,12 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
     int i;
 
     if (qemu_opts_id(opts) == NULL) {
-        error_setg(errp, "chardev: no id specified\n");
+        error_setg(errp, "chardev: no id specified");
         goto err;
     }
 
     if (qemu_opt_get(opts, "backend") == NULL) {
-        error_setg(errp, "chardev: \"%s\" missing backend\n",
+        error_setg(errp, "chardev: \"%s\" missing backend",
                    qemu_opts_id(opts));
         goto err;
     }
@@ -3039,14 +3039,14 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
             break;
     }
     if (i == ARRAY_SIZE(backend_table)) {
-        error_setg(errp, "chardev: backend \"%s\" not found\n",
+        error_setg(errp, "chardev: backend \"%s\" not found",
                    qemu_opt_get(opts, "backend"));
         goto err;
     }
 
     chr = backend_table[i].open(opts);
     if (!chr) {
-        error_setg(errp, "chardev: opening backend \"%s\" failed\n",
+        error_setg(errp, "chardev: opening backend \"%s\" failed",
                    qemu_opt_get(opts, "backend"));
         goto err;
     }
@@ -3273,15 +3273,17 @@ static CharDriverState *qmp_chardev_open_file(ChardevFile *file, Error **errp)
     return qemu_chr_open_win_file(out);
 }
 
-static CharDriverState *qmp_chardev_open_port(ChardevPort *port, Error **errp)
+static CharDriverState *qmp_chardev_open_serial(ChardevHostdev *serial,
+                                                Error **errp)
 {
-    switch (port->type) {
-    case CHARDEV_PORT_KIND_SERIAL:
-        return qemu_chr_open_win_path(port->device);
-    default:
-        error_setg(errp, "unknown chardev port (%d)", port->type);
-        return NULL;
-    }
+    return qemu_chr_open_win_path(serial->device);
+}
+
+static CharDriverState *qmp_chardev_open_parallel(ChardevHostdev *parallel,
+                                                  Error **errp)
+{
+    error_setg(errp, "character device backend type 'parallel' not supported");
+    return NULL;
 }
 
 #else /* WIN32 */
@@ -3320,38 +3322,39 @@ static CharDriverState *qmp_chardev_open_file(ChardevFile *file, Error **errp)
     return qemu_chr_open_fd(in, out);
 }
 
-static CharDriverState *qmp_chardev_open_port(ChardevPort *port, Error **errp)
+static CharDriverState *qmp_chardev_open_serial(ChardevHostdev *serial,
+                                                Error **errp)
 {
-    switch (port->type) {
 #ifdef HAVE_CHARDEV_TTY
-    case CHARDEV_PORT_KIND_SERIAL:
-    {
-        int flags, fd;
-        flags = O_RDWR;
-        fd = qmp_chardev_open_file_source(port->device, flags, errp);
-        if (error_is_set(errp)) {
-            return NULL;
-        }
-        socket_set_nonblock(fd);
-        return qemu_chr_open_tty_fd(fd);
-    }
-#endif
-#ifdef HAVE_CHARDEV_PARPORT
-    case CHARDEV_PORT_KIND_PARALLEL:
-    {
-        int flags, fd;
-        flags = O_RDWR;
-        fd = qmp_chardev_open_file_source(port->device, flags, errp);
-        if (error_is_set(errp)) {
-            return NULL;
-        }
-        return qemu_chr_open_pp_fd(fd);
-    }
-#endif
-    default:
-        error_setg(errp, "unknown chardev port (%d)", port->type);
+    int fd;
+
+    fd = qmp_chardev_open_file_source(serial->device, O_RDWR, errp);
+    if (error_is_set(errp)) {
         return NULL;
     }
+    socket_set_nonblock(fd);
+    return qemu_chr_open_tty_fd(fd);
+#else
+    error_setg(errp, "character device backend type 'serial' not supported");
+    return NULL;
+#endif
+}
+
+static CharDriverState *qmp_chardev_open_parallel(ChardevHostdev *parallel,
+                                                  Error **errp)
+{
+#ifdef HAVE_CHARDEV_PARPORT
+    int fd;
+
+    fd = qmp_chardev_open_file_source(parallel->device, O_RDWR, errp);
+    if (error_is_set(errp)) {
+        return NULL;
+    }
+    return qemu_chr_open_pp_fd(fd);
+#else
+    error_setg(errp, "character device backend type 'parallel' not supported");
+    return NULL;
+#endif
 }
 
 #endif /* WIN32 */
@@ -3395,8 +3398,11 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_FILE:
         chr = qmp_chardev_open_file(backend->file, errp);
         break;
-    case CHARDEV_BACKEND_KIND_PORT:
-        chr = qmp_chardev_open_port(backend->port, errp);
+    case CHARDEV_BACKEND_KIND_SERIAL:
+        chr = qmp_chardev_open_serial(backend->serial, errp);
+        break;
+    case CHARDEV_BACKEND_KIND_PARALLEL:
+        chr = qmp_chardev_open_parallel(backend->parallel, errp);
         break;
     case CHARDEV_BACKEND_KIND_SOCKET:
         chr = qmp_chardev_open_socket(backend->socket, errp);

@@ -287,7 +287,9 @@ static void qemu_cleanup_net_client(NetClientState *nc)
 {
     QTAILQ_REMOVE(&net_clients, nc, next);
 
-    nc->info->cleanup(nc);
+    if (nc->info->cleanup) {
+        nc->info->cleanup(nc);
+    }
 }
 
 static void qemu_free_net_client(NetClientState *nc)

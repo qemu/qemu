@@ -617,7 +617,6 @@ static void do_ext_interrupt(CPUS390XState *env)
 
 static void do_io_interrupt(CPUS390XState *env)
 {
-    uint64_t mask = 0, addr = 0;
     LowCore *lowcore;
     IOIntQueue *q;
     uint8_t isc;
@@ -629,6 +628,8 @@ static void do_io_interrupt(CPUS390XState *env)
     }
 
     for (isc = 0; isc < ARRAY_SIZE(env->io_index); isc++) {
+        uint64_t isc_bits;
+
         if (env->io_index[isc] < 0) {
             continue;
         }
@@ -638,40 +639,44 @@ static void do_io_interrupt(CPUS390XState *env)
         }
 
         q = &env->io_queue[env->io_index[isc]][isc];
-        if (!(env->cregs[6] & q->word)) {
+        isc_bits = ISC_TO_ISC_BITS(IO_INT_WORD_ISC(q->word));
+        if (!(env->cregs[6] & isc_bits)) {
             disable = 0;
             continue;
         }
-        found = 1;
-        lowcore = cpu_map_lowcore(env);
+        if (!found) {
+            uint64_t mask, addr;
 
-        lowcore->subchannel_id = cpu_to_be16(q->id);
-        lowcore->subchannel_nr = cpu_to_be16(q->nr);
-        lowcore->io_int_parm = cpu_to_be32(q->parm);
-        lowcore->io_int_word = cpu_to_be32(q->word);
-        lowcore->io_old_psw.mask = cpu_to_be64(get_psw_mask(env));
-        lowcore->io_old_psw.addr = cpu_to_be64(env->psw.addr);
-        mask = be64_to_cpu(lowcore->io_new_psw.mask);
-        addr = be64_to_cpu(lowcore->io_new_psw.addr);
+            found = 1;
+            lowcore = cpu_map_lowcore(env);
 
-        cpu_unmap_lowcore(lowcore);
+            lowcore->subchannel_id = cpu_to_be16(q->id);
+            lowcore->subchannel_nr = cpu_to_be16(q->nr);
+            lowcore->io_int_parm = cpu_to_be32(q->parm);
+            lowcore->io_int_word = cpu_to_be32(q->word);
+            lowcore->io_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+            lowcore->io_old_psw.addr = cpu_to_be64(env->psw.addr);
+            mask = be64_to_cpu(lowcore->io_new_psw.mask);
+            addr = be64_to_cpu(lowcore->io_new_psw.addr);
 
-        env->io_index[isc]--;
+            cpu_unmap_lowcore(lowcore);
+
+            env->io_index[isc]--;
+
+            DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__,
+                    env->psw.mask, env->psw.addr);
+            load_psw(env, mask, addr);
+        }
         if (env->io_index[isc] >= 0) {
             disable = 0;
         }
-        break;
+        continue;
     }
 
     if (disable) {
         env->pending_int &= ~INTERRUPT_IO;
     }
 
-    if (found) {
-        DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__,
-                env->psw.mask, env->psw.addr);
-        load_psw(env, mask, addr);
-    }
 }
 
 static void do_mchk_interrupt(CPUS390XState *env)

@@ -2036,7 +2036,7 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     qxl->ssd.qxl.base.sif = &qxl_interface.base;
     qxl->ssd.qxl.id = qxl->id;
     if (qemu_spice_add_interface(&qxl->ssd.qxl.base) != 0) {
-        error_report("qxl interface %d.%d not supported by spice-server\n",
+        error_report("qxl interface %d.%d not supported by spice-server",
                      SPICE_INTERFACE_QXL_MAJOR, SPICE_INTERFACE_QXL_MINOR);
         return -1;
     }

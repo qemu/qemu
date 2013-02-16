@@ -129,17 +129,19 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     xilinx_timer_create(TIMER_BASEADDR, irq[2], 0, 100 * 1000000);
 
     /* axi ethernet and dma initialization. */
+    qemu_check_nic_model(&nd_table[0], "xlnx.axi-ethernet");
+    eth0 = qdev_create(NULL, "xlnx.axi-ethernet");
     dma = qdev_create(NULL, "xlnx.axi-dma");
 
     /* FIXME: attach to the sysbus instead */
     object_property_add_child(container_get(qdev_get_machine(), "/unattached"),
                                   "xilinx-dma", OBJECT(dma), NULL);
 
-    eth0 = xilinx_axiethernet_create(&nd_table[0], STREAM_SLAVE(dma),
-                                     0x82780000, irq[3], 0x1000, 0x1000);
+    xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(dma),
+                                   0x82780000, irq[3], 0x1000, 0x1000);
 
-    xilinx_axiethernetdma_init(dma, STREAM_SLAVE(eth0),
-                               0x84600000, irq[1], irq[0], 100 * 1000000);
+    xilinx_axidma_init(dma, STREAM_SLAVE(eth0), 0x84600000, irq[1], irq[0],
+                       100 * 1000000);
 
     {
         SSIBus *spi;

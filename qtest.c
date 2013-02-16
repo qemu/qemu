@@ -282,8 +282,8 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         uint8_t *data;
 
         g_assert(words[1] && words[2]);
-        addr = strtoul(words[1], NULL, 0);
-        len = strtoul(words[2], NULL, 0);
+        addr = strtoull(words[1], NULL, 0);
+        len = strtoull(words[2], NULL, 0);
 
         data = g_malloc(len);
         cpu_physical_memory_read(addr, data, len);
@@ -302,8 +302,8 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         size_t data_len;
 
         g_assert(words[1] && words[2] && words[3]);
-        addr = strtoul(words[1], NULL, 0);
-        len = strtoul(words[2], NULL, 0);
+        addr = strtoull(words[1], NULL, 0);
+        len = strtoull(words[2], NULL, 0);
 
         data_len = strlen(words[3]);
         if (data_len < 3) {

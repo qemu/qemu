@@ -936,8 +936,8 @@ retry:
             /* Retry with host-side MSI. There might be an IRQ conflict and
              * either the kernel or the device doesn't support sharing. */
             error_report("Host-side INTx sharing not supported, "
-                         "using MSI instead.\n"
-                         "Some devices do not to work properly in this mode.");
+                         "using MSI instead");
+            error_printf("Some devices do not work properly in this mode.\n");
             dev->features |= ASSIGNED_DEVICE_PREFER_MSI_MASK;
             goto retry;
         }
@@ -1903,10 +1903,10 @@ static void assigned_dev_load_option_rom(AssignedDevice *dev)
     memset(ptr, 0xff, st.st_size);
 
     if (!fread(ptr, 1, st.st_size, fp)) {
-        error_report("pci-assign: Cannot read from host %s\n"
-                     "\tDevice option ROM contents are probably invalid "
-                     "(check dmesg).\n\tSkip option ROM probe with rombar=0, "
-                     "or load from file with romfile=", rom_file);
+        error_report("pci-assign: Cannot read from host %s", rom_file);
+        error_printf("Device option ROM contents are probably invalid "
+                     "(check dmesg).\nSkip option ROM probe with rombar=0, "
+                     "or load from file with romfile=\n");
         memory_region_destroy(&dev->dev.rom);
         goto close_rom;
     }

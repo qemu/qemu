@@ -135,26 +135,35 @@ static inline void qemu_log_try_set_file(FILE *f)
 }
 
 /* define log items */
-typedef struct CPULogItem {
+typedef struct QEMULogItem {
     int mask;
     const char *name;
     const char *help;
-} CPULogItem;
+} QEMULogItem;
 
-extern const CPULogItem cpu_log_items[];
+extern const QEMULogItem qemu_log_items[];
 
-void qemu_set_log(int log_flags, bool use_own_buffers);
+/* This is the function that actually does the work of
+ * changing the log level; it should only be accessed via
+ * the qemu_set_log() wrapper.
+ */
+void do_qemu_set_log(int log_flags, bool use_own_buffers);
 
-static inline void cpu_set_log(int log_flags)
+static inline void qemu_set_log(int log_flags)
 {
 #ifdef CONFIG_USER_ONLY
-    qemu_set_log(log_flags, true);
+    do_qemu_set_log(log_flags, true);
 #else
-    qemu_set_log(log_flags, false);
+    do_qemu_set_log(log_flags, false);
 #endif
 }
 
-void cpu_set_log_filename(const char *filename);
-int cpu_str_to_log_mask(const char *str);
+void qemu_set_log_filename(const char *filename);
+int qemu_str_to_log_mask(const char *str);
+
+/* Print a usage message listing all the valid logging categories
+ * to the specified FILE*.
+ */
+void qemu_print_log_usage(FILE *f);
 
 #endif

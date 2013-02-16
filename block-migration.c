@@ -539,6 +539,7 @@ static int block_save_setup(QEMUFile *f, void *opaque)
 static int block_save_iterate(QEMUFile *f, void *opaque)
 {
     int ret;
+    int64_t last_ftell = qemu_ftell(f);
 
     DPRINTF("Enter save live iterate submitted %d transferred %d\n",
             block_mig_state.submitted, block_mig_state.transferred);
@@ -569,7 +570,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
             }
         }
     }
-    if (ret) {
+    if (ret < 0) {
         blk_mig_cleanup();
         return ret;
     }
@@ -582,7 +583,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
-    return 0;
+    return qemu_ftell(f) - last_ftell;
 }
 
 static int block_save_complete(QEMUFile *f, void *opaque)
@@ -609,7 +610,7 @@ static int block_save_complete(QEMUFile *f, void *opaque)
     } while (ret == 0);
 
     blk_mig_cleanup();
-    if (ret) {
+    if (ret < 0) {
         return ret;
     }
     /* report completion */
@@ -624,10 +625,18 @@ static int block_save_complete(QEMUFile *f, void *opaque)
 
 static uint64_t block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
 {
+    /* Estimate pending number of bytes to send */
+    uint64_t pending = get_remaining_dirty() +
+                       block_mig_state.submitted * BLOCK_SIZE +
+                       block_mig_state.read_done * BLOCK_SIZE;
 
-    DPRINTF("Enter save live pending  %ld\n", get_remaining_dirty());
+    /* Report at least one block pending during bulk phase */
+    if (pending == 0 && !block_mig_state.bulk_completed) {
+        pending = BLOCK_SIZE;
+    }
 
-    return get_remaining_dirty();
+    DPRINTF("Enter save live pending  %" PRIu64 "\n", pending);
+    return pending;
 }
 
 static int block_load(QEMUFile *f, void *opaque, int version_id)
@@ -695,7 +704,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                    (addr == 100) ? '\n' : '\r');
             fflush(stdout);
         } else if (!(flags & BLK_MIG_FLAG_EOS)) {
-            fprintf(stderr, "Unknown flags\n");
+            fprintf(stderr, "Unknown block migration flags: %#x\n", flags);
             return -EINVAL;
         }
         ret = qemu_file_get_error(f);

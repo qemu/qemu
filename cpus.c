@@ -1175,27 +1175,6 @@ void set_numa_modes(void)
     }
 }
 
-void set_cpu_log(const char *optarg)
-{
-    int mask;
-    const CPULogItem *item;
-
-    mask = cpu_str_to_log_mask(optarg);
-    if (!mask) {
-        printf("Log items (comma separated):\n");
-        for (item = cpu_log_items; item->mask != 0; item++) {
-            printf("%-10s %s\n", item->name, item->help);
-        }
-        exit(1);
-    }
-    cpu_set_log(mask);
-}
-
-void set_cpu_log_filename(const char *optarg)
-{
-    cpu_set_log_filename(optarg);
-}
-
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
 {
     /* XXX: implement xxx_cpu_list for targets that still miss it */

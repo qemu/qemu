@@ -861,20 +861,16 @@ int main(int argc, char **argv)
     }
 
     /* init debug */
-    cpu_set_log_filename(log_file);
+    qemu_set_log_filename(log_file);
     if (log_mask) {
         int mask;
-        const CPULogItem *item;
 
-        mask = cpu_str_to_log_mask(log_mask);
+        mask = qemu_str_to_log_mask(log_mask);
         if (!mask) {
-            printf("Log items (comma separated):\n");
-            for (item = cpu_log_items; item->mask != 0; item++) {
-                printf("%-10s %s\n", item->name, item->help);
-            }
+            qemu_print_log_usage(stdout);
             exit(1);
         }
-        cpu_set_log(mask);
+        qemu_set_log(mask);
     }
 
     if (optind >= argc) {

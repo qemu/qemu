@@ -720,7 +720,7 @@ int unix_connect_opts(QemuOpts *opts, Error **errp,
     int sock, rc;
 
     if (NULL == path) {
-        error_setg(errp, "unix connect: no path specified\n");
+        error_setg(errp, "unix connect: no path specified");
         return -1;
     }
 
@@ -854,7 +854,7 @@ SocketAddress *socket_parse(const char *str, Error **errp)
     addr = g_new(SocketAddress, 1);
     if (strstart(str, "unix:", NULL)) {
         if (str[5] == '\0') {
-            error_setg(errp, "invalid Unix socket address\n");
+            error_setg(errp, "invalid Unix socket address");
             goto fail;
         } else {
             addr->kind = SOCKET_ADDRESS_KIND_UNIX;
@@ -863,7 +863,7 @@ SocketAddress *socket_parse(const char *str, Error **errp)
         }
     } else if (strstart(str, "fd:", NULL)) {
         if (str[3] == '\0') {
-            error_setg(errp, "invalid file descriptor address\n");
+            error_setg(errp, "invalid file descriptor address");
             goto fail;
         } else {
             addr->kind = SOCKET_ADDRESS_KIND_FD;

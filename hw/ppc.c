@@ -1189,7 +1189,7 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 2:
         printf("Set loglevel to %04" PRIx32 "\n", val);
-        cpu_set_log(val | 0x100);
+        qemu_set_log(val | 0x100);
         break;
     }
 }

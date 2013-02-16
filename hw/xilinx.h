@@ -53,17 +53,12 @@ xilinx_ethlite_create(NICInfo *nd, hwaddr base, qemu_irq irq,
     return dev;
 }
 
-static inline DeviceState *
-xilinx_axiethernet_create(NICInfo *nd, StreamSlave *peer,
-                          hwaddr base, qemu_irq irq,
-                          int txmem, int rxmem)
+static inline void
+xilinx_axiethernet_init(DeviceState *dev, NICInfo *nd, StreamSlave *peer,
+                        hwaddr base, qemu_irq irq, int txmem, int rxmem)
 {
-    DeviceState *dev;
     Error *errp = NULL;
 
-    qemu_check_nic_model(nd, "xlnx.axi-ethernet");
-
-    dev = qdev_create(NULL, "xlnx.axi-ethernet");
     qdev_set_nic_properties(dev, nd);
     qdev_prop_set_uint32(dev, "rxmem", rxmem);
     qdev_prop_set_uint32(dev, "txmem", txmem);
@@ -73,14 +68,11 @@ xilinx_axiethernet_create(NICInfo *nd, StreamSlave *peer,
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
-
-    return dev;
 }
 
 static inline void
-xilinx_axiethernetdma_init(DeviceState *dev, StreamSlave *peer,
-                           hwaddr base, qemu_irq irq,
-                           qemu_irq irq2, int freqhz)
+xilinx_axidma_init(DeviceState *dev, StreamSlave *peer, hwaddr base,
+                   qemu_irq irq, qemu_irq irq2, int freqhz)
 {
     Error *errp = NULL;
 

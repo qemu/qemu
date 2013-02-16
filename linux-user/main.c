@@ -109,7 +109,7 @@ static int pending_cpus;
 /* Make sure everything is in a consistent state for calling fork().  */
 void fork_start(void)
 {
-    pthread_mutex_lock(&tb_lock);
+    pthread_mutex_lock(&tcg_ctx.tb_ctx.tb_lock);
     pthread_mutex_lock(&exclusive_lock);
     mmap_fork_start();
 }
@@ -127,11 +127,11 @@ void fork_end(int child)
         pthread_mutex_init(&cpu_list_mutex, NULL);
         pthread_cond_init(&exclusive_cond, NULL);
         pthread_cond_init(&exclusive_resume, NULL);
-        pthread_mutex_init(&tb_lock, NULL);
+        pthread_mutex_init(&tcg_ctx.tb_ctx.tb_lock, NULL);
         gdbserver_fork(thread_env);
     } else {
         pthread_mutex_unlock(&exclusive_lock);
-        pthread_mutex_unlock(&tb_lock);
+        pthread_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
     }
 }
 
@@ -3136,22 +3136,18 @@ static void handle_arg_help(const char *arg)
 static void handle_arg_log(const char *arg)
 {
     int mask;
-    const CPULogItem *item;
 
-    mask = cpu_str_to_log_mask(arg);
+    mask = qemu_str_to_log_mask(arg);
     if (!mask) {
-        printf("Log items (comma separated):\n");
-        for (item = cpu_log_items; item->mask != 0; item++) {
-            printf("%-10s %s\n", item->name, item->help);
-        }
+        qemu_print_log_usage(stdout);
         exit(1);
     }
-    cpu_set_log(mask);
+    qemu_set_log(mask);
 }
 
 static void handle_arg_log_filename(const char *arg)
 {
-    cpu_set_log_filename(arg);
+    qemu_set_log_filename(arg);
 }
 
 static void handle_arg_set_env(const char *arg)
@@ -3523,7 +3519,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     /* init debug */
-    cpu_set_log_filename(log_file);
+    qemu_set_log_filename(log_file);
     optind = parse_args(argc, argv);
 
     /* Zero out regs */

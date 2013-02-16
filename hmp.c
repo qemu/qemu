@@ -1365,7 +1365,7 @@ void hmp_chardev_add(Monitor *mon, const QDict *qdict)
 
     opts = qemu_opts_parse(qemu_find_opts("chardev"), args, 1);
     if (opts == NULL) {
-        error_setg(&err, "Parsing chardev args failed\n");
+        error_setg(&err, "Parsing chardev args failed");
     } else {
         qemu_chr_new_from_opts(opts, NULL, &err);
     }

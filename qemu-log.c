@@ -54,7 +54,7 @@ void qemu_log_mask(int mask, const char *fmt, ...)
 }
 
 /* enable or disable low levels log */
-void qemu_set_log(int log_flags, bool use_own_buffers)
+void do_qemu_set_log(int log_flags, bool use_own_buffers)
 {
     const char *fname = logfilename ?: DEFAULT_LOGFILENAME;
 
@@ -86,7 +86,7 @@ void qemu_set_log(int log_flags, bool use_own_buffers)
     }
 }
 
-void cpu_set_log_filename(const char *filename)
+void qemu_set_log_filename(const char *filename)
 {
     g_free(logfilename);
     logfilename = g_strdup(filename);
@@ -94,10 +94,10 @@ void cpu_set_log_filename(const char *filename)
         fclose(qemu_logfile);
         qemu_logfile = NULL;
     }
-    cpu_set_log(qemu_loglevel);
+    qemu_set_log(qemu_loglevel);
 }
 
-const CPULogItem cpu_log_items[] = {
+const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_TB_OUT_ASM, "out_asm",
       "show generated host assembly code for each compiled TB" },
     { CPU_LOG_TB_IN_ASM, "in_asm",
@@ -136,9 +136,9 @@ static int cmp1(const char *s1, int n, const char *s2)
 }
 
 /* takes a comma separated list of log masks. Return 0 if error. */
-int cpu_str_to_log_mask(const char *str)
+int qemu_str_to_log_mask(const char *str)
 {
-    const CPULogItem *item;
+    const QEMULogItem *item;
     int mask;
     const char *p, *p1;
 
@@ -150,11 +150,11 @@ int cpu_str_to_log_mask(const char *str)
             p1 = p + strlen(p);
         }
         if (cmp1(p,p1-p,"all")) {
-            for (item = cpu_log_items; item->mask != 0; item++) {
+            for (item = qemu_log_items; item->mask != 0; item++) {
                 mask |= item->mask;
             }
         } else {
-            for (item = cpu_log_items; item->mask != 0; item++) {
+            for (item = qemu_log_items; item->mask != 0; item++) {
                 if (cmp1(p, p1 - p, item->name)) {
                     goto found;
                 }
@@ -169,4 +169,13 @@ int cpu_str_to_log_mask(const char *str)
         p = p1 + 1;
     }
     return mask;
+}
+
+void qemu_print_log_usage(FILE *f)
+{
+    const QEMULogItem *item;
+    fprintf(f, "Log items (comma separated):\n");
+    for (item = qemu_log_items; item->mask != 0; item++) {
+        fprintf(f, "%-10s %s\n", item->name, item->help);
+    }
 }

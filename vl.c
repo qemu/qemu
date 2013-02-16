@@ -3186,8 +3186,10 @@ int main(int argc, char **argv, char **envp)
                                 exit(1);
                             }
                         }
-                        qemu_opts_parse(qemu_find_opts("boot-opts"),
-                                        optarg, 0);
+                        if (!qemu_opts_parse(qemu_find_opts("boot-opts"),
+                                             optarg, 0)) {
+                            exit(1);
+                        }
                     }
                 }
                 break;
@@ -3385,7 +3387,6 @@ int main(int argc, char **argv, char **envp)
                 }
                 opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
                 break;
@@ -3401,7 +3402,6 @@ int main(int argc, char **argv, char **envp)
                 }
                 opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
 
@@ -3572,7 +3572,6 @@ int main(int argc, char **argv, char **envp)
                 olist = qemu_find_opts("machine");
                 opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
                 optarg = qemu_opt_get(opts, "type");
@@ -3677,6 +3676,9 @@ int main(int argc, char **argv, char **envp)
 		    exit(1);
 		}
                 opts = qemu_opts_parse(qemu_find_opts("option-rom"), optarg, 1);
+                if (!opts) {
+                    exit(1);
+                }
                 option_rom[nb_option_roms].name = qemu_opt_get(opts, "romfile");
                 option_rom[nb_option_roms].bootindex =
                     qemu_opt_get_number(opts, "bootindex", -1);
@@ -3809,7 +3811,6 @@ int main(int argc, char **argv, char **envp)
                 }
                 opts = qemu_opts_parse(olist, optarg, 0);
                 if (!opts) {
-                    fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
                 break;
@@ -3838,14 +3839,14 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_sandbox:
                 opts = qemu_opts_parse(qemu_find_opts("sandbox"), optarg, 1);
                 if (!opts) {
-                    exit(0);
+                    exit(1);
                 }
                 break;
             case QEMU_OPTION_add_fd:
 #ifndef _WIN32
                 opts = qemu_opts_parse(qemu_find_opts("add-fd"), optarg, 0);
                 if (!opts) {
-                    exit(0);
+                    exit(1);
                 }
 #else
                 error_report("File descriptor passing is disabled on this "
@@ -3855,6 +3856,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_object:
                 opts = qemu_opts_parse(qemu_find_opts("object"), optarg, 1);
+                if (!opts) {
+                    exit(1);
+                }
                 break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
@@ -3914,10 +3918,17 @@ int main(int argc, char **argv, char **envp)
      * location or level of logging.
      */
     if (log_mask) {
+        int mask;
         if (log_file) {
-            set_cpu_log_filename(log_file);
+            qemu_set_log_filename(log_file);
         }
-        set_cpu_log(log_mask);
+
+        mask = qemu_str_to_log_mask(log_mask);
+        if (!mask) {
+            qemu_print_log_usage(stdout);
+            exit(1);
+        }
+        qemu_set_log(mask);
     }
 
     if (!trace_backend_init(trace_events, trace_file)) {

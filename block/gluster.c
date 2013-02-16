@@ -217,7 +217,7 @@ static struct glfs *qemu_gluster_init(GlusterConf *gconf, const char *filename)
     ret = glfs_init(glfs);
     if (ret) {
         error_report("Gluster connection failed for server=%s port=%d "
-             "volume=%s image=%s transport=%s\n", gconf->server, gconf->port,
+             "volume=%s image=%s transport=%s", gconf->server, gconf->port,
              gconf->volname, gconf->image, gconf->transport);
         goto out;
     }
