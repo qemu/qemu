@@ -109,6 +109,7 @@ CONFIG_NO_GET_MEMORY_MAPPING = $(if $(subst n,,$(CONFIG_HAVE_GET_MEMORY_MAPPING)
 CONFIG_NO_CORE_DUMP = $(if $(subst n,,$(CONFIG_HAVE_CORE_DUMP)),n,y)
 
 obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o
+obj-y += qtest.o
 obj-y += hw/
 obj-$(CONFIG_KVM) += kvm-all.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o

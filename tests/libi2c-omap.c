@@ -49,29 +49,6 @@ typedef struct OMAPI2C {
 } OMAPI2C;
 
 
-/* FIXME Use TBD readw qtest API */
-static inline uint16_t readw(uint64_t addr)
-{
-    uint16_t data;
-
-    memread(addr, &data, 2);
-    return le16_to_cpu(data);
-}
-
-/* FIXME Use TBD writew qtest API */
-static inline void writew(uint64_t addr, uint16_t data)
-{
-    data = cpu_to_le16(data);
-    memwrite(addr, &data, 2);
-}
-
-#ifdef __GNUC__
-#undef memread
-#undef memwrite
-#pragma GCC poison memread
-#pragma GCC poison memwrite
-#endif
-
 static void omap_i2c_set_slave_addr(OMAPI2C *s, uint8_t addr)
 {
     uint16_t data = addr;
