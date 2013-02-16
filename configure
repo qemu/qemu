@@ -3150,6 +3150,22 @@ if compile_prog "" "" ; then
     cpuid_h=yes
 fi
 
+########################################
+# check if __[u]int128_t is usable.
+
+int128=no
+cat > $TMPC << EOF
+__int128_t a;
+__uint128_t b;
+int main (void) {
+  a = a + b;
+  b = a * b;
+  return 0;
+}
+EOF
+if compile_prog "" "" ; then
+    int128=yes
+fi
 
 ##########################################
 # End of CC checks
@@ -3690,6 +3706,10 @@ fi
 
 if test "$cpuid_h" = "yes" ; then
   echo "CONFIG_CPUID_H=y" >> $config_host_mak
+fi
+
+if test "$int128" = "yes" ; then
+  echo "CONFIG_INT128=y" >> $config_host_mak
 fi
 
 if test "$glusterfs" = "yes" ; then
