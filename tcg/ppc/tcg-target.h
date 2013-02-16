@@ -99,6 +99,6 @@ typedef enum {
 
 #define tcg_qemu_tb_exec(env, tb_ptr) \
     ((long __attribute__ ((longcall)) \
-      (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
+      (*)(void *, void *))tcg_ctx.code_gen_prologue)(env, tb_ptr)
 
 #endif
