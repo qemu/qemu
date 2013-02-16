@@ -288,16 +288,13 @@ redo:
     return words;
 }
 
-void qtest_qmp(QTestState *s, const char *fmt, ...)
+void qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 {
-    va_list ap;
     bool has_reply = false;
     int nesting = 0;
 
     /* Send QMP request */
-    va_start(ap, fmt);
     socket_sendf(s->qmp_fd, fmt, ap);
-    va_end(ap);
 
     /* Receive reply */
     while (!has_reply || nesting > 0) {
@@ -324,6 +321,15 @@ void qtest_qmp(QTestState *s, const char *fmt, ...)
             break;
         }
     }
+}
+
+void qtest_qmp(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qtest_qmpv(s, fmt, ap);
+    va_end(ap);
 }
 
 const char *qtest_get_arch(void)
