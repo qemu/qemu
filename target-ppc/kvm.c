@@ -1263,7 +1263,7 @@ static void kvmppc_host_cpu_initfn(Object *obj)
 
     assert(kvm_enabled());
 
-    if (pcc->info->pvr != mfpvr()) {
+    if (pcc->pvr != mfpvr()) {
         fprintf(stderr, "Your host CPU is unsupported.\n"
                 "Please choose a supported model instead, see -cpu ?.\n");
         exit(1);
@@ -1275,30 +1275,38 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     uint32_t host_pvr = mfpvr();
     PowerPCCPUClass *pvr_pcc;
-    ppc_def_t *spec;
     uint32_t vmx = kvmppc_get_vmx();
     uint32_t dfp = kvmppc_get_dfp();
 
-    spec = g_malloc0(sizeof(*spec));
-
     pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
     if (pvr_pcc != NULL) {
-        memcpy(spec, pvr_pcc->info, sizeof(*spec));
+        pcc->pvr          = pvr_pcc->pvr;
+        pcc->svr          = pvr_pcc->svr;
+        pcc->insns_flags  = pvr_pcc->insns_flags;
+        pcc->insns_flags2 = pvr_pcc->insns_flags2;
+        pcc->msr_mask     = pvr_pcc->msr_mask;
+        pcc->mmu_model    = pvr_pcc->mmu_model;
+        pcc->excp_model   = pvr_pcc->excp_model;
+        pcc->bus_model    = pvr_pcc->bus_model;
+        pcc->flags        = pvr_pcc->flags;
+        pcc->bfd_mach     = pvr_pcc->bfd_mach;
+#ifdef TARGET_PPC64
+        pcc->sps          = pvr_pcc->sps;
+#endif
+        pcc->init_proc    = pvr_pcc->init_proc;
+        pcc->check_pow    = pvr_pcc->check_pow;
     }
-    pcc->info = spec;
-    /* Override the display name for -cpu ? and QMP */
-    pcc->info->name = "host";
 
-    /* Now fix up the spec with information we can query from the host */
+    /* Now fix up the class with information we can query from the host */
 
     if (vmx != -1) {
         /* Only override when we know what the host supports */
-        alter_insns(&spec->insns_flags, PPC_ALTIVEC, vmx > 0);
-        alter_insns(&spec->insns_flags2, PPC2_VSX, vmx > 1);
+        alter_insns(&pcc->insns_flags, PPC_ALTIVEC, vmx > 0);
+        alter_insns(&pcc->insns_flags2, PPC2_VSX, vmx > 1);
     }
     if (dfp != -1) {
         /* Only override when we know what the host supports */
-        alter_insns(&spec->insns_flags2, PPC2_DFP, dfp);
+        alter_insns(&pcc->insns_flags2, PPC2_DFP, dfp);
     }
 }
 

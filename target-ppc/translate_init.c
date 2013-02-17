@@ -7503,26 +7503,59 @@ enum {
 
 /*****************************************************************************/
 /* PowerPC CPU definitions                                                   */
+#define POWERPC_DEF_PREFIX(pvr, svr, type)                                  \
+    glue(glue(glue(glue(pvr, _), svr), _), type)
+#if defined(TARGET_PPCEMB)
+#define POWERPC_DEF_CONDITION(type)                                         \
+    if (glue(POWERPC_MMU_, type) != POWERPC_MMU_BOOKE) {                    \
+        return;                                                             \
+    }
+#else
+#define POWERPC_DEF_CONDITION(type)
+#endif
 #define POWERPC_DEF_SVR(_name, _pvr, _svr, _type)                             \
-    {                                                                         \
-        .name         = _name,                                                \
-        .pvr          = _pvr,                                                 \
-        .svr          = _svr,                                                 \
-        .insns_flags  = glue(POWERPC_INSNS_,_type),                           \
-        .insns_flags2 = glue(POWERPC_INSNS2_,_type),                          \
-        .msr_mask     = glue(POWERPC_MSRM_,_type),                            \
-        .mmu_model    = glue(POWERPC_MMU_,_type),                             \
-        .excp_model   = glue(POWERPC_EXCP_,_type),                            \
-        .bus_model    = glue(POWERPC_INPUT_,_type),                           \
-        .bfd_mach     = glue(POWERPC_BFDM_,_type),                            \
-        .flags        = glue(POWERPC_FLAG_,_type),                            \
-        .init_proc    = &glue(init_proc_,_type),                              \
-        .check_pow    = &glue(check_pow_,_type),                              \
-    },
+    static void                                                             \
+    glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_class_init)            \
+    (ObjectClass *oc, void *data)                                           \
+    {                                                                       \
+        PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);                       \
+                                                                            \
+        pcc->pvr          = _pvr;                                           \
+        pcc->svr          = _svr;                                           \
+        pcc->insns_flags  = glue(POWERPC_INSNS_, _type);                    \
+        pcc->insns_flags2 = glue(POWERPC_INSNS2_, _type);                   \
+        pcc->msr_mask     = glue(POWERPC_MSRM_, _type);                     \
+        pcc->mmu_model    = glue(POWERPC_MMU_, _type);                      \
+        pcc->excp_model   = glue(POWERPC_EXCP_, _type);                     \
+        pcc->bus_model    = glue(POWERPC_INPUT_, _type);                    \
+        pcc->bfd_mach     = glue(POWERPC_BFDM_, _type);                     \
+        pcc->flags        = glue(POWERPC_FLAG_, _type);                     \
+        pcc->init_proc    = &glue(init_proc_, _type);                       \
+        pcc->check_pow    = &glue(check_pow_, _type);                       \
+    }                                                                       \
+                                                                            \
+    static const TypeInfo                                                   \
+    glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_type_info) = {         \
+        .name       = _name "-" TYPE_POWERPC_CPU,                           \
+        .parent     = TYPE_POWERPC_CPU,                                     \
+        .class_init =                                                       \
+            glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_class_init),   \
+    };                                                                      \
+                                                                            \
+    static void                                                             \
+    glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_register_types)(void)  \
+    {                                                                       \
+        POWERPC_DEF_CONDITION(_type)                                        \
+        type_register_static(                                               \
+            &glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_type_info));  \
+    }                                                                       \
+                                                                            \
+    type_init(                                                              \
+        glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_register_types))
+
 #define POWERPC_DEF(_name, _pvr, _type)                                       \
 POWERPC_DEF_SVR(_name, _pvr, POWERPC_SVR_NONE, _type)
 
-static const ppc_def_t ppc_defs[] = {
     /* Embedded PowerPC                                                      */
     /* PowerPC 401 family                                                    */
     /* Generic PowerPC 401 */
@@ -8782,7 +8815,6 @@ static const ppc_def_t ppc_defs[] = {
     /* PA PA6T */
     POWERPC_DEF("PA6T",          CPU_POWERPC_PA6T,                   PA6T)
 #endif
-};
 
 typedef struct PowerPCCPUAlias {
     const char *alias;
@@ -8981,8 +9013,10 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
 
 /*****************************************************************************/
 /* Generic CPU instantiation routine                                         */
-static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
+static void init_ppc_proc(PowerPCCPU *cpu)
 {
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUPPCState *env = &cpu->env;
 #if !defined(CONFIG_USER_ONLY)
     int i;
 
@@ -9010,23 +9044,23 @@ static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
 #endif
                  SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
-                 def->pvr);
+                 pcc->pvr);
     /* Register SVR if it's defined to anything else than POWERPC_SVR_NONE */
-    if (def->svr != POWERPC_SVR_NONE) {
-        if (def->svr & POWERPC_SVR_E500) {
+    if (pcc->svr != POWERPC_SVR_NONE) {
+        if (pcc->svr & POWERPC_SVR_E500) {
             spr_register(env, SPR_E500_SVR, "SVR",
                          SPR_NOACCESS, SPR_NOACCESS,
                          &spr_read_generic, SPR_NOACCESS,
-                         def->svr & ~POWERPC_SVR_E500);
+                         pcc->svr & ~POWERPC_SVR_E500);
         } else {
             spr_register(env, SPR_SVR, "SVR",
                          SPR_NOACCESS, SPR_NOACCESS,
                          &spr_read_generic, SPR_NOACCESS,
-                         def->svr);
+                         pcc->svr);
         }
     }
     /* PowerPC implementation specific initialisations (SPRs, timers, ...) */
-    (*def->init_proc)(env);
+    (*pcc->init_proc)(env);
 #if !defined(CONFIG_USER_ONLY)
     env->excp_prefix = env->hreset_excp_prefix;
 #endif
@@ -9377,13 +9411,12 @@ static void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
-    const ppc_def_t *def = pcc->info;
     opcode_t *opc;
 
     fill_new_table(env->opcodes, 0x40);
     for (opc = opcodes; opc < &opcodes[ARRAY_SIZE(opcodes)]; opc++) {
-        if (((opc->handler.type & def->insns_flags) != 0) ||
-            ((opc->handler.type2 & def->insns_flags2) != 0)) {
+        if (((opc->handler.type & pcc->insns_flags) != 0) ||
+            ((opc->handler.type2 & pcc->insns_flags2) != 0)) {
             if (register_insn(env->opcodes, opc) < 0) {
                 error_setg(errp, "ERROR initializing PowerPC instruction "
                            "0x%02x 0x%02x 0x%02x", opc->opc1, opc->opc2,
@@ -9615,7 +9648,6 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    ppc_def_t *def = pcc->info;
     Error *local_err = NULL;
 #if !defined(CONFIG_USER_ONLY)
     int max_smt = kvm_enabled() ? kvmppc_smt_threads() : 1;
@@ -9646,17 +9678,17 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    init_ppc_proc(env, def);
+    init_ppc_proc(cpu);
 
-    if (def->insns_flags & PPC_FLOAT) {
+    if (pcc->insns_flags & PPC_FLOAT) {
         gdb_register_coprocessor(env, gdb_get_float_reg, gdb_set_float_reg,
                                  33, "power-fpu.xml", 0);
     }
-    if (def->insns_flags & PPC_ALTIVEC) {
+    if (pcc->insns_flags & PPC_ALTIVEC) {
         gdb_register_coprocessor(env, gdb_get_avr_reg, gdb_set_avr_reg,
                                  34, "power-altivec.xml", 0);
     }
-    if (def->insns_flags & PPC_SPE) {
+    if (pcc->insns_flags & PPC_SPE) {
         gdb_register_coprocessor(env, gdb_get_spe_reg, gdb_set_spe_reg,
                                  34, "power-spe.xml", 0);
     }
@@ -9782,7 +9814,7 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         }
         printf("PowerPC %-12s : PVR %08x MSR %016" PRIx64 "\n"
                "    MMU model        : %s\n",
-               def->name, def->pvr, def->msr_mask, mmu_model);
+               pcc->name, pcc->pvr, pcc->msr_mask, mmu_model);
 #if !defined(CONFIG_USER_ONLY)
         if (env->tlb != NULL) {
             printf("                       %d %s TLB in %d ways\n",
@@ -9840,7 +9872,7 @@ static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)
         return -1;
     }
 
-    return pcc->info->pvr == pvr ? 0 : -1;
+    return pcc->pvr == pvr ? 0 : -1;
 }
 
 PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr)
@@ -9964,9 +9996,9 @@ static gint ppc_cpu_list_compare(gconstpointer a, gconstpointer b)
         return -1;
     } else {
         /* Avoid an integer overflow during subtraction */
-        if (pcc_a->info->pvr < pcc_b->info->pvr) {
+        if (pcc_a->pvr < pcc_b->pvr) {
             return -1;
-        } else if (pcc_a->info->pvr > pcc_b->info->pvr) {
+        } else if (pcc_a->pvr > pcc_b->pvr) {
             return 1;
         } else {
             return 0;
@@ -9985,7 +10017,7 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     name = g_strndup(typename,
                      strlen(typename) - strlen("-" TYPE_POWERPC_CPU));
     (*s->cpu_fprintf)(s->file, "PowerPC %-16s PVR %08x\n",
-                      name, pcc->info->pvr);
+                      name, pcc->pvr);
     g_free(name);
 }
 
@@ -10044,27 +10076,6 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     g_slist_free(list);
 
     return cpu_list;
-}
-
-static void ppc_cpu_def_class_init(ObjectClass *oc, void *data)
-{
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-    ppc_def_t *info = data;
-
-    pcc->info = info;
-}
-
-static void ppc_cpu_register_model(const ppc_def_t *def)
-{
-    TypeInfo type_info = {
-        .parent = TYPE_POWERPC_CPU,
-        .class_init = ppc_cpu_def_class_init,
-        .class_data = (void *)def,
-    };
-
-    type_info.name = g_strdup_printf("%s-" TYPE_POWERPC_CPU, def->name),
-    type_register(&type_info);
-    g_free((gpointer)type_info.name);
 }
 
 /* CPUClass::reset() */
@@ -10138,24 +10149,23 @@ static void ppc_cpu_initfn(Object *obj)
     PowerPCCPU *cpu = POWERPC_CPU(obj);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
-    ppc_def_t *def = pcc->info;
 
     cs->env_ptr = env;
     cpu_exec_init(env);
 
-    env->msr_mask = def->msr_mask;
-    env->mmu_model = def->mmu_model;
-    env->excp_model = def->excp_model;
-    env->bus_model = def->bus_model;
-    env->insns_flags = def->insns_flags;
-    env->insns_flags2 = def->insns_flags2;
-    env->flags = def->flags;
-    env->bfd_mach = def->bfd_mach;
-    env->check_pow = def->check_pow;
+    env->msr_mask = pcc->msr_mask;
+    env->mmu_model = pcc->mmu_model;
+    env->excp_model = pcc->excp_model;
+    env->bus_model = pcc->bus_model;
+    env->insns_flags = pcc->insns_flags;
+    env->insns_flags2 = pcc->insns_flags2;
+    env->flags = pcc->flags;
+    env->bfd_mach = pcc->bfd_mach;
+    env->check_pow = pcc->check_pow;
 
 #if defined(TARGET_PPC64)
-    if (def->sps) {
-        env->sps = *def->sps;
+    if (pcc->sps) {
+        env->sps = *pcc->sps;
     } else if (env->mmu_model & POWERPC_MMU_64) {
         /* Use default sets of page sizes */
         static const struct ppc_segment_page_sizes defsps = {
@@ -10206,20 +10216,7 @@ static const TypeInfo ppc_cpu_type_info = {
 
 static void ppc_cpu_register_types(void)
 {
-    int i;
-
     type_register_static(&ppc_cpu_type_info);
-
-    for (i = 0; i < ARRAY_SIZE(ppc_defs); i++) {
-        const ppc_def_t *def = &ppc_defs[i];
-#if defined(TARGET_PPCEMB)
-        /* When using the ppcemb target, we only support 440 style cores */
-        if (def->mmu_model != POWERPC_MMU_BOOKE) {
-            continue;
-        }
-#endif
-        ppc_cpu_register_model(def);
-    }
 }
 
 type_init(ppc_cpu_register_types)
