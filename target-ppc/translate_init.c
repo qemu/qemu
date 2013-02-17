@@ -7368,11 +7368,9 @@ enum {
     CPU_POWERPC_74x5_v32           = 0x80010302,
     CPU_POWERPC_74x5_v33           = 0x80010303, /* aka F: 3.3 */
     CPU_POWERPC_74x5_v34           = 0x80010304, /* aka G: 3.4 */
-#define CPU_POWERPC_74x7             CPU_POWERPC_74x7_v12
     CPU_POWERPC_74x7_v10           = 0x80020100, /* aka A: 1.0 */
     CPU_POWERPC_74x7_v11           = 0x80020101, /* aka B: 1.1 */
     CPU_POWERPC_74x7_v12           = 0x80020102, /* aka C: 1.2 */
-#define CPU_POWERPC_74x7A            CPU_POWERPC_74x7A_v12
     CPU_POWERPC_74x7A_v10          = 0x80030100, /* aka A: 1.0 */
     CPU_POWERPC_74x7A_v11          = 0x80030101, /* aka B: 1.1 */
     CPU_POWERPC_74x7A_v12          = 0x80030102, /* aka C: 1.2 */
@@ -8929,10 +8927,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("7445_v3.4",     CPU_POWERPC_74x5_v34,               7445)
     /* PowerPC 7455 v3.4 (G4)                                                */
     POWERPC_DEF("7455_v3.4",     CPU_POWERPC_74x5_v34,               7455)
-    /* PowerPC 7447 (G4)                                                     */
-    POWERPC_DEF("7447",          CPU_POWERPC_74x7,                   7445)
-    /* PowerPC 7457 (G4)                                                     */
-    POWERPC_DEF("7457",          CPU_POWERPC_74x7,                   7455)
     /* PowerPC 7447 v1.0 (G4)                                                */
     POWERPC_DEF("7447_v1.0",     CPU_POWERPC_74x7_v10,               7445)
     /* PowerPC 7457 v1.0 (G4)                                                */
@@ -8943,10 +8937,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("7457_v1.1",     CPU_POWERPC_74x7_v11,               7455)
     /* PowerPC 7457 v1.2 (G4)                                                */
     POWERPC_DEF("7457_v1.2",     CPU_POWERPC_74x7_v12,               7455)
-    /* PowerPC 7447A (G4)                                                    */
-    POWERPC_DEF("7447A",         CPU_POWERPC_74x7A,                  7445)
-    /* PowerPC 7457A (G4)                                                    */
-    POWERPC_DEF("7457A",         CPU_POWERPC_74x7A,                  7455)
     /* PowerPC 7447A v1.0 (G4)                                               */
     POWERPC_DEF("7447A_v1.0",    CPU_POWERPC_74x7A_v10,              7445)
     /* PowerPC 7457A v1.0 (G4)                                               */
@@ -9158,7 +9148,11 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "Nitro", "7410" },
     { "Vger", "7450" },
     { "Apollo6", "7455" },
+    { "7447", "7447_v1.2" },
+    { "7457", "7457_v1.2" },
     { "Apollo7", "7457" },
+    { "7447A", "7447A_v1.2" },
+    { "7457A", "7457A_v1.2" },
     { "Apollo7PM", "7457A_v1.0" },
 #if defined(TARGET_PPC64)
     { "Trident", "620" },
