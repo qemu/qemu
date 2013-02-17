@@ -7332,7 +7332,7 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "Boxer", "POWER3" },
     { "Dino",  "POWER3" },
     { "POWER3+", "631" },
-    { "POWER7", "POWER7_v2.0" },
+    { "POWER7", "POWER7_v2.3" },
     { "970fx", "970fx_v3.1" },
     { "970mp", "970mp_v1.1" },
     { "Apache", "RS64" },
