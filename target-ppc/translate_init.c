@@ -6671,7 +6671,6 @@ static void init_proc_970MP (CPUPPCState *env)
     vscr_init(env, 0x00010000);
 }
 
-#if defined(TARGET_PPC64)
 /* POWER7 */
 #define POWERPC_INSNS_POWER7  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -6755,7 +6754,6 @@ static void init_proc_POWER7 (CPUPPCState *env)
      * value is the one used by 74xx processors. */
     vscr_init(env, 0x00010000);
 }
-#endif /* TARGET_PPC64 */
 
 /* PowerPC 620                                                               */
 #define POWERPC_INSNS_620    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
