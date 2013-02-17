@@ -7049,22 +7049,16 @@ enum {
 #define CPU_POWERPC_MPC8240          CPU_POWERPC_MPC603
 #define CPU_POWERPC_MPC8241          CPU_POWERPC_G2_HIP4
 #define CPU_POWERPC_MPC8245          CPU_POWERPC_G2_HIP4
-#define CPU_POWERPC_MPC8250          CPU_POWERPC_MPC8250_HiP4
 #define CPU_POWERPC_MPC8250_HiP3     CPU_POWERPC_G2_HIP3
 #define CPU_POWERPC_MPC8250_HiP4     CPU_POWERPC_G2_HIP4
-#define CPU_POWERPC_MPC8255          CPU_POWERPC_MPC8255_HiP4
 #define CPU_POWERPC_MPC8255_HiP3     CPU_POWERPC_G2_HIP3
 #define CPU_POWERPC_MPC8255_HiP4     CPU_POWERPC_G2_HIP4
-#define CPU_POWERPC_MPC8260          CPU_POWERPC_MPC8260_HiP4
 #define CPU_POWERPC_MPC8260_HiP3     CPU_POWERPC_G2_HIP3
 #define CPU_POWERPC_MPC8260_HiP4     CPU_POWERPC_G2_HIP4
-#define CPU_POWERPC_MPC8264          CPU_POWERPC_MPC8264_HiP4
 #define CPU_POWERPC_MPC8264_HiP3     CPU_POWERPC_G2_HIP3
 #define CPU_POWERPC_MPC8264_HiP4     CPU_POWERPC_G2_HIP4
-#define CPU_POWERPC_MPC8265          CPU_POWERPC_MPC8265_HiP4
 #define CPU_POWERPC_MPC8265_HiP3     CPU_POWERPC_G2_HIP3
 #define CPU_POWERPC_MPC8265_HiP4     CPU_POWERPC_G2_HIP4
-#define CPU_POWERPC_MPC8266          CPU_POWERPC_MPC8266_HiP4
 #define CPU_POWERPC_MPC8266_HiP3     CPU_POWERPC_G2_HIP3
 #define CPU_POWERPC_MPC8266_HiP4     CPU_POWERPC_G2_HIP4
     /* e200 family */
@@ -7962,38 +7956,26 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("MPC8241",       CPU_POWERPC_MPC8241,                G2)
     /* MPC8245                                                               */
     POWERPC_DEF("MPC8245",       CPU_POWERPC_MPC8245,                G2)
-    /* MPC8250                                                               */
-    POWERPC_DEF("MPC8250",       CPU_POWERPC_MPC8250,                G2)
     /* MPC8250 HiP3                                                          */
     POWERPC_DEF("MPC8250_HiP3",  CPU_POWERPC_MPC8250_HiP3,           G2)
     /* MPC8250 HiP4                                                          */
     POWERPC_DEF("MPC8250_HiP4",  CPU_POWERPC_MPC8250_HiP4,           G2)
-    /* MPC8255                                                               */
-    POWERPC_DEF("MPC8255",       CPU_POWERPC_MPC8255,                G2)
     /* MPC8255 HiP3                                                          */
     POWERPC_DEF("MPC8255_HiP3",  CPU_POWERPC_MPC8255_HiP3,           G2)
     /* MPC8255 HiP4                                                          */
     POWERPC_DEF("MPC8255_HiP4",  CPU_POWERPC_MPC8255_HiP4,           G2)
-    /* MPC8260                                                               */
-    POWERPC_DEF("MPC8260",       CPU_POWERPC_MPC8260,                G2)
     /* MPC8260 HiP3                                                          */
     POWERPC_DEF("MPC8260_HiP3",  CPU_POWERPC_MPC8260_HiP3,           G2)
     /* MPC8260 HiP4                                                          */
     POWERPC_DEF("MPC8260_HiP4",  CPU_POWERPC_MPC8260_HiP4,           G2)
-    /* MPC8264                                                               */
-    POWERPC_DEF("MPC8264",       CPU_POWERPC_MPC8264,                G2)
     /* MPC8264 HiP3                                                          */
     POWERPC_DEF("MPC8264_HiP3",  CPU_POWERPC_MPC8264_HiP3,           G2)
     /* MPC8264 HiP4                                                          */
     POWERPC_DEF("MPC8264_HiP4",  CPU_POWERPC_MPC8264_HiP4,           G2)
-    /* MPC8265                                                               */
-    POWERPC_DEF("MPC8265",       CPU_POWERPC_MPC8265,                G2)
     /* MPC8265 HiP3                                                          */
     POWERPC_DEF("MPC8265_HiP3",  CPU_POWERPC_MPC8265_HiP3,           G2)
     /* MPC8265 HiP4                                                          */
     POWERPC_DEF("MPC8265_HiP4",  CPU_POWERPC_MPC8265_HiP4,           G2)
-    /* MPC8266                                                               */
-    POWERPC_DEF("MPC8266",       CPU_POWERPC_MPC8266,                G2)
     /* MPC8266 HiP3                                                          */
     POWERPC_DEF("MPC8266_HiP3",  CPU_POWERPC_MPC8266_HiP3,           G2)
     /* MPC8266 HiP4                                                          */
@@ -8931,6 +8913,12 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "PowerQUICC-II", "MPC82xx" },
     { "MPC8247", "G2leGP3" },
     { "MPC8248", "G2leGP3" },
+    { "MPC8250", "MPC8250_HiP4" },
+    { "MPC8255", "MPC8255_HiP4" },
+    { "MPC8260", "MPC8260_HiP4" },
+    { "MPC8264", "MPC8264_HiP4" },
+    { "MPC8265", "MPC8265_HiP4" },
+    { "MPC8266", "MPC8266_HiP4" },
     { "MPC8270", "G2leGP3" },
     { "MPC8271", "G2leGP3" },
     { "MPC8272", "G2leGP3" },
