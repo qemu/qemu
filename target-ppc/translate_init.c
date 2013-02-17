@@ -7059,21 +7059,6 @@ enum {
     CPU_POWERPC_MPC5xx             = 0x00020020,
     /* PowerPC MPC 8xx cores (aka PowerQUICC) */
     CPU_POWERPC_MPC8xx             = 0x00500000,
-#define CPU_POWERPC_MGT823           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC821           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC823           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC850           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC852T          CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC855T          CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC857           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC859           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC860           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC862           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC866           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC870           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC875           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC880           CPU_POWERPC_MPC8xx
-#define CPU_POWERPC_MPC885           CPU_POWERPC_MPC8xx
     /* G2 cores (aka PowerQUICC-II) */
     CPU_POWERPC_G2                 = 0x00810011,
     CPU_POWERPC_G2H4               = 0x80811010,
@@ -8047,67 +8032,6 @@ static const ppc_def_t ppc_defs[] = {
 #if defined(TODO_USER_ONLY)
     /* Generic MPC8xx core                                                   */
     POWERPC_DEF("MPC8xx",        CPU_POWERPC_MPC8xx,                 MPC8xx)
-#endif
-    /* MPC8xx microcontrollers                                               */
-#if defined(TODO_USER_ONLY)
-    /* MGT823                                                                */
-    POWERPC_DEF("MGT823",        CPU_POWERPC_MGT823,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC821                                                                */
-    POWERPC_DEF("MPC821",        CPU_POWERPC_MPC821,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC823                                                                */
-    POWERPC_DEF("MPC823",        CPU_POWERPC_MPC823,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC850                                                                */
-    POWERPC_DEF("MPC850",        CPU_POWERPC_MPC850,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC852T                                                               */
-    POWERPC_DEF("MPC852T",       CPU_POWERPC_MPC852T,                MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC855T                                                               */
-    POWERPC_DEF("MPC855T",       CPU_POWERPC_MPC855T,                MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC857                                                                */
-    POWERPC_DEF("MPC857",        CPU_POWERPC_MPC857,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC859                                                                */
-    POWERPC_DEF("MPC859",        CPU_POWERPC_MPC859,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC860                                                                */
-    POWERPC_DEF("MPC860",        CPU_POWERPC_MPC860,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC862                                                                */
-    POWERPC_DEF("MPC862",        CPU_POWERPC_MPC862,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC866                                                                */
-    POWERPC_DEF("MPC866",        CPU_POWERPC_MPC866,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC870                                                                */
-    POWERPC_DEF("MPC870",        CPU_POWERPC_MPC870,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC875                                                                */
-    POWERPC_DEF("MPC875",        CPU_POWERPC_MPC875,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC880                                                                */
-    POWERPC_DEF("MPC880",        CPU_POWERPC_MPC880,                 MPC8xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC885                                                                */
-    POWERPC_DEF("MPC885",        CPU_POWERPC_MPC885,                 MPC8xx)
 #endif
     /* MPC82xx family (aka PowerQUICC-II)                                    */
     /* Generic MPC52xx core                                                  */
@@ -9253,6 +9177,23 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "MPC566", "MPC5xx" },
 
     { "PowerQUICC", "MPC8xx" },
+    /* MPC8xx microcontrollers */
+    { "MGT823", "MPC8xx" },
+    { "MPC821", "MPC8xx" },
+    { "MPC823", "MPC8xx" },
+    { "MPC850", "MPC8xx" },
+    { "MPC852T", "MPC8xx" },
+    { "MPC855T", "MPC8xx" },
+    { "MPC857", "MPC8xx" },
+    { "MPC859", "MPC8xx" },
+    { "MPC860", "MPC8xx" },
+    { "MPC862", "MPC8xx" },
+    { "MPC866", "MPC8xx" },
+    { "MPC870", "MPC8xx" },
+    { "MPC875", "MPC8xx" },
+    { "MPC880", "MPC8xx" },
+    { "MPC885", "MPC8xx" },
+
     { "PowerQUICC-II", "MPC82xx" },
     { "e500", "e500v2_v22" },
     { "Vanilla", "603" },
