@@ -7057,19 +7057,6 @@ enum {
     /* Freescale embedded PowerPC cores */
     /* PowerPC MPC 5xx cores (aka RCPU) */
     CPU_POWERPC_MPC5xx             = 0x00020020,
-#define CPU_POWERPC_MGT560           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC509           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC533           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC534           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC555           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC556           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC560           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC561           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC562           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC563           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC564           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC565           CPU_POWERPC_MPC5xx
-#define CPU_POWERPC_MPC566           CPU_POWERPC_MPC5xx
     /* PowerPC MPC 8xx cores (aka PowerQUICC) */
     CPU_POWERPC_MPC8xx             = 0x00500000,
 #define CPU_POWERPC_MGT823           CPU_POWERPC_MPC8xx
@@ -8055,59 +8042,6 @@ static const ppc_def_t ppc_defs[] = {
 #if defined(TODO_USER_ONLY)
     /* Generic MPC5xx core                                                   */
     POWERPC_DEF("MPC5xx",        CPU_POWERPC_MPC5xx,                 MPC5xx)
-#endif
-    /* MPC5xx microcontrollers                                               */
-#if defined(TODO_USER_ONLY)
-    /* MGT560                                                                */
-    POWERPC_DEF("MGT560",        CPU_POWERPC_MGT560,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC509                                                                */
-    POWERPC_DEF("MPC509",        CPU_POWERPC_MPC509,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC533                                                                */
-    POWERPC_DEF("MPC533",        CPU_POWERPC_MPC533,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC534                                                                */
-    POWERPC_DEF("MPC534",        CPU_POWERPC_MPC534,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC555                                                                */
-    POWERPC_DEF("MPC555",        CPU_POWERPC_MPC555,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC556                                                                */
-    POWERPC_DEF("MPC556",        CPU_POWERPC_MPC556,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC560                                                                */
-    POWERPC_DEF("MPC560",        CPU_POWERPC_MPC560,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC561                                                                */
-    POWERPC_DEF("MPC561",        CPU_POWERPC_MPC561,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC562                                                                */
-    POWERPC_DEF("MPC562",        CPU_POWERPC_MPC562,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC563                                                                */
-    POWERPC_DEF("MPC563",        CPU_POWERPC_MPC563,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC564                                                                */
-    POWERPC_DEF("MPC564",        CPU_POWERPC_MPC564,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC565                                                                */
-    POWERPC_DEF("MPC565",        CPU_POWERPC_MPC565,                 MPC5xx)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* MPC566                                                                */
-    POWERPC_DEF("MPC566",        CPU_POWERPC_MPC566,                 MPC5xx)
 #endif
     /* MPC8xx family (aka PowerQUICC)                                        */
 #if defined(TODO_USER_ONLY)
@@ -9303,6 +9237,21 @@ typedef struct PowerPCCPUAlias {
 
 static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "RCPU", "MPC5xx" },
+    /* MPC5xx microcontrollers */
+    { "MGT560", "MPC5xx" },
+    { "MPC509", "MPC5xx" },
+    { "MPC533", "MPC5xx" },
+    { "MPC534", "MPC5xx" },
+    { "MPC555", "MPC5xx" },
+    { "MPC556", "MPC5xx" },
+    { "MPC560", "MPC5xx" },
+    { "MPC561", "MPC5xx" },
+    { "MPC562", "MPC5xx" },
+    { "MPC563", "MPC5xx" },
+    { "MPC564", "MPC5xx" },
+    { "MPC565", "MPC5xx" },
+    { "MPC566", "MPC5xx" },
+
     { "PowerQUICC", "MPC8xx" },
     { "PowerQUICC-II", "MPC82xx" },
     { "e500", "e500v2_v22" },
