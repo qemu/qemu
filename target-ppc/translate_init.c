@@ -7313,7 +7313,6 @@ enum {
     CPU_POWERPC_750L_v30           = 0x00088300,
     CPU_POWERPC_750L_v32           = 0x00088302,
     /* PowerPC 745/755 cores */
-#define CPU_POWERPC_7x5              CPU_POWERPC_7x5_v28
     CPU_POWERPC_7x5_v10            = 0x00083100,
     CPU_POWERPC_7x5_v11            = 0x00083101,
     CPU_POWERPC_7x5_v20            = 0x00083200,
@@ -8774,10 +8773,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("750l_v3.0",     CPU_POWERPC_750L_v30,               750)
     /* PowerPC 750L v3.2 (G3 embedded)                                       */
     POWERPC_DEF("750l_v3.2",     CPU_POWERPC_750L_v32,               750)
-    /* Generic PowerPC 745                                                   */
-    POWERPC_DEF("745",           CPU_POWERPC_7x5,                    745)
-    /* Generic PowerPC 755                                                   */
-    POWERPC_DEF("755",           CPU_POWERPC_7x5,                    755)
     /* PowerPC 745 v1.0                                                      */
     POWERPC_DEF("745_v1.0",      CPU_POWERPC_7x5_v10,                745)
     /* PowerPC 755 v1.0                                                      */
@@ -9120,6 +9115,8 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "G3",      "750" },
     { "Conan/Doyle", "750p" },
     { "LoneStar", "750l" },
+    { "745", "745_v2.8" },
+    { "755", "755_v2.8" },
     { "Goldfinger", "755" },
     { "7400", "7400_v2.9" },
     { "Max", "7400" },
