@@ -7923,7 +7923,7 @@ enum {
                 "PowerPC 401A1")
     POWERPC_DEF("401B2",         CPU_POWERPC_401B2,                  401x2,
                 "PowerPC 401B2")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("401B3",         CPU_POWERPC_401B3,                  401x3,
                 "PowerPC 401B3")
 #endif
@@ -7939,7 +7939,7 @@ enum {
     POWERPC_DEF("401G2",         CPU_POWERPC_401G2,                  401x2,
                 "PowerPC 401G2")
     /* PowerPC 401 microcontrolers                                           */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("401GF",         CPU_POWERPC_401GF,                  401,
                 "PowerPC 401GF")
 #endif
@@ -7947,7 +7947,7 @@ enum {
                 "IOP480 (401 microcontroller)")
     POWERPC_DEF("Cobra",         CPU_POWERPC_COBRA,                  401,
                 "IBM Processor for Network Resources")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("Xipchip",       CPU_POWERPC_XIPCHIP,                401,
                 NULL)
 #endif
@@ -7961,61 +7961,61 @@ enum {
                 "PowerPC 403 GC")
     POWERPC_DEF("403GCX",        CPU_POWERPC_403GCX,                 403GCX,
                 "PowerPC 403 GCX")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("403GP",         CPU_POWERPC_403GP,                  403,
                 "PowerPC 403 GP")
 #endif
     /* PowerPC 405 family                                                    */
     /* PowerPC 405 cores                                                     */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405A3",         CPU_POWERPC_405A3,                  405,
                 "PowerPC 405 A3")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405A4",         CPU_POWERPC_405A4,                  405,
                 "PowerPC 405 A4")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405B3",         CPU_POWERPC_405B3,                  405,
                 "PowerPC 405 B3")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405B4",         CPU_POWERPC_405B4,                  405,
                 "PowerPC 405 B4")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405C3",         CPU_POWERPC_405C3,                  405,
                 "PowerPC 405 C3")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405C4",         CPU_POWERPC_405C4,                  405,
                 "PowerPC 405 C4")
 #endif
     POWERPC_DEF("405D2",         CPU_POWERPC_405D2,                  405,
                 "PowerPC 405 D2")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405D3",         CPU_POWERPC_405D3,                  405,
                 "PowerPC 405 D3")
 #endif
     POWERPC_DEF("405D4",         CPU_POWERPC_405D4,                  405,
                 "PowerPC 405 D4")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405D5",         CPU_POWERPC_405D5,                  405,
                 "PowerPC 405 D5")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405E4",         CPU_POWERPC_405E4,                  405,
                 "PowerPC 405 E4")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405F4",         CPU_POWERPC_405F4,                  405,
                 "PowerPC 405 F4")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405F5",         CPU_POWERPC_405F5,                  405,
                 "PowerPC 405 F5")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("405F6",         CPU_POWERPC_405F6,                  405,
                 "PowerPC 405 F6")
 #endif
@@ -8078,38 +8078,38 @@ enum {
                 "Npe405 L")
     POWERPC_DEF("Npe4GS3",       CPU_POWERPC_NPE4GS3,                405,
                 "Npe4GS3")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("Npcxx1",        CPU_POWERPC_NPCxx1,                 405,
                 NULL)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("Npr161",        CPU_POWERPC_NPR161,                 405,
                 NULL)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("LC77700",       CPU_POWERPC_LC77700,                405,
                 "PowerPC LC77700 (Sanyo)")
 #endif
     /* PowerPC 401/403/405 based set-top-box microcontrolers                 */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("STB01000",      CPU_POWERPC_STB01000,               401x2,
                 "STB010000")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("STB01010",      CPU_POWERPC_STB01010,               401x2,
                 "STB01010")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("STB0210",       CPU_POWERPC_STB0210,                401x3,
                 "STB0210")
 #endif
     POWERPC_DEF("STB03",         CPU_POWERPC_STB03,                  405,
                 "STB03xx")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("STB043",        CPU_POWERPC_STB043,                 405,
                 "STB043x")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("STB045",        CPU_POWERPC_STB045,                 405,
                 "STB045x")
 #endif
@@ -8117,7 +8117,7 @@ enum {
                 "STB04xx")
     POWERPC_DEF("STB25",         CPU_POWERPC_STB25,                  405,
                 "STB25xx")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("STB130",        CPU_POWERPC_STB130,                 405,
                 "STB130")
 #endif
@@ -8126,19 +8126,19 @@ enum {
                 NULL)
     POWERPC_DEF("x2vp20",        CPU_POWERPC_X2VP20,                 405,
                 NULL)
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("zl10310",       CPU_POWERPC_ZL10310,                405,
                 "Zarlink ZL10310")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("zl10311",       CPU_POWERPC_ZL10311,                405,
                 "Zarlink ZL10311")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("zl10320",       CPU_POWERPC_ZL10320,                405,
                 "Zarlink ZL10320")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("zl10321",       CPU_POWERPC_ZL10321,                405,
                 "Zarlink ZL10321")
 #endif
@@ -8148,37 +8148,37 @@ enum {
                 "Generic PowerPC 440")
 #endif
     /* PowerPC 440 cores                                                     */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("440A4",         CPU_POWERPC_440A4,                  440x4,
                 "PowerPC 440 A4")
 #endif
     POWERPC_DEF("440-Xilinx",    CPU_POWERPC_440_XILINX,             440x5,
                 "PowerPC 440 Xilinx 5")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("440A5",         CPU_POWERPC_440A5,                  440x5,
                 "PowerPC 440 A5")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("440B4",         CPU_POWERPC_440B4,                  440x4,
                 "PowerPC 440 B4")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("440G4",         CPU_POWERPC_440G4,                  440x4,
                 "PowerPC 440 G4")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("440F5",         CPU_POWERPC_440F5,                  440x5,
                 "PowerPC 440 F5")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("440G5",         CPU_POWERPC_440G5,                  440x5,
                 "PowerPC 440 G5")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("440H4",         CPU_POWERPC_440H4,                  440x4,
                 "PowerPC 440H4")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("440H6",         CPU_POWERPC_440H6,                  440Gx5,
                 "PowerPC 440H6")
 #endif
@@ -8238,16 +8238,16 @@ enum {
                 "PowerPC 440 SPE")
 #endif
     /* PowerPC 460 family                                                    */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("464",           CPU_POWERPC_464,                    460,
                 "Generic PowerPC 464")
 #endif
     /* PowerPC 464 microcontrolers                                           */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("464H90",        CPU_POWERPC_464H90,                 460,
                 "PowerPC 464H90")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("464H90F",       CPU_POWERPC_464H90F,                460F,
                 "PowerPC 464H90F")
 #endif
@@ -8303,19 +8303,19 @@ enum {
     POWERPC_DEF_SVR("MPC5200B_v21", "MPC5200B v2.1",
                     CPU_POWERPC_MPC5200B_v21, POWERPC_SVR_5200B_v21, G2LE)
     /* e200 family                                                           */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC55xx", "Generic MPC55xx core",
                     CPU_POWERPC_MPC55xx,      POWERPC_SVR_55xx,      e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("e200z0",        CPU_POWERPC_e200z0,                 e200,
                 "PowerPC e200z0 core")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("e200z1",        CPU_POWERPC_e200z1,                 e200,
                 "PowerPC e200z1 core")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("e200z3",        CPU_POWERPC_e200z3,                 e200,
                 "PowerPC e200z3 core")
 #endif
@@ -8324,91 +8324,91 @@ enum {
     POWERPC_DEF("e200z6",        CPU_POWERPC_e200z6,                 e200,
                 "PowerPC e200z6 core")
     /* PowerPC e200 microcontrollers                                         */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5514E", "MPC5514E",
                     CPU_POWERPC_MPC5514E,     POWERPC_SVR_5514E,     e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5514E_v0", "MPC5514E v0",
                     CPU_POWERPC_MPC5514E_v0,  POWERPC_SVR_5514E_v0,  e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5514E_v1", "MPC5514E v1",
                     CPU_POWERPC_MPC5514E_v1,  POWERPC_SVR_5514E_v1,  e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5514G", "MPC5514G",
                     CPU_POWERPC_MPC5514G,     POWERPC_SVR_5514G,     e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5514G_v0", "MPC5514G v0",
                     CPU_POWERPC_MPC5514G_v0,  POWERPC_SVR_5514G_v0,  e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5514G_v1", "MPC5514G v1",
                     CPU_POWERPC_MPC5514G_v1,  POWERPC_SVR_5514G_v1,  e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5515S", "MPC5515S",
                     CPU_POWERPC_MPC5515S,     POWERPC_SVR_5515S,     e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5516E", "MPC5516E",
                     CPU_POWERPC_MPC5516E,     POWERPC_SVR_5516E,     e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5516E_v0", "MPC5516E v0",
                     CPU_POWERPC_MPC5516E_v0,  POWERPC_SVR_5516E_v0,  e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5516E_v1", "MPC5516E v1",
                     CPU_POWERPC_MPC5516E_v1,  POWERPC_SVR_5516E_v1,  e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5516G", "MPC5516G",
                     CPU_POWERPC_MPC5516G,     POWERPC_SVR_5516G,     e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5516G_v0", "MPC5516G v0",
                     CPU_POWERPC_MPC5516G_v0,  POWERPC_SVR_5516G_v0,  e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5516G_v1", "MPC5516G v1",
                     CPU_POWERPC_MPC5516G_v1,  POWERPC_SVR_5516G_v1,  e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5516S", "MPC5516S",
                     CPU_POWERPC_MPC5516S,     POWERPC_SVR_5516S,     e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5533", "MPC5533",
                     CPU_POWERPC_MPC5533,      POWERPC_SVR_5533,      e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5534", "MPC5534",
                     CPU_POWERPC_MPC5534,      POWERPC_SVR_5534,      e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5553", "MPC5553",
                     CPU_POWERPC_MPC5553,      POWERPC_SVR_5553,      e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5554", "MPC5554",
                     CPU_POWERPC_MPC5554,      POWERPC_SVR_5554,      e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5561", "MPC5561",
                     CPU_POWERPC_MPC5561,      POWERPC_SVR_5561,      e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5565", "MPC5565",
                     CPU_POWERPC_MPC5565,      POWERPC_SVR_5565,      e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5566", "MPC5566",
                     CPU_POWERPC_MPC5566,      POWERPC_SVR_5566,      e200)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC5567", "MPC5567",
                     CPU_POWERPC_MPC5567,      POWERPC_SVR_5567,      e200)
 #endif
@@ -8422,43 +8422,43 @@ enum {
     POWERPC_DEF("e300c4",        CPU_POWERPC_e300c4,                 e300,
                 "PowerPC e300c4 core")
     /* PowerPC e300 microcontrollers                                         */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8313", "MPC8313",
                     CPU_POWERPC_MPC831x,      POWERPC_SVR_8313,      e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8313E", "MPC8313E",
                     CPU_POWERPC_MPC831x,      POWERPC_SVR_8313E,     e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8314", "MPC8314",
                     CPU_POWERPC_MPC831x,      POWERPC_SVR_8314,      e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8314E", "MPC8314E",
                     CPU_POWERPC_MPC831x,      POWERPC_SVR_8314E,     e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8315", "MPC8315",
                     CPU_POWERPC_MPC831x,      POWERPC_SVR_8315,      e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8315E", "MPC8315E",
                     CPU_POWERPC_MPC831x,      POWERPC_SVR_8315E,     e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8321", "MPC8321",
                     CPU_POWERPC_MPC832x,      POWERPC_SVR_8321,      e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8321E", "MPC8321E",
                     CPU_POWERPC_MPC832x,      POWERPC_SVR_8321E,     e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8323", "MPC8323",
                     CPU_POWERPC_MPC832x,      POWERPC_SVR_8323,      e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8323E", "MPC8323E",
                     CPU_POWERPC_MPC832x,      POWERPC_SVR_8323E,     e300)
 #endif
@@ -8494,11 +8494,11 @@ enum {
                     CPU_POWERPC_MPC834x,      POWERPC_SVR_8349E,     e300)
     POWERPC_DEF_SVR("MPC8349EA", "MPC8349EA",
                     CPU_POWERPC_MPC834x,      POWERPC_SVR_8349EA,    e300)
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8358E", "MPC8358E",
                     CPU_POWERPC_MPC835x,      POWERPC_SVR_8358E,     e300)
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8360E", "MPC8360E",
                     CPU_POWERPC_MPC836x,      POWERPC_SVR_8360E,     e300)
 #endif
@@ -8640,7 +8640,7 @@ enum {
     POWERPC_DEF("e600",          CPU_POWERPC_e600,                   7400,
                 "PowerPC e600 core")
     /* PowerPC e600 microcontrollers                                         */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF_SVR("MPC8610", "MPC8610",
                     CPU_POWERPC_MPC8610,      POWERPC_SVR_8610,      7400)
 #endif
@@ -8839,7 +8839,7 @@ enum {
                 "PowerPC 745 v2.8")
     POWERPC_DEF("755_v2.8",      CPU_POWERPC_7x5_v28,                755,
                 "PowerPC 755 v2.8")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("745p",          CPU_POWERPC_7x5P,                   745,
                 "PowerPC 745P (G3)")
     POWERPC_DEF("755p",          CPU_POWERPC_7x5P,                   755,
@@ -8948,35 +8948,35 @@ enum {
 #if defined (TARGET_PPC64)
     POWERPC_DEF("620",           CPU_POWERPC_620,                    620,
                 "PowerPC 620")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("630",           CPU_POWERPC_630,                    630,
                 "PowerPC 630 (POWER3)")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("631",           CPU_POWERPC_631,                    631,
                 "PowerPC 631 (Power 3+)")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("POWER4",        CPU_POWERPC_POWER4,                 POWER4,
                 "POWER4")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("POWER4+",       CPU_POWERPC_POWER4P,                POWER4P,
                 "POWER4p")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("POWER5",        CPU_POWERPC_POWER5,                 POWER5,
                 "POWER5")
     POWERPC_DEF("POWER5gr",      CPU_POWERPC_POWER5GR,               POWER5,
                 "POWER5GR")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("POWER5+",       CPU_POWERPC_POWER5P,                POWER5P,
                 "POWER5+")
     POWERPC_DEF("POWER5gs",      CPU_POWERPC_POWER5GS,               POWER5P,
                 "POWER5GS")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("POWER6",        CPU_POWERPC_POWER6,                 POWER6,
                 "POWER6")
     POWERPC_DEF("POWER6_5",      CPU_POWERPC_POWER6_5,               POWER5,
@@ -9008,31 +9008,31 @@ enum {
                 "PowerPC 970MP v1.0")
     POWERPC_DEF("970mp_v1.1",    CPU_POWERPC_970MP_v11,              970MP,
                 "PowerPC 970MP v1.1")
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("Cell",          CPU_POWERPC_CELL,                   970,
                 "PowerPC Cell")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("Cell_v1.0",     CPU_POWERPC_CELL_v10,               970,
                 "PowerPC Cell v1.0")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("Cell_v2.0",     CPU_POWERPC_CELL_v20,               970,
                 "PowerPC Cell v2.0")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("Cell_v3.0",     CPU_POWERPC_CELL_v30,               970,
                 "PowerPC Cell v3.0")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("Cell_v3.1",     CPU_POWERPC_CELL_v31,               970,
                 "PowerPC Cell v3.1")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("Cell_v3.2",     CPU_POWERPC_CELL_v32,               970,
                 "PowerPC Cell v3.2")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     /* This one seems to support the whole POWER2 instruction set
      * and the PowerPC 64 one.
      */
@@ -9040,30 +9040,30 @@ enum {
     POWERPC_DEF("RS64",          CPU_POWERPC_RS64,                   RS64,
                 "RS64 (Apache/A35)")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("RS64-II",       CPU_POWERPC_RS64II,                 RS64,
                 "RS64-II (NorthStar/A50)")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("RS64-III",      CPU_POWERPC_RS64III,                RS64,
                 "RS64-III (Pulsar)")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("RS64-IV",       CPU_POWERPC_RS64IV,                 RS64,
                 "RS64-IV (IceStar/IStar/SStar)")
 #endif
 #endif /* defined (TARGET_PPC64) */
     /* POWER                                                                 */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("POWER",         CPU_POWERPC_POWER,                  POWER,
                 "Original POWER")
 #endif
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("POWER2",        CPU_POWERPC_POWER2,                 POWER,
                 "POWER2")
 #endif
     /* PA semi cores                                                         */
-#if defined (TODO)
+#if defined(TODO)
     POWERPC_DEF("PA6T",          CPU_POWERPC_PA6T,                   PA6T,
                 "PA PA6T")
 #endif
