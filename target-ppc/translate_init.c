@@ -3275,13 +3275,6 @@ static int check_pow_hid0_74xx (CPUPPCState *env)
     static void glue(glue(ppc_, _name), _cpu_family_class_init)
 
 /* PowerPC 401                                                               */
-#define POWERPC_INSNS_401    (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_WRTEE | PPC_DCR |                           \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |     \
-                              PPC_CACHE_DCBZ |                                \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_4xx_COMMON | PPC_40x_EXCP)
-#define POWERPC_INSNS2_401   (PPC_NONE)
 #define POWERPC_MSRM_401     (0x00000000000FD201ULL)
 #define POWERPC_MMU_401      (POWERPC_MMU_REAL)
 #define POWERPC_EXCP_401     (POWERPC_EXCP_40x)
@@ -3311,17 +3304,16 @@ POWERPC_FAMILY(401)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_401;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_WRTEE | PPC_DCR |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
+                       PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_4xx_COMMON | PPC_40x_EXCP;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 401x2                                                             */
-#define POWERPC_INSNS_401x2  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_DCR | PPC_WRTEE |                           \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |     \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
-                              PPC_4xx_COMMON | PPC_40x_EXCP)
-#define POWERPC_INSNS2_401x2 (PPC_NONE)
 #define POWERPC_MSRM_401x2   (0x00000000001FD231ULL)
 #define POWERPC_MMU_401x2    (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_401x2   (POWERPC_EXCP_40x)
@@ -3359,17 +3351,17 @@ POWERPC_FAMILY(401x2)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_401x2;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_DCR | PPC_WRTEE |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
+                       PPC_4xx_COMMON | PPC_40x_EXCP;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 401x3                                                             */
-#define POWERPC_INSNS_401x3  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_DCR | PPC_WRTEE |                           \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |     \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
-                              PPC_4xx_COMMON | PPC_40x_EXCP)
-#define POWERPC_INSNS2_401x3 (PPC_NONE)
 #define POWERPC_MSRM_401x3   (0x00000000001FD631ULL)
 #define POWERPC_MMU_401x3    (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_401x3   (POWERPC_EXCP_40x)
@@ -3401,17 +3393,17 @@ POWERPC_FAMILY(401x3)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_401x3;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_DCR | PPC_WRTEE |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
+                       PPC_4xx_COMMON | PPC_40x_EXCP;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* IOP480                                                                    */
-#define POWERPC_INSNS_IOP480 (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_DCR | PPC_WRTEE |                           \
-                              PPC_CACHE | PPC_CACHE_ICBI |  PPC_40x_ICBT |    \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
-                              PPC_4xx_COMMON | PPC_40x_EXCP)
-#define POWERPC_INSNS2_IOP480 (PPC_NONE)
 #define POWERPC_MSRM_IOP480  (0x00000000001FD231ULL)
 #define POWERPC_MMU_IOP480   (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_IOP480  (POWERPC_EXCP_40x)
@@ -3449,16 +3441,17 @@ POWERPC_FAMILY(IOP480)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_IOP480;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_DCR | PPC_WRTEE |
+                       PPC_CACHE | PPC_CACHE_ICBI |  PPC_40x_ICBT |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
+                       PPC_4xx_COMMON | PPC_40x_EXCP;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 403                                                               */
-#define POWERPC_INSNS_403    (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_DCR | PPC_WRTEE |                           \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |     \
-                              PPC_CACHE_DCBZ |                                \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_4xx_COMMON | PPC_40x_EXCP)
-#define POWERPC_INSNS2_403   (PPC_NONE)
 #define POWERPC_MSRM_403     (0x000000000007D00DULL)
 #define POWERPC_MMU_403      (POWERPC_MMU_REAL)
 #define POWERPC_EXCP_403     (POWERPC_EXCP_40x)
@@ -3489,17 +3482,16 @@ POWERPC_FAMILY(403)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_403;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_DCR | PPC_WRTEE |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
+                       PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_4xx_COMMON | PPC_40x_EXCP;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 403 GCX                                                           */
-#define POWERPC_INSNS_403GCX (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_DCR | PPC_WRTEE |                           \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |     \
-                              PPC_CACHE_DCBZ |                                \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
-                              PPC_4xx_COMMON | PPC_40x_EXCP)
-#define POWERPC_INSNS2_403GCX (PPC_NONE)
 #define POWERPC_MSRM_403GCX  (0x000000000007D00DULL)
 #define POWERPC_MMU_403GCX   (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_403GCX  (POWERPC_EXCP_40x)
@@ -3549,17 +3541,17 @@ POWERPC_FAMILY(403GCX)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_403GCX;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_DCR | PPC_WRTEE |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
+                       PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
+                       PPC_4xx_COMMON | PPC_40x_EXCP;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 405                                                               */
-#define POWERPC_INSNS_405    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_DCR | PPC_WRTEE |                           \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |     \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
-                              PPC_4xx_COMMON | PPC_405_MAC | PPC_40x_EXCP)
-#define POWERPC_INSNS2_405   (PPC_NONE)
 #define POWERPC_MSRM_405     (0x000000000006E630ULL)
 #define POWERPC_MMU_405      (POWERPC_MMU_SOFT_4xx)
 #define POWERPC_EXCP_405     (POWERPC_EXCP_40x)
@@ -3608,20 +3600,17 @@ POWERPC_FAMILY(405)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_405;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_DCR | PPC_WRTEE |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
+                       PPC_4xx_COMMON | PPC_405_MAC | PPC_40x_EXCP;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 440 EP                                                            */
-#define POWERPC_INSNS_440EP  (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_FLOAT | PPC_FLOAT_FRES | PPC_FLOAT_FSEL |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_DCR | PPC_WRTEE | PPC_RFMCI |               \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_TLBSYNC | PPC_MFTB |                    \
-                              PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
-                              PPC_440_SPEC)
-#define POWERPC_INSNS2_440EP (PPC_NONE)
 #define POWERPC_MSRM_440EP   (0x000000000006FF30ULL)
 #define POWERPC_MMU_440EP    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440EP   (POWERPC_EXCP_BOOKE)
@@ -3702,17 +3691,20 @@ POWERPC_FAMILY(440EP)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_440EP;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_FLOAT | PPC_FLOAT_FRES | PPC_FLOAT_FSEL |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_DCR | PPC_WRTEE | PPC_RFMCI |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_MFTB |
+                       PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
+                       PPC_440_SPEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 440 GP                                                            */
-#define POWERPC_INSNS_440GP  (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_DCR | PPC_DCRX | PPC_WRTEE | PPC_MFAPIDI |  \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_TLBSYNC | PPC_TLBIVA | PPC_MFTB |       \
-                              PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
-                              PPC_440_SPEC)
-#define POWERPC_INSNS2_440GP (PPC_NONE)
 #define POWERPC_MSRM_440GP   (0x000000000006FF30ULL)
 #define POWERPC_MMU_440GP    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440GP   (POWERPC_EXCP_BOOKE)
@@ -3775,17 +3767,17 @@ POWERPC_FAMILY(440GP)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_440GP;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_DCR | PPC_DCRX | PPC_WRTEE | PPC_MFAPIDI |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_TLBIVA | PPC_MFTB |
+                       PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
+                       PPC_440_SPEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 440x4                                                             */
-#define POWERPC_INSNS_440x4  (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_DCR | PPC_WRTEE |                           \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_TLBSYNC | PPC_MFTB |                    \
-                              PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
-                              PPC_440_SPEC)
-#define POWERPC_INSNS2_440x4 (PPC_NONE)
 #define POWERPC_MSRM_440x4   (0x000000000006FF30ULL)
 #define POWERPC_MMU_440x4    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440x4   (POWERPC_EXCP_BOOKE)
@@ -3848,17 +3840,17 @@ POWERPC_FAMILY(440x4)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_440x4;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_DCR | PPC_WRTEE |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_MFTB |
+                       PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
+                       PPC_440_SPEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 440x5                                                             */
-#define POWERPC_INSNS_440x5  (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_DCR | PPC_WRTEE | PPC_RFMCI |               \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_TLBSYNC | PPC_MFTB |                    \
-                              PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
-                              PPC_440_SPEC)
-#define POWERPC_INSNS2_440x5 (PPC_NONE)
 #define POWERPC_MSRM_440x5   (0x000000000006FF30ULL)
 #define POWERPC_MMU_440x5    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440x5   (POWERPC_EXCP_BOOKE)
@@ -3939,18 +3931,17 @@ POWERPC_FAMILY(440x5)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_440x5;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_DCR | PPC_WRTEE | PPC_RFMCI |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_MFTB |
+                       PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
+                       PPC_440_SPEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 460 (guessed)                                                     */
-#define POWERPC_INSNS_460    (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_DCR | PPC_DCRX  | PPC_DCRUX |               \
-                              PPC_WRTEE | PPC_MFAPIDI | PPC_MFTB |            \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_TLBSYNC | PPC_TLBIVA |                  \
-                              PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
-                              PPC_440_SPEC)
-#define POWERPC_INSNS2_460   (PPC_NONE)
 #define POWERPC_MSRM_460     (0x000000000006FF30ULL)
 #define POWERPC_MMU_460      (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_460     (POWERPC_EXCP_BOOKE)
@@ -4036,21 +4027,18 @@ POWERPC_FAMILY(460)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_460;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_DCR | PPC_DCRX  | PPC_DCRUX |
+                       PPC_WRTEE | PPC_MFAPIDI | PPC_MFTB |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_TLBIVA |
+                       PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
+                       PPC_440_SPEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 460F (guessed)                                                    */
-#define POWERPC_INSNS_460F   (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_FLOAT | PPC_FLOAT_FRES | PPC_FLOAT_FSEL |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX | PPC_MFTB |                   \
-                              PPC_DCR | PPC_DCRX | PPC_DCRUX |                \
-                              PPC_WRTEE | PPC_MFAPIDI |                       \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_TLBSYNC | PPC_TLBIVA |                  \
-                              PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
-                              PPC_440_SPEC)
-#define POWERPC_INSNS2_460F  (PPC_NONE)
 #define POWERPC_MSRM_460     (0x000000000006FF30ULL)
 #define POWERPC_MMU_460F     (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_460F    (POWERPC_EXCP_BOOKE)
@@ -4136,14 +4124,21 @@ POWERPC_FAMILY(460F)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_460F;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_FLOAT | PPC_FLOAT_FRES | PPC_FLOAT_FSEL |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX | PPC_MFTB |
+                       PPC_DCR | PPC_DCRX | PPC_DCRUX |
+                       PPC_WRTEE | PPC_MFAPIDI |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_TLBIVA |
+                       PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
+                       PPC_440_SPEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* Freescale 5xx cores (aka RCPU) */
-#define POWERPC_INSNS_MPC5xx (PPC_INSNS_BASE | PPC_STRING |                   \
-                              PPC_MEM_EIEIO | PPC_MEM_SYNC |                  \
-                              PPC_CACHE_ICBI | PPC_FLOAT | PPC_FLOAT_STFIWX | \
-                              PPC_MFTB)
-#define POWERPC_INSNS2_MPC5xx (PPC_NONE)
 #define POWERPC_MSRM_MPC5xx  (0x000000000001FF43ULL)
 #define POWERPC_MMU_MPC5xx   (POWERPC_MMU_REAL)
 #define POWERPC_EXCP_MPC5xx  (POWERPC_EXCP_603)
@@ -4170,13 +4165,14 @@ POWERPC_FAMILY(MPC5xx)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_MPC5xx;
     pcc->check_pow = check_pow_none;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
+                       PPC_MEM_EIEIO | PPC_MEM_SYNC |
+                       PPC_CACHE_ICBI | PPC_FLOAT | PPC_FLOAT_STFIWX |
+                       PPC_MFTB;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* Freescale 8xx cores (aka PowerQUICC) */
-#define POWERPC_INSNS_MPC8xx (PPC_INSNS_BASE | PPC_STRING  |                  \
-                              PPC_MEM_EIEIO | PPC_MEM_SYNC |                  \
-                              PPC_CACHE_ICBI | PPC_MFTB)
-#define POWERPC_INSNS2_MPC8xx (PPC_NONE)
 #define POWERPC_MSRM_MPC8xx  (0x000000000001F673ULL)
 #define POWERPC_MMU_MPC8xx   (POWERPC_MMU_MPC8xx)
 #define POWERPC_EXCP_MPC8xx  (POWERPC_EXCP_603)
@@ -4203,18 +4199,14 @@ POWERPC_FAMILY(MPC8xx)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_MPC8xx;
     pcc->check_pow = check_pow_none;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING  |
+                       PPC_MEM_EIEIO | PPC_MEM_SYNC |
+                       PPC_CACHE_ICBI | PPC_MFTB;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* Freescale 82xx cores (aka PowerQUICC-II)                                  */
 /* PowerPC G2                                                                */
-#define POWERPC_INSNS_G2     (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_G2    (PPC_NONE)
 #define POWERPC_MSRM_G2      (0x000000000006FFF2ULL)
 #define POWERPC_MMU_G2       (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_G2      (POWERPC_EXCP_G2)
@@ -4269,17 +4261,17 @@ POWERPC_FAMILY(G2)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_G2;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC G2LE                                                              */
-#define POWERPC_INSNS_G2LE   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_G2LE  (PPC_NONE)
 #define POWERPC_MSRM_G2LE    (0x000000000007FFF3ULL)
 #define POWERPC_MMU_G2LE     (POWERPC_MMU_SOFT_6xx)
 #define POWERPC_EXCP_G2LE    (POWERPC_EXCP_G2)
@@ -4334,26 +4326,17 @@ POWERPC_FAMILY(G2LE)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_G2LE;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* e200 core                                                                 */
-/* XXX: unimplemented instructions:
- * dcblc
- * dcbtlst
- * dcbtstls
- * icblc
- * icbtls
- * tlbivax
- * all SPE multiply-accumulate instructions
- */
-#define POWERPC_INSNS_e200   (PPC_INSNS_BASE | PPC_ISEL |                     \
-                              PPC_SPE | PPC_SPE_SINGLE |                      \
-                              PPC_WRTEE | PPC_RFDI |                          \
-                              PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |   \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_TLBSYNC | PPC_TLBIVAX |                 \
-                              PPC_BOOKE)
-#define POWERPC_INSNS2_e200  (PPC_NONE)
 #define POWERPC_MSRM_e200    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e200     (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e200    (POWERPC_EXCP_BOOKE)
@@ -4476,17 +4459,26 @@ POWERPC_FAMILY(e200)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_e200;
     pcc->check_pow = check_pow_hid0;
+    /* XXX: unimplemented instructions:
+     * dcblc
+     * dcbtlst
+     * dcbtstls
+     * icblc
+     * icbtls
+     * tlbivax
+     * all SPE multiply-accumulate instructions
+     */
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL |
+                       PPC_SPE | PPC_SPE_SINGLE |
+                       PPC_WRTEE | PPC_RFDI |
+                       PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_TLBIVAX |
+                       PPC_BOOKE;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* e300 core                                                                 */
-#define POWERPC_INSNS_e300   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_e300  (PPC_NONE)
 #define POWERPC_MSRM_e300    (0x000000000007FFF3ULL)
 #define POWERPC_MMU_e300     (POWERPC_MMU_SOFT_6xx)
 #define POWERPC_EXCP_e300    (POWERPC_EXCP_603)
@@ -4534,16 +4526,17 @@ POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_e300;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* e500v1 core                                                               */
-#define POWERPC_INSNS_e500v1   (PPC_INSNS_BASE | PPC_ISEL |             \
-                                PPC_SPE | PPC_SPE_SINGLE |              \
-                                PPC_WRTEE | PPC_RFDI |                  \
-                                PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
-                                PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
-#define POWERPC_INSNS2_e500v1  (PPC2_BOOKE206)
 #define POWERPC_MSRM_e500v1    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e500v1     (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e500v1    (POWERPC_EXCP_BOOKE)
@@ -4554,13 +4547,6 @@ POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
                                 POWERPC_FLAG_BUS_CLK)
 
 /* e500v2 core                                                               */
-#define POWERPC_INSNS_e500v2   (PPC_INSNS_BASE | PPC_ISEL |             \
-                                PPC_SPE | PPC_SPE_SINGLE | PPC_SPE_DOUBLE |   \
-                                PPC_WRTEE | PPC_RFDI |                  \
-                                PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
-                                PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
-#define POWERPC_INSNS2_e500v2  (PPC2_BOOKE206)
 #define POWERPC_MSRM_e500v2    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e500v2     (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e500v2    (POWERPC_EXCP_BOOKE)
@@ -4571,15 +4557,6 @@ POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
                                 POWERPC_FLAG_BUS_CLK)
 
 /* e500mc core                                                               */
-#define POWERPC_INSNS_e500mc   (PPC_INSNS_BASE | PPC_ISEL |                 \
-                                PPC_WRTEE | PPC_RFDI | PPC_RFMCI |          \
-                                PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
-                                PPC_CACHE_DCBZ | PPC_CACHE_DCBA |           \
-                                PPC_FLOAT | PPC_FLOAT_FRES |                \
-                                PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |        \
-                                PPC_FLOAT_STFIWX | PPC_WAIT |               \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
-#define POWERPC_INSNS2_e500mc  (PPC2_BOOKE206 | PPC2_PRCNTL)
 #define POWERPC_MSRM_e500mc    (0x000000001402FB36ULL)
 #define POWERPC_MMU_e500mc     (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e500mc    (POWERPC_EXCP_BOOKE)
@@ -4590,16 +4567,6 @@ POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
                                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
 
 /* e5500 core                                                                 */
-#define POWERPC_INSNS_e5500    (PPC_INSNS_BASE | PPC_ISEL |                    \
-                                PPC_WRTEE | PPC_RFDI | PPC_RFMCI |             \
-                                PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |  \
-                                PPC_CACHE_DCBZ | PPC_CACHE_DCBA |              \
-                                PPC_FLOAT | PPC_FLOAT_FRES |                   \
-                                PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |           \
-                                PPC_FLOAT_STFIWX | PPC_WAIT |                  \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC | \
-                                PPC_64B | PPC_POPCNTB | PPC_POPCNTWD)
-#define POWERPC_INSNS2_e5500   (PPC2_BOOKE206 | PPC2_PRCNTL)
 #define POWERPC_MSRM_e5500     (0x000000009402FB36ULL)
 #define POWERPC_MMU_e5500      (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e5500     (POWERPC_EXCP_BOOKE)
@@ -4829,6 +4796,13 @@ POWERPC_FAMILY(e500v1)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_e500v1;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL |
+                       PPC_SPE | PPC_SPE_SINGLE |
+                       PPC_WRTEE | PPC_RFDI |
+                       PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC;
+    pcc->insns_flags2 = PPC2_BOOKE206;
 }
 
 static void init_proc_e500v2(CPUPPCState *env)
@@ -4842,6 +4816,13 @@ POWERPC_FAMILY(e500v2)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_e500v2;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL |
+                       PPC_SPE | PPC_SPE_SINGLE | PPC_SPE_DOUBLE |
+                       PPC_WRTEE | PPC_RFDI |
+                       PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC;
+    pcc->insns_flags2 = PPC2_BOOKE206;
 }
 
 static void init_proc_e500mc(CPUPPCState *env)
@@ -4855,6 +4836,15 @@ POWERPC_FAMILY(e500mc)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_e500mc;
     pcc->check_pow = check_pow_none;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL |
+                       PPC_WRTEE | PPC_RFDI | PPC_RFMCI |
+                       PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_FLOAT | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |
+                       PPC_FLOAT_STFIWX | PPC_WAIT |
+                       PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC;
+    pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL;
 }
 
 #ifdef TARGET_PPC64
@@ -4869,6 +4859,16 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_e5500;
     pcc->check_pow = check_pow_none;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_ISEL |
+                       PPC_WRTEE | PPC_RFDI | PPC_RFMCI |
+                       PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
+                       PPC_FLOAT | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |
+                       PPC_FLOAT_STFIWX | PPC_WAIT |
+                       PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC |
+                       PPC_64B | PPC_POPCNTB | PPC_POPCNTWD;
+    pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL;
 }
 #endif
 
@@ -4876,18 +4876,18 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
 
 /* POWER : same as 601, without mfmsr, mfsr                                  */
 #if defined(TODO)
-#define POWERPC_INSNS_POWER  (XXX_TODO)
 /* POWER RSC (from RAD6000) */
 #define POWERPC_MSRM_POWER   (0x00000000FEF0ULL)
+
+POWERPC_FAMILY(POWER)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->insns_flags = XXX_TODO;
+}
 #endif /* TODO */
 
 /* PowerPC 601                                                               */
-#define POWERPC_INSNS_601    (PPC_INSNS_BASE | PPC_STRING | PPC_POWER_BR |    \
-                              PPC_FLOAT |                                     \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |  \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_601   (PPC_NONE)
 #define POWERPC_MSRM_601     (0x000000000000FD70ULL)
 #define POWERPC_MSRR_601     (0x0000000000001040ULL)
 //#define POWERPC_MMU_601      (POWERPC_MMU_601)
@@ -4939,15 +4939,15 @@ POWERPC_FAMILY(601)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_601;
     pcc->check_pow = check_pow_none;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_POWER_BR |
+                       PPC_FLOAT |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 601v                                                              */
-#define POWERPC_INSNS_601v   (PPC_INSNS_BASE | PPC_STRING | PPC_POWER_BR |    \
-                              PPC_FLOAT |                                     \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |  \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_601v  (PPC_NONE)
 #define POWERPC_MSRM_601v    (0x000000000000FD70ULL)
 #define POWERPC_MSRR_601v    (0x0000000000001040ULL)
 #define POWERPC_MMU_601v     (POWERPC_MMU_601)
@@ -4972,17 +4972,15 @@ POWERPC_FAMILY(601v)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_601v;
     pcc->check_pow = check_pow_none;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_POWER_BR |
+                       PPC_FLOAT |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 602                                                               */
-#define POWERPC_INSNS_602    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_6xx_TLB | PPC_MEM_TLBSYNC | \
-                              PPC_SEGMENT | PPC_602_SPEC)
-#define POWERPC_INSNS2_602   (PPC_NONE)
 #define POWERPC_MSRM_602     (0x0000000000C7FF73ULL)
 /* XXX: 602 MMU is quite specific. Should add a special case */
 #define POWERPC_MMU_602      (POWERPC_MMU_SOFT_6xx)
@@ -5025,17 +5023,17 @@ POWERPC_FAMILY(602)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_602;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_6xx_TLB | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_602_SPEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 603                                                               */
-#define POWERPC_INSNS_603    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_603   (PPC_NONE)
 #define POWERPC_MSRM_603     (0x000000000007FF73ULL)
 #define POWERPC_MMU_603      (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_603     (POWERPC_EXCP_603)
@@ -5077,17 +5075,17 @@ POWERPC_FAMILY(603)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_603;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 603e                                                              */
-#define POWERPC_INSNS_603E   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_603E  (PPC_NONE)
 #define POWERPC_MSRM_603E    (0x000000000007FF73ULL)
 #define POWERPC_MMU_603E     (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_603E    (POWERPC_EXCP_603E)
@@ -5134,17 +5132,17 @@ POWERPC_FAMILY(603E)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_603E;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 604                                                               */
-#define POWERPC_INSNS_604    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_604   (PPC_NONE)
 #define POWERPC_MSRM_604     (0x000000000005FF77ULL)
 #define POWERPC_MMU_604      (POWERPC_MMU_32B)
 //#define POWERPC_EXCP_604     (POWERPC_EXCP_604)
@@ -5180,17 +5178,17 @@ POWERPC_FAMILY(604)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_604;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 604E                                                              */
-#define POWERPC_INSNS_604E   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_604E  (PPC_NONE)
 #define POWERPC_MSRM_604E    (0x000000000005FF77ULL)
 #define POWERPC_MMU_604E     (POWERPC_MMU_32B)
 #define POWERPC_EXCP_604E    (POWERPC_EXCP_604)
@@ -5246,17 +5244,17 @@ POWERPC_FAMILY(604E)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_604E;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 740                                                               */
-#define POWERPC_INSNS_740    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_740   (PPC_NONE)
 #define POWERPC_MSRM_740     (0x000000000005FF77ULL)
 #define POWERPC_MMU_740      (POWERPC_MMU_32B)
 #define POWERPC_EXCP_740     (POWERPC_EXCP_7x0)
@@ -5299,17 +5297,17 @@ POWERPC_FAMILY(740)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_740;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 750                                                               */
-#define POWERPC_INSNS_750    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_750   (PPC_NONE)
 #define POWERPC_MSRM_750     (0x000000000005FF77ULL)
 #define POWERPC_MMU_750      (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750     (POWERPC_EXCP_7x0)
@@ -5360,55 +5358,17 @@ POWERPC_FAMILY(750)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_750;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 750 CL                                                            */
-/* XXX: not implemented:
- * cache lock instructions:
- * dcbz_l
- * floating point paired instructions
- * psq_lux
- * psq_lx
- * psq_stux
- * psq_stx
- * ps_abs
- * ps_add
- * ps_cmpo0
- * ps_cmpo1
- * ps_cmpu0
- * ps_cmpu1
- * ps_div
- * ps_madd
- * ps_madds0
- * ps_madds1
- * ps_merge00
- * ps_merge01
- * ps_merge10
- * ps_merge11
- * ps_mr
- * ps_msub
- * ps_mul
- * ps_muls0
- * ps_muls1
- * ps_nabs
- * ps_neg
- * ps_nmadd
- * ps_nmsub
- * ps_res
- * ps_rsqrte
- * ps_sel
- * ps_sub
- * ps_sum0
- * ps_sum1
- */
-#define POWERPC_INSNS_750cl  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_750cl (PPC_NONE)
 #define POWERPC_MSRM_750cl   (0x000000000005FF77ULL)
 #define POWERPC_MMU_750cl    (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750cl   (POWERPC_EXCP_7x0)
@@ -5544,17 +5504,55 @@ POWERPC_FAMILY(750cl)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_750cl;
     pcc->check_pow = check_pow_hid0;
+    /* XXX: not implemented:
+     * cache lock instructions:
+     * dcbz_l
+     * floating point paired instructions
+     * psq_lux
+     * psq_lx
+     * psq_stux
+     * psq_stx
+     * ps_abs
+     * ps_add
+     * ps_cmpo0
+     * ps_cmpo1
+     * ps_cmpu0
+     * ps_cmpu1
+     * ps_div
+     * ps_madd
+     * ps_madds0
+     * ps_madds1
+     * ps_merge00
+     * ps_merge01
+     * ps_merge10
+     * ps_merge11
+     * ps_mr
+     * ps_msub
+     * ps_mul
+     * ps_muls0
+     * ps_muls1
+     * ps_nabs
+     * ps_neg
+     * ps_nmadd
+     * ps_nmsub
+     * ps_res
+     * ps_rsqrte
+     * ps_sel
+     * ps_sub
+     * ps_sum0
+     * ps_sum1
+     */
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 750CX                                                             */
-#define POWERPC_INSNS_750cx  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_750cx (PPC_NONE)
 #define POWERPC_MSRM_750cx   (0x000000000005FF77ULL)
 #define POWERPC_MMU_750cx    (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750cx   (POWERPC_EXCP_7x0)
@@ -5609,17 +5607,17 @@ POWERPC_FAMILY(750cx)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_750cx;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 750FX                                                             */
-#define POWERPC_INSNS_750fx  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_SEGMENT  | PPC_EXTERN)
-#define POWERPC_INSNS2_750fx (PPC_NONE)
 #define POWERPC_MSRM_750fx   (0x000000000005FF77ULL)
 #define POWERPC_MMU_750fx    (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750fx   (POWERPC_EXCP_7x0)
@@ -5679,17 +5677,17 @@ POWERPC_FAMILY(750fx)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_750fx;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 750GX                                                             */
-#define POWERPC_INSNS_750gx  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_SEGMENT  | PPC_EXTERN)
-#define POWERPC_INSNS2_750gx (PPC_NONE)
 #define POWERPC_MSRM_750gx   (0x000000000005FF77ULL)
 #define POWERPC_MMU_750gx    (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750gx   (POWERPC_EXCP_7x0)
@@ -5749,17 +5747,17 @@ POWERPC_FAMILY(750gx)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_750gx;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 745                                                               */
-#define POWERPC_INSNS_745    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_745   (PPC_NONE)
 #define POWERPC_MSRM_745     (0x000000000005FF77ULL)
 #define POWERPC_MMU_745      (POWERPC_MMU_SOFT_6xx)
 #define POWERPC_EXCP_745     (POWERPC_EXCP_7x5)
@@ -5810,17 +5808,17 @@ POWERPC_FAMILY(745)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_745;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 755                                                               */
-#define POWERPC_INSNS_755    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |          \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
-                              PPC_SEGMENT | PPC_EXTERN)
-#define POWERPC_INSNS2_755   (PPC_NONE)
 #define POWERPC_MSRM_755     (0x000000000005FF77ULL)
 #define POWERPC_MMU_755      (POWERPC_MMU_SOFT_6xx)
 #define POWERPC_EXCP_755     (POWERPC_EXCP_7x5)
@@ -5882,21 +5880,17 @@ POWERPC_FAMILY(755)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_755;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FRSQRTE | PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 7400 (aka G4)                                                     */
-#define POWERPC_INSNS_7400   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBA | PPC_CACHE_DCBZ |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_MEM_TLBIA |                                 \
-                              PPC_SEGMENT | PPC_EXTERN |                      \
-                              PPC_ALTIVEC)
-#define POWERPC_INSNS2_7400  (PPC_NONE)
 #define POWERPC_MSRM_7400    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7400     (POWERPC_MMU_32B)
 #define POWERPC_EXCP_7400    (POWERPC_EXCP_74xx)
@@ -5942,21 +5936,21 @@ POWERPC_FAMILY(7400)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_7400;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_MEM_TLBIA |
+                       PPC_SEGMENT | PPC_EXTERN |
+                       PPC_ALTIVEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 7410 (aka G4)                                                     */
-#define POWERPC_INSNS_7410   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBA | PPC_CACHE_DCBZ |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_MEM_TLBIA |                                 \
-                              PPC_SEGMENT | PPC_EXTERN |                      \
-                              PPC_ALTIVEC)
-#define POWERPC_INSNS2_7410  (PPC_NONE)
 #define POWERPC_MSRM_7410    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7410     (POWERPC_MMU_32B)
 #define POWERPC_EXCP_7410    (POWERPC_EXCP_74xx)
@@ -6008,21 +6002,21 @@ POWERPC_FAMILY(7410)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_7410;
     pcc->check_pow = check_pow_hid0;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_MEM_TLBIA |
+                       PPC_SEGMENT | PPC_EXTERN |
+                       PPC_ALTIVEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 7440 (aka G4)                                                     */
-#define POWERPC_INSNS_7440   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBA | PPC_CACHE_DCBZ |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
-                              PPC_SEGMENT | PPC_EXTERN |                      \
-                              PPC_ALTIVEC)
-#define POWERPC_INSNS2_7440  (PPC_NONE)
 #define POWERPC_MSRM_7440    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7440     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7440    (POWERPC_EXCP_74xx)
@@ -6100,21 +6094,21 @@ POWERPC_FAMILY(7440)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_7440;
     pcc->check_pow = check_pow_hid0_74xx;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN |
+                       PPC_ALTIVEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 7450 (aka G4)                                                     */
-#define POWERPC_INSNS_7450   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBA | PPC_CACHE_DCBZ |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
-                              PPC_SEGMENT | PPC_EXTERN |                      \
-                              PPC_ALTIVEC)
-#define POWERPC_INSNS2_7450  (PPC_NONE)
 #define POWERPC_MSRM_7450    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7450     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7450    (POWERPC_EXCP_74xx)
@@ -6218,21 +6212,21 @@ POWERPC_FAMILY(7450)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_7450;
     pcc->check_pow = check_pow_hid0_74xx;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN |
+                       PPC_ALTIVEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 7445 (aka G4)                                                     */
-#define POWERPC_INSNS_7445   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBA | PPC_CACHE_DCBZ |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
-                              PPC_SEGMENT | PPC_EXTERN |                      \
-                              PPC_ALTIVEC)
-#define POWERPC_INSNS2_7445  (PPC_NONE)
 #define POWERPC_MSRM_7445    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7445     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7445    (POWERPC_EXCP_74xx)
@@ -6339,21 +6333,21 @@ POWERPC_FAMILY(7445)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_7445;
     pcc->check_pow = check_pow_hid0_74xx;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN |
+                       PPC_ALTIVEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 7455 (aka G4)                                                     */
-#define POWERPC_INSNS_7455   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBA | PPC_CACHE_DCBZ |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
-                              PPC_SEGMENT | PPC_EXTERN |                      \
-                              PPC_ALTIVEC)
-#define POWERPC_INSNS2_7455  (PPC_NONE)
 #define POWERPC_MSRM_7455    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7455     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7455    (POWERPC_EXCP_74xx)
@@ -6462,21 +6456,21 @@ POWERPC_FAMILY(7455)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_7455;
     pcc->check_pow = check_pow_hid0_74xx;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN |
+                       PPC_ALTIVEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 7457 (aka G4)                                                     */
-#define POWERPC_INSNS_7457   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI |                    \
-                              PPC_CACHE_DCBA | PPC_CACHE_DCBZ |               \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
-                              PPC_SEGMENT | PPC_EXTERN |                      \
-                              PPC_ALTIVEC)
-#define POWERPC_INSNS2_7457  (PPC_NONE)
 #define POWERPC_MSRM_7457    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7457     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7457    (POWERPC_EXCP_74xx)
@@ -6609,20 +6603,22 @@ POWERPC_FAMILY(7457)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_7457;
     pcc->check_pow = check_pow_hid0_74xx;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI |
+                       PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_SEGMENT | PPC_EXTERN |
+                       PPC_ALTIVEC;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 #if defined (TARGET_PPC64)
 /* PowerPC 970                                                               */
-#define POWERPC_INSNS_970    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_64B | PPC_ALTIVEC |                         \
-                              PPC_SEGMENT_64B | PPC_SLBI)
-#define POWERPC_INSNS2_970   (PPC_NONE)
 #define POWERPC_MSRM_970     (0x900000000204FF36ULL)
 #define POWERPC_MMU_970      (POWERPC_MMU_64B)
 //#define POWERPC_EXCP_970     (POWERPC_EXCP_970)
@@ -6714,19 +6710,19 @@ POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_970;
     pcc->check_pow = check_pow_970;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_64B | PPC_ALTIVEC |
+                       PPC_SEGMENT_64B | PPC_SLBI;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 970FX (aka G5)                                                    */
-#define POWERPC_INSNS_970FX  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_64B | PPC_ALTIVEC |                         \
-                              PPC_SEGMENT_64B | PPC_SLBI)
-#define POWERPC_INSNS2_970FX (PPC_NONE)
 #define POWERPC_MSRM_970FX   (0x800000000204FF36ULL)
 #define POWERPC_MMU_970FX    (POWERPC_MMU_64B)
 #define POWERPC_EXCP_970FX   (POWERPC_EXCP_970)
@@ -6824,19 +6820,19 @@ POWERPC_FAMILY(970FX)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_970FX;
     pcc->check_pow = check_pow_970FX;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_64B | PPC_ALTIVEC |
+                       PPC_SEGMENT_64B | PPC_SLBI;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 970 GX                                                            */
-#define POWERPC_INSNS_970GX  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_64B | PPC_ALTIVEC |                         \
-                              PPC_SEGMENT_64B | PPC_SLBI)
-#define POWERPC_INSNS2_970GX (PPC_NONE)
 #define POWERPC_MSRM_970GX   (0x800000000204FF36ULL)
 #define POWERPC_MMU_970GX    (POWERPC_MMU_64B)
 #define POWERPC_EXCP_970GX   (POWERPC_EXCP_970)
@@ -6922,19 +6918,19 @@ POWERPC_FAMILY(970GX)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_970GX;
     pcc->check_pow = check_pow_970GX;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_64B | PPC_ALTIVEC |
+                       PPC_SEGMENT_64B | PPC_SLBI;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* PowerPC 970 MP                                                            */
-#define POWERPC_INSNS_970MP  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_64B | PPC_ALTIVEC |                         \
-                              PPC_SEGMENT_64B | PPC_SLBI)
-#define POWERPC_INSNS2_970MP (PPC_NONE)
 #define POWERPC_MSRM_970MP   (0x900000000204FF36ULL)
 #define POWERPC_MMU_970MP    (POWERPC_MMU_64B)
 #define POWERPC_EXCP_970MP   (POWERPC_EXCP_970)
@@ -7020,20 +7016,19 @@ POWERPC_FAMILY(970MP)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_970MP;
     pcc->check_pow = check_pow_970MP;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_64B | PPC_ALTIVEC |
+                       PPC_SEGMENT_64B | PPC_SLBI;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 /* POWER7 */
-#define POWERPC_INSNS_POWER7  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |  \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_64B | PPC_ALTIVEC |                         \
-                              PPC_SEGMENT_64B | PPC_SLBI |                    \
-                              PPC_POPCNTB | PPC_POPCNTWD)
-#define POWERPC_INSNS2_POWER7 (PPC2_VSX | PPC2_DFP | PPC2_DBRX)
 #define POWERPC_MSRM_POWER7   (0x800000000204FF36ULL)
 #define POWERPC_MMU_POWER7    (POWERPC_MMU_2_06)
 #define POWERPC_EXCP_POWER7   (POWERPC_EXCP_POWER7)
@@ -7111,19 +7106,20 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_POWER7;
     pcc->check_pow = check_pow_nocheck;
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_64B | PPC_ALTIVEC |
+                       PPC_SEGMENT_64B | PPC_SLBI |
+                       PPC_POPCNTB | PPC_POPCNTWD;
+    pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX;
 }
 
 /* PowerPC 620                                                               */
-#define POWERPC_INSNS_620    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
-                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
-                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
-                              PPC_FLOAT_STFIWX |                              \
-                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
-                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
-                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
-                              PPC_SEGMENT | PPC_EXTERN |                      \
-                              PPC_64B | PPC_SLBI)
-#define POWERPC_INSNS2_620   (PPC_NONE)
 #define POWERPC_MSRM_620     (0x800000000005FF77ULL)
 //#define POWERPC_MMU_620      (POWERPC_MMU_620)
 #define POWERPC_EXCP_620     (POWERPC_EXCP_970)
@@ -7159,6 +7155,16 @@ POWERPC_FAMILY(620)(ObjectClass *oc, void *data)
 
     pcc->init_proc = init_proc_620;
     pcc->check_pow = check_pow_nocheck; /* Check this */
+    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
+                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
+                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
+                       PPC_FLOAT_STFIWX |
+                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
+                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
+                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
+                       PPC_SEGMENT | PPC_EXTERN |
+                       PPC_64B | PPC_SLBI;
+    pcc->insns_flags2 = PPC_NONE;
 }
 
 #endif /* defined (TARGET_PPC64) */
@@ -7887,8 +7893,6 @@ enum {
                                                                             \
         pcc->pvr          = _pvr;                                           \
         pcc->svr          = _svr;                                           \
-        pcc->insns_flags  = glue(POWERPC_INSNS_, _type);                    \
-        pcc->insns_flags2 = glue(POWERPC_INSNS2_, _type);                   \
         pcc->msr_mask     = glue(POWERPC_MSRM_, _type);                     \
         pcc->mmu_model    = glue(POWERPC_MMU_, _type);                      \
         pcc->excp_model   = glue(POWERPC_EXCP_, _type);                     \
