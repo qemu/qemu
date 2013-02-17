@@ -7147,67 +7147,50 @@ enum {
     CPU_POWERPC_e500mc             = 0x80230020,
     CPU_POWERPC_e5500              = 0x80240020,
     /* MPC85xx microcontrollers */
-#define CPU_POWERPC_MPC8533          CPU_POWERPC_MPC8533_v11
 #define CPU_POWERPC_MPC8533_v10      CPU_POWERPC_e500v2_v21
 #define CPU_POWERPC_MPC8533_v11      CPU_POWERPC_e500v2_v22
-#define CPU_POWERPC_MPC8533E         CPU_POWERPC_MPC8533E_v11
 #define CPU_POWERPC_MPC8533E_v10     CPU_POWERPC_e500v2_v21
 #define CPU_POWERPC_MPC8533E_v11     CPU_POWERPC_e500v2_v22
-#define CPU_POWERPC_MPC8540          CPU_POWERPC_MPC8540_v21
 #define CPU_POWERPC_MPC8540_v10      CPU_POWERPC_e500v1_v10
 #define CPU_POWERPC_MPC8540_v20      CPU_POWERPC_e500v1_v20
 #define CPU_POWERPC_MPC8540_v21      CPU_POWERPC_e500v1_v20
-#define CPU_POWERPC_MPC8541          CPU_POWERPC_MPC8541_v11
 #define CPU_POWERPC_MPC8541_v10      CPU_POWERPC_e500v1_v20
 #define CPU_POWERPC_MPC8541_v11      CPU_POWERPC_e500v1_v20
-#define CPU_POWERPC_MPC8541E         CPU_POWERPC_MPC8541E_v11
 #define CPU_POWERPC_MPC8541E_v10     CPU_POWERPC_e500v1_v20
 #define CPU_POWERPC_MPC8541E_v11     CPU_POWERPC_e500v1_v20
-#define CPU_POWERPC_MPC8543          CPU_POWERPC_MPC8543_v21
 #define CPU_POWERPC_MPC8543_v10      CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8543_v11      CPU_POWERPC_e500v2_v11
 #define CPU_POWERPC_MPC8543_v20      CPU_POWERPC_e500v2_v20
 #define CPU_POWERPC_MPC8543_v21      CPU_POWERPC_e500v2_v21
-#define CPU_POWERPC_MPC8543E         CPU_POWERPC_MPC8543E_v21
 #define CPU_POWERPC_MPC8543E_v10     CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8543E_v11     CPU_POWERPC_e500v2_v11
 #define CPU_POWERPC_MPC8543E_v20     CPU_POWERPC_e500v2_v20
 #define CPU_POWERPC_MPC8543E_v21     CPU_POWERPC_e500v2_v21
-#define CPU_POWERPC_MPC8544          CPU_POWERPC_MPC8544_v11
 #define CPU_POWERPC_MPC8544_v10      CPU_POWERPC_e500v2_v21
 #define CPU_POWERPC_MPC8544_v11      CPU_POWERPC_e500v2_v22
 #define CPU_POWERPC_MPC8544E_v11     CPU_POWERPC_e500v2_v22
-#define CPU_POWERPC_MPC8544E         CPU_POWERPC_MPC8544E_v11
 #define CPU_POWERPC_MPC8544E_v10     CPU_POWERPC_e500v2_v21
-#define CPU_POWERPC_MPC8545          CPU_POWERPC_MPC8545_v21
 #define CPU_POWERPC_MPC8545_v10      CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8545_v20      CPU_POWERPC_e500v2_v20
 #define CPU_POWERPC_MPC8545_v21      CPU_POWERPC_e500v2_v21
-#define CPU_POWERPC_MPC8545E         CPU_POWERPC_MPC8545E_v21
 #define CPU_POWERPC_MPC8545E_v10     CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8545E_v20     CPU_POWERPC_e500v2_v20
 #define CPU_POWERPC_MPC8545E_v21     CPU_POWERPC_e500v2_v21
-#define CPU_POWERPC_MPC8547E         CPU_POWERPC_MPC8547E_v21
 #define CPU_POWERPC_MPC8547E_v10     CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8547E_v20     CPU_POWERPC_e500v2_v20
 #define CPU_POWERPC_MPC8547E_v21     CPU_POWERPC_e500v2_v21
-#define CPU_POWERPC_MPC8548          CPU_POWERPC_MPC8548_v21
 #define CPU_POWERPC_MPC8548_v10      CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8548_v11      CPU_POWERPC_e500v2_v11
 #define CPU_POWERPC_MPC8548_v20      CPU_POWERPC_e500v2_v20
 #define CPU_POWERPC_MPC8548_v21      CPU_POWERPC_e500v2_v21
-#define CPU_POWERPC_MPC8548E         CPU_POWERPC_MPC8548E_v21
 #define CPU_POWERPC_MPC8548E_v10     CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8548E_v11     CPU_POWERPC_e500v2_v11
 #define CPU_POWERPC_MPC8548E_v20     CPU_POWERPC_e500v2_v20
 #define CPU_POWERPC_MPC8548E_v21     CPU_POWERPC_e500v2_v21
-#define CPU_POWERPC_MPC8555          CPU_POWERPC_MPC8555_v11
 #define CPU_POWERPC_MPC8555_v10      CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8555_v11      CPU_POWERPC_e500v2_v11
-#define CPU_POWERPC_MPC8555E         CPU_POWERPC_MPC8555E_v11
 #define CPU_POWERPC_MPC8555E_v10     CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8555E_v11     CPU_POWERPC_e500v2_v11
-#define CPU_POWERPC_MPC8560          CPU_POWERPC_MPC8560_v21
 #define CPU_POWERPC_MPC8560_v10      CPU_POWERPC_e500v2_v10
 #define CPU_POWERPC_MPC8560_v20      CPU_POWERPC_e500v2_v20
 #define CPU_POWERPC_MPC8560_v21      CPU_POWERPC_e500v2_v21
@@ -7509,64 +7492,47 @@ enum {
     POWERPC_SVR_8378E              = 0x80C40010 | POWERPC_SVR_E500,
     POWERPC_SVR_8379               = 0x80C30010 | POWERPC_SVR_E500,
     POWERPC_SVR_8379E              = 0x80C00010 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8533             POWERPC_SVR_8533_v11
     POWERPC_SVR_8533_v10           = 0x80340010 | POWERPC_SVR_E500,
     POWERPC_SVR_8533_v11           = 0x80340011 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8533E            POWERPC_SVR_8533E_v11
     POWERPC_SVR_8533E_v10          = 0x803C0010 | POWERPC_SVR_E500,
     POWERPC_SVR_8533E_v11          = 0x803C0011 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8540             POWERPC_SVR_8540_v21
     POWERPC_SVR_8540_v10           = 0x80300010 | POWERPC_SVR_E500,
     POWERPC_SVR_8540_v20           = 0x80300020 | POWERPC_SVR_E500,
     POWERPC_SVR_8540_v21           = 0x80300021 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8541             POWERPC_SVR_8541_v11
     POWERPC_SVR_8541_v10           = 0x80720010 | POWERPC_SVR_E500,
     POWERPC_SVR_8541_v11           = 0x80720011 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8541E            POWERPC_SVR_8541E_v11
     POWERPC_SVR_8541E_v10          = 0x807A0010 | POWERPC_SVR_E500,
     POWERPC_SVR_8541E_v11          = 0x807A0011 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8543             POWERPC_SVR_8543_v21
     POWERPC_SVR_8543_v10           = 0x80320010 | POWERPC_SVR_E500,
     POWERPC_SVR_8543_v11           = 0x80320011 | POWERPC_SVR_E500,
     POWERPC_SVR_8543_v20           = 0x80320020 | POWERPC_SVR_E500,
     POWERPC_SVR_8543_v21           = 0x80320021 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8543E            POWERPC_SVR_8543E_v21
     POWERPC_SVR_8543E_v10          = 0x803A0010 | POWERPC_SVR_E500,
     POWERPC_SVR_8543E_v11          = 0x803A0011 | POWERPC_SVR_E500,
     POWERPC_SVR_8543E_v20          = 0x803A0020 | POWERPC_SVR_E500,
     POWERPC_SVR_8543E_v21          = 0x803A0021 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8544             POWERPC_SVR_8544_v11
     POWERPC_SVR_8544_v10           = 0x80340110 | POWERPC_SVR_E500,
     POWERPC_SVR_8544_v11           = 0x80340111 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8544E            POWERPC_SVR_8544E_v11
     POWERPC_SVR_8544E_v10          = 0x803C0110 | POWERPC_SVR_E500,
     POWERPC_SVR_8544E_v11          = 0x803C0111 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8545             POWERPC_SVR_8545_v21
     POWERPC_SVR_8545_v20           = 0x80310220 | POWERPC_SVR_E500,
     POWERPC_SVR_8545_v21           = 0x80310221 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8545E            POWERPC_SVR_8545E_v21
     POWERPC_SVR_8545E_v20          = 0x80390220 | POWERPC_SVR_E500,
     POWERPC_SVR_8545E_v21          = 0x80390221 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8547E            POWERPC_SVR_8547E_v21
     POWERPC_SVR_8547E_v20          = 0x80390120 | POWERPC_SVR_E500,
     POWERPC_SVR_8547E_v21          = 0x80390121 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8548             POWERPC_SVR_8548_v21
     POWERPC_SVR_8548_v10           = 0x80310010 | POWERPC_SVR_E500,
     POWERPC_SVR_8548_v11           = 0x80310011 | POWERPC_SVR_E500,
     POWERPC_SVR_8548_v20           = 0x80310020 | POWERPC_SVR_E500,
     POWERPC_SVR_8548_v21           = 0x80310021 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8548E            POWERPC_SVR_8548E_v21
     POWERPC_SVR_8548E_v10          = 0x80390010 | POWERPC_SVR_E500,
     POWERPC_SVR_8548E_v11          = 0x80390011 | POWERPC_SVR_E500,
     POWERPC_SVR_8548E_v20          = 0x80390020 | POWERPC_SVR_E500,
     POWERPC_SVR_8548E_v21          = 0x80390021 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8555             POWERPC_SVR_8555_v11
     POWERPC_SVR_8555_v10           = 0x80710010 | POWERPC_SVR_E500,
     POWERPC_SVR_8555_v11           = 0x80710011 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8555E            POWERPC_SVR_8555_v11
     POWERPC_SVR_8555E_v10          = 0x80790010 | POWERPC_SVR_E500,
     POWERPC_SVR_8555E_v11          = 0x80790011 | POWERPC_SVR_E500,
-#define POWERPC_SVR_8560             POWERPC_SVR_8560_v21
     POWERPC_SVR_8560_v10           = 0x80700010 | POWERPC_SVR_E500,
     POWERPC_SVR_8560_v20           = 0x80700020 | POWERPC_SVR_E500,
     POWERPC_SVR_8560_v21           = 0x80700021 | POWERPC_SVR_E500,
@@ -8373,26 +8339,17 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF_SVR("e5500",    CPU_POWERPC_e5500, POWERPC_SVR_E500, e5500)
 #endif
     /* PowerPC e500 microcontrollers                                         */
-    /* MPC8533                                                               */
-    POWERPC_DEF_SVR("MPC8533",
-                    CPU_POWERPC_MPC8533,      POWERPC_SVR_8533,      e500v2)
     /* MPC8533 v1.0                                                          */
     POWERPC_DEF_SVR("MPC8533_v10",
                     CPU_POWERPC_MPC8533_v10,  POWERPC_SVR_8533_v10,  e500v2)
     /* MPC8533 v1.1                                                          */
     POWERPC_DEF_SVR("MPC8533_v11",
                     CPU_POWERPC_MPC8533_v11,  POWERPC_SVR_8533_v11,  e500v2)
-    /* MPC8533E                                                              */
-    POWERPC_DEF_SVR("MPC8533E",
-                    CPU_POWERPC_MPC8533E,     POWERPC_SVR_8533E,     e500v2)
     /* MPC8533E v1.0                                                         */
     POWERPC_DEF_SVR("MPC8533E_v10",
                     CPU_POWERPC_MPC8533E_v10, POWERPC_SVR_8533E_v10, e500v2)
     POWERPC_DEF_SVR("MPC8533E_v11",
                     CPU_POWERPC_MPC8533E_v11, POWERPC_SVR_8533E_v11, e500v2)
-    /* MPC8540                                                               */
-    POWERPC_DEF_SVR("MPC8540",
-                    CPU_POWERPC_MPC8540,      POWERPC_SVR_8540,      e500v1)
     /* MPC8540 v1.0                                                          */
     POWERPC_DEF_SVR("MPC8540_v10",
                     CPU_POWERPC_MPC8540_v10,  POWERPC_SVR_8540_v10,  e500v1)
@@ -8402,27 +8359,18 @@ static const ppc_def_t ppc_defs[] = {
     /* MPC8540 v2.1                                                          */
     POWERPC_DEF_SVR("MPC8540_v21",
                     CPU_POWERPC_MPC8540_v21,  POWERPC_SVR_8540_v21,  e500v1)
-    /* MPC8541                                                               */
-    POWERPC_DEF_SVR("MPC8541",
-                    CPU_POWERPC_MPC8541,      POWERPC_SVR_8541,      e500v1)
     /* MPC8541 v1.0                                                          */
     POWERPC_DEF_SVR("MPC8541_v10",
                     CPU_POWERPC_MPC8541_v10,  POWERPC_SVR_8541_v10,  e500v1)
     /* MPC8541 v1.1                                                          */
     POWERPC_DEF_SVR("MPC8541_v11",
                     CPU_POWERPC_MPC8541_v11,  POWERPC_SVR_8541_v11,  e500v1)
-    /* MPC8541E                                                              */
-    POWERPC_DEF_SVR("MPC8541E",
-                    CPU_POWERPC_MPC8541E,     POWERPC_SVR_8541E,     e500v1)
     /* MPC8541E v1.0                                                         */
     POWERPC_DEF_SVR("MPC8541E_v10",
                     CPU_POWERPC_MPC8541E_v10, POWERPC_SVR_8541E_v10, e500v1)
     /* MPC8541E v1.1                                                         */
     POWERPC_DEF_SVR("MPC8541E_v11",
                     CPU_POWERPC_MPC8541E_v11, POWERPC_SVR_8541E_v11, e500v1)
-    /* MPC8543                                                               */
-    POWERPC_DEF_SVR("MPC8543",
-                    CPU_POWERPC_MPC8543,      POWERPC_SVR_8543,      e500v2)
     /* MPC8543 v1.0                                                          */
     POWERPC_DEF_SVR("MPC8543_v10",
                     CPU_POWERPC_MPC8543_v10,  POWERPC_SVR_8543_v10,  e500v2)
@@ -8435,9 +8383,6 @@ static const ppc_def_t ppc_defs[] = {
     /* MPC8543 v2.1                                                          */
     POWERPC_DEF_SVR("MPC8543_v21",
                     CPU_POWERPC_MPC8543_v21,  POWERPC_SVR_8543_v21,  e500v2)
-    /* MPC8543E                                                              */
-    POWERPC_DEF_SVR("MPC8543E",
-                    CPU_POWERPC_MPC8543E,     POWERPC_SVR_8543E,     e500v2)
     /* MPC8543E v1.0                                                         */
     POWERPC_DEF_SVR("MPC8543E_v10",
                     CPU_POWERPC_MPC8543E_v10, POWERPC_SVR_8543E_v10, e500v2)
@@ -8450,54 +8395,36 @@ static const ppc_def_t ppc_defs[] = {
     /* MPC8543E v2.1                                                         */
     POWERPC_DEF_SVR("MPC8543E_v21",
                     CPU_POWERPC_MPC8543E_v21, POWERPC_SVR_8543E_v21, e500v2)
-    /* MPC8544                                                               */
-    POWERPC_DEF_SVR("MPC8544",
-                    CPU_POWERPC_MPC8544,      POWERPC_SVR_8544,      e500v2)
     /* MPC8544 v1.0                                                          */
     POWERPC_DEF_SVR("MPC8544_v10",
                     CPU_POWERPC_MPC8544_v10,  POWERPC_SVR_8544_v10,  e500v2)
     /* MPC8544 v1.1                                                          */
     POWERPC_DEF_SVR("MPC8544_v11",
                     CPU_POWERPC_MPC8544_v11,  POWERPC_SVR_8544_v11,  e500v2)
-    /* MPC8544E                                                              */
-    POWERPC_DEF_SVR("MPC8544E",
-                    CPU_POWERPC_MPC8544E,     POWERPC_SVR_8544E,     e500v2)
     /* MPC8544E v1.0                                                         */
     POWERPC_DEF_SVR("MPC8544E_v10",
                     CPU_POWERPC_MPC8544E_v10, POWERPC_SVR_8544E_v10, e500v2)
     /* MPC8544E v1.1                                                         */
     POWERPC_DEF_SVR("MPC8544E_v11",
                     CPU_POWERPC_MPC8544E_v11, POWERPC_SVR_8544E_v11, e500v2)
-    /* MPC8545                                                               */
-    POWERPC_DEF_SVR("MPC8545",
-                    CPU_POWERPC_MPC8545,      POWERPC_SVR_8545,      e500v2)
     /* MPC8545 v2.0                                                          */
     POWERPC_DEF_SVR("MPC8545_v20",
                     CPU_POWERPC_MPC8545_v20,  POWERPC_SVR_8545_v20,  e500v2)
     /* MPC8545 v2.1                                                          */
     POWERPC_DEF_SVR("MPC8545_v21",
                     CPU_POWERPC_MPC8545_v21,  POWERPC_SVR_8545_v21,  e500v2)
-    /* MPC8545E                                                              */
-    POWERPC_DEF_SVR("MPC8545E",
-                    CPU_POWERPC_MPC8545E,     POWERPC_SVR_8545E,     e500v2)
     /* MPC8545E v2.0                                                         */
     POWERPC_DEF_SVR("MPC8545E_v20",
                     CPU_POWERPC_MPC8545E_v20, POWERPC_SVR_8545E_v20, e500v2)
     /* MPC8545E v2.1                                                         */
     POWERPC_DEF_SVR("MPC8545E_v21",
                     CPU_POWERPC_MPC8545E_v21, POWERPC_SVR_8545E_v21, e500v2)
-    /* MPC8547E                                                              */
-    POWERPC_DEF_SVR("MPC8547E",
-                    CPU_POWERPC_MPC8547E,     POWERPC_SVR_8547E,     e500v2)
     /* MPC8547E v2.0                                                         */
     POWERPC_DEF_SVR("MPC8547E_v20",
                     CPU_POWERPC_MPC8547E_v20, POWERPC_SVR_8547E_v20, e500v2)
     /* MPC8547E v2.1                                                         */
     POWERPC_DEF_SVR("MPC8547E_v21",
                     CPU_POWERPC_MPC8547E_v21, POWERPC_SVR_8547E_v21, e500v2)
-    /* MPC8548                                                               */
-    POWERPC_DEF_SVR("MPC8548",
-                    CPU_POWERPC_MPC8548,      POWERPC_SVR_8548,      e500v2)
     /* MPC8548 v1.0                                                          */
     POWERPC_DEF_SVR("MPC8548_v10",
                     CPU_POWERPC_MPC8548_v10,  POWERPC_SVR_8548_v10,  e500v2)
@@ -8510,9 +8437,6 @@ static const ppc_def_t ppc_defs[] = {
     /* MPC8548 v2.1                                                          */
     POWERPC_DEF_SVR("MPC8548_v21",
                     CPU_POWERPC_MPC8548_v21,  POWERPC_SVR_8548_v21,  e500v2)
-    /* MPC8548E                                                              */
-    POWERPC_DEF_SVR("MPC8548E",
-                    CPU_POWERPC_MPC8548E,     POWERPC_SVR_8548E,     e500v2)
     /* MPC8548E v1.0                                                         */
     POWERPC_DEF_SVR("MPC8548E_v10",
                     CPU_POWERPC_MPC8548E_v10, POWERPC_SVR_8548E_v10, e500v2)
@@ -8525,27 +8449,18 @@ static const ppc_def_t ppc_defs[] = {
     /* MPC8548E v2.1                                                         */
     POWERPC_DEF_SVR("MPC8548E_v21",
                     CPU_POWERPC_MPC8548E_v21, POWERPC_SVR_8548E_v21, e500v2)
-    /* MPC8555                                                               */
-    POWERPC_DEF_SVR("MPC8555",
-                    CPU_POWERPC_MPC8555,      POWERPC_SVR_8555,      e500v2)
     /* MPC8555 v1.0                                                          */
     POWERPC_DEF_SVR("MPC8555_v10",
                     CPU_POWERPC_MPC8555_v10,  POWERPC_SVR_8555_v10,  e500v2)
     /* MPC8555 v1.1                                                          */
     POWERPC_DEF_SVR("MPC8555_v11",
                     CPU_POWERPC_MPC8555_v11,  POWERPC_SVR_8555_v11,  e500v2)
-    /* MPC8555E                                                              */
-    POWERPC_DEF_SVR("MPC8555E",
-                    CPU_POWERPC_MPC8555E,     POWERPC_SVR_8555E,     e500v2)
     /* MPC8555E v1.0                                                         */
     POWERPC_DEF_SVR("MPC8555E_v10",
                     CPU_POWERPC_MPC8555E_v10, POWERPC_SVR_8555E_v10, e500v2)
     /* MPC8555E v1.1                                                         */
     POWERPC_DEF_SVR("MPC8555E_v11",
                     CPU_POWERPC_MPC8555E_v11, POWERPC_SVR_8555E_v11, e500v2)
-    /* MPC8560                                                               */
-    POWERPC_DEF_SVR("MPC8560",
-                    CPU_POWERPC_MPC8560,      POWERPC_SVR_8560,      e500v2)
     /* MPC8560 v1.0                                                          */
     POWERPC_DEF_SVR("MPC8560_v10",
                     CPU_POWERPC_MPC8560_v10,  POWERPC_SVR_8560_v10,  e500v2)
@@ -9066,6 +8981,23 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
 
     { "PowerQUICC-II", "MPC82xx" },
     { "e500", "e500v2_v22" },
+    { "MPC8533", "MPC8533_v11" },
+    { "MPC8533E", "MPC8533E_v11" },
+    { "MPC8540", "MPC8540_v21" },
+    { "MPC8541", "MPC8541_v11" },
+    { "MPC8541E", "MPC8541E_v11" },
+    { "MPC8543", "MPC8543_v21" },
+    { "MPC8543E", "MPC8543E_v21" },
+    { "MPC8544", "MPC8544_v11" },
+    { "MPC8544E", "MPC8544E_v11" },
+    { "MPC8545", "MPC8545_v21" },
+    { "MPC8545E", "MPC8545E_v21" },
+    { "MPC8547E", "MPC8547E_v21" },
+    { "MPC8548", "MPC8548_v21" },
+    { "MPC8548E", "MPC8548E_v21" },
+    { "MPC8555", "MPC8555_v11" },
+    { "MPC8555E", "MPC8555E_v11" },
+    { "MPC8560", "MPC8560_v21" },
     { "601",  "601_v2" },
     { "601v", "601_v2" },
     { "Vanilla", "603" },
