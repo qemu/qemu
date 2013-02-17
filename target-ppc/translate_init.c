@@ -7315,7 +7315,6 @@ enum {
     CPU_POWERPC_POWER6             = 0x003E0000,
     CPU_POWERPC_POWER6_5           = 0x0F000001, /* POWER6 in POWER5 mode */
     CPU_POWERPC_POWER6A            = 0x0F000002,
-#define CPU_POWERPC_POWER7           CPU_POWERPC_POWER7_v20
     CPU_POWERPC_POWER7_v20         = 0x003F0200,
     CPU_POWERPC_POWER7_v21         = 0x003F0201,
     CPU_POWERPC_POWER7_v23         = 0x003F0203,
@@ -8703,7 +8702,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("POWER6A",       CPU_POWERPC_POWER6A,                POWER6)
 #endif
     /* POWER7                                                                */
-    POWERPC_DEF("POWER7",        CPU_POWERPC_POWER7,                 POWER7)
     POWERPC_DEF("POWER7_v2.0",   CPU_POWERPC_POWER7_v20,             POWER7)
     POWERPC_DEF("POWER7_v2.1",   CPU_POWERPC_POWER7_v21,             POWER7)
     POWERPC_DEF("POWER7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7)
@@ -8953,6 +8951,7 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "Boxer", "POWER3" },
     { "Dino",  "POWER3" },
     { "POWER3+", "631" },
+    { "POWER7", "POWER7_v2.0" },
     { "970fx", "970fx_v3.1" },
     { "970mp", "970mp_v1.1" },
     { "Apache", "RS64" },
