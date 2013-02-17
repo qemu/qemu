@@ -7037,7 +7037,6 @@ enum {
     CPU_POWERPC_G2LEgp3            = 0x80822013,
     /* MPC52xx microcontrollers  */
     /* XXX: MPC 5121 ? */
-#define CPU_POWERPC_MPC52xx          CPU_POWERPC_MPC5200
 #define CPU_POWERPC_MPC5200          CPU_POWERPC_MPC5200_v12
 #define CPU_POWERPC_MPC5200_v10      CPU_POWERPC_G2LEgp1
 #define CPU_POWERPC_MPC5200_v11      CPU_POWERPC_G2LEgp1
@@ -7364,7 +7363,6 @@ enum {
 /* System version register (used on MPC 8xxx)                                */
 enum {
     POWERPC_SVR_NONE               = 0x00000000,
-#define POWERPC_SVR_52xx             POWERPC_SVR_5200
 #define POWERPC_SVR_5200             POWERPC_SVR_5200_v12
     POWERPC_SVR_5200_v10           = 0x80110010,
     POWERPC_SVR_5200_v11           = 0x80110011,
@@ -7881,9 +7879,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("MPC8xx",        CPU_POWERPC_MPC8xx,                 MPC8xx)
 #endif
     /* MPC82xx family (aka PowerQUICC-II)                                    */
-    /* Generic MPC52xx core                                                  */
-    POWERPC_DEF_SVR("MPC52xx",
-                    CPU_POWERPC_MPC52xx,      POWERPC_SVR_52xx,      G2LE)
     /* PowerPC G2 core                                                       */
     POWERPC_DEF("G2",            CPU_POWERPC_G2,                     G2)
     /* PowerPC G2 H4 core                                                    */
@@ -8866,6 +8861,8 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "MPC875", "MPC8xx" },
     { "MPC880", "MPC8xx" },
     { "MPC885", "MPC8xx" },
+
+    { "MPC52xx", "MPC5200" },
 
     { "MPC82xx", "MPC8280" },
     { "PowerQUICC-II", "MPC82xx" },
