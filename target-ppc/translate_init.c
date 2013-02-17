@@ -7320,14 +7320,12 @@ enum {
     CPU_POWERPC_POWER7_v21         = 0x003F0201,
     CPU_POWERPC_POWER7_v23         = 0x003F0203,
     CPU_POWERPC_970                = 0x00390202,
-#define CPU_POWERPC_970FX            CPU_POWERPC_970FX_v31
     CPU_POWERPC_970FX_v10          = 0x00391100,
     CPU_POWERPC_970FX_v20          = 0x003C0200,
     CPU_POWERPC_970FX_v21          = 0x003C0201,
     CPU_POWERPC_970FX_v30          = 0x003C0300,
     CPU_POWERPC_970FX_v31          = 0x003C0301,
     CPU_POWERPC_970GX              = 0x00450000,
-#define CPU_POWERPC_970MP            CPU_POWERPC_970MP_v11
     CPU_POWERPC_970MP_v10          = 0x00440100,
     CPU_POWERPC_970MP_v11          = 0x00440101,
 #define CPU_POWERPC_CELL             CPU_POWERPC_CELL_v32
@@ -8711,8 +8709,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("POWER7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7)
     /* PowerPC 970                                                           */
     POWERPC_DEF("970",           CPU_POWERPC_970,                    970)
-    /* PowerPC 970FX (G5)                                                    */
-    POWERPC_DEF("970fx",         CPU_POWERPC_970FX,                  970FX)
     /* PowerPC 970FX v1.0 (G5)                                               */
     POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970FX)
     /* PowerPC 970FX v2.0 (G5)                                               */
@@ -8725,8 +8721,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("970fx_v3.1",    CPU_POWERPC_970FX_v31,              970FX)
     /* PowerPC 970GX (G5)                                                    */
     POWERPC_DEF("970gx",         CPU_POWERPC_970GX,                  970GX)
-    /* PowerPC 970MP                                                         */
-    POWERPC_DEF("970mp",         CPU_POWERPC_970MP,                  970MP)
     /* PowerPC 970MP v1.0                                                    */
     POWERPC_DEF("970mp_v1.0",    CPU_POWERPC_970MP_v10,              970MP)
     /* PowerPC 970MP v1.1                                                    */
@@ -8959,6 +8953,8 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "Boxer", "POWER3" },
     { "Dino",  "POWER3" },
     { "POWER3+", "631" },
+    { "970fx", "970fx_v3.1" },
+    { "970mp", "970mp_v1.1" },
     { "Apache", "RS64" },
     { "A35",    "RS64" },
     { "NorthStar", "RS64-II" },
