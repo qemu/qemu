@@ -9979,9 +9979,14 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     ObjectClass *oc = data;
     CPUListState *s = user_data;
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+    const char *typename = object_class_get_name(oc);
+    char *name;
 
+    name = g_strndup(typename,
+                     strlen(typename) - strlen("-" TYPE_POWERPC_CPU));
     (*s->cpu_fprintf)(s->file, "PowerPC %-16s PVR %08x\n",
-                      pcc->info->name, pcc->info->pvr);
+                      name, pcc->info->pvr);
+    g_free(name);
 }
 
 void ppc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
@@ -10014,12 +10019,14 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     CpuDefinitionInfoList **first = user_data;
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+    const char *typename;
     CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
 
+    typename = object_class_get_name(oc);
     info = g_malloc0(sizeof(*info));
-    info->name = g_strdup(pcc->info->name);
+    info->name = g_strndup(typename,
+                           strlen(typename) - strlen("-" TYPE_POWERPC_CPU));
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
