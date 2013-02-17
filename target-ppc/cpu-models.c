@@ -93,7 +93,7 @@
     /* XXX: to be checked */
     POWERPC_DEF("401G2",         CPU_POWERPC_401G2,                  401x2,
                 "PowerPC 401G2")
-    /* PowerPC 401 microcontrolers                                           */
+    /* PowerPC 401 microcontrollers                                          */
 #if defined(TODO)
     POWERPC_DEF("401GF",         CPU_POWERPC_401GF,                  401,
                 "PowerPC 401GF")
@@ -107,7 +107,7 @@
                 NULL)
 #endif
     /* PowerPC 403 family                                                    */
-    /* PowerPC 403 microcontrolers                                           */
+    /* PowerPC 403 microcontrollers                                          */
     POWERPC_DEF("403GA",         CPU_POWERPC_403GA,                  403,
                 "PowerPC 403 GA")
     POWERPC_DEF("403GB",         CPU_POWERPC_403GB,                  403,
@@ -174,7 +174,7 @@
     POWERPC_DEF("405F6",         CPU_POWERPC_405F6,                  405,
                 "PowerPC 405 F6")
 #endif
-    /* PowerPC 405 microcontrolers                                           */
+    /* PowerPC 405 microcontrollers                                          */
     POWERPC_DEF("405CRa",        CPU_POWERPC_405CRa,                 405,
                 "PowerPC 405 CRa")
     POWERPC_DEF("405CRb",        CPU_POWERPC_405CRb,                 405,
@@ -245,7 +245,7 @@
     POWERPC_DEF("LC77700",       CPU_POWERPC_LC77700,                405,
                 "PowerPC LC77700 (Sanyo)")
 #endif
-    /* PowerPC 401/403/405 based set-top-box microcontrolers                 */
+    /* PowerPC 401/403/405 based set-top-box microcontrollers                */
 #if defined(TODO)
     POWERPC_DEF("STB01000",      CPU_POWERPC_STB01000,               401x2,
                 "STB010000")
@@ -337,7 +337,7 @@
     POWERPC_DEF("440H6",         CPU_POWERPC_440H6,                  440Gx5,
                 "PowerPC 440H6")
 #endif
-    /* PowerPC 440 microcontrolers                                           */
+    /* PowerPC 440 microcontrollers                                          */
     POWERPC_DEF("440EPa",        CPU_POWERPC_440EPa,                 440EP,
                 "PowerPC 440 EPa")
     POWERPC_DEF("440EPb",        CPU_POWERPC_440EPb,                 440EP,
@@ -397,7 +397,7 @@
     POWERPC_DEF("464",           CPU_POWERPC_464,                    460,
                 "Generic PowerPC 464")
 #endif
-    /* PowerPC 464 microcontrolers                                           */
+    /* PowerPC 464 microcontrollers                                          */
 #if defined(TODO)
     POWERPC_DEF("464H90",        CPU_POWERPC_464H90,                 460,
                 "PowerPC 464H90")
