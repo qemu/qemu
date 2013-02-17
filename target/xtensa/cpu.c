@@ -60,7 +60,7 @@ static void xtensa_cpu_reset(CPUState *s)
     xcc->parent_reset(s);
 
     env->exception_taken = 0;
-    env->pc = env->config->exception_vector[EXC_RESET];
+    env->pc = env->config->exception_vector[EXC_RESET0 + env->static_vectors];
     env->sregs[LITBASE] &= ~1;
     env->sregs[PS] = xtensa_option_enabled(env->config,
             XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;

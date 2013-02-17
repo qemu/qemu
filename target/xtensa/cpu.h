@@ -209,7 +209,8 @@ enum {
 
 enum {
     /* Static vectors */
-    EXC_RESET,
+    EXC_RESET0,
+    EXC_RESET1,
     EXC_MEMORY_ERROR,
 
     /* Dynamic vectors */
@@ -373,6 +374,7 @@ typedef struct CPUXtensaState {
     int64_t halt_clock;
 
     int exception_taken;
+    unsigned static_vectors;
 
     /* Watchpoints for DBREAK registers */
     struct CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
@@ -461,6 +463,12 @@ void reset_mmu(CPUXtensaState *env);
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUXtensaState *env);
 void debug_exception_env(CPUXtensaState *new_env, uint32_t cause);
 
+static inline void xtensa_select_static_vectors(CPUXtensaState *env,
+                                                unsigned n)
+{
+    assert(n < 2);
+    env->static_vectors = n;
+}
 
 #define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))
 #define XTENSA_OPTION_ALL (~(uint64_t)0)
