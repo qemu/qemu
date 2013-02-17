@@ -7225,10 +7225,8 @@ enum {
 #define CPU_POWERPC_MPC8641          CPU_POWERPC_e600
 #define CPU_POWERPC_MPC8641D         CPU_POWERPC_e600
     /* PowerPC 6xx cores */
-#define CPU_POWERPC_601              CPU_POWERPC_601_v2
     CPU_POWERPC_601_v0             = 0x00010001,
     CPU_POWERPC_601_v1             = 0x00010001,
-#define CPU_POWERPC_601v             CPU_POWERPC_601_v2
     CPU_POWERPC_601_v2             = 0x00010002,
     CPU_POWERPC_602                = 0x00050100,
     CPU_POWERPC_603                = 0x00030100,
@@ -8593,14 +8591,10 @@ static const ppc_def_t ppc_defs[] = {
                     CPU_POWERPC_MPC8641D,     POWERPC_SVR_8641D,     7400)
     /* 32 bits "classic" PowerPC                                             */
     /* PowerPC 6xx family                                                    */
-    /* PowerPC 601                                                           */
-    POWERPC_DEF("601",           CPU_POWERPC_601,                    601v)
     /* PowerPC 601v0                                                         */
     POWERPC_DEF("601_v0",        CPU_POWERPC_601_v0,                 601)
     /* PowerPC 601v1                                                         */
     POWERPC_DEF("601_v1",        CPU_POWERPC_601_v1,                 601)
-    /* PowerPC 601v                                                          */
-    POWERPC_DEF("601v",          CPU_POWERPC_601v,                   601v)
     /* PowerPC 601v2                                                         */
     POWERPC_DEF("601_v2",        CPU_POWERPC_601_v2,                 601v)
     /* PowerPC 602                                                           */
@@ -9075,6 +9069,8 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
 
     { "PowerQUICC-II", "MPC82xx" },
     { "e500", "e500v2_v22" },
+    { "601",  "601_v2" },
+    { "601v", "601_v2" },
     { "Vanilla", "603" },
     { "603e", "603e_v4.1" },
     { "Stretch", "603e" },
