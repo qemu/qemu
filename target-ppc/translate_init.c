@@ -7042,8 +7042,6 @@ enum {
 #define CPU_POWERPC_MPC5200_v12      CPU_POWERPC_G2LEgp1
 #define CPU_POWERPC_MPC5200B_v20     CPU_POWERPC_G2LEgp1
 #define CPU_POWERPC_MPC5200B_v21     CPU_POWERPC_G2LEgp1
-    /* MPC82xx microcontrollers */
-#define CPU_POWERPC_MPC8240          CPU_POWERPC_MPC603
     /* e200 family */
     /* e200 cores */
 #if 0
@@ -7899,9 +7897,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("G2leGP1",       CPU_POWERPC_G2LEgp1,                G2LE)
     /* PowerPC G2LE GP3 core                                                 */
     POWERPC_DEF("G2leGP3",       CPU_POWERPC_G2LEgp3,                G2LE)
-    /* PowerPC MPC603 microcontrollers                                       */
-    /* MPC8240                                                               */
-    POWERPC_DEF("MPC8240",       CPU_POWERPC_MPC8240,                603E)
     /* PowerPC G2 microcontrollers                                           */
 #if defined(TODO)
     /* MPC5121                                                               */
@@ -8851,6 +8846,9 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "MPC875", "MPC8xx" },
     { "MPC880", "MPC8xx" },
     { "MPC885", "MPC8xx" },
+
+    /* PowerPC MPC603 microcontrollers */
+    { "MPC8240", "603" },
 
     { "MPC52xx", "MPC5200" },
     { "MPC5200", "MPC5200_v12" },
