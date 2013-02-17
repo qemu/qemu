@@ -7049,8 +7049,6 @@ enum {
 #define CPU_POWERPC_MPC8240          CPU_POWERPC_MPC603
 #define CPU_POWERPC_MPC8241          CPU_POWERPC_G2_HIP4
 #define CPU_POWERPC_MPC8245          CPU_POWERPC_G2_HIP4
-#define CPU_POWERPC_MPC8247          CPU_POWERPC_G2LEgp3
-#define CPU_POWERPC_MPC8248          CPU_POWERPC_G2LEgp3
 #define CPU_POWERPC_MPC8250          CPU_POWERPC_MPC8250_HiP4
 #define CPU_POWERPC_MPC8250_HiP3     CPU_POWERPC_G2_HIP3
 #define CPU_POWERPC_MPC8250_HiP4     CPU_POWERPC_G2_HIP4
@@ -7069,11 +7067,6 @@ enum {
 #define CPU_POWERPC_MPC8266          CPU_POWERPC_MPC8266_HiP4
 #define CPU_POWERPC_MPC8266_HiP3     CPU_POWERPC_G2_HIP3
 #define CPU_POWERPC_MPC8266_HiP4     CPU_POWERPC_G2_HIP4
-#define CPU_POWERPC_MPC8270          CPU_POWERPC_G2LEgp3
-#define CPU_POWERPC_MPC8271          CPU_POWERPC_G2LEgp3
-#define CPU_POWERPC_MPC8272          CPU_POWERPC_G2LEgp3
-#define CPU_POWERPC_MPC8275          CPU_POWERPC_G2LEgp3
-#define CPU_POWERPC_MPC8280          CPU_POWERPC_G2LEgp3
     /* e200 family */
     /* e200 cores */
 #if 0
@@ -7969,10 +7962,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("MPC8241",       CPU_POWERPC_MPC8241,                G2)
     /* MPC8245                                                               */
     POWERPC_DEF("MPC8245",       CPU_POWERPC_MPC8245,                G2)
-    /* MPC8247                                                               */
-    POWERPC_DEF("MPC8247",       CPU_POWERPC_MPC8247,                G2LE)
-    /* MPC8248                                                               */
-    POWERPC_DEF("MPC8248",       CPU_POWERPC_MPC8248,                G2LE)
     /* MPC8250                                                               */
     POWERPC_DEF("MPC8250",       CPU_POWERPC_MPC8250,                G2)
     /* MPC8250 HiP3                                                          */
@@ -8009,16 +7998,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("MPC8266_HiP3",  CPU_POWERPC_MPC8266_HiP3,           G2)
     /* MPC8266 HiP4                                                          */
     POWERPC_DEF("MPC8266_HiP4",  CPU_POWERPC_MPC8266_HiP4,           G2)
-    /* MPC8270                                                               */
-    POWERPC_DEF("MPC8270",       CPU_POWERPC_MPC8270,                G2LE)
-    /* MPC8271                                                               */
-    POWERPC_DEF("MPC8271",       CPU_POWERPC_MPC8271,                G2LE)
-    /* MPC8272                                                               */
-    POWERPC_DEF("MPC8272",       CPU_POWERPC_MPC8272,                G2LE)
-    /* MPC8275                                                               */
-    POWERPC_DEF("MPC8275",       CPU_POWERPC_MPC8275,                G2LE)
-    /* MPC8280                                                               */
-    POWERPC_DEF("MPC8280",       CPU_POWERPC_MPC8280,                G2LE)
     /* e200 family                                                           */
     /* Generic MPC55xx core                                                  */
 #if defined (TODO)
@@ -8950,6 +8929,13 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
 
     { "MPC82xx", "MPC8280" },
     { "PowerQUICC-II", "MPC82xx" },
+    { "MPC8247", "G2leGP3" },
+    { "MPC8248", "G2leGP3" },
+    { "MPC8270", "G2leGP3" },
+    { "MPC8271", "G2leGP3" },
+    { "MPC8272", "G2leGP3" },
+    { "MPC8275", "G2leGP3" },
+    { "MPC8280", "G2leGP3" },
     { "e200", "e200z6" },
     { "e300", "e300c3" },
     { "MPC8347", "MPC8347T" },
