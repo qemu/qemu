@@ -7276,15 +7276,12 @@ enum {
     CPU_POWERPC_750E               = 0x00080200,
     CPU_POWERPC_7x0P               = 0x10080000,
     /* XXX: missing 0x00087010 (CL ?) */
-#define CPU_POWERPC_750CL            CPU_POWERPC_750CL_v20
     CPU_POWERPC_750CL_v10          = 0x00087200,
     CPU_POWERPC_750CL_v20          = 0x00087210, /* aka rev E */
-#define CPU_POWERPC_750CX            CPU_POWERPC_750CX_v22
     CPU_POWERPC_750CX_v10          = 0x00082100,
     CPU_POWERPC_750CX_v20          = 0x00082200,
     CPU_POWERPC_750CX_v21          = 0x00082201,
     CPU_POWERPC_750CX_v22          = 0x00082202,
-#define CPU_POWERPC_750CXE           CPU_POWERPC_750CXE_v31b
     CPU_POWERPC_750CXE_v21         = 0x00082211,
     CPU_POWERPC_750CXE_v22         = 0x00082212,
     CPU_POWERPC_750CXE_v23         = 0x00082213,
@@ -7295,18 +7292,15 @@ enum {
     CPU_POWERPC_750CXE_v31b        = 0x00083311,
     CPU_POWERPC_750CXR             = 0x00083410,
     CPU_POWERPC_750FL              = 0x70000203,
-#define CPU_POWERPC_750FX            CPU_POWERPC_750FX_v23
     CPU_POWERPC_750FX_v10          = 0x70000100,
     CPU_POWERPC_750FX_v20          = 0x70000200,
     CPU_POWERPC_750FX_v21          = 0x70000201,
     CPU_POWERPC_750FX_v22          = 0x70000202,
     CPU_POWERPC_750FX_v23          = 0x70000203,
     CPU_POWERPC_750GL              = 0x70020102,
-#define CPU_POWERPC_750GX            CPU_POWERPC_750GX_v12
     CPU_POWERPC_750GX_v10          = 0x70020100,
     CPU_POWERPC_750GX_v11          = 0x70020101,
     CPU_POWERPC_750GX_v12          = 0x70020102,
-#define CPU_POWERPC_750L             CPU_POWERPC_750L_v32 /* Aka LoneStar */
     CPU_POWERPC_750L_v20           = 0x00088200,
     CPU_POWERPC_750L_v21           = 0x00088201,
     CPU_POWERPC_750L_v22           = 0x00088202,
@@ -8701,14 +8695,10 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("740p",          CPU_POWERPC_7x0P,                   740)
     /* PowerPC 750P (G3)                                                     */
     POWERPC_DEF("750p",          CPU_POWERPC_7x0P,                   750)
-    /* PowerPC 750CL (G3 embedded)                                           */
-    POWERPC_DEF("750cl",         CPU_POWERPC_750CL,                  750cl)
     /* PowerPC 750CL v1.0                                                    */
     POWERPC_DEF("750cl_v1.0",    CPU_POWERPC_750CL_v10,              750cl)
     /* PowerPC 750CL v2.0                                                    */
     POWERPC_DEF("750cl_v2.0",    CPU_POWERPC_750CL_v20,              750cl)
-    /* PowerPC 750CX (G3 embedded)                                           */
-    POWERPC_DEF("750cx",         CPU_POWERPC_750CX,                  750cx)
     /* PowerPC 750CX v1.0 (G3 embedded)                                      */
     POWERPC_DEF("750cx_v1.0",    CPU_POWERPC_750CX_v10,              750cx)
     /* PowerPC 750CX v2.1 (G3 embedded)                                      */
@@ -8717,8 +8707,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("750cx_v2.1",    CPU_POWERPC_750CX_v21,              750cx)
     /* PowerPC 750CX v2.2 (G3 embedded)                                      */
     POWERPC_DEF("750cx_v2.2",    CPU_POWERPC_750CX_v22,              750cx)
-    /* PowerPC 750CXe (G3 embedded)                                          */
-    POWERPC_DEF("750cxe",        CPU_POWERPC_750CXE,                 750cx)
     /* PowerPC 750CXe v2.1 (G3 embedded)                                     */
     POWERPC_DEF("750cxe_v2.1",   CPU_POWERPC_750CXE_v21,             750cx)
     /* PowerPC 750CXe v2.2 (G3 embedded)                                     */
@@ -8739,8 +8727,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("750cxr",        CPU_POWERPC_750CXR,                 750cx)
     /* PowerPC 750FL (G3 embedded)                                           */
     POWERPC_DEF("750fl",         CPU_POWERPC_750FL,                  750fx)
-    /* PowerPC 750FX (G3 embedded)                                           */
-    POWERPC_DEF("750fx",         CPU_POWERPC_750FX,                  750fx)
     /* PowerPC 750FX v1.0 (G3 embedded)                                      */
     POWERPC_DEF("750fx_v1.0",    CPU_POWERPC_750FX_v10,              750fx)
     /* PowerPC 750FX v2.0 (G3 embedded)                                      */
@@ -8753,16 +8739,12 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("750fx_v2.3",    CPU_POWERPC_750FX_v23,              750fx)
     /* PowerPC 750GL (G3 embedded)                                           */
     POWERPC_DEF("750gl",         CPU_POWERPC_750GL,                  750gx)
-    /* PowerPC 750GX (G3 embedded)                                           */
-    POWERPC_DEF("750gx",         CPU_POWERPC_750GX,                  750gx)
     /* PowerPC 750GX v1.0 (G3 embedded)                                      */
     POWERPC_DEF("750gx_v1.0",    CPU_POWERPC_750GX_v10,              750gx)
     /* PowerPC 750GX v1.1 (G3 embedded)                                      */
     POWERPC_DEF("750gx_v1.1",    CPU_POWERPC_750GX_v11,              750gx)
     /* PowerPC 750GX v1.2 (G3 embedded)                                      */
     POWERPC_DEF("750gx_v1.2",    CPU_POWERPC_750GX_v12,              750gx)
-    /* PowerPC 750L (G3 embedded)                                            */
-    POWERPC_DEF("750l",          CPU_POWERPC_750L,                   750)
     /* PowerPC 750L v2.0 (G3 embedded)                                       */
     POWERPC_DEF("750l_v2.0",     CPU_POWERPC_750L_v20,               750)
     /* PowerPC 750L v2.1 (G3 embedded)                                       */
@@ -9114,6 +9096,12 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "Typhoon", "750" },
     { "G3",      "750" },
     { "Conan/Doyle", "750p" },
+    { "750cl", "750cl_v2.0" },
+    { "750cx", "750cx_v2.2" },
+    { "750cxe", "750cxe_v3.1b" },
+    { "750fx", "750fx_v2.3" },
+    { "750gx", "750gx_v1.2" },
+    { "750l", "750l_v3.2" },
     { "LoneStar", "750l" },
     { "745", "745_v2.8" },
     { "755", "755_v2.8" },
