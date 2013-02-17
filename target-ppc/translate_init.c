@@ -6798,32 +6798,6 @@ static void init_proc_620 (CPUPPCState *env)
 }
 #endif /* defined (TARGET_PPC64) */
 
-/* Default 32 bits PowerPC target will be 604 */
-#define CPU_POWERPC_PPC32     CPU_POWERPC_604
-#define POWERPC_INSNS_PPC32   POWERPC_INSNS_604
-#define POWERPC_INSNS2_PPC32  POWERPC_INSNS2_604
-#define POWERPC_MSRM_PPC32    POWERPC_MSRM_604
-#define POWERPC_MMU_PPC32     POWERPC_MMU_604
-#define POWERPC_EXCP_PPC32    POWERPC_EXCP_604
-#define POWERPC_INPUT_PPC32   POWERPC_INPUT_604
-#define POWERPC_BFDM_PPC32    POWERPC_BFDM_604
-#define POWERPC_FLAG_PPC32    POWERPC_FLAG_604
-#define check_pow_PPC32       check_pow_604
-#define init_proc_PPC32       init_proc_604
-
-/* Default 64 bits PowerPC target will be 970 FX */
-#define CPU_POWERPC_PPC64     CPU_POWERPC_970FX
-#define POWERPC_INSNS_PPC64   POWERPC_INSNS_970FX
-#define POWERPC_INSNS2_PPC64  POWERPC_INSNS2_970FX
-#define POWERPC_MSRM_PPC64    POWERPC_MSRM_970FX
-#define POWERPC_MMU_PPC64     POWERPC_MMU_970FX
-#define POWERPC_EXCP_PPC64    POWERPC_EXCP_970FX
-#define POWERPC_INPUT_PPC64   POWERPC_INPUT_970FX
-#define POWERPC_BFDM_PPC64    POWERPC_BFDM_970FX
-#define POWERPC_FLAG_PPC64    POWERPC_FLAG_970FX
-#define check_pow_PPC64       check_pow_970FX
-#define init_proc_PPC64       init_proc_970FX
-
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC                                    */
 enum {
@@ -9111,11 +9085,6 @@ static const ppc_def_t ppc_defs[] = {
     /* PA PA6T */
     POWERPC_DEF("PA6T",          CPU_POWERPC_PA6T,                   PA6T)
 #endif
-    /* Generic PowerPCs                                                      */
-#if defined (TARGET_PPC64)
-    POWERPC_DEF("ppc64",         CPU_POWERPC_PPC64,                  PPC64)
-#endif
-    POWERPC_DEF("ppc32",         CPU_POWERPC_PPC32,                  PPC32)
 };
 
 typedef struct PowerPCCPUAlias {
@@ -9213,6 +9182,11 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "RSC2", "POWER2" },
     { "P2SC", "POWER2" },
 
+    /* Generic PowerPCs */
+#if defined(TARGET_PPC64)
+    { "ppc64", "970fx" },
+#endif
+    { "ppc32", "604" },
     { "ppc", "ppc32" },
     { "default", "ppc" },
 };
