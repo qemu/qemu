@@ -7134,8 +7134,6 @@ enum {
     /* e500 family */
     /* e500 cores  */
 #define CPU_POWERPC_e500             CPU_POWERPC_e500v2_v22
-#define CPU_POWERPC_e500v1           CPU_POWERPC_e500v1_v20
-#define CPU_POWERPC_e500v2           CPU_POWERPC_e500v2_v22
     CPU_POWERPC_e500v1_v10         = 0x80200010,
     CPU_POWERPC_e500v1_v20         = 0x80200020,
     CPU_POWERPC_e500v2_v10         = 0x80210010,
@@ -8316,14 +8314,10 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF_SVR("MPC8379E",
                     CPU_POWERPC_MPC837x,      POWERPC_SVR_8379E,     e300)
     /* e500 family                                                           */
-    /* PowerPC e500v1 core                                                   */
-    POWERPC_DEF("e500v1",        CPU_POWERPC_e500v1,                 e500v1)
     /* PowerPC e500 v1.0 core                                                */
     POWERPC_DEF("e500_v10",      CPU_POWERPC_e500v1_v10,             e500v1)
     /* PowerPC e500 v2.0 core                                                */
     POWERPC_DEF("e500_v20",      CPU_POWERPC_e500v1_v20,             e500v1)
-    /* PowerPC e500v2 core                                                   */
-    POWERPC_DEF("e500v2",        CPU_POWERPC_e500v2,                 e500v2)
     /* PowerPC e500v2 v1.0 core                                              */
     POWERPC_DEF("e500v2_v10",    CPU_POWERPC_e500v2_v10,             e500v2)
     /* PowerPC e500v2 v2.0 core                                              */
@@ -8981,6 +8975,8 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
 
     { "PowerQUICC-II", "MPC82xx" },
     { "e500", "e500v2_v22" },
+    { "e500v1", "e500_v20" },
+    { "e500v2", "e500v2_v22" },
     { "MPC8533", "MPC8533_v11" },
     { "MPC8533E", "MPC8533E_v11" },
     { "MPC8540", "MPC8540_v21" },
