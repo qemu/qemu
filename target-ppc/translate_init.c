@@ -7876,14 +7876,6 @@ enum {
 /* PowerPC CPU definitions                                                   */
 #define POWERPC_DEF_PREFIX(pvr, svr, type)                                  \
     glue(glue(glue(glue(pvr, _), svr), _), type)
-#if defined(TARGET_PPCEMB)
-#define POWERPC_DEF_CONDITION(type)                                         \
-    if (glue(POWERPC_MMU_, type) != POWERPC_MMU_BOOKE) {                    \
-        return;                                                             \
-    }
-#else
-#define POWERPC_DEF_CONDITION(type)
-#endif
 #define POWERPC_DEF_SVR(_name, _pvr, _svr, _type)                             \
     static void                                                             \
     glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_class_init)            \
@@ -7912,7 +7904,6 @@ enum {
     static void                                                             \
     glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_register_types)(void)  \
     {                                                                       \
-        POWERPC_DEF_CONDITION(_type)                                        \
         type_register_static(                                               \
             &glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_type_info));  \
     }                                                                       \
@@ -10040,6 +10031,15 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         }
     }
 
+#if defined(TARGET_PPCEMB)
+    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
+        error_setg(errp, "CPU does not possess a BookE MMU. "
+                   "Please use qemu-system-ppc or qemu-system-ppc64 instead "
+                   "or choose another CPU model.");
+        return;
+    }
+#endif
+
     create_ppc_opcodes(cpu, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -10239,6 +10239,12 @@ static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)
         return -1;
     }
 
+#if defined(TARGET_PPCEMB)
+    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
+        return -1;
+    }
+#endif
+
     return pcc->pvr == pvr ? 0 : -1;
 }
 
@@ -10261,8 +10267,14 @@ static gint ppc_cpu_compare_class_name(gconstpointer a, gconstpointer b)
 {
     ObjectClass *oc = (ObjectClass *)a;
     const char *name = b;
+#if defined(TARGET_PPCEMB)
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+#endif
 
     if (strncasecmp(name, object_class_get_name(oc), strlen(name)) == 0 &&
+#if defined(TARGET_PPCEMB)
+        pcc->mmu_model == POWERPC_MMU_BOOKE &&
+#endif
         strcmp(object_class_get_name(oc) + strlen(name),
                "-" TYPE_POWERPC_CPU) == 0) {
         return 0;
@@ -10381,6 +10393,12 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     const char *typename = object_class_get_name(oc);
     char *name;
 
+#if defined(TARGET_PPCEMB)
+    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
+        return;
+    }
+#endif
+
     name = g_strndup(typename,
                      strlen(typename) - strlen("-" TYPE_POWERPC_CPU));
     (*s->cpu_fprintf)(s->file, "PowerPC %-16s PVR %08x\n",
@@ -10421,6 +10439,13 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
     const char *typename;
     CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
+#if defined(TARGET_PPCEMB)
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
+        return;
+    }
+#endif
 
     typename = object_class_get_name(oc);
     info = g_malloc0(sizeof(*info));
