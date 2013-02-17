@@ -6824,33 +6824,6 @@ static void init_proc_620 (CPUPPCState *env)
 #define check_pow_PPC64       check_pow_970FX
 #define init_proc_PPC64       init_proc_970FX
 
-/* Default PowerPC target will be PowerPC 32 */
-#if defined (TARGET_PPC64) && 0 // XXX: TODO
-#define CPU_POWERPC_DEFAULT    CPU_POWERPC_PPC64
-#define POWERPC_INSNS_DEFAULT  POWERPC_INSNS_PPC64
-#define POWERPC_INSNS2_DEFAULT POWERPC_INSNS2_PPC64
-#define POWERPC_MSRM_DEFAULT   POWERPC_MSRM_PPC64
-#define POWERPC_MMU_DEFAULT    POWERPC_MMU_PPC64
-#define POWERPC_EXCP_DEFAULT   POWERPC_EXCP_PPC64
-#define POWERPC_INPUT_DEFAULT  POWERPC_INPUT_PPC64
-#define POWERPC_BFDM_DEFAULT   POWERPC_BFDM_PPC64
-#define POWERPC_FLAG_DEFAULT   POWERPC_FLAG_PPC64
-#define check_pow_DEFAULT      check_pow_PPC64
-#define init_proc_DEFAULT      init_proc_PPC64
-#else
-#define CPU_POWERPC_DEFAULT    CPU_POWERPC_PPC32
-#define POWERPC_INSNS_DEFAULT  POWERPC_INSNS_PPC32
-#define POWERPC_INSNS2_DEFAULT POWERPC_INSNS2_PPC32
-#define POWERPC_MSRM_DEFAULT   POWERPC_MSRM_PPC32
-#define POWERPC_MMU_DEFAULT    POWERPC_MMU_PPC32
-#define POWERPC_EXCP_DEFAULT   POWERPC_EXCP_PPC32
-#define POWERPC_INPUT_DEFAULT  POWERPC_INPUT_PPC32
-#define POWERPC_BFDM_DEFAULT   POWERPC_BFDM_PPC32
-#define POWERPC_FLAG_DEFAULT   POWERPC_FLAG_PPC32
-#define check_pow_DEFAULT      check_pow_PPC32
-#define init_proc_DEFAULT      init_proc_PPC32
-#endif
-
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC                                    */
 enum {
@@ -9321,7 +9294,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("ppc64",         CPU_POWERPC_PPC64,                  PPC64)
 #endif
     POWERPC_DEF("ppc32",         CPU_POWERPC_PPC32,                  PPC32)
-    POWERPC_DEF("ppc",           CPU_POWERPC_DEFAULT,                DEFAULT)
 };
 
 typedef struct PowerPCCPUAlias {
@@ -9375,6 +9347,7 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "RSC2", "POWER2" },
     { "P2SC", "POWER2" },
 
+    { "ppc", "ppc32" },
     { "default", "ppc" },
 };
 
