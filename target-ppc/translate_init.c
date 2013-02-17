@@ -10043,9 +10043,9 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 
 #if !defined(CONFIG_USER_ONLY)
     if (smp_threads > max_smt) {
-        fprintf(stderr, "Cannot support more than %d threads on PPC with %s\n",
-                max_smt, kvm_enabled() ? "KVM" : "TCG");
-        exit(1);
+        error_setg(errp, "Cannot support more than %d threads on PPC with %s",
+                   max_smt, kvm_enabled() ? "KVM" : "TCG");
+        return;
     }
 #endif
 
