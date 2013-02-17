@@ -7351,7 +7351,6 @@ enum {
     CPU_POWERPC_7448_v11           = 0x80040101,
     CPU_POWERPC_7448_v20           = 0x80040200,
     CPU_POWERPC_7448_v21           = 0x80040201,
-#define CPU_POWERPC_7450             CPU_POWERPC_7450_v21
     CPU_POWERPC_7450_v10           = 0x80000100,
     CPU_POWERPC_7450_v11           = 0x80000101,
     CPU_POWERPC_7450_v12           = 0x80000102,
@@ -8875,8 +8874,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("7448_v2.0",     CPU_POWERPC_7448_v20,               7400)
     /* PowerPC 7448 v2.1 (G4)                                                */
     POWERPC_DEF("7448_v2.1",     CPU_POWERPC_7448_v21,               7400)
-    /* PowerPC 7450 (G4)                                                     */
-    POWERPC_DEF("7450",          CPU_POWERPC_7450,                   7450)
     /* PowerPC 7450 v1.0 (G4)                                                */
     POWERPC_DEF("7450_v1.0",     CPU_POWERPC_7450_v10,               7450)
     /* PowerPC 7450 v1.1 (G4)                                                */
@@ -9136,6 +9133,7 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "Max", "7400" },
     { "G4",  "7400" },
     { "Nitro", "7410" },
+    { "7450", "7450_v2.1" },
     { "Vger", "7450" },
     { "7441", "7441_v2.3" },
     { "7451", "7451_v2.3" },
