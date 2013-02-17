@@ -7013,17 +7013,13 @@ enum {
     CPU_POWERPC_440H6              = xxx,
 #endif
     /* PowerPC 440 microcontrolers */
-#define CPU_POWERPC_440EP            CPU_POWERPC_440EPb
     CPU_POWERPC_440EPa             = 0x42221850,
     CPU_POWERPC_440EPb             = 0x422218D3,
-#define CPU_POWERPC_440GP            CPU_POWERPC_440GPc
     CPU_POWERPC_440GPb             = 0x40120440,
     CPU_POWERPC_440GPc             = 0x40120481,
-#define CPU_POWERPC_440GR            CPU_POWERPC_440GRa
 #define CPU_POWERPC_440GRa           CPU_POWERPC_440EPb
     CPU_POWERPC_440GRX             = 0x200008D0,
 #define CPU_POWERPC_440EPX           CPU_POWERPC_440GRX
-#define CPU_POWERPC_440GX            CPU_POWERPC_440GXf
     CPU_POWERPC_440GXa             = 0x51B21850,
     CPU_POWERPC_440GXb             = 0x51B21851,
     CPU_POWERPC_440GXc             = 0x51B21892,
@@ -7922,18 +7918,12 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("440H6",         CPU_POWERPC_440H6,                  440Gx5)
 #endif
     /* PowerPC 440 microcontrolers                                           */
-    /* PowerPC 440 EP                                                        */
-    POWERPC_DEF("440EP",         CPU_POWERPC_440EP,                  440EP)
     /* PowerPC 440 EPa                                                       */
     POWERPC_DEF("440EPa",        CPU_POWERPC_440EPa,                 440EP)
     /* PowerPC 440 EPb                                                       */
     POWERPC_DEF("440EPb",        CPU_POWERPC_440EPb,                 440EP)
     /* PowerPC 440 EPX                                                       */
     POWERPC_DEF("440EPX",        CPU_POWERPC_440EPX,                 440EP)
-#if defined(TODO_USER_ONLY)
-    /* PowerPC 440 GP                                                        */
-    POWERPC_DEF("440GP",         CPU_POWERPC_440GP,                  440GP)
-#endif
 #if defined(TODO_USER_ONLY)
     /* PowerPC 440 GPb                                                       */
     POWERPC_DEF("440GPb",        CPU_POWERPC_440GPb,                 440GP)
@@ -7943,20 +7933,12 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("440GPc",        CPU_POWERPC_440GPc,                 440GP)
 #endif
 #if defined(TODO_USER_ONLY)
-    /* PowerPC 440 GR                                                        */
-    POWERPC_DEF("440GR",         CPU_POWERPC_440GR,                  440x5)
-#endif
-#if defined(TODO_USER_ONLY)
     /* PowerPC 440 GRa                                                       */
     POWERPC_DEF("440GRa",        CPU_POWERPC_440GRa,                 440x5)
 #endif
 #if defined(TODO_USER_ONLY)
     /* PowerPC 440 GRX                                                       */
     POWERPC_DEF("440GRX",        CPU_POWERPC_440GRX,                 440x5)
-#endif
-#if defined(TODO_USER_ONLY)
-    /* PowerPC 440 GX                                                        */
-    POWERPC_DEF("440GX",         CPU_POWERPC_440GX,                  440EP)
 #endif
 #if defined(TODO_USER_ONLY)
     /* PowerPC 440 GXa                                                       */
@@ -9148,6 +9130,11 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "405GP", "405GPd" },
     { "x2vp7", "x2vp4" },
     { "x2vp50", "x2vp20" },
+
+    { "440EP", "440EPb" },
+    { "440GP", "440GPc" },
+    { "440GR", "440GRa" },
+    { "440GX", "440GXf" },
 
     { "RCPU", "MPC5xx" },
     /* MPC5xx microcontrollers */
