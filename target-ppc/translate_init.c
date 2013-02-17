@@ -3275,14 +3275,6 @@ static int check_pow_hid0_74xx (CPUPPCState *env)
     static void glue(glue(ppc_, _name), _cpu_family_class_init)
 
 /* PowerPC 401                                                               */
-#define POWERPC_MSRM_401     (0x00000000000FD201ULL)
-#define POWERPC_MMU_401      (POWERPC_MMU_REAL)
-#define POWERPC_EXCP_401     (POWERPC_EXCP_40x)
-#define POWERPC_INPUT_401    (PPC_FLAGS_INPUT_401)
-#define POWERPC_BFDM_401     (bfd_mach_ppc_403)
-#define POWERPC_FLAG_401     (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_401 (CPUPPCState *env)
 {
     gen_spr_40x(env);
@@ -3311,17 +3303,16 @@ POWERPC_FAMILY(401)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x00000000000FD201ULL;
+    pcc->mmu_model = POWERPC_MMU_REAL;
+    pcc->excp_model = POWERPC_EXCP_40x;
+    pcc->bus_model = PPC_FLAGS_INPUT_401;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 401x2                                                             */
-#define POWERPC_MSRM_401x2   (0x00000000001FD231ULL)
-#define POWERPC_MMU_401x2    (POWERPC_MMU_SOFT_4xx_Z)
-#define POWERPC_EXCP_401x2   (POWERPC_EXCP_40x)
-#define POWERPC_INPUT_401x2  (PPC_FLAGS_INPUT_401)
-#define POWERPC_BFDM_401x2   (bfd_mach_ppc_403)
-#define POWERPC_FLAG_401x2   (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_401x2 (CPUPPCState *env)
 {
     gen_spr_40x(env);
@@ -3359,17 +3350,16 @@ POWERPC_FAMILY(401x2)(ObjectClass *oc, void *data)
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x00000000001FD231ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
+    pcc->excp_model = POWERPC_EXCP_40x;
+    pcc->bus_model = PPC_FLAGS_INPUT_401;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 401x3                                                             */
-#define POWERPC_MSRM_401x3   (0x00000000001FD631ULL)
-#define POWERPC_MMU_401x3    (POWERPC_MMU_SOFT_4xx_Z)
-#define POWERPC_EXCP_401x3   (POWERPC_EXCP_40x)
-#define POWERPC_INPUT_401x3  (PPC_FLAGS_INPUT_401)
-#define POWERPC_BFDM_401x3   (bfd_mach_ppc_403)
-#define POWERPC_FLAG_401x3   (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_401x3 (CPUPPCState *env)
 {
     gen_spr_40x(env);
@@ -3401,17 +3391,16 @@ POWERPC_FAMILY(401x3)(ObjectClass *oc, void *data)
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x00000000001FD631ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
+    pcc->excp_model = POWERPC_EXCP_40x;
+    pcc->bus_model = PPC_FLAGS_INPUT_401;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* IOP480                                                                    */
-#define POWERPC_MSRM_IOP480  (0x00000000001FD231ULL)
-#define POWERPC_MMU_IOP480   (POWERPC_MMU_SOFT_4xx_Z)
-#define POWERPC_EXCP_IOP480  (POWERPC_EXCP_40x)
-#define POWERPC_INPUT_IOP480 (PPC_FLAGS_INPUT_401)
-#define POWERPC_BFDM_IOP480  (bfd_mach_ppc_403)
-#define POWERPC_FLAG_IOP480  (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_IOP480 (CPUPPCState *env)
 {
     gen_spr_40x(env);
@@ -3449,17 +3438,16 @@ POWERPC_FAMILY(IOP480)(ObjectClass *oc, void *data)
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x00000000001FD231ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
+    pcc->excp_model = POWERPC_EXCP_40x;
+    pcc->bus_model = PPC_FLAGS_INPUT_401;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 403                                                               */
-#define POWERPC_MSRM_403     (0x000000000007D00DULL)
-#define POWERPC_MMU_403      (POWERPC_MMU_REAL)
-#define POWERPC_EXCP_403     (POWERPC_EXCP_40x)
-#define POWERPC_INPUT_403    (PPC_FLAGS_INPUT_401)
-#define POWERPC_BFDM_403     (bfd_mach_ppc_403)
-#define POWERPC_FLAG_403     (POWERPC_FLAG_CE | POWERPC_FLAG_PX |             \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_403 (CPUPPCState *env)
 {
     gen_spr_40x(env);
@@ -3489,17 +3477,16 @@ POWERPC_FAMILY(403)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000007D00DULL;
+    pcc->mmu_model = POWERPC_MMU_REAL;
+    pcc->excp_model = POWERPC_EXCP_40x;
+    pcc->bus_model = PPC_FLAGS_INPUT_401;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_PX |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 403 GCX                                                           */
-#define POWERPC_MSRM_403GCX  (0x000000000007D00DULL)
-#define POWERPC_MMU_403GCX   (POWERPC_MMU_SOFT_4xx_Z)
-#define POWERPC_EXCP_403GCX  (POWERPC_EXCP_40x)
-#define POWERPC_INPUT_403GCX (PPC_FLAGS_INPUT_401)
-#define POWERPC_BFDM_403GCX  (bfd_mach_ppc_403)
-#define POWERPC_FLAG_403GCX  (POWERPC_FLAG_CE | POWERPC_FLAG_PX |             \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_403GCX (CPUPPCState *env)
 {
     gen_spr_40x(env);
@@ -3549,17 +3536,16 @@ POWERPC_FAMILY(403GCX)(ObjectClass *oc, void *data)
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_40x_EXCP;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000007D00DULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
+    pcc->excp_model = POWERPC_EXCP_40x;
+    pcc->bus_model = PPC_FLAGS_INPUT_401;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_PX |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 405                                                               */
-#define POWERPC_MSRM_405     (0x000000000006E630ULL)
-#define POWERPC_MMU_405      (POWERPC_MMU_SOFT_4xx)
-#define POWERPC_EXCP_405     (POWERPC_EXCP_40x)
-#define POWERPC_INPUT_405    (PPC_FLAGS_INPUT_405)
-#define POWERPC_BFDM_405     (bfd_mach_ppc_403)
-#define POWERPC_FLAG_405     (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_405 (CPUPPCState *env)
 {
     /* Time base */
@@ -3608,17 +3594,16 @@ POWERPC_FAMILY(405)(ObjectClass *oc, void *data)
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_405_MAC | PPC_40x_EXCP;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000006E630ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_4xx;
+    pcc->excp_model = POWERPC_EXCP_40x;
+    pcc->bus_model = PPC_FLAGS_INPUT_405;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DWE |
+                 POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 440 EP                                                            */
-#define POWERPC_MSRM_440EP   (0x000000000006FF30ULL)
-#define POWERPC_MMU_440EP    (POWERPC_MMU_BOOKE)
-#define POWERPC_EXCP_440EP   (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_440EP  (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_440EP   (bfd_mach_ppc_403)
-#define POWERPC_FLAG_440EP   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_440EP (CPUPPCState *env)
 {
     /* Time base */
@@ -3702,17 +3687,16 @@ POWERPC_FAMILY(440EP)(ObjectClass *oc, void *data)
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DWE |
+                 POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 440 GP                                                            */
-#define POWERPC_MSRM_440GP   (0x000000000006FF30ULL)
-#define POWERPC_MMU_440GP    (POWERPC_MMU_BOOKE)
-#define POWERPC_EXCP_440GP   (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_440GP  (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_440GP   (bfd_mach_ppc_403)
-#define POWERPC_FLAG_440GP   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_440GP (CPUPPCState *env)
 {
     /* Time base */
@@ -3775,17 +3759,16 @@ POWERPC_FAMILY(440GP)(ObjectClass *oc, void *data)
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DWE |
+                 POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 440x4                                                             */
-#define POWERPC_MSRM_440x4   (0x000000000006FF30ULL)
-#define POWERPC_MMU_440x4    (POWERPC_MMU_BOOKE)
-#define POWERPC_EXCP_440x4   (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_440x4  (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_440x4   (bfd_mach_ppc_403)
-#define POWERPC_FLAG_440x4   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_440x4 (CPUPPCState *env)
 {
     /* Time base */
@@ -3848,17 +3831,16 @@ POWERPC_FAMILY(440x4)(ObjectClass *oc, void *data)
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DWE |
+                 POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 440x5                                                             */
-#define POWERPC_MSRM_440x5   (0x000000000006FF30ULL)
-#define POWERPC_MMU_440x5    (POWERPC_MMU_BOOKE)
-#define POWERPC_EXCP_440x5   (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_440x5  (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_440x5   (bfd_mach_ppc_403)
-#define POWERPC_FLAG_440x5   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |           \
-                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_440x5 (CPUPPCState *env)
 {
     /* Time base */
@@ -3939,17 +3921,16 @@ POWERPC_FAMILY(440x5)(ObjectClass *oc, void *data)
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DWE |
+                 POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 460 (guessed)                                                     */
-#define POWERPC_MSRM_460     (0x000000000006FF30ULL)
-#define POWERPC_MMU_460      (POWERPC_MMU_BOOKE)
-#define POWERPC_EXCP_460     (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_460    (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_460     (bfd_mach_ppc_403)
-#define POWERPC_FLAG_460     (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_460 (CPUPPCState *env)
 {
     /* Time base */
@@ -4036,17 +4017,16 @@ POWERPC_FAMILY(460)(ObjectClass *oc, void *data)
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DWE |
+                 POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 460F (guessed)                                                    */
-#define POWERPC_MSRM_460     (0x000000000006FF30ULL)
-#define POWERPC_MMU_460F     (POWERPC_MMU_BOOKE)
-#define POWERPC_EXCP_460F    (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_460F   (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_460F    (bfd_mach_ppc_403)
-#define POWERPC_FLAG_460F    (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
-                              POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_460F (CPUPPCState *env)
 {
     /* Time base */
@@ -4136,17 +4116,16 @@ POWERPC_FAMILY(460F)(ObjectClass *oc, void *data)
                        PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |
                        PPC_440_SPEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000006FF30ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_403;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DWE |
+                 POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* Freescale 5xx cores (aka RCPU) */
-#define POWERPC_MSRM_MPC5xx  (0x000000000001FF43ULL)
-#define POWERPC_MMU_MPC5xx   (POWERPC_MMU_REAL)
-#define POWERPC_EXCP_MPC5xx  (POWERPC_EXCP_603)
-#define POWERPC_INPUT_MPC5xx (PPC_FLAGS_INPUT_RCPU)
-#define POWERPC_BFDM_MPC5xx  (bfd_mach_ppc_505)
-#define POWERPC_FLAG_MPC5xx  (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_MPC5xx (CPUPPCState *env)
 {
     /* Time base */
@@ -4170,17 +4149,16 @@ POWERPC_FAMILY(MPC5xx)(ObjectClass *oc, void *data)
                        PPC_CACHE_ICBI | PPC_FLOAT | PPC_FLOAT_STFIWX |
                        PPC_MFTB;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000001FF43ULL;
+    pcc->mmu_model = POWERPC_MMU_REAL;
+    pcc->excp_model = POWERPC_EXCP_603;
+    pcc->bus_model = PPC_FLAGS_INPUT_RCPU;
+    pcc->bfd_mach = bfd_mach_ppc_505;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* Freescale 8xx cores (aka PowerQUICC) */
-#define POWERPC_MSRM_MPC8xx  (0x000000000001F673ULL)
-#define POWERPC_MMU_MPC8xx   (POWERPC_MMU_MPC8xx)
-#define POWERPC_EXCP_MPC8xx  (POWERPC_EXCP_603)
-#define POWERPC_INPUT_MPC8xx (PPC_FLAGS_INPUT_RCPU)
-#define POWERPC_BFDM_MPC8xx  (bfd_mach_ppc_860)
-#define POWERPC_FLAG_MPC8xx  (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_MPC8xx (CPUPPCState *env)
 {
     /* Time base */
@@ -4203,18 +4181,17 @@ POWERPC_FAMILY(MPC8xx)(ObjectClass *oc, void *data)
                        PPC_MEM_EIEIO | PPC_MEM_SYNC |
                        PPC_CACHE_ICBI | PPC_MFTB;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000001F673ULL;
+    pcc->mmu_model = POWERPC_MMU_MPC8xx;
+    pcc->excp_model = POWERPC_EXCP_603;
+    pcc->bus_model = PPC_FLAGS_INPUT_RCPU;
+    pcc->bfd_mach = bfd_mach_ppc_860;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* Freescale 82xx cores (aka PowerQUICC-II)                                  */
 /* PowerPC G2                                                                */
-#define POWERPC_MSRM_G2      (0x000000000006FFF2ULL)
-#define POWERPC_MMU_G2       (POWERPC_MMU_SOFT_6xx)
-//#define POWERPC_EXCP_G2      (POWERPC_EXCP_G2)
-#define POWERPC_INPUT_G2     (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_G2      (bfd_mach_ppc_ec603e)
-#define POWERPC_FLAG_G2      (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_G2 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -4269,17 +4246,16 @@ POWERPC_FAMILY(G2)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000006FFF2ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
+    pcc->excp_model = POWERPC_EXCP_G2;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_ec603e;
+    pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC G2LE                                                              */
-#define POWERPC_MSRM_G2LE    (0x000000000007FFF3ULL)
-#define POWERPC_MMU_G2LE     (POWERPC_MMU_SOFT_6xx)
-#define POWERPC_EXCP_G2LE    (POWERPC_EXCP_G2)
-#define POWERPC_INPUT_G2LE   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_G2LE    (bfd_mach_ppc_ec603e)
-#define POWERPC_FLAG_G2LE    (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_G2LE (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -4334,18 +4310,16 @@ POWERPC_FAMILY(G2LE)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000007FFF3ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
+    pcc->excp_model = POWERPC_EXCP_G2;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_ec603e;
+    pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* e200 core                                                                 */
-#define POWERPC_MSRM_e200    (0x000000000606FF30ULL)
-#define POWERPC_MMU_e200     (POWERPC_MMU_BOOKE206)
-#define POWERPC_EXCP_e200    (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_e200   (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_e200    (bfd_mach_ppc_860)
-#define POWERPC_FLAG_e200    (POWERPC_FLAG_SPE | POWERPC_FLAG_CE |            \
-                              POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |           \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_e200 (CPUPPCState *env)
 {
     /* Time base */
@@ -4476,17 +4450,17 @@ POWERPC_FAMILY(e200)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX |
                        PPC_BOOKE;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000606FF30ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE206;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_860;
+    pcc->flags = POWERPC_FLAG_SPE | POWERPC_FLAG_CE |
+                 POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* e300 core                                                                 */
-#define POWERPC_MSRM_e300    (0x000000000007FFF3ULL)
-#define POWERPC_MMU_e300     (POWERPC_MMU_SOFT_6xx)
-#define POWERPC_EXCP_e300    (POWERPC_EXCP_603)
-#define POWERPC_INPUT_e300   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_e300    (bfd_mach_ppc_603)
-#define POWERPC_FLAG_e300    (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_e300 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -4534,47 +4508,19 @@ POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000007FFF3ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
+    pcc->excp_model = POWERPC_EXCP_603;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_603;
+    pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* e500v1 core                                                               */
-#define POWERPC_MSRM_e500v1    (0x000000000606FF30ULL)
-#define POWERPC_MMU_e500v1     (POWERPC_MMU_BOOKE206)
-#define POWERPC_EXCP_e500v1    (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_e500v1   (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_e500v1    (bfd_mach_ppc_860)
-#define POWERPC_FLAG_e500v1    (POWERPC_FLAG_SPE | POWERPC_FLAG_CE |    \
-                                POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |   \
-                                POWERPC_FLAG_BUS_CLK)
-
 /* e500v2 core                                                               */
-#define POWERPC_MSRM_e500v2    (0x000000000606FF30ULL)
-#define POWERPC_MMU_e500v2     (POWERPC_MMU_BOOKE206)
-#define POWERPC_EXCP_e500v2    (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_e500v2   (PPC_FLAGS_INPUT_BookE)
-#define POWERPC_BFDM_e500v2    (bfd_mach_ppc_860)
-#define POWERPC_FLAG_e500v2    (POWERPC_FLAG_SPE | POWERPC_FLAG_CE |    \
-                                POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |   \
-                                POWERPC_FLAG_BUS_CLK)
-
 /* e500mc core                                                               */
-#define POWERPC_MSRM_e500mc    (0x000000001402FB36ULL)
-#define POWERPC_MMU_e500mc     (POWERPC_MMU_BOOKE206)
-#define POWERPC_EXCP_e500mc    (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_e500mc   (PPC_FLAGS_INPUT_BookE)
-/* Fixme: figure out the correct flag for e500mc */
-#define POWERPC_BFDM_e500mc    (bfd_mach_ppc_e500)
-#define POWERPC_FLAG_e500mc    (POWERPC_FLAG_CE | POWERPC_FLAG_DE | \
-                                POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 /* e5500 core                                                                 */
-#define POWERPC_MSRM_e5500     (0x000000009402FB36ULL)
-#define POWERPC_MMU_e5500      (POWERPC_MMU_BOOKE206)
-#define POWERPC_EXCP_e5500     (POWERPC_EXCP_BOOKE)
-#define POWERPC_INPUT_e5500    (PPC_FLAGS_INPUT_BookE)
-/* Fixme: figure out the correct flag for e5500 */
-#define POWERPC_BFDM_e5500     (bfd_mach_ppc_e500)
-#define POWERPC_FLAG_e5500     (POWERPC_FLAG_CE | POWERPC_FLAG_DE | \
-                                POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
 
 #if !defined(CONFIG_USER_ONLY)
 static void spr_write_mas73(void *opaque, int sprn, int gprn)
@@ -4803,6 +4749,14 @@ POWERPC_FAMILY(e500v1)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC;
     pcc->insns_flags2 = PPC2_BOOKE206;
+    pcc->msr_mask = 0x000000000606FF30ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE206;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_860;
+    pcc->flags = POWERPC_FLAG_SPE | POWERPC_FLAG_CE |
+                 POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 static void init_proc_e500v2(CPUPPCState *env)
@@ -4823,6 +4777,14 @@ POWERPC_FAMILY(e500v2)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC;
     pcc->insns_flags2 = PPC2_BOOKE206;
+    pcc->msr_mask = 0x000000000606FF30ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE206;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    pcc->bfd_mach = bfd_mach_ppc_860;
+    pcc->flags = POWERPC_FLAG_SPE | POWERPC_FLAG_CE |
+                 POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 static void init_proc_e500mc(CPUPPCState *env)
@@ -4845,6 +4807,14 @@ POWERPC_FAMILY(e500mc)(ObjectClass *oc, void *data)
                        PPC_FLOAT_STFIWX | PPC_WAIT |
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC;
     pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL;
+    pcc->msr_mask = 0x000000001402FB36ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE206;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    /* FIXME: figure out the correct flag for e500mc */
+    pcc->bfd_mach = bfd_mach_ppc_e500;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 #ifdef TARGET_PPC64
@@ -4869,6 +4839,14 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC |
                        PPC_64B | PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_BOOKE206 | PPC2_PRCNTL;
+    pcc->msr_mask = 0x000000009402FB36ULL;
+    pcc->mmu_model = POWERPC_MMU_BOOKE206;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+    /* FIXME: figure out the correct flag for e5500 */
+    pcc->bfd_mach = bfd_mach_ppc_e500;
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 #endif
 
@@ -4876,25 +4854,18 @@ POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
 
 /* POWER : same as 601, without mfmsr, mfsr                                  */
 #if defined(TODO)
-/* POWER RSC (from RAD6000) */
-#define POWERPC_MSRM_POWER   (0x00000000FEF0ULL)
-
 POWERPC_FAMILY(POWER)(ObjectClass *oc, void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
     pcc->insns_flags = XXX_TODO;
+    /* POWER RSC (from RAD6000) */
+    pcc->msr_mask = 0x00000000FEF0ULL;
 }
 #endif /* TODO */
 
 /* PowerPC 601                                                               */
-#define POWERPC_MSRM_601     (0x000000000000FD70ULL)
 #define POWERPC_MSRR_601     (0x0000000000001040ULL)
-//#define POWERPC_MMU_601      (POWERPC_MMU_601)
-//#define POWERPC_EXCP_601     (POWERPC_EXCP_601)
-#define POWERPC_INPUT_601    (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_601     (bfd_mach_ppc_601)
-#define POWERPC_FLAG_601     (POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK)
 
 static void init_proc_601 (CPUPPCState *env)
 {
@@ -4945,16 +4916,16 @@ POWERPC_FAMILY(601)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000000FD70ULL;
+    pcc->mmu_model = POWERPC_MMU_601;
+    pcc->excp_model = POWERPC_EXCP_601;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_601;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK;
 }
 
 /* PowerPC 601v                                                              */
-#define POWERPC_MSRM_601v    (0x000000000000FD70ULL)
 #define POWERPC_MSRR_601v    (0x0000000000001040ULL)
-#define POWERPC_MMU_601v     (POWERPC_MMU_601)
-#define POWERPC_EXCP_601v    (POWERPC_EXCP_601)
-#define POWERPC_INPUT_601v   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_601v    (bfd_mach_ppc_601)
-#define POWERPC_FLAG_601v    (POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK)
 
 static void init_proc_601v (CPUPPCState *env)
 {
@@ -4978,18 +4949,15 @@ POWERPC_FAMILY(601v)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000000FD70ULL;
+    pcc->mmu_model = POWERPC_MMU_601;
+    pcc->excp_model = POWERPC_EXCP_601;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_601;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK;
 }
 
 /* PowerPC 602                                                               */
-#define POWERPC_MSRM_602     (0x0000000000C7FF73ULL)
-/* XXX: 602 MMU is quite specific. Should add a special case */
-#define POWERPC_MMU_602      (POWERPC_MMU_SOFT_6xx)
-//#define POWERPC_EXCP_602     (POWERPC_EXCP_602)
-#define POWERPC_INPUT_602    (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_602     (bfd_mach_ppc_602)
-#define POWERPC_FLAG_602     (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_602 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5031,17 +4999,17 @@ POWERPC_FAMILY(602)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_6xx_TLB | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_602_SPEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x0000000000C7FF73ULL;
+    /* XXX: 602 MMU is quite specific. Should add a special case */
+    pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
+    pcc->excp_model = POWERPC_EXCP_602;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_602;
+    pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 603                                                               */
-#define POWERPC_MSRM_603     (0x000000000007FF73ULL)
-#define POWERPC_MMU_603      (POWERPC_MMU_SOFT_6xx)
-//#define POWERPC_EXCP_603     (POWERPC_EXCP_603)
-#define POWERPC_INPUT_603    (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_603     (bfd_mach_ppc_603)
-#define POWERPC_FLAG_603     (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_603 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5083,17 +5051,16 @@ POWERPC_FAMILY(603)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000007FF73ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
+    pcc->excp_model = POWERPC_EXCP_603;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_603;
+    pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 603e                                                              */
-#define POWERPC_MSRM_603E    (0x000000000007FF73ULL)
-#define POWERPC_MMU_603E     (POWERPC_MMU_SOFT_6xx)
-//#define POWERPC_EXCP_603E    (POWERPC_EXCP_603E)
-#define POWERPC_INPUT_603E   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_603E    (bfd_mach_ppc_ec603e)
-#define POWERPC_FLAG_603E    (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_603E (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5140,17 +5107,16 @@ POWERPC_FAMILY(603E)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000007FF73ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
+    pcc->excp_model = POWERPC_EXCP_603E;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_ec603e;
+    pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 604                                                               */
-#define POWERPC_MSRM_604     (0x000000000005FF77ULL)
-#define POWERPC_MMU_604      (POWERPC_MMU_32B)
-//#define POWERPC_EXCP_604     (POWERPC_EXCP_604)
-#define POWERPC_INPUT_604    (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_604     (bfd_mach_ppc_604)
-#define POWERPC_FLAG_604     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_604 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5186,17 +5152,16 @@ POWERPC_FAMILY(604)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_604;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_604;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 604E                                                              */
-#define POWERPC_MSRM_604E    (0x000000000005FF77ULL)
-#define POWERPC_MMU_604E     (POWERPC_MMU_32B)
-#define POWERPC_EXCP_604E    (POWERPC_EXCP_604)
-#define POWERPC_INPUT_604E   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_604E    (bfd_mach_ppc_604)
-#define POWERPC_FLAG_604E    (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_604E (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5252,17 +5217,16 @@ POWERPC_FAMILY(604E)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_604;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_604;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 740                                                               */
-#define POWERPC_MSRM_740     (0x000000000005FF77ULL)
-#define POWERPC_MMU_740      (POWERPC_MMU_32B)
-#define POWERPC_EXCP_740     (POWERPC_EXCP_7x0)
-#define POWERPC_INPUT_740    (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_740     (bfd_mach_ppc_750)
-#define POWERPC_FLAG_740     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_740 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5305,17 +5269,16 @@ POWERPC_FAMILY(740)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_750;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 750                                                               */
-#define POWERPC_MSRM_750     (0x000000000005FF77ULL)
-#define POWERPC_MMU_750      (POWERPC_MMU_32B)
-#define POWERPC_EXCP_750     (POWERPC_EXCP_7x0)
-#define POWERPC_INPUT_750    (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_750     (bfd_mach_ppc_750)
-#define POWERPC_FLAG_750     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_750 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5366,17 +5329,16 @@ POWERPC_FAMILY(750)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_750;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 750 CL                                                            */
-#define POWERPC_MSRM_750cl   (0x000000000005FF77ULL)
-#define POWERPC_MMU_750cl    (POWERPC_MMU_32B)
-#define POWERPC_EXCP_750cl   (POWERPC_EXCP_7x0)
-#define POWERPC_INPUT_750cl  (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_750cl   (bfd_mach_ppc_750)
-#define POWERPC_FLAG_750cl   (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_750cl (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5550,17 +5512,16 @@ POWERPC_FAMILY(750cl)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_750;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 750CX                                                             */
-#define POWERPC_MSRM_750cx   (0x000000000005FF77ULL)
-#define POWERPC_MMU_750cx    (POWERPC_MMU_32B)
-#define POWERPC_EXCP_750cx   (POWERPC_EXCP_7x0)
-#define POWERPC_INPUT_750cx  (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_750cx   (bfd_mach_ppc_750)
-#define POWERPC_FLAG_750cx   (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_750cx (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5615,17 +5576,16 @@ POWERPC_FAMILY(750cx)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_750;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 750FX                                                             */
-#define POWERPC_MSRM_750fx   (0x000000000005FF77ULL)
-#define POWERPC_MMU_750fx    (POWERPC_MMU_32B)
-#define POWERPC_EXCP_750fx   (POWERPC_EXCP_7x0)
-#define POWERPC_INPUT_750fx  (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_750fx   (bfd_mach_ppc_750)
-#define POWERPC_FLAG_750fx   (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_750fx (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5685,17 +5645,16 @@ POWERPC_FAMILY(750fx)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_750;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 750GX                                                             */
-#define POWERPC_MSRM_750gx   (0x000000000005FF77ULL)
-#define POWERPC_MMU_750gx    (POWERPC_MMU_32B)
-#define POWERPC_EXCP_750gx   (POWERPC_EXCP_7x0)
-#define POWERPC_INPUT_750gx  (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_750gx   (bfd_mach_ppc_750)
-#define POWERPC_FLAG_750gx   (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_750gx (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5755,17 +5714,16 @@ POWERPC_FAMILY(750gx)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_750;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 745                                                               */
-#define POWERPC_MSRM_745     (0x000000000005FF77ULL)
-#define POWERPC_MMU_745      (POWERPC_MMU_SOFT_6xx)
-#define POWERPC_EXCP_745     (POWERPC_EXCP_7x5)
-#define POWERPC_INPUT_745    (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_745     (bfd_mach_ppc_750)
-#define POWERPC_FLAG_745     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_745 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5816,17 +5774,16 @@ POWERPC_FAMILY(745)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
+    pcc->excp_model = POWERPC_EXCP_7x5;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_750;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 755                                                               */
-#define POWERPC_MSRM_755     (0x000000000005FF77ULL)
-#define POWERPC_MMU_755      (POWERPC_MMU_SOFT_6xx)
-#define POWERPC_EXCP_755     (POWERPC_EXCP_7x5)
-#define POWERPC_INPUT_755    (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_755     (bfd_mach_ppc_750)
-#define POWERPC_FLAG_755     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_755 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5888,18 +5845,16 @@ POWERPC_FAMILY(755)(ObjectClass *oc, void *data)
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB |
                        PPC_SEGMENT | PPC_EXTERN;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
+    pcc->excp_model = POWERPC_EXCP_7x5;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_750;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 7400 (aka G4)                                                     */
-#define POWERPC_MSRM_7400    (0x000000000205FF77ULL)
-#define POWERPC_MMU_7400     (POWERPC_MMU_32B)
-#define POWERPC_EXCP_7400    (POWERPC_EXCP_74xx)
-#define POWERPC_INPUT_7400   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_7400    (bfd_mach_ppc_7400)
-#define POWERPC_FLAG_7400    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_7400 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5948,18 +5903,17 @@ POWERPC_FAMILY(7400)(ObjectClass *oc, void *data)
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_74xx;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_7400;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 7410 (aka G4)                                                     */
-#define POWERPC_MSRM_7410    (0x000000000205FF77ULL)
-#define POWERPC_MMU_7410     (POWERPC_MMU_32B)
-#define POWERPC_EXCP_7410    (POWERPC_EXCP_74xx)
-#define POWERPC_INPUT_7410   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_7410    (bfd_mach_ppc_7400)
-#define POWERPC_FLAG_7410    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_7410 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6014,18 +5968,17 @@ POWERPC_FAMILY(7410)(ObjectClass *oc, void *data)
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_32B;
+    pcc->excp_model = POWERPC_EXCP_74xx;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_7400;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 7440 (aka G4)                                                     */
-#define POWERPC_MSRM_7440    (0x000000000205FF77ULL)
-#define POWERPC_MMU_7440     (POWERPC_MMU_SOFT_74xx)
-#define POWERPC_EXCP_7440    (POWERPC_EXCP_74xx)
-#define POWERPC_INPUT_7440   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_7440    (bfd_mach_ppc_7400)
-#define POWERPC_FLAG_7440    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_7440 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6106,18 +6059,17 @@ POWERPC_FAMILY(7440)(ObjectClass *oc, void *data)
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->excp_model = POWERPC_EXCP_74xx;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_7400;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 7450 (aka G4)                                                     */
-#define POWERPC_MSRM_7450    (0x000000000205FF77ULL)
-#define POWERPC_MMU_7450     (POWERPC_MMU_SOFT_74xx)
-#define POWERPC_EXCP_7450    (POWERPC_EXCP_74xx)
-#define POWERPC_INPUT_7450   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_7450    (bfd_mach_ppc_7400)
-#define POWERPC_FLAG_7450    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_7450 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6224,18 +6176,17 @@ POWERPC_FAMILY(7450)(ObjectClass *oc, void *data)
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->excp_model = POWERPC_EXCP_74xx;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_7400;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 7445 (aka G4)                                                     */
-#define POWERPC_MSRM_7445    (0x000000000205FF77ULL)
-#define POWERPC_MMU_7445     (POWERPC_MMU_SOFT_74xx)
-#define POWERPC_EXCP_7445    (POWERPC_EXCP_74xx)
-#define POWERPC_INPUT_7445   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_7445    (bfd_mach_ppc_7400)
-#define POWERPC_FLAG_7445    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_7445 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6345,18 +6296,17 @@ POWERPC_FAMILY(7445)(ObjectClass *oc, void *data)
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->excp_model = POWERPC_EXCP_74xx;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_7400;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 7455 (aka G4)                                                     */
-#define POWERPC_MSRM_7455    (0x000000000205FF77ULL)
-#define POWERPC_MMU_7455     (POWERPC_MMU_SOFT_74xx)
-#define POWERPC_EXCP_7455    (POWERPC_EXCP_74xx)
-#define POWERPC_INPUT_7455   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_7455    (bfd_mach_ppc_7400)
-#define POWERPC_FLAG_7455    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_7455 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6468,18 +6418,17 @@ POWERPC_FAMILY(7455)(ObjectClass *oc, void *data)
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->excp_model = POWERPC_EXCP_74xx;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_7400;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 7457 (aka G4)                                                     */
-#define POWERPC_MSRM_7457    (0x000000000205FF77ULL)
-#define POWERPC_MMU_7457     (POWERPC_MMU_SOFT_74xx)
-#define POWERPC_EXCP_7457    (POWERPC_EXCP_74xx)
-#define POWERPC_INPUT_7457   (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_7457    (bfd_mach_ppc_7400)
-#define POWERPC_FLAG_7457    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_7457 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6615,19 +6564,18 @@ POWERPC_FAMILY(7457)(ObjectClass *oc, void *data)
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x000000000205FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->excp_model = POWERPC_EXCP_74xx;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc_7400;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 #if defined (TARGET_PPC64)
 /* PowerPC 970                                                               */
-#define POWERPC_MSRM_970     (0x900000000204FF36ULL)
-#define POWERPC_MMU_970      (POWERPC_MMU_64B)
-//#define POWERPC_EXCP_970     (POWERPC_EXCP_970)
-#define POWERPC_INPUT_970    (PPC_FLAGS_INPUT_970)
-#define POWERPC_BFDM_970     (bfd_mach_ppc64)
-#define POWERPC_FLAG_970     (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 #if defined(CONFIG_USER_ONLY)
 #define POWERPC970_HID5_INIT 0x00000080
 #else
@@ -6720,18 +6668,17 @@ POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x900000000204FF36ULL;
+    pcc->mmu_model = POWERPC_MMU_64B;
+    pcc->excp_model = POWERPC_EXCP_970;
+    pcc->bus_model = PPC_FLAGS_INPUT_970;
+    pcc->bfd_mach = bfd_mach_ppc64;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 970FX (aka G5)                                                    */
-#define POWERPC_MSRM_970FX   (0x800000000204FF36ULL)
-#define POWERPC_MMU_970FX    (POWERPC_MMU_64B)
-#define POWERPC_EXCP_970FX   (POWERPC_EXCP_970)
-#define POWERPC_INPUT_970FX  (PPC_FLAGS_INPUT_970)
-#define POWERPC_BFDM_970FX   (bfd_mach_ppc64)
-#define POWERPC_FLAG_970FX   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static int check_pow_970FX (CPUPPCState *env)
 {
     if (env->spr[SPR_HID0] & 0x00600000)
@@ -6830,18 +6777,17 @@ POWERPC_FAMILY(970FX)(ObjectClass *oc, void *data)
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x800000000204FF36ULL;
+    pcc->mmu_model = POWERPC_MMU_64B;
+    pcc->excp_model = POWERPC_EXCP_970;
+    pcc->bus_model = PPC_FLAGS_INPUT_970;
+    pcc->bfd_mach = bfd_mach_ppc64;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 970 GX                                                            */
-#define POWERPC_MSRM_970GX   (0x800000000204FF36ULL)
-#define POWERPC_MMU_970GX    (POWERPC_MMU_64B)
-#define POWERPC_EXCP_970GX   (POWERPC_EXCP_970)
-#define POWERPC_INPUT_970GX  (PPC_FLAGS_INPUT_970)
-#define POWERPC_BFDM_970GX   (bfd_mach_ppc64)
-#define POWERPC_FLAG_970GX   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static int check_pow_970GX (CPUPPCState *env)
 {
     if (env->spr[SPR_HID0] & 0x00600000)
@@ -6928,18 +6874,17 @@ POWERPC_FAMILY(970GX)(ObjectClass *oc, void *data)
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x800000000204FF36ULL;
+    pcc->mmu_model = POWERPC_MMU_64B;
+    pcc->excp_model = POWERPC_EXCP_970;
+    pcc->bus_model = PPC_FLAGS_INPUT_970;
+    pcc->bfd_mach = bfd_mach_ppc64;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* PowerPC 970 MP                                                            */
-#define POWERPC_MSRM_970MP   (0x900000000204FF36ULL)
-#define POWERPC_MMU_970MP    (POWERPC_MMU_64B)
-#define POWERPC_EXCP_970MP   (POWERPC_EXCP_970)
-#define POWERPC_INPUT_970MP  (PPC_FLAGS_INPUT_970)
-#define POWERPC_BFDM_970MP   (bfd_mach_ppc64)
-#define POWERPC_FLAG_970MP   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
-
 static int check_pow_970MP (CPUPPCState *env)
 {
     if (env->spr[SPR_HID0] & 0x01C00000)
@@ -7026,18 +6971,17 @@ POWERPC_FAMILY(970MP)(ObjectClass *oc, void *data)
                        PPC_64B | PPC_ALTIVEC |
                        PPC_SEGMENT_64B | PPC_SLBI;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x900000000204FF36ULL;
+    pcc->mmu_model = POWERPC_MMU_64B;
+    pcc->excp_model = POWERPC_EXCP_970;
+    pcc->bus_model = PPC_FLAGS_INPUT_970;
+    pcc->bfd_mach = bfd_mach_ppc64;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
 }
 
 /* POWER7 */
-#define POWERPC_MSRM_POWER7   (0x800000000204FF36ULL)
-#define POWERPC_MMU_POWER7    (POWERPC_MMU_2_06)
-#define POWERPC_EXCP_POWER7   (POWERPC_EXCP_POWER7)
-#define POWERPC_INPUT_POWER7  (PPC_FLAGS_INPUT_POWER7)
-#define POWERPC_BFDM_POWER7   (bfd_mach_ppc64)
-#define POWERPC_FLAG_POWER7   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
-                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR)
-
 static void init_proc_POWER7 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -7117,17 +7061,17 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
                        PPC_SEGMENT_64B | PPC_SLBI |
                        PPC_POPCNTB | PPC_POPCNTWD;
     pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX;
+    pcc->msr_mask = 0x800000000204FF36ULL;
+    pcc->mmu_model = POWERPC_MMU_2_06;
+    pcc->excp_model = POWERPC_EXCP_POWER7;
+    pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
+    pcc->bfd_mach = bfd_mach_ppc64;
+    pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
+                 POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR;
 }
 
 /* PowerPC 620                                                               */
-#define POWERPC_MSRM_620     (0x800000000005FF77ULL)
-//#define POWERPC_MMU_620      (POWERPC_MMU_620)
-#define POWERPC_EXCP_620     (POWERPC_EXCP_970)
-#define POWERPC_INPUT_620    (PPC_FLAGS_INPUT_6xx)
-#define POWERPC_BFDM_620     (bfd_mach_ppc64)
-#define POWERPC_FLAG_620     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |            \
-                              POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-
 static void init_proc_620 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -7165,6 +7109,13 @@ POWERPC_FAMILY(620)(ObjectClass *oc, void *data)
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_64B | PPC_SLBI;
     pcc->insns_flags2 = PPC_NONE;
+    pcc->msr_mask = 0x800000000005FF77ULL;
+    pcc->mmu_model = POWERPC_MMU_620;
+    pcc->excp_model = POWERPC_EXCP_970;
+    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
+    pcc->bfd_mach = bfd_mach_ppc64;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
+                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
 }
 
 #endif /* defined (TARGET_PPC64) */
@@ -7885,12 +7836,6 @@ enum {
                                                                             \
         pcc->pvr          = _pvr;                                           \
         pcc->svr          = _svr;                                           \
-        pcc->msr_mask     = glue(POWERPC_MSRM_, _type);                     \
-        pcc->mmu_model    = glue(POWERPC_MMU_, _type);                      \
-        pcc->excp_model   = glue(POWERPC_EXCP_, _type);                     \
-        pcc->bus_model    = glue(POWERPC_INPUT_, _type);                    \
-        pcc->bfd_mach     = glue(POWERPC_BFDM_, _type);                     \
-        pcc->flags        = glue(POWERPC_FLAG_, _type);                     \
     }                                                                       \
                                                                             \
     static const TypeInfo                                                   \
