@@ -3252,6 +3252,28 @@ static int check_pow_hid0_74xx (CPUPPCState *env)
 /*****************************************************************************/
 /* PowerPC implementations definitions                                       */
 
+#define POWERPC_FAMILY(_name)                                               \
+    static void                                                             \
+    glue(glue(ppc_, _name), _cpu_family_class_init)(ObjectClass *, void *); \
+                                                                            \
+    static const TypeInfo                                                   \
+    glue(glue(ppc_, _name), _cpu_family_type_info) = {                      \
+        .name = stringify(_name) "-family-" TYPE_POWERPC_CPU,               \
+        .parent = TYPE_POWERPC_CPU,                                         \
+        .abstract = true,                                                   \
+        .class_init = glue(glue(ppc_, _name), _cpu_family_class_init),      \
+    };                                                                      \
+                                                                            \
+    static void glue(glue(ppc_, _name), _cpu_family_register_types)(void)   \
+    {                                                                       \
+        type_register_static(                                               \
+            &glue(glue(ppc_, _name), _cpu_family_type_info));               \
+    }                                                                       \
+                                                                            \
+    type_init(glue(glue(ppc_, _name), _cpu_family_register_types))          \
+                                                                            \
+    static void glue(glue(ppc_, _name), _cpu_family_class_init)
+
 /* PowerPC 401                                                               */
 #define POWERPC_INSNS_401    (PPC_INSNS_BASE | PPC_STRING |                   \
                               PPC_WRTEE | PPC_DCR |                           \
@@ -3267,7 +3289,6 @@ static int check_pow_hid0_74xx (CPUPPCState *env)
 #define POWERPC_BFDM_401     (bfd_mach_ppc_403)
 #define POWERPC_FLAG_401     (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_401        check_pow_nocheck
 
 static void init_proc_401 (CPUPPCState *env)
 {
@@ -3282,6 +3303,14 @@ static void init_proc_401 (CPUPPCState *env)
 
     SET_FIT_PERIOD(12, 16, 20, 24);
     SET_WDT_PERIOD(16, 20, 24, 28);
+}
+
+POWERPC_FAMILY(401)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_401;
+    pcc->check_pow = check_pow_nocheck;
 }
 
 /* PowerPC 401x2                                                             */
@@ -3300,7 +3329,6 @@ static void init_proc_401 (CPUPPCState *env)
 #define POWERPC_BFDM_401x2   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_401x2   (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_401x2      check_pow_nocheck
 
 static void init_proc_401x2 (CPUPPCState *env)
 {
@@ -3325,6 +3353,14 @@ static void init_proc_401x2 (CPUPPCState *env)
     SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
+POWERPC_FAMILY(401x2)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_401x2;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 401x3                                                             */
 #define POWERPC_INSNS_401x3  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_DCR | PPC_WRTEE |                           \
@@ -3341,9 +3377,7 @@ static void init_proc_401x2 (CPUPPCState *env)
 #define POWERPC_BFDM_401x3   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_401x3   (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_401x3      check_pow_nocheck
 
-__attribute__ (( unused ))
 static void init_proc_401x3 (CPUPPCState *env)
 {
     gen_spr_40x(env);
@@ -3359,6 +3393,14 @@ static void init_proc_401x3 (CPUPPCState *env)
 
     SET_FIT_PERIOD(12, 16, 20, 24);
     SET_WDT_PERIOD(16, 20, 24, 28);
+}
+
+POWERPC_FAMILY(401x3)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_401x3;
+    pcc->check_pow = check_pow_nocheck;
 }
 
 /* IOP480                                                                    */
@@ -3377,7 +3419,6 @@ static void init_proc_401x3 (CPUPPCState *env)
 #define POWERPC_BFDM_IOP480  (bfd_mach_ppc_403)
 #define POWERPC_FLAG_IOP480  (POWERPC_FLAG_CE | POWERPC_FLAG_DE |             \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_IOP480     check_pow_nocheck
 
 static void init_proc_IOP480 (CPUPPCState *env)
 {
@@ -3402,6 +3443,14 @@ static void init_proc_IOP480 (CPUPPCState *env)
     SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
+POWERPC_FAMILY(IOP480)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_IOP480;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 403                                                               */
 #define POWERPC_INSNS_403    (PPC_INSNS_BASE | PPC_STRING |                   \
                               PPC_DCR | PPC_WRTEE |                           \
@@ -3417,7 +3466,6 @@ static void init_proc_IOP480 (CPUPPCState *env)
 #define POWERPC_BFDM_403     (bfd_mach_ppc_403)
 #define POWERPC_FLAG_403     (POWERPC_FLAG_CE | POWERPC_FLAG_PX |             \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_403        check_pow_nocheck
 
 static void init_proc_403 (CPUPPCState *env)
 {
@@ -3433,6 +3481,14 @@ static void init_proc_403 (CPUPPCState *env)
 
     SET_FIT_PERIOD(8, 12, 16, 20);
     SET_WDT_PERIOD(16, 20, 24, 28);
+}
+
+POWERPC_FAMILY(403)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_403;
+    pcc->check_pow = check_pow_nocheck;
 }
 
 /* PowerPC 403 GCX                                                           */
@@ -3451,7 +3507,6 @@ static void init_proc_403 (CPUPPCState *env)
 #define POWERPC_BFDM_403GCX  (bfd_mach_ppc_403)
 #define POWERPC_FLAG_403GCX  (POWERPC_FLAG_CE | POWERPC_FLAG_PX |             \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_403GCX     check_pow_nocheck
 
 static void init_proc_403GCX (CPUPPCState *env)
 {
@@ -3488,6 +3543,14 @@ static void init_proc_403GCX (CPUPPCState *env)
     SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
+POWERPC_FAMILY(403GCX)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_403GCX;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 405                                                               */
 #define POWERPC_INSNS_405    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_DCR | PPC_WRTEE |                           \
@@ -3504,7 +3567,6 @@ static void init_proc_403GCX (CPUPPCState *env)
 #define POWERPC_BFDM_405     (bfd_mach_ppc_403)
 #define POWERPC_FLAG_405     (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
                               POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_405        check_pow_nocheck
 
 static void init_proc_405 (CPUPPCState *env)
 {
@@ -3540,6 +3602,14 @@ static void init_proc_405 (CPUPPCState *env)
     SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
+POWERPC_FAMILY(405)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_405;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 440 EP                                                            */
 #define POWERPC_INSNS_440EP  (PPC_INSNS_BASE | PPC_STRING |                   \
                               PPC_FLOAT | PPC_FLOAT_FRES | PPC_FLOAT_FSEL |   \
@@ -3559,7 +3629,6 @@ static void init_proc_405 (CPUPPCState *env)
 #define POWERPC_BFDM_440EP   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_440EP   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
                               POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_440EP      check_pow_nocheck
 
 static void init_proc_440EP (CPUPPCState *env)
 {
@@ -3627,6 +3696,14 @@ static void init_proc_440EP (CPUPPCState *env)
     SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
+POWERPC_FAMILY(440EP)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_440EP;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 440 GP                                                            */
 #define POWERPC_INSNS_440GP  (PPC_INSNS_BASE | PPC_STRING |                   \
                               PPC_DCR | PPC_DCRX | PPC_WRTEE | PPC_MFAPIDI |  \
@@ -3643,9 +3720,7 @@ static void init_proc_440EP (CPUPPCState *env)
 #define POWERPC_BFDM_440GP   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_440GP   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
                               POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_440GP      check_pow_nocheck
 
-__attribute__ (( unused ))
 static void init_proc_440GP (CPUPPCState *env)
 {
     /* Time base */
@@ -3694,6 +3769,14 @@ static void init_proc_440GP (CPUPPCState *env)
     SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
+POWERPC_FAMILY(440GP)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_440GP;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 440x4                                                             */
 #define POWERPC_INSNS_440x4  (PPC_INSNS_BASE | PPC_STRING |                   \
                               PPC_DCR | PPC_WRTEE |                           \
@@ -3710,9 +3793,7 @@ static void init_proc_440GP (CPUPPCState *env)
 #define POWERPC_BFDM_440x4   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_440x4   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
                               POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_440x4      check_pow_nocheck
 
-__attribute__ (( unused ))
 static void init_proc_440x4 (CPUPPCState *env)
 {
     /* Time base */
@@ -3761,6 +3842,14 @@ static void init_proc_440x4 (CPUPPCState *env)
     SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
+POWERPC_FAMILY(440x4)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_440x4;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 440x5                                                             */
 #define POWERPC_INSNS_440x5  (PPC_INSNS_BASE | PPC_STRING |                   \
                               PPC_DCR | PPC_WRTEE | PPC_RFMCI |               \
@@ -3777,7 +3866,6 @@ static void init_proc_440x4 (CPUPPCState *env)
 #define POWERPC_BFDM_440x5   (bfd_mach_ppc_403)
 #define POWERPC_FLAG_440x5   (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |           \
                               POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_440x5      check_pow_nocheck
 
 static void init_proc_440x5 (CPUPPCState *env)
 {
@@ -3845,6 +3933,14 @@ static void init_proc_440x5 (CPUPPCState *env)
     SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
+POWERPC_FAMILY(440x5)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_440x5;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 460 (guessed)                                                     */
 #define POWERPC_INSNS_460    (PPC_INSNS_BASE | PPC_STRING |                   \
                               PPC_DCR | PPC_DCRX  | PPC_DCRUX |               \
@@ -3862,9 +3958,7 @@ static void init_proc_440x5 (CPUPPCState *env)
 #define POWERPC_BFDM_460     (bfd_mach_ppc_403)
 #define POWERPC_FLAG_460     (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
                               POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_460        check_pow_nocheck
 
-__attribute__ (( unused ))
 static void init_proc_460 (CPUPPCState *env)
 {
     /* Time base */
@@ -3936,6 +4030,14 @@ static void init_proc_460 (CPUPPCState *env)
     SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
+POWERPC_FAMILY(460)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_460;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 460F (guessed)                                                    */
 #define POWERPC_INSNS_460F   (PPC_INSNS_BASE | PPC_STRING |                   \
                               PPC_FLOAT | PPC_FLOAT_FRES | PPC_FLOAT_FSEL |   \
@@ -3956,9 +4058,7 @@ static void init_proc_460 (CPUPPCState *env)
 #define POWERPC_BFDM_460F    (bfd_mach_ppc_403)
 #define POWERPC_FLAG_460F    (POWERPC_FLAG_CE | POWERPC_FLAG_DWE |            \
                               POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_460F       check_pow_nocheck
 
-__attribute__ (( unused ))
 static void init_proc_460F (CPUPPCState *env)
 {
     /* Time base */
@@ -4030,6 +4130,14 @@ static void init_proc_460F (CPUPPCState *env)
     SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
+POWERPC_FAMILY(460F)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_460F;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* Freescale 5xx cores (aka RCPU) */
 #define POWERPC_INSNS_MPC5xx (PPC_INSNS_BASE | PPC_STRING |                   \
                               PPC_MEM_EIEIO | PPC_MEM_SYNC |                  \
@@ -4043,9 +4151,7 @@ static void init_proc_460F (CPUPPCState *env)
 #define POWERPC_BFDM_MPC5xx  (bfd_mach_ppc_505)
 #define POWERPC_FLAG_MPC5xx  (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_MPC5xx     check_pow_none
 
-__attribute__ (( unused ))
 static void init_proc_MPC5xx (CPUPPCState *env)
 {
     /* Time base */
@@ -4056,6 +4162,14 @@ static void init_proc_MPC5xx (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+}
+
+POWERPC_FAMILY(MPC5xx)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_MPC5xx;
+    pcc->check_pow = check_pow_none;
 }
 
 /* Freescale 8xx cores (aka PowerQUICC) */
@@ -4070,9 +4184,7 @@ static void init_proc_MPC5xx (CPUPPCState *env)
 #define POWERPC_BFDM_MPC8xx  (bfd_mach_ppc_860)
 #define POWERPC_FLAG_MPC8xx  (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_MPC8xx     check_pow_none
 
-__attribute__ (( unused ))
 static void init_proc_MPC8xx (CPUPPCState *env)
 {
     /* Time base */
@@ -4083,6 +4195,14 @@ static void init_proc_MPC8xx (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+}
+
+POWERPC_FAMILY(MPC8xx)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_MPC8xx;
+    pcc->check_pow = check_pow_none;
 }
 
 /* Freescale 82xx cores (aka PowerQUICC-II)                                  */
@@ -4102,7 +4222,6 @@ static void init_proc_MPC8xx (CPUPPCState *env)
 #define POWERPC_BFDM_G2      (bfd_mach_ppc_ec603e)
 #define POWERPC_FLAG_G2      (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
                               POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_G2         check_pow_hid0
 
 static void init_proc_G2 (CPUPPCState *env)
 {
@@ -4144,6 +4263,14 @@ static void init_proc_G2 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(G2)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_G2;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC G2LE                                                              */
 #define POWERPC_INSNS_G2LE   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -4160,7 +4287,6 @@ static void init_proc_G2 (CPUPPCState *env)
 #define POWERPC_BFDM_G2LE    (bfd_mach_ppc_ec603e)
 #define POWERPC_FLAG_G2LE    (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
                               POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_G2LE       check_pow_hid0
 
 static void init_proc_G2LE (CPUPPCState *env)
 {
@@ -4202,6 +4328,14 @@ static void init_proc_G2LE (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(G2LE)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_G2LE;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* e200 core                                                                 */
 /* XXX: unimplemented instructions:
  * dcblc
@@ -4228,9 +4362,7 @@ static void init_proc_G2LE (CPUPPCState *env)
 #define POWERPC_FLAG_e200    (POWERPC_FLAG_SPE | POWERPC_FLAG_CE |            \
                               POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |           \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_e200       check_pow_hid0
 
-__attribute__ (( unused ))
 static void init_proc_e200 (CPUPPCState *env)
 {
     /* Time base */
@@ -4338,6 +4470,14 @@ static void init_proc_e200 (CPUPPCState *env)
     /* XXX: TODO: allocate internal IRQ controller */
 }
 
+POWERPC_FAMILY(e200)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_e200;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* e300 core                                                                 */
 #define POWERPC_INSNS_e300   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -4354,9 +4494,7 @@ static void init_proc_e200 (CPUPPCState *env)
 #define POWERPC_BFDM_e300    (bfd_mach_ppc_603)
 #define POWERPC_FLAG_e300    (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
                               POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_e300       check_pow_hid0
 
-__attribute__ (( unused ))
 static void init_proc_e300 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -4390,6 +4528,14 @@ static void init_proc_e300 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_e300;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* e500v1 core                                                               */
 #define POWERPC_INSNS_e500v1   (PPC_INSNS_BASE | PPC_ISEL |             \
                                 PPC_SPE | PPC_SPE_SINGLE |              \
@@ -4406,8 +4552,6 @@ static void init_proc_e300 (CPUPPCState *env)
 #define POWERPC_FLAG_e500v1    (POWERPC_FLAG_SPE | POWERPC_FLAG_CE |    \
                                 POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |   \
                                 POWERPC_FLAG_BUS_CLK)
-#define check_pow_e500v1       check_pow_hid0
-#define init_proc_e500v1       init_proc_e500v1
 
 /* e500v2 core                                                               */
 #define POWERPC_INSNS_e500v2   (PPC_INSNS_BASE | PPC_ISEL |             \
@@ -4425,8 +4569,6 @@ static void init_proc_e300 (CPUPPCState *env)
 #define POWERPC_FLAG_e500v2    (POWERPC_FLAG_SPE | POWERPC_FLAG_CE |    \
                                 POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |   \
                                 POWERPC_FLAG_BUS_CLK)
-#define check_pow_e500v2       check_pow_hid0
-#define init_proc_e500v2       init_proc_e500v2
 
 /* e500mc core                                                               */
 #define POWERPC_INSNS_e500mc   (PPC_INSNS_BASE | PPC_ISEL |                 \
@@ -4446,8 +4588,6 @@ static void init_proc_e300 (CPUPPCState *env)
 #define POWERPC_BFDM_e500mc    (bfd_mach_ppc_e500)
 #define POWERPC_FLAG_e500mc    (POWERPC_FLAG_CE | POWERPC_FLAG_DE | \
                                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_e500mc       check_pow_none
-#define init_proc_e500mc       init_proc_e500mc
 
 /* e5500 core                                                                 */
 #define POWERPC_INSNS_e5500    (PPC_INSNS_BASE | PPC_ISEL |                    \
@@ -4468,8 +4608,6 @@ static void init_proc_e300 (CPUPPCState *env)
 #define POWERPC_BFDM_e5500     (bfd_mach_ppc_e500)
 #define POWERPC_FLAG_e5500     (POWERPC_FLAG_CE | POWERPC_FLAG_DE | \
                                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_e5500        check_pow_none
-#define init_proc_e5500        init_proc_e5500
 
 #if !defined(CONFIG_USER_ONLY)
 static void spr_write_mas73(void *opaque, int sprn, int gprn)
@@ -4685,9 +4823,25 @@ static void init_proc_e500v1(CPUPPCState *env)
     init_proc_e500(env, fsl_e500v1);
 }
 
+POWERPC_FAMILY(e500v1)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_e500v1;
+    pcc->check_pow = check_pow_hid0;
+}
+
 static void init_proc_e500v2(CPUPPCState *env)
 {
     init_proc_e500(env, fsl_e500v2);
+}
+
+POWERPC_FAMILY(e500v2)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_e500v2;
+    pcc->check_pow = check_pow_hid0;
 }
 
 static void init_proc_e500mc(CPUPPCState *env)
@@ -4695,10 +4849,26 @@ static void init_proc_e500mc(CPUPPCState *env)
     init_proc_e500(env, fsl_e500mc);
 }
 
+POWERPC_FAMILY(e500mc)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_e500mc;
+    pcc->check_pow = check_pow_none;
+}
+
 #ifdef TARGET_PPC64
 static void init_proc_e5500(CPUPPCState *env)
 {
     init_proc_e500(env, fsl_e5500);
+}
+
+POWERPC_FAMILY(e5500)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_e5500;
+    pcc->check_pow = check_pow_none;
 }
 #endif
 
@@ -4725,7 +4895,6 @@ static void init_proc_e5500(CPUPPCState *env)
 #define POWERPC_INPUT_601    (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_601     (bfd_mach_ppc_601)
 #define POWERPC_FLAG_601     (POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK)
-#define check_pow_601        check_pow_none
 
 static void init_proc_601 (CPUPPCState *env)
 {
@@ -4764,6 +4933,14 @@ static void init_proc_601 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(601)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_601;
+    pcc->check_pow = check_pow_none;
+}
+
 /* PowerPC 601v                                                              */
 #define POWERPC_INSNS_601v   (PPC_INSNS_BASE | PPC_STRING | PPC_POWER_BR |    \
                               PPC_FLOAT |                                     \
@@ -4778,7 +4955,6 @@ static void init_proc_601 (CPUPPCState *env)
 #define POWERPC_INPUT_601v   (PPC_FLAGS_INPUT_6xx)
 #define POWERPC_BFDM_601v    (bfd_mach_ppc_601)
 #define POWERPC_FLAG_601v    (POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK)
-#define check_pow_601v       check_pow_none
 
 static void init_proc_601v (CPUPPCState *env)
 {
@@ -4788,6 +4964,14 @@ static void init_proc_601v (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+}
+
+POWERPC_FAMILY(601v)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_601v;
+    pcc->check_pow = check_pow_none;
 }
 
 /* PowerPC 602                                                               */
@@ -4807,7 +4991,6 @@ static void init_proc_601v (CPUPPCState *env)
 #define POWERPC_BFDM_602     (bfd_mach_ppc_602)
 #define POWERPC_FLAG_602     (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
                               POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_602        check_pow_hid0
 
 static void init_proc_602 (CPUPPCState *env)
 {
@@ -4836,6 +5019,14 @@ static void init_proc_602 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(602)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_602;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 603                                                               */
 #define POWERPC_INSNS_603    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -4852,7 +5043,6 @@ static void init_proc_602 (CPUPPCState *env)
 #define POWERPC_BFDM_603     (bfd_mach_ppc_603)
 #define POWERPC_FLAG_603     (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
                               POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_603        check_pow_hid0
 
 static void init_proc_603 (CPUPPCState *env)
 {
@@ -4881,6 +5071,14 @@ static void init_proc_603 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(603)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_603;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 603e                                                              */
 #define POWERPC_INSNS_603E   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -4897,7 +5095,6 @@ static void init_proc_603 (CPUPPCState *env)
 #define POWERPC_BFDM_603E    (bfd_mach_ppc_ec603e)
 #define POWERPC_FLAG_603E    (POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |           \
                               POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK)
-#define check_pow_603E       check_pow_hid0
 
 static void init_proc_603E (CPUPPCState *env)
 {
@@ -4931,6 +5128,14 @@ static void init_proc_603E (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(603E)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_603E;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 604                                                               */
 #define POWERPC_INSNS_604    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -4947,7 +5152,6 @@ static void init_proc_603E (CPUPPCState *env)
 #define POWERPC_BFDM_604     (bfd_mach_ppc_604)
 #define POWERPC_FLAG_604     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_604        check_pow_nocheck
 
 static void init_proc_604 (CPUPPCState *env)
 {
@@ -4970,6 +5174,14 @@ static void init_proc_604 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(604)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_604;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 604E                                                              */
 #define POWERPC_INSNS_604E   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -4986,7 +5198,6 @@ static void init_proc_604 (CPUPPCState *env)
 #define POWERPC_BFDM_604E    (bfd_mach_ppc_604)
 #define POWERPC_FLAG_604E    (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_604E       check_pow_nocheck
 
 static void init_proc_604E (CPUPPCState *env)
 {
@@ -5029,6 +5240,14 @@ static void init_proc_604E (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(604E)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_604E;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 740                                                               */
 #define POWERPC_INSNS_740    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5045,7 +5264,6 @@ static void init_proc_604E (CPUPPCState *env)
 #define POWERPC_BFDM_740     (bfd_mach_ppc_750)
 #define POWERPC_FLAG_740     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_740        check_pow_hid0
 
 static void init_proc_740 (CPUPPCState *env)
 {
@@ -5075,6 +5293,14 @@ static void init_proc_740 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(740)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_740;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 750                                                               */
 #define POWERPC_INSNS_750    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5091,7 +5317,6 @@ static void init_proc_740 (CPUPPCState *env)
 #define POWERPC_BFDM_750     (bfd_mach_ppc_750)
 #define POWERPC_FLAG_750     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_750        check_pow_hid0
 
 static void init_proc_750 (CPUPPCState *env)
 {
@@ -5127,6 +5352,14 @@ static void init_proc_750 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
+}
+
+POWERPC_FAMILY(750)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_750;
+    pcc->check_pow = check_pow_hid0;
 }
 
 /* PowerPC 750 CL                                                            */
@@ -5183,7 +5416,6 @@ static void init_proc_750 (CPUPPCState *env)
 #define POWERPC_BFDM_750cl   (bfd_mach_ppc_750)
 #define POWERPC_FLAG_750cl   (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_750cl      check_pow_hid0
 
 static void init_proc_750cl (CPUPPCState *env)
 {
@@ -5306,6 +5538,14 @@ static void init_proc_750cl (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(750cl)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_750cl;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 750CX                                                             */
 #define POWERPC_INSNS_750cx  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5322,7 +5562,6 @@ static void init_proc_750cl (CPUPPCState *env)
 #define POWERPC_BFDM_750cx   (bfd_mach_ppc_750)
 #define POWERPC_FLAG_750cx   (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_750cx      check_pow_hid0
 
 static void init_proc_750cx (CPUPPCState *env)
 {
@@ -5364,6 +5603,14 @@ static void init_proc_750cx (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(750cx)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_750cx;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 750FX                                                             */
 #define POWERPC_INSNS_750fx  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5380,7 +5627,6 @@ static void init_proc_750cx (CPUPPCState *env)
 #define POWERPC_BFDM_750fx   (bfd_mach_ppc_750)
 #define POWERPC_FLAG_750fx   (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_750fx      check_pow_hid0
 
 static void init_proc_750fx (CPUPPCState *env)
 {
@@ -5427,6 +5673,14 @@ static void init_proc_750fx (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(750fx)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_750fx;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 750GX                                                             */
 #define POWERPC_INSNS_750gx  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5443,7 +5697,6 @@ static void init_proc_750fx (CPUPPCState *env)
 #define POWERPC_BFDM_750gx   (bfd_mach_ppc_750)
 #define POWERPC_FLAG_750gx   (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_750gx      check_pow_hid0
 
 static void init_proc_750gx (CPUPPCState *env)
 {
@@ -5490,6 +5743,14 @@ static void init_proc_750gx (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(750gx)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_750gx;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 745                                                               */
 #define POWERPC_INSNS_745    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5506,7 +5767,6 @@ static void init_proc_750gx (CPUPPCState *env)
 #define POWERPC_BFDM_745     (bfd_mach_ppc_750)
 #define POWERPC_FLAG_745     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_745        check_pow_hid0
 
 static void init_proc_745 (CPUPPCState *env)
 {
@@ -5544,6 +5804,14 @@ static void init_proc_745 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(745)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_745;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 755                                                               */
 #define POWERPC_INSNS_755    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5560,7 +5828,6 @@ static void init_proc_745 (CPUPPCState *env)
 #define POWERPC_BFDM_755     (bfd_mach_ppc_750)
 #define POWERPC_FLAG_755     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |             \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_755        check_pow_hid0
 
 static void init_proc_755 (CPUPPCState *env)
 {
@@ -5609,6 +5876,14 @@ static void init_proc_755 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(755)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_755;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 7400 (aka G4)                                                     */
 #define POWERPC_INSNS_7400   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5630,7 +5905,6 @@ static void init_proc_755 (CPUPPCState *env)
 #define POWERPC_FLAG_7400    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_7400       check_pow_hid0
 
 static void init_proc_7400 (CPUPPCState *env)
 {
@@ -5662,6 +5936,14 @@ static void init_proc_7400 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(7400)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_7400;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 7410 (aka G4)                                                     */
 #define POWERPC_INSNS_7410   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5683,7 +5965,6 @@ static void init_proc_7400 (CPUPPCState *env)
 #define POWERPC_FLAG_7410    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_7410       check_pow_hid0
 
 static void init_proc_7410 (CPUPPCState *env)
 {
@@ -5721,6 +6002,14 @@ static void init_proc_7410 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(7410)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_7410;
+    pcc->check_pow = check_pow_hid0;
+}
+
 /* PowerPC 7440 (aka G4)                                                     */
 #define POWERPC_INSNS_7440   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5742,9 +6031,7 @@ static void init_proc_7410 (CPUPPCState *env)
 #define POWERPC_FLAG_7440    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_7440       check_pow_hid0_74xx
 
-__attribute__ (( unused ))
 static void init_proc_7440 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5807,6 +6094,14 @@ static void init_proc_7440 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(7440)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_7440;
+    pcc->check_pow = check_pow_hid0_74xx;
+}
+
 /* PowerPC 7450 (aka G4)                                                     */
 #define POWERPC_INSNS_7450   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5828,9 +6123,7 @@ static void init_proc_7440 (CPUPPCState *env)
 #define POWERPC_FLAG_7450    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_7450       check_pow_hid0_74xx
 
-__attribute__ (( unused ))
 static void init_proc_7450 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -5919,6 +6212,14 @@ static void init_proc_7450 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(7450)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_7450;
+    pcc->check_pow = check_pow_hid0_74xx;
+}
+
 /* PowerPC 7445 (aka G4)                                                     */
 #define POWERPC_INSNS_7445   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -5940,9 +6241,7 @@ static void init_proc_7450 (CPUPPCState *env)
 #define POWERPC_FLAG_7445    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_7445       check_pow_hid0_74xx
 
-__attribute__ (( unused ))
 static void init_proc_7445 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6034,6 +6333,14 @@ static void init_proc_7445 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(7445)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_7445;
+    pcc->check_pow = check_pow_hid0_74xx;
+}
+
 /* PowerPC 7455 (aka G4)                                                     */
 #define POWERPC_INSNS_7455   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -6055,9 +6362,7 @@ static void init_proc_7445 (CPUPPCState *env)
 #define POWERPC_FLAG_7455    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_7455       check_pow_hid0_74xx
 
-__attribute__ (( unused ))
 static void init_proc_7455 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6151,6 +6456,14 @@ static void init_proc_7455 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(7455)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_7455;
+    pcc->check_pow = check_pow_hid0_74xx;
+}
+
 /* PowerPC 7457 (aka G4)                                                     */
 #define POWERPC_INSNS_7457   (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -6172,9 +6485,7 @@ static void init_proc_7455 (CPUPPCState *env)
 #define POWERPC_FLAG_7457    (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
                               POWERPC_FLAG_BUS_CLK)
-#define check_pow_7457       check_pow_hid0_74xx
 
-__attribute__ (( unused ))
 static void init_proc_7457 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6292,6 +6603,14 @@ static void init_proc_7457 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
+POWERPC_FAMILY(7457)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_7457;
+    pcc->check_pow = check_pow_hid0_74xx;
+}
+
 #if defined (TARGET_PPC64)
 /* PowerPC 970                                                               */
 #define POWERPC_INSNS_970    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
@@ -6387,6 +6706,14 @@ static void init_proc_970 (CPUPPCState *env)
     /* Can't find information on what this should be on reset.  This
      * value is the one used by 74xx processors. */
     vscr_init(env, 0x00010000);
+}
+
+POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_970;
+    pcc->check_pow = check_pow_970;
 }
 
 /* PowerPC 970FX (aka G5)                                                    */
@@ -6491,6 +6818,14 @@ static void init_proc_970FX (CPUPPCState *env)
     vscr_init(env, 0x00010000);
 }
 
+POWERPC_FAMILY(970FX)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_970FX;
+    pcc->check_pow = check_pow_970FX;
+}
+
 /* PowerPC 970 GX                                                            */
 #define POWERPC_INSNS_970GX  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -6579,6 +6914,14 @@ static void init_proc_970GX (CPUPPCState *env)
     /* Can't find information on what this should be on reset.  This
      * value is the one used by 74xx processors. */
     vscr_init(env, 0x00010000);
+}
+
+POWERPC_FAMILY(970GX)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_970GX;
+    pcc->check_pow = check_pow_970GX;
 }
 
 /* PowerPC 970 MP                                                            */
@@ -6671,6 +7014,14 @@ static void init_proc_970MP (CPUPPCState *env)
     vscr_init(env, 0x00010000);
 }
 
+POWERPC_FAMILY(970MP)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_970MP;
+    pcc->check_pow = check_pow_970MP;
+}
+
 /* POWER7 */
 #define POWERPC_INSNS_POWER7  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -6691,7 +7042,6 @@ static void init_proc_970MP (CPUPPCState *env)
 #define POWERPC_FLAG_POWER7   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
                               POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR)
-#define check_pow_POWER7    check_pow_nocheck
 
 static void init_proc_POWER7 (CPUPPCState *env)
 {
@@ -6755,6 +7105,14 @@ static void init_proc_POWER7 (CPUPPCState *env)
     vscr_init(env, 0x00010000);
 }
 
+POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_POWER7;
+    pcc->check_pow = check_pow_nocheck;
+}
+
 /* PowerPC 620                                                               */
 #define POWERPC_INSNS_620    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -6773,9 +7131,7 @@ static void init_proc_POWER7 (CPUPPCState *env)
 #define POWERPC_BFDM_620     (bfd_mach_ppc64)
 #define POWERPC_FLAG_620     (POWERPC_FLAG_SE | POWERPC_FLAG_BE |            \
                               POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
-#define check_pow_620        check_pow_nocheck /* Check this */
 
-__attribute__ (( unused ))
 static void init_proc_620 (CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -6796,6 +7152,15 @@ static void init_proc_620 (CPUPPCState *env)
     /* Allocate hardware IRQ controller */
     ppc6xx_irq_init(env);
 }
+
+POWERPC_FAMILY(620)(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    pcc->init_proc = init_proc_620;
+    pcc->check_pow = check_pow_nocheck; /* Check this */
+}
+
 #endif /* defined (TARGET_PPC64) */
 
 /*****************************************************************************/
@@ -7530,14 +7895,12 @@ enum {
         pcc->bus_model    = glue(POWERPC_INPUT_, _type);                    \
         pcc->bfd_mach     = glue(POWERPC_BFDM_, _type);                     \
         pcc->flags        = glue(POWERPC_FLAG_, _type);                     \
-        pcc->init_proc    = &glue(init_proc_, _type);                       \
-        pcc->check_pow    = &glue(check_pow_, _type);                       \
     }                                                                       \
                                                                             \
     static const TypeInfo                                                   \
     glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_type_info) = {         \
         .name       = _name "-" TYPE_POWERPC_CPU,                           \
-        .parent     = TYPE_POWERPC_CPU,                                     \
+        .parent     = stringify(_type) "-family-" TYPE_POWERPC_CPU,         \
         .class_init =                                                       \
             glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_class_init),   \
     };                                                                      \
