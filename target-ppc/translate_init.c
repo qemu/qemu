@@ -8243,7 +8243,7 @@ static const ppc_def_t ppc_defs[] = {
     /* PowerPC G2LE GP1 core                                                 */
     POWERPC_DEF("G2leGP1",       CPU_POWERPC_G2LEgp1,                G2LE),
     /* PowerPC G2LE GP3 core                                                 */
-    POWERPC_DEF("G2leGP3",       CPU_POWERPC_G2LEgp1,                G2LE),
+    POWERPC_DEF("G2leGP3",       CPU_POWERPC_G2LEgp3,                G2LE),
     /* PowerPC MPC603 microcontrollers                                       */
     /* MPC8240                                                               */
     POWERPC_DEF("MPC8240",       CPU_POWERPC_MPC8240,                603E),
