@@ -7037,11 +7037,9 @@ enum {
     CPU_POWERPC_G2LEgp3            = 0x80822013,
     /* MPC52xx microcontrollers  */
     /* XXX: MPC 5121 ? */
-#define CPU_POWERPC_MPC5200          CPU_POWERPC_MPC5200_v12
 #define CPU_POWERPC_MPC5200_v10      CPU_POWERPC_G2LEgp1
 #define CPU_POWERPC_MPC5200_v11      CPU_POWERPC_G2LEgp1
 #define CPU_POWERPC_MPC5200_v12      CPU_POWERPC_G2LEgp1
-#define CPU_POWERPC_MPC5200B         CPU_POWERPC_MPC5200B_v21
 #define CPU_POWERPC_MPC5200B_v20     CPU_POWERPC_G2LEgp1
 #define CPU_POWERPC_MPC5200B_v21     CPU_POWERPC_G2LEgp1
     /* MPC82xx microcontrollers */
@@ -7363,11 +7361,9 @@ enum {
 /* System version register (used on MPC 8xxx)                                */
 enum {
     POWERPC_SVR_NONE               = 0x00000000,
-#define POWERPC_SVR_5200             POWERPC_SVR_5200_v12
     POWERPC_SVR_5200_v10           = 0x80110010,
     POWERPC_SVR_5200_v11           = 0x80110011,
     POWERPC_SVR_5200_v12           = 0x80110012,
-#define POWERPC_SVR_5200B            POWERPC_SVR_5200B_v21
     POWERPC_SVR_5200B_v20          = 0x80110020,
     POWERPC_SVR_5200B_v21          = 0x80110021,
 #define POWERPC_SVR_55xx             POWERPC_SVR_5567
@@ -7912,9 +7908,6 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF_SVR("MPC5121",
                     CPU_POWERPC_MPC5121,      POWERPC_SVR_5121,      G2LE)
 #endif
-    /* MPC5200                                                               */
-    POWERPC_DEF_SVR("MPC5200",
-                    CPU_POWERPC_MPC5200,      POWERPC_SVR_5200,      G2LE)
     /* MPC5200 v1.0                                                          */
     POWERPC_DEF_SVR("MPC5200_v10",
                     CPU_POWERPC_MPC5200_v10,  POWERPC_SVR_5200_v10,  G2LE)
@@ -7924,9 +7917,6 @@ static const ppc_def_t ppc_defs[] = {
     /* MPC5200 v1.2                                                          */
     POWERPC_DEF_SVR("MPC5200_v12",
                     CPU_POWERPC_MPC5200_v12,  POWERPC_SVR_5200_v12,  G2LE)
-    /* MPC5200B                                                              */
-    POWERPC_DEF_SVR("MPC5200B",
-                    CPU_POWERPC_MPC5200B,     POWERPC_SVR_5200B,     G2LE)
     /* MPC5200B v2.0                                                         */
     POWERPC_DEF_SVR("MPC5200B_v20",
                     CPU_POWERPC_MPC5200B_v20, POWERPC_SVR_5200B_v20, G2LE)
@@ -8863,6 +8853,8 @@ static const PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "MPC885", "MPC8xx" },
 
     { "MPC52xx", "MPC5200" },
+    { "MPC5200", "MPC5200_v12" },
+    { "MPC5200B", "MPC5200B_v21" },
 
     { "MPC82xx", "MPC8280" },
     { "PowerQUICC-II", "MPC82xx" },
