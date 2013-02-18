@@ -10030,9 +10030,9 @@ static int ppc_fixup_cpu(PowerPCCPU *cpu)
     return 0;
 }
 
-static void ppc_cpu_realize(Object *obj, Error **errp)
+static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(obj);
+    PowerPCCPU *cpu = POWERPC_CPU(dev);
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     ppc_def_t *def = pcc->info;
@@ -10082,6 +10082,8 @@ static void ppc_cpu_realize(Object *obj, Error **errp)
     }
 
     qemu_init_vcpu(env);
+
+    pcc->parent_realize(dev, errp);
 
 #if defined(PPC_DUMP_CPU)
     {
@@ -10347,14 +10349,9 @@ PowerPCCPU *cpu_ppc_init(const char *cpu_model)
 
     cpu = POWERPC_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
-
-    if (tcg_enabled()) {
-        ppc_translate_init();
-    }
-
     env->cpu_model_str = cpu_model;
 
-    ppc_cpu_realize(OBJECT(cpu), &err);
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
     if (err != NULL) {
         fprintf(stderr, "%s\n", error_get_pretty(err));
         error_free(err);
@@ -10532,11 +10529,13 @@ static void ppc_cpu_reset(CPUState *s)
 
 static void ppc_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     PowerPCCPU *cpu = POWERPC_CPU(obj);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
     ppc_def_t *def = pcc->info;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     env->msr_mask = def->msr_mask;
@@ -10569,12 +10568,20 @@ static void ppc_cpu_initfn(Object *obj)
         env->sps = defsps;
     }
 #endif /* defined(TARGET_PPC64) */
+
+    if (tcg_enabled()) {
+        ppc_translate_init();
+    }
 }
 
 static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    pcc->parent_realize = dc->realize;
+    dc->realize = ppc_cpu_realizefn;
 
     pcc->parent_reset = cc->reset;
     cc->reset = ppc_cpu_reset;

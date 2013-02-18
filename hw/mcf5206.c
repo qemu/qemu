@@ -145,7 +145,7 @@ static m5206_timer_state *m5206_timer_init(qemu_irq irq)
 /* System Integration Module.  */
 
 typedef struct {
-    CPUM68KState *env;
+    M68kCPU *cpu;
     MemoryRegion iomem;
     m5206_timer_state *timer[2];
     void *uart[2];
@@ -226,7 +226,7 @@ static void m5206_mbar_update(m5206_mbar_state *s)
         level = 0;
         vector = 0;
     }
-    m68k_set_irq_level(s->env, level, vector);
+    m68k_set_irq_level(s->cpu, level, vector);
 }
 
 static void m5206_mbar_set_irq(void *opaque, int irq, int level)
@@ -525,7 +525,7 @@ static const MemoryRegionOps m5206_mbar_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, CPUM68KState *env)
+qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, M68kCPU *cpu)
 {
     m5206_mbar_state *s;
     qemu_irq *pic;
@@ -541,7 +541,7 @@ qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, CPUM68KState *env)
     s->timer[1] = m5206_timer_init(pic[10]);
     s->uart[0] = mcf_uart_init(pic[12], serial_hds[0]);
     s->uart[1] = mcf_uart_init(pic[13], serial_hds[1]);
-    s->env = env;
+    s->cpu = cpu;
 
     m5206_mbar_reset(s);
     return pic;

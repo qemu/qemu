@@ -2066,9 +2066,11 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 static CPUArchState *find_cpu(uint32_t thread_id)
 {
     CPUArchState *env;
+    CPUState *cpu;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        if (cpu_index(env) == thread_id) {
+        cpu = ENV_GET_CPU(env);
+        if (cpu_index(cpu) == thread_id) {
             return env;
         }
     }
@@ -2096,7 +2098,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     case '?':
         /* TODO: Make this return the correct value for user-mode.  */
         snprintf(buf, sizeof(buf), "T%02xthread:%02x;", GDB_SIGNAL_TRAP,
-                 cpu_index(s->c_cpu));
+                 cpu_index(ENV_GET_CPU(s->c_cpu)));
         put_packet(s, buf);
         /* Remove all the breakpoints when this query is issued,
          * because gdb is doing and initial connect and the state
@@ -2391,7 +2393,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         } else if (strcmp(p,"sThreadInfo") == 0) {
         report_cpuinfo:
             if (s->query_cpu) {
-                snprintf(buf, sizeof(buf), "m%x", cpu_index(s->query_cpu));
+                snprintf(buf, sizeof(buf), "m%x",
+                         cpu_index(ENV_GET_CPU(s->query_cpu)));
                 put_packet(s, buf);
                 s->query_cpu = s->query_cpu->next_cpu;
             } else
@@ -2512,6 +2515,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
 {
     GDBState *s = gdbserver_state;
     CPUArchState *env = s->c_cpu;
+    CPUState *cpu = ENV_GET_CPU(env);
     char buf[256];
     const char *type;
     int ret;
@@ -2540,7 +2544,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
             }
             snprintf(buf, sizeof(buf),
                      "T%02xthread:%02x;%swatch:" TARGET_FMT_lx ";",
-                     GDB_SIGNAL_TRAP, cpu_index(env), type,
+                     GDB_SIGNAL_TRAP, cpu_index(cpu), type,
                      env->watchpoint_hit->vaddr);
             env->watchpoint_hit = NULL;
             goto send_packet;
@@ -2573,7 +2577,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
         ret = GDB_SIGNAL_UNKNOWN;
         break;
     }
-    snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, cpu_index(env));
+    snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, cpu_index(cpu));
 
 send_packet:
     put_packet(s, buf);

@@ -42,22 +42,44 @@ static void lm32_cpu_reset(CPUState *s)
     memset(env, 0, offsetof(CPULM32State, breakpoints));
 }
 
+static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    LM32CPU *cpu = LM32_CPU(dev);
+    LM32CPUClass *lcc = LM32_CPU_GET_CLASS(dev);
+
+    cpu_reset(CPU(cpu));
+
+    qemu_init_vcpu(&cpu->env);
+
+    lcc->parent_realize(dev, errp);
+}
+
 static void lm32_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     LM32CPU *cpu = LM32_CPU(obj);
     CPULM32State *env = &cpu->env;
+    static bool tcg_initialized;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     env->flags = 0;
 
-    cpu_reset(CPU(cpu));
+    if (tcg_enabled() && !tcg_initialized) {
+        tcg_initialized = true;
+        lm32_translate_init();
+    }
 }
 
 static void lm32_cpu_class_init(ObjectClass *oc, void *data)
 {
     LM32CPUClass *lcc = LM32_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    lcc->parent_realize = dc->realize;
+    dc->realize = lm32_cpu_realizefn;
 
     lcc->parent_reset = cc->reset;
     cc->reset = lm32_cpu_reset;

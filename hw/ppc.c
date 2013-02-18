@@ -300,20 +300,20 @@ static void ppc40x_set_irq(void *opaque, int pin, int level)
             if (level) {
                 LOG_IRQ("%s: reset the PowerPC system\n",
                             __func__);
-                ppc40x_system_reset(env);
+                ppc40x_system_reset(cpu);
             }
             break;
         case PPC40x_INPUT_RESET_CHIP:
             if (level) {
                 LOG_IRQ("%s: reset the PowerPC chip\n", __func__);
-                ppc40x_chip_reset(env);
+                ppc40x_chip_reset(cpu);
             }
             break;
         case PPC40x_INPUT_RESET_CORE:
             /* XXX: TODO: update DBSR[MRR] */
             if (level) {
                 LOG_IRQ("%s: reset the PowerPC core\n", __func__);
-                ppc40x_core_reset(env);
+                ppc40x_core_reset(cpu);
             }
             break;
         case PPC40x_INPUT_CINT:
@@ -1011,13 +1011,13 @@ static void cpu_4xx_wdt_cb (void *opaque)
             /* No reset */
             break;
         case 0x1: /* Core reset */
-            ppc40x_core_reset(env);
+            ppc40x_core_reset(cpu);
             break;
         case 0x2: /* Chip reset */
-            ppc40x_chip_reset(env);
+            ppc40x_chip_reset(cpu);
             break;
         case 0x3: /* System reset */
-            ppc40x_system_reset(env);
+            ppc40x_system_reset(cpu);
             break;
         }
     }

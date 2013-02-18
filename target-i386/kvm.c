@@ -1777,7 +1777,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
          * or pending TPR access reports. */
         if (env->interrupt_request &
             (CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
-            env->exit_request = 1;
+            cpu->exit_request = 1;
         }
 
         /* Try to inject an interrupt if the guest can accept it */
@@ -1847,7 +1847,7 @@ int kvm_arch_process_async_events(CPUState *cs)
         if (env->exception_injected == EXCP08_DBLE) {
             /* this means triple fault */
             qemu_system_reset_request();
-            env->exit_request = 1;
+            cs->exit_request = 1;
             return 0;
         }
         env->exception_injected = EXCP12_MCHK;

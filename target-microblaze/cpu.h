@@ -272,6 +272,7 @@ struct CPUMBState {
 
 #include "cpu-qom.h"
 
+void mb_tcg_init(void);
 MicroBlazeCPU *cpu_mb_init(const char *cpu_model);
 int cpu_mb_exec(CPUMBState *s);
 void do_interrupt(CPUMBState *env);

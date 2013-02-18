@@ -4312,13 +4312,15 @@ static void *clone_func(void *arg)
 {
     new_thread_info *info = arg;
     CPUArchState *env;
+    CPUState *cpu;
     TaskState *ts;
 
     env = info->env;
+    cpu = ENV_GET_CPU(env);
     thread_env = env;
     ts = (TaskState *)thread_env->opaque;
     info->tid = gettid();
-    env->host_tid = info->tid;
+    cpu->host_tid = info->tid;
     task_settid(ts);
     if (info->child_tidptr)
         put_user_u32(info->tid, info->child_tidptr);

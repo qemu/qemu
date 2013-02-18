@@ -192,6 +192,7 @@ static void mcf5208evb_init(QEMUMachineInitArgs *args)
     ram_addr_t ram_size = args->ram_size;
     const char *cpu_model = args->cpu_model;
     const char *kernel_filename = args->kernel_filename;
+    M68kCPU *cpu;
     CPUM68KState *env;
     int kernel_size;
     uint64_t elf_entry;
@@ -201,13 +202,15 @@ static void mcf5208evb_init(QEMUMachineInitArgs *args)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
-    if (!cpu_model)
+    if (!cpu_model) {
         cpu_model = "m5208";
-    env = cpu_init(cpu_model);
-    if (!env) {
+    }
+    cpu = cpu_m68k_init(cpu_model);
+    if (!cpu) {
         fprintf(stderr, "Unable to find m68k CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
 
     /* Initialize CPU registers.  */
     env->vbr = 0;
@@ -224,7 +227,7 @@ static void mcf5208evb_init(QEMUMachineInitArgs *args)
     memory_region_add_subregion(address_space_mem, 0x80000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(address_space_mem, 0xfc048000, env);
+    pic = mcf_intc_init(address_space_mem, 0xfc048000, cpu);
 
     mcf_uart_mm_init(address_space_mem, 0xfc060000, pic[26], serial_hds[0]);
     mcf_uart_mm_init(address_space_mem, 0xfc064000, pic[27], serial_hds[1]);

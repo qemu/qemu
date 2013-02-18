@@ -33,7 +33,9 @@
 
 /**
  * CRISCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
+ * @vr: Version Register value.
  *
  * A CRIS CPU model.
  */
@@ -42,7 +44,10 @@ typedef struct CRISCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
+
+    uint32_t vr;
 } CRISCPUClass;
 
 /**

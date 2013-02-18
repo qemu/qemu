@@ -191,6 +191,7 @@ typedef struct CPUSH4State {
 
 #include "cpu-qom.h"
 
+void sh4_translate_init(void);
 SuperHCPU *cpu_sh4_init(const char *cpu_model);
 int cpu_sh4_exec(CPUSH4State * s);
 int cpu_sh4_signal_handler(int host_signum, void *pinfo,

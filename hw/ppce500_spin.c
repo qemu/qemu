@@ -123,18 +123,11 @@ static void spin_write(void *opaque, hwaddr addr, uint64_t value,
 {
     SpinState *s = opaque;
     int env_idx = addr / sizeof(SpinInfo);
-    CPUPPCState *env;
-    CPUState *cpu = NULL;
+    CPUState *cpu;
     SpinInfo *curspin = &s->spin[env_idx];
     uint8_t *curspin_p = (uint8_t*)curspin;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu = CPU(ppc_env_get_cpu(env));
-        if (cpu->cpu_index == env_idx) {
-            break;
-        }
-    }
-
+    cpu = qemu_get_cpu(env_idx);
     if (cpu == NULL) {
         /* Unknown CPU */
         return;
@@ -161,11 +154,11 @@ static void spin_write(void *opaque, hwaddr addr, uint64_t value,
     if (!(ldq_p(&curspin->addr) & 1)) {
         /* run CPU */
         SpinKick kick = {
-            .cpu = ppc_env_get_cpu(env),
+            .cpu = POWERPC_CPU(cpu),
             .spin = curspin,
         };
 
-        run_on_cpu(CPU(kick.cpu), spin_kick, &kick);
+        run_on_cpu(cpu, spin_kick, &kick);
     }
 }
 

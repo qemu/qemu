@@ -3513,68 +3513,12 @@ void cpu_dump_state (CPUCRISState *env, FILE *f, fprintf_function cpu_fprintf,
 
 }
 
-struct
+void cris_initialize_tcg(void)
 {
-    uint32_t vr;
-    const char *name;
-} cris_cores[] = {
-    {8, "crisv8"},
-    {9, "crisv9"},
-    {10, "crisv10"},
-    {11, "crisv11"},
-    {32, "crisv32"},
-};
-
-void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf)
-{
-    unsigned int i;
-
-    (*cpu_fprintf)(f, "Available CPUs:\n");
-    for (i = 0; i < ARRAY_SIZE(cris_cores); i++) {
-        (*cpu_fprintf)(f, "  %s\n", cris_cores[i].name);
-    }
-}
-
-static uint32_t vr_by_name(const char *name)
-{
-    unsigned int i;
-    for (i = 0; i < ARRAY_SIZE(cris_cores); i++) {
-        if (strcmp(name, cris_cores[i].name) == 0) {
-            return cris_cores[i].vr;
-        }
-    }
-    return 32;
-}
-
-CRISCPU *cpu_cris_init(const char *cpu_model)
-{
-    CRISCPU *cpu;
-    CPUCRISState *env;
-    static int tcg_initialized = 0;
     int i;
-
-    cpu = CRIS_CPU(object_new(TYPE_CRIS_CPU));
-    env = &cpu->env;
-
-    env->pregs[PR_VR] = vr_by_name(cpu_model);
-
-    cpu_reset(CPU(cpu));
-    qemu_init_vcpu(env);
-
-    if (tcg_initialized) {
-        return cpu;
-    }
-
-    tcg_initialized = 1;
 
 #define GEN_HELPER 2
 #include "helper.h"
-
-    if (env->pregs[PR_VR] < 32) {
-        cpu_crisv10_init(env);
-        return cpu;
-    }
-
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     cc_x = tcg_global_mem_new(TCG_AREG0,
@@ -3615,8 +3559,6 @@ CRISCPU *cpu_cris_init(const char *cpu_model)
                                        offsetof(CPUCRISState, pregs[i]),
                                        pregnames[i]);
     }
-
-    return cpu;
 }
 
 void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb, int pc_pos)

@@ -34,6 +34,7 @@
 
 /**
  * S390CPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * An S/390 CPU model.
@@ -43,6 +44,7 @@ typedef struct S390CPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } S390CPUClass;
 

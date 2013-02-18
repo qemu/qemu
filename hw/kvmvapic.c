@@ -382,8 +382,10 @@ static void patch_call(VAPICROMState *s, CPUX86State *env, target_ulong ip,
     cpu_memory_rw_debug(env, ip + 1, (void *)&offset, sizeof(offset), 1);
 }
 
-static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong ip)
+static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 {
+    CPUState *cs = CPU(cpu);
+    CPUX86State *env = &cpu->env;
     VAPICHandlers *handlers;
     uint8_t opcode[2];
     uint32_t imm32;
@@ -439,17 +441,18 @@ static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong i
     resume_all_vcpus();
 
     if (!kvm_enabled()) {
-        env->current_tb = NULL;
+        cs->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
         cpu_resume_from_signal(env, NULL);
     }
 }
 
-void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
+void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
                              TPRAccess access)
 {
     VAPICROMState *s = DO_UPCAST(VAPICROMState, busdev.qdev, dev);
-    CPUX86State *env = cpu;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
 
     cpu_synchronize_state(env);
 
@@ -465,7 +468,7 @@ void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
     if (vapic_enable(s, env) < 0) {
         return;
     }
-    patch_instruction(s, env, ip);
+    patch_instruction(s, cpu, ip);
 }
 
 typedef struct VAPICEnableTPRReporting {

@@ -1965,19 +1965,17 @@ void cpu_dump_state (CPUMBState *env, FILE *f, fprintf_function cpu_fprintf,
 MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
 {
     MicroBlazeCPU *cpu;
-    static int tcg_initialized = 0;
-    int i;
 
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
 
-    cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 
-    if (tcg_initialized) {
-        return cpu;
-    }
+    return cpu;
+}
 
-    tcg_initialized = 1;
+void mb_tcg_init(void)
+{
+    int i;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
@@ -2008,8 +2006,6 @@ MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
     }
 #define GEN_HELPER 2
 #include "helper.h"
-
-    return cpu;
 }
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb, int pc_pos)

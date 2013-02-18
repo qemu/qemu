@@ -85,14 +85,33 @@ static void mb_cpu_reset(CPUState *s)
 #endif
 }
 
+static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(dev);
+    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
+
+    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(&cpu->env);
+
+    mcc->parent_realize(dev, errp);
+}
+
 static void mb_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
     CPUMBState *env = &cpu->env;
+    static bool tcg_initialized;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+
+    if (tcg_enabled() && !tcg_initialized) {
+        tcg_initialized = true;
+        mb_tcg_init();
+    }
 }
 
 static const VMStateDescription vmstate_mb_cpu = {
@@ -105,6 +124,9 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_CLASS(oc);
+
+    mcc->parent_realize = dc->realize;
+    dc->realize = mb_cpu_realizefn;
 
     mcc->parent_reset = cc->reset;
     cc->reset = mb_cpu_reset;
