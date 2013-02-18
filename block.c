@@ -2427,6 +2427,10 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
         return -EACCES;
     if (bdrv_in_use(bs))
         return -EBUSY;
+
+    /* There better not be any in-flight IOs when we truncate the device. */
+    bdrv_drain_all();
+
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
