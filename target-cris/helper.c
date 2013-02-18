@@ -45,6 +45,11 @@ void cris_cpu_do_interrupt(CPUState *cs)
     env->pregs[PR_ERP] = env->pc;
 }
 
+void crisv10_cpu_do_interrupt(CPUState *cs)
+{
+    cris_cpu_do_interrupt(cs);
+}
+
 int cpu_cris_handle_mmu_fault(CPUCRISState * env, target_ulong address, int rw,
                               int mmu_idx)
 {
@@ -109,9 +114,10 @@ int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
     return r;
 }
 
-static void do_interruptv10(CPUCRISState *env)
+void crisv10_cpu_do_interrupt(CPUState *cs)
 {
-    D(CPUState *cs = CPU(cris_env_get_cpu(env)));
+    CRISCPU *cpu = CRIS_CPU(cs);
+    CPUCRISState *env = &cpu->env;
     int ex_vec = -1;
 
     D_LOG("exception index=%d interrupt_req=%d\n",
@@ -170,10 +176,6 @@ void cris_cpu_do_interrupt(CPUState *cs)
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
     int ex_vec = -1;
-
-    if (env->pregs[PR_VR] < 32) {
-        return do_interruptv10(env);
-    }
 
     D_LOG("exception index=%d interrupt_req=%d\n",
           env->exception_index,
