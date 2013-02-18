@@ -134,6 +134,10 @@ struct VMStateDescription {
     const VMStateSubsection *subsections;
 };
 
+#ifdef CONFIG_USER_ONLY
+extern const VMStateDescription vmstate_dummy;
+#endif
+
 extern const VMStateInfo vmstate_info_bool;
 
 extern const VMStateInfo vmstate_info_int8;

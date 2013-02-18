@@ -1,6 +1,8 @@
 #include "qemu-common.h"
 #include "migration/vmstate.h"
 
+const VMStateDescription vmstate_dummy = {};
+
 int vmstate_register_with_alias_id(DeviceState *dev,
                                    int instance_id,
                                    const VMStateDescription *vmsd,
