@@ -28,22 +28,21 @@
 #include "qemu/compiler.h"   /* QEMU_GNUC_PREREQ */
 #include <limits.h>
 
-#if defined(__x86_64__)
-#define __HAVE_FAST_MULU64__
+#ifdef CONFIG_INT128
 static inline void mulu64(uint64_t *plow, uint64_t *phigh,
                           uint64_t a, uint64_t b)
 {
-    __asm__ ("mul %0\n\t"
-             : "=d" (*phigh), "=a" (*plow)
-             : "a" (a), "0" (b));
+    __uint128_t r = (__uint128_t)a * b;
+    *plow = r;
+    *phigh = r >> 64;
 }
-#define __HAVE_FAST_MULS64__
+
 static inline void muls64(uint64_t *plow, uint64_t *phigh,
                           int64_t a, int64_t b)
 {
-    __asm__ ("imul %0\n\t"
-             : "=d" (*phigh), "=a" (*plow)
-             : "a" (a), "0" (b));
+    __int128_t r = (__int128_t)a * b;
+    *plow = r;
+    *phigh = r >> 64;
 }
 #else
 void muls64(uint64_t *phigh, uint64_t *plow, int64_t a, int64_t b);

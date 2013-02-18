@@ -1537,7 +1537,7 @@ int kvm_cpu_exec(CPUArchState *env)
     DPRINTF("kvm_cpu_exec()\n");
 
     if (kvm_arch_process_async_events(cpu)) {
-        env->exit_request = 0;
+        cpu->exit_request = 0;
         return EXCP_HLT;
     }
 
@@ -1548,7 +1548,7 @@ int kvm_cpu_exec(CPUArchState *env)
         }
 
         kvm_arch_pre_run(cpu, run);
-        if (env->exit_request) {
+        if (cpu->exit_request) {
             DPRINTF("interrupt exit requested\n");
             /*
              * KVM requires us to reenter the kernel after IO exits to complete
@@ -1622,7 +1622,7 @@ int kvm_cpu_exec(CPUArchState *env)
         vm_stop(RUN_STATE_INTERNAL_ERROR);
     }
 
-    env->exit_request = 0;
+    cpu->exit_request = 0;
     return ret;
 }
 

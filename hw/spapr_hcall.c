@@ -469,16 +469,11 @@ static target_ulong h_register_vpa(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     CPUPPCState *tenv;
     CPUState *tcpu;
 
-    for (tenv = first_cpu; tenv; tenv = tenv->next_cpu) {
-        tcpu = CPU(ppc_env_get_cpu(tenv));
-        if (tcpu->cpu_index == procno) {
-            break;
-        }
-    }
-
-    if (!tenv) {
+    tcpu = qemu_get_cpu(procno);
+    if (!tcpu) {
         return H_PARAMETER;
     }
+    tenv = tcpu->env_ptr;
 
     switch (flags) {
     case FLAGS_REGISTER_VPA:
@@ -513,13 +508,14 @@ static target_ulong h_cede(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
     env->msr |= (1ULL << MSR_EE);
     hreg_compute_hflags(env);
-    if (!cpu_has_work(CPU(cpu))) {
+    if (!cpu_has_work(cs)) {
         env->halted = 1;
         env->exception_index = EXCP_HLT;
-        env->exit_request = 1;
+        cs->exit_request = 1;
     }
     return H_SUCCESS;
 }

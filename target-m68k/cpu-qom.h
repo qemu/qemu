@@ -33,6 +33,7 @@
 
 /**
  * M68kCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * A Motorola 68k CPU model.
@@ -42,6 +43,7 @@ typedef struct M68kCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } M68kCPUClass;
 

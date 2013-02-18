@@ -87,6 +87,30 @@ static bool qtest_opened;
  *  > inl ADDR
  *  < OK VALUE
  *
+ *  > writeb ADDR VALUE
+ *  < OK
+ *
+ *  > writew ADDR VALUE
+ *  < OK
+ *
+ *  > writel ADDR VALUE
+ *  < OK
+ *
+ *  > writeq ADDR VALUE
+ *  < OK
+ *
+ *  > readb ADDR
+ *  < OK VALUE
+ *
+ *  > readw ADDR
+ *  < OK VALUE
+ *
+ *  > readl ADDR
+ *  < OK VALUE
+ *
+ *  > readq ADDR
+ *  < OK VALUE
+ *
  *  > read ADDR SIZE
  *  < OK DATA
  *
@@ -277,6 +301,63 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
         }
         qtest_send_prefix(chr);
         qtest_send(chr, "OK 0x%04x\n", value);
+    } else if (strcmp(words[0], "writeb") == 0 ||
+               strcmp(words[0], "writew") == 0 ||
+               strcmp(words[0], "writel") == 0 ||
+               strcmp(words[0], "writeq") == 0) {
+        uint64_t addr;
+        uint64_t value;
+
+        g_assert(words[1] && words[2]);
+        addr = strtoull(words[1], NULL, 0);
+        value = strtoull(words[2], NULL, 0);
+
+        if (words[0][5] == 'b') {
+            uint8_t data = value;
+            cpu_physical_memory_write(addr, &data, 1);
+        } else if (words[0][5] == 'w') {
+            uint16_t data = value;
+            tswap16s(&data);
+            cpu_physical_memory_write(addr, &data, 2);
+        } else if (words[0][5] == 'l') {
+            uint32_t data = value;
+            tswap32s(&data);
+            cpu_physical_memory_write(addr, &data, 4);
+        } else if (words[0][5] == 'q') {
+            uint64_t data = value;
+            tswap64s(&data);
+            cpu_physical_memory_write(addr, &data, 8);
+        }
+        qtest_send_prefix(chr);
+        qtest_send(chr, "OK\n");
+    } else if (strcmp(words[0], "readb") == 0 ||
+               strcmp(words[0], "readw") == 0 ||
+               strcmp(words[0], "readl") == 0 ||
+               strcmp(words[0], "readq") == 0) {
+        uint64_t addr;
+        uint64_t value = UINT64_C(-1);
+
+        g_assert(words[1]);
+        addr = strtoull(words[1], NULL, 0);
+
+        if (words[0][4] == 'b') {
+            uint8_t data;
+            cpu_physical_memory_read(addr, &data, 1);
+            value = data;
+        } else if (words[0][4] == 'w') {
+            uint16_t data;
+            cpu_physical_memory_read(addr, &data, 2);
+            value = tswap16(data);
+        } else if (words[0][4] == 'l') {
+            uint32_t data;
+            cpu_physical_memory_read(addr, &data, 4);
+            value = tswap32(data);
+        } else if (words[0][4] == 'q') {
+            cpu_physical_memory_read(addr, &value, 8);
+            tswap64s(&value);
+        }
+        qtest_send_prefix(chr);
+        qtest_send(chr, "OK 0x%016" PRIx64 "\n", value);
     } else if (strcmp(words[0], "read") == 0) {
         uint64_t addr, len, i;
         uint8_t *data;

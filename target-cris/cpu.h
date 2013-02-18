@@ -182,6 +182,9 @@ void do_interrupt(CPUCRISState *env);
 int cpu_cris_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
+void cris_initialize_tcg(void);
+void cris_initialize_crisv10_tcg(void);
+
 enum {
     CC_OP_DYNAMIC, /* Use env->cc_op  */
     CC_OP_FLAGS,

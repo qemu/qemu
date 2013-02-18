@@ -72,7 +72,6 @@ common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
 
 common-obj-y += dma-helpers.o
-common-obj-y += qtest.o
 common-obj-y += vl.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/

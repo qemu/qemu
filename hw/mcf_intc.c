@@ -16,7 +16,7 @@ typedef struct {
     uint64_t ifr;
     uint64_t enabled;
     uint8_t icr[64];
-    CPUM68KState *env;
+    M68kCPU *cpu;
     int active_vector;
 } mcf_intc_state;
 
@@ -40,7 +40,7 @@ static void mcf_intc_update(mcf_intc_state *s)
         }
     }
     s->active_vector = ((best == 64) ? 24 : (best + 64));
-    m68k_set_irq_level(s->env, best_level, s->active_vector);
+    m68k_set_irq_level(s->cpu, best_level, s->active_vector);
 }
 
 static uint64_t mcf_intc_read(void *opaque, hwaddr addr,
@@ -139,12 +139,12 @@ static const MemoryRegionOps mcf_intc_ops = {
 
 qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
                         hwaddr base,
-                        CPUM68KState *env)
+                        M68kCPU *cpu)
 {
     mcf_intc_state *s;
 
     s = g_malloc0(sizeof(mcf_intc_state));
-    s->env = env;
+    s->cpu = cpu;
     mcf_intc_reset(s);
 
     memory_region_init_io(&s->iomem, &mcf_intc_ops, s, "mcf", 0x100);

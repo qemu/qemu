@@ -98,12 +98,11 @@ static int fpu_gdb_set_reg(CPUM68KState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-CPUM68KState *cpu_m68k_init(const char *cpu_model)
+M68kCPU *cpu_m68k_init(const char *cpu_model)
 {
     M68kCPU *cpu;
     CPUM68KState *env;
     ObjectClass *oc;
-    static int inited;
 
     oc = cpu_class_by_name(TYPE_M68K_CPU, cpu_model);
     if (oc == NULL) {
@@ -111,24 +110,24 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
     }
     cpu = M68K_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
-
-    if (!inited) {
-        inited = 1;
-        m68k_tcg_init();
-    }
-
     env->cpu_model_str = cpu_model;
 
     register_m68k_insns(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
+    return cpu;
+}
+
+void m68k_cpu_init_gdb(M68kCPU *cpu)
+{
+    CPUM68KState *env = &cpu->env;
+
     if (m68k_feature(env, M68K_FEATURE_CF_FPU)) {
         gdb_register_coprocessor(env, fpu_gdb_get_reg, fpu_gdb_set_reg,
                                  11, "cf-fp.xml", 18);
     }
     /* TODO: Add [E]MAC registers.  */
-
-    cpu_reset(ENV_GET_CPU(env));
-    qemu_init_vcpu(env);
-    return env;
 }
 
 void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
@@ -311,8 +310,10 @@ int cpu_m68k_handle_mmu_fault (CPUM68KState *env, target_ulong address, int rw,
    be handled by the interrupt controller.  Real hardware only requests
    the vector when the interrupt is acknowledged by the CPU.  For
    simplicitly we calculate it when the interrupt is signalled.  */
-void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector)
+void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector)
 {
+    CPUM68KState *env = &cpu->env;
+
     env->pending_level = level;
     env->pending_vector = vector;
     if (level)

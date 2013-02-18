@@ -1006,6 +1006,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 {
     TranslationBlock *tb, *tb_next, *saved_tb;
     CPUArchState *env = cpu_single_env;
+    CPUState *cpu = NULL;
     tb_page_addr_t tb_start, tb_end;
     PageDesc *p;
     int n;
@@ -1027,6 +1028,9 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
         is_cpu_write_access) {
         /* build code bitmap */
         build_page_bitmap(p);
+    }
+    if (env != NULL) {
+        cpu = ENV_GET_CPU(env);
     }
 
     /* we remove all the TBs in the range [start, end[ */
@@ -1074,14 +1078,14 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
             /* we need to do that to handle the case where a signal
                occurs while doing tb_phys_invalidate() */
             saved_tb = NULL;
-            if (env) {
-                saved_tb = env->current_tb;
-                env->current_tb = NULL;
+            if (cpu != NULL) {
+                saved_tb = cpu->current_tb;
+                cpu->current_tb = NULL;
             }
             tb_phys_invalidate(tb, -1);
-            if (env) {
-                env->current_tb = saved_tb;
-                if (env->interrupt_request && env->current_tb) {
+            if (cpu != NULL) {
+                cpu->current_tb = saved_tb;
+                if (env && env->interrupt_request && cpu->current_tb) {
                     cpu_interrupt(env, env->interrupt_request);
                 }
             }
@@ -1102,7 +1106,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
         /* we generate a block containing just the instruction
            modifying the memory. It will ensure that it cannot modify
            itself */
-        env->current_tb = NULL;
+        cpu->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
         cpu_resume_from_signal(env, NULL);
     }
@@ -1150,6 +1154,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
 #ifdef TARGET_HAS_PRECISE_SMC
     TranslationBlock *current_tb = NULL;
     CPUArchState *env = cpu_single_env;
+    CPUState *cpu = NULL;
     int current_tb_modified = 0;
     target_ulong current_pc = 0;
     target_ulong current_cs_base = 0;
@@ -1165,6 +1170,9 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
 #ifdef TARGET_HAS_PRECISE_SMC
     if (tb && pc != 0) {
         current_tb = tb_find_pc(pc);
+    }
+    if (env != NULL) {
+        cpu = ENV_GET_CPU(env);
     }
 #endif
     while (tb != NULL) {
@@ -1194,7 +1202,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
         /* we generate a block containing just the instruction
            modifying the memory. It will ensure that it cannot modify
            itself */
-        env->current_tb = NULL;
+        cpu->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
         cpu_resume_from_signal(env, puc);
     }
@@ -1416,7 +1424,7 @@ void tb_invalidate_phys_addr(hwaddr addr)
 }
 #endif /* TARGET_HAS_ICE && !defined(CONFIG_USER_ONLY) */
 
-void cpu_unlink_tb(CPUArchState *env)
+void cpu_unlink_tb(CPUState *cpu)
 {
     /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
        problem and hope the cpu will stop of its own accord.  For userspace
@@ -1426,11 +1434,11 @@ void cpu_unlink_tb(CPUArchState *env)
     static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
 
     spin_lock(&interrupt_lock);
-    tb = env->current_tb;
+    tb = cpu->current_tb;
     /* if the cpu is currently executing code, we must unlink it and
        all the potentially executing TB */
     if (tb) {
-        env->current_tb = NULL;
+        cpu->current_tb = NULL;
         tb_reset_jump_recursive(tb);
     }
     spin_unlock(&interrupt_lock);
@@ -1475,7 +1483,7 @@ static void tcg_handle_interrupt(CPUArchState *env, int mask)
             cpu_abort(env, "Raised interrupt while not in I/O function");
         }
     } else {
-        cpu_unlink_tb(env);
+        cpu_unlink_tb(cpu);
     }
 }
 
@@ -1623,8 +1631,10 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
 
 void cpu_interrupt(CPUArchState *env, int mask)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+
     env->interrupt_request |= mask;
-    cpu_unlink_tb(env);
+    cpu_unlink_tb(cpu);
 }
 
 /*

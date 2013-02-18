@@ -54,6 +54,8 @@ check-unit-y += tests/test-xbzrle$(EXESUF)
 gcov-files-test-xbzrle-y = xbzrle.c
 check-unit-y += tests/test-cutils$(EXESUF)
 gcov-files-test-cutils-y += util/cutils.c
+check-unit-y += tests/test-mul64$(EXESUF)
+gcov-files-test-mul64-y = util/host-utils.c
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -82,7 +84,7 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-string-input-visitor.o tests/test-qmp-output-visitor.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
 	tests/test-qmp-commands.o tests/test-visitor-serialization.o \
-	tests/test-x86-cpuid.o
+	tests/test-x86-cpuid.o tests/test-mul64.o
 
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o
 
@@ -123,6 +125,8 @@ tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qap
 tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y) qapi-types.o qapi-visit.o libqemuutil.a libqemustub.a
 tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
+
+tests/test-mul64$(EXESUF): tests/test-mul64.o libqemuutil.a
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o

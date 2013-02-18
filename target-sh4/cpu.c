@@ -54,14 +54,31 @@ static void superh_cpu_reset(CPUState *s)
     set_default_nan_mode(1, &env->fp_status);
 }
 
+static void superh_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    SuperHCPU *cpu = SUPERH_CPU(dev);
+    SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(dev);
+
+    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(&cpu->env);
+
+    scc->parent_realize(dev, errp);
+}
+
 static void superh_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     SuperHCPU *cpu = SUPERH_CPU(obj);
     CPUSH4State *env = &cpu->env;
 
+    cs->env_ptr = env;
     cpu_exec_init(env);
 
     env->movcal_backup_tail = &(env->movcal_backup);
+
+    if (tcg_enabled()) {
+        sh4_translate_init();
+    }
 }
 
 static const VMStateDescription vmstate_sh_cpu = {
@@ -74,6 +91,9 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
+
+    scc->parent_realize = dc->realize;
+    dc->realize = superh_cpu_realizefn;
 
     scc->parent_reset = cc->reset;
     cc->reset = superh_cpu_reset;

@@ -35,17 +35,14 @@ static bool use_mmio;
 
 static uint8_t cmos_read_mmio(uint8_t reg)
 {
-    uint8_t data;
-
-    memread(base + (uint32_t)reg_base + (uint32_t)reg, &data, 1);
-    return data;
+    return readb(base + (uint32_t)reg_base + (uint32_t)reg);
 }
 
 static void cmos_write_mmio(uint8_t reg, uint8_t val)
 {
     uint8_t data = val;
 
-    memwrite(base + (uint32_t)reg_base + (uint32_t)reg, &data, 1);
+    writeb(base + (uint32_t)reg_base + (uint32_t)reg, data);
 }
 
 static uint8_t cmos_read_ioio(uint8_t reg)
