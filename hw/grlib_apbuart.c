@@ -75,7 +75,6 @@ typedef struct UART {
     CharDriverState *chr;
 
     /* registers */
-    uint32_t receive;
     uint32_t status;
     uint32_t control;
 
@@ -136,12 +135,14 @@ static void grlib_apbuart_receive(void *opaque, const uint8_t *buf, int size)
 {
     UART *uart = opaque;
 
-    uart_add_to_fifo(uart, buf, size);
+    if (uart->control & UART_RECEIVE_ENABLE) {
+        uart_add_to_fifo(uart, buf, size);
 
-    uart->status |= UART_DATA_READY;
+        uart->status |= UART_DATA_READY;
 
-    if (uart->control & UART_RECEIVE_INTERRUPT) {
-        qemu_irq_pulse(uart->irq);
+        if (uart->control & UART_RECEIVE_INTERRUPT) {
+            qemu_irq_pulse(uart->irq);
+        }
     }
 }
 
@@ -193,8 +194,15 @@ static void grlib_apbuart_write(void *opaque, hwaddr addr,
     switch (addr) {
     case DATA_OFFSET:
     case DATA_OFFSET + 3:       /* When only one byte write */
-        c = value & 0xFF;
-        qemu_chr_fe_write(uart->chr, &c, 1);
+        /* Transmit when character device available and transmitter enabled */
+        if ((uart->chr) && (uart->control & UART_TRANSMIT_ENABLE)) {
+            c = value & 0xFF;
+            qemu_chr_fe_write(uart->chr, &c, 1);
+            /* Generate interrupt */
+            if (uart->control & UART_TRANSMIT_INTERRUPT) {
+                qemu_irq_pulse(uart->irq);
+            }
+        }
         return;
 
     case STATUS_OFFSET:
@@ -242,6 +250,19 @@ static int grlib_apbuart_init(SysBusDevice *dev)
     return 0;
 }
 
+static void grlib_apbuart_reset(DeviceState *d)
+{
+    UART *uart = container_of(d, UART, busdev.qdev);
+
+    /* Transmitter FIFO and shift registers are always empty in QEMU */
+    uart->status =  UART_TRANSMIT_FIFO_EMPTY | UART_TRANSMIT_SHIFT_EMPTY;
+    /* Everything is off */
+    uart->control = 0;
+    /* Flush receive FIFO */
+    uart->len = 0;
+    uart->current = 0;
+}
+
 static Property grlib_apbuart_properties[] = {
     DEFINE_PROP_CHR("chrdev", UART, chr),
     DEFINE_PROP_END_OF_LIST(),
@@ -253,6 +274,7 @@ static void grlib_apbuart_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = grlib_apbuart_init;
+    dc->reset = grlib_apbuart_reset;
     dc->props = grlib_apbuart_properties;
 }
 
