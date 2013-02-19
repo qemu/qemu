@@ -242,30 +242,30 @@ static int grlib_apbuart_init(SysBusDevice *dev)
     return 0;
 }
 
-static Property grlib_gptimer_properties[] = {
+static Property grlib_apbuart_properties[] = {
     DEFINE_PROP_CHR("chrdev", UART, chr),
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void grlib_gptimer_class_init(ObjectClass *klass, void *data)
+static void grlib_apbuart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = grlib_apbuart_init;
-    dc->props = grlib_gptimer_properties;
+    dc->props = grlib_apbuart_properties;
 }
 
-static const TypeInfo grlib_gptimer_info = {
+static const TypeInfo grlib_apbuart_info = {
     .name          = "grlib,apbuart",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UART),
-    .class_init    = grlib_gptimer_class_init,
+    .class_init    = grlib_apbuart_class_init,
 };
 
-static void grlib_gptimer_register_types(void)
+static void grlib_apbuart_register_types(void)
 {
-    type_register_static(&grlib_gptimer_info);
+    type_register_static(&grlib_apbuart_info);
 }
 
-type_init(grlib_gptimer_register_types)
+type_init(grlib_apbuart_register_types)
