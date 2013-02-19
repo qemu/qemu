@@ -239,10 +239,18 @@ static void set_cc_op(DisasContext *s, CCOp op)
         tcg_gen_discard_tl(cpu_cc_srcT);
     }
 
+    if (op == CC_OP_DYNAMIC) {
+        /* The DYNAMIC setting is translator only, and should never be
+           stored.  Thus we always consider it clean.  */
+        s->cc_op_dirty = false;
+    } else {
+        /* Discard any computed CC_OP value (see shifts).  */
+        if (s->cc_op == CC_OP_DYNAMIC) {
+            tcg_gen_discard_i32(cpu_cc_op);
+        }
+        s->cc_op_dirty = true;
+    }
     s->cc_op = op;
-    /* The DYNAMIC setting is translator only, and should never be
-       stored.  Thus we always consider it clean.  */
-    s->cc_op_dirty = (op != CC_OP_DYNAMIC);
 }
 
 static void gen_update_cc_op(DisasContext *s)
