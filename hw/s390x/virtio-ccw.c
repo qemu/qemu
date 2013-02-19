@@ -101,6 +101,7 @@ static void virtio_ccw_start_ioeventfd(VirtioCcwDevice *dev)
     int n, r;
 
     if (!(dev->flags & VIRTIO_CCW_FLAG_USE_IOEVENTFD) ||
+        dev->ioeventfd_disabled ||
         dev->ioeventfd_started) {
         return;
     }
@@ -911,6 +912,90 @@ static void virtio_ccw_vmstate_change(DeviceState *d, bool running)
     }
 }
 
+static bool virtio_ccw_query_guest_notifiers(DeviceState *d)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+
+    return !!(dev->sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA);
+}
+
+static int virtio_ccw_set_host_notifier(DeviceState *d, int n, bool assign)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+
+    /* Stop using the generic ioeventfd, we are doing eventfd handling
+     * ourselves below */
+    dev->ioeventfd_disabled = assign;
+    if (assign) {
+        virtio_ccw_stop_ioeventfd(dev);
+    }
+    return virtio_ccw_set_guest2host_notifier(dev, n, assign, false);
+}
+
+static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
+                                         bool assign, bool with_irqfd)
+{
+    VirtQueue *vq = virtio_get_queue(dev->vdev, n);
+    EventNotifier *notifier = virtio_queue_get_guest_notifier(vq);
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(dev->vdev);
+
+    if (assign) {
+        int r = event_notifier_init(notifier, 0);
+
+        if (r < 0) {
+            return r;
+        }
+        virtio_queue_set_guest_notifier_fd_handler(vq, true, with_irqfd);
+        /* We do not support irqfd for classic I/O interrupts, because the
+         * classic interrupts are intermixed with the subchannel status, that
+         * is queried with test subchannel. We want to use vhost, though.
+         * Lets make sure to have vhost running and wire up the irq fd to
+         * land in qemu (and only the irq fd) in this code.
+         */
+        if (k->guest_notifier_mask) {
+            k->guest_notifier_mask(dev->vdev, n, false);
+        }
+        /* get lost events and re-inject */
+        if (k->guest_notifier_pending &&
+            k->guest_notifier_pending(dev->vdev, n)) {
+            event_notifier_set(notifier);
+        }
+    } else {
+        if (k->guest_notifier_mask) {
+            k->guest_notifier_mask(dev->vdev, n, true);
+        }
+        virtio_queue_set_guest_notifier_fd_handler(vq, false, with_irqfd);
+        event_notifier_cleanup(notifier);
+    }
+    return 0;
+}
+
+static int virtio_ccw_set_guest_notifiers(DeviceState *d, int nvqs,
+                                          bool assigned)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+    VirtIODevice *vdev = dev->vdev;
+    int r, n;
+
+    for (n = 0; n < nvqs; n++) {
+        if (!virtio_queue_get_num(vdev, n)) {
+            break;
+        }
+        /* false -> true, as soon as irqfd works */
+        r = virtio_ccw_set_guest_notifier(dev, n, assigned, false);
+        if (r < 0) {
+            goto assign_error;
+        }
+    }
+    return 0;
+
+assign_error:
+    while (--n >= 0) {
+        virtio_ccw_set_guest_notifier(dev, n, !assigned, false);
+    }
+    return r;
+}
+
 /**************** Virtio-ccw Bus Device Descriptions *******************/
 
 static Property virtio_ccw_net_properties[] = {
@@ -1224,6 +1309,9 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
     k->notify = virtio_ccw_notify;
     k->get_features = virtio_ccw_get_features;
     k->vmstate_change = virtio_ccw_vmstate_change;
+    k->query_guest_notifiers = virtio_ccw_query_guest_notifiers;
+    k->set_host_notifier = virtio_ccw_set_host_notifier;
+    k->set_guest_notifiers = virtio_ccw_set_guest_notifiers;
 }
 
 static const TypeInfo virtio_ccw_bus_info = {

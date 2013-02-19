@@ -82,6 +82,7 @@ struct VirtioCcwDevice {
     uint32_t host_features[VIRTIO_CCW_FEATURE_SIZE];
     VirtioBusState bus;
     bool ioeventfd_started;
+    bool ioeventfd_disabled;
     uint32_t flags;
     /* Guest provided values: */
     hwaddr indicators;
