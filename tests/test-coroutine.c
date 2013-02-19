@@ -183,7 +183,7 @@ static void perf_nesting(void)
     double duration;
 
     maxcycles = 100000000;
-    maxnesting = 20000;
+    maxnesting = 1000;
     Coroutine *root;
     NestData nd = {
         .n_enter  = 0,
