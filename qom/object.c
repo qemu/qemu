@@ -449,7 +449,8 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
     TypeImpl *type = class->type;
     ObjectClass *ret = NULL;
 
-    if (type->num_interfaces && type_is_ancestor(target_type, type_interface)) {
+    if (type->class->interfaces &&
+            type_is_ancestor(target_type, type_interface)) {
         int found = 0;
         GSList *i;
 
