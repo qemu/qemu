@@ -33,15 +33,6 @@
 #include "qemu-common.h"
 #include "block/coroutine_int.h"
 
-enum {
-    /* Maximum free pool size prevents holding too many freed coroutines */
-    POOL_MAX_SIZE = 64,
-};
-
-/** Free list to speed up creation */
-static QSLIST_HEAD(, Coroutine) pool = QSLIST_HEAD_INITIALIZER(pool);
-static unsigned int pool_size;
-
 typedef struct {
     Coroutine base;
     void *stack;
@@ -83,17 +74,6 @@ static void qemu_coroutine_thread_cleanup(void *opaque)
     CoroutineThreadState *s = opaque;
 
     g_free(s);
-}
-
-static void __attribute__((destructor)) coroutine_cleanup(void)
-{
-    Coroutine *co;
-    Coroutine *tmp;
-
-    QSLIST_FOREACH_SAFE(co, &pool, pool_next, tmp) {
-        g_free(DO_UPCAST(CoroutineUContext, base, co)->stack);
-        g_free(co);
-    }
 }
 
 static void __attribute__((constructor)) coroutine_init(void)
@@ -164,7 +144,7 @@ static void coroutine_trampoline(int signal)
     coroutine_bootstrap(self, co);
 }
 
-static Coroutine *coroutine_new(void)
+Coroutine *qemu_coroutine_new(void)
 {
     const size_t stack_size = 1 << 20;
     CoroutineUContext *co;
@@ -272,30 +252,9 @@ static Coroutine *coroutine_new(void)
     return &co->base;
 }
 
-Coroutine *qemu_coroutine_new(void)
-{
-    Coroutine *co;
-
-    co = QSLIST_FIRST(&pool);
-    if (co) {
-        QSLIST_REMOVE_HEAD(&pool, pool_next);
-        pool_size--;
-    } else {
-        co = coroutine_new();
-    }
-    return co;
-}
-
 void qemu_coroutine_delete(Coroutine *co_)
 {
     CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
-
-    if (pool_size < POOL_MAX_SIZE) {
-        QSLIST_INSERT_HEAD(&pool, &co->base, pool_next);
-        co->base.caller = NULL;
-        pool_size++;
-        return;
-    }
 
     g_free(co->stack);
     g_free(co);
