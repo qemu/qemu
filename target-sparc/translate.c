@@ -3642,6 +3642,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                                    in the SPARCv8
                                                    manual, nop on the
                                                    microSPARC II */
+                                if ((rd == 0x13) && (dc->def->features &
+                                                     CPU_FEATURE_POWERDOWN)) {
+                                    /* LEON3 power-down */
+                                    gen_helper_power_down(cpu_env);
+                                }
                                 break;
 #else
                             case 0x2: /* V9 wrccr */
