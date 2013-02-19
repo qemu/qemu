@@ -245,6 +245,7 @@ static void type_initialize(TypeImpl *ti)
 
         g_assert(parent->class_size <= ti->class_size);
         memcpy(ti->class, parent->class, parent->class_size);
+        ti->class->interfaces = NULL;
 
         for (e = parent->class->interfaces; e; e = e->next) {
             ObjectClass *iface = e->data;
