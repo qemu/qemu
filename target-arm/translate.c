@@ -305,35 +305,41 @@ static TCGv_i64 gen_subq_msw(TCGv_i64 a, TCGv b)
     return a;
 }
 
-/* FIXME: Most targets have native widening multiplication.
-   It would be good to use that instead of a full wide multiply.  */
 /* 32x32->64 multiply.  Marks inputs as dead.  */
 static TCGv_i64 gen_mulu_i64_i32(TCGv a, TCGv b)
 {
-    TCGv_i64 tmp1 = tcg_temp_new_i64();
-    TCGv_i64 tmp2 = tcg_temp_new_i64();
+    TCGv lo = tcg_temp_new_i32();
+    TCGv hi = tcg_temp_new_i32();
+    TCGv_i64 ret;
 
-    tcg_gen_extu_i32_i64(tmp1, a);
+    tcg_gen_mulu2_i32(lo, hi, a, b);
     tcg_temp_free_i32(a);
-    tcg_gen_extu_i32_i64(tmp2, b);
     tcg_temp_free_i32(b);
-    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
-    tcg_temp_free_i64(tmp2);
-    return tmp1;
+
+    ret = tcg_temp_new_i64();
+    tcg_gen_concat_i32_i64(ret, lo, hi);
+    tcg_temp_free(lo);
+    tcg_temp_free(hi);
+
+    return ret;
 }
 
 static TCGv_i64 gen_muls_i64_i32(TCGv a, TCGv b)
 {
-    TCGv_i64 tmp1 = tcg_temp_new_i64();
-    TCGv_i64 tmp2 = tcg_temp_new_i64();
+    TCGv lo = tcg_temp_new_i32();
+    TCGv hi = tcg_temp_new_i32();
+    TCGv_i64 ret;
 
-    tcg_gen_ext_i32_i64(tmp1, a);
+    tcg_gen_muls2_i32(lo, hi, a, b);
     tcg_temp_free_i32(a);
-    tcg_gen_ext_i32_i64(tmp2, b);
     tcg_temp_free_i32(b);
-    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
-    tcg_temp_free_i64(tmp2);
-    return tmp1;
+
+    ret = tcg_temp_new_i64();
+    tcg_gen_concat_i32_i64(ret, lo, hi);
+    tcg_temp_free(lo);
+    tcg_temp_free(hi);
+
+    return ret;
 }
 
 /* Swap low and high halfwords.  */
