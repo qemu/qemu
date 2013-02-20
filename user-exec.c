@@ -70,7 +70,7 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc)
 #endif
     }
     env1->exception_index = -1;
-    longjmp(env1->jmp_env, 1);
+    siglongjmp(env1->jmp_env, 1);
 }
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is

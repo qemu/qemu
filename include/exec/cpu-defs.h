@@ -184,7 +184,7 @@ typedef struct CPUWatchpoint {
     struct GDBRegisterState *gdb_regs;                                  \
                                                                         \
     /* Core interrupt code */                                           \
-    jmp_buf jmp_env;                                                    \
+    sigjmp_buf jmp_env;                                                 \
     int exception_index;                                                \
                                                                         \
     CPUArchState *next_cpu; /* next CPU sharing TB cache */                 \

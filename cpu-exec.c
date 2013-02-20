@@ -35,7 +35,7 @@ void cpu_loop_exit(CPUArchState *env)
     CPUState *cpu = ENV_GET_CPU(env);
 
     cpu->current_tb = NULL;
-    longjmp(env->jmp_env, 1);
+    siglongjmp(env->jmp_env, 1);
 }
 
 /* exit the current TB from a signal handler. The host registers are
@@ -47,7 +47,7 @@ void cpu_resume_from_signal(CPUArchState *env, void *puc)
     /* XXX: restore cpu registers saved in host registers */
 
     env->exception_index = -1;
-    longjmp(env->jmp_env, 1);
+    siglongjmp(env->jmp_env, 1);
 }
 #endif
 
@@ -234,7 +234,7 @@ int cpu_exec(CPUArchState *env)
 
     /* prepare setjmp context for exception handling */
     for(;;) {
-        if (setjmp(env->jmp_env) == 0) {
+        if (sigsetjmp(env->jmp_env, 0) == 0) {
             /* if an exception is pending, we execute it here */
             if (env->exception_index >= 0) {
                 if (env->exception_index >= EXCP_INTERRUPT) {

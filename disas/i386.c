@@ -226,7 +226,7 @@ struct dis_private {
   bfd_byte the_buffer[MAX_MNEM_SIZE];
   bfd_vma insn_start;
   int orig_sizeflag;
-  jmp_buf bailout;
+  sigjmp_buf bailout;
 };
 
 enum address_mode
@@ -303,7 +303,7 @@ fetch_data2(struct disassemble_info *info, bfd_byte *addr)
 	 STATUS.  */
       if (priv->max_fetched == priv->the_buffer)
 	(*info->memory_error_func) (status, start, info);
-      longjmp (priv->bailout, 1);
+      siglongjmp(priv->bailout, 1);
     }
   else
     priv->max_fetched = addr;
@@ -3661,7 +3661,7 @@ print_insn (bfd_vma pc, disassemble_info *info)
   start_codep = priv.the_buffer;
   codep = priv.the_buffer;
 
-  if (setjmp (priv.bailout) != 0)
+  if (sigsetjmp(priv.bailout, 0) != 0)
     {
       const char *name;
 

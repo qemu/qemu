@@ -46,7 +46,7 @@ static unsigned int pool_size;
 typedef struct {
     Coroutine base;
     void *stack;
-    jmp_buf env;
+    sigjmp_buf env;
 
 #ifdef CONFIG_VALGRIND_H
     unsigned int valgrind_stack_id;
@@ -130,8 +130,8 @@ static void coroutine_trampoline(int i0, int i1)
     co = &self->base;
 
     /* Initialize longjmp environment and switch back the caller */
-    if (!setjmp(self->env)) {
-        longjmp(*(jmp_buf *)co->entry_arg, 1);
+    if (!sigsetjmp(self->env, 0)) {
+        siglongjmp(*(sigjmp_buf *)co->entry_arg, 1);
     }
 
     while (true) {
@@ -145,14 +145,15 @@ static Coroutine *coroutine_new(void)
     const size_t stack_size = 1 << 20;
     CoroutineUContext *co;
     ucontext_t old_uc, uc;
-    jmp_buf old_env;
+    sigjmp_buf old_env;
     union cc_arg arg = {0};
 
-    /* The ucontext functions preserve signal masks which incurs a system call
-     * overhead.  setjmp()/longjmp() does not preserve signal masks but only
-     * works on the current stack.  Since we need a way to create and switch to
-     * a new stack, use the ucontext functions for that but setjmp()/longjmp()
-     * for everything else.
+    /* The ucontext functions preserve signal masks which incurs a
+     * system call overhead.  sigsetjmp(buf, 0)/siglongjmp() does not
+     * preserve signal masks but only works on the current stack.
+     * Since we need a way to create and switch to a new stack, use
+     * the ucontext functions for that but sigsetjmp()/siglongjmp() for
+     * everything else.
      */
 
     if (getcontext(&uc) == -1) {
@@ -178,8 +179,8 @@ static Coroutine *coroutine_new(void)
     makecontext(&uc, (void (*)(void))coroutine_trampoline,
                 2, arg.i[0], arg.i[1]);
 
-    /* swapcontext() in, longjmp() back out */
-    if (!setjmp(old_env)) {
+    /* swapcontext() in, siglongjmp() back out */
+    if (!sigsetjmp(old_env, 0)) {
         swapcontext(&old_uc, &uc);
     }
     return &co->base;
@@ -242,9 +243,9 @@ CoroutineAction qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
 
     s->current = to_;
 
-    ret = setjmp(from->env);
+    ret = sigsetjmp(from->env, 0);
     if (ret == 0) {
-        longjmp(to->env, action);
+        siglongjmp(to->env, action);
     }
     return ret;
 }
