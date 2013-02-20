@@ -410,12 +410,11 @@ static void gen_sub_carry(TCGv dest, TCGv t0, TCGv t1)
 /* dest = T0 + T1. Compute C, N, V and Z flags */
 static void gen_add_CC(TCGv dest, TCGv t0, TCGv t1)
 {
-    TCGv tmp;
-    tcg_gen_add_i32(cpu_NF, t0, t1);
+    TCGv tmp = tcg_temp_new_i32();
+    tcg_gen_movi_i32(tmp, 0);
+    tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, tmp, t1, tmp);
     tcg_gen_mov_i32(cpu_ZF, cpu_NF);
-    tcg_gen_setcond_i32(TCG_COND_LTU, cpu_CF, cpu_NF, t0);
     tcg_gen_xor_i32(cpu_VF, cpu_NF, t0);
-    tmp = tcg_temp_new_i32();
     tcg_gen_xor_i32(tmp, t0, t1);
     tcg_gen_andc_i32(cpu_VF, cpu_VF, tmp);
     tcg_temp_free_i32(tmp);
