@@ -61,6 +61,7 @@ static int cap_ppc_smt;
 static int cap_ppc_rma;
 static int cap_spapr_tce;
 static int cap_hior;
+static int cap_one_reg;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -89,6 +90,7 @@ int kvm_arch_init(KVMState *s)
     cap_ppc_smt = kvm_check_extension(s, KVM_CAP_PPC_SMT);
     cap_ppc_rma = kvm_check_extension(s, KVM_CAP_PPC_RMA);
     cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
+    cap_one_reg = kvm_check_extension(s, KVM_CAP_ONE_REG);
     cap_hior = kvm_check_extension(s, KVM_CAP_PPC_HIOR);
 
     if (!cap_interrupt_level) {
@@ -449,6 +451,76 @@ static void kvm_sw_tlb_put(PowerPCCPU *cpu)
     g_free(bitmap);
 }
 
+static void kvm_get_one_spr(CPUState *cs, uint64_t id, int spr)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    union {
+        uint32_t u32;
+        uint64_t u64;
+    } val;
+    struct kvm_one_reg reg = {
+        .id = id,
+        .addr = (uintptr_t) &val,
+    };
+    int ret;
+
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (ret != 0) {
+        fprintf(stderr, "Warning: Unable to retrieve SPR %d from KVM: %s\n",
+                spr, strerror(errno));
+    } else {
+        switch (id & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U32:
+            env->spr[spr] = val.u32;
+            break;
+
+        case KVM_REG_SIZE_U64:
+            env->spr[spr] = val.u64;
+            break;
+
+        default:
+            /* Don't handle this size yet */
+            abort();
+        }
+    }
+}
+
+static void kvm_put_one_spr(CPUState *cs, uint64_t id, int spr)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    union {
+        uint32_t u32;
+        uint64_t u64;
+    } val;
+    struct kvm_one_reg reg = {
+        .id = id,
+        .addr = (uintptr_t) &val,
+    };
+    int ret;
+
+    switch (id & KVM_REG_SIZE_MASK) {
+    case KVM_REG_SIZE_U32:
+        val.u32 = env->spr[spr];
+        break;
+
+    case KVM_REG_SIZE_U64:
+        val.u64 = env->spr[spr];
+        break;
+
+    default:
+        /* Don't handle this size yet */
+        abort();
+    }
+
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret != 0) {
+        fprintf(stderr, "Warning: Unable to set SPR %d to KVM: %s\n",
+                spr, strerror(errno));
+    }
+}
+
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -530,15 +602,22 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     }
 
     if (cap_hior && (level >= KVM_PUT_RESET_STATE)) {
-        uint64_t hior = env->spr[SPR_HIOR];
-        struct kvm_one_reg reg = {
-            .id = KVM_REG_PPC_HIOR,
-            .addr = (uintptr_t) &hior,
-        };
+        kvm_put_one_spr(cs, KVM_REG_PPC_HIOR, SPR_HIOR);
+    }
 
-        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
-        if (ret) {
-            return ret;
+    if (cap_one_reg) {
+        int i;
+
+        /* We deliberately ignore errors here, for kernels which have
+         * the ONE_REG calls, but don't support the specific
+         * registers, there's a reasonable chance things will still
+         * work, at least until we try to migrate. */
+        for (i = 0; i < 1024; i++) {
+            uint64_t id = env->spr_cb[i].one_reg_id;
+
+            if (id != 0) {
+                kvm_put_one_spr(cs, id, i);
+            }
         }
     }
 
@@ -718,6 +797,26 @@ int kvm_arch_get_registers(CPUState *cs)
             env->DBAT[1][i] = sregs.u.s.ppc32.dbat[i] >> 32;
             env->IBAT[0][i] = sregs.u.s.ppc32.ibat[i] & 0xffffffff;
             env->IBAT[1][i] = sregs.u.s.ppc32.ibat[i] >> 32;
+        }
+    }
+
+    if (cap_hior) {
+        kvm_get_one_spr(cs, KVM_REG_PPC_HIOR, SPR_HIOR);
+    }
+
+    if (cap_one_reg) {
+        int i;
+
+        /* We deliberately ignore errors here, for kernels which have
+         * the ONE_REG calls, but don't support the specific
+         * registers, there's a reasonable chance things will still
+         * work, at least until we try to migrate. */
+        for (i = 0; i < 1024; i++) {
+            uint64_t id = env->spr_cb[i].one_reg_id;
+
+            if (id != 0) {
+                kvm_get_one_spr(cs, id, i);
+            }
         }
     }
 

@@ -329,6 +329,12 @@ struct ppc_spr_t {
     void (*hea_write)(void *opaque, int spr_num, int gpr_num);
 #endif
     const char *name;
+#ifdef CONFIG_KVM
+    /* We (ab)use the fact that all the SPRs will have ids for the
+     * ONE_REG interface will have KVM_REG_PPC to use 0 as meaning,
+     * don't sync this */
+    uint64_t one_reg_id;
+#endif
 };
 
 /* Altivec registers (128 bits) */

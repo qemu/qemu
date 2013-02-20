@@ -572,26 +572,42 @@ static inline void vscr_init (CPUPPCState *env, uint32_t val)
     set_flush_to_zero(vscr_nj, &env->vec_status);
 }
 
-#if defined(CONFIG_USER_ONLY)
-#define spr_register(env, num, name, uea_read, uea_write,                     \
-                     oea_read, oea_write, initial_value)                      \
-do {                                                                          \
-     _spr_register(env, num, name, uea_read, uea_write, initial_value);       \
-} while (0)
-static inline void _spr_register (CPUPPCState *env, int num,
-                                  const char *name,
-                                  void (*uea_read)(void *opaque, int gprn, int sprn),
-                                  void (*uea_write)(void *opaque, int sprn, int gprn),
-                                  target_ulong initial_value)
+#ifdef CONFIG_USER_ONLY
+#define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
+                         oea_read, oea_write, one_reg_id, initial_value)       \
+    _spr_register(env, num, name, uea_read, uea_write, initial_value)
 #else
-static inline void spr_register (CPUPPCState *env, int num,
+#if !defined(CONFIG_KVM)
+#define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
+                         oea_read, oea_write, one_reg_id, initial_value) \
+    _spr_register(env, num, name, uea_read, uea_write,                         \
+                  oea_read, oea_write, initial_value)
+#else
+#define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
+                         oea_read, oea_write, one_reg_id, initial_value) \
+    _spr_register(env, num, name, uea_read, uea_write,                         \
+                  oea_read, oea_write, one_reg_id, initial_value)
+#endif
+#endif
+
+#define spr_register(env, num, name, uea_read, uea_write,                      \
+                     oea_read, oea_write, initial_value)                       \
+    spr_register_kvm(env, num, name, uea_read, uea_write,                      \
+                     oea_read, oea_write, 0, initial_value)
+
+static inline void _spr_register(CPUPPCState *env, int num,
                                  const char *name,
                                  void (*uea_read)(void *opaque, int gprn, int sprn),
                                  void (*uea_write)(void *opaque, int sprn, int gprn),
+#if !defined(CONFIG_USER_ONLY)
+
                                  void (*oea_read)(void *opaque, int gprn, int sprn),
                                  void (*oea_write)(void *opaque, int sprn, int gprn),
-                                 target_ulong initial_value)
 #endif
+#if defined(CONFIG_KVM)
+                                 uint64_t one_reg_id,
+#endif
+                                 target_ulong initial_value)
 {
     ppc_spr_t *spr;
 
@@ -667,14 +683,14 @@ static void gen_spr_generic (CPUPPCState *env)
 static void gen_spr_ne_601 (CPUPPCState *env)
 {
     /* Exception processing */
-    spr_register(env, SPR_DSISR, "DSISR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    spr_register(env, SPR_DAR, "DAR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+    spr_register_kvm(env, SPR_DSISR, "DSISR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DSISR, 0x00000000);
+    spr_register_kvm(env, SPR_DAR, "DAR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DAR, 0x00000000);
     /* Timer */
     spr_register(env, SPR_DECR, "DECR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -918,10 +934,10 @@ static void gen_spr_7xx (CPUPPCState *env)
 {
     /* Breakpoints */
     /* XXX : not implemented */
-    spr_register(env, SPR_DABR, "DABR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+    spr_register_kvm(env, SPR_DABR, "DABR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DABR, 0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_IABR, "IABR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -1047,10 +1063,10 @@ static void gen_spr_604 (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
     /* XXX : not implemented */
-    spr_register(env, SPR_DABR, "DABR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+    spr_register_kvm(env, SPR_DABR, "DABR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DABR, 0x00000000);
     /* Performance counters */
     /* XXX : not implemented */
     spr_register(env, SPR_MMCR0, "MMCR0",
@@ -2305,14 +2321,14 @@ static void gen_spr_620 (CPUPPCState *env)
 static void gen_spr_5xx_8xx (CPUPPCState *env)
 {
     /* Exception processing */
-    spr_register(env, SPR_DSISR, "DSISR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    spr_register(env, SPR_DAR, "DAR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+    spr_register_kvm(env, SPR_DSISR, "DSISR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DSISR, 0x00000000);
+    spr_register_kvm(env, SPR_DAR, "DAR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DAR, 0x00000000);
     /* Timer */
     spr_register(env, SPR_DECR, "DECR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -7036,22 +7052,22 @@ static void init_proc_POWER7 (CPUPPCState *env)
                  0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     /* PURR & SPURR: Hack - treat these as aliases for the TB for now */
-    spr_register(env, SPR_PURR,   "PURR",
-                 &spr_read_purr, SPR_NOACCESS,
-                 &spr_read_purr, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_SPURR,   "SPURR",
-                 &spr_read_purr, SPR_NOACCESS,
-                 &spr_read_purr, SPR_NOACCESS,
-                 0x00000000);
+    spr_register_kvm(env, SPR_PURR,   "PURR",
+                     &spr_read_purr, SPR_NOACCESS,
+                     &spr_read_purr, SPR_NOACCESS,
+                     KVM_REG_PPC_PURR, 0x00000000);
+    spr_register_kvm(env, SPR_SPURR,   "SPURR",
+                     &spr_read_purr, SPR_NOACCESS,
+                     &spr_read_purr, SPR_NOACCESS,
+                     KVM_REG_PPC_SPURR, 0x00000000);
     spr_register(env, SPR_CFAR, "SPR_CFAR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_cfar, &spr_write_cfar,
                  0x00000000);
-    spr_register(env, SPR_DSCR, "SPR_DSCR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+    spr_register_kvm(env, SPR_DSCR, "SPR_DSCR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DSCR, 0x00000000);
 #endif /* !CONFIG_USER_ONLY */
     /* Memory management */
     /* XXX : not implemented */
