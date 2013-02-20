@@ -464,7 +464,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
     regs.ctr = env->ctr;
     regs.lr  = env->lr;
-    regs.xer = env->xer;
+    regs.xer = cpu_read_xer(env);
     regs.msr = env->msr;
     regs.pc = env->nip;
 
@@ -566,7 +566,7 @@ int kvm_arch_get_registers(CPUState *cs)
 
     env->ctr = regs.ctr;
     env->lr = regs.lr;
-    env->xer = regs.xer;
+    cpu_write_xer(env, regs.xer);
     env->msr = regs.msr;
     env->nip = regs.pc;
 
