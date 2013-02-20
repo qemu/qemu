@@ -1647,6 +1647,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mulu2_i32:
         tcg_out_umull32(s, COND_AL, args[0], args[1], args[2], args[3]);
         break;
+    case INDEX_op_muls2_i32:
+        tcg_out_smull32(s, COND_AL, args[0], args[1], args[2], args[3]);
+        break;
     /* XXX: Perhaps args[2] & 0x1f is wrong */
     case INDEX_op_shl_i32:
         c = const_args[2] ?
@@ -1798,6 +1801,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_sub_i32, { "r", "r", "rI" } },
     { INDEX_op_mul_i32, { "r", "r", "r" } },
     { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
+    { INDEX_op_muls2_i32, { "r", "r", "r", "r" } },
     { INDEX_op_and_i32, { "r", "r", "rI" } },
     { INDEX_op_andc_i32, { "r", "r", "rI" } },
     { INDEX_op_or_i32, { "r", "r", "rI" } },
