@@ -768,36 +768,26 @@ static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
 static inline void gen_op_arith_compute_ca(DisasContext *ctx, TCGv arg1,
                                            TCGv arg2, int sub)
 {
-    int l1 = gen_new_label();
+    TCGv t0 = tcg_temp_new(), t1 = arg1, t2 = arg2;
 
 #if defined(TARGET_PPC64)
     if (!(ctx->sf_mode)) {
-        TCGv t0, t1;
-        t0 = tcg_temp_new();
-        t1 = tcg_temp_new();
-
-        tcg_gen_ext32u_tl(t0, arg1);
-        tcg_gen_ext32u_tl(t1, arg2);
-        if (sub) {
-            tcg_gen_brcond_tl(TCG_COND_GTU, t0, t1, l1);
-        } else {
-            tcg_gen_brcond_tl(TCG_COND_GEU, t0, t1, l1);
-        }
-        tcg_gen_movi_tl(cpu_ca, 1);
-        gen_set_label(l1);
-        tcg_temp_free(t0);
-        tcg_temp_free(t1);
-    } else
-#endif
-    {
-        if (sub) {
-            tcg_gen_brcond_tl(TCG_COND_GTU, arg1, arg2, l1);
-        } else {
-            tcg_gen_brcond_tl(TCG_COND_GEU, arg1, arg2, l1);
-        }
-        tcg_gen_movi_tl(cpu_ca, 1);
-        gen_set_label(l1);
+        t1 = t0;
+        tcg_gen_ext32u_tl(t1, arg1);
+        t2 = tcg_temp_new();
+        tcg_gen_ext32u_tl(t2, arg2);
     }
+#endif
+
+    tcg_gen_setcond_tl(sub ? TCG_COND_LEU : TCG_COND_LTU, t0, t1, t2);
+    tcg_gen_or_tl(cpu_ca, cpu_ca, t0);
+
+    tcg_temp_free(t0);
+#if defined(TARGET_PPC64)
+    if (!(ctx->sf_mode)) {
+        tcg_temp_free(t2);
+    }
+#endif
 }
 
 /* Common add function */
@@ -811,7 +801,7 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
         (!TCGV_EQUAL(ret,arg1) && !TCGV_EQUAL(ret, arg2)))  {
         t0 = ret;
     } else {
-        t0 = tcg_temp_local_new();
+        t0 = tcg_temp_new();
     }
 
     if (add_ca) {
