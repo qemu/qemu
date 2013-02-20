@@ -1922,13 +1922,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args, 3);
         break;
 
-#if TCG_TARGET_REG_BITS == 32
-    case INDEX_op_brcond2_i32:
-        tcg_out_brcond2(s, args, const_args, 0);
-        break;
-    case INDEX_op_setcond2_i32:
-        tcg_out_setcond2(s, args, const_args);
-        break;
     case INDEX_op_mulu2_i32:
         tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_MUL, args[3]);
         break;
@@ -1955,6 +1948,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         } else {
             tgen_arithr(s, ARITH_SBB, args[1], args[5]);
         }
+        break;
+
+#if TCG_TARGET_REG_BITS == 32
+    case INDEX_op_brcond2_i32:
+        tcg_out_brcond2(s, args, const_args, 0);
+        break;
+    case INDEX_op_setcond2_i32:
+        tcg_out_setcond2(s, args, const_args);
         break;
 #else /* TCG_TARGET_REG_BITS == 64 */
     case INDEX_op_movi_i64:
@@ -2078,10 +2079,11 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_movcond_i32, { "r", "r", "ri", "r", "0" } },
 #endif
 
-#if TCG_TARGET_REG_BITS == 32
     { INDEX_op_mulu2_i32, { "a", "d", "a", "r" } },
     { INDEX_op_add2_i32, { "r", "r", "0", "1", "ri", "ri" } },
     { INDEX_op_sub2_i32, { "r", "r", "0", "1", "ri", "ri" } },
+
+#if TCG_TARGET_REG_BITS == 32
     { INDEX_op_brcond2_i32, { "r", "r", "ri", "ri" } },
     { INDEX_op_setcond2_i32, { "r", "r", "r", "ri", "ri" } },
 #else
