@@ -448,19 +448,16 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     case CC_OP_ADD:
     case CC_OP_TADD:
     case CC_OP_TADDTV:
-#if TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32
-        {
-            /* For 32-bit hosts, we can re-use the host's hardware carry
-               generation by using an ADD2 opcode.  We discard the low
-               part of the output.  Ideally we'd combine this operation
-               with the add that generated the carry in the first place.  */
-            TCGv dst_low = tcg_temp_new();
-            tcg_gen_op6_i32(INDEX_op_add2_i32, dst_low, dst,
-                            cpu_cc_src, src1, cpu_cc_src2, src2);
-            tcg_temp_free(dst_low);
+        if (TARGET_LONG_BITS == 32) {
+            /* We can re-use the host's hardware carry generation by using
+               an ADD2 opcode.  We discard the low part of the output.
+               Ideally we'd combine this operation with the add that
+               generated the carry in the first place.  */
+            carry = tcg_temp_new();
+            tcg_gen_add2_tl(carry, dst, cpu_cc_src, src1, cpu_cc_src2, src2);
+            tcg_temp_free(carry);
             goto add_done;
         }
-#endif
         carry_32 = gen_add32_carry32();
         break;
 
@@ -492,9 +489,7 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     tcg_temp_free(carry);
 #endif
 
-#if TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32
  add_done:
-#endif
     if (update_cc) {
         tcg_gen_mov_tl(cpu_cc_src, src1);
         tcg_gen_mov_tl(cpu_cc_src2, src2);
@@ -554,19 +549,16 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
     case CC_OP_SUB:
     case CC_OP_TSUB:
     case CC_OP_TSUBTV:
-#if TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32
-        {
-            /* For 32-bit hosts, we can re-use the host's hardware carry
-               generation by using a SUB2 opcode.  We discard the low
-               part of the output.  Ideally we'd combine this operation
-               with the add that generated the carry in the first place.  */
-            TCGv dst_low = tcg_temp_new();
-            tcg_gen_op6_i32(INDEX_op_sub2_i32, dst_low, dst,
-                            cpu_cc_src, src1, cpu_cc_src2, src2);
-            tcg_temp_free(dst_low);
+        if (TARGET_LONG_BITS == 32) {
+            /* We can re-use the host's hardware carry generation by using
+               a SUB2 opcode.  We discard the low part of the output.
+               Ideally we'd combine this operation with the add that
+               generated the carry in the first place.  */
+            carry = tcg_temp_new();
+            tcg_gen_sub2_tl(carry, dst, cpu_cc_src, src1, cpu_cc_src2, src2);
+            tcg_temp_free(carry);
             goto sub_done;
         }
-#endif
         carry_32 = gen_sub32_carry32();
         break;
 
@@ -592,9 +584,7 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
     tcg_temp_free(carry);
 #endif
 
-#if TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32
  sub_done:
-#endif
     if (update_cc) {
         tcg_gen_mov_tl(cpu_cc_src, src1);
         tcg_gen_mov_tl(cpu_cc_src2, src2);
