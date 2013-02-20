@@ -30,8 +30,6 @@ DEF_HELPER_2(icbi, void, env, tl)
 DEF_HELPER_5(lscbx, tl, env, tl, i32, i32, i32)
 
 #if defined(TARGET_PPC64)
-DEF_HELPER_FLAGS_2(mulhd, TCG_CALL_NO_RWG_SE, i64, i64, i64)
-DEF_HELPER_FLAGS_2(mulhdu, TCG_CALL_NO_RWG_SE, i64, i64, i64)
 DEF_HELPER_3(mulldo, i64, env, i64, i64)
 #endif
 

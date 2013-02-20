@@ -25,24 +25,6 @@
 /* Fixed point operations helpers */
 #if defined(TARGET_PPC64)
 
-/* multiply high word */
-uint64_t helper_mulhd(uint64_t arg1, uint64_t arg2)
-{
-    uint64_t tl, th;
-
-    muls64(&tl, &th, arg1, arg2);
-    return th;
-}
-
-/* multiply high word unsigned */
-uint64_t helper_mulhdu(uint64_t arg1, uint64_t arg2)
-{
-    uint64_t tl, th;
-
-    mulu64(&tl, &th, arg1, arg2);
-    return th;
-}
-
 uint64_t helper_mulldo(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
 {
     int64_t th;
