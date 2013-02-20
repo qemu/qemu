@@ -2715,47 +2715,39 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         break;
     case OPC_MULT:
         {
-            TCGv_i64 t2 = tcg_temp_new_i64();
-            TCGv_i64 t3 = tcg_temp_new_i64();
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
             acc = ((ctx->opcode) >> 11) & 0x03;
             if (acc != 0) {
                 check_dsp(ctx);
             }
 
-            tcg_gen_ext_tl_i64(t2, t0);
-            tcg_gen_ext_tl_i64(t3, t1);
-            tcg_gen_mul_i64(t2, t2, t3);
-            tcg_temp_free_i64(t3);
-            tcg_gen_trunc_i64_tl(t0, t2);
-            tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_trunc_i64_tl(t1, t2);
-            tcg_temp_free_i64(t2);
-            tcg_gen_ext32s_tl(cpu_LO[acc], t0);
-            tcg_gen_ext32s_tl(cpu_HI[acc], t1);
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_muls2_i32(t2, t3, t2, t3);
+            tcg_gen_ext_i32_tl(cpu_LO[acc], t2);
+            tcg_gen_ext_i32_tl(cpu_HI[acc], t3);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
         }
         opn = "mult";
         break;
     case OPC_MULTU:
         {
-            TCGv_i64 t2 = tcg_temp_new_i64();
-            TCGv_i64 t3 = tcg_temp_new_i64();
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
             acc = ((ctx->opcode) >> 11) & 0x03;
             if (acc != 0) {
                 check_dsp(ctx);
             }
 
-            tcg_gen_ext32u_tl(t0, t0);
-            tcg_gen_ext32u_tl(t1, t1);
-            tcg_gen_extu_tl_i64(t2, t0);
-            tcg_gen_extu_tl_i64(t3, t1);
-            tcg_gen_mul_i64(t2, t2, t3);
-            tcg_temp_free_i64(t3);
-            tcg_gen_trunc_i64_tl(t0, t2);
-            tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_trunc_i64_tl(t1, t2);
-            tcg_temp_free_i64(t2);
-            tcg_gen_ext32s_tl(cpu_LO[acc], t0);
-            tcg_gen_ext32s_tl(cpu_HI[acc], t1);
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_mulu2_i32(t2, t3, t2, t3);
+            tcg_gen_ext_i32_tl(cpu_LO[acc], t2);
+            tcg_gen_ext_i32_tl(cpu_HI[acc], t3);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
         }
         opn = "multu";
         break;
@@ -2791,11 +2783,11 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         opn = "ddivu";
         break;
     case OPC_DMULT:
-        gen_helper_dmult(cpu_env, t0, t1);
+        tcg_gen_muls2_i64(cpu_LO[0], cpu_HI[0], t0, t1);
         opn = "dmult";
         break;
     case OPC_DMULTU:
-        gen_helper_dmultu(cpu_env, t0, t1);
+        tcg_gen_mulu2_i64(cpu_LO[0], cpu_HI[0], t0, t1);
         opn = "dmultu";
         break;
 #endif

@@ -24,8 +24,6 @@ DEF_HELPER_FLAGS_1(clz, TCG_CALL_NO_RWG_SE, tl, tl)
 #ifdef TARGET_MIPS64
 DEF_HELPER_FLAGS_1(dclo, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(dclz, TCG_CALL_NO_RWG_SE, tl, tl)
-DEF_HELPER_3(dmult, void, env, tl, tl)
-DEF_HELPER_3(dmultu, void, env, tl, tl)
 #endif
 
 DEF_HELPER_3(muls, tl, env, tl, tl)
