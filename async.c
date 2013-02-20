@@ -174,6 +174,7 @@ aio_ctx_finalize(GSource     *source)
 
     aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
+    g_array_free(ctx->pollfds, TRUE);
 }
 
 static GSourceFuncs aio_source_funcs = {
@@ -198,6 +199,7 @@ AioContext *aio_context_new(void)
 {
     AioContext *ctx;
     ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+    ctx->pollfds = g_array_new(FALSE, FALSE, sizeof(GPollFD));
     event_notifier_init(&ctx->notifier, false);
     aio_set_event_notifier(ctx, &ctx->notifier, 
                            (EventNotifierHandler *)

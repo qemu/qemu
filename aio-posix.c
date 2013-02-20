@@ -25,6 +25,7 @@ struct AioHandler
     IOHandler *io_write;
     AioFlushHandler *io_flush;
     int deleted;
+    int pollfds_idx;
     void *opaque;
     QLIST_ENTRY(AioHandler) node;
 };
@@ -85,6 +86,7 @@ void aio_set_fd_handler(AioContext *ctx,
         node->io_write = io_write;
         node->io_flush = io_flush;
         node->opaque = opaque;
+        node->pollfds_idx = -1;
 
         node->pfd.events = (io_read ? G_IO_IN | G_IO_HUP : 0);
         node->pfd.events |= (io_write ? G_IO_OUT : 0);
@@ -177,10 +179,7 @@ static bool aio_dispatch(AioContext *ctx)
 
 bool aio_poll(AioContext *ctx, bool blocking)
 {
-    static struct timeval tv0;
     AioHandler *node;
-    fd_set rdfds, wrfds;
-    int max_fd = -1;
     int ret;
     bool busy, progress;
 
@@ -206,12 +205,13 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     ctx->walking_handlers++;
 
-    FD_ZERO(&rdfds);
-    FD_ZERO(&wrfds);
+    g_array_set_size(ctx->pollfds, 0);
 
-    /* fill fd sets */
+    /* fill pollfds */
     busy = false;
     QLIST_FOREACH(node, &ctx->aio_handlers, node) {
+        node->pollfds_idx = -1;
+
         /* If there aren't pending AIO operations, don't invoke callbacks.
          * Otherwise, if there are no AIO requests, qemu_aio_wait() would
          * wait indefinitely.
@@ -222,13 +222,13 @@ bool aio_poll(AioContext *ctx, bool blocking)
             }
             busy = true;
         }
-        if (!node->deleted && node->io_read) {
-            FD_SET(node->pfd.fd, &rdfds);
-            max_fd = MAX(max_fd, node->pfd.fd + 1);
-        }
-        if (!node->deleted && node->io_write) {
-            FD_SET(node->pfd.fd, &wrfds);
-            max_fd = MAX(max_fd, node->pfd.fd + 1);
+        if (!node->deleted && node->pfd.events) {
+            GPollFD pfd = {
+                .fd = node->pfd.fd,
+                .events = node->pfd.events,
+            };
+            node->pollfds_idx = ctx->pollfds->len;
+            g_array_append_val(ctx->pollfds, pfd);
         }
     }
 
@@ -240,40 +240,21 @@ bool aio_poll(AioContext *ctx, bool blocking)
     }
 
     /* wait until next event */
-    ret = select(max_fd, &rdfds, &wrfds, NULL, blocking ? NULL : &tv0);
+    ret = g_poll((GPollFD *)ctx->pollfds->data,
+                 ctx->pollfds->len,
+                 blocking ? -1 : 0);
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
-        /* we have to walk very carefully in case
-         * qemu_aio_set_fd_handler is called while we're walking */
-        node = QLIST_FIRST(&ctx->aio_handlers);
-        while (node) {
-            AioHandler *tmp;
-
-            ctx->walking_handlers++;
-
-            if (!node->deleted &&
-                FD_ISSET(node->pfd.fd, &rdfds) &&
-                node->io_read) {
-                node->io_read(node->opaque);
-                progress = true;
+        QLIST_FOREACH(node, &ctx->aio_handlers, node) {
+            if (node->pollfds_idx != -1) {
+                GPollFD *pfd = &g_array_index(ctx->pollfds, GPollFD,
+                                              node->pollfds_idx);
+                node->pfd.revents = pfd->revents;
             }
-            if (!node->deleted &&
-                FD_ISSET(node->pfd.fd, &wrfds) &&
-                node->io_write) {
-                node->io_write(node->opaque);
-                progress = true;
-            }
-
-            tmp = node;
-            node = QLIST_NEXT(node, node);
-
-            ctx->walking_handlers--;
-
-            if (!ctx->walking_handlers && tmp->deleted) {
-                QLIST_REMOVE(tmp, node);
-                g_free(tmp);
-            }
+        }
+        if (aio_dispatch(ctx)) {
+            progress = true;
         }
     }
 
