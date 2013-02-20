@@ -184,7 +184,8 @@ struct DisplayState {
 void register_displaystate(DisplayState *ds);
 DisplayState *get_displaystate(void);
 DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
-                                                int linesize, uint8_t *data);
+                                                int linesize, uint8_t *data,
+                                                bool byteswap);
 PixelFormat qemu_different_endianness_pixelformat(int bpp);
 PixelFormat qemu_default_pixelformat(int bpp);
 

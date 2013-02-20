@@ -1339,11 +1339,16 @@ DisplaySurface *qemu_resize_displaysurface(DisplayState *ds,
 }
 
 DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
-                                                int linesize, uint8_t *data)
+                                                int linesize, uint8_t *data,
+                                                bool byteswap)
 {
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
-    surface->pf = qemu_default_pixelformat(bpp);
+    if (byteswap) {
+        surface->pf = qemu_different_endianness_pixelformat(bpp);
+    } else {
+        surface->pf = qemu_default_pixelformat(bpp);
+    }
 
     surface->format = qemu_pixman_get_format(&surface->pf);
     assert(surface->format != 0);
