@@ -507,9 +507,9 @@ int main_loop_wait(int nonblocking)
     slirp_update_timeout(&timeout);
     slirp_pollfds_fill(gpollfds);
 #endif
-    qemu_iohandler_fill(&nfds, &rfds, &wfds, &xfds);
+    qemu_iohandler_fill(gpollfds);
     ret = os_host_main_loop_wait(timeout);
-    qemu_iohandler_poll(&rfds, &wfds, &xfds, ret);
+    qemu_iohandler_poll(gpollfds, ret);
 #ifdef CONFIG_SLIRP
     slirp_pollfds_poll(gpollfds, (ret < 0));
 #endif

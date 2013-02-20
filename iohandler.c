@@ -39,6 +39,7 @@ typedef struct IOHandlerRecord {
     void *opaque;
     QLIST_ENTRY(IOHandlerRecord) next;
     int fd;
+    int pollfds_idx;
     bool deleted;
 } IOHandlerRecord;
 
@@ -78,6 +79,7 @@ int qemu_set_fd_handler2(int fd,
         ioh->fd_read = fd_read;
         ioh->fd_write = fd_write;
         ioh->opaque = opaque;
+        ioh->pollfds_idx = -1;
         ioh->deleted = 0;
         qemu_notify_event();
     }
@@ -92,38 +94,56 @@ int qemu_set_fd_handler(int fd,
     return qemu_set_fd_handler2(fd, NULL, fd_read, fd_write, opaque);
 }
 
-void qemu_iohandler_fill(int *pnfds, fd_set *readfds, fd_set *writefds, fd_set *xfds)
+void qemu_iohandler_fill(GArray *pollfds)
 {
     IOHandlerRecord *ioh;
 
     QLIST_FOREACH(ioh, &io_handlers, next) {
+        int events = 0;
+
         if (ioh->deleted)
             continue;
         if (ioh->fd_read &&
             (!ioh->fd_read_poll ||
              ioh->fd_read_poll(ioh->opaque) != 0)) {
-            FD_SET(ioh->fd, readfds);
-            if (ioh->fd > *pnfds)
-                *pnfds = ioh->fd;
+            events |= G_IO_IN | G_IO_HUP | G_IO_ERR;
         }
         if (ioh->fd_write) {
-            FD_SET(ioh->fd, writefds);
-            if (ioh->fd > *pnfds)
-                *pnfds = ioh->fd;
+            events |= G_IO_OUT | G_IO_ERR;
+        }
+        if (events) {
+            GPollFD pfd = {
+                .fd = ioh->fd,
+                .events = events,
+            };
+            ioh->pollfds_idx = pollfds->len;
+            g_array_append_val(pollfds, pfd);
+        } else {
+            ioh->pollfds_idx = -1;
         }
     }
 }
 
-void qemu_iohandler_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds, int ret)
+void qemu_iohandler_poll(GArray *pollfds, int ret)
 {
     if (ret > 0) {
         IOHandlerRecord *pioh, *ioh;
 
         QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
-            if (!ioh->deleted && ioh->fd_read && FD_ISSET(ioh->fd, readfds)) {
+            int revents = 0;
+
+            if (!ioh->deleted && ioh->pollfds_idx != -1) {
+                GPollFD *pfd = &g_array_index(pollfds, GPollFD,
+                                              ioh->pollfds_idx);
+                revents = pfd->revents;
+            }
+
+            if (!ioh->deleted && ioh->fd_read &&
+                (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR))) {
                 ioh->fd_read(ioh->opaque);
             }
-            if (!ioh->deleted && ioh->fd_write && FD_ISSET(ioh->fd, writefds)) {
+            if (!ioh->deleted && ioh->fd_write &&
+                (revents & (G_IO_OUT | G_IO_ERR))) {
                 ioh->fd_write(ioh->opaque);
             }
 
