@@ -2207,6 +2207,13 @@ static DisplayType select_display(const char *p)
         fprintf(stderr, "Curses support is disabled\n");
         exit(1);
 #endif
+    } else if (strstart(p, "gtk", &opts)) {
+#ifdef CONFIG_GTK
+        display = DT_GTK;
+#else
+        fprintf(stderr, "GTK support is disabled\n");
+        exit(1);
+#endif
     } else if (strstart(p, "none", &opts)) {
         display = DT_NONE;
     } else {
@@ -3999,6 +4006,28 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    if (using_spice) {
+        display_remote++;
+    }
+    if (display_type == DT_DEFAULT && !display_remote) {
+#if defined(CONFIG_GTK)
+        display_type = DT_GTK;
+#elif defined(CONFIG_SDL) || defined(CONFIG_COCOA)
+        display_type = DT_SDL;
+#elif defined(CONFIG_VNC)
+        vnc_display = "localhost:0,to=99";
+        show_vnc_port = 1;
+#else
+        display_type = DT_NONE;
+#endif
+    }
+
+#if defined(CONFIG_GTK)
+    if (display_type == DT_GTK) {
+        early_gtk_display_init();
+    }
+#endif
+
     socket_init();
 
     if (qemu_opts_foreach(qemu_find_opts("chardev"), chardev_init_func, NULL, 1) != 0)
@@ -4227,20 +4256,6 @@ int main(int argc, char **argv, char **envp)
     /* just use the first displaystate for the moment */
     ds = get_displaystate();
 
-    if (using_spice)
-        display_remote++;
-    if (display_type == DT_DEFAULT && !display_remote) {
-#if defined(CONFIG_SDL) || defined(CONFIG_COCOA)
-        display_type = DT_SDL;
-#elif defined(CONFIG_VNC)
-        vnc_display = "localhost:0,to=99";
-        show_vnc_port = 1;
-#else
-        display_type = DT_NONE;
-#endif
-    }
-
-
     /* init local displays */
     switch (display_type) {
     case DT_NOGRAPHIC:
@@ -4257,6 +4272,11 @@ int main(int argc, char **argv, char **envp)
 #elif defined(CONFIG_COCOA)
     case DT_SDL:
         cocoa_display_init(ds, full_screen);
+        break;
+#endif
+#if defined(CONFIG_GTK)
+    case DT_GTK:
+        gtk_display_init(ds);
         break;
 #endif
     default:
