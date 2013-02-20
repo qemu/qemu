@@ -521,6 +521,132 @@ static void kvm_put_one_spr(CPUState *cs, uint64_t id, int spr)
     }
 }
 
+static int kvm_put_fp(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int i;
+    int ret;
+
+    if (env->insns_flags & PPC_FLOAT) {
+        uint64_t fpscr = env->fpscr;
+        bool vsx = !!(env->insns_flags2 & PPC2_VSX);
+
+        reg.id = KVM_REG_PPC_FPSCR;
+        reg.addr = (uintptr_t)&fpscr;
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            dprintf("Unable to set FPSCR to KVM: %s\n", strerror(errno));
+            return ret;
+        }
+
+        for (i = 0; i < 32; i++) {
+            uint64_t vsr[2];
+
+            vsr[0] = float64_val(env->fpr[i]);
+            vsr[1] = env->vsr[i];
+            reg.addr = (uintptr_t) &vsr;
+            reg.id = vsx ? KVM_REG_PPC_VSR(i) : KVM_REG_PPC_FPR(i);
+
+            ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+            if (ret < 0) {
+                dprintf("Unable to set %s%d to KVM: %s\n", vsx ? "VSR" : "FPR",
+                        i, strerror(errno));
+                return ret;
+            }
+        }
+    }
+
+    if (env->insns_flags & PPC_ALTIVEC) {
+        reg.id = KVM_REG_PPC_VSCR;
+        reg.addr = (uintptr_t)&env->vscr;
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            dprintf("Unable to set VSCR to KVM: %s\n", strerror(errno));
+            return ret;
+        }
+
+        for (i = 0; i < 32; i++) {
+            reg.id = KVM_REG_PPC_VR(i);
+            reg.addr = (uintptr_t)&env->avr[i];
+            ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+            if (ret < 0) {
+                dprintf("Unable to set VR%d to KVM: %s\n", i, strerror(errno));
+                return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int kvm_get_fp(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int i;
+    int ret;
+
+    if (env->insns_flags & PPC_FLOAT) {
+        uint64_t fpscr;
+        bool vsx = !!(env->insns_flags2 & PPC2_VSX);
+
+        reg.id = KVM_REG_PPC_FPSCR;
+        reg.addr = (uintptr_t)&fpscr;
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (ret < 0) {
+            dprintf("Unable to get FPSCR from KVM: %s\n", strerror(errno));
+            return ret;
+        } else {
+            env->fpscr = fpscr;
+        }
+
+        for (i = 0; i < 32; i++) {
+            uint64_t vsr[2];
+
+            reg.addr = (uintptr_t) &vsr;
+            reg.id = vsx ? KVM_REG_PPC_VSR(i) : KVM_REG_PPC_FPR(i);
+
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+            if (ret < 0) {
+                dprintf("Unable to get %s%d from KVM: %s\n",
+                        vsx ? "VSR" : "FPR", i, strerror(errno));
+                return ret;
+            } else {
+                env->fpr[i] = vsr[0];
+                if (vsx) {
+                    env->vsr[i] = vsr[1];
+                }
+            }
+        }
+    }
+
+    if (env->insns_flags & PPC_ALTIVEC) {
+        reg.id = KVM_REG_PPC_VSCR;
+        reg.addr = (uintptr_t)&env->vscr;
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (ret < 0) {
+            dprintf("Unable to get VSCR from KVM: %s\n", strerror(errno));
+            return ret;
+        }
+
+        for (i = 0; i < 32; i++) {
+            reg.id = KVM_REG_PPC_VR(i);
+            reg.addr = (uintptr_t)&env->avr[i];
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+            if (ret < 0) {
+                dprintf("Unable to get VR%d from KVM: %s\n",
+                        i, strerror(errno));
+                return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -560,6 +686,8 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     ret = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
     if (ret < 0)
         return ret;
+
+    kvm_put_fp(cs);
 
     if (env->tlb_dirty) {
         kvm_sw_tlb_put(cpu);
@@ -665,6 +793,8 @@ int kvm_arch_get_registers(CPUState *cs)
 
     for (i = 0;i < 32; i++)
         env->gpr[i] = regs.gpr[i];
+
+    kvm_get_fp(cs);
 
     if (cap_booke_sregs) {
         ret = kvm_vcpu_ioctl(cs, KVM_GET_SREGS, &sregs);
