@@ -72,7 +72,6 @@ static TCGv cpu_tmp0, cpu_tmp4;
 static TCGv_ptr cpu_ptr0, cpu_ptr1;
 static TCGv_i32 cpu_tmp2_i32, cpu_tmp3_i32;
 static TCGv_i64 cpu_tmp1_i64;
-static TCGv cpu_tmp5;
 
 static uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 
@@ -1577,12 +1576,55 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
 }
 
+static void gen_shift_flags(DisasContext *s, int ot, TCGv result, TCGv shm1,
+                            TCGv count, bool is_right)
+{
+    TCGv_i32 z32, s32, oldop;
+    TCGv z_tl;
+
+    /* Store the results into the CC variables.  If we know that the
+       variable must be dead, store unconditionally.  Otherwise we'll
+       need to not disrupt the current contents.  */
+    z_tl = tcg_const_tl(0);
+    if (cc_op_live[s->cc_op] & USES_CC_DST) {
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_cc_dst, count, z_tl,
+                           result, cpu_cc_dst);
+    } else {
+        tcg_gen_mov_tl(cpu_cc_dst, result);
+    }
+    if (cc_op_live[s->cc_op] & USES_CC_SRC) {
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_cc_src, count, z_tl,
+                           shm1, cpu_cc_src);
+    } else {
+        tcg_gen_mov_tl(cpu_cc_src, shm1);
+    }
+    tcg_temp_free(z_tl);
+
+    /* Get the two potential CC_OP values into temporaries.  */
+    tcg_gen_movi_i32(cpu_tmp2_i32, (is_right ? CC_OP_SARB : CC_OP_SHLB) + ot);
+    if (s->cc_op == CC_OP_DYNAMIC) {
+        oldop = cpu_cc_op;
+    } else {
+        tcg_gen_movi_i32(cpu_tmp3_i32, s->cc_op);
+        oldop = cpu_tmp3_i32;
+    }
+
+    /* Conditionally store the CC_OP value.  */
+    z32 = tcg_const_i32(0);
+    s32 = tcg_temp_new_i32();
+    tcg_gen_trunc_tl_i32(s32, count);
+    tcg_gen_movcond_i32(TCG_COND_NE, cpu_cc_op, s32, z32, cpu_tmp2_i32, oldop);
+    tcg_temp_free_i32(z32);
+    tcg_temp_free_i32(s32);
+
+    /* The CC_OP value is no longer predictable.  */
+    set_cc_op(s, CC_OP_DYNAMIC);
+}
+
 static void gen_shift_rm_T1(DisasContext *s, int ot, int op1, 
                             int is_right, int is_arith)
 {
     target_ulong mask = (ot == OT_QUAD ? 0x3f : 0x1f);
-    TCGv_i32 z32, s32, oldop;
-    TCGv z_tl;
 
     /* load */
     if (op1 == OR_TMP0) {
@@ -1616,43 +1658,7 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
         gen_op_mov_reg_T0(ot, op1);
     }
 
-    /* Store the results into the CC variables.  If we know that the
-       variable must be dead, store unconditionally.  Otherwise we'll
-       need to not disrupt the current contents.  */
-    z_tl = tcg_const_tl(0);
-    if (cc_op_live[s->cc_op] & USES_CC_DST) {
-        tcg_gen_movcond_tl(TCG_COND_NE, cpu_cc_dst, cpu_T[1], z_tl,
-                           cpu_T[0], cpu_cc_dst);
-    } else {
-        tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
-    }
-    if (cc_op_live[s->cc_op] & USES_CC_SRC) {
-        tcg_gen_movcond_tl(TCG_COND_NE, cpu_cc_src, cpu_T[1], z_tl,
-                           cpu_tmp0, cpu_cc_src);
-    } else {
-        tcg_gen_mov_tl(cpu_cc_src, cpu_tmp0);
-    }
-    tcg_temp_free(z_tl);
-
-    /* Get the two potential CC_OP values into temporaries.  */
-    tcg_gen_movi_i32(cpu_tmp2_i32, (is_right ? CC_OP_SARB : CC_OP_SHLB) + ot);
-    if (s->cc_op == CC_OP_DYNAMIC) {
-        oldop = cpu_cc_op;
-    } else {
-        tcg_gen_movi_i32(cpu_tmp3_i32, s->cc_op);
-        oldop = cpu_tmp3_i32;
-    }
-
-    /* Conditionally store the CC_OP value.  */
-    z32 = tcg_const_i32(0);
-    s32 = tcg_temp_new_i32();
-    tcg_gen_trunc_tl_i32(s32, cpu_T[1]);
-    tcg_gen_movcond_i32(TCG_COND_NE, cpu_cc_op, s32, z32, cpu_tmp2_i32, oldop);
-    tcg_temp_free_i32(z32);
-    tcg_temp_free_i32(s32);
-
-    /* The CC_OP value is no longer predictable.  */
-    set_cc_op(s, CC_OP_DYNAMIC);
+    gen_shift_flags(s, ot, cpu_T[0], cpu_tmp0, cpu_T[1], is_right);
 }
 
 static void gen_shift_rm_im(DisasContext *s, int ot, int op1, int op2,
@@ -1931,128 +1937,88 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
 
 /* XXX: add faster immediate case */
 static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
-                             int is_right, TCGv count)
+                             bool is_right, TCGv count_in)
 {
-    int label1, label2, data_bits;
-    target_ulong mask;
-    TCGv t0, t1, t2, a0;
-
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
-    t2 = tcg_temp_local_new();
-    a0 = tcg_temp_local_new();
-
-    if (ot == OT_QUAD)
-        mask = 0x3f;
-    else
-        mask = 0x1f;
+    target_ulong mask = (ot == OT_QUAD ? 63 : 31);
+    TCGv count;
 
     /* load */
     if (op1 == OR_TMP0) {
-        tcg_gen_mov_tl(a0, cpu_A0);
-        gen_op_ld_v(ot + s->mem_index, t0, a0);
+        gen_op_ld_T0_A0(ot + s->mem_index);
     } else {
-        gen_op_mov_v_reg(ot, t0, op1);
+        gen_op_mov_TN_reg(ot, 0, op1);
     }
 
-    tcg_gen_andi_tl(t2, count, mask);
-    tcg_gen_mov_tl(t1, cpu_T[1]);
+    count = tcg_temp_new();
+    tcg_gen_andi_tl(count, count_in, mask);
 
-    /* Must test zero case to avoid using undefined behaviour in TCG
-       shifts. */
-    label1 = gen_new_label();
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, label1);
-    
-    tcg_gen_addi_tl(cpu_tmp5, t2, -1);
-    if (ot == OT_WORD) {
-        /* Note: we implement the Intel behaviour for shift count > 16 */
+    switch (ot) {
+    case OT_WORD:
+        /* Note: we implement the Intel behaviour for shift count > 16.
+           This means "shrdw C, B, A" shifts A:B:A >> C.  Build the B:A
+           portion by constructing it as a 32-bit value.  */
         if (is_right) {
-            tcg_gen_andi_tl(t0, t0, 0xffff);
-            tcg_gen_shli_tl(cpu_tmp0, t1, 16);
-            tcg_gen_or_tl(t0, t0, cpu_tmp0);
-            tcg_gen_ext32u_tl(t0, t0);
-
-            tcg_gen_shr_tl(cpu_tmp4, t0, cpu_tmp5);
-            
-            /* only needed if count > 16, but a test would complicate */
-            tcg_gen_subfi_tl(cpu_tmp5, 32, t2);
-            tcg_gen_shl_tl(cpu_tmp0, t0, cpu_tmp5);
-
-            tcg_gen_shr_tl(t0, t0, t2);
-
-            tcg_gen_or_tl(t0, t0, cpu_tmp0);
+            tcg_gen_deposit_tl(cpu_tmp0, cpu_T[0], cpu_T[1], 16, 16);
+            tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
+            tcg_gen_mov_tl(cpu_T[0], cpu_tmp0);
         } else {
-            /* XXX: not optimal */
-            tcg_gen_andi_tl(t0, t0, 0xffff);
-            tcg_gen_shli_tl(t1, t1, 16);
-            tcg_gen_or_tl(t1, t1, t0);
-            tcg_gen_ext32u_tl(t1, t1);
-            
-            tcg_gen_shl_tl(cpu_tmp4, t0, cpu_tmp5);
-            tcg_gen_subfi_tl(cpu_tmp0, 32, cpu_tmp5);
-            tcg_gen_shr_tl(cpu_tmp5, t1, cpu_tmp0);
-            tcg_gen_or_tl(cpu_tmp4, cpu_tmp4, cpu_tmp5);
-
-            tcg_gen_shl_tl(t0, t0, t2);
-            tcg_gen_subfi_tl(cpu_tmp5, 32, t2);
-            tcg_gen_shr_tl(t1, t1, cpu_tmp5);
-            tcg_gen_or_tl(t0, t0, t1);
+            tcg_gen_deposit_tl(cpu_T[1], cpu_T[0], cpu_T[1], 16, 16);
         }
-    } else {
-        data_bits = 8 << ot;
+        /* FALLTHRU */
+#ifdef TARGET_X86_64
+    case OT_LONG:
+        /* Concatenate the two 32-bit values and use a 64-bit shift.  */
+        tcg_gen_subi_tl(cpu_tmp0, count, 1);
         if (is_right) {
-            if (ot == OT_LONG)
-                tcg_gen_ext32u_tl(t0, t0);
-
-            tcg_gen_shr_tl(cpu_tmp4, t0, cpu_tmp5);
-
-            tcg_gen_shr_tl(t0, t0, t2);
-            tcg_gen_subfi_tl(cpu_tmp5, data_bits, t2);
-            tcg_gen_shl_tl(t1, t1, cpu_tmp5);
-            tcg_gen_or_tl(t0, t0, t1);
-            
+            tcg_gen_concat_tl_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_shr_i64(cpu_tmp0, cpu_T[0], cpu_tmp0);
+            tcg_gen_shr_i64(cpu_T[0], cpu_T[0], count);
         } else {
-            if (ot == OT_LONG)
-                tcg_gen_ext32u_tl(t1, t1);
-
-            tcg_gen_shl_tl(cpu_tmp4, t0, cpu_tmp5);
-            
-            tcg_gen_shl_tl(t0, t0, t2);
-            tcg_gen_subfi_tl(cpu_tmp5, data_bits, t2);
-            tcg_gen_shr_tl(t1, t1, cpu_tmp5);
-            tcg_gen_or_tl(t0, t0, t1);
+            tcg_gen_concat_tl_i64(cpu_T[0], cpu_T[1], cpu_T[0]);
+            tcg_gen_shl_i64(cpu_tmp0, cpu_T[0], cpu_tmp0);
+            tcg_gen_shl_i64(cpu_T[0], cpu_T[0], count);
+            tcg_gen_shri_i64(cpu_tmp0, cpu_tmp0, 32);
+            tcg_gen_shri_i64(cpu_T[0], cpu_T[0], 32);
         }
+        break;
+#endif
+    default:
+        tcg_gen_subi_tl(cpu_tmp0, count, 1);
+        if (is_right) {
+            tcg_gen_shr_tl(cpu_tmp0, cpu_T[0], cpu_tmp0);
+
+            tcg_gen_subfi_tl(cpu_tmp4, mask + 1, count);
+            tcg_gen_shr_tl(cpu_T[0], cpu_T[0], count);
+            tcg_gen_shl_tl(cpu_T[1], cpu_T[1], cpu_tmp4);
+        } else {
+            tcg_gen_shl_tl(cpu_tmp0, cpu_T[0], cpu_tmp0);
+            if (ot == OT_WORD) {
+                /* Only needed if count > 16, for Intel behaviour.  */
+                tcg_gen_subfi_tl(cpu_tmp4, 33, count);
+                tcg_gen_shr_tl(cpu_tmp4, cpu_T[1], cpu_tmp4);
+                tcg_gen_or_tl(cpu_tmp0, cpu_tmp0, cpu_tmp4);
+            }
+
+            tcg_gen_subfi_tl(cpu_tmp4, mask + 1, count);
+            tcg_gen_shl_tl(cpu_T[0], cpu_T[0], count);
+            tcg_gen_shr_tl(cpu_T[1], cpu_T[1], cpu_tmp4);
+        }
+        tcg_gen_movi_tl(cpu_tmp4, 0);
+        tcg_gen_movcond_tl(TCG_COND_EQ, cpu_T[1], count, cpu_tmp4,
+                           cpu_tmp4, cpu_T[1]);
+        tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+        break;
     }
-    tcg_gen_mov_tl(t1, cpu_tmp4);
 
-    gen_set_label(label1);
     /* store */
     if (op1 == OR_TMP0) {
-        gen_op_st_v(ot + s->mem_index, t0, a0);
+        gen_op_st_T0_A0(ot + s->mem_index);
     } else {
-        gen_op_mov_reg_v(ot, op1, t0);
+        gen_op_mov_reg_T0(ot, op1);
     }
-    
-    /* Update eflags data because we cannot predict flags afterward.  */
-    gen_update_cc_op(s);
-    set_cc_op(s, CC_OP_DYNAMIC);
 
-    label2 = gen_new_label();
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, label2);
-
-    tcg_gen_mov_tl(cpu_cc_src, t1);
-    tcg_gen_mov_tl(cpu_cc_dst, t0);
-    if (is_right) {
-        tcg_gen_movi_i32(cpu_cc_op, CC_OP_SARB + ot);
-    } else {
-        tcg_gen_movi_i32(cpu_cc_op, CC_OP_SHLB + ot);
-    }
-    gen_set_label(label2);
-
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(t2);
-    tcg_temp_free(a0);
+    gen_shift_flags(s, ot, cpu_T[0], cpu_tmp0, count, is_right);
+    tcg_temp_free(count);
 }
 
 static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
@@ -8401,7 +8367,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
     cpu_tmp2_i32 = tcg_temp_new_i32();
     cpu_tmp3_i32 = tcg_temp_new_i32();
     cpu_tmp4 = tcg_temp_new();
-    cpu_tmp5 = tcg_temp_new();
     cpu_ptr0 = tcg_temp_new_ptr();
     cpu_ptr1 = tcg_temp_new_ptr();
     cpu_cc_srcT = tcg_temp_local_new();
