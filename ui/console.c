@@ -1537,7 +1537,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
         chr->init(chr);
 }
 
-CharDriverState *text_console_init(QemuOpts *opts)
+static CharDriverState *text_console_init(QemuOpts *opts)
 {
     CharDriverState *chr;
     QemuConsole *s;
@@ -1571,6 +1571,18 @@ CharDriverState *text_console_init(QemuOpts *opts)
     chr->opaque = s;
     chr->chr_set_echo = text_console_set_echo;
     return chr;
+}
+
+static VcHandler *vc_handler = text_console_init;
+
+CharDriverState *vc_init(QemuOpts *opts)
+{
+    return vc_handler(opts);
+}
+
+void register_vc_handler(VcHandler *handler)
+{
+    vc_handler = handler;
 }
 
 void text_consoles_set_display(DisplayState *ds)
