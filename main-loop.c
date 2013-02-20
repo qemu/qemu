@@ -330,7 +330,8 @@ void qemu_fd_register(int fd)
 static int os_host_main_loop_wait(uint32_t timeout)
 {
     GMainContext *context = g_main_context_default();
-    int select_ret, g_poll_ret, ret, i;
+    int select_ret = 0;
+    int g_poll_ret, ret, i;
     PollingEntry *pe;
     WaitObjects *w = &wait_objects;
     gint poll_timeout;
