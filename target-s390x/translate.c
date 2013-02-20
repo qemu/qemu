@@ -2566,8 +2566,7 @@ static ExitStatus op_mul(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_mul128(DisasContext *s, DisasOps *o)
 {
-    gen_helper_mul128(o->out, cpu_env, o->in1, o->in2);
-    return_low128(o->out2);
+    tcg_gen_mulu2_i64(o->out2, o->out, o->in1, o->in2);
     return NO_EXIT;
 }
 
