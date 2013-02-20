@@ -143,65 +143,7 @@ int qemu_init_main_loop(void)
     return 0;
 }
 
-static fd_set rfds, wfds, xfds;
-static int nfds;
 static int max_priority;
-
-/* Load rfds/wfds/xfds into gpollfds.  Will be removed a few commits later. */
-static void gpollfds_from_select(void)
-{
-    int fd;
-    for (fd = 0; fd <= nfds; fd++) {
-        int events = 0;
-        if (FD_ISSET(fd, &rfds)) {
-            events |= G_IO_IN | G_IO_HUP | G_IO_ERR;
-        }
-        if (FD_ISSET(fd, &wfds)) {
-            events |= G_IO_OUT | G_IO_ERR;
-        }
-        if (FD_ISSET(fd, &xfds)) {
-            events |= G_IO_PRI;
-        }
-        if (events) {
-            GPollFD pfd = {
-                .fd = fd,
-                .events = events,
-            };
-            g_array_append_val(gpollfds, pfd);
-        }
-    }
-}
-
-/* Store gpollfds revents into rfds/wfds/xfds.  Will be removed a few commits
- * later.
- */
-static void gpollfds_to_select(int ret)
-{
-    int i;
-
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&xfds);
-
-    if (ret <= 0) {
-        return;
-    }
-
-    for (i = 0; i < gpollfds->len; i++) {
-        int fd = g_array_index(gpollfds, GPollFD, i).fd;
-        int revents = g_array_index(gpollfds, GPollFD, i).revents;
-
-        if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) {
-            FD_SET(fd, &rfds);
-        }
-        if (revents & (G_IO_OUT | G_IO_ERR)) {
-            FD_SET(fd, &wfds);
-        }
-        if (revents & G_IO_PRI) {
-            FD_SET(fd, &xfds);
-        }
-    }
-}
 
 #ifndef _WIN32
 static int glib_pollfds_idx;
@@ -251,14 +193,7 @@ static int os_host_main_loop_wait(uint32_t timeout)
         qemu_mutex_unlock_iothread();
     }
 
-    /* We'll eventually drop fd_set completely.  But for now we still have
-     * *_fill() and *_poll() functions that use rfds/wfds/xfds.
-     */
-    gpollfds_from_select();
-
     ret = g_poll((GPollFD *)gpollfds->data, gpollfds->len, timeout);
-
-    gpollfds_to_select(ret);
 
     if (timeout > 0) {
         qemu_mutex_lock_iothread();
@@ -417,6 +352,8 @@ static int os_host_main_loop_wait(uint32_t timeout)
     WaitObjects *w = &wait_objects;
     gint poll_timeout;
     static struct timeval tv0;
+    fd_set rfds, wfds, xfds;
+    int nfds;
 
     /* XXX: need to suppress polling by better using win32 events */
     ret = 0;
@@ -463,10 +400,6 @@ static int os_host_main_loop_wait(uint32_t timeout)
      * improve socket latency.
      */
 
-    /* This back-and-forth between GPollFDs and select(2) is temporary.  We'll
-     * drop it in a couple of patches, I promise :).
-     */
-    gpollfds_from_select();
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
     FD_ZERO(&xfds);
@@ -480,7 +413,6 @@ static int os_host_main_loop_wait(uint32_t timeout)
             pollfds_poll(gpollfds, nfds, &rfds, &wfds, &xfds);
         }
     }
-    gpollfds_to_select(select_ret);
 
     return select_ret || g_poll_ret;
 }
@@ -498,11 +430,6 @@ int main_loop_wait(int nonblocking)
     /* poll any events */
     g_array_set_size(gpollfds, 0); /* reset for new iteration */
     /* XXX: separate device handlers from system ones */
-    nfds = -1;
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&xfds);
-
 #ifdef CONFIG_SLIRP
     slirp_update_timeout(&timeout);
     slirp_pollfds_fill(gpollfds);
