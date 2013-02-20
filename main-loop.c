@@ -505,13 +505,13 @@ int main_loop_wait(int nonblocking)
 
 #ifdef CONFIG_SLIRP
     slirp_update_timeout(&timeout);
-    slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+    slirp_pollfds_fill(gpollfds);
 #endif
     qemu_iohandler_fill(&nfds, &rfds, &wfds, &xfds);
     ret = os_host_main_loop_wait(timeout);
     qemu_iohandler_poll(&rfds, &wfds, &xfds, ret);
 #ifdef CONFIG_SLIRP
-    slirp_select_poll(&rfds, &wfds, &xfds, (ret < 0));
+    slirp_pollfds_poll(gpollfds, (ret < 0));
 #endif
 
     qemu_run_all_timers();
