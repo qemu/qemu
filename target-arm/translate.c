@@ -421,6 +421,34 @@ static void gen_add_CC(TCGv dest, TCGv t0, TCGv t1)
     tcg_gen_mov_i32(dest, cpu_NF);
 }
 
+/* dest = T0 + T1 + CF.  Compute C, N, V and Z flags */
+static void gen_adc_CC(TCGv dest, TCGv t0, TCGv t1)
+{
+    TCGv tmp = tcg_temp_new_i32();
+    if (TCG_TARGET_HAS_add2_i32) {
+        tcg_gen_movi_i32(tmp, 0);
+        tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, tmp, cpu_CF, tmp);
+        tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, cpu_CF, t1, tmp);
+    } else {
+        TCGv_i64 q0 = tcg_temp_new_i64();
+        TCGv_i64 q1 = tcg_temp_new_i64();
+        tcg_gen_extu_i32_i64(q0, t0);
+        tcg_gen_extu_i32_i64(q1, t1);
+        tcg_gen_add_i64(q0, q0, q1);
+        tcg_gen_extu_i32_i64(q1, cpu_CF);
+        tcg_gen_add_i64(q0, q0, q1);
+        tcg_gen_extr_i64_i32(cpu_NF, cpu_CF, q0);
+        tcg_temp_free_i64(q0);
+        tcg_temp_free_i64(q1);
+    }
+    tcg_gen_mov_i32(cpu_ZF, cpu_NF);
+    tcg_gen_xor_i32(cpu_VF, cpu_NF, t0);
+    tcg_gen_xor_i32(tmp, t0, t1);
+    tcg_gen_andc_i32(cpu_VF, cpu_VF, tmp);
+    tcg_temp_free_i32(tmp);
+    tcg_gen_mov_i32(dest, cpu_NF);
+}
+
 /* dest = T0 - T1. Compute C, N, V and Z flags */
 static void gen_sub_CC(TCGv dest, TCGv t0, TCGv t1)
 {
@@ -7073,7 +7101,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             break;
         case 0x05:
             if (set_cc) {
-                gen_helper_adc_cc(tmp, cpu_env, tmp, tmp2);
+                gen_adc_CC(tmp, tmp, tmp2);
             } else {
                 gen_add_carry(tmp, tmp, tmp2);
             }
@@ -7914,7 +7942,7 @@ gen_thumb2_data_op(DisasContext *s, int op, int conds, uint32_t shifter_out, TCG
         break;
     case 10: /* adc */
         if (conds)
-            gen_helper_adc_cc(t0, cpu_env, t0, t1);
+            gen_adc_CC(t0, t0, t1);
         else
             gen_adc(t0, t1);
         break;
@@ -9232,10 +9260,11 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             }
             break;
         case 0x5: /* adc */
-            if (s->condexec_mask)
+            if (s->condexec_mask) {
                 gen_adc(tmp, tmp2);
-            else
-                gen_helper_adc_cc(tmp, cpu_env, tmp, tmp2);
+            } else {
+                gen_adc_CC(tmp, tmp, tmp2);
+            }
             break;
         case 0x6: /* sbc */
             if (s->condexec_mask)

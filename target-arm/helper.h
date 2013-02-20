@@ -140,7 +140,6 @@ DEF_HELPER_2(recpe_u32, i32, i32, env)
 DEF_HELPER_2(rsqrte_u32, i32, i32, env)
 DEF_HELPER_5(neon_tbl, i32, env, i32, i32, i32, i32)
 
-DEF_HELPER_3(adc_cc, i32, env, i32, i32)
 DEF_HELPER_3(sbc_cc, i32, env, i32, i32)
 
 DEF_HELPER_3(shl_cc, i32, env, i32, i32)
