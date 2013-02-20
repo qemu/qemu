@@ -559,6 +559,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             swap_commutative(args[1], &args[3], &args[5]);
             break;
         CASE_OP_32_64(mulu2):
+        CASE_OP_32_64(muls2):
             swap_commutative(args[0], &args[2], &args[3]);
             break;
         case INDEX_op_brcond2_i32:

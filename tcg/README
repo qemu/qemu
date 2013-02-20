@@ -375,6 +375,10 @@ is returned in two single-word outputs.
 Similar to mul, except two unsigned inputs T1 and T2 yielding the full
 double-word product T0.  The later is returned in two single-word outputs.
 
+* muls2_i32/i64 t0_low, t0_high, t1, t2
+
+Similar to mulu2, except the two inputs T1 and T2 are signed.
+
 ********* 64-bit target on 32-bit host support
 
 The following opcodes are internal to TCG.  Thus they are to be implemented by
