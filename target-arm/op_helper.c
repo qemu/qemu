@@ -315,21 +315,6 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
    The only way to do that in TCG is a conditional branch, which clobbers
    all our temporaries.  For now implement these as helper functions.  */
 
-uint32_t HELPER(sbc_cc)(CPUARMState *env, uint32_t a, uint32_t b)
-{
-    uint32_t result;
-    if (!env->CF) {
-        result = a - b - 1;
-        env->CF = a > b;
-    } else {
-        result = a - b;
-        env->CF = a >= b;
-    }
-    env->VF = (a ^ b) & (a ^ result);
-    env->NF = env->ZF = result;
-    return result;
-}
-
 /* Similarly for variable shift instructions.  */
 
 uint32_t HELPER(shl_cc)(CPUARMState *env, uint32_t x, uint32_t i)
