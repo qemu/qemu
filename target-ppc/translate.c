@@ -1121,50 +1121,6 @@ static void gen_mulldo(DisasContext *ctx)
 }
 #endif
 
-/* neg neg. nego nego. */
-static inline void gen_op_arith_neg(DisasContext *ctx, TCGv ret, TCGv arg1,
-                                    int ov_check)
-{
-    int l1 = gen_new_label();
-    int l2 = gen_new_label();
-    TCGv t0 = tcg_temp_local_new();
-#if defined(TARGET_PPC64)
-    if (ctx->sf_mode) {
-        tcg_gen_mov_tl(t0, arg1);
-        tcg_gen_brcondi_tl(TCG_COND_EQ, t0, INT64_MIN, l1);
-    } else
-#endif
-    {
-        tcg_gen_ext32s_tl(t0, arg1);
-        tcg_gen_brcondi_tl(TCG_COND_EQ, t0, INT32_MIN, l1);
-    }
-    tcg_gen_neg_tl(ret, arg1);
-    if (ov_check) {
-        tcg_gen_movi_tl(cpu_ov, 0);
-    }
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_mov_tl(ret, t0);
-    if (ov_check) {
-        tcg_gen_movi_tl(cpu_ov, 1);
-        tcg_gen_movi_tl(cpu_so, 1);
-    }
-    gen_set_label(l2);
-    tcg_temp_free(t0);
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_set_Rc0(ctx, ret);
-}
-
-static void gen_neg(DisasContext *ctx)
-{
-    gen_op_arith_neg(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0);
-}
-
-static void gen_nego(DisasContext *ctx)
-{
-    gen_op_arith_neg(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 1);
-}
-
 /* Common subf function */
 static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
                                      TCGv arg2, bool add_ca, bool compute_ca,
@@ -1252,6 +1208,25 @@ static void gen_subfic(DisasContext *ctx)
     gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
                       c, 0, 1, 0, 0);
     tcg_temp_free(c);
+}
+
+/* neg neg. nego nego. */
+static inline void gen_op_arith_neg(DisasContext *ctx, bool compute_ov)
+{
+    TCGv zero = tcg_const_tl(0);
+    gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                      zero, 0, 0, compute_ov, Rc(ctx->opcode));
+    tcg_temp_free(zero);
+}
+
+static void gen_neg(DisasContext *ctx)
+{
+    gen_op_arith_neg(ctx, 0);
+}
+
+static void gen_nego(DisasContext *ctx)
+{
+    gen_op_arith_neg(ctx, 1);
 }
 
 /***                            Integer logical                            ***/
