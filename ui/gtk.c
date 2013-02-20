@@ -47,6 +47,7 @@
 #include "qmp-commands.h"
 #include "x_keymap.h"
 #include "keymaps.h"
+#include "char/char.h"
 
 //#define DEBUG_GTK
 
@@ -55,6 +56,8 @@
 #else
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
+
+#define MAX_VCS 10
 
 typedef struct VirtualConsole
 {
@@ -78,6 +81,9 @@ typedef struct GtkDisplayState
     GtkWidget *view_menu_item;
     GtkWidget *view_menu;
     GtkWidget *vga_item;
+
+    int nb_vcs;
+    VirtualConsole vc[MAX_VCS];
 
     GtkWidget *show_tabs_item;
 
@@ -403,6 +409,15 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
 
     if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->vga_item))) {
         gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), 0);
+    } else {
+        int i;
+
+        for (i = 0; i < s->nb_vcs; i++) {
+            if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->vc[i].menu_item))) {
+                gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), i + 1);
+                break;
+            }
+        }
     }
 }
 
@@ -421,16 +436,153 @@ static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
                            gpointer data)
 {
     GtkDisplayState *s = data;
+    guint last_page;
 
     if (!gtk_widget_get_realized(s->notebook)) {
         return;
     }
 
+    last_page = gtk_notebook_get_current_page(nb);
+
+    if (last_page) {
+        gtk_widget_set_size_request(s->vc[last_page - 1].terminal, -1, -1);
+    }
+
+    if (arg2 == 0) {
+        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->vga_item), TRUE);
+    } else {
+        VirtualConsole *vc = &s->vc[arg2 - 1];
+        VteTerminal *term = VTE_TERMINAL(vc->terminal);
+        int width, height;
+
+        width = 80 * vte_terminal_get_char_width(term);
+        height = 25 * vte_terminal_get_char_height(term);
+
+        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(vc->menu_item), TRUE);
+        gtk_widget_set_size_request(vc->terminal, width, height);
+    }
+
     gd_update_cursor(s, TRUE);
+}
+
+/** Virtual Console Callbacks **/
+
+static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    VirtualConsole *vc = chr->opaque;
+
+    return write(vc->fd, buf, len);
+}
+
+static int nb_vcs;
+static CharDriverState *vcs[MAX_VCS];
+
+static CharDriverState *gd_vc_handler(QemuOpts *opts)
+{
+    CharDriverState *chr;
+
+    chr = g_malloc0(sizeof(*chr));
+    chr->chr_write = gd_vc_chr_write;
+
+    vcs[nb_vcs++] = chr;
+
+    return chr;
 }
 
 void early_gtk_display_init(void)
 {
+    register_vc_handler(gd_vc_handler);
+}
+
+static gboolean gd_vc_in(GIOChannel *chan, GIOCondition cond, void *opaque)
+{
+    VirtualConsole *vc = opaque;
+    uint8_t buffer[1024];
+    ssize_t len;
+
+    len = read(vc->fd, buffer, sizeof(buffer));
+    if (len <= 0) {
+        return FALSE;
+    }
+
+    qemu_chr_be_write(vc->chr, buffer, len);
+
+    return TRUE;
+}
+
+static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSList *group)
+{
+    const char *label;
+    char buffer[32];
+    char path[32];
+    VtePty *pty;
+    GIOChannel *chan;
+    GtkWidget *scrolled_window;
+    GtkAdjustment *vadjustment;
+    int master_fd, slave_fd, ret;
+    struct termios tty;
+
+    snprintf(buffer, sizeof(buffer), "vc%d", index);
+    snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
+
+    vc->chr = vcs[index];
+
+    if (vc->chr->label) {
+        label = vc->chr->label;
+    } else {
+        label = buffer;
+    }
+
+    vc->menu_item = gtk_radio_menu_item_new_with_mnemonic(group, label);
+    group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(vc->menu_item));
+    gtk_menu_item_set_accel_path(GTK_MENU_ITEM(vc->menu_item), path);
+    gtk_accel_map_add_entry(path, GDK_KEY_2 + index, GDK_CONTROL_MASK | GDK_MOD1_MASK);
+
+    vc->terminal = vte_terminal_new();
+
+    ret = openpty(&master_fd, &slave_fd, NULL, NULL, NULL);
+    g_assert(ret != -1);
+
+    /* Set raw attributes on the pty. */
+    tcgetattr(slave_fd, &tty);
+    cfmakeraw(&tty);
+    tcsetattr(slave_fd, TCSAFLUSH, &tty);
+
+    pty = vte_pty_new_foreign(master_fd, NULL);
+
+    vte_terminal_set_pty_object(VTE_TERMINAL(vc->terminal), pty);
+
+    vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->terminal), -1);
+
+    vadjustment = vte_terminal_get_adjustment(VTE_TERMINAL(vc->terminal));
+
+    scrolled_window = gtk_scrolled_window_new(NULL, vadjustment);
+    gtk_container_add(GTK_CONTAINER(scrolled_window), vc->terminal);
+
+    vte_terminal_set_size(VTE_TERMINAL(vc->terminal), 80, 25);
+
+    vc->fd = slave_fd;
+    vc->chr->opaque = vc;
+    vc->scrolled_window = scrolled_window;
+
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(vc->scrolled_window),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+    gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), scrolled_window, gtk_label_new(label));
+    g_signal_connect(vc->menu_item, "activate",
+                     G_CALLBACK(gd_menu_switch_vc), s);
+
+    gtk_menu_append(GTK_MENU(s->view_menu), vc->menu_item);
+
+    qemu_chr_generic_open(vc->chr);
+    if (vc->chr->init) {
+        vc->chr->init(vc->chr);
+    }
+
+    chan = g_io_channel_unix_new(vc->fd);
+    g_io_add_watch(chan, G_IO_IN, gd_vc_in, vc);
+
+    return group;
 }
 
 /** Window Creation **/
@@ -470,6 +622,7 @@ static void gd_create_menus(GtkDisplayState *s)
     GtkAccelGroup *accel_group;
     GSList *group = NULL;
     GtkWidget *separator;
+    int i;
 
     accel_group = gtk_accel_group_new();
     s->file_menu = gtk_menu_new();
@@ -495,6 +648,13 @@ static void gd_create_menus(GtkDisplayState *s)
                                  "<QEMU>/View/VGA");
     gtk_accel_map_add_entry("<QEMU>/View/VGA", GDK_KEY_1, GDK_CONTROL_MASK | GDK_MOD1_MASK);
     gtk_menu_append(GTK_MENU(s->view_menu), s->vga_item);
+
+    for (i = 0; i < nb_vcs; i++) {
+        VirtualConsole *vc = &s->vc[i];
+
+        group = gd_vc_init(s, vc, i, group);
+        s->nb_vcs++;
+    }
 
     separator = gtk_separator_menu_item_new();
     gtk_menu_append(GTK_MENU(s->view_menu), separator);
