@@ -1652,24 +1652,16 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             case 11: /*MULSHi*/
                 HAS_OPTION(XTENSA_OPTION_32_BIT_IMUL_HIGH);
                 {
-                    TCGv_i64 r = tcg_temp_new_i64();
-                    TCGv_i64 s = tcg_temp_new_i64();
-                    TCGv_i64 t = tcg_temp_new_i64();
+                    TCGv lo = tcg_temp_new();
 
                     if (OP2 == 10) {
-                        tcg_gen_extu_i32_i64(s, cpu_R[RRR_S]);
-                        tcg_gen_extu_i32_i64(t, cpu_R[RRR_T]);
+                        tcg_gen_mulu2_i32(lo, cpu_R[RRR_R],
+                                          cpu_R[RRR_S], cpu_R[RRR_T]);
                     } else {
-                        tcg_gen_ext_i32_i64(s, cpu_R[RRR_S]);
-                        tcg_gen_ext_i32_i64(t, cpu_R[RRR_T]);
+                        tcg_gen_muls2_i32(lo, cpu_R[RRR_R],
+                                          cpu_R[RRR_S], cpu_R[RRR_T]);
                     }
-                    tcg_gen_mul_i64(r, s, t);
-                    tcg_gen_shri_i64(r, r, 32);
-                    tcg_gen_trunc_i64_i32(cpu_R[RRR_R], r);
-
-                    tcg_temp_free_i64(r);
-                    tcg_temp_free_i64(s);
-                    tcg_temp_free_i64(t);
+                    tcg_temp_free(lo);
                 }
                 break;
 
