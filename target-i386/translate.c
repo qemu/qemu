@@ -4182,7 +4182,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_ADX)) {
                     goto illegal_op;
                 } else {
-                    TCGv carry_in, carry_out;
+                    TCGv carry_in, carry_out, zero;
                     int end_op;
 
                     ot = (s->dflag == 2 ? OT_QUAD : OT_LONG);
@@ -4242,18 +4242,16 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
 #endif
                     default:
                         /* Otherwise compute the carry-out in two steps.  */
-                        tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_regs[reg]);
-                        tcg_gen_setcond_tl(TCG_COND_LTU, cpu_tmp4,
-                                           cpu_T[0], cpu_regs[reg]);
-                        tcg_gen_add_tl(cpu_regs[reg], cpu_T[0], carry_in);
-                        tcg_gen_setcond_tl(TCG_COND_LTU, carry_out,
-                                           cpu_regs[reg], cpu_T[0]);
-                        tcg_gen_or_tl(carry_out, carry_out, cpu_tmp4);
+                        zero = tcg_const_tl(0);
+                        tcg_gen_add2_tl(cpu_T[0], carry_out,
+                                        cpu_T[0], zero,
+                                        carry_in, zero);
+                        tcg_gen_add2_tl(cpu_regs[reg], carry_out,
+                                        cpu_regs[reg], carry_out,
+                                        cpu_T[0], zero);
+                        tcg_temp_free(zero);
                         break;
                     }
-                    /* We began with all flags computed to CC_SRC, and we
-                       have now placed the carry-out in CC_DST.  All that
-                       is left is to record the CC_OP.  */
                     set_cc_op(s, end_op);
                 }
                 break;
