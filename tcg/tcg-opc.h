@@ -83,10 +83,10 @@ DEF(deposit_i32, 1, 2, 2, IMPL(TCG_TARGET_HAS_deposit_i32))
 
 DEF(brcond_i32, 0, 2, 2, TCG_OPF_BB_END)
 
-DEF(add2_i32, 2, 4, 0, IMPL(TCG_TARGET_REG_BITS == 32))
-DEF(sub2_i32, 2, 4, 0, IMPL(TCG_TARGET_REG_BITS == 32))
+DEF(add2_i32, 2, 4, 0, IMPL(TCG_TARGET_HAS_add2_i32))
+DEF(sub2_i32, 2, 4, 0, IMPL(TCG_TARGET_HAS_sub2_i32))
+DEF(mulu2_i32, 2, 2, 0, IMPL(TCG_TARGET_HAS_mulu2_i32))
 DEF(brcond2_i32, 0, 4, 2, TCG_OPF_BB_END | IMPL(TCG_TARGET_REG_BITS == 32))
-DEF(mulu2_i32, 2, 2, 0, IMPL(TCG_TARGET_REG_BITS == 32))
 DEF(setcond2_i32, 1, 4, 1, IMPL(TCG_TARGET_REG_BITS == 32))
 
 DEF(ext8s_i32, 1, 1, 0, IMPL(TCG_TARGET_HAS_ext8s_i32))

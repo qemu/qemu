@@ -124,6 +124,10 @@ typedef enum {
 #define TCG_TARGET_HAS_nor_i64          0
 #define TCG_TARGET_HAS_deposit_i64      0
 #define TCG_TARGET_HAS_movcond_i64      1
+
+#define TCG_TARGET_HAS_add2_i32         0
+#define TCG_TARGET_HAS_sub2_i32         0
+#define TCG_TARGET_HAS_mulu2_i32        0
 #endif
 
 #define TCG_AREG0 TCG_REG_I0

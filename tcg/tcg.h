@@ -57,8 +57,8 @@ typedef uint64_t TCGRegSet;
 #error unsupported
 #endif
 
-/* Turn some undef macros into false macros.  */
 #if TCG_TARGET_REG_BITS == 32
+/* Turn some undef macros into false macros.  */
 #define TCG_TARGET_HAS_div_i64          0
 #define TCG_TARGET_HAS_div2_i64         0
 #define TCG_TARGET_HAS_rot_i64          0
@@ -80,6 +80,10 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_nor_i64          0
 #define TCG_TARGET_HAS_deposit_i64      0
 #define TCG_TARGET_HAS_movcond_i64      0
+/* Turn some undef macros into true macros.  */
+#define TCG_TARGET_HAS_add2_i32         1
+#define TCG_TARGET_HAS_sub2_i32         1
+#define TCG_TARGET_HAS_mulu2_i32        1
 #endif
 
 #ifndef TCG_TARGET_deposit_i32_valid
