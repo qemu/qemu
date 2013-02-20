@@ -1643,6 +1643,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     uint8_t *d;
     uint32_t v, addr1, addr;
     vga_draw_line_func *vga_draw_line;
+#if defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
+    static const bool byteswap = false;
+#else
+    static const bool byteswap = true;
+#endif
 
     full_update |= update_basic_params(s);
 
@@ -1685,18 +1690,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         disp_width != s->last_width ||
         height != s->last_height ||
         s->last_depth != depth) {
-#if defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
-        if (depth == 16 || depth == 32) {
-#else
-        if (depth == 32) {
-#endif
+        if (depth == 32 || (depth == 16 && !byteswap)) {
             qemu_free_displaysurface(s->ds);
             s->ds->surface = qemu_create_displaysurface_from(disp_width, height, depth,
                     s->line_offset,
-                    s->vram_ptr + (s->start_addr * 4));
-#if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
-            s->ds->surface->pf = qemu_different_endianness_pixelformat(depth);
-#endif
+                    s->vram_ptr + (s->start_addr * 4), byteswap);
             dpy_gfx_resize(s->ds);
         } else {
             qemu_console_resize(s->ds, disp_width, height);
@@ -1715,7 +1713,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         s->ds->surface = qemu_create_displaysurface_from(disp_width,
                 height, depth,
                 s->line_offset,
-                s->vram_ptr + (s->start_addr * 4));
+                s->vram_ptr + (s->start_addr * 4), byteswap);
         dpy_gfx_setdata(s->ds);
     }
 
