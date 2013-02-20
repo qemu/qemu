@@ -78,6 +78,8 @@ typedef struct GtkDisplayState
 
     GtkWidget *menu_bar;
 
+    GtkAccelGroup *accel_group;
+
     GtkWidget *file_menu_item;
     GtkWidget *file_menu;
     GtkWidget *quit_item;
@@ -295,6 +297,35 @@ static void gd_mouse_mode_change(Notifier *notify, void *data)
 }
 
 /** GTK Events **/
+
+static gboolean gd_window_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    GtkAccelGroupEntry *entries;
+    guint n_entries = 0;
+    gboolean propagate_accel = TRUE;
+    gboolean handled = FALSE;
+
+    entries = gtk_accel_group_query(s->accel_group, key->keyval,
+                                    key->state, &n_entries);
+    if (n_entries) {
+        const char *quark = g_quark_to_string(entries[0].accel_path_quark);
+
+        if (gd_is_grab_active(s) && strstart(quark, "<QEMU>/File/", NULL)) {
+            propagate_accel = FALSE;
+        }
+    }
+
+    if (!handled && propagate_accel) {
+        handled = gtk_window_activate_key(GTK_WINDOW(widget), key);
+    }
+
+    if (!handled) {
+        handled = gtk_window_propagate_key_event(GTK_WINDOW(widget), key);
+    }
+
+    return handled;
+}
 
 static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
                                 void *opaque)
@@ -903,6 +934,8 @@ static void gd_connect_signals(GtkDisplayState *s)
     g_signal_connect(s->show_tabs_item, "activate",
                      G_CALLBACK(gd_menu_show_tabs), s);
 
+    g_signal_connect(s->window, "key-press-event",
+                     G_CALLBACK(gd_window_key_event), s);
     g_signal_connect(s->window, "delete-event",
                      G_CALLBACK(gd_window_close), s);
 
@@ -1033,6 +1066,7 @@ static void gd_create_menus(GtkDisplayState *s)
 
     g_object_set_data(G_OBJECT(s->window), "accel_group", accel_group);
     gtk_window_add_accel_group(GTK_WINDOW(s->window), accel_group);
+    s->accel_group = accel_group;
 
     gtk_menu_append(GTK_MENU(s->file_menu), s->quit_item);
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(s->file_menu_item), s->file_menu);
