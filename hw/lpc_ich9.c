@@ -466,6 +466,7 @@ static void ich9_lpc_reset(DeviceState *qdev)
     ich9_lpc_rcba_update(lpc, rbca_old);
 
     lpc->sci_level = 0;
+    lpc->rst_cnt = 0;
 }
 
 static const MemoryRegionOps rbca_mmio_ops = {
@@ -498,6 +499,32 @@ static void ich9_lpc_machine_ready(Notifier *n, void *opaque)
     }
 }
 
+/* reset control */
+static void ich9_rst_cnt_write(void *opaque, hwaddr addr, uint64_t val,
+                               unsigned len)
+{
+    ICH9LPCState *lpc = opaque;
+
+    if (val & 4) {
+        qemu_system_reset_request();
+        return;
+    }
+    lpc->rst_cnt = val & 0xA; /* keep FULL_RST (bit 3) and SYS_RST (bit 1) */
+}
+
+static uint64_t ich9_rst_cnt_read(void *opaque, hwaddr addr, unsigned len)
+{
+    ICH9LPCState *lpc = opaque;
+
+    return lpc->rst_cnt;
+}
+
+static const MemoryRegionOps ich9_rst_cnt_ops = {
+    .read = ich9_rst_cnt_read,
+    .write = ich9_rst_cnt_write,
+    .endianness = DEVICE_LITTLE_ENDIAN
+};
+
 static int ich9_lpc_initfn(PCIDevice *d)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
@@ -519,8 +546,31 @@ static int ich9_lpc_initfn(PCIDevice *d)
     lpc->machine_ready.notify = ich9_lpc_machine_ready;
     qemu_add_machine_init_done_notifier(&lpc->machine_ready);
 
+    memory_region_init_io(&lpc->rst_cnt_mem, &ich9_rst_cnt_ops, lpc,
+                          "lpc-reset-control", 1);
+    memory_region_add_subregion_overlap(pci_address_space_io(d),
+                                        ICH9_RST_CNT_IOPORT, &lpc->rst_cnt_mem,
+                                        1);
+
     return 0;
 }
+
+static bool ich9_rst_cnt_needed(void *opaque)
+{
+    ICH9LPCState *lpc = opaque;
+
+    return (lpc->rst_cnt != 0);
+}
+
+static const VMStateDescription vmstate_ich9_rst_cnt = {
+    .name = "ICH9LPC/rst_cnt",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(rst_cnt, ICH9LPCState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription vmstate_ich9_lpc = {
     .name = "ICH9LPC",
@@ -535,6 +585,13 @@ static const VMStateDescription vmstate_ich9_lpc = {
         VMSTATE_UINT8_ARRAY(chip_config, ICH9LPCState, ICH9_CC_SIZE),
         VMSTATE_UINT32(sci_level, ICH9LPCState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_ich9_rst_cnt,
+            .needed = ich9_rst_cnt_needed
+        },
+        { 0 }
     }
 };
 
