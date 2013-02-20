@@ -89,6 +89,7 @@ typedef enum DisplayType
     DT_DEFAULT,
     DT_CURSES,
     DT_SDL,
+    DT_GTK,
     DT_NOGRAPHIC,
     DT_NONE,
 } DisplayType;
