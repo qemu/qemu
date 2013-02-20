@@ -340,46 +340,6 @@ static void t_gen_asr(TCGv d, TCGv a, TCGv b)
     tcg_temp_free(t_31);
 }
 
-/* 64-bit signed mul, lower result in d and upper in d2.  */
-static void t_gen_muls(TCGv d, TCGv d2, TCGv a, TCGv b)
-{
-    TCGv_i64 t0, t1;
-
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-
-    tcg_gen_ext_i32_i64(t0, a);
-    tcg_gen_ext_i32_i64(t1, b);
-    tcg_gen_mul_i64(t0, t0, t1);
-
-    tcg_gen_trunc_i64_i32(d, t0);
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_i32(d2, t0);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-}
-
-/* 64-bit unsigned muls, lower result in d and upper in d2.  */
-static void t_gen_mulu(TCGv d, TCGv d2, TCGv a, TCGv b)
-{
-    TCGv_i64 t0, t1;
-
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-
-    tcg_gen_extu_i32_i64(t0, a);
-    tcg_gen_extu_i32_i64(t1, b);
-    tcg_gen_mul_i64(t0, t0, t1);
-
-    tcg_gen_trunc_i64_i32(d, t0);
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_i32(d2, t0);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-}
-
 static void t_gen_cris_dstep(TCGv d, TCGv a, TCGv b)
 {
     int l1;
@@ -832,10 +792,10 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
         gen_helper_lz(dst, b);
         break;
     case CC_OP_MULS:
-        t_gen_muls(dst, cpu_PR[PR_MOF], a, b);
+        tcg_gen_muls2_tl(dst, cpu_PR[PR_MOF], a, b);
         break;
     case CC_OP_MULU:
-        t_gen_mulu(dst, cpu_PR[PR_MOF], a, b);
+        tcg_gen_mulu2_tl(dst, cpu_PR[PR_MOF], a, b);
         break;
     case CC_OP_DSTEP:
         t_gen_cris_dstep(dst, a, b);
