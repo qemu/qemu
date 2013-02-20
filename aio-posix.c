@@ -88,8 +88,8 @@ void aio_set_fd_handler(AioContext *ctx,
         node->opaque = opaque;
         node->pollfds_idx = -1;
 
-        node->pfd.events = (io_read ? G_IO_IN | G_IO_HUP : 0);
-        node->pfd.events |= (io_write ? G_IO_OUT : 0);
+        node->pfd.events = (io_read ? G_IO_IN | G_IO_HUP | G_IO_ERR : 0);
+        node->pfd.events |= (io_write ? G_IO_OUT | G_IO_ERR : 0);
     }
 
     aio_notify(ctx);
@@ -112,13 +112,6 @@ bool aio_pending(AioContext *ctx)
     QLIST_FOREACH(node, &ctx->aio_handlers, node) {
         int revents;
 
-        /*
-         * FIXME: right now we cannot get G_IO_HUP and G_IO_ERR because
-         * main-loop.c is still select based (due to the slirp legacy).
-         * If main-loop.c ever switches to poll, G_IO_ERR should be
-         * tested too.  Dispatching G_IO_ERR to both handlers should be
-         * okay, since handlers need to be ready for spurious wakeups.
-         */
         revents = node->pfd.revents & node->pfd.events;
         if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR) && node->io_read) {
             return true;
@@ -150,7 +143,6 @@ static bool aio_dispatch(AioContext *ctx)
         revents = node->pfd.revents & node->pfd.events;
         node->pfd.revents = 0;
 
-        /* See comment in aio_pending.  */
         if (!node->deleted &&
             (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) &&
             node->io_read) {
