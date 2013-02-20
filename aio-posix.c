@@ -129,30 +129,12 @@ bool aio_pending(AioContext *ctx)
     return false;
 }
 
-bool aio_poll(AioContext *ctx, bool blocking)
+static bool aio_dispatch(AioContext *ctx)
 {
-    static struct timeval tv0;
     AioHandler *node;
-    fd_set rdfds, wrfds;
-    int max_fd = -1;
-    int ret;
-    bool busy, progress;
-
-    progress = false;
+    bool progress = false;
 
     /*
-     * If there are callbacks left that have been queued, we need to call then.
-     * Do not call select in this case, because it is possible that the caller
-     * does not need a complete flush (as is the case for qemu_aio_wait loops).
-     */
-    if (aio_bh_poll(ctx)) {
-        blocking = false;
-        progress = true;
-    }
-
-    /*
-     * Then dispatch any pending callbacks from the GSource.
-     *
      * We have to walk very carefully in case qemu_aio_set_fd_handler is
      * called while we're walking.
      */
@@ -167,11 +149,15 @@ bool aio_poll(AioContext *ctx, bool blocking)
         node->pfd.revents = 0;
 
         /* See comment in aio_pending.  */
-        if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR) && node->io_read) {
+        if (!node->deleted &&
+            (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) &&
+            node->io_read) {
             node->io_read(node->opaque);
             progress = true;
         }
-        if (revents & (G_IO_OUT | G_IO_ERR) && node->io_write) {
+        if (!node->deleted &&
+            (revents & (G_IO_OUT | G_IO_ERR)) &&
+            node->io_write) {
             node->io_write(node->opaque);
             progress = true;
         }
@@ -185,6 +171,33 @@ bool aio_poll(AioContext *ctx, bool blocking)
             QLIST_REMOVE(tmp, node);
             g_free(tmp);
         }
+    }
+    return progress;
+}
+
+bool aio_poll(AioContext *ctx, bool blocking)
+{
+    static struct timeval tv0;
+    AioHandler *node;
+    fd_set rdfds, wrfds;
+    int max_fd = -1;
+    int ret;
+    bool busy, progress;
+
+    progress = false;
+
+    /*
+     * If there are callbacks left that have been queued, we need to call them.
+     * Do not call select in this case, because it is possible that the caller
+     * does not need a complete flush (as is the case for qemu_aio_wait loops).
+     */
+    if (aio_bh_poll(ctx)) {
+        blocking = false;
+        progress = true;
+    }
+
+    if (aio_dispatch(ctx)) {
+        progress = true;
     }
 
     if (progress && !blocking) {
