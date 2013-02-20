@@ -2332,6 +2332,86 @@ static inline void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret,
 #endif
 }
 
+static inline void tcg_gen_mulu2_i32(TCGv_i32 rl, TCGv_i32 rh,
+                                     TCGv_i32 arg1, TCGv_i32 arg2)
+{
+    if (TCG_TARGET_HAS_mulu2_i32) {
+        tcg_gen_op4_i32(INDEX_op_mulu2_i32, rl, rh, arg1, arg2);
+        /* Allow the optimizer room to replace mulu2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_extu_i32_i64(t0, arg1);
+        tcg_gen_extu_i32_i64(t1, arg2);
+        tcg_gen_mul_i64(t0, t0, t1);
+        tcg_gen_extr_i64_i32(rl, rh, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_muls2_i32(TCGv_i32 rl, TCGv_i32 rh,
+                                     TCGv_i32 arg1, TCGv_i32 arg2)
+{
+    if (TCG_TARGET_HAS_muls2_i32) {
+        tcg_gen_op4_i32(INDEX_op_muls2_i32, rl, rh, arg1, arg2);
+        /* Allow the optimizer room to replace muls2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_ext_i32_i64(t0, arg1);
+        tcg_gen_ext_i32_i64(t1, arg2);
+        tcg_gen_mul_i64(t0, t0, t1);
+        tcg_gen_extr_i64_i32(rl, rh, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_mulu2_i64(TCGv_i64 rl, TCGv_i64 rh,
+                                     TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    if (TCG_TARGET_HAS_mulu2_i64) {
+        tcg_gen_op4_i64(INDEX_op_mulu2_i64, rl, rh, arg1, arg2);
+        /* Allow the optimizer room to replace mulu2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        int sizemask = 0;
+        /* Return value and both arguments are 64-bit and unsigned.  */
+        sizemask |= tcg_gen_sizemask(0, 1, 0);
+        sizemask |= tcg_gen_sizemask(1, 1, 0);
+        sizemask |= tcg_gen_sizemask(2, 1, 0);
+        tcg_gen_mul_i64(t0, arg1, arg2);
+        tcg_gen_helper64(tcg_helper_muluh_i64, sizemask, rh, arg1, arg2);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+    }
+}
+
+static inline void tcg_gen_muls2_i64(TCGv_i64 rl, TCGv_i64 rh,
+                                     TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    if (TCG_TARGET_HAS_muls2_i64) {
+        tcg_gen_op4_i64(INDEX_op_muls2_i64, rl, rh, arg1, arg2);
+        /* Allow the optimizer room to replace muls2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        int sizemask = 0;
+        /* Return value and both arguments are 64-bit and signed.  */
+        sizemask |= tcg_gen_sizemask(0, 1, 1);
+        sizemask |= tcg_gen_sizemask(1, 1, 1);
+        sizemask |= tcg_gen_sizemask(2, 1, 1);
+        tcg_gen_mul_i64(t0, arg1, arg2);
+        tcg_gen_helper64(tcg_helper_mulsh_i64, sizemask, rh, arg1, arg2);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+    }
+}
+
 /***************************************/
 /* QEMU specific operations. Their type depend on the QEMU CPU
    type. */
@@ -2659,6 +2739,8 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_const_tl tcg_const_i64
 #define tcg_const_local_tl tcg_const_local_i64
 #define tcg_gen_movcond_tl tcg_gen_movcond_i64
+#define tcg_gen_mulu2_tl tcg_gen_mulu2_i64
+#define tcg_gen_muls2_tl tcg_gen_muls2_i64
 #else
 #define tcg_gen_movi_tl tcg_gen_movi_i32
 #define tcg_gen_mov_tl tcg_gen_mov_i32
@@ -2732,6 +2814,8 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_const_tl tcg_const_i32
 #define tcg_const_local_tl tcg_const_local_i32
 #define tcg_gen_movcond_tl tcg_gen_movcond_i32
+#define tcg_gen_mulu2_tl tcg_gen_mulu2_i32
+#define tcg_gen_muls2_tl tcg_gen_muls2_i32
 #endif
 
 #if TCG_TARGET_REG_BITS == 32
