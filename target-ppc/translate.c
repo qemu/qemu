@@ -746,35 +746,23 @@ static void gen_isel(DisasContext *ctx)
 static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
                                            TCGv arg1, TCGv arg2, int sub)
 {
-    int l1;
-    TCGv t0;
+    TCGv t0 = tcg_temp_new();
 
-    l1 = gen_new_label();
-    /* Start with XER OV disabled, the most likely case */
-    tcg_gen_movi_tl(cpu_ov, 0);
-    t0 = tcg_temp_local_new();
-    tcg_gen_xor_tl(t0, arg0, arg1);
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode)
-        tcg_gen_ext32s_tl(t0, t0);
-#endif
-    if (sub)
-        tcg_gen_brcondi_tl(TCG_COND_LT, t0, 0, l1);
-    else
-        tcg_gen_brcondi_tl(TCG_COND_GE, t0, 0, l1);
+    tcg_gen_xor_tl(cpu_ov, arg0, arg1);
     tcg_gen_xor_tl(t0, arg1, arg2);
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode)
-        tcg_gen_ext32s_tl(t0, t0);
-#endif
-    if (sub)
-        tcg_gen_brcondi_tl(TCG_COND_GE, t0, 0, l1);
-    else
-        tcg_gen_brcondi_tl(TCG_COND_LT, t0, 0, l1);
-    tcg_gen_movi_tl(cpu_ov, 1);
-    tcg_gen_movi_tl(cpu_so, 1);
-    gen_set_label(l1);
+    if (sub) {
+        tcg_gen_and_tl(cpu_ov, cpu_ov, t0);
+    } else {
+        tcg_gen_andc_tl(cpu_ov, cpu_ov, t0);
+    }
     tcg_temp_free(t0);
+#if defined(TARGET_PPC64)
+    if (!ctx->sf_mode) {
+        tcg_gen_ext32s_tl(cpu_ov, cpu_ov);
+    }
+#endif
+    tcg_gen_shri_tl(cpu_ov, cpu_ov, TARGET_LONG_BITS - 1);
+    tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
 }
 
 static inline void gen_op_arith_compute_ca(DisasContext *ctx, TCGv arg1,
@@ -836,10 +824,6 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
     if (compute_ca) {
         /* Start with XER CA disabled, the most likely case */
         tcg_gen_movi_tl(cpu_ca, 0);
-    }
-    if (compute_ov) {
-        /* Start with XER OV disabled, the most likely case */
-        tcg_gen_movi_tl(cpu_ov, 0);
     }
 
     tcg_gen_add_tl(t0, arg1, arg2);
@@ -1260,10 +1244,6 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
     if (compute_ca) {
         /* Start with XER CA disabled, the most likely case */
         tcg_gen_movi_tl(cpu_ca, 0);
-    }
-    if (compute_ov) {
-        /* Start with XER OV disabled, the most likely case */
-        tcg_gen_movi_tl(cpu_ov, 0);
     }
 
     if (add_ca) {
