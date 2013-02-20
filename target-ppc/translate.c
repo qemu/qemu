@@ -765,73 +765,40 @@ static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
     tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
 }
 
-static inline void gen_op_arith_compute_ca(DisasContext *ctx, TCGv arg1,
-                                           TCGv arg2, int sub)
-{
-    TCGv t0 = tcg_temp_new(), t1 = arg1, t2 = arg2;
-
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode)) {
-        t1 = t0;
-        tcg_gen_ext32u_tl(t1, arg1);
-        t2 = tcg_temp_new();
-        tcg_gen_ext32u_tl(t2, arg2);
-    }
-#endif
-
-    tcg_gen_setcond_tl(sub ? TCG_COND_LEU : TCG_COND_LTU, t0, t1, t2);
-    tcg_gen_or_tl(cpu_ca, cpu_ca, t0);
-
-    tcg_temp_free(t0);
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode)) {
-        tcg_temp_free(t2);
-    }
-#endif
-}
-
 /* Common add function */
 static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
-                                    TCGv arg2, int add_ca, int compute_ca,
-                                    int compute_ov)
+                                    TCGv arg2, bool add_ca, bool compute_ca,
+                                    bool compute_ov, bool compute_rc0)
 {
-    TCGv t0, t1;
+    TCGv t0 = ret;
 
-    if ((!compute_ca && !compute_ov) ||
-        (!TCGV_EQUAL(ret,arg1) && !TCGV_EQUAL(ret, arg2)))  {
-        t0 = ret;
-    } else {
+    if (((compute_ca && add_ca) || compute_ov)
+        && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
         t0 = tcg_temp_new();
     }
 
-    if (add_ca) {
-        t1 = tcg_temp_local_new();
-        tcg_gen_mov_tl(t1, cpu_ca);
+    if (compute_ca) {
+        TCGv zero = tcg_const_tl(0);
+        if (add_ca) {
+            tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, cpu_ca, zero);
+            tcg_gen_add2_tl(t0, cpu_ca, t0, cpu_ca, arg2, zero);
+        } else {
+            tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, arg2, zero);
+        }
+        tcg_temp_free(zero);
     } else {
-        TCGV_UNUSED(t1);
+        tcg_gen_add_tl(t0, arg1, arg2);
+        if (add_ca) {
+            tcg_gen_add_tl(t0, t0, cpu_ca);
+        }
     }
 
-    if (compute_ca) {
-        /* Start with XER CA disabled, the most likely case */
-        tcg_gen_movi_tl(cpu_ca, 0);
-    }
-
-    tcg_gen_add_tl(t0, arg1, arg2);
-
-    if (compute_ca) {
-        gen_op_arith_compute_ca(ctx, t0, arg1, 0);
-    }
-    if (add_ca) {
-        tcg_gen_add_tl(t0, t0, t1);
-        gen_op_arith_compute_ca(ctx, t0, t1, 0);
-        tcg_temp_free(t1);
-    }
     if (compute_ov) {
         gen_op_arith_compute_ov(ctx, t0, arg1, arg2, 0);
     }
-
-    if (unlikely(Rc(ctx->opcode) != 0))
+    if (unlikely(compute_rc0)) {
         gen_set_Rc0(ctx, t0);
+    }
 
     if (!TCGV_EQUAL(t0, ret)) {
         tcg_gen_mov_tl(ret, t0);
@@ -840,21 +807,21 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
 }
 /* Add functions with two operands */
 #define GEN_INT_ARITH_ADD(name, opc3, add_ca, compute_ca, compute_ov)         \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
     gen_op_arith_add(ctx, cpu_gpr[rD(ctx->opcode)],                           \
                      cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],      \
-                     add_ca, compute_ca, compute_ov);                         \
+                     add_ca, compute_ca, compute_ov, Rc(ctx->opcode));        \
 }
 /* Add functions with one operand and one immediate */
 #define GEN_INT_ARITH_ADD_CONST(name, opc3, const_val,                        \
                                 add_ca, compute_ca, compute_ov)               \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
-    TCGv t0 = tcg_const_local_tl(const_val);                                  \
+    TCGv t0 = tcg_const_tl(const_val);                                        \
     gen_op_arith_add(ctx, cpu_gpr[rD(ctx->opcode)],                           \
                      cpu_gpr[rA(ctx->opcode)], t0,                            \
-                     add_ca, compute_ca, compute_ov);                         \
+                     add_ca, compute_ca, compute_ov, Rc(ctx->opcode));        \
     tcg_temp_free(t0);                                                        \
 }
 
@@ -882,40 +849,27 @@ static void gen_addi(DisasContext *ctx)
         /* li case */
         tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], simm);
     } else {
-        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], simm);
+        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)],
+                        cpu_gpr[rA(ctx->opcode)], simm);
     }
 }
 /* addic  addic.*/
-static inline void gen_op_addic(DisasContext *ctx, TCGv ret, TCGv arg1,
-                                int compute_Rc0)
+static inline void gen_op_addic(DisasContext *ctx, bool compute_rc0)
 {
-    target_long simm = SIMM(ctx->opcode);
-
-    /* Start with XER CA disabled, the most likely case */
-    tcg_gen_movi_tl(cpu_ca, 0);
-
-    if (likely(simm != 0)) {
-        TCGv t0 = tcg_temp_local_new();
-        tcg_gen_addi_tl(t0, arg1, simm);
-        gen_op_arith_compute_ca(ctx, t0, arg1, 0);
-        tcg_gen_mov_tl(ret, t0);
-        tcg_temp_free(t0);
-    } else {
-        tcg_gen_mov_tl(ret, arg1);
-    }
-    if (compute_Rc0) {
-        gen_set_Rc0(ctx, ret);
-    }
+    TCGv c = tcg_const_tl(SIMM(ctx->opcode));
+    gen_op_arith_add(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                     c, 0, 1, 0, compute_rc0);
+    tcg_temp_free(c);
 }
 
 static void gen_addic(DisasContext *ctx)
 {
-    gen_op_addic(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0);
+    gen_op_addic(ctx, 0);
 }
 
 static void gen_addic_(DisasContext *ctx)
 {
-    gen_op_addic(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 1);
+    gen_op_addic(ctx, 1);
 }
 
 /* addis */
@@ -927,7 +881,8 @@ static void gen_addis(DisasContext *ctx)
         /* lis case */
         tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], simm << 16);
     } else {
-        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], simm << 16);
+        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)],
+                        cpu_gpr[rA(ctx->opcode)], simm << 16);
     }
 }
 
@@ -1212,49 +1167,43 @@ static void gen_nego(DisasContext *ctx)
 
 /* Common subf function */
 static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
-                                     TCGv arg2, int add_ca, int compute_ca,
-                                     int compute_ov)
+                                     TCGv arg2, bool add_ca, bool compute_ca,
+                                     bool compute_ov, bool compute_rc0)
 {
-    TCGv t0, t1;
+    TCGv t0 = ret;
 
-    if ((!compute_ca && !compute_ov) ||
-        (!TCGV_EQUAL(ret, arg1) && !TCGV_EQUAL(ret, arg2)))  {
-        t0 = ret;
-    } else {
-        t0 = tcg_temp_local_new();
+    if (((add_ca && compute_ca) || compute_ov)
+        && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
+        t0 = tcg_temp_new();
     }
 
     if (add_ca) {
-        t1 = tcg_temp_local_new();
-        tcg_gen_mov_tl(t1, cpu_ca);
-    } else {
-        TCGV_UNUSED(t1);
-    }
-
-    if (compute_ca) {
-        /* Start with XER CA disabled, the most likely case */
-        tcg_gen_movi_tl(cpu_ca, 0);
-    }
-
-    if (add_ca) {
-        tcg_gen_not_tl(t0, arg1);
-        tcg_gen_add_tl(t0, t0, arg2);
-        gen_op_arith_compute_ca(ctx, t0, arg2, 0);
-        tcg_gen_add_tl(t0, t0, t1);
-        gen_op_arith_compute_ca(ctx, t0, t1, 0);
-        tcg_temp_free(t1);
-    } else {
-        tcg_gen_sub_tl(t0, arg2, arg1);
+        /* dest = ~arg1 + arg2 + ca = arg2 - arg1 + ca - 1.  */
         if (compute_ca) {
-            gen_op_arith_compute_ca(ctx, t0, arg2, 1);
+            TCGv zero;
+            tcg_gen_subi_tl(cpu_ca, cpu_ca, 1);
+            zero = tcg_const_tl(0);
+            tcg_gen_add2_tl(t0, cpu_ca, arg2, zero, cpu_ca, zero);
+            tcg_gen_sub2_tl(t0, cpu_ca, t0, cpu_ca, arg1, zero);
+            tcg_temp_free(zero);
+        } else {
+            tcg_gen_sub_tl(t0, arg2, arg1);
+            tcg_gen_add_tl(t0, t0, cpu_ca);
+            tcg_gen_subi_tl(t0, t0, 1);
         }
+    } else {
+        if (compute_ca) {
+            tcg_gen_setcond_tl(TCG_COND_GEU, cpu_ca, arg2, arg1);
+        }
+        tcg_gen_sub_tl(t0, arg2, arg1);
     }
+
     if (compute_ov) {
         gen_op_arith_compute_ov(ctx, t0, arg1, arg2, 1);
     }
-
-    if (unlikely(Rc(ctx->opcode) != 0))
+    if (unlikely(compute_rc0)) {
         gen_set_Rc0(ctx, t0);
+    }
 
     if (!TCGV_EQUAL(t0, ret)) {
         tcg_gen_mov_tl(ret, t0);
@@ -1263,21 +1212,21 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
 }
 /* Sub functions with Two operands functions */
 #define GEN_INT_ARITH_SUBF(name, opc3, add_ca, compute_ca, compute_ov)        \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
     gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)],                          \
                       cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],     \
-                      add_ca, compute_ca, compute_ov);                        \
+                      add_ca, compute_ca, compute_ov, Rc(ctx->opcode));       \
 }
 /* Sub functions with one operand and one immediate */
 #define GEN_INT_ARITH_SUBF_CONST(name, opc3, const_val,                       \
                                 add_ca, compute_ca, compute_ov)               \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
-    TCGv t0 = tcg_const_local_tl(const_val);                                  \
+    TCGv t0 = tcg_const_tl(const_val);                                        \
     gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)],                          \
                       cpu_gpr[rA(ctx->opcode)], t0,                           \
-                      add_ca, compute_ca, compute_ov);                        \
+                      add_ca, compute_ca, compute_ov, Rc(ctx->opcode));       \
     tcg_temp_free(t0);                                                        \
 }
 /* subf  subf.  subfo  subfo. */
@@ -1299,15 +1248,10 @@ GEN_INT_ARITH_SUBF_CONST(subfzeo, 0x16, 0, 1, 1, 1)
 /* subfic */
 static void gen_subfic(DisasContext *ctx)
 {
-    /* Start with XER CA disabled, the most likely case */
-    tcg_gen_movi_tl(cpu_ca, 0);
-    TCGv t0 = tcg_temp_local_new();
-    TCGv t1 = tcg_const_local_tl(SIMM(ctx->opcode));
-    tcg_gen_sub_tl(t0, t1, cpu_gpr[rA(ctx->opcode)]);
-    gen_op_arith_compute_ca(ctx, t0, t1, 1);
-    tcg_temp_free(t1);
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
+    TCGv c = tcg_const_tl(SIMM(ctx->opcode));
+    gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                      c, 0, 1, 0, 0);
+    tcg_temp_free(c);
 }
 
 /***                            Integer logical                            ***/
