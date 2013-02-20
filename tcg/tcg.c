@@ -1217,7 +1217,7 @@ static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps,
 static void tcg_liveness_analysis(TCGContext *s)
 {
     int i, op_index, nb_args, nb_iargs, nb_oargs, arg, nb_ops;
-    TCGOpcode op;
+    TCGOpcode op, op_new;
     TCGArg *args;
     const TCGOpDef *def;
     uint8_t *dead_temps, *mem_temps;
@@ -1324,7 +1324,17 @@ static void tcg_liveness_analysis(TCGContext *s)
             break;
 
         case INDEX_op_add2_i32:
+            op_new = INDEX_op_add_i32;
+            goto do_addsub2;
         case INDEX_op_sub2_i32:
+            op_new = INDEX_op_sub_i32;
+            goto do_addsub2;
+        case INDEX_op_add2_i64:
+            op_new = INDEX_op_add_i64;
+            goto do_addsub2;
+        case INDEX_op_sub2_i64:
+            op_new = INDEX_op_sub_i64;
+        do_addsub2:
             args -= 6;
             nb_iargs = 4;
             nb_oargs = 2;
@@ -1337,12 +1347,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                     goto do_remove;
                 }
                 /* Create the single operation plus nop.  */
-                if (op == INDEX_op_add2_i32) {
-                    op = INDEX_op_add_i32;
-                } else {
-                    op = INDEX_op_sub_i32;
-                }
-                s->gen_opc_buf[op_index] = op;
+                s->gen_opc_buf[op_index] = op = op_new;
                 args[1] = args[2];
                 args[2] = args[4];
                 assert(s->gen_opc_buf[op_index + 1] == INDEX_op_nop);
@@ -1354,6 +1359,13 @@ static void tcg_liveness_analysis(TCGContext *s)
             goto do_not_remove;
 
         case INDEX_op_mulu2_i32:
+        case INDEX_op_muls2_i32:
+            op_new = INDEX_op_mul_i32;
+            goto do_mul2;
+        case INDEX_op_mulu2_i64:
+        case INDEX_op_muls2_i64:
+            op_new = INDEX_op_mul_i64;
+        do_mul2:
             args -= 4;
             nb_iargs = 2;
             nb_oargs = 2;
@@ -1362,7 +1374,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                 if (dead_temps[args[0]] && !mem_temps[args[0]]) {
                     goto do_remove;
                 }
-                s->gen_opc_buf[op_index] = op = INDEX_op_mul_i32;
+                s->gen_opc_buf[op_index] = op = op_new;
                 args[1] = args[2];
                 args[2] = args[3];
                 assert(s->gen_opc_buf[op_index + 1] == INDEX_op_nop);
