@@ -2893,11 +2893,6 @@ uint32_t HELPER(sel_flags)(uint32_t flags, uint32_t a, uint32_t b)
     return (a & mask) | (b & ~mask);
 }
 
-uint32_t HELPER(logicq_cc)(uint64_t val)
-{
-    return (val >> 32) | (val != 0);
-}
-
 /* VFP support.  We follow the convention used for VFP instructions:
    Single precision routines have a "s" suffix, double precision a
    "d" suffix.  */

@@ -6433,13 +6433,11 @@ static void gen_addq(DisasContext *s, TCGv_i64 val, int rlow, int rhigh)
     tcg_temp_free_i64(tmp);
 }
 
-/* Set N and Z flags from a 64-bit value.  */
-static void gen_logicq_cc(TCGv_i64 val)
+/* Set N and Z flags from hi|lo.  */
+static void gen_logicq_cc(TCGv lo, TCGv hi)
 {
-    TCGv tmp = tcg_temp_new_i32();
-    gen_helper_logicq_cc(tmp, val);
-    gen_logic_CC(tmp);
-    tcg_temp_free_i32(tmp);
+    tcg_gen_mov_i32(cpu_NF, hi);
+    tcg_gen_or_i32(cpu_ZF, lo, hi);
 }
 
 /* Load/Store exclusive instructions are implemented by remembering
@@ -7219,18 +7217,22 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                         tmp = load_reg(s, rs);
                         tmp2 = load_reg(s, rm);
                         if (insn & (1 << 22)) {
-                            tmp64 = gen_muls_i64_i32(tmp, tmp2);
+                            tcg_gen_muls2_i32(tmp, tmp2, tmp, tmp2);
                         } else {
-                            tmp64 = gen_mulu_i64_i32(tmp, tmp2);
+                            tcg_gen_mulu2_i32(tmp, tmp2, tmp, tmp2);
                         }
                         if (insn & (1 << 21)) { /* mult accumulate */
-                            gen_addq(s, tmp64, rn, rd);
+                            TCGv al = load_reg(s, rn);
+                            TCGv ah = load_reg(s, rd);
+                            tcg_gen_add2_i32(tmp, tmp2, tmp, tmp2, al, ah);
+                            tcg_temp_free(al);
+                            tcg_temp_free(ah);
                         }
                         if (insn & (1 << 20)) {
-                            gen_logicq_cc(tmp64);
+                            gen_logicq_cc(tmp, tmp2);
                         }
-                        gen_storeq_reg(s, rn, rd, tmp64);
-                        tcg_temp_free_i64(tmp64);
+                        store_reg(s, rn, tmp);
+                        store_reg(s, rd, tmp2);
                         break;
                     default:
                         goto illegal_op;
