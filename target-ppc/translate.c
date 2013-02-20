@@ -596,33 +596,33 @@ static opc_handler_t invalid_handler = {
 
 static inline void gen_op_cmp(TCGv arg0, TCGv arg1, int s, int crf)
 {
-    int l1, l2, l3;
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_temp_new_i32();
 
     tcg_gen_trunc_tl_i32(cpu_crf[crf], cpu_so);
 
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    l3 = gen_new_label();
-    if (s) {
-        tcg_gen_brcond_tl(TCG_COND_LT, arg0, arg1, l1);
-        tcg_gen_brcond_tl(TCG_COND_GT, arg0, arg1, l2);
-    } else {
-        tcg_gen_brcond_tl(TCG_COND_LTU, arg0, arg1, l1);
-        tcg_gen_brcond_tl(TCG_COND_GTU, arg0, arg1, l2);
-    }
-    tcg_gen_ori_i32(cpu_crf[crf], cpu_crf[crf], 1 << CRF_EQ);
-    tcg_gen_br(l3);
-    gen_set_label(l1);
-    tcg_gen_ori_i32(cpu_crf[crf], cpu_crf[crf], 1 << CRF_LT);
-    tcg_gen_br(l3);
-    gen_set_label(l2);
-    tcg_gen_ori_i32(cpu_crf[crf], cpu_crf[crf], 1 << CRF_GT);
-    gen_set_label(l3);
+    tcg_gen_setcond_tl((s ? TCG_COND_LT: TCG_COND_LTU), t0, arg0, arg1);
+    tcg_gen_trunc_tl_i32(t1, t0);
+    tcg_gen_shli_i32(t1, t1, CRF_LT);
+    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t1);
+
+    tcg_gen_setcond_tl((s ? TCG_COND_GT: TCG_COND_GTU), t0, arg0, arg1);
+    tcg_gen_trunc_tl_i32(t1, t0);
+    tcg_gen_shli_i32(t1, t1, CRF_GT);
+    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t1);
+
+    tcg_gen_setcond_tl(TCG_COND_EQ, t0, arg0, arg1);
+    tcg_gen_trunc_tl_i32(t1, t0);
+    tcg_gen_shli_i32(t1, t1, CRF_EQ);
+    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t1);
+
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
 }
 
 static inline void gen_op_cmpi(TCGv arg0, target_ulong arg1, int s, int crf)
 {
-    TCGv t0 = tcg_const_local_tl(arg1);
+    TCGv t0 = tcg_const_tl(arg1);
     gen_op_cmp(arg0, t0, s, crf);
     tcg_temp_free(t0);
 }
@@ -631,8 +631,8 @@ static inline void gen_op_cmpi(TCGv arg0, target_ulong arg1, int s, int crf)
 static inline void gen_op_cmp32(TCGv arg0, TCGv arg1, int s, int crf)
 {
     TCGv t0, t1;
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
     if (s) {
         tcg_gen_ext32s_tl(t0, arg0);
         tcg_gen_ext32s_tl(t1, arg1);
@@ -647,7 +647,7 @@ static inline void gen_op_cmp32(TCGv arg0, TCGv arg1, int s, int crf)
 
 static inline void gen_op_cmpi32(TCGv arg0, target_ulong arg1, int s, int crf)
 {
-    TCGv t0 = tcg_const_local_tl(arg1);
+    TCGv t0 = tcg_const_tl(arg1);
     gen_op_cmp32(arg0, t0, s, crf);
     tcg_temp_free(t0);
 }
