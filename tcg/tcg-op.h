@@ -2332,6 +2332,44 @@ static inline void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret,
 #endif
 }
 
+static inline void tcg_gen_add2_i32(TCGv_i32 rl, TCGv_i32 rh, TCGv_i32 al,
+                                    TCGv_i32 ah, TCGv_i32 bl, TCGv_i32 bh)
+{
+    if (TCG_TARGET_HAS_add2_i32) {
+        tcg_gen_op6_i32(INDEX_op_add2_i32, rl, rh, al, ah, bl, bh);
+        /* Allow the optimizer room to replace add2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_concat_i32_i64(t0, al, ah);
+        tcg_gen_concat_i32_i64(t1, bl, bh);
+        tcg_gen_add_i64(t0, t0, t1);
+        tcg_gen_extr_i64_i32(rl, rh, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_sub2_i32(TCGv_i32 rl, TCGv_i32 rh, TCGv_i32 al,
+                                    TCGv_i32 ah, TCGv_i32 bl, TCGv_i32 bh)
+{
+    if (TCG_TARGET_HAS_sub2_i32) {
+        tcg_gen_op6_i32(INDEX_op_sub2_i32, rl, rh, al, ah, bl, bh);
+        /* Allow the optimizer room to replace sub2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_concat_i32_i64(t0, al, ah);
+        tcg_gen_concat_i32_i64(t1, bl, bh);
+        tcg_gen_sub_i64(t0, t0, t1);
+        tcg_gen_extr_i64_i32(rl, rh, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
 static inline void tcg_gen_mulu2_i32(TCGv_i32 rl, TCGv_i32 rh,
                                      TCGv_i32 arg1, TCGv_i32 arg2)
 {
@@ -2365,6 +2403,46 @@ static inline void tcg_gen_muls2_i32(TCGv_i32 rl, TCGv_i32 rh,
         tcg_gen_ext_i32_i64(t1, arg2);
         tcg_gen_mul_i64(t0, t0, t1);
         tcg_gen_extr_i64_i32(rl, rh, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_add2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 al,
+                                    TCGv_i64 ah, TCGv_i64 bl, TCGv_i64 bh)
+{
+    if (TCG_TARGET_HAS_add2_i64) {
+        tcg_gen_op6_i64(INDEX_op_add2_i64, rl, rh, al, ah, bl, bh);
+        /* Allow the optimizer room to replace add2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_add_i64(t0, al, bl);
+        tcg_gen_setcond_i64(TCG_COND_LTU, t1, t0, al);
+        tcg_gen_add_i64(rh, ah, bh);
+        tcg_gen_add_i64(rh, rh, t1);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_sub2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 al,
+                                    TCGv_i64 ah, TCGv_i64 bl, TCGv_i64 bh)
+{
+    if (TCG_TARGET_HAS_sub2_i64) {
+        tcg_gen_op6_i64(INDEX_op_sub2_i64, rl, rh, al, ah, bl, bh);
+        /* Allow the optimizer room to replace sub2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_sub_i64(t0, al, bl);
+        tcg_gen_setcond_i64(TCG_COND_LTU, t1, al, bl);
+        tcg_gen_sub_i64(rh, ah, bh);
+        tcg_gen_sub_i64(rh, rh, t1);
+        tcg_gen_mov_i64(rl, t0);
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
     }
@@ -2739,6 +2817,8 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_const_tl tcg_const_i64
 #define tcg_const_local_tl tcg_const_local_i64
 #define tcg_gen_movcond_tl tcg_gen_movcond_i64
+#define tcg_gen_add2_tl tcg_gen_add2_i64
+#define tcg_gen_sub2_tl tcg_gen_sub2_i64
 #define tcg_gen_mulu2_tl tcg_gen_mulu2_i64
 #define tcg_gen_muls2_tl tcg_gen_muls2_i64
 #else
@@ -2814,6 +2894,8 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_const_tl tcg_const_i32
 #define tcg_const_local_tl tcg_const_local_i32
 #define tcg_gen_movcond_tl tcg_gen_movcond_i32
+#define tcg_gen_add2_tl tcg_gen_add2_i32
+#define tcg_gen_sub2_tl tcg_gen_sub2_i32
 #define tcg_gen_mulu2_tl tcg_gen_mulu2_i32
 #define tcg_gen_muls2_tl tcg_gen_muls2_i32
 #endif
