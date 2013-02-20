@@ -1036,35 +1036,21 @@ static void gen_mullw(DisasContext *ctx)
 /* mullwo  mullwo. */
 static void gen_mullwo(DisasContext *ctx)
 {
-    int l1;
-    TCGv_i64 t0, t1;
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
 
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-    l1 = gen_new_label();
-    /* Start with XER OV disabled, the most likely case */
-    tcg_gen_movi_tl(cpu_ov, 0);
-#if defined(TARGET_PPC64)
-    tcg_gen_ext32s_i64(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext32s_i64(t1, cpu_gpr[rB(ctx->opcode)]);
-#else
-    tcg_gen_ext_tl_i64(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext_tl_i64(t1, cpu_gpr[rB(ctx->opcode)]);
-#endif
-    tcg_gen_mul_i64(t0, t0, t1);
-#if defined(TARGET_PPC64)
-    tcg_gen_ext32s_i64(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_gen_brcond_i64(TCG_COND_EQ, t0, cpu_gpr[rD(ctx->opcode)], l1);
-#else
-    tcg_gen_trunc_i64_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_gen_ext32s_i64(t1, t0);
-    tcg_gen_brcond_i64(TCG_COND_EQ, t0, t1, l1);
-#endif
-    tcg_gen_movi_tl(cpu_ov, 1);
-    tcg_gen_movi_tl(cpu_so, 1);
-    gen_set_label(l1);
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
+    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);
+    tcg_gen_muls2_i32(t0, t1, t0, t1);
+    tcg_gen_ext_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);
+
+    tcg_gen_sari_i32(t0, t0, 31);
+    tcg_gen_setcond_i32(TCG_COND_NE, t0, t0, t1);
+    tcg_gen_extu_i32_tl(cpu_ov, t0);
+    tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
+
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
