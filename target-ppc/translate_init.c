@@ -54,7 +54,7 @@ static void spr_load_dump_spr(int sprn)
 {
 #ifdef PPC_DUMP_SPR_ACCESSES
     TCGv_i32 t0 = tcg_const_i32(sprn);
-    gen_helper_load_dump_spr(t0);
+    gen_helper_load_dump_spr(cpu_env, t0);
     tcg_temp_free_i32(t0);
 #endif
 }
@@ -69,7 +69,7 @@ static void spr_store_dump_spr(int sprn)
 {
 #ifdef PPC_DUMP_SPR_ACCESSES
     TCGv_i32 t0 = tcg_const_i32(sprn);
-    gen_helper_store_dump_spr(t0);
+    gen_helper_store_dump_spr(cpu_env, t0);
     tcg_temp_free_i32(t0);
 #endif
 }
