@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 #include <windows.h>
+#include <mmsystem.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -67,9 +68,19 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
     return TRUE;
 }
 
+static TIMECAPS mm_tc;
+
+static void os_undo_timer_resolution(void)
+{
+    timeEndPeriod(mm_tc.wPeriodMin);
+}
+
 void os_setup_early_signal_handling(void)
 {
     SetConsoleCtrlHandler(qemu_ctrl_handler, TRUE);
+    timeGetDevCaps(&mm_tc, sizeof(mm_tc));
+    timeBeginPeriod(mm_tc.wPeriodMin);
+    atexit(os_undo_timer_resolution);
 }
 
 /* Look for support files in the same directory as the executable.  */
