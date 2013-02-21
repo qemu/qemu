@@ -700,7 +700,7 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
                 vmstate_register_ram_global(&ram_memories[i]);
                 ram_bases[i] = base;
                 ram_sizes[i] = bank_size;
-                base += ram_size;
+                base += bank_size;
                 size_left -= bank_size;
                 break;
             }
