@@ -53,10 +53,14 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
         log = __sync_fetch_and_and(from, 0);
         while ((bit = sizeof(log) > sizeof(int) ?
                 ffsll(log) : ffs(log))) {
-            ram_addr_t ram_addr;
+            hwaddr page_addr;
+            hwaddr section_offset;
+            hwaddr mr_offset;
             bit -= 1;
-            ram_addr = section->offset_within_region + bit * VHOST_LOG_PAGE;
-            memory_region_set_dirty(section->mr, ram_addr, VHOST_LOG_PAGE);
+            page_addr = addr + bit * VHOST_LOG_PAGE;
+            section_offset = page_addr - section->offset_within_address_space;
+            mr_offset = section_offset + section->offset_within_region;
+            memory_region_set_dirty(section->mr, mr_offset, VHOST_LOG_PAGE);
             log &= ~(0x1ull << bit);
         }
         addr += VHOST_LOG_CHUNK;
@@ -65,14 +69,21 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
 
 static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
                                    MemoryRegionSection *section,
-                                   hwaddr start_addr,
-                                   hwaddr end_addr)
+                                   hwaddr first,
+                                   hwaddr last)
 {
     int i;
+    hwaddr start_addr;
+    hwaddr end_addr;
 
     if (!dev->log_enabled || !dev->started) {
         return 0;
     }
+    start_addr = section->offset_within_address_space;
+    end_addr = range_get_last(start_addr, section->size);
+    start_addr = MAX(first, start_addr);
+    end_addr = MIN(last, end_addr);
+
     for (i = 0; i < dev->mem->nregions; ++i) {
         struct vhost_memory_region *reg = dev->mem->regions + i;
         vhost_dev_sync_region(dev, section, start_addr, end_addr,
@@ -93,10 +104,18 @@ static void vhost_log_sync(MemoryListener *listener,
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
-    hwaddr start_addr = section->offset_within_address_space;
-    hwaddr end_addr = start_addr + section->size;
+    vhost_sync_dirty_bitmap(dev, section, 0x0, ~0x0ULL);
+}
 
-    vhost_sync_dirty_bitmap(dev, section, start_addr, end_addr);
+static void vhost_log_sync_range(struct vhost_dev *dev,
+                                 hwaddr first, hwaddr last)
+{
+    int i;
+    /* FIXME: this is N^2 in number of sections */
+    for (i = 0; i < dev->n_mem_sections; ++i) {
+        MemoryRegionSection *section = &dev->mem_sections[i];
+        vhost_sync_dirty_bitmap(dev, section, first, last);
+    }
 }
 
 /* Assign/unassign. Keep an unsorted array of non-overlapping
@@ -268,16 +287,15 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
 {
     vhost_log_chunk_t *log;
     uint64_t log_base;
-    int r, i;
+    int r;
 
     log = g_malloc0(size * sizeof *log);
     log_base = (uint64_t)(unsigned long)log;
     r = ioctl(dev->control, VHOST_SET_LOG_BASE, &log_base);
     assert(r >= 0);
-    for (i = 0; i < dev->n_mem_sections; ++i) {
-        /* Sync only the range covered by the old log */
-        vhost_sync_dirty_bitmap(dev, &dev->mem_sections[i], 0,
-                                dev->log_size * VHOST_LOG_CHUNK - 1);
+    /* Sync only the range covered by the old log */
+    if (dev->log_size) {
+        vhost_log_sync_range(dev, 0, dev->log_size * VHOST_LOG_CHUNK - 1);
     }
     if (dev->log) {
         g_free(dev->log);
@@ -1014,10 +1032,7 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
                              hdev->vqs + i,
                              hdev->vq_index + i);
     }
-    for (i = 0; i < hdev->n_mem_sections; ++i) {
-        vhost_sync_dirty_bitmap(hdev, &hdev->mem_sections[i],
-                                0, (hwaddr)~0x0ull);
-    }
+    vhost_log_sync_range(hdev, 0, ~0x0ull);
 
     hdev->started = false;
     g_free(hdev->log);
