@@ -3204,7 +3204,11 @@ static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
 
 typedef struct CharDriver {
     const char *name;
+    /* old, pre qapi */
     CharDriverState *(*open)(QemuOpts *opts);
+    /* new, qapi-based */
+    int kind;
+    void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 } CharDriver;
 
 static GSList *backends;
@@ -3216,6 +3220,19 @@ void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *)
     s = g_malloc0(sizeof(*s));
     s->name = g_strdup(name);
     s->open = open;
+
+    backends = g_slist_append(backends, s);
+}
+
+void register_char_driver_qapi(const char *name, int kind,
+        void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp))
+{
+    CharDriver *s;
+
+    s = g_malloc0(sizeof(*s));
+    s->name = g_strdup(name);
+    s->kind = kind;
+    s->parse = parse;
 
     backends = g_slist_append(backends, s);
 }
@@ -3249,6 +3266,32 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         error_setg(errp, "chardev: backend \"%s\" not found",
                    qemu_opt_get(opts, "backend"));
         return NULL;
+    }
+
+    if (!cd->open) {
+        /* using new, qapi init */
+        ChardevBackend *backend = g_new0(ChardevBackend, 1);
+        ChardevReturn *ret = NULL;
+        const char *id = qemu_opts_id(opts);
+
+        chr = NULL;
+        backend->kind = cd->kind;
+        if (cd->parse) {
+            cd->parse(opts, backend, errp);
+            if (error_is_set(errp)) {
+                goto qapi_out;
+            }
+        }
+        ret = qmp_chardev_add(qemu_opts_id(opts), backend, errp);
+        if (error_is_set(errp)) {
+            goto qapi_out;
+        }
+        chr = qemu_chr_find(id);
+
+    qapi_out:
+        qapi_free_ChardevBackend(backend);
+        qapi_free_ChardevReturn(ret);
+        return chr;
     }
 
     chr = cd->open(opts);
