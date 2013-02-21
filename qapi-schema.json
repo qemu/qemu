@@ -3210,7 +3210,8 @@
                                        'socket' : 'ChardevSocket',
                                        'pty'    : 'ChardevDummy',
                                        'null'   : 'ChardevDummy',
-                                       'mux'    : 'ChardevMux' } }
+                                       'mux'    : 'ChardevMux',
+                                       'msmouse': 'ChardevDummy' } }
 
 ##
 # @ChardevReturn:

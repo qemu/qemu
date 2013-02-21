@@ -3719,6 +3719,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         }
         chr = qemu_chr_open_mux(base);
         break;
+    case CHARDEV_BACKEND_KIND_MSMOUSE:
+        chr = qemu_chr_open_msmouse();
+        break;
     default:
         error_setg(errp, "unknown chardev backend (%d)", backend->kind);
         break;

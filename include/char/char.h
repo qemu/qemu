@@ -261,4 +261,7 @@ size_t qemu_chr_mem_osize(const CharDriverState *chr);
 
 CharDriverState *qemu_char_get_next_serial(void);
 
+/* msmouse */
+CharDriverState *qemu_chr_open_msmouse(void);
+
 #endif
