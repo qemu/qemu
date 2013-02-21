@@ -3196,6 +3196,19 @@
 { 'type': 'ChardevMux', 'data': { 'chardev' : 'str' } }
 
 ##
+# @ChardevStdio:
+#
+# Configuration info for stdio chardevs.
+#
+# @signal: #optional Allow signals (such as SIGINT triggered by ^C)
+#          be delivered to qemu.  Default: true in -nographic mode,
+#          false otherwise.
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevStdio', 'data': { '*signal' : 'bool' } }
+
+##
 # @ChardevBackend:
 #
 # Configuration info for the new chardev backend.
@@ -3212,7 +3225,8 @@
                                        'null'   : 'ChardevDummy',
                                        'mux'    : 'ChardevMux',
                                        'msmouse': 'ChardevDummy',
-                                       'braille': 'ChardevDummy' } }
+                                       'braille': 'ChardevDummy',
+                                       'stdio'  : 'ChardevStdio' } }
 
 ##
 # @ChardevReturn:
