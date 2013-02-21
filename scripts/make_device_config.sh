@@ -25,4 +25,4 @@ done
 process_includes $src > $dest
 
 cat $src $all_includes | grep -v '^include' > $dest
-echo "`basename $1`: $all_includes" > $dep
+echo "$1: $all_includes" > $dep
