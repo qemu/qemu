@@ -3273,6 +3273,11 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         ChardevBackend *backend = g_new0(ChardevBackend, 1);
         ChardevReturn *ret = NULL;
         const char *id = qemu_opts_id(opts);
+        const char *bid = NULL;
+
+        if (qemu_opt_get_bool(opts, "mux", 0)) {
+            bid = g_strdup_printf("%s-base", id);
+        }
 
         chr = NULL;
         backend->kind = cd->kind;
@@ -3282,10 +3287,24 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
                 goto qapi_out;
             }
         }
-        ret = qmp_chardev_add(qemu_opts_id(opts), backend, errp);
+        ret = qmp_chardev_add(bid ? bid : id, backend, errp);
         if (error_is_set(errp)) {
             goto qapi_out;
         }
+
+        if (bid) {
+            qapi_free_ChardevBackend(backend);
+            qapi_free_ChardevReturn(ret);
+            backend = g_new0(ChardevBackend, 1);
+            backend->mux = g_new0(ChardevMux, 1);
+            backend->kind = CHARDEV_BACKEND_KIND_MUX;
+            backend->mux->chardev = g_strdup(bid);
+            ret = qmp_chardev_add(id, backend, errp);
+            if (error_is_set(errp)) {
+                goto qapi_out;
+            }
+        }
+
         chr = qemu_chr_find(id);
 
     qapi_out:
@@ -3653,7 +3672,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
                                Error **errp)
 {
     ChardevReturn *ret = g_new0(ChardevReturn, 1);
-    CharDriverState *chr = NULL;
+    CharDriverState *base, *chr = NULL;
 
     chr = qemu_chr_find(id);
     if (chr) {
@@ -3691,6 +3710,15 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_NULL:
         chr = qemu_chr_open_null(NULL);
         break;
+    case CHARDEV_BACKEND_KIND_MUX:
+        base = qemu_chr_find(backend->mux->chardev);
+        if (base == NULL) {
+            error_setg(errp, "mux: base chardev %s not found",
+                       backend->mux->chardev);
+            break;
+        }
+        chr = qemu_chr_open_mux(base);
+        break;
     default:
         error_setg(errp, "unknown chardev backend (%d)", backend->kind);
         break;
@@ -3701,7 +3729,8 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     }
     if (chr) {
         chr->label = g_strdup(id);
-        chr->avail_connections = 1;
+        chr->avail_connections =
+            (backend->kind == CHARDEV_BACKEND_KIND_MUX) ? MAX_MUX : 1;
         QTAILQ_INSERT_TAIL(&chardevs, chr, next);
         return ret;
     } else {
