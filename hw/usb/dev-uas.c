@@ -99,6 +99,9 @@ typedef struct {
 
 /* --------------------------------------------------------------------- */
 
+#define UAS_STREAM_BM_ATTR  4
+#define UAS_MAX_STREAMS     (1 << UAS_STREAM_BM_ATTR)
+
 typedef struct UASDevice UASDevice;
 typedef struct UASRequest UASRequest;
 typedef struct UASStatus UASStatus;
@@ -106,12 +109,18 @@ typedef struct UASStatus UASStatus;
 struct UASDevice {
     USBDevice                 dev;
     SCSIBus                   bus;
-    UASRequest                *datain;
-    UASRequest                *dataout;
-    USBPacket                 *status;
     QEMUBH                    *status_bh;
     QTAILQ_HEAD(, UASStatus)  results;
     QTAILQ_HEAD(, UASRequest) requests;
+
+    /* usb 2.0 only */
+    USBPacket                 *status2;
+    UASRequest                *datain2;
+    UASRequest                *dataout2;
+
+    /* usb 3.0 only */
+    USBPacket                 *data3[UAS_MAX_STREAMS];
+    USBPacket                 *status3[UAS_MAX_STREAMS];
 };
 
 struct UASRequest {
@@ -132,6 +141,7 @@ struct UASRequest {
 };
 
 struct UASStatus {
+    uint32_t                  stream;
     uas_ui                    status;
     uint32_t                  length;
     QTAILQ_ENTRY(UASStatus)   next;
@@ -144,6 +154,7 @@ enum {
     STR_PRODUCT,
     STR_SERIALNUMBER,
     STR_CONFIG_HIGH,
+    STR_CONFIG_SUPER,
 };
 
 static const USBDescStrings desc_strings = {
@@ -151,6 +162,7 @@ static const USBDescStrings desc_strings = {
     [STR_PRODUCT]      = "USB Attached SCSI HBA",
     [STR_SERIALNUMBER] = "27842",
     [STR_CONFIG_HIGH]  = "High speed config (usb 2.0)",
+    [STR_CONFIG_SUPER] = "Super speed config (usb 3.0)",
 };
 
 static const USBDescIface desc_iface_high = {
@@ -204,6 +216,64 @@ static const USBDescIface desc_iface_high = {
     }
 };
 
+static const USBDescIface desc_iface_super = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 4,
+    .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
+    .bInterfaceSubClass            = 0x06, /* SCSI */
+    .bInterfaceProtocol            = 0x62, /* UAS  */
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_COMMAND,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 1024,
+            .bMaxBurst             = 15,
+            .extra = (uint8_t[]) {
+                0x04,  /*  u8  bLength */
+                0x24,  /*  u8  bDescriptorType */
+                UAS_PIPE_ID_COMMAND,
+                0x00,  /*  u8  bReserved */
+            },
+        },{
+            .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_STATUS,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 1024,
+            .bMaxBurst             = 15,
+            .bmAttributes_super    = UAS_STREAM_BM_ATTR,
+            .extra = (uint8_t[]) {
+                0x04,  /*  u8  bLength */
+                0x24,  /*  u8  bDescriptorType */
+                UAS_PIPE_ID_STATUS,
+                0x00,  /*  u8  bReserved */
+            },
+        },{
+            .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_DATA_IN,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 1024,
+            .bMaxBurst             = 15,
+            .bmAttributes_super    = UAS_STREAM_BM_ATTR,
+            .extra = (uint8_t[]) {
+                0x04,  /*  u8  bLength */
+                0x24,  /*  u8  bDescriptorType */
+                UAS_PIPE_ID_DATA_IN,
+                0x00,  /*  u8  bReserved */
+            },
+        },{
+            .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_DATA_OUT,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 1024,
+            .bMaxBurst             = 15,
+            .bmAttributes_super    = UAS_STREAM_BM_ATTR,
+            .extra = (uint8_t[]) {
+                0x04,  /*  u8  bLength */
+                0x24,  /*  u8  bDescriptorType */
+                UAS_PIPE_ID_DATA_OUT,
+                0x00,  /*  u8  bReserved */
+            },
+        },
+    }
+};
+
 static const USBDescDevice desc_device_high = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 64,
@@ -220,6 +290,22 @@ static const USBDescDevice desc_device_high = {
     },
 };
 
+static const USBDescDevice desc_device_super = {
+    .bcdUSB                        = 0x0300,
+    .bMaxPacketSize0               = 64,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_SUPER,
+            .bmAttributes          = 0xc0,
+            .nif = 1,
+            .ifs = &desc_iface_super,
+        },
+    },
+};
+
 static const USBDesc desc = {
     .id = {
         .idVendor          = 0x46f4, /* CRC16() of "QEMU" */
@@ -229,45 +315,68 @@ static const USBDesc desc = {
         .iProduct          = STR_PRODUCT,
         .iSerialNumber     = STR_SERIALNUMBER,
     },
-    .high = &desc_device_high,
-    .str  = desc_strings,
+    .high  = &desc_device_high,
+    .super = &desc_device_super,
+    .str   = desc_strings,
 };
 
 /* --------------------------------------------------------------------- */
 
-static UASStatus *usb_uas_alloc_status(uint8_t id, uint16_t tag)
+static bool uas_using_streams(UASDevice *uas)
+{
+    return uas->dev.speed == USB_SPEED_SUPER;
+}
+
+/* --------------------------------------------------------------------- */
+
+static UASStatus *usb_uas_alloc_status(UASDevice *uas, uint8_t id, uint16_t tag)
 {
     UASStatus *st = g_new0(UASStatus, 1);
 
     st->status.hdr.id = id;
     st->status.hdr.tag = cpu_to_be16(tag);
     st->length = sizeof(uas_ui_header);
+    if (uas_using_streams(uas)) {
+        st->stream = tag;
+    }
     return st;
 }
 
 static void usb_uas_send_status_bh(void *opaque)
 {
     UASDevice *uas = opaque;
-    UASStatus *st = QTAILQ_FIRST(&uas->results);
-    USBPacket *p = uas->status;
+    UASStatus *st;
+    USBPacket *p;
 
-    assert(p != NULL);
-    assert(st != NULL);
+    while ((st = QTAILQ_FIRST(&uas->results)) != NULL) {
+        if (uas_using_streams(uas)) {
+            p = uas->status3[st->stream];
+            uas->status3[st->stream] = NULL;
+        } else {
+            p = uas->status2;
+            uas->status2 = NULL;
+        }
+        if (p == NULL) {
+            break;
+        }
 
-    uas->status = NULL;
-    usb_packet_copy(p, &st->status, st->length);
-    QTAILQ_REMOVE(&uas->results, st, next);
-    g_free(st);
+        usb_packet_copy(p, &st->status, st->length);
+        QTAILQ_REMOVE(&uas->results, st, next);
+        g_free(st);
 
-    p->status = USB_RET_SUCCESS; /* Clear previous ASYNC status */
-    usb_packet_complete(&uas->dev, p);
+        p->status = USB_RET_SUCCESS; /* Clear previous ASYNC status */
+        usb_packet_complete(&uas->dev, p);
+    }
 }
 
 static void usb_uas_queue_status(UASDevice *uas, UASStatus *st, int length)
 {
+    USBPacket *p = uas_using_streams(uas) ?
+        uas->status3[st->stream] : uas->status2;
+
     st->length += length;
     QTAILQ_INSERT_TAIL(&uas->results, st, next);
-    if (uas->status) {
+    if (p) {
         /*
          * Just schedule bh make sure any in-flight data transaction
          * is finished before completing (sending) the status packet.
@@ -276,14 +385,14 @@ static void usb_uas_queue_status(UASDevice *uas, UASStatus *st, int length)
     } else {
         USBEndpoint *ep = usb_ep_get(&uas->dev, USB_TOKEN_IN,
                                      UAS_PIPE_ID_STATUS);
-        usb_wakeup(ep);
+        usb_wakeup(ep, st->stream);
     }
 }
 
 static void usb_uas_queue_response(UASDevice *uas, uint16_t tag,
                                    uint8_t code, uint16_t add_info)
 {
-    UASStatus *st = usb_uas_alloc_status(UAS_UI_RESPONSE, tag);
+    UASStatus *st = usb_uas_alloc_status(uas, UAS_UI_RESPONSE, tag);
 
     trace_usb_uas_response(uas->dev.addr, tag, code);
     st->status.response.response_code = code;
@@ -293,7 +402,7 @@ static void usb_uas_queue_response(UASDevice *uas, uint16_t tag,
 
 static void usb_uas_queue_sense(UASRequest *req, uint8_t status)
 {
-    UASStatus *st = usb_uas_alloc_status(UAS_UI_SENSE, req->tag);
+    UASStatus *st = usb_uas_alloc_status(req->uas, UAS_UI_SENSE, req->tag);
     int len, slen = 0;
 
     trace_usb_uas_sense(req->uas->dev.addr, req->tag, status);
@@ -310,7 +419,8 @@ static void usb_uas_queue_sense(UASRequest *req, uint8_t status)
 
 static void usb_uas_queue_read_ready(UASRequest *req)
 {
-    UASStatus *st = usb_uas_alloc_status(UAS_UI_READ_READY, req->tag);
+    UASStatus *st = usb_uas_alloc_status(req->uas, UAS_UI_READ_READY,
+                                         req->tag);
 
     trace_usb_uas_read_ready(req->uas->dev.addr, req->tag);
     usb_uas_queue_status(req->uas, st, 0);
@@ -318,7 +428,8 @@ static void usb_uas_queue_read_ready(UASRequest *req)
 
 static void usb_uas_queue_write_ready(UASRequest *req)
 {
-    UASStatus *st = usb_uas_alloc_status(UAS_UI_WRITE_READY, req->tag);
+    UASStatus *st = usb_uas_alloc_status(req->uas, UAS_UI_WRITE_READY,
+                                         req->tag);
 
     trace_usb_uas_write_ready(req->uas->dev.addr, req->tag);
     usb_uas_queue_status(req->uas, st, 0);
@@ -381,18 +492,22 @@ static void usb_uas_start_next_transfer(UASDevice *uas)
 {
     UASRequest *req;
 
+    if (uas_using_streams(uas)) {
+        return;
+    }
+
     QTAILQ_FOREACH(req, &uas->requests, next) {
         if (req->active || req->complete) {
             continue;
         }
-        if (req->req->cmd.mode == SCSI_XFER_FROM_DEV && uas->datain == NULL) {
-            uas->datain = req;
+        if (req->req->cmd.mode == SCSI_XFER_FROM_DEV && uas->datain2 == NULL) {
+            uas->datain2 = req;
             usb_uas_queue_read_ready(req);
             req->active = true;
             return;
         }
-        if (req->req->cmd.mode == SCSI_XFER_TO_DEV && uas->dataout == NULL) {
-            uas->dataout = req;
+        if (req->req->cmd.mode == SCSI_XFER_TO_DEV && uas->dataout2 == NULL) {
+            uas->dataout2 = req;
             usb_uas_queue_write_ready(req);
             req->active = true;
             return;
@@ -417,11 +532,11 @@ static void usb_uas_scsi_free_request(SCSIBus *bus, void *priv)
     UASRequest *req = priv;
     UASDevice *uas = req->uas;
 
-    if (req == uas->datain) {
-        uas->datain = NULL;
+    if (req == uas->datain2) {
+        uas->datain2 = NULL;
     }
-    if (req == uas->dataout) {
-        uas->dataout = NULL;
+    if (req == uas->dataout2) {
+        uas->dataout2 = NULL;
     }
     QTAILQ_REMOVE(&uas->requests, req, next);
     g_free(req);
@@ -522,11 +637,24 @@ static void usb_uas_cancel_io(USBDevice *dev, USBPacket *p)
 {
     UASDevice *uas = DO_UPCAST(UASDevice, dev, dev);
     UASRequest *req, *nreq;
+    int i;
 
-    if (uas->status == p) {
-        uas->status = NULL;
+    if (uas->status2 == p) {
+        uas->status2 = NULL;
         qemu_bh_cancel(uas->status_bh);
         return;
+    }
+    if (uas_using_streams(uas)) {
+        for (i = 0; i < UAS_MAX_STREAMS; i++) {
+            if (uas->status3[i] == p) {
+                uas->status3[i] = NULL;
+                return;
+            }
+            if (uas->data3[i] == p) {
+                uas->data3[i] = NULL;
+                return;
+            }
+        }
     }
     QTAILQ_FOREACH_SAFE(req, &uas->requests, next, nreq) {
         if (req->data == p) {
@@ -555,9 +683,18 @@ static void usb_uas_command(UASDevice *uas, uas_ui *ui)
                           usb_uas_get_lun(req->lun),
                           req->lun >> 32, req->lun & 0xffffffff);
     QTAILQ_INSERT_TAIL(&uas->requests, req, next);
+    if (uas_using_streams(uas) && uas->data3[req->tag] != NULL) {
+        req->data = uas->data3[req->tag];
+        req->data_async = true;
+        uas->data3[req->tag] = NULL;
+    }
+
     req->req = scsi_req_new(req->dev, req->tag,
                             usb_uas_get_lun(req->lun),
                             ui->command.cdb, req);
+#if 1
+    scsi_req_print(req->req);
+#endif
     len = scsi_req_enqueue(req->req);
     if (len) {
         req->data_size = len;
@@ -669,12 +806,26 @@ static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
         }
         break;
     case UAS_PIPE_ID_STATUS:
-        st = QTAILQ_FIRST(&uas->results);
-        if (st == NULL) {
-            assert(uas->status == NULL);
-            uas->status = p;
-            p->status = USB_RET_ASYNC;
-            break;
+        if (p->stream) {
+            QTAILQ_FOREACH(st, &uas->results, next) {
+                if (st->stream == p->stream) {
+                    break;
+                }
+            }
+            if (st == NULL) {
+                assert(uas->status3[p->stream] == NULL);
+                uas->status3[p->stream] = p;
+                p->status = USB_RET_ASYNC;
+                break;
+            }
+        } else {
+            st = QTAILQ_FIRST(&uas->results);
+            if (st == NULL) {
+                assert(uas->status2 == NULL);
+                uas->status2 = p;
+                p->status = USB_RET_ASYNC;
+                break;
+            }
         }
         usb_packet_copy(p, &st->status, st->length);
         QTAILQ_REMOVE(&uas->results, st, next);
@@ -682,11 +833,23 @@ static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
         break;
     case UAS_PIPE_ID_DATA_IN:
     case UAS_PIPE_ID_DATA_OUT:
-        req = (p->ep->nr == UAS_PIPE_ID_DATA_IN) ? uas->datain : uas->dataout;
+        if (p->stream) {
+            req = usb_uas_find_request(uas, p->stream);
+        } else {
+            req = (p->ep->nr == UAS_PIPE_ID_DATA_IN)
+                ? uas->datain2 : uas->dataout2;
+        }
         if (req == NULL) {
-            fprintf(stderr, "%s: no inflight request\n", __func__);
-            p->status = USB_RET_STALL;
-            break;
+            if (p->stream) {
+                assert(uas->data3[p->stream] == NULL);
+                uas->data3[p->stream] = p;
+                p->status = USB_RET_ASYNC;
+                break;
+            } else {
+                fprintf(stderr, "%s: no inflight request\n", __func__);
+                p->status = USB_RET_STALL;
+                break;
+            }
         }
         scsi_req_ref(req->req);
         req->data = p;

@@ -478,7 +478,7 @@ static void usb_bt_out_hci_packet_event(void *opaque,
     struct USBBtState *s = (struct USBBtState *) opaque;
 
     if (s->evt.len == 0) {
-        usb_wakeup(s->intr);
+        usb_wakeup(s->intr, 0);
     }
     usb_bt_fifo_enqueue(&s->evt, data, len);
 }

@@ -1,6 +1,7 @@
 # Default configuration for mips64el-softmmu
 
 include pci.mak
+include usb.mak
 CONFIG_ISA_MMIO=y
 CONFIG_ESP=y
 CONFIG_VGA=y
