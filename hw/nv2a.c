@@ -407,6 +407,8 @@
 #   define NV097_SET_TEXTURE_ADDRESS                          0x00971B08
 #   define NV097_SET_TEXTURE_CONTROL0                         0x00971B0C
 #       define NV097_SET_TEXTURE_CONTROL0_ENABLE                 (1 << 30)
+#       define NV097_SET_TEXTURE_CONTROL0_MIN_LOD_CLAMP           0x3FFC0000
+#       define NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP           0x0003FFC0
 #   define NV097_SET_TEXTURE_CONTROL1                         0x00971B10
 #       define NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH             0xFFFF0000
 #   define NV097_SET_TEXTURE_IMAGE_RECT                       0x00971B1C
@@ -447,6 +449,7 @@ static const GLenum kelvin_primitive_map[] = {
 typedef struct ColorFormatInfo {
     unsigned int bytes_per_pixel;
     bool swizzled;
+    bool linear;
     GLint gl_internal_format;
     GLenum gl_format;
     GLenum gl_type;
@@ -454,18 +457,18 @@ typedef struct ColorFormatInfo {
 
 static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8] =
-        {4, true,  GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, true,  false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8] =
-        {4, true,  GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, true,  false, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8] =
-        {4, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, false, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     /* TODO: how do opengl alpha textures work? */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8] =
-        {2, true,  GL_RED,  GL_RED,  GL_UNSIGNED_BYTE},
+        {2, true,  false, GL_RED,  GL_RED,  GL_UNSIGNED_BYTE},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
-        {4, false, GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, false, true,  GL_RGB,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED] =
-        {2, false, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_SHORT},
+        {2, false, true,  GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_SHORT},
 };
 
 
@@ -560,15 +563,21 @@ typedef struct Texture {
     bool dirty;
     bool enabled;
 
-    bool dma_select;
-    hwaddr offset;
-    
+    unsigned int dimensionality;
     unsigned int width, height;
+
+    unsigned int min_mipmap_level;
+    unsigned int max_mipmap_level;
     unsigned int pitch;
     unsigned int color_format;
 
-    GLenum gl_target;
+    bool dma_select;
+    hwaddr offset;
+
     GLuint gl_texture;
+    /* once bound as GL_TEXTURE_RECTANGLE_ARB, it seems textures
+     * can't be rebound as GL_TEXTURE_*D... */
+    GLuint gl_texture_rect;
 } Texture;
 
 typedef struct KelvinState {
@@ -588,6 +597,8 @@ typedef struct KelvinState {
     unsigned int constant_load_slot;
     VertexShaderConstant constants[NV2A_VERTEXSHADER_CONSTANTS];
 
+    bool fragment_program_dirty;
+    GLuint gl_fragment_program;
 
     GLenum gl_primitive_mode;
 
@@ -914,10 +925,15 @@ static void load_graphics_object(NV2AState *d, hwaddr address,
         }
         assert(glGetError() == GL_NO_ERROR);
 
+        /* fragment program */
+        glGenProgramsARB(1, &kelvin->gl_fragment_program);
+        kelvin->fragment_program_dirty = true;
+
         /* generate textures */
         for (i=0; i<NV2A_MAX_TEXTURES; i++) {
             Texture *texture = &kelvin->textures[i];
             glGenTextures(1, &texture->gl_texture);
+            glGenTextures(1, &texture->gl_texture_rect);
         }
 
         break;
@@ -1027,7 +1043,7 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
         GLint pos;
         glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
         if (pos != -1) {
-            fprintf(stderr, "nv2a: Shader compilation failed:\n"
+            fprintf(stderr, "nv2a: Vertex shader compilation failed:\n"
                             "      pos %d, %s\n",
                     pos, glGetString(GL_PROGRAM_ERROR_STRING_ARB));
             fprintf(stderr, "ucode:\n");
@@ -1069,19 +1085,44 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
     for (i=0; i<NV2A_MAX_TEXTURES; i++) {
         Texture *texture = &kelvin->textures[i];
 
-        if (texture->gl_target != GL_TEXTURE_2D) continue;
+        if (texture->dimensionality != 2) continue;
         
         glActiveTexture(GL_TEXTURE0_ARB + i);
         if (texture->enabled) {
-            glBindTexture(GL_TEXTURE_2D, texture->gl_texture);
-            if (!texture->dirty) continue;
             
-            NV2A_DPRINTF("texture %d is color format %d (0x%x)\n",
-                i, texture->color_format, texture->color_format);
             assert(texture->color_format
                     < sizeof(kelvin_color_format_map)/sizeof(ColorFormatInfo));
             ColorFormatInfo f = kelvin_color_format_map[texture->color_format];
             assert(f.bytes_per_pixel != 0);
+
+            GLenum gl_target;
+            GLuint gl_texture;
+            if (f.linear) {
+                /* linear textures use unnormalised texcoords.
+                 * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
+                 * does not allow repeat and mirror wrap modes.
+                 *  (or mipmapping, but xbox d3d says 'Non swizzled and non
+                 *   compressed textures cannot be mip mapped.')
+                 * Not sure if that'll be an issue. */
+                gl_target = GL_TEXTURE_RECTANGLE_ARB;
+                gl_texture = texture->gl_texture_rect;
+            } else {
+                gl_target = GL_TEXTURE_2D;
+                gl_texture = texture->gl_texture;
+            }
+
+            glBindTexture(gl_target, gl_texture);
+
+            if (!texture->dirty) continue;
+
+            /* set parameters */
+            glTexParameteri(gl_target, GL_TEXTURE_BASE_LEVEL,
+                texture->min_mipmap_level);
+            glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
+                texture->max_mipmap_level);
+
+
+            /* load texture data*/
 
             DMAObject dma;
             if (texture->dma_select) {
@@ -1096,13 +1137,14 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
             assert(dma.start + texture->offset < memory_region_size(d->vram));
 
             /* TODO: handle weird texture pitches */
-            NV2A_DPRINTF("   ... width: %d , pitch: %d\n",
-                         texture->width, texture->pitch);
+            NV2A_DPRINTF(" texture %d is format %d, (%d, %d; %d)\n",
+                         i, texture->color_format,
+                         texture->width, texture->height, texture->pitch);
             assert(texture->pitch == texture->width*f.bytes_per_pixel);
 
             /* TODO: handle swizzling */
 
-            glTexImage2D(texture->gl_target, 0, f.gl_internal_format,
+            glTexImage2D(gl_target, 0, f.gl_internal_format,
                          texture->width, texture->height, 0,
                          f.gl_format, f.gl_type,
                          d->vram_ptr + dma.start + texture->offset);
@@ -1110,9 +1152,42 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
             texture->dirty = false;
         } else {
             glBindTexture(GL_TEXTURE_2D, 0);
+            glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
         }
 
     }
+}
+
+static void kelvin_bind_fragment_shader(NV2AState *d, KelvinState *kelvin)
+{
+    const char *shader_code = "!!ARBfp1.0\n"
+"TEX result.color, fragment.texcoord[0], texture[0], RECT;\n"
+"END\n";
+
+
+    glEnable(GL_FRAGMENT_PROGRAM_ARB);
+    glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, kelvin->gl_fragment_program);
+
+    if (kelvin->fragment_program_dirty) {
+
+        glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB,
+                           GL_PROGRAM_FORMAT_ASCII_ARB,
+                           strlen(shader_code),
+                           shader_code);
+
+        /* Check it compiled */
+        GLint pos;
+        glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
+        if (pos != -1) {
+            fprintf(stderr, "nv2a: Fragment shader compilation failed:\n"
+                            "      pos %d, %s\n",
+                    pos, glGetString(GL_PROGRAM_ERROR_STRING_ARB));
+            abort();
+        }
+
+        kelvin->fragment_program_dirty = false;
+    }
+
 }
 
 
@@ -1141,6 +1216,12 @@ static void pgraph_context_init(GraphicsContext *context)
                              extensions));
 
     assert(gluCheckExtension((const GLubyte*)"GL_ARB_vertex_program",
+                             extensions));
+
+    assert(gluCheckExtension((const GLubyte*)"GL_ARB_fragment_program",
+                             extensions));
+
+    assert(gluCheckExtension((const GLubyte*)"GL_ARB_texture_rectangle",
                              extensions));
 
     GLint max_vertex_attributes;
@@ -1409,6 +1490,8 @@ static void pgraph_method(NV2AState *d,
                 glDisable(GL_VERTEX_PROGRAM_ARB);
             }
 
+            kelvin_bind_fragment_shader(d, kelvin);
+
             kelvin_bind_textures(d, kelvin);
             kelvin_bind_vertex_attribute_offsets(d, kelvin);
 
@@ -1431,20 +1514,8 @@ static void pgraph_method(NV2AState *d,
         
         kelvin->textures[slot].dma_select =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA) == 2;
-        switch (GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY)) {
-        case 1:
-            kelvin->textures[slot].gl_target = GL_TEXTURE_1D;
-            break;
-        case 2:
-            kelvin->textures[slot].gl_target = GL_TEXTURE_2D;
-            break;
-        case 3:
-            kelvin->textures[slot].gl_target = GL_TEXTURE_3D;
-            break;
-        default:
-            assert(false);
-            break;
-        }
+        kelvin->textures[slot].dimensionality =
+            GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY);
         kelvin->textures[slot].color_format = 
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_COLOR);
         
@@ -1455,6 +1526,10 @@ static void pgraph_method(NV2AState *d,
         
         kelvin->textures[slot].enabled =
             parameter & NV097_SET_TEXTURE_CONTROL0_ENABLE;
+        kelvin->textures[slot].min_mipmap_level =
+            GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL0_MIN_LOD_CLAMP);
+        kelvin->textures[slot].max_mipmap_level =
+            GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP);
         
         break;
     CASE_4(NV097_SET_TEXTURE_CONTROL1, 64):
@@ -1594,7 +1669,7 @@ static void pgraph_wait_context_switch(NV2AState *d)
 
     qemu_mutex_lock(&d->pgraph.lock);
     if (!d->pgraph.channel_valid) {
-        /* TODO:  there should be some global puller suspention thing to 
+        /* TODO:  there should be some global puller suspension thing to
          * wait on instead */
         qemu_cond_wait(&d->pgraph.context_cond, &d->pgraph.lock);
     }
