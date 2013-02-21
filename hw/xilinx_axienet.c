@@ -869,9 +869,11 @@ static int xilinx_enet_init(SysBusDevice *dev)
 static void xilinx_enet_initfn(Object *obj)
 {
     struct XilinxAXIEnet *s = FROM_SYSBUS(typeof(*s), SYS_BUS_DEVICE(obj));
+    Error *errp = NULL;
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
-                             (Object **) &s->tx_dev, NULL);
+                             (Object **) &s->tx_dev, &errp);
+    assert_no_error(errp);
 }
 
 static Property xilinx_enet_properties[] = {

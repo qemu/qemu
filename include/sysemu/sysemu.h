@@ -94,7 +94,6 @@ typedef enum DisplayType
 } DisplayType;
 
 extern int autostart;
-extern int bios_size;
 
 typedef enum {
     VGA_NONE, VGA_STD, VGA_CIRRUS, VGA_VMWARE, VGA_XENFB, VGA_QXL,
