@@ -525,6 +525,8 @@ static ssize_t buffered_flush(MigrationState *s)
 
     DPRINTF("flushing %zu byte(s) of data\n", s->buffer_size);
 
+    qemu_fflush(s->file);
+
     while (s->bytes_xfer < s->xfer_limit && offset < s->buffer_size) {
         size_t to_send = MIN(s->buffer_size - offset, s->xfer_limit - s->bytes_xfer);
         ret = migrate_fd_put_buffer(s, s->buffer + offset, to_send);
