@@ -3145,22 +3145,6 @@ fail:
     return NULL;
 }
 
-#ifdef HAVE_CHARDEV_PARPORT
-
-static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
-{
-    const char *filename = qemu_opt_get(opts, "path");
-    int fd;
-
-    fd = qemu_open(filename, O_RDWR);
-    if (fd < 0) {
-        return NULL;
-    }
-    return qemu_chr_open_pp_fd(fd);
-}
-
-#endif
-
 static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
                                     Error **errp)
 {
@@ -3194,6 +3178,19 @@ static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
     }
     backend->serial = g_new0(ChardevHostdev, 1);
     backend->serial->device = g_strdup(device);
+}
+
+static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
+                                    Error **errp)
+{
+    const char *device = qemu_opt_get(opts, "path");
+
+    if (device == NULL) {
+        error_setg(errp, "chardev: parallel: no device path given");
+        return;
+    }
+    backend->parallel = g_new0(ChardevHostdev, 1);
+    backend->parallel->device = g_strdup(device);
 }
 
 typedef struct CharDriver {
@@ -3775,6 +3772,10 @@ static void register_types(void)
                               qemu_chr_parse_serial);
     register_char_driver_qapi("tty", CHARDEV_BACKEND_KIND_SERIAL,
                               qemu_chr_parse_serial);
+    register_char_driver_qapi("parallel", CHARDEV_BACKEND_KIND_PARALLEL,
+                              qemu_chr_parse_parallel);
+    register_char_driver_qapi("parport", CHARDEV_BACKEND_KIND_PARALLEL,
+                              qemu_chr_parse_parallel);
 #ifdef _WIN32
     register_char_driver("pipe", qemu_chr_open_win_pipe);
     register_char_driver("console", qemu_chr_open_win_con);
@@ -3783,10 +3784,6 @@ static void register_types(void)
 #endif
 #ifdef HAVE_CHARDEV_TTY
     register_char_driver("pty", qemu_chr_open_pty);
-#endif
-#ifdef HAVE_CHARDEV_PARPORT
-    register_char_driver("parallel", qemu_chr_open_pp);
-    register_char_driver("parport", qemu_chr_open_pp);
 #endif
 }
 
