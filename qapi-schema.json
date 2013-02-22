@@ -2591,6 +2591,8 @@
 #
 # @vhostforce: #optional vhost on for non-MSIX virtio guests
 #
+# @queues: #optional number of queues to be created for multiqueue capable tap
+#
 # Since 1.2
 ##
 { 'type': 'NetdevTapOptions',
