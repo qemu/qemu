@@ -1475,7 +1475,7 @@ static void tcg_handle_interrupt(CPUArchState *env, int mask)
             cpu_abort(env, "Raised interrupt while not in I/O function");
         }
     } else {
-        cpu_unlink_tb(cpu);
+        cpu->tcg_exit_req = 1;
     }
 }
 
@@ -1626,7 +1626,7 @@ void cpu_interrupt(CPUArchState *env, int mask)
     CPUState *cpu = ENV_GET_CPU(env);
 
     env->interrupt_request |= mask;
-    cpu_unlink_tb(cpu);
+    cpu->tcg_exit_req = 1;
 }
 
 /*
