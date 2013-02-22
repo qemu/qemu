@@ -570,10 +570,6 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     bitmap_set(migration_bitmap, 0, ram_pages);
     migration_dirty_pages = ram_pages;
 
-    qemu_mutex_lock_ramlist();
-    bytes_transferred = 0;
-    reset_ram_globals();
-
     if (migrate_use_xbzrle()) {
         XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
                                   TARGET_PAGE_SIZE,
@@ -587,8 +583,14 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         acct_clear();
     }
 
+    qemu_mutex_lock_iothread();
+    qemu_mutex_lock_ramlist();
+    bytes_transferred = 0;
+    reset_ram_globals();
+
     memory_global_dirty_log_start();
     migration_bitmap_sync();
+    qemu_mutex_unlock_iothread();
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 

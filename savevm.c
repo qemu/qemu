@@ -1768,7 +1768,10 @@ static int qemu_savevm_state(QEMUFile *f)
         return -EINVAL;
     }
 
+    qemu_mutex_unlock_iothread();
     qemu_savevm_state_begin(f, &params);
+    qemu_mutex_lock_iothread();
+
     while (qemu_file_get_error(f) == 0) {
         if (qemu_savevm_state_iterate(f) > 0) {
             break;

@@ -660,10 +660,8 @@ static void *buffered_file_thread(void *opaque)
     bool old_vm_running = false;
     bool last_round = false;
 
-    qemu_mutex_lock_iothread();
     DPRINTF("beginning savevm\n");
     qemu_savevm_state_begin(s->file, &s->params);
-    qemu_mutex_unlock_iothread();
 
     while (s->state == MIG_STATE_ACTIVE) {
         int64_t current_time;
