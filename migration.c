@@ -274,7 +274,7 @@ static void migrate_fd_cleanup(void *opaque)
         s->file = NULL;
     }
 
-    assert(s->fd == -1);
+    assert(s->migration_file == NULL);
     assert(s->state != MIG_STATE_ACTIVE);
 
     if (s->state != MIG_STATE_COMPLETED) {
@@ -330,8 +330,9 @@ static void migrate_fd_cancel(MigrationState *s)
 int migrate_fd_close(MigrationState *s)
 {
     int rc = 0;
-    if (s->fd != -1) {
-        rc = s->close(s);
+    if (s->migration_file != NULL) {
+        rc = qemu_fclose(s->migration_file);
+        s->migration_file = NULL;
         s->fd = -1;
     }
     return rc;
@@ -720,6 +721,7 @@ void migrate_fd_connect(MigrationState *s)
     s->xfer_limit = s->bandwidth_limit / XFER_LIMIT_RATIO;
 
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
+    s->fd = qemu_get_fd(s->migration_file);
     s->file = qemu_fopen_ops(s, &migration_file_ops);
 
     qemu_thread_create(&s->thread, migration_thread, s,

@@ -39,28 +39,17 @@ static int unix_write(MigrationState *s, const void * buf, size_t size)
     return write(s->fd, buf, size);
 }
 
-static int unix_close(MigrationState *s)
-{
-    int r = 0;
-    DPRINTF("unix_close\n");
-    if (close(s->fd) < 0) {
-        r = -errno;
-    }
-    return r;
-}
-
 static void unix_wait_for_connect(int fd, void *opaque)
 {
     MigrationState *s = opaque;
 
     if (fd < 0) {
         DPRINTF("migrate connect error\n");
-        s->fd = -1;
+        s->migration_file = NULL;
         migrate_fd_error(s);
     } else {
         DPRINTF("migrate connect success\n");
-        s->fd = fd;
-        socket_set_block(s->fd);
+        s->migration_file = qemu_fopen_socket(fd, "wb");
         migrate_fd_connect(s);
     }
 }
@@ -69,9 +58,7 @@ void unix_start_outgoing_migration(MigrationState *s, const char *path, Error **
 {
     s->get_error = unix_errno;
     s->write = unix_write;
-    s->close = unix_close;
-
-    s->fd = unix_nonblocking_connect(path, unix_wait_for_connect, s, errp);
+    unix_nonblocking_connect(path, unix_wait_for_connect, s, errp);
 }
 
 static void unix_accept_incoming_migration(void *opaque)

@@ -38,12 +38,13 @@ struct MigrationState
     QEMUBH *cleanup_bh;
 
     QEMUFile *file;
+    QEMUFile *migration_file;
+
     int fd;
-    int state;
     int (*get_error)(MigrationState *s);
-    int (*close)(MigrationState *s);
     int (*write)(MigrationState *s, const void *buff, size_t size);
-    void *opaque;
+
+    int state;
     MigrationParams params;
     int64_t total_time;
     int64_t downtime;
