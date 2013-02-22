@@ -677,7 +677,49 @@ TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
 
-/* TCG targets may use a different definition of tcg_qemu_tb_exec. */
+/**
+ * tcg_qemu_tb_exec:
+ * @env: CPUArchState * for the CPU
+ * @tb_ptr: address of generated code for the TB to execute
+ *
+ * Start executing code from a given translation block.
+ * Where translation blocks have been linked, execution
+ * may proceed from the given TB into successive ones.
+ * Control eventually returns only when some action is needed
+ * from the top-level loop: either control must pass to a TB
+ * which has not yet been directly linked, or an asynchronous
+ * event such as an interrupt needs handling.
+ *
+ * The return value is a pointer to the next TB to execute
+ * (if known; otherwise zero). This pointer is assumed to be
+ * 4-aligned, and the bottom two bits are used to return further
+ * information:
+ *  0, 1: the link between this TB and the next is via the specified
+ *        TB index (0 or 1). That is, we left the TB via (the equivalent
+ *        of) "goto_tb <index>". The main loop uses this to determine
+ *        how to link the TB just executed to the next.
+ *  2:    we are using instruction counting code generation, and we
+ *        did not start executing this TB because the instruction counter
+ *        would hit zero midway through it. In this case the next-TB pointer
+ *        returned is the TB we were about to execute, and the caller must
+ *        arrange to execute the remaining count of instructions.
+ *
+ * If the bottom two bits indicate an exit-via-index then the CPU
+ * state is correctly synchronised and ready for execution of the next
+ * TB (and in particular the guest PC is the address to execute next).
+ * Otherwise, we gave up on execution of this TB before it started, and
+ * the caller must fix up the CPU state by calling cpu_pc_from_tb()
+ * with the next-TB pointer we return.
+ *
+ * Note that TCG targets may use a different definition of tcg_qemu_tb_exec
+ * to this default (which just calls the prologue.code emitted by
+ * tcg_target_qemu_prologue()).
+ */
+#define TB_EXIT_MASK 3
+#define TB_EXIT_IDX0 0
+#define TB_EXIT_IDX1 1
+#define TB_EXIT_ICOUNT_EXPIRED 2
+
 #if !defined(tcg_qemu_tb_exec)
 # define tcg_qemu_tb_exec(env, tb_ptr) \
     ((tcg_target_ulong (*)(void *, void *))tcg_ctx.code_gen_prologue)(env, \

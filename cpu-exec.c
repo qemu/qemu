@@ -72,7 +72,7 @@ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
     next_tb = tcg_qemu_tb_exec(env, tb->tc_ptr);
     cpu->current_tb = NULL;
 
-    if ((next_tb & 3) == 2) {
+    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
         /* Restore PC.  This may happen if async event occurs before
            the TB starts executing.  */
         cpu_pc_from_tb(env, tb);
@@ -584,7 +584,8 @@ int cpu_exec(CPUArchState *env)
                    spans two pages, we cannot safely do a direct
                    jump. */
                 if (next_tb != 0 && tb->page_addr[1] == -1) {
-                    tb_add_jump((TranslationBlock *)(next_tb & ~3), next_tb & 3, tb);
+                    tb_add_jump((TranslationBlock *)(next_tb & ~TB_EXIT_MASK),
+                                next_tb & TB_EXIT_MASK, tb);
                 }
                 spin_unlock(&tcg_ctx.tb_ctx.tb_lock);
 
@@ -598,10 +599,10 @@ int cpu_exec(CPUArchState *env)
                     tc_ptr = tb->tc_ptr;
                     /* execute the generated code */
                     next_tb = tcg_qemu_tb_exec(env, tc_ptr);
-                    if ((next_tb & 3) == 2) {
+                    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
                         /* Instruction counter expired.  */
                         int insns_left;
-                        tb = (TranslationBlock *)(next_tb & ~3);
+                        tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
                         /* Restore PC.  */
                         cpu_pc_from_tb(env, tb);
                         insns_left = env->icount_decr.u32;
