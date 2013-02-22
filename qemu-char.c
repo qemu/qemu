@@ -1419,18 +1419,6 @@ static CharDriverState *qemu_chr_open_tty_fd(int fd)
     chr->chr_close = qemu_chr_close_tty;
     return chr;
 }
-
-static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
-{
-    const char *filename = qemu_opt_get(opts, "path");
-    int fd;
-
-    TFR(fd = qemu_open(filename, O_RDWR | O_NONBLOCK));
-    if (fd < 0) {
-        return NULL;
-    }
-    return qemu_chr_open_tty_fd(fd);
-}
 #endif /* __linux__ || __sun__ */
 
 #if defined(__linux__)
@@ -1853,11 +1841,6 @@ static CharDriverState *qemu_chr_open_win_path(const char *filename)
     }
     qemu_chr_generic_open(chr);
     return chr;
-}
-
-static CharDriverState *qemu_chr_open_win(QemuOpts *opts)
-{
-    return qemu_chr_open_win_path(qemu_opt_get(opts, "path"));
 }
 
 static int win_chr_pipe_poll(void *opaque)
@@ -3200,6 +3183,19 @@ static void qemu_chr_parse_stdio(QemuOpts *opts, ChardevBackend *backend,
         qemu_opt_get_bool(opts, "signal", display_type != DT_NOGRAPHIC);
 }
 
+static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
+                                  Error **errp)
+{
+    const char *device = qemu_opt_get(opts, "path");
+
+    if (device == NULL) {
+        error_setg(errp, "chardev: serial/tty: no device path given");
+        return;
+    }
+    backend->serial = g_new0(ChardevHostdev, 1);
+    backend->serial->device = g_strdup(device);
+}
+
 typedef struct CharDriver {
     const char *name;
     /* old, pre qapi */
@@ -3775,16 +3771,17 @@ static void register_types(void)
                               qemu_chr_parse_file_out);
     register_char_driver_qapi("stdio", CHARDEV_BACKEND_KIND_STDIO,
                               qemu_chr_parse_stdio);
+    register_char_driver_qapi("serial", CHARDEV_BACKEND_KIND_SERIAL,
+                              qemu_chr_parse_serial);
+    register_char_driver_qapi("tty", CHARDEV_BACKEND_KIND_SERIAL,
+                              qemu_chr_parse_serial);
 #ifdef _WIN32
     register_char_driver("pipe", qemu_chr_open_win_pipe);
     register_char_driver("console", qemu_chr_open_win_con);
-    register_char_driver("serial", qemu_chr_open_win);
 #else
     register_char_driver("pipe", qemu_chr_open_pipe);
 #endif
 #ifdef HAVE_CHARDEV_TTY
-    register_char_driver("tty", qemu_chr_open_tty);
-    register_char_driver("serial", qemu_chr_open_tty);
     register_char_driver("pty", qemu_chr_open_pty);
 #endif
 #ifdef HAVE_CHARDEV_PARPORT
