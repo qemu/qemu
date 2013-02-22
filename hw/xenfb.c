@@ -756,7 +756,8 @@ static void xenfb_update(void *opaque)
             qemu_free_displaysurface(xenfb->c.ds);
             xenfb->c.ds->surface = qemu_create_displaysurface_from
                 (xenfb->width, xenfb->height, xenfb->depth,
-                 xenfb->row_stride, xenfb->pixels + xenfb->offset);
+                 xenfb->row_stride, xenfb->pixels + xenfb->offset,
+                 false);
             break;
         default:
             /* we must convert stuff */

@@ -2504,6 +2504,9 @@
 #
 # @fd: #optional file descriptor of an already opened tap
 #
+# @fds: #optional multiple file descriptors of already opened multiqueue capable
+# tap
+#
 # @script: #optional script to initialize the interface
 #
 # @downscript: #optional script to shut down the interface
@@ -2517,6 +2520,9 @@
 # @vhost: #optional enable vhost-net network accelerator
 #
 # @vhostfd: #optional file descriptor of an already opened vhost net device
+#
+# @vhostfds: #optional file descriptors of multiple already opened vhost net
+# devices
 #
 # @vhostforce: #optional vhost on for non-MSIX virtio guests
 #

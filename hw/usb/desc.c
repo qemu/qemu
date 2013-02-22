@@ -225,12 +225,9 @@ int usb_desc_endpoint(const USBDescEndpoint *ep, int flags,
         d->u.endpoint.bRefresh      = ep->bRefresh;
         d->u.endpoint.bSynchAddress = ep->bSynchAddress;
     }
-    if (ep->extra) {
-        memcpy(dest + bLength, ep->extra, extralen);
-    }
 
     if (superlen) {
-        USBDescriptor *d = (void *)(dest + bLength + extralen);
+        USBDescriptor *d = (void *)(dest + bLength);
 
         d->bLength                       = 0x06;
         d->bDescriptorType               = USB_DT_ENDPOINT_COMPANION;
@@ -241,6 +238,10 @@ int usb_desc_endpoint(const USBDescEndpoint *ep, int flags,
             usb_lo(ep->wBytesPerInterval);
         d->u.super_endpoint.wBytesPerInterval_hi =
             usb_hi(ep->wBytesPerInterval);
+    }
+
+    if (ep->extra) {
+        memcpy(dest + bLength + superlen, ep->extra, extralen);
     }
 
     return bLength + extralen + superlen;

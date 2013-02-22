@@ -423,7 +423,7 @@ static void usb_hid_changed(HIDState *hs)
 {
     USBHIDState *us = container_of(hs, USBHIDState, hid);
 
-    usb_wakeup(us->intr);
+    usb_wakeup(us->intr, 0);
 }
 
 static void usb_hid_handle_reset(USBDevice *dev)

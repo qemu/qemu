@@ -737,7 +737,7 @@ static void usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
                                       uint8_t ep)
 {
     struct usb_redir_bulk_packet_header bulk_packet;
-    size_t size = (p->combined) ? p->combined->iov.size : p->iov.size;
+    size_t size = usb_packet_size(p);
     const int maxp = dev->endpoint[EP2I(ep)].max_packet_size;
 
     if (usbredir_already_in_flight(dev, p->id)) {
@@ -771,12 +771,7 @@ static void usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
                                         &bulk_packet, NULL, 0);
     } else {
         uint8_t buf[size];
-        if (p->combined) {
-            iov_to_buf(p->combined->iov.iov, p->combined->iov.niov,
-                       0, buf, size);
-        } else {
-            usb_packet_copy(p, buf, size);
-        }
+        usb_packet_copy(p, buf, size);
         usbredir_log_data(dev, "bulk data out:", buf, size);
         usbredirparser_send_bulk_packet(dev->parser, p->id,
                                         &bulk_packet, buf, size);
@@ -1830,7 +1825,7 @@ static void usbredir_bulk_packet(void *priv, uint64_t id,
 
     p = usbredir_find_packet_by_id(dev, ep, id);
     if (p) {
-        size_t size = (p->combined) ? p->combined->iov.size : p->iov.size;
+        size_t size = usb_packet_size(p);
         usbredir_handle_status(dev, p, bulk_packet->status);
         if (data_len > 0) {
             usbredir_log_data(dev, "bulk data in:", data, data_len);
@@ -1840,12 +1835,7 @@ static void usbredir_bulk_packet(void *priv, uint64_t id,
                 p->status = USB_RET_BABBLE;
                 data_len = len = size;
             }
-            if (p->combined) {
-                iov_from_buf(p->combined->iov.iov, p->combined->iov.niov,
-                             0, data, data_len);
-            } else {
-                usb_packet_copy(p, data, data_len);
-            }
+            usb_packet_copy(p, data, data_len);
         }
         p->actual_length = len;
         if (p->pid == USB_TOKEN_IN && p->ep->pipeline) {
@@ -1907,7 +1897,7 @@ static void usbredir_interrupt_packet(void *priv, uint64_t id,
         }
 
         if (QTAILQ_EMPTY(&dev->endpoint[EP2I(ep)].bufpq)) {
-            usb_wakeup(usb_ep_get(&dev->dev, USB_TOKEN_IN, ep & 0x0f));
+            usb_wakeup(usb_ep_get(&dev->dev, USB_TOKEN_IN, ep & 0x0f), 0);
         }
 
         /* bufp_alloc also adds the packet to the ep queue */

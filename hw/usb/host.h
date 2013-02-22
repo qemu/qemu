@@ -1,5 +1,5 @@
 /*
- * Stub host USB redirector
+ * Linux host USB redirector
  *
  * Copyright (c) 2005 Fabrice Bellard
  *
@@ -30,18 +30,15 @@
  * THE SOFTWARE.
  */
 
-#include "qemu-common.h"
-#include "ui/console.h"
-#include "hw/usb.h"
-#include "monitor/monitor.h"
+#ifndef QEMU_USB_HOST_H
+#define QEMU_USB_HOST_H
 
-void usb_host_info(Monitor *mon, const QDict *qdict)
-{
-    monitor_printf(mon, "USB host devices not supported\n");
-}
+struct USBAutoFilter {
+    uint32_t bus_num;
+    uint32_t addr;
+    char     *port;
+    uint32_t vendor_id;
+    uint32_t product_id;
+};
 
-/* XXX: modify configure to compile the right host driver */
-USBDevice *usb_host_device_open(USBBus *bus, const char *devname)
-{
-    return NULL;
-}
+#endif /* QEMU_USB_HOST_H */

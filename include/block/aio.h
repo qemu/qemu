@@ -63,6 +63,9 @@ typedef struct AioContext {
 
     /* Used for aio_notify.  */
     EventNotifier notifier;
+
+    /* GPollFDs for aio_poll() */
+    GArray *pollfds;
 } AioContext;
 
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */

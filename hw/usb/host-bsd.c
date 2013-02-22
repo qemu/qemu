@@ -637,9 +637,3 @@ void usb_host_info(Monitor *mon, const QDict *qdict)
 {
     usb_host_scan(mon, usb_host_info_device);
 }
-
-/* XXX add this */
-int usb_host_device_close(const char *devname)
-{
-    return 0;
-}

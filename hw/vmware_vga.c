@@ -1074,7 +1074,7 @@ static void vmsvga_screen_dump(void *opaque, const char *filename, bool cswitch,
                                  ds_get_height(s->vga.ds),
                                  32,
                                  ds_get_linesize(s->vga.ds),
-                                 s->vga.vram_ptr);
+                                 s->vga.vram_ptr, false);
         ppm_save(filename, ds, errp);
         g_free(ds);
     }

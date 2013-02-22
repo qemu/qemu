@@ -245,6 +245,7 @@ static void type_initialize(TypeImpl *ti)
 
         g_assert(parent->class_size <= ti->class_size);
         memcpy(ti->class, parent->class, parent->class_size);
+        ti->class->interfaces = NULL;
 
         for (e = parent->class->interfaces; e; e = e->next) {
             ObjectClass *iface = e->data;
@@ -448,7 +449,8 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
     TypeImpl *type = class->type;
     ObjectClass *ret = NULL;
 
-    if (type->num_interfaces && type_is_ancestor(target_type, type_interface)) {
+    if (type->class->interfaces &&
+            type_is_ancestor(target_type, type_interface)) {
         int found = 0;
         GSList *i;
 

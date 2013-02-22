@@ -13,7 +13,10 @@ common-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
 common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_CURSES) += curses.o
 common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
+common-obj-$(CONFIG_GTK) += gtk.o
 
 $(obj)/sdl.o $(obj)/sdl_zoom.o: QEMU_CFLAGS += $(SDL_CFLAGS) 
 
 $(obj)/cocoa.o: $(SRC_PATH)/$(obj)/cocoa.m
+
+$(obj)/gtk.o: QEMU_CFLAGS += $(GTK_CFLAGS) $(VTE_CFLAGS)

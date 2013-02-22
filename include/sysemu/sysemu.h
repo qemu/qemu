@@ -89,12 +89,12 @@ typedef enum DisplayType
     DT_DEFAULT,
     DT_CURSES,
     DT_SDL,
+    DT_GTK,
     DT_NOGRAPHIC,
     DT_NONE,
 } DisplayType;
 
 extern int autostart;
-extern int bios_size;
 
 typedef enum {
     VGA_NONE, VGA_STD, VGA_CIRRUS, VGA_VMWARE, VGA_XENFB, VGA_QXL,

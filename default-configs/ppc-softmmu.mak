@@ -1,6 +1,7 @@
 # Default configuration for ppc-softmmu
 
 include pci.mak
+include usb.mak
 CONFIG_GDBSTUB_XML=y
 CONFIG_ISA_MMIO=y
 CONFIG_ESCC=y
