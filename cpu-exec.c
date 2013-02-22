@@ -51,13 +51,28 @@ void cpu_resume_from_signal(CPUArchState *env, void *puc)
 }
 #endif
 
+/* Execute a TB, and fix up the CPU state afterwards if necessary */
+static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
+{
+    CPUArchState *env = cpu->env_ptr;
+    tcg_target_ulong next_tb = tcg_qemu_tb_exec(env, tb_ptr);
+    if ((next_tb & TB_EXIT_MASK) > TB_EXIT_IDX1) {
+        /* We didn't start executing this TB (eg because the instruction
+         * counter hit zero); we must restore the guest PC to the address
+         * of the start of the TB.
+         */
+        TranslationBlock *tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
+        cpu_pc_from_tb(env, tb);
+    }
+    return next_tb;
+}
+
 /* Execute the code without caching the generated code. An interpreter
    could be used if available. */
 static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
                              TranslationBlock *orig_tb)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    tcg_target_ulong next_tb;
     TranslationBlock *tb;
 
     /* Should never happen.
@@ -69,14 +84,8 @@ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
                      max_cycles);
     cpu->current_tb = tb;
     /* execute the generated code */
-    next_tb = tcg_qemu_tb_exec(env, tb->tc_ptr);
+    cpu_tb_exec(cpu, tb->tc_ptr);
     cpu->current_tb = NULL;
-
-    if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
-        /* Restore PC.  This may happen if async event occurs before
-           the TB starts executing.  */
-        cpu_pc_from_tb(env, tb);
-    }
     tb_phys_invalidate(tb, -1);
     tb_free(tb);
 }
@@ -598,13 +607,11 @@ int cpu_exec(CPUArchState *env)
                 if (likely(!cpu->exit_request)) {
                     tc_ptr = tb->tc_ptr;
                     /* execute the generated code */
-                    next_tb = tcg_qemu_tb_exec(env, tc_ptr);
+                    next_tb = cpu_tb_exec(cpu, tc_ptr);
                     if ((next_tb & TB_EXIT_MASK) == TB_EXIT_ICOUNT_EXPIRED) {
                         /* Instruction counter expired.  */
                         int insns_left;
                         tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-                        /* Restore PC.  */
-                        cpu_pc_from_tb(env, tb);
                         insns_left = env->icount_decr.u32;
                         if (env->icount_extra && insns_left >= 0) {
                             /* Refill decrementer and continue execution.  */
