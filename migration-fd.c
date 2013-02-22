@@ -36,7 +36,7 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
     if (fd == -1) {
         return;
     }
-    s->migration_file = qemu_fdopen(fd, "wb");
+    s->file = qemu_fdopen(fd, "wb");
 
     migrate_fd_connect(s);
 }

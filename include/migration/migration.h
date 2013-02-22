@@ -36,9 +36,7 @@ struct MigrationState
     size_t xfer_limit;
     QemuThread thread;
     QEMUBH *cleanup_bh;
-
     QEMUFile *file;
-    QEMUFile *migration_file;
 
     int state;
     MigrationParams params;

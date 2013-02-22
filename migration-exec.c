@@ -35,8 +35,8 @@
 
 void exec_start_outgoing_migration(MigrationState *s, const char *command, Error **errp)
 {
-    s->migration_file = qemu_popen_cmd(command, "w");
-    if (s->migration_file == NULL) {
+    s->file = qemu_popen_cmd(command, "w");
+    if (s->file == NULL) {
         error_setg_errno(errp, errno, "failed to popen the migration target");
         return;
     }

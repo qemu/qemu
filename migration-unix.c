@@ -35,11 +35,11 @@ static void unix_wait_for_connect(int fd, void *opaque)
 
     if (fd < 0) {
         DPRINTF("migrate connect error\n");
-        s->migration_file = NULL;
+        s->file = NULL;
         migrate_fd_error(s);
     } else {
         DPRINTF("migrate connect success\n");
-        s->migration_file = qemu_fopen_socket(fd, "wb");
+        s->file = qemu_fopen_socket(fd, "wb");
         migrate_fd_connect(s);
     }
 }
