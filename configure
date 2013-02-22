@@ -1645,7 +1645,7 @@ fi
 
 if test "$gtk" != "no"; then
     if $pkg_config --exists 'gtk+-2.0 >= 2.18.0' && \
-       $pkg_config --exists 'vte >= 0.26.0'; then
+       $pkg_config --exists 'vte >= 0.24.0'; then
 	gtk_cflags=`$pkg_config --cflags gtk+-2.0 2>/dev/null`
 	gtk_libs=`$pkg_config --libs gtk+-2.0 2>/dev/null`
 	vte_cflags=`$pkg_config --cflags vte 2>/dev/null`

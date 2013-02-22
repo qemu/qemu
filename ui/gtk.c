@@ -868,7 +868,9 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     const char *label;
     char buffer[32];
     char path[32];
+#if VTE_CHECK_VERSION(0, 26, 0)
     VtePty *pty;
+#endif
     GIOChannel *chan;
     GtkWidget *scrolled_window;
     GtkAdjustment *vadjustment;
@@ -901,9 +903,12 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     cfmakeraw(&tty);
     tcsetattr(slave_fd, TCSAFLUSH, &tty);
 
+#if VTE_CHECK_VERSION(0, 26, 0)
     pty = vte_pty_new_foreign(master_fd, NULL);
-
     vte_terminal_set_pty_object(VTE_TERMINAL(vc->terminal), pty);
+#else
+    vte_terminal_set_pty(VTE_TERMINAL(vc->terminal), master_fd);
+#endif
 
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->terminal), -1);
 
