@@ -24,10 +24,6 @@ msgstr "_File"
 msgid "_View"
 msgstr "_Visualizza"
 
-#: ../ui/gtk.c:1002
-msgid "_Full Screen"
-msgstr "_Schermo intero"
-
 #: ../ui/gtk.c:1029
 msgid "Zoom To _Fit"
 msgstr "Adatta alla _finestra"

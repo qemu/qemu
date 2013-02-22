@@ -24,10 +24,6 @@ msgstr ""
 msgid "_View"
 msgstr ""
 
-#: ../ui/gtk.c:1002
-msgid "_Full Screen"
-msgstr ""
-
 #: ../ui/gtk.c:1029
 msgid "Zoom To _Fit"
 msgstr ""

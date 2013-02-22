@@ -633,7 +633,7 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
 
-    if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->full_screen_item))) {
+    if (!s->full_screen) {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
         gtk_widget_set_size_request(s->menu_bar, 0, 0);
         gtk_widget_set_size_request(s->drawing_area, -1, -1);
@@ -1015,7 +1015,8 @@ static void gd_create_menus(GtkDisplayState *s)
     gtk_menu_set_accel_group(GTK_MENU(s->view_menu), accel_group);
     s->view_menu_item = gtk_menu_item_new_with_mnemonic(_("_View"));
 
-    s->full_screen_item = gtk_check_menu_item_new_with_mnemonic(_("_Full Screen"));
+    s->full_screen_item =
+        gtk_image_menu_item_new_from_stock(GTK_STOCK_FULLSCREEN, NULL);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->full_screen_item),
                                  "<QEMU>/View/Full Screen");
     gtk_accel_map_add_entry("<QEMU>/View/Full Screen", GDK_KEY_f, GDK_CONTROL_MASK | GDK_MOD1_MASK);
