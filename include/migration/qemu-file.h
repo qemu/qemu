@@ -76,7 +76,7 @@ typedef struct QEMUFileOps {
 QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
 QEMUFile *qemu_fopen(const char *filename, const char *mode);
 QEMUFile *qemu_fdopen(int fd, const char *mode);
-QEMUFile *qemu_fopen_socket(int fd);
+QEMUFile *qemu_fopen_socket(int fd, const char *mode);
 QEMUFile *qemu_popen_cmd(const char *command, const char *mode);
 int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);

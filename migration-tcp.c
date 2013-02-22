@@ -95,7 +95,7 @@ static void tcp_accept_incoming_migration(void *opaque)
         goto out;
     }
 
-    f = qemu_fopen_socket(c);
+    f = qemu_fopen_socket(c, "rb");
     if (f == NULL) {
         fprintf(stderr, "could not qemu_fopen socket\n");
         goto out;
