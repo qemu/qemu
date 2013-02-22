@@ -272,6 +272,12 @@ static void migrate_fd_cleanup(void *opaque)
         DPRINTF("closing file\n");
         qemu_fclose(s->file);
         s->file = NULL;
+
+        qemu_mutex_unlock_iothread();
+        qemu_thread_join(&s->thread);
+        qemu_mutex_lock_iothread();
+
+        migrate_fd_close(s);
     }
 
     assert(s->migration_file == NULL);
@@ -523,16 +529,7 @@ static int migration_put_buffer(void *opaque, const uint8_t *buf,
 
 static int migration_close(void *opaque)
 {
-    MigrationState *s = opaque;
-
-    DPRINTF("closing\n");
-
-    qemu_mutex_unlock_iothread();
-    qemu_thread_join(&s->thread);
-    qemu_mutex_lock_iothread();
-    assert(s->state != MIG_STATE_ACTIVE);
-
-    return migrate_fd_close(s);
+    return 0;
 }
 
 static int migration_get_fd(void *opaque)
