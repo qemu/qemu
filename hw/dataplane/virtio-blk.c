@@ -14,13 +14,13 @@
 
 #include "trace.h"
 #include "qemu/iov.h"
-#include "event-poll.h"
 #include "qemu/thread.h"
 #include "vring.h"
 #include "ioq.h"
 #include "migration/migration.h"
 #include "hw/virtio-blk.h"
 #include "hw/dataplane/virtio-blk.h"
+#include "block/aio.h"
 
 enum {
     SEG_MAX = 126,                  /* maximum number of I/O segments */
@@ -51,9 +51,14 @@ struct VirtIOBlockDataPlane {
     Vring vring;                    /* virtqueue vring */
     EventNotifier *guest_notifier;  /* irq */
 
-    EventPoll event_poll;           /* event poller */
-    EventHandler io_handler;        /* Linux AIO completion handler */
-    EventHandler notify_handler;    /* virtqueue notify handler */
+    /* Note that these EventNotifiers are assigned by value.  This is
+     * fine as long as you do not call event_notifier_cleanup on them
+     * (because you don't own the file descriptor or handle; you just
+     * use it).
+     */
+    AioContext *ctx;
+    EventNotifier io_notifier;      /* Linux AIO completion */
+    EventNotifier host_notifier;    /* doorbell */
 
     IOQueue ioqueue;                /* Linux AIO queue (should really be per
                                        dataplane thread) */
@@ -256,10 +261,10 @@ static int process_request(IOQueue *ioq, struct iovec iov[],
     }
 }
 
-static void handle_notify(EventHandler *handler)
+static void handle_notify(EventNotifier *e)
 {
-    VirtIOBlockDataPlane *s = container_of(handler, VirtIOBlockDataPlane,
-                                           notify_handler);
+    VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
+                                           host_notifier);
 
     /* There is one array of iovecs into which all new requests are extracted
      * from the vring.  Requests are read from the vring and the translated
@@ -286,6 +291,7 @@ static void handle_notify(EventHandler *handler)
     unsigned int out_num = 0, in_num = 0;
     unsigned int num_queued;
 
+    event_notifier_test_and_clear(&s->host_notifier);
     for (;;) {
         /* Disable guest->host notifies to avoid unnecessary vmexits */
         vring_disable_notification(s->vdev, &s->vring);
@@ -334,11 +340,12 @@ static void handle_notify(EventHandler *handler)
     }
 }
 
-static void handle_io(EventHandler *handler)
+static void handle_io(EventNotifier *e)
 {
-    VirtIOBlockDataPlane *s = container_of(handler, VirtIOBlockDataPlane,
-                                           io_handler);
+    VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
+                                           io_notifier);
 
+    event_notifier_test_and_clear(&s->io_notifier);
     if (ioq_run_completion(&s->ioqueue, complete_request, s) > 0) {
         notify_guest(s);
     }
@@ -348,7 +355,7 @@ static void handle_io(EventHandler *handler)
      * requests.
      */
     if (unlikely(vring_more_avail(&s->vring))) {
-        handle_notify(&s->notify_handler);
+        handle_notify(&s->host_notifier);
     }
 }
 
@@ -357,7 +364,7 @@ static void *data_plane_thread(void *opaque)
     VirtIOBlockDataPlane *s = opaque;
 
     do {
-        event_poll(&s->event_poll);
+        aio_poll(s->ctx, true);
     } while (!s->stopping || s->num_reqs > 0);
     return NULL;
 }
@@ -445,7 +452,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         return;
     }
 
-    event_poll_init(&s->event_poll);
+    s->ctx = aio_context_new();
 
     /* Set up guest notifier (irq) */
     if (s->vdev->binding->set_guest_notifiers(s->vdev->binding_opaque, 1,
@@ -462,17 +469,16 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         fprintf(stderr, "virtio-blk failed to set host notifier\n");
         exit(1);
     }
-    event_poll_add(&s->event_poll, &s->notify_handler,
-                   virtio_queue_get_host_notifier(vq),
-                   handle_notify);
+    s->host_notifier = *virtio_queue_get_host_notifier(vq);
+    aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify, NULL);
 
     /* Set up ioqueue */
     ioq_init(&s->ioqueue, s->fd, REQ_MAX);
     for (i = 0; i < ARRAY_SIZE(s->requests); i++) {
         ioq_put_iocb(&s->ioqueue, &s->requests[i].iocb);
     }
-    event_poll_add(&s->event_poll, &s->io_handler,
-                   ioq_get_notifier(&s->ioqueue), handle_io);
+    s->io_notifier = *ioq_get_notifier(&s->ioqueue);
+    aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io, NULL);
 
     s->started = true;
     trace_virtio_blk_data_plane_start(s);
@@ -498,15 +504,17 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
         qemu_bh_delete(s->start_bh);
         s->start_bh = NULL;
     } else {
-        event_poll_notify(&s->event_poll);
+        aio_notify(s->ctx);
         qemu_thread_join(&s->thread);
     }
 
+    aio_set_event_notifier(s->ctx, &s->io_notifier, NULL, NULL);
     ioq_cleanup(&s->ioqueue);
 
+    aio_set_event_notifier(s->ctx, &s->host_notifier, NULL, NULL);
     s->vdev->binding->set_host_notifier(s->vdev->binding_opaque, 0, false);
 
-    event_poll_cleanup(&s->event_poll);
+    aio_context_unref(s->ctx);
 
     /* Clean up guest notifier (irq) */
     s->vdev->binding->set_guest_notifiers(s->vdev->binding_opaque, 1, false);

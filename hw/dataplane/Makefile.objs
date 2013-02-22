@@ -1,1 +1,1 @@
-obj-$(CONFIG_VIRTIO_BLK_DATA_PLANE) += hostmem.o vring.o event-poll.o ioq.o virtio-blk.o
+obj-$(CONFIG_VIRTIO_BLK_DATA_PLANE) += hostmem.o vring.o ioq.o virtio-blk.o
