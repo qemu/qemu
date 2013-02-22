@@ -1897,7 +1897,7 @@ static void usbredir_interrupt_packet(void *priv, uint64_t id,
         }
 
         if (QTAILQ_EMPTY(&dev->endpoint[EP2I(ep)].bufpq)) {
-            usb_wakeup(usb_ep_get(&dev->dev, USB_TOKEN_IN, ep & 0x0f));
+            usb_wakeup(usb_ep_get(&dev->dev, USB_TOKEN_IN, ep & 0x0f), 0);
         }
 
         /* bufp_alloc also adds the packet to the ep queue */
