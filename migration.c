@@ -523,12 +523,6 @@ static int migration_put_buffer(void *opaque, const uint8_t *buf,
 
     DPRINTF("putting %d bytes at %" PRId64 "\n", size, pos);
 
-    ret = qemu_file_get_error(s->file);
-    if (ret) {
-        DPRINTF("flush when error, bailing: %s\n", strerror(-ret));
-        return ret;
-    }
-
     if (size <= 0) {
         return size;
     }
