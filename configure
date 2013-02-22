@@ -284,7 +284,7 @@ sdl_config="${SDL_CONFIG-${cross_prefix}sdl-config}"
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wall -Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
-QEMU_CFLAGS="-Wredundant-decls $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/include"
 if test "$debug_info" = "yes"; then
@@ -3115,20 +3115,27 @@ if compile_prog "" "" ; then
 fi
 
 ########################################
-# check whether we can disable the -Wunused-but-set-variable
-# option with a pragma (this is needed to silence a warning in
-# some versions of the valgrind VALGRIND_STACK_DEREGISTER macro.)
-# This test has to be compiled with -Werror as otherwise an
-# unknown pragma is only a warning.
+# check whether we can disable warning option with a pragma (this is needed
+# to silence warnings in the headers of some versions of external libraries).
+# This test has to be compiled with -Werror as otherwise an unknown pragma is
+# only a warning.
+#
+# If we can't selectively disable warning in the code, disable -Werror so that
+# the build doesn't fail anyway.
+
 pragma_disable_unused_but_set=no
 cat > $TMPC << EOF
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+
 int main(void) {
     return 0;
 }
 EOF
 if compile_prog "-Werror" "" ; then
     pragma_diagnostic_available=yes
+else
+    werror=no
 fi
 
 ########################################

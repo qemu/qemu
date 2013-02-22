@@ -34,7 +34,18 @@
 #define GETTEXT_PACKAGE "qemu"
 #define LOCALEDIR "po"
 
+#include "qemu-common.h"
+
+#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
+/* Work around an -Wstrict-prototypes warning in GTK headers */
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#endif
 #include <gtk/gtk.h>
+#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
+#pragma GCC diagnostic error "-Wstrict-prototypes"
+#endif
+
+
 #include <gdk/gdkkeysyms.h>
 #include <glib/gi18n.h>
 #include <locale.h>
@@ -46,7 +57,6 @@
 #include <pty.h>
 #include <math.h>
 
-#include "qemu-common.h"
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
