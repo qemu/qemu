@@ -1349,55 +1349,6 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
     return &tcg_ctx.tb_ctx.tbs[m_max];
 }
 
-static void tb_reset_jump_recursive(TranslationBlock *tb);
-
-static inline void tb_reset_jump_recursive2(TranslationBlock *tb, int n)
-{
-    TranslationBlock *tb1, *tb_next, **ptb;
-    unsigned int n1;
-
-    tb1 = tb->jmp_next[n];
-    if (tb1 != NULL) {
-        /* find head of list */
-        for (;;) {
-            n1 = (uintptr_t)tb1 & 3;
-            tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
-            if (n1 == 2) {
-                break;
-            }
-            tb1 = tb1->jmp_next[n1];
-        }
-        /* we are now sure now that tb jumps to tb1 */
-        tb_next = tb1;
-
-        /* remove tb from the jmp_first list */
-        ptb = &tb_next->jmp_first;
-        for (;;) {
-            tb1 = *ptb;
-            n1 = (uintptr_t)tb1 & 3;
-            tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
-            if (n1 == n && tb1 == tb) {
-                break;
-            }
-            ptb = &tb1->jmp_next[n1];
-        }
-        *ptb = tb->jmp_next[n];
-        tb->jmp_next[n] = NULL;
-
-        /* suppress the jump to next tb in generated code */
-        tb_reset_jump(tb, n);
-
-        /* suppress jumps in the tb on which we could have jumped */
-        tb_reset_jump_recursive(tb_next);
-    }
-}
-
-static void tb_reset_jump_recursive(TranslationBlock *tb)
-{
-    tb_reset_jump_recursive2(tb, 0);
-    tb_reset_jump_recursive2(tb, 1);
-}
-
 #if defined(TARGET_HAS_ICE) && !defined(CONFIG_USER_ONLY)
 void tb_invalidate_phys_addr(hwaddr addr)
 {
@@ -1415,26 +1366,6 @@ void tb_invalidate_phys_addr(hwaddr addr)
     tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
 }
 #endif /* TARGET_HAS_ICE && !defined(CONFIG_USER_ONLY) */
-
-void cpu_unlink_tb(CPUState *cpu)
-{
-    /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
-       problem and hope the cpu will stop of its own accord.  For userspace
-       emulation this often isn't actually as bad as it sounds.  Often
-       signals are used primarily to interrupt blocking syscalls.  */
-    TranslationBlock *tb;
-    static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
-
-    spin_lock(&interrupt_lock);
-    tb = cpu->current_tb;
-    /* if the cpu is currently executing code, we must unlink it and
-       all the potentially executing TB */
-    if (tb) {
-        cpu->current_tb = NULL;
-        tb_reset_jump_recursive(tb);
-    }
-    spin_unlock(&interrupt_lock);
-}
 
 void tb_check_watchpoint(CPUArchState *env)
 {
