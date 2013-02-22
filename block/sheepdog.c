@@ -787,15 +787,6 @@ static int aio_flush_request(void *opaque)
         !QLIST_EMPTY(&s->pending_aio_head);
 }
 
-static int set_nodelay(int fd)
-{
-    int ret, opt;
-
-    opt = 1;
-    ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&opt, sizeof(opt));
-    return ret;
-}
-
 /*
  * Return a socket discriptor to read/write objects.
  *
@@ -814,7 +805,7 @@ static int get_sheep_fd(BDRVSheepdogState *s)
 
     socket_set_nonblock(fd);
 
-    ret = set_nodelay(fd);
+    ret = socket_set_nodelay(fd);
     if (ret) {
         error_report("%s", strerror(errno));
         closesocket(fd);
