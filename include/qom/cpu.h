@@ -138,6 +138,27 @@ void cpu_reset(CPUState *cpu);
 ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
 
 /**
+ * cpu_class_set_vmsd:
+ * @cc: CPU class
+ * @value: Value to set. Unused for %CONFIG_USER_ONLY.
+ *
+ * Sets #VMStateDescription for @cc.
+ *
+ * The @value argument is intentionally discarded for the non-softmmu targets
+ * to avoid linker errors or excessive preprocessor usage. If this behavior
+ * is undesired, you should assign #CPUState.vmsd directly instead.
+ */
+#ifndef CONFIG_USER_ONLY
+static inline void cpu_class_set_vmsd(CPUClass *cc,
+                                      const struct VMStateDescription *value)
+{
+    cc->vmsd = value;
+}
+#else
+#define cpu_class_set_vmsd(cc, value) ((cc)->vmsd = NULL)
+#endif
+
+/**
  * qemu_cpu_has_work:
  * @cpu: The vCPU to check.
  *
