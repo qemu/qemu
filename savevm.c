@@ -443,7 +443,7 @@ int qemu_file_get_error(QEMUFile *f)
     return f->last_error;
 }
 
-void qemu_file_set_error(QEMUFile *f, int ret)
+static void qemu_file_set_error(QEMUFile *f, int ret)
 {
     if (f->last_error == 0) {
         f->last_error = ret;
@@ -453,7 +453,7 @@ void qemu_file_set_error(QEMUFile *f, int ret)
 /** Flushes QEMUFile buffer
  *
  */
-void qemu_fflush(QEMUFile *f)
+static void qemu_fflush(QEMUFile *f)
 {
     int ret = 0;
 
