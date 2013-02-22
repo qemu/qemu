@@ -2088,7 +2088,8 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
         /* NOTE: the APIC is directly connected to the CPU - it is not
            on the global memory bus. */
         /* XXX: what if the base changes? */
-        sysbus_mmio_map(SYS_BUS_DEVICE(env->apic_state), 0, MSI_ADDR_BASE);
+        sysbus_mmio_map_overlap(SYS_BUS_DEVICE(env->apic_state), 0,
+                                MSI_ADDR_BASE, 0x1000);
         apic_mapped = 1;
     }
 }
