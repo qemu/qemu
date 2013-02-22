@@ -231,9 +231,10 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
     qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
 
+    block_mig_state.submitted++;
+
     blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
                                 nr_sectors, blk_mig_read_cb, blk);
-    block_mig_state.submitted++;
 
     bdrv_reset_dirty(bs, cur_sector, nr_sectors);
     bmds->cur_sector = cur_sector + nr_sectors;
@@ -440,9 +441,10 @@ static int flush_blks(QEMUFile *f)
             ret = blk->ret;
             break;
         }
-        blk_send(f, blk);
 
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.blk_list, entry);
+        blk_send(f, blk);
+
         g_free(blk->buf);
         g_free(blk);
 
@@ -542,15 +544,16 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
                 /* finished saving bulk on all devices */
                 block_mig_state.bulk_completed = 1;
             }
+            ret = 0;
         } else {
             ret = blk_mig_save_dirty_block(f, 1);
-            if (ret < 0) {
-                return ret;
-            }
-            if (ret != 0) {
-                /* no more dirty blocks */
-                break;
-            }
+        }
+        if (ret < 0) {
+            return ret;
+        }
+        if (ret != 0) {
+            /* no more dirty blocks */
+            break;
         }
     }
 
@@ -560,7 +563,6 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
     }
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
-
     return qemu_ftell(f) - last_ftell;
 }
 
@@ -603,7 +605,9 @@ static int block_save_complete(QEMUFile *f, void *opaque)
 static uint64_t block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
 {
     /* Estimate pending number of bytes to send */
-    uint64_t pending = get_remaining_dirty() +
+    uint64_t pending;
+
+    pending = get_remaining_dirty() +
                        block_mig_state.submitted * BLOCK_SIZE +
                        block_mig_state.read_done * BLOCK_SIZE;
 
