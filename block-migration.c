@@ -50,7 +50,6 @@ typedef struct BlkMigDevState {
     int64_t cur_dirty;
     int64_t completed_sectors;
     int64_t total_sectors;
-    int64_t dirty;
     QSIMPLEQ_ENTRY(BlkMigDevState) entry;
     unsigned long *aio_bitmap;
 } BlkMigDevState;
@@ -78,7 +77,6 @@ typedef struct BlkMigState {
     int64_t total_sector_sum;
     int prev_progress;
     int bulk_completed;
-    long double prev_time_offset;
 } BlkMigState;
 
 static BlkMigState block_mig_state;
@@ -179,12 +177,9 @@ static void alloc_aio_bitmap(BlkMigDevState *bmds)
 
 static void blk_mig_read_cb(void *opaque, int ret)
 {
-    long double curr_time = qemu_get_clock_ns(rt_clock);
     BlkMigBlock *blk = opaque;
 
     blk->ret = ret;
-
-    block_mig_state.prev_time_offset = curr_time;
 
     QSIMPLEQ_INSERT_TAIL(&block_mig_state.blk_list, blk, entry);
     bmds_set_aio_inflight(blk->bmds, blk->sector, blk->nr_sectors, 0);
@@ -235,10 +230,6 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     blk->iov.iov_base = blk->buf;
     blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
     qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
-
-    if (block_mig_state.submitted == 0) {
-        block_mig_state.prev_time_offset = qemu_get_clock_ns(rt_clock);
-    }
 
     blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
                                 nr_sectors, blk_mig_read_cb, blk);
@@ -381,10 +372,6 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
                 blk->iov.iov_base = blk->buf;
                 blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
                 qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
-
-                if (block_mig_state.submitted == 0) {
-                    block_mig_state.prev_time_offset = qemu_get_clock_ns(rt_clock);
-                }
 
                 blk->aiocb = bdrv_aio_readv(bmds->bs, sector, &blk->qiov,
                                             nr_sectors, blk_mig_read_cb, blk);
