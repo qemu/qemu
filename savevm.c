@@ -1724,6 +1724,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
+    qemu_fflush(f);
 }
 
 uint64_t qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size)

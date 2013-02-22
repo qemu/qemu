@@ -34,9 +34,6 @@ struct MigrationState
     int64_t bandwidth_limit;
     size_t bytes_xfer;
     size_t xfer_limit;
-    uint8_t *buffer;
-    size_t buffer_size;
-    size_t buffer_capacity;
     QemuThread thread;
     QEMUBH *cleanup_bh;
 
