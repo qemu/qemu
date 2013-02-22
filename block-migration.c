@@ -524,16 +524,10 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     set_dirty_tracking(1);
 
     ret = flush_blks(f);
-    if (ret) {
-        blk_mig_cleanup();
-        return ret;
-    }
-
     blk_mig_reset_dirty_cursor();
-
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
-    return 0;
+    return ret;
 }
 
 static int block_save_iterate(QEMUFile *f, void *opaque)
@@ -546,7 +540,6 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
 
     ret = flush_blks(f);
     if (ret) {
-        blk_mig_cleanup();
         return ret;
     }
 
@@ -564,20 +557,18 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
             }
         } else {
             ret = blk_mig_save_dirty_block(f, 1);
+            if (ret < 0) {
+                return ret;
+            }
             if (ret != 0) {
                 /* no more dirty blocks */
                 break;
             }
         }
     }
-    if (ret < 0) {
-        blk_mig_cleanup();
-        return ret;
-    }
 
     ret = flush_blks(f);
     if (ret) {
-        blk_mig_cleanup();
         return ret;
     }
 
@@ -595,7 +586,6 @@ static int block_save_complete(QEMUFile *f, void *opaque)
 
     ret = flush_blks(f);
     if (ret) {
-        blk_mig_cleanup();
         return ret;
     }
 
@@ -607,12 +597,11 @@ static int block_save_complete(QEMUFile *f, void *opaque)
 
     do {
         ret = blk_mig_save_dirty_block(f, 0);
+        if (ret < 0) {
+            return ret;
+        }
     } while (ret == 0);
 
-    blk_mig_cleanup();
-    if (ret < 0) {
-        return ret;
-    }
     /* report completion */
     qemu_put_be64(f, (100 << BDRV_SECTOR_BITS) | BLK_MIG_FLAG_PROGRESS);
 
@@ -620,6 +609,7 @@ static int block_save_complete(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
+    blk_mig_cleanup();
     return 0;
 }
 
