@@ -5249,7 +5249,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
-    gen_icount_start();
+    gen_tb_start();
     do {
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
@@ -5319,7 +5319,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
             tcg_gen_exit_tb(0);
         }
     }
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (spc) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;

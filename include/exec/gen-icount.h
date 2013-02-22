@@ -9,7 +9,7 @@ static TCGArg *icount_arg;
 static int icount_label;
 static int exitreq_label;
 
-static inline void gen_icount_start(void)
+static inline void gen_tb_start(void)
 {
     TCGv_i32 count;
     TCGv_i32 flag;
@@ -36,7 +36,7 @@ static inline void gen_icount_start(void)
     tcg_temp_free_i32(count);
 }
 
-static void gen_icount_end(TranslationBlock *tb, int num_insns)
+static void gen_tb_end(TranslationBlock *tb, int num_insns)
 {
     gen_set_label(exitreq_label);
     tcg_gen_exit_tb((tcg_target_long)tb + TB_EXIT_REQUESTED);

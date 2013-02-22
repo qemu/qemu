@@ -2999,7 +2999,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
 
-    gen_icount_start();
+    gen_tb_start();
     do {
         pc_offset = dc->pc - pc_start;
         gen_throws_exception = NULL;
@@ -3063,7 +3063,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
             break;
         }
     }
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS

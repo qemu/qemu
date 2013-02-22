@@ -2913,7 +2913,7 @@ static void gen_intermediate_code_internal(
         dc.next_icount = tcg_temp_local_new_i32();
     }
 
-    gen_icount_start();
+    gen_tb_start();
 
     if (env->singlestep_enabled && env->exception_taken) {
         env->exception_taken = 0;
@@ -2991,7 +2991,7 @@ static void gen_intermediate_code_internal(
     if (dc.is_jmp == DISAS_NEXT) {
         gen_jumpi(&dc, dc.pc, 0);
     }
-    gen_icount_end(tb, insn_count);
+    gen_tb_end(tb, insn_count);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
     if (search_pc) {

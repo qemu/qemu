@@ -3250,7 +3250,7 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_icount_start();
+    gen_tb_start();
     do {
         check_breakpoint(env, dc);
 
@@ -3391,7 +3391,7 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
             break;
         }
     }
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;

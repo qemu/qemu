@@ -4769,7 +4769,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_icount_start();
+    gen_tb_start();
 
     do {
         if (search_pc) {
@@ -4845,7 +4845,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
         abort();
     }
 
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;

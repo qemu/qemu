@@ -1921,7 +1921,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
     }
 #endif
 
-    gen_icount_start();
+    gen_tb_start();
     do {
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
@@ -2041,7 +2041,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
     }
 
 done_generating:
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS

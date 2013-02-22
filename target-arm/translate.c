@@ -9808,7 +9808,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
 
-    gen_icount_start();
+    gen_tb_start();
 
     tcg_clear_temp_count();
 
@@ -10011,7 +10011,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
     }
 
 done_generating:
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
