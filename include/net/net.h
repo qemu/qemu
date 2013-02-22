@@ -72,7 +72,7 @@ struct NetClientState {
 };
 
 typedef struct NICState {
-    NetClientState ncs[MAX_QUEUE_NUM];
+    NetClientState *ncs;
     NICConf *conf;
     void *opaque;
     bool peer_deleted;
