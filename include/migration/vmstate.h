@@ -32,14 +32,25 @@ typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
 typedef struct SaveVMHandlers {
+    /* This runs inside the iothread lock.  */
     void (*set_params)(const MigrationParams *params, void * opaque);
     SaveStateHandler *save_state;
 
     int (*save_live_setup)(QEMUFile *f, void *opaque);
     void (*cancel)(void *opaque);
     int (*save_live_complete)(QEMUFile *f, void *opaque);
+
+    /* This runs both outside and inside the iothread lock.  */
     bool (*is_active)(void *opaque);
+
+    /* This runs outside the iothread lock in the migration case, and
+     * within the lock in the savevm case.  The callback had better only
+     * use data that is local to the migration thread or protected
+     * by other locks.
+     */
     int (*save_live_iterate)(QEMUFile *f, void *opaque);
+
+    /* This runs outside the iothread lock!  */
     uint64_t (*save_live_pending)(QEMUFile *f, void *opaque, uint64_t max_size);
 
     LoadStateHandler *load_state;

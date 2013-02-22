@@ -107,6 +107,10 @@ static void blk_mig_unlock(void)
     qemu_mutex_unlock(&block_mig_state.lock);
 }
 
+/* Must run outside of the iothread lock during the bulk phase,
+ * or the VM will stall.
+ */
+
 static void blk_send(QEMUFile *f, BlkMigBlock * blk)
 {
     int len;
@@ -226,6 +230,8 @@ static void blk_mig_read_cb(void *opaque, int ret)
     blk_mig_unlock();
 }
 
+/* Called with no lock taken.  */
+
 static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
 {
     int64_t total_sectors = bmds->total_sectors;
@@ -235,11 +241,13 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     int nr_sectors;
 
     if (bmds->shared_base) {
+        qemu_mutex_lock_iothread();
         while (cur_sector < total_sectors &&
                !bdrv_is_allocated(bs, cur_sector, MAX_IS_ALLOCATED_SEARCH,
                                   &nr_sectors)) {
             cur_sector += nr_sectors;
         }
+        qemu_mutex_unlock_iothread();
     }
 
     if (cur_sector >= total_sectors) {
@@ -272,14 +280,18 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     block_mig_state.submitted++;
     blk_mig_unlock();
 
+    qemu_mutex_lock_iothread();
     blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
                                 nr_sectors, blk_mig_read_cb, blk);
 
     bdrv_reset_dirty(bs, cur_sector, nr_sectors);
-    bmds->cur_sector = cur_sector + nr_sectors;
+    qemu_mutex_unlock_iothread();
 
+    bmds->cur_sector = cur_sector + nr_sectors;
     return (bmds->cur_sector >= total_sectors);
 }
+
+/* Called with iothread lock taken.  */
 
 static void set_dirty_tracking(int enable)
 {
@@ -336,6 +348,8 @@ static void init_blk_migration(QEMUFile *f)
     bdrv_iterate(init_blk_migration_it, NULL);
 }
 
+/* Called with no lock taken.  */
+
 static int blk_mig_save_bulked_block(QEMUFile *f)
 {
     int64_t completed_sector_sum = 0;
@@ -381,6 +395,8 @@ static void blk_mig_reset_dirty_cursor(void)
         bmds->cur_dirty = 0;
     }
 }
+
+/* Called with iothread lock taken.  */
 
 static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
                                  int is_async)
@@ -451,7 +467,9 @@ error:
     return ret;
 }
 
-/* return value:
+/* Called with iothread lock taken.
+ *
+ * return value:
  * 0: too much data for max_downtime
  * 1: few enough data for max_downtime
 */
@@ -469,6 +487,8 @@ static int blk_mig_save_dirty_block(QEMUFile *f, int is_async)
 
     return ret;
 }
+
+/* Called with no locks taken.  */
 
 static int flush_blks(QEMUFile *f)
 {
@@ -509,6 +529,8 @@ static int flush_blks(QEMUFile *f)
     return ret;
 }
 
+/* Called with iothread lock taken.  */
+
 static int64_t get_remaining_dirty(void)
 {
     BlkMigDevState *bmds;
@@ -520,6 +542,8 @@ static int64_t get_remaining_dirty(void)
 
     return dirty << BDRV_SECTOR_BITS;
 }
+
+/* Called with iothread lock taken.  */
 
 static void blk_mig_cleanup(void)
 {
@@ -600,7 +624,12 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
             }
             ret = 0;
         } else {
+            /* Always called with iothread lock taken for
+             * simplicity, block_save_complete also calls it.
+             */
+            qemu_mutex_lock_iothread();
             ret = blk_mig_save_dirty_block(f, 1);
+            qemu_mutex_unlock_iothread();
         }
         if (ret < 0) {
             return ret;
@@ -621,6 +650,8 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
     return qemu_ftell(f) - last_ftell;
 }
+
+/* Called with iothread lock taken.  */
 
 static int block_save_complete(QEMUFile *f, void *opaque)
 {
@@ -665,6 +696,7 @@ static uint64_t block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
     /* Estimate pending number of bytes to send */
     uint64_t pending;
 
+    qemu_mutex_lock_iothread();
     blk_mig_lock();
     pending = get_remaining_dirty() +
                        block_mig_state.submitted * BLOCK_SIZE +
@@ -675,6 +707,7 @@ static uint64_t block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
         pending = BLOCK_SIZE;
     }
     blk_mig_unlock();
+    qemu_mutex_unlock_iothread();
 
     DPRINTF("Enter save live pending  %" PRIu64 "\n", pending);
     return pending;
