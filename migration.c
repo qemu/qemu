@@ -525,6 +525,10 @@ static void buffered_flush(MigrationState *s)
 
     DPRINTF("flushing %zu byte(s) of data\n", s->buffer_size);
 
+    if (qemu_file_get_error(s->file)) {
+        s->buffer_size = 0;
+        return;
+    }
     qemu_fflush(s->file);
 
     while (s->bytes_xfer < s->xfer_limit && offset < s->buffer_size) {
@@ -592,7 +596,6 @@ static int buffered_close(void *opaque)
     while (!qemu_file_get_error(s->file) && s->buffer_size) {
         buffered_flush(s);
     }
-    s->complete = true;
     return migrate_fd_close(s);
 }
 
@@ -656,37 +659,21 @@ static void *buffered_file_thread(void *opaque)
     int64_t sleep_time = 0;
     int64_t max_size = 0;
     bool last_round = false;
-    int ret;
 
     qemu_mutex_lock_iothread();
     DPRINTF("beginning savevm\n");
-    ret = qemu_savevm_state_begin(s->file, &s->params);
-    qemu_mutex_unlock_iothread();
+    qemu_savevm_state_begin(s->file, &s->params);
 
-    while (ret >= 0) {
+    while (s->state == MIG_STATE_ACTIVE) {
         int64_t current_time;
         uint64_t pending_size;
 
-        qemu_mutex_lock_iothread();
-        if (s->state != MIG_STATE_ACTIVE) {
-            DPRINTF("put_ready returning because of non-active state\n");
-            qemu_mutex_unlock_iothread();
-            break;
-        }
-        if (s->complete) {
-            qemu_mutex_unlock_iothread();
-            break;
-        }
         if (s->bytes_xfer < s->xfer_limit) {
             DPRINTF("iterate\n");
             pending_size = qemu_savevm_state_pending(s->file, max_size);
             DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
             if (pending_size && pending_size >= max_size) {
-                ret = qemu_savevm_state_iterate(s->file);
-                if (ret < 0) {
-                    qemu_mutex_unlock_iothread();
-                    break;
-                }
+                qemu_savevm_state_iterate(s->file);
             } else {
                 int old_vm_running = runstate_is_running();
                 int64_t start_time, end_time;
@@ -695,13 +682,8 @@ static void *buffered_file_thread(void *opaque)
                 start_time = qemu_get_clock_ms(rt_clock);
                 qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
                 vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-                ret = qemu_savevm_state_complete(s->file);
-                if (ret < 0) {
-                    qemu_mutex_unlock_iothread();
-                    break;
-                } else {
-                    migrate_fd_completed(s);
-                }
+                qemu_savevm_state_complete(s->file);
+                migrate_fd_completed(s);
                 end_time = qemu_get_clock_ms(rt_clock);
                 s->total_time = end_time - s->total_time;
                 s->downtime = end_time - start_time;
@@ -740,12 +722,13 @@ static void *buffered_file_thread(void *opaque)
             sleep_time += qemu_get_clock_ms(rt_clock) - current_time;
         }
         buffered_flush(s);
-        ret = qemu_file_get_error(s->file);
+        qemu_mutex_lock_iothread();
+        if (qemu_file_get_error(s->file)) {
+            migrate_fd_error(s);
+        }
     }
 
-    if (ret < 0) {
-        migrate_fd_error(s);
-    }
+    qemu_mutex_unlock_iothread();
     g_free(s->buffer);
     return NULL;
 }
@@ -770,7 +753,6 @@ void migrate_fd_connect(MigrationState *s)
     s->expected_downtime = max_downtime/1000000;
 
     s->xfer_limit = s->bandwidth_limit / XFER_LIMIT_RATIO;
-    s->complete = false;
 
     s->file = qemu_fopen_ops(s, &buffered_file_ops);
 
