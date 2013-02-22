@@ -822,7 +822,7 @@ Example:
 -> { "execute": "netdev_add", "arguments": { "type": "user", "id": "netdev1" } }
 <- { "return": {} }
 
-Note: The supported device options are the same ones supported by the '-net'
+Note: The supported device options are the same ones supported by the '-netdev'
       command-line argument, which are listed in the '-help' output or QEMU's
       manual
 
