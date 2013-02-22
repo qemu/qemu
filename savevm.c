@@ -256,6 +256,24 @@ static int stdio_fclose(void *opaque)
 {
     QEMUFileStdio *s = opaque;
     int ret = 0;
+
+    if (s->file->ops->put_buffer) {
+        int fd = fileno(s->stdio_file);
+        struct stat st;
+
+        ret = fstat(fd, &st);
+        if (ret == 0 && S_ISREG(st.st_mode)) {
+            /*
+             * If the file handle is a regular file make sure the
+             * data is flushed to disk before signaling success.
+             */
+            ret = fsync(fd);
+            if (ret != 0) {
+                ret = -errno;
+                return ret;
+            }
+        }
+    }
     if (fclose(s->stdio_file) == EOF) {
         ret = -errno;
     }
