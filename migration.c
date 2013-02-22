@@ -23,6 +23,7 @@
 #include "migration/block.h"
 #include "qemu/thread.h"
 #include "qmp-commands.h"
+#include "trace.h"
 
 //#define DEBUG_MIGRATION
 
@@ -282,6 +283,7 @@ void migrate_fd_error(MigrationState *s)
 {
     DPRINTF("setting error state\n");
     s->state = MIG_STATE_ERROR;
+    trace_migrate_set_state(MIG_STATE_ERROR);
     migrate_fd_cleanup(s);
 }
 
@@ -289,6 +291,7 @@ static void migrate_fd_completed(MigrationState *s)
 {
     DPRINTF("setting completed state\n");
     s->state = MIG_STATE_COMPLETED;
+    trace_migrate_set_state(MIG_STATE_COMPLETED);
     migrate_fd_cleanup(s);
 }
 
@@ -319,6 +322,7 @@ static void migrate_fd_cancel(MigrationState *s)
     DPRINTF("cancelling migration\n");
 
     s->state = MIG_STATE_CANCELLED;
+    trace_migrate_set_state(MIG_STATE_CANCELLED);
     migrate_fd_cleanup(s);
 }
 
@@ -377,8 +381,9 @@ static MigrationState *migrate_init(const MigrationParams *params)
 
     s->bandwidth_limit = bandwidth_limit;
     s->state = MIG_STATE_SETUP;
-    s->total_time = qemu_get_clock_ms(rt_clock);
+    trace_migrate_set_state(MIG_STATE_SETUP);
 
+    s->total_time = qemu_get_clock_ms(rt_clock);
     return s;
 }
 
@@ -738,6 +743,8 @@ static const QEMUFileOps buffered_file_ops = {
 void migrate_fd_connect(MigrationState *s)
 {
     s->state = MIG_STATE_ACTIVE;
+    trace_migrate_set_state(MIG_STATE_ACTIVE);
+
     s->bytes_xfer = 0;
     s->buffer = NULL;
     s->buffer_size = 0;
