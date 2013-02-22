@@ -22,7 +22,7 @@
 #define SD_PROTO_VER 0x01
 
 #define SD_DEFAULT_ADDR "localhost"
-#define SD_DEFAULT_PORT "7000"
+#define SD_DEFAULT_PORT 7000
 
 #define SD_OP_CREATE_AND_WRITE_OBJ  0x01
 #define SD_OP_READ_OBJ       0x02
@@ -298,8 +298,7 @@ typedef struct BDRVSheepdogState {
     bool is_snapshot;
     uint32_t cache_flags;
 
-    char *addr;
-    char *port;
+    char *host_spec;
     int fd;
 
     CoMutex lock;
@@ -447,56 +446,18 @@ static SheepdogAIOCB *sd_aio_setup(BlockDriverState *bs, QEMUIOVector *qiov,
     return acb;
 }
 
-static int connect_to_sdog(const char *addr, const char *port)
+static int connect_to_sdog(BDRVSheepdogState *s)
 {
-    char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-    int fd, ret;
-    struct addrinfo hints, *res, *res0;
+    int fd;
+    Error *err = NULL;
 
-    if (!addr) {
-        addr = SD_DEFAULT_ADDR;
-        port = SD_DEFAULT_PORT;
+    fd = inet_connect(s->host_spec, &err);
+
+    if (err != NULL) {
+        qerror_report_err(err);
+        error_free(err);
     }
 
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_socktype = SOCK_STREAM;
-
-    ret = getaddrinfo(addr, port, &hints, &res0);
-    if (ret) {
-        error_report("unable to get address info %s, %s",
-                     addr, strerror(errno));
-        return -errno;
-    }
-
-    for (res = res0; res; res = res->ai_next) {
-        ret = getnameinfo(res->ai_addr, res->ai_addrlen, hbuf, sizeof(hbuf),
-                          sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV);
-        if (ret) {
-            continue;
-        }
-
-        fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-        if (fd < 0) {
-            continue;
-        }
-
-    reconnect:
-        ret = connect(fd, res->ai_addr, res->ai_addrlen);
-        if (ret < 0) {
-            if (errno == EINTR) {
-                goto reconnect;
-            }
-            close(fd);
-            break;
-        }
-
-        dprintf("connected to %s:%s\n", addr, port);
-        goto success;
-    }
-    fd = -errno;
-    error_report("failed connect to %s:%s", addr, port);
-success:
-    freeaddrinfo(res0);
     return fd;
 }
 
@@ -798,9 +759,8 @@ static int get_sheep_fd(BDRVSheepdogState *s)
 {
     int ret, fd;
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
-        error_report("%s", strerror(errno));
         return fd;
     }
 
@@ -836,12 +796,8 @@ static int sd_parse_uri(BDRVSheepdogState *s, const char *filename,
     pstrcpy(vdi, SD_MAX_VDI_LEN, uri->path + 1);
 
     /* sheepdog[+tcp]://[host:port]/vdiname */
-    s->addr = g_strdup(uri->server ?: SD_DEFAULT_ADDR);
-    if (uri->port) {
-        s->port = g_strdup_printf("%d", uri->port);
-    } else {
-        s->port = g_strdup(SD_DEFAULT_PORT);
-    }
+    s->host_spec = g_strdup_printf("%s:%d", uri->server ?: SD_DEFAULT_ADDR,
+                                   uri->port ?: SD_DEFAULT_PORT);
 
     /* snapshot tag */
     if (uri->fragment) {
@@ -935,7 +891,7 @@ static int find_vdi_name(BDRVSheepdogState *s, char *filename, uint32_t snapid,
     unsigned int wlen, rlen = 0;
     char buf[SD_MAX_VDI_LEN + SD_MAX_VDI_TAG_LEN];
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
         return fd;
     }
@@ -1178,9 +1134,8 @@ static int sd_open(BlockDriverState *bs, const char *filename, int flags)
         s->is_snapshot = true;
     }
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
-        error_report("failed to connect");
         ret = fd;
         goto out;
     }
@@ -1213,9 +1168,8 @@ out:
     return ret;
 }
 
-static int do_sd_create(char *filename, int64_t vdi_size,
-                        uint32_t base_vid, uint32_t *vdi_id, int snapshot,
-                        const char *addr, const char *port)
+static int do_sd_create(BDRVSheepdogState *s, char *filename, int64_t vdi_size,
+                        uint32_t base_vid, uint32_t *vdi_id, int snapshot)
 {
     SheepdogVdiReq hdr;
     SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
@@ -1223,7 +1177,7 @@ static int do_sd_create(char *filename, int64_t vdi_size,
     unsigned int wlen, rlen = 0;
     char buf[SD_MAX_VDI_LEN];
 
-    fd = connect_to_sdog(addr, port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
         return fd;
     }
@@ -1390,7 +1344,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
         bdrv_delete(bs);
     }
 
-    ret = do_sd_create(vdi, vdi_size, base_vid, &vid, 0, s->addr, s->port);
+    ret = do_sd_create(s, vdi, vdi_size, base_vid, &vid, 0);
     if (!prealloc || ret) {
         goto out;
     }
@@ -1411,7 +1365,7 @@ static void sd_close(BlockDriverState *bs)
 
     dprintf("%s\n", s->name);
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
         return;
     }
@@ -1435,8 +1389,7 @@ static void sd_close(BlockDriverState *bs)
 
     qemu_aio_set_fd_handler(s->fd, NULL, NULL, NULL, NULL);
     closesocket(s->fd);
-    g_free(s->addr);
-    g_free(s->port);
+    g_free(s->host_spec);
 }
 
 static int64_t sd_getlength(BlockDriverState *bs)
@@ -1460,7 +1413,7 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset)
         return -EINVAL;
     }
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
         return fd;
     }
@@ -1536,17 +1489,15 @@ static int sd_create_branch(BDRVSheepdogState *s)
 
     buf = g_malloc(SD_INODE_SIZE);
 
-    ret = do_sd_create(s->name, s->inode.vdi_size, s->inode.vdi_id, &vid, 1,
-                       s->addr, s->port);
+    ret = do_sd_create(s, s->name, s->inode.vdi_size, s->inode.vdi_id, &vid, 1);
     if (ret) {
         goto out;
     }
 
     dprintf("%" PRIx32 " is created.\n", vid);
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
-        error_report("failed to connect");
         ret = fd;
         goto out;
     }
@@ -1805,7 +1756,7 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     datalen = SD_INODE_SIZE - sizeof(s->inode.data_vdi_id);
 
     /* refresh inode. */
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
         ret = fd;
         goto cleanup;
@@ -1818,8 +1769,8 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         goto cleanup;
     }
 
-    ret = do_sd_create(s->name, s->inode.vdi_size, s->inode.vdi_id, &new_vid, 1,
-                       s->addr, s->port);
+    ret = do_sd_create(s, s->name, s->inode.vdi_size, s->inode.vdi_id, &new_vid,
+                       1);
     if (ret < 0) {
         error_report("failed to create inode for snapshot. %s",
                      strerror(errno));
@@ -1874,9 +1825,8 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         goto out;
     }
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
-        error_report("failed to connect");
         ret = fd;
         goto out;
     }
@@ -1938,7 +1888,7 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
 
     vdi_inuse = g_malloc(max);
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
         ret = fd;
         goto out;
@@ -1965,9 +1915,8 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
     hval = fnv_64a_buf(s->name, strlen(s->name), FNV1A_64_INIT);
     start_nr = hval & (SD_NR_VDIS - 1);
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
-        error_report("failed to connect");
         ret = fd;
         goto out;
     }
@@ -2024,7 +1973,7 @@ static int do_load_save_vmstate(BDRVSheepdogState *s, uint8_t *data,
     uint32_t vdi_index;
     uint64_t offset;
 
-    fd = connect_to_sdog(s->addr, s->port);
+    fd = connect_to_sdog(s);
     if (fd < 0) {
         return fd;
     }
