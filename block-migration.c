@@ -43,18 +43,24 @@
 #endif
 
 typedef struct BlkMigDevState {
+    /* Written during setup phase.  Can be read without a lock.  */
     BlockDriverState *bs;
-    int bulk_completed;
     int shared_base;
-    int64_t cur_sector;
-    int64_t cur_dirty;
-    int64_t completed_sectors;
     int64_t total_sectors;
     QSIMPLEQ_ENTRY(BlkMigDevState) entry;
+
+    /* Only used by migration thread.  Does not need a lock.  */
+    int bulk_completed;
+    int64_t cur_sector;
+    int64_t cur_dirty;
+
+    /* Protected by iothread lock.  */
     unsigned long *aio_bitmap;
+    int64_t completed_sectors;
 } BlkMigDevState;
 
 typedef struct BlkMigBlock {
+    /* Only used by migration thread.  */
     uint8_t *buf;
     BlkMigDevState *bmds;
     int64_t sector;
@@ -62,19 +68,26 @@ typedef struct BlkMigBlock {
     struct iovec iov;
     QEMUIOVector qiov;
     BlockDriverAIOCB *aiocb;
+
+    /* Protected by iothread lock.  */
     int ret;
     QSIMPLEQ_ENTRY(BlkMigBlock) entry;
 } BlkMigBlock;
 
 typedef struct BlkMigState {
+    /* Written during setup phase.  Can be read without a lock.  */
     int blk_enable;
     int shared_base;
     QSIMPLEQ_HEAD(bmds_list, BlkMigDevState) bmds_list;
+    int64_t total_sector_sum;
+
+    /* Protected by iothread lock.  */
     QSIMPLEQ_HEAD(blk_list, BlkMigBlock) blk_list;
     int submitted;
     int read_done;
+
+    /* Only used by migration thread.  Does not need a lock.  */
     int transferred;
-    int64_t total_sector_sum;
     int prev_progress;
     int bulk_completed;
 } BlkMigState;
