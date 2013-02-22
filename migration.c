@@ -274,10 +274,10 @@ static void migrate_fd_cleanup(void *opaque)
         qemu_thread_join(&s->thread);
         qemu_mutex_lock_iothread();
 
-        migrate_fd_close(s);
+        qemu_fclose(s->file);
+        s->file = NULL;
     }
 
-    assert(s->file == NULL);
     assert(s->state != MIG_STATE_ACTIVE);
 
     if (s->state != MIG_STATE_COMPLETED) {
@@ -309,16 +309,6 @@ static void migrate_fd_cancel(MigrationState *s)
     DPRINTF("cancelling migration\n");
 
     migrate_finish_set_state(s, MIG_STATE_CANCELLED);
-}
-
-int migrate_fd_close(MigrationState *s)
-{
-    int rc = 0;
-    if (s->file != NULL) {
-        rc = qemu_fclose(s->file);
-        s->file = NULL;
-    }
-    return rc;
 }
 
 void add_migration_state_change_notifier(Notifier *notify)
