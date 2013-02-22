@@ -38,6 +38,7 @@ struct MigrationState
     size_t buffer_size;
     size_t buffer_capacity;
     QemuThread thread;
+    QEMUBH *cleanup_bh;
 
     QEMUFile *file;
     int fd;

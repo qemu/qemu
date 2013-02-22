@@ -261,8 +261,13 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 
 /* shared migration helpers */
 
-static void migrate_fd_cleanup(MigrationState *s)
+static void migrate_fd_cleanup(void *opaque)
 {
+    MigrationState *s = opaque;
+
+    qemu_bh_delete(s->cleanup_bh);
+    s->cleanup_bh = NULL;
+
     if (s->file) {
         DPRINTF("closing file\n");
         qemu_fclose(s->file);
@@ -290,15 +295,10 @@ static void migrate_finish_set_state(MigrationState *s, int new_state)
 void migrate_fd_error(MigrationState *s)
 {
     DPRINTF("setting error state\n");
-    migrate_finish_set_state(s, MIG_STATE_ERROR);
-    migrate_fd_cleanup(s);
-}
-
-static void migrate_fd_completed(MigrationState *s)
-{
-    DPRINTF("setting completed state\n");
-    migrate_finish_set_state(s, MIG_STATE_COMPLETED);
-    migrate_fd_cleanup(s);
+    assert(s->file == NULL);
+    s->state = MIG_STATE_ERROR;
+    trace_migrate_set_state(MIG_STATE_ERROR);
+    notifier_list_notify(&migration_state_notifiers, s);
 }
 
 static ssize_t migrate_fd_put_buffer(MigrationState *s, const void *data,
@@ -325,7 +325,6 @@ static void migrate_fd_cancel(MigrationState *s)
     DPRINTF("cancelling migration\n");
 
     migrate_finish_set_state(s, MIG_STATE_CANCELLED);
-    migrate_fd_cleanup(s);
 }
 
 int migrate_fd_close(MigrationState *s)
@@ -590,6 +589,11 @@ static int buffered_close(void *opaque)
 
     DPRINTF("closing\n");
 
+    qemu_mutex_unlock_iothread();
+    qemu_thread_join(&s->thread);
+    qemu_mutex_lock_iothread();
+    assert(s->state != MIG_STATE_ACTIVE);
+
     return migrate_fd_close(s);
 }
 
@@ -712,13 +716,9 @@ static void *buffered_file_thread(void *opaque)
         }
         buffered_flush(s);
         if (qemu_file_get_error(s->file)) {
-            qemu_mutex_lock_iothread();
-            migrate_fd_error(s);
-            qemu_mutex_unlock_iothread();
+            migrate_finish_set_state(s, MIG_STATE_ERROR);
         } else if (last_round && s->buffer_size == 0) {
-            qemu_mutex_lock_iothread();
-            migrate_fd_completed(s);
-            qemu_mutex_unlock_iothread();
+            migrate_finish_set_state(s, MIG_STATE_COMPLETED);
         }
     }
 
@@ -734,6 +734,7 @@ static void *buffered_file_thread(void *opaque)
             vm_start();
         }
     }
+    qemu_bh_schedule(s->cleanup_bh);
     qemu_mutex_unlock_iothread();
 
     g_free(s->buffer);
@@ -763,9 +764,10 @@ void migrate_fd_connect(MigrationState *s)
 
     s->xfer_limit = s->bandwidth_limit / XFER_LIMIT_RATIO;
 
+    s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
     s->file = qemu_fopen_ops(s, &buffered_file_ops);
 
     qemu_thread_create(&s->thread, buffered_file_thread, s,
-                       QEMU_THREAD_DETACHED);
+                       QEMU_THREAD_JOINABLE);
     notifier_list_notify(&migration_state_notifiers, s);
 }
