@@ -628,7 +628,7 @@ static void *migration_thread(void *opaque)
         int64_t current_time;
         uint64_t pending_size;
 
-        if (s->bytes_xfer < s->xfer_limit) {
+        if (!qemu_file_rate_limit(s->file)) {
             DPRINTF("iterate\n");
             pending_size = qemu_savevm_state_pending(s->file, max_size);
             DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
@@ -675,7 +675,7 @@ static void *migration_thread(void *opaque)
             sleep_time = 0;
             initial_time = current_time;
         }
-        if (s->bytes_xfer >= s->xfer_limit) {
+        if (qemu_file_rate_limit(s->file)) {
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
             sleep_time += qemu_get_clock_ms(rt_clock) - current_time;
