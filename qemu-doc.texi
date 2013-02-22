@@ -865,6 +865,12 @@ qemu-img create -b sheepdog:///@var{base}#@var{tag} sheepdog:///@var{image}
 where @var{base} is a image name of the source snapshot and @var{tag}
 is its tag name.
 
+You can use an unix socket instead of an inet socket:
+
+@example
+qemu-system-i386 sheepdog+unix:///@var{image}?socket=@var{path}
+@end example
+
 If the Sheepdog daemon doesn't run on the local host, you need to
 specify one of the Sheepdog servers to connect to.
 @example

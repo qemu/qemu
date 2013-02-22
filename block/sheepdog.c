@@ -299,6 +299,7 @@ typedef struct BDRVSheepdogState {
     uint32_t cache_flags;
 
     char *host_spec;
+    bool is_unix;
     int fd;
 
     CoMutex lock;
@@ -451,7 +452,18 @@ static int connect_to_sdog(BDRVSheepdogState *s)
     int fd;
     Error *err = NULL;
 
-    fd = inet_connect(s->host_spec, &err);
+    if (s->is_unix) {
+        fd = unix_connect(s->host_spec, &err);
+    } else {
+        fd = inet_connect(s->host_spec, &err);
+
+        if (err == NULL) {
+            int ret = socket_set_nodelay(fd);
+            if (ret < 0) {
+                error_report("%s", strerror(errno));
+            }
+        }
+    }
 
     if (err != NULL) {
         qerror_report_err(err);
@@ -757,7 +769,7 @@ static int aio_flush_request(void *opaque)
  */
 static int get_sheep_fd(BDRVSheepdogState *s)
 {
-    int ret, fd;
+    int fd;
 
     fd = connect_to_sdog(s);
     if (fd < 0) {
@@ -765,13 +777,6 @@ static int get_sheep_fd(BDRVSheepdogState *s)
     }
 
     socket_set_nonblock(fd);
-
-    ret = socket_set_nodelay(fd);
-    if (ret) {
-        error_report("%s", strerror(errno));
-        closesocket(fd);
-        return -errno;
-    }
 
     qemu_aio_set_fd_handler(fd, co_read_response, NULL, aio_flush_request, s);
     return fd;
@@ -789,15 +794,42 @@ static int sd_parse_uri(BDRVSheepdogState *s, const char *filename,
         return -EINVAL;
     }
 
+    /* transport */
+    if (!strcmp(uri->scheme, "sheepdog")) {
+        s->is_unix = false;
+    } else if (!strcmp(uri->scheme, "sheepdog+tcp")) {
+        s->is_unix = false;
+    } else if (!strcmp(uri->scheme, "sheepdog+unix")) {
+        s->is_unix = true;
+    } else {
+        ret = -EINVAL;
+        goto out;
+    }
+
     if (uri->path == NULL || !strcmp(uri->path, "/")) {
         ret = -EINVAL;
         goto out;
     }
     pstrcpy(vdi, SD_MAX_VDI_LEN, uri->path + 1);
 
-    /* sheepdog[+tcp]://[host:port]/vdiname */
-    s->host_spec = g_strdup_printf("%s:%d", uri->server ?: SD_DEFAULT_ADDR,
-                                   uri->port ?: SD_DEFAULT_PORT);
+    qp = query_params_parse(uri->query);
+    if (qp->n > 1 || (s->is_unix && !qp->n) || (!s->is_unix && qp->n)) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    if (s->is_unix) {
+        /* sheepdog+unix:///vdiname?socket=path */
+        if (uri->server || uri->port || strcmp(qp->p[0].name, "socket")) {
+            ret = -EINVAL;
+            goto out;
+        }
+        s->host_spec = g_strdup(qp->p[0].value);
+    } else {
+        /* sheepdog[+tcp]://[host:port]/vdiname */
+        s->host_spec = g_strdup_printf("%s:%d", uri->server ?: SD_DEFAULT_ADDR,
+                                       uri->port ?: SD_DEFAULT_PORT);
+    }
 
     /* snapshot tag */
     if (uri->fragment) {
@@ -2098,9 +2130,35 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .create_options = sd_create_options,
 };
 
+static BlockDriver bdrv_sheepdog_unix = {
+    .format_name    = "sheepdog",
+    .protocol_name  = "sheepdog+unix",
+    .instance_size  = sizeof(BDRVSheepdogState),
+    .bdrv_file_open = sd_open,
+    .bdrv_close     = sd_close,
+    .bdrv_create    = sd_create,
+    .bdrv_getlength = sd_getlength,
+    .bdrv_truncate  = sd_truncate,
+
+    .bdrv_co_readv  = sd_co_readv,
+    .bdrv_co_writev = sd_co_writev,
+    .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
+
+    .bdrv_snapshot_create   = sd_snapshot_create,
+    .bdrv_snapshot_goto     = sd_snapshot_goto,
+    .bdrv_snapshot_delete   = sd_snapshot_delete,
+    .bdrv_snapshot_list     = sd_snapshot_list,
+
+    .bdrv_save_vmstate  = sd_save_vmstate,
+    .bdrv_load_vmstate  = sd_load_vmstate,
+
+    .create_options = sd_create_options,
+};
+
 static void bdrv_sheepdog_init(void)
 {
     bdrv_register(&bdrv_sheepdog);
     bdrv_register(&bdrv_sheepdog_tcp);
+    bdrv_register(&bdrv_sheepdog_unix);
 }
 block_init(bdrv_sheepdog_init);
