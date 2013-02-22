@@ -657,6 +657,10 @@ static void *migration_thread(void *opaque)
             }
         }
 
+        if (qemu_file_get_error(s->file)) {
+            migrate_finish_set_state(s, MIG_STATE_ERROR);
+            break;
+        }
         current_time = qemu_get_clock_ms(rt_clock);
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = s->bytes_xfer;
@@ -681,9 +685,6 @@ static void *migration_thread(void *opaque)
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
             sleep_time += qemu_get_clock_ms(rt_clock) - current_time;
-        }
-        if (qemu_file_get_error(s->file)) {
-            migrate_finish_set_state(s, MIG_STATE_ERROR);
         }
     }
 
