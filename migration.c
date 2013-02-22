@@ -514,7 +514,7 @@ int64_t migrate_xbzrle_cache_size(void)
 
 /* migration thread support */
 
-static int buffered_put_buffer(void *opaque, const uint8_t *buf,
+static int migration_put_buffer(void *opaque, const uint8_t *buf,
                                int64_t pos, int size)
 {
     MigrationState *s = opaque;
@@ -551,7 +551,7 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf,
     return sent;
 }
 
-static int buffered_close(void *opaque)
+static int migration_close(void *opaque)
 {
     MigrationState *s = opaque;
 
@@ -565,7 +565,7 @@ static int buffered_close(void *opaque)
     return migrate_fd_close(s);
 }
 
-static int buffered_get_fd(void *opaque)
+static int migration_get_fd(void *opaque)
 {
     MigrationState *s = opaque;
 
@@ -578,7 +578,7 @@ static int buffered_get_fd(void *opaque)
  *   1: Time to stop
  *   negative: There has been an error
  */
-static int buffered_rate_limit(void *opaque)
+static int migration_rate_limit(void *opaque)
 {
     MigrationState *s = opaque;
     int ret;
@@ -595,7 +595,7 @@ static int buffered_rate_limit(void *opaque)
     return 0;
 }
 
-static int64_t buffered_set_rate_limit(void *opaque, int64_t new_rate)
+static int64_t migration_set_rate_limit(void *opaque, int64_t new_rate)
 {
     MigrationState *s = opaque;
     if (qemu_file_get_error(s->file)) {
@@ -611,14 +611,14 @@ out:
     return s->xfer_limit;
 }
 
-static int64_t buffered_get_rate_limit(void *opaque)
+static int64_t migration_get_rate_limit(void *opaque)
 {
     MigrationState *s = opaque;
 
     return s->xfer_limit;
 }
 
-static void *buffered_file_thread(void *opaque)
+static void *migration_thread(void *opaque)
 {
     MigrationState *s = opaque;
     int64_t initial_time = qemu_get_clock_ms(rt_clock);
@@ -705,13 +705,13 @@ static void *buffered_file_thread(void *opaque)
     return NULL;
 }
 
-static const QEMUFileOps buffered_file_ops = {
-    .get_fd =         buffered_get_fd,
-    .put_buffer =     buffered_put_buffer,
-    .close =          buffered_close,
-    .rate_limit =     buffered_rate_limit,
-    .get_rate_limit = buffered_get_rate_limit,
-    .set_rate_limit = buffered_set_rate_limit,
+static const QEMUFileOps migration_file_ops = {
+    .get_fd =         migration_get_fd,
+    .put_buffer =     migration_put_buffer,
+    .close =          migration_close,
+    .rate_limit =     migration_rate_limit,
+    .get_rate_limit = migration_get_rate_limit,
+    .set_rate_limit = migration_set_rate_limit,
 };
 
 void migrate_fd_connect(MigrationState *s)
@@ -726,9 +726,9 @@ void migrate_fd_connect(MigrationState *s)
     s->xfer_limit = s->bandwidth_limit / XFER_LIMIT_RATIO;
 
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
-    s->file = qemu_fopen_ops(s, &buffered_file_ops);
+    s->file = qemu_fopen_ops(s, &migration_file_ops);
 
-    qemu_thread_create(&s->thread, buffered_file_thread, s,
+    qemu_thread_create(&s->thread, migration_thread, s,
                        QEMU_THREAD_JOINABLE);
     notifier_list_notify(&migration_state_notifiers, s);
 }
