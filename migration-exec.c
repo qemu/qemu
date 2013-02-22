@@ -33,16 +33,6 @@
     do { } while (0)
 #endif
 
-static int file_errno(MigrationState *s)
-{
-    return errno;
-}
-
-static int file_write(MigrationState *s, const void * buf, size_t size)
-{
-    return write(s->fd, buf, size);
-}
-
 void exec_start_outgoing_migration(MigrationState *s, const char *command, Error **errp)
 {
     s->migration_file = qemu_popen_cmd(command, "w");
@@ -51,8 +41,6 @@ void exec_start_outgoing_migration(MigrationState *s, const char *command, Error
         return;
     }
 
-    s->get_error = file_errno;
-    s->write = file_write;
     migrate_fd_connect(s);
 }
 

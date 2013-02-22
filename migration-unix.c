@@ -29,16 +29,6 @@
     do { } while (0)
 #endif
 
-static int unix_errno(MigrationState *s)
-{
-    return errno;
-}
-
-static int unix_write(MigrationState *s, const void * buf, size_t size)
-{
-    return write(s->fd, buf, size);
-}
-
 static void unix_wait_for_connect(int fd, void *opaque)
 {
     MigrationState *s = opaque;
@@ -56,8 +46,6 @@ static void unix_wait_for_connect(int fd, void *opaque)
 
 void unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp)
 {
-    s->get_error = unix_errno;
-    s->write = unix_write;
     unix_nonblocking_connect(path, unix_wait_for_connect, s, errp);
 }
 

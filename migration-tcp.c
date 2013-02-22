@@ -29,16 +29,6 @@
     do { } while (0)
 #endif
 
-static int socket_errno(MigrationState *s)
-{
-    return socket_error();
-}
-
-static int socket_write(MigrationState *s, const void * buf, size_t size)
-{
-    return send(s->fd, buf, size, 0);
-}
-
 static void tcp_wait_for_connect(int fd, void *opaque)
 {
     MigrationState *s = opaque;
@@ -56,8 +46,6 @@ static void tcp_wait_for_connect(int fd, void *opaque)
 
 void tcp_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp)
 {
-    s->get_error = socket_errno;
-    s->write = socket_write;
     inet_nonblocking_connect(host_port, tcp_wait_for_connect, s, errp);
 }
 

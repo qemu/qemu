@@ -301,25 +301,6 @@ void migrate_fd_error(MigrationState *s)
     notifier_list_notify(&migration_state_notifiers, s);
 }
 
-static ssize_t migrate_fd_put_buffer(MigrationState *s, const void *data,
-                                     size_t size)
-{
-    ssize_t ret;
-
-    if (s->state != MIG_STATE_ACTIVE) {
-        return -EIO;
-    }
-
-    do {
-        ret = s->write(s, data, size);
-    } while (ret == -1 && ((s->get_error(s)) == EINTR));
-
-    if (ret == -1)
-        ret = -(s->get_error(s));
-
-    return ret;
-}
-
 static void migrate_fd_cancel(MigrationState *s)
 {
     DPRINTF("cancelling migration\n");
@@ -333,7 +314,6 @@ int migrate_fd_close(MigrationState *s)
     if (s->migration_file != NULL) {
         rc = qemu_fclose(s->migration_file);
         s->migration_file = NULL;
-        s->fd = -1;
     }
     return rc;
 }
@@ -519,8 +499,7 @@ static int migration_put_buffer(void *opaque, const uint8_t *buf,
                                int64_t pos, int size)
 {
     MigrationState *s = opaque;
-    ssize_t ret;
-    size_t sent;
+    int ret;
 
     DPRINTF("putting %d bytes at %" PRId64 "\n", size, pos);
 
@@ -528,22 +507,14 @@ static int migration_put_buffer(void *opaque, const uint8_t *buf,
         return size;
     }
 
-    sent = 0;
-    while (size) {
-        ret = migrate_fd_put_buffer(s, buf, size);
-        if (ret <= 0) {
-            DPRINTF("error flushing data, %zd\n", ret);
-            return ret;
-        } else {
-            DPRINTF("flushed %zd byte(s)\n", ret);
-            sent += ret;
-            buf += ret;
-            size -= ret;
-            s->bytes_xfer += ret;
-        }
+    qemu_put_buffer(s->migration_file, buf, size);
+    ret = qemu_file_get_error(s->migration_file);
+    if (ret) {
+        return ret;
     }
 
-    return sent;
+    s->bytes_xfer += size;
+    return size;
 }
 
 static int migration_close(void *opaque)
@@ -564,7 +535,7 @@ static int migration_get_fd(void *opaque)
 {
     MigrationState *s = opaque;
 
-    return s->fd;
+    return qemu_get_fd(s->migration_file);
 }
 
 /*
@@ -721,7 +692,6 @@ void migrate_fd_connect(MigrationState *s)
     s->xfer_limit = s->bandwidth_limit / XFER_LIMIT_RATIO;
 
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
-    s->fd = qemu_get_fd(s->migration_file);
     s->file = qemu_fopen_ops(s, &migration_file_ops);
 
     qemu_thread_create(&s->thread, migration_thread, s,

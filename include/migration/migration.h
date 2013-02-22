@@ -40,10 +40,6 @@ struct MigrationState
     QEMUFile *file;
     QEMUFile *migration_file;
 
-    int fd;
-    int (*get_error)(MigrationState *s);
-    int (*write)(MigrationState *s, const void *buff, size_t size);
-
     int state;
     MigrationParams params;
     int64_t total_time;

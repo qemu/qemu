@@ -30,16 +30,6 @@
     do { } while (0)
 #endif
 
-static int fd_errno(MigrationState *s)
-{
-    return errno;
-}
-
-static int fd_write(MigrationState *s, const void * buf, size_t size)
-{
-    return write(s->fd, buf, size);
-}
-
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
 {
     int fd = monitor_get_fd(cur_mon, fdname, errp);
@@ -48,8 +38,6 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
     }
     s->migration_file = qemu_fdopen(fd, "wb");
 
-    s->get_error = fd_errno;
-    s->write = fd_write;
     migrate_fd_connect(s);
 }
 
