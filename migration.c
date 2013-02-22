@@ -518,7 +518,6 @@ static int migration_put_buffer(void *opaque, const uint8_t *buf,
         return ret;
     }
 
-    s->bytes_xfer += size;
     return size;
 }
 
@@ -541,49 +540,6 @@ static int migration_get_fd(void *opaque)
     MigrationState *s = opaque;
 
     return qemu_get_fd(s->migration_file);
-}
-
-/*
- * The meaning of the return values is:
- *   0: We can continue sending
- *   1: Time to stop
- *   negative: There has been an error
- */
-static int migration_rate_limit(void *opaque)
-{
-    MigrationState *s = opaque;
-    int ret;
-
-    ret = qemu_file_get_error(s->file);
-    if (ret) {
-        return ret;
-    }
-
-    if (s->bytes_xfer >= s->xfer_limit) {
-        return 1;
-    }
-
-    return 0;
-}
-
-static int64_t migration_set_rate_limit(void *opaque, int64_t new_rate)
-{
-    MigrationState *s = opaque;
-    if (qemu_file_get_error(s->file)) {
-        goto out;
-    }
-
-    s->xfer_limit = new_rate;
-
-out:
-    return s->xfer_limit;
-}
-
-static int64_t migration_get_rate_limit(void *opaque)
-{
-    MigrationState *s = opaque;
-
-    return s->xfer_limit;
 }
 
 static void *migration_thread(void *opaque)
@@ -646,7 +602,7 @@ static void *migration_thread(void *opaque)
                 s->expected_downtime = s->dirty_bytes_rate / bandwidth;
             }
 
-            s->bytes_xfer = 0;
+            qemu_file_reset_rate_limit(s->file);
             sleep_time = 0;
             initial_time = current_time;
             initial_bytes = qemu_ftell(s->file);
@@ -679,9 +635,6 @@ static const QEMUFileOps migration_file_ops = {
     .get_fd =         migration_get_fd,
     .put_buffer =     migration_put_buffer,
     .close =          migration_close,
-    .rate_limit =     migration_rate_limit,
-    .get_rate_limit = migration_get_rate_limit,
-    .set_rate_limit = migration_set_rate_limit,
 };
 
 void migrate_fd_connect(MigrationState *s)
@@ -689,10 +642,8 @@ void migrate_fd_connect(MigrationState *s)
     s->state = MIG_STATE_ACTIVE;
     trace_migrate_set_state(MIG_STATE_ACTIVE);
 
-    s->bytes_xfer = 0;
     /* This is a best 1st approximation. ns to ms */
     s->expected_downtime = max_downtime/1000000;
-
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
     s->file = qemu_fopen_ops(s, &migration_file_ops);
 
