@@ -13,6 +13,7 @@
  */
 
 #include "qemu-common.h"
+#include "qemu/uri.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "block/block_int.h"
@@ -816,8 +817,52 @@ static int get_sheep_fd(BDRVSheepdogState *s)
     return fd;
 }
 
+static int sd_parse_uri(BDRVSheepdogState *s, const char *filename,
+                        char *vdi, uint32_t *snapid, char *tag)
+{
+    URI *uri;
+    QueryParams *qp = NULL;
+    int ret = 0;
+
+    uri = uri_parse(filename);
+    if (!uri) {
+        return -EINVAL;
+    }
+
+    if (uri->path == NULL || !strcmp(uri->path, "/")) {
+        ret = -EINVAL;
+        goto out;
+    }
+    pstrcpy(vdi, SD_MAX_VDI_LEN, uri->path + 1);
+
+    /* sheepdog[+tcp]://[host:port]/vdiname */
+    s->addr = g_strdup(uri->server ?: SD_DEFAULT_ADDR);
+    if (uri->port) {
+        s->port = g_strdup_printf("%d", uri->port);
+    } else {
+        s->port = g_strdup(SD_DEFAULT_PORT);
+    }
+
+    /* snapshot tag */
+    if (uri->fragment) {
+        *snapid = strtoul(uri->fragment, NULL, 10);
+        if (*snapid == 0) {
+            pstrcpy(tag, SD_MAX_VDI_TAG_LEN, uri->fragment);
+        }
+    } else {
+        *snapid = CURRENT_VDI_ID; /* search current vdi */
+    }
+
+out:
+    if (qp) {
+        query_params_free(qp);
+    }
+    uri_free(uri);
+    return ret;
+}
+
 /*
- * Parse a filename
+ * Parse a filename (old syntax)
  *
  * filename must be one of the following formats:
  *   1. [vdiname]
@@ -836,9 +881,11 @@ static int get_sheep_fd(BDRVSheepdogState *s)
 static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
                          char *vdi, uint32_t *snapid, char *tag)
 {
-    char *p, *q;
-    int nr_sep;
+    char *p, *q, *uri;
+    const char *host_spec, *vdi_spec;
+    int nr_sep, ret;
 
+    strstart(filename, "sheepdog:", (const char **)&filename);
     p = q = g_strdup(filename);
 
     /* count the number of separators */
@@ -851,38 +898,32 @@ static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
     }
     p = q;
 
-    /* use the first two tokens as hostname and port number. */
+    /* use the first two tokens as host_spec. */
     if (nr_sep >= 2) {
-        s->addr = p;
+        host_spec = p;
         p = strchr(p, ':');
-        *p++ = '\0';
-
-        s->port = p;
+        p++;
         p = strchr(p, ':');
         *p++ = '\0';
     } else {
-        s->addr = NULL;
-        s->port = 0;
+        host_spec = "";
     }
 
-    pstrcpy(vdi, SD_MAX_VDI_LEN, p);
+    vdi_spec = p;
 
-    p = strchr(vdi, ':');
+    p = strchr(vdi_spec, ':');
     if (p) {
-        *p++ = '\0';
-        *snapid = strtoul(p, NULL, 10);
-        if (*snapid == 0) {
-            pstrcpy(tag, SD_MAX_VDI_TAG_LEN, p);
-        }
-    } else {
-        *snapid = CURRENT_VDI_ID; /* search current vdi */
+        *p++ = '#';
     }
 
-    if (s->addr == NULL) {
-        g_free(q);
-    }
+    uri = g_strdup_printf("sheepdog://%s/%s", host_spec, vdi_spec);
 
-    return 0;
+    ret = sd_parse_uri(s, uri, vdi, snapid, tag);
+
+    g_free(q);
+    g_free(uri);
+
+    return ret;
 }
 
 static int find_vdi_name(BDRVSheepdogState *s, char *filename, uint32_t snapid,
@@ -1097,16 +1138,19 @@ static int sd_open(BlockDriverState *bs, const char *filename, int flags)
     uint32_t snapid;
     char *buf = NULL;
 
-    strstart(filename, "sheepdog:", (const char **)&filename);
-
     QLIST_INIT(&s->inflight_aio_head);
     QLIST_INIT(&s->pending_aio_head);
     s->fd = -1;
 
     memset(vdi, 0, sizeof(vdi));
     memset(tag, 0, sizeof(tag));
-    if (parse_vdiname(s, filename, vdi, &snapid, tag) < 0) {
-        ret = -EINVAL;
+
+    if (strstr(filename, "://")) {
+        ret = sd_parse_uri(s, filename, vdi, &snapid, tag);
+    } else {
+        ret = parse_vdiname(s, filename, vdi, &snapid, tag);
+    }
+    if (ret < 0) {
         goto out;
     }
     s->fd = get_sheep_fd(s);
@@ -1275,17 +1319,17 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
     char vdi[SD_MAX_VDI_LEN], tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
     bool prealloc = false;
-    const char *vdiname;
 
     s = g_malloc0(sizeof(BDRVSheepdogState));
 
-    strstart(filename, "sheepdog:", &vdiname);
-
     memset(vdi, 0, sizeof(vdi));
     memset(tag, 0, sizeof(tag));
-    if (parse_vdiname(s, vdiname, vdi, &snapid, tag) < 0) {
-        error_report("invalid filename");
-        ret = -EINVAL;
+    if (strstr(filename, "://")) {
+        ret = sd_parse_uri(s, filename, vdi, &snapid, tag);
+    } else {
+        ret = parse_vdiname(s, filename, vdi, &snapid, tag);
+    }
+    if (ret < 0) {
         goto out;
     }
 
@@ -1392,6 +1436,7 @@ static void sd_close(BlockDriverState *bs)
     qemu_aio_set_fd_handler(s->fd, NULL, NULL, NULL, NULL);
     closesocket(s->fd);
     g_free(s->addr);
+    g_free(s->port);
 }
 
 static int64_t sd_getlength(BlockDriverState *bs)
@@ -2054,9 +2099,34 @@ static QEMUOptionParameter sd_create_options[] = {
     { NULL }
 };
 
-BlockDriver bdrv_sheepdog = {
+static BlockDriver bdrv_sheepdog = {
     .format_name    = "sheepdog",
     .protocol_name  = "sheepdog",
+    .instance_size  = sizeof(BDRVSheepdogState),
+    .bdrv_file_open = sd_open,
+    .bdrv_close     = sd_close,
+    .bdrv_create    = sd_create,
+    .bdrv_getlength = sd_getlength,
+    .bdrv_truncate  = sd_truncate,
+
+    .bdrv_co_readv  = sd_co_readv,
+    .bdrv_co_writev = sd_co_writev,
+    .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
+
+    .bdrv_snapshot_create   = sd_snapshot_create,
+    .bdrv_snapshot_goto     = sd_snapshot_goto,
+    .bdrv_snapshot_delete   = sd_snapshot_delete,
+    .bdrv_snapshot_list     = sd_snapshot_list,
+
+    .bdrv_save_vmstate  = sd_save_vmstate,
+    .bdrv_load_vmstate  = sd_load_vmstate,
+
+    .create_options = sd_create_options,
+};
+
+static BlockDriver bdrv_sheepdog_tcp = {
+    .format_name    = "sheepdog",
+    .protocol_name  = "sheepdog+tcp",
     .instance_size  = sizeof(BDRVSheepdogState),
     .bdrv_file_open = sd_open,
     .bdrv_close     = sd_close,
@@ -2082,5 +2152,6 @@ BlockDriver bdrv_sheepdog = {
 static void bdrv_sheepdog_init(void)
 {
     bdrv_register(&bdrv_sheepdog);
+    bdrv_register(&bdrv_sheepdog_tcp);
 }
 block_init(bdrv_sheepdog_init);
