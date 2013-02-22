@@ -91,8 +91,11 @@ typedef struct GtkDisplayState
 
     GtkAccelGroup *accel_group;
 
-    GtkWidget *file_menu_item;
-    GtkWidget *file_menu;
+    GtkWidget *machine_menu_item;
+    GtkWidget *machine_menu;
+    GtkWidget *pause_item;
+    GtkWidget *reset_item;
+    GtkWidget *powerdown_item;
     GtkWidget *quit_item;
 
     GtkWidget *view_menu_item;
@@ -128,6 +131,8 @@ typedef struct GtkDisplayState
     GdkCursor *null_cursor;
     Notifier mouse_mode_notifier;
     gboolean free_scale;
+
+    bool external_pause_update;
 } GtkDisplayState;
 
 static GtkDisplayState *global_state;
@@ -171,14 +176,19 @@ static void gd_update_caption(GtkDisplayState *s)
     const char *status = "";
     gchar *title;
     const char *grab = "";
+    bool is_paused = !runstate_is_running();
 
     if (gd_is_grab_active(s)) {
         grab = " - Press Ctrl+Alt+G to release grab";
     }
 
-    if (!runstate_is_running()) {
-        status = " [Stopped]";
+    if (is_paused) {
+        status = " [Paused]";
     }
+    s->external_pause_update = true;
+    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->pause_item),
+                                   is_paused);
+    s->external_pause_update = false;
 
     if (qemu_name) {
         title = g_strdup_printf("QEMU (%s)%s%s", qemu_name, status, grab);
@@ -595,6 +605,30 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 
 /** Window Menu Actions **/
 
+static void gd_menu_pause(GtkMenuItem *item, void *opaque)
+{
+    GtkDisplayState *s = opaque;
+
+    if (s->external_pause_update) {
+        return;
+    }
+    if (runstate_is_running()) {
+        qmp_stop(NULL);
+    } else {
+        qmp_cont(NULL);
+    }
+}
+
+static void gd_menu_reset(GtkMenuItem *item, void *opaque)
+{
+    qmp_system_reset(NULL);
+}
+
+static void gd_menu_powerdown(GtkMenuItem *item, void *opaque)
+{
+    qmp_system_powerdown(NULL);
+}
+
 static void gd_menu_quit(GtkMenuItem *item, void *opaque)
 {
     qmp_quit(NULL);
@@ -968,6 +1002,12 @@ static void gd_connect_signals(GtkDisplayState *s)
     g_signal_connect(s->drawing_area, "key-release-event",
                      G_CALLBACK(gd_key_event), s);
 
+    g_signal_connect(s->pause_item, "activate",
+                     G_CALLBACK(gd_menu_pause), s);
+    g_signal_connect(s->reset_item, "activate",
+                     G_CALLBACK(gd_menu_reset), s);
+    g_signal_connect(s->powerdown_item, "activate",
+                     G_CALLBACK(gd_menu_powerdown), s);
     g_signal_connect(s->quit_item, "activate",
                      G_CALLBACK(gd_menu_quit), s);
     g_signal_connect(s->full_screen_item, "activate",
@@ -1001,15 +1041,31 @@ static void gd_create_menus(GtkDisplayState *s)
     int i;
 
     accel_group = gtk_accel_group_new();
-    s->file_menu = gtk_menu_new();
-    gtk_menu_set_accel_group(GTK_MENU(s->file_menu), accel_group);
-    s->file_menu_item = gtk_menu_item_new_with_mnemonic(_("_File"));
+    s->machine_menu = gtk_menu_new();
+    gtk_menu_set_accel_group(GTK_MENU(s->machine_menu), accel_group);
+    s->machine_menu_item = gtk_menu_item_new_with_mnemonic(_("_Machine"));
+
+    s->pause_item = gtk_check_menu_item_new_with_mnemonic(_("_Pause"));
+    gtk_menu_append(GTK_MENU(s->machine_menu), s->pause_item);
+
+    separator = gtk_separator_menu_item_new();
+    gtk_menu_append(GTK_MENU(s->machine_menu), separator);
+
+    s->reset_item = gtk_image_menu_item_new_with_mnemonic(_("_Reset"));
+    gtk_menu_append(GTK_MENU(s->machine_menu), s->reset_item);
+
+    s->powerdown_item = gtk_image_menu_item_new_with_mnemonic(_("Power _Down"));
+    gtk_menu_append(GTK_MENU(s->machine_menu), s->powerdown_item);
+
+    separator = gtk_separator_menu_item_new();
+    gtk_menu_append(GTK_MENU(s->machine_menu), separator);
 
     s->quit_item = gtk_image_menu_item_new_from_stock(GTK_STOCK_QUIT, NULL);
     gtk_stock_lookup(GTK_STOCK_QUIT, &item);
     gtk_menu_item_set_accel_path(GTK_MENU_ITEM(s->quit_item),
-                                 "<QEMU>/File/Quit");
-    gtk_accel_map_add_entry("<QEMU>/File/Quit", item.keyval, item.modifier);
+                                 "<QEMU>/Machine/Quit");
+    gtk_accel_map_add_entry("<QEMU>/Machine/Quit", item.keyval, item.modifier);
+    gtk_menu_append(GTK_MENU(s->machine_menu), s->quit_item);
 
     s->view_menu = gtk_menu_new();
     gtk_menu_set_accel_group(GTK_MENU(s->view_menu), accel_group);
@@ -1085,9 +1141,9 @@ static void gd_create_menus(GtkDisplayState *s)
     gtk_window_add_accel_group(GTK_WINDOW(s->window), accel_group);
     s->accel_group = accel_group;
 
-    gtk_menu_append(GTK_MENU(s->file_menu), s->quit_item);
-    gtk_menu_item_set_submenu(GTK_MENU_ITEM(s->file_menu_item), s->file_menu);
-    gtk_menu_shell_append(GTK_MENU_SHELL(s->menu_bar), s->file_menu_item);
+    gtk_menu_item_set_submenu(GTK_MENU_ITEM(s->machine_menu_item),
+                              s->machine_menu);
+    gtk_menu_shell_append(GTK_MENU_SHELL(s->menu_bar), s->machine_menu_item);
 
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(s->view_menu_item), s->view_menu);
     gtk_menu_shell_append(GTK_MENU_SHELL(s->menu_bar), s->view_menu_item);
