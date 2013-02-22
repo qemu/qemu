@@ -260,7 +260,7 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 
 /* shared migration helpers */
 
-static int migrate_fd_cleanup(MigrationState *s)
+static void migrate_fd_cleanup(MigrationState *s)
 {
     int ret = 0;
 
@@ -271,7 +271,13 @@ static int migrate_fd_cleanup(MigrationState *s)
     }
 
     assert(s->fd == -1);
-    return ret;
+    if (ret < 0 && s->state == MIG_STATE_ACTIVE) {
+        s->state = MIG_STATE_ERROR;
+    }
+
+    if (s->state != MIG_STATE_ACTIVE) {
+        qemu_savevm_state_cancel();
+    }
 }
 
 void migrate_fd_error(MigrationState *s)
@@ -285,9 +291,8 @@ void migrate_fd_error(MigrationState *s)
 static void migrate_fd_completed(MigrationState *s)
 {
     DPRINTF("setting completed state\n");
-    if (migrate_fd_cleanup(s) < 0) {
-        s->state = MIG_STATE_ERROR;
-    } else {
+    migrate_fd_cleanup(s);
+    if (s->state == MIG_STATE_ACTIVE) {
         s->state = MIG_STATE_COMPLETED;
         runstate_set(RUN_STATE_POSTMIGRATE);
     }
@@ -322,7 +327,6 @@ static void migrate_fd_cancel(MigrationState *s)
 
     s->state = MIG_STATE_CANCELLED;
     notifier_list_notify(&migration_state_notifiers, s);
-    qemu_savevm_state_cancel();
 
     migrate_fd_cleanup(s);
 }
