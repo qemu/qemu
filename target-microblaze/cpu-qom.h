@@ -68,5 +68,6 @@ static inline MicroBlazeCPU *mb_env_get_cpu(CPUMBState *env)
 
 #define ENV_GET_CPU(e) CPU(mb_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(MicroBlazeCPU, env)
 
 #endif

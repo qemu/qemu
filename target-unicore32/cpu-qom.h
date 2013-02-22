@@ -58,5 +58,6 @@ static inline UniCore32CPU *uc32_env_get_cpu(CPUUniCore32State *env)
 
 #define ENV_GET_CPU(e) CPU(uc32_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(UniCore32CPU, env)
 
 #endif

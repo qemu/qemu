@@ -74,5 +74,6 @@ static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
 
 #define ENV_GET_CPU(e) CPU(x86_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(X86CPU, env)
 
 #endif
