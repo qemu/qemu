@@ -699,11 +699,7 @@ static void *buffered_file_thread(void *opaque)
                 DPRINTF("done iterating\n");
                 start_time = qemu_get_clock_ms(rt_clock);
                 qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-                if (old_vm_running) {
-                    vm_stop(RUN_STATE_FINISH_MIGRATE);
-                } else {
-                    vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-                }
+                vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
                 ret = qemu_savevm_state_complete(s->file);
                 if (ret < 0) {
                     qemu_mutex_unlock_iothread();
