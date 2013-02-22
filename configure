@@ -2803,7 +2803,13 @@ if test "$libiscsi" != "no" ; then
 #include <iscsi/iscsi.h>
 int main(void) { iscsi_unmap_sync(NULL,0,0,0,NULL,0); return 0; }
 EOF
-  if compile_prog "" "-liscsi" ; then
+  if $pkg_config --atleast-version=1.7.0 libiscsi --modversion >/dev/null 2>&1; then
+    libiscsi="yes"
+    libiscsi_cflags=$($pkg_config --cflags libiscsi 2>/dev/null)
+    libiscsi_libs=$($pkg_config --libs libiscsi 2>/dev/null)
+    CFLAGS="$CFLAGS $libiscsi_cflags"
+    LIBS="$LIBS $libiscsi_libs"
+  elif compile_prog "" "-liscsi" ; then
     libiscsi="yes"
     LIBS="$LIBS -liscsi"
   else
