@@ -275,11 +275,17 @@ static const QEMUFileOps stdio_pipe_write_ops = {
     .close =      stdio_pclose
 };
 
-QEMUFile *qemu_popen(FILE *stdio_file, const char *mode)
+QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
 {
+    FILE *stdio_file;
     QEMUFileStdio *s;
 
-    if (stdio_file == NULL || mode == NULL || (mode[0] != 'r' && mode[0] != 'w') || mode[1] != 0) {
+    stdio_file = popen(command, mode);
+    if (stdio_file == NULL) {
+        return NULL;
+    }
+
+    if (mode == NULL || (mode[0] != 'r' && mode[0] != 'w') || mode[1] != 0) {
         fprintf(stderr, "qemu_popen: Argument validity check failed\n");
         return NULL;
     }
@@ -294,18 +300,6 @@ QEMUFile *qemu_popen(FILE *stdio_file, const char *mode)
         s->file = qemu_fopen_ops(s, &stdio_pipe_write_ops);
     }
     return s->file;
-}
-
-QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
-{
-    FILE *popen_file;
-
-    popen_file = popen(command, mode);
-    if(popen_file == NULL) {
-        return NULL;
-    }
-
-    return qemu_popen(popen_file, mode);
 }
 
 static const QEMUFileOps stdio_file_read_ops = {

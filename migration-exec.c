@@ -59,18 +59,16 @@ static int exec_close(MigrationState *s)
 
 void exec_start_outgoing_migration(MigrationState *s, const char *command, Error **errp)
 {
-    FILE *f;
-
-    f = popen(command, "w");
+    QEMUFile *f;
+    f = qemu_popen_cmd(command, "w");
     if (f == NULL) {
         error_setg_errno(errp, errno, "failed to popen the migration target");
         return;
     }
 
-    s->fd = fileno(f);
+    s->opaque = f;
+    s->fd = qemu_get_fd(f);
     assert(s->fd != -1);
-
-    s->opaque = qemu_popen(f, "w");
 
     s->close = exec_close;
     s->get_error = file_errno;
