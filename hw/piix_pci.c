@@ -300,8 +300,7 @@ static PCIBus *i440fx_common_init(const char *device_name,
         pci_bus_set_route_irq_fn(b, piix3_route_intx_pin_to_irq);
     }
     piix3->pic = pic;
-    *isa_bus = DO_UPCAST(ISABus, qbus,
-                         qdev_get_child_bus(&piix3->dev.qdev, "isa.0"));
+    *isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(piix3), "isa.0"));
 
     *piix3_devfn = piix3->dev.devfn;
 
@@ -548,7 +547,7 @@ static int piix3_initfn(PCIDevice *dev)
 {
     PIIX3State *d = DO_UPCAST(PIIX3State, dev, dev);
 
-    isa_bus_new(&d->dev.qdev, pci_address_space_io(dev));
+    isa_bus_new(DEVICE(d), pci_address_space_io(dev));
 
     memory_region_init_io(&d->rcr_mem, &rcr_ops, d, "piix3-reset-control", 1);
     memory_region_add_subregion_overlap(pci_address_space_io(dev), RCR_IOPORT,
