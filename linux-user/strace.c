@@ -1498,6 +1498,12 @@ if( cmd == val ) { \
         cmd &= ~FUTEX_PRIVATE_FLAG;
     }
 #endif
+#ifdef FUTEX_CLOCK_REALTIME
+    if (cmd & FUTEX_CLOCK_REALTIME) {
+        gemu_log("FUTEX_CLOCK_REALTIME|");
+        cmd &= ~FUTEX_CLOCK_REALTIME;
+    }
+#endif
     print_op(FUTEX_WAIT)
     print_op(FUTEX_WAKE)
     print_op(FUTEX_FD)
