@@ -8392,6 +8392,7 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     const char *typename = object_class_get_name(oc);
     char *name;
+    int i;
 
 #if defined(TARGET_PPCEMB)
     if (pcc->mmu_model != POWERPC_MMU_BOOKE) {
@@ -8406,6 +8407,16 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
                      strlen(typename) - strlen("-" TYPE_POWERPC_CPU));
     (*s->cpu_fprintf)(s->file, "PowerPC %-16s PVR %08x\n",
                       name, pcc->pvr);
+    for (i = 0; i < ARRAY_SIZE(ppc_cpu_aliases); i++) {
+        const PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
+        ObjectClass *alias_oc = ppc_cpu_class_by_name(alias->model);
+
+        if (alias_oc != oc) {
+            continue;
+        }
+        (*s->cpu_fprintf)(s->file, "PowerPC %-16s (alias for %s)\n",
+                          alias->alias, name);
+    }
     g_free(name);
 }
 
@@ -8416,7 +8427,6 @@ void ppc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
         .cpu_fprintf = cpu_fprintf,
     };
     GSList *list;
-    int i;
 
     list = object_class_get_list(TYPE_POWERPC_CPU, false);
     list = g_slist_sort(list, ppc_cpu_list_compare);
@@ -8427,17 +8437,6 @@ void ppc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     cpu_fprintf(f, "\n");
     cpu_fprintf(f, "PowerPC %-16s\n", "host");
 #endif
-
-    cpu_fprintf(f, "\n");
-    for (i = 0; i < ARRAY_SIZE(ppc_cpu_aliases); i++) {
-        ObjectClass *oc = ppc_cpu_class_by_name(ppc_cpu_aliases[i].model);
-        if (oc == NULL) {
-            /* Hide aliases that point to a TODO or TODO_USER_ONLY model */
-            continue;
-        }
-        cpu_fprintf(f, "PowerPC %-16s\n",
-                    ppc_cpu_aliases[i].alias);
-    }
 }
 
 static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
