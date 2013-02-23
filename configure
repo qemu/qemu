@@ -1681,7 +1681,7 @@ fi
 
 if test "$gtk" != "no"; then
     if $pkg_config --exists 'gtk+-2.0 >= 2.18.0' && \
-       $pkg_config --exists 'vte >= 0.26.0'; then
+       $pkg_config --exists 'vte >= 0.24.0'; then
 	gtk_cflags=`$pkg_config --cflags gtk+-2.0 2>/dev/null`
 	gtk_libs=`$pkg_config --libs gtk+-2.0 2>/dev/null`
 	vte_cflags=`$pkg_config --cflags vte 2>/dev/null`
@@ -3167,20 +3167,27 @@ if compile_prog "" "" ; then
 fi
 
 ########################################
-# check whether we can disable the -Wunused-but-set-variable
-# option with a pragma (this is needed to silence a warning in
-# some versions of the valgrind VALGRIND_STACK_DEREGISTER macro.)
-# This test has to be compiled with -Werror as otherwise an
-# unknown pragma is only a warning.
+# check whether we can disable warning option with a pragma (this is needed
+# to silence warnings in the headers of some versions of external libraries).
+# This test has to be compiled with -Werror as otherwise an unknown pragma is
+# only a warning.
+#
+# If we can't selectively disable warning in the code, disable -Werror so that
+# the build doesn't fail anyway.
+
 pragma_disable_unused_but_set=no
 cat > $TMPC << EOF
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+
 int main(void) {
     return 0;
 }
 EOF
 if compile_prog "-Werror" "" ; then
     pragma_diagnostic_available=yes
+else
+    werror=no
 fi
 
 ########################################

@@ -29,14 +29,6 @@
 #define HELPER_LOG(x...)
 #endif
 
-/* 64/64 -> 128 unsigned multiplication */
-uint64_t HELPER(mul128)(CPUS390XState *env, uint64_t v1, uint64_t v2)
-{
-    uint64_t reth;
-    mulu64(&env->retxl, &reth, v1, v2);
-    return reth;
-}
-
 /* 64/32 -> 32 signed division */
 int64_t HELPER(divs32)(CPUS390XState *env, int64_t a, int64_t b64)
 {

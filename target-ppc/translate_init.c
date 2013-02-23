@@ -118,12 +118,12 @@ static void spr_write_clear (void *opaque, int sprn, int gprn)
 /* XER */
 static void spr_read_xer (void *opaque, int gprn, int sprn)
 {
-    tcg_gen_mov_tl(cpu_gpr[gprn], cpu_xer);
+    gen_read_xer(cpu_gpr[gprn]);
 }
 
 static void spr_write_xer (void *opaque, int sprn, int gprn)
 {
-    tcg_gen_mov_tl(cpu_xer, cpu_gpr[gprn]);
+    gen_write_xer(cpu_gpr[gprn]);
 }
 
 /* LR */

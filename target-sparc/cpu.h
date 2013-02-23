@@ -270,6 +270,7 @@ typedef struct sparc_def_t {
 #define CPU_FEATURE_TA0_SHUTDOWN (1 << 14) /* Shutdown on "ta 0x0" */
 #define CPU_FEATURE_ASR17        (1 << 15)
 #define CPU_FEATURE_CACHE_CTRL   (1 << 16)
+#define CPU_FEATURE_POWERDOWN    (1 << 17)
 
 #ifndef TARGET_SPARC64
 #define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \

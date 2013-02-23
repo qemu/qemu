@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include <stdint.h>
-
+#include "qemu/host-utils.h"
 #include "tcg/tcg-runtime.h"
 
 /* 32-bit helpers */
@@ -82,4 +82,18 @@ uint64_t tcg_helper_divu_i64(uint64_t arg1, uint64_t arg2)
 uint64_t tcg_helper_remu_i64(uint64_t arg1, uint64_t arg2)
 {
     return arg1 % arg2;
+}
+
+uint64_t tcg_helper_muluh_i64(uint64_t arg1, uint64_t arg2)
+{
+    uint64_t l, h;
+    mulu64(&l, &h, arg1, arg2);
+    return h;
+}
+
+int64_t tcg_helper_mulsh_i64(int64_t arg1, int64_t arg2)
+{
+    uint64_t l, h;
+    muls64(&l, &h, arg1, arg2);
+    return h;
 }

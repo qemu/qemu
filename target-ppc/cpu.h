@@ -941,8 +941,11 @@ struct CPUPPCState {
     /* CFAR */
     target_ulong cfar;
 #endif
-    /* XER */
+    /* XER (with SO, OV, CA split out) */
     target_ulong xer;
+    target_ulong so;
+    target_ulong ov;
+    target_ulong ca;
     /* Reservation address */
     target_ulong reserve_addr;
     /* Reservation value */
@@ -1268,9 +1271,9 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define XER_CA  29
 #define XER_CMP  8
 #define XER_BC   0
-#define xer_so  ((env->xer >> XER_SO)  &    1)
-#define xer_ov  ((env->xer >> XER_OV)  &    1)
-#define xer_ca  ((env->xer >> XER_CA)  &    1)
+#define xer_so  (env->so)
+#define xer_ov  (env->ov)
+#define xer_ca  (env->ca)
 #define xer_cmp ((env->xer >> XER_CMP) & 0xFF)
 #define xer_bc  ((env->xer >> XER_BC)  & 0x7F)
 
@@ -2086,6 +2089,19 @@ enum {
 #define CPU_INTERRUPT_RESET       CPU_INTERRUPT_TGT_INT_0
 
 /*****************************************************************************/
+
+static inline target_ulong cpu_read_xer(CPUPPCState *env)
+{
+    return env->xer | (env->so << XER_SO) | (env->ov << XER_OV) | (env->ca << XER_CA);
+}
+
+static inline void cpu_write_xer(CPUPPCState *env, target_ulong xer)
+{
+    env->so = (xer >> XER_SO) & 1;
+    env->ov = (xer >> XER_OV) & 1;
+    env->ca = (xer >> XER_CA) & 1;
+    env->xer = xer & ~((1u << XER_SO) | (1u << XER_OV) | (1u << XER_CA));
+}
 
 static inline void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)

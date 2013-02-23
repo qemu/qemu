@@ -7,6 +7,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     CPUPPCState *env = (CPUPPCState *)opaque;
     unsigned int i, j;
     uint32_t fpscr;
+    target_ulong xer;
 
     for (i = 0; i < 32; i++)
         qemu_put_betls(f, &env->gpr[i]);
@@ -18,7 +19,8 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_betls(f, &env->ctr);
     for (i = 0; i < 8; i++)
         qemu_put_be32s(f, &env->crf[i]);
-    qemu_put_betls(f, &env->xer);
+    xer = cpu_read_xer(env);
+    qemu_put_betls(f, &xer);
     qemu_put_betls(f, &env->reserve_addr);
     qemu_put_betls(f, &env->msr);
     for (i = 0; i < 4; i++)
@@ -93,6 +95,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     unsigned int i, j;
     target_ulong sdr1;
     uint32_t fpscr;
+    target_ulong xer;
 
     for (i = 0; i < 32; i++)
         qemu_get_betls(f, &env->gpr[i]);
@@ -104,7 +107,8 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_betls(f, &env->ctr);
     for (i = 0; i < 8; i++)
         qemu_get_be32s(f, &env->crf[i]);
-    qemu_get_betls(f, &env->xer);
+    qemu_get_betls(f, &xer);
+    cpu_write_xer(env, xer);
     qemu_get_betls(f, &env->reserve_addr);
     qemu_get_betls(f, &env->msr);
     for (i = 0; i < 4; i++)

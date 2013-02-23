@@ -833,36 +833,10 @@ static void _decode_opc(DisasContext * ctx)
         gen_helper_div1(REG(B11_8), cpu_env, REG(B7_4), REG(B11_8));
 	return;
     case 0x300d:		/* dmuls.l Rm,Rn */
-	{
-	    TCGv_i64 tmp1 = tcg_temp_new_i64();
-	    TCGv_i64 tmp2 = tcg_temp_new_i64();
-
-	    tcg_gen_ext_i32_i64(tmp1, REG(B7_4));
-	    tcg_gen_ext_i32_i64(tmp2, REG(B11_8));
-	    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
-	    tcg_gen_trunc_i64_i32(cpu_macl, tmp1);
-	    tcg_gen_shri_i64(tmp1, tmp1, 32);
-	    tcg_gen_trunc_i64_i32(cpu_mach, tmp1);
-
-	    tcg_temp_free_i64(tmp2);
-	    tcg_temp_free_i64(tmp1);
-	}
+        tcg_gen_muls2_i32(cpu_macl, cpu_mach, REG(B7_4), REG(B11_8));
 	return;
     case 0x3005:		/* dmulu.l Rm,Rn */
-	{
-	    TCGv_i64 tmp1 = tcg_temp_new_i64();
-	    TCGv_i64 tmp2 = tcg_temp_new_i64();
-
-	    tcg_gen_extu_i32_i64(tmp1, REG(B7_4));
-	    tcg_gen_extu_i32_i64(tmp2, REG(B11_8));
-	    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
-	    tcg_gen_trunc_i64_i32(cpu_macl, tmp1);
-	    tcg_gen_shri_i64(tmp1, tmp1, 32);
-	    tcg_gen_trunc_i64_i32(cpu_mach, tmp1);
-
-	    tcg_temp_free_i64(tmp2);
-	    tcg_temp_free_i64(tmp1);
-	}
+        tcg_gen_mulu2_i32(cpu_macl, cpu_mach, REG(B7_4), REG(B11_8));
 	return;
     case 0x600e:		/* exts.b Rm,Rn */
 	tcg_gen_ext8s_i32(REG(B11_8), REG(B7_4));

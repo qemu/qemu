@@ -2246,6 +2246,26 @@ static inline void tcg_gen_concat32_i64(TCGv_i64 dest, TCGv_i64 low,
     tcg_gen_deposit_i64(dest, low, high, 32, 32);
 }
 
+static inline void tcg_gen_extr_i64_i32(TCGv_i32 lo, TCGv_i32 hi, TCGv_i64 arg)
+{
+#if TCG_TARGET_REG_BITS == 32
+    tcg_gen_mov_i32(lo, TCGV_LOW(arg));
+    tcg_gen_mov_i32(hi, TCGV_HIGH(arg));
+#else
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    tcg_gen_trunc_i64_i32(lo, arg);
+    tcg_gen_shri_i64(t0, arg, 32);
+    tcg_gen_trunc_i64_i32(hi, t0);
+    tcg_temp_free_i64(t0);
+#endif
+}
+
+static inline void tcg_gen_extr32_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i64 arg)
+{
+    tcg_gen_ext32u_i64(lo, arg);
+    tcg_gen_shri_i64(hi, arg, 32);
+}
+
 static inline void tcg_gen_movcond_i32(TCGCond cond, TCGv_i32 ret,
                                        TCGv_i32 c1, TCGv_i32 c2,
                                        TCGv_i32 v1, TCGv_i32 v2)
@@ -2310,6 +2330,204 @@ static inline void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret,
         tcg_temp_free_i64(t1);
     }
 #endif
+}
+
+static inline void tcg_gen_add2_i32(TCGv_i32 rl, TCGv_i32 rh, TCGv_i32 al,
+                                    TCGv_i32 ah, TCGv_i32 bl, TCGv_i32 bh)
+{
+    if (TCG_TARGET_HAS_add2_i32) {
+        tcg_gen_op6_i32(INDEX_op_add2_i32, rl, rh, al, ah, bl, bh);
+        /* Allow the optimizer room to replace add2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_concat_i32_i64(t0, al, ah);
+        tcg_gen_concat_i32_i64(t1, bl, bh);
+        tcg_gen_add_i64(t0, t0, t1);
+        tcg_gen_extr_i64_i32(rl, rh, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_sub2_i32(TCGv_i32 rl, TCGv_i32 rh, TCGv_i32 al,
+                                    TCGv_i32 ah, TCGv_i32 bl, TCGv_i32 bh)
+{
+    if (TCG_TARGET_HAS_sub2_i32) {
+        tcg_gen_op6_i32(INDEX_op_sub2_i32, rl, rh, al, ah, bl, bh);
+        /* Allow the optimizer room to replace sub2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_concat_i32_i64(t0, al, ah);
+        tcg_gen_concat_i32_i64(t1, bl, bh);
+        tcg_gen_sub_i64(t0, t0, t1);
+        tcg_gen_extr_i64_i32(rl, rh, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_mulu2_i32(TCGv_i32 rl, TCGv_i32 rh,
+                                     TCGv_i32 arg1, TCGv_i32 arg2)
+{
+    if (TCG_TARGET_HAS_mulu2_i32) {
+        tcg_gen_op4_i32(INDEX_op_mulu2_i32, rl, rh, arg1, arg2);
+        /* Allow the optimizer room to replace mulu2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_extu_i32_i64(t0, arg1);
+        tcg_gen_extu_i32_i64(t1, arg2);
+        tcg_gen_mul_i64(t0, t0, t1);
+        tcg_gen_extr_i64_i32(rl, rh, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_muls2_i32(TCGv_i32 rl, TCGv_i32 rh,
+                                     TCGv_i32 arg1, TCGv_i32 arg2)
+{
+    if (TCG_TARGET_HAS_muls2_i32) {
+        tcg_gen_op4_i32(INDEX_op_muls2_i32, rl, rh, arg1, arg2);
+        /* Allow the optimizer room to replace muls2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else if (TCG_TARGET_REG_BITS == 32 && TCG_TARGET_HAS_mulu2_i32) {
+        TCGv_i32 t0 = tcg_temp_new_i32();
+        TCGv_i32 t1 = tcg_temp_new_i32();
+        TCGv_i32 t2 = tcg_temp_new_i32();
+        TCGv_i32 t3 = tcg_temp_new_i32();
+        tcg_gen_op4_i32(INDEX_op_mulu2_i32, t0, t1, arg1, arg2);
+        /* Allow the optimizer room to replace mulu2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+        /* Adjust for negative inputs.  */
+        tcg_gen_sari_i32(t2, arg1, 31);
+        tcg_gen_sari_i32(t3, arg2, 31);
+        tcg_gen_and_i32(t2, t2, arg2);
+        tcg_gen_and_i32(t3, t3, arg1);
+        tcg_gen_sub_i32(rh, t1, t2);
+        tcg_gen_sub_i32(rh, rh, t3);
+        tcg_gen_mov_i32(rl, t0);
+        tcg_temp_free_i32(t0);
+        tcg_temp_free_i32(t1);
+        tcg_temp_free_i32(t2);
+        tcg_temp_free_i32(t3);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_ext_i32_i64(t0, arg1);
+        tcg_gen_ext_i32_i64(t1, arg2);
+        tcg_gen_mul_i64(t0, t0, t1);
+        tcg_gen_extr_i64_i32(rl, rh, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_add2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 al,
+                                    TCGv_i64 ah, TCGv_i64 bl, TCGv_i64 bh)
+{
+    if (TCG_TARGET_HAS_add2_i64) {
+        tcg_gen_op6_i64(INDEX_op_add2_i64, rl, rh, al, ah, bl, bh);
+        /* Allow the optimizer room to replace add2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_add_i64(t0, al, bl);
+        tcg_gen_setcond_i64(TCG_COND_LTU, t1, t0, al);
+        tcg_gen_add_i64(rh, ah, bh);
+        tcg_gen_add_i64(rh, rh, t1);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_sub2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 al,
+                                    TCGv_i64 ah, TCGv_i64 bl, TCGv_i64 bh)
+{
+    if (TCG_TARGET_HAS_sub2_i64) {
+        tcg_gen_op6_i64(INDEX_op_sub2_i64, rl, rh, al, ah, bl, bh);
+        /* Allow the optimizer room to replace sub2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        tcg_gen_sub_i64(t0, al, bl);
+        tcg_gen_setcond_i64(TCG_COND_LTU, t1, al, bl);
+        tcg_gen_sub_i64(rh, ah, bh);
+        tcg_gen_sub_i64(rh, rh, t1);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
+
+static inline void tcg_gen_mulu2_i64(TCGv_i64 rl, TCGv_i64 rh,
+                                     TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    if (TCG_TARGET_HAS_mulu2_i64) {
+        tcg_gen_op4_i64(INDEX_op_mulu2_i64, rl, rh, arg1, arg2);
+        /* Allow the optimizer room to replace mulu2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else if (TCG_TARGET_HAS_mulu2_i64) {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        TCGv_i64 t2 = tcg_temp_new_i64();
+        TCGv_i64 t3 = tcg_temp_new_i64();
+        tcg_gen_op4_i64(INDEX_op_mulu2_i64, t0, t1, arg1, arg2);
+        /* Allow the optimizer room to replace mulu2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+        /* Adjust for negative inputs.  */
+        tcg_gen_sari_i64(t2, arg1, 63);
+        tcg_gen_sari_i64(t3, arg2, 63);
+        tcg_gen_and_i64(t2, t2, arg2);
+        tcg_gen_and_i64(t3, t3, arg1);
+        tcg_gen_sub_i64(rh, t1, t2);
+        tcg_gen_sub_i64(rh, rh, t3);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+        tcg_temp_free_i64(t2);
+        tcg_temp_free_i64(t3);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        int sizemask = 0;
+        /* Return value and both arguments are 64-bit and unsigned.  */
+        sizemask |= tcg_gen_sizemask(0, 1, 0);
+        sizemask |= tcg_gen_sizemask(1, 1, 0);
+        sizemask |= tcg_gen_sizemask(2, 1, 0);
+        tcg_gen_mul_i64(t0, arg1, arg2);
+        tcg_gen_helper64(tcg_helper_muluh_i64, sizemask, rh, arg1, arg2);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+    }
+}
+
+static inline void tcg_gen_muls2_i64(TCGv_i64 rl, TCGv_i64 rh,
+                                     TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    if (TCG_TARGET_HAS_muls2_i64) {
+        tcg_gen_op4_i64(INDEX_op_muls2_i64, rl, rh, arg1, arg2);
+        /* Allow the optimizer room to replace muls2 with two moves.  */
+        tcg_gen_op0(INDEX_op_nop);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        int sizemask = 0;
+        /* Return value and both arguments are 64-bit and signed.  */
+        sizemask |= tcg_gen_sizemask(0, 1, 1);
+        sizemask |= tcg_gen_sizemask(1, 1, 1);
+        sizemask |= tcg_gen_sizemask(2, 1, 1);
+        tcg_gen_mul_i64(t0, arg1, arg2);
+        tcg_gen_helper64(tcg_helper_mulsh_i64, sizemask, rh, arg1, arg2);
+        tcg_gen_mov_i64(rl, t0);
+        tcg_temp_free_i64(t0);
+    }
 }
 
 /***************************************/
@@ -2625,6 +2843,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_bswap32_tl tcg_gen_bswap32_i64
 #define tcg_gen_bswap64_tl tcg_gen_bswap64_i64
 #define tcg_gen_concat_tl_i64 tcg_gen_concat32_i64
+#define tcg_gen_extr_i64_tl tcg_gen_extr32_i64
 #define tcg_gen_andc_tl tcg_gen_andc_i64
 #define tcg_gen_eqv_tl tcg_gen_eqv_i64
 #define tcg_gen_nand_tl tcg_gen_nand_i64
@@ -2638,6 +2857,10 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_const_tl tcg_const_i64
 #define tcg_const_local_tl tcg_const_local_i64
 #define tcg_gen_movcond_tl tcg_gen_movcond_i64
+#define tcg_gen_add2_tl tcg_gen_add2_i64
+#define tcg_gen_sub2_tl tcg_gen_sub2_i64
+#define tcg_gen_mulu2_tl tcg_gen_mulu2_i64
+#define tcg_gen_muls2_tl tcg_gen_muls2_i64
 #else
 #define tcg_gen_movi_tl tcg_gen_movi_i32
 #define tcg_gen_mov_tl tcg_gen_mov_i32
@@ -2697,6 +2920,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_bswap16_tl tcg_gen_bswap16_i32
 #define tcg_gen_bswap32_tl tcg_gen_bswap32_i32
 #define tcg_gen_concat_tl_i64 tcg_gen_concat_i32_i64
+#define tcg_gen_extr_tl_i64 tcg_gen_extr_i32_i64
 #define tcg_gen_andc_tl tcg_gen_andc_i32
 #define tcg_gen_eqv_tl tcg_gen_eqv_i32
 #define tcg_gen_nand_tl tcg_gen_nand_i32
@@ -2710,6 +2934,10 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_const_tl tcg_const_i32
 #define tcg_const_local_tl tcg_const_local_i32
 #define tcg_gen_movcond_tl tcg_gen_movcond_i32
+#define tcg_gen_add2_tl tcg_gen_add2_i32
+#define tcg_gen_sub2_tl tcg_gen_sub2_i32
+#define tcg_gen_mulu2_tl tcg_gen_mulu2_i32
+#define tcg_gen_muls2_tl tcg_gen_muls2_i32
 #endif
 
 #if TCG_TARGET_REG_BITS == 32

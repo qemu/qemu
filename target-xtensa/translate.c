@@ -1652,24 +1652,16 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             case 11: /*MULSHi*/
                 HAS_OPTION(XTENSA_OPTION_32_BIT_IMUL_HIGH);
                 {
-                    TCGv_i64 r = tcg_temp_new_i64();
-                    TCGv_i64 s = tcg_temp_new_i64();
-                    TCGv_i64 t = tcg_temp_new_i64();
+                    TCGv lo = tcg_temp_new();
 
                     if (OP2 == 10) {
-                        tcg_gen_extu_i32_i64(s, cpu_R[RRR_S]);
-                        tcg_gen_extu_i32_i64(t, cpu_R[RRR_T]);
+                        tcg_gen_mulu2_i32(lo, cpu_R[RRR_R],
+                                          cpu_R[RRR_S], cpu_R[RRR_T]);
                     } else {
-                        tcg_gen_ext_i32_i64(s, cpu_R[RRR_S]);
-                        tcg_gen_ext_i32_i64(t, cpu_R[RRR_T]);
+                        tcg_gen_muls2_i32(lo, cpu_R[RRR_R],
+                                          cpu_R[RRR_S], cpu_R[RRR_T]);
                     }
-                    tcg_gen_mul_i64(r, s, t);
-                    tcg_gen_shri_i64(r, r, 32);
-                    tcg_gen_trunc_i64_i32(cpu_R[RRR_R], r);
-
-                    tcg_temp_free_i64(r);
-                    tcg_temp_free_i64(s);
-                    tcg_temp_free_i64(t);
+                    tcg_temp_free(lo);
                 }
                 break;
 
@@ -2495,27 +2487,24 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                             tcg_gen_sari_i32(cpu_SR[ACCHI], cpu_SR[ACCLO], 31);
                         }
                     } else {
-                        TCGv_i32 res = tcg_temp_new_i32();
-                        TCGv_i64 res64 = tcg_temp_new_i64();
-                        TCGv_i64 tmp = tcg_temp_new_i64();
+                        TCGv_i32 lo = tcg_temp_new_i32();
+                        TCGv_i32 hi = tcg_temp_new_i32();
 
-                        tcg_gen_mul_i32(res, m1, m2);
-                        tcg_gen_ext_i32_i64(res64, res);
-                        tcg_gen_concat_i32_i64(tmp,
-                                cpu_SR[ACCLO], cpu_SR[ACCHI]);
+                        tcg_gen_mul_i32(lo, m1, m2);
+                        tcg_gen_sari_i32(hi, lo, 31);
                         if (op == MAC16_MULA) {
-                            tcg_gen_add_i64(tmp, tmp, res64);
+                            tcg_gen_add2_i32(cpu_SR[ACCLO], cpu_SR[ACCHI],
+                                             cpu_SR[ACCLO], cpu_SR[ACCHI],
+                                             lo, hi);
                         } else {
-                            tcg_gen_sub_i64(tmp, tmp, res64);
+                            tcg_gen_sub2_i32(cpu_SR[ACCLO], cpu_SR[ACCHI],
+                                             cpu_SR[ACCLO], cpu_SR[ACCHI],
+                                             lo, hi);
                         }
-                        tcg_gen_trunc_i64_i32(cpu_SR[ACCLO], tmp);
-                        tcg_gen_shri_i64(tmp, tmp, 32);
-                        tcg_gen_trunc_i64_i32(cpu_SR[ACCHI], tmp);
                         tcg_gen_ext8s_i32(cpu_SR[ACCHI], cpu_SR[ACCHI]);
 
-                        tcg_temp_free(res);
-                        tcg_temp_free_i64(res64);
-                        tcg_temp_free_i64(tmp);
+                        tcg_temp_free_i32(lo);
+                        tcg_temp_free_i32(hi);
                     }
                     tcg_temp_free(m1);
                     tcg_temp_free(m2);

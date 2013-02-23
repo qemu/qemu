@@ -67,7 +67,7 @@ static TCGv cpu_lr;
 #if defined(TARGET_PPC64)
 static TCGv cpu_cfar;
 #endif
-static TCGv cpu_xer;
+static TCGv cpu_xer, cpu_so, cpu_ov, cpu_ca;
 static TCGv cpu_reserve;
 static TCGv cpu_fpscr;
 static TCGv_i32 cpu_access_type;
@@ -159,6 +159,12 @@ void ppc_translate_init(void)
 
     cpu_xer = tcg_global_mem_new(TCG_AREG0,
                                  offsetof(CPUPPCState, xer), "xer");
+    cpu_so = tcg_global_mem_new(TCG_AREG0,
+                                offsetof(CPUPPCState, so), "SO");
+    cpu_ov = tcg_global_mem_new(TCG_AREG0,
+                                offsetof(CPUPPCState, ov), "OV");
+    cpu_ca = tcg_global_mem_new(TCG_AREG0,
+                                offsetof(CPUPPCState, ca), "CA");
 
     cpu_reserve = tcg_global_mem_new(TCG_AREG0,
                                      offsetof(CPUPPCState, reserve_addr),
@@ -591,35 +597,33 @@ static opc_handler_t invalid_handler = {
 
 static inline void gen_op_cmp(TCGv arg0, TCGv arg1, int s, int crf)
 {
-    int l1, l2, l3;
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_temp_new_i32();
 
-    tcg_gen_trunc_tl_i32(cpu_crf[crf], cpu_xer);
-    tcg_gen_shri_i32(cpu_crf[crf], cpu_crf[crf], XER_SO);
-    tcg_gen_andi_i32(cpu_crf[crf], cpu_crf[crf], 1);
+    tcg_gen_trunc_tl_i32(cpu_crf[crf], cpu_so);
 
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    l3 = gen_new_label();
-    if (s) {
-        tcg_gen_brcond_tl(TCG_COND_LT, arg0, arg1, l1);
-        tcg_gen_brcond_tl(TCG_COND_GT, arg0, arg1, l2);
-    } else {
-        tcg_gen_brcond_tl(TCG_COND_LTU, arg0, arg1, l1);
-        tcg_gen_brcond_tl(TCG_COND_GTU, arg0, arg1, l2);
-    }
-    tcg_gen_ori_i32(cpu_crf[crf], cpu_crf[crf], 1 << CRF_EQ);
-    tcg_gen_br(l3);
-    gen_set_label(l1);
-    tcg_gen_ori_i32(cpu_crf[crf], cpu_crf[crf], 1 << CRF_LT);
-    tcg_gen_br(l3);
-    gen_set_label(l2);
-    tcg_gen_ori_i32(cpu_crf[crf], cpu_crf[crf], 1 << CRF_GT);
-    gen_set_label(l3);
+    tcg_gen_setcond_tl((s ? TCG_COND_LT: TCG_COND_LTU), t0, arg0, arg1);
+    tcg_gen_trunc_tl_i32(t1, t0);
+    tcg_gen_shli_i32(t1, t1, CRF_LT);
+    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t1);
+
+    tcg_gen_setcond_tl((s ? TCG_COND_GT: TCG_COND_GTU), t0, arg0, arg1);
+    tcg_gen_trunc_tl_i32(t1, t0);
+    tcg_gen_shli_i32(t1, t1, CRF_GT);
+    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t1);
+
+    tcg_gen_setcond_tl(TCG_COND_EQ, t0, arg0, arg1);
+    tcg_gen_trunc_tl_i32(t1, t0);
+    tcg_gen_shli_i32(t1, t1, CRF_EQ);
+    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t1);
+
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
 }
 
 static inline void gen_op_cmpi(TCGv arg0, target_ulong arg1, int s, int crf)
 {
-    TCGv t0 = tcg_const_local_tl(arg1);
+    TCGv t0 = tcg_const_tl(arg1);
     gen_op_cmp(arg0, t0, s, crf);
     tcg_temp_free(t0);
 }
@@ -628,8 +632,8 @@ static inline void gen_op_cmpi(TCGv arg0, target_ulong arg1, int s, int crf)
 static inline void gen_op_cmp32(TCGv arg0, TCGv arg1, int s, int crf)
 {
     TCGv t0, t1;
-    t0 = tcg_temp_local_new();
-    t1 = tcg_temp_local_new();
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
     if (s) {
         tcg_gen_ext32s_tl(t0, arg0);
         tcg_gen_ext32s_tl(t1, arg1);
@@ -644,7 +648,7 @@ static inline void gen_op_cmp32(TCGv arg0, TCGv arg1, int s, int crf)
 
 static inline void gen_op_cmpi32(TCGv arg0, target_ulong arg1, int s, int crf)
 {
-    TCGv t0 = tcg_const_local_tl(arg1);
+    TCGv t0 = tcg_const_tl(arg1);
     gen_op_cmp32(arg0, t0, s, crf);
     tcg_temp_free(t0);
 }
@@ -743,120 +747,59 @@ static void gen_isel(DisasContext *ctx)
 static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
                                            TCGv arg1, TCGv arg2, int sub)
 {
-    int l1;
-    TCGv t0;
+    TCGv t0 = tcg_temp_new();
 
-    l1 = gen_new_label();
-    /* Start with XER OV disabled, the most likely case */
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
-    t0 = tcg_temp_local_new();
-    tcg_gen_xor_tl(t0, arg0, arg1);
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode)
-        tcg_gen_ext32s_tl(t0, t0);
-#endif
-    if (sub)
-        tcg_gen_brcondi_tl(TCG_COND_LT, t0, 0, l1);
-    else
-        tcg_gen_brcondi_tl(TCG_COND_GE, t0, 0, l1);
+    tcg_gen_xor_tl(cpu_ov, arg0, arg1);
     tcg_gen_xor_tl(t0, arg1, arg2);
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode)
-        tcg_gen_ext32s_tl(t0, t0);
-#endif
-    if (sub)
-        tcg_gen_brcondi_tl(TCG_COND_GE, t0, 0, l1);
-    else
-        tcg_gen_brcondi_tl(TCG_COND_LT, t0, 0, l1);
-    tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
-    gen_set_label(l1);
-    tcg_temp_free(t0);
-}
-
-static inline void gen_op_arith_compute_ca(DisasContext *ctx, TCGv arg1,
-                                           TCGv arg2, int sub)
-{
-    int l1 = gen_new_label();
-
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode)) {
-        TCGv t0, t1;
-        t0 = tcg_temp_new();
-        t1 = tcg_temp_new();
-
-        tcg_gen_ext32u_tl(t0, arg1);
-        tcg_gen_ext32u_tl(t1, arg2);
-        if (sub) {
-            tcg_gen_brcond_tl(TCG_COND_GTU, t0, t1, l1);
-        } else {
-            tcg_gen_brcond_tl(TCG_COND_GEU, t0, t1, l1);
-        }
-        tcg_gen_ori_tl(cpu_xer, cpu_xer, 1 << XER_CA);
-        gen_set_label(l1);
-        tcg_temp_free(t0);
-        tcg_temp_free(t1);
-    } else
-#endif
-    {
-        if (sub) {
-            tcg_gen_brcond_tl(TCG_COND_GTU, arg1, arg2, l1);
-        } else {
-            tcg_gen_brcond_tl(TCG_COND_GEU, arg1, arg2, l1);
-        }
-        tcg_gen_ori_tl(cpu_xer, cpu_xer, 1 << XER_CA);
-        gen_set_label(l1);
+    if (sub) {
+        tcg_gen_and_tl(cpu_ov, cpu_ov, t0);
+    } else {
+        tcg_gen_andc_tl(cpu_ov, cpu_ov, t0);
     }
+    tcg_temp_free(t0);
+#if defined(TARGET_PPC64)
+    if (!ctx->sf_mode) {
+        tcg_gen_ext32s_tl(cpu_ov, cpu_ov);
+    }
+#endif
+    tcg_gen_shri_tl(cpu_ov, cpu_ov, TARGET_LONG_BITS - 1);
+    tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
 }
 
 /* Common add function */
 static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
-                                    TCGv arg2, int add_ca, int compute_ca,
-                                    int compute_ov)
+                                    TCGv arg2, bool add_ca, bool compute_ca,
+                                    bool compute_ov, bool compute_rc0)
 {
-    TCGv t0, t1;
+    TCGv t0 = ret;
 
-    if ((!compute_ca && !compute_ov) ||
-        (!TCGV_EQUAL(ret,arg1) && !TCGV_EQUAL(ret, arg2)))  {
-        t0 = ret;
-    } else {
-        t0 = tcg_temp_local_new();
+    if (((compute_ca && add_ca) || compute_ov)
+        && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
+        t0 = tcg_temp_new();
     }
-
-    if (add_ca) {
-        t1 = tcg_temp_local_new();
-        tcg_gen_andi_tl(t1, cpu_xer, (1 << XER_CA));
-        tcg_gen_shri_tl(t1, t1, XER_CA);
-    } else {
-        TCGV_UNUSED(t1);
-    }
-
-    if (compute_ca && compute_ov) {
-        /* Start with XER CA and OV disabled, the most likely case */
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~((1 << XER_CA) | (1 << XER_OV)));
-    } else if (compute_ca) {
-        /* Start with XER CA disabled, the most likely case */
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
-    } else if (compute_ov) {
-        /* Start with XER OV disabled, the most likely case */
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
-    }
-
-    tcg_gen_add_tl(t0, arg1, arg2);
 
     if (compute_ca) {
-        gen_op_arith_compute_ca(ctx, t0, arg1, 0);
+        TCGv zero = tcg_const_tl(0);
+        if (add_ca) {
+            tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, cpu_ca, zero);
+            tcg_gen_add2_tl(t0, cpu_ca, t0, cpu_ca, arg2, zero);
+        } else {
+            tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, arg2, zero);
+        }
+        tcg_temp_free(zero);
+    } else {
+        tcg_gen_add_tl(t0, arg1, arg2);
+        if (add_ca) {
+            tcg_gen_add_tl(t0, t0, cpu_ca);
+        }
     }
-    if (add_ca) {
-        tcg_gen_add_tl(t0, t0, t1);
-        gen_op_arith_compute_ca(ctx, t0, t1, 0);
-        tcg_temp_free(t1);
-    }
+
     if (compute_ov) {
         gen_op_arith_compute_ov(ctx, t0, arg1, arg2, 0);
     }
-
-    if (unlikely(Rc(ctx->opcode) != 0))
+    if (unlikely(compute_rc0)) {
         gen_set_Rc0(ctx, t0);
+    }
 
     if (!TCGV_EQUAL(t0, ret)) {
         tcg_gen_mov_tl(ret, t0);
@@ -865,21 +808,21 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
 }
 /* Add functions with two operands */
 #define GEN_INT_ARITH_ADD(name, opc3, add_ca, compute_ca, compute_ov)         \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
     gen_op_arith_add(ctx, cpu_gpr[rD(ctx->opcode)],                           \
                      cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],      \
-                     add_ca, compute_ca, compute_ov);                         \
+                     add_ca, compute_ca, compute_ov, Rc(ctx->opcode));        \
 }
 /* Add functions with one operand and one immediate */
 #define GEN_INT_ARITH_ADD_CONST(name, opc3, const_val,                        \
                                 add_ca, compute_ca, compute_ov)               \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
-    TCGv t0 = tcg_const_local_tl(const_val);                                  \
+    TCGv t0 = tcg_const_tl(const_val);                                        \
     gen_op_arith_add(ctx, cpu_gpr[rD(ctx->opcode)],                           \
                      cpu_gpr[rA(ctx->opcode)], t0,                            \
-                     add_ca, compute_ca, compute_ov);                         \
+                     add_ca, compute_ca, compute_ov, Rc(ctx->opcode));        \
     tcg_temp_free(t0);                                                        \
 }
 
@@ -907,40 +850,27 @@ static void gen_addi(DisasContext *ctx)
         /* li case */
         tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], simm);
     } else {
-        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], simm);
+        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)],
+                        cpu_gpr[rA(ctx->opcode)], simm);
     }
 }
 /* addic  addic.*/
-static inline void gen_op_addic(DisasContext *ctx, TCGv ret, TCGv arg1,
-                                int compute_Rc0)
+static inline void gen_op_addic(DisasContext *ctx, bool compute_rc0)
 {
-    target_long simm = SIMM(ctx->opcode);
-
-    /* Start with XER CA and OV disabled, the most likely case */
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
-
-    if (likely(simm != 0)) {
-        TCGv t0 = tcg_temp_local_new();
-        tcg_gen_addi_tl(t0, arg1, simm);
-        gen_op_arith_compute_ca(ctx, t0, arg1, 0);
-        tcg_gen_mov_tl(ret, t0);
-        tcg_temp_free(t0);
-    } else {
-        tcg_gen_mov_tl(ret, arg1);
-    }
-    if (compute_Rc0) {
-        gen_set_Rc0(ctx, ret);
-    }
+    TCGv c = tcg_const_tl(SIMM(ctx->opcode));
+    gen_op_arith_add(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                     c, 0, 1, 0, compute_rc0);
+    tcg_temp_free(c);
 }
 
 static void gen_addic(DisasContext *ctx)
 {
-    gen_op_addic(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0);
+    gen_op_addic(ctx, 0);
 }
 
 static void gen_addic_(DisasContext *ctx)
 {
-    gen_op_addic(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 1);
+    gen_op_addic(ctx, 1);
 }
 
 /* addis */
@@ -952,7 +882,8 @@ static void gen_addis(DisasContext *ctx)
         /* lis case */
         tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], simm << 16);
     } else {
-        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], simm << 16);
+        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)],
+                        cpu_gpr[rA(ctx->opcode)], simm << 16);
     }
 }
 
@@ -977,7 +908,7 @@ static inline void gen_op_arith_divw(DisasContext *ctx, TCGv ret, TCGv arg1,
         tcg_gen_divu_i32(t0, t0, t1);
     }
     if (compute_ov) {
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
+        tcg_gen_movi_tl(cpu_ov, 0);
     }
     tcg_gen_br(l2);
     gen_set_label(l1);
@@ -987,7 +918,8 @@ static inline void gen_op_arith_divw(DisasContext *ctx, TCGv ret, TCGv arg1,
         tcg_gen_movi_i32(t0, 0);
     }
     if (compute_ov) {
-        tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
+        tcg_gen_movi_tl(cpu_ov, 1);
+        tcg_gen_movi_tl(cpu_so, 1);
     }
     gen_set_label(l2);
     tcg_gen_extu_i32_tl(ret, t0);
@@ -1028,7 +960,7 @@ static inline void gen_op_arith_divd(DisasContext *ctx, TCGv ret, TCGv arg1,
         tcg_gen_divu_i64(ret, arg1, arg2);
     }
     if (compute_ov) {
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
+        tcg_gen_movi_tl(cpu_ov, 0);
     }
     tcg_gen_br(l2);
     gen_set_label(l1);
@@ -1038,7 +970,8 @@ static inline void gen_op_arith_divd(DisasContext *ctx, TCGv ret, TCGv arg1,
         tcg_gen_movi_i64(ret, 0);
     }
     if (compute_ov) {
-        tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
+        tcg_gen_movi_tl(cpu_ov, 1);
+        tcg_gen_movi_tl(cpu_so, 1);
     }
     gen_set_label(l2);
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -1062,24 +995,15 @@ GEN_INT_ARITH_DIVD(divdo, 0x1F, 1, 1);
 /* mulhw  mulhw. */
 static void gen_mulhw(DisasContext *ctx)
 {
-    TCGv_i64 t0, t1;
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
 
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-#if defined(TARGET_PPC64)
-    tcg_gen_ext32s_tl(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext32s_tl(t1, cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_mul_i64(t0, t0, t1);
-    tcg_gen_shri_i64(cpu_gpr[rD(ctx->opcode)], t0, 32);
-#else
-    tcg_gen_ext_tl_i64(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext_tl_i64(t1, cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_mul_i64(t0, t0, t1);
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_tl(cpu_gpr[rD(ctx->opcode)], t0);
-#endif
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
+    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);
+    tcg_gen_muls2_i32(t0, t1, t0, t1);
+    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t1);
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
@@ -1087,24 +1011,15 @@ static void gen_mulhw(DisasContext *ctx)
 /* mulhwu  mulhwu.  */
 static void gen_mulhwu(DisasContext *ctx)
 {
-    TCGv_i64 t0, t1;
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
 
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-#if defined(TARGET_PPC64)
-    tcg_gen_ext32u_i64(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext32u_i64(t1, cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_mul_i64(t0, t0, t1);
-    tcg_gen_shri_i64(cpu_gpr[rD(ctx->opcode)], t0, 32);
-#else
-    tcg_gen_extu_tl_i64(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_extu_tl_i64(t1, cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_mul_i64(t0, t0, t1);
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_tl(cpu_gpr[rD(ctx->opcode)], t0);
-#endif
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
+    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);
+    tcg_gen_mulu2_i32(t0, t1, t0, t1);
+    tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t1);
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
@@ -1122,34 +1037,21 @@ static void gen_mullw(DisasContext *ctx)
 /* mullwo  mullwo. */
 static void gen_mullwo(DisasContext *ctx)
 {
-    int l1;
-    TCGv_i64 t0, t1;
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
 
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-    l1 = gen_new_label();
-    /* Start with XER OV disabled, the most likely case */
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
-#if defined(TARGET_PPC64)
-    tcg_gen_ext32s_i64(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext32s_i64(t1, cpu_gpr[rB(ctx->opcode)]);
-#else
-    tcg_gen_ext_tl_i64(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext_tl_i64(t1, cpu_gpr[rB(ctx->opcode)]);
-#endif
-    tcg_gen_mul_i64(t0, t0, t1);
-#if defined(TARGET_PPC64)
-    tcg_gen_ext32s_i64(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_gen_brcond_i64(TCG_COND_EQ, t0, cpu_gpr[rD(ctx->opcode)], l1);
-#else
-    tcg_gen_trunc_i64_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_gen_ext32s_i64(t1, t0);
-    tcg_gen_brcond_i64(TCG_COND_EQ, t0, t1, l1);
-#endif
-    tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
-    gen_set_label(l1);
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
+    tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);
+    tcg_gen_muls2_i32(t0, t1, t0, t1);
+    tcg_gen_ext_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);
+
+    tcg_gen_sari_i32(t0, t0, 31);
+    tcg_gen_setcond_i32(TCG_COND_NE, t0, t0, t1);
+    tcg_gen_extu_i32_tl(cpu_ov, t0);
+    tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
+
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
@@ -1160,19 +1062,31 @@ static void gen_mulli(DisasContext *ctx)
     tcg_gen_muli_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
                     SIMM(ctx->opcode));
 }
+
 #if defined(TARGET_PPC64)
-#define GEN_INT_ARITH_MUL_HELPER(name, opc3)                                  \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
-{                                                                             \
-    gen_helper_##name (cpu_gpr[rD(ctx->opcode)],                              \
-                       cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);   \
-    if (unlikely(Rc(ctx->opcode) != 0))                                       \
-        gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);                           \
-}
 /* mulhd  mulhd. */
-GEN_INT_ARITH_MUL_HELPER(mulhdu, 0x00);
+static void gen_mulhd(DisasContext *ctx)
+{
+    TCGv lo = tcg_temp_new();
+    tcg_gen_muls2_tl(lo, cpu_gpr[rD(ctx->opcode)],
+                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+    tcg_temp_free(lo);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
+    }
+}
+
 /* mulhdu  mulhdu. */
-GEN_INT_ARITH_MUL_HELPER(mulhd, 0x02);
+static void gen_mulhdu(DisasContext *ctx)
+{
+    TCGv lo = tcg_temp_new();
+    tcg_gen_mulu2_tl(lo, cpu_gpr[rD(ctx->opcode)],
+                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+    tcg_temp_free(lo);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
+    }
+}
 
 /* mulld  mulld. */
 static void gen_mulld(DisasContext *ctx)
@@ -1194,101 +1108,45 @@ static void gen_mulldo(DisasContext *ctx)
 }
 #endif
 
-/* neg neg. nego nego. */
-static inline void gen_op_arith_neg(DisasContext *ctx, TCGv ret, TCGv arg1,
-                                    int ov_check)
-{
-    int l1 = gen_new_label();
-    int l2 = gen_new_label();
-    TCGv t0 = tcg_temp_local_new();
-#if defined(TARGET_PPC64)
-    if (ctx->sf_mode) {
-        tcg_gen_mov_tl(t0, arg1);
-        tcg_gen_brcondi_tl(TCG_COND_EQ, t0, INT64_MIN, l1);
-    } else
-#endif
-    {
-        tcg_gen_ext32s_tl(t0, arg1);
-        tcg_gen_brcondi_tl(TCG_COND_EQ, t0, INT32_MIN, l1);
-    }
-    tcg_gen_neg_tl(ret, arg1);
-    if (ov_check) {
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
-    }
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_mov_tl(ret, t0);
-    if (ov_check) {
-        tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
-    }
-    gen_set_label(l2);
-    tcg_temp_free(t0);
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_set_Rc0(ctx, ret);
-}
-
-static void gen_neg(DisasContext *ctx)
-{
-    gen_op_arith_neg(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0);
-}
-
-static void gen_nego(DisasContext *ctx)
-{
-    gen_op_arith_neg(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 1);
-}
-
 /* Common subf function */
 static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
-                                     TCGv arg2, int add_ca, int compute_ca,
-                                     int compute_ov)
+                                     TCGv arg2, bool add_ca, bool compute_ca,
+                                     bool compute_ov, bool compute_rc0)
 {
-    TCGv t0, t1;
+    TCGv t0 = ret;
 
-    if ((!compute_ca && !compute_ov) ||
-        (!TCGV_EQUAL(ret, arg1) && !TCGV_EQUAL(ret, arg2)))  {
-        t0 = ret;
-    } else {
-        t0 = tcg_temp_local_new();
+    if (((add_ca && compute_ca) || compute_ov)
+        && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
+        t0 = tcg_temp_new();
     }
 
     if (add_ca) {
-        t1 = tcg_temp_local_new();
-        tcg_gen_andi_tl(t1, cpu_xer, (1 << XER_CA));
-        tcg_gen_shri_tl(t1, t1, XER_CA);
-    } else {
-        TCGV_UNUSED(t1);
-    }
-
-    if (compute_ca && compute_ov) {
-        /* Start with XER CA and OV disabled, the most likely case */
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~((1 << XER_CA) | (1 << XER_OV)));
-    } else if (compute_ca) {
-        /* Start with XER CA disabled, the most likely case */
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
-    } else if (compute_ov) {
-        /* Start with XER OV disabled, the most likely case */
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
-    }
-
-    if (add_ca) {
-        tcg_gen_not_tl(t0, arg1);
-        tcg_gen_add_tl(t0, t0, arg2);
-        gen_op_arith_compute_ca(ctx, t0, arg2, 0);
-        tcg_gen_add_tl(t0, t0, t1);
-        gen_op_arith_compute_ca(ctx, t0, t1, 0);
-        tcg_temp_free(t1);
-    } else {
-        tcg_gen_sub_tl(t0, arg2, arg1);
+        /* dest = ~arg1 + arg2 + ca = arg2 - arg1 + ca - 1.  */
         if (compute_ca) {
-            gen_op_arith_compute_ca(ctx, t0, arg2, 1);
+            TCGv zero;
+            tcg_gen_subi_tl(cpu_ca, cpu_ca, 1);
+            zero = tcg_const_tl(0);
+            tcg_gen_add2_tl(t0, cpu_ca, arg2, zero, cpu_ca, zero);
+            tcg_gen_sub2_tl(t0, cpu_ca, t0, cpu_ca, arg1, zero);
+            tcg_temp_free(zero);
+        } else {
+            tcg_gen_sub_tl(t0, arg2, arg1);
+            tcg_gen_add_tl(t0, t0, cpu_ca);
+            tcg_gen_subi_tl(t0, t0, 1);
         }
+    } else {
+        if (compute_ca) {
+            tcg_gen_setcond_tl(TCG_COND_GEU, cpu_ca, arg2, arg1);
+        }
+        tcg_gen_sub_tl(t0, arg2, arg1);
     }
+
     if (compute_ov) {
         gen_op_arith_compute_ov(ctx, t0, arg1, arg2, 1);
     }
-
-    if (unlikely(Rc(ctx->opcode) != 0))
+    if (unlikely(compute_rc0)) {
         gen_set_Rc0(ctx, t0);
+    }
 
     if (!TCGV_EQUAL(t0, ret)) {
         tcg_gen_mov_tl(ret, t0);
@@ -1297,21 +1155,21 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
 }
 /* Sub functions with Two operands functions */
 #define GEN_INT_ARITH_SUBF(name, opc3, add_ca, compute_ca, compute_ov)        \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
     gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)],                          \
                       cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],     \
-                      add_ca, compute_ca, compute_ov);                        \
+                      add_ca, compute_ca, compute_ov, Rc(ctx->opcode));       \
 }
 /* Sub functions with one operand and one immediate */
 #define GEN_INT_ARITH_SUBF_CONST(name, opc3, const_val,                       \
                                 add_ca, compute_ca, compute_ov)               \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
-    TCGv t0 = tcg_const_local_tl(const_val);                                  \
+    TCGv t0 = tcg_const_tl(const_val);                                        \
     gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)],                          \
                       cpu_gpr[rA(ctx->opcode)], t0,                           \
-                      add_ca, compute_ca, compute_ov);                        \
+                      add_ca, compute_ca, compute_ov, Rc(ctx->opcode));       \
     tcg_temp_free(t0);                                                        \
 }
 /* subf  subf.  subfo  subfo. */
@@ -1333,15 +1191,29 @@ GEN_INT_ARITH_SUBF_CONST(subfzeo, 0x16, 0, 1, 1, 1)
 /* subfic */
 static void gen_subfic(DisasContext *ctx)
 {
-    /* Start with XER CA and OV disabled, the most likely case */
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
-    TCGv t0 = tcg_temp_local_new();
-    TCGv t1 = tcg_const_local_tl(SIMM(ctx->opcode));
-    tcg_gen_sub_tl(t0, t1, cpu_gpr[rA(ctx->opcode)]);
-    gen_op_arith_compute_ca(ctx, t0, t1, 1);
-    tcg_temp_free(t1);
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
+    TCGv c = tcg_const_tl(SIMM(ctx->opcode));
+    gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                      c, 0, 1, 0, 0);
+    tcg_temp_free(c);
+}
+
+/* neg neg. nego nego. */
+static inline void gen_op_arith_neg(DisasContext *ctx, bool compute_ov)
+{
+    TCGv zero = tcg_const_tl(0);
+    gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                      zero, 0, 0, compute_ov, Rc(ctx->opcode));
+    tcg_temp_free(zero);
+}
+
+static void gen_neg(DisasContext *ctx)
+{
+    gen_op_arith_neg(ctx, 0);
+}
+
+static void gen_nego(DisasContext *ctx)
+{
+    gen_op_arith_neg(ctx, 1);
 }
 
 /***                            Integer logical                            ***/
@@ -1888,30 +1760,25 @@ static void gen_sraw(DisasContext *ctx)
 static void gen_srawi(DisasContext *ctx)
 {
     int sh = SH(ctx->opcode);
-    if (sh != 0) {
-        int l1, l2;
-        TCGv t0;
-        l1 = gen_new_label();
-        l2 = gen_new_label();
-        t0 = tcg_temp_local_new();
-        tcg_gen_ext32s_tl(t0, cpu_gpr[rS(ctx->opcode)]);
-        tcg_gen_brcondi_tl(TCG_COND_GE, t0, 0, l1);
-        tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)], (1ULL << sh) - 1);
-        tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-        tcg_gen_ori_tl(cpu_xer, cpu_xer, 1 << XER_CA);
-        tcg_gen_br(l2);
-        gen_set_label(l1);
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
-        gen_set_label(l2);
-        tcg_gen_ext32s_tl(t0, cpu_gpr[rS(ctx->opcode)]);
-        tcg_gen_sari_tl(cpu_gpr[rA(ctx->opcode)], t0, sh);
-        tcg_temp_free(t0);
+    TCGv dst = cpu_gpr[rA(ctx->opcode)];
+    TCGv src = cpu_gpr[rS(ctx->opcode)];
+    if (sh == 0) {
+        tcg_gen_mov_tl(dst, src);
+        tcg_gen_movi_tl(cpu_ca, 0);
     } else {
-        tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
+        TCGv t0;
+        tcg_gen_ext32s_tl(dst, src);
+        tcg_gen_andi_tl(cpu_ca, dst, (1ULL << sh) - 1);
+        t0 = tcg_temp_new();
+        tcg_gen_sari_tl(t0, dst, TARGET_LONG_BITS - 1);
+        tcg_gen_and_tl(cpu_ca, cpu_ca, t0);
+        tcg_temp_free(t0);
+        tcg_gen_setcondi_tl(TCG_COND_NE, cpu_ca, cpu_ca, 0);
+        tcg_gen_sari_tl(dst, dst, sh);
     }
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_set_Rc0(ctx, dst);
+    }
 }
 
 /* srw & srw. */
@@ -1971,28 +1838,24 @@ static void gen_srad(DisasContext *ctx)
 static inline void gen_sradi(DisasContext *ctx, int n)
 {
     int sh = SH(ctx->opcode) + (n << 5);
-    if (sh != 0) {
-        int l1, l2;
-        TCGv t0;
-        l1 = gen_new_label();
-        l2 = gen_new_label();
-        t0 = tcg_temp_local_new();
-        tcg_gen_brcondi_tl(TCG_COND_GE, cpu_gpr[rS(ctx->opcode)], 0, l1);
-        tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)], (1ULL << sh) - 1);
-        tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-        tcg_gen_ori_tl(cpu_xer, cpu_xer, 1 << XER_CA);
-        tcg_gen_br(l2);
-        gen_set_label(l1);
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
-        gen_set_label(l2);
-        tcg_temp_free(t0);
-        tcg_gen_sari_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], sh);
+    TCGv dst = cpu_gpr[rA(ctx->opcode)];
+    TCGv src = cpu_gpr[rS(ctx->opcode)];
+    if (sh == 0) {
+        tcg_gen_mov_tl(dst, src);
+        tcg_gen_movi_tl(cpu_ca, 0);
     } else {
-        tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
-        tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
+        TCGv t0;
+        tcg_gen_andi_tl(cpu_ca, src, (1ULL << sh) - 1);
+        t0 = tcg_temp_new();
+        tcg_gen_sari_tl(t0, src, TARGET_LONG_BITS - 1);
+        tcg_gen_and_tl(cpu_ca, cpu_ca, t0);
+        tcg_temp_free(t0);
+        tcg_gen_setcondi_tl(TCG_COND_NE, cpu_ca, cpu_ca, 0);
+        tcg_gen_sari_tl(dst, src, sh);
     }
-    if (unlikely(Rc(ctx->opcode) != 0))
-        gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_set_Rc0(ctx, dst);
+    }
 }
 
 static void gen_sradi0(DisasContext *ctx)
@@ -3177,9 +3040,7 @@ static void gen_stwcx_(DisasContext *ctx)
     {
         int l1;
 
-        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
-        tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
-        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
         l1 = gen_new_label();
         tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
         tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
@@ -3220,9 +3081,7 @@ static void gen_stdcx_(DisasContext *ctx)
 #else
     {
         int l1;
-        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
-        tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
-        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
         l1 = gen_new_label();
         tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
         tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
@@ -3798,12 +3657,55 @@ static void gen_tdi(DisasContext *ctx)
 
 /***                          Processor control                            ***/
 
+static void gen_read_xer(TCGv dst)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    tcg_gen_mov_tl(dst, cpu_xer);
+    tcg_gen_shli_tl(t0, cpu_so, XER_SO);
+    tcg_gen_shli_tl(t1, cpu_ov, XER_OV);
+    tcg_gen_shli_tl(t2, cpu_ca, XER_CA);
+    tcg_gen_or_tl(t0, t0, t1);
+    tcg_gen_or_tl(dst, dst, t2);
+    tcg_gen_or_tl(dst, dst, t0);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+}
+
+static void gen_write_xer(TCGv src)
+{
+    tcg_gen_andi_tl(cpu_xer, src,
+                    ~((1u << XER_SO) | (1u << XER_OV) | (1u << XER_CA)));
+    tcg_gen_shri_tl(cpu_so, src, XER_SO);
+    tcg_gen_shri_tl(cpu_ov, src, XER_OV);
+    tcg_gen_shri_tl(cpu_ca, src, XER_CA);
+    tcg_gen_andi_tl(cpu_so, cpu_so, 1);
+    tcg_gen_andi_tl(cpu_ov, cpu_ov, 1);
+    tcg_gen_andi_tl(cpu_ca, cpu_ca, 1);
+}
+
 /* mcrxr */
 static void gen_mcrxr(DisasContext *ctx)
 {
-    tcg_gen_trunc_tl_i32(cpu_crf[crfD(ctx->opcode)], cpu_xer);
-    tcg_gen_shri_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)], XER_CA);
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_SO | 1 << XER_OV | 1 << XER_CA));
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 dst = cpu_crf[crfD(ctx->opcode)];
+
+    tcg_gen_trunc_tl_i32(t0, cpu_so);
+    tcg_gen_trunc_tl_i32(t1, cpu_ov);
+    tcg_gen_trunc_tl_i32(dst, cpu_ca);
+    tcg_gen_shri_i32(t0, t0, 2);
+    tcg_gen_shri_i32(t1, t1, 1);
+    tcg_gen_or_i32(dst, dst, t0);
+    tcg_gen_or_i32(dst, dst, t1);
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
+
+    tcg_gen_movi_tl(cpu_so, 0);
+    tcg_gen_movi_tl(cpu_ov, 0);
+    tcg_gen_movi_tl(cpu_ca, 0);
 }
 
 /* mfcr mfocrf */
@@ -4533,10 +4435,11 @@ static void gen_abso(DisasContext *ctx)
     int l2 = gen_new_label();
     int l3 = gen_new_label();
     /* Start with XER OV disabled, the most likely case */
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
+    tcg_gen_movi_tl(cpu_ov, 0);
     tcg_gen_brcondi_tl(TCG_COND_GE, cpu_gpr[rA(ctx->opcode)], 0, l2);
     tcg_gen_brcondi_tl(TCG_COND_NE, cpu_gpr[rA(ctx->opcode)], 0x80000000, l1);
-    tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
+    tcg_gen_movi_tl(cpu_ov, 1);
+    tcg_gen_movi_tl(cpu_so, 1);
     tcg_gen_br(l2);
     gen_set_label(l1);
     tcg_gen_neg_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
@@ -4617,7 +4520,7 @@ static void gen_dozo(DisasContext *ctx)
     TCGv t1 = tcg_temp_new();
     TCGv t2 = tcg_temp_new();
     /* Start with XER OV disabled, the most likely case */
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
+    tcg_gen_movi_tl(cpu_ov, 0);
     tcg_gen_brcond_tl(TCG_COND_GE, cpu_gpr[rB(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], l1);
     tcg_gen_sub_tl(t0, cpu_gpr[rB(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
     tcg_gen_xor_tl(t1, cpu_gpr[rB(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
@@ -4625,7 +4528,8 @@ static void gen_dozo(DisasContext *ctx)
     tcg_gen_andc_tl(t1, t1, t2);
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
     tcg_gen_brcondi_tl(TCG_COND_GE, t1, 0, l2);
-    tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
+    tcg_gen_movi_tl(cpu_ov, 1);
+    tcg_gen_movi_tl(cpu_so, 1);
     tcg_gen_br(l2);
     gen_set_label(l1);
     tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], 0);
@@ -4743,7 +4647,7 @@ static void gen_mulo(DisasContext *ctx)
     TCGv_i64 t1 = tcg_temp_new_i64();
     TCGv t2 = tcg_temp_new();
     /* Start with XER OV disabled, the most likely case */
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
+    tcg_gen_movi_tl(cpu_ov, 0);
     tcg_gen_extu_tl_i64(t0, cpu_gpr[rA(ctx->opcode)]);
     tcg_gen_extu_tl_i64(t1, cpu_gpr[rB(ctx->opcode)]);
     tcg_gen_mul_i64(t0, t0, t1);
@@ -4753,7 +4657,8 @@ static void gen_mulo(DisasContext *ctx)
     tcg_gen_trunc_i64_tl(cpu_gpr[rD(ctx->opcode)], t1);
     tcg_gen_ext32s_i64(t1, t0);
     tcg_gen_brcond_i64(TCG_COND_EQ, t0, t1, l1);
-    tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
+    tcg_gen_movi_tl(cpu_ov, 1);
+    tcg_gen_movi_tl(cpu_so, 1);
     gen_set_label(l1);
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
@@ -4789,7 +4694,7 @@ static void gen_nabso(DisasContext *ctx)
     tcg_gen_neg_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
     gen_set_label(l2);
     /* nabs never overflows */
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
+    tcg_gen_movi_tl(cpu_ov, 0);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
@@ -4966,10 +4871,10 @@ static void gen_sraiq(DisasContext *ctx)
     tcg_gen_shli_tl(t1, cpu_gpr[rS(ctx->opcode)], 32 - sh);
     tcg_gen_or_tl(t0, t0, t1);
     gen_store_spr(SPR_MQ, t0);
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
+    tcg_gen_movi_tl(cpu_ca, 0);
     tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
     tcg_gen_brcondi_tl(TCG_COND_GE, cpu_gpr[rS(ctx->opcode)], 0, l1);
-    tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_CA));
+    tcg_gen_movi_tl(cpu_ca, 1);
     gen_set_label(l1);
     tcg_gen_sari_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], sh);
     tcg_temp_free(t0);
@@ -5000,10 +4905,10 @@ static void gen_sraq(DisasContext *ctx)
     gen_set_label(l1);
     tcg_temp_free(t0);
     tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], t1);
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
+    tcg_gen_movi_tl(cpu_ca, 0);
     tcg_gen_brcondi_tl(TCG_COND_GE, t1, 0, l2);
     tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, l2);
-    tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_CA));
+    tcg_gen_movi_tl(cpu_ca, 1);
     gen_set_label(l2);
     tcg_temp_free(t1);
     tcg_temp_free(t2);
@@ -5572,7 +5477,7 @@ static inline void gen_405_mulladd_insn(DisasContext *ctx, int opc2, int opc3,
 
             if (opc3 & 0x10) {
                 /* Start with XER OV disabled, the most likely case */
-                tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
+                tcg_gen_movi_tl(cpu_ov, 0);
             }
             if (opc3 & 0x01) {
                 /* Signed */
@@ -5595,7 +5500,8 @@ static inline void gen_405_mulladd_insn(DisasContext *ctx, int opc2, int opc3,
             }
             if (opc3 & 0x10) {
                 /* Check overflow */
-                tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
+                tcg_gen_movi_tl(cpu_ov, 1);
+                tcg_gen_movi_tl(cpu_so, 1);
             }
             gen_set_label(l1);
             tcg_gen_mov_tl(cpu_gpr[rt], t0);
@@ -5983,9 +5889,7 @@ static void gen_tlbsx_40x(DisasContext *ctx)
     tcg_temp_free(t0);
     if (Rc(ctx->opcode)) {
         int l1 = gen_new_label();
-        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
-        tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
-        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
         tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[rD(ctx->opcode)], -1, l1);
         tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 0x02);
         gen_set_label(l1);
@@ -6066,9 +5970,7 @@ static void gen_tlbsx_440(DisasContext *ctx)
     tcg_temp_free(t0);
     if (Rc(ctx->opcode)) {
         int l1 = gen_new_label();
-        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
-        tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
-        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
         tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[rD(ctx->opcode)], -1, l1);
         tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 0x02);
         gen_set_label(l1);
@@ -9417,7 +9319,7 @@ void cpu_dump_state (CPUPPCState *env, FILE *f, fprintf_function cpu_fprintf,
 
     cpu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
                 TARGET_FMT_lx " XER " TARGET_FMT_lx "\n",
-                env->nip, env->lr, env->ctr, env->xer);
+                env->nip, env->lr, env->ctr, cpu_read_xer(env));
     cpu_fprintf(f, "MSR " TARGET_FMT_lx " HID0 " TARGET_FMT_lx "  HF "
                 TARGET_FMT_lx " idx %d\n", env->msr, env->spr[SPR_HID0],
                 env->hflags, env->mmu_idx);

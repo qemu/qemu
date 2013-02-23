@@ -1152,8 +1152,8 @@ static XHCIStreamContext *xhci_find_stream(XHCIEPContext *epctx,
 
     if (sctx->sct == -1) {
         xhci_dma_read_u32s(epctx->xhci, sctx->pctx, ctx, sizeof(ctx));
-        fprintf(stderr, "%s: init sctx #%d @ %lx: %08x %08x\n", __func__,
-                streamid, sctx->pctx, ctx[0], ctx[1]);
+        fprintf(stderr, "%s: init sctx #%d @ " DMA_ADDR_FMT ": %08x %08x\n",
+                __func__, streamid, sctx->pctx, ctx[0], ctx[1]);
         sct = (ctx[0] >> 1) & 0x07;
         if (epctx->lsa && sct != 1) {
             *cc_error = CC_INVALID_STREAM_TYPE_ERROR;

@@ -98,6 +98,7 @@ typedef enum {
 #define TCG_TARGET_HAS_nor_i32          0
 #define TCG_TARGET_HAS_deposit_i32      1
 #define TCG_TARGET_HAS_movcond_i32      1
+#define TCG_TARGET_HAS_muls2_i32        0
 
 /* optional instructions automatically implemented */
 #define TCG_TARGET_HAS_neg_i32          0 /* sub rd, 0, rs */
