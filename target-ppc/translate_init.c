@@ -8469,10 +8469,31 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
     GSList *list;
+    int i;
 
     list = object_class_get_list(TYPE_POWERPC_CPU, false);
     g_slist_foreach(list, ppc_cpu_defs_entry, &cpu_list);
     g_slist_free(list);
+
+    for (i = 0; i < ARRAY_SIZE(ppc_cpu_aliases); i++) {
+        const PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
+        ObjectClass *oc;
+        CpuDefinitionInfoList *entry;
+        CpuDefinitionInfo *info;
+
+        oc = ppc_cpu_class_by_name(alias->model);
+        if (oc == NULL) {
+            continue;
+        }
+
+        info = g_malloc0(sizeof(*info));
+        info->name = g_strdup(alias->alias);
+
+        entry = g_malloc0(sizeof(*entry));
+        entry->value = info;
+        entry->next = cpu_list;
+        cpu_list = entry;
+    }
 
     return cpu_list;
 }
