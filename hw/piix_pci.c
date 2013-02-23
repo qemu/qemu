@@ -82,6 +82,10 @@ typedef struct PIIX3State {
     MemoryRegion rcr_mem;
 } PIIX3State;
 
+#define TYPE_I440FX_PCI_DEVICE "i440FX"
+#define I440FX_PCI_DEVICE(obj) \
+    OBJECT_CHECK(PCII440FXState, (obj), TYPE_I440FX_PCI_DEVICE)
+
 struct PCII440FXState {
     PCIDevice dev;
     MemoryRegion *system_memory;
@@ -141,7 +145,7 @@ static void i440fx_set_smm(int val, void *arg)
 static void i440fx_write_config(PCIDevice *dev,
                                 uint32_t address, uint32_t val, int len)
 {
-    PCII440FXState *d = DO_UPCAST(PCII440FXState, dev, dev);
+    PCII440FXState *d = I440FX_PCI_DEVICE(dev);
 
     /* XXX: implement SMRAM.D_LOCK */
     pci_default_write_config(dev, address, val, len);
@@ -212,7 +216,7 @@ static int i440fx_pcihost_initfn(SysBusDevice *dev)
 
 static int i440fx_initfn(PCIDevice *dev)
 {
-    PCII440FXState *d = DO_UPCAST(PCII440FXState, dev, dev);
+    PCII440FXState *d = I440FX_PCI_DEVICE(dev);
 
     d->dev.config[I440FX_SMRAM] = 0x02;
 
@@ -251,7 +255,7 @@ static PCIBus *i440fx_common_init(const char *device_name,
     qdev_init_nofail(dev);
 
     d = pci_create_simple(b, 0, device_name);
-    *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
+    *pi440fx_state = I440FX_PCI_DEVICE(d);
     f = *pi440fx_state;
     f->system_memory = address_space_mem;
     f->pci_address_space = pci_address_space;
@@ -325,7 +329,8 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn,
 {
     PCIBus *b;
 
-    b = i440fx_common_init("i440FX", pi440fx_state, piix3_devfn, isa_bus, pic,
+    b = i440fx_common_init(TYPE_I440FX_PCI_DEVICE, pi440fx_state,
+                           piix3_devfn, isa_bus, pic,
                            address_space_mem, address_space_io, ram_size,
                            pci_hole_start, pci_hole_size,
                            pci_hole64_start, pci_hole64_size,
@@ -617,7 +622,7 @@ static void i440fx_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo i440fx_info = {
-    .name          = "i440FX",
+    .name          = TYPE_I440FX_PCI_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCII440FXState),
     .class_init    = i440fx_class_init,
