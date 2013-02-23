@@ -582,7 +582,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPU_INTERRUPT_TPR       CPU_INTERRUPT_TGT_INT_3
 
 
-enum {
+typedef enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
     CC_OP_EFLAGS,  /* all cc are explicitly computed, CC_SRC = flags */
 
@@ -636,8 +636,19 @@ enum {
     CC_OP_SARL,
     CC_OP_SARQ,
 
+    CC_OP_BMILGB, /* Z,S via CC_DST, C = SRC==0; O=0; P,A undefined */
+    CC_OP_BMILGW,
+    CC_OP_BMILGL,
+    CC_OP_BMILGQ,
+
+    CC_OP_ADCX, /* CC_DST = C, CC_SRC = rest.  */
+    CC_OP_ADOX, /* CC_DST = O, CC_SRC = rest.  */
+    CC_OP_ADCOX, /* CC_DST = C, CC_SRC2 = O, CC_SRC = rest.  */
+
+    CC_OP_CLR, /* Z set, all other flags clear.  */
+
     CC_OP_NB,
-};
+} CCOp;
 
 typedef struct SegmentCache {
     uint32_t selector;
@@ -725,8 +736,9 @@ typedef struct CPUX86State {
                         stored elsewhere */
 
     /* emulator internal eflags handling */
-    target_ulong cc_src;
     target_ulong cc_dst;
+    target_ulong cc_src;
+    target_ulong cc_src2;
     uint32_t cc_op;
     int32_t df; /* D flag : 1 if D = 0, -1 if D = 1 */
     uint32_t hflags; /* TB flags, see HF_xxx constants. These flags
@@ -764,7 +776,6 @@ typedef struct CPUX86State {
     XMMReg xmm_regs[CPU_NB_REGS];
     XMMReg xmm_t0;
     MMXReg mmx_t0;
-    target_ulong cc_tmp; /* temporary for rcr/rcl */
 
     /* sysenter registers */
     uint32_t sysenter_cs;
@@ -1117,9 +1128,10 @@ static inline int cpu_mmu_index (CPUX86State *env)
 #define EIP (env->eip)
 #define DF  (env->df)
 
-#define CC_SRC (env->cc_src)
-#define CC_DST (env->cc_dst)
-#define CC_OP  (env->cc_op)
+#define CC_DST  (env->cc_dst)
+#define CC_SRC  (env->cc_src)
+#define CC_SRC2 (env->cc_src2)
+#define CC_OP   (env->cc_op)
 
 /* n must be a constant to be efficient */
 static inline target_long lshift(target_long x, int n)
