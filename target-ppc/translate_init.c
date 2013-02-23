@@ -8298,13 +8298,6 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
     const char *p;
     int i, len;
 
-    if (strcasecmp(name, "host") == 0) {
-        if (kvm_enabled()) {
-            ret = object_class_by_name(TYPE_HOST_POWERPC_CPU);
-        }
-        return ret;
-    }
-
     /* Check if the given name is a PVR */
     len = strlen(name);
     if (len == 10 && name[0] == '0' && name[1] == 'x') {
@@ -8405,6 +8398,9 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
         return;
     }
 #endif
+    if (unlikely(strcmp(typename, TYPE_HOST_POWERPC_CPU) == 0)) {
+        return;
+    }
 
     name = g_strndup(typename,
                      strlen(typename) - strlen("-" TYPE_POWERPC_CPU));
@@ -8426,6 +8422,11 @@ void ppc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     list = g_slist_sort(list, ppc_cpu_list_compare);
     g_slist_foreach(list, ppc_cpu_list_entry, &s);
     g_slist_free(list);
+
+#ifdef CONFIG_KVM
+    cpu_fprintf(f, "\n");
+    cpu_fprintf(f, "PowerPC %-16s\n", "host");
+#endif
 
     cpu_fprintf(f, "\n");
     for (i = 0; i < ARRAY_SIZE(ppc_cpu_aliases); i++) {

@@ -81,6 +81,8 @@ static void kvm_kick_cpu(void *opaque)
     qemu_cpu_kick(CPU(cpu));
 }
 
+static int kvm_ppc_register_host_cpu_type(void);
+
 int kvm_arch_init(KVMState *s)
 {
     cap_interrupt_unset = kvm_check_extension(s, KVM_CAP_PPC_UNSET_IRQ);
@@ -97,6 +99,8 @@ int kvm_arch_init(KVMState *s)
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
                         "VM to stall at times!\n");
     }
+
+    kvm_ppc_register_host_cpu_type();
 
     return 0;
 }
@@ -1488,43 +1492,14 @@ static void alter_insns(uint64_t *word, uint64_t flags, bool on)
 
 static void kvmppc_host_cpu_initfn(Object *obj)
 {
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(obj);
-
     assert(kvm_enabled());
-
-    if (pcc->pvr != mfpvr()) {
-        fprintf(stderr, "Your host CPU is unsupported.\n"
-                "Please choose a supported model instead, see -cpu ?.\n");
-        exit(1);
-    }
 }
 
 static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-    uint32_t host_pvr = mfpvr();
-    PowerPCCPUClass *pvr_pcc;
     uint32_t vmx = kvmppc_get_vmx();
     uint32_t dfp = kvmppc_get_dfp();
-
-    pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
-    if (pvr_pcc != NULL) {
-        pcc->pvr          = pvr_pcc->pvr;
-        pcc->svr          = pvr_pcc->svr;
-        pcc->insns_flags  = pvr_pcc->insns_flags;
-        pcc->insns_flags2 = pvr_pcc->insns_flags2;
-        pcc->msr_mask     = pvr_pcc->msr_mask;
-        pcc->mmu_model    = pvr_pcc->mmu_model;
-        pcc->excp_model   = pvr_pcc->excp_model;
-        pcc->bus_model    = pvr_pcc->bus_model;
-        pcc->flags        = pvr_pcc->flags;
-        pcc->bfd_mach     = pvr_pcc->bfd_mach;
-#ifdef TARGET_PPC64
-        pcc->sps          = pvr_pcc->sps;
-#endif
-        pcc->init_proc    = pvr_pcc->init_proc;
-        pcc->check_pow    = pvr_pcc->check_pow;
-    }
 
     /* Now fix up the class with information we can query from the host */
 
@@ -1552,6 +1527,25 @@ int kvmppc_fixup_cpu(PowerPCCPU *cpu)
     return 0;
 }
 
+static int kvm_ppc_register_host_cpu_type(void)
+{
+    TypeInfo type_info = {
+        .name = TYPE_HOST_POWERPC_CPU,
+        .instance_init = kvmppc_host_cpu_initfn,
+        .class_init = kvmppc_host_cpu_class_init,
+    };
+    uint32_t host_pvr = mfpvr();
+    PowerPCCPUClass *pvr_pcc;
+
+    pvr_pcc = ppc_cpu_class_by_pvr(host_pvr);
+    if (pvr_pcc == NULL) {
+        return -1;
+    }
+    type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
+    type_register(&type_info);
+    return 0;
+}
+
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cpu)
 {
@@ -1567,17 +1561,3 @@ int kvm_arch_on_sigbus(int code, void *addr)
 {
     return 1;
 }
-
-static const TypeInfo kvm_host_cpu_type_info = {
-    .name = TYPE_HOST_POWERPC_CPU,
-    .parent = TYPE_POWERPC_CPU,
-    .instance_init = kvmppc_host_cpu_initfn,
-    .class_init = kvmppc_host_cpu_class_init,
-};
-
-static void kvm_ppc_register_types(void)
-{
-    type_register_static(&kvm_host_cpu_type_info);
-}
-
-type_init(kvm_ppc_register_types)
