@@ -425,10 +425,10 @@ static void piix3_reset(void *opaque)
     PIIX3State *d = opaque;
     uint8_t *pci_conf = d->dev.config;
 
-    pci_conf[0x04] = 0x07; // master, memory and I/O
+    pci_conf[0x04] = 0x07; /* master, memory and I/O */
     pci_conf[0x05] = 0x00;
     pci_conf[0x06] = 0x00;
-    pci_conf[0x07] = 0x02; // PCI_status_devsel_medium
+    pci_conf[0x07] = 0x02; /* PCI_status_devsel_medium */
     pci_conf[0x4c] = 0x4d;
     pci_conf[0x4e] = 0x03;
     pci_conf[0x4f] = 0x00;
@@ -569,7 +569,8 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     k->init         = piix3_initfn;
     k->config_write = piix3_write_config;
     k->vendor_id    = PCI_VENDOR_ID_INTEL;
-    k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0; // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
+    /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
+    k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0;
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 }
 
@@ -592,7 +593,8 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
     k->init         = piix3_initfn;
     k->config_write = piix3_write_config_xen;
     k->vendor_id    = PCI_VENDOR_ID_INTEL;
-    k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0; // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
+    /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
+    k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0;
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 };
 
