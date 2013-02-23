@@ -4922,6 +4922,7 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
 #endif
     switch (base_op) {
     case FUTEX_WAIT:
+    case FUTEX_WAIT_BITSET:
         if (timeout) {
             pts = &ts;
             target_to_host_timespec(pts, timeout);
@@ -4929,7 +4930,7 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
             pts = NULL;
         }
         return get_errno(sys_futex(g2h(uaddr), op, tswap32(val),
-                         pts, NULL, 0));
+                         pts, NULL, val3));
     case FUTEX_WAKE:
         return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
     case FUTEX_FD:
