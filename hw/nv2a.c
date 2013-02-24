@@ -411,6 +411,9 @@
 #       define NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP           0x0003FFC0
 #   define NV097_SET_TEXTURE_CONTROL1                         0x00971B10
 #       define NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH             0xFFFF0000
+#   define NV097_SET_TEXTURE_FILTER                           0x00971B14
+#       define NV097_SET_TEXTURE_FILTER_MIN                       0x00FF0000
+#       define NV097_SET_TEXTURE_FILTER_MAG                       0x0F000000
 #   define NV097_SET_TEXTURE_IMAGE_RECT                       0x00971B1C
 #       define NV097_SET_TEXTURE_IMAGE_RECT_WIDTH                 0xFFFF0000
 #       define NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT                0x0000FFFF
@@ -444,6 +447,24 @@ static const GLenum kelvin_primitive_map[] = {
     GL_QUADS,
     GL_QUAD_STRIP,
     GL_POLYGON,
+};
+
+static const GLenum kelvin_texture_min_filter_map[] = {
+    0,
+    GL_NEAREST,
+    GL_LINEAR,
+    GL_NEAREST_MIPMAP_NEAREST,
+    GL_LINEAR_MIPMAP_NEAREST,
+    GL_NEAREST_MIPMAP_LINEAR,
+    GL_LINEAR_MIPMAP_LINEAR,
+    0,
+};
+
+static const GLenum kelvin_texture_mag_filter_map[] = {
+    0,
+    GL_NEAREST,
+    GL_LINEAR,
+    0,
 };
 
 typedef struct ColorFormatInfo {
@@ -570,6 +591,9 @@ typedef struct Texture {
     unsigned int max_mipmap_level;
     unsigned int pitch;
     unsigned int color_format;
+
+    unsigned int min_filter;
+    unsigned int mag_filter;
 
     bool dma_select;
     hwaddr offset;
@@ -1121,6 +1145,10 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
             glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
                 texture->max_mipmap_level);
 
+            glTexParameteri(gl_target, GL_TEXTURE_MIN_FILTER,
+                kelvin_texture_min_filter_map[texture->min_filter]);
+            glTexParameteri(gl_target, GL_TEXTURE_MAG_FILTER,
+                kelvin_texture_min_filter_map[texture->mag_filter]);
 
             /* load texture data*/
 
@@ -1539,6 +1567,15 @@ static void pgraph_method(NV2AState *d,
 
         kelvin->textures[slot].pitch =
             GET_MASK(parameter, NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH);
+
+        break;
+    CASE_4(NV097_SET_TEXTURE_FILTER, 64):
+        slot = (class_method - NV097_SET_TEXTURE_FILTER) / 64;
+
+        kelvin->textures[slot].min_filter =
+            GET_MASK(parameter, NV097_SET_TEXTURE_FILTER_MIN);
+        kelvin->textures[slot].mag_filter =
+            GET_MASK(parameter, NV097_SET_TEXTURE_FILTER_MAG);
 
         break;
     CASE_4(NV097_SET_TEXTURE_IMAGE_RECT, 64):
