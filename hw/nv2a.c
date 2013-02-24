@@ -1246,6 +1246,8 @@ static void pgraph_context_init(GraphicsContext *context)
             == GL_FRAMEBUFFER_COMPLETE_EXT);
 
 
+    glViewport(0, 0, 640, 480);
+
     assert(glGetError() == GL_NO_ERROR);
 
 
