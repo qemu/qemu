@@ -3209,6 +3209,28 @@
 { 'type': 'ChardevStdio', 'data': { '*signal' : 'bool' } }
 
 ##
+# @ChardevSpiceChannel:
+#
+# Configuration info for spice vm channel chardevs.
+#
+# @type: kind of channel (for example vdagent).
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' } }
+
+##
+# @ChardevSpicePort:
+#
+# Configuration info for spice port chardevs.
+#
+# @fqdn: name of the channel (see docs/spice-port-fqdn.txt)
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' } }
+
+##
 # @ChardevBackend:
 #
 # Configuration info for the new chardev backend.
@@ -3228,7 +3250,9 @@
                                        'msmouse': 'ChardevDummy',
                                        'braille': 'ChardevDummy',
                                        'stdio'  : 'ChardevStdio',
-                                       'console': 'ChardevDummy' } }
+                                       'console': 'ChardevDummy',
+                                       'spicevmc' : 'ChardevSpiceChannel',
+                                       'spiceport' : 'ChardevSpicePort' } }
 
 ##
 # @ChardevReturn:
