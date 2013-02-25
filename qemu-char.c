@@ -1157,13 +1157,13 @@ static void pty_chr_close(struct CharDriverState *chr)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_pty(const char *id,
+                                          ChardevReturn *ret)
 {
     CharDriverState *chr;
     PtyCharDriver *s;
     struct termios tty;
-    const char *label;
-    int master_fd, slave_fd, len;
+    int master_fd, slave_fd;
 #if defined(__OpenBSD__) || defined(__DragonFly__)
     char pty_name[PATH_MAX];
 #define q_ptsname(x) pty_name
@@ -1184,17 +1184,12 @@ static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
 
     chr = g_malloc0(sizeof(CharDriverState));
 
-    len = strlen(q_ptsname(master_fd)) + 5;
-    chr->filename = g_malloc(len);
-    snprintf(chr->filename, len, "pty:%s", q_ptsname(master_fd));
-    qemu_opt_set(opts, "path", q_ptsname(master_fd));
+    chr->filename = g_strdup_printf("pty:%s", q_ptsname(master_fd));
+    ret->pty = g_strdup(q_ptsname(master_fd));
+    ret->has_pty = true;
 
-    label = qemu_opts_id(opts);
-    fprintf(stderr, "char device redirected to %s%s%s%s\n",
-            q_ptsname(master_fd),
-            label ? " (label " : "",
-            label ? label      : "",
-            label ? ")"        : "");
+    fprintf(stderr, "char device redirected to %s (label %s)\n",
+            q_ptsname(master_fd), id);
 
     s = g_malloc0(sizeof(PtyCharDriver));
     chr->opaque = s;
@@ -3687,16 +3682,8 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         break;
 #ifdef HAVE_CHARDEV_TTY
     case CHARDEV_BACKEND_KIND_PTY:
-    {
-        /* qemu_chr_open_pty sets "path" in opts */
-        QemuOpts *opts;
-        opts = qemu_opts_create_nofail(qemu_find_opts("chardev"));
-        chr = qemu_chr_open_pty(opts);
-        ret->pty = g_strdup(qemu_opt_get(opts, "path"));
-        ret->has_pty = true;
-        qemu_opts_del(opts);
+        chr = qemu_chr_open_pty(id, ret);
         break;
-    }
 #endif
     case CHARDEV_BACKEND_KIND_NULL:
         chr = qemu_chr_open_null();
@@ -3776,14 +3763,12 @@ static void register_types(void)
                               qemu_chr_parse_parallel);
     register_char_driver_qapi("parport", CHARDEV_BACKEND_KIND_PARALLEL,
                               qemu_chr_parse_parallel);
+    register_char_driver_qapi("pty", CHARDEV_BACKEND_KIND_PTY, NULL);
 #ifdef _WIN32
     register_char_driver("pipe", qemu_chr_open_win_pipe);
     register_char_driver("console", qemu_chr_open_win_con);
 #else
     register_char_driver("pipe", qemu_chr_open_pipe);
-#endif
-#ifdef HAVE_CHARDEV_TTY
-    register_char_driver("pty", qemu_chr_open_pty);
 #endif
 }
 
