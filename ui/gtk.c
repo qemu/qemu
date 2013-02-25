@@ -433,6 +433,7 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
     return TRUE;
 }
 
+#if !GTK_CHECK_VERSION(3, 0, 0)
 static gboolean gd_expose_event(GtkWidget *widget, GdkEventExpose *expose,
                                 void *opaque)
 {
@@ -453,6 +454,7 @@ static gboolean gd_expose_event(GtkWidget *widget, GdkEventExpose *expose,
 
     return ret;
 }
+#endif
 
 static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
                                 void *opaque)
@@ -1100,8 +1102,13 @@ static void gd_connect_signals(GtkDisplayState *s)
     g_signal_connect(s->window, "delete-event",
                      G_CALLBACK(gd_window_close), s);
 
+#if GTK_CHECK_VERSION(3, 0, 0)
+    g_signal_connect(s->drawing_area, "draw",
+                     G_CALLBACK(gd_draw_event), s);
+#else
     g_signal_connect(s->drawing_area, "expose-event",
                      G_CALLBACK(gd_expose_event), s);
+#endif
     g_signal_connect(s->drawing_area, "motion-notify-event",
                      G_CALLBACK(gd_motion_event), s);
     g_signal_connect(s->drawing_area, "button-press-event",
