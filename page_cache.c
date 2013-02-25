@@ -152,6 +152,9 @@ void cache_insert(PageCache *cache, uint64_t addr, uint8_t *pdata)
     /* actual update of entry */
     it = cache_get_by_addr(cache, addr);
 
+    /* free old cached data if any */
+    g_free(it->it_data);
+
     if (!it->it_data) {
         cache->num_items++;
     }
