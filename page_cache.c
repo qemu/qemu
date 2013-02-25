@@ -208,6 +208,7 @@ int64_t cache_resize(PageCache *cache, int64_t new_num_pages)
         }
     }
 
+    g_free(cache->page_cache);
     cache->page_cache = new_cache->page_cache;
     cache->max_num_items = new_cache->max_num_items;
     cache->num_items = new_cache->num_items;
