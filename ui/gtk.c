@@ -1264,7 +1264,11 @@ void gtk_display_init(DisplayState *ds)
     s->dcl.dpy_refresh = gd_refresh;
 
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+#if GTK_CHECK_VERSION(3, 2, 0)
+    s->vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+#else
     s->vbox = gtk_vbox_new(FALSE, 0);
+#endif
     s->notebook = gtk_notebook_new();
     s->drawing_area = gtk_drawing_area_new();
     s->menu_bar = gtk_menu_bar_new();
