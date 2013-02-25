@@ -211,6 +211,166 @@ get_id_from_string(char *string, unsigned int default_id)
     return id;
 }
 
+static int
+on_host_init(VSCMsgHeader *mhHeader, VSCMsgInit *incoming)
+{
+    uint32_t *capabilities = (incoming->capabilities);
+    int num_capabilities =
+        1 + ((mhHeader->length - sizeof(VSCMsgInit)) / sizeof(uint32_t));
+    int i;
+    int rv;
+    pthread_t thread_id;
+
+    incoming->version = ntohl(incoming->version);
+    if (incoming->version != VSCARD_VERSION) {
+        if (verbose > 0) {
+            printf("warning: host has version %d, we have %d\n",
+                verbose, VSCARD_VERSION);
+        }
+    }
+    if (incoming->magic != VSCARD_MAGIC) {
+        printf("unexpected magic: got %d, expected %d\n",
+            incoming->magic, VSCARD_MAGIC);
+        return -1;
+    }
+    for (i = 0 ; i < num_capabilities; ++i) {
+        capabilities[i] = ntohl(capabilities[i]);
+    }
+    /* Future: check capabilities */
+    /* remove whatever reader might be left in qemu,
+     * in case of an unclean previous exit. */
+    send_msg(VSC_ReaderRemove, VSCARD_MINIMAL_READER_ID, NULL, 0);
+    /* launch the event_thread. This will trigger reader adds for all the
+     * existing readers */
+    rv = pthread_create(&thread_id, NULL, event_thread, NULL);
+    if (rv < 0) {
+        perror("pthread_create");
+        return rv;
+    }
+    return 0;
+}
+
+#define APDUBufSize 270
+
+static int
+do_socket_read(void)
+{
+    int rv;
+    int dwSendLength;
+    int dwRecvLength;
+    uint8_t pbRecvBuffer[APDUBufSize];
+    uint8_t pbSendBuffer[APDUBufSize];
+    VReaderStatus reader_status;
+    VReader *reader = NULL;
+    VSCMsgHeader mhHeader;
+    VSCMsgError *error_msg;
+
+    rv = read(sock, &mhHeader, sizeof(mhHeader));
+    if (rv < sizeof(mhHeader)) {
+        /* Error */
+        if (rv < 0) {
+            perror("header read error\n");
+        } else {
+            fprintf(stderr, "header short read %d\n", rv);
+        }
+        return -1;
+    }
+    mhHeader.type = ntohl(mhHeader.type);
+    mhHeader.reader_id = ntohl(mhHeader.reader_id);
+    mhHeader.length = ntohl(mhHeader.length);
+    if (verbose) {
+        printf("Header: type=%d, reader_id=%u length=%d (0x%x)\n",
+               mhHeader.type, mhHeader.reader_id, mhHeader.length,
+               mhHeader.length);
+    }
+    switch (mhHeader.type) {
+    case VSC_APDU:
+    case VSC_Flush:
+    case VSC_Error:
+    case VSC_Init:
+        rv = read(sock, pbSendBuffer, mhHeader.length);
+        break;
+    default:
+        fprintf(stderr, "Unexpected message of type 0x%X\n", mhHeader.type);
+        return -1;
+    }
+    switch (mhHeader.type) {
+    case VSC_APDU:
+        if (rv < 0) {
+            /* Error */
+            fprintf(stderr, "read error\n");
+            close(sock);
+            return -1;
+        }
+        if (verbose) {
+            printf(" recv APDU: ");
+            print_byte_array(pbSendBuffer, mhHeader.length);
+        }
+        /* Transmit received APDU */
+        dwSendLength = mhHeader.length;
+        dwRecvLength = sizeof(pbRecvBuffer);
+        reader = vreader_get_reader_by_id(mhHeader.reader_id);
+        reader_status = vreader_xfr_bytes(reader,
+                                          pbSendBuffer, dwSendLength,
+                                          pbRecvBuffer, &dwRecvLength);
+        if (reader_status == VREADER_OK) {
+            mhHeader.length = dwRecvLength;
+            if (verbose) {
+                printf(" send response: ");
+                print_byte_array(pbRecvBuffer, mhHeader.length);
+            }
+            send_msg(VSC_APDU, mhHeader.reader_id,
+                     pbRecvBuffer, dwRecvLength);
+        } else {
+            rv = reader_status; /* warning: not meaningful */
+            send_msg(VSC_Error, mhHeader.reader_id, &rv, sizeof(uint32_t));
+        }
+        vreader_free(reader);
+        reader = NULL; /* we've freed it, don't use it by accident
+                          again */
+        break;
+    case VSC_Flush:
+        /* TODO: actually flush */
+        send_msg(VSC_FlushComplete, mhHeader.reader_id, NULL, 0);
+        break;
+    case VSC_Error:
+        error_msg = (VSCMsgError *) pbSendBuffer;
+        if (error_msg->code == VSC_SUCCESS) {
+            qemu_mutex_lock(&pending_reader_lock);
+            if (pending_reader) {
+                vreader_set_id(pending_reader, mhHeader.reader_id);
+                vreader_free(pending_reader);
+                pending_reader = NULL;
+                qemu_cond_signal(&pending_reader_condition);
+            }
+            qemu_mutex_unlock(&pending_reader_lock);
+            break;
+        }
+        printf("warning: qemu refused to add reader\n");
+        if (error_msg->code == VSC_CANNOT_ADD_MORE_READERS) {
+            /* clear pending reader, qemu can't handle any more */
+            qemu_mutex_lock(&pending_reader_lock);
+            if (pending_reader) {
+                pending_reader = NULL;
+                /* make sure the event loop doesn't hang */
+                qemu_cond_signal(&pending_reader_condition);
+            }
+            qemu_mutex_unlock(&pending_reader_lock);
+        }
+        break;
+    case VSC_Init:
+        if (on_host_init(&mhHeader, (VSCMsgInit *)pbSendBuffer) < 0) {
+            return -1;
+        }
+        break;
+    default:
+        printf("Default\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static void
 do_command(void)
 {
@@ -339,8 +499,6 @@ do_command(void)
 }
 
 
-#define APDUBufSize 270
-
 /* just for ease of parsing command line arguments. */
 #define MAX_CERTS 100
 
@@ -385,44 +543,6 @@ connect_to_qemu(
     return sock;
 }
 
-static int on_host_init(VSCMsgHeader *mhHeader, VSCMsgInit *incoming)
-{
-    uint32_t *capabilities = (incoming->capabilities);
-    int num_capabilities =
-        1 + ((mhHeader->length - sizeof(VSCMsgInit)) / sizeof(uint32_t));
-    int i;
-    int rv;
-    pthread_t thread_id;
-
-    incoming->version = ntohl(incoming->version);
-    if (incoming->version != VSCARD_VERSION) {
-        if (verbose > 0) {
-            printf("warning: host has version %d, we have %d\n",
-                verbose, VSCARD_VERSION);
-        }
-    }
-    if (incoming->magic != VSCARD_MAGIC) {
-        printf("unexpected magic: got %d, expected %d\n",
-            incoming->magic, VSCARD_MAGIC);
-        return -1;
-    }
-    for (i = 0 ; i < num_capabilities; ++i) {
-        capabilities[i] = ntohl(capabilities[i]);
-    }
-    /* Future: check capabilities */
-    /* remove whatever reader might be left in qemu,
-     * in case of an unclean previous exit. */
-    send_msg(VSC_ReaderRemove, VSCARD_MINIMAL_READER_ID, NULL, 0);
-    /* launch the event_thread. This will trigger reader adds for all the
-     * existing readers */
-    rv = pthread_create(&thread_id, NULL, event_thread, NULL);
-    if (rv < 0) {
-        perror("pthread_create");
-        return rv;
-    }
-    return 0;
-}
-
 int
 main(
     int argc,
@@ -431,21 +551,13 @@ main(
     char *qemu_host;
     char *qemu_port;
     VSCMsgHeader mhHeader;
-    VSCMsgError *error_msg;
 
-    int rv;
-    int dwSendLength;
-    int dwRecvLength;
-    uint8_t pbRecvBuffer[APDUBufSize];
-    uint8_t pbSendBuffer[APDUBufSize];
-     VReaderStatus reader_status;
-    VReader *reader = NULL;
     VCardEmulOptions *command_line_options = NULL;
 
     char *cert_names[MAX_CERTS];
     char *emul_args = NULL;
     int cert_count = 0;
-    int c;
+    int c, rv;
 
     while ((c = getopt(argc, argv, "c:e:pd:")) != -1) {
         switch (c) {
@@ -548,109 +660,7 @@ main(
         if (!FD_ISSET(sock, &fds)) {
             continue;
         }
-
-        rv = read(sock, &mhHeader, sizeof(mhHeader));
-        if (rv < sizeof(mhHeader)) {
-            /* Error */
-            if (rv < 0) {
-                perror("header read error\n");
-            } else {
-                fprintf(stderr, "header short read %d\n", rv);
-            }
-            return 8;
-        }
-        mhHeader.type = ntohl(mhHeader.type);
-        mhHeader.reader_id = ntohl(mhHeader.reader_id);
-        mhHeader.length = ntohl(mhHeader.length);
-        if (verbose) {
-            printf("Header: type=%d, reader_id=%u length=%d (0x%x)\n",
-                    mhHeader.type, mhHeader.reader_id, mhHeader.length,
-                                               mhHeader.length);
-        }
-        switch (mhHeader.type) {
-        case VSC_APDU:
-        case VSC_Flush:
-        case VSC_Error:
-        case VSC_Init:
-            rv = read(sock, pbSendBuffer, mhHeader.length);
-            break;
-        default:
-            fprintf(stderr, "Unexpected message of type 0x%X\n", mhHeader.type);
-            return 0;
-        }
-        switch (mhHeader.type) {
-        case VSC_APDU:
-            if (rv < 0) {
-                /* Error */
-                fprintf(stderr, "read error\n");
-                close(sock);
-                return 8;
-            }
-            if (verbose) {
-                printf(" recv APDU: ");
-                print_byte_array(pbSendBuffer, mhHeader.length);
-            }
-            /* Transmit received APDU */
-            dwSendLength = mhHeader.length;
-            dwRecvLength = sizeof(pbRecvBuffer);
-            reader = vreader_get_reader_by_id(mhHeader.reader_id);
-            reader_status = vreader_xfr_bytes(reader,
-                pbSendBuffer, dwSendLength,
-                pbRecvBuffer, &dwRecvLength);
-            if (reader_status == VREADER_OK) {
-                mhHeader.length = dwRecvLength;
-                if (verbose) {
-                    printf(" send response: ");
-                    print_byte_array(pbRecvBuffer, mhHeader.length);
-                }
-                send_msg(VSC_APDU, mhHeader.reader_id,
-                         pbRecvBuffer, dwRecvLength);
-            } else {
-                rv = reader_status; /* warning: not meaningful */
-                send_msg(VSC_Error, mhHeader.reader_id, &rv, sizeof(uint32_t));
-            }
-            vreader_free(reader);
-            reader = NULL; /* we've freed it, don't use it by accident
-                              again */
-            break;
-        case VSC_Flush:
-            /* TODO: actually flush */
-            send_msg(VSC_FlushComplete, mhHeader.reader_id, NULL, 0);
-            break;
-        case VSC_Error:
-            error_msg = (VSCMsgError *) pbSendBuffer;
-            if (error_msg->code == VSC_SUCCESS) {
-                qemu_mutex_lock(&pending_reader_lock);
-                if (pending_reader) {
-                    vreader_set_id(pending_reader, mhHeader.reader_id);
-                    vreader_free(pending_reader);
-                    pending_reader = NULL;
-                    qemu_cond_signal(&pending_reader_condition);
-                }
-                qemu_mutex_unlock(&pending_reader_lock);
-                break;
-            }
-            printf("warning: qemu refused to add reader\n");
-            if (error_msg->code == VSC_CANNOT_ADD_MORE_READERS) {
-                /* clear pending reader, qemu can't handle any more */
-                qemu_mutex_lock(&pending_reader_lock);
-                if (pending_reader) {
-                    pending_reader = NULL;
-                    /* make sure the event loop doesn't hang */
-                    qemu_cond_signal(&pending_reader_condition);
-                }
-                qemu_mutex_unlock(&pending_reader_lock);
-            }
-            break;
-        case VSC_Init:
-            if (on_host_init(&mhHeader, (VSCMsgInit *)pbSendBuffer) < 0) {
-                return -1;
-            }
-            break;
-        default:
-            printf("Default\n");
-            return 0;
-        }
+        rv = do_socket_read();
     } while (rv >= 0);
 
     return 0;
