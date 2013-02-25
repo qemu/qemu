@@ -1120,14 +1120,15 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
     }
 
     if (add_ca) {
-        /* dest = ~arg1 + arg2 + ca = arg2 - arg1 + ca - 1.  */
+        /* dest = ~arg1 + arg2 + ca.  */
         if (compute_ca) {
-            TCGv zero;
-            tcg_gen_subi_tl(cpu_ca, cpu_ca, 1);
+            TCGv zero, inv1 = tcg_temp_new();
+            tcg_gen_not_tl(inv1, arg1);
             zero = tcg_const_tl(0);
             tcg_gen_add2_tl(t0, cpu_ca, arg2, zero, cpu_ca, zero);
-            tcg_gen_sub2_tl(t0, cpu_ca, t0, cpu_ca, arg1, zero);
+            tcg_gen_add2_tl(t0, cpu_ca, t0, cpu_ca, inv1, zero);
             tcg_temp_free(zero);
+            tcg_temp_free(inv1);
         } else {
             tcg_gen_sub_tl(t0, arg2, arg1);
             tcg_gen_add_tl(t0, t0, cpu_ca);
