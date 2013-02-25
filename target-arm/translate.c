@@ -428,7 +428,7 @@ static void gen_adc_CC(TCGv dest, TCGv t0, TCGv t1)
     if (TCG_TARGET_HAS_add2_i32) {
         tcg_gen_movi_i32(tmp, 0);
         tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, tmp, cpu_CF, tmp);
-        tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, cpu_CF, t1, tmp);
+        tcg_gen_add2_i32(cpu_NF, cpu_CF, cpu_NF, cpu_CF, t1, tmp);
     } else {
         TCGv_i64 q0 = tcg_temp_new_i64();
         TCGv_i64 q1 = tcg_temp_new_i64();
@@ -472,7 +472,7 @@ static void gen_sbc_CC(TCGv dest, TCGv t0, TCGv t1)
     if (TCG_TARGET_HAS_add2_i32) {
         tcg_gen_movi_i32(tmp, 0);
         tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, tmp, cpu_CF, tmp);
-        tcg_gen_sub2_i32(cpu_NF, cpu_CF, t0, cpu_CF, t1, tmp);
+        tcg_gen_sub2_i32(cpu_NF, cpu_CF, cpu_NF, cpu_CF, t1, tmp);
     } else {
         TCGv_i64 q0 = tcg_temp_new_i64();
         TCGv_i64 q1 = tcg_temp_new_i64();
