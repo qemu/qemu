@@ -464,33 +464,13 @@ static void gen_sub_CC(TCGv dest, TCGv t0, TCGv t1)
     tcg_gen_mov_i32(dest, cpu_NF);
 }
 
-/* dest = T0 + ~T1 + CF = T0 - T1 + CF - 1.  Compute C, N, V and Z flags */
+/* dest = T0 + ~T1 + CF.  Compute C, N, V and Z flags */
 static void gen_sbc_CC(TCGv dest, TCGv t0, TCGv t1)
 {
     TCGv tmp = tcg_temp_new_i32();
-    tcg_gen_subi_i32(cpu_CF, cpu_CF, 1);
-    if (TCG_TARGET_HAS_add2_i32) {
-        tcg_gen_movi_i32(tmp, 0);
-        tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, tmp, cpu_CF, tmp);
-        tcg_gen_sub2_i32(cpu_NF, cpu_CF, cpu_NF, cpu_CF, t1, tmp);
-    } else {
-        TCGv_i64 q0 = tcg_temp_new_i64();
-        TCGv_i64 q1 = tcg_temp_new_i64();
-        tcg_gen_extu_i32_i64(q0, t0);
-        tcg_gen_extu_i32_i64(q1, t1);
-        tcg_gen_sub_i64(q0, q0, q1);
-        tcg_gen_extu_i32_i64(q1, cpu_CF);
-        tcg_gen_add_i64(q0, q0, q1);
-        tcg_gen_extr_i64_i32(cpu_NF, cpu_CF, q0);
-        tcg_temp_free_i64(q0);
-        tcg_temp_free_i64(q1);
-    }
-    tcg_gen_mov_i32(cpu_ZF, cpu_NF);
-    tcg_gen_xor_i32(cpu_VF, cpu_NF, t0);
-    tcg_gen_xor_i32(tmp, t0, t1);
-    tcg_gen_and_i32(cpu_VF, cpu_VF, tmp);
-    tcg_temp_free_i32(tmp);
-    tcg_gen_mov_i32(dest, cpu_NF);
+    tcg_gen_not_i32(tmp, t1);
+    gen_adc_CC(dest, t0, tmp);
+    tcg_temp_free(tmp);
 }
 
 #define GEN_SHIFT(name)                                               \
