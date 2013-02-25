@@ -21,6 +21,20 @@
 #ifndef TARGET_PPC_CPU_MODELS_H
 #define TARGET_PPC_CPU_MODELS_H
 
+/**
+ * PowerPCCPUAlias:
+ * @alias: The alias name.
+ * @model: The CPU model @alias refers to.
+ *
+ * A mapping entry from CPU @alias to CPU @model.
+ */
+typedef struct PowerPCCPUAlias {
+    const char *alias;
+    const char *model;
+} PowerPCCPUAlias;
+
+extern const PowerPCCPUAlias ppc_cpu_aliases[];
+
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC                                    */
 enum {

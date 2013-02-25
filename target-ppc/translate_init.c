@@ -7181,201 +7181,6 @@ POWERPC_FAMILY(620)(ObjectClass *oc, void *data)
 #endif /* defined (TARGET_PPC64) */
 
 
-typedef struct PowerPCCPUAlias {
-    const char *alias;
-    const char *model;
-} PowerPCCPUAlias;
-
-static const PowerPCCPUAlias ppc_cpu_aliases[] = {
-    { "403", "403GC" },
-    { "405", "405D4" },
-    { "405CR", "405CRc" },
-    { "405GP", "405GPd" },
-    { "405GPe", "405CRc" },
-    { "x2vp7", "x2vp4" },
-    { "x2vp50", "x2vp20" },
-
-    { "440EP", "440EPb" },
-    { "440GP", "440GPc" },
-    { "440GR", "440GRa" },
-    { "440GX", "440GXf" },
-
-    { "RCPU", "MPC5xx" },
-    /* MPC5xx microcontrollers */
-    { "MGT560", "MPC5xx" },
-    { "MPC509", "MPC5xx" },
-    { "MPC533", "MPC5xx" },
-    { "MPC534", "MPC5xx" },
-    { "MPC555", "MPC5xx" },
-    { "MPC556", "MPC5xx" },
-    { "MPC560", "MPC5xx" },
-    { "MPC561", "MPC5xx" },
-    { "MPC562", "MPC5xx" },
-    { "MPC563", "MPC5xx" },
-    { "MPC564", "MPC5xx" },
-    { "MPC565", "MPC5xx" },
-    { "MPC566", "MPC5xx" },
-
-    { "PowerQUICC", "MPC8xx" },
-    /* MPC8xx microcontrollers */
-    { "MGT823", "MPC8xx" },
-    { "MPC821", "MPC8xx" },
-    { "MPC823", "MPC8xx" },
-    { "MPC850", "MPC8xx" },
-    { "MPC852T", "MPC8xx" },
-    { "MPC855T", "MPC8xx" },
-    { "MPC857", "MPC8xx" },
-    { "MPC859", "MPC8xx" },
-    { "MPC860", "MPC8xx" },
-    { "MPC862", "MPC8xx" },
-    { "MPC866", "MPC8xx" },
-    { "MPC870", "MPC8xx" },
-    { "MPC875", "MPC8xx" },
-    { "MPC880", "MPC8xx" },
-    { "MPC885", "MPC8xx" },
-
-    /* PowerPC MPC603 microcontrollers */
-    { "MPC8240", "603" },
-
-    { "MPC52xx", "MPC5200" },
-    { "MPC5200", "MPC5200_v12" },
-    { "MPC5200B", "MPC5200B_v21" },
-
-    { "MPC82xx", "MPC8280" },
-    { "PowerQUICC-II", "MPC82xx" },
-    { "MPC8241", "G2HiP4" },
-    { "MPC8245", "G2HiP4" },
-    { "MPC8247", "G2leGP3" },
-    { "MPC8248", "G2leGP3" },
-    { "MPC8250", "MPC8250_HiP4" },
-    { "MPC8250_HiP3", "G2HiP3" },
-    { "MPC8250_HiP4", "G2HiP4" },
-    { "MPC8255", "MPC8255_HiP4" },
-    { "MPC8255_HiP3", "G2HiP3" },
-    { "MPC8255_HiP4", "G2HiP4" },
-    { "MPC8260", "MPC8260_HiP4" },
-    { "MPC8260_HiP3", "G2HiP3" },
-    { "MPC8260_HiP4", "G2HiP4" },
-    { "MPC8264", "MPC8264_HiP4" },
-    { "MPC8264_HiP3", "G2HiP3" },
-    { "MPC8264_HiP4", "G2HiP4" },
-    { "MPC8265", "MPC8265_HiP4" },
-    { "MPC8265_HiP3", "G2HiP3" },
-    { "MPC8265_HiP4", "G2HiP4" },
-    { "MPC8266", "MPC8266_HiP4" },
-    { "MPC8266_HiP3", "G2HiP3" },
-    { "MPC8266_HiP4", "G2HiP4" },
-    { "MPC8270", "G2leGP3" },
-    { "MPC8271", "G2leGP3" },
-    { "MPC8272", "G2leGP3" },
-    { "MPC8275", "G2leGP3" },
-    { "MPC8280", "G2leGP3" },
-    { "e200", "e200z6" },
-    { "e300", "e300c3" },
-    { "MPC8347", "MPC8347T" },
-    { "MPC8347A", "MPC8347AT" },
-    { "MPC8347E", "MPC8347ET" },
-    { "MPC8347EA", "MPC8347EAT" },
-    { "e500", "e500v2_v22" },
-    { "e500v1", "e500_v20" },
-    { "e500v2", "e500v2_v22" },
-    { "MPC8533", "MPC8533_v11" },
-    { "MPC8533E", "MPC8533E_v11" },
-    { "MPC8540", "MPC8540_v21" },
-    { "MPC8541", "MPC8541_v11" },
-    { "MPC8541E", "MPC8541E_v11" },
-    { "MPC8543", "MPC8543_v21" },
-    { "MPC8543E", "MPC8543E_v21" },
-    { "MPC8544", "MPC8544_v11" },
-    { "MPC8544E", "MPC8544E_v11" },
-    { "MPC8545", "MPC8545_v21" },
-    { "MPC8545E", "MPC8545E_v21" },
-    { "MPC8547E", "MPC8547E_v21" },
-    { "MPC8548", "MPC8548_v21" },
-    { "MPC8548E", "MPC8548E_v21" },
-    { "MPC8555", "MPC8555_v11" },
-    { "MPC8555E", "MPC8555E_v11" },
-    { "MPC8560", "MPC8560_v21" },
-    { "601",  "601_v2" },
-    { "601v", "601_v2" },
-    { "Vanilla", "603" },
-    { "603e", "603e_v4.1" },
-    { "Stretch", "603e" },
-    { "Vaillant", "603e7v" },
-    { "603r", "603e7t" },
-    { "Goldeneye", "603r" },
-    { "604e", "604e_v2.4" },
-    { "Sirocco", "604e" },
-    { "Mach5", "604r" },
-    { "740", "740_v3.1" },
-    { "Arthur", "740" },
-    { "750", "750_v3.1" },
-    { "Typhoon", "750" },
-    { "G3",      "750" },
-    { "Conan/Doyle", "750p" },
-    { "750cl", "750cl_v2.0" },
-    { "750cx", "750cx_v2.2" },
-    { "750cxe", "750cxe_v3.1b" },
-    { "750fx", "750fx_v2.3" },
-    { "750gx", "750gx_v1.2" },
-    { "750l", "750l_v3.2" },
-    { "LoneStar", "750l" },
-    { "745", "745_v2.8" },
-    { "755", "755_v2.8" },
-    { "Goldfinger", "755" },
-    { "7400", "7400_v2.9" },
-    { "Max", "7400" },
-    { "G4",  "7400" },
-    { "7410", "7410_v1.4" },
-    { "Nitro", "7410" },
-    { "7448", "7448_v2.1" },
-    { "7450", "7450_v2.1" },
-    { "Vger", "7450" },
-    { "7441", "7441_v2.3" },
-    { "7451", "7451_v2.3" },
-    { "7445", "7445_v3.2" },
-    { "7455", "7455_v3.2" },
-    { "Apollo6", "7455" },
-    { "7447", "7447_v1.2" },
-    { "7457", "7457_v1.2" },
-    { "Apollo7", "7457" },
-    { "7447A", "7447A_v1.2" },
-    { "7457A", "7457A_v1.2" },
-    { "Apollo7PM", "7457A_v1.0" },
-#if defined(TARGET_PPC64)
-    { "Trident", "620" },
-    { "POWER3", "630" },
-    { "Boxer", "POWER3" },
-    { "Dino",  "POWER3" },
-    { "POWER3+", "631" },
-    { "POWER7", "POWER7_v2.3" },
-    { "970fx", "970fx_v3.1" },
-    { "970mp", "970mp_v1.1" },
-    { "Apache", "RS64" },
-    { "A35",    "RS64" },
-    { "NorthStar", "RS64-II" },
-    { "A50",       "RS64-II" },
-    { "Pulsar", "RS64-III" },
-    { "IceStar", "RS64-IV" },
-    { "IStar",   "RS64-IV" },
-    { "SStar",   "RS64-IV" },
-#endif
-    { "RIOS",    "POWER" },
-    { "RSC",     "POWER" },
-    { "RSC3308", "POWER" },
-    { "RSC4608", "POWER" },
-    { "RSC2", "POWER2" },
-    { "P2SC", "POWER2" },
-
-    /* Generic PowerPCs */
-#if defined(TARGET_PPC64)
-    { "ppc64", "970fx" },
-#endif
-    { "ppc32", "604" },
-    { "ppc", "ppc32" },
-    { "default", "ppc" },
-};
-
 /*****************************************************************************/
 /* Generic CPU instantiation routine                                         */
 static void init_ppc_proc(PowerPCCPU *cpu)
@@ -8316,7 +8121,7 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
         }
     }
 
-    for (i = 0; i < ARRAY_SIZE(ppc_cpu_aliases); i++) {
+    for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         if (strcmp(ppc_cpu_aliases[i].alias, name) == 0) {
             return ppc_cpu_class_by_name(ppc_cpu_aliases[i].model);
         }
@@ -8407,7 +8212,7 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
                      strlen(typename) - strlen("-" TYPE_POWERPC_CPU));
     (*s->cpu_fprintf)(s->file, "PowerPC %-16s PVR %08x\n",
                       name, pcc->pvr);
-    for (i = 0; i < ARRAY_SIZE(ppc_cpu_aliases); i++) {
+    for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         const PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
         ObjectClass *alias_oc = ppc_cpu_class_by_name(alias->model);
 
@@ -8475,7 +8280,7 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     g_slist_foreach(list, ppc_cpu_defs_entry, &cpu_list);
     g_slist_free(list);
 
-    for (i = 0; i < ARRAY_SIZE(ppc_cpu_aliases); i++) {
+    for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         const PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
         ObjectClass *oc;
         CpuDefinitionInfoList *entry;
