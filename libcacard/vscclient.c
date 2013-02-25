@@ -218,8 +218,7 @@ on_host_init(VSCMsgHeader *mhHeader, VSCMsgInit *incoming)
     int num_capabilities =
         1 + ((mhHeader->length - sizeof(VSCMsgInit)) / sizeof(uint32_t));
     int i;
-    int rv;
-    pthread_t thread_id;
+    QemuThread thread_id;
 
     incoming->version = ntohl(incoming->version);
     if (incoming->version != VSCARD_VERSION) {
@@ -242,11 +241,7 @@ on_host_init(VSCMsgHeader *mhHeader, VSCMsgInit *incoming)
     send_msg(VSC_ReaderRemove, VSCARD_MINIMAL_READER_ID, NULL, 0);
     /* launch the event_thread. This will trigger reader adds for all the
      * existing readers */
-    rv = pthread_create(&thread_id, NULL, event_thread, NULL);
-    if (rv < 0) {
-        perror("pthread_create");
-        return rv;
-    }
+    qemu_thread_create(&thread_id, event_thread, NULL, 0);
     return 0;
 }
 
