@@ -501,7 +501,6 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     }
 
     if (!kbd_mouse_is_absolute() && gd_is_grab_active(s)) {
-        GdkDisplay *display = gtk_widget_get_display(s->drawing_area);
         GdkScreen *screen = gtk_widget_get_screen(s->drawing_area);
         int x = (int)motion->x_root;
         int y = (int)motion->y_root;
@@ -527,7 +526,13 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
         }
 
         if (x != (int)motion->x_root || y != (int)motion->y_root) {
+#if GTK_CHECK_VERSION(3, 0, 0)
+            GdkDevice *dev = gdk_event_get_device((GdkEvent *)motion);
+            gdk_device_warp(dev, screen, x, y);
+#else
+            GdkDisplay *display = gtk_widget_get_display(widget);
             gdk_display_warp_pointer(display, screen, x, y);
+#endif
             s->last_x = -1;
             s->last_y = -1;
             return FALSE;
