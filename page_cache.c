@@ -192,18 +192,17 @@ int64_t cache_resize(PageCache *cache, int64_t new_num_pages)
         if (old_it->it_addr != -1) {
             /* check for collision, if there is, keep MRU page */
             new_it = cache_get_by_addr(new_cache, old_it->it_addr);
-            if (new_it->it_data) {
+            if (new_it->it_data && new_it->it_age >= old_it->it_age) {
                 /* keep the MRU page */
-                if (new_it->it_age >= old_it->it_age) {
-                    g_free(old_it->it_data);
-                } else {
-                    g_free(new_it->it_data);
-                    new_it->it_data = old_it->it_data;
-                    new_it->it_age = old_it->it_age;
-                    new_it->it_addr = old_it->it_addr;
-                }
+                g_free(old_it->it_data);
             } else {
-                cache_insert(new_cache, old_it->it_addr, old_it->it_data);
+                if (!new_it->it_data) {
+                    new_cache->num_items++;
+                }
+                g_free(new_it->it_data);
+                new_it->it_data = old_it->it_data;
+                new_it->it_age = old_it->it_age;
+                new_it->it_addr = old_it->it_addr;
             }
         }
     }
