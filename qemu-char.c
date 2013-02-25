@@ -3737,6 +3737,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         chr = qemu_chr_open_spice_port(backend->spiceport->fqdn);
         break;
 #endif
+    case CHARDEV_BACKEND_KIND_VC:
+        chr = vc_init(backend->vc);
+        break;
     default:
         error_setg(errp, "unknown chardev backend (%d)", backend->kind);
         break;

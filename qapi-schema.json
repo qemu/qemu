@@ -3231,6 +3231,23 @@
 { 'type': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' } }
 
 ##
+# @ChardevVC:
+#
+# Configuration info for virtual console chardevs.
+#
+# @width:  console width,  in pixels
+# @height: console height, in pixels
+# @cols:   console width,  in chars
+# @rows:   console height, in chars
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevVC', 'data': { '*width'  : 'int',
+                                 '*height' : 'int',
+                                 '*cols'   : 'int',
+                                 '*rows'   : 'int' } }
+
+##
 # @ChardevBackend:
 #
 # Configuration info for the new chardev backend.
@@ -3252,7 +3269,8 @@
                                        'stdio'  : 'ChardevStdio',
                                        'console': 'ChardevDummy',
                                        'spicevmc' : 'ChardevSpiceChannel',
-                                       'spiceport' : 'ChardevSpicePort' } }
+                                       'spiceport' : 'ChardevSpicePort',
+                                       'vc'     : 'ChardevVC' } }
 
 ##
 # @ChardevReturn:

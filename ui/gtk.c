@@ -991,7 +991,7 @@ static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 static int nb_vcs;
 static CharDriverState *vcs[MAX_VCS];
 
-static CharDriverState *gd_vc_handler(QemuOpts *opts)
+static CharDriverState *gd_vc_handler(ChardevVC *unused)
 {
     CharDriverState *chr;
 
