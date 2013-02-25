@@ -1478,13 +1478,17 @@ static void scsi_unmap_complete(void *opaque, int ret)
     uint32_t nb_sectors;
 
     r->req.aiocb = NULL;
+    if (r->req.io_canceled) {
+        goto done;
+    }
+
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
             goto done;
         }
     }
 
-    if (data->count > 0 && !r->req.io_canceled) {
+    if (data->count > 0) {
         sector_num = ldq_be_p(&data->inbuf[0]);
         nb_sectors = ldl_be_p(&data->inbuf[8]) & 0xffffffffULL;
         if (!check_lba_range(s, sector_num, nb_sectors)) {
@@ -1501,10 +1505,9 @@ static void scsi_unmap_complete(void *opaque, int ret)
         return;
     }
 
+    scsi_req_complete(&r->req, GOOD);
+
 done:
-    if (data->count == 0) {
-        scsi_req_complete(&r->req, GOOD);
-    }
     if (!r->req.io_canceled) {
         scsi_req_unref(&r->req);
     }
