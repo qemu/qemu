@@ -305,7 +305,11 @@ static void gd_resize(DisplayState *ds)
         gtk_widget_set_size_request(s->drawing_area,
                                     ds_get_width(ds) * s->scale_x,
                                     ds_get_height(ds) * s->scale_y);
+#if GTK_CHECK_VERSION(3, 0, 0)
+        gtk_widget_get_preferred_size(s->vbox, NULL, &req);
+#else
         gtk_widget_size_request(s->vbox, &req);
+#endif
 
         gtk_window_resize(GTK_WINDOW(s->window),
                           req.width * sx, req.height * sy);
