@@ -758,14 +758,53 @@ static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
 
 static void gd_grab_keyboard(GtkDisplayState *s)
 {
-    gdk_keyboard_grab(gtk_widget_get_window(GTK_WIDGET(s->drawing_area)),
+#if GTK_CHECK_VERSION(3, 0, 0)
+    GdkDisplay *display = gtk_widget_get_display(s->drawing_area);
+    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
+    GList *devices = gdk_device_manager_list_devices(mgr,
+                                                     GDK_DEVICE_TYPE_MASTER);
+    GList *tmp = devices;
+    while (tmp) {
+        GdkDevice *dev = tmp->data;
+        if (gdk_device_get_source(dev) == GDK_SOURCE_KEYBOARD) {
+            gdk_device_grab(dev,
+                            gtk_widget_get_window(s->drawing_area),
+                            GDK_OWNERSHIP_NONE,
+                            FALSE,
+                            GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
+                            NULL,
+                            GDK_CURRENT_TIME);
+        }
+        tmp = tmp->next;
+    }
+    g_list_free(devices);
+#else
+    gdk_keyboard_grab(gtk_widget_get_window(s->drawing_area),
                       FALSE,
                       GDK_CURRENT_TIME);
+#endif
 }
 
 static void gd_ungrab_keyboard(GtkDisplayState *s)
 {
+#if GTK_CHECK_VERSION(3, 0, 0)
+    GdkDisplay *display = gtk_widget_get_display(s->drawing_area);
+    GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
+    GList *devices = gdk_device_manager_list_devices(mgr,
+                                                     GDK_DEVICE_TYPE_MASTER);
+    GList *tmp = devices;
+    while (tmp) {
+        GdkDevice *dev = tmp->data;
+        if (gdk_device_get_source(dev) == GDK_SOURCE_KEYBOARD) {
+            gdk_device_ungrab(dev,
+                              GDK_CURRENT_TIME);
+        }
+        tmp = tmp->next;
+    }
+    g_list_free(devices);
+#else
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
+#endif
 }
 
 static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
