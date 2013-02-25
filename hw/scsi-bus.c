@@ -1508,6 +1508,10 @@ void scsi_req_unref(SCSIRequest *req)
    will start the next chunk or complete the command.  */
 void scsi_req_continue(SCSIRequest *req)
 {
+    if (req->io_canceled) {
+        trace_scsi_req_continue_canceled(req->dev->id, req->lun, req->tag);
+        return;
+    }
     trace_scsi_req_continue(req->dev->id, req->lun, req->tag);
     if (req->cmd.mode == SCSI_XFER_TO_DEV) {
         req->ops->write_data(req);
