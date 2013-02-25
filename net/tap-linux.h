@@ -34,10 +34,11 @@
 #endif
 
 /* TUNSETIFF ifr flags */
-#define IFF_TAP		0x0002
-#define IFF_NO_PI	0x1000
-#define IFF_VNET_HDR	0x4000
-#define IFF_MULTI_QUEUE 0x0100
+#define IFF_TAP          0x0002
+#define IFF_NO_PI        0x1000
+#define IFF_ONE_QUEUE    0x2000
+#define IFF_VNET_HDR     0x4000
+#define IFF_MULTI_QUEUE  0x0100
 #define IFF_ATTACH_QUEUE 0x0200
 #define IFF_DETACH_QUEUE 0x0400
 
