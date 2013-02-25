@@ -88,6 +88,15 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 #define gtk_widget_get_realized(widget) GTK_WIDGET_REALIZED(widget)
 #endif
 
+#ifndef GDK_KEY_0
+#define GDK_KEY_0 GDK_0
+#define GDK_KEY_1 GDK_1
+#define GDK_KEY_2 GDK_2
+#define GDK_KEY_f GDK_f
+#define GDK_KEY_g GDK_g
+#define GDK_KEY_plus GDK_plus
+#define GDK_KEY_minus GDK_minus
+#endif
 
 typedef struct VirtualConsole
 {
