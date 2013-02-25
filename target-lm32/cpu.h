@@ -229,17 +229,7 @@ static inline void cpu_set_tls(CPULM32State *env, target_ulong newtls)
 {
 }
 
-static inline int cpu_interrupts_enabled(CPULM32State *env)
-{
-    return env->ie & IE_IE;
-}
-
 #include "exec/cpu-all.h"
-
-static inline target_ulong cpu_get_pc(CPULM32State *env)
-{
-    return env->pc;
-}
 
 static inline void cpu_get_tb_cpu_state(CPULM32State *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
