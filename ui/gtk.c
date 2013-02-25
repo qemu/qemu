@@ -84,6 +84,11 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 }
 #endif
 
+#if !GTK_CHECK_VERSION(2, 20, 0)
+#define gtk_widget_get_realized(widget) GTK_WIDGET_REALIZED(widget)
+#endif
+
+
 typedef struct VirtualConsole
 {
     GtkWidget *menu_item;
