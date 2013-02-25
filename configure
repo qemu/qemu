@@ -227,6 +227,7 @@ seccomp=""
 glusterfs=""
 virtio_blk_data_plane=""
 gtk=""
+gtkabi="2.0"
 
 # parse CC options first
 for opt do
@@ -901,6 +902,8 @@ for opt do
   --disable-gtk) gtk="no"
   ;;
   --enable-gtk) gtk="yes"
+  ;;
+  --with-gtkabi=*) gtkabi="$optarg"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -1644,12 +1647,22 @@ fi
 # GTK probe
 
 if test "$gtk" != "no"; then
-    if $pkg_config --exists 'gtk+-2.0 >= 2.18.0' && \
-       $pkg_config --exists 'vte >= 0.24.0'; then
-	gtk_cflags=`$pkg_config --cflags gtk+-2.0 2>/dev/null`
-	gtk_libs=`$pkg_config --libs gtk+-2.0 2>/dev/null`
-	vte_cflags=`$pkg_config --cflags vte 2>/dev/null`
-	vte_libs=`$pkg_config --libs vte 2>/dev/null`
+    gtkpackage="gtk+-$gtkabi"
+    if test "$gtkabi" = "3.0" ; then
+      gtkversion="3.0.0"
+      vtepackage="vte-2.90"
+      vteversion="0.32.0"
+    else
+      gtkversion="2.18.0"
+      vtepackage="vte"
+      vteversion="0.24.0"
+    fi
+    if $pkg_config --exists "$gtkpackage >= $gtkversion" && \
+       $pkg_config --exists "$vtepackage >= $vteversion"; then
+	gtk_cflags=`$pkg_config --cflags $gtkpackage 2>/dev/null`
+	gtk_libs=`$pkg_config --libs $gtkpackage 2>/dev/null`
+	vte_cflags=`$pkg_config --cflags $vtepackage 2>/dev/null`
+	vte_libs=`$pkg_config --libs $vtepackage 2>/dev/null`
 	libs_softmmu="$gtk_libs $vte_libs $libs_softmmu"
 	gtk="yes"
     else
