@@ -159,7 +159,7 @@ void cache_insert(PageCache *cache, uint64_t addr, uint8_t *pdata)
         cache->num_items++;
     }
 
-    it->it_data = pdata;
+    it->it_data = g_memdup(pdata, cache->page_size);
     it->it_age = ++cache->max_item_age;
     it->it_addr = addr;
 }
