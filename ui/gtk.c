@@ -501,9 +501,8 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     }
 
     if (!kbd_mouse_is_absolute() && gd_is_grab_active(s)) {
-        GdkDrawable *drawable = GDK_DRAWABLE(gtk_widget_get_window(s->drawing_area));
-        GdkDisplay *display = gdk_drawable_get_display(drawable);
-        GdkScreen *screen = gdk_drawable_get_screen(drawable);
+        GdkDisplay *display = gtk_widget_get_display(s->drawing_area);
+        GdkScreen *screen = gtk_widget_get_screen(s->drawing_area);
         int x = (int)motion->x_root;
         int y = (int)motion->y_root;
 
