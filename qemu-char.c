@@ -1952,7 +1952,7 @@ static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
     return chr;
 }
 
-static CharDriverState *qemu_chr_open_win_con(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_win_con(void)
 {
     return qemu_chr_open_win_file(GetStdHandle(STD_OUTPUT_HANDLE));
 }
@@ -3708,6 +3708,11 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_STDIO:
         chr = qemu_chr_open_stdio(backend->stdio);
         break;
+#ifdef _WIN32
+    case CHARDEV_BACKEND_KIND_CONSOLE:
+        chr = qemu_chr_open_win_con();
+        break;
+#endif
     default:
         error_setg(errp, "unknown chardev backend (%d)", backend->kind);
         break;
@@ -3764,9 +3769,9 @@ static void register_types(void)
     register_char_driver_qapi("parport", CHARDEV_BACKEND_KIND_PARALLEL,
                               qemu_chr_parse_parallel);
     register_char_driver_qapi("pty", CHARDEV_BACKEND_KIND_PTY, NULL);
+    register_char_driver_qapi("console", CHARDEV_BACKEND_KIND_CONSOLE, NULL);
 #ifdef _WIN32
     register_char_driver("pipe", qemu_chr_open_win_pipe);
-    register_char_driver("console", qemu_chr_open_win_con);
 #else
     register_char_driver("pipe", qemu_chr_open_pipe);
 #endif
