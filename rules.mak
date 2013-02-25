@@ -36,6 +36,7 @@ LINK = $(call quiet-command,\
        $(if $(filter %.lo %.la,$^),$(LIBTOOL) --mode=link --tag=CC \
        )$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
+       $(if $(filter %.lo %.la,$^),$(LIBTOOLFLAGS)) \
        $(LIBS),$(if $(filter %.lo %.la,$^),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
 endif
 
