@@ -3153,7 +3153,7 @@
 ##
 # @ChardevHostdev:
 #
-# Configuration info for device chardevs.
+# Configuration info for device and pipe chardevs.
 #
 # @device: The name of the special file for the device,
 #          i.e. /dev/ttyS0 on Unix or COM1: on Windows
@@ -3220,6 +3220,7 @@
 { 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
                                        'serial' : 'ChardevHostdev',
                                        'parallel': 'ChardevHostdev',
+                                       'pipe'   : 'ChardevHostdev',
                                        'socket' : 'ChardevSocket',
                                        'pty'    : 'ChardevDummy',
                                        'null'   : 'ChardevDummy',

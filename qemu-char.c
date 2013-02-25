@@ -841,11 +841,11 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     return chr;
 }
 
-static CharDriverState *qemu_chr_open_pipe(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_pipe(ChardevHostdev *opts)
 {
     int fd_in, fd_out;
     char filename_in[256], filename_out[256];
-    const char *filename = qemu_opt_get(opts, "path");
+    const char *filename = opts->device;
 
     if (filename == NULL) {
         fprintf(stderr, "chardev: pipe: no filename given\n");
@@ -1917,9 +1917,9 @@ static int win_chr_pipe_init(CharDriverState *chr, const char *filename)
 }
 
 
-static CharDriverState *qemu_chr_open_win_pipe(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_pipe(ChardevHostdev *opts)
 {
-    const char *filename = qemu_opt_get(opts, "path");
+    const char *filename = opts->device;
     CharDriverState *chr;
     WinCharState *s;
 
@@ -3188,6 +3188,19 @@ static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
     backend->parallel->device = g_strdup(device);
 }
 
+static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
+                                Error **errp)
+{
+    const char *device = qemu_opt_get(opts, "path");
+
+    if (device == NULL) {
+        error_setg(errp, "chardev: pipe: no device path given");
+        return;
+    }
+    backend->pipe = g_new0(ChardevHostdev, 1);
+    backend->pipe->device = g_strdup(device);
+}
+
 typedef struct CharDriver {
     const char *name;
     /* old, pre qapi */
@@ -3677,6 +3690,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_PARALLEL:
         chr = qmp_chardev_open_parallel(backend->parallel, errp);
         break;
+    case CHARDEV_BACKEND_KIND_PIPE:
+        chr = qemu_chr_open_pipe(backend->pipe);
+        break;
     case CHARDEV_BACKEND_KIND_SOCKET:
         chr = qmp_chardev_open_socket(backend->socket, errp);
         break;
@@ -3770,11 +3786,8 @@ static void register_types(void)
                               qemu_chr_parse_parallel);
     register_char_driver_qapi("pty", CHARDEV_BACKEND_KIND_PTY, NULL);
     register_char_driver_qapi("console", CHARDEV_BACKEND_KIND_CONSOLE, NULL);
-#ifdef _WIN32
-    register_char_driver("pipe", qemu_chr_open_win_pipe);
-#else
-    register_char_driver("pipe", qemu_chr_open_pipe);
-#endif
+    register_char_driver_qapi("pipe", CHARDEV_BACKEND_KIND_PIPE,
+                              qemu_chr_parse_pipe);
 }
 
 type_init(register_types);
