@@ -3767,6 +3767,7 @@ int main(int argc, char **argv, char **envp)
                 if (!opts) {
                     exit(1);
                 }
+                display_remote++;
                 break;
             case QEMU_OPTION_writeconfig:
                 {
@@ -4006,9 +4007,6 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    if (using_spice) {
-        display_remote++;
-    }
     if (display_type == DT_DEFAULT && !display_remote) {
 #if defined(CONFIG_GTK)
         display_type = DT_GTK;
