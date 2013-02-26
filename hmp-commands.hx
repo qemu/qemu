@@ -295,14 +295,14 @@ ETEXI
         .name       = "log",
         .args_type  = "items:s",
         .params     = "item1[,...]",
-        .help       = "activate logging of the specified items to '/tmp/qemu.log'",
+        .help       = "activate logging of the specified items",
         .mhandler.cmd = do_log,
     },
 
 STEXI
 @item log @var{item1}[,...]
 @findex log
-Activate logging of the specified items to @file{/tmp/qemu.log}.
+Activate logging of the specified items.
 ETEXI
 
     {

@@ -35,8 +35,6 @@
 #include "qemu/envlist.h"
 #include "elf.h"
 
-#define DEBUG_LOGFILE "/tmp/qemu.log"
-
 char *exec_path;
 
 int singlestep;
@@ -3296,9 +3294,10 @@ static const struct qemu_argument arg_table[] = {
      "size",       "reserve 'size' bytes for guest virtual address space"},
 #endif
     {"d",          "QEMU_LOG",         true,  handle_arg_log,
-     "options",    "activate log"},
+     "item[,...]", "enable logging of specified items "
+     "(use '-d help' for a list of items)"},
     {"D",          "QEMU_LOG_FILENAME", true, handle_arg_log_filename,
-     "logfile",     "override default logfile location"},
+     "logfile",     "write logs to 'logfile' (default stderr)"},
     {"p",          "QEMU_PAGESIZE",    true,  handle_arg_pagesize,
      "pagesize",   "set the host page size to 'pagesize'"},
     {"singlestep", "QEMU_SINGLESTEP",  false, handle_arg_singlestep,
@@ -3351,11 +3350,9 @@ static void usage(void)
     printf("\n"
            "Defaults:\n"
            "QEMU_LD_PREFIX  = %s\n"
-           "QEMU_STACK_SIZE = %ld byte\n"
-           "QEMU_LOG        = %s\n",
+           "QEMU_STACK_SIZE = %ld byte\n",
            interp_prefix,
-           guest_stack_size,
-           DEBUG_LOGFILE);
+           guest_stack_size);
 
     printf("\n"
            "You can use -E and -U options or the QEMU_SET_ENV and\n"
@@ -3439,7 +3436,6 @@ static int parse_args(int argc, char **argv)
 
 int main(int argc, char **argv, char **envp)
 {
-    const char *log_file = DEBUG_LOGFILE;
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     struct linux_binprm bprm;
@@ -3482,8 +3478,6 @@ int main(int argc, char **argv, char **envp)
     cpudef_setup(); /* parse cpu definitions in target config file (TBD) */
 #endif
 
-    /* init debug */
-    qemu_set_log_filename(log_file);
     optind = parse_args(argc, argv);
 
     /* Zero out regs */

@@ -2517,21 +2517,21 @@ Shorthand for -gdb tcp::1234, i.e. open a gdbserver on TCP port 1234
 ETEXI
 
 DEF("d", HAS_ARG, QEMU_OPTION_d, \
-    "-d item1,...    output log to /tmp/qemu.log (use '-d help' for a list of log items)\n",
+    "-d item1,...    enable logging of specified items (use '-d help' for a list of log items)\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -d
+@item -d @var{item1}[,...]
 @findex -d
-Output log in /tmp/qemu.log
+Enable logging of specified items. Use '-d help' for a list of log items.
 ETEXI
 
 DEF("D", HAS_ARG, QEMU_OPTION_D, \
-    "-D logfile      output log to logfile (instead of the default /tmp/qemu.log)\n",
+    "-D logfile      output log to logfile (default stderr)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -D @var{logfile}
 @findex -D
-Output log in @var{logfile} instead of /tmp/qemu.log
+Output log in @var{logfile} instead of to stderr
 ETEXI
 
 DEF("L", HAS_ARG, QEMU_OPTION_L, \
