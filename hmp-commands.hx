@@ -1169,7 +1169,7 @@ ETEXI
     {
         .name       = "netdev_add",
         .args_type  = "netdev:O",
-        .params     = "[user|tap|socket],id=str[,prop=value][,...]",
+        .params     = "[user|tap|socket|hubport],id=str[,prop=value][,...]",
         .help       = "add host network device",
         .mhandler.cmd = hmp_netdev_add,
     },
