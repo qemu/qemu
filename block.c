@@ -1640,9 +1640,11 @@ int bdrv_commit_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        int ret = bdrv_commit(bs);
-        if (ret < 0) {
-            return ret;
+        if (bs->drv && bs->backing_hd) {
+            int ret = bdrv_commit(bs);
+            if (ret < 0) {
+                return ret;
+            }
         }
     }
     return 0;
