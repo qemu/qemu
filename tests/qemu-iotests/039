@@ -86,7 +86,7 @@ $QEMU_IO -r -c "read -P 0x5a 0 512" $TEST_IMG | _filter_qemu_io
 echo
 echo "== Repairing the image file must succeed =="
 
-$QEMU_IMG check -r all $TEST_IMG
+_check_test_img -r all
 
 # The dirty bit must not be set
 ./qcow2.py $TEST_IMG dump-header | grep incompatible_features

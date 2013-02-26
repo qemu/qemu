@@ -54,3 +54,5 @@
 045 rw auto
 046 rw auto aio
 047 rw auto
+048 img auto quick
+049 rw auto

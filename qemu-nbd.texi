@@ -35,6 +35,10 @@ Export QEMU disk image using NBD protocol.
 @item --aio=@var{aio}
   choose asynchronous I/O mode between @samp{threads} (the default)
   and @samp{native} (Linux only).
+@item --discard=@var{discard}
+  toggles whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap})
+  requests are ignored or passed to the filesystem.  The default is no
+  (@samp{--discard=ignore}).
 @item -c, --connect=@var{dev}
   connect @var{filename} to NBD device @var{dev}
 @item -d, --disconnect

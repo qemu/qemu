@@ -255,7 +255,7 @@ static int parse_block_error_action(const char *buf, bool is_read)
     }
 }
 
-static bool do_check_io_limits(BlockIOLimit *io_limits)
+static bool do_check_io_limits(BlockIOLimit *io_limits, Error **errp)
 {
     bool bps_flag;
     bool iops_flag;
@@ -269,6 +269,18 @@ static bool do_check_io_limits(BlockIOLimit *io_limits)
                  && ((io_limits->iops[BLOCK_IO_LIMIT_READ] != 0)
                  || (io_limits->iops[BLOCK_IO_LIMIT_WRITE] != 0));
     if (bps_flag || iops_flag) {
+        error_setg(errp, "bps(iops) and bps_rd/bps_wr(iops_rd/iops_wr) "
+                         "cannot be used at the same time");
+        return false;
+    }
+
+    if (io_limits->bps[BLOCK_IO_LIMIT_TOTAL] < 0 ||
+        io_limits->bps[BLOCK_IO_LIMIT_WRITE] < 0 ||
+        io_limits->bps[BLOCK_IO_LIMIT_READ] < 0 ||
+        io_limits->iops[BLOCK_IO_LIMIT_TOTAL] < 0 ||
+        io_limits->iops[BLOCK_IO_LIMIT_WRITE] < 0 ||
+        io_limits->iops[BLOCK_IO_LIMIT_READ] < 0) {
+        error_setg(errp, "bps and iops values must be 0 or greater");
         return false;
     }
 
@@ -297,6 +309,7 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
     int snapshot = 0;
     bool copy_on_read;
     int ret;
+    Error *error = NULL;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
     media = MEDIA_DISK;
@@ -378,6 +391,13 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
 	}
     }
 
+    if ((buf = qemu_opt_get(opts, "discard")) != NULL) {
+        if (bdrv_parse_discard_flags(buf, &bdrv_flags) != 0) {
+            error_report("invalid discard option");
+            return NULL;
+        }
+    }
+
     bdrv_flags |= BDRV_O_CACHE_WB;
     if ((buf = qemu_opt_get(opts, "cache")) != NULL) {
         if (bdrv_parse_cache_flags(buf, &bdrv_flags) != 0) {
@@ -427,9 +447,9 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
     io_limits.iops[BLOCK_IO_LIMIT_WRITE] =
                            qemu_opt_get_number(opts, "iops_wr", 0);
 
-    if (!do_check_io_limits(&io_limits)) {
-        error_report("bps(iops) and bps_rd/bps_wr(iops_rd/iops_wr) "
-                     "cannot be used at the same time");
+    if (!do_check_io_limits(&io_limits, &error)) {
+        error_report("%s", error_get_pretty(error));
+        error_free(error);
         return NULL;
     }
 
@@ -791,7 +811,7 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
             bdrv_img_create(new_image_file, format,
                             states->old_bs->filename,
                             states->old_bs->drv->format_name,
-                            NULL, -1, flags, &local_err);
+                            NULL, -1, flags, &local_err, false);
             if (error_is_set(&local_err)) {
                 error_propagate(errp, local_err);
                 goto delete_and_fail;
@@ -975,8 +995,7 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     io_limits.iops[BLOCK_IO_LIMIT_READ] = iops_rd;
     io_limits.iops[BLOCK_IO_LIMIT_WRITE]= iops_wr;
 
-    if (!do_check_io_limits(&io_limits)) {
-        error_set(errp, QERR_INVALID_PARAMETER_COMBINATION);
+    if (!do_check_io_limits(&io_limits, errp)) {
         return;
     }
 
@@ -1284,7 +1303,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         /* create new image w/o backing file */
         assert(format && drv);
         bdrv_img_create(target, format,
-                        NULL, NULL, NULL, size, flags, &local_err);
+                        NULL, NULL, NULL, size, flags, &local_err, false);
     } else {
         switch (mode) {
         case NEW_IMAGE_MODE_EXISTING:
@@ -1295,7 +1314,7 @@ void qmp_drive_mirror(const char *device, const char *target,
             bdrv_img_create(target, format,
                             source->filename,
                             source->drv->format_name,
-                            NULL, size, flags, &local_err);
+                            NULL, size, flags, &local_err, false);
             break;
         default:
             abort();
@@ -1488,6 +1507,10 @@ QemuOptsList qemu_drive_opts = {
             .name = "file",
             .type = QEMU_OPT_STRING,
             .help = "disk image",
+        },{
+            .name = "discard",
+            .type = QEMU_OPT_STRING,
+            .help = "discard operation (ignore/off, unmap/on)",
         },{
             .name = "cache",
             .type = QEMU_OPT_STRING,

@@ -102,7 +102,7 @@ if [ "$event" == "l2_load" ]; then
     $QEMU_IO -c "read $vmstate 0 128k " $BLKDBG_TEST_IMG | _filter_qemu_io
 fi
 
-$QEMU_IMG check $TEST_IMG 2>&1 | grep -v "refcount=1 reference=0"
+_check_test_img 2>&1 | grep -v "refcount=1 reference=0"
 
 done
 done
@@ -147,7 +147,7 @@ echo
 echo "Event: $event; errno: $errno; imm: $imm; once: $once; write $vmstate"
 $QEMU_IO -c "write $vmstate 0 64M" $BLKDBG_TEST_IMG | _filter_qemu_io
 
-$QEMU_IMG check $TEST_IMG 2>&1 | grep -v "refcount=1 reference=0"
+_check_test_img 2>&1 | grep -v "refcount=1 reference=0"
 
 done
 done
@@ -186,7 +186,7 @@ echo
 echo "Event: $event; errno: $errno; imm: $imm; once: $once"
 $QEMU_IO -c "write -b 0 64k" $BLKDBG_TEST_IMG | _filter_qemu_io
 
-$QEMU_IMG check $TEST_IMG 2>&1 | grep -v "refcount=1 reference=0"
+_check_test_img 2>&1 | grep -v "refcount=1 reference=0"
 
 done
 done

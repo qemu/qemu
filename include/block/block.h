@@ -24,6 +24,7 @@ typedef struct BlockFragInfo {
     uint64_t allocated_clusters;
     uint64_t total_clusters;
     uint64_t fragmented_clusters;
+    uint64_t compressed_clusters;
 } BlockFragInfo;
 
 typedef struct QEMUSnapshotInfo {
@@ -83,6 +84,7 @@ typedef struct BlockDevOps {
 #define BDRV_O_INCOMING    0x0800  /* consistency hint for incoming migration */
 #define BDRV_O_CHECK       0x1000  /* open solely for consistency check */
 #define BDRV_O_ALLOW_RDWR  0x2000  /* allow reopen to change from r/o to r/w */
+#define BDRV_O_UNMAP       0x4000  /* execute guest UNMAP/TRIM operations */
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH)
 
@@ -132,6 +134,7 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_parse_cache_flags(const char *mode, int *flags);
+int bdrv_parse_discard_flags(const char *mode, int *flags);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
 int bdrv_open_backing_file(BlockDriverState *bs);
 int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
@@ -213,6 +216,7 @@ typedef struct BdrvCheckResult {
     int check_errors;
     int corruptions_fixed;
     int leaks_fixed;
+    int64_t image_end_offset;
     BlockFragInfo bfi;
 } BdrvCheckResult;
 
@@ -278,6 +282,8 @@ int bdrv_co_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
 int bdrv_has_zero_init(BlockDriverState *bs);
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                       int *pnum);
+int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
+                            int64_t sector_num, int nb_sectors, int *pnum);
 
 void bdrv_set_on_error(BlockDriverState *bs, BlockdevOnError on_read_error,
                        BlockdevOnError on_write_error);
@@ -349,7 +355,8 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
 
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,
-                     char *options, uint64_t img_size, int flags, Error **errp);
+                     char *options, uint64_t img_size, int flags,
+                     Error **errp, bool quiet);
 
 void bdrv_set_buffer_alignment(BlockDriverState *bs, int align);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);

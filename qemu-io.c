@@ -1899,7 +1899,7 @@ int main(int argc, char **argv)
 {
     int readonly = 0;
     int growable = 0;
-    const char *sopt = "hVc:rsnmgkt:T:";
+    const char *sopt = "hVc:d:rsnmgkt:T:";
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
@@ -1911,13 +1911,14 @@ int main(int argc, char **argv)
         { "misalign", 0, NULL, 'm' },
         { "growable", 0, NULL, 'g' },
         { "native-aio", 0, NULL, 'k' },
+        { "discard", 1, NULL, 'd' },
         { "cache", 1, NULL, 't' },
         { "trace", 1, NULL, 'T' },
         { NULL, 0, NULL, 0 }
     };
     int c;
     int opt_index = 0;
-    int flags = 0;
+    int flags = BDRV_O_UNMAP;
 
     progname = basename(argv[0]);
 
@@ -1928,6 +1929,12 @@ int main(int argc, char **argv)
             break;
         case 'n':
             flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
+            break;
+        case 'd':
+            if (bdrv_parse_discard_flags(optarg, &flags) < 0) {
+                error_report("Invalid discard option: %s", optarg);
+                exit(1);
+            }
             break;
         case 'c':
             add_user_command(optarg);

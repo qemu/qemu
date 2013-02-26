@@ -50,7 +50,7 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
     DEFINE_PROP_UINT32("opt_io_size", _state, _conf.opt_io_size, 0),    \
     DEFINE_PROP_INT32("bootindex", _state, _conf.bootindex, -1),        \
     DEFINE_PROP_UINT32("discard_granularity", _state, \
-                       _conf.discard_granularity, 0)
+                       _conf.discard_granularity, -1)
 
 #define DEFINE_BLOCK_CHS_PROPERTIES(_state, _conf)      \
     DEFINE_PROP_UINT32("cyls", _state, _conf.cyls, 0),  \
