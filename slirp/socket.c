@@ -51,6 +51,7 @@ socreate(Slirp *slirp)
     so->so_state = SS_NOFDREF;
     so->s = -1;
     so->slirp = slirp;
+    so->pollfds_idx = -1;
   }
   return(so);
 }
