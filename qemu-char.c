@@ -2884,7 +2884,8 @@ static void ringbuf_chr_close(struct CharDriverState *chr)
     chr->opaque = NULL;
 }
 
-static CharDriverState *qemu_chr_open_ringbuf(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_ringbuf(ChardevRingbuf *opts,
+                                              Error **errp)
 {
     CharDriverState *chr;
     RingBufCharDriver *d;
@@ -2892,14 +2893,11 @@ static CharDriverState *qemu_chr_open_ringbuf(QemuOpts *opts)
     chr = g_malloc0(sizeof(CharDriverState));
     d = g_malloc(sizeof(*d));
 
-    d->size = qemu_opt_get_size(opts, "size", 0);
-    if (d->size == 0) {
-        d->size = 65536;
-    }
+    d->size = opts->has_size ? opts->size : 65536;
 
     /* The size must be power of 2 */
     if (d->size & (d->size - 1)) {
-        error_report("size of ringbuf device must be power of two");
+        error_setg(errp, "size of ringbuf chardev must be power of two");
         goto fail;
     }
 
@@ -3199,6 +3197,20 @@ static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
     }
     backend->pipe = g_new0(ChardevHostdev, 1);
     backend->pipe->device = g_strdup(device);
+}
+
+static void qemu_chr_parse_ringbuf(QemuOpts *opts, ChardevBackend *backend,
+                                   Error **errp)
+{
+    int val;
+
+    backend->memory = g_new0(ChardevRingbuf, 1);
+
+    val = qemu_opt_get_number(opts, "size", 0);
+    if (val != 0) {
+        backend->memory->has_size = true;
+        backend->memory->size = val;
+    }
 }
 
 typedef struct CharDriver {
@@ -3740,6 +3752,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_VC:
         chr = vc_init(backend->vc);
         break;
+    case CHARDEV_BACKEND_KIND_MEMORY:
+        chr = qemu_chr_open_ringbuf(backend->memory, errp);
+        break;
     default:
         error_setg(errp, "unknown chardev backend (%d)", backend->kind);
         break;
@@ -3782,7 +3797,8 @@ static void register_types(void)
     register_char_driver_qapi("null", CHARDEV_BACKEND_KIND_NULL, NULL);
     register_char_driver("socket", qemu_chr_open_socket);
     register_char_driver("udp", qemu_chr_open_udp);
-    register_char_driver("memory", qemu_chr_open_ringbuf);
+    register_char_driver_qapi("memory", CHARDEV_BACKEND_KIND_MEMORY,
+                              qemu_chr_parse_ringbuf);
     register_char_driver_qapi("file", CHARDEV_BACKEND_KIND_FILE,
                               qemu_chr_parse_file_out);
     register_char_driver_qapi("stdio", CHARDEV_BACKEND_KIND_STDIO,
