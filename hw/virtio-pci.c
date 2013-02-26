@@ -1140,7 +1140,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
 
     k->init = virtio_net_init_pci;
     k->exit = virtio_net_exit_pci;
-    k->romfile = "pxe-virtio.rom";
+    k->romfile = "efi-virtio.rom";
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->device_id = PCI_DEVICE_ID_VIRTIO_NET;
     k->revision = VIRTIO_PCI_ABI_VERSION;

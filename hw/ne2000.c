@@ -766,7 +766,7 @@ static void ne2000_class_init(ObjectClass *klass, void *data)
 
     k->init = pci_ne2000_init;
     k->exit = pci_ne2000_exit;
-    k->romfile = "pxe-ne2k_pci.rom",
+    k->romfile = "efi-ne2k_pci.rom",
     k->vendor_id = PCI_VENDOR_ID_REALTEK;
     k->device_id = PCI_DEVICE_ID_REALTEK_8029;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
