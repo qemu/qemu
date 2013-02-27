@@ -533,6 +533,30 @@ int send_all(int fd, const void *_buf, int len1)
     }
     return len1 - len;
 }
+
+int recv_all(int fd, void *_buf, int len1, bool single_read)
+{
+    int ret, len;
+    uint8_t *buf = _buf;
+
+    len = len1;
+    while ((len > 0) && (ret = read(fd, buf, len)) != 0) {
+        if (ret < 0) {
+            if (errno != EINTR && errno != EAGAIN) {
+                return -1;
+            }
+            continue;
+        } else {
+            if (single_read) {
+                return ret;
+            }
+            buf += ret;
+            len -= ret;
+        }
+    }
+    return len1 - len;
+}
+
 #endif /* !_WIN32 */
 
 typedef struct IOWatchPoll

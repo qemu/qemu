@@ -2221,7 +2221,8 @@ DEFHEADING()
 DEFHEADING(TPM device options:)
 
 DEF("tpmdev", HAS_ARG, QEMU_OPTION_tpmdev, \
-    "-tpmdev [<type>],id=str[,option][,option][,...]\n",
+    "-tpmdev passthrough,id=id[,path=path]\n"
+    "                use path to provide path to a character device; default is /dev/tpm0\n",
     QEMU_ARCH_ALL)
 STEXI
 
@@ -2231,6 +2232,7 @@ The general form of a TPM device option is:
 @item -tpmdev @var{backend} ,id=@var{id} [,@var{options}]
 @findex -tpmdev
 Backend type must be:
+@option{passthrough}.
 
 The specific backend type will determine the applicable options.
 The @code{-tpmdev} option requires a @code{-device} option.
@@ -2241,6 +2243,38 @@ Use 'help' to print all available TPM backend types.
 @example
 qemu -tpmdev help
 @end example
+
+@item -tpmdev passthrough, id=@var{id}, path=@var{path}
+
+(Linux-host only) Enable access to the host's TPM using the passthrough
+driver.
+
+@option{path} specifies the path to the host's TPM device, i.e., on
+a Linux host this would be @code{/dev/tpm0}.
+@option{path} is optional and by default @code{/dev/tpm0} is used.
+
+Some notes about using the host's TPM with the passthrough driver:
+
+The TPM device accessed by the passthrough driver must not be
+used by any other application on the host.
+
+Since the host's firmware (BIOS/UEFI) has already initialized the TPM,
+the VM's firmware (BIOS/UEFI) will not be able to initialize the
+TPM again and may therefore not show a TPM-specific menu that would
+otherwise allow the user to configure the TPM, e.g., allow the user to
+enable/disable or activate/deactivate the TPM.
+Further, if TPM ownership is released from within a VM then the host's TPM
+will get disabled and deactivated. To enable and activate the
+TPM again afterwards, the host has to be rebooted and the user is
+required to enter the firmware's menu to enable and activate the TPM.
+If the TPM is left disabled and/or deactivated most TPM commands will fail.
+
+To create a passthrough TPM use the following two options:
+@example
+-tpmdev passthrough,id=tpm0 -device tpm-tis,tpmdev=tpm0
+@end example
+Note that the @code{-tpmdev} id is @code{tpm0} and is referenced by
+@code{tpmdev=tpm0} in the device option.
 
 @end table
 

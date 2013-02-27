@@ -18,12 +18,18 @@
 struct TPMDriverOps;
 typedef struct TPMDriverOps TPMDriverOps;
 
+typedef struct TPMPassthruState TPMPassthruState;
+
 typedef struct TPMBackend {
     char *id;
     enum TpmModel fe_model;
     char *path;
     char *cancel_path;
     const TPMDriverOps *ops;
+
+    union {
+        TPMPassthruState *tpm_pt;
+    } s;
 
     QLIST_ENTRY(TPMBackend) list;
 } TPMBackend;
@@ -74,10 +80,37 @@ struct TPMDriverOps {
     bool (*get_tpm_established_flag)(TPMBackend *t);
 };
 
+struct tpm_req_hdr {
+    uint16_t tag;
+    uint32_t len;
+    uint32_t ordinal;
+} QEMU_PACKED;
+
+struct tpm_resp_hdr {
+    uint16_t tag;
+    uint32_t len;
+    uint32_t errcode;
+} QEMU_PACKED;
+
+#define TPM_TAG_RQU_COMMAND       0xc1
+#define TPM_TAG_RQU_AUTH1_COMMAND 0xc2
+#define TPM_TAG_RQU_AUTH2_COMMAND 0xc3
+
+#define TPM_TAG_RSP_COMMAND       0xc4
+#define TPM_TAG_RSP_AUTH1_COMMAND 0xc5
+#define TPM_TAG_RSP_AUTH2_COMMAND 0xc6
+
+#define TPM_FAIL                  9
+
+#define TPM_ORD_GetTicks          0xf1
+
 TPMBackend *qemu_find_tpm(const char *id);
 int tpm_register_model(enum TpmModel model);
 int tpm_register_driver(const TPMDriverOps *tdo);
 void tpm_display_backend_drivers(void);
 const TPMDriverOps *tpm_get_backend_driver(const char *type);
+void tpm_write_fatal_error_response(uint8_t *out, uint32_t out_len);
+
+extern const TPMDriverOps tpm_passthrough_driver;
 
 #endif /* TPM_TPM_INT_H */
