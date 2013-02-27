@@ -975,6 +975,9 @@ static int virtio_serial_init_pci(PCIDevice *pci_dev)
     if (!vdev) {
         return -1;
     }
+
+    /* backwards-compatibility with machines that were created with
+       DEV_NVECTORS_UNSPECIFIED */
     vdev->nvectors = proxy->nvectors == DEV_NVECTORS_UNSPECIFIED
                                         ? proxy->serial.max_virtserial_ports + 1
                                         : proxy->nvectors;
@@ -1155,7 +1158,7 @@ static const TypeInfo virtio_net_info = {
 
 static Property virtio_serial_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
-    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, DEV_NVECTORS_UNSPECIFIED),
+    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_PROP_UINT32("max_ports", VirtIOPCIProxy, serial.max_virtserial_ports, 31),
