@@ -52,6 +52,9 @@
 #define TPM_TIS_REG_DID_VID               0xf00
 #define TPM_TIS_REG_RID                   0xf04
 
+/* vendor-specific registers */
+#define TPM_TIS_REG_DEBUG                 0xf90
+
 #define TPM_TIS_STS_VALID                 (1 << 7)
 #define TPM_TIS_STS_COMMAND_READY         (1 << 6)
 #define TPM_TIS_STS_TPM_GO                (1 << 5)
@@ -104,6 +107,11 @@
 #define TPM_TIS_TPM_RID       0x0001
 
 #define TPM_TIS_NO_DATA_BYTE  0xff
+
+/* local prototypes */
+
+static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
+                                  unsigned size);
 
 /* utility functions */
 
@@ -346,6 +354,63 @@ static uint32_t tpm_tis_data_read(TPMState *s, uint8_t locty)
     return ret;
 }
 
+#ifdef DEBUG_TIS
+static void tpm_tis_dump_state(void *opaque, hwaddr addr)
+{
+    static const unsigned regs[] = {
+        TPM_TIS_REG_ACCESS,
+        TPM_TIS_REG_INT_ENABLE,
+        TPM_TIS_REG_INT_VECTOR,
+        TPM_TIS_REG_INT_STATUS,
+        TPM_TIS_REG_INTF_CAPABILITY,
+        TPM_TIS_REG_STS,
+        TPM_TIS_REG_DID_VID,
+        TPM_TIS_REG_RID,
+        0xfff};
+    int idx;
+    uint8_t locty = tpm_tis_locality_from_addr(addr);
+    hwaddr base = addr & ~0xfff;
+    TPMState *s = opaque;
+    TPMTISEmuState *tis = &s->s.tis;
+
+    DPRINTF("tpm_tis: active locality      : %d\n"
+            "tpm_tis: state of locality %d : %d\n"
+            "tpm_tis: register dump:\n",
+            tis->active_locty,
+            locty, tis->loc[locty].state);
+
+    for (idx = 0; regs[idx] != 0xfff; idx++) {
+        DPRINTF("tpm_tis: 0x%04x : 0x%08x\n", regs[idx],
+                (uint32_t)tpm_tis_mmio_read(opaque, base + regs[idx], 4));
+    }
+
+    DPRINTF("tpm_tis: read offset   : %d\n"
+            "tpm_tis: result buffer : ",
+            tis->loc[locty].r_offset);
+    for (idx = 0;
+         idx < tpm_tis_get_size_from_buffer(&tis->loc[locty].r_buffer);
+         idx++) {
+        DPRINTF("%c%02x%s",
+                tis->loc[locty].r_offset == idx ? '>' : ' ',
+                tis->loc[locty].r_buffer.buffer[idx],
+                ((idx & 0xf) == 0xf) ? "\ntpm_tis:                 " : "");
+    }
+    DPRINTF("\n"
+            "tpm_tis: write offset  : %d\n"
+            "tpm_tis: request buffer: ",
+            tis->loc[locty].w_offset);
+    for (idx = 0;
+         idx < tpm_tis_get_size_from_buffer(&tis->loc[locty].w_buffer);
+         idx++) {
+        DPRINTF("%c%02x%s",
+                tis->loc[locty].w_offset == idx ? '>' : ' ',
+                tis->loc[locty].w_buffer.buffer[idx],
+                ((idx & 0xf) == 0xf) ? "\ntpm_tis:                 " : "");
+    }
+    DPRINTF("\n");
+}
+#endif
+
 /*
  * Read a register of the TIS interface
  * See specs pages 33-63 for description of the registers
@@ -425,6 +490,11 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
     case TPM_TIS_REG_RID:
         val = TPM_TIS_TPM_RID;
         break;
+#ifdef DEBUG_TIS
+    case TPM_TIS_REG_DEBUG:
+        tpm_tis_dump_state(opaque, addr);
+        break;
+#endif
     }
 
     if (shift) {
