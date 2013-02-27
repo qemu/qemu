@@ -2261,20 +2261,13 @@ static void udp_chr_close(CharDriverState *chr)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_udp(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_udp_fd(int fd)
 {
     CharDriverState *chr = NULL;
     NetCharDriver *s = NULL;
-    Error *local_err = NULL;
-    int fd = -1;
 
     chr = g_malloc0(sizeof(CharDriverState));
     s = g_malloc0(sizeof(NetCharDriver));
-
-    fd = inet_dgram_opts(opts, &local_err);
-    if (fd < 0) {
-        goto return_err;
-    }
 
     s->fd = fd;
     s->chan = io_channel_from_socket(s->fd);
@@ -2285,18 +2278,18 @@ static CharDriverState *qemu_chr_open_udp(QemuOpts *opts)
     chr->chr_update_read_handler = udp_chr_update_read_handler;
     chr->chr_close = udp_chr_close;
     return chr;
+}
 
-return_err:
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+static CharDriverState *qemu_chr_open_udp(QemuOpts *opts)
+{
+    Error *local_err = NULL;
+    int fd = -1;
+
+    fd = inet_dgram_opts(opts, &local_err);
+    if (fd < 0) {
+        return NULL;
     }
-    g_free(chr);
-    g_free(s);
-    if (fd >= 0) {
-        closesocket(fd);
-    }
-    return NULL;
+    return qemu_chr_open_udp_fd(fd);
 }
 
 /***********************************************************/
@@ -3679,6 +3672,18 @@ static CharDriverState *qmp_chardev_open_socket(ChardevSocket *sock,
                                    is_telnet, is_waitconnect, errp);
 }
 
+static CharDriverState *qmp_chardev_open_dgram(ChardevDgram *dgram,
+                                               Error **errp)
+{
+    int fd;
+
+    fd = socket_dgram(dgram->remote, dgram->local, errp);
+    if (error_is_set(errp)) {
+        return NULL;
+    }
+    return qemu_chr_open_udp_fd(fd);
+}
+
 ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
                                Error **errp)
 {
@@ -3707,6 +3712,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         break;
     case CHARDEV_BACKEND_KIND_SOCKET:
         chr = qmp_chardev_open_socket(backend->socket, errp);
+        break;
+    case CHARDEV_BACKEND_KIND_DGRAM:
+        chr = qmp_chardev_open_dgram(backend->dgram, errp);
         break;
 #ifdef HAVE_CHARDEV_TTY
     case CHARDEV_BACKEND_KIND_PTY:
