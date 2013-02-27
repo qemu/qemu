@@ -139,6 +139,7 @@ int main(int argc, char **argv)
 #include "sysemu/blockdev.h"
 #include "hw/block-common.h"
 #include "migration/block.h"
+#include "tpm/tpm.h"
 #include "sysemu/dma.h"
 #include "audio/audio.h"
 #include "migration/migration.h"
@@ -488,6 +489,25 @@ static QemuOptsList qemu_object_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
     .desc = {
         { }
+    },
+};
+
+static QemuOptsList qemu_tpmdev_opts = {
+    .name = "tpmdev",
+    .implied_opt_name = "type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_tpmdev_opts.head),
+    .desc = {
+        {
+            .name = "type",
+            .type = QEMU_OPT_STRING,
+            .help = "Type of TPM backend",
+        },
+        {
+            .name = "path",
+            .type = QEMU_OPT_STRING,
+            .help = "Path to TPM device on the host",
+        },
+        { /* end of list */ }
     },
 };
 
@@ -2868,6 +2888,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_sandbox_opts);
     qemu_add_opts(&qemu_add_fd_opts);
     qemu_add_opts(&qemu_object_opts);
+    qemu_add_opts(&qemu_tpmdev_opts);
 
     runstate_init();
 
@@ -3231,6 +3252,13 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             }
+#ifdef CONFIG_TPM
+            case QEMU_OPTION_tpmdev:
+                if (tpm_config_parse(qemu_find_opts("tpmdev"), optarg) < 0) {
+                    exit(1);
+                }
+                break;
+#endif
             case QEMU_OPTION_mempath:
                 mem_path = optarg;
                 break;
@@ -4108,6 +4136,12 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+#ifdef CONFIG_TPM
+    if (tpm_init() < 0) {
+        exit(1);
+    }
+#endif
+
     /* init the bluetooth world */
     if (foreach_device_config(DEV_BT, bt_parse))
         exit(1);
@@ -4353,6 +4387,9 @@ int main(int argc, char **argv, char **envp)
     bdrv_close_all();
     pause_all_vcpus();
     res_free();
+#ifdef CONFIG_TPM
+    tpm_cleanup();
+#endif
 
     return 0;
 }

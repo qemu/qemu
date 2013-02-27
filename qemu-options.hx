@@ -2217,6 +2217,39 @@ STEXI
 ETEXI
 DEFHEADING()
 
+#ifdef CONFIG_TPM
+DEFHEADING(TPM device options:)
+
+DEF("tpmdev", HAS_ARG, QEMU_OPTION_tpmdev, \
+    "-tpmdev [<type>],id=str[,option][,option][,...]\n",
+    QEMU_ARCH_ALL)
+STEXI
+
+The general form of a TPM device option is:
+@table @option
+
+@item -tpmdev @var{backend} ,id=@var{id} [,@var{options}]
+@findex -tpmdev
+Backend type must be:
+
+The specific backend type will determine the applicable options.
+The @code{-tpmdev} option requires a @code{-device} option.
+
+Options to each backend are described below.
+
+Use 'help' to print all available TPM backend types.
+@example
+qemu -tpmdev help
+@end example
+
+@end table
+
+ETEXI
+
+DEFHEADING()
+
+#endif
+
 DEFHEADING(Linux/Multiboot boot specific:)
 STEXI
 

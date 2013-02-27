@@ -3240,3 +3240,107 @@
 # Since: 1.4
 ##
 { 'command': 'chardev-remove', 'data': {'id': 'str'} }
+
+##
+# @TpmModel:
+#
+# An enumeration of TPM models
+#
+# @tpm-tis: TPM TIS model
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmModel', 'data': [ 'tpm-tis' ] }
+
+##
+# @query-tpm-models:
+#
+# Return a list of supported TPM models
+#
+# Returns: a list of TpmModel
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
+
+##
+# @TpmType:
+#
+# An enumeration of TPM types
+#
+# @passthrough: TPM passthrough type
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmType', 'data': [ 'passthrough' ] }
+
+##
+# @query-tpm-types:
+#
+# Return a list of supported TPM types
+#
+# Returns: a list of TpmType
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm-types', 'returns': ['TpmType'] }
+
+##
+# @TPMPassthroughOptions:
+#
+# Information about the TPM passthrough type
+#
+# @path: #optional string describing the path used for accessing the TPM device
+#
+# @cancel-path: #optional string showing the TPM's sysfs cancel file
+#               for cancellation of TPM commands while they are executing
+#
+# Since: 1.5
+##
+{ 'type': 'TPMPassthroughOptions', 'data': { '*path' : 'str',
+                                             '*cancel-path' : 'str'} }
+
+##
+# @TpmTypeOptions:
+#
+# A union referencing different TPM backend types' configuration options
+#
+# @tpm-passthough-options: TPMPassthroughOptions describing the TPM
+#                          passthrough configuration options
+#
+# Since: 1.5
+##
+{ 'union': 'TpmTypeOptions',
+   'data': { 'tpm-passthrough-options' : 'TPMPassthroughOptions' } }
+
+##
+# @TpmInfo:
+#
+# Information about the TPM
+#
+# @id: The Id of the TPM
+#
+# @model: The TPM frontend model
+#
+# @type: The TPM (backend) type being used
+#
+# @tpm-options: The TPM (backend) type configuration options
+#
+# Since: 1.5
+##
+{ 'type': 'TPMInfo',
+  'data': {'id': 'str',
+           'model': 'TpmModel',
+           'type': 'TpmType',
+           'tpm-options': 'TpmTypeOptions' } }
+
+##
+# @query-tpm:
+#
+# Return information about the TPM device
+#
+# Returns: @TPMInfo on success
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm', 'returns': ['TPMInfo'] }

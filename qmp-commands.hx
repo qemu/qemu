@@ -2716,6 +2716,24 @@ EQMP
     },
 
     {
+        .name       = "query-tpm",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_tpm,
+    },
+
+    {
+        .name       = "query-tpm-models",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_tpm_models,
+    },
+
+    {
+        .name       = "query-tpm-types",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_tpm_types,
+    },
+
+    {
         .name       = "chardev-add",
         .args_type  = "id:s,backend:q",
         .mhandler.cmd_new = qmp_marshal_input_chardev_add,
