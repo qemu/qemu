@@ -1470,14 +1470,12 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 #endif
 
     (*cpu_fprintf)(f, "\nRecognized CPUID flags:\n");
-    listflags(buf, sizeof(buf), (uint32_t)~0, feature_name, 1);
-    (*cpu_fprintf)(f, "  %s\n", buf);
-    listflags(buf, sizeof(buf), (uint32_t)~0, ext_feature_name, 1);
-    (*cpu_fprintf)(f, "  %s\n", buf);
-    listflags(buf, sizeof(buf), (uint32_t)~0, ext2_feature_name, 1);
-    (*cpu_fprintf)(f, "  %s\n", buf);
-    listflags(buf, sizeof(buf), (uint32_t)~0, ext3_feature_name, 1);
-    (*cpu_fprintf)(f, "  %s\n", buf);
+    for (i = 0; i < ARRAY_SIZE(feature_word_info); i++) {
+        FeatureWordInfo *fw = &feature_word_info[i];
+
+        listflags(buf, sizeof(buf), (uint32_t)~0, fw->feat_names, 1);
+        (*cpu_fprintf)(f, "  %s\n", buf);
+    }
 }
 
 CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
