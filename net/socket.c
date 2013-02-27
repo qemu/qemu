@@ -438,6 +438,9 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
     s->fd = fd;
     s->listen_fd = -1;
 
+    /* Disable Nagle algorithm on TCP sockets to reduce latency */
+    socket_set_nodelay(fd);
+
     if (is_connected) {
         net_socket_connect(s);
     } else {
