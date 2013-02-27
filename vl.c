@@ -503,6 +503,11 @@ static QemuOptsList qemu_tpmdev_opts = {
             .help = "Type of TPM backend",
         },
         {
+            .name = "cancel-path",
+            .type = QEMU_OPT_STRING,
+            .help = "Sysfs file entry for canceling TPM commands",
+        },
+        {
             .name = "path",
             .type = QEMU_OPT_STRING,
             .help = "Path to TPM device on the host",

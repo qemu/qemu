@@ -2221,8 +2221,10 @@ DEFHEADING()
 DEFHEADING(TPM device options:)
 
 DEF("tpmdev", HAS_ARG, QEMU_OPTION_tpmdev, \
-    "-tpmdev passthrough,id=id[,path=path]\n"
-    "                use path to provide path to a character device; default is /dev/tpm0\n",
+    "-tpmdev passthrough,id=id[,path=path][,cancel-path=path]\n"
+    "                use path to provide path to a character device; default is /dev/tpm0\n"
+    "                use cancel-path to provide path to TPM's cancel sysfs entry; if\n"
+    "                not provided it will be searched for in /sys/class/misc/tpm?/device\n",
     QEMU_ARCH_ALL)
 STEXI
 
@@ -2244,7 +2246,7 @@ Use 'help' to print all available TPM backend types.
 qemu -tpmdev help
 @end example
 
-@item -tpmdev passthrough, id=@var{id}, path=@var{path}
+@item -tpmdev passthrough, id=@var{id}, path=@var{path}, cancel-path=@var{cancel-path}
 
 (Linux-host only) Enable access to the host's TPM using the passthrough
 driver.
@@ -2252,6 +2254,11 @@ driver.
 @option{path} specifies the path to the host's TPM device, i.e., on
 a Linux host this would be @code{/dev/tpm0}.
 @option{path} is optional and by default @code{/dev/tpm0} is used.
+
+@option{cancel-path} specifies the path to the host TPM device's sysfs
+entry allowing for cancellation of an ongoing TPM command.
+@option{cancel-path} is optional and by default QEMU will search for the
+sysfs entry to use.
 
 Some notes about using the host's TPM with the passthrough driver:
 
