@@ -228,6 +228,7 @@ glusterfs=""
 virtio_blk_data_plane=""
 gtk=""
 gtkabi="2.0"
+tpm="no"
 
 # parse CC options first
 for opt do
@@ -905,6 +906,8 @@ for opt do
   ;;
   --with-gtkabi=*) gtkabi="$optarg"
   ;;
+  --enable-tpm) tpm="yes"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -1160,6 +1163,7 @@ echo "  --enable-glusterfs       enable GlusterFS backend"
 echo "  --disable-glusterfs      disable GlusterFS backend"
 echo "  --enable-gcov            enable test coverage analysis with gcov"
 echo "  --gcov=GCOV              use specified gcov [$gcov_tool]"
+echo "  --enable-tpm             enable TPM support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -3420,6 +3424,7 @@ echo "GlusterFS support $glusterfs"
 echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
+echo "TPM support       $tpm"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -4326,6 +4331,12 @@ if test "$gprof" = "yes" ; then
   if test "$target_softmmu" = "yes" ; then
     ldflags="-p $ldflags"
     echo "GPROF_CFLAGS=-p" >> $config_target_mak
+  fi
+fi
+
+if test "$tpm" = "yes"; then
+  if test "$target_softmmu" = "yes" ; then
+    echo "CONFIG_TPM=y" >> $config_host_mak
   fi
 fi
 
