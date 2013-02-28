@@ -187,6 +187,16 @@ static void zynq_init(QEMUMachineInitArgs *args)
         }
     }
 
+    dev = qdev_create(NULL, "generic-sdhci");
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xE0100000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[56-IRQ_OFFSET]);
+
+    dev = qdev_create(NULL, "generic-sdhci");
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xE0101000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[79-IRQ_OFFSET]);
+
     zynq_binfo.ram_size = ram_size;
     zynq_binfo.kernel_filename = kernel_filename;
     zynq_binfo.kernel_cmdline = kernel_cmdline;
