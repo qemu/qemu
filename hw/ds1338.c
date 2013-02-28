@@ -59,8 +59,8 @@ static void capture_current_time(DS1338State *s)
     s->nvram[1] = to_bcd(now.tm_min);
     if (s->nvram[2] & HOURS_12) {
         int tmp = now.tm_hour;
-        if (tmp == 0) {
-            tmp = 24;
+        if (tmp % 12 == 0) {
+            tmp += 12;
         }
         if (tmp <= 12) {
             s->nvram[2] = HOURS_12 | to_bcd(tmp);
@@ -145,8 +145,8 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
                 if (data & HOURS_PM) {
                     tmp += 12;
                 }
-                if (tmp == 24) {
-                    tmp = 0;
+                if (tmp % 12 == 0) {
+                    tmp -= 12;
                 }
                 now.tm_hour = tmp;
             } else {
