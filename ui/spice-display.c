@@ -581,25 +581,26 @@ static const QXLInterface dpy_interface = {
     .client_monitors_config  = interface_client_monitors_config,
 };
 
-static SimpleSpiceDisplay sdpy;
-
 static void display_update(DisplayChangeListener *dcl,
                            struct DisplayState *ds,
                            int x, int y, int w, int h)
 {
-    qemu_spice_display_update(&sdpy, x, y, w, h);
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+    qemu_spice_display_update(ssd, x, y, w, h);
 }
 
 static void display_resize(DisplayChangeListener *dcl,
                            struct DisplayState *ds)
 {
-    qemu_spice_display_resize(&sdpy);
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+    qemu_spice_display_resize(ssd);
 }
 
 static void display_refresh(DisplayChangeListener *dcl,
                             struct DisplayState *ds)
 {
-    qemu_spice_display_refresh(&sdpy);
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+    qemu_spice_display_refresh(ssd);
 }
 
 static const DisplayChangeListenerOps display_listener_ops = {
@@ -611,16 +612,17 @@ static const DisplayChangeListenerOps display_listener_ops = {
 
 void qemu_spice_display_init(DisplayState *ds)
 {
-    assert(sdpy.ds == NULL);
-    qemu_spice_display_init_common(&sdpy, ds);
+    SimpleSpiceDisplay *ssd = g_new0(SimpleSpiceDisplay, 1);
 
-    sdpy.qxl.base.sif = &dpy_interface.base;
-    qemu_spice_add_interface(&sdpy.qxl.base);
-    assert(sdpy.worker);
+    qemu_spice_display_init_common(ssd, ds);
 
-    qemu_spice_create_host_memslot(&sdpy);
-    qemu_spice_create_host_primary(&sdpy);
+    ssd->qxl.base.sif = &dpy_interface.base;
+    qemu_spice_add_interface(&ssd->qxl.base);
+    assert(ssd->worker);
 
-    sdpy.dcl.ops = &display_listener_ops;
-    register_displaychangelistener(ds, &sdpy.dcl);
+    qemu_spice_create_host_memslot(ssd);
+    qemu_spice_create_host_primary(ssd);
+
+    ssd->dcl.ops = &display_listener_ops;
+    register_displaychangelistener(ds, &ssd->dcl);
 }
