@@ -82,8 +82,7 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
         spi = (SSIBus *)qdev_get_child_bus(dev, bus_name);
 
         for (j = 0; j < num_ss; ++j) {
-            flash_dev = ssi_create_slave_no_init(spi, "m25p80");
-            qdev_prop_set_string(flash_dev, "partname", "n25q128");
+            flash_dev = ssi_create_slave_no_init(spi, "n25q128");
             qdev_init_nofail(flash_dev);
 
             cs_line = qdev_get_gpio_in(flash_dev, 0);
