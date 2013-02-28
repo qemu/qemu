@@ -38,16 +38,16 @@ typedef struct {
     QEMUTimer *timer;
     qemu_irq irq;
     MemoryRegion iomem;
-} timerblock;
+} TimerBlock;
 
 typedef struct {
     SysBusDevice busdev;
     uint32_t num_cpu;
-    timerblock timerblock[MAX_CPUS * 2];
+    TimerBlock timerblock[MAX_CPUS * 2];
     MemoryRegion iomem[2];
-} arm_mptimer_state;
+} ARMMPTimerState;
 
-static inline int get_current_cpu(arm_mptimer_state *s)
+static inline int get_current_cpu(ARMMPTimerState *s)
 {
     CPUState *cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
 
@@ -58,18 +58,18 @@ static inline int get_current_cpu(arm_mptimer_state *s)
     return cpu_single_cpu->cpu_index;
 }
 
-static inline void timerblock_update_irq(timerblock *tb)
+static inline void timerblock_update_irq(TimerBlock *tb)
 {
     qemu_set_irq(tb->irq, tb->status);
 }
 
 /* Return conversion factor from mpcore timer ticks to qemu timer ticks.  */
-static inline uint32_t timerblock_scale(timerblock *tb)
+static inline uint32_t timerblock_scale(TimerBlock *tb)
 {
     return (((tb->control >> 8) & 0xff) + 1) * 10;
 }
 
-static void timerblock_reload(timerblock *tb, int restart)
+static void timerblock_reload(TimerBlock *tb, int restart)
 {
     if (tb->count == 0) {
         return;
@@ -83,7 +83,7 @@ static void timerblock_reload(timerblock *tb, int restart)
 
 static void timerblock_tick(void *opaque)
 {
-    timerblock *tb = (timerblock *)opaque;
+    TimerBlock *tb = (TimerBlock *)opaque;
     tb->status = 1;
     if (tb->control & 2) {
         tb->count = tb->load;
@@ -97,7 +97,7 @@ static void timerblock_tick(void *opaque)
 static uint64_t timerblock_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    timerblock *tb = (timerblock *)opaque;
+    TimerBlock *tb = (TimerBlock *)opaque;
     int64_t val;
     switch (addr) {
     case 0: /* Load */
@@ -125,7 +125,7 @@ static uint64_t timerblock_read(void *opaque, hwaddr addr,
 static void timerblock_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
-    timerblock *tb = (timerblock *)opaque;
+    TimerBlock *tb = (TimerBlock *)opaque;
     int64_t old;
     switch (addr) {
     case 0: /* Load */
@@ -164,7 +164,7 @@ static void timerblock_write(void *opaque, hwaddr addr,
 static uint64_t arm_thistimer_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    arm_mptimer_state *s = (arm_mptimer_state *)opaque;
+    ARMMPTimerState *s = (ARMMPTimerState *)opaque;
     int id = get_current_cpu(s);
     return timerblock_read(&s->timerblock[id * 2], addr, size);
 }
@@ -172,7 +172,7 @@ static uint64_t arm_thistimer_read(void *opaque, hwaddr addr,
 static void arm_thistimer_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    arm_mptimer_state *s = (arm_mptimer_state *)opaque;
+    ARMMPTimerState *s = (ARMMPTimerState *)opaque;
     int id = get_current_cpu(s);
     timerblock_write(&s->timerblock[id * 2], addr, value, size);
 }
@@ -180,7 +180,7 @@ static void arm_thistimer_write(void *opaque, hwaddr addr,
 static uint64_t arm_thiswdog_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    arm_mptimer_state *s = (arm_mptimer_state *)opaque;
+    ARMMPTimerState *s = (ARMMPTimerState *)opaque;
     int id = get_current_cpu(s);
     return timerblock_read(&s->timerblock[id * 2 + 1], addr, size);
 }
@@ -188,7 +188,7 @@ static uint64_t arm_thiswdog_read(void *opaque, hwaddr addr,
 static void arm_thiswdog_write(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
-    arm_mptimer_state *s = (arm_mptimer_state *)opaque;
+    ARMMPTimerState *s = (ARMMPTimerState *)opaque;
     int id = get_current_cpu(s);
     timerblock_write(&s->timerblock[id * 2 + 1], addr, value, size);
 }
@@ -223,7 +223,7 @@ static const MemoryRegionOps timerblock_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void timerblock_reset(timerblock *tb)
+static void timerblock_reset(TimerBlock *tb)
 {
     tb->count = 0;
     tb->load = 0;
@@ -237,8 +237,8 @@ static void timerblock_reset(timerblock *tb)
 
 static void arm_mptimer_reset(DeviceState *dev)
 {
-    arm_mptimer_state *s =
-        FROM_SYSBUS(arm_mptimer_state, SYS_BUS_DEVICE(dev));
+    ARMMPTimerState *s =
+        FROM_SYSBUS(ARMMPTimerState, SYS_BUS_DEVICE(dev));
     int i;
     /* We reset every timer in the array, not just the ones we're using,
      * because vmsave will look at every array element.
@@ -250,7 +250,7 @@ static void arm_mptimer_reset(DeviceState *dev)
 
 static int arm_mptimer_init(SysBusDevice *dev)
 {
-    arm_mptimer_state *s = FROM_SYSBUS(arm_mptimer_state, dev);
+    ARMMPTimerState *s = FROM_SYSBUS(ARMMPTimerState, dev);
     int i;
     if (s->num_cpu < 1 || s->num_cpu > MAX_CPUS) {
         hw_error("%s: num-cpu must be between 1 and %d\n", __func__, MAX_CPUS);
@@ -278,7 +278,7 @@ static int arm_mptimer_init(SysBusDevice *dev)
                           "arm_mptimer_wdog", 0x20);
     sysbus_init_mmio(dev, &s->iomem[1]);
     for (i = 0; i < (s->num_cpu * 2); i++) {
-        timerblock *tb = &s->timerblock[i];
+        TimerBlock *tb = &s->timerblock[i];
         tb->timer = qemu_new_timer_ns(vm_clock, timerblock_tick, tb);
         sysbus_init_irq(dev, &tb->irq);
         memory_region_init_io(&tb->iomem, &timerblock_ops, tb,
@@ -294,11 +294,11 @@ static const VMStateDescription vmstate_timerblock = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(count, timerblock),
-        VMSTATE_UINT32(load, timerblock),
-        VMSTATE_UINT32(control, timerblock),
-        VMSTATE_UINT32(status, timerblock),
-        VMSTATE_INT64(tick, timerblock),
+        VMSTATE_UINT32(count, TimerBlock),
+        VMSTATE_UINT32(load, TimerBlock),
+        VMSTATE_UINT32(control, TimerBlock),
+        VMSTATE_UINT32(status, TimerBlock),
+        VMSTATE_INT64(tick, TimerBlock),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -308,14 +308,14 @@ static const VMStateDescription vmstate_arm_mptimer = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(timerblock, arm_mptimer_state, (MAX_CPUS * 2),
-                             1, vmstate_timerblock, timerblock),
+        VMSTATE_STRUCT_ARRAY(timerblock, ARMMPTimerState, (MAX_CPUS * 2),
+                             1, vmstate_timerblock, TimerBlock),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static Property arm_mptimer_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", arm_mptimer_state, num_cpu, 0),
+    DEFINE_PROP_UINT32("num-cpu", ARMMPTimerState, num_cpu, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -334,7 +334,7 @@ static void arm_mptimer_class_init(ObjectClass *klass, void *data)
 static const TypeInfo arm_mptimer_info = {
     .name          = "arm_mptimer",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(arm_mptimer_state),
+    .instance_size = sizeof(ARMMPTimerState),
     .class_init    = arm_mptimer_class_init,
 };
 
