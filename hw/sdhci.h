@@ -220,6 +220,8 @@
 
 #define SDHC_REGISTERS_MAP_SIZE         0x100
 #define SDHC_INSERTION_DELAY            (get_ticks_per_sec())
+#define SDHC_TRANSFER_DELAY             100
+#define SDHC_ADMA_DESCS_PER_DELAY       5
 #define SDHC_CMD_RESPONSE               (3 << 0)
 
 enum {
@@ -235,6 +237,7 @@ typedef struct SDHCIState {
     MemoryRegion iomem;
 
     QEMUTimer *insert_timer;       /* timer for 'changing' sd card. */
+    QEMUTimer *transfer_timer;
     qemu_irq eject_cb;
     qemu_irq ro_cb;
     qemu_irq irq;
@@ -285,7 +288,7 @@ typedef struct SDHCIClass {
             unsigned size);
     void (*send_command)(SDHCIState *s);
     bool (*can_issue_command)(SDHCIState *s);
-    void (*start_data_transfer)(SDHCIState *s);
+    void (*data_transfer)(SDHCIState *s);
     void (*end_data_transfer)(SDHCIState *s);
     void (*do_sdma_single)(SDHCIState *s);
     void (*do_sdma_multi)(SDHCIState *s);
@@ -298,7 +301,7 @@ typedef struct SDHCIClass {
 
 extern const VMStateDescription sdhci_vmstate;
 
-#define TYPE_SDHCI            "sdhci"
+#define TYPE_SDHCI            "generic-sdhci"
 #define SDHCI(obj)            \
      OBJECT_CHECK(SDHCIState, (obj), TYPE_SDHCI)
 #define SDHCI_CLASS(klass)    \

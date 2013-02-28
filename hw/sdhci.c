@@ -24,12 +24,17 @@
 
 #include "hw.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/dma.h"
 #include "qemu/timer.h"
-#include "sdhci.h"
 #include "block/block_int.h"
+#include "qemu/bitops.h"
+
+#include "sdhci.h"
 
 /* host controller debug messages */
+#ifndef SDHC_DEBUG
 #define SDHC_DEBUG                        0
+#endif
 
 #if SDHC_DEBUG == 0
     #define DPRINT_L1(fmt, args...)       do { } while (0)
@@ -182,6 +187,7 @@ static void sdhci_card_readonly_cb(void *opaque, int irq, int level)
 static void sdhci_reset(SDHCIState *s)
 {
     qemu_del_timer(s->insert_timer);
+    qemu_del_timer(s->transfer_timer);
     /* Set all registers to 0. Capabilities registers are not cleared
      * and assumed to always preserve their value, given to them during
      * initialization */
@@ -190,6 +196,13 @@ static void sdhci_reset(SDHCIState *s)
     sd_set_cb(s->card, s->ro_cb, s->eject_cb);
     s->data_count = 0;
     s->stopped_state = sdhc_not_stopped;
+}
+
+static void sdhci_do_data_transfer(void *opaque)
+{
+    SDHCIState *s = (SDHCIState *)opaque;
+
+    SDHCI_GET_CLASS(s)->data_transfer(s);
 }
 
 static void sdhci_send_command(SDHCIState *s)
@@ -247,7 +260,7 @@ static void sdhci_send_command(SDHCIState *s)
     sdhci_update_irq(s);
 
     if (s->blksize && (s->cmdreg & SDHC_CMD_DATA_PRESENT)) {
-        SDHCI_GET_CLASS(s)->start_data_transfer(s);
+        sdhci_do_data_transfer(s);
     }
 }
 
@@ -483,8 +496,8 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
                     s->blkcnt--;
                 }
             }
-            cpu_physical_memory_write(s->sdmasysad, &s->fifo_buffer[begin],
-                    s->data_count - begin);
+            dma_memory_write(&dma_context_memory, s->sdmasysad,
+                             &s->fifo_buffer[begin], s->data_count - begin);
             s->sdmasysad += s->data_count - begin;
             if (s->data_count == block_size) {
                 s->data_count = 0;
@@ -505,8 +518,8 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
                 s->data_count = block_size;
                 boundary_count -= block_size - begin;
             }
-            cpu_physical_memory_read(s->sdmasysad,
-                    &s->fifo_buffer[begin], s->data_count);
+            dma_memory_read(&dma_context_memory, s->sdmasysad,
+                            &s->fifo_buffer[begin], s->data_count);
             s->sdmasysad += s->data_count - begin;
             if (s->data_count == block_size) {
                 for (n = 0; n < block_size; n++) {
@@ -534,6 +547,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
 }
 
 /* single block SDMA transfer */
+
 static void sdhci_sdma_transfer_single_block(SDHCIState *s)
 {
     int n;
@@ -543,9 +557,11 @@ static void sdhci_sdma_transfer_single_block(SDHCIState *s)
         for (n = 0; n < datacnt; n++) {
             s->fifo_buffer[n] = sd_read_data(s->card);
         }
-        cpu_physical_memory_write(s->sdmasysad, s->fifo_buffer, datacnt);
+        dma_memory_write(&dma_context_memory, s->sdmasysad, s->fifo_buffer,
+                         datacnt);
     } else {
-        cpu_physical_memory_read(s->sdmasysad, s->fifo_buffer, datacnt);
+        dma_memory_read(&dma_context_memory, s->sdmasysad, s->fifo_buffer,
+                        datacnt);
         for (n = 0; n < datacnt; n++) {
             sd_write_data(s->card, s->fifo_buffer[n]);
         }
@@ -569,31 +585,42 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
 {
     uint32_t adma1 = 0;
     uint64_t adma2 = 0;
-    hwaddr entry_addr = s->admasysaddr;
-
+    hwaddr entry_addr = (hwaddr)s->admasysaddr;
     switch (SDHC_DMA_TYPE(s->hostctl)) {
     case SDHC_CTRL_ADMA2_32:
-        cpu_physical_memory_read(entry_addr, (uint8_t *)&adma2, sizeof(adma2));
-        dscr->addr = (hwaddr)((adma2 >> 32) & 0xfffffffc);
-        dscr->length = (uint16_t)((adma2 >> 16) & 0xFFFF);
-        dscr->attr = (uint8_t)(adma2 & 0x3F);
+        dma_memory_read(&dma_context_memory, entry_addr, (uint8_t *)&adma2,
+                        sizeof(adma2));
+        adma2 = le64_to_cpu(adma2);
+        /* The spec does not specify endianness of descriptor table.
+         * We currently assume that it is LE.
+         */
+        dscr->addr = (hwaddr)extract64(adma2, 32, 32) & ~0x3ull;
+        dscr->length = (uint16_t)extract64(adma2, 16, 16);
+        dscr->attr = (uint8_t)extract64(adma2, 0, 7);
         dscr->incr = 8;
         break;
     case SDHC_CTRL_ADMA1_32:
-        cpu_physical_memory_read(entry_addr, (uint8_t *)&adma1, sizeof(adma1));
+        dma_memory_read(&dma_context_memory, entry_addr, (uint8_t *)&adma1,
+                        sizeof(adma1));
+        adma1 = le32_to_cpu(adma1);
         dscr->addr = (hwaddr)(adma1 & 0xFFFFF000);
-        dscr->attr = (uint8_t)(adma1 & 0x3F);
+        dscr->attr = (uint8_t)extract32(adma1, 0, 7);
         dscr->incr = 4;
         if ((dscr->attr & SDHC_ADMA_ATTR_ACT_MASK) == SDHC_ADMA_ATTR_SET_LEN) {
-            dscr->length = (uint16_t)((adma1 >> 12) & 0xFFFF);
+            dscr->length = (uint16_t)extract32(adma1, 12, 16);
         } else {
             dscr->length = 4096;
         }
         break;
     case SDHC_CTRL_ADMA2_64:
-        cpu_physical_memory_read(entry_addr, (uint8_t *)(&dscr->attr), 1);
-        cpu_physical_memory_read(entry_addr + 2, (uint8_t *)(&dscr->length), 2);
-        cpu_physical_memory_read(entry_addr + 4, (uint8_t *)(&dscr->addr), 8);
+        dma_memory_read(&dma_context_memory, entry_addr,
+                        (uint8_t *)(&dscr->attr), 1);
+        dma_memory_read(&dma_context_memory, entry_addr + 2,
+                        (uint8_t *)(&dscr->length), 2);
+        dscr->length = le16_to_cpu(dscr->length);
+        dma_memory_read(&dma_context_memory, entry_addr + 4,
+                        (uint8_t *)(&dscr->addr), 8);
+        dscr->attr = le64_to_cpu(dscr->attr);
         dscr->attr &= 0xfffffff8;
         dscr->incr = 12;
         break;
@@ -601,14 +628,17 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
 }
 
 /* Advanced DMA data transfer */
-static void sdhci_start_adma(SDHCIState *s)
+
+static void sdhci_do_adma(SDHCIState *s)
 {
     unsigned int n, begin, length;
     const uint16_t block_size = s->blksize & 0x0fff;
     ADMADescr dscr;
-    s->admaerr &= ~SDHC_ADMAERR_LENGTH_MISMATCH;
+    int i;
 
-    while (1) {
+    for (i = 0; i < SDHC_ADMA_DESCS_PER_DELAY; ++i) {
+        s->admaerr &= ~SDHC_ADMAERR_LENGTH_MISMATCH;
+
         get_adma_description(s, &dscr);
         DPRINT_L2("ADMA loop: addr=" TARGET_FMT_plx ", len=%d, attr=%x\n",
                 dscr.addr, dscr.length, dscr.attr);
@@ -625,7 +655,7 @@ static void sdhci_start_adma(SDHCIState *s)
             }
 
             sdhci_update_irq(s);
-            break;
+            return;
         }
 
         length = dscr.length ? dscr.length : 65536;
@@ -648,8 +678,9 @@ static void sdhci_start_adma(SDHCIState *s)
                         s->data_count = block_size;
                         length -= block_size - begin;
                     }
-                    cpu_physical_memory_write(dscr.addr, &s->fifo_buffer[begin],
-                            s->data_count - begin);
+                    dma_memory_write(&dma_context_memory, dscr.addr,
+                                     &s->fifo_buffer[begin],
+                                     s->data_count - begin);
                     dscr.addr += s->data_count - begin;
                     if (s->data_count == block_size) {
                         s->data_count = 0;
@@ -671,8 +702,8 @@ static void sdhci_start_adma(SDHCIState *s)
                         s->data_count = block_size;
                         length -= block_size - begin;
                     }
-                    cpu_physical_memory_read(dscr.addr,
-                            &s->fifo_buffer[begin], s->data_count);
+                    dma_memory_read(&dma_context_memory, dscr.addr,
+                                    &s->fifo_buffer[begin], s->data_count);
                     dscr.addr += s->data_count - begin;
                     if (s->data_count == block_size) {
                         for (n = 0; n < block_size; n++) {
@@ -705,8 +736,7 @@ static void sdhci_start_adma(SDHCIState *s)
             DPRINT_L2("ADMA transfer completed\n");
             if (length || ((dscr.attr & SDHC_ADMA_ATTR_END) &&
                 (s->trnmod & SDHC_TRNS_BLK_CNT_EN) &&
-                s->blkcnt != 0) || ((s->trnmod & SDHC_TRNS_BLK_CNT_EN) &&
-                s->blkcnt == 0 && (dscr.attr & SDHC_ADMA_ATTR_END) == 0)) {
+                s->blkcnt != 0)) {
                 ERRPRINT("SD/MMC host ADMA length mismatch\n");
                 s->admaerr |= SDHC_ADMAERR_LENGTH_MISMATCH |
                         SDHC_ADMAERR_STATE_ST_TFR;
@@ -719,7 +749,7 @@ static void sdhci_start_adma(SDHCIState *s)
                 sdhci_update_irq(s);
             }
             SDHCI_GET_CLASS(s)->end_data_transfer(s);
-            break;
+            return;
         }
 
         if (dscr.attr & SDHC_ADMA_ATTR_INT) {
@@ -729,13 +759,18 @@ static void sdhci_start_adma(SDHCIState *s)
             }
 
             sdhci_update_irq(s);
-            break;
+            return;
         }
     }
+
+    /* we have unfinished bussiness - reschedule to continue ADMA */
+    qemu_mod_timer(s->transfer_timer,
+                   qemu_get_clock_ns(vm_clock) + SDHC_TRANSFER_DELAY);
 }
 
 /* Perform data transfer according to controller configuration */
-static void sdhci_start_transfer(SDHCIState *s)
+
+static void sdhci_data_transfer(SDHCIState *s)
 {
     SDHCIClass *k = SDHCI_GET_CLASS(s);
     s->data_count = 0;
@@ -1136,6 +1171,7 @@ static void sdhci_initfn(Object *obj)
     sd_set_cb(s->card, s->ro_cb, s->eject_cb);
 
     s->insert_timer = qemu_new_timer_ns(vm_clock, sdhci_raise_insertion_irq, s);
+    s->transfer_timer = qemu_new_timer_ns(vm_clock, sdhci_do_data_transfer, s);
 }
 
 static void sdhci_uninitfn(Object *obj)
@@ -1144,6 +1180,8 @@ static void sdhci_uninitfn(Object *obj)
 
     qemu_del_timer(s->insert_timer);
     qemu_free_timer(s->insert_timer);
+    qemu_del_timer(s->transfer_timer);
+    qemu_free_timer(s->transfer_timer);
     qemu_free_irqs(&s->eject_cb);
     qemu_free_irqs(&s->ro_cb);
 
@@ -1185,6 +1223,7 @@ const VMStateDescription sdhci_vmstate = {
         VMSTATE_UINT8(stopped_state, SDHCIState),
         VMSTATE_VBUFFER_UINT32(fifo_buffer, SDHCIState, 1, NULL, 0, buf_maxsz),
         VMSTATE_TIMER(insert_timer, SDHCIState),
+        VMSTATE_TIMER(transfer_timer, SDHCIState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1198,17 +1237,17 @@ static Property sdhci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int sdhci_realize(SysBusDevice *busdev)
+static void sdhci_realize(DeviceState *dev, Error ** errp)
 {
-    SDHCIState *s = SDHCI(busdev);
+    SDHCIState *s = SDHCI(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     s->buf_maxsz = sdhci_get_fifolen(s);
     s->fifo_buffer = g_malloc0(s->buf_maxsz);
-    sysbus_init_irq(busdev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     memory_region_init_io(&s->iomem, &sdhci_mmio_ops, s, "sdhci",
             SDHC_REGISTERS_MAP_SIZE);
-    sysbus_init_mmio(busdev, &s->iomem);
-    return 0;
+    sysbus_init_mmio(sbd, &s->iomem);
 }
 
 static void sdhci_generic_reset(DeviceState *ds)
@@ -1220,24 +1259,23 @@ static void sdhci_generic_reset(DeviceState *ds)
 static void sdhci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sbdc = SYS_BUS_DEVICE_CLASS(klass);
     SDHCIClass *k = SDHCI_CLASS(klass);
 
     dc->vmsd = &sdhci_vmstate;
     dc->props = sdhci_properties;
     dc->reset = sdhci_generic_reset;
-    sbdc->init = sdhci_realize;
+    dc->realize = sdhci_realize;
 
     k->reset = sdhci_reset;
     k->mem_read = sdhci_read;
     k->mem_write = sdhci_write;
     k->send_command = sdhci_send_command;
     k->can_issue_command = sdhci_can_issue_command;
-    k->start_data_transfer = sdhci_start_transfer;
+    k->data_transfer = sdhci_data_transfer;
     k->end_data_transfer = sdhci_end_transfer;
     k->do_sdma_single = sdhci_sdma_transfer_single_block;
     k->do_sdma_multi = sdhci_sdma_transfer_multi_blocks;
-    k->do_adma = sdhci_start_adma;
+    k->do_adma = sdhci_do_adma;
     k->read_block_from_card = sdhci_read_block_from_card;
     k->write_block_to_card = sdhci_write_block_to_card;
     k->bdata_read = sdhci_read_dataport;

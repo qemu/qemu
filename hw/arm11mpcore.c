@@ -12,7 +12,7 @@
 
 /* MPCore private memory region.  */
 
-typedef struct mpcore_priv_state {
+typedef struct ARM11MPCorePriveState {
     SysBusDevice busdev;
     uint32_t scu_control;
     int iomemtype;
@@ -21,16 +21,17 @@ typedef struct mpcore_priv_state {
     MemoryRegion iomem;
     MemoryRegion container;
     DeviceState *mptimer;
+    DeviceState *wdtimer;
     DeviceState *gic;
     uint32_t num_irq;
-} mpcore_priv_state;
+} ARM11MPCorePriveState;
 
 /* Per-CPU private memory mapped IO.  */
 
 static uint64_t mpcore_scu_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
-    mpcore_priv_state *s = (mpcore_priv_state *)opaque;
+    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
     int id;
     /* SCU */
     switch (offset) {
@@ -53,7 +54,7 @@ static uint64_t mpcore_scu_read(void *opaque, hwaddr offset,
 static void mpcore_scu_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
-    mpcore_priv_state *s = (mpcore_priv_state *)opaque;
+    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
     /* SCU */
     switch (offset) {
     case 0: /* Control register.  */
@@ -76,15 +77,16 @@ static const MemoryRegionOps mpcore_scu_ops = {
 
 static void mpcore_priv_set_irq(void *opaque, int irq, int level)
 {
-    mpcore_priv_state *s = (mpcore_priv_state *)opaque;
+    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
-static void mpcore_priv_map_setup(mpcore_priv_state *s)
+static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
 {
     int i;
     SysBusDevice *gicbusdev = SYS_BUS_DEVICE(s->gic);
-    SysBusDevice *busdev = SYS_BUS_DEVICE(s->mptimer);
+    SysBusDevice *timerbusdev = SYS_BUS_DEVICE(s->mptimer);
+    SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(s->wdtimer);
     memory_region_init(&s->container, "mpcode-priv-container", 0x2000);
     memory_region_init_io(&s->iomem, &mpcore_scu_ops, s, "mpcore-scu", 0x100);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
@@ -99,11 +101,13 @@ static void mpcore_priv_map_setup(mpcore_priv_state *s)
     /* Add the regions for timer and watchdog for "current CPU" and
      * for each specific CPU.
      */
-    for (i = 0; i < (s->num_cpu + 1) * 2; i++) {
+    for (i = 0; i < (s->num_cpu + 1); i++) {
         /* Timers at 0x600, 0x700, ...; watchdogs at 0x620, 0x720, ... */
-        hwaddr offset = 0x600 + (i >> 1) * 0x100 + (i & 1) * 0x20;
+        hwaddr offset = 0x600 + i * 0x100;
         memory_region_add_subregion(&s->container, offset,
-                                    sysbus_mmio_get_region(busdev, i));
+                                    sysbus_mmio_get_region(timerbusdev, i));
+        memory_region_add_subregion(&s->container, offset + 0x20,
+                                    sysbus_mmio_get_region(wdtbusdev, i));
     }
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(gicbusdev, 0));
@@ -112,16 +116,16 @@ static void mpcore_priv_map_setup(mpcore_priv_state *s)
      */
     for (i = 0; i < s->num_cpu; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
-        sysbus_connect_irq(busdev, i * 2,
+        sysbus_connect_irq(timerbusdev, i,
                            qdev_get_gpio_in(s->gic, ppibase + 29));
-        sysbus_connect_irq(busdev, i * 2 + 1,
+        sysbus_connect_irq(wdtbusdev, i,
                            qdev_get_gpio_in(s->gic, ppibase + 30));
     }
 }
 
 static int mpcore_priv_init(SysBusDevice *dev)
 {
-    mpcore_priv_state *s = FROM_SYSBUS(mpcore_priv_state, dev);
+    ARM11MPCorePriveState *s = FROM_SYSBUS(ARM11MPCorePriveState, dev);
 
     s->gic = qdev_create(NULL, "arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
@@ -139,6 +143,11 @@ static int mpcore_priv_init(SysBusDevice *dev)
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
     qdev_init_nofail(s->mptimer);
+
+    s->wdtimer = qdev_create(NULL, "arm_mptimer");
+    qdev_prop_set_uint32(s->wdtimer, "num-cpu", s->num_cpu);
+    qdev_init_nofail(s->wdtimer);
+
     mpcore_priv_map_setup(s);
     sysbus_init_mmio(dev, &s->container);
     return 0;
@@ -230,7 +239,7 @@ static const TypeInfo mpcore_rirq_info = {
 };
 
 static Property mpcore_priv_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", mpcore_priv_state, num_cpu, 1),
+    DEFINE_PROP_UINT32("num-cpu", ARM11MPCorePriveState, num_cpu, 1),
     /* The ARM11 MPCORE TRM says the on-chip controller may have
      * anything from 0 to 224 external interrupt IRQ lines (with another
      * 32 internal). We default to 32+32, which is the number provided by
@@ -239,7 +248,7 @@ static Property mpcore_priv_properties[] = {
      * appropriately. Some Linux kernels may not boot if the hardware
      * has more IRQ lines than the kernel expects.
      */
-    DEFINE_PROP_UINT32("num-irq", mpcore_priv_state, num_irq, 64),
+    DEFINE_PROP_UINT32("num-irq", ARM11MPCorePriveState, num_irq, 64),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -255,7 +264,7 @@ static void mpcore_priv_class_init(ObjectClass *klass, void *data)
 static const TypeInfo mpcore_priv_info = {
     .name          = "arm11mpcore_priv",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(mpcore_priv_state),
+    .instance_size = sizeof(ARM11MPCorePriveState),
     .class_init    = mpcore_priv_class_init,
 };
 

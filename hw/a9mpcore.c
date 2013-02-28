@@ -10,126 +10,27 @@
 
 #include "sysbus.h"
 
-/* A9MP private memory region.  */
-
-typedef struct a9mp_priv_state {
+typedef struct A9MPPrivState {
     SysBusDevice busdev;
-    uint32_t scu_control;
-    uint32_t scu_status;
-    uint32_t old_timer_status[8];
     uint32_t num_cpu;
-    MemoryRegion scu_iomem;
     MemoryRegion container;
     DeviceState *mptimer;
+    DeviceState *wdt;
     DeviceState *gic;
+    DeviceState *scu;
     uint32_t num_irq;
-} a9mp_priv_state;
-
-static uint64_t a9_scu_read(void *opaque, hwaddr offset,
-                            unsigned size)
-{
-    a9mp_priv_state *s = (a9mp_priv_state *)opaque;
-    switch (offset) {
-    case 0x00: /* Control */
-        return s->scu_control;
-    case 0x04: /* Configuration */
-        return (((1 << s->num_cpu) - 1) << 4) | (s->num_cpu - 1);
-    case 0x08: /* CPU Power Status */
-        return s->scu_status;
-    case 0x09: /* CPU status.  */
-        return s->scu_status >> 8;
-    case 0x0a: /* CPU status.  */
-        return s->scu_status >> 16;
-    case 0x0b: /* CPU status.  */
-        return s->scu_status >> 24;
-    case 0x0c: /* Invalidate All Registers In Secure State */
-        return 0;
-    case 0x40: /* Filtering Start Address Register */
-    case 0x44: /* Filtering End Address Register */
-        /* RAZ/WI, like an implementation with only one AXI master */
-        return 0;
-    case 0x50: /* SCU Access Control Register */
-    case 0x54: /* SCU Non-secure Access Control Register */
-        /* unimplemented, fall through */
-    default:
-        return 0;
-    }
-}
-
-static void a9_scu_write(void *opaque, hwaddr offset,
-                         uint64_t value, unsigned size)
-{
-    a9mp_priv_state *s = (a9mp_priv_state *)opaque;
-    uint32_t mask;
-    uint32_t shift;
-    switch (size) {
-    case 1:
-        mask = 0xff;
-        break;
-    case 2:
-        mask = 0xffff;
-        break;
-    case 4:
-        mask = 0xffffffff;
-        break;
-    default:
-        fprintf(stderr, "Invalid size %u in write to a9 scu register %x\n",
-                size, (unsigned)offset);
-        return;
-    }
-
-    switch (offset) {
-    case 0x00: /* Control */
-        s->scu_control = value & 1;
-        break;
-    case 0x4: /* Configuration: RO */
-        break;
-    case 0x08: case 0x09: case 0x0A: case 0x0B: /* Power Control */
-        shift = (offset - 0x8) * 8;
-        s->scu_status &= ~(mask << shift);
-        s->scu_status |= ((value & mask) << shift);
-        break;
-    case 0x0c: /* Invalidate All Registers In Secure State */
-        /* no-op as we do not implement caches */
-        break;
-    case 0x40: /* Filtering Start Address Register */
-    case 0x44: /* Filtering End Address Register */
-        /* RAZ/WI, like an implementation with only one AXI master */
-        break;
-    case 0x50: /* SCU Access Control Register */
-    case 0x54: /* SCU Non-secure Access Control Register */
-        /* unimplemented, fall through */
-    default:
-        break;
-    }
-}
-
-static const MemoryRegionOps a9_scu_ops = {
-    .read = a9_scu_read,
-    .write = a9_scu_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
-static void a9mp_priv_reset(DeviceState *dev)
-{
-    a9mp_priv_state *s = FROM_SYSBUS(a9mp_priv_state, SYS_BUS_DEVICE(dev));
-    int i;
-    s->scu_control = 0;
-    for (i = 0; i < ARRAY_SIZE(s->old_timer_status); i++) {
-        s->old_timer_status[i] = 0;
-    }
-}
+} A9MPPrivState;
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)
 {
-    a9mp_priv_state *s = (a9mp_priv_state *)opaque;
+    A9MPPrivState *s = (A9MPPrivState *)opaque;
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
 static int a9mp_priv_init(SysBusDevice *dev)
 {
-    a9mp_priv_state *s = FROM_SYSBUS(a9mp_priv_state, dev);
-    SysBusDevice *busdev, *gicbusdev;
+    A9MPPrivState *s = FROM_SYSBUS(A9MPPrivState, dev);
+    SysBusDevice *timerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
     int i;
 
     s->gic = qdev_create(NULL, "arm_gic");
@@ -144,10 +45,20 @@ static int a9mp_priv_init(SysBusDevice *dev)
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(&s->busdev.qdev, a9mp_priv_set_irq, s->num_irq - 32);
 
+    s->scu = qdev_create(NULL, "a9-scu");
+    qdev_prop_set_uint32(s->scu, "num-cpu", s->num_cpu);
+    qdev_init_nofail(s->scu);
+    scubusdev = SYS_BUS_DEVICE(s->scu);
+
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
     qdev_init_nofail(s->mptimer);
-    busdev = SYS_BUS_DEVICE(s->mptimer);
+    timerbusdev = SYS_BUS_DEVICE(s->mptimer);
+
+    s->wdt = qdev_create(NULL, "arm_mptimer");
+    qdev_prop_set_uint32(s->wdt, "num-cpu", s->num_cpu);
+    qdev_init_nofail(s->wdt);
+    wdtbusdev = SYS_BUS_DEVICE(s->wdt);
 
     /* Memory map (addresses are offsets from PERIPHBASE):
      *  0x0000-0x00ff -- Snoop Control Unit
@@ -161,8 +72,8 @@ static int a9mp_priv_init(SysBusDevice *dev)
      * We should implement the global timer but don't currently do so.
      */
     memory_region_init(&s->container, "a9mp-priv-container", 0x2000);
-    memory_region_init_io(&s->scu_iomem, &a9_scu_ops, s, "a9mp-scu", 0x100);
-    memory_region_add_subregion(&s->container, 0, &s->scu_iomem);
+    memory_region_add_subregion(&s->container, 0,
+                                sysbus_mmio_get_region(scubusdev, 0));
     /* GIC CPU interface */
     memory_region_add_subregion(&s->container, 0x100,
                                 sysbus_mmio_get_region(gicbusdev, 1));
@@ -170,9 +81,9 @@ static int a9mp_priv_init(SysBusDevice *dev)
      * memory region, not the "timer/watchdog for core X" ones 11MPcore has.
      */
     memory_region_add_subregion(&s->container, 0x600,
-                                sysbus_mmio_get_region(busdev, 0));
+                                sysbus_mmio_get_region(timerbusdev, 0));
     memory_region_add_subregion(&s->container, 0x620,
-                                sysbus_mmio_get_region(busdev, 1));
+                                sysbus_mmio_get_region(wdtbusdev, 0));
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(gicbusdev, 0));
 
@@ -183,35 +94,23 @@ static int a9mp_priv_init(SysBusDevice *dev)
      */
     for (i = 0; i < s->num_cpu; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
-        sysbus_connect_irq(busdev, i * 2,
+        sysbus_connect_irq(timerbusdev, i,
                            qdev_get_gpio_in(s->gic, ppibase + 29));
-        sysbus_connect_irq(busdev, i * 2 + 1,
+        sysbus_connect_irq(wdtbusdev, i,
                            qdev_get_gpio_in(s->gic, ppibase + 30));
     }
     return 0;
 }
 
-static const VMStateDescription vmstate_a9mp_priv = {
-    .name = "a9mpcore_priv",
-    .version_id = 2,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(scu_control, a9mp_priv_state),
-        VMSTATE_UINT32_ARRAY(old_timer_status, a9mp_priv_state, 8),
-        VMSTATE_UINT32_V(scu_status, a9mp_priv_state, 2),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static Property a9mp_priv_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", a9mp_priv_state, num_cpu, 1),
+    DEFINE_PROP_UINT32("num-cpu", A9MPPrivState, num_cpu, 1),
     /* The Cortex-A9MP may have anything from 0 to 224 external interrupt
      * IRQ lines (with another 32 internal). We default to 64+32, which
      * is the number provided by the Cortex-A9MP test chip in the
      * Realview PBX-A9 and Versatile Express A9 development boards.
      * Other boards may differ and should set this property appropriately.
      */
-    DEFINE_PROP_UINT32("num-irq", a9mp_priv_state, num_irq, 96),
+    DEFINE_PROP_UINT32("num-irq", A9MPPrivState, num_irq, 96),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -222,14 +121,12 @@ static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 
     k->init = a9mp_priv_init;
     dc->props = a9mp_priv_properties;
-    dc->vmsd = &vmstate_a9mp_priv;
-    dc->reset = a9mp_priv_reset;
 }
 
 static const TypeInfo a9mp_priv_info = {
     .name          = "a9mpcore_priv",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(a9mp_priv_state),
+    .instance_size = sizeof(A9MPPrivState),
     .class_init    = a9mp_priv_class_init,
 };
 

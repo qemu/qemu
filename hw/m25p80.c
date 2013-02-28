@@ -178,8 +178,6 @@ static const FlashPartInfo known_devices[] = {
 
     /* Numonyx -- n25q128 */
     { INFO("n25q128",      0x20ba18,      0,  64 << 10, 256, 0) },
-
-    { },
 };
 
 typedef enum {
@@ -236,10 +234,22 @@ typedef struct Flash {
 
     int64_t dirty_page;
 
-    char *part_name;
     const FlashPartInfo *pi;
 
 } Flash;
+
+typedef struct M25P80Class {
+    SSISlaveClass parent_class;
+    FlashPartInfo *pi;
+} M25P80Class;
+
+#define TYPE_M25P80 "m25p80-generic"
+#define M25P80(obj) \
+     OBJECT_CHECK(Flash, (obj), TYPE_M25P80)
+#define M25P80_CLASS(klass) \
+     OBJECT_CLASS_CHECK(M25P80Class, (klass), TYPE_M25P80)
+#define M25P80_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(M25P80Class, (obj), TYPE_M25P80)
 
 static void bdrv_sync_complete(void *opaque, int ret)
 {
@@ -571,23 +581,9 @@ static int m25p80_init(SSISlave *ss)
 {
     DriveInfo *dinfo;
     Flash *s = FROM_SSI_SLAVE(Flash, ss);
-    const FlashPartInfo *i;
+    M25P80Class *mc = M25P80_GET_CLASS(s);
 
-    if (!s->part_name) { /* default to actual m25p80 if no partname given */
-        s->part_name = (char *)"m25p80";
-    }
-
-    i = known_devices;
-    for (i = known_devices;; i++) {
-        assert(i);
-        if (!i->part_name) {
-            fprintf(stderr, "Unknown SPI flash part: \"%s\"\n", s->part_name);
-            return 1;
-        } else if (!strcmp(i->part_name, s->part_name)) {
-            s->pi = i;
-            break;
-        }
-    }
+    s->pi = mc->pi;
 
     s->size = s->pi->sector_size * s->pi->n_sectors;
     s->dirty_page = -1;
@@ -635,34 +631,42 @@ static const VMStateDescription vmstate_m25p80 = {
     }
 };
 
-static Property m25p80_properties[] = {
-    DEFINE_PROP_STRING("partname", Flash, part_name),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void m25p80_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    M25P80Class *mc = M25P80_CLASS(klass);
 
     k->init = m25p80_init;
     k->transfer = m25p80_transfer8;
     k->set_cs = m25p80_cs;
     k->cs_polarity = SSI_CS_LOW;
-    dc->props = m25p80_properties;
     dc->vmsd = &vmstate_m25p80;
+    mc->pi = data;
 }
 
 static const TypeInfo m25p80_info = {
-    .name           = "m25p80",
+    .name           = TYPE_M25P80,
     .parent         = TYPE_SSI_SLAVE,
     .instance_size  = sizeof(Flash),
-    .class_init     = m25p80_class_init,
+    .class_size     = sizeof(M25P80Class),
+    .abstract       = true,
 };
 
 static void m25p80_register_types(void)
 {
+    int i;
+
     type_register_static(&m25p80_info);
+    for (i = 0; i < ARRAY_SIZE(known_devices); ++i) {
+        TypeInfo ti = {
+            .name       = known_devices[i].part_name,
+            .parent     = TYPE_M25P80,
+            .class_init = m25p80_class_init,
+            .class_data = (void *)&known_devices[i],
+        };
+        type_register(&ti);
+    }
 }
 
 type_init(m25p80_register_types)

@@ -82,8 +82,7 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
         spi = (SSIBus *)qdev_get_child_bus(dev, bus_name);
 
         for (j = 0; j < num_ss; ++j) {
-            flash_dev = ssi_create_slave_no_init(spi, "m25p80");
-            qdev_prop_set_string(flash_dev, "partname", "n25q128");
+            flash_dev = ssi_create_slave_no_init(spi, "n25q128");
             qdev_init_nofail(flash_dev);
 
             cs_line = qdev_get_gpio_in(flash_dev, 0);
@@ -186,6 +185,16 @@ static void zynq_init(QEMUMachineInitArgs *args)
             gem_init(nd, 0xE000C000, pic[77-IRQ_OFFSET]);
         }
     }
+
+    dev = qdev_create(NULL, "generic-sdhci");
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xE0100000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[56-IRQ_OFFSET]);
+
+    dev = qdev_create(NULL, "generic-sdhci");
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xE0101000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[79-IRQ_OFFSET]);
 
     zynq_binfo.ram_size = ram_size;
     zynq_binfo.kernel_filename = kernel_filename;
