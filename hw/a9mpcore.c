@@ -16,7 +16,6 @@ typedef struct A9MPPrivState {
     SysBusDevice busdev;
     uint32_t scu_control;
     uint32_t scu_status;
-    uint32_t old_timer_status[8];
     uint32_t num_cpu;
     MemoryRegion scu_iomem;
     MemoryRegion container;
@@ -114,11 +113,8 @@ static const MemoryRegionOps a9_scu_ops = {
 static void a9mp_priv_reset(DeviceState *dev)
 {
     A9MPPrivState *s = FROM_SYSBUS(A9MPPrivState, SYS_BUS_DEVICE(dev));
-    int i;
+
     s->scu_control = 0;
-    for (i = 0; i < ARRAY_SIZE(s->old_timer_status); i++) {
-        s->old_timer_status[i] = 0;
-    }
 }
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)
@@ -199,11 +195,10 @@ static int a9mp_priv_init(SysBusDevice *dev)
 
 static const VMStateDescription vmstate_a9mp_priv = {
     .name = "a9mpcore_priv",
-    .version_id = 2,
-    .minimum_version_id = 1,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(scu_control, A9MPPrivState),
-        VMSTATE_UINT32_ARRAY(old_timer_status, A9MPPrivState, 8),
         VMSTATE_UINT32_V(scu_status, A9MPPrivState, 2),
         VMSTATE_END_OF_LIST()
     }
