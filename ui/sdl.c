@@ -458,11 +458,6 @@ static void sdl_scale(DisplayState *ds, int width, int height)
     }
     do_sdl_resize(width, height, bpp);
     scaling_active = 1;
-    if (!is_buffer_shared(ds->surface)) {
-        ds->surface = qemu_resize_displaysurface(ds, ds_get_width(ds),
-                                                 ds_get_height(ds));
-        dpy_gfx_resize(ds);
-    }
 }
 
 static void toggle_full_screen(DisplayState *ds)
