@@ -244,36 +244,66 @@ void dpy_mouse_set(struct DisplayState *s, int x, int y, int on);
 void dpy_cursor_define(struct DisplayState *s, QEMUCursor *cursor);
 bool dpy_cursor_define_supported(struct DisplayState *s);
 
+static inline int surface_stride(DisplaySurface *s)
+{
+    return pixman_image_get_stride(s->image);
+}
+
+static inline void *surface_data(DisplaySurface *s)
+{
+    return pixman_image_get_data(s->image);
+}
+
+static inline int surface_width(DisplaySurface *s)
+{
+    return pixman_image_get_width(s->image);
+}
+
+static inline int surface_height(DisplaySurface *s)
+{
+    return pixman_image_get_height(s->image);
+}
+
+static inline int surface_bits_per_pixel(DisplaySurface *s)
+{
+    int bits = PIXMAN_FORMAT_BPP(s->format);
+    return bits;
+}
+
+static inline int surface_bytes_per_pixel(DisplaySurface *s)
+{
+    int bits = PIXMAN_FORMAT_BPP(s->format);
+    return (bits + 7) / 8;
+}
+
 static inline int ds_get_linesize(DisplayState *ds)
 {
-    return pixman_image_get_stride(ds->surface->image);
+    return surface_stride(ds->surface);
 }
 
 static inline uint8_t* ds_get_data(DisplayState *ds)
 {
-    return (void *)pixman_image_get_data(ds->surface->image);
+    return surface_data(ds->surface);
 }
 
 static inline int ds_get_width(DisplayState *ds)
 {
-    return pixman_image_get_width(ds->surface->image);
+    return surface_width(ds->surface);
 }
 
 static inline int ds_get_height(DisplayState *ds)
 {
-    return pixman_image_get_height(ds->surface->image);
+    return surface_height(ds->surface);
 }
 
 static inline int ds_get_bits_per_pixel(DisplayState *ds)
 {
-    int bits = PIXMAN_FORMAT_BPP(ds->surface->format);
-    return bits;
+    return surface_bits_per_pixel(ds->surface);
 }
 
 static inline int ds_get_bytes_per_pixel(DisplayState *ds)
 {
-    int bits = PIXMAN_FORMAT_BPP(ds->surface->format);
-    return (bits + 7) / 8;
+    return surface_bytes_per_pixel(ds->surface);
 }
 
 static inline pixman_format_code_t ds_get_format(DisplayState *ds)
