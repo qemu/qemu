@@ -230,7 +230,7 @@ static void gd_update_caption(GtkDisplayState *s)
 static void gd_update(DisplayChangeListener *dcl,
                       DisplayState *ds, int x, int y, int w, int h)
 {
-    GtkDisplayState *s = ds->opaque;
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
     int x1, x2, y1, y2;
     int mx, my;
     int fbw, fbh;
@@ -269,7 +269,7 @@ static void gd_refresh(DisplayChangeListener *dcl,
 static void gd_resize(DisplayChangeListener *dcl,
                       DisplayState *ds)
 {
-    GtkDisplayState *s = ds->opaque;
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
     cairo_format_t kind;
     int stride;
 
@@ -1297,7 +1297,6 @@ void gtk_display_init(DisplayState *ds)
 
     gtk_init(NULL, NULL);
 
-    ds->opaque = s;
     s->ds = ds;
     s->dcl.ops = &dcl_ops;
 

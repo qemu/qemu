@@ -151,6 +151,7 @@ struct VncDisplay
     char *ws_display;
 #endif
     DisplayState *ds;
+    DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
     QemuMutex mutex;
