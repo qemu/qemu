@@ -615,7 +615,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     s = qemu_get_nic_opaque(nc);
 
     /* Do nothing if receive is not enabled. */
-    if (!(s->regs[GEM_NWCTRL] & GEM_NWCTRL_RXENA)) {
+    if (!gem_can_receive(nc)) {
         return -1;
     }
 
