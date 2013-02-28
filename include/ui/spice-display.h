@@ -71,7 +71,7 @@ typedef struct SimpleSpiceDisplay SimpleSpiceDisplay;
 typedef struct SimpleSpiceUpdate SimpleSpiceUpdate;
 
 struct SimpleSpiceDisplay {
-    DisplayState *ds;
+    DisplaySurface *ds;
     DisplayChangeListener dcl;
     void *buf;
     int bufsize;

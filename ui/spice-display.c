@@ -214,10 +214,10 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
 static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
 {
     static const int blksize = 32;
-    int blocks = (ds_get_width(ssd->ds) + blksize - 1) / blksize;
+    int blocks = (surface_width(ssd->ds) + blksize - 1) / blksize;
     int dirty_top[blocks];
     int y, yoff, x, xoff, blk, bw;
-    int bpp = ds_get_bytes_per_pixel(ssd->ds);
+    int bpp = surface_bytes_per_pixel(ssd->ds);
     uint8_t *guest, *mirror;
 
     if (qemu_spice_rect_is_empty(&ssd->dirty)) {
@@ -225,19 +225,19 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     };
 
     if (ssd->surface == NULL) {
-        ssd->surface = pixman_image_ref(ds_get_image(ssd->ds));
-        ssd->mirror  = qemu_pixman_mirror_create(ds_get_format(ssd->ds),
-                                                 ds_get_image(ssd->ds));
+        ssd->surface = pixman_image_ref(ssd->ds->image);
+        ssd->mirror  = qemu_pixman_mirror_create(ssd->ds->format,
+                                                 ssd->ds->image);
     }
 
     for (blk = 0; blk < blocks; blk++) {
         dirty_top[blk] = -1;
     }
 
-    guest = ds_get_data(ssd->ds);
+    guest = surface_data(ssd->ds);
     mirror = (void *)pixman_image_get_data(ssd->mirror);
     for (y = ssd->dirty.top; y < ssd->dirty.bottom; y++) {
-        yoff = y * ds_get_linesize(ssd->ds);
+        yoff = y * surface_stride(ssd->ds);
         for (x = ssd->dirty.left; x < ssd->dirty.right; x += blksize) {
             xoff = x * bpp;
             blk = x / blksize;
@@ -312,11 +312,11 @@ void qemu_spice_create_host_primary(SimpleSpiceDisplay *ssd)
     memset(&surface, 0, sizeof(surface));
 
     dprint(1, "%s: %dx%d\n", __FUNCTION__,
-           ds_get_width(ssd->ds), ds_get_height(ssd->ds));
+           surface_width(ssd->ds), surface_height(ssd->ds));
 
     surface.format     = SPICE_SURFACE_FMT_32_xRGB;
-    surface.width      = ds_get_width(ssd->ds);
-    surface.height     = ds_get_height(ssd->ds);
+    surface.width      = surface_width(ssd->ds);
+    surface.height     = surface_height(ssd->ds);
     surface.stride     = -surface.width * 4;
     surface.mouse_mode = true;
     surface.flags      = 0;
@@ -336,7 +336,6 @@ void qemu_spice_destroy_host_primary(SimpleSpiceDisplay *ssd)
 
 void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds)
 {
-    ssd->ds = ds;
     qemu_mutex_init(&ssd->lock);
     QTAILQ_INIT(&ssd->updates);
     ssd->mouse_x = -1;
@@ -383,6 +382,7 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
     }
 
     qemu_mutex_lock(&ssd->lock);
+    ssd->ds = surface;
     while ((update = QTAILQ_FIRST(&ssd->updates)) != NULL) {
         QTAILQ_REMOVE(&ssd->updates, update, next);
         qemu_spice_destroy_update(ssd, update);
@@ -398,12 +398,12 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
 void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
 {
     if (ssd->cursor) {
-        dpy_cursor_define(ssd->ds, ssd->cursor);
+        dpy_cursor_define(ssd->dcl.ds, ssd->cursor);
         cursor_put(ssd->cursor);
         ssd->cursor = NULL;
     }
     if (ssd->mouse_x != -1 && ssd->mouse_y != -1) {
-        dpy_mouse_set(ssd->ds, ssd->mouse_x, ssd->mouse_y, 1);
+        dpy_mouse_set(ssd->dcl.ds, ssd->mouse_x, ssd->mouse_y, 1);
         ssd->mouse_x = -1;
         ssd->mouse_y = -1;
     }
@@ -415,7 +415,7 @@ void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
     vga_hw_update();
 
     qemu_mutex_lock(&ssd->lock);
-    if (QTAILQ_EMPTY(&ssd->updates)) {
+    if (QTAILQ_EMPTY(&ssd->updates) && ssd->ds) {
         qemu_spice_create_update(ssd);
         ssd->notify++;
     }
@@ -623,8 +623,9 @@ void qemu_spice_display_init(DisplayState *ds)
     assert(ssd->worker);
 
     qemu_spice_create_host_memslot(ssd);
-    qemu_spice_create_host_primary(ssd);
 
     ssd->dcl.ops = &display_listener_ops;
     register_displaychangelistener(ds, &ssd->dcl);
+
+    qemu_spice_create_host_primary(ssd);
 }
