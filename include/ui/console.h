@@ -156,10 +156,9 @@ typedef struct DisplayChangeListenerOps {
     void (*dpy_gfx_update)(DisplayChangeListener *dcl,
                            struct DisplayState *s,
                            int x, int y, int w, int h);
-    void (*dpy_gfx_resize)(DisplayChangeListener *dcl,
-                           struct DisplayState *s);
-    void (*dpy_gfx_setdata)(DisplayChangeListener *dcl,
-                            struct DisplayState *s);
+    void (*dpy_gfx_switch)(DisplayChangeListener *dcl,
+                           struct DisplayState *s,
+                           struct DisplaySurface *new_surface);
     void (*dpy_gfx_copy)(DisplayChangeListener *dcl,
                          struct DisplayState *s, int src_x, int src_y,
                          int dst_x, int dst_y, int w, int h);

@@ -117,8 +117,9 @@ static void do_sdl_resize(int width, int height, int bpp)
     }
 }
 
-static void sdl_resize(DisplayChangeListener *dcl,
-                       DisplayState *ds)
+static void sdl_switch(DisplayChangeListener *dcl,
+                       DisplayState *ds,
+                       DisplaySurface *surface)
 {
     if (!scaling_active) {
         do_sdl_resize(ds_get_width(ds), ds_get_height(ds), 0);
@@ -513,7 +514,7 @@ static void handle_keydown(DisplayState *ds, SDL_Event *ev)
         case 0x16: /* 'u' key on US keyboard */
             if (scaling_active) {
                 scaling_active = 0;
-                sdl_resize(dcl, ds);
+                sdl_switch(dcl, ds, ds->surface);
                 vga_hw_invalidate();
                 vga_hw_update();
             }
@@ -856,9 +857,8 @@ static void sdl_cleanup(void)
 static const DisplayChangeListenerOps dcl_ops = {
     .dpy_name          = "sdl",
     .dpy_gfx_update    = sdl_update,
-    .dpy_gfx_resize    = sdl_resize,
+    .dpy_gfx_switch    = sdl_switch,
     .dpy_refresh       = sdl_refresh,
-    .dpy_gfx_setdata   = sdl_setdata,
     .dpy_mouse_set     = sdl_mouse_warp,
     .dpy_cursor_define = sdl_mouse_define,
 };

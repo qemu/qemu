@@ -1372,8 +1372,8 @@ void register_displaychangelistener(DisplayState *ds,
     dcl->ds = ds;
     QLIST_INSERT_HEAD(&ds->listeners, dcl, next);
     gui_setup_refresh(ds);
-    if (dcl->ops->dpy_gfx_resize) {
-        dcl->ops->dpy_gfx_resize(dcl, ds);
+    if (dcl->ops->dpy_gfx_switch) {
+        dcl->ops->dpy_gfx_switch(dcl, ds, ds->surface);
     }
 }
 
@@ -1413,8 +1413,8 @@ void dpy_gfx_replace_surface(DisplayState *s,
 
     s->surface = surface;
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (dcl->ops->dpy_gfx_resize) {
-            dcl->ops->dpy_gfx_resize(dcl, s);
+        if (dcl->ops->dpy_gfx_switch) {
+            dcl->ops->dpy_gfx_switch(dcl, s, surface);
         }
     }
     qemu_free_displaysurface(old_surface);

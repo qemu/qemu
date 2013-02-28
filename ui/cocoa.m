@@ -988,8 +988,9 @@ static void cocoa_update(DisplayChangeListener *dcl,
     [cocoaView setNeedsDisplayInRect:rect];
 }
 
-static void cocoa_resize(DisplayChangeListener *dcl,
-                         DisplayState *ds)
+static void cocoa_switch(DisplayChangeListener *dcl,
+                         DisplayState *ds,
+                         DisplaySurface *surface)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_resize\n");
 
@@ -1023,11 +1024,6 @@ static void cocoa_refresh(DisplayChangeListener *dcl,
     vga_hw_update();
 }
 
-static void cocoa_setdata(DisplayState *ds)
-{
-    [cocoaView updateDataOffset:ds];
-}
-
 static void cocoa_cleanup(void)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_cleanup\n");
@@ -1037,8 +1033,7 @@ static void cocoa_cleanup(void)
 static const DisplayChangeListenerOps dcl_ops = {
     .dpy_name          = "cocoa",
     .dpy_gfx_update = cocoa_update;
-    .dpy_gfx_resize = cocoa_resize;
-    .dpy_gfx_setdata = cocoa_setdata;
+    .dpy_gfx_switch = cocoa_switch;
     .dpy_refresh = cocoa_refresh;
 };
 

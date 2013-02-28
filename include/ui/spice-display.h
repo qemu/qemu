@@ -117,7 +117,8 @@ void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds);
 
 void qemu_spice_display_update(SimpleSpiceDisplay *ssd,
                                int x, int y, int w, int h);
-void qemu_spice_display_resize(SimpleSpiceDisplay *ssd);
+void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
+                               DisplaySurface *surface);
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd);
 void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd);
 
