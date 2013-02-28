@@ -122,6 +122,12 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
             __func__, offset, pfl->cmd, width);
 #endif
     switch (pfl->cmd) {
+    default:
+        /* This should never happen : reset state & treat it as a read */
+        DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
+        pfl->wcycle = 0;
+        pfl->cmd = 0;
+        /* fall through to read code */
     case 0x00:
         /* Flash area read */
         p = pfl->storage;
@@ -197,11 +203,6 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
         else
             ret = pfl->cfi_table[boff];
         break;
-    default:
-        /* This should never happen : reset state & treat it as a read */
-        DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
-        pfl->wcycle = 0;
-        pfl->cmd = 0;
     }
     return ret;
 }
