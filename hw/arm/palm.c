@@ -205,7 +205,6 @@ static void palmte_init(QEMUMachineInitArgs *args)
     static uint32_t cs2val = 0x0000e1a0;
     static uint32_t cs3val = 0xe1a0e1a0;
     int rom_size, rom_loaded = 0;
-    DisplayState *ds = get_displaystate();
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *cs = g_new(MemoryRegion, 4);
 
@@ -268,12 +267,6 @@ static void palmte_init(QEMUMachineInitArgs *args)
         palmte_binfo.initrd_filename = initrd_filename;
         arm_load_kernel(mpu->cpu, &palmte_binfo);
     }
-
-    /* FIXME: We shouldn't really be doing this here.  The LCD controller
-       will set the size once configured, so this just sets an initial
-       size until the guest activates the display.  */
-    ds->surface = qemu_resize_displaysurface(ds, 320, 320);
-    dpy_gfx_resize(ds);
 }
 
 static QEMUMachine palmte_machine = {

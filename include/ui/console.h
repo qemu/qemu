@@ -210,11 +210,8 @@ DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
 PixelFormat qemu_different_endianness_pixelformat(int bpp);
 PixelFormat qemu_default_pixelformat(int bpp);
 
-DisplaySurface *qemu_create_displaysurface(DisplayState *ds,
-                                           int width, int height);
-DisplaySurface *qemu_resize_displaysurface(DisplayState *ds,
-                                           int width, int height);
-void qemu_free_displaysurface(DisplayState *ds);
+DisplaySurface *qemu_create_displaysurface(int width, int height);
+void qemu_free_displaysurface(DisplaySurface *surface);
 
 static inline int is_surface_bgr(DisplaySurface *surface)
 {
@@ -236,8 +233,8 @@ void register_displaychangelistener(DisplayState *ds,
 void unregister_displaychangelistener(DisplayChangeListener *dcl);
 
 void dpy_gfx_update(DisplayState *s, int x, int y, int w, int h);
-void dpy_gfx_resize(DisplayState *s);
-void dpy_gfx_setdata(DisplayState *s);
+void dpy_gfx_replace_surface(DisplayState *s,
+                             DisplaySurface *surface);
 void dpy_refresh(DisplayState *s);
 void dpy_gfx_copy(struct DisplayState *s, int src_x, int src_y,
                   int dst_x, int dst_y, int w, int h);

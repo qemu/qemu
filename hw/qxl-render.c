@@ -98,6 +98,7 @@ static void qxl_set_rect_to_surface(PCIQXLDevice *qxl, QXLRect *area)
 static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
 {
     VGACommonState *vga = &qxl->vga;
+    DisplaySurface *surface;
     int i;
 
     if (qxl->guest_primary.resized) {
@@ -112,8 +113,7 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                qxl->guest_primary.bytes_pp,
                qxl->guest_primary.bits_pp);
         if (qxl->guest_primary.qxl_stride > 0) {
-            qemu_free_displaysurface(vga->ds);
-            vga->ds->surface = qemu_create_displaysurface_from
+            surface = qemu_create_displaysurface_from
                 (qxl->guest_primary.surface.width,
                  qxl->guest_primary.surface.height,
                  qxl->guest_primary.bits_pp,
@@ -121,11 +121,11 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                  qxl->guest_primary.data,
                  false);
         } else {
-            qemu_resize_displaysurface(vga->ds,
-                    qxl->guest_primary.surface.width,
-                    qxl->guest_primary.surface.height);
+            surface = qemu_create_displaysurface
+                (qxl->guest_primary.surface.width,
+                 qxl->guest_primary.surface.height);
         }
-        dpy_gfx_resize(vga->ds);
+        dpy_gfx_replace_surface(vga->ds, surface);
     }
     for (i = 0; i < qxl->num_dirty_rects; i++) {
         if (qemu_spice_rect_is_empty(qxl->dirty+i)) {

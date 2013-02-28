@@ -958,8 +958,9 @@ dma_bdrv_cb(void *dbs, int ret) "dbs=%p ret=%d"
 dma_map_wait(void *dbs) "dbs=%p"
 
 # console.h
-displaysurface_free(void *display_state, void *display_surface) "state=%p surface=%p"
-displaysurface_resize(void *display_state, void *display_surface, int width, int height) "state=%p surface=%p %dx%d"
+displaysurface_create(void *display_surface, int w, int h) "surface=%p, %dx%d"
+displaysurface_create_from(void *display_surface, int w, int h, int bpp, int swap) "surface=%p, %dx%d, bpp %d, bswap %d"
+displaysurface_free(void *display_surface) "surface=%p"
 displaychangelistener_register(void *dcl, const char *name) "%p [ %s ]"
 displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
 

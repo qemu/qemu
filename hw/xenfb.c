@@ -703,6 +703,7 @@ static void xenfb_send_refresh_period(struct XenFB *xenfb, int period)
 static void xenfb_update(void *opaque)
 {
     struct XenFB *xenfb = opaque;
+    DisplaySurface *surface;
     int i;
 
     if (xenfb->c.xendev.be_state != XenbusStateConnected)
@@ -753,21 +754,20 @@ static void xenfb_update(void *opaque)
         case 16:
         case 32:
             /* console.c supported depth -> buffer can be used directly */
-            qemu_free_displaysurface(xenfb->c.ds);
-            xenfb->c.ds->surface = qemu_create_displaysurface_from
+            surface = qemu_create_displaysurface_from
                 (xenfb->width, xenfb->height, xenfb->depth,
                  xenfb->row_stride, xenfb->pixels + xenfb->offset,
                  false);
             break;
         default:
             /* we must convert stuff */
-            qemu_resize_displaysurface(xenfb->c.ds, xenfb->width, xenfb->height);
+            surface = qemu_create_displaysurface(xenfb->width, xenfb->height);
             break;
         }
+        dpy_gfx_replace_surface(xenfb->c.ds, surface);
         xen_be_printf(&xenfb->c.xendev, 1, "update: resizing: %dx%d @ %d bpp%s\n",
                       xenfb->width, xenfb->height, xenfb->depth,
                       is_buffer_shared(xenfb->c.ds->surface) ? " (shared)" : "");
-        dpy_gfx_resize(xenfb->c.ds);
         xenfb->up_fullscreen = 1;
     }
 
