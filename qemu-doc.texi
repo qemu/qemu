@@ -2640,8 +2640,8 @@ Pre-allocate a guest virtual address space of the given size (in bytes).
 Debug options:
 
 @table @option
-@item -d
-Activate log (logfile=/tmp/qemu.log)
+@item -d item1,...
+Activate logging of the specified items (use '-d help' for a list of log items)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
 @item -g port
@@ -2779,8 +2779,8 @@ FreeBSD, NetBSD and OpenBSD (default).
 Debug options:
 
 @table @option
-@item -d
-Activate log (logfile=/tmp/qemu.log)
+@item -d item1,...
+Activate logging of the specified items (use '-d help' for a list of log items)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
 @item -singlestep

@@ -116,8 +116,12 @@ static inline void qemu_log_flush(void)
 /* Close the log file */
 static inline void qemu_log_close(void)
 {
-    fclose(qemu_logfile);
-    qemu_logfile = NULL;
+    if (qemu_logfile) {
+        if (qemu_logfile != stderr) {
+            fclose(qemu_logfile);
+        }
+        qemu_logfile = NULL;
+    }
 }
 
 /* Set up a new log file */

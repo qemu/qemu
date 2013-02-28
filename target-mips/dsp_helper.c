@@ -652,7 +652,7 @@ static inline int32_t mipsdsp_sat16_mul_q15_q15(uint16_t a, uint16_t b,
         temp = 0x7FFF0000;
         set_DSPControl_overflow_flag(1, 21, env);
     } else {
-        temp = ((uint32_t)a * (uint32_t)b);
+        temp = (int16_t)a * (int16_t)b;
         temp = temp << 1;
     }
 
@@ -2689,7 +2689,7 @@ MAQ_SA_W(maq_sa_w_phr, 0);
 target_ulong helper_##name(target_ulong rs, target_ulong rt,   \
                            CPUMIPSState *env)                  \
 {                                                              \
-    uint32_t rs_t, rt_t;                                       \
+    int32_t rs_t, rt_t;                                        \
     int32_t tempI;                                             \
     int64_t tempL;                                             \
                                                                \

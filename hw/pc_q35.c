@@ -209,8 +209,8 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     }
 }
 
-static QEMUMachine pc_q35_machine = {
-    .name = "pc-q35-1.4",
+static QEMUMachine pc_q35_machine_v1_5 = {
+    .name = "pc-q35-1.5",
     .alias = "q35",
     .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init,
@@ -218,9 +218,22 @@ static QEMUMachine pc_q35_machine = {
     DEFAULT_MACHINE_OPTIONS,
 };
 
+static QEMUMachine pc_q35_machine_v1_4 = {
+    .name = "pc-q35-1.4",
+    .desc = "Standard PC (Q35 + ICH9, 2009)",
+    .init = pc_q35_init,
+    .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_4,
+        { /* end of list */ }
+    },
+    DEFAULT_MACHINE_OPTIONS,
+};
+
 static void pc_q35_machine_init(void)
 {
-    qemu_register_machine(&pc_q35_machine);
+    qemu_register_machine(&pc_q35_machine_v1_5);
+    qemu_register_machine(&pc_q35_machine_v1_4);
 }
 
 machine_init(pc_q35_machine_init);

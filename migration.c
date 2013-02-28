@@ -658,6 +658,7 @@ static void *buffered_file_thread(void *opaque)
 {
     MigrationState *s = opaque;
     int64_t initial_time = qemu_get_clock_ms(rt_clock);
+    int64_t sleep_time = 0;
     int64_t max_size = 0;
     bool last_round = false;
     int ret;
@@ -673,7 +674,7 @@ static void *buffered_file_thread(void *opaque)
     qemu_mutex_unlock_iothread();
 
     while (true) {
-        int64_t current_time = qemu_get_clock_ms(rt_clock);
+        int64_t current_time;
         uint64_t pending_size;
 
         qemu_mutex_lock_iothread();
@@ -727,22 +728,30 @@ static void *buffered_file_thread(void *opaque)
             }
         }
         qemu_mutex_unlock_iothread();
+        current_time = qemu_get_clock_ms(rt_clock);
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = s->bytes_xfer;
-            uint64_t time_spent = current_time - initial_time;
+            uint64_t time_spent = current_time - initial_time - sleep_time;
             double bandwidth = transferred_bytes / time_spent;
             max_size = bandwidth * migrate_max_downtime() / 1000000;
 
             DPRINTF("transferred %" PRIu64 " time_spent %" PRIu64
                     " bandwidth %g max_size %" PRId64 "\n",
                     transferred_bytes, time_spent, bandwidth, max_size);
+            /* if we haven't sent anything, we don't want to recalculate
+               10000 is a small enough number for our purposes */
+            if (s->dirty_bytes_rate && transferred_bytes > 10000) {
+                s->expected_downtime = s->dirty_bytes_rate / bandwidth;
+            }
 
             s->bytes_xfer = 0;
+            sleep_time = 0;
             initial_time = current_time;
         }
         if (!last_round && (s->bytes_xfer >= s->xfer_limit)) {
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
+            sleep_time += qemu_get_clock_ms(rt_clock) - current_time;
         }
         ret = buffered_flush(s);
         if (ret < 0) {
@@ -774,6 +783,8 @@ void migrate_fd_connect(MigrationState *s)
     s->buffer = NULL;
     s->buffer_size = 0;
     s->buffer_capacity = 0;
+    /* This is a best 1st approximation. ns to ms */
+    s->expected_downtime = max_downtime/1000000;
 
     s->xfer_limit = s->bandwidth_limit / XFER_LIMIT_RATIO;
     s->complete = false;

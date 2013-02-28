@@ -914,6 +914,12 @@ static void inc_refcounts(BlockDriverState *bs,
     }
 }
 
+/* Flags for check_refcounts_l1() and check_refcounts_l2() */
+enum {
+    CHECK_OFLAG_COPIED = 0x1,   /* check QCOW_OFLAG_COPIED matches refcount */
+    CHECK_FRAG_INFO = 0x2,      /* update BlockFragInfo counters */
+};
+
 /*
  * Increases the refcount in the given refcount table for the all clusters
  * referenced in the L2 table. While doing so, performs some checks on L2
@@ -924,10 +930,11 @@ static void inc_refcounts(BlockDriverState *bs,
  */
 static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
     uint16_t *refcount_table, int refcount_table_size, int64_t l2_offset,
-    int check_copied)
+    int flags)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l2_table, l2_entry;
+    uint64_t next_contiguous_offset = 0;
     int i, l2_size, nb_csectors, refcount;
 
     /* Read L2 table from disk */
@@ -958,6 +965,18 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             l2_entry &= s->cluster_offset_mask;
             inc_refcounts(bs, res, refcount_table, refcount_table_size,
                 l2_entry & ~511, nb_csectors * 512);
+
+            if (flags & CHECK_FRAG_INFO) {
+                res->bfi.allocated_clusters++;
+                res->bfi.compressed_clusters++;
+
+                /* Compressed clusters are fragmented by nature.  Since they
+                 * take up sub-sector space but we only have sector granularity
+                 * I/O we need to re-read the same sectors even for adjacent
+                 * compressed clusters.
+                 */
+                res->bfi.fragmented_clusters++;
+            }
             break;
 
         case QCOW2_CLUSTER_ZERO:
@@ -971,7 +990,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             /* QCOW_OFLAG_COPIED must be set iff refcount == 1 */
             uint64_t offset = l2_entry & L2E_OFFSET_MASK;
 
-            if (check_copied) {
+            if (flags & CHECK_OFLAG_COPIED) {
                 refcount = get_refcount(bs, offset >> s->cluster_bits);
                 if (refcount < 0) {
                     fprintf(stderr, "Can't get refcount for offset %"
@@ -983,6 +1002,15 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                         PRIx64 " refcount=%d\n", l2_entry, refcount);
                     res->corruptions++;
                 }
+            }
+
+            if (flags & CHECK_FRAG_INFO) {
+                res->bfi.allocated_clusters++;
+                if (next_contiguous_offset &&
+                    offset != next_contiguous_offset) {
+                    res->bfi.fragmented_clusters++;
+                }
+                next_contiguous_offset = offset + s->cluster_size;
             }
 
             /* Mark cluster as used */
@@ -1028,7 +1056,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
                               uint16_t *refcount_table,
                               int refcount_table_size,
                               int64_t l1_table_offset, int l1_size,
-                              int check_copied)
+                              int flags)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l1_table, l2_offset, l1_size2;
@@ -1057,7 +1085,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
         l2_offset = l1_table[i];
         if (l2_offset) {
             /* QCOW_OFLAG_COPIED must be set iff refcount == 1 */
-            if (check_copied) {
+            if (flags & CHECK_OFLAG_COPIED) {
                 refcount = get_refcount(bs, (l2_offset & ~QCOW_OFLAG_COPIED)
                     >> s->cluster_bits);
                 if (refcount < 0) {
@@ -1086,7 +1114,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
 
             /* Process and check L2 entries */
             ret = check_refcounts_l2(bs, res, refcount_table,
-                refcount_table_size, l2_offset, check_copied);
+                                     refcount_table_size, l2_offset, flags);
             if (ret < 0) {
                 goto fail;
             }
@@ -1112,7 +1140,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                           BdrvCheckMode fix)
 {
     BDRVQcowState *s = bs->opaque;
-    int64_t size, i;
+    int64_t size, i, highest_cluster;
     int nb_clusters, refcount1, refcount2;
     QCowSnapshot *sn;
     uint16_t *refcount_table;
@@ -1120,6 +1148,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
     size = bdrv_getlength(bs->file);
     nb_clusters = size_to_clusters(s, size);
+    res->bfi.total_clusters = nb_clusters;
     refcount_table = g_malloc0(nb_clusters * sizeof(uint16_t));
 
     /* header */
@@ -1128,7 +1157,8 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
     /* current L1 table */
     ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
-                       s->l1_table_offset, s->l1_size, 1);
+                             s->l1_table_offset, s->l1_size,
+                             CHECK_OFLAG_COPIED | CHECK_FRAG_INFO);
     if (ret < 0) {
         goto fail;
     }
@@ -1183,7 +1213,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
     /* compare ref counts */
-    for(i = 0; i < nb_clusters; i++) {
+    for (i = 0, highest_cluster = 0; i < nb_clusters; i++) {
         refcount1 = get_refcount(bs, i);
         if (refcount1 < 0) {
             fprintf(stderr, "Can't get refcount for cluster %" PRId64 ": %s\n",
@@ -1193,6 +1223,11 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         }
 
         refcount2 = refcount_table[i];
+
+        if (refcount1 > 0 || refcount2 > 0) {
+            highest_cluster = i;
+        }
+
         if (refcount1 != refcount2) {
 
             /* Check if we're allowed to fix the mismatch */
@@ -1227,6 +1262,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         }
     }
 
+    res->image_end_offset = (highest_cluster + 1) * s->cluster_size;
     ret = 0;
 
 fail:

@@ -161,9 +161,10 @@ _cleanup_test_img()
 
 _check_test_img()
 {
-    $QEMU_IMG check -f $IMGFMT $TEST_IMG 2>&1 | \
-        grep -v "fragmented$" | \
-    	sed -e 's/qemu-img\: This image format does not support checks/No errors were found on the image./'
+    $QEMU_IMG check "$@" -f $IMGFMT $TEST_IMG 2>&1 | \
+        sed -e '/allocated.*fragmented.*compressed clusters/d' \
+            -e 's/qemu-img: This image format does not support checks/No errors were found on the image./' \
+            -e '/Image end offset: [0-9]\+/d'
 }
 
 _img_info()

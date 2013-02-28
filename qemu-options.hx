@@ -440,6 +440,8 @@ These options have the same definition as they have in @option{-hdachs}.
 @var{cache} is "none", "writeback", "unsafe", "directsync" or "writethrough" and controls how the host cache is used to access block data.
 @item aio=@var{aio}
 @var{aio} is "threads", or "native" and selects between pthread based disk I/O and native Linux AIO.
+@item discard=@var{discard}
+@var{discard} is one of "ignore" (or "off") or "unmap" (or "on") and controls whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap}) requests are ignored or passed to the filesystem.  Some machine types may not support discard requests.
 @item format=@var{format}
 Specify which disk @var{format} will be used rather than detecting
 the format.  Can be used to specifiy format=raw to avoid interpreting
@@ -2515,21 +2517,21 @@ Shorthand for -gdb tcp::1234, i.e. open a gdbserver on TCP port 1234
 ETEXI
 
 DEF("d", HAS_ARG, QEMU_OPTION_d, \
-    "-d item1,...    output log to /tmp/qemu.log (use '-d help' for a list of log items)\n",
+    "-d item1,...    enable logging of specified items (use '-d help' for a list of log items)\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -d
+@item -d @var{item1}[,...]
 @findex -d
-Output log in /tmp/qemu.log
+Enable logging of specified items. Use '-d help' for a list of log items.
 ETEXI
 
 DEF("D", HAS_ARG, QEMU_OPTION_D, \
-    "-D logfile      output log to logfile (instead of the default /tmp/qemu.log)\n",
+    "-D logfile      output log to logfile (default stderr)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -D @var{logfile}
 @findex -D
-Output log in @var{logfile} instead of /tmp/qemu.log
+Output log in @var{logfile} instead of to stderr
 ETEXI
 
 DEF("L", HAS_ARG, QEMU_OPTION_L, \

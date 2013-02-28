@@ -374,46 +374,6 @@ static int idiv64(uint64_t *plow, uint64_t *phigh, int64_t b)
     return 0;
 }
 
-void helper_mulq_EAX_T0(CPUX86State *env, target_ulong t0)
-{
-    uint64_t r0, r1;
-
-    mulu64(&r0, &r1, EAX, t0);
-    EAX = r0;
-    EDX = r1;
-    CC_DST = r0;
-    CC_SRC = r1;
-}
-
-target_ulong helper_umulh(target_ulong t0, target_ulong t1)
-{
-    uint64_t h, l;
-    mulu64(&l, &h, t0, t1);
-    return h;
-}
-
-void helper_imulq_EAX_T0(CPUX86State *env, target_ulong t0)
-{
-    uint64_t r0, r1;
-
-    muls64(&r0, &r1, EAX, t0);
-    EAX = r0;
-    EDX = r1;
-    CC_DST = r0;
-    CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
-}
-
-target_ulong helper_imulq_T0_T1(CPUX86State *env, target_ulong t0,
-                                target_ulong t1)
-{
-    uint64_t r0, r1;
-
-    muls64(&r0, &r1, t0, t1);
-    CC_DST = r0;
-    CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
-    return r0;
-}
-
 void helper_divq_EAX(CPUX86State *env, target_ulong t0)
 {
     uint64_t r0, r1;

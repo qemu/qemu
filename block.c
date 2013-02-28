@@ -581,6 +581,26 @@ static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
 }
 
 /**
+ * Set open flags for a given discard mode
+ *
+ * Return 0 on success, -1 if the discard mode was invalid.
+ */
+int bdrv_parse_discard_flags(const char *mode, int *flags)
+{
+    *flags &= ~BDRV_O_UNMAP;
+
+    if (!strcmp(mode, "off") || !strcmp(mode, "ignore")) {
+        /* do nothing */
+    } else if (!strcmp(mode, "on") || !strcmp(mode, "unmap")) {
+        *flags |= BDRV_O_UNMAP;
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
  * Set open flags for a given cache mode
  *
  * Return 0 on success, -1 if the cache mode was invalid.
@@ -2427,6 +2447,10 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
         return -EACCES;
     if (bdrv_in_use(bs))
         return -EBUSY;
+
+    /* There better not be any in-flight IOs when we truncate the device. */
+    bdrv_drain_all();
+
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
@@ -2681,6 +2705,7 @@ int bdrv_has_zero_init(BlockDriverState *bs)
 
 typedef struct BdrvCoIsAllocatedData {
     BlockDriverState *bs;
+    BlockDriverState *base;
     int64_t sector_num;
     int nb_sectors;
     int *pnum;
@@ -2811,6 +2836,44 @@ int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
 
     *pnum = n;
     return 0;
+}
+
+/* Coroutine wrapper for bdrv_is_allocated_above() */
+static void coroutine_fn bdrv_is_allocated_above_co_entry(void *opaque)
+{
+    BdrvCoIsAllocatedData *data = opaque;
+    BlockDriverState *top = data->bs;
+    BlockDriverState *base = data->base;
+
+    data->ret = bdrv_co_is_allocated_above(top, base, data->sector_num,
+                                           data->nb_sectors, data->pnum);
+    data->done = true;
+}
+
+/*
+ * Synchronous wrapper around bdrv_co_is_allocated_above().
+ *
+ * See bdrv_co_is_allocated_above() for details.
+ */
+int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
+                            int64_t sector_num, int nb_sectors, int *pnum)
+{
+    Coroutine *co;
+    BdrvCoIsAllocatedData data = {
+        .bs = top,
+        .base = base,
+        .sector_num = sector_num,
+        .nb_sectors = nb_sectors,
+        .pnum = pnum,
+        .done = false,
+    };
+
+    co = qemu_coroutine_create(bdrv_is_allocated_above_co_entry);
+    qemu_coroutine_enter(co, &data);
+    while (!data.done) {
+        qemu_aio_wait();
+    }
+    return data.ret;
 }
 
 BlockInfo *bdrv_query_info(BlockDriverState *bs)
@@ -4148,6 +4211,11 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         bdrv_reset_dirty(bs, sector_num, nb_sectors);
     }
 
+    /* Do nothing if disabled.  */
+    if (!(bs->open_flags & BDRV_O_UNMAP)) {
+        return 0;
+    }
+
     if (bs->drv->bdrv_co_discard) {
         return bs->drv->bdrv_co_discard(bs, sector_num, nb_sectors);
     } else if (bs->drv->bdrv_aio_discard) {
@@ -4431,7 +4499,8 @@ bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie)
 
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,
-                     char *options, uint64_t img_size, int flags, Error **errp)
+                     char *options, uint64_t img_size, int flags,
+                     Error **errp, bool quiet)
 {
     QEMUOptionParameter *param = NULL, *create_options = NULL;
     QEMUOptionParameter *backing_fmt, *backing_file, *size;
@@ -4540,10 +4609,11 @@ void bdrv_img_create(const char *filename, const char *fmt,
         }
     }
 
-    printf("Formatting '%s', fmt=%s ", filename, fmt);
-    print_option_parameters(param);
-    puts("");
-
+    if (!quiet) {
+        printf("Formatting '%s', fmt=%s ", filename, fmt);
+        print_option_parameters(param);
+        puts("");
+    }
     ret = bdrv_create(drv, filename, param);
     if (ret < 0) {
         if (ret == -ENOTSUP) {

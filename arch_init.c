@@ -414,6 +414,7 @@ static void migration_bitmap_sync(void)
     if (end_time > start_time + 1000) {
         s->dirty_pages_rate = num_dirty_pages_period * 1000
             / (end_time - start_time);
+        s->dirty_bytes_rate = s->dirty_pages_rate * TARGET_PAGE_SIZE;
         start_time = end_time;
         num_dirty_pages_period = 0;
     }

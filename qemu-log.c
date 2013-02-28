@@ -20,12 +20,6 @@
 #include "qemu-common.h"
 #include "qemu/log.h"
 
-#ifdef WIN32
-#define DEFAULT_LOGFILENAME "qemu.log"
-#else
-#define DEFAULT_LOGFILENAME "/tmp/qemu.log"
-#endif
-
 static char *logfilename;
 FILE *qemu_logfile;
 int qemu_loglevel;
@@ -56,14 +50,17 @@ void qemu_log_mask(int mask, const char *fmt, ...)
 /* enable or disable low levels log */
 void do_qemu_set_log(int log_flags, bool use_own_buffers)
 {
-    const char *fname = logfilename ?: DEFAULT_LOGFILENAME;
-
     qemu_loglevel = log_flags;
     if (qemu_loglevel && !qemu_logfile) {
-        qemu_logfile = fopen(fname, log_append ? "a" : "w");
-        if (!qemu_logfile) {
-            perror(fname);
-            _exit(1);
+        if (logfilename) {
+            qemu_logfile = fopen(logfilename, log_append ? "a" : "w");
+            if (!qemu_logfile) {
+                perror(logfilename);
+                _exit(1);
+            }
+        } else {
+            /* Default to stderr if no log file specified */
+            qemu_logfile = stderr;
         }
         /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
         if (use_own_buffers) {
@@ -81,8 +78,7 @@ void do_qemu_set_log(int log_flags, bool use_own_buffers)
         }
     }
     if (!qemu_loglevel && qemu_logfile) {
-        fclose(qemu_logfile);
-        qemu_logfile = NULL;
+        qemu_log_close();
     }
 }
 
@@ -90,10 +86,7 @@ void qemu_set_log_filename(const char *filename)
 {
     g_free(logfilename);
     logfilename = g_strdup(filename);
-    if (qemu_logfile) {
-        fclose(qemu_logfile);
-        qemu_logfile = NULL;
-    }
+    qemu_log_close();
     qemu_set_log(qemu_loglevel);
 }
 
