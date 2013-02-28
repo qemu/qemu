@@ -21,6 +21,7 @@ typedef struct A9MPPrivState {
     MemoryRegion scu_iomem;
     MemoryRegion container;
     DeviceState *mptimer;
+    DeviceState *wdt;
     DeviceState *gic;
     uint32_t num_irq;
 } A9MPPrivState;
@@ -129,7 +130,7 @@ static void a9mp_priv_set_irq(void *opaque, int irq, int level)
 static int a9mp_priv_init(SysBusDevice *dev)
 {
     A9MPPrivState *s = FROM_SYSBUS(A9MPPrivState, dev);
-    SysBusDevice *busdev, *gicbusdev;
+    SysBusDevice *timerbusdev, *wdtbusdev, *gicbusdev;
     int i;
 
     s->gic = qdev_create(NULL, "arm_gic");
@@ -147,7 +148,12 @@ static int a9mp_priv_init(SysBusDevice *dev)
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
     qdev_init_nofail(s->mptimer);
-    busdev = SYS_BUS_DEVICE(s->mptimer);
+    timerbusdev = SYS_BUS_DEVICE(s->mptimer);
+
+    s->wdt = qdev_create(NULL, "arm_mptimer");
+    qdev_prop_set_uint32(s->wdt, "num-cpu", s->num_cpu);
+    qdev_init_nofail(s->wdt);
+    wdtbusdev = SYS_BUS_DEVICE(s->wdt);
 
     /* Memory map (addresses are offsets from PERIPHBASE):
      *  0x0000-0x00ff -- Snoop Control Unit
@@ -170,9 +176,9 @@ static int a9mp_priv_init(SysBusDevice *dev)
      * memory region, not the "timer/watchdog for core X" ones 11MPcore has.
      */
     memory_region_add_subregion(&s->container, 0x600,
-                                sysbus_mmio_get_region(busdev, 0));
+                                sysbus_mmio_get_region(timerbusdev, 0));
     memory_region_add_subregion(&s->container, 0x620,
-                                sysbus_mmio_get_region(busdev, 1));
+                                sysbus_mmio_get_region(wdtbusdev, 0));
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(gicbusdev, 0));
 
@@ -183,9 +189,9 @@ static int a9mp_priv_init(SysBusDevice *dev)
      */
     for (i = 0; i < s->num_cpu; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
-        sysbus_connect_irq(busdev, i * 2,
+        sysbus_connect_irq(timerbusdev, i,
                            qdev_get_gpio_in(s->gic, ppibase + 29));
-        sysbus_connect_irq(busdev, i * 2 + 1,
+        sysbus_connect_irq(wdtbusdev, i,
                            qdev_get_gpio_in(s->gic, ppibase + 30));
     }
     return 0;

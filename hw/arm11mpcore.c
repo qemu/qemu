@@ -21,6 +21,7 @@ typedef struct ARM11MPCorePriveState {
     MemoryRegion iomem;
     MemoryRegion container;
     DeviceState *mptimer;
+    DeviceState *wdtimer;
     DeviceState *gic;
     uint32_t num_irq;
 } ARM11MPCorePriveState;
@@ -84,7 +85,8 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
 {
     int i;
     SysBusDevice *gicbusdev = SYS_BUS_DEVICE(s->gic);
-    SysBusDevice *busdev = SYS_BUS_DEVICE(s->mptimer);
+    SysBusDevice *timerbusdev = SYS_BUS_DEVICE(s->mptimer);
+    SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(s->wdtimer);
     memory_region_init(&s->container, "mpcode-priv-container", 0x2000);
     memory_region_init_io(&s->iomem, &mpcore_scu_ops, s, "mpcore-scu", 0x100);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
@@ -99,11 +101,13 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
     /* Add the regions for timer and watchdog for "current CPU" and
      * for each specific CPU.
      */
-    for (i = 0; i < (s->num_cpu + 1) * 2; i++) {
+    for (i = 0; i < (s->num_cpu + 1); i++) {
         /* Timers at 0x600, 0x700, ...; watchdogs at 0x620, 0x720, ... */
-        hwaddr offset = 0x600 + (i >> 1) * 0x100 + (i & 1) * 0x20;
+        hwaddr offset = 0x600 + i * 0x100;
         memory_region_add_subregion(&s->container, offset,
-                                    sysbus_mmio_get_region(busdev, i));
+                                    sysbus_mmio_get_region(timerbusdev, i));
+        memory_region_add_subregion(&s->container, offset + 0x20,
+                                    sysbus_mmio_get_region(wdtbusdev, i));
     }
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(gicbusdev, 0));
@@ -112,9 +116,9 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
      */
     for (i = 0; i < s->num_cpu; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
-        sysbus_connect_irq(busdev, i * 2,
+        sysbus_connect_irq(timerbusdev, i,
                            qdev_get_gpio_in(s->gic, ppibase + 29));
-        sysbus_connect_irq(busdev, i * 2 + 1,
+        sysbus_connect_irq(wdtbusdev, i,
                            qdev_get_gpio_in(s->gic, ppibase + 30));
     }
 }
@@ -139,6 +143,11 @@ static int mpcore_priv_init(SysBusDevice *dev)
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
     qdev_init_nofail(s->mptimer);
+
+    s->wdtimer = qdev_create(NULL, "arm_mptimer");
+    qdev_prop_set_uint32(s->wdtimer, "num-cpu", s->num_cpu);
+    qdev_init_nofail(s->wdtimer);
+
     mpcore_priv_map_setup(s);
     sysbus_init_mmio(dev, &s->container);
     return 0;
