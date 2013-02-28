@@ -724,7 +724,9 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     s->rx_desc_addr = last_desc_addr;
     if (rx_desc_get_wrap(desc)) {
         s->rx_desc_addr = s->regs[GEM_RXQBASE];
+        DB_PRINT("wrapping RX descriptor list\n");
     } else {
+        DB_PRINT("incrementing RX descriptor list\n");
         s->rx_desc_addr += 8;
     }
 
