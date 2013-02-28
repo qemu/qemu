@@ -2994,7 +2994,7 @@ int main(int argc, char **argv, char **envp)
                 drive_add(IF_MTD, -1, optarg, MTD_OPTS);
                 break;
             case QEMU_OPTION_sd:
-                drive_add(IF_SD, 0, optarg, SD_OPTS);
+                drive_add(IF_SD, -1, optarg, SD_OPTS);
                 break;
             case QEMU_OPTION_pflash:
                 drive_add(IF_PFLASH, -1, optarg, PFLASH_OPTS);
