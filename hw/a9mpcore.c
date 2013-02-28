@@ -12,7 +12,7 @@
 
 /* A9MP private memory region.  */
 
-typedef struct a9mp_priv_state {
+typedef struct A9MPPrivState {
     SysBusDevice busdev;
     uint32_t scu_control;
     uint32_t scu_status;
@@ -23,12 +23,12 @@ typedef struct a9mp_priv_state {
     DeviceState *mptimer;
     DeviceState *gic;
     uint32_t num_irq;
-} a9mp_priv_state;
+} A9MPPrivState;
 
 static uint64_t a9_scu_read(void *opaque, hwaddr offset,
                             unsigned size)
 {
-    a9mp_priv_state *s = (a9mp_priv_state *)opaque;
+    A9MPPrivState *s = (A9MPPrivState *)opaque;
     switch (offset) {
     case 0x00: /* Control */
         return s->scu_control;
@@ -59,7 +59,7 @@ static uint64_t a9_scu_read(void *opaque, hwaddr offset,
 static void a9_scu_write(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size)
 {
-    a9mp_priv_state *s = (a9mp_priv_state *)opaque;
+    A9MPPrivState *s = (A9MPPrivState *)opaque;
     uint32_t mask;
     uint32_t shift;
     switch (size) {
@@ -112,7 +112,7 @@ static const MemoryRegionOps a9_scu_ops = {
 
 static void a9mp_priv_reset(DeviceState *dev)
 {
-    a9mp_priv_state *s = FROM_SYSBUS(a9mp_priv_state, SYS_BUS_DEVICE(dev));
+    A9MPPrivState *s = FROM_SYSBUS(A9MPPrivState, SYS_BUS_DEVICE(dev));
     int i;
     s->scu_control = 0;
     for (i = 0; i < ARRAY_SIZE(s->old_timer_status); i++) {
@@ -122,13 +122,13 @@ static void a9mp_priv_reset(DeviceState *dev)
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)
 {
-    a9mp_priv_state *s = (a9mp_priv_state *)opaque;
+    A9MPPrivState *s = (A9MPPrivState *)opaque;
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
 static int a9mp_priv_init(SysBusDevice *dev)
 {
-    a9mp_priv_state *s = FROM_SYSBUS(a9mp_priv_state, dev);
+    A9MPPrivState *s = FROM_SYSBUS(A9MPPrivState, dev);
     SysBusDevice *busdev, *gicbusdev;
     int i;
 
@@ -196,22 +196,22 @@ static const VMStateDescription vmstate_a9mp_priv = {
     .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(scu_control, a9mp_priv_state),
-        VMSTATE_UINT32_ARRAY(old_timer_status, a9mp_priv_state, 8),
-        VMSTATE_UINT32_V(scu_status, a9mp_priv_state, 2),
+        VMSTATE_UINT32(scu_control, A9MPPrivState),
+        VMSTATE_UINT32_ARRAY(old_timer_status, A9MPPrivState, 8),
+        VMSTATE_UINT32_V(scu_status, A9MPPrivState, 2),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static Property a9mp_priv_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", a9mp_priv_state, num_cpu, 1),
+    DEFINE_PROP_UINT32("num-cpu", A9MPPrivState, num_cpu, 1),
     /* The Cortex-A9MP may have anything from 0 to 224 external interrupt
      * IRQ lines (with another 32 internal). We default to 64+32, which
      * is the number provided by the Cortex-A9MP test chip in the
      * Realview PBX-A9 and Versatile Express A9 development boards.
      * Other boards may differ and should set this property appropriately.
      */
-    DEFINE_PROP_UINT32("num-irq", a9mp_priv_state, num_irq, 96),
+    DEFINE_PROP_UINT32("num-irq", A9MPPrivState, num_irq, 96),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -229,7 +229,7 @@ static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 static const TypeInfo a9mp_priv_info = {
     .name          = "a9mpcore_priv",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(a9mp_priv_state),
+    .instance_size = sizeof(A9MPPrivState),
     .class_init    = a9mp_priv_class_init,
 };
 

@@ -12,7 +12,7 @@
 
 /* MPCore private memory region.  */
 
-typedef struct mpcore_priv_state {
+typedef struct ARM11MPCorePriveState {
     SysBusDevice busdev;
     uint32_t scu_control;
     int iomemtype;
@@ -23,14 +23,14 @@ typedef struct mpcore_priv_state {
     DeviceState *mptimer;
     DeviceState *gic;
     uint32_t num_irq;
-} mpcore_priv_state;
+} ARM11MPCorePriveState;
 
 /* Per-CPU private memory mapped IO.  */
 
 static uint64_t mpcore_scu_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
-    mpcore_priv_state *s = (mpcore_priv_state *)opaque;
+    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
     int id;
     /* SCU */
     switch (offset) {
@@ -53,7 +53,7 @@ static uint64_t mpcore_scu_read(void *opaque, hwaddr offset,
 static void mpcore_scu_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
-    mpcore_priv_state *s = (mpcore_priv_state *)opaque;
+    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
     /* SCU */
     switch (offset) {
     case 0: /* Control register.  */
@@ -76,11 +76,11 @@ static const MemoryRegionOps mpcore_scu_ops = {
 
 static void mpcore_priv_set_irq(void *opaque, int irq, int level)
 {
-    mpcore_priv_state *s = (mpcore_priv_state *)opaque;
+    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
-static void mpcore_priv_map_setup(mpcore_priv_state *s)
+static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
 {
     int i;
     SysBusDevice *gicbusdev = SYS_BUS_DEVICE(s->gic);
@@ -121,7 +121,7 @@ static void mpcore_priv_map_setup(mpcore_priv_state *s)
 
 static int mpcore_priv_init(SysBusDevice *dev)
 {
-    mpcore_priv_state *s = FROM_SYSBUS(mpcore_priv_state, dev);
+    ARM11MPCorePriveState *s = FROM_SYSBUS(ARM11MPCorePriveState, dev);
 
     s->gic = qdev_create(NULL, "arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
@@ -230,7 +230,7 @@ static const TypeInfo mpcore_rirq_info = {
 };
 
 static Property mpcore_priv_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", mpcore_priv_state, num_cpu, 1),
+    DEFINE_PROP_UINT32("num-cpu", ARM11MPCorePriveState, num_cpu, 1),
     /* The ARM11 MPCORE TRM says the on-chip controller may have
      * anything from 0 to 224 external interrupt IRQ lines (with another
      * 32 internal). We default to 32+32, which is the number provided by
@@ -239,7 +239,7 @@ static Property mpcore_priv_properties[] = {
      * appropriately. Some Linux kernels may not boot if the hardware
      * has more IRQ lines than the kernel expects.
      */
-    DEFINE_PROP_UINT32("num-irq", mpcore_priv_state, num_irq, 64),
+    DEFINE_PROP_UINT32("num-irq", ARM11MPCorePriveState, num_irq, 64),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -255,7 +255,7 @@ static void mpcore_priv_class_init(ObjectClass *klass, void *data)
 static const TypeInfo mpcore_priv_info = {
     .name          = "arm11mpcore_priv",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(mpcore_priv_state),
+    .instance_size = sizeof(ARM11MPCorePriveState),
     .class_init    = mpcore_priv_class_init,
 };
 
