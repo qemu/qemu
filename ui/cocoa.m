@@ -264,8 +264,7 @@ static int cocoa_keycode_to_qemu(int keycode)
     BOOL isAbsoluteEnabled;
     BOOL isTabletEnabled;
 }
-- (void) resizeContentToWidth:(int)w height:(int)h displayState:(DisplayState *)ds;
-- (void) updateDataOffset:(DisplayState *)ds;
+- (void) switchSurface:(DisplaySurface *)surface;
 - (void) grabMouse;
 - (void) ungrabMouse;
 - (void) toggleFullScreen:(id)sender;
@@ -400,19 +399,19 @@ QemuCocoaView *cocoaView;
     }
 }
 
-- (void) resizeContentToWidth:(int)w height:(int)h displayState:(DisplayState *)ds
+- (void) switchSurface:(DisplaySurface *)surface
 {
-    COCOA_DEBUG("QemuCocoaView: resizeContent\n");
+    COCOA_DEBUG("QemuCocoaView: switchSurface\n");
 
     // update screenBuffer
     if (dataProviderRef)
         CGDataProviderRelease(dataProviderRef);
 
     //sync host window color space with guests
-	screen.bitsPerPixel = ds_get_bits_per_pixel(ds);
-	screen.bitsPerComponent = ds_get_bytes_per_pixel(ds) * 2;
+	screen.bitsPerPixel = surface_bits_per_pixel(surface);
+	screen.bitsPerComponent = surface_bytes_per_pixel(surface) * 2;
 
-    dataProviderRef = CGDataProviderCreateWithData(NULL, ds_get_data(ds), w * 4 * h, NULL);
+    dataProviderRef = CGDataProviderCreateWithData(NULL, surface_data(surface), w * 4 * h, NULL);
 
     // update windows
     if (isFullscreen) {
@@ -428,20 +427,6 @@ QemuCocoaView *cocoaView;
 	[normalWindow center];
     [self setContentDimensions];
     [self setFrame:NSMakeRect(cx, cy, cw, ch)];
-}
-
-- (void) updateDataOffset:(DisplayState *)ds
-{
-    COCOA_DEBUG("QemuCocoaView: UpdateDataOffset\n");
-
-    // update screenBuffer
-    if (dataProviderRef) {
-        CGDataProviderRelease(dataProviderRef);
-    }
-
-    size_t size = ds_get_width(ds) * 4 * ds_get_height(ds);
-    dataProviderRef = CGDataProviderCreateWithData(NULL, ds_get_data(ds),
-                                                   size, NULL);
 }
 
 - (void) toggleFullScreen:(id)sender
@@ -970,7 +955,7 @@ int main (int argc, const char * argv[]) {
 
 #pragma mark qemu
 static void cocoa_update(DisplayChangeListener *dcl,
-                         DisplayState *ds,
+                         DisplayState *dontuse,
                          int x, int y, int w, int h)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
@@ -989,16 +974,16 @@ static void cocoa_update(DisplayChangeListener *dcl,
 }
 
 static void cocoa_switch(DisplayChangeListener *dcl,
-                         DisplayState *ds,
+                         DisplayState *dontuse,
                          DisplaySurface *surface)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_resize\n");
 
-    [cocoaView resizeContentToWidth:(int)(ds_get_width(ds)) height:(int)(ds_get_height(ds)) displayState:ds];
+    [cocoaView switchSurface:surface];
 }
 
 static void cocoa_refresh(DisplayChangeListener *dcl,
-                          DisplayState *ds)
+                          DisplayState *dontuse)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
 
