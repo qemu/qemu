@@ -244,7 +244,6 @@ static PCIBus *i440fx_common_init(const char *device_name,
 
     dev = qdev_create(NULL, "i440FX-pcihost");
     s = PCI_HOST_BRIDGE(dev);
-    s->address_space = address_space_mem;
     b = pci_bus_new(dev, NULL, pci_address_space,
                     address_space_io, 0);
     s->bus = b;
