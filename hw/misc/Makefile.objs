@@ -1,0 +1,11 @@
+common-obj-$(CONFIG_APPLESMC) += applesmc.o
+common-obj-$(CONFIG_MAX111X) += max111x.o
+common-obj-$(CONFIG_TMP105) += tmp105.o
+
+# ARM devices
+common-obj-$(CONFIG_PL310) += arm_l2x0.o
+
+# PKUnity SoC devices
+common-obj-$(CONFIG_PUV3) += puv3_pm.o
+
+common-obj-$(CONFIG_MACIO) += macio/

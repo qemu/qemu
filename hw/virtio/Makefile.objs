@@ -1,0 +1,4 @@
+common-obj-$(CONFIG_VIRTIO) += virtio-rng.o
+common-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
+common-obj-$(CONFIG_VIRTIO) += virtio-bus.o
+

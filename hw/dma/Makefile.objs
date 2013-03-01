@@ -1,0 +1,7 @@
+common-obj-$(CONFIG_PUV3) += puv3_dma.o
+common-obj-$(CONFIG_RC4030) += rc4030.o
+common-obj-$(CONFIG_PL080) += pl080.o
+common-obj-$(CONFIG_PL330) += pl330.o
+common-obj-$(CONFIG_I82374) += i82374.o
+common-obj-$(CONFIG_I8257) += i8257.o
+common-obj-$(CONFIG_XILINX_AXI) += xilinx_axidma.o

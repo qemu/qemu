@@ -1,0 +1,2 @@
+common-obj-y += watchdog.o
+common-obj-$(CONFIG_PCI) += wdt_i6300esb.o

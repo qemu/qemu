@@ -1,0 +1,5 @@
+common-obj-$(CONFIG_HEATHROW_PIC) += heathrow_pic.o
+common-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
+common-obj-$(CONFIG_PL190) += pl190.o
+common-obj-$(CONFIG_PUV3) += puv3_intc.o
+common-obj-$(CONFIG_XILINX) += xilinx_intc.o

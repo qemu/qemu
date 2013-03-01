@@ -1,0 +1,2 @@
+common-obj-$(CONFIG_PL022) += pl022.o
+common-obj-$(CONFIG_SSI) += ssi.o

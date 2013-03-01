@@ -1,0 +1,2 @@
+# xen backend driver support
+common-obj-$(CONFIG_XEN_BACKEND) += xen_backend.o xen_devconfig.o

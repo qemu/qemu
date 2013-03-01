@@ -1,0 +1,13 @@
+common-obj-$(CONFIG_ADS7846) += ads7846.o
+common-obj-$(CONFIG_VGA_CIRRUS) += cirrus_vga.o
+common-obj-$(CONFIG_G364FB) += g364fb.o
+common-obj-$(CONFIG_JAZZ_LED) += jazz_led.o
+common-obj-$(CONFIG_PL110) += pl110.o
+common-obj-$(CONFIG_SSD0303) += ssd0303.o
+common-obj-$(CONFIG_SSD0323) += ssd0323.o
+common-obj-$(CONFIG_XEN_BACKEND) += xenfb.o
+
+common-obj-$(CONFIG_VGA_PCI) += vga-pci.o
+common-obj-$(CONFIG_VGA_ISA) += vga-isa.o
+common-obj-$(CONFIG_VGA_ISA_MM) += vga-isa-mm.o
+common-obj-$(CONFIG_VMWARE_VGA) += vmware_vga.o
