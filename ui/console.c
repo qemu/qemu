@@ -1373,7 +1373,7 @@ void register_displaychangelistener(DisplayState *ds,
     QLIST_INSERT_HEAD(&ds->listeners, dcl, next);
     gui_setup_refresh(ds);
     if (dcl->ops->dpy_gfx_switch) {
-        dcl->ops->dpy_gfx_switch(dcl, ds, ds->surface);
+        dcl->ops->dpy_gfx_switch(dcl, ds->surface);
     }
 }
 
@@ -1400,7 +1400,7 @@ void dpy_gfx_update(DisplayState *s, int x, int y, int w, int h)
 
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_gfx_update) {
-            dcl->ops->dpy_gfx_update(dcl, s, x, y, w, h);
+            dcl->ops->dpy_gfx_update(dcl, x, y, w, h);
         }
     }
 }
@@ -1414,7 +1414,7 @@ void dpy_gfx_replace_surface(DisplayState *s,
     s->surface = surface;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_gfx_switch) {
-            dcl->ops->dpy_gfx_switch(dcl, s, surface);
+            dcl->ops->dpy_gfx_switch(dcl, surface);
         }
     }
     qemu_free_displaysurface(old_surface);
@@ -1425,7 +1425,7 @@ void dpy_refresh(DisplayState *s)
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_refresh) {
-            dcl->ops->dpy_refresh(dcl, s);
+            dcl->ops->dpy_refresh(dcl);
         }
     }
 }
@@ -1436,9 +1436,9 @@ void dpy_gfx_copy(struct DisplayState *s, int src_x, int src_y,
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_gfx_copy) {
-            dcl->ops->dpy_gfx_copy(dcl, s, src_x, src_y, dst_x, dst_y, w, h);
+            dcl->ops->dpy_gfx_copy(dcl, src_x, src_y, dst_x, dst_y, w, h);
         } else { /* TODO */
-            dcl->ops->dpy_gfx_update(dcl, s, dst_x, dst_y, w, h);
+            dcl->ops->dpy_gfx_update(dcl, dst_x, dst_y, w, h);
         }
     }
 }
@@ -1448,7 +1448,7 @@ void dpy_text_cursor(struct DisplayState *s, int x, int y)
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_text_cursor) {
-            dcl->ops->dpy_text_cursor(dcl, s, x, y);
+            dcl->ops->dpy_text_cursor(dcl, x, y);
         }
     }
 }
@@ -1458,7 +1458,7 @@ void dpy_text_update(DisplayState *s, int x, int y, int w, int h)
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_text_update) {
-            dcl->ops->dpy_text_update(dcl, s, x, y, w, h);
+            dcl->ops->dpy_text_update(dcl, x, y, w, h);
         }
     }
 }
@@ -1468,7 +1468,7 @@ void dpy_text_resize(DisplayState *s, int w, int h)
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_text_resize) {
-            dcl->ops->dpy_text_resize(dcl, s, w, h);
+            dcl->ops->dpy_text_resize(dcl, w, h);
         }
     }
 }
@@ -1478,7 +1478,7 @@ void dpy_mouse_set(struct DisplayState *s, int x, int y, int on)
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_mouse_set) {
-            dcl->ops->dpy_mouse_set(dcl, s, x, y, on);
+            dcl->ops->dpy_mouse_set(dcl, x, y, on);
         }
     }
 }
@@ -1488,7 +1488,7 @@ void dpy_cursor_define(struct DisplayState *s, QEMUCursor *cursor)
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_cursor_define) {
-            dcl->ops->dpy_cursor_define(dcl, s, cursor);
+            dcl->ops->dpy_cursor_define(dcl, cursor);
         }
     }
 }

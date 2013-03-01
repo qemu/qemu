@@ -955,7 +955,6 @@ int main (int argc, const char * argv[]) {
 
 #pragma mark qemu
 static void cocoa_update(DisplayChangeListener *dcl,
-                         DisplayState *dontuse,
                          int x, int y, int w, int h)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
@@ -974,7 +973,6 @@ static void cocoa_update(DisplayChangeListener *dcl,
 }
 
 static void cocoa_switch(DisplayChangeListener *dcl,
-                         DisplayState *dontuse,
                          DisplaySurface *surface)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_resize\n");
@@ -982,8 +980,7 @@ static void cocoa_switch(DisplayChangeListener *dcl,
     [cocoaView switchSurface:surface];
 }
 
-static void cocoa_refresh(DisplayChangeListener *dcl,
-                          DisplayState *dontuse)
+static void cocoa_refresh(DisplayChangeListener *dcl)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
 

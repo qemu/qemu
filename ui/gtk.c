@@ -266,7 +266,7 @@ static void gd_update_full_redraw(GtkDisplayState *s)
 /** DisplayState Callbacks **/
 
 static void gd_update(DisplayChangeListener *dcl,
-                      DisplayState *dontuse, int x, int y, int w, int h)
+                      int x, int y, int w, int h)
 {
     GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
     int x1, x2, y1, y2;
@@ -298,14 +298,12 @@ static void gd_update(DisplayChangeListener *dcl,
     gtk_widget_queue_draw_area(s->drawing_area, mx + x1, my + y1, (x2 - x1), (y2 - y1));
 }
 
-static void gd_refresh(DisplayChangeListener *dcl,
-                       DisplayState *dontuse)
+static void gd_refresh(DisplayChangeListener *dcl)
 {
     vga_hw_update();
 }
 
 static void gd_switch(DisplayChangeListener *dcl,
-                      DisplayState *dontuse,
                       DisplaySurface *surface)
 {
     GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);

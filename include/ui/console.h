@@ -150,34 +150,26 @@ void cursor_get_mono_mask(QEMUCursor *c, int transparent, uint8_t *mask);
 typedef struct DisplayChangeListenerOps {
     const char *dpy_name;
 
-    void (*dpy_refresh)(DisplayChangeListener *dcl,
-                        struct DisplayState *s);
+    void (*dpy_refresh)(DisplayChangeListener *dcl);
 
     void (*dpy_gfx_update)(DisplayChangeListener *dcl,
-                           struct DisplayState *s,
                            int x, int y, int w, int h);
     void (*dpy_gfx_switch)(DisplayChangeListener *dcl,
-                           struct DisplayState *s,
                            struct DisplaySurface *new_surface);
     void (*dpy_gfx_copy)(DisplayChangeListener *dcl,
-                         struct DisplayState *s, int src_x, int src_y,
+                         int src_x, int src_y,
                          int dst_x, int dst_y, int w, int h);
 
     void (*dpy_text_cursor)(DisplayChangeListener *dcl,
-                            struct DisplayState *s,
                             int x, int y);
     void (*dpy_text_resize)(DisplayChangeListener *dcl,
-                            struct DisplayState *s,
                             int w, int h);
     void (*dpy_text_update)(DisplayChangeListener *dcl,
-                            struct DisplayState *s,
                             int x, int y, int w, int h);
 
     void (*dpy_mouse_set)(DisplayChangeListener *dcl,
-                          struct DisplayState *s,
                           int x, int y, int on);
     void (*dpy_cursor_define)(DisplayChangeListener *dcl,
-                              struct DisplayState *s,
                               QEMUCursor *cursor);
 } DisplayChangeListenerOps;
 

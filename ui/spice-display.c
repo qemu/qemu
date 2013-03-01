@@ -583,7 +583,6 @@ static const QXLInterface dpy_interface = {
 };
 
 static void display_update(DisplayChangeListener *dcl,
-                           struct DisplayState *ds,
                            int x, int y, int w, int h)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
@@ -591,15 +590,13 @@ static void display_update(DisplayChangeListener *dcl,
 }
 
 static void display_switch(DisplayChangeListener *dcl,
-                           struct DisplayState *ds,
                            struct DisplaySurface *surface)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
     qemu_spice_display_switch(ssd, surface);
 }
 
-static void display_refresh(DisplayChangeListener *dcl,
-                            struct DisplayState *ds)
+static void display_refresh(DisplayChangeListener *dcl)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
     qemu_spice_display_refresh(ssd);

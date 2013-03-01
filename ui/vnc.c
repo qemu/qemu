@@ -430,7 +430,6 @@ static void vnc_refresh(void *opaque);
 static int vnc_refresh_server_surface(VncDisplay *vd);
 
 static void vnc_dpy_update(DisplayChangeListener *dcl,
-                           DisplayState *ds,
                            int x, int y, int w, int h)
 {
     int i;
@@ -575,7 +574,6 @@ void *vnc_server_fb_ptr(VncDisplay *vd, int x, int y)
 }
 
 static void vnc_dpy_switch(DisplayChangeListener *dcl,
-                           DisplayState *dontuse,
                            DisplaySurface *surface)
 {
     VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
@@ -740,7 +738,6 @@ static void vnc_copy(VncState *vs, int src_x, int src_y, int dst_x, int dst_y, i
 }
 
 static void vnc_dpy_copy(DisplayChangeListener *dcl,
-                         DisplayState *dontuse,
                          int src_x, int src_y,
                          int dst_x, int dst_y, int w, int h)
 {
@@ -814,7 +811,6 @@ static void vnc_dpy_copy(DisplayChangeListener *dcl,
 }
 
 static void vnc_mouse_set(DisplayChangeListener *dcl,
-                          DisplayState *dontuse,
                           int x, int y, int visible)
 {
     /* can we ask the client(s) to move the pointer ??? */
@@ -842,7 +838,6 @@ static int vnc_cursor_define(VncState *vs)
 }
 
 static void vnc_dpy_cursor_define(DisplayChangeListener *dcl,
-                                  DisplayState *dontuse,
                                   QEMUCursor *c)
 {
     VncDisplay *vd = vnc_display;

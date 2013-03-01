@@ -61,7 +61,6 @@ static int scaling_active = 0;
 static Notifier mouse_mode_notifier;
 
 static void sdl_update(DisplayChangeListener *dcl,
-                       DisplayState *dontuse,
                        int x, int y, int w, int h)
 {
     //    printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
@@ -108,7 +107,6 @@ static void do_sdl_resize(int width, int height, int bpp)
 }
 
 static void sdl_switch(DisplayChangeListener *dcl,
-                       DisplayState *dontuse,
                        DisplaySurface *new_surface)
 {
 
@@ -523,7 +521,7 @@ static void handle_keydown(SDL_Event *ev)
         case 0x16: /* 'u' key on US keyboard */
             if (scaling_active) {
                 scaling_active = 0;
-                sdl_switch(dcl, NULL, NULL);
+                sdl_switch(dcl, NULL);
                 vga_hw_invalidate();
                 vga_hw_update();
             }
@@ -763,8 +761,7 @@ static void handle_activation(SDL_Event *ev)
     }
 }
 
-static void sdl_refresh(DisplayChangeListener *dcl,
-                        DisplayState *dontuse)
+static void sdl_refresh(DisplayChangeListener *dcl)
 {
     SDL_Event ev1, *ev = &ev1;
 
@@ -779,7 +776,7 @@ static void sdl_refresh(DisplayChangeListener *dcl,
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {
         case SDL_VIDEOEXPOSE:
-            sdl_update(dcl, dontuse, 0, 0, real_screen->w, real_screen->h);
+            sdl_update(dcl, 0, 0, real_screen->w, real_screen->h);
             break;
         case SDL_KEYDOWN:
             handle_keydown(ev);
@@ -815,7 +812,6 @@ static void sdl_refresh(DisplayChangeListener *dcl,
 }
 
 static void sdl_mouse_warp(DisplayChangeListener *dcl,
-                           DisplayState *ds,
                            int x, int y, int on)
 {
     if (on) {
@@ -833,7 +829,6 @@ static void sdl_mouse_warp(DisplayChangeListener *dcl,
 }
 
 static void sdl_mouse_define(DisplayChangeListener *dcl,
-                             DisplayState *ds,
                              QEMUCursor *c)
 {
     uint8_t *image, *mask;

@@ -42,7 +42,6 @@ static int width, height, gwidth, gheight, invalidate;
 static int px, py, sminx, sminy, smaxx, smaxy;
 
 static void curses_update(DisplayChangeListener *dcl,
-                          DisplayState *ds,
                           int x, int y, int w, int h)
 {
     chtype *line;
@@ -95,7 +94,6 @@ static void curses_calc_pad(void)
 }
 
 static void curses_resize(DisplayChangeListener *dcl,
-                          DisplayState *ds,
                           int width, int height)
 {
     if (width == gwidth && height == gheight) {
@@ -134,7 +132,6 @@ static void curses_winch_handler(int signum)
 #endif
 
 static void curses_cursor_position(DisplayChangeListener *dcl,
-                                   DisplayState *ds,
                                    int x, int y)
 {
     if (x >= 0) {
@@ -161,8 +158,7 @@ static void curses_cursor_position(DisplayChangeListener *dcl,
 
 static kbd_layout_t *kbd_layout = NULL;
 
-static void curses_refresh(DisplayChangeListener *dcl,
-                           DisplayState *ds)
+static void curses_refresh(DisplayChangeListener *dcl)
 {
     int chr, nextchr, keysym, keycode, keycode_alt;
 
@@ -195,7 +191,7 @@ static void curses_refresh(DisplayChangeListener *dcl,
             clear();
             refresh();
             curses_calc_pad();
-            curses_update(dcl, ds, 0, 0, width, height);
+            curses_update(dcl, 0, 0, width, height);
             continue;
         }
 #endif

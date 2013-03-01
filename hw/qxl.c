@@ -1865,7 +1865,6 @@ static void qxl_vm_change_state_handler(void *opaque, int running,
 /* display change listener */
 
 static void display_update(DisplayChangeListener *dcl,
-                           struct DisplayState *ds,
                            int x, int y, int w, int h)
 {
     PCIQXLDevice *qxl = container_of(dcl, PCIQXLDevice, ssd.dcl);
@@ -1876,7 +1875,6 @@ static void display_update(DisplayChangeListener *dcl,
 }
 
 static void display_switch(DisplayChangeListener *dcl,
-                           struct DisplayState *ds,
                            struct DisplaySurface *surface)
 {
     PCIQXLDevice *qxl = container_of(dcl, PCIQXLDevice, ssd.dcl);
@@ -1887,8 +1885,7 @@ static void display_switch(DisplayChangeListener *dcl,
     }
 }
 
-static void display_refresh(DisplayChangeListener *dcl,
-                            struct DisplayState *ds)
+static void display_refresh(DisplayChangeListener *dcl)
 {
     PCIQXLDevice *qxl = container_of(dcl, PCIQXLDevice, ssd.dcl);
 
