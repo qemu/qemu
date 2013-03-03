@@ -674,6 +674,10 @@ static void pci_init_mask_bridge(PCIDevice *d)
 #define  PCI_BRIDGE_CTL_SEC_DISCARD	0x200	/* Secondary discard timer */
 #define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
 #define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
+/*
+ * TODO: Bridges default to 10-bit VGA decoding but we currently only
+ * implement 16-bit decoding (no alias support).
+ */
     pci_set_word(d->wmask + PCI_BRIDGE_CONTROL,
                  PCI_BRIDGE_CTL_PARITY |
                  PCI_BRIDGE_CTL_SERR |

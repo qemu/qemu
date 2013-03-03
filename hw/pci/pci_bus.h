@@ -47,6 +47,13 @@ struct PCIBridgeWindows {
     MemoryRegion alias_pref_mem;
     MemoryRegion alias_mem;
     MemoryRegion alias_io;
+    /*
+     * When bridge control VGA forwarding is enabled, bridges will
+     * provide positive decode on the PCI VGA defined I/O port and
+     * MMIO ranges.  When enabled forwarding is only qualified on the
+     * I/O and memory enable bits in the bridge command register.
+     */
+    MemoryRegion alias_vga[QEMU_PCI_VGA_NUM_REGIONS];
 };
 
 struct PCIBridge {
