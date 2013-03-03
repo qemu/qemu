@@ -776,6 +776,7 @@ static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
         break;
     }
 }
+#endif
 
 static void tcg_out_addsub2(TCGContext *s, TCGArg rl, TCGArg rh,
                             TCGArg al, TCGArg ah, TCGArg bl, int blconst,
@@ -792,7 +793,6 @@ static void tcg_out_addsub2(TCGContext *s, TCGArg rl, TCGArg rh,
     tcg_out_arithc(s, rh, ah, bh, bhconst, oph);
     tcg_out_mov(s, TCG_TYPE_I32, rl, tmp);
 }
-#endif
 
 /* Generate global QEMU prologue and epilogue code */
 static void tcg_target_qemu_prologue(TCGContext *s)

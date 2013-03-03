@@ -8325,7 +8325,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
 
-    gen_icount_start();
+    gen_tb_start();
     for(;;) {
 #if defined(CONFIG_USER_ONLY) && defined(TARGET_X86_64)
         /* Detect vsyscall */
@@ -8392,7 +8392,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     /* we don't forget to fill the last values */
     if (search_pc) {

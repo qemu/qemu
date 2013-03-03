@@ -340,6 +340,8 @@ static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
 
 #define ENV_GET_CPU(e) CPU(openrisc_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(OpenRISCCPU, env)
+
 OpenRISCCPU *cpu_openrisc_init(const char *cpu_model);
 
 void cpu_openrisc_list(FILE *f, fprintf_function cpu_fprintf);

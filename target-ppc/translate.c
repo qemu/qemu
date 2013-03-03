@@ -9558,7 +9558,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
 
-    gen_icount_start();
+    gen_tb_start();
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == POWERPC_EXCP_NONE
             && tcg_ctx.gen_opc_ptr < gen_opc_end) {
@@ -9670,7 +9670,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
         /* Generate the return instruction */
         tcg_gen_exit_tb(0);
     }
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (unlikely(search_pc)) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;

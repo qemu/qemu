@@ -71,5 +71,6 @@ static inline CRISCPU *cris_env_get_cpu(CPUCRISState *env)
 
 #define ENV_GET_CPU(e) CPU(cris_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(CRISCPU, env)
 
 #endif

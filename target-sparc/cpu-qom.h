@@ -73,5 +73,6 @@ static inline SPARCCPU *sparc_env_get_cpu(CPUSPARCState *env)
 
 #define ENV_GET_CPU(e) CPU(sparc_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(SPARCCPU, env)
 
 #endif
