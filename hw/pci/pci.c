@@ -875,6 +875,8 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
             continue;
         memory_region_del_subregion(r->address_space, r->memory);
     }
+
+    pci_unregister_vga(pci_dev);
 }
 
 static int pci_unregister_device(DeviceState *dev)
@@ -935,6 +937,63 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         = type & PCI_BASE_ADDRESS_SPACE_IO
         ? pci_dev->bus->address_space_io
         : pci_dev->bus->address_space_mem;
+}
+
+static void pci_update_vga(PCIDevice *pci_dev)
+{
+    uint16_t cmd;
+
+    if (!pci_dev->has_vga) {
+        return;
+    }
+
+    cmd = pci_get_word(pci_dev->config + PCI_COMMAND);
+
+    memory_region_set_enabled(pci_dev->vga_regions[QEMU_PCI_VGA_MEM],
+                              cmd & PCI_COMMAND_MEMORY);
+    memory_region_set_enabled(pci_dev->vga_regions[QEMU_PCI_VGA_IO_LO],
+                              cmd & PCI_COMMAND_IO);
+    memory_region_set_enabled(pci_dev->vga_regions[QEMU_PCI_VGA_IO_HI],
+                              cmd & PCI_COMMAND_IO);
+}
+
+void pci_register_vga(PCIDevice *pci_dev, MemoryRegion *mem,
+                      MemoryRegion *io_lo, MemoryRegion *io_hi)
+{
+    assert(!pci_dev->has_vga);
+
+    assert(memory_region_size(mem) == QEMU_PCI_VGA_MEM_SIZE);
+    pci_dev->vga_regions[QEMU_PCI_VGA_MEM] = mem;
+    memory_region_add_subregion_overlap(pci_dev->bus->address_space_mem,
+                                        QEMU_PCI_VGA_MEM_BASE, mem, 1);
+
+    assert(memory_region_size(io_lo) == QEMU_PCI_VGA_IO_LO_SIZE);
+    pci_dev->vga_regions[QEMU_PCI_VGA_IO_LO] = io_lo;
+    memory_region_add_subregion_overlap(pci_dev->bus->address_space_io,
+                                        QEMU_PCI_VGA_IO_LO_BASE, io_lo, 1);
+
+    assert(memory_region_size(io_hi) == QEMU_PCI_VGA_IO_HI_SIZE);
+    pci_dev->vga_regions[QEMU_PCI_VGA_IO_HI] = io_hi;
+    memory_region_add_subregion_overlap(pci_dev->bus->address_space_io,
+                                        QEMU_PCI_VGA_IO_HI_BASE, io_hi, 1);
+    pci_dev->has_vga = true;
+
+    pci_update_vga(pci_dev);
+}
+
+void pci_unregister_vga(PCIDevice *pci_dev)
+{
+    if (!pci_dev->has_vga) {
+        return;
+    }
+
+    memory_region_del_subregion(pci_dev->bus->address_space_mem,
+                                pci_dev->vga_regions[QEMU_PCI_VGA_MEM]);
+    memory_region_del_subregion(pci_dev->bus->address_space_io,
+                                pci_dev->vga_regions[QEMU_PCI_VGA_IO_LO]);
+    memory_region_del_subregion(pci_dev->bus->address_space_io,
+                                pci_dev->vga_regions[QEMU_PCI_VGA_IO_HI]);
+    pci_dev->has_vga = false;
 }
 
 pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num)
@@ -1036,6 +1095,8 @@ static void pci_update_mappings(PCIDevice *d)
                                                 r->addr, r->memory, 1);
         }
     }
+
+    pci_update_vga(d);
 }
 
 static inline int pci_irq_disabled(PCIDevice *d)
