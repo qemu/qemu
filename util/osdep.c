@@ -63,6 +63,12 @@ int socket_set_cork(int fd, int v)
 #endif
 }
 
+int socket_set_nodelay(int fd)
+{
+    int v = 1;
+    return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
+}
+
 int qemu_madvise(void *addr, size_t len, int advice)
 {
     if (advice == QEMU_MADV_INVALID) {

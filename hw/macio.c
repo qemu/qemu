@@ -188,7 +188,7 @@ static int macio_newworld_initfn(PCIDevice *d)
     sysbus_dev = SYS_BUS_DEVICE(&ns->ide[1]);
     sysbus_connect_irq(sysbus_dev, 0, ns->irqs[3]);
     sysbus_connect_irq(sysbus_dev, 1, ns->irqs[4]);
-    macio_ide_register_dma(&ns->ide[0], s->dbdma, 0x1a);
+    macio_ide_register_dma(&ns->ide[1], s->dbdma, 0x1a);
     ret = qdev_init(DEVICE(&ns->ide[1]));
     if (ret < 0) {
         return ret;

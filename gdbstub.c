@@ -2841,7 +2841,7 @@ static void gdb_accept(void)
     GDBState *s;
     struct sockaddr_in sockaddr;
     socklen_t len;
-    int val, fd;
+    int fd;
 
     for(;;) {
         len = sizeof(sockaddr);
@@ -2858,8 +2858,7 @@ static void gdb_accept(void)
     }
 
     /* set short latency */
-    val = 1;
-    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
+    socket_set_nodelay(fd);
 
     s = g_malloc0(sizeof(GDBState));
     s->c_cpu = first_cpu;

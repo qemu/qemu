@@ -34,6 +34,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 int qemu_socket(int domain, int type, int protocol);
 int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen);
 int socket_set_cork(int fd, int v);
+int socket_set_nodelay(int fd);
 void socket_set_block(int fd);
 void socket_set_nonblock(int fd);
 int send_all(int fd, const void *buf, int len1);
