@@ -237,6 +237,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
 
     /* Use presence of kernel file name as 'boot from SRAM' switch. */
     if (kernel_filename) {
+        uint32_t entry_point = env->pc;
         size_t bp_size = 3 * get_tag_size(0); /* first/last and memory tags */
         uint32_t tagptr = 0xfe000000 + board->sram_size;
         uint32_t cur_tagptr;
@@ -273,7 +274,29 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
         int success = load_elf(kernel_filename, translate_phys_addr, cpu,
                 &elf_entry, &elf_lowaddr, NULL, be, ELF_MACHINE, 0);
         if (success > 0) {
-            env->pc = elf_entry;
+            entry_point = elf_entry;
+        } else {
+            hwaddr ep;
+            int is_linux;
+            success = load_uimage(kernel_filename, &ep, NULL, &is_linux);
+            if (success > 0 && is_linux) {
+                entry_point = ep;
+            } else {
+                error_report("could not load kernel '%s'\n",
+                             kernel_filename);
+                exit(EXIT_FAILURE);
+            }
+        }
+        if (entry_point != env->pc) {
+            static const uint8_t jx_a0[] = {
+#ifdef TARGET_WORDS_BIGENDIAN
+                0x0a, 0, 0,
+#else
+                0xa0, 0, 0,
+#endif
+            };
+            env->regs[0] = entry_point;
+            cpu_physical_memory_write(env->pc, jx_a0, sizeof(jx_a0));
         }
     } else {
         if (flash) {
