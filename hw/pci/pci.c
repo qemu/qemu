@@ -668,16 +668,10 @@ static void pci_init_mask_bridge(PCIDevice *d)
     pci_word_test_and_set_mask(d->config + PCI_PREF_MEMORY_LIMIT,
                                PCI_PREF_RANGE_TYPE_64);
 
-/* TODO: add this define to pci_regs.h in linux and then in qemu. */
-#define  PCI_BRIDGE_CTL_VGA_16BIT	0x10	/* VGA 16-bit decode */
-#define  PCI_BRIDGE_CTL_DISCARD		0x100	/* Primary discard timer */
-#define  PCI_BRIDGE_CTL_SEC_DISCARD	0x200	/* Secondary discard timer */
-#define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
-#define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
-/*
- * TODO: Bridges default to 10-bit VGA decoding but we currently only
- * implement 16-bit decoding (no alias support).
- */
+    /*
+     * TODO: Bridges default to 10-bit VGA decoding but we currently only
+     * implement 16-bit decoding (no alias support).
+     */
     pci_set_word(d->wmask + PCI_BRIDGE_CONTROL,
                  PCI_BRIDGE_CTL_PARITY |
                  PCI_BRIDGE_CTL_SERR |

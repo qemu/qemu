@@ -27,15 +27,17 @@ void pcie_port_init_reg(PCIDevice *d)
     pci_set_word(d->config + PCI_STATUS, 0);
     pci_set_word(d->config + PCI_SEC_STATUS, 0);
 
-    /* Unlike conventional pci bridge, some bits are hardwired to 0. */
-#define  PCI_BRIDGE_CTL_VGA_16BIT       0x10    /* VGA 16-bit decode */
-    pci_set_word(d->wmask + PCI_BRIDGE_CONTROL,
-                 PCI_BRIDGE_CTL_PARITY |
-                 PCI_BRIDGE_CTL_ISA |
-                 PCI_BRIDGE_CTL_VGA |
-                 PCI_BRIDGE_CTL_VGA_16BIT | /* Req, but no alias support yet */
-                 PCI_BRIDGE_CTL_SERR |
-                 PCI_BRIDGE_CTL_BUS_RESET);
+    /*
+     * Unlike conventional pci bridge, for some bits the spec states:
+     * Does not apply to PCI Express and must be hardwired to 0.
+     */
+    pci_word_test_and_clear_mask(d->wmask + PCI_BRIDGE_CONTROL,
+                                 PCI_BRIDGE_CTL_MASTER_ABORT |
+                                 PCI_BRIDGE_CTL_FAST_BACK |
+                                 PCI_BRIDGE_CTL_DISCARD |
+                                 PCI_BRIDGE_CTL_SEC_DISCARD |
+                                 PCI_BRIDGE_CTL_DISCARD_STATUS |
+                                 PCI_BRIDGE_CTL_DISCARD_SERR);
 }
 
 /**************************************************************************
