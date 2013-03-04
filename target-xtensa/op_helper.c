@@ -96,6 +96,9 @@ static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
 void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
 {
     env->exception_index = excp;
+    if (excp == EXCP_DEBUG) {
+        env->exception_taken = 0;
+    }
     cpu_loop_exit(env);
 }
 
