@@ -201,7 +201,10 @@ static int alloc_refcount_block(BlockDriverState *bs,
     *refcount_block = NULL;
 
     /* We write to the refcount table, so we might depend on L2 tables */
-    qcow2_cache_flush(bs, s->l2_table_cache);
+    ret = qcow2_cache_flush(bs, s->l2_table_cache);
+    if (ret < 0) {
+        return ret;
+    }
 
     /* Allocate the refcount block itself and mark it as used */
     int64_t new_block = alloc_clusters_noref(bs, s->cluster_size);
@@ -237,7 +240,10 @@ static int alloc_refcount_block(BlockDriverState *bs,
             goto fail_block;
         }
 
-        bdrv_flush(bs->file);
+        ret = qcow2_cache_flush(bs, s->refcount_block_cache);
+        if (ret < 0) {
+            goto fail_block;
+        }
 
         /* Initialize the new refcount block only after updating its refcount,
          * update_refcount uses the refcount cache itself */
