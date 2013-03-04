@@ -532,8 +532,6 @@ static int update_cluster_refcount(BlockDriverState *bs,
         return ret;
     }
 
-    bdrv_flush(bs->file);
-
     return get_refcount(bs, cluster_index);
 }
 
