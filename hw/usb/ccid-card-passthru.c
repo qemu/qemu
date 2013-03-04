@@ -138,6 +138,59 @@ static void ccid_card_vscard_handle_init(
     ccid_card_vscard_send_init(card);
 }
 
+static int check_atr(PassthruState *card, uint8_t *data, int len)
+{
+    int historical_length, opt_bytes;
+    int td_count = 0;
+    int td;
+
+    if (len < 2) {
+        return 0;
+    }
+    historical_length = data[1] & 0xf;
+    opt_bytes = 0;
+    if (data[0] != 0x3b && data[0] != 0x3f) {
+        DPRINTF(card, D_WARN, "atr's T0 is 0x%X, not in {0x3b, 0x3f}\n",
+                data[0]);
+        return 0;
+    }
+    td_count = 0;
+    td = data[1] >> 4;
+    while (td && td_count < 2 && opt_bytes + historical_length + 2 < len) {
+        td_count++;
+        if (td & 0x1) {
+            opt_bytes++;
+        }
+        if (td & 0x2) {
+            opt_bytes++;
+        }
+        if (td & 0x4) {
+            opt_bytes++;
+        }
+        if (td & 0x8) {
+            opt_bytes++;
+            td = data[opt_bytes + 2] >> 4;
+        }
+    }
+    if (len < 2 + historical_length + opt_bytes) {
+        DPRINTF(card, D_WARN,
+            "atr too short: len %d, but historical_len %d, T1 0x%X\n",
+            len, historical_length, data[1]);
+        return 0;
+    }
+    if (len > 2 + historical_length + opt_bytes) {
+        DPRINTF(card, D_WARN,
+            "atr too long: len %d, but hist/opt %d/%d, T1 0x%X\n",
+            len, historical_length, opt_bytes, data[1]);
+        /* let it through */
+    }
+    DPRINTF(card, D_VERBOSE,
+            "atr passes check: %d total length, %d historical, %d optional\n",
+            len, historical_length, opt_bytes);
+
+    return 1;
+}
+
 static void ccid_card_vscard_handle_message(PassthruState *card,
     VSCMsgHeader *scr_msg_header)
 {
@@ -148,6 +201,12 @@ static void ccid_card_vscard_handle_message(PassthruState *card,
         DPRINTF(card, D_INFO, "VSC_ATR %d\n", scr_msg_header->length);
         if (scr_msg_header->length > MAX_ATR_SIZE) {
             error_report("ATR size exceeds spec, ignoring");
+            ccid_card_vscard_send_error(card, scr_msg_header->reader_id,
+                                        VSC_GENERAL_ERROR);
+            break;
+        }
+        if (!check_atr(card, data, scr_msg_header->length)) {
+            error_report("ATR is inconsistent, ignoring");
             ccid_card_vscard_send_error(card, scr_msg_header->reader_id,
                                         VSC_GENERAL_ERROR);
             break;
