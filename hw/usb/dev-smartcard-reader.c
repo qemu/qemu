@@ -639,13 +639,47 @@ static void ccid_handle_reset(USBDevice *dev)
     ccid_reset(s);
 }
 
+static const char *ccid_control_to_str(USBCCIDState *s, int request)
+{
+    switch (request) {
+        /* generic - should be factored out if there are other debugees */
+    case DeviceOutRequest | USB_REQ_SET_ADDRESS:
+        return "(generic) set address";
+    case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
+        return "(generic) get descriptor";
+    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
+        return "(generic) get configuration";
+    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
+        return "(generic) set configuration";
+    case DeviceRequest | USB_REQ_GET_STATUS:
+        return "(generic) get status";
+    case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
+        return "(generic) clear feature";
+    case DeviceOutRequest | USB_REQ_SET_FEATURE:
+        return "(generic) set_feature";
+    case InterfaceRequest | USB_REQ_GET_INTERFACE:
+        return "(generic) get interface";
+    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
+        return "(generic) set interface";
+        /* class requests */
+    case ClassInterfaceOutRequest | CCID_CONTROL_ABORT:
+        return "ABORT";
+    case ClassInterfaceRequest | CCID_CONTROL_GET_CLOCK_FREQUENCIES:
+        return "GET_CLOCK_FREQUENCIES";
+    case ClassInterfaceRequest | CCID_CONTROL_GET_DATA_RATES:
+        return "GET_DATA_RATES";
+    }
+    return "unknown";
+}
+
 static void ccid_handle_control(USBDevice *dev, USBPacket *p, int request,
                                int value, int index, int length, uint8_t *data)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
     int ret;
 
-    DPRINTF(s, 1, "got control %x, value %x\n", request, value);
+    DPRINTF(s, 1, "%s: got control %s (%x), value %x\n", __func__,
+            ccid_control_to_str(s, request), request, value);
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
         return;
@@ -695,7 +729,7 @@ static uint8_t ccid_calc_status(USBCCIDState *s)
      * bmCommandStatus
      */
     uint8_t ret = ccid_card_status(s) | (s->bmCommandStatus << 6);
-    DPRINTF(s, D_VERBOSE, "status = %d\n", ret);
+    DPRINTF(s, D_VERBOSE, "%s: status = %d\n", __func__, ret);
     return ret;
 }
 
@@ -756,7 +790,7 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     p->b.bStatus = ccid_calc_status(s);
     p->b.bError = s->bError;
     if (p->b.bError) {
-        DPRINTF(s, D_VERBOSE, "error %d", p->b.bError);
+        DPRINTF(s, D_VERBOSE, "error %d\n", p->b.bError);
     }
     memcpy(p->abData, data, len);
     ccid_reset_error_status(s);
@@ -873,6 +907,28 @@ static void ccid_on_apdu_from_guest(USBCCIDState *s, CCID_XferBlock *recv)
     }
 }
 
+static const char *ccid_message_type_to_str(uint8_t type)
+{
+    switch (type) {
+    case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOn: return "IccPowerOn";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOff: return "IccPowerOff";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_GetSlotStatus: return "GetSlotStatus";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_XfrBlock: return "XfrBlock";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_GetParameters: return "GetParameters";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_ResetParameters: return "ResetParameters";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetParameters: return "SetParameters";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Escape: return "Escape";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_IccClock: return "IccClock";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_T0APDU: return "T0APDU";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Secure: return "Secure";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Mechanical: return "Mechanical";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Abort: return "Abort";
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetDataRateAndClockFrequency:
+        return "SetDataRateAndClockFrequency";
+    }
+    return "unknown";
+}
+
 static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
 {
     CCID_Header *ccid_header;
@@ -895,13 +951,15 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
                 "%s: bad USB_TOKEN_OUT length, should be at least 10 bytes\n",
                 __func__);
     } else {
-        DPRINTF(s, D_MORE_INFO, "%s %x\n", __func__, ccid_header->bMessageType);
+        DPRINTF(s, D_MORE_INFO, "%s %x %s\n", __func__,
+                ccid_header->bMessageType,
+                ccid_message_type_to_str(ccid_header->bMessageType));
         switch (ccid_header->bMessageType) {
         case CCID_MESSAGE_TYPE_PC_to_RDR_GetSlotStatus:
             ccid_write_slot_status(s, ccid_header);
             break;
         case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOn:
-            DPRINTF(s, 1, "PowerOn: %d\n",
+            DPRINTF(s, 1, "%s: PowerOn: %d\n", __func__,
                 ((CCID_IccPowerOn *)(ccid_header))->bPowerSelect);
             s->powered = true;
             if (!ccid_card_inserted(s)) {
@@ -911,7 +969,6 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
             ccid_write_data_block_atr(s, ccid_header);
             break;
         case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOff:
-            DPRINTF(s, 1, "PowerOff\n");
             ccid_reset_error_status(s);
             s->powered = false;
             ccid_write_slot_status(s, ccid_header);
