@@ -796,6 +796,12 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     ccid_reset_error_status(s);
 }
 
+static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
+{
+    s->bmCommandStatus = COMMAND_STATUS_FAILED;
+    s->bError = error;
+}
+
 static void ccid_write_data_block_answer(USBCCIDState *s,
     const uint8_t *data, uint32_t len)
 {
@@ -803,7 +809,9 @@ static void ccid_write_data_block_answer(USBCCIDState *s,
     uint8_t slot;
 
     if (!ccid_has_pending_answers(s)) {
-        abort();
+        DPRINTF(s, D_WARN, "error: no pending answer to return to guest\n");
+        ccid_report_error_failed(s, ERROR_ICC_MUTE);
+        return;
     }
     ccid_remove_pending_answer(s, &slot, &seq);
     ccid_write_data_block(s, slot, seq, data, len);
@@ -855,12 +863,6 @@ static void ccid_reset_parameters(USBCCIDState *s)
    s->bProtocolNum = 1; /* T=1 */
    s->ulProtocolDataStructureSize = len;
    memcpy(s->abProtocolDataStructure, abDefaultProtocolDataStructure, len);
-}
-
-static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
-{
-    s->bmCommandStatus = COMMAND_STATUS_FAILED;
-    s->bError = error;
 }
 
 /* NOTE: only a single slot is supported (SLOT_0) */
@@ -1129,7 +1131,9 @@ void ccid_card_send_apdu_to_guest(CCIDCardState *card,
     s->bmCommandStatus = COMMAND_STATUS_NO_ERROR;
     answer = ccid_peek_next_answer(s);
     if (answer == NULL) {
-        abort();
+        DPRINTF(s, D_WARN, "%s: error: unexpected lack of answer\n", __func__);
+        ccid_report_error_failed(s, ERROR_HW_ERROR);
+        return;
     }
     DPRINTF(s, 1, "APDU returned to guest %d (answer seq %d, slot %d)\n",
         len, answer->seq, answer->slot);
