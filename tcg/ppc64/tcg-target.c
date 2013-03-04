@@ -27,6 +27,7 @@
 #define TCG_CT_CONST_S32  0x400
 #define TCG_CT_CONST_U32  0x800
 #define TCG_CT_CONST_ZERO 0x1000
+#define TCG_CT_CONST_MONE 0x2000
 
 static uint8_t *tb_ret_addr;
 
@@ -262,6 +263,9 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
     case 'J':
         ct->ct |= TCG_CT_CONST_U16;
         break;
+    case 'M':
+        ct->ct |= TCG_CT_CONST_MONE;
+        break;
     case 'T':
         ct->ct |= TCG_CT_CONST_S32;
         break;
@@ -295,6 +299,8 @@ static int tcg_target_const_match (tcg_target_long val,
     } else if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
         return 1;
     } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_MONE) && val == -1) {
         return 1;
     }
     return 0;
@@ -366,11 +372,15 @@ static int tcg_target_const_match (tcg_target_long val,
 #define EXTSW  XO31(986)
 #define ADD    XO31(266)
 #define ADDE   XO31(138)
+#define ADDME  XO31(234)
+#define ADDZE  XO31(202)
 #define ADDC   XO31( 10)
 #define AND    XO31( 28)
 #define SUBF   XO31( 40)
 #define SUBFC  XO31(  8)
 #define SUBFE  XO31(136)
+#define SUBFME XO31(232)
+#define SUBFZE XO31(200)
 #define OR     XO31(444)
 #define XOR    XO31(316)
 #define MULLW  XO31(235)
@@ -1935,6 +1945,49 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
                         args[3], args[4], const_args[2]);
         break;
 
+    case INDEX_op_add2_i64:
+        /* Note that the CA bit is defined based on the word size of the
+           environment.  So in 64-bit mode it's always carry-out of bit 63.
+           The fallback code using deposit works just as well for 32-bit.  */
+        a0 = args[0], a1 = args[1];
+        if (a0 == args[4] || (!const_args[5] && a0 == args[5])) {
+            a0 = TCG_REG_R0;
+        }
+        if (const_args[3]) {
+            tcg_out32(s, ADDIC | TAI(a0, args[2], args[3]));
+        } else {
+            tcg_out32(s, ADDC | TAB(a0, args[2], args[3]));
+        }
+        if (const_args[5]) {
+            tcg_out32(s, (args[5] ? ADDME : ADDZE) | RT(a1) | RA(args[4]));
+        } else {
+            tcg_out32(s, ADDE | TAB(a1, args[4], args[5]));
+        }
+        if (a0 != args[0]) {
+            tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
+        }
+        break;
+
+    case INDEX_op_sub2_i64:
+        a0 = args[0], a1 = args[1];
+        if (a0 == args[5] || (!const_args[4] && a0 == args[4])) {
+            a0 = TCG_REG_R0;
+        }
+        if (const_args[2]) {
+            tcg_out32(s, SUBFIC | TAI(a0, args[3], args[2]));
+        } else {
+            tcg_out32(s, SUBFC | TAB(a0, args[3], args[2]));
+        }
+        if (const_args[4]) {
+            tcg_out32(s, (args[4] ? SUBFME : SUBFZE) | RT(a1) | RA(args[5]));
+        } else {
+            tcg_out32(s, SUBFE | TAB(a1, args[5], args[4]));
+        }
+        if (a0 != args[0]) {
+            tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
+        }
+        break;
+
     default:
         tcg_dump_ops (s);
         tcg_abort ();
@@ -2060,6 +2113,9 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_deposit_i32, { "r", "0", "r" } },
     { INDEX_op_deposit_i64, { "r", "0", "r" } },
+
+    { INDEX_op_add2_i64, { "r", "r", "r", "rI", "r", "rZM" } },
+    { INDEX_op_sub2_i64, { "r", "r", "rI", "r", "rZM", "r" } },
 
     { -1 },
 };
