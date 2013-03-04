@@ -49,6 +49,15 @@ typedef struct ICH9LPCState {
     /* 10.1 Chipset Configuration registers(Memory Space)
      which is pointed by RCBA */
     uint8_t chip_config[ICH9_CC_SIZE];
+
+    /*
+     * 13.7.5 RST_CNT---Reset Control Register (LPC I/F---D31:F0)
+     *
+     * register contents and IO memory region
+     */
+    uint8_t rst_cnt;
+    MemoryRegion rst_cnt_mem;
+
     /* isa bus */
     ISABus *isa_bus;
     MemoryRegion rbca_mem;
@@ -103,6 +112,8 @@ typedef struct ICH9LPCState {
 
 #define ICH9_D2P_A2_REVISION                    0x92
 
+/* D31:F0 LPC Processor Interface */
+#define ICH9_RST_CNT_IOPORT                     0xCF9
 
 /* D31:F1 LPC controller */
 #define ICH9_A2_LPC                             "ICH9 A2 LPC"

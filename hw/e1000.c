@@ -131,6 +131,11 @@ typedef struct E1000State_st {
     } eecd_state;
 
     QEMUTimer *autoneg_timer;
+
+/* Compatibility flags for migration to/from qemu 1.3.0 and older */
+#define E1000_FLAG_AUTONEG_BIT 0
+#define E1000_FLAG_AUTONEG (1 << E1000_FLAG_AUTONEG_BIT)
+    uint32_t compat_flags;
 } E1000State;
 
 #define	defreg(x)	x = (E1000_##x>>2)
@@ -165,6 +170,14 @@ e1000_link_up(E1000State *s)
 static void
 set_phy_ctrl(E1000State *s, int index, uint16_t val)
 {
+    /*
+     * QEMU 1.3 does not support link auto-negotiation emulation, so if we
+     * migrate during auto negotiation, after migration the link will be
+     * down.
+     */
+    if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
+        return;
+    }
     if ((val & MII_CR_AUTO_NEG_EN) && (val & MII_CR_RESTART_AUTO_NEG)) {
         e1000_link_down(s);
         s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
@@ -1120,6 +1133,11 @@ static void e1000_pre_save(void *opaque)
 {
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
+
+    if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
+        return;
+    }
+
     /*
      * If link is down and auto-negotiation is ongoing, complete
      * auto-negotiation immediately.  This allows is to look at
@@ -1141,6 +1159,11 @@ static int e1000_post_load(void *opaque, int version_id)
      * to link status bit in mac_reg[STATUS].
      * Alternatively, restart link negotiation if it was in progress. */
     nc->link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
+
+    if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
+        return 0;
+    }
+
     if (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
         s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG &&
         !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
@@ -1343,6 +1366,8 @@ static void qdev_e1000_reset(DeviceState *dev)
 
 static Property e1000_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000State, conf),
+    DEFINE_PROP_BIT("autonegotiation", E1000State,
+                    compat_flags, E1000_FLAG_AUTONEG_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
