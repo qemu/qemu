@@ -235,23 +235,20 @@ NICState *qemu_new_nic(NetClientInfo *info,
                        const char *name,
                        void *opaque)
 {
-    NetClientState *nc;
     NetClientState **peers = conf->peers.ncs;
     NICState *nic;
-    int i;
+    int i, queues = MAX(1, conf->queues);
 
     assert(info->type == NET_CLIENT_OPTIONS_KIND_NIC);
     assert(info->size >= sizeof(NICState));
 
-    nc = qemu_new_net_client(info, peers[0], model, name);
-    nc->queue_index = 0;
-
-    nic = qemu_get_nic(nc);
+    nic = g_malloc0(info->size + sizeof(NetClientState) * queues);
+    nic->ncs = (void *)nic + info->size;
     nic->conf = conf;
     nic->opaque = opaque;
 
-    for (i = 1; i < conf->queues; i++) {
-        qemu_net_client_setup(&nic->ncs[i], info, peers[i], model, nc->name,
+    for (i = 0; i < queues; i++) {
+        qemu_net_client_setup(&nic->ncs[i], info, peers[i], model, name,
                               NULL);
         nic->ncs[i].queue_index = i;
     }
@@ -261,7 +258,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
 
 NetClientState *qemu_get_subqueue(NICState *nic, int queue_index)
 {
-    return &nic->ncs[queue_index];
+    return nic->ncs + queue_index;
 }
 
 NetClientState *qemu_get_queue(NICState *nic)
@@ -273,7 +270,7 @@ NICState *qemu_get_nic(NetClientState *nc)
 {
     NetClientState *nc0 = nc - nc->queue_index;
 
-    return DO_UPCAST(NICState, ncs[0], nc0);
+    return (NICState *)((void *)nc0 - nc->info->size);
 }
 
 void *qemu_get_nic_opaque(NetClientState *nc)
@@ -368,6 +365,8 @@ void qemu_del_nic(NICState *nic)
         qemu_cleanup_net_client(nc);
         qemu_free_net_client(nc);
     }
+
+    g_free(nic);
 }
 
 void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
@@ -441,6 +440,12 @@ void qemu_flush_queued_packets(NetClientState *nc)
 {
     nc->receive_disabled = 0;
 
+    if (nc->peer && nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_HUBPORT) {
+        if (net_hub_flush(nc->peer)) {
+            qemu_notify_event();
+        }
+        return;
+    }
     if (qemu_net_queue_flush(nc->send_queue)) {
         /* We emptied the queue successfully, signal to the IO thread to repoll
          * the file descriptor (for tap, for example).

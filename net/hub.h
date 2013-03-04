@@ -21,5 +21,6 @@ NetClientState *net_hub_add_port(int hub_id, const char *name);
 NetClientState *net_hub_find_client_by_name(int hub_id, const char *name);
 void net_hub_info(Monitor *mon);
 void net_hub_check_clients(void);
+bool net_hub_flush(NetClientState *nc);
 
 #endif /* NET_HUB_H */

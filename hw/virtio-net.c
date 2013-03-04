@@ -44,7 +44,7 @@ typedef struct VirtIONet
     VirtIODevice vdev;
     uint8_t mac[ETH_ALEN];
     uint16_t status;
-    VirtIONetQueue vqs[MAX_QUEUE_NUM];
+    VirtIONetQueue *vqs;
     VirtQueue *ctrl_vq;
     NICState *nic;
     uint32_t tx_timeout;
@@ -1326,8 +1326,9 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
     n->vdev.set_status = virtio_net_set_status;
     n->vdev.guest_notifier_mask = virtio_net_guest_notifier_mask;
     n->vdev.guest_notifier_pending = virtio_net_guest_notifier_pending;
+    n->max_queues = MAX(conf->queues, 1);
+    n->vqs = g_malloc0(sizeof(VirtIONetQueue) * n->max_queues);
     n->vqs[0].rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
-    n->max_queues = conf->queues;
     n->curr_queues = 1;
     n->vqs[0].n = n;
     n->tx_timeout = net->txtimer;
@@ -1412,6 +1413,7 @@ void virtio_net_exit(VirtIODevice *vdev)
         }
     }
 
+    g_free(n->vqs);
     qemu_del_nic(n->nic);
     virtio_cleanup(&n->vdev);
 }

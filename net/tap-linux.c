@@ -42,6 +42,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     struct ifreq ifr;
     int fd, ret;
     int len = sizeof(struct virtio_net_hdr);
+    unsigned int features;
 
     TFR(fd = open(PATH_NET_TUN, O_RDWR));
     if (fd < 0) {
@@ -51,9 +52,12 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     memset(&ifr, 0, sizeof(ifr));
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
-    if (*vnet_hdr) {
-        unsigned int features;
+    if (ioctl(fd, TUNGETFEATURES, &features) == 0 &&
+        features & IFF_ONE_QUEUE) {
+        ifr.ifr_flags |= IFF_ONE_QUEUE;
+    }
 
+    if (*vnet_hdr) {
         if (ioctl(fd, TUNGETFEATURES, &features) == 0 &&
             features & IFF_VNET_HDR) {
             *vnet_hdr = 1;
@@ -78,8 +82,6 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     }
 
     if (mq_required) {
-        unsigned int features;
-
         if ((ioctl(fd, TUNGETFEATURES, &features) != 0) ||
             !(features & IFF_MULTI_QUEUE)) {
             error_report("multiqueue required, but no kernel "
