@@ -359,11 +359,11 @@ static const uint8_t qemu_ccid_descriptor[] = {
                      * 20000 Short APDU level exchange with CCID
                      * 40000 Short and Extended APDU level exchange with CCID
                      *
-                     * + 100000 USB Wake up signaling supported on card
+                     * 100000 USB Wake up signaling supported on card
                      * insertion and removal. Must set bit 5 in bmAttributes
                      * in Configuration descriptor if 100000 is set.
                      */
-        0xfe, 0x04, 0x11, 0x00,
+        0xfe, 0x04, 0x01, 0x00,
                     /*
                      * u32 dwMaxCCIDMessageLength; For extended APDU in
                      * [261 + 10 , 65544 + 10]. Otherwise the minimum is
