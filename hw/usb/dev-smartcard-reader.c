@@ -471,6 +471,7 @@ static const USBDesc desc_ccid = {
 static const uint8_t *ccid_card_get_atr(CCIDCardState *card, uint32_t *len)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+
     if (cc->get_atr) {
         return cc->get_atr(card, len);
     }
@@ -482,6 +483,7 @@ static void ccid_card_apdu_from_guest(CCIDCardState *card,
                                       uint32_t len)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+
     if (cc->apdu_from_guest) {
         cc->apdu_from_guest(card, apdu, len);
     }
@@ -490,6 +492,7 @@ static void ccid_card_apdu_from_guest(CCIDCardState *card,
 static int ccid_card_exitfn(CCIDCardState *card)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+
     if (cc->exitfn) {
         return cc->exitfn(card);
     }
@@ -499,6 +502,7 @@ static int ccid_card_exitfn(CCIDCardState *card)
 static int ccid_card_initfn(CCIDCardState *card)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+
     if (cc->initfn) {
         return cc->initfn(card);
     }
