@@ -790,10 +790,6 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                             if (ret < 0) {
                                 goto fail;
                             }
-
-                            /* TODO Flushing once for the whole function should
-                             * be enough */
-                            bdrv_flush(bs->file);
                         }
                         /* compressed clusters are never modified */
                         refcount = 2;
