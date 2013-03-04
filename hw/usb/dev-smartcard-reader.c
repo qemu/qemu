@@ -1260,6 +1260,7 @@ static int ccid_initfn(USBDevice *dev)
     s->bulk_out_pos = 0;
     ccid_reset_parameters(s);
     ccid_reset(s);
+    s->debug = parse_debug_env("QEMU_CCID_DEBUG", D_VERBOSE, s->debug);
     return 0;
 }
 
