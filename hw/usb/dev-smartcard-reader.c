@@ -189,10 +189,34 @@ typedef struct QEMU_PACKED CCID_SlotStatus {
     uint8_t     bClockStatus;
 } CCID_SlotStatus;
 
+typedef struct QEMU_PACKED CCID_T0ProtocolDataStructure {
+    uint8_t     bmFindexDindex;
+    uint8_t     bmTCCKST0;
+    uint8_t     bGuardTimeT0;
+    uint8_t     bWaitingIntegerT0;
+    uint8_t     bClockStop;
+} CCID_T0ProtocolDataStructure;
+
+typedef struct QEMU_PACKED CCID_T1ProtocolDataStructure {
+    uint8_t     bmFindexDindex;
+    uint8_t     bmTCCKST1;
+    uint8_t     bGuardTimeT1;
+    uint8_t     bWaitingIntegerT1;
+    uint8_t     bClockStop;
+    uint8_t     bIFSC;
+    uint8_t     bNadValue;
+} CCID_T1ProtocolDataStructure;
+
+typedef union CCID_ProtocolDataStructure {
+    CCID_T0ProtocolDataStructure t0;
+    CCID_T1ProtocolDataStructure t1;
+    uint8_t data[7]; /* must be = max(sizeof(t0), sizeof(t1)) */
+} CCID_ProtocolDataStructure;
+
 typedef struct QEMU_PACKED CCID_Parameter {
     CCID_BULK_IN b;
     uint8_t     bProtocolNum;
-    uint8_t     abProtocolDataStructure[0];
+    CCID_ProtocolDataStructure abProtocolDataStructure;
 } CCID_Parameter;
 
 typedef struct QEMU_PACKED CCID_DataBlock {
@@ -224,7 +248,7 @@ typedef struct QEMU_PACKED CCID_SetParameters {
     CCID_Header hdr;
     uint8_t     bProtocolNum;
     uint16_t   abRFU;
-    uint8_t    abProtocolDataStructure[0];
+    CCID_ProtocolDataStructure abProtocolDataStructure;
 } CCID_SetParameters;
 
 typedef struct CCID_Notify_Slot_Change {
@@ -254,8 +278,6 @@ typedef struct CCIDBus {
     BusState qbus;
 } CCIDBus;
 
-#define MAX_PROTOCOL_SIZE   7
-
 /*
  * powered - defaults to true, changed by PowerOn/PowerOff messages
  */
@@ -279,7 +301,7 @@ typedef struct USBCCIDState {
     uint8_t  bError;
     uint8_t  bmCommandStatus;
     uint8_t  bProtocolNum;
-    uint8_t  abProtocolDataStructure[MAX_PROTOCOL_SIZE];
+    CCID_ProtocolDataStructure abProtocolDataStructure;
     uint32_t ulProtocolDataStructureSize;
     uint32_t state_vmstate;
     uint32_t migration_target_ip;
@@ -765,7 +787,7 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
     h->b.bStatus = ccid_calc_status(s);
     h->b.bError = s->bError;
     h->bProtocolNum = s->bProtocolNum;
-    memcpy(h->abProtocolDataStructure, s->abProtocolDataStructure, len);
+    h->abProtocolDataStructure = s->abProtocolDataStructure;
     ccid_reset_error_status(s);
 }
 
@@ -825,38 +847,36 @@ static void ccid_write_data_block_atr(USBCCIDState *s, CCID_Header *recv)
 static void ccid_set_parameters(USBCCIDState *s, CCID_Header *recv)
 {
     CCID_SetParameters *ph = (CCID_SetParameters *) recv;
-    uint32_t len = 0;
-    if ((ph->bProtocolNum & 3) == 0) {
-        len = 5;
-    }
-    if ((ph->bProtocolNum & 3) == 1) {
-        len = 7;
-    }
-    if (len == 0) {
-        s->bmCommandStatus = COMMAND_STATUS_FAILED;
-        s->bError = 7; /* Protocol invalid or not supported */
+    uint32_t protocol_num = ph->bProtocolNum & 3;
+
+    if (protocol_num != 0 && protocol_num != 1) {
+        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
         return;
     }
-    s->bProtocolNum = ph->bProtocolNum;
-    memcpy(s->abProtocolDataStructure, ph->abProtocolDataStructure, len);
-    s->ulProtocolDataStructureSize = len;
-    DPRINTF(s, 1, "%s: using len %d\n", __func__, len);
+    s->bProtocolNum = protocol_num;
+    s->abProtocolDataStructure = ph->abProtocolDataStructure;
 }
 
 /*
  * must be 5 bytes for T=0, 7 bytes for T=1
  * See page 52
  */
-static const uint8_t abDefaultProtocolDataStructure[7] = {
-    0x77, 0x00, 0x00, 0x00, 0x00, 0xfe /*IFSC*/, 0x00 /*NAD*/ };
+static const CCID_ProtocolDataStructure defaultProtocolDataStructure = {
+    .t1 = {
+        .bmFindexDindex = 0x77,
+        .bmTCCKST1 = 0x00,
+        .bGuardTimeT1 = 0x00,
+        .bWaitingIntegerT1 = 0x00,
+        .bClockStop = 0x00,
+        .bIFSC = 0xfe,
+        .bNadValue = 0x00,
+    }
+};
 
 static void ccid_reset_parameters(USBCCIDState *s)
 {
-   uint32_t len = sizeof(abDefaultProtocolDataStructure);
-
    s->bProtocolNum = 1; /* T=1 */
-   s->ulProtocolDataStructureSize = len;
-   memcpy(s->abProtocolDataStructure, abDefaultProtocolDataStructure, len);
+   s->abProtocolDataStructure = defaultProtocolDataStructure;
 }
 
 /* NOTE: only a single slot is supported (SLOT_0) */
@@ -1345,7 +1365,7 @@ static VMStateDescription ccid_vmstate = {
         VMSTATE_UINT8(bError, USBCCIDState),
         VMSTATE_UINT8(bmCommandStatus, USBCCIDState),
         VMSTATE_UINT8(bProtocolNum, USBCCIDState),
-        VMSTATE_BUFFER(abProtocolDataStructure, USBCCIDState),
+        VMSTATE_BUFFER(abProtocolDataStructure.data, USBCCIDState),
         VMSTATE_UINT32(ulProtocolDataStructureSize, USBCCIDState),
         VMSTATE_STRUCT_ARRAY(bulk_in_pending, USBCCIDState,
                        BULK_IN_PENDING_NUM, 1, bulk_in_vmstate, BulkIn),
