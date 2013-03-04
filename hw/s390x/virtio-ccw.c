@@ -642,6 +642,30 @@ static int virtio_ccw_scsi_exit(VirtioCcwDevice *dev)
     return virtio_ccw_exit(dev);
 }
 
+static int virtio_ccw_rng_init(VirtioCcwDevice *dev)
+{
+    VirtIODevice *vdev;
+
+    if (dev->rng.rng == NULL) {
+        dev->rng.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
+        object_property_add_child(OBJECT(dev), "default-backend",
+                                  OBJECT(dev->rng.default_backend), NULL);
+        object_property_set_link(OBJECT(dev), OBJECT(dev->rng.default_backend),
+                                 "rng", NULL);
+    }
+    vdev = virtio_rng_init((DeviceState *)dev, &dev->rng);
+    if (!vdev) {
+        return -1;
+    }
+    return virtio_ccw_device_init(dev, vdev);
+}
+
+static int virtio_ccw_rng_exit(VirtioCcwDevice *dev)
+{
+    virtio_rng_exit(dev->vdev);
+    return virtio_ccw_exit(dev);
+}
+
 /* DeviceState to VirtioCcwDevice. Note: used on datapath,
  * be careful and test performance if you change this.
  */
@@ -831,6 +855,41 @@ static const TypeInfo virtio_ccw_scsi = {
     .class_init    = virtio_ccw_scsi_class_init,
 };
 
+static void virtio_ccw_rng_initfn(Object *obj)
+{
+    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(obj);
+
+    object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
+                             (Object **)&dev->rng.rng, NULL);
+}
+
+static Property virtio_ccw_rng_properties[] = {
+    DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
+    DEFINE_PROP_UINT64("max-bytes", VirtioCcwDevice, rng.max_bytes, INT64_MAX),
+    DEFINE_PROP_UINT32("period", VirtioCcwDevice, rng.period_ms, 1 << 16),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_ccw_rng_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
+
+    k->init = virtio_ccw_rng_init;
+    k->exit = virtio_ccw_rng_exit;
+    dc->reset = virtio_ccw_reset;
+    dc->props = virtio_ccw_rng_properties;
+}
+
+static const TypeInfo virtio_ccw_rng = {
+    .name          = "virtio-rng-ccw",
+    .parent        = TYPE_VIRTIO_CCW_DEVICE,
+    .instance_size = sizeof(VirtioCcwDevice),
+    .instance_init = virtio_ccw_rng_initfn,
+    .class_init    = virtio_ccw_rng_class_init,
+};
+
 static int virtio_ccw_busdev_init(DeviceState *dev)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
@@ -953,6 +1012,7 @@ static void virtio_ccw_register(void)
     type_register_static(&virtio_ccw_net);
     type_register_static(&virtio_ccw_balloon);
     type_register_static(&virtio_ccw_scsi);
+    type_register_static(&virtio_ccw_rng);
     type_register_static(&virtual_css_bridge_info);
 }
 
