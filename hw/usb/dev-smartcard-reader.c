@@ -833,13 +833,58 @@ static void ccid_write_data_block_answer(USBCCIDState *s,
     ccid_write_data_block(s, slot, seq, data, len);
 }
 
+static uint8_t atr_get_protocol_num(const uint8_t *atr, uint32_t len)
+{
+    int i;
+
+    if (len < 2 || !(atr[1] & 0x80)) {
+        /* too short or TD1 not included */
+        return 0; /* T=0, default */
+    }
+    i = 1 + !!(atr[1] & 0x10) + !!(atr[1] & 0x20) + !!(atr[1] & 0x40);
+    i += !!(atr[1] & 0x80);
+    return atr[i] & 0x0f;
+}
+
 static void ccid_write_data_block_atr(USBCCIDState *s, CCID_Header *recv)
 {
     const uint8_t *atr = NULL;
     uint32_t len = 0;
+    uint8_t atr_protocol_num;
+    CCID_T0ProtocolDataStructure *t0 = &s->abProtocolDataStructure.t0;
+    CCID_T1ProtocolDataStructure *t1 = &s->abProtocolDataStructure.t1;
 
     if (s->card) {
         atr = ccid_card_get_atr(s->card, &len);
+    }
+    atr_protocol_num = atr_get_protocol_num(atr, len);
+    DPRINTF(s, D_VERBOSE, "%s: atr contains protocol=%d\n", __func__,
+            atr_protocol_num);
+    /* set parameters from ATR - see spec page 109 */
+    s->bProtocolNum = (atr_protocol_num <= 1 ? atr_protocol_num
+                                             : s->bProtocolNum);
+    switch (atr_protocol_num) {
+    case 0:
+        /* TODO: unimplemented ATR T0 parameters */
+        t0->bmFindexDindex = 0;
+        t0->bmTCCKST0 = 0;
+        t0->bGuardTimeT0 = 0;
+        t0->bWaitingIntegerT0 = 0;
+        t0->bClockStop = 0;
+        break;
+    case 1:
+        /* TODO: unimplemented ATR T1 parameters */
+        t1->bmFindexDindex = 0;
+        t1->bmTCCKST1 = 0;
+        t1->bGuardTimeT1 = 0;
+        t1->bWaitingIntegerT1 = 0;
+        t1->bClockStop = 0;
+        t1->bIFSC = 0;
+        t1->bNadValue = 0;
+        break;
+    default:
+        DPRINTF(s, D_WARN, "%s: error: unsupported ATR protocol %d\n",
+                __func__, atr_protocol_num);
     }
     ccid_write_data_block(s, recv->bSlot, recv->bSeq, atr, len);
 }
