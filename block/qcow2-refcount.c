@@ -669,7 +669,11 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
         }
     }
 
-    bdrv_flush(bs->file);
+    /* The cluster refcount was incremented, either by qcow2_alloc_clusters()
+     * or explicitly by update_cluster_refcount().  Refcount blocks must be
+     * flushed before the caller's L2 table updates.
+     */
+    qcow2_cache_set_dependency(bs, s->l2_table_cache, s->refcount_block_cache);
     return offset;
 }
 
