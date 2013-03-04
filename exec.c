@@ -844,6 +844,8 @@ static void *file_ram_alloc(RAMBlock *block,
                             const char *path)
 {
     char *filename;
+    char *sanitized_name;
+    char *c;
     void *area;
     int fd;
 #ifdef MAP_POPULATE
@@ -865,7 +867,16 @@ static void *file_ram_alloc(RAMBlock *block,
         return NULL;
     }
 
-    filename = g_strdup_printf("%s/qemu_back_mem.XXXXXX", path);
+    /* Make name safe to use with mkstemp by replacing '/' with '_'. */
+    sanitized_name = g_strdup(block->mr->name);
+    for (c = sanitized_name; *c != '\0'; c++) {
+        if (*c == '/')
+            *c = '_';
+    }
+
+    filename = g_strdup_printf("%s/qemu_back_mem.%s.XXXXXX", path,
+                               sanitized_name);
+    g_free(sanitized_name);
 
     fd = mkstemp(filename);
     if (fd < 0) {
