@@ -851,7 +851,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
         }
     }
 
-    ret = 0;
+    ret = bdrv_flush(bs);
 fail:
     if (l2_table) {
         qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);

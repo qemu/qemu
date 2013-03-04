@@ -381,11 +381,6 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         goto fail;
     }
 
-    ret = bdrv_flush(bs);
-    if (ret < 0) {
-        goto fail;
-    }
-
     /* Append the new snapshot to the snapshot list */
     new_snapshot_list = g_malloc((s->nb_snapshots + 1) * sizeof(QCowSnapshot));
     if (s->snapshots) {
