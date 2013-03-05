@@ -33,6 +33,9 @@
 #include "vreader.h"
 #include "vevent.h"
 
+#include "libcacard/vcardt_internal.h"
+
+
 typedef enum {
     VCardEmulUnknown = -1,
     VCardEmulFalse = 0,
@@ -519,18 +522,23 @@ vcard_emul_reader_get_slot(VReader *vreader)
 }
 
 /*
- *  Card ATR's map to physical cards. VCARD_ATR_PREFIX will set appropriate
+ *  Card ATR's map to physical cards. vcard_alloc_atr will set appropriate
  *  historical bytes for any software emulated card. The remaining bytes can be
  *  used to indicate the actual emulator
  */
-static const unsigned char nss_atr[] = { VCARD_ATR_PREFIX(3), 'N', 'S', 'S' };
+static unsigned char *nss_atr;
+static int nss_atr_len;
 
 void
 vcard_emul_get_atr(VCard *card, unsigned char *atr, int *atr_len)
 {
-    int len = MIN(sizeof(nss_atr), *atr_len);
+    int len;
     assert(atr != NULL);
 
+    if (nss_atr == NULL) {
+        nss_atr = vcard_alloc_atr("NSS", &nss_atr_len);
+    }
+    len = MIN(nss_atr_len, *atr_len);
     memcpy(atr, nss_atr, len);
     *atr_len = len;
 }
