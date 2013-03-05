@@ -1988,6 +1988,31 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
 
+    case INDEX_op_mulu2_i64:
+    case INDEX_op_muls2_i64:
+        {
+            int oph = (opc == INDEX_op_mulu2_i64 ? MULHDU : MULHD);
+            TCGReg outl = args[0], outh = args[1];
+            a0 = args[2], a1 = args[3];
+
+            if (outl == a0 || outl == a1) {
+                if (outh == a0 || outh == a1) {
+                    outl = TCG_REG_R0;
+                } else {
+                    tcg_out32(s, oph | TAB(outh, a0, a1));
+                    oph = 0;
+                }
+            }
+            tcg_out32(s, MULLD | TAB(outl, a0, a1));
+            if (oph != 0) {
+                tcg_out32(s, oph | TAB(outh, a0, a1));
+            }
+            if (outl != args[0]) {
+                tcg_out_mov(s, TCG_TYPE_I64, args[0], outl);
+            }
+        }
+        break;
+
     default:
         tcg_dump_ops (s);
         tcg_abort ();
@@ -2116,6 +2141,8 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_add2_i64, { "r", "r", "r", "rI", "r", "rZM" } },
     { INDEX_op_sub2_i64, { "r", "r", "rI", "r", "rZM", "r" } },
+    { INDEX_op_muls2_i64, { "r", "r", "r", "r" } },
+    { INDEX_op_mulu2_i64, { "r", "r", "r", "r" } },
 
     { -1 },
 };
