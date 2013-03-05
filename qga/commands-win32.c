@@ -284,6 +284,11 @@ int64_t qmp_guest_get_time(Error **errp)
     return -1;
 }
 
+void qmp_guest_set_time(int64_t time_ns, Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+}
+
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
