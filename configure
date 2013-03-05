@@ -4129,7 +4129,7 @@ case "$target_arch2" in
     echo "CONFIG_NO_XEN=y" >> $config_target_mak
 esac
 case "$target_arch2" in
-  i386|x86_64|ppcemb|ppc|ppc64|s390x)
+  arm|i386|x86_64|ppcemb|ppc|ppc64|s390x)
     # Make sure the target and host cpus are compatible
     if test "$kvm" = "yes" -a "$target_softmmu" = "yes" -a \
       \( "$target_arch2" = "$cpu" -o \
