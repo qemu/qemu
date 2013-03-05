@@ -43,10 +43,28 @@ unsigned long kvm_arch_vcpu_id(CPUState *cpu)
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     struct kvm_vcpu_init init;
+    int ret;
+    uint64_t v;
+    struct kvm_one_reg r;
 
     init.target = KVM_ARM_TARGET_CORTEX_A15;
     memset(init.features, 0, sizeof(init.features));
-    return kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
+    ret = kvm_vcpu_ioctl(cs, KVM_ARM_VCPU_INIT, &init);
+    if (ret) {
+        return ret;
+    }
+    /* Query the kernel to make sure it supports 32 VFP
+     * registers: QEMU's "cortex-a15" CPU is always a
+     * VFP-D32 core. The simplest way to do this is just
+     * to attempt to read register d31.
+     */
+    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP | 31;
+    r.addr = (uintptr_t)(&v);
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+    if (ret == ENOENT) {
+        return EINVAL;
+    }
+    return ret;
 }
 
 typedef struct Reg {
@@ -70,6 +88,13 @@ typedef struct Reg {
         ((OPC1) << KVM_REG_ARM_OPC1_SHIFT) |     \
         ((OPC2) << KVM_REG_ARM_32_OPC2_SHIFT),   \
         offsetof(CPUARMState, QEMUFIELD)         \
+    }
+
+#define VFPSYSREG(R)                                       \
+    {                                                      \
+        KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_VFP | \
+        KVM_REG_ARM_VFP_##R,                               \
+        offsetof(CPUARMState, vfp.xregs[ARM_VFP_##R])      \
     }
 
 static const Reg regs[] = {
@@ -119,6 +144,13 @@ static const Reg regs[] = {
     CP15REG(1, 0, 0, 0, cp15.c1_sys), /* SCTLR */
     CP15REG(2, 0, 0, 2, cp15.c2_control), /* TTBCR */
     CP15REG(3, 0, 0, 0, cp15.c3), /* DACR */
+    /* VFP system registers */
+    VFPSYSREG(FPSID),
+    VFPSYSREG(MVFR1),
+    VFPSYSREG(MVFR0),
+    VFPSYSREG(FPEXC),
+    VFPSYSREG(FPINST),
+    VFPSYSREG(FPINST2),
 };
 
 int kvm_arch_put_registers(CPUState *cs, int level)
@@ -128,7 +160,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     struct kvm_one_reg r;
     int mode, bn;
     int ret, i;
-    uint32_t cpsr;
+    uint32_t cpsr, fpscr;
     uint64_t ttbr;
 
     /* Make sure the banked regs are properly set */
@@ -179,6 +211,26 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         (2 << KVM_REG_ARM_CRM_SHIFT) | (1 << KVM_REG_ARM_OPC1_SHIFT);
     r.addr = (uintptr_t)(&ttbr);
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
+    if (ret) {
+        return ret;
+    }
+
+    /* VFP registers */
+    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP;
+    for (i = 0; i < 32; i++) {
+        r.addr = (uintptr_t)(&env->vfp.regs[i]);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
+        if (ret) {
+            return ret;
+        }
+        r.id++;
+    }
+
+    r.id = KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_VFP |
+        KVM_REG_ARM_VFP_FPSCR;
+    fpscr = vfp_get_fpscr(env);
+    r.addr = (uintptr_t)&fpscr;
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
 
     return ret;
 }
@@ -190,7 +242,7 @@ int kvm_arch_get_registers(CPUState *cs)
     struct kvm_one_reg r;
     int mode, bn;
     int ret, i;
-    uint32_t cpsr;
+    uint32_t cpsr, fpscr;
     uint64_t ttbr;
 
     for (i = 0; i < ARRAY_SIZE(regs); i++) {
@@ -254,6 +306,26 @@ int kvm_arch_get_registers(CPUState *cs)
      */
     env->cp15.c2_mask = ~(0xffffffffu >> env->cp15.c2_control);
     env->cp15.c2_base_mask = ~(0x3fffu >> env->cp15.c2_control);
+
+    /* VFP registers */
+    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP;
+    for (i = 0; i < 32; i++) {
+        r.addr = (uintptr_t)(&env->vfp.regs[i]);
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+        if (ret) {
+            return ret;
+        }
+        r.id++;
+    }
+
+    r.id = KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_VFP |
+        KVM_REG_ARM_VFP_FPSCR;
+    r.addr = (uintptr_t)&fpscr;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+    if (ret) {
+        return ret;
+    }
+    vfp_set_fpscr(env, fpscr);
 
     return 0;
 }
