@@ -427,15 +427,31 @@ static inline void tcg_out_dat_imm(TCGContext *s,
                     (rn << 16) | (rd << 12) | im);
 }
 
-static inline void tcg_out_movi32(TCGContext *s,
-                int cond, int rd, uint32_t arg)
+static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
 {
-    /* TODO: This is very suboptimal, we can easily have a constant
-     * pool somewhere after all the instructions.  */
-    if ((int)arg < 0 && (int)arg >= -0x100) {
-        tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0, (~arg) & 0xff);
-    } else if (use_armv7_instructions) {
-        /* use movw/movt */
+    int rot, opc, rn;
+
+    /* For armv7, make sure not to use movw+movt when mov/mvn would do.
+       Speed things up by only checking when movt would be required.
+       Prior to armv7, have one go at fully rotated immediates before
+       doing the decomposition thing below.  */
+    if (!use_armv7_instructions || (arg & 0xffff0000)) {
+        rot = encode_imm(arg);
+        if (rot >= 0) {
+            tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0,
+                            rotl(arg, rot) | (rot << 7));
+            return;
+        }
+        rot = encode_imm(~arg);
+        if (rot >= 0) {
+            tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0,
+                            rotl(~arg, rot) | (rot << 7));
+            return;
+        }
+    }
+
+    /* Use movw + movt.  */
+    if (use_armv7_instructions) {
         /* movw */
         tcg_out32(s, (cond << 28) | 0x03000000 | (rd << 12)
                   | ((arg << 4) & 0x000f0000) | (arg & 0xfff));
@@ -444,22 +460,27 @@ static inline void tcg_out_movi32(TCGContext *s,
             tcg_out32(s, (cond << 28) | 0x03400000 | (rd << 12)
                       | ((arg >> 12) & 0x000f0000) | ((arg >> 16) & 0xfff));
         }
-    } else {
-        int opc = ARITH_MOV;
-        int rn = 0;
-
-        do {
-            int i, rot;
-
-            i = ctz32(arg) & ~1;
-            rot = ((32 - i) << 7) & 0xf00;
-            tcg_out_dat_imm(s, cond, opc, rd, rn, ((arg >> i) & 0xff) | rot);
-            arg &= ~(0xff << i);
-
-            opc = ARITH_ORR;
-            rn = rd;
-        } while (arg);
+        return;
     }
+
+    /* TODO: This is very suboptimal, we can easily have a constant
+       pool somewhere after all the instructions.  */
+    opc = ARITH_MOV;
+    rn = 0;
+    /* If we have lots of leading 1's, we can shorten the sequence by
+       beginning with mvn and then clearing higher bits with eor.  */
+    if (clz32(~arg) > clz32(arg)) {
+        opc = ARITH_MVN, arg = ~arg;
+    }
+    do {
+        int i = ctz32(arg) & ~1;
+        rot = ((32 - i) << 7) & 0xf00;
+        tcg_out_dat_imm(s, cond, opc, rd, rn, ((arg >> i) & 0xff) | rot);
+        arg &= ~(0xff << i);
+
+        opc = ARITH_EOR;
+        rn = rd;
+    } while (arg);
 }
 
 static inline void tcg_out_dat_rI(TCGContext *s, int cond, int opc, TCGArg dst,
