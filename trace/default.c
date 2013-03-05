@@ -1,7 +1,7 @@
 /*
  * Default implementation for backend initialization from commandline.
  *
- * Copyright (C) 2011 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2011-2012 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
@@ -18,11 +18,10 @@ void trace_print_events(FILE *stream, fprintf_function stream_printf)
                   "operation not supported with the current backend\n");
 }
 
-bool trace_event_set_state(const char *name, bool state)
+void trace_event_set_state_dynamic_backend(TraceEvent *ev, bool state)
 {
     fprintf(stderr, "warning: "
             "cannot set the state of a trace event with the current backend\n");
-    return false;
 }
 
 bool trace_backend_init(const char *events, const char *file)
