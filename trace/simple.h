@@ -15,12 +15,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-typedef uint64_t TraceEventID;
+#include "trace/generated-events.h"
 
-typedef struct {
-    const char *tp_name;
-    bool state;
-} TraceEvent;
 
 void st_print_trace_file_status(FILE *stream, fprintf_function stream_printf);
 void st_set_trace_file_enabled(bool enable);

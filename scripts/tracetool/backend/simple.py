@@ -28,17 +28,10 @@ def is_string(arg):
 
 def c(events):
     out('#include "trace.h"',
+        '#include "trace/control.h"',
         '#include "trace/simple.h"',
         '',
-        'TraceEvent trace_list[] = {')
-
-    for e in events:
-        out('{.tp_name = "%(name)s", .state=0},',
-            name = e.name,
-            )
-
-    out('};',
-        '')
+        )
 
     for num, event in enumerate(events):
         out('void trace_%(name)s(%(args)s)',
@@ -63,7 +56,9 @@ def c(events):
 
 
         out('',
-            '    if (!trace_list[%(event_id)s].state) {',
+            '    TraceEvent *eventp = trace_event_id(%(event_id)s);',
+            '    bool _state = trace_event_get_state_dynamic(eventp);',
+            '    if (!_state) {',
             '        return;',
             '    }',
             '',
@@ -106,6 +101,3 @@ def h(events):
             name = event.name,
             args = event.args,
             )
-    out('')
-    out('#define NR_TRACE_EVENTS %d' % len(events))
-    out('extern TraceEvent trace_list[NR_TRACE_EVENTS];')
