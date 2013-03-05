@@ -1008,6 +1008,12 @@ static int pty_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     return io_channel_send_all(s->fd, buf, len);
 }
 
+static GSource *pty_chr_add_watch(CharDriverState *chr, GIOCondition cond)
+{
+    PtyCharDriver *s = chr->opaque;
+    return g_io_create_watch(s->fd, cond);
+}
+
 static int pty_chr_read_poll(void *opaque)
 {
     CharDriverState *chr = opaque;
@@ -1161,6 +1167,7 @@ static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
     chr->chr_write = pty_chr_write;
     chr->chr_update_read_handler = pty_chr_update_read_handler;
     chr->chr_close = pty_chr_close;
+    chr->chr_add_watch = pty_chr_add_watch;
 
     s->fd = io_channel_from_fd(master_fd);
     s->timer = qemu_new_timer_ms(rt_clock, pty_chr_timer, chr);
