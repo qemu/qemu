@@ -606,10 +606,11 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 #define CPU_INTERRUPT_MCE       CPU_INTERRUPT_TGT_EXT_4
 #define CPU_INTERRUPT_VIRQ      CPU_INTERRUPT_TGT_INT_0
-#define CPU_INTERRUPT_INIT      CPU_INTERRUPT_TGT_INT_1
-#define CPU_INTERRUPT_SIPI      CPU_INTERRUPT_TGT_INT_2
-#define CPU_INTERRUPT_TPR       CPU_INTERRUPT_TGT_INT_3
+#define CPU_INTERRUPT_SIPI      CPU_INTERRUPT_TGT_INT_1
+#define CPU_INTERRUPT_TPR       CPU_INTERRUPT_TGT_INT_2
 
+/* Use a clearer name for this.  */
+#define CPU_INTERRUPT_INIT      CPU_INTERRUPT_RESET
 
 typedef enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */

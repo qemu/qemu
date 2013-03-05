@@ -381,6 +381,9 @@ CPUArchState *cpu_copy(CPUArchState *env);
 /* Debug event pending.  */
 #define CPU_INTERRUPT_DEBUG       0x0080
 
+/* Reset signal.  */
+#define CPU_INTERRUPT_RESET       0x0400
+
 /* Several target-specific external hardware interrupts.  Each target/cpu.h
    should define proper names based on these defines.  */
 #define CPU_INTERRUPT_TGT_EXT_0   0x0008
@@ -395,9 +398,8 @@ CPUArchState *cpu_copy(CPUArchState *env);
    instruction being executed.  These, therefore, are not masked while
    single-stepping within the debugger.  */
 #define CPU_INTERRUPT_TGT_INT_0   0x0100
-#define CPU_INTERRUPT_TGT_INT_1   0x0400
-#define CPU_INTERRUPT_TGT_INT_2   0x0800
-#define CPU_INTERRUPT_TGT_INT_3   0x2000
+#define CPU_INTERRUPT_TGT_INT_1   0x0800
+#define CPU_INTERRUPT_TGT_INT_2   0x2000
 
 /* First unused bit: 0x4000.  */
 
