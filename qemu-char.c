@@ -953,7 +953,8 @@ static void cfmakeraw (struct termios *termios_p)
 #define HAVE_CHARDEV_TTY 1
 
 typedef struct {
-    int fd;
+    GIOChannel *fd;
+    guint fd_tag;
     int connected;
     int polling;
     int read_bytes;
@@ -972,7 +973,7 @@ static int pty_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
         pty_chr_update_read_handler(chr);
         return 0;
     }
-    return send_all(s->fd, buf, len);
+    return io_channel_send_all(s->fd, buf, len);
 }
 
 static int pty_chr_read_poll(void *opaque)
@@ -984,36 +985,39 @@ static int pty_chr_read_poll(void *opaque)
     return s->read_bytes;
 }
 
-static void pty_chr_read(void *opaque)
+static gboolean pty_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
 {
     CharDriverState *chr = opaque;
     PtyCharDriver *s = chr->opaque;
-    int size, len;
+    gsize size, len;
     uint8_t buf[READ_BUF_LEN];
+    GIOStatus status;
 
     len = sizeof(buf);
     if (len > s->read_bytes)
         len = s->read_bytes;
     if (len == 0)
-        return;
-    size = read(s->fd, buf, len);
-    if ((size == -1 && errno == EIO) ||
-        (size == 0)) {
+        return FALSE;
+    status = g_io_channel_read_chars(s->fd, (gchar *)buf, len, &size, NULL);
+    if (status != G_IO_STATUS_NORMAL) {
         pty_chr_state(chr, 0);
-        return;
-    }
-    if (size > 0) {
+        return FALSE;
+    } else {
         pty_chr_state(chr, 1);
         qemu_chr_be_write(chr, buf, size);
     }
+    return TRUE;
 }
 
 static void pty_chr_update_read_handler(CharDriverState *chr)
 {
     PtyCharDriver *s = chr->opaque;
 
-    qemu_set_fd_handler2(s->fd, pty_chr_read_poll,
-                         pty_chr_read, NULL, chr);
+    if (s->fd_tag) {
+        g_source_remove(s->fd_tag);
+    }
+
+    s->fd_tag = io_add_watch_poll(s->fd, pty_chr_read_poll, pty_chr_read, chr);
     s->polling = 1;
     /*
      * Short timeout here: just need wait long enougth that qemu makes
@@ -1031,7 +1035,8 @@ static void pty_chr_state(CharDriverState *chr, int connected)
     PtyCharDriver *s = chr->opaque;
 
     if (!connected) {
-        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+        g_source_remove(s->fd_tag);
+        s->fd_tag = 0;
         s->connected = 0;
         s->polling = 0;
         /* (re-)connect poll interval for idle guests: once per second.
@@ -1066,9 +1071,14 @@ static void pty_chr_timer(void *opaque)
 static void pty_chr_close(struct CharDriverState *chr)
 {
     PtyCharDriver *s = chr->opaque;
+    int fd;
 
-    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
-    close(s->fd);
+    if (s->fd_tag) {
+        g_source_remove(s->fd_tag);
+    }
+    fd = g_io_channel_unix_get_fd(s->fd);
+    g_io_channel_unref(s->fd);
+    close(fd);
     qemu_del_timer(s->timer);
     qemu_free_timer(s->timer);
     g_free(s);
@@ -1120,7 +1130,7 @@ static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
     chr->chr_update_read_handler = pty_chr_update_read_handler;
     chr->chr_close = pty_chr_close;
 
-    s->fd = master_fd;
+    s->fd = io_channel_from_fd(master_fd);
     s->timer = qemu_new_timer_ms(rt_clock, pty_chr_timer, chr);
 
     return chr;
