@@ -15,6 +15,10 @@ __email__      = "stefanha@linux.vnet.ibm.com"
 
 from tracetool import out
 
+
+PUBLIC = True
+
+
 def is_string(arg):
     strtype = ('const char*', 'char*', 'const char *', 'char *')
     if arg.lstrip().startswith(strtype):
