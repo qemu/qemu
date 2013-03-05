@@ -83,6 +83,19 @@
 { 'command': 'guest-ping' }
 
 ##
+# @guest-get-time:
+#
+# Get the information about guest time relative to the Epoch
+# of 1970-01-01 in UTC.
+#
+# Returns: Time in nanoseconds.
+#
+# Since 1.5
+##
+{ 'command': 'guest-get-time',
+  'returns': 'int' }
+
+##
 # @GuestAgentCommandInfo:
 #
 # Information about guest agent commands.
