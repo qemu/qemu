@@ -2462,6 +2462,12 @@ static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
 }
 #endif
 
+static GSource *tcp_chr_add_watch(CharDriverState *chr, GIOCondition cond)
+{
+    TCPCharDriver *s = chr->opaque;
+    return g_io_create_watch(s->chan, cond);
+}
+
 static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
 {
     CharDriverState *chr = opaque;
@@ -2670,6 +2676,7 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
     chr->chr_close = tcp_chr_close;
     chr->get_msgfd = tcp_get_msgfd;
     chr->chr_add_client = tcp_chr_add_client;
+    chr->chr_add_watch = tcp_chr_add_watch;
 
     if (is_listen) {
         s->listen_fd = fd;
