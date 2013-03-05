@@ -1617,7 +1617,7 @@ uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 #else
 
 /* Map CPU modes onto saved register banks.  */
-static inline int bank_number(int mode)
+int bank_number(int mode)
 {
     switch (mode) {
     case ARM_CPU_MODE_USR:
