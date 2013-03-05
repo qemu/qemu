@@ -12,13 +12,6 @@
 #include "vcard_emul.h"
 #include "card_7816.h"
 
-#define CAC_GET_PROPERTIES  0x56
-#define CAC_GET_ACR         0x4c
-#define CAC_READ_BUFFER     0x52
-#define CAC_UPDATE_BUFFER   0x58
-#define CAC_SIGN_DECRYPT    0x42
-#define CAC_GET_CERTIFICATE 0x36
-
 /* private data for PKI applets */
 typedef struct CACPKIAppletDataStruct {
     unsigned char *cert;
