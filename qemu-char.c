@@ -654,6 +654,26 @@ static GIOChannel *io_channel_from_fd(int fd)
     return chan;
 }
 
+static GIOChannel *io_channel_from_socket(int fd)
+{
+    GIOChannel *chan;
+
+    if (fd == -1) {
+        return NULL;
+    }
+
+#ifdef _WIN32
+    chan = g_io_channel_win32_new_socket(fd);
+#else
+    chan = g_io_channel_unix_new(fd);
+#endif
+
+    g_io_channel_set_encoding(chan, NULL, NULL);
+    g_io_channel_set_buffered(chan, FALSE);
+
+    return chan;
+}
+
 static int io_channel_send_all(GIOChannel *fd, const void *_buf, int len1)
 {
     GIOStatus status;
@@ -2126,6 +2146,8 @@ static CharDriverState *qemu_chr_open_win_stdio(QemuOpts *opts)
 
 typedef struct {
     int fd;
+    GIOChannel *chan;
+    guint tag;
     uint8_t buf[READ_BUF_LEN];
     int bufcnt;
     int bufptr;
@@ -2135,8 +2157,17 @@ typedef struct {
 static int udp_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     NetCharDriver *s = chr->opaque;
+    gsize bytes_written;
+    GIOStatus status;
 
-    return send(s->fd, (const void *)buf, len, 0);
+    status = g_io_channel_write_chars(s->chan, (const gchar *)buf, len, &bytes_written, NULL);
+    if (status == G_IO_STATUS_EOF) {
+        return 0;
+    } else if (status != G_IO_STATUS_NORMAL) {
+        return -1;
+    }
+
+    return bytes_written;
 }
 
 static int udp_chr_read_poll(void *opaque)
@@ -2157,17 +2188,22 @@ static int udp_chr_read_poll(void *opaque)
     return s->max_size;
 }
 
-static void udp_chr_read(void *opaque)
+static gboolean udp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
 {
     CharDriverState *chr = opaque;
     NetCharDriver *s = chr->opaque;
+    gsize bytes_read = 0;
+    GIOStatus status;
 
     if (s->max_size == 0)
-        return;
-    s->bufcnt = qemu_recv(s->fd, s->buf, sizeof(s->buf), 0);
+        return FALSE;
+    status = g_io_channel_read_chars(s->chan, (gchar *)s->buf, sizeof(s->buf),
+                                     &bytes_read, NULL);
+    s->bufcnt = bytes_read;
     s->bufptr = s->bufcnt;
-    if (s->bufcnt <= 0)
-        return;
+    if (status != G_IO_STATUS_NORMAL) {
+        return FALSE;
+    }
 
     s->bufptr = 0;
     while (s->max_size > 0 && s->bufptr < s->bufcnt) {
@@ -2175,23 +2211,32 @@ static void udp_chr_read(void *opaque)
         s->bufptr++;
         s->max_size = qemu_chr_be_can_write(chr);
     }
+
+    return TRUE;
 }
 
 static void udp_chr_update_read_handler(CharDriverState *chr)
 {
     NetCharDriver *s = chr->opaque;
 
-    if (s->fd >= 0) {
-        qemu_set_fd_handler2(s->fd, udp_chr_read_poll,
-                             udp_chr_read, NULL, chr);
+    if (s->tag) {
+        g_source_remove(s->tag);
+        s->tag = 0;
+    }
+
+    if (s->chan) {
+        s->tag = io_add_watch_poll(s->chan, udp_chr_read_poll, udp_chr_read, chr);
     }
 }
 
 static void udp_chr_close(CharDriverState *chr)
 {
     NetCharDriver *s = chr->opaque;
-    if (s->fd >= 0) {
-        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+    if (s->tag) {
+        g_source_remove(s->tag);
+    }
+    if (s->chan) {
+        g_io_channel_unref(s->chan);
         closesocket(s->fd);
     }
     g_free(s);
@@ -2214,6 +2259,7 @@ static CharDriverState *qemu_chr_open_udp(QemuOpts *opts)
     }
 
     s->fd = fd;
+    s->chan = io_channel_from_socket(s->fd);
     s->bufcnt = 0;
     s->bufptr = 0;
     chr->opaque = s;
