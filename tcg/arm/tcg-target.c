@@ -145,9 +145,10 @@ static void patch_reloc(uint8_t *code_ptr, int type,
     }
 }
 
-#define TCG_CT_CONST_ARM 0x100
-#define TCG_CT_CONST_INV 0x200
-#define TCG_CT_CONST_NEG 0x400
+#define TCG_CT_CONST_ARM  0x100
+#define TCG_CT_CONST_INV  0x200
+#define TCG_CT_CONST_NEG  0x400
+#define TCG_CT_CONST_ZERO 0x800
 
 /* parse target specific constraints */
 static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
@@ -164,6 +165,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         break;
     case 'N': /* The gcc constraint letter is L, already used here.  */
         ct->ct |= TCG_CT_CONST_NEG;
+        break;
+    case 'Z':
+        ct->ct |= TCG_CT_CONST_ZERO;
         break;
 
     case 'r':
@@ -296,6 +300,8 @@ static inline int tcg_target_const_match(tcg_target_long val,
     } else if ((ct & TCG_CT_CONST_INV) && check_fit_imm(~val)) {
         return 1;
     } else if ((ct & TCG_CT_CONST_NEG) && check_fit_imm(-val)) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
         return 1;
     } else {
         return 0;
@@ -700,6 +706,28 @@ static inline void tcg_out_bswap32(TCGContext *s, int cond, int rd, int rn)
         tcg_out_dat_reg(s, cond, ARITH_EOR,
                         rd, rd, TCG_REG_R8, SHIFT_IMM_LSR(8));
     }
+}
+
+bool tcg_target_deposit_valid(int ofs, int len)
+{
+    /* ??? Without bfi, we could improve over generic code by combining
+       the right-shift from a non-zero ofs with the orr.  We do run into
+       problems when rd == rs, and the mask generated from ofs+len doesn't
+       fit into an immediate.  We would have to be careful not to pessimize
+       wrt the optimizations performed on the expanded code.  */
+    return use_armv7_instructions;
+}
+
+static inline void tcg_out_deposit(TCGContext *s, int cond, TCGReg rd,
+                                   TCGArg a1, int ofs, int len, bool const_a1)
+{
+    if (const_a1) {
+        /* bfi becomes bfc with rn == 15.  */
+        a1 = 15;
+    }
+    /* bfi/bfc */
+    tcg_out32(s, 0x07c00010 | (cond << 28) | (rd << 12) | a1
+              | (ofs << 7) | ((ofs + len - 1) << 16));
 }
 
 static inline void tcg_out_ld32_12(TCGContext *s, int cond,
@@ -1835,6 +1863,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_ext16u(s, COND_AL, args[0], args[1]);
         break;
 
+    case INDEX_op_deposit_i32:
+        tcg_out_deposit(s, COND_AL, args[0], args[2],
+                        args[3], args[4], const_args[2]);
+        break;
+
     default:
         tcg_abort();
     }
@@ -1918,6 +1951,8 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_ext8s_i32, { "r", "r" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
     { INDEX_op_ext16u_i32, { "r", "r" } },
+
+    { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
 
     { -1 },
 };
