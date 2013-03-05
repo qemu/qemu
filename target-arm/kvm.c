@@ -19,6 +19,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "kvm_arm.h"
 #include "cpu.h"
 #include "hw/arm-misc.h"
 
@@ -65,6 +66,92 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return EINVAL;
     }
     return ret;
+}
+
+/* We track all the KVM devices which need their memory addresses
+ * passing to the kernel in a list of these structures.
+ * When board init is complete we run through the list and
+ * tell the kernel the base addresses of the memory regions.
+ * We use a MemoryListener to track mapping and unmapping of
+ * the regions during board creation, so the board models don't
+ * need to do anything special for the KVM case.
+ */
+typedef struct KVMDevice {
+    struct kvm_arm_device_addr kda;
+    MemoryRegion *mr;
+    QSLIST_ENTRY(KVMDevice) entries;
+} KVMDevice;
+
+static QSLIST_HEAD(kvm_devices_head, KVMDevice) kvm_devices_head;
+
+static void kvm_arm_devlistener_add(MemoryListener *listener,
+                                    MemoryRegionSection *section)
+{
+    KVMDevice *kd;
+
+    QSLIST_FOREACH(kd, &kvm_devices_head, entries) {
+        if (section->mr == kd->mr) {
+            kd->kda.addr = section->offset_within_address_space;
+        }
+    }
+}
+
+static void kvm_arm_devlistener_del(MemoryListener *listener,
+                                    MemoryRegionSection *section)
+{
+    KVMDevice *kd;
+
+    QSLIST_FOREACH(kd, &kvm_devices_head, entries) {
+        if (section->mr == kd->mr) {
+            kd->kda.addr = -1;
+        }
+    }
+}
+
+static MemoryListener devlistener = {
+    .region_add = kvm_arm_devlistener_add,
+    .region_del = kvm_arm_devlistener_del,
+};
+
+static void kvm_arm_machine_init_done(Notifier *notifier, void *data)
+{
+    KVMDevice *kd, *tkd;
+
+    memory_listener_unregister(&devlistener);
+    QSLIST_FOREACH_SAFE(kd, &kvm_devices_head, entries, tkd) {
+        if (kd->kda.addr != -1) {
+            if (kvm_vm_ioctl(kvm_state, KVM_ARM_SET_DEVICE_ADDR,
+                             &kd->kda) < 0) {
+                fprintf(stderr, "KVM_ARM_SET_DEVICE_ADDRESS failed: %s\n",
+                        strerror(errno));
+                abort();
+            }
+        }
+        g_free(kd);
+    }
+}
+
+static Notifier notify = {
+    .notify = kvm_arm_machine_init_done,
+};
+
+void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid)
+{
+    KVMDevice *kd;
+
+    if (!kvm_irqchip_in_kernel()) {
+        return;
+    }
+
+    if (QSLIST_EMPTY(&kvm_devices_head)) {
+        memory_listener_register(&devlistener, NULL);
+        qemu_add_machine_init_done_notifier(&notify);
+    }
+    kd = g_new0(KVMDevice, 1);
+    kd->mr = mr;
+    kd->kda.id = devid;
+    kd->kda.addr = -1;
+    QSLIST_INSERT_HEAD(&kvm_devices_head, kd, entries);
 }
 
 typedef struct Reg {
