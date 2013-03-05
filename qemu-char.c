@@ -686,7 +686,11 @@ static int io_channel_send_all(GIOChannel *fd, const void *_buf, int len1)
         status = g_io_channel_write_chars(fd, (const gchar *)buf, len,
                                           &bytes_written, NULL);
         if (status != G_IO_STATUS_NORMAL) {
-            if (status != G_IO_STATUS_AGAIN) {
+            if (status == G_IO_STATUS_AGAIN) {
+                errno = EAGAIN;
+                return -1;
+            } else {
+                errno = EINVAL;
                 return -1;
             }
         } else if (status == G_IO_STATUS_EOF) {
@@ -753,6 +757,12 @@ static int fd_chr_read_poll(void *opaque)
     return s->max_size;
 }
 
+static GSource *fd_chr_add_watch(CharDriverState *chr, GIOCondition cond)
+{
+    FDCharDriver *s = chr->opaque;
+    return g_io_create_watch(s->fd_out, cond);
+}
+
 static void fd_chr_update_read_handler(CharDriverState *chr)
 {
     FDCharDriver *s = chr->opaque;
@@ -796,8 +806,10 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     s = g_malloc0(sizeof(FDCharDriver));
     s->fd_in = io_channel_from_fd(fd_in);
     s->fd_out = io_channel_from_fd(fd_out);
+    fcntl(fd_out, F_SETFL, O_NONBLOCK);
     s->chr = chr;
     chr->opaque = s;
+    chr->chr_add_watch = fd_chr_add_watch;
     chr->chr_write = fd_chr_write;
     chr->chr_update_read_handler = fd_chr_update_read_handler;
     chr->chr_close = fd_chr_close;
@@ -3277,6 +3289,24 @@ void qemu_chr_fe_close(struct CharDriverState *chr)
     if (chr->chr_guest_close) {
         chr->chr_guest_close(chr);
     }
+}
+
+guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
+                            GIOFunc func, void *user_data)
+{
+    GSource *src;
+    guint tag;
+
+    if (s->chr_add_watch == NULL) {
+        return -ENOSYS;
+    }
+
+    src = s->chr_add_watch(s, cond);
+    g_source_set_callback(src, (GSourceFunc)func, user_data, NULL);
+    tag = g_source_attach(src, NULL);
+    g_source_unref(src);
+
+    return tag;
 }
 
 void qemu_chr_delete(CharDriverState *chr)
