@@ -46,7 +46,7 @@
 # define NAND_IOSTATUS_PLANE1	(1 << 2)
 # define NAND_IOSTATUS_PLANE2	(1 << 3)
 # define NAND_IOSTATUS_PLANE3	(1 << 4)
-# define NAND_IOSTATUS_BUSY	(1 << 6)
+# define NAND_IOSTATUS_READY    (1 << 6)
 # define NAND_IOSTATUS_UNPROTCT	(1 << 7)
 
 # define MAX_PAGE		0x800
@@ -231,6 +231,7 @@ static void nand_reset(DeviceState *dev)
     s->iolen = 0;
     s->offset = 0;
     s->status &= NAND_IOSTATUS_UNPROTCT;
+    s->status |= NAND_IOSTATUS_READY;
 }
 
 static inline void nand_pushio_byte(NANDFlashState *s, uint8_t value)
