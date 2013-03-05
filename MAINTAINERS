@@ -140,6 +140,11 @@ S: Supported
 F: kvm-*
 F: */kvm.*
 
+ARM
+M: Peter Maydell <peter.maydell@linaro.org>
+S: Maintained
+F: target-arm/kvm.c
+
 PPC
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
