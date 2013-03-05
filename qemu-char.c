@@ -3663,7 +3663,6 @@ static void register_types(void)
     register_char_driver("null", qemu_chr_open_null);
     register_char_driver("socket", qemu_chr_open_socket);
     register_char_driver("udp", qemu_chr_open_udp);
-    register_char_driver("vc", vc_init);
     register_char_driver("memory", qemu_chr_open_ringbuf);
 #ifdef _WIN32
     register_char_driver("file", qemu_chr_open_win_file_out);

@@ -1739,3 +1739,10 @@ PixelFormat qemu_default_pixelformat(int bpp)
     }
     return pf;
 }
+
+static void register_types(void)
+{
+    register_char_driver("vc", text_console_init);
+}
+
+type_init(register_types);
