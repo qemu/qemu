@@ -6601,6 +6601,70 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
 }
 #endif
 
+/* gen_srs:
+ * @env: CPUARMState
+ * @s: DisasContext
+ * @mode: mode field from insn (which stack to store to)
+ * @amode: addressing mode (DA/IA/DB/IB), encoded as per P,U bits in ARM insn
+ * @writeback: true if writeback bit set
+ *
+ * Generate code for the SRS (Store Return State) insn.
+ */
+static void gen_srs(DisasContext *s,
+                    uint32_t mode, uint32_t amode, bool writeback)
+{
+    int32_t offset;
+    TCGv_i32 addr = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_const_i32(mode);
+    gen_helper_get_r13_banked(addr, cpu_env, tmp);
+    tcg_temp_free_i32(tmp);
+    switch (amode) {
+    case 0: /* DA */
+        offset = -4;
+        break;
+    case 1: /* IA */
+        offset = 0;
+        break;
+    case 2: /* DB */
+        offset = -8;
+        break;
+    case 3: /* IB */
+        offset = 4;
+        break;
+    default:
+        abort();
+    }
+    tcg_gen_addi_i32(addr, addr, offset);
+    tmp = load_reg(s, 14);
+    gen_st32(tmp, addr, 0);
+    tmp = load_cpu_field(spsr);
+    tcg_gen_addi_i32(addr, addr, 4);
+    gen_st32(tmp, addr, 0);
+    if (writeback) {
+        switch (amode) {
+        case 0:
+            offset = -8;
+            break;
+        case 1:
+            offset = 4;
+            break;
+        case 2:
+            offset = -4;
+            break;
+        case 3:
+            offset = 0;
+            break;
+        default:
+            abort();
+        }
+        tcg_gen_addi_i32(addr, addr, offset);
+        tmp = tcg_const_i32(mode);
+        gen_helper_set_r13_banked(cpu_env, tmp, addr);
+        tcg_temp_free_i32(tmp);
+    }
+    tcg_temp_free_i32(addr);
+}
+
 static void disas_arm_insn(CPUARMState * env, DisasContext *s)
 {
     unsigned int cond, insn, val, op1, i, shift, rm, rs, rn, rd, sh;
@@ -6693,49 +6757,11 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             }
         } else if ((insn & 0x0e5fffe0) == 0x084d0500) {
             /* srs */
-            int32_t offset;
-            if (IS_USER(s))
+            if (IS_USER(s)) {
                 goto illegal_op;
+            }
             ARCH(6);
-            op1 = (insn & 0x1f);
-            addr = tcg_temp_new_i32();
-            tmp = tcg_const_i32(op1);
-            gen_helper_get_r13_banked(addr, cpu_env, tmp);
-            tcg_temp_free_i32(tmp);
-            i = (insn >> 23) & 3;
-            switch (i) {
-            case 0: offset = -4; break; /* DA */
-            case 1: offset = 0; break; /* IA */
-            case 2: offset = -8; break; /* DB */
-            case 3: offset = 4; break; /* IB */
-            default: abort();
-            }
-            if (offset)
-                tcg_gen_addi_i32(addr, addr, offset);
-            tmp = load_reg(s, 14);
-            gen_st32(tmp, addr, 0);
-            tmp = load_cpu_field(spsr);
-            tcg_gen_addi_i32(addr, addr, 4);
-            gen_st32(tmp, addr, 0);
-            if (insn & (1 << 21)) {
-                /* Base writeback.  */
-                switch (i) {
-                case 0: offset = -8; break;
-                case 1: offset = 4; break;
-                case 2: offset = -4; break;
-                case 3: offset = 0; break;
-                default: abort();
-                }
-                if (offset)
-                    tcg_gen_addi_i32(addr, addr, offset);
-                tmp = tcg_const_i32(op1);
-                gen_helper_set_r13_banked(cpu_env, tmp, addr);
-                tcg_temp_free_i32(tmp);
-                tcg_temp_free_i32(addr);
-            } else {
-                tcg_temp_free_i32(addr);
-            }
-            return;
+            gen_srs(s, (insn & 0x1f), (insn >> 23) & 3, insn & (1 << 21));
         } else if ((insn & 0x0e50ffe0) == 0x08100a00) {
             /* rfe */
             int32_t offset;
@@ -8154,9 +8180,10 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         } else {
             /* Load/store multiple, RFE, SRS.  */
             if (((insn >> 23) & 1) == ((insn >> 24) & 1)) {
-                /* Not available in user mode.  */
-                if (IS_USER(s))
+                /* RFE, SRS: not available in user mode or on M profile */
+                if (IS_USER(s) || IS_M(env)) {
                     goto illegal_op;
+                }
                 if (insn & (1 << 20)) {
                     /* rfe */
                     addr = load_reg(s, rn);
@@ -8180,32 +8207,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     gen_rfe(s, tmp, tmp2);
                 } else {
                     /* srs */
-                    op = (insn & 0x1f);
-                    addr = tcg_temp_new_i32();
-                    tmp = tcg_const_i32(op);
-                    gen_helper_get_r13_banked(addr, cpu_env, tmp);
-                    tcg_temp_free_i32(tmp);
-                    if ((insn & (1 << 24)) == 0) {
-                        tcg_gen_addi_i32(addr, addr, -8);
-                    }
-                    tmp = load_reg(s, 14);
-                    gen_st32(tmp, addr, 0);
-                    tcg_gen_addi_i32(addr, addr, 4);
-                    tmp = tcg_temp_new_i32();
-                    gen_helper_cpsr_read(tmp, cpu_env);
-                    gen_st32(tmp, addr, 0);
-                    if (insn & (1 << 21)) {
-                        if ((insn & (1 << 24)) == 0) {
-                            tcg_gen_addi_i32(addr, addr, -4);
-                        } else {
-                            tcg_gen_addi_i32(addr, addr, 4);
-                        }
-                        tmp = tcg_const_i32(op);
-                        gen_helper_set_r13_banked(cpu_env, tmp, addr);
-                        tcg_temp_free_i32(tmp);
-                    } else {
-                        tcg_temp_free_i32(addr);
-                    }
+                    gen_srs(s, (insn & 0x1f), (insn & (1 << 24)) ? 1 : 2,
+                            insn & (1 << 21));
                 }
             } else {
                 int i, loaded_base = 0;

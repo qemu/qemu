@@ -118,6 +118,8 @@ void gic_init_irqs_and_distributor(GICState *s, int num_irq);
 
 typedef struct ARMGICCommonClass {
     SysBusDeviceClass parent_class;
+    void (*pre_save)(GICState *s);
+    void (*post_load)(GICState *s);
 } ARMGICCommonClass;
 
 #define TYPE_ARM_GIC "arm_gic"
@@ -130,7 +132,7 @@ typedef struct ARMGICCommonClass {
 
 typedef struct ARMGICClass {
     ARMGICCommonClass parent_class;
-    int (*parent_init)(SysBusDevice *dev);
+    DeviceRealize parent_realize;
 } ARMGICClass;
 
 #endif /* !QEMU_ARM_GIC_INTERNAL_H */
