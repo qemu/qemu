@@ -118,6 +118,8 @@ void gic_init_irqs_and_distributor(GICState *s, int num_irq);
 
 typedef struct ARMGICCommonClass {
     SysBusDeviceClass parent_class;
+    void (*pre_save)(GICState *s);
+    void (*post_load)(GICState *s);
 } ARMGICCommonClass;
 
 #define TYPE_ARM_GIC "arm_gic"

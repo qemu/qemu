@@ -23,8 +23,13 @@
 static void gic_save(QEMUFile *f, void *opaque)
 {
     GICState *s = (GICState *)opaque;
+    ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
     int i;
     int j;
+
+    if (c->pre_save) {
+        c->pre_save(s);
+    }
 
     qemu_put_be32(f, s->enabled);
     for (i = 0; i < s->num_cpu; i++) {
@@ -57,6 +62,7 @@ static void gic_save(QEMUFile *f, void *opaque)
 static int gic_load(QEMUFile *f, void *opaque, int version_id)
 {
     GICState *s = (GICState *)opaque;
+    ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
     int i;
     int j;
 
@@ -89,6 +95,10 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
         s->irq_state[i].level = qemu_get_byte(f);
         s->irq_state[i].model = qemu_get_byte(f);
         s->irq_state[i].trigger = qemu_get_byte(f);
+    }
+
+    if (c->post_load) {
+        c->post_load(s);
     }
 
     return 0;
