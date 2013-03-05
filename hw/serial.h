@@ -72,8 +72,6 @@ struct SerialState {
 
     struct QEMUTimer *fifo_timeout_timer;
     int timeout_ipending;           /* timeout interrupt pending state */
-    struct QEMUTimer *transmit_timer;
-
 
     uint64_t char_transmit_time;    /* time to transmit a char in ticks */
     int poll_msl;
