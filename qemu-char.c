@@ -539,9 +539,6 @@ int send_all(int fd, const void *_buf, int len1)
 }
 #endif /* !_WIN32 */
 
-#define STDIO_MAX_CLIENTS 1
-static int stdio_nb_clients;
-
 #ifndef _WIN32
 
 typedef struct {
@@ -594,11 +591,8 @@ static void fd_chr_update_read_handler(CharDriverState *chr)
     FDCharDriver *s = chr->opaque;
 
     if (s->fd_in >= 0) {
-        if (display_type == DT_NOGRAPHIC && s->fd_in == 0) {
-        } else {
-            qemu_set_fd_handler2(s->fd_in, fd_chr_read_poll,
-                                 fd_chr_read, NULL, chr);
-        }
+        qemu_set_fd_handler2(s->fd_in, fd_chr_read_poll,
+                             fd_chr_read, NULL, chr);
     }
 }
 
@@ -607,10 +601,7 @@ static void fd_chr_close(struct CharDriverState *chr)
     FDCharDriver *s = chr->opaque;
 
     if (s->fd_in >= 0) {
-        if (display_type == DT_NOGRAPHIC && s->fd_in == 0) {
-        } else {
-            qemu_set_fd_handler2(s->fd_in, NULL, NULL, NULL, NULL);
-        }
+        qemu_set_fd_handler2(s->fd_in, NULL, NULL, NULL, NULL);
     }
 
     g_free(s);
@@ -677,53 +668,6 @@ static CharDriverState *qemu_chr_open_pipe(QemuOpts *opts)
     return qemu_chr_open_fd(fd_in, fd_out);
 }
 
-
-/* for STDIO, we handle the case where several clients use it
-   (nographic mode) */
-
-#define TERM_FIFO_MAX_SIZE 1
-
-static uint8_t term_fifo[TERM_FIFO_MAX_SIZE];
-static int term_fifo_size;
-
-static int stdio_read_poll(void *opaque)
-{
-    CharDriverState *chr = opaque;
-
-    /* try to flush the queue if needed */
-    if (term_fifo_size != 0 && qemu_chr_be_can_write(chr) > 0) {
-        qemu_chr_be_write(chr, term_fifo, 1);
-        term_fifo_size = 0;
-    }
-    /* see if we can absorb more chars */
-    if (term_fifo_size == 0)
-        return 1;
-    else
-        return 0;
-}
-
-static void stdio_read(void *opaque)
-{
-    int size;
-    uint8_t buf[1];
-    CharDriverState *chr = opaque;
-
-    size = read(0, buf, 1);
-    if (size == 0) {
-        /* stdin has been closed. Remove it from the active list.  */
-        qemu_set_fd_handler2(0, NULL, NULL, NULL, NULL);
-        qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
-        return;
-    }
-    if (size > 0) {
-        if (qemu_chr_be_can_write(chr) > 0) {
-            qemu_chr_be_write(chr, buf, 1);
-        } else if (term_fifo_size == 0) {
-            term_fifo[term_fifo_size++] = buf[0];
-        }
-    }
-}
-
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
 static int old_fd0_flags;
@@ -760,8 +704,6 @@ static void qemu_chr_set_echo_stdio(CharDriverState *chr, bool echo)
 static void qemu_chr_close_stdio(struct CharDriverState *chr)
 {
     term_exit();
-    stdio_nb_clients--;
-    qemu_set_fd_handler2(0, NULL, NULL, NULL, NULL);
     fd_chr_close(chr);
 }
 
@@ -769,25 +711,18 @@ static CharDriverState *qemu_chr_open_stdio(QemuOpts *opts)
 {
     CharDriverState *chr;
 
-    if (stdio_nb_clients >= STDIO_MAX_CLIENTS) {
-        return NULL;
-    }
     if (is_daemonized()) {
         error_report("cannot use stdio with -daemonize");
         return NULL;
     }
-    if (stdio_nb_clients == 0) {
-        old_fd0_flags = fcntl(0, F_GETFL);
-        tcgetattr (0, &oldtty);
-        fcntl(0, F_SETFL, O_NONBLOCK);
-        atexit(term_exit);
-    }
+    old_fd0_flags = fcntl(0, F_GETFL);
+    tcgetattr (0, &oldtty);
+    fcntl(0, F_SETFL, O_NONBLOCK);
+    atexit(term_exit);
 
     chr = qemu_chr_open_fd(0, 1);
     chr->chr_close = qemu_chr_close_stdio;
     chr->chr_set_echo = qemu_chr_set_echo_stdio;
-    qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, chr);
-    stdio_nb_clients++;
     stdio_allow_signal = qemu_opt_get_bool(opts, "signal",
                                            display_type != DT_NOGRAPHIC);
     qemu_chr_fe_set_echo(chr, false);
@@ -1448,8 +1383,6 @@ static CharDriverState *qemu_chr_open_pp_fd(int fd)
 
 #else /* _WIN32 */
 
-static CharDriverState *stdio_clients[STDIO_MAX_CLIENTS];
-
 typedef struct {
     int max_size;
     HANDLE hcom, hrecv, hsend;
@@ -1951,7 +1884,6 @@ static void win_stdio_close(CharDriverState *chr)
 
     g_free(chr->opaque);
     g_free(chr);
-    stdio_nb_clients--;
 }
 
 static CharDriverState *qemu_chr_open_win_stdio(QemuOpts *opts)
@@ -1960,11 +1892,6 @@ static CharDriverState *qemu_chr_open_win_stdio(QemuOpts *opts)
     WinStdioCharState *stdio;
     DWORD              dwMode;
     int                is_console = 0;
-
-    if (stdio_nb_clients >= STDIO_MAX_CLIENTS
-        || ((display_type != DT_NOGRAPHIC) && (stdio_nb_clients != 0))) {
-        return NULL;
-    }
 
     chr   = g_malloc0(sizeof(CharDriverState));
     stdio = g_malloc0(sizeof(WinStdioCharState));
@@ -1981,37 +1908,34 @@ static CharDriverState *qemu_chr_open_win_stdio(QemuOpts *opts)
     chr->chr_write = win_stdio_write;
     chr->chr_close = win_stdio_close;
 
-    if (stdio_nb_clients == 0) {
-        if (is_console) {
-            if (qemu_add_wait_object(stdio->hStdIn,
-                                     win_stdio_wait_func, chr)) {
-                fprintf(stderr, "qemu_add_wait_object: failed\n");
-            }
-        } else {
-            DWORD   dwId;
+    if (is_console) {
+        if (qemu_add_wait_object(stdio->hStdIn,
+                                 win_stdio_wait_func, chr)) {
+            fprintf(stderr, "qemu_add_wait_object: failed\n");
+        }
+    } else {
+        DWORD   dwId;
+            
+        stdio->hInputReadyEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+        stdio->hInputDoneEvent  = CreateEvent(NULL, FALSE, FALSE, NULL);
+        stdio->hInputThread     = CreateThread(NULL, 0, win_stdio_thread,
+                                               chr, 0, &dwId);
 
-            stdio->hInputReadyEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-            stdio->hInputDoneEvent  = CreateEvent(NULL, FALSE, FALSE, NULL);
-            stdio->hInputThread     = CreateThread(NULL, 0, win_stdio_thread,
-                                            chr, 0, &dwId);
-
-            if (stdio->hInputThread == INVALID_HANDLE_VALUE
-                || stdio->hInputReadyEvent == INVALID_HANDLE_VALUE
-                || stdio->hInputDoneEvent == INVALID_HANDLE_VALUE) {
-                fprintf(stderr, "cannot create stdio thread or event\n");
-                exit(1);
-            }
-            if (qemu_add_wait_object(stdio->hInputReadyEvent,
-                                     win_stdio_thread_wait_func, chr)) {
-                fprintf(stderr, "qemu_add_wait_object: failed\n");
-            }
+        if (stdio->hInputThread == INVALID_HANDLE_VALUE
+            || stdio->hInputReadyEvent == INVALID_HANDLE_VALUE
+            || stdio->hInputDoneEvent == INVALID_HANDLE_VALUE) {
+            fprintf(stderr, "cannot create stdio thread or event\n");
+            exit(1);
+        }
+        if (qemu_add_wait_object(stdio->hInputReadyEvent,
+                                 win_stdio_thread_wait_func, chr)) {
+            fprintf(stderr, "qemu_add_wait_object: failed\n");
         }
     }
 
     dwMode |= ENABLE_LINE_INPUT;
 
-    stdio_clients[stdio_nb_clients++] = chr;
-    if (stdio_nb_clients == 1 && is_console) {
+    if (is_console) {
         /* set the terminal in raw mode */
         /* ENABLE_QUICK_EDIT_MODE | ENABLE_EXTENDED_FLAGS */
         dwMode |= ENABLE_PROCESSED_INPUT;
