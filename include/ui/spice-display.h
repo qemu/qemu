@@ -71,6 +71,7 @@ typedef struct SimpleSpiceDisplay SimpleSpiceDisplay;
 typedef struct SimpleSpiceUpdate SimpleSpiceUpdate;
 
 struct SimpleSpiceDisplay {
+    QemuConsole *con;
     DisplaySurface *ds;
     DisplayChangeListener dcl;
     void *buf;
@@ -113,7 +114,7 @@ void qemu_spice_create_host_primary(SimpleSpiceDisplay *ssd);
 void qemu_spice_destroy_host_primary(SimpleSpiceDisplay *ssd);
 void qemu_spice_vm_change_state_handler(void *opaque, int running,
                                         RunState state);
-void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds);
+void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd);
 
 void qemu_spice_display_update(SimpleSpiceDisplay *ssd,
                                int x, int y, int w, int h);

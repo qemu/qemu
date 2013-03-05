@@ -334,7 +334,7 @@ void qemu_spice_destroy_host_primary(SimpleSpiceDisplay *ssd)
     qemu_spice_destroy_primary_surface(ssd, 0, QXL_SYNC);
 }
 
-void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds)
+void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd)
 {
     qemu_mutex_init(&ssd->lock);
     QTAILQ_INIT(&ssd->updates);
@@ -398,12 +398,14 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
 void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
 {
     if (ssd->cursor) {
-        dpy_cursor_define(ssd->dcl.ds, ssd->cursor);
+        assert(ssd->con);
+        dpy_cursor_define(ssd->con, ssd->cursor);
         cursor_put(ssd->cursor);
         ssd->cursor = NULL;
     }
     if (ssd->mouse_x != -1 && ssd->mouse_y != -1) {
-        dpy_mouse_set(ssd->dcl.ds, ssd->mouse_x, ssd->mouse_y, 1);
+        assert(ssd->con);
+        dpy_mouse_set(ssd->con, ssd->mouse_x, ssd->mouse_y, 1);
         ssd->mouse_x = -1;
         ssd->mouse_y = -1;
     }
@@ -613,7 +615,7 @@ void qemu_spice_display_init(DisplayState *ds)
 {
     SimpleSpiceDisplay *ssd = g_new0(SimpleSpiceDisplay, 1);
 
-    qemu_spice_display_init_common(ssd, ds);
+    qemu_spice_display_init_common(ssd);
 
     ssd->qxl.base.sif = &dpy_interface.base;
     qemu_spice_add_interface(&ssd->qxl.base);

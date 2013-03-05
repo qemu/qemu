@@ -42,7 +42,7 @@ enum pl110_version
 typedef struct {
     SysBusDevice busdev;
     MemoryRegion iomem;
-    DisplayState *ds;
+    QemuConsole *con;
 
     int version;
     uint32_t timing[4];
@@ -129,6 +129,7 @@ static int pl110_enabled(pl110_state *s)
 static void pl110_update_display(void *opaque)
 {
     pl110_state *s = (pl110_state *)opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
     drawfn* fntable;
     drawfn fn;
     int dest_width;
@@ -140,7 +141,7 @@ static void pl110_update_display(void *opaque)
     if (!pl110_enabled(s))
         return;
 
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(surface)) {
     case 0:
         return;
     case 8:
@@ -231,14 +232,14 @@ static void pl110_update_display(void *opaque)
     }
     dest_width *= s->cols;
     first = 0;
-    framebuffer_update_display(s->ds, sysbus_address_space(&s->busdev),
+    framebuffer_update_display(surface, sysbus_address_space(&s->busdev),
                                s->upbase, s->cols, s->rows,
                                src_width, dest_width, 0,
                                s->invalidate,
                                fn, s->palette,
                                &first, &last);
     if (first >= 0) {
-        dpy_gfx_update(s->ds, 0, first, s->cols, last - first + 1);
+        dpy_gfx_update(s->con, 0, first, s->cols, last - first + 1);
     }
     s->invalidate = 0;
 }
@@ -248,12 +249,13 @@ static void pl110_invalidate_display(void * opaque)
     pl110_state *s = (pl110_state *)opaque;
     s->invalidate = 1;
     if (pl110_enabled(s)) {
-        qemu_console_resize(s->ds, s->cols, s->rows);
+        qemu_console_resize(s->con, s->cols, s->rows);
     }
 }
 
 static void pl110_update_palette(pl110_state *s, int n)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int i;
     uint32_t raw;
     unsigned int r, g, b;
@@ -268,7 +270,7 @@ static void pl110_update_palette(pl110_state *s, int n)
         b = (raw & 0x1f) << 3;
         /* The I bit is ignored.  */
         raw >>= 6;
-        switch (ds_get_bits_per_pixel(s->ds)) {
+        switch (surface_bits_per_pixel(surface)) {
         case 8:
             s->palette[n] = rgb_to_pixel8(r, g, b);
             break;
@@ -291,7 +293,7 @@ static void pl110_resize(pl110_state *s, int width, int height)
 {
     if (width != s->cols || height != s->rows) {
         if (pl110_enabled(s)) {
-            qemu_console_resize(s->ds, width, height);
+            qemu_console_resize(s->con, width, height);
         }
     }
     s->cols = width;
@@ -409,7 +411,7 @@ static void pl110_write(void *opaque, hwaddr offset,
         s->cr = val;
         s->bpp = (val >> 1) & 7;
         if (pl110_enabled(s)) {
-            qemu_console_resize(s->ds, s->cols, s->rows);
+            qemu_console_resize(s->con, s->cols, s->rows);
         }
         break;
     case 10: /* LCDICR */
@@ -450,9 +452,9 @@ static int pl110_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_in(&s->busdev.qdev, pl110_mux_ctrl_set, 1);
-    s->ds = graphic_console_init(pl110_update_display,
-                                 pl110_invalidate_display,
-                                 NULL, NULL, s);
+    s->con = graphic_console_init(pl110_update_display,
+                                  pl110_invalidate_display,
+                                  NULL, NULL, s);
     return 0;
 }
 

@@ -2063,6 +2063,7 @@ static int qxl_init_primary(PCIDevice *dev)
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
     VGACommonState *vga = &qxl->vga;
     PortioList *qxl_vga_port_list = g_new(PortioList, 1);
+    DisplayState *ds;
     int rc;
 
     qxl->id = 0;
@@ -2073,9 +2074,11 @@ static int qxl_init_primary(PCIDevice *dev)
     portio_list_init(qxl_vga_port_list, qxl_vga_portio_list, vga, "vga");
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
 
-    vga->ds = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
-                                   qxl_hw_screen_dump, qxl_hw_text_update, qxl);
-    qemu_spice_display_init_common(&qxl->ssd, vga->ds);
+    vga->con = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
+                                    qxl_hw_screen_dump, qxl_hw_text_update,
+                                    qxl);
+    qxl->ssd.con = vga->con,
+    qemu_spice_display_init_common(&qxl->ssd);
 
     rc = qxl_init_common(qxl);
     if (rc != 0) {
@@ -2083,7 +2086,8 @@ static int qxl_init_primary(PCIDevice *dev)
     }
 
     qxl->ssd.dcl.ops = &display_listener_ops;
-    register_displaychangelistener(vga->ds, &qxl->ssd.dcl);
+    ds = qemu_console_displaystate(vga->con);
+    register_displaychangelistener(ds, &qxl->ssd.dcl);
     return rc;
 }
 

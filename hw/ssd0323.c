@@ -45,7 +45,7 @@ enum ssd0323_mode
 
 typedef struct {
     SSISlave ssidev;
-    DisplayState *ds;
+    QemuConsole *con;
 
     int cmd_len;
     int cmd;
@@ -175,6 +175,7 @@ static uint32_t ssd0323_transfer(SSISlave *dev, uint32_t data)
 static void ssd0323_update_display(void *opaque)
 {
     ssd0323_state *s = (ssd0323_state *)opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
     uint8_t *dest;
     uint8_t *src;
     int x;
@@ -189,7 +190,7 @@ static void ssd0323_update_display(void *opaque)
     if (!s->redraw)
         return;
 
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(surface)) {
     case 0:
         return;
     case 15:
@@ -212,7 +213,7 @@ static void ssd0323_update_display(void *opaque)
     for (i = 0; i < 16; i++) {
         int n;
         colors[i] = p;
-        switch (ds_get_bits_per_pixel(s->ds)) {
+        switch (surface_bits_per_pixel(surface)) {
         case 15:
             n = i * 2 + (i >> 3);
             p[0] = n | (n << 5);
@@ -235,7 +236,7 @@ static void ssd0323_update_display(void *opaque)
         p += dest_width;
     }
     /* TODO: Implement row/column remapping.  */
-    dest = ds_get_data(s->ds);
+    dest = surface_data(surface);
     for (y = 0; y < 64; y++) {
         line = y;
         src = s->framebuffer + 64 * line;
@@ -260,7 +261,7 @@ static void ssd0323_update_display(void *opaque)
         }
     }
     s->redraw = 0;
-    dpy_gfx_update(s->ds, 0, 0, 128 * MAGNIFY, 64 * MAGNIFY);
+    dpy_gfx_update(s->con, 0, 0, 128 * MAGNIFY, 64 * MAGNIFY);
 }
 
 static void ssd0323_invalidate_display(void * opaque)
@@ -336,10 +337,10 @@ static int ssd0323_init(SSISlave *dev)
 
     s->col_end = 63;
     s->row_end = 79;
-    s->ds = graphic_console_init(ssd0323_update_display,
-                                 ssd0323_invalidate_display,
-                                 NULL, NULL, s);
-    qemu_console_resize(s->ds, 128 * MAGNIFY, 64 * MAGNIFY);
+    s->con = graphic_console_init(ssd0323_update_display,
+                                  ssd0323_invalidate_display,
+                                  NULL, NULL, s);
+    qemu_console_resize(s->con, 128 * MAGNIFY, 64 * MAGNIFY);
 
     qdev_init_gpio_in(&dev->qdev, ssd0323_cd, 1);
 

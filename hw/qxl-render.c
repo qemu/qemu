@@ -23,11 +23,12 @@
 
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
+    DisplaySurface *surface = qemu_console_surface(qxl->vga.con);
+    uint8_t *dst = surface_data(surface);
     uint8_t *src;
-    uint8_t *dst = ds_get_data(qxl->vga.ds);
     int len, i;
 
-    if (is_buffer_shared(qxl->vga.ds->surface)) {
+    if (is_buffer_shared(surface)) {
         return;
     }
     if (!qxl->guest_primary.data) {
@@ -125,14 +126,14 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                 (qxl->guest_primary.surface.width,
                  qxl->guest_primary.surface.height);
         }
-        dpy_gfx_replace_surface(vga->ds, surface);
+        dpy_gfx_replace_surface(vga->con, surface);
     }
     for (i = 0; i < qxl->num_dirty_rects; i++) {
         if (qemu_spice_rect_is_empty(qxl->dirty+i)) {
             break;
         }
         qxl_blit(qxl, qxl->dirty+i);
-        dpy_gfx_update(vga->ds,
+        dpy_gfx_update(vga->con,
                        qxl->dirty[i].left, qxl->dirty[i].top,
                        qxl->dirty[i].right - qxl->dirty[i].left,
                        qxl->dirty[i].bottom - qxl->dirty[i].top);
@@ -236,7 +237,7 @@ int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
         return 1;
     }
 
-    if (!dpy_cursor_define_supported(qxl->ssd.dcl.ds)) {
+    if (!dpy_cursor_define_supported(qxl->vga.con)) {
         return 0;
     }
 

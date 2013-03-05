@@ -223,18 +223,18 @@ void register_displaychangelistener(DisplayState *ds,
                                     DisplayChangeListener *dcl);
 void unregister_displaychangelistener(DisplayChangeListener *dcl);
 
-void dpy_gfx_update(DisplayState *s, int x, int y, int w, int h);
-void dpy_gfx_replace_surface(DisplayState *s,
+void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h);
+void dpy_gfx_replace_surface(QemuConsole *con,
                              DisplaySurface *surface);
 void dpy_refresh(DisplayState *s);
-void dpy_gfx_copy(struct DisplayState *s, int src_x, int src_y,
+void dpy_gfx_copy(QemuConsole *con, int src_x, int src_y,
                   int dst_x, int dst_y, int w, int h);
-void dpy_text_cursor(struct DisplayState *s, int x, int y);
-void dpy_text_update(DisplayState *s, int x, int y, int w, int h);
-void dpy_text_resize(DisplayState *s, int w, int h);
-void dpy_mouse_set(struct DisplayState *s, int x, int y, int on);
-void dpy_cursor_define(struct DisplayState *s, QEMUCursor *cursor);
-bool dpy_cursor_define_supported(struct DisplayState *s);
+void dpy_text_cursor(QemuConsole *con, int x, int y);
+void dpy_text_update(QemuConsole *con, int x, int y, int w, int h);
+void dpy_text_resize(QemuConsole *con, int w, int h);
+void dpy_mouse_set(QemuConsole *con, int x, int y, int on);
+void dpy_cursor_define(QemuConsole *con, QEMUCursor *cursor);
+bool dpy_cursor_define_supported(QemuConsole *con);
 
 static inline int surface_stride(DisplaySurface *s)
 {
@@ -347,11 +347,11 @@ typedef void (*vga_hw_screen_dump_ptr)(void *, const char *, bool cswitch,
                                        Error **errp);
 typedef void (*vga_hw_text_update_ptr)(void *, console_ch_t *);
 
-DisplayState *graphic_console_init(vga_hw_update_ptr update,
-                                   vga_hw_invalidate_ptr invalidate,
-                                   vga_hw_screen_dump_ptr screen_dump,
-                                   vga_hw_text_update_ptr text_update,
-                                   void *opaque);
+QemuConsole *graphic_console_init(vga_hw_update_ptr update,
+                                  vga_hw_invalidate_ptr invalidate,
+                                  vga_hw_screen_dump_ptr screen_dump,
+                                  vga_hw_text_update_ptr text_update,
+                                  void *opaque);
 
 void vga_hw_update(void);
 void vga_hw_invalidate(void);
@@ -362,9 +362,11 @@ int is_fixedsize_console(void);
 void text_consoles_set_display(DisplayState *ds);
 void console_select(unsigned int index);
 void console_color_init(DisplayState *ds);
-void qemu_console_resize(DisplayState *ds, int width, int height);
-void qemu_console_copy(DisplayState *ds, int src_x, int src_y,
+void qemu_console_resize(QemuConsole *con, int width, int height);
+void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
                        int dst_x, int dst_y, int w, int h);
+DisplaySurface *qemu_console_surface(QemuConsole *con);
+DisplayState *qemu_console_displaystate(QemuConsole *console);
 
 typedef CharDriverState *(VcHandler)(ChardevVC *vc);
 

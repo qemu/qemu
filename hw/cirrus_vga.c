@@ -729,11 +729,12 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
 		      s->cirrus_blt_dstpitch, s->cirrus_blt_srcpitch,
 		      s->cirrus_blt_width, s->cirrus_blt_height);
 
-    if (notify)
-	qemu_console_copy(s->vga.ds,
+    if (notify) {
+        qemu_console_copy(s->vga.con,
 			  sx, sy, dx, dy,
 			  s->cirrus_blt_width / depth,
 			  s->cirrus_blt_height);
+    }
 
     /* we don't have to notify the display that this portion has
        changed since qemu_console_copy implies this */
@@ -2176,6 +2177,7 @@ static void cirrus_cursor_invalidate(VGACommonState *s1)
 static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
 {
     CirrusVGAState *s = container_of(s1, CirrusVGAState, vga);
+    DisplaySurface *surface = qemu_console_surface(s->vga.con);
     int w, h, bpp, x1, x2, poffset;
     unsigned int color0, color1;
     const uint8_t *palette, *src;
@@ -2228,9 +2230,9 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
     color1 = s->vga.rgb_to_pixel(c6_to_8(palette[0xf * 3]),
                                  c6_to_8(palette[0xf * 3 + 1]),
                                  c6_to_8(palette[0xf * 3 + 2]));
-    bpp = ((ds_get_bits_per_pixel(s->vga.ds) + 7) >> 3);
+    bpp = surface_bytes_per_pixel(surface);
     d1 += x1 * bpp;
-    switch(ds_get_bits_per_pixel(s->vga.ds)) {
+    switch (surface_bits_per_pixel(surface)) {
     default:
         break;
     case 8:
@@ -2908,9 +2910,9 @@ static int vga_initfn(ISADevice *dev)
     vga_common_init(s);
     cirrus_init_common(&d->cirrus_vga, CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(dev), isa_address_space_io(dev));
-    s->ds = graphic_console_init(s->update, s->invalidate,
-                                 s->screen_dump, s->text_update,
-                                 s);
+    s->con = graphic_console_init(s->update, s->invalidate,
+                                  s->screen_dump, s->text_update,
+                                  s);
     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
     /* FIXME not qdev yet */
@@ -2957,9 +2959,9 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      vga_common_init(&s->vga);
      cirrus_init_common(s, device_id, 1, pci_address_space(dev),
                         pci_address_space_io(dev));
-     s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
-                                      s->vga.screen_dump, s->vga.text_update,
-                                      &s->vga);
+     s->vga.con = graphic_console_init(s->vga.update, s->vga.invalidate,
+                                       s->vga.screen_dump, s->vga.text_update,
+                                       &s->vga);
 
      /* setup PCI */
 

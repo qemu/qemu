@@ -664,7 +664,7 @@ static void console_refresh(QemuConsole *s)
             }
         }
         console_show_cursor(s, 1);
-        dpy_gfx_update(s->ds, 0, 0, ds_get_width(s->ds), ds_get_height(s->ds));
+        dpy_gfx_update(s, 0, 0, ds_get_width(s->ds), ds_get_height(s->ds));
     }
 }
 
@@ -1101,10 +1101,10 @@ void console_select(unsigned int index)
         if (ds->have_gfx) {
             DisplaySurface *surface;
             surface = qemu_create_displaysurface(s->g_width, s->g_height);
-            dpy_gfx_replace_surface(ds, surface);
+            dpy_gfx_replace_surface(s, surface);
         }
         if (ds->have_text) {
-            dpy_text_resize(ds, s->width, s->height);
+            dpy_text_resize(s, s->width, s->height);
         }
         if (s->cursor_timer) {
             qemu_mod_timer(s->cursor_timer,
@@ -1129,7 +1129,7 @@ static int console_puts(CharDriverState *chr, const uint8_t *buf, int len)
     }
     console_show_cursor(s, 1);
     if (s->ds->have_gfx && s->update_x0 < s->update_x1) {
-        dpy_gfx_update(s->ds, s->update_x0, s->update_y0,
+        dpy_gfx_update(s, s->update_x0, s->update_y0,
                        s->update_x1 - s->update_x0,
                        s->update_y1 - s->update_y0);
     }
@@ -1239,7 +1239,7 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
                                 (s->cells[src].t_attrib.fgcol << 12) |
                                 (s->cells[src].t_attrib.bgcol << 8) |
                                 (s->cells[src].t_attrib.bold << 21));
-        dpy_text_update(s->ds, s->text_x[0], s->text_y[0],
+        dpy_text_update(s, s->text_x[0], s->text_y[0],
                         s->text_x[1] - s->text_x[0], i - s->text_y[0]);
         s->text_x[0] = s->width;
         s->text_y[0] = s->height;
@@ -1247,21 +1247,9 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
         s->text_y[1] = 0;
     }
     if (s->cursor_invalidate) {
-        dpy_text_cursor(s->ds, s->x, s->y);
+        dpy_text_cursor(s, s->x, s->y);
         s->cursor_invalidate = 0;
     }
-}
-
-static QemuConsole *get_graphic_console(DisplayState *ds)
-{
-    int i;
-    QemuConsole *s;
-    for (i = 0; i < nb_consoles; i++) {
-        s = consoles[i];
-        if (s->console_type == GRAPHIC_CONSOLE && s->ds == ds)
-            return s;
-    }
-    return NULL;
 }
 
 static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
@@ -1385,8 +1373,9 @@ void unregister_displaychangelistener(DisplayChangeListener *dcl)
     gui_setup_refresh(ds);
 }
 
-void dpy_gfx_update(DisplayState *s, int x, int y, int w, int h)
+void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h)
 {
+    DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
     int width = pixman_image_get_width(s->surface->image);
     int height = pixman_image_get_height(s->surface->image);
@@ -1405,9 +1394,10 @@ void dpy_gfx_update(DisplayState *s, int x, int y, int w, int h)
     }
 }
 
-void dpy_gfx_replace_surface(DisplayState *s,
+void dpy_gfx_replace_surface(QemuConsole *con,
                              DisplaySurface *surface)
 {
+    DisplayState *s = con->ds;
     DisplaySurface *old_surface = s->surface;
     struct DisplayChangeListener *dcl;
 
@@ -1430,9 +1420,10 @@ void dpy_refresh(DisplayState *s)
     }
 }
 
-void dpy_gfx_copy(struct DisplayState *s, int src_x, int src_y,
-                             int dst_x, int dst_y, int w, int h)
+void dpy_gfx_copy(QemuConsole *con, int src_x, int src_y,
+                  int dst_x, int dst_y, int w, int h)
 {
+    DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_gfx_copy) {
@@ -1443,8 +1434,9 @@ void dpy_gfx_copy(struct DisplayState *s, int src_x, int src_y,
     }
 }
 
-void dpy_text_cursor(struct DisplayState *s, int x, int y)
+void dpy_text_cursor(QemuConsole *con, int x, int y)
 {
+    DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_text_cursor) {
@@ -1453,8 +1445,9 @@ void dpy_text_cursor(struct DisplayState *s, int x, int y)
     }
 }
 
-void dpy_text_update(DisplayState *s, int x, int y, int w, int h)
+void dpy_text_update(QemuConsole *con, int x, int y, int w, int h)
 {
+    DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_text_update) {
@@ -1463,8 +1456,9 @@ void dpy_text_update(DisplayState *s, int x, int y, int w, int h)
     }
 }
 
-void dpy_text_resize(DisplayState *s, int w, int h)
+void dpy_text_resize(QemuConsole *con, int w, int h)
 {
+    DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_text_resize) {
@@ -1473,8 +1467,9 @@ void dpy_text_resize(DisplayState *s, int w, int h)
     }
 }
 
-void dpy_mouse_set(struct DisplayState *s, int x, int y, int on)
+void dpy_mouse_set(QemuConsole *con, int x, int y, int on)
 {
+    DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_mouse_set) {
@@ -1483,8 +1478,9 @@ void dpy_mouse_set(struct DisplayState *s, int x, int y, int on)
     }
 }
 
-void dpy_cursor_define(struct DisplayState *s, QEMUCursor *cursor)
+void dpy_cursor_define(QemuConsole *con, QEMUCursor *cursor)
 {
+    DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_cursor_define) {
@@ -1493,8 +1489,9 @@ void dpy_cursor_define(struct DisplayState *s, QEMUCursor *cursor)
     }
 }
 
-bool dpy_cursor_define_supported(struct DisplayState *s)
+bool dpy_cursor_define_supported(QemuConsole *con)
 {
+    DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->ops->dpy_cursor_define) {
@@ -1507,7 +1504,6 @@ bool dpy_cursor_define_supported(struct DisplayState *s)
 static void dumb_display_init(void)
 {
     DisplayState *ds = g_malloc0(sizeof(DisplayState));
-    DisplaySurface *surface;
     int width = 640;
     int height = 480;
 
@@ -1515,8 +1511,7 @@ static void dumb_display_init(void)
         width = active_console->g_width;
         height = active_console->g_height;
     }
-    surface = qemu_create_displaysurface(width, height);
-    dpy_gfx_replace_surface(ds, surface);
+    ds->surface = qemu_create_displaysurface(width, height);
 
     register_displaystate(ds);
 }
@@ -1542,15 +1537,14 @@ DisplayState *get_displaystate(void)
     return display_state;
 }
 
-DisplayState *graphic_console_init(vga_hw_update_ptr update,
-                                   vga_hw_invalidate_ptr invalidate,
-                                   vga_hw_screen_dump_ptr screen_dump,
-                                   vga_hw_text_update_ptr text_update,
-                                   void *opaque)
+QemuConsole *graphic_console_init(vga_hw_update_ptr update,
+                                  vga_hw_invalidate_ptr invalidate,
+                                  vga_hw_screen_dump_ptr screen_dump,
+                                  vga_hw_text_update_ptr text_update,
+                                  void *opaque)
 {
     QemuConsole *s;
     DisplayState *ds;
-    DisplaySurface *surface;
 
     ds = (DisplayState *) g_malloc0(sizeof(DisplayState));
     s = new_console(ds, GRAPHIC_CONSOLE);
@@ -1560,11 +1554,10 @@ DisplayState *graphic_console_init(vga_hw_update_ptr update,
     s->hw_text_update = text_update;
     s->hw = opaque;
 
-    surface = qemu_create_displaysurface(640, 480);
-    dpy_gfx_replace_surface(ds, surface);
+    ds->surface = qemu_create_displaysurface(640, 480);
 
     register_displaystate(ds);
-    return ds;
+    return s;
 }
 
 int is_graphic_console(void)
@@ -1730,26 +1723,33 @@ void text_consoles_set_display(DisplayState *ds)
     }
 }
 
-void qemu_console_resize(DisplayState *ds, int width, int height)
+void qemu_console_resize(QemuConsole *s, int width, int height)
 {
-    QemuConsole *s = get_graphic_console(ds);
-    if (!s) return;
-
     s->g_width = width;
     s->g_height = height;
     if (is_graphic_console()) {
         DisplaySurface *surface;
         surface = qemu_create_displaysurface(width, height);
-        dpy_gfx_replace_surface(ds, surface);
+        dpy_gfx_replace_surface(s, surface);
     }
 }
 
-void qemu_console_copy(DisplayState *ds, int src_x, int src_y,
+void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
                        int dst_x, int dst_y, int w, int h)
 {
     if (is_graphic_console()) {
-        dpy_gfx_copy(ds, src_x, src_y, dst_x, dst_y, w, h);
+        dpy_gfx_copy(con, src_x, src_y, dst_x, dst_y, w, h);
     }
+}
+
+DisplaySurface *qemu_console_surface(QemuConsole *console)
+{
+    return console->ds->surface;
+}
+
+DisplayState *qemu_console_displaystate(QemuConsole *console)
+{
+    return console->ds;
 }
 
 PixelFormat qemu_different_endianness_pixelformat(int bpp)

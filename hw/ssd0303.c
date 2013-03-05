@@ -43,7 +43,7 @@ enum ssd0303_cmd {
 
 typedef struct {
     I2CSlave i2c;
-    DisplayState *ds;
+    QemuConsole *con;
     int row;
     int col;
     int start_line;
@@ -191,6 +191,7 @@ static void ssd0303_event(I2CSlave *i2c, enum i2c_event event)
 static void ssd0303_update_display(void *opaque)
 {
     ssd0303_state *s = (ssd0303_state *)opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
     uint8_t *dest;
     uint8_t *src;
     int x;
@@ -204,7 +205,7 @@ static void ssd0303_update_display(void *opaque)
     if (!s->redraw)
         return;
 
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(surface)) {
     case 0:
         return;
     case 15:
@@ -236,7 +237,7 @@ static void ssd0303_update_display(void *opaque)
         colors[0] = colortab + dest_width;
         colors[1] = colortab;
     }
-    dest = ds_get_data(s->ds);
+    dest = surface_data(surface);
     for (y = 0; y < 16; y++) {
         line = (y + s->start_line) & 63;
         src = s->framebuffer + 132 * (line >> 3) + 36;
@@ -252,7 +253,7 @@ static void ssd0303_update_display(void *opaque)
         }
     }
     s->redraw = 0;
-    dpy_gfx_update(s->ds, 0, 0, 96 * MAGNIFY, 16 * MAGNIFY);
+    dpy_gfx_update(s->con, 0, 0, 96 * MAGNIFY, 16 * MAGNIFY);
 }
 
 static void ssd0303_invalidate_display(void * opaque)
@@ -287,10 +288,10 @@ static int ssd0303_init(I2CSlave *i2c)
 {
     ssd0303_state *s = FROM_I2C_SLAVE(ssd0303_state, i2c);
 
-    s->ds = graphic_console_init(ssd0303_update_display,
-                                 ssd0303_invalidate_display,
-                                 NULL, NULL, s);
-    qemu_console_resize(s->ds, 96 * MAGNIFY, 16 * MAGNIFY);
+    s->con = graphic_console_init(ssd0303_update_display,
+                                  ssd0303_invalidate_display,
+                                  NULL, NULL, s);
+    qemu_console_resize(s->con, 96 * MAGNIFY, 16 * MAGNIFY);
     return 0;
 }
 
