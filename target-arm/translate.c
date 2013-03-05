@@ -8180,9 +8180,10 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         } else {
             /* Load/store multiple, RFE, SRS.  */
             if (((insn >> 23) & 1) == ((insn >> 24) & 1)) {
-                /* Not available in user mode.  */
-                if (IS_USER(s))
+                /* RFE, SRS: not available in user mode or on M profile */
+                if (IS_USER(s) || IS_M(env)) {
                     goto illegal_op;
+                }
                 if (insn & (1 << 20)) {
                     /* rfe */
                     addr = load_reg(s, rn);
