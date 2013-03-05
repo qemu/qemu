@@ -49,8 +49,6 @@ typedef enum {
 
 #define TCG_TARGET_NB_REGS 16
 
-#define TCG_CT_CONST_ARM 0x100
-
 /* used for function call generation */
 #define TCG_REG_CALL_STACK		TCG_REG_R13
 #define TCG_TARGET_STACK_ALIGN		8

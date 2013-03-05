@@ -145,6 +145,9 @@ static void patch_reloc(uint8_t *code_ptr, int type,
     }
 }
 
+#define TCG_CT_CONST_ARM 0x100
+#define TCG_CT_CONST_INV 0x200
+
 /* parse target specific constraints */
 static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 {
@@ -153,8 +156,11 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     ct_str = *pct_str;
     switch (ct_str[0]) {
     case 'I':
-         ct->ct |= TCG_CT_CONST_ARM;
-         break;
+        ct->ct |= TCG_CT_CONST_ARM;
+        break;
+    case 'K':
+        ct->ct |= TCG_CT_CONST_INV;
+        break;
 
     case 'r':
         ct->ct |= TCG_CT_REG;
@@ -275,16 +281,19 @@ static inline int check_fit_imm(uint32_t imm)
  * add, sub, eor...: ditto
  */
 static inline int tcg_target_const_match(tcg_target_long val,
-                const TCGArgConstraint *arg_ct)
+                                         const TCGArgConstraint *arg_ct)
 {
     int ct;
     ct = arg_ct->ct;
-    if (ct & TCG_CT_CONST)
+    if (ct & TCG_CT_CONST) {
         return 1;
-    else if ((ct & TCG_CT_CONST_ARM) && check_fit_imm(val))
+    } else if ((ct & TCG_CT_CONST_ARM) && check_fit_imm(val)) {
         return 1;
-    else
+    } else if ((ct & TCG_CT_CONST_INV) && check_fit_imm(~val)) {
+        return 1;
+    } else {
         return 0;
+    }
 }
 
 enum arm_data_opc_e {
@@ -476,6 +485,27 @@ static inline void tcg_out_dat_rI(TCGContext *s, int cond, int opc, TCGArg dst,
     if (rhs_is_const) {
         int rot = encode_imm(rhs);
         assert(rot >= 0);
+        tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
+    } else {
+        tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
+    }
+}
+
+static void tcg_out_dat_rIK(TCGContext *s, int cond, int opc, int opinv,
+                            TCGReg dst, TCGReg lhs, TCGArg rhs,
+                            bool rhs_is_const)
+{
+    /* Emit either the reg,imm or reg,reg form of a data-processing insn.
+     * rhs must satisfy the "rIK" constraint.
+     */
+    if (rhs_is_const) {
+        int rot = encode_imm(rhs);
+        if (rot < 0) {
+            rhs = ~rhs;
+            rot = encode_imm(rhs);
+            assert(rot >= 0);
+            opc = opinv;
+        }
         tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
     } else {
         tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
@@ -1570,11 +1600,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         c = ARITH_SUB;
         goto gen_arith;
     case INDEX_op_and_i32:
-        c = ARITH_AND;
-        goto gen_arith;
+        tcg_out_dat_rIK(s, COND_AL, ARITH_AND, ARITH_BIC,
+                        args[0], args[1], args[2], const_args[2]);
+        break;
     case INDEX_op_andc_i32:
-        c = ARITH_BIC;
-        goto gen_arith;
+        tcg_out_dat_rIK(s, COND_AL, ARITH_BIC, ARITH_AND,
+                        args[0], args[1], args[2], const_args[2]);
+        break;
     case INDEX_op_or_i32:
         c = ARITH_ORR;
         goto gen_arith;
@@ -1762,8 +1794,8 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_mul_i32, { "r", "r", "r" } },
     { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
     { INDEX_op_muls2_i32, { "r", "r", "r", "r" } },
-    { INDEX_op_and_i32, { "r", "r", "rI" } },
-    { INDEX_op_andc_i32, { "r", "r", "rI" } },
+    { INDEX_op_and_i32, { "r", "r", "rIK" } },
+    { INDEX_op_andc_i32, { "r", "r", "rIK" } },
     { INDEX_op_or_i32, { "r", "r", "rI" } },
     { INDEX_op_xor_i32, { "r", "r", "rI" } },
     { INDEX_op_neg_i32, { "r", "r" } },
