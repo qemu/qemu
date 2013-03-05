@@ -541,6 +541,146 @@ int send_all(int fd, const void *_buf, int len1)
 
 #ifndef _WIN32
 
+#if 0
+typedef struct IOWatchPoll
+{
+    GSource *src;
+    int max_size;
+
+    IOCanReadHandler *fd_can_read;
+    void *opaque;
+
+    QTAILQ_ENTRY(IOWatchPoll) node;
+} IOWatchPoll;
+
+static QTAILQ_HEAD(, IOWatchPoll) io_watch_poll_list =
+    QTAILQ_HEAD_INITIALIZER(io_watch_poll_list);
+
+static IOWatchPoll *io_watch_poll_from_source(GSource *source)
+{
+    IOWatchPoll *i;
+
+    QTAILQ_FOREACH(i, &io_watch_poll_list, node) {
+        if (i->src == source) {
+            return i;
+        }
+    }
+
+    return NULL;
+}
+
+static gboolean io_watch_poll_prepare(GSource *source, gint *timeout_)
+{
+    IOWatchPoll *iwp = io_watch_poll_from_source(source);
+
+    iwp->max_size = iwp->fd_can_read(iwp->opaque);
+    if (iwp->max_size == 0) {
+        return FALSE;
+    }
+
+    return g_io_watch_funcs.prepare(source, timeout_);
+}
+
+static gboolean io_watch_poll_check(GSource *source)
+{
+    IOWatchPoll *iwp = io_watch_poll_from_source(source);
+
+    if (iwp->max_size == 0) {
+        return FALSE;
+    }
+
+    return g_io_watch_funcs.check(source);
+}
+
+static gboolean io_watch_poll_dispatch(GSource *source, GSourceFunc callback,
+                                       gpointer user_data)
+{
+    return g_io_watch_funcs.dispatch(source, callback, user_data);
+}
+
+static void io_watch_poll_finalize(GSource *source)
+{
+    IOWatchPoll *iwp = io_watch_poll_from_source(source);
+    QTAILQ_REMOVE(&io_watch_poll_list, iwp, node);
+    g_io_watch_funcs.finalize(source);
+}
+
+static GSourceFuncs io_watch_poll_funcs = {
+    .prepare = io_watch_poll_prepare,
+    .check = io_watch_poll_check,
+    .dispatch = io_watch_poll_dispatch,
+    .finalize = io_watch_poll_finalize,
+};
+
+/* Can only be used for read */
+static guint io_add_watch_poll(GIOChannel *channel,
+                               IOCanReadHandler *fd_can_read,
+                               GIOFunc fd_read,
+                               gpointer user_data)
+{
+    IOWatchPoll *iwp;
+    GSource *src;
+    guint tag;
+
+    src = g_io_create_watch(channel, G_IO_IN | G_IO_ERR | G_IO_HUP);
+    g_source_set_funcs(src, &io_watch_poll_funcs);
+    g_source_set_callback(src, (GSourceFunc)fd_read, user_data, NULL);
+    tag = g_source_attach(src, NULL);
+    g_source_unref(src);
+
+    iwp = g_malloc0(sizeof(*iwp));
+    iwp->src = src;
+    iwp->max_size = 0;
+    iwp->fd_can_read = fd_can_read;
+    iwp->opaque = user_data;
+
+    QTAILQ_INSERT_HEAD(&io_watch_poll_list, iwp, node);
+
+    return tag;
+}
+
+static GIOChannel *io_channel_from_fd(int fd)
+{
+    GIOChannel *chan;
+
+    if (fd == -1) {
+        return NULL;
+    }
+
+    chan = g_io_channel_unix_new(fd);
+
+    g_io_channel_set_encoding(chan, NULL, NULL);
+    g_io_channel_set_buffered(chan, FALSE);
+
+    return chan;
+}
+
+static int io_channel_send_all(GIOChannel *fd, const void *_buf, int len1)
+{
+    GIOStatus status;
+    gsize bytes_written;
+    int len;
+    const uint8_t *buf = _buf;
+
+    len = len1;
+    while (len > 0) {
+        status = g_io_channel_write_chars(fd, (const gchar *)buf, len,
+                                          &bytes_written, NULL);
+        if (status != G_IO_STATUS_NORMAL) {
+            if (status != G_IO_STATUS_AGAIN) {
+                return -1;
+            }
+        } else if (status == G_IO_STATUS_EOF) {
+            break;
+        } else {
+            buf += bytes_written;
+            len -= bytes_written;
+        }
+    }
+    return len1 - len;
+}
+#endif
+
 typedef struct {
     int fd_in, fd_out;
     int max_size;
