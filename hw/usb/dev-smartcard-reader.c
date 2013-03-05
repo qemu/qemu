@@ -1051,6 +1051,10 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
             ccid_reset_error_status(s);
             ccid_write_parameters(s, ccid_header);
             break;
+        case CCID_MESSAGE_TYPE_PC_to_RDR_Mechanical:
+            ccid_report_error_failed(s, 0);
+            ccid_write_slot_status(s, ccid_header);
+            break;
         default:
             DPRINTF(s, 1,
                 "handle_data: ERROR: unhandled message type %Xh\n",
