@@ -68,12 +68,6 @@ do { \
 #define BULK_IN_BUF_SIZE 384
 #define BULK_IN_PENDING_NUM 8
 
-#define InterfaceOutClass \
-    ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE)<<8)
-
-#define InterfaceInClass  \
-    ((USB_DIR_IN  | USB_TYPE_CLASS | USB_RECIP_INTERFACE)<<8)
-
 #define CCID_MAX_PACKET_SIZE                64
 
 #define CCID_CONTROL_ABORT                  0x1
@@ -410,8 +404,8 @@ static const USBDescStrings desc_strings = {
 static const USBDescIface desc_iface0 = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 3,
-    .bInterfaceClass               = 0x0b,
-    .bInterfaceSubClass            = 0x00,
+    .bInterfaceClass               = USB_CLASS_CSCID,
+    .bInterfaceSubClass            = USB_SUBCLASS_UNDEFINED,
     .bInterfaceProtocol            = 0x00,
     .iInterface                    = STR_INTERFACE,
     .ndesc                         = 1,
@@ -687,15 +681,15 @@ static void ccid_handle_control(USBDevice *dev, USBPacket *p, int request,
 
     switch (request) {
         /* Class specific requests.  */
-    case InterfaceOutClass | CCID_CONTROL_ABORT:
+    case ClassInterfaceOutRequest | CCID_CONTROL_ABORT:
         DPRINTF(s, 1, "ccid_control abort UNIMPLEMENTED\n");
         p->status = USB_RET_STALL;
         break;
-    case InterfaceInClass | CCID_CONTROL_GET_CLOCK_FREQUENCIES:
+    case ClassInterfaceRequest | CCID_CONTROL_GET_CLOCK_FREQUENCIES:
         DPRINTF(s, 1, "ccid_control get clock frequencies UNIMPLEMENTED\n");
         p->status = USB_RET_STALL;
         break;
-    case InterfaceInClass | CCID_CONTROL_GET_DATA_RATES:
+    case ClassInterfaceRequest | CCID_CONTROL_GET_DATA_RATES:
         DPRINTF(s, 1, "ccid_control get data rates UNIMPLEMENTED\n");
         p->status = USB_RET_STALL;
         break;
