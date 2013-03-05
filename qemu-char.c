@@ -3177,53 +3177,31 @@ static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
 
 #endif
 
-static const struct {
+typedef struct CharDriver {
     const char *name;
     CharDriverState *(*open)(QemuOpts *opts);
-} backend_table[] = {
-    { .name = "null",      .open = qemu_chr_open_null },
-    { .name = "socket",    .open = qemu_chr_open_socket },
-    { .name = "udp",       .open = qemu_chr_open_udp },
-    { .name = "msmouse",   .open = qemu_chr_open_msmouse },
-    { .name = "vc",        .open = vc_init },
-    { .name = "memory",    .open = qemu_chr_open_ringbuf },
-#ifdef _WIN32
-    { .name = "file",      .open = qemu_chr_open_win_file_out },
-    { .name = "pipe",      .open = qemu_chr_open_win_pipe },
-    { .name = "console",   .open = qemu_chr_open_win_con },
-    { .name = "serial",    .open = qemu_chr_open_win },
-    { .name = "stdio",     .open = qemu_chr_open_win_stdio },
-#else
-    { .name = "file",      .open = qemu_chr_open_file_out },
-    { .name = "pipe",      .open = qemu_chr_open_pipe },
-    { .name = "stdio",     .open = qemu_chr_open_stdio },
-#endif
-#ifdef CONFIG_BRLAPI
-    { .name = "braille",   .open = chr_baum_init },
-#endif
-#ifdef HAVE_CHARDEV_TTY
-    { .name = "tty",       .open = qemu_chr_open_tty },
-    { .name = "serial",    .open = qemu_chr_open_tty },
-    { .name = "pty",       .open = qemu_chr_open_pty },
-#endif
-#ifdef HAVE_CHARDEV_PARPORT
-    { .name = "parallel",  .open = qemu_chr_open_pp },
-    { .name = "parport",   .open = qemu_chr_open_pp },
-#endif
-#ifdef CONFIG_SPICE
-    { .name = "spicevmc",     .open = qemu_chr_open_spice },
-#if SPICE_SERVER_VERSION >= 0x000c02
-    { .name = "spiceport",    .open = qemu_chr_open_spice_port },
-#endif
-#endif
-};
+} CharDriver;
+
+static GSList *backends;
+
+void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *))
+{
+    CharDriver *s;
+
+    s = g_malloc0(sizeof(*s));
+    s->name = g_strdup(name);
+    s->open = open;
+
+    backends = g_slist_append(backends, s);
+}
 
 CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
                                     void (*init)(struct CharDriverState *s),
                                     Error **errp)
 {
+    CharDriver *cd;
     CharDriverState *chr;
-    int i;
+    GSList *i;
 
     if (qemu_opts_id(opts) == NULL) {
         error_setg(errp, "chardev: no id specified");
@@ -3235,17 +3213,20 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
                    qemu_opts_id(opts));
         goto err;
     }
-    for (i = 0; i < ARRAY_SIZE(backend_table); i++) {
-        if (strcmp(backend_table[i].name, qemu_opt_get(opts, "backend")) == 0)
+    for (i = backends; i; i = i->next) {
+        cd = i->data;
+
+        if (strcmp(cd->name, qemu_opt_get(opts, "backend")) == 0) {
             break;
+        }
     }
-    if (i == ARRAY_SIZE(backend_table)) {
+    if (i == NULL) {
         error_setg(errp, "chardev: backend \"%s\" not found",
                    qemu_opt_get(opts, "backend"));
-        goto err;
+        return NULL;
     }
 
-    chr = backend_table[i].open(opts);
+    chr = cd->open(opts);
     if (!chr) {
         error_setg(errp, "chardev: opening backend \"%s\" failed",
                    qemu_opt_get(opts, "backend"));
@@ -3677,3 +3658,44 @@ void qmp_chardev_remove(const char *id, Error **errp)
     }
     qemu_chr_delete(chr);
 }
+
+static void register_types(void)
+{
+    register_char_driver("null", qemu_chr_open_null);
+    register_char_driver("socket", qemu_chr_open_socket);
+    register_char_driver("udp", qemu_chr_open_udp);
+    register_char_driver("msmouse", qemu_chr_open_msmouse);
+    register_char_driver("vc", vc_init);
+    register_char_driver("memory", qemu_chr_open_ringbuf);
+#ifdef _WIN32
+    register_char_driver("file", qemu_chr_open_win_file_out);
+    register_char_driver("pipe", qemu_chr_open_win_pipe);
+    register_char_driver("console", qemu_chr_open_win_con);
+    register_char_driver("serial", qemu_chr_open_win);
+    register_char_driver("stdio", qemu_chr_open_win_stdio);
+#else
+    register_char_driver("file", qemu_chr_open_file_out);
+    register_char_driver("pipe", qemu_chr_open_pipe);
+    register_char_driver("stdio", qemu_chr_open_stdio);
+#endif
+#ifdef CONFIG_BRLAPI
+    register_char_driver("braille", chr_baum_init);
+#endif
+#ifdef HAVE_CHARDEV_TTY
+    register_char_driver("tty", qemu_chr_open_tty);
+    register_char_driver("serial", qemu_chr_open_tty);
+    register_char_driver("pty", qemu_chr_open_pty);
+#endif
+#ifdef HAVE_CHARDEV_PARPORT
+    register_char_driver("parallel", qemu_chr_open_pp);
+    register_char_driver("parport", qemu_chr_open_pp);
+#endif
+#ifdef CONFIG_SPICE
+    register_char_driver("spicevmc", qemu_chr_open_spice);
+#if SPICE_SERVER_VERSION >= 0x000c02
+    register_char_driver("spiceport", qemu_chr_open_spice_port);
+#endif
+#endif
+}
+
+type_init(register_types);
