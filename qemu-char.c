@@ -28,7 +28,6 @@
 #include "qemu/timer.h"
 #include "char/char.h"
 #include "hw/usb.h"
-#include "hw/baum.h"
 #include "hw/msmouse.h"
 #include "qmp-commands.h"
 
@@ -3677,9 +3676,6 @@ static void register_types(void)
     register_char_driver("file", qemu_chr_open_file_out);
     register_char_driver("pipe", qemu_chr_open_pipe);
     register_char_driver("stdio", qemu_chr_open_stdio);
-#endif
-#ifdef CONFIG_BRLAPI
-    register_char_driver("braille", chr_baum_init);
 #endif
 #ifdef HAVE_CHARDEV_TTY
     register_char_driver("tty", qemu_chr_open_tty);
