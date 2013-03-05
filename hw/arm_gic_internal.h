@@ -132,7 +132,7 @@ typedef struct ARMGICCommonClass {
 
 typedef struct ARMGICClass {
     ARMGICCommonClass parent_class;
-    int (*parent_init)(SysBusDevice *dev);
+    DeviceRealize parent_realize;
 } ARMGICClass;
 
 #endif /* !QEMU_ARM_GIC_INTERNAL_H */

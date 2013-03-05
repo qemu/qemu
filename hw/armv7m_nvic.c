@@ -41,7 +41,7 @@ typedef struct NVICClass {
     /*< private >*/
     ARMGICClass parent_class;
     /*< public >*/
-    int (*parent_init)(SysBusDevice *dev);
+    DeviceRealize parent_realize;
     void (*parent_reset)(DeviceState *dev);
 } NVICClass;
 
@@ -465,7 +465,7 @@ static void armv7m_nvic_reset(DeviceState *dev)
     systick_reset(s);
 }
 
-static int armv7m_nvic_init(SysBusDevice *dev)
+static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 {
     nvic_state *s = NVIC(dev);
     NVICClass *nc = NVIC_GET_CLASS(s);
@@ -475,7 +475,10 @@ static int armv7m_nvic_init(SysBusDevice *dev)
     /* Tell the common code we're an NVIC */
     s->gic.revision = 0xffffffff;
     s->num_irq = s->gic.num_irq;
-    nc->parent_init(dev);
+    nc->parent_realize(dev, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
     gic_init_irqs_and_distributor(&s->gic, s->num_irq);
     /* The NVIC and system controller register area looks like this:
      *  0..0xff : system control registers, including systick
@@ -503,7 +506,6 @@ static int armv7m_nvic_init(SysBusDevice *dev)
      */
     memory_region_add_subregion(get_system_memory(), 0xe000e000, &s->container);
     s->systick.timer = qemu_new_timer_ns(vm_clock, systick_timer_tick, s);
-    return 0;
 }
 
 static void armv7m_nvic_instance_init(Object *obj)
@@ -526,13 +528,12 @@ static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
 {
     NVICClass *nc = NVIC_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
 
     nc->parent_reset = dc->reset;
-    nc->parent_init = sdc->init;
-    sdc->init = armv7m_nvic_init;
+    nc->parent_realize = dc->realize;
     dc->vmsd  = &vmstate_nvic;
     dc->reset = armv7m_nvic_reset;
+    dc->realize = armv7m_nvic_realize;
 }
 
 static const TypeInfo armv7m_nvic_info = {
