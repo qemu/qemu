@@ -2442,9 +2442,9 @@ if test "$opengl" != "no" ; then
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
-int main(void) { return GL_VERSION != 0; }
+int main(void) { glBegin(0); glXQueryVersion(0,0,0); return 0; }
 EOF
-  if compile_prog "" "-lGL" ; then
+  if compile_prog "" "-lGL -lX11" ; then
     opengl=yes
   else
     if test "$opengl" = "yes" ; then
