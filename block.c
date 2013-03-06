@@ -676,7 +676,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     assert(drv != NULL);
     assert(bs->file == NULL);
-    assert(options == NULL || bs->options != options);
+    assert(options != NULL && bs->options != options);
 
     trace_bdrv_open_common(bs, filename, flags, drv->format_name);
 
@@ -755,22 +755,48 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     BlockDriver *drv;
     int ret;
 
-    QDECREF(options);
-
     drv = bdrv_find_protocol(filename);
     if (!drv) {
+        QDECREF(options);
         return -ENOENT;
     }
 
-    bs = bdrv_new("");
-    ret = bdrv_open_common(bs, NULL, filename, NULL, flags, drv);
-    if (ret < 0) {
-        bdrv_delete(bs);
-        return ret;
+    /* NULL means an empty set of options */
+    if (options == NULL) {
+        options = qdict_new();
     }
+
+    bs = bdrv_new("");
+    bs->options = options;
+    options = qdict_clone_shallow(options);
+
+    ret = bdrv_open_common(bs, NULL, filename, options, flags, drv);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /* Check if any unknown options were used */
+    if (qdict_size(options) != 0) {
+        const QDictEntry *entry = qdict_first(options);
+        qerror_report(ERROR_CLASS_GENERIC_ERROR, "Block protocol '%s' doesn't "
+                      "support the option '%s'",
+                      drv->format_name, entry->key);
+        ret = -EINVAL;
+        goto fail;
+    }
+    QDECREF(options);
+
     bs->growable = 1;
     *pbs = bs;
     return 0;
+
+fail:
+    QDECREF(options);
+    if (!bs->drv) {
+        QDECREF(bs->options);
+    }
+    bdrv_delete(bs);
+    return ret;
 }
 
 int bdrv_open_backing_file(BlockDriverState *bs)
@@ -810,6 +836,25 @@ int bdrv_open_backing_file(BlockDriverState *bs)
     return 0;
 }
 
+static void extract_subqdict(QDict *src, QDict **dst, const char *start)
+{
+    const QDictEntry *entry, *next;
+    const char *p;
+
+    *dst = qdict_new();
+    entry = qdict_first(src);
+
+    while (entry != NULL) {
+        next = qdict_next(src, entry);
+        if (strstart(entry->key, start, &p)) {
+            qobject_incref(entry->value);
+            qdict_put_obj(*dst, p, entry->value);
+            qdict_del(src, entry->key);
+        }
+        entry = next;
+    }
+}
+
 /*
  * Opens a disk image (raw, qcow2, vmdk, ...)
  *
@@ -825,6 +870,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char tmp_filename[PATH_MAX + 1];
     BlockDriverState *file = NULL;
+    QDict *file_options = NULL;
 
     /* NULL means an empty set of options */
     if (options == NULL) {
@@ -896,7 +942,10 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         flags |= BDRV_O_ALLOW_RDWR;
     }
 
-    ret = bdrv_file_open(&file, filename, NULL, bdrv_open_flags(bs, flags));
+    extract_subqdict(options, &file_options, "file.");
+
+    ret = bdrv_file_open(&file, filename, file_options,
+                         bdrv_open_flags(bs, flags));
     if (ret < 0) {
         goto fail;
     }
