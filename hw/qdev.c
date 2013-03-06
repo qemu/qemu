@@ -30,6 +30,8 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
+#include "qapi/qmp/qjson.h"
+#include "monitor/monitor.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -761,6 +763,7 @@ static void device_unparent(Object *obj)
     DeviceState *dev = DEVICE(obj);
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     BusState *bus;
+    QObject *event_data;
 
     while (dev->num_child_bus) {
         bus = QLIST_FIRST(&dev->child_bus);
@@ -779,6 +782,14 @@ static void device_unparent(Object *obj)
         object_unref(OBJECT(dev->parent_bus));
         dev->parent_bus = NULL;
     }
+
+    if (dev->id) {
+        event_data = qobject_from_jsonf("{ 'device': %s }", dev->id);
+    } else {
+        event_data = qobject_from_jsonf("{ }");
+    }
+    monitor_protocol_event(QEVENT_DEVICE_DELETED, event_data);
+    qobject_decref(event_data);
 }
 
 static void device_class_init(ObjectClass *class, void *data)
