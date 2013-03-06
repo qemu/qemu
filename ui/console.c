@@ -208,42 +208,6 @@ void vga_hw_text_update(console_ch_t *chardata)
         active_console->hw_text_update(active_console->hw, chardata);
 }
 
-/* convert a RGBA color to a color index usable in graphic primitives */
-static unsigned int vga_get_color(DisplayState *ds, unsigned int rgba)
-{
-    unsigned int r, g, b, color;
-
-    switch(ds_get_bits_per_pixel(ds)) {
-#if 0
-    case 8:
-        r = (rgba >> 16) & 0xff;
-        g = (rgba >> 8) & 0xff;
-        b = (rgba) & 0xff;
-        color = (rgb_to_index[r] * 6 * 6) +
-            (rgb_to_index[g] * 6) +
-            (rgb_to_index[b]);
-        break;
-#endif
-    case 15:
-        r = (rgba >> 16) & 0xff;
-        g = (rgba >> 8) & 0xff;
-        b = (rgba) & 0xff;
-        color = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
-        break;
-    case 16:
-        r = (rgba >> 16) & 0xff;
-        g = (rgba >> 8) & 0xff;
-        b = (rgba) & 0xff;
-        color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-        break;
-    case 32:
-    default:
-        color = rgba;
-        break;
-    }
-    return color;
-}
-
 static void vga_fill_rect (DisplayState *ds,
                            int posx, int posy, int width, int height, uint32_t color)
 {
@@ -358,8 +322,6 @@ static const uint32_t dmask4[4] = {
     PAT(0xffffffff),
 };
 
-static uint32_t color_table[2][8];
-
 #ifndef CONFIG_CURSES
 enum color_names {
     COLOR_BLACK   = 0,
@@ -396,23 +358,6 @@ static const uint32_t color_table_rgb[2][8] = {
     }
 };
 
-static inline unsigned int col_expand(DisplayState *ds, unsigned int col)
-{
-    switch(ds_get_bits_per_pixel(ds)) {
-    case 8:
-        col |= col << 8;
-        col |= col << 16;
-        break;
-    case 15:
-    case 16:
-        col |= col << 16;
-        break;
-    default:
-        break;
-    }
-
-    return col;
-}
 #ifdef DEBUG_CONSOLE
 static void console_print_text_attributes(TextAttributes *t_attrib, char ch)
 {
@@ -461,11 +406,11 @@ static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
 #endif
 
     if (t_attrib->invers) {
-        bgcol = color_table[t_attrib->bold][t_attrib->fgcol];
-        fgcol = color_table[t_attrib->bold][t_attrib->bgcol];
+        bgcol = color_table_rgb[t_attrib->bold][t_attrib->fgcol];
+        fgcol = color_table_rgb[t_attrib->bold][t_attrib->bgcol];
     } else {
-        fgcol = color_table[t_attrib->bold][t_attrib->fgcol];
-        bgcol = color_table[t_attrib->bold][t_attrib->bgcol];
+        fgcol = color_table_rgb[t_attrib->bold][t_attrib->fgcol];
+        bgcol = color_table_rgb[t_attrib->bold][t_attrib->bgcol];
     }
 
     bpp = (ds_get_bits_per_pixel(ds) + 7) >> 3;
@@ -650,7 +595,7 @@ static void console_refresh(QemuConsole *s)
 
     if (s->ds->have_gfx) {
         vga_fill_rect(s->ds, 0, 0, ds_get_width(s->ds), ds_get_height(s->ds),
-                      color_table[0][COLOR_BLACK]);
+                      color_table_rgb[0][COLOR_BLACK]);
         y1 = s->y_displayed;
         for (y = 0; y < s->height; y++) {
             c = s->cells + y1 * s->width;
@@ -740,7 +685,7 @@ static void console_put_lf(QemuConsole *s)
                        (s->height - 1) * FONT_HEIGHT);
             vga_fill_rect(s->ds, 0, (s->height - 1) * FONT_HEIGHT,
                           s->width * FONT_WIDTH, FONT_HEIGHT,
-                          color_table[0][s->t_attrib_default.bgcol]);
+                          color_table_rgb[0][s->t_attrib_default.bgcol]);
             s->update_x0 = 0;
             s->update_y0 = 0;
             s->update_x1 = s->width * FONT_WIDTH;
@@ -1570,17 +1515,6 @@ int is_fixedsize_console(void)
     return active_console && active_console->console_type != TEXT_CONSOLE;
 }
 
-void console_color_init(DisplayState *ds)
-{
-    int i, j;
-    for (j = 0; j < 2; j++) {
-        for (i = 0; i < 8; i++) {
-            color_table[j][i] = col_expand(ds,
-                   vga_get_color(ds, color_table_rgb[j][i]));
-        }
-    }
-}
-
 static void text_console_set_echo(CharDriverState *chr, bool echo)
 {
     QemuConsole *s = chr->opaque;
@@ -1601,7 +1535,6 @@ static void text_console_update_cursor(void *opaque)
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
 {
     QemuConsole *s;
-    static int color_inited;
 
     s = chr->opaque;
 
@@ -1612,10 +1545,6 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
     s->kbd_timer = qemu_new_timer_ms(rt_clock, kbd_send_chars, s);
     s->ds = ds;
 
-    if (!color_inited) {
-        color_inited = 1;
-        console_color_init(s->ds);
-    }
     s->y_displayed = 0;
     s->y_base = 0;
     s->total_height = DEFAULT_BACKSCROLL;
