@@ -57,7 +57,7 @@ static const char *qemu_version = QEMU_VERSION;
 int socket_set_cork(int fd, int v)
 {
 #if defined(SOL_TCP) && defined(TCP_CORK)
-    return setsockopt(fd, SOL_TCP, TCP_CORK, &v, sizeof(v));
+    return qemu_setsockopt(fd, SOL_TCP, TCP_CORK, &v, sizeof(v));
 #else
     return 0;
 #endif
@@ -66,7 +66,7 @@ int socket_set_cork(int fd, int v)
 int socket_set_nodelay(int fd)
 {
     int v = 1;
-    return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
+    return qemu_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
 }
 
 int qemu_madvise(void *addr, size_t len, int advice)
