@@ -15,6 +15,10 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
@@ -1111,6 +1115,136 @@ error:
     return NULL;
 }
 
+#define SYSCONF_EXACT(name, err) sysconf_exact((name), #name, (err))
+
+static long sysconf_exact(int name, const char *name_str, Error **err)
+{
+    long ret;
+
+    errno = 0;
+    ret = sysconf(name);
+    if (ret == -1) {
+        if (errno == 0) {
+            error_setg(err, "sysconf(%s): value indefinite", name_str);
+        } else {
+            error_setg_errno(err, errno, "sysconf(%s)", name_str);
+        }
+    }
+    return ret;
+}
+
+/* Transfer online/offline status between @vcpu and the guest system.
+ *
+ * On input either @errp or *@errp must be NULL.
+ *
+ * In system-to-@vcpu direction, the following @vcpu fields are accessed:
+ * - R: vcpu->logical_id
+ * - W: vcpu->online
+ * - W: vcpu->can_offline
+ *
+ * In @vcpu-to-system direction, the following @vcpu fields are accessed:
+ * - R: vcpu->logical_id
+ * - R: vcpu->online
+ *
+ * Written members remain unmodified on error.
+ */
+static void transfer_vcpu(GuestLogicalProcessor *vcpu, bool sys2vcpu,
+                          Error **errp)
+{
+    char *dirpath;
+    int dirfd;
+
+    dirpath = g_strdup_printf("/sys/devices/system/cpu/cpu%" PRId64 "/",
+                              vcpu->logical_id);
+    dirfd = open(dirpath, O_RDONLY | O_DIRECTORY);
+    if (dirfd == -1) {
+        error_setg_errno(errp, errno, "open(\"%s\")", dirpath);
+    } else {
+        static const char fn[] = "online";
+        int fd;
+        int res;
+
+        fd = openat(dirfd, fn, sys2vcpu ? O_RDONLY : O_RDWR);
+        if (fd == -1) {
+            if (errno != ENOENT) {
+                error_setg_errno(errp, errno, "open(\"%s/%s\")", dirpath, fn);
+            } else if (sys2vcpu) {
+                vcpu->online = true;
+                vcpu->can_offline = false;
+            } else if (!vcpu->online) {
+                error_setg(errp, "logical processor #%" PRId64 " can't be "
+                           "offlined", vcpu->logical_id);
+            } /* otherwise pretend successful re-onlining */
+        } else {
+            unsigned char status;
+
+            res = pread(fd, &status, 1, 0);
+            if (res == -1) {
+                error_setg_errno(errp, errno, "pread(\"%s/%s\")", dirpath, fn);
+            } else if (res == 0) {
+                error_setg(errp, "pread(\"%s/%s\"): unexpected EOF", dirpath,
+                           fn);
+            } else if (sys2vcpu) {
+                vcpu->online = (status != '0');
+                vcpu->can_offline = true;
+            } else if (vcpu->online != (status != '0')) {
+                status = '0' + vcpu->online;
+                if (pwrite(fd, &status, 1, 0) == -1) {
+                    error_setg_errno(errp, errno, "pwrite(\"%s/%s\")", dirpath,
+                                     fn);
+                }
+            } /* otherwise pretend successful re-(on|off)-lining */
+
+            res = close(fd);
+            g_assert(res == 0);
+        }
+
+        res = close(dirfd);
+        g_assert(res == 0);
+    }
+
+    g_free(dirpath);
+}
+
+GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
+{
+    int64_t current;
+    GuestLogicalProcessorList *head, **link;
+    long sc_max;
+    Error *local_err = NULL;
+
+    current = 0;
+    head = NULL;
+    link = &head;
+    sc_max = SYSCONF_EXACT(_SC_NPROCESSORS_CONF, &local_err);
+
+    while (local_err == NULL && current < sc_max) {
+        GuestLogicalProcessor *vcpu;
+        GuestLogicalProcessorList *entry;
+
+        vcpu = g_malloc0(sizeof *vcpu);
+        vcpu->logical_id = current++;
+        vcpu->has_can_offline = true; /* lolspeak ftw */
+        transfer_vcpu(vcpu, true, &local_err);
+
+        entry = g_malloc0(sizeof *entry);
+        entry->value = vcpu;
+
+        *link = entry;
+        link = &entry->next;
+    }
+
+    if (local_err == NULL) {
+        /* there's no guest with zero VCPUs */
+        g_assert(head != NULL);
+        return head;
+    }
+
+    qapi_free_GuestLogicalProcessorList(head);
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
 #else /* defined(__linux__) */
 
 void qmp_guest_suspend_disk(Error **err)
@@ -1129,6 +1263,12 @@ void qmp_guest_suspend_hybrid(Error **err)
 }
 
 GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 {
     error_set(errp, QERR_UNSUPPORTED);
     return NULL;
@@ -1166,12 +1306,6 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
     error_set(err, QERR_UNSUPPORTED);
 }
 #endif
-
-GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
-{
-    error_set(errp, QERR_UNSUPPORTED);
-    return NULL;
-}
 
 int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 {
