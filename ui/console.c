@@ -242,45 +242,6 @@ static void vga_bitblt(QemuConsole *con,
 
 #include "vgafont.h"
 
-#define cbswap_32(__x) \
-((uint32_t)( \
-		(((uint32_t)(__x) & (uint32_t)0x000000ffUL) << 24) | \
-		(((uint32_t)(__x) & (uint32_t)0x0000ff00UL) <<  8) | \
-		(((uint32_t)(__x) & (uint32_t)0x00ff0000UL) >>  8) | \
-		(((uint32_t)(__x) & (uint32_t)0xff000000UL) >> 24) ))
-
-#ifdef HOST_WORDS_BIGENDIAN
-#define PAT(x) x
-#else
-#define PAT(x) cbswap_32(x)
-#endif
-
-static const uint32_t dmask16[16] = {
-    PAT(0x00000000),
-    PAT(0x000000ff),
-    PAT(0x0000ff00),
-    PAT(0x0000ffff),
-    PAT(0x00ff0000),
-    PAT(0x00ff00ff),
-    PAT(0x00ffff00),
-    PAT(0x00ffffff),
-    PAT(0xff000000),
-    PAT(0xff0000ff),
-    PAT(0xff00ff00),
-    PAT(0xff00ffff),
-    PAT(0xffff0000),
-    PAT(0xffff00ff),
-    PAT(0xffffff00),
-    PAT(0xffffffff),
-};
-
-static const uint32_t dmask4[4] = {
-    PAT(0x00000000),
-    PAT(0x0000ffff),
-    PAT(0xffff0000),
-    PAT(0xffffffff),
-};
-
 #ifndef CONFIG_CURSES
 enum color_names {
     COLOR_BLACK   = 0,
@@ -353,17 +314,11 @@ static void console_print_text_attributes(TextAttributes *t_attrib, char ch)
 static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
                           TextAttributes *t_attrib)
 {
+    static pixman_image_t *glyphs[256];
     DisplaySurface *surface = qemu_console_surface(s);
-    uint8_t *d;
-    const uint8_t *font_ptr;
-    unsigned int font_data, linesize, xorcol, bpp;
-    int i;
     unsigned int fgcol, bgcol;
-
-#ifdef DEBUG_CONSOLE
-    printf("x: %2i y: %2i", x, y);
-    console_print_text_attributes(t_attrib, ch);
-#endif
+    pixman_image_t *ifg, *ibg;
+    pixman_color_t cfg, cbg;
 
     if (t_attrib->invers) {
         bgcol = color_table_rgb[t_attrib->bold][t_attrib->fgcol];
@@ -372,59 +327,16 @@ static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
         fgcol = color_table_rgb[t_attrib->bold][t_attrib->fgcol];
         bgcol = color_table_rgb[t_attrib->bold][t_attrib->bgcol];
     }
+    cfg = qemu_pixman_color(&surface->pf, fgcol);
+    cbg = qemu_pixman_color(&surface->pf, bgcol);
+    ifg = pixman_image_create_solid_fill(&cfg);
+    ibg = pixman_image_create_solid_fill(&cbg);
 
-    bpp = surface_bytes_per_pixel(surface);
-    d = surface_data(surface) +
-        surface_stride(surface) * y * FONT_HEIGHT + bpp * x * FONT_WIDTH;
-    linesize = surface_stride(surface);
-    font_ptr = vgafont16 + FONT_HEIGHT * ch;
-    xorcol = bgcol ^ fgcol;
-    switch (surface_bits_per_pixel(surface)) {
-    case 8:
-        for(i = 0; i < FONT_HEIGHT; i++) {
-            font_data = *font_ptr++;
-            if (t_attrib->uline
-                && ((i == FONT_HEIGHT - 2) || (i == FONT_HEIGHT - 3))) {
-                font_data = 0xFF;
-            }
-            ((uint32_t *)d)[0] = (dmask16[(font_data >> 4)] & xorcol) ^ bgcol;
-            ((uint32_t *)d)[1] = (dmask16[(font_data >> 0) & 0xf] & xorcol) ^ bgcol;
-            d += linesize;
-        }
-        break;
-    case 16:
-    case 15:
-        for(i = 0; i < FONT_HEIGHT; i++) {
-            font_data = *font_ptr++;
-            if (t_attrib->uline
-                && ((i == FONT_HEIGHT - 2) || (i == FONT_HEIGHT - 3))) {
-                font_data = 0xFF;
-            }
-            ((uint32_t *)d)[0] = (dmask4[(font_data >> 6)] & xorcol) ^ bgcol;
-            ((uint32_t *)d)[1] = (dmask4[(font_data >> 4) & 3] & xorcol) ^ bgcol;
-            ((uint32_t *)d)[2] = (dmask4[(font_data >> 2) & 3] & xorcol) ^ bgcol;
-            ((uint32_t *)d)[3] = (dmask4[(font_data >> 0) & 3] & xorcol) ^ bgcol;
-            d += linesize;
-        }
-        break;
-    case 32:
-        for(i = 0; i < FONT_HEIGHT; i++) {
-            font_data = *font_ptr++;
-            if (t_attrib->uline && ((i == FONT_HEIGHT - 2) || (i == FONT_HEIGHT - 3))) {
-                font_data = 0xFF;
-            }
-            ((uint32_t *)d)[0] = (-((font_data >> 7)) & xorcol) ^ bgcol;
-            ((uint32_t *)d)[1] = (-((font_data >> 6) & 1) & xorcol) ^ bgcol;
-            ((uint32_t *)d)[2] = (-((font_data >> 5) & 1) & xorcol) ^ bgcol;
-            ((uint32_t *)d)[3] = (-((font_data >> 4) & 1) & xorcol) ^ bgcol;
-            ((uint32_t *)d)[4] = (-((font_data >> 3) & 1) & xorcol) ^ bgcol;
-            ((uint32_t *)d)[5] = (-((font_data >> 2) & 1) & xorcol) ^ bgcol;
-            ((uint32_t *)d)[6] = (-((font_data >> 1) & 1) & xorcol) ^ bgcol;
-            ((uint32_t *)d)[7] = (-((font_data >> 0) & 1) & xorcol) ^ bgcol;
-            d += linesize;
-        }
-        break;
+    if (!glyphs[ch]) {
+        glyphs[ch] = qemu_pixman_glyph_from_vgafont(FONT_HEIGHT, vgafont16, ch);
     }
+    qemu_pixman_glyph_render(glyphs[ch], surface->image,
+                             &cfg, &cbg, x, y, FONT_WIDTH, FONT_HEIGHT);
 }
 
 static void text_console_resize(QemuConsole *s)
