@@ -1167,6 +1167,18 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
 }
 #endif
 
+GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return -1;
+}
+
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
