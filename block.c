@@ -708,7 +708,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
             bdrv_swap(file, bs);
             ret = 0;
         } else {
-            ret = drv->bdrv_file_open(bs, filename, open_flags);
+            ret = drv->bdrv_file_open(bs, filename, options, open_flags);
         }
     } else {
         assert(file != NULL);
@@ -742,12 +742,20 @@ free_and_fail:
 
 /*
  * Opens a file using a protocol (file, host_device, nbd, ...)
+ *
+ * options is a QDict of options to pass to the block drivers, or NULL for an
+ * empty set of options. The reference to the QDict belongs to the block layer
+ * after the call (even on failure), so if the caller intends to reuse the
+ * dictionary, it needs to use QINCREF() before calling bdrv_file_open.
  */
-int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
+int bdrv_file_open(BlockDriverState **pbs, const char *filename,
+                   QDict *options, int flags)
 {
     BlockDriverState *bs;
     BlockDriver *drv;
     int ret;
+
+    QDECREF(options);
 
     drv = bdrv_find_protocol(filename);
     if (!drv) {
@@ -888,7 +896,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         flags |= BDRV_O_ALLOW_RDWR;
     }
 
-    ret = bdrv_file_open(&file, filename, bdrv_open_flags(bs, flags));
+    ret = bdrv_file_open(&file, filename, NULL, bdrv_open_flags(bs, flags));
     if (ret < 0) {
         goto fail;
     }

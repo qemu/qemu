@@ -69,7 +69,8 @@ static void GCC_FMT_ATTR(2, 3) blkverify_err(BlkverifyAIOCB *acb,
 }
 
 /* Valid blkverify filenames look like blkverify:path/to/raw_image:path/to/image */
-static int blkverify_open(BlockDriverState *bs, const char *filename, int flags)
+static int blkverify_open(BlockDriverState *bs, const char *filename,
+                          QDict *options, int flags)
 {
     BDRVBlkverifyState *s = bs->opaque;
     int ret;
@@ -89,7 +90,7 @@ static int blkverify_open(BlockDriverState *bs, const char *filename, int flags)
 
     raw = g_strdup(filename);
     raw[c - filename] = '\0';
-    ret = bdrv_file_open(&bs->file, raw, flags);
+    ret = bdrv_file_open(&bs->file, raw, NULL, flags);
     g_free(raw);
     if (ret < 0) {
         return ret;

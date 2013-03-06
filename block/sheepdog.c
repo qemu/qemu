@@ -1126,7 +1126,8 @@ static int write_object(int fd, char *buf, uint64_t oid, int copies,
                              create, cache_flags);
 }
 
-static int sd_open(BlockDriverState *bs, const char *filename, int flags)
+static int sd_open(BlockDriverState *bs, const char *filename,
+                   QDict *options, int flags)
 {
     int ret, fd;
     uint32_t vid = 0;
@@ -1269,7 +1270,7 @@ static int sd_prealloc(const char *filename)
     void *buf = g_malloc0(SD_DATA_OBJ_SIZE);
     int ret;
 
-    ret = bdrv_file_open(&bs, filename, BDRV_O_RDWR);
+    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR);
     if (ret < 0) {
         goto out;
     }
@@ -1367,7 +1368,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
             goto out;
         }
 
-        ret = bdrv_file_open(&bs, backing_file, 0);
+        ret = bdrv_file_open(&bs, backing_file, NULL, 0);
         if (ret < 0) {
             goto out;
         }

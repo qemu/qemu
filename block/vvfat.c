@@ -988,7 +988,8 @@ static void vvfat_rebind(BlockDriverState *bs)
     s->bs = bs;
 }
 
-static int vvfat_open(BlockDriverState *bs, const char* dirname, int flags)
+static int vvfat_open(BlockDriverState *bs, const char* dirname,
+                      QDict *options, int flags)
 {
     BDRVVVFATState *s = bs->opaque;
     int i, cyls, heads, secs;

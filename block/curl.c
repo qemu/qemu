@@ -335,7 +335,8 @@ static void curl_clean_state(CURLState *s)
     s->in_use = 0;
 }
 
-static int curl_open(BlockDriverState *bs, const char *filename, int flags)
+static int curl_open(BlockDriverState *bs, const char *filename,
+                     QDict *options, int flags)
 {
     BDRVCURLState *s = bs->opaque;
     CURLState *state = NULL;

@@ -376,7 +376,8 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     closesocket(s->sock);
 }
 
-static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
+static int nbd_open(BlockDriverState *bs, const char* filename,
+                    QDict *options, int flags)
 {
     BDRVNBDState *s = bs->opaque;
     int result;

@@ -279,7 +279,7 @@ static int cow_create(const char *filename, QEMUOptionParameter *options)
         return ret;
     }
 
-    ret = bdrv_file_open(&cow_bs, filename, BDRV_O_RDWR);
+    ret = bdrv_file_open(&cow_bs, filename, NULL, BDRV_O_RDWR);
     if (ret < 0) {
         return ret;
     }
