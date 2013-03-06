@@ -621,7 +621,7 @@ static int coroutine_fn qcow2_co_is_allocated(BlockDriverState *bs,
         *pnum = 0;
     }
 
-    return (cluster_offset != 0);
+    return (cluster_offset != 0) || (ret == QCOW2_CLUSTER_ZERO);
 }
 
 /* handle reading after the end of the backing file */
@@ -702,10 +702,6 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
             break;
 
         case QCOW2_CLUSTER_ZERO:
-            if (s->qcow_version < 3) {
-                ret = -EIO;
-                goto fail;
-            }
             qemu_iovec_memset(&hd_qiov, 0, 0, 512 * cur_nr_sectors);
             break;
 
