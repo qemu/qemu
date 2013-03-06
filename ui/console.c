@@ -213,36 +213,14 @@ static void vga_fill_rect(QemuConsole *con,
                           uint32_t color)
 {
     DisplaySurface *surface = qemu_console_surface(con);
-    uint8_t *d, *d1;
-    int x, y, bpp;
+    pixman_rectangle16_t rect = {
+        .x = posx, .y = posy, .width = width, .height = height
+    };
+    pixman_color_t pcolor;
 
-    bpp = surface_bytes_per_pixel(surface);
-    d1 = surface_data(surface) +
-        surface_stride(surface) * posy + bpp * posx;
-    for (y = 0; y < height; y++) {
-        d = d1;
-        switch(bpp) {
-        case 1:
-            for (x = 0; x < width; x++) {
-                *((uint8_t *)d) = color;
-                d++;
-            }
-            break;
-        case 2:
-            for (x = 0; x < width; x++) {
-                *((uint16_t *)d) = color;
-                d += 2;
-            }
-            break;
-        case 4:
-            for (x = 0; x < width; x++) {
-                *((uint32_t *)d) = color;
-                d += 4;
-            }
-            break;
-        }
-        d1 += surface_stride(surface);
-    }
+    pcolor = qemu_pixman_color(&surface->pf, color);
+    pixman_image_fill_rectangles(PIXMAN_OP_SRC, surface->image,
+                                 &pcolor, 1, &rect);
 }
 
 /* copy from (xs, ys) to (xd, yd) a rectangle of size (w, h) */
@@ -250,33 +228,10 @@ static void vga_bitblt(QemuConsole *con,
                        int xs, int ys, int xd, int yd, int w, int h)
 {
     DisplaySurface *surface = qemu_console_surface(con);
-    const uint8_t *s;
-    uint8_t *d;
-    int wb, y, bpp;
 
-    bpp = surface_bytes_per_pixel(surface);
-    wb = w * bpp;
-    if (yd <= ys) {
-        s = surface_data(surface) +
-            surface_stride(surface) * ys + bpp * xs;
-        d = surface_data(surface) +
-            surface_stride(surface) * yd + bpp * xd;
-        for (y = 0; y < h; y++) {
-            memmove(d, s, wb);
-            d += surface_stride(surface);
-            s += surface_stride(surface);
-        }
-    } else {
-        s = surface_data(surface) +
-            surface_stride(surface) * (ys + h - 1) + bpp * xs;
-        d = surface_data(surface) +
-            surface_stride(surface) * (yd + h - 1) + bpp * xd;
-       for (y = 0; y < h; y++) {
-            memmove(d, s, wb);
-            d -= surface_stride(surface);
-            s -= surface_stride(surface);
-        }
-    }
+    pixman_image_composite(PIXMAN_OP_SRC,
+                           surface->image, NULL, surface->image,
+                           xs, ys, 0, 0, xd, yd, w, h);
 }
 
 /***********************************************************/
