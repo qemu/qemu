@@ -268,66 +268,6 @@ static inline int surface_bytes_per_pixel(DisplaySurface *s)
     return (bits + 7) / 8;
 }
 
-static inline int ds_get_linesize(DisplayState *ds)
-{
-    return surface_stride(ds->surface);
-}
-
-static inline uint8_t* ds_get_data(DisplayState *ds)
-{
-    return surface_data(ds->surface);
-}
-
-static inline int ds_get_width(DisplayState *ds)
-{
-    return surface_width(ds->surface);
-}
-
-static inline int ds_get_height(DisplayState *ds)
-{
-    return surface_height(ds->surface);
-}
-
-static inline int ds_get_bits_per_pixel(DisplayState *ds)
-{
-    return surface_bits_per_pixel(ds->surface);
-}
-
-static inline int ds_get_bytes_per_pixel(DisplayState *ds)
-{
-    return surface_bytes_per_pixel(ds->surface);
-}
-
-static inline pixman_format_code_t ds_get_format(DisplayState *ds)
-{
-    return ds->surface->format;
-}
-
-static inline pixman_image_t *ds_get_image(DisplayState *ds)
-{
-    return ds->surface->image;
-}
-
-static inline int ds_get_depth(DisplayState *ds)
-{
-    return ds->surface->pf.depth;
-}
-
-static inline int ds_get_rmask(DisplayState *ds)
-{
-    return ds->surface->pf.rmask;
-}
-
-static inline int ds_get_gmask(DisplayState *ds)
-{
-    return ds->surface->pf.gmask;
-}
-
-static inline int ds_get_bmask(DisplayState *ds)
-{
-    return ds->surface->pf.bmask;
-}
-
 #ifdef CONFIG_CURSES
 #include <curses.h>
 typedef chtype console_ch_t;
