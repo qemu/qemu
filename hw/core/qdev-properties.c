@@ -120,6 +120,39 @@ PropertyInfo qdev_prop_bit = {
     .set   = set_bit,
 };
 
+/* --- bool --- */
+
+static void get_bool(Object *obj, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    bool *ptr = qdev_get_prop_ptr(dev, prop);
+
+    visit_type_bool(v, ptr, name, errp);
+}
+
+static void set_bool(Object *obj, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    bool *ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_bool(v, ptr, name, errp);
+}
+
+PropertyInfo qdev_prop_bool = {
+    .name  = "boolean",
+    .get   = get_bool,
+    .set   = set_bool,
+};
+
 /* --- 8bit integer --- */
 
 static void get_uint8(Object *obj, Visitor *v, void *opaque,

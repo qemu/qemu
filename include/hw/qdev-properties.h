@@ -6,6 +6,7 @@
 /*** qdev-properties.c ***/
 
 extern PropertyInfo qdev_prop_bit;
+extern PropertyInfo qdev_prop_bool;
 extern PropertyInfo qdev_prop_uint8;
 extern PropertyInfo qdev_prop_uint16;
 extern PropertyInfo qdev_prop_uint32;
@@ -48,6 +49,15 @@ extern PropertyInfo qdev_prop_arraylen;
         .bitnr    = (_bit),                                      \
         .offset    = offsetof(_state, _field)                    \
             + type_check(uint32_t,typeof_field(_state, _field)), \
+        .qtype     = QTYPE_QBOOL,                                \
+        .defval    = (bool)_defval,                              \
+        }
+
+#define DEFINE_PROP_BOOL(_name, _state, _field, _defval) {       \
+        .name      = (_name),                                    \
+        .info      = &(qdev_prop_bool),                          \
+        .offset    = offsetof(_state, _field)                    \
+            + type_check(bool, typeof_field(_state, _field)),    \
         .qtype     = QTYPE_QBOOL,                                \
         .defval    = (bool)_defval,                              \
         }
