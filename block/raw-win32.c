@@ -144,6 +144,7 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
     RawWin32AIOData *acb = g_slice_new(RawWin32AIOData);
+    ThreadPool *pool;
 
     acb->bs = bs;
     acb->hfile = hfile;
@@ -157,7 +158,8 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
     acb->aio_offset = sector_num * 512;
 
     trace_paio_submit(acb, opaque, sector_num, nb_sectors, type);
-    return thread_pool_submit_aio(aio_worker, acb, cb, opaque);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
 
 int qemu_ftruncate64(int fd, int64_t length)

@@ -750,6 +750,7 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
     RawPosixAIOData *acb = g_slice_new(RawPosixAIOData);
+    ThreadPool *pool;
 
     acb->bs = bs;
     acb->aio_type = type;
@@ -763,7 +764,8 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
     acb->aio_offset = sector_num * 512;
 
     trace_paio_submit(acb, opaque, sector_num, nb_sectors, type);
-    return thread_pool_submit_aio(aio_worker, acb, cb, opaque);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
 
 static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
@@ -1413,6 +1415,7 @@ static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData *acb;
+    ThreadPool *pool;
 
     if (fd_open(bs) < 0)
         return NULL;
@@ -1424,7 +1427,8 @@ static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
     acb->aio_offset = 0;
     acb->aio_ioctl_buf = buf;
     acb->aio_ioctl_cmd = req;
-    return thread_pool_submit_aio(aio_worker, acb, cb, opaque);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)

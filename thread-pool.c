@@ -78,9 +78,6 @@ struct ThreadPool {
     bool stopping;
 };
 
-/* Currently there is only one thread pool instance. */
-static ThreadPool global_pool;
-
 static void *worker_thread(void *opaque)
 {
     ThreadPool *pool = opaque;
@@ -239,10 +236,10 @@ static const AIOCBInfo thread_pool_aiocb_info = {
     .cancel             = thread_pool_cancel,
 };
 
-BlockDriverAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
+BlockDriverAIOCB *thread_pool_submit_aio(ThreadPool *pool,
+        ThreadPoolFunc *func, void *arg,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
-    ThreadPool *pool = &global_pool;
     ThreadPoolElement *req;
 
     req = qemu_aio_get(&thread_pool_aiocb_info, NULL, cb, opaque);
@@ -278,18 +275,19 @@ static void thread_pool_co_cb(void *opaque, int ret)
     qemu_coroutine_enter(co->co, NULL);
 }
 
-int coroutine_fn thread_pool_submit_co(ThreadPoolFunc *func, void *arg)
+int coroutine_fn thread_pool_submit_co(ThreadPool *pool, ThreadPoolFunc *func,
+                                       void *arg)
 {
     ThreadPoolCo tpc = { .co = qemu_coroutine_self(), .ret = -EINPROGRESS };
     assert(qemu_in_coroutine());
-    thread_pool_submit_aio(func, arg, thread_pool_co_cb, &tpc);
+    thread_pool_submit_aio(pool, func, arg, thread_pool_co_cb, &tpc);
     qemu_coroutine_yield();
     return tpc.ret;
 }
 
-void thread_pool_submit(ThreadPoolFunc *func, void *arg)
+void thread_pool_submit(ThreadPool *pool, ThreadPoolFunc *func, void *arg)
 {
-    thread_pool_submit_aio(func, arg, NULL, NULL);
+    thread_pool_submit_aio(pool, func, arg, NULL, NULL);
 }
 
 static void thread_pool_init_one(ThreadPool *pool, AioContext *ctx)
@@ -354,10 +352,3 @@ void thread_pool_free(ThreadPool *pool)
     event_notifier_cleanup(&pool->notifier);
     g_free(pool);
 }
-
-static void thread_pool_init(void)
-{
-    thread_pool_init_one(&global_pool, NULL);
-}
-
-block_init(thread_pool_init)
