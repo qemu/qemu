@@ -904,6 +904,8 @@ void console_select(unsigned int index)
 
     if (index >= MAX_CONSOLES)
         return;
+
+    trace_console_select(index);
     if (active_console) {
         surface = qemu_console_surface(active_console);
         active_console->g_width = surface_width(surface);
@@ -1367,6 +1369,7 @@ QemuConsole *graphic_console_init(vga_hw_update_ptr update,
     DisplayState *ds;
 
     ds = (DisplayState *) g_malloc0(sizeof(DisplayState));
+    trace_console_gfx_new();
     s = new_console(ds, GRAPHIC_CONSOLE);
     s->hw_update = update;
     s->hw_invalidate = invalidate;
@@ -1485,6 +1488,7 @@ static CharDriverState *text_console_init(ChardevVC *vc)
         height = vc->rows * FONT_HEIGHT;
     }
 
+    trace_console_txt_new(width, height);
     if (width == 0 || height == 0) {
         s = new_console(NULL, TEXT_CONSOLE);
     } else {
