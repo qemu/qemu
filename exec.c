@@ -260,7 +260,7 @@ CPUState *qemu_get_cpu(int index)
         env = env->next_cpu;
     }
 
-    return cpu;
+    return env ? cpu : NULL;
 }
 
 void cpu_exec_init(CPUArchState *env)
