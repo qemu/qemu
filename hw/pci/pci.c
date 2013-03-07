@@ -1215,9 +1215,10 @@ void pci_bus_fire_intx_routing_notifier(PCIBus *bus)
         if (dev && dev->intx_routing_notifier) {
             dev->intx_routing_notifier(dev);
         }
-        QLIST_FOREACH(sec, &bus->child, sibling) {
-            pci_bus_fire_intx_routing_notifier(sec);
-        }
+    }
+
+    QLIST_FOREACH(sec, &bus->child, sibling) {
+        pci_bus_fire_intx_routing_notifier(sec);
     }
 }
 
