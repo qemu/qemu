@@ -1021,6 +1021,10 @@ microblaze-linux-user \
 microblazeel-linux-user \
 mips-linux-user \
 mipsel-linux-user \
+mips64-linux-user \
+mips64el-linux-user \
+mipsn32-linux-user \
+mipsn32el-linux-user \
 or32-linux-user \
 ppc-linux-user \
 ppc64-linux-user \
@@ -4065,9 +4069,10 @@ case "$target_arch2" in
     target_nptl="yes"
   ;;
   mipsn32|mipsn32el)
-    TARGET_ARCH=mipsn32
+    TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN32=y" >> $config_target_mak
+    echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   mips64|mips64el)
     TARGET_ARCH=mips64
@@ -4186,7 +4191,7 @@ case "$target_arch2" in
     echo "CONFIG_NO_XEN=y" >> $config_target_mak
 esac
 case "$target_arch2" in
-  i386|x86_64|ppcemb|ppc|ppc64|s390x)
+  arm|i386|x86_64|ppcemb|ppc|ppc64|s390x)
     # Make sure the target and host cpus are compatible
     if test "$kvm" = "yes" -a "$target_softmmu" = "yes" -a \
       \( "$target_arch2" = "$cpu" -o \

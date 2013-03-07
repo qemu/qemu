@@ -1825,8 +1825,8 @@ void cpu_loop(CPUPPCState *env)
 
 #ifdef TARGET_MIPS
 
-#define MIPS_SYS(name, args) args,
-
+# ifdef TARGET_ABI_MIPSO32
+#  define MIPS_SYS(name, args) args,
 static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_syscall	, 8)	/* 4000 */
 	MIPS_SYS(sys_exit	, 1)
@@ -2172,8 +2172,8 @@ static const uint8_t mips_syscall_args[] = {
         MIPS_SYS(sys_clock_adjtime, 2)
         MIPS_SYS(sys_syncfs, 1)
 };
-
-#undef MIPS_SYS
+#  undef MIPS_SYS
+# endif /* O32 */
 
 static int do_store_exclusive(CPUMIPSState *env)
 {
@@ -2224,12 +2224,42 @@ static int do_store_exclusive(CPUMIPSState *env)
     return segv;
 }
 
+/* Break codes */
+enum {
+    BRK_OVERFLOW = 6,
+    BRK_DIVZERO = 7
+};
+
+static int do_break(CPUMIPSState *env, target_siginfo_t *info,
+                    unsigned int code)
+{
+    int ret = -1;
+
+    switch (code) {
+    case BRK_OVERFLOW:
+    case BRK_DIVZERO:
+        info->si_signo = TARGET_SIGFPE;
+        info->si_errno = 0;
+        info->si_code = (code == BRK_OVERFLOW) ? FPE_INTOVF : FPE_INTDIV;
+        queue_signal(env, info->si_signo, &*info);
+        ret = 0;
+        break;
+    default:
+        break;
+    }
+
+    return ret;
+}
+
 void cpu_loop(CPUMIPSState *env)
 {
     CPUState *cs = CPU(mips_env_get_cpu(env));
     target_siginfo_t info;
-    int trapnr, ret;
+    int trapnr;
+    abi_long ret;
+# ifdef TARGET_ABI_MIPSO32
     unsigned int syscall_num;
+# endif
 
     for(;;) {
         cpu_exec_start(cs);
@@ -2237,8 +2267,9 @@ void cpu_loop(CPUMIPSState *env)
         cpu_exec_end(cs);
         switch(trapnr) {
         case EXCP_SYSCALL:
-            syscall_num = env->active_tc.gpr[2] - 4000;
             env->active_tc.PC += 4;
+# ifdef TARGET_ABI_MIPSO32
+            syscall_num = env->active_tc.gpr[2] - 4000;
             if (syscall_num >= sizeof(mips_syscall_args)) {
                 ret = -TARGET_ENOSYS;
             } else {
@@ -2277,12 +2308,19 @@ void cpu_loop(CPUMIPSState *env)
                                  arg5, arg6, arg7, arg8);
             }
 done_syscall:
+# else
+            ret = do_syscall(env, env->active_tc.gpr[2],
+                             env->active_tc.gpr[4], env->active_tc.gpr[5],
+                             env->active_tc.gpr[6], env->active_tc.gpr[7],
+                             env->active_tc.gpr[8], env->active_tc.gpr[9],
+                             env->active_tc.gpr[10], env->active_tc.gpr[11]);
+# endif /* O32 */
             if (ret == -TARGET_QEMU_ESIGRETURN) {
                 /* Returning from a successful sigreturn syscall.
                    Avoid clobbering register state.  */
                 break;
             }
-            if ((unsigned int)ret >= (unsigned int)(-1133)) {
+            if ((abi_ulong)ret >= (abi_ulong)-1133) {
                 env->active_tc.gpr[7] = 1; /* error flag */
                 ret = -ret;
             } else {
@@ -2340,8 +2378,55 @@ done_syscall:
             info.si_code = TARGET_ILL_ILLOPC;
             queue_signal(env, info.si_signo, &info);
             break;
+        /* The code below was inspired by the MIPS Linux kernel trap
+         * handling code in arch/mips/kernel/traps.c.
+         */
+        case EXCP_BREAK:
+            {
+                abi_ulong trap_instr;
+                unsigned int code;
+
+                ret = get_user_ual(trap_instr, env->active_tc.PC);
+                if (ret != 0) {
+                    goto error;
+                }
+
+                /* As described in the original Linux kernel code, the
+                 * below checks on 'code' are to work around an old
+                 * assembly bug.
+                 */
+                code = ((trap_instr >> 6) & ((1 << 20) - 1));
+                if (code >= (1 << 10)) {
+                    code >>= 10;
+                }
+
+                if (do_break(env, &info, code) != 0) {
+                    goto error;
+                }
+            }
+            break;
+        case EXCP_TRAP:
+            {
+                abi_ulong trap_instr;
+                unsigned int code = 0;
+
+                ret = get_user_ual(trap_instr, env->active_tc.PC);
+                if (ret != 0) {
+                    goto error;
+                }
+
+                /* The immediate versions don't provide a code.  */
+                if (!(trap_instr & 0xFC000000)) {
+                    code = ((trap_instr >> 6) & ((1 << 10) - 1));
+                }
+
+                if (do_break(env, &info, code) != 0) {
+                    goto error;
+                }
+            }
+            break;
         default:
-            //        error:
+error:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
                     trapnr);
             cpu_dump_state(env, stderr, fprintf, 0);

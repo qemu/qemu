@@ -216,6 +216,11 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .driver   = "virtio-blk-pci",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
+	},{\
+            .driver   = "virtio-serial-pci",\
+            .property = "vectors",\
+            /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\
+            .value    = stringify(0xFFFFFFFF),\
 	}
 
 #endif

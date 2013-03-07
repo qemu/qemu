@@ -659,14 +659,18 @@ void gic_init_irqs_and_distributor(GICState *s, int num_irq)
     memory_region_init_io(&s->iomem, &gic_dist_ops, s, "gic_dist", 0x1000);
 }
 
-static int arm_gic_init(SysBusDevice *dev)
+static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
-    /* Device instance init function for the GIC sysbus device */
+    /* Device instance realize function for the GIC sysbus device */
     int i;
-    GICState *s = FROM_SYSBUS(GICState, dev);
+    GICState *s = ARM_GIC(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     ARMGICClass *agc = ARM_GIC_GET_CLASS(s);
 
-    agc->parent_init(dev);
+    agc->parent_realize(dev, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
 
     gic_init_irqs_and_distributor(s, s->num_irq);
 
@@ -686,22 +690,21 @@ static int arm_gic_init(SysBusDevice *dev)
                               "gic_cpu", 0x100);
     }
     /* Distributor */
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     /* cpu interfaces (one for "current cpu" plus one per cpu) */
     for (i = 0; i <= NUM_CPU(s); i++) {
-        sysbus_init_mmio(dev, &s->cpuiomem[i]);
+        sysbus_init_mmio(sbd, &s->cpuiomem[i]);
     }
-    return 0;
 }
 
 static void arm_gic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
     ARMGICClass *agc = ARM_GIC_CLASS(klass);
-    agc->parent_init = sbc->init;
-    sbc->init = arm_gic_init;
+
     dc->no_user = 1;
+    agc->parent_realize = dc->realize;
+    dc->realize = arm_gic_realize;
 }
 
 static const TypeInfo arm_gic_info = {

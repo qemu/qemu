@@ -1408,7 +1408,8 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #ifdef CONFIG_VDE
     "vde|"
 #endif
-    "socket],id=str[,option][,option][,...]\n", QEMU_ARCH_ALL)
+    "socket|"
+    "hubport],id=str[,option][,option][,...]\n", QEMU_ARCH_ALL)
 STEXI
 @item -net nic[,vlan=@var{n}][,macaddr=@var{mac}][,model=@var{type}] [,name=@var{name}][,addr=@var{addr}][,vectors=@var{v}]
 @findex -net
@@ -1729,6 +1730,14 @@ vde_switch -F -sock /tmp/myswitch
 # launch QEMU instance
 qemu-system-i386 linux.img -net nic -net vde,sock=/tmp/myswitch
 @end example
+
+@item -netdev hubport,id=@var{id},hubid=@var{hubid}
+
+Create a hub port on QEMU "vlan" @var{hubid}.
+
+The hubport netdev lets you connect a NIC to a QEMU "vlan" instead of a single
+netdev.  @code{-net} and @code{-device} with parameter @option{vlan} create the
+required hub automatically.
 
 @item -net dump[,vlan=@var{n}][,file=@var{file}][,len=@var{len}]
 Dump network traffic on VLAN @var{n} to file @var{file} (@file{qemu-vlan0.pcap} by default).
@@ -2099,23 +2108,13 @@ QEMU supports using either local sheepdog devices or remote networked
 devices.
 
 Syntax for specifying a sheepdog device
-@table @list
-``sheepdog:<vdiname>''
-
-``sheepdog:<vdiname>:<snapid>''
-
-``sheepdog:<vdiname>:<tag>''
-
-``sheepdog:<host>:<port>:<vdiname>''
-
-``sheepdog:<host>:<port>:<vdiname>:<snapid>''
-
-``sheepdog:<host>:<port>:<vdiname>:<tag>''
-@end table
+@example
+sheepdog[+tcp|+unix]://[host:port]/vdiname[?socket=path][#snapid|#tag]
+@end example
 
 Example
 @example
-qemu-system-i386 --drive file=sheepdog:192.0.2.1:30000:MyVirtualMachine
+qemu-system-i386 --drive file=sheepdog://192.0.2.1:30000/MyVirtualMachine
 @end example
 
 See also @url{http://http://www.osrg.net/sheepdog/}.

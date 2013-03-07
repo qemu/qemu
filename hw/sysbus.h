@@ -56,6 +56,8 @@ void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size);
 
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq);
 void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr);
+void sysbus_mmio_map_overlap(SysBusDevice *dev, int n, hwaddr addr,
+                             unsigned priority);
 void sysbus_add_memory(SysBusDevice *dev, hwaddr addr,
                        MemoryRegion *mem);
 void sysbus_add_memory_overlap(SysBusDevice *dev, hwaddr addr,

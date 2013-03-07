@@ -12,7 +12,8 @@ int main()
     resultdsp = 0x01;
 
     __asm
-        ("subq_s.ph %0, %2, %3\n\t"
+        ("wrdsp $0\n\t"
+         "subq_s.ph %0, %2, %3\n\t"
          "rddsp %1\n\t"
          : "=r"(rd), "=r"(dsp)
          : "r"(rs), "r"(rt)
@@ -27,7 +28,24 @@ int main()
     resultdsp = 0x01;
 
     __asm
-        ("subq_s.ph %0, %2, %3\n\t"
+        ("wrdsp $0\n\t"
+         "subq_s.ph %0, %2, %3\n\t"
+         "rddsp %1\n\t"
+         : "=r"(rd), "=r"(dsp)
+         : "r"(rs), "r"(rt)
+        );
+    dsp = (dsp >> 20) & 0x01;
+    assert(dsp == resultdsp);
+    assert(rd  == result);
+
+    rs = 0x12340000;
+    rt = 0x87658000;
+    result    = 0x7FFF7FFF;
+    resultdsp = 0x01;
+
+    __asm
+        ("wrdsp $0\n\t"
+         "subq_s.ph %0, %2, %3\n\t"
          "rddsp %1\n\t"
          : "=r"(rd), "=r"(dsp)
          : "r"(rs), "r"(rt)

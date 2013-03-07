@@ -48,7 +48,8 @@ void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
     }
 }
 
-void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
+static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
+                                   bool may_overlap, unsigned priority)
 {
     assert(n >= 0 && n < dev->num_mmio);
 
@@ -61,11 +62,29 @@ void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
         memory_region_del_subregion(get_system_memory(), dev->mmio[n].memory);
     }
     dev->mmio[n].addr = addr;
-    memory_region_add_subregion(get_system_memory(),
-                                addr,
-                                dev->mmio[n].memory);
+    if (may_overlap) {
+        memory_region_add_subregion_overlap(get_system_memory(),
+                                            addr,
+                                            dev->mmio[n].memory,
+                                            priority);
+    }
+    else {
+        memory_region_add_subregion(get_system_memory(),
+                                    addr,
+                                    dev->mmio[n].memory);
+    }
 }
 
+void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
+{
+    sysbus_mmio_map_common(dev, n, addr, false, 0);
+}
+
+void sysbus_mmio_map_overlap(SysBusDevice *dev, int n, hwaddr addr,
+                             unsigned priority)
+{
+    sysbus_mmio_map_common(dev, n, addr, true, priority);
+}
 
 /* Request an IRQ source.  The actual IRQ object may be populated later.  */
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p)
