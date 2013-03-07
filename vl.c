@@ -4331,8 +4331,7 @@ int main(int argc, char **argv, char **envp)
 
     net_check_clients();
 
-    /* just use the first displaystate for the moment */
-    ds = get_displaystate();
+    ds = init_displaystate();
 
     /* init local displays */
     switch (display_type) {
@@ -4387,9 +4386,6 @@ int main(int argc, char **argv, char **envp)
         qemu_spice_display_init(ds);
     }
 #endif
-
-    /* display setup */
-    text_consoles_set_display(ds);
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);

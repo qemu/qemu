@@ -189,12 +189,9 @@ struct DisplayState {
     bool have_text;
 
     QLIST_HEAD(, DisplayChangeListener) listeners;
-
-    struct DisplayState *next;
 };
 
-void register_displaystate(DisplayState *ds);
-DisplayState *get_displaystate(void);
+DisplayState *init_displaystate(void);
 DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
                                                 int linesize, uint8_t *data,
                                                 bool byteswap);
