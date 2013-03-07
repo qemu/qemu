@@ -29,28 +29,36 @@
 #include "block/aio.h"
 #include "trace.h"
 
-static QTAILQ_HEAD(, Coroutine) unlock_bh_queue =
-    QTAILQ_HEAD_INITIALIZER(unlock_bh_queue);
-static QEMUBH* unlock_bh;
+/* Coroutines are awoken from a BH to allow the current coroutine to complete
+ * its flow of execution.  The BH may run after the CoQueue has been destroyed,
+ * so keep BH data in a separate heap-allocated struct.
+ */
+typedef struct {
+    QEMUBH *bh;
+    QTAILQ_HEAD(, Coroutine) entries;
+} CoQueueNextData;
 
 static void qemu_co_queue_next_bh(void *opaque)
 {
+    CoQueueNextData *data = opaque;
     Coroutine *next;
 
     trace_qemu_co_queue_next_bh();
-    while ((next = QTAILQ_FIRST(&unlock_bh_queue))) {
-        QTAILQ_REMOVE(&unlock_bh_queue, next, co_queue_next);
+    while ((next = QTAILQ_FIRST(&data->entries))) {
+        QTAILQ_REMOVE(&data->entries, next, co_queue_next);
         qemu_coroutine_enter(next, NULL);
     }
+
+    qemu_bh_delete(data->bh);
+    g_slice_free(CoQueueNextData, data);
 }
 
 void qemu_co_queue_init(CoQueue *queue)
 {
     QTAILQ_INIT(&queue->entries);
 
-    if (!unlock_bh) {
-        unlock_bh = qemu_bh_new(qemu_co_queue_next_bh, NULL);
-    }
+    /* This will be exposed to callers once there are multiple AioContexts */
+    queue->ctx = qemu_get_aio_context();
 }
 
 void coroutine_fn qemu_co_queue_wait(CoQueue *queue)
@@ -69,26 +77,39 @@ void coroutine_fn qemu_co_queue_wait_insert_head(CoQueue *queue)
     assert(qemu_in_coroutine());
 }
 
-bool qemu_co_queue_next(CoQueue *queue)
+static bool qemu_co_queue_do_restart(CoQueue *queue, bool single)
 {
     Coroutine *next;
+    CoQueueNextData *data;
 
-    next = QTAILQ_FIRST(&queue->entries);
-    if (next) {
-        QTAILQ_REMOVE(&queue->entries, next, co_queue_next);
-        QTAILQ_INSERT_TAIL(&unlock_bh_queue, next, co_queue_next);
-        trace_qemu_co_queue_next(next);
-        qemu_bh_schedule(unlock_bh);
+    if (QTAILQ_EMPTY(&queue->entries)) {
+        return false;
     }
 
-    return (next != NULL);
+    data = g_slice_new(CoQueueNextData);
+    data->bh = aio_bh_new(queue->ctx, qemu_co_queue_next_bh, data);
+    QTAILQ_INIT(&data->entries);
+    qemu_bh_schedule(data->bh);
+
+    while ((next = QTAILQ_FIRST(&queue->entries)) != NULL) {
+        QTAILQ_REMOVE(&queue->entries, next, co_queue_next);
+        QTAILQ_INSERT_TAIL(&data->entries, next, co_queue_next);
+        trace_qemu_co_queue_next(next);
+        if (single) {
+            break;
+        }
+    }
+    return true;
+}
+
+bool qemu_co_queue_next(CoQueue *queue)
+{
+    return qemu_co_queue_do_restart(queue, true);
 }
 
 void qemu_co_queue_restart_all(CoQueue *queue)
 {
-    while (qemu_co_queue_next(queue)) {
-        /* Do nothing */
-    }
+    qemu_co_queue_do_restart(queue, false);
 }
 
 bool qemu_co_queue_empty(CoQueue *queue)
