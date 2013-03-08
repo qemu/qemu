@@ -32,9 +32,6 @@
 #define MAX_CONSOLES 12
 #define CONSOLE_CURSOR_PERIOD 500
 
-#define QEMU_RGBA(r, g, b, a) (((a) << 24) | ((r) << 16) | ((g) << 8) | (b))
-#define QEMU_RGB(r, g, b) QEMU_RGBA(r, g, b, 0xff)
-
 typedef struct TextAttributes {
     uint8_t fgcol:4;
     uint8_t bgcol:4;
@@ -210,17 +207,15 @@ void vga_hw_text_update(console_ch_t *chardata)
 
 static void vga_fill_rect(QemuConsole *con,
                           int posx, int posy, int width, int height,
-                          uint32_t color)
+                          pixman_color_t color)
 {
     DisplaySurface *surface = qemu_console_surface(con);
     pixman_rectangle16_t rect = {
         .x = posx, .y = posy, .width = width, .height = height
     };
-    pixman_color_t pcolor;
 
-    pcolor = qemu_pixman_color(&surface->pf, color);
     pixman_image_fill_rectangles(PIXMAN_OP_SRC, surface->image,
-                                 &pcolor, 1, &rect);
+                                 &color, 1, &rect);
 }
 
 /* copy from (xs, ys) to (xd, yd) a rectangle of size (w, h) */
@@ -255,7 +250,10 @@ enum color_names {
 };
 #endif
 
-static const uint32_t color_table_rgb[2][8] = {
+#define QEMU_RGB(r, g, b)                                               \
+    { .red = r << 8, .green = g << 8, .blue = b << 8, .alpha = 0xffff }
+
+static const pixman_color_t color_table_rgb[2][8] = {
     {   /* dark */
         QEMU_RGB(0x00, 0x00, 0x00),  /* black */
         QEMU_RGB(0xaa, 0x00, 0x00),  /* red */
@@ -316,9 +314,7 @@ static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
 {
     static pixman_image_t *glyphs[256];
     DisplaySurface *surface = qemu_console_surface(s);
-    unsigned int fgcol, bgcol;
-    pixman_image_t *ifg, *ibg;
-    pixman_color_t cfg, cbg;
+    pixman_color_t fgcol, bgcol;
 
     if (t_attrib->invers) {
         bgcol = color_table_rgb[t_attrib->bold][t_attrib->fgcol];
@@ -327,16 +323,12 @@ static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
         fgcol = color_table_rgb[t_attrib->bold][t_attrib->fgcol];
         bgcol = color_table_rgb[t_attrib->bold][t_attrib->bgcol];
     }
-    cfg = qemu_pixman_color(&surface->pf, fgcol);
-    cbg = qemu_pixman_color(&surface->pf, bgcol);
-    ifg = pixman_image_create_solid_fill(&cfg);
-    ibg = pixman_image_create_solid_fill(&cbg);
 
     if (!glyphs[ch]) {
         glyphs[ch] = qemu_pixman_glyph_from_vgafont(FONT_HEIGHT, vgafont16, ch);
     }
     qemu_pixman_glyph_render(glyphs[ch], surface->image,
-                             &cfg, &cbg, x, y, FONT_WIDTH, FONT_HEIGHT);
+                             &fgcol, &bgcol, x, y, FONT_WIDTH, FONT_HEIGHT);
 }
 
 static void text_console_resize(QemuConsole *s)
