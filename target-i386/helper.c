@@ -19,6 +19,7 @@
 
 #include "cpu.h"
 #include "sysemu/kvm.h"
+#include "kvm_i386.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
@@ -1335,6 +1336,9 @@ void do_cpu_init(X86CPU *cpu)
     cpu_reset(cs);
     cs->interrupt_request = sipi;
     env->pat = pat;
+    if (kvm_enabled()) {
+        kvm_arch_do_init_vcpu(cpu);
+    }
     apic_init_reset(cpu->apic_state);
 }
 
