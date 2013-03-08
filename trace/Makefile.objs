@@ -11,7 +11,7 @@ $(obj)/generated-events.h-timestamp: $(SRC_PATH)/trace-events
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
 	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
-$(obj)/generated-events.c: $(obj)/generated-events.c-timestamp
+$(obj)/generated-events.c: $(obj)/generated-events.c-timestamp $(BUILD_DIR)/config-host.mak
 $(obj)/generated-events.c-timestamp: $(SRC_PATH)/trace-events
 	$(call quiet-command,$(TRACETOOL) \
 		--format=events-c \
