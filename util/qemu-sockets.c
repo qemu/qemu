@@ -156,12 +156,12 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
             continue;
         }
 
-        setsockopt(slisten,SOL_SOCKET,SO_REUSEADDR,(void*)&on,sizeof(on));
+        qemu_setsockopt(slisten, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 #ifdef IPV6_V6ONLY
         if (e->ai_family == PF_INET6) {
             /* listen on both ipv4 and ipv6 */
-            setsockopt(slisten,IPPROTO_IPV6,IPV6_V6ONLY,(void*)&off,
-                sizeof(off));
+            qemu_setsockopt(slisten, IPPROTO_IPV6, IPV6_V6ONLY, &off,
+                            sizeof(off));
         }
 #endif
 
@@ -229,7 +229,7 @@ static void wait_for_connect(void *opaque)
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
 
     do {
-        rc = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (void *) &val, &valsize);
+        rc = qemu_getsockopt(s->fd, SOL_SOCKET, SO_ERROR, &val, &valsize);
     } while (rc == -1 && socket_error() == EINTR);
 
     /* update rc to contain error */
@@ -456,7 +456,7 @@ int inet_dgram_opts(QemuOpts *opts, Error **errp)
         error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
         goto err;
     }
-    setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,(void*)&on,sizeof(on));
+    qemu_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
     /* bind socket */
     if (bind(sock, local->ai_addr, local->ai_addrlen) < 0) {
