@@ -20,16 +20,17 @@
 #define PROTO_TCP  6
 #define PROTO_UDP 17
 
-uint32_t net_checksum_add(int len, uint8_t *buf)
+uint32_t net_checksum_add_cont(int len, uint8_t *buf, int seq)
 {
     uint32_t sum = 0;
     int i;
 
-    for (i = 0; i < len; i++) {
-	if (i & 1)
-	    sum += (uint32_t)buf[i];
-	else
-	    sum += (uint32_t)buf[i] << 8;
+    for (i = seq; i < seq + len; i++) {
+        if (i & 1) {
+            sum += (uint32_t)buf[i - seq];
+        } else {
+            sum += (uint32_t)buf[i - seq] << 8;
+        }
     }
     return sum;
 }
