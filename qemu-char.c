@@ -535,8 +535,6 @@ int send_all(int fd, const void *_buf, int len1)
 }
 #endif /* !_WIN32 */
 
-#ifndef _WIN32
-
 typedef struct IOWatchPoll
 {
     GSource *src;
@@ -634,6 +632,7 @@ static guint io_add_watch_poll(GIOChannel *channel,
     return tag;
 }
 
+#ifndef _WIN32
 static GIOChannel *io_channel_from_fd(int fd)
 {
     GIOChannel *chan;
@@ -649,6 +648,7 @@ static GIOChannel *io_channel_from_fd(int fd)
 
     return chan;
 }
+#endif
 
 static GIOChannel *io_channel_from_socket(int fd)
 {
@@ -698,6 +698,8 @@ static int io_channel_send_all(GIOChannel *fd, const void *_buf, int len1)
     }
     return len1 - len;
 }
+
+#ifndef _WIN32
 
 typedef struct FDCharDriver {
     CharDriverState *chr;
