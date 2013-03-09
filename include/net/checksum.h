@@ -38,4 +38,16 @@ net_raw_checksum(uint8_t *data, int length)
     return net_checksum_finish(net_checksum_add(length, data));
 }
 
+/**
+ * net_checksum_add_iov: scatter-gather vector checksumming
+ *
+ * @iov: input scatter-gather array
+ * @iov_cnt: number of array elements
+ * @iov_off: starting iov offset for checksumming
+ * @size: length of data to be checksummed
+ */
+uint32_t net_checksum_add_iov(const struct iovec *iov,
+                              const unsigned int iov_cnt,
+                              uint32_t iov_off, uint32_t size);
+
 #endif /* QEMU_NET_CHECKSUM_H */
