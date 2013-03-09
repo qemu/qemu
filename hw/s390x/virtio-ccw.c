@@ -585,7 +585,6 @@ static int virtio_ccw_blk_init(VirtioCcwDevice *dev)
 static int virtio_ccw_blk_exit(VirtioCcwDevice *dev)
 {
     virtio_blk_exit(dev->vdev);
-    blockdev_mark_auto_del(dev->blk.conf.bs);
     return virtio_ccw_exit(dev);
 }
 

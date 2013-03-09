@@ -454,6 +454,14 @@ M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: hw/s390-*.c
 
+S390 Virtio-ccw
+M: Cornelia Huck <cornelia.huck@de.ibm.com>
+M: Alexander Graf <agraf@suse.de>
+S: Supported
+F: hw/s390x/s390-virtio-ccw.c
+F: hw/s390x/css.[hc]
+T: git git://github.com/cohuck/qemu virtio-ccw-upstr
+
 UniCore32 Machines
 -------------
 PKUnity-3 SoC initramfs-with-busybox
@@ -564,6 +572,12 @@ M: Kevin Wolf <kwolf@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
 F: hw/virtio-blk*
+
+virtio-ccw
+M: Cornelia Huck <cornelia.huck@de.ibm.com>
+S: Supported
+F: hw/s390x/virtio-ccw.[hc]
+T: git git://github.com/cohuck/qemu virtio-ccw-upstr
 
 virtio-serial
 M: Amit Shah <amit.shah@redhat.com>
