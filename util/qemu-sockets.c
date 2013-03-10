@@ -373,6 +373,10 @@ int inet_connect_opts(QemuOpts *opts, Error **errp,
     }
 
     for (e = res; e != NULL; e = e->ai_next) {
+        if (error_is_set(errp)) {
+            error_free(*errp);
+            *errp = NULL;
+        }
         if (connect_state != NULL) {
             connect_state->current_addr = e;
         }

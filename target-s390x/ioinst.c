@@ -316,7 +316,7 @@ int ioinst_handle_stsch(CPUS390XState *env, uint64_t reg1, uint32_t ipb)
             cc = 3;
         }
     } else {
-        if (css_schid_final(cssid, ssid, schid)) {
+        if (css_schid_final(m, cssid, ssid, schid)) {
             cc = 3; /* No more subchannels in this css/ss */
         } else {
             /* Store an empty schib. */

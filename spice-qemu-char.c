@@ -307,3 +307,13 @@ void qemu_spice_register_ports(void)
     }
 }
 #endif
+
+static void register_types(void)
+{
+    register_char_driver("spicevmc", qemu_chr_open_spice);
+#if SPICE_SERVER_VERSION >= 0x000c02
+    register_char_driver("spiceport", qemu_chr_open_spice_port);
+#endif
+}
+
+type_init(register_types);

@@ -56,6 +56,7 @@ typedef void IOEventHandler(void *opaque, int event);
 struct CharDriverState {
     void (*init)(struct CharDriverState *s);
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
+    GSource *(*chr_add_watch)(struct CharDriverState *s, GIOCondition cond);
     void (*chr_update_read_handler)(struct CharDriverState *s);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
     int (*get_msgfd)(struct CharDriverState *s);
@@ -70,7 +71,7 @@ struct CharDriverState {
     void (*chr_guest_open)(struct CharDriverState *chr);
     void (*chr_guest_close)(struct CharDriverState *chr);
     void *opaque;
-    QEMUTimer *open_timer;
+    int idle_tag;
     char *label;
     char *filename;
     int opened;
@@ -151,6 +152,9 @@ void qemu_chr_fe_close(struct CharDriverState *chr);
  */
 void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
+
+guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
+                            GIOFunc func, void *user_data);
 
 /**
  * @qemu_chr_fe_write:
@@ -239,6 +243,8 @@ void qemu_chr_info(Monitor *mon, QObject **ret_data);
 CharDriverState *qemu_chr_find(const char *name);
 
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
+
+void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *));
 
 /* add an eventfd to the qemu devices that are polled */
 CharDriverState *qemu_chr_open_eventfd(int eventfd);

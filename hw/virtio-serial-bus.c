@@ -172,24 +172,7 @@ static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
                                   port->elem.out_sg[i].iov_base
                                   + port->iov_offset,
                                   buf_size);
-            if (ret < 0 && ret != -EAGAIN) {
-                /* We don't handle any other type of errors here */
-                abort();
-            }
-            if (ret == -EAGAIN || (ret >= 0 && ret < buf_size)) {
-		/*
-                 * this is a temporary check until chardevs can signal to
-                 * frontends that they are writable again. This prevents
-                 * the console from going into throttled mode (forever)
-                 * if virtio-console is connected to a pty without a
-                 * listener. Otherwise the guest spins forever.
-                 * We can revert this if
-                 * 1: chardevs can notify frondends
-                 * 2: the guest driver does not spin in these cases
-                 */
-                if (!vsc->is_console) {
-                    virtio_serial_throttle_port(port, true);
-                }
+            if (port->throttled) {
                 port->iov_idx = i;
                 if (ret > 0) {
                     port->iov_offset += ret;

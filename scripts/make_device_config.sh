@@ -3,7 +3,7 @@
 # files from include directives.
 
 dest=$1.tmp
-dep=$1.d
+dep=`dirname $1`-`basename $1`.d
 src=$2
 src_dir=`dirname $src`
 all_includes=
@@ -25,4 +25,4 @@ done
 process_includes $src > $dest
 
 cat $src $all_includes | grep -v '^include' > $dest
-echo "`basename $1`: $all_includes" > $dep
+echo "$1: $all_includes" > $dep
