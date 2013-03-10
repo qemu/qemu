@@ -2656,7 +2656,7 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
         s->do_nodelay = do_nodelay;
         getnameinfo((struct sockaddr *) &ss, ss_len, host, sizeof(host),
                     serv, sizeof(serv), NI_NUMERICHOST | NI_NUMERICSERV);
-        snprintf(chr->filename, 256, "%s:%s:%s%s%s%s",
+        snprintf(chr->filename, 256, "%s:%s%s%s:%s%s",
                  is_telnet ? "telnet" : "tcp",
                  left, host, right, serv,
                  is_listen ? ",server" : "");
