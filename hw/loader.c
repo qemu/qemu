@@ -533,7 +533,14 @@ typedef struct Rom Rom;
 struct Rom {
     char *name;
     char *path;
+
+    /* datasize is the amount of memory allocated in "data". If datasize is less
+     * than romsize, it means that the area from datasize to romsize is filled
+     * with zeros.
+     */
     size_t romsize;
+    size_t datasize;
+
     uint8_t *data;
     int isrom;
     char *fw_dir;
@@ -589,14 +596,15 @@ int rom_add_file(const char *file, const char *fw_dir,
         rom->fw_dir  = g_strdup(fw_dir);
         rom->fw_file = g_strdup(file);
     }
-    rom->addr    = addr;
-    rom->romsize = lseek(fd, 0, SEEK_END);
-    rom->data    = g_malloc0(rom->romsize);
+    rom->addr     = addr;
+    rom->romsize  = lseek(fd, 0, SEEK_END);
+    rom->datasize = rom->romsize;
+    rom->data     = g_malloc0(rom->datasize);
     lseek(fd, 0, SEEK_SET);
-    rc = read(fd, rom->data, rom->romsize);
-    if (rc != rom->romsize) {
+    rc = read(fd, rom->data, rom->datasize);
+    if (rc != rom->datasize) {
         fprintf(stderr, "rom: file %-20s: read error: rc=%d (expected %zd)\n",
-                rom->name, rc, rom->romsize);
+                rom->name, rc, rom->datasize);
         goto err;
     }
     close(fd);
@@ -637,12 +645,33 @@ int rom_add_blob(const char *name, const void *blob, size_t len,
 {
     Rom *rom;
 
-    rom = g_malloc0(sizeof(*rom));
-    rom->name    = g_strdup(name);
-    rom->addr    = addr;
-    rom->romsize = len;
-    rom->data    = g_malloc0(rom->romsize);
+    rom           = g_malloc0(sizeof(*rom));
+    rom->name     = g_strdup(name);
+    rom->addr     = addr;
+    rom->romsize  = len;
+    rom->datasize = len;
+    rom->data     = g_malloc0(rom->datasize);
     memcpy(rom->data, blob, len);
+    rom_insert(rom);
+    return 0;
+}
+
+/* This function is specific for elf program because we don't need to allocate
+ * all the rom. We just allocate the first part and the rest is just zeros. This
+ * is why romsize and datasize are different. Also, this function seize the
+ * memory ownership of "data", so we don't have to allocate and copy the buffer.
+ */
+int rom_add_elf_program(const char *name, void *data, size_t datasize,
+                        size_t romsize, hwaddr addr)
+{
+    Rom *rom;
+
+    rom           = g_malloc0(sizeof(*rom));
+    rom->name     = g_strdup(name);
+    rom->addr     = addr;
+    rom->datasize = datasize;
+    rom->romsize  = romsize;
+    rom->data     = data;
     rom_insert(rom);
     return 0;
 }
@@ -668,7 +697,7 @@ static void rom_reset(void *unused)
         if (rom->data == NULL) {
             continue;
         }
-        cpu_physical_memory_write_rom(rom->addr, rom->data, rom->romsize);
+        cpu_physical_memory_write_rom(rom->addr, rom->data, rom->datasize);
         if (rom->isrom) {
             /* rom needs to be written only once */
             g_free(rom->data);
@@ -756,13 +785,33 @@ int rom_copy(uint8_t *dest, hwaddr addr, size_t size)
 
         d = dest + (rom->addr - addr);
         s = rom->data;
-        l = rom->romsize;
+        l = rom->datasize;
 
         if ((d + l) > (dest + size)) {
             l = dest - d;
         }
 
         memcpy(d, s, l);
+
+        if (rom->romsize > rom->datasize) {
+            /* If datasize is less than romsize, it means that we didn't
+             * allocate all the ROM because the trailing data are only zeros.
+             */
+
+            d += l;
+            l = rom->romsize - rom->datasize;
+
+            if ((d + l) > (dest + size)) {
+                /* Rom size doesn't fit in the destination area. Adjust to avoid
+                 * overflow.
+                 */
+                l = dest - d;
+            }
+
+            if (l > 0) {
+                memset(d, 0x0, l);
+            }
+        }
     }
 
     return (d + l) - dest;

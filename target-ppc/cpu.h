@@ -307,7 +307,6 @@ enum powerpc_input_t {
 #define PPC_INPUT(env) (env->bus_model)
 
 /*****************************************************************************/
-typedef struct ppc_def_t ppc_def_t;
 typedef struct opc_handler_t opc_handler_t;
 
 /*****************************************************************************/
@@ -330,6 +329,12 @@ struct ppc_spr_t {
     void (*hea_write)(void *opaque, int spr_num, int gpr_num);
 #endif
     const char *name;
+#ifdef CONFIG_KVM
+    /* We (ab)use the fact that all the SPRs will have ids for the
+     * ONE_REG interface will have KVM_REG_PPC to use 0 as meaning,
+     * don't sync this */
+    uint64_t one_reg_id;
+#endif
 };
 
 /* Altivec registers (128 bits) */
@@ -901,25 +906,6 @@ struct ppc_segment_page_sizes {
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
-
-struct ppc_def_t {
-    const char *name;
-    uint32_t pvr;
-    uint32_t svr;
-    uint64_t insns_flags;
-    uint64_t insns_flags2;
-    uint64_t msr_mask;
-    powerpc_mmu_t   mmu_model;
-    powerpc_excp_t  excp_model;
-    powerpc_input_t bus_model;
-    uint32_t flags;
-    int bfd_mach;
-#if defined(TARGET_PPC64)
-    const struct ppc_segment_page_sizes *sps;
-#endif
-    void (*init_proc)(CPUPPCState *env);
-    int  (*check_pow)(CPUPPCState *env);
-};
 
 struct CPUPPCState {
     /* First are the most commonly used resources

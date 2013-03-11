@@ -15,7 +15,7 @@ static inline void gen_tb_start(void)
     TCGv_i32 flag;
 
     exitreq_label = gen_new_label();
-    flag = tcg_temp_local_new_i32();
+    flag = tcg_temp_new_i32();
     tcg_gen_ld_i32(flag, cpu_env,
                    offsetof(CPUState, tcg_exit_req) - ENV_OFFSET);
     tcg_gen_brcondi_i32(TCG_COND_NE, flag, 0, exitreq_label);

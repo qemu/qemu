@@ -1,3 +1,4 @@
+obj-y += cpu-models.o
 obj-y += translate.o
 obj-$(CONFIG_SOFTMMU) += machine.o
 obj-$(CONFIG_KVM) += kvm.o kvm_ppc.o

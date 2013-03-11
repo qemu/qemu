@@ -53,8 +53,21 @@ typedef struct PowerPCCPUClass {
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 
-    /* TODO inline fields here */
-    ppc_def_t *info;
+    uint32_t pvr;
+    uint32_t svr;
+    uint64_t insns_flags;
+    uint64_t insns_flags2;
+    uint64_t msr_mask;
+    powerpc_mmu_t   mmu_model;
+    powerpc_excp_t  excp_model;
+    powerpc_input_t bus_model;
+    uint32_t flags;
+    int bfd_mach;
+#if defined(TARGET_PPC64)
+    const struct ppc_segment_page_sizes *sps;
+#endif
+    void (*init_proc)(CPUPPCState *env);
+    int  (*check_pow)(CPUPPCState *env);
 } PowerPCCPUClass;
 
 /**

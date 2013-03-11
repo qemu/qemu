@@ -27,6 +27,8 @@ int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex);
 int rom_add_blob(const char *name, const void *blob, size_t len,
                  hwaddr addr);
+int rom_add_elf_program(const char *name, void *data, size_t datasize,
+                        size_t romsize, hwaddr addr);
 int rom_load_all(void);
 void rom_set_fw(void *f);
 int rom_copy(uint8_t *dest, hwaddr addr, size_t size);

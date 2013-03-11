@@ -103,13 +103,8 @@ unsigned long kvm_arch_vcpu_id(CPUState *cpu)
 
 int kvm_arch_init_vcpu(CPUState *cpu)
 {
-    int ret = 0;
-
-    if (kvm_vcpu_ioctl(cpu, KVM_S390_INITIAL_RESET, NULL) < 0) {
-        perror("cannot init reset vcpu");
-    }
-
-    return ret;
+    /* nothing todo yet */
+    return 0;
 }
 
 void kvm_arch_reset_vcpu(CPUState *cpu)
