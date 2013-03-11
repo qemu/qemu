@@ -12,7 +12,7 @@
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "s390-virtio.h"
-#include "sclp.h"
+#include "hw/s390x/sclp.h"
 #include "ioinst.h"
 #include "css.h"
 #include "virtio-ccw.h"

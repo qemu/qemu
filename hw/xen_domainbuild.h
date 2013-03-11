@@ -1,7 +1,7 @@
 #ifndef QEMU_HW_XEN_DOMAINBUILD_H
 #define QEMU_HW_XEN_DOMAINBUILD_H 1
 
-#include "xen_common.h"
+#include "hw/xen_common.h"
 
 int xenstore_domain_init1(const char *kernel, const char *ramdisk,
                           const char *cmdline);

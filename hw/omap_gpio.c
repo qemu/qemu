@@ -18,9 +18,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "omap.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/omap.h"
+#include "hw/sysbus.h"
 
 struct omap_gpio_s {
     qemu_irq irq;

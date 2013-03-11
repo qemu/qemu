@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 //#define DEBUG_IRQ
 

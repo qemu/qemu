@@ -11,11 +11,11 @@
  *
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
-#include "sysbus.h"
-#include "imx.h"
+#include "hw/ptimer.h"
+#include "hw/sysbus.h"
+#include "hw/imx.h"
 
 //#define DEBUG_TIMER 1
 #ifdef DEBUG_TIMER

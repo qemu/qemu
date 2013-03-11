@@ -26,7 +26,7 @@
 #if !defined(__ADB_H__)
 #define __ADB_H__
 
-#include "qdev.h"
+#include "hw/qdev.h"
 
 #define MAX_ADB_DEVICES 16
 

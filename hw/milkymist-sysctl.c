@@ -21,12 +21,12 @@
  *   http://www.milkymist.org/socdoc/sysctl.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 #include "qemu/error-report.h"
 
 enum {

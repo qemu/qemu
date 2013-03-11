@@ -18,7 +18,7 @@
  *
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 /* L2C-310 r3p2 */
 #define CACHE_ID 0x410000c8

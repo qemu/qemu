@@ -17,9 +17,9 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "omap.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/omap.h"
+#include "hw/sysbus.h"
 
 /* Interrupt Handlers */
 struct omap_intr_handler_bank_s {

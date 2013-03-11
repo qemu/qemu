@@ -21,15 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "vga.h"
+#include "hw/hw.h"
+#include "hw/vga.h"
 #include "ui/console.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "vga_int.h"
+#include "hw/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/vga_int.h"
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
-#include "xen.h"
+#include "hw/xen.h"
 #include "trace.h"
 
 //#define DEBUG_VGA
@@ -986,28 +986,28 @@ typedef void vga_draw_line_func(VGACommonState *s1, uint8_t *d,
                                 const uint8_t *s, int width);
 
 #define DEPTH 8
-#include "vga_template.h"
+#include "hw/vga_template.h"
 
 #define DEPTH 15
-#include "vga_template.h"
+#include "hw/vga_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 15
-#include "vga_template.h"
+#include "hw/vga_template.h"
 
 #define DEPTH 16
-#include "vga_template.h"
+#include "hw/vga_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 16
-#include "vga_template.h"
+#include "hw/vga_template.h"
 
 #define DEPTH 32
-#include "vga_template.h"
+#include "hw/vga_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 32
-#include "vga_template.h"
+#include "hw/vga_template.h"
 
 static unsigned int rgb_to_pixel8_dup(unsigned int r, unsigned int g, unsigned b)
 {

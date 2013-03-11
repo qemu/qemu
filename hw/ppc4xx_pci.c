@@ -19,11 +19,11 @@
 /* This file implements emulation of the 32-bit PCI controller found in some
  * 4xx SoCs, such as the 440EP. */
 
-#include "hw.h"
-#include "ppc.h"
-#include "ppc4xx.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
+#include "hw/hw.h"
+#include "hw/ppc.h"
+#include "hw/ppc4xx.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "exec/address-spaces.h"
 
 #undef DEBUG

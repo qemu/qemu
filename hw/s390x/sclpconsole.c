@@ -14,9 +14,10 @@
 
 #include <hw/qdev.h>
 #include "qemu/thread.h"
+#include "qemu/error-report.h"
 
-#include "sclp.h"
-#include "event-facility.h"
+#include "hw/s390x/sclp.h"
+#include "hw/s390x/event-facility.h"
 #include "char/char.h"
 
 typedef struct ASCIIConsoleData {

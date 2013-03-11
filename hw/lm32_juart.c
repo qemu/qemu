@@ -17,12 +17,12 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "char/char.h"
 
-#include "lm32_juart.h"
+#include "hw/lm32_juart.h"
 
 enum {
     LM32_JUART_MIN_SAVE_VERSION = 0,

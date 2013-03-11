@@ -26,13 +26,13 @@
  *  Contributions after 2012-01-13 are licensed under the terms of the
  *  GNU GPL, version 2 or (at your option) any later version.
  */
-#include "sysbus.h"
-#include "strongarm.h"
+#include "hw/sysbus.h"
+#include "hw/strongarm.h"
 #include "qemu/error-report.h"
-#include "arm-misc.h"
+#include "hw/arm-misc.h"
 #include "char/char.h"
 #include "sysemu/sysemu.h"
-#include "ssi.h"
+#include "hw/ssi.h"
 
 //#define DEBUG
 

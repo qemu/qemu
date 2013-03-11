@@ -20,10 +20,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu-common.h"
-#include "irq.h"
-#include "exynos4210.h"
+#include "hw/irq.h"
+#include "hw/exynos4210.h"
 
 enum ExtGicId {
     EXT_GIC_ID_MDMA_LCD0 = 66,

@@ -7,8 +7,8 @@
  * (at your option) any later version.
  */
 
-#include "hw.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/isa.h"
 
 #define TYPE_ISA_DEBUG_EXIT_DEVICE "isa-debug-exit"
 #define ISA_DEBUG_EXIT_DEVICE(obj) \

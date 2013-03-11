@@ -22,10 +22,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
-#include "hid.h"
+#include "hw/hid.h"
 
 #define HID_USAGE_ERROR_ROLLOVER        0x01
 #define HID_USAGE_POSTFAIL              0x02

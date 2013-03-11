@@ -19,7 +19,7 @@
 
 #include "qemu-common.h"
 #include "bt/bt.h"
-#include "bt.h"
+#include "hw/bt.h"
 
 /* Slave implementations can ignore this */
 static void bt_dummy_lmp_mode_change(struct bt_link_s *link)

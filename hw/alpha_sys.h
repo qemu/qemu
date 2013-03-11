@@ -3,11 +3,11 @@
 #ifndef HW_ALPHA_H
 #define HW_ALPHA_H 1
 
-#include "pci/pci.h"
-#include "pci/pci_host.h"
-#include "ide.h"
-#include "pc.h"
-#include "irq.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
+#include "hw/ide.h"
+#include "hw/pc.h"
+#include "hw/irq.h"
 
 
 PCIBus *typhoon_init(ram_addr_t, ISABus **, qemu_irq *, AlphaCPU *[4],

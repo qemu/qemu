@@ -1,4 +1,4 @@
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "char/char.h"
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"

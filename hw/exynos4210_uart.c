@@ -19,11 +19,11 @@
  *
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "char/char.h"
 
-#include "exynos4210.h"
+#include "hw/exynos4210.h"
 
 #undef DEBUG_UART
 #undef DEBUG_UART_EXTEND

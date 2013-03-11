@@ -8,11 +8,11 @@
  * published by the Free Software Foundation, or any later version.
  * See the COPYING file in the top-level directory.
  */
-#include "sysbus.h"
-#include "ptimer.h"
+#include "hw/sysbus.h"
+#include "hw/ptimer.h"
 
 #undef DEBUG_PUV3
-#include "puv3.h"
+#include "hw/puv3.h"
 
 /* puv3 ostimer implementation. */
 typedef struct {

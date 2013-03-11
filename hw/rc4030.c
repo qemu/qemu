@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "mips.h"
+#include "hw/hw.h"
+#include "hw/mips.h"
 #include "qemu/timer.h"
 
 /********************************************************/

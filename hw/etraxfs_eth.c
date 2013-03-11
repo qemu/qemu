@@ -23,9 +23,9 @@
  */
 
 #include <stdio.h>
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "net/net.h"
-#include "etraxfs.h"
+#include "hw/etraxfs.h"
 
 #define D(x)
 

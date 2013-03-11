@@ -54,10 +54,10 @@
 
 #include <sys/ioctl.h>
 
-#include "pci/pci.h"
-#include "xen.h"
-#include "xen_backend.h"
-#include "xen_pt.h"
+#include "hw/pci/pci.h"
+#include "hw/xen.h"
+#include "hw/xen_backend.h"
+#include "hw/xen_pt.h"
 #include "qemu/range.h"
 #include "exec/address-spaces.h"
 

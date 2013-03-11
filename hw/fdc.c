@@ -27,13 +27,13 @@
  * way. There are changes in DOR register and DMA is not available.
  */
 
-#include "hw.h"
-#include "fdc.h"
+#include "hw/hw.h"
+#include "hw/fdc.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
-#include "isa.h"
-#include "sysbus.h"
-#include "qdev-addr.h"
+#include "hw/isa.h"
+#include "hw/sysbus.h"
+#include "hw/qdev-addr.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"

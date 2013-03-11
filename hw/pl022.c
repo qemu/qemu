@@ -7,8 +7,8 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
-#include "ssi.h"
+#include "hw/sysbus.h"
+#include "hw/ssi.h"
 
 //#define DEBUG_PL022 1
 

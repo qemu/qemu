@@ -22,14 +22,14 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/dma.h"
 #include "qemu/timer.h"
 #include "block/block_int.h"
 #include "qemu/bitops.h"
 
-#include "sdhci.h"
+#include "hw/sdhci.h"
 
 /* host controller debug messages */
 #ifndef SDHC_DEBUG

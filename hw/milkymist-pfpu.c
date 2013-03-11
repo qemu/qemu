@@ -22,8 +22,8 @@
  *
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"

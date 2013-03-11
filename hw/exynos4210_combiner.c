@@ -27,9 +27,9 @@
  * IRQs are passed to GIC through Combiner.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
-#include "exynos4210.h"
+#include "hw/exynos4210.h"
 
 //#define DEBUG_COMBINER
 

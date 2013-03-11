@@ -36,13 +36,13 @@
  * It does not implement much more ...
  */
 
-#include "hw.h"
-#include "flash.h"
+#include "hw/hw.h"
+#include "hw/flash.h"
 #include "block/block.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 #define PFLASH_BUG(fmt, ...) \
 do { \

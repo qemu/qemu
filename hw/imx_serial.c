@@ -17,11 +17,11 @@
  *     is a real serial device.
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "char/char.h"
-#include "imx.h"
+#include "hw/imx.h"
 
 //#define DEBUG_SERIAL 1
 #ifdef DEBUG_SERIAL

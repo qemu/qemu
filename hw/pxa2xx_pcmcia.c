@@ -10,9 +10,9 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "pcmcia.h"
-#include "pxa.h"
+#include "hw/hw.h"
+#include "hw/pcmcia.h"
+#include "hw/pxa.h"
 
 
 struct PXA2xxPCMCIAState {

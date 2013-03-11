@@ -20,10 +20,10 @@
  *
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
-#include "pl041.h"
-#include "lm4549.h"
+#include "hw/pl041.h"
+#include "hw/lm4549.h"
 
 #if 0
 #define PL041_DEBUG_LEVEL 1

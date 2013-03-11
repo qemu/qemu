@@ -31,6 +31,6 @@ void sun4m_pic_info(Monitor *mon, const QDict *qdict);
 void sun4m_irq_info(Monitor *mon, const QDict *qdict);
 
 /* sparc32_dma.c */
-#include "sparc32_dma.h"
+#include "hw/sparc32_dma.h"
 
 #endif

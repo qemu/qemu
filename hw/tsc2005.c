@@ -18,10 +18,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "ui/console.h"
-#include "devices.h"
+#include "hw/devices.h"
 
 #define TSC_CUT_RESOLUTION(value, p)	((value) >> (16 - (p ? 12 : 10)))
 

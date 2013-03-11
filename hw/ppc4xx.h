@@ -25,7 +25,7 @@
 #if !defined(PPC_4XX_H)
 #define PPC_4XX_H
 
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 
 /* PowerPC 4xx core initialization */
 PowerPCCPU *ppc4xx_init(const char *cpu_model,

@@ -25,16 +25,16 @@
  *  CLKOUTEN Bit[9] not used
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu-common.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 
-#include "exynos4210.h"
+#include "hw/exynos4210.h"
 
 #define DEBUG_RTC 0
 

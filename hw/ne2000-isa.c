@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "pc.h"
-#include "isa.h"
-#include "qdev.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/isa.h"
+#include "hw/qdev.h"
 #include "net/net.h"
-#include "ne2000.h"
+#include "hw/ne2000.h"
 #include "exec/address-spaces.h"
 
 typedef struct ISANE2000State {

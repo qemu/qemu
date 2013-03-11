@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "char/char.h"
 #include "qemu/log.h"
 #include "net/net.h"

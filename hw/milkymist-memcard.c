@@ -21,13 +21,13 @@
  *   http://www.milkymist.org/socdoc/memcard.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "sysemu/blockdev.h"
-#include "sd.h"
+#include "hw/sd.h"
 
 enum {
     ENABLE_CMD_TX   = (1<<0),

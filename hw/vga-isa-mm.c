@@ -21,10 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
-#include "pc.h"
-#include "vga_int.h"
+#include "hw/pc.h"
+#include "hw/vga_int.h"
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
 

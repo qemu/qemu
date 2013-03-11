@@ -24,13 +24,14 @@
  */
 
 #include "sysemu/blockdev.h"
-#include "sysbus.h"
-#include "hw.h"
-#include "pc.h"
+#include "qemu/error-report.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
 #include "hw/boards.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "sysemu/sysemu.h"
-#include "flash.h"
+#include "hw/flash.h"
 #include "sysemu/kvm.h"
 
 #define BIOS_FILENAME "bios.bin"

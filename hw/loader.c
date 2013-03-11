@@ -42,13 +42,13 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "disas/disas.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
-#include "uboot_image.h"
-#include "loader.h"
-#include "fw_cfg.h"
+#include "hw/uboot_image.h"
+#include "hw/loader.h"
+#include "hw/fw_cfg.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 
@@ -260,7 +260,7 @@ static void *load_at(int fd, int offset, int size)
 #define elf_word        uint32_t
 #define elf_sword        int32_t
 #define bswapSZs	bswap32s
-#include "elf_ops.h"
+#include "hw/elf_ops.h"
 
 #undef elfhdr
 #undef elf_phdr
@@ -280,7 +280,7 @@ static void *load_at(int fd, int offset, int size)
 #define elf_sword        int64_t
 #define bswapSZs	bswap64s
 #define SZ		64
-#include "elf_ops.h"
+#include "hw/elf_ops.h"
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
 int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),

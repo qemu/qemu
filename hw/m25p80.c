@@ -21,10 +21,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "sysemu/blockdev.h"
-#include "ssi.h"
-#include "devices.h"
+#include "hw/ssi.h"
+#include "hw/devices.h"
 
 #ifdef M25P80_ERR_DEBUG
 #define DB_PRINT(...) do { \

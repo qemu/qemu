@@ -1,7 +1,3 @@
-# LM32 boards
-obj-y += lm32_boards.o
-obj-y += milkymist.o
-
 # LM32 peripherals
 obj-y += lm32_pic.o
 obj-y += lm32_juart.o
@@ -21,3 +17,7 @@ obj-y += milkymist-vgafb.o
 obj-y += framebuffer.o
 
 obj-y := $(addprefix ../,$(obj-y))
+
+# LM32 boards
+obj-y += lm32_boards.o
+obj-y += milkymist.o

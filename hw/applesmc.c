@@ -30,8 +30,8 @@
  *
  */
 
-#include "hw.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/isa.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
 

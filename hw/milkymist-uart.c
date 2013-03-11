@@ -21,8 +21,8 @@
  *   http://www.milkymist.org/socdoc/uart.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "char/char.h"
 #include "qemu/error-report.h"

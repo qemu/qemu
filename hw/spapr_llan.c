@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  *
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "net/net.h"
 #include "hw/qdev.h"
 #include "hw/spapr.h"

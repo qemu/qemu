@@ -22,11 +22,11 @@
  *
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/error-report.h"
-#include "qdev.h"
-#include "virtio-bus.h"
-#include "virtio.h"
+#include "hw/qdev.h"
+#include "hw/virtio-bus.h"
+#include "hw/virtio.h"
 
 /* #define DEBUG_VIRTIO_BUS */
 

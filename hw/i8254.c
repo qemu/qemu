@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "pc.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/isa.h"
 #include "qemu/timer.h"
-#include "i8254.h"
-#include "i8254_internal.h"
+#include "hw/i8254.h"
+#include "hw/i8254_internal.h"
 
 //#define DEBUG_PIT
 

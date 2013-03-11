@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include "sun4m.h"
+#include "hw/sun4m.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
-#include "sysbus.h"
+#include "hw/ptimer.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 /*

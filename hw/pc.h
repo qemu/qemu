@@ -4,11 +4,11 @@
 #include "qemu-common.h"
 #include "exec/memory.h"
 #include "exec/ioport.h"
-#include "isa.h"
-#include "fdc.h"
+#include "hw/isa.h"
+#include "hw/fdc.h"
 #include "net/net.h"
 #include "exec/memory.h"
-#include "ioapic.h"
+#include "hw/ioapic.h"
 
 /* PC-style peripherals (also used by other machines).  */
 

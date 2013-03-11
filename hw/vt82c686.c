@@ -10,24 +10,22 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "pc.h"
-#include "vt82c686.h"
-#include "i2c.h"
-#include "smbus.h"
-#include "pci/pci.h"
-#include "isa.h"
-#include "sysbus.h"
-#include "mips.h"
-#include "apm.h"
-#include "acpi.h"
-#include "pm_smbus.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/vt82c686.h"
+#include "hw/i2c.h"
+#include "hw/smbus.h"
+#include "hw/pci/pci.h"
+#include "hw/isa.h"
+#include "hw/sysbus.h"
+#include "hw/mips.h"
+#include "hw/apm.h"
+#include "hw/acpi.h"
+#include "hw/pm_smbus.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 
-typedef uint32_t pci_addr_t;
-#include "pci/pci_host.h"
 //#define DEBUG_VT82C686B
 
 #ifdef DEBUG_VT82C686B

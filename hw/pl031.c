@@ -11,7 +11,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 

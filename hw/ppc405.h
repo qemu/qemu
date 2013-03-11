@@ -25,7 +25,7 @@
 #if !defined(PPC_405_H)
 #define PPC_405_H
 
-#include "ppc4xx.h"
+#include "hw/ppc4xx.h"
 
 /* Bootinfo as set-up by u-boot */
 typedef struct ppc4xx_bd_info_t ppc4xx_bd_info_t;

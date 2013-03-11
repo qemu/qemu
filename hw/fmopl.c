@@ -39,7 +39,7 @@
 #include <stdarg.h>
 #include <math.h>
 //#include "driver.h"		/* use M.A.M.E. */
-#include "fmopl.h"
+#include "hw/fmopl.h"
 
 #ifndef PI
 #define PI 3.14159265358979323846

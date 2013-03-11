@@ -21,9 +21,9 @@
 #include "qemu-common.h"
 #include "char/char.h"
 #include "qemu/timer.h"
-#include "irq.h"
+#include "hw/irq.h"
 #include "bt/bt.h"
-#include "bt.h"
+#include "hw/bt.h"
 
 struct csrhci_s {
     int enable;

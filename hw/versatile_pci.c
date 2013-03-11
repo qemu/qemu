@@ -7,9 +7,9 @@
  * This code is licensed under the LGPL.
  */
 
-#include "sysbus.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
+#include "hw/sysbus.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "exec/address-spaces.h"
 
 typedef struct {

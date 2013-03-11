@@ -2,8 +2,9 @@
 #define HW_XILINX_H 1
 
 
-#include "stream.h"
 #include "qemu-common.h"
+#include "qapi/qmp/qerror.h"
+#include "hw/stream.h"
 #include "net/net.h"
 
 static inline DeviceState *

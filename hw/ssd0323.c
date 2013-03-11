@@ -10,7 +10,7 @@
 /* The controller can support a variety of different displays, but we only
    implement one.  Most of the commends relating to brightness and geometry
    setup are ignored. */
-#include "ssi.h"
+#include "hw/ssi.h"
 #include "ui/console.h"
 
 //#define DEBUG_SSD0323 1

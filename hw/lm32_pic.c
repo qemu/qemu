@@ -19,12 +19,12 @@
 
 #include <assert.h>
 
-#include "hw.h"
-#include "pc.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
 #include "monitor/monitor.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
-#include "lm32_pic.h"
+#include "hw/lm32_pic.h"
 
 struct LM32PicState {
     SysBusDevice busdev;

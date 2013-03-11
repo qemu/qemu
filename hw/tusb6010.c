@@ -20,11 +20,11 @@
  */
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "usb.h"
-#include "omap.h"
-#include "irq.h"
-#include "devices.h"
-#include "sysbus.h"
+#include "hw/usb.h"
+#include "hw/omap.h"
+#include "hw/irq.h"
+#include "hw/devices.h"
+#include "hw/sysbus.h"
 
 typedef struct TUSBState {
     SysBusDevice busdev;

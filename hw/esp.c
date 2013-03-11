@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "esp.h"
+#include "hw/sysbus.h"
+#include "hw/esp.h"
 #include "trace.h"
 #include "qemu/log.h"
 

@@ -9,9 +9,9 @@
  * version.
  */
 
-#include "hw.h"
-#include "sysbus.h"
-#include "empty_slot.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
+#include "hw/empty_slot.h"
 
 //#define DEBUG_EMPTY_SLOT
 

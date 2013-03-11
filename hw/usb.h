@@ -25,7 +25,7 @@
  * THE SOFTWARE.
  */
 
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "qemu/queue.h"
 
 /* Constants related to the USB / PCI interaction */

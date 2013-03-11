@@ -19,7 +19,7 @@
 
 #include <linux/virtio_ring.h>
 #include "qemu-common.h"
-#include "hw/dataplane/hostmem.h"
+#include "hostmem.h"
 #include "hw/virtio.h"
 
 typedef struct {

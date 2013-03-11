@@ -22,18 +22,18 @@
 #ifndef HW_Q35_H
 #define HW_Q35_H
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/range.h"
-#include "isa.h"
-#include "sysbus.h"
-#include "pc.h"
-#include "apm.h"
-#include "apic.h"
-#include "pci/pci.h"
-#include "pci/pcie_host.h"
-#include "acpi.h"
-#include "acpi_ich9.h"
-#include "pam.h"
+#include "hw/isa.h"
+#include "hw/sysbus.h"
+#include "hw/pc.h"
+#include "hw/apm.h"
+#include "hw/apic.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pcie_host.h"
+#include "hw/acpi.h"
+#include "hw/acpi_ich9.h"
+#include "hw/pam.h"
 
 #define TYPE_Q35_HOST_DEVICE "q35-pcihost"
 #define Q35_HOST_DEVICE(obj) \

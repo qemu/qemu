@@ -44,7 +44,6 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 endif
 common-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
 common-obj-$(CONFIG_SDHCI) += sdhci.o
-common-obj-y += fifo.o
 common-obj-y += pam.o
 
 # PPC devices
@@ -190,10 +189,8 @@ common-obj-$(CONFIG_SSI_SD) += ssi-sd.o
 common-obj-$(CONFIG_SD) += sd.o
 common-obj-y += bt.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o
 common-obj-y += bt-hci-csr.o
-common-obj-y += msmouse.o ps2.o
-common-obj-y += qdev-monitor.o
+common-obj-y += ps2.o
 common-obj-y += qdev-properties-system.o
-common-obj-$(CONFIG_BRLAPI) += baum.o
 
 # xen backend driver support
 common-obj-$(CONFIG_XEN_BACKEND) += xen_backend.o xen_devconfig.o
@@ -209,8 +206,6 @@ obj-$(CONFIG_SOFTMMU) += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/
 obj-$(CONFIG_VGA) += vga.o
-obj-$(CONFIG_SOFTMMU) += device-hotplug.o
-obj-$(CONFIG_XEN) += xen_domainbuild.o xen_machine_pv.o
 
 # Inter-VM PCI shared memory & VFIO PCI device assignment
 ifeq ($(CONFIG_PCI), y)
@@ -218,5 +213,4 @@ obj-$(CONFIG_KVM) += ivshmem.o
 obj-$(CONFIG_LINUX) += vfio_pci.o
 endif
 
-$(obj)/baum.o: QEMU_CFLAGS += $(SDL_CFLAGS) 
 endif

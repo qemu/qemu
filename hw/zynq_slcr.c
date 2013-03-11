@@ -14,9 +14,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 
 #ifdef ZYNQ_ARM_SLCR_ERR_DEBUG

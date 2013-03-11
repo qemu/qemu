@@ -10,7 +10,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "i2c.h"
+#include "hw/i2c.h"
 
 /* Size of NVRAM including both the user-accessible area and the
  * secondary register area.

@@ -34,10 +34,10 @@
 #include <sys/mman.h>
 #include <sys/signal.h>
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "char/char.h"
 #include "qemu/log.h"
-#include "xen_backend.h"
+#include "hw/xen_backend.h"
 
 #include <xen/grant_table.h>
 

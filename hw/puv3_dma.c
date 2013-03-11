@@ -8,11 +8,11 @@
  * published by the Free Software Foundation, or any later version.
  * See the COPYING file in the top-level directory.
  */
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 
 #undef DEBUG_PUV3
-#include "puv3.h"
+#include "hw/puv3.h"
 
 #define PUV3_DMA_CH_NR          (6)
 #define PUV3_DMA_CH_MASK        (0xff)

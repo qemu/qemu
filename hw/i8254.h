@@ -25,8 +25,8 @@
 #ifndef HW_I8254_H
 #define HW_I8254_H
 
-#include "hw.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/isa.h"
 
 #define PIT_FREQ 1193182
 

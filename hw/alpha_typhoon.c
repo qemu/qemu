@@ -8,10 +8,10 @@
 
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "hw.h"
-#include "devices.h"
+#include "hw/hw.h"
+#include "hw/devices.h"
 #include "sysemu/sysemu.h"
-#include "alpha_sys.h"
+#include "hw/alpha_sys.h"
 #include "exec/address-spaces.h"
 
 

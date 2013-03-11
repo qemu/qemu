@@ -21,11 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "isa.h"
-#include "pc.h"
+#include "hw/hw.h"
+#include "hw/isa.h"
+#include "hw/pc.h"
 #include "sysemu/kvm.h"
-#include "qdev.h"
+#include "hw/qdev.h"
 
 //#define VMPORT_DEBUG
 
