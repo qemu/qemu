@@ -764,6 +764,7 @@ static void device_unparent(Object *obj)
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     BusState *bus;
     QObject *event_data;
+    gchar *path = object_get_canonical_path(obj);
 
     while (dev->num_child_bus) {
         bus = QLIST_FIRST(&dev->child_bus);
@@ -784,12 +785,14 @@ static void device_unparent(Object *obj)
     }
 
     if (dev->id) {
-        event_data = qobject_from_jsonf("{ 'device': %s }", dev->id);
+        event_data = qobject_from_jsonf("{ 'device': %s, 'path': %s }",
+                                        dev->id, path);
     } else {
-        event_data = qobject_from_jsonf("{ }");
+        event_data = qobject_from_jsonf("{ 'path': %s }", path);
     }
     monitor_protocol_event(QEVENT_DEVICE_DELETED, event_data);
     qobject_decref(event_data);
+    g_free(path);
 }
 
 static void device_class_init(ObjectClass *class, void *data)
