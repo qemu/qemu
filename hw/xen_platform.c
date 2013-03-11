@@ -25,12 +25,12 @@
 
 #include <assert.h>
 
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "irq.h"
-#include "xen_common.h"
-#include "xen_backend.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/irq.h"
+#include "hw/xen_common.h"
+#include "hw/xen_backend.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
 

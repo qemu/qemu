@@ -16,6 +16,7 @@
  */
 #define smp_wmb()   barrier()
 #define smp_rmb()   barrier()
+
 /*
  * We use GCC builtin if it's available, as that can use
  * mfence on 32 bit as well, e.g. if built with -march=pentium-m.

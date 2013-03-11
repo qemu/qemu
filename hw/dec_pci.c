@@ -23,12 +23,12 @@
  * THE SOFTWARE.
  */
 
-#include "dec_pci.h"
-#include "sysbus.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
-#include "pci/pci_bridge.h"
-#include "pci/pci_bus.h"
+#include "hw/dec_pci.h"
+#include "hw/sysbus.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_bus.h"
 
 /* debug DEC */
 //#define DEBUG_DEC

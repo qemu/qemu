@@ -21,10 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "sysbus.h"
-#include "sh.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
+#include "hw/sysbus.h"
+#include "hw/sh.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "qemu/bswap.h"
 #include "exec/address-spaces.h"
 

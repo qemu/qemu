@@ -24,7 +24,7 @@
 
 #include <zlib.h> /* For crc32 */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "net/net.h"
 #include "net/checksum.h"
 

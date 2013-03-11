@@ -19,9 +19,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ioapic.h"
-#include "ioapic_internal.h"
-#include "sysbus.h"
+#include "hw/ioapic.h"
+#include "hw/ioapic_internal.h"
+#include "hw/sysbus.h"
 
 void ioapic_reset_common(DeviceState *dev)
 {

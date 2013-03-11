@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 typedef struct {
     SysBusDevice busdev;

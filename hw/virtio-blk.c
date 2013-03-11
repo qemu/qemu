@@ -16,11 +16,11 @@
 #include "trace.h"
 #include "hw/block-common.h"
 #include "sysemu/blockdev.h"
-#include "virtio-blk.h"
+#include "hw/virtio-blk.h"
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
-#include "hw/dataplane/virtio-blk.h"
+#include "dataplane/virtio-blk.h"
 #endif
-#include "scsi-defs.h"
+#include "hw/scsi-defs.h"
 #ifdef __linux__
 # include <scsi/sg.h>
 #endif

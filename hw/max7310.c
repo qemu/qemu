@@ -7,7 +7,7 @@
  * This file is licensed under GNU GPL.
  */
 
-#include "i2c.h"
+#include "hw/i2c.h"
 
 typedef struct {
     I2CSlave i2c;

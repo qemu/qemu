@@ -14,8 +14,8 @@
 #ifndef _QEMU_VIRTIO_NET_H
 #define _QEMU_VIRTIO_NET_H
 
-#include "virtio.h"
-#include "pci/pci.h"
+#include "hw/virtio.h"
+#include "hw/pci/pci.h"
 
 #define ETH_ALEN    6
 

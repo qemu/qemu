@@ -7,11 +7,11 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu-common.h"
-#include "qdev.h"
-#include "ptimer.h"
+#include "hw/qdev.h"
+#include "hw/ptimer.h"
 
 /* Common timer implementation.  */
 

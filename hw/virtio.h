@@ -14,13 +14,13 @@
 #ifndef _QEMU_VIRTIO_H
 #define _QEMU_VIRTIO_H
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "net/net.h"
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "sysemu/sysemu.h"
 #include "qemu/event_notifier.h"
-#ifdef CONFIG_LINUX
-#include "9p.h"
+#ifdef CONFIG_VIRTFS
+#include "hw/9pfs/virtio-9p-device.h"
 #endif
 
 /* from Linux's linux/virtio_config.h */
@@ -252,7 +252,7 @@ typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *conf);
 typedef struct VirtIORNGConf VirtIORNGConf;
 VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf);
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
 VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf);
 #endif
 

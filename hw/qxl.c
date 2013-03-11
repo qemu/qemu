@@ -27,7 +27,7 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
-#include "qxl.h"
+#include "hw/qxl.h"
 
 /*
  * NOTE: SPICE_RING_PROD_ITEM accesses memory on the pci bar and as

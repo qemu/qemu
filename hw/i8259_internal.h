@@ -25,9 +25,9 @@
 #ifndef QEMU_I8259_INTERNAL_H
 #define QEMU_I8259_INTERNAL_H
 
-#include "hw.h"
-#include "pc.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/isa.h"
 
 typedef struct PICCommonState PICCommonState;
 

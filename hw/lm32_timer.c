@@ -21,11 +21,11 @@
  *   http://www.latticesemi.com/documents/mico32timer.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 #include "qemu/error-report.h"
 
 #define DEFAULT_FREQUENCY (50*1000000)

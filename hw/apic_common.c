@@ -17,8 +17,8 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
-#include "apic.h"
-#include "apic_internal.h"
+#include "hw/apic.h"
+#include "hw/apic_internal.h"
 #include "trace.h"
 #include "sysemu/kvm.h"
 

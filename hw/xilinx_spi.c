@@ -24,12 +24,12 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
-#include "fifo.h"
+#include "qemu/fifo8.h"
 
-#include "ssi.h"
+#include "hw/ssi.h"
 
 #ifdef XILINX_SPI_ERR_DEBUG
 #define DB_PRINT(...) do { \

@@ -35,13 +35,13 @@
  * It does not implement multiple sectors erase
  */
 
-#include "hw.h"
-#include "flash.h"
+#include "hw/hw.h"
+#include "hw/flash.h"
 #include "qemu/timer.h"
 #include "block/block.h"
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 //#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG

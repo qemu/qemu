@@ -18,10 +18,10 @@
 
 #ifndef NAND_IO
 
-# include "hw.h"
-# include "flash.h"
+# include "hw/hw.h"
+# include "hw/flash.h"
 # include "sysemu/blockdev.h"
-# include "sysbus.h"
+# include "hw/sysbus.h"
 #include "qemu/error-report.h"
 
 # define NAND_CMD_READ0		0x00

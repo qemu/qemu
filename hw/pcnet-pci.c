@@ -27,13 +27,13 @@
  * AMD Publication# 19436  Rev:E  Amendment/0  Issue Date: June 2000
  */
 
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 #include "net/net.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "qemu/timer.h"
 #include "sysemu/dma.h"
 
-#include "pcnet.h"
+#include "hw/pcnet.h"
 
 //#define PCNET_DEBUG
 //#define PCNET_DEBUG_IO

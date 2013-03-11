@@ -25,8 +25,8 @@
 #ifndef _GRLIB_H_
 #define _GRLIB_H_
 
-#include "qdev.h"
-#include "sysbus.h"
+#include "hw/qdev.h"
+#include "hw/sysbus.h"
 
 /* Emulation of GrLib device is base on the GRLIB IP Core User's Manual:
  * http://www.gaisler.com/products/grlib/grip.pdf

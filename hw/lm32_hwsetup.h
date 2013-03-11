@@ -26,7 +26,7 @@
 #define QEMU_HW_LM32_HWSETUP_H
 
 #include "qemu-common.h"
-#include "loader.h"
+#include "hw/loader.h"
 
 typedef struct {
     void *data;

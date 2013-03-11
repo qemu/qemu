@@ -19,9 +19,9 @@
  */
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "omap.h"
-#include "irq.h"
-#include "soc_dma.h"
+#include "hw/omap.h"
+#include "hw/irq.h"
+#include "hw/soc_dma.h"
 
 struct omap_dma_channel_s {
     /* transfer data */

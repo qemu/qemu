@@ -14,8 +14,8 @@
 #ifndef _QEMU_VIRTIO_SCSI_H
 #define _QEMU_VIRTIO_SCSI_H
 
-#include "virtio.h"
-#include "pci/pci.h"
+#include "hw/virtio.h"
+#include "hw/pci/pci.h"
 
 /* The ID for virtio_scsi */
 #define VIRTIO_ID_SCSI  8

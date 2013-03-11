@@ -39,11 +39,11 @@
 
 #include <assert.h>
 
-#include "hw.h"
-#include "pci/pci.h"
-#include "pc.h"
-#include "mips.h"
-#include "pci/pci_host.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
+#include "hw/pc.h"
+#include "hw/mips.h"
+#include "hw/pci/pci_host.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 

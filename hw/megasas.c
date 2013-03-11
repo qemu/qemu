@@ -18,16 +18,16 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
 #include "sysemu/dma.h"
-#include "pci/msix.h"
+#include "hw/pci/msix.h"
 #include "qemu/iov.h"
-#include "scsi.h"
-#include "scsi-defs.h"
+#include "hw/scsi.h"
+#include "hw/scsi-defs.h"
 #include "trace.h"
 
-#include "mfi.h"
+#include "hw/mfi.h"
 
 #define MEGASAS_VERSION "1.70"
 #define MEGASAS_MAX_FRAMES 2048         /* Firmware limit at 65535 */

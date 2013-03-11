@@ -23,7 +23,7 @@
  */
 
 #include "sysemu/sysemu.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 /*

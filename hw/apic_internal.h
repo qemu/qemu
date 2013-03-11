@@ -21,7 +21,7 @@
 #define QEMU_APIC_INTERNAL_H
 
 #include "exec/memory.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 
 /* APIC Local Vector Table */

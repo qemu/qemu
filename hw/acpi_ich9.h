@@ -21,7 +21,7 @@
 #ifndef HW_ACPI_ICH9_H
 #define HW_ACPI_ICH9_H
 
-#include "acpi.h"
+#include "hw/acpi.h"
 
 typedef struct ICH9LPCPMRegs {
     /*

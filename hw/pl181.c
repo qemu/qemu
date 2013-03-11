@@ -8,8 +8,8 @@
  */
 
 #include "sysemu/blockdev.h"
-#include "sysbus.h"
-#include "sd.h"
+#include "hw/sysbus.h"
+#include "hw/sd.h"
 
 //#define DEBUG_PL181 1
 

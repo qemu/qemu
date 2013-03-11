@@ -35,11 +35,11 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "net/net.h"
 #include "net/checksum.h"
 #include "net/util.h"
-#include "xen_backend.h"
+#include "hw/xen_backend.h"
 
 #include <xen/io/netif.h>
 

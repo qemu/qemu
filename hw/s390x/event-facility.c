@@ -18,8 +18,8 @@
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 
-#include "sclp.h"
-#include "event-facility.h"
+#include "hw/s390x/sclp.h"
+#include "hw/s390x/event-facility.h"
 
 typedef struct EventTypesBus {
     BusState qbus;

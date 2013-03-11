@@ -12,7 +12,7 @@
  *
  */
 
-#include "hw/dataplane/ioq.h"
+#include "ioq.h"
 
 void ioq_init(IOQueue *ioq, int fd, unsigned int max_reqs)
 {

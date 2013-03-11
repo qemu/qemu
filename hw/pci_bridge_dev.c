@@ -19,13 +19,13 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci/pci_bridge.h"
-#include "pci/pci_ids.h"
-#include "pci/msi.h"
-#include "pci/shpc.h"
-#include "pci/slotid_cap.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_ids.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/shpc.h"
+#include "hw/pci/slotid_cap.h"
 #include "exec/memory.h"
-#include "pci/pci_bus.h"
+#include "hw/pci/pci_bus.h"
 
 struct PCIBridgeDev {
     PCIBridge bridge;

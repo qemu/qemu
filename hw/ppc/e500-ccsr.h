@@ -1,7 +1,7 @@
 #ifndef E500_CCSR_H
 #define E500_CCSR_H
 
-#include "../sysbus.h"
+#include "hw/sysbus.h"
 
 typedef struct PPCE500CCSRState {
     /*< private >*/

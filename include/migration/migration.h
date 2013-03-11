@@ -34,18 +34,11 @@ struct MigrationState
     int64_t bandwidth_limit;
     size_t bytes_xfer;
     size_t xfer_limit;
-    uint8_t *buffer;
-    size_t buffer_size;
-    size_t buffer_capacity;
     QemuThread thread;
-
+    QEMUBH *cleanup_bh;
     QEMUFile *file;
-    int fd;
+
     int state;
-    int (*get_error)(MigrationState *s);
-    int (*close)(MigrationState *s);
-    int (*write)(MigrationState *s, const void *buff, size_t size);
-    void *opaque;
     MigrationParams params;
     int64_t total_time;
     int64_t downtime;
@@ -54,7 +47,6 @@ struct MigrationState
     int64_t dirty_bytes_rate;
     bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
     int64_t xbzrle_cache_size;
-    bool complete;
 };
 
 void process_incoming_migration(QEMUFile *f);

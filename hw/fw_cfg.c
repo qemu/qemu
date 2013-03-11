@@ -21,11 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "sysemu/sysemu.h"
-#include "isa.h"
-#include "fw_cfg.h"
-#include "sysbus.h"
+#include "hw/isa.h"
+#include "hw/fw_cfg.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"

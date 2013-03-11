@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "ptimer.h"
+#include "hw/sysbus.h"
+#include "hw/ptimer.h"
 #include "qemu/log.h"
 
 #define D(x)

@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 typedef struct {

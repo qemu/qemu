@@ -25,7 +25,7 @@
 #ifndef HW_SERIAL_H
 #define HW_SERIAL_H 1
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "sysemu/sysemu.h"
 #include "exec/memory.h"
 

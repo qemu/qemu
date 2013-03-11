@@ -24,7 +24,7 @@
  * uses PMU INFORM5 register as a holding pen.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 #ifndef DEBUG_PMU
 #define DEBUG_PMU           0

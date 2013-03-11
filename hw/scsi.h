@@ -1,7 +1,7 @@
 #ifndef QEMU_HW_SCSI_H
 #define QEMU_HW_SCSI_H
 
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "block/block.h"
 #include "hw/block-common.h"
 #include "sysemu/sysemu.h"

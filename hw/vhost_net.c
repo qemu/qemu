@@ -16,8 +16,8 @@
 #include "net/net.h"
 #include "net/tap.h"
 
-#include "virtio-net.h"
-#include "vhost_net.h"
+#include "hw/virtio-net.h"
+#include "hw/vhost_net.h"
 #include "qemu/error-report.h"
 
 #include "config.h"
@@ -36,7 +36,7 @@
 
 #include <stdio.h>
 
-#include "vhost.h"
+#include "hw/vhost.h"
 
 struct vhost_net {
     struct vhost_dev dev;

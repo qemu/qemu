@@ -1,4 +1,4 @@
-#include "stream.h"
+#include "hw/stream.h"
 
 void
 stream_push(StreamSlave *sink, uint8_t *buf, size_t len, uint32_t *app)

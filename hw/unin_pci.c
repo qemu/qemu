@@ -21,10 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "ppc/mac.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
+#include "hw/hw.h"
+#include "hw/ppc/mac.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 
 /* debug UniNorth */
 //#define DEBUG_UNIN

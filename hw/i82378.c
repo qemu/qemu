@@ -17,10 +17,10 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci/pci.h"
-#include "pc.h"
-#include "i8254.h"
-#include "pcspk.h"
+#include "hw/pci/pci.h"
+#include "hw/pc.h"
+#include "hw/i8254.h"
+#include "hw/pcspk.h"
 
 //#define DEBUG_I82378
 

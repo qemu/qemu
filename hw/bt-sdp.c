@@ -18,7 +18,7 @@
  */
 
 #include "qemu-common.h"
-#include "bt.h"
+#include "hw/bt.h"
 
 /* windef.h also defines FALSE, TRUE, so undef it here. */
 #undef FALSE

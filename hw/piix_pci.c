@@ -22,15 +22,15 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
-#include "isa.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
+#include "hw/isa.h"
+#include "hw/sysbus.h"
 #include "qemu/range.h"
-#include "xen.h"
-#include "pam.h"
+#include "hw/xen.h"
+#include "hw/pam.h"
 #include "sysemu/sysemu.h"
 
 /*
@@ -244,7 +244,6 @@ static PCIBus *i440fx_common_init(const char *device_name,
 
     dev = qdev_create(NULL, "i440FX-pcihost");
     s = PCI_HOST_BRIDGE(dev);
-    s->address_space = address_space_mem;
     b = pci_bus_new(dev, NULL, pci_address_space,
                     address_space_io, 0);
     s->bus = b;

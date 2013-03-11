@@ -14,8 +14,8 @@
 #ifndef QEMU_TMP105_H
 #define QEMU_TMP105_H
 
-#include "i2c.h"
-#include "tmp105_regs.h"
+#include "hw/i2c.h"
+#include "hw/tmp105_regs.h"
 
 #define TYPE_TMP105 "tmp105"
 #define TMP105(obj) OBJECT_CHECK(TMP105State, (obj), TYPE_TMP105)

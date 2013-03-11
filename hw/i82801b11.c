@@ -41,8 +41,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
-#include "pci/pci.h"
-#include "ich9.h"
+#include "hw/pci/pci.h"
+#include "hw/ich9.h"
 
 
 /*****************************************************************************/

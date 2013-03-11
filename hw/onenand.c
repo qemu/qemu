@@ -19,13 +19,13 @@
  */
 
 #include "qemu-common.h"
-#include "hw.h"
-#include "flash.h"
-#include "irq.h"
+#include "hw/hw.h"
+#include "hw/flash.h"
+#include "hw/irq.h"
 #include "sysemu/blockdev.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/error-report.h"
 
 /* 11 for 2kB-page OneNAND ("2nd generation") and 10 for 1kB-page chips */

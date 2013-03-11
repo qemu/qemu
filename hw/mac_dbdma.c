@@ -36,9 +36,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "isa.h"
-#include "mac_dbdma.h"
+#include "hw/hw.h"
+#include "hw/isa.h"
+#include "hw/mac_dbdma.h"
 #include "qemu/main-loop.h"
 
 /* debug DBDMA */

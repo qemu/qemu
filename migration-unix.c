@@ -29,49 +29,24 @@
     do { } while (0)
 #endif
 
-static int unix_errno(MigrationState *s)
-{
-    return errno;
-}
-
-static int unix_write(MigrationState *s, const void * buf, size_t size)
-{
-    return write(s->fd, buf, size);
-}
-
-static int unix_close(MigrationState *s)
-{
-    int r = 0;
-    DPRINTF("unix_close\n");
-    if (close(s->fd) < 0) {
-        r = -errno;
-    }
-    return r;
-}
-
 static void unix_wait_for_connect(int fd, void *opaque)
 {
     MigrationState *s = opaque;
 
     if (fd < 0) {
         DPRINTF("migrate connect error\n");
-        s->fd = -1;
+        s->file = NULL;
         migrate_fd_error(s);
     } else {
         DPRINTF("migrate connect success\n");
-        s->fd = fd;
-        socket_set_block(s->fd);
+        s->file = qemu_fopen_socket(fd, "wb");
         migrate_fd_connect(s);
     }
 }
 
 void unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp)
 {
-    s->get_error = unix_errno;
-    s->write = unix_write;
-    s->close = unix_close;
-
-    s->fd = unix_nonblocking_connect(path, unix_wait_for_connect, s, errp);
+    unix_nonblocking_connect(path, unix_wait_for_connect, s, errp);
 }
 
 static void unix_accept_incoming_migration(void *opaque)
@@ -95,7 +70,7 @@ static void unix_accept_incoming_migration(void *opaque)
         goto out;
     }
 
-    f = qemu_fopen_socket(c);
+    f = qemu_fopen_socket(c, "rb");
     if (f == NULL) {
         fprintf(stderr, "could not qemu_fopen socket\n");
         goto out;

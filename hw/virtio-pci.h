@@ -16,12 +16,13 @@
 #define QEMU_VIRTIO_PCI_H
 
 #include "hw/pci/msi.h"
-#include "virtio-blk.h"
-#include "virtio-net.h"
-#include "virtio-rng.h"
-#include "virtio-serial.h"
-#include "virtio-scsi.h"
-#include "virtio-bus.h"
+#include "hw/virtio-blk.h"
+#include "hw/virtio-net.h"
+#include "hw/virtio-rng.h"
+#include "hw/virtio-serial.h"
+#include "hw/virtio-scsi.h"
+#include "hw/virtio-bus.h"
+#include "hw/9pfs/virtio-9p-device.h"
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 
@@ -75,7 +76,7 @@ struct VirtIOPCIProxy {
     VirtIOBlkConf blk;
     NICConf nic;
     uint32_t host_features;
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
     V9fsConf fsconf;
 #endif
     virtio_serial_conf serial;
@@ -90,7 +91,6 @@ struct VirtIOPCIProxy {
 };
 
 void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev);
-void virtio_pci_reset(DeviceState *d);
 void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev);
 
 /* Virtio ABI version, if we increment this, we break the guest driver. */

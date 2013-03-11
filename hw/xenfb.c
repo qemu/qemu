@@ -35,10 +35,10 @@
 #include <string.h>
 #include <time.h>
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
 #include "char/char.h"
-#include "xen_backend.h"
+#include "hw/xen_backend.h"
 
 #include <xen/event_channel.h>
 #include <xen/io/fbif.h>

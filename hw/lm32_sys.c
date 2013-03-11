@@ -28,8 +28,8 @@
  * the test is passed or any non-zero value to it if the test is failed.
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"

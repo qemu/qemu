@@ -16,10 +16,10 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "pci/msix.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/msix.h"
 #include "sysemu/kvm.h"
 #include "migration/migration.h"
 #include "qapi/qmp/qerror.h"

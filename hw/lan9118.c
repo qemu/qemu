@@ -10,11 +10,11 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "net/net.h"
-#include "devices.h"
+#include "hw/devices.h"
 #include "sysemu/sysemu.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 /* For crc32 */
 #include <zlib.h>
 

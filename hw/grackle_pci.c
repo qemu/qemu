@@ -23,9 +23,9 @@
  * THE SOFTWARE.
  */
 
-#include "pci/pci_host.h"
-#include "ppc/mac.h"
-#include "pci/pci.h"
+#include "hw/pci/pci_host.h"
+#include "hw/ppc/mac.h"
+#include "hw/pci/pci.h"
 
 /* debug Grackle */
 //#define DEBUG_GRACKLE

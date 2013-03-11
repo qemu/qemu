@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 #define PL080_MAX_CHANNELS 8
 #define PL080_CONF_E    0x1

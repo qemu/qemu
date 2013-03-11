@@ -567,7 +567,6 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
 
     dev = qdev_create(NULL, "raven-pcihost");
     pcihost = PCI_HOST_BRIDGE(dev);
-    pcihost->address_space = get_system_memory();
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");

@@ -24,7 +24,7 @@
 
 #include "qemu-common.h"
 #include "exec/cpu-all.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "qemu/bswap.h"

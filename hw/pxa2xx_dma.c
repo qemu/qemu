@@ -8,9 +8,9 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw.h"
-#include "pxa.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/pxa.h"
+#include "hw/sysbus.h"
 
 #define PXA255_DMA_NUM_CHANNELS 16
 #define PXA27X_DMA_NUM_CHANNELS 32

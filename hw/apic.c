@@ -17,14 +17,14 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 #include "qemu/thread.h"
-#include "apic_internal.h"
-#include "apic.h"
-#include "ioapic.h"
-#include "pci/msi.h"
+#include "hw/apic_internal.h"
+#include "hw/apic.h"
+#include "hw/ioapic.h"
+#include "hw/pci/msi.h"
 #include "qemu/host-utils.h"
 #include "trace.h"
-#include "pc.h"
-#include "apic-msidef.h"
+#include "hw/pc.h"
+#include "hw/apic-msidef.h"
 
 #define MAX_APIC_WORDS 8
 

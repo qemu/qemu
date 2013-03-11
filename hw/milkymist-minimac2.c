@@ -22,12 +22,12 @@
  *
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "net/net.h"
 #include "qemu/error-report.h"
-#include "qdev-addr.h"
+#include "hw/qdev-addr.h"
 
 #include <zlib.h>
 

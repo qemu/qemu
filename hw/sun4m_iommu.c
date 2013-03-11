@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "sun4m.h"
-#include "sysbus.h"
+#include "hw/sun4m.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 /*

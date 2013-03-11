@@ -7,8 +7,8 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
-#include "ps2.h"
+#include "hw/sysbus.h"
+#include "hw/ps2.h"
 
 typedef struct {
     SysBusDevice busdev;

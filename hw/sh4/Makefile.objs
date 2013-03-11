@@ -1,5 +1,9 @@
-obj-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
+obj-y = tc58128.o
 obj-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o
 obj-y += ide/mmio.o
 
 obj-y := $(addprefix ../,$(obj-y))
+
+obj-y += shix.o r2d.o
+
+obj-y += sh7750.o sh7750_regnames.o

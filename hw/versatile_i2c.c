@@ -21,8 +21,8 @@
  *
  */
 
-#include "sysbus.h"
-#include "bitbang_i2c.h"
+#include "hw/sysbus.h"
+#include "hw/bitbang_i2c.h"
 
 typedef struct {
     SysBusDevice busdev;

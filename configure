@@ -2464,6 +2464,7 @@ int main(void) { return 0; }
 EOF
   if compile_prog "" "$fdt_libs" ; then
     fdt=yes
+    libs_softmmu="$libs_softmmu $fdt_libs"
   else
     if test "$fdt" = "yes" ; then
       feature_not_found "fdt"
@@ -2855,7 +2856,13 @@ if test "$libiscsi" != "no" ; then
 #include <iscsi/iscsi.h>
 int main(void) { iscsi_unmap_sync(NULL,0,0,0,NULL,0); return 0; }
 EOF
-  if compile_prog "" "-liscsi" ; then
+  if $pkg_config --atleast-version=1.7.0 libiscsi --modversion >/dev/null 2>&1; then
+    libiscsi="yes"
+    libiscsi_cflags=$($pkg_config --cflags libiscsi 2>/dev/null)
+    libiscsi_libs=$($pkg_config --libs libiscsi 2>/dev/null)
+    CFLAGS="$CFLAGS $libiscsi_cflags"
+    LIBS="$LIBS $libiscsi_libs"
+  elif compile_prog "" "-liscsi" ; then
     libiscsi="yes"
     LIBS="$LIBS -liscsi"
   else
@@ -2923,7 +2930,7 @@ EOF
   spice_cflags=$($pkg_config --cflags spice-protocol spice-server 2>/dev/null)
   spice_libs=$($pkg_config --libs spice-protocol spice-server 2>/dev/null)
   if $pkg_config --atleast-version=0.12.0 spice-server >/dev/null 2>&1 && \
-     $pkg_config --atleast-version=0.12.2 spice-protocol > /dev/null 2>&1 && \
+     $pkg_config --atleast-version=0.12.3 spice-protocol > /dev/null 2>&1 && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
     libs_softmmu="$libs_softmmu $spice_libs"
@@ -4040,7 +4047,6 @@ case "$target_arch2" in
     target_nptl="yes"
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
     target_llong_alignment=4
-    target_libs_softmmu="$fdt_libs"
   ;;
   cris)
     target_nptl="yes"
@@ -4059,7 +4065,6 @@ case "$target_arch2" in
     TARGET_ARCH=microblaze
     bflt="yes"
     target_nptl="yes"
-    target_libs_softmmu="$fdt_libs"
   ;;
   mips|mipsel)
     TARGET_ARCH=mips
@@ -4085,21 +4090,18 @@ case "$target_arch2" in
   ppc)
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_nptl="yes"
-    target_libs_softmmu="$fdt_libs"
   ;;
   ppcemb)
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_nptl="yes"
-    target_libs_softmmu="$fdt_libs"
   ;;
   ppc64)
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_long_alignment=8
-    target_libs_softmmu="$fdt_libs"
   ;;
   ppc64abi32)
     TARGET_ARCH=ppc64
@@ -4107,7 +4109,6 @@ case "$target_arch2" in
     TARGET_ABI_DIR=ppc
     echo "TARGET_ABI32=y" >> $config_target_mak
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
-    target_libs_softmmu="$fdt_libs"
   ;;
   sh4|sh4eb)
     TARGET_ARCH=sh4
@@ -4209,9 +4210,6 @@ case "$target_arch2" in
   i386|x86_64)
     echo "CONFIG_HAVE_GET_MEMORY_MAPPING=y" >> $config_target_mak
 esac
-if test "$target_arch2" = "ppc64" -a "$fdt" = "yes"; then
-  echo "CONFIG_PSERIES=y" >> $config_target_mak
-fi
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_target_mak
 fi
@@ -4425,6 +4423,7 @@ FILES="$FILES pc-bios/qemu-icon.bmp"
 FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps"
 FILES="$FILES pc-bios/spapr-rtas/Makefile"
 FILES="$FILES roms/seabios/Makefile roms/vgabios/Makefile"
+FILES="$FILES pc-bios/qemu-icon.bmp"
 for bios_file in \
     $source_path/pc-bios/*.bin \
     $source_path/pc-bios/*.aml \

@@ -17,9 +17,9 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
-#include "omap.h"
+#include "hw/omap.h"
 
 struct omap_dss_s {
     qemu_irq irq;

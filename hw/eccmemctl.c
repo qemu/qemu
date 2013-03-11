@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 /* There are 3 versions of this chip used in SMP sun4m systems:

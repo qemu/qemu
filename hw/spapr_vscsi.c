@@ -31,10 +31,10 @@
  *  - Add indirect descriptors support
  *  - Maybe do autosense (PAPR seems to mandate it, linux doesn't care)
  */
-#include "hw.h"
-#include "scsi.h"
-#include "scsi-defs.h"
-#include "srp.h"
+#include "hw/hw.h"
+#include "hw/scsi.h"
+#include "hw/scsi-defs.h"
+#include "hw/srp.h"
 #include "hw/qdev.h"
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
