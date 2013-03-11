@@ -1127,6 +1127,9 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
         return;
     }
 
+    /* complete all in-flight operations before resizing the device */
+    bdrv_drain_all();
+
     switch (bdrv_truncate(bs, size)) {
     case 0:
         break;
