@@ -170,22 +170,6 @@ static inline DeviceState *milkymist_ac97_create(hwaddr base,
     return dev;
 }
 
-static inline DeviceState *milkymist_minimac_create(hwaddr base,
-        qemu_irq rx_irq, qemu_irq tx_irq)
-{
-    DeviceState *dev;
-
-    qemu_check_nic_model(&nd_table[0], "minimac");
-    dev = qdev_create(NULL, "milkymist-minimac");
-    qdev_set_nic_properties(dev, &nd_table[0]);
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, rx_irq);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, tx_irq);
-
-    return dev;
-}
-
 static inline DeviceState *milkymist_minimac2_create(hwaddr base,
         hwaddr buffers_base, qemu_irq rx_irq, qemu_irq tx_irq)
 {

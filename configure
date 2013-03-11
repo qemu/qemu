@@ -2877,7 +2877,7 @@ EOF
   spice_cflags=$($pkg_config --cflags spice-protocol spice-server 2>/dev/null)
   spice_libs=$($pkg_config --libs spice-protocol spice-server 2>/dev/null)
   if $pkg_config --atleast-version=0.12.0 spice-server >/dev/null 2>&1 && \
-     $pkg_config --atleast-version=0.12.2 spice-protocol > /dev/null 2>&1 && \
+     $pkg_config --atleast-version=0.12.3 spice-protocol > /dev/null 2>&1 && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
     libs_softmmu="$libs_softmmu $spice_libs"
@@ -4375,6 +4375,7 @@ FILES="$FILES tests/tcg/lm32/Makefile po/Makefile"
 FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps"
 FILES="$FILES pc-bios/spapr-rtas/Makefile"
 FILES="$FILES roms/seabios/Makefile roms/vgabios/Makefile"
+FILES="$FILES pc-bios/qemu-icon.bmp"
 for bios_file in \
     $source_path/pc-bios/*.bin \
     $source_path/pc-bios/*.aml \

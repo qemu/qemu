@@ -2132,7 +2132,7 @@ gluster[+transport]://[server[:port]]/volname/image[?socket=...]
 
 Example
 @example
-qemu-system-x86_84 --drive file=gluster://192.0.2.1/testvol/a.img
+qemu-system-x86_64 --drive file=gluster://192.0.2.1/testvol/a.img
 @end example
 
 See also @url{http://www.gluster.org}.

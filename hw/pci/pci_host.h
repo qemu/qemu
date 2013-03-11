@@ -40,7 +40,6 @@ struct PCIHostState {
     MemoryRegion conf_mem;
     MemoryRegion data_mem;
     MemoryRegion mmcfg;
-    MemoryRegion *address_space;
     uint32_t config_reg;
     PCIBus *bus;
 };
