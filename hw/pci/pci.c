@@ -1912,7 +1912,12 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     size = get_image_size(path);
     if (size < 0) {
         error_report("%s: failed to find romfile \"%s\"",
-                     __FUNCTION__, pdev->romfile);
+                     __func__, pdev->romfile);
+        g_free(path);
+        return -1;
+    } else if (size == 0) {
+        error_report("%s: ignoring empty romfile \"%s\"",
+                     __func__, pdev->romfile);
         g_free(path);
         return -1;
     }
