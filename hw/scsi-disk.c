@@ -178,6 +178,9 @@ static void scsi_aio_complete(void *opaque, int ret)
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
     bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    if (r->req.io_canceled) {
+        goto done;
+    }
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
@@ -223,6 +226,10 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
+    if (r->req.io_canceled) {
+        goto done;
+    }
+
     if (scsi_is_cmd_fua(&r->req.cmd)) {
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
         r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
@@ -230,6 +237,8 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
     }
 
     scsi_req_complete(&r->req, GOOD);
+
+done:
     if (!r->req.io_canceled) {
         scsi_req_unref(&r->req);
     }
@@ -243,6 +252,9 @@ static void scsi_dma_complete(void *opaque, int ret)
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
     bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    if (r->req.io_canceled) {
+        goto done;
+    }
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
@@ -274,6 +286,9 @@ static void scsi_read_complete(void * opaque, int ret)
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
     bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    if (r->req.io_canceled) {
+        goto done;
+    }
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
@@ -305,15 +320,14 @@ static void scsi_do_read(void *opaque, int ret)
         r->req.aiocb = NULL;
         bdrv_acct_done(s->qdev.conf.bs, &r->acct);
     }
+    if (r->req.io_canceled) {
+        goto done;
+    }
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
             goto done;
         }
-    }
-
-    if (r->req.io_canceled) {
-        return;
     }
 
     /* The request is used as the AIO opaque value, so add a ref.  */
@@ -422,6 +436,9 @@ static void scsi_write_complete(void * opaque, int ret)
     if (r->req.aiocb != NULL) {
         r->req.aiocb = NULL;
         bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    }
+    if (r->req.io_canceled) {
+        goto done;
     }
 
     if (ret < 0) {
@@ -1478,13 +1495,17 @@ static void scsi_unmap_complete(void *opaque, int ret)
     uint32_t nb_sectors;
 
     r->req.aiocb = NULL;
+    if (r->req.io_canceled) {
+        goto done;
+    }
+
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
             goto done;
         }
     }
 
-    if (data->count > 0 && !r->req.io_canceled) {
+    if (data->count > 0) {
         sector_num = ldq_be_p(&data->inbuf[0]);
         nb_sectors = ldl_be_p(&data->inbuf[8]) & 0xffffffffULL;
         if (!check_lba_range(s, sector_num, nb_sectors)) {
@@ -1501,10 +1522,9 @@ static void scsi_unmap_complete(void *opaque, int ret)
         return;
     }
 
+    scsi_req_complete(&r->req, GOOD);
+
 done:
-    if (data->count == 0) {
-        scsi_req_complete(&r->req, GOOD);
-    }
     if (!r->req.io_canceled) {
         scsi_req_unref(&r->req);
     }
