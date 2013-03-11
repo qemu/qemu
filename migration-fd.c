@@ -30,54 +30,13 @@
     do { } while (0)
 #endif
 
-static int fd_errno(MigrationState *s)
-{
-    return errno;
-}
-
-static int fd_write(MigrationState *s, const void * buf, size_t size)
-{
-    return write(s->fd, buf, size);
-}
-
-static int fd_close(MigrationState *s)
-{
-    struct stat st;
-    int ret;
-
-    DPRINTF("fd_close\n");
-    ret = fstat(s->fd, &st);
-    if (ret == 0 && S_ISREG(st.st_mode)) {
-        /*
-         * If the file handle is a regular file make sure the
-         * data is flushed to disk before signaling success.
-         */
-        ret = fsync(s->fd);
-        if (ret != 0) {
-            ret = -errno;
-            perror("migration-fd: fsync");
-            return ret;
-        }
-    }
-    ret = close(s->fd);
-    s->fd = -1;
-    if (ret != 0) {
-        ret = -errno;
-        perror("migration-fd: close");
-    }
-    return ret;
-}
-
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
 {
-    s->fd = monitor_get_fd(cur_mon, fdname, errp);
-    if (s->fd == -1) {
+    int fd = monitor_get_fd(cur_mon, fdname, errp);
+    if (fd == -1) {
         return;
     }
-
-    s->get_error = fd_errno;
-    s->write = fd_write;
-    s->close = fd_close;
+    s->file = qemu_fdopen(fd, "wb");
 
     migrate_fd_connect(s);
 }

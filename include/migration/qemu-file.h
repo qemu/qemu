@@ -51,33 +51,17 @@ typedef int (QEMUFileCloseFunc)(void *opaque);
  */
 typedef int (QEMUFileGetFD)(void *opaque);
 
-/* Called to determine if the file has exceeded its bandwidth allocation.  The
- * bandwidth capping is a soft limit, not a hard limit.
- */
-typedef int (QEMUFileRateLimit)(void *opaque);
-
-/* Called to change the current bandwidth allocation. This function must return
- * the new actual bandwidth. It should be new_rate if everything goes ok, and
- * the old rate otherwise
- */
-typedef int64_t (QEMUFileSetRateLimit)(void *opaque, int64_t new_rate);
-typedef int64_t (QEMUFileGetRateLimit)(void *opaque);
-
 typedef struct QEMUFileOps {
     QEMUFilePutBufferFunc *put_buffer;
     QEMUFileGetBufferFunc *get_buffer;
     QEMUFileCloseFunc *close;
     QEMUFileGetFD *get_fd;
-    QEMUFileRateLimit *rate_limit;
-    QEMUFileSetRateLimit *set_rate_limit;
-    QEMUFileGetRateLimit *get_rate_limit;
 } QEMUFileOps;
 
 QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
 QEMUFile *qemu_fopen(const char *filename, const char *mode);
 QEMUFile *qemu_fdopen(int fd, const char *mode);
-QEMUFile *qemu_fopen_socket(int fd);
-QEMUFile *qemu_popen(FILE *popen_file, const char *mode);
+QEMUFile *qemu_fopen_socket(int fd, const char *mode);
 QEMUFile *qemu_popen_cmd(const char *command, const char *mode);
 int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
@@ -110,7 +94,8 @@ unsigned int qemu_get_be32(QEMUFile *f);
 uint64_t qemu_get_be64(QEMUFile *f);
 
 int qemu_file_rate_limit(QEMUFile *f);
-int64_t qemu_file_set_rate_limit(QEMUFile *f, int64_t new_rate);
+void qemu_file_reset_rate_limit(QEMUFile *f);
+void qemu_file_set_rate_limit(QEMUFile *f, int64_t new_rate);
 int64_t qemu_file_get_rate_limit(QEMUFile *f);
 int qemu_file_get_error(QEMUFile *f);
 

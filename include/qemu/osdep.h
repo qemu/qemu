@@ -9,6 +9,13 @@
 #include <sys/signal.h>
 #endif
 
+#ifndef _WIN32
+#include <sys/wait.h>
+#else
+#define WIFEXITED(x)   1
+#define WEXITSTATUS(x) (x)
+#endif
+
 #include <sys/time.h>
 
 #if defined(CONFIG_SOLARIS) && CONFIG_SOLARIS_VERSION < 10

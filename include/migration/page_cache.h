@@ -57,7 +57,8 @@ bool cache_is_cached(const PageCache *cache, uint64_t addr);
 uint8_t *get_cached_data(const PageCache *cache, uint64_t addr);
 
 /**
- * cache_insert: insert the page into the cache. the previous value will be overwritten
+ * cache_insert: insert the page into the cache. the page cache
+ * will dup the data on insert. the previous value will be overwritten
  *
  * @cache pointer to the PageCache struct
  * @addr: page address

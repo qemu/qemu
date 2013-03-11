@@ -1091,3 +1091,6 @@ css_io_interrupt(int cssid, int ssid, int schid, uint32_t intparm, uint8_t isc, 
 # hw/s390x/virtio-ccw.c
 virtio_ccw_interpret_ccw(int cssid, int ssid, int schid, int cmd_code) "VIRTIO-CCW: %x.%x.%04x: interpret command %x"
 virtio_ccw_new_device(int cssid, int ssid, int schid, int devno, const char *devno_mode) "VIRTIO-CCW: add subchannel %x.%x.%04x, devno %04x (%s)"
+
+# migration.c
+migrate_set_state(int new_state) "new state %d"
