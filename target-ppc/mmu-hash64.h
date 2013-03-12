@@ -6,8 +6,7 @@
 #ifdef TARGET_PPC64
 void dump_slb(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
 int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
-int ppc_hash64_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
-                                    target_ulong eaddr, int rw, int access_type);
+hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr);
 int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                                 int mmu_idx);
 #endif

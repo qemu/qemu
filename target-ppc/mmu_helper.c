@@ -1310,11 +1310,6 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 #endif
 
     switch (env->mmu_model) {
-    case POWERPC_MMU_32B:
-    case POWERPC_MMU_601:
-        ret = ppc_hash32_get_physical_address(env, ctx, eaddr, rw, access_type);
-        break;
-
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
         if (real_mode) {
@@ -1330,14 +1325,6 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
             }
         }
         break;
-
-#if defined(TARGET_PPC64)
-    case POWERPC_MMU_64B:
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_06d:
-        ret = ppc_hash64_get_physical_address(env, ctx, eaddr, rw, access_type);
-        break;
-#endif
 
     case POWERPC_MMU_SOFT_4xx:
     case POWERPC_MMU_SOFT_4xx_Z:
@@ -1382,6 +1369,22 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 hwaddr cpu_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 {
     mmu_ctx_t ctx;
+
+    switch (env->mmu_model) {
+#if defined(TARGET_PPC64)
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06d:
+        return ppc_hash64_get_phys_page_debug(env, addr);
+#endif
+
+    case POWERPC_MMU_32B:
+    case POWERPC_MMU_601:
+        return ppc_hash32_get_phys_page_debug(env, addr);
+
+    default:
+        ;
+    }
 
     if (unlikely(get_physical_address(env, &ctx, addr, 0, ACCESS_INT) != 0)) {
         return -1;

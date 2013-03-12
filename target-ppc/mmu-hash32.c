@@ -304,8 +304,9 @@ static int get_segment32(CPUPPCState *env, mmu_ctx_t *ctx,
 }
 
 
-int ppc_hash32_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
-                                    target_ulong eaddr, int rw, int access_type)
+static int ppc_hash32_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
+                                           target_ulong eaddr, int rw,
+                                           int access_type)
 {
     bool real_mode = (access_type == ACCESS_CODE && msr_ir == 0)
         || (access_type != ACCESS_CODE && msr_dr == 0);
@@ -327,6 +328,18 @@ int ppc_hash32_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         }
         return ret;
     }
+}
+
+hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
+{
+    mmu_ctx_t ctx;
+
+    if (unlikely(ppc_hash32_get_physical_address(env, &ctx, addr, 0, ACCESS_INT)
+                 != 0)) {
+        return -1;
+    }
+
+    return ctx.raddr & TARGET_PAGE_MASK;
 }
 
 int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
