@@ -381,7 +381,7 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 {
     hwaddr hash;
     target_ulong vsid;
-    int ds, pr, target_page_bits;
+    int pr, target_page_bits;
     int ret, ret2;
     target_ulong sr, pgidx;
 
@@ -401,91 +401,21 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
         }
     }
 
-    pr = msr_pr;
-
+    /* 3. Look up the Segment Register */
     sr = env->sr[eaddr >> 28];
+
+    pr = msr_pr;
     ctx->key = (((sr & SR32_KP) && (pr != 0)) ||
                 ((sr & SR32_KS) && (pr == 0))) ? 1 : 0;
-    ds = !!(sr & SR32_T);
-    ctx->nx = !!(sr & SR32_NX);
-    vsid = sr & SR32_VSID;
-    target_page_bits = TARGET_PAGE_BITS;
-    LOG_MMU("Check segment v=" TARGET_FMT_lx " %d " TARGET_FMT_lx " nip="
-            TARGET_FMT_lx " lr=" TARGET_FMT_lx
-            " ir=%d dr=%d pr=%d %d\n",
-            eaddr, (int)(eaddr >> 28), sr, env->nip, env->lr, (int)msr_ir,
-            (int)msr_dr, pr != 0 ? 1 : 0, rwx);
-    pgidx = (eaddr & ~SEGMENT_MASK_256M) >> target_page_bits;
-    hash = vsid ^ pgidx;
-    ctx->ptem = (vsid << 7) | (pgidx >> 10);
 
-    LOG_MMU("pte segment: key=%d ds %d nx %d vsid " TARGET_FMT_lx "\n",
-            ctx->key, ds, ctx->nx, vsid);
-    ret = -1;
-    if (!ds) {
-        /* Check if instruction fetch is allowed, if needed */
-        if (rwx != 2 || ctx->nx == 0) {
-            /* Page address translation */
-            LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
-                    " hash " TARGET_FMT_plx "\n",
-                    env->htab_base, env->htab_mask, hash);
-            ctx->hash[0] = hash;
-            ctx->hash[1] = ~hash;
-
-            /* Initialize real address with an invalid value */
-            ctx->raddr = (hwaddr)-1ULL;
-            LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-                    " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
-                    " hash=" TARGET_FMT_plx "\n",
-                    env->htab_base, env->htab_mask, vsid, ctx->ptem,
-                    ctx->hash[0]);
-            /* Primary table lookup */
-            ret = find_pte32(env, ctx, eaddr, 0, rwx, target_page_bits);
-            if (ret < 0) {
-                /* Secondary table lookup */
-                LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-                        " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
-                        " hash=" TARGET_FMT_plx "\n", env->htab_base,
-                        env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
-                ret2 = find_pte32(env, ctx, eaddr, 1, rwx, target_page_bits);
-                if (ret2 != -1) {
-                    ret = ret2;
-                }
-            }
-#if defined(DUMP_PAGE_TABLES)
-            if (qemu_log_enabled()) {
-                hwaddr curaddr;
-                uint32_t a0, a1, a2, a3;
-
-                qemu_log("Page table: " TARGET_FMT_plx " len " TARGET_FMT_plx
-                         "\n", sdr, mask + 0x80);
-                for (curaddr = sdr; curaddr < (sdr + mask + 0x80);
-                     curaddr += 16) {
-                    a0 = ldl_phys(curaddr);
-                    a1 = ldl_phys(curaddr + 4);
-                    a2 = ldl_phys(curaddr + 8);
-                    a3 = ldl_phys(curaddr + 12);
-                    if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
-                        qemu_log(TARGET_FMT_plx ": %08x %08x %08x %08x\n",
-                                 curaddr, a0, a1, a2, a3);
-                    }
-                }
-            }
-#endif
-        } else {
-            LOG_MMU("No access allowed\n");
-            ret = -3;
-        }
-    } else {
-        target_ulong sr;
-
+    /* 4. Handle direct store segments */
+    if (sr & SR32_T) {
         LOG_MMU("direct store...\n");
         /* Direct-store segment : absolutely *BUGGY* for now */
 
         /* Direct-store implies a 32-bit MMU.
          * Check the Segment Register's bus unit ID (BUID).
          */
-        sr = env->sr[eaddr >> 28];
         if ((sr & 0x1FF00000) >> 20 == 0x07f) {
             /* Memory-forced I/O controller interface access */
             /* If T=1 and BUID=x'07F', the 601 performs a memory access
@@ -528,10 +458,80 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
         }
         if ((rwx == 1 || ctx->key != 1) && (rwx == 0 || ctx->key != 0)) {
             ctx->raddr = eaddr;
-            ret = 2;
+            return 2;
         } else {
-            ret = -2;
+            return -2;
         }
+    }
+
+    ctx->nx = !!(sr & SR32_NX);
+    vsid = sr & SR32_VSID;
+    target_page_bits = TARGET_PAGE_BITS;
+    LOG_MMU("Check segment v=" TARGET_FMT_lx " %d " TARGET_FMT_lx " nip="
+            TARGET_FMT_lx " lr=" TARGET_FMT_lx
+            " ir=%d dr=%d pr=%d %d\n",
+            eaddr, (int)(eaddr >> 28), sr, env->nip, env->lr, (int)msr_ir,
+            (int)msr_dr, pr != 0 ? 1 : 0, rwx);
+    pgidx = (eaddr & ~SEGMENT_MASK_256M) >> target_page_bits;
+    hash = vsid ^ pgidx;
+    ctx->ptem = (vsid << 7) | (pgidx >> 10);
+
+    LOG_MMU("pte segment: key=%d nx %d vsid " TARGET_FMT_lx "\n",
+            ctx->key, ctx->nx, vsid);
+    ret = -1;
+
+    /* Check if instruction fetch is allowed, if needed */
+    if (rwx != 2 || ctx->nx == 0) {
+        /* Page address translation */
+        LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
+                " hash " TARGET_FMT_plx "\n",
+                env->htab_base, env->htab_mask, hash);
+        ctx->hash[0] = hash;
+        ctx->hash[1] = ~hash;
+
+        /* Initialize real address with an invalid value */
+        ctx->raddr = (hwaddr)-1ULL;
+        LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+                " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
+                " hash=" TARGET_FMT_plx "\n",
+                env->htab_base, env->htab_mask, vsid, ctx->ptem,
+                ctx->hash[0]);
+        /* Primary table lookup */
+        ret = find_pte32(env, ctx, eaddr, 0, rwx, target_page_bits);
+        if (ret < 0) {
+            /* Secondary table lookup */
+            LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+                    " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
+                    " hash=" TARGET_FMT_plx "\n", env->htab_base,
+                    env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
+            ret2 = find_pte32(env, ctx, eaddr, 1, rwx, target_page_bits);
+            if (ret2 != -1) {
+                ret = ret2;
+            }
+        }
+#if defined(DUMP_PAGE_TABLES)
+        if (qemu_log_enabled()) {
+            hwaddr curaddr;
+            uint32_t a0, a1, a2, a3;
+
+            qemu_log("Page table: " TARGET_FMT_plx " len " TARGET_FMT_plx
+                     "\n", sdr, mask + 0x80);
+            for (curaddr = sdr; curaddr < (sdr + mask + 0x80);
+                 curaddr += 16) {
+                a0 = ldl_phys(curaddr);
+                a1 = ldl_phys(curaddr + 4);
+                a2 = ldl_phys(curaddr + 8);
+                a3 = ldl_phys(curaddr + 12);
+                if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
+                    qemu_log(TARGET_FMT_plx ": %08x %08x %08x %08x\n",
+                             curaddr, a0, a1, a2, a3);
+                }
+            }
+        }
+#endif
+    } else {
+        LOG_MMU("No access allowed\n");
+        ret = -3;
     }
 
     return ret;
