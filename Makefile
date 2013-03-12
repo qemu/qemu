@@ -334,7 +334,8 @@ test speed: all
 
 .PHONY: TAGS
 TAGS:
-	find "$(SRC_PATH)" -name '*.[hc]' -print0 | xargs -0 etags
+	rm -f $@
+	find "$(SRC_PATH)" -name '*.[hc]' -exec etags --append {} +
 
 cscope:
 	rm -f ./cscope.*
