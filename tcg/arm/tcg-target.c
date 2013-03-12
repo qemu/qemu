@@ -1625,8 +1625,17 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                         args[0], args[1], args[2], const_args[2]);
         break;
     case INDEX_op_sub_i32:
-        tcg_out_dat_rIN(s, COND_AL, ARITH_SUB, ARITH_ADD,
-                        args[0], args[1], args[2], const_args[2]);
+        if (const_args[1]) {
+            if (const_args[2]) {
+                tcg_out_movi32(s, COND_AL, args[0], args[1] - args[2]);
+            } else {
+                tcg_out_dat_rI(s, COND_AL, ARITH_RSB,
+                               args[0], args[2], args[1], 1);
+            }
+        } else {
+            tcg_out_dat_rIN(s, COND_AL, ARITH_SUB, ARITH_ADD,
+                            args[0], args[1], args[2], const_args[2]);
+        }
         break;
     case INDEX_op_and_i32:
         tcg_out_dat_rIK(s, COND_AL, ARITH_AND, ARITH_BIC,
@@ -1819,7 +1828,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
 
     /* TODO: "r", "r", "ri" */
     { INDEX_op_add_i32, { "r", "r", "rIN" } },
-    { INDEX_op_sub_i32, { "r", "r", "rIN" } },
+    { INDEX_op_sub_i32, { "r", "rI", "rIN" } },
     { INDEX_op_mul_i32, { "r", "r", "r" } },
     { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
     { INDEX_op_muls2_i32, { "r", "r", "r", "r" } },
