@@ -597,6 +597,16 @@ static inline void tcg_out_smull32(TCGContext *s,
     }
 }
 
+static inline void tcg_out_sdiv(TCGContext *s, int cond, int rd, int rn, int rm)
+{
+    tcg_out32(s, 0x0710f010 | (cond << 28) | (rd << 16) | rn | (rm << 8));
+}
+
+static inline void tcg_out_udiv(TCGContext *s, int cond, int rd, int rn, int rm)
+{
+    tcg_out32(s, 0x0730f010 | (cond << 28) | (rd << 16) | rn | (rm << 8));
+}
+
 static inline void tcg_out_ext8s(TCGContext *s, int cond,
                                  int rd, int rn)
 {
@@ -1868,6 +1878,25 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                         args[3], args[4], const_args[2]);
         break;
 
+    case INDEX_op_div_i32:
+        tcg_out_sdiv(s, COND_AL, args[0], args[1], args[2]);
+        break;
+    case INDEX_op_divu_i32:
+        tcg_out_udiv(s, COND_AL, args[0], args[1], args[2]);
+        break;
+    case INDEX_op_rem_i32:
+        tcg_out_sdiv(s, COND_AL, TCG_REG_R8, args[1], args[2]);
+        tcg_out_mul32(s, COND_AL, TCG_REG_R8, TCG_REG_R8, args[2]);
+        tcg_out_dat_reg(s, COND_AL, ARITH_SUB, args[0], args[1], TCG_REG_R8,
+                        SHIFT_IMM_LSL(0));
+        break;
+    case INDEX_op_remu_i32:
+        tcg_out_udiv(s, COND_AL, TCG_REG_R8, args[1], args[2]);
+        tcg_out_mul32(s, COND_AL, TCG_REG_R8, TCG_REG_R8, args[2]);
+        tcg_out_dat_reg(s, COND_AL, ARITH_SUB, args[0], args[1], TCG_REG_R8,
+                        SHIFT_IMM_LSL(0));
+        break;
+
     default:
         tcg_abort();
     }
@@ -1953,6 +1982,13 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_ext16u_i32, { "r", "r" } },
 
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
+
+#if TCG_TARGET_HAS_div_i32
+    { INDEX_op_div_i32, { "r", "r", "r" } },
+    { INDEX_op_rem_i32, { "r", "r", "r" } },
+    { INDEX_op_divu_i32, { "r", "r", "r" } },
+    { INDEX_op_remu_i32, { "r", "r", "r" } },
+#endif
 
     { -1 },
 };

@@ -56,7 +56,6 @@ typedef enum {
 #define TCG_TARGET_CALL_STACK_OFFSET	0
 
 /* optional instructions */
-#define TCG_TARGET_HAS_div_i32          0
 #define TCG_TARGET_HAS_ext8s_i32        1
 #define TCG_TARGET_HAS_ext16s_i32       1
 #define TCG_TARGET_HAS_ext8u_i32        0 /* and r0, r1, #0xff */
@@ -74,6 +73,12 @@ typedef enum {
 #define TCG_TARGET_HAS_deposit_i32      1
 #define TCG_TARGET_HAS_movcond_i32      1
 #define TCG_TARGET_HAS_muls2_i32        1
+
+#ifdef __ARM_ARCH_EXT_IDIV__
+#define TCG_TARGET_HAS_div_i32          1
+#else
+#define TCG_TARGET_HAS_div_i32          0
+#endif
 
 extern bool tcg_target_deposit_valid(int ofs, int len);
 #define TCG_TARGET_deposit_i32_valid  tcg_target_deposit_valid
