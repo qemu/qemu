@@ -45,7 +45,6 @@ struct mmu_ctx_hash32 {
     hwaddr raddr;      /* Real address              */
     int prot;                      /* Protection bits           */
     int key;                       /* Access key                */
-    int nx;                        /* Non-execute area          */
 };
 
 static int ppc_hash32_pp_check(int key, int pp, int nx)
@@ -383,6 +382,7 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 {
     int ret;
     target_ulong sr;
+    bool nx;
     hwaddr pte_offset;
     ppc_hash_pte32_t pte;
 
@@ -414,8 +414,8 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     }
 
     /* 5. Check for segment level no-execute violation */
-    ctx->nx = !!(sr & SR32_NX);
-    if ((rwx == 2) && ctx->nx) {
+    nx = !!(sr & SR32_NX);
+    if ((rwx == 2) && nx) {
         return -3;
     }
 
@@ -434,7 +434,7 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 
     pp = pte.pte1 & HPTE32_R_PP;
     /* Compute access rights */
-    access = ppc_hash32_pp_check(ctx->key, pp, ctx->nx);
+    access = ppc_hash32_pp_check(ctx->key, pp, nx);
     /* Keep the matching PTE informations */
     ctx->raddr = pte.pte1;
     ctx->prot = access;
