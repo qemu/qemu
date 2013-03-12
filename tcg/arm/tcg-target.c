@@ -302,26 +302,25 @@ static inline int tcg_target_const_match(tcg_target_long val,
     }
 }
 
-enum arm_data_opc_e {
-    ARITH_AND = 0x0,
-    ARITH_EOR = 0x1,
-    ARITH_SUB = 0x2,
-    ARITH_RSB = 0x3,
-    ARITH_ADD = 0x4,
-    ARITH_ADC = 0x5,
-    ARITH_SBC = 0x6,
-    ARITH_RSC = 0x7,
-    ARITH_TST = 0x8,
-    ARITH_CMP = 0xa,
-    ARITH_CMN = 0xb,
-    ARITH_ORR = 0xc,
-    ARITH_MOV = 0xd,
-    ARITH_BIC = 0xe,
-    ARITH_MVN = 0xf,
-};
+#define TO_CPSR (1 << 20)
 
-#define TO_CPSR(opc) \
-  ((opc == ARITH_CMP || opc == ARITH_CMN || opc == ARITH_TST) << 20)
+enum arm_data_opc_e {
+    ARITH_AND = 0x0 << 21,
+    ARITH_EOR = 0x1 << 21,
+    ARITH_SUB = 0x2 << 21,
+    ARITH_RSB = 0x3 << 21,
+    ARITH_ADD = 0x4 << 21,
+    ARITH_ADC = 0x5 << 21,
+    ARITH_SBC = 0x6 << 21,
+    ARITH_RSC = 0x7 << 21,
+    ARITH_TST = 0x8 << 21 | TO_CPSR,
+    ARITH_CMP = 0xa << 21 | TO_CPSR,
+    ARITH_CMN = 0xb << 21 | TO_CPSR,
+    ARITH_ORR = 0xc << 21,
+    ARITH_MOV = 0xd << 21,
+    ARITH_BIC = 0xe << 21,
+    ARITH_MVN = 0xf << 21,
+};
 
 #define SHIFT_IMM_LSL(im)	(((im) << 7) | 0x00)
 #define SHIFT_IMM_LSR(im)	(((im) << 7) | 0x20)
@@ -409,7 +408,7 @@ static inline void tcg_out_blx_imm(TCGContext *s, int32_t offset)
 static inline void tcg_out_dat_reg(TCGContext *s,
                 int cond, int opc, int rd, int rn, int rm, int shift)
 {
-    tcg_out32(s, (cond << 28) | (0 << 25) | (opc << 21) | TO_CPSR(opc) |
+    tcg_out32(s, (cond << 28) | (0 << 25) | opc |
                     (rn << 16) | (rd << 12) | shift | rm);
 }
 
@@ -421,29 +420,10 @@ static inline void tcg_out_mov_reg(TCGContext *s, int cond, int rd, int rm)
     }
 }
 
-static inline void tcg_out_dat_reg2(TCGContext *s,
-                int cond, int opc0, int opc1, int rd0, int rd1,
-                int rn0, int rn1, int rm0, int rm1, int shift)
-{
-    if (rd0 == rn1 || rd0 == rm1) {
-        tcg_out32(s, (cond << 28) | (0 << 25) | (opc0 << 21) | (1 << 20) |
-                        (rn0 << 16) | (8 << 12) | shift | rm0);
-        tcg_out32(s, (cond << 28) | (0 << 25) | (opc1 << 21) |
-                        (rn1 << 16) | (rd1 << 12) | shift | rm1);
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        rd0, 0, TCG_REG_R8, SHIFT_IMM_LSL(0));
-    } else {
-        tcg_out32(s, (cond << 28) | (0 << 25) | (opc0 << 21) | (1 << 20) |
-                        (rn0 << 16) | (rd0 << 12) | shift | rm0);
-        tcg_out32(s, (cond << 28) | (0 << 25) | (opc1 << 21) |
-                        (rn1 << 16) | (rd1 << 12) | shift | rm1);
-    }
-}
-
 static inline void tcg_out_dat_imm(TCGContext *s,
                 int cond, int opc, int rd, int rn, int im)
 {
-    tcg_out32(s, (cond << 28) | (1 << 25) | (opc << 21) | TO_CPSR(opc) |
+    tcg_out32(s, (cond << 28) | (1 << 25) | opc |
                     (rn << 16) | (rd << 12) | im);
 }
 
@@ -1523,6 +1503,7 @@ static uint8_t *tb_ret_addr;
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                 const TCGArg *args, const int *const_args)
 {
+    TCGArg a0, a1, a2, a3, a4, a5;
     int c;
 
     switch (opc) {
@@ -1655,14 +1636,44 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_dat_rI(s, COND_AL, c, args[0], args[1], args[2], const_args[2]);
         break;
     case INDEX_op_add2_i32:
-        tcg_out_dat_reg2(s, COND_AL, ARITH_ADD, ARITH_ADC,
-                        args[0], args[1], args[2], args[3],
-                        args[4], args[5], SHIFT_IMM_LSL(0));
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        a3 = args[3], a4 = args[4], a5 = args[5];
+        if (a0 == a3 || (a0 == a5 && !const_args[5])) {
+            a0 = TCG_REG_R8;
+        }
+        tcg_out_dat_rIN(s, COND_AL, ARITH_ADD | TO_CPSR, ARITH_SUB | TO_CPSR,
+                        a0, a2, a4, const_args[4]);
+        tcg_out_dat_rIK(s, COND_AL, ARITH_ADC, ARITH_SBC,
+                        a1, a3, a5, const_args[5]);
+        tcg_out_mov_reg(s, COND_AL, args[0], a0);
         break;
     case INDEX_op_sub2_i32:
-        tcg_out_dat_reg2(s, COND_AL, ARITH_SUB, ARITH_SBC,
-                        args[0], args[1], args[2], args[3],
-                        args[4], args[5], SHIFT_IMM_LSL(0));
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        a3 = args[3], a4 = args[4], a5 = args[5];
+        if ((a0 == a3 && !const_args[3]) || (a0 == a5 && !const_args[5])) {
+            a0 = TCG_REG_R8;
+        }
+        if (const_args[2]) {
+            if (const_args[4]) {
+                tcg_out_movi32(s, COND_AL, a0, a4);
+                a4 = a0;
+            }
+            tcg_out_dat_rI(s, COND_AL, ARITH_RSB | TO_CPSR, a0, a4, a2, 1);
+        } else {
+            tcg_out_dat_rIN(s, COND_AL, ARITH_SUB | TO_CPSR,
+                            ARITH_ADD | TO_CPSR, a0, a2, a4, const_args[4]);
+        }
+        if (const_args[3]) {
+            if (const_args[5]) {
+                tcg_out_movi32(s, COND_AL, a1, a5);
+                a5 = a1;
+            }
+            tcg_out_dat_rI(s, COND_AL, ARITH_RSC, a1, a5, a3, 1);
+        } else {
+            tcg_out_dat_rIK(s, COND_AL, ARITH_SBC, ARITH_ADC,
+                            a1, a3, a5, const_args[5]);
+        }
+        tcg_out_mov_reg(s, COND_AL, args[0], a0);
         break;
     case INDEX_op_neg_i32:
         tcg_out_dat_imm(s, COND_AL, ARITH_RSB, args[0], args[1], 0);
@@ -1849,9 +1860,8 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_setcond_i32, { "r", "r", "rIN" } },
     { INDEX_op_movcond_i32, { "r", "r", "rIN", "rIK", "0" } },
 
-    /* TODO: "r", "r", "r", "r", "ri", "ri" */
-    { INDEX_op_add2_i32, { "r", "r", "r", "r", "r", "r" } },
-    { INDEX_op_sub2_i32, { "r", "r", "r", "r", "r", "r" } },
+    { INDEX_op_add2_i32, { "r", "r", "r", "r", "rIN", "rIK" } },
+    { INDEX_op_sub2_i32, { "r", "r", "rI", "rI", "rIN", "rIK" } },
     { INDEX_op_brcond2_i32, { "r", "r", "rIN", "rIN" } },
     { INDEX_op_setcond2_i32, { "r", "r", "r", "rIN", "rIN" } },
 
