@@ -113,7 +113,7 @@ static const int tcg_target_call_oarg_regs[2] = {
     TCG_REG_R0, TCG_REG_R1
 };
 
-#define TCG_REG_TMP  TCG_REG_R8
+#define TCG_REG_TMP  TCG_REG_R12
 
 static inline void reloc_abs32(void *code_ptr, tcg_target_long target)
 {
