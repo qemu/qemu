@@ -43,7 +43,6 @@
 struct mmu_ctx_hash64 {
     hwaddr raddr;      /* Real address              */
     int prot;                      /* Protection bits           */
-    int key;                       /* Access key                */
 };
 
 /*
@@ -229,72 +228,55 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
  * 64-bit hash table MMU handling
  */
 
-static int ppc_hash64_pp_check(int key, int pp, bool nx)
+static int ppc_hash64_pte_prot(CPUPPCState *env,
+                               ppc_slb_t *slb, ppc_hash_pte64_t pte)
 {
-    int access;
+    unsigned pp, key;
+    /* Some pp bit combinations have undefined behaviour, so default
+     * to no access in those cases */
+    int prot = 0;
 
-    /* Compute access rights */
-    /* When pp is 4, 5 or 7, the result is undefined. Set it to noaccess */
-    access = 0;
+    key = !!(msr_pr ? (slb->vsid & SLB_VSID_KP)
+             : (slb->vsid & SLB_VSID_KS));
+    pp = (pte.pte1 & HPTE64_R_PP) | ((pte.pte1 & HPTE64_R_PP0) >> 61);
+
     if (key == 0) {
         switch (pp) {
         case 0x0:
         case 0x1:
         case 0x2:
-            access |= PAGE_WRITE;
-            /* No break here */
+            prot = PAGE_READ | PAGE_WRITE;
+            break;
+
         case 0x3:
         case 0x6:
-            access |= PAGE_READ;
+            prot = PAGE_READ;
             break;
         }
     } else {
         switch (pp) {
         case 0x0:
         case 0x6:
-            access = 0;
+            prot = 0;
             break;
+
         case 0x1:
         case 0x3:
-            access = PAGE_READ;
+            prot = PAGE_READ;
             break;
+
         case 0x2:
-            access = PAGE_READ | PAGE_WRITE;
+            prot = PAGE_READ | PAGE_WRITE;
             break;
         }
     }
-    if (!nx) {
-        access |= PAGE_EXEC;
+
+    /* No execute if either noexec or guarded bits set */
+    if (!(pte.pte1 & HPTE64_R_N) || (pte.pte1 & HPTE64_R_G)) {
+        prot |= PAGE_EXEC;
     }
 
-    return access;
-}
-
-static int ppc_hash64_check_prot(int prot, int rwx)
-{
-    int ret;
-
-    if (rwx == 2) {
-        if (prot & PAGE_EXEC) {
-            ret = 0;
-        } else {
-            ret = -2;
-        }
-    } else if (rwx == 1) {
-        if (prot & PAGE_WRITE) {
-            ret = 0;
-        } else {
-            ret = -2;
-        }
-    } else {
-        if (prot & PAGE_READ) {
-            ret = 0;
-        } else {
-            ret = -2;
-        }
-    }
-
-    return ret;
+    return prot;
 }
 
 static int ppc_hash64_pte_update_flags(struct mmu_ctx_hash64 *ctx,
@@ -407,11 +389,11 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
 static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
                                 target_ulong eaddr, int rwx)
 {
-    int ret;
     ppc_slb_t *slb;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
     int target_page_bits;
+    const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
 
@@ -444,36 +426,25 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     LOG_MMU("found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
 
     /* 5. Check access permissions */
-    ctx->key = !!(msr_pr ? (slb->vsid & SLB_VSID_KP)
-                  : (slb->vsid & SLB_VSID_KS));
 
+    ctx->prot = ppc_hash64_pte_prot(env, slb, pte);
 
-    int access, pp;
-    bool nx;
-
-    pp = (pte.pte1 & HPTE64_R_PP) | ((pte.pte1 & HPTE64_R_PP0) >> 61);
-    /* No execute if either noexec or guarded bits set */
-    nx = (pte.pte1 & HPTE64_R_N) || (pte.pte1 & HPTE64_R_G);
-    /* Compute access rights */
-    access = ppc_hash64_pp_check(ctx->key, pp, nx);
-    /* Keep the matching PTE informations */
-    ctx->raddr = pte.pte1;
-    ctx->prot = access;
-    ret = ppc_hash64_check_prot(ctx->prot, rwx);
-
-    if (ret) {
+    if ((need_prot[rwx] & ~ctx->prot) != 0) {
         /* Access right violation */
         LOG_MMU("PTE access rejected\n");
-        return ret;
+        return -2;
     }
 
     LOG_MMU("PTE access granted !\n");
 
     /* 6. Update PTE referenced and changed bits if necessary */
 
-    if (ppc_hash64_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
+    if (ppc_hash64_pte_update_flags(ctx, &pte.pte1, 0, rwx) == 1) {
         ppc_hash64_store_hpte1(env, pte_offset, pte.pte1);
     }
+
+    /* Keep the matching PTE informations */
+    ctx->raddr = pte.pte1;
 
     /* We have a TLB that saves 4K pages, so let's
      * split a huge page to 4k chunks */
@@ -483,7 +454,7 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
         ctx->raddr |= (eaddr & ((1 << target_page_bits) - 1))
                       & TARGET_PAGE_MASK;
     }
-    return ret;
+    return 0;
 }
 
 hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr)

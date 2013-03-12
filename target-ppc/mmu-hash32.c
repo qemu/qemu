@@ -47,69 +47,60 @@ struct mmu_ctx_hash32 {
     int key;                       /* Access key                */
 };
 
-static int ppc_hash32_pp_check(int key, int pp, int nx)
+static int ppc_hash32_pp_prot(int key, int pp, int nx)
 {
-    int access;
+    int prot;
 
-    /* Compute access rights */
-    access = 0;
     if (key == 0) {
         switch (pp) {
         case 0x0:
         case 0x1:
         case 0x2:
-            access |= PAGE_WRITE;
-            /* No break here */
-        case 0x3:
-            access |= PAGE_READ;
+            prot = PAGE_READ | PAGE_WRITE;
             break;
+
+        case 0x3:
+            prot = PAGE_READ;
+            break;
+
+        default:
+            abort();
         }
     } else {
         switch (pp) {
         case 0x0:
-            access = 0;
+            prot = 0;
             break;
+
         case 0x1:
         case 0x3:
-            access = PAGE_READ;
+            prot = PAGE_READ;
             break;
+
         case 0x2:
-            access = PAGE_READ | PAGE_WRITE;
+            prot = PAGE_READ | PAGE_WRITE;
             break;
+
+        default:
+            abort();
         }
     }
     if (nx == 0) {
-        access |= PAGE_EXEC;
+        prot |= PAGE_EXEC;
     }
 
-    return access;
+    return prot;
 }
 
-static int ppc_hash32_check_prot(int prot, int rwx)
+static int ppc_hash32_pte_prot(CPUPPCState *env,
+                               target_ulong sr, ppc_hash_pte32_t pte)
 {
-    int ret;
+    unsigned pp, key;
 
-    if (rwx == 2) {
-        if (prot & PAGE_EXEC) {
-            ret = 0;
-        } else {
-            ret = -2;
-        }
-    } else if (rwx) {
-        if (prot & PAGE_WRITE) {
-            ret = 0;
-        } else {
-            ret = -2;
-        }
-    } else {
-        if (prot & PAGE_READ) {
-            ret = 0;
-        } else {
-            ret = -2;
-        }
-    }
+    key = !!(msr_pr ? (sr & SR32_KP) : (sr & SR32_KS));
+    pp = pte.pte1 & HPTE32_R_PP;
 
-    return ret;
+    return ppc_hash32_pp_prot(key, pp, !!(sr & SR32_NX));
 }
 
 static target_ulong hash32_bat_size(CPUPPCState *env,
@@ -160,7 +151,7 @@ static int hash32_bat_601_prot(CPUPPCState *env,
     } else {
         key = !!(batu & BATU32_601_KP);
     }
-    return ppc_hash32_pp_check(key, pp, 0);
+    return ppc_hash32_pp_prot(key, pp, 0);
 }
 
 static hwaddr ppc_hash32_bat_lookup(CPUPPCState *env, target_ulong ea, int rwx,
@@ -380,11 +371,10 @@ static hwaddr ppc_hash32_htab_lookup(CPUPPCState *env,
 static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                                 target_ulong eaddr, int rwx)
 {
-    int ret;
     target_ulong sr;
-    bool nx;
     hwaddr pte_offset;
     ppc_hash_pte32_t pte;
+    const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
 
@@ -400,7 +390,10 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     if (env->nb_BATs != 0) {
         ctx->raddr = ppc_hash32_bat_lookup(env, eaddr, rwx, &ctx->prot);
         if (ctx->raddr != -1) {
-            return ppc_hash32_check_prot(ctx->prot, rwx);
+            if (need_prot[rwx] & ~ctx->prot) {
+                return -2;
+            }
+            return 0;
         }
     }
 
@@ -414,8 +407,7 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     }
 
     /* 5. Check for segment level no-execute violation */
-    nx = !!(sr & SR32_NX);
-    if ((rwx == 2) && nx) {
+    if ((rwx == 2) && (sr & SR32_NX)) {
         return -3;
     }
 
@@ -427,34 +419,27 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     LOG_MMU("found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
 
     /* 7. Check access permissions */
-    ctx->key = (((sr & SR32_KP) && (msr_pr != 0)) ||
-                ((sr & SR32_KS) && (msr_pr == 0))) ? 1 : 0;
 
-    int access, pp;
+    ctx->prot = ppc_hash32_pte_prot(env, sr, pte);
 
-    pp = pte.pte1 & HPTE32_R_PP;
-    /* Compute access rights */
-    access = ppc_hash32_pp_check(ctx->key, pp, nx);
-    /* Keep the matching PTE informations */
-    ctx->raddr = pte.pte1;
-    ctx->prot = access;
-    ret = ppc_hash32_check_prot(ctx->prot, rwx);
-
-    if (ret) {
+    if (need_prot[rwx] & ~ctx->prot) {
         /* Access right violation */
         LOG_MMU("PTE access rejected\n");
-        return ret;
+        return -2;
     }
 
     LOG_MMU("PTE access granted !\n");
 
     /* 8. Update PTE referenced and changed bits if necessary */
 
-    if (ppc_hash32_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
+    if (ppc_hash32_pte_update_flags(ctx, &pte.pte1, 0, rwx) == 1) {
         ppc_hash32_store_hpte1(env, pte_offset, pte.pte1);
     }
 
-    return ret;
+    /* Keep the matching PTE informations */
+    ctx->raddr = pte.pte1;
+
+    return 0;
 }
 
 hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
