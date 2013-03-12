@@ -362,6 +362,18 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
     return pte_offset;
 }
 
+static hwaddr ppc_hash64_pte_raddr(ppc_slb_t *slb, ppc_hash_pte64_t pte,
+                                   target_ulong eaddr)
+{
+    hwaddr rpn = pte.pte1;
+    /* FIXME: Add support for SLLP extended page sizes */
+    int target_page_bits = (slb->vsid & SLB_VSID_L)
+        ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
+    hwaddr mask = (1ULL << target_page_bits) - 1;
+
+    return (rpn & ~mask) | (eaddr & mask);
+}
+
 static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
                                 target_ulong eaddr, int rwx)
 {
@@ -369,7 +381,6 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
     uint64_t new_pte1;
-    int target_page_bits;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
@@ -429,17 +440,10 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
         ppc_hash64_store_hpte1(env, pte_offset, new_pte1);
     }
 
-    /* Keep the matching PTE informations */
-    ctx->raddr = pte.pte1;
+    /* 7. Determine the real address from the PTE */
 
-    /* We have a TLB that saves 4K pages, so let's
-     * split a huge page to 4k chunks */
-    target_page_bits = (slb->vsid & SLB_VSID_L)
-        ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
-    if (target_page_bits != TARGET_PAGE_BITS) {
-        ctx->raddr |= (eaddr & ((1 << target_page_bits) - 1))
-                      & TARGET_PAGE_MASK;
-    }
+    ctx->raddr = ppc_hash64_pte_raddr(slb, pte, eaddr);
+
     return 0;
 }
 

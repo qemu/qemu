@@ -343,6 +343,15 @@ static hwaddr ppc_hash32_htab_lookup(CPUPPCState *env,
     return pte_offset;
 }
 
+static hwaddr ppc_hash32_pte_raddr(target_ulong sr, ppc_hash_pte32_t pte,
+                                   target_ulong eaddr)
+{
+    hwaddr rpn = pte.pte1;
+    hwaddr mask = ~TARGET_PAGE_MASK;
+
+    return (rpn & ~mask) | (eaddr & mask);
+}
+
 static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                                 target_ulong eaddr, int rwx)
 {
@@ -421,8 +430,9 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
         ppc_hash32_store_hpte1(env, pte_offset, new_pte1);
     }
 
-    /* Keep the matching PTE informations */
-    ctx->raddr = pte.pte1;
+    /* 9. Determine the real address from the PTE */
+
+    ctx->raddr = ppc_hash32_pte_raddr(sr, pte, eaddr);
 
     return 0;
 }
