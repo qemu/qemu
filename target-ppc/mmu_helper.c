@@ -1659,7 +1659,6 @@ static inline int check_physical(CPUPPCState *env, mmu_ctx_t *ctx,
         ctx->prot |= PAGE_WRITE;
         break;
 #if defined(TARGET_PPC64)
-    case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_06d:
@@ -1741,7 +1740,6 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                 ret = get_bat(env, ctx, eaddr, rw, access_type);
             }
 #if defined(TARGET_PPC64)
-        case POWERPC_MMU_620:
         case POWERPC_MMU_64B:
         case POWERPC_MMU_2_06:
         case POWERPC_MMU_2_06d:
@@ -1883,7 +1881,6 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                 case POWERPC_MMU_32B:
                 case POWERPC_MMU_601:
 #if defined(TARGET_PPC64)
-                case POWERPC_MMU_620:
                 case POWERPC_MMU_64B:
                 case POWERPC_MMU_2_06:
                 case POWERPC_MMU_2_06d:
@@ -1935,14 +1932,8 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
 #if defined(TARGET_PPC64)
             case -5:
                 /* No match in segment table */
-                if (env->mmu_model == POWERPC_MMU_620) {
-                    env->exception_index = POWERPC_EXCP_ISI;
-                    /* XXX: this might be incorrect */
-                    env->error_code = 0x40000000;
-                } else {
-                    env->exception_index = POWERPC_EXCP_ISEG;
-                    env->error_code = 0;
-                }
+                env->exception_index = POWERPC_EXCP_ISEG;
+                env->error_code = 0;
                 break;
 #endif
             }
@@ -1995,7 +1986,6 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                 case POWERPC_MMU_32B:
                 case POWERPC_MMU_601:
 #if defined(TARGET_PPC64)
-                case POWERPC_MMU_620:
                 case POWERPC_MMU_64B:
                 case POWERPC_MMU_2_06:
                 case POWERPC_MMU_2_06d:
@@ -2097,21 +2087,9 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
 #if defined(TARGET_PPC64)
             case -5:
                 /* No match in segment table */
-                if (env->mmu_model == POWERPC_MMU_620) {
-                    env->exception_index = POWERPC_EXCP_DSI;
-                    env->error_code = 0;
-                    env->spr[SPR_DAR] = address;
-                    /* XXX: this might be incorrect */
-                    if (rw == 1) {
-                        env->spr[SPR_DSISR] = 0x42000000;
-                    } else {
-                        env->spr[SPR_DSISR] = 0x40000000;
-                    }
-                } else {
-                    env->exception_index = POWERPC_EXCP_DSEG;
-                    env->error_code = 0;
-                    env->spr[SPR_DAR] = address;
-                }
+                env->exception_index = POWERPC_EXCP_DSEG;
+                env->error_code = 0;
+                env->spr[SPR_DAR] = address;
                 break;
 #endif
             }
@@ -2326,7 +2304,6 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
 #if defined(TARGET_PPC64)
-    case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_06d:
@@ -2396,7 +2373,6 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
         tlb_flush_page(env, addr | (0xF << 28));
         break;
 #if defined(TARGET_PPC64)
-    case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_06d:
@@ -2420,16 +2396,6 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 
 /*****************************************************************************/
 /* Special registers manipulation */
-#if defined(TARGET_PPC64)
-void ppc_store_asr(CPUPPCState *env, target_ulong value)
-{
-    if (env->asr != value) {
-        env->asr = value;
-        tlb_flush(env, 1);
-    }
-}
-#endif
-
 void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
 {
     LOG_MMU("%s: " TARGET_FMT_lx "\n", __func__, value);

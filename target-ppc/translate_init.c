@@ -365,7 +365,6 @@ static void spr_write_sdr1 (void *opaque, int sprn, int gprn)
 }
 
 /* 64 bits PowerPC specific SPRs */
-/* ASR */
 #if defined(TARGET_PPC64)
 static void spr_read_hior (void *opaque, int gprn, int sprn)
 {
@@ -378,16 +377,6 @@ static void spr_write_hior (void *opaque, int sprn, int gprn)
     tcg_gen_andi_tl(t0, cpu_gpr[gprn], 0x3FFFFF00000ULL);
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPUPPCState, excp_prefix));
     tcg_temp_free(t0);
-}
-
-static void spr_read_asr (void *opaque, int gprn, int sprn)
-{
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, asr));
-}
-
-static void spr_write_asr (void *opaque, int sprn, int gprn)
-{
-    gen_helper_store_asr(cpu_env, cpu_gpr[gprn]);
 }
 #endif
 #endif
@@ -2151,173 +2140,6 @@ static void gen_spr_compress (CPUPPCState *env)
                  0x00000000);
 }
 
-#if defined (TARGET_PPC64)
-/* SPR specific to PowerPC 620 */
-static void gen_spr_620 (CPUPPCState *env)
-{
-    /* Processor identification */
-    spr_register(env, SPR_PIR, "PIR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_pir,
-                 0x00000000);
-    spr_register(env, SPR_ASR, "ASR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_asr, &spr_write_asr,
-                 0x00000000);
-    /* Breakpoints */
-    /* XXX : not implemented */
-    spr_register(env, SPR_IABR, "IABR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_DABR, "DABR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_SIAR, "SIAR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_SDA, "SDA",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMC1R, "PMC1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_620_PMC1W, "PMC1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                  SPR_NOACCESS, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMC2R, "PMC2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_620_PMC2W, "PMC2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                  SPR_NOACCESS, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_MMCR0R, "MMCR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_620_MMCR0W, "MMCR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                  SPR_NOACCESS, &spr_write_generic,
-                 0x00000000);
-    /* External access control */
-    /* XXX : not implemented */
-    spr_register(env, SPR_EAR, "EAR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-#if 0 // XXX: check this
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR0, "PMR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR1, "PMR1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR2, "PMR2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR3, "PMR3",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR4, "PMR4",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR5, "PMR5",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR6, "PMR6",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR7, "PMR7",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR8, "PMR8",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMR9, "PMR9",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMRA, "PMR10",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMRB, "PMR11",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMRC, "PMR12",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMRD, "PMR13",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMRE, "PMR14",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_PMRF, "PMR15",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-#endif
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_BUSCSR, "BUSCSR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_L2CR, "L2CR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_620_L2SR, "L2SR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-}
-#endif /* defined (TARGET_PPC64) */
-
 static void gen_spr_5xx_8xx (CPUPPCState *env)
 {
     /* Exception processing */
@@ -2992,31 +2814,6 @@ static void init_excp_604 (CPUPPCState *env)
     env->hreset_vector = 0x00000100UL;
 #endif
 }
-
-#if defined(TARGET_PPC64)
-static void init_excp_620 (CPUPPCState *env)
-{
-#if !defined(CONFIG_USER_ONLY)
-    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
-    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
-    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
-    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
-    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
-    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
-    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
-    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
-    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
-    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
-    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
-    env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
-    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
-    env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
-    env->hreset_excp_prefix = 0xFFF00000UL;
-    /* Hardware reset vector */
-    env->hreset_vector = 0x0000000000000100ULL;
-#endif
-}
-#endif /* defined(TARGET_PPC64) */
 
 static void init_excp_7x0 (CPUPPCState *env)
 {
@@ -7129,55 +6926,6 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
                  POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
                  POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR;
 }
-
-static void init_proc_620 (CPUPPCState *env)
-{
-    gen_spr_ne_601(env);
-    gen_spr_620(env);
-    /* Time base */
-    gen_tbl(env);
-    /* Hardware implementation registers */
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID0, "HID0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* Memory management */
-    gen_low_BATs(env);
-    init_excp_620(env);
-    env->dcache_line_size = 64;
-    env->icache_line_size = 64;
-    /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(env);
-}
-
-POWERPC_FAMILY(620)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "PowerPC 620";
-    pcc->init_proc = init_proc_620;
-    pcc->check_pow = check_pow_nocheck; /* Check this */
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
-                       PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
-                       PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
-                       PPC_FLOAT_STFIWX |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_SEGMENT | PPC_EXTERN |
-                       PPC_64B | PPC_SLBI;
-    pcc->insns_flags2 = PPC_NONE;
-    pcc->msr_mask = 0x800000000005FF77ULL;
-    pcc->mmu_model = POWERPC_MMU_620;
-    pcc->excp_model = POWERPC_EXCP_970;
-    pcc->bus_model = PPC_FLAGS_INPUT_6xx;
-    pcc->bfd_mach = bfd_mach_ppc64;
-    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
-                 POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK;
-}
-
 #endif /* defined (TARGET_PPC64) */
 
 
@@ -7914,9 +7662,6 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 #if defined (TARGET_PPC64)
         case POWERPC_MMU_64B:
             mmu_model = "PowerPC 64";
-            break;
-        case POWERPC_MMU_620:
-            mmu_model = "PowerPC 620";
             break;
 #endif
         default:
