@@ -346,7 +346,7 @@ static hwaddr ppc_hash32_htab_lookup(CPUPPCState *env,
 static hwaddr ppc_hash32_pte_raddr(target_ulong sr, ppc_hash_pte32_t pte,
                                    target_ulong eaddr)
 {
-    hwaddr rpn = pte.pte1;
+    hwaddr rpn = pte.pte1 & HPTE32_R_RPN;
     hwaddr mask = ~TARGET_PAGE_MASK;
 
     return (rpn & ~mask) | (eaddr & mask);

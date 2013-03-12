@@ -365,7 +365,7 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
 static hwaddr ppc_hash64_pte_raddr(ppc_slb_t *slb, ppc_hash_pte64_t pte,
                                    target_ulong eaddr)
 {
-    hwaddr rpn = pte.pte1;
+    hwaddr rpn = pte.pte1 & HPTE64_R_RPN;
     /* FIXME: Add support for SLLP extended page sizes */
     int target_page_bits = (slb->vsid & SLB_VSID_L)
         ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
