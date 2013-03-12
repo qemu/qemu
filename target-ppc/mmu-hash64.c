@@ -382,13 +382,8 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx, int h,
     ret = -1; /* No entry found */
     pteg_off = (ctx->hash[h] * HASH_PTEG_SIZE_64) & env->htab_mask;
     for (i = 0; i < HPTES_PER_GROUP; i++) {
-        if (env->external_htab) {
-            pte0 = ldq_p(env->external_htab + pteg_off + (i * 16));
-            pte1 = ldq_p(env->external_htab + pteg_off + (i * 16) + 8);
-        } else {
-            pte0 = ldq_phys(env->htab_base + pteg_off + (i * 16));
-            pte1 = ldq_phys(env->htab_base + pteg_off + (i * 16) + 8);
-        }
+        pte0 = ppc_hash64_load_hpte0(env, pteg_off + i*HASH_PTE_SIZE_64);
+        pte1 = ppc_hash64_load_hpte1(env, pteg_off + i*HASH_PTE_SIZE_64);
 
         r = pte64_check(ctx, pte0, pte1, h, rw, type);
         LOG_MMU("Load pte from %016" HWADDR_PRIx " => " TARGET_FMT_lx " "
@@ -426,13 +421,7 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx, int h,
         /* Update page flags */
         pte1 = ctx->raddr;
         if (ppc_hash64_pte_update_flags(ctx, &pte1, ret, rw) == 1) {
-            if (env->external_htab) {
-                stq_p(env->external_htab + pteg_off + (good * 16) + 8,
-                      pte1);
-            } else {
-                stq_phys_notdirty(env->htab_base + pteg_off +
-                                  (good * 16) + 8, pte1);
-            }
+            ppc_hash64_store_hpte1(env, pteg_off + good * HASH_PTE_SIZE_64, pte1);
         }
     }
 

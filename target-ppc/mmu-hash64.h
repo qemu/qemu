@@ -73,6 +73,46 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
 #define HPTE64_V_1TB_SEG        0x4000000000000000ULL
 #define HPTE64_V_VRMA_MASK      0x4001ffffff000000ULL
 
+static inline target_ulong ppc_hash64_load_hpte0(CPUPPCState *env,
+                                                 hwaddr pte_offset)
+{
+    if (env->external_htab) {
+        return  ldq_p(env->external_htab + pte_offset);
+    } else {
+        return ldq_phys(env->htab_base + pte_offset);
+    }
+}
+
+static inline target_ulong ppc_hash64_load_hpte1(CPUPPCState *env,
+                                                 hwaddr pte_offset)
+{
+    if (env->external_htab) {
+        return ldq_p(env->external_htab + pte_offset + HASH_PTE_SIZE_64/2);
+    } else {
+        return ldq_phys(env->htab_base + pte_offset + HASH_PTE_SIZE_64/2);
+    }
+}
+
+static inline void ppc_hash64_store_hpte0(CPUPPCState *env,
+                                          hwaddr pte_offset, target_ulong pte0)
+{
+    if (env->external_htab) {
+        stq_p(env->external_htab + pte_offset, pte0);
+    } else {
+        stq_phys(env->htab_base + pte_offset, pte0);
+    }
+}
+
+static inline void ppc_hash64_store_hpte1(CPUPPCState *env,
+                                          hwaddr pte_offset, target_ulong pte1)
+{
+    if (env->external_htab) {
+        stq_p(env->external_htab + pte_offset + HASH_PTE_SIZE_64/2, pte1);
+    } else {
+        stq_phys(env->htab_base + pte_offset + HASH_PTE_SIZE_64/2, pte1);
+    }
+}
+
 #endif /* CONFIG_USER_ONLY */
 
 #endif /* !defined (__MMU_HASH64_H__) */

@@ -52,7 +52,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong page_shift = 12;
     target_ulong raddr;
     target_ulong i;
-    uint8_t *hpte;
+    hwaddr hpte;
 
     /* only handle 4k and 16M pages for now */
     if (pteh & HPTE64_V_LARGE) {
@@ -97,26 +97,26 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
     if (likely((flags & H_EXACT) == 0)) {
         pte_index &= ~7ULL;
-        hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
+        hpte = pte_index * HASH_PTE_SIZE_64;
         for (i = 0; ; ++i) {
             if (i == 8) {
                 return H_PTEG_FULL;
             }
-            if ((ldq_p(hpte) & HPTE64_V_VALID) == 0) {
+            if ((ppc_hash64_load_hpte0(env, hpte) & HPTE64_V_VALID) == 0) {
                 break;
             }
             hpte += HASH_PTE_SIZE_64;
         }
     } else {
         i = 0;
-        hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
-        if (ldq_p(hpte) & HPTE64_V_VALID) {
+        hpte = pte_index * HASH_PTE_SIZE_64;
+        if (ppc_hash64_load_hpte0(env, hpte) & HPTE64_V_VALID) {
             return H_PTEG_FULL;
         }
     }
-    stq_p(hpte + (HASH_PTE_SIZE_64/2), ptel);
+    ppc_hash64_store_hpte1(env, hpte, ptel);
     /* eieio();  FIXME: need some sort of barrier for smp? */
-    stq_p(hpte, pteh);
+    ppc_hash64_store_hpte0(env, hpte, pteh);
 
     args[0] = pte_index + i;
     return H_SUCCESS;
@@ -134,17 +134,17 @@ static target_ulong remove_hpte(CPUPPCState *env, target_ulong ptex,
                                 target_ulong flags,
                                 target_ulong *vp, target_ulong *rp)
 {
-    uint8_t *hpte;
+    hwaddr hpte;
     target_ulong v, r, rb;
 
     if ((ptex * HASH_PTE_SIZE_64) & ~env->htab_mask) {
         return REMOVE_PARM;
     }
 
-    hpte = env->external_htab + (ptex * HASH_PTE_SIZE_64);
+    hpte = ptex * HASH_PTE_SIZE_64;
 
-    v = ldq_p(hpte);
-    r = ldq_p(hpte + (HASH_PTE_SIZE_64/2));
+    v = ppc_hash64_load_hpte0(env, hpte);
+    r = ppc_hash64_load_hpte1(env, hpte);
 
     if ((v & HPTE64_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn) ||
@@ -153,7 +153,7 @@ static target_ulong remove_hpte(CPUPPCState *env, target_ulong ptex,
     }
     *vp = v;
     *rp = r;
-    stq_p(hpte, 0);
+    ppc_hash64_store_hpte0(env, hpte, 0);
     rb = compute_tlbie_rb(v, r, ptex);
     ppc_tlb_invalidate_one(env, rb);
     return REMOVE_SUCCESS;
@@ -260,17 +260,17 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
     target_ulong avpn = args[2];
-    uint8_t *hpte;
+    hwaddr hpte;
     target_ulong v, r, rb;
 
     if ((pte_index * HASH_PTE_SIZE_64) & ~env->htab_mask) {
         return H_PARAMETER;
     }
 
-    hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
+    hpte = pte_index * HASH_PTE_SIZE_64;
 
-    v = ldq_p(hpte);
-    r = ldq_p(hpte + (HASH_PTE_SIZE_64/2));
+    v = ppc_hash64_load_hpte0(env, hpte);
+    r = ppc_hash64_load_hpte1(env, hpte);
 
     if ((v & HPTE64_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn)) {
@@ -283,11 +283,11 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     r |= (flags << 48) & HPTE64_R_KEY_HI;
     r |= flags & (HPTE64_R_PP | HPTE64_R_N | HPTE64_R_KEY_LO);
     rb = compute_tlbie_rb(v, r, pte_index);
-    stq_p(hpte, v & ~HPTE64_V_VALID);
+    ppc_hash64_store_hpte0(env, hpte, v & ~HPTE64_V_VALID);
     ppc_tlb_invalidate_one(env, rb);
-    stq_p(hpte + (HASH_PTE_SIZE_64/2), r);
+    ppc_hash64_store_hpte1(env, hpte, r);
     /* Don't need a memory barrier, due to qemu's global lock */
-    stq_p(hpte, v);
+    ppc_hash64_store_hpte0(env, hpte, v);
     return H_SUCCESS;
 }
 

@@ -69,6 +69,34 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
 #define HPTE32_R_WIMG           0x00000078
 #define HPTE32_R_PP             0x00000003
 
+static inline target_ulong ppc_hash32_load_hpte0(CPUPPCState *env,
+                                                 hwaddr pte_offset)
+{
+    assert(!env->external_htab); /* Not supported on 32-bit for now */
+    return ldl_phys(env->htab_base + pte_offset);
+}
+
+static inline target_ulong ppc_hash32_load_hpte1(CPUPPCState *env,
+                                                 hwaddr pte_offset)
+{
+    assert(!env->external_htab); /* Not supported on 32-bit for now */
+    return ldl_phys(env->htab_base + pte_offset + HASH_PTE_SIZE_32/2);
+}
+
+static inline void ppc_hash32_store_hpte0(CPUPPCState *env,
+                                          hwaddr pte_offset, target_ulong pte0)
+{
+    assert(!env->external_htab); /* Not supported on 32-bit for now */
+    stl_phys(env->htab_base + pte_offset, pte0);
+}
+
+static inline void ppc_hash32_store_hpte1(CPUPPCState *env,
+                                          hwaddr pte_offset, target_ulong pte1)
+{
+    assert(!env->external_htab); /* Not supported on 32-bit for now */
+    stl_phys(env->htab_base + pte_offset + HASH_PTE_SIZE_32/2, pte1);
+}
+
 #endif /* CONFIG_USER_ONLY */
 
 #endif /* __MMU_HASH32_H__ */

@@ -328,13 +328,8 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
     ret = -1; /* No entry found */
     pteg_off = get_pteg_offset32(env, ctx->hash[h]);
     for (i = 0; i < HPTES_PER_GROUP; i++) {
-        if (env->external_htab) {
-            pte0 = ldl_p(env->external_htab + pteg_off + (i * 8));
-            pte1 = ldl_p(env->external_htab + pteg_off + (i * 8) + 4);
-        } else {
-            pte0 = ldl_phys(env->htab_base + pteg_off + (i * 8));
-            pte1 = ldl_phys(env->htab_base + pteg_off + (i * 8) + 4);
-        }
+        pte0 = ppc_hash32_load_hpte0(env, pteg_off + i*HASH_PTE_SIZE_32);
+        pte1 = ppc_hash32_load_hpte1(env, pteg_off + i*HASH_PTE_SIZE_32);
         r = pte_check_hash32(ctx, pte0, pte1, h, rw, type);
         LOG_MMU("Load pte from %08" HWADDR_PRIx " => " TARGET_FMT_lx " "
                 TARGET_FMT_lx " %d %d %d " TARGET_FMT_lx "\n",
@@ -371,13 +366,8 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
         /* Update page flags */
         pte1 = ctx->raddr;
         if (ppc_hash32_pte_update_flags(ctx, &pte1, ret, rw) == 1) {
-            if (env->external_htab) {
-                stl_p(env->external_htab + pteg_off + (good * 8) + 4,
-                      pte1);
-            } else {
-                stl_phys_notdirty(env->htab_base + pteg_off +
-                                  (good * 8) + 4, pte1);
-            }
+            ppc_hash32_store_hpte1(env, pteg_off + good * HASH_PTE_SIZE_32,
+                                   pte1);
         }
     }
 
