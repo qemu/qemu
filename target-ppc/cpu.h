@@ -1137,6 +1137,8 @@ int pp_check(int key, int pp, int nx);
 int check_prot(int prot, int rw, int access_type);
 int pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p, int ret, int rw);
 hwaddr get_pteg_offset(CPUPPCState *env, hwaddr hash, int pte_size);
+int get_bat(CPUPPCState *env, mmu_ctx_t *ctx,
+            target_ulong virtual, int rw, int type);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 

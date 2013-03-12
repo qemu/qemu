@@ -350,8 +350,8 @@ static int find_pte64(CPUPPCState *env, mmu_ctx_t *ctx, int h,
     return ret;
 }
 
-int get_segment64(CPUPPCState *env, mmu_ctx_t *ctx,
-                  target_ulong eaddr, int rw, int type)
+static int get_segment64(CPUPPCState *env, mmu_ctx_t *ctx,
+                         target_ulong eaddr, int rw, int type)
 {
     hwaddr hash;
     target_ulong vsid;
@@ -434,4 +434,19 @@ int get_segment64(CPUPPCState *env, mmu_ctx_t *ctx,
     }
 
     return ret;
+}
+
+int ppc_hash64_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
+                                    target_ulong eaddr, int rw, int access_type)
+{
+    bool real_mode = (access_type == ACCESS_CODE && msr_ir == 0)
+        || (access_type != ACCESS_CODE && msr_dr == 0);
+
+    if (real_mode) {
+        ctx->raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
+        ctx->prot = PAGE_READ | PAGE_EXEC | PAGE_WRITE;
+        return 0;
+    } else {
+        return get_segment64(env, ctx, eaddr, rw, access_type);
+    }
 }

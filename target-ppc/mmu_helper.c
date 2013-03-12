@@ -426,8 +426,8 @@ static inline void bat_601_size_prot(CPUPPCState *env, target_ulong *blp,
     *protp = prot;
 }
 
-static inline int get_bat(CPUPPCState *env, mmu_ctx_t *ctx,
-                          target_ulong virtual, int rw, int type)
+int get_bat(CPUPPCState *env, mmu_ctx_t *ctx,
+            target_ulong virtual, int rw, int type)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong BEPIl, BEPIu, bl;
@@ -1256,8 +1256,6 @@ static inline int check_physical(CPUPPCState *env, mmu_ctx_t *ctx,
     ctx->prot = PAGE_READ | PAGE_EXEC;
     ret = 0;
     switch (env->mmu_model) {
-    case POWERPC_MMU_32B:
-    case POWERPC_MMU_601:
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
     case POWERPC_MMU_SOFT_4xx:
@@ -1265,15 +1263,7 @@ static inline int check_physical(CPUPPCState *env, mmu_ctx_t *ctx,
     case POWERPC_MMU_BOOKE:
         ctx->prot |= PAGE_WRITE;
         break;
-#if defined(TARGET_PPC64)
-    case POWERPC_MMU_64B:
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_06d:
-        /* Real address are 60 bits long */
-        ctx->raddr &= 0x0FFFFFFFFFFFFFFFULL;
-        ctx->prot |= PAGE_WRITE;
-        break;
-#endif
+
     case POWERPC_MMU_SOFT_4xx_Z:
         if (unlikely(msr_pe != 0)) {
             /* 403 family add some particular protections,
@@ -1298,15 +1288,10 @@ static inline int check_physical(CPUPPCState *env, mmu_ctx_t *ctx,
             }
         }
         break;
-    case POWERPC_MMU_MPC8xx:
-        /* XXX: TODO */
-        cpu_abort(env, "MPC8xx MMU model is not implemented\n");
-        break;
-    case POWERPC_MMU_BOOKE206:
-        cpu_abort(env, "BookE 2.06 MMU doesn't have physical real mode\n");
-        break;
+
     default:
-        cpu_abort(env, "Unknown or invalid MMU model\n");
+        /* Caller's checks mean we should never get here for other models */
+        abort();
         return -1;
     }
 
@@ -1327,18 +1312,7 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     switch (env->mmu_model) {
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
-        if (real_mode) {
-            ret = check_physical(env, ctx, eaddr, rw);
-        } else {
-            /* Try to find a BAT */
-            if (env->nb_BATs != 0) {
-                ret = get_bat(env, ctx, eaddr, rw, access_type);
-            }
-            if (ret < 0) {
-                /* We didn't match any BAT entry or don't have BATs */
-                ret = get_segment32(env, ctx, eaddr, rw, access_type);
-            }
-        }
+        ret = ppc_hash32_get_physical_address(env, ctx, eaddr, rw, access_type);
         break;
 
     case POWERPC_MMU_SOFT_6xx:
@@ -1361,11 +1335,7 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_06d:
-        if (real_mode) {
-            ret = check_physical(env, ctx, eaddr, rw);
-        } else {
-            ret = get_segment64(env, ctx, eaddr, rw, access_type);
-        }
+        ret = ppc_hash64_get_physical_address(env, ctx, eaddr, rw, access_type);
         break;
 #endif
 
