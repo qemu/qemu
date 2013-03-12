@@ -379,31 +379,29 @@ static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
                                      ppc_hash_pte64_t *pte)
 {
     hwaddr pteg_off, pte_offset;
-    uint64_t vsid, pageaddr, ptem;
     hwaddr hash;
-    int segment_bits, target_page_bits;
+    uint64_t vsid, epnshift, epnmask, epn, ptem;
 
-    if (slb->vsid & SLB_VSID_B) {
-        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT_1T;
-        segment_bits = 40;
-    } else {
-        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
-        segment_bits = 28;
-    }
-
-    target_page_bits = (slb->vsid & SLB_VSID_L)
+    /* Page size according to the SLB, which we use to generate the
+     * EPN for hash table lookup..  When we implement more recent MMU
+     * extensions this might be different from the actual page size
+     * encoded in the PTE */
+    epnshift = (slb->vsid & SLB_VSID_L)
         ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
+    epnmask = ~((1ULL << epnshift) - 1);
 
-    pageaddr = eaddr & ((1ULL << segment_bits)
-                            - (1ULL << target_page_bits));
     if (slb->vsid & SLB_VSID_B) {
-        hash = vsid ^ (vsid << 25) ^ (pageaddr >> target_page_bits);
+        /* 1TB segment */
+        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT_1T;
+        epn = (eaddr & ~SEGMENT_MASK_1T) & epnmask;
+        hash = vsid ^ (vsid << 25) ^ (epn >> epnshift);
     } else {
-        hash = vsid ^ (pageaddr >> target_page_bits);
+        /* 256M segment */
+        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
+        epn = (eaddr & ~SEGMENT_MASK_256M) & epnmask;
+        hash = vsid ^ (epn >> epnshift);
     }
-    /* Only 5 bits of the page index are used in the AVPN */
-    ptem = (slb->vsid & SLB_VSID_PTEM) |
-        ((pageaddr >> 16) & ((1ULL << segment_bits) - 0x80));
+    ptem = (slb->vsid & SLB_VSID_PTEM) | ((epn >> 16) & HPTE64_V_AVPN);
 
     /* Page address translation */
     LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
