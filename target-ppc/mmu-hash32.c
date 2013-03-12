@@ -91,17 +91,17 @@ static int ppc_hash32_pp_check(int key, int pp, int nx)
     return access;
 }
 
-static int ppc_hash32_check_prot(int prot, int rw, int access_type)
+static int ppc_hash32_check_prot(int prot, int rwx)
 {
     int ret;
 
-    if (access_type == ACCESS_CODE) {
+    if (rwx == 2) {
         if (prot & PAGE_EXEC) {
             ret = 0;
         } else {
             ret = -2;
         }
-    } else if (rw) {
+    } else if (rwx) {
         if (prot & PAGE_WRITE) {
             ret = 0;
         } else {
@@ -172,7 +172,7 @@ static void hash32_bat_601_size_prot(CPUPPCState *env, target_ulong *blp,
 }
 
 static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
-                              target_ulong virtual, int rw, int type)
+                              target_ulong virtual, int rwx)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong BEPIl, BEPIu, bl;
@@ -180,16 +180,13 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     int ret = -1;
 
     LOG_BATS("%s: %cBAT v " TARGET_FMT_lx "\n", __func__,
-             type == ACCESS_CODE ? 'I' : 'D', virtual);
-    switch (type) {
-    case ACCESS_CODE:
+             rwx == 2 ? 'I' : 'D', virtual);
+    if (rwx == 2) {
         BATlt = env->IBAT[1];
         BATut = env->IBAT[0];
-        break;
-    default:
+    } else {
         BATlt = env->DBAT[1];
         BATut = env->DBAT[0];
-        break;
     }
     for (i = 0; i < env->nb_BATs; i++) {
         BATu = &BATut[i];
@@ -214,7 +211,7 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                     (virtual & 0x0001F000);
                 /* Compute access rights */
                 ctx->prot = prot;
-                ret = ppc_hash32_check_prot(ctx->prot, rw, type);
+                ret = ppc_hash32_check_prot(ctx->prot, rwx);
                 if (ret == 0) {
                     LOG_BATS("BAT %d match: r " TARGET_FMT_plx " prot=%c%c\n",
                              i, ctx->raddr, ctx->prot & PAGE_READ ? 'R' : '-',
@@ -248,7 +245,7 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 }
 
 static int pte_check_hash32(struct mmu_ctx_hash32 *ctx, target_ulong pte0,
-                            target_ulong pte1, int h, int rw, int type)
+                            target_ulong pte1, int h, int rwx)
 {
     target_ulong mmask;
     int access, ret, pp;
@@ -272,7 +269,7 @@ static int pte_check_hash32(struct mmu_ctx_hash32 *ctx, target_ulong pte0,
             /* Keep the matching PTE informations */
             ctx->raddr = pte1;
             ctx->prot = access;
-            ret = ppc_hash32_check_prot(ctx->prot, rw, type);
+            ret = ppc_hash32_check_prot(ctx->prot, rwx);
             if (ret == 0) {
                 /* Access granted */
                 LOG_MMU("PTE access granted !\n");
@@ -287,7 +284,7 @@ static int pte_check_hash32(struct mmu_ctx_hash32 *ctx, target_ulong pte0,
 }
 
 static int ppc_hash32_pte_update_flags(struct mmu_ctx_hash32 *ctx, target_ulong *pte1p,
-                                       int ret, int rw)
+                                       int ret, int rwx)
 {
     int store = 0;
 
@@ -298,7 +295,7 @@ static int ppc_hash32_pte_update_flags(struct mmu_ctx_hash32 *ctx, target_ulong 
         store = 1;
     }
     if (!(*pte1p & HPTE32_R_C)) {
-        if (rw == 1 && ret == 0) {
+        if (rwx == 1 && ret == 0) {
             /* Update changed flag */
             *pte1p |= HPTE32_R_C;
             store = 1;
@@ -318,7 +315,7 @@ hwaddr get_pteg_offset32(CPUPPCState *env, hwaddr hash)
 
 /* PTE table lookup */
 static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
-                      int rw, int type, int target_page_bits)
+                      int rwx, int target_page_bits)
 {
     hwaddr pteg_off;
     target_ulong pte0, pte1;
@@ -330,7 +327,7 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
     for (i = 0; i < HPTES_PER_GROUP; i++) {
         pte0 = ppc_hash32_load_hpte0(env, pteg_off + i*HASH_PTE_SIZE_32);
         pte1 = ppc_hash32_load_hpte1(env, pteg_off + i*HASH_PTE_SIZE_32);
-        r = pte_check_hash32(ctx, pte0, pte1, h, rw, type);
+        r = pte_check_hash32(ctx, pte0, pte1, h, rwx);
         LOG_MMU("Load pte from %08" HWADDR_PRIx " => " TARGET_FMT_lx " "
                 TARGET_FMT_lx " %d %d %d " TARGET_FMT_lx "\n",
                 pteg_off + (i * 8), pte0, pte1, (int)(pte0 >> 31), h,
@@ -365,7 +362,7 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
                 ctx->raddr, ctx->prot, ret);
         /* Update page flags */
         pte1 = ctx->raddr;
-        if (ppc_hash32_pte_update_flags(ctx, &pte1, ret, rw) == 1) {
+        if (ppc_hash32_pte_update_flags(ctx, &pte1, ret, rwx) == 1) {
             ppc_hash32_store_hpte1(env, pteg_off + good * HASH_PTE_SIZE_32,
                                    pte1);
         }
@@ -381,7 +378,7 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
 }
 
 static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
-                         target_ulong eaddr, int rw, int type)
+                         target_ulong eaddr, int rwx)
 {
     hwaddr hash;
     target_ulong vsid;
@@ -401,9 +398,9 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     target_page_bits = TARGET_PAGE_BITS;
     LOG_MMU("Check segment v=" TARGET_FMT_lx " %d " TARGET_FMT_lx " nip="
             TARGET_FMT_lx " lr=" TARGET_FMT_lx
-            " ir=%d dr=%d pr=%d %d t=%d\n",
+            " ir=%d dr=%d pr=%d %d\n",
             eaddr, (int)(eaddr >> 28), sr, env->nip, env->lr, (int)msr_ir,
-            (int)msr_dr, pr != 0 ? 1 : 0, rw, type);
+            (int)msr_dr, pr != 0 ? 1 : 0, rwx);
     pgidx = (eaddr & ~SEGMENT_MASK_256M) >> target_page_bits;
     hash = vsid ^ pgidx;
     ctx->ptem = (vsid << 7) | (pgidx >> 10);
@@ -413,7 +410,7 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     ret = -1;
     if (!ds) {
         /* Check if instruction fetch is allowed, if needed */
-        if (type != ACCESS_CODE || ctx->nx == 0) {
+        if (rwx != 2 || ctx->nx == 0) {
             /* Page address translation */
             LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
                     " hash " TARGET_FMT_plx "\n",
@@ -429,15 +426,14 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                     env->htab_base, env->htab_mask, vsid, ctx->ptem,
                     ctx->hash[0]);
             /* Primary table lookup */
-            ret = find_pte32(env, ctx, 0, rw, type, target_page_bits);
+            ret = find_pte32(env, ctx, 0, rwx, target_page_bits);
             if (ret < 0) {
                 /* Secondary table lookup */
                 LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
                         " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
                         " hash=" TARGET_FMT_plx "\n", env->htab_base,
                         env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
-                ret2 = find_pte32(env, ctx, 1, rw, type,
-                                  target_page_bits);
+                ret2 = find_pte32(env, ctx, 1, rwx, target_page_bits);
                 if (ret2 != -1) {
                     ret = ret2;
                 }
@@ -486,13 +482,15 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
             return 0;
         }
 
-        switch (type) {
+        if (rwx == 2) {
+            /* No code fetch is allowed in direct-store areas */
+            return -4;
+        }
+
+        switch (env->access_type) {
         case ACCESS_INT:
             /* Integer load/store : only access allowed */
             break;
-        case ACCESS_CODE:
-            /* No code fetch is allowed in direct-store areas */
-            return -4;
         case ACCESS_FLOAT:
             /* Floating point load/store */
             return -4;
@@ -514,7 +512,7 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                         "address translation\n");
             return -4;
         }
-        if ((rw == 1 || ctx->key != 1) && (rw == 0 || ctx->key != 0)) {
+        if ((rwx == 1 || ctx->key != 1) && (rwx == 0 || ctx->key != 0)) {
             ctx->raddr = eaddr;
             ret = 2;
         } else {
@@ -526,11 +524,10 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 }
 
 static int ppc_hash32_get_physical_address(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
-                                           target_ulong eaddr, int rw,
-                                           int access_type)
+                                           target_ulong eaddr, int rwx)
 {
-    bool real_mode = (access_type == ACCESS_CODE && msr_ir == 0)
-        || (access_type != ACCESS_CODE && msr_dr == 0);
+    bool real_mode = (rwx == 2 && msr_ir == 0)
+        || (rwx != 2 && msr_dr == 0);
 
     if (real_mode) {
         ctx->raddr = eaddr;
@@ -541,11 +538,11 @@ static int ppc_hash32_get_physical_address(CPUPPCState *env, struct mmu_ctx_hash
 
         /* Try to find a BAT */
         if (env->nb_BATs != 0) {
-            ret = ppc_hash32_get_bat(env, ctx, eaddr, rw, access_type);
+            ret = ppc_hash32_get_bat(env, ctx, eaddr, rwx);
         }
         if (ret < 0) {
             /* We didn't match any BAT entry or don't have BATs */
-            ret = get_segment32(env, ctx, eaddr, rw, access_type);
+            ret = get_segment32(env, ctx, eaddr, rwx);
         }
         return ret;
     }
@@ -555,7 +552,9 @@ hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 {
     struct mmu_ctx_hash32 ctx;
 
-    if (unlikely(ppc_hash32_get_physical_address(env, &ctx, addr, 0, ACCESS_INT)
+    /* FIXME: Will not behave sanely for direct store segments, but
+     * they're almost never used */
+    if (unlikely(ppc_hash32_get_physical_address(env, &ctx, addr, 0)
                  != 0)) {
         return -1;
     }
@@ -563,22 +562,13 @@ hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
     return ctx.raddr & TARGET_PAGE_MASK;
 }
 
-int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
+int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rwx,
                                 int mmu_idx)
 {
     struct mmu_ctx_hash32 ctx;
-    int access_type;
     int ret = 0;
 
-    if (rw == 2) {
-        /* code access */
-        rw = 0;
-        access_type = ACCESS_CODE;
-    } else {
-        /* data access */
-        access_type = env->access_type;
-    }
-    ret = ppc_hash32_get_physical_address(env, &ctx, address, rw, access_type);
+    ret = ppc_hash32_get_physical_address(env, &ctx, address, rwx);
     if (ret == 0) {
         tlb_set_page(env, address & TARGET_PAGE_MASK,
                      ctx.raddr & TARGET_PAGE_MASK, ctx.prot,
@@ -586,7 +576,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
         ret = 0;
     } else if (ret < 0) {
         LOG_MMU_STATE(env);
-        if (access_type == ACCESS_CODE) {
+        if (rwx == 2) {
             switch (ret) {
             case -1:
                 /* No matches in page tables or TLB */
@@ -617,7 +607,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                 env->exception_index = POWERPC_EXCP_DSI;
                 env->error_code = 0;
                 env->spr[SPR_DAR] = address;
-                if (rw == 1) {
+                if (rwx == 1) {
                     env->spr[SPR_DSISR] = 0x42000000;
                 } else {
                     env->spr[SPR_DSISR] = 0x40000000;
@@ -628,7 +618,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                 env->exception_index = POWERPC_EXCP_DSI;
                 env->error_code = 0;
                 env->spr[SPR_DAR] = address;
-                if (rw == 1) {
+                if (rwx == 1) {
                     env->spr[SPR_DSISR] = 0x0A000000;
                 } else {
                     env->spr[SPR_DSISR] = 0x08000000;
@@ -636,7 +626,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                 break;
             case -4:
                 /* Direct store exception */
-                switch (access_type) {
+                switch (env->access_type) {
                 case ACCESS_FLOAT:
                     /* Floating point load/store */
                     env->exception_index = POWERPC_EXCP_ALIGN;
@@ -648,7 +638,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                     env->exception_index = POWERPC_EXCP_DSI;
                     env->error_code = 0;
                     env->spr[SPR_DAR] = address;
-                    if (rw == 1) {
+                    if (rwx == 1) {
                         env->spr[SPR_DSISR] = 0x06000000;
                     } else {
                         env->spr[SPR_DSISR] = 0x04000000;
@@ -659,7 +649,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                     env->exception_index = POWERPC_EXCP_DSI;
                     env->error_code = 0;
                     env->spr[SPR_DAR] = address;
-                    if (rw == 1) {
+                    if (rwx == 1) {
                         env->spr[SPR_DSISR] = 0x06100000;
                     } else {
                         env->spr[SPR_DSISR] = 0x04100000;
