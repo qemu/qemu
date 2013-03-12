@@ -51,7 +51,6 @@ struct mmu_ctx_hash32 {
     int nx;                        /* Non-execute area          */
 };
 
-#define PTE_PTEM_MASK 0x7FFFFFBF
 #define PTE_CHECK_MASK (TARGET_PAGE_MASK | 0x7B)
 
 static int ppc_hash32_pp_check(int key, int pp, int nx)
@@ -127,13 +126,13 @@ static void hash32_bat_size_prot(CPUPPCState *env, target_ulong *blp,
     target_ulong bl;
     int pp, valid, prot;
 
-    bl = (*BATu & 0x00001FFC) << 15;
+    bl = (*BATu & BATU32_BL) << 15;
     valid = 0;
     prot = 0;
-    if (((msr_pr == 0) && (*BATu & 0x00000002)) ||
-        ((msr_pr != 0) && (*BATu & 0x00000001))) {
+    if (((msr_pr == 0) && (*BATu & BATU32_VS)) ||
+        ((msr_pr != 0) && (*BATu & BATU32_VP))) {
         valid = 1;
-        pp = *BATl & 0x00000003;
+        pp = *BATl & BATL32_PP;
         if (pp != 0) {
             prot = PAGE_READ | PAGE_EXEC;
             if (pp == 0x2) {
@@ -153,17 +152,17 @@ static void hash32_bat_601_size_prot(CPUPPCState *env, target_ulong *blp,
     target_ulong bl;
     int key, pp, valid, prot;
 
-    bl = (*BATl & 0x0000003F) << 17;
+    bl = (*BATl & BATL32_601_BL) << 17;
     LOG_BATS("b %02x ==> bl " TARGET_FMT_lx " msk " TARGET_FMT_lx "\n",
-             (uint8_t)(*BATl & 0x0000003F), bl, ~bl);
+             (uint8_t)(*BATl & BATL32_601_BL), bl, ~bl);
     prot = 0;
-    valid = (*BATl >> 6) & 1;
+    valid = !!(*BATl & BATL32_601_V);
     if (valid) {
-        pp = *BATu & 0x00000003;
+        pp = *BATu & BATU32_601_PP;
         if (msr_pr == 0) {
-            key = (*BATu >> 3) & 1;
+            key = !!(*BATu & BATU32_601_KS);
         } else {
-            key = (*BATu >> 2) & 1;
+            key = !!(*BATu & BATU32_601_KP);
         }
         prot = ppc_hash32_pp_check(key, pp, 0);
     }
@@ -195,8 +194,8 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     for (i = 0; i < env->nb_BATs; i++) {
         BATu = &BATut[i];
         BATl = &BATlt[i];
-        BEPIu = *BATu & 0xF0000000;
-        BEPIl = *BATu & 0x0FFE0000;
+        BEPIu = *BATu & BATU32_BEPIU;
+        BEPIl = *BATu & BATU32_BEPIL;
         if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
             hash32_bat_601_size_prot(env, &bl, &valid, &prot, BATu, BATl);
         } else {
@@ -205,13 +204,13 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
         LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                  " BATl " TARGET_FMT_lx "\n", __func__,
                  type == ACCESS_CODE ? 'I' : 'D', i, virtual, *BATu, *BATl);
-        if ((virtual & 0xF0000000) == BEPIu &&
-            ((virtual & 0x0FFE0000) & ~bl) == BEPIl) {
+        if ((virtual & BATU32_BEPIU) == BEPIu &&
+            ((virtual & BATU32_BEPIL) & ~bl) == BEPIl) {
             /* BAT matches */
             if (valid != 0) {
                 /* Get physical address */
-                ctx->raddr = (*BATl & 0xF0000000) |
-                    ((virtual & 0x0FFE0000 & bl) | (*BATl & 0x0FFE0000)) |
+                ctx->raddr = (*BATl & BATL32_BRPNU) |
+                    ((virtual & BATU32_BEPIL & bl) | (*BATl & BATL32_BRPNL)) |
                     (virtual & 0x0001F000);
                 /* Compute access rights */
                 ctx->prot = prot;
@@ -232,8 +231,8 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
             for (i = 0; i < 4; i++) {
                 BATu = &BATut[i];
                 BATl = &BATlt[i];
-                BEPIu = *BATu & 0xF0000000;
-                BEPIl = *BATu & 0x0FFE0000;
+                BEPIu = *BATu & BATU32_BEPIU;
+                BEPIl = *BATu & BATU32_BEPIL;
                 bl = (*BATu & 0x00001FFC) << 15;
                 LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                          " BATl " TARGET_FMT_lx "\n\t" TARGET_FMT_lx " "
@@ -248,28 +247,19 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     return ret;
 }
 
-
-static inline int pte_is_valid_hash32(target_ulong pte0)
-{
-    return pte0 & 0x80000000 ? 1 : 0;
-}
-
 static int pte_check_hash32(struct mmu_ctx_hash32 *ctx, target_ulong pte0,
                             target_ulong pte1, int h, int rw, int type)
 {
-    target_ulong ptem, mmask;
-    int access, ret, pteh, ptev, pp;
+    target_ulong mmask;
+    int access, ret, pp;
 
     ret = -1;
     /* Check validity and table match */
-    ptev = pte_is_valid_hash32(pte0);
-    pteh = (pte0 >> 6) & 1;
-    if (ptev && h == pteh) {
+    if ((pte0 & HPTE32_V_VALID) && (h == !!(pte0 & HPTE32_V_SECONDARY))) {
         /* Check vsid & api */
-        ptem = pte0 & PTE_PTEM_MASK;
         mmask = PTE_CHECK_MASK;
-        pp = pte1 & 0x00000003;
-        if (ptem == ctx->ptem) {
+        pp = pte1 & HPTE32_R_PP;
+        if (HPTE32_V_COMPARE(pte0, ctx->ptem)) {
             if (ctx->raddr != (hwaddr)-1ULL) {
                 /* all matches should have equal RPN, WIMG & PP */
                 if ((ctx->raddr & mmask) != (pte1 & mmask)) {
@@ -302,15 +292,15 @@ static int ppc_hash32_pte_update_flags(struct mmu_ctx_hash32 *ctx, target_ulong 
     int store = 0;
 
     /* Update page flags */
-    if (!(*pte1p & 0x00000100)) {
+    if (!(*pte1p & HPTE32_R_R)) {
         /* Update accessed flag */
-        *pte1p |= 0x00000100;
+        *pte1p |= HPTE32_R_R;
         store = 1;
     }
-    if (!(*pte1p & 0x00000080)) {
+    if (!(*pte1p & HPTE32_R_C)) {
         if (rw == 1 && ret == 0) {
             /* Update changed flag */
-            *pte1p |= 0x00000080;
+            *pte1p |= HPTE32_R_C;
             store = 1;
         } else {
             /* Force page fault for first write access */
@@ -323,7 +313,7 @@ static int ppc_hash32_pte_update_flags(struct mmu_ctx_hash32 *ctx, target_ulong 
 
 hwaddr get_pteg_offset32(CPUPPCState *env, hwaddr hash)
 {
-    return (hash * HASH_PTE_SIZE_32 * 8) & env->htab_mask;
+    return (hash * HASH_PTEG_SIZE_32) & env->htab_mask;
 }
 
 /* PTE table lookup */
@@ -337,7 +327,7 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
 
     ret = -1; /* No entry found */
     pteg_off = get_pteg_offset32(env, ctx->hash[h]);
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < HPTES_PER_GROUP; i++) {
         if (env->external_htab) {
             pte0 = ldl_p(env->external_htab + pteg_off + (i * 8));
             pte1 = ldl_p(env->external_htab + pteg_off + (i * 8) + 4);
@@ -413,11 +403,11 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     ctx->eaddr = eaddr;
 
     sr = env->sr[eaddr >> 28];
-    ctx->key = (((sr & 0x20000000) && (pr != 0)) ||
-                ((sr & 0x40000000) && (pr == 0))) ? 1 : 0;
-    ds = sr & 0x80000000 ? 1 : 0;
-    ctx->nx = sr & 0x10000000 ? 1 : 0;
-    vsid = sr & 0x00FFFFFF;
+    ctx->key = (((sr & SR32_KP) && (pr != 0)) ||
+                ((sr & SR32_KS) && (pr == 0))) ? 1 : 0;
+    ds = !!(sr & SR32_T);
+    ctx->nx = !!(sr & SR32_NX);
+    vsid = sr & SR32_VSID;
     target_page_bits = TARGET_PAGE_BITS;
     LOG_MMU("Check segment v=" TARGET_FMT_lx " %d " TARGET_FMT_lx " nip="
             TARGET_FMT_lx " lr=" TARGET_FMT_lx

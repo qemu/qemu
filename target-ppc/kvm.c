@@ -32,6 +32,7 @@
 #include "sysemu/device_tree.h"
 #include "hw/sysbus.h"
 #include "hw/spapr.h"
+#include "mmu-hash64.h"
 
 #include "hw/sysbus.h"
 #include "hw/spapr.h"

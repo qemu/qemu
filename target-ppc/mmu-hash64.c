@@ -233,7 +233,6 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
  * 64-bit hash table MMU handling
  */
 
-#define PTE64_PTEM_MASK 0xFFFFFFFFFFFFFF80ULL
 #define PTE64_CHECK_MASK (TARGET_PAGE_MASK | 0x7F)
 
 static int ppc_hash64_pp_check(int key, int pp, int nx)
@@ -304,29 +303,21 @@ static int ppc_hash64_check_prot(int prot, int rw, int access_type)
     return ret;
 }
 
-static inline int pte64_is_valid(target_ulong pte0)
-{
-    return pte0 & 0x0000000000000001ULL ? 1 : 0;
-}
-
 static int pte64_check(struct mmu_ctx_hash64 *ctx, target_ulong pte0,
                        target_ulong pte1, int h, int rw, int type)
 {
-    target_ulong ptem, mmask;
-    int access, ret, pteh, ptev, pp;
+    target_ulong mmask;
+    int access, ret, pp;
 
     ret = -1;
     /* Check validity and table match */
-    ptev = pte64_is_valid(pte0);
-    pteh = (pte0 >> 1) & 1;
-    if (ptev && h == pteh) {
+    if ((pte0 & HPTE64_V_VALID) && (h == !!(pte0 & HPTE64_V_SECONDARY))) {
         /* Check vsid & api */
-        ptem = pte0 & PTE64_PTEM_MASK;
         mmask = PTE64_CHECK_MASK;
-        pp = (pte1 & 0x00000003) | ((pte1 >> 61) & 0x00000004);
-        ctx->nx  = (pte1 >> 2) & 1; /* No execute bit */
-        ctx->nx |= (pte1 >> 3) & 1; /* Guarded bit    */
-        if (ptem == ctx->ptem) {
+        pp = (pte1 & HPTE64_R_PP) | ((pte1 & HPTE64_R_PP0) >> 61);
+        /* No execute if either noexec or guarded bits set */
+        ctx->nx = (pte1 & HPTE64_R_N) || (pte1 & HPTE64_R_G);
+        if (HPTE64_V_COMPARE(pte0, ctx->ptem)) {
             if (ctx->raddr != (hwaddr)-1ULL) {
                 /* all matches should have equal RPN, WIMG & PP */
                 if ((ctx->raddr & mmask) != (pte1 & mmask)) {
@@ -360,15 +351,15 @@ static int ppc_hash64_pte_update_flags(struct mmu_ctx_hash64 *ctx,
     int store = 0;
 
     /* Update page flags */
-    if (!(*pte1p & 0x00000100)) {
+    if (!(*pte1p & HPTE64_R_R)) {
         /* Update accessed flag */
-        *pte1p |= 0x00000100;
+        *pte1p |= HPTE64_R_R;
         store = 1;
     }
-    if (!(*pte1p & 0x00000080)) {
+    if (!(*pte1p & HPTE64_R_C)) {
         if (rw == 1 && ret == 0) {
             /* Update changed flag */
-            *pte1p |= 0x00000080;
+            *pte1p |= HPTE64_R_C;
             store = 1;
         } else {
             /* Force page fault for first write access */
@@ -389,8 +380,8 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx, int h,
     int ret, r;
 
     ret = -1; /* No entry found */
-    pteg_off = (ctx->hash[h] * HASH_PTE_SIZE_64 * 8) & env->htab_mask;
-    for (i = 0; i < 8; i++) {
+    pteg_off = (ctx->hash[h] * HASH_PTEG_SIZE_64) & env->htab_mask;
+    for (i = 0; i < HPTES_PER_GROUP; i++) {
         if (env->external_htab) {
             pte0 = ldq_p(env->external_htab + pteg_off + (i * 16));
             pte1 = ldq_p(env->external_htab + pteg_off + (i * 16) + 8);
