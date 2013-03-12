@@ -272,7 +272,8 @@ static int ppc_hash64_pte_prot(CPUPPCState *env,
     }
 
     /* No execute if either noexec or guarded bits set */
-    if (!(pte.pte1 & HPTE64_R_N) || (pte.pte1 & HPTE64_R_G)) {
+    if (!(pte.pte1 & HPTE64_R_N) || (pte.pte1 & HPTE64_R_G)
+        || (slb->vsid & SLB_VSID_N)) {
         prot |= PAGE_EXEC;
     }
 
