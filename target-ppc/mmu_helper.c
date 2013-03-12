@@ -52,31 +52,6 @@
 
 /*****************************************************************************/
 /* PowerPC MMU emulation */
-#if defined(CONFIG_USER_ONLY)
-int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
-                             int mmu_idx)
-{
-    int exception, error_code;
-
-    if (rw == 2) {
-        exception = POWERPC_EXCP_ISI;
-        error_code = 0x40000000;
-    } else {
-        exception = POWERPC_EXCP_DSI;
-        error_code = 0x40000000;
-        if (rw) {
-            error_code |= 0x02000000;
-        }
-        env->spr[SPR_DAR] = address;
-        env->spr[SPR_DSISR] = error_code;
-    }
-    env->exception_index = exception;
-    env->error_code = error_code;
-
-    return 1;
-}
-
-#else
 
 /* Context used internally during MMU translations */
 typedef struct mmu_ctx_t mmu_ctx_t;
@@ -2027,9 +2002,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
 #endif
     }
 }
-#endif /* !defined(CONFIG_USER_ONLY) */
 
-#if !defined(CONFIG_USER_ONLY)
 /* TLB management */
 void helper_tlbia(CPUPPCState *env)
 {
@@ -2804,4 +2777,3 @@ void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
 
     booke206_flush_tlb(env, flags, 1);
 }
-#endif

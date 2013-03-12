@@ -1092,8 +1092,11 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
 int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
                               int mmu_idx);
-#define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
 void ppc_hw_interrupt (CPUPPCState *env);
+#if defined(CONFIG_USER_ONLY)
+int cpu_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
+                         int mmu_idx);
+#endif
 
 #if !defined(CONFIG_USER_ONLY)
 void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
