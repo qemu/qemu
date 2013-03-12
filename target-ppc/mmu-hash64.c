@@ -47,7 +47,6 @@ struct mmu_ctx_hash64 {
     hwaddr hash[2];    /* Pagetable hash values     */
     target_ulong ptem;             /* Virtual segment ID | API  */
     int key;                       /* Access key                */
-    int nx;                        /* Non-execute area          */
 };
 
 /*
@@ -235,7 +234,7 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
 
 #define PTE64_CHECK_MASK (TARGET_PAGE_MASK | 0x7F)
 
-static int ppc_hash64_pp_check(int key, int pp, int nx)
+static int ppc_hash64_pp_check(int key, int pp, bool nx)
 {
     int access;
 
@@ -269,7 +268,7 @@ static int ppc_hash64_pp_check(int key, int pp, int nx)
             break;
         }
     }
-    if (nx == 0) {
+    if (!nx) {
         access |= PAGE_EXEC;
     }
 
@@ -312,11 +311,13 @@ static int pte64_check(struct mmu_ctx_hash64 *ctx, target_ulong pte0,
     ret = -1;
     /* Check validity and table match */
     if ((pte0 & HPTE64_V_VALID) && (h == !!(pte0 & HPTE64_V_SECONDARY))) {
+        bool nx;
+
         /* Check vsid & api */
         mmask = PTE64_CHECK_MASK;
         pp = (pte1 & HPTE64_R_PP) | ((pte1 & HPTE64_R_PP0) >> 61);
         /* No execute if either noexec or guarded bits set */
-        ctx->nx = (pte1 & HPTE64_R_N) || (pte1 & HPTE64_R_G);
+        nx = (pte1 & HPTE64_R_N) || (pte1 & HPTE64_R_G);
         if (HPTE64_V_COMPARE(pte0, ctx->ptem)) {
             if (ctx->raddr != (hwaddr)-1ULL) {
                 /* all matches should have equal RPN, WIMG & PP */
@@ -326,7 +327,7 @@ static int pte64_check(struct mmu_ctx_hash64 *ctx, target_ulong pte0,
                 }
             }
             /* Compute access rights */
-            access = ppc_hash64_pp_check(ctx->key, pp, ctx->nx);
+            access = ppc_hash64_pp_check(ctx->key, pp, nx);
             /* Keep the matching PTE informations */
             ctx->raddr = pte1;
             ctx->prot = access;
@@ -466,7 +467,6 @@ static int get_segment64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
         ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
     ctx->key = !!(pr ? (slb->vsid & SLB_VSID_KP)
                   : (slb->vsid & SLB_VSID_KS));
-    ctx->nx = !!(slb->vsid & SLB_VSID_N);
 
     pageaddr = eaddr & ((1ULL << segment_bits)
                             - (1ULL << target_page_bits));
@@ -480,11 +480,11 @@ static int get_segment64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
         ((pageaddr >> 16) & ((1ULL << segment_bits) - 0x80));
 
     LOG_MMU("pte segment: key=%d nx %d vsid " TARGET_FMT_lx "\n",
-            ctx->key, ctx->nx, vsid);
+            ctx->key, !!(slb->vsid & SLB_VSID_N), vsid);
     ret = -1;
 
     /* Check if instruction fetch is allowed, if needed */
-    if (rwx != 2 || ctx->nx == 0) {
+    if (rwx != 2 || !(slb->vsid & SLB_VSID_N)) {
         /* Page address translation */
         LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
                 " hash " TARGET_FMT_plx "\n",
