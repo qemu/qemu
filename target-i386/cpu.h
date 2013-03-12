@@ -801,6 +801,9 @@ typedef struct CPUX86State {
     BNDCSReg bndcs_regs;
     uint64_t msr_bndcfgs;
 
+    /* Beginning of state preserved by INIT (dummy marker).  */
+    struct {} start_init_save;
+
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
     uint16_t fpus;
@@ -833,15 +836,6 @@ typedef struct CPUX86State {
     uint64_t star;
 
     uint64_t vm_hsave;
-    uint64_t vm_vmcb;
-    uint64_t tsc_offset;
-    uint64_t intercept;
-    uint16_t intercept_cr_read;
-    uint16_t intercept_cr_write;
-    uint16_t intercept_dr_read;
-    uint16_t intercept_dr_write;
-    uint32_t intercept_exceptions;
-    uint8_t v_tpr;
 
 #ifdef TARGET_X86_64
     target_ulong lstar;
@@ -849,11 +843,6 @@ typedef struct CPUX86State {
     target_ulong fmask;
     target_ulong kernelgsbase;
 #endif
-    uint64_t system_time_msr;
-    uint64_t wall_clock_msr;
-    uint64_t steal_time_msr;
-    uint64_t async_pf_en_msr;
-    uint64_t pv_eoi_en_msr;
 
     uint64_t tsc;
     uint64_t tsc_adjust;
@@ -870,6 +859,19 @@ typedef struct CPUX86State {
     uint64_t msr_fixed_counters[MAX_FIXED_COUNTERS];
     uint64_t msr_gp_counters[MAX_GP_COUNTERS];
     uint64_t msr_gp_evtsel[MAX_GP_COUNTERS];
+
+    uint64_t pat;
+    uint32_t smbase;
+
+    /* End of state preserved by INIT (dummy marker).  */
+    struct {} end_init_save;
+
+    uint64_t system_time_msr;
+    uint64_t wall_clock_msr;
+    uint64_t steal_time_msr;
+    uint64_t async_pf_en_msr;
+    uint64_t pv_eoi_en_msr;
+
     uint64_t msr_hv_hypercall;
     uint64_t msr_hv_guest_os_id;
     uint64_t msr_hv_vapic;
@@ -884,8 +886,17 @@ typedef struct CPUX86State {
         struct CPUBreakpoint *cpu_breakpoint[4];
         struct CPUWatchpoint *cpu_watchpoint[4];
     }; /* break/watchpoints for dr[0..3] */
-    uint32_t smbase;
     int old_exception;  /* exception in flight */
+
+    uint64_t vm_vmcb;
+    uint64_t tsc_offset;
+    uint64_t intercept;
+    uint16_t intercept_cr_read;
+    uint16_t intercept_cr_write;
+    uint16_t intercept_dr_read;
+    uint16_t intercept_dr_write;
+    uint32_t intercept_exceptions;
+    uint8_t v_tpr;
 
     /* KVM states, automatically cleared on reset */
     uint8_t nmi_injected;
@@ -894,7 +905,6 @@ typedef struct CPUX86State {
     CPU_COMMON
 
     /* Fields from here on are preserved across CPU reset. */
-    uint64_t pat;
 
     /* processor features (e.g. for CPUID insn) */
     uint32_t cpuid_level;
