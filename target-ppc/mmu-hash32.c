@@ -41,6 +41,16 @@
 #  define LOG_BATS(...) do { } while (0)
 #endif
 
+struct mmu_ctx_hash32 {
+    hwaddr raddr;      /* Real address              */
+    hwaddr eaddr;      /* Effective address         */
+    int prot;                      /* Protection bits           */
+    hwaddr hash[2];    /* Pagetable hash values     */
+    target_ulong ptem;             /* Virtual segment ID | API  */
+    int key;                       /* Access key                */
+    int nx;                        /* Non-execute area          */
+};
+
 #define PTE_PTEM_MASK 0x7FFFFFBF
 #define PTE_CHECK_MASK (TARGET_PAGE_MASK | 0x7B)
 
@@ -162,7 +172,7 @@ static void hash32_bat_601_size_prot(CPUPPCState *env, target_ulong *blp,
     *protp = prot;
 }
 
-static int ppc_hash32_get_bat(CPUPPCState *env, mmu_ctx_t *ctx,
+static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                               target_ulong virtual, int rw, int type)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
@@ -244,7 +254,7 @@ static inline int pte_is_valid_hash32(target_ulong pte0)
     return pte0 & 0x80000000 ? 1 : 0;
 }
 
-static int pte_check_hash32(mmu_ctx_t *ctx, target_ulong pte0,
+static int pte_check_hash32(struct mmu_ctx_hash32 *ctx, target_ulong pte0,
                             target_ulong pte1, int h, int rw, int type)
 {
     target_ulong ptem, mmask;
@@ -286,7 +296,7 @@ static int pte_check_hash32(mmu_ctx_t *ctx, target_ulong pte0,
     return ret;
 }
 
-static int ppc_hash32_pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
+static int ppc_hash32_pte_update_flags(struct mmu_ctx_hash32 *ctx, target_ulong *pte1p,
                                        int ret, int rw)
 {
     int store = 0;
@@ -317,7 +327,7 @@ hwaddr get_pteg_offset32(CPUPPCState *env, hwaddr hash)
 }
 
 /* PTE table lookup */
-static int find_pte32(CPUPPCState *env, mmu_ctx_t *ctx, int h,
+static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
                       int rw, int type, int target_page_bits)
 {
     hwaddr pteg_off;
@@ -390,7 +400,7 @@ static int find_pte32(CPUPPCState *env, mmu_ctx_t *ctx, int h,
     return ret;
 }
 
-static int get_segment32(CPUPPCState *env, mmu_ctx_t *ctx,
+static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                          target_ulong eaddr, int rw, int type)
 {
     hwaddr hash;
@@ -535,7 +545,7 @@ static int get_segment32(CPUPPCState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
-static int ppc_hash32_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
+static int ppc_hash32_get_physical_address(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                                            target_ulong eaddr, int rw,
                                            int access_type)
 {
@@ -563,7 +573,7 @@ static int ppc_hash32_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
 hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 {
-    mmu_ctx_t ctx;
+    struct mmu_ctx_hash32 ctx;
 
     if (unlikely(ppc_hash32_get_physical_address(env, &ctx, addr, 0, ACCESS_INT)
                  != 0)) {
@@ -576,7 +586,7 @@ hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                                 int mmu_idx)
 {
-    mmu_ctx_t ctx;
+    struct mmu_ctx_hash32 ctx;
     int access_type;
     int ret = 0;
 

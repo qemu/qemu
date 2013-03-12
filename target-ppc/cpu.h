@@ -1101,20 +1101,6 @@ do {                                            \
     env->wdt_period[3] = (d_);                  \
  } while (0)
 
-#if !defined(CONFIG_USER_ONLY)
-/* Context used internally during MMU translations */
-typedef struct mmu_ctx_t mmu_ctx_t;
-struct mmu_ctx_t {
-    hwaddr raddr;      /* Real address              */
-    hwaddr eaddr;      /* Effective address         */
-    int prot;                      /* Protection bits           */
-    hwaddr hash[2];    /* Pagetable hash values     */
-    target_ulong ptem;             /* Virtual segment ID | API  */
-    int key;                       /* Access key                */
-    int nx;                        /* Non-execute area          */
-};
-#endif
-
 #include "cpu-qom.h"
 
 /*****************************************************************************/

@@ -40,6 +40,16 @@
 #  define LOG_SLB(...) do { } while (0)
 #endif
 
+struct mmu_ctx_hash64 {
+    hwaddr raddr;      /* Real address              */
+    hwaddr eaddr;      /* Effective address         */
+    int prot;                      /* Protection bits           */
+    hwaddr hash[2];    /* Pagetable hash values     */
+    target_ulong ptem;             /* Virtual segment ID | API  */
+    int key;                       /* Access key                */
+    int nx;                        /* Non-execute area          */
+};
+
 /*
  * SLB handling
  */
@@ -299,7 +309,7 @@ static inline int pte64_is_valid(target_ulong pte0)
     return pte0 & 0x0000000000000001ULL ? 1 : 0;
 }
 
-static int pte64_check(mmu_ctx_t *ctx, target_ulong pte0,
+static int pte64_check(struct mmu_ctx_hash64 *ctx, target_ulong pte0,
                        target_ulong pte1, int h, int rw, int type)
 {
     target_ulong ptem, mmask;
@@ -343,7 +353,8 @@ static int pte64_check(mmu_ctx_t *ctx, target_ulong pte0,
     return ret;
 }
 
-static int ppc_hash64_pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
+static int ppc_hash64_pte_update_flags(struct mmu_ctx_hash64 *ctx,
+                                       target_ulong *pte1p,
                                        int ret, int rw)
 {
     int store = 0;
@@ -369,7 +380,7 @@ static int ppc_hash64_pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
 }
 
 /* PTE table lookup */
-static int find_pte64(CPUPPCState *env, mmu_ctx_t *ctx, int h,
+static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx, int h,
                       int rw, int type, int target_page_bits)
 {
     hwaddr pteg_off;
@@ -443,7 +454,7 @@ static int find_pte64(CPUPPCState *env, mmu_ctx_t *ctx, int h,
     return ret;
 }
 
-static int get_segment64(CPUPPCState *env, mmu_ctx_t *ctx,
+static int get_segment64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
                          target_ulong eaddr, int rw, int type)
 {
     hwaddr hash;
@@ -529,7 +540,8 @@ static int get_segment64(CPUPPCState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
-static int ppc_hash64_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
+static int ppc_hash64_get_physical_address(CPUPPCState *env,
+                                           struct mmu_ctx_hash64 *ctx,
                                            target_ulong eaddr, int rw,
                                            int access_type)
 {
@@ -547,7 +559,7 @@ static int ppc_hash64_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
 hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 {
-    mmu_ctx_t ctx;
+    struct mmu_ctx_hash64 ctx;
 
     if (unlikely(ppc_hash64_get_physical_address(env, &ctx, addr, 0, ACCESS_INT)
                  != 0)) {
@@ -560,7 +572,7 @@ hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                                 int mmu_idx)
 {
-    mmu_ctx_t ctx;
+    struct mmu_ctx_hash64 ctx;
     int access_type;
     int ret = 0;
 

@@ -77,6 +77,19 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
 }
 
 #else
+
+/* Context used internally during MMU translations */
+typedef struct mmu_ctx_t mmu_ctx_t;
+struct mmu_ctx_t {
+    hwaddr raddr;      /* Real address              */
+    hwaddr eaddr;      /* Effective address         */
+    int prot;                      /* Protection bits           */
+    hwaddr hash[2];    /* Pagetable hash values     */
+    target_ulong ptem;             /* Virtual segment ID | API  */
+    int key;                       /* Access key                */
+    int nx;                        /* Non-execute area          */
+};
+
 /* Common routines used by software and hardware TLBs emulation */
 static inline int pte_is_valid(target_ulong pte0)
 {
