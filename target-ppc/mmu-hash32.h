@@ -4,8 +4,8 @@
 #ifndef CONFIG_USER_ONLY
 
 int pte32_is_valid(target_ulong pte0);
-int find_pte32(CPUPPCState *env, mmu_ctx_t *ctx, int h,
-               int rw, int type, int target_page_bits);
+int get_segment32(CPUPPCState *env, mmu_ctx_t *ctx,
+                  target_ulong eaddr, int rw, int type);
 
 #endif /* CONFIG_USER_ONLY */
 

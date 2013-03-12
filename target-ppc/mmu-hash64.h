@@ -4,11 +4,10 @@
 #ifndef CONFIG_USER_ONLY
 
 #ifdef TARGET_PPC64
-ppc_slb_t *slb_lookup(CPUPPCState *env, target_ulong eaddr);
 void dump_slb(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
 int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
-int find_pte64(CPUPPCState *env, mmu_ctx_t *ctx, int h,
-               int rw, int type, int target_page_bits);
+int get_segment64(CPUPPCState *env, mmu_ctx_t *ctx,
+                  target_ulong eaddr, int rw, int type);
 #endif
 
 #endif /* CONFIG_USER_ONLY */
