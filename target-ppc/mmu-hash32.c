@@ -376,14 +376,30 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     return ret;
 }
 
-static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
-                         target_ulong eaddr, int rwx)
+static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
+                                target_ulong eaddr, int rwx)
 {
     hwaddr hash;
     target_ulong vsid;
     int ds, pr, target_page_bits;
     int ret, ret2;
     target_ulong sr, pgidx;
+
+    /* 1. Handle real mode accesses */
+    if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
+        /* Translation is off */
+        ctx->raddr = eaddr;
+        ctx->prot = PAGE_READ | PAGE_EXEC | PAGE_WRITE;
+        return 0;
+    }
+
+    /* 2. Check Block Address Translation entries (BATs) */
+    if (env->nb_BATs != 0) {
+        ret = ppc_hash32_get_bat(env, ctx, eaddr, rwx);
+        if (ret == 0) {
+            return 0;
+        }
+    }
 
     pr = msr_pr;
 
@@ -521,38 +537,13 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     return ret;
 }
 
-static int ppc_hash32_get_physical_address(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
-                                           target_ulong eaddr, int rwx)
-{
-    bool real_mode = (rwx == 2 && msr_ir == 0)
-        || (rwx != 2 && msr_dr == 0);
-
-    if (real_mode) {
-        ctx->raddr = eaddr;
-        ctx->prot = PAGE_READ | PAGE_EXEC | PAGE_WRITE;
-        return 0;
-    } else {
-        int ret = -1;
-
-        /* Try to find a BAT */
-        if (env->nb_BATs != 0) {
-            ret = ppc_hash32_get_bat(env, ctx, eaddr, rwx);
-        }
-        if (ret < 0) {
-            /* We didn't match any BAT entry or don't have BATs */
-            ret = get_segment32(env, ctx, eaddr, rwx);
-        }
-        return ret;
-    }
-}
-
 hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 {
     struct mmu_ctx_hash32 ctx;
 
     /* FIXME: Will not behave sanely for direct store segments, but
      * they're almost never used */
-    if (unlikely(ppc_hash32_get_physical_address(env, &ctx, addr, 0)
+    if (unlikely(ppc_hash32_translate(env, &ctx, addr, 0)
                  != 0)) {
         return -1;
     }
@@ -566,7 +557,7 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rwx,
     struct mmu_ctx_hash32 ctx;
     int ret = 0;
 
-    ret = ppc_hash32_get_physical_address(env, &ctx, address, rwx);
+    ret = ppc_hash32_translate(env, &ctx, address, rwx);
     if (ret == 0) {
         tlb_set_page(env, address & TARGET_PAGE_MASK,
                      ctx.raddr & TARGET_PAGE_MASK, ctx.prot,

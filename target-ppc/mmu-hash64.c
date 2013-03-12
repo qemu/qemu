@@ -434,18 +434,27 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     return ret;
 }
 
-static int get_segment64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
-                         target_ulong eaddr, int rwx)
+static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
+                                target_ulong eaddr, int rwx)
 {
     hwaddr hash;
     target_ulong vsid;
     int pr, target_page_bits;
     int ret, ret2;
-
-    pr = msr_pr;
     ppc_slb_t *slb;
     target_ulong pageaddr;
     int segment_bits;
+
+    /* 1. Handle real mode accesses */
+    if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
+        /* Translation is off */
+        /* In real mode the top 4 effective address bits are ignored */
+        ctx->raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
+        ctx->prot = PAGE_READ | PAGE_EXEC | PAGE_WRITE;
+        return 0;
+    }
+
+    pr = msr_pr;
 
     LOG_MMU("Check SLBs\n");
     slb = slb_lookup(env, eaddr);
@@ -518,27 +527,11 @@ static int get_segment64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     return ret;
 }
 
-static int ppc_hash64_get_physical_address(CPUPPCState *env,
-                                           struct mmu_ctx_hash64 *ctx,
-                                           target_ulong eaddr, int rwx)
-{
-    bool real_mode = (rwx == 2 && msr_ir == 0)
-        || (rwx != 2 && msr_dr == 0);
-
-    if (real_mode) {
-        ctx->raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
-        ctx->prot = PAGE_READ | PAGE_EXEC | PAGE_WRITE;
-        return 0;
-    } else {
-        return get_segment64(env, ctx, eaddr, rwx);
-    }
-}
-
 hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 {
     struct mmu_ctx_hash64 ctx;
 
-    if (unlikely(ppc_hash64_get_physical_address(env, &ctx, addr, 0) != 0)) {
+    if (unlikely(ppc_hash64_translate(env, &ctx, addr, 0) != 0)) {
         return -1;
     }
 
@@ -551,7 +544,7 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rwx,
     struct mmu_ctx_hash64 ctx;
     int ret = 0;
 
-    ret = ppc_hash64_get_physical_address(env, &ctx, address, rwx);
+    ret = ppc_hash64_translate(env, &ctx, address, rwx);
     if (ret == 0) {
         tlb_set_page(env, address & TARGET_PAGE_MASK,
                      ctx.raddr & TARGET_PAGE_MASK, ctx.prot,
