@@ -118,10 +118,10 @@ struct QemuConsole {
     DisplayState *ds;
 
     /* Graphic console state.  */
-    vga_hw_update_ptr hw_update;
-    vga_hw_invalidate_ptr hw_invalidate;
-    vga_hw_screen_dump_ptr hw_screen_dump;
-    vga_hw_text_update_ptr hw_text_update;
+    graphic_hw_update_ptr hw_update;
+    graphic_hw_invalidate_ptr hw_invalidate;
+    graphic_hw_screen_dump_ptr hw_screen_dump;
+    graphic_hw_text_update_ptr hw_text_update;
     void *hw;
     int g_width, g_height;
 
@@ -165,16 +165,24 @@ static int nb_consoles = 0;
 
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds);
 
-void vga_hw_update(void)
+void graphic_hw_update(QemuConsole *con)
 {
-    if (active_console && active_console->hw_update)
-        active_console->hw_update(active_console->hw);
+    if (!con) {
+        con = active_console;
+    }
+    if (con && con->hw_update) {
+        con->hw_update(con->hw);
+    }
 }
 
-void vga_hw_invalidate(void)
+void graphic_hw_invalidate(QemuConsole *con)
 {
-    if (active_console && active_console->hw_invalidate)
-        active_console->hw_invalidate(active_console->hw);
+    if (!con) {
+        con = active_console;
+    }
+    if (con && con->hw_invalidate) {
+        con->hw_invalidate(con->hw);
+    }
 }
 
 void qmp_screendump(const char *filename, Error **errp)
@@ -201,10 +209,13 @@ void qmp_screendump(const char *filename, Error **errp)
     }
 }
 
-void vga_hw_text_update(console_ch_t *chardata)
+void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)
 {
-    if (active_console && active_console->hw_text_update)
-        active_console->hw_text_update(active_console->hw, chardata);
+    if (!con) {
+        con = active_console;
+    }
+    if (con && con->hw_text_update)
+        con->hw_text_update(con->hw, chardata);
 }
 
 static void vga_fill_rect(QemuConsole *con,
@@ -932,7 +943,7 @@ void console_select(unsigned int index)
             qemu_mod_timer(s->cursor_timer,
                    qemu_get_clock_ms(rt_clock) + CONSOLE_CURSOR_PERIOD / 2);
         }
-        vga_hw_invalidate();
+        graphic_hw_invalidate(s);
     }
 }
 
@@ -1359,10 +1370,10 @@ DisplayState *init_displaystate(void)
     return display_state;
 }
 
-QemuConsole *graphic_console_init(vga_hw_update_ptr update,
-                                  vga_hw_invalidate_ptr invalidate,
-                                  vga_hw_screen_dump_ptr screen_dump,
-                                  vga_hw_text_update_ptr text_update,
+QemuConsole *graphic_console_init(graphic_hw_update_ptr update,
+                                  graphic_hw_invalidate_ptr invalidate,
+                                  graphic_hw_screen_dump_ptr screen_dump,
+                                  graphic_hw_text_update_ptr text_update,
                                   void *opaque)
 {
     int width = 640;
@@ -1407,7 +1418,7 @@ static void text_console_update_cursor(void *opaque)
     QemuConsole *s = opaque;
 
     s->cursor_visible_phase = !s->cursor_visible_phase;
-    vga_hw_invalidate();
+    graphic_hw_invalidate(s);
     qemu_mod_timer(s->cursor_timer,
                    qemu_get_clock_ms(rt_clock) + CONSOLE_CURSOR_PERIOD / 2);
 }

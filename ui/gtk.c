@@ -327,7 +327,7 @@ static void gd_update(DisplayChangeListener *dcl,
 
 static void gd_refresh(DisplayChangeListener *dcl)
 {
-    vga_hw_update();
+    graphic_hw_update(NULL);
 }
 
 static void gd_switch(DisplayChangeListener *dcl,

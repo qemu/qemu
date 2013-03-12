@@ -1956,8 +1956,8 @@ static void set_pixel_format(VncState *vs,
 
     set_pixel_conversion(vs);
 
-    vga_hw_invalidate();
-    vga_hw_update();
+    graphic_hw_invalidate(NULL);
+    graphic_hw_update(NULL);
 }
 
 static void pixel_format_message (VncState *vs) {
@@ -2653,7 +2653,7 @@ static void vnc_refresh(void *opaque)
     VncState *vs, *vn;
     int has_dirty, rects = 0;
 
-    vga_hw_update();
+    graphic_hw_update(NULL);
 
     if (vnc_trylock_display(vd)) {
         vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
@@ -2692,7 +2692,7 @@ static void vnc_init_timer(VncDisplay *vd)
     vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
     if (vd->timer == NULL && !QTAILQ_EMPTY(&vd->clients)) {
         vd->timer = qemu_new_timer_ms(rt_clock, vnc_refresh, vd);
-        vga_hw_update();
+        graphic_hw_update(NULL);
         vnc_refresh(vd);
     }
 }
@@ -2775,7 +2775,7 @@ void vnc_init_state(VncState *vs)
 
     QTAILQ_INSERT_HEAD(&vd->clients, vs, next);
 
-    vga_hw_update();
+    graphic_hw_update(NULL);
 
     vnc_write(vs, "RFB 003.008\n", 12);
     vnc_flush(vs);
@@ -2800,7 +2800,7 @@ static void vnc_listen_read(void *opaque, bool websocket)
     int csock;
 
     /* Catch-up */
-    vga_hw_update();
+    graphic_hw_update(NULL);
 #ifdef CONFIG_VNC_WS
     if (websocket) {
         csock = qemu_accept(vs->lwebsock, (struct sockaddr *)&addr, &addrlen);

@@ -720,7 +720,7 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
     /* we have to flush all pending changes so that the copy
        is generated at the appropriate moment in time */
     if (notify)
-	vga_hw_update();
+        graphic_hw_update(s->vga.con);
 
     (*s->cirrus_rop) (s, s->vga.vram_ptr +
 		      (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),

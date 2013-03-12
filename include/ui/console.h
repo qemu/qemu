@@ -278,21 +278,21 @@ static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
     *dest = ch;
 }
 
-typedef void (*vga_hw_update_ptr)(void *);
-typedef void (*vga_hw_invalidate_ptr)(void *);
-typedef void (*vga_hw_screen_dump_ptr)(void *, const char *, bool cswitch,
+typedef void (*graphic_hw_update_ptr)(void *);
+typedef void (*graphic_hw_invalidate_ptr)(void *);
+typedef void (*graphic_hw_screen_dump_ptr)(void *, const char *, bool cswitch,
                                        Error **errp);
-typedef void (*vga_hw_text_update_ptr)(void *, console_ch_t *);
+typedef void (*graphic_hw_text_update_ptr)(void *, console_ch_t *);
 
-QemuConsole *graphic_console_init(vga_hw_update_ptr update,
-                                  vga_hw_invalidate_ptr invalidate,
-                                  vga_hw_screen_dump_ptr screen_dump,
-                                  vga_hw_text_update_ptr text_update,
+QemuConsole *graphic_console_init(graphic_hw_update_ptr update,
+                                  graphic_hw_invalidate_ptr invalidate,
+                                  graphic_hw_screen_dump_ptr screen_dump,
+                                  graphic_hw_text_update_ptr text_update,
                                   void *opaque);
 
-void vga_hw_update(void);
-void vga_hw_invalidate(void);
-void vga_hw_text_update(console_ch_t *chardata);
+void graphic_hw_update(QemuConsole *con);
+void graphic_hw_invalidate(QemuConsole *con);
+void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata);
 
 int is_graphic_console(void);
 int is_fixedsize_console(void);

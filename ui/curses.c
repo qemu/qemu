@@ -166,11 +166,11 @@ static void curses_refresh(DisplayChangeListener *dcl)
         clear();
         refresh();
         curses_calc_pad();
-        vga_hw_invalidate();
+        graphic_hw_invalidate(NULL);
         invalidate = 0;
     }
 
-    vga_hw_text_update(screen);
+    graphic_hw_text_update(NULL, screen);
 
     nextchr = ERR;
     while (1) {

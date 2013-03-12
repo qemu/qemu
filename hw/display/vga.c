@@ -2452,6 +2452,6 @@ static void vga_screen_dump(void *opaque, const char *filename, bool cswitch,
     if (cswitch) {
         vga_invalidate_display(s);
     }
-    vga_hw_update();
+    graphic_hw_update(s->con);
     ppm_save(filename, surface, errp);
 }

@@ -1074,7 +1074,7 @@ static void qxl_enter_vga_mode(PCIQXLDevice *d)
     qemu_spice_create_host_primary(&d->ssd);
     d->mode = QXL_MODE_VGA;
     vga_dirty_log_start(&d->vga);
-    vga_hw_update();
+    graphic_hw_update(d->vga.con);
 }
 
 static void qxl_exit_vga_mode(PCIQXLDevice *d)

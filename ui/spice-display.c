@@ -414,7 +414,7 @@ void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
 {
     dprint(3, "%s:\n", __func__);
-    vga_hw_update();
+    graphic_hw_update(ssd->con);
 
     qemu_mutex_lock(&ssd->lock);
     if (QTAILQ_EMPTY(&ssd->updates) && ssd->ds) {

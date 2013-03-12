@@ -492,8 +492,8 @@ static void toggle_full_screen(void)
             sdl_grab_end();
         }
     }
-    vga_hw_invalidate();
-    vga_hw_update();
+    graphic_hw_invalidate(NULL);
+    graphic_hw_update(NULL);
 }
 
 static void handle_keydown(SDL_Event *ev)
@@ -522,8 +522,8 @@ static void handle_keydown(SDL_Event *ev)
             if (scaling_active) {
                 scaling_active = 0;
                 sdl_switch(dcl, NULL);
-                vga_hw_invalidate();
-                vga_hw_update();
+                graphic_hw_invalidate(NULL);
+                graphic_hw_update(NULL);
             }
             gui_keysym = 1;
             break;
@@ -556,8 +556,8 @@ static void handle_keydown(SDL_Event *ev)
                     surface_width(surface);
 
                 sdl_scale(width, height);
-                vga_hw_invalidate();
-                vga_hw_update();
+                graphic_hw_invalidate(NULL);
+                graphic_hw_update(NULL);
                 gui_keysym = 1;
             }
         default:
@@ -770,7 +770,7 @@ static void sdl_refresh(DisplayChangeListener *dcl)
         sdl_update_caption();
     }
 
-    vga_hw_update();
+    graphic_hw_update(NULL);
     SDL_EnableUNICODE(!is_graphic_console());
 
     while (SDL_PollEvent(ev)) {
@@ -802,8 +802,8 @@ static void sdl_refresh(DisplayChangeListener *dcl)
             break;
         case SDL_VIDEORESIZE:
             sdl_scale(ev->resize.w, ev->resize.h);
-            vga_hw_invalidate();
-            vga_hw_update();
+            graphic_hw_invalidate(NULL);
+            graphic_hw_update(NULL);
             break;
         default:
             break;
