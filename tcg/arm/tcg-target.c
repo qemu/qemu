@@ -1926,18 +1926,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_divu_i32:
         tcg_out_udiv(s, COND_AL, args[0], args[1], args[2]);
         break;
-    case INDEX_op_rem_i32:
-        tcg_out_sdiv(s, COND_AL, TCG_REG_TMP, args[1], args[2]);
-        tcg_out_mul32(s, COND_AL, TCG_REG_TMP, TCG_REG_TMP, args[2]);
-        tcg_out_dat_reg(s, COND_AL, ARITH_SUB, args[0], args[1], TCG_REG_TMP,
-                        SHIFT_IMM_LSL(0));
-        break;
-    case INDEX_op_remu_i32:
-        tcg_out_udiv(s, COND_AL, TCG_REG_TMP, args[1], args[2]);
-        tcg_out_mul32(s, COND_AL, TCG_REG_TMP, TCG_REG_TMP, args[2]);
-        tcg_out_dat_reg(s, COND_AL, ARITH_SUB, args[0], args[1], TCG_REG_TMP,
-                        SHIFT_IMM_LSL(0));
-        break;
 
     default:
         tcg_abort();
@@ -2043,9 +2031,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
 
 #if TCG_TARGET_HAS_div_i32
     { INDEX_op_div_i32, { "r", "r", "r" } },
-    { INDEX_op_rem_i32, { "r", "r", "r" } },
     { INDEX_op_divu_i32, { "r", "r", "r" } },
-    { INDEX_op_remu_i32, { "r", "r", "r" } },
 #endif
 
     { -1 },
