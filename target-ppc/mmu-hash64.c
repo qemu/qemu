@@ -297,32 +297,6 @@ static int ppc_hash64_check_prot(int prot, int rwx)
     return ret;
 }
 
-static int pte64_check(struct mmu_ctx_hash64 *ctx, target_ulong pte0,
-                       target_ulong pte1, int rwx)
-{
-    int access, ret, pp;
-    bool nx;
-
-    pp = (pte1 & HPTE64_R_PP) | ((pte1 & HPTE64_R_PP0) >> 61);
-    /* No execute if either noexec or guarded bits set */
-    nx = (pte1 & HPTE64_R_N) || (pte1 & HPTE64_R_G);
-    /* Compute access rights */
-    access = ppc_hash64_pp_check(ctx->key, pp, nx);
-    /* Keep the matching PTE informations */
-    ctx->raddr = pte1;
-    ctx->prot = access;
-    ret = ppc_hash64_check_prot(ctx->prot, rwx);
-    if (ret == 0) {
-        /* Access granted */
-        LOG_MMU("PTE access granted !\n");
-    } else {
-        /* Access right violation */
-        LOG_MMU("PTE access rejected\n");
-    }
-
-    return ret;
-}
-
 static int ppc_hash64_pte_update_flags(struct mmu_ctx_hash64 *ctx,
                                        uint64_t *pte1p, int ret, int rw)
 {
@@ -439,6 +413,8 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     ppc_hash_pte64_t pte;
     int target_page_bits;
 
+    assert((rwx == 0) || (rwx == 1) || (rwx == 2));
+
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
         /* Translation is off */
@@ -471,7 +447,27 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     ctx->key = !!(msr_pr ? (slb->vsid & SLB_VSID_KP)
                   : (slb->vsid & SLB_VSID_KS));
 
-    ret = pte64_check(ctx, pte.pte0, pte.pte1, rwx);
+
+    int access, pp;
+    bool nx;
+
+    pp = (pte.pte1 & HPTE64_R_PP) | ((pte.pte1 & HPTE64_R_PP0) >> 61);
+    /* No execute if either noexec or guarded bits set */
+    nx = (pte.pte1 & HPTE64_R_N) || (pte.pte1 & HPTE64_R_G);
+    /* Compute access rights */
+    access = ppc_hash64_pp_check(ctx->key, pp, nx);
+    /* Keep the matching PTE informations */
+    ctx->raddr = pte.pte1;
+    ctx->prot = access;
+    ret = ppc_hash64_check_prot(ctx->prot, rwx);
+    if (ret == 0) {
+        /* Access granted */
+        LOG_MMU("PTE access granted !\n");
+    } else {
+        /* Access right violation */
+        LOG_MMU("PTE access rejected\n");
+    }
+
     /* Update page flags */
     if (ppc_hash64_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
         ppc_hash64_store_hpte1(env, pte_offset, pte.pte1);

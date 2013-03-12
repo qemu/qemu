@@ -295,31 +295,8 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
     }
 }
 
-static int pte_check_hash32(struct mmu_ctx_hash32 *ctx, target_ulong pte0,
-                            target_ulong pte1, int rwx)
-{
-    int access, ret, pp;
-
-    pp = pte1 & HPTE32_R_PP;
-    /* Compute access rights */
-    access = ppc_hash32_pp_check(ctx->key, pp, ctx->nx);
-    /* Keep the matching PTE informations */
-    ctx->raddr = pte1;
-    ctx->prot = access;
-    ret = ppc_hash32_check_prot(ctx->prot, rwx);
-    if (ret == 0) {
-        /* Access granted */
-        LOG_MMU("PTE access granted !\n");
-    } else {
-        /* Access right violation */
-        LOG_MMU("PTE access rejected\n");
-    }
-
-    return ret;
-}
-
-static int ppc_hash32_pte_update_flags(struct mmu_ctx_hash32 *ctx,
-                                       uint32_t *pte1p, int ret, int rwx)
+static int ppc_hash32_pte_update_flags(struct mmu_ctx_hash32 *ctx, uint32_t *pte1p,
+                                       int ret, int rwx)
 {
     int store = 0;
 
@@ -420,6 +397,8 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     hwaddr pte_offset;
     ppc_hash_pte32_t pte;
 
+    assert((rwx == 0) || (rwx == 1) || (rwx == 2));
+
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
         /* Translation is off */
@@ -461,7 +440,24 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     /* 7. Check access permissions */
     ctx->key = (((sr & SR32_KP) && (msr_pr != 0)) ||
                 ((sr & SR32_KS) && (msr_pr == 0))) ? 1 : 0;
-    ret = pte_check_hash32(ctx, pte.pte0, pte.pte1, rwx);
+
+    int access, pp;
+
+    pp = pte.pte1 & HPTE32_R_PP;
+    /* Compute access rights */
+    access = ppc_hash32_pp_check(ctx->key, pp, ctx->nx);
+    /* Keep the matching PTE informations */
+    ctx->raddr = pte.pte1;
+    ctx->prot = access;
+    ret = ppc_hash32_check_prot(ctx->prot, rwx);
+    if (ret == 0) {
+        /* Access granted */
+        LOG_MMU("PTE access granted !\n");
+    } else {
+        /* Access right violation */
+        LOG_MMU("PTE access rejected\n");
+    }
+
     /* Update page flags */
     if (ppc_hash32_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
         ppc_hash32_store_hpte1(env, pte_offset, pte.pte1);
