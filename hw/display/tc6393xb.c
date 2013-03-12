@@ -585,7 +585,6 @@ TC6393xbState *tc6393xb_init(MemoryRegion *sysmem, uint32_t base, qemu_irq irq)
     s->scr_height = 640;
     s->con = graphic_console_init(tc6393xb_update_display,
             NULL, /* invalidate */
-            NULL, /* screen_dump */
             NULL, /* text_update */
             s);
 

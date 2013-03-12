@@ -1901,7 +1901,7 @@ static int exynos4210_fimd_init(SysBusDevice *dev)
             "exynos4210.fimd", FIMD_REGS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     s->console = graphic_console_init(exynos4210_fimd_update,
-                                  exynos4210_fimd_invalidate, NULL, NULL, s);
+                                      exynos4210_fimd_invalidate, NULL, s);
 
     return 0;
 }

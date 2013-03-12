@@ -280,7 +280,7 @@ static int milkymist_vgafb_init(SysBusDevice *dev)
 
     s->con = graphic_console_init(vgafb_update_display,
                                   vgafb_invalidate_display,
-                                  NULL, NULL, s);
+                                  NULL, s);
 
     return 0;
 }

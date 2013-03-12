@@ -1772,26 +1772,6 @@ static void qxl_hw_invalidate(void *opaque)
     vga->invalidate(vga);
 }
 
-static void qxl_hw_screen_dump(void *opaque, const char *filename, bool cswitch,
-                               Error **errp)
-{
-    PCIQXLDevice *qxl = opaque;
-    VGACommonState *vga = &qxl->vga;
-
-    switch (qxl->mode) {
-    case QXL_MODE_COMPAT:
-    case QXL_MODE_NATIVE:
-        qxl_render_update(qxl);
-        ppm_save(filename, qxl->ssd.ds, errp);
-        break;
-    case QXL_MODE_VGA:
-        vga->screen_dump(vga, filename, cswitch, errp);
-        break;
-    default:
-        break;
-    }
-}
-
 static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
 {
     PCIQXLDevice *qxl = opaque;
@@ -2075,7 +2055,7 @@ static int qxl_init_primary(PCIDevice *dev)
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
 
     vga->con = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
-                                    qxl_hw_screen_dump, qxl_hw_text_update,
+                                    qxl_hw_text_update,
                                     qxl);
     qxl->ssd.con = vga->con,
     qemu_spice_display_init_common(&qxl->ssd);

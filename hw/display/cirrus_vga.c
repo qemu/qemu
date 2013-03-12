@@ -2911,7 +2911,7 @@ static int vga_initfn(ISADevice *dev)
     cirrus_init_common(&d->cirrus_vga, CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(dev), isa_address_space_io(dev));
     s->con = graphic_console_init(s->update, s->invalidate,
-                                  s->screen_dump, s->text_update,
+                                  s->text_update,
                                   s);
     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
@@ -2960,7 +2960,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      cirrus_init_common(s, device_id, 1, pci_address_space(dev),
                         pci_address_space_io(dev));
      s->vga.con = graphic_console_init(s->vga.update, s->vga.invalidate,
-                                       s->vga.screen_dump, s->vga.text_update,
+                                       s->vga.text_update,
                                        &s->vga);
 
      /* setup PCI */

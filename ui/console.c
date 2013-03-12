@@ -121,7 +121,6 @@ struct QemuConsole {
     /* Graphic console state.  */
     graphic_hw_update_ptr hw_update;
     graphic_hw_invalidate_ptr hw_invalidate;
-    graphic_hw_screen_dump_ptr hw_screen_dump;
     graphic_hw_text_update_ptr hw_text_update;
     void *hw;
     int g_width, g_height;
@@ -188,28 +187,65 @@ void graphic_hw_invalidate(QemuConsole *con)
     }
 }
 
+static void ppm_save(const char *filename, struct DisplaySurface *ds,
+                     Error **errp)
+{
+    int width = pixman_image_get_width(ds->image);
+    int height = pixman_image_get_height(ds->image);
+    FILE *f;
+    int y;
+    int ret;
+    pixman_image_t *linebuf;
+
+    trace_ppm_save(filename, ds);
+    f = fopen(filename, "wb");
+    if (!f) {
+        error_setg(errp, "failed to open file '%s': %s", filename,
+                   strerror(errno));
+        return;
+    }
+    ret = fprintf(f, "P6\n%d %d\n%d\n", width, height, 255);
+    if (ret < 0) {
+        linebuf = NULL;
+        goto write_err;
+    }
+    linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
+    for (y = 0; y < height; y++) {
+        qemu_pixman_linebuf_fill(linebuf, ds->image, width, 0, y);
+        clearerr(f);
+        ret = fwrite(pixman_image_get_data(linebuf), 1,
+                     pixman_image_get_stride(linebuf), f);
+        (void)ret;
+        if (ferror(f)) {
+            goto write_err;
+        }
+    }
+
+out:
+    qemu_pixman_image_unref(linebuf);
+    fclose(f);
+    return;
+
+write_err:
+    error_setg(errp, "failed to write to file '%s': %s", filename,
+               strerror(errno));
+    unlink(filename);
+    goto out;
+}
+
 void qmp_screendump(const char *filename, Error **errp)
 {
-    QemuConsole *previous_active_console;
-    bool cswitch;
+    QemuConsole *con = consoles[0];
+    DisplaySurface *surface;
 
-    previous_active_console = active_console;
-    cswitch = previous_active_console && previous_active_console->index != 0;
-
-    /* There is currently no way of specifying which screen we want to dump,
-       so always dump the first one.  */
-    if (cswitch) {
-        console_select(0);
-    }
-    if (consoles[0] && consoles[0]->hw_screen_dump) {
-        consoles[0]->hw_screen_dump(consoles[0]->hw, filename, cswitch, errp);
-    } else {
-        error_setg(errp, "device doesn't support screendump");
+    if (con == NULL) {
+        error_setg(errp, "There is no QemuConsole I can screendump from.");
+        return;
     }
 
-    if (cswitch) {
-        console_select(previous_active_console->index);
-    }
+    graphic_hw_update(con);
+    surface = qemu_console_surface(con);
+    ppm_save(filename, surface, errp);
 }
 
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)
@@ -1411,7 +1447,6 @@ DisplayState *init_displaystate(void)
 
 QemuConsole *graphic_console_init(graphic_hw_update_ptr update,
                                   graphic_hw_invalidate_ptr invalidate,
-                                  graphic_hw_screen_dump_ptr screen_dump,
                                   graphic_hw_text_update_ptr text_update,
                                   void *opaque)
 {
@@ -1425,7 +1460,6 @@ QemuConsole *graphic_console_init(graphic_hw_update_ptr update,
     s = new_console(ds, GRAPHIC_CONSOLE);
     s->hw_update = update;
     s->hw_invalidate = invalidate;
-    s->hw_screen_dump = screen_dump;
     s->hw_text_update = text_update;
     s->hw = opaque;
 

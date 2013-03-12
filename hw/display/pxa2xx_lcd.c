@@ -1010,7 +1010,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
 
     s->con = graphic_console_init(pxa2xx_update_display,
                                   pxa2xx_invalidate_display,
-                                  NULL, NULL, s);
+                                  NULL, s);
     surface = qemu_console_surface(s->con);
 
     switch (surface_bits_per_pixel(surface)) {

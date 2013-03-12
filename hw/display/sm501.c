@@ -1446,5 +1446,5 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
 
     /* create qemu graphic console */
     s->con = graphic_console_init(sm501_update_display, NULL,
-                                  NULL, NULL, s);
+                                  NULL, s);
 }

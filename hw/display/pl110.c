@@ -454,7 +454,7 @@ static int pl110_init(SysBusDevice *dev)
     qdev_init_gpio_in(&s->busdev.qdev, pl110_mux_ctrl_set, 1);
     s->con = graphic_console_init(pl110_update_display,
                                   pl110_invalidate_display,
-                                  NULL, NULL, s);
+                                  NULL, s);
     return 0;
 }
 

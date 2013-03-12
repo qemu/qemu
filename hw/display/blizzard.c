@@ -933,18 +933,6 @@ static void blizzard_update_display(void *opaque)
     s->my[1] = 0;
 }
 
-static void blizzard_screen_dump(void *opaque, const char *filename,
-                                 bool cswitch, Error **errp)
-{
-    BlizzardState *s = (BlizzardState *) opaque;
-    DisplaySurface *surface = qemu_console_surface(s->con);
-
-    blizzard_update_display(opaque);
-    if (s && surface_data(surface)) {
-        ppm_save(filename, surface, errp);
-    }
-}
-
 #define DEPTH 8
 #include "blizzard_template.h"
 #define DEPTH 15
@@ -965,7 +953,7 @@ void *s1d13745_init(qemu_irq gpio_int)
 
     s->con = graphic_console_init(blizzard_update_display,
                                   blizzard_invalidate_display,
-                                  blizzard_screen_dump, NULL, s);
+                                  NULL, s);
     surface = qemu_console_surface(s->con);
 
     switch (surface_bits_per_pixel(surface)) {

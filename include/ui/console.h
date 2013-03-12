@@ -279,13 +279,10 @@ static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 
 typedef void (*graphic_hw_update_ptr)(void *);
 typedef void (*graphic_hw_invalidate_ptr)(void *);
-typedef void (*graphic_hw_screen_dump_ptr)(void *, const char *, bool cswitch,
-                                       Error **errp);
 typedef void (*graphic_hw_text_update_ptr)(void *, console_ch_t *);
 
 QemuConsole *graphic_console_init(graphic_hw_update_ptr update,
                                   graphic_hw_invalidate_ptr invalidate,
-                                  graphic_hw_screen_dump_ptr screen_dump,
                                   graphic_hw_text_update_ptr text_update,
                                   void *opaque);
 

@@ -339,7 +339,7 @@ static int ssd0323_init(SSISlave *dev)
     s->row_end = 79;
     s->con = graphic_console_init(ssd0323_update_display,
                                   ssd0323_invalidate_display,
-                                  NULL, NULL, s);
+                                  NULL, s);
     qemu_console_resize(s->con, 128 * MAGNIFY, 64 * MAGNIFY);
 
     qdev_init_gpio_in(&dev->qdev, ssd0323_cd, 1);

@@ -1119,31 +1119,6 @@ static void vmsvga_invalidate_display(void *opaque)
     s->invalidated = 1;
 }
 
-/* save the vga display in a PPM image even if no display is
-   available */
-static void vmsvga_screen_dump(void *opaque, const char *filename, bool cswitch,
-                               Error **errp)
-{
-    struct vmsvga_state_s *s = opaque;
-    DisplaySurface *surface = qemu_console_surface(s->vga.con);
-
-    if (!s->enable) {
-        s->vga.screen_dump(&s->vga, filename, cswitch, errp);
-        return;
-    }
-
-    if (surface_bits_per_pixel(surface) == 32) {
-        DisplaySurface *ds = qemu_create_displaysurface_from(
-                                 surface_width(surface),
-                                 surface_height(surface),
-                                 32,
-                                 surface_stride(surface),
-                                 s->vga.vram_ptr, false);
-        ppm_save(filename, ds, errp);
-        g_free(ds);
-    }
-}
-
 static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
 {
     struct vmsvga_state_s *s = opaque;
@@ -1212,7 +1187,6 @@ static void vmsvga_init(struct vmsvga_state_s *s,
 
     s->vga.con = graphic_console_init(vmsvga_update_display,
                                       vmsvga_invalidate_display,
-                                      vmsvga_screen_dump,
                                       vmsvga_text_update, s);
 
     s->fifo_size = SVGA_FIFO_SIZE;

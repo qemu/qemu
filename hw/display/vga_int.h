@@ -154,7 +154,6 @@ typedef struct VGACommonState {
                                  unsigned int g, unsigned b);
     graphic_hw_update_ptr update;
     graphic_hw_invalidate_ptr invalidate;
-    graphic_hw_screen_dump_ptr screen_dump;
     graphic_hw_text_update_ptr text_update;
     bool full_update_text;
     bool full_update_gfx;
@@ -198,7 +197,6 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr);
 void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val);
 void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2);
-void ppm_save(const char *filename, struct DisplaySurface *ds, Error **errp);
 
 int vga_ioport_invalid(VGACommonState *s, uint32_t addr);
 

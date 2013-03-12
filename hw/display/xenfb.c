@@ -1007,7 +1007,6 @@ wait_more:
     fb->c.con = graphic_console_init(xenfb_update,
                                      xenfb_invalidate,
                                      NULL,
-                                     NULL,
                                      fb);
     fb->have_console = 1;
 
