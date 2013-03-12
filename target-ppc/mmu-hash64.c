@@ -226,6 +226,74 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
 #define PTE64_PTEM_MASK 0xFFFFFFFFFFFFFF80ULL
 #define PTE64_CHECK_MASK (TARGET_PAGE_MASK | 0x7F)
 
+static int ppc_hash64_pp_check(int key, int pp, int nx)
+{
+    int access;
+
+    /* Compute access rights */
+    /* When pp is 4, 5 or 7, the result is undefined. Set it to noaccess */
+    access = 0;
+    if (key == 0) {
+        switch (pp) {
+        case 0x0:
+        case 0x1:
+        case 0x2:
+            access |= PAGE_WRITE;
+            /* No break here */
+        case 0x3:
+        case 0x6:
+            access |= PAGE_READ;
+            break;
+        }
+    } else {
+        switch (pp) {
+        case 0x0:
+        case 0x6:
+            access = 0;
+            break;
+        case 0x1:
+        case 0x3:
+            access = PAGE_READ;
+            break;
+        case 0x2:
+            access = PAGE_READ | PAGE_WRITE;
+            break;
+        }
+    }
+    if (nx == 0) {
+        access |= PAGE_EXEC;
+    }
+
+    return access;
+}
+
+static int ppc_hash64_check_prot(int prot, int rw, int access_type)
+{
+    int ret;
+
+    if (access_type == ACCESS_CODE) {
+        if (prot & PAGE_EXEC) {
+            ret = 0;
+        } else {
+            ret = -2;
+        }
+    } else if (rw) {
+        if (prot & PAGE_WRITE) {
+            ret = 0;
+        } else {
+            ret = -2;
+        }
+    } else {
+        if (prot & PAGE_READ) {
+            ret = 0;
+        } else {
+            ret = -2;
+        }
+    }
+
+    return ret;
+}
+
 static inline int pte64_is_valid(target_ulong pte0)
 {
     return pte0 & 0x0000000000000001ULL ? 1 : 0;
@@ -257,11 +325,11 @@ static int pte64_check(mmu_ctx_t *ctx, target_ulong pte0,
                 }
             }
             /* Compute access rights */
-            access = pp_check(ctx->key, pp, ctx->nx);
+            access = ppc_hash64_pp_check(ctx->key, pp, ctx->nx);
             /* Keep the matching PTE informations */
             ctx->raddr = pte1;
             ctx->prot = access;
-            ret = check_prot(ctx->prot, rw, type);
+            ret = ppc_hash64_check_prot(ctx->prot, rw, type);
             if (ret == 0) {
                 /* Access granted */
                 LOG_MMU("PTE access granted !\n");
@@ -273,6 +341,31 @@ static int pte64_check(mmu_ctx_t *ctx, target_ulong pte0,
     }
 
     return ret;
+}
+
+static int ppc_hash64_pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
+                                       int ret, int rw)
+{
+    int store = 0;
+
+    /* Update page flags */
+    if (!(*pte1p & 0x00000100)) {
+        /* Update accessed flag */
+        *pte1p |= 0x00000100;
+        store = 1;
+    }
+    if (!(*pte1p & 0x00000080)) {
+        if (rw == 1 && ret == 0) {
+            /* Update changed flag */
+            *pte1p |= 0x00000080;
+            store = 1;
+        } else {
+            /* Force page fault for first write access */
+            ctx->prot &= ~PAGE_WRITE;
+        }
+    }
+
+    return store;
 }
 
 /* PTE table lookup */
@@ -330,7 +423,7 @@ static int find_pte64(CPUPPCState *env, mmu_ctx_t *ctx, int h,
                 ctx->raddr, ctx->prot, ret);
         /* Update page flags */
         pte1 = ctx->raddr;
-        if (pte_update_flags(ctx, &pte1, ret, rw) == 1) {
+        if (ppc_hash64_pte_update_flags(ctx, &pte1, ret, rw) == 1) {
             if (env->external_htab) {
                 stq_p(env->external_htab + pteg_off + (good * 16) + 8,
                       pte1);

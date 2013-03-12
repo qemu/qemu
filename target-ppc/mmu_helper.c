@@ -91,12 +91,11 @@ static inline void pte_invalidate(target_ulong *pte0)
 #define PTE_PTEM_MASK 0x7FFFFFBF
 #define PTE_CHECK_MASK (TARGET_PAGE_MASK | 0x7B)
 
-int pp_check(int key, int pp, int nx)
+static int pp_check(int key, int pp, int nx)
 {
     int access;
 
     /* Compute access rights */
-    /* When pp is 3/7, the result is undefined. Set it to noaccess */
     access = 0;
     if (key == 0) {
         switch (pp) {
@@ -106,14 +105,12 @@ int pp_check(int key, int pp, int nx)
             access |= PAGE_WRITE;
             /* No break here */
         case 0x3:
-        case 0x6:
             access |= PAGE_READ;
             break;
         }
     } else {
         switch (pp) {
         case 0x0:
-        case 0x6:
             access = 0;
             break;
         case 0x1:
@@ -132,7 +129,7 @@ int pp_check(int key, int pp, int nx)
     return access;
 }
 
-int check_prot(int prot, int rw, int access_type)
+static int check_prot(int prot, int rw, int access_type)
 {
     int ret;
 
@@ -201,8 +198,8 @@ static inline int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
     return ret;
 }
 
-int pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
-                     int ret, int rw)
+static int pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
+                            int ret, int rw)
 {
     int store = 0;
 

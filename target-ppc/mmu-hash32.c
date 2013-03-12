@@ -37,6 +37,71 @@
 #define PTE_PTEM_MASK 0x7FFFFFBF
 #define PTE_CHECK_MASK (TARGET_PAGE_MASK | 0x7B)
 
+static int ppc_hash32_pp_check(int key, int pp, int nx)
+{
+    int access;
+
+    /* Compute access rights */
+    access = 0;
+    if (key == 0) {
+        switch (pp) {
+        case 0x0:
+        case 0x1:
+        case 0x2:
+            access |= PAGE_WRITE;
+            /* No break here */
+        case 0x3:
+            access |= PAGE_READ;
+            break;
+        }
+    } else {
+        switch (pp) {
+        case 0x0:
+            access = 0;
+            break;
+        case 0x1:
+        case 0x3:
+            access = PAGE_READ;
+            break;
+        case 0x2:
+            access = PAGE_READ | PAGE_WRITE;
+            break;
+        }
+    }
+    if (nx == 0) {
+        access |= PAGE_EXEC;
+    }
+
+    return access;
+}
+
+static int ppc_hash32_check_prot(int prot, int rw, int access_type)
+{
+    int ret;
+
+    if (access_type == ACCESS_CODE) {
+        if (prot & PAGE_EXEC) {
+            ret = 0;
+        } else {
+            ret = -2;
+        }
+    } else if (rw) {
+        if (prot & PAGE_WRITE) {
+            ret = 0;
+        } else {
+            ret = -2;
+        }
+    } else {
+        if (prot & PAGE_READ) {
+            ret = 0;
+        } else {
+            ret = -2;
+        }
+    }
+
+    return ret;
+}
+
 static inline int pte_is_valid_hash32(target_ulong pte0)
 {
     return pte0 & 0x80000000 ? 1 : 0;
@@ -66,11 +131,11 @@ static int pte_check_hash32(mmu_ctx_t *ctx, target_ulong pte0,
                 }
             }
             /* Compute access rights */
-            access = pp_check(ctx->key, pp, ctx->nx);
+            access = ppc_hash32_pp_check(ctx->key, pp, ctx->nx);
             /* Keep the matching PTE informations */
             ctx->raddr = pte1;
             ctx->prot = access;
-            ret = check_prot(ctx->prot, rw, type);
+            ret = ppc_hash32_check_prot(ctx->prot, rw, type);
             if (ret == 0) {
                 /* Access granted */
                 LOG_MMU("PTE access granted !\n");
@@ -82,6 +147,31 @@ static int pte_check_hash32(mmu_ctx_t *ctx, target_ulong pte0,
     }
 
     return ret;
+}
+
+static int ppc_hash32_pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
+                                       int ret, int rw)
+{
+    int store = 0;
+
+    /* Update page flags */
+    if (!(*pte1p & 0x00000100)) {
+        /* Update accessed flag */
+        *pte1p |= 0x00000100;
+        store = 1;
+    }
+    if (!(*pte1p & 0x00000080)) {
+        if (rw == 1 && ret == 0) {
+            /* Update changed flag */
+            *pte1p |= 0x00000080;
+            store = 1;
+        } else {
+            /* Force page fault for first write access */
+            ctx->prot &= ~PAGE_WRITE;
+        }
+    }
+
+    return store;
 }
 
 /* PTE table lookup */
@@ -138,7 +228,7 @@ static int find_pte32(CPUPPCState *env, mmu_ctx_t *ctx, int h,
                 ctx->raddr, ctx->prot, ret);
         /* Update page flags */
         pte1 = ctx->raddr;
-        if (pte_update_flags(ctx, &pte1, ret, rw) == 1) {
+        if (ppc_hash32_pte_update_flags(ctx, &pte1, ret, rw) == 1) {
             if (env->external_htab) {
                 stl_p(env->external_htab + pteg_off + (good * 8) + 4,
                       pte1);
