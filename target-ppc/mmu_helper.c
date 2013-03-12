@@ -21,6 +21,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
+#include "mmu-hash32.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
@@ -87,21 +88,10 @@ static inline void pte_invalidate(target_ulong *pte0)
     *pte0 &= ~0x80000000;
 }
 
-#if defined(TARGET_PPC64)
-static inline int pte64_is_valid(target_ulong pte0)
-{
-    return pte0 & 0x0000000000000001ULL ? 1 : 0;
-}
-#endif
-
 #define PTE_PTEM_MASK 0x7FFFFFBF
 #define PTE_CHECK_MASK (TARGET_PAGE_MASK | 0x7B)
-#if defined(TARGET_PPC64)
-#define PTE64_PTEM_MASK 0xFFFFFFFFFFFFFF80ULL
-#define PTE64_CHECK_MASK (TARGET_PAGE_MASK | 0x7F)
-#endif
 
-static inline int pp_check(int key, int pp, int nx)
+int pp_check(int key, int pp, int nx)
 {
     int access;
 
@@ -142,7 +132,7 @@ static inline int pp_check(int key, int pp, int nx)
     return access;
 }
 
-static inline int check_prot(int prot, int rw, int access_type)
+int check_prot(int prot, int rw, int access_type)
 {
     int ret;
 
@@ -169,40 +159,21 @@ static inline int check_prot(int prot, int rw, int access_type)
     return ret;
 }
 
-static inline int pte_check(mmu_ctx_t *ctx, int is_64b, target_ulong pte0,
-                            target_ulong pte1, int h, int rw, int type)
+static inline int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
+                                       target_ulong pte1, int h, int rw, int type)
 {
     target_ulong ptem, mmask;
     int access, ret, pteh, ptev, pp;
 
     ret = -1;
     /* Check validity and table match */
-#if defined(TARGET_PPC64)
-    if (is_64b) {
-        ptev = pte64_is_valid(pte0);
-        pteh = (pte0 >> 1) & 1;
-    } else
-#endif
-    {
-        ptev = pte_is_valid(pte0);
-        pteh = (pte0 >> 6) & 1;
-    }
+    ptev = pte_is_valid(pte0);
+    pteh = (pte0 >> 6) & 1;
     if (ptev && h == pteh) {
         /* Check vsid & api */
-#if defined(TARGET_PPC64)
-        if (is_64b) {
-            ptem = pte0 & PTE64_PTEM_MASK;
-            mmask = PTE64_CHECK_MASK;
-            pp = (pte1 & 0x00000003) | ((pte1 >> 61) & 0x00000004);
-            ctx->nx  = (pte1 >> 2) & 1; /* No execute bit */
-            ctx->nx |= (pte1 >> 3) & 1; /* Guarded bit    */
-        } else
-#endif
-        {
-            ptem = pte0 & PTE_PTEM_MASK;
-            mmask = PTE_CHECK_MASK;
-            pp = pte1 & 0x00000003;
-        }
+        ptem = pte0 & PTE_PTEM_MASK;
+        mmask = PTE_CHECK_MASK;
+        pp = pte1 & 0x00000003;
         if (ptem == ctx->ptem) {
             if (ctx->raddr != (hwaddr)-1ULL) {
                 /* all matches should have equal RPN, WIMG & PP */
@@ -229,20 +200,6 @@ static inline int pte_check(mmu_ctx_t *ctx, int is_64b, target_ulong pte0,
 
     return ret;
 }
-
-static inline int pte32_check(mmu_ctx_t *ctx, target_ulong pte0,
-                              target_ulong pte1, int h, int rw, int type)
-{
-    return pte_check(ctx, 0, pte0, pte1, h, rw, type);
-}
-
-#if defined(TARGET_PPC64)
-static inline int pte64_check(mmu_ctx_t *ctx, target_ulong pte0,
-                              target_ulong pte1, int h, int rw, int type)
-{
-    return pte_check(ctx, 1, pte0, pte1, h, rw, type);
-}
-#endif
 
 static inline int pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
                                    int ret, int rw)
@@ -381,7 +338,7 @@ static inline int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
                   pte_is_valid(tlb->pte0) ? "valid" : "inval",
                   tlb->EPN, eaddr, tlb->pte1,
                   rw ? 'S' : 'L', access_type == ACCESS_CODE ? 'I' : 'D');
-        switch (pte32_check(ctx, tlb->pte0, tlb->pte1, 0, rw, access_type)) {
+        switch (ppc6xx_tlb_pte_check(ctx, tlb->pte0, tlb->pte1, 0, rw, access_type)) {
         case -3:
             /* TLB inconsistency */
             return -1;
@@ -590,7 +547,7 @@ static inline int find_pte2(CPUPPCState *env, mmu_ctx_t *ctx, int is_64b, int h,
                 pte0 = ldl_phys(env->htab_base + pteg_off + (i * 8));
                 pte1 = ldl_phys(env->htab_base + pteg_off + (i * 8) + 4);
             }
-            r = pte32_check(ctx, pte0, pte1, h, rw, type);
+            r = pte_check_hash32(ctx, pte0, pte1, h, rw, type);
             LOG_MMU("Load pte from %08" HWADDR_PRIx " => " TARGET_FMT_lx " "
                     TARGET_FMT_lx " %d %d %d " TARGET_FMT_lx "\n",
                     pteg_off + (i * 8), pte0, pte1, (int)(pte0 >> 31), h,

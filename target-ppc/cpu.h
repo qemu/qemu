@@ -1133,6 +1133,8 @@ void ppc_hw_interrupt (CPUPPCState *env);
 
 #if !defined(CONFIG_USER_ONLY)
 void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
+int pp_check(int key, int pp, int nx);
+int check_prot(int prot, int rw, int access_type);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 

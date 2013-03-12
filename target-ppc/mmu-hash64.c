@@ -23,7 +23,16 @@
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
 
+//#define DEBUG_MMU
 //#define DEBUG_SLB
+
+#ifdef DEBUG_MMU
+#  define LOG_MMU(...) qemu_log(__VA_ARGS__)
+#  define LOG_MMU_STATE(env) log_cpu_state((env), 0)
+#else
+#  define LOG_MMU(...) do { } while (0)
+#  define LOG_MMU_STATE(...) do { } while (0)
+#endif
 
 #ifdef DEBUG_SLB
 #  define LOG_SLB(...) qemu_log(__VA_ARGS__)
@@ -208,4 +217,60 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
                                    POWERPC_EXCP_INVAL);
     }
     return rt;
+}
+
+/*
+ * 64-bit hash table MMU handling
+ */
+
+#define PTE64_PTEM_MASK 0xFFFFFFFFFFFFFF80ULL
+#define PTE64_CHECK_MASK (TARGET_PAGE_MASK | 0x7F)
+
+static inline int pte64_is_valid(target_ulong pte0)
+{
+    return pte0 & 0x0000000000000001ULL ? 1 : 0;
+}
+
+int pte64_check(mmu_ctx_t *ctx, target_ulong pte0,
+                target_ulong pte1, int h, int rw, int type)
+{
+    target_ulong ptem, mmask;
+    int access, ret, pteh, ptev, pp;
+
+    ret = -1;
+    /* Check validity and table match */
+    ptev = pte64_is_valid(pte0);
+    pteh = (pte0 >> 1) & 1;
+    if (ptev && h == pteh) {
+        /* Check vsid & api */
+        ptem = pte0 & PTE64_PTEM_MASK;
+        mmask = PTE64_CHECK_MASK;
+        pp = (pte1 & 0x00000003) | ((pte1 >> 61) & 0x00000004);
+        ctx->nx  = (pte1 >> 2) & 1; /* No execute bit */
+        ctx->nx |= (pte1 >> 3) & 1; /* Guarded bit    */
+        if (ptem == ctx->ptem) {
+            if (ctx->raddr != (hwaddr)-1ULL) {
+                /* all matches should have equal RPN, WIMG & PP */
+                if ((ctx->raddr & mmask) != (pte1 & mmask)) {
+                    qemu_log("Bad RPN/WIMG/PP\n");
+                    return -3;
+                }
+            }
+            /* Compute access rights */
+            access = pp_check(ctx->key, pp, ctx->nx);
+            /* Keep the matching PTE informations */
+            ctx->raddr = pte1;
+            ctx->prot = access;
+            ret = check_prot(ctx->prot, rw, type);
+            if (ret == 0) {
+                /* Access granted */
+                LOG_MMU("PTE access granted !\n");
+            } else {
+                /* Access right violation */
+                LOG_MMU("PTE access rejected\n");
+            }
+        }
+    }
+
+    return ret;
 }
