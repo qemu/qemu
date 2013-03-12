@@ -1615,10 +1615,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         /* Constraints mean that v2 is always in the same register as dest,
          * so we only need to do "if condition passed, move v1 to dest".
          */
-        tcg_out_dat_rI(s, COND_AL, ARITH_CMP, 0,
-                       args[1], args[2], const_args[2]);
-        tcg_out_dat_rI(s, tcg_cond_to_arm_cond[args[5]],
-                       ARITH_MOV, args[0], 0, args[3], const_args[3]);
+        tcg_out_dat_rIN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0,
+                        args[1], args[2], const_args[2]);
+        tcg_out_dat_rIK(s, tcg_cond_to_arm_cond[args[5]], ARITH_MOV,
+                        ARITH_MVN, args[0], 0, args[3], const_args[3]);
         break;
     case INDEX_op_add_i32:
         tcg_out_dat_rIN(s, COND_AL, ARITH_ADD, ARITH_SUB,
@@ -1715,7 +1715,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_brcond_i32:
-        tcg_out_dat_rI(s, COND_AL, ARITH_CMP, 0,
+        tcg_out_dat_rIN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0,
                        args[0], args[1], const_args[1]);
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[2]], args[3]);
         break;
@@ -1728,15 +1728,15 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
          * TCG_COND_LE(U) --> (a0 <= a2 && a1 == a3) || (a1 <= a3 && a1 != a3),
          * TCG_COND_GT(U) --> (a0 >  a2 && a1 == a3) ||  a1 >  a3,
          */
-        tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0,
-                        args[1], args[3], SHIFT_IMM_LSL(0));
-        tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
-                        args[0], args[2], SHIFT_IMM_LSL(0));
+        tcg_out_dat_rIN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0,
+                        args[1], args[3], const_args[3]);
+        tcg_out_dat_rIN(s, COND_EQ, ARITH_CMP, ARITH_CMN, 0,
+                        args[0], args[2], const_args[2]);
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[4]], args[5]);
         break;
     case INDEX_op_setcond_i32:
-        tcg_out_dat_rI(s, COND_AL, ARITH_CMP, 0,
-                       args[1], args[2], const_args[2]);
+        tcg_out_dat_rIN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0,
+                        args[1], args[2], const_args[2]);
         tcg_out_dat_imm(s, tcg_cond_to_arm_cond[args[3]],
                         ARITH_MOV, args[0], 0, 1);
         tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(args[3])],
@@ -1744,10 +1744,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_setcond2_i32:
         /* See brcond2_i32 comment */
-        tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0,
-                        args[2], args[4], SHIFT_IMM_LSL(0));
-        tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
-                        args[1], args[3], SHIFT_IMM_LSL(0));
+        tcg_out_dat_rIN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0,
+                        args[2], args[4], const_args[4]);
+        tcg_out_dat_rIN(s, COND_EQ, ARITH_CMP, ARITH_CMN, 0,
+                        args[1], args[3], const_args[3]);
         tcg_out_dat_imm(s, tcg_cond_to_arm_cond[args[5]],
                         ARITH_MOV, args[0], 0, 1);
         tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(args[5])],
@@ -1845,15 +1845,15 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_rotl_i32, { "r", "r", "ri" } },
     { INDEX_op_rotr_i32, { "r", "r", "ri" } },
 
-    { INDEX_op_brcond_i32, { "r", "rI" } },
-    { INDEX_op_setcond_i32, { "r", "r", "rI" } },
-    { INDEX_op_movcond_i32, { "r", "r", "rI", "rI", "0" } },
+    { INDEX_op_brcond_i32, { "r", "rIN" } },
+    { INDEX_op_setcond_i32, { "r", "r", "rIN" } },
+    { INDEX_op_movcond_i32, { "r", "r", "rIN", "rIK", "0" } },
 
     /* TODO: "r", "r", "r", "r", "ri", "ri" */
     { INDEX_op_add2_i32, { "r", "r", "r", "r", "r", "r" } },
     { INDEX_op_sub2_i32, { "r", "r", "r", "r", "r", "r" } },
-    { INDEX_op_brcond2_i32, { "r", "r", "r", "r" } },
-    { INDEX_op_setcond2_i32, { "r", "r", "r", "r", "r" } },
+    { INDEX_op_brcond2_i32, { "r", "r", "rIN", "rIN" } },
+    { INDEX_op_setcond2_i32, { "r", "r", "r", "rIN", "rIN" } },
 
 #if TARGET_LONG_BITS == 32
     { INDEX_op_qemu_ld8u, { "r", "l" } },
