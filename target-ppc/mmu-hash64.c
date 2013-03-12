@@ -280,31 +280,6 @@ static int ppc_hash64_pte_prot(CPUPPCState *env,
     return prot;
 }
 
-static int ppc_hash64_pte_update_flags(struct mmu_ctx_hash64 *ctx,
-                                       uint64_t *pte1p, int ret, int rw)
-{
-    int store = 0;
-
-    /* Update page flags */
-    if (!(*pte1p & HPTE64_R_R)) {
-        /* Update accessed flag */
-        *pte1p |= HPTE64_R_R;
-        store = 1;
-    }
-    if (!(*pte1p & HPTE64_R_C)) {
-        if (rw == 1 && ret == 0) {
-            /* Update changed flag */
-            *pte1p |= HPTE64_R_C;
-            store = 1;
-        } else {
-            /* Force page fault for first write access */
-            ctx->prot &= ~PAGE_WRITE;
-        }
-    }
-
-    return store;
-}
-
 static hwaddr ppc_hash64_pteg_search(CPUPPCState *env, hwaddr pteg_off,
                                      bool secondary, target_ulong ptem,
                                      ppc_hash_pte64_t *pte)
@@ -393,6 +368,7 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     ppc_slb_t *slb;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
+    uint64_t new_pte1;
     int target_page_bits;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
 
@@ -440,8 +416,17 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
 
     /* 6. Update PTE referenced and changed bits if necessary */
 
-    if (ppc_hash64_pte_update_flags(ctx, &pte.pte1, 0, rwx) == 1) {
-        ppc_hash64_store_hpte1(env, pte_offset, pte.pte1);
+    new_pte1 = pte.pte1 | HPTE64_R_R; /* set referenced bit */
+    if (rwx == 1) {
+        new_pte1 |= HPTE64_R_C; /* set changed (dirty) bit */
+    } else {
+        /* Treat the page as read-only for now, so that a later write
+         * will pass through this function again to set the C bit */
+        ctx->prot &= ~PAGE_WRITE;
+    }
+
+    if (new_pte1 != pte.pte1) {
+        ppc_hash64_store_hpte1(env, pte_offset, new_pte1);
     }
 
     /* Keep the matching PTE informations */
