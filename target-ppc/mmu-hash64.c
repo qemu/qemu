@@ -231,8 +231,6 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
  * 64-bit hash table MMU handling
  */
 
-#define PTE64_CHECK_MASK (TARGET_PAGE_MASK | 0x7F)
-
 static int ppc_hash64_pp_check(int key, int pp, bool nx)
 {
     int access;
@@ -301,44 +299,35 @@ static int ppc_hash64_check_prot(int prot, int rwx)
     return ret;
 }
 
-static int pte64_check(struct mmu_ctx_hash64 *ctx, target_ulong pte0,
-                       target_ulong pte1, int h, int rwx)
+static bool pte64_match(target_ulong pte0, target_ulong pte1,
+                        bool secondary, target_ulong ptem)
 {
-    target_ulong mmask;
+    return (pte0 & HPTE64_V_VALID)
+        && (secondary == !!(pte0 & HPTE64_V_SECONDARY))
+        && HPTE64_V_COMPARE(pte0, ptem);
+}
+
+static int pte64_check(struct mmu_ctx_hash64 *ctx, target_ulong pte0,
+                       target_ulong pte1, int rwx)
+{
     int access, ret, pp;
+    bool nx;
 
-    ret = -1;
-    /* Check validity and table match */
-    if ((pte0 & HPTE64_V_VALID) && (h == !!(pte0 & HPTE64_V_SECONDARY))) {
-        bool nx;
-
-        /* Check vsid & api */
-        mmask = PTE64_CHECK_MASK;
-        pp = (pte1 & HPTE64_R_PP) | ((pte1 & HPTE64_R_PP0) >> 61);
-        /* No execute if either noexec or guarded bits set */
-        nx = (pte1 & HPTE64_R_N) || (pte1 & HPTE64_R_G);
-        if (HPTE64_V_COMPARE(pte0, ctx->ptem)) {
-            if (ctx->raddr != (hwaddr)-1ULL) {
-                /* all matches should have equal RPN, WIMG & PP */
-                if ((ctx->raddr & mmask) != (pte1 & mmask)) {
-                    qemu_log("Bad RPN/WIMG/PP\n");
-                    return -3;
-                }
-            }
-            /* Compute access rights */
-            access = ppc_hash64_pp_check(ctx->key, pp, nx);
-            /* Keep the matching PTE informations */
-            ctx->raddr = pte1;
-            ctx->prot = access;
-            ret = ppc_hash64_check_prot(ctx->prot, rwx);
-            if (ret == 0) {
-                /* Access granted */
-                LOG_MMU("PTE access granted !\n");
-            } else {
-                /* Access right violation */
-                LOG_MMU("PTE access rejected\n");
-            }
-        }
+    pp = (pte1 & HPTE64_R_PP) | ((pte1 & HPTE64_R_PP0) >> 61);
+    /* No execute if either noexec or guarded bits set */
+    nx = (pte1 & HPTE64_R_N) || (pte1 & HPTE64_R_G);
+    /* Compute access rights */
+    access = ppc_hash64_pp_check(ctx->key, pp, nx);
+    /* Keep the matching PTE informations */
+    ctx->raddr = pte1;
+    ctx->prot = access;
+    ret = ppc_hash64_check_prot(ctx->prot, rwx);
+    if (ret == 0) {
+        /* Access granted */
+        LOG_MMU("PTE access granted !\n");
+    } else {
+        /* Access right violation */
+        LOG_MMU("PTE access rejected\n");
     }
 
     return ret;
@@ -377,7 +366,7 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     hwaddr pteg_off;
     target_ulong pte0, pte1;
     int i, good = -1;
-    int ret, r;
+    int ret;
 
     ret = -1; /* No entry found */
     pteg_off = (ctx->hash[h] * HASH_PTEG_SIZE_64) & env->htab_mask;
@@ -385,37 +374,18 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
         pte0 = ppc_hash64_load_hpte0(env, pteg_off + i*HASH_PTE_SIZE_64);
         pte1 = ppc_hash64_load_hpte1(env, pteg_off + i*HASH_PTE_SIZE_64);
 
-        r = pte64_check(ctx, pte0, pte1, h, rwx);
         LOG_MMU("Load pte from %016" HWADDR_PRIx " => " TARGET_FMT_lx " "
                 TARGET_FMT_lx " %d %d %d " TARGET_FMT_lx "\n",
-                pteg_off + (i * 16), pte0, pte1, (int)(pte0 & 1), h,
-                (int)((pte0 >> 1) & 1), ctx->ptem);
-        switch (r) {
-        case -3:
-            /* PTE inconsistency */
-            return -1;
-        case -2:
-            /* Access violation */
-            ret = -2;
+                pteg_off + (i * 16), pte0, pte1, !!(pte0 & HPTE64_V_VALID),
+                h, !!(pte0 & HPTE64_V_SECONDARY), ctx->ptem);
+
+        if (pte64_match(pte0, pte1, h, ctx->ptem)) {
             good = i;
             break;
-        case -1:
-        default:
-            /* No PTE match */
-            break;
-        case 0:
-            /* access granted */
-            /* XXX: we should go on looping to check all PTEs consistency
-             *      but if we can speed-up the whole thing as the
-             *      result would be undefined if PTEs are not consistent.
-             */
-            ret = 0;
-            good = i;
-            goto done;
         }
     }
     if (good != -1) {
-    done:
+        ret = pte64_check(ctx, pte0, pte1, rwx);
         LOG_MMU("found PTE at addr %08" HWADDR_PRIx " prot=%01x ret=%d\n",
                 ctx->raddr, ctx->prot, ret);
         /* Update page flags */
@@ -503,8 +473,6 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     ctx->hash[0] = hash;
     ctx->hash[1] = ~hash;
 
-    /* Initialize real address with an invalid value */
-    ctx->raddr = (hwaddr)-1ULL;
     LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
             " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
             " hash=" TARGET_FMT_plx "\n",
@@ -512,7 +480,7 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
             ctx->hash[0]);
     /* Primary table lookup */
     ret = find_pte64(env, ctx, eaddr, 0, rwx, target_page_bits);
-    if (ret < 0) {
+    if (ret == -1) {
         /* Secondary table lookup */
         LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
                 " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
