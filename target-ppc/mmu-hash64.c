@@ -460,15 +460,17 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     ctx->raddr = pte.pte1;
     ctx->prot = access;
     ret = ppc_hash64_check_prot(ctx->prot, rwx);
-    if (ret == 0) {
-        /* Access granted */
-        LOG_MMU("PTE access granted !\n");
-    } else {
+
+    if (ret) {
         /* Access right violation */
         LOG_MMU("PTE access rejected\n");
+        return ret;
     }
 
-    /* Update page flags */
+    LOG_MMU("PTE access granted !\n");
+
+    /* 6. Update PTE referenced and changed bits if necessary */
+
     if (ppc_hash64_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
         ppc_hash64_store_hpte1(env, pte_offset, pte.pte1);
     }
