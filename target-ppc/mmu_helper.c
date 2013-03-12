@@ -20,10 +20,10 @@
 #include "helper.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
+#include "mmu-hash64.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
-//#define DEBUG_SLB
 //#define DEBUG_SOFTWARE_TLB
 //#define DUMP_PAGE_TABLES
 //#define DEBUG_SOFTWARE_TLB
@@ -47,12 +47,6 @@
 #  define LOG_BATS(...) qemu_log(__VA_ARGS__)
 #else
 #  define LOG_BATS(...) do { } while (0)
-#endif
-
-#ifdef DEBUG_SLB
-#  define LOG_SLB(...) qemu_log(__VA_ARGS__)
-#else
-#  define LOG_SLB(...) do { } while (0)
 #endif
 
 /*****************************************************************************/
@@ -677,137 +671,6 @@ static inline int find_pte(CPUPPCState *env, mmu_ctx_t *ctx, int h, int rw,
     return find_pte2(env, ctx, 0, h, rw, type, target_page_bits);
 }
 
-#if defined(TARGET_PPC64)
-static inline ppc_slb_t *slb_lookup(CPUPPCState *env, target_ulong eaddr)
-{
-    uint64_t esid_256M, esid_1T;
-    int n;
-
-    LOG_SLB("%s: eaddr " TARGET_FMT_lx "\n", __func__, eaddr);
-
-    esid_256M = (eaddr & SEGMENT_MASK_256M) | SLB_ESID_V;
-    esid_1T = (eaddr & SEGMENT_MASK_1T) | SLB_ESID_V;
-
-    for (n = 0; n < env->slb_nr; n++) {
-        ppc_slb_t *slb = &env->slb[n];
-
-        LOG_SLB("%s: slot %d %016" PRIx64 " %016"
-                    PRIx64 "\n", __func__, n, slb->esid, slb->vsid);
-        /* We check for 1T matches on all MMUs here - if the MMU
-         * doesn't have 1T segment support, we will have prevented 1T
-         * entries from being inserted in the slbmte code. */
-        if (((slb->esid == esid_256M) &&
-             ((slb->vsid & SLB_VSID_B) == SLB_VSID_B_256M))
-            || ((slb->esid == esid_1T) &&
-                ((slb->vsid & SLB_VSID_B) == SLB_VSID_B_1T))) {
-            return slb;
-        }
-    }
-
-    return NULL;
-}
-
-/*****************************************************************************/
-/* SPR accesses */
-
-void helper_slbia(CPUPPCState *env)
-{
-    int n, do_invalidate;
-
-    do_invalidate = 0;
-    /* XXX: Warning: slbia never invalidates the first segment */
-    for (n = 1; n < env->slb_nr; n++) {
-        ppc_slb_t *slb = &env->slb[n];
-
-        if (slb->esid & SLB_ESID_V) {
-            slb->esid &= ~SLB_ESID_V;
-            /* XXX: given the fact that segment size is 256 MB or 1TB,
-             *      and we still don't have a tlb_flush_mask(env, n, mask)
-             *      in QEMU, we just invalidate all TLBs
-             */
-            do_invalidate = 1;
-        }
-    }
-    if (do_invalidate) {
-        tlb_flush(env, 1);
-    }
-}
-
-void helper_slbie(CPUPPCState *env, target_ulong addr)
-{
-    ppc_slb_t *slb;
-
-    slb = slb_lookup(env, addr);
-    if (!slb) {
-        return;
-    }
-
-    if (slb->esid & SLB_ESID_V) {
-        slb->esid &= ~SLB_ESID_V;
-
-        /* XXX: given the fact that segment size is 256 MB or 1TB,
-         *      and we still don't have a tlb_flush_mask(env, n, mask)
-         *      in QEMU, we just invalidate all TLBs
-         */
-        tlb_flush(env, 1);
-    }
-}
-
-int ppc_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
-{
-    int slot = rb & 0xfff;
-    ppc_slb_t *slb = &env->slb[slot];
-
-    if (rb & (0x1000 - env->slb_nr)) {
-        return -1; /* Reserved bits set or slot too high */
-    }
-    if (rs & (SLB_VSID_B & ~SLB_VSID_B_1T)) {
-        return -1; /* Bad segment size */
-    }
-    if ((rs & SLB_VSID_B) && !(env->mmu_model & POWERPC_MMU_1TSEG)) {
-        return -1; /* 1T segment on MMU that doesn't support it */
-    }
-
-    /* Mask out the slot number as we store the entry */
-    slb->esid = rb & (SLB_ESID_ESID | SLB_ESID_V);
-    slb->vsid = rs;
-
-    LOG_SLB("%s: %d " TARGET_FMT_lx " - " TARGET_FMT_lx " => %016" PRIx64
-            " %016" PRIx64 "\n", __func__, slot, rb, rs,
-            slb->esid, slb->vsid);
-
-    return 0;
-}
-
-static int ppc_load_slb_esid(CPUPPCState *env, target_ulong rb,
-                             target_ulong *rt)
-{
-    int slot = rb & 0xfff;
-    ppc_slb_t *slb = &env->slb[slot];
-
-    if (slot >= env->slb_nr) {
-        return -1;
-    }
-
-    *rt = slb->esid;
-    return 0;
-}
-
-static int ppc_load_slb_vsid(CPUPPCState *env, target_ulong rb,
-                             target_ulong *rt)
-{
-    int slot = rb & 0xfff;
-    ppc_slb_t *slb = &env->slb[slot];
-
-    if (slot >= env->slb_nr) {
-        return -1;
-    }
-
-    *rt = slb->vsid;
-    return 0;
-}
-#endif /* defined(TARGET_PPC64) */
-
 /* Perform segment based translation */
 static inline int get_segment(CPUPPCState *env, mmu_ctx_t *ctx,
                               target_ulong eaddr, int rw, int type)
@@ -1304,7 +1167,7 @@ static hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
 /* TLB check function for MAS based SoftTLBs */
 static int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
                             hwaddr *raddrp,
-                            target_ulong address, uint32_t pid)
+                     target_ulong address, uint32_t pid)
 {
     target_ulong mask;
     uint32_t tlb_pid;
@@ -1590,28 +1453,6 @@ static void mmubooke206_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
     }
 }
 
-#if defined(TARGET_PPC64)
-static void mmubooks_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
-                              CPUPPCState *env)
-{
-    int i;
-    uint64_t slbe, slbv;
-
-    cpu_synchronize_state(env);
-
-    cpu_fprintf(f, "SLB\tESID\t\t\tVSID\n");
-    for (i = 0; i < env->slb_nr; i++) {
-        slbe = env->slb[i].esid;
-        slbv = env->slb[i].vsid;
-        if (slbe == 0 && slbv == 0) {
-            continue;
-        }
-        cpu_fprintf(f, "%d\t0x%016" PRIx64 "\t0x%016" PRIx64 "\n",
-                    i, slbe, slbv);
-    }
-}
-#endif
-
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
 {
     switch (env->mmu_model) {
@@ -1625,7 +1466,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_06d:
-        mmubooks_dump_mmu(f, cpu_fprintf, env);
+        dump_slb(f, cpu_fprintf, env);
         break;
 #endif
     default:
@@ -2473,39 +2314,6 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #if !defined(CONFIG_USER_ONLY)
-/* SLB management */
-#if defined(TARGET_PPC64)
-void helper_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
-{
-    if (ppc_store_slb(env, rb, rs) < 0) {
-        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL);
-    }
-}
-
-target_ulong helper_load_slb_esid(CPUPPCState *env, target_ulong rb)
-{
-    target_ulong rt = 0;
-
-    if (ppc_load_slb_esid(env, rb, &rt) < 0) {
-        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL);
-    }
-    return rt;
-}
-
-target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
-{
-    target_ulong rt = 0;
-
-    if (ppc_load_slb_vsid(env, rb, &rt) < 0) {
-        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL);
-    }
-    return rt;
-}
-#endif /* defined(TARGET_PPC64) */
-
 /* TLB management */
 void helper_tlbia(CPUPPCState *env)
 {

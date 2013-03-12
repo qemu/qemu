@@ -1,6 +1,9 @@
 obj-y += cpu-models.o
 obj-y += translate.o
-obj-$(CONFIG_SOFTMMU) += machine.o
+ifeq ($(CONFIG_SOFTMMU),y)
+obj-y += machine.o
+obj-$(TARGET_PPC64) += mmu-hash64.o
+endif
 obj-$(CONFIG_KVM) += kvm.o kvm_ppc.o
 obj-y += excp_helper.o
 obj-y += fpu_helper.o
