@@ -164,15 +164,14 @@ static int hash32_bat_601_prot(CPUPPCState *env,
     return ppc_hash32_pp_check(key, pp, 0);
 }
 
-static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
-                              target_ulong virtual, int rwx)
+static hwaddr ppc_hash32_bat_lookup(CPUPPCState *env, target_ulong ea, int rwx,
+                                    int *prot)
 {
     target_ulong *BATlt, *BATut;
-    int i, prot;
-    int ret = -1;
+    int i;
 
     LOG_BATS("%s: %cBAT v " TARGET_FMT_lx "\n", __func__,
-             rwx == 2 ? 'I' : 'D', virtual);
+             rwx == 2 ? 'I' : 'D', ea);
     if (rwx == 2) {
         BATlt = env->IBAT[1];
         BATut = env->IBAT[0];
@@ -187,52 +186,46 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 
         if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
             mask = hash32_bat_601_size(env, batu, batl);
-            prot = hash32_bat_601_prot(env, batu, batl);
         } else {
             mask = hash32_bat_size(env, batu, batl);
-            prot = hash32_bat_prot(env, batu, batl);
         }
         LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                  " BATl " TARGET_FMT_lx "\n", __func__,
-                 type == ACCESS_CODE ? 'I' : 'D', i, virtual, batu, batl);
+                 type == ACCESS_CODE ? 'I' : 'D', i, ea, batu, batl);
 
-        if (mask && ((virtual & mask) == (batu & BATU32_BEPI))) {
-            /* BAT matches */
-            /* Get physical address */
-            ctx->raddr = (batl & mask) | (virtual & ~mask);
-            ctx->raddr &= TARGET_PAGE_MASK;
-            /* Compute access rights */
-            ctx->prot = prot;
-            ret = ppc_hash32_check_prot(ctx->prot, rwx);
-            if (ret == 0) {
-                LOG_BATS("BAT %d match: r " TARGET_FMT_plx " prot=%c%c\n",
-                         i, ctx->raddr, ctx->prot & PAGE_READ ? 'R' : '-',
-                         ctx->prot & PAGE_WRITE ? 'W' : '-');
+        if (mask && ((ea & mask) == (batu & BATU32_BEPI))) {
+            hwaddr raddr = (batl & mask) | (ea & ~mask);
+
+            if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
+                *prot = hash32_bat_601_prot(env, batu, batl);
+            } else {
+                *prot = hash32_bat_prot(env, batu, batl);
             }
-            break;
+
+            return raddr & TARGET_PAGE_MASK;
         }
     }
-    if (ret < 0) {
-#if defined(DEBUG_BATS)
-        if (qemu_log_enabled()) {
-            LOG_BATS("no BAT match for " TARGET_FMT_lx ":\n", virtual);
-            for (i = 0; i < 4; i++) {
-                BATu = &BATut[i];
-                BATl = &BATlt[i];
-                BEPIu = *BATu & BATU32_BEPIU;
-                BEPIl = *BATu & BATU32_BEPIL;
-                bl = (*BATu & 0x00001FFC) << 15;
-                LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
-                         " BATl " TARGET_FMT_lx "\n\t" TARGET_FMT_lx " "
-                         TARGET_FMT_lx " " TARGET_FMT_lx "\n",
-                         __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
-                         *BATu, *BATl, BEPIu, BEPIl, bl);
-            }
-        }
-#endif
-    }
+
     /* No hit */
-    return ret;
+#if defined(DEBUG_BATS)
+    if (qemu_log_enabled()) {
+        LOG_BATS("no BAT match for " TARGET_FMT_lx ":\n", ea);
+        for (i = 0; i < 4; i++) {
+            BATu = &BATut[i];
+            BATl = &BATlt[i];
+            BEPIu = *BATu & BATU32_BEPIU;
+            BEPIl = *BATu & BATU32_BEPIL;
+            bl = (*BATu & 0x00001FFC) << 15;
+            LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
+                     " BATl " TARGET_FMT_lx "\n\t" TARGET_FMT_lx " "
+                     TARGET_FMT_lx " " TARGET_FMT_lx "\n",
+                     __func__, type == ACCESS_CODE ? 'I' : 'D', i, ea,
+                     *BATu, *BATl, BEPIu, BEPIl, bl);
+        }
+    }
+#endif
+
+    return -1;
 }
 
 static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
@@ -405,9 +398,12 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 
     /* 2. Check Block Address Translation entries (BATs) */
     if (env->nb_BATs != 0) {
-        ret = ppc_hash32_get_bat(env, ctx, eaddr, rwx);
-        if (ret == 0) {
-            return 0;
+        ctx->raddr = ppc_hash32_bat_lookup(env, eaddr, rwx, &ctx->prot);
+        if (ctx->raddr != -1) {
+            ret = ppc_hash32_check_prot(ctx->prot, rwx);
+            if (ret == 0) {
+                return 0;
+            }
         }
     }
 
