@@ -454,13 +454,19 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
         return 0;
     }
 
-    pr = msr_pr;
-
-    LOG_MMU("Check SLBs\n");
+    /* 2. Translation is on, so look up the SLB */
     slb = slb_lookup(env, eaddr);
+
     if (!slb) {
         return -5;
     }
+
+    /* 3. Check for segment level no-execute violation */
+    if ((rwx == 2) && (slb->vsid & SLB_VSID_N)) {
+        return -3;
+    }
+
+    pr = msr_pr;
 
     if (slb->vsid & SLB_VSID_B) {
         vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT_1T;
@@ -490,38 +496,32 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
             ctx->key, !!(slb->vsid & SLB_VSID_N), vsid);
     ret = -1;
 
-    /* Check if instruction fetch is allowed, if needed */
-    if (rwx != 2 || !(slb->vsid & SLB_VSID_N)) {
-        /* Page address translation */
-        LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
-                " hash " TARGET_FMT_plx "\n",
-                env->htab_base, env->htab_mask, hash);
-        ctx->hash[0] = hash;
-        ctx->hash[1] = ~hash;
+    /* Page address translation */
+    LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
+            " hash " TARGET_FMT_plx "\n",
+            env->htab_base, env->htab_mask, hash);
+    ctx->hash[0] = hash;
+    ctx->hash[1] = ~hash;
 
-        /* Initialize real address with an invalid value */
-        ctx->raddr = (hwaddr)-1ULL;
-        LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-                " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
-                " hash=" TARGET_FMT_plx "\n",
-                env->htab_base, env->htab_mask, vsid, ctx->ptem,
-                ctx->hash[0]);
-        /* Primary table lookup */
-        ret = find_pte64(env, ctx, eaddr, 0, rwx, target_page_bits);
-        if (ret < 0) {
-            /* Secondary table lookup */
-            LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-                    " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
-                    " hash=" TARGET_FMT_plx "\n", env->htab_base,
-                    env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
-            ret2 = find_pte64(env, ctx, eaddr, 1, rwx, target_page_bits);
-            if (ret2 != -1) {
-                ret = ret2;
-            }
+    /* Initialize real address with an invalid value */
+    ctx->raddr = (hwaddr)-1ULL;
+    LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+            " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
+            " hash=" TARGET_FMT_plx "\n",
+            env->htab_base, env->htab_mask, vsid, ctx->ptem,
+            ctx->hash[0]);
+    /* Primary table lookup */
+    ret = find_pte64(env, ctx, eaddr, 0, rwx, target_page_bits);
+    if (ret < 0) {
+        /* Secondary table lookup */
+        LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+                " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
+                " hash=" TARGET_FMT_plx "\n", env->htab_base,
+                env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
+        ret2 = find_pte64(env, ctx, eaddr, 1, rwx, target_page_bits);
+        if (ret2 != -1) {
+            ret = ret2;
         }
-    } else {
-        LOG_MMU("No access allowed\n");
-        ret = -3;
     }
 
     return ret;
