@@ -44,8 +44,6 @@
 struct mmu_ctx_hash32 {
     hwaddr raddr;      /* Real address              */
     int prot;                      /* Protection bits           */
-    hwaddr hash[2];    /* Pagetable hash values     */
-    target_ulong ptem;             /* Virtual segment ID | API  */
     int key;                       /* Access key                */
     int nx;                        /* Non-execute area          */
 };
@@ -377,15 +375,44 @@ static hwaddr ppc_hash32_pteg_search(CPUPPCState *env, hwaddr pteg_off,
 }
 
 static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
-                      target_ulong eaddr, int h, int rwx, int target_page_bits)
+                      target_ulong sr, target_ulong eaddr, int rwx)
 {
     hwaddr pteg_off, pte_offset;
     ppc_hash_pte32_t pte;
+    hwaddr hash;
+    uint32_t vsid, pgidx, ptem;
     int ret;
 
     ret = -1; /* No entry found */
-    pteg_off = get_pteg_offset32(env, ctx->hash[h]);
-    pte_offset = ppc_hash32_pteg_search(env, pteg_off, h, ctx->ptem, &pte);
+    vsid = sr & SR32_VSID;
+    ctx->key = (((sr & SR32_KP) && (msr_pr != 0)) ||
+                ((sr & SR32_KS) && (msr_pr == 0))) ? 1 : 0;
+    pgidx = (eaddr & ~SEGMENT_MASK_256M) >> TARGET_PAGE_BITS;
+    hash = vsid ^ pgidx;
+    ptem = (vsid << 7) | (pgidx >> 10);
+
+    /* Page address translation */
+    LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
+            " hash " TARGET_FMT_plx "\n",
+            env->htab_base, env->htab_mask, hash);
+
+    /* Primary PTEG lookup */
+    LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+            " vsid=%" PRIx32 " ptem=%" PRIx32
+            " hash=" TARGET_FMT_plx "\n",
+            env->htab_base, env->htab_mask, vsid, ptem, hash);
+    pteg_off = get_pteg_offset32(env, hash);
+    pte_offset = ppc_hash32_pteg_search(env, pteg_off, 0, ptem, &pte);
+    if (pte_offset == -1) {
+        /* Secondary PTEG lookup */
+        LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+                " vsid=%" PRIx32 " api=%" PRIx32
+                " hash=" TARGET_FMT_plx "\n", env->htab_base,
+                env->htab_mask, vsid, ptem, ~hash);
+        pteg_off = get_pteg_offset32(env, ~hash);
+        pte_offset = ppc_hash32_pteg_search(env, pteg_off, 1, ptem, &pte);
+    }
+
     if (pte_offset != -1) {
         ret = pte_check_hash32(ctx, pte.pte0, pte.pte1, rwx);
         LOG_MMU("found PTE at addr %08" HWADDR_PRIx " prot=%01x ret=%d\n",
@@ -396,23 +423,14 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
         }
     }
 
-    /* We have a TLB that saves 4K pages, so let's
-     * split a huge page to 4k chunks */
-    if (target_page_bits != TARGET_PAGE_BITS) {
-        ctx->raddr |= (eaddr & ((1 << target_page_bits) - 1))
-                      & TARGET_PAGE_MASK;
-    }
     return ret;
 }
 
 static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                                 target_ulong eaddr, int rwx)
 {
-    hwaddr hash;
-    target_ulong vsid;
-    int pr, target_page_bits;
-    int ret, ret2;
-    target_ulong sr, pgidx;
+    int ret;
+    target_ulong sr;
 
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
@@ -444,71 +462,7 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     if ((rwx == 2) && ctx->nx) {
         return -3;
     }
-
-    pr = msr_pr;
-    ctx->key = (((sr & SR32_KP) && (pr != 0)) ||
-                ((sr & SR32_KS) && (pr == 0))) ? 1 : 0;
-
-    vsid = sr & SR32_VSID;
-    target_page_bits = TARGET_PAGE_BITS;
-    LOG_MMU("Check segment v=" TARGET_FMT_lx " %d " TARGET_FMT_lx " nip="
-            TARGET_FMT_lx " lr=" TARGET_FMT_lx
-            " ir=%d dr=%d pr=%d %d\n",
-            eaddr, (int)(eaddr >> 28), sr, env->nip, env->lr, (int)msr_ir,
-            (int)msr_dr, pr != 0 ? 1 : 0, rwx);
-    pgidx = (eaddr & ~SEGMENT_MASK_256M) >> target_page_bits;
-    hash = vsid ^ pgidx;
-    ctx->ptem = (vsid << 7) | (pgidx >> 10);
-
-    LOG_MMU("pte segment: key=%d nx %d vsid " TARGET_FMT_lx "\n",
-            ctx->key, ctx->nx, vsid);
-    ret = -1;
-
-    /* Page address translation */
-    LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
-            " hash " TARGET_FMT_plx "\n",
-            env->htab_base, env->htab_mask, hash);
-    ctx->hash[0] = hash;
-    ctx->hash[1] = ~hash;
-
-    LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-            " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
-            " hash=" TARGET_FMT_plx "\n",
-            env->htab_base, env->htab_mask, vsid, ctx->ptem,
-            ctx->hash[0]);
-    /* Primary table lookup */
-    ret = find_pte32(env, ctx, eaddr, 0, rwx, target_page_bits);
-    if (ret == -1) {
-        /* Secondary table lookup */
-        LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-                " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
-                " hash=" TARGET_FMT_plx "\n", env->htab_base,
-                env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
-        ret2 = find_pte32(env, ctx, eaddr, 1, rwx, target_page_bits);
-        if (ret2 != -1) {
-            ret = ret2;
-        }
-    }
-#if defined(DUMP_PAGE_TABLES)
-    if (qemu_log_enabled()) {
-        hwaddr curaddr;
-        uint32_t a0, a1, a2, a3;
-
-        qemu_log("Page table: " TARGET_FMT_plx " len " TARGET_FMT_plx
-                 "\n", sdr, mask + 0x80);
-        for (curaddr = sdr; curaddr < (sdr + mask + 0x80);
-             curaddr += 16) {
-            a0 = ldl_phys(curaddr);
-            a1 = ldl_phys(curaddr + 4);
-            a2 = ldl_phys(curaddr + 8);
-            a3 = ldl_phys(curaddr + 12);
-            if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
-                qemu_log(TARGET_FMT_plx ": %08x %08x %08x %08x\n",
-                         curaddr, a0, a1, a2, a3);
-            }
-        }
-    }
-#endif
+    ret = find_pte32(env, ctx, sr, eaddr, rwx);
 
     return ret;
 }
