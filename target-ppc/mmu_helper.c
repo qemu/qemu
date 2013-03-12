@@ -906,12 +906,10 @@ static inline int get_segment(CPUPPCState *env, mmu_ctx_t *ctx,
                 ret = find_pte(env, ctx, 0, rw, type, target_page_bits);
                 if (ret < 0) {
                     /* Secondary table lookup */
-                    if (eaddr != 0xEFFFFFFF) {
-                        LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-                                " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
-                                " hash=" TARGET_FMT_plx "\n", env->htab_base,
-                                env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
-                    }
+                    LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+                            " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
+                            " hash=" TARGET_FMT_plx "\n", env->htab_base,
+                            env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
                     ret2 = find_pte(env, ctx, 1, rw, type,
                                     target_page_bits);
                     if (ret2 != -1) {
