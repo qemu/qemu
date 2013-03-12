@@ -312,7 +312,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 
 #define TO_CPSR (1 << 20)
 
-enum arm_data_opc_e {
+typedef enum {
     ARITH_AND = 0x0 << 21,
     ARITH_EOR = 0x1 << 21,
     ARITH_SUB = 0x2 << 21,
@@ -328,7 +328,26 @@ enum arm_data_opc_e {
     ARITH_MOV = 0xd << 21,
     ARITH_BIC = 0xe << 21,
     ARITH_MVN = 0xf << 21,
-};
+
+    INSN_LDR_IMM   = 0x04100000,
+    INSN_LDR_REG   = 0x06100000,
+    INSN_STR_IMM   = 0x04000000,
+    INSN_STR_REG   = 0x06000000,
+
+    INSN_LDRH_IMM  = 0x005000b0,
+    INSN_LDRH_REG  = 0x001000b0,
+    INSN_LDRSH_IMM = 0x005000f0,
+    INSN_LDRSH_REG = 0x001000f0,
+    INSN_STRH_IMM  = 0x004000b0,
+    INSN_STRH_REG  = 0x000000b0,
+
+    INSN_LDRB_IMM  = 0x04500000,
+    INSN_LDRB_REG  = 0x06500000,
+    INSN_LDRSB_IMM = 0x005000d0,
+    INSN_LDRSB_REG = 0x001000d0,
+    INSN_STRB_IMM  = 0x04400000,
+    INSN_STRB_REG  = 0x06400000,
+} ARMInsn;
 
 #define SHIFT_IMM_LSL(im)	(((im) << 7) | 0x00)
 #define SHIFT_IMM_LSR(im)	(((im) << 7) | 0x20)
@@ -747,187 +766,155 @@ static inline void tcg_out_deposit(TCGContext *s, int cond, TCGReg rd,
               | (ofs << 7) | ((ofs + len - 1) << 16));
 }
 
-static inline void tcg_out_ld32_12(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
+/* Note that this routine is used for both LDR and LDRH formats, so we do
+   not wish to include an immediate shift at this point.  */
+static void tcg_out_memop_r(TCGContext *s, int cond, ARMInsn opc, TCGReg rt,
+                            TCGReg rn, TCGReg rm, bool u, bool p, bool w)
 {
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x05900000 |
-                        (rn << 16) | (rd << 12) | (im & 0xfff));
-    else
-        tcg_out32(s, (cond << 28) | 0x05100000 |
-                        (rn << 16) | (rd << 12) | ((-im) & 0xfff));
+    tcg_out32(s, (cond << 28) | opc | (u << 23) | (p << 24)
+              | (w << 21) | (rn << 16) | (rt << 12) | rm);
+}
+
+static void tcg_out_memop_8(TCGContext *s, int cond, ARMInsn opc, TCGReg rt,
+                            TCGReg rn, int imm8, bool p, bool w)
+{
+    bool u = 1;
+    if (imm8 < 0) {
+        imm8 = -imm8;
+        u = 0;
+    }
+    tcg_out32(s, (cond << 28) | opc | (u << 23) | (p << 24) | (w << 21) |
+              (rn << 16) | (rt << 12) | ((imm8 & 0xf0) << 4) | (imm8 & 0xf));
+}
+
+static void tcg_out_memop_12(TCGContext *s, int cond, ARMInsn opc, TCGReg rt,
+                             TCGReg rn, int imm12, bool p, bool w)
+{
+    bool u = 1;
+    if (imm12 < 0) {
+        imm12 = -imm12;
+        u = 0;
+    }
+    tcg_out32(s, (cond << 28) | opc | (u << 23) | (p << 24) | (w << 21) |
+              (rn << 16) | (rt << 12) | imm12);
+}
+
+static inline void tcg_out_ld32_12(TCGContext *s, int cond, TCGReg rt,
+                                   TCGReg rn, int imm12)
+{
+    tcg_out_memop_12(s, cond, INSN_LDR_IMM, rt, rn, imm12, 1, 0);
 }
 
 /* Offset pre-increment with base writeback.  */
-static inline void tcg_out_ld32_12wb(TCGContext *s, int cond,
-                                     int rd, int rn, tcg_target_long im)
+static inline void tcg_out_ld32_12wb(TCGContext *s, int cond, TCGReg rt,
+                                     TCGReg rn, int imm12)
 {
     /* ldr with writeback and both register equals is UNPREDICTABLE */
     assert(rd != rn);
-
-    if (im >= 0) {
-        tcg_out32(s, (cond << 28) | 0x05b00000 |
-                        (rn << 16) | (rd << 12) | (im & 0xfff));
-    } else {
-        tcg_out32(s, (cond << 28) | 0x05300000 |
-                        (rn << 16) | (rd << 12) | ((-im) & 0xfff));
-    }
+    tcg_out_memop_12(s, cond, INSN_LDR_IMM, rt, rn, imm12, 1, 1);
 }
 
-static inline void tcg_out_st32_12(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
+static inline void tcg_out_st32_12(TCGContext *s, int cond, TCGReg rt,
+                                   TCGReg rn, int imm12)
 {
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x05800000 |
-                        (rn << 16) | (rd << 12) | (im & 0xfff));
-    else
-        tcg_out32(s, (cond << 28) | 0x05000000 |
-                        (rn << 16) | (rd << 12) | ((-im) & 0xfff));
+    tcg_out_memop_12(s, cond, INSN_STR_IMM, rt, rn, imm12, 1, 0);
 }
 
-static inline void tcg_out_ld32_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_ld32_r(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x07900000 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_LDR_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_st32_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_st32_r(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x07800000 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_STR_REG, rt, rn, rm, 1, 1, 0);
 }
 
 /* Register pre-increment with base writeback.  */
-static inline void tcg_out_ld32_rwb(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_ld32_rwb(TCGContext *s, int cond, TCGReg rt,
+                                    TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x07b00000 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_LDR_REG, rt, rn, rm, 1, 1, 1);
 }
 
-static inline void tcg_out_st32_rwb(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_st32_rwb(TCGContext *s, int cond, TCGReg rt,
+                                    TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x07a00000 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_STR_REG, rt, rn, rm, 1, 1, 1);
 }
 
-static inline void tcg_out_ld16u_8(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
+static inline void tcg_out_ld16u_8(TCGContext *s, int cond, TCGReg rt,
+                                   TCGReg rn, int imm8)
 {
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x01d000b0 |
-                        (rn << 16) | (rd << 12) |
-                        ((im & 0xf0) << 4) | (im & 0xf));
-    else
-        tcg_out32(s, (cond << 28) | 0x015000b0 |
-                        (rn << 16) | (rd << 12) |
-                        (((-im) & 0xf0) << 4) | ((-im) & 0xf));
+    tcg_out_memop_8(s, cond, INSN_LDRH_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_st16_8(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
+static inline void tcg_out_st16_8(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, int imm8)
 {
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x01c000b0 |
-                        (rn << 16) | (rd << 12) |
-                        ((im & 0xf0) << 4) | (im & 0xf));
-    else
-        tcg_out32(s, (cond << 28) | 0x014000b0 |
-                        (rn << 16) | (rd << 12) |
-                        (((-im) & 0xf0) << 4) | ((-im) & 0xf));
+    tcg_out_memop_8(s, cond, INSN_STRH_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_ld16u_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_ld16u_r(TCGContext *s, int cond, TCGReg rt,
+                                   TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x019000b0 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_LDRH_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_st16_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_st16_r(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x018000b0 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_STRH_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_ld16s_8(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
+static inline void tcg_out_ld16s_8(TCGContext *s, int cond, TCGReg rt,
+                                   TCGReg rn, int imm8)
 {
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x01d000f0 |
-                        (rn << 16) | (rd << 12) |
-                        ((im & 0xf0) << 4) | (im & 0xf));
-    else
-        tcg_out32(s, (cond << 28) | 0x015000f0 |
-                        (rn << 16) | (rd << 12) |
-                        (((-im) & 0xf0) << 4) | ((-im) & 0xf));
+    tcg_out_memop_8(s, cond, INSN_LDRSH_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_ld16s_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_ld16s_r(TCGContext *s, int cond, TCGReg rt,
+                                   TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x019000f0 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_LDRSH_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_ld8_12(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
+static inline void tcg_out_ld8_12(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, int imm12)
 {
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x05d00000 |
-                        (rn << 16) | (rd << 12) | (im & 0xfff));
-    else
-        tcg_out32(s, (cond << 28) | 0x05500000 |
-                        (rn << 16) | (rd << 12) | ((-im) & 0xfff));
+    tcg_out_memop_12(s, cond, INSN_LDRB_IMM, rt, rn, imm12, 1, 0);
 }
 
-static inline void tcg_out_st8_12(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
+static inline void tcg_out_st8_12(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, int imm12)
 {
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x05c00000 |
-                        (rn << 16) | (rd << 12) | (im & 0xfff));
-    else
-        tcg_out32(s, (cond << 28) | 0x05400000 |
-                        (rn << 16) | (rd << 12) | ((-im) & 0xfff));
+    tcg_out_memop_12(s, cond, INSN_STRB_IMM, rt, rn, imm12, 1, 0);
 }
 
-static inline void tcg_out_ld8_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_ld8_r(TCGContext *s, int cond, TCGReg rt,
+                                 TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x07d00000 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_LDRB_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_st8_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_st8_r(TCGContext *s, int cond, TCGReg rt,
+                                 TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x07c00000 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_STRB_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_ld8s_8(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
+static inline void tcg_out_ld8s_8(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, int imm8)
 {
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x01d000d0 |
-                        (rn << 16) | (rd << 12) |
-                        ((im & 0xf0) << 4) | (im & 0xf));
-    else
-        tcg_out32(s, (cond << 28) | 0x015000d0 |
-                        (rn << 16) | (rd << 12) |
-                        (((-im) & 0xf0) << 4) | ((-im) & 0xf));
+    tcg_out_memop_8(s, cond, INSN_LDRSB_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_ld8s_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
+static inline void tcg_out_ld8s_r(TCGContext *s, int cond, TCGReg rt,
+                                  TCGReg rn, TCGReg rm)
 {
-    tcg_out32(s, (cond << 28) | 0x019000d0 |
-                    (rn << 16) | (rd << 12) | rm);
+    tcg_out_memop_r(s, cond, INSN_LDRSB_REG, rt, rn, rm, 1, 1, 0);
 }
 
 static inline void tcg_out_ld32u(TCGContext *s, int cond,
