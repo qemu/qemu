@@ -76,8 +76,10 @@ typedef enum {
 
 #ifdef __ARM_ARCH_EXT_IDIV__
 #define TCG_TARGET_HAS_div_i32          1
+#define TCG_TARGET_HAS_rem_i32          1
 #else
 #define TCG_TARGET_HAS_div_i32          0
+#define TCG_TARGET_HAS_rem_i32          0
 #endif
 
 extern bool tcg_target_deposit_valid(int ofs, int len);
