@@ -374,17 +374,14 @@ static hwaddr ppc_hash64_pteg_search(CPUPPCState *env, hwaddr pteg_off,
     return -1;
 }
 
-static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
-                      ppc_slb_t *slb, target_ulong eaddr, int rwx)
+static hwaddr ppc_hash64_htab_lookup(CPUPPCState *env,
+                                     ppc_slb_t *slb, target_ulong eaddr,
+                                     ppc_hash_pte64_t *pte)
 {
     hwaddr pteg_off, pte_offset;
-    ppc_hash_pte64_t pte;
     uint64_t vsid, pageaddr, ptem;
     hwaddr hash;
     int segment_bits, target_page_bits;
-    int ret;
-
-    ret = -1; /* No entry found */
 
     if (slb->vsid & SLB_VSID_B) {
         vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT_1T;
@@ -396,8 +393,6 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
 
     target_page_bits = (slb->vsid & SLB_VSID_L)
         ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
-    ctx->key = !!(msr_pr ? (slb->vsid & SLB_VSID_KP)
-                  : (slb->vsid & SLB_VSID_KS));
 
     pageaddr = eaddr & ((1ULL << segment_bits)
                             - (1ULL << target_page_bits));
@@ -410,13 +405,10 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
     ptem = (slb->vsid & SLB_VSID_PTEM) |
         ((pageaddr >> 16) & ((1ULL << segment_bits) - 0x80));
 
-    ret = -1;
-
     /* Page address translation */
     LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
             " hash " TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, hash);
-
 
     /* Primary PTEG lookup */
     LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
@@ -424,7 +416,8 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem,  hash);
     pteg_off = (hash * HASH_PTEG_SIZE_64) & env->htab_mask;
-    pte_offset = ppc_hash64_pteg_search(env, pteg_off, 0, ptem, &pte);
+    pte_offset = ppc_hash64_pteg_search(env, pteg_off, 0, ptem, pte);
+
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
         LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
@@ -433,26 +426,10 @@ static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
                 env->htab_mask, vsid, ptem, ~hash);
 
         pteg_off = (~hash * HASH_PTEG_SIZE_64) & env->htab_mask;
-        pte_offset = ppc_hash64_pteg_search(env, pteg_off, 1, ptem, &pte);
+        pte_offset = ppc_hash64_pteg_search(env, pteg_off, 1, ptem, pte);
     }
 
-    if (pte_offset != -1) {
-        ret = pte64_check(ctx, pte.pte0, pte.pte1, rwx);
-        LOG_MMU("found PTE at addr %08" HWADDR_PRIx " prot=%01x ret=%d\n",
-                ctx->raddr, ctx->prot, ret);
-        /* Update page flags */
-        if (ppc_hash64_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
-            ppc_hash64_store_hpte1(env, pte_offset, pte.pte1);
-        }
-    }
-
-    /* We have a TLB that saves 4K pages, so let's
-     * split a huge page to 4k chunks */
-    if (target_page_bits != TARGET_PAGE_BITS) {
-        ctx->raddr |= (eaddr & ((1 << target_page_bits) - 1))
-                      & TARGET_PAGE_MASK;
-    }
-    return ret;
+    return pte_offset;
 }
 
 static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
@@ -460,6 +437,9 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
 {
     int ret;
     ppc_slb_t *slb;
+    hwaddr pte_offset;
+    ppc_hash_pte64_t pte;
+    int target_page_bits;
 
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
@@ -482,8 +462,31 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
         return -3;
     }
 
-    ret = find_pte64(env, ctx, slb, eaddr, rwx);
+    /* 4. Locate the PTE in the hash table */
+    pte_offset = ppc_hash64_htab_lookup(env, slb, eaddr, &pte);
+    if (pte_offset == -1) {
+        return -1;
+    }
+    LOG_MMU("found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
 
+    /* 5. Check access permissions */
+    ctx->key = !!(msr_pr ? (slb->vsid & SLB_VSID_KP)
+                  : (slb->vsid & SLB_VSID_KS));
+
+    ret = pte64_check(ctx, pte.pte0, pte.pte1, rwx);
+    /* Update page flags */
+    if (ppc_hash64_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
+        ppc_hash64_store_hpte1(env, pte_offset, pte.pte1);
+    }
+
+    /* We have a TLB that saves 4K pages, so let's
+     * split a huge page to 4k chunks */
+    target_page_bits = (slb->vsid & SLB_VSID_L)
+        ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
+    if (target_page_bits != TARGET_PAGE_BITS) {
+        ctx->raddr |= (eaddr & ((1 << target_page_bits) - 1))
+                      & TARGET_PAGE_MASK;
+    }
     return ret;
 }
 

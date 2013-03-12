@@ -374,19 +374,15 @@ static hwaddr ppc_hash32_pteg_search(CPUPPCState *env, hwaddr pteg_off,
     return -1;
 }
 
-static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
-                      target_ulong sr, target_ulong eaddr, int rwx)
+static hwaddr ppc_hash32_htab_lookup(CPUPPCState *env,
+                                     target_ulong sr, target_ulong eaddr,
+                                     ppc_hash_pte32_t *pte)
 {
     hwaddr pteg_off, pte_offset;
-    ppc_hash_pte32_t pte;
     hwaddr hash;
     uint32_t vsid, pgidx, ptem;
-    int ret;
 
-    ret = -1; /* No entry found */
     vsid = sr & SR32_VSID;
-    ctx->key = (((sr & SR32_KP) && (msr_pr != 0)) ||
-                ((sr & SR32_KS) && (msr_pr == 0))) ? 1 : 0;
     pgidx = (eaddr & ~SEGMENT_MASK_256M) >> TARGET_PAGE_BITS;
     hash = vsid ^ pgidx;
     ptem = (vsid << 7) | (pgidx >> 10);
@@ -402,7 +398,7 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
             " hash=" TARGET_FMT_plx "\n",
             env->htab_base, env->htab_mask, vsid, ptem, hash);
     pteg_off = get_pteg_offset32(env, hash);
-    pte_offset = ppc_hash32_pteg_search(env, pteg_off, 0, ptem, &pte);
+    pte_offset = ppc_hash32_pteg_search(env, pteg_off, 0, ptem, pte);
     if (pte_offset == -1) {
         /* Secondary PTEG lookup */
         LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
@@ -410,20 +406,10 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                 " hash=" TARGET_FMT_plx "\n", env->htab_base,
                 env->htab_mask, vsid, ptem, ~hash);
         pteg_off = get_pteg_offset32(env, ~hash);
-        pte_offset = ppc_hash32_pteg_search(env, pteg_off, 1, ptem, &pte);
+        pte_offset = ppc_hash32_pteg_search(env, pteg_off, 1, ptem, pte);
     }
 
-    if (pte_offset != -1) {
-        ret = pte_check_hash32(ctx, pte.pte0, pte.pte1, rwx);
-        LOG_MMU("found PTE at addr %08" HWADDR_PRIx " prot=%01x ret=%d\n",
-                ctx->raddr, ctx->prot, ret);
-        /* Update page flags */
-        if (ppc_hash32_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
-            ppc_hash32_store_hpte1(env, pte_offset, pte.pte1);
-        }
-    }
-
-    return ret;
+    return pte_offset;
 }
 
 static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
@@ -431,6 +417,8 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 {
     int ret;
     target_ulong sr;
+    hwaddr pte_offset;
+    ppc_hash_pte32_t pte;
 
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
@@ -462,7 +450,22 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     if ((rwx == 2) && ctx->nx) {
         return -3;
     }
-    ret = find_pte32(env, ctx, sr, eaddr, rwx);
+
+    /* 6. Locate the PTE in the hash table */
+    pte_offset = ppc_hash32_htab_lookup(env, sr, eaddr, &pte);
+    if (pte_offset == -1) {
+        return -1;
+    }
+    LOG_MMU("found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
+
+    /* 7. Check access permissions */
+    ctx->key = (((sr & SR32_KP) && (msr_pr != 0)) ||
+                ((sr & SR32_KS) && (msr_pr == 0))) ? 1 : 0;
+    ret = pte_check_hash32(ctx, pte.pte0, pte.pte1, rwx);
+    /* Update page flags */
+    if (ppc_hash32_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
+        ppc_hash32_store_hpte1(env, pte_offset, pte.pte1);
+    }
 
     return ret;
 }
