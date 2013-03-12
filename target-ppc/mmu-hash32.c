@@ -400,10 +400,7 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     if (env->nb_BATs != 0) {
         ctx->raddr = ppc_hash32_bat_lookup(env, eaddr, rwx, &ctx->prot);
         if (ctx->raddr != -1) {
-            ret = ppc_hash32_check_prot(ctx->prot, rwx);
-            if (ret == 0) {
-                return 0;
-            }
+            return ppc_hash32_check_prot(ctx->prot, rwx);
         }
     }
 
