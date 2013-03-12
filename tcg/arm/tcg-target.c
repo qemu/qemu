@@ -548,55 +548,60 @@ static void tcg_out_dat_rIN(TCGContext *s, int cond, int opc, int opneg,
     }
 }
 
-static inline void tcg_out_mul32(TCGContext *s,
-                int cond, int rd, int rs, int rm)
+static inline void tcg_out_mul32(TCGContext *s, int cond, TCGReg rd,
+                                 TCGReg rn, TCGReg rm)
 {
-    if (rd != rm)
-        tcg_out32(s, (cond << 28) | (rd << 16) | (0 << 12) |
-                        (rs << 8) | 0x90 | rm);
-    else if (rd != rs)
-        tcg_out32(s, (cond << 28) | (rd << 16) | (0 << 12) |
-                        (rm << 8) | 0x90 | rs);
-    else {
-        tcg_out32(s, (cond << 28) | (TCG_REG_TMP << 16) | (0 << 12) |
-                        (rs << 8) | 0x90 | rm);
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        rd, 0, TCG_REG_TMP, SHIFT_IMM_LSL(0));
+    /* if ArchVersion() < 6 && d == n then UNPREDICTABLE;  */
+    if (!use_armv6_instructions && rd == rn) {
+        if (rd == rm) {
+            /* rd == rn == rm; copy an input to tmp first.  */
+            tcg_out_mov_reg(s, cond, TCG_REG_TMP, rn);
+            rm = rn = TCG_REG_TMP;
+        } else {
+            rn = rm;
+            rm = rd;
+        }
     }
+    /* mul */
+    tcg_out32(s, (cond << 28) | 0x90 | (rd << 16) | (rm << 8) | rn);
 }
 
-static inline void tcg_out_umull32(TCGContext *s,
-                int cond, int rd0, int rd1, int rs, int rm)
+static inline void tcg_out_umull32(TCGContext *s, int cond, TCGReg rd0,
+                                   TCGReg rd1, TCGReg rn, TCGReg rm)
 {
-    if (rd0 != rm && rd1 != rm)
-        tcg_out32(s, (cond << 28) | 0x800090 |
-                        (rd1 << 16) | (rd0 << 12) | (rs << 8) | rm);
-    else if (rd0 != rs && rd1 != rs)
-        tcg_out32(s, (cond << 28) | 0x800090 |
-                        (rd1 << 16) | (rd0 << 12) | (rm << 8) | rs);
-    else {
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        TCG_REG_TMP, 0, rm, SHIFT_IMM_LSL(0));
-        tcg_out32(s, (cond << 28) | 0x800090 | TCG_REG_TMP |
-                        (rd1 << 16) | (rd0 << 12) | (rs << 8));
+    /* if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;  */
+    if (!use_armv6_instructions && (rd0 == rn || rd1 == rn)) {
+        if (rd0 == rm || rd1 == rm) {
+            tcg_out_mov_reg(s, cond, TCG_REG_TMP, rn);
+            rn = TCG_REG_TMP;
+        } else {
+            TCGReg t = rn;
+            rn = rm;
+            rm = t;
+        }
     }
+    /* umull */
+    tcg_out32(s, (cond << 28) | 0x00800090 |
+              (rd1 << 16) | (rd0 << 12) | (rm << 8) | rn);
 }
 
-static inline void tcg_out_smull32(TCGContext *s,
-                int cond, int rd0, int rd1, int rs, int rm)
+static inline void tcg_out_smull32(TCGContext *s, int cond, TCGReg rd0,
+                                   TCGReg rd1, TCGReg rn, TCGReg rm)
 {
-    if (rd0 != rm && rd1 != rm)
-        tcg_out32(s, (cond << 28) | 0xc00090 |
-                        (rd1 << 16) | (rd0 << 12) | (rs << 8) | rm);
-    else if (rd0 != rs && rd1 != rs)
-        tcg_out32(s, (cond << 28) | 0xc00090 |
-                        (rd1 << 16) | (rd0 << 12) | (rm << 8) | rs);
-    else {
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        TCG_REG_TMP, 0, rm, SHIFT_IMM_LSL(0));
-        tcg_out32(s, (cond << 28) | 0xc00090 | TCG_REG_TMP |
-                        (rd1 << 16) | (rd0 << 12) | (rs << 8));
+    /* if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;  */
+    if (!use_armv6_instructions && (rd0 == rn || rd1 == rn)) {
+        if (rd0 == rm || rd1 == rm) {
+            tcg_out_mov_reg(s, cond, TCG_REG_TMP, rn);
+            rn = TCG_REG_TMP;
+        } else {
+            TCGReg t = rn;
+            rn = rm;
+            rm = t;
+        }
     }
+    /* smull */
+    tcg_out32(s, (cond << 28) | 0x00c00090 |
+              (rd1 << 16) | (rd0 << 12) | (rm << 8) | rn);
 }
 
 static inline void tcg_out_sdiv(TCGContext *s, int cond, int rd, int rn, int rm)
