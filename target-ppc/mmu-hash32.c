@@ -174,6 +174,11 @@ static int ppc_hash32_pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
     return store;
 }
 
+hwaddr get_pteg_offset32(CPUPPCState *env, hwaddr hash)
+{
+    return (hash * HASH_PTE_SIZE_32 * 8) & env->htab_mask;
+}
+
 /* PTE table lookup */
 static int find_pte32(CPUPPCState *env, mmu_ctx_t *ctx, int h,
                       int rw, int type, int target_page_bits)
@@ -184,7 +189,7 @@ static int find_pte32(CPUPPCState *env, mmu_ctx_t *ctx, int h,
     int ret, r;
 
     ret = -1; /* No entry found */
-    pteg_off = get_pteg_offset(env, ctx->hash[h], HASH_PTE_SIZE_32);
+    pteg_off = get_pteg_offset32(env, ctx->hash[h]);
     for (i = 0; i < 8; i++) {
         if (env->external_htab) {
             pte0 = ldl_p(env->external_htab + pteg_off + (i * 8));

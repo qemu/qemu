@@ -499,11 +499,6 @@ int get_bat(CPUPPCState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
-hwaddr get_pteg_offset(CPUPPCState *env, hwaddr hash, int pte_size)
-{
-    return (hash * pte_size * 8) & env->htab_mask;
-}
-
 /* Perform segment based translation */
 static inline int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                                       target_ulong eaddr, int rw, int type)
@@ -1551,9 +1546,9 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                 tlb_miss:
                     env->error_code |= ctx.key << 19;
                     env->spr[SPR_HASH1] = env->htab_base +
-                        get_pteg_offset(env, ctx.hash[0], HASH_PTE_SIZE_32);
+                        get_pteg_offset32(env, ctx.hash[0]);
                     env->spr[SPR_HASH2] = env->htab_base +
-                        get_pteg_offset(env, ctx.hash[1], HASH_PTE_SIZE_32);
+                        get_pteg_offset32(env, ctx.hash[1]);
                     break;
                 case POWERPC_MMU_SOFT_74xx:
                     if (rw == 1) {

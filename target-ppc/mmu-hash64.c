@@ -378,7 +378,7 @@ static int find_pte64(CPUPPCState *env, mmu_ctx_t *ctx, int h,
     int ret, r;
 
     ret = -1; /* No entry found */
-    pteg_off = get_pteg_offset(env, ctx->hash[h], HASH_PTE_SIZE_64);
+    pteg_off = (ctx->hash[h] * HASH_PTE_SIZE_64 * 8) & env->htab_mask;
     for (i = 0; i < 8; i++) {
         if (env->external_htab) {
             pte0 = ldq_p(env->external_htab + pteg_off + (i * 16));
