@@ -275,6 +275,33 @@ static int ppc_hash64_pte_prot(CPUPPCState *env,
     return prot;
 }
 
+static int ppc_hash64_amr_prot(CPUPPCState *env, ppc_hash_pte64_t pte)
+{
+    int key, amrbits;
+    int prot = PAGE_EXEC;
+
+
+    /* Only recent MMUs implement Virtual Page Class Key Protection */
+    if (!(env->mmu_model & POWERPC_MMU_AMR)) {
+        return PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    }
+
+    key = HPTE64_R_KEY(pte.pte1);
+    amrbits = (env->spr[SPR_AMR] >> 2*(31 - key)) & 0x3;
+
+    /* fprintf(stderr, "AMR protection: key=%d AMR=0x%" PRIx64 "\n", key, */
+    /*         env->spr[SPR_AMR]); */
+
+    if (amrbits & 0x2) {
+        prot |= PAGE_WRITE;
+    }
+    if (amrbits & 0x1) {
+        prot |= PAGE_READ;
+    }
+
+    return prot;
+}
+
 static hwaddr ppc_hash64_pteg_search(CPUPPCState *env, hwaddr pteg_off,
                                      bool secondary, target_ulong ptem,
                                      ppc_hash_pte64_t *pte)
@@ -375,7 +402,7 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
     ppc_slb_t *slb;
     hwaddr pte_offset;
     ppc_hash_pte64_t pte;
-    int prot;
+    int pp_prot, amr_prot, prot;
     uint64_t new_pte1;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
     hwaddr raddr;
@@ -437,7 +464,9 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
 
     /* 5. Check access permissions */
 
-    prot = ppc_hash64_pte_prot(env, slb, pte);
+    pp_prot = ppc_hash64_pte_prot(env, slb, pte);
+    amr_prot = ppc_hash64_amr_prot(env, pte);
+    prot = pp_prot & amr_prot;
 
     if ((need_prot[rwx] & ~prot) != 0) {
         /* Access right violation */
@@ -446,14 +475,21 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr,
             env->exception_index = POWERPC_EXCP_ISI;
             env->error_code = 0x08000000;
         } else {
+            target_ulong dsisr = 0;
+
             env->exception_index = POWERPC_EXCP_DSI;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
-            if (rwx == 1) {
-                env->spr[SPR_DSISR] = 0x0A000000;
-            } else {
-                env->spr[SPR_DSISR] = 0x08000000;
+            if (need_prot[rwx] & ~pp_prot) {
+                dsisr |= 0x08000000;
             }
+            if (rwx == 1) {
+                dsisr |= 0x02000000;
+            }
+            if (need_prot[rwx] & ~amr_prot) {
+                dsisr |= 0x00200000;
+            }
+            env->spr[SPR_DSISR] = dsisr;
         }
         return 1;
     }

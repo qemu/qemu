@@ -1017,6 +1017,54 @@ static void gen_spr_7xx (CPUPPCState *env)
                  0x00000000);
 }
 
+#ifdef TARGET_PPC64
+#ifndef CONFIG_USER_ONLY
+static void spr_read_uamr (void *opaque, int gprn, int sprn)
+{
+    gen_load_spr(cpu_gpr[gprn], SPR_AMR);
+    spr_load_dump_spr(SPR_AMR);
+}
+
+static void spr_write_uamr (void *opaque, int sprn, int gprn)
+{
+    gen_store_spr(SPR_AMR, cpu_gpr[gprn]);
+    spr_store_dump_spr(SPR_AMR);
+}
+
+static void spr_write_uamr_pr (void *opaque, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+
+    gen_load_spr(t0, SPR_UAMOR);
+    tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
+    gen_store_spr(SPR_AMR, t0);
+    spr_store_dump_spr(SPR_AMR);
+}
+#endif /* CONFIG_USER_ONLY */
+
+static void gen_spr_amr (CPUPPCState *env)
+{
+#ifndef CONFIG_USER_ONLY
+    /* Virtual Page Class Key protection */
+    /* The AMR is accessible either via SPR 13 or SPR 29.  13 is
+     * userspace accessible, 29 is privileged.  So we only need to set
+     * the kvm ONE_REG id on one of them, we use 29 */
+    spr_register(env, SPR_UAMR, "UAMR",
+                 &spr_read_uamr, &spr_write_uamr_pr,
+                 &spr_read_uamr, &spr_write_uamr,
+                 0);
+    spr_register_kvm(env, SPR_AMR, "AMR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_AMR, 0xffffffffffffffffULL);
+    spr_register_kvm(env, SPR_UAMOR, "UAMOR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_UAMOR, 0);
+#endif /* !CONFIG_USER_ONLY */
+}
+#endif /* TARGET_PPC64 */
+
 static void gen_spr_thrm (CPUPPCState *env)
 {
     /* Thermal management */
@@ -6872,6 +6920,7 @@ static void init_proc_POWER7 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000); /* TOFIX */
+    gen_spr_amr(env);
     /* XXX : not implemented */
     spr_register(env, SPR_CTRL, "SPR_CTRLT",
                  SPR_NOACCESS, SPR_NOACCESS,

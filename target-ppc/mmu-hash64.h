@@ -69,6 +69,8 @@ int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
 #define HPTE64_R_C              0x0000000000000080ULL
 #define HPTE64_R_R              0x0000000000000100ULL
 #define HPTE64_R_KEY_LO         0x0000000000000e00ULL
+#define HPTE64_R_KEY(x)         ((((x) & HPTE64_R_KEY_HI) >> 60) | \
+                                 (((x) & HPTE64_R_KEY_LO) >> 9))
 
 #define HPTE64_V_1TB_SEG        0x4000000000000000ULL
 #define HPTE64_V_VRMA_MASK      0x4001ffffff000000ULL
