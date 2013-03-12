@@ -113,20 +113,15 @@ static int ppc_hash32_check_prot(int prot, int rwx)
     return ret;
 }
 
-static void hash32_bat_size(CPUPPCState *env, target_ulong *blp, int *validp,
-                            target_ulong batu, target_ulong batl)
+static target_ulong hash32_bat_size(CPUPPCState *env,
+                                    target_ulong batu, target_ulong batl)
 {
-    target_ulong bl;
-    int valid;
-
-    bl = (batu & BATU32_BL) << 15;
-    valid = 0;
-    if (((msr_pr == 0) && (batu & BATU32_VS)) ||
-        ((msr_pr != 0) && (batu & BATU32_VP))) {
-        valid = 1;
+    if ((msr_pr && !(batu & BATU32_VP))
+        || (!msr_pr && !(batu & BATU32_VS))) {
+        return 0;
     }
-    *blp = bl;
-    *validp = valid;
+
+    return BATU32_BEPI & ~((batu & BATU32_BL) << 15);
 }
 
 static int hash32_bat_prot(CPUPPCState *env,
@@ -145,18 +140,14 @@ static int hash32_bat_prot(CPUPPCState *env,
     return prot;
 }
 
-static void hash32_bat_601_size(CPUPPCState *env, target_ulong *blp, int *validp,
+static target_ulong hash32_bat_601_size(CPUPPCState *env,
                                 target_ulong batu, target_ulong batl)
 {
-    target_ulong bl;
-    int valid;
+    if (!(batl & BATL32_601_V)) {
+        return 0;
+    }
 
-    bl = (batl & BATL32_601_BL) << 17;
-    LOG_BATS("b %02x ==> bl " TARGET_FMT_lx " msk " TARGET_FMT_lx "\n",
-             (uint8_t)(batl & BATL32_601_BL), bl, ~bl);
-    valid = !!(batl & BATL32_601_V);
-    *blp = bl;
-    *validp = valid;
+    return BATU32_BEPI & ~((batl & BATL32_601_BL) << 17);
 }
 
 static int hash32_bat_601_prot(CPUPPCState *env,
@@ -177,8 +168,7 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                               target_ulong virtual, int rwx)
 {
     target_ulong *BATlt, *BATut;
-    target_ulong BEPIl, BEPIu, bl;
-    int i, valid, prot;
+    int i, prot;
     int ret = -1;
 
     LOG_BATS("%s: %cBAT v " TARGET_FMT_lx "\n", __func__,
@@ -193,37 +183,33 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     for (i = 0; i < env->nb_BATs; i++) {
         target_ulong batu = BATut[i];
         target_ulong batl = BATlt[i];
+        target_ulong mask;
 
-        BEPIu = batu & BATU32_BEPIU;
-        BEPIl = batu & BATU32_BEPIL;
         if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
-            hash32_bat_601_size(env, &bl, &valid, batu, batl);
+            mask = hash32_bat_601_size(env, batu, batl);
             prot = hash32_bat_601_prot(env, batu, batl);
         } else {
-            hash32_bat_size(env, &bl, &valid, batu, batl);
+            mask = hash32_bat_size(env, batu, batl);
             prot = hash32_bat_prot(env, batu, batl);
         }
         LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                  " BATl " TARGET_FMT_lx "\n", __func__,
                  type == ACCESS_CODE ? 'I' : 'D', i, virtual, batu, batl);
-        if ((virtual & BATU32_BEPIU) == BEPIu &&
-            ((virtual & BATU32_BEPIL) & ~bl) == BEPIl) {
+
+        if (mask && ((virtual & mask) == (batu & BATU32_BEPI))) {
             /* BAT matches */
-            if (valid != 0) {
-                /* Get physical address */
-                ctx->raddr = (batl & BATL32_BRPNU) |
-                    ((virtual & BATU32_BEPIL & bl) | (batl & BATL32_BRPNL)) |
-                    (virtual & 0x0001F000);
-                /* Compute access rights */
-                ctx->prot = prot;
-                ret = ppc_hash32_check_prot(ctx->prot, rwx);
-                if (ret == 0) {
-                    LOG_BATS("BAT %d match: r " TARGET_FMT_plx " prot=%c%c\n",
-                             i, ctx->raddr, ctx->prot & PAGE_READ ? 'R' : '-',
-                             ctx->prot & PAGE_WRITE ? 'W' : '-');
-                }
-                break;
+            /* Get physical address */
+            ctx->raddr = (batl & mask) | (virtual & ~mask);
+            ctx->raddr &= TARGET_PAGE_MASK;
+            /* Compute access rights */
+            ctx->prot = prot;
+            ret = ppc_hash32_check_prot(ctx->prot, rwx);
+            if (ret == 0) {
+                LOG_BATS("BAT %d match: r " TARGET_FMT_plx " prot=%c%c\n",
+                         i, ctx->raddr, ctx->prot & PAGE_READ ? 'R' : '-',
+                         ctx->prot & PAGE_WRITE ? 'W' : '-');
             }
+            break;
         }
     }
     if (ret < 0) {

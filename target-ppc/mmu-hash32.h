@@ -22,16 +22,12 @@ int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
  * Block Address Translation (BAT) definitions
  */
 
-#define BATU32_BEPIU            0xf0000000
-#define BATU32_BEPIL            0x0ffe0000
 #define BATU32_BEPI             0xfffe0000
 #define BATU32_BL               0x00001ffc
 #define BATU32_VS               0x00000002
 #define BATU32_VP               0x00000001
 
 
-#define BATL32_BRPNU            0xf0000000
-#define BATL32_BRPNL            0x0ffe0000
 #define BATL32_BRPN             0xfffe0000
 #define BATL32_WIMG             0x00000078
 #define BATL32_PP               0x00000003
