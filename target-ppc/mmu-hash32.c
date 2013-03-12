@@ -437,18 +437,38 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     return 0;
 }
 
-hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
+hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong eaddr)
 {
-    struct mmu_ctx_hash32 ctx;
+    target_ulong sr;
+    hwaddr pte_offset;
+    ppc_hash_pte32_t pte;
+    int prot;
 
-    /* FIXME: Will not behave sanely for direct store segments, but
-     * they're almost never used */
-    if (unlikely(ppc_hash32_translate(env, &ctx, addr, 0)
-                 != 0)) {
+    if (msr_dr == 0) {
+        /* Translation is off */
+        return eaddr;
+    }
+
+    if (env->nb_BATs != 0) {
+        hwaddr raddr = ppc_hash32_bat_lookup(env, eaddr, 0, &prot);
+        if (raddr != -1) {
+            return raddr;
+        }
+    }
+
+    sr = env->sr[eaddr >> 28];
+
+    if (sr & SR32_T) {
+        /* FIXME: Add suitable debug support for Direct Store segments */
         return -1;
     }
 
-    return ctx.raddr & TARGET_PAGE_MASK;
+    pte_offset = ppc_hash32_htab_lookup(env, sr, eaddr, &pte);
+    if (pte_offset == -1) {
+        return -1;
+    }
+
+    return ppc_hash32_pte_raddr(sr, pte, eaddr) & TARGET_PAGE_MASK;
 }
 
 int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rwx,

@@ -449,13 +449,26 @@ static int ppc_hash64_translate(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
 
 hwaddr ppc_hash64_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 {
-    struct mmu_ctx_hash64 ctx;
+    ppc_slb_t *slb;
+    hwaddr pte_offset;
+    ppc_hash_pte64_t pte;
 
-    if (unlikely(ppc_hash64_translate(env, &ctx, addr, 0) != 0)) {
+    if (msr_dr == 0) {
+        /* In real mode the top 4 effective address bits are ignored */
+        return addr & 0x0FFFFFFFFFFFFFFFULL;
+    }
+
+    slb = slb_lookup(env, addr);
+    if (!slb) {
         return -1;
     }
 
-    return ctx.raddr & TARGET_PAGE_MASK;
+    pte_offset = ppc_hash64_htab_lookup(env, slb, addr, &pte);
+    if (pte_offset == -1) {
+        return -1;
+    }
+
+    return ppc_hash64_pte_raddr(slb, pte, addr) & TARGET_PAGE_MASK;
 }
 
 int ppc_hash64_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rwx,
