@@ -43,7 +43,6 @@
 
 struct mmu_ctx_hash32 {
     hwaddr raddr;      /* Real address              */
-    hwaddr eaddr;      /* Effective address         */
     int prot;                      /* Protection bits           */
     hwaddr hash[2];    /* Pagetable hash values     */
     target_ulong ptem;             /* Virtual segment ID | API  */
@@ -314,8 +313,8 @@ hwaddr get_pteg_offset32(CPUPPCState *env, hwaddr hash)
 }
 
 /* PTE table lookup */
-static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
-                      int rwx, int target_page_bits)
+static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
+                      target_ulong eaddr, int h, int rwx, int target_page_bits)
 {
     hwaddr pteg_off;
     target_ulong pte0, pte1;
@@ -371,7 +370,7 @@ static int find_pte32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx, int h,
     /* We have a TLB that saves 4K pages, so let's
      * split a huge page to 4k chunks */
     if (target_page_bits != TARGET_PAGE_BITS) {
-        ctx->raddr |= (ctx->eaddr & ((1 << target_page_bits) - 1))
+        ctx->raddr |= (eaddr & ((1 << target_page_bits) - 1))
                       & TARGET_PAGE_MASK;
     }
     return ret;
@@ -387,7 +386,6 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     target_ulong sr, pgidx;
 
     pr = msr_pr;
-    ctx->eaddr = eaddr;
 
     sr = env->sr[eaddr >> 28];
     ctx->key = (((sr & SR32_KP) && (pr != 0)) ||
@@ -426,14 +424,14 @@ static int get_segment32(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                     env->htab_base, env->htab_mask, vsid, ctx->ptem,
                     ctx->hash[0]);
             /* Primary table lookup */
-            ret = find_pte32(env, ctx, 0, rwx, target_page_bits);
+            ret = find_pte32(env, ctx, eaddr, 0, rwx, target_page_bits);
             if (ret < 0) {
                 /* Secondary table lookup */
                 LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
                         " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
                         " hash=" TARGET_FMT_plx "\n", env->htab_base,
                         env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
-                ret2 = find_pte32(env, ctx, 1, rwx, target_page_bits);
+                ret2 = find_pte32(env, ctx, eaddr, 1, rwx, target_page_bits);
                 if (ret2 != -1) {
                     ret = ret2;
                 }
