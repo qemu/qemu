@@ -113,57 +113,64 @@ static int ppc_hash32_check_prot(int prot, int rwx)
     return ret;
 }
 
-/* Perform BAT hit & translation */
-static void hash32_bat_size_prot(CPUPPCState *env, target_ulong *blp,
-                                 int *validp, int *protp,
-                                 target_ulong batu, target_ulong batl)
+static void hash32_bat_size(CPUPPCState *env, target_ulong *blp, int *validp,
+                            target_ulong batu, target_ulong batl)
 {
     target_ulong bl;
-    int pp, valid, prot;
+    int valid;
 
     bl = (batu & BATU32_BL) << 15;
     valid = 0;
-    prot = 0;
     if (((msr_pr == 0) && (batu & BATU32_VS)) ||
         ((msr_pr != 0) && (batu & BATU32_VP))) {
         valid = 1;
-        pp = batl & BATL32_PP;
-        if (pp != 0) {
-            prot = PAGE_READ | PAGE_EXEC;
-            if (pp == 0x2) {
-                prot |= PAGE_WRITE;
-            }
-        }
     }
     *blp = bl;
     *validp = valid;
-    *protp = prot;
 }
 
-static void hash32_bat_601_size_prot(CPUPPCState *env, target_ulong *blp,
-                                     int *validp, int *protp,
-                                     target_ulong batu, target_ulong batl)
+static int hash32_bat_prot(CPUPPCState *env,
+                           target_ulong batu, target_ulong batl)
+{
+    int pp, prot;
+
+    prot = 0;
+    pp = batl & BATL32_PP;
+    if (pp != 0) {
+        prot = PAGE_READ | PAGE_EXEC;
+        if (pp == 0x2) {
+            prot |= PAGE_WRITE;
+        }
+    }
+    return prot;
+}
+
+static void hash32_bat_601_size(CPUPPCState *env, target_ulong *blp, int *validp,
+                                target_ulong batu, target_ulong batl)
 {
     target_ulong bl;
-    int key, pp, valid, prot;
+    int valid;
 
     bl = (batl & BATL32_601_BL) << 17;
     LOG_BATS("b %02x ==> bl " TARGET_FMT_lx " msk " TARGET_FMT_lx "\n",
              (uint8_t)(batl & BATL32_601_BL), bl, ~bl);
-    prot = 0;
     valid = !!(batl & BATL32_601_V);
-    if (valid) {
-        pp = batu & BATU32_601_PP;
-        if (msr_pr == 0) {
-            key = !!(batu & BATU32_601_KS);
-        } else {
-            key = !!(batu & BATU32_601_KP);
-        }
-        prot = ppc_hash32_pp_check(key, pp, 0);
-    }
     *blp = bl;
     *validp = valid;
-    *protp = prot;
+}
+
+static int hash32_bat_601_prot(CPUPPCState *env,
+                               target_ulong batu, target_ulong batl)
+{
+    int key, pp;
+
+    pp = batu & BATU32_601_PP;
+    if (msr_pr == 0) {
+        key = !!(batu & BATU32_601_KS);
+    } else {
+        key = !!(batu & BATU32_601_KP);
+    }
+    return ppc_hash32_pp_check(key, pp, 0);
 }
 
 static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
@@ -190,9 +197,11 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
         BEPIu = batu & BATU32_BEPIU;
         BEPIl = batu & BATU32_BEPIL;
         if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
-            hash32_bat_601_size_prot(env, &bl, &valid, &prot, batu, batl);
+            hash32_bat_601_size(env, &bl, &valid, batu, batl);
+            prot = hash32_bat_601_prot(env, batu, batl);
         } else {
-            hash32_bat_size_prot(env, &bl, &valid, &prot, batu, batl);
+            hash32_bat_size(env, &bl, &valid, batu, batl);
+            prot = hash32_bat_prot(env, batu, batl);
         }
         LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                  " BATl " TARGET_FMT_lx "\n", __func__,
