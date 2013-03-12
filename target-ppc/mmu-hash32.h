@@ -97,6 +97,10 @@ static inline void ppc_hash32_store_hpte1(CPUPPCState *env,
     stl_phys(env->htab_base + pte_offset + HASH_PTE_SIZE_32/2, pte1);
 }
 
+typedef struct {
+    uint32_t pte0, pte1;
+} ppc_hash_pte32_t;
+
 #endif /* CONFIG_USER_ONLY */
 
 #endif /* __MMU_HASH32_H__ */

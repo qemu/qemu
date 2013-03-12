@@ -299,14 +299,6 @@ static int ppc_hash64_check_prot(int prot, int rwx)
     return ret;
 }
 
-static bool pte64_match(target_ulong pte0, target_ulong pte1,
-                        bool secondary, target_ulong ptem)
-{
-    return (pte0 & HPTE64_V_VALID)
-        && (secondary == !!(pte0 & HPTE64_V_SECONDARY))
-        && HPTE64_V_COMPARE(pte0, ptem);
-}
-
 static int pte64_check(struct mmu_ctx_hash64 *ctx, target_ulong pte0,
                        target_ulong pte1, int rwx)
 {
@@ -334,8 +326,7 @@ static int pte64_check(struct mmu_ctx_hash64 *ctx, target_ulong pte0,
 }
 
 static int ppc_hash64_pte_update_flags(struct mmu_ctx_hash64 *ctx,
-                                       target_ulong *pte1p,
-                                       int ret, int rw)
+                                       uint64_t *pte1p, int ret, int rw)
 {
     int store = 0;
 
@@ -359,39 +350,49 @@ static int ppc_hash64_pte_update_flags(struct mmu_ctx_hash64 *ctx,
     return store;
 }
 
-/* PTE table lookup */
+static hwaddr ppc_hash64_pteg_search(CPUPPCState *env, hwaddr pteg_off,
+                                     bool secondary, target_ulong ptem,
+                                     ppc_hash_pte64_t *pte)
+{
+    hwaddr pte_offset = pteg_off;
+    target_ulong pte0, pte1;
+    int i;
+
+    for (i = 0; i < HPTES_PER_GROUP; i++) {
+        pte0 = ppc_hash64_load_hpte0(env, pte_offset);
+        pte1 = ppc_hash64_load_hpte1(env, pte_offset);
+
+        if ((pte0 & HPTE64_V_VALID)
+            && (secondary == !!(pte0 & HPTE64_V_SECONDARY))
+            && HPTE64_V_COMPARE(pte0, ptem)) {
+            pte->pte0 = pte0;
+            pte->pte1 = pte1;
+            return pte_offset;
+        }
+
+        pte_offset += HASH_PTE_SIZE_64;
+    }
+
+    return -1;
+}
+
 static int find_pte64(CPUPPCState *env, struct mmu_ctx_hash64 *ctx,
                       target_ulong eaddr, int h, int rwx, int target_page_bits)
 {
-    hwaddr pteg_off;
-    target_ulong pte0, pte1;
-    int i, good = -1;
+    hwaddr pteg_off, pte_offset;
+    ppc_hash_pte64_t pte;
     int ret;
 
     ret = -1; /* No entry found */
     pteg_off = (ctx->hash[h] * HASH_PTEG_SIZE_64) & env->htab_mask;
-    for (i = 0; i < HPTES_PER_GROUP; i++) {
-        pte0 = ppc_hash64_load_hpte0(env, pteg_off + i*HASH_PTE_SIZE_64);
-        pte1 = ppc_hash64_load_hpte1(env, pteg_off + i*HASH_PTE_SIZE_64);
-
-        LOG_MMU("Load pte from %016" HWADDR_PRIx " => " TARGET_FMT_lx " "
-                TARGET_FMT_lx " %d %d %d " TARGET_FMT_lx "\n",
-                pteg_off + (i * 16), pte0, pte1, !!(pte0 & HPTE64_V_VALID),
-                h, !!(pte0 & HPTE64_V_SECONDARY), ctx->ptem);
-
-        if (pte64_match(pte0, pte1, h, ctx->ptem)) {
-            good = i;
-            break;
-        }
-    }
-    if (good != -1) {
-        ret = pte64_check(ctx, pte0, pte1, rwx);
+    pte_offset = ppc_hash64_pteg_search(env, pteg_off, h, ctx->ptem, &pte);
+    if (pte_offset != -1) {
+        ret = pte64_check(ctx, pte.pte0, pte.pte1, rwx);
         LOG_MMU("found PTE at addr %08" HWADDR_PRIx " prot=%01x ret=%d\n",
                 ctx->raddr, ctx->prot, ret);
         /* Update page flags */
-        pte1 = ctx->raddr;
-        if (ppc_hash64_pte_update_flags(ctx, &pte1, ret, rwx) == 1) {
-            ppc_hash64_store_hpte1(env, pteg_off + good * HASH_PTE_SIZE_64, pte1);
+        if (ppc_hash64_pte_update_flags(ctx, &pte.pte1, ret, rwx) == 1) {
+            ppc_hash64_store_hpte1(env, pte_offset, pte.pte1);
         }
     }
 

@@ -113,6 +113,10 @@ static inline void ppc_hash64_store_hpte1(CPUPPCState *env,
     }
 }
 
+typedef struct {
+    uint64_t pte0, pte1;
+} ppc_hash_pte64_t;
+
 #endif /* CONFIG_USER_ONLY */
 
 #endif /* !defined (__MMU_HASH64_H__) */
