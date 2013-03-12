@@ -397,34 +397,8 @@ static inline void bat_size_prot(CPUPPCState *env, target_ulong *blp,
     *protp = prot;
 }
 
-static inline void bat_601_size_prot(CPUPPCState *env, target_ulong *blp,
-                                     int *validp, int *protp,
-                                     target_ulong *BATu, target_ulong *BATl)
-{
-    target_ulong bl;
-    int key, pp, valid, prot;
-
-    bl = (*BATl & 0x0000003F) << 17;
-    LOG_BATS("b %02x ==> bl " TARGET_FMT_lx " msk " TARGET_FMT_lx "\n",
-             (uint8_t)(*BATl & 0x0000003F), bl, ~bl);
-    prot = 0;
-    valid = (*BATl >> 6) & 1;
-    if (valid) {
-        pp = *BATu & 0x00000003;
-        if (msr_pr == 0) {
-            key = (*BATu >> 3) & 1;
-        } else {
-            key = (*BATu >> 2) & 1;
-        }
-        prot = pp_check(key, pp, 0);
-    }
-    *blp = bl;
-    *validp = valid;
-    *protp = prot;
-}
-
-int get_bat(CPUPPCState *env, mmu_ctx_t *ctx,
-            target_ulong virtual, int rw, int type)
+static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
+                           target_ulong virtual, int rw, int type)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong BEPIl, BEPIu, bl;
@@ -448,11 +422,7 @@ int get_bat(CPUPPCState *env, mmu_ctx_t *ctx,
         BATl = &BATlt[i];
         BEPIu = *BATu & 0xF0000000;
         BEPIl = *BATu & 0x0FFE0000;
-        if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
-            bat_601_size_prot(env, &bl, &valid, &prot, BATu, BATl);
-        } else {
-            bat_size_prot(env, &bl, &valid, &prot, BATu, BATl);
-        }
+        bat_size_prot(env, &bl, &valid, &prot, BATu, BATl);
         LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                  " BATl " TARGET_FMT_lx "\n", __func__,
                  type == ACCESS_CODE ? 'I' : 'D', i, virtual, *BATu, *BATl);
@@ -1309,7 +1279,7 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         } else {
             /* Try to find a BAT */
             if (env->nb_BATs != 0) {
-                ret = get_bat(env, ctx, eaddr, rw, access_type);
+                ret = get_bat_6xx_tlb(env, ctx, eaddr, rw, access_type);
             }
             if (ret < 0) {
                 /* We didn't match any BAT entry or don't have BATs */

@@ -1133,8 +1133,6 @@ void ppc_hw_interrupt (CPUPPCState *env);
 
 #if !defined(CONFIG_USER_ONLY)
 void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
-int get_bat(CPUPPCState *env, mmu_ctx_t *ctx,
-            target_ulong virtual, int rw, int type);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
