@@ -1133,6 +1133,29 @@ const VMStateInfo vmstate_info_uint16_equal = {
     .put  = put_uint16,
 };
 
+/* floating point */
+
+static int get_float64(QEMUFile *f, void *pv, size_t size)
+{
+    float64 *v = pv;
+
+    *v = make_float64(qemu_get_be64(f));
+    return 0;
+}
+
+static void put_float64(QEMUFile *f, void *pv, size_t size)
+{
+    uint64_t *v = pv;
+
+    qemu_put_be64(f, float64_val(*v));
+}
+
+const VMStateInfo vmstate_info_float64 = {
+    .name = "float64",
+    .get  = get_float64,
+    .put  = put_float64,
+};
+
 /* timers  */
 
 static int get_timer(QEMUFile *f, void *pv, size_t size)

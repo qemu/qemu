@@ -157,6 +157,8 @@ extern const VMStateInfo vmstate_info_uint16;
 extern const VMStateInfo vmstate_info_uint32;
 extern const VMStateInfo vmstate_info_uint64;
 
+extern const VMStateInfo vmstate_info_float64;
+
 extern const VMStateInfo vmstate_info_timer;
 extern const VMStateInfo vmstate_info_buffer;
 extern const VMStateInfo vmstate_info_unused_buffer;
@@ -543,6 +545,13 @@ extern const VMStateInfo vmstate_info_bitmap;
 #define VMSTATE_UINT32_TEST(_f, _s, _t)                                  \
     VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint32, uint32_t)
 
+
+#define VMSTATE_FLOAT64_V(_f, _s, _v)                                 \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_float64, float64)
+
+#define VMSTATE_FLOAT64(_f, _s)                                       \
+    VMSTATE_FLOAT64_V(_f, _s, 0)
+
 #define VMSTATE_TIMER_TEST(_f, _s, _test)                             \
     VMSTATE_POINTER_TEST(_f, _s, _test, vmstate_info_timer, QEMUTimer *)
 
@@ -608,6 +617,12 @@ extern const VMStateInfo vmstate_info_bitmap;
 
 #define VMSTATE_INT64_ARRAY(_f, _s, _n)                               \
     VMSTATE_INT64_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_FLOAT64_ARRAY_V(_f, _s, _n, _v)                       \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_float64, float64)
+
+#define VMSTATE_FLOAT64_ARRAY(_f, _s, _n)                             \
+    VMSTATE_FLOAT64_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_BUFFER_V(_f, _s, _v)                                  \
     VMSTATE_STATIC_BUFFER(_f, _s, _v, NULL, 0, sizeof(typeof_field(_s, _f)))
