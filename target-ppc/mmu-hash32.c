@@ -115,19 +115,19 @@ static int ppc_hash32_check_prot(int prot, int rwx)
 
 /* Perform BAT hit & translation */
 static void hash32_bat_size_prot(CPUPPCState *env, target_ulong *blp,
-                                 int *validp, int *protp, target_ulong *BATu,
-                                 target_ulong *BATl)
+                                 int *validp, int *protp,
+                                 target_ulong batu, target_ulong batl)
 {
     target_ulong bl;
     int pp, valid, prot;
 
-    bl = (*BATu & BATU32_BL) << 15;
+    bl = (batu & BATU32_BL) << 15;
     valid = 0;
     prot = 0;
-    if (((msr_pr == 0) && (*BATu & BATU32_VS)) ||
-        ((msr_pr != 0) && (*BATu & BATU32_VP))) {
+    if (((msr_pr == 0) && (batu & BATU32_VS)) ||
+        ((msr_pr != 0) && (batu & BATU32_VP))) {
         valid = 1;
-        pp = *BATl & BATL32_PP;
+        pp = batl & BATL32_PP;
         if (pp != 0) {
             prot = PAGE_READ | PAGE_EXEC;
             if (pp == 0x2) {
@@ -142,22 +142,22 @@ static void hash32_bat_size_prot(CPUPPCState *env, target_ulong *blp,
 
 static void hash32_bat_601_size_prot(CPUPPCState *env, target_ulong *blp,
                                      int *validp, int *protp,
-                                     target_ulong *BATu, target_ulong *BATl)
+                                     target_ulong batu, target_ulong batl)
 {
     target_ulong bl;
     int key, pp, valid, prot;
 
-    bl = (*BATl & BATL32_601_BL) << 17;
+    bl = (batl & BATL32_601_BL) << 17;
     LOG_BATS("b %02x ==> bl " TARGET_FMT_lx " msk " TARGET_FMT_lx "\n",
-             (uint8_t)(*BATl & BATL32_601_BL), bl, ~bl);
+             (uint8_t)(batl & BATL32_601_BL), bl, ~bl);
     prot = 0;
-    valid = !!(*BATl & BATL32_601_V);
+    valid = !!(batl & BATL32_601_V);
     if (valid) {
-        pp = *BATu & BATU32_601_PP;
+        pp = batu & BATU32_601_PP;
         if (msr_pr == 0) {
-            key = !!(*BATu & BATU32_601_KS);
+            key = !!(batu & BATU32_601_KS);
         } else {
-            key = !!(*BATu & BATU32_601_KP);
+            key = !!(batu & BATU32_601_KP);
         }
         prot = ppc_hash32_pp_check(key, pp, 0);
     }
@@ -169,7 +169,7 @@ static void hash32_bat_601_size_prot(CPUPPCState *env, target_ulong *blp,
 static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
                               target_ulong virtual, int rwx)
 {
-    target_ulong *BATlt, *BATut, *BATu, *BATl;
+    target_ulong *BATlt, *BATut;
     target_ulong BEPIl, BEPIu, bl;
     int i, valid, prot;
     int ret = -1;
@@ -184,25 +184,26 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
         BATut = env->DBAT[0];
     }
     for (i = 0; i < env->nb_BATs; i++) {
-        BATu = &BATut[i];
-        BATl = &BATlt[i];
-        BEPIu = *BATu & BATU32_BEPIU;
-        BEPIl = *BATu & BATU32_BEPIL;
+        target_ulong batu = BATut[i];
+        target_ulong batl = BATlt[i];
+
+        BEPIu = batu & BATU32_BEPIU;
+        BEPIl = batu & BATU32_BEPIL;
         if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
-            hash32_bat_601_size_prot(env, &bl, &valid, &prot, BATu, BATl);
+            hash32_bat_601_size_prot(env, &bl, &valid, &prot, batu, batl);
         } else {
-            hash32_bat_size_prot(env, &bl, &valid, &prot, BATu, BATl);
+            hash32_bat_size_prot(env, &bl, &valid, &prot, batu, batl);
         }
         LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                  " BATl " TARGET_FMT_lx "\n", __func__,
-                 type == ACCESS_CODE ? 'I' : 'D', i, virtual, *BATu, *BATl);
+                 type == ACCESS_CODE ? 'I' : 'D', i, virtual, batu, batl);
         if ((virtual & BATU32_BEPIU) == BEPIu &&
             ((virtual & BATU32_BEPIL) & ~bl) == BEPIl) {
             /* BAT matches */
             if (valid != 0) {
                 /* Get physical address */
-                ctx->raddr = (*BATl & BATL32_BRPNU) |
-                    ((virtual & BATU32_BEPIL & bl) | (*BATl & BATL32_BRPNL)) |
+                ctx->raddr = (batl & BATL32_BRPNU) |
+                    ((virtual & BATU32_BEPIL & bl) | (batl & BATL32_BRPNL)) |
                     (virtual & 0x0001F000);
                 /* Compute access rights */
                 ctx->prot = prot;
