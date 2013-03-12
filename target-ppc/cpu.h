@@ -1090,8 +1090,6 @@ int cpu_ppc_exec (CPUPPCState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
-int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
-                              int mmu_idx);
 void ppc_hw_interrupt (CPUPPCState *env);
 #if defined(CONFIG_USER_ONLY)
 int cpu_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,

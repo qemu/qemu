@@ -1384,8 +1384,8 @@ static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
 }
 
 /* Perform address translation */
-int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
-                             int mmu_idx)
+static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
+                                    int rw, int mmu_idx)
 {
     mmu_ctx_t ctx;
     int access_type;
@@ -2776,4 +2776,40 @@ void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
     }
 
     booke206_flush_tlb(env, flags, 1);
+}
+
+
+/*****************************************************************************/
+
+#define MMUSUFFIX _mmu
+
+#define SHIFT 0
+#include "exec/softmmu_template.h"
+
+#define SHIFT 1
+#include "exec/softmmu_template.h"
+
+#define SHIFT 2
+#include "exec/softmmu_template.h"
+
+#define SHIFT 3
+#include "exec/softmmu_template.h"
+
+/* try to fill the TLB and return an exception if error. If retaddr is
+   NULL, it means that the function was called in C code (i.e. not
+   from generated code or from helper.c) */
+/* XXX: fix it to restore all registers */
+void tlb_fill(CPUPPCState *env, target_ulong addr, int is_write, int mmu_idx,
+              uintptr_t retaddr)
+{
+    int ret;
+
+    ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    if (unlikely(ret != 0)) {
+        if (likely(retaddr)) {
+            /* now we have a real cpu fault */
+            cpu_restore_state(env, retaddr);
+        }
+        helper_raise_exception_err(env, env->exception_index, env->error_code);
+    }
 }
