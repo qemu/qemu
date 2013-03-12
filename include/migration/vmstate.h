@@ -393,14 +393,14 @@ extern const VMStateInfo vmstate_info_bitmap;
     .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
 }
 
-#define VMSTATE_BUFFER_MULTIPLY(_field, _state, _version, _test, _start, _field_size, _multiply) { \
+#define VMSTATE_VBUFFER_MULTIPLY(_field, _state, _version, _test, _start, _field_size, _multiply) { \
     .name         = (stringify(_field)),                             \
     .version_id   = (_version),                                      \
     .field_exists = (_test),                                         \
     .size_offset  = vmstate_offset_value(_state, _field_size, uint32_t),\
     .size         = (_multiply),                                      \
     .info         = &vmstate_info_buffer,                            \
-    .flags        = VMS_VBUFFER|VMS_MULTIPLY,                        \
+    .flags        = VMS_VBUFFER|VMS_POINTER|VMS_MULTIPLY,            \
     .offset       = offsetof(_state, _field),                        \
     .start        = (_start),                                        \
 }
