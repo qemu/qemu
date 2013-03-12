@@ -4,8 +4,8 @@
 #ifndef CONFIG_USER_ONLY
 
 int pte32_is_valid(target_ulong pte0);
-int pte_check_hash32(mmu_ctx_t *ctx, target_ulong pte0,
-                     target_ulong pte1, int h, int rw, int type);
+int find_pte32(CPUPPCState *env, mmu_ctx_t *ctx, int h,
+               int rw, int type, int target_page_bits);
 
 #endif /* CONFIG_USER_ONLY */
 
