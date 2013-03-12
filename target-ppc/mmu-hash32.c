@@ -243,6 +243,62 @@ static int ppc_hash32_get_bat(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     return ret;
 }
 
+static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
+                                   target_ulong eaddr, int rwx,
+                                   hwaddr *raddr, int *prot)
+{
+    int key = !!(msr_pr ? (sr & SR32_KP) : (sr & SR32_KS));
+
+    LOG_MMU("direct store...\n");
+
+    if ((sr & 0x1FF00000) >> 20 == 0x07f) {
+        /* Memory-forced I/O controller interface access */
+        /* If T=1 and BUID=x'07F', the 601 performs a memory access
+         * to SR[28-31] LA[4-31], bypassing all protection mechanisms.
+         */
+        *raddr = ((sr & 0xF) << 28) | (eaddr & 0x0FFFFFFF);
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return 0;
+    }
+
+    if (rwx == 2) {
+        /* No code fetch is allowed in direct-store areas */
+        return -4;
+    }
+
+    switch (env->access_type) {
+    case ACCESS_INT:
+        /* Integer load/store : only access allowed */
+        break;
+    case ACCESS_FLOAT:
+        /* Floating point load/store */
+        return -4;
+    case ACCESS_RES:
+        /* lwarx, ldarx or srwcx. */
+        return -4;
+    case ACCESS_CACHE:
+        /* dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi */
+        /* Should make the instruction do no-op.
+         * As it already do no-op, it's quite easy :-)
+         */
+        *raddr = eaddr;
+        return 0;
+    case ACCESS_EXT:
+        /* eciwx or ecowx */
+        return -4;
+    default:
+        qemu_log("ERROR: instruction should not need "
+                 "address translation\n");
+        return -4;
+    }
+    if ((rwx == 1 || key != 1) && (rwx == 0 || key != 0)) {
+        *raddr = eaddr;
+        return 2;
+    } else {
+        return -2;
+    }
+}
+
 static int pte_check_hash32(struct mmu_ctx_hash32 *ctx, target_ulong pte0,
                             target_ulong pte1, int h, int rwx)
 {
@@ -404,66 +460,15 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     /* 3. Look up the Segment Register */
     sr = env->sr[eaddr >> 28];
 
+    /* 4. Handle direct store segments */
+    if (sr & SR32_T) {
+        return ppc_hash32_direct_store(env, sr, eaddr, rwx,
+                                       &ctx->raddr, &ctx->prot);
+    }
+
     pr = msr_pr;
     ctx->key = (((sr & SR32_KP) && (pr != 0)) ||
                 ((sr & SR32_KS) && (pr == 0))) ? 1 : 0;
-
-    /* 4. Handle direct store segments */
-    if (sr & SR32_T) {
-        LOG_MMU("direct store...\n");
-        /* Direct-store segment : absolutely *BUGGY* for now */
-
-        /* Direct-store implies a 32-bit MMU.
-         * Check the Segment Register's bus unit ID (BUID).
-         */
-        if ((sr & 0x1FF00000) >> 20 == 0x07f) {
-            /* Memory-forced I/O controller interface access */
-            /* If T=1 and BUID=x'07F', the 601 performs a memory access
-             * to SR[28-31] LA[4-31], bypassing all protection mechanisms.
-             */
-            ctx->raddr = ((sr & 0xF) << 28) | (eaddr & 0x0FFFFFFF);
-            ctx->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-            return 0;
-        }
-
-        if (rwx == 2) {
-            /* No code fetch is allowed in direct-store areas */
-            return -4;
-        }
-
-        switch (env->access_type) {
-        case ACCESS_INT:
-            /* Integer load/store : only access allowed */
-            break;
-        case ACCESS_FLOAT:
-            /* Floating point load/store */
-            return -4;
-        case ACCESS_RES:
-            /* lwarx, ldarx or srwcx. */
-            return -4;
-        case ACCESS_CACHE:
-            /* dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi */
-            /* Should make the instruction do no-op.
-             * As it already do no-op, it's quite easy :-)
-             */
-            ctx->raddr = eaddr;
-            return 0;
-        case ACCESS_EXT:
-            /* eciwx or ecowx */
-            return -4;
-        default:
-            qemu_log("ERROR: instruction should not need "
-                        "address translation\n");
-            return -4;
-        }
-        if ((rwx == 1 || ctx->key != 1) && (rwx == 0 || ctx->key != 0)) {
-            ctx->raddr = eaddr;
-            return 2;
-        } else {
-            return -2;
-        }
-    }
-
     ctx->nx = !!(sr & SR32_NX);
     vsid = sr & SR32_VSID;
     target_page_bits = TARGET_PAGE_BITS;
