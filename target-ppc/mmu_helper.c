@@ -1438,6 +1438,22 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
     int access_type;
     int ret = 0;
 
+    switch (env->mmu_model) {
+#if defined(TARGET_PPC64)
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06d:
+        return ppc_hash64_handle_mmu_fault(env, address, rw, mmu_idx);
+#endif
+
+    case POWERPC_MMU_32B:
+    case POWERPC_MMU_601:
+        return ppc_hash32_handle_mmu_fault(env, address, rw, mmu_idx);
+
+    default:
+        ; /* Otherwise fall through to the general code below */
+    }
+
     if (rw == 2) {
         /* code access */
         rw = 0;
@@ -1474,16 +1490,6 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                     env->error_code = 0;
                     env->spr[SPR_40x_DEAR] = address;
                     env->spr[SPR_40x_ESR] = 0x00000000;
-                    break;
-                case POWERPC_MMU_32B:
-                case POWERPC_MMU_601:
-#if defined(TARGET_PPC64)
-                case POWERPC_MMU_64B:
-                case POWERPC_MMU_2_06:
-                case POWERPC_MMU_2_06d:
-#endif
-                    env->exception_index = POWERPC_EXCP_ISI;
-                    env->error_code = 0x40000000;
                     break;
                 case POWERPC_MMU_BOOKE206:
                     booke206_update_mas_tlb_miss(env, address, rw);
@@ -1526,13 +1532,6 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                 env->exception_index = POWERPC_EXCP_ISI;
                 env->error_code = 0x10000000;
                 break;
-#if defined(TARGET_PPC64)
-            case -5:
-                /* No match in segment table */
-                env->exception_index = POWERPC_EXCP_ISEG;
-                env->error_code = 0;
-                break;
-#endif
             }
         } else {
             switch (ret) {
@@ -1578,22 +1577,6 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                         env->spr[SPR_40x_ESR] = 0x00800000;
                     } else {
                         env->spr[SPR_40x_ESR] = 0x00000000;
-                    }
-                    break;
-                case POWERPC_MMU_32B:
-                case POWERPC_MMU_601:
-#if defined(TARGET_PPC64)
-                case POWERPC_MMU_64B:
-                case POWERPC_MMU_2_06:
-                case POWERPC_MMU_2_06d:
-#endif
-                    env->exception_index = POWERPC_EXCP_DSI;
-                    env->error_code = 0;
-                    env->spr[SPR_DAR] = address;
-                    if (rw == 1) {
-                        env->spr[SPR_DSISR] = 0x42000000;
-                    } else {
-                        env->spr[SPR_DSISR] = 0x40000000;
                     }
                     break;
                 case POWERPC_MMU_MPC8xx:
@@ -1681,14 +1664,6 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                     break;
                 }
                 break;
-#if defined(TARGET_PPC64)
-            case -5:
-                /* No match in segment table */
-                env->exception_index = POWERPC_EXCP_DSEG;
-                env->error_code = 0;
-                env->spr[SPR_DAR] = address;
-                break;
-#endif
             }
         }
 #if 0
