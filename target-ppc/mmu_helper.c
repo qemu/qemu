@@ -98,11 +98,6 @@ static inline int pte64_is_valid(target_ulong pte0)
 {
     return pte0 & 0x0000000000000001ULL ? 1 : 0;
 }
-
-static inline void pte64_invalidate(target_ulong *pte0)
-{
-    *pte0 &= ~0x0000000000000001ULL;
-}
 #endif
 
 #define PTE_PTEM_MASK 0x7FFFFFBF
@@ -1309,9 +1304,9 @@ static hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
 }
 
 /* TLB check function for MAS based SoftTLBs */
-int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
-                     hwaddr *raddrp,
-                     target_ulong address, uint32_t pid)
+static int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
+                            hwaddr *raddrp,
+                            target_ulong address, uint32_t pid)
 {
     target_ulong mask;
     uint32_t tlb_pid;
