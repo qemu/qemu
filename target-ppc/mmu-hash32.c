@@ -238,7 +238,9 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
 
     if (rwx == 2) {
         /* No code fetch is allowed in direct-store areas */
-        return -4;
+        env->exception_index = POWERPC_EXCP_ISI;
+        env->error_code = 0x10000000;
+        return 1;
     }
 
     switch (env->access_type) {
@@ -247,10 +249,20 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
         break;
     case ACCESS_FLOAT:
         /* Floating point load/store */
-        return -4;
+        env->exception_index = POWERPC_EXCP_ALIGN;
+        env->error_code = POWERPC_EXCP_ALIGN_FP;
+        env->spr[SPR_DAR] = eaddr;
+        return 1;
     case ACCESS_RES:
         /* lwarx, ldarx or srwcx. */
-        return -4;
+        env->error_code = 0;
+        env->spr[SPR_DAR] = eaddr;
+        if (rwx == 1) {
+            env->spr[SPR_DSISR] = 0x06000000;
+        } else {
+            env->spr[SPR_DSISR] = 0x04000000;
+        }
+        return 1;
     case ACCESS_CACHE:
         /* dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi */
         /* Should make the instruction do no-op.
@@ -260,17 +272,33 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
         return 0;
     case ACCESS_EXT:
         /* eciwx or ecowx */
-        return -4;
+        env->exception_index = POWERPC_EXCP_DSI;
+        env->error_code = 0;
+        env->spr[SPR_DAR] = eaddr;
+        if (rwx == 1) {
+            env->spr[SPR_DSISR] = 0x06100000;
+        } else {
+            env->spr[SPR_DSISR] = 0x04100000;
+        }
+        return 1;
     default:
         qemu_log("ERROR: instruction should not need "
                  "address translation\n");
-        return -4;
+        abort();
     }
     if ((rwx == 1 || key != 1) && (rwx == 0 || key != 0)) {
         *raddr = eaddr;
-        return 2;
+        return 0;
     } else {
-        return -2;
+        env->exception_index = POWERPC_EXCP_DSI;
+        env->error_code = 0;
+        env->spr[SPR_DAR] = eaddr;
+        if (rwx == 1) {
+            env->spr[SPR_DSISR] = 0x0a000000;
+        } else {
+            env->spr[SPR_DSISR] = 0x08000000;
+        }
+        return 1;
     }
 }
 
@@ -352,32 +380,53 @@ static hwaddr ppc_hash32_pte_raddr(target_ulong sr, ppc_hash_pte32_t pte,
     return (rpn & ~mask) | (eaddr & mask);
 }
 
-static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
-                                target_ulong eaddr, int rwx)
+int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong eaddr, int rwx,
+                                int mmu_idx)
 {
     target_ulong sr;
     hwaddr pte_offset;
     ppc_hash_pte32_t pte;
+    int prot;
     uint32_t new_pte1;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
+    hwaddr raddr;
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
 
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
         /* Translation is off */
-        ctx->raddr = eaddr;
-        ctx->prot = PAGE_READ | PAGE_EXEC | PAGE_WRITE;
+        raddr = eaddr;
+        tlb_set_page(env, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+                     PAGE_READ | PAGE_WRITE | PAGE_EXEC, mmu_idx,
+                     TARGET_PAGE_SIZE);
         return 0;
     }
 
     /* 2. Check Block Address Translation entries (BATs) */
     if (env->nb_BATs != 0) {
-        ctx->raddr = ppc_hash32_bat_lookup(env, eaddr, rwx, &ctx->prot);
-        if (ctx->raddr != -1) {
-            if (need_prot[rwx] & ~ctx->prot) {
-                return -2;
+        raddr = ppc_hash32_bat_lookup(env, eaddr, rwx, &prot);
+        if (raddr != -1) {
+            if (need_prot[rwx] & ~prot) {
+                if (rwx == 2) {
+                    env->exception_index = POWERPC_EXCP_ISI;
+                    env->error_code = 0x08000000;
+                } else {
+                    env->exception_index = POWERPC_EXCP_DSI;
+                    env->error_code = 0;
+                    env->spr[SPR_DAR] = eaddr;
+                    if (rwx == 1) {
+                        env->spr[SPR_DSISR] = 0x0a000000;
+                    } else {
+                        env->spr[SPR_DSISR] = 0x08000000;
+                    }
+                }
+                return 1;
             }
+
+            tlb_set_page(env, eaddr & TARGET_PAGE_MASK,
+                         raddr & TARGET_PAGE_MASK, prot, mmu_idx,
+                         TARGET_PAGE_SIZE);
             return 0;
         }
     }
@@ -387,30 +436,66 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 
     /* 4. Handle direct store segments */
     if (sr & SR32_T) {
-        return ppc_hash32_direct_store(env, sr, eaddr, rwx,
-                                       &ctx->raddr, &ctx->prot);
+        if (ppc_hash32_direct_store(env, sr, eaddr, rwx,
+                                    &raddr, &prot) == 0) {
+            tlb_set_page(env, eaddr & TARGET_PAGE_MASK,
+                         raddr & TARGET_PAGE_MASK, prot, mmu_idx,
+                         TARGET_PAGE_SIZE);
+            return 0;
+        } else {
+            return 1;
+        }
     }
 
     /* 5. Check for segment level no-execute violation */
     if ((rwx == 2) && (sr & SR32_NX)) {
-        return -3;
+        env->exception_index = POWERPC_EXCP_ISI;
+        env->error_code = 0x10000000;
+        return 1;
     }
 
     /* 6. Locate the PTE in the hash table */
     pte_offset = ppc_hash32_htab_lookup(env, sr, eaddr, &pte);
     if (pte_offset == -1) {
-        return -1;
+        if (rwx == 2) {
+            env->exception_index = POWERPC_EXCP_ISI;
+            env->error_code = 0x40000000;
+        } else {
+            env->exception_index = POWERPC_EXCP_DSI;
+            env->error_code = 0;
+            env->spr[SPR_DAR] = eaddr;
+            if (rwx == 1) {
+                env->spr[SPR_DSISR] = 0x42000000;
+            } else {
+                env->spr[SPR_DSISR] = 0x40000000;
+            }
+        }
+
+        return 1;
     }
     LOG_MMU("found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
 
     /* 7. Check access permissions */
 
-    ctx->prot = ppc_hash32_pte_prot(env, sr, pte);
+    prot = ppc_hash32_pte_prot(env, sr, pte);
 
-    if (need_prot[rwx] & ~ctx->prot) {
+    if (need_prot[rwx] & ~prot) {
         /* Access right violation */
         LOG_MMU("PTE access rejected\n");
-        return -2;
+        if (rwx == 2) {
+            env->exception_index = POWERPC_EXCP_ISI;
+            env->error_code = 0x08000000;
+        } else {
+            env->exception_index = POWERPC_EXCP_DSI;
+            env->error_code = 0;
+            env->spr[SPR_DAR] = eaddr;
+            if (rwx == 1) {
+                env->spr[SPR_DSISR] = 0x0a000000;
+            } else {
+                env->spr[SPR_DSISR] = 0x08000000;
+            }
+        }
+        return 1;
     }
 
     LOG_MMU("PTE access granted !\n");
@@ -423,7 +508,7 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
     } else {
         /* Treat the page as read-only for now, so that a later write
          * will pass through this function again to set the C bit */
-        ctx->prot &= ~PAGE_WRITE;
+        prot &= ~PAGE_WRITE;
     }
 
     if (new_pte1 != pte.pte1) {
@@ -432,7 +517,10 @@ static int ppc_hash32_translate(CPUPPCState *env, struct mmu_ctx_hash32 *ctx,
 
     /* 9. Determine the real address from the PTE */
 
-    ctx->raddr = ppc_hash32_pte_raddr(sr, pte, eaddr);
+    raddr = ppc_hash32_pte_raddr(sr, pte, eaddr);
+
+    tlb_set_page(env, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+                 prot, mmu_idx, TARGET_PAGE_SIZE);
 
     return 0;
 }
@@ -469,118 +557,4 @@ hwaddr ppc_hash32_get_phys_page_debug(CPUPPCState *env, target_ulong eaddr)
     }
 
     return ppc_hash32_pte_raddr(sr, pte, eaddr) & TARGET_PAGE_MASK;
-}
-
-int ppc_hash32_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rwx,
-                                int mmu_idx)
-{
-    struct mmu_ctx_hash32 ctx;
-    int ret = 0;
-
-    ret = ppc_hash32_translate(env, &ctx, address, rwx);
-    if (ret == 0) {
-        tlb_set_page(env, address & TARGET_PAGE_MASK,
-                     ctx.raddr & TARGET_PAGE_MASK, ctx.prot,
-                     mmu_idx, TARGET_PAGE_SIZE);
-        ret = 0;
-    } else if (ret < 0) {
-        LOG_MMU_STATE(env);
-        if (rwx == 2) {
-            switch (ret) {
-            case -1:
-                /* No matches in page tables or TLB */
-                env->exception_index = POWERPC_EXCP_ISI;
-                env->error_code = 0x40000000;
-                break;
-            case -2:
-                /* Access rights violation */
-                env->exception_index = POWERPC_EXCP_ISI;
-                env->error_code = 0x08000000;
-                break;
-            case -3:
-                /* No execute protection violation */
-                env->exception_index = POWERPC_EXCP_ISI;
-                env->error_code = 0x10000000;
-                break;
-            case -4:
-                /* Direct store exception */
-                /* No code fetch is allowed in direct-store areas */
-                env->exception_index = POWERPC_EXCP_ISI;
-                env->error_code = 0x10000000;
-                break;
-            }
-        } else {
-            switch (ret) {
-            case -1:
-                /* No matches in page tables or TLB */
-                env->exception_index = POWERPC_EXCP_DSI;
-                env->error_code = 0;
-                env->spr[SPR_DAR] = address;
-                if (rwx == 1) {
-                    env->spr[SPR_DSISR] = 0x42000000;
-                } else {
-                    env->spr[SPR_DSISR] = 0x40000000;
-                }
-                break;
-            case -2:
-                /* Access rights violation */
-                env->exception_index = POWERPC_EXCP_DSI;
-                env->error_code = 0;
-                env->spr[SPR_DAR] = address;
-                if (rwx == 1) {
-                    env->spr[SPR_DSISR] = 0x0A000000;
-                } else {
-                    env->spr[SPR_DSISR] = 0x08000000;
-                }
-                break;
-            case -4:
-                /* Direct store exception */
-                switch (env->access_type) {
-                case ACCESS_FLOAT:
-                    /* Floating point load/store */
-                    env->exception_index = POWERPC_EXCP_ALIGN;
-                    env->error_code = POWERPC_EXCP_ALIGN_FP;
-                    env->spr[SPR_DAR] = address;
-                    break;
-                case ACCESS_RES:
-                    /* lwarx, ldarx or stwcx. */
-                    env->exception_index = POWERPC_EXCP_DSI;
-                    env->error_code = 0;
-                    env->spr[SPR_DAR] = address;
-                    if (rwx == 1) {
-                        env->spr[SPR_DSISR] = 0x06000000;
-                    } else {
-                        env->spr[SPR_DSISR] = 0x04000000;
-                    }
-                    break;
-                case ACCESS_EXT:
-                    /* eciwx or ecowx */
-                    env->exception_index = POWERPC_EXCP_DSI;
-                    env->error_code = 0;
-                    env->spr[SPR_DAR] = address;
-                    if (rwx == 1) {
-                        env->spr[SPR_DSISR] = 0x06100000;
-                    } else {
-                        env->spr[SPR_DSISR] = 0x04100000;
-                    }
-                    break;
-                default:
-                    printf("DSI: invalid exception (%d)\n", ret);
-                    env->exception_index = POWERPC_EXCP_PROGRAM;
-                    env->error_code =
-                        POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL;
-                    env->spr[SPR_DAR] = address;
-                    break;
-                }
-                break;
-            }
-        }
-#if 0
-        printf("%s: set exception to %d %02x\n", __func__,
-               env->exception, env->error_code);
-#endif
-        ret = 1;
-    }
-
-    return ret;
 }
