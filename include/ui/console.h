@@ -213,8 +213,6 @@ static inline int is_buffer_shared(DisplaySurface *surface)
     return !(surface->flags & QEMU_ALLOCATED_FLAG);
 }
 
-void gui_setup_refresh(DisplayState *ds);
-
 void register_displaychangelistener(DisplayState *ds,
                                     DisplayChangeListener *dcl);
 void unregister_displaychangelistener(DisplayChangeListener *dcl);

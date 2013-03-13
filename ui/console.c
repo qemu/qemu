@@ -166,6 +166,56 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds);
 static void dpy_gfx_switch_surface(DisplayState *ds,
                                    DisplaySurface *surface);
 
+static void gui_update(void *opaque)
+{
+    uint64_t interval = GUI_REFRESH_INTERVAL;
+    DisplayState *ds = opaque;
+    DisplayChangeListener *dcl;
+
+    dpy_refresh(ds);
+
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
+        if (dcl->gui_timer_interval &&
+            dcl->gui_timer_interval < interval) {
+            interval = dcl->gui_timer_interval;
+        }
+    }
+    qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock_ms(rt_clock));
+}
+
+static void gui_setup_refresh(DisplayState *ds)
+{
+    DisplayChangeListener *dcl;
+    bool need_timer = false;
+    bool have_gfx = false;
+    bool have_text = false;
+
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
+        if (dcl->ops->dpy_refresh != NULL) {
+            need_timer = true;
+        }
+        if (dcl->ops->dpy_gfx_update != NULL) {
+            have_gfx = true;
+        }
+        if (dcl->ops->dpy_text_update != NULL) {
+            have_text = true;
+        }
+    }
+
+    if (need_timer && ds->gui_timer == NULL) {
+        ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
+        qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
+    }
+    if (!need_timer && ds->gui_timer != NULL) {
+        qemu_del_timer(ds->gui_timer);
+        qemu_free_timer(ds->gui_timer);
+        ds->gui_timer = NULL;
+    }
+
+    ds->have_gfx = have_gfx;
+    ds->have_text = have_text;
+}
+
 void graphic_hw_update(QemuConsole *con)
 {
     if (!con) {
