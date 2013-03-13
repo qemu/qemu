@@ -338,6 +338,23 @@ extern uintptr_t tci_tb_ptr;
 # elif defined (_ARCH_PPC) && !defined (_ARCH_PPC64)
 #  define GETRA() ((uintptr_t)__builtin_return_address(0))
 #  define GETPC_LDST() ((uintptr_t) ((*(int32_t *)(GETRA() - 4)) - 1))
+# elif defined(__arm__)
+/* We define two insns between the return address and the branch back to
+   straight-line.  Find and decode that branch insn.  */
+#  define GETRA()       ((uintptr_t)__builtin_return_address(0))
+#  define GETPC_LDST()  tcg_getpc_ldst(GETRA())
+static inline uintptr_t tcg_getpc_ldst(uintptr_t ra)
+{
+    int32_t b;
+    ra += 8;                    /* skip the two insns */
+    b = *(int32_t *)ra;         /* load the branch insn */
+    b = (b << 8) >> (8 - 2);    /* extract the displacement */
+    ra += 8;                    /* branches are relative to pc+8 */
+    ra += b;                    /* apply the displacement */
+    ra -= 4;                    /* return a pointer into the current opcode,
+                                   not the start of the next opcode  */
+    return ra;
+}
 # else
 #  error "CONFIG_QEMU_LDST_OPTIMIZATION needs GETPC_LDST() implementation!"
 # endif
