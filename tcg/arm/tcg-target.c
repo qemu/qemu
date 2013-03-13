@@ -182,17 +182,11 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
 #ifdef CONFIG_SOFTMMU
-        /* r0 and r1 will be overwritten when reading the tlb entry,
+        /* r0-r2 will be overwritten when reading the tlb entry,
            so don't use these. */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-#if TARGET_LONG_BITS == 64
-        /* If we're passing env to the helper as r0 and need a regpair
-         * for the address then r2 will be overwritten as we're setting
-         * up the args to the helper.
-         */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
-#endif
 #endif
         break;
     case 'L':
@@ -207,30 +201,16 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 
     /* qemu_st address & data_reg */
     case 's':
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
-        /* r0 and r1 will be overwritten when reading the tlb entry
-           (softmmu only) and doing the byte swapping, so don't
-           use these. */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-#if defined(CONFIG_SOFTMMU) && (TARGET_LONG_BITS == 64)
-        /* Avoid clashes with registers being used for helper args */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
-#endif
-        break;
     /* qemu_st64 data_reg2 */
     case 'S':
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
-        /* r0 and r1 will be overwritten when reading the tlb entry
-            (softmmu only) and doing the byte swapping, so don't
-            use these. */
+        /* r0-r2 will be overwritten when reading the tlb entry (softmmu only)
+           and r0-r1 doing the byte swapping, so don't use these. */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-#ifdef CONFIG_SOFTMMU
-        /* r2 is still needed to load data_reg, so don't use it. */
+#if defined(CONFIG_SOFTMMU)
+        /* Avoid clashes with registers being used for helper args */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
 #if TARGET_LONG_BITS == 64
         /* Avoid clashes with registers being used for helper args */
@@ -347,6 +327,8 @@ typedef enum {
     INSN_LDRSB_REG = 0x001000d0,
     INSN_STRB_IMM  = 0x04400000,
     INSN_STRB_REG  = 0x06400000,
+
+    INSN_LDRD_IMM  = 0x004000d0,
 } ARMInsn;
 
 #define SHIFT_IMM_LSL(im)	(((im) << 7) | 0x00)
@@ -805,15 +787,6 @@ static inline void tcg_out_ld32_12(TCGContext *s, int cond, TCGReg rt,
     tcg_out_memop_12(s, cond, INSN_LDR_IMM, rt, rn, imm12, 1, 0);
 }
 
-/* Offset pre-increment with base writeback.  */
-static inline void tcg_out_ld32_12wb(TCGContext *s, int cond, TCGReg rt,
-                                     TCGReg rn, int imm12)
-{
-    /* ldr with writeback and both register equals is UNPREDICTABLE */
-    assert(rd != rn);
-    tcg_out_memop_12(s, cond, INSN_LDR_IMM, rt, rn, imm12, 1, 1);
-}
-
 static inline void tcg_out_st32_12(TCGContext *s, int cond, TCGReg rt,
                                    TCGReg rn, int imm12)
 {
@@ -1150,47 +1123,78 @@ static TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
 
 #define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
 
-/* Load and compare a TLB entry, leaving the flags set.  Leaves R0 pointing
+/* Load and compare a TLB entry, leaving the flags set.  Leaves R2 pointing
    to the tlb entry.  Clobbers R1 and TMP.  */
 
 static void tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
                              int s_bits, int tlb_offset)
 {
+    TCGReg base = TCG_AREG0;
+
     /* Should generate something like the following:
-     *  shr r8, addr_reg, #TARGET_PAGE_BITS
-     *  and r0, r8, #(CPU_TLB_SIZE - 1)   @ Assumption: CPU_TLB_BITS <= 8
-     *  add r0, env, r0 lsl #CPU_TLB_ENTRY_BITS
+     * pre-v7:
+     *   shr    tmp, addr_reg, #TARGET_PAGE_BITS                  (1)
+     *   add    r2, env, #off & 0xff00
+     *   and    r0, tmp, #(CPU_TLB_SIZE - 1)                      (2)
+     *   add    r2, r2, r0, lsl #CPU_TLB_ENTRY_BITS               (3)
+     *   ldr    r0, [r2, #off & 0xff]!                            (4)
+     *   tst    addr_reg, #s_mask
+     *   cmpeq  r0, tmp, lsl #TARGET_PAGE_BITS                    (5)
+     *
+     * v7 (not implemented yet):
+     *   ubfx   r2, addr_reg, #TARGET_PAGE_BITS, #CPU_TLB_BITS    (1)
+     *   movw   tmp, #~TARGET_PAGE_MASK & ~s_mask
+     *   movw   r0, #off
+     *   add    r2, env, r2, lsl #CPU_TLB_ENTRY_BITS              (2)
+     *   bic    tmp, addr_reg, tmp
+     *   ldr    r0, [r2, r0]!                                     (3)
+     *   cmp    r0, tmp                                           (4)
      */
 #  if CPU_TLB_BITS > 8
 #   error
 #  endif
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV, TCG_REG_TMP,
                     0, addrlo, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
+
+    /* We assume that the offset is contained within 16 bits.  */
+    assert((tlb_offset & ~0xffff) == 0);
+    if (tlb_offset > 0xff) {
+        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R2, base,
+                        (24 << 7) | (tlb_offset >> 8));
+        tlb_offset &= 0xff;
+        base = TCG_REG_R2;
+    }
+
     tcg_out_dat_imm(s, COND_AL, ARITH_AND,
                     TCG_REG_R0, TCG_REG_TMP, CPU_TLB_SIZE - 1);
-    tcg_out_dat_reg(s, COND_AL, ARITH_ADD, TCG_REG_R0, TCG_AREG0,
+    tcg_out_dat_reg(s, COND_AL, ARITH_ADD, TCG_REG_R2, base,
                     TCG_REG_R0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
 
-    /* We assume that the offset is contained within 20 bits.  */
-    assert((tlb_offset & ~0xfffff) == 0);
-    if (tlb_offset > 0xfff) {
-        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R0, TCG_REG_R0,
-                        0xa00 | (tlb_offset >> 12));
-        tlb_offset &= 0xfff;
+    /* Load the tlb comparator.  Use ldrd if needed and available,
+       but due to how the pointer needs setting up, ldm isn't useful.
+       Base arm5 doesn't have ldrd, but armv5te does.  */
+    if (use_armv6_instructions && TARGET_LONG_BITS == 64) {
+        tcg_out_memop_8(s, COND_AL, INSN_LDRD_IMM, TCG_REG_R0,
+                        TCG_REG_R2, tlb_offset, 1, 1);
+    } else {
+        tcg_out_memop_12(s, COND_AL, INSN_LDR_IMM, TCG_REG_R0,
+                         TCG_REG_R2, tlb_offset, 1, 1);
+        if (TARGET_LONG_BITS == 64) {
+            tcg_out_memop_12(s, COND_AL, INSN_LDR_IMM, TCG_REG_R0,
+                             TCG_REG_R2, 4, 1, 0);
+        }
     }
-    tcg_out_ld32_12wb(s, COND_AL, TCG_REG_R1, TCG_REG_R0, tlb_offset);
-    tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0, TCG_REG_R1,
-                    TCG_REG_TMP, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
 
     /* Check alignment.  */
     if (s_bits) {
-        tcg_out_dat_imm(s, COND_EQ, ARITH_TST,
+        tcg_out_dat_imm(s, COND_AL, ARITH_TST,
                         0, addrlo, (1 << s_bits) - 1);
     }
 
+    tcg_out_dat_reg(s, (s_bits ? COND_EQ : COND_AL), ARITH_CMP, 0,
+                    TCG_REG_R0, TCG_REG_TMP, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
+
     if (TARGET_LONG_BITS == 64) {
-        /* XXX: possibly we could use a block data load in the first access. */
-        tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0, 4);
         tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
                         TCG_REG_R1, addrhi, SHIFT_IMM_LSL(0));
     }
@@ -1223,7 +1227,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits,
                      offsetof(CPUArchState, tlb_table[mem_index][0].addr_read));
 
-    tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0,
+    tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R2,
                     offsetof(CPUTLBEntry, addend)
                     - offsetof(CPUTLBEntry, addr_read));
 
@@ -1395,7 +1399,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
                      offsetof(CPUArchState,
                               tlb_table[mem_index][0].addr_write));
 
-    tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0,
+    tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R2,
                     offsetof(CPUTLBEntry, addend)
                     - offsetof(CPUTLBEntry, addr_write));
 
