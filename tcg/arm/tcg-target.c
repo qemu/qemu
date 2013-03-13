@@ -1016,6 +1016,9 @@ static inline void tcg_out_call(TCGContext *s, uint32_t addr)
         } else {
             tcg_out_bl(s, COND_AL, val);
         }
+    } else if (use_armv7_instructions) {
+        tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addr);
+        tcg_out_blx(s, COND_AL, TCG_REG_TMP);
     } else {
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R14, TCG_REG_PC, 4);
         tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_PC, -4);
