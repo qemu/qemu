@@ -757,6 +757,7 @@ static const TypeInfo virtio_ccw_net = {
 static Property virtio_ccw_blk_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_BLOCK_PROPERTIES(VirtIOBlkCcw, blk.conf),
+    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOBlkCcw, blk.conf),
     DEFINE_PROP_STRING("serial", VirtIOBlkCcw, blk.serial),
 #ifdef __linux__
     DEFINE_PROP_BIT("scsi", VirtIOBlkCcw, blk.scsi, 0, true),
