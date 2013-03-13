@@ -1017,64 +1017,35 @@ static const void * const qemu_st_helpers[4] = {
  * argreg is where we want to put this argument, arg is the argument itself.
  * Return value is the updated argreg ready for the next call.
  * Note that argreg 0..3 is real registers, 4+ on stack.
- * When we reach the first stacked argument, we allocate space for it
- * and the following stacked arguments using "str r8, [sp, #-0x10]!".
- * Following arguments are filled in with "str r8, [sp, #0xNN]".
- * For more than 4 stacked arguments we'd need to know how much
- * space to allocate when we pushed the first stacked argument.
- * We don't need this, so don't implement it (and will assert if you try it.)
  *
  * We provide routines for arguments which are: immediate, 32 bit
  * value in register, 16 and 8 bit values in register (which must be zero
  * extended before use) and 64 bit value in a lo:hi register pair.
  */
-#define DEFINE_TCG_OUT_ARG(NAME, ARGPARAM)                                 \
-    static TCGReg NAME(TCGContext *s, TCGReg argreg, ARGPARAM)             \
-    {                                                                      \
-        if (argreg < 4) {                                                  \
-            TCG_OUT_ARG_GET_ARG(argreg);                                   \
-        } else if (argreg == 4) {                                          \
-            TCG_OUT_ARG_GET_ARG(TCG_REG_R8);                               \
-            tcg_out32(s, (COND_AL << 28) | 0x052d8010);                    \
-        } else {                                                           \
-            assert(argreg < 8);                                            \
-            TCG_OUT_ARG_GET_ARG(TCG_REG_R8);                               \
-            tcg_out32(s, (COND_AL << 28) | 0x058d8000 | (argreg - 4) * 4); \
-        }                                                                  \
-        return argreg + 1;                                                 \
-    }
-
-#define TCG_OUT_ARG_GET_ARG(A) tcg_out_dat_imm(s, COND_AL, ARITH_MOV, A, 0, arg)
-DEFINE_TCG_OUT_ARG(tcg_out_arg_imm32, uint32_t arg)
-#undef TCG_OUT_ARG_GET_ARG
-#define TCG_OUT_ARG_GET_ARG(A) tcg_out_ext8u(s, COND_AL, A, arg)
-DEFINE_TCG_OUT_ARG(tcg_out_arg_reg8, TCGReg arg)
-#undef TCG_OUT_ARG_GET_ARG
-#define TCG_OUT_ARG_GET_ARG(A) tcg_out_ext16u(s, COND_AL, A, arg)
-DEFINE_TCG_OUT_ARG(tcg_out_arg_reg16, TCGReg arg)
-#undef TCG_OUT_ARG_GET_ARG
-
-/* We don't use the macro for this one to avoid an unnecessary reg-reg
- * move when storing to the stack.
- */
-static TCGReg tcg_out_arg_reg32(TCGContext *s, TCGReg argreg, TCGReg arg)
-{
-    if (argreg < 4) {
-        tcg_out_mov_reg(s, COND_AL, argreg, arg);
-    } else if (argreg == 4) {
-        /* str arg, [sp, #-0x10]! */
-        tcg_out32(s, (COND_AL << 28) | 0x052d0010 | (arg << 12));
-    } else {
-        assert(argreg < 8);
-        /* str arg, [sp, #0xNN] */
-        tcg_out32(s, (COND_AL << 28) | 0x058d0000 |
-                  (arg << 12) | (argreg - 4) * 4);
-    }
-    return argreg + 1;
+#define DEFINE_TCG_OUT_ARG(NAME, ARGTYPE, MOV_ARG, EXT_ARG)                \
+static TCGReg NAME(TCGContext *s, TCGReg argreg, ARGTYPE arg)              \
+{                                                                          \
+    if (argreg < 4) {                                                      \
+        MOV_ARG(s, COND_AL, argreg, arg);                                  \
+    } else {                                                               \
+        int ofs = (argreg - 4) * 4;                                        \
+        EXT_ARG;                                                           \
+        assert(ofs + 4 <= TCG_STATIC_CALL_ARGS_SIZE);                      \
+        tcg_out_st32_12(s, COND_AL, arg, TCG_REG_CALL_STACK, ofs);         \
+    }                                                                      \
+    return argreg + 1;                                                     \
 }
 
-static inline TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
-                                       TCGReg arglo, TCGReg arghi)
+DEFINE_TCG_OUT_ARG(tcg_out_arg_imm32, uint32_t, tcg_out_movi32,
+    (tcg_out_movi32(s, COND_AL, TCG_REG_R8, arg), arg = TCG_REG_R8))
+DEFINE_TCG_OUT_ARG(tcg_out_arg_reg8, TCGReg, tcg_out_ext8u,
+    (tcg_out_ext8u(s, COND_AL, TCG_REG_R8, arg), arg = TCG_REG_R8))
+DEFINE_TCG_OUT_ARG(tcg_out_arg_reg16, TCGReg, tcg_out_ext16u,
+    (tcg_out_ext16u(s, COND_AL, TCG_REG_R8, arg), arg = TCG_REG_R8))
+DEFINE_TCG_OUT_ARG(tcg_out_arg_reg32, TCGReg, tcg_out_mov_reg, )
+
+static TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
+                                TCGReg arglo, TCGReg arghi)
 {
     /* 64 bit arguments must go in even/odd register pairs
      * and in 8-aligned stack slots.
@@ -1086,16 +1057,7 @@ static inline TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
     argreg = tcg_out_arg_reg32(s, argreg, arghi);
     return argreg;
 }
-
-static inline void tcg_out_arg_stacktidy(TCGContext *s, TCGReg argreg)
-{
-    /* Output any necessary post-call cleanup of the stack */
-    if (argreg > 4) {
-        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R13, TCG_REG_R13, 0x10);
-    }
-}
-
-#endif
+#endif /* SOFTMMU */
 
 #define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
 
@@ -1226,7 +1188,6 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 #endif
     argreg = tcg_out_arg_imm32(s, argreg, mem_index);
     tcg_out_call(s, (tcg_target_long) qemu_ld_helpers[s_bits]);
-    tcg_out_arg_stacktidy(s, argreg);
 
     switch (opc) {
     case 0 | 4:
@@ -1444,7 +1405,6 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 
     argreg = tcg_out_arg_imm32(s, argreg, mem_index);
     tcg_out_call(s, (tcg_target_long) qemu_st_helpers[s_bits]);
-    tcg_out_arg_stacktidy(s, argreg);
 
     reloc_pc24(label_ptr, (tcg_target_long)s->code_ptr);
 #else /* !CONFIG_SOFTMMU */
@@ -1884,8 +1844,6 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_PC);
 
     tcg_add_target_add_op_defs(arm_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
@@ -1914,18 +1872,33 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
 
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
-    /* Calling convention requires us to save r4-r11 and lr;
-     * save also r12 to maintain stack 8-alignment.
-     */
+    int frame_size;
 
-    /* stmdb sp!, { r4 - r12, lr } */
-    tcg_out32(s, (COND_AL << 28) | 0x092d5ff0);
+    /* Calling convention requires us to save r4-r11 and lr.  */
+    /* stmdb sp!, { r4 - r11, lr } */
+    tcg_out32(s, (COND_AL << 28) | 0x092d4ff0);
+
+    /* Allocate the local stack frame.  */
+    frame_size = TCG_STATIC_CALL_ARGS_SIZE;
+    frame_size += CPU_TEMP_BUF_NLONGS * sizeof(long);
+    /* We saved an odd number of registers above; keep an 8 aligned stack.  */
+    frame_size = ((frame_size + TCG_TARGET_STACK_ALIGN - 1)
+                  & -TCG_TARGET_STACK_ALIGN) + 4;
+
+    tcg_out_dat_rI(s, COND_AL, ARITH_SUB, TCG_REG_CALL_STACK,
+                   TCG_REG_CALL_STACK, frame_size, 1);
+    tcg_set_frame(s, TCG_REG_CALL_STACK, TCG_STATIC_CALL_ARGS_SIZE,
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
 
     tcg_out_bx(s, COND_AL, tcg_target_call_iarg_regs[1]);
     tb_ret_addr = s->code_ptr;
 
-    /* ldmia sp!, { r4 - r12, pc } */
-    tcg_out32(s, (COND_AL << 28) | 0x08bd9ff0);
+    /* Epilogue.  We branch here via tb_ret_addr.  */
+    tcg_out_dat_rI(s, COND_AL, ARITH_ADD, TCG_REG_CALL_STACK,
+                   TCG_REG_CALL_STACK, frame_size, 1);
+
+    /* ldmia sp!, { r4 - r11, pc } */
+    tcg_out32(s, (COND_AL << 28) | 0x08bd8ff0);
 }
