@@ -1077,7 +1077,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         dprintf("handle halt\n");
         ret = kvmppc_handle_halt(cpu);
         break;
-#ifdef CONFIG_PSERIES
+#if defined(TARGET_PPC64)
     case KVM_EXIT_PAPR_HCALL:
         dprintf("handle PAPR hypercall\n");
         run->papr_hcall.ret = spapr_hypercall(cpu,
