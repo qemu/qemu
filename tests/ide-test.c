@@ -77,6 +77,8 @@ enum {
     CMD_READ_DMA    = 0xc8,
     CMD_WRITE_DMA   = 0xca,
     CMD_IDENTIFY    = 0xec,
+
+    CMDF_ABORT      = 0x100,
 };
 
 enum {
@@ -170,8 +172,12 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
     size_t len;
     bool from_dev;
     uint8_t status;
+    int flags;
 
     dev = get_pci_device(&bmdma_base);
+
+    flags = cmd & ~0xff;
+    cmd &= 0xff;
 
     switch (cmd) {
     case CMD_READ_DMA:
@@ -208,6 +214,10 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
 
     /* Start DMA transfer */
     outb(bmdma_base + bmreg_cmd, BM_CMD_START | (from_dev ? BM_CMD_WRITE : 0));
+
+    if (flags & CMDF_ABORT) {
+        outb(bmdma_base + bmreg_cmd, 0);
+    }
 
     /* Wait for the DMA transfer to complete */
     do {
@@ -287,6 +297,48 @@ static void test_bmdma_simple_rw(void)
 
     g_free(buf);
     g_free(cmpbuf);
+}
+
+static void test_bmdma_short_prdt(void)
+{
+    uint8_t status;
+
+    PrdtEntry prdt[] = {
+        { .addr = 0, .size = 0x10 | PRDT_EOT },
+    };
+
+    /* Normal request */
+    status = send_dma_request(CMD_READ_DMA, 0, 1,
+                              prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, 0);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+
+    /* Abort the request before it completes */
+    status = send_dma_request(CMD_READ_DMA | CMDF_ABORT, 0, 1,
+                              prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, 0);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+}
+
+static void test_bmdma_long_prdt(void)
+{
+    uint8_t status;
+
+    PrdtEntry prdt[] = {
+        { .addr = 0, .size = 0x1000 | PRDT_EOT },
+    };
+
+    /* Normal request */
+    status = send_dma_request(CMD_READ_DMA, 0, 1,
+                              prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, BM_STS_ACTIVE | BM_STS_INTR);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+
+    /* Abort the request before it completes */
+    status = send_dma_request(CMD_READ_DMA | CMDF_ABORT, 0, 1,
+                              prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, BM_STS_INTR);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 }
 
 static void test_bmdma_setup(void)
@@ -375,6 +427,8 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ide/bmdma/setup", test_bmdma_setup);
     qtest_add_func("/ide/bmdma/simple_rw", test_bmdma_simple_rw);
+    qtest_add_func("/ide/bmdma/short_prdt", test_bmdma_short_prdt);
+    qtest_add_func("/ide/bmdma/long_prdt", test_bmdma_long_prdt);
     qtest_add_func("/ide/bmdma/teardown", test_bmdma_teardown);
 
     ret = g_test_run();
