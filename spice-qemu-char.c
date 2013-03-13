@@ -185,6 +185,11 @@ static void spice_chr_close(struct CharDriverState *chr)
     printf("%s\n", __func__);
     vmc_unregister_interface(s);
     QLIST_REMOVE(s, next);
+
+    g_free((char *)s->sin.subtype);
+#if SPICE_SERVER_VERSION >= 0x000c02
+    g_free((char *)s->sin.portname);
+#endif
     g_free(s);
 }
 
@@ -226,7 +231,7 @@ static CharDriverState *chr_open(const char *subtype)
     s = g_malloc0(sizeof(SpiceCharDriver));
     s->chr = chr;
     s->active = false;
-    s->sin.subtype = subtype;
+    s->sin.subtype = g_strdup(subtype);
     chr->opaque = s;
     chr->chr_write = spice_chr_write;
     chr->chr_close = spice_chr_close;
@@ -284,7 +289,7 @@ CharDriverState *qemu_chr_open_spice_port(const char *name)
 
     chr = chr_open("port");
     s = chr->opaque;
-    s->sin.portname = name;
+    s->sin.portname = g_strdup(name);
 
     return chr;
 }
