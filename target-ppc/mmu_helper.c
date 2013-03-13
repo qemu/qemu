@@ -1391,22 +1391,6 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
     int access_type;
     int ret = 0;
 
-    switch (env->mmu_model) {
-#if defined(TARGET_PPC64)
-    case POWERPC_MMU_64B:
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_06d:
-        return ppc_hash64_handle_mmu_fault(env, address, rw, mmu_idx);
-#endif
-
-    case POWERPC_MMU_32B:
-    case POWERPC_MMU_601:
-        return ppc_hash32_handle_mmu_fault(env, address, rw, mmu_idx);
-
-    default:
-        ; /* Otherwise fall through to the general code below */
-    }
-
     if (rw == 2) {
         /* code access */
         rw = 0;
@@ -2802,9 +2786,15 @@ void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
 void tlb_fill(CPUPPCState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     int ret;
 
-    ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    if (pcc->handle_mmu_fault) {
+        ret = pcc->handle_mmu_fault(env, addr, is_write, mmu_idx);
+    } else {
+        ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    }
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {
             /* now we have a real cpu fault */

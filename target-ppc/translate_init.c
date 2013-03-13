@@ -25,6 +25,8 @@
 #include "sysemu/arch_init.h"
 #include "sysemu/cpus.h"
 #include "cpu-models.h"
+#include "mmu-hash32.h"
+#include "mmu-hash64.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -4796,6 +4798,9 @@ POWERPC_FAMILY(601)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000000FD70ULL;
     pcc->mmu_model = POWERPC_MMU_601;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_601;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_601;
@@ -4830,7 +4835,9 @@ POWERPC_FAMILY(601v)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000000FD70ULL;
     pcc->mmu_model = POWERPC_MMU_601;
-    pcc->excp_model = POWERPC_EXCP_601;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_601;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK;
@@ -5037,6 +5044,9 @@ POWERPC_FAMILY(604)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000005FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_604;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_604;
@@ -5103,6 +5113,9 @@ POWERPC_FAMILY(604E)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000005FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_604;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_604;
@@ -5156,6 +5169,9 @@ POWERPC_FAMILY(740)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000005FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_7x0;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
@@ -5217,6 +5233,9 @@ POWERPC_FAMILY(750)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000005FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_7x0;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
@@ -5401,6 +5420,9 @@ POWERPC_FAMILY(750cl)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000005FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_7x0;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
@@ -5466,6 +5488,9 @@ POWERPC_FAMILY(750cx)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000005FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_7x0;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
@@ -5536,6 +5561,9 @@ POWERPC_FAMILY(750fx)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000005FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_7x0;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
@@ -5606,6 +5634,9 @@ POWERPC_FAMILY(750gx)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000005FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_7x0;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
@@ -5798,6 +5829,9 @@ POWERPC_FAMILY(7400)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000205FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_7400;
@@ -5864,6 +5898,9 @@ POWERPC_FAMILY(7410)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x000000000205FF77ULL;
     pcc->mmu_model = POWERPC_MMU_32B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash32_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_7400;
@@ -6570,6 +6607,9 @@ POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x900000000204FF36ULL;
     pcc->mmu_model = POWERPC_MMU_64B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_970;
     pcc->bus_model = PPC_FLAGS_INPUT_970;
     pcc->bfd_mach = bfd_mach_ppc64;
@@ -6680,6 +6720,9 @@ POWERPC_FAMILY(970FX)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x800000000204FF36ULL;
     pcc->mmu_model = POWERPC_MMU_64B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_970;
     pcc->bus_model = PPC_FLAGS_INPUT_970;
     pcc->bfd_mach = bfd_mach_ppc64;
@@ -6778,6 +6821,9 @@ POWERPC_FAMILY(970GX)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x800000000204FF36ULL;
     pcc->mmu_model = POWERPC_MMU_64B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_970;
     pcc->bus_model = PPC_FLAGS_INPUT_970;
     pcc->bfd_mach = bfd_mach_ppc64;
@@ -6876,6 +6922,9 @@ POWERPC_FAMILY(970MP)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC_NONE;
     pcc->msr_mask = 0x900000000204FF36ULL;
     pcc->mmu_model = POWERPC_MMU_64B;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_970;
     pcc->bus_model = PPC_FLAGS_INPUT_970;
     pcc->bfd_mach = bfd_mach_ppc64;
@@ -6968,6 +7017,9 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->insns_flags2 = PPC2_VSX | PPC2_DFP | PPC2_DBRX;
     pcc->msr_mask = 0x800000000204FF36ULL;
     pcc->mmu_model = POWERPC_MMU_2_06;
+#if defined(CONFIG_SOFTMMU)
+    pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
+#endif
     pcc->excp_model = POWERPC_EXCP_POWER7;
     pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
     pcc->bfd_mach = bfd_mach_ppc64;
