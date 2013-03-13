@@ -182,14 +182,6 @@ struct DisplayChangeListener {
     QLIST_ENTRY(DisplayChangeListener) next;
 };
 
-struct DisplayState {
-    struct QEMUTimer *gui_timer;
-    bool have_gfx;
-    bool have_text;
-
-    QLIST_HEAD(, DisplayChangeListener) listeners;
-};
-
 DisplayState *init_displaystate(void);
 DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
                                                 int linesize, uint8_t *data,

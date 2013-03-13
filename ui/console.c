@@ -157,6 +157,14 @@ struct QemuConsole {
     QEMUTimer *kbd_timer;
 };
 
+struct DisplayState {
+    struct QEMUTimer *gui_timer;
+    bool have_gfx;
+    bool have_text;
+
+    QLIST_HEAD(, DisplayChangeListener) listeners;
+};
+
 static DisplayState *display_state;
 static QemuConsole *active_console;
 static QemuConsole *consoles[MAX_CONSOLES];
