@@ -1147,40 +1147,15 @@ static TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
     argreg = tcg_out_arg_reg32(s, argreg, arghi);
     return argreg;
 }
-#endif /* SOFTMMU */
 
 #define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
 
-static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
+/* Load and compare a TLB entry, leaving the flags set.  Leaves R0 pointing
+   to the tlb entry.  Clobbers R1 and TMP.  */
+
+static void tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
+                             int s_bits, int tlb_offset)
 {
-    int addr_reg, data_reg, data_reg2, bswap;
-#ifdef CONFIG_SOFTMMU
-    int mem_index, s_bits, tlb_offset;
-    TCGReg argreg;
-# if TARGET_LONG_BITS == 64
-    int addr_reg2;
-# endif
-    uint32_t *label_ptr;
-#endif
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    bswap = 1;
-#else
-    bswap = 0;
-#endif
-    data_reg = *args++;
-    if (opc == 3)
-        data_reg2 = *args++;
-    else
-        data_reg2 = 0; /* suppress warning */
-    addr_reg = *args++;
-#ifdef CONFIG_SOFTMMU
-# if TARGET_LONG_BITS == 64
-    addr_reg2 = *args++;
-# endif
-    mem_index = *args;
-    s_bits = opc & 3;
-
     /* Should generate something like the following:
      *  shr r8, addr_reg, #TARGET_PAGE_BITS
      *  and r0, r8, #(CPU_TLB_SIZE - 1)   @ Assumption: CPU_TLB_BITS <= 8
@@ -1190,13 +1165,13 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 #   error
 #  endif
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV, TCG_REG_TMP,
-                    0, addr_reg, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
+                    0, addrlo, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
     tcg_out_dat_imm(s, COND_AL, ARITH_AND,
                     TCG_REG_R0, TCG_REG_TMP, CPU_TLB_SIZE - 1);
     tcg_out_dat_reg(s, COND_AL, ARITH_ADD, TCG_REG_R0, TCG_AREG0,
                     TCG_REG_R0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
+
     /* We assume that the offset is contained within 20 bits.  */
-    tlb_offset = offsetof(CPUArchState, tlb_table[mem_index][0].addr_read);
     assert((tlb_offset & ~0xfffff) == 0);
     if (tlb_offset > 0xfff) {
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R0, TCG_REG_R0,
@@ -1206,16 +1181,48 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     tcg_out_ld32_12wb(s, COND_AL, TCG_REG_R1, TCG_REG_R0, tlb_offset);
     tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0, TCG_REG_R1,
                     TCG_REG_TMP, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
+
     /* Check alignment.  */
-    if (s_bits)
+    if (s_bits) {
         tcg_out_dat_imm(s, COND_EQ, ARITH_TST,
-                        0, addr_reg, (1 << s_bits) - 1);
-#  if TARGET_LONG_BITS == 64
-    /* XXX: possibly we could use a block data load in the first access.  */
-    tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0, 4);
-    tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
-                    TCG_REG_R1, addr_reg2, SHIFT_IMM_LSL(0));
-#  endif
+                        0, addrlo, (1 << s_bits) - 1);
+    }
+
+    if (TARGET_LONG_BITS == 64) {
+        /* XXX: possibly we could use a block data load in the first access. */
+        tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0, 4);
+        tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
+                        TCG_REG_R1, addrhi, SHIFT_IMM_LSL(0));
+    }
+}
+#endif /* SOFTMMU */
+
+static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
+{
+    TCGReg addr_reg, data_reg, data_reg2;
+    bool bswap;
+#ifdef CONFIG_SOFTMMU
+    int mem_index, s_bits;
+    TCGReg argreg, addr_reg2;
+    uint32_t *label_ptr;
+#endif
+#ifdef TARGET_WORDS_BIGENDIAN
+    bswap = 1;
+#else
+    bswap = 0;
+#endif
+
+    data_reg = *args++;
+    data_reg2 = (opc == 3 ? *args++ : 0);
+    addr_reg = *args++;
+#ifdef CONFIG_SOFTMMU
+    addr_reg2 = (TARGET_LONG_BITS == 64 ? *args++ : 0);
+    mem_index = *args;
+    s_bits = opc & 3;
+
+    tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits,
+                     offsetof(CPUArchState, tlb_table[mem_index][0].addr_read));
+
     tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0,
                     offsetof(CPUTLBEntry, addend)
                     - offsetof(CPUTLBEntry, addr_read));
@@ -1271,11 +1278,11 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
      */
     argreg = TCG_REG_R0;
     argreg = tcg_out_arg_reg32(s, argreg, TCG_AREG0);
-#if TARGET_LONG_BITS == 64
-    argreg = tcg_out_arg_reg64(s, argreg, addr_reg, addr_reg2);
-#else
-    argreg = tcg_out_arg_reg32(s, argreg, addr_reg);
-#endif
+    if (TARGET_LONG_BITS == 64) {
+        argreg = tcg_out_arg_reg64(s, argreg, addr_reg, addr_reg2);
+    } else {
+        argreg = tcg_out_arg_reg32(s, argreg, addr_reg);
+    }
     argreg = tcg_out_arg_imm32(s, argreg, mem_index);
     tcg_out_call(s, (tcg_target_long) qemu_ld_helpers[s_bits]);
 
@@ -1302,8 +1309,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 #else /* !CONFIG_SOFTMMU */
     if (GUEST_BASE) {
         uint32_t offset = GUEST_BASE;
-        int i;
-        int rot;
+        int i, rot;
 
         while (offset) {
             i = ctz32(offset) & ~1;
@@ -1362,68 +1368,33 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 #endif
 }
 
-static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
+static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, data_reg, data_reg2, bswap;
+    TCGReg addr_reg, data_reg, data_reg2;
+    bool bswap;
 #ifdef CONFIG_SOFTMMU
-    int mem_index, s_bits, tlb_offset;
-    TCGReg argreg;
-# if TARGET_LONG_BITS == 64
-    int addr_reg2;
-# endif
+    int mem_index, s_bits;
+    TCGReg argreg, addr_reg2;
     uint32_t *label_ptr;
 #endif
-
 #ifdef TARGET_WORDS_BIGENDIAN
     bswap = 1;
 #else
     bswap = 0;
 #endif
+
     data_reg = *args++;
-    if (opc == 3)
-        data_reg2 = *args++;
-    else
-        data_reg2 = 0; /* suppress warning */
+    data_reg2 = (opc == 3 ? *args++ : 0);
     addr_reg = *args++;
 #ifdef CONFIG_SOFTMMU
-# if TARGET_LONG_BITS == 64
-    addr_reg2 = *args++;
-# endif
+    addr_reg2 = (TARGET_LONG_BITS == 64 ? *args++ : 0);
     mem_index = *args;
     s_bits = opc & 3;
 
-    /* Should generate something like the following:
-     *  shr r8, addr_reg, #TARGET_PAGE_BITS
-     *  and r0, r8, #(CPU_TLB_SIZE - 1)   @ Assumption: CPU_TLB_BITS <= 8
-     *  add r0, env, r0 lsl #CPU_TLB_ENTRY_BITS
-     */
-    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                    TCG_REG_TMP, 0, addr_reg, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
-    tcg_out_dat_imm(s, COND_AL, ARITH_AND,
-                    TCG_REG_R0, TCG_REG_TMP, CPU_TLB_SIZE - 1);
-    tcg_out_dat_reg(s, COND_AL, ARITH_ADD, TCG_REG_R0,
-                    TCG_AREG0, TCG_REG_R0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
-    /* We assume that the offset is contained within 20 bits.  */
-    tlb_offset = offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
-    assert((tlb_offset & ~0xfffff) == 0);
-    if (tlb_offset > 0xfff) {
-        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R0, TCG_REG_R0,
-                        0xa00 | (tlb_offset >> 12));
-        tlb_offset &= 0xfff;
-    }
-    tcg_out_ld32_12wb(s, COND_AL, TCG_REG_R1, TCG_REG_R0, tlb_offset);
-    tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0, TCG_REG_R1,
-                    TCG_REG_TMP, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
-    /* Check alignment.  */
-    if (s_bits)
-        tcg_out_dat_imm(s, COND_EQ, ARITH_TST,
-                        0, addr_reg, (1 << s_bits) - 1);
-#  if TARGET_LONG_BITS == 64
-    /* XXX: possibly we could use a block data load in the first access.  */
-    tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0, 4);
-    tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
-                    TCG_REG_R1, addr_reg2, SHIFT_IMM_LSL(0));
-#  endif
+    tcg_out_tlb_read(s, addr_reg, addr_reg2, s_bits,
+                     offsetof(CPUArchState,
+                              tlb_table[mem_index][0].addr_write));
+
     tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0,
                     offsetof(CPUTLBEntry, addend)
                     - offsetof(CPUTLBEntry, addr_write));
@@ -1472,11 +1443,11 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
      */
     argreg = TCG_REG_R0;
     argreg = tcg_out_arg_reg32(s, argreg, TCG_AREG0);
-#if TARGET_LONG_BITS == 64
-    argreg = tcg_out_arg_reg64(s, argreg, addr_reg, addr_reg2);
-#else
-    argreg = tcg_out_arg_reg32(s, argreg, addr_reg);
-#endif
+    if (TARGET_LONG_BITS == 64) {
+        argreg = tcg_out_arg_reg64(s, argreg, addr_reg, addr_reg2);
+    } else {
+        argreg = tcg_out_arg_reg32(s, argreg, addr_reg);
+    }
 
     switch (opc) {
     case 0:
