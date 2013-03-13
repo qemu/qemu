@@ -2910,9 +2910,7 @@ static int vga_initfn(ISADevice *dev)
     vga_common_init(s);
     cirrus_init_common(&d->cirrus_vga, CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(dev), isa_address_space_io(dev));
-    s->con = graphic_console_init(s->update, s->invalidate,
-                                  s->text_update,
-                                  s);
+    s->con = graphic_console_init(s->hw_ops, s);
     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
     /* FIXME not qdev yet */
@@ -2959,9 +2957,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      vga_common_init(&s->vga);
      cirrus_init_common(s, device_id, 1, pci_address_space(dev),
                         pci_address_space_io(dev));
-     s->vga.con = graphic_console_init(s->vga.update, s->vga.invalidate,
-                                       s->vga.text_update,
-                                       &s->vga);
+     s->vga.con = graphic_console_init(s->vga.hw_ops, &s->vga);
 
      /* setup PCI */
 

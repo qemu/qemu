@@ -152,9 +152,7 @@ typedef struct VGACommonState {
     uint32_t cursor_offset;
     unsigned int (*rgb_to_pixel)(unsigned int r,
                                  unsigned int g, unsigned b);
-    graphic_hw_update_ptr update;
-    graphic_hw_invalidate_ptr invalidate;
-    graphic_hw_text_update_ptr text_update;
+    const GraphicHwOps *hw_ops;
     bool full_update_text;
     bool full_update_gfx;
     /* hardware mouse cursor support */

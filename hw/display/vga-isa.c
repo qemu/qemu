@@ -62,8 +62,7 @@ static int vga_initfn(ISADevice *dev)
                                         isa_mem_base + 0x000a0000,
                                         vga_io_memory, 1);
     memory_region_set_coalescing(vga_io_memory);
-    s->con = graphic_console_init(s->update, s->invalidate,
-                                  s->text_update, s);
+    s->con = graphic_console_init(s->hw_ops, s);
 
     vga_init_vbe(s, isa_address_space(dev));
     /* ROM BIOS */

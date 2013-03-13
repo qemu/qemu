@@ -913,7 +913,7 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
     case SVGA_REG_ENABLE:
         s->enable = !!value;
         s->invalidated = 1;
-        s->vga.invalidate(&s->vga);
+        s->vga.hw_ops->invalidate(&s->vga);
         if (s->enable && s->config) {
             vga_dirty_log_stop(&s->vga);
         } else {
@@ -1058,7 +1058,7 @@ static void vmsvga_update_display(void *opaque)
     bool dirty = false;
 
     if (!s->enable) {
-        s->vga.update(&s->vga);
+        s->vga.hw_ops->gfx_update(&s->vga);
         return;
     }
 
@@ -1112,7 +1112,7 @@ static void vmsvga_invalidate_display(void *opaque)
 {
     struct vmsvga_state_s *s = opaque;
     if (!s->enable) {
-        s->vga.invalidate(&s->vga);
+        s->vga.hw_ops->invalidate(&s->vga);
         return;
     }
 
@@ -1123,8 +1123,8 @@ static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
 {
     struct vmsvga_state_s *s = opaque;
 
-    if (s->vga.text_update) {
-        s->vga.text_update(&s->vga, chardata);
+    if (s->vga.hw_ops->text_update) {
+        s->vga.hw_ops->text_update(&s->vga, chardata);
     }
 }
 
@@ -1179,15 +1179,19 @@ static const VMStateDescription vmstate_vmware_vga = {
     }
 };
 
+static const GraphicHwOps vmsvga_ops = {
+    .invalidate  = vmsvga_invalidate_display,
+    .gfx_update  = vmsvga_update_display,
+    .text_update = vmsvga_text_update,
+};
+
 static void vmsvga_init(struct vmsvga_state_s *s,
                         MemoryRegion *address_space, MemoryRegion *io)
 {
     s->scratch_size = SVGA_SCRATCH_SIZE;
     s->scratch = g_malloc(s->scratch_size * 4);
 
-    s->vga.con = graphic_console_init(vmsvga_update_display,
-                                      vmsvga_invalidate_display,
-                                      vmsvga_text_update, s);
+    s->vga.con = graphic_console_init(&vmsvga_ops, s);
 
     s->fifo_size = SVGA_FIFO_SIZE;
     memory_region_init_ram(&s->fifo_ram, "vmsvga.fifo", s->fifo_size);

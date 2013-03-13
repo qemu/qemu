@@ -2250,6 +2250,12 @@ const VMStateDescription vmstate_vga_common = {
     }
 };
 
+static const GraphicHwOps vga_ops = {
+    .invalidate  = vga_invalidate_display,
+    .gfx_update  = vga_update_display,
+    .text_update = vga_update_text,
+};
+
 void vga_common_init(VGACommonState *s)
 {
     int i, j, v, b;
@@ -2293,9 +2299,7 @@ void vga_common_init(VGACommonState *s)
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
     s->get_resolution = vga_get_resolution;
-    s->update = vga_update_display;
-    s->invalidate = vga_invalidate_display;
-    s->text_update = vga_update_text;
+    s->hw_ops = &vga_ops;
     switch (vga_retrace_method) {
     case VGA_RETRACE_DUMB:
         s->retrace = vga_dumb_retrace;

@@ -384,6 +384,11 @@ void omap_lcdc_reset(struct omap_lcd_panel_s *s)
     s->ctrl = 0;
 }
 
+static const GraphicHwOps omap_ops = {
+    .invalidate  = omap_invalidate_display,
+    .gfx_update  = omap_update_display,
+};
+
 struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
                                         hwaddr base,
                                         qemu_irq irq,
@@ -401,9 +406,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
     memory_region_init_io(&s->iomem, &omap_lcdc_ops, s, "omap.lcdc", 0x100);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->con = graphic_console_init(omap_update_display,
-                                  omap_invalidate_display,
-                                  NULL, s);
+    s->con = graphic_console_init(&omap_ops, s);
 
     return s;
 }

@@ -510,6 +510,16 @@ static const MemoryRegionOps dummy_ops = {
     },
 };
 
+static const GraphicHwOps tcx_ops = {
+    .invalidate = tcx_invalidate_display,
+    .gfx_update = tcx_update_display,
+};
+
+static const GraphicHwOps tcx24_ops = {
+    .invalidate = tcx24_invalidate_display,
+    .gfx_update = tcx24_update_display,
+};
+
 static int tcx_init1(SysBusDevice *dev)
 {
     TCXState *s = FROM_SYSBUS(TCXState, dev);
@@ -562,18 +572,14 @@ static int tcx_init1(SysBusDevice *dev)
                                  &s->vram_mem, vram_offset, size);
         sysbus_init_mmio(dev, &s->vram_cplane);
 
-        s->con = graphic_console_init(tcx24_update_display,
-                                      tcx24_invalidate_display,
-                                      NULL, s);
+        s->con = graphic_console_init(&tcx24_ops, s);
     } else {
         /* THC 8 bit (dummy) */
         memory_region_init_io(&s->thc8, &dummy_ops, s, "tcx.thc8",
                               TCX_THC_NREGS_8);
         sysbus_init_mmio(dev, &s->thc8);
 
-        s->con = graphic_console_init(tcx_update_display,
-                                      tcx_invalidate_display,
-                                      NULL, s);
+        s->con = graphic_console_init(&tcx_ops, s);
     }
 
     qemu_console_resize(s->con, s->width, s->height);

@@ -119,9 +119,7 @@ struct QemuConsole {
     DisplaySurface *surface;
 
     /* Graphic console state.  */
-    graphic_hw_update_ptr hw_update;
-    graphic_hw_invalidate_ptr hw_invalidate;
-    graphic_hw_text_update_ptr hw_text_update;
+    const GraphicHwOps *hw_ops;
     void *hw;
 
     /* Text console state */
@@ -229,8 +227,8 @@ void graphic_hw_update(QemuConsole *con)
     if (!con) {
         con = active_console;
     }
-    if (con && con->hw_update) {
-        con->hw_update(con->hw);
+    if (con && con->hw_ops->gfx_update) {
+        con->hw_ops->gfx_update(con->hw);
     }
 }
 
@@ -239,8 +237,8 @@ void graphic_hw_invalidate(QemuConsole *con)
     if (!con) {
         con = active_console;
     }
-    if (con && con->hw_invalidate) {
-        con->hw_invalidate(con->hw);
+    if (con && con->hw_ops->invalidate) {
+        con->hw_ops->invalidate(con->hw);
     }
 }
 
@@ -310,8 +308,9 @@ void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)
     if (!con) {
         con = active_console;
     }
-    if (con && con->hw_text_update)
-        con->hw_text_update(con->hw, chardata);
+    if (con && con->hw_ops->text_update) {
+        con->hw_ops->text_update(con->hw, chardata);
+    }
 }
 
 static void vga_fill_rect(QemuConsole *con,
@@ -1493,9 +1492,7 @@ DisplayState *init_displaystate(void)
     return display_state;
 }
 
-QemuConsole *graphic_console_init(graphic_hw_update_ptr update,
-                                  graphic_hw_invalidate_ptr invalidate,
-                                  graphic_hw_text_update_ptr text_update,
+QemuConsole *graphic_console_init(const GraphicHwOps *hw_ops,
                                   void *opaque)
 {
     int width = 640;
@@ -1506,9 +1503,7 @@ QemuConsole *graphic_console_init(graphic_hw_update_ptr update,
     ds = get_alloc_displaystate();
     trace_console_gfx_new();
     s = new_console(ds, GRAPHIC_CONSOLE);
-    s->hw_update = update;
-    s->hw_invalidate = invalidate;
-    s->hw_text_update = text_update;
+    s->hw_ops = hw_ops;
     s->hw = opaque;
 
     s->surface = qemu_create_displaysurface(width, height);
@@ -1542,6 +1537,11 @@ static void text_console_update_cursor(void *opaque)
                    qemu_get_clock_ms(rt_clock) + CONSOLE_CURSOR_PERIOD / 2);
 }
 
+static const GraphicHwOps text_console_ops = {
+    .invalidate  = text_console_invalidate,
+    .text_update = text_console_update,
+};
+
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
 {
     QemuConsole *s;
@@ -1573,8 +1573,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
     s->cursor_timer =
         qemu_new_timer_ms(rt_clock, text_console_update_cursor, s);
 
-    s->hw_invalidate = text_console_invalidate;
-    s->hw_text_update = text_console_update;
+    s->hw_ops = &text_console_ops;
     s->hw = s;
 
     /* Set text attribute defaults */

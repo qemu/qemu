@@ -944,6 +944,11 @@ static void blizzard_update_display(void *opaque)
 #define DEPTH 32
 #include "blizzard_template.h"
 
+static const GraphicHwOps blizzard_ops = {
+    .invalidate  = blizzard_invalidate_display,
+    .gfx_update  = blizzard_update_display,
+};
+
 void *s1d13745_init(qemu_irq gpio_int)
 {
     BlizzardState *s = (BlizzardState *) g_malloc0(sizeof(*s));
@@ -951,9 +956,7 @@ void *s1d13745_init(qemu_irq gpio_int)
 
     s->fb = g_malloc(0x180000);
 
-    s->con = graphic_console_init(blizzard_update_display,
-                                  blizzard_invalidate_display,
-                                  NULL, s);
+    s->con = graphic_console_init(&blizzard_ops, s);
     surface = qemu_console_surface(s->con);
 
     switch (surface_bits_per_pixel(surface)) {

@@ -1887,6 +1887,11 @@ static const VMStateDescription exynos4210_fimd_vmstate = {
     }
 };
 
+static const GraphicHwOps exynos4210_fimd_ops = {
+    .invalidate  = exynos4210_fimd_invalidate,
+    .gfx_update  = exynos4210_fimd_update,
+};
+
 static int exynos4210_fimd_init(SysBusDevice *dev)
 {
     Exynos4210fimdState *s = FROM_SYSBUS(Exynos4210fimdState, dev);
@@ -1900,8 +1905,7 @@ static int exynos4210_fimd_init(SysBusDevice *dev)
     memory_region_init_io(&s->iomem, &exynos4210_fimd_mmio_ops, s,
             "exynos4210.fimd", FIMD_REGS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
-    s->console = graphic_console_init(exynos4210_fimd_update,
-                                      exynos4210_fimd_invalidate, NULL, s);
+    s->console = graphic_console_init(&exynos4210_fimd_ops, s);
 
     return 0;
 }

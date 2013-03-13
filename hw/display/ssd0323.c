@@ -331,15 +331,18 @@ static int ssd0323_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static const GraphicHwOps ssd0323_ops = {
+    .invalidate  = ssd0323_invalidate_display,
+    .gfx_update  = ssd0323_update_display,
+};
+
 static int ssd0323_init(SSISlave *dev)
 {
     ssd0323_state *s = FROM_SSI_SLAVE(ssd0323_state, dev);
 
     s->col_end = 63;
     s->row_end = 79;
-    s->con = graphic_console_init(ssd0323_update_display,
-                                  ssd0323_invalidate_display,
-                                  NULL, s);
+    s->con = graphic_console_init(&ssd0323_ops, s);
     qemu_console_resize(s->con, 128 * MAGNIFY, 64 * MAGNIFY);
 
     qdev_init_gpio_in(&dev->qdev, ssd0323_cd, 1);

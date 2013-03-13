@@ -78,6 +78,8 @@ static void puv3_board_init(CPUUniCore32State *env, ram_addr_t ram_size)
     memory_region_add_subregion(get_system_memory(), 0, ram_memory);
 }
 
+static const GraphicHwOps no_ops;
+
 static void puv3_load_kernel(const char *kernel_filename)
 {
     int size;
@@ -92,7 +94,7 @@ static void puv3_load_kernel(const char *kernel_filename)
     }
 
     /* cheat curses that we have a graphic console, only under ocd console */
-    graphic_console_init(NULL, NULL, NULL, NULL);
+    graphic_console_init(&no_ops, NULL);
 }
 
 static void puv3_init(QEMUMachineInitArgs *args)

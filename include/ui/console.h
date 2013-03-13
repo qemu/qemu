@@ -267,13 +267,13 @@ static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
     *dest = ch;
 }
 
-typedef void (*graphic_hw_update_ptr)(void *);
-typedef void (*graphic_hw_invalidate_ptr)(void *);
-typedef void (*graphic_hw_text_update_ptr)(void *, console_ch_t *);
+typedef struct GraphicHwOps {
+    void (*invalidate)(void *opaque);
+    void (*gfx_update)(void *opaque);
+    void (*text_update)(void *opaque, console_ch_t *text);
+} GraphicHwOps;
 
-QemuConsole *graphic_console_init(graphic_hw_update_ptr update,
-                                  graphic_hw_invalidate_ptr invalidate,
-                                  graphic_hw_text_update_ptr text_update,
+QemuConsole *graphic_console_init(const GraphicHwOps *ops,
                                   void *opaque);
 
 void graphic_hw_update(QemuConsole *con);

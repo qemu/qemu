@@ -977,6 +977,11 @@ struct XenDevOps xen_framebuffer_ops = {
     .frontend_changed = fb_frontend_changed,
 };
 
+static const GraphicHwOps xenfb_ops = {
+    .invalidate  = xenfb_invalidate,
+    .gfx_update  = xenfb_update,
+};
+
 /*
  * FIXME/TODO: Kill this.
  * Temporary needed while DisplayState reorganization is in flight.
@@ -1004,10 +1009,7 @@ wait_more:
 
     /* vfb */
     fb = container_of(xfb, struct XenFB, c.xendev);
-    fb->c.con = graphic_console_init(xenfb_update,
-                                     xenfb_invalidate,
-                                     NULL,
-                                     fb);
+    fb->c.con = graphic_console_init(&xenfb_ops, fb);
     fb->have_console = 1;
 
     /* vkbd */

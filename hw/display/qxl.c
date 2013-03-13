@@ -1753,7 +1753,7 @@ static void qxl_hw_update(void *opaque)
 
     switch (qxl->mode) {
     case QXL_MODE_VGA:
-        vga->update(vga);
+        vga->hw_ops->gfx_update(vga);
         break;
     case QXL_MODE_COMPAT:
     case QXL_MODE_NATIVE:
@@ -1769,7 +1769,7 @@ static void qxl_hw_invalidate(void *opaque)
     PCIQXLDevice *qxl = opaque;
     VGACommonState *vga = &qxl->vga;
 
-    vga->invalidate(vga);
+    vga->hw_ops->invalidate(vga);
 }
 
 static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
@@ -1778,7 +1778,7 @@ static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
     VGACommonState *vga = &qxl->vga;
 
     if (qxl->mode == QXL_MODE_VGA) {
-        vga->text_update(vga, chardata);
+        vga->hw_ops->text_update(vga, chardata);
         return;
     }
 }
@@ -2038,6 +2038,12 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     return 0;
 }
 
+static const GraphicHwOps qxl_ops = {
+    .invalidate  = qxl_hw_invalidate,
+    .gfx_update  = qxl_hw_update,
+    .text_update = qxl_hw_text_update,
+};
+
 static int qxl_init_primary(PCIDevice *dev)
 {
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
@@ -2054,9 +2060,7 @@ static int qxl_init_primary(PCIDevice *dev)
     portio_list_init(qxl_vga_port_list, qxl_vga_portio_list, vga, "vga");
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
 
-    vga->con = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
-                                    qxl_hw_text_update,
-                                    qxl);
+    vga->con = graphic_console_init(&qxl_ops, qxl);
     qxl->ssd.con = vga->con,
     qemu_spice_display_init_common(&qxl->ssd);
 
