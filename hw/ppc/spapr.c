@@ -779,6 +779,11 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         spapr->htab_shift++;
     }
 
+    /* Set up Interrupt Controller before we create the VCPUs */
+    spapr->icp = xics_system_init(smp_cpus * kvmppc_smt_threads() / smp_threads,
+                                  XICS_IRQS);
+    spapr->next_irq = XICS_IRQ_BASE;
+
     /* init CPUs */
     if (cpu_model == NULL) {
         cpu_model = kvm_enabled() ? "host" : "POWER7";
@@ -790,6 +795,8 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
             exit(1);
         }
         env = &cpu->env;
+
+        xics_cpu_setup(spapr->icp, cpu);
 
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
@@ -829,11 +836,6 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         exit(1);
     }
     g_free(filename);
-
-
-    /* Set up Interrupt Controller */
-    spapr->icp = xics_system_init(XICS_IRQS);
-    spapr->next_irq = XICS_IRQ_BASE;
 
     /* Set up EPOW events infrastructure */
     spapr_events_init(spapr);
