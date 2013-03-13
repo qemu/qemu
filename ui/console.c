@@ -123,7 +123,6 @@ struct QemuConsole {
     graphic_hw_invalidate_ptr hw_invalidate;
     graphic_hw_text_update_ptr hw_text_update;
     void *hw;
-    int g_width, g_height;
 
     /* Text console state */
     int width;
@@ -389,8 +388,8 @@ static void text_console_resize(QemuConsole *s)
     int w1, x, y, last_width;
 
     last_width = s->width;
-    s->width = s->g_width / FONT_WIDTH;
-    s->height = s->g_height / FONT_HEIGHT;
+    s->width = surface_width(s->surface) / FONT_WIDTH;
+    s->height = surface_height(s->surface) / FONT_HEIGHT;
 
     w1 = last_width;
     if (s->width < w1)
@@ -951,18 +950,12 @@ static void console_putchar(QemuConsole *s, int ch)
 
 void console_select(unsigned int index)
 {
-    DisplaySurface *surface;
     QemuConsole *s;
 
     if (index >= MAX_CONSOLES)
         return;
 
     trace_console_select(index);
-    if (active_console) {
-        surface = qemu_console_surface(active_console);
-        active_console->g_width = surface_width(surface);
-        active_console->g_height = surface_height(surface);
-    }
     s = consoles[index];
     if (s) {
         DisplayState *ds = s->ds;
@@ -1089,11 +1082,8 @@ void kbd_put_keysym(int keysym)
 static void text_console_invalidate(void *opaque)
 {
     QemuConsole *s = (QemuConsole *) opaque;
-    DisplaySurface *surface = qemu_console_surface(s);
 
     if (s->ds->have_text && s->console_type == TEXT_CONSOLE) {
-        s->g_width = surface_width(surface);
-        s->g_height = surface_height(surface);
         text_console_resize(s);
     }
     console_refresh(s);
@@ -1497,6 +1487,8 @@ static void text_console_update_cursor(void *opaque)
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
 {
     QemuConsole *s;
+    int g_width = 80 * FONT_WIDTH;
+    int g_height = 24 * FONT_HEIGHT;
 
     s = chr->opaque;
 
@@ -1512,16 +1504,13 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
     s->total_height = DEFAULT_BACKSCROLL;
     s->x = 0;
     s->y = 0;
-    if (s->console_type == TEXT_CONSOLE) {
+    if (!s->surface) {
         if (active_console && active_console->surface) {
-            s->g_width = surface_width(active_console->surface);
-            s->g_height = surface_height(active_console->surface);
-        } else {
-            s->g_width = 80 * FONT_WIDTH;
-            s->g_height = 24 * FONT_HEIGHT;
+            g_width = surface_width(active_console->surface);
+            g_height = surface_height(active_console->surface);
         }
+        s->surface = qemu_create_displaysurface(g_width, g_height);
     }
-    s->surface = qemu_create_displaysurface(s->g_width, s->g_height);
 
     s->cursor_timer =
         qemu_new_timer_ms(rt_clock, text_console_update_cursor, s);
@@ -1583,6 +1572,7 @@ static CharDriverState *text_console_init(ChardevVC *vc)
         s = new_console(NULL, TEXT_CONSOLE);
     } else {
         s = new_console(NULL, TEXT_CONSOLE_FIXED_SIZE);
+        s->surface = qemu_create_displaysurface(width, height);
     }
 
     if (!s) {
@@ -1591,8 +1581,6 @@ static CharDriverState *text_console_init(ChardevVC *vc)
     }
 
     s->chr = chr;
-    s->g_width = width;
-    s->g_height = height;
     chr->opaque = s;
     chr->chr_set_echo = text_console_set_echo;
 
@@ -1619,8 +1607,6 @@ void qemu_console_resize(QemuConsole *s, int width, int height)
     DisplaySurface *surface;
 
     assert(s->console_type == GRAPHIC_CONSOLE);
-    s->g_width = width;
-    s->g_height = height;
     surface = qemu_create_displaysurface(width, height);
     dpy_gfx_replace_surface(s, surface);
 }
