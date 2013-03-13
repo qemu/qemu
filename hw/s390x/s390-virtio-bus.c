@@ -441,6 +441,7 @@ static Property s390_virtio_blk_properties[] = {
 #ifdef __linux__
     DEFINE_PROP_BIT("scsi", VirtIOBlkS390, blk.scsi, 0, true),
 #endif
+    DEFINE_PROP_BIT("config-wce", VirtIOBlkS390, blk.config_wce, 0, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

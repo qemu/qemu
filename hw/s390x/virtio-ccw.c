@@ -762,6 +762,7 @@ static Property virtio_ccw_blk_properties[] = {
 #ifdef __linux__
     DEFINE_PROP_BIT("scsi", VirtIOBlkCcw, blk.scsi, 0, true),
 #endif
+    DEFINE_PROP_BIT("config-wce", VirtIOBlkCcw, blk.config_wce, 0, true),
     DEFINE_VIRTIO_BLK_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_PROP_END_OF_LIST(),
 };
