@@ -856,7 +856,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     /* Set up PCI */
     spapr_pci_rtas_init();
 
-    phb = spapr_create_phb(spapr, 0, "pci");
+    phb = spapr_create_phb(spapr, 0);
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
