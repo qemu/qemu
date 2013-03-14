@@ -157,6 +157,9 @@ struct QemuConsole {
 
 struct DisplayState {
     struct QEMUTimer *gui_timer;
+    uint64_t last_update;
+    uint64_t update_interval;
+    bool refreshing;
     bool have_gfx;
     bool have_text;
 
@@ -171,22 +174,32 @@ static int nb_consoles = 0;
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds);
 static void dpy_gfx_switch_surface(DisplayState *ds,
                                    DisplaySurface *surface);
+static void dpy_refresh(DisplayState *s);
 
 static void gui_update(void *opaque)
 {
-    uint64_t interval = GUI_REFRESH_INTERVAL;
+    uint64_t interval = GUI_REFRESH_INTERVAL_IDLE;
+    uint64_t dcl_interval;
     DisplayState *ds = opaque;
     DisplayChangeListener *dcl;
 
+    ds->refreshing = true;
     dpy_refresh(ds);
+    ds->refreshing = false;
 
     QLIST_FOREACH(dcl, &ds->listeners, next) {
-        if (dcl->gui_timer_interval &&
-            dcl->gui_timer_interval < interval) {
-            interval = dcl->gui_timer_interval;
+        dcl_interval = dcl->update_interval ?
+            dcl->update_interval : GUI_REFRESH_INTERVAL_DEFAULT;
+        if (interval > dcl_interval) {
+            interval = dcl_interval;
         }
     }
-    qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock_ms(rt_clock));
+    if (ds->update_interval != interval) {
+        ds->update_interval = interval;
+        trace_console_refresh(interval);
+    }
+    ds->last_update = qemu_get_clock_ms(rt_clock);
+    qemu_mod_timer(ds->gui_timer, ds->last_update + interval);
 }
 
 static void gui_setup_refresh(DisplayState *ds)
@@ -1283,6 +1296,17 @@ void register_displaychangelistener(DisplayState *ds,
     gui_setup_refresh(ds);
     if (dcl->ops->dpy_gfx_switch && active_console) {
         dcl->ops->dpy_gfx_switch(dcl, active_console->surface);
+    }
+}
+
+void update_displaychangelistener(DisplayChangeListener *dcl,
+                                  uint64_t interval)
+{
+    DisplayState *ds = dcl->ds;
+
+    dcl->update_interval = interval;
+    if (!ds->refreshing && ds->update_interval > interval) {
+        qemu_mod_timer(ds->gui_timer, ds->last_update + interval);
     }
 }
 

@@ -751,12 +751,12 @@ static void handle_activation(SDL_Event *ev)
     if (ev->active.state & SDL_APPACTIVE) {
         if (ev->active.gain) {
             /* Back to default interval */
-            dcl->gui_timer_interval = 0;
-            dcl->idle = 0;
+            update_displaychangelistener(dcl, GUI_REFRESH_INTERVAL_DEFAULT);
         } else {
-            /* Sleeping interval */
-            dcl->gui_timer_interval = 500;
-            dcl->idle = 1;
+            /* Sleeping interval.  Not using the long default here as
+             * sdl_refresh does not only update the guest screen, but
+             * also checks for gui events. */
+            update_displaychangelistener(dcl, 500);
         }
     }
 }

@@ -21,7 +21,8 @@
 #define QEMU_CAPS_LOCK_LED   (1 << 2)
 
 /* in ms */
-#define GUI_REFRESH_INTERVAL 30
+#define GUI_REFRESH_INTERVAL_DEFAULT    30
+#define GUI_REFRESH_INTERVAL_IDLE     3000
 
 typedef void QEMUPutKBDEvent(void *opaque, int keycode);
 typedef void QEMUPutLEDEvent(void *opaque, int ledstate);
@@ -174,8 +175,7 @@ typedef struct DisplayChangeListenerOps {
 } DisplayChangeListenerOps;
 
 struct DisplayChangeListener {
-    int idle;
-    uint64_t gui_timer_interval;
+    uint64_t update_interval;
     const DisplayChangeListenerOps *ops;
     DisplayState *ds;
 
@@ -207,12 +207,13 @@ static inline int is_buffer_shared(DisplaySurface *surface)
 
 void register_displaychangelistener(DisplayState *ds,
                                     DisplayChangeListener *dcl);
+void update_displaychangelistener(DisplayChangeListener *dcl,
+                                  uint64_t interval);
 void unregister_displaychangelistener(DisplayChangeListener *dcl);
 
 void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h);
 void dpy_gfx_replace_surface(QemuConsole *con,
                              DisplaySurface *surface);
-void dpy_refresh(DisplayState *s);
 void dpy_gfx_copy(QemuConsole *con, int src_x, int src_y,
                   int dst_x, int dst_y, int w, int h);
 void dpy_text_cursor(QemuConsole *con, int x, int y);
