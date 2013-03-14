@@ -245,6 +245,8 @@ CharDriverState *qemu_chr_find(const char *name);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
 void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *));
+void register_char_driver_qapi(const char *name, int kind,
+        void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp));
 
 /* add an eventfd to the qemu devices that are polled */
 CharDriverState *qemu_chr_open_eventfd(int eventfd);
@@ -258,5 +260,11 @@ QString *qemu_chr_mem_to_qs(CharDriverState *chr);
 size_t qemu_chr_mem_osize(const CharDriverState *chr);
 
 CharDriverState *qemu_char_get_next_serial(void);
+
+/* msmouse */
+CharDriverState *qemu_chr_open_msmouse(void);
+
+/* baum.c */
+CharDriverState *chr_baum_init(void);
 
 #endif

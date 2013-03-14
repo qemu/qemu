@@ -3153,7 +3153,7 @@
 ##
 # @ChardevHostdev:
 #
-# Configuration info for device chardevs.
+# Configuration info for device and pipe chardevs.
 #
 # @device: The name of the special file for the device,
 #          i.e. /dev/ttyS0 on Unix or COM1: on Windows
@@ -3166,7 +3166,7 @@
 ##
 # @ChardevSocket:
 #
-# Configuration info for socket chardevs.
+# Configuration info for (stream) socket chardevs.
 #
 # @addr: socket address to listen on (server=true)
 #        or connect to (server=false)
@@ -3185,6 +3185,93 @@
                                      '*telnet'  : 'bool' } }
 
 ##
+# @ChardevDgram:
+#
+# Configuration info for datagram socket chardevs.
+#
+# @remote: remote address
+# @local: #optional local address
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevDgram', 'data': { 'remote' : 'SocketAddress',
+                                    '*local' : 'SocketAddress' } }
+
+##
+# @ChardevMux:
+#
+# Configuration info for mux chardevs.
+#
+# @chardev: name of the base chardev.
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevMux', 'data': { 'chardev' : 'str' } }
+
+##
+# @ChardevStdio:
+#
+# Configuration info for stdio chardevs.
+#
+# @signal: #optional Allow signals (such as SIGINT triggered by ^C)
+#          be delivered to qemu.  Default: true in -nographic mode,
+#          false otherwise.
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevStdio', 'data': { '*signal' : 'bool' } }
+
+##
+# @ChardevSpiceChannel:
+#
+# Configuration info for spice vm channel chardevs.
+#
+# @type: kind of channel (for example vdagent).
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' } }
+
+##
+# @ChardevSpicePort:
+#
+# Configuration info for spice port chardevs.
+#
+# @fqdn: name of the channel (see docs/spice-port-fqdn.txt)
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' } }
+
+##
+# @ChardevVC:
+#
+# Configuration info for virtual console chardevs.
+#
+# @width:  console width,  in pixels
+# @height: console height, in pixels
+# @cols:   console width,  in chars
+# @rows:   console height, in chars
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevVC', 'data': { '*width'  : 'int',
+                                 '*height' : 'int',
+                                 '*cols'   : 'int',
+                                 '*rows'   : 'int' } }
+
+##
+# @ChardevRingbuf:
+#
+# Configuration info for memory chardevs
+#
+# @size: #optional Ringbuffer size, must be power of two, default is 65536
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevRingbuf', 'data': { '*size'  : 'int' } }
+
+##
 # @ChardevBackend:
 #
 # Configuration info for the new chardev backend.
@@ -3196,9 +3283,20 @@
 { 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
                                        'serial' : 'ChardevHostdev',
                                        'parallel': 'ChardevHostdev',
+                                       'pipe'   : 'ChardevHostdev',
                                        'socket' : 'ChardevSocket',
+                                       'dgram'  : 'ChardevDgram',
                                        'pty'    : 'ChardevDummy',
-                                       'null'   : 'ChardevDummy' } }
+                                       'null'   : 'ChardevDummy',
+                                       'mux'    : 'ChardevMux',
+                                       'msmouse': 'ChardevDummy',
+                                       'braille': 'ChardevDummy',
+                                       'stdio'  : 'ChardevStdio',
+                                       'console': 'ChardevDummy',
+                                       'spicevmc' : 'ChardevSpiceChannel',
+                                       'spiceport' : 'ChardevSpicePort',
+                                       'vc'     : 'ChardevVC',
+                                       'memory' : 'ChardevRingbuf' } }
 
 ##
 # @ChardevReturn:

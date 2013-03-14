@@ -450,9 +450,9 @@ void qemu_console_resize(DisplayState *ds, int width, int height);
 void qemu_console_copy(DisplayState *ds, int src_x, int src_y,
                        int dst_x, int dst_y, int w, int h);
 
-typedef CharDriverState *(VcHandler)(QemuOpts *);
+typedef CharDriverState *(VcHandler)(ChardevVC *vc);
 
-CharDriverState *vc_init(QemuOpts *opts);
+CharDriverState *vc_init(ChardevVC *vc);
 void register_vc_handler(VcHandler *handler);
 
 /* sdl.c */
