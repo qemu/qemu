@@ -29,7 +29,7 @@ static int printf_win_error(const char *text)
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
         (char *)&message, 0,
         NULL);
-    n = printf("%s. (Error: %d) %s", text, err, message);
+    n = printf("%s. (Error: %d) %s", text, (int)err, message);
     LocalFree(message);
 
     return n;

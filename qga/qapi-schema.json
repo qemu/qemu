@@ -83,6 +83,45 @@
 { 'command': 'guest-ping' }
 
 ##
+# @guest-get-time:
+#
+# Get the information about guest time relative to the Epoch
+# of 1970-01-01 in UTC.
+#
+# Returns: Time in nanoseconds.
+#
+# Since 1.5
+##
+{ 'command': 'guest-get-time',
+  'returns': 'int' }
+
+##
+# @guest-set-time:
+#
+# Set guest time.
+#
+# When a guest is paused or migrated to a file then loaded
+# from that file, the guest OS has no idea that there
+# was a big gap in the time. Depending on how long the
+# gap was, NTP might not be able to resynchronize the
+# guest.
+#
+# This command tries to set guest time to the given value,
+# then sets the Hardware Clock to the current System Time.
+# This will make it easier for a guest to resynchronize
+# without waiting for NTP.
+#
+# @time: time of nanoseconds, relative to the Epoch of
+#        1970-01-01 in UTC.
+#
+# Returns: Nothing on success.
+#
+# Since: 1.5
+##
+{ 'command': 'guest-set-time',
+  'data': { 'time': 'int' } }
+
+##
 # @GuestAgentCommandInfo:
 #
 # Information about guest agent commands.
@@ -515,3 +554,75 @@
 ##
 { 'command': 'guest-network-get-interfaces',
   'returns': ['GuestNetworkInterface'] }
+
+##
+# @GuestLogicalProcessor:
+#
+# @logical-id: Arbitrary guest-specific unique identifier of the VCPU.
+#
+# @online: Whether the VCPU is enabled.
+#
+# @can-offline: Whether offlining the VCPU is possible. This member is always
+#               filled in by the guest agent when the structure is returned,
+#               and always ignored on input (hence it can be omitted then).
+#
+# Since: 1.5
+##
+{ 'type': 'GuestLogicalProcessor',
+  'data': {'logical-id': 'int',
+           'online': 'bool',
+           '*can-offline': 'bool'} }
+
+##
+# @guest-get-vcpus:
+#
+# Retrieve the list of the guest's logical processors.
+#
+# This is a read-only operation.
+#
+# Returns: The list of all VCPUs the guest knows about. Each VCPU is put on the
+# list exactly once, but their order is unspecified.
+#
+# Since: 1.5
+##
+{ 'command': 'guest-get-vcpus',
+  'returns': ['GuestLogicalProcessor'] }
+
+##
+# @guest-set-vcpus:
+#
+# Attempt to reconfigure (currently: enable/disable) logical processors inside
+# the guest.
+#
+# The input list is processed node by node in order. In each node @logical-id
+# is used to look up the guest VCPU, for which @online specifies the requested
+# state. The set of distinct @logical-id's is only required to be a subset of
+# the guest-supported identifiers. There's no restriction on list length or on
+# repeating the same @logical-id (with possibly different @online field).
+# Preferably the input list should describe a modified subset of
+# @guest-get-vcpus' return value.
+#
+# Returns: The length of the initial sublist that has been successfully
+#          processed. The guest agent maximizes this value. Possible cases:
+#
+#          0:                if the @vcpus list was empty on input. Guest state
+#                            has not been changed. Otherwise,
+#
+#          Error:            processing the first node of @vcpus failed for the
+#                            reason returned. Guest state has not been changed.
+#                            Otherwise,
+#
+#          < length(@vcpus): more than zero initial nodes have been processed,
+#                            but not the entire @vcpus list. Guest state has
+#                            changed accordingly. To retrieve the error
+#                            (assuming it persists), repeat the call with the
+#                            successfully processed initial sublist removed.
+#                            Otherwise,
+#
+#          length(@vcpus):   call successful.
+#
+# Since: 1.5
+##
+{ 'command': 'guest-set-vcpus',
+  'data':    {'vcpus': ['GuestLogicalProcessor'] },
+  'returns': 'int' }

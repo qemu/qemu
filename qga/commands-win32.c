@@ -278,6 +278,29 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **err)
     return NULL;
 }
 
+int64_t qmp_guest_get_time(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return -1;
+}
+
+void qmp_guest_set_time(int64_t time_ns, Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+}
+
+GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return -1;
+}
+
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
