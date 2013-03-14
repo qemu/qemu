@@ -21,8 +21,11 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt(CPUM68KState *env)
+void m68k_cpu_do_interrupt(CPUState *cs)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+
     env->exception_index = -1;
 }
 
@@ -84,6 +87,7 @@ static void do_rte(CPUM68KState *env)
 
 static void do_interrupt_all(CPUM68KState *env, int is_hw)
 {
+    CPUState *cs;
     uint32_t sp;
     uint32_t fmt;
     uint32_t retaddr;
@@ -108,7 +112,8 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
                 do_m68k_semihosting(env, env->dregs[0]);
                 return;
             }
-            env->halted = 1;
+            cs = CPU(m68k_env_get_cpu(env));
+            cs->halted = 1;
             env->exception_index = EXCP_HLT;
             cpu_loop_exit(env);
             return;
@@ -147,8 +152,11 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
     env->pc = cpu_ldl_kernel(env, env->vbr + vector);
 }
 
-void do_interrupt(CPUM68KState *env)
+void m68k_cpu_do_interrupt(CPUState *cs)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+
     do_interrupt_all(env, 0);
 }
 

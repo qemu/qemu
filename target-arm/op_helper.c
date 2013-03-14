@@ -218,8 +218,10 @@ uint32_t HELPER(usat16)(CPUARMState *env, uint32_t x, uint32_t shift)
 
 void HELPER(wfi)(CPUARMState *env)
 {
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+
     env->exception_index = EXCP_HLT;
-    env->halted = 1;
+    cs->halted = 1;
     cpu_loop_exit(env);
 }
 

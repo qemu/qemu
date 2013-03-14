@@ -186,6 +186,7 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->reset = m68k_cpu_reset;
 
     cc->class_by_name = m68k_cpu_class_by_name;
+    cc->do_interrupt = m68k_cpu_do_interrupt;
     dc->vmsd = &vmstate_m68k_cpu;
 }
 

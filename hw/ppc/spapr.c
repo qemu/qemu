@@ -617,6 +617,8 @@ static void spapr_reset_htab(sPAPREnvironment *spapr)
 
 static void ppc_spapr_reset(void)
 {
+    CPUState *first_cpu_cpu;
+
     /* Reset the hash table & recalc the RMA */
     spapr_reset_htab(spapr);
 
@@ -627,9 +629,10 @@ static void ppc_spapr_reset(void)
                        spapr->rtas_size);
 
     /* Set up the entry state */
+    first_cpu_cpu = CPU(first_cpu);
     first_cpu->gpr[3] = spapr->fdt_addr;
     first_cpu->gpr[5] = 0;
-    first_cpu->halted = 0;
+    first_cpu_cpu->halted = 0;
     first_cpu->nip = spapr->entry_point;
 
 }
@@ -637,14 +640,15 @@ static void ppc_spapr_reset(void)
 static void spapr_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
 
     /* All CPUs start halted.  CPU0 is unhalted from the machine level
      * reset code and the rest are explicitly started up by the guest
      * using an RTAS call */
-    env->halted = 1;
+    cs->halted = 1;
 
     env->spr[SPR_HIOR] = 0;
 

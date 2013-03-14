@@ -8427,6 +8427,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = ppc_cpu_reset;
 
     cc->class_by_name = ppc_cpu_class_by_name;
+    cc->do_interrupt = ppc_cpu_do_interrupt;
 }
 
 static const TypeInfo ppc_cpu_type_info = {

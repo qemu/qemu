@@ -24,6 +24,7 @@
 void HELPER(rfe)(CPUOpenRISCState *env)
 {
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
 #ifndef CONFIG_USER_ONLY
     int need_flush_tlb = (cpu->env.sr & (SR_SM | SR_IME | SR_DME)) ^
                          (cpu->env.esr & (SR_SM | SR_IME | SR_DME));
@@ -53,5 +54,5 @@ void HELPER(rfe)(CPUOpenRISCState *env)
         tlb_flush(&cpu->env, 1);
     }
 #endif
-    cpu->env.interrupt_request |= CPU_INTERRUPT_EXITTB;
+    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }

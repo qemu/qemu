@@ -271,7 +271,9 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     env->hflags2 |= HF2_GIF_MASK;
 
     if (int_ctl & V_IRQ_MASK) {
-        env->interrupt_request |= CPU_INTERRUPT_VIRQ;
+        CPUState *cs = CPU(x86_env_get_cpu(env));
+
+        cs->interrupt_request |= CPU_INTERRUPT_VIRQ;
     }
 
     /* maybe we need to inject an event */
@@ -548,6 +550,7 @@ void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
 /* Note: currently only 32 bits of exit_code are used */
 void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 {
+    CPUState *cs = CPU(x86_env_get_cpu(env));
     uint32_t int_ctl;
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmexit(%08x, %016" PRIx64 ", %016"
@@ -594,7 +597,7 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     int_ctl &= ~(V_TPR_MASK | V_IRQ_MASK);
     int_ctl |= env->v_tpr & V_TPR_MASK;
-    if (env->interrupt_request & CPU_INTERRUPT_VIRQ) {
+    if (cs->interrupt_request & CPU_INTERRUPT_VIRQ) {
         int_ctl |= V_IRQ_MASK;
     }
     stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);
@@ -615,7 +618,7 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
     env->hflags &= ~HF_SVMI_MASK;
     env->intercept = 0;
     env->intercept_exceptions = 0;
-    env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+    cs->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
     env->tsc_offset = 0;
 
     env->gdt.base  = ldq_phys(env->vm_hsave + offsetof(struct vmcb,

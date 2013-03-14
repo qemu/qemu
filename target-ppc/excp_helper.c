@@ -38,8 +38,11 @@ void (*cpu_ppc_hypercall)(PowerPCCPU *);
 /*****************************************************************************/
 /* Exception processing */
 #if defined(CONFIG_USER_ONLY)
-void do_interrupt(CPUPPCState *env)
+void ppc_cpu_do_interrupt(CPUState *cs)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
     env->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
 }
@@ -66,6 +69,7 @@ static inline void dump_syscall(CPUPPCState *env)
 static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 {
     CPUPPCState *env = &cpu->env;
+    CPUState *cs;
     target_ulong msr, new_msr, vector;
     int srr0, srr1, asrr0, asrr1;
     int lpes0, lpes1, lev;
@@ -131,8 +135,9 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                 fprintf(stderr, "Machine check while not allowed. "
                         "Entering checkstop state\n");
             }
-            env->halted = 1;
-            env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+            cs = CPU(cpu);
+            cs->halted = 1;
+            cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
         }
         if (0) {
             /* XXX: find a suitable condition to enable the hypervisor mode */
@@ -652,9 +657,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     }
 }
 
-void do_interrupt(CPUPPCState *env)
+void ppc_cpu_do_interrupt(CPUState *cs)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
 
     powerpc_excp(cpu, env->excp_model, env->exception_index);
 }
@@ -663,11 +669,12 @@ void ppc_hw_interrupt(CPUPPCState *env)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int hdice;
-
 #if 0
+    CPUState *cs = CPU(cpu);
+
     qemu_log_mask(CPU_LOG_INT, "%s: %p pending %08x req %08x me %d ee %d\n",
-                __func__, env, env->pending_interrupts,
-                env->interrupt_request, (int)msr_me, (int)msr_ee);
+                  __func__, env, env->pending_interrupts,
+                  cs->interrupt_request, (int)msr_me, (int)msr_ee);
 #endif
     /* External reset */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_RESET)) {
@@ -807,9 +814,12 @@ void helper_raise_exception(CPUPPCState *env, uint32_t exception)
 #if !defined(CONFIG_USER_ONLY)
 void helper_store_msr(CPUPPCState *env, target_ulong val)
 {
+    CPUState *cs;
+
     val = hreg_store_msr(env, val, 0);
     if (val != 0) {
-        env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+        cs = CPU(ppc_env_get_cpu(env));
+        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
         helper_raise_exception(env, val);
     }
 }
@@ -817,6 +827,8 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
 static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
                           target_ulong msrm, int keep_msrh)
 {
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
 #if defined(TARGET_PPC64)
     if (msr_is_64bit(env, msr)) {
         nip = (uint64_t)nip;
@@ -841,7 +853,7 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
     /* No need to raise an exception here,
      * as rfi is always the last insn of a TB
      */
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
 void helper_rfi(CPUPPCState *env)
@@ -983,7 +995,7 @@ void helper_msgsnd(target_ulong rb)
     for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
         if ((rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir)) {
             cenv->pending_interrupts |= 1 << irq;
-            cpu_interrupt(cenv, CPU_INTERRUPT_HARD);
+            cpu_interrupt(CPU(ppc_env_get_cpu(cenv)), CPU_INTERRUPT_HARD);
         }
     }
 }

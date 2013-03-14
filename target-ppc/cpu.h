@@ -1133,7 +1133,6 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
 int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
-void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
 
 #if !defined(CONFIG_USER_ONLY)
@@ -2217,9 +2216,10 @@ extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUPPCState *env = &POWERPC_CPU(cpu)->env;
+    PowerPCCPU *ppc_cpu = POWERPC_CPU(cpu);
+    CPUPPCState *env = &ppc_cpu->env;
 
-    return msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD);
+    return msr_ee && (cpu->interrupt_request & CPU_INTERRUPT_HARD);
 }
 
 #include "exec/exec-all.h"

@@ -134,6 +134,10 @@ struct VMStateDescription {
     const VMStateSubsection *subsections;
 };
 
+#ifdef CONFIG_USER_ONLY
+extern const VMStateDescription vmstate_dummy;
+#endif
+
 extern const VMStateInfo vmstate_info_bool;
 
 extern const VMStateInfo vmstate_info_int8;
@@ -638,12 +642,20 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id);
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                         void *opaque);
-int vmstate_register(DeviceState *dev, int instance_id,
-                     const VMStateDescription *vmsd, void *base);
+
 int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
                                    const VMStateDescription *vmsd,
                                    void *base, int alias_id,
                                    int required_for_version);
+
+static inline int vmstate_register(DeviceState *dev, int instance_id,
+                                   const VMStateDescription *vmsd,
+                                   void *opaque)
+{
+    return vmstate_register_with_alias_id(dev, instance_id, vmsd,
+                                          opaque, -1, 0);
+}
+
 void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
                         void *opaque);
 

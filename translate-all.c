@@ -1077,8 +1077,8 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
             tb_phys_invalidate(tb, -1);
             if (cpu != NULL) {
                 cpu->current_tb = saved_tb;
-                if (env && env->interrupt_request && cpu->current_tb) {
-                    cpu_interrupt(env, env->interrupt_request);
+                if (cpu->interrupt_request && cpu->current_tb) {
+                    cpu_interrupt(cpu, cpu->interrupt_request);
                 }
             }
         }
@@ -1382,13 +1382,13 @@ void tb_check_watchpoint(CPUArchState *env)
 
 #ifndef CONFIG_USER_ONLY
 /* mask must never be zero, except for A20 change call */
-static void tcg_handle_interrupt(CPUArchState *env, int mask)
+static void tcg_handle_interrupt(CPUState *cpu, int mask)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
     int old_mask;
 
-    old_mask = env->interrupt_request;
-    env->interrupt_request |= mask;
+    old_mask = cpu->interrupt_request;
+    cpu->interrupt_request |= mask;
 
     /*
      * If called from iothread context, wake the target cpu in
@@ -1552,11 +1552,9 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
 
 #else /* CONFIG_USER_ONLY */
 
-void cpu_interrupt(CPUArchState *env, int mask)
+void cpu_interrupt(CPUState *cpu, int mask)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
-    env->interrupt_request |= mask;
+    cpu->interrupt_request |= mask;
     cpu->tcg_exit_req = 1;
 }
 

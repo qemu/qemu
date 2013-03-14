@@ -73,8 +73,10 @@ static void openrisc_timer_cb(void *opaque)
 
     if ((cpu->env.ttmr & TTMR_IE) &&
          qemu_timer_expired(cpu->env.timer, qemu_get_clock_ns(vm_clock))) {
+        CPUState *cs = CPU(cpu);
+
         cpu->env.ttmr |= TTMR_IP;
-        cpu->env.interrupt_request |= CPU_INTERRUPT_TIMER;
+        cs->interrupt_request |= CPU_INTERRUPT_TIMER;
     }
 
     switch (cpu->env.ttmr & TTMR_M) {

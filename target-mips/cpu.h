@@ -663,7 +663,6 @@ void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level);
 int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
                                int mmu_idx);
 #define cpu_handle_mmu_fault cpu_mips_handle_mmu_fault
-void do_interrupt (CPUMIPSState *env);
 #if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra);
 hwaddr cpu_mips_translate_address (CPUMIPSState *env, target_ulong address,
@@ -722,7 +721,7 @@ static inline bool cpu_has_work(CPUState *cpu)
     /* It is implementation dependent if non-enabled interrupts
        wake-up the CPU, however most of the implementations only
        check for interrupts that can be taken. */
-    if ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
+    if ((cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
         cpu_mips_hw_interrupts_pending(env)) {
         has_work = true;
     }
@@ -731,7 +730,7 @@ static inline bool cpu_has_work(CPUState *cpu)
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {
         /* The QEMU model will issue an _WAKE request whenever the CPUs
            should be woken up.  */
-        if (env->interrupt_request & CPU_INTERRUPT_WAKE) {
+        if (cpu->interrupt_request & CPU_INTERRUPT_WAKE) {
             has_work = true;
         }
 

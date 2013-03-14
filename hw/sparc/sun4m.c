@@ -230,6 +230,8 @@ void sun4m_irq_info(Monitor *mon, const QDict *qdict)
 
 void cpu_check_irqs(CPUSPARCState *env)
 {
+    CPUState *cs;
+
     if (env->pil_in && (env->interrupt_index == 0 ||
                         (env->interrupt_index & ~15) == TT_EXTINT)) {
         unsigned int i;
@@ -240,26 +242,29 @@ void cpu_check_irqs(CPUSPARCState *env)
 
                 env->interrupt_index = TT_EXTINT | i;
                 if (old_interrupt != env->interrupt_index) {
+                    cs = CPU(sparc_env_get_cpu(env));
                     trace_sun4m_cpu_interrupt(i);
-                    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+                    cpu_interrupt(cs, CPU_INTERRUPT_HARD);
                 }
                 break;
             }
         }
     } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
+        cs = CPU(sparc_env_get_cpu(env));
         trace_sun4m_cpu_reset_interrupt(env->interrupt_index & 15);
         env->interrupt_index = 0;
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
 
 static void cpu_kick_irq(SPARCCPU *cpu)
 {
     CPUSPARCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
-    env->halted = 0;
+    cs->halted = 0;
     cpu_check_irqs(env);
-    qemu_cpu_kick(CPU(cpu));
+    qemu_cpu_kick(cs);
 }
 
 static void cpu_set_irq(void *opaque, int irq, int level)
@@ -285,25 +290,27 @@ static void dummy_cpu_set_irq(void *opaque, int irq, int level)
 static void main_cpu_reset(void *opaque)
 {
     SPARCCPU *cpu = opaque;
-    CPUSPARCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
-    cpu_reset(CPU(cpu));
-    env->halted = 0;
+    cpu_reset(cs);
+    cs->halted = 0;
 }
 
 static void secondary_cpu_reset(void *opaque)
 {
     SPARCCPU *cpu = opaque;
-    CPUSPARCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
-    cpu_reset(CPU(cpu));
-    env->halted = 1;
+    cpu_reset(cs);
+    cs->halted = 1;
 }
 
 static void cpu_halt_signal(void *opaque, int irq, int level)
 {
-    if (level && cpu_single_env)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
+    if (level && cpu_single_env) {
+        cpu_interrupt(CPU(sparc_env_get_cpu(cpu_single_env)),
+                      CPU_INTERRUPT_HALT);
+    }
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
@@ -826,6 +833,7 @@ static const TypeInfo ram_info = {
 static void cpu_devinit(const char *cpu_model, unsigned int id,
                         uint64_t prom_addr, qemu_irq **cpu_irqs)
 {
+    CPUState *cs;
     SPARCCPU *cpu;
     CPUSPARCState *env;
 
@@ -841,7 +849,8 @@ static void cpu_devinit(const char *cpu_model, unsigned int id,
         qemu_register_reset(main_cpu_reset, cpu);
     } else {
         qemu_register_reset(secondary_cpu_reset, cpu);
-        env->halted = 1;
+        cs = CPU(cpu);
+        cs->halted = 1;
     }
     *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, cpu, MAX_PILS);
     env->prom_addr = prom_addr;

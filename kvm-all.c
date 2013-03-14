@@ -826,11 +826,9 @@ static MemoryListener kvm_io_listener = {
     .priority = 10,
 };
 
-static void kvm_handle_interrupt(CPUArchState *env, int mask)
+static void kvm_handle_interrupt(CPUState *cpu, int mask)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
-    env->interrupt_request |= mask;
+    cpu->interrupt_request |= mask;
 
     if (!qemu_cpu_is_self(cpu)) {
         qemu_cpu_kick(cpu);

@@ -74,4 +74,6 @@ static inline AlphaCPU *alpha_env_get_cpu(CPUAlphaState *env)
 
 #define ENV_OFFSET offsetof(AlphaCPU, env)
 
+void alpha_cpu_do_interrupt(CPUState *cpu);
+
 #endif

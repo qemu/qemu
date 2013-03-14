@@ -131,6 +131,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     mcc->parent_reset = cc->reset;
     cc->reset = mb_cpu_reset;
 
+    cc->do_interrupt = mb_cpu_do_interrupt;
     dc->vmsd = &vmstate_mb_cpu;
 }
 

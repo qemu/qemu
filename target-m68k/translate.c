@@ -42,6 +42,8 @@
 #undef DEFO64
 #undef DEFF64
 
+static TCGv_i32 cpu_halted;
+
 static TCGv_ptr cpu_env;
 
 static char cpu_reg_names[3*8*3 + 5*4];
@@ -75,6 +77,10 @@ void m68k_tcg_init(void)
 #undef DEFO32
 #undef DEFO64
 #undef DEFF64
+
+    cpu_halted = tcg_global_mem_new_i32(TCG_AREG0,
+                                        -offsetof(M68kCPU, env) +
+                                        offsetof(CPUState, halted), "HALTED");
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
@@ -2024,7 +2030,7 @@ DISAS_INSN(stop)
     s->pc += 2;
 
     gen_set_sr_im(s, ext, 0);
-    tcg_gen_movi_i32(QREG_HALTED, 1);
+    tcg_gen_movi_i32(cpu_halted, 1);
     gen_exception(s, s->pc, EXCP_HLT);
 }
 

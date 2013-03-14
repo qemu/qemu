@@ -2408,7 +2408,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 cpu_synchronize_state(env);
                 len = snprintf((char *)mem_buf, sizeof(mem_buf),
                                "CPU#%d [%s]", cpu->cpu_index,
-                               env->halted ? "halted " : "running");
+                               cpu->halted ? "halted " : "running");
                 memtohex(buf, mem_buf, len);
                 put_packet(s, buf);
             }

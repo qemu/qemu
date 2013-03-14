@@ -57,7 +57,7 @@ void s390x_tod_timer(void *opaque)
     CPUS390XState *env = &cpu->env;
 
     env->pending_int |= INTERRUPT_TOD;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 void s390x_cpu_timer(void *opaque)
@@ -66,7 +66,7 @@ void s390x_cpu_timer(void *opaque)
     CPUS390XState *env = &cpu->env;
 
     env->pending_int |= INTERRUPT_CPUTIMER;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 #endif
 
@@ -86,8 +86,11 @@ S390CPU *cpu_s390x_init(const char *cpu_model)
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt(CPUS390XState *env)
+void s390_cpu_do_interrupt(CPUState *cs)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
+
     env->exception_index = -1;
 }
 
@@ -437,6 +440,7 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     if (mask & PSW_MASK_WAIT) {
         S390CPU *cpu = s390_env_get_cpu(env);
+        CPUState *cs = CPU(cpu);
         if (!(mask & (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK))) {
             if (s390_del_running_cpu(cpu) == 0) {
 #ifndef CONFIG_USER_ONLY
@@ -444,7 +448,7 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 #endif
             }
         }
-        env->halted = 1;
+        cs->halted = 1;
         env->exception_index = EXCP_HLT;
     }
 
@@ -736,9 +740,10 @@ static void do_mchk_interrupt(CPUS390XState *env)
     load_psw(env, mask, addr);
 }
 
-void do_interrupt(CPUS390XState *env)
+void s390_cpu_do_interrupt(CPUState *cs)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
 
     qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
                   __func__, env->exception_index, env->psw.addr);
@@ -797,7 +802,7 @@ void do_interrupt(CPUS390XState *env)
     env->exception_index = -1;
 
     if (!env->pending_int) {
-        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+        cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
     }
 }
 

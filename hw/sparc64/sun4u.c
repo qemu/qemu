@@ -254,6 +254,7 @@ static uint64_t sun4u_load_kernel(const char *kernel_filename,
 
 void cpu_check_irqs(CPUSPARCState *env)
 {
+    CPUState *cs;
     uint32_t pil = env->pil_in |
                   (env->softint & ~(SOFTINT_TIMER | SOFTINT_STIMER));
 
@@ -261,6 +262,7 @@ void cpu_check_irqs(CPUSPARCState *env)
     if (env->ivec_status & 0x20) {
         return;
     }
+    cs = CPU(sparc_env_get_cpu(env));
     /* check if TM or SM in SOFTINT are set
        setting these also causes interrupt 14 */
     if (env->softint & (SOFTINT_TIMER | SOFTINT_STIMER)) {
@@ -270,11 +272,11 @@ void cpu_check_irqs(CPUSPARCState *env)
     /* The bit corresponding to psrpil is (1<< psrpil), the next bit
        is (2 << psrpil). */
     if (pil < (2 << env->psrpil)){
-        if (env->interrupt_request & CPU_INTERRUPT_HARD) {
+        if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
             CPUIRQ_DPRINTF("Reset CPU IRQ (current interrupt %x)\n",
                            env->interrupt_index);
             env->interrupt_index = 0;
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         }
         return;
     }
@@ -297,50 +299,54 @@ void cpu_check_irqs(CPUSPARCState *env)
                     env->interrupt_index = new_interrupt;
                     CPUIRQ_DPRINTF("Set CPU IRQ %d old=%x new=%x\n", i,
                                    old_interrupt, new_interrupt);
-                    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+                    cpu_interrupt(cs, CPU_INTERRUPT_HARD);
                 }
                 break;
             }
         }
-    } else if (env->interrupt_request & CPU_INTERRUPT_HARD) {
+    } else if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
         CPUIRQ_DPRINTF("Interrupts disabled, pil=%08x pil_in=%08x softint=%08x "
                        "current interrupt %x\n",
                        pil, env->pil_in, env->softint, env->interrupt_index);
         env->interrupt_index = 0;
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
 
 static void cpu_kick_irq(SPARCCPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
     CPUSPARCState *env = &cpu->env;
 
-    env->halted = 0;
+    cs->halted = 0;
     cpu_check_irqs(env);
-    qemu_cpu_kick(CPU(cpu));
+    qemu_cpu_kick(cs);
 }
 
 static void cpu_set_ivec_irq(void *opaque, int irq, int level)
 {
     SPARCCPU *cpu = opaque;
     CPUSPARCState *env = &cpu->env;
+    CPUState *cs;
 
     if (level) {
         if (!(env->ivec_status & 0x20)) {
             CPUIRQ_DPRINTF("Raise IVEC IRQ %d\n", irq);
-            env->halted = 0;
+            cs = CPU(cpu);
+            cs->halted = 0;
             env->interrupt_index = TT_IVEC;
             env->ivec_status |= 0x20;
             env->ivec_data[0] = (0x1f << 6) | irq;
             env->ivec_data[1] = 0;
             env->ivec_data[2] = 0;
-            cpu_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         }
     } else {
         if (env->ivec_status & 0x20) {
             CPUIRQ_DPRINTF("Lower IVEC IRQ %d\n", irq);
+            cs = CPU(cpu);
             env->ivec_status &= ~0x20;
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         }
     }
 }

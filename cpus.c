@@ -72,7 +72,7 @@ static bool cpu_thread_is_idle(CPUArchState *env)
     if (cpu->stopped || !runstate_is_running()) {
         return true;
     }
-    if (!env->halted || qemu_cpu_has_work(cpu) ||
+    if (!cpu->halted || qemu_cpu_has_work(cpu) ||
         kvm_async_interrupts_enabled()) {
         return false;
     }
@@ -1198,7 +1198,7 @@ CpuInfoList *qmp_query_cpus(Error **errp)
         info->value = g_malloc0(sizeof(*info->value));
         info->value->CPU = cpu->cpu_index;
         info->value->current = (env == first_cpu);
-        info->value->halted = env->halted;
+        info->value->halted = cpu->halted;
         info->value->thread_id = cpu->thread_id;
 #if defined(TARGET_I386)
         info->value->has_pc = true;
@@ -1241,18 +1241,13 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
         cpu_index = 0;
     }
 
-    for (env = first_cpu; env; env = env->next_cpu) {
-        cpu = ENV_GET_CPU(env);
-        if (cpu_index == cpu->cpu_index) {
-            break;
-        }
-    }
-
-    if (env == NULL) {
+    cpu = qemu_get_cpu(cpu_index);
+    if (cpu == NULL) {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
                   "a CPU number");
         return;
     }
+    env = cpu->env_ptr;
 
     f = fopen(filename, "wb");
     if (!f) {
@@ -1314,7 +1309,7 @@ void qmp_inject_nmi(Error **errp)
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         if (!env->apic_state) {
-            cpu_interrupt(env, CPU_INTERRUPT_NMI);
+            cpu_interrupt(CPU(x86_env_get_cpu(env)), CPU_INTERRUPT_NMI);
         } else {
             apic_deliver_nmi(env->apic_state);
         }

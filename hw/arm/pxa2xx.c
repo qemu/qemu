@@ -263,14 +263,14 @@ static int pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
     case 1:
         /* Idle */
         if (!(s->cm_regs[CCCR >> 2] & (1 << 31))) { /* CPDIS */
-            cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HALT);
+            cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HALT);
             break;
         }
         /* Fall through.  */
 
     case 2:
         /* Deep-Idle */
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HALT);
+        cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HALT);
         s->pm_regs[RCSR >> 2] |= 0x8; /* Set GPR */
         goto message;
 
@@ -301,7 +301,8 @@ static int pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
 #endif
 
         /* Suspend */
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
+        cpu_interrupt(CPU(arm_env_get_cpu(cpu_single_env)),
+                      CPU_INTERRUPT_HALT);
 
         goto message;
 

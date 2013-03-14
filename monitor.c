@@ -856,17 +856,14 @@ EventInfoList *qmp_query_events(Error **errp)
 /* set the current CPU defined by the user */
 int monitor_set_cpu(int cpu_index)
 {
-    CPUArchState *env;
     CPUState *cpu;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu = ENV_GET_CPU(env);
-        if (cpu->cpu_index == cpu_index) {
-            cur_mon->mon_cpu = env;
-            return 0;
-        }
+    cpu = qemu_get_cpu(cpu_index);
+    if (cpu == NULL) {
+        return -1;
     }
-    return -1;
+    cur_mon->mon_cpu = cpu->env_ptr;
+    return 0;
 }
 
 static CPUArchState *mon_get_cpu(void)

@@ -993,7 +993,7 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
      * interrupt, reset, etc) in PPC-specific env->irq_input_state. */
     if (!cap_interrupt_level &&
         run->ready_for_interrupt_injection &&
-        (env->interrupt_request & CPU_INTERRUPT_HARD) &&
+        (cs->interrupt_request & CPU_INTERRUPT_HARD) &&
         (env->irq_input_state & (1<<PPC_INPUT_INT)))
     {
         /* For now KVM disregards the 'irq' argument. However, in the
@@ -1024,14 +1024,16 @@ void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
 
 int kvm_arch_process_async_events(CPUState *cs)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    return cpu->env.halted;
+    return cs->halted;
 }
 
-static int kvmppc_handle_halt(CPUPPCState *env)
+static int kvmppc_handle_halt(PowerPCCPU *cpu)
 {
-    if (!(env->interrupt_request & CPU_INTERRUPT_HARD) && (msr_ee)) {
-        env->halted = 1;
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    if (!(cs->interrupt_request & CPU_INTERRUPT_HARD) && (msr_ee)) {
+        cs->halted = 1;
         env->exception_index = EXCP_HLT;
     }
 
@@ -1073,7 +1075,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         break;
     case KVM_EXIT_HLT:
         dprintf("handle halt\n");
-        ret = kvmppc_handle_halt(env);
+        ret = kvmppc_handle_halt(cpu);
         break;
 #ifdef CONFIG_PSERIES
     case KVM_EXIT_PAPR_HCALL:

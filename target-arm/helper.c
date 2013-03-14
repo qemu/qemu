@@ -764,7 +764,7 @@ static int omap_wfi_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     /* Wait-for-interrupt (deprecated) */
-    cpu_interrupt(env, CPU_INTERRUPT_HALT);
+    cpu_interrupt(CPU(arm_env_get_cpu(env)), CPU_INTERRUPT_HALT);
     return 0;
 }
 
@@ -1567,8 +1567,11 @@ uint32_t HELPER(rbit)(uint32_t x)
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt (CPUARMState *env)
+void arm_cpu_do_interrupt(CPUState *cs)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
     env->exception_index = -1;
 }
 
@@ -1722,8 +1725,10 @@ static void do_v7m_exception_exit(CPUARMState *env)
        pointer.  */
 }
 
-static void do_interrupt_v7m(CPUARMState *env)
+void arm_v7m_cpu_do_interrupt(CPUState *cs)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     uint32_t xpsr = xpsr_read(env);
     uint32_t lr;
     uint32_t addr;
@@ -1799,17 +1804,17 @@ static void do_interrupt_v7m(CPUARMState *env)
 }
 
 /* Handle a CPU exception.  */
-void do_interrupt(CPUARMState *env)
+void arm_cpu_do_interrupt(CPUState *cs)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     uint32_t addr;
     uint32_t mask;
     int new_mode;
     uint32_t offset;
 
-    if (IS_M(env)) {
-        do_interrupt_v7m(env);
-        return;
-    }
+    assert(!IS_M(env));
+
     /* TODO: Vectored interrupt controller.  */
     switch (env->exception_index) {
     case EXCP_UDEF:
@@ -1907,7 +1912,7 @@ void do_interrupt(CPUARMState *env)
     }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
 /* Check section/page access permissions.
