@@ -339,6 +339,11 @@ typedef enum {
 
 typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev,
                               PCIHotplugState state);
+
+#define TYPE_PCI_BUS "PCI"
+#define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
+#define TYPE_PCIE_BUS "PCIE"
+
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,
