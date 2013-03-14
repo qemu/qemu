@@ -629,7 +629,7 @@ static void ppc_spapr_reset(void)
                        spapr->rtas_size);
 
     /* Set up the entry state */
-    first_cpu_cpu = CPU(first_cpu);
+    first_cpu_cpu = ENV_GET_CPU(first_cpu);
     first_cpu->gpr[3] = spapr->fdt_addr;
     first_cpu->gpr[5] = 0;
     first_cpu_cpu->halted = 0;
