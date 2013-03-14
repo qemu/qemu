@@ -1609,7 +1609,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         }
     }
 
-    if (is_graphic_console()) {
+    if (qemu_console_is_graphic(NULL)) {
         if (keycode & SCANCODE_GREY)
             kbd_put_keycode(SCANCODE_EMUL0);
         if (down)
@@ -1728,7 +1728,7 @@ static void vnc_release_modifiers(VncState *vs)
     };
     int i, keycode;
 
-    if (!is_graphic_console()) {
+    if (!qemu_console_is_graphic(NULL)) {
         return;
     }
     for (i = 0; i < ARRAY_SIZE(keycodes); i++) {
@@ -1748,7 +1748,7 @@ static void key_event(VncState *vs, int down, uint32_t sym)
     int keycode;
     int lsym = sym;
 
-    if (lsym >= 'A' && lsym <= 'Z' && is_graphic_console()) {
+    if (lsym >= 'A' && lsym <= 'Z' && qemu_console_is_graphic(NULL)) {
         lsym = lsym - 'A' + 'a';
     }
 

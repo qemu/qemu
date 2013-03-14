@@ -358,7 +358,7 @@ static void sdl_show_cursor(void)
     if (!cursor_hide)
         return;
 
-    if (!kbd_mouse_is_absolute() || !is_graphic_console()) {
+    if (!kbd_mouse_is_absolute() || !qemu_console_is_graphic(NULL)) {
         SDL_ShowCursor(1);
         if (guest_cursor &&
                 (gui_grab || kbd_mouse_is_absolute() || absolute_enabled))
@@ -413,7 +413,7 @@ static void sdl_mouse_mode_change(Notifier *notify, void *data)
     if (kbd_mouse_is_absolute()) {
         if (!absolute_enabled) {
             absolute_enabled = 1;
-            if (is_graphic_console()) {
+            if (qemu_console_is_graphic(NULL)) {
                 absolute_mouse_grab();
             }
         }
@@ -488,7 +488,7 @@ static void toggle_full_screen(void)
         } else {
             do_sdl_resize(width, height, 0);
         }
-        if (!gui_saved_grab || !is_graphic_console()) {
+        if (!gui_saved_grab || !qemu_console_is_graphic(NULL)) {
             sdl_grab_end();
         }
     }
@@ -535,7 +535,7 @@ static void handle_keydown(SDL_Event *ev)
             if (gui_fullscreen) {
                 break;
             }
-            if (!is_graphic_console()) {
+            if (!qemu_console_is_graphic(NULL)) {
                 /* release grab if going to a text console */
                 if (gui_grab) {
                     sdl_grab_end();
@@ -563,7 +563,7 @@ static void handle_keydown(SDL_Event *ev)
         default:
             break;
         }
-    } else if (!is_graphic_console()) {
+    } else if (!qemu_console_is_graphic(NULL)) {
         int keysym = 0;
 
         if (ev->key.keysym.mod & (KMOD_LCTRL | KMOD_RCTRL)) {
@@ -637,7 +637,7 @@ static void handle_keydown(SDL_Event *ev)
             kbd_put_keysym(ev->key.keysym.unicode);
         }
     }
-    if (is_graphic_console() && !gui_keysym) {
+    if (qemu_console_is_graphic(NULL) && !gui_keysym) {
         sdl_process_key(&ev->key);
     }
 }
@@ -656,7 +656,7 @@ static void handle_keyup(SDL_Event *ev)
         if (gui_keysym == 0) {
             /* exit/enter grab if pressing Ctrl-Alt */
             if (!gui_grab) {
-                if (is_graphic_console()) {
+                if (qemu_console_is_graphic(NULL)) {
                     sdl_grab_start();
                 }
             } else if (!gui_fullscreen) {
@@ -669,7 +669,7 @@ static void handle_keyup(SDL_Event *ev)
         }
         gui_keysym = 0;
     }
-    if (is_graphic_console() && !gui_keysym) {
+    if (qemu_console_is_graphic(NULL) && !gui_keysym) {
         sdl_process_key(&ev->key);
     }
 }
@@ -678,7 +678,7 @@ static void handle_mousemotion(SDL_Event *ev)
 {
     int max_x, max_y;
 
-    if (is_graphic_console() &&
+    if (qemu_console_is_graphic(NULL) &&
         (kbd_mouse_is_absolute() || absolute_enabled)) {
         max_x = real_screen->w - 1;
         max_y = real_screen->h - 1;
@@ -704,7 +704,7 @@ static void handle_mousebutton(SDL_Event *ev)
     SDL_MouseButtonEvent *bev;
     int dz;
 
-    if (!is_graphic_console()) {
+    if (!qemu_console_is_graphic(NULL)) {
         return;
     }
 
@@ -744,7 +744,7 @@ static void handle_activation(SDL_Event *ev)
         sdl_grab_end();
     }
 #endif
-    if (!gui_grab && ev->active.gain && is_graphic_console() &&
+    if (!gui_grab && ev->active.gain && qemu_console_is_graphic(NULL) &&
         (kbd_mouse_is_absolute() || absolute_enabled)) {
         absolute_mouse_grab();
     }
@@ -771,7 +771,7 @@ static void sdl_refresh(DisplayChangeListener *dcl)
     }
 
     graphic_hw_update(NULL);
-    SDL_EnableUNICODE(!is_graphic_console());
+    SDL_EnableUNICODE(!qemu_console_is_graphic(NULL));
 
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {

@@ -282,8 +282,10 @@ void graphic_hw_update(QemuConsole *con);
 void graphic_hw_invalidate(QemuConsole *con);
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata);
 
-int is_graphic_console(void);
-int is_fixedsize_console(void);
+bool qemu_console_is_visible(QemuConsole *con);
+bool qemu_console_is_graphic(QemuConsole *con);
+bool qemu_console_is_fixedsize(QemuConsole *con);
+
 void text_consoles_set_display(DisplayState *ds);
 void console_select(unsigned int index);
 void console_color_init(DisplayState *ds);

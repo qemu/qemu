@@ -515,7 +515,7 @@ static void update_xy(QemuConsole *s, int x, int y)
     TextCell *c;
     int y1, y2;
 
-    if (s != active_console) {
+    if (!qemu_console_is_visible(s)) {
         return;
     }
 
@@ -543,7 +543,7 @@ static void console_show_cursor(QemuConsole *s, int show)
     int y, y1;
     int x = s->x;
 
-    if (s != active_console) {
+    if (!qemu_console_is_visible(s)) {
         return;
     }
 
@@ -579,8 +579,9 @@ static void console_refresh(QemuConsole *s)
     TextCell *c;
     int x, y, y1;
 
-    if (s != active_console)
+    if (!qemu_console_is_visible(s)) {
         return;
+    }
 
     if (s->ds->have_text) {
         s->text_x[0] = 0;
@@ -611,14 +612,9 @@ static void console_refresh(QemuConsole *s)
     }
 }
 
-static void console_scroll(int ydelta)
+static void console_scroll(QemuConsole *s, int ydelta)
 {
-    QemuConsole *s;
     int i, y1;
-
-    s = active_console;
-    if (!s || (s->console_type == GRAPHIC_CONSOLE))
-        return;
 
     if (ydelta > 0) {
         for(i = 0; i < ydelta; i++) {
@@ -669,7 +665,7 @@ static void console_put_lf(QemuConsole *s)
             c->t_attrib = s->t_attrib_default;
             c++;
         }
-        if (s == active_console && s->y_displayed == s->y_base) {
+        if (qemu_console_is_visible(s) && s->y_displayed == s->y_base) {
             if (s->ds->have_text) {
                 s->text_x[0] = 0;
                 s->text_y[0] = 0;
@@ -1112,16 +1108,16 @@ void kbd_put_keysym(int keysym)
 
     switch(keysym) {
     case QEMU_KEY_CTRL_UP:
-        console_scroll(-1);
+        console_scroll(s, -1);
         break;
     case QEMU_KEY_CTRL_DOWN:
-        console_scroll(1);
+        console_scroll(s, 1);
         break;
     case QEMU_KEY_CTRL_PAGEUP:
-        console_scroll(-10);
+        console_scroll(s, -10);
         break;
     case QEMU_KEY_CTRL_PAGEDOWN:
-        console_scroll(10);
+        console_scroll(s, 10);
         break;
     default:
         /* convert the QEMU keysym to VT100 key string */
@@ -1338,7 +1334,7 @@ void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h)
     w = MIN(w, width - x);
     h = MIN(h, height - y);
 
-    if (con != active_console) {
+    if (!qemu_console_is_visible(con)) {
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
@@ -1367,7 +1363,7 @@ void dpy_gfx_replace_surface(QemuConsole *con,
     DisplaySurface *old_surface = con->surface;
 
     con->surface = surface;
-    if (con == active_console) {
+    if (qemu_console_is_visible(con)) {
         dpy_gfx_switch_surface(s, surface);
     }
     qemu_free_displaysurface(old_surface);
@@ -1389,7 +1385,7 @@ void dpy_gfx_copy(QemuConsole *con, int src_x, int src_y,
     DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
 
-    if (con != active_console) {
+    if (!qemu_console_is_visible(con)) {
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
@@ -1406,7 +1402,7 @@ void dpy_text_cursor(QemuConsole *con, int x, int y)
     DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
 
-    if (con != active_console) {
+    if (!qemu_console_is_visible(con)) {
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
@@ -1421,7 +1417,7 @@ void dpy_text_update(QemuConsole *con, int x, int y, int w, int h)
     DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
 
-    if (con != active_console) {
+    if (!qemu_console_is_visible(con)) {
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
@@ -1436,7 +1432,7 @@ void dpy_text_resize(QemuConsole *con, int w, int h)
     DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
 
-    if (con != active_console) {
+    if (!qemu_console_is_visible(con)) {
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
@@ -1451,7 +1447,7 @@ void dpy_mouse_set(QemuConsole *con, int x, int y, int on)
     DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
 
-    if (con != active_console) {
+    if (!qemu_console_is_visible(con)) {
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
@@ -1466,7 +1462,7 @@ void dpy_cursor_define(QemuConsole *con, QEMUCursor *cursor)
     DisplayState *s = con->ds;
     struct DisplayChangeListener *dcl;
 
-    if (con != active_console) {
+    if (!qemu_console_is_visible(con)) {
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
@@ -1540,14 +1536,25 @@ QemuConsole *graphic_console_init(const GraphicHwOps *hw_ops,
     return s;
 }
 
-int is_graphic_console(void)
+bool qemu_console_is_visible(QemuConsole *con)
 {
-    return active_console && active_console->console_type == GRAPHIC_CONSOLE;
+    return con == active_console;
 }
 
-int is_fixedsize_console(void)
+bool qemu_console_is_graphic(QemuConsole *con)
 {
-    return active_console && active_console->console_type != TEXT_CONSOLE;
+    if (con == NULL) {
+        con = active_console;
+    }
+    return con && (con->console_type == GRAPHIC_CONSOLE);
+}
+
+bool qemu_console_is_fixedsize(QemuConsole *con)
+{
+    if (con == NULL) {
+        con = active_console;
+    }
+    return con && (con->console_type != TEXT_CONSOLE);
 }
 
 static void text_console_set_echo(CharDriverState *chr, bool echo)
