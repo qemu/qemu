@@ -775,7 +775,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
 
     b = pci_register_bus(dev, "pci",
                          typhoon_set_irq, sys_map_irq, s,
-                         &s->pchip.reg_mem, addr_space_io, 0, 64);
+                         &s->pchip.reg_mem, addr_space_io, 0, 64, TYPE_PCI_BUS);
     phb->bus = b;
 
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */

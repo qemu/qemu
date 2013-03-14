@@ -328,7 +328,7 @@ void pci_bridge_reset(DeviceState *qdev)
 }
 
 /* default qdev initialization function for PCI-to-PCI bridge */
-int pci_bridge_initfn(PCIDevice *dev)
+int pci_bridge_initfn(PCIDevice *dev, const char *typename)
 {
     PCIBus *parent = dev->bus;
     PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
@@ -363,8 +363,7 @@ int pci_bridge_initfn(PCIDevice *dev)
 	    br->bus_name = dev->qdev.id;
     }
 
-    qbus_create_inplace(&sec_bus->qbus, TYPE_PCI_BUS, &dev->qdev,
-                        br->bus_name);
+    qbus_create_inplace(&sec_bus->qbus, typename, &dev->qdev, br->bus_name);
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq ? br->map_irq : pci_swizzle_map_irq_fn;
     sec_bus->address_space_mem = &br->address_space_mem;

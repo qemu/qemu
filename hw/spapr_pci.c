@@ -624,7 +624,7 @@ static int spapr_phb_init(SysBusDevice *s)
     bus = pci_register_bus(DEVICE(s), sphb->busname,
                            pci_spapr_set_irq, pci_spapr_map_irq, sphb,
                            &sphb->memspace, &sphb->iospace,
-                           PCI_DEVFN(0, 0), PCI_NUM_PINS);
+                           PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
     phb->bus = bus;
 
     sphb->dma_window_start = 0;

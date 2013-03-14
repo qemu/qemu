@@ -97,7 +97,7 @@ static int ioh3420_initfn(PCIDevice *d)
     PCIESlot *s = DO_UPCAST(PCIESlot, port, p);
     int rc;
 
-    rc = pci_bridge_initfn(d);
+    rc = pci_bridge_initfn(d, TYPE_PCI_BUS);
     if (rc < 0) {
         return rc;
     }

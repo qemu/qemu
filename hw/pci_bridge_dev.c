@@ -42,7 +42,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
     PCIBridgeDev *bridge_dev = DO_UPCAST(PCIBridgeDev, bridge, br);
     int err;
 
-    err = pci_bridge_initfn(dev);
+    err = pci_bridge_initfn(dev, TYPE_PCI_BUS);
     if (err) {
         goto bridge_error;
     }
