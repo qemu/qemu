@@ -344,6 +344,7 @@ typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev,
 #define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
 
+bool pci_bus_is_express(PCIBus *bus);
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,

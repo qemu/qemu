@@ -297,6 +297,11 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
 
+bool pci_bus_is_express(PCIBus *bus)
+{
+    return object_dynamic_cast(OBJECT(bus), TYPE_PCIE_BUS);
+}
+
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,
