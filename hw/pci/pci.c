@@ -302,6 +302,11 @@ bool pci_bus_is_express(PCIBus *bus)
     return object_dynamic_cast(OBJECT(bus), TYPE_PCIE_BUS);
 }
 
+bool pci_bus_is_root(PCIBus *bus)
+{
+    return !bus->parent_dev;
+}
+
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,
@@ -360,7 +365,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
 
 int pci_bus_num(PCIBus *s)
 {
-    if (!s->parent_dev)
+    if (pci_bus_is_root(s))
         return 0;       /* pci host bridge */
     return s->parent_dev->config[PCI_SECONDARY_BUS];
 }
@@ -1186,7 +1191,7 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
 /* Special hooks used by device assignment */
 void pci_bus_set_route_irq_fn(PCIBus *bus, pci_route_irq_fn route_intx_to_irq)
 {
-    assert(!bus->parent_dev);
+    assert(pci_bus_is_root(bus));
     bus->route_intx_to_irq = route_intx_to_irq;
 }
 
@@ -1651,7 +1656,7 @@ static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
     }
 
     /* Consider all bus numbers in range for the host pci bridge. */
-    if (bus->parent_dev &&
+    if (!pci_bus_is_root(bus) &&
         !pci_secondary_bus_in_range(bus->parent_dev, bus_num)) {
         return NULL;
     }
@@ -1659,7 +1664,7 @@ static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
     /* try child bus */
     for (; bus; bus = sec) {
         QLIST_FOREACH(sec, &bus->child, sibling) {
-            assert(sec->parent_dev);
+            assert(!pci_bus_is_root(sec));
             if (sec->parent_dev->config[PCI_SECONDARY_BUS] == bus_num) {
                 return sec;
             }
