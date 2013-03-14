@@ -10,6 +10,7 @@
 
 #define TYPE_PCI_BUS "PCI"
 #define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
+#define TYPE_PCIE_BUS "PCIE"
 
 struct PCIBus {
     BusState qbus;

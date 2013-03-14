@@ -75,6 +75,11 @@ static const TypeInfo pci_bus_info = {
     .class_init = pci_bus_class_init,
 };
 
+static const TypeInfo pcie_bus_info = {
+    .name = TYPE_PCIE_BUS,
+    .parent = TYPE_PCI_BUS,
+};
+
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num);
 static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
@@ -2236,6 +2241,7 @@ static const TypeInfo pci_device_type_info = {
 static void pci_register_types(void)
 {
     type_register_static(&pci_bus_info);
+    type_register_static(&pcie_bus_info);
     type_register_static(&pci_device_type_info);
 }
 
