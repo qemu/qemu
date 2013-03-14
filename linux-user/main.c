@@ -3406,27 +3406,35 @@ static void usage(void)
            "Options and associated environment variables:\n"
            "\n");
 
-    maxarglen = maxenvlen = 0;
+    /* Calculate column widths. We must always have at least enough space
+     * for the column header.
+     */
+    maxarglen = strlen("Argument");
+    maxenvlen = strlen("Env-variable");
 
     for (arginfo = arg_table; arginfo->handle_opt != NULL; arginfo++) {
+        int arglen = strlen(arginfo->argv);
+        if (arginfo->has_arg) {
+            arglen += strlen(arginfo->example) + 1;
+        }
         if (strlen(arginfo->env) > maxenvlen) {
             maxenvlen = strlen(arginfo->env);
         }
-        if (strlen(arginfo->argv) > maxarglen) {
-            maxarglen = strlen(arginfo->argv);
+        if (arglen > maxarglen) {
+            maxarglen = arglen;
         }
     }
 
-    printf("%-*s%-*sDescription\n", maxarglen+3, "Argument",
-            maxenvlen+1, "Env-variable");
+    printf("%-*s %-*s Description\n", maxarglen+1, "Argument",
+            maxenvlen, "Env-variable");
 
     for (arginfo = arg_table; arginfo->handle_opt != NULL; arginfo++) {
         if (arginfo->has_arg) {
             printf("-%s %-*s %-*s %s\n", arginfo->argv,
-                    (int)(maxarglen-strlen(arginfo->argv)), arginfo->example,
-                    maxenvlen, arginfo->env, arginfo->help);
+                   (int)(maxarglen - strlen(arginfo->argv) - 1),
+                   arginfo->example, maxenvlen, arginfo->env, arginfo->help);
         } else {
-            printf("-%-*s %-*s %s\n", maxarglen+1, arginfo->argv,
+            printf("-%-*s %-*s %s\n", maxarglen, arginfo->argv,
                     maxenvlen, arginfo->env,
                     arginfo->help);
         }

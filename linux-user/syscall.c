@@ -78,6 +78,9 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #ifdef CONFIG_ATTR
 #include "qemu/xattr.h"
 #endif
+#ifdef CONFIG_SENDFILE
+#include <sys/sendfile.h>
+#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -1776,7 +1779,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         errno = 0;
         return NULL;
     }
-    if (count > IOV_MAX) {
+    if (count < 0 || count > IOV_MAX) {
         errno = EINVAL;
         return NULL;
     }
@@ -2001,16 +2004,30 @@ out2:
     return ret;
 }
 
-/* do_accept() Must return target values and target errnos. */
-static abi_long do_accept(int fd, abi_ulong target_addr,
-                          abi_ulong target_addrlen_addr)
+/* If we don't have a system accept4() then just call accept.
+ * The callsites to do_accept4() will ensure that they don't
+ * pass a non-zero flags argument in this config.
+ */
+#ifndef CONFIG_ACCEPT4
+static inline int accept4(int sockfd, struct sockaddr *addr,
+                          socklen_t *addrlen, int flags)
+{
+    assert(flags == 0);
+    return accept(sockfd, addr, addrlen);
+}
+#endif
+
+/* do_accept4() Must return target values and target errnos. */
+static abi_long do_accept4(int fd, abi_ulong target_addr,
+                           abi_ulong target_addrlen_addr, int flags)
 {
     socklen_t addrlen;
     void *addr;
     abi_long ret;
 
-    if (target_addr == 0)
-       return get_errno(accept(fd, NULL, NULL));
+    if (target_addr == 0) {
+        return get_errno(accept4(fd, NULL, NULL, flags));
+    }
 
     /* linux returns EINVAL if addrlen pointer is invalid */
     if (get_user_u32(addrlen, target_addrlen_addr))
@@ -2025,7 +2042,7 @@ static abi_long do_accept(int fd, abi_ulong target_addr,
 
     addr = alloca(addrlen);
 
-    ret = get_errno(accept(fd, addr, &addrlen));
+    ret = get_errno(accept4(fd, addr, &addrlen, flags));
     if (!is_error(ret)) {
         host_to_target_sockaddr(target_addr, addr, addrlen);
         if (put_user_u32(addrlen, target_addrlen_addr))
@@ -2251,7 +2268,7 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
                 || get_user_ual(target_addrlen, vptr + 2 * n))
                 return -TARGET_EFAULT;
 
-            ret = do_accept(sockfd, target_addr, target_addrlen);
+            ret = do_accept4(sockfd, target_addr, target_addrlen, 0);
         }
         break;
     case SOCKOP_getsockname:
@@ -4922,6 +4939,7 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
 #endif
     switch (base_op) {
     case FUTEX_WAIT:
+    case FUTEX_WAIT_BITSET:
         if (timeout) {
             pts = &ts;
             target_to_host_timespec(pts, timeout);
@@ -4929,7 +4947,7 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
             pts = NULL;
         }
         return get_errno(sys_futex(g2h(uaddr), op, tswap32(val),
-                         pts, NULL, 0));
+                         pts, NULL, val3));
     case FUTEX_WAKE:
         return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
     case FUTEX_FD:
@@ -6673,7 +6691,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_accept
     case TARGET_NR_accept:
-        ret = do_accept(arg1, arg2, arg3);
+        ret = do_accept4(arg1, arg2, arg3, 0);
+        break;
+#endif
+#ifdef TARGET_NR_accept4
+    case TARGET_NR_accept4:
+#ifdef CONFIG_ACCEPT4
+        ret = do_accept4(arg1, arg2, arg3, arg4);
+#else
+        goto unimplemented;
+#endif
         break;
 #endif
 #ifdef TARGET_NR_bind
@@ -7530,8 +7557,58 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #else
         goto unimplemented;
 #endif
+
+#ifdef CONFIG_SENDFILE
     case TARGET_NR_sendfile:
+    {
+        off_t *offp = NULL;
+        off_t off;
+        if (arg3) {
+            ret = get_user_sal(off, arg3);
+            if (is_error(ret)) {
+                break;
+            }
+            offp = &off;
+        }
+        ret = get_errno(sendfile(arg1, arg2, offp, arg4));
+        if (!is_error(ret) && arg3) {
+            abi_long ret2 = put_user_sal(off, arg3);
+            if (is_error(ret2)) {
+                ret = ret2;
+            }
+        }
+        break;
+    }
+#ifdef TARGET_NR_sendfile64
+    case TARGET_NR_sendfile64:
+    {
+        off_t *offp = NULL;
+        off_t off;
+        if (arg3) {
+            ret = get_user_s64(off, arg3);
+            if (is_error(ret)) {
+                break;
+            }
+            offp = &off;
+        }
+        ret = get_errno(sendfile(arg1, arg2, offp, arg4));
+        if (!is_error(ret) && arg3) {
+            abi_long ret2 = put_user_s64(off, arg3);
+            if (is_error(ret2)) {
+                ret = ret2;
+            }
+        }
+        break;
+    }
+#endif
+#else
+    case TARGET_NR_sendfile:
+#ifdef TARGET_NR_sendfile64:
+    case TARGET_NR_sendfile64:
+#endif
         goto unimplemented;
+#endif
+
 #ifdef TARGET_NR_getpmsg
     case TARGET_NR_getpmsg:
         goto unimplemented;
@@ -7679,18 +7756,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             int gidsetsize = arg1;
             target_id *target_grouplist;
-            gid_t *grouplist;
+            gid_t *grouplist = NULL;
             int i;
-
-            grouplist = alloca(gidsetsize * sizeof(gid_t));
-            target_grouplist = lock_user(VERIFY_READ, arg2, gidsetsize * 2, 1);
-            if (!target_grouplist) {
-                ret = -TARGET_EFAULT;
-                goto fail;
+            if (gidsetsize) {
+                grouplist = alloca(gidsetsize * sizeof(gid_t));
+                target_grouplist = lock_user(VERIFY_READ, arg2, gidsetsize * 2, 1);
+                if (!target_grouplist) {
+                    ret = -TARGET_EFAULT;
+                    goto fail;
+                }
+                for (i = 0; i < gidsetsize; i++) {
+                    grouplist[i] = low2highgid(tswapid(target_grouplist[i]));
+                }
+                unlock_user(target_grouplist, arg2, 0);
             }
-            for(i = 0;i < gidsetsize; i++)
-                grouplist[i] = low2highgid(tswapid(target_grouplist[i]));
-            unlock_user(target_grouplist, arg2, 0);
             ret = get_errno(setgroups(gidsetsize, grouplist));
         }
         break;
@@ -8552,7 +8631,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
 #ifdef TARGET_NR_set_robust_list
     case TARGET_NR_set_robust_list:
-	goto unimplemented_nowarn;
+    case TARGET_NR_get_robust_list:
+        /* The ABI for supporting robust futexes has userspace pass
+         * the kernel a pointer to a linked list which is updated by
+         * userspace after the syscall; the list is walked by the kernel
+         * when the thread exits. Since the linked list in QEMU guest
+         * memory isn't a valid linked list for the host and we have
+         * no way to reliably intercept the thread-death event, we can't
+         * support these. Silently return ENOSYS so that guest userspace
+         * falls back to a non-robust futex implementation (which should
+         * be OK except in the corner case of the guest crashing while
+         * holding a mutex that is shared with another process via
+         * shared memory).
+         */
+        goto unimplemented_nowarn;
 #endif
 
 #if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)

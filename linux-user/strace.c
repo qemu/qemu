@@ -462,18 +462,6 @@ UNUSED static struct flags mmap_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags fcntl_flags[] = {
-    FLAG_TARGET(F_DUPFD),
-    FLAG_TARGET(F_GETFD),
-    FLAG_TARGET(F_SETFD),
-    FLAG_TARGET(F_GETFL),
-    FLAG_TARGET(F_SETFL),
-    FLAG_TARGET(F_GETLK),
-    FLAG_TARGET(F_SETLK),
-    FLAG_TARGET(F_SETLKW),
-    FLAG_END,
-};
-
 UNUSED static struct flags clone_flags[] = {
     FLAG_GENERIC(CLONE_VM),
     FLAG_GENERIC(CLONE_FS),
@@ -867,12 +855,85 @@ print_fcntl(const struct syscallname *name,
 {
     print_syscall_prologue(name);
     print_raw_param("%d", arg0, 0);
-    print_flags(fcntl_flags, arg1, 0);
-    /*
-     * TODO: check flags and print following argument only
-     *       when needed.
-     */
-    print_pointer(arg2, 1);
+    switch(arg1) {
+    case TARGET_F_DUPFD:
+        gemu_log("F_DUPFD,");
+        print_raw_param(TARGET_ABI_FMT_ld, arg2, 1);
+        break;
+    case TARGET_F_GETFD:
+        gemu_log("F_GETFD");
+        break;
+    case TARGET_F_SETFD:
+        gemu_log("F_SETFD,");
+        print_raw_param(TARGET_ABI_FMT_ld, arg2, 1);
+        break;
+    case TARGET_F_GETFL:
+        gemu_log("F_GETFL");
+        break;
+    case TARGET_F_SETFL:
+        gemu_log("F_SETFL,");
+        print_open_flags(arg2, 1);
+        break;
+    case TARGET_F_GETLK:
+        gemu_log("F_GETLK,");
+        print_pointer(arg2, 1);
+        break;
+    case TARGET_F_SETLK:
+        gemu_log("F_SETLK,");
+        print_pointer(arg2, 1);
+        break;
+    case TARGET_F_SETLKW:
+        gemu_log("F_SETLKW,");
+        print_pointer(arg2, 1);
+        break;
+    case TARGET_F_GETOWN:
+        gemu_log("F_GETOWN");
+        break;
+    case TARGET_F_SETOWN:
+        gemu_log("F_SETOWN,");
+        print_raw_param(TARGET_ABI_FMT_ld, arg2, 0);
+        break;
+    case TARGET_F_GETSIG:
+        gemu_log("F_GETSIG");
+        break;
+    case TARGET_F_SETSIG:
+        gemu_log("F_SETSIG,");
+        print_raw_param(TARGET_ABI_FMT_ld, arg2, 0);
+        break;
+#if TARGET_ABI_BITS == 32
+    case TARGET_F_GETLK64:
+        gemu_log("F_GETLK64,");
+        print_pointer(arg2, 1);
+        break;
+    case TARGET_F_SETLK64:
+        gemu_log("F_SETLK64,");
+        print_pointer(arg2, 1);
+        break;
+    case TARGET_F_SETLKW64:
+        gemu_log("F_SETLKW64,");
+        print_pointer(arg2, 1);
+        break;
+#endif
+    case TARGET_F_SETLEASE:
+        gemu_log("F_SETLEASE,");
+        print_raw_param(TARGET_ABI_FMT_ld, arg2, 0);
+        break;
+    case TARGET_F_GETLEASE:
+        gemu_log("F_GETLEASE");
+        break;
+    case TARGET_F_DUPFD_CLOEXEC:
+        gemu_log("F_DUPFD_CLOEXEC,");
+        print_raw_param(TARGET_ABI_FMT_ld, arg2, 1);
+        break;
+    case TARGET_F_NOTIFY:
+        gemu_log("F_NOTIFY,");
+        print_raw_param(TARGET_ABI_FMT_ld, arg2, 0);
+        break;
+    default:
+        print_raw_param(TARGET_ABI_FMT_ld, arg1, 0);
+        print_pointer(arg2, 1);
+        break;
+    }
     print_syscall_epilogue(name);
 }
 #define print_fcntl64   print_fcntl
@@ -1435,6 +1496,12 @@ if( cmd == val ) { \
     if (cmd & FUTEX_PRIVATE_FLAG) {
         gemu_log("FUTEX_PRIVATE_FLAG|");
         cmd &= ~FUTEX_PRIVATE_FLAG;
+    }
+#endif
+#ifdef FUTEX_CLOCK_REALTIME
+    if (cmd & FUTEX_CLOCK_REALTIME) {
+        gemu_log("FUTEX_CLOCK_REALTIME|");
+        cmd &= ~FUTEX_CLOCK_REALTIME;
     }
 #endif
     print_op(FUTEX_WAIT)
