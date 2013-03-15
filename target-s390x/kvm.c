@@ -315,8 +315,7 @@ void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
 
 int kvm_arch_process_async_events(CPUState *cs)
 {
-    S390CPU *cpu = S390_CPU(cs);
-    return cpu->env.halted;
+    return cs->halted;
 }
 
 void kvm_s390_interrupt_internal(S390CPU *cpu, int type, uint32_t parm,
