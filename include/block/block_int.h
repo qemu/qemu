@@ -75,6 +75,7 @@ struct BlockDriver {
     int instance_size;
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_probe_device)(const char *filename);
+    void (*bdrv_parse_filename)(const char *filename, QDict *options, Error **errp);
 
     /* For handling image reopen for split or non-split files */
     int (*bdrv_reopen_prepare)(BDRVReopenState *reopen_state,

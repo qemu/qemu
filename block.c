@@ -770,6 +770,17 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     bs->options = options;
     options = qdict_clone_shallow(options);
 
+    if (drv->bdrv_parse_filename) {
+        Error *local_err = NULL;
+        drv->bdrv_parse_filename(filename, options, &local_err);
+        if (error_is_set(&local_err)) {
+            qerror_report_err(local_err);
+            error_free(local_err);
+            ret = -EINVAL;
+            goto fail;
+        }
+    }
+
     ret = bdrv_open_common(bs, NULL, filename, options, flags, drv);
     if (ret < 0) {
         goto fail;

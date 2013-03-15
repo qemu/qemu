@@ -143,17 +143,20 @@ out:
     return ret;
 }
 
-static int nbd_parse_filename(const char *filename, QDict *options)
+static void nbd_parse_filename(const char *filename, QDict *options,
+                               Error **errp)
 {
     char *file;
     char *export_name;
     const char *host_spec;
     const char *unixpath;
-    int ret = -EINVAL;
-    Error *local_err = NULL;
 
     if (strstr(filename, "://")) {
-        return nbd_parse_uri(filename, options);
+        int ret = nbd_parse_uri(filename, options);
+        if (ret < 0) {
+            error_setg(errp, "No valid URL specified");
+        }
+        return;
     }
 
     file = g_strdup(filename);
@@ -171,11 +174,11 @@ static int nbd_parse_filename(const char *filename, QDict *options)
 
     /* extract the host_spec - fail if it's not nbd:... */
     if (!strstart(file, "nbd:", &host_spec)) {
+        error_setg(errp, "File name string for NBD must start with 'nbd:'");
         goto out;
     }
 
     if (!*host_spec) {
-        ret = 1;
         goto out;
     }
 
@@ -185,10 +188,8 @@ static int nbd_parse_filename(const char *filename, QDict *options)
     } else {
         InetSocketAddress *addr = NULL;
 
-        addr = inet_parse(host_spec, &local_err);
-        if (local_err != NULL) {
-            qerror_report_err(local_err);
-            error_free(local_err);
+        addr = inet_parse(host_spec, errp);
+        if (error_is_set(errp)) {
             goto out;
         }
 
@@ -197,10 +198,8 @@ static int nbd_parse_filename(const char *filename, QDict *options)
         qapi_free_InetSocketAddress(addr);
     }
 
-    ret = 1;
 out:
     g_free(file);
-    return ret;
 }
 
 static int nbd_config(BDRVNBDState *s, QDict *options)
@@ -437,11 +436,6 @@ static int nbd_open(BlockDriverState *bs, const char* filename,
     qemu_co_mutex_init(&s->free_sema);
 
     /* Pop the config into our state object. Exit if invalid. */
-    result = nbd_parse_filename(filename, options);
-    if (result < 0) {
-        return result;
-    }
-
     result = nbd_config(s, options);
     if (result != 0) {
         return result;
@@ -622,6 +616,7 @@ static BlockDriver bdrv_nbd = {
     .format_name         = "nbd",
     .protocol_name       = "nbd",
     .instance_size       = sizeof(BDRVNBDState),
+    .bdrv_parse_filename = nbd_parse_filename,
     .bdrv_file_open      = nbd_open,
     .bdrv_co_readv       = nbd_co_readv,
     .bdrv_co_writev      = nbd_co_writev,
@@ -635,6 +630,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .format_name         = "nbd",
     .protocol_name       = "nbd+tcp",
     .instance_size       = sizeof(BDRVNBDState),
+    .bdrv_parse_filename = nbd_parse_filename,
     .bdrv_file_open      = nbd_open,
     .bdrv_co_readv       = nbd_co_readv,
     .bdrv_co_writev      = nbd_co_writev,
@@ -648,6 +644,7 @@ static BlockDriver bdrv_nbd_unix = {
     .format_name         = "nbd",
     .protocol_name       = "nbd+unix",
     .instance_size       = sizeof(BDRVNBDState),
+    .bdrv_parse_filename = nbd_parse_filename,
     .bdrv_file_open      = nbd_open,
     .bdrv_co_readv       = nbd_co_readv,
     .bdrv_co_writev      = nbd_co_writev,
