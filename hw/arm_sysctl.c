@@ -272,6 +272,17 @@ static bool vexpress_cfgctrl_write(arm_sysctl_state *s, unsigned int dcc,
     }
 
     switch (function) {
+    case SYS_CFG_MUXFPGA:
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            /* Select whether video output comes from motherboard
+             * or daughterboard: log and ignore as QEMU doesn't
+             * support this.
+             */
+            qemu_log_mask(LOG_UNIMP, "arm_sysctl: selection of video output "
+                          "not supported, ignoring\n");
+            return true;
+        }
+        break;
     case SYS_CFG_SHUTDOWN:
         if (site == SYS_CFG_SITE_MB && device == 0) {
             qemu_system_shutdown_request();
