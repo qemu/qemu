@@ -285,11 +285,26 @@ static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
     return ret;
 }
 
+static QemuOptsList qcow2_runtime_opts = {
+    .name = "qcow2",
+    .head = QTAILQ_HEAD_INITIALIZER(qcow2_runtime_opts.head),
+    .desc = {
+        {
+            .name = "lazy_refcounts",
+            .type = QEMU_OPT_BOOL,
+            .help = "Postpone refcount updates",
+        },
+        { /* end of list */ }
+    },
+};
+
 static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVQcowState *s = bs->opaque;
     int len, i, ret = 0;
     QCowHeader header;
+    QemuOpts *opts;
+    Error *local_err = NULL;
     uint64_t ext_end;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
@@ -493,6 +508,28 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
         if (ret < 0) {
             goto fail;
         }
+    }
+
+    /* Enable lazy_refcounts according to image and command line options */
+    opts = qemu_opts_create_nofail(&qcow2_runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    s->use_lazy_refcounts = qemu_opt_get_bool(opts, "lazy_refcounts",
+        (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS));
+
+    qemu_opts_del(opts);
+
+    if (s->use_lazy_refcounts && s->qcow_version < 3) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR, "Lazy refcounts require "
+            "a qcow2 image with at least qemu 1.1 compatibility level");
+        ret = -EINVAL;
+        goto fail;
     }
 
 #ifdef DEBUG_ALLOC

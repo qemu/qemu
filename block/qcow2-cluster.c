@@ -668,7 +668,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     }
 
     /* Update L2 table. */
-    if (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS) {
+    if (s->use_lazy_refcounts) {
         qcow2_mark_dirty(bs);
     }
     if (qcow2_need_accurate_refcounts(s)) {
