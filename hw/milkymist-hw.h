@@ -177,10 +177,10 @@ static inline DeviceState *milkymist_minimac2_create(hwaddr base,
 
     qemu_check_nic_model(&nd_table[0], "minimac2");
     dev = qdev_create(NULL, "milkymist-minimac2");
-    qdev_prop_set_taddr(dev, "buffers_base", buffers_base);
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, buffers_base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, rx_irq);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, tx_irq);
 
