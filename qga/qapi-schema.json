@@ -562,9 +562,10 @@
 #
 # @online: Whether the VCPU is enabled.
 #
-# @can-offline: Whether offlining the VCPU is possible. This member is always
-#               filled in by the guest agent when the structure is returned,
-#               and always ignored on input (hence it can be omitted then).
+# @can-offline: #optional Whether offlining the VCPU is possible. This member
+#               is always filled in by the guest agent when the structure is
+#               returned, and always ignored on input (hence it can be omitted
+#               then).
 #
 # Since: 1.5
 ##
