@@ -178,6 +178,7 @@ struct DisplayChangeListener {
     uint64_t update_interval;
     const DisplayChangeListenerOps *ops;
     DisplayState *ds;
+    QemuConsole *con;
 
     QLIST_ENTRY(DisplayChangeListener) next;
 };
@@ -282,6 +283,7 @@ void graphic_hw_update(QemuConsole *con);
 void graphic_hw_invalidate(QemuConsole *con);
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata);
 
+QemuConsole *qemu_console_lookup_by_index(unsigned int index);
 bool qemu_console_is_visible(QemuConsole *con);
 bool qemu_console_is_graphic(QemuConsole *con);
 bool qemu_console_is_fixedsize(QemuConsole *con);

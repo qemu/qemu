@@ -398,14 +398,14 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
 void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
 {
     if (ssd->cursor) {
-        assert(ssd->con);
-        dpy_cursor_define(ssd->con, ssd->cursor);
+        assert(ssd->dcl.con);
+        dpy_cursor_define(ssd->dcl.con, ssd->cursor);
         cursor_put(ssd->cursor);
         ssd->cursor = NULL;
     }
     if (ssd->mouse_x != -1 && ssd->mouse_y != -1) {
-        assert(ssd->con);
-        dpy_mouse_set(ssd->con, ssd->mouse_x, ssd->mouse_y, 1);
+        assert(ssd->dcl.con);
+        dpy_mouse_set(ssd->dcl.con, ssd->mouse_x, ssd->mouse_y, 1);
         ssd->mouse_x = -1;
         ssd->mouse_y = -1;
     }
@@ -414,7 +414,7 @@ void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
 {
     dprint(3, "%s:\n", __func__);
-    graphic_hw_update(ssd->con);
+    graphic_hw_update(ssd->dcl.con);
 
     qemu_mutex_lock(&ssd->lock);
     if (QTAILQ_EMPTY(&ssd->updates) && ssd->ds) {
@@ -624,6 +624,7 @@ void qemu_spice_display_init(DisplayState *ds)
     qemu_spice_create_host_memslot(ssd);
 
     ssd->dcl.ops = &display_listener_ops;
+    ssd->dcl.con = qemu_console_lookup_by_index(0);
     register_displaychangelistener(ds, &ssd->dcl);
 
     qemu_spice_create_host_primary(ssd);

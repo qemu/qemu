@@ -327,7 +327,7 @@ static void gd_update(DisplayChangeListener *dcl,
 
 static void gd_refresh(DisplayChangeListener *dcl)
 {
-    graphic_hw_update(NULL);
+    graphic_hw_update(dcl->con);
 }
 
 static void gd_switch(DisplayChangeListener *dcl,
@@ -1368,6 +1368,7 @@ void gtk_display_init(DisplayState *ds)
     gtk_init(NULL, NULL);
 
     s->dcl.ops = &dcl_ops;
+    s->dcl.con = qemu_console_lookup_by_index(0);
 
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 #if GTK_CHECK_VERSION(3, 2, 0)
