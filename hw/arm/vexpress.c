@@ -156,6 +156,8 @@ struct VEDBoardInfo {
     uint32_t proc_id;
     uint32_t num_voltage_sensors;
     const uint32_t *voltages;
+    uint32_t num_clocks;
+    const uint32_t *clocks;
     DBoardInitFn *init;
 };
 
@@ -260,6 +262,13 @@ static const uint32_t a9_voltages[] = {
     3300000, /* VCC3V3 : 3.3V : local board supply for misc external logic */
 };
 
+/* Reset values for daughterboard oscillators (in Hz) */
+static const uint32_t a9_clocks[] = {
+    45000000, /* AMBA AXI ACLK: 45MHz */
+    23750000, /* daughterboard CLCD clock: 23.75MHz */
+    66670000, /* Test chip reference clock: 66.67MHz */
+};
+
 static const VEDBoardInfo a9_daughterboard = {
     .motherboard_map = motherboard_legacy_map,
     .loader_start = 0x60000000,
@@ -267,6 +276,8 @@ static const VEDBoardInfo a9_daughterboard = {
     .proc_id = 0x0c000191,
     .num_voltage_sensors = ARRAY_SIZE(a9_voltages),
     .voltages = a9_voltages,
+    .num_clocks = ARRAY_SIZE(a9_clocks),
+    .clocks = a9_clocks,
     .init = a9_daughterboard_init,
 };
 
@@ -358,6 +369,18 @@ static const uint32_t a15_voltages[] = {
     900000, /* Vcore: 0.9V : CPU core voltage */
 };
 
+static const uint32_t a15_clocks[] = {
+    60000000, /* OSCCLK0: 60MHz : CPU_CLK reference */
+    0, /* OSCCLK1: reserved */
+    0, /* OSCCLK2: reserved */
+    0, /* OSCCLK3: reserved */
+    40000000, /* OSCCLK4: 40MHz : external AXI master clock */
+    23750000, /* OSCCLK5: 23.75MHz : HDLCD PLL reference */
+    50000000, /* OSCCLK6: 50MHz : static memory controller clock */
+    60000000, /* OSCCLK7: 60MHz : SYSCLK reference */
+    40000000, /* OSCCLK8: 40MHz : DDR2 PLL reference */
+};
+
 static const VEDBoardInfo a15_daughterboard = {
     .motherboard_map = motherboard_aseries_map,
     .loader_start = 0x80000000,
@@ -365,6 +388,8 @@ static const VEDBoardInfo a15_daughterboard = {
     .proc_id = 0x14000237,
     .num_voltage_sensors = ARRAY_SIZE(a15_voltages),
     .voltages = a15_voltages,
+    .num_clocks = ARRAY_SIZE(a15_clocks),
+    .clocks = a15_clocks,
     .init = a15_daughterboard_init,
 };
 
@@ -398,6 +423,13 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     for (i = 0; i < daughterboard->num_voltage_sensors; i++) {
         char *propname = g_strdup_printf("db-voltage[%d]", i);
         qdev_prop_set_uint32(sysctl, propname, daughterboard->voltages[i]);
+        g_free(propname);
+    }
+    qdev_prop_set_uint32(sysctl, "len-db-clock",
+                         daughterboard->num_clocks);
+    for (i = 0; i < daughterboard->num_clocks; i++) {
+        char *propname = g_strdup_printf("db-clock[%d]", i);
+        qdev_prop_set_uint32(sysctl, propname, daughterboard->clocks[i]);
         g_free(propname);
     }
     qdev_init_nofail(sysctl);
