@@ -191,6 +191,7 @@ static void drive_uninit(DriveInfo *dinfo)
     bdrv_delete(dinfo->bdrv);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
+    g_free(dinfo->serial);
     g_free(dinfo);
 }
 
@@ -566,7 +567,9 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
     dinfo->trans = translation;
     dinfo->opts = opts;
     dinfo->refcount = 1;
-    dinfo->serial = serial;
+    if (serial != NULL) {
+        dinfo->serial = g_strdup(serial);
+    }
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
