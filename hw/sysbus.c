@@ -137,6 +137,9 @@ static int sysbus_device_init(DeviceState *dev)
     SysBusDevice *sd = SYS_BUS_DEVICE(dev);
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(sd);
 
+    if (!sbc->init) {
+        return 0;
+    }
     return sbc->init(sd);
 }
 
