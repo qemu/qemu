@@ -54,10 +54,11 @@ struct MilkymistSoftUsbState {
     MemoryRegion dmem;
     qemu_irq irq;
 
+    void *pmem_ptr;
+    void *dmem_ptr;
+
     /* device properties */
-    uint32_t pmem_base;
     uint32_t pmem_size;
-    uint32_t dmem_base;
     uint32_t dmem_size;
 
     /* device registers */
@@ -134,7 +135,7 @@ static inline void softusb_read_dmem(MilkymistSoftUsbState *s,
         return;
     }
 
-    cpu_physical_memory_read(s->dmem_base + offset, buf, len);
+    memcpy(buf, s->dmem_ptr + offset, len);
 }
 
 static inline void softusb_write_dmem(MilkymistSoftUsbState *s,
@@ -146,7 +147,7 @@ static inline void softusb_write_dmem(MilkymistSoftUsbState *s,
         return;
     }
 
-    cpu_physical_memory_write(s->dmem_base + offset, buf, len);
+    memcpy(s->dmem_ptr + offset, buf, len);
 }
 
 static inline void softusb_read_pmem(MilkymistSoftUsbState *s,
@@ -158,7 +159,7 @@ static inline void softusb_read_pmem(MilkymistSoftUsbState *s,
         return;
     }
 
-    cpu_physical_memory_read(s->pmem_base + offset, buf, len);
+    memcpy(buf, s->pmem_ptr + offset, len);
 }
 
 static inline void softusb_write_pmem(MilkymistSoftUsbState *s,
@@ -170,7 +171,7 @@ static inline void softusb_write_pmem(MilkymistSoftUsbState *s,
         return;
     }
 
-    cpu_physical_memory_write(s->pmem_base + offset, buf, len);
+    memcpy(s->pmem_ptr + offset, buf, len);
 }
 
 static void softusb_mouse_changed(MilkymistSoftUsbState *s)
@@ -270,11 +271,13 @@ static int milkymist_softusb_init(SysBusDevice *dev)
     memory_region_init_ram(&s->pmem, "milkymist-softusb.pmem",
                            s->pmem_size);
     vmstate_register_ram_global(&s->pmem);
-    sysbus_add_memory(dev, s->pmem_base, &s->pmem);
+    s->pmem_ptr = memory_region_get_ram_ptr(&s->pmem);
+    sysbus_init_mmio(dev, &s->pmem);
     memory_region_init_ram(&s->dmem, "milkymist-softusb.dmem",
                            s->dmem_size);
     vmstate_register_ram_global(&s->dmem);
-    sysbus_add_memory(dev, s->dmem_base, &s->dmem);
+    s->dmem_ptr = memory_region_get_ram_ptr(&s->dmem);
+    sysbus_init_mmio(dev, &s->dmem);
 
     hid_init(&s->hid_kbd, HID_KEYBOARD, softusb_kbd_hid_datain);
     hid_init(&s->hid_mouse, HID_MOUSE, softusb_mouse_hid_datain);
@@ -298,9 +301,7 @@ static const VMStateDescription vmstate_milkymist_softusb = {
 };
 
 static Property milkymist_softusb_properties[] = {
-    DEFINE_PROP_UINT32("pmem_base", MilkymistSoftUsbState, pmem_base, 0xa0000000),
     DEFINE_PROP_UINT32("pmem_size", MilkymistSoftUsbState, pmem_size, 0x00001000),
-    DEFINE_PROP_UINT32("dmem_base", MilkymistSoftUsbState, dmem_base, 0xa0020000),
     DEFINE_PROP_UINT32("dmem_size", MilkymistSoftUsbState, dmem_size, 0x00002000),
     DEFINE_PROP_END_OF_LIST(),
 };
