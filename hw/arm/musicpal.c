@@ -1033,6 +1033,15 @@ static const TypeInfo mv88w8618_flashcfg_info = {
 
 #define MP_BOARD_REVISION       0x31
 
+typedef struct {
+    SysBusDevice parent_obj;
+    MemoryRegion iomem;
+} MusicPalMiscState;
+
+#define TYPE_MUSICPAL_MISC "musicpal-misc"
+#define MUSICPAL_MISC(obj) \
+     OBJECT_CHECK(MusicPalMiscState, (obj), TYPE_MUSICPAL_MISC)
+
 static uint64_t musicpal_misc_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
@@ -1056,14 +1065,22 @@ static const MemoryRegionOps musicpal_misc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void musicpal_misc_init(SysBusDevice *dev)
+static void musicpal_misc_init(Object *obj)
 {
-    MemoryRegion *iomem = g_new(MemoryRegion, 1);
+    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
+    MusicPalMiscState *s = MUSICPAL_MISC(obj);
 
-    memory_region_init_io(iomem, &musicpal_misc_ops, NULL,
+    memory_region_init_io(&s->iomem, &musicpal_misc_ops, NULL,
                           "musicpal-misc", MP_MISC_SIZE);
-    sysbus_add_memory(dev, MP_MISC_BASE, iomem);
+    sysbus_init_mmio(sd, &s->iomem);
 }
+
+static const TypeInfo musicpal_misc_info = {
+    .name = TYPE_MUSICPAL_MISC,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_init = musicpal_misc_init,
+    .instance_size = sizeof(MusicPalMiscState),
+};
 
 /* WLAN register offsets */
 #define MP_WLAN_MAGIC1          0x11c
@@ -1614,7 +1631,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
 
     sysbus_create_simple("mv88w8618_wlan", MP_WLAN_BASE, NULL);
 
-    musicpal_misc_init(SYS_BUS_DEVICE(dev));
+    sysbus_create_simple(TYPE_MUSICPAL_MISC, MP_MISC_BASE, NULL);
 
     dev = sysbus_create_simple("musicpal_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
     i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
@@ -1694,6 +1711,7 @@ static void musicpal_register_types(void)
     type_register_static(&musicpal_lcd_info);
     type_register_static(&musicpal_gpio_info);
     type_register_static(&musicpal_key_info);
+    type_register_static(&musicpal_misc_info);
 }
 
 type_init(musicpal_register_types)
