@@ -1321,7 +1321,7 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
         if (subregion->may_overlap || other->may_overlap) {
             continue;
         }
-        if (int128_gt(int128_make64(offset),
+        if (int128_ge(int128_make64(offset),
                       int128_add(int128_make64(other->addr), other->size))
             || int128_le(int128_add(int128_make64(offset), subregion->size),
                          int128_make64(other->addr))) {
