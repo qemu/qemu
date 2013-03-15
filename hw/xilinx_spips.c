@@ -497,7 +497,7 @@ static int xilinx_spips_init(SysBusDevice *dev)
         s->spi[i] = ssi_create_bus(&dev->qdev, bus_name);
     }
 
-    s->cs_lines = g_new(qemu_irq, s->num_cs * s->num_busses);
+    s->cs_lines = g_new0(qemu_irq, s->num_cs * s->num_busses);
     ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi[0]);
     ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi[1]);
     sysbus_init_irq(dev, &s->irq);
