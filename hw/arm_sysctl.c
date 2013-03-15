@@ -9,6 +9,7 @@
 
 #include "hw/hw.h"
 #include "qemu/timer.h"
+#include "qemu/bitops.h"
 #include "hw/sysbus.h"
 #include "hw/primecell.h"
 #include "sysemu/sysemu.h"
@@ -191,6 +192,110 @@ static uint64_t arm_sysctl_read(void *opaque, hwaddr offset,
     }
 }
 
+/* SYS_CFGCTRL functions */
+#define SYS_CFG_OSC 1
+#define SYS_CFG_VOLT 2
+#define SYS_CFG_AMP 3
+#define SYS_CFG_TEMP 4
+#define SYS_CFG_RESET 5
+#define SYS_CFG_SCC 6
+#define SYS_CFG_MUXFPGA 7
+#define SYS_CFG_SHUTDOWN 8
+#define SYS_CFG_REBOOT 9
+#define SYS_CFG_DVIMODE 11
+#define SYS_CFG_POWER 12
+#define SYS_CFG_ENERGY 13
+
+/* SYS_CFGCTRL site field values */
+#define SYS_CFG_SITE_MB 0
+#define SYS_CFG_SITE_DB1 1
+#define SYS_CFG_SITE_DB2 2
+
+/**
+ * vexpress_cfgctrl_read:
+ * @s: arm_sysctl_state pointer
+ * @dcc, @function, @site, @position, @device: split out values from
+ * SYS_CFGCTRL register
+ * @val: pointer to where to put the read data on success
+ *
+ * Handle a VExpress SYS_CFGCTRL register read. On success, return true and
+ * write the read value to *val. On failure, return false (and val may
+ * or may not be written to).
+ */
+static bool vexpress_cfgctrl_read(arm_sysctl_state *s, unsigned int dcc,
+                                  unsigned int function, unsigned int site,
+                                  unsigned int position, unsigned int device,
+                                  uint32_t *val)
+{
+    /* We don't support anything other than DCC 0, board stack position 0
+     * or sites other than motherboard/daughterboard:
+     */
+    if (dcc != 0 || position != 0 ||
+        (site != SYS_CFG_SITE_MB && site != SYS_CFG_SITE_DB1)) {
+        goto cfgctrl_unimp;
+    }
+
+    switch (function) {
+    default:
+        break;
+    }
+
+cfgctrl_unimp:
+    qemu_log_mask(LOG_UNIMP,
+                  "arm_sysctl: Unimplemented SYS_CFGCTRL read of function "
+                  "0x%x DCC 0x%x site 0x%x position 0x%x device 0x%x\n",
+                  function, dcc, site, position, device);
+    return false;
+}
+
+/**
+ * vexpress_cfgctrl_write:
+ * @s: arm_sysctl_state pointer
+ * @dcc, @function, @site, @position, @device: split out values from
+ * SYS_CFGCTRL register
+ * @val: data to write
+ *
+ * Handle a VExpress SYS_CFGCTRL register write. On success, return true.
+ * On failure, return false.
+ */
+static bool vexpress_cfgctrl_write(arm_sysctl_state *s, unsigned int dcc,
+                                   unsigned int function, unsigned int site,
+                                   unsigned int position, unsigned int device,
+                                   uint32_t val)
+{
+    /* We don't support anything other than DCC 0, board stack position 0
+     * or sites other than motherboard/daughterboard:
+     */
+    if (dcc != 0 || position != 0 ||
+        (site != SYS_CFG_SITE_MB && site != SYS_CFG_SITE_DB1)) {
+        goto cfgctrl_unimp;
+    }
+
+    switch (function) {
+    case SYS_CFG_SHUTDOWN:
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            qemu_system_shutdown_request();
+            return true;
+        }
+        break;
+    case SYS_CFG_REBOOT:
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            qemu_system_reset_request();
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+
+cfgctrl_unimp:
+    qemu_log_mask(LOG_UNIMP,
+                  "arm_sysctl: Unimplemented SYS_CFGCTRL write of function "
+                  "0x%x DCC 0x%x site 0x%x position 0x%x device 0x%x\n",
+                  function, dcc, site, position, device);
+    return false;
+}
+
 static void arm_sysctl_write(void *opaque, hwaddr offset,
                              uint64_t val, unsigned size)
 {
@@ -322,17 +427,33 @@ static void arm_sysctl_write(void *opaque, hwaddr offset,
         if (board_id(s) != BOARD_ID_VEXPRESS) {
             goto bad_reg;
         }
-        s->sys_cfgctrl = val & ~(3 << 18);
-        s->sys_cfgstat = 1;            /* complete */
-        switch (s->sys_cfgctrl) {
-        case 0xc0800000:            /* SYS_CFG_SHUTDOWN to motherboard */
-            qemu_system_shutdown_request();
-            break;
-        case 0xc0900000:            /* SYS_CFG_REBOOT to motherboard */
-            qemu_system_reset_request();
-            break;
-        default:
-            s->sys_cfgstat |= 2;        /* error */
+        /* Undefined bits [19:18] are RAZ/WI, and writing to
+         * the start bit just triggers the action; it always reads
+         * as zero.
+         */
+        s->sys_cfgctrl = val & ~((3 << 18) | (1 << 31));
+        if (val & (1 << 31)) {
+            /* Start bit set -- actually do something */
+            unsigned int dcc = extract32(s->sys_cfgctrl, 26, 4);
+            unsigned int function = extract32(s->sys_cfgctrl, 20, 6);
+            unsigned int site = extract32(s->sys_cfgctrl, 16, 2);
+            unsigned int position = extract32(s->sys_cfgctrl, 12, 4);
+            unsigned int device = extract32(s->sys_cfgctrl, 0, 12);
+            s->sys_cfgstat = 1;            /* complete */
+            if (s->sys_cfgctrl & (1 << 30)) {
+                if (!vexpress_cfgctrl_write(s, dcc, function, site, position,
+                                            device, s->sys_cfgdata)) {
+                    s->sys_cfgstat |= 2;        /* error */
+                }
+            } else {
+                uint32_t val;
+                if (!vexpress_cfgctrl_read(s, dcc, function, site, position,
+                                           device, &val)) {
+                    s->sys_cfgstat |= 2;        /* error */
+                } else {
+                    s->sys_cfgdata = val;
+                }
+            }
         }
         s->sys_cfgctrl &= ~(1 << 31);
         return;
