@@ -1527,7 +1527,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     if (backing_file) {
         char parent_filename[PATH_MAX];
         BlockDriverState *bs = bdrv_new("");
-        ret = bdrv_open(bs, backing_file, 0, NULL);
+        ret = bdrv_open(bs, backing_file, NULL, 0, NULL);
         if (ret != 0) {
             bdrv_delete(bs);
             return ret;

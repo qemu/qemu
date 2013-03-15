@@ -763,7 +763,7 @@ static int blk_init(struct XenDevice *xendev)
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
         blkdev->bs = bdrv_new(blkdev->dev);
         if (blkdev->bs) {
-            if (bdrv_open(blkdev->bs, blkdev->filename, qflags,
+            if (bdrv_open(blkdev->bs, blkdev->filename, NULL, qflags,
                         bdrv_find_whitelisted_format(blkdev->fileproto)) != 0) {
                 bdrv_delete(blkdev->bs);
                 blkdev->bs = NULL;

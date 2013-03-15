@@ -2830,7 +2830,7 @@ static int enable_write_target(BDRVVVFATState *s)
         return -1;
     }
 
-    ret = bdrv_open(s->qcow, s->qcow_filename,
+    ret = bdrv_open(s->qcow, s->qcow_filename, NULL,
             BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, bdrv_qcow);
     if (ret < 0) {
 	return ret;

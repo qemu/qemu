@@ -286,6 +286,7 @@ struct BlockDriverState {
     /* long-running background operation */
     BlockJob *job;
 
+    QDict *options;
 };
 
 int get_tmp_filename(char *filename, int size);

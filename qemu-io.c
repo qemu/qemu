@@ -1773,7 +1773,7 @@ static int openfile(char *name, int flags, int growable)
     } else {
         bs = bdrv_new("hda");
 
-        if (bdrv_open(bs, name, flags, NULL) < 0) {
+        if (bdrv_open(bs, name, NULL, flags, NULL) < 0) {
             fprintf(stderr, "%s: can't open device %s\n", progname, name);
             bdrv_delete(bs);
             bs = NULL;
