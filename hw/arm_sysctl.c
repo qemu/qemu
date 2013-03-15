@@ -35,6 +35,8 @@ typedef struct {
     uint32_t sys_cfgctrl;
     uint32_t sys_cfgstat;
     uint32_t sys_clcd;
+    uint32_t db_num_vsensors;
+    uint32_t *db_voltage;
 } arm_sysctl_state;
 
 static const VMStateDescription vmstate_arm_sysctl = {
@@ -236,6 +238,19 @@ static bool vexpress_cfgctrl_read(arm_sysctl_state *s, unsigned int dcc,
     }
 
     switch (function) {
+    case SYS_CFG_VOLT:
+        if (site == SYS_CFG_SITE_DB1 && device < s->db_num_vsensors) {
+            *val = s->db_voltage[device];
+            return true;
+        }
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            /* There is only one motherboard voltage sensor:
+             * VIO : 3.3V : bus voltage between mother and daughterboard
+             */
+            *val = 3300000;
+            return true;
+        }
+        break;
     default:
         break;
     }
@@ -537,9 +552,19 @@ static void arm_sysctl_init(Object *obj)
     qdev_init_gpio_out(dev, &s->pl110_mux_ctrl, 1);
 }
 
+static void arm_sysctl_finalize(Object *obj)
+{
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
+    g_free(s->db_voltage);
+}
+
 static Property arm_sysctl_properties[] = {
     DEFINE_PROP_UINT32("sys_id", arm_sysctl_state, sys_id, 0),
     DEFINE_PROP_UINT32("proc_id", arm_sysctl_state, proc_id, 0),
+    /* Daughterboard power supply voltages (as reported via SYS_CFG) */
+    DEFINE_PROP_ARRAY("db-voltage", arm_sysctl_state, db_num_vsensors,
+                      db_voltage, qdev_prop_uint32, uint32_t),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -557,6 +582,7 @@ static const TypeInfo arm_sysctl_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(arm_sysctl_state),
     .instance_init = arm_sysctl_init,
+    .instance_finalize = arm_sysctl_finalize,
     .class_init    = arm_sysctl_class_init,
 };
 
