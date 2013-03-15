@@ -295,6 +295,14 @@ static bool vexpress_cfgctrl_write(arm_sysctl_state *s, unsigned int dcc,
             return true;
         }
         break;
+    case SYS_CFG_DVIMODE:
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            /* Selecting DVI mode is meaningless for QEMU: we will
+             * always display the output correctly according to the
+             * pixel height/width programmed into the CLCD controller.
+             */
+            return true;
+        }
     default:
         break;
     }
