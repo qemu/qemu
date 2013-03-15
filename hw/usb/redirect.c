@@ -1973,6 +1973,10 @@ static int usbredir_post_load(void *priv, int version_id)
 {
     USBRedirDevice *dev = priv;
 
+    if (dev->parser == NULL) {
+        return 0;
+    }
+
     switch (dev->device_info.speed) {
     case usb_redir_speed_low:
         dev->dev.speed = USB_SPEED_LOW;
