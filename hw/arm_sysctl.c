@@ -525,15 +525,16 @@ static void arm_sysctl_gpio_set(void *opaque, int line, int level)
     }
 }
 
-static int arm_sysctl_init(SysBusDevice *dev)
+static void arm_sysctl_init(Object *obj)
 {
-    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
+    DeviceState *dev = DEVICE(obj);
+    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
+    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, sd);
 
     memory_region_init_io(&s->iomem, &arm_sysctl_ops, s, "arm-sysctl", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    qdev_init_gpio_in(&s->busdev.qdev, arm_sysctl_gpio_set, 2);
-    qdev_init_gpio_out(&s->busdev.qdev, &s->pl110_mux_ctrl, 1);
-    return 0;
+    sysbus_init_mmio(sd, &s->iomem);
+    qdev_init_gpio_in(dev, arm_sysctl_gpio_set, 2);
+    qdev_init_gpio_out(dev, &s->pl110_mux_ctrl, 1);
 }
 
 static Property arm_sysctl_properties[] = {
@@ -545,9 +546,7 @@ static Property arm_sysctl_properties[] = {
 static void arm_sysctl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = arm_sysctl_init;
     dc->reset = arm_sysctl_reset;
     dc->vmsd = &vmstate_arm_sysctl;
     dc->props = arm_sysctl_properties;
@@ -557,6 +556,7 @@ static const TypeInfo arm_sysctl_info = {
     .name          = "realview_sysctl",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(arm_sysctl_state),
+    .instance_init = arm_sysctl_init,
     .class_init    = arm_sysctl_class_init,
 };
 
