@@ -16,6 +16,7 @@
 #include <hw/virtio-net.h>
 #include <hw/virtio-serial.h>
 #include <hw/virtio-scsi.h>
+#include <hw/virtio-rng.h>
 #include <hw/virtio-bus.h>
 
 #define VIRTUAL_CSSID 0xfe
@@ -77,6 +78,7 @@ struct VirtioCcwDevice {
     virtio_serial_conf serial;
     virtio_net_conf net;
     VirtIOSCSIConf scsi;
+    VirtIORNGConf rng;
     VirtioBusState bus;
     /* Guest provided values: */
     hwaddr indicators;
