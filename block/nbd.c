@@ -66,7 +66,10 @@ typedef struct BDRVNBDState {
     struct nbd_reply reply;
 
     int is_unix;
-    char *host_spec;
+    char *unix_path;
+
+    InetSocketAddress *inet_addr;
+
     char *export_name; /* An NBD server may export several devices */
 } BDRVNBDState;
 
@@ -112,7 +115,7 @@ static int nbd_parse_uri(BDRVNBDState *s, const char *filename)
             ret = -EINVAL;
             goto out;
         }
-        s->host_spec = g_strdup(qp->p[0].value);
+        s->unix_path = g_strdup(qp->p[0].value);
     } else {
         /* nbd[+tcp]://host:port/export */
         if (!uri->server) {
@@ -122,7 +125,12 @@ static int nbd_parse_uri(BDRVNBDState *s, const char *filename)
         if (!uri->port) {
             uri->port = NBD_DEFAULT_PORT;
         }
-        s->host_spec = g_strdup_printf("%s:%d", uri->server, uri->port);
+
+        s->inet_addr = g_new0(InetSocketAddress, 1);
+        *s->inet_addr = (InetSocketAddress) {
+            .host   = g_strdup(uri->server),
+            .port   = g_strdup_printf("%d", uri->port),
+        };
     }
 
 out:
@@ -140,6 +148,7 @@ static int nbd_config(BDRVNBDState *s, const char *filename)
     const char *host_spec;
     const char *unixpath;
     int err = -EINVAL;
+    Error *local_err = NULL;
 
     if (strstr(filename, "://")) {
         return nbd_parse_uri(s, filename);
@@ -165,10 +174,15 @@ static int nbd_config(BDRVNBDState *s, const char *filename)
     /* are we a UNIX or TCP socket? */
     if (strstart(host_spec, "unix:", &unixpath)) {
         s->is_unix = true;
-        s->host_spec = g_strdup(unixpath);
+        s->unix_path = g_strdup(unixpath);
     } else {
         s->is_unix = false;
-        s->host_spec = g_strdup(host_spec);
+        s->inet_addr = inet_parse(host_spec, &local_err);
+        if (local_err != NULL) {
+            qerror_report_err(local_err);
+            error_free(local_err);
+            goto out;
+        }
     }
 
     err = 0;
@@ -177,7 +191,8 @@ out:
     g_free(file);
     if (err != 0) {
         g_free(s->export_name);
-        g_free(s->host_spec);
+        g_free(s->unix_path);
+        qapi_free_InetSocketAddress(s->inet_addr);
     }
     return err;
 }
@@ -328,9 +343,24 @@ static int nbd_establish_connection(BlockDriverState *bs)
     size_t blocksize;
 
     if (s->is_unix) {
-        sock = unix_socket_outgoing(s->host_spec);
+        sock = unix_socket_outgoing(s->unix_path);
     } else {
-        sock = tcp_socket_outgoing_spec(s->host_spec);
+        QemuOpts *opts = qemu_opts_create_nofail(&socket_optslist);
+
+        qemu_opt_set(opts, "host", s->inet_addr->host);
+        qemu_opt_set(opts, "port", s->inet_addr->port);
+        if (s->inet_addr->has_to) {
+            qemu_opt_set_number(opts, "to", s->inet_addr->to);
+        }
+        if (s->inet_addr->has_ipv4) {
+            qemu_opt_set_number(opts, "ipv4", s->inet_addr->ipv4);
+        }
+        if (s->inet_addr->has_ipv6) {
+            qemu_opt_set_number(opts, "ipv6", s->inet_addr->ipv6);
+        }
+
+        sock = tcp_socket_outgoing_opts(opts);
+        qemu_opts_del(opts);
     }
 
     /* Failed to establish connection */
@@ -550,7 +580,8 @@ static void nbd_close(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
     g_free(s->export_name);
-    g_free(s->host_spec);
+    g_free(s->unix_path);
+    qapi_free_InetSocketAddress(s->inet_addr);
 
     nbd_teardown_connection(bs);
 }

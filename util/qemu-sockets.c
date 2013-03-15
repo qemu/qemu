@@ -485,7 +485,7 @@ err:
 }
 
 /* compatibility wrapper */
-static InetSocketAddress *inet_parse(const char *str, Error **errp)
+InetSocketAddress *inet_parse(const char *str, Error **errp)
 {
     InetSocketAddress *addr;
     const char *optstr, *h;
@@ -555,7 +555,7 @@ fail:
     return NULL;
 }
 
-static void inet_addr_to_opts(QemuOpts *opts, InetSocketAddress *addr)
+static void inet_addr_to_opts(QemuOpts *opts, const InetSocketAddress *addr)
 {
     bool ipv4 = addr->ipv4 || !addr->has_ipv4;
     bool ipv6 = addr->ipv6 || !addr->has_ipv6;
@@ -622,7 +622,7 @@ int inet_connect(const char *str, Error **errp)
 
     addr = inet_parse(str, errp);
     if (addr != NULL) {
-        opts = qemu_opts_create_nofail(&dummy_opts);
+        opts = qemu_opts_create_nofail(&socket_optslist);
         inet_addr_to_opts(opts, addr);
         qapi_free_InetSocketAddress(addr);
         sock = inet_connect_opts(opts, errp, NULL, NULL);

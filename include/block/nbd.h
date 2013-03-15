@@ -22,6 +22,7 @@
 #include <sys/types.h>
 
 #include "qemu-common.h"
+#include "qemu/option.h"
 
 struct nbd_request {
     uint32_t magic;
@@ -64,6 +65,7 @@ int tcp_socket_outgoing(const char *address, uint16_t port);
 int tcp_socket_incoming(const char *address, uint16_t port);
 int tcp_socket_outgoing_spec(const char *address_and_port);
 int tcp_socket_incoming_spec(const char *address_and_port);
+int tcp_socket_outgoing_opts(QemuOpts *opts);
 int unix_socket_outgoing(const char *path);
 int unix_socket_incoming(const char *path);
 
