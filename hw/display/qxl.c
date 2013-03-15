@@ -116,6 +116,10 @@ static QXLMode qxl_modes[] = {
     QXL_MODE_EX(2560, 2048),
     QXL_MODE_EX(2800, 2100),
     QXL_MODE_EX(3200, 2400),
+    QXL_MODE_EX(3840, 2160), /* 4k mainstream */
+    QXL_MODE_EX(4096, 2160), /* 4k            */
+    QXL_MODE_EX(7680, 4320), /* 8k mainstream */
+    QXL_MODE_EX(8192, 4320), /* 8k            */
 };
 
 static void qxl_send_events(PCIQXLDevice *d, uint32_t events);
