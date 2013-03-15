@@ -26,6 +26,7 @@ extern PropertyInfo qdev_prop_vlan;
 extern PropertyInfo qdev_prop_pci_devfn;
 extern PropertyInfo qdev_prop_blocksize;
 extern PropertyInfo qdev_prop_pci_host_devaddr;
+extern PropertyInfo qdev_prop_arraylen;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type) { \
         .name      = (_name),                                    \
@@ -49,6 +50,44 @@ extern PropertyInfo qdev_prop_pci_host_devaddr;
             + type_check(uint32_t,typeof_field(_state, _field)), \
         .qtype     = QTYPE_QBOOL,                                \
         .defval    = (bool)_defval,                              \
+        }
+
+#define PROP_ARRAY_LEN_PREFIX "len-"
+
+/**
+ * DEFINE_PROP_ARRAY:
+ * @_name: name of the array
+ * @_state: name of the device state structure type
+ * @_field: uint32_t field in @_state to hold the array length
+ * @_arrayfield: field in @_state (of type '@_arraytype *') which
+ *               will point to the array
+ * @_arrayprop: PropertyInfo defining what property the array elements have
+ * @_arraytype: C type of the array elements
+ *
+ * Define device properties for a variable-length array _name.  A
+ * static property "len-arrayname" is defined. When the device creator
+ * sets this property to the desired length of array, further dynamic
+ * properties "arrayname[0]", "arrayname[1]", ...  are defined so the
+ * device creator can set the array element values. Setting the
+ * "len-arrayname" property more than once is an error.
+ *
+ * When the array length is set, the @_field member of the device
+ * struct is set to the array length, and @_arrayfield is set to point
+ * to (zero-initialised) memory allocated for the array.  For a zero
+ * length array, @_field will be set to 0 and @_arrayfield to NULL.
+ * It is the responsibility of the device deinit code to free the
+ * @_arrayfield memory.
+ */
+#define DEFINE_PROP_ARRAY(_name, _state, _field,                        \
+                          _arrayfield, _arrayprop, _arraytype) {        \
+        .name = (PROP_ARRAY_LEN_PREFIX _name),                          \
+        .info = &(qdev_prop_arraylen),                                  \
+        .offset = offsetof(_state, _field)                              \
+            + type_check(uint32_t, typeof_field(_state, _field)),       \
+        .qtype = QTYPE_QINT,                                            \
+        .arrayinfo = &(_arrayprop),                                     \
+        .arrayfieldsize = sizeof(_arraytype),                           \
+        .arrayoffset = offsetof(_state, _arrayfield),                   \
         }
 
 #define DEFINE_PROP_UINT8(_n, _s, _f, _d)                       \
