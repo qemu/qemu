@@ -154,6 +154,8 @@ struct VEDBoardInfo {
     hwaddr loader_start;
     const hwaddr gic_cpu_if_addr;
     uint32_t proc_id;
+    uint32_t num_voltage_sensors;
+    const uint32_t *voltages;
     DBoardInitFn *init;
 };
 
@@ -246,11 +248,25 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     sysbus_create_varargs("l2x0", 0x1e00a000, NULL);
 }
 
+/* Voltage values for SYS_CFG_VOLT daughterboard registers;
+ * values are in microvolts.
+ */
+static const uint32_t a9_voltages[] = {
+    1000000, /* VD10 : 1.0V : SoC internal logic voltage */
+    1000000, /* VD10_S2 : 1.0V : PL310, L2 cache, RAM, non-PL310 logic */
+    1000000, /* VD10_S3 : 1.0V : Cortex-A9, cores, MPEs, SCU, PL310 logic */
+    1800000, /* VCC1V8 : 1.8V : DDR2 SDRAM, test chip DDR2 I/O supply */
+    900000, /* DDR2VTT : 0.9V : DDR2 SDRAM VTT termination voltage */
+    3300000, /* VCC3V3 : 3.3V : local board supply for misc external logic */
+};
+
 static const VEDBoardInfo a9_daughterboard = {
     .motherboard_map = motherboard_legacy_map,
     .loader_start = 0x60000000,
     .gic_cpu_if_addr = 0x1e000100,
     .proc_id = 0x0c000191,
+    .num_voltage_sensors = ARRAY_SIZE(a9_voltages),
+    .voltages = a9_voltages,
     .init = a9_daughterboard_init,
 };
 
@@ -338,11 +354,17 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     /* 0x7ffd0000: PL354 static memory controller: not modelled */
 }
 
+static const uint32_t a15_voltages[] = {
+    900000, /* Vcore: 0.9V : CPU core voltage */
+};
+
 static const VEDBoardInfo a15_daughterboard = {
     .motherboard_map = motherboard_aseries_map,
     .loader_start = 0x80000000,
     .gic_cpu_if_addr = 0x2c002000,
     .proc_id = 0x14000237,
+    .num_voltage_sensors = ARRAY_SIZE(a15_voltages),
+    .voltages = a15_voltages,
     .init = a15_daughterboard_init,
 };
 
@@ -358,6 +380,7 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     MemoryRegion *vram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     const hwaddr *map = daughterboard->motherboard_map;
+    int i;
 
     daughterboard->init(daughterboard, args->ram_size, args->cpu_model, pic);
 
@@ -370,6 +393,13 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     sysctl = qdev_create(NULL, "realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
     qdev_prop_set_uint32(sysctl, "proc_id", daughterboard->proc_id);
+    qdev_prop_set_uint32(sysctl, "len-db-voltage",
+                         daughterboard->num_voltage_sensors);
+    for (i = 0; i < daughterboard->num_voltage_sensors; i++) {
+        char *propname = g_strdup_printf("db-voltage[%d]", i);
+        qdev_prop_set_uint32(sysctl, propname, daughterboard->voltages[i]);
+        g_free(propname);
+    }
     qdev_init_nofail(sysctl);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, map[VE_SYSREGS]);
 
