@@ -35,13 +35,17 @@ typedef struct {
     uint32_t sys_cfgctrl;
     uint32_t sys_cfgstat;
     uint32_t sys_clcd;
+    uint32_t mb_clock[6];
+    uint32_t *db_clock;
     uint32_t db_num_vsensors;
     uint32_t *db_voltage;
+    uint32_t db_num_clocks;
+    uint32_t *db_clock_reset;
 } arm_sysctl_state;
 
 static const VMStateDescription vmstate_arm_sysctl = {
     .name = "realview_sysctl",
-    .version_id = 3,
+    .version_id = 4,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(leds, arm_sysctl_state),
@@ -56,6 +60,9 @@ static const VMStateDescription vmstate_arm_sysctl = {
         VMSTATE_UINT32_V(sys_cfgctrl, arm_sysctl_state, 2),
         VMSTATE_UINT32_V(sys_cfgstat, arm_sysctl_state, 2),
         VMSTATE_UINT32_V(sys_clcd, arm_sysctl_state, 3),
+        VMSTATE_UINT32_ARRAY_V(mb_clock, arm_sysctl_state, 6, 4),
+        VMSTATE_VARRAY_UINT32(db_clock, arm_sysctl_state, db_num_clocks,
+                              4, vmstate_info_uint32, uint32_t),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -79,6 +86,7 @@ static int board_id(arm_sysctl_state *s)
 static void arm_sysctl_reset(DeviceState *d)
 {
     arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, SYS_BUS_DEVICE(d));
+    int i;
 
     s->leds = 0;
     s->lockval = 0;
@@ -86,6 +94,17 @@ static void arm_sysctl_reset(DeviceState *d)
     s->cfgdata2 = 0;
     s->flags = 0;
     s->resetlevel = 0;
+    /* Motherboard oscillators (in Hz) */
+    s->mb_clock[0] = 50000000; /* Static memory clock: 50MHz */
+    s->mb_clock[1] = 23750000; /* motherboard CLCD clock: 23.75MHz */
+    s->mb_clock[2] = 24000000; /* IO FPGA peripheral clock: 24MHz */
+    s->mb_clock[3] = 24000000; /* IO FPGA reserved clock: 24MHz */
+    s->mb_clock[4] = 24000000; /* System bus global clock: 24MHz */
+    s->mb_clock[5] = 24000000; /* IO FPGA reserved clock: 24MHz */
+    /* Daughterboard oscillators: reset from property values */
+    for (i = 0; i < s->db_num_clocks; i++) {
+        s->db_clock[i] = s->db_clock_reset[i];
+    }
     if (board_id(s) == BOARD_ID_VEXPRESS) {
         /* On VExpress this register will RAZ/WI */
         s->sys_clcd = 0;
@@ -251,6 +270,18 @@ static bool vexpress_cfgctrl_read(arm_sysctl_state *s, unsigned int dcc,
             return true;
         }
         break;
+    case SYS_CFG_OSC:
+        if (site == SYS_CFG_SITE_MB && device < sizeof(s->mb_clock)) {
+            /* motherboard clock */
+            *val = s->mb_clock[device];
+            return true;
+        }
+        if (site == SYS_CFG_SITE_DB1 && device < s->db_num_clocks) {
+            /* daughterboard clock */
+            *val = s->db_clock[device];
+            return true;
+        }
+        break;
     default:
         break;
     }
@@ -287,6 +318,18 @@ static bool vexpress_cfgctrl_write(arm_sysctl_state *s, unsigned int dcc,
     }
 
     switch (function) {
+    case SYS_CFG_OSC:
+        if (site == SYS_CFG_SITE_MB && device < sizeof(s->mb_clock)) {
+            /* motherboard clock */
+            s->mb_clock[device] = val;
+            return true;
+        }
+        if (site == SYS_CFG_SITE_DB1 && device < s->db_num_clocks) {
+            /* daughterboard clock */
+            s->db_clock[device] = val;
+            return true;
+        }
+        break;
     case SYS_CFG_MUXFPGA:
         if (site == SYS_CFG_SITE_MB && device == 0) {
             /* Select whether video output comes from motherboard
@@ -552,11 +595,19 @@ static void arm_sysctl_init(Object *obj)
     qdev_init_gpio_out(dev, &s->pl110_mux_ctrl, 1);
 }
 
+static void arm_sysctl_realize(DeviceState *d, Error **errp)
+{
+    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, SYS_BUS_DEVICE(d));
+    s->db_clock = g_new0(uint32_t, s->db_num_clocks);
+}
+
 static void arm_sysctl_finalize(Object *obj)
 {
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
     g_free(s->db_voltage);
+    g_free(s->db_clock);
+    g_free(s->db_clock_reset);
 }
 
 static Property arm_sysctl_properties[] = {
@@ -565,6 +616,9 @@ static Property arm_sysctl_properties[] = {
     /* Daughterboard power supply voltages (as reported via SYS_CFG) */
     DEFINE_PROP_ARRAY("db-voltage", arm_sysctl_state, db_num_vsensors,
                       db_voltage, qdev_prop_uint32, uint32_t),
+    /* Daughterboard clock reset values (as reported via SYS_CFG) */
+    DEFINE_PROP_ARRAY("db-clock", arm_sysctl_state, db_num_clocks,
+                      db_clock_reset, qdev_prop_uint32, uint32_t),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -572,6 +626,7 @@ static void arm_sysctl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->realize = arm_sysctl_realize;
     dc->reset = arm_sysctl_reset;
     dc->vmsd = &vmstate_arm_sysctl;
     dc->props = arm_sysctl_properties;
