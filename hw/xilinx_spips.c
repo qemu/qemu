@@ -154,6 +154,11 @@ typedef struct {
     hwaddr lqspi_cached_addr;
 } XilinxSPIPS;
 
+#define TYPE_XILINX_SPIPS "xilinx,spips"
+
+#define XILINX_SPIPS(obj) \
+     OBJECT_CHECK(XilinxSPIPS, (obj), TYPE_XILINX_SPIPS)
+
 static inline int num_effective_busses(XilinxSPIPS *s)
 {
     return (s->regs[R_LQSPI_CFG] & LQSPI_CFG_SEP_BUS &&
@@ -210,7 +215,7 @@ static void xilinx_spips_update_ixr(XilinxSPIPS *s)
 
 static void xilinx_spips_reset(DeviceState *d)
 {
-    XilinxSPIPS *s = DO_UPCAST(XilinxSPIPS, busdev.qdev, d);
+    XilinxSPIPS *s = XILINX_SPIPS(d);
 
     int i;
     for (i = 0; i < R_MAX; i++) {
@@ -500,9 +505,10 @@ static const MemoryRegionOps lqspi_ops = {
     }
 };
 
-static int xilinx_spips_init(SysBusDevice *dev)
+static void xilinx_spips_realize(DeviceState *dev, Error **errp)
 {
-    XilinxSPIPS *s = FROM_SYSBUS(typeof(*s), dev);
+    XilinxSPIPS *s = XILINX_SPIPS(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     int i;
 
     DB_PRINT("inited device model\n");
@@ -511,31 +517,29 @@ static int xilinx_spips_init(SysBusDevice *dev)
     for (i = 0; i < s->num_busses; ++i) {
         char bus_name[16];
         snprintf(bus_name, 16, "spi%d", i);
-        s->spi[i] = ssi_create_bus(&dev->qdev, bus_name);
+        s->spi[i] = ssi_create_bus(dev, bus_name);
     }
 
     s->cs_lines = g_new0(qemu_irq, s->num_cs * s->num_busses);
     ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi[0]);
     ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi[1]);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     for (i = 0; i < s->num_cs * s->num_busses; ++i) {
-        sysbus_init_irq(dev, &s->cs_lines[i]);
+        sysbus_init_irq(sbd, &s->cs_lines[i]);
     }
 
     memory_region_init_io(&s->iomem, &spips_ops, s, "spi", R_MAX*4);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
     memory_region_init_io(&s->mmlqspi, &lqspi_ops, s, "lqspi",
                           (1 << LQSPI_ADDRESS_BITS) * 2);
-    sysbus_init_mmio(dev, &s->mmlqspi);
+    sysbus_init_mmio(sbd, &s->mmlqspi);
 
     s->irqline = -1;
     s->lqspi_cached_addr = ~0ULL;
 
     fifo8_create(&s->rx_fifo, RXFF_A);
     fifo8_create(&s->tx_fifo, TXFF_A);
-
-    return 0;
 }
 
 static int xilinx_spips_post_load(void *opaque, int version_id)
@@ -569,16 +573,15 @@ static Property xilinx_spips_properties[] = {
 static void xilinx_spips_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
 
-    sdc->init = xilinx_spips_init;
+    dc->realize = xilinx_spips_realize;
     dc->reset = xilinx_spips_reset;
     dc->props = xilinx_spips_properties;
     dc->vmsd = &vmstate_xilinx_spips;
 }
 
 static const TypeInfo xilinx_spips_info = {
-    .name  = "xilinx,spips",
+    .name  = TYPE_XILINX_SPIPS,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(XilinxSPIPS),
     .class_init = xilinx_spips_class_init,
