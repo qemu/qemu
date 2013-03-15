@@ -115,6 +115,19 @@
 #define SNOOP_NONE 0xFE
 #define SNOOP_STRIPING 0
 
+typedef enum {
+    READ = 0x3,
+    FAST_READ = 0xb,
+    DOR = 0x3b,
+    QOR = 0x6b,
+    DIOR = 0xbb,
+    QIOR = 0xeb,
+
+    PP = 0x2,
+    DPP = 0xa2,
+    QPP = 0x32,
+} FlashCMD;
+
 typedef struct {
     SysBusDevice busdev;
     MemoryRegion iomem;
@@ -251,15 +264,19 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
         switch (s->snoop_state) {
         case (SNOOP_CHECKING):
             switch (tx) { /* new instruction code */
-            case 0x0b: /* dual/quad output read DOR/QOR */
-            case 0x6b:
+            case READ: /* 3 address bytes, no dummy bytes/cycles */
+            case PP:
+            case DPP:
+            case QPP:
+                s->snoop_state = 3;
+                break;
+            case FAST_READ: /* 3 address bytes, 1 dummy byte */
+            case DOR:
+            case QOR:
+            case DIOR: /* FIXME: these vary between vendor - set to spansion */
                 s->snoop_state = 4;
                 break;
-            /* FIXME: these vary between vendor - set to spansion */
-            case 0xbb: /* high performance dual read DIOR */
-                s->snoop_state = 4;
-                break;
-            case 0xeb: /* high performance quad read QIOR */
+            case QIOR: /* 3 address bytes, 2 dummy bytes */
                 s->snoop_state = 6;
                 break;
             default:
