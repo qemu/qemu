@@ -309,7 +309,34 @@ int64_t qmp_guest_get_time(Error **errp)
 
 void qmp_guest_set_time(int64_t time_ns, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    SYSTEMTIME ts;
+    FILETIME tf;
+    LONGLONG time;
+
+    if (time_ns < 0 || time_ns / 100 > INT64_MAX - W32_FT_OFFSET) {
+        error_setg(errp, "Time %" PRId64 "is invalid", time_ns);
+        return;
+    }
+
+    time = time_ns / 100 + W32_FT_OFFSET;
+
+    tf.dwLowDateTime = (DWORD) time;
+    tf.dwHighDateTime = (DWORD) (time >> 32);
+
+    if (!FileTimeToSystemTime(&tf, &ts)) {
+        error_setg(errp, "Failed to convert system time %d", (int)GetLastError());
+        return;
+    }
+
+    acquire_privilege(SE_SYSTEMTIME_NAME, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
+
+    if (!SetSystemTime(&ts)) {
+        error_setg(errp, "Failed to set time to guest: %d", (int)GetLastError());
+        return;
+    }
 }
 
 GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
