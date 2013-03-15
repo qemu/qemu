@@ -82,7 +82,7 @@ struct BlockDriver {
     void (*bdrv_reopen_commit)(BDRVReopenState *reopen_state);
     void (*bdrv_reopen_abort)(BDRVReopenState *reopen_state);
 
-    int (*bdrv_open)(BlockDriverState *bs, int flags);
+    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags);
     int (*bdrv_file_open)(BlockDriverState *bs, const char *filename, int flags);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
                      uint8_t *buf, int nb_sectors);
@@ -286,12 +286,20 @@ struct BlockDriverState {
     /* long-running background operation */
     BlockJob *job;
 
+    QDict *options;
 };
 
 int get_tmp_filename(char *filename, int size);
 
 void bdrv_set_io_limits(BlockDriverState *bs,
                         BlockIOLimit *io_limits);
+
+/**
+ * bdrv_get_aio_context:
+ *
+ * Returns: the currently bound #AioContext
+ */
+AioContext *bdrv_get_aio_context(BlockDriverState *bs);
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);

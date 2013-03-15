@@ -468,6 +468,8 @@ static int connect_to_sdog(BDRVSheepdogState *s)
     if (err != NULL) {
         qerror_report_err(err);
         error_free(err);
+    } else {
+        socket_set_nonblock(fd);
     }
 
     return fd;
@@ -499,6 +501,13 @@ static void restart_co_req(void *opaque)
     qemu_coroutine_enter(co, NULL);
 }
 
+static int have_co_req(void *opaque)
+{
+    /* this handler is set only when there is a pending request, so
+     * always returns 1. */
+    return 1;
+}
+
 typedef struct SheepdogReqCo {
     int sockfd;
     SheepdogReq *hdr;
@@ -521,15 +530,14 @@ static coroutine_fn void do_co_req(void *opaque)
     unsigned int *rlen = srco->rlen;
 
     co = qemu_coroutine_self();
-    qemu_aio_set_fd_handler(sockfd, NULL, restart_co_req, NULL, co);
+    qemu_aio_set_fd_handler(sockfd, NULL, restart_co_req, have_co_req, co);
 
-    socket_set_block(sockfd);
     ret = send_co_req(sockfd, hdr, data, wlen);
     if (ret < 0) {
         goto out;
     }
 
-    qemu_aio_set_fd_handler(sockfd, restart_co_req, NULL, NULL, co);
+    qemu_aio_set_fd_handler(sockfd, restart_co_req, NULL, have_co_req, co);
 
     ret = qemu_co_recv(sockfd, hdr, sizeof(*hdr));
     if (ret < sizeof(*hdr)) {
@@ -552,8 +560,9 @@ static coroutine_fn void do_co_req(void *opaque)
     }
     ret = 0;
 out:
+    /* there is at most one request for this sockfd, so it is safe to
+     * set each handler to NULL. */
     qemu_aio_set_fd_handler(sockfd, NULL, NULL, NULL, NULL);
-    socket_set_nonblock(sockfd);
 
     srco->ret = ret;
     srco->finished = true;
@@ -775,8 +784,6 @@ static int get_sheep_fd(BDRVSheepdogState *s)
     if (fd < 0) {
         return fd;
     }
-
-    socket_set_nonblock(fd);
 
     qemu_aio_set_fd_handler(fd, co_read_response, NULL, aio_flush_request, s);
     return fd;

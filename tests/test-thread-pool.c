@@ -4,6 +4,8 @@
 #include "block/thread-pool.h"
 #include "block/block.h"
 
+static AioContext *ctx;
+static ThreadPool *pool;
 static int active;
 
 typedef struct {
@@ -38,19 +40,10 @@ static void done_cb(void *opaque, int ret)
     active--;
 }
 
-/* A non-blocking poll of the main AIO context (we cannot use aio_poll
- * because we do not know the AioContext).
- */
-static void qemu_aio_wait_nonblocking(void)
-{
-    qemu_notify_event();
-    qemu_aio_wait();
-}
-
 /* Wait until all aio and bh activity has finished */
 static void qemu_aio_wait_all(void)
 {
-    while (qemu_aio_wait()) {
+    while (aio_poll(ctx, true)) {
         /* Do nothing */
     }
 }
@@ -58,7 +51,7 @@ static void qemu_aio_wait_all(void)
 static void test_submit(void)
 {
     WorkerTestData data = { .n = 0 };
-    thread_pool_submit(worker_cb, &data);
+    thread_pool_submit(pool, worker_cb, &data);
     qemu_aio_wait_all();
     g_assert_cmpint(data.n, ==, 1);
 }
@@ -66,7 +59,8 @@ static void test_submit(void)
 static void test_submit_aio(void)
 {
     WorkerTestData data = { .n = 0, .ret = -EINPROGRESS };
-    data.aiocb = thread_pool_submit_aio(worker_cb, &data, done_cb, &data);
+    data.aiocb = thread_pool_submit_aio(pool, worker_cb, &data,
+                                        done_cb, &data);
 
     /* The callbacks are not called until after the first wait.  */
     active = 1;
@@ -84,7 +78,7 @@ static void co_test_cb(void *opaque)
     active = 1;
     data->n = 0;
     data->ret = -EINPROGRESS;
-    thread_pool_submit_co(worker_cb, data);
+    thread_pool_submit_co(pool, worker_cb, data);
 
     /* The test continues in test_submit_co, after qemu_coroutine_enter... */
 
@@ -126,12 +120,12 @@ static void test_submit_many(void)
     for (i = 0; i < 100; i++) {
         data[i].n = 0;
         data[i].ret = -EINPROGRESS;
-        thread_pool_submit_aio(worker_cb, &data[i], done_cb, &data[i]);
+        thread_pool_submit_aio(pool, worker_cb, &data[i], done_cb, &data[i]);
     }
 
     active = 100;
     while (active > 0) {
-        qemu_aio_wait();
+        aio_poll(ctx, true);
     }
     for (i = 0; i < 100; i++) {
         g_assert_cmpint(data[i].n, ==, 1);
@@ -154,7 +148,7 @@ static void test_cancel(void)
     for (i = 0; i < 100; i++) {
         data[i].n = 0;
         data[i].ret = -EINPROGRESS;
-        data[i].aiocb = thread_pool_submit_aio(long_cb, &data[i],
+        data[i].aiocb = thread_pool_submit_aio(pool, long_cb, &data[i],
                                                done_cb, &data[i]);
     }
 
@@ -162,7 +156,8 @@ static void test_cancel(void)
      * run, but do not waste too much time...
      */
     active = 100;
-    qemu_aio_wait_nonblocking();
+    aio_notify(ctx);
+    aio_poll(ctx, false);
 
     /* Wait some time for the threads to start, with some sanity
      * testing on the behavior of the scheduler...
@@ -208,11 +203,10 @@ static void test_cancel(void)
 
 int main(int argc, char **argv)
 {
-    /* These should be removed once each AioContext has its thread pool.
-     * The test should create its own AioContext.
-     */
-    qemu_init_main_loop();
-    bdrv_init();
+    int ret;
+
+    ctx = aio_context_new();
+    pool = aio_get_thread_pool(ctx);
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/thread-pool/submit", test_submit);
@@ -220,5 +214,9 @@ int main(int argc, char **argv)
     g_test_add_func("/thread-pool/submit-co", test_submit_co);
     g_test_add_func("/thread-pool/submit-many", test_submit_many);
     g_test_add_func("/thread-pool/cancel", test_cancel);
-    return g_test_run();
+
+    ret = g_test_run();
+
+    aio_context_unref(ctx);
+    return ret;
 }

@@ -5,6 +5,29 @@
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or
  * later.  See the COPYING file in the top-level directory.
+ *
+ * This file incorporates work covered by the following copyright and
+ * permission notice:
+ *
+ * Copyright (c) 2003-2008 Fabrice Bellard
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include "sysemu/blockdev.h"
@@ -22,6 +45,7 @@
 #include "sysemu/arch_init.h"
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
+extern QemuOptsList qemu_common_drive_opts;
 
 static const char *const if_name[IF_COUNT] = {
     [IF_NONE] = "none",
@@ -191,6 +215,7 @@ static void drive_uninit(DriveInfo *dinfo)
     bdrv_delete(dinfo->bdrv);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
+    g_free(dinfo->serial);
     g_free(dinfo);
 }
 
@@ -287,7 +312,7 @@ static bool do_check_io_limits(BlockIOLimit *io_limits, Error **errp)
     return true;
 }
 
-DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
+DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 {
     const char *buf;
     const char *file = NULL;
@@ -310,9 +335,35 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
     bool copy_on_read;
     int ret;
     Error *error = NULL;
+    QemuOpts *opts;
+    QDict *bs_opts;
+    const char *id;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
     media = MEDIA_DISK;
+
+    /* Check common options by copying from all_opts to opts, all other options
+     * are stored in bs_opts. */
+    id = qemu_opts_id(all_opts);
+    opts = qemu_opts_create(&qemu_common_drive_opts, id, 1, &error);
+    if (error_is_set(&error)) {
+        qerror_report_err(error);
+        error_free(error);
+        return NULL;
+    }
+
+    bs_opts = qdict_new();
+    qemu_opts_to_qdict(all_opts, bs_opts);
+    qemu_opts_absorb_qdict(opts, bs_opts, &error);
+    if (error_is_set(&error)) {
+        qerror_report_err(error);
+        error_free(error);
+        return NULL;
+    }
+
+    if (id) {
+        qdict_del(bs_opts, "id");
+    }
 
     /* extract parameters */
     bus_id  = qemu_opt_get_number(opts, "bus", 0);
@@ -564,9 +615,11 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
     dinfo->heads = heads;
     dinfo->secs = secs;
     dinfo->trans = translation;
-    dinfo->opts = opts;
+    dinfo->opts = all_opts;
     dinfo->refcount = 1;
-    dinfo->serial = serial;
+    if (serial != NULL) {
+        dinfo->serial = g_strdup(serial);
+    }
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
@@ -587,17 +640,20 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
     case IF_MTD:
         break;
     case IF_VIRTIO:
+    {
         /* add virtio block device */
-        opts = qemu_opts_create_nofail(qemu_find_opts("device"));
+        QemuOpts *devopts;
+        devopts = qemu_opts_create_nofail(qemu_find_opts("device"));
         if (arch_type == QEMU_ARCH_S390X) {
-            qemu_opt_set(opts, "driver", "virtio-blk-s390");
+            qemu_opt_set(devopts, "driver", "virtio-blk-s390");
         } else {
-            qemu_opt_set(opts, "driver", "virtio-blk-pci");
+            qemu_opt_set(devopts, "driver", "virtio-blk-pci");
         }
-        qemu_opt_set(opts, "drive", dinfo->id);
+        qemu_opt_set(devopts, "drive", dinfo->id);
         if (devaddr)
-            qemu_opt_set(opts, "addr", devaddr);
+            qemu_opt_set(devopts, "addr", devaddr);
         break;
+    }
     default:
         abort();
     }
@@ -635,7 +691,9 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
         error_report("warning: disabling copy_on_read on readonly drive");
     }
 
-    ret = bdrv_open(dinfo->bdrv, file, bdrv_flags, drv);
+    ret = bdrv_open(dinfo->bdrv, file, bs_opts, bdrv_flags, drv);
+    bs_opts = NULL;
+
     if (ret < 0) {
         if (ret == -EMEDIUMTYPE) {
             error_report("could not open disk image %s: not in %s format",
@@ -649,9 +707,14 @@ DriveInfo *drive_init(QemuOpts *opts, BlockInterfaceType block_default_type)
 
     if (bdrv_key_required(dinfo->bdrv))
         autostart = 0;
+
+    qemu_opts_del(opts);
+
     return dinfo;
 
 err:
+    qemu_opts_del(opts);
+    QDECREF(bs_opts);
     bdrv_delete(dinfo->bdrv);
     g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
@@ -820,7 +883,9 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
 
         /* We will manually add the backing_hd field to the bs later */
         states->new_bs = bdrv_new("");
-        ret = bdrv_open(states->new_bs, new_image_file,
+        /* TODO Inherit bs->options or only take explicit options with an
+         * extended QMP command? */
+        ret = bdrv_open(states->new_bs, new_image_file, NULL,
                         flags | BDRV_O_NO_BACKING, drv);
         if (ret != 0) {
             error_set(errp, QERR_OPEN_FILE_FAILED, new_image_file);
@@ -921,7 +986,7 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
                                     int bdrv_flags, BlockDriver *drv,
                                     const char *password, Error **errp)
 {
-    if (bdrv_open(bs, filename, bdrv_flags, drv) < 0) {
+    if (bdrv_open(bs, filename, NULL, bdrv_flags, drv) < 0) {
         error_set(errp, QERR_OPEN_FILE_FAILED, filename);
         return;
     }
@@ -1330,7 +1395,7 @@ void qmp_drive_mirror(const char *device, const char *target,
      * file.
      */
     target_bs = bdrv_new("");
-    ret = bdrv_open(target_bs, target, flags | BDRV_O_NO_BACKING, drv);
+    ret = bdrv_open(target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv);
 
     if (ret < 0) {
         bdrv_delete(target_bs);
@@ -1459,9 +1524,9 @@ BlockJobInfoList *qmp_query_block_jobs(Error **errp)
     return dummy.next;
 }
 
-QemuOptsList qemu_drive_opts = {
+QemuOptsList qemu_common_drive_opts = {
     .name = "drive",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_drive_opts.head),
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_common_drive_opts.head),
     .desc = {
         {
             .name = "bus",
@@ -1577,6 +1642,18 @@ QemuOptsList qemu_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "(deprecated, ignored)",
         },
+        { /* end of list */ }
+    },
+};
+
+QemuOptsList qemu_drive_opts = {
+    .name = "drive",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_drive_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any params
+         * validation will happen later
+         */
         { /* end of list */ }
     },
 };

@@ -454,6 +454,9 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
         *cluster_offset &= L2E_COMPRESSED_OFFSET_SIZE_MASK;
         break;
     case QCOW2_CLUSTER_ZERO:
+        if (s->qcow_version < 3) {
+            return -EIO;
+        }
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
                 &l2_table[l2_index], 0,
                 QCOW_OFLAG_COMPRESSED | QCOW_OFLAG_ZERO);
@@ -668,7 +671,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     }
 
     /* Update L2 table. */
-    if (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS) {
+    if (s->use_lazy_refcounts) {
         qcow2_mark_dirty(bs);
     }
     if (qcow2_need_accurate_refcounts(s)) {

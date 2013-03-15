@@ -40,7 +40,7 @@ struct DriveInfo {
     int media_cd;
     int cyls, heads, secs, trans;
     QemuOpts *opts;
-    const char *serial;
+    char *serial;
     QTAILQ_ENTRY(DriveInfo) next;
     int refcount;
 };

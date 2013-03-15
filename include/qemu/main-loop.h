@@ -82,6 +82,11 @@ int qemu_init_main_loop(void);
 int main_loop_wait(int nonblocking);
 
 /**
+ * qemu_get_aio_context: Return the main loop's AioContext
+ */
+AioContext *qemu_get_aio_context(void);
+
+/**
  * qemu_notify_event: Force processing of pending events.
  *
  * Similar to signaling a condition variable, qemu_notify_event forces

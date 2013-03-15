@@ -26,9 +26,16 @@
 
 typedef int ThreadPoolFunc(void *opaque);
 
-BlockDriverAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
-     BlockDriverCompletionFunc *cb, void *opaque);
-int coroutine_fn thread_pool_submit_co(ThreadPoolFunc *func, void *arg);
-void thread_pool_submit(ThreadPoolFunc *func, void *arg);
+typedef struct ThreadPool ThreadPool;
+
+ThreadPool *thread_pool_new(struct AioContext *ctx);
+void thread_pool_free(ThreadPool *pool);
+
+BlockDriverAIOCB *thread_pool_submit_aio(ThreadPool *pool,
+        ThreadPoolFunc *func, void *arg,
+        BlockDriverCompletionFunc *cb, void *opaque);
+int coroutine_fn thread_pool_submit_co(ThreadPool *pool,
+        ThreadPoolFunc *func, void *arg);
+void thread_pool_submit(ThreadPool *pool, ThreadPoolFunc *func, void *arg);
 
 #endif
