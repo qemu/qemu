@@ -147,19 +147,20 @@ typedef struct VEDBoardInfo VEDBoardInfo;
 typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
                           ram_addr_t ram_size,
                           const char *cpu_model,
-                          qemu_irq *pic, uint32_t *proc_id);
+                          qemu_irq *pic);
 
 struct VEDBoardInfo {
     const hwaddr *motherboard_map;
     hwaddr loader_start;
     const hwaddr gic_cpu_if_addr;
+    uint32_t proc_id;
     DBoardInitFn *init;
 };
 
 static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
                                   ram_addr_t ram_size,
                                   const char *cpu_model,
-                                  qemu_irq *pic, uint32_t *proc_id)
+                                  qemu_irq *pic)
 {
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -174,8 +175,6 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     if (!cpu_model) {
         cpu_model = "cortex-a9";
     }
-
-    *proc_id = 0x0c000191;
 
     for (n = 0; n < smp_cpus; n++) {
         ARMCPU *cpu = cpu_arm_init(cpu_model);
@@ -251,13 +250,14 @@ static const VEDBoardInfo a9_daughterboard = {
     .motherboard_map = motherboard_legacy_map,
     .loader_start = 0x60000000,
     .gic_cpu_if_addr = 0x1e000100,
+    .proc_id = 0x0c000191,
     .init = a9_daughterboard_init,
 };
 
 static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
                                    ram_addr_t ram_size,
                                    const char *cpu_model,
-                                   qemu_irq *pic, uint32_t *proc_id)
+                                   qemu_irq *pic)
 {
     int n;
     MemoryRegion *sysmem = get_system_memory();
@@ -270,8 +270,6 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     if (!cpu_model) {
         cpu_model = "cortex-a15";
     }
-
-    *proc_id = 0x14000237;
 
     for (n = 0; n < smp_cpus; n++) {
         ARMCPU *cpu;
@@ -344,6 +342,7 @@ static const VEDBoardInfo a15_daughterboard = {
     .motherboard_map = motherboard_aseries_map,
     .loader_start = 0x80000000,
     .gic_cpu_if_addr = 0x2c002000,
+    .proc_id = 0x14000237,
     .init = a15_daughterboard_init,
 };
 
@@ -352,7 +351,6 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 {
     DeviceState *dev, *sysctl, *pl041;
     qemu_irq pic[64];
-    uint32_t proc_id;
     uint32_t sys_id;
     DriveInfo *dinfo;
     ram_addr_t vram_size, sram_size;
@@ -361,8 +359,7 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     const hwaddr *map = daughterboard->motherboard_map;
 
-    daughterboard->init(daughterboard, args->ram_size, args->cpu_model,
-                        pic, &proc_id);
+    daughterboard->init(daughterboard, args->ram_size, args->cpu_model, pic);
 
     /* Motherboard peripherals: the wiring is the same but the
      * addresses vary between the legacy and A-Series memory maps.
@@ -372,7 +369,7 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     sysctl = qdev_create(NULL, "realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
-    qdev_prop_set_uint32(sysctl, "proc_id", proc_id);
+    qdev_prop_set_uint32(sysctl, "proc_id", daughterboard->proc_id);
     qdev_init_nofail(sysctl);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, map[VE_SYSREGS]);
 
