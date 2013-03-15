@@ -285,7 +285,7 @@ static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
     return ret;
 }
 
-static int qcow2_open(BlockDriverState *bs, int flags)
+static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVQcowState *s = bs->opaque;
     int len, i, ret = 0;
@@ -912,7 +912,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
     qcow2_close(bs);
 
     memset(s, 0, sizeof(BDRVQcowState));
-    qcow2_open(bs, flags);
+    qcow2_open(bs, NULL, flags);
 
     if (crypt_method) {
         s->crypt_method = crypt_method;

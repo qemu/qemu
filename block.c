@@ -710,7 +710,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     } else {
         assert(file != NULL);
         bs->file = file;
-        ret = drv->bdrv_open(bs, open_flags);
+        ret = drv->bdrv_open(bs, NULL, open_flags);
     }
 
     if (ret < 0) {
@@ -3190,7 +3190,7 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
     if (bs->file) {
         drv->bdrv_close(bs);
         ret = bdrv_snapshot_goto(bs->file, snapshot_id);
-        open_ret = drv->bdrv_open(bs, bs->open_flags);
+        open_ret = drv->bdrv_open(bs, NULL, bs->open_flags);
         if (open_ret < 0) {
             bdrv_delete(bs->file);
             bs->drv = NULL;

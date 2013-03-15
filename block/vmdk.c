@@ -723,7 +723,7 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
     return vmdk_parse_extents(buf, bs, bs->file->filename);
 }
 
-static int vmdk_open(BlockDriverState *bs, int flags)
+static int vmdk_open(BlockDriverState *bs, QDict *options, int flags)
 {
     int ret;
     BDRVVmdkState *s = bs->opaque;

@@ -68,7 +68,7 @@ static int parallels_probe(const uint8_t *buf, int buf_size, const char *filenam
     return 0;
 }
 
-static int parallels_open(BlockDriverState *bs, int flags)
+static int parallels_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVParallelsState *s = bs->opaque;
     int i;

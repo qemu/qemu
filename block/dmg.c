@@ -85,7 +85,7 @@ static int read_uint32(BlockDriverState *bs, int64_t offset, uint32_t *result)
     return 0;
 }
 
-static int dmg_open(BlockDriverState *bs, int flags)
+static int dmg_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVDMGState *s = bs->opaque;
     uint64_t info_begin,info_end,last_in_offset,last_out_offset;
