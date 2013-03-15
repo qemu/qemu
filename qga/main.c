@@ -755,7 +755,7 @@ static void persistent_state_from_keyfile(GAPersistentState *pstate,
 
     if (g_key_file_has_key(keyfile, "global", "fd_counter", NULL)) {
         pstate->fd_counter =
-            g_key_file_get_int64(keyfile, "global", "fd_counter", NULL);
+            g_key_file_get_integer(keyfile, "global", "fd_counter", NULL);
     }
 }
 
@@ -765,7 +765,7 @@ static void persistent_state_to_keyfile(const GAPersistentState *pstate,
     g_assert(pstate);
     g_assert(keyfile);
 
-    g_key_file_set_int64(keyfile, "global", "fd_counter", pstate->fd_counter);
+    g_key_file_set_integer(keyfile, "global", "fd_counter", pstate->fd_counter);
 }
 
 static gboolean write_persistent_state(const GAPersistentState *pstate,
