@@ -147,19 +147,24 @@ typedef struct VEDBoardInfo VEDBoardInfo;
 typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
                           ram_addr_t ram_size,
                           const char *cpu_model,
-                          qemu_irq *pic, uint32_t *proc_id);
+                          qemu_irq *pic);
 
 struct VEDBoardInfo {
     const hwaddr *motherboard_map;
     hwaddr loader_start;
     const hwaddr gic_cpu_if_addr;
+    uint32_t proc_id;
+    uint32_t num_voltage_sensors;
+    const uint32_t *voltages;
+    uint32_t num_clocks;
+    const uint32_t *clocks;
     DBoardInitFn *init;
 };
 
 static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
                                   ram_addr_t ram_size,
                                   const char *cpu_model,
-                                  qemu_irq *pic, uint32_t *proc_id)
+                                  qemu_irq *pic)
 {
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -174,8 +179,6 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     if (!cpu_model) {
         cpu_model = "cortex-a9";
     }
-
-    *proc_id = 0x0c000191;
 
     for (n = 0; n < smp_cpus; n++) {
         ARMCPU *cpu = cpu_arm_init(cpu_model);
@@ -247,17 +250,41 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     sysbus_create_varargs("l2x0", 0x1e00a000, NULL);
 }
 
+/* Voltage values for SYS_CFG_VOLT daughterboard registers;
+ * values are in microvolts.
+ */
+static const uint32_t a9_voltages[] = {
+    1000000, /* VD10 : 1.0V : SoC internal logic voltage */
+    1000000, /* VD10_S2 : 1.0V : PL310, L2 cache, RAM, non-PL310 logic */
+    1000000, /* VD10_S3 : 1.0V : Cortex-A9, cores, MPEs, SCU, PL310 logic */
+    1800000, /* VCC1V8 : 1.8V : DDR2 SDRAM, test chip DDR2 I/O supply */
+    900000, /* DDR2VTT : 0.9V : DDR2 SDRAM VTT termination voltage */
+    3300000, /* VCC3V3 : 3.3V : local board supply for misc external logic */
+};
+
+/* Reset values for daughterboard oscillators (in Hz) */
+static const uint32_t a9_clocks[] = {
+    45000000, /* AMBA AXI ACLK: 45MHz */
+    23750000, /* daughterboard CLCD clock: 23.75MHz */
+    66670000, /* Test chip reference clock: 66.67MHz */
+};
+
 static const VEDBoardInfo a9_daughterboard = {
     .motherboard_map = motherboard_legacy_map,
     .loader_start = 0x60000000,
     .gic_cpu_if_addr = 0x1e000100,
+    .proc_id = 0x0c000191,
+    .num_voltage_sensors = ARRAY_SIZE(a9_voltages),
+    .voltages = a9_voltages,
+    .num_clocks = ARRAY_SIZE(a9_clocks),
+    .clocks = a9_clocks,
     .init = a9_daughterboard_init,
 };
 
 static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
                                    ram_addr_t ram_size,
                                    const char *cpu_model,
-                                   qemu_irq *pic, uint32_t *proc_id)
+                                   qemu_irq *pic)
 {
     int n;
     MemoryRegion *sysmem = get_system_memory();
@@ -270,8 +297,6 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     if (!cpu_model) {
         cpu_model = "cortex-a15";
     }
-
-    *proc_id = 0x14000237;
 
     for (n = 0; n < smp_cpus; n++) {
         ARMCPU *cpu;
@@ -340,10 +365,31 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     /* 0x7ffd0000: PL354 static memory controller: not modelled */
 }
 
+static const uint32_t a15_voltages[] = {
+    900000, /* Vcore: 0.9V : CPU core voltage */
+};
+
+static const uint32_t a15_clocks[] = {
+    60000000, /* OSCCLK0: 60MHz : CPU_CLK reference */
+    0, /* OSCCLK1: reserved */
+    0, /* OSCCLK2: reserved */
+    0, /* OSCCLK3: reserved */
+    40000000, /* OSCCLK4: 40MHz : external AXI master clock */
+    23750000, /* OSCCLK5: 23.75MHz : HDLCD PLL reference */
+    50000000, /* OSCCLK6: 50MHz : static memory controller clock */
+    60000000, /* OSCCLK7: 60MHz : SYSCLK reference */
+    40000000, /* OSCCLK8: 40MHz : DDR2 PLL reference */
+};
+
 static const VEDBoardInfo a15_daughterboard = {
     .motherboard_map = motherboard_aseries_map,
     .loader_start = 0x80000000,
     .gic_cpu_if_addr = 0x2c002000,
+    .proc_id = 0x14000237,
+    .num_voltage_sensors = ARRAY_SIZE(a15_voltages),
+    .voltages = a15_voltages,
+    .num_clocks = ARRAY_SIZE(a15_clocks),
+    .clocks = a15_clocks,
     .init = a15_daughterboard_init,
 };
 
@@ -352,7 +398,6 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 {
     DeviceState *dev, *sysctl, *pl041;
     qemu_irq pic[64];
-    uint32_t proc_id;
     uint32_t sys_id;
     DriveInfo *dinfo;
     ram_addr_t vram_size, sram_size;
@@ -360,9 +405,9 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     MemoryRegion *vram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     const hwaddr *map = daughterboard->motherboard_map;
+    int i;
 
-    daughterboard->init(daughterboard, args->ram_size, args->cpu_model,
-                        pic, &proc_id);
+    daughterboard->init(daughterboard, args->ram_size, args->cpu_model, pic);
 
     /* Motherboard peripherals: the wiring is the same but the
      * addresses vary between the legacy and A-Series memory maps.
@@ -372,7 +417,21 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     sysctl = qdev_create(NULL, "realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
-    qdev_prop_set_uint32(sysctl, "proc_id", proc_id);
+    qdev_prop_set_uint32(sysctl, "proc_id", daughterboard->proc_id);
+    qdev_prop_set_uint32(sysctl, "len-db-voltage",
+                         daughterboard->num_voltage_sensors);
+    for (i = 0; i < daughterboard->num_voltage_sensors; i++) {
+        char *propname = g_strdup_printf("db-voltage[%d]", i);
+        qdev_prop_set_uint32(sysctl, propname, daughterboard->voltages[i]);
+        g_free(propname);
+    }
+    qdev_prop_set_uint32(sysctl, "len-db-clock",
+                         daughterboard->num_clocks);
+    for (i = 0; i < daughterboard->num_clocks; i++) {
+        char *propname = g_strdup_printf("db-clock[%d]", i);
+        qdev_prop_set_uint32(sysctl, propname, daughterboard->clocks[i]);
+        g_free(propname);
+    }
     qdev_init_nofail(sysctl);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, map[VE_SYSREGS]);
 

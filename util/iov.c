@@ -201,32 +201,18 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
 void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
                  FILE *fp, const char *prefix, size_t limit)
 {
-    unsigned int i, v, b;
-    uint8_t *c;
+    int v;
+    size_t size = 0;
+    char *buf;
 
-    c = iov[0].iov_base;
-    for (i = 0, v = 0, b = 0; b < limit; i++, b++) {
-        if (i == iov[v].iov_len) {
-            i = 0; v++;
-            if (v == iov_cnt) {
-                break;
-            }
-            c = iov[v].iov_base;
-        }
-        if ((b % 16) == 0) {
-            fprintf(fp, "%s: %04x:", prefix, b);
-        }
-        if ((b % 4) == 0) {
-            fprintf(fp, " ");
-        }
-        fprintf(fp, " %02x", c[i]);
-        if ((b % 16) == 15) {
-            fprintf(fp, "\n");
-        }
+    for (v = 0; v < iov_cnt; v++) {
+        size += iov[v].iov_len;
     }
-    if ((b % 16) != 0) {
-        fprintf(fp, "\n");
-    }
+    size = size > limit ? limit : size;
+    buf = g_malloc(size);
+    iov_to_buf(iov, iov_cnt, 0, buf, size);
+    hexdump(buf, fp, prefix, size);
+    g_free(buf);
 }
 
 unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,

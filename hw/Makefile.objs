@@ -98,6 +98,7 @@ common-obj-$(CONFIG_PL110) += pl110.o
 common-obj-$(CONFIG_PL181) += pl181.o
 common-obj-$(CONFIG_PL190) += pl190.o
 common-obj-$(CONFIG_PL310) += arm_l2x0.o
+common-obj-$(CONFIG_PL330) += pl330.o
 common-obj-$(CONFIG_VERSATILE_PCI) += versatile_pci.o
 common-obj-$(CONFIG_VERSATILE_I2C) += versatile_i2c.o
 common-obj-$(CONFIG_CADENCE) += cadence_uart.o

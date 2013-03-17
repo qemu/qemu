@@ -779,6 +779,110 @@ PropertyInfo qdev_prop_pci_host_devaddr = {
     .set = set_pci_host_devaddr,
 };
 
+/* --- support for array properties --- */
+
+/* Used as an opaque for the object properties we add for each
+ * array element. Note that the struct Property must be first
+ * in the struct so that a pointer to this works as the opaque
+ * for the underlying element's property hooks as well as for
+ * our own release callback.
+ */
+typedef struct {
+    struct Property prop;
+    char *propname;
+    ObjectPropertyRelease *release;
+} ArrayElementProperty;
+
+/* object property release callback for array element properties:
+ * we call the underlying element's property release hook, and
+ * then free the memory we allocated when we added the property.
+ */
+static void array_element_release(Object *obj, const char *name, void *opaque)
+{
+    ArrayElementProperty *p = opaque;
+    if (p->release) {
+        p->release(obj, name, opaque);
+    }
+    g_free(p->propname);
+    g_free(p);
+}
+
+static void set_prop_arraylen(Object *obj, Visitor *v, void *opaque,
+                              const char *name, Error **errp)
+{
+    /* Setter for the property which defines the length of a
+     * variable-sized property array. As well as actually setting the
+     * array-length field in the device struct, we have to create the
+     * array itself and dynamically add the corresponding properties.
+     */
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    uint32_t *alenptr = qdev_get_prop_ptr(dev, prop);
+    void **arrayptr = (void *)dev + prop->arrayoffset;
+    void *eltptr;
+    const char *arrayname;
+    int i;
+
+    if (dev->realized) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+    if (*alenptr) {
+        error_setg(errp, "array size property %s may not be set more than once",
+                   name);
+        return;
+    }
+    visit_type_uint32(v, alenptr, name, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
+    if (!*alenptr) {
+        return;
+    }
+
+    /* DEFINE_PROP_ARRAY guarantees that name should start with this prefix;
+     * strip it off so we can get the name of the array itself.
+     */
+    assert(strncmp(name, PROP_ARRAY_LEN_PREFIX,
+                   strlen(PROP_ARRAY_LEN_PREFIX)) == 0);
+    arrayname = name + strlen(PROP_ARRAY_LEN_PREFIX);
+
+    /* Note that it is the responsibility of the individual device's deinit
+     * to free the array proper.
+     */
+    *arrayptr = eltptr = g_malloc0(*alenptr * prop->arrayfieldsize);
+    for (i = 0; i < *alenptr; i++, eltptr += prop->arrayfieldsize) {
+        char *propname = g_strdup_printf("%s[%d]", arrayname, i);
+        ArrayElementProperty *arrayprop = g_new0(ArrayElementProperty, 1);
+        arrayprop->release = prop->arrayinfo->release;
+        arrayprop->propname = propname;
+        arrayprop->prop.info = prop->arrayinfo;
+        arrayprop->prop.name = propname;
+        /* This ugly piece of pointer arithmetic sets up the offset so
+         * that when the underlying get/set hooks call qdev_get_prop_ptr
+         * they get the right answer despite the array element not actually
+         * being inside the device struct.
+         */
+        arrayprop->prop.offset = eltptr - (void *)dev;
+        assert(qdev_get_prop_ptr(dev, &arrayprop->prop) == eltptr);
+        object_property_add(obj, propname,
+                            arrayprop->prop.info->name,
+                            arrayprop->prop.info->get,
+                            arrayprop->prop.info->set,
+                            array_element_release,
+                            arrayprop, errp);
+        if (error_is_set(errp)) {
+            return;
+        }
+    }
+}
+
+PropertyInfo qdev_prop_arraylen = {
+    .name = "uint32",
+    .get = get_uint32,
+    .set = set_prop_arraylen,
+};
+
 /* --- public helpers --- */
 
 static Property *qdev_prop_walk(Property *props, const char *name)
