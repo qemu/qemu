@@ -2337,6 +2337,15 @@ EOF
 fi
 
 ##########################################
+# TPM passthrough is only on x86 Linux
+
+if test "$targetos" = Linux && test "$cpu" = i386 -o "$cpu" = x86_64; then
+  tpm_passthrough=$tpm
+else
+  tpm_passthrough=no
+fi
+
+##########################################
 # adjust virtio-blk-data-plane based on linux-aio
 
 if test "$virtio_blk_data_plane" = "yes" -a \
@@ -3436,6 +3445,7 @@ echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
+echo "TPM passthrough   $tpm_passthrough"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3810,6 +3820,14 @@ bsd)
   echo "HOST_USB=stub" >> $config_host_mak
 ;;
 esac
+
+# TPM passthrough support?
+if test "$tpm" = "yes"; then
+  echo 'CONFIG_TPM=$(CONFIG_SOFTMMU)' >> $config_host_mak
+  if test "$tpm_passthrough" = "yes"; then
+    echo "CONFIG_TPM_PASSTHROUGH=y" >> $config_host_mak
+  fi
+fi
 
 # use default implementation for tracing backend-specific routines
 trace_default=yes
@@ -4335,12 +4353,6 @@ if test "$gprof" = "yes" ; then
   if test "$target_softmmu" = "yes" ; then
     ldflags="-p $ldflags"
     echo "GPROF_CFLAGS=-p" >> $config_target_mak
-  fi
-fi
-
-if test "$tpm" = "yes"; then
-  if test "$target_softmmu" = "yes" ; then
-    echo "CONFIG_TPM=y" >> $config_host_mak
   fi
 fi
 
