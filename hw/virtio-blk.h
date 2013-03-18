@@ -16,6 +16,9 @@
 
 #include "hw/virtio.h"
 #include "hw/block-common.h"
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+#include "dataplane/virtio-blk.h"
+#endif
 
 /* from Linux's linux/virtio_blk.h */
 
@@ -107,6 +110,22 @@ struct VirtIOBlkConf
     uint32_t config_wce;
     uint32_t data_plane;
 };
+
+typedef struct VirtIOBlock {
+    VirtIODevice vdev;
+    BlockDriverState *bs;
+    VirtQueue *vq;
+    void *rq;
+    QEMUBH *bh;
+    BlockConf *conf;
+    VirtIOBlkConf *blk;
+    unsigned short sector_mask;
+    DeviceState *qdev;
+    VMChangeStateEntry *change;
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    VirtIOBlockDataPlane *dataplane;
+#endif
+} VirtIOBlock;
 
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)

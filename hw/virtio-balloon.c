@@ -29,21 +29,6 @@
 #include <sys/mman.h>
 #endif
 
-typedef struct VirtIOBalloon
-{
-    VirtIODevice vdev;
-    VirtQueue *ivq, *dvq, *svq;
-    uint32_t num_pages;
-    uint32_t actual;
-    uint64_t stats[VIRTIO_BALLOON_S_NR];
-    VirtQueueElement stats_vq_elem;
-    size_t stats_vq_offset;
-    QEMUTimer *stats_timer;
-    int64_t stats_last_update;
-    int64_t stats_poll_interval;
-    DeviceState *qdev;
-} VirtIOBalloon;
-
 static VirtIOBalloon *to_virtio_balloon(VirtIODevice *vdev)
 {
     return (VirtIOBalloon *)vdev;

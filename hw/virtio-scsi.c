@@ -130,21 +130,6 @@ typedef struct {
     uint32_t max_lun;
 } QEMU_PACKED VirtIOSCSIConfig;
 
-typedef struct {
-    VirtIODevice vdev;
-    DeviceState *qdev;
-    VirtIOSCSIConf *conf;
-
-    SCSIBus bus;
-    uint32_t sense_size;
-    uint32_t cdb_size;
-    int resetting;
-    bool events_dropped;
-    VirtQueue *ctrl_vq;
-    VirtQueue *event_vq;
-    VirtQueue *cmd_vqs[0];
-} VirtIOSCSI;
-
 typedef struct VirtIOSCSIReq {
     VirtIOSCSI *dev;
     VirtQueue *vq;

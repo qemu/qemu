@@ -16,6 +16,7 @@
 
 #include "hw/virtio.h"
 #include "hw/pci/pci.h"
+#include "hw/scsi.h"
 
 /* The ID for virtio_scsi */
 #define VIRTIO_ID_SCSI  8
@@ -30,6 +31,21 @@ struct VirtIOSCSIConf {
     uint32_t max_sectors;
     uint32_t cmd_per_lun;
 };
+
+typedef struct VirtIOSCSI {
+    VirtIODevice vdev;
+    DeviceState *qdev;
+    VirtIOSCSIConf *conf;
+
+    SCSIBus bus;
+    uint32_t sense_size;
+    uint32_t cdb_size;
+    int resetting;
+    bool events_dropped;
+    VirtQueue *ctrl_vq;
+    VirtQueue *event_vq;
+    VirtQueue *cmd_vqs[0];
+} VirtIOSCSI;
 
 #define DEFINE_VIRTIO_SCSI_PROPERTIES(_state, _features_field, _conf_field) \
     DEFINE_VIRTIO_COMMON_FEATURES(_state, _features_field), \
