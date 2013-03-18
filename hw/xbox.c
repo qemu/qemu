@@ -297,6 +297,10 @@ static QEMUMachine xbox_machine = {
     .name = "xbox",
     .desc = "Microsoft Xbox",
     .init = xbox_init,
+    .max_cpus = 1,
+    .no_floppy = 1,
+    .no_sdcard = 1,
+    DEFAULT_MACHINE_OPTIONS
 };
 
 static void xbox_machine_init(void) {
