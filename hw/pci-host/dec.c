@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "hw/dec_pci.h"
+#include "dec.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"

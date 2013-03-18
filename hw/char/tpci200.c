@@ -8,7 +8,7 @@
  * later version.
  */
 
-#include "hw/ipack.h"
+#include "ipack.h"
 #include "hw/pci/pci.h"
 #include "qemu/bitops.h"
 #include <stdio.h>

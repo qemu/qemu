@@ -1171,28 +1171,28 @@ typedef void draw_hwc_line_func(SM501State * s, int crt, uint8_t * palette,
                                 int c_y, uint8_t *d, int width);
 
 #define DEPTH 8
-#include "hw/sm501_template.h"
+#include "sm501_template.h"
 
 #define DEPTH 15
-#include "hw/sm501_template.h"
+#include "sm501_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 15
-#include "hw/sm501_template.h"
+#include "sm501_template.h"
 
 #define DEPTH 16
-#include "hw/sm501_template.h"
+#include "sm501_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 16
-#include "hw/sm501_template.h"
+#include "sm501_template.h"
 
 #define DEPTH 32
-#include "hw/sm501_template.h"
+#include "sm501_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 32
-#include "hw/sm501_template.h"
+#include "sm501_template.h"
 
 static draw_line_func * draw_line8_funcs[] = {
     draw_line8_8,

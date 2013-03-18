@@ -34,11 +34,11 @@
 #include "hw/hw.h"
 #include "hw/scsi/scsi.h"
 #include "block/scsi.h"
-#include "hw/srp.h"
+#include "srp.h"
 #include "hw/qdev.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
-#include "hw/ppc-viosrp.h"
+#include "viosrp.h"
 
 #include <libfdt.h>
 

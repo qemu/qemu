@@ -37,7 +37,7 @@
 
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
-#include "hw/ppc405.h"
+#include "ppc405.h"
 
 #include "sysemu/blockdev.h"
 #include "hw/xilinx.h"

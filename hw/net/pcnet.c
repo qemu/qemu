@@ -41,7 +41,7 @@
 #include "qemu/sockets.h"
 #include "sysemu/sysemu.h"
 
-#include "hw/pcnet.h"
+#include "pcnet.h"
 
 //#define PCNET_DEBUG
 //#define PCNET_DEBUG_IO

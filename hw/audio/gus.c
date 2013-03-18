@@ -25,8 +25,8 @@
 #include "hw/audio/audio.h"
 #include "audio/audio.h"
 #include "hw/isa/isa.h"
-#include "hw/gusemu.h"
-#include "hw/gustate.h"
+#include "gusemu.h"
+#include "gustate.h"
 
 #define dolog(...) AUD_log ("audio", __VA_ARGS__)
 #ifdef DEBUG

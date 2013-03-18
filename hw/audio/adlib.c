@@ -47,7 +47,7 @@
 void YMF262UpdateOneQEMU (int which, INT16 *dst, int length);
 #define SHIFT 2
 #else
-#include "hw/fmopl.h"
+#include "fmopl.h"
 #define SHIFT 1
 #endif
 

@@ -12,7 +12,7 @@
 #include <sys/mman.h>
 
 #include "hw/xen/xen_backend.h"
-#include "hw/xen_pt.h"
+#include "xen_pt.h"
 #include "hw/i386/apic-msidef.h"
 
 

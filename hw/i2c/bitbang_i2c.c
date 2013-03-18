@@ -10,7 +10,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "hw/hw.h"
-#include "hw/bitbang_i2c.h"
+#include "bitbang_i2c.h"
 #include "hw/sysbus.h"
 
 //#define DEBUG_BITBANG_I2C

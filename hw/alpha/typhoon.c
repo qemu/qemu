@@ -11,7 +11,7 @@
 #include "hw/hw.h"
 #include "hw/arm/devices.h"
 #include "sysemu/sysemu.h"
-#include "hw/alpha_sys.h"
+#include "alpha_sys.h"
 #include "exec/address-spaces.h"
 
 

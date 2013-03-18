@@ -16,7 +16,7 @@
 #include "ui/pixel_ops.h"
 /* FIXME: For graphic_rotate. Should probably be done in common code.  */
 #include "sysemu/sysemu.h"
-#include "hw/framebuffer.h"
+#include "framebuffer.h"
 
 struct DMAChannel {
     uint32_t branch;
@@ -981,15 +981,15 @@ static const VMStateDescription vmstate_pxa2xx_lcdc = {
 };
 
 #define BITS 8
-#include "hw/pxa2xx_template.h"
+#include "pxa2xx_template.h"
 #define BITS 15
-#include "hw/pxa2xx_template.h"
+#include "pxa2xx_template.h"
 #define BITS 16
-#include "hw/pxa2xx_template.h"
+#include "pxa2xx_template.h"
 #define BITS 24
-#include "hw/pxa2xx_template.h"
+#include "pxa2xx_template.h"
 #define BITS 32
-#include "hw/pxa2xx_template.h"
+#include "pxa2xx_template.h"
 
 PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
                                  hwaddr base, qemu_irq irq)

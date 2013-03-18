@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/vga.h"
+#include "vga.h"
 #include "ui/console.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
-#include "hw/vga_int.h"
+#include "vga_int.h"
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
 #include "hw/xen/xen.h"
@@ -986,28 +986,28 @@ typedef void vga_draw_line_func(VGACommonState *s1, uint8_t *d,
                                 const uint8_t *s, int width);
 
 #define DEPTH 8
-#include "hw/vga_template.h"
+#include "vga_template.h"
 
 #define DEPTH 15
-#include "hw/vga_template.h"
+#include "vga_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 15
-#include "hw/vga_template.h"
+#include "vga_template.h"
 
 #define DEPTH 16
-#include "hw/vga_template.h"
+#include "vga_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 16
-#include "hw/vga_template.h"
+#include "vga_template.h"
 
 #define DEPTH 32
-#include "hw/vga_template.h"
+#include "vga_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 32
-#include "hw/vga_template.h"
+#include "vga_template.h"
 
 static unsigned int rgb_to_pixel8_dup(unsigned int r, unsigned int g, unsigned b)
 {

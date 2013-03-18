@@ -14,7 +14,7 @@
 #include "qemu/timer.h"
 #include "hw/arm.h"
 #include "exec/address-spaces.h"
-#include "hw/arm_gic_internal.h"
+#include "gic_internal.h"
 
 typedef struct {
     GICState gic;

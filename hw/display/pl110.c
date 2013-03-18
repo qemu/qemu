@@ -9,7 +9,7 @@
 
 #include "hw/sysbus.h"
 #include "ui/console.h"
-#include "hw/framebuffer.h"
+#include "framebuffer.h"
 #include "ui/pixel_ops.h"
 
 #define PL110_CR_EN   0x001
@@ -111,15 +111,15 @@ static const unsigned char *idregs[] = {
 };
 
 #define BITS 8
-#include "hw/pl110_template.h"
+#include "pl110_template.h"
 #define BITS 15
-#include "hw/pl110_template.h"
+#include "pl110_template.h"
 #define BITS 16
-#include "hw/pl110_template.h"
+#include "pl110_template.h"
 #define BITS 24
-#include "hw/pl110_template.h"
+#include "pl110_template.h"
 #define BITS 32
-#include "hw/pl110_template.h"
+#include "pl110_template.h"
 
 static int pl110_enabled(pl110_state *s)
 {

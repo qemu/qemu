@@ -26,8 +26,8 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "sysemu/blockdev.h"
-#include "hw/milkymist-hw.h"
-#include "hw/lm32.h"
+#include "milkymist-hw.h"
+#include "lm32.h"
 #include "exec/address-spaces.h"
 
 #define BIOS_FILENAME    "mmone-bios.bin"

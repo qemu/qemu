@@ -21,7 +21,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
-#include "hw/arm_gic_internal.h"
+#include "gic_internal.h"
 
 #define TYPE_KVM_ARM_GIC "kvm-arm-gic"
 #define KVM_ARM_GIC(obj) \

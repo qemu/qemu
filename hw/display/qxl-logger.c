@@ -20,7 +20,7 @@
  */
 
 #include "qemu/timer.h"
-#include "hw/qxl.h"
+#include "qxl.h"
 
 static const char *qxl_type[] = {
     [ QXL_CMD_NOP ]     = "nop",

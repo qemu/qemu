@@ -6,7 +6,7 @@
 #include "ui/console.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
-#include "hw/vga_int.h"
+#include "vga_int.h"
 #include "qemu/thread.h"
 
 #include "ui/qemu-spice.h"

@@ -19,7 +19,7 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm_gic_internal.h"
+#include "gic_internal.h"
 
 //#define DEBUG_GIC
 

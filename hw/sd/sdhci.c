@@ -29,7 +29,7 @@
 #include "block/block_int.h"
 #include "qemu/bitops.h"
 
-#include "hw/sdhci.h"
+#include "sdhci.h"
 
 /* host controller debug messages */
 #ifndef SDHC_DEBUG

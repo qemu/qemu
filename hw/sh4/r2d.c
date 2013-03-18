@@ -31,7 +31,7 @@
 #include "hw/boards.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
-#include "hw/sh7750_regs.h"
+#include "sh7750_regs.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "hw/usb.h"

@@ -30,7 +30,7 @@
 #include "hw/loader.h"
 #include "sysemu/kvm.h"
 #include "sysemu/blockdev.h"
-#include "hw/virtio-pci.h"
+#include "virtio-pci.h"
 #include "qemu/range.h"
 #include "hw/virtio/virtio-bus.h"
 

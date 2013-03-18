@@ -38,8 +38,8 @@
 #include "exec/address-spaces.h"
 #include "hw/ssi.h"
 
-#include "hw/microblaze_boot.h"
-#include "hw/microblaze_pic_cpu.h"
+#include "boot.h"
+#include "pic_cpu.h"
 
 #include "hw/stream.h"
 

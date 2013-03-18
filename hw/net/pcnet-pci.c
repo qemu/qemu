@@ -33,7 +33,7 @@
 #include "qemu/timer.h"
 #include "sysemu/dma.h"
 
-#include "hw/pcnet.h"
+#include "pcnet.h"
 
 //#define PCNET_DEBUG
 //#define PCNET_DEBUG_IO

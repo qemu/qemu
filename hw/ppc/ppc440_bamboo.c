@@ -25,7 +25,7 @@
 #include "exec/address-spaces.h"
 #include "hw/char/serial.h"
 #include "hw/ppc/ppc.h"
-#include "hw/ppc405.h"
+#include "ppc405.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 

@@ -40,7 +40,7 @@
 #include "hw/usb/desc.h"
 #include "monitor/monitor.h"
 
-#include "hw/ccid.h"
+#include "ccid.h"
 
 #define DPRINTF(s, lvl, fmt, ...) \
 do { \

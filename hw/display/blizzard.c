@@ -21,7 +21,7 @@
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "hw/arm/devices.h"
-#include "hw/vga_int.h"
+#include "vga_int.h"
 #include "ui/pixel_ops.h"
 
 typedef void (*blizzard_fn_t)(uint8_t *, const uint8_t *, unsigned int);
@@ -946,15 +946,15 @@ static void blizzard_screen_dump(void *opaque, const char *filename,
 }
 
 #define DEPTH 8
-#include "hw/blizzard_template.h"
+#include "blizzard_template.h"
 #define DEPTH 15
-#include "hw/blizzard_template.h"
+#include "blizzard_template.h"
 #define DEPTH 16
-#include "hw/blizzard_template.h"
+#include "blizzard_template.h"
 #define DEPTH 24
-#include "hw/blizzard_template.h"
+#include "blizzard_template.h"
 #define DEPTH 32
-#include "hw/blizzard_template.h"
+#include "blizzard_template.h"
 
 void *s1d13745_init(qemu_irq gpio_int)
 {

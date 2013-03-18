@@ -33,7 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 
-#include "hw/e1000_hw.h"
+#include "e1000_regs.h"
 
 #define E1000_DEBUG
 

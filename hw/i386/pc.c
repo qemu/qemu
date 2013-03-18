@@ -34,7 +34,7 @@
 #include "hw/i386/smbios.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "hw/multiboot.h"
+#include "multiboot.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/timer/i8254.h"
 #include "hw/audio/pcspk.h"

@@ -26,7 +26,7 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev.h"
 #include "net/net.h"
-#include "hw/ne2000.h"
+#include "ne2000.h"
 #include "exec/address-spaces.h"
 
 typedef struct ISANE2000State {

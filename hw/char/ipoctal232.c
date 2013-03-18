@@ -8,7 +8,7 @@
  * later version.
  */
 
-#include "hw/ipack.h"
+#include "ipack.h"
 #include "qemu/bitops.h"
 #include "char/char.h"
 

@@ -57,7 +57,7 @@
 #include "hw/pci/pci.h"
 #include "hw/xen/xen.h"
 #include "hw/xen/xen_backend.h"
-#include "hw/xen_pt.h"
+#include "xen_pt.h"
 #include "qemu/range.h"
 #include "exec/address-spaces.h"
 

@@ -34,7 +34,7 @@
 #include "qemu/thread.h"
 #include "char/char.h"
 #include "monitor/monitor.h"
-#include "hw/ccid.h"
+#include "ccid.h"
 
 #define DPRINTF(card, lvl, fmt, ...) \
 do {\

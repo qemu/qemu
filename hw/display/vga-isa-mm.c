@@ -24,7 +24,7 @@
 #include "hw/hw.h"
 #include "ui/console.h"
 #include "hw/i386/pc.h"
-#include "hw/vga_int.h"
+#include "vga_int.h"
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
 

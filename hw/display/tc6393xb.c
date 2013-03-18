@@ -421,15 +421,15 @@ static void tc6393xb_nand_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) 
 }
 
 #define BITS 8
-#include "hw/tc6393xb_template.h"
+#include "tc6393xb_template.h"
 #define BITS 15
-#include "hw/tc6393xb_template.h"
+#include "tc6393xb_template.h"
 #define BITS 16
-#include "hw/tc6393xb_template.h"
+#include "tc6393xb_template.h"
 #define BITS 24
-#include "hw/tc6393xb_template.h"
+#include "tc6393xb_template.h"
 #define BITS 32
-#include "hw/tc6393xb_template.h"
+#include "tc6393xb_template.h"
 
 static void tc6393xb_draw_graphic(TC6393xbState *s, int full_update)
 {

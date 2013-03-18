@@ -40,7 +40,7 @@
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
 #include "hw/sparc/sun4m.h"
-#include "hw/pcnet.h"
+#include "pcnet.h"
 #include "trace.h"
 
 typedef struct {

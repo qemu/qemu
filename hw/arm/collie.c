@@ -12,7 +12,7 @@
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "hw/arm/devices.h"
-#include "hw/strongarm.h"
+#include "strongarm.h"
 #include "hw/arm.h"
 #include "hw/block/flash.h"
 #include "sysemu/blockdev.h"

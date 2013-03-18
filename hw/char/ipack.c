@@ -8,7 +8,7 @@
  * later version.
  */
 
-#include "hw/ipack.h"
+#include "ipack.h"
 
 IPackDevice *ipack_device_find(IPackBus *bus, int32_t slot)
 {

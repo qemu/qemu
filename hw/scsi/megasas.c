@@ -27,7 +27,7 @@
 #include "block/scsi.h"
 #include "trace.h"
 
-#include "hw/mfi.h"
+#include "mfi.h"
 
 #define MEGASAS_VERSION "1.70"
 #define MEGASAS_MAX_FRAMES 2048         /* Firmware limit at 65535 */

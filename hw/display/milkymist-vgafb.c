@@ -26,20 +26,20 @@
 #include "hw/sysbus.h"
 #include "trace.h"
 #include "ui/console.h"
-#include "hw/framebuffer.h"
+#include "framebuffer.h"
 #include "ui/pixel_ops.h"
 #include "qemu/error-report.h"
 
 #define BITS 8
-#include "hw/milkymist-vgafb_template.h"
+#include "milkymist-vgafb_template.h"
 #define BITS 15
-#include "hw/milkymist-vgafb_template.h"
+#include "milkymist-vgafb_template.h"
 #define BITS 16
-#include "hw/milkymist-vgafb_template.h"
+#include "milkymist-vgafb_template.h"
 #define BITS 24
-#include "hw/milkymist-vgafb_template.h"
+#include "milkymist-vgafb_template.h"
 #define BITS 32
-#include "hw/milkymist-vgafb_template.h"
+#include "milkymist-vgafb_template.h"
 
 enum {
     R_CTRL = 0,

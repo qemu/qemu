@@ -29,7 +29,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "ui/console.h"
-#include "hw/vga_int.h"
+#include "vga_int.h"
 #include "hw/loader.h"
 
 /*
@@ -288,63 +288,63 @@ static void cirrus_bitblt_fill_nop(CirrusVGAState *s,
 
 #define ROP_NAME 0
 #define ROP_FN(d, s) 0
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_and_dst
 #define ROP_FN(d, s) (s) & (d)
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_and_notdst
 #define ROP_FN(d, s) (s) & (~(d))
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME notdst
 #define ROP_FN(d, s) ~(d)
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME src
 #define ROP_FN(d, s) s
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME 1
 #define ROP_FN(d, s) ~0
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc_and_dst
 #define ROP_FN(d, s) (~(s)) & (d)
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_xor_dst
 #define ROP_FN(d, s) (s) ^ (d)
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_or_dst
 #define ROP_FN(d, s) (s) | (d)
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc_or_notdst
 #define ROP_FN(d, s) (~(s)) | (~(d))
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_notxor_dst
 #define ROP_FN(d, s) ~((s) ^ (d))
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_or_notdst
 #define ROP_FN(d, s) (s) | (~(d))
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc
 #define ROP_FN(d, s) (~(s))
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc_or_dst
 #define ROP_FN(d, s) (~(s)) | (d)
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc_and_notdst
 #define ROP_FN(d, s) (~(s)) & (~(d))
-#include "hw/cirrus_vga_rop.h"
+#include "cirrus_vga_rop.h"
 
 static const cirrus_bitblt_rop_t cirrus_fwd_rop[16] = {
     cirrus_bitblt_rop_fwd_0,
@@ -2166,13 +2166,13 @@ static void cirrus_cursor_invalidate(VGACommonState *s1)
 }
 
 #define DEPTH 8
-#include "hw/cirrus_vga_template.h"
+#include "cirrus_vga_template.h"
 
 #define DEPTH 16
-#include "hw/cirrus_vga_template.h"
+#include "cirrus_vga_template.h"
 
 #define DEPTH 32
-#include "hw/cirrus_vga_template.h"
+#include "cirrus_vga_template.h"
 
 static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
 {

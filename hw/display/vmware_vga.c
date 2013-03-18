@@ -31,7 +31,7 @@
 #define HW_FILL_ACCEL
 #define HW_MOUSE_ACCEL
 
-#include "hw/vga_int.h"
+#include "vga_int.h"
 
 /* See http://vmware-svga.sf.net/ for some documentation on VMWare SVGA */
 

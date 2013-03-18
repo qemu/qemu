@@ -23,7 +23,7 @@
  */
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
-#include "hw/ppc405.h"
+#include "ppc405.h"
 #include "hw/timer/m48t59.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"

@@ -27,7 +27,7 @@
  *  GNU GPL, version 2 or (at your option) any later version.
  */
 #include "hw/sysbus.h"
-#include "hw/strongarm.h"
+#include "strongarm.h"
 #include "qemu/error-report.h"
 #include "hw/arm.h"
 #include "char/char.h"

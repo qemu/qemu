@@ -4,7 +4,7 @@
 #include "qemu-common.h"
 #include "hw/xen/xen_common.h"
 #include "hw/pci/pci.h"
-#include "hw/xen-host-pci-device.h"
+#include "xen-host-pci-device.h"
 
 void xen_pt_log(const PCIDevice *d, const char *f, ...) GCC_FMT_ATTR(2, 3);
 

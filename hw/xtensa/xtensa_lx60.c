@@ -37,7 +37,7 @@
 #include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
 #include "char/char.h"
-#include "hw/xtensa_bootparam.h"
+#include "xtensa_bootparam.h"
 
 typedef struct LxBoardDesc {
     size_t flash_size;

@@ -29,7 +29,7 @@
 #include "hw/cris/etraxfs.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "hw/cris-boot.h"
+#include "boot.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 

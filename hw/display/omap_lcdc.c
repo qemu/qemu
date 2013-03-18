@@ -19,7 +19,7 @@
 #include "hw/hw.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"
-#include "hw/framebuffer.h"
+#include "framebuffer.h"
 #include "ui/pixel_ops.h"
 
 struct omap_lcd_panel_s {
@@ -70,13 +70,13 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
 #define draw_line_func drawfn
 
 #define DEPTH 8
-#include "hw/omap_lcd_template.h"
+#include "omap_lcd_template.h"
 #define DEPTH 15
-#include "hw/omap_lcd_template.h"
+#include "omap_lcd_template.h"
 #define DEPTH 16
-#include "hw/omap_lcd_template.h"
+#include "omap_lcd_template.h"
 #define DEPTH 32
-#include "hw/omap_lcd_template.h"
+#include "omap_lcd_template.h"
 
 static draw_line_func draw_line_table2[33] = {
     [0 ... 32]	= NULL,

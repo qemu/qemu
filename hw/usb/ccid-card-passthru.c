@@ -11,7 +11,7 @@
 #include "char/char.h"
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
-#include "hw/ccid.h"
+#include "ccid.h"
 #include "libcacard/vscard_common.h"
 
 #define DPRINTF(card, lvl, fmt, ...)                    \
