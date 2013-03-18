@@ -21,7 +21,11 @@
 #ifdef __linux__
 # include <scsi/sg.h>
 #endif
+#include "hw/virtio-bus.h"
 
+/*
+ * Moving to QOM later in this series.
+ */
 static VirtIOBlock *to_virtio_blk(VirtIODevice *vdev)
 {
     return (VirtIOBlock *)vdev;
@@ -620,9 +624,16 @@ static const BlockDevOps virtio_block_ops = {
     .resize_cb = virtio_blk_resize,
 };
 
-VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
+void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk)
 {
-    VirtIOBlock *s;
+    VirtIOBlock *s = VIRTIO_BLK(dev);
+    memcpy(&(s->blk), blk, sizeof(struct VirtIOBlkConf));
+}
+
+static VirtIODevice *virtio_blk_common_init(DeviceState *dev,
+                                          VirtIOBlkConf *blk, VirtIOBlock **ps)
+{
+    VirtIOBlock *s = *ps;
     static int virtio_blk_id;
 
     if (!blk->conf.bs) {
@@ -639,9 +650,20 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
         return NULL;
     }
 
-    s = (VirtIOBlock *)virtio_common_init("virtio-blk", VIRTIO_ID_BLOCK,
-                                          sizeof(struct virtio_blk_config),
-                                          sizeof(VirtIOBlock));
+    /*
+     * We have two cases here: the old virtio-blk-pci device, and the
+     * refactored virtio-blk.
+     */
+    if (s == NULL) {
+        /* virtio-blk-pci */
+        s = (VirtIOBlock *)virtio_common_init("virtio-blk", VIRTIO_ID_BLOCK,
+                                              sizeof(struct virtio_blk_config),
+                                              sizeof(VirtIOBlock));
+    } else {
+        /* virtio-blk */
+        virtio_init(VIRTIO_DEVICE(s), "virtio-blk", VIRTIO_ID_BLOCK,
+                    sizeof(struct virtio_blk_config));
+    }
 
     s->vdev.get_config = virtio_blk_update_config;
     s->vdev.set_config = virtio_blk_set_config;
@@ -675,6 +697,12 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
     return &s->vdev;
 }
 
+VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
+{
+    VirtIOBlock *s = NULL;
+    return virtio_blk_common_init(dev, blk, &s);
+}
+
 void virtio_blk_exit(VirtIODevice *vdev)
 {
     VirtIOBlock *s = to_virtio_blk(vdev);
@@ -688,3 +716,63 @@ void virtio_blk_exit(VirtIODevice *vdev)
     blockdev_mark_auto_del(s->bs);
     virtio_cleanup(vdev);
 }
+
+
+static int virtio_blk_device_init(VirtIODevice *vdev)
+{
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlkConf *blk = &(s->blk);
+    if (virtio_blk_common_init(qdev, blk, &s) == NULL) {
+        return -1;
+    }
+    return 0;
+}
+
+static int virtio_blk_device_exit(DeviceState *dev)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOBlock *s = VIRTIO_BLK(dev);
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    virtio_blk_data_plane_destroy(s->dataplane);
+    s->dataplane = NULL;
+#endif
+    qemu_del_vm_change_state_handler(s->change);
+    unregister_savevm(s->qdev, "virtio-blk", s);
+    blockdev_mark_auto_del(s->bs);
+    virtio_common_cleanup(vdev);
+    return 0;
+}
+
+static Property virtio_blk_properties[] = {
+    DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOBlock, blk),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_blk_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    dc->exit = virtio_blk_device_exit;
+    dc->props = virtio_blk_properties;
+    vdc->init = virtio_blk_device_init;
+    vdc->get_config = virtio_blk_update_config;
+    vdc->set_config = virtio_blk_set_config;
+    vdc->get_features = virtio_blk_get_features;
+    vdc->set_status = virtio_blk_set_status;
+    vdc->reset = virtio_blk_reset;
+}
+
+static const TypeInfo virtio_device_info = {
+    .name = TYPE_VIRTIO_BLK,
+    .parent = TYPE_VIRTIO_DEVICE,
+    .instance_size = sizeof(VirtIOBlock),
+    .class_init = virtio_blk_class_init,
+};
+
+static void virtio_register_types(void)
+{
+    type_register_static(&virtio_device_info);
+}
+
+type_init(virtio_register_types)
