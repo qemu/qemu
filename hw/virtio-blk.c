@@ -151,7 +151,7 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
      */
     req->scsi = (void *)req->elem.in_sg[req->elem.in_num - 2].iov_base;
 
-    if (!req->dev->blk->scsi) {
+    if (!req->dev->blk.scsi) {
         status = VIRTIO_BLK_S_UNSUPP;
         goto fail;
     }
@@ -371,7 +371,7 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
          * terminated by '\0' only when shorter than buffer.
          */
         strncpy(req->elem.in_sg[0].iov_base,
-                s->blk->serial ? s->blk->serial : "",
+                s->blk.serial ? s->blk.serial : "",
                 MIN(req->elem.in_sg[0].iov_len, VIRTIO_BLK_ID_BYTES));
         virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
         g_free(req);
@@ -534,7 +534,7 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
     features |= (1 << VIRTIO_BLK_F_BLK_SIZE);
     features |= (1 << VIRTIO_BLK_F_SCSI);
 
-    if (s->blk->config_wce) {
+    if (s->blk.config_wce) {
         features |= (1 << VIRTIO_BLK_F_CONFIG_WCE);
     }
     if (bdrv_enable_write_cache(s->bs))
@@ -650,7 +650,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
     s->vdev.reset = virtio_blk_reset;
     s->bs = blk->conf.bs;
     s->conf = &blk->conf;
-    s->blk = blk;
+    memcpy(&(s->blk), blk, sizeof(struct VirtIOBlkConf));
     s->rq = NULL;
     s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
 
