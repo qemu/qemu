@@ -924,41 +924,12 @@ void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev)
     proxy->host_features = vdev->get_features(vdev, proxy->host_features);
 }
 
-static int virtio_blk_init_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-    VirtIODevice *vdev;
-
-    if (proxy->class_code != PCI_CLASS_STORAGE_SCSI &&
-        proxy->class_code != PCI_CLASS_STORAGE_OTHER)
-        proxy->class_code = PCI_CLASS_STORAGE_SCSI;
-
-    vdev = virtio_blk_init(&pci_dev->qdev, &proxy->blk);
-    if (!vdev) {
-        return -1;
-    }
-    vdev->nvectors = proxy->nvectors;
-    virtio_init_pci(proxy, vdev);
-    /* make the actual value visible */
-    proxy->nvectors = vdev->nvectors;
-    return 0;
-}
-
 static void virtio_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
     memory_region_destroy(&proxy->bar);
     msix_uninit_exclusive_bar(pci_dev);
-}
-
-static void virtio_blk_exit_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-
-    virtio_pci_stop_ioeventfd(proxy);
-    virtio_blk_exit(proxy->vdev);
-    virtio_exit_pci(pci_dev);
 }
 
 static int virtio_serial_init_pci(PCIDevice *pci_dev)
@@ -1081,40 +1052,6 @@ static void virtio_rng_exit_pci(PCIDevice *pci_dev)
     virtio_rng_exit(proxy->vdev);
     virtio_exit_pci(pci_dev);
 }
-
-static Property virtio_blk_properties[] = {
-    DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
-    DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
-#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
-    DEFINE_PROP_BIT("x-data-plane", VirtIOPCIProxy, blk.data_plane, 0, false),
-#endif
-    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-    DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),
-    DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOPCIProxy, blk),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void virtio_blk_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = virtio_blk_init_pci;
-    k->exit = virtio_blk_exit_pci;
-    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
-    k->device_id = PCI_DEVICE_ID_VIRTIO_BLOCK;
-    k->revision = VIRTIO_PCI_ABI_VERSION;
-    k->class_id = PCI_CLASS_STORAGE_SCSI;
-    dc->reset = virtio_pci_reset;
-    dc->props = virtio_blk_properties;
-}
-
-static const TypeInfo virtio_blk_info = {
-    .name          = "virtio-blk-pci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VirtIOPCIProxy),
-    .class_init    = virtio_blk_class_init,
-};
 
 static Property virtio_net_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false),
@@ -1460,6 +1397,62 @@ static const TypeInfo virtio_pci_info = {
     .abstract      = true,
 };
 
+/* virtio-blk-pci */
+
+static Property virtio_blk_pci_properties[] = {
+    DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
+    DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    DEFINE_PROP_BIT("x-data-plane", VirtIOBlkPCI, blk.data_plane, 0, false),
+#endif
+    DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),
+    DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOBlkPCI, blk),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static int virtio_blk_pci_init(VirtIOPCIProxy *vpci_dev)
+{
+    VirtIOBlkPCI *dev = VIRTIO_BLK_PCI(vpci_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+    virtio_blk_set_conf(vdev, &(dev->blk));
+    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
+    if (qdev_init(vdev) < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static void virtio_blk_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
+    PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
+
+    dc->props = virtio_blk_pci_properties;
+    k->init = virtio_blk_pci_init;
+    pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_BLOCK;
+    pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;
+    pcidev_k->class_id = PCI_CLASS_STORAGE_SCSI;
+}
+
+static void virtio_blk_pci_instance_init(Object *obj)
+{
+    VirtIOBlkPCI *dev = VIRTIO_BLK_PCI(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BLK);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+}
+
+static const TypeInfo virtio_blk_pci_info = {
+    .name          = TYPE_VIRTIO_BLK_PCI,
+    .parent        = TYPE_VIRTIO_PCI,
+    .instance_size = sizeof(VirtIOBlkPCI),
+    .instance_init = virtio_blk_pci_instance_init,
+    .class_init    = virtio_blk_pci_class_init,
+};
+
 /* virtio-pci-bus */
 
 void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev)
@@ -1498,7 +1491,6 @@ static const TypeInfo virtio_pci_bus_info = {
 
 static void virtio_pci_register_types(void)
 {
-    type_register_static(&virtio_blk_info);
     type_register_static(&virtio_net_info);
     type_register_static(&virtio_serial_info);
     type_register_static(&virtio_balloon_info);
@@ -1509,6 +1501,7 @@ static void virtio_pci_register_types(void)
 #ifdef CONFIG_VIRTFS
     type_register_static(&virtio_9p_info);
 #endif
+    type_register_static(&virtio_blk_pci_info);
 }
 
 type_init(virtio_pci_register_types)
