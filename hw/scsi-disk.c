@@ -30,8 +30,8 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #include "qemu-common.h"
 #include "qemu/error-report.h"
-#include "scsi.h"
-#include "scsi-defs.h"
+#include "hw/scsi.h"
+#include "hw/scsi-defs.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/blockdev.h"
 #include "hw/block-common.h"
@@ -41,9 +41,11 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include <scsi/sg.h>
 #endif
 
-#define SCSI_DMA_BUF_SIZE    131072
-#define SCSI_MAX_INQUIRY_LEN 256
-#define SCSI_MAX_MODE_LEN    256
+#define SCSI_DMA_BUF_SIZE           131072
+#define SCSI_MAX_INQUIRY_LEN        256
+#define SCSI_MAX_MODE_LEN           256
+
+#define DEFAULT_DISCARD_GRANULARITY 4096
 
 typedef struct SCSIDiskState SCSIDiskState;
 
@@ -85,9 +87,7 @@ static void scsi_free_request(SCSIRequest *req)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
 
-    if (r->iov.iov_base) {
-        qemu_vfree(r->iov.iov_base);
-    }
+    qemu_vfree(r->iov.iov_base);
 }
 
 /* Helper function for command completion with sense.  */
@@ -178,6 +178,9 @@ static void scsi_aio_complete(void *opaque, int ret)
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
     bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    if (r->req.io_canceled) {
+        goto done;
+    }
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
@@ -223,6 +226,10 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
+    if (r->req.io_canceled) {
+        goto done;
+    }
+
     if (scsi_is_cmd_fua(&r->req.cmd)) {
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
         r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
@@ -230,6 +237,8 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
     }
 
     scsi_req_complete(&r->req, GOOD);
+
+done:
     if (!r->req.io_canceled) {
         scsi_req_unref(&r->req);
     }
@@ -243,6 +252,9 @@ static void scsi_dma_complete(void *opaque, int ret)
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
     bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    if (r->req.io_canceled) {
+        goto done;
+    }
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
@@ -274,6 +286,9 @@ static void scsi_read_complete(void * opaque, int ret)
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
     bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    if (r->req.io_canceled) {
+        goto done;
+    }
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
@@ -305,15 +320,14 @@ static void scsi_do_read(void *opaque, int ret)
         r->req.aiocb = NULL;
         bdrv_acct_done(s->qdev.conf.bs, &r->acct);
     }
+    if (r->req.io_canceled) {
+        goto done;
+    }
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
             goto done;
         }
-    }
-
-    if (r->req.io_canceled) {
-        return;
     }
 
     /* The request is used as the AIO opaque value, so add a ref.  */
@@ -422,6 +436,9 @@ static void scsi_write_complete(void * opaque, int ret)
     if (r->req.aiocb != NULL) {
         r->req.aiocb = NULL;
         bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    }
+    if (r->req.io_canceled) {
+        goto done;
     }
 
     if (ret < 0) {
@@ -1478,13 +1495,17 @@ static void scsi_unmap_complete(void *opaque, int ret)
     uint32_t nb_sectors;
 
     r->req.aiocb = NULL;
+    if (r->req.io_canceled) {
+        goto done;
+    }
+
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
             goto done;
         }
     }
 
-    if (data->count > 0 && !r->req.io_canceled) {
+    if (data->count > 0) {
         sector_num = ldq_be_p(&data->inbuf[0]);
         nb_sectors = ldl_be_p(&data->inbuf[8]) & 0xffffffffULL;
         if (!check_lba_range(s, sector_num, nb_sectors)) {
@@ -1501,10 +1522,9 @@ static void scsi_unmap_complete(void *opaque, int ret)
         return;
     }
 
+    scsi_req_complete(&r->req, GOOD);
+
 done:
-    if (data->count == 0) {
-        scsi_req_complete(&r->req, GOOD);
-    }
     if (!r->req.io_canceled) {
         scsi_req_unref(&r->req);
     }
@@ -1682,7 +1702,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         bdrv_get_geometry(s->qdev.conf.bs, &nb_sectors);
         if (!nb_sectors) {
             scsi_check_condition(r, SENSE_CODE(LUN_NOT_READY));
-            return -1;
+            return 0;
         }
         if ((req->cmd.buf[8] & 1) == 0 && req->cmd.lba) {
             goto illegal_request;
@@ -1751,7 +1771,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
             bdrv_get_geometry(s->qdev.conf.bs, &nb_sectors);
             if (!nb_sectors) {
                 scsi_check_condition(r, SENSE_CODE(LUN_NOT_READY));
-                return -1;
+                return 0;
             }
             if ((req->cmd.buf[14] & 1) == 0 && req->cmd.lba) {
                 goto illegal_request;
@@ -2059,6 +2079,11 @@ static int scsi_initfn(SCSIDevice *dev)
     if (dev->type == TYPE_DISK
         && blkconf_geometry(&dev->conf, NULL, 65535, 255, 255) < 0) {
         return -1;
+    }
+
+    if (s->qdev.conf.discard_granularity == -1) {
+        s->qdev.conf.discard_granularity =
+            MAX(s->qdev.conf.logical_block_size, DEFAULT_DISCARD_GRANULARITY);
     }
 
     if (!s->version) {
@@ -2389,7 +2414,7 @@ static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
-static TypeInfo scsi_hd_info = {
+static const TypeInfo scsi_hd_info = {
     .name          = "scsi-hd",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDiskState),
@@ -2418,7 +2443,7 @@ static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
-static TypeInfo scsi_cd_info = {
+static const TypeInfo scsi_cd_info = {
     .name          = "scsi-cd",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDiskState),
@@ -2447,7 +2472,7 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
-static TypeInfo scsi_block_info = {
+static const TypeInfo scsi_block_info = {
     .name          = "scsi-block",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDiskState),
@@ -2481,7 +2506,7 @@ static void scsi_disk_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
-static TypeInfo scsi_disk_info = {
+static const TypeInfo scsi_disk_info = {
     .name          = "scsi-disk",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDiskState),

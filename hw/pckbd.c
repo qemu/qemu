@@ -21,10 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "isa.h"
-#include "pc.h"
-#include "ps2.h"
+#include "hw/hw.h"
+#include "hw/isa.h"
+#include "hw/pc.h"
+#include "hw/ps2.h"
 #include "sysemu/sysemu.h"
 
 /* debug PC keyboard */
@@ -512,7 +512,7 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_kbd_isa;
 }
 
-static TypeInfo i8042_info = {
+static const TypeInfo i8042_info = {
     .name          = "i8042",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAKBDState),

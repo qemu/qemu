@@ -18,10 +18,10 @@
 
 #ifndef NAND_IO
 
-# include "hw.h"
-# include "flash.h"
+# include "hw/hw.h"
+# include "hw/flash.h"
 # include "sysemu/blockdev.h"
-# include "sysbus.h"
+# include "hw/sysbus.h"
 #include "qemu/error-report.h"
 
 # define NAND_CMD_READ0		0x00
@@ -46,7 +46,7 @@
 # define NAND_IOSTATUS_PLANE1	(1 << 2)
 # define NAND_IOSTATUS_PLANE2	(1 << 3)
 # define NAND_IOSTATUS_PLANE3	(1 << 4)
-# define NAND_IOSTATUS_BUSY	(1 << 6)
+# define NAND_IOSTATUS_READY    (1 << 6)
 # define NAND_IOSTATUS_UNPROTCT	(1 << 7)
 
 # define MAX_PAGE		0x800
@@ -224,13 +224,14 @@ static const struct {
 
 static void nand_reset(DeviceState *dev)
 {
-    NANDFlashState *s = FROM_SYSBUS(NANDFlashState, sysbus_from_qdev(dev));
+    NANDFlashState *s = FROM_SYSBUS(NANDFlashState, SYS_BUS_DEVICE(dev));
     s->cmd = NAND_CMD_READ0;
     s->addr = 0;
     s->addrlen = 0;
     s->iolen = 0;
     s->offset = 0;
     s->status &= NAND_IOSTATUS_UNPROTCT;
+    s->status |= NAND_IOSTATUS_READY;
 }
 
 static inline void nand_pushio_byte(NANDFlashState *s, uint8_t value)
@@ -435,7 +436,7 @@ static void nand_class_init(ObjectClass *klass, void *data)
     dc->props = nand_properties;
 }
 
-static TypeInfo nand_info = {
+static const TypeInfo nand_info = {
     .name          = "nand",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(NANDFlashState),

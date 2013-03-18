@@ -36,13 +36,13 @@
  * It does not implement much more ...
  */
 
-#include "hw.h"
-#include "flash.h"
+#include "hw/hw.h"
+#include "hw/flash.h"
 #include "block/block.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 #define PFLASH_BUG(fmt, ...) \
 do { \
@@ -122,6 +122,12 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
             __func__, offset, pfl->cmd, width);
 #endif
     switch (pfl->cmd) {
+    default:
+        /* This should never happen : reset state & treat it as a read */
+        DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
+        pfl->wcycle = 0;
+        pfl->cmd = 0;
+        /* fall through to read code */
     case 0x00:
         /* Flash area read */
         p = pfl->storage;
@@ -162,7 +168,10 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
         }
 
         break;
+    case 0x10: /* Single byte program */
     case 0x20: /* Block erase */
+    case 0x28: /* Block erase */
+    case 0x40: /* single byte program */
     case 0x50: /* Clear status register */
     case 0x60: /* Block /un)lock */
     case 0x70: /* Status Register */
@@ -194,11 +203,6 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
         else
             ret = pfl->cfi_table[boff];
         break;
-    default:
-        /* This should never happen : reset state & treat it as a read */
-        DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
-        pfl->wcycle = 0;
-        pfl->cmd = 0;
     }
     return ret;
 }
@@ -319,6 +323,9 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
             DPRINTF("%s: Write to buffer\n", __func__);
             pfl->status |= 0x80; /* Ready! */
             break;
+        case 0xf0: /* Probe for AMD flash */
+            DPRINTF("%s: Probe for AMD flash\n", __func__);
+            goto reset_flash;
         case 0xff: /* Read array mode */
             DPRINTF("%s: Read array mode\n", __func__);
             goto reset_flash;
@@ -726,7 +733,7 @@ pflash_t *pflash_cfi01_register(hwaddr base,
                                 uint16_t id2, uint16_t id3, int be)
 {
     DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
-    SysBusDevice *busdev = sysbus_from_qdev(dev);
+    SysBusDevice *busdev = SYS_BUS_DEVICE(dev);
     pflash_t *pfl = (pflash_t *)object_dynamic_cast(OBJECT(dev),
                                                     "cfi.pflash01");
 

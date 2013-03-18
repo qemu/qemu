@@ -354,7 +354,6 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 #endif
 
 CPUArchState *cpu_copy(CPUArchState *env);
-CPUArchState *qemu_get_cpu(int cpu);
 
 #define CPU_DUMP_CODE 0x00010000
 #define CPU_DUMP_FPU 0x00020000 /* dump FPU register state, not just integer */
@@ -421,21 +420,6 @@ DECLARE_TLS(CPUArchState *,cpu_single_env);
      | CPU_INTERRUPT_TGT_EXT_2   \
      | CPU_INTERRUPT_TGT_EXT_3   \
      | CPU_INTERRUPT_TGT_EXT_4)
-
-#ifndef CONFIG_USER_ONLY
-typedef void (*CPUInterruptHandler)(CPUArchState *, int);
-
-extern CPUInterruptHandler cpu_interrupt_handler;
-
-static inline void cpu_interrupt(CPUArchState *s, int mask)
-{
-    cpu_interrupt_handler(s, mask);
-}
-#else /* USER_ONLY */
-void cpu_interrupt(CPUArchState *env, int mask);
-#endif /* USER_ONLY */
-
-void cpu_reset_interrupt(CPUArchState *env, int mask);
 
 void cpu_exit(CPUArchState *s);
 

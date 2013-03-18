@@ -31,9 +31,12 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt (CPUSH4State *env)
+void superh_cpu_do_interrupt(CPUState *cs)
 {
-  env->exception_index = -1;
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    CPUSH4State *env = &cpu->env;
+
+    env->exception_index = -1;
 }
 
 int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
@@ -78,9 +81,11 @@ int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 #define MMU_DADDR_ERROR_READ     (-12)
 #define MMU_DADDR_ERROR_WRITE    (-13)
 
-void do_interrupt(CPUSH4State * env)
+void superh_cpu_do_interrupt(CPUState *cs)
 {
-    int do_irq = env->interrupt_request & CPU_INTERRUPT_HARD;
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    CPUSH4State *env = &cpu->env;
+    int do_irq = cs->interrupt_request & CPU_INTERRUPT_HARD;
     int do_exp, irq_vector = env->exception_index;
 
     /* prioritize exceptions over interrupts */

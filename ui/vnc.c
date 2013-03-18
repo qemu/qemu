@@ -420,7 +420,6 @@ out_error:
 static int vnc_update_client(VncState *vs, int has_dirty);
 static int vnc_update_client_sync(VncState *vs, int has_dirty);
 static void vnc_disconnect_start(VncState *vs);
-static void vnc_disconnect_finish(VncState *vs);
 static void vnc_init_timer(VncDisplay *vd);
 static void vnc_remove_timer(VncDisplay *vd);
 
@@ -486,7 +485,7 @@ static int buffer_empty(Buffer *buffer)
     return buffer->offset == 0;
 }
 
-static uint8_t *buffer_end(Buffer *buffer)
+uint8_t *buffer_end(Buffer *buffer)
 {
     return buffer->buffer + buffer->offset;
 }
@@ -508,6 +507,13 @@ void buffer_append(Buffer *buffer, const void *data, size_t len)
 {
     memcpy(buffer->buffer + buffer->offset, data, len);
     buffer->offset += len;
+}
+
+void buffer_advance(Buffer *buf, size_t len)
+{
+    memmove(buf->buffer, buf->buffer + len,
+            (buf->offset - len));
+    buf->offset -= len;
 }
 
 static void vnc_desktop_resize(VncState *vs)
@@ -1016,7 +1022,7 @@ static void vnc_disconnect_start(VncState *vs)
     vs->csock = -1;
 }
 
-static void vnc_disconnect_finish(VncState *vs)
+void vnc_disconnect_finish(VncState *vs)
 {
     int i;
 
@@ -1027,6 +1033,10 @@ static void vnc_disconnect_finish(VncState *vs)
 
     buffer_free(&vs->input);
     buffer_free(&vs->output);
+#ifdef CONFIG_VNC_WS
+    buffer_free(&vs->ws_input);
+    buffer_free(&vs->ws_output);
+#endif /* CONFIG_VNC_WS */
 
     qobject_decref(vs->info);
 
@@ -1043,20 +1053,24 @@ static void vnc_disconnect_finish(VncState *vs)
     audio_del(vs);
     vnc_release_modifiers(vs);
 
-    QTAILQ_REMOVE(&vs->vd->clients, vs, next);
+    if (vs->initialized) {
+        QTAILQ_REMOVE(&vs->vd->clients, vs, next);
+        qemu_remove_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
+    }
 
     if (QTAILQ_EMPTY(&vs->vd->clients)) {
         dcl->idle = 1;
     }
 
-    qemu_remove_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
     vnc_remove_timer(vs->vd);
     if (vs->vd->lock_key_sync)
         qemu_remove_led_event_handler(vs->led);
     vnc_unlock_output(vs);
 
     qemu_mutex_destroy(&vs->output_mutex);
-    qemu_bh_delete(vs->bh);
+    if (vs->bh != NULL) {
+        qemu_bh_delete(vs->bh);
+    }
     buffer_free(&vs->jobs_buffer);
 
     for (i = 0; i < VNC_STAT_ROWS; ++i) {
@@ -1166,8 +1180,7 @@ static long vnc_client_write_plain(VncState *vs)
     if (!ret)
         return 0;
 
-    memmove(vs->output.buffer, vs->output.buffer + ret, (vs->output.offset - ret));
-    vs->output.offset -= ret;
+    buffer_advance(&vs->output, ret);
 
     if (vs->output.offset == 0) {
         qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
@@ -1193,7 +1206,16 @@ static void vnc_client_write_locked(void *opaque)
         vnc_client_write_sasl(vs);
     } else
 #endif /* CONFIG_VNC_SASL */
-        vnc_client_write_plain(vs);
+    {
+#ifdef CONFIG_VNC_WS
+        if (vs->encode_ws) {
+            vnc_client_write_ws(vs);
+        } else
+#endif /* CONFIG_VNC_WS */
+        {
+            vnc_client_write_plain(vs);
+        }
+    }
 }
 
 void vnc_client_write(void *opaque)
@@ -1201,7 +1223,11 @@ void vnc_client_write(void *opaque)
     VncState *vs = opaque;
 
     vnc_lock_output(vs);
-    if (vs->output.offset) {
+    if (vs->output.offset
+#ifdef CONFIG_VNC_WS
+            || vs->ws_output.offset
+#endif
+            ) {
         vnc_client_write_locked(opaque);
     } else if (vs->csock != -1) {
         qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
@@ -1295,7 +1321,21 @@ void vnc_client_read(void *opaque)
         ret = vnc_client_read_sasl(vs);
     else
 #endif /* CONFIG_VNC_SASL */
+#ifdef CONFIG_VNC_WS
+        if (vs->encode_ws) {
+            ret = vnc_client_read_ws(vs);
+            if (ret == -1) {
+                vnc_disconnect_start(vs);
+                return;
+            } else if (ret == -2) {
+                vnc_client_error(vs);
+                return;
+            }
+        } else
+#endif /* CONFIG_VNC_WS */
+        {
         ret = vnc_client_read_plain(vs);
+        }
     if (!ret) {
         if (vs->csock == -1)
             vnc_disconnect_finish(vs);
@@ -1313,8 +1353,7 @@ void vnc_client_read(void *opaque)
         }
 
         if (!ret) {
-            memmove(vs->input.buffer, vs->input.buffer + len, (vs->input.offset - len));
-            vs->input.offset -= len;
+            buffer_advance(&vs->input, len);
         } else {
             vs->read_handler_expect = ret;
         }
@@ -1367,7 +1406,11 @@ void vnc_write_u8(VncState *vs, uint8_t value)
 void vnc_flush(VncState *vs)
 {
     vnc_lock_output(vs);
-    if (vs->csock != -1 && vs->output.offset) {
+    if (vs->csock != -1 && (vs->output.offset
+#ifdef CONFIG_VNC_WS
+                || vs->ws_output.offset
+#endif
+                )) {
         vnc_client_write_locked(vs);
     }
     vnc_unlock_output(vs);
@@ -2657,7 +2700,7 @@ static void vnc_remove_timer(VncDisplay *vd)
     }
 }
 
-static void vnc_connect(VncDisplay *vd, int csock, int skipauth)
+static void vnc_connect(VncDisplay *vd, int csock, int skipauth, bool websocket)
 {
     VncState *vs = g_malloc0(sizeof(VncState));
     int i;
@@ -2684,13 +2727,35 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth)
     VNC_DEBUG("New client on socket %d\n", csock);
     dcl->idle = 0;
     socket_set_nonblock(vs->csock);
-    qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+#ifdef CONFIG_VNC_WS
+    if (websocket) {
+        vs->websocket = 1;
+        qemu_set_fd_handler2(vs->csock, NULL, vncws_handshake_read, NULL, vs);
+    } else
+#endif /* CONFIG_VNC_WS */
+    {
+        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+    }
 
     vnc_client_cache_addr(vs);
     vnc_qmp_event(vs, QEVENT_VNC_CONNECTED);
     vnc_set_share_mode(vs, VNC_SHARE_MODE_CONNECTING);
 
     vs->vd = vd;
+
+#ifdef CONFIG_VNC_WS
+    if (!vs->websocket)
+#endif
+    {
+        vnc_init_state(vs);
+    }
+}
+
+void vnc_init_state(VncState *vs)
+{
+    vs->initialized = true;
+    VncDisplay *vd = vs->vd;
+
     vs->ds = vd->ds;
     vs->last_x = -1;
     vs->last_y = -1;
@@ -2722,20 +2787,40 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth)
     /* vs might be free()ed here */
 }
 
-static void vnc_listen_read(void *opaque)
+static void vnc_listen_read(void *opaque, bool websocket)
 {
     VncDisplay *vs = opaque;
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
+    int csock;
 
     /* Catch-up */
     vga_hw_update();
+#ifdef CONFIG_VNC_WS
+    if (websocket) {
+        csock = qemu_accept(vs->lwebsock, (struct sockaddr *)&addr, &addrlen);
+    } else
+#endif /* CONFIG_VNC_WS */
+    {
+        csock = qemu_accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
+    }
 
-    int csock = qemu_accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
     if (csock != -1) {
-        vnc_connect(vs, csock, 0);
+        vnc_connect(vs, csock, 0, websocket);
     }
 }
+
+static void vnc_listen_regular_read(void *opaque)
+{
+    vnc_listen_read(opaque, 0);
+}
+
+#ifdef CONFIG_VNC_WS
+static void vnc_listen_websocket_read(void *opaque)
+{
+    vnc_listen_read(opaque, 1);
+}
+#endif /* CONFIG_VNC_WS */
 
 void vnc_display_init(DisplayState *ds)
 {
@@ -2748,6 +2833,9 @@ void vnc_display_init(DisplayState *ds)
     vnc_display = vs;
 
     vs->lsock = -1;
+#ifdef CONFIG_VNC_WS
+    vs->lwebsock = -1;
+#endif
 
     vs->ds = ds;
     QTAILQ_INIT(&vs->clients);
@@ -2789,6 +2877,15 @@ static void vnc_display_close(DisplayState *ds)
         close(vs->lsock);
         vs->lsock = -1;
     }
+#ifdef CONFIG_VNC_WS
+    g_free(vs->ws_display);
+    vs->ws_display = NULL;
+    if (vs->lwebsock != -1) {
+        qemu_set_fd_handler2(vs->lwebsock, NULL, NULL, NULL, NULL);
+        close(vs->lwebsock);
+        vs->lwebsock = -1;
+    }
+#endif /* CONFIG_VNC_WS */
     vs->auth = VNC_AUTH_INVALID;
 #ifdef CONFIG_VNC_TLS
     vs->subauth = VNC_AUTH_INVALID;
@@ -2910,6 +3007,36 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
         } else if (strncmp(options, "sasl", 4) == 0) {
             sasl = 1; /* Require SASL auth */
 #endif
+#ifdef CONFIG_VNC_WS
+        } else if (strncmp(options, "websocket", 9) == 0) {
+            char *start, *end;
+            vs->websocket = 1;
+
+            /* Check for 'websocket=<port>' */
+            start = strchr(options, '=');
+            end = strchr(options, ',');
+            if (start && (!end || (start < end))) {
+                int len = end ? end-(start+1) : strlen(start+1);
+                if (len < 6) {
+                    /* extract the host specification from display */
+                    char  *host = NULL, *port = NULL, *host_end = NULL;
+                    port = g_strndup(start + 1, len);
+
+                    /* ipv6 hosts have colons */
+                    end = strchr(display, ',');
+                    host_end = g_strrstr_len(display, end - display, ":");
+
+                    if (host_end) {
+                        host = g_strndup(display, host_end - display + 1);
+                    } else {
+                        host = g_strndup(":", 1);
+                    }
+                    vs->ws_display = g_strconcat(host, port, NULL);
+                    g_free(host);
+                    g_free(port);
+                }
+            }
+#endif /* CONFIG_VNC_WS */
 #ifdef CONFIG_VNC_TLS
         } else if (strncmp(options, "tls", 3) == 0) {
             tls = 1; /* Require TLS */
@@ -3068,6 +3195,9 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
         /* connect to viewer */
         int csock;
         vs->lsock = -1;
+#ifdef CONFIG_VNC_WS
+        vs->lwebsock = -1;
+#endif
         if (strncmp(display, "unix:", 5) == 0) {
             csock = unix_connect(display+5, errp);
         } else {
@@ -3076,7 +3206,7 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
         if (csock < 0) {
             goto fail;
         }
-        vnc_connect(vs, csock, 0);
+        vnc_connect(vs, csock, 0, 0);
     } else {
         /* listen for connects */
         char *dpy;
@@ -3087,25 +3217,56 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
         } else {
             vs->lsock = inet_listen(display, dpy, 256,
                                     SOCK_STREAM, 5900, errp);
-        }
-        if (vs->lsock < 0) {
-            g_free(dpy);
-            goto fail;
+            if (vs->lsock < 0) {
+                g_free(dpy);
+                goto fail;
+            }
+#ifdef CONFIG_VNC_WS
+            if (vs->websocket) {
+                if (vs->ws_display) {
+                    vs->lwebsock = inet_listen(vs->ws_display, NULL, 256,
+                        SOCK_STREAM, 0, errp);
+                } else {
+                    vs->lwebsock = inet_listen(vs->display, NULL, 256,
+                        SOCK_STREAM, 5700, errp);
+                }
+
+                if (vs->lwebsock < 0) {
+                    if (vs->lsock) {
+                        close(vs->lsock);
+                        vs->lsock = -1;
+                    }
+                    g_free(dpy);
+                    goto fail;
+                }
+            }
+#endif /* CONFIG_VNC_WS */
         }
         g_free(vs->display);
         vs->display = dpy;
-        qemu_set_fd_handler2(vs->lsock, NULL, vnc_listen_read, NULL, vs);
+        qemu_set_fd_handler2(vs->lsock, NULL,
+                vnc_listen_regular_read, NULL, vs);
+#ifdef CONFIG_VNC_WS
+        if (vs->websocket) {
+            qemu_set_fd_handler2(vs->lwebsock, NULL,
+                    vnc_listen_websocket_read, NULL, vs);
+        }
+#endif /* CONFIG_VNC_WS */
     }
     return;
 
 fail:
     g_free(vs->display);
     vs->display = NULL;
+#ifdef CONFIG_VNC_WS
+    g_free(vs->ws_display);
+    vs->ws_display = NULL;
+#endif /* CONFIG_VNC_WS */
 }
 
 void vnc_display_add_client(DisplayState *ds, int csock, int skipauth)
 {
     VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
 
-    vnc_connect(vs, csock, skipauth);
+    vnc_connect(vs, csock, skipauth, 0);
 }

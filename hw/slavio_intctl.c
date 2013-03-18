@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "sun4m.h"
+#include "hw/sun4m.h"
 #include "monitor/monitor.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 //#define DEBUG_IRQ_COUNT
@@ -210,7 +210,7 @@ void slavio_pic_info(Monitor *mon, DeviceState *dev)
     SLAVIO_INTCTLState *s;
     int i;
 
-    sd = sysbus_from_qdev(dev);
+    sd = SYS_BUS_DEVICE(dev);
     s = FROM_SYSBUS(SLAVIO_INTCTLState, sd);
     for (i = 0; i < MAX_CPUS; i++) {
         monitor_printf(mon, "per-cpu %d: pending 0x%08x\n", i,
@@ -230,7 +230,7 @@ void slavio_irq_info(Monitor *mon, DeviceState *dev)
     int i;
     int64_t count;
 
-    sd = sysbus_from_qdev(dev);
+    sd = SYS_BUS_DEVICE(dev);
     s = FROM_SYSBUS(SLAVIO_INTCTLState, sd);
     monitor_printf(mon, "IRQ statistics:\n");
     for (i = 0; i < 32; i++) {
@@ -456,7 +456,7 @@ static void slavio_intctl_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_intctl;
 }
 
-static TypeInfo slavio_intctl_info = {
+static const TypeInfo slavio_intctl_info = {
     .name          = "slavio_intctl",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_INTCTLState),

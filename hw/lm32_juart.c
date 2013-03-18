@@ -17,12 +17,12 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "char/char.h"
 
-#include "lm32_juart.h"
+#include "hw/lm32_juart.h"
 
 enum {
     LM32_JUART_MIN_SAVE_VERSION = 0,
@@ -144,7 +144,7 @@ static void lm32_juart_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_lm32_juart;
 }
 
-static TypeInfo lm32_juart_info = {
+static const TypeInfo lm32_juart_info = {
     .name          = "lm32-juart",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32JuartState),

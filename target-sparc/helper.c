@@ -225,3 +225,16 @@ target_ulong helper_tsubcctv(CPUSPARCState *env, target_ulong src1,
     cpu_restore_state(env, GETPC());
     helper_raise_exception(env, TT_TOVF);
 }
+
+#ifndef TARGET_SPARC64
+void helper_power_down(CPUSPARCState *env)
+{
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
+
+    cs->halted = 1;
+    env->exception_index = EXCP_HLT;
+    env->pc = env->npc;
+    env->npc = env->pc + 4;
+    cpu_loop_exit(env);
+}
+#endif

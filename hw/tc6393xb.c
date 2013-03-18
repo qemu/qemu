@@ -10,9 +10,9 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include "hw.h"
-#include "devices.h"
-#include "flash.h"
+#include "hw/hw.h"
+#include "hw/devices.h"
+#include "hw/flash.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "sysemu/blockdev.h"
@@ -421,15 +421,15 @@ static void tc6393xb_nand_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) 
 }
 
 #define BITS 8
-#include "tc6393xb_template.h"
+#include "hw/tc6393xb_template.h"
 #define BITS 15
-#include "tc6393xb_template.h"
+#include "hw/tc6393xb_template.h"
 #define BITS 16
-#include "tc6393xb_template.h"
+#include "hw/tc6393xb_template.h"
 #define BITS 24
-#include "tc6393xb_template.h"
+#include "hw/tc6393xb_template.h"
 #define BITS 32
-#include "tc6393xb_template.h"
+#include "hw/tc6393xb_template.h"
 
 static void tc6393xb_draw_graphic(TC6393xbState *s, int full_update)
 {

@@ -54,7 +54,7 @@ static uint32_t check_hw_breakpoints(CPUXtensaState *env)
     return 0;
 }
 
-static void breakpoint_handler(CPUXtensaState *env)
+void xtensa_breakpoint_handler(CPUXtensaState *env)
 {
     if (env->watchpoint_hit) {
         if (env->watchpoint_hit->flags & BP_CPU) {
@@ -72,8 +72,6 @@ static void breakpoint_handler(CPUXtensaState *env)
 
 XtensaCPU *cpu_xtensa_init(const char *cpu_model)
 {
-    static int tcg_inited;
-    static int debug_handler_inited;
     XtensaCPU *cpu;
     CPUXtensaState *env;
     const XtensaConfig *config = NULL;
@@ -93,18 +91,10 @@ XtensaCPU *cpu_xtensa_init(const char *cpu_model)
     env = &cpu->env;
     env->config = config;
 
-    if (!tcg_inited) {
-        tcg_inited = 1;
-        xtensa_translate_init();
-    }
-
-    if (!debug_handler_inited && tcg_enabled()) {
-        debug_handler_inited = 1;
-        cpu_set_debug_excp_handler(breakpoint_handler);
-    }
-
     xtensa_irq_init(env);
-    qemu_init_vcpu(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
     return cpu;
 }
 
@@ -188,8 +178,11 @@ static void handle_interrupt(CPUXtensaState *env)
     }
 }
 
-void do_interrupt(CPUXtensaState *env)
+void xtensa_cpu_do_interrupt(CPUState *cs)
 {
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
+
     if (env->exception_index == EXC_IRQ) {
         qemu_log_mask(CPU_LOG_INT,
                 "%s(EXC_IRQ) level = %d, cintlevel = %d, "

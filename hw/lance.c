@@ -35,12 +35,12 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "net/net.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
-#include "sun4m.h"
-#include "pcnet.h"
+#include "hw/sun4m.h"
+#include "hw/pcnet.h"
 #include "trace.h"
 
 typedef struct {
@@ -87,7 +87,7 @@ static const MemoryRegionOps lance_mem_ops = {
 
 static void lance_cleanup(NetClientState *nc)
 {
-    PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
+    PCNetState *d = qemu_get_nic_opaque(nc);
 
     pcnet_common_cleanup(d);
 }
@@ -155,7 +155,7 @@ static void lance_class_init(ObjectClass *klass, void *data)
     dc->props = lance_properties;
 }
 
-static TypeInfo lance_info = {
+static const TypeInfo lance_info = {
     .name          = "lance",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusPCNetState),

@@ -133,8 +133,6 @@ int uc32_cpu_signal_handler(int host_signum, void *pinfo, void *puc);
 int uc32_cpu_handle_mmu_fault(CPUUniCore32State *env, target_ulong address, int rw,
                               int mmu_idx);
 
-#define CPU_SAVE_VERSION 2
-
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user
@@ -178,14 +176,11 @@ static inline void cpu_get_tb_cpu_state(CPUUniCore32State *env, target_ulong *pc
 }
 
 void uc32_translate_init(void);
-void do_interrupt(CPUUniCore32State *);
 void switch_mode(CPUUniCore32State *, int);
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUUniCore32State *env = &UNICORE32_CPU(cpu)->env;
-
-    return env->interrupt_request &
+    return cpu->interrupt_request &
         (CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
 }
 

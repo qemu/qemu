@@ -1,6 +1,6 @@
-#include "hw.h"
-#include "sh.h"
-#include "loader.h"
+#include "hw/hw.h"
+#include "hw/sh.h"
+#include "hw/loader.h"
 
 #define CE1  0x0100
 #define CE2  0x0200

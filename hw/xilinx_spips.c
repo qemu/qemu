@@ -22,12 +22,12 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 #include "qemu/log.h"
-#include "fifo.h"
-#include "ssi.h"
+#include "qemu/fifo8.h"
+#include "hw/ssi.h"
 #include "qemu/bitops.h"
 
 #ifdef XILINX_SPIPS_ERR_DEBUG

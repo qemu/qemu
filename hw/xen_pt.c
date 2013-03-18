@@ -54,10 +54,10 @@
 
 #include <sys/ioctl.h>
 
-#include "pci/pci.h"
-#include "xen.h"
-#include "xen_backend.h"
-#include "xen_pt.h"
+#include "hw/pci/pci.h"
+#include "hw/xen.h"
+#include "hw/xen_backend.h"
+#include "hw/xen_pt.h"
 #include "qemu/range.h"
 #include "exec/address-spaces.h"
 
@@ -829,7 +829,7 @@ static void xen_pci_passthrough_class_init(ObjectClass *klass, void *data)
     dc->props = xen_pci_passthrough_properties;
 };
 
-static TypeInfo xen_pci_passthrough_info = {
+static const TypeInfo xen_pci_passthrough_info = {
     .name = "xen-pci-passthrough",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XenPCIPassthroughState),

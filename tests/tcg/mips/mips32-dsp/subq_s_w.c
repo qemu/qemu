@@ -12,7 +12,8 @@ int main()
     resultdsp = 0x01;
 
     __asm
-        ("subq_s.w %0, %2, %3\n\t"
+        ("wrdsp $0\n\t"
+         "subq_s.w %0, %2, %3\n\t"
          "rddsp %1\n\t"
          : "=r"(rd), "=r"(dsp)
          : "r"(rs), "r"(rt)
@@ -24,10 +25,11 @@ int main()
     rs = 0x66666;
     rt = 0x55555;
     result    = 0x11111;
-    resultdsp = 0x01;
+    resultdsp = 0x0;
 
     __asm
-        ("subq_s.w %0, %2, %3\n\t"
+        ("wrdsp $0\n\t"
+         "subq_s.w %0, %2, %3\n\t"
          "rddsp %1\n\t"
          : "=r"(rd), "=r"(dsp)
          : "r"(rs), "r"(rt)
@@ -36,23 +38,37 @@ int main()
     assert(dsp == resultdsp);
     assert(rd  == result);
 
-
-#if 0
-    rs = 0x35555555;
-    rt = 0xf5555555;
-    result    = 0x80000000;
+    rs = 0x0;
+    rt = 0x80000000;
+    result    = 0x7FFFFFFF;
     resultdsp = 0x01;
 
     __asm
-        ("subq_s.w %0, %2, %3\n\t"
+        ("wrdsp $0\n\t"
+         "subq_s.w %0, %2, %3\n\t"
          "rddsp %1\n\t"
          : "=r"(rd), "=r"(dsp)
          : "r"(rs), "r"(rt)
         );
-
     dsp = (dsp >> 20) & 0x01;
     assert(dsp == resultdsp);
     assert(rd  == result);
-#endif
+
+    rs = 0x80000000;
+    rt = 0x80000000;
+    result    = 0;
+    resultdsp = 0x00;
+
+    __asm
+        ("wrdsp $0\n\t"
+         "subq_s.w %0, %2, %3\n\t"
+         "rddsp %1\n\t"
+         : "=r"(rd), "=r"(dsp)
+         : "r"(rs), "r"(rt)
+        );
+    dsp = (dsp >> 20) & 0x01;
+    assert(dsp == resultdsp);
+    assert(rd  == result);
+
     return 0;
 }

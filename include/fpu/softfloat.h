@@ -237,6 +237,7 @@ float64 int64_to_float64( int64 STATUS_PARAM );
 float64 uint64_to_float64( uint64 STATUS_PARAM );
 floatx80 int64_to_floatx80( int64 STATUS_PARAM );
 float128 int64_to_float128( int64 STATUS_PARAM );
+float128 uint64_to_float128( uint64 STATUS_PARAM );
 
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.
@@ -629,6 +630,8 @@ INLINE int float128_is_any_nan(float128 a)
     return ((a.high >> 48) & 0x7fff) == 0x7fff &&
         ((a.low != 0) || ((a.high & 0xffffffffffffLL) != 0));
 }
+
+#define float128_zero make_float128(0, 0)
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated quadruple-precision NaN.

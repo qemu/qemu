@@ -20,9 +20,9 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "apm.h"
-#include "hw.h"
-#include "pci/pci.h"
+#include "hw/apm.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
 
 //#define DEBUG
 

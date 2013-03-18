@@ -104,6 +104,7 @@ bool qemu_in_coroutine(void);
  */
 typedef struct CoQueue {
     QTAILQ_HEAD(, Coroutine) entries;
+    AioContext *ctx;
 } CoQueue;
 
 /**

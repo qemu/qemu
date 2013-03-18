@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 //#define DEBUG_IRQ
 
@@ -141,7 +141,7 @@ static void sbi_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_sbi;
 }
 
-static TypeInfo sbi_info = {
+static const TypeInfo sbi_info = {
     .name          = "sbi",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SBIState),

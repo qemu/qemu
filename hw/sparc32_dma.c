@@ -25,10 +25,10 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "sparc32_dma.h"
-#include "sun4m.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sparc32_dma.h"
+#include "hw/sun4m.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 /*
@@ -300,7 +300,7 @@ static void sparc32_dma_class_init(ObjectClass *klass, void *data)
     dc->props = sparc32_dma_properties;
 }
 
-static TypeInfo sparc32_dma_info = {
+static const TypeInfo sparc32_dma_info = {
     .name          = "sparc32_dma",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(DMAState),

@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "pc.h"
-#include "isa.h"
-#include "qdev.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/isa.h"
+#include "hw/qdev.h"
 #include "net/net.h"
-#include "ne2000.h"
+#include "hw/ne2000.h"
 #include "exec/address-spaces.h"
 
 typedef struct ISANE2000State {
@@ -38,7 +38,7 @@ typedef struct ISANE2000State {
 
 static void isa_ne2000_cleanup(NetClientState *nc)
 {
-    NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    NE2000State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -77,7 +77,7 @@ static int isa_ne2000_initfn(ISADevice *dev)
 
     s->nic = qemu_new_nic(&net_ne2000_isa_info, &s->c,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 
     return 0;
 }
@@ -97,7 +97,7 @@ static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
     dc->props = ne2000_isa_properties;
 }
 
-static TypeInfo ne2000_isa_info = {
+static const TypeInfo ne2000_isa_info = {
     .name          = "ne2k_isa",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISANE2000State),

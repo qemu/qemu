@@ -21,10 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "sysbus.h"
-#include "sh.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
+#include "hw/sysbus.h"
+#include "hw/sh.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "qemu/bswap.h"
 #include "exec/address-spaces.h"
 
@@ -156,7 +156,7 @@ static void sh_pci_host_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_HITACHI_SH7751R;
 }
 
-static TypeInfo sh_pci_host_info = {
+static const TypeInfo sh_pci_host_info = {
     .name          = "sh_pci_host",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -170,7 +170,7 @@ static void sh_pci_device_class_init(ObjectClass *klass, void *data)
     sdc->init = sh_pci_device_init;
 }
 
-static TypeInfo sh_pci_device_info = {
+static const TypeInfo sh_pci_device_info = {
     .name          = "sh_pci",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SHPCIState),

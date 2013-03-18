@@ -1,8 +1,8 @@
 #ifndef HW_IDE_H
 #define HW_IDE_H
 
-#include "isa.h"
-#include "pci/pci.h"
+#include "hw/isa.h"
+#include "hw/pci/pci.h"
 #include "exec/memory.h"
 
 #define MAX_IDE_DEVS	2
@@ -19,15 +19,8 @@ PCIDevice *pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 PCIDevice *pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 void vt82c686b_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 
-/* ide-macio.c */
-MemoryRegion *pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
-		   void *dbdma, int channel, qemu_irq dma_irq);
-
 /* ide-mmio.c */
-void mmio_ide_init (hwaddr membase, hwaddr membase2,
-                    MemoryRegion *address_space,
-                    qemu_irq irq, int shift,
-                    DriveInfo *hd0, DriveInfo *hd1);
+void mmio_ide_init_drives(DeviceState *dev, DriveInfo *hd0, DriveInfo *hd1);
 
 int ide_get_geometry(BusState *bus, int unit,
                      int16_t *cyls, int8_t *heads, int8_t *secs);

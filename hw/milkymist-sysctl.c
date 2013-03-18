@@ -21,12 +21,12 @@
  *   http://www.milkymist.org/socdoc/sysctl.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 #include "qemu/error-report.h"
 
 enum {
@@ -323,7 +323,7 @@ static void milkymist_sysctl_class_init(ObjectClass *klass, void *data)
     dc->props = milkymist_sysctl_properties;
 }
 
-static TypeInfo milkymist_sysctl_info = {
+static const TypeInfo milkymist_sysctl_info = {
     .name          = "milkymist-sysctl",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistSysctlState),

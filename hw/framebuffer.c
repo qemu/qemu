@@ -17,9 +17,9 @@
    - Remove all DisplayState knowledge from devices.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
-#include "framebuffer.h"
+#include "hw/framebuffer.h"
 
 /* Render an image from a shared memory framebuffer.  */
    

@@ -776,6 +776,7 @@ static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
         break;
     }
 }
+#endif
 
 static void tcg_out_addsub2(TCGContext *s, TCGArg rl, TCGArg rh,
                             TCGArg al, TCGArg ah, TCGArg bl, int blconst,
@@ -792,7 +793,6 @@ static void tcg_out_addsub2(TCGContext *s, TCGArg rl, TCGArg rh,
     tcg_out_arithc(s, rh, ah, bh, bhconst, oph);
     tcg_out_mov(s, TCG_TYPE_I32, rl, tmp);
 }
-#endif
 
 /* Generate global QEMU prologue and epilogue code */
 static void tcg_target_qemu_prologue(TCGContext *s)
@@ -1327,6 +1327,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                              args[3], const_args[3],
                              args[4], const_args[4]);
         break;
+#endif
+
     case INDEX_op_add2_i32:
         tcg_out_addsub2(s, args[0], args[1], args[2], args[3],
                         args[4], const_args[4], args[5], const_args[5],
@@ -1342,7 +1344,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                        ARITH_UMUL);
         tcg_out_rdy(s, args[1]);
         break;
-#endif
 
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
@@ -1511,10 +1512,11 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 #if TCG_TARGET_REG_BITS == 32
     { INDEX_op_brcond2_i32, { "rZ", "rZ", "rJ", "rJ" } },
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rJ", "rJ" } },
+#endif
+
     { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
     { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
     { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rJ" } },
-#endif
 
 #if TCG_TARGET_REG_BITS == 64
     { INDEX_op_mov_i64, { "r", "r" } },

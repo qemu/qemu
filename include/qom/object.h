@@ -65,7 +65,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     int reg0, reg1, reg2;
  * } MyDevice;
  *
- * static TypeInfo my_device_info = {
+ * static const TypeInfo my_device_info = {
  *     .name = TYPE_MY_DEVICE,
  *     .parent = TYPE_DEVICE,
  *     .instance_size = sizeof(MyDevice),
@@ -138,7 +138,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     dc->reset = my_device_reset;
  * }
  *
- * static TypeInfo my_device_info = {
+ * static const TypeInfo my_device_info = {
  *     .name = TYPE_MY_DEVICE,
  *     .parent = TYPE_DEVICE,
  *     .instance_size = sizeof(MyDevice),
@@ -147,9 +147,9 @@ typedef struct InterfaceInfo InterfaceInfo;
  *   </programlisting>
  * </example>
  *
- * Introducing new virtual functions requires a class to define its own
- * struct and to add a .class_size member to the TypeInfo.  Each function
- * will also have a wrapper to call it easily:
+ * Introducing new virtual methods requires a class to define its own
+ * struct and to add a .class_size member to the #TypeInfo.  Each method
+ * will also have a wrapper function to call it easily:
  *
  * <example>
  *   <title>Defining an abstract class</title>
@@ -163,7 +163,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     void (*frobnicate) (MyDevice *obj);
  * } MyDeviceClass;
  *
- * static TypeInfo my_device_info = {
+ * static const TypeInfo my_device_info = {
  *     .name = TYPE_MY_DEVICE,
  *     .parent = TYPE_DEVICE,
  *     .instance_size = sizeof(MyDevice),
@@ -186,6 +186,104 @@ typedef struct InterfaceInfo InterfaceInfo;
  * similar to normal types except for the fact that are only defined by
  * their classes and never carry any state.  You can dynamically cast an object
  * to one of its #Interface types and vice versa.
+ *
+ * # Methods #
+ *
+ * A <emphasis>method</emphasis> is a function within the namespace scope of
+ * a class. It usually operates on the object instance by passing it as a
+ * strongly-typed first argument.
+ * If it does not operate on an object instance, it is dubbed
+ * <emphasis>class method</emphasis>.
+ *
+ * Methods cannot be overloaded. That is, the #ObjectClass and method name
+ * uniquely identity the function to be called; the signature does not vary
+ * except for trailing varargs.
+ *
+ * Methods are always <emphasis>virtual</emphasis>. Overriding a method in
+ * #TypeInfo.class_init of a subclass leads to any user of the class obtained
+ * via OBJECT_GET_CLASS() accessing the overridden function.
+ * The original function is not automatically invoked. It is the responsability
+ * of the overriding class to determine whether and when to invoke the method
+ * being overridden.
+ *
+ * To invoke the method being overridden, the preferred solution is to store
+ * the original value in the overriding class before overriding the method.
+ * This corresponds to |[ {super,base}.method(...) ]| in Java and C#
+ * respectively; this frees the overriding class from hardcoding its parent
+ * class, which someone might choose to change at some point.
+ *
+ * <example>
+ *   <title>Overriding a virtual method</title>
+ *   <programlisting>
+ * typedef struct MyState MyState;
+ *
+ * typedef void (*MyDoSomething)(MyState *obj);
+ *
+ * typedef struct MyClass {
+ *     ObjectClass parent_class;
+ *
+ *     MyDoSomething do_something;
+ * } MyClass;
+ *
+ * static void my_do_something(MyState *obj)
+ * {
+ *     // do something
+ * }
+ *
+ * static void my_class_init(ObjectClass *oc, void *data)
+ * {
+ *     MyClass *mc = MY_CLASS(oc);
+ *
+ *     mc->do_something = my_do_something;
+ * }
+ *
+ * static const TypeInfo my_type_info = {
+ *     .name = TYPE_MY,
+ *     .parent = TYPE_OBJECT,
+ *     .instance_size = sizeof(MyState),
+ *     .class_size = sizeof(MyClass),
+ *     .class_init = my_class_init,
+ * };
+ *
+ * typedef struct DerivedClass {
+ *     MyClass parent_class;
+ *
+ *     MyDoSomething parent_do_something;
+ * } MyClass;
+ *
+ * static void derived_do_something(MyState *obj)
+ * {
+ *     DerivedClass *dc = DERIVED_GET_CLASS(obj);
+ *
+ *     // do something here
+ *     dc->parent_do_something(obj);
+ *     // do something else here
+ * }
+ *
+ * static void derived_class_init(ObjectClass *oc, void *data)
+ * {
+ *     MyClass *mc = MY_CLASS(oc);
+ *     DerivedClass *dc = DERIVED_CLASS(oc);
+ *
+ *     dc->parent_do_something = mc->do_something;
+ *     mc->do_something = derived_do_something;
+ * }
+ *
+ * static const TypeInfo derived_type_info = {
+ *     .name = TYPE_DERIVED,
+ *     .parent = TYPE_MY,
+ *     .class_size = sizeof(DerivedClass),
+ *     .class_init = my_class_init,
+ * };
+ *   </programlisting>
+ * </example>
+ *
+ * Alternatively, object_class_by_name() can be used to obtain the class and
+ * its non-overridden methods for a specific type. This would correspond to
+ * |[ MyClass::method(...) ]| in C++.
+ *
+ * The first example of such a QOM method was #CPUClass.reset,
+ * another example is #DeviceClass.realize.
  */
 
 
@@ -455,9 +553,9 @@ struct InterfaceClass
  * object_new:
  * @typename: The name of the type of the object to instantiate.
  *
- * This function will initialize a new object using heap allocated memory.  This
- * function should be paired with object_delete() to free the resources
- * associated with the object.
+ * This function will initialize a new object using heap allocated memory.
+ * The returned object has a reference count of 1, and will be freed when
+ * the last reference is dropped.
  *
  * Returns: The newly allocated and instantiated object.
  */
@@ -467,22 +565,13 @@ Object *object_new(const char *typename);
  * object_new_with_type:
  * @type: The type of the object to instantiate.
  *
- * This function will initialize a new object using heap allocated memory.  This
- * function should be paired with object_delete() to free the resources
- * associated with the object.
+ * This function will initialize a new object using heap allocated memory.
+ * The returned object has a reference count of 1, and will be freed when
+ * the last reference is dropped.
  *
  * Returns: The newly allocated and instantiated object.
  */
 Object *object_new_with_type(Type type);
-
-/**
- * object_delete:
- * @obj: The object to free.
- *
- * Finalize an object and then free the memory associated with it.  This should
- * be paired with object_new() to free the resources associated with an object.
- */
-void object_delete(Object *obj);
 
 /**
  * object_initialize_with_type:
@@ -490,7 +579,8 @@ void object_delete(Object *obj);
  * @type: The type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
- * have already been allocated.
+ * have already been allocated.  The returned object has a reference count of 1,
+ * and will be finalized when the last reference is dropped.
  */
 void object_initialize_with_type(void *data, Type type);
 
@@ -500,7 +590,8 @@ void object_initialize_with_type(void *data, Type type);
  * @typename: The name of the type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
- * have already been allocated.
+ * have already been allocated.  The returned object has a reference count of 1,
+ * and will be finalized when the last reference is dropped.
  */
 void object_initialize(void *obj, const char *typename);
 
@@ -591,6 +682,14 @@ ObjectClass *object_class_get_parent(ObjectClass *klass);
  * Returns: The QOM typename for @klass.
  */
 const char *object_class_get_name(ObjectClass *klass);
+
+/**
+ * object_class_is_abstract:
+ * @klass: The class to obtain the abstractness for.
+ *
+ * Returns: %true if @klass is abstract, %false otherwise.
+ */
+bool object_class_is_abstract(ObjectClass *klass);
 
 /**
  * object_class_by_name:
@@ -900,7 +999,7 @@ Object *object_resolve_path_type(const char *path, const char *typename,
  *
  * Returns: The resolved object or NULL on path lookup failure.
  */
-Object *object_resolve_path_component(Object *parent, gchar *part);
+Object *object_resolve_path_component(Object *parent, const gchar *part);
 
 /**
  * object_property_add_child:
@@ -935,6 +1034,11 @@ void object_property_add_child(Object *obj, const char *name,
  * between objects.
  *
  * Links form the graph in the object model.
+ *
+ * Ownership of the pointer that @child points to is transferred to the
+ * link property.  The reference count for <code>*@child</code> is
+ * managed by the property from after the function returns till the
+ * property is deleted with object_property_del().
  */
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,

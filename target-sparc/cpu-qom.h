@@ -38,6 +38,7 @@
 
 /**
  * SPARCCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * A SPARC CPU model.
@@ -47,6 +48,7 @@ typedef struct SPARCCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } SPARCCPUClass;
 
@@ -71,5 +73,8 @@ static inline SPARCCPU *sparc_env_get_cpu(CPUSPARCState *env)
 
 #define ENV_GET_CPU(e) CPU(sparc_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(SPARCCPU, env)
+
+void sparc_cpu_do_interrupt(CPUState *cpu);
 
 #endif

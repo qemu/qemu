@@ -54,14 +54,15 @@ typedef struct FWCfgFiles {
 typedef void (*FWCfgCallback)(void *opaque, uint8_t *data);
 
 typedef struct FWCfgState FWCfgState;
-int fw_cfg_add_bytes(FWCfgState *s, uint16_t key, uint8_t *data, uint32_t len);
-int fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value);
-int fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value);
-int fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value);
-int fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
-                        void *callback_opaque, uint8_t *data, size_t len);
-int fw_cfg_add_file(FWCfgState *s, const char *filename, uint8_t *data,
-                    uint32_t len);
+void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len);
+void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value);
+void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value);
+void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value);
+void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value);
+void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
+                         void *callback_opaque, void *data, size_t len);
+void fw_cfg_add_file(FWCfgState *s, const char *filename, void *data,
+                     size_t len);
 FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
                         hwaddr crl_addr, hwaddr data_addr);
 

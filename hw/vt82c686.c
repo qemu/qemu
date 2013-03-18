@@ -10,24 +10,22 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "pc.h"
-#include "vt82c686.h"
-#include "i2c.h"
-#include "smbus.h"
-#include "pci/pci.h"
-#include "isa.h"
-#include "sysbus.h"
-#include "mips.h"
-#include "apm.h"
-#include "acpi.h"
-#include "pm_smbus.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/vt82c686.h"
+#include "hw/i2c.h"
+#include "hw/smbus.h"
+#include "hw/pci/pci.h"
+#include "hw/isa.h"
+#include "hw/sysbus.h"
+#include "hw/mips.h"
+#include "hw/apm.h"
+#include "hw/acpi.h"
+#include "hw/pm_smbus.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 
-typedef uint32_t pci_addr_t;
-#include "pci/pci_host.h"
 //#define DEBUG_VT82C686B
 
 #ifdef DEBUG_VT82C686B
@@ -284,7 +282,7 @@ static void via_ac97_class_init(ObjectClass *klass, void *data)
     dc->desc = "AC97";
 }
 
-static TypeInfo via_ac97_info = {
+static const TypeInfo via_ac97_info = {
     .name          = "VT82C686B_AC97",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT686AC97State),
@@ -325,7 +323,7 @@ static void via_mc97_class_init(ObjectClass *klass, void *data)
     dc->desc = "MC97";
 }
 
-static TypeInfo via_mc97_info = {
+static const TypeInfo via_mc97_info = {
     .name          = "VT82C686B_MC97",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT686MC97State),
@@ -404,7 +402,7 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
     dc->props = via_pm_properties;
 }
 
-static TypeInfo via_pm_info = {
+static const TypeInfo via_pm_info = {
     .name          = "VT82C686B_PM",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT686PMState),
@@ -471,7 +469,7 @@ static void via_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_via;
 }
 
-static TypeInfo via_info = {
+static const TypeInfo via_info = {
     .name          = "VT82C686B",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT82C686BState),

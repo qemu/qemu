@@ -417,6 +417,90 @@ static SpiceChannelList *qmp_query_spice_channels(void)
     return head;
 }
 
+static QemuOptsList qemu_spice_opts = {
+    .name = "spice",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_spice_opts.head),
+    .desc = {
+        {
+            .name = "port",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "tls-port",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "addr",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "ipv4",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "ipv6",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "password",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "disable-ticketing",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "disable-copy-paste",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "sasl",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "x509-dir",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-key-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-key-password",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-cert-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-cacert-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-dh-key-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "tls-ciphers",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "tls-channel",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "plaintext-channel",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "image-compression",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "jpeg-wan-compression",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "zlib-glz-wan-compression",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "streaming-video",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "agent-mouse",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "playback-compression",
+            .type = QEMU_OPT_BOOL,
+        }, {
+            .name = "seamless-migration",
+            .type = QEMU_OPT_BOOL,
+        },
+        { /* end of list */ }
+    },
+};
+
 SpiceInfo *qmp_query_spice(Error **errp)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
@@ -709,7 +793,7 @@ void qemu_spice_init(void)
     qemu_spice_input_init();
     qemu_spice_audio_init();
 
-    qemu_add_vm_change_state_handler(vm_change_state_handler, &spice_server);
+    qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
 
     g_free(x509_key_file);
     g_free(x509_cert_file);
@@ -736,8 +820,7 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
          */
         spice_server = spice_server_new();
         spice_server_init(spice_server, &core_interface);
-        qemu_add_vm_change_state_handler(vm_change_state_handler,
-                                         &spice_server);
+        qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
     }
 
     return spice_server_add_interface(spice_server, sin);
@@ -765,8 +848,8 @@ static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn)
 int qemu_spice_set_passwd(const char *passwd,
                           bool fail_if_conn, bool disconnect_if_conn)
 {
-    free(auth_passwd);
-    auth_passwd = strdup(passwd);
+    g_free(auth_passwd);
+    auth_passwd = g_strdup(passwd);
     return qemu_spice_set_ticket(fail_if_conn, disconnect_if_conn);
 }
 

@@ -25,9 +25,9 @@
 #ifndef QEMU_I8254_INTERNAL_H
 #define QEMU_I8254_INTERNAL_H
 
-#include "hw.h"
-#include "pc.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/isa.h"
 
 typedef struct PITChannelState {
     int count; /* can be 65536 */

@@ -25,8 +25,8 @@
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
-#include "sysbus.h"
-#include "qdev-addr.h"
+#include "hw/sysbus.h"
+#include "hw/qdev-addr.h"
 
 #define MAXX 1024
 #define MAXY 768
@@ -716,7 +716,7 @@ static void tcx_class_init(ObjectClass *klass, void *data)
     dc->props = tcx_properties;
 }
 
-static TypeInfo tcx_info = {
+static const TypeInfo tcx_info = {
     .name          = "SUNW,tcx",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TCXState),

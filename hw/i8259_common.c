@@ -22,8 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "pc.h"
-#include "i8259_internal.h"
+#include "hw/pc.h"
+#include "hw/i8259_internal.h"
 
 void pic_reset_common(PICCommonState *s)
 {
@@ -144,7 +144,7 @@ static void pic_common_class_init(ObjectClass *klass, void *data)
     ic->init = pic_init_common;
 }
 
-static TypeInfo pic_common_type = {
+static const TypeInfo pic_common_type = {
     .name = TYPE_PIC_COMMON,
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PICCommonState),

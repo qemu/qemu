@@ -43,6 +43,7 @@
 
 /**
  * XtensaCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * An Xtensa CPU model.
@@ -52,6 +53,7 @@ typedef struct XtensaCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } XtensaCPUClass;
 
@@ -76,5 +78,8 @@ static inline XtensaCPU *xtensa_env_get_cpu(const CPUXtensaState *env)
 
 #define ENV_GET_CPU(e) CPU(xtensa_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(XtensaCPU, env)
+
+void xtensa_cpu_do_interrupt(CPUState *cpu);
 
 #endif

@@ -3,4 +3,3 @@ obj-y += core-dc232b.o
 obj-y += core-dc233c.o
 obj-y += core-fsf.o
 obj-y += translate.o op_helper.o helper.o cpu.o
-obj-$(CONFIG_SOFTMMU) += machine.o

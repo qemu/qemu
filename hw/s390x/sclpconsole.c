@@ -14,9 +14,10 @@
 
 #include <hw/qdev.h>
 #include "qemu/thread.h"
+#include "qemu/error-report.h"
 
-#include "sclp.h"
-#include "event-facility.h"
+#include "hw/s390x/sclp.h"
+#include "hw/s390x/event-facility.h"
 #include "char/char.h"
 
 typedef struct ASCIIConsoleData {
@@ -44,12 +45,9 @@ typedef struct SCLPConsole {
 /* Return number of bytes that fit into iov buffer */
 static int chr_can_read(void *opaque)
 {
-    int can_read;
     SCLPConsole *scon = opaque;
 
-    can_read = SIZE_BUFFER_VT220 - scon->iov_data_len;
-
-    return can_read;
+    return scon->iov ? SIZE_BUFFER_VT220 - scon->iov_data_len : 0;
 }
 
 /* Receive n bytes from character layer, save in iov buffer,
@@ -291,7 +289,7 @@ static void console_class_init(ObjectClass *klass, void *data)
     ec->write_event_data = write_event_data;
 }
 
-static TypeInfo sclp_console_info = {
+static const TypeInfo sclp_console_info = {
     .name          = "sclpconsole",
     .parent        = TYPE_SCLP_EVENT,
     .instance_size = sizeof(SCLPConsole),

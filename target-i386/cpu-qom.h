@@ -39,6 +39,7 @@
 
 /**
  * X86CPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * An x86 CPU model or family.
@@ -48,6 +49,7 @@ typedef struct X86CPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } X86CPUClass;
 
@@ -72,8 +74,16 @@ static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
 
 #define ENV_GET_CPU(e) CPU(x86_env_get_cpu(e))
 
-/* TODO Drop once ObjectClass::realize is available */
-void x86_cpu_realize(Object *obj, Error **errp);
+#define ENV_OFFSET offsetof(X86CPU, env)
 
+#ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_x86_cpu;
+#endif
+
+/**
+ * x86_cpu_do_interrupt:
+ * @cpu: vCPU the interrupt is to be handled by.
+ */
+void x86_cpu_do_interrupt(CPUState *cpu);
 
 #endif

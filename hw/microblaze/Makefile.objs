@@ -1,10 +1,9 @@
-obj-y = petalogix_s3adsp1800_mmu.o
-obj-y += petalogix_ml605_mmu.o
-obj-y += microblaze_boot.o
 obj-y += xilinx_spi.o
-
-obj-y += microblaze_pic_cpu.o
 obj-y += xilinx_ethlite.o
-obj-$(CONFIG_FDT) += ../device_tree.o
 
 obj-y := $(addprefix ../,$(obj-y))
+
+obj-y += petalogix_s3adsp1800_mmu.o
+obj-y += petalogix_ml605_mmu.o
+obj-y += boot.o
+obj-y += pic_cpu.o

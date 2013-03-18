@@ -21,8 +21,8 @@
  *   http://www.milkymist.org/socdoc/uart.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "char/char.h"
 #include "qemu/error-report.h"
@@ -228,7 +228,7 @@ static void milkymist_uart_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_milkymist_uart;
 }
 
-static TypeInfo milkymist_uart_info = {
+static const TypeInfo milkymist_uart_info = {
     .name          = "milkymist-uart",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistUartState),

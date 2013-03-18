@@ -21,8 +21,8 @@
  */
 
 #include "qemu-common.h"
-#include "irq.h"
-#include "devices.h"
+#include "hw/irq.h"
+#include "hw/devices.h"
 #include "sysemu/sysemu.h"
 
 //#define DEBUG

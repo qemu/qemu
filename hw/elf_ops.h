@@ -197,7 +197,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
     int size, i, total_size;
-    elf_word mem_size;
+    elf_word mem_size, file_size;
     uint64_t addr, low = (uint64_t)-1, high = 0;
     uint8_t *data = NULL;
     char label[128];
@@ -252,14 +252,16 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     for(i = 0; i < ehdr.e_phnum; i++) {
         ph = &phdr[i];
         if (ph->p_type == PT_LOAD) {
-            mem_size = ph->p_memsz;
-            /* XXX: avoid allocating */
-            data = g_malloc0(mem_size);
+            mem_size = ph->p_memsz; /* Size of the ROM */
+            file_size = ph->p_filesz; /* Size of the allocated data */
+            data = g_malloc0(file_size);
             if (ph->p_filesz > 0) {
-                if (lseek(fd, ph->p_offset, SEEK_SET) < 0)
+                if (lseek(fd, ph->p_offset, SEEK_SET) < 0) {
                     goto fail;
-                if (read(fd, data, ph->p_filesz) != ph->p_filesz)
+                }
+                if (read(fd, data, file_size) != file_size) {
                     goto fail;
+                }
             }
             /* address_offset is hack for kernel images that are
                linked at the wrong physical address.  */
@@ -281,7 +283,9 @@ static int glue(load_elf, SZ)(const char *name, int fd,
             }
 
             snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
-            rom_add_blob_fixed(label, data, mem_size, addr);
+
+            /* rom_add_elf_program() seize the ownership of 'data' */
+            rom_add_elf_program(label, data, file_size, mem_size, addr);
 
             total_size += mem_size;
             if (addr < low)
@@ -289,7 +293,6 @@ static int glue(load_elf, SZ)(const char *name, int fd,
             if ((addr + mem_size) > high)
                 high = addr + mem_size;
 
-            g_free(data);
             data = NULL;
         }
     }

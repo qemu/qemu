@@ -21,11 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "audiodev.h"
+#include "hw/hw.h"
+#include "hw/audiodev.h"
 #include "audio/audio.h"
-#include "isa.h"
-#include "qdev.h"
+#include "hw/isa.h"
+#include "hw/qdev.h"
 #include "qemu/timer.h"
 
 /*
@@ -682,7 +682,7 @@ static void cs4231a_class_initfn (ObjectClass *klass, void *data)
     dc->props = cs4231a_properties;
 }
 
-static TypeInfo cs4231a_info = {
+static const TypeInfo cs4231a_info = {
     .name          = "cs4231a",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (CSState),

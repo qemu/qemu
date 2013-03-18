@@ -7,8 +7,8 @@
  * This file is licensed under GNU GPL.
  */
 
-#include "hw.h"
-#include "i2c.h"
+#include "hw/hw.h"
+#include "hw/i2c.h"
 #include "audio/audio.h"
 
 #define IN_PORT_N	3
@@ -632,7 +632,7 @@ static void wm8750_fini(I2CSlave *i2c)
 void wm8750_data_req_set(DeviceState *dev,
                 void (*data_req)(void *, int, int), void *opaque)
 {
-    WM8750State *s = FROM_I2C_SLAVE(WM8750State, I2C_SLAVE_FROM_QDEV(dev));
+    WM8750State *s = FROM_I2C_SLAVE(WM8750State, I2C_SLAVE(dev));
     s->data_req = data_req;
     s->opaque = opaque;
 }
@@ -701,7 +701,7 @@ static void wm8750_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_wm8750;
 }
 
-static TypeInfo wm8750_info = {
+static const TypeInfo wm8750_info = {
     .name          = "wm8750",
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(WM8750State),

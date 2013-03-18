@@ -17,7 +17,7 @@
 #include "qemu-common.h"
 
 #if !defined(CONFIG_USER_ONLY)
-extern int qtest_allowed;
+extern bool qtest_allowed;
 extern const char *qtest_chrdev;
 extern const char *qtest_log;
 

@@ -19,12 +19,12 @@
 
 #include <assert.h>
 
-#include "hw.h"
-#include "pc.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
 #include "monitor/monitor.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
-#include "lm32_pic.h"
+#include "hw/lm32_pic.h"
 
 struct LM32PicState {
     SysBusDevice busdev;
@@ -39,7 +39,7 @@ struct LM32PicState {
 typedef struct LM32PicState LM32PicState;
 
 static LM32PicState *pic;
-void lm32_do_pic_info(Monitor *mon)
+void lm32_do_pic_info(Monitor *mon, const QDict *qdict)
 {
     if (pic == NULL) {
         return;
@@ -49,7 +49,7 @@ void lm32_do_pic_info(Monitor *mon)
             pic->im, pic->ip, pic->irq_state);
 }
 
-void lm32_irq_info(Monitor *mon)
+void lm32_irq_info(Monitor *mon, const QDict *qdict)
 {
     int i;
     uint32_t count;
@@ -184,7 +184,7 @@ static void lm32_pic_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_lm32_pic;
 }
 
-static TypeInfo lm32_pic_info = {
+static const TypeInfo lm32_pic_info = {
     .name          = "lm32-pic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32PicState),

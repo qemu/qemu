@@ -26,13 +26,13 @@
  *  Contributions after 2012-01-13 are licensed under the terms of the
  *  GNU GPL, version 2 or (at your option) any later version.
  */
-#include "sysbus.h"
-#include "strongarm.h"
+#include "hw/sysbus.h"
+#include "hw/strongarm.h"
 #include "qemu/error-report.h"
-#include "arm-misc.h"
+#include "hw/arm-misc.h"
 #include "char/char.h"
 #include "sysemu/sysemu.h"
-#include "ssi.h"
+#include "hw/ssi.h"
 
 //#define DEBUG
 
@@ -212,7 +212,7 @@ static void strongarm_pic_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_strongarm_pic_regs;
 }
 
-static TypeInfo strongarm_pic_info = {
+static const TypeInfo strongarm_pic_info = {
     .name          = "strongarm_pic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPICState),
@@ -433,7 +433,7 @@ static void strongarm_rtc_sysbus_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_strongarm_rtc_regs;
 }
 
-static TypeInfo strongarm_rtc_sysbus_info = {
+static const TypeInfo strongarm_rtc_sysbus_info = {
     .name          = "strongarm-rtc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMRTCState),
@@ -619,9 +619,9 @@ static DeviceState *strongarm_gpio_init(hwaddr base,
     dev = qdev_create(NULL, "strongarm-gpio");
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     for (i = 0; i < 12; i++)
-        sysbus_connect_irq(sysbus_from_qdev(dev), i,
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
                     qdev_get_gpio_in(pic, SA_PIC_GPIO0_EDGE + i));
 
     return dev;
@@ -674,7 +674,7 @@ static void strongarm_gpio_class_init(ObjectClass *klass, void *data)
     dc->desc = "StrongARM GPIO controller";
 }
 
-static TypeInfo strongarm_gpio_info = {
+static const TypeInfo strongarm_gpio_info = {
     .name          = "strongarm-gpio",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMGPIOInfo),
@@ -840,7 +840,7 @@ static void strongarm_ppc_class_init(ObjectClass *klass, void *data)
     dc->desc = "StrongARM PPC controller";
 }
 
-static TypeInfo strongarm_ppc_info = {
+static const TypeInfo strongarm_ppc_info = {
     .name          = "strongarm-ppc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPPCInfo),
@@ -1299,7 +1299,7 @@ static void strongarm_uart_class_init(ObjectClass *klass, void *data)
     dc->props = strongarm_uart_properties;
 }
 
-static TypeInfo strongarm_uart_info = {
+static const TypeInfo strongarm_uart_info = {
     .name          = "strongarm-uart",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMUARTState),
@@ -1538,7 +1538,7 @@ static void strongarm_ssp_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_strongarm_ssp_regs;
 }
 
-static TypeInfo strongarm_ssp_info = {
+static const TypeInfo strongarm_ssp_info = {
     .name          = "strongarm-ssp",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMSSPState),
@@ -1597,9 +1597,9 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
         DeviceState *dev = qdev_create(NULL, "strongarm-uart");
         qdev_prop_set_chr(dev, "chardev", serial_hds[i]);
         qdev_init_nofail(dev);
-        sysbus_mmio_map(sysbus_from_qdev(dev), 0,
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
                 sa_serial[i].io_base);
-        sysbus_connect_irq(sysbus_from_qdev(dev), 0,
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                 qdev_get_gpio_in(s->pic, sa_serial[i].irq));
     }
 

@@ -68,6 +68,9 @@
 #if !defined(ECANCELED)
 #define ECANCELED 4097
 #endif
+#if !defined(EMEDIUMTYPE)
+#define EMEDIUMTYPE 4098
+#endif
 #ifndef TIME_MAX
 #define TIME_MAX LONG_MAX
 #endif
@@ -139,6 +142,18 @@ int qemu_main(int argc, char **argv, char **envp);
 void qemu_get_timedate(struct tm *tm, int offset);
 int qemu_timedate_diff(struct tm *tm);
 
+#if !GLIB_CHECK_VERSION(2, 20, 0)
+/*
+ * Glib before 2.20.0 doesn't implement g_poll, so wrap it to compile properly
+ * on older systems.
+ */
+static inline gint g_poll(GPollFD *fds, guint nfds, gint timeout)
+{
+    GMainContext *ctx = g_main_context_default();
+    return g_main_context_get_poll_func(ctx)(fds, nfds, timeout);
+}
+#endif
+
 /**
  * is_help_option:
  * @s: string to test
@@ -169,6 +184,10 @@ int qemu_fls(int i);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
 int qemu_parse_fd(const char *param);
+
+int parse_uint(const char *s, unsigned long long *value, char **endptr,
+               int base);
+int parse_uint_full(const char *s, unsigned long long *value, int base);
 
 /*
  * strtosz() suffixes used to specify the default treatment of an
@@ -288,7 +307,9 @@ struct qemu_work_item {
 };
 
 #ifdef CONFIG_USER_ONLY
-#define qemu_init_vcpu(env) do { } while (0)
+static inline void qemu_init_vcpu(void *env)
+{
+}
 #else
 void qemu_init_vcpu(void *env);
 #endif
@@ -329,6 +350,9 @@ void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov);
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len);
 void qemu_iovec_concat(QEMUIOVector *dst,
                        QEMUIOVector *src, size_t soffset, size_t sbytes);
+void qemu_iovec_concat_iov(QEMUIOVector *dst,
+                           struct iovec *src_iov, unsigned int src_cnt,
+                           size_t soffset, size_t sbytes);
 void qemu_iovec_destroy(QEMUIOVector *qiov);
 void qemu_iovec_reset(QEMUIOVector *qiov);
 size_t qemu_iovec_to_buf(QEMUIOVector *qiov, size_t offset,

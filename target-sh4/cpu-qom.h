@@ -24,6 +24,10 @@
 
 #define TYPE_SUPERH_CPU "superh-cpu"
 
+#define TYPE_SH7750R_CPU "sh7750r-" TYPE_SUPERH_CPU
+#define TYPE_SH7751R_CPU "sh7751r-" TYPE_SUPERH_CPU
+#define TYPE_SH7785_CPU "sh7785-" TYPE_SUPERH_CPU
+
 #define SUPERH_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(SuperHCPUClass, (klass), TYPE_SUPERH_CPU)
 #define SUPERH_CPU(obj) \
@@ -33,7 +37,12 @@
 
 /**
  * SuperHCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
+ * @name: The name.
+ * @pvr: Processor Version Register
+ * @prr: Processor Revision Register
+ * @cvr: Cache Version Register
  *
  * A SuperH CPU model.
  */
@@ -42,7 +51,13 @@ typedef struct SuperHCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
+
+    const char *name;
+    uint32_t pvr;
+    uint32_t prr;
+    uint32_t cvr;
 } SuperHCPUClass;
 
 /**
@@ -66,5 +81,8 @@ static inline SuperHCPU *sh_env_get_cpu(CPUSH4State *env)
 
 #define ENV_GET_CPU(e) CPU(sh_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(SuperHCPU, env)
+
+void superh_cpu_do_interrupt(CPUState *cpu);
 
 #endif

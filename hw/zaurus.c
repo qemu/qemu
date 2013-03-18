@@ -15,9 +15,9 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "sharpsl.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sharpsl.h"
+#include "hw/sysbus.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
@@ -236,7 +236,7 @@ static void scoop_sysbus_class_init(ObjectClass *klass, void *data)
     dc->props = scoop_sysbus_properties;
 }
 
-static TypeInfo scoop_sysbus_info = {
+static const TypeInfo scoop_sysbus_info = {
     .name          = "scoop",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ScoopInfo),

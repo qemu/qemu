@@ -20,10 +20,10 @@
  *
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
-#include "pl041.h"
-#include "lm4549.h"
+#include "hw/pl041.h"
+#include "hw/lm4549.h"
 
 #if 0
 #define PL041_DEBUG_LEVEL 1
@@ -632,7 +632,7 @@ static void pl041_device_class_init(ObjectClass *klass, void *data)
     dc->props = pl041_device_properties;
 }
 
-static TypeInfo pl041_device_info = {
+static const TypeInfo pl041_device_info = {
     .name          = "pl041",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl041_state),

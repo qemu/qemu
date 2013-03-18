@@ -7,9 +7,9 @@
  * This code is licensed under the GPL
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "net/net.h"
-#include "devices.h"
+#include "hw/devices.h"
 /* For crc32 */
 #include <zlib.h>
 
@@ -237,7 +237,7 @@ static void smc91c111_do_tx(smc91c111_state *s)
             smc91c111_release_packet(s, packetnum);
         else if (s->tx_fifo_done_len < NUM_PACKETS)
             s->tx_fifo_done[s->tx_fifo_done_len++] = packetnum;
-        qemu_send_packet(&s->nic->nc, p, len);
+        qemu_send_packet(qemu_get_queue(s->nic), p, len);
     }
     s->tx_fifo_len = 0;
     smc91c111_update(s);
@@ -254,7 +254,7 @@ static void smc91c111_queue_tx(smc91c111_state *s, int packet)
 
 static void smc91c111_reset(DeviceState *dev)
 {
-    smc91c111_state *s = FROM_SYSBUS(smc91c111_state, sysbus_from_qdev(dev));
+    smc91c111_state *s = FROM_SYSBUS(smc91c111_state, SYS_BUS_DEVICE(dev));
     s->bank = 0;
     s->tx_fifo_len = 0;
     s->tx_fifo_done_len = 0;
@@ -442,6 +442,7 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             return;
         case 12: /* Early receive.  */
             s->ercv = value & 0x1f;
+            return;
         case 13:
             /* Ignore.  */
             return;
@@ -630,7 +631,7 @@ static uint32_t smc91c111_readl(void *opaque, hwaddr offset)
 
 static int smc91c111_can_receive(NetClientState *nc)
 {
-    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    smc91c111_state *s = qemu_get_nic_opaque(nc);
 
     if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST))
         return 1;
@@ -641,7 +642,7 @@ static int smc91c111_can_receive(NetClientState *nc)
 
 static ssize_t smc91c111_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    smc91c111_state *s = qemu_get_nic_opaque(nc);
     int status;
     int packetsize;
     uint32_t crc;
@@ -730,7 +731,7 @@ static const MemoryRegionOps smc91c111_mem_ops = {
 
 static void smc91c111_cleanup(NetClientState *nc)
 {
-    smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    smc91c111_state *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -753,7 +754,7 @@ static int smc91c111_init1(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_smc91c111_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     /* ??? Save/restore.  */
     return 0;
 }
@@ -774,7 +775,7 @@ static void smc91c111_class_init(ObjectClass *klass, void *data)
     dc->props = smc91c111_properties;
 }
 
-static TypeInfo smc91c111_info = {
+static const TypeInfo smc91c111_info = {
     .name          = "smc91c111",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(smc91c111_state),
@@ -797,7 +798,7 @@ void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     dev = qdev_create(NULL, "smc91c111");
     qdev_set_nic_properties(dev, nd);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, base);
     sysbus_connect_irq(s, 0, irq);
 }

@@ -59,6 +59,9 @@
 #ifdef CONFIG_FIEMAP
 #include <linux/fiemap.h>
 #endif
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+#include <linux/falloc.h>
+#endif
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <sys/disk.h>
 #include <sys/cdio.h>
@@ -138,6 +141,7 @@ typedef struct BDRVRawState {
 #ifdef CONFIG_XFS
     bool is_xfs : 1;
 #endif
+    bool has_discard : 1;
 } BDRVRawState;
 
 typedef struct BDRVRawReopenState {
@@ -159,7 +163,7 @@ typedef struct RawPosixAIOData {
         void *aio_ioctl_buf;
     };
     int aio_niov;
-    size_t aio_nbytes;
+    uint64_t aio_nbytes;
 #define aio_ioctl_cmd   aio_nbytes /* for QEMU_AIO_IOCTL */
     off_t aio_offset;
     int aio_type;
@@ -289,6 +293,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     }
 #endif
 
+    s->has_discard = 1;
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
         s->is_xfs = 1;
@@ -340,9 +345,18 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
     raw_s->fd = -1;
 
-    int fcntl_flags = O_APPEND | O_ASYNC | O_NONBLOCK;
+    int fcntl_flags = O_APPEND | O_NONBLOCK;
 #ifdef O_NOATIME
     fcntl_flags |= O_NOATIME;
+#endif
+
+#ifdef O_ASYNC
+    /* Not all operating systems have O_ASYNC, and those that don't
+     * will not let us track the state into raw_s->open_flags (typically
+     * you achieve the same effect with an ioctl, for example I_SETSIG
+     * on Solaris). But we do not use O_ASYNC, so that's fine.
+     */
+    assert((s->open_flags & O_ASYNC) == 0);
 #endif
 
     if ((raw_s->open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
@@ -430,22 +444,6 @@ static void raw_reopen_abort(BDRVReopenState *state)
 #endif
 */
 
-/*
- * Check if all memory in this vector is sector aligned.
- */
-static int qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
-{
-    int i;
-
-    for (i = 0; i < qiov->niov; i++) {
-        if ((uintptr_t) qiov->iov[i].iov_base % bs->buffer_alignment) {
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
 static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
 {
     int ret;
@@ -455,15 +453,7 @@ static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
         return -errno;
     }
 
-    /*
-     * This looks weird, but the aio code only considers a request
-     * successful if it has written the full number of bytes.
-     *
-     * Now we overload aio_nbytes as aio_ioctl_cmd for the ioctl command,
-     * so in fact we return the ioctl command here to make posix_aio_read()
-     * happy..
-     */
-    return aiocb->aio_nbytes;
+    return 0;
 }
 
 static ssize_t handle_aiocb_flush(RawPosixAIOData *aiocb)
@@ -642,6 +632,72 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
     return nbytes;
 }
 
+#ifdef CONFIG_XFS
+static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
+{
+    struct xfs_flock64 fl;
+
+    memset(&fl, 0, sizeof(fl));
+    fl.l_whence = SEEK_SET;
+    fl.l_start = offset;
+    fl.l_len = bytes;
+
+    if (xfsctl(NULL, s->fd, XFS_IOC_UNRESVSP64, &fl) < 0) {
+        DEBUG_BLOCK_PRINT("cannot punch hole (%s)\n", strerror(errno));
+        return -errno;
+    }
+
+    return 0;
+}
+#endif
+
+static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
+{
+    int ret = -EOPNOTSUPP;
+    BDRVRawState *s = aiocb->bs->opaque;
+
+    if (s->has_discard == 0) {
+        return 0;
+    }
+
+    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
+#ifdef BLKDISCARD
+        do {
+            uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
+            if (ioctl(aiocb->aio_fildes, BLKDISCARD, range) == 0) {
+                return 0;
+            }
+        } while (errno == EINTR);
+
+        ret = -errno;
+#endif
+    } else {
+#ifdef CONFIG_XFS
+        if (s->is_xfs) {
+            return xfs_discard(s, aiocb->aio_offset, aiocb->aio_nbytes);
+        }
+#endif
+
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+        do {
+            if (fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                          aiocb->aio_offset, aiocb->aio_nbytes) == 0) {
+                return 0;
+            }
+        } while (errno == EINTR);
+
+        ret = -errno;
+#endif
+    }
+
+    if (ret == -ENODEV || ret == -ENOSYS || ret == -EOPNOTSUPP ||
+        ret == -ENOTTY) {
+        s->has_discard = 0;
+        ret = 0;
+    }
+    return ret;
+}
+
 static int aio_worker(void *arg)
 {
     RawPosixAIOData *aiocb = arg;
@@ -676,6 +732,9 @@ static int aio_worker(void *arg)
     case QEMU_AIO_IOCTL:
         ret = handle_aiocb_ioctl(aiocb);
         break;
+    case QEMU_AIO_DISCARD:
+        ret = handle_aiocb_discard(aiocb);
+        break;
     default:
         fprintf(stderr, "invalid aio request (0x%x)\n", aiocb->aio_type);
         ret = -EINVAL;
@@ -691,6 +750,7 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
     RawPosixAIOData *acb = g_slice_new(RawPosixAIOData);
+    ThreadPool *pool;
 
     acb->bs = bs;
     acb->aio_type = type;
@@ -704,7 +764,8 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
     acb->aio_offset = sector_num * 512;
 
     trace_paio_submit(acb, opaque, sector_num, nb_sectors, type);
-    return thread_pool_submit_aio(aio_worker, acb, cb, opaque);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
 
 static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
@@ -722,7 +783,7 @@ static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
      * driver that it needs to copy the buffer.
      */
     if ((bs->open_flags & BDRV_O_NOCACHE)) {
-        if (!qiov_is_aligned(bs, qiov)) {
+        if (!bdrv_qiov_is_aligned(bs, qiov)) {
             type |= QEMU_AIO_MISALIGNED;
 #ifdef CONFIG_LINUX_AIO
         } else if (s->use_aio) {
@@ -1076,37 +1137,14 @@ static int coroutine_fn raw_co_is_allocated(BlockDriverState *bs,
     }
 }
 
-#ifdef CONFIG_XFS
-static int xfs_discard(BDRVRawState *s, int64_t sector_num, int nb_sectors)
+static coroutine_fn BlockDriverAIOCB *raw_aio_discard(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors,
+    BlockDriverCompletionFunc *cb, void *opaque)
 {
-    struct xfs_flock64 fl;
-
-    memset(&fl, 0, sizeof(fl));
-    fl.l_whence = SEEK_SET;
-    fl.l_start = sector_num << 9;
-    fl.l_len = (int64_t)nb_sectors << 9;
-
-    if (xfsctl(NULL, s->fd, XFS_IOC_UNRESVSP64, &fl) < 0) {
-        DEBUG_BLOCK_PRINT("cannot punch hole (%s)\n", strerror(errno));
-        return -errno;
-    }
-
-    return 0;
-}
-#endif
-
-static coroutine_fn int raw_co_discard(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors)
-{
-#ifdef CONFIG_XFS
     BDRVRawState *s = bs->opaque;
 
-    if (s->is_xfs) {
-        return xfs_discard(s, sector_num, nb_sectors);
-    }
-#endif
-
-    return 0;
+    return paio_submit(bs, s->fd, sector_num, NULL, nb_sectors,
+                       cb, opaque, QEMU_AIO_DISCARD);
 }
 
 static QEMUOptionParameter raw_create_options[] = {
@@ -1129,12 +1167,12 @@ static BlockDriver bdrv_file = {
     .bdrv_reopen_abort = raw_reopen_abort,
     .bdrv_close = raw_close,
     .bdrv_create = raw_create,
-    .bdrv_co_discard = raw_co_discard,
     .bdrv_co_is_allocated = raw_co_is_allocated,
 
     .bdrv_aio_readv = raw_aio_readv,
     .bdrv_aio_writev = raw_aio_writev,
     .bdrv_aio_flush = raw_aio_flush,
+    .bdrv_aio_discard = raw_aio_discard,
 
     .bdrv_truncate = raw_truncate,
     .bdrv_getlength = raw_getlength,
@@ -1221,9 +1259,43 @@ static int hdev_probe_device(const char *filename)
     return 0;
 }
 
+static int check_hdev_writable(BDRVRawState *s)
+{
+#if defined(BLKROGET)
+    /* Linux block devices can be configured "read-only" using blockdev(8).
+     * This is independent of device node permissions and therefore open(2)
+     * with O_RDWR succeeds.  Actual writes fail with EPERM.
+     *
+     * bdrv_open() is supposed to fail if the disk is read-only.  Explicitly
+     * check for read-only block devices so that Linux block devices behave
+     * properly.
+     */
+    struct stat st;
+    int readonly = 0;
+
+    if (fstat(s->fd, &st)) {
+        return -errno;
+    }
+
+    if (!S_ISBLK(st.st_mode)) {
+        return 0;
+    }
+
+    if (ioctl(s->fd, BLKROGET, &readonly) < 0) {
+        return -errno;
+    }
+
+    if (readonly) {
+        return -EACCES;
+    }
+#endif /* defined(BLKROGET) */
+    return 0;
+}
+
 static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
+    int ret;
 
 #if defined(__APPLE__) && defined(__MACH__)
     if (strstart(filename, "/dev/cdrom", NULL)) {
@@ -1264,7 +1336,20 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     }
 #endif
 
-    return raw_open_common(bs, filename, flags, 0);
+    ret = raw_open_common(bs, filename, flags, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (flags & BDRV_O_RDWR) {
+        ret = check_hdev_writable(s);
+        if (ret < 0) {
+            raw_close(bs);
+            return ret;
+        }
+    }
+
+    return ret;
 }
 
 #if defined(__linux__)
@@ -1330,6 +1415,7 @@ static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData *acb;
+    ThreadPool *pool;
 
     if (fd_open(bs) < 0)
         return NULL;
@@ -1341,7 +1427,8 @@ static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
     acb->aio_offset = 0;
     acb->aio_ioctl_buf = buf;
     acb->aio_ioctl_cmd = req;
-    return thread_pool_submit_aio(aio_worker, acb, cb, opaque);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -1362,6 +1449,19 @@ static int fd_open(BlockDriverState *bs)
 }
 
 #endif /* !linux && !FreeBSD */
+
+static coroutine_fn BlockDriverAIOCB *hdev_aio_discard(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors,
+    BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BDRVRawState *s = bs->opaque;
+
+    if (fd_open(bs) < 0) {
+        return NULL;
+    }
+    return paio_submit(bs, s->fd, sector_num, NULL, nb_sectors,
+                       cb, opaque, QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
+}
 
 static int hdev_create(const char *filename, QEMUOptionParameter *options)
 {
@@ -1415,6 +1515,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_aio_readv	= raw_aio_readv,
     .bdrv_aio_writev	= raw_aio_writev,
     .bdrv_aio_flush	= raw_aio_flush,
+    .bdrv_aio_discard   = hdev_aio_discard,
 
     .bdrv_truncate      = raw_truncate,
     .bdrv_getlength	= raw_getlength,
@@ -1775,6 +1876,40 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_lock_medium   = cdrom_lock_medium,
 };
 #endif /* __FreeBSD__ */
+
+#ifdef CONFIG_LINUX_AIO
+/**
+ * Return the file descriptor for Linux AIO
+ *
+ * This function is a layering violation and should be removed when it becomes
+ * possible to call the block layer outside the global mutex.  It allows the
+ * caller to hijack the file descriptor so I/O can be performed outside the
+ * block layer.
+ */
+int raw_get_aio_fd(BlockDriverState *bs)
+{
+    BDRVRawState *s;
+
+    if (!bs->drv) {
+        return -ENOMEDIUM;
+    }
+
+    if (bs->drv == bdrv_find_format("raw")) {
+        bs = bs->file;
+    }
+
+    /* raw-posix has several protocols so just check for raw_aio_readv */
+    if (bs->drv->bdrv_aio_readv != raw_aio_readv) {
+        return -ENOTSUP;
+    }
+
+    s = bs->opaque;
+    if (!s->use_aio) {
+        return -ENOTSUP;
+    }
+    return s->fd;
+}
+#endif /* CONFIG_LINUX_AIO */
 
 static void bdrv_file_init(void)
 {

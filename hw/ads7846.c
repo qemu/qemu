@@ -10,7 +10,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "ssi.h"
+#include "hw/ssi.h"
 #include "ui/console.h"
 
 typedef struct {
@@ -162,7 +162,7 @@ static void ads7846_class_init(ObjectClass *klass, void *data)
     k->transfer = ads7846_transfer;
 }
 
-static TypeInfo ads7846_info = {
+static const TypeInfo ads7846_info = {
     .name          = "ads7846",
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(ADS7846State),

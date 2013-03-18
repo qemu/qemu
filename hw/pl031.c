@@ -11,7 +11,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 
@@ -250,7 +250,7 @@ static void pl031_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pl031;
 }
 
-static TypeInfo pl031_info = {
+static const TypeInfo pl031_info = {
     .name          = "pl031",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl031_state),

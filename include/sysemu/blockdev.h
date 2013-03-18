@@ -41,7 +41,7 @@ struct DriveInfo {
     int cyls, heads, secs, trans;
     bool locked;
     QemuOpts *opts;
-    const char *serial;
+    char *serial;
     QTAILQ_ENTRY(DriveInfo) next;
     int refcount;
 };

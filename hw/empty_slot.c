@@ -9,9 +9,9 @@
  * version.
  */
 
-#include "hw.h"
-#include "sysbus.h"
-#include "empty_slot.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
+#include "hw/empty_slot.h"
 
 //#define DEBUG_EMPTY_SLOT
 
@@ -56,7 +56,7 @@ void empty_slot_init(hwaddr addr, uint64_t slot_size)
         EmptySlot *e;
 
         dev = qdev_create(NULL, "empty_slot");
-        s = sysbus_from_qdev(dev);
+        s = SYS_BUS_DEVICE(dev);
         e = FROM_SYSBUS(EmptySlot, s);
         e->size = slot_size;
 
@@ -83,7 +83,7 @@ static void empty_slot_class_init(ObjectClass *klass, void *data)
     k->init = empty_slot_init1;
 }
 
-static TypeInfo empty_slot_info = {
+static const TypeInfo empty_slot_info = {
     .name          = "empty_slot",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(EmptySlot),

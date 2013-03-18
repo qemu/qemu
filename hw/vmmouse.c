@@ -21,11 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
-#include "ps2.h"
-#include "pc.h"
-#include "qdev.h"
+#include "hw/ps2.h"
+#include "hw/pc.h"
+#include "hw/qdev.h"
 
 /* debug only vmmouse */
 //#define DEBUG_VMMOUSE
@@ -286,7 +286,7 @@ static void vmmouse_class_initfn(ObjectClass *klass, void *data)
     dc->props = vmmouse_properties;
 }
 
-static TypeInfo vmmouse_info = {
+static const TypeInfo vmmouse_info = {
     .name          = "vmmouse",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(VMMouseState),

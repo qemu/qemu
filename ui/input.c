@@ -269,7 +269,7 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
         /* key down events */
         keycode = keycode_from_keyvalue(p->value);
         if (keycode < 0x01 || keycode > 0xff) {
-            error_setg(errp, "invalid hex keycode 0x%x\n", keycode);
+            error_setg(errp, "invalid hex keycode 0x%x", keycode);
             free_keycodes();
             return;
         }

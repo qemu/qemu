@@ -57,7 +57,7 @@ void s390x_tod_timer(void *opaque)
     CPUS390XState *env = &cpu->env;
 
     env->pending_int |= INTERRUPT_TOD;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 void s390x_cpu_timer(void *opaque)
@@ -66,7 +66,7 @@ void s390x_cpu_timer(void *opaque)
     CPUS390XState *env = &cpu->env;
 
     env->pending_int |= INTERRUPT_CPUTIMER;
-    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 #endif
 
@@ -74,35 +74,33 @@ S390CPU *cpu_s390x_init(const char *cpu_model)
 {
     S390CPU *cpu;
     CPUS390XState *env;
-    static int inited;
 
     cpu = S390_CPU(object_new(TYPE_S390_CPU));
     env = &cpu->env;
-
-    if (tcg_enabled() && !inited) {
-        inited = 1;
-        s390x_translate_init();
-    }
-
     env->cpu_model_str = cpu_model;
-    qemu_init_vcpu(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
     return cpu;
 }
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt(CPUS390XState *env)
+void s390_cpu_do_interrupt(CPUState *cs)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
+
     env->exception_index = -1;
 }
 
 int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong address,
                                int rw, int mmu_idx)
 {
-    /* fprintf(stderr, "%s: address 0x%lx rw %d mmu_idx %d\n",
-       __func__, address, rw, mmu_idx); */
-    env->exception_index = EXCP_ADDR;
-    /* FIXME: find out how this works on a real machine */
+    env->exception_index = EXCP_PGM;
+    env->int_pgm_code = PGM_ADDRESSING;
+    /* On real machines this value is dropped into LowMem.  Since this
+       is userland, simply put this someplace that cpu_loop can find it.  */
     env->__excp_addr = address;
     return 1;
 }
@@ -111,11 +109,11 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong address,
 
 /* Ensure to exit the TB after this call! */
 static void trigger_pgm_exception(CPUS390XState *env, uint32_t code,
-                                  uint32_t ilc)
+                                  uint32_t ilen)
 {
     env->exception_index = EXCP_PGM;
     env->int_pgm_code = code;
-    env->int_pgm_ilc = ilc;
+    env->int_pgm_ilen = ilen;
 }
 
 static int trans_bits(CPUS390XState *env, uint64_t mode)
@@ -143,30 +141,30 @@ static int trans_bits(CPUS390XState *env, uint64_t mode)
 static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
                                uint64_t mode)
 {
-    int ilc = ILC_LATER_INC_2;
+    int ilen = ILEN_LATER_INC;
     int bits = trans_bits(env, mode) | 4;
 
     DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
     stq_phys(env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
-    trigger_pgm_exception(env, PGM_PROTECTION, ilc);
+    trigger_pgm_exception(env, PGM_PROTECTION, ilen);
 }
 
 static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
                                uint32_t type, uint64_t asc, int rw)
 {
-    int ilc = ILC_LATER;
+    int ilen = ILEN_LATER;
     int bits = trans_bits(env, asc);
 
+    /* Code accesses have an undefined ilc.  */
     if (rw == 2) {
-        /* code has is undefined ilc */
-        ilc = 2;
+        ilen = 2;
     }
 
     DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
     stq_phys(env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
-    trigger_pgm_exception(env, type, ilc);
+    trigger_pgm_exception(env, type, ilen);
 }
 
 static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
@@ -387,7 +385,7 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
     int prot;
 
     DPRINTF("%s: address 0x%" PRIx64 " rw %d mmu_idx %d\n",
-            __func__, _vaddr, rw, mmu_idx);
+            __func__, orig_vaddr, rw, mmu_idx);
 
     orig_vaddr &= TARGET_PAGE_MASK;
     vaddr = orig_vaddr;
@@ -404,9 +402,9 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
 
     /* check out of RAM access */
     if (raddr > (ram_size + virtio_size)) {
-        DPRINTF("%s: aaddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
-                (uint64_t)aaddr, (uint64_t)ram_size);
-        trigger_pgm_exception(env, PGM_ADDRESSING, ILC_LATER);
+        DPRINTF("%s: raddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
+                (uint64_t)raddr, (uint64_t)ram_size);
+        trigger_pgm_exception(env, PGM_ADDRESSING, ILEN_LATER);
         return 1;
     }
 
@@ -441,51 +439,97 @@ hwaddr cpu_get_phys_page_debug(CPUS390XState *env,
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     if (mask & PSW_MASK_WAIT) {
+        S390CPU *cpu = s390_env_get_cpu(env);
+        CPUState *cs = CPU(cpu);
         if (!(mask & (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK))) {
-            if (s390_del_running_cpu(env) == 0) {
+            if (s390_del_running_cpu(cpu) == 0) {
 #ifndef CONFIG_USER_ONLY
                 qemu_system_shutdown_request();
 #endif
             }
         }
-        env->halted = 1;
+        cs->halted = 1;
         env->exception_index = EXCP_HLT;
     }
 
     env->psw.addr = addr;
     env->psw.mask = mask;
-    env->cc_op = (mask >> 13) & 3;
+    env->cc_op = (mask >> 44) & 3;
 }
 
 static uint64_t get_psw_mask(CPUS390XState *env)
 {
-    uint64_t r = env->psw.mask;
+    uint64_t r;
 
     env->cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst, env->cc_vr);
 
-    r &= ~(3ULL << 13);
+    r = env->psw.mask;
+    r &= ~PSW_MASK_CC;
     assert(!(env->cc_op & ~3));
-    r |= env->cc_op << 13;
+    r |= (uint64_t)env->cc_op << 44;
 
     return r;
+}
+
+static LowCore *cpu_map_lowcore(CPUS390XState *env)
+{
+    LowCore *lowcore;
+    hwaddr len = sizeof(LowCore);
+
+    lowcore = cpu_physical_memory_map(env->psa, &len, 1);
+
+    if (len < sizeof(LowCore)) {
+        cpu_abort(env, "Could not map lowcore\n");
+    }
+
+    return lowcore;
+}
+
+static void cpu_unmap_lowcore(LowCore *lowcore)
+{
+    cpu_physical_memory_unmap(lowcore, sizeof(LowCore), 1, sizeof(LowCore));
+}
+
+void *s390_cpu_physical_memory_map(CPUS390XState *env, hwaddr addr, hwaddr *len,
+                                   int is_write)
+{
+    hwaddr start = addr;
+
+    /* Mind the prefix area. */
+    if (addr < 8192) {
+        /* Map the lowcore. */
+        start += env->psa;
+        *len = MIN(*len, 8192 - addr);
+    } else if ((addr >= env->psa) && (addr < env->psa + 8192)) {
+        /* Map the 0 page. */
+        start -= env->psa;
+        *len = MIN(*len, 8192 - start);
+    }
+
+    return cpu_physical_memory_map(start, len, is_write);
+}
+
+void s390_cpu_physical_memory_unmap(CPUS390XState *env, void *addr, hwaddr len,
+                                    int is_write)
+{
+    cpu_physical_memory_unmap(addr, len, is_write, len);
 }
 
 static void do_svc_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
     LowCore *lowcore;
-    hwaddr len = TARGET_PAGE_SIZE;
 
-    lowcore = cpu_physical_memory_map(env->psa, &len, 1);
+    lowcore = cpu_map_lowcore(env);
 
     lowcore->svc_code = cpu_to_be16(env->int_svc_code);
-    lowcore->svc_ilc = cpu_to_be16(env->int_svc_ilc);
+    lowcore->svc_ilen = cpu_to_be16(env->int_svc_ilen);
     lowcore->svc_old_psw.mask = cpu_to_be64(get_psw_mask(env));
-    lowcore->svc_old_psw.addr = cpu_to_be64(env->psw.addr + (env->int_svc_ilc));
+    lowcore->svc_old_psw.addr = cpu_to_be64(env->psw.addr + env->int_svc_ilen);
     mask = be64_to_cpu(lowcore->svc_new_psw.mask);
     addr = be64_to_cpu(lowcore->svc_new_psw.addr);
 
-    cpu_physical_memory_unmap(lowcore, len, 1, len);
+    cpu_unmap_lowcore(lowcore);
 
     load_psw(env, mask, addr);
 }
@@ -494,39 +538,36 @@ static void do_program_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
     LowCore *lowcore;
-    hwaddr len = TARGET_PAGE_SIZE;
-    int ilc = env->int_pgm_ilc;
+    int ilen = env->int_pgm_ilen;
 
-    switch (ilc) {
-    case ILC_LATER:
-        ilc = get_ilc(cpu_ldub_code(env, env->psw.addr));
+    switch (ilen) {
+    case ILEN_LATER:
+        ilen = get_ilen(cpu_ldub_code(env, env->psw.addr));
         break;
-    case ILC_LATER_INC:
-        ilc = get_ilc(cpu_ldub_code(env, env->psw.addr));
-        env->psw.addr += ilc * 2;
+    case ILEN_LATER_INC:
+        ilen = get_ilen(cpu_ldub_code(env, env->psw.addr));
+        env->psw.addr += ilen;
         break;
-    case ILC_LATER_INC_2:
-        ilc = get_ilc(cpu_ldub_code(env, env->psw.addr)) * 2;
-        env->psw.addr += ilc;
-        break;
+    default:
+        assert(ilen == 2 || ilen == 4 || ilen == 6);
     }
 
-    qemu_log_mask(CPU_LOG_INT, "%s: code=0x%x ilc=%d\n",
-                  __func__, env->int_pgm_code, ilc);
+    qemu_log_mask(CPU_LOG_INT, "%s: code=0x%x ilen=%d\n",
+                  __func__, env->int_pgm_code, ilen);
 
-    lowcore = cpu_physical_memory_map(env->psa, &len, 1);
+    lowcore = cpu_map_lowcore(env);
 
-    lowcore->pgm_ilc = cpu_to_be16(ilc);
+    lowcore->pgm_ilen = cpu_to_be16(ilen);
     lowcore->pgm_code = cpu_to_be16(env->int_pgm_code);
     lowcore->program_old_psw.mask = cpu_to_be64(get_psw_mask(env));
     lowcore->program_old_psw.addr = cpu_to_be64(env->psw.addr);
     mask = be64_to_cpu(lowcore->program_new_psw.mask);
     addr = be64_to_cpu(lowcore->program_new_psw.addr);
 
-    cpu_physical_memory_unmap(lowcore, len, 1, len);
+    cpu_unmap_lowcore(lowcore);
 
     DPRINTF("%s: %x %x %" PRIx64 " %" PRIx64 "\n", __func__,
-            env->int_pgm_code, ilc, env->psw.mask,
+            env->int_pgm_code, ilen, env->psw.mask,
             env->psw.addr);
 
     load_psw(env, mask, addr);
@@ -538,7 +579,6 @@ static void do_ext_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
     LowCore *lowcore;
-    hwaddr len = TARGET_PAGE_SIZE;
     ExtQueue *q;
 
     if (!(env->psw.mask & PSW_MASK_EXT)) {
@@ -550,7 +590,7 @@ static void do_ext_interrupt(CPUS390XState *env)
     }
 
     q = &env->ext_queue[env->ext_index];
-    lowcore = cpu_physical_memory_map(env->psa, &len, 1);
+    lowcore = cpu_map_lowcore(env);
 
     lowcore->ext_int_code = cpu_to_be16(q->code);
     lowcore->ext_params = cpu_to_be32(q->param);
@@ -561,7 +601,7 @@ static void do_ext_interrupt(CPUS390XState *env)
     mask = be64_to_cpu(lowcore->external_new_psw.mask);
     addr = be64_to_cpu(lowcore->external_new_psw.addr);
 
-    cpu_physical_memory_unmap(lowcore, len, 1, len);
+    cpu_unmap_lowcore(lowcore);
 
     env->ext_index--;
     if (env->ext_index == -1) {
@@ -574,12 +614,148 @@ static void do_ext_interrupt(CPUS390XState *env)
     load_psw(env, mask, addr);
 }
 
-void do_interrupt(CPUS390XState *env)
+static void do_io_interrupt(CPUS390XState *env)
 {
+    LowCore *lowcore;
+    IOIntQueue *q;
+    uint8_t isc;
+    int disable = 1;
+    int found = 0;
+
+    if (!(env->psw.mask & PSW_MASK_IO)) {
+        cpu_abort(env, "I/O int w/o I/O mask\n");
+    }
+
+    for (isc = 0; isc < ARRAY_SIZE(env->io_index); isc++) {
+        uint64_t isc_bits;
+
+        if (env->io_index[isc] < 0) {
+            continue;
+        }
+        if (env->io_index[isc] > MAX_IO_QUEUE) {
+            cpu_abort(env, "I/O queue overrun for isc %d: %d\n",
+                      isc, env->io_index[isc]);
+        }
+
+        q = &env->io_queue[env->io_index[isc]][isc];
+        isc_bits = ISC_TO_ISC_BITS(IO_INT_WORD_ISC(q->word));
+        if (!(env->cregs[6] & isc_bits)) {
+            disable = 0;
+            continue;
+        }
+        if (!found) {
+            uint64_t mask, addr;
+
+            found = 1;
+            lowcore = cpu_map_lowcore(env);
+
+            lowcore->subchannel_id = cpu_to_be16(q->id);
+            lowcore->subchannel_nr = cpu_to_be16(q->nr);
+            lowcore->io_int_parm = cpu_to_be32(q->parm);
+            lowcore->io_int_word = cpu_to_be32(q->word);
+            lowcore->io_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+            lowcore->io_old_psw.addr = cpu_to_be64(env->psw.addr);
+            mask = be64_to_cpu(lowcore->io_new_psw.mask);
+            addr = be64_to_cpu(lowcore->io_new_psw.addr);
+
+            cpu_unmap_lowcore(lowcore);
+
+            env->io_index[isc]--;
+
+            DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__,
+                    env->psw.mask, env->psw.addr);
+            load_psw(env, mask, addr);
+        }
+        if (env->io_index[isc] >= 0) {
+            disable = 0;
+        }
+        continue;
+    }
+
+    if (disable) {
+        env->pending_int &= ~INTERRUPT_IO;
+    }
+
+}
+
+static void do_mchk_interrupt(CPUS390XState *env)
+{
+    uint64_t mask, addr;
+    LowCore *lowcore;
+    MchkQueue *q;
+    int i;
+
+    if (!(env->psw.mask & PSW_MASK_MCHECK)) {
+        cpu_abort(env, "Machine check w/o mchk mask\n");
+    }
+
+    if (env->mchk_index < 0 || env->mchk_index > MAX_MCHK_QUEUE) {
+        cpu_abort(env, "Mchk queue overrun: %d\n", env->mchk_index);
+    }
+
+    q = &env->mchk_queue[env->mchk_index];
+
+    if (q->type != 1) {
+        /* Don't know how to handle this... */
+        cpu_abort(env, "Unknown machine check type %d\n", q->type);
+    }
+    if (!(env->cregs[14] & (1 << 28))) {
+        /* CRW machine checks disabled */
+        return;
+    }
+
+    lowcore = cpu_map_lowcore(env);
+
+    for (i = 0; i < 16; i++) {
+        lowcore->floating_pt_save_area[i] = cpu_to_be64(env->fregs[i].ll);
+        lowcore->gpregs_save_area[i] = cpu_to_be64(env->regs[i]);
+        lowcore->access_regs_save_area[i] = cpu_to_be32(env->aregs[i]);
+        lowcore->cregs_save_area[i] = cpu_to_be64(env->cregs[i]);
+    }
+    lowcore->prefixreg_save_area = cpu_to_be32(env->psa);
+    lowcore->fpt_creg_save_area = cpu_to_be32(env->fpc);
+    lowcore->tod_progreg_save_area = cpu_to_be32(env->todpr);
+    lowcore->cpu_timer_save_area[0] = cpu_to_be32(env->cputm >> 32);
+    lowcore->cpu_timer_save_area[1] = cpu_to_be32((uint32_t)env->cputm);
+    lowcore->clock_comp_save_area[0] = cpu_to_be32(env->ckc >> 32);
+    lowcore->clock_comp_save_area[1] = cpu_to_be32((uint32_t)env->ckc);
+
+    lowcore->mcck_interruption_code[0] = cpu_to_be32(0x00400f1d);
+    lowcore->mcck_interruption_code[1] = cpu_to_be32(0x40330000);
+    lowcore->mcck_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->mcck_old_psw.addr = cpu_to_be64(env->psw.addr);
+    mask = be64_to_cpu(lowcore->mcck_new_psw.mask);
+    addr = be64_to_cpu(lowcore->mcck_new_psw.addr);
+
+    cpu_unmap_lowcore(lowcore);
+
+    env->mchk_index--;
+    if (env->mchk_index == -1) {
+        env->pending_int &= ~INTERRUPT_MCHK;
+    }
+
+    DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__,
+            env->psw.mask, env->psw.addr);
+
+    load_psw(env, mask, addr);
+}
+
+void s390_cpu_do_interrupt(CPUState *cs)
+{
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
+
     qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
                   __func__, env->exception_index, env->psw.addr);
 
-    s390_add_running_cpu(env);
+    s390_add_running_cpu(cpu);
+    /* handle machine checks */
+    if ((env->psw.mask & PSW_MASK_MCHECK) &&
+        (env->exception_index == -1)) {
+        if (env->pending_int & INTERRUPT_MCHK) {
+            env->exception_index = EXCP_MCHK;
+        }
+    }
     /* handle external interrupts */
     if ((env->psw.mask & PSW_MASK_EXT) &&
         env->exception_index == -1) {
@@ -587,15 +763,22 @@ void do_interrupt(CPUS390XState *env)
             /* code is already in env */
             env->exception_index = EXCP_EXT;
         } else if (env->pending_int & INTERRUPT_TOD) {
-            cpu_inject_ext(env, 0x1004, 0, 0);
+            cpu_inject_ext(cpu, 0x1004, 0, 0);
             env->exception_index = EXCP_EXT;
             env->pending_int &= ~INTERRUPT_EXT;
             env->pending_int &= ~INTERRUPT_TOD;
         } else if (env->pending_int & INTERRUPT_CPUTIMER) {
-            cpu_inject_ext(env, 0x1005, 0, 0);
+            cpu_inject_ext(cpu, 0x1005, 0, 0);
             env->exception_index = EXCP_EXT;
             env->pending_int &= ~INTERRUPT_EXT;
             env->pending_int &= ~INTERRUPT_TOD;
+        }
+    }
+    /* handle I/O interrupts */
+    if ((env->psw.mask & PSW_MASK_IO) &&
+        (env->exception_index == -1)) {
+        if (env->pending_int & INTERRUPT_IO) {
+            env->exception_index = EXCP_IO;
         }
     }
 
@@ -609,11 +792,17 @@ void do_interrupt(CPUS390XState *env)
     case EXCP_EXT:
         do_ext_interrupt(env);
         break;
+    case EXCP_IO:
+        do_io_interrupt(env);
+        break;
+    case EXCP_MCHK:
+        do_mchk_interrupt(env);
+        break;
     }
     env->exception_index = -1;
 
     if (!env->pending_int) {
-        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+        cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
     }
 }
 

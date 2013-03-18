@@ -54,6 +54,9 @@ indicates that target image must be compressed (qcow format only)
 with or without a command shows help and lists the supported formats
 @item -p
 display progress bar (convert and rebase commands only)
+@item -q
+Quiet mode - do not print any output (except errors). There's no progress bar
+in case both @var{-q} and @var{-p} options are used.
 @item -S @var{size}
 indicates the consecutive number of bytes that must contain only zeros
 for qemu-img to create a sparse image during conversion. This value is rounded
@@ -81,12 +84,25 @@ deletes a snapshot
 lists all snapshots in the given image
 @end table
 
+Parameters to compare subcommand:
+
+@table @option
+
+@item -f
+First image format
+@item -F
+Second image format
+@item -s
+Strict mode - fail on on different image size or sector allocation
+@end table
+
 Command description:
 
 @table @option
-@item check [-f @var{fmt}] [-r [leaks | all]] @var{filename}
+@item check [-f @var{fmt}] [--output=@var{ofmt}] [-r [leaks | all]] @var{filename}
 
-Perform a consistency check on the disk image @var{filename}.
+Perform a consistency check on the disk image @var{filename}. The command can
+output in the format @var{ofmt} which is either @code{human} or @code{json}.
 
 If @code{-r} is specified, qemu-img tries to repair any inconsistencies found
 during the check. @code{-r leaks} repairs only cluster leaks, whereas
@@ -113,6 +129,47 @@ it doesn't need to be specified separately in this case.
 @item commit [-f @var{fmt}] [-t @var{cache}] @var{filename}
 
 Commit the changes recorded in @var{filename} in its base image.
+
+@item compare [-f @var{fmt}] [-F @var{fmt}] [-p] [-s] [-q] @var{filename1} @var{filename2}
+
+Check if two images have the same content. You can compare images with
+different format or settings.
+
+The format is probed unless you specify it by @var{-f} (used for
+@var{filename1}) and/or @var{-F} (used for @var{filename2}) option.
+
+By default, images with different size are considered identical if the larger
+image contains only unallocated and/or zeroed sectors in the area after the end
+of the other image. In addition, if any sector is not allocated in one image
+and contains only zero bytes in the second one, it is evaluated as equal. You
+can use Strict mode by specifying the @var{-s} option. When compare runs in
+Strict mode, it fails in case image size differs or a sector is allocated in
+one image and is not allocated in the second one.
+
+By default, compare prints out a result message. This message displays
+information that both images are same or the position of the first different
+byte. In addition, result message can report different image size in case
+Strict mode is used.
+
+Compare exits with @code{0} in case the images are equal and with @code{1}
+in case the images differ. Other exit codes mean an error occurred during
+execution and standard error output should contain an error message.
+The following table sumarizes all exit codes of the compare subcommand:
+
+@table @option
+
+@item 0
+Images are identical
+@item 1
+Images differ
+@item 2
+Error on opening an image
+@item 3
+Error on checking a sector allocation
+@item 4
+Error on reading data
+
+@end table
 
 @item convert [-c] [-p] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 

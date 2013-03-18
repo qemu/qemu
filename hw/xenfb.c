@@ -35,10 +35,10 @@
 #include <string.h>
 #include <time.h>
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
 #include "char/char.h"
-#include "xen_backend.h"
+#include "hw/xen_backend.h"
 
 #include <xen/event_channel.h>
 #include <xen/io/fbif.h>
@@ -756,7 +756,8 @@ static void xenfb_update(void *opaque)
             qemu_free_displaysurface(xenfb->c.ds);
             xenfb->c.ds->surface = qemu_create_displaysurface_from
                 (xenfb->width, xenfb->height, xenfb->depth,
-                 xenfb->row_stride, xenfb->pixels + xenfb->offset);
+                 xenfb->row_stride, xenfb->pixels + xenfb->offset,
+                 false);
             break;
         default:
             /* we must convert stuff */

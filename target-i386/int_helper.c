@@ -374,39 +374,6 @@ static int idiv64(uint64_t *plow, uint64_t *phigh, int64_t b)
     return 0;
 }
 
-void helper_mulq_EAX_T0(CPUX86State *env, target_ulong t0)
-{
-    uint64_t r0, r1;
-
-    mulu64(&r0, &r1, EAX, t0);
-    EAX = r0;
-    EDX = r1;
-    CC_DST = r0;
-    CC_SRC = r1;
-}
-
-void helper_imulq_EAX_T0(CPUX86State *env, target_ulong t0)
-{
-    uint64_t r0, r1;
-
-    muls64(&r0, &r1, EAX, t0);
-    EAX = r0;
-    EDX = r1;
-    CC_DST = r0;
-    CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
-}
-
-target_ulong helper_imulq_T0_T1(CPUX86State *env, target_ulong t0,
-                                target_ulong t1)
-{
-    uint64_t r0, r1;
-
-    muls64(&r0, &r1, t0, t1);
-    CC_DST = r0;
-    CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
-    return r0;
-}
-
 void helper_divq_EAX(CPUX86State *env, target_ulong t0)
 {
     uint64_t r0, r1;
@@ -440,45 +407,49 @@ void helper_idivq_EAX(CPUX86State *env, target_ulong t0)
 }
 #endif
 
+#if TARGET_LONG_BITS == 32
+# define ctztl  ctz32
+# define clztl  clz32
+#else
+# define ctztl  ctz64
+# define clztl  clz64
+#endif
+
 /* bit operations */
-target_ulong helper_bsf(target_ulong t0)
+target_ulong helper_ctz(target_ulong t0)
 {
-    int count;
-    target_ulong res;
-
-    res = t0;
-    count = 0;
-    while ((res & 1) == 0) {
-        count++;
-        res >>= 1;
-    }
-    return count;
+    return ctztl(t0);
 }
 
-target_ulong helper_lzcnt(target_ulong t0, int wordsize)
+target_ulong helper_clz(target_ulong t0)
 {
-    int count;
-    target_ulong res, mask;
-
-    if (wordsize > 0 && t0 == 0) {
-        return wordsize;
-    }
-    res = t0;
-    count = TARGET_LONG_BITS - 1;
-    mask = (target_ulong)1 << (TARGET_LONG_BITS - 1);
-    while ((res & mask) == 0) {
-        count--;
-        res <<= 1;
-    }
-    if (wordsize > 0) {
-        return wordsize - 1 - count;
-    }
-    return count;
+    return clztl(t0);
 }
 
-target_ulong helper_bsr(target_ulong t0)
+target_ulong helper_pdep(target_ulong src, target_ulong mask)
 {
-    return helper_lzcnt(t0, 0);
+    target_ulong dest = 0;
+    int i, o;
+
+    for (i = 0; mask != 0; i++) {
+        o = ctztl(mask);
+        mask &= mask - 1;
+        dest |= ((src >> i) & 1) << o;
+    }
+    return dest;
+}
+
+target_ulong helper_pext(target_ulong src, target_ulong mask)
+{
+    target_ulong dest = 0;
+    int i, o;
+
+    for (o = 0; mask != 0; o++) {
+        i = ctztl(mask);
+        mask &= mask - 1;
+        dest |= ((src >> i) & 1) << o;
+    }
+    return dest;
 }
 
 #define SHIFT 0

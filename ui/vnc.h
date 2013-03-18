@@ -99,6 +99,9 @@ typedef struct VncDisplay VncDisplay;
 #ifdef CONFIG_VNC_SASL
 #include "vnc-auth-sasl.h"
 #endif
+#ifdef CONFIG_VNC_WS
+#include "vnc-ws.h"
+#endif
 
 struct VncRectStat
 {
@@ -142,6 +145,11 @@ struct VncDisplay
     QEMUTimer *timer;
     int timer_interval;
     int lsock;
+#ifdef CONFIG_VNC_WS
+    int lwebsock;
+    bool websocket;
+    char *ws_display;
+#endif
     DisplayState *ds;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
@@ -269,11 +277,19 @@ struct VncState
 #ifdef CONFIG_VNC_SASL
     VncStateSASL sasl;
 #endif
+#ifdef CONFIG_VNC_WS
+    bool encode_ws;
+    bool websocket;
+#endif
 
     QObject *info;
 
     Buffer output;
     Buffer input;
+#ifdef CONFIG_VNC_WS
+    Buffer ws_input;
+    Buffer ws_output;
+#endif
     /* current output mode information */
     VncWritePixels *write_pixels;
     PixelFormat client_pf;
@@ -290,6 +306,7 @@ struct VncState
     QEMUPutLEDEntry *led;
 
     bool abort;
+    bool initialized;
     QemuMutex output_mutex;
     QEMUBH *bh;
     Buffer jobs_buffer;
@@ -493,6 +510,8 @@ void vnc_write_u16(VncState *vs, uint16_t value);
 void vnc_write_u8(VncState *vs, uint8_t value);
 void vnc_flush(VncState *vs);
 void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting);
+void vnc_disconnect_finish(VncState *vs);
+void vnc_init_state(VncState *vs);
 
 
 /* Buffer I/O functions */
@@ -510,6 +529,8 @@ void buffer_reserve(Buffer *buffer, size_t len);
 void buffer_reset(Buffer *buffer);
 void buffer_free(Buffer *buffer);
 void buffer_append(Buffer *buffer, const void *data, size_t len);
+void buffer_advance(Buffer *buf, size_t len);
+uint8_t *buffer_end(Buffer *buffer);
 
 
 /* Misc helpers */

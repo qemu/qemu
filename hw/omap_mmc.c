@@ -16,9 +16,9 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "omap.h"
-#include "sd.h"
+#include "hw/hw.h"
+#include "hw/omap.h"
+#include "hw/sd.h"
 
 struct omap_mmc_s {
     qemu_irq irq;

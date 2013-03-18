@@ -22,15 +22,15 @@
 #include "qemu/bswap.h"
 
 #ifdef HOST_WORDS_BIGENDIAN
-#define fdt32_to_cpu(x)		(x)
-#define cpu_to_fdt32(x)		(x)
-#define fdt64_to_cpu(x)		(x)
-#define cpu_to_fdt64(x)		(x)
+#define fdt32_to_cpu(x)  (x)
+#define cpu_to_fdt32(x)  (x)
+#define fdt64_to_cpu(x)  (x)
+#define cpu_to_fdt64(x)  (x)
 #else
-#define fdt32_to_cpu(x)		(bswap_32((x)))
-#define cpu_to_fdt32(x)		(bswap_32((x)))
-#define fdt64_to_cpu(x)		(bswap_64((x)))
-#define cpu_to_fdt64(x)		(bswap_64((x)))
+#define fdt32_to_cpu(x)  bswap32(x)
+#define cpu_to_fdt32(x)  bswap32(x)
+#define fdt64_to_cpu(x)  bswap64(x)
+#define cpu_to_fdt64(x)  bswap64(x)
 #endif
 
 #endif /* _LIBFDT_ENV_H */

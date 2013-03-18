@@ -10,10 +10,10 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "pxa.h"
-#include "sd.h"
-#include "qdev.h"
+#include "hw/hw.h"
+#include "hw/pxa.h"
+#include "hw/sd.h"
+#include "hw/qdev.h"
 
 struct PXA2xxMMCIState {
     MemoryRegion iomem;

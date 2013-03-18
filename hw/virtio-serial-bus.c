@@ -21,9 +21,9 @@
 #include "qemu/iov.h"
 #include "monitor/monitor.h"
 #include "qemu/queue.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
-#include "virtio-serial.h"
+#include "hw/virtio-serial.h"
 
 /* The virtio-serial bus on top of which the ports will ride as devices */
 struct VirtIOSerialBus {
@@ -172,24 +172,7 @@ static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
                                   port->elem.out_sg[i].iov_base
                                   + port->iov_offset,
                                   buf_size);
-            if (ret < 0 && ret != -EAGAIN) {
-                /* We don't handle any other type of errors here */
-                abort();
-            }
-            if (ret == -EAGAIN || (ret >= 0 && ret < buf_size)) {
-		/*
-                 * this is a temporary check until chardevs can signal to
-                 * frontends that they are writable again. This prevents
-                 * the console from going into throttled mode (forever)
-                 * if virtio-console is connected to a pty without a
-                 * listener. Otherwise the guest spins forever.
-                 * We can revert this if
-                 * 1: chardevs can notify frondends
-                 * 2: the guest driver does not spin in these cases
-                 */
-                if (!vsc->is_console) {
-                    virtio_serial_throttle_port(port, true);
-                }
+            if (port->throttled) {
                 port->iov_idx = i;
                 if (ret > 0) {
                     port->iov_offset += ret;
@@ -1058,7 +1041,7 @@ static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
     k->props = virtser_props;
 }
 
-static TypeInfo virtio_serial_port_type_info = {
+static const TypeInfo virtio_serial_port_type_info = {
     .name = TYPE_VIRTIO_SERIAL_PORT,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(VirtIOSerialPort),

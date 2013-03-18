@@ -182,17 +182,18 @@ static char *assign_name(NetClientState *nc1, const char *model)
     return g_strdup(buf);
 }
 
-NetClientState *qemu_new_net_client(NetClientInfo *info,
-                                    NetClientState *peer,
-                                    const char *model,
-                                    const char *name)
+static void qemu_net_client_destructor(NetClientState *nc)
 {
-    NetClientState *nc;
+    g_free(nc);
+}
 
-    assert(info->size >= sizeof(NetClientState));
-
-    nc = g_malloc0(info->size);
-
+static void qemu_net_client_setup(NetClientState *nc,
+                                  NetClientInfo *info,
+                                  NetClientState *peer,
+                                  const char *model,
+                                  const char *name,
+                                  NetClientDestructor *destructor)
+{
     nc->info = info;
     nc->model = g_strdup(model);
     if (name) {
@@ -209,6 +210,21 @@ NetClientState *qemu_new_net_client(NetClientInfo *info,
     QTAILQ_INSERT_TAIL(&net_clients, nc, next);
 
     nc->send_queue = qemu_new_net_queue(nc);
+    nc->destructor = destructor;
+}
+
+NetClientState *qemu_new_net_client(NetClientInfo *info,
+                                    NetClientState *peer,
+                                    const char *model,
+                                    const char *name)
+{
+    NetClientState *nc;
+
+    assert(info->size >= sizeof(NetClientState));
+
+    nc = g_malloc0(info->size);
+    qemu_net_client_setup(nc, info, peer, model, name,
+                          qemu_net_client_destructor);
 
     return nc;
 }
@@ -219,19 +235,49 @@ NICState *qemu_new_nic(NetClientInfo *info,
                        const char *name,
                        void *opaque)
 {
-    NetClientState *nc;
+    NetClientState **peers = conf->peers.ncs;
     NICState *nic;
+    int i, queues = MAX(1, conf->queues);
 
     assert(info->type == NET_CLIENT_OPTIONS_KIND_NIC);
     assert(info->size >= sizeof(NICState));
 
-    nc = qemu_new_net_client(info, conf->peer, model, name);
-
-    nic = DO_UPCAST(NICState, nc, nc);
+    nic = g_malloc0(info->size + sizeof(NetClientState) * queues);
+    nic->ncs = (void *)nic + info->size;
     nic->conf = conf;
     nic->opaque = opaque;
 
+    for (i = 0; i < queues; i++) {
+        qemu_net_client_setup(&nic->ncs[i], info, peers[i], model, name,
+                              NULL);
+        nic->ncs[i].queue_index = i;
+    }
+
     return nic;
+}
+
+NetClientState *qemu_get_subqueue(NICState *nic, int queue_index)
+{
+    return nic->ncs + queue_index;
+}
+
+NetClientState *qemu_get_queue(NICState *nic)
+{
+    return qemu_get_subqueue(nic, 0);
+}
+
+NICState *qemu_get_nic(NetClientState *nc)
+{
+    NetClientState *nc0 = nc - nc->queue_index;
+
+    return (NICState *)((void *)nc0 - nc->info->size);
+}
+
+void *qemu_get_nic_opaque(NetClientState *nc)
+{
+    NICState *nic = qemu_get_nic(nc);
+
+    return nic->opaque;
 }
 
 static void qemu_cleanup_net_client(NetClientState *nc)
@@ -253,37 +299,74 @@ static void qemu_free_net_client(NetClientState *nc)
     }
     g_free(nc->name);
     g_free(nc->model);
-    g_free(nc);
+    if (nc->destructor) {
+        nc->destructor(nc);
+    }
 }
 
 void qemu_del_net_client(NetClientState *nc)
 {
+    NetClientState *ncs[MAX_QUEUE_NUM];
+    int queues, i;
+
+    /* If the NetClientState belongs to a multiqueue backend, we will change all
+     * other NetClientStates also.
+     */
+    queues = qemu_find_net_clients_except(nc->name, ncs,
+                                          NET_CLIENT_OPTIONS_KIND_NIC,
+                                          MAX_QUEUE_NUM);
+    assert(queues != 0);
+
     /* If there is a peer NIC, delete and cleanup client, but do not free. */
     if (nc->peer && nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-        NICState *nic = DO_UPCAST(NICState, nc, nc->peer);
+        NICState *nic = qemu_get_nic(nc->peer);
         if (nic->peer_deleted) {
             return;
         }
         nic->peer_deleted = true;
-        /* Let NIC know peer is gone. */
-        nc->peer->link_down = true;
+
+        for (i = 0; i < queues; i++) {
+            ncs[i]->peer->link_down = true;
+        }
+
         if (nc->peer->info->link_status_changed) {
             nc->peer->info->link_status_changed(nc->peer);
         }
-        qemu_cleanup_net_client(nc);
+
+        for (i = 0; i < queues; i++) {
+            qemu_cleanup_net_client(ncs[i]);
+        }
+
         return;
     }
 
+    assert(nc->info->type != NET_CLIENT_OPTIONS_KIND_NIC);
+
+    for (i = 0; i < queues; i++) {
+        qemu_cleanup_net_client(ncs[i]);
+        qemu_free_net_client(ncs[i]);
+    }
+}
+
+void qemu_del_nic(NICState *nic)
+{
+    int i, queues = MAX(nic->conf->queues, 1);
+
     /* If this is a peer NIC and peer has already been deleted, free it now. */
-    if (nc->peer && nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-        NICState *nic = DO_UPCAST(NICState, nc, nc);
-        if (nic->peer_deleted) {
-            qemu_free_net_client(nc->peer);
+    if (nic->peer_deleted) {
+        for (i = 0; i < queues; i++) {
+            qemu_free_net_client(qemu_get_subqueue(nic, i)->peer);
         }
     }
 
-    qemu_cleanup_net_client(nc);
-    qemu_free_net_client(nc);
+    for (i = queues - 1; i >= 0; i--) {
+        NetClientState *nc = qemu_get_subqueue(nic, i);
+
+        qemu_cleanup_net_client(nc);
+        qemu_free_net_client(nc);
+    }
+
+    g_free(nic);
 }
 
 void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
@@ -292,7 +375,9 @@ void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
 
     QTAILQ_FOREACH(nc, &net_clients, next) {
         if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-            func(DO_UPCAST(NICState, nc, nc), opaque);
+            if (nc->queue_index == 0) {
+                func(qemu_get_nic(nc), opaque);
+            }
         }
     }
 }
@@ -355,6 +440,12 @@ void qemu_flush_queued_packets(NetClientState *nc)
 {
     nc->receive_disabled = 0;
 
+    if (nc->peer && nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_HUBPORT) {
+        if (net_hub_flush(nc->peer)) {
+            qemu_notify_event();
+        }
+        return;
+    }
     if (qemu_net_queue_flush(nc->send_queue)) {
         /* We emptied the queue successfully, signal to the IO thread to repoll
          * the file descriptor (for tap, for example).
@@ -482,6 +573,27 @@ NetClientState *qemu_find_netdev(const char *id)
     return NULL;
 }
 
+int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
+                                 NetClientOptionsKind type, int max)
+{
+    NetClientState *nc;
+    int ret = 0;
+
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        if (nc->info->type == type) {
+            continue;
+        }
+        if (!strcmp(nc->name, id)) {
+            if (ret < max) {
+                ncs[ret] = nc;
+            }
+            ret++;
+        }
+    }
+
+    return ret;
+}
+
 static int nic_get_free_idx(void)
 {
     int index;
@@ -566,9 +678,7 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
         assert(peer);
         nd->netdev = peer;
     }
-    if (name) {
-        nd->name = g_strdup(name);
-    }
+    nd->name = g_strdup(name);
     if (nic->has_model) {
         nd->model = g_strdup(nic->model);
     }
@@ -848,11 +958,13 @@ void qmp_netdev_del(const char *id, Error **errp)
 
 void print_net_client(Monitor *mon, NetClientState *nc)
 {
-    monitor_printf(mon, "%s: type=%s,%s\n", nc->name,
-                   NetClientOptionsKind_lookup[nc->info->type], nc->info_str);
+    monitor_printf(mon, "%s: index=%d,type=%s,%s\n", nc->name,
+                   nc->queue_index,
+                   NetClientOptionsKind_lookup[nc->info->type],
+                   nc->info_str);
 }
 
-void do_info_network(Monitor *mon)
+void do_info_network(Monitor *mon, const QDict *qdict)
 {
     NetClientState *nc, *peer;
     NetClientOptionsKind type;
@@ -880,20 +992,23 @@ void do_info_network(Monitor *mon)
 
 void qmp_set_link(const char *name, bool up, Error **errp)
 {
-    NetClientState *nc = NULL;
+    NetClientState *ncs[MAX_QUEUE_NUM];
+    NetClientState *nc;
+    int queues, i;
 
-    QTAILQ_FOREACH(nc, &net_clients, next) {
-        if (!strcmp(nc->name, name)) {
-            goto done;
-        }
-    }
-done:
-    if (!nc) {
+    queues = qemu_find_net_clients_except(name, ncs,
+                                          NET_CLIENT_OPTIONS_KIND_MAX,
+                                          MAX_QUEUE_NUM);
+
+    if (queues == 0) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, name);
         return;
     }
+    nc = ncs[0];
 
-    nc->link_down = !up;
+    for (i = 0; i < queues; i++) {
+        ncs[i]->link_down = !up;
+    }
 
     if (nc->info->link_status_changed) {
         nc->info->link_status_changed(nc);
@@ -913,10 +1028,18 @@ done:
 
 void net_cleanup(void)
 {
-    NetClientState *nc, *next_vc;
+    NetClientState *nc;
 
-    QTAILQ_FOREACH_SAFE(nc, &net_clients, next, next_vc) {
-        qemu_del_net_client(nc);
+    /* We may del multiple entries during qemu_del_net_client(),
+     * so QTAILQ_FOREACH_SAFE() is also not safe here.
+     */
+    while (!QTAILQ_EMPTY(&net_clients)) {
+        nc = QTAILQ_FIRST(&net_clients);
+        if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
+            qemu_del_nic(qemu_get_nic(nc));
+        } else {
+            qemu_del_net_client(nc);
+        }
     }
 }
 
@@ -1054,3 +1177,29 @@ unsigned compute_mcast_idx(const uint8_t *ep)
     }
     return crc >> 26;
 }
+
+QemuOptsList qemu_netdev_opts = {
+    .name = "netdev",
+    .implied_opt_name = "type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_netdev_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any params
+         * validation will happen later
+         */
+        { /* end of list */ }
+    },
+};
+
+QemuOptsList qemu_net_opts = {
+    .name = "net",
+    .implied_opt_name = "type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_net_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any params
+         * validation will happen later
+         */
+        { /* end of list */ }
+    },
+};

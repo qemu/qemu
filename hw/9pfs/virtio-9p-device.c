@@ -14,9 +14,9 @@
 #include "hw/virtio.h"
 #include "hw/pc.h"
 #include "qemu/sockets.h"
-#include "hw/virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
+#include "virtio-9p-device.h"
 #include "virtio-9p-xattr.h"
 #include "virtio-9p-coth.h"
 
@@ -85,11 +85,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     }
 
     s->ctx.export_flags = fse->export_flags;
-    if (fse->path) {
-        s->ctx.fs_root = g_strdup(fse->path);
-    } else {
-        s->ctx.fs_root = NULL;
-    }
+    s->ctx.fs_root = g_strdup(fse->path);
     s->ctx.exops.get_st_gen = NULL;
     len = strlen(conf->tag);
     if (len > MAX_TAG_LEN - 1) {
@@ -98,7 +94,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         exit(1);
     }
 
-    s->tag = strdup(conf->tag);
+    s->tag = g_strdup(conf->tag);
     s->ctx.uid = -1;
 
     s->ops = fse->ops;
@@ -140,54 +136,3 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
 
     return &s->vdev;
 }
-
-static int virtio_9p_init_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-    VirtIODevice *vdev;
-
-    vdev = virtio_9p_init(&pci_dev->qdev, &proxy->fsconf);
-    vdev->nvectors = proxy->nvectors;
-    virtio_init_pci(proxy, vdev);
-    /* make the actual value visible */
-    proxy->nvectors = vdev->nvectors;
-    return 0;
-}
-
-static Property virtio_9p_properties[] = {
-    DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
-    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
-    DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
-    DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void virtio_9p_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = virtio_9p_init_pci;
-    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
-    k->device_id = 0x1009;
-    k->revision = VIRTIO_PCI_ABI_VERSION;
-    k->class_id = 0x2;
-    dc->props = virtio_9p_properties;
-    dc->reset = virtio_pci_reset;
-}
-
-static TypeInfo virtio_9p_info = {
-    .name          = "virtio-9p-pci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VirtIOPCIProxy),
-    .class_init    = virtio_9p_class_init,
-};
-
-static void virtio_9p_register_types(void)
-{
-    type_register_static(&virtio_9p_info);
-    virtio_9p_set_fd_limit();
-}
-
-type_init(virtio_9p_register_types)

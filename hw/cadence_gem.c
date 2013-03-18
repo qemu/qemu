@@ -24,7 +24,7 @@
 
 #include <zlib.h> /* For crc32 */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "net/net.h"
 #include "net/checksum.h"
 
@@ -389,10 +389,10 @@ static void gem_init_register_masks(GemState *s)
  */
 static void phy_update_link(GemState *s)
 {
-    DB_PRINT("down %d\n", s->nic->nc.link_down);
+    DB_PRINT("down %d\n", qemu_get_queue(s->nic)->link_down);
 
     /* Autonegotiation status mirrors link status.  */
-    if (s->nic->nc.link_down) {
+    if (qemu_get_queue(s->nic)->link_down) {
         s->phy_regs[PHY_REG_STATUS] &= ~(PHY_REG_STATUS_ANEGCMPL |
                                          PHY_REG_STATUS_LINK);
         s->phy_regs[PHY_REG_INT_ST] |= PHY_REG_INT_ST_LINKC;
@@ -409,7 +409,7 @@ static int gem_can_receive(NetClientState *nc)
 {
     GemState *s;
 
-    s = DO_UPCAST(NICState, nc, nc)->opaque;
+    s = qemu_get_nic_opaque(nc);
 
     DB_PRINT("\n");
 
@@ -427,32 +427,9 @@ static int gem_can_receive(NetClientState *nc)
  */
 static void gem_update_int_status(GemState *s)
 {
-    uint32_t new_interrupts = 0;
-    /* Packet transmitted ? */
-    if (s->regs[GEM_TXSTATUS] & GEM_TXSTATUS_TXCMPL) {
-        new_interrupts |= GEM_INT_TXCMPL;
-    }
-    /* End of TX ring ? */
-    if (s->regs[GEM_TXSTATUS] & GEM_TXSTATUS_USED) {
-        new_interrupts |= GEM_INT_TXUSED;
-    }
-
-    /* Frame received ? */
-    if (s->regs[GEM_RXSTATUS] & GEM_RXSTATUS_FRMRCVD) {
-        new_interrupts |= GEM_INT_RXCMPL;
-    }
-    /* RX ring full ? */
-    if (s->regs[GEM_RXSTATUS] & GEM_RXSTATUS_NOBUF) {
-        new_interrupts |= GEM_INT_RXUSED;
-    }
-
-    s->regs[GEM_ISR] |= new_interrupts & ~(s->regs[GEM_IMR]);
-
     if (s->regs[GEM_ISR]) {
         DB_PRINT("asserting int. (0x%08x)\n", s->regs[GEM_ISR]);
         qemu_set_irq(s->irq, 1);
-    } else {
-        qemu_set_irq(s->irq, 0);
     }
 }
 
@@ -612,10 +589,10 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     uint8_t    rxbuf[2048];
     uint8_t   *rxbuf_ptr;
 
-    s = DO_UPCAST(NICState, nc, nc)->opaque;
+    s = qemu_get_nic_opaque(nc);
 
     /* Do nothing if receive is not enabled. */
-    if (!(s->regs[GEM_NWCTRL] & GEM_NWCTRL_RXENA)) {
+    if (!gem_can_receive(nc)) {
         return -1;
     }
 
@@ -687,15 +664,17 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     packet_desc_addr = s->rx_desc_addr;
     while (1) {
-        DB_PRINT("read descriptor 0x%x\n", packet_desc_addr);
+        DB_PRINT("read descriptor 0x%x\n", (unsigned)packet_desc_addr);
         /* read current descriptor */
         cpu_physical_memory_read(packet_desc_addr,
                                  (uint8_t *)&desc[0], sizeof(desc));
 
         /* Descriptor owned by software ? */
         if (rx_desc_get_ownership(desc) == 1) {
-            DB_PRINT("descriptor 0x%x owned by sw.\n", packet_desc_addr);
+            DB_PRINT("descriptor 0x%x owned by sw.\n",
+                     (unsigned)packet_desc_addr);
             s->regs[GEM_RXSTATUS] |= GEM_RXSTATUS_NOBUF;
+            s->regs[GEM_ISR] |= GEM_INT_RXUSED & ~(s->regs[GEM_IMR]);
             /* Handle interrupt consequences */
             gem_update_int_status(s);
             return -1;
@@ -709,7 +688,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
          */
         if (rx_desc_get_buffer(desc) == 0) {
             DB_PRINT("Invalid RX buffer (NULL) for descriptor 0x%x\n",
-                       packet_desc_addr);
+                     (unsigned)packet_desc_addr);
             break;
         }
 
@@ -745,11 +724,13 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     s->rx_desc_addr = last_desc_addr;
     if (rx_desc_get_wrap(desc)) {
         s->rx_desc_addr = s->regs[GEM_RXQBASE];
+        DB_PRINT("wrapping RX descriptor list\n");
     } else {
+        DB_PRINT("incrementing RX descriptor list\n");
         s->rx_desc_addr += 8;
     }
 
-    DB_PRINT("set SOF, OWN on descriptor 0x%08x\n", packet_desc_addr);
+    DB_PRINT("set SOF, OWN on descriptor 0x%08x\n", (unsigned)packet_desc_addr);
 
     /* Count it */
     gem_receive_updatestats(s, buf, size);
@@ -764,6 +745,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
                               (uint8_t *)&desc[0], sizeof(desc));
 
     s->regs[GEM_RXSTATUS] |= GEM_RXSTATUS_FRMRCVD;
+    s->regs[GEM_ISR] |= GEM_INT_RXCMPL & ~(s->regs[GEM_IMR]);
 
     /* Handle interrupt consequences */
     gem_update_int_status(s);
@@ -861,7 +843,8 @@ static void gem_transmit(GemState *s)
          */
         if ((tx_desc_get_buffer(desc) == 0) ||
             (tx_desc_get_length(desc) == 0)) {
-            DB_PRINT("Invalid TX descriptor @ 0x%x\n", packet_desc_addr);
+            DB_PRINT("Invalid TX descriptor @ 0x%x\n",
+                     (unsigned)packet_desc_addr);
             break;
         }
 
@@ -892,6 +875,7 @@ static void gem_transmit(GemState *s)
             DB_PRINT("TX descriptor next: 0x%08x\n", s->tx_desc_addr);
 
             s->regs[GEM_TXSTATUS] |= GEM_TXSTATUS_TXCMPL;
+            s->regs[GEM_ISR] |= GEM_INT_TXCMPL & ~(s->regs[GEM_IMR]);
 
             /* Handle interrupt consequences */
             gem_update_int_status(s);
@@ -906,9 +890,10 @@ static void gem_transmit(GemState *s)
 
             /* Send the packet somewhere */
             if (s->phy_loop) {
-                gem_receive(&s->nic->nc, tx_packet, total_bytes);
+                gem_receive(qemu_get_queue(s->nic), tx_packet, total_bytes);
             } else {
-                qemu_send_packet(&s->nic->nc, tx_packet, total_bytes);
+                qemu_send_packet(qemu_get_queue(s->nic), tx_packet,
+                                 total_bytes);
             }
 
             /* Prepare for next packet */
@@ -928,6 +913,7 @@ static void gem_transmit(GemState *s)
 
     if (tx_desc_get_used(desc)) {
         s->regs[GEM_TXSTATUS] |= GEM_TXSTATUS_USED;
+        s->regs[GEM_ISR] |= GEM_INT_TXUSED & ~(s->regs[GEM_IMR]);
         gem_update_int_status(s);
     }
 }
@@ -959,7 +945,7 @@ static void gem_phy_reset(GemState *s)
 
 static void gem_reset(DeviceState *d)
 {
-    GemState *s = FROM_SYSBUS(GemState, sysbus_from_qdev(d));
+    GemState *s = FROM_SYSBUS(GemState, SYS_BUS_DEVICE(d));
 
     DB_PRINT("\n");
 
@@ -1031,10 +1017,11 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
     offset >>= 2;
     retval = s->regs[offset];
 
-    DB_PRINT("offset: 0x%04x read: 0x%08x\n", offset*4, retval);
+    DB_PRINT("offset: 0x%04x read: 0x%08x\n", (unsigned)offset*4, retval);
 
     switch (offset) {
     case GEM_ISR:
+        DB_PRINT("lowering irq on ISR read\n");
         qemu_set_irq(s->irq, 0);
         break;
     case GEM_PHYMNTNC:
@@ -1073,7 +1060,7 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
     GemState *s = (GemState *)opaque;
     uint32_t readonly;
 
-    DB_PRINT("offset: 0x%04x write: 0x%08x ", offset, (unsigned)val);
+    DB_PRINT("offset: 0x%04x write: 0x%08x ", (unsigned)offset, (unsigned)val);
     offset >>= 2;
 
     /* Squash bits which are read only in write value */
@@ -1098,9 +1085,8 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
             /* Reset to start of Q when transmit disabled. */
             s->tx_desc_addr = s->regs[GEM_TXQBASE];
         }
-        if (!(val & GEM_NWCTRL_RXENA)) {
-            /* Reset to start of Q when receive disabled. */
-            s->rx_desc_addr = s->regs[GEM_RXQBASE];
+        if (val & GEM_NWCTRL_RXENA) {
+            qemu_flush_queued_packets(qemu_get_queue(s->nic));
         }
         break;
 
@@ -1148,7 +1134,7 @@ static const MemoryRegionOps gem_ops = {
 
 static void gem_cleanup(NetClientState *nc)
 {
-    GemState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    GemState *s = qemu_get_nic_opaque(nc);
 
     DB_PRINT("\n");
     s->nic = NULL;
@@ -1157,7 +1143,7 @@ static void gem_cleanup(NetClientState *nc)
 static void gem_set_link(NetClientState *nc)
 {
     DB_PRINT("\n");
-    phy_update_link(DO_UPCAST(NICState, nc, nc)->opaque);
+    phy_update_link(qemu_get_nic_opaque(nc));
 }
 
 static NetClientInfo net_gem_info = {
@@ -1218,7 +1204,7 @@ static void gem_class_init(ObjectClass *klass, void *data)
     dc->reset = gem_reset;
 }
 
-static TypeInfo gem_info = {
+static const TypeInfo gem_info = {
     .class_init = gem_class_init,
     .name  = "cadence_gem",
     .parent = TYPE_SYS_BUS_DEVICE,

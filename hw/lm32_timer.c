@@ -21,11 +21,11 @@
  *   http://www.latticesemi.com/documents/mico32timer.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 #include "qemu/error-report.h"
 
 #define DEFAULT_FREQUENCY (50*1000000)
@@ -215,7 +215,7 @@ static void lm32_timer_class_init(ObjectClass *klass, void *data)
     dc->props = lm32_timer_properties;
 }
 
-static TypeInfo lm32_timer_info = {
+static const TypeInfo lm32_timer_info = {
     .name          = "lm32-timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LM32TimerState),

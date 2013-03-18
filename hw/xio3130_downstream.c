@@ -19,10 +19,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci/pci_ids.h"
-#include "pci/msi.h"
-#include "pci/pcie.h"
-#include "xio3130_downstream.h"
+#include "hw/pci/pci_ids.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/pcie.h"
+#include "hw/xio3130_downstream.h"
 
 #define PCI_DEVICE_ID_TI_XIO3130D       0x8233  /* downstream port */
 #define XIO3130_REVISION                0x1
@@ -193,7 +193,7 @@ static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
     dc->props = xio3130_downstream_properties;
 }
 
-static TypeInfo xio3130_downstream_info = {
+static const TypeInfo xio3130_downstream_info = {
     .name          = "xio3130-downstream",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIESlot),

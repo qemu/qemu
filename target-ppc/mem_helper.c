@@ -136,18 +136,21 @@ static void do_dcbz(CPUPPCState *env, target_ulong addr, int dcache_line_size)
     }
 }
 
-void helper_dcbz(CPUPPCState *env, target_ulong addr)
+void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t is_dcbzl)
 {
-    do_dcbz(env, addr, env->dcache_line_size);
-}
+    int dcbz_size = env->dcache_line_size;
 
-void helper_dcbz_970(CPUPPCState *env, target_ulong addr)
-{
-    if (((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1) {
-        do_dcbz(env, addr, 32);
-    } else {
-        do_dcbz(env, addr, env->dcache_line_size);
+#if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
+    if (!is_dcbzl &&
+        (env->excp_model == POWERPC_EXCP_970) &&
+        ((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1) {
+        dcbz_size = 32;
     }
+#endif
+
+    /* XXX add e500mc support */
+
+    do_dcbz(env, addr, dcbz_size);
 }
 
 void helper_icbi(CPUPPCState *env, target_ulong addr)

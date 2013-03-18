@@ -34,8 +34,6 @@
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
 
-#define DEBUG_LOGFILE "/tmp/qemu.log"
-
 int singlestep;
 #if defined(CONFIG_USE_GUEST_BASE)
 unsigned long mmap_min_addr;
@@ -691,11 +689,12 @@ static void usage(void)
            "-bsd type         select emulated BSD type FreeBSD/NetBSD/OpenBSD (default)\n"
            "\n"
            "Debug options:\n"
-           "-d options   activate log (default logfile=%s)\n"
-           "-D logfile   override default logfile location\n"
-           "-p pagesize  set the host page size to 'pagesize'\n"
-           "-singlestep  always run in singlestep mode\n"
-           "-strace      log system calls\n"
+           "-d item1[,...]    enable logging of specified items\n"
+           "                  (use '-d help' for a list of log items)\n"
+           "-D logfile        write logs to 'logfile' (default stderr)\n"
+           "-p pagesize       set the host page size to 'pagesize'\n"
+           "-singlestep       always run in singlestep mode\n"
+           "-strace           log system calls\n"
            "\n"
            "Environment variables:\n"
            "QEMU_STRACE       Print system calls and arguments similar to the\n"
@@ -709,8 +708,7 @@ static void usage(void)
            ,
            TARGET_ARCH,
            interp_prefix,
-           x86_stack_size,
-           DEBUG_LOGFILE);
+           x86_stack_size);
     exit(1);
 }
 
@@ -733,7 +731,7 @@ int main(int argc, char **argv)
 {
     const char *filename;
     const char *cpu_model;
-    const char *log_file = DEBUG_LOGFILE;
+    const char *log_file = NULL;
     const char *log_mask = NULL;
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
@@ -861,20 +859,16 @@ int main(int argc, char **argv)
     }
 
     /* init debug */
-    cpu_set_log_filename(log_file);
+    qemu_set_log_filename(log_file);
     if (log_mask) {
         int mask;
-        const CPULogItem *item;
 
-        mask = cpu_str_to_log_mask(log_mask);
+        mask = qemu_str_to_log_mask(log_mask);
         if (!mask) {
-            printf("Log items (comma separated):\n");
-            for (item = cpu_log_items; item->mask != 0; item++) {
-                printf("%-10s %s\n", item->name, item->help);
-            }
+            qemu_print_log_usage(stdout);
             exit(1);
         }
-        cpu_set_log(mask);
+        qemu_set_log(mask);
     }
 
     if (optind >= argc) {
@@ -917,7 +911,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-#if defined(TARGET_I386) || defined(TARGET_SPARC) || defined(TARGET_PPC)
+#if defined(TARGET_SPARC) || defined(TARGET_PPC)
     cpu_reset(ENV_GET_CPU(env));
 #endif
     thread_env = env;

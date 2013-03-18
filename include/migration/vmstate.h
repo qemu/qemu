@@ -26,19 +26,34 @@
 #ifndef QEMU_VMSTATE_H
 #define QEMU_VMSTATE_H 1
 
+#include <migration/qemu-file.h>
+
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
 typedef struct SaveVMHandlers {
+    /* This runs inside the iothread lock.  */
     void (*set_params)(const MigrationParams *params, void * opaque);
     SaveStateHandler *save_state;
-    int (*save_live_setup)(QEMUFile *f, void *opaque);
-    int (*save_live_iterate)(QEMUFile *f, void *opaque);
-    int (*save_live_complete)(QEMUFile *f, void *opaque);
-    uint64_t (*save_live_pending)(QEMUFile *f, void *opaque, uint64_t max_size);
+
     void (*cancel)(void *opaque);
-    LoadStateHandler *load_state;
+    int (*save_live_complete)(QEMUFile *f, void *opaque);
+
+    /* This runs both outside and inside the iothread lock.  */
     bool (*is_active)(void *opaque);
+
+    /* This runs outside the iothread lock in the migration case, and
+     * within the lock in the savevm case.  The callback had better only
+     * use data that is local to the migration thread or protected
+     * by other locks.
+     */
+    int (*save_live_iterate)(QEMUFile *f, void *opaque);
+
+    /* This runs outside the iothread lock!  */
+    int (*save_live_setup)(QEMUFile *f, void *opaque);
+    uint64_t (*save_live_pending)(QEMUFile *f, void *opaque, uint64_t max_size);
+
+    LoadStateHandler *load_state;
 } SaveVMHandlers;
 
 int register_savevm(DeviceState *dev,
@@ -118,6 +133,10 @@ struct VMStateDescription {
     VMStateField *fields;
     const VMStateSubsection *subsections;
 };
+
+#ifdef CONFIG_USER_ONLY
+extern const VMStateDescription vmstate_dummy;
+#endif
 
 extern const VMStateInfo vmstate_info_bool;
 
@@ -623,12 +642,20 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id);
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                         void *opaque);
-int vmstate_register(DeviceState *dev, int instance_id,
-                     const VMStateDescription *vmsd, void *base);
+
 int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
                                    const VMStateDescription *vmsd,
                                    void *base, int alias_id,
                                    int required_for_version);
+
+static inline int vmstate_register(DeviceState *dev, int instance_id,
+                                   const VMStateDescription *vmsd,
+                                   void *opaque)
+{
+    return vmstate_register_with_alias_id(dev, instance_id, vmsd,
+                                          opaque, -1, 0);
+}
+
 void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
                         void *opaque);
 

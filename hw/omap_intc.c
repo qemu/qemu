@@ -17,9 +17,9 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "omap.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/omap.h"
+#include "hw/sysbus.h"
 
 /* Interrupt Handlers */
 struct omap_intr_handler_bank_s {
@@ -329,7 +329,7 @@ static const MemoryRegionOps omap_inth_mem_ops = {
 static void omap_inth_reset(DeviceState *dev)
 {
     struct omap_intr_handler_s *s = FROM_SYSBUS(struct omap_intr_handler_s,
-                                                sysbus_from_qdev(dev));
+                                                SYS_BUS_DEVICE(dev));
     int i;
 
     for (i = 0; i < s->nbanks; ++i){
@@ -389,7 +389,7 @@ static void omap_intc_class_init(ObjectClass *klass, void *data)
     dc->props = omap_intc_properties;
 }
 
-static TypeInfo omap_intc_info = {
+static const TypeInfo omap_intc_info = {
     .name          = "omap-intc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap_intr_handler_s),
@@ -633,7 +633,7 @@ static void omap2_intc_class_init(ObjectClass *klass, void *data)
     dc->props = omap2_intc_properties;
 }
 
-static TypeInfo omap2_intc_info = {
+static const TypeInfo omap2_intc_info = {
     .name          = "omap2-intc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap_intr_handler_s),

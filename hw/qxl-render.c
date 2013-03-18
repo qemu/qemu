@@ -19,7 +19,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qxl.h"
+#include "hw/qxl.h"
 
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
@@ -118,7 +118,8 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                  qxl->guest_primary.surface.height,
                  qxl->guest_primary.bits_pp,
                  qxl->guest_primary.abs_stride,
-                 qxl->guest_primary.data);
+                 qxl->guest_primary.data,
+                 false);
         } else {
             qemu_resize_displaysurface(vga->ds,
                     qxl->guest_primary.surface.width,

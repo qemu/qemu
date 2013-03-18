@@ -4,11 +4,11 @@
 #include "qemu-common.h"
 #include "exec/memory.h"
 #include "exec/ioport.h"
-#include "isa.h"
-#include "fdc.h"
+#include "hw/isa.h"
+#include "hw/fdc.h"
 #include "net/net.h"
 #include "exec/memory.h"
-#include "ioapic.h"
+#include "hw/ioapic.h"
 
 /* PC-style peripherals (also used by other machines).  */
 
@@ -40,8 +40,8 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq);
 qemu_irq *kvm_i8259_init(ISABus *bus);
 int pic_read_irq(DeviceState *d);
 int pic_get_output(DeviceState *d);
-void pic_info(Monitor *mon);
-void irq_info(Monitor *mon);
+void pic_info(Monitor *mon, const QDict *qdict);
+void irq_info(Monitor *mon, const QDict *qdict);
 
 /* Global System Interrupts */
 
@@ -79,6 +79,7 @@ void pc_register_ferr_irq(qemu_irq irq);
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 
 void pc_cpus_init(const char *cpu_model);
+void pc_acpi_init(const char *default_dsdt);
 void *pc_memory_init(MemoryRegion *system_memory,
                     const char *kernel_filename,
                     const char *kernel_cmdline,
@@ -185,5 +186,41 @@ void pc_system_firmware_init(MemoryRegion *rom_memory);
 #define E820_UNUSABLE   5
 
 int e820_add_entry(uint64_t, uint64_t, uint32_t);
+
+#define PC_COMPAT_1_4 \
+        {\
+            .driver   = "scsi-hd",\
+            .property = "discard_granularity",\
+            .value    = stringify(0),\
+	},{\
+            .driver   = "scsi-cd",\
+            .property = "discard_granularity",\
+            .value    = stringify(0),\
+	},{\
+            .driver   = "scsi-disk",\
+            .property = "discard_granularity",\
+            .value    = stringify(0),\
+	},{\
+            .driver   = "ide-hd",\
+            .property = "discard_granularity",\
+            .value    = stringify(0),\
+	},{\
+            .driver   = "ide-cd",\
+            .property = "discard_granularity",\
+            .value    = stringify(0),\
+	},{\
+            .driver   = "ide-drive",\
+            .property = "discard_granularity",\
+            .value    = stringify(0),\
+	},{\
+            .driver   = "virtio-blk-pci",\
+            .property = "discard_granularity",\
+            .value    = stringify(0),\
+	},{\
+            .driver   = "virtio-serial-pci",\
+            .property = "vectors",\
+            /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\
+            .value    = stringify(0xFFFFFFFF),\
+	}
 
 #endif

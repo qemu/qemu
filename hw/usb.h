@@ -25,7 +25,7 @@
  * THE SOFTWARE.
  */
 
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "qemu/queue.h"
 
 /* Constants related to the USB / PCI interaction */
@@ -307,6 +307,12 @@ typedef struct USBDeviceClass {
      */
     void (*flush_ep_queue)(USBDevice *dev, USBEndpoint *ep);
 
+    /*
+     * Called by the hcd to let the device know the queue for an endpoint
+     * has been unlinked / stopped. Optional may be NULL.
+     */
+    void (*ep_stopped)(USBDevice *dev, USBEndpoint *ep);
+
     const char *product_desc;
     const USBDesc *usb_desc;
 } USBDeviceClass;
@@ -355,6 +361,7 @@ struct USBPacket {
     int pid;
     uint64_t id;
     USBEndpoint *ep;
+    unsigned int stream;
     QEMUIOVector iov;
     uint64_t parameter; /* control transfers */
     bool short_not_ok;
@@ -377,13 +384,15 @@ struct USBCombinedPacket {
 void usb_packet_init(USBPacket *p);
 void usb_packet_set_state(USBPacket *p, USBPacketState state);
 void usb_packet_check_state(USBPacket *p, USBPacketState expected);
-void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id,
-                      bool short_not_ok, bool int_req);
+void usb_packet_setup(USBPacket *p, int pid,
+                      USBEndpoint *ep, unsigned int stream,
+                      uint64_t id, bool short_not_ok, bool int_req);
 void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len);
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl);
 void usb_packet_unmap(USBPacket *p, QEMUSGList *sgl);
 void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes);
 void usb_packet_skip(USBPacket *p, size_t bytes);
+size_t usb_packet_size(USBPacket *p);
 void usb_packet_cleanup(USBPacket *p);
 
 static inline bool usb_packet_is_inflight(USBPacket *p)
@@ -411,6 +420,7 @@ void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
                                 uint16_t raw);
 int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
 void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled);
+void usb_ep_set_halted(USBDevice *dev, int pid, int ep, bool halted);
 USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
                                     uint64_t id);
 
@@ -422,14 +432,13 @@ void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);
 void usb_port_reset(USBPort *port);
 void usb_device_reset(USBDevice *dev);
-void usb_wakeup(USBEndpoint *ep);
+void usb_wakeup(USBEndpoint *ep, unsigned int stream);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
 
 /* usb-linux.c */
 USBDevice *usb_host_device_open(USBBus *bus, const char *devname);
-int usb_host_device_close(const char *devname);
-void usb_host_info(Monitor *mon);
+void usb_host_info(Monitor *mon, const QDict *qdict);
 
 /* usb-bt.c */
 USBDevice *usb_bt_init(USBBus *bus, HCIInfo *hci);
@@ -482,7 +491,7 @@ struct USBBus {
 struct USBBusOps {
     int (*register_companion)(USBBus *bus, USBPort *ports[],
                               uint32_t portcount, uint32_t firstport);
-    void (*wakeup_endpoint)(USBBus *bus, USBEndpoint *ep);
+    void (*wakeup_endpoint)(USBBus *bus, USBEndpoint *ep, unsigned int stream);
 };
 
 void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);
@@ -539,11 +548,23 @@ void usb_device_set_interface(USBDevice *dev, int interface,
 
 void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep);
 
+void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep);
+
 const char *usb_device_get_product_desc(USBDevice *dev);
 
 const USBDesc *usb_device_get_usb_desc(USBDevice *dev);
 
 int ehci_create_ich9_with_companions(PCIBus *bus, int slot);
 
-#endif
+/* quirks.c */
 
+/* In bulk endpoints are streaming data sources (iow behave like isoc eps) */
+#define USB_QUIRK_BUFFER_BULK_IN	0x01
+/* Bulk pkts in FTDI format, need special handling when combining packets */
+#define USB_QUIRK_IS_FTDI		0x02
+
+int usb_get_quirks(uint16_t vendor_id, uint16_t product_id,
+                   uint8_t interface_class, uint8_t interface_subclass,
+                   uint8_t interface_protocol);
+
+#endif

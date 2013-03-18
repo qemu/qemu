@@ -423,7 +423,7 @@ static void usb_hid_changed(HIDState *hs)
 {
     USBHIDState *us = container_of(hs, USBHIDState, hid);
 
-    usb_wakeup(us->intr);
+    usb_wakeup(us->intr, 0);
 }
 
 static void usb_hid_handle_reset(USBDevice *dev)
@@ -501,7 +501,7 @@ static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         break;
     case SET_IDLE:
         hs->idle = (uint8_t) (value >> 8);
-        hid_set_next_idle(hs, qemu_get_clock_ns(vm_clock));
+        hid_set_next_idle(hs);
         if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
             hid_pointer_activate(hs);
         }
@@ -523,16 +523,14 @@ static void usb_hid_handle_data(USBDevice *dev, USBPacket *p)
     switch (p->pid) {
     case USB_TOKEN_IN:
         if (p->ep->nr == 1) {
-            int64_t curtime = qemu_get_clock_ns(vm_clock);
             if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
                 hid_pointer_activate(hs);
             }
-            if (!hid_has_events(hs) &&
-                (!hs->idle || hs->next_idle_clock - curtime > 0)) {
+            if (!hid_has_events(hs)) {
                 p->status = USB_RET_NAK;
                 return;
             }
-            hid_set_next_idle(hs, curtime);
+            hid_set_next_idle(hs);
             if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
                 len = hid_pointer_poll(hs, buf, p->iov.size);
             } else if (hs->kind == HID_KEYBOARD) {
@@ -659,7 +657,7 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     dc->props = usb_tablet_properties;
 }
 
-static TypeInfo usb_tablet_info = {
+static const TypeInfo usb_tablet_info = {
     .name          = "usb-tablet",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHIDState),
@@ -678,7 +676,7 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_usb_ptr;
 }
 
-static TypeInfo usb_mouse_info = {
+static const TypeInfo usb_mouse_info = {
     .name          = "usb-mouse",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHIDState),
@@ -697,7 +695,7 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_usb_kbd;
 }
 
-static TypeInfo usb_keyboard_info = {
+static const TypeInfo usb_keyboard_info = {
     .name          = "usb-kbd",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHIDState),

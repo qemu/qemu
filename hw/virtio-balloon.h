@@ -15,8 +15,8 @@
 #ifndef _QEMU_VIRTIO_BALLOON_H
 #define _QEMU_VIRTIO_BALLOON_H
 
-#include "virtio.h"
-#include "pci/pci.h"
+#include "hw/virtio.h"
+#include "hw/pci/pci.h"
 
 /* from Linux's linux/virtio_balloon.h */
 

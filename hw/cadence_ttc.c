@@ -16,7 +16,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 
 #ifdef CADENCE_TTC_ERR_DEBUG
@@ -302,7 +302,7 @@ static uint64_t cadence_ttc_read(void *opaque, hwaddr offset,
 {
     uint32_t ret = cadence_ttc_read_imp(opaque, offset);
 
-    DB_PRINT("addr: %08x data: %08x\n", offset, ret);
+    DB_PRINT("addr: %08x data: %08x\n", (unsigned)offset, (unsigned)ret);
     return ret;
 }
 
@@ -311,7 +311,7 @@ static void cadence_ttc_write(void *opaque, hwaddr offset,
 {
     CadenceTimerState *s = cadence_timer_from_addr(opaque, offset);
 
-    DB_PRINT("addr: %08x data %08x\n", offset, (unsigned)value);
+    DB_PRINT("addr: %08x data %08x\n", (unsigned)offset, (unsigned)value);
 
     cadence_timer_sync(s);
 
@@ -474,7 +474,7 @@ static void cadence_ttc_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_cadence_ttc;
 }
 
-static TypeInfo cadence_ttc_info = {
+static const TypeInfo cadence_ttc_info = {
     .name  = "cadence_ttc",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(CadenceTTCState),

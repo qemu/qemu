@@ -10,10 +10,10 @@
  * the CCM.
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
-#include "imx.h"
+#include "hw/imx.h"
 
 #define CKIH_FREQ 26000000 /* 26MHz crystal input */
 #define CKIL_FREQ    32768 /* nominal 32khz clock */
@@ -306,7 +306,7 @@ static void imx_ccm_class_init(ObjectClass *klass, void *data)
     dc->desc = "i.MX Clock Control Module";
 }
 
-static TypeInfo imx_ccm_info = {
+static const TypeInfo imx_ccm_info = {
     .name = "imx_ccm",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IMXCCMState),

@@ -16,7 +16,7 @@
 #include "sysemu/kvm.h"
 #include "exec/memory.h"
 
-#include "sclp.h"
+#include "hw/s390x/sclp.h"
 
 static inline S390SCLPDevice *get_event_facility(void)
 {
@@ -146,7 +146,7 @@ static void s390_sclp_device_class_init(ObjectClass *klass, void *data)
     dc->init = s390_sclp_dev_init;
 }
 
-static TypeInfo s390_sclp_device_info = {
+static const TypeInfo s390_sclp_device_info = {
     .name = TYPE_DEVICE_S390_SCLP,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(S390SCLPDevice),

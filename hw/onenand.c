@@ -19,13 +19,13 @@
  */
 
 #include "qemu-common.h"
-#include "hw.h"
-#include "flash.h"
-#include "irq.h"
+#include "hw/hw.h"
+#include "hw/flash.h"
+#include "hw/irq.h"
 #include "sysemu/blockdev.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/error-report.h"
 
 /* 11 for 2kB-page OneNAND ("2nd generation") and 10 for 1kB-page chips */
@@ -224,7 +224,7 @@ static void onenand_reset(OneNANDState *s, int cold)
 
 static void onenand_system_reset(DeviceState *dev)
 {
-    onenand_reset(FROM_SYSBUS(OneNANDState, sysbus_from_qdev(dev)), 1);
+    onenand_reset(FROM_SYSBUS(OneNANDState, SYS_BUS_DEVICE(dev)), 1);
 }
 
 static inline int onenand_load_main(OneNANDState *s, int sec, int secn,
@@ -821,7 +821,7 @@ static void onenand_class_init(ObjectClass *klass, void *data)
     dc->props = onenand_properties;
 }
 
-static TypeInfo onenand_info = {
+static const TypeInfo onenand_info = {
     .name          = "onenand",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OneNANDState),
@@ -835,7 +835,7 @@ static void onenand_register_types(void)
 
 void *onenand_raw_otp(DeviceState *onenand_device)
 {
-    return FROM_SYSBUS(OneNANDState, sysbus_from_qdev(onenand_device))->otp;
+    return FROM_SYSBUS(OneNANDState, SYS_BUS_DEVICE(onenand_device))->otp;
 }
 
 type_init(onenand_register_types)

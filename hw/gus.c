@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "audiodev.h"
+#include "hw/hw.h"
+#include "hw/audiodev.h"
 #include "audio/audio.h"
-#include "isa.h"
-#include "gusemu.h"
-#include "gustate.h"
+#include "hw/isa.h"
+#include "hw/gusemu.h"
+#include "hw/gustate.h"
 
 #define dolog(...) AUD_log ("audio", __VA_ARGS__)
 #ifdef DEBUG
@@ -317,7 +317,7 @@ static void gus_class_initfn (ObjectClass *klass, void *data)
     dc->props = gus_properties;
 }
 
-static TypeInfo gus_info = {
+static const TypeInfo gus_info = {
     .name          = "gus",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (GUSState),

@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#include "serial.h"
-#include "isa.h"
+#include "hw/serial.h"
+#include "hw/isa.h"
 
 typedef struct ISASerialState {
     ISADevice dev;
@@ -99,7 +99,7 @@ static void serial_isa_class_initfn(ObjectClass *klass, void *data)
     dc->props = serial_isa_properties;
 }
 
-static TypeInfo serial_isa_info = {
+static const TypeInfo serial_isa_info = {
     .name          = "isa-serial",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISASerialState),

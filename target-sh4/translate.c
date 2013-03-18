@@ -71,7 +71,7 @@ static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 
 #include "exec/gen-icount.h"
 
-static void sh4_translate_init(void)
+void sh4_translate_init(void)
 {
     int i;
     static int done_init = 0;
@@ -173,90 +173,6 @@ void cpu_dump_state(CPUSH4State * env, FILE * f,
 	cpu_fprintf(f, "in conditional delay slot (delayed_pc=0x%08x)\n",
 		    env->delayed_pc);
     }
-}
-
-typedef struct {
-    const char *name;
-    int id;
-    uint32_t pvr;
-    uint32_t prr;
-    uint32_t cvr;
-    uint32_t features;
-} sh4_def_t;
-
-static sh4_def_t sh4_defs[] = {
-    {
-	.name = "SH7750R",
-	.id = SH_CPU_SH7750R,
-	.pvr = 0x00050000,
-	.prr = 0x00000100,
-	.cvr = 0x00110000,
-	.features = SH_FEATURE_BCR3_AND_BCR4,
-    }, {
-	.name = "SH7751R",
-	.id = SH_CPU_SH7751R,
-	.pvr = 0x04050005,
-	.prr = 0x00000113,
-	.cvr = 0x00110000,	/* Neutered caches, should be 0x20480000 */
-	.features = SH_FEATURE_BCR3_AND_BCR4,
-    }, {
-	.name = "SH7785",
-	.id = SH_CPU_SH7785,
-	.pvr = 0x10300700,
-	.prr = 0x00000200,
-	.cvr = 0x71440211,
-	.features = SH_FEATURE_SH4A,
-     },
-};
-
-static const sh4_def_t *cpu_sh4_find_by_name(const char *name)
-{
-    int i;
-
-    if (strcasecmp(name, "any") == 0)
-	return &sh4_defs[0];
-
-    for (i = 0; i < ARRAY_SIZE(sh4_defs); i++)
-	if (strcasecmp(name, sh4_defs[i].name) == 0)
-	    return &sh4_defs[i];
-
-    return NULL;
-}
-
-void sh4_cpu_list(FILE *f, fprintf_function cpu_fprintf)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(sh4_defs); i++)
-	(*cpu_fprintf)(f, "%s\n", sh4_defs[i].name);
-}
-
-static void cpu_register(CPUSH4State *env, const sh4_def_t *def)
-{
-    env->pvr = def->pvr;
-    env->prr = def->prr;
-    env->cvr = def->cvr;
-    env->id = def->id;
-}
-
-SuperHCPU *cpu_sh4_init(const char *cpu_model)
-{
-    SuperHCPU *cpu;
-    CPUSH4State *env;
-    const sh4_def_t *def;
-
-    def = cpu_sh4_find_by_name(cpu_model);
-    if (!def)
-	return NULL;
-    cpu = SUPERH_CPU(object_new(TYPE_SUPERH_CPU));
-    env = &cpu->env;
-    env->features = def->features;
-    sh4_translate_init();
-    env->cpu_model_str = cpu_model;
-    cpu_reset(CPU(cpu));
-    cpu_register(env, def);
-    qemu_init_vcpu(env);
-    return cpu;
 }
 
 static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
@@ -833,36 +749,10 @@ static void _decode_opc(DisasContext * ctx)
         gen_helper_div1(REG(B11_8), cpu_env, REG(B7_4), REG(B11_8));
 	return;
     case 0x300d:		/* dmuls.l Rm,Rn */
-	{
-	    TCGv_i64 tmp1 = tcg_temp_new_i64();
-	    TCGv_i64 tmp2 = tcg_temp_new_i64();
-
-	    tcg_gen_ext_i32_i64(tmp1, REG(B7_4));
-	    tcg_gen_ext_i32_i64(tmp2, REG(B11_8));
-	    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
-	    tcg_gen_trunc_i64_i32(cpu_macl, tmp1);
-	    tcg_gen_shri_i64(tmp1, tmp1, 32);
-	    tcg_gen_trunc_i64_i32(cpu_mach, tmp1);
-
-	    tcg_temp_free_i64(tmp2);
-	    tcg_temp_free_i64(tmp1);
-	}
+        tcg_gen_muls2_i32(cpu_macl, cpu_mach, REG(B7_4), REG(B11_8));
 	return;
     case 0x3005:		/* dmulu.l Rm,Rn */
-	{
-	    TCGv_i64 tmp1 = tcg_temp_new_i64();
-	    TCGv_i64 tmp2 = tcg_temp_new_i64();
-
-	    tcg_gen_extu_i32_i64(tmp1, REG(B7_4));
-	    tcg_gen_extu_i32_i64(tmp2, REG(B11_8));
-	    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
-	    tcg_gen_trunc_i64_i32(cpu_macl, tmp1);
-	    tcg_gen_shri_i64(tmp1, tmp1, 32);
-	    tcg_gen_trunc_i64_i32(cpu_mach, tmp1);
-
-	    tcg_temp_free_i64(tmp2);
-	    tcg_temp_free_i64(tmp1);
-	}
+        tcg_gen_mulu2_i32(cpu_macl, cpu_mach, REG(B7_4), REG(B11_8));
 	return;
     case 0x600e:		/* exts.b Rm,Rn */
 	tcg_gen_ext8s_i32(REG(B11_8), REG(B7_4));
@@ -1985,7 +1875,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
-    gen_icount_start();
+    gen_tb_start();
     while (ctx.bstate == BS_NONE && tcg_ctx.gen_opc_ptr < gen_opc_end) {
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
@@ -2055,7 +1945,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
 	}
     }
 
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         i = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;

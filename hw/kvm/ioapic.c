@@ -150,7 +150,7 @@ static void kvm_ioapic_class_init(ObjectClass *klass, void *data)
     dc->props    = kvm_ioapic_properties;
 }
 
-static TypeInfo kvm_ioapic_info = {
+static const TypeInfo kvm_ioapic_info = {
     .name  = "kvm-ioapic",
     .parent = TYPE_IOAPIC_COMMON,
     .instance_size = sizeof(KVMIOAPICState),

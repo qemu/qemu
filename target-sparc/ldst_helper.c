@@ -514,6 +514,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
 #endif
         break;
     case 3: /* MMU probe */
+    case 0x18: /* LEON3 MMU probe */
         {
             int mmulev;
 
@@ -528,6 +529,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         }
         break;
     case 4: /* read MMU regs */
+    case 0x19: /* LEON3 read MMU regs */
         {
             int reg = (addr >> 8) & 0x1f;
 
@@ -603,6 +605,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     case 0xf: /* D-cache data */
         break;
     case 0x20: /* MMU passthrough */
+    case 0x1c: /* LEON MMU passthrough */
         switch (size) {
         case 1:
             ret = ldub_phys(addr);
@@ -844,6 +847,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
 #endif
         break;
     case 3: /* MMU flush */
+    case 0x18: /* LEON3 MMU flush */
         {
             int mmulev;
 
@@ -868,6 +872,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
         }
         break;
     case 4: /* write MMU regs */
+    case 0x19: /* LEON3 write MMU regs */
         {
             int reg = (addr >> 8) & 0x1f;
             uint32_t oldreg;
@@ -996,6 +1001,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
         }
         break;
     case 0x20: /* MMU passthrough */
+    case 0x1c: /* LEON MMU passthrough */
         {
             switch (size) {
             case 1:
@@ -1850,7 +1856,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 DPRINTF_MMU("LSU change: 0x%" PRIx64 " -> 0x%" PRIx64 "\n",
                             oldreg, env->lsu);
 #ifdef DEBUG_MMU
-                dump_mmu(stdout, fprintf, env1);
+                dump_mmu(stdout, fprintf, env);
 #endif
                 tlb_flush(env, 1);
             }

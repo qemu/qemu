@@ -22,12 +22,12 @@
  *
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "net/net.h"
 #include "qemu/error-report.h"
-#include "qdev-addr.h"
+#include "hw/qdev-addr.h"
 
 #include <zlib.h>
 
@@ -257,7 +257,7 @@ static void minimac2_tx(MilkymistMinimac2State *s)
     trace_milkymist_minimac2_tx_frame(txcount - 12);
 
     /* send packet, skipping preamble and sfd */
-    qemu_send_packet_raw(&s->nic->nc, buf + 8, txcount - 12);
+    qemu_send_packet_raw(qemu_get_queue(s->nic), buf + 8, txcount - 12);
 
     s->regs[R_TXCOUNT] = 0;
 
@@ -280,7 +280,7 @@ static void update_rx_interrupt(MilkymistMinimac2State *s)
 
 static ssize_t minimac2_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    MilkymistMinimac2State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    MilkymistMinimac2State *s = qemu_get_nic_opaque(nc);
 
     uint32_t r_count;
     uint32_t r_state;
@@ -410,7 +410,7 @@ static const MemoryRegionOps minimac2_ops = {
 
 static int minimac2_can_rx(NetClientState *nc)
 {
-    MilkymistMinimac2State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    MilkymistMinimac2State *s = qemu_get_nic_opaque(nc);
 
     if (s->regs[R_STATE0] == STATE_LOADED) {
         return 1;
@@ -424,7 +424,7 @@ static int minimac2_can_rx(NetClientState *nc)
 
 static void minimac2_cleanup(NetClientState *nc)
 {
-    MilkymistMinimac2State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    MilkymistMinimac2State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -480,7 +480,7 @@ static int milkymist_minimac2_init(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_milkymist_minimac2_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     return 0;
 }
@@ -535,7 +535,7 @@ static void milkymist_minimac2_class_init(ObjectClass *klass, void *data)
     dc->props = milkymist_minimac2_properties;
 }
 
-static TypeInfo milkymist_minimac2_info = {
+static const TypeInfo milkymist_minimac2_info = {
     .name          = "milkymist-minimac2",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistMinimac2State),

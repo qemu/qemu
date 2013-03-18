@@ -7,9 +7,9 @@
  * This code is licensed under the GNU LGPL
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "ui/console.h"
-#include "framebuffer.h"
+#include "hw/framebuffer.h"
 #include "ui/pixel_ops.h"
 
 #define PL110_CR_EN   0x001
@@ -111,15 +111,15 @@ static const unsigned char *idregs[] = {
 };
 
 #define BITS 8
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #define BITS 15
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #define BITS 16
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #define BITS 24
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #define BITS 32
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 
 static int pl110_enabled(pl110_state *s)
 {
@@ -480,7 +480,7 @@ static void pl110_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pl110;
 }
 
-static TypeInfo pl110_info = {
+static const TypeInfo pl110_info = {
     .name          = "pl110",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl110_state),
@@ -497,7 +497,7 @@ static void pl110_versatile_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pl110;
 }
 
-static TypeInfo pl110_versatile_info = {
+static const TypeInfo pl110_versatile_info = {
     .name          = "pl110_versatile",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl110_state),
@@ -514,7 +514,7 @@ static void pl111_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pl110;
 }
 
-static TypeInfo pl111_info = {
+static const TypeInfo pl111_info = {
     .name          = "pl111",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl110_state),

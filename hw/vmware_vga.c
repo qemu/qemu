@@ -21,17 +21,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "loader.h"
+#include "hw/hw.h"
+#include "hw/loader.h"
 #include "ui/console.h"
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 
 #undef VERBOSE
 #define HW_RECT_ACCEL
 #define HW_FILL_ACCEL
 #define HW_MOUSE_ACCEL
 
-#include "vga_int.h"
+#include "hw/vga_int.h"
 
 /* See http://vmware-svga.sf.net/ for some documentation on VMWare SVGA */
 
@@ -296,6 +296,15 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     uint8_t *src;
     uint8_t *dst;
 
+    if (x < 0) {
+        fprintf(stderr, "%s: update x was < 0 (%d)\n", __func__, x);
+        w += x;
+        x = 0;
+    }
+    if (w < 0) {
+        fprintf(stderr, "%s: update w was < 0 (%d)\n", __func__, w);
+        w = 0;
+    }
     if (x + w > ds_get_width(s->vga.ds)) {
         fprintf(stderr, "%s: update width too large x: %d, w: %d\n",
                 __func__, x, w);
@@ -303,6 +312,15 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
         w = ds_get_width(s->vga.ds) - x;
     }
 
+    if (y < 0) {
+        fprintf(stderr, "%s: update y was < 0 (%d)\n",  __func__, y);
+        h += y;
+        y = 0;
+    }
+    if (h < 0) {
+        fprintf(stderr, "%s: update h was < 0 (%d)\n",  __func__, h);
+        h = 0;
+    }
     if (y + h > ds_get_height(s->vga.ds)) {
         fprintf(stderr, "%s: update height too large y: %d, h: %d\n",
                 __func__, y, h);
@@ -1056,7 +1074,7 @@ static void vmsvga_screen_dump(void *opaque, const char *filename, bool cswitch,
                                  ds_get_height(s->vga.ds),
                                  32,
                                  ds_get_linesize(s->vga.ds),
-                                 s->vga.vram_ptr);
+                                 s->vga.vram_ptr, false);
         ppm_save(filename, ds, errp);
         g_free(ds);
     }
@@ -1244,7 +1262,7 @@ static void vmsvga_class_init(ObjectClass *klass, void *data)
     dc->props = vga_vmware_properties;
 }
 
-static TypeInfo vmsvga_info = {
+static const TypeInfo vmsvga_info = {
     .name          = "vmware-svga",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(struct pci_vmsvga_state_s),

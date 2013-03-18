@@ -48,7 +48,7 @@ uint32_t HELPER(mul32)(CPUOpenRISCState *env,
     uint64_t result;
     uint32_t high, cy;
 
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     result = (uint64_t)ra * rb;
     /* regisiers in or32 is 32bit, so 32 is NOT a magic number.

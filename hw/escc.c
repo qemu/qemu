@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "sysbus.h"
-#include "escc.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
+#include "hw/escc.h"
 #include "char/char.h"
 #include "ui/console.h"
 #include "trace.h"
@@ -700,7 +700,7 @@ MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
     qdev_prop_set_uint32(dev, "chnBtype", ser);
     qdev_prop_set_uint32(dev, "chnAtype", ser);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(s, 0, irqB);
     sysbus_connect_irq(s, 1, irqA);
     if (base) {
@@ -861,7 +861,7 @@ void slavio_serial_ms_kbd_init(hwaddr base, qemu_irq irq,
     qdev_prop_set_uint32(dev, "chnBtype", mouse);
     qdev_prop_set_uint32(dev, "chnAtype", kbd);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(s, 0, irq);
     sysbus_connect_irq(s, 1, irq);
     sysbus_mmio_map(s, 0, base);
@@ -923,7 +923,7 @@ static void escc_class_init(ObjectClass *klass, void *data)
     dc->props = escc_properties;
 }
 
-static TypeInfo escc_info = {
+static const TypeInfo escc_info = {
     .name          = "escc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SerialState),

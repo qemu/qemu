@@ -19,9 +19,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
-#include "i2c.h"
+#include "hw/i2c.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
 
@@ -867,7 +867,7 @@ static void twl92230_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_menelaus;
 }
 
-static TypeInfo twl92230_info = {
+static const TypeInfo twl92230_info = {
     .name          = "twl92230",
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(MenelausState),

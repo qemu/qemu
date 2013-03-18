@@ -79,10 +79,17 @@ commit_start(void *bs, void *base, void *top, void *s, void *co, void *opaque) "
 
 # block/mirror.c
 mirror_start(void *bs, void *s, void *co, void *opaque) "bs %p s %p co %p opaque %p"
+mirror_restart_iter(void *s, int64_t cnt) "s %p dirty count %"PRId64
 mirror_before_flush(void *s) "s %p"
 mirror_before_drain(void *s, int64_t cnt) "s %p dirty count %"PRId64
 mirror_before_sleep(void *s, int64_t cnt, int synced) "s %p dirty count %"PRId64" synced %d"
 mirror_one_iteration(void *s, int64_t sector_num, int nb_sectors) "s %p sector_num %"PRId64" nb_sectors %d"
+mirror_cow(void *s, int64_t sector_num) "s %p sector_num %"PRId64
+mirror_iteration_done(void *s, int64_t sector_num, int nb_sectors, int ret) "s %p sector_num %"PRId64" nb_sectors %d ret %d"
+mirror_yield(void *s, int64_t cnt, int buf_free_count, int in_flight) "s %p dirty count %"PRId64" free buffers %d in_flight %d"
+mirror_yield_in_flight(void *s, int64_t sector_num, int in_flight) "s %p sector_num %"PRId64" in_flight %d"
+mirror_yield_buf_busy(void *s, int nb_chunks, int in_flight) "s %p requested chunks %d in_flight %d"
+mirror_break_buf_busy(void *s, int nb_chunks, int in_flight) "s %p requested chunks %d in_flight %d"
 
 # blockdev.c
 qmp_block_job_cancel(void *job) "job %p"
@@ -98,9 +105,18 @@ virtio_blk_rw_complete(void *req, int ret) "req %p ret %d"
 virtio_blk_handle_write(void *req, uint64_t sector, size_t nsectors) "req %p sector %"PRIu64" nsectors %zu"
 virtio_blk_handle_read(void *req, uint64_t sector, size_t nsectors) "req %p sector %"PRIu64" nsectors %zu"
 
+# hw/dataplane/virtio-blk.c
+virtio_blk_data_plane_start(void *s) "dataplane %p"
+virtio_blk_data_plane_stop(void *s) "dataplane %p"
+virtio_blk_data_plane_process_request(void *s, unsigned int out_num, unsigned int in_num, unsigned int head) "dataplane %p out_num %u in_num %u head %u"
+virtio_blk_data_plane_complete_request(void *s, unsigned int head, int ret) "dataplane %p head %u ret %d"
+
+# hw/dataplane/vring.c
+vring_setup(uint64_t physical, void *desc, void *avail, void *used) "vring physical %#"PRIx64" desc %p avail %p used %p"
+
 # thread-pool.c
-thread_pool_submit(void *req, void *opaque) "req %p opaque %p"
-thread_pool_complete(void *req, void *opaque, int ret) "req %p opaque %p ret %d"
+thread_pool_submit(void *pool, void *req, void *opaque) "pool %p req %p opaque %p"
+thread_pool_complete(void *pool, void *req, void *opaque, int ret) "pool %p req %p opaque %p ret %d"
 thread_pool_cancel(void *req, void *opaque) "req %p opaque %p"
 
 # posix-aio-compat.c
@@ -157,6 +173,13 @@ ecc_mem_readl_ecr0(uint32_t ret) "Read event count 1 %08x"
 ecc_mem_readl_ecr1(uint32_t ret) "Read event count 2 %08x"
 ecc_diag_mem_writeb(uint64_t addr, uint32_t val) "Write diagnostic %"PRId64" = %02x"
 ecc_diag_mem_readb(uint64_t addr, uint32_t ret) "Read diagnostic %"PRId64"= %02x"
+
+# hw/fw_cfg.c
+fw_cfg_write(void *s, uint8_t value) "%p %d"
+fw_cfg_select(void *s, uint16_t key, int ret) "%p key %d = %d"
+fw_cfg_read(void *s, uint8_t ret) "%p = %d"
+fw_cfg_add_file_dupe(void *s, char *name) "%p %s"
+fw_cfg_add_file(void *s, int index, char *name, size_t len) "%p #%d: %s (%zd bytes)"
 
 # hw/hd-geometry.c
 hd_geometry_lchs_guess(void *bs, int cyls, int heads, int secs) "bs %p LCHS %d %d %d"
@@ -298,8 +321,6 @@ usb_uhci_frame_loop_stop_idle(void) ""
 usb_uhci_frame_loop_continue(void) ""
 usb_uhci_mmio_readw(uint32_t addr, uint32_t val) "addr 0x%04x, ret 0x%04x"
 usb_uhci_mmio_writew(uint32_t addr, uint32_t val) "addr 0x%04x, val 0x%04x"
-usb_uhci_mmio_readl(uint32_t addr, uint32_t val) "addr 0x%04x, ret 0x%08x"
-usb_uhci_mmio_writel(uint32_t addr, uint32_t val) "addr 0x%04x, val 0x%08x"
 usb_uhci_queue_add(uint32_t token) "token 0x%x"
 usb_uhci_queue_del(uint32_t token, const char *reason) "token 0x%x: %s"
 usb_uhci_packet_add(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
@@ -349,11 +370,11 @@ usb_xhci_slot_evaluate(uint32_t slotid) "slotid %d"
 usb_xhci_slot_reset(uint32_t slotid) "slotid %d"
 usb_xhci_ep_enable(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_disable(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
-usb_xhci_ep_set_dequeue(uint32_t slotid, uint32_t epid, uint64_t param) "slotid %d, epid %d, ptr %016" PRIx64
-usb_xhci_ep_kick(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
+usb_xhci_ep_set_dequeue(uint32_t slotid, uint32_t epid, uint32_t streamid, uint64_t param) "slotid %d, epid %d, streamid %d, ptr %016" PRIx64
+usb_xhci_ep_kick(uint32_t slotid, uint32_t epid, uint32_t streamid) "slotid %d, epid %d, streamid %d"
 usb_xhci_ep_stop(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_reset(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
-usb_xhci_xfer_start(void *xfer, uint32_t slotid, uint32_t epid) "%p: slotid %d, epid %d"
+usb_xhci_xfer_start(void *xfer, uint32_t slotid, uint32_t epid, uint32_t streamid) "%p: slotid %d, epid %d, streamid %d"
 usb_xhci_xfer_async(void *xfer) "%p"
 usb_xhci_xfer_nak(void *xfer) "%p"
 usb_xhci_xfer_retry(void *xfer) "%p"
@@ -439,6 +460,7 @@ scsi_req_data(int target, int lun, int tag, int len) "target %d lun %d tag %d le
 scsi_req_data_canceled(int target, int lun, int tag, int len) "target %d lun %d tag %d len %d"
 scsi_req_dequeue(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_continue(int target, int lun, int tag) "target %d lun %d tag %d"
+scsi_req_continue_canceled(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_parsed(int target, int lun, int tag, int cmd, int mode, int xfer) "target %d lun %d tag %d command %d dir %d length %d"
 scsi_req_parsed_lba(int target, int lun, int tag, int cmd, uint64_t lba) "target %d lun %d tag %d command %d lba %"PRIu64
 scsi_req_parse_bad(int target, int lun, int tag, int cmd) "target %d lun %d tag %d command %d"
@@ -451,6 +473,7 @@ scsi_request_sense(int target, int lun, int tag) "target %d lun %d tag %d"
 
 # vl.c
 vm_state_notify(int running, int reason) "running %d reason %d"
+load_file(const char *name, const char *path) "name %s location %s"
 
 # block/qcow2.c
 qcow2_writev_start_req(void *co, int64_t sector, int nb_sectors) "co %p sector %" PRIx64 " nb_sectors %d"
@@ -725,6 +748,14 @@ mipsnet_receive(uint32_t size) "receiving len=%u"
 mipsnet_read(uint64_t addr, uint32_t val) "read addr=0x%" PRIx64 " val=0x%x"
 mipsnet_write(uint64_t addr, uint64_t val) "write addr=0x%" PRIx64 " val=0x%" PRIx64 ""
 mipsnet_irq(uint32_t isr, uint32_t intctl) "set irq to %d (%02x)"
+
+# hw/pc87312.c
+pc87312_io_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
+pc87312_io_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
+pc87312_info_floppy(uint32_t base) "base 0x%x"
+pc87312_info_ide(uint32_t base) "base 0x%x"
+pc87312_info_parallel(uint32_t base, uint32_t irq) "base 0x%x, irq %u"
+pc87312_info_serial(int n, uint32_t base, uint32_t irq) "id=%d, base 0x%x, irq %u"
 
 # xen-all.c
 xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#lx, size %#lx"
@@ -1007,8 +1038,10 @@ qxl_send_events_vm_stopped(int qid, uint32_t events) "%d %d"
 qxl_set_guest_bug(int qid) "%d"
 qxl_interrupt_client_monitors_config(int qid, int num_heads, void *heads) "%d %d %p"
 qxl_client_monitors_config_unsupported_by_guest(int qid, uint32_t int_mask, void *client_monitors_config) "%d %X %p"
+qxl_client_monitors_config_unsupported_by_device(int qid, int revision) "%d revision=%d"
 qxl_client_monitors_config_capped(int qid, int requested, int limit) "%d %d %d"
 qxl_client_monitors_config_crc(int qid, unsigned size, uint32_t crc32) "%d %u %u"
+qxl_set_client_capabilities_unsupported_by_revision(int qid, int revision) "%d revision=%d"
 
 # hw/qxl-render.c
 qxl_render_blit_guest_primary_initialized(void) ""
@@ -1036,3 +1069,29 @@ xics_set_irq_lsi(int srcno, int nr) "set_irq_lsi: srcno %d [irq %#x]"
 xics_ics_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_xive: irq %#x [src %d] server %#x prio %#x"
 xics_ics_reject(int nr, int srcno) "reject irq %#x [src %d]"
 xics_ics_eoi(int nr) "ics_eoi: irq %#x"
+
+# hbitmap.c
+hbitmap_iter_skip_words(const void *hb, void *hbi, uint64_t pos, unsigned long cur) "hb %p hbi %p pos %"PRId64" cur 0x%lx"
+hbitmap_reset(void *hb, uint64_t start, uint64_t count, uint64_t sbit, uint64_t ebit) "hb %p items %"PRIu64",%"PRIu64" bits %"PRIu64"..%"PRIu64
+hbitmap_set(void *hb, uint64_t start, uint64_t count, uint64_t sbit, uint64_t ebit) "hb %p items %"PRIu64",%"PRIu64" bits %"PRIu64"..%"PRIu64
+
+# target-s390x/ioinst.c
+ioinst(const char *insn) "IOINST: %s"
+ioinst_sch_id(const char *insn, int cssid, int ssid, int schid) "IOINST: %s (%x.%x.%04x)"
+ioinst_chp_id(const char *insn, int cssid, int chpid) "IOINST: %s (%x.%02x)"
+ioinst_chsc_cmd(uint16_t cmd, uint16_t len) "IOINST: chsc command %04x, len %04x"
+
+# hw/s390x/css.c
+css_enable_facility(const char *facility) "CSS: enable %s"
+css_crw(uint8_t rsc, uint8_t erc, uint16_t rsid, const char *chained) "CSS: queueing crw: rsc=%x, erc=%x, rsid=%x %s"
+css_chpid_add(uint8_t cssid, uint8_t chpid, uint8_t type) "CSS: add chpid %x.%02x (type %02x)"
+css_new_image(uint8_t cssid, const char *default_cssid) "CSS: add css image %02x %s"
+css_assign_subch(const char *do_assign, uint8_t cssid, uint8_t ssid, uint16_t schid, uint16_t devno) "CSS: %s %x.%x.%04x (devno %04x)"
+css_io_interrupt(int cssid, int ssid, int schid, uint32_t intparm, uint8_t isc, const char *conditional) "CSS: I/O interrupt on sch %x.%x.%04x (intparm %08x, isc %x) %s"
+
+# hw/s390x/virtio-ccw.c
+virtio_ccw_interpret_ccw(int cssid, int ssid, int schid, int cmd_code) "VIRTIO-CCW: %x.%x.%04x: interpret command %x"
+virtio_ccw_new_device(int cssid, int ssid, int schid, int devno, const char *devno_mode) "VIRTIO-CCW: add subchannel %x.%x.%04x, devno %04x (%s)"
+
+# migration.c
+migrate_set_state(int new_state) "new state %d"

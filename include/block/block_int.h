@@ -32,6 +32,7 @@
 #include "qapi-types.h"
 #include "qapi/qmp/qerror.h"
 #include "monitor/monitor.h"
+#include "qemu/hbitmap.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
 #define BLOCK_FLAG_COMPAT6          4
@@ -55,6 +56,7 @@
 #define BLOCK_OPT_SUBFMT            "subformat"
 #define BLOCK_OPT_COMPAT_LEVEL      "compat"
 #define BLOCK_OPT_LAZY_REFCOUNTS    "lazy_refcounts"
+#define BLOCK_OPT_ADAPTER_TYPE      "adapter_type"
 
 typedef struct BdrvTrackedRequest BdrvTrackedRequest;
 
@@ -80,7 +82,7 @@ struct BlockDriver {
     void (*bdrv_reopen_commit)(BDRVReopenState *reopen_state);
     void (*bdrv_reopen_abort)(BDRVReopenState *reopen_state);
 
-    int (*bdrv_open)(BlockDriverState *bs, int flags);
+    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags);
     int (*bdrv_file_open)(BlockDriverState *bs, const char *filename, int flags);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
                      uint8_t *buf, int nb_sectors);
@@ -275,8 +277,7 @@ struct BlockDriverState {
     bool iostatus_enabled;
     BlockDeviceIoStatus iostatus;
     char device_name[32];
-    unsigned long *dirty_bitmap;
-    int64_t dirty_count;
+    HBitmap *dirty_bitmap;
     int in_use; /* users other than guest access, eg. block migration */
     QTAILQ_ENTRY(BlockDriverState) list;
 
@@ -285,12 +286,20 @@ struct BlockDriverState {
     /* long-running background operation */
     BlockJob *job;
 
+    QDict *options;
 };
 
 int get_tmp_filename(char *filename, int size);
 
 void bdrv_set_io_limits(BlockDriverState *bs,
                         BlockIOLimit *io_limits);
+
+/**
+ * bdrv_get_aio_context:
+ *
+ * Returns: the currently bound #AioContext
+ */
+AioContext *bdrv_get_aio_context(BlockDriverState *bs);
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);
@@ -344,6 +353,8 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
  * @bs: Block device to operate on.
  * @target: Block device to write to.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
+ * @granularity: The chosen granularity for the dirty bitmap.
+ * @buf_size: The amount of data that can be in flight at one time.
  * @mode: Whether to collapse all images in the chain to the target.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
@@ -357,8 +368,8 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
  * @bs will be switched to read from @target.
  */
 void mirror_start(BlockDriverState *bs, BlockDriverState *target,
-                  int64_t speed, MirrorSyncMode mode,
-                  BlockdevOnError on_source_error,
+                  int64_t speed, int64_t granularity, int64_t buf_size,
+                  MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp);

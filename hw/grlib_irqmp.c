@@ -24,10 +24,10 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "cpu.h"
 
-#include "grlib.h"
+#include "hw/grlib.h"
 
 #include "trace.h"
 
@@ -109,7 +109,7 @@ void grlib_irqmp_ack(DeviceState *dev, int intno)
 
     assert(dev != NULL);
 
-    sdev = sysbus_from_qdev(dev);
+    sdev = SYS_BUS_DEVICE(dev);
     assert(sdev != NULL);
 
     irqmp = FROM_SYSBUS(typeof(*irqmp), sdev);
@@ -138,7 +138,7 @@ void grlib_irqmp_set_irq(void *opaque, int irq, int level)
 
     assert(opaque != NULL);
 
-    irqmp = FROM_SYSBUS(typeof(*irqmp), sysbus_from_qdev(opaque));
+    irqmp = FROM_SYSBUS(typeof(*irqmp), SYS_BUS_DEVICE(opaque));
     assert(irqmp != NULL);
 
     s = irqmp->state;
@@ -370,7 +370,7 @@ static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
     dc->props = grlib_irqmp_properties;
 }
 
-static TypeInfo grlib_irqmp_info = {
+static const TypeInfo grlib_irqmp_info = {
     .name          = "grlib,irqmp",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IRQMP),

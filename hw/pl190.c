@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 /* The number of virtual priority levels.  16 user vectors plus the
    unvectored IRQ.  Chained interrupts would require an additional level
@@ -274,7 +274,7 @@ static void pl190_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pl190;
 }
 
-static TypeInfo pl190_info = {
+static const TypeInfo pl190_info = {
     .name          = "pl190",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl190_state),

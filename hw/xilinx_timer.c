@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "ptimer.h"
+#include "hw/sysbus.h"
+#include "hw/ptimer.h"
 #include "qemu/log.h"
 
 #define D(x)
@@ -240,7 +240,7 @@ static void xilinx_timer_class_init(ObjectClass *klass, void *data)
     dc->props = xilinx_timer_properties;
 }
 
-static TypeInfo xilinx_timer_info = {
+static const TypeInfo xilinx_timer_info = {
     .name          = "xlnx.xps-timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct timerblock),

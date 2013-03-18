@@ -2,7 +2,7 @@
 #define __SH_INTC_H__
 
 #include "qemu-common.h"
-#include "irq.h"
+#include "hw/irq.h"
 #include "exec/address-spaces.h"
 
 typedef unsigned char intc_enum;

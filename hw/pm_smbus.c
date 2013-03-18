@@ -17,10 +17,10 @@
  * License along with this library; if not, see
  * <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
-#include "pc.h"
-#include "pm_smbus.h"
-#include "smbus.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/pm_smbus.h"
+#include "hw/smbus.h"
 
 /* no save/load? */
 

@@ -448,19 +448,16 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     case CC_OP_ADD:
     case CC_OP_TADD:
     case CC_OP_TADDTV:
-#if TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32
-        {
-            /* For 32-bit hosts, we can re-use the host's hardware carry
-               generation by using an ADD2 opcode.  We discard the low
-               part of the output.  Ideally we'd combine this operation
-               with the add that generated the carry in the first place.  */
-            TCGv dst_low = tcg_temp_new();
-            tcg_gen_op6_i32(INDEX_op_add2_i32, dst_low, dst,
-                            cpu_cc_src, src1, cpu_cc_src2, src2);
-            tcg_temp_free(dst_low);
+        if (TARGET_LONG_BITS == 32) {
+            /* We can re-use the host's hardware carry generation by using
+               an ADD2 opcode.  We discard the low part of the output.
+               Ideally we'd combine this operation with the add that
+               generated the carry in the first place.  */
+            carry = tcg_temp_new();
+            tcg_gen_add2_tl(carry, dst, cpu_cc_src, src1, cpu_cc_src2, src2);
+            tcg_temp_free(carry);
             goto add_done;
         }
-#endif
         carry_32 = gen_add32_carry32();
         break;
 
@@ -492,9 +489,7 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     tcg_temp_free(carry);
 #endif
 
-#if TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32
  add_done:
-#endif
     if (update_cc) {
         tcg_gen_mov_tl(cpu_cc_src, src1);
         tcg_gen_mov_tl(cpu_cc_src2, src2);
@@ -554,19 +549,16 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
     case CC_OP_SUB:
     case CC_OP_TSUB:
     case CC_OP_TSUBTV:
-#if TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32
-        {
-            /* For 32-bit hosts, we can re-use the host's hardware carry
-               generation by using a SUB2 opcode.  We discard the low
-               part of the output.  Ideally we'd combine this operation
-               with the add that generated the carry in the first place.  */
-            TCGv dst_low = tcg_temp_new();
-            tcg_gen_op6_i32(INDEX_op_sub2_i32, dst_low, dst,
-                            cpu_cc_src, src1, cpu_cc_src2, src2);
-            tcg_temp_free(dst_low);
+        if (TARGET_LONG_BITS == 32) {
+            /* We can re-use the host's hardware carry generation by using
+               a SUB2 opcode.  We discard the low part of the output.
+               Ideally we'd combine this operation with the add that
+               generated the carry in the first place.  */
+            carry = tcg_temp_new();
+            tcg_gen_sub2_tl(carry, dst, cpu_cc_src, src1, cpu_cc_src2, src2);
+            tcg_temp_free(carry);
             goto sub_done;
         }
-#endif
         carry_32 = gen_sub32_carry32();
         break;
 
@@ -592,9 +584,7 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
     tcg_temp_free(carry);
 #endif
 
-#if TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32
  sub_done:
-#endif
     if (update_cc) {
         tcg_gen_mov_tl(cpu_cc_src, src1);
         tcg_gen_mov_tl(cpu_cc_src2, src2);
@@ -652,39 +642,30 @@ static inline void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
 
 static inline void gen_op_multiply(TCGv dst, TCGv src1, TCGv src2, int sign_ext)
 {
-    TCGv_i32 r_src1, r_src2;
-    TCGv_i64 r_temp, r_temp2;
-
-    r_src1 = tcg_temp_new_i32();
-    r_src2 = tcg_temp_new_i32();
-
-    tcg_gen_trunc_tl_i32(r_src1, src1);
-    tcg_gen_trunc_tl_i32(r_src2, src2);
-
-    r_temp = tcg_temp_new_i64();
-    r_temp2 = tcg_temp_new_i64();
+#if TARGET_LONG_BITS == 32
+    if (sign_ext) {
+        tcg_gen_muls2_tl(dst, cpu_y, src1, src2);
+    } else {
+        tcg_gen_mulu2_tl(dst, cpu_y, src1, src2);
+    }
+#else
+    TCGv t0 = tcg_temp_new_i64();
+    TCGv t1 = tcg_temp_new_i64();
 
     if (sign_ext) {
-        tcg_gen_ext_i32_i64(r_temp, r_src2);
-        tcg_gen_ext_i32_i64(r_temp2, r_src1);
+        tcg_gen_ext32s_i64(t0, src1);
+        tcg_gen_ext32s_i64(t1, src2);
     } else {
-        tcg_gen_extu_i32_i64(r_temp, r_src2);
-        tcg_gen_extu_i32_i64(r_temp2, r_src1);
+        tcg_gen_ext32u_i64(t0, src1);
+        tcg_gen_ext32u_i64(t1, src2);
     }
 
-    tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
+    tcg_gen_mul_i64(dst, t0, t1);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 
-    tcg_gen_shri_i64(r_temp, r_temp2, 32);
-    tcg_gen_trunc_i64_tl(cpu_y, r_temp);
-    tcg_temp_free_i64(r_temp);
-    tcg_gen_andi_tl(cpu_y, cpu_y, 0xffffffff);
-
-    tcg_gen_trunc_i64_tl(dst, r_temp2);
-
-    tcg_temp_free_i64(r_temp2);
-
-    tcg_temp_free_i32(r_src1);
-    tcg_temp_free_i32(r_src2);
+    tcg_gen_shri_i64(cpu_y, dst, 32);
+#endif
 }
 
 static inline void gen_op_umul(TCGv dst, TCGv src1, TCGv src2)
@@ -3642,6 +3623,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                                    in the SPARCv8
                                                    manual, nop on the
                                                    microSPARC II */
+                                if ((rd == 0x13) && (dc->def->features &
+                                                     CPU_FEATURE_POWERDOWN)) {
+                                    /* LEON3 power-down */
+                                    gen_helper_power_down(cpu_env);
+                                }
                                 break;
 #else
                             case 0x2: /* V9 wrccr */
@@ -5263,7 +5249,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
-    gen_icount_start();
+    gen_tb_start();
     do {
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
@@ -5333,7 +5319,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
             tcg_gen_exit_tb(0);
         }
     }
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (spc) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;

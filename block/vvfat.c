@@ -529,13 +529,9 @@ static inline uint8_t fat_chksum(const direntry_t* entry)
 /* if return_time==0, this returns the fat_date, else the fat_time */
 static uint16_t fat_datetime(time_t time,int return_time) {
     struct tm* t;
-#ifdef _WIN32
-    t=localtime(&time); /* this is not thread safe */
-#else
     struct tm t1;
     t = &t1;
     localtime_r(&time,t);
-#endif
     if(return_time)
 	return cpu_to_le16((t->tm_sec/2)|(t->tm_min<<5)|(t->tm_hour<<11));
     return cpu_to_le16((t->tm_mday)|((t->tm_mon+1)<<5)|((t->tm_year-80)<<9));
@@ -2834,7 +2830,7 @@ static int enable_write_target(BDRVVVFATState *s)
         return -1;
     }
 
-    ret = bdrv_open(s->qcow, s->qcow_filename,
+    ret = bdrv_open(s->qcow, s->qcow_filename, NULL,
             BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, bdrv_qcow);
     if (ret < 0) {
 	return ret;

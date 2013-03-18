@@ -14,8 +14,8 @@
 #endif
 #include <xen/io/xenbus.h>
 
-#include "hw.h"
-#include "xen.h"
+#include "hw/hw.h"
+#include "hw/xen.h"
 #include "qemu/queue.h"
 
 /*

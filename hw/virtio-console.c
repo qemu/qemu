@@ -13,13 +13,25 @@
 #include "char/char.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "virtio-serial.h"
+#include "hw/virtio-serial.h"
 
 typedef struct VirtConsole {
     VirtIOSerialPort port;
     CharDriverState *chr;
 } VirtConsole;
 
+/*
+ * Callback function that's called from chardevs when backend becomes
+ * writable.
+ */
+static gboolean chr_write_unblocked(GIOChannel *chan, GIOCondition cond,
+                                    void *opaque)
+{
+    VirtConsole *vcon = opaque;
+
+    virtio_serial_throttle_port(&vcon->port, false);
+    return FALSE;
+}
 
 /* Callback function that's called when the guest sends us data */
 static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
@@ -35,19 +47,21 @@ static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
     ret = qemu_chr_fe_write(vcon->chr, buf, len);
     trace_virtio_console_flush_buf(port->id, len, ret);
 
-    if (ret < 0) {
+    if (ret <= 0) {
+        VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+
         /*
          * Ideally we'd get a better error code than just -1, but
          * that's what the chardev interface gives us right now.  If
          * we had a finer-grained message, like -EPIPE, we could close
-         * this connection.  Absent such error messages, the most we
-         * can do is to return 0 here.
-         *
-         * This will prevent stray -1 values to go to
-         * virtio-serial-bus.c and cause abort()s in
-         * do_flush_queued_data().
+         * this connection.
          */
         ret = 0;
+        if (!k->is_console) {
+            virtio_serial_throttle_port(port, true);
+            qemu_chr_fe_add_watch(vcon->chr, G_IO_OUT, chr_write_unblocked,
+                                  vcon);
+        }
     }
     return ret;
 }
@@ -142,7 +156,7 @@ static void virtconsole_class_init(ObjectClass *klass, void *data)
     dc->props = virtconsole_properties;
 }
 
-static TypeInfo virtconsole_info = {
+static const TypeInfo virtconsole_info = {
     .name          = "virtconsole",
     .parent        = TYPE_VIRTIO_SERIAL_PORT,
     .instance_size = sizeof(VirtConsole),
@@ -166,7 +180,7 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
     dc->props = virtserialport_properties;
 }
 
-static TypeInfo virtserialport_info = {
+static const TypeInfo virtserialport_info = {
     .name          = "virtserialport",
     .parent        = TYPE_VIRTIO_SERIAL_PORT,
     .instance_size = sizeof(VirtConsole),

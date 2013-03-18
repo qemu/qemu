@@ -34,9 +34,11 @@ int inet_aton(const char *cp, struct in_addr *ia);
 int qemu_socket(int domain, int type, int protocol);
 int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen);
 int socket_set_cork(int fd, int v);
+int socket_set_nodelay(int fd);
 void socket_set_block(int fd);
 void socket_set_nonblock(int fd);
 int send_all(int fd, const void *buf, int len1);
+int recv_all(int fd, void *buf, int len1, bool single_read);
 
 /* callback function for nonblocking connect
  * valid fd on success, negative error code on failure
@@ -69,6 +71,7 @@ SocketAddress *socket_parse(const char *str, Error **errp);
 int socket_connect(SocketAddress *addr, Error **errp,
                    NonBlockingConnectHandler *callback, void *opaque);
 int socket_listen(SocketAddress *addr, Error **errp);
+int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp);
 
 /* Old, ipv4 only bits.  Don't use for new code. */
 int parse_host_port(struct sockaddr_in *saddr, const char *str);

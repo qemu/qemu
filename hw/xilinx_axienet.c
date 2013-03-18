@@ -22,12 +22,13 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/log.h"
 #include "net/net.h"
 #include "net/checksum.h"
+#include "qapi/qmp/qerror.h"
 
-#include "stream.h"
+#include "hw/stream.h"
 
 #define DPHY(x)
 
@@ -617,7 +618,7 @@ static const MemoryRegionOps enet_ops = {
 
 static int eth_can_rx(NetClientState *nc)
 {
-    struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
 
     /* RX enabled?  */
     return !axienet_rx_resetting(s) && axienet_rx_enabled(s);
@@ -640,7 +641,7 @@ static int enet_match_addr(const uint8_t *buf, uint32_t f0, uint32_t f1)
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
                                               0xff, 0xff, 0xff};
     static const unsigned char sa_ipmcast[3] = {0x01, 0x00, 0x52};
@@ -785,7 +786,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 static void eth_cleanup(NetClientState *nc)
 {
     /* FIXME.  */
-    struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
     g_free(s->rxmem);
     g_free(s);
 }
@@ -826,7 +827,7 @@ axienet_stream_push(StreamSlave *obj, uint8_t *buf, size_t size, uint32_t *hdr)
         buf[write_off + 1] = csum & 0xff;
     }
 
-    qemu_send_packet(&s->nic->nc, buf, size);
+    qemu_send_packet(qemu_get_queue(s->nic), buf, size);
 
     s->stats.tx_bytes += size;
     s->regs[R_IS] |= IS_TX_COMPLETE;
@@ -853,7 +854,7 @@ static int xilinx_enet_init(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_enet_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     tdk_init(&s->TEMAC.phy);
     mdio_attach(&s->TEMAC.mdio_bus, &s->TEMAC.phy, s->c_phyaddr);
@@ -869,9 +870,11 @@ static int xilinx_enet_init(SysBusDevice *dev)
 static void xilinx_enet_initfn(Object *obj)
 {
     struct XilinxAXIEnet *s = FROM_SYSBUS(typeof(*s), SYS_BUS_DEVICE(obj));
+    Error *errp = NULL;
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
-                             (Object **) &s->tx_dev, NULL);
+                             (Object **) &s->tx_dev, &errp);
+    assert_no_error(errp);
 }
 
 static Property xilinx_enet_properties[] = {
@@ -893,7 +896,7 @@ static void xilinx_enet_class_init(ObjectClass *klass, void *data)
     ssc->push = axienet_stream_push;
 }
 
-static TypeInfo xilinx_enet_info = {
+static const TypeInfo xilinx_enet_info = {
     .name          = "xlnx.axi-ethernet",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct XilinxAXIEnet),

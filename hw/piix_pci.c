@@ -22,15 +22,16 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "pci/pci_host.h"
-#include "isa.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
+#include "hw/isa.h"
+#include "hw/sysbus.h"
 #include "qemu/range.h"
-#include "xen.h"
-#include "pam.h"
+#include "hw/xen.h"
+#include "hw/pam.h"
+#include "sysemu/sysemu.h"
 
 /*
  * I440FX chipset data sheet.
@@ -45,6 +46,12 @@ typedef struct I440FXState {
 #define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
 #define XEN_PIIX_NUM_PIRQS      128ULL
 #define PIIX_PIRQC              0x60
+
+/*
+ * Reset Control Register: PCI-accessible ISA-Compatible Register at address
+ * 0xcf9, provided by the PCI/ISA bridge (PIIX3 PCI function 0, 8086:7000).
+ */
+#define RCR_IOPORT 0xcf9
 
 typedef struct PIIX3State {
     PCIDevice dev;
@@ -67,6 +74,12 @@ typedef struct PIIX3State {
 
     /* This member isn't used. Just for save/load compatibility */
     int32_t pci_irq_levels_vmstate[PIIX_NUM_PIRQS];
+
+    /* Reset Control Register contents */
+    uint8_t rcr;
+
+    /* IO memory region for Reset Control Register (RCR_IOPORT) */
+    MemoryRegion rcr_mem;
 } PIIX3State;
 
 struct PCII440FXState {
@@ -231,7 +244,6 @@ static PCIBus *i440fx_common_init(const char *device_name,
 
     dev = qdev_create(NULL, "i440FX-pcihost");
     s = PCI_HOST_BRIDGE(dev);
-    s->address_space = address_space_mem;
     b = pci_bus_new(dev, NULL, pci_address_space,
                     address_space_io, 0);
     s->bus = b;
@@ -442,6 +454,7 @@ static void piix3_reset(void *opaque)
     pci_conf[0xae] = 0x00;
 
     d->pic_levels = 0;
+    d->rcr = 0;
 }
 
 static int piix3_post_load(void *opaque, int version_id)
@@ -462,6 +475,23 @@ static void piix3_pre_save(void *opaque)
     }
 }
 
+static bool piix3_rcr_needed(void *opaque)
+{
+    PIIX3State *piix3 = opaque;
+
+    return (piix3->rcr != 0);
+}
+
+static const VMStateDescription vmstate_piix3_rcr = {
+    .name = "PIIX3/rcr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT8(rcr, PIIX3State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_piix3 = {
     .name = "PIIX3",
     .version_id = 3,
@@ -469,12 +499,44 @@ static const VMStateDescription vmstate_piix3 = {
     .minimum_version_id_old = 2,
     .post_load = piix3_post_load,
     .pre_save = piix3_pre_save,
-    .fields      = (VMStateField []) {
+    .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PIIX3State),
         VMSTATE_INT32_ARRAY_V(pci_irq_levels_vmstate, PIIX3State,
                               PIIX_NUM_PIRQS, 3),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_piix3_rcr,
+            .needed = piix3_rcr_needed,
+        },
+        { 0 }
     }
+};
+
+
+static void rcr_write(void *opaque, hwaddr addr, uint64_t val, unsigned len)
+{
+    PIIX3State *d = opaque;
+
+    if (val & 4) {
+        qemu_system_reset_request();
+        return;
+    }
+    d->rcr = val & 2; /* keep System Reset type only */
+}
+
+static uint64_t rcr_read(void *opaque, hwaddr addr, unsigned len)
+{
+    PIIX3State *d = opaque;
+
+    return d->rcr;
+}
+
+static const MemoryRegionOps rcr_ops = {
+    .read = rcr_read,
+    .write = rcr_write,
+    .endianness = DEVICE_LITTLE_ENDIAN
 };
 
 static int piix3_initfn(PCIDevice *dev)
@@ -482,6 +544,11 @@ static int piix3_initfn(PCIDevice *dev)
     PIIX3State *d = DO_UPCAST(PIIX3State, dev, dev);
 
     isa_bus_new(&d->dev.qdev, pci_address_space_io(dev));
+
+    memory_region_init_io(&d->rcr_mem, &rcr_ops, d, "piix3-reset-control", 1);
+    memory_region_add_subregion_overlap(pci_address_space_io(dev), RCR_IOPORT,
+                                        &d->rcr_mem, 1);
+
     qemu_register_reset(piix3_reset, d);
     return 0;
 }

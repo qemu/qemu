@@ -14,9 +14,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 
 #ifdef ZYNQ_ARM_SLCR_ERR_DEBUG
@@ -160,7 +160,7 @@ static void zynq_slcr_reset(DeviceState *d)
 {
     int i;
     ZynqSLCRState *s =
-            FROM_SYSBUS(ZynqSLCRState, sysbus_from_qdev(d));
+            FROM_SYSBUS(ZynqSLCRState, SYS_BUS_DEVICE(d));
 
     DB_PRINT("RESET\n");
 
@@ -521,7 +521,7 @@ static void zynq_slcr_class_init(ObjectClass *klass, void *data)
     dc->reset = zynq_slcr_reset;
 }
 
-static TypeInfo zynq_slcr_info = {
+static const TypeInfo zynq_slcr_info = {
     .class_init = zynq_slcr_class_init,
     .name  = "xilinx,zynq_slcr",
     .parent = TYPE_SYS_BUS_DEVICE,

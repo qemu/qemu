@@ -2,8 +2,7 @@
 #define QDEV_H
 
 #include "hw/hw.h"
-#include "qdev-core.h"
-#include "qdev-properties.h"
-#include "qdev-monitor.h"
+#include "hw/qdev-core.h"
+#include "hw/qdev-properties.h"
 
 #endif

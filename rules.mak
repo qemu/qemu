@@ -21,20 +21,35 @@ QEMU_CFLAGS += -I$(<D) -I$(@D)
 	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 
 ifeq ($(LIBTOOL),)
-%.lo: %.c
-	@echo "missing libtool. please install and rerun configure"; exit 1
+LIBTOOL = /bin/false
+LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
+       $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
+LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
-	$(call quiet-command,$(LIBTOOL) --mode=compile --quiet --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
+%.lo: %.dtrace
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, " lt GEN $(TARGET_DIR)$@")
+
+LINK = $(call quiet-command,\
+       $(if $(filter %.lo %.la,$^),$(LIBTOOL) --mode=link --tag=CC \
+       )$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
+       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
+       $(LIBS),$(if $(filter %.lo %.la,$^),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
 endif
 
-%.o: %.S
-	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  AS    $(TARGET_DIR)$@")
+%.asm: %.S
+	$(call quiet-command,$(CPP) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -o $@ $<,"  CPP   $(TARGET_DIR)$@")
+
+%.o: %.asm
+	$(call quiet-command,$(AS) $(ASFLAGS) -o $@ $<,"  AS    $(TARGET_DIR)$@")
 
 %.o: %.m
 	$(call quiet-command,$(OBJCC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  OBJC  $(TARGET_DIR)$@")
 
-LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(LIBS),"  LINK  $(TARGET_DIR)$@")
+%.o: %.dtrace
+	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   $(TARGET_DIR)$@")
 
 %$(EXESUF): %.o
 	$(call LINK,$^)
@@ -67,12 +82,16 @@ TRACETOOL=$(PYTHON) $(SRC_PATH)/scripts/tracetool.py
 
 # Generate timestamp files for .h include files
 
-%.h: %.h-timestamp
-	@test -f $@ || cp $< $@
+config-%.h: config-%.h-timestamp
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
 
-%.h-timestamp: %.mak
-	$(call quiet-command, sh $(SRC_PATH)/scripts/create_config < $< > $@, "  GEN   $(TARGET_DIR)$*.h")
-	@cmp $@ $*.h >/dev/null 2>&1 || cp $@ $*.h
+config-%.h-timestamp: config-%.mak
+	$(call quiet-command, sh $(SRC_PATH)/scripts/create_config < $< > $@, "  GEN   $(TARGET_DIR)config-$*.h")
+
+.PHONY: clean-timestamp
+clean-timestamp:
+	rm -f *.timestamp
+clean: clean-timestamp
 
 # will delete the target of a rule if commands exit with a nonzero exit status
 .DELETE_ON_ERROR:

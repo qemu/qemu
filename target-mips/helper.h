@@ -24,8 +24,6 @@ DEF_HELPER_FLAGS_1(clz, TCG_CALL_NO_RWG_SE, tl, tl)
 #ifdef TARGET_MIPS64
 DEF_HELPER_FLAGS_1(dclo, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(dclz, TCG_CALL_NO_RWG_SE, tl, tl)
-DEF_HELPER_3(dmult, void, env, tl, tl)
-DEF_HELPER_3(dmultu, void, env, tl, tl)
 #endif
 
 DEF_HELPER_3(muls, tl, env, tl, tl)
@@ -653,19 +651,6 @@ DEF_HELPER_FLAGS_3(pick_ph, 0, tl, tl, tl, env)
 DEF_HELPER_FLAGS_3(pick_ob, 0, tl, tl, tl, env)
 DEF_HELPER_FLAGS_3(pick_qh, 0, tl, tl, tl, env)
 DEF_HELPER_FLAGS_3(pick_pw, 0, tl, tl, tl, env)
-#endif
-DEF_HELPER_FLAGS_3(append, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
-#if defined(TARGET_MIPS64)
-DEF_HELPER_FLAGS_3(dappend, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
-#endif
-DEF_HELPER_FLAGS_3(prepend, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
-#if defined(TARGET_MIPS64)
-DEF_HELPER_FLAGS_3(prependd, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
-DEF_HELPER_FLAGS_3(prependw, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
-#endif
-DEF_HELPER_FLAGS_3(balign, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
-#if defined(TARGET_MIPS64)
-DEF_HELPER_FLAGS_3(dbalign, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
 #endif
 DEF_HELPER_FLAGS_2(packrl_ph, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 #if defined(TARGET_MIPS64)

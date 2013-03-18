@@ -75,6 +75,7 @@ typedef enum {
 #define TCG_TARGET_HAS_nor_i32          0
 #define TCG_TARGET_HAS_deposit_i32      0
 #define TCG_TARGET_HAS_movcond_i32      1
+#define TCG_TARGET_HAS_muls2_i32        1
 
 enum {
     TCG_AREG0 = TCG_REG_R6,

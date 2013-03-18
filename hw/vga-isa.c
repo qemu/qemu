@@ -23,13 +23,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
-#include "pc.h"
-#include "vga_int.h"
+#include "hw/pc.h"
+#include "hw/vga_int.h"
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
-#include "loader.h"
+#include "hw/loader.h"
 
 typedef struct ISAVGAState {
     ISADevice dev;
@@ -86,7 +86,7 @@ static void vga_class_initfn(ObjectClass *klass, void *data)
     dc->props = vga_isa_properties;
 }
 
-static TypeInfo vga_info = {
+static const TypeInfo vga_info = {
     .name          = "isa-vga",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAVGAState),

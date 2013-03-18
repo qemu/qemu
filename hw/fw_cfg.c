@@ -21,23 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "sysemu/sysemu.h"
-#include "isa.h"
-#include "fw_cfg.h"
-#include "sysbus.h"
+#include "hw/isa.h"
+#include "hw/fw_cfg.h"
+#include "hw/sysbus.h"
+#include "trace.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
-
-/* debug firmware config */
-//#define DEBUG_FW_CFG
-
-#ifdef DEBUG_FW_CFG
-#define FW_CFG_DPRINTF(fmt, ...)                        \
-    do { printf("FW_CFG: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define FW_CFG_DPRINTF(fmt, ...)
-#endif
 
 #define FW_CFG_SIZE 2
 #define FW_CFG_DATA_SIZE 1
@@ -63,16 +54,17 @@ struct FWCfgState {
 #define JPG_FILE 0
 #define BMP_FILE 1
 
-static char *read_splashfile(char *filename, int *file_sizep, int *file_typep)
+static char *read_splashfile(char *filename, size_t *file_sizep,
+                             int *file_typep)
 {
     GError *err = NULL;
     gboolean res;
     gchar *content;
-    int file_type = -1;
-    unsigned int filehead = 0;
+    int file_type;
+    unsigned int filehead;
     int bmp_bpp;
 
-    res = g_file_get_contents(filename, &content, (gsize *)file_sizep, &err);
+    res = g_file_get_contents(filename, &content, file_sizep, &err);
     if (res == FALSE) {
         error_report("failed to read splash file '%s'", filename);
         g_error_free(err);
@@ -120,8 +112,8 @@ static void fw_cfg_bootsplash(FWCfgState *s)
     const char *boot_splash_filename = NULL;
     char *p;
     char *filename, *file_data;
-    int file_size;
-    int file_type = -1;
+    size_t file_size;
+    int file_type;
     const char *temp;
 
     /* get user configuration */
@@ -213,7 +205,7 @@ static void fw_cfg_write(FWCfgState *s, uint8_t value)
     int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
     FWCfgEntry *e = &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
 
-    FW_CFG_DPRINTF("write %d\n", value);
+    trace_fw_cfg_write(s, value);
 
     if (s->cur_entry & FW_CFG_WRITE_CHANNEL && e->callback &&
         s->cur_offset < e->len) {
@@ -238,8 +230,7 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
         ret = 1;
     }
 
-    FW_CFG_DPRINTF("select key %d (%sfound)\n", key, ret ? "" : "not ");
-
+    trace_fw_cfg_select(s, key, ret);
     return ret;
 }
 
@@ -254,8 +245,7 @@ static uint8_t fw_cfg_read(FWCfgState *s)
     else
         ret = e->data[s->cur_offset++];
 
-    FW_CFG_DPRINTF("read %d\n", ret);
-
+    trace_fw_cfg_read(s, ret);
     return ret;
 }
 
@@ -384,85 +374,83 @@ static const VMStateDescription vmstate_fw_cfg = {
     }
 };
 
-int fw_cfg_add_bytes(FWCfgState *s, uint16_t key, uint8_t *data, uint32_t len)
+void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
     key &= FW_CFG_ENTRY_MASK;
 
-    if (key >= FW_CFG_MAX_ENTRY)
-        return 0;
+    assert(key < FW_CFG_MAX_ENTRY && len < UINT32_MAX);
 
     s->entries[arch][key].data = data;
-    s->entries[arch][key].len = len;
-
-    return 1;
+    s->entries[arch][key].len = (uint32_t)len;
 }
 
-int fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
+void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
+{
+    size_t sz = strlen(value) + 1;
+
+    return fw_cfg_add_bytes(s, key, g_memdup(value, sz), sz);
+}
+
+void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 {
     uint16_t *copy;
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le16(value);
-    return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
+    fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
-int fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
+void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 {
     uint32_t *copy;
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le32(value);
-    return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
+    fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
-int fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
+void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
 {
     uint64_t *copy;
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le64(value);
-    return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
+    fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
-int fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
-                        void *callback_opaque, uint8_t *data, size_t len)
+void fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
+                         void *callback_opaque, void *data, size_t len)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
-    if (!(key & FW_CFG_WRITE_CHANNEL))
-        return 0;
+    assert(key & FW_CFG_WRITE_CHANNEL);
 
     key &= FW_CFG_ENTRY_MASK;
 
-    if (key >= FW_CFG_MAX_ENTRY || len > 65535)
-        return 0;
+    assert(key < FW_CFG_MAX_ENTRY && len <= UINT32_MAX);
 
     s->entries[arch][key].data = data;
-    s->entries[arch][key].len = len;
+    s->entries[arch][key].len = (uint32_t)len;
     s->entries[arch][key].callback_opaque = callback_opaque;
     s->entries[arch][key].callback = callback;
-
-    return 1;
 }
 
-int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
-                    uint32_t len)
+void fw_cfg_add_file(FWCfgState *s,  const char *filename,
+                     void *data, size_t len)
 {
     int i, index;
+    size_t dsize;
 
     if (!s->files) {
-        int dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * FW_CFG_FILE_SLOTS;
+        dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * FW_CFG_FILE_SLOTS;
         s->files = g_malloc0(dsize);
-        fw_cfg_add_bytes(s, FW_CFG_FILE_DIR, (uint8_t*)s->files, dsize);
+        fw_cfg_add_bytes(s, FW_CFG_FILE_DIR, s->files, dsize);
     }
 
     index = be32_to_cpu(s->files->count);
-    if (index == FW_CFG_FILE_SLOTS) {
-        fprintf(stderr, "fw_cfg: out of file slots\n");
-        return 0;
-    }
+    assert(index < FW_CFG_FILE_SLOTS);
 
     fw_cfg_add_bytes(s, FW_CFG_FILE_FIRST + index, data, len);
 
@@ -470,24 +458,21 @@ int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
             filename);
     for (i = 0; i < index; i++) {
         if (strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
-            FW_CFG_DPRINTF("%s: skip duplicate: %s\n", __FUNCTION__,
-                           s->files->f[index].name);
-            return 1;
+            trace_fw_cfg_add_file_dupe(s, s->files->f[index].name);
+            return;
         }
     }
 
     s->files->f[index].size   = cpu_to_be32(len);
     s->files->f[index].select = cpu_to_be16(FW_CFG_FILE_FIRST + index);
-    FW_CFG_DPRINTF("%s: #%d: %s (%d bytes)\n", __FUNCTION__,
-                   index, s->files->f[index].name, len);
+    trace_fw_cfg_add_file(s, index, s->files->f[index].name, len);
 
     s->files->count = cpu_to_be32(index+1);
-    return 1;
 }
 
 static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 {
-    uint32_t len;
+    size_t len;
     FWCfgState *s = container_of(n, FWCfgState, machine_ready);
     char *bootindex = get_boot_devices_list(&len);
 
@@ -505,7 +490,7 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     qdev_prop_set_uint32(dev, "ctl_iobase", ctl_port);
     qdev_prop_set_uint32(dev, "data_iobase", data_port);
     qdev_init_nofail(dev);
-    d = sysbus_from_qdev(dev);
+    d = SYS_BUS_DEVICE(dev);
 
     s = DO_UPCAST(FWCfgState, busdev.qdev, dev);
 
@@ -515,11 +500,10 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     if (data_addr) {
         sysbus_mmio_map(d, 1, data_addr);
     }
-    fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (uint8_t *)"QEMU", 4);
+    fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (char *)"QEMU", 4);
     fw_cfg_add_bytes(s, FW_CFG_UUID, qemu_uuid, 16);
     fw_cfg_add_i16(s, FW_CFG_NOGRAPHIC, (uint16_t)(display_type == DT_NOGRAPHIC));
     fw_cfg_add_i16(s, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
-    fw_cfg_add_i16(s, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
     fw_cfg_add_i16(s, FW_CFG_BOOT_MENU, (uint16_t)boot_menu);
     fw_cfg_bootsplash(s);
     fw_cfg_reboot(s);
@@ -575,7 +559,7 @@ static void fw_cfg_class_init(ObjectClass *klass, void *data)
     dc->props = fw_cfg_properties;
 }
 
-static TypeInfo fw_cfg_info = {
+static const TypeInfo fw_cfg_info = {
     .name          = "fw_cfg",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FWCfgState),

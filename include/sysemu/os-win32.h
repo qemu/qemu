@@ -63,6 +63,14 @@
 # undef setjmp
 # define setjmp(env) _setjmp(env, NULL)
 #endif
+/* QEMU uses sigsetjmp()/siglongjmp() as the portable way to specify
+ * "longjmp and don't touch the signal masks". Since we know that the
+ * savemask parameter will always be zero we can safely define these
+ * in terms of setjmp/longjmp on Win32.
+ */
+#define sigjmp_buf jmp_buf
+#define sigsetjmp(env, savemask) setjmp(env)
+#define siglongjmp(env, val) longjmp(env, val)
 
 /* Declaration of ffs() is missing in MinGW's strings.h. */
 int ffs(int i);
@@ -72,6 +80,8 @@ int ffs(int i);
 struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #undef localtime_r
 struct tm *localtime_r(const time_t *timep, struct tm *result);
+
+char *strtok_r(char *str, const char *delim, char **saveptr);
 
 static inline void os_setup_signal_handling(void) {}
 static inline void os_daemonize(void) {}

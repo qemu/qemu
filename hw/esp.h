@@ -1,7 +1,7 @@
 #ifndef QEMU_HW_ESP_H
 #define QEMU_HW_ESP_H
 
-#include "scsi.h"
+#include "hw/scsi.h"
 
 /* esp.c */
 #define ESP_MAX_DEVS 7

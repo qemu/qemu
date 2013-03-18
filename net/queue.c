@@ -50,6 +50,8 @@ struct NetPacket {
 
 struct NetQueue {
     void *opaque;
+    uint32_t nq_maxlen;
+    uint32_t nq_count;
 
     QTAILQ_HEAD(packets, NetPacket) packets;
 
@@ -63,6 +65,8 @@ NetQueue *qemu_new_net_queue(void *opaque)
     queue = g_malloc0(sizeof(NetQueue));
 
     queue->opaque = opaque;
+    queue->nq_maxlen = 10000;
+    queue->nq_count = 0;
 
     QTAILQ_INIT(&queue->packets);
 
@@ -92,6 +96,9 @@ static void qemu_net_queue_append(NetQueue *queue,
 {
     NetPacket *packet;
 
+    if (queue->nq_count >= queue->nq_maxlen && !sent_cb) {
+        return; /* drop if queue full and no callback */
+    }
     packet = g_malloc(sizeof(NetPacket) + size);
     packet->sender = sender;
     packet->flags = flags;
@@ -99,6 +106,7 @@ static void qemu_net_queue_append(NetQueue *queue,
     packet->sent_cb = sent_cb;
     memcpy(packet->data, buf, size);
 
+    queue->nq_count++;
     QTAILQ_INSERT_TAIL(&queue->packets, packet, entry);
 }
 
@@ -113,6 +121,9 @@ static void qemu_net_queue_append_iov(NetQueue *queue,
     size_t max_len = 0;
     int i;
 
+    if (queue->nq_count >= queue->nq_maxlen && !sent_cb) {
+        return; /* drop if queue full and no callback */
+    }
     for (i = 0; i < iovcnt; i++) {
         max_len += iov[i].iov_len;
     }
@@ -130,6 +141,7 @@ static void qemu_net_queue_append_iov(NetQueue *queue,
         packet->size += len;
     }
 
+    queue->nq_count++;
     QTAILQ_INSERT_TAIL(&queue->packets, packet, entry);
 }
 
@@ -220,6 +232,7 @@ void qemu_net_queue_purge(NetQueue *queue, NetClientState *from)
     QTAILQ_FOREACH_SAFE(packet, &queue->packets, entry, next) {
         if (packet->sender == from) {
             QTAILQ_REMOVE(&queue->packets, packet, entry);
+            queue->nq_count--;
             g_free(packet);
         }
     }
@@ -233,6 +246,7 @@ bool qemu_net_queue_flush(NetQueue *queue)
 
         packet = QTAILQ_FIRST(&queue->packets);
         QTAILQ_REMOVE(&queue->packets, packet, entry);
+        queue->nq_count--;
 
         ret = qemu_net_queue_deliver(queue,
                                      packet->sender,
@@ -240,6 +254,7 @@ bool qemu_net_queue_flush(NetQueue *queue)
                                      packet->data,
                                      packet->size);
         if (ret == 0) {
+            queue->nq_count++;
             QTAILQ_INSERT_HEAD(&queue->packets, packet, entry);
             return false;
         }

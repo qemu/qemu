@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "char/char.h"
 
 typedef struct {
@@ -300,7 +300,7 @@ static void pl011_arm_class_init(ObjectClass *klass, void *data)
     sdc->init = pl011_arm_init;
 }
 
-static TypeInfo pl011_arm_info = {
+static const TypeInfo pl011_arm_info = {
     .name          = "pl011",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl011_state),
@@ -314,7 +314,7 @@ static void pl011_luminary_class_init(ObjectClass *klass, void *data)
     sdc->init = pl011_luminary_init;
 }
 
-static TypeInfo pl011_luminary_info = {
+static const TypeInfo pl011_luminary_info = {
     .name          = "pl011_luminary",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl011_state),

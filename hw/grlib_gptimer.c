@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 
 #include "trace.h"
 
@@ -389,7 +389,7 @@ static void grlib_gptimer_class_init(ObjectClass *klass, void *data)
     dc->props = grlib_gptimer_properties;
 }
 
-static TypeInfo grlib_gptimer_info = {
+static const TypeInfo grlib_gptimer_info = {
     .name          = "grlib,gptimer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GPTimerUnit),

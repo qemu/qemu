@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "hw.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
 #include "net/net.h"
 
 #define D(x)
@@ -89,7 +89,7 @@ eth_read(void *opaque, hwaddr addr, unsigned int size)
         case R_RX_CTRL1:
         case R_RX_CTRL0:
             r = s->regs[addr];
-            D(qemu_log("%s %x=%x\n", __func__, addr * 4, r));
+            D(qemu_log("%s " TARGET_FMT_plx "=%x\n", __func__, addr * 4, r));
             break;
 
         default:
@@ -115,9 +115,10 @@ eth_write(void *opaque, hwaddr addr,
             if (addr == R_TX_CTRL1)
                 base = 0x800 / 4;
 
-            D(qemu_log("%s addr=%x val=%x\n", __func__, addr * 4, value));
+            D(qemu_log("%s addr=" TARGET_FMT_plx " val=%x\n",
+                       __func__, addr * 4, value));
             if ((value & (CTRL_P | CTRL_S)) == CTRL_S) {
-                qemu_send_packet(&s->nic->nc,
+                qemu_send_packet(qemu_get_queue(s->nic),
                                  (void *) &s->regs[base],
                                  s->regs[base + R_TX_LEN0]);
                 D(qemu_log("eth_tx %d\n", s->regs[base + R_TX_LEN0]));
@@ -135,12 +136,16 @@ eth_write(void *opaque, hwaddr addr,
             break;
 
         /* Keep these native.  */
+        case R_RX_CTRL0:
+        case R_RX_CTRL1:
+            if (!(value & CTRL_S)) {
+                qemu_flush_queued_packets(qemu_get_queue(s->nic));
+            }
         case R_TX_LEN0:
         case R_TX_LEN1:
         case R_TX_GIE0:
-        case R_RX_CTRL0:
-        case R_RX_CTRL1:
-            D(qemu_log("%s addr=%x val=%x\n", __func__, addr * 4, value));
+            D(qemu_log("%s addr=" TARGET_FMT_plx " val=%x\n",
+                       __func__, addr * 4, value));
             s->regs[addr] = value;
             break;
 
@@ -162,15 +167,15 @@ static const MemoryRegionOps eth_ops = {
 
 static int eth_can_rx(NetClientState *nc)
 {
-    struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
-    int r;
-    r = !(s->regs[R_RX_CTRL0] & CTRL_S);
-    return r;
+    struct xlx_ethlite *s = qemu_get_nic_opaque(nc);
+    unsigned int rxbase = s->rxbuf * (0x800 / 4);
+
+    return !(s->regs[rxbase + R_RX_CTRL0] & CTRL_S);
 }
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct xlx_ethlite *s = qemu_get_nic_opaque(nc);
     unsigned int rxbase = s->rxbuf * (0x800 / 4);
 
     /* DA filter.  */
@@ -182,7 +187,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
         return -1;
     }
 
-    D(qemu_log("%s %d rxbase=%x\n", __func__, size, rxbase));
+    D(qemu_log("%s %zd rxbase=%x\n", __func__, size, rxbase));
     memcpy(&s->regs[rxbase + R_RX_BUF0], buf, size);
 
     s->regs[rxbase + R_RX_CTRL0] |= CTRL_S;
@@ -196,7 +201,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 
 static void eth_cleanup(NetClientState *nc)
 {
-    struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    struct xlx_ethlite *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -223,7 +228,7 @@ static int xilinx_ethlite_init(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_ethlite_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     return 0;
 }
 
@@ -243,7 +248,7 @@ static void xilinx_ethlite_class_init(ObjectClass *klass, void *data)
     dc->props = xilinx_ethlite_properties;
 }
 
-static TypeInfo xilinx_ethlite_info = {
+static const TypeInfo xilinx_ethlite_info = {
     .name          = "xlnx.xps-ethernetlite",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct xlx_ethlite),

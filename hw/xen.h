@@ -21,9 +21,9 @@ enum xen_mode {
 extern uint32_t xen_domid;
 extern enum xen_mode xen_mode;
 
-extern int xen_allowed;
+extern bool xen_allowed;
 
-static inline int xen_enabled(void)
+static inline bool xen_enabled(void)
 {
 #if defined(CONFIG_XEN_BACKEND) && !defined(CONFIG_NO_XEN)
     return xen_allowed;

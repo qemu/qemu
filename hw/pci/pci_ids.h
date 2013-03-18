@@ -149,6 +149,9 @@
 #define PCI_VENDOR_ID_NEC                0x1033
 #define PCI_DEVICE_ID_NEC_UPD720200      0x0194
 
+#define PCI_VENDOR_ID_TEWS               0x1498
+#define PCI_DEVICE_ID_TEWS_TPCI200       0x30C8
+
 #define PCI_VENDOR_ID_NVIDIA              0x10de
 #define PCI_DEVICE_ID_NVIDIA_MCPX_APU     0x01b0
 #define PCI_DEVICE_ID_NVIDIA_MCPX_ACI     0x01b1

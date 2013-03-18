@@ -1,7 +1,7 @@
 #include "exec/def-helper.h"
 
-DEF_HELPER_FLAGS_2(cc_compute_all, TCG_CALL_NO_SE, i32, env, int)
-DEF_HELPER_FLAGS_2(cc_compute_c, TCG_CALL_NO_SE, i32, env, int)
+DEF_HELPER_FLAGS_4(cc_compute_all, TCG_CALL_NO_RWG_SE, tl, tl, tl, tl, int)
+DEF_HELPER_FLAGS_4(cc_compute_c, TCG_CALL_NO_RWG_SE, tl, tl, tl, tl, int)
 
 DEF_HELPER_0(lock, void)
 DEF_HELPER_0(unlock, void)
@@ -14,9 +14,6 @@ DEF_HELPER_2(idivw_AX, void, env, tl)
 DEF_HELPER_2(divl_EAX, void, env, tl)
 DEF_HELPER_2(idivl_EAX, void, env, tl)
 #ifdef TARGET_X86_64
-DEF_HELPER_2(mulq_EAX_T0, void, env, tl)
-DEF_HELPER_2(imulq_EAX_T0, void, env, tl)
-DEF_HELPER_3(imulq_T0_T1, tl, env, tl, tl)
 DEF_HELPER_2(divq_EAX, void, env, tl)
 DEF_HELPER_2(idivq_EAX, void, env, tl)
 #endif
@@ -193,9 +190,11 @@ DEF_HELPER_3(fsave, void, env, tl, int)
 DEF_HELPER_3(frstor, void, env, tl, int)
 DEF_HELPER_3(fxsave, void, env, tl, int)
 DEF_HELPER_3(fxrstor, void, env, tl, int)
-DEF_HELPER_1(bsf, tl, tl)
-DEF_HELPER_1(bsr, tl, tl)
-DEF_HELPER_2(lzcnt, tl, tl, int)
+
+DEF_HELPER_FLAGS_1(clz, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_1(ctz, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_2(pdep, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(pext, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 
 /* MMX/SSE */
 

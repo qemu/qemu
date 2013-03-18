@@ -16,8 +16,8 @@
 #include "net/net.h"
 #include "net/tap.h"
 
-#include "virtio-net.h"
-#include "vhost_net.h"
+#include "hw/virtio-net.h"
+#include "hw/vhost_net.h"
 #include "qemu/error-report.h"
 
 #include "config.h"
@@ -36,7 +36,7 @@
 
 #include <stdio.h>
 
-#include "vhost.h"
+#include "hw/vhost.h"
 
 struct vhost_net {
     struct vhost_dev dev;
@@ -109,6 +109,9 @@ struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
         (1 << VHOST_NET_F_VIRTIO_NET_HDR);
     net->backend = r;
 
+    net->dev.nvqs = 2;
+    net->dev.vqs = net->vqs;
+
     r = vhost_dev_init(&net->dev, devfd, "/dev/vhost-net", force);
     if (r < 0) {
         goto fail;
@@ -137,14 +140,20 @@ bool vhost_net_query(VHostNetState *net, VirtIODevice *dev)
     return vhost_dev_query(&net->dev, dev);
 }
 
-int vhost_net_start(struct vhost_net *net,
-                    VirtIODevice *dev)
+static int vhost_net_start_one(struct vhost_net *net,
+                               VirtIODevice *dev,
+                               int vq_index)
 {
     struct vhost_vring_file file = { };
     int r;
 
+    if (net->dev.started) {
+        return 0;
+    }
+
     net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
+    net->dev.vq_index = vq_index;
 
     r = vhost_dev_enable_notifiers(&net->dev, dev);
     if (r < 0) {
@@ -181,10 +190,14 @@ fail_notifiers:
     return r;
 }
 
-void vhost_net_stop(struct vhost_net *net,
-                    VirtIODevice *dev)
+static void vhost_net_stop_one(struct vhost_net *net,
+                               VirtIODevice *dev)
 {
     struct vhost_vring_file file = { .fd = -1 };
+
+    if (!net->dev.started) {
+        return;
+    }
 
     for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
         int r = ioctl(net->dev.control, VHOST_NET_SET_BACKEND, &file);
@@ -195,10 +208,76 @@ void vhost_net_stop(struct vhost_net *net,
     vhost_dev_disable_notifiers(&net->dev, dev);
 }
 
+int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
+                    int total_queues)
+{
+    int r, i = 0;
+
+    if (!dev->binding->set_guest_notifiers) {
+        error_report("binding does not support guest notifiers");
+        r = -ENOSYS;
+        goto err;
+    }
+
+    for (i = 0; i < total_queues; i++) {
+        r = vhost_net_start_one(tap_get_vhost_net(ncs[i].peer), dev, i * 2);
+
+        if (r < 0) {
+            goto err;
+        }
+    }
+
+    r = dev->binding->set_guest_notifiers(dev->binding_opaque,
+                                          total_queues * 2,
+                                          true);
+    if (r < 0) {
+        error_report("Error binding guest notifier: %d", -r);
+        goto err;
+    }
+
+    return 0;
+
+err:
+    while (--i >= 0) {
+        vhost_net_stop_one(tap_get_vhost_net(ncs[i].peer), dev);
+    }
+    return r;
+}
+
+void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
+                    int total_queues)
+{
+    int i, r;
+
+    r = dev->binding->set_guest_notifiers(dev->binding_opaque,
+                                          total_queues * 2,
+                                          false);
+    if (r < 0) {
+        fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", r);
+        fflush(stderr);
+    }
+    assert(r >= 0);
+
+    for (i = 0; i < total_queues; i++) {
+        vhost_net_stop_one(tap_get_vhost_net(ncs[i].peer), dev);
+    }
+}
+
 void vhost_net_cleanup(struct vhost_net *net)
 {
     vhost_dev_cleanup(&net->dev);
     g_free(net);
+}
+
+bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
+{
+    return vhost_virtqueue_pending(&net->dev, idx);
+}
+
+void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
+                              int idx, bool mask)
+{
+    vhost_virtqueue_mask(&net->dev, dev, idx, mask);
 }
 #else
 struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
@@ -213,13 +292,15 @@ bool vhost_net_query(VHostNetState *net, VirtIODevice *dev)
     return false;
 }
 
-int vhost_net_start(struct vhost_net *net,
-		    VirtIODevice *dev)
+int vhost_net_start(VirtIODevice *dev,
+                    NetClientState *ncs,
+                    int total_queues)
 {
     return -ENOSYS;
 }
-void vhost_net_stop(struct vhost_net *net,
-		    VirtIODevice *dev)
+void vhost_net_stop(VirtIODevice *dev,
+                    NetClientState *ncs,
+                    int total_queues)
 {
 }
 
@@ -232,6 +313,16 @@ unsigned vhost_net_get_features(struct vhost_net *net, unsigned features)
     return features;
 }
 void vhost_net_ack_features(struct vhost_net *net, unsigned features)
+{
+}
+
+bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
+{
+    return -ENOSYS;
+}
+
+void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
+                              int idx, bool mask)
 {
 }
 #endif

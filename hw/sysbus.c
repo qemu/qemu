@@ -17,7 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "monitor/monitor.h"
 #include "exec/address-spaces.h"
 
@@ -48,7 +48,8 @@ void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
     }
 }
 
-void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
+static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
+                                   bool may_overlap, unsigned priority)
 {
     assert(n >= 0 && n < dev->num_mmio);
 
@@ -61,11 +62,29 @@ void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
         memory_region_del_subregion(get_system_memory(), dev->mmio[n].memory);
     }
     dev->mmio[n].addr = addr;
-    memory_region_add_subregion(get_system_memory(),
-                                addr,
-                                dev->mmio[n].memory);
+    if (may_overlap) {
+        memory_region_add_subregion_overlap(get_system_memory(),
+                                            addr,
+                                            dev->mmio[n].memory,
+                                            priority);
+    }
+    else {
+        memory_region_add_subregion(get_system_memory(),
+                                    addr,
+                                    dev->mmio[n].memory);
+    }
 }
 
+void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
+{
+    sysbus_mmio_map_common(dev, n, addr, false, 0);
+}
+
+void sysbus_mmio_map_overlap(SysBusDevice *dev, int n, hwaddr addr,
+                             unsigned priority)
+{
+    sysbus_mmio_map_common(dev, n, addr, true, priority);
+}
 
 /* Request an IRQ source.  The actual IRQ object may be populated later.  */
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p)
@@ -131,7 +150,7 @@ DeviceState *sysbus_create_varargs(const char *name,
     int n;
 
     dev = qdev_create(NULL, name);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     qdev_init_nofail(dev);
     if (addr != (hwaddr)-1) {
         sysbus_mmio_map(s, 0, addr);
@@ -163,7 +182,7 @@ DeviceState *sysbus_try_create_varargs(const char *name,
     if (!dev) {
         return NULL;
     }
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     qdev_init_nofail(dev);
     if (addr != (hwaddr)-1) {
         sysbus_mmio_map(s, 0, addr);
@@ -184,7 +203,7 @@ DeviceState *sysbus_try_create_varargs(const char *name,
 
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
-    SysBusDevice *s = sysbus_from_qdev(dev);
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
     hwaddr size;
     int i;
 
@@ -198,7 +217,7 @@ static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 
 static char *sysbus_get_fw_dev_path(DeviceState *dev)
 {
-    SysBusDevice *s = sysbus_from_qdev(dev);
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
     char path[40];
     int off;
 
@@ -255,7 +274,7 @@ static void sysbus_device_class_init(ObjectClass *klass, void *data)
     k->bus_type = TYPE_SYSTEM_BUS;
 }
 
-static TypeInfo sysbus_device_type_info = {
+static const TypeInfo sysbus_device_type_info = {
     .name = TYPE_SYS_BUS_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SysBusDevice),

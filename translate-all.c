@@ -72,21 +72,6 @@
 
 #define SMC_BITMAP_USE_THRESHOLD 10
 
-/* Code generation and translation blocks */
-static TranslationBlock *tbs;
-static int code_gen_max_blocks;
-TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
-static int nb_tbs;
-/* any access to the tbs or the page table must use this lock */
-spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
-
-uint8_t *code_gen_prologue;
-static uint8_t *code_gen_buffer;
-static size_t code_gen_buffer_size;
-/* threshold to flush the translated code buffer */
-static size_t code_gen_buffer_max_size;
-static uint8_t *code_gen_ptr;
-
 typedef struct PageDesc {
     /* list of TBs intersecting this ram page */
     TranslationBlock *first_tb;
@@ -132,10 +117,6 @@ uintptr_t qemu_host_page_mask;
 /* This is a multi-level map on the virtual address space.
    The bottom level has pointers to PageDesc.  */
 static void *l1_map[V_L1_SIZE];
-
-/* statistics */
-static int tb_flush_count;
-static int tb_phys_invalidate_count;
 
 /* code generation context */
 TCGContext tcg_ctx;
@@ -514,7 +495,7 @@ static inline size_t size_code_gen_buffer(size_t tb_size)
     if (tb_size > MAX_CODE_GEN_BUFFER_SIZE) {
         tb_size = MAX_CODE_GEN_BUFFER_SIZE;
     }
-    code_gen_buffer_size = tb_size;
+    tcg_ctx.code_gen_buffer_size = tb_size;
     return tb_size;
 }
 
@@ -524,7 +505,7 @@ static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
 
 static inline void *alloc_code_gen_buffer(void)
 {
-    map_exec(static_code_gen_buffer, code_gen_buffer_size);
+    map_exec(static_code_gen_buffer, tcg_ctx.code_gen_buffer_size);
     return static_code_gen_buffer;
 }
 #elif defined(USE_MMAP)
@@ -547,8 +528,8 @@ static inline void *alloc_code_gen_buffer(void)
        Leave the choice of exact location with the kernel.  */
     flags |= MAP_32BIT;
     /* Cannot expect to map more than 800MB in low memory.  */
-    if (code_gen_buffer_size > 800u * 1024 * 1024) {
-        code_gen_buffer_size = 800u * 1024 * 1024;
+    if (tcg_ctx.code_gen_buffer_size > 800u * 1024 * 1024) {
+        tcg_ctx.code_gen_buffer_size = 800u * 1024 * 1024;
     }
 # elif defined(__sparc__)
     start = 0x40000000ul;
@@ -556,17 +537,17 @@ static inline void *alloc_code_gen_buffer(void)
     start = 0x90000000ul;
 # endif
 
-    buf = mmap((void *)start, code_gen_buffer_size,
+    buf = mmap((void *)start, tcg_ctx.code_gen_buffer_size,
                PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
     return buf == MAP_FAILED ? NULL : buf;
 }
 #else
 static inline void *alloc_code_gen_buffer(void)
 {
-    void *buf = g_malloc(code_gen_buffer_size);
+    void *buf = g_malloc(tcg_ctx.code_gen_buffer_size);
 
     if (buf) {
-        map_exec(buf, code_gen_buffer_size);
+        map_exec(buf, tcg_ctx.code_gen_buffer_size);
     }
     return buf;
 }
@@ -574,27 +555,31 @@ static inline void *alloc_code_gen_buffer(void)
 
 static inline void code_gen_alloc(size_t tb_size)
 {
-    code_gen_buffer_size = size_code_gen_buffer(tb_size);
-    code_gen_buffer = alloc_code_gen_buffer();
-    if (code_gen_buffer == NULL) {
+    tcg_ctx.code_gen_buffer_size = size_code_gen_buffer(tb_size);
+    tcg_ctx.code_gen_buffer = alloc_code_gen_buffer();
+    if (tcg_ctx.code_gen_buffer == NULL) {
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
         exit(1);
     }
 
-    qemu_madvise(code_gen_buffer, code_gen_buffer_size, QEMU_MADV_HUGEPAGE);
+    qemu_madvise(tcg_ctx.code_gen_buffer, tcg_ctx.code_gen_buffer_size,
+            QEMU_MADV_HUGEPAGE);
 
     /* Steal room for the prologue at the end of the buffer.  This ensures
        (via the MAX_CODE_GEN_BUFFER_SIZE limits above) that direct branches
        from TB's to the prologue are going to be in range.  It also means
        that we don't need to mark (additional) portions of the data segment
        as executable.  */
-    code_gen_prologue = code_gen_buffer + code_gen_buffer_size - 1024;
-    code_gen_buffer_size -= 1024;
+    tcg_ctx.code_gen_prologue = tcg_ctx.code_gen_buffer +
+            tcg_ctx.code_gen_buffer_size - 1024;
+    tcg_ctx.code_gen_buffer_size -= 1024;
 
-    code_gen_buffer_max_size = code_gen_buffer_size -
+    tcg_ctx.code_gen_buffer_max_size = tcg_ctx.code_gen_buffer_size -
         (TCG_MAX_OP_SIZE * OPC_BUF_SIZE);
-    code_gen_max_blocks = code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
-    tbs = g_malloc(code_gen_max_blocks * sizeof(TranslationBlock));
+    tcg_ctx.code_gen_max_blocks = tcg_ctx.code_gen_buffer_size /
+            CODE_GEN_AVG_BLOCK_SIZE;
+    tcg_ctx.tb_ctx.tbs =
+            g_malloc(tcg_ctx.code_gen_max_blocks * sizeof(TranslationBlock));
 }
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
@@ -604,8 +589,8 @@ void tcg_exec_init(unsigned long tb_size)
 {
     cpu_gen_init();
     code_gen_alloc(tb_size);
-    code_gen_ptr = code_gen_buffer;
-    tcg_register_jit(code_gen_buffer, code_gen_buffer_size);
+    tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
+    tcg_register_jit(tcg_ctx.code_gen_buffer, tcg_ctx.code_gen_buffer_size);
     page_init();
 #if !defined(CONFIG_USER_ONLY) || !defined(CONFIG_USE_GUEST_BASE)
     /* There's no guest base to take into account, so go ahead and
@@ -616,7 +601,7 @@ void tcg_exec_init(unsigned long tb_size)
 
 bool tcg_enabled(void)
 {
-    return code_gen_buffer != NULL;
+    return tcg_ctx.code_gen_buffer != NULL;
 }
 
 /* Allocate a new translation block. Flush the translation buffer if
@@ -625,11 +610,12 @@ static TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
 
-    if (nb_tbs >= code_gen_max_blocks ||
-        (code_gen_ptr - code_gen_buffer) >= code_gen_buffer_max_size) {
+    if (tcg_ctx.tb_ctx.nb_tbs >= tcg_ctx.code_gen_max_blocks ||
+        (tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer) >=
+         tcg_ctx.code_gen_buffer_max_size) {
         return NULL;
     }
-    tb = &tbs[nb_tbs++];
+    tb = &tcg_ctx.tb_ctx.tbs[tcg_ctx.tb_ctx.nb_tbs++];
     tb->pc = pc;
     tb->cflags = 0;
     return tb;
@@ -640,9 +626,10 @@ void tb_free(TranslationBlock *tb)
     /* In practice this is mostly used for single use temporary TB
        Ignore the hard cases and just back up if this TB happens to
        be the last one generated.  */
-    if (nb_tbs > 0 && tb == &tbs[nb_tbs - 1]) {
-        code_gen_ptr = tb->tc_ptr;
-        nb_tbs--;
+    if (tcg_ctx.tb_ctx.nb_tbs > 0 &&
+            tb == &tcg_ctx.tb_ctx.tbs[tcg_ctx.tb_ctx.nb_tbs - 1]) {
+        tcg_ctx.code_gen_ptr = tb->tc_ptr;
+        tcg_ctx.tb_ctx.nb_tbs--;
     }
 }
 
@@ -696,27 +683,29 @@ void tb_flush(CPUArchState *env1)
 
 #if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%ld\n",
-           (unsigned long)(code_gen_ptr - code_gen_buffer),
-           nb_tbs, nb_tbs > 0 ?
-           ((unsigned long)(code_gen_ptr - code_gen_buffer)) / nb_tbs : 0);
+           (unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer),
+           tcg_ctx.tb_ctx.nb_tbs, tcg_ctx.tb_ctx.nb_tbs > 0 ?
+           ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)) /
+           tcg_ctx.tb_ctx.nb_tbs : 0);
 #endif
-    if ((unsigned long)(code_gen_ptr - code_gen_buffer)
-        > code_gen_buffer_size) {
+    if ((unsigned long)(tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer)
+        > tcg_ctx.code_gen_buffer_size) {
         cpu_abort(env1, "Internal error: code buffer overflow\n");
     }
-    nb_tbs = 0;
+    tcg_ctx.tb_ctx.nb_tbs = 0;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
     }
 
-    memset(tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
+    memset(tcg_ctx.tb_ctx.tb_phys_hash, 0,
+            CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
     page_flush_tb();
 
-    code_gen_ptr = code_gen_buffer;
+    tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
     /* XXX: flush processor icache at this point if cache flush is
        expensive */
-    tb_flush_count++;
+    tcg_ctx.tb_ctx.tb_flush_count++;
 }
 
 #ifdef DEBUG_TB_CHECK
@@ -728,7 +717,7 @@ static void tb_invalidate_check(target_ulong address)
 
     address &= TARGET_PAGE_MASK;
     for (i = 0; i < CODE_GEN_PHYS_HASH_SIZE; i++) {
-        for (tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
+        for (tb = tb_ctx.tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
             if (!(address + TARGET_PAGE_SIZE <= tb->pc ||
                   address >= tb->pc + tb->size)) {
                 printf("ERROR invalidate: address=" TARGET_FMT_lx
@@ -746,7 +735,8 @@ static void tb_page_check(void)
     int i, flags1, flags2;
 
     for (i = 0; i < CODE_GEN_PHYS_HASH_SIZE; i++) {
-        for (tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
+        for (tb = tcg_ctx.tb_ctx.tb_phys_hash[i]; tb != NULL;
+                tb = tb->phys_hash_next) {
             flags1 = page_get_flags(tb->pc);
             flags2 = page_get_flags(tb->pc + tb->size - 1);
             if ((flags1 & PAGE_WRITE) || (flags2 & PAGE_WRITE)) {
@@ -838,7 +828,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
     h = tb_phys_hash_func(phys_pc);
-    tb_hash_remove(&tb_phys_hash[h], tb);
+    tb_hash_remove(&tcg_ctx.tb_ctx.tb_phys_hash[h], tb);
 
     /* remove the TB from the page list */
     if (tb->page_addr[0] != page_addr) {
@@ -852,7 +842,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
         invalidate_page_bitmap(p);
     }
 
-    tb_invalidated_flag = 1;
+    tcg_ctx.tb_ctx.tb_invalidated_flag = 1;
 
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
@@ -881,7 +871,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     }
     tb->jmp_first = (TranslationBlock *)((uintptr_t)tb | 2); /* fail safe */
 
-    tb_phys_invalidate_count++;
+    tcg_ctx.tb_ctx.tb_phys_invalidate_count++;
 }
 
 static inline void set_bits(uint8_t *tab, int start, int len)
@@ -958,16 +948,16 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
         /* cannot fail at this point */
         tb = tb_alloc(pc);
         /* Don't forget to invalidate previous TB info.  */
-        tb_invalidated_flag = 1;
+        tcg_ctx.tb_ctx.tb_invalidated_flag = 1;
     }
-    tc_ptr = code_gen_ptr;
+    tc_ptr = tcg_ctx.code_gen_ptr;
     tb->tc_ptr = tc_ptr;
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
     cpu_gen_code(env, tb, &code_gen_size);
-    code_gen_ptr = (void *)(((uintptr_t)code_gen_ptr + code_gen_size +
-                             CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+    tcg_ctx.code_gen_ptr = (void *)(((uintptr_t)tcg_ctx.code_gen_ptr +
+            code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
 
     /* check next page if needed */
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
@@ -1008,6 +998,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 {
     TranslationBlock *tb, *tb_next, *saved_tb;
     CPUArchState *env = cpu_single_env;
+    CPUState *cpu = NULL;
     tb_page_addr_t tb_start, tb_end;
     PageDesc *p;
     int n;
@@ -1029,6 +1020,9 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
         is_cpu_write_access) {
         /* build code bitmap */
         build_page_bitmap(p);
+    }
+    if (env != NULL) {
+        cpu = ENV_GET_CPU(env);
     }
 
     /* we remove all the TBs in the range [start, end[ */
@@ -1076,15 +1070,15 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
             /* we need to do that to handle the case where a signal
                occurs while doing tb_phys_invalidate() */
             saved_tb = NULL;
-            if (env) {
-                saved_tb = env->current_tb;
-                env->current_tb = NULL;
+            if (cpu != NULL) {
+                saved_tb = cpu->current_tb;
+                cpu->current_tb = NULL;
             }
             tb_phys_invalidate(tb, -1);
-            if (env) {
-                env->current_tb = saved_tb;
-                if (env->interrupt_request && env->current_tb) {
-                    cpu_interrupt(env, env->interrupt_request);
+            if (cpu != NULL) {
+                cpu->current_tb = saved_tb;
+                if (cpu->interrupt_request && cpu->current_tb) {
+                    cpu_interrupt(cpu, cpu->interrupt_request);
                 }
             }
         }
@@ -1104,7 +1098,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
         /* we generate a block containing just the instruction
            modifying the memory. It will ensure that it cannot modify
            itself */
-        env->current_tb = NULL;
+        cpu->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
         cpu_resume_from_signal(env, NULL);
     }
@@ -1152,6 +1146,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
 #ifdef TARGET_HAS_PRECISE_SMC
     TranslationBlock *current_tb = NULL;
     CPUArchState *env = cpu_single_env;
+    CPUState *cpu = NULL;
     int current_tb_modified = 0;
     target_ulong current_pc = 0;
     target_ulong current_cs_base = 0;
@@ -1167,6 +1162,9 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
 #ifdef TARGET_HAS_PRECISE_SMC
     if (tb && pc != 0) {
         current_tb = tb_find_pc(pc);
+    }
+    if (env != NULL) {
+        cpu = ENV_GET_CPU(env);
     }
 #endif
     while (tb != NULL) {
@@ -1196,7 +1194,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
         /* we generate a block containing just the instruction
            modifying the memory. It will ensure that it cannot modify
            itself */
-        env->current_tb = NULL;
+        cpu->current_tb = NULL;
         tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
         cpu_resume_from_signal(env, puc);
     }
@@ -1276,7 +1274,7 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     mmap_lock();
     /* add in the physical hash table */
     h = tb_phys_hash_func(phys_pc);
-    ptb = &tb_phys_hash[h];
+    ptb = &tcg_ctx.tb_ctx.tb_phys_hash[h];
     tb->phys_hash_next = *ptb;
     *ptb = tb;
 
@@ -1312,8 +1310,9 @@ bool is_tcg_gen_code(uintptr_t tc_ptr)
 {
     /* This can be called during code generation, code_gen_buffer_max_size
        is used instead of code_gen_ptr for upper boundary checking */
-    return (tc_ptr >= (uintptr_t)code_gen_buffer &&
-            tc_ptr < (uintptr_t)(code_gen_buffer + code_gen_buffer_max_size));
+    return (tc_ptr >= (uintptr_t)tcg_ctx.code_gen_buffer &&
+            tc_ptr < (uintptr_t)(tcg_ctx.code_gen_buffer +
+                    tcg_ctx.code_gen_buffer_max_size));
 }
 #endif
 
@@ -1325,19 +1324,19 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
     uintptr_t v;
     TranslationBlock *tb;
 
-    if (nb_tbs <= 0) {
+    if (tcg_ctx.tb_ctx.nb_tbs <= 0) {
         return NULL;
     }
-    if (tc_ptr < (uintptr_t)code_gen_buffer ||
-        tc_ptr >= (uintptr_t)code_gen_ptr) {
+    if (tc_ptr < (uintptr_t)tcg_ctx.code_gen_buffer ||
+        tc_ptr >= (uintptr_t)tcg_ctx.code_gen_ptr) {
         return NULL;
     }
     /* binary search (cf Knuth) */
     m_min = 0;
-    m_max = nb_tbs - 1;
+    m_max = tcg_ctx.tb_ctx.nb_tbs - 1;
     while (m_min <= m_max) {
         m = (m_min + m_max) >> 1;
-        tb = &tbs[m];
+        tb = &tcg_ctx.tb_ctx.tbs[m];
         v = (uintptr_t)tb->tc_ptr;
         if (v == tc_ptr) {
             return tb;
@@ -1347,56 +1346,7 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
             m_min = m + 1;
         }
     }
-    return &tbs[m_max];
-}
-
-static void tb_reset_jump_recursive(TranslationBlock *tb);
-
-static inline void tb_reset_jump_recursive2(TranslationBlock *tb, int n)
-{
-    TranslationBlock *tb1, *tb_next, **ptb;
-    unsigned int n1;
-
-    tb1 = tb->jmp_next[n];
-    if (tb1 != NULL) {
-        /* find head of list */
-        for (;;) {
-            n1 = (uintptr_t)tb1 & 3;
-            tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
-            if (n1 == 2) {
-                break;
-            }
-            tb1 = tb1->jmp_next[n1];
-        }
-        /* we are now sure now that tb jumps to tb1 */
-        tb_next = tb1;
-
-        /* remove tb from the jmp_first list */
-        ptb = &tb_next->jmp_first;
-        for (;;) {
-            tb1 = *ptb;
-            n1 = (uintptr_t)tb1 & 3;
-            tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
-            if (n1 == n && tb1 == tb) {
-                break;
-            }
-            ptb = &tb1->jmp_next[n1];
-        }
-        *ptb = tb->jmp_next[n];
-        tb->jmp_next[n] = NULL;
-
-        /* suppress the jump to next tb in generated code */
-        tb_reset_jump(tb, n);
-
-        /* suppress jumps in the tb on which we could have jumped */
-        tb_reset_jump_recursive(tb_next);
-    }
-}
-
-static void tb_reset_jump_recursive(TranslationBlock *tb)
-{
-    tb_reset_jump_recursive2(tb, 0);
-    tb_reset_jump_recursive2(tb, 1);
+    return &tcg_ctx.tb_ctx.tbs[m_max];
 }
 
 #if defined(TARGET_HAS_ICE) && !defined(CONFIG_USER_ONLY)
@@ -1417,26 +1367,6 @@ void tb_invalidate_phys_addr(hwaddr addr)
 }
 #endif /* TARGET_HAS_ICE && !defined(CONFIG_USER_ONLY) */
 
-void cpu_unlink_tb(CPUArchState *env)
-{
-    /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
-       problem and hope the cpu will stop of its own accord.  For userspace
-       emulation this often isn't actually as bad as it sounds.  Often
-       signals are used primarily to interrupt blocking syscalls.  */
-    TranslationBlock *tb;
-    static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
-
-    spin_lock(&interrupt_lock);
-    tb = env->current_tb;
-    /* if the cpu is currently executing code, we must unlink it and
-       all the potentially executing TB */
-    if (tb) {
-        env->current_tb = NULL;
-        tb_reset_jump_recursive(tb);
-    }
-    spin_unlock(&interrupt_lock);
-}
-
 void tb_check_watchpoint(CPUArchState *env)
 {
     TranslationBlock *tb;
@@ -1452,13 +1382,13 @@ void tb_check_watchpoint(CPUArchState *env)
 
 #ifndef CONFIG_USER_ONLY
 /* mask must never be zero, except for A20 change call */
-static void tcg_handle_interrupt(CPUArchState *env, int mask)
+static void tcg_handle_interrupt(CPUState *cpu, int mask)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
     int old_mask;
 
-    old_mask = env->interrupt_request;
-    env->interrupt_request |= mask;
+    old_mask = cpu->interrupt_request;
+    cpu->interrupt_request |= mask;
 
     /*
      * If called from iothread context, wake the target cpu in
@@ -1476,7 +1406,7 @@ static void tcg_handle_interrupt(CPUArchState *env, int mask)
             cpu_abort(env, "Raised interrupt while not in I/O function");
         }
     } else {
-        cpu_unlink_tb(env);
+        cpu->tcg_exit_req = 1;
     }
 }
 
@@ -1568,8 +1498,8 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     cross_page = 0;
     direct_jmp_count = 0;
     direct_jmp2_count = 0;
-    for (i = 0; i < nb_tbs; i++) {
-        tb = &tbs[i];
+    for (i = 0; i < tcg_ctx.tb_ctx.nb_tbs; i++) {
+        tb = &tcg_ctx.tb_ctx.tbs[i];
         target_code_size += tb->size;
         if (tb->size > max_target_code_size) {
             max_target_code_size = tb->size;
@@ -1587,37 +1517,45 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     /* XXX: avoid using doubles ? */
     cpu_fprintf(f, "Translation buffer state:\n");
     cpu_fprintf(f, "gen code size       %td/%zd\n",
-                code_gen_ptr - code_gen_buffer, code_gen_buffer_max_size);
+                tcg_ctx.code_gen_ptr - tcg_ctx.code_gen_buffer,
+                tcg_ctx.code_gen_buffer_max_size);
     cpu_fprintf(f, "TB count            %d/%d\n",
-                nb_tbs, code_gen_max_blocks);
+            tcg_ctx.tb_ctx.nb_tbs, tcg_ctx.code_gen_max_blocks);
     cpu_fprintf(f, "TB avg target size  %d max=%d bytes\n",
-                nb_tbs ? target_code_size / nb_tbs : 0,
-                max_target_code_size);
+            tcg_ctx.tb_ctx.nb_tbs ? target_code_size /
+                    tcg_ctx.tb_ctx.nb_tbs : 0,
+            max_target_code_size);
     cpu_fprintf(f, "TB avg host size    %td bytes (expansion ratio: %0.1f)\n",
-                nb_tbs ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0,
-                target_code_size ? (double) (code_gen_ptr - code_gen_buffer)
-                / target_code_size : 0);
-    cpu_fprintf(f, "cross page TB count %d (%d%%)\n",
-            cross_page,
-            nb_tbs ? (cross_page * 100) / nb_tbs : 0);
+            tcg_ctx.tb_ctx.nb_tbs ? (tcg_ctx.code_gen_ptr -
+                                     tcg_ctx.code_gen_buffer) /
+                                     tcg_ctx.tb_ctx.nb_tbs : 0,
+                target_code_size ? (double) (tcg_ctx.code_gen_ptr -
+                                             tcg_ctx.code_gen_buffer) /
+                                             target_code_size : 0);
+    cpu_fprintf(f, "cross page TB count %d (%d%%)\n", cross_page,
+            tcg_ctx.tb_ctx.nb_tbs ? (cross_page * 100) /
+                                    tcg_ctx.tb_ctx.nb_tbs : 0);
     cpu_fprintf(f, "direct jump count   %d (%d%%) (2 jumps=%d %d%%)\n",
                 direct_jmp_count,
-                nb_tbs ? (direct_jmp_count * 100) / nb_tbs : 0,
+                tcg_ctx.tb_ctx.nb_tbs ? (direct_jmp_count * 100) /
+                        tcg_ctx.tb_ctx.nb_tbs : 0,
                 direct_jmp2_count,
-                nb_tbs ? (direct_jmp2_count * 100) / nb_tbs : 0);
+                tcg_ctx.tb_ctx.nb_tbs ? (direct_jmp2_count * 100) /
+                        tcg_ctx.tb_ctx.nb_tbs : 0);
     cpu_fprintf(f, "\nStatistics:\n");
-    cpu_fprintf(f, "TB flush count      %d\n", tb_flush_count);
-    cpu_fprintf(f, "TB invalidate count %d\n", tb_phys_invalidate_count);
+    cpu_fprintf(f, "TB flush count      %d\n", tcg_ctx.tb_ctx.tb_flush_count);
+    cpu_fprintf(f, "TB invalidate count %d\n",
+            tcg_ctx.tb_ctx.tb_phys_invalidate_count);
     cpu_fprintf(f, "TLB flush count     %d\n", tlb_flush_count);
     tcg_dump_info(f, cpu_fprintf);
 }
 
 #else /* CONFIG_USER_ONLY */
 
-void cpu_interrupt(CPUArchState *env, int mask)
+void cpu_interrupt(CPUState *cpu, int mask)
 {
-    env->interrupt_request |= mask;
-    cpu_unlink_tb(env);
+    cpu->interrupt_request |= mask;
+    cpu->tcg_exit_req = 1;
 }
 
 /*

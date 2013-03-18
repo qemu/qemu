@@ -7,7 +7,7 @@
  */
 
 #include "qemu-common.h"
-#include "xen-host-pci-device.h"
+#include "hw/xen-host-pci-device.h"
 
 #define XEN_HOST_PCI_MAX_EXT_CAP \
     ((PCIE_CONFIG_SPACE_SIZE - PCI_CONFIG_SPACE_SIZE) / (PCI_CAP_SIZEOF + 4))

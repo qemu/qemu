@@ -17,11 +17,11 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "trace.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 typedef struct G364State {
     /* hardware */
@@ -597,7 +597,7 @@ static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
     dc->props = g364fb_sysbus_properties;
 }
 
-static TypeInfo g364fb_sysbus_info = {
+static const TypeInfo g364fb_sysbus_info = {
     .name          = "sysbus-g364",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(G364SysBusState),

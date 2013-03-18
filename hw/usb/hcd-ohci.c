@@ -430,6 +430,23 @@ static USBDevice *ohci_find_device(OHCIState *ohci, uint8_t addr)
     return NULL;
 }
 
+static void ohci_stop_endpoints(OHCIState *ohci)
+{
+    USBDevice *dev;
+    int i, j;
+
+    for (i = 0; i < ohci->num_ports; i++) {
+        dev = ohci->rhport[i].port.dev;
+        if (dev && dev->attached) {
+            usb_device_ep_stopped(dev, &dev->ep_ctl);
+            for (j = 0; j < USB_MAX_ENDPOINTS; j++) {
+                usb_device_ep_stopped(dev, &dev->ep_in[j]);
+                usb_device_ep_stopped(dev, &dev->ep_out[j]);
+            }
+        }
+    }
+}
+
 /* Reset the controller */
 static void ohci_reset(void *opaque)
 {
@@ -478,6 +495,7 @@ static void ohci_reset(void *opaque)
         usb_cancel_packet(&ohci->usb_packet);
         ohci->async_td = 0;
     }
+    ohci_stop_endpoints(ohci);
     DPRINTF("usb-ohci: Reset %s\n", ohci->name);
 }
 
@@ -812,7 +830,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
                        OHCI_BM(iso_td.flags, TD_DI) == 0;
         dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
         ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
-        usb_packet_setup(&ohci->usb_packet, pid, ep, addr, false, int_req);
+        usb_packet_setup(&ohci->usb_packet, pid, ep, 0, addr, false, int_req);
         usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
         usb_handle_packet(dev, &ohci->usb_packet);
         if (ohci->usb_packet.status == USB_RET_ASYNC) {
@@ -1016,7 +1034,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         }
         dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
         ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
-        usb_packet_setup(&ohci->usb_packet, pid, ep, addr, !flag_r,
+        usb_packet_setup(&ohci->usb_packet, pid, ep, 0, addr, !flag_r,
                          OHCI_BM(td.flags, TD_DI) == 0);
         usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, pktlen);
         usb_handle_packet(dev, &ohci->usb_packet);
@@ -1147,6 +1165,8 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
             if (ohci->async_td && addr == ohci->async_td) {
                 usb_cancel_packet(&ohci->usb_packet);
                 ohci->async_td = 0;
+                usb_device_ep_stopped(ohci->usb_packet.ep->dev,
+                                      ohci->usb_packet.ep);
             }
             continue;
         }
@@ -1227,10 +1247,12 @@ static void ohci_frame_boundary(void *opaque)
     }
 
     /* Cancel all pending packets if either of the lists has been disabled.  */
-    if (ohci->async_td &&
-        ohci->old_ctl & (~ohci->ctl) & (OHCI_CTL_BLE | OHCI_CTL_CLE)) {
-        usb_cancel_packet(&ohci->usb_packet);
-        ohci->async_td = 0;
+    if (ohci->old_ctl & (~ohci->ctl) & (OHCI_CTL_BLE | OHCI_CTL_CLE)) {
+        if (ohci->async_td) {
+            usb_cancel_packet(&ohci->usb_packet);
+            ohci->async_td = 0;
+        }
+        ohci_stop_endpoints(ohci);
     }
     ohci->old_ctl = ohci->ctl;
     ohci_process_lists(ohci, 0);
@@ -1714,6 +1736,7 @@ static void ohci_mem_write(void *opaque,
     /* PXA27x specific registers */
     case 24: /* HcStatus */
         ohci->hstatus &= ~(val & ohci->hmask);
+        break;
 
     case 25: /* HcHReset */
         ohci->hreset = val & ~OHCI_HRESET_FSBIR;
@@ -1887,7 +1910,7 @@ static void ohci_pci_class_init(ObjectClass *klass, void *data)
     dc->props = ohci_pci_properties;
 }
 
-static TypeInfo ohci_pci_info = {
+static const TypeInfo ohci_pci_info = {
     .name          = "pci-ohci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(OHCIPCIState),
@@ -1910,7 +1933,7 @@ static void ohci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->props = ohci_sysbus_properties;
 }
 
-static TypeInfo ohci_sysbus_info = {
+static const TypeInfo ohci_sysbus_info = {
     .name          = "sysbus-ohci",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OHCISysBusState),

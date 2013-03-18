@@ -15,8 +15,9 @@
 
 #include "trace.h"
 #include "qemu/error-report.h"
-#include "virtio.h"
+#include "hw/virtio.h"
 #include "qemu/atomic.h"
+#include "hw/virtio-bus.h"
 
 /* The alignment to use between consumer and producer parts of vring.
  * x86 pagesize again. */
@@ -71,6 +72,8 @@ struct VirtQueue
 
     /* Notification enabled? */
     bool notification;
+
+    uint16_t queue_index;
 
     int inuse;
 
@@ -700,6 +703,15 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
     return &vdev->vq[i];
 }
 
+void virtio_del_queue(VirtIODevice *vdev, int n)
+{
+    if (n < 0 || n >= VIRTIO_PCI_QUEUE_MAX) {
+        abort();
+    }
+
+    vdev->vq[n].vring.num = 0;
+}
+
 void virtio_irq(VirtQueue *vq)
 {
     trace_virtio_irq(vq);
@@ -875,11 +887,16 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     return 0;
 }
 
-void virtio_cleanup(VirtIODevice *vdev)
+void virtio_common_cleanup(VirtIODevice *vdev)
 {
     qemu_del_vm_change_state_handler(vdev->vmstate);
     g_free(vdev->config);
     g_free(vdev->vq);
+}
+
+void virtio_cleanup(VirtIODevice *vdev)
+{
+    virtio_common_cleanup(vdev);
     g_free(vdev);
 }
 
@@ -902,14 +919,10 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
     }
 }
 
-VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
-                                 size_t config_size, size_t struct_size)
+void virtio_init(VirtIODevice *vdev, const char *name,
+                 uint16_t device_id, size_t config_size)
 {
-    VirtIODevice *vdev;
     int i;
-
-    vdev = g_malloc0(struct_size);
-
     vdev->device_id = device_id;
     vdev->status = 0;
     vdev->isr = 0;
@@ -917,25 +930,34 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
     vdev->config_vector = VIRTIO_NO_VECTOR;
     vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_PCI_QUEUE_MAX);
     vdev->vm_running = runstate_is_running();
-    for(i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+    for (i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
         vdev->vq[i].vdev = vdev;
+        vdev->vq[i].queue_index = i;
     }
 
     vdev->name = name;
     vdev->config_len = config_size;
-    if (vdev->config_len)
+    if (vdev->config_len) {
         vdev->config = g_malloc0(config_size);
-    else
+    } else {
         vdev->config = NULL;
+    }
+    vdev->vmstate = qemu_add_vm_change_state_handler(virtio_vmstate_change,
+                                                     vdev);
+}
 
-    vdev->vmstate = qemu_add_vm_change_state_handler(virtio_vmstate_change, vdev);
-
+VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
+                                 size_t config_size, size_t struct_size)
+{
+    VirtIODevice *vdev;
+    vdev = g_malloc0(struct_size);
+    virtio_init(vdev, name, device_id, config_size);
     return vdev;
 }
 
 void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
-                        void *opaque)
+                        DeviceState *opaque)
 {
     vdev->binding = binding;
     vdev->binding_opaque = opaque;
@@ -999,6 +1021,11 @@ VirtQueue *virtio_get_queue(VirtIODevice *vdev, int n)
     return vdev->vq + n;
 }
 
+uint16_t virtio_get_queue_index(VirtQueue *vq)
+{
+    return vq->queue_index;
+}
+
 static void virtio_queue_guest_notifier_read(EventNotifier *n)
 {
     VirtQueue *vq = container_of(n, VirtQueue, guest_notifier);
@@ -1056,3 +1083,39 @@ EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq)
 {
     return &vq->host_notifier;
 }
+
+static int virtio_device_init(DeviceState *qdev)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(qdev);
+    assert(k->init != NULL);
+    if (k->init(vdev) < 0) {
+        return -1;
+    }
+    virtio_bus_plug_device(vdev);
+    return 0;
+}
+
+static void virtio_device_class_init(ObjectClass *klass, void *data)
+{
+    /* Set the default value here. */
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    dc->init = virtio_device_init;
+    dc->bus_type = TYPE_VIRTIO_BUS;
+}
+
+static const TypeInfo virtio_device_info = {
+    .name = TYPE_VIRTIO_DEVICE,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(VirtIODevice),
+    .class_init = virtio_device_class_init,
+    .abstract = true,
+    .class_size = sizeof(VirtioDeviceClass),
+};
+
+static void virtio_register_types(void)
+{
+    type_register_static(&virtio_device_info);
+}
+
+type_init(virtio_register_types)

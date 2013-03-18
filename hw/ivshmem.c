@@ -16,10 +16,10 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "pci/msix.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/msix.h"
 #include "sysemu/kvm.h"
 #include "migration/migration.h"
 #include "qapi/qmp/qerror.h"
@@ -28,6 +28,9 @@
 
 #include <sys/mman.h>
 #include <sys/types.h>
+
+#define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
+#define PCI_DEVICE_ID_IVSHMEM   0x1110
 
 #define IVSHMEM_IOEVENTFD   0
 #define IVSHMEM_MSI     1
@@ -800,14 +803,14 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
 
     k->init = pci_ivshmem_init;
     k->exit = pci_ivshmem_uninit;
-    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
-    k->device_id = 0x1110;
+    k->vendor_id = PCI_VENDOR_ID_IVSHMEM;
+    k->device_id = PCI_DEVICE_ID_IVSHMEM;
     k->class_id = PCI_CLASS_MEMORY_RAM;
     dc->reset = ivshmem_reset;
     dc->props = ivshmem_properties;
 }
 
-static TypeInfo ivshmem_info = {
+static const TypeInfo ivshmem_info = {
     .name          = "ivshmem",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IVShmemState),

@@ -33,6 +33,7 @@
 
 /**
  * ARMCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * An ARM CPU model.
@@ -42,6 +43,7 @@ typedef struct ARMCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
 } ARMCPUClass;
 
@@ -107,7 +109,11 @@ static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
 
 #define ENV_GET_CPU(e) CPU(arm_env_get_cpu(e))
 
-void arm_cpu_realize(ARMCPU *cpu);
+#define ENV_OFFSET offsetof(ARMCPU, env)
+
 void register_cp_regs_for_features(ARMCPU *cpu);
+
+void arm_cpu_do_interrupt(CPUState *cpu);
+void arm_v7m_cpu_do_interrupt(CPUState *cpu);
 
 #endif

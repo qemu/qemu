@@ -16,7 +16,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "char/char.h"
 #include "qemu/timer.h"
 
@@ -343,6 +343,7 @@ static void uart_read_rx_fifo(UartState *s, uint32_t *c)
         if (!s->rx_count) {
             s->r[R_SR] |= UART_SR_INTR_REMPTY;
         }
+        qemu_chr_accept_input(s->chr);
     } else {
         *c = 0;
         s->r[R_SR] |= UART_SR_INTR_REMPTY;
@@ -501,7 +502,7 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_cadence_uart;
 }
 
-static TypeInfo cadence_uart_info = {
+static const TypeInfo cadence_uart_info = {
     .name          = "cadence_uart",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UartState),

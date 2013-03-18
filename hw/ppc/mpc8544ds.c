@@ -12,8 +12,9 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "e500.h"
-#include "../boards.h"
+#include "hw/boards.h"
 #include "sysemu/device_tree.h"
+#include "hw/openpic.h"
 
 static void mpc8544ds_fixup_devtree(PPCE500Params *params, void *fdt)
 {
@@ -43,6 +44,7 @@ static void mpc8544ds_init(QEMUMachineInitArgs *args)
         .pci_first_slot = 0x11,
         .pci_nr_slots = 2,
         .fixup_devtree = mpc8544ds_fixup_devtree,
+        .mpic_version = OPENPIC_MODEL_FSL_MPIC_20,
     };
 
     ppce500_init(&params);
@@ -54,6 +56,7 @@ static QEMUMachine ppce500_machine = {
     .desc = "mpc8544ds",
     .init = mpc8544ds_init,
     .max_cpus = 15,
+    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void ppce500_machine_init(void)

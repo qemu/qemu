@@ -35,8 +35,8 @@
  * - No emulation of EEPROM timings.
  */
 
-#include "hw.h"
-#include "eeprom93xx.h"
+#include "hw/hw.h"
+#include "hw/eeprom93xx.h"
 
 /* Debug EEPROM emulation. */
 //~ #define DEBUG_EEPROM

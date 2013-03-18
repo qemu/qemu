@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include "sun4m.h"
+#include "hw/sun4m.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
-#include "sysbus.h"
+#include "hw/ptimer.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 /*
@@ -420,7 +420,7 @@ static void slavio_timer_class_init(ObjectClass *klass, void *data)
     dc->props = slavio_timer_properties;
 }
 
-static TypeInfo slavio_timer_info = {
+static const TypeInfo slavio_timer_info = {
     .name          = "slavio_timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_TIMERState),

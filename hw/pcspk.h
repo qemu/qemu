@@ -25,8 +25,8 @@
 #ifndef HW_PCSPK_H
 #define HW_PCSPK_H
 
-#include "hw.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/isa.h"
 
 static inline ISADevice *pcspk_init(ISABus *bus, ISADevice *pit)
 {

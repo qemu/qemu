@@ -839,7 +839,7 @@ static void ccid_on_slot_change(USBCCIDState *s, bool full)
         s->bmSlotICCState |= SLOT_0_CHANGED_MASK;
     }
     s->notify_slot_change = true;
-    usb_wakeup(s->intr);
+    usb_wakeup(s->intr, 0);
 }
 
 static void ccid_write_data_block_error(
@@ -1322,7 +1322,7 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     dc->props = ccid_properties;
 }
 
-static TypeInfo ccid_info = {
+static const TypeInfo ccid_info = {
     .name          = CCID_DEV_NAME,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBCCIDState),
@@ -1338,7 +1338,7 @@ static void ccid_card_class_init(ObjectClass *klass, void *data)
     k->props = ccid_props;
 }
 
-static TypeInfo ccid_card_type_info = {
+static const TypeInfo ccid_card_type_info = {
     .name = TYPE_CCID_CARD,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CCIDCardState),

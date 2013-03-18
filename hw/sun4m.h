@@ -27,10 +27,10 @@ void slavio_pic_info(Monitor *mon, DeviceState *dev);
 void slavio_irq_info(Monitor *mon, DeviceState *dev);
 
 /* sun4m.c */
-void sun4m_pic_info(Monitor *mon);
-void sun4m_irq_info(Monitor *mon);
+void sun4m_pic_info(Monitor *mon, const QDict *qdict);
+void sun4m_irq_info(Monitor *mon, const QDict *qdict);
 
 /* sparc32_dma.c */
-#include "sparc32_dma.h"
+#include "hw/sparc32_dma.h"
 
 #endif

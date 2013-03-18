@@ -25,15 +25,15 @@
  */
 
 
-#include "hw.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
 #include "net/net.h"
 #include "net/checksum.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 
-#include "e1000_hw.h"
+#include "hw/e1000_hw.h"
 
 #define E1000_DEBUG
 
@@ -61,6 +61,8 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 
 /* this is the size past which hardware will drop packets when setting LPE=0 */
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
+/* this is the size past which hardware will drop packets when setting LPE=1 */
+#define MAXIMUM_ETHERNET_LPE_SIZE 16384
 
 /*
  * HW models:
@@ -129,6 +131,11 @@ typedef struct E1000State_st {
     } eecd_state;
 
     QEMUTimer *autoneg_timer;
+
+/* Compatibility flags for migration to/from qemu 1.3.0 and older */
+#define E1000_FLAG_AUTONEG_BIT 0
+#define E1000_FLAG_AUTONEG (1 << E1000_FLAG_AUTONEG_BIT)
+    uint32_t compat_flags;
 } E1000State;
 
 #define	defreg(x)	x = (E1000_##x>>2)
@@ -163,8 +170,15 @@ e1000_link_up(E1000State *s)
 static void
 set_phy_ctrl(E1000State *s, int index, uint16_t val)
 {
+    /*
+     * QEMU 1.3 does not support link auto-negotiation emulation, so if we
+     * migrate during auto negotiation, after migration the link will be
+     * down.
+     */
+    if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
+        return;
+    }
     if ((val & MII_CR_AUTO_NEG_EN) && (val & MII_CR_RESTART_AUTO_NEG)) {
-        s->nic->nc.link_down = true;
         e1000_link_down(s);
         s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
         DBGOUT(PHY, "Start link auto negotiation\n");
@@ -176,8 +190,9 @@ static void
 e1000_autoneg_timer(void *opaque)
 {
     E1000State *s = opaque;
-    s->nic->nc.link_down = false;
-    e1000_link_up(s);
+    if (!qemu_get_queue(s->nic)->link_down) {
+        e1000_link_up(s);
+    }
     s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
     DBGOUT(PHY, "Auto negotiation is completed\n");
 }
@@ -230,7 +245,17 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
         val |= E1000_ICR_INT_ASSERTED;
     }
     s->mac_reg[ICR] = val;
+
+    /*
+     * Make sure ICR and ICS registers have the same value.
+     * The spec says that the ICS register is write-only.  However in practice,
+     * on real hardware ICS is readable, and for reads it has the same value as
+     * ICR (except that ICS does not have the clear on read behaviour of ICR).
+     *
+     * The VxWorks PRO/1000 driver uses this behaviour.
+     */
     s->mac_reg[ICS] = val;
+
     qemu_set_irq(s->dev.irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
 }
 
@@ -279,7 +304,7 @@ static void e1000_reset(void *opaque)
     d->rxbuf_min_shift = 1;
     memset(&d->tx, 0, sizeof d->tx);
 
-    if (d->nic->nc.link_down) {
+    if (qemu_get_queue(d->nic)->link_down) {
         e1000_link_down(d);
     }
 
@@ -307,7 +332,7 @@ set_rx_control(E1000State *s, int index, uint32_t val)
     s->rxbuf_min_shift = ((val / E1000_RCTL_RDMTS_QUAT) & 3) + 1;
     DBGOUT(RX, "RCTL: %d, mac_reg[RCTL] = 0x%x\n", s->mac_reg[RDT],
            s->mac_reg[RCTL]);
-    qemu_flush_queued_packets(&s->nic->nc);
+    qemu_flush_queued_packets(qemu_get_queue(s->nic));
 }
 
 static void
@@ -458,10 +483,11 @@ fcs_len(E1000State *s)
 static void
 e1000_send_packet(E1000State *s, const uint8_t *buf, int size)
 {
+    NetClientState *nc = qemu_get_queue(s->nic);
     if (s->phy_reg[PHY_CTRL] & MII_CR_LOOPBACK) {
-        s->nic->nc.info->receive(&s->nic->nc, buf, size);
+        nc->info->receive(nc, buf, size);
     } else {
-        qemu_send_packet(&s->nic->nc, buf, size);
+        qemu_send_packet(nc, buf, size);
     }
 }
 
@@ -735,7 +761,7 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
 static void
 e1000_set_link_status(NetClientState *nc)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
     uint32_t old_status = s->mac_reg[STATUS];
 
     if (nc->link_down) {
@@ -769,9 +795,10 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
 static int
 e1000_can_receive(NetClientState *nc)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
 
-    return (s->mac_reg[RCTL] & E1000_RCTL_EN) && e1000_has_rxbufs(s, 1);
+    return (s->mac_reg[STATUS] & E1000_STATUS_LU) &&
+        (s->mac_reg[RCTL] & E1000_RCTL_EN) && e1000_has_rxbufs(s, 1);
 }
 
 static uint64_t rx_desc_base(E1000State *s)
@@ -785,7 +812,7 @@ static uint64_t rx_desc_base(E1000State *s)
 static ssize_t
 e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
     struct e1000_rx_desc desc;
     dma_addr_t base;
     unsigned int n, rdt;
@@ -797,8 +824,13 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     size_t desc_size;
     size_t total_size;
 
-    if (!(s->mac_reg[RCTL] & E1000_RCTL_EN))
+    if (!(s->mac_reg[STATUS] & E1000_STATUS_LU)) {
         return -1;
+    }
+
+    if (!(s->mac_reg[RCTL] & E1000_RCTL_EN)) {
+        return -1;
+    }
 
     /* Pad to minimum Ethernet frame length */
     if (size < sizeof(min_buf)) {
@@ -809,8 +841,9 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     }
 
     /* Discard oversized packets if !LPE and !SBP. */
-    if (size > MAXIMUM_ETHERNET_VLAN_SIZE
-        && !(s->mac_reg[RCTL] & E1000_RCTL_LPE)
+    if ((size > MAXIMUM_ETHERNET_LPE_SIZE ||
+        (size > MAXIMUM_ETHERNET_VLAN_SIZE
+        && !(s->mac_reg[RCTL] & E1000_RCTL_LPE)))
         && !(s->mac_reg[RCTL] & E1000_RCTL_SBP)) {
         return size;
     }
@@ -945,7 +978,7 @@ set_rdt(E1000State *s, int index, uint32_t val)
 {
     s->mac_reg[index] = val & 0xffff;
     if (e1000_has_rxbufs(s, 1)) {
-        qemu_flush_queued_packets(&s->nic->nc);
+        qemu_flush_queued_packets(qemu_get_queue(s->nic));
     }
 }
 
@@ -1096,13 +1129,47 @@ static bool is_version_1(void *opaque, int version_id)
     return version_id == 1;
 }
 
+static void e1000_pre_save(void *opaque)
+{
+    E1000State *s = opaque;
+    NetClientState *nc = qemu_get_queue(s->nic);
+
+    if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
+        return;
+    }
+
+    /*
+     * If link is down and auto-negotiation is ongoing, complete
+     * auto-negotiation immediately.  This allows is to look at
+     * MII_SR_AUTONEG_COMPLETE to infer link status on load.
+     */
+    if (nc->link_down &&
+        s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
+        s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG) {
+         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+    }
+}
+
 static int e1000_post_load(void *opaque, int version_id)
 {
     E1000State *s = opaque;
+    NetClientState *nc = qemu_get_queue(s->nic);
 
     /* nc.link_down can't be migrated, so infer link_down according
-     * to link status bit in mac_reg[STATUS] */
-    s->nic->nc.link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
+     * to link status bit in mac_reg[STATUS].
+     * Alternatively, restart link negotiation if it was in progress. */
+    nc->link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
+
+    if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
+        return 0;
+    }
+
+    if (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN &&
+        s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG &&
+        !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
+        nc->link_down = false;
+        qemu_mod_timer(s->autoneg_timer, qemu_get_clock_ms(vm_clock) + 500);
+    }
 
     return 0;
 }
@@ -1112,6 +1179,7 @@ static const VMStateDescription vmstate_e1000 = {
     .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .pre_save = e1000_pre_save,
     .post_load = e1000_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, E1000State),
@@ -1220,7 +1288,7 @@ e1000_mmio_setup(E1000State *d)
 static void
 e1000_cleanup(NetClientState *nc)
 {
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    E1000State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -1234,7 +1302,7 @@ pci_e1000_uninit(PCIDevice *dev)
     qemu_free_timer(d->autoneg_timer);
     memory_region_destroy(&d->mmio);
     memory_region_destroy(&d->io);
-    qemu_del_net_client(&d->nic->nc);
+    qemu_del_nic(d->nic);
 }
 
 static NetClientInfo net_e1000_info = {
@@ -1281,7 +1349,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     d->nic = qemu_new_nic(&net_e1000_info, &d->conf,
                           object_get_typename(OBJECT(d)), d->dev.qdev.id, d);
 
-    qemu_format_nic_info_str(&d->nic->nc, macaddr);
+    qemu_format_nic_info_str(qemu_get_queue(d->nic), macaddr);
 
     add_boot_device_path(d->conf.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
 
@@ -1298,6 +1366,8 @@ static void qdev_e1000_reset(DeviceState *dev)
 
 static Property e1000_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000State, conf),
+    DEFINE_PROP_BIT("autonegotiation", E1000State,
+                    compat_flags, E1000_FLAG_AUTONEG_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1319,7 +1389,7 @@ static void e1000_class_init(ObjectClass *klass, void *data)
     dc->props = e1000_properties;
 }
 
-static TypeInfo e1000_info = {
+static const TypeInfo e1000_info = {
     .name          = "e1000",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(E1000State),

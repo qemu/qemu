@@ -1,7 +1,7 @@
 #ifndef HW_PPC_H
 #define HW_PPC_H 1
 
-void ppc_set_irq (CPUPPCState *env, int n_IRQ, int level);
+void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level);
 
 /* PowerPC hardware exceptions management helpers */
 typedef void (*clk_setup_cb)(void *opaque, uint32_t freq);
@@ -58,9 +58,9 @@ clk_setup_cb ppc_40x_timers_init (CPUPPCState *env, uint32_t freq,
                                   unsigned int decr_excp);
 
 /* Embedded PowerPC reset */
-void ppc40x_core_reset (CPUPPCState *env);
-void ppc40x_chip_reset (CPUPPCState *env);
-void ppc40x_system_reset (CPUPPCState *env);
+void ppc40x_core_reset(PowerPCCPU *cpu);
+void ppc40x_chip_reset(PowerPCCPU *cpu);
+void ppc40x_system_reset(PowerPCCPU *cpu);
 void PREP_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 extern CPUWriteMemoryFunc * const PPC_io_write[];
@@ -72,6 +72,8 @@ void ppce500_irq_init (CPUPPCState *env);
 void ppc6xx_irq_init (CPUPPCState *env);
 void ppc970_irq_init (CPUPPCState *env);
 void ppcPOWER7_irq_init (CPUPPCState *env);
+
+void ppce500_set_mpic_proxy(bool enabled);
 
 /* PPC machines for OpenBIOS */
 enum {
@@ -92,6 +94,6 @@ enum {
 #define PPC_SERIAL_MM_BAUDBASE 399193
 
 /* ppc_booke.c */
-void ppc_booke_timers_init(CPUPPCState *env, uint32_t freq, uint32_t flags);
+void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags);
 
 #endif

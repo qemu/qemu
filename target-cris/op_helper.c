@@ -28,7 +28,7 @@
 
 #ifdef CRIS_OP_HELPER_DEBUG
 #define D(x) x
-#define D_LOG(...) qemu_log(__VA__ARGS__)
+#define D_LOG(...) qemu_log(__VA_ARGS__)
 #else
 #define D(x)
 #define D_LOG(...) do { } while (0)
@@ -60,7 +60,7 @@ void tlb_fill(CPUCRISState *env, target_ulong addr, int is_write, int mmu_idx,
     int ret;
 
     D_LOG("%s pc=%x tpc=%x ra=%p\n", __func__,
-          env->pc, env->debug1, (void *)retaddr);
+          env->pc, env->pregs[PR_EDA], (void *)retaddr);
     ret = cpu_cris_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {

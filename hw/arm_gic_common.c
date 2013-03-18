@@ -18,13 +18,18 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "arm_gic_internal.h"
+#include "hw/arm_gic_internal.h"
 
 static void gic_save(QEMUFile *f, void *opaque)
 {
     GICState *s = (GICState *)opaque;
+    ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
     int i;
     int j;
+
+    if (c->pre_save) {
+        c->pre_save(s);
+    }
 
     qemu_put_be32(f, s->enabled);
     for (i = 0; i < s->num_cpu; i++) {
@@ -57,6 +62,7 @@ static void gic_save(QEMUFile *f, void *opaque)
 static int gic_load(QEMUFile *f, void *opaque, int version_id)
 {
     GICState *s = (GICState *)opaque;
+    ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
     int i;
     int j;
 
@@ -91,39 +97,47 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
         s->irq_state[i].trigger = qemu_get_byte(f);
     }
 
+    if (c->post_load) {
+        c->post_load(s);
+    }
+
     return 0;
 }
 
-static int arm_gic_common_init(SysBusDevice *dev)
+static void arm_gic_common_realize(DeviceState *dev, Error **errp)
 {
-    GICState *s = FROM_SYSBUS(GICState, dev);
+    GICState *s = ARM_GIC_COMMON(dev);
     int num_irq = s->num_irq;
 
     if (s->num_cpu > NCPU) {
-        hw_error("requested %u CPUs exceeds GIC maximum %d\n",
-                 s->num_cpu, NCPU);
+        error_setg(errp, "requested %u CPUs exceeds GIC maximum %d",
+                   s->num_cpu, NCPU);
+        return;
     }
     s->num_irq += GIC_BASE_IRQ;
     if (s->num_irq > GIC_MAXIRQ) {
-        hw_error("requested %u interrupt lines exceeds GIC maximum %d\n",
-                 num_irq, GIC_MAXIRQ);
+        error_setg(errp,
+                   "requested %u interrupt lines exceeds GIC maximum %d",
+                   num_irq, GIC_MAXIRQ);
+        return;
     }
     /* ITLinesNumber is represented as (N / 32) - 1 (see
      * gic_dist_readb) so this is an implementation imposed
      * restriction, not an architectural one:
      */
     if (s->num_irq < 32 || (s->num_irq % 32)) {
-        hw_error("%d interrupt lines unsupported: not divisible by 32\n",
-                 num_irq);
+        error_setg(errp,
+                   "%d interrupt lines unsupported: not divisible by 32",
+                   num_irq);
+        return;
     }
 
     register_savevm(NULL, "arm_gic", -1, 3, gic_save, gic_load, s);
-    return 0;
 }
 
 static void arm_gic_common_reset(DeviceState *dev)
 {
-    GICState *s = FROM_SYSBUS(GICState, sysbus_from_qdev(dev));
+    GICState *s = FROM_SYSBUS(GICState, SYS_BUS_DEVICE(dev));
     int i;
     memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < s->num_cpu; i++) {
@@ -163,15 +177,15 @@ static Property arm_gic_common_properties[] = {
 
 static void arm_gic_common_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+
     dc->reset = arm_gic_common_reset;
+    dc->realize = arm_gic_common_realize;
     dc->props = arm_gic_common_properties;
     dc->no_user = 1;
-    sc->init = arm_gic_common_init;
 }
 
-static TypeInfo arm_gic_common_type = {
+static const TypeInfo arm_gic_common_type = {
     .name = TYPE_ARM_GIC_COMMON,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GICState),

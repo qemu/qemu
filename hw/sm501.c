@@ -23,12 +23,12 @@
  */
 
 #include <stdio.h>
-#include "hw.h"
-#include "serial.h"
+#include "hw/hw.h"
+#include "hw/serial.h"
 #include "ui/console.h"
-#include "devices.h"
-#include "sysbus.h"
-#include "qdev-addr.h"
+#include "hw/devices.h"
+#include "hw/sysbus.h"
+#include "hw/qdev-addr.h"
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
 
@@ -1171,28 +1171,28 @@ typedef void draw_hwc_line_func(SM501State * s, int crt, uint8_t * palette,
                                 int c_y, uint8_t *d, int width);
 
 #define DEPTH 8
-#include "sm501_template.h"
+#include "hw/sm501_template.h"
 
 #define DEPTH 15
-#include "sm501_template.h"
+#include "hw/sm501_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 15
-#include "sm501_template.h"
+#include "hw/sm501_template.h"
 
 #define DEPTH 16
-#include "sm501_template.h"
+#include "hw/sm501_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 16
-#include "sm501_template.h"
+#include "hw/sm501_template.h"
 
 #define DEPTH 32
-#include "sm501_template.h"
+#include "hw/sm501_template.h"
 
 #define BGR_FORMAT
 #define DEPTH 32
-#include "sm501_template.h"
+#include "hw/sm501_template.h"
 
 static draw_line_func * draw_line8_funcs[] = {
     draw_line8_8,
@@ -1428,9 +1428,9 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
     qdev_prop_set_uint32(dev, "num-ports", 2);
     qdev_prop_set_taddr(dev, "dma-offset", base);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0,
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
                     base + MMIO_BASE_OFFSET + SM501_USB_HOST);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     /* bridge to serial emulation module */
     if (chr) {

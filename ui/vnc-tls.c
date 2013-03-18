@@ -99,9 +99,9 @@ static ssize_t vnc_tls_pull(gnutls_transport_ptr_t transport,
 }
 
 
-static gnutls_anon_server_credentials vnc_tls_initialize_anon_cred(void)
+static gnutls_anon_server_credentials_t vnc_tls_initialize_anon_cred(void)
 {
-    gnutls_anon_server_credentials anon_cred;
+    gnutls_anon_server_credentials_t anon_cred;
     int ret;
 
     if ((ret = gnutls_anon_allocate_server_credentials(&anon_cred)) < 0) {
@@ -382,7 +382,7 @@ int vnc_tls_client_setup(struct VncState *vs,
             }
 
         } else {
-            gnutls_anon_server_credentials anon_cred = vnc_tls_initialize_anon_cred();
+            gnutls_anon_server_credentials_t anon_cred = vnc_tls_initialize_anon_cred();
             if (!anon_cred) {
                 gnutls_deinit(vs->tls.session);
                 vs->tls.session = NULL;

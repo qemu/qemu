@@ -5,8 +5,8 @@
  *
  * This code is licensed under the GPL
  */
-#include "hw.h"
-#include "mcf.h"
+#include "hw/hw.h"
+#include "hw/mcf.h"
 #include "char/char.h"
 #include "exec/address-spaces.h"
 

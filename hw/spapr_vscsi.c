@@ -31,10 +31,10 @@
  *  - Add indirect descriptors support
  *  - Maybe do autosense (PAPR seems to mandate it, linux doesn't care)
  */
-#include "hw.h"
-#include "scsi.h"
-#include "scsi-defs.h"
-#include "srp.h"
+#include "hw/hw.h"
+#include "hw/scsi.h"
+#include "hw/scsi-defs.h"
+#include "hw/srp.h"
 #include "hw/qdev.h"
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
@@ -967,7 +967,7 @@ static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
     k->rtce_window_size = 0x10000000;
 }
 
-static TypeInfo spapr_vscsi_info = {
+static const TypeInfo spapr_vscsi_info = {
     .name          = "spapr-vscsi",
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(VSCSIState),

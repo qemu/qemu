@@ -7,7 +7,7 @@
  * This file is licensed under GNU GPL.
  */
 
-#include "i2c.h"
+#include "hw/i2c.h"
 
 typedef struct {
     I2CSlave i2c;
@@ -25,7 +25,7 @@ typedef struct {
 
 static void max7310_reset(DeviceState *dev)
 {
-    MAX7310State *s = FROM_I2C_SLAVE(MAX7310State, I2C_SLAVE_FROM_QDEV(dev));
+    MAX7310State *s = FROM_I2C_SLAVE(MAX7310State, I2C_SLAVE(dev));
     s->level &= s->direction;
     s->direction = 0xff;
     s->polarity = 0xf0;
@@ -198,7 +198,7 @@ static void max7310_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_max7310;
 }
 
-static TypeInfo max7310_info = {
+static const TypeInfo max7310_info = {
     .name          = "max7310",
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(MAX7310State),

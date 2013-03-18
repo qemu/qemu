@@ -82,6 +82,11 @@ int qemu_init_main_loop(void);
 int main_loop_wait(int nonblocking);
 
 /**
+ * qemu_get_aio_context: Return the main loop's AioContext
+ */
+AioContext *qemu_get_aio_context(void);
+
+/**
  * qemu_notify_event: Force processing of pending events.
  *
  * Similar to signaling a condition variable, qemu_notify_event forces
@@ -297,8 +302,8 @@ void qemu_mutex_unlock_iothread(void);
 /* internal interfaces */
 
 void qemu_fd_register(int fd);
-void qemu_iohandler_fill(int *pnfds, fd_set *readfds, fd_set *writefds, fd_set *xfds);
-void qemu_iohandler_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds, int rc);
+void qemu_iohandler_fill(GArray *pollfds);
+void qemu_iohandler_poll(GArray *pollfds, int rc);
 
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
 void qemu_bh_schedule_idle(QEMUBH *bh);

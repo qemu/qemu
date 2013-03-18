@@ -21,8 +21,8 @@
  *   http://www.milkymist.org/socdoc/hpdmc.pdf
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 
@@ -155,7 +155,7 @@ static void milkymist_hpdmc_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_milkymist_hpdmc;
 }
 
-static TypeInfo milkymist_hpdmc_info = {
+static const TypeInfo milkymist_hpdmc_info = {
     .name          = "milkymist-hpdmc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MilkymistHpdmcState),

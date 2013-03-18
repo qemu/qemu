@@ -189,6 +189,14 @@ void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep)
     }
 }
 
+void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->ep_stopped) {
+        klass->ep_stopped(dev, ep);
+    }
+}
+
 static int usb_qdev_init(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);
@@ -534,7 +542,7 @@ static char *usb_get_fw_dev_path(DeviceState *qdev)
     return fw_path;
 }
 
-void usb_info(Monitor *mon)
+void usb_info(Monitor *mon, const QDict *qdict)
 {
     USBBus *bus;
     USBDevice *dev;
@@ -620,7 +628,7 @@ static void usb_device_class_init(ObjectClass *klass, void *data)
     k->props    = usb_props;
 }
 
-static TypeInfo usb_device_type_info = {
+static const TypeInfo usb_device_type_info = {
     .name = TYPE_USB_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(USBDevice),

@@ -18,9 +18,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "omap.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/omap.h"
+#include "hw/sysbus.h"
 
 struct omap_gpio_s {
     qemu_irq irq;
@@ -588,7 +588,7 @@ static const MemoryRegionOps omap2_gpio_module_ops = {
 static void omap_gpif_reset(DeviceState *dev)
 {
     struct omap_gpif_s *s = FROM_SYSBUS(struct omap_gpif_s,
-                    sysbus_from_qdev(dev));
+                    SYS_BUS_DEVICE(dev));
     omap_gpio_reset(&s->omap1);
 }
 
@@ -596,7 +596,7 @@ static void omap2_gpif_reset(DeviceState *dev)
 {
     int i;
     struct omap2_gpif_s *s = FROM_SYSBUS(struct omap2_gpif_s,
-                    sysbus_from_qdev(dev));
+                    SYS_BUS_DEVICE(dev));
     for (i = 0; i < s->modulecount; i++) {
         omap2_gpio_module_reset(&s->modules[i]);
     }
@@ -747,7 +747,7 @@ static void omap_gpio_class_init(ObjectClass *klass, void *data)
     dc->props = omap_gpio_properties;
 }
 
-static TypeInfo omap_gpio_info = {
+static const TypeInfo omap_gpio_info = {
     .name          = "omap-gpio",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap_gpif_s),
@@ -776,7 +776,7 @@ static void omap2_gpio_class_init(ObjectClass *klass, void *data)
     dc->props = omap2_gpio_properties;
 }
 
-static TypeInfo omap2_gpio_info = {
+static const TypeInfo omap2_gpio_info = {
     .name          = "omap2-gpio",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct omap2_gpif_s),

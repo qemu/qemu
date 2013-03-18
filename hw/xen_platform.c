@@ -25,12 +25,12 @@
 
 #include <assert.h>
 
-#include "hw.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "irq.h"
-#include "xen_common.h"
-#include "xen_backend.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/irq.h"
+#include "hw/xen_common.h"
+#include "hw/xen_backend.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
 
@@ -279,7 +279,8 @@ static void platform_fixed_ioport_init(PCIXenPlatformState* s)
 
 /* Xen Platform PCI Device */
 
-static uint32_t xen_platform_ioport_readb(void *opaque, uint32_t addr)
+static uint64_t xen_platform_ioport_readb(void *opaque, hwaddr addr,
+                                          unsigned int size)
 {
     if (addr == 0) {
         return platform_fixed_ioport_readb(opaque, 0);
@@ -288,30 +289,28 @@ static uint32_t xen_platform_ioport_readb(void *opaque, uint32_t addr)
     }
 }
 
-static void xen_platform_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void xen_platform_ioport_writeb(void *opaque, hwaddr addr,
+                                       uint64_t val, unsigned int size)
 {
     PCIXenPlatformState *s = opaque;
 
     switch (addr) {
     case 0: /* Platform flags */
-        platform_fixed_ioport_writeb(opaque, 0, val);
+        platform_fixed_ioport_writeb(opaque, 0, (uint32_t)val);
         break;
     case 8:
-        log_writeb(s, val);
+        log_writeb(s, (uint32_t)val);
         break;
     default:
         break;
     }
 }
 
-static MemoryRegionPortio xen_pci_portio[] = {
-    { 0, 0x100, 1, .read = xen_platform_ioport_readb, },
-    { 0, 0x100, 1, .write = xen_platform_ioport_writeb, },
-    PORTIO_END_OF_LIST()
-};
-
 static const MemoryRegionOps xen_pci_io_ops = {
-    .old_portio = xen_pci_portio,
+    .read  = xen_platform_ioport_readb,
+    .write = xen_platform_ioport_writeb,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
 };
 
 static void platform_ioport_bar_setup(PCIXenPlatformState *d)
@@ -420,7 +419,7 @@ static void xen_platform_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_xen_platform;
 }
 
-static TypeInfo xen_platform_info = {
+static const TypeInfo xen_platform_info = {
     .name          = "xen-platform",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIXenPlatformState),

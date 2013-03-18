@@ -18,9 +18,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "char/char.h"
-#include "hw.h"
-#include "omap.h"
-#include "serial.h"
+#include "hw/hw.h"
+#include "hw/omap.h"
+#include "hw/serial.h"
 #include "exec/address-spaces.h"
 
 /* UARTs */

@@ -589,6 +589,16 @@ static const struct s390_operand s390_operands[] =
   { 4, 32, S390_OPERAND_CCODE },
 #define I8_32 46                  /* 8 bit signed value starting at 32 */
   { 8, 32, S390_OPERAND_SIGNED },
+#define U8_24 47                  /* 8 bit unsigned value starting at 24 */
+  { 8, 24, 0 },
+#define U8_32 48                  /* 8 bit unsigned value starting at 32 */
+  { 8, 32, 0 },
+#define I16_32 49
+  { 16, 32, S390_OPERAND_SIGNED },
+#define M4_16 50                  /* 4-bit condition-code starting at 12 */
+  { 4, 16, S390_OPERAND_CCODE },
+#define I8_16 51
+  { 8, 16, S390_OPERAND_SIGNED },
 /* QEMU-END */
 };
 
@@ -663,7 +673,9 @@ static const struct s390_operand s390_operands[] =
    This is just a workaround for existing code e.g. glibc.  */
 #define INSTR_RRE_RR_OPT 4, { R_24,RO_28,0,0,0,0 }             /* efpc, sfpc */
 #define INSTR_RRF_F0FF   4, { F_16,F_24,F_28,0,0,0 }           /* e.g. madbr */
-#define INSTR_RRF_F0FF2  4, { F_24,F_16,F_28,0,0,0 }           /* e.g. cpsdr */
+/* QEMU-MOD */
+#define INSTR_RRF_F0FF2  4, { F_24,F_28,F_16,0,0,0 }           /* e.g. cpsdr */
+/* QEMU-END */
 #define INSTR_RRF_F0FR   4, { F_24,F_16,R_28,0,0,0 }           /* e.g. iedtr */
 #define INSTR_RRF_FUFF   4, { F_24,F_16,F_28,U4_20,0,0 }       /* e.g. didbr */
 #define INSTR_RRF_RURR   4, { R_24,R_28,R_16,U4_20,0,0 }       /* e.g. .insn */
@@ -801,11 +813,35 @@ static const struct s390_operand s390_operands[] =
 #define MASK_SSF_RRDRD   { 0xff, 0x0f, 0x00, 0x00, 0x00, 0x00 }
 
 /* QEMU-ADD: */
-#define INSTR_RIE_MRRP   6, { M4_32,R_8,R_12,J16_16,0,0 }	/* e.g. crj */
+#define INSTR_RIE_MRRP   6, { M4_32, R_8, R_12, J16_16, 0, 0 } /* e.g. crj */
 #define MASK_RIE_MRRP    { 0xff, 0x00, 0x00, 0x00, 0x0f, 0xff }
 
-#define INSTR_RIE_MRIP   6, { M4_12,R_8,I8_32,J16_16,0,0 }      /* e.g. cij */
+#define INSTR_RIE_MRIP   6, { M4_12, R_8, I8_32, J16_16, 0, 0 } /* e.g. cij */
 #define MASK_RIE_MRIP    { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
+
+#define INSTR_RIE_RRIII  6, { R_8, R_12, U8_16, U8_24, U8_32, 0 } /* risbg */
+#define MASK_RIE_RRIII   { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
+#define INSTR_RIE_MRI    6, { M4_32, R_8, I16_16, 0, 0, 0 }    /* e.g. cit */
+#define MASK_RIE_MRI     { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
+#define INSTR_RIE_MRU    6, { M4_32, R_8, U16_16, 0, 0, 0 }    /* e.g. clfit */
+#define MASK_RIE_MRU     { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
+#define INSTR_RIE_RRI    6, { R_8, R_12, I16_16, 0, 0, 0 }
+#define MASK_RIE_RRI     { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
+
+#define INSTR_RXY_URRD   6, { U8_8, D20_20, X_12, B_16, 0, 0 }
+#define MASK_RXY_URRD    { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
+
+#define INSTR_SIL_DRI    6, { D_20, B_16, I16_32, 0, 0, 0 }
+#define MASK_SIL_DRI     { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }
+
+#define INSTR_RSY_MRRD   6, { M4_12, R_8, D20_20, B_16, 0, 0 }
+#define MASK_SRY_MRRD    { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
+
+#define INSTR_RRF_MRR    6, { M4_16, R_24, R_28, 0, 0, 0 }
+#define MASK_RRF_MRR     { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }
+
+#define INSTR_SIY_DRI    6, { D20_20, B_16, I8_16, 0, 0, 0 }
+#define MASK_SIY_DRI     { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
 /* QEMU-END */
 
 /* The opcode formats table (blueprints for .insn pseudo mnemonic).  */
@@ -926,6 +962,30 @@ static const struct s390_opcode s390_opcodes[] =
   { "ldeb", OP48(0xed0000000004LL), MASK_RXE_FRRD, INSTR_RXE_FRRD, 3, 0},
   { "brxlg", OP48(0xec0000000045LL), MASK_RIE_RRP, INSTR_RIE_RRP, 2, 2},
   { "brxhg", OP48(0xec0000000044LL), MASK_RIE_RRP, INSTR_RIE_RRP, 2, 2},
+/* QEMU-ADD: */
+  { "crj",   OP48(0xec0000000076LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
+  { "cgrj",  OP48(0xec0000000064LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
+  { "clrj",  OP48(0xec0000000077LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
+  { "clgrj", OP48(0xec0000000065LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
+  { "cij",   OP48(0xec000000007eLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
+  { "cgij",  OP48(0xec000000007cLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
+  { "clij",  OP48(0xec000000007fLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
+  { "clgij", OP48(0xec000000007dLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
+  { "risbg", OP48(0xec0000000055LL), MASK_RIE_RRIII, INSTR_RIE_RRIII, 3, 6},
+  { "risbhg", OP48(0xec000000005dLL), MASK_RIE_RRIII, INSTR_RIE_RRIII, 3, 6},
+  { "risblg", OP48(0xec0000000051LL), MASK_RIE_RRIII, INSTR_RIE_RRIII, 3, 6},
+  { "rnsbg", OP48(0xec0000000054LL), MASK_RIE_RRIII, INSTR_RIE_RRIII, 3, 6},
+  { "rosbg", OP48(0xec0000000056LL), MASK_RIE_RRIII, INSTR_RIE_RRIII, 3, 6},
+  { "rxsbg", OP48(0xec0000000057LL), MASK_RIE_RRIII, INSTR_RIE_RRIII, 3, 6},
+  { "cit", OP48(0xec0000000072LL), MASK_RIE_MRI, INSTR_RIE_MRI, 3, 6},
+  { "cgit", OP48(0xec0000000070LL), MASK_RIE_MRI, INSTR_RIE_MRI, 3, 6},
+  { "clfit", OP48(0xec0000000073LL), MASK_RIE_MRU, INSTR_RIE_MRU, 3, 6},
+  { "clgit", OP48(0xec0000000071LL), MASK_RIE_MRU, INSTR_RIE_MRU, 3, 6},
+  { "ahik", OP48(0xec00000000d8LL), MASK_RIE_RRI, INSTR_RIE_RRI, 3, 6},
+  { "aghik", OP48(0xec00000000d9LL), MASK_RIE_RRI, INSTR_RIE_RRI, 3, 6},
+  { "alhsik", OP48(0xec00000000daLL), MASK_RIE_RRI, INSTR_RIE_RRI, 3, 6},
+  { "alghsik", OP48(0xec00000000dbLL), MASK_RIE_RRI, INSTR_RIE_RRI, 3, 6},
+/* QEMU-END */
   { "tp", OP48(0xeb00000000c0LL), MASK_RSL_R0RD, INSTR_RSL_R0RD, 3, 0},
   { "stamy", OP48(0xeb000000009bLL), MASK_RSY_AARD, INSTR_RSY_AARD, 2, 3},
   { "lamy", OP48(0xeb000000009aLL), MASK_RSY_AARD, INSTR_RSY_AARD, 2, 3},
@@ -985,6 +1045,20 @@ static const struct s390_opcode s390_opcodes[] =
   { "srag", OP48(0xeb000000000aLL), MASK_RSE_RRRD, INSTR_RSE_RRRD, 2, 2},
   { "lmg", OP48(0xeb0000000004LL), MASK_RSY_RRRD, INSTR_RSY_RRRD, 2, 3},
   { "lmg", OP48(0xeb0000000004LL), MASK_RSE_RRRD, INSTR_RSE_RRRD, 2, 2},
+/* QEMU-ADD: */
+  { "loc", OP48(0xeb00000000f2LL), MASK_SRY_MRRD, INSTR_RSY_MRRD, 3, 6},
+  { "locg", OP48(0xeb00000000e2LL), MASK_SRY_MRRD, INSTR_RSY_MRRD, 3, 6},
+  { "stoc", OP48(0xeb00000000f3LL), MASK_SRY_MRRD, INSTR_RSY_MRRD, 3, 6},
+  { "stocg", OP48(0xeb00000000e3LL), MASK_SRY_MRRD, INSTR_RSY_MRRD, 3, 6},
+  { "srak", OP48(0xeb00000000dcLL), MASK_RSY_RRRD, INSTR_RSY_RRRD, 3, 6},
+  { "slak", OP48(0xeb00000000ddLL), MASK_RSY_RRRD, INSTR_RSY_RRRD, 3, 6},
+  { "srlk", OP48(0xeb00000000deLL), MASK_RSY_RRRD, INSTR_RSY_RRRD, 3, 6},
+  { "sllk", OP48(0xeb00000000dfLL), MASK_RSY_RRRD, INSTR_RSY_RRRD, 3, 6},
+  { "asi", OP48(0xeb000000006aLL), MASK_SIY_DRI, INSTR_SIY_DRI, 3, 6},
+  { "alsi", OP48(0xeb000000006eLL), MASK_SIY_DRI, INSTR_SIY_DRI, 3, 6},
+  { "agsi", OP48(0xeb000000007aLL), MASK_SIY_DRI, INSTR_SIY_DRI, 3, 6},
+  { "algsi", OP48(0xeb000000007eLL), MASK_SIY_DRI, INSTR_SIY_DRI, 3, 6},
+/* QEMU-END */
   { "unpka", OP8(0xeaLL), MASK_SS_L0RDRD, INSTR_SS_L0RDRD, 3, 0},
   { "pka", OP8(0xe9LL), MASK_SS_L2RDRD, INSTR_SS_L2RDRD, 3, 0},
   { "mvcin", OP8(0xe8LL), MASK_SS_L0RDRD, INSTR_SS_L0RDRD, 3, 0},
@@ -993,6 +1067,17 @@ static const struct s390_opcode s390_opcodes[] =
   { "tprot", OP16(0xe501LL), MASK_SSE_RDRD, INSTR_SSE_RDRD, 3, 0},
   { "strag", OP48(0xe50000000002LL), MASK_SSE_RDRD, INSTR_SSE_RDRD, 2, 2},
   { "lasp", OP16(0xe500LL), MASK_SSE_RDRD, INSTR_SSE_RDRD, 3, 0},
+/* QEMU-ADD: */
+  { "mvhhi", OP16(0xe544LL), MASK_SIL_DRI, INSTR_SIL_DRI, 3, 6},
+  { "mvghi", OP16(0xe548LL), MASK_SIL_DRI, INSTR_SIL_DRI, 3, 6},
+  { "mvhi", OP16(0xe54cLL), MASK_SIL_DRI, INSTR_SIL_DRI, 3, 6},
+  { "chhsi", OP16(0xe554LL), MASK_SIL_DRI, INSTR_SIL_DRI, 3, 6},
+  { "clhhsi", OP16(0xe555LL), MASK_SIL_DRI, INSTR_SIL_DRI, 3, 6},
+  { "cghsi", OP16(0xe558LL), MASK_SIL_DRI, INSTR_SIL_DRI, 3, 6},
+  { "clghsi", OP16(0xe559LL), MASK_SIL_DRI, INSTR_SIL_DRI, 3, 6},
+  { "chsi", OP16(0xe55cLL), MASK_SIL_DRI, INSTR_SIL_DRI, 3, 6},
+  { "clfhsi", OP16(0xe55dLL), MASK_SIL_DRI, INSTR_SIL_DRI, 3, 6},
+/* QEMU-END */
   { "slb", OP48(0xe30000000099LL), MASK_RXY_RRRD, INSTR_RXY_RRRD, 3, 3},
   { "slb", OP48(0xe30000000099LL), MASK_RXE_RRRD, INSTR_RXE_RRRD, 3, 2},
   { "alc", OP48(0xe30000000098LL), MASK_RXY_RRRD, INSTR_RXY_RRRD, 3, 3},
@@ -1116,6 +1201,9 @@ static const struct s390_opcode s390_opcodes[] =
   { "lrag", OP48(0xe30000000003LL), MASK_RXY_RRRD, INSTR_RXY_RRRD, 2, 3},
   { "lrag", OP48(0xe30000000003LL), MASK_RXE_RRRD, INSTR_RXE_RRRD, 2, 2},
   { "ltg", OP48(0xe30000000002LL), MASK_RXY_RRRD, INSTR_RXY_RRRD, 2, 4},
+/* QEMU-ADD: */
+  { "pfd", OP48(0xe30000000036LL), MASK_RXY_URRD, INSTR_RXY_URRD, 3, 6},
+/* QEMU-END */
   { "unpku", OP8(0xe2LL), MASK_SS_L0RDRD, INSTR_SS_L0RDRD, 3, 0},
   { "pku", OP8(0xe1LL), MASK_SS_L0RDRD, INSTR_SS_L0RDRD, 3, 0},
   { "edmk", OP8(0xdfLL), MASK_SS_L0RDRD, INSTR_SS_L0RDRD, 3, 0},
@@ -1135,6 +1223,32 @@ static const struct s390_opcode s390_opcodes[] =
   { "csst", OP16(0xc802LL), MASK_SSF_RRDRD, INSTR_SSF_RRDRD, 2, 5},
   { "ectg", OP16(0xc801LL), MASK_SSF_RRDRD, INSTR_SSF_RRDRD, 2, 5},
   { "mvcos", OP16(0xc800LL), MASK_SSF_RRDRD, INSTR_SSF_RRDRD, 2, 4},
+/* QEMU-ADD: */
+  { "exrl", OP16(0xc600ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "pfdrl", OP16(0xc602ll), MASK_RIL_UP, INSTR_RIL_UP, 3, 6},
+  { "cghrl", OP16(0xc604ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "chrl", OP16(0xc605ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "clghrl", OP16(0xc606ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "clhrl", OP16(0xc607ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "cgrl", OP16(0xc608ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "clgrl", OP16(0xc60all), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "cgfrl", OP16(0xc60cll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "crl", OP16(0xc60dll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "clgfrl", OP16(0xc60ell), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "clrl", OP16(0xc60fll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+
+  { "llhrl", OP16(0xc400ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "lghrl", OP16(0xc404ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "lhrl", OP16(0xc405ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "llghrl", OP16(0xc406ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "sthrl", OP16(0xc407ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "lgrl", OP16(0xc408ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "stgrl", OP16(0xc40bll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "lgfrl", OP16(0xc40cll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "lrl", OP16(0xc40dll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "llgfrl", OP16(0xc40ell), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "strl", OP16(0xc40fll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+/* QEMU-END */
   { "clfi", OP16(0xc20fLL), MASK_RIL_RU, INSTR_RIL_RU, 2, 4},
   { "clgfi", OP16(0xc20eLL), MASK_RIL_RU, INSTR_RIL_RU, 2, 4},
   { "cfi", OP16(0xc20dLL), MASK_RIL_RI, INSTR_RIL_RI, 2, 4},
@@ -1265,6 +1379,29 @@ static const struct s390_opcode s390_opcodes[] =
   { "ltgr", OP16(0xb902LL), MASK_RRE_RR, INSTR_RRE_RR, 2, 2},
   { "lngr", OP16(0xb901LL), MASK_RRE_RR, INSTR_RRE_RR, 2, 2},
   { "lpgr", OP16(0xb900LL), MASK_RRE_RR, INSTR_RRE_RR, 2, 2},
+/* QEMU-ADD: */
+  { "crt", OP16(0xb972LL), MASK_RRF_M0RR, INSTR_RRF_M0RR, 3, 6},
+  { "cgrt", OP16(0xb960LL), MASK_RRF_M0RR, INSTR_RRF_M0RR, 3, 6},
+  { "clrt", OP16(0xb973LL), MASK_RRF_M0RR, INSTR_RRF_M0RR, 3, 6},
+  { "clgrt", OP16(0xb961LL), MASK_RRF_M0RR, INSTR_RRF_M0RR, 3, 6},
+  { "locr", OP16(0xb9f2LL), MASK_RRF_MRR, INSTR_RRF_MRR, 3, 6},
+  { "locgr", OP16(0xb9e2LL), MASK_RRF_MRR, INSTR_RRF_MRR, 3, 6},
+  { "popcnt", OP16(0xb9e1LL), MASK_RRE_RR, INSTR_RRE_RR, 3, 6},
+  { "ngrk", OP16(0xb9e4LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "ogrk", OP16(0xb9e6LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "xgrk", OP16(0xb9e7LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "agrk", OP16(0xb9e8LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "sgrk", OP16(0xb9e9LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "algrk", OP16(0xb9eaLL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "slgrk", OP16(0xb9ebLL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "nrk", OP16(0xb9f4LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "ork", OP16(0xb9f6LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "xrk", OP16(0xb9f7LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "ark", OP16(0xb9f8LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "srk", OP16(0xb9f9LL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "alrk", OP16(0xb9faLL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+  { "slrk", OP16(0xb9fbLL), MASK_RRF_R0RR, INSTR_RRF_R0RR, 3, 6},
+/* QEMU-END */
   { "lctl", OP8(0xb7LL), MASK_RS_CCRD, INSTR_RS_CCRD, 3, 0},
   { "stctl", OP8(0xb6LL), MASK_RS_CCRD, INSTR_RS_CCRD, 3, 0},
   { "rrxtr", OP16(0xb3ffLL), MASK_RRF_FFFU, INSTR_RRF_FFFU, 2, 5},
@@ -1426,6 +1563,20 @@ static const struct s390_opcode s390_opcodes[] =
   { "ltebr", OP16(0xb302LL), MASK_RRE_FF, INSTR_RRE_FF, 3, 0},
   { "lnebr", OP16(0xb301LL), MASK_RRE_FF, INSTR_RRE_FF, 3, 0},
   { "lpebr", OP16(0xb300LL), MASK_RRE_FF, INSTR_RRE_FF, 3, 0},
+/* QEMU-ADD: */
+  { "clfebr", OP16(0xb39cLL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "clfdbr", OP16(0xb39dLL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "clfxbr", OP16(0xb39eLL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "clgebr", OP16(0xb3acLL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "clgdbr", OP16(0xb3adLL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "clgxbr", OP16(0xb3aeLL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "celfbr", OP16(0xb390LL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "cdlfbr", OP16(0xb391LL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "cxlfbr", OP16(0xb392LL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "celgbr", OP16(0xb3a0LL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "cdlgbr", OP16(0xb3a1LL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+  { "cxlgbr", OP16(0xb3a2LL), MASK_RRF_UUFF, INSTR_RRF_UUFF, 3, 6},
+/* QEMU-END */
   { "trap4", OP16(0xb2ffLL), MASK_S_RD, INSTR_S_RD, 3, 0},
   { "lfas", OP16(0xb2bdLL), MASK_S_RD, INSTR_S_RD, 2, 5},
   { "srnmt", OP16(0xb2b9LL), MASK_S_RD, INSTR_S_RD, 2, 5},
@@ -1774,22 +1925,6 @@ static const struct s390_opcode s390_opcodes[] =
   { "sckpf", OP16(0x0107LL), MASK_E, INSTR_E, 3, 0},
   { "upt", OP16(0x0102LL), MASK_E, INSTR_E, 3, 0},
   { "pr", OP16(0x0101LL), MASK_E, INSTR_E, 3, 0},
-
-/* QEMU-ADD: */
-  { "crj",   OP48(0xec0000000076LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
-  { "cgrj",  OP48(0xec0000000064LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
-  { "clrj",  OP48(0xec0000000077LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
-  { "clgrj", OP48(0xec0000000065LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
-
-  { "cij",   OP48(0xec000000007eLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
-  { "cgij",  OP48(0xec000000007cLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
-  { "clij",  OP48(0xec000000007fLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
-  { "clgij", OP48(0xec000000007dLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
-
-  { "lrl",   OP16(0xc40dll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
-  { "lgrl",  OP16(0xc408ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
-  { "lgfrl", OP16(0xc40cll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
-/* QEMU-END */
 };
 
 static const int s390_num_opcodes =

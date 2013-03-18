@@ -24,14 +24,14 @@
  * This driver attempts to emulate an HPET device in software.
  */
 
-#include "hw.h"
-#include "pc.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
-#include "hpet_emul.h"
-#include "sysbus.h"
-#include "mc146818rtc.h"
-#include "i8254.h"
+#include "hw/hpet_emul.h"
+#include "hw/sysbus.h"
+#include "hw/mc146818rtc.h"
+#include "hw/i8254.h"
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG
@@ -634,7 +634,7 @@ static const MemoryRegionOps hpet_ram_ops = {
 
 static void hpet_reset(DeviceState *d)
 {
-    HPETState *s = FROM_SYSBUS(HPETState, sysbus_from_qdev(d));
+    HPETState *s = FROM_SYSBUS(HPETState, SYS_BUS_DEVICE(d));
     int i;
 
     for (i = 0; i < s->num_timers; i++) {
@@ -657,7 +657,7 @@ static void hpet_reset(DeviceState *d)
     s->hpet_offset = 0ULL;
     s->config = 0ULL;
     hpet_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
-    hpet_cfg.hpet[s->hpet_id].address = sysbus_from_qdev(d)->mmio[0].addr;
+    hpet_cfg.hpet[s->hpet_id].address = SYS_BUS_DEVICE(d)->mmio[0].addr;
 
     /* to document that the RTC lowers its output on reset as well */
     s->rtc_irq_level = 0;
@@ -745,7 +745,7 @@ static void hpet_device_class_init(ObjectClass *klass, void *data)
     dc->props = hpet_device_properties;
 }
 
-static TypeInfo hpet_device_info = {
+static const TypeInfo hpet_device_info = {
     .name          = "hpet",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(HPETState),

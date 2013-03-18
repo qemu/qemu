@@ -57,8 +57,8 @@ typedef uint64_t TCGRegSet;
 #error unsupported
 #endif
 
-/* Turn some undef macros into false macros.  */
 #if TCG_TARGET_REG_BITS == 32
+/* Turn some undef macros into false macros.  */
 #define TCG_TARGET_HAS_div_i64          0
 #define TCG_TARGET_HAS_div2_i64         0
 #define TCG_TARGET_HAS_rot_i64          0
@@ -80,6 +80,14 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_nor_i64          0
 #define TCG_TARGET_HAS_deposit_i64      0
 #define TCG_TARGET_HAS_movcond_i64      0
+#define TCG_TARGET_HAS_add2_i64         0
+#define TCG_TARGET_HAS_sub2_i64         0
+#define TCG_TARGET_HAS_mulu2_i64        0
+#define TCG_TARGET_HAS_muls2_i64        0
+/* Turn some undef macros into true macros.  */
+#define TCG_TARGET_HAS_add2_i32         1
+#define TCG_TARGET_HAS_sub2_i32         1
+#define TCG_TARGET_HAS_mulu2_i32        1
 #endif
 
 #ifndef TCG_TARGET_deposit_i32_valid
@@ -270,6 +278,9 @@ typedef int TCGv_i64;
 #define TCGV_UNUSED_I32(x) x = MAKE_TCGV_I32(-1)
 #define TCGV_UNUSED_I64(x) x = MAKE_TCGV_I64(-1)
 
+#define TCGV_IS_UNUSED_I32(x) (GET_TCGV_I32(x) == -1)
+#define TCGV_IS_UNUSED_I64(x) (GET_TCGV_I64(x) == -1)
+
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
    implies TCG_CALL_NO_WRITE_GLOBALS. */
@@ -458,6 +469,17 @@ struct TCGContext {
     target_ulong gen_opc_pc[OPC_BUF_SIZE];
     uint16_t gen_opc_icount[OPC_BUF_SIZE];
     uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
+
+    /* Code generation */
+    int code_gen_max_blocks;
+    uint8_t *code_gen_prologue;
+    uint8_t *code_gen_buffer;
+    size_t code_gen_buffer_size;
+    /* threshold to flush the translated code buffer */
+    size_t code_gen_buffer_max_size;
+    uint8_t *code_gen_ptr;
+
+    TBContext tb_ctx;
 
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
     /* labels info for qemu_ld/st IRs
@@ -655,12 +677,58 @@ TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
 
-extern uint8_t *code_gen_prologue;
+/**
+ * tcg_qemu_tb_exec:
+ * @env: CPUArchState * for the CPU
+ * @tb_ptr: address of generated code for the TB to execute
+ *
+ * Start executing code from a given translation block.
+ * Where translation blocks have been linked, execution
+ * may proceed from the given TB into successive ones.
+ * Control eventually returns only when some action is needed
+ * from the top-level loop: either control must pass to a TB
+ * which has not yet been directly linked, or an asynchronous
+ * event such as an interrupt needs handling.
+ *
+ * The return value is a pointer to the next TB to execute
+ * (if known; otherwise zero). This pointer is assumed to be
+ * 4-aligned, and the bottom two bits are used to return further
+ * information:
+ *  0, 1: the link between this TB and the next is via the specified
+ *        TB index (0 or 1). That is, we left the TB via (the equivalent
+ *        of) "goto_tb <index>". The main loop uses this to determine
+ *        how to link the TB just executed to the next.
+ *  2:    we are using instruction counting code generation, and we
+ *        did not start executing this TB because the instruction counter
+ *        would hit zero midway through it. In this case the next-TB pointer
+ *        returned is the TB we were about to execute, and the caller must
+ *        arrange to execute the remaining count of instructions.
+ *  3:    we stopped because the CPU's exit_request flag was set
+ *        (usually meaning that there is an interrupt that needs to be
+ *        handled). The next-TB pointer returned is the TB we were
+ *        about to execute when we noticed the pending exit request.
+ *
+ * If the bottom two bits indicate an exit-via-index then the CPU
+ * state is correctly synchronised and ready for execution of the next
+ * TB (and in particular the guest PC is the address to execute next).
+ * Otherwise, we gave up on execution of this TB before it started, and
+ * the caller must fix up the CPU state by calling cpu_pc_from_tb()
+ * with the next-TB pointer we return.
+ *
+ * Note that TCG targets may use a different definition of tcg_qemu_tb_exec
+ * to this default (which just calls the prologue.code emitted by
+ * tcg_target_qemu_prologue()).
+ */
+#define TB_EXIT_MASK 3
+#define TB_EXIT_IDX0 0
+#define TB_EXIT_IDX1 1
+#define TB_EXIT_ICOUNT_EXPIRED 2
+#define TB_EXIT_REQUESTED 3
 
-/* TCG targets may use a different definition of tcg_qemu_tb_exec. */
 #if !defined(tcg_qemu_tb_exec)
 # define tcg_qemu_tb_exec(env, tb_ptr) \
-    ((tcg_target_ulong (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
+    ((tcg_target_ulong (*)(void *, void *))tcg_ctx.code_gen_prologue)(env, \
+                                                                      tb_ptr)
 #endif
 
 void tcg_register_jit(void *buf, size_t buf_size);

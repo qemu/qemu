@@ -277,7 +277,6 @@ struct CPUAlphaState {
 #endif
 
     /* This alarm doesn't exist in real hardware; we wish it did.  */
-    struct QEMUTimer *alarm_timer;
     uint64_t alarm_expire;
 
     /* Those resources are used only in QEMU core */
@@ -290,7 +289,7 @@ struct CPUAlphaState {
     int implver;
 };
 
-#define cpu_init cpu_alpha_init
+#define cpu_list alpha_cpu_list
 #define cpu_exec cpu_alpha_exec
 #define cpu_gen_code cpu_alpha_gen_code
 #define cpu_signal_handler cpu_alpha_signal_handler
@@ -427,7 +426,20 @@ enum {
     IR_ZERO = 31,
 };
 
-CPUAlphaState * cpu_alpha_init (const char *cpu_model);
+void alpha_translate_init(void);
+
+AlphaCPU *cpu_alpha_init(const char *cpu_model);
+
+static inline CPUAlphaState *cpu_init(const char *cpu_model)
+{
+    AlphaCPU *cpu = cpu_alpha_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
+void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_alpha_exec(CPUAlphaState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
@@ -437,7 +449,6 @@ int cpu_alpha_signal_handler(int host_signum, void *pinfo,
 int cpu_alpha_handle_mmu_fault (CPUAlphaState *env, uint64_t address, int rw,
                                 int mmu_idx);
 #define cpu_handle_mmu_fault cpu_alpha_handle_mmu_fault
-void do_interrupt (CPUAlphaState *env);
 void do_restore_state(CPUAlphaState *, uintptr_t retaddr);
 void QEMU_NORETURN dynamic_excp(CPUAlphaState *, uintptr_t, int, int);
 void QEMU_NORETURN arith_excp(CPUAlphaState *, uintptr_t, int, uint64_t);
@@ -505,8 +516,6 @@ static inline void cpu_set_tls(CPUAlphaState *env, target_ulong newtls)
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUAlphaState *env = &ALPHA_CPU(cpu)->env;
-
     /* Here we are checking to see if the CPU should wake up from HALT.
        We will have gotten into this state only for WTINT from PALmode.  */
     /* ??? I'm not sure how the IPL state works with WTINT to keep a CPU
@@ -514,7 +523,7 @@ static inline bool cpu_has_work(CPUState *cpu)
        assume that if a CPU really wants to stay asleep, it will mask
        interrupts at the chipset level, which will prevent these bits
        from being set in the first place.  */
-    return env->interrupt_request & (CPU_INTERRUPT_HARD
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD
                                      | CPU_INTERRUPT_TIMER
                                      | CPU_INTERRUPT_SMP
                                      | CPU_INTERRUPT_MCHK);

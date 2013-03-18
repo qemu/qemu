@@ -1,7 +1,7 @@
 #ifndef QEMU_QDEV_PROPERTIES_H
 #define QEMU_QDEV_PROPERTIES_H
 
-#include "qdev-core.h"
+#include "hw/qdev-core.h"
 
 /*** qdev-properties.c ***/
 
@@ -31,7 +31,7 @@ extern PropertyInfo qdev_prop_pci_host_devaddr;
         .name      = (_name),                                    \
         .info      = &(_prop),                                   \
         .offset    = offsetof(_state, _field)                    \
-            + type_check(_type,typeof_field(_state, _field)),    \
+            + type_check(_type, typeof_field(_state, _field)),   \
         }
 #define DEFINE_PROP_DEFAULT(_name, _state, _field, _defval, _prop, _type) { \
         .name      = (_name),                                           \
@@ -77,9 +77,9 @@ extern PropertyInfo qdev_prop_pci_host_devaddr;
 #define DEFINE_PROP_STRING(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_string, char*)
 #define DEFINE_PROP_NETDEV(_n, _s, _f)             \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_netdev, NetClientState*)
+    DEFINE_PROP(_n, _s, _f, qdev_prop_netdev, NICPeers)
 #define DEFINE_PROP_VLAN(_n, _s, _f)             \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, NetClientState*)
+    DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, NICPeers)
 #define DEFINE_PROP_DRIVE(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockDriverState *)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
@@ -116,6 +116,7 @@ void qdev_prop_set_enum(DeviceState *dev, const char *name, int value);
 /* FIXME: Remove opaque pointer properties.  */
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 
+void qdev_prop_register_global(GlobalProperty *prop);
 void qdev_prop_register_global_list(GlobalProperty *props);
 void qdev_prop_set_globals(DeviceState *dev);
 void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,

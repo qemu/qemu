@@ -267,37 +267,6 @@ static void gen_exception(int excp)
     dead_tmp(tmp);
 }
 
-/* FIXME: Most targets have native widening multiplication.
-   It would be good to use that instead of a full wide multiply.  */
-/* 32x32->64 multiply.  Marks inputs as dead.  */
-static TCGv_i64 gen_mulu_i64_i32(TCGv a, TCGv b)
-{
-    TCGv_i64 tmp1 = tcg_temp_new_i64();
-    TCGv_i64 tmp2 = tcg_temp_new_i64();
-
-    tcg_gen_extu_i32_i64(tmp1, a);
-    dead_tmp(a);
-    tcg_gen_extu_i32_i64(tmp2, b);
-    dead_tmp(b);
-    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
-    tcg_temp_free_i64(tmp2);
-    return tmp1;
-}
-
-static TCGv_i64 gen_muls_i64_i32(TCGv a, TCGv b)
-{
-    TCGv_i64 tmp1 = tcg_temp_new_i64();
-    TCGv_i64 tmp2 = tcg_temp_new_i64();
-
-    tcg_gen_ext_i32_i64(tmp1, a);
-    dead_tmp(a);
-    tcg_gen_ext_i32_i64(tmp2, b);
-    dead_tmp(b);
-    tcg_gen_mul_i64(tmp1, tmp1, tmp2);
-    tcg_temp_free_i64(tmp2);
-    return tmp1;
-}
-
 #define gen_set_CF(var) tcg_gen_st_i32(var, cpu_env, offsetof(CPUUniCore32State, CF))
 
 /* Set CF to the top bit of var.  */
@@ -1219,38 +1188,6 @@ static void disas_coproc_insn(CPUUniCore32State *env, DisasContext *s,
     }
 }
 
-
-/* Store a 64-bit value to a register pair.  Clobbers val.  */
-static void gen_storeq_reg(DisasContext *s, int rlow, int rhigh, TCGv_i64 val)
-{
-    TCGv tmp;
-    tmp = new_tmp();
-    tcg_gen_trunc_i64_i32(tmp, val);
-    store_reg(s, rlow, tmp);
-    tmp = new_tmp();
-    tcg_gen_shri_i64(val, val, 32);
-    tcg_gen_trunc_i64_i32(tmp, val);
-    store_reg(s, rhigh, tmp);
-}
-
-/* load and add a 64-bit value from a register pair.  */
-static void gen_addq(DisasContext *s, TCGv_i64 val, int rlow, int rhigh)
-{
-    TCGv_i64 tmp;
-    TCGv tmpl;
-    TCGv tmph;
-
-    /* Load 64-bit value rd:rn.  */
-    tmpl = load_reg(s, rlow);
-    tmph = load_reg(s, rhigh);
-    tmp = tcg_temp_new_i64();
-    tcg_gen_concat_i32_i64(tmp, tmpl, tmph);
-    dead_tmp(tmpl);
-    dead_tmp(tmph);
-    tcg_gen_add_i64(val, val, tmp);
-    tcg_temp_free_i64(tmp);
-}
-
 /* data processing instructions */
 static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
@@ -1445,24 +1382,26 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 /* multiply */
 static void do_mult(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
-    TCGv tmp;
-    TCGv tmp2;
-    TCGv_i64 tmp64;
+    TCGv tmp, tmp2, tmp3, tmp4;
 
     if (UCOP_SET(27)) {
         /* 64 bit mul */
         tmp = load_reg(s, UCOP_REG_M);
         tmp2 = load_reg(s, UCOP_REG_N);
         if (UCOP_SET(26)) {
-            tmp64 = gen_muls_i64_i32(tmp, tmp2);
+            tcg_gen_muls2_i32(tmp, tmp2, tmp, tmp2);
         } else {
-            tmp64 = gen_mulu_i64_i32(tmp, tmp2);
+            tcg_gen_mulu2_i32(tmp, tmp2, tmp, tmp2);
         }
         if (UCOP_SET(25)) { /* mult accumulate */
-            gen_addq(s, tmp64, UCOP_REG_LO, UCOP_REG_HI);
+            tmp3 = load_reg(s, UCOP_REG_LO);
+            tmp4 = load_reg(s, UCOP_REG_HI);
+            tcg_gen_add2_i32(tmp, tmp2, tmp, tmp2, tmp3, tmp4);
+            dead_tmp(tmp3);
+            dead_tmp(tmp4);
         }
-        gen_storeq_reg(s, UCOP_REG_LO, UCOP_REG_HI, tmp64);
-        tcg_temp_free_i64(tmp64);
+        store_reg(s, UCOP_REG_LO, tmp);
+        store_reg(s, UCOP_REG_HI, tmp2);
     } else {
         /* 32 bit mul */
         tmp = load_reg(s, UCOP_REG_M);
@@ -1982,7 +1921,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
     }
 #endif
 
-    gen_icount_start();
+    gen_tb_start();
     do {
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
@@ -2102,7 +2041,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
     }
 
 done_generating:
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS

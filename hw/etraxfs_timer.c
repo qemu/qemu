@@ -21,10 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 
 #define D(x)
 
@@ -336,7 +336,7 @@ static void etraxfs_timer_class_init(ObjectClass *klass, void *data)
     sdc->init = etraxfs_timer_init;
 }
 
-static TypeInfo etraxfs_timer_info = {
+static const TypeInfo etraxfs_timer_info = {
     .name          = "etraxfs,timer",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof (struct etrax_timer),

@@ -17,10 +17,10 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci/pci.h"
-#include "pc.h"
-#include "i8254.h"
-#include "pcspk.h"
+#include "hw/pci/pci.h"
+#include "hw/pc.h"
+#include "hw/i8254.h"
+#include "hw/pcspk.h"
 
 //#define DEBUG_I82378
 
@@ -262,7 +262,7 @@ static void pci_i82378_class_init(ObjectClass *klass, void *data)
     dc->props = i82378_properties;
 }
 
-static TypeInfo pci_i82378_info = {
+static const TypeInfo pci_i82378_info = {
     .name = "i82378",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIi82378State),

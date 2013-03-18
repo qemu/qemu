@@ -98,7 +98,7 @@ static int blkverify_open(BlockDriverState *bs, const char *filename, int flags)
 
     /* Open the test file */
     s->test_file = bdrv_new("");
-    ret = bdrv_open(s->test_file, filename, flags, NULL);
+    ret = bdrv_open(s->test_file, filename, NULL, flags, NULL);
     if (ret < 0) {
         bdrv_delete(s->test_file);
         s->test_file = NULL;

@@ -465,13 +465,14 @@ static void switch_tss(CPUX86State *env, int tss_selector,
 
 #ifndef CONFIG_USER_ONLY
     /* reset local breakpoints */
-    if (env->dr[7] & 0x55) {
-        for (i = 0; i < 4; i++) {
-            if (hw_breakpoint_enabled(env->dr[7], i) == 0x1) {
+    if (env->dr[7] & DR7_LOCAL_BP_MASK) {
+        for (i = 0; i < DR7_MAX_BP; i++) {
+            if (hw_local_breakpoint_enabled(env->dr[7], i) &&
+                !hw_global_breakpoint_enabled(env->dr[7], i)) {
                 hw_breakpoint_remove(env, i);
             }
         }
-        env->dr[7] &= ~0x55;
+        env->dr[7] &= ~DR7_LOCAL_BP_MASK;
     }
 #endif
 }
@@ -1230,8 +1231,11 @@ static void do_interrupt_all(CPUX86State *env, int intno, int is_int,
 #endif
 }
 
-void do_interrupt(CPUX86State *env)
+void x86_cpu_do_interrupt(CPUState *cs)
 {
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
 #if defined(CONFIG_USER_ONLY)
     /* if user mode only, we simulate a fake exception
        which will be handled outside the cpu execution

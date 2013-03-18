@@ -7,8 +7,8 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
-#include "ssi.h"
+#include "hw/sysbus.h"
+#include "hw/ssi.h"
 
 //#define DEBUG_PL022 1
 
@@ -293,7 +293,7 @@ static void pl022_class_init(ObjectClass *klass, void *data)
     sdc->init = pl022_init;
 }
 
-static TypeInfo pl022_info = {
+static const TypeInfo pl022_info = {
     .name          = "pl022",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pl022_state),

@@ -27,7 +27,7 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
-#include "qxl.h"
+#include "hw/qxl.h"
 
 /*
  * NOTE: SPICE_RING_PROD_ITEM accesses memory on the pci bar and as
@@ -37,33 +37,25 @@
  */
 #undef SPICE_RING_PROD_ITEM
 #define SPICE_RING_PROD_ITEM(qxl, r, ret) {                             \
-        typeof(r) start = r;                                            \
-        typeof(r) end = r + 1;                                          \
         uint32_t prod = (r)->prod & SPICE_RING_INDEX_MASK(r);           \
-        typeof(&(r)->items[prod]) m_item = &(r)->items[prod];           \
-        if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
+        if (prod >= ARRAY_SIZE((r)->items)) {                           \
             qxl_set_guest_bug(qxl, "SPICE_RING_PROD_ITEM indices mismatch " \
-                          "! %p <= %p < %p", (uint8_t *)start,          \
-                          (uint8_t *)m_item, (uint8_t *)end);           \
+                          "%u >= %zu", prod, ARRAY_SIZE((r)->items));   \
             ret = NULL;                                                 \
         } else {                                                        \
-            ret = &m_item->el;                                          \
+            ret = &(r)->items[prod].el;                                 \
         }                                                               \
     }
 
 #undef SPICE_RING_CONS_ITEM
 #define SPICE_RING_CONS_ITEM(qxl, r, ret) {                             \
-        typeof(r) start = r;                                            \
-        typeof(r) end = r + 1;                                          \
         uint32_t cons = (r)->cons & SPICE_RING_INDEX_MASK(r);           \
-        typeof(&(r)->items[cons]) m_item = &(r)->items[cons];           \
-        if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
+        if (cons >= ARRAY_SIZE((r)->items)) {                           \
             qxl_set_guest_bug(qxl, "SPICE_RING_CONS_ITEM indices mismatch " \
-                          "! %p <= %p < %p", (uint8_t *)start,          \
-                          (uint8_t *)m_item, (uint8_t *)end);           \
+                          "%u >= %zu", cons, ARRAY_SIZE((r)->items));   \
             ret = NULL;                                                 \
         } else {                                                        \
-            ret = &m_item->el;                                          \
+            ret = &(r)->items[cons].el;                                 \
         }                                                               \
     }
 
@@ -88,9 +80,7 @@
 
 #define QXL_MODE_EX(x_res, y_res)                 \
     QXL_MODE_16_32(x_res, y_res, 0),              \
-    QXL_MODE_16_32(y_res, x_res, 1),              \
-    QXL_MODE_16_32(x_res, y_res, 2),              \
-    QXL_MODE_16_32(y_res, x_res, 3)
+    QXL_MODE_16_32(x_res, y_res, 1)
 
 static QXLMode qxl_modes[] = {
     QXL_MODE_EX(640, 480),
@@ -314,10 +304,13 @@ static inline uint32_t msb_mask(uint32_t val)
 
 static ram_addr_t qxl_rom_size(void)
 {
-    uint32_t rom_size = sizeof(QXLRom) + sizeof(QXLModes) + sizeof(qxl_modes);
+    uint32_t required_rom_size = sizeof(QXLRom) + sizeof(QXLModes) +
+                                 sizeof(qxl_modes);
+    uint32_t rom_size = 8192; /* two pages */
 
-    rom_size = MAX(rom_size, TARGET_PAGE_SIZE);
-    rom_size = msb_mask(rom_size * 2 - 1);
+    required_rom_size = MAX(required_rom_size, TARGET_PAGE_SIZE);
+    required_rom_size = msb_mask(required_rom_size * 2 - 1);
+    assert(required_rom_size <= rom_size);
     return rom_size;
 }
 
@@ -953,15 +946,23 @@ static void interface_set_client_capabilities(QXLInstance *sin,
 {
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
 
+    if (qxl->revision < 4) {
+        trace_qxl_set_client_capabilities_unsupported_by_revision(qxl->id,
+                                                              qxl->revision);
+        return;
+    }
+
     if (runstate_check(RUN_STATE_INMIGRATE) ||
         runstate_check(RUN_STATE_POSTMIGRATE)) {
         return;
     }
 
     qxl->shadow_rom.client_present = client_present;
-    memcpy(qxl->shadow_rom.client_capabilities, caps, sizeof(caps));
+    memcpy(qxl->shadow_rom.client_capabilities, caps,
+           sizeof(qxl->shadow_rom.client_capabilities));
     qxl->rom->client_present = client_present;
-    memcpy(qxl->rom->client_capabilities, caps, sizeof(caps));
+    memcpy(qxl->rom->client_capabilities, caps,
+           sizeof(qxl->rom->client_capabilities));
     qxl_rom_set_dirty(qxl);
 
     qxl_send_events(qxl, QXL_INTERRUPT_CLIENT);
@@ -985,6 +986,11 @@ static int interface_client_monitors_config(QXLInstance *sin,
     QXLRom *rom = memory_region_get_ram_ptr(&qxl->rom_bar);
     int i;
 
+    if (qxl->revision < 4) {
+        trace_qxl_client_monitors_config_unsupported_by_device(qxl->id,
+                                                               qxl->revision);
+        return 0;
+    }
     /*
      * Older windows drivers set int_mask to 0 when their ISR is called,
      * then later set it to ~0. So it doesn't relate to the actual interrupts
@@ -2030,7 +2036,7 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     qxl->ssd.qxl.base.sif = &qxl_interface.base;
     qxl->ssd.qxl.id = qxl->id;
     if (qemu_spice_add_interface(&qxl->ssd.qxl.base) != 0) {
-        error_report("qxl interface %d.%d not supported by spice-server\n",
+        error_report("qxl interface %d.%d not supported by spice-server",
                      SPICE_INTERFACE_QXL_MAJOR, SPICE_INTERFACE_QXL_MINOR);
         return -1;
     }
@@ -2310,7 +2316,7 @@ static void qxl_primary_class_init(ObjectClass *klass, void *data)
     dc->props = qxl_properties;
 }
 
-static TypeInfo qxl_primary_info = {
+static const TypeInfo qxl_primary_info = {
     .name          = "qxl-vga",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIQXLDevice),
@@ -2332,7 +2338,7 @@ static void qxl_secondary_class_init(ObjectClass *klass, void *data)
     dc->props = qxl_properties;
 }
 
-static TypeInfo qxl_secondary_info = {
+static const TypeInfo qxl_secondary_info = {
     .name          = "qxl",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIQXLDevice),

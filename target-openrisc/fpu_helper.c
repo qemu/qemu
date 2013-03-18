@@ -68,7 +68,7 @@ static inline void update_fpcsr(OpenRISCCPU *cpu)
 uint64_t HELPER(itofd)(CPUOpenRISCState *env, uint64_t val)
 {
     uint64_t itofd;
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     set_float_exception_flags(0, &cpu->env.fp_status);
     itofd = int32_to_float64(val, &cpu->env.fp_status);
@@ -80,7 +80,7 @@ uint64_t HELPER(itofd)(CPUOpenRISCState *env, uint64_t val)
 uint32_t HELPER(itofs)(CPUOpenRISCState *env, uint32_t val)
 {
     uint32_t itofs;
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     set_float_exception_flags(0, &cpu->env.fp_status);
     itofs = int32_to_float32(val, &cpu->env.fp_status);
@@ -92,7 +92,7 @@ uint32_t HELPER(itofs)(CPUOpenRISCState *env, uint32_t val)
 uint64_t HELPER(ftoid)(CPUOpenRISCState *env, uint64_t val)
 {
     uint64_t ftoid;
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     set_float_exception_flags(0, &cpu->env.fp_status);
     ftoid = float32_to_int64(val, &cpu->env.fp_status);
@@ -104,7 +104,7 @@ uint64_t HELPER(ftoid)(CPUOpenRISCState *env, uint64_t val)
 uint32_t HELPER(ftois)(CPUOpenRISCState *env, uint32_t val)
 {
     uint32_t ftois;
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     set_float_exception_flags(0, &cpu->env.fp_status);
     ftois = float32_to_int32(val, &cpu->env.fp_status);
@@ -120,7 +120,7 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
                                      uint64_t fdt0, uint64_t fdt1)        \
 {                                                                         \
     uint64_t result;                                                      \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     result = float64_ ## name(fdt0, fdt1, &cpu->env.fp_status);           \
     update_fpcsr(cpu);                                                    \
@@ -131,7 +131,7 @@ uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
                                      uint32_t fdt0, uint32_t fdt1)        \
 {                                                                         \
     uint32_t result;                                                      \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     result = float32_ ## name(fdt0, fdt1, &cpu->env.fp_status);           \
     update_fpcsr(cpu);                                                    \
@@ -152,7 +152,7 @@ uint64_t helper_float_ ## name1 ## name2 ## _d(CPUOpenRISCState *env,     \
 {                                                                         \
     uint64_t result, temp, hi, lo;                                        \
     uint32_t val1, val2;                                                  \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     hi = env->fpmaddhi;                                                   \
     lo = env->fpmaddlo;                                                   \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
@@ -174,7 +174,7 @@ uint32_t helper_float_ ## name1 ## name2 ## _s(CPUOpenRISCState *env,     \
 {                                                                         \
     uint64_t result, temp, hi, lo;                                        \
     uint32_t val1, val2;                                                  \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     hi = cpu->env.fpmaddhi;                                               \
     lo = cpu->env.fpmaddlo;                                               \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
@@ -198,7 +198,7 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
                                      uint64_t fdt0, uint64_t fdt1)        \
 {                                                                         \
     int res;                                                              \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     res = float64_ ## name(fdt0, fdt1, &cpu->env.fp_status);              \
     update_fpcsr(cpu);                                                    \
@@ -209,7 +209,7 @@ uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
                                              uint32_t fdt0, uint32_t fdt1)\
 {                                                                         \
     int res;                                                              \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     res = float32_ ## name(fdt0, fdt1, &cpu->env.fp_status);              \
     update_fpcsr(cpu);                                                    \
@@ -227,7 +227,7 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
                                      uint64_t fdt0, uint64_t fdt1)        \
 {                                                                         \
     int res;                                                              \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     res = !float64_eq_quiet(fdt0, fdt1, &cpu->env.fp_status);             \
     update_fpcsr(cpu);                                                    \
@@ -238,7 +238,7 @@ uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
                                      uint32_t fdt0, uint32_t fdt1)        \
 {                                                                         \
     int res;                                                              \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     res = !float32_eq_quiet(fdt0, fdt1, &cpu->env.fp_status);             \
     update_fpcsr(cpu);                                                    \
@@ -253,7 +253,7 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
                                      uint64_t fdt0, uint64_t fdt1)        \
 {                                                                         \
     int res;                                                              \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     res = !float64_le(fdt0, fdt1, &cpu->env.fp_status);                   \
     update_fpcsr(cpu);                                                    \
@@ -264,7 +264,7 @@ uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
                                      uint32_t fdt0, uint32_t fdt1)        \
 {                                                                         \
     int res;                                                              \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     res = !float32_le(fdt0, fdt1, &cpu->env.fp_status);                   \
     update_fpcsr(cpu);                                                    \
@@ -278,7 +278,7 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
                                      uint64_t fdt0, uint64_t fdt1)        \
 {                                                                         \
     int res;                                                              \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     res = !float64_lt(fdt0, fdt1, &cpu->env.fp_status);                   \
     update_fpcsr(cpu);                                                    \
@@ -289,7 +289,7 @@ uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
                                      uint32_t fdt0, uint32_t fdt1)        \
 {                                                                         \
     int res;                                                              \
-    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));                    \
+    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     res = !float32_lt(fdt0, fdt1, &cpu->env.fp_status);                   \
     update_fpcsr(cpu);                                                    \

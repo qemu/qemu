@@ -27,9 +27,9 @@
  * IRQs are passed to GIC through Combiner.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
-#include "exynos4210.h"
+#include "hw/exynos4210.h"
 
 //#define DEBUG_COMBINER
 
@@ -440,7 +440,7 @@ static void exynos4210_combiner_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_exynos4210_combiner;
 }
 
-static TypeInfo exynos4210_combiner_info = {
+static const TypeInfo exynos4210_combiner_info = {
     .name          = "exynos4210.combiner",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210CombinerState),

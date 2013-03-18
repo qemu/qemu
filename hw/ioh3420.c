@@ -20,10 +20,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci/pci_ids.h"
-#include "pci/msi.h"
-#include "pci/pcie.h"
-#include "ioh3420.h"
+#include "hw/pci/pci_ids.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/pcie.h"
+#include "hw/ioh3420.h"
 
 #define PCI_DEVICE_ID_IOH_EPORT         0x3420  /* D0:F0 express mode */
 #define PCI_DEVICE_ID_IOH_REV           0x2
@@ -226,7 +226,7 @@ static void ioh3420_class_init(ObjectClass *klass, void *data)
     dc->props = ioh3420_properties;
 }
 
-static TypeInfo ioh3420_info = {
+static const TypeInfo ioh3420_info = {
     .name          = "ioh3420",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIESlot),

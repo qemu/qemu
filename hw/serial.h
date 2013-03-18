@@ -25,7 +25,7 @@
 #ifndef HW_SERIAL_H
 #define HW_SERIAL_H 1
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "sysemu/sysemu.h"
 #include "exec/memory.h"
 
@@ -72,8 +72,6 @@ struct SerialState {
 
     struct QEMUTimer *fifo_timeout_timer;
     int timeout_ipending;           /* timeout interrupt pending state */
-    struct QEMUTimer *transmit_timer;
-
 
     uint64_t char_transmit_time;    /* time to transmit a char in ticks */
     int poll_msl;

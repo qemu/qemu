@@ -22,12 +22,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "pc.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/isa.h"
 #include "qemu/timer.h"
-#include "i8254.h"
-#include "i8254_internal.h"
+#include "hw/i8254.h"
+#include "hw/i8254_internal.h"
 
 /* val must be 0 or 1 */
 void pit_set_gate(ISADevice *dev, int channel, int val)
@@ -294,7 +294,7 @@ static void pit_common_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo pit_common_type = {
+static const TypeInfo pit_common_type = {
     .name          = TYPE_PIT_COMMON,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PITCommonState),

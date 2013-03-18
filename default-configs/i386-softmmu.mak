@@ -1,6 +1,7 @@
 # Default configuration for i386-softmmu
 
 include pci.mak
+include usb.mak
 CONFIG_VGA=y
 CONFIG_VGA_PCI=y
 CONFIG_VGA_ISA=y
@@ -25,3 +26,5 @@ CONFIG_HPET=y
 CONFIG_APPLESMC=y
 CONFIG_I8259=y
 CONFIG_PFLASH_CFI01=y
+CONFIG_TPM_TIS=y
+CONFIG_TPM_PASSTHROUGH=y

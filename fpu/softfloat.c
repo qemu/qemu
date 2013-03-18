@@ -1271,11 +1271,18 @@ float64 int64_to_float64( int64 a STATUS_PARAM )
 
 }
 
-float64 uint64_to_float64( uint64 a STATUS_PARAM )
+float64 uint64_to_float64(uint64 a STATUS_PARAM)
 {
-    if ( a == 0 ) return float64_zero;
-    return normalizeRoundAndPackFloat64( 0, 0x43C, a STATUS_VAR );
+    int exp =  0x43C;
 
+    if (a == 0) {
+        return float64_zero;
+    }
+    if ((int64_t)a < 0) {
+        shift64RightJamming(a, 1, &a);
+        exp += 1;
+    }
+    return normalizeRoundAndPackFloat64(0, exp, a STATUS_VAR);
 }
 
 /*----------------------------------------------------------------------------
@@ -1330,6 +1337,14 @@ float128 int64_to_float128( int64 a STATUS_PARAM )
     shortShift128Left( zSig0, zSig1, shiftCount, &zSig0, &zSig1 );
     return packFloat128( zSign, zExp, zSig0, zSig1 );
 
+}
+
+float128 uint64_to_float128(uint64 a STATUS_PARAM)
+{
+    if (a == 0) {
+        return float128_zero;
+    }
+    return normalizeRoundAndPackFloat128(0, 0x406E, a, 0 STATUS_VAR);
 }
 
 /*----------------------------------------------------------------------------
@@ -2219,7 +2234,7 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags STATUS_PARAM)
             }
         }
         /* Zero plus something non-zero : just return the something */
-        return make_float32(float32_val(c) ^ (signflip << 31));
+        return packFloat32(cSign ^ signflip, cExp, cSig);
     }
 
     if (aExp == 0) {
@@ -3772,7 +3787,7 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM)
             }
         }
         /* Zero plus something non-zero : just return the something */
-        return make_float64(float64_val(c) ^ ((uint64_t)signflip << 63));
+        return packFloat64(cSign ^ signflip, cExp, cSig);
     }
 
     if (aExp == 0) {

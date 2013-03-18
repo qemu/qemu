@@ -46,7 +46,7 @@ static const char *local_mapped_attr_path(FsContext *ctx,
                                           const char *path, char *buffer)
 {
     char *dir_name;
-    char *tmp_path = strdup(path);
+    char *tmp_path = g_strdup(path);
     char *base_name = basename(tmp_path);
 
     /* NULL terminate the directory */
@@ -55,7 +55,7 @@ static const char *local_mapped_attr_path(FsContext *ctx,
 
     snprintf(buffer, PATH_MAX, "%s/%s/%s/%s",
              ctx->fs_root, dir_name, VIRTFS_META_DIR, base_name);
-    free(tmp_path);
+    g_free(tmp_path);
     return buffer;
 }
 
@@ -130,7 +130,7 @@ static int local_create_mapped_attr_dir(FsContext *ctx, const char *path)
 {
     int err;
     char attr_dir[PATH_MAX];
-    char *tmp_path = strdup(path);
+    char *tmp_path = g_strdup(path);
 
     snprintf(attr_dir, PATH_MAX, "%s/%s/%s",
              ctx->fs_root, dirname(tmp_path), VIRTFS_META_DIR);
@@ -139,7 +139,7 @@ static int local_create_mapped_attr_dir(FsContext *ctx, const char *path)
     if (err < 0 && errno == EEXIST) {
         err = 0;
     }
-    free(tmp_path);
+    g_free(tmp_path);
     return err;
 }
 

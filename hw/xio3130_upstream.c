@@ -19,10 +19,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci/pci_ids.h"
-#include "pci/msi.h"
-#include "pci/pcie.h"
-#include "xio3130_upstream.h"
+#include "hw/pci/pci_ids.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/pcie.h"
+#include "hw/xio3130_upstream.h"
 
 #define PCI_DEVICE_ID_TI_XIO3130U       0x8232  /* upstream port */
 #define XIO3130_REVISION                0x2
@@ -167,7 +167,7 @@ static void xio3130_upstream_class_init(ObjectClass *klass, void *data)
     dc->props = xio3130_upstream_properties;
 }
 
-static TypeInfo xio3130_upstream_info = {
+static const TypeInfo xio3130_upstream_info = {
     .name          = "x3130-upstream",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIEPort),

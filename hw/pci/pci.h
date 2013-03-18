@@ -77,6 +77,14 @@
 #define PCI_DEVICE_ID_VIRTIO_CONSOLE     0x1003
 #define PCI_DEVICE_ID_VIRTIO_SCSI        0x1004
 #define PCI_DEVICE_ID_VIRTIO_RNG         0x1005
+#define PCI_DEVICE_ID_VIRTIO_9P          0x1009
+
+#define PCI_VENDOR_ID_REDHAT             0x1b36
+#define PCI_DEVICE_ID_REDHAT_BRIDGE      0x0001
+#define PCI_DEVICE_ID_REDHAT_SERIAL      0x0002
+#define PCI_DEVICE_ID_REDHAT_SERIAL2     0x0003
+#define PCI_DEVICE_ID_REDHAT_SERIAL4     0x0004
+#define PCI_DEVICE_ID_REDHAT_QXL         0x0100
 
 #define FMT_PCIBUS                      PRIx64
 
@@ -187,6 +195,9 @@ typedef void (*PCIINTxRoutingNotifier)(PCIDevice *dev);
 typedef int (*MSIVectorUseNotifier)(PCIDevice *dev, unsigned int vector,
                                       MSIMessage msg);
 typedef void (*MSIVectorReleaseNotifier)(PCIDevice *dev, unsigned int vector);
+typedef void (*MSIVectorPollNotifier)(PCIDevice *dev,
+                                      unsigned int vector_start,
+                                      unsigned int vector_end);
 
 struct PCIDevice {
     DeviceState qdev;
@@ -271,6 +282,7 @@ struct PCIDevice {
     /* MSI-X notifiers */
     MSIVectorUseNotifier msix_vector_use_notifier;
     MSIVectorReleaseNotifier msix_vector_release_notifier;
+    MSIVectorPollNotifier msix_vector_poll_notifier;
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,

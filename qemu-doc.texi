@@ -830,7 +830,7 @@ QEMU-based virtual machines.
 
 You can create a Sheepdog disk image with the command:
 @example
-qemu-img create sheepdog:@var{image} @var{size}
+qemu-img create sheepdog:///@var{image} @var{size}
 @end example
 where @var{image} is the Sheepdog image name and @var{size} is its
 size.
@@ -838,38 +838,44 @@ size.
 To import the existing @var{filename} to Sheepdog, you can use a
 convert command.
 @example
-qemu-img convert @var{filename} sheepdog:@var{image}
+qemu-img convert @var{filename} sheepdog:///@var{image}
 @end example
 
 You can boot from the Sheepdog disk image with the command:
 @example
-qemu-system-i386 sheepdog:@var{image}
+qemu-system-i386 sheepdog:///@var{image}
 @end example
 
 You can also create a snapshot of the Sheepdog image like qcow2.
 @example
-qemu-img snapshot -c @var{tag} sheepdog:@var{image}
+qemu-img snapshot -c @var{tag} sheepdog:///@var{image}
 @end example
 where @var{tag} is a tag name of the newly created snapshot.
 
 To boot from the Sheepdog snapshot, specify the tag name of the
 snapshot.
 @example
-qemu-system-i386 sheepdog:@var{image}:@var{tag}
+qemu-system-i386 sheepdog:///@var{image}#@var{tag}
 @end example
 
 You can create a cloned image from the existing snapshot.
 @example
-qemu-img create -b sheepdog:@var{base}:@var{tag} sheepdog:@var{image}
+qemu-img create -b sheepdog:///@var{base}#@var{tag} sheepdog:///@var{image}
 @end example
 where @var{base} is a image name of the source snapshot and @var{tag}
 is its tag name.
 
+You can use an unix socket instead of an inet socket:
+
+@example
+qemu-system-i386 sheepdog+unix:///@var{image}?socket=@var{path}
+@end example
+
 If the Sheepdog daemon doesn't run on the local host, you need to
 specify one of the Sheepdog servers to connect to.
 @example
-qemu-img create sheepdog:@var{hostname}:@var{port}:@var{image} @var{size}
-qemu-system-i386 sheepdog:@var{hostname}:@var{port}:@var{image}
+qemu-img create sheepdog://@var{hostname}:@var{port}/@var{image} @var{size}
+qemu-system-i386 sheepdog://@var{hostname}:@var{port}/@var{image}
 @end example
 
 @node disk_images_iscsi
@@ -2642,8 +2648,8 @@ Pre-allocate a guest virtual address space of the given size (in bytes).
 Debug options:
 
 @table @option
-@item -d
-Activate log (logfile=/tmp/qemu.log)
+@item -d item1,...
+Activate logging of the specified items (use '-d help' for a list of log items)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
 @item -g port
@@ -2781,8 +2787,8 @@ FreeBSD, NetBSD and OpenBSD (default).
 Debug options:
 
 @table @option
-@item -d
-Activate log (logfile=/tmp/qemu.log)
+@item -d item1,...
+Activate logging of the specified items (use '-d help' for a list of log items)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
 @item -singlestep

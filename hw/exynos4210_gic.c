@@ -20,10 +20,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu-common.h"
-#include "irq.h"
-#include "exynos4210.h"
+#include "hw/irq.h"
+#include "hw/exynos4210.h"
 
 enum ExtGicId {
     EXT_GIC_ID_MDMA_LCD0 = 66,
@@ -140,7 +140,7 @@ combiner_grp_to_gic_id[64-EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][8] = {
             EXT_GIC_ID_I2C4, EXT_GIC_ID_I2C5, EXT_GIC_ID_I2C6,
             EXT_GIC_ID_I2C7 },
     /* int combiner group 28 */
-    { EXT_GIC_ID_SPI0, EXT_GIC_ID_SPI1, EXT_GIC_ID_SPI2 },
+    { EXT_GIC_ID_SPI0, EXT_GIC_ID_SPI1, EXT_GIC_ID_SPI2 , EXT_GIC_ID_USB_HOST},
     /* int combiner group 29 */
     { EXT_GIC_ID_HSMMC0, EXT_GIC_ID_HSMMC1, EXT_GIC_ID_HSMMC2,
      EXT_GIC_ID_HSMMC3, EXT_GIC_ID_SDMMC },
@@ -290,7 +290,7 @@ static int exynos4210_gic_init(SysBusDevice *dev)
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(s->gic, "num-irq", EXYNOS4210_GIC_NIRQ);
     qdev_init_nofail(s->gic);
-    busdev = sysbus_from_qdev(s->gic);
+    busdev = SYS_BUS_DEVICE(s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
     sysbus_pass_irq(dev, busdev);
@@ -346,7 +346,7 @@ static void exynos4210_gic_class_init(ObjectClass *klass, void *data)
     dc->props = exynos4210_gic_properties;
 }
 
-static TypeInfo exynos4210_gic_info = {
+static const TypeInfo exynos4210_gic_info = {
     .name          = "exynos4210.gic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210GicState),
@@ -447,7 +447,7 @@ static void exynos4210_irq_gate_class_init(ObjectClass *klass, void *data)
     dc->props = exynos4210_irq_gate_properties;
 }
 
-static TypeInfo exynos4210_irq_gate_info = {
+static const TypeInfo exynos4210_irq_gate_info = {
     .name          = "exynos4210.irq_gate",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210IRQGateState),

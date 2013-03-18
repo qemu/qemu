@@ -25,7 +25,7 @@
  * THE SOFTWARE.
  */
 
-#include "i2c.h"
+#include "hw/i2c.h"
 
 #define TYPE_SMBUS_DEVICE "smbus-device"
 #define SMBUS_DEVICE(obj) \

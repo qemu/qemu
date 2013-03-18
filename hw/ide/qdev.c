@@ -143,7 +143,10 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
 
-    if (dev->conf.discard_granularity && dev->conf.discard_granularity != 512) {
+    if (dev->conf.discard_granularity == -1) {
+        dev->conf.discard_granularity = 512;
+    } else if (dev->conf.discard_granularity &&
+               dev->conf.discard_granularity != 512) {
         error_report("discard_granularity must be 512 for ide");
         return -1;
     }
@@ -217,7 +220,7 @@ static void ide_hd_class_init(ObjectClass *klass, void *data)
     dc->props = ide_hd_properties;
 }
 
-static TypeInfo ide_hd_info = {
+static const TypeInfo ide_hd_info = {
     .name          = "ide-hd",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
@@ -239,7 +242,7 @@ static void ide_cd_class_init(ObjectClass *klass, void *data)
     dc->props = ide_cd_properties;
 }
 
-static TypeInfo ide_cd_info = {
+static const TypeInfo ide_cd_info = {
     .name          = "ide-cd",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
@@ -261,7 +264,7 @@ static void ide_drive_class_init(ObjectClass *klass, void *data)
     dc->props = ide_drive_properties;
 }
 
-static TypeInfo ide_drive_info = {
+static const TypeInfo ide_drive_info = {
     .name          = "ide-drive",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
@@ -276,7 +279,7 @@ static void ide_device_class_init(ObjectClass *klass, void *data)
     k->props = ide_props;
 }
 
-static TypeInfo ide_device_type_info = {
+static const TypeInfo ide_device_type_info = {
     .name = TYPE_IDE_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(IDEDevice),

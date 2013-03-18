@@ -46,8 +46,6 @@ DEF_HELPER_3(usat16, i32, env, i32, i32)
 
 DEF_HELPER_FLAGS_2(usad8, TCG_CALL_NO_RWG_SE, i32, i32, i32)
 
-DEF_HELPER_1(logicq_cc, i32, i64)
-
 DEF_HELPER_FLAGS_3(sel_flags, TCG_CALL_NO_RWG_SE,
                    i32, i32, i32, i32)
 DEF_HELPER_2(exception, void, env, i32)
@@ -141,9 +139,6 @@ DEF_HELPER_2(rsqrte_f32, f32, f32, env)
 DEF_HELPER_2(recpe_u32, i32, i32, env)
 DEF_HELPER_2(rsqrte_u32, i32, i32, env)
 DEF_HELPER_5(neon_tbl, i32, env, i32, i32, i32, i32)
-
-DEF_HELPER_3(adc_cc, i32, env, i32, i32)
-DEF_HELPER_3(sbc_cc, i32, env, i32, i32)
 
 DEF_HELPER_3(shl_cc, i32, env, i32, i32)
 DEF_HELPER_3(shr_cc, i32, env, i32, i32)

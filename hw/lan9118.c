@@ -10,11 +10,11 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "net/net.h"
-#include "devices.h"
+#include "hw/devices.h"
 #include "sysemu/sysemu.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 /* For crc32 */
 #include <zlib.h>
 
@@ -341,7 +341,7 @@ static void lan9118_update(lan9118_state *s)
 
 static void lan9118_mac_changed(lan9118_state *s)
 {
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
 static void lan9118_reload_eeprom(lan9118_state *s)
@@ -373,7 +373,7 @@ static void phy_update_irq(lan9118_state *s)
 static void phy_update_link(lan9118_state *s)
 {
     /* Autonegotiation status mirrors link status.  */
-    if (s->nic->nc.link_down) {
+    if (qemu_get_queue(s->nic)->link_down) {
         s->phy_status &= ~0x0024;
         s->phy_int |= PHY_INT_DOWN;
     } else {
@@ -386,7 +386,7 @@ static void phy_update_link(lan9118_state *s)
 
 static void lan9118_set_link(NetClientState *nc)
 {
-    phy_update_link(DO_UPCAST(NICState, nc, nc)->opaque);
+    phy_update_link(qemu_get_nic_opaque(nc));
 }
 
 static void phy_reset(lan9118_state *s)
@@ -401,7 +401,7 @@ static void phy_reset(lan9118_state *s)
 
 static void lan9118_reset(DeviceState *d)
 {
-    lan9118_state *s = FROM_SYSBUS(lan9118_state, sysbus_from_qdev(d));
+    lan9118_state *s = FROM_SYSBUS(lan9118_state, SYS_BUS_DEVICE(d));
     s->irq_cfg &= (IRQ_TYPE | IRQ_POL);
     s->int_sts = 0;
     s->int_en = 0;
@@ -512,7 +512,7 @@ static int lan9118_filter(lan9118_state *s, const uint8_t *addr)
 static ssize_t lan9118_receive(NetClientState *nc, const uint8_t *buf,
                                size_t size)
 {
-    lan9118_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    lan9118_state *s = qemu_get_nic_opaque(nc);
     int fifo_len;
     int offset;
     int src_pos;
@@ -657,9 +657,9 @@ static void do_tx_packet(lan9118_state *s)
     /* FIXME: Honor TX disable, and allow queueing of packets.  */
     if (s->phy_control & 0x4000)  {
         /* This assumes the receive routine doesn't touch the VLANClient.  */
-        lan9118_receive(&s->nic->nc, s->txp->data, s->txp->len);
+        lan9118_receive(qemu_get_queue(s->nic), s->txp->data, s->txp->len);
     } else {
-        qemu_send_packet(&s->nic->nc, s->txp->data, s->txp->len);
+        qemu_send_packet(qemu_get_queue(s->nic), s->txp->data, s->txp->len);
     }
     s->txp->fifo_used = 0;
 
@@ -1306,7 +1306,7 @@ static const MemoryRegionOps lan9118_16bit_mem_ops = {
 
 static void lan9118_cleanup(NetClientState *nc)
 {
-    lan9118_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    lan9118_state *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -1335,7 +1335,7 @@ static int lan9118_init1(SysBusDevice *dev)
 
     s->nic = qemu_new_nic(&net_lan9118_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     s->eeprom[0] = 0xa5;
     for (i = 0; i < 6; i++) {
         s->eeprom[i + 1] = s->conf.macaddr.a[i];
@@ -1368,7 +1368,7 @@ static void lan9118_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_lan9118;
 }
 
-static TypeInfo lan9118_info = {
+static const TypeInfo lan9118_info = {
     .name          = "lan9118",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(lan9118_state),
@@ -1391,7 +1391,7 @@ void lan9118_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     dev = qdev_create(NULL, "lan9118");
     qdev_set_nic_properties(dev, nd);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, base);
     sysbus_connect_irq(s, 0, irq);
 }

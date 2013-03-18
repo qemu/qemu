@@ -13,7 +13,7 @@
 
 #include "qemu-common.h"
 #include "qemu/error-report.h"
-#include "scsi.h"
+#include "hw/scsi.h"
 #include "sysemu/blockdev.h"
 
 #ifdef __linux__
@@ -35,7 +35,7 @@ do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 #include <sys/stat.h>
 #include <unistd.h>
 #include <scsi/sg.h>
-#include "scsi-defs.h"
+#include "hw/scsi-defs.h"
 
 #define SCSI_SENSE_BUF_SIZE 96
 
@@ -499,7 +499,7 @@ static void scsi_generic_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd  = &vmstate_scsi_device;
 }
 
-static TypeInfo scsi_generic_info = {
+static const TypeInfo scsi_generic_info = {
     .name          = "scsi-generic",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDevice),

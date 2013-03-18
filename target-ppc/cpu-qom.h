@@ -40,6 +40,7 @@
 
 /**
  * PowerPCCPUClass:
+ * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  *
  * A PowerPC CPU model.
@@ -49,7 +50,24 @@ typedef struct PowerPCCPUClass {
     CPUClass parent_class;
     /*< public >*/
 
+    DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
+
+    uint32_t pvr;
+    uint32_t svr;
+    uint64_t insns_flags;
+    uint64_t insns_flags2;
+    uint64_t msr_mask;
+    powerpc_mmu_t   mmu_model;
+    powerpc_excp_t  excp_model;
+    powerpc_input_t bus_model;
+    uint32_t flags;
+    int bfd_mach;
+#if defined(TARGET_PPC64)
+    const struct ppc_segment_page_sizes *sps;
+#endif
+    void (*init_proc)(CPUPPCState *env);
+    int  (*check_pow)(CPUPPCState *env);
 } PowerPCCPUClass;
 
 /**
@@ -73,5 +91,10 @@ static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
 
 #define ENV_GET_CPU(e) CPU(ppc_env_get_cpu(e))
 
+#define ENV_OFFSET offsetof(PowerPCCPU, env)
+
+PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr);
+
+void ppc_cpu_do_interrupt(CPUState *cpu);
 
 #endif

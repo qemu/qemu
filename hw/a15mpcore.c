@@ -18,7 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
+#include "sysemu/kvm.h"
 
 /* A15MP private memory region.  */
 
@@ -40,13 +41,18 @@ static int a15mp_priv_init(SysBusDevice *dev)
 {
     A15MPPrivState *s = FROM_SYSBUS(A15MPPrivState, dev);
     SysBusDevice *busdev;
+    const char *gictype = "arm_gic";
 
-    s->gic = qdev_create(NULL, "arm_gic");
+    if (kvm_irqchip_in_kernel()) {
+        gictype = "kvm-arm-gic";
+    }
+
+    s->gic = qdev_create(NULL, gictype);
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
     qdev_prop_set_uint32(s->gic, "revision", 2);
     qdev_init_nofail(s->gic);
-    busdev = sysbus_from_qdev(s->gic);
+    busdev = SYS_BUS_DEVICE(s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
     sysbus_pass_irq(dev, busdev);
@@ -93,7 +99,7 @@ static void a15mp_priv_class_init(ObjectClass *klass, void *data)
     /* We currently have no savable state */
 }
 
-static TypeInfo a15mp_priv_info = {
+static const TypeInfo a15mp_priv_info = {
     .name  = "a15mpcore_priv",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(A15MPPrivState),

@@ -116,9 +116,9 @@ typedef struct CPUM68KState {
 #include "cpu-qom.h"
 
 void m68k_tcg_init(void);
-CPUM68KState *cpu_m68k_init(const char *cpu_model);
+void m68k_cpu_init_gdb(M68kCPU *cpu);
+M68kCPU *cpu_m68k_init(const char *cpu_model);
 int cpu_m68k_exec(CPUM68KState *s);
-void do_interrupt(CPUM68KState *env1);
 void do_interrupt_m68k_hardirq(CPUM68KState *env1);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
@@ -168,7 +168,7 @@ enum {
 #define MACSR_V     0x002
 #define MACSR_EV    0x001
 
-void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector);
+void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector);
 void m68k_set_macsr(CPUM68KState *env, uint32_t val);
 void m68k_switch_sp(CPUM68KState *env);
 
@@ -214,7 +214,15 @@ void register_m68k_insns (CPUM68KState *env);
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-#define cpu_init cpu_m68k_init
+static inline CPUM68KState *cpu_init(const char *cpu_model)
+{
+    M68kCPU *cpu = cpu_m68k_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
 #define cpu_exec cpu_m68k_exec
 #define cpu_gen_code cpu_m68k_gen_code
 #define cpu_signal_handler cpu_m68k_signal_handler
@@ -256,9 +264,7 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUM68KState *env = &M68K_CPU(cpu)->env;
-
-    return env->interrupt_request & CPU_INTERRUPT_HARD;
+    return cpu->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
 #include "exec/exec-all.h"

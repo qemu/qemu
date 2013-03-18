@@ -8,11 +8,11 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw.h"
-#include "sh.h"
+#include "hw/hw.h"
+#include "hw/sh.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 
 //#define DEBUG_TIMER
 

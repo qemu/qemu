@@ -33,48 +33,13 @@
     do { } while (0)
 #endif
 
-static int file_errno(MigrationState *s)
-{
-    return errno;
-}
-
-static int file_write(MigrationState *s, const void * buf, size_t size)
-{
-    return write(s->fd, buf, size);
-}
-
-static int exec_close(MigrationState *s)
-{
-    int ret = 0;
-    DPRINTF("exec_close\n");
-    ret = qemu_fclose(s->opaque);
-    s->opaque = NULL;
-    s->fd = -1;
-    if (ret >= 0 && !(WIFEXITED(ret) && WEXITSTATUS(ret) == 0)) {
-        /* close succeeded, but non-zero exit code: */
-        ret = -EIO; /* fake errno value */
-    }
-    return ret;
-}
-
 void exec_start_outgoing_migration(MigrationState *s, const char *command, Error **errp)
 {
-    FILE *f;
-
-    f = popen(command, "w");
-    if (f == NULL) {
+    s->file = qemu_popen_cmd(command, "w");
+    if (s->file == NULL) {
         error_setg_errno(errp, errno, "failed to popen the migration target");
         return;
     }
-
-    s->fd = fileno(f);
-    assert(s->fd != -1);
-
-    s->opaque = qemu_popen(f, "w");
-
-    s->close = exec_close;
-    s->get_error = file_errno;
-    s->write = file_write;
 
     migrate_fd_connect(s);
 }

@@ -21,11 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "audiodev.h"
+#include "hw/hw.h"
+#include "hw/audiodev.h"
 #include "audio/audio.h"
-#include "isa.h"
-#include "qdev.h"
+#include "hw/isa.h"
+#include "hw/qdev.h"
 #include "qemu/timer.h"
 #include "qemu/host-utils.h"
 
@@ -1409,7 +1409,7 @@ static void sb16_class_initfn (ObjectClass *klass, void *data)
     dc->props = sb16_properties;
 }
 
-static TypeInfo sb16_info = {
+static const TypeInfo sb16_info = {
     .name          = "sb16",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (SB16State),

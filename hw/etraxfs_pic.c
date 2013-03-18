@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
-#include "hw.h"
+#include "hw/sysbus.h"
+#include "hw/hw.h"
 //#include "pc.h"
 //#include "etraxfs.h"
 
@@ -165,7 +165,7 @@ static void etraxfs_pic_class_init(ObjectClass *klass, void *data)
     dc->props = etraxfs_pic_properties;
 }
 
-static TypeInfo etraxfs_pic_info = {
+static const TypeInfo etraxfs_pic_info = {
     .name          = "etraxfs,pic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct etrax_pic),

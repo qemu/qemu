@@ -10,8 +10,8 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 
 /* Mainstone FPGA for extern irqs */
 #define FPGA_GPIO_PIN	0
@@ -248,7 +248,7 @@ static void mst_fpga_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_mst_fpga_regs;
 }
 
-static TypeInfo mst_fpga_info = {
+static const TypeInfo mst_fpga_info = {
     .name          = "mainstone-fpga",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mst_irq_state),

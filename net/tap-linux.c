@@ -36,11 +36,13 @@
 
 #define PATH_NET_TUN "/dev/net/tun"
 
-int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
+             int vnet_hdr_required, int mq_required)
 {
     struct ifreq ifr;
     int fd, ret;
     int len = sizeof(struct virtio_net_hdr);
+    unsigned int features;
 
     TFR(fd = open(PATH_NET_TUN, O_RDWR));
     if (fd < 0) {
@@ -50,9 +52,12 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
     memset(&ifr, 0, sizeof(ifr));
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
-    if (*vnet_hdr) {
-        unsigned int features;
+    if (ioctl(fd, TUNGETFEATURES, &features) == 0 &&
+        features & IFF_ONE_QUEUE) {
+        ifr.ifr_flags |= IFF_ONE_QUEUE;
+    }
 
+    if (*vnet_hdr) {
         if (ioctl(fd, TUNGETFEATURES, &features) == 0 &&
             features & IFF_VNET_HDR) {
             *vnet_hdr = 1;
@@ -74,6 +79,18 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
          * case the header size implicitly has the correct value.
          */
         ioctl(fd, TUNSETVNETHDRSZ, &len);
+    }
+
+    if (mq_required) {
+        if ((ioctl(fd, TUNGETFEATURES, &features) != 0) ||
+            !(features & IFF_MULTI_QUEUE)) {
+            error_report("multiqueue required, but no kernel "
+                         "support for IFF_MULTI_QUEUE available");
+            close(fd);
+            return -1;
+        } else {
+            ifr.ifr_flags |= IFF_MULTI_QUEUE;
+        }
     }
 
     if (ifname[0] != '\0')
@@ -164,7 +181,7 @@ int tap_probe_vnet_hdr_len(int fd, int len)
     if (ioctl(fd, TUNSETVNETHDRSZ, &orig) == -1) {
         fprintf(stderr, "TUNGETVNETHDRSZ ioctl() failed: %s. Exiting.\n",
                 strerror(errno));
-        assert(0);
+        abort();
         return -errno;
     }
     return 1;
@@ -175,7 +192,7 @@ void tap_fd_set_vnet_hdr_len(int fd, int len)
     if (ioctl(fd, TUNSETVNETHDRSZ, &len) == -1) {
         fprintf(stderr, "TUNSETVNETHDRSZ ioctl() failed: %s. Exiting.\n",
                 strerror(errno));
-        assert(0);
+        abort();
     }
 }
 
@@ -208,4 +225,54 @@ void tap_fd_set_offload(int fd, int csum, int tso4,
                     strerror(errno));
         }
     }
+}
+
+/* Enable a specific queue of tap. */
+int tap_fd_enable(int fd)
+{
+    struct ifreq ifr;
+    int ret;
+
+    memset(&ifr, 0, sizeof(ifr));
+
+    ifr.ifr_flags = IFF_ATTACH_QUEUE;
+    ret = ioctl(fd, TUNSETQUEUE, (void *) &ifr);
+
+    if (ret != 0) {
+        error_report("could not enable queue");
+    }
+
+    return ret;
+}
+
+/* Disable a specific queue of tap/ */
+int tap_fd_disable(int fd)
+{
+    struct ifreq ifr;
+    int ret;
+
+    memset(&ifr, 0, sizeof(ifr));
+
+    ifr.ifr_flags = IFF_DETACH_QUEUE;
+    ret = ioctl(fd, TUNSETQUEUE, (void *) &ifr);
+
+    if (ret != 0) {
+        error_report("could not disable queue");
+    }
+
+    return ret;
+}
+
+int tap_fd_get_ifname(int fd, char *ifname)
+{
+    struct ifreq ifr;
+
+    if (ioctl(fd, TUNGETIFF, &ifr) != 0) {
+        error_report("TUNGETIFF ioctl() failed: %s",
+                     strerror(errno));
+        return -1;
+    }
+
+    pstrcpy(ifname, sizeof(ifr.ifr_name), ifr.ifr_name);
+    return 0;
 }

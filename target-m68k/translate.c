@@ -42,6 +42,8 @@
 #undef DEFO64
 #undef DEFF64
 
+static TCGv_i32 cpu_halted;
+
 static TCGv_ptr cpu_env;
 
 static char cpu_reg_names[3*8*3 + 5*4];
@@ -75,6 +77,10 @@ void m68k_tcg_init(void)
 #undef DEFO32
 #undef DEFO64
 #undef DEFF64
+
+    cpu_halted = tcg_global_mem_new_i32(TCG_AREG0,
+                                        -offsetof(M68kCPU, env) +
+                                        offsetof(CPUState, halted), "HALTED");
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
@@ -574,7 +580,7 @@ static inline TCGv gen_ea_once(CPUM68KState *env, DisasContext *s,
     return gen_ldst(s, opsize, tmp, val, what);
 }
 
-/* Generate code to load/store a value ito/from an EA.  If VAL > 0 this is
+/* Generate code to load/store a value from/into an EA.  If VAL > 0 this is
    a write otherwise it is a read (0 == sign extend, -1 == zero extend).
    ADDRP is non-null for readwrite operands.  */
 static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
@@ -2024,7 +2030,7 @@ DISAS_INSN(stop)
     s->pc += 2;
 
     gen_set_sr_im(s, ext, 0);
-    tcg_gen_movi_i32(QREG_HALTED, 1);
+    tcg_gen_movi_i32(cpu_halted, 1);
     gen_exception(s, s->pc, EXCP_HLT);
 }
 
@@ -2999,7 +3005,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
 
-    gen_icount_start();
+    gen_tb_start();
     do {
         pc_offset = dc->pc - pc_start;
         gen_throws_exception = NULL;
@@ -3063,7 +3069,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
             break;
         }
     }
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS

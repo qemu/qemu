@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "audiodev.h"
+#include "hw/hw.h"
+#include "hw/audiodev.h"
 #include "audio/audio.h"
-#include "isa.h"
+#include "hw/isa.h"
 
 //#define DEBUG
 
@@ -47,7 +47,7 @@
 void YMF262UpdateOneQEMU (int which, INT16 *dst, int length);
 #define SHIFT 2
 #else
-#include "fmopl.h"
+#include "hw/fmopl.h"
 #define SHIFT 1
 #endif
 

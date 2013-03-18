@@ -270,6 +270,7 @@ typedef struct sparc_def_t {
 #define CPU_FEATURE_TA0_SHUTDOWN (1 << 14) /* Shutdown on "ta 0x0" */
 #define CPU_FEATURE_ASR17        (1 << 15)
 #define CPU_FEATURE_CACHE_CTRL   (1 << 16)
+#define CPU_FEATURE_POWERDOWN    (1 << 17)
 
 #ifndef TARGET_SPARC64
 #define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
@@ -552,7 +553,6 @@ int cpu_cwp_dec(CPUSPARCState *env1, int cwp);
 void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 
 /* int_helper.c */
-void do_interrupt(CPUSPARCState *env);
 void leon3_irq_manager(CPUSPARCState *env, void *irq_manager, int intno);
 
 /* sun4m.c, sun4u.c */
@@ -761,9 +761,10 @@ static inline bool tb_am_enabled(int tb_flags)
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUSPARCState *env1 = &SPARC_CPU(cpu)->env;
+    SPARCCPU *sparc_cpu = SPARC_CPU(cpu);
+    CPUSPARCState *env1 = &sparc_cpu->env;
 
-    return (env1->interrupt_request & CPU_INTERRUPT_HARD) &&
+    return (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
            cpu_interrupts_enabled(env1);
 }
 

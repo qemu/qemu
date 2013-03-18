@@ -67,5 +67,22 @@ int main()
     assert(dsp == 0);
     assert(result == rt);
 
+    rs = 0x1C;
+    ach = 0x123;
+    acl = 0x87654321;
+    result = 0x1238;
+    __asm
+        ("wrdsp %1, 0x01\n\t"
+         "mthi %3, $ac1\n\t"
+         "mtlo %4, $ac1\n\t"
+         "extrv_s.h %0, $ac1, %2\n\t"
+         "rddsp %1\n\t"
+         : "=r"(rt), "+r"(dsp)
+         : "r"(rs), "r"(ach), "r"(acl)
+        );
+    dsp = (dsp >> 23) & 0x01;
+    assert(dsp == 0);
+    assert(result == rt);
+
     return 0;
 }

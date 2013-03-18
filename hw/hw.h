@@ -9,7 +9,7 @@
 #endif
 
 #include "exec/ioport.h"
-#include "irq.h"
+#include "hw/irq.h"
 #include "block/aio.h"
 #include "migration/qemu-file.h"
 #include "migration/vmstate.h"

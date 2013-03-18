@@ -16,11 +16,11 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "monitor/monitor.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
-#include "isa.h"
+#include "hw/isa.h"
 #include "exec/address-spaces.h"
 
 static ISABus *isabus;
@@ -124,14 +124,19 @@ static int isa_qdev_init(DeviceState *qdev)
     ISADevice *dev = ISA_DEVICE(qdev);
     ISADeviceClass *klass = ISA_DEVICE_GET_CLASS(dev);
 
-    dev->isairq[0] = -1;
-    dev->isairq[1] = -1;
-
     if (klass->init) {
         return klass->init(dev);
     }
 
     return 0;
+}
+
+static void isa_device_init(Object *obj)
+{
+    ISADevice *dev = ISA_DEVICE(obj);
+
+    dev->isairq[0] = -1;
+    dev->isairq[1] = -1;
 }
 
 ISADevice *isa_create(ISABus *bus, const char *name)
@@ -215,7 +220,7 @@ static void isabus_bridge_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo isabus_bridge_info = {
+static const TypeInfo isabus_bridge_info = {
     .name          = "isabus-bridge",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusDevice),
@@ -229,10 +234,11 @@ static void isa_device_class_init(ObjectClass *klass, void *data)
     k->bus_type = TYPE_ISA_BUS;
 }
 
-static TypeInfo isa_device_type_info = {
+static const TypeInfo isa_device_type_info = {
     .name = TYPE_ISA_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ISADevice),
+    .instance_init = isa_device_init,
     .abstract = true,
     .class_size = sizeof(ISADeviceClass),
     .class_init = isa_device_class_init,

@@ -33,9 +33,10 @@
 #include <libgen.h>
 #include <pthread.h>
 
-#define SOCKET_PATH         "/var/lock/qemu-nbd-%s"
-#define QEMU_NBD_OPT_CACHE  1
-#define QEMU_NBD_OPT_AIO    2
+#define SOCKET_PATH          "/var/lock/qemu-nbd-%s"
+#define QEMU_NBD_OPT_CACHE   1
+#define QEMU_NBD_OPT_AIO     2
+#define QEMU_NBD_OPT_DISCARD 3
 
 static NBDExport *exp;
 static int verbose;
@@ -330,6 +331,7 @@ int main(int argc, char **argv)
 #ifdef CONFIG_LINUX_AIO
         { "aio", 1, NULL, QEMU_NBD_OPT_AIO },
 #endif
+        { "discard", 1, NULL, QEMU_NBD_OPT_DISCARD },
         { "shared", 1, NULL, 'e' },
         { "persistent", 0, NULL, 't' },
         { "verbose", 0, NULL, 'v' },
@@ -344,6 +346,7 @@ int main(int argc, char **argv)
     int ret;
     int fd;
     bool seen_cache = false;
+    bool seen_discard = false;
 #ifdef CONFIG_LINUX_AIO
     bool seen_aio = false;
 #endif
@@ -389,6 +392,15 @@ int main(int argc, char **argv)
             }
             break;
 #endif
+        case QEMU_NBD_OPT_DISCARD:
+            if (seen_discard) {
+                errx(EXIT_FAILURE, "--discard can only be specified once");
+            }
+            seen_discard = true;
+            if (bdrv_parse_discard_flags(optarg, &flags) == -1) {
+                errx(EXIT_FAILURE, "Invalid discard mode `%s'", optarg);
+            }
+            break;
         case 'b':
             bindto = optarg;
             break;
@@ -545,7 +557,7 @@ int main(int argc, char **argv)
 
     bs = bdrv_new("hda");
     srcpath = argv[optind];
-    if ((ret = bdrv_open(bs, srcpath, flags, NULL)) < 0) {
+    if ((ret = bdrv_open(bs, srcpath, NULL, flags, NULL)) < 0) {
         errno = -ret;
         err(EXIT_FAILURE, "Failed to bdrv_open '%s'", argv[optind]);
     }

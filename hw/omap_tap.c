@@ -18,8 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "omap.h"
+#include "hw/hw.h"
+#include "hw/omap.h"
 
 /* TEST-Chip-level TAP */
 static uint64_t omap_tap_read(void *opaque, hwaddr addr,

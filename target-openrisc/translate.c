@@ -1670,8 +1670,6 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     int num_insns;
     int max_insns;
 
-    qemu_log_try_set_file(stderr);
-
     pc_start = tb->pc;
     dc->tb = tb;
 
@@ -1698,7 +1696,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_icount_start();
+    gen_tb_start();
 
     do {
         check_breakpoint(cpu, dc);
@@ -1781,7 +1779,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
         }
     }
 
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;

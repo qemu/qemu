@@ -27,13 +27,13 @@
  * way. There are changes in DOR register and DMA is not available.
  */
 
-#include "hw.h"
-#include "fdc.h"
+#include "hw/hw.h"
+#include "hw/fdc.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
-#include "isa.h"
-#include "sysbus.h"
-#include "qdev-addr.h"
+#include "hw/isa.h"
+#include "hw/sysbus.h"
+#include "hw/qdev-addr.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
@@ -2210,7 +2210,7 @@ static void isabus_fdc_class_init1(ObjectClass *klass, void *data)
     dc->props = isa_fdc_properties;
 }
 
-static TypeInfo isa_fdc_info = {
+static const TypeInfo isa_fdc_info = {
     .name          = "isa-fdc",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(FDCtrlISABus),
@@ -2244,7 +2244,7 @@ static void sysbus_fdc_class_init(ObjectClass *klass, void *data)
     dc->props = sysbus_fdc_properties;
 }
 
-static TypeInfo sysbus_fdc_info = {
+static const TypeInfo sysbus_fdc_info = {
     .name          = "sysbus-fdc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FDCtrlSysBus),
@@ -2267,7 +2267,7 @@ static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
     dc->props = sun4m_fdc_properties;
 }
 
-static TypeInfo sun4m_fdc_info = {
+static const TypeInfo sun4m_fdc_info = {
     .name          = "SUNW,fdtwo",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FDCtrlSysBus),

@@ -17,10 +17,10 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "audiodev.h"
+#include "hw/hw.h"
+#include "hw/audiodev.h"
 #include "audio/audio.h"
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 #include "sysemu/dma.h"
 
 #include "ac97_int.h"
@@ -1436,7 +1436,7 @@ static void ac97_class_init (ObjectClass *klass, void *data)
     dc->props = ac97_properties;
 }
 
-static TypeInfo ac97_info = {
+static const TypeInfo ac97_info = {
     .name          = "AC97",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof (AC97DeviceState),

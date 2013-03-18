@@ -293,8 +293,7 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t *current_data,
 
     if (!cache_is_cached(XBZRLE.cache, current_addr)) {
         if (!last_stage) {
-            cache_insert(XBZRLE.cache, current_addr,
-                         g_memdup(current_data, TARGET_PAGE_SIZE));
+            cache_insert(XBZRLE.cache, current_addr, current_data);
         }
         acct_info.xbzrle_cache_miss++;
         return -1;
@@ -379,6 +378,8 @@ static inline bool migration_bitmap_set_dirty(MemoryRegion *mr,
     return ret;
 }
 
+/* Needs iothread lock! */
+
 static void migration_bitmap_sync(void)
 {
     RAMBlock *block;
@@ -414,6 +415,7 @@ static void migration_bitmap_sync(void)
     if (end_time > start_time + 1000) {
         s->dirty_pages_rate = num_dirty_pages_period * 1000
             / (end_time - start_time);
+        s->dirty_bytes_rate = s->dirty_pages_rate * TARGET_PAGE_SIZE;
         start_time = end_time;
         num_dirty_pages_period = 0;
     }
@@ -567,10 +569,6 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     bitmap_set(migration_bitmap, 0, ram_pages);
     migration_dirty_pages = ram_pages;
 
-    qemu_mutex_lock_ramlist();
-    bytes_transferred = 0;
-    reset_ram_globals();
-
     if (migrate_use_xbzrle()) {
         XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
                                   TARGET_PAGE_SIZE,
@@ -584,8 +582,14 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         acct_clear();
     }
 
+    qemu_mutex_lock_iothread();
+    qemu_mutex_lock_ramlist();
+    bytes_transferred = 0;
+    reset_ram_globals();
+
     memory_global_dirty_log_start();
     migration_bitmap_sync();
+    qemu_mutex_unlock_iothread();
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
@@ -642,12 +646,13 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         i++;
     }
 
+    qemu_mutex_unlock_ramlist();
+
     if (ret < 0) {
         bytes_transferred += total_sent;
         return ret;
     }
 
-    qemu_mutex_unlock_ramlist();
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
     total_sent += 8;
     bytes_transferred += total_sent;
@@ -657,9 +662,8 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
 static int ram_save_complete(QEMUFile *f, void *opaque)
 {
-    migration_bitmap_sync();
-
     qemu_mutex_lock_ramlist();
+    migration_bitmap_sync();
 
     /* try transferring iterative blocks of memory */
 
@@ -689,7 +693,9 @@ static uint64_t ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
     remaining_size = ram_save_remaining() * TARGET_PAGE_SIZE;
 
     if (remaining_size < max_size) {
+        qemu_mutex_lock_iothread();
         migration_bitmap_sync();
+        qemu_mutex_unlock_iothread();
         remaining_size = ram_save_remaining() * TARGET_PAGE_SIZE;
     }
     return remaining_size;
@@ -851,9 +857,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
         } else if (flags & RAM_SAVE_FLAG_XBZRLE) {
-            if (!migrate_use_xbzrle()) {
-                return -EINVAL;
-            }
             void *host = host_from_stream_offset(f, addr, flags);
             if (!host) {
                 return -EINVAL;

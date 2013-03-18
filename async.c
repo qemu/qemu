@@ -24,6 +24,7 @@
 
 #include "qemu-common.h"
 #include "block/aio.h"
+#include "block/thread-pool.h"
 #include "qemu/main-loop.h"
 
 /***********************************************************/
@@ -172,8 +173,10 @@ aio_ctx_finalize(GSource     *source)
 {
     AioContext *ctx = (AioContext *) source;
 
+    thread_pool_free(ctx->thread_pool);
     aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
+    g_array_free(ctx->pollfds, TRUE);
 }
 
 static GSourceFuncs aio_source_funcs = {
@@ -189,6 +192,14 @@ GSource *aio_get_g_source(AioContext *ctx)
     return &ctx->source;
 }
 
+ThreadPool *aio_get_thread_pool(AioContext *ctx)
+{
+    if (!ctx->thread_pool) {
+        ctx->thread_pool = thread_pool_new(ctx);
+    }
+    return ctx->thread_pool;
+}
+
 void aio_notify(AioContext *ctx)
 {
     event_notifier_set(&ctx->notifier);
@@ -198,6 +209,8 @@ AioContext *aio_context_new(void)
 {
     AioContext *ctx;
     ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+    ctx->pollfds = g_array_new(FALSE, FALSE, sizeof(GPollFD));
+    ctx->thread_pool = NULL;
     event_notifier_init(&ctx->notifier, false);
     aio_set_event_notifier(ctx, &ctx->notifier, 
                            (EventNotifierHandler *)

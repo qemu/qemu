@@ -21,7 +21,7 @@
 #define QEMU_APIC_INTERNAL_H
 
 #include "exec/memory.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 
 /* APIC Local Vector Table */
@@ -143,7 +143,7 @@ bool apic_next_timer(APICCommonState *s, int64_t current_time);
 void apic_enable_tpr_access_reporting(DeviceState *d, bool enable);
 void apic_enable_vapic(DeviceState *d, hwaddr paddr);
 
-void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
+void vapic_report_tpr_access(DeviceState *dev, CPUState *cpu, target_ulong ip,
                              TPRAccess access);
 
 #endif /* !QEMU_APIC_INTERNAL_H */

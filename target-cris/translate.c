@@ -340,46 +340,6 @@ static void t_gen_asr(TCGv d, TCGv a, TCGv b)
     tcg_temp_free(t_31);
 }
 
-/* 64-bit signed mul, lower result in d and upper in d2.  */
-static void t_gen_muls(TCGv d, TCGv d2, TCGv a, TCGv b)
-{
-    TCGv_i64 t0, t1;
-
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-
-    tcg_gen_ext_i32_i64(t0, a);
-    tcg_gen_ext_i32_i64(t1, b);
-    tcg_gen_mul_i64(t0, t0, t1);
-
-    tcg_gen_trunc_i64_i32(d, t0);
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_i32(d2, t0);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-}
-
-/* 64-bit unsigned muls, lower result in d and upper in d2.  */
-static void t_gen_mulu(TCGv d, TCGv d2, TCGv a, TCGv b)
-{
-    TCGv_i64 t0, t1;
-
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-
-    tcg_gen_extu_i32_i64(t0, a);
-    tcg_gen_extu_i32_i64(t1, b);
-    tcg_gen_mul_i64(t0, t0, t1);
-
-    tcg_gen_trunc_i64_i32(d, t0);
-    tcg_gen_shri_i64(t0, t0, 32);
-    tcg_gen_trunc_i64_i32(d2, t0);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-}
-
 static void t_gen_cris_dstep(TCGv d, TCGv a, TCGv b)
 {
     int l1;
@@ -832,10 +792,10 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
         gen_helper_lz(dst, b);
         break;
     case CC_OP_MULS:
-        t_gen_muls(dst, cpu_PR[PR_MOF], a, b);
+        tcg_gen_muls2_tl(dst, cpu_PR[PR_MOF], a, b);
         break;
     case CC_OP_MULU:
-        t_gen_mulu(dst, cpu_PR[PR_MOF], a, b);
+        tcg_gen_mulu2_tl(dst, cpu_PR[PR_MOF], a, b);
         break;
     case CC_OP_DSTEP:
         t_gen_cris_dstep(dst, a, b);
@@ -2928,7 +2888,8 @@ static int dec_rfe_etc(CPUCRISState *env, DisasContext *dc)
     cris_cc_mask(dc, 0);
 
     if (dc->op2 == 15) {
-        t_gen_mov_env_TN(halted, tcg_const_tl(1));
+        tcg_gen_st_i32(tcg_const_i32(1), cpu_env,
+                       -offsetof(CRISCPU, env) + offsetof(CPUState, halted));
         tcg_gen_movi_tl(env_pc, dc->pc + 2);
         t_gen_raise_exception(EXCP_HLT);
         return 2;
@@ -3215,8 +3176,6 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
     int num_insns;
     int max_insns;
 
-    qemu_log_try_set_file(stderr);
-
     if (env->pregs[PR_VR] == 32) {
         dc->decoder = crisv32_decoder;
         dc->clear_locked_irq = 0;
@@ -3292,7 +3251,7 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
         max_insns = CF_COUNT_MASK;
     }
 
-    gen_icount_start();
+    gen_tb_start();
     do {
         check_breakpoint(env, dc);
 
@@ -3433,7 +3392,7 @@ gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
             break;
         }
     }
-    gen_icount_end(tb, num_insns);
+    gen_tb_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
@@ -3513,68 +3472,12 @@ void cpu_dump_state (CPUCRISState *env, FILE *f, fprintf_function cpu_fprintf,
 
 }
 
-struct
+void cris_initialize_tcg(void)
 {
-    uint32_t vr;
-    const char *name;
-} cris_cores[] = {
-    {8, "crisv8"},
-    {9, "crisv9"},
-    {10, "crisv10"},
-    {11, "crisv11"},
-    {32, "crisv32"},
-};
-
-void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf)
-{
-    unsigned int i;
-
-    (*cpu_fprintf)(f, "Available CPUs:\n");
-    for (i = 0; i < ARRAY_SIZE(cris_cores); i++) {
-        (*cpu_fprintf)(f, "  %s\n", cris_cores[i].name);
-    }
-}
-
-static uint32_t vr_by_name(const char *name)
-{
-    unsigned int i;
-    for (i = 0; i < ARRAY_SIZE(cris_cores); i++) {
-        if (strcmp(name, cris_cores[i].name) == 0) {
-            return cris_cores[i].vr;
-        }
-    }
-    return 32;
-}
-
-CRISCPU *cpu_cris_init(const char *cpu_model)
-{
-    CRISCPU *cpu;
-    CPUCRISState *env;
-    static int tcg_initialized = 0;
     int i;
-
-    cpu = CRIS_CPU(object_new(TYPE_CRIS_CPU));
-    env = &cpu->env;
-
-    env->pregs[PR_VR] = vr_by_name(cpu_model);
-
-    cpu_reset(CPU(cpu));
-    qemu_init_vcpu(env);
-
-    if (tcg_initialized) {
-        return cpu;
-    }
-
-    tcg_initialized = 1;
 
 #define GEN_HELPER 2
 #include "helper.h"
-
-    if (env->pregs[PR_VR] < 32) {
-        cpu_crisv10_init(env);
-        return cpu;
-    }
-
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     cc_x = tcg_global_mem_new(TCG_AREG0,
@@ -3615,8 +3518,6 @@ CRISCPU *cpu_cris_init(const char *cpu_model)
                                        offsetof(CPUCRISState, pregs[i]),
                                        pregnames[i]);
     }
-
-    return cpu;
 }
 
 void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb, int pc_pos)

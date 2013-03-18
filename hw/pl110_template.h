@@ -27,20 +27,20 @@
 #undef RGB
 #define BORDER bgr
 #define ORDER 0
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #define ORDER 1
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #define ORDER 2
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #undef BORDER
 #define RGB
 #define BORDER rgb
 #define ORDER 0
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #define ORDER 1
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #define ORDER 2
-#include "pl110_template.h"
+#include "hw/pl110_template.h"
 #undef BORDER
 
 static drawfn glue(pl110_draw_fn_,BITS)[48] =

@@ -1,4 +1,4 @@
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "char/char.h"
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
@@ -150,7 +150,7 @@ static void spapr_vty_class_init(ObjectClass *klass, void *data)
     dc->props = spapr_vty_properties;
 }
 
-static TypeInfo spapr_vty_info = {
+static const TypeInfo spapr_vty_info = {
     .name          = "spapr-vty",
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(VIOsPAPRVTYDevice),

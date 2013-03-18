@@ -31,9 +31,9 @@
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "exec/memory.h"
-#include "pci/msi.h"
-#include "pci/msix.h"
-#include "pci/pci.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
+#include "hw/pci/pci.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
@@ -289,7 +289,7 @@ static void vfio_enable_intx_kvm(VFIODevice *vdev)
 
     /* Get an eventfd for resample/unmask */
     if (event_notifier_init(&vdev->intx.unmask, 0)) {
-        error_report("vfio: Error: event_notifier_init failed eoi\n");
+        error_report("vfio: Error: event_notifier_init failed eoi");
         goto fail;
     }
 
@@ -297,7 +297,7 @@ static void vfio_enable_intx_kvm(VFIODevice *vdev)
     irqfd.resamplefd = event_notifier_get_fd(&vdev->intx.unmask);
 
     if (kvm_vm_ioctl(kvm_state, KVM_IRQFD, &irqfd)) {
-        error_report("vfio: Error: Failed to setup resample irqfd: %m\n");
+        error_report("vfio: Error: Failed to setup resample irqfd: %m");
         goto fail_irqfd;
     }
 
@@ -316,7 +316,7 @@ static void vfio_enable_intx_kvm(VFIODevice *vdev)
     ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
     g_free(irq_set);
     if (ret) {
-        error_report("vfio: Error: Failed to setup INTx unmask fd: %m\n");
+        error_report("vfio: Error: Failed to setup INTx unmask fd: %m");
         goto fail_vfio;
     }
 
@@ -365,7 +365,7 @@ static void vfio_disable_intx_kvm(VFIODevice *vdev)
 
     /* Tell KVM to stop listening for an INTx irqfd */
     if (kvm_vm_ioctl(kvm_state, KVM_IRQFD, &irqfd)) {
-        error_report("vfio: Error: Failed to disable INTx irqfd: %m\n");
+        error_report("vfio: Error: Failed to disable INTx irqfd: %m");
     }
 
     /* We only need to close the eventfd for VFIO to cleanup the kernel side */
@@ -447,7 +447,7 @@ static int vfio_enable_intx(VFIODevice *vdev)
 
     ret = event_notifier_init(&vdev->intx.interrupt, 0);
     if (ret) {
-        error_report("vfio: Error: event_notifier_init failed\n");
+        error_report("vfio: Error: event_notifier_init failed");
         return ret;
     }
 
@@ -467,7 +467,7 @@ static int vfio_enable_intx(VFIODevice *vdev)
     ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
     g_free(irq_set);
     if (ret) {
-        error_report("vfio: Error: Failed to setup INTx fd: %m\n");
+        error_report("vfio: Error: Failed to setup INTx fd: %m");
         qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
         event_notifier_cleanup(&vdev->intx.interrupt);
         return -errno;
@@ -526,7 +526,7 @@ static void vfio_msi_interrupt(void *opaque)
     } else if (vdev->interrupt == VFIO_INT_MSI) {
         msi_notify(&vdev->pdev, nr);
     } else {
-        error_report("vfio: MSI interrupt receieved, but not enabled?\n");
+        error_report("vfio: MSI interrupt receieved, but not enabled?");
     }
 }
 
@@ -562,8 +562,8 @@ static int vfio_enable_vectors(VFIODevice *vdev, bool msix)
     return ret;
 }
 
-static int vfio_msix_vector_use(PCIDevice *pdev,
-                                unsigned int nr, MSIMessage msg)
+static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
+                                   MSIMessage *msg, IOHandler *handler)
 {
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
     VFIOMSIVector *vector;
@@ -580,14 +580,14 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
     msix_vector_use(pdev, nr);
 
     if (event_notifier_init(&vector->interrupt, 0)) {
-        error_report("vfio: Error: event_notifier_init failed\n");
+        error_report("vfio: Error: event_notifier_init failed");
     }
 
     /*
      * Attempt to enable route through KVM irqchip,
      * default to userspace handling if unavailable.
      */
-    vector->virq = kvm_irqchip_add_msi_route(kvm_state, msg);
+    vector->virq = msg ? kvm_irqchip_add_msi_route(kvm_state, *msg) : -1;
     if (vector->virq < 0 ||
         kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
                                        vector->virq) < 0) {
@@ -596,7 +596,7 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
             vector->virq = -1;
         }
         qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                            vfio_msi_interrupt, NULL, vector);
+                            handler, NULL, vector);
     }
 
     /*
@@ -609,7 +609,7 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
         vdev->nr_vectors = nr + 1;
         ret = vfio_enable_vectors(vdev, true);
         if (ret) {
-            error_report("vfio: failed to enable vectors, %d\n", ret);
+            error_report("vfio: failed to enable vectors, %d", ret);
         }
     } else {
         int argsz;
@@ -632,11 +632,17 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
         ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
         g_free(irq_set);
         if (ret) {
-            error_report("vfio: failed to modify vector, %d\n", ret);
+            error_report("vfio: failed to modify vector, %d", ret);
         }
     }
 
     return 0;
+}
+
+static int vfio_msix_vector_use(PCIDevice *pdev,
+                                unsigned int nr, MSIMessage msg)
+{
+    return vfio_msix_vector_do_use(pdev, nr, &msg, vfio_msi_interrupt);
 }
 
 static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
@@ -697,9 +703,25 @@ static void vfio_enable_msix(VFIODevice *vdev)
 
     vdev->interrupt = VFIO_INT_MSIX;
 
+    /*
+     * Some communication channels between VF & PF or PF & fw rely on the
+     * physical state of the device and expect that enabling MSI-X from the
+     * guest enables the same on the host.  When our guest is Linux, the
+     * guest driver call to pci_enable_msix() sets the enabling bit in the
+     * MSI-X capability, but leaves the vector table masked.  We therefore
+     * can't rely on a vector_use callback (from request_irq() in the guest)
+     * to switch the physical device into MSI-X mode because that may come a
+     * long time after pci_enable_msix().  This code enables vector 0 with
+     * triggering to userspace, then immediately release the vector, leaving
+     * the physical device with no vectors enabled, but MSI-X enabled, just
+     * like the guest view.
+     */
+    vfio_msix_vector_do_use(&vdev->pdev, 0, NULL, NULL);
+    vfio_msix_vector_release(&vdev->pdev, 0);
+
     if (msix_set_vector_notifiers(&vdev->pdev, vfio_msix_vector_use,
-                                  vfio_msix_vector_release)) {
-        error_report("vfio: msix_set_vector_notifiers failed\n");
+                                  vfio_msix_vector_release, NULL)) {
+        error_report("vfio: msix_set_vector_notifiers failed");
     }
 
     DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
@@ -724,7 +746,7 @@ retry:
         vector->use = true;
 
         if (event_notifier_init(&vector->interrupt, 0)) {
-            error_report("vfio: Error: event_notifier_init failed\n");
+            error_report("vfio: Error: event_notifier_init failed");
         }
 
         msg = msi_get_message(&vdev->pdev, i);
@@ -745,10 +767,10 @@ retry:
     ret = vfio_enable_vectors(vdev, false);
     if (ret) {
         if (ret < 0) {
-            error_report("vfio: Error: Failed to setup MSI fds: %m\n");
+            error_report("vfio: Error: Failed to setup MSI fds: %m");
         } else if (ret != vdev->nr_vectors) {
             error_report("vfio: Error: Failed to enable %d "
-                         "MSI vectors, retry with %d\n", vdev->nr_vectors, ret);
+                         "MSI vectors, retry with %d", vdev->nr_vectors, ret);
         }
 
         for (i = 0; i < vdev->nr_vectors; i++) {
@@ -869,7 +891,7 @@ static void vfio_bar_write(void *opaque, hwaddr addr,
     }
 
     if (pwrite(bar->fd, &buf, size, bar->fd_offset + addr) != size) {
-        error_report("%s(,0x%"HWADDR_PRIx", 0x%"PRIx64", %d) failed: %m\n",
+        error_report("%s(,0x%"HWADDR_PRIx", 0x%"PRIx64", %d) failed: %m",
                      __func__, addr, data, size);
     }
 
@@ -900,7 +922,7 @@ static uint64_t vfio_bar_read(void *opaque,
     uint64_t data = 0;
 
     if (pread(bar->fd, &buf, size, bar->fd_offset + addr) != size) {
-        error_report("%s(,0x%"HWADDR_PRIx", %d) failed: %m\n",
+        error_report("%s(,0x%"HWADDR_PRIx", %d) failed: %m",
                      __func__, addr, size);
         return (uint64_t)-1;
     }
@@ -957,7 +979,7 @@ static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
         val = pci_default_read_config(pdev, addr, len);
     } else {
         if (pread(vdev->fd, &val, len, vdev->config_offset + addr) != len) {
-            error_report("%s(%04x:%02x:%02x.%x, 0x%x, 0x%x) failed: %m\n",
+            error_report("%s(%04x:%02x:%02x.%x, 0x%x, 0x%x) failed: %m",
                          __func__, vdev->host.domain, vdev->host.bus,
                          vdev->host.slot, vdev->host.function, addr, len);
             return -errno;
@@ -999,7 +1021,7 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
 
     /* Write everything to VFIO, let it filter out what we can't write */
     if (pwrite(vdev->fd, &val_le, len, vdev->config_offset + addr) != len) {
-        error_report("%s(%04x:%02x:%02x.%x, 0x%x, 0x%x, 0x%x) failed: %m\n",
+        error_report("%s(%04x:%02x:%02x.%x, 0x%x, 0x%x, 0x%x) failed: %m",
                      __func__, vdev->host.domain, vdev->host.bus,
                      vdev->host.slot, vdev->host.function, addr, val, len);
     }
@@ -1116,7 +1138,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
 
     if (unlikely((section->offset_within_address_space & ~TARGET_PAGE_MASK) !=
                  (section->offset_within_region & ~TARGET_PAGE_MASK))) {
-        error_report("%s received unaligned region\n", __func__);
+        error_report("%s received unaligned region", __func__);
         return;
     }
 
@@ -1138,7 +1160,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     ret = vfio_dma_map(container, iova, end - iova, vaddr, section->readonly);
     if (ret) {
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
-                     "0x%"HWADDR_PRIx", %p) = %d (%m)\n",
+                     "0x%"HWADDR_PRIx", %p) = %d (%m)",
                      container, iova, end - iova, vaddr, ret);
     }
 }
@@ -1160,7 +1182,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
     if (unlikely((section->offset_within_address_space & ~TARGET_PAGE_MASK) !=
                  (section->offset_within_region & ~TARGET_PAGE_MASK))) {
-        error_report("%s received unaligned region\n", __func__);
+        error_report("%s received unaligned region", __func__);
         return;
     }
 
@@ -1178,7 +1200,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
     ret = vfio_dma_unmap(container, iova, end - iova);
     if (ret) {
         error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
-                     "0x%"HWADDR_PRIx") = %d (%m)\n",
+                     "0x%"HWADDR_PRIx") = %d (%m)",
                      container, iova, end - iova, ret);
     }
 }
@@ -1235,7 +1257,7 @@ static int vfio_setup_msi(VFIODevice *vdev, int pos)
         if (ret == -ENOTSUP) {
             return 0;
         }
-        error_report("vfio: msi_init failed\n");
+        error_report("vfio: msi_init failed");
         return ret;
     }
     vdev->msi_cap_size = 0xa + (msi_maskbit ? 0xa : 0) + (msi_64bit ? 0x4 : 0);
@@ -1310,7 +1332,7 @@ static int vfio_setup_msix(VFIODevice *vdev, int pos)
         if (ret == -ENOTSUP) {
             return 0;
         }
-        error_report("vfio: msix_init failed\n");
+        error_report("vfio: msix_init failed");
         return ret;
     }
 
@@ -1426,7 +1448,7 @@ static void vfio_map_bar(VFIODevice *vdev, int nr)
     ret = pread(vdev->fd, &pci_bar, sizeof(pci_bar),
                 vdev->config_offset + PCI_BASE_ADDRESS_0 + (4 * nr));
     if (ret != sizeof(pci_bar)) {
-        error_report("vfio: Failed to read BAR %d (%m)\n", nr);
+        error_report("vfio: Failed to read BAR %d (%m)", nr);
         return;
     }
 
@@ -1449,7 +1471,7 @@ static void vfio_map_bar(VFIODevice *vdev, int nr)
     strncat(name, " mmap", sizeof(name) - strlen(name) - 1);
     if (vfio_mmap_bar(bar, &bar->mem,
                       &bar->mmap_mem, &bar->mmap, size, 0, name)) {
-        error_report("%s unsupported. Performance may be slow\n", name);
+        error_report("%s unsupported. Performance may be slow", name);
     }
 
     if (vdev->msix && vdev->msix->table_bar == nr) {
@@ -1463,7 +1485,7 @@ static void vfio_map_bar(VFIODevice *vdev, int nr)
         /* VFIOMSIXInfo contains another MemoryRegion for this mapping */
         if (vfio_mmap_bar(bar, &bar->mem, &vdev->msix->mmap_mem,
                           &vdev->msix->mmap, size, start, name)) {
-            error_report("%s unsupported. Performance may be slow\n", name);
+            error_report("%s unsupported. Performance may be slow", name);
         }
     }
 }
@@ -1550,7 +1572,7 @@ static int vfio_add_std_cap(VFIODevice *vdev, uint8_t pos)
 
     if (ret < 0) {
         error_report("vfio: %04x:%02x:%02x.%x Error adding PCI capability "
-                     "0x%x[0x%x]@0x%x: %d\n", vdev->host.domain,
+                     "0x%x[0x%x]@0x%x: %d", vdev->host.domain,
                      vdev->host.bus, vdev->host.slot, vdev->host.function,
                      cap_id, size, pos, ret);
         return ret;
@@ -1605,7 +1627,7 @@ static int vfio_load_rom(VFIODevice *vdev)
             if (errno == EINTR || errno == EAGAIN) {
                 continue;
             }
-            error_report("vfio: Error reading device ROM: %m\n");
+            error_report("vfio: Error reading device ROM: %m");
             memory_region_destroy(&vdev->pdev.rom);
             return -errno;
         }
@@ -1635,14 +1657,14 @@ static int vfio_connect_container(VFIOGroup *group)
 
     fd = qemu_open("/dev/vfio/vfio", O_RDWR);
     if (fd < 0) {
-        error_report("vfio: failed to open /dev/vfio/vfio: %m\n");
+        error_report("vfio: failed to open /dev/vfio/vfio: %m");
         return -errno;
     }
 
     ret = ioctl(fd, VFIO_GET_API_VERSION);
     if (ret != VFIO_API_VERSION) {
         error_report("vfio: supported vfio version: %d, "
-                     "reported version: %d\n", VFIO_API_VERSION, ret);
+                     "reported version: %d", VFIO_API_VERSION, ret);
         close(fd);
         return -EINVAL;
     }
@@ -1653,7 +1675,7 @@ static int vfio_connect_container(VFIOGroup *group)
     if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU)) {
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
-            error_report("vfio: failed to set group container: %m\n");
+            error_report("vfio: failed to set group container: %m");
             g_free(container);
             close(fd);
             return -errno;
@@ -1661,7 +1683,7 @@ static int vfio_connect_container(VFIOGroup *group)
 
         ret = ioctl(fd, VFIO_SET_IOMMU, VFIO_TYPE1_IOMMU);
         if (ret) {
-            error_report("vfio: failed to set iommu for container: %m\n");
+            error_report("vfio: failed to set iommu for container: %m");
             g_free(container);
             close(fd);
             return -errno;
@@ -1672,7 +1694,7 @@ static int vfio_connect_container(VFIOGroup *group)
 
         memory_listener_register(&container->iommu_data.listener, &address_space_memory);
     } else {
-        error_report("vfio: No available IOMMU models\n");
+        error_report("vfio: No available IOMMU models");
         g_free(container);
         close(fd);
         return -EINVAL;
@@ -1692,7 +1714,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
     VFIOContainer *container = group->container;
 
     if (ioctl(group->fd, VFIO_GROUP_UNSET_CONTAINER, &container->fd)) {
-        error_report("vfio: error disconnecting group %d from container\n",
+        error_report("vfio: error disconnecting group %d from container",
                      group->groupid);
     }
 
@@ -1727,13 +1749,13 @@ static VFIOGroup *vfio_get_group(int groupid)
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
     group->fd = qemu_open(path, O_RDWR);
     if (group->fd < 0) {
-        error_report("vfio: error opening %s: %m\n", path);
+        error_report("vfio: error opening %s: %m", path);
         g_free(group);
         return NULL;
     }
 
     if (ioctl(group->fd, VFIO_GROUP_GET_STATUS, &status)) {
-        error_report("vfio: error getting group status: %m\n");
+        error_report("vfio: error getting group status: %m");
         close(group->fd);
         g_free(group);
         return NULL;
@@ -1742,7 +1764,7 @@ static VFIOGroup *vfio_get_group(int groupid)
     if (!(status.flags & VFIO_GROUP_FLAGS_VIABLE)) {
         error_report("vfio: error, group %d is not viable, please ensure "
                      "all devices within the iommu_group are bound to their "
-                     "vfio bus driver.\n", groupid);
+                     "vfio bus driver.", groupid);
         close(group->fd);
         g_free(group);
         return NULL;
@@ -1752,7 +1774,7 @@ static VFIOGroup *vfio_get_group(int groupid)
     QLIST_INIT(&group->device_list);
 
     if (vfio_connect_container(group)) {
-        error_report("vfio: failed to setup container for group %d\n", groupid);
+        error_report("vfio: failed to setup container for group %d", groupid);
         close(group->fd);
         g_free(group);
         return NULL;
@@ -1784,9 +1806,9 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
 
     ret = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
     if (ret < 0) {
-        error_report("vfio: error getting device %s from group %d: %m\n",
+        error_report("vfio: error getting device %s from group %d: %m",
                      name, group->groupid);
-        error_report("Verify all devices in group %d are bound to vfio-pci "
+        error_printf("Verify all devices in group %d are bound to vfio-pci "
                      "or pci-stub and not already in use\n", group->groupid);
         return ret;
     }
@@ -1798,7 +1820,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
     /* Sanity check device */
     ret = ioctl(vdev->fd, VFIO_DEVICE_GET_INFO, &dev_info);
     if (ret) {
-        error_report("vfio: error getting device info: %m\n");
+        error_report("vfio: error getting device info: %m");
         goto error;
     }
 
@@ -1806,23 +1828,23 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
             dev_info.flags, dev_info.num_regions, dev_info.num_irqs);
 
     if (!(dev_info.flags & VFIO_DEVICE_FLAGS_PCI)) {
-        error_report("vfio: Um, this isn't a PCI device\n");
+        error_report("vfio: Um, this isn't a PCI device");
         goto error;
     }
 
     vdev->reset_works = !!(dev_info.flags & VFIO_DEVICE_FLAGS_RESET);
     if (!vdev->reset_works) {
-        error_report("Warning, device %s does not support reset\n", name);
+        error_report("Warning, device %s does not support reset", name);
     }
 
-    if (dev_info.num_regions != VFIO_PCI_NUM_REGIONS) {
-        error_report("vfio: unexpected number of io regions %u\n",
+    if (dev_info.num_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
+        error_report("vfio: unexpected number of io regions %u",
                      dev_info.num_regions);
         goto error;
     }
 
-    if (dev_info.num_irqs != VFIO_PCI_NUM_IRQS) {
-        error_report("vfio: unexpected number of irqs %u\n", dev_info.num_irqs);
+    if (dev_info.num_irqs < VFIO_PCI_MSIX_IRQ_INDEX + 1) {
+        error_report("vfio: unexpected number of irqs %u", dev_info.num_irqs);
         goto error;
     }
 
@@ -1831,7 +1853,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
 
         ret = ioctl(vdev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
         if (ret) {
-            error_report("vfio: Error getting region %d info: %m\n", i);
+            error_report("vfio: Error getting region %d info: %m", i);
             goto error;
         }
 
@@ -1851,7 +1873,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
 
     ret = ioctl(vdev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
     if (ret) {
-        error_report("vfio: Error getting ROM info: %m\n");
+        error_report("vfio: Error getting ROM info: %m");
         goto error;
     }
 
@@ -1867,7 +1889,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
 
     ret = ioctl(vdev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
     if (ret) {
-        error_report("vfio: Error getting config info: %m\n");
+        error_report("vfio: Error getting config info: %m");
         goto error;
     }
 
@@ -1877,6 +1899,9 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
             (unsigned long)reg_info.flags);
 
     vdev->config_size = reg_info.size;
+    if (vdev->config_size == PCI_CONFIG_SPACE_SIZE) {
+        vdev->pdev.cap_present &= ~QEMU_PCI_CAP_EXPRESS;
+    }
     vdev->config_offset = reg_info.offset;
 
 error:
@@ -1916,7 +1941,7 @@ static int vfio_initfn(PCIDevice *pdev)
              vdev->host.domain, vdev->host.bus, vdev->host.slot,
              vdev->host.function);
     if (stat(path, &st) < 0) {
-        error_report("vfio: error: no such host device: %s\n", path);
+        error_report("vfio: error: no such host device: %s", path);
         return -errno;
     }
 
@@ -1924,7 +1949,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     len = readlink(path, iommu_group_path, PATH_MAX);
     if (len <= 0) {
-        error_report("vfio: error no iommu_group for device\n");
+        error_report("vfio: error no iommu_group for device");
         return -errno;
     }
 
@@ -1932,7 +1957,7 @@ static int vfio_initfn(PCIDevice *pdev)
     group_name = basename(iommu_group_path);
 
     if (sscanf(group_name, "%d", &groupid) != 1) {
-        error_report("vfio: error reading %s: %m\n", path);
+        error_report("vfio: error reading %s: %m", path);
         return -errno;
     }
 
@@ -1941,7 +1966,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     group = vfio_get_group(groupid);
     if (!group) {
-        error_report("vfio: failed to get group %d\n", groupid);
+        error_report("vfio: failed to get group %d", groupid);
         return -ENOENT;
     }
 
@@ -1955,7 +1980,7 @@ static int vfio_initfn(PCIDevice *pdev)
             pvdev->host.slot == vdev->host.slot &&
             pvdev->host.function == vdev->host.function) {
 
-            error_report("vfio: error: device %s is already attached\n", path);
+            error_report("vfio: error: device %s is already attached", path);
             vfio_put_group(group);
             return -EBUSY;
         }
@@ -1963,7 +1988,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     ret = vfio_get_device(group, path, vdev);
     if (ret) {
-        error_report("vfio: failed to get device %s\n", path);
+        error_report("vfio: failed to get device %s", path);
         vfio_put_group(group);
         return ret;
     }
@@ -1974,7 +1999,7 @@ static int vfio_initfn(PCIDevice *pdev)
                 vdev->config_offset);
     if (ret < (int)MIN(pci_config_size(&vdev->pdev), vdev->config_size)) {
         ret = ret < 0 ? -errno : -EFAULT;
-        error_report("vfio: Failed to read device config space\n");
+        error_report("vfio: Failed to read device config space");
         goto out_put;
     }
 
@@ -2061,7 +2086,7 @@ static void vfio_pci_reset(DeviceState *dev)
     if (vdev->reset_works) {
         if (ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
             error_report("vfio: Error unable to reset physical device "
-                         "(%04x:%02x:%02x.%x): %m\n", vdev->host.domain,
+                         "(%04x:%02x:%02x.%x): %m", vdev->host.domain,
                          vdev->host.bus, vdev->host.slot, vdev->host.function);
         }
     }
@@ -2099,6 +2124,7 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     pdc->exit = vfio_exitfn;
     pdc->config_read = vfio_pci_read_config;
     pdc->config_write = vfio_pci_write_config;
+    pdc->is_express = 1; /* We might be */
 }
 
 static const TypeInfo vfio_pci_dev_info = {

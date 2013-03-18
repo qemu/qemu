@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "trace.h"
 
 /* There are 3 versions of this chip used in SMP sun4m systems:
@@ -324,7 +324,7 @@ static void ecc_class_init(ObjectClass *klass, void *data)
     dc->props = ecc_properties;
 }
 
-static TypeInfo ecc_info = {
+static const TypeInfo ecc_info = {
     .name          = "eccmemctl",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ECCState),

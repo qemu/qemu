@@ -245,6 +245,56 @@
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'] } }
 
 ##
+# @ImageCheck:
+#
+# Information about a QEMU image file check
+#
+# @filename: name of the image file checked
+#
+# @format: format of the image file checked
+#
+# @check-errors: number of unexpected errors occurred during check
+#
+# @image-end-offset: #optional offset (in bytes) where the image ends, this
+#                    field is present if the driver for the image format
+#                    supports it
+#
+# @corruptions: #optional number of corruptions found during the check if any
+#
+# @leaks: #optional number of leaks found during the check if any
+#
+# @corruptions-fixed: #optional number of corruptions fixed during the check
+#                     if any
+#
+# @leaks-fixed: #optional number of leaks fixed during the check if any
+#
+# @total-clusters: #optional total number of clusters, this field is present
+#                  if the driver for the image format supports it
+#
+# @allocated-clusters: #optional total number of allocated clusters, this
+#                      field is present if the driver for the image format
+#                      supports it
+#
+# @fragmented-clusters: #optional total number of fragmented clusters, this
+#                       field is present if the driver for the image format
+#                       supports it
+#
+# @compressed-clusters: #optional total number of compressed clusters, this
+#                       field is present if the driver for the image format
+#                       supports it
+#
+# Since: 1.4
+#
+##
+
+{ 'type': 'ImageCheck',
+  'data': {'filename': 'str', 'format': 'str', 'check-errors': 'int',
+           '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
+           '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
+           '*total-clusters': 'int', '*allocated-clusters': 'int',
+           '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
+
+##
 # @StatusInfo:
 #
 # Information about VCPU run state
@@ -323,6 +373,73 @@
 # Since: 0.14.0
 ##
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
+
+##
+# @DataFormat:
+#
+# An enumeration of data format.
+#
+# @utf8: Data is a UTF-8 string (RFC 3629)
+#
+# @base64: Data is Base64 encoded binary (RFC 3548)
+#
+# Since: 1.4
+##
+{ 'enum': 'DataFormat'
+  'data': [ 'utf8', 'base64' ] }
+
+##
+# @ringbuf-write:
+#
+# Write to a ring buffer character device.
+#
+# @device: the ring buffer character device name
+#
+# @data: data to write
+#
+# @format: #optional data encoding (default 'utf8').
+#          - base64: data must be base64 encoded text.  Its binary
+#            decoding gets written.
+#            Bug: invalid base64 is currently not rejected.
+#            Whitespace *is* invalid.
+#          - utf8: data's UTF-8 encoding is written
+#          - data itself is always Unicode regardless of format, like
+#            any other string.
+#
+# Returns: Nothing on success
+#
+# Since: 1.4
+##
+{ 'command': 'ringbuf-write',
+  'data': {'device': 'str', 'data': 'str',
+           '*format': 'DataFormat'} }
+
+##
+# @ringbuf-read:
+#
+# Read from a ring buffer character device.
+#
+# @device: the ring buffer character device name
+#
+# @size: how many bytes to read at most
+#
+# @format: #optional data encoding (default 'utf8').
+#          - base64: the data read is returned in base64 encoding.
+#          - utf8: the data read is interpreted as UTF-8.
+#            Bug: can screw up when the buffer contains invalid UTF-8
+#            sequences, NUL characters, after the ring buffer lost
+#            data, and when reading stops because the size limit is
+#            reached.
+#          - The return value is always Unicode regardless of format,
+#            like any other string.
+#
+# Returns: data read from the device
+#
+# Since: 1.4
+##
+{ 'command': 'ringbuf-read',
+  'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
+  'returns': 'str' }
 
 ##
 # @CommandInfo:
@@ -667,10 +784,12 @@
 #
 # @count: number of dirty bytes according to the dirty bitmap
 #
+# @granularity: granularity of the dirty bitmap in bytes (since 1.4)
+#
 # Since: 1.3
 ##
 { 'type': 'BlockDirtyInfo',
-  'data': {'count': 'int'} }
+  'data': {'count': 'int', 'granularity': 'int'} }
 
 ##
 # @BlockInfo:
@@ -977,28 +1096,10 @@
 #
 # @actual: the number of bytes the balloon currently contains
 #
-# @mem_swapped_in: #optional number of pages swapped in within the guest
-#
-# @mem_swapped_out: #optional number of pages swapped out within the guest
-#
-# @major_page_faults: #optional number of major page faults within the guest
-#
-# @minor_page_faults: #optional number of minor page faults within the guest
-#
-# @free_mem: #optional amount of memory (in bytes) free in the guest
-#
-# @total_mem: #optional amount of memory (in bytes) visible to the guest
-#
 # Since: 0.14.0
 #
-# Notes: all current versions of QEMU do not fill out optional information in
-#        this structure.
 ##
-{ 'type': 'BalloonInfo',
-  'data': {'actual': 'int', '*mem_swapped_in': 'int',
-           '*mem_swapped_out': 'int', '*major_page_faults': 'int',
-           '*minor_page_faults': 'int', '*free_mem': 'int',
-           '*total_mem': 'int'} }
+{ 'type': 'BalloonInfo', 'data': {'actual': 'int' } }
 
 ##
 # @query-balloon:
@@ -1634,6 +1735,14 @@
 #        (all the disk, only the sectors allocated in the topmost image, or
 #        only new I/O).
 #
+# @granularity: #optional granularity of the dirty bitmap, default is 64K
+#               if the image format doesn't have clusters, 4K if the clusters
+#               are smaller than that, else the cluster size.  Must be a
+#               power of 2 between 512 and 64M (since 1.4).
+#
+# @buf-size: #optional maximum amount of data in flight from source to
+#            target (since 1.4).
+#
 # @on-source-error: #optional the action to take on an error on the source,
 #                   default 'report'.  'stop' and 'enospc' can only be used
 #                   if the block device supports io-status (see BlockInfo).
@@ -1650,7 +1759,8 @@
 { 'command': 'drive-mirror',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
             'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*on-source-error': 'BlockdevOnError',
+            '*speed': 'int', '*granularity': 'uint32',
+            '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
 ##
@@ -2444,6 +2554,9 @@
 #
 # @fd: #optional file descriptor of an already opened tap
 #
+# @fds: #optional multiple file descriptors of already opened multiqueue capable
+# tap
+#
 # @script: #optional script to initialize the interface
 #
 # @downscript: #optional script to shut down the interface
@@ -2458,6 +2571,9 @@
 #
 # @vhostfd: #optional file descriptor of an already opened vhost net device
 #
+# @vhostfds: #optional file descriptors of multiple already opened vhost net
+# devices
+#
 # @vhostforce: #optional vhost on for non-MSIX virtio guests
 #
 # Since 1.2
@@ -2466,6 +2582,7 @@
   'data': {
     '*ifname':     'str',
     '*fd':         'str',
+    '*fds':        'str',
     '*script':     'str',
     '*downscript': 'str',
     '*helper':     'str',
@@ -2473,7 +2590,9 @@
     '*vnet_hdr':   'bool',
     '*vhost':      'bool',
     '*vhostfd':    'str',
-    '*vhostforce': 'bool' } }
+    '*vhostfds':   'str',
+    '*vhostforce': 'bool',
+    '*queues':     'uint32'} }
 
 ##
 # @NetdevSocketOptions
@@ -3017,3 +3136,309 @@
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-stop' }
+
+##
+# @ChardevFile:
+#
+# Configuration info for file chardevs.
+#
+# @in:  #optional The name of the input file
+# @out: The name of the output file
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevFile', 'data': { '*in' : 'str',
+                                   'out' : 'str' } }
+
+##
+# @ChardevHostdev:
+#
+# Configuration info for device and pipe chardevs.
+#
+# @device: The name of the special file for the device,
+#          i.e. /dev/ttyS0 on Unix or COM1: on Windows
+# @type: What kind of device this is.
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevHostdev', 'data': { 'device' : 'str' } }
+
+##
+# @ChardevSocket:
+#
+# Configuration info for (stream) socket chardevs.
+#
+# @addr: socket address to listen on (server=true)
+#        or connect to (server=false)
+# @server: #optional create server socket (default: true)
+# @wait: #optional wait for connect (not used for server
+#        sockets, default: false)
+# @nodelay: #optional set TCP_NODELAY socket option (default: false)
+# @telnet: #optional enable telnet protocol (default: false)
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevSocket', 'data': { 'addr'     : 'SocketAddress',
+                                     '*server'  : 'bool',
+                                     '*wait'    : 'bool',
+                                     '*nodelay' : 'bool',
+                                     '*telnet'  : 'bool' } }
+
+##
+# @ChardevDgram:
+#
+# Configuration info for datagram socket chardevs.
+#
+# @remote: remote address
+# @local: #optional local address
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevDgram', 'data': { 'remote' : 'SocketAddress',
+                                    '*local' : 'SocketAddress' } }
+
+##
+# @ChardevMux:
+#
+# Configuration info for mux chardevs.
+#
+# @chardev: name of the base chardev.
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevMux', 'data': { 'chardev' : 'str' } }
+
+##
+# @ChardevStdio:
+#
+# Configuration info for stdio chardevs.
+#
+# @signal: #optional Allow signals (such as SIGINT triggered by ^C)
+#          be delivered to qemu.  Default: true in -nographic mode,
+#          false otherwise.
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevStdio', 'data': { '*signal' : 'bool' } }
+
+##
+# @ChardevSpiceChannel:
+#
+# Configuration info for spice vm channel chardevs.
+#
+# @type: kind of channel (for example vdagent).
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' } }
+
+##
+# @ChardevSpicePort:
+#
+# Configuration info for spice port chardevs.
+#
+# @fqdn: name of the channel (see docs/spice-port-fqdn.txt)
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' } }
+
+##
+# @ChardevVC:
+#
+# Configuration info for virtual console chardevs.
+#
+# @width:  console width,  in pixels
+# @height: console height, in pixels
+# @cols:   console width,  in chars
+# @rows:   console height, in chars
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevVC', 'data': { '*width'  : 'int',
+                                 '*height' : 'int',
+                                 '*cols'   : 'int',
+                                 '*rows'   : 'int' } }
+
+##
+# @ChardevRingbuf:
+#
+# Configuration info for memory chardevs
+#
+# @size: #optional Ringbuffer size, must be power of two, default is 65536
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevRingbuf', 'data': { '*size'  : 'int' } }
+
+##
+# @ChardevBackend:
+#
+# Configuration info for the new chardev backend.
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevDummy', 'data': { } }
+
+{ 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
+                                       'serial' : 'ChardevHostdev',
+                                       'parallel': 'ChardevHostdev',
+                                       'pipe'   : 'ChardevHostdev',
+                                       'socket' : 'ChardevSocket',
+                                       'dgram'  : 'ChardevDgram',
+                                       'pty'    : 'ChardevDummy',
+                                       'null'   : 'ChardevDummy',
+                                       'mux'    : 'ChardevMux',
+                                       'msmouse': 'ChardevDummy',
+                                       'braille': 'ChardevDummy',
+                                       'stdio'  : 'ChardevStdio',
+                                       'console': 'ChardevDummy',
+                                       'spicevmc' : 'ChardevSpiceChannel',
+                                       'spiceport' : 'ChardevSpicePort',
+                                       'vc'     : 'ChardevVC',
+                                       'memory' : 'ChardevRingbuf' } }
+
+##
+# @ChardevReturn:
+#
+# Return info about the chardev backend just created.
+#
+# @pty: #optional name of the slave pseudoterminal device, present if
+#       and only if a chardev of type 'pty' was created
+#
+# Since: 1.4
+##
+{ 'type' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
+
+##
+# @chardev-add:
+#
+# Add a character device backend
+#
+# @id: the chardev's ID, must be unique
+# @backend: backend type and parameters
+#
+# Returns: ChardevReturn.
+#
+# Since: 1.4
+##
+{ 'command': 'chardev-add', 'data': {'id'      : 'str',
+                                     'backend' : 'ChardevBackend' },
+  'returns': 'ChardevReturn' }
+
+##
+# @chardev-remove:
+#
+# Remove a character device backend
+#
+# @id: the chardev's ID, must exist and not be in use
+#
+# Returns: Nothing on success
+#
+# Since: 1.4
+##
+{ 'command': 'chardev-remove', 'data': {'id': 'str'} }
+
+##
+# @TpmModel:
+#
+# An enumeration of TPM models
+#
+# @tpm-tis: TPM TIS model
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmModel', 'data': [ 'tpm-tis' ] }
+
+##
+# @query-tpm-models:
+#
+# Return a list of supported TPM models
+#
+# Returns: a list of TpmModel
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
+
+##
+# @TpmType:
+#
+# An enumeration of TPM types
+#
+# @passthrough: TPM passthrough type
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmType', 'data': [ 'passthrough' ] }
+
+##
+# @query-tpm-types:
+#
+# Return a list of supported TPM types
+#
+# Returns: a list of TpmType
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm-types', 'returns': ['TpmType'] }
+
+##
+# @TPMPassthroughOptions:
+#
+# Information about the TPM passthrough type
+#
+# @path: #optional string describing the path used for accessing the TPM device
+#
+# @cancel-path: #optional string showing the TPM's sysfs cancel file
+#               for cancellation of TPM commands while they are executing
+#
+# Since: 1.5
+##
+{ 'type': 'TPMPassthroughOptions', 'data': { '*path' : 'str',
+                                             '*cancel-path' : 'str'} }
+
+##
+# @TpmTypeOptions:
+#
+# A union referencing different TPM backend types' configuration options
+#
+# @tpm-passthough-options: TPMPassthroughOptions describing the TPM
+#                          passthrough configuration options
+#
+# Since: 1.5
+##
+{ 'union': 'TpmTypeOptions',
+   'data': { 'tpm-passthrough-options' : 'TPMPassthroughOptions' } }
+
+##
+# @TpmInfo:
+#
+# Information about the TPM
+#
+# @id: The Id of the TPM
+#
+# @model: The TPM frontend model
+#
+# @type: The TPM (backend) type being used
+#
+# @tpm-options: The TPM (backend) type configuration options
+#
+# Since: 1.5
+##
+{ 'type': 'TPMInfo',
+  'data': {'id': 'str',
+           'model': 'TpmModel',
+           'type': 'TpmType',
+           'tpm-options': 'TpmTypeOptions' } }
+
+##
+# @query-tpm:
+#
+# Return information about the TPM device
+#
+# Returns: @TPMInfo on success
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm', 'returns': ['TPMInfo'] }

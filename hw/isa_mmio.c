@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/isa.h"
 #include "exec/address-spaces.h"
 
 static void isa_mmio_writeb (void *opaque, hwaddr addr,

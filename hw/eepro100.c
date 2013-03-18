@@ -41,10 +41,10 @@
  */
 
 #include <stddef.h>             /* offsetof */
-#include "hw.h"
-#include "pci/pci.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
 #include "net/net.h"
-#include "eeprom93xx.h"
+#include "hw/eeprom93xx.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 
@@ -828,7 +828,7 @@ static void tx_command(EEPRO100State *s)
         }
     }
     TRACE(RXTX, logout("%p sending frame, len=%d,%s\n", s, size, nic_dump(buf, size)));
-    qemu_send_packet(&s->nic->nc, buf, size);
+    qemu_send_packet(qemu_get_queue(s->nic), buf, size);
     s->statistics.tx_good_frames++;
     /* Transmit with bad status would raise an CX/TNO interrupt.
      * (82557 only). Emulation never has bad status. */
@@ -1036,7 +1036,7 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
         }
         set_ru_state(s, ru_ready);
         s->ru_offset = e100_read_reg4(s, SCBPointer);
-        qemu_flush_queued_packets(&s->nic->nc);
+        qemu_flush_queued_packets(qemu_get_queue(s->nic));
         TRACE(OTHER, logout("val=0x%02x (rx start)\n", val));
         break;
     case RX_RESUME:
@@ -1619,7 +1619,7 @@ static const MemoryRegionOps eepro100_ops = {
 
 static int nic_can_receive(NetClientState *nc)
 {
-    EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    EEPRO100State *s = qemu_get_nic_opaque(nc);
     TRACE(RXTX, logout("%p\n", s));
     return get_ru_state(s) == ru_ready;
 #if 0
@@ -1633,7 +1633,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
      * - Magic packets should set bit 30 in power management driver register.
      * - Interesting packets should set bit 29 in power management driver register.
      */
-    EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    EEPRO100State *s = qemu_get_nic_opaque(nc);
     uint16_t rfd_status = 0xa000;
 #if defined(CONFIG_PAD_RECEIVED_FRAMES)
     uint8_t min_buf[60];
@@ -1835,7 +1835,7 @@ static const VMStateDescription vmstate_eepro100 = {
 
 static void nic_cleanup(NetClientState *nc)
 {
-    EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    EEPRO100State *s = qemu_get_nic_opaque(nc);
 
     s->nic = NULL;
 }
@@ -1849,7 +1849,7 @@ static void pci_nic_uninit(PCIDevice *pci_dev)
     memory_region_destroy(&s->flash_bar);
     vmstate_unregister(&pci_dev->qdev, s->vmstate, s);
     eeprom93xx_free(&pci_dev->qdev, s->eeprom);
-    qemu_del_net_client(&s->nic->nc);
+    qemu_del_nic(s->nic);
 }
 
 static NetClientInfo net_eepro100_info = {
@@ -1895,14 +1895,14 @@ static int e100_nic_init(PCIDevice *pci_dev)
     s->nic = qemu_new_nic(&net_eepro100_info, &s->conf,
                           object_get_typename(OBJECT(pci_dev)), pci_dev->qdev.id, s);
 
-    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
-    TRACE(OTHER, logout("%s\n", s->nic->nc.info_str));
+    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    TRACE(OTHER, logout("%s\n", qemu_get_queue(s->nic)->info_str));
 
     qemu_register_reset(nic_reset, s);
 
     s->vmstate = g_malloc(sizeof(vmstate_eepro100));
     memcpy(s->vmstate, &vmstate_eepro100, sizeof(vmstate_eepro100));
-    s->vmstate->name = s->nic->nc.model;
+    s->vmstate->name = qemu_get_queue(s->nic)->model;
     vmstate_register(&pci_dev->qdev, -1, s->vmstate, s);
 
     add_boot_device_path(s->conf.bootindex, &pci_dev->qdev, "/ethernet-phy@0");

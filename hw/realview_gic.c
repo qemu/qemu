@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 typedef struct {
     SysBusDevice busdev;
@@ -35,7 +35,7 @@ static int realview_gic_init(SysBusDevice *dev)
     qdev_prop_set_uint32(s->gic, "num-cpu", 1);
     qdev_prop_set_uint32(s->gic, "num-irq", numirq);
     qdev_init_nofail(s->gic);
-    busdev = sysbus_from_qdev(s->gic);
+    busdev = SYS_BUS_DEVICE(s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
     sysbus_pass_irq(dev, busdev);
@@ -59,7 +59,7 @@ static void realview_gic_class_init(ObjectClass *klass, void *data)
     sdc->init = realview_gic_init;
 }
 
-static TypeInfo realview_gic_info = {
+static const TypeInfo realview_gic_info = {
     .name          = "realview_gic",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RealViewGICState),

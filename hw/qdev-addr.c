@@ -1,6 +1,7 @@
-#include "qdev.h"
-#include "qdev-addr.h"
+#include "hw/qdev.h"
+#include "hw/qdev-addr.h"
 #include "exec/hwaddr.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 
 /* --- target physical address --- */
@@ -40,7 +41,7 @@ static void set_taddr(Object *obj, Visitor *v, void *opaque,
     Error *local_err = NULL;
     int64_t value;
 
-    if (dev->state != DEV_STATE_CREATED) {
+    if (dev->realized) {
         error_set(errp, QERR_PERMISSION_DENIED);
         return;
     }

@@ -8,9 +8,9 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw.h"
-#include "pxa.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/pxa.h"
+#include "hw/sysbus.h"
 
 #define PXA255_DMA_NUM_CHANNELS 16
 #define PXA27X_DMA_NUM_CHANNELS 32
@@ -481,8 +481,8 @@ DeviceState *pxa27x_dma_init(hwaddr base, qemu_irq irq)
     qdev_prop_set_int32(dev, "channels", PXA27X_DMA_NUM_CHANNELS);
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     return dev;
 }
@@ -495,8 +495,8 @@ DeviceState *pxa255_dma_init(hwaddr base, qemu_irq irq)
     qdev_prop_set_int32(dev, "channels", PXA27X_DMA_NUM_CHANNELS);
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     return dev;
 }
@@ -559,7 +559,7 @@ static void pxa2xx_dma_class_init(ObjectClass *klass, void *data)
     dc->props = pxa2xx_dma_properties;
 }
 
-static TypeInfo pxa2xx_dma_info = {
+static const TypeInfo pxa2xx_dma_info = {
     .name          = "pxa2xx-dma",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxDMAState),

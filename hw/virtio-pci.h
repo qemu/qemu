@@ -15,11 +15,29 @@
 #ifndef QEMU_VIRTIO_PCI_H
 #define QEMU_VIRTIO_PCI_H
 
-#include "virtio-blk.h"
-#include "virtio-net.h"
-#include "virtio-rng.h"
-#include "virtio-serial.h"
-#include "virtio-scsi.h"
+#include "hw/pci/msi.h"
+#include "hw/virtio-blk.h"
+#include "hw/virtio-net.h"
+#include "hw/virtio-rng.h"
+#include "hw/virtio-serial.h"
+#include "hw/virtio-scsi.h"
+#include "hw/virtio-bus.h"
+#include "hw/9pfs/virtio-9p-device.h"
+
+typedef struct VirtIOPCIProxy VirtIOPCIProxy;
+
+/* virtio-pci-bus */
+
+typedef struct VirtioBusState VirtioPCIBusState;
+typedef struct VirtioBusClass VirtioPCIBusClass;
+
+#define TYPE_VIRTIO_PCI_BUS "virtio-pci-bus"
+#define VIRTIO_PCI_BUS(obj) \
+        OBJECT_CHECK(VirtioPCIBusState, (obj), TYPE_VIRTIO_PCI_BUS)
+#define VIRTIO_PCI_BUS_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(VirtioPCIBusClass, obj, TYPE_VIRTIO_PCI_BUS)
+#define VIRTIO_PCI_BUS_CLASS(klass) \
+        OBJECT_CLASS_CHECK(VirtioPCIBusClass, klass, TYPE_VIRTIO_PCI_BUS)
 
 /* Performance improves when virtqueue kick processing is decoupled from the
  * vcpu thread using ioeventfd for some devices. */
@@ -27,11 +45,28 @@
 #define VIRTIO_PCI_FLAG_USE_IOEVENTFD   (1 << VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT)
 
 typedef struct {
+    MSIMessage msg;
     int virq;
     unsigned int users;
 } VirtIOIRQFD;
 
-typedef struct {
+/*
+ * virtio-pci: This is the PCIDevice which has a virtio-pci-bus.
+ */
+#define TYPE_VIRTIO_PCI "virtio-pci"
+#define VIRTIO_PCI_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(VirtioPCIClass, obj, TYPE_VIRTIO_PCI)
+#define VIRTIO_PCI_CLASS(klass) \
+        OBJECT_CLASS_CHECK(VirtioPCIClass, klass, TYPE_VIRTIO_PCI)
+#define VIRTIO_PCI(obj) \
+        OBJECT_CHECK(VirtIOPCIProxy, (obj), TYPE_VIRTIO_PCI)
+
+typedef struct VirtioPCIClass {
+    PCIDeviceClass parent_class;
+    int (*init)(VirtIOPCIProxy *vpci_dev);
+} VirtioPCIClass;
+
+struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     VirtIODevice *vdev;
     MemoryRegion bar;
@@ -41,7 +76,7 @@ typedef struct {
     VirtIOBlkConf blk;
     NICConf nic;
     uint32_t host_features;
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
     V9fsConf fsconf;
 #endif
     virtio_serial_conf serial;
@@ -51,10 +86,12 @@ typedef struct {
     bool ioeventfd_disabled;
     bool ioeventfd_started;
     VirtIOIRQFD *vector_irqfd;
-} VirtIOPCIProxy;
+    int nvqs_with_notifiers;
+    VirtioBusState bus;
+};
 
 void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev);
-void virtio_pci_reset(DeviceState *d);
+void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev);
 
 /* Virtio ABI version, if we increment this, we break the guest driver. */
 #define VIRTIO_PCI_ABI_VERSION          0

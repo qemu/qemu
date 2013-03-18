@@ -9,9 +9,9 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include "hw.h"
-#include "bitbang_i2c.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/bitbang_i2c.h"
+#include "hw/sysbus.h"
 
 //#define DEBUG_BITBANG_I2C
 
@@ -230,7 +230,7 @@ static void gpio_i2c_class_init(ObjectClass *klass, void *data)
     dc->desc = "Virtual GPIO to I2C bridge";
 }
 
-static TypeInfo gpio_i2c_info = {
+static const TypeInfo gpio_i2c_info = {
     .name          = "gpio_i2c",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GPIOI2CState),

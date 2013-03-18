@@ -295,14 +295,14 @@ ETEXI
         .name       = "log",
         .args_type  = "items:s",
         .params     = "item1[,...]",
-        .help       = "activate logging of the specified items to '/tmp/qemu.log'",
+        .help       = "activate logging of the specified items",
         .mhandler.cmd = do_log,
     },
 
 STEXI
 @item log @var{item1}[,...]
 @findex log
-Activate logging of the specified items to @file{/tmp/qemu.log}.
+Activate logging of the specified items.
 ETEXI
 
     {
@@ -837,6 +837,44 @@ STEXI
 @item nmi @var{cpu}
 @findex nmi
 Inject an NMI on the given CPU (x86 only).
+
+ETEXI
+
+    {
+        .name       = "ringbuf_write",
+        .args_type  = "device:s,data:s",
+        .params     = "device data",
+        .help       = "Write to a ring buffer character device",
+        .mhandler.cmd = hmp_ringbuf_write,
+    },
+
+STEXI
+@item ringbuf_write @var{device} @var{data}
+@findex ringbuf_write
+Write @var{data} to ring buffer character device @var{device}.
+@var{data} must be a UTF-8 string.
+
+ETEXI
+
+    {
+        .name       = "ringbuf_read",
+        .args_type  = "device:s,size:i",
+        .params     = "device size",
+        .help       = "Read from a ring buffer character device",
+        .mhandler.cmd = hmp_ringbuf_read,
+    },
+
+STEXI
+@item ringbuf_read @var{device}
+@findex ringbuf_read
+Read and print up to @var{size} bytes from ring buffer character
+device @var{device}.
+Certain non-printable characters are printed \uXXXX, where XXXX is the
+character code in hexadecimal.  Character \ is printed \\.
+Bug: can screw up when the buffer contains invalid UTF-8 sequences,
+NUL characters, after the ring buffer lost data, and when reading
+stops because the size limit is reached.
+
 ETEXI
 
     {
@@ -1131,7 +1169,7 @@ ETEXI
     {
         .name       = "netdev_add",
         .args_type  = "netdev:O",
-        .params     = "[user|tap|socket],id=str[,prop=value][,...]",
+        .params     = "[user|tap|socket|hubport],id=str[,prop=value][,...]",
         .help       = "add host network device",
         .mhandler.cmd = hmp_netdev_add,
     },
@@ -1485,11 +1523,44 @@ passed since 1970, i.e. unix epoch.
 ETEXI
 
     {
+        .name       = "chardev-add",
+        .args_type  = "args:s",
+        .params     = "args",
+        .help       = "add chardev",
+        .mhandler.cmd = hmp_chardev_add,
+    },
+
+STEXI
+@item chardev_add args
+@findex chardev_add
+
+chardev_add accepts the same parameters as the -chardev command line switch.
+
+ETEXI
+
+    {
+        .name       = "chardev-remove",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "remove chardev",
+        .mhandler.cmd = hmp_chardev_remove,
+    },
+
+STEXI
+@item chardev_remove id
+@findex chardev_remove
+
+Removes the chardev @var{id}.
+
+ETEXI
+
+    {
         .name       = "info",
         .args_type  = "item:s?",
         .params     = "[subcommand]",
         .help       = "show various information about the system state",
-        .mhandler.cmd = do_info,
+        .mhandler.cmd = do_info_help,
+        .sub_table = info_cmds,
     },
 
 STEXI
@@ -1570,6 +1641,8 @@ show device tree
 show qdev device model list
 @item info roms
 show roms
+@item info tpm
+show the TPM device
 @end table
 ETEXI
 

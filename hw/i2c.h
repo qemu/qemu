@@ -1,7 +1,7 @@
 #ifndef QEMU_I2C_H
 #define QEMU_I2C_H
 
-#include "qdev.h"
+#include "hw/qdev.h"
 
 /* The QEMU I2C implementation only supports simple transfers that complete
    immediately.  It does not support slave devices that need to be able to
@@ -59,7 +59,6 @@ void i2c_nack(i2c_bus *bus);
 int i2c_send(i2c_bus *bus, uint8_t data);
 int i2c_recv(i2c_bus *bus);
 
-#define I2C_SLAVE_FROM_QDEV(dev) DO_UPCAST(I2CSlave, qdev, dev)
 #define FROM_I2C_SLAVE(type, dev) DO_UPCAST(type, i2c, dev)
 
 DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, uint8_t addr);
@@ -72,9 +71,6 @@ uint32_t wm8750_adc_dat(void *opaque);
 void *wm8750_dac_buffer(void *opaque, int samples);
 void wm8750_dac_commit(void *opaque);
 void wm8750_set_bclk_in(void *opaque, int new_hz);
-
-/* tmp105.c */
-void tmp105_set(I2CSlave *i2c, int temp);
 
 /* lm832x.c */
 void lm832x_key_event(DeviceState *dev, int key, int state);

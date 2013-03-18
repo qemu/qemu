@@ -30,8 +30,8 @@
  *
  */
 
-#include "hw.h"
-#include "isa.h"
+#include "hw/hw.h"
+#include "hw/isa.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
 
@@ -236,7 +236,7 @@ static void qdev_applesmc_class_init(ObjectClass *klass, void *data)
     dc->props = applesmc_isa_properties;
 }
 
-static TypeInfo applesmc_isa_info = {
+static const TypeInfo applesmc_isa_info = {
     .name          = "isa-applesmc",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(struct AppleSMCStatus),

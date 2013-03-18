@@ -63,6 +63,12 @@ typedef struct AioContext {
 
     /* Used for aio_notify.  */
     EventNotifier notifier;
+
+    /* GPollFDs for aio_poll() */
+    GArray *pollfds;
+
+    /* Thread pool for performing work and receiving completion callbacks */
+    struct ThreadPool *thread_pool;
 } AioContext;
 
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
@@ -173,16 +179,14 @@ bool aio_pending(AioContext *ctx);
  * aio as a result of executing I/O completion or bh callbacks.
  *
  * If there is no pending AIO operation or completion (bottom half),
- * return false.  If there are pending bottom halves, return true.
+ * return false.  If there are pending AIO operations of bottom halves,
+ * return true.
  *
  * If there are no pending bottom halves, but there are pending AIO
  * operations, it may not be possible to make any progress without
  * blocking.  If @blocking is true, this function will wait until one
  * or more AIO events have completed, to ensure something has moved
  * before returning.
- *
- * If @blocking is false, this function will also return false if the
- * function cannot make any progress without blocking.
  */
 bool aio_poll(AioContext *ctx, bool blocking);
 
@@ -221,6 +225,9 @@ void aio_set_event_notifier(AioContext *ctx,
  * to this AioContext.
  */
 GSource *aio_get_g_source(AioContext *ctx);
+
+/* Return the ThreadPool bound to this AioContext */
+struct ThreadPool *aio_get_thread_pool(AioContext *ctx);
 
 /* Functions to operate on the main QEMU AioContext.  */
 

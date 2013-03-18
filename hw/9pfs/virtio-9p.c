@@ -14,7 +14,6 @@
 #include "hw/virtio.h"
 #include "hw/pc.h"
 #include "qemu/sockets.h"
-#include "hw/virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-xattr.h"
@@ -327,7 +326,7 @@ static int free_fid(V9fsPDU *pdu, V9fsFidState *fidp)
     return retval;
 }
 
-static void put_fid(V9fsPDU *pdu, V9fsFidState *fidp)
+static int put_fid(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     BUG_ON(!fidp->ref);
     fidp->ref--;
@@ -348,8 +347,9 @@ static void put_fid(V9fsPDU *pdu, V9fsFidState *fidp)
                 pdu->s->migration_blocker = NULL;
             }
         }
-        free_fid(pdu, fidp);
+        return free_fid(pdu, fidp);
     }
+    return 0;
 }
 
 static V9fsFidState *clunk_fid(V9fsState *s, int32_t fid)
@@ -1537,9 +1537,10 @@ static void v9fs_clunk(void *opaque)
      * free the fid.
      */
     fidp->ref++;
-    err = offset;
-
-    put_fid(pdu, fidp);
+    err = put_fid(pdu, fidp);
+    if (!err) {
+        err = offset;
+    }
 out_nofid:
     complete_pdu(s, pdu, err);
 }
@@ -3101,11 +3102,7 @@ static void v9fs_xattrcreate(void *opaque)
     xattr_fidp->fs.xattr.flags = flags;
     v9fs_string_init(&xattr_fidp->fs.xattr.name);
     v9fs_string_copy(&xattr_fidp->fs.xattr.name, &name);
-    if (size) {
-        xattr_fidp->fs.xattr.value = g_malloc(size);
-    } else {
-        xattr_fidp->fs.xattr.value = NULL;
-    }
+    xattr_fidp->fs.xattr.value = g_malloc(size);
     err = offset;
     put_fid(pdu, file_fidp);
 out_nofid:
@@ -3271,7 +3268,7 @@ void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
     free_pdu(s, pdu);
 }
 
-void virtio_9p_set_fd_limit(void)
+static void __attribute__((__constructor__)) virtio_9p_set_fd_limit(void)
 {
     struct rlimit rlim;
     if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {

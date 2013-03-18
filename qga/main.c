@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <glib.h>
 #include <getopt.h>
+#include <glib/gstdio.h>
 #ifndef _WIN32
 #include <syslog.h>
 #include <sys/wait.h>
@@ -30,9 +31,16 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/dispatch.h"
 #include "qga/channel.h"
+#include "qemu/bswap.h"
 #ifdef _WIN32
 #include "qga/service-win32.h"
 #include <windows.h>
+#endif
+#ifdef __linux__
+#include <linux/fs.h>
+#ifdef FIFREEZE
+#define CONFIG_FSFREEZE
+#endif
 #endif
 
 #ifndef _WIN32
@@ -42,7 +50,15 @@
 #endif
 #define QGA_STATEDIR_DEFAULT CONFIG_QEMU_LOCALSTATEDIR "/run"
 #define QGA_PIDFILE_DEFAULT QGA_STATEDIR_DEFAULT "/qemu-ga.pid"
+#ifdef CONFIG_FSFREEZE
+#define QGA_FSFREEZE_HOOK_DEFAULT CONFIG_QEMU_CONFDIR "/fsfreeze-hook"
+#endif
 #define QGA_SENTINEL_BYTE 0xFF
+
+typedef struct GAPersistentState {
+#define QGA_PSTATE_DEFAULT_FD_COUNTER 1000
+    int64_t fd_counter;
+} GAPersistentState;
 
 struct GAState {
     JSONMessageParser parser;
@@ -64,6 +80,11 @@ struct GAState {
         const char *log_filepath;
         const char *pid_filepath;
     } deferred_options;
+#ifdef CONFIG_FSFREEZE
+    const char *fsfreeze_hook;
+#endif
+    const gchar *pstate_filepath;
+    GAPersistentState pstate;
 };
 
 struct GAState *ga_state;
@@ -73,6 +94,7 @@ static const char *ga_freeze_whitelist[] = {
     "guest-ping",
     "guest-info",
     "guest-sync",
+    "guest-sync-delimited",
     "guest-fsfreeze-status",
     "guest-fsfreeze-thaw",
     NULL
@@ -153,6 +175,16 @@ static void usage(const char *cmd)
 "                    %s)\n"
 "  -l, --logfile     set logfile path, logs to stderr by default\n"
 "  -f, --pidfile     specify pidfile (default is %s)\n"
+#ifdef CONFIG_FSFREEZE
+"  -F, --fsfreeze-hook\n"
+"                    enable fsfreeze hook. Accepts an optional argument that\n"
+"                    specifies script to run on freeze/thaw. Script will be\n"
+"                    called with 'freeze'/'thaw' arguments accordingly.\n"
+"                    (default is %s)\n"
+"                    If using -F with an argument, do not follow -F with a\n"
+"                    space.\n"
+"                    (for example: -F/var/run/fsfreezehook.sh)\n"
+#endif
 "  -t, --statedir    specify dir to store state information (absolute paths\n"
 "                    only, default is %s)\n"
 "  -v, --verbose     log extra debugging information\n"
@@ -167,6 +199,9 @@ static void usage(const char *cmd)
 "\n"
 "Report bugs to <mdroth@linux.vnet.ibm.com>\n"
     , cmd, QEMU_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_PIDFILE_DEFAULT,
+#ifdef CONFIG_FSFREEZE
+    QGA_FSFREEZE_HOOK_DEFAULT,
+#endif
     QGA_STATEDIR_DEFAULT);
 }
 
@@ -236,13 +271,26 @@ void ga_set_response_delimited(GAState *s)
     s->delimit_response = true;
 }
 
+static FILE *ga_open_logfile(const char *logfile)
+{
+    FILE *f;
+
+    f = fopen(logfile, "a");
+    if (!f) {
+        return NULL;
+    }
+
+    qemu_set_cloexec(fileno(f));
+    return f;
+}
+
 #ifndef _WIN32
 static bool ga_open_pidfile(const char *pidfile)
 {
     int pidfd;
     char pidstr[32];
 
-    pidfd = open(pidfile, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR);
+    pidfd = qemu_open(pidfile, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR);
     if (pidfd == -1 || lockf(pidfd, F_TLOCK, 0)) {
         g_critical("Cannot lock pid file, %s", strerror(errno));
         if (pidfd != -1) {
@@ -251,7 +299,7 @@ static bool ga_open_pidfile(const char *pidfile)
         return false;
     }
 
-    if (ftruncate(pidfd, 0) || lseek(pidfd, 0, SEEK_SET)) {
+    if (ftruncate(pidfd, 0)) {
         g_critical("Failed to truncate pid file");
         goto fail;
     }
@@ -261,10 +309,12 @@ static bool ga_open_pidfile(const char *pidfile)
         goto fail;
     }
 
+    /* keep pidfile open & locked forever */
     return true;
 
 fail:
     unlink(pidfile);
+    close(pidfd);
     return false;
 }
 #else /* _WIN32 */
@@ -377,7 +427,7 @@ void ga_unset_frozen(GAState *s)
      * in a frozen state at start up, do it now
      */
     if (s->deferred_options.log_filepath) {
-        s->log_file = fopen(s->deferred_options.log_filepath, "a");
+        s->log_file = ga_open_logfile(s->deferred_options.log_filepath);
         if (!s->log_file) {
             s->log_file = stderr;
         }
@@ -400,6 +450,13 @@ void ga_unset_frozen(GAState *s)
                   s->state_filepath_isfrozen);
     }
 }
+
+#ifdef CONFIG_FSFREEZE
+const char *ga_fsfreeze_hook(GAState *s)
+{
+    return s->fsfreeze_hook;
+}
+#endif
 
 static void become_daemon(const char *pidfile)
 {
@@ -573,6 +630,7 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
         if (!s->virtio) {
             return false;
         }
+        /* fall through */
     case G_IO_STATUS_AGAIN:
         /* virtio causes us to spin here when no process is attached to
          * host-side chardev. sleep a bit to mitigate this
@@ -676,12 +734,180 @@ VOID WINAPI service_main(DWORD argc, TCHAR *argv[])
 }
 #endif
 
+static void set_persistent_state_defaults(GAPersistentState *pstate)
+{
+    g_assert(pstate);
+    pstate->fd_counter = QGA_PSTATE_DEFAULT_FD_COUNTER;
+}
+
+static void persistent_state_from_keyfile(GAPersistentState *pstate,
+                                          GKeyFile *keyfile)
+{
+    g_assert(pstate);
+    g_assert(keyfile);
+    /* if any fields are missing, either because the file was tampered with
+     * by agents of chaos, or because the field wasn't present at the time the
+     * file was created, the best we can ever do is start over with the default
+     * values. so load them now, and ignore any errors in accessing key-value
+     * pairs
+     */
+    set_persistent_state_defaults(pstate);
+
+    if (g_key_file_has_key(keyfile, "global", "fd_counter", NULL)) {
+        pstate->fd_counter =
+            g_key_file_get_integer(keyfile, "global", "fd_counter", NULL);
+    }
+}
+
+static void persistent_state_to_keyfile(const GAPersistentState *pstate,
+                                        GKeyFile *keyfile)
+{
+    g_assert(pstate);
+    g_assert(keyfile);
+
+    g_key_file_set_integer(keyfile, "global", "fd_counter", pstate->fd_counter);
+}
+
+static gboolean write_persistent_state(const GAPersistentState *pstate,
+                                       const gchar *path)
+{
+    GKeyFile *keyfile = g_key_file_new();
+    GError *gerr = NULL;
+    gboolean ret = true;
+    gchar *data = NULL;
+    gsize data_len;
+
+    g_assert(pstate);
+
+    persistent_state_to_keyfile(pstate, keyfile);
+    data = g_key_file_to_data(keyfile, &data_len, &gerr);
+    if (gerr) {
+        g_critical("failed to convert persistent state to string: %s",
+                   gerr->message);
+        ret = false;
+        goto out;
+    }
+
+    g_file_set_contents(path, data, data_len, &gerr);
+    if (gerr) {
+        g_critical("failed to write persistent state to %s: %s",
+                    path, gerr->message);
+        ret = false;
+        goto out;
+    }
+
+out:
+    if (gerr) {
+        g_error_free(gerr);
+    }
+    if (keyfile) {
+        g_key_file_free(keyfile);
+    }
+    g_free(data);
+    return ret;
+}
+
+static gboolean read_persistent_state(GAPersistentState *pstate,
+                                      const gchar *path, gboolean frozen)
+{
+    GKeyFile *keyfile = NULL;
+    GError *gerr = NULL;
+    struct stat st;
+    gboolean ret = true;
+
+    g_assert(pstate);
+
+    if (stat(path, &st) == -1) {
+        /* it's okay if state file doesn't exist, but any other error
+         * indicates a permissions issue or some other misconfiguration
+         * that we likely won't be able to recover from.
+         */
+        if (errno != ENOENT) {
+            g_critical("unable to access state file at path %s: %s",
+                       path, strerror(errno));
+            ret = false;
+            goto out;
+        }
+
+        /* file doesn't exist. initialize state to default values and
+         * attempt to save now. (we could wait till later when we have
+         * modified state we need to commit, but if there's a problem,
+         * such as a missing parent directory, we want to catch it now)
+         *
+         * there is a potential scenario where someone either managed to
+         * update the agent from a version that didn't use a key store
+         * while qemu-ga thought the filesystem was frozen, or
+         * deleted the key store prior to issuing a fsfreeze, prior
+         * to restarting the agent. in this case we go ahead and defer
+         * initial creation till we actually have modified state to
+         * write, otherwise fail to recover from freeze.
+         */
+        set_persistent_state_defaults(pstate);
+        if (!frozen) {
+            ret = write_persistent_state(pstate, path);
+            if (!ret) {
+                g_critical("unable to create state file at path %s", path);
+                ret = false;
+                goto out;
+            }
+        }
+        ret = true;
+        goto out;
+    }
+
+    keyfile = g_key_file_new();
+    g_key_file_load_from_file(keyfile, path, 0, &gerr);
+    if (gerr) {
+        g_critical("error loading persistent state from path: %s, %s",
+                   path, gerr->message);
+        ret = false;
+        goto out;
+    }
+
+    persistent_state_from_keyfile(pstate, keyfile);
+
+out:
+    if (keyfile) {
+        g_key_file_free(keyfile);
+    }
+    if (gerr) {
+        g_error_free(gerr);
+    }
+
+    return ret;
+}
+
+int64_t ga_get_fd_handle(GAState *s, Error **errp)
+{
+    int64_t handle;
+
+    g_assert(s->pstate_filepath);
+    /* we blacklist commands and avoid operations that potentially require
+     * writing to disk when we're in a frozen state. this includes opening
+     * new files, so we should never get here in that situation
+     */
+    g_assert(!ga_is_frozen(s));
+
+    handle = s->pstate.fd_counter++;
+    if (s->pstate.fd_counter < 0) {
+        s->pstate.fd_counter = 0;
+    }
+    if (!write_persistent_state(&s->pstate, s->pstate_filepath)) {
+        error_setg(errp, "failed to commit persistent state to disk");
+    }
+
+    return handle;
+}
+
 int main(int argc, char **argv)
 {
-    const char *sopt = "hVvdm:p:l:f:b:s:t:";
+    const char *sopt = "hVvdm:p:l:f:F::b:s:t:";
     const char *method = NULL, *path = NULL;
     const char *log_filepath = NULL;
     const char *pid_filepath = QGA_PIDFILE_DEFAULT;
+#ifdef CONFIG_FSFREEZE
+    const char *fsfreeze_hook = NULL;
+#endif
     const char *state_dir = QGA_STATEDIR_DEFAULT;
 #ifdef _WIN32
     const char *service = NULL;
@@ -691,6 +917,9 @@ int main(int argc, char **argv)
         { "version", 0, NULL, 'V' },
         { "logfile", 1, NULL, 'l' },
         { "pidfile", 1, NULL, 'f' },
+#ifdef CONFIG_FSFREEZE
+        { "fsfreeze-hook", 2, NULL, 'F' },
+#endif
         { "verbose", 0, NULL, 'v' },
         { "method", 1, NULL, 'm' },
         { "path", 1, NULL, 'p' },
@@ -723,6 +952,11 @@ int main(int argc, char **argv)
         case 'f':
             pid_filepath = optarg;
             break;
+#ifdef CONFIG_FSFREEZE
+        case 'F':
+            fsfreeze_hook = optarg ? optarg : QGA_FSFREEZE_HOOK_DEFAULT;
+            break;
+#endif
         case 't':
              state_dir = optarg;
              break;
@@ -786,12 +1020,17 @@ int main(int argc, char **argv)
     s = g_malloc0(sizeof(GAState));
     s->log_level = log_level;
     s->log_file = stderr;
+#ifdef CONFIG_FSFREEZE
+    s->fsfreeze_hook = fsfreeze_hook;
+#endif
     g_log_set_default_handler(ga_log, s);
     g_log_set_fatal_mask(NULL, G_LOG_LEVEL_ERROR);
     ga_enable_logging(s);
     s->state_filepath_isfrozen = g_strdup_printf("%s/qga.state.isfrozen",
                                                  state_dir);
+    s->pstate_filepath = g_strdup_printf("%s/qga.state", state_dir);
     s->frozen = false;
+
 #ifndef _WIN32
     /* check if a previous instance of qemu-ga exited with filesystems' state
      * marked as frozen. this could be a stale value (a non-qemu-ga process
@@ -838,7 +1077,7 @@ int main(int argc, char **argv)
             become_daemon(pid_filepath);
         }
         if (log_filepath) {
-            FILE *log_file = fopen(log_filepath, "a");
+            FILE *log_file = ga_open_logfile(log_filepath);
             if (!log_file) {
                 g_critical("unable to open specified log file: %s",
                            strerror(errno));
@@ -846,6 +1085,14 @@ int main(int argc, char **argv)
             }
             s->log_file = log_file;
         }
+    }
+
+    /* load persistent state from disk */
+    if (!read_persistent_state(&s->pstate,
+                               s->pstate_filepath,
+                               ga_is_frozen(s))) {
+        g_critical("failed to load persistent state");
+        goto out_bad;
     }
 
     if (blacklist) {

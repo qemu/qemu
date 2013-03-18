@@ -55,10 +55,7 @@ QEMUFile with:
 QEMUFile *qemu_fopen_ops(void *opaque,
                          QEMUFilePutBufferFunc *put_buffer,
                          QEMUFileGetBufferFunc *get_buffer,
-                         QEMUFileCloseFunc *close,
-                         QEMUFileRateLimit *rate_limit,
-                         QEMUFileSetRateLimit *set_rate_limit,
-                         QEMUFileGetRateLimit *get_rate_limit);
+                         QEMUFileCloseFunc *close);
 
 The functions have the following functionality:
 
@@ -80,23 +77,8 @@ Close a file and return an error code.
 
 typedef int (QEMUFileCloseFunc)(void *opaque);
 
-Called to determine if the file has exceeded its bandwidth allocation.  The
-bandwidth capping is a soft limit, not a hard limit.
-
-typedef int (QEMUFileRateLimit)(void *opaque);
-
-Called to change the current bandwidth allocation. This function must return
-the new actual bandwidth. It should be new_rate if everything goes OK, and
-the old rate otherwise.
-
-typedef size_t (QEMUFileSetRateLimit)(void *opaque, size_t new_rate);
-typedef size_t (QEMUFileGetRateLimit)(void *opaque);
-
 You can use any internal state that you need using the opaque void *
 pointer that is passed to all functions.
-
-The rate limiting functions are used to limit the bandwidth used by
-QEMU migration.
 
 The important functions for us are put_buffer()/get_buffer() that
 allow to write/read a buffer into the QEMUFile.

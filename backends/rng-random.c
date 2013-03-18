@@ -74,7 +74,7 @@ static void rng_random_opened(RngBackend *b, Error **errp)
         error_set(errp, QERR_INVALID_PARAMETER_VALUE,
                   "filename", "a valid filename");
     } else {
-        s->fd = open(s->filename, O_RDONLY | O_NONBLOCK);
+        s->fd = qemu_open(s->filename, O_RDONLY | O_NONBLOCK);
 
         if (s->fd == -1) {
             error_set(errp, QERR_OPEN_FILE_FAILED, s->filename);
@@ -130,7 +130,7 @@ static void rng_random_finalize(Object *obj)
     qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
 
     if (s->fd != -1) {
-        close(s->fd);
+        qemu_close(s->fd);
     }
 
     g_free(s->filename);
@@ -144,7 +144,7 @@ static void rng_random_class_init(ObjectClass *klass, void *data)
     rbc->opened = rng_random_opened;
 }
 
-static TypeInfo rng_random_info = {
+static const TypeInfo rng_random_info = {
     .name = TYPE_RNG_RANDOM,
     .parent = TYPE_RNG_BACKEND,
     .instance_size = sizeof(RndRandom),

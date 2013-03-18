@@ -20,12 +20,12 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu-common.h"
-#include "ptimer.h"
+#include "hw/ptimer.h"
 
-#include "exynos4210.h"
+#include "hw/exynos4210.h"
 
 //#define DEBUG_PWM
 
@@ -407,7 +407,7 @@ static void exynos4210_pwm_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_exynos4210_pwm_state;
 }
 
-static TypeInfo exynos4210_pwm_info = {
+static const TypeInfo exynos4210_pwm_info = {
     .name          = "exynos4210.pwm",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PWMState),

@@ -1,7 +1,7 @@
 #ifndef QEMU_HW_XEN_BACKEND_H
 #define QEMU_HW_XEN_BACKEND_H 1
 
-#include "xen_common.h"
+#include "hw/xen_common.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 

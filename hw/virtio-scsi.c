@@ -13,7 +13,8 @@
  *
  */
 
-#include "virtio-scsi.h"
+#include "hw/virtio-scsi.h"
+#include "qemu/error-report.h"
 #include <hw/scsi.h>
 #include <hw/scsi-defs.h>
 
@@ -564,6 +565,10 @@ static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
 static void virtio_scsi_reset(VirtIODevice *vdev)
 {
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
+
+    s->resetting++;
+    qbus_reset_all(&s->bus.qbus);
+    s->resetting--;
 
     s->sense_size = VIRTIO_SCSI_SENSE_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_SIZE;

@@ -5,6 +5,7 @@
 #include "hw/pci/pci.h"
 
 void msix_set_message(PCIDevice *dev, int vector, MSIMessage msg);
+MSIMessage msix_get_message(PCIDevice *dev, unsigned int vector);
 int msix_init(PCIDevice *dev, unsigned short nentries,
               MemoryRegion *table_bar, uint8_t table_bar_nr,
               unsigned table_offset, MemoryRegion *pba_bar,
@@ -26,6 +27,9 @@ void msix_load(PCIDevice *dev, QEMUFile *f);
 int msix_enabled(PCIDevice *dev);
 int msix_present(PCIDevice *dev);
 
+bool msix_is_masked(PCIDevice *dev, unsigned vector);
+void msix_set_pending(PCIDevice *dev, unsigned vector);
+
 int msix_vector_use(PCIDevice *dev, unsigned vector);
 void msix_vector_unuse(PCIDevice *dev, unsigned vector);
 void msix_unuse_all_vectors(PCIDevice *dev);
@@ -36,6 +40,7 @@ void msix_reset(PCIDevice *dev);
 
 int msix_set_vector_notifiers(PCIDevice *dev,
                               MSIVectorUseNotifier use_notifier,
-                              MSIVectorReleaseNotifier release_notifier);
+                              MSIVectorReleaseNotifier release_notifier,
+                              MSIVectorPollNotifier poll_notifier);
 void msix_unset_vector_notifiers(PCIDevice *dev);
 #endif

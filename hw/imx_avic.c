@@ -14,8 +14,8 @@
  * TODO: implement vectors.
  */
 
-#include "hw.h"
-#include "sysbus.h"
+#include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "qemu/host-utils.h"
 
 #define DEBUG_INT 1

@@ -11,6 +11,8 @@
 
 #include "exec/memory.h"
 
+#define TYPE_HOST_POWERPC_CPU "host-" TYPE_POWERPC_CPU
+
 void kvmppc_init(void);
 
 #ifdef CONFIG_KVM
@@ -19,9 +21,11 @@ uint32_t kvmppc_get_tbfreq(void);
 uint64_t kvmppc_get_clockfreq(void);
 uint32_t kvmppc_get_vmx(void);
 uint32_t kvmppc_get_dfp(void);
+int kvmppc_get_hasidle(CPUPPCState *env);
 int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len);
-int kvmppc_set_interrupt(CPUPPCState *env, int irq, int level);
-void kvmppc_set_papr(CPUPPCState *env);
+int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
+void kvmppc_set_papr(PowerPCCPU *cpu);
+void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
 int kvmppc_smt_threads(void);
 #ifndef CONFIG_USER_ONLY
 off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
@@ -30,8 +34,7 @@ int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
 #endif /* !CONFIG_USER_ONLY */
-const ppc_def_t *kvmppc_host_cpu_def(void);
-int kvmppc_fixup_cpu(CPUPPCState *env);
+int kvmppc_fixup_cpu(PowerPCCPU *cpu);
 
 #else
 
@@ -55,6 +58,11 @@ static inline uint32_t kvmppc_get_dfp(void)
     return 0;
 }
 
+static inline int kvmppc_get_hasidle(CPUPPCState *env)
+{
+    return 0;
+}
+
 static inline int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
 {
     return -1;
@@ -65,12 +73,16 @@ static inline int kvmppc_read_segment_page_sizes(uint32_t *prop, int maxcells)
     return -1;
 }
 
-static inline int kvmppc_set_interrupt(CPUPPCState *env, int irq, int level)
+static inline int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level)
 {
     return -1;
 }
 
-static inline void kvmppc_set_papr(CPUPPCState *env)
+static inline void kvmppc_set_papr(PowerPCCPU *cpu)
+{
+}
+
+static inline void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
 {
 }
 
@@ -115,12 +127,7 @@ static inline int kvmppc_update_sdr1(CPUPPCState *env)
 
 #endif /* !CONFIG_USER_ONLY */
 
-static inline const ppc_def_t *kvmppc_host_cpu_def(void)
-{
-    return NULL;
-}
-
-static inline int kvmppc_fixup_cpu(CPUPPCState *env)
+static inline int kvmppc_fixup_cpu(PowerPCCPU *cpu)
 {
     return -1;
 }

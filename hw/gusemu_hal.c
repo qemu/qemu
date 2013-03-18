@@ -26,8 +26,8 @@
  * TODO: check mixer: see 7.20 of sdk for panning pos (applies to all gus models?)?
  */
 
-#include "gustate.h"
-#include "gusemu.h"
+#include "hw/gustate.h"
+#include "hw/gusemu.h"
 
 #define GUSregb(position) (*            (gusptr+(position)))
 #define GUSregw(position) (*(GUSword *) (gusptr+(position)))

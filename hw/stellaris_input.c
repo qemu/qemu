@@ -6,8 +6,8 @@
  *
  * This code is licensed under the GPL.
  */
-#include "hw.h"
-#include "devices.h"
+#include "hw/hw.h"
+#include "hw/devices.h"
 #include "ui/console.h"
 
 typedef struct {

@@ -16,10 +16,10 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "ui/console.h"
-#include "omap.h"
-#include "framebuffer.h"
+#include "hw/omap.h"
+#include "hw/framebuffer.h"
 #include "ui/pixel_ops.h"
 
 struct omap_lcd_panel_s {
@@ -70,13 +70,13 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
 #define draw_line_func drawfn
 
 #define DEPTH 8
-#include "omap_lcd_template.h"
+#include "hw/omap_lcd_template.h"
 #define DEPTH 15
-#include "omap_lcd_template.h"
+#include "hw/omap_lcd_template.h"
 #define DEPTH 16
-#include "omap_lcd_template.h"
+#include "hw/omap_lcd_template.h"
 #define DEPTH 32
-#include "omap_lcd_template.h"
+#include "hw/omap_lcd_template.h"
 
 static draw_line_func draw_line_table2[33] = {
     [0 ... 32]	= NULL,

@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "nvram.h"
+#include "hw/hw.h"
+#include "hw/nvram.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
-#include "sysbus.h"
-#include "isa.h"
+#include "hw/sysbus.h"
+#include "hw/isa.h"
 #include "exec/address-spaces.h"
 
 //#define DEBUG_NVRAM
@@ -646,7 +646,7 @@ M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
     qdev_prop_set_uint32(dev, "size", size);
     qdev_prop_set_uint32(dev, "io_base", io_base);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
+    s = SYS_BUS_DEVICE(dev);
     d = FROM_SYSBUS(M48t59SysBusState, s);
     state = &d->state;
     sysbus_connect_irq(s, 0, IRQ);
@@ -738,7 +738,7 @@ static void m48t59_init_class_isa1(ObjectClass *klass, void *data)
     dc->props = m48t59_isa_properties;
 }
 
-static TypeInfo m48t59_isa_info = {
+static const TypeInfo m48t59_isa_info = {
     .name          = "m48t59_isa",
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(M48t59ISAState),
@@ -762,7 +762,7 @@ static void m48t59_class_init(ObjectClass *klass, void *data)
     dc->props = m48t59_properties;
 }
 
-static TypeInfo m48t59_info = {
+static const TypeInfo m48t59_info = {
     .name          = "m48t59",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(M48t59SysBusState),
