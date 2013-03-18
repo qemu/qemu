@@ -588,7 +588,7 @@ void virtio_s390_bus_new(VirtioBusState *bus, VirtIOS390Device *dev)
     BusState *qbus;
     qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_S390_BUS, qdev, NULL);
     qbus = BUS(bus);
-    qbus->allow_hotplug = 0;
+    qbus->allow_hotplug = 1;
 }
 
 static void virtio_s390_bus_class_init(ObjectClass *klass, void *data)
