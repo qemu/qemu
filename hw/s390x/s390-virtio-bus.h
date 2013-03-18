@@ -89,7 +89,6 @@ struct VirtIOS390Device {
     ram_addr_t feat_offs;
     uint8_t feat_len;
     VirtIODevice *vdev;
-    VirtIOBlkConf blk;
     NICConf nic;
     uint32_t host_features;
     virtio_serial_conf serial;
@@ -119,6 +118,18 @@ VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,
 VirtIOS390Device *s390_virtio_bus_find_mem(VirtIOS390Bus *bus, ram_addr_t mem);
 void s390_virtio_device_sync(VirtIOS390Device *dev);
 void s390_virtio_reset_idx(VirtIOS390Device *dev);
+
+/* virtio-blk-s390 */
+
+#define TYPE_VIRTIO_BLK_S390 "virtio-blk-s390"
+#define VIRTIO_BLK_S390(obj) \
+        OBJECT_CHECK(VirtIOBlkS390, (obj), TYPE_VIRTIO_BLK_S390)
+
+typedef struct VirtIOBlkS390 {
+    VirtIOS390Device parent_obj;
+    VirtIOBlock vdev;
+    VirtIOBlkConf blk;
+} VirtIOBlkS390;
 
 
 #endif
