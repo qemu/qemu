@@ -570,22 +570,24 @@ static int virtio_ccw_net_exit(VirtioCcwDevice *dev)
     return virtio_ccw_exit(dev);
 }
 
-static int virtio_ccw_blk_init(VirtioCcwDevice *dev)
+static int virtio_ccw_blk_init(VirtioCcwDevice *ccw_dev)
 {
-    VirtIODevice *vdev;
-
-    vdev = virtio_blk_init((DeviceState *)dev, &dev->blk);
-    if (!vdev) {
+    VirtIOBlkCcw *dev = VIRTIO_BLK_CCW(ccw_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+    virtio_blk_set_conf(vdev, &(dev->blk));
+    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
+    if (qdev_init(vdev) < 0) {
         return -1;
     }
 
-    return virtio_ccw_device_init(dev, vdev);
+    return virtio_ccw_device_init(ccw_dev, VIRTIO_DEVICE(vdev));
 }
 
-static int virtio_ccw_blk_exit(VirtioCcwDevice *dev)
+static void virtio_ccw_blk_instance_init(Object *obj)
 {
-    virtio_blk_exit(dev->vdev);
-    return virtio_ccw_exit(dev);
+    VirtIOBlkCcw *dev = VIRTIO_BLK_CCW(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BLK);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
 static int virtio_ccw_serial_init(VirtioCcwDevice *dev)
@@ -754,10 +756,10 @@ static const TypeInfo virtio_ccw_net = {
 
 static Property virtio_ccw_blk_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_BLOCK_PROPERTIES(VirtioCcwDevice, blk.conf),
-    DEFINE_PROP_STRING("serial", VirtioCcwDevice, blk.serial),
+    DEFINE_BLOCK_PROPERTIES(VirtIOBlkCcw, blk.conf),
+    DEFINE_PROP_STRING("serial", VirtIOBlkCcw, blk.serial),
 #ifdef __linux__
-    DEFINE_PROP_BIT("scsi", VirtioCcwDevice, blk.scsi, 0, true),
+    DEFINE_PROP_BIT("scsi", VirtIOBlkCcw, blk.scsi, 0, true),
 #endif
     DEFINE_VIRTIO_BLK_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_PROP_END_OF_LIST(),
@@ -769,15 +771,16 @@ static void virtio_ccw_blk_class_init(ObjectClass *klass, void *data)
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->init = virtio_ccw_blk_init;
-    k->exit = virtio_ccw_blk_exit;
+    k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_blk_properties;
 }
 
 static const TypeInfo virtio_ccw_blk = {
-    .name          = "virtio-blk-ccw",
+    .name          = TYPE_VIRTIO_BLK_CCW,
     .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtioCcwDevice),
+    .instance_size = sizeof(VirtIOBlkCcw),
+    .instance_init = virtio_ccw_blk_instance_init,
     .class_init    = virtio_ccw_blk_class_init,
 };
 

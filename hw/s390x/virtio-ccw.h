@@ -72,7 +72,6 @@ struct VirtioCcwDevice {
     SubchDev *sch;
     VirtIODevice *vdev;
     char *bus_id;
-    VirtIOBlkConf blk;
     NICConf nic;
     uint32_t host_features[VIRTIO_CCW_FEATURE_SIZE];
     virtio_serial_conf serial;
@@ -93,6 +92,19 @@ typedef struct VirtualCssBus {
 #define TYPE_VIRTUAL_CSS_BUS "virtual-css-bus"
 #define VIRTUAL_CSS_BUS(obj) \
      OBJECT_CHECK(VirtualCssBus, (obj), TYPE_VIRTUAL_CSS_BUS)
+
+/* virtio-blk-ccw */
+
+#define TYPE_VIRTIO_BLK_CCW "virtio-blk-ccw"
+#define VIRTIO_BLK_CCW(obj) \
+        OBJECT_CHECK(VirtIOBlkCcw, (obj), TYPE_VIRTIO_BLK_CCW)
+
+typedef struct VirtIOBlkCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOBlock vdev;
+    VirtIOBlkConf blk;
+} VirtIOBlkCcw;
+
 
 VirtualCssBus *virtual_css_bus_init(void);
 void virtio_ccw_device_update_status(SubchDev *sch);
