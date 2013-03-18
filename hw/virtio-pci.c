@@ -1412,13 +1412,6 @@ static void virtio_pci_device_plugged(DeviceState *d)
                                                       proxy->host_features);
 }
 
-/* This is called by virtio-bus just before the device is unplugged. */
-static void virtio_pci_device_unplug(DeviceState *d)
-{
-    VirtIOPCIProxy *dev = VIRTIO_PCI(d);
-    virtio_pci_stop_ioeventfd(dev);
-}
-
 static int virtio_pci_init(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *dev = VIRTIO_PCI(pci_dev);
@@ -1433,10 +1426,7 @@ static int virtio_pci_init(PCIDevice *pci_dev)
 static void virtio_pci_exit(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
-    VirtioBusState *bus = VIRTIO_BUS(&proxy->bus);
-    BusState *qbus = BUS(&proxy->bus);
-    virtio_bus_destroy_device(bus);
-    qbus_free(qbus);
+    virtio_pci_stop_ioeventfd(proxy);
     virtio_exit_pci(pci_dev);
 }
 
@@ -1503,7 +1493,6 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->set_guest_notifiers = virtio_pci_set_guest_notifiers;
     k->vmstate_change = virtio_pci_vmstate_change;
     k->device_plugged = virtio_pci_device_plugged;
-    k->device_unplug = virtio_pci_device_unplug;
 }
 
 static const TypeInfo virtio_pci_bus_info = {
