@@ -403,6 +403,9 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaView: switchSurface\n");
 
+    int w = surface_width(surface);
+    int h = surface_height(surface);
+
     // update screenBuffer
     if (dataProviderRef)
         CGDataProviderRelease(dataProviderRef);
@@ -1014,9 +1017,9 @@ static void cocoa_cleanup(void)
 
 static const DisplayChangeListenerOps dcl_ops = {
     .dpy_name          = "cocoa",
-    .dpy_gfx_update = cocoa_update;
-    .dpy_gfx_switch = cocoa_switch;
-    .dpy_refresh = cocoa_refresh;
+    .dpy_gfx_update = cocoa_update,
+    .dpy_gfx_switch = cocoa_switch,
+    .dpy_refresh = cocoa_refresh,
 };
 
 void cocoa_display_init(DisplayState *ds, int full_screen)
