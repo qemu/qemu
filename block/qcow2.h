@@ -58,6 +58,9 @@
 
 #define DEFAULT_CLUSTER_SIZE 65536
 
+
+#define QCOW2_OPT_LAZY_REFCOUNTS "lazy_refcounts"
+
 typedef struct QCowHeader {
     uint32_t magic;
     uint32_t version;
