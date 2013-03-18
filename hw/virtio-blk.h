@@ -124,7 +124,6 @@ typedef struct VirtIOBlock {
     BlockConf *conf;
     VirtIOBlkConf blk;
     unsigned short sector_mask;
-    DeviceState *qdev;
     VMChangeStateEntry *change;
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
     VirtIOBlockDataPlane *dataplane;
