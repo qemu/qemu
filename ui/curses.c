@@ -35,12 +35,14 @@
 #define FONT_HEIGHT 16
 #define FONT_WIDTH 8
 
+static DisplayChangeListener *dcl;
 static console_ch_t screen[160 * 100];
 static WINDOW *screenpad = NULL;
 static int width, height, gwidth, gheight, invalidate;
 static int px, py, sminx, sminy, smaxx, smaxy;
 
-static void curses_update(DisplayState *ds, int x, int y, int w, int h)
+static void curses_update(DisplayChangeListener *dcl,
+                          int x, int y, int w, int h)
 {
     chtype *line;
 
@@ -91,7 +93,8 @@ static void curses_calc_pad(void)
     }
 }
 
-static void curses_resize(DisplayState *ds, int width, int height)
+static void curses_resize(DisplayChangeListener *dcl,
+                          int width, int height)
 {
     if (width == gwidth && height == gheight) {
         return;
@@ -128,7 +131,8 @@ static void curses_winch_handler(int signum)
 #endif
 #endif
 
-static void curses_cursor_position(DisplayState *ds, int x, int y)
+static void curses_cursor_position(DisplayChangeListener *dcl,
+                                   int x, int y)
 {
     if (x >= 0) {
         x = sminx + x - px;
@@ -154,7 +158,7 @@ static void curses_cursor_position(DisplayState *ds, int x, int y)
 
 static kbd_layout_t *kbd_layout = NULL;
 
-static void curses_refresh(DisplayState *ds)
+static void curses_refresh(DisplayChangeListener *dcl)
 {
     int chr, nextchr, keysym, keycode, keycode_alt;
 
@@ -187,7 +191,7 @@ static void curses_refresh(DisplayState *ds)
             clear();
             refresh();
             curses_calc_pad();
-            curses_update(ds, 0, 0, width, height);
+            curses_update(dcl, 0, 0, width, height);
             continue;
         }
 #endif
@@ -323,9 +327,16 @@ static void curses_keyboard_setup(void)
     }
 }
 
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name        = "curses",
+    .dpy_text_update = curses_update,
+    .dpy_text_resize = curses_resize,
+    .dpy_refresh     = curses_refresh,
+    .dpy_text_cursor = curses_cursor_position,
+};
+
 void curses_display_init(DisplayState *ds, int full_screen)
 {
-    DisplayChangeListener *dcl;
 #ifndef _WIN32
     if (!isatty(1)) {
         fprintf(stderr, "We need a terminal output\n");
@@ -346,10 +357,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
 #endif
 
     dcl = (DisplayChangeListener *) g_malloc0(sizeof(DisplayChangeListener));
-    dcl->dpy_text_update = curses_update;
-    dcl->dpy_text_resize = curses_resize;
-    dcl->dpy_refresh = curses_refresh;
-    dcl->dpy_text_cursor = curses_cursor_position;
+    dcl->ops = &dcl_ops;
     register_displaychangelistener(ds, dcl);
 
     invalidate = 1;

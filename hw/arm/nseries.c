@@ -1290,7 +1290,6 @@ static void n8x0_init(QEMUMachineInitArgs *args,
     MemoryRegion *sysmem = get_system_memory();
     struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
     int sdram_size = binfo->ram_size;
-    DisplayState *ds;
 
     s->mpu = omap2420_mpu_init(sysmem, sdram_size, args->cpu_model);
 
@@ -1370,12 +1369,6 @@ static void n8x0_init(QEMUMachineInitArgs *args,
         n800_setup_nolo_tags(nolo_tags);
         cpu_physical_memory_write(OMAP2_SRAM_BASE, nolo_tags, 0x10000);
     }
-    /* FIXME: We shouldn't really be doing this here.  The LCD controller
-       will set the size once configured, so this just sets an initial
-       size until the guest activates the display.  */
-    ds = get_displaystate();
-    ds->surface = qemu_resize_displaysurface(ds, 800, 480);
-    dpy_gfx_resize(ds);
 }
 
 static struct arm_boot_info n800_binfo = {

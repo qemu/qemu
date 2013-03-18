@@ -36,7 +36,7 @@ typedef struct LedState {
     SysBusDevice busdev;
     MemoryRegion iomem;
     uint8_t segments;
-    DisplayState *ds;
+    QemuConsole *con;
     screen_state_t state;
 } LedState;
 
@@ -75,13 +75,15 @@ static const MemoryRegionOps led_ops = {
 /***********************************************************/
 /* jazz_led display */
 
-static void draw_horizontal_line(DisplayState *ds, int posy, int posx1, int posx2, uint32_t color)
+static void draw_horizontal_line(DisplaySurface *ds,
+                                 int posy, int posx1, int posx2,
+                                 uint32_t color)
 {
     uint8_t *d;
     int x, bpp;
 
-    bpp = (ds_get_bits_per_pixel(ds) + 7) >> 3;
-    d = ds_get_data(ds) + ds_get_linesize(ds) * posy + bpp * posx1;
+    bpp = (surface_bits_per_pixel(ds) + 7) >> 3;
+    d = surface_data(ds) + surface_stride(ds) * posy + bpp * posx1;
     switch(bpp) {
         case 1:
             for (x = posx1; x <= posx2; x++) {
@@ -104,30 +106,32 @@ static void draw_horizontal_line(DisplayState *ds, int posy, int posx1, int posx
     }
 }
 
-static void draw_vertical_line(DisplayState *ds, int posx, int posy1, int posy2, uint32_t color)
+static void draw_vertical_line(DisplaySurface *ds,
+                               int posx, int posy1, int posy2,
+                               uint32_t color)
 {
     uint8_t *d;
     int y, bpp;
 
-    bpp = (ds_get_bits_per_pixel(ds) + 7) >> 3;
-    d = ds_get_data(ds) + ds_get_linesize(ds) * posy1 + bpp * posx;
+    bpp = (surface_bits_per_pixel(ds) + 7) >> 3;
+    d = surface_data(ds) + surface_stride(ds) * posy1 + bpp * posx;
     switch(bpp) {
         case 1:
             for (y = posy1; y <= posy2; y++) {
                 *((uint8_t *)d) = color;
-                d += ds_get_linesize(ds);
+                d += surface_stride(ds);
             }
             break;
         case 2:
             for (y = posy1; y <= posy2; y++) {
                 *((uint16_t *)d) = color;
-                d += ds_get_linesize(ds);
+                d += surface_stride(ds);
             }
             break;
         case 4:
             for (y = posy1; y <= posy2; y++) {
                 *((uint32_t *)d) = color;
-                d += ds_get_linesize(ds);
+                d += surface_stride(ds);
             }
             break;
     }
@@ -136,24 +140,24 @@ static void draw_vertical_line(DisplayState *ds, int posx, int posy1, int posy2,
 static void jazz_led_update_display(void *opaque)
 {
     LedState *s = opaque;
-    DisplayState *ds = s->ds;
+    DisplaySurface *surface = qemu_console_surface(s->con);
     uint8_t *d1;
     uint32_t color_segment, color_led;
     int y, bpp;
 
     if (s->state & REDRAW_BACKGROUND) {
         /* clear screen */
-        bpp = (ds_get_bits_per_pixel(ds) + 7) >> 3;
-        d1 = ds_get_data(ds);
-        for (y = 0; y < ds_get_height(ds); y++) {
-            memset(d1, 0x00, ds_get_width(ds) * bpp);
-            d1 += ds_get_linesize(ds);
+        bpp = (surface_bits_per_pixel(surface) + 7) >> 3;
+        d1 = surface_data(surface);
+        for (y = 0; y < surface_height(surface); y++) {
+            memset(d1, 0x00, surface_width(surface) * bpp);
+            d1 += surface_stride(surface);
         }
     }
 
     if (s->state & REDRAW_SEGMENTS) {
         /* set colors according to bpp */
-        switch (ds_get_bits_per_pixel(ds)) {
+        switch (surface_bits_per_pixel(surface)) {
             case 8:
                 color_segment = rgb_to_pixel8(0xaa, 0xaa, 0xaa);
                 color_led = rgb_to_pixel8(0x00, 0xff, 0x00);
@@ -178,26 +182,34 @@ static void jazz_led_update_display(void *opaque)
         }
 
         /* display segments */
-        draw_horizontal_line(ds, 40, 10, 40, (s->segments & 0x02) ? color_segment : 0);
-        draw_vertical_line(ds, 10, 10, 40, (s->segments & 0x04) ? color_segment : 0);
-        draw_vertical_line(ds, 10, 40, 70, (s->segments & 0x08) ? color_segment : 0);
-        draw_horizontal_line(ds, 70, 10, 40, (s->segments & 0x10) ? color_segment : 0);
-        draw_vertical_line(ds, 40, 40, 70, (s->segments & 0x20) ? color_segment : 0);
-        draw_vertical_line(ds, 40, 10, 40, (s->segments & 0x40) ? color_segment : 0);
-        draw_horizontal_line(ds, 10, 10, 40, (s->segments & 0x80) ? color_segment : 0);
+        draw_horizontal_line(surface, 40, 10, 40,
+                             (s->segments & 0x02) ? color_segment : 0);
+        draw_vertical_line(surface, 10, 10, 40,
+                           (s->segments & 0x04) ? color_segment : 0);
+        draw_vertical_line(surface, 10, 40, 70,
+                           (s->segments & 0x08) ? color_segment : 0);
+        draw_horizontal_line(surface, 70, 10, 40,
+                             (s->segments & 0x10) ? color_segment : 0);
+        draw_vertical_line(surface, 40, 40, 70,
+                           (s->segments & 0x20) ? color_segment : 0);
+        draw_vertical_line(surface, 40, 10, 40,
+                           (s->segments & 0x40) ? color_segment : 0);
+        draw_horizontal_line(surface, 10, 10, 40,
+                             (s->segments & 0x80) ? color_segment : 0);
 
         /* display led */
         if (!(s->segments & 0x01))
             color_led = 0; /* black */
-        draw_horizontal_line(ds, 68, 50, 50, color_led);
-        draw_horizontal_line(ds, 69, 49, 51, color_led);
-        draw_horizontal_line(ds, 70, 48, 52, color_led);
-        draw_horizontal_line(ds, 71, 49, 51, color_led);
-        draw_horizontal_line(ds, 72, 50, 50, color_led);
+        draw_horizontal_line(surface, 68, 50, 50, color_led);
+        draw_horizontal_line(surface, 69, 49, 51, color_led);
+        draw_horizontal_line(surface, 70, 48, 52, color_led);
+        draw_horizontal_line(surface, 71, 49, 51, color_led);
+        draw_horizontal_line(surface, 72, 50, 50, color_led);
     }
 
     s->state = REDRAW_NONE;
-    dpy_gfx_update(ds, 0, 0, ds_get_width(ds), ds_get_height(ds));
+    dpy_gfx_update(s->con, 0, 0,
+                   surface_width(surface), surface_height(surface));
 }
 
 static void jazz_led_invalidate_display(void *opaque)
@@ -211,15 +223,15 @@ static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
     LedState *s = opaque;
     char buf[2];
 
-    dpy_text_cursor(s->ds, -1, -1);
-    qemu_console_resize(s->ds, 2, 1);
+    dpy_text_cursor(s->con, -1, -1);
+    qemu_console_resize(s->con, 2, 1);
 
     /* TODO: draw the segments */
     snprintf(buf, 2, "%02hhx\n", s->segments);
     console_write_ch(chardata++, 0x00200100 | buf[0]);
     console_write_ch(chardata++, 0x00200100 | buf[1]);
 
-    dpy_text_update(s->ds, 0, 0, 2, 1);
+    dpy_text_update(s->con, 0, 0, 2, 1);
 }
 
 static int jazz_led_post_load(void *opaque, int version_id)
@@ -249,10 +261,10 @@ static int jazz_led_init(SysBusDevice *dev)
     memory_region_init_io(&s->iomem, &led_ops, s, "led", 1);
     sysbus_init_mmio(dev, &s->iomem);
 
-    s->ds = graphic_console_init(jazz_led_update_display,
-                                 jazz_led_invalidate_display,
-                                 NULL,
-                                 jazz_led_text_update, s);
+    s->con = graphic_console_init(jazz_led_update_display,
+                                  jazz_led_invalidate_display,
+                                  NULL,
+                                  jazz_led_text_update, s);
 
     return 0;
 }
@@ -263,7 +275,7 @@ static void jazz_led_reset(DeviceState *d)
 
     s->segments = 0;
     s->state = REDRAW_SEGMENTS | REDRAW_BACKGROUND;
-    qemu_console_resize(s->ds, 60, 80);
+    qemu_console_resize(s->con, 60, 80);
 }
 
 static void jazz_led_class_init(ObjectClass *klass, void *data)

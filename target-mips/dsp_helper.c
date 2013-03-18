@@ -517,13 +517,8 @@ static inline void mipsdsp_rndrashift_short_acc(int64_t *p,
 
     acc = ((int64_t)env->active_tc.HI[ac] << 32) |
           ((int64_t)env->active_tc.LO[ac] & 0xFFFFFFFF);
-    if (shift == 0) {
-        p[0] = acc << 1;
-        p[1] = (acc >> 63) & 0x01;
-    } else {
-        p[0] = acc >> (shift - 1);
-        p[1] = 0;
-    }
+    p[0] = (shift == 0) ? (acc << 1) : (acc >> (shift - 1));
+    p[1] = (acc >> 63) & 0x01;
 }
 
 /* 128 bits long. p[0] is LO, p[1] is HI */
@@ -3161,8 +3156,8 @@ target_ulong helper_extr_w(target_ulong ac, target_ulong shift,
         tempDL[1] += 1;
     }
 
-    if ((!(tempDL[1] == 0 && (tempDL[0] & MIPSDSP_LHI) == 0x00)) &&
-        (!(tempDL[1] == 1 && (tempDL[0] & MIPSDSP_LHI) == MIPSDSP_LHI))) {
+    if (((tempDL[1] & 0x01) != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
+        ((tempDL[1] & 0x01) != 1 || (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
         set_DSPControl_overflow_flag(1, 23, env);
     }
 
@@ -3187,8 +3182,8 @@ target_ulong helper_extr_r_w(target_ulong ac, target_ulong shift,
         tempDL[1] += 1;
     }
 
-    if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
-        (tempDL[1] != 1 && (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
+    if (((tempDL[1] & 0x01) != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
+        ((tempDL[1] & 0x01) != 1 || (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
         set_DSPControl_overflow_flag(1, 23, env);
     }
 
@@ -3214,9 +3209,9 @@ target_ulong helper_extr_rs_w(target_ulong ac, target_ulong shift,
     }
     tempI = tempDL[0] >> 1;
 
-    if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
-        (tempDL[1] != 1 || (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
-        temp64 = tempDL[1];
+    if (((tempDL[1] & 0x01) != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
+        ((tempDL[1] & 0x01) != 1 || (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
+        temp64 = tempDL[1] & 0x01;
         if (temp64 == 0) {
             tempI = 0x7FFFFFFF;
         } else {

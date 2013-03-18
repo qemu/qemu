@@ -54,7 +54,7 @@
 struct common {
     struct XenDevice  xendev;  /* must be first */
     void              *page;
-    DisplayState      *ds;
+    QemuConsole       *con;
 };
 
 struct XenInput {
@@ -318,8 +318,9 @@ static void xenfb_mouse_event(void *opaque,
 			      int dx, int dy, int dz, int button_state)
 {
     struct XenInput *xenfb = opaque;
-    int dw = ds_get_width(xenfb->c.ds);
-    int dh = ds_get_height(xenfb->c.ds);
+    DisplaySurface *surface = qemu_console_surface(xenfb->c.con);
+    int dw = surface_width(surface);
+    int dh = surface_height(surface);
     int i;
 
     if (xenfb->abs_pointer_wanted)
@@ -353,16 +354,9 @@ static int input_initialise(struct XenDevice *xendev)
     struct XenInput *in = container_of(xendev, struct XenInput, c.xendev);
     int rc;
 
-    if (!in->c.ds) {
-        char *vfb = xenstore_read_str(NULL, "device/vfb");
-        if (vfb == NULL) {
-            /* there is no vfb, run vkbd on its own */
-            in->c.ds = get_displaystate();
-        } else {
-            g_free(vfb);
-            xen_be_printf(xendev, 1, "ds not set (yet)\n");
-            return -1;
-        }
+    if (!in->c.con) {
+        xen_be_printf(xendev, 1, "ds not set (yet)\n");
+        return -1;
     }
 
     rc = common_bind(&in->c);
@@ -615,12 +609,13 @@ static int xenfb_configure_fb(struct XenFB *xenfb, size_t fb_len_lim,
  */
 static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
 {
+    DisplaySurface *surface = qemu_console_surface(xenfb->c.con);
     int line, oops = 0;
-    int bpp = ds_get_bits_per_pixel(xenfb->c.ds);
-    int linesize = ds_get_linesize(xenfb->c.ds);
-    uint8_t *data = ds_get_data(xenfb->c.ds);
+    int bpp = surface_bits_per_pixel(surface);
+    int linesize = surface_stride(surface);
+    uint8_t *data = surface_data(surface);
 
-    if (!is_buffer_shared(xenfb->c.ds->surface)) {
+    if (!is_buffer_shared(surface)) {
         switch (xenfb->depth) {
         case 8:
             if (bpp == 16) {
@@ -648,10 +643,10 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
         xen_be_printf(&xenfb->c.xendev, 0, "%s: oops: convert %d -> %d bpp?\n",
                       __FUNCTION__, xenfb->depth, bpp);
 
-    dpy_gfx_update(xenfb->c.ds, x, y, w, h);
+    dpy_gfx_update(xenfb->c.con, x, y, w, h);
 }
 
-#ifdef XENFB_TYPE_REFRESH_PERIOD
+#if 0 /* def XENFB_TYPE_REFRESH_PERIOD */
 static int xenfb_queue_full(struct XenFB *xenfb)
 {
     struct xenfb_page *page = xenfb->c.page;
@@ -703,13 +698,14 @@ static void xenfb_send_refresh_period(struct XenFB *xenfb, int period)
 static void xenfb_update(void *opaque)
 {
     struct XenFB *xenfb = opaque;
+    DisplaySurface *surface;
     int i;
 
     if (xenfb->c.xendev.be_state != XenbusStateConnected)
         return;
 
     if (xenfb->feature_update) {
-#ifdef XENFB_TYPE_REFRESH_PERIOD
+#if 0 /* XENFB_TYPE_REFRESH_PERIOD */
         struct DisplayChangeListener *l;
         int period = 99999999;
         int idle = 1;
@@ -753,21 +749,20 @@ static void xenfb_update(void *opaque)
         case 16:
         case 32:
             /* console.c supported depth -> buffer can be used directly */
-            qemu_free_displaysurface(xenfb->c.ds);
-            xenfb->c.ds->surface = qemu_create_displaysurface_from
+            surface = qemu_create_displaysurface_from
                 (xenfb->width, xenfb->height, xenfb->depth,
                  xenfb->row_stride, xenfb->pixels + xenfb->offset,
                  false);
             break;
         default:
             /* we must convert stuff */
-            qemu_resize_displaysurface(xenfb->c.ds, xenfb->width, xenfb->height);
+            surface = qemu_create_displaysurface(xenfb->width, xenfb->height);
             break;
         }
+        dpy_gfx_replace_surface(xenfb->c.con, surface);
         xen_be_printf(&xenfb->c.xendev, 1, "update: resizing: %dx%d @ %d bpp%s\n",
                       xenfb->width, xenfb->height, xenfb->depth,
-                      is_buffer_shared(xenfb->c.ds->surface) ? " (shared)" : "");
-        dpy_gfx_resize(xenfb->c.ds);
+                      is_buffer_shared(surface) ? " (shared)" : "");
         xenfb->up_fullscreen = 1;
     }
 
@@ -1009,16 +1004,16 @@ wait_more:
 
     /* vfb */
     fb = container_of(xfb, struct XenFB, c.xendev);
-    fb->c.ds = graphic_console_init(xenfb_update,
-                                    xenfb_invalidate,
-                                    NULL,
-                                    NULL,
-                                    fb);
+    fb->c.con = graphic_console_init(xenfb_update,
+                                     xenfb_invalidate,
+                                     NULL,
+                                     NULL,
+                                     fb);
     fb->have_console = 1;
 
     /* vkbd */
     in = container_of(xin, struct XenInput, c.xendev);
-    in->c.ds = fb->c.ds;
+    in->c.con = fb->c.con;
 
     /* retry ->init() */
     xen_be_check_state(xin);

@@ -454,7 +454,7 @@ static const uint32_t sm501_mem_local_size[] = {
 
 typedef struct SM501State {
     /* graphic console status */
-    DisplayState *ds;
+    QemuConsole *con;
 
     /* status & internal resources */
     hwaddr base;
@@ -1234,9 +1234,9 @@ static draw_hwc_line_func * draw_hwc_line_funcs[] = {
     draw_hwc_line_16bgr,
 };
 
-static inline int get_depth_index(DisplayState *s)
+static inline int get_depth_index(DisplaySurface *surface)
 {
-    switch(ds_get_bits_per_pixel(s)) {
+    switch (surface_bits_per_pixel(surface)) {
     default:
     case 8:
 	return 0;
@@ -1245,26 +1245,28 @@ static inline int get_depth_index(DisplayState *s)
     case 16:
         return 2;
     case 32:
-	if (is_surface_bgr(s->surface))
-	    return 4;
-	else
-	    return 3;
+        if (is_surface_bgr(surface)) {
+            return 4;
+        } else {
+            return 3;
+        }
     }
 }
 
 static void sm501_draw_crt(SM501State * s)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int y;
     int width = (s->dc_crt_h_total & 0x00000FFF) + 1;
     int height = (s->dc_crt_v_total & 0x00000FFF) + 1;
 
     uint8_t  * src = s->local_mem;
     int src_bpp = 0;
-    int dst_bpp = ds_get_bytes_per_pixel(s->ds) + (ds_get_bits_per_pixel(s->ds) % 8 ? 1 : 0);
+    int dst_bpp = surface_bytes_per_pixel(surface);
     uint32_t * palette = (uint32_t *)&s->dc_palette[SM501_DC_CRT_PALETTE
 						    - SM501_DC_PANEL_PALETTE];
     uint8_t hwc_palette[3 * 3];
-    int ds_depth_index = get_depth_index(s->ds);
+    int ds_depth_index = get_depth_index(surface);
     draw_line_func * draw_line = NULL;
     draw_hwc_line_func * draw_hwc_line = NULL;
     int full_update = 0;
@@ -1312,7 +1314,8 @@ static void sm501_draw_crt(SM501State * s)
 
     /* adjust console size */
     if (s->last_width != width || s->last_height != height) {
-	qemu_console_resize(s->ds, width, height);
+        qemu_console_resize(s->con, width, height);
+        surface = qemu_console_surface(s->con);
 	s->last_width = width;
 	s->last_height = height;
 	full_update = 1;
@@ -1331,7 +1334,8 @@ static void sm501_draw_crt(SM501State * s)
 
 	/* draw line and change status */
 	if (update) {
-            uint8_t * d = &(ds_get_data(s->ds)[y * width * dst_bpp]);
+            uint8_t *d = surface_data(surface);
+            d +=  y * width * dst_bpp;
 
             /* draw graphics layer */
             draw_line(d, src, width, palette);
@@ -1350,7 +1354,7 @@ static void sm501_draw_crt(SM501State * s)
 	} else {
 	    if (y_start >= 0) {
 		/* flush to display */
-                dpy_gfx_update(s->ds, 0, y_start, width, y - y_start);
+                dpy_gfx_update(s->con, 0, y_start, width, y - y_start);
 		y_start = -1;
 	    }
 	}
@@ -1361,7 +1365,7 @@ static void sm501_draw_crt(SM501State * s)
 
     /* complete flush to display */
     if (y_start >= 0)
-        dpy_gfx_update(s->ds, 0, y_start, width, y - y_start);
+        dpy_gfx_update(s->con, 0, y_start, width, y - y_start);
 
     /* clear dirty flags */
     if (page_min != ~0l) {
@@ -1441,6 +1445,6 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
     }
 
     /* create qemu graphic console */
-    s->ds = graphic_console_init(sm501_update_display, NULL,
-				 NULL, NULL, s);
+    s->con = graphic_console_init(sm501_update_display, NULL,
+                                  NULL, NULL, s);
 }

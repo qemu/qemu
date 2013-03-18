@@ -1639,13 +1639,13 @@ void gui_setup_refresh(DisplayState *ds)
     bool have_text = false;
 
     QLIST_FOREACH(dcl, &ds->listeners, next) {
-        if (dcl->dpy_refresh != NULL) {
+        if (dcl->ops->dpy_refresh != NULL) {
             need_timer = true;
         }
-        if (dcl->dpy_gfx_update != NULL) {
+        if (dcl->ops->dpy_gfx_update != NULL) {
             have_gfx = true;
         }
-        if (dcl->dpy_text_update != NULL) {
+        if (dcl->ops->dpy_text_update != NULL) {
             have_text = true;
         }
     }
