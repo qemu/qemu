@@ -688,7 +688,11 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
         bdrv_enable_copy_on_read(bs);
     }
 
-    pstrcpy(bs->filename, sizeof(bs->filename), filename);
+    if (filename != NULL) {
+        pstrcpy(bs->filename, sizeof(bs->filename), filename);
+    } else {
+        bs->filename[0] = '\0';
+    }
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
         return -ENOTSUP;
@@ -708,6 +712,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
             bdrv_swap(file, bs);
             ret = 0;
         } else {
+            assert(drv->bdrv_parse_filename || filename != NULL);
             ret = drv->bdrv_file_open(bs, filename, options, open_flags);
         }
     } else {
@@ -727,6 +732,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
 #ifndef _WIN32
     if (bs->is_temporary) {
+        assert(filename != NULL);
         unlink(filename);
     }
 #endif
@@ -753,13 +759,8 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
 {
     BlockDriverState *bs;
     BlockDriver *drv;
+    const char *drvname;
     int ret;
-
-    drv = bdrv_find_protocol(filename);
-    if (!drv) {
-        QDECREF(options);
-        return -ENOENT;
-    }
 
     /* NULL means an empty set of options */
     if (options == NULL) {
@@ -770,7 +771,26 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     bs->options = options;
     options = qdict_clone_shallow(options);
 
-    if (drv->bdrv_parse_filename) {
+    /* Find the right block driver */
+    drvname = qdict_get_try_str(options, "driver");
+    if (drvname) {
+        drv = bdrv_find_whitelisted_format(drvname);
+        qdict_del(options, "driver");
+    } else if (filename) {
+        drv = bdrv_find_protocol(filename);
+    } else {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "Must specify either driver or file");
+        drv = NULL;
+    }
+
+    if (!drv) {
+        ret = -ENOENT;
+        goto fail;
+    }
+
+    /* Parse the filename and open it */
+    if (drv->bdrv_parse_filename && filename) {
         Error *local_err = NULL;
         drv->bdrv_parse_filename(filename, options, &local_err);
         if (error_is_set(&local_err)) {
@@ -779,6 +799,12 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
             ret = -EINVAL;
             goto fail;
         }
+    } else if (!drv->bdrv_parse_filename && !filename) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "The '%s' block driver requires a file name",
+                      drv->format_name);
+        ret = -EINVAL;
+        goto fail;
     }
 
     ret = bdrv_open_common(bs, NULL, filename, options, flags, drv);
@@ -898,6 +924,13 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         BlockDriver *bdrv_qcow2;
         QEMUOptionParameter *create_options;
         char backing_filename[PATH_MAX];
+
+        if (qdict_size(options) != 0) {
+            error_report("Can't use snapshot=on with driver-specific options");
+            ret = -EINVAL;
+            goto fail;
+        }
+        assert(filename != NULL);
 
         /* if snapshot, we create a temporary backing file and open it
            instead of opening 'filename' directly */
