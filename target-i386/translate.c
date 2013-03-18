@@ -4746,7 +4746,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             }
             s->pc++;
 
-            /* 4.1.1-4.1.3: No preceeding lock, 66, f2, f3, or rex prefixes. */
+            /* 4.1.1-4.1.3: No preceding lock, 66, f2, f3, or rex prefixes. */
             if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ
                             | PREFIX_LOCK | PREFIX_DATA)) {
                 goto illegal_op;

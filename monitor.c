@@ -3560,10 +3560,10 @@ static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
  * If @cmdline is blank, return NULL.
  * If it can't be parsed, report to @mon, and return NULL.
  * Else, insert command arguments into @qdict, and return the command.
- * If sub-command table exist, and if @cmdline contains addtional string for
- * sub-command, this function will try search sub-command table. if no
- * addtional string for sub-command exist, this function will return the found
- * one in @table.
+ * If a sub-command table exists, and if @cmdline contains an additional string
+ * for a sub-command, this function will try to search the sub-command table.
+ * If no additional string for a sub-command is present, this function will
+ * return the command found in @table.
  * Do not assume the returned command points into @table!  It doesn't
  * when the command is a sub-command.
  */
