@@ -44,17 +44,12 @@
 
 #include "hw/vhost_net.h"
 
-/* Maximum GSO packet size (64k) plus plenty of room for
- * the ethernet and virtio_net headers
- */
-#define TAP_BUFSIZE (4096 + 65536)
-
 typedef struct TAPState {
     NetClientState nc;
     int fd;
     char down_script[1024];
     char down_script_arg[128];
-    uint8_t buf[TAP_BUFSIZE];
+    uint8_t buf[NET_BUFSIZE];
     bool read_poll;
     bool write_poll;
     bool using_vnet_hdr;
