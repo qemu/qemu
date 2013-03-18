@@ -75,7 +75,6 @@ PCIBus *xbox_pci_init(qemu_irq *pic,
     /* pci host bus */
     dev = qdev_create(NULL, "xbox-pcihost");
     host_state = PCI_HOST_BRIDGE(dev);
-    host_state->address_space = address_space_mem;
 
     host_bus = pci_bus_new(dev, NULL,
                            pci_memory, address_space_io, 0);
