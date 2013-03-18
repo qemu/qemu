@@ -961,6 +961,7 @@ mips-softmmu \
 mipsel-softmmu \
 mips64-softmmu \
 mips64el-softmmu \
+moxie-softmmu \
 or32-softmmu \
 ppc-softmmu \
 ppcemb-softmmu \
@@ -3947,7 +3948,7 @@ target_arch2=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
 
 case "$target_arch2" in
-  armeb|lm32|m68k|microblaze|mips|mipsn32|mips64|or32|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
+  armeb|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or32|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
   target_bigendian=yes
   ;;
 esac
@@ -4050,6 +4051,8 @@ case "$target_arch2" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
     target_long_alignment=8
+  ;;
+  moxie)
   ;;
   or32)
     TARGET_ARCH=openrisc
@@ -4287,6 +4290,10 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   mips*)
     echo "CONFIG_MIPS_DIS=y"  >> $config_target_mak
     echo "CONFIG_MIPS_DIS=y"  >> config-all-disas.mak
+  ;;
+  moxie*)
+    echo "CONFIG_MOXIE_DIS=y"  >> $config_target_mak
+    echo "CONFIG_MOXIE_DIS=y"  >> config-all-disas.mak
   ;;
   or32)
     echo "CONFIG_OPENRISC_DIS=y"  >> $config_target_mak

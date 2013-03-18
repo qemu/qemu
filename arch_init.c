@@ -85,6 +85,8 @@ int graphic_depth = 15;
 #define QEMU_ARCH QEMU_ARCH_MICROBLAZE
 #elif defined(TARGET_MIPS)
 #define QEMU_ARCH QEMU_ARCH_MIPS
+#elif defined(TARGET_MOXIE)
+#define QEMU_ARCH QEMU_ARCH_MOXIE
 #elif defined(TARGET_OPENRISC)
 #define QEMU_ARCH QEMU_ARCH_OPENRISC
 #elif defined(TARGET_PPC)

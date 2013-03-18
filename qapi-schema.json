@@ -2994,9 +2994,9 @@
 ##
 { 'enum': 'TargetType',
   'data': [ 'alpha', 'arm', 'cris', 'i386', 'lm32', 'm68k', 'microblazeel',
-            'microblaze', 'mips64el', 'mips64', 'mipsel', 'mips', 'or32',
-            'ppc64', 'ppcemb', 'ppc', 's390x', 'sh4eb', 'sh4', 'sparc64',
-            'sparc', 'unicore32', 'x86_64', 'xtensaeb', 'xtensa' ] }
+            'microblaze', 'mips64el', 'mips64', 'mipsel', 'mips', 'moxie',
+            'or32', 'ppc64', 'ppcemb', 'ppc', 's390x', 'sh4eb', 'sh4',
+            'sparc64', 'sparc', 'unicore32', 'x86_64', 'xtensaeb', 'xtensa' ] }
 
 ##
 # @TargetInfo:

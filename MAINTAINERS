@@ -91,6 +91,11 @@ M: Aurelien Jarno <aurelien@aurel32.net>
 S: Odd Fixes
 F: target-mips/
 
+Moxie
+M: Anthony Green <green@moxielogic.com>
+S: Maintained
+F: target-moxie/
+
 PowerPC
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
