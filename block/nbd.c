@@ -118,21 +118,18 @@ static int nbd_parse_uri(const char *filename, QDict *options)
         }
         qdict_put(options, "path", qstring_from_str(qp->p[0].value));
     } else {
-        /* nbd[+tcp]://host:port/export */
-        char *port_str;
-
+        /* nbd[+tcp]://host[:port]/export */
         if (!uri->server) {
             ret = -EINVAL;
             goto out;
         }
-        if (!uri->port) {
-            uri->port = NBD_DEFAULT_PORT;
-        }
 
-        port_str = g_strdup_printf("%d", uri->port);
         qdict_put(options, "host", qstring_from_str(uri->server));
-        qdict_put(options, "port", qstring_from_str(port_str));
-        g_free(port_str);
+        if (uri->port) {
+            char* port_str = g_strdup_printf("%d", uri->port);
+            qdict_put(options, "port", qstring_from_str(port_str));
+            g_free(port_str);
+        }
     }
 
 out:
@@ -221,6 +218,10 @@ static int nbd_config(BDRVNBDState *s, QDict *options)
         qerror_report_err(local_err);
         error_free(local_err);
         return -EINVAL;
+    }
+
+    if (!qemu_opt_get(s->socket_opts, "port")) {
+        qemu_opt_set_number(s->socket_opts, "port", NBD_DEFAULT_PORT);
     }
 
     s->export_name = g_strdup(qdict_get_try_str(options, "export"));
