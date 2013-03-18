@@ -23,14 +23,6 @@
 #endif
 #include "hw/virtio-bus.h"
 
-/*
- * Moving to QOM later in this series.
- */
-static VirtIOBlock *to_virtio_blk(VirtIODevice *vdev)
-{
-    return (VirtIOBlock *)vdev;
-}
-
 typedef struct VirtIOBlockReq
 {
     VirtIOBlock *dev;
@@ -46,12 +38,13 @@ typedef struct VirtIOBlockReq
 static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
 {
     VirtIOBlock *s = req->dev;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
     trace_virtio_blk_req_complete(req, status);
 
     stb_p(&req->in->status, status);
     virtqueue_push(s->vq, &req->elem, req->qiov.size + sizeof(*req->in));
-    virtio_notify(&s->vdev, s->vq);
+    virtio_notify(vdev, s->vq);
 }
 
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
@@ -396,7 +389,7 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
 
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOBlock *s = to_virtio_blk(vdev);
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
     VirtIOBlockReq *req;
     MultiReqBuffer mrb = {
         .num_writes = 0,
@@ -464,7 +457,7 @@ static void virtio_blk_dma_restart_cb(void *opaque, int running,
 static void virtio_blk_reset(VirtIODevice *vdev)
 {
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
-    VirtIOBlock *s = to_virtio_blk(vdev);
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
 
     if (s->dataplane) {
         virtio_blk_data_plane_stop(s->dataplane);
@@ -482,7 +475,7 @@ static void virtio_blk_reset(VirtIODevice *vdev)
  */
 static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 {
-    VirtIOBlock *s = to_virtio_blk(vdev);
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
     struct virtio_blk_config blkcfg;
     uint64_t capacity;
     int blk_size = s->conf->logical_block_size;
@@ -521,7 +514,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 
 static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
 {
-    VirtIOBlock *s = to_virtio_blk(vdev);
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
     struct virtio_blk_config blkcfg;
 
     memcpy(&blkcfg, config, sizeof(blkcfg));
@@ -530,7 +523,7 @@ static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
 
 static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
 {
-    VirtIOBlock *s = to_virtio_blk(vdev);
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
 
     features |= (1 << VIRTIO_BLK_F_SEG_MAX);
     features |= (1 << VIRTIO_BLK_F_GEOMETRY);
@@ -552,7 +545,7 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
 
 static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 {
-    VirtIOBlock *s = to_virtio_blk(vdev);
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
     uint32_t features;
 
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
@@ -573,9 +566,10 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 static void virtio_blk_save(QEMUFile *f, void *opaque)
 {
     VirtIOBlock *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
     VirtIOBlockReq *req = s->rq;
 
-    virtio_save(&s->vdev, f);
+    virtio_save(vdev, f);
     
     while (req) {
         qemu_put_sbyte(f, 1);
@@ -588,12 +582,13 @@ static void virtio_blk_save(QEMUFile *f, void *opaque)
 static int virtio_blk_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIOBlock *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
     int ret;
 
     if (version_id != 2)
         return -EINVAL;
 
-    ret = virtio_load(&s->vdev, f);
+    ret = virtio_load(vdev, f);
     if (ret) {
         return ret;
     }
@@ -615,9 +610,9 @@ static int virtio_blk_load(QEMUFile *f, void *opaque, int version_id)
 
 static void virtio_blk_resize(void *opaque)
 {
-    VirtIOBlock *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
 
-    virtio_notify_config(&s->vdev);
+    virtio_notify_config(vdev);
 }
 
 static const BlockDevOps virtio_block_ops = {

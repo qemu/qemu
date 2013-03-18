@@ -116,7 +116,7 @@ struct VirtIOBlkConf
 };
 
 typedef struct VirtIOBlock {
-    VirtIODevice vdev;
+    VirtIODevice parent_obj;
     BlockDriverState *bs;
     VirtQueue *vq;
     void *rq;
