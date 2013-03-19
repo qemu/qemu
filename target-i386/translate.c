@@ -4200,7 +4200,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                         carry_in = carry_out;
                         break;
                     default:
-                        end_op = (b == 0x1f6 ? CC_OP_ADCX : CC_OP_ADCOX);
+                        end_op = (b == 0x1f6 ? CC_OP_ADCX : CC_OP_ADOX);
                         break;
                     }
                     /* If we can't reuse carry-out, get it out of EFLAGS.  */
