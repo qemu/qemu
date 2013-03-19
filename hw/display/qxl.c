@@ -1769,7 +1769,10 @@ static void qxl_hw_invalidate(void *opaque)
     PCIQXLDevice *qxl = opaque;
     VGACommonState *vga = &qxl->vga;
 
-    vga->hw_ops->invalidate(vga);
+    if (qxl->mode == QXL_MODE_VGA) {
+        vga->hw_ops->invalidate(vga);
+        return;
+    }
 }
 
 static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
@@ -2085,6 +2088,7 @@ static int qxl_init_secondary(PCIDevice *dev)
     memory_region_init_ram(&qxl->vga.vram, "qxl.vgavram", qxl->vga.vram_size);
     vmstate_register_ram(&qxl->vga.vram, &qxl->pci.qdev);
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
+    qxl->vga.con = graphic_console_init(&qxl_ops, qxl);
 
     return qxl_init_common(qxl);
 }
