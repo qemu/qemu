@@ -7693,7 +7693,7 @@ static int gdb_set_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
         return 8;
     }
     if (n == 32) {
-        /* FPSCR not implemented  */
+        helper_store_fpscr(env, ldl_p(mem_buf), 0xffffffff);
         return 4;
     }
     return 0;

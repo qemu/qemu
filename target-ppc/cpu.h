@@ -1180,6 +1180,8 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
 #endif
 #endif
 
+void store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask);
+
 static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
 {
     uint64_t gprv;
