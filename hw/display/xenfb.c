@@ -78,7 +78,6 @@ struct XenFB {
     void              *pixels;
     int               fbpages;
     int               feature_update;
-    int               refresh_period;
     int               bug_trigger;
     int               have_console;
     int               do_resize;
@@ -646,7 +645,7 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
     dpy_gfx_update(xenfb->c.con, x, y, w, h);
 }
 
-#if 0 /* def XENFB_TYPE_REFRESH_PERIOD */
+#ifdef XENFB_TYPE_REFRESH_PERIOD
 static int xenfb_queue_full(struct XenFB *xenfb)
 {
     struct xenfb_page *page = xenfb->c.page;
@@ -704,39 +703,7 @@ static void xenfb_update(void *opaque)
     if (xenfb->c.xendev.be_state != XenbusStateConnected)
         return;
 
-    if (xenfb->feature_update) {
-#if 0 /* XENFB_TYPE_REFRESH_PERIOD */
-        struct DisplayChangeListener *l;
-        int period = 99999999;
-        int idle = 1;
-
-	if (xenfb_queue_full(xenfb))
-	    return;
-
-        QLIST_FOREACH(l, &xenfb->c.ds->listeners, next) {
-            if (l->idle)
-                continue;
-            idle = 0;
-            if (!l->gui_timer_interval) {
-                if (period > GUI_REFRESH_INTERVAL)
-                    period = GUI_REFRESH_INTERVAL;
-            } else {
-                if (period > l->gui_timer_interval)
-                    period = l->gui_timer_interval;
-            }
-        }
-        if (idle)
-	    period = XENFB_NO_REFRESH;
-
-	if (xenfb->refresh_period != period) {
-	    xenfb_send_refresh_period(xenfb, period);
-	    xenfb->refresh_period = period;
-            xen_be_printf(&xenfb->c.xendev, 1, "refresh period: %d\n", period);
-	}
-#else
-	; /* nothing */
-#endif
-    } else {
+    if (!xenfb->feature_update) {
 	/* we don't get update notifications, thus use the
 	 * sledge hammer approach ... */
 	xenfb->up_fullscreen = 1;
@@ -783,6 +750,20 @@ static void xenfb_update(void *opaque)
     }
     xenfb->up_count = 0;
     xenfb->up_fullscreen = 0;
+}
+
+static void xenfb_update_interval(void *opaque, uint64_t interval)
+{
+    struct XenFB *xenfb = opaque;
+
+    if (xenfb->feature_update) {
+#ifdef XENFB_TYPE_REFRESH_PERIOD
+        if (xenfb_queue_full(xenfb)) {
+            return;
+        }
+        xenfb_send_refresh_period(xenfb, interval);
+#endif
+    }
 }
 
 /* QEMU display state changed, so refresh the framebuffer copy */
@@ -858,10 +839,6 @@ static void xenfb_handle_events(struct XenFB *xenfb)
 
 static int fb_init(struct XenDevice *xendev)
 {
-    struct XenFB *fb = container_of(xendev, struct XenFB, c.xendev);
-
-    fb->refresh_period = -1;
-
 #ifdef XENFB_TYPE_RESIZE
     xenstore_write_be_int(xendev, "feature-resize", 1);
 #endif
@@ -980,6 +957,7 @@ struct XenDevOps xen_framebuffer_ops = {
 static const GraphicHwOps xenfb_ops = {
     .invalidate  = xenfb_invalidate,
     .gfx_update  = xenfb_update,
+    .update_interval = xenfb_update_interval,
 };
 
 /*

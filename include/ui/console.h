@@ -272,6 +272,7 @@ typedef struct GraphicHwOps {
     void (*invalidate)(void *opaque);
     void (*gfx_update)(void *opaque);
     void (*text_update)(void *opaque, console_ch_t *text);
+    void (*update_interval)(void *opaque, uint64_t interval);
 } GraphicHwOps;
 
 QemuConsole *graphic_console_init(const GraphicHwOps *ops,

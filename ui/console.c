@@ -182,6 +182,7 @@ static void gui_update(void *opaque)
     uint64_t dcl_interval;
     DisplayState *ds = opaque;
     DisplayChangeListener *dcl;
+    int i;
 
     ds->refreshing = true;
     dpy_refresh(ds);
@@ -196,6 +197,11 @@ static void gui_update(void *opaque)
     }
     if (ds->update_interval != interval) {
         ds->update_interval = interval;
+        for (i = 0; i < nb_consoles; i++) {
+            if (consoles[i]->hw_ops->update_interval) {
+                consoles[i]->hw_ops->update_interval(consoles[i]->hw, interval);
+            }
+        }
         trace_console_refresh(interval);
     }
     ds->last_update = qemu_get_clock_ms(rt_clock);
