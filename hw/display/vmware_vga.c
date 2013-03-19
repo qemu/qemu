@@ -995,7 +995,7 @@ static inline void vmsvga_check_size(struct vmsvga_state_s *s)
 static void vmsvga_update_display(void *opaque)
 {
     struct vmsvga_state_s *s = opaque;
-    DisplaySurface *surface = qemu_console_surface(s->vga.con);
+    DisplaySurface *surface;
     bool dirty = false;
 
     if (!s->enable) {
@@ -1004,6 +1004,7 @@ static void vmsvga_update_display(void *opaque)
     }
 
     vmsvga_check_size(s);
+    surface = qemu_console_surface(s->vga.con);
 
     vmsvga_fifo_run(s);
     vmsvga_update_rect_flush(s);
