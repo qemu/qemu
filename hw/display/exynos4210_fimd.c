@@ -1242,7 +1242,7 @@ static void exynos4210_update_resolution(Exynos4210fimdState *s)
 static void exynos4210_fimd_update(void *opaque)
 {
     Exynos4210fimdState *s = (Exynos4210fimdState *)opaque;
-    DisplaySurface *surface = qemu_console_surface(s->console);
+    DisplaySurface *surface;
     Exynos4210fimdWindow *w;
     int i, line;
     hwaddr fb_line_addr, inc_size;
@@ -1255,11 +1255,12 @@ static void exynos4210_fimd_update(void *opaque)
     const int global_height = ((s->vidtcon[2] >> FIMD_VIDTCON2_VER_SHIFT) &
             FIMD_VIDTCON2_SIZE_MASK) + 1;
 
-    if (!s || !s->console || !surface_bits_per_pixel(surface) ||
-            !s->enabled) {
+    if (!s || !s->console || !s->enabled ||
+        surface_bits_per_pixel(qemu_console_surface(s->console)) == 0) {
         return;
     }
     exynos4210_update_resolution(s);
+    surface = qemu_console_surface(s->console);
 
     for (i = 0; i < NUM_OF_WINDOWS; i++) {
         w = &s->window[i];
