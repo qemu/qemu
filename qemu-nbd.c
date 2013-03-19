@@ -306,6 +306,7 @@ static void nbd_accept(void *opaque)
 int main(int argc, char **argv)
 {
     BlockDriverState *bs;
+    BlockDriver *drv;
     off_t dev_offset = 0;
     uint32_t nbdflags = 0;
     bool disconnect = false;
@@ -313,7 +314,7 @@ int main(int argc, char **argv)
     char *device = NULL;
     int port = NBD_DEFAULT_PORT;
     off_t fd_size;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:t";
+    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:t";
     struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
@@ -333,6 +334,7 @@ int main(int argc, char **argv)
 #endif
         { "discard", 1, NULL, QEMU_NBD_OPT_DISCARD },
         { "shared", 1, NULL, 'e' },
+        { "format", 1, NULL, 'f' },
         { "persistent", 0, NULL, 't' },
         { "verbose", 0, NULL, 'v' },
         { NULL, 0, NULL, 0 }
@@ -351,6 +353,7 @@ int main(int argc, char **argv)
     bool seen_aio = false;
 #endif
     pthread_t client_thread;
+    const char *fmt = NULL;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -454,6 +457,9 @@ int main(int argc, char **argv)
                 errx(EXIT_FAILURE, "Shared device number must be greater than 0\n");
             }
             break;
+        case 'f':
+            fmt = optarg;
+            break;
 	case 't':
 	    persistent = 1;
 	    break;
@@ -555,9 +561,19 @@ int main(int argc, char **argv)
     bdrv_init();
     atexit(bdrv_close_all);
 
+    if (fmt) {
+        drv = bdrv_find_format(fmt);
+        if (!drv) {
+            errx(EXIT_FAILURE, "Unknown file format '%s'", fmt);
+        }
+    } else {
+        drv = NULL;
+    }
+
     bs = bdrv_new("hda");
     srcpath = argv[optind];
-    if ((ret = bdrv_open(bs, srcpath, NULL, flags, NULL)) < 0) {
+    ret = bdrv_open(bs, srcpath, NULL, flags, drv);
+    if (ret < 0) {
         errno = -ret;
         err(EXIT_FAILURE, "Failed to bdrv_open '%s'", argv[optind]);
     }
