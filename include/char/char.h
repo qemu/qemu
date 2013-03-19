@@ -153,8 +153,8 @@ void qemu_chr_fe_close(struct CharDriverState *chr);
 void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
-guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
-                            GIOFunc func, void *user_data);
+int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
+                          GIOFunc func, void *user_data);
 
 /**
  * @qemu_chr_fe_write:

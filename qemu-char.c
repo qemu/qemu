@@ -3397,8 +3397,8 @@ void qemu_chr_fe_close(struct CharDriverState *chr)
     }
 }
 
-guint qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
-                            GIOFunc func, void *user_data)
+int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
+                          GIOFunc func, void *user_data)
 {
     GSource *src;
     guint tag;
