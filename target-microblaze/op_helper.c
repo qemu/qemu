@@ -500,7 +500,7 @@ void cpu_unassigned_access(CPUMBState *env, hwaddr addr,
 {
     qemu_log_mask(CPU_LOG_INT, "Unassigned " TARGET_FMT_plx " wr=%d exe=%d\n",
              addr, is_write, is_exec);
-    if (!(env->sregs[SR_MSR] & MSR_EE)) {
+    if (!env || !(env->sregs[SR_MSR] & MSR_EE)) {
         return;
     }
 
