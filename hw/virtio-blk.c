@@ -663,7 +663,7 @@ static int virtio_blk_device_init(VirtIODevice *vdev)
     s->vq = virtio_add_queue(vdev, 128, virtio_blk_handle_output);
 #ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
     if (!virtio_blk_data_plane_create(vdev, blk, &s->dataplane)) {
-        virtio_cleanup(vdev);
+        virtio_common_cleanup(vdev);
         return -1;
     }
 #endif

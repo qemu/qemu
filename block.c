@@ -830,7 +830,6 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
         int64_t total_size;
-        int is_protocol = 0;
         BlockDriver *bdrv_qcow2;
         QEMUOptionParameter *options;
         char backing_filename[PATH_MAX];
@@ -847,9 +846,6 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         }
         total_size = bdrv_getlength(bs1) & BDRV_SECTOR_MASK;
 
-        if (bs1->drv && bs1->drv->protocol_name)
-            is_protocol = 1;
-
         bdrv_delete(bs1);
 
         ret = get_tmp_filename(tmp_filename, sizeof(tmp_filename));
@@ -858,7 +854,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         }
 
         /* Real path is meaningless for protocols */
-        if (is_protocol) {
+        if (path_has_protocol(filename)) {
             snprintf(backing_filename, sizeof(backing_filename),
                      "%s", filename);
         } else if (!realpath(filename, backing_filename)) {

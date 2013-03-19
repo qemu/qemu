@@ -29,6 +29,7 @@
 #include "block/qcow2.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qbool.h"
 #include "trace.h"
 
 /*
@@ -520,7 +521,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
         goto fail;
     }
 
-    s->use_lazy_refcounts = qemu_opt_get_bool(opts, "lazy_refcounts",
+    s->use_lazy_refcounts = qemu_opt_get_bool(opts, QCOW2_OPT_LAZY_REFCOUNTS,
         (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS));
 
     qemu_opts_del(opts);
@@ -930,6 +931,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
     AES_KEY aes_encrypt_key;
     AES_KEY aes_decrypt_key;
     uint32_t crypt_method = 0;
+    QDict *options;
 
     /*
      * Backing files are read-only which makes all of their metadata immutable,
@@ -944,8 +946,14 @@ static void qcow2_invalidate_cache(BlockDriverState *bs)
 
     qcow2_close(bs);
 
+    options = qdict_new();
+    qdict_put(options, QCOW2_OPT_LAZY_REFCOUNTS,
+              qbool_from_int(s->use_lazy_refcounts));
+
     memset(s, 0, sizeof(BDRVQcowState));
-    qcow2_open(bs, NULL, flags);
+    qcow2_open(bs, options, flags);
+
+    QDECREF(options);
 
     if (crypt_method) {
         s->crypt_method = crypt_method;
