@@ -3290,6 +3290,9 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     if (xhci->numintrs > MAXINTRS) {
         xhci->numintrs = MAXINTRS;
     }
+    while (xhci->numintrs & (xhci->numintrs - 1)) {   /* ! power of 2 */
+        xhci->numintrs++;
+    }
     if (xhci->numintrs < 1) {
         xhci->numintrs = 1;
     }
