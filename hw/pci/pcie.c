@@ -48,19 +48,6 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
 
     assert(pci_is_express(dev));
 
-    /*
-     * Mangle type to convert Endpoints to Root Complex Integrated Endpoints.
-     * Windows will report Code 10 (device cannot start) for regular Endpoints
-     * on the Root Complex.
-     */
-    if (pci_bus_is_express(dev->bus) && pci_bus_is_root(dev->bus)) {
-        switch (type) {
-        case PCI_EXP_TYPE_ENDPOINT:
-            type = PCI_EXP_TYPE_RC_END;
-            break;
-        }
-    }
-
     pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
                                  PCI_EXP_VER2_SIZEOF);
     if (pos < 0) {
@@ -98,6 +85,22 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
 
     pci_set_word(dev->wmask + pos, PCI_EXP_DEVCTL2_EETLPPB);
     return pos;
+}
+
+int pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset)
+{
+    uint8_t type = PCI_EXP_TYPE_ENDPOINT;
+
+    /*
+     * Windows guests will report Code 10, device cannot start, if
+     * a regular Endpoint type is exposed on a root complex.  These
+     * should instead be Root Complex Integrated Endpoints.
+     */
+    if (pci_bus_is_express(dev->bus) && pci_bus_is_root(dev->bus)) {
+        type = PCI_EXP_TYPE_RC_END;
+    }
+
+    return pcie_cap_init(dev, offset, type, 0);
 }
 
 void pcie_cap_exit(PCIDevice *dev)
