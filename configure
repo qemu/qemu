@@ -4112,6 +4112,11 @@ case "$target_arch2" in
   ;;
   unicore32)
   ;;
+  xbox)
+    target_arch2=i386
+    TARGET_ARCH=i386
+    TARGET_BASE_ARCH=i386
+  ;;
   xtensa|xtensaeb)
     TARGET_ARCH=xtensa
   ;;

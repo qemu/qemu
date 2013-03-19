@@ -20,25 +20,25 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "sysemu/arch_init.h"
-#include "pc.h"
-#include "pci/pci.h"
-#include "boards.h"
-#include "ide.h"
-#include "mc146818rtc.h"
-#include "i8254.h"
-#include "pcspk.h"
+#include "hw/pc.h"
+#include "hw/pci/pci.h"
+#include "hw/boards.h"
+#include "hw/ide.h"
+#include "hw/mc146818rtc.h"
+#include "hw/i8254.h"
+#include "hw/pcspk.h"
 #include "sysemu/sysemu.h"
-#include "sysbus.h"
-#include "smbus.h"
+#include "hw/sysbus.h"
+#include "hw/smbus.h"
 #include "sysemu/blockdev.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "exec/address-spaces.h"
 
-#include "xbox_pci.h"
-#include "nv2a.h"
-#include "mcpx_apu.h"
+#include "hw/xbox_pci.h"
+#include "hw/nv2a.h"
+#include "hw/mcpx_apu.h"
 
 /* mostly from pc_memory_init */
 static void xbox_memory_init(MemoryRegion *system_memory,
