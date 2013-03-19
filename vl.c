@@ -234,6 +234,7 @@ int ctrl_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
+bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
@@ -457,6 +458,9 @@ static QemuOptsList qemu_boot_opts = {
             .type = QEMU_OPT_STRING,
         }, {
             .name = "reboot-timeout",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "strict",
             .type = QEMU_OPT_STRING,
         },
         { /*End of list */ }
@@ -1267,6 +1271,12 @@ char *get_boot_devices_list(size_t *size)
 
     *size = total;
 
+    if (boot_strict && *size > 0) {
+        list[total-1] = '\n';
+        list = g_realloc(list, total + 4);
+        memcpy(&list[total], "HALT", 4);
+        *size = total + 4;
+    }
     return list;
 }
 
@@ -3131,7 +3141,7 @@ int main(int argc, char **argv, char **envp)
                     static const char * const params[] = {
                         "order", "once", "menu",
                         "splash", "splash-time",
-                        "reboot-timeout", NULL
+                        "reboot-timeout", "strict", NULL
                     };
                     char buf[sizeof(boot_devices)];
                     char *standard_boot_devices;
@@ -3167,6 +3177,19 @@ int main(int argc, char **argv, char **envp)
                                 boot_menu = 1;
                             } else if (!strcmp(buf, "off")) {
                                 boot_menu = 0;
+                            } else {
+                                fprintf(stderr,
+                                        "qemu: invalid option value '%s'\n",
+                                        buf);
+                                exit(1);
+                            }
+                        }
+                        if (get_param_value(buf, sizeof(buf),
+                                            "strict", optarg)) {
+                            if (!strcmp(buf, "on")) {
+                                boot_strict = true;
+                            } else if (!strcmp(buf, "off")) {
+                                boot_strict = false;
                             } else {
                                 fprintf(stderr,
                                         "qemu: invalid option value '%s'\n",
