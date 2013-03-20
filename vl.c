@@ -1278,9 +1278,9 @@ char *get_boot_devices_list(size_t *size)
 
     if (boot_strict && *size > 0) {
         list[total-1] = '\n';
-        list = g_realloc(list, total + 4);
-        memcpy(&list[total], "HALT", 4);
-        *size = total + 4;
+        list = g_realloc(list, total + 5);
+        memcpy(&list[total], "HALT", 5);
+        *size = total + 5;
     }
     return list;
 }
