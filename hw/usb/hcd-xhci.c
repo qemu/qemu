@@ -2566,7 +2566,7 @@ static void xhci_process_commands(XHCIState *xhci)
         }
         break;
         default:
-            fprintf(stderr, "xhci: unimplemented command %d\n", type);
+            trace_usb_xhci_unimplemented("command", type);
             event.ccode = CC_TRB_ERROR;
             break;
         }
@@ -2765,7 +2765,7 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         ret = 0x00000000; /* reserved */
         break;
     default:
-        fprintf(stderr, "xhci_cap_read: reg %d unimplemented\n", (int)reg);
+        trace_usb_xhci_unimplemented("cap read", reg);
         ret = 0;
     }
 
@@ -2788,8 +2788,7 @@ static uint64_t xhci_port_read(void *ptr, hwaddr reg, unsigned size)
         break;
     case 0x0c: /* reserved */
     default:
-        fprintf(stderr, "xhci_port_read (port %d): reg 0x%x unimplemented\n",
-                port->portnr, (uint32_t)reg);
+        trace_usb_xhci_unimplemented("port read", reg);
         ret = 0;
     }
 
@@ -2829,8 +2828,7 @@ static void xhci_port_write(void *ptr, hwaddr reg,
     case 0x04: /* PORTPMSC */
     case 0x08: /* PORTLI */
     default:
-        fprintf(stderr, "xhci_port_write (port %d): reg 0x%x unimplemented\n",
-                port->portnr, (uint32_t)reg);
+        trace_usb_xhci_unimplemented("port write", reg);
     }
 }
 
@@ -2868,7 +2866,7 @@ static uint64_t xhci_oper_read(void *ptr, hwaddr reg, unsigned size)
         ret = xhci->config;
         break;
     default:
-        fprintf(stderr, "xhci_oper_read: reg 0x%x unimplemented\n", (int)reg);
+        trace_usb_xhci_unimplemented("oper read", reg);
         ret = 0;
     }
 
@@ -2933,7 +2931,7 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
         xhci->config = val & 0xff;
         break;
     default:
-        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", (int)reg);
+        trace_usb_xhci_unimplemented("oper write", reg);
     }
 }
 
@@ -2949,8 +2947,7 @@ static uint64_t xhci_runtime_read(void *ptr, hwaddr reg,
             ret = xhci_mfindex_get(xhci) & 0x3fff;
             break;
         default:
-            fprintf(stderr, "xhci_runtime_read: reg 0x%x unimplemented\n",
-                    (int)reg);
+            trace_usb_xhci_unimplemented("runtime read", reg);
             break;
         }
     } else {
@@ -2994,7 +2991,7 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
     trace_usb_xhci_runtime_write(reg, val);
 
     if (reg < 0x20) {
-        fprintf(stderr, "%s: reg 0x%x unimplemented\n", __func__, (int)reg);
+        trace_usb_xhci_unimplemented("runtime write", reg);
         return;
     }
 
@@ -3036,8 +3033,7 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
         xhci_events_update(xhci, v);
         break;
     default:
-        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n",
-                (int)reg);
+        trace_usb_xhci_unimplemented("oper write", reg);
     }
 }
 
