@@ -47,12 +47,11 @@ static void xbox_memory_init(MemoryRegion *system_memory,
                              MemoryRegion **ram_memory)
 {
     MemoryRegion *ram;
-    MemoryRegion *ram_below_4g;
 
     int ret;
     char *filename;
-    int bios_size, isa_bios_size;
-    MemoryRegion *bios, *isa_bios;
+    int bios_size;
+    MemoryRegion *bios;
 
     MemoryRegion *map_bios;
     uint32_t map_loc;
@@ -62,17 +61,14 @@ static void xbox_memory_init(MemoryRegion *system_memory,
      * with older qemus that used qemu_ram_alloc().
      */
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, "pc.ram", mem_size);
+    memory_region_init_ram(ram, "xbox.ram", mem_size);
     vmstate_register_ram_global(ram);
     *ram_memory = ram;
-    ram_below_4g = g_malloc(sizeof(*ram_below_4g));
-    memory_region_init_alias(ram_below_4g, "ram-below-4g", ram,
-                             0, mem_size);
-    memory_region_add_subregion(system_memory, 0, ram_below_4g);
+    memory_region_add_subregion(system_memory, 0, ram);
 
 
     /* Load the bios. (mostly from pc_sysfw)
-     * Can't use it verbatim, since we need the bios repeated\
+     * Can't use it verbatim, since we need the bios repeated
      * over top 1MB of memory.
      */
     if (bios_name == NULL) {
@@ -85,33 +81,17 @@ static void xbox_memory_init(MemoryRegion *system_memory,
         bios_size = -1;
     }
     bios = g_malloc(sizeof(*bios));
-    memory_region_init_ram(bios, "pc.bios", bios_size);
+    memory_region_init_ram(bios, "xbox.bios", bios_size);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
     if (ret != 0) {
-        fprintf(stderr, "qemu: could not load PC BIOS '%s'\n", bios_name);
+        fprintf(stderr, "qemu: could not load xbox BIOS '%s'\n", bios_name);
         exit(1);
     }
     if (filename) {
         g_free(filename);
     }
-
-
-
-    /* map the last 128KB of the BIOS in ISA space */
-    isa_bios_size = bios_size;
-    if (isa_bios_size > (128 * 1024)) {
-        isa_bios_size = 128 * 1024;
-    }
-    isa_bios = g_malloc(sizeof(*isa_bios));
-    memory_region_init_alias(isa_bios, "isa-bios", bios,
-                             bios_size - isa_bios_size, isa_bios_size);
-    memory_region_add_subregion_overlap(rom_memory,
-                                        0x100000 - isa_bios_size,
-                                        isa_bios,
-                                        1);
-    memory_region_set_readonly(isa_bios, true);
 
 
     /* map the bios repeated at the top of memory */
