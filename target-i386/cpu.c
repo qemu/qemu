@@ -2049,8 +2049,6 @@ static void mce_init(X86CPU *cpu)
     }
 }
 
-#define MSI_ADDR_BASE 0xfee00000
-
 #ifndef CONFIG_USER_ONLY
 static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
 {
@@ -2090,7 +2088,7 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
            on the global memory bus. */
         /* XXX: what if the base changes? */
         sysbus_mmio_map_overlap(SYS_BUS_DEVICE(env->apic_state), 0,
-                                MSI_ADDR_BASE, 0x1000);
+                                APIC_DEFAULT_ADDRESS, 0x1000);
         apic_mapped = 1;
     }
 }

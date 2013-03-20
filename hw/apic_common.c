@@ -218,7 +218,7 @@ static void apic_reset_common(DeviceState *d)
     bool bsp;
 
     bsp = cpu_is_bsp(s->cpu);
-    s->apicbase = 0xfee00000 |
+    s->apicbase = APIC_DEFAULT_ADDRESS |
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 
     s->vapic_paddr = 0;
