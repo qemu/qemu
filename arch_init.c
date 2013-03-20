@@ -142,7 +142,7 @@ int qemu_read_default_config_files(bool userconfig)
             return ret;
         }
     }
-    
+
     return 0;
 }
 

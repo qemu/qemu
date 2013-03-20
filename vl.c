@@ -2546,7 +2546,7 @@ static int virtcon_parse(const char *devname)
         qemu_opt_set(bus_opts, "driver", "virtio-serial-s390");
     } else {
         qemu_opt_set(bus_opts, "driver", "virtio-serial-pci");
-    } 
+    }
 
     dev_opts = qemu_opts_create_nofail(device);
     qemu_opt_set(dev_opts, "driver", "virtconsole");
@@ -2598,7 +2598,7 @@ static int sclp_parse(const char *devname)
 }
 
 static int debugcon_parse(const char *devname)
-{   
+{
     QemuOpts *opts;
 
     if (!qemu_chr_new("debugcon", devname, NULL)) {
@@ -3735,8 +3735,8 @@ int main(int argc, char **argv, char **envp)
 			}
 			p += 8;
 			os_set_proc_name(p);
-		     }	
-		 }	
+		     }
+		 }
                 break;
             case QEMU_OPTION_prom_env:
                 if (nb_prom_envs >= MAX_PROM_ENVS) {
