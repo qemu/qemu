@@ -891,9 +891,7 @@ void pc_cpus_init(const char *cpu_model)
 
 void pc_acpi_init(const char *default_dsdt)
 {
-    char *filename = NULL, *arg = NULL;
-    QemuOpts *opts;
-    Error *err = NULL;
+    char *filename;
 
     if (acpi_tables != NULL) {
         /* manually set via -acpitable, leave it alone */
@@ -903,23 +901,26 @@ void pc_acpi_init(const char *default_dsdt)
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, default_dsdt);
     if (filename == NULL) {
         fprintf(stderr, "WARNING: failed to find %s\n", default_dsdt);
-        return;
+    } else {
+        char *arg;
+        QemuOpts *opts;
+        Error *err = NULL;
+
+        arg = g_strdup_printf("file=%s", filename);
+
+        /* creates a deep copy of "arg" */
+        opts = qemu_opts_parse(qemu_find_opts("acpi"), arg, 0);
+        g_assert(opts != NULL);
+
+        acpi_table_add(opts, &err);
+        if (err) {
+            fprintf(stderr, "WARNING: failed to load %s: %s\n", filename,
+                    error_get_pretty(err));
+            error_free(err);
+        }
+        g_free(arg);
+        g_free(filename);
     }
-
-    arg = g_strdup_printf("file=%s", filename);
-
-    /* creates a deep copy of "arg" */
-    opts = qemu_opts_parse(qemu_find_opts("acpi"), arg, 0);
-    g_assert(opts != NULL);
-
-    acpi_table_add(opts, &err);
-    if (err) {
-        fprintf(stderr, "WARNING: failed to load %s: %s\n", filename,
-                error_get_pretty(err));
-        error_free(err);
-    }
-    g_free(arg);
-    g_free(filename);
 }
 
 void *pc_memory_init(MemoryRegion *system_memory,
