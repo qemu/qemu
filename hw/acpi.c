@@ -23,6 +23,10 @@
 #include "hw/pc.h"
 #include "hw/acpi.h"
 #include "monitor/monitor.h"
+#include "qemu/config-file.h"
+#include "qapi/opts-visitor.h"
+#include "qapi/dealloc-visitor.h"
+#include "qapi-visit.h"
 
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */
@@ -51,6 +55,20 @@ static const char unsigned dfl_hdr[ACPI_TABLE_HDR_SIZE] =
 char unsigned *acpi_tables;
 size_t acpi_tables_len;
 
+static QemuOptsList qemu_acpi_opts = {
+    .name = "acpi",
+    .implied_opt_name = "data",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_acpi_opts.head),
+    .desc = { { 0 } } /* validated with OptsVisitor */
+};
+
+static void acpi_register_config(void)
+{
+    qemu_add_opts(&qemu_acpi_opts);
+}
+
+machine_init(acpi_register_config);
+
 static int acpi_checksum(const uint8_t *data, int len)
 {
     int sum, i;
@@ -61,12 +79,13 @@ static int acpi_checksum(const uint8_t *data, int len)
     return (-sum) & 0xff;
 }
 
-/* XXX fixme: this function uses obsolete argument parsing interface */
-int acpi_table_add(const char *t)
+int acpi_table_add(const QemuOpts *opts)
 {
+    AcpiTableOptions *hdrs = NULL;
     Error *err = NULL;
-    char buf[1024], *p, *f;
-    unsigned long val;
+    char **pathnames = NULL;
+    char **cur;
+
     size_t len, start, allen;
     bool has_header;
     int changed;
@@ -74,21 +93,26 @@ int acpi_table_add(const char *t)
     struct acpi_table_header hdr;
     char unsigned *table_start;
 
-    r = 0;
-    r |= get_param_value(buf, sizeof(buf), "data", t) ? 1 : 0;
-    r |= get_param_value(buf, sizeof(buf), "file", t) ? 2 : 0;
-    switch (r) {
-    case 0:
-        buf[0] = '\0';
-        /* fallthrough for default behavior */
-    case 1:
-        has_header = false;
-        break;
-    case 2:
-        has_header = true;
-        break;
-    default:
-        error_setg(&err, "acpitable: both data and file are specified");
+    {
+        OptsVisitor *ov;
+
+        ov = opts_visitor_new(opts);
+        visit_type_AcpiTableOptions(opts_get_visitor(ov), &hdrs, NULL, &err);
+        opts_visitor_cleanup(ov);
+    }
+
+    if (err) {
+        goto out;
+    }
+    if (hdrs->has_file == hdrs->has_data) {
+        error_setg(&err, "'-acpitable' requires one of 'data' or 'file'");
+        goto out;
+    }
+    has_header = hdrs->has_file;
+
+    pathnames = g_strsplit(hdrs->has_file ? hdrs->file : hdrs->data, ":", 0);
+    if (pathnames == NULL || pathnames[0] == NULL) {
+        error_setg(&err, "'-acpitable' requires at least one pathname");
         goto out;
     }
 
@@ -105,11 +129,11 @@ int acpi_table_add(const char *t)
 
     /* now read in the data files, reallocating buffer as needed */
 
-    for (f = strtok(buf, ":"); f; f = strtok(NULL, ":")) {
-        int fd = open(f, O_RDONLY | O_BINARY);
+    for (cur = pathnames; *cur; ++cur) {
+        int fd = open(*cur, O_RDONLY | O_BINARY);
 
         if (fd < 0) {
-            error_setg(&err, "can't open file %s: %s", f, strerror(errno));
+            error_setg(&err, "can't open file %s: %s", *cur, strerror(errno));
             goto out;
         }
 
@@ -124,7 +148,7 @@ int acpi_table_add(const char *t)
                 allen += r;
             } else if (errno != EINTR) {
                 error_setg(&err, "can't read file %s: %s",
-                           f, strerror(errno));
+                           *cur, strerror(errno));
                 close(fd);
                 goto out;
             }
@@ -146,14 +170,16 @@ int acpi_table_add(const char *t)
 
     hdr._length = cpu_to_le16(len);
 
-    if (get_param_value(buf, sizeof(buf), "sig", t)) {
+    if (hdrs->has_sig) {
         /* strncpy is justified: the field need not be NUL-terminated. */
-        strncpy(hdr.sig, buf, sizeof(hdr.sig));
+        strncpy(hdr.sig, hdrs->sig, sizeof(hdr.sig));
         ++changed;
     }
 
     /* length of the table including header, in bytes */
     if (has_header) {
+        unsigned long val;
+
         /* check if actual length is correct */
         val = le32_to_cpu(hdr.length);
         if (val != len) {
@@ -167,52 +193,38 @@ int acpi_table_add(const char *t)
     /* we may avoid putting length here if has_header is true */
     hdr.length = cpu_to_le32(len);
 
-    if (get_param_value(buf, sizeof(buf), "rev", t)) {
-        val = strtoul(buf, &p, 0);
-        if (val > 255 || *p) {
-            error_setg(&err, "acpitable: \"rev=%s\" is invalid", buf);
-            goto out;
-        }
-        hdr.revision = (uint8_t)val;
+    if (hdrs->has_rev) {
+        hdr.revision = hdrs->rev;
         ++changed;
     }
 
-    if (get_param_value(buf, sizeof(buf), "oem_id", t)) {
+    if (hdrs->has_oem_id) {
         /* strncpy is justified: the field need not be NUL-terminated. */
-        strncpy(hdr.oem_id, buf, sizeof(hdr.oem_id));
+        strncpy(hdr.oem_id, hdrs->oem_id, sizeof(hdr.oem_id));
         ++changed;
     }
 
-    if (get_param_value(buf, sizeof(buf), "oem_table_id", t)) {
+    if (hdrs->has_oem_table_id) {
         /* strncpy is justified: the field need not be NUL-terminated. */
-        strncpy(hdr.oem_table_id, buf, sizeof(hdr.oem_table_id));
+        strncpy(hdr.oem_table_id, hdrs->oem_table_id,
+                sizeof(hdr.oem_table_id));
         ++changed;
     }
 
-    if (get_param_value(buf, sizeof(buf), "oem_rev", t)) {
-        val = strtol(buf, &p, 0);
-        if (*p) {
-            error_setg(&err, "acpitable: \"oem_rev=%s\" is invalid", buf);
-            goto out;
-        }
-        hdr.oem_revision = cpu_to_le32(val);
+    if (hdrs->has_oem_rev) {
+        hdr.oem_revision = cpu_to_le32(hdrs->oem_rev);
         ++changed;
     }
 
-    if (get_param_value(buf, sizeof(buf), "asl_compiler_id", t)) {
+    if (hdrs->has_asl_compiler_id) {
         /* strncpy is justified: the field need not be NUL-terminated. */
-        strncpy(hdr.asl_compiler_id, buf, sizeof(hdr.asl_compiler_id));
+        strncpy(hdr.asl_compiler_id, hdrs->asl_compiler_id,
+                sizeof(hdr.asl_compiler_id));
         ++changed;
     }
 
-    if (get_param_value(buf, sizeof(buf), "asl_compiler_rev", t)) {
-        val = strtol(buf, &p, 0);
-        if (*p) {
-            error_setg(&err, "acpitable: \"%s=%s\" is invalid",
-                       "asl_compiler_rev", buf);
-            goto out;
-        }
-        hdr.asl_compiler_revision = cpu_to_le32(val);
+    if (hdrs->has_asl_compiler_rev) {
+        hdr.asl_compiler_revision = cpu_to_le32(hdrs->asl_compiler_rev);
         ++changed;
     }
 
@@ -239,12 +251,25 @@ int acpi_table_add(const char *t)
         cpu_to_le32(le32_to_cpu(*(uint16_t *)acpi_tables) + 1);
 
     acpi_tables_len = allen;
-    return 0;
 
 out:
-    fprintf(stderr, "%s\n", error_get_pretty(err));
-    error_free(err);
-    return -1;
+    g_strfreev(pathnames);
+
+    if (hdrs != NULL) {
+        QapiDeallocVisitor *dv;
+
+        dv = qapi_dealloc_visitor_new();
+        visit_type_AcpiTableOptions(qapi_dealloc_get_visitor(dv), &hdrs, NULL,
+                                    NULL);
+        qapi_dealloc_visitor_cleanup(dv);
+    }
+
+    if (err) {
+        fprintf(stderr, "%s\n", error_get_pretty(err));
+        error_free(err);
+        return -1;
+    }
+    return 0;
 }
 
 static void acpi_notify_wakeup(Notifier *notifier, void *data)

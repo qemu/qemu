@@ -3587,7 +3587,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             }
             case QEMU_OPTION_acpitable:
-                do_acpitable_option(optarg);
+                opts = qemu_opts_parse(qemu_find_opts("acpi"), optarg, 1);
+                g_assert(opts != NULL);
+                do_acpitable_option(opts);
                 break;
             case QEMU_OPTION_smbios:
                 do_smbios_option(optarg);

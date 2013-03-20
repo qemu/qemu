@@ -51,6 +51,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/arch_init.h"
 #include "qemu/bitmap.h"
+#include "qemu/config-file.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -889,6 +890,7 @@ void pc_cpus_init(const char *cpu_model)
 void pc_acpi_init(const char *default_dsdt)
 {
     char *filename = NULL, *arg = NULL;
+    QemuOpts *opts;
 
     if (acpi_tables != NULL) {
         /* manually set via -acpitable, leave it alone */
@@ -902,7 +904,12 @@ void pc_acpi_init(const char *default_dsdt)
     }
 
     arg = g_strdup_printf("file=%s", filename);
-    if (acpi_table_add(arg) != 0) {
+
+    /* creates a deep copy of "arg" */
+    opts = qemu_opts_parse(qemu_find_opts("acpi"), arg, 0);
+    g_assert(opts != NULL);
+
+    if (acpi_table_add(opts) != 0) {
         fprintf(stderr, "WARNING: failed to load %s\n", filename);
     }
     g_free(arg);
