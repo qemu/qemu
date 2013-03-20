@@ -72,6 +72,8 @@
 #define FW_CFG_E820_TABLE (FW_CFG_ARCH_LOCAL + 3)
 #define FW_CFG_HPET (FW_CFG_ARCH_LOCAL + 4)
 
+#define IO_APIC_DEFAULT_ADDRESS 0xfec00000
+
 #define E820_NR_ENTRIES		16
 
 struct e820_entry {
@@ -1169,7 +1171,7 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
     }
     qdev_init_nofail(dev);
     d = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(d, 0, 0xfec00000);
+    sysbus_mmio_map(d, 0, IO_APIC_DEFAULT_ADDRESS);
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {
         gsi_state->ioapic_irq[i] = qdev_get_gpio_in(dev, i);
