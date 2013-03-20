@@ -330,6 +330,37 @@ static void gd_refresh(DisplayChangeListener *dcl)
     graphic_hw_update(dcl->con);
 }
 
+static void gd_mouse_set(DisplayChangeListener *dcl,
+                         int x, int y, int visible)
+{
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
+    gint x_root, y_root;
+
+    gdk_window_get_root_coords(s->drawing_area->window,
+                               x, y, &x_root, &y_root);
+    gdk_display_warp_pointer(gtk_widget_get_display(s->drawing_area),
+                             gtk_widget_get_screen(s->drawing_area),
+                             x_root, y_root);
+}
+
+static void gd_cursor_define(DisplayChangeListener *dcl,
+                             QEMUCursor *c)
+{
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
+    GdkPixbuf *pixbuf;
+    GdkCursor *cursor;
+
+    pixbuf = gdk_pixbuf_new_from_data((guchar *)(c->data),
+                                      GDK_COLORSPACE_RGB, true, 8,
+                                      c->width, c->height, c->width * 4,
+                                      NULL, NULL);
+    cursor = gdk_cursor_new_from_pixbuf(gtk_widget_get_display(s->drawing_area),
+                                        pixbuf, c->hot_x, c->hot_y);
+    gdk_window_set_cursor(s->drawing_area->window, cursor);
+    g_object_unref(pixbuf);
+    g_object_unref(cursor);
+}
+
 static void gd_switch(DisplayChangeListener *dcl,
                       DisplaySurface *surface)
 {
@@ -1358,6 +1389,8 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_gfx_update    = gd_update,
     .dpy_gfx_switch    = gd_switch,
     .dpy_refresh       = gd_refresh,
+    .dpy_mouse_set     = gd_mouse_set,
+    .dpy_cursor_define = gd_cursor_define,
 };
 
 void gtk_display_init(DisplayState *ds)
