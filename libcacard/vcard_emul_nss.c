@@ -893,7 +893,7 @@ vcard_emul_init(const VCardEmulOptions *options)
     if (options->nss_db) {
         rv = NSS_Init(options->nss_db);
     } else {
-        gchar *path, *db;
+        gchar *path;
 #ifndef _WIN32
         path = g_strdup("/etc/pki/nssdb");
 #else
@@ -905,10 +905,8 @@ vcard_emul_init(const VCardEmulOptions *options)
         path = g_build_filename(
             g_get_system_config_dirs()[0], "pki", "nssdb", NULL);
 #endif
-        db = g_strdup_printf("sql:%s", path);
 
-        rv = NSS_Init(db);
-        g_free(db);
+        rv = NSS_Init(path);
         g_free(path);
     }
     if (rv != SECSuccess) {
