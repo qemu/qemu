@@ -891,6 +891,7 @@ void pc_acpi_init(const char *default_dsdt)
 {
     char *filename = NULL, *arg = NULL;
     QemuOpts *opts;
+    Error *err = NULL;
 
     if (acpi_tables != NULL) {
         /* manually set via -acpitable, leave it alone */
@@ -909,8 +910,11 @@ void pc_acpi_init(const char *default_dsdt)
     opts = qemu_opts_parse(qemu_find_opts("acpi"), arg, 0);
     g_assert(opts != NULL);
 
-    if (acpi_table_add(opts) != 0) {
-        fprintf(stderr, "WARNING: failed to load %s\n", filename);
+    acpi_table_add(opts, &err);
+    if (err) {
+        fprintf(stderr, "WARNING: failed to load %s: %s\n", filename,
+                error_get_pretty(err));
+        error_free(err);
     }
     g_free(arg);
     g_free(filename);

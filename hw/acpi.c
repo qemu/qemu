@@ -229,7 +229,7 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
                                       ACPI_TABLE_PFX_SIZE, acpi_payload_size);
 }
 
-int acpi_table_add(const QemuOpts *opts)
+void acpi_table_add(const QemuOpts *opts, Error **errp)
 {
     AcpiTableOptions *hdrs = NULL;
     Error *err = NULL;
@@ -306,12 +306,7 @@ out:
         qapi_dealloc_visitor_cleanup(dv);
     }
 
-    if (err) {
-        fprintf(stderr, "%s\n", error_get_pretty(err));
-        error_free(err);
-        return -1;
-    }
-    return 0;
+    error_propagate(errp, err);
 }
 
 static void acpi_notify_wakeup(Notifier *notifier, void *data)

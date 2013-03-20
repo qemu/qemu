@@ -113,7 +113,7 @@ extern char unsigned *acpi_tables;
 extern size_t acpi_tables_len;
 
 void acpi_bios_init(void);
-int acpi_table_add(const QemuOpts *opts);
+void acpi_table_add(const QemuOpts *opts, Error **errp);
 
 /* acpi_piix.c */
 
