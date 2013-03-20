@@ -870,7 +870,7 @@ VCardEmulError
 vcard_emul_init(const VCardEmulOptions *options)
 {
     SECStatus rv;
-    PRBool ret, has_readers = PR_FALSE, need_coolkey_module;
+    PRBool ret, has_readers = PR_FALSE;
     VReader *vreader;
     VReaderEmul *vreader_emul;
     SECMODListLock *module_lock;
@@ -983,29 +983,14 @@ vcard_emul_init(const VCardEmulOptions *options)
     /* make sure we have some PKCS #11 module loaded */
     module_lock = SECMOD_GetDefaultModuleListLock();
     module_list = SECMOD_GetDefaultModuleList();
-    need_coolkey_module = !has_readers;
     SECMOD_GetReadLock(module_lock);
     for (mlp = module_list; mlp; mlp = mlp->next) {
         SECMODModule *module = mlp->module;
         if (module_has_removable_hw_slots(module)) {
-            need_coolkey_module = PR_FALSE;
             break;
         }
     }
     SECMOD_ReleaseReadLock(module_lock);
-
-    if (need_coolkey_module) {
-        SECMODModule *module;
-        module = SECMOD_LoadUserModule(
-                    (char *)"library=libcoolkeypk11.so name=Coolkey",
-                    NULL, PR_FALSE);
-        if (module == NULL) {
-            return VCARD_EMUL_FAIL;
-        }
-        SECMOD_DestroyModule(module); /* free our reference, Module will still
-                                       * be on the list.
-                                       * until we destroy it */
-    }
 
     /* now examine all the slots, finding which should be readers */
     /* We should control this with options. For now we mirror out any
