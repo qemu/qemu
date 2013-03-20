@@ -41,14 +41,14 @@ struct acpi_table_header {
 #define ACPI_TABLE_HDR_SIZE sizeof(struct acpi_table_header)
 #define ACPI_TABLE_PFX_SIZE sizeof(uint16_t)  /* size of the extra prefix */
 
-static const char dfl_hdr[ACPI_TABLE_HDR_SIZE] =
+static const char unsigned dfl_hdr[ACPI_TABLE_HDR_SIZE] =
     "\0\0"                   /* fake _length (2) */
     "QEMU\0\0\0\0\1\0"       /* sig (4), len(4), revno (1), csum (1) */
     "QEMUQEQEMUQEMU\1\0\0\0" /* OEM id (6), table (8), revno (4) */
     "QEMU\1\0\0\0"           /* ASL compiler ID (4), version (4) */
     ;
 
-char *acpi_tables;
+char unsigned *acpi_tables;
 size_t acpi_tables_len;
 
 static int acpi_checksum(const uint8_t *data, int len)
@@ -71,6 +71,7 @@ int acpi_table_add(const char *t)
     int changed;
     int r;
     struct acpi_table_header hdr;
+    char unsigned *table_start;
 
     r = 0;
     r |= get_param_value(buf, sizeof(buf), "data", t) ? 1 : 0;
@@ -112,7 +113,7 @@ int acpi_table_add(const char *t)
         }
 
         for (;;) {
-            char data[8192];
+            char unsigned data[8192];
             r = read(fd, data, sizeof(data));
             if (r == 0) {
                 break;
@@ -133,11 +134,11 @@ int acpi_table_add(const char *t)
 
     /* now fill in the header fields */
 
-    f = acpi_tables + start;   /* start of the table */
+    table_start = acpi_tables + start;   /* start of the table */
     changed = 0;
 
     /* copy the header to temp place to align the fields */
-    memcpy(&hdr, has_header ? f : dfl_hdr, ACPI_TABLE_HDR_SIZE);
+    memcpy(&hdr, has_header ? table_start : dfl_hdr, ACPI_TABLE_HDR_SIZE);
 
     /* length of the table minus our prefix */
     len = allen - start - ACPI_TABLE_PFX_SIZE;
@@ -225,11 +226,11 @@ int acpi_table_add(const char *t)
     hdr.checksum = 0;    /* for checksum calculation */
 
     /* put header back */
-    memcpy(f, &hdr, sizeof(hdr));
+    memcpy(table_start, &hdr, sizeof(hdr));
 
     if (changed || !has_header || 1) {
-        ((struct acpi_table_header *)f)->checksum =
-            acpi_checksum((uint8_t *)f + ACPI_TABLE_PFX_SIZE, len);
+        ((struct acpi_table_header *)table_start)->checksum =
+            acpi_checksum((uint8_t *)table_start + ACPI_TABLE_PFX_SIZE, len);
     }
 
     /* increase number of tables */
