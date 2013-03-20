@@ -2721,17 +2721,75 @@ EQMP
         .mhandler.cmd_new = qmp_marshal_input_query_tpm,
     },
 
+SQMP
+query-tpm
+---------
+
+Return information about the TPM device.
+
+Arguments: None
+
+Example:
+
+-> { "execute": "query-tpm" }
+<- { "return":
+     [
+       { "model": "tpm-tis",
+         "options":
+           { "type": "passthrough",
+             "data":
+               { "cancel-path": "/sys/class/misc/tpm0/device/cancel",
+                 "path": "/dev/tpm0"
+               }
+           },
+         "id": "tpm0"
+       }
+     ]
+   }
+
+EQMP
+
     {
         .name       = "query-tpm-models",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_tpm_models,
     },
 
+SQMP
+query-tpm-models
+----------------
+
+Return a list of supported TPM models.
+
+Arguments: None
+
+Example:
+
+-> { "execute": "query-tpm-models" }
+<- { "return": [ "tpm-tis" ] }
+
+EQMP
+
     {
         .name       = "query-tpm-types",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_tpm_types,
     },
+
+SQMP
+query-tpm-types
+---------------
+
+Return a list of supported TPM types.
+
+Arguments: None
+
+Example:
+
+-> { "execute": "query-tpm-types" }
+<- { "return": [ "passthrough" ] }
+
+EQMP
 
     {
         .name       = "chardev-add",

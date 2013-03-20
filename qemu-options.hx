@@ -2241,7 +2241,8 @@ Backend type must be:
 @option{passthrough}.
 
 The specific backend type will determine the applicable options.
-The @code{-tpmdev} option requires a @code{-device} option.
+The @code{-tpmdev} option creates the TPM backend and requires a
+@code{-device} option that specifies the TPM frontend interface model.
 
 Options to each backend are described below.
 
