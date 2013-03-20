@@ -3403,13 +3403,12 @@
 #
 # A union referencing different TPM backend types' configuration options
 #
-# @tpm-passthough-options: TPMPassthroughOptions describing the TPM
-#                          passthrough configuration options
+# @passthrough: The configuration options for the TPM passthrough type
 #
 # Since: 1.5
 ##
 { 'union': 'TpmTypeOptions',
-   'data': { 'tpm-passthrough-options' : 'TPMPassthroughOptions' } }
+   'data': { 'passthrough' : 'TPMPassthroughOptions' } }
 
 ##
 # @TpmInfo:
@@ -3420,17 +3419,14 @@
 #
 # @model: The TPM frontend model
 #
-# @type: The TPM (backend) type being used
-#
-# @tpm-options: The TPM (backend) type configuration options
+# @options: The TPM (backend) type configuration options
 #
 # Since: 1.5
 ##
 { 'type': 'TPMInfo',
   'data': {'id': 'str',
            'model': 'TpmModel',
-           'type': 'TpmType',
-           'tpm-options': 'TpmTypeOptions' } }
+           'options': 'TpmTypeOptions' } }
 
 ##
 # @query-tpm:
