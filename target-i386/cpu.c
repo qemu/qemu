@@ -24,6 +24,7 @@
 #include "cpu.h"
 #include "sysemu/kvm.h"
 #include "sysemu/cpus.h"
+#include "kvm_i386.h"
 #include "topology.h"
 
 #include "qemu/option.h"
@@ -2494,6 +2495,10 @@ static void x86_cpu_reset(CPUState *s)
     }
 
     s->halted = !cpu_is_bsp(cpu);
+
+    if (kvm_enabled()) {
+        kvm_arch_reset_vcpu(cpu);
+    }
 #endif
 }
 

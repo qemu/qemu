@@ -245,8 +245,6 @@ int kvm_arch_init_vcpu(CPUState *cpu);
 /* Returns VCPU ID to be used on KVM_CREATE_VCPU ioctl() */
 unsigned long kvm_arch_vcpu_id(CPUState *cpu);
 
-void kvm_arch_reset_vcpu(CPUState *cpu);
-
 int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_arch_on_sigbus(int code, void *addr);
 

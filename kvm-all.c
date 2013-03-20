@@ -223,13 +223,6 @@ static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
     return kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
 }
 
-static void kvm_reset_vcpu(void *opaque)
-{
-    CPUState *cpu = opaque;
-
-    kvm_arch_reset_vcpu(cpu);
-}
-
 int kvm_init_vcpu(CPUState *cpu)
 {
     KVMState *s = kvm_state;
@@ -269,10 +262,6 @@ int kvm_init_vcpu(CPUState *cpu)
     }
 
     ret = kvm_arch_init_vcpu(cpu);
-    if (ret == 0) {
-        qemu_register_reset(kvm_reset_vcpu, cpu);
-        kvm_arch_reset_vcpu(cpu);
-    }
 err:
     return ret;
 }

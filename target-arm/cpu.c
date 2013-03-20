@@ -29,6 +29,7 @@
 #include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "kvm_arm.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -165,6 +166,12 @@ static void arm_cpu_reset(CPUState *s)
      * tb_flush().
      */
     tb_flush(env);
+
+#ifndef CONFIG_USER_ONLY
+    if (kvm_enabled()) {
+        kvm_arm_reset_vcpu(cpu);
+    }
+#endif
 }
 
 #ifndef CONFIG_USER_ONLY

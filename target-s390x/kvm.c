@@ -117,14 +117,16 @@ int kvm_arch_init_vcpu(CPUState *cpu)
     return 0;
 }
 
-void kvm_arch_reset_vcpu(CPUState *cpu)
+void kvm_s390_reset_vcpu(S390CPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
+
     /* The initial reset call is needed here to reset in-kernel
      * vcpu data that we can't access directly from QEMU
      * (i.e. with older kernels which don't support sync_regs/ONE_REG).
      * Before this ioctl cpu_synchronize_state() is called in common kvm
      * code (kvm-all) */
-    if (kvm_vcpu_ioctl(cpu, KVM_S390_INITIAL_RESET, NULL)) {
+    if (kvm_vcpu_ioctl(cs, KVM_S390_INITIAL_RESET, NULL)) {
         perror("Can't reset vcpu\n");
     }
 }
