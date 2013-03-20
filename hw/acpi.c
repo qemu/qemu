@@ -64,6 +64,7 @@ static int acpi_checksum(const uint8_t *data, int len)
 /* XXX fixme: this function uses obsolete argument parsing interface */
 int acpi_table_add(const char *t)
 {
+    Error *err = NULL;
     char buf[1024], *p, *f;
     unsigned long val;
     size_t len, start, allen;
@@ -87,8 +88,8 @@ int acpi_table_add(const char *t)
         has_header = true;
         break;
     default:
-        fprintf(stderr, "acpitable: both data and file are specified\n");
-        return -1;
+        error_setg(&err, "acpitable: both data and file are specified");
+        goto out;
     }
 
     if (!acpi_tables) {
@@ -108,8 +109,8 @@ int acpi_table_add(const char *t)
         int fd = open(f, O_RDONLY | O_BINARY);
 
         if (fd < 0) {
-            fprintf(stderr, "can't open file %s: %s\n", f, strerror(errno));
-            return -1;
+            error_setg(&err, "can't open file %s: %s", f, strerror(errno));
+            goto out;
         }
 
         for (;;) {
@@ -122,10 +123,10 @@ int acpi_table_add(const char *t)
                 memcpy(acpi_tables + allen, data, r);
                 allen += r;
             } else if (errno != EINTR) {
-                fprintf(stderr, "can't read file %s: %s\n",
-                        f, strerror(errno));
+                error_setg(&err, "can't read file %s: %s",
+                           f, strerror(errno));
                 close(fd);
-                return -1;
+                goto out;
             }
         }
 
@@ -169,8 +170,8 @@ int acpi_table_add(const char *t)
     if (get_param_value(buf, sizeof(buf), "rev", t)) {
         val = strtoul(buf, &p, 0);
         if (val > 255 || *p) {
-            fprintf(stderr, "acpitable: \"rev=%s\" is invalid\n", buf);
-            return -1;
+            error_setg(&err, "acpitable: \"rev=%s\" is invalid", buf);
+            goto out;
         }
         hdr.revision = (uint8_t)val;
         ++changed;
@@ -191,8 +192,8 @@ int acpi_table_add(const char *t)
     if (get_param_value(buf, sizeof(buf), "oem_rev", t)) {
         val = strtol(buf, &p, 0);
         if (*p) {
-            fprintf(stderr, "acpitable: \"oem_rev=%s\" is invalid\n", buf);
-            return -1;
+            error_setg(&err, "acpitable: \"oem_rev=%s\" is invalid", buf);
+            goto out;
         }
         hdr.oem_revision = cpu_to_le32(val);
         ++changed;
@@ -207,9 +208,9 @@ int acpi_table_add(const char *t)
     if (get_param_value(buf, sizeof(buf), "asl_compiler_rev", t)) {
         val = strtol(buf, &p, 0);
         if (*p) {
-            fprintf(stderr, "acpitable: \"%s=%s\" is invalid\n",
-                    "asl_compiler_rev", buf);
-            return -1;
+            error_setg(&err, "acpitable: \"%s=%s\" is invalid",
+                       "asl_compiler_rev", buf);
+            goto out;
         }
         hdr.asl_compiler_revision = cpu_to_le32(val);
         ++changed;
@@ -240,6 +241,10 @@ int acpi_table_add(const char *t)
     acpi_tables_len = allen;
     return 0;
 
+out:
+    fprintf(stderr, "%s\n", error_get_pretty(err));
+    error_free(err);
+    return -1;
 }
 
 static void acpi_notify_wakeup(Notifier *notifier, void *data)
