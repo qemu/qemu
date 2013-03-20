@@ -1339,12 +1339,11 @@ static void pgraph_method(NV2AState *d,
         subchannel_data->object_instance = parameter;
 
         qemu_mutex_unlock(&d->pgraph.lock);
-        qemu_mutex_lock_iothread();
+        //qemu_mutex_lock_iothread();
         load_graphics_object(d, parameter, object);
-        qemu_mutex_unlock_iothread();
+        //qemu_mutex_unlock_iothread();
         return;
     }
-
 
     uint32_t class_method = (object->graphics_class << 16) | method;
     switch (class_method) {
@@ -1615,8 +1614,8 @@ static void pgraph_method(NV2AState *d,
         kelvin->semaphore_offset = parameter;
         break;
     case NV097_BACK_END_WRITE_SEMAPHORE_RELEASE:
-        qemu_mutex_unlock(&d->pgraph.lock);
-        qemu_mutex_lock_iothread();
+        //qemu_mutex_unlock(&d->pgraph.lock);
+        //qemu_mutex_lock_iothread();
 
         dma_semaphore = load_dma_object(d, kelvin->dma_semaphore);
         assert(kelvin->semaphore_offset < dma_semaphore.limit);
@@ -1624,8 +1623,8 @@ static void pgraph_method(NV2AState *d,
         stl_le_phys(dma_semaphore.start + kelvin->semaphore_offset,
                     parameter);
 
-        qemu_mutex_lock(&d->pgraph.lock);
-        qemu_mutex_unlock_iothread();
+        //qemu_mutex_lock(&d->pgraph.lock);
+        //qemu_mutex_unlock_iothread();
 
         break;
 
@@ -1762,12 +1761,12 @@ static void *pfifo_puller_thread(void *arg)
         qemu_mutex_unlock(&state->cache_lock);
 
         if (command->method == 0) {
-            qemu_mutex_lock_iothread();
+            //qemu_mutex_lock_iothread();
             entry = ramht_lookup(d, command->parameter);
             assert(entry.valid);
 
             assert(entry.channel_id == state->channel_id);
-            qemu_mutex_unlock_iothread();
+            //qemu_mutex_unlock_iothread();
 
             switch (entry.engine) {
             case ENGINE_SOFTWARE:
@@ -1796,12 +1795,12 @@ static void *pfifo_puller_thread(void *arg)
             /* methods that take objects.
              * TODO: Check this range is correct for the nv2a */
             if (command->method >= 0x180 && command->method < 0x200) {
-                qemu_mutex_lock_iothread();
+                //qemu_mutex_lock_iothread();
                 entry = ramht_lookup(d, parameter);
                 assert(entry.valid);
                 assert(entry.channel_id == state->channel_id);
                 parameter = entry.instance;
-                qemu_mutex_unlock_iothread();
+                //qemu_mutex_unlock_iothread();
             }
 
             qemu_mutex_lock(&state->pull_lock);
