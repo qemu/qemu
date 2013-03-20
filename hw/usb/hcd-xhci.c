@@ -1172,8 +1172,6 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
     uint32_t ctx[5];
     uint32_t ctx2[2];
 
-    fprintf(stderr, "%s: epid %d, state %d\n",
-            __func__, epctx->epid, state);
     xhci_dma_read_u32s(xhci, epctx->pctx, ctx, sizeof(ctx));
     ctx[0] &= ~EP_STATE_MASK;
     ctx[0] |= state;
