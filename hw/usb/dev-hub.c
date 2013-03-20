@@ -25,6 +25,7 @@
 #include "trace.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
+#include "qemu/error-report.h"
 
 #define NUM_PORTS 8
 
@@ -513,6 +514,11 @@ static int usb_hub_initfn(USBDevice *dev)
     USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
     USBHubPort *port;
     int i;
+
+    if (dev->port->hubcount == 5) {
+        error_report("usb hub chain too deep");
+        return -1;
+    }
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
