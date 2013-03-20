@@ -148,6 +148,15 @@ static void nbd_parse_filename(const char *filename, QDict *options,
     const char *host_spec;
     const char *unixpath;
 
+    if (qdict_haskey(options, "host")
+        || qdict_haskey(options, "port")
+        || qdict_haskey(options, "path"))
+    {
+        error_setg(errp, "host/port/path and a file name may not be specified "
+                         "at the same time");
+        return;
+    }
+
     if (strstr(filename, "://")) {
         int ret = nbd_parse_uri(filename, options);
         if (ret < 0) {
@@ -204,6 +213,11 @@ static int nbd_config(BDRVNBDState *s, QDict *options)
     Error *local_err = NULL;
 
     if (qdict_haskey(options, "path")) {
+        if (qdict_haskey(options, "host")) {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR, "path and host may not "
+                          "be used at the same time.");
+            return -EINVAL;
+        }
         s->is_unix = true;
     } else if (qdict_haskey(options, "host")) {
         s->is_unix = false;
