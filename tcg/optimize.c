@@ -576,7 +576,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
-        /* Simplify expressions for "shift/rot r, 0, a => movi r, 0" */
+        /* Simplify expressions for "shift/rot r, 0, a => movi r, 0",
+           and "sub r, 0, a => neg r, a" case.  */
         switch (op) {
         CASE_OP_32_64(shl):
         CASE_OP_32_64(shr):
@@ -590,6 +591,37 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 args += 3;
                 gen_args += 2;
                 continue;
+            }
+            break;
+        CASE_OP_32_64(sub):
+            {
+                TCGOpcode neg_op;
+                bool have_neg;
+
+                if (temps[args[2]].state == TCG_TEMP_CONST) {
+                    /* Proceed with possible constant folding. */
+                    break;
+                }
+                if (op == INDEX_op_sub_i32) {
+                    neg_op = INDEX_op_neg_i32;
+                    have_neg = TCG_TARGET_HAS_neg_i32;
+                } else {
+                    neg_op = INDEX_op_neg_i64;
+                    have_neg = TCG_TARGET_HAS_neg_i64;
+                }
+                if (!have_neg) {
+                    break;
+                }
+                if (temps[args[1]].state == TCG_TEMP_CONST
+                    && temps[args[1]].val == 0) {
+                    s->gen_opc_buf[op_index] = neg_op;
+                    reset_temp(args[0]);
+                    gen_args[0] = args[0];
+                    gen_args[1] = args[2];
+                    args += 3;
+                    gen_args += 2;
+                    continue;
+                }
             }
             break;
         default:
