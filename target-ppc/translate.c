@@ -2332,45 +2332,37 @@ static inline void gen_addr_imm_index(DisasContext *ctx, TCGv EA,
 
     simm &= ~maskl;
     if (rA(ctx->opcode) == 0) {
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
-            tcg_gen_movi_tl(EA, (uint32_t)simm);
-        } else
-#endif
+        if (NARROW_MODE(ctx)) {
+            simm = (uint32_t)simm;
+        }
         tcg_gen_movi_tl(EA, simm);
     } else if (likely(simm != 0)) {
         tcg_gen_addi_tl(EA, cpu_gpr[rA(ctx->opcode)], simm);
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, EA);
         }
-#endif
     } else {
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, cpu_gpr[rA(ctx->opcode)]);
-        } else
-#endif
-        tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
+        } else {
+            tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
+        }
     }
 }
 
 static inline void gen_addr_reg_index(DisasContext *ctx, TCGv EA)
 {
     if (rA(ctx->opcode) == 0) {
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, cpu_gpr[rB(ctx->opcode)]);
-        } else
-#endif
-        tcg_gen_mov_tl(EA, cpu_gpr[rB(ctx->opcode)]);
+        } else {
+            tcg_gen_mov_tl(EA, cpu_gpr[rB(ctx->opcode)]);
+        }
     } else {
         tcg_gen_add_tl(EA, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, EA);
         }
-#endif
     }
 }
 
@@ -2378,13 +2370,10 @@ static inline void gen_addr_register(DisasContext *ctx, TCGv EA)
 {
     if (rA(ctx->opcode) == 0) {
         tcg_gen_movi_tl(EA, 0);
+    } else if (NARROW_MODE(ctx)) {
+        tcg_gen_ext32u_tl(EA, cpu_gpr[rA(ctx->opcode)]);
     } else {
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
-            tcg_gen_ext32u_tl(EA, cpu_gpr[rA(ctx->opcode)]);
-        } else
-#endif
-            tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
+        tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
     }
 }
 
@@ -2392,11 +2381,9 @@ static inline void gen_addr_add(DisasContext *ctx, TCGv ret, TCGv arg1,
                                 target_long val)
 {
     tcg_gen_addi_tl(ret, arg1, val);
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode) {
+    if (NARROW_MODE(ctx)) {
         tcg_gen_ext32u_tl(ret, ret);
     }
-#endif
 }
 
 static inline void gen_check_align(DisasContext *ctx, TCGv EA, int mask)
@@ -7586,11 +7573,9 @@ static inline void gen_addr_spe_imm_index(DisasContext *ctx, TCGv EA, int sh)
         tcg_gen_movi_tl(EA, uimm << sh);
     } else {
         tcg_gen_addi_tl(EA, cpu_gpr[rA(ctx->opcode)], uimm << sh);
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, EA);
         }
-#endif
     }
 }
 
