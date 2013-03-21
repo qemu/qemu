@@ -632,7 +632,6 @@ static inline void gen_op_cmpi(TCGv arg0, target_ulong arg1, int s, int crf)
     tcg_temp_free(t0);
 }
 
-#if defined(TARGET_PPC64)
 static inline void gen_op_cmp32(TCGv arg0, TCGv arg1, int s, int crf)
 {
     TCGv t0, t1;
@@ -656,68 +655,62 @@ static inline void gen_op_cmpi32(TCGv arg0, target_ulong arg1, int s, int crf)
     gen_op_cmp32(arg0, t0, s, crf);
     tcg_temp_free(t0);
 }
-#endif
 
 static inline void gen_set_Rc0(DisasContext *ctx, TCGv reg)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode))
+    if (NARROW_MODE(ctx)) {
         gen_op_cmpi32(reg, 0, 1, 0);
-    else
-#endif
+    } else {
         gen_op_cmpi(reg, 0, 1, 0);
+    }
 }
 
 /* cmp */
 static void gen_cmp(DisasContext *ctx)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode && (ctx->opcode & 0x00200000)))
+    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
         gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                      1, crfD(ctx->opcode));
-    else
-#endif
+    } else {
         gen_op_cmp(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                    1, crfD(ctx->opcode));
+    }
 }
 
 /* cmpi */
 static void gen_cmpi(DisasContext *ctx)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode && (ctx->opcode & 0x00200000)))
+    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
         gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], SIMM(ctx->opcode),
                       1, crfD(ctx->opcode));
-    else
-#endif
+    } else {
         gen_op_cmpi(cpu_gpr[rA(ctx->opcode)], SIMM(ctx->opcode),
                     1, crfD(ctx->opcode));
+    }
 }
 
 /* cmpl */
 static void gen_cmpl(DisasContext *ctx)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode && (ctx->opcode & 0x00200000)))
+    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
         gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                      0, crfD(ctx->opcode));
-    else
-#endif
+    } else {
         gen_op_cmp(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                    0, crfD(ctx->opcode));
+    }
 }
 
 /* cmpli */
 static void gen_cmpli(DisasContext *ctx)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode && (ctx->opcode & 0x00200000)))
+    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
         gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], UIMM(ctx->opcode),
                       0, crfD(ctx->opcode));
-    else
-#endif
+    } else {
         gen_op_cmpi(cpu_gpr[rA(ctx->opcode)], UIMM(ctx->opcode),
                     0, crfD(ctx->opcode));
+    }
 }
 
 /* isel (PowerPC 2.03 specification) */
@@ -761,11 +754,9 @@ static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
         tcg_gen_andc_tl(cpu_ov, cpu_ov, t0);
     }
     tcg_temp_free(t0);
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode) {
+    if (NARROW_MODE(ctx)) {
         tcg_gen_ext32s_tl(cpu_ov, cpu_ov);
     }
-#endif
     tcg_gen_shri_tl(cpu_ov, cpu_ov, TARGET_LONG_BITS - 1);
     tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
 }
