@@ -44,7 +44,7 @@ typedef struct VirtIOSCSI {
     bool events_dropped;
     VirtQueue *ctrl_vq;
     VirtQueue *event_vq;
-    VirtQueue *cmd_vqs[0];
+    VirtQueue **cmd_vqs;
 } VirtIOSCSI;
 
 #define DEFINE_VIRTIO_SCSI_PROPERTIES(_state, _features_field, _conf_field) \
