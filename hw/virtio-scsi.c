@@ -692,35 +692,19 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .load_request = virtio_scsi_load_request,
 };
 
-static VirtIODevice *virtio_scsi_common_init(DeviceState *dev,
-                                             VirtIOSCSIConf *proxyconf,
-                                             VirtIOSCSI **ps)
+static int virtio_scsi_device_init(VirtIODevice *vdev)
 {
-    VirtIOSCSI *s = *ps;
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     static int virtio_scsi_id;
     int i;
 
-    /*
-     * We have two cases here: the old virtio-scsi-pci device, and the
-     * refactored virtio-scsi.
-     */
+    virtio_init(VIRTIO_DEVICE(s), "virtio-scsi", VIRTIO_ID_SCSI,
+                sizeof(VirtIOSCSIConfig));
 
-    if (s == NULL) {
-        /* virtio-scsi-pci */
-        s = (VirtIOSCSI *)virtio_common_init("virtio-scsi", VIRTIO_ID_SCSI,
-                                             sizeof(VirtIOSCSIConfig),
-                                             sizeof(VirtIOSCSI));
-    } else {
-        /* virtio-scsi */
-        virtio_init(VIRTIO_DEVICE(s), "virtio-scsi", VIRTIO_ID_SCSI,
-                    sizeof(VirtIOSCSIConfig));
-    }
+    s->cmd_vqs = g_malloc0(s->conf.num_queues * sizeof(VirtQueue *));
 
-    s->cmd_vqs = g_malloc0(proxyconf->num_queues * sizeof(VirtQueue *));
-
-    s->qdev = dev;
-    s->conf = *proxyconf;
+    s->qdev = qdev;
 
     /* TODO set up vdev function pointers */
     vdev->get_config = virtio_scsi_get_config;
@@ -737,38 +721,14 @@ static VirtIODevice *virtio_scsi_common_init(DeviceState *dev,
                                          virtio_scsi_handle_cmd);
     }
 
-    scsi_bus_new(&s->bus, dev, &virtio_scsi_scsi_info);
-    if (!dev->hotplugged) {
+    scsi_bus_new(&s->bus, qdev, &virtio_scsi_scsi_info);
+    if (!qdev->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }
 
-    register_savevm(dev, "virtio-scsi", virtio_scsi_id++, 1,
+    register_savevm(qdev, "virtio-scsi", virtio_scsi_id++, 1,
                     virtio_scsi_save, virtio_scsi_load, s);
 
-    return vdev;
-}
-
-VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *proxyconf)
-{
-    VirtIOSCSI *s = NULL;
-    return virtio_scsi_common_init(dev, proxyconf, &s);
-}
-
-void virtio_scsi_exit(VirtIODevice *vdev)
-{
-    VirtIOSCSI *s = (VirtIOSCSI *)vdev;
-    unregister_savevm(s->qdev, "virtio-scsi", s);
-    g_free(s->cmd_vqs);
-    virtio_cleanup(vdev);
-}
-
-static int virtio_scsi_device_init(VirtIODevice *vdev)
-{
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
-    if (virtio_scsi_common_init(qdev, &(s->conf), &s) == NULL) {
-        return -1;
-    }
     return 0;
 }
 
