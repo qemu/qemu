@@ -18,6 +18,11 @@
 #include "hw/pci/pci.h"
 #include "hw/scsi.h"
 
+#define TYPE_VIRTIO_SCSI "virtio-scsi"
+#define VIRTIO_SCSI(obj) \
+        OBJECT_CHECK(VirtIOSCSI, (obj), TYPE_VIRTIO_SCSI)
+
+
 /* The ID for virtio_scsi */
 #define VIRTIO_ID_SCSI  8
 
