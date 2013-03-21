@@ -452,7 +452,6 @@ struct XHCIState {
     MemoryRegion mem_oper;
     MemoryRegion mem_runtime;
     MemoryRegion mem_doorbell;
-    const char *name;
     unsigned int devaddr;
 
     /* properties */
