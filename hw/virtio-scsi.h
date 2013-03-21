@@ -38,7 +38,7 @@ struct VirtIOSCSIConf {
 };
 
 typedef struct VirtIOSCSI {
-    VirtIODevice vdev;
+    VirtIODevice parent_obj;
     DeviceState *qdev;
     VirtIOSCSIConf conf;
 
