@@ -408,7 +408,6 @@ typedef struct XHCISlot {
     bool enabled;
     dma_addr_t ctx;
     USBPort *uport;
-    unsigned int devaddr;
     XHCIEPContext * eps[31];
 } XHCISlot;
 
@@ -452,7 +451,6 @@ struct XHCIState {
     MemoryRegion mem_oper;
     MemoryRegion mem_runtime;
     MemoryRegion mem_doorbell;
-    unsigned int devaddr;
 
     /* properties */
     uint32_t numports_2;
@@ -2141,16 +2139,14 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
         slot_ctx[3] = SLOT_DEFAULT << SLOT_STATE_SHIFT;
     } else {
         USBPacket p;
-        slot->devaddr = xhci->devaddr++;
-        slot_ctx[3] = (SLOT_ADDRESSED << SLOT_STATE_SHIFT) | slot->devaddr;
-        DPRINTF("xhci: device address is %d\n", slot->devaddr);
+        slot_ctx[3] = (SLOT_ADDRESSED << SLOT_STATE_SHIFT) | slotid;
         usb_device_reset(dev);
         usb_packet_setup(&p, USB_TOKEN_OUT,
                          usb_ep_get(dev, USB_TOKEN_OUT, 0), 0,
                          0, false, false);
         usb_device_handle_control(dev, &p,
                                   DeviceOutRequest | USB_REQ_SET_ADDRESS,
-                                  slot->devaddr, 0, 0, NULL);
+                                  slotid, 0, 0, NULL);
         assert(p.status != USB_RET_ASYNC);
     }
 
@@ -2674,7 +2670,6 @@ static void xhci_reset(DeviceState *dev)
     xhci->dcbaap_low = 0;
     xhci->dcbaap_high = 0;
     xhci->config = 0;
-    xhci->devaddr = 2;
 
     for (i = 0; i < xhci->numslots; i++) {
         xhci_disable_slot(xhci, i+1);
@@ -3212,20 +3207,6 @@ static USBPortOps xhci_uport_ops = {
     .child_detach = xhci_child_detach,
 };
 
-static int xhci_find_slotid(XHCIState *xhci, USBDevice *dev)
-{
-    XHCISlot *slot;
-    int slotid;
-
-    for (slotid = 1; slotid <= xhci->numslots; slotid++) {
-        slot = &xhci->slots[slotid-1];
-        if (slot->devaddr == dev->addr) {
-            return slotid;
-        }
-    }
-    return 0;
-}
-
 static int xhci_find_epid(USBEndpoint *ep)
 {
     if (ep->nr == 0) {
@@ -3245,7 +3226,7 @@ static void xhci_wakeup_endpoint(USBBus *bus, USBEndpoint *ep,
     int slotid;
 
     DPRINTF("%s\n", __func__);
-    slotid = xhci_find_slotid(xhci, ep->dev);
+    slotid = ep->dev->addr;
     if (slotid == 0 || !xhci->slots[slotid-1].enabled) {
         DPRINTF("%s: oops, no slot for dev %d\n", __func__, ep->dev->addr);
         return;
