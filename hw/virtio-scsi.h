@@ -47,12 +47,16 @@ typedef struct VirtIOSCSI {
     VirtQueue **cmd_vqs;
 } VirtIOSCSI;
 
-#define DEFINE_VIRTIO_SCSI_PROPERTIES(_state, _features_field, _conf_field) \
-    DEFINE_VIRTIO_COMMON_FEATURES(_state, _features_field), \
-    DEFINE_PROP_UINT32("num_queues", _state, _conf_field.num_queues, 1), \
-    DEFINE_PROP_UINT32("max_sectors", _state, _conf_field.max_sectors, 0xFFFF), \
-    DEFINE_PROP_UINT32("cmd_per_lun", _state, _conf_field.cmd_per_lun, 128), \
-    DEFINE_PROP_BIT("hotplug", _state, _features_field, VIRTIO_SCSI_F_HOTPLUG, true), \
-    DEFINE_PROP_BIT("param_change", _state, _features_field, VIRTIO_SCSI_F_CHANGE, true)
+#define DEFINE_VIRTIO_SCSI_PROPERTIES(_state, _conf_field)                     \
+    DEFINE_PROP_UINT32("num_queues", _state, _conf_field.num_queues, 1),       \
+    DEFINE_PROP_UINT32("max_sectors", _state, _conf_field.max_sectors, 0xFFFF),\
+    DEFINE_PROP_UINT32("cmd_per_lun", _state, _conf_field.cmd_per_lun, 128)
+
+#define DEFINE_VIRTIO_SCSI_FEATURES(_state, _feature_field)                    \
+    DEFINE_VIRTIO_COMMON_FEATURES(_state, _feature_field),                     \
+    DEFINE_PROP_BIT("hotplug", _state, _feature_field, VIRTIO_SCSI_F_HOTPLUG,  \
+                                                       true),                  \
+    DEFINE_PROP_BIT("param_change", _state, _feature_field,                    \
+                                            VIRTIO_SCSI_F_CHANGE, true)
 
 #endif /* _QEMU_VIRTIO_SCSI_H */
