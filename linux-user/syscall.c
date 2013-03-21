@@ -2764,7 +2764,7 @@ static inline abi_long do_semop(int semid, abi_long ptr, unsigned nsops)
     if (target_to_host_sembuf(sops, ptr, nsops))
         return -TARGET_EFAULT;
 
-    return semop(semid, sops, nsops);
+    return get_errno(semop(semid, sops, nsops));
 }
 
 struct target_msqid_ds
@@ -6957,7 +6957,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_semop
     case TARGET_NR_semop:
-        ret = get_errno(do_semop(arg1, arg2, arg3));
+        ret = do_semop(arg1, arg2, arg3);
         break;
 #endif
 #ifdef TARGET_NR_semctl
