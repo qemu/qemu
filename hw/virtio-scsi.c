@@ -237,7 +237,7 @@ static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
     VirtIOSCSIReq *req = sreq->hba_private;
     uint32_t n = virtio_queue_get_id(req->vq) - 2;
 
-    assert(n < req->dev->conf->num_queues);
+    assert(n < req->dev->conf.num_queues);
     qemu_put_be32s(f, &n);
     qemu_put_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
 }
@@ -251,7 +251,7 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
 
     req = g_malloc(sizeof(*req));
     qemu_get_be32s(f, &n);
-    assert(n < s->conf->num_queues);
+    assert(n < s->conf.num_queues);
     qemu_get_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
     virtio_scsi_parse_req(s, s->cmd_vqs[n], req);
 
@@ -513,10 +513,10 @@ static void virtio_scsi_get_config(VirtIODevice *vdev,
     VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
 
-    stl_raw(&scsiconf->num_queues, s->conf->num_queues);
+    stl_raw(&scsiconf->num_queues, s->conf.num_queues);
     stl_raw(&scsiconf->seg_max, 128 - 2);
-    stl_raw(&scsiconf->max_sectors, s->conf->max_sectors);
-    stl_raw(&scsiconf->cmd_per_lun, s->conf->cmd_per_lun);
+    stl_raw(&scsiconf->max_sectors, s->conf.max_sectors);
+    stl_raw(&scsiconf->cmd_per_lun, s->conf.cmd_per_lun);
     stl_raw(&scsiconf->event_info_size, sizeof(VirtIOSCSIEvent));
     stl_raw(&scsiconf->sense_size, s->sense_size);
     stl_raw(&scsiconf->cdb_size, s->cdb_size);
@@ -698,7 +698,7 @@ VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *proxyconf)
                                          sizeof(VirtIOSCSIConfig), sz);
 
     s->qdev = dev;
-    s->conf = proxyconf;
+    s->conf = *proxyconf;
 
     /* TODO set up vdev function pointers */
     s->vdev.get_config = virtio_scsi_get_config;
@@ -710,7 +710,7 @@ VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *proxyconf)
                                    virtio_scsi_handle_ctrl);
     s->event_vq = virtio_add_queue(&s->vdev, VIRTIO_SCSI_VQ_SIZE,
                                    virtio_scsi_handle_event);
-    for (i = 0; i < s->conf->num_queues; i++) {
+    for (i = 0; i < s->conf.num_queues; i++) {
         s->cmd_vqs[i] = virtio_add_queue(&s->vdev, VIRTIO_SCSI_VQ_SIZE,
                                          virtio_scsi_handle_cmd);
     }

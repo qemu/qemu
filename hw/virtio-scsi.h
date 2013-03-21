@@ -35,7 +35,7 @@ struct VirtIOSCSIConf {
 typedef struct VirtIOSCSI {
     VirtIODevice vdev;
     DeviceState *qdev;
-    VirtIOSCSIConf *conf;
+    VirtIOSCSIConf conf;
 
     SCSIBus bus;
     uint32_t sense_size;
