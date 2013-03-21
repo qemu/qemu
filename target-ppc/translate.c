@@ -204,6 +204,13 @@ typedef struct DisasContext {
     int singlestep_enabled;
 } DisasContext;
 
+/* True when active word size < size of target_long.  */
+#ifdef TARGET_PPC64
+# define NARROW_MODE(C)  (!(C)->sf_mode)
+#else
+# define NARROW_MODE(C)  0
+#endif
+
 struct opc_handler_t {
     /* invalid bits for instruction 1 (Rc(opcode) == 0) */
     uint32_t inval1;
@@ -778,14 +785,26 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
     }
 
     if (compute_ca) {
-        TCGv zero = tcg_const_tl(0);
-        if (add_ca) {
-            tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, cpu_ca, zero);
-            tcg_gen_add2_tl(t0, cpu_ca, t0, cpu_ca, arg2, zero);
+        if (NARROW_MODE(ctx)) {
+            TCGv t1 = tcg_temp_new();
+            tcg_gen_ext32u_tl(t1, arg2);
+            tcg_gen_ext32u_tl(t0, arg1);
+            tcg_gen_add_tl(t0, t0, t1);
+            tcg_temp_free(t1);
+            if (add_ca) {
+                tcg_gen_add_tl(t0, t0, cpu_ca);
+            }
+            tcg_gen_shri_tl(cpu_ca, t0, 32);
         } else {
-            tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, arg2, zero);
+            TCGv zero = tcg_const_tl(0);
+            if (add_ca) {
+                tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, cpu_ca, zero);
+                tcg_gen_add2_tl(t0, cpu_ca, t0, cpu_ca, arg2, zero);
+            } else {
+                tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, arg2, zero);
+            }
+            tcg_temp_free(zero);
         }
-        tcg_temp_free(zero);
     } else {
         tcg_gen_add_tl(t0, arg1, arg2);
         if (add_ca) {
@@ -1114,14 +1133,25 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
 {
     TCGv t0 = ret;
 
-    if (((add_ca && compute_ca) || compute_ov)
-        && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
+    if (compute_ov && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
         t0 = tcg_temp_new();
     }
 
-    if (add_ca) {
-        /* dest = ~arg1 + arg2 + ca.  */
-        if (compute_ca) {
+    if (compute_ca) {
+        /* dest = ~arg1 + arg2 [+ ca].  */
+        if (NARROW_MODE(ctx)) {
+            TCGv inv1 = tcg_temp_new();
+            tcg_gen_not_tl(inv1, arg1);
+            tcg_gen_ext32u_tl(t0, arg2);
+            tcg_gen_ext32u_tl(inv1, inv1);
+            if (add_ca) {
+                tcg_gen_add_tl(t0, t0, cpu_ca);
+            } else {
+                tcg_gen_addi_tl(t0, t0, 1);
+            }
+            tcg_gen_add_tl(t0, t0, inv1);
+            tcg_gen_shri_tl(cpu_ca, t0, 32);
+        } else if (add_ca) {
             TCGv zero, inv1 = tcg_temp_new();
             tcg_gen_not_tl(inv1, arg1);
             zero = tcg_const_tl(0);
@@ -1130,14 +1160,16 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
             tcg_temp_free(zero);
             tcg_temp_free(inv1);
         } else {
-            tcg_gen_sub_tl(t0, arg2, arg1);
-            tcg_gen_add_tl(t0, t0, cpu_ca);
-            tcg_gen_subi_tl(t0, t0, 1);
-        }
-    } else {
-        if (compute_ca) {
             tcg_gen_setcond_tl(TCG_COND_GEU, cpu_ca, arg2, arg1);
+            tcg_gen_sub_tl(t0, arg2, arg1);
         }
+    } else if (add_ca) {
+        /* Since we're ignoring carry-out, we can simplify the
+           standard ~arg1 + arg2 + ca to arg2 - arg1 + ca - 1.  */
+        tcg_gen_sub_tl(t0, arg2, arg1);
+        tcg_gen_add_tl(t0, t0, cpu_ca);
+        tcg_gen_subi_tl(t0, t0, 1);
+    } else {
         tcg_gen_sub_tl(t0, arg2, arg1);
     }
 
