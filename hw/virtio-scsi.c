@@ -704,8 +704,6 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
 
     s->cmd_vqs = g_malloc0(s->conf.num_queues * sizeof(VirtQueue *));
 
-    s->qdev = qdev;
-
     /* TODO set up vdev function pointers */
     vdev->get_config = virtio_scsi_get_config;
     vdev->set_config = virtio_scsi_set_config;
