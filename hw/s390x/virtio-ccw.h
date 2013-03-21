@@ -76,7 +76,6 @@ struct VirtioCcwDevice {
     uint32_t host_features[VIRTIO_CCW_FEATURE_SIZE];
     virtio_serial_conf serial;
     virtio_net_conf net;
-    VirtIOSCSIConf scsi;
     VirtIORNGConf rng;
     VirtioBusState bus;
     /* Guest provided values: */
@@ -92,6 +91,17 @@ typedef struct VirtualCssBus {
 #define TYPE_VIRTUAL_CSS_BUS "virtual-css-bus"
 #define VIRTUAL_CSS_BUS(obj) \
      OBJECT_CHECK(VirtualCssBus, (obj), TYPE_VIRTUAL_CSS_BUS)
+
+/* virtio-scsi-ccw */
+
+#define TYPE_VIRTIO_SCSI_CCW "virtio-scsi-ccw"
+#define VIRTIO_SCSI_CCW(obj) \
+        OBJECT_CHECK(VirtIOSCSICcw, (obj), TYPE_VIRTIO_SCSI_CCW)
+
+typedef struct VirtIOSCSICcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOSCSI vdev;
+} VirtIOSCSICcw;
 
 /* virtio-blk-ccw */
 
