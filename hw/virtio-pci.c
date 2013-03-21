@@ -1190,64 +1190,6 @@ static const TypeInfo virtio_rng_info = {
     .class_init    = virtio_rng_class_init,
 };
 
-static int virtio_scsi_init_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-    VirtIODevice *vdev;
-
-    vdev = virtio_scsi_init(&pci_dev->qdev, &proxy->scsi);
-    if (!vdev) {
-        return -EINVAL;
-    }
-
-    vdev->nvectors = proxy->nvectors == DEV_NVECTORS_UNSPECIFIED
-                                        ? proxy->scsi.num_queues + 3
-                                        : proxy->nvectors;
-    virtio_init_pci(proxy, vdev);
-
-    /* make the actual value visible */
-    proxy->nvectors = vdev->nvectors;
-    return 0;
-}
-
-static void virtio_scsi_exit_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-
-    virtio_scsi_exit(proxy->vdev);
-    virtio_exit_pci(pci_dev);
-}
-
-static Property virtio_scsi_properties[] = {
-    DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
-    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, DEV_NVECTORS_UNSPECIFIED),
-    DEFINE_VIRTIO_SCSI_FEATURES(VirtIOPCIProxy, host_features),
-    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOPCIProxy, scsi),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void virtio_scsi_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = virtio_scsi_init_pci;
-    k->exit = virtio_scsi_exit_pci;
-    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
-    k->device_id = PCI_DEVICE_ID_VIRTIO_SCSI;
-    k->revision = 0x00;
-    k->class_id = PCI_CLASS_STORAGE_SCSI;
-    dc->reset = virtio_pci_reset;
-    dc->props = virtio_scsi_properties;
-}
-
-static const TypeInfo virtio_scsi_info = {
-    .name          = "virtio-scsi-pci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VirtIOPCIProxy),
-    .class_init    = virtio_scsi_class_init,
-};
-
 #ifdef CONFIG_VIRTFS
 static int virtio_9p_init_pci(PCIDevice *pci_dev)
 {
@@ -1454,6 +1396,62 @@ static const TypeInfo virtio_blk_pci_info = {
     .class_init    = virtio_blk_pci_class_init,
 };
 
+/* virtio-scsi-pci */
+
+static Property virtio_scsi_pci_properties[] = {
+    DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
+                       DEV_NVECTORS_UNSPECIFIED),
+    DEFINE_VIRTIO_SCSI_FEATURES(VirtIOPCIProxy, host_features),
+    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSIPCI, vdev.conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static int virtio_scsi_pci_init_pci(VirtIOPCIProxy *vpci_dev)
+{
+    VirtIOSCSIPCI *dev = VIRTIO_SCSI_PCI(vpci_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+
+    if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
+        vpci_dev->nvectors = dev->vdev.conf.num_queues + 3;
+    }
+
+    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
+    if (qdev_init(vdev) < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static void virtio_scsi_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
+    PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
+    k->init = virtio_scsi_pci_init_pci;
+    dc->props = virtio_scsi_pci_properties;
+    pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_SCSI;
+    pcidev_k->revision = 0x00;
+    pcidev_k->class_id = PCI_CLASS_STORAGE_SCSI;
+}
+
+static void virtio_scsi_pci_instance_init(Object *obj)
+{
+    VirtIOSCSIPCI *dev = VIRTIO_SCSI_PCI(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_SCSI);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+}
+
+static const TypeInfo virtio_scsi_pci_info = {
+    .name          = TYPE_VIRTIO_SCSI_PCI,
+    .parent        = TYPE_VIRTIO_PCI,
+    .instance_size = sizeof(VirtIOSCSIPCI),
+    .instance_init = virtio_scsi_pci_instance_init,
+    .class_init    = virtio_scsi_pci_class_init,
+};
+
 /* virtio-pci-bus */
 
 void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev)
@@ -1495,7 +1493,6 @@ static void virtio_pci_register_types(void)
     type_register_static(&virtio_net_info);
     type_register_static(&virtio_serial_info);
     type_register_static(&virtio_balloon_info);
-    type_register_static(&virtio_scsi_info);
     type_register_static(&virtio_rng_info);
     type_register_static(&virtio_pci_bus_info);
     type_register_static(&virtio_pci_info);
@@ -1503,6 +1500,7 @@ static void virtio_pci_register_types(void)
     type_register_static(&virtio_9p_info);
 #endif
     type_register_static(&virtio_blk_pci_info);
+    type_register_static(&virtio_scsi_pci_info);
 }
 
 type_init(virtio_pci_register_types)

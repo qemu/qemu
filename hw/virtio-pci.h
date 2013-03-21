@@ -26,6 +26,7 @@
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 typedef struct VirtIOBlkPCI VirtIOBlkPCI;
+typedef struct VirtIOSCSIPCI VirtIOSCSIPCI;
 
 /* virtio-pci-bus */
 
@@ -81,13 +82,25 @@ struct VirtIOPCIProxy {
 #endif
     virtio_serial_conf serial;
     virtio_net_conf net;
-    VirtIOSCSIConf scsi;
     VirtIORNGConf rng;
     bool ioeventfd_disabled;
     bool ioeventfd_started;
     VirtIOIRQFD *vector_irqfd;
     int nvqs_with_notifiers;
     VirtioBusState bus;
+};
+
+
+/*
+ * virtio-scsi-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VIRTIO_SCSI_PCI "virtio-scsi-pci"
+#define VIRTIO_SCSI_PCI(obj) \
+        OBJECT_CHECK(VirtIOSCSIPCI, (obj), TYPE_VIRTIO_SCSI_PCI)
+
+struct VirtIOSCSIPCI {
+    VirtIOPCIProxy parent_obj;
+    VirtIOSCSI vdev;
 };
 
 /*
