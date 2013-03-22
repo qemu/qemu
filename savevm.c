@@ -114,6 +114,7 @@ void qemu_announce_self(void)
 /* savevm/loadvm support */
 
 #define IO_BUF_SIZE 32768
+#define MAX_IOV_SIZE MIN(IOV_MAX, 64)
 
 struct QEMUFile {
     const QEMUFileOps *ops;
@@ -128,6 +129,9 @@ struct QEMUFile {
     int buf_index;
     int buf_size; /* 0 when writing */
     uint8_t buf[IO_BUF_SIZE];
+
+    struct iovec iov[MAX_IOV_SIZE];
+    unsigned int iovcnt;
 
     int last_error;
 };
@@ -528,6 +532,7 @@ static void qemu_fflush(QEMUFile *f)
             f->pos += f->buf_index;
         }
         f->buf_index = 0;
+        f->iovcnt = 0;
     }
     if (ret < 0) {
         qemu_file_set_error(f, ret);
@@ -601,6 +606,18 @@ int qemu_fclose(QEMUFile *f)
     return ret;
 }
 
+static void add_to_iovec(QEMUFile *f, const uint8_t *buf, int size)
+{
+    /* check for adjacent buffer and coalesce them */
+    if (f->iovcnt > 0 && buf == f->iov[f->iovcnt - 1].iov_base +
+        f->iov[f->iovcnt - 1].iov_len) {
+        f->iov[f->iovcnt - 1].iov_len += size;
+    } else {
+        f->iov[f->iovcnt].iov_base = (uint8_t *)buf;
+        f->iov[f->iovcnt++].iov_len = size;
+    }
+}
+
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
     int l;
@@ -620,12 +637,13 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         if (l > size)
             l = size;
         memcpy(f->buf + f->buf_index, buf, l);
+        add_to_iovec(f, f->buf + f->buf_index, l);
         f->is_write = 1;
         f->buf_index += l;
         f->bytes_xfer += l;
         buf += l;
         size -= l;
-        if (f->buf_index >= IO_BUF_SIZE) {
+        if (f->buf_index >= IO_BUF_SIZE || f->iovcnt >= MAX_IOV_SIZE) {
             qemu_fflush(f);
             if (qemu_file_get_error(f)) {
                 break;
@@ -650,7 +668,9 @@ void qemu_put_byte(QEMUFile *f, int v)
     f->is_write = 1;
     f->bytes_xfer++;
 
-    if (f->buf_index >= IO_BUF_SIZE) {
+    add_to_iovec(f, f->buf + (f->buf_index - 1), 1);
+
+    if (f->buf_index >= IO_BUF_SIZE || f->iovcnt >= MAX_IOV_SIZE) {
         qemu_fflush(f);
     }
 }
