@@ -1254,7 +1254,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         return ret;
     }
 
-    ret = bdrv_file_open(&bs, filename, BDRV_O_RDWR);
+    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR);
     if (ret < 0) {
         return ret;
     }

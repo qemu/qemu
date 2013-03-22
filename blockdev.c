@@ -658,7 +658,11 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         abort();
     }
     if (!file || !*file) {
-        return dinfo;
+        if (qdict_size(bs_opts)) {
+            file = NULL;
+        } else {
+            return dinfo;
+        }
     }
     if (snapshot) {
         /* always use cache=unsafe with snapshot */
@@ -697,10 +701,10 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     if (ret < 0) {
         if (ret == -EMEDIUMTYPE) {
             error_report("could not open disk image %s: not in %s format",
-                         file, drv->format_name);
+                         file ?: dinfo->id, drv->format_name);
         } else {
             error_report("could not open disk image %s: %s",
-                         file, strerror(-ret));
+                         file ?: dinfo->id, strerror(-ret));
         }
         goto err;
     }
@@ -1126,6 +1130,9 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
         return;
     }
+
+    /* complete all in-flight operations before resizing the device */
+    bdrv_drain_all();
 
     switch (bdrv_truncate(bs, size)) {
     case 0:

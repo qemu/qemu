@@ -30,6 +30,8 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 
+extern QemuOptsList socket_optslist;
+
 /* misc helpers */
 int qemu_socket(int domain, int type, int protocol);
 int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen);
@@ -45,6 +47,7 @@ int recv_all(int fd, void *buf, int len1, bool single_read);
  */
 typedef void NonBlockingConnectHandler(int fd, void *opaque);
 
+InetSocketAddress *inet_parse(const char *str, Error **errp);
 int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp);
 int inet_listen(const char *str, char *ostr, int olen,
                 int socktype, int port_offset, Error **errp);

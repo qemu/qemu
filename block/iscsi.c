@@ -1007,7 +1007,8 @@ out:
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
  */
-static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
+static int iscsi_open(BlockDriverState *bs, const char *filename,
+                      QDict *options, int flags)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = NULL;
@@ -1203,7 +1204,7 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options)
     bs.opaque = g_malloc0(sizeof(struct IscsiLun));
     iscsilun = bs.opaque;
 
-    ret = iscsi_open(&bs, filename, 0);
+    ret = iscsi_open(&bs, filename, NULL, 0);
     if (ret != 0) {
         goto out;
     }

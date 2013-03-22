@@ -558,7 +558,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
         return ret;
     }
 
-    ret = bdrv_file_open(&bs, filename, BDRV_O_RDWR | BDRV_O_CACHE_WB);
+    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR | BDRV_O_CACHE_WB);
     if (ret < 0) {
         return ret;
     }

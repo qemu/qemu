@@ -1766,7 +1766,7 @@ static int openfile(char *name, int flags, int growable)
     }
 
     if (growable) {
-        if (bdrv_file_open(&bs, name, flags)) {
+        if (bdrv_file_open(&bs, name, NULL, flags)) {
             fprintf(stderr, "%s: can't open device %s\n", progname, name);
             return 1;
         }
