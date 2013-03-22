@@ -372,7 +372,7 @@ udp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 		udp_detach(so);
 		return NULL;
 	}
-	setsockopt(so->s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(int));
+	qemu_setsockopt(so->s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
 
 	getsockname(so->s,(struct sockaddr *)&addr,&addrlen);
 	so->so_fport = addr.sin_port;

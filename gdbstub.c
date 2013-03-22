@@ -2887,7 +2887,7 @@ static int gdbserver_open(int port)
 
     /* allow fast reuse */
     val = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&val, sizeof(val));
+    qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
     sockaddr.sin_family = AF_INET;
     sockaddr.sin_port = htons(port);
