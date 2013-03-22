@@ -633,6 +633,28 @@ static void add_to_iovec(QEMUFile *f, const uint8_t *buf, int size)
     }
 }
 
+void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size)
+{
+    if (f->last_error) {
+        return;
+    }
+
+    if (f->is_write == 0 && f->buf_index > 0) {
+        fprintf(stderr,
+                "Attempted to write to buffer while read buffer is not empty\n");
+        abort();
+    }
+
+    add_to_iovec(f, buf, size);
+
+    f->is_write = 1;
+    f->bytes_xfer += size;
+
+    if (f->buf_index >= IO_BUF_SIZE || f->iovcnt >= MAX_IOV_SIZE) {
+        qemu_fflush(f);
+    }
+}
+
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
     int l;
@@ -652,18 +674,14 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         if (l > size)
             l = size;
         memcpy(f->buf + f->buf_index, buf, l);
-        add_to_iovec(f, f->buf + f->buf_index, l);
         f->is_write = 1;
         f->buf_index += l;
-        f->bytes_xfer += l;
+        qemu_put_buffer_async(f, f->buf + (f->buf_index - l), l);
+        if (qemu_file_get_error(f)) {
+            break;
+        }
         buf += l;
         size -= l;
-        if (f->buf_index >= IO_BUF_SIZE || f->iovcnt >= MAX_IOV_SIZE) {
-            qemu_fflush(f);
-            if (qemu_file_get_error(f)) {
-                break;
-            }
-        }
     }
 }
 
