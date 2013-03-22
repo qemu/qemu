@@ -648,6 +648,8 @@ void qemu_put_byte(QEMUFile *f, int v)
 
     f->buf[f->buf_index++] = v;
     f->is_write = 1;
+    f->bytes_xfer++;
+
     if (f->buf_index >= IO_BUF_SIZE) {
         qemu_fflush(f);
     }
