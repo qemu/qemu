@@ -37,6 +37,7 @@
 #include "exec/address-spaces.h"
 
 #include "hw/xbox_pci.h"
+#include "hw/nvnet.h"
 #include "hw/nv2a.h"
 #include "hw/mcpx_apu.h"
 
@@ -193,13 +194,6 @@ static void xbox_init(QEMUMachineInitArgs *args)
     /* does apparently have a pc speaker, though not used? */
     pcspk_init(isa_bus, pit);
 
-
-    /* TODO: ethernet */
-
-    /* USB */
-    pci_create_simple(host_bus, PCI_DEVFN(2, 0), "pci-ohci");
-    pci_create_simple(host_bus, PCI_DEVFN(3, 0), "pci-ohci");
-
     /* hdd shit
      * piix3's ide be right for now, maybe
      */
@@ -262,6 +256,14 @@ static void xbox_init(QEMUMachineInitArgs *args)
     smbus_xbox_smc_init(smbus, 0x10);
     smbus_cx25871_init(smbus, 0x45);
     smbus_adm1032_init(smbus, 0x4c);
+
+
+    /* USB */
+    pci_create_simple(host_bus, PCI_DEVFN(2, 0), "pci-ohci");
+    pci_create_simple(host_bus, PCI_DEVFN(3, 0), "pci-ohci");
+
+    /* Ethernet! */
+    nvnet_init(host_bus, PCI_DEVFN(4, 0), gsi[4]);
 
     /* APU! */
     mcpx_apu_init(host_bus, PCI_DEVFN(5, 0), gsi[5]);
