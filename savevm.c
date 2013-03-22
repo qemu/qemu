@@ -293,7 +293,7 @@ static int stdio_fclose(void *opaque)
     QEMUFileStdio *s = opaque;
     int ret = 0;
 
-    if (s->file->ops->put_buffer) {
+    if (s->file->ops->put_buffer || s->file->ops->writev_buffer) {
         int fd = fileno(s->stdio_file);
         struct stat st;
 
@@ -516,20 +516,35 @@ static void qemu_file_set_error(QEMUFile *f, int ret)
     }
 }
 
-/** Flushes QEMUFile buffer
+/**
+ * Flushes QEMUFile buffer
  *
+ * If there is writev_buffer QEMUFileOps it uses it otherwise uses
+ * put_buffer ops.
  */
 static void qemu_fflush(QEMUFile *f)
 {
-    int ret = 0;
+    ssize_t ret = 0;
+    int i = 0;
 
-    if (!f->ops->put_buffer) {
+    if (!f->ops->writev_buffer && !f->ops->put_buffer) {
         return;
     }
-    if (f->is_write && f->buf_index > 0) {
-        ret = f->ops->put_buffer(f->opaque, f->buf, f->pos, f->buf_index);
-        if (ret >= 0) {
-            f->pos += f->buf_index;
+
+    if (f->is_write && f->iovcnt > 0) {
+        if (f->ops->writev_buffer) {
+            ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt);
+            if (ret >= 0) {
+                f->pos += ret;
+            }
+        } else {
+            for (i = 0; i < f->iovcnt && ret >= 0; i++) {
+                ret = f->ops->put_buffer(f->opaque, f->iov[i].iov_base, f->pos,
+                                         f->iov[i].iov_len);
+                if (ret >= 0) {
+                    f->pos += ret;
+                }
+            }
         }
         f->buf_index = 0;
         f->iovcnt = 0;
