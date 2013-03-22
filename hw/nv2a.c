@@ -1164,18 +1164,21 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
 
             assert(dma.start + texture->offset < memory_region_size(d->vram));
 
-            /* TODO: handle weird texture pitches */
             NV2A_DPRINTF(" texture %d is format %d, (%d, %d; %d)\n",
                          i, texture->color_format,
                          texture->width, texture->height, texture->pitch);
-            assert(texture->pitch == texture->width*f.bytes_per_pixel);
 
             /* TODO: handle swizzling */
 
+            /* Can't handle retarded strides */
+            assert(texture->pitch % f.bytes_per_pixel == 0);
+
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, texture->pitch/f.bytes_per_pixel);
             glTexImage2D(gl_target, 0, f.gl_internal_format,
                          texture->width, texture->height, 0,
                          f.gl_format, f.gl_type,
                          d->vram_ptr + dma.start + texture->offset);
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
             texture->dirty = false;
         } else {
@@ -1724,6 +1727,7 @@ static void pgraph_ensure_channel(NV2AState *d, unsigned int channel_id)
     }
     qemu_mutex_unlock(&d->pgraph.lock);
     if (!valid) {
+        NV2A_DPRINTF("nv2a: puller needs to switch to ch %d\n", channel_id);
         pgraph_wait_context_switch(d);
     }
 }
@@ -2589,12 +2593,6 @@ static void pgraph_write(void *opaque, hwaddr addr,
         d->pgraph.enabled_interrupts = val;
         break;
     case NV_PGRAPH_CTX_CONTROL:
-        if (!(val & NV_PGRAPH_CTX_CONTROL_TIME)) {
-            /* time expired */
-            d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_CONTEXT_SWITCH;
-            update_irq(d);
-        }
-
         qemu_mutex_lock(&d->pgraph.lock);
         d->pgraph.channel_valid = (val & NV_PGRAPH_CTX_CONTROL_CHID);
         if (d->pgraph.channel_valid) {
@@ -2619,11 +2617,14 @@ static void pgraph_write(void *opaque, hwaddr addr,
         qemu_mutex_lock(&d->pgraph.lock);
 
         if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN) {
-            NV2A_DPRINTF("nv2a PGRAPH: read channel context from %llx\n",
-                         d->pgraph.context_address);
+            NV2A_DPRINTF("nv2a PGRAPH: read channel %d context from %llx\n",
+                         d->pgraph.channel_id, d->pgraph.context_address);
 
             uint8_t *context_ptr = d->ramin_ptr + d->pgraph.context_address;
             uint32_t context_user = le32_to_cpupu((uint32_t*)context_ptr);
+
+            NV2A_DPRINTF("    - CTX_USER = 0x%x\n", context_user);
+
 
             pgraph_set_context_user(d, context_user);
         }
