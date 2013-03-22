@@ -37,7 +37,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32s(f, &fpscr);
     qemu_put_sbe32s(f, &env->access_type);
 #if defined(TARGET_PPC64)
-    qemu_put_betls(f, &env->asr);
+    qemu_put_betls(f, &env->spr[SPR_ASR]);
     qemu_put_sbe32s(f, &env->slb_nr);
 #endif
     qemu_put_betls(f, &env->spr[SPR_SDR1]);
@@ -125,7 +125,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->fpscr = fpscr;
     qemu_get_sbe32s(f, &env->access_type);
 #if defined(TARGET_PPC64)
-    qemu_get_betls(f, &env->asr);
+    qemu_get_betls(f, &env->spr[SPR_ASR]);
     qemu_get_sbe32s(f, &env->slb_nr);
 #endif
     qemu_get_betls(f, &sdr1);

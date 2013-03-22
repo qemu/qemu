@@ -3,39 +3,7 @@
 #include "sysemu/sysemu.h"
 #include "helper_regs.h"
 #include "hw/spapr.h"
-
-#define HPTES_PER_GROUP 8
-
-#define HPTE_V_SSIZE_SHIFT      62
-#define HPTE_V_AVPN_SHIFT       7
-#define HPTE_V_AVPN             0x3fffffffffffff80ULL
-#define HPTE_V_AVPN_VAL(x)      (((x) & HPTE_V_AVPN) >> HPTE_V_AVPN_SHIFT)
-#define HPTE_V_COMPARE(x, y)    (!(((x) ^ (y)) & 0xffffffffffffff80UL))
-#define HPTE_V_BOLTED           0x0000000000000010ULL
-#define HPTE_V_LOCK             0x0000000000000008ULL
-#define HPTE_V_LARGE            0x0000000000000004ULL
-#define HPTE_V_SECONDARY        0x0000000000000002ULL
-#define HPTE_V_VALID            0x0000000000000001ULL
-
-#define HPTE_R_PP0              0x8000000000000000ULL
-#define HPTE_R_TS               0x4000000000000000ULL
-#define HPTE_R_KEY_HI           0x3000000000000000ULL
-#define HPTE_R_RPN_SHIFT        12
-#define HPTE_R_RPN              0x3ffffffffffff000ULL
-#define HPTE_R_FLAGS            0x00000000000003ffULL
-#define HPTE_R_PP               0x0000000000000003ULL
-#define HPTE_R_N                0x0000000000000004ULL
-#define HPTE_R_G                0x0000000000000008ULL
-#define HPTE_R_M                0x0000000000000010ULL
-#define HPTE_R_I                0x0000000000000020ULL
-#define HPTE_R_W                0x0000000000000040ULL
-#define HPTE_R_WIMG             0x0000000000000078ULL
-#define HPTE_R_C                0x0000000000000080ULL
-#define HPTE_R_R                0x0000000000000100ULL
-#define HPTE_R_KEY_LO           0x0000000000000e00ULL
-
-#define HPTE_V_1TB_SEG          0x4000000000000000ULL
-#define HPTE_V_VRMA_MASK        0x4001ffffff000000ULL
+#include "mmu-hash64.h"
 
 static target_ulong compute_tlbie_rb(target_ulong v, target_ulong r,
                                      target_ulong pte_index)
@@ -44,17 +12,17 @@ static target_ulong compute_tlbie_rb(target_ulong v, target_ulong r,
 
     rb = (v & ~0x7fULL) << 16; /* AVA field */
     va_low = pte_index >> 3;
-    if (v & HPTE_V_SECONDARY) {
+    if (v & HPTE64_V_SECONDARY) {
         va_low = ~va_low;
     }
     /* xor vsid from AVA */
-    if (!(v & HPTE_V_1TB_SEG)) {
+    if (!(v & HPTE64_V_1TB_SEG)) {
         va_low ^= v >> 12;
     } else {
         va_low ^= v >> 24;
     }
     va_low &= 0x7ff;
-    if (v & HPTE_V_LARGE) {
+    if (v & HPTE64_V_LARGE) {
         rb |= 1;                         /* L field */
 #if 0 /* Disable that P7 specific bit for now */
         if (r & 0xff000) {
@@ -84,10 +52,10 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong page_shift = 12;
     target_ulong raddr;
     target_ulong i;
-    uint8_t *hpte;
+    hwaddr hpte;
 
     /* only handle 4k and 16M pages for now */
-    if (pteh & HPTE_V_LARGE) {
+    if (pteh & HPTE64_V_LARGE) {
 #if 0 /* We don't support 64k pages yet */
         if ((ptel & 0xf000) == 0x1000) {
             /* 64k page */
@@ -105,11 +73,11 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         }
     }
 
-    raddr = (ptel & HPTE_R_RPN) & ~((1ULL << page_shift) - 1);
+    raddr = (ptel & HPTE64_R_RPN) & ~((1ULL << page_shift) - 1);
 
     if (raddr < spapr->ram_limit) {
         /* Regular RAM - should have WIMG=0010 */
-        if ((ptel & HPTE_R_WIMG) != HPTE_R_M) {
+        if ((ptel & HPTE64_R_WIMG) != HPTE64_R_M) {
             return H_PARAMETER;
         }
     } else {
@@ -117,7 +85,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         /* FIXME: What WIMG combinations could be sensible for IO?
          * For now we allow WIMG=010x, but are there others? */
         /* FIXME: Should we check against registered IO addresses? */
-        if ((ptel & (HPTE_R_W | HPTE_R_I | HPTE_R_M)) != HPTE_R_I) {
+        if ((ptel & (HPTE64_R_W | HPTE64_R_I | HPTE64_R_M)) != HPTE64_R_I) {
             return H_PARAMETER;
         }
     }
@@ -129,26 +97,26 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     }
     if (likely((flags & H_EXACT) == 0)) {
         pte_index &= ~7ULL;
-        hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
+        hpte = pte_index * HASH_PTE_SIZE_64;
         for (i = 0; ; ++i) {
             if (i == 8) {
                 return H_PTEG_FULL;
             }
-            if ((ldq_p(hpte) & HPTE_V_VALID) == 0) {
+            if ((ppc_hash64_load_hpte0(env, hpte) & HPTE64_V_VALID) == 0) {
                 break;
             }
             hpte += HASH_PTE_SIZE_64;
         }
     } else {
         i = 0;
-        hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
-        if (ldq_p(hpte) & HPTE_V_VALID) {
+        hpte = pte_index * HASH_PTE_SIZE_64;
+        if (ppc_hash64_load_hpte0(env, hpte) & HPTE64_V_VALID) {
             return H_PTEG_FULL;
         }
     }
-    stq_p(hpte + (HASH_PTE_SIZE_64/2), ptel);
+    ppc_hash64_store_hpte1(env, hpte, ptel);
     /* eieio();  FIXME: need some sort of barrier for smp? */
-    stq_p(hpte, pteh);
+    ppc_hash64_store_hpte0(env, hpte, pteh);
 
     args[0] = pte_index + i;
     return H_SUCCESS;
@@ -166,26 +134,26 @@ static target_ulong remove_hpte(CPUPPCState *env, target_ulong ptex,
                                 target_ulong flags,
                                 target_ulong *vp, target_ulong *rp)
 {
-    uint8_t *hpte;
+    hwaddr hpte;
     target_ulong v, r, rb;
 
     if ((ptex * HASH_PTE_SIZE_64) & ~env->htab_mask) {
         return REMOVE_PARM;
     }
 
-    hpte = env->external_htab + (ptex * HASH_PTE_SIZE_64);
+    hpte = ptex * HASH_PTE_SIZE_64;
 
-    v = ldq_p(hpte);
-    r = ldq_p(hpte + (HASH_PTE_SIZE_64/2));
+    v = ppc_hash64_load_hpte0(env, hpte);
+    r = ppc_hash64_load_hpte1(env, hpte);
 
-    if ((v & HPTE_V_VALID) == 0 ||
+    if ((v & HPTE64_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn) ||
         ((flags & H_ANDCOND) && (v & avpn) != 0)) {
         return REMOVE_NOT_FOUND;
     }
     *vp = v;
     *rp = r;
-    stq_p(hpte, 0);
+    ppc_hash64_store_hpte0(env, hpte, 0);
     rb = compute_tlbie_rb(v, r, ptex);
     ppc_tlb_invalidate_one(env, rb);
     return REMOVE_SUCCESS;
@@ -271,7 +239,7 @@ static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
         switch (ret) {
         case REMOVE_SUCCESS:
-            *tsh |= (r & (HPTE_R_C | HPTE_R_R)) << 43;
+            *tsh |= (r & (HPTE64_R_C | HPTE64_R_R)) << 43;
             break;
 
         case REMOVE_PARM:
@@ -292,34 +260,34 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
     target_ulong avpn = args[2];
-    uint8_t *hpte;
+    hwaddr hpte;
     target_ulong v, r, rb;
 
     if ((pte_index * HASH_PTE_SIZE_64) & ~env->htab_mask) {
         return H_PARAMETER;
     }
 
-    hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
+    hpte = pte_index * HASH_PTE_SIZE_64;
 
-    v = ldq_p(hpte);
-    r = ldq_p(hpte + (HASH_PTE_SIZE_64/2));
+    v = ppc_hash64_load_hpte0(env, hpte);
+    r = ppc_hash64_load_hpte1(env, hpte);
 
-    if ((v & HPTE_V_VALID) == 0 ||
+    if ((v & HPTE64_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn)) {
         return H_NOT_FOUND;
     }
 
-    r &= ~(HPTE_R_PP0 | HPTE_R_PP | HPTE_R_N |
-           HPTE_R_KEY_HI | HPTE_R_KEY_LO);
-    r |= (flags << 55) & HPTE_R_PP0;
-    r |= (flags << 48) & HPTE_R_KEY_HI;
-    r |= flags & (HPTE_R_PP | HPTE_R_N | HPTE_R_KEY_LO);
+    r &= ~(HPTE64_R_PP0 | HPTE64_R_PP | HPTE64_R_N |
+           HPTE64_R_KEY_HI | HPTE64_R_KEY_LO);
+    r |= (flags << 55) & HPTE64_R_PP0;
+    r |= (flags << 48) & HPTE64_R_KEY_HI;
+    r |= flags & (HPTE64_R_PP | HPTE64_R_N | HPTE64_R_KEY_LO);
     rb = compute_tlbie_rb(v, r, pte_index);
-    stq_p(hpte, v & ~HPTE_V_VALID);
+    ppc_hash64_store_hpte0(env, hpte, v & ~HPTE64_V_VALID);
     ppc_tlb_invalidate_one(env, rb);
-    stq_p(hpte + (HASH_PTE_SIZE_64/2), r);
+    ppc_hash64_store_hpte1(env, hpte, r);
     /* Don't need a memory barrier, due to qemu's global lock */
-    stq_p(hpte, v);
+    ppc_hash64_store_hpte0(env, hpte, v);
     return H_SUCCESS;
 }
 

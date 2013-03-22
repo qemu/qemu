@@ -382,7 +382,6 @@ DEF_HELPER_1(load_601_rtcl, tl, env)
 DEF_HELPER_1(load_601_rtcu, tl, env)
 #if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
-DEF_HELPER_2(store_asr, void, env, tl)
 DEF_HELPER_1(load_purr, tl, env)
 #endif
 DEF_HELPER_2(store_sdr1, void, env, tl)

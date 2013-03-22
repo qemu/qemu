@@ -2960,10 +2960,6 @@ static const MonitorDef monitor_defs[] = {
     { "xer", 0, &monitor_get_xer, },
     { "tbu", 0, &monitor_get_tbu, },
     { "tbl", 0, &monitor_get_tbl, },
-#if defined(TARGET_PPC64)
-    /* Address space register */
-    { "asr", offsetof(CPUPPCState, asr) },
-#endif
     /* Segment registers */
     { "sdr1", offsetof(CPUPPCState, spr[SPR_SDR1]) },
     { "sr0", offsetof(CPUPPCState, sr[0]) },

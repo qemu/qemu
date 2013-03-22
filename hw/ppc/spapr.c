@@ -629,7 +629,7 @@ static void ppc_spapr_reset(void)
                        spapr->rtas_size);
 
     /* Set up the entry state */
-    first_cpu_cpu = CPU(first_cpu);
+    first_cpu_cpu = ENV_GET_CPU(first_cpu);
     first_cpu->gpr[3] = spapr->fdt_addr;
     first_cpu->gpr[5] = 0;
     first_cpu_cpu->halted = 0;
@@ -779,6 +779,11 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         spapr->htab_shift++;
     }
 
+    /* Set up Interrupt Controller before we create the VCPUs */
+    spapr->icp = xics_system_init(smp_cpus * kvmppc_smt_threads() / smp_threads,
+                                  XICS_IRQS);
+    spapr->next_irq = XICS_IRQ_BASE;
+
     /* init CPUs */
     if (cpu_model == NULL) {
         cpu_model = kvm_enabled() ? "host" : "POWER7";
@@ -790,6 +795,8 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
             exit(1);
         }
         env = &cpu->env;
+
+        xics_cpu_setup(spapr->icp, cpu);
 
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
@@ -830,11 +837,6 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     }
     g_free(filename);
 
-
-    /* Set up Interrupt Controller */
-    spapr->icp = xics_system_init(XICS_IRQS);
-    spapr->next_irq = XICS_IRQ_BASE;
-
     /* Set up EPOW events infrastructure */
     spapr_events_init(spapr);
 
@@ -856,7 +858,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     /* Set up PCI */
     spapr_pci_rtas_init();
 
-    phb = spapr_create_phb(spapr, 0, "pci");
+    phb = spapr_create_phb(spapr, 0);
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];

@@ -39,7 +39,6 @@ typedef struct sPAPRPHBState {
 
     int32_t index;
     uint64_t buid;
-    char *busname;
     char *dtbusname;
 
     MemoryRegion memspace, iospace;
@@ -82,8 +81,7 @@ static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
     return xics_get_qirq(spapr->icp, phb->lsi_table[pin].irq);
 }
 
-PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index,
-                               const char *busname);
+PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index);
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,

@@ -518,6 +518,7 @@ static int spapr_phb_init(SysBusDevice *s)
 {
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    const char *busname;
     char *namebuf;
     int i;
     PCIBus *bus;
@@ -575,9 +576,6 @@ static int spapr_phb_init(SysBusDevice *s)
     }
 
     sphb->dtbusname = g_strdup_printf("pci@%" PRIx64, sphb->buid);
-    if (!sphb->busname) {
-        sphb->busname = sphb->dtbusname;
-    }
 
     namebuf = alloca(strlen(sphb->dtbusname) + 32);
 
@@ -621,7 +619,26 @@ static int spapr_phb_init(SysBusDevice *s)
                                     &sphb->msiwindow);
     }
 
-    bus = pci_register_bus(DEVICE(s), sphb->busname,
+    /*
+     * Selecting a busname is more complex than you'd think, due to
+     * interacting constraints.  If the user has specified an id
+     * explicitly for the phb , then we want to use the qdev default
+     * of naming the bus based on the bridge device (so the user can
+     * then assign devices to it in the way they expect).  For the
+     * first / default PCI bus (index=0) we want to use just "pci"
+     * because libvirt expects there to be a bus called, simply,
+     * "pci".  Otherwise, we use the same name as in the device tree,
+     * since it's unique by construction, and makes the guest visible
+     * BUID clear.
+     */
+    if (s->qdev.id) {
+        busname = NULL;
+    } else if (sphb->index == 0) {
+        busname = "pci";
+    } else {
+        busname = sphb->dtbusname;
+    }
+    bus = pci_register_bus(DEVICE(s), busname,
                            pci_spapr_set_irq, pci_spapr_map_irq, sphb,
                            &sphb->memspace, &sphb->iospace,
                            PCI_DEVFN(0, 0), PCI_NUM_PINS);
@@ -663,7 +680,6 @@ static void spapr_phb_reset(DeviceState *qdev)
 }
 
 static Property spapr_phb_properties[] = {
-    DEFINE_PROP_STRING("busname", sPAPRPHBState, busname),
     DEFINE_PROP_INT32("index", sPAPRPHBState, index, -1),
     DEFINE_PROP_HEX64("buid", sPAPRPHBState, buid, -1),
     DEFINE_PROP_HEX32("liobn", sPAPRPHBState, dma_liobn, -1),
@@ -694,14 +710,12 @@ static const TypeInfo spapr_phb_info = {
     .class_init    = spapr_phb_class_init,
 };
 
-PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index,
-                               const char *busname)
+PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index)
 {
     DeviceState *dev;
 
     dev = qdev_create(NULL, TYPE_SPAPR_PCI_HOST_BRIDGE);
     qdev_prop_set_uint32(dev, "index", index);
-    qdev_prop_set_string(dev, "busname", busname);
     qdev_init_nofail(dev);
 
     return PCI_HOST_BRIDGE(dev);

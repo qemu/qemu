@@ -113,13 +113,13 @@ enum powerpc_mmu_t {
 #if defined(TARGET_PPC64)
 #define POWERPC_MMU_64       0x00010000
 #define POWERPC_MMU_1TSEG    0x00020000
+#define POWERPC_MMU_AMR      0x00040000
     /* 64 bits PowerPC MMU                                     */
     POWERPC_MMU_64B        = POWERPC_MMU_64 | 0x00000001,
-    /* 620 variant (no segment exceptions)                     */
-    POWERPC_MMU_620        = POWERPC_MMU_64 | 0x00000002,
     /* Architecture 2.06 variant                               */
-    POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG | 0x00000003,
-    /* Architecture 2.06 "degraded" (no 1T segments)           */
+    POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
+                             | POWERPC_MMU_AMR | 0x00000003,
+    /* Architecture 2.06 "degraded" (no 1T segments or AMR)    */
     POWERPC_MMU_2_06d      = POWERPC_MMU_64 | 0x00000003,
 #endif /* defined(TARGET_PPC64) */
 };
@@ -396,35 +396,11 @@ union ppc_tlb_t {
 #define SDR_64_HTABSIZE        0x000000000000001FULL
 #endif /* defined(TARGET_PPC64 */
 
-#define HASH_PTE_SIZE_32       8
-#define HASH_PTE_SIZE_64       16
-
 typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
     uint64_t esid;
     uint64_t vsid;
 };
-
-/* Bits in the SLB ESID word */
-#define SLB_ESID_ESID           0xFFFFFFFFF0000000ULL
-#define SLB_ESID_V              0x0000000008000000ULL /* valid */
-
-/* Bits in the SLB VSID word */
-#define SLB_VSID_SHIFT          12
-#define SLB_VSID_SHIFT_1T       24
-#define SLB_VSID_SSIZE_SHIFT    62
-#define SLB_VSID_B              0xc000000000000000ULL
-#define SLB_VSID_B_256M         0x0000000000000000ULL
-#define SLB_VSID_B_1T           0x4000000000000000ULL
-#define SLB_VSID_VSID           0x3FFFFFFFFFFFF000ULL
-#define SLB_VSID_PTEM           (SLB_VSID_B | SLB_VSID_VSID)
-#define SLB_VSID_KS             0x0000000000000800ULL
-#define SLB_VSID_KP             0x0000000000000400ULL
-#define SLB_VSID_N              0x0000000000000200ULL /* no-execute */
-#define SLB_VSID_L              0x0000000000000100ULL
-#define SLB_VSID_C              0x0000000000000080ULL /* class */
-#define SLB_VSID_LP             0x0000000000000030ULL
-#define SLB_VSID_ATTR           0x0000000000000FFFULL
 
 #define SEGMENT_SHIFT_256M      28
 #define SEGMENT_MASK_256M       (~((1ULL << SEGMENT_SHIFT_256M) - 1))
@@ -965,8 +941,6 @@ struct CPUPPCState {
     /* MMU context - only relevant for full system emulation */
 #if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
-    /* Address space register */
-    target_ulong asr;
     /* PowerPC 64 SLB area */
     ppc_slb_t slb[64];
     int slb_nr;
@@ -1105,20 +1079,6 @@ do {                                            \
     env->wdt_period[3] = (d_);                  \
  } while (0)
 
-#if !defined(CONFIG_USER_ONLY)
-/* Context used internally during MMU translations */
-typedef struct mmu_ctx_t mmu_ctx_t;
-struct mmu_ctx_t {
-    hwaddr raddr;      /* Real address              */
-    hwaddr eaddr;      /* Effective address         */
-    int prot;                      /* Protection bits           */
-    hwaddr hash[2];    /* Pagetable hash values     */
-    target_ulong ptem;             /* Virtual segment ID | API  */
-    int key;                       /* Access key                */
-    int nx;                        /* Non-execute area          */
-};
-#endif
-
 #include "cpu-qom.h"
 
 /*****************************************************************************/
@@ -1130,17 +1090,14 @@ int cpu_ppc_exec (CPUPPCState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
-int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
-                              int mmu_idx);
-#define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
 void ppc_hw_interrupt (CPUPPCState *env);
+#if defined(CONFIG_USER_ONLY)
+int cpu_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
+                         int mmu_idx);
+#endif
 
 #if !defined(CONFIG_USER_ONLY)
 void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
-#if defined(TARGET_PPC64)
-void ppc_store_asr (CPUPPCState *env, target_ulong value);
-int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
-#endif /* defined(TARGET_PPC64) */
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
@@ -1172,13 +1129,12 @@ void store_40x_dbcr0 (CPUPPCState *env, uint32_t val);
 void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
-int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
-                     hwaddr *raddrp, target_ulong address,
-                     uint32_t pid);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
 void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
 #endif
 #endif
+
+void store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask);
 
 static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
 {
@@ -1270,6 +1226,7 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_601_UDECR         (0x006)
 #define SPR_LR                (0x008)
 #define SPR_CTR               (0x009)
+#define SPR_UAMR              (0x00C)
 #define SPR_DSCR              (0x011)
 #define SPR_DSISR             (0x012)
 #define SPR_DAR               (0x013) /* DAE for PowerPC 601 */
@@ -1307,6 +1264,7 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_MPC_CMPH          (0x09B)
 #define SPR_MPC_LCTRL1        (0x09C)
 #define SPR_MPC_LCTRL2        (0x09D)
+#define SPR_UAMOR             (0x09D)
 #define SPR_MPC_ICTRL         (0x09E)
 #define SPR_MPC_BAR           (0x09F)
 #define SPR_VRSAVE            (0x100)
@@ -1489,11 +1447,9 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_RCPU_MI_RBA2      (0x302)
 #define SPR_MPC_MI_AP         (0x302)
 #define SPR_PERF3             (0x303)
-#define SPR_620_PMC1R         (0x303)
 #define SPR_RCPU_MI_RBA3      (0x303)
 #define SPR_MPC_MI_EPN        (0x303)
 #define SPR_PERF4             (0x304)
-#define SPR_620_PMC2R         (0x304)
 #define SPR_PERF5             (0x305)
 #define SPR_MPC_MI_TWC        (0x305)
 #define SPR_PERF6             (0x306)
@@ -1509,7 +1465,6 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_RCPU_L2U_RBA2     (0x30A)
 #define SPR_MPC_MD_AP         (0x30A)
 #define SPR_PERFB             (0x30B)
-#define SPR_620_MMCR0R        (0x30B)
 #define SPR_RCPU_L2U_RBA3     (0x30B)
 #define SPR_MPC_MD_EPN        (0x30B)
 #define SPR_PERFC             (0x30C)
@@ -1524,9 +1479,7 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_UPERF1            (0x311)
 #define SPR_UPERF2            (0x312)
 #define SPR_UPERF3            (0x313)
-#define SPR_620_PMC1W         (0x313)
 #define SPR_UPERF4            (0x314)
-#define SPR_620_PMC2W         (0x314)
 #define SPR_UPERF5            (0x315)
 #define SPR_UPERF6            (0x316)
 #define SPR_UPERF7            (0x317)
@@ -1534,7 +1487,6 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_UPERF9            (0x319)
 #define SPR_UPERFA            (0x31A)
 #define SPR_UPERFB            (0x31B)
-#define SPR_620_MMCR0W        (0x31B)
 #define SPR_UPERFC            (0x31C)
 #define SPR_UPERFD            (0x31D)
 #define SPR_UPERFE            (0x31E)
@@ -1606,49 +1558,33 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_USDA              (0x3AF)
 #define SPR_40x_ZPR           (0x3B0)
 #define SPR_BOOKE_MAS7        (0x3B0)
-#define SPR_620_PMR0          (0x3B0)
 #define SPR_MMCR2             (0x3B0)
 #define SPR_PMC5              (0x3B1)
 #define SPR_40x_PID           (0x3B1)
-#define SPR_620_PMR1          (0x3B1)
 #define SPR_PMC6              (0x3B2)
 #define SPR_440_MMUCR         (0x3B2)
-#define SPR_620_PMR2          (0x3B2)
 #define SPR_4xx_CCR0          (0x3B3)
 #define SPR_BOOKE_EPLC        (0x3B3)
-#define SPR_620_PMR3          (0x3B3)
 #define SPR_405_IAC3          (0x3B4)
 #define SPR_BOOKE_EPSC        (0x3B4)
-#define SPR_620_PMR4          (0x3B4)
 #define SPR_405_IAC4          (0x3B5)
-#define SPR_620_PMR5          (0x3B5)
 #define SPR_405_DVC1          (0x3B6)
-#define SPR_620_PMR6          (0x3B6)
 #define SPR_405_DVC2          (0x3B7)
-#define SPR_620_PMR7          (0x3B7)
 #define SPR_BAMR              (0x3B7)
 #define SPR_MMCR0             (0x3B8)
-#define SPR_620_PMR8          (0x3B8)
 #define SPR_PMC1              (0x3B9)
 #define SPR_40x_SGR           (0x3B9)
-#define SPR_620_PMR9          (0x3B9)
 #define SPR_PMC2              (0x3BA)
 #define SPR_40x_DCWR          (0x3BA)
-#define SPR_620_PMRA          (0x3BA)
 #define SPR_SIAR              (0x3BB)
 #define SPR_405_SLER          (0x3BB)
-#define SPR_620_PMRB          (0x3BB)
 #define SPR_MMCR1             (0x3BC)
 #define SPR_405_SU0R          (0x3BC)
-#define SPR_620_PMRC          (0x3BC)
 #define SPR_401_SKR           (0x3BC)
 #define SPR_PMC3              (0x3BD)
 #define SPR_405_DBCR1         (0x3BD)
-#define SPR_620_PMRD          (0x3BD)
 #define SPR_PMC4              (0x3BE)
-#define SPR_620_PMRE          (0x3BE)
 #define SPR_SDA               (0x3BF)
-#define SPR_620_PMRF          (0x3BF)
 #define SPR_403_VTBL          (0x3CC)
 #define SPR_403_VTBU          (0x3CD)
 #define SPR_DMISS             (0x3D0)
@@ -1716,15 +1652,12 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_LDSTCR            (0x3F8)
 #define SPR_L2PMCR            (0x3F8)
 #define SPR_750FX_HID2        (0x3F8)
-#define SPR_620_BUSCSR        (0x3F8)
 #define SPR_Exxx_L1FINV0      (0x3F8)
 #define SPR_L2CR              (0x3F9)
-#define SPR_620_L2CR          (0x3F9)
 #define SPR_L3CR              (0x3FA)
 #define SPR_750_TDCH          (0x3FA)
 #define SPR_IABR2             (0x3FA)
 #define SPR_40x_DCCR          (0x3FA)
-#define SPR_620_L2SR          (0x3FA)
 #define SPR_ICTC              (0x3FB)
 #define SPR_40x_ICCR          (0x3FB)
 #define SPR_THRM1             (0x3FC)

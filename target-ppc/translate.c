@@ -204,6 +204,13 @@ typedef struct DisasContext {
     int singlestep_enabled;
 } DisasContext;
 
+/* True when active word size < size of target_long.  */
+#ifdef TARGET_PPC64
+# define NARROW_MODE(C)  (!(C)->sf_mode)
+#else
+# define NARROW_MODE(C)  0
+#endif
+
 struct opc_handler_t {
     /* invalid bits for instruction 1 (Rc(opcode) == 0) */
     uint32_t inval1;
@@ -260,12 +267,10 @@ static inline void gen_set_access_type(DisasContext *ctx, int access_type)
 
 static inline void gen_update_nip(DisasContext *ctx, target_ulong nip)
 {
-#if defined(TARGET_PPC64)
-    if (ctx->sf_mode)
-        tcg_gen_movi_tl(cpu_nip, nip);
-    else
-#endif
-        tcg_gen_movi_tl(cpu_nip, (uint32_t)nip);
+    if (NARROW_MODE(ctx)) {
+        nip = (uint32_t)nip;
+    }
+    tcg_gen_movi_tl(cpu_nip, nip);
 }
 
 static inline void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
@@ -627,7 +632,6 @@ static inline void gen_op_cmpi(TCGv arg0, target_ulong arg1, int s, int crf)
     tcg_temp_free(t0);
 }
 
-#if defined(TARGET_PPC64)
 static inline void gen_op_cmp32(TCGv arg0, TCGv arg1, int s, int crf)
 {
     TCGv t0, t1;
@@ -651,68 +655,62 @@ static inline void gen_op_cmpi32(TCGv arg0, target_ulong arg1, int s, int crf)
     gen_op_cmp32(arg0, t0, s, crf);
     tcg_temp_free(t0);
 }
-#endif
 
 static inline void gen_set_Rc0(DisasContext *ctx, TCGv reg)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode))
+    if (NARROW_MODE(ctx)) {
         gen_op_cmpi32(reg, 0, 1, 0);
-    else
-#endif
+    } else {
         gen_op_cmpi(reg, 0, 1, 0);
+    }
 }
 
 /* cmp */
 static void gen_cmp(DisasContext *ctx)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode && (ctx->opcode & 0x00200000)))
+    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
         gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                      1, crfD(ctx->opcode));
-    else
-#endif
+    } else {
         gen_op_cmp(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                    1, crfD(ctx->opcode));
+    }
 }
 
 /* cmpi */
 static void gen_cmpi(DisasContext *ctx)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode && (ctx->opcode & 0x00200000)))
+    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
         gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], SIMM(ctx->opcode),
                       1, crfD(ctx->opcode));
-    else
-#endif
+    } else {
         gen_op_cmpi(cpu_gpr[rA(ctx->opcode)], SIMM(ctx->opcode),
                     1, crfD(ctx->opcode));
+    }
 }
 
 /* cmpl */
 static void gen_cmpl(DisasContext *ctx)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode && (ctx->opcode & 0x00200000)))
+    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
         gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                      0, crfD(ctx->opcode));
-    else
-#endif
+    } else {
         gen_op_cmp(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                    0, crfD(ctx->opcode));
+    }
 }
 
 /* cmpli */
 static void gen_cmpli(DisasContext *ctx)
 {
-#if defined(TARGET_PPC64)
-    if (!(ctx->sf_mode && (ctx->opcode & 0x00200000)))
+    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
         gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], UIMM(ctx->opcode),
                       0, crfD(ctx->opcode));
-    else
-#endif
+    } else {
         gen_op_cmpi(cpu_gpr[rA(ctx->opcode)], UIMM(ctx->opcode),
                     0, crfD(ctx->opcode));
+    }
 }
 
 /* isel (PowerPC 2.03 specification) */
@@ -756,11 +754,9 @@ static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
         tcg_gen_andc_tl(cpu_ov, cpu_ov, t0);
     }
     tcg_temp_free(t0);
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode) {
+    if (NARROW_MODE(ctx)) {
         tcg_gen_ext32s_tl(cpu_ov, cpu_ov);
     }
-#endif
     tcg_gen_shri_tl(cpu_ov, cpu_ov, TARGET_LONG_BITS - 1);
     tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
 }
@@ -778,14 +774,26 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
     }
 
     if (compute_ca) {
-        TCGv zero = tcg_const_tl(0);
-        if (add_ca) {
-            tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, cpu_ca, zero);
-            tcg_gen_add2_tl(t0, cpu_ca, t0, cpu_ca, arg2, zero);
+        if (NARROW_MODE(ctx)) {
+            TCGv t1 = tcg_temp_new();
+            tcg_gen_ext32u_tl(t1, arg2);
+            tcg_gen_ext32u_tl(t0, arg1);
+            tcg_gen_add_tl(t0, t0, t1);
+            tcg_temp_free(t1);
+            if (add_ca) {
+                tcg_gen_add_tl(t0, t0, cpu_ca);
+            }
+            tcg_gen_shri_tl(cpu_ca, t0, 32);
         } else {
-            tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, arg2, zero);
+            TCGv zero = tcg_const_tl(0);
+            if (add_ca) {
+                tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, cpu_ca, zero);
+                tcg_gen_add2_tl(t0, cpu_ca, t0, cpu_ca, arg2, zero);
+            } else {
+                tcg_gen_add2_tl(t0, cpu_ca, arg1, zero, arg2, zero);
+            }
+            tcg_temp_free(zero);
         }
-        tcg_temp_free(zero);
     } else {
         tcg_gen_add_tl(t0, arg1, arg2);
         if (add_ca) {
@@ -1114,14 +1122,25 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
 {
     TCGv t0 = ret;
 
-    if (((add_ca && compute_ca) || compute_ov)
-        && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
+    if (compute_ov && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
         t0 = tcg_temp_new();
     }
 
-    if (add_ca) {
-        /* dest = ~arg1 + arg2 + ca.  */
-        if (compute_ca) {
+    if (compute_ca) {
+        /* dest = ~arg1 + arg2 [+ ca].  */
+        if (NARROW_MODE(ctx)) {
+            TCGv inv1 = tcg_temp_new();
+            tcg_gen_not_tl(inv1, arg1);
+            tcg_gen_ext32u_tl(t0, arg2);
+            tcg_gen_ext32u_tl(inv1, inv1);
+            if (add_ca) {
+                tcg_gen_add_tl(t0, t0, cpu_ca);
+            } else {
+                tcg_gen_addi_tl(t0, t0, 1);
+            }
+            tcg_gen_add_tl(t0, t0, inv1);
+            tcg_gen_shri_tl(cpu_ca, t0, 32);
+        } else if (add_ca) {
             TCGv zero, inv1 = tcg_temp_new();
             tcg_gen_not_tl(inv1, arg1);
             zero = tcg_const_tl(0);
@@ -1130,14 +1149,16 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
             tcg_temp_free(zero);
             tcg_temp_free(inv1);
         } else {
-            tcg_gen_sub_tl(t0, arg2, arg1);
-            tcg_gen_add_tl(t0, t0, cpu_ca);
-            tcg_gen_subi_tl(t0, t0, 1);
-        }
-    } else {
-        if (compute_ca) {
             tcg_gen_setcond_tl(TCG_COND_GEU, cpu_ca, arg2, arg1);
+            tcg_gen_sub_tl(t0, arg2, arg1);
         }
+    } else if (add_ca) {
+        /* Since we're ignoring carry-out, we can simplify the
+           standard ~arg1 + arg2 + ca to arg2 - arg1 + ca - 1.  */
+        tcg_gen_sub_tl(t0, arg2, arg1);
+        tcg_gen_add_tl(t0, t0, cpu_ca);
+        tcg_gen_subi_tl(t0, t0, 1);
+    } else {
         tcg_gen_sub_tl(t0, arg2, arg1);
     }
 
@@ -2311,45 +2332,37 @@ static inline void gen_addr_imm_index(DisasContext *ctx, TCGv EA,
 
     simm &= ~maskl;
     if (rA(ctx->opcode) == 0) {
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
-            tcg_gen_movi_tl(EA, (uint32_t)simm);
-        } else
-#endif
+        if (NARROW_MODE(ctx)) {
+            simm = (uint32_t)simm;
+        }
         tcg_gen_movi_tl(EA, simm);
     } else if (likely(simm != 0)) {
         tcg_gen_addi_tl(EA, cpu_gpr[rA(ctx->opcode)], simm);
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, EA);
         }
-#endif
     } else {
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, cpu_gpr[rA(ctx->opcode)]);
-        } else
-#endif
-        tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
+        } else {
+            tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
+        }
     }
 }
 
 static inline void gen_addr_reg_index(DisasContext *ctx, TCGv EA)
 {
     if (rA(ctx->opcode) == 0) {
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, cpu_gpr[rB(ctx->opcode)]);
-        } else
-#endif
-        tcg_gen_mov_tl(EA, cpu_gpr[rB(ctx->opcode)]);
+        } else {
+            tcg_gen_mov_tl(EA, cpu_gpr[rB(ctx->opcode)]);
+        }
     } else {
         tcg_gen_add_tl(EA, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, EA);
         }
-#endif
     }
 }
 
@@ -2357,13 +2370,10 @@ static inline void gen_addr_register(DisasContext *ctx, TCGv EA)
 {
     if (rA(ctx->opcode) == 0) {
         tcg_gen_movi_tl(EA, 0);
+    } else if (NARROW_MODE(ctx)) {
+        tcg_gen_ext32u_tl(EA, cpu_gpr[rA(ctx->opcode)]);
     } else {
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
-            tcg_gen_ext32u_tl(EA, cpu_gpr[rA(ctx->opcode)]);
-        } else
-#endif
-            tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
+        tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
     }
 }
 
@@ -2371,11 +2381,9 @@ static inline void gen_addr_add(DisasContext *ctx, TCGv ret, TCGv arg1,
                                 target_long val)
 {
     tcg_gen_addi_tl(ret, arg1, val);
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode) {
+    if (NARROW_MODE(ctx)) {
         tcg_gen_ext32u_tl(ret, ret);
     }
-#endif
 }
 
 static inline void gen_check_align(DisasContext *ctx, TCGv EA, int mask)
@@ -3320,10 +3328,9 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
     TranslationBlock *tb;
     tb = ctx->tb;
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode)
+    if (NARROW_MODE(ctx)) {
         dest = (uint32_t) dest;
-#endif
+    }
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
         likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
@@ -3351,12 +3358,10 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 
 static inline void gen_setlr(DisasContext *ctx, target_ulong nip)
 {
-#if defined(TARGET_PPC64)
-    if (ctx->sf_mode == 0)
-        tcg_gen_movi_tl(cpu_lr, (uint32_t)nip);
-    else
-#endif
-        tcg_gen_movi_tl(cpu_lr, nip);
+    if (NARROW_MODE(ctx)) {
+        nip = (uint32_t)nip;
+    }
+    tcg_gen_movi_tl(cpu_lr, nip);
 }
 
 /* b ba bl bla */
@@ -3366,18 +3371,16 @@ static void gen_b(DisasContext *ctx)
 
     ctx->exception = POWERPC_EXCP_BRANCH;
     /* sign extend LI */
-#if defined(TARGET_PPC64)
-    if (ctx->sf_mode)
-        li = ((int64_t)LI(ctx->opcode) << 38) >> 38;
-    else
-#endif
-        li = ((int32_t)LI(ctx->opcode) << 6) >> 6;
-    if (likely(AA(ctx->opcode) == 0))
+    li = LI(ctx->opcode);
+    li = (li ^ 0x02000000) - 0x02000000;
+    if (likely(AA(ctx->opcode) == 0)) {
         target = ctx->nip + li - 4;
-    else
+    } else {
         target = li;
-    if (LK(ctx->opcode))
+    }
+    if (LK(ctx->opcode)) {
         gen_setlr(ctx, ctx->nip);
+    }
     gen_update_cfar(ctx, ctx->nip);
     gen_goto_tb(ctx, 0, target);
 }
@@ -3413,12 +3416,11 @@ static inline void gen_bcond(DisasContext *ctx, int type)
             return;
         }
         tcg_gen_subi_tl(cpu_ctr, cpu_ctr, 1);
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode)
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(temp, cpu_ctr);
-        else
-#endif
+        } else {
             tcg_gen_mov_tl(temp, cpu_ctr);
+        }
         if (bo & 0x2) {
             tcg_gen_brcondi_tl(TCG_COND_NE, temp, 0, l1);
         } else {
@@ -3452,20 +3454,14 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         gen_set_label(l1);
         gen_goto_tb(ctx, 1, ctx->nip);
     } else {
-#if defined(TARGET_PPC64)
-        if (!(ctx->sf_mode))
+        if (NARROW_MODE(ctx)) {
             tcg_gen_andi_tl(cpu_nip, target, (uint32_t)~3);
-        else
-#endif
+        } else {
             tcg_gen_andi_tl(cpu_nip, target, ~3);
+        }
         tcg_gen_exit_tb(0);
         gen_set_label(l1);
-#if defined(TARGET_PPC64)
-        if (!(ctx->sf_mode))
-            tcg_gen_movi_tl(cpu_nip, (uint32_t)ctx->nip);
-        else
-#endif
-            tcg_gen_movi_tl(cpu_nip, ctx->nip);
+        gen_update_nip(ctx, ctx->nip);
         tcg_gen_exit_tb(0);
     }
 }
@@ -4324,15 +4320,14 @@ static void gen_tlbie(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode) {
+    if (NARROW_MODE(ctx)) {
         TCGv t0 = tcg_temp_new();
         tcg_gen_ext32u_tl(t0, cpu_gpr[rB(ctx->opcode)]);
         gen_helper_tlbie(cpu_env, t0);
         tcg_temp_free(t0);
-    } else
-#endif
+    } else {
         gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
+    }
 #endif
 }
 
@@ -7577,11 +7572,9 @@ static inline void gen_addr_spe_imm_index(DisasContext *ctx, TCGv EA, int sh)
         tcg_gen_movi_tl(EA, uimm << sh);
     } else {
         tcg_gen_addi_tl(EA, cpu_gpr[rA(ctx->opcode)], uimm << sh);
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
+        if (NARROW_MODE(ctx)) {
             tcg_gen_ext32u_tl(EA, EA);
         }
-#endif
     }
 }
 
@@ -9428,7 +9421,6 @@ void cpu_dump_state (CPUPPCState *env, FILE *f, fprintf_function cpu_fprintf,
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
 #if defined(TARGET_PPC64)
-    case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
 #endif
         cpu_fprintf(f, " SDR1 " TARGET_FMT_lx "\n", env->spr[SPR_SDR1]);
