@@ -435,12 +435,7 @@ static const TypeInfo s390_virtio_net = {
 };
 
 static Property s390_virtio_blk_properties[] = {
-    DEFINE_BLOCK_PROPERTIES(VirtIOBlkS390, blk.conf),
-    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOBlkS390, blk.conf),
-    DEFINE_PROP_STRING("serial", VirtIOBlkS390, blk.serial),
-#ifdef __linux__
-    DEFINE_PROP_BIT("scsi", VirtIOBlkS390, blk.scsi, 0, true),
-#endif
+    DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOBlkS390, blk),
     DEFINE_PROP_END_OF_LIST(),
 };
 
