@@ -41,6 +41,8 @@
 #   define NV_PAPU_FEAV_LST                                 0x00030000
 #define NV_PAPU_FEDECMETH                                0x00001300
 #define NV_PAPU_FEDECPARAM                               0x00001304
+#define NV_PAPU_FEMEMADDR                                0x00001324
+#define NV_PAPU_FEMEMDATA                                0x00001334
 #define NV_PAPU_FETFORCE0                                0x00001500
 #define NV_PAPU_FETFORCE1                                0x00001504
 #   define NV_PAPU_FETFORCE1_SE2FE_IDLE_VOICE               (1 << 15)
@@ -223,6 +225,14 @@ static void mcpx_apu_write(void *opaque, hwaddr addr,
             qemu_mod_timer(d->se.frame_timer, qemu_get_clock_ms(vm_clock) + 10);
         }
         d->regs[addr] = val;
+        break;
+    case NV_PAPU_FEMEMDATA:
+        /* 'magic write'
+         * This value is expected to be written to FEMEMADDR on completion of
+         * something to do with notifies. Just do it now :/ */
+        stl_le_phys(d->regs[NV_PAPU_FEMEMADDR], val);
+        d->regs[addr] = val;
+        break;
     default:
         if (addr < 0x20000) {
             d->regs[addr] = val;
