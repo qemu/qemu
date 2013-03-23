@@ -1058,6 +1058,11 @@ bool memory_region_is_rom(MemoryRegion *mr)
 
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 {
+    if (mr->alias) {
+        memory_region_set_log(mr->alias, log, client);
+        return;
+    }
+
     uint8_t mask = 1 << client;
 
     memory_region_transaction_begin();
@@ -1069,6 +1074,10 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 bool memory_region_get_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size, unsigned client)
 {
+    if (mr->alias) {
+        return memory_region_get_dirty(mr->alias, addr - mr->alias_offset,
+                                       size, client);
+    }
     assert(mr->terminates);
     return cpu_physical_memory_get_dirty(mr->ram_addr + addr, size,
                                          1 << client);
@@ -1077,6 +1086,10 @@ bool memory_region_get_dirty(MemoryRegion *mr, hwaddr addr,
 void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size)
 {
+    if (mr->alias) {
+        return memory_region_set_dirty(mr->alias, addr - mr->alias_offset,
+                                       size);
+    }
     assert(mr->terminates);
     return cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size, -1);
 }
@@ -1084,6 +1097,11 @@ void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
 bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
                                         hwaddr size, unsigned client)
 {
+    if (mr->alias) {
+        return memory_region_test_and_clear_dirty(mr->alias,
+                                                  addr - mr->alias_offset,
+                                                  size, client);
+    }
     bool ret;
     assert(mr->terminates);
     ret = cpu_physical_memory_get_dirty(mr->ram_addr + addr, size,
@@ -1134,6 +1152,11 @@ void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable)
 void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
                                hwaddr size, unsigned client)
 {
+    if (mr->alias) {
+        memory_region_reset_dirty(mr->alias, addr - mr->alias_offset,
+                                  size, client);
+        return;
+    }
     assert(mr->terminates);
     cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
                                     mr->ram_addr + addr + size,
