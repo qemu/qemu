@@ -36,10 +36,10 @@ static void lm32_cpu_reset(CPUState *s)
 
     lcc->parent_reset(s);
 
-    tlb_flush(env, 1);
-
     /* reset cpu state */
     memset(env, 0, offsetof(CPULM32State, breakpoints));
+
+    tlb_flush(env, 1);
 }
 
 static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)

@@ -217,7 +217,7 @@ spice=""
 rbd=""
 smartcard_nss=""
 usb_redir=""
-opengl=""
+glx=""
 zlib="yes"
 guest_agent="yes"
 want_tools="yes"
@@ -858,9 +858,9 @@ for opt do
   ;;
   --enable-vhost-net) vhost_net="yes"
   ;;
-  --disable-opengl) opengl="no"
+  --disable-glx) glx="no"
   ;;
-  --enable-opengl) opengl="yes"
+  --enable-glx) glx="yes"
   ;;
   --disable-rbd) rbd="no"
   ;;
@@ -2436,23 +2436,23 @@ EOF
 fi
 
 ##########################################
-# opengl probe, used by milkymist-tmu2
-if test "$opengl" != "no" ; then
-  opengl_libs="-lGL -lX11"
+# GLX probe, used by milkymist-tmu2
+if test "$glx" != "no" ; then
+  glx_libs="-lGL -lX11"
   cat > $TMPC << EOF
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
-int main(void) { return GL_VERSION != 0; }
+int main(void) { glBegin(0); glXQueryVersion(0,0,0); return 0; }
 EOF
-  if compile_prog "" "-lGL" ; then
-    opengl=yes
+  if compile_prog "" "-lGL -lX11" ; then
+    glx=yes
   else
-    if test "$opengl" = "yes" ; then
-      feature_not_found "opengl"
+    if test "$glx" = "yes" ; then
+      feature_not_found "glx"
     fi
-    opengl_libs=
-    opengl=no
+    glx_libs=
+    glx=no
   fi
 fi
 
@@ -3430,7 +3430,7 @@ echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
 echo "usb net redir     $usb_redir"
-echo "OpenGL support    $opengl"
+echo "GLX support       $glx"
 echo "libiscsi support  $libiscsi"
 echo "build guest agent $guest_agent"
 echo "seccomp support   $seccomp"
@@ -3741,8 +3741,8 @@ if test "$usb_redir" = "yes" ; then
   echo "CONFIG_USB_REDIR=y" >> $config_host_mak
 fi
 
-if test "$opengl" = "yes" ; then
-  echo "CONFIG_OPENGL=y" >> $config_host_mak
+if test "$glx" = "yes" ; then
+  echo "CONFIG_GLX=y" >> $config_host_mak
 fi
 
 if test "$libiscsi" = "yes" ; then
@@ -4020,7 +4020,7 @@ case "$target_arch2" in
     target_nptl="yes"
   ;;
   lm32)
-    target_libs_softmmu="$opengl_libs"
+    target_libs_softmmu="$glx_libs"
   ;;
   m68k)
     bflt="yes"

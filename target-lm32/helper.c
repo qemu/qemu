@@ -39,7 +39,12 @@ int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
 
 hwaddr cpu_get_phys_page_debug(CPULM32State *env, target_ulong addr)
 {
-    return addr & TARGET_PAGE_MASK;
+    addr &= TARGET_PAGE_MASK;
+    if (env->flags & LM32_FLAG_IGNORE_MSB) {
+        return addr & 0x7fffffff;
+    } else {
+        return addr;
+    }
 }
 
 void lm32_cpu_do_interrupt(CPUState *cs)
