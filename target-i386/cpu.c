@@ -1463,9 +1463,12 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
         snprintf(buf, sizeof(buf), "%s", def->name);
         (*cpu_fprintf)(f, "x86 %16s  %-48s\n", buf, def->model_id);
     }
-    if (kvm_enabled()) {
-        (*cpu_fprintf)(f, "x86 %16s\n", "[host]");
-    }
+#ifdef CONFIG_KVM
+    (*cpu_fprintf)(f, "x86 %16s  %-48s\n", "host",
+                   "KVM processor with all supported host features "
+                   "(only available in KVM mode)");
+#endif
+
     (*cpu_fprintf)(f, "\nRecognized CPUID flags:\n");
     listflags(buf, sizeof(buf), (uint32_t)~0, feature_name, 1);
     (*cpu_fprintf)(f, "  %s\n", buf);
