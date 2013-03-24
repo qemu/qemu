@@ -54,7 +54,12 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#ifdef __APPLE__
+#include <termios.h>
+#include <util.h>
+#else
 #include <pty.h>
+#endif
 #include <math.h>
 
 #include "ui/console.h"
