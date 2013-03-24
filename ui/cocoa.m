@@ -68,6 +68,10 @@ static DisplayChangeListener *dcl;
 int gArgc;
 char **gArgv;
 
+#if (MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_4)
+typedef int NSInteger;
+#endif
+
 // keymap conversion
 int keymap[] =
 {
@@ -350,11 +354,7 @@ QemuCocoaView *cocoaView;
         } else {
             // selective drawing code (draws only dirty rectangles) (OS X >= 10.4)
             const NSRect *rectList;
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
             NSInteger rectCount;
-#else
-            int rectCount;
-#endif
             int i;
             CGImageRef clipImageRef;
             CGRect clipRect;
@@ -712,7 +712,7 @@ QemuCocoaView *cocoaView;
 {
 }
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv;
-- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
+- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo;
 - (void)toggleFullScreen:(id)sender;
 - (void)showQEMUDoc:(id)sender;
 - (void)showQEMUTec:(id)sender;
@@ -802,7 +802,7 @@ QemuCocoaView *cocoaView;
     exit(status);
 }
 
-- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
+- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo
 {
     COCOA_DEBUG("QemuCocoaAppController: openPanelDidEnd\n");
 
@@ -810,7 +810,7 @@ QemuCocoaView *cocoaView;
         exit(0);
     } else if(returnCode == NSOKButton) {
         const char *bin = "qemu";
-        char *img = (char*)[ [ sheet filename ] cStringUsingEncoding:NSASCIIStringEncoding];
+        char *img = (char*)[ [ sheet filename ] fileSystemRepresentation];
 
         char **argv = (char**)malloc( sizeof(char*)*3 );
 
