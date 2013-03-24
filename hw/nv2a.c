@@ -254,6 +254,8 @@
 #   define NV_PGRAPH_TRAPPED_ADDR_CHID                        0x01F00000
 #   define NV_PGRAPH_TRAPPED_ADDR_DHV                         0x10000000
 #define NV_PGRAPH_TRAPPED_DATA_LOW                       0x00000708
+#define NV_PGRAPH_FIFO                                   0x00000720
+#   define NV_PGRAPH_FIFO_ACCESS                                (1 << 0)
 #define NV_PGRAPH_CHANNEL_CTX_TABLE                      0x00000780
 #   define NV_PGRAPH_CHANNEL_CTX_TABLE_INST                   0x0000FFFF
 #define NV_PGRAPH_CHANNEL_CTX_POINTER                    0x00000784
@@ -350,16 +352,63 @@
 /* graphic classes and methods */
 #define NV_SET_OBJECT                                        0x00000000
 
-#define NV_KELVIN_PRIMITIVE                              0x00000097
+
+#define NV_CONTEXT_SURFACES_2D                           0x0062
+#   define NV062_SET_CONTEXT_DMA_IMAGE_SOURCE                 0x00620184
+#   define NV062_SET_CONTEXT_DMA_IMAGE_DESTIN                 0x00620188
+#   define NV062_SET_COLOR_FORMAT                             0x00620300
+#       define NV062_SET_COLOR_FORMAT_LE_Y8                    0x01
+#       define NV062_SET_COLOR_FORMAT_LE_A8R8G8B8              0x0A
+#   define NV062_SET_PITCH                                    0x00620304
+#   define NV062_SET_OFFSET_SOURCE                            0x00620308
+#   define NV062_SET_OFFSET_DESTIN                            0x0062030C
+
+#define NV_IMAGE_BLIT                                    0x009F
+#   define NV09F_SET_CONTEXT_SURFACES                         0x009F019C
+#   define NV09F_SET_OPERATION                                0x009F02FC
+#       define NV09F_SET_OPERATION_SRCCOPY                        3
+#   define NV09F_CONTROL_POINT_IN                             0x009F0300
+#   define NV09F_CONTROL_POINT_OUT                            0x009F0304
+#   define NV09F_SIZE                                         0x009F0308
+
+
+#define NV_KELVIN_PRIMITIVE                              0x0097
 #   define NV097_NO_OPERATION                                 0x00970100
 #   define NV097_WAIT_FOR_IDLE                                0x00970110
+#   define NV097_FLIP_STALL                                   0x00970130
 #   define NV097_SET_CONTEXT_DMA_NOTIFIES                     0x00970180
 #   define NV097_SET_CONTEXT_DMA_A                            0x00970184
 #   define NV097_SET_CONTEXT_DMA_B                            0x00970188
 #   define NV097_SET_CONTEXT_DMA_STATE                        0x00970190
+#   define NV097_SET_CONTEXT_DMA_COLOR                        0x00970194
+#   define NV097_SET_CONTEXT_DMA_ZETA                         0x00970198
 #   define NV097_SET_CONTEXT_DMA_VERTEX_A                     0x0097019C
 #   define NV097_SET_CONTEXT_DMA_VERTEX_B                     0x009701A0
 #   define NV097_SET_CONTEXT_DMA_SEMAPHORE                    0x009701A4
+#   define NV097_SET_SURFACE_CLIP_HORIZONTAL                  0x00970200
+#       define NV097_SET_SURFACE_CLIP_HORIZONTAL_X                0x0000FFFF
+#       define NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH            0xFFFF0000
+#   define NV097_SET_SURFACE_CLIP_VERTICAL                    0x00970204
+#       define NV097_SET_SURFACE_CLIP_VERTICAL_Y                  0x0000FFFF
+#       define NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT             0xFFFF0000
+#   define NV097_SET_SURFACE_FORMAT                           0x00970208
+#       define NV097_SET_SURFACE_FORMAT_COLOR                     0x0000000F
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_Z1R5G5B5     0x01
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_O1R5G5B5     0x02
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5                0x03
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8     0x04
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_O8R8G8B8     0x05
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_Z1A7R8G8B8 0x06
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_O1A7R8G8B8 0x07
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8              0x08
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_B8                    0x09
+#           define NV097_SET_SURFACE_FORMAT_COLOR_LE_G8B8                  0x0A
+#       define NV097_SET_SURFACE_FORMAT_ZETA                      0x000000F0
+#   define NV097_SET_SURFACE_PITCH                            0x0097020C
+#       define NV097_SET_SURFACE_PITCH_COLOR                      0x0000FFFF
+#       define NV097_SET_SURFACE_PITCH_ZETA                       0xFFFF0000
+#   define NV097_SET_SURFACE_COLOR_OFFSET                     0x00970210
+#   define NV097_SET_SURFACE_ZETA_OFFSET                      0x00970214
 #   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
 #   define NV097_SET_VIEWPORT_SCALE                           0x00970AF0
 #   define NV097_SET_TRANSFORM_PROGRAM                        0x00970B00
@@ -457,7 +506,7 @@ static const GLenum kelvin_texture_min_filter_map[] = {
     GL_LINEAR_MIPMAP_NEAREST,
     GL_NEAREST_MIPMAP_LINEAR,
     GL_LINEAR_MIPMAP_LINEAR,
-    0,
+    GL_LINEAR, /* TODO: Convolution filter... */
 };
 
 static const GLenum kelvin_texture_mag_filter_map[] = {
@@ -465,6 +514,7 @@ static const GLenum kelvin_texture_mag_filter_map[] = {
     GL_NEAREST,
     GL_LINEAR,
     0,
+    GL_LINEAR /* TODO: Convolution filter... */
 };
 
 typedef struct ColorFormatInfo {
@@ -492,10 +542,6 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
         {2, false, true,  GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_SHORT},
 };
 
-
-#define NV_MEMORY_TO_MEMORY_FORMAT                           0x00000039
-#   define NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY                  0x00390180
-#   define NV_MEMORY_TO_MEMORY_FORMAT_DMA_SOURCE                  0x00390184
 
 
 #define NV2A_CRYSTAL_FREQ 13500000
@@ -604,15 +650,27 @@ typedef struct Texture {
     GLuint gl_texture_rect;
 } Texture;
 
+typedef struct Surface {
+    unsigned int pitch;
+    unsigned int x, y;
+    unsigned int width, height;
+    unsigned int format;
+
+    hwaddr offset;
+} Surface;
+
 typedef struct KelvinState {
     hwaddr dma_notifies;
-    hwaddr dma_a;
-    hwaddr dma_b;
+    hwaddr dma_a, dma_b;
     hwaddr dma_state;
-    hwaddr dma_vertex_a;
-    hwaddr dma_vertex_b;
+    hwaddr dma_color;
+    hwaddr dma_zeta;
+    hwaddr dma_vertex_a, dma_vertex_b;
     hwaddr dma_semaphore;
     unsigned int semaphore_offset;
+
+    Surface surface_color;
+    Surface surface_zeta;
 
     unsigned int vertexshader_start_slot;
     unsigned int vertexshader_load_slot;
@@ -640,12 +698,30 @@ typedef struct KelvinState {
     bool enable_vertex_program_write;
 } KelvinState;
 
+typedef struct ContextSurfaces2DState {
+    hwaddr dma_image_source;
+    hwaddr dma_image_dest;
+    unsigned int color_format;
+    unsigned int source_pitch, dest_pitch;
+    hwaddr source_offset, dest_offset;
+
+} ContextSurfaces2DState;
+
+typedef struct ImageBlitState {
+    hwaddr context_surfaces;
+    unsigned int operation;
+    unsigned int in_x, in_y;
+    unsigned int out_x, out_y;
+    unsigned int width, height;
+
+} ImageBlitState;
+
 typedef struct GraphicsObject {
     uint8_t graphics_class;
     union {
-        struct {
-            hwaddr dma_notifies;
-        } m2mf;
+        ContextSurfaces2DState context_surfaces_2d;
+        
+        ImageBlitState image_blit;
 
         KelvinState kelvin;
     } data;
@@ -782,21 +858,24 @@ typedef struct NV2AState {
     } ptimer;
 
     struct {
+        QemuMutex lock;
+
         uint32_t pending_interrupts;
         uint32_t enabled_interrupts;
-
+        QemuCond interrupt_cond;
 
         hwaddr context_table;
         hwaddr context_address;
 
-        QemuMutex lock;
-        QemuCond context_cond;
 
         unsigned int trapped_method;
         unsigned int trapped_subchannel;
         unsigned int trapped_channel_id;
         uint32_t trapped_data[2];
         uint32_t notify_source;
+
+        bool fifo_access;
+        QemuCond fifo_access_cond;
 
         unsigned int channel_id;
         bool channel_valid;
@@ -827,6 +906,11 @@ typedef struct NV2AState {
 #define NV2A_DEVICE(obj) \
     OBJECT_CHECK(NV2AState, (obj), "nv2a")
 
+static void reg_log_read(int block, hwaddr addr, uint64_t val);
+static void reg_log_write(int block, hwaddr addr, uint64_t val);
+static void pgraph_method_log(unsigned int subchannel,
+                              unsigned int graphics_class,
+                              unsigned int method, uint32_t parameter);
 
 static void update_irq(NV2AState *d)
 {
@@ -919,16 +1003,16 @@ static DMAObject load_dma_object(NV2AState *d, hwaddr address)
     };
 }
 
-static void load_graphics_object(NV2AState *d, hwaddr address,
+static void load_graphics_object(NV2AState *d, hwaddr instance_address,
                                  GraphicsObject *obj)
 {
     int i;
     uint8_t *obj_ptr;
     uint32_t switch1, switch2, switch3;
 
-    assert(address < memory_region_size(&d->ramin));
+    assert(instance_address < memory_region_size(&d->ramin));
 
-    obj_ptr = d->ramin_ptr + address;
+    obj_ptr = d->ramin_ptr + instance_address;
 
     switch1 = le32_to_cpupu((uint32_t*)obj_ptr);
     switch2 = le32_to_cpupu((uint32_t*)(obj_ptr+4));
@@ -966,6 +1050,17 @@ static void load_graphics_object(NV2AState *d, hwaddr address,
     }
 }
 
+static GraphicsObject* lookup_graphics_object(GraphicsContext *ctx,
+                                              hwaddr instance_address)
+{
+    int i;
+    for (i=0; i<NV2A_NUM_SUBCHANNELS; i++) {
+        if (ctx->subchannel_data[i].object_instance == instance_address) {
+            return &ctx->subchannel_data[i].object;
+        }
+    }
+    return NULL;
+}
 
 static unsigned int kelvin_bind_inline_vertex_data(KelvinState *kelvin)
 {
@@ -1148,7 +1243,7 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
             glTexParameteri(gl_target, GL_TEXTURE_MIN_FILTER,
                 kelvin_texture_min_filter_map[texture->min_filter]);
             glTexParameteri(gl_target, GL_TEXTURE_MAG_FILTER,
-                kelvin_texture_min_filter_map[texture->mag_filter]);
+                kelvin_texture_mag_filter_map[texture->mag_filter]);
 
             /* load texture data*/
 
@@ -1219,6 +1314,54 @@ static void kelvin_bind_fragment_shader(NV2AState *d, KelvinState *kelvin)
         kelvin->fragment_program_dirty = false;
     }
 
+}
+
+static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
+{
+    /* read the renderbuffer into the set surface */
+    if (kelvin->surface_color.format != 0) {
+        DMAObject color_dma = load_dma_object(d, kelvin->dma_color);
+        assert(color_dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
+
+        if (color_dma.start + kelvin->surface_color.offset == 0) {
+            /* BUGBUGBUG? Don't know if this should really be a nop */
+            return;
+        }
+
+        assert(kelvin->surface_color.offset < color_dma.limit);
+        assert(color_dma.start + kelvin->surface_color.offset
+                < memory_region_size(d->vram));
+        
+        GLenum gl_format;
+        GLenum gl_type;
+        unsigned int bytes_per_pixel;
+        switch (kelvin->surface_color.format) {
+        case NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5:
+            bytes_per_pixel = 2;
+            gl_format = GL_RGB;
+            gl_type = GL_UNSIGNED_SHORT_5_6_5_REV;
+            break;
+        case NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8:
+        case NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8:
+            bytes_per_pixel = 4;
+            gl_format = GL_RGBA;
+            gl_type = GL_UNSIGNED_INT_8_8_8_8_REV;
+            break;
+        default:
+            assert(false);
+        }
+
+        assert(kelvin->surface_color.pitch % bytes_per_pixel == 0);
+        
+        glPixelStorei(GL_PACK_ROW_LENGTH,
+                      kelvin->surface_color.pitch / bytes_per_pixel);
+        glReadPixels(kelvin->surface_color.x, kelvin->surface_color.y,
+                     kelvin->surface_color.width, kelvin->surface_color.height,
+                     gl_format, gl_type,
+                     d->vram_ptr
+                        + color_dma.start + kelvin->surface_color.offset);
+        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+    }
 }
 
 
@@ -1316,8 +1459,6 @@ static void pgraph_method(NV2AState *d,
     GraphicsSubchannel *subchannel_data;
     GraphicsObject *object;
 
-    KelvinState *kelvin;
-
     DMAObject dma_semaphore;
     unsigned int slot;
     VertexAttribute *vertex_attribute;
@@ -1330,11 +1471,15 @@ static void pgraph_method(NV2AState *d,
     context = &d->pgraph.context[d->pgraph.channel_id];
     subchannel_data = &context->subchannel_data[subchannel];
     object = &subchannel_data->object;
-    kelvin = &object->data.kelvin;
 
-    NV2A_DPRINTF("nv2a pgraph method: 0x%x, 0x%x, 0x%x\n",
-                 subchannel, method, parameter);
+    ContextSurfaces2DState *context_surfaces_2d
+        = &object->data.context_surfaces_2d;
+    ImageBlitState *image_blit = &object->data.image_blit;
+    KelvinState *kelvin = &object->data.kelvin;
 
+
+
+    pgraph_method_log(subchannel, object->graphics_class, method, parameter);
 
     pgraph_context_set_current(context);
 
@@ -1350,8 +1495,102 @@ static void pgraph_method(NV2AState *d,
 
     uint32_t class_method = (object->graphics_class << 16) | method;
     switch (class_method) {
-    case NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY:
-        object->data.m2mf.dma_notifies = parameter;
+    case NV062_SET_CONTEXT_DMA_IMAGE_SOURCE:
+        context_surfaces_2d->dma_image_source = parameter;
+        break;
+    case NV062_SET_CONTEXT_DMA_IMAGE_DESTIN:
+        context_surfaces_2d->dma_image_dest = parameter;
+        break;
+    case NV062_SET_COLOR_FORMAT:
+        context_surfaces_2d->color_format = parameter;
+        break;
+    case NV062_SET_PITCH:
+        context_surfaces_2d->source_pitch = parameter & 0xFFFF;
+        context_surfaces_2d->dest_pitch = parameter >> 16;
+        break;
+    case NV062_SET_OFFSET_SOURCE:
+        context_surfaces_2d->source_offset = parameter;
+        break;
+    case NV062_SET_OFFSET_DESTIN:
+        context_surfaces_2d->dest_offset = parameter;
+        break;
+
+    case NV09F_SET_CONTEXT_SURFACES:
+        image_blit->context_surfaces = parameter;
+        break;
+    case NV09F_SET_OPERATION:
+        image_blit->operation = parameter;
+        break;
+    case NV09F_CONTROL_POINT_IN:
+        image_blit->in_x = parameter & 0xFFFF;
+        image_blit->in_y = parameter >> 16;
+        break;
+    case NV09F_CONTROL_POINT_OUT:
+        image_blit->out_x = parameter & 0xFFFF;
+        image_blit->out_y = parameter >> 16;
+        break;
+    case NV09F_SIZE:
+        image_blit->width = parameter & 0xFFFF;
+        image_blit->height = parameter >> 16;
+
+        /* I guess this kicks it off? */
+        if (image_blit->operation == NV09F_SET_OPERATION_SRCCOPY) { 
+            GraphicsObject *context_surfaces_obj =
+                lookup_graphics_object(context, image_blit->context_surfaces);
+            assert(context_surfaces_obj);
+            assert(context_surfaces_obj->graphics_class
+                == NV_CONTEXT_SURFACES_2D);
+
+            ContextSurfaces2DState *context_surfaces =
+                &context_surfaces_obj->data.context_surfaces_2d;;
+            DMAObject dma_source =
+                load_dma_object(d, context_surfaces->dma_image_source);
+            DMAObject dma_dest =
+                load_dma_object(d, context_surfaces->dma_image_dest);
+
+            unsigned int bytes_per_pixel;
+            switch (context_surfaces->color_format) {
+            case NV062_SET_COLOR_FORMAT_LE_Y8:
+                bytes_per_pixel = 1;
+            case NV062_SET_COLOR_FORMAT_LE_A8R8G8B8:
+                bytes_per_pixel = 4;
+                break;
+            default:
+                assert(false);
+            }
+
+            assert(context_surfaces->source_offset < dma_source.limit);
+            assert(dma_source.start + context_surfaces->source_offset
+                    < memory_region_size(d->vram));
+            uint8_t *source =
+                d->vram_ptr + dma_source.start + context_surfaces->source_offset;
+            
+            assert(context_surfaces->dest_offset < dma_dest.limit);
+            assert(dma_dest.start + context_surfaces->dest_offset
+                    < memory_region_size(d->vram));
+            uint8_t *dest =
+                d->vram_ptr + dma_dest.start + context_surfaces->dest_offset;
+
+            int y;
+            for (y=0; y<image_blit->height; y++) {
+                uint8_t *source_row = source
+                    + (image_blit->in_y + y) * context_surfaces->source_pitch
+                    + image_blit->in_x
+                        * bytes_per_pixel;
+                
+                uint8_t *dest_row = dest
+                    + (image_blit->out_y + y) * context_surfaces->dest_pitch
+                    + image_blit->out_x
+                        * bytes_per_pixel;
+
+                memmove(dest_row, source_row,
+                        image_blit->width * bytes_per_pixel);
+            }
+
+        } else {
+            assert(false);
+        }
+
         break;
 
 
@@ -1363,22 +1602,36 @@ static void pgraph_method(NV2AState *d,
          * but nothing obvious sticks out. Weird.
          */
         if (parameter != 0) {
+            assert(!(d->pgraph.pending_interrupts & NV_PGRAPH_INTR_NOTIFY));
+
             d->pgraph.trapped_channel_id = d->pgraph.channel_id;
             d->pgraph.trapped_subchannel = subchannel;
             d->pgraph.trapped_method = method;
             d->pgraph.trapped_data[0] = parameter;
             d->pgraph.notify_source = NV_PGRAPH_NSOURCE_NOTIFICATION; /* TODO: check this */
             d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_NOTIFY;
-            /* TODO: puller should block on this??? */
+
             qemu_mutex_unlock(&d->pgraph.lock);
             qemu_mutex_lock_iothread();
             update_irq(d);
             qemu_mutex_lock(&d->pgraph.lock);
             qemu_mutex_unlock_iothread();
+
+            while (d->pgraph.pending_interrupts & NV_PGRAPH_INTR_NOTIFY) {
+                qemu_cond_wait(&d->pgraph.interrupt_cond, &d->pgraph.lock);
+            }
         }
         break;
+    
     case NV097_WAIT_FOR_IDLE:
+        glFinish();
+        kelvin_read_surface(d, kelvin);
         break;
+
+    case NV097_FLIP_STALL:
+        kelvin_read_surface(d, kelvin);
+        break;
+    
     case NV097_SET_CONTEXT_DMA_NOTIFIES:
         kelvin->dma_notifies = parameter;
         break;
@@ -1391,6 +1644,12 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_CONTEXT_DMA_STATE:
         kelvin->dma_state = parameter;
         break;
+    case NV097_SET_CONTEXT_DMA_COLOR:
+        kelvin->dma_color = parameter;
+        break;
+    case NV097_SET_CONTEXT_DMA_ZETA:
+        kelvin->dma_zeta = parameter;
+        break;
     case NV097_SET_CONTEXT_DMA_VERTEX_A:
         kelvin->dma_vertex_a = parameter;
         break;
@@ -1399,6 +1658,37 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_SET_CONTEXT_DMA_SEMAPHORE:
         kelvin->dma_semaphore = parameter;
+        break;
+
+    case NV097_SET_SURFACE_CLIP_HORIZONTAL:
+        kelvin->surface_color.x =
+            GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_X);
+        kelvin->surface_color.width =
+            GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH);
+        break;
+    case NV097_SET_SURFACE_CLIP_VERTICAL:
+        kelvin->surface_color.y =
+            GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_Y);
+        kelvin->surface_color.height =
+            GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT);
+        break;
+    case NV097_SET_SURFACE_FORMAT:
+        kelvin->surface_color.format =
+            GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_COLOR);
+        kelvin->surface_zeta.format =
+            GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_ZETA);
+        break;
+    case NV097_SET_SURFACE_PITCH:
+        kelvin->surface_color.pitch =
+            GET_MASK(parameter, NV097_SET_SURFACE_PITCH_COLOR);
+        kelvin->surface_zeta.pitch =
+            GET_MASK(parameter, NV097_SET_SURFACE_PITCH_ZETA);
+        break;
+    case NV097_SET_SURFACE_COLOR_OFFSET:
+        kelvin->surface_color.offset = parameter;
+        break;
+    case NV097_SET_SURFACE_ZETA_OFFSET:
+        kelvin->surface_zeta.offset = parameter;
         break;
 
     case NV097_SET_VIEWPORT_OFFSET ...
@@ -1697,27 +1987,11 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     qemu_mutex_unlock(&d->pgraph.lock);
+
 }
 
 
-
-static void pgraph_wait_context_switch(NV2AState *d)
-{
-    qemu_mutex_lock_iothread();
-    d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_CONTEXT_SWITCH;
-    update_irq(d);
-    qemu_mutex_unlock_iothread();
-
-    qemu_mutex_lock(&d->pgraph.lock);
-    if (!d->pgraph.channel_valid) {
-        /* TODO:  there should be some global puller suspension thing to
-         * wait on instead */
-        qemu_cond_wait(&d->pgraph.context_cond, &d->pgraph.lock);
-    }
-    qemu_mutex_unlock(&d->pgraph.lock);
-}
-
-static void pgraph_ensure_channel(NV2AState *d, unsigned int channel_id)
+static void pgraph_context_switch(NV2AState *d, unsigned int channel_id)
 {
     bool valid;
     qemu_mutex_lock(&d->pgraph.lock);
@@ -1728,8 +2002,26 @@ static void pgraph_ensure_channel(NV2AState *d, unsigned int channel_id)
     qemu_mutex_unlock(&d->pgraph.lock);
     if (!valid) {
         NV2A_DPRINTF("nv2a: puller needs to switch to ch %d\n", channel_id);
-        pgraph_wait_context_switch(d);
+        
+        qemu_mutex_lock_iothread();
+        d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_CONTEXT_SWITCH;
+        update_irq(d);
+        qemu_mutex_unlock_iothread();
+
+        qemu_mutex_lock(&d->pgraph.lock);
+        while (d->pgraph.pending_interrupts & NV_PGRAPH_INTR_CONTEXT_SWITCH) {
+            qemu_cond_wait(&d->pgraph.interrupt_cond, &d->pgraph.lock);
+        }
+        qemu_mutex_unlock(&d->pgraph.lock);
     }
+}
+
+static void pgraph_wait_fifo_access(NV2AState *d) {
+    qemu_mutex_lock(&d->pgraph.lock);
+    while (!d->pgraph.fifo_access) {
+        qemu_cond_wait(&d->pgraph.fifo_access_cond, &d->pgraph.lock);
+    }
+    qemu_mutex_unlock(&d->pgraph.lock);
 }
 
 static void *pfifo_puller_thread(void *arg)
@@ -1773,12 +2065,9 @@ static void *pfifo_puller_thread(void *arg)
             //qemu_mutex_unlock_iothread();
 
             switch (entry.engine) {
-            case ENGINE_SOFTWARE:
-                /* TODO */
-                assert(false);
-                break;
             case ENGINE_GRAPHICS:
-                pgraph_ensure_channel(d, entry.channel_id);
+                pgraph_context_switch(d, entry.channel_id);
+                pgraph_wait_fifo_access(d);
                 pgraph_method(d, command->subchannel, 0, entry.instance);
                 break;
             default:
@@ -1812,10 +2101,8 @@ static void *pfifo_puller_thread(void *arg)
             qemu_mutex_unlock(&state->pull_lock);
 
             switch (engine) {
-            case ENGINE_SOFTWARE:
-                assert(false);
-                break;
             case ENGINE_GRAPHICS:
+                pgraph_wait_fifo_access(d);
                 pgraph_method(d, command->subchannel,
                                    command->method, parameter);
                 break;
@@ -1992,7 +2279,7 @@ static uint64_t pmc_read(void *opaque,
         break;
     }
 
-    NV2A_DPRINTF("nv2a PMC: read [0x%llx] -> 0x%llx\n", addr, r);
+    reg_log_read(NV_PMC, addr, r);
     return r;
 }
 static void pmc_write(void *opaque, hwaddr addr,
@@ -2000,7 +2287,7 @@ static void pmc_write(void *opaque, hwaddr addr,
 {
     NV2AState *d = opaque;
 
-    NV2A_DPRINTF("nv2a PMC: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PMC, addr, val);
 
     switch (addr) {
     case NV_PMC_INTR_0:
@@ -2039,7 +2326,7 @@ static uint64_t pbus_read(void *opaque,
         break;
     }
 
-    NV2A_DPRINTF("nv2a PBUS: read [0x%llx] -> 0x%llx\n", addr, r);
+    reg_log_read(NV_PBUS, addr, r);
     return r;
 }
 static void pbus_write(void *opaque, hwaddr addr,
@@ -2047,7 +2334,7 @@ static void pbus_write(void *opaque, hwaddr addr,
 {
     NV2AState *d = opaque;
 
-    NV2A_DPRINTF("nv2a PBUS: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PBUS, addr, val);
 
     switch (addr) {
     case NV_PBUS_PCI_NV_1:
@@ -2171,7 +2458,7 @@ static uint64_t pfifo_read(void *opaque,
         break;
     }
 
-    NV2A_DPRINTF("nv2a PFIFO: read [0x%llx] -> 0x%llx\n", addr, r);
+    reg_log_read(NV_PFIFO, addr, r);
     return r;
 }
 static void pfifo_write(void *opaque, hwaddr addr,
@@ -2180,7 +2467,7 @@ static void pfifo_write(void *opaque, hwaddr addr,
     int i;
     NV2AState *d = opaque;
 
-    NV2A_DPRINTF("nv2a PFIFO: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PFIFO, addr, val);
 
     switch (addr) {
     case NV_PFIFO_INTR_0:
@@ -2307,26 +2594,26 @@ static void pfifo_write(void *opaque, hwaddr addr,
 static uint64_t prma_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRMA: read [0x%llx]\n", addr);
+    reg_log_read(NV_PRMA, addr, 0);
     return 0;
 }
 static void prma_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRMA: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PRMA, addr, val);
 }
 
 
 static uint64_t pvideo_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PVIDEO: read [0x%llx]\n", addr);
+    reg_log_read(NV_PVIDEO, addr, 0);
     return 0;
 }
 static void pvideo_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PVIDEO: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PVIDEO, addr, val);
 }
 
 
@@ -2368,7 +2655,7 @@ static uint64_t ptimer_read(void *opaque,
         break;
     }
 
-    NV2A_DPRINTF("nv2a PTIMER: read [0x%llx] -> 0x%llx\n", addr, r);
+    reg_log_read(NV_PTIMER, addr, r);
     return r;
 }
 static void ptimer_write(void *opaque, hwaddr addr,
@@ -2376,7 +2663,7 @@ static void ptimer_write(void *opaque, hwaddr addr,
 {
     NV2AState *d = opaque;
 
-    NV2A_DPRINTF("nv2a PTIMER: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PTIMER, addr, val);
 
     switch (addr) {
     case NV_PTIMER_INTR_0:
@@ -2405,52 +2692,52 @@ static void ptimer_write(void *opaque, hwaddr addr,
 static uint64_t pcounter_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PCOUNTER: read [0x%llx]\n", addr);
+    reg_log_read(NV_PCOUNTER, addr, 0);
     return 0;
 }
 static void pcounter_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PCOUNTER: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PCOUNTER, addr, val);
 }
 
 
 static uint64_t pvpe_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PVPE: read [0x%llx]\n", addr);
+    reg_log_read(NV_PVPE, addr, 0);
     return 0;
 }
 static void pvpe_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PVPE: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PVPE, addr, val);
 }
 
 
 static uint64_t ptv_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PTV: read [0x%llx]\n", addr);
+    reg_log_read(NV_PTV, addr, 0);
     return 0;
 }
 static void ptv_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PTV: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PTV, addr, val);
 }
 
 
 static uint64_t prmfb_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRMFB: read [0x%llx]\n", addr);
+    reg_log_read(NV_PRMFB, addr, 0);
     return 0;
 }
 static void prmfb_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRMFB: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PRMFB, addr, val);
 }
 
 
@@ -2461,7 +2748,7 @@ static uint64_t prmvio_read(void *opaque,
     NV2AState *d = opaque;
     uint64_t r = vga_ioport_read(&d->vga, addr);
 
-    NV2A_DPRINTF("nv2a PRMVIO: read [0x%llx] -> 0x%llx\n", addr, r);
+    reg_log_read(NV_PRMVIO, addr, r);
     return r;
 }
 static void prmvio_write(void *opaque, hwaddr addr,
@@ -2469,7 +2756,7 @@ static void prmvio_write(void *opaque, hwaddr addr,
 {
     NV2AState *d = opaque;
 
-    NV2A_DPRINTF("nv2a PRMVIO: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PRMVIO, addr, val);
 
     vga_ioport_write(&d->vga, addr, val);
 }
@@ -2493,26 +2780,26 @@ static uint64_t pfb_read(void *opaque,
         break;
     }
 
-    NV2A_DPRINTF("nv2a PFB: read [0x%llx] -> 0x%llx\n", addr, r);
+    reg_log_read(NV_PFB, addr, r);
     return r;
 }
 static void pfb_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PFB: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PFB, addr, val);
 }
 
 
 static uint64_t pstraps_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PSTRAPS: read [0x%llx]\n", addr);
+    reg_log_read(NV_PSTRAPS, addr, 0);
     return 0;
 }
 static void pstraps_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PSTRAPS: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PSTRAPS, addr, val);
 }
 
 /* PGRAPH - accelerated 2d/3d drawing engine */
@@ -2550,6 +2837,9 @@ static uint64_t pgraph_read(void *opaque,
     case NV_PGRAPH_TRAPPED_DATA_LOW:
         r = d->pgraph.trapped_data[0];
         break;
+    case NV_PGRAPH_FIFO:
+        SET_MASK(r, NV_PGRAPH_FIFO_ACCESS, d->pgraph.fifo_access);
+        break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
         r = d->pgraph.context_table >> 4;
         break;
@@ -2566,7 +2856,7 @@ static uint64_t pgraph_read(void *opaque,
         break;
     }
 
-    NV2A_DPRINTF("nv2a PGRAPH: read [0x%llx]\n", addr);
+    reg_log_read(NV_PGRAPH, addr, r);
     return r;
 }
 static void pgraph_set_context_user(NV2AState *d, uint32_t val)
@@ -2583,11 +2873,14 @@ static void pgraph_write(void *opaque, hwaddr addr,
 {
     NV2AState *d = opaque;
 
-    NV2A_DPRINTF("nv2a PGRAPH: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PGRAPH, addr, val);
 
     switch (addr) {
     case NV_PGRAPH_INTR:
+        qemu_mutex_lock(&d->pgraph.lock);
         d->pgraph.pending_interrupts &= ~val;
+        qemu_cond_broadcast(&d->pgraph.interrupt_cond);
+        qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_INTR_EN:
         d->pgraph.enabled_interrupts = val;
@@ -2595,14 +2888,17 @@ static void pgraph_write(void *opaque, hwaddr addr,
     case NV_PGRAPH_CTX_CONTROL:
         qemu_mutex_lock(&d->pgraph.lock);
         d->pgraph.channel_valid = (val & NV_PGRAPH_CTX_CONTROL_CHID);
-        if (d->pgraph.channel_valid) {
-            qemu_cond_broadcast(&d->pgraph.context_cond);
-        }
         qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_CTX_USER:
         qemu_mutex_lock(&d->pgraph.lock);
         pgraph_set_context_user(d, val);
+        qemu_mutex_unlock(&d->pgraph.lock);
+        break;
+    case NV_PGRAPH_FIFO:
+        qemu_mutex_lock(&d->pgraph.lock);
+        d->pgraph.fifo_access = GET_MASK(val, NV_PGRAPH_FIFO_ACCESS);
+        qemu_cond_broadcast(&d->pgraph.fifo_access_cond);
         qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
@@ -2663,7 +2959,7 @@ static uint64_t pcrtc_read(void *opaque,
             break;
     }
 
-    NV2A_DPRINTF("nv2a PCRTC: read [0x%llx] -> 0x%llx\n", addr, r);
+    reg_log_read(NV_PCRTC, addr, r);
     return r;
 }
 static void pcrtc_write(void *opaque, hwaddr addr,
@@ -2671,7 +2967,7 @@ static void pcrtc_write(void *opaque, hwaddr addr,
 {
     NV2AState *d = opaque;
 
-    NV2A_DPRINTF("nv2a PCRTC: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PCRTC, addr, val);
 
     switch (addr) {
     case NV_PCRTC_INTR_0:
@@ -2684,19 +2980,8 @@ static void pcrtc_write(void *opaque, hwaddr addr,
         break;
     case NV_PCRTC_START:
         val &= 0x03FFFFFF;
-        if (val != d->pcrtc.start) {
-            assert(val < memory_region_size(d->vram));
-            d->pcrtc.start = val;
-            /* TODO: I think it's illegal to change subreginons
-             * inside an existing transaction. Same goes for set_address
-             * since it' just removes and adds it.
-             * Should really be using an alias or something,
-             * but that doesn't play nicely with vga.... */
-            /*memory_region_transaction_begin();
-            memory_region_set_enabled(&d->vga.vram, true);
-            memory_region_set_address(&d->vga.vram, val);
-            memory_region_transaction_commit();*/
-        }
+        assert(val < memory_region_size(d->vram));
+        d->pcrtc.start = val;
         break;
     default:
         break;
@@ -2711,7 +2996,7 @@ static uint64_t prmcio_read(void *opaque,
     NV2AState *d = opaque;
     uint64_t r = vga_ioport_read(&d->vga, addr);
 
-    NV2A_DPRINTF("nv2a PRMCIO: read [0x%llx] -> 0x%llx\n", addr, r);
+    reg_log_read(NV_PRMCIO, addr, r);
     return r;
 }
 static void prmcio_write(void *opaque, hwaddr addr,
@@ -2719,7 +3004,7 @@ static void prmcio_write(void *opaque, hwaddr addr,
 {
     NV2AState *d = opaque;
 
-    NV2A_DPRINTF("nv2a PRMCIO: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PRMCIO, addr, val);
 
     switch (addr) {
     case VGA_ATT_W:
@@ -2779,7 +3064,7 @@ static void pramdac_write(void *opaque, hwaddr addr,
     NV2AState *d = opaque;
     uint32_t m, n, p;
 
-    NV2A_DPRINTF("nv2a PRAMDAC: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PRAMDAC, addr, val);
 
     switch (addr) {
     case NV_PRAMDAC_NVPLL_COEFF:
@@ -2812,13 +3097,13 @@ static void pramdac_write(void *opaque, hwaddr addr,
 static uint64_t prmdio_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRMDIO: read [0x%llx]\n", addr);
+    reg_log_read(NV_PRMDIO, addr, 0);
     return 0;
 }
 static void prmdio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRMDIO: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_PRMDIO, addr, val);
 }
 
 
@@ -2869,7 +3154,7 @@ static uint64_t user_read(void *opaque,
         /* dunno */
     }
 
-    NV2A_DPRINTF("nv2a USER: read [0x%llx] -> %llx\n", addr, r);
+    reg_log_read(NV_USER, addr, r);
     return r;
 }
 static void user_write(void *opaque, hwaddr addr,
@@ -2877,7 +3162,7 @@ static void user_write(void *opaque, hwaddr addr,
 {
     NV2AState *d = opaque;
 
-    NV2A_DPRINTF("nv2a USER: [0x%llx] = 0x%02llx\n", addr, val);
+    reg_log_write(NV_USER, addr, val);
 
     unsigned int channel_id = addr >> 16;
     assert(channel_id < NV2A_NUM_CHANNELS);
@@ -3103,6 +3388,81 @@ static const struct NV2ABlockInfo blocktable[] = {
     },
 };
 
+static const char* nv2a_reg_names[] = {};
+static const char* nv2a_method_names[] = {};
+
+static void reg_log_read(int block, hwaddr addr, uint64_t val) {
+    if (blocktable[block].name) {
+        hwaddr naddr = blocktable[block].offset + addr;
+        if (naddr < sizeof(nv2a_reg_names)/sizeof(const char*)
+                && nv2a_reg_names[naddr]) {
+            NV2A_DPRINTF("nv2a %s: read [%s] -> 0x%" PRIx64 "\n",
+                    blocktable[block].name, nv2a_reg_names[naddr], val);
+        } else {
+            NV2A_DPRINTF("nv2a %s: read [" TARGET_FMT_plx "] -> 0x%" PRIx64 "\n",
+                    blocktable[block].name, addr, val);
+        }
+    } else {
+        NV2A_DPRINTF("nv2a (%d?): read [" TARGET_FMT_plx "] -> 0x%" PRIx64 "\n",
+                block, addr, val);
+    }
+}
+
+static void reg_log_write(int block, hwaddr addr, uint64_t val) {
+    if (blocktable[block].name) {
+        hwaddr naddr = blocktable[block].offset + addr;
+        if (naddr < sizeof(nv2a_reg_names)/sizeof(const char*)
+                && nv2a_reg_names[naddr]) {
+            NV2A_DPRINTF("nv2a %s: [%s] = 0x%" PRIx64 "\n",
+                    blocktable[block].name, nv2a_reg_names[naddr], val);
+        } else {
+            NV2A_DPRINTF("nv2a %s: [" TARGET_FMT_plx "] = 0x%" PRIx64 "\n",
+                    blocktable[block].name, addr, val);
+        }
+    } else {
+        NV2A_DPRINTF("nv2a (%d?): [" TARGET_FMT_plx "] = 0x%" PRIx64 "\n",
+                block, addr, val);
+    }
+}
+static void pgraph_method_log(unsigned int subchannel,
+                              unsigned int graphics_class,
+                              unsigned int method, uint32_t parameter) {
+    static unsigned int last = 0;
+    static unsigned int count = 0;
+    if (last == 0x1800 && method != last) {
+        NV2A_DPRINTF("nv2a pgraph method (%d) 0x%x * %d\n",
+                        subchannel, last, count);  
+    }
+    if (method != 0x1800) {
+        const char* method_name = NULL;
+        unsigned int nmethod = 0;
+        switch (graphics_class) {
+            case NV_KELVIN_PRIMITIVE:
+                nmethod = method | (0x5c << 16);
+                break;
+            case NV_CONTEXT_SURFACES_2D:
+                nmethod = method | (0x6d << 16);
+                break;
+            default:
+                break;
+        }
+        if (nmethod != 0
+            && nmethod < sizeof(nv2a_method_names)/sizeof(const char*)) {
+            method_name = nv2a_method_names[nmethod];
+        }
+        if (method_name) {
+            NV2A_DPRINTF("nv2a pgraph method (%d): %s (0x%x)\n",
+                     subchannel, method_name, parameter);
+        } else {
+            NV2A_DPRINTF("nv2a pgraph method (%d): 0x%x -> 0x%04x (0x%x)\n",
+                     subchannel, graphics_class, method, parameter);
+        }
+
+    }
+    if (method == last) { count++; }
+    else {count = 0; }
+    last = method;
+}
 
 
 static int nv2a_get_bpp(VGACommonState *s)
@@ -3113,6 +3473,29 @@ static int nv2a_get_bpp(VGACommonState *s)
     return (s->cr[0x28] & 3) * 8;
 }
 
+static void nv2a_get_offsets(VGACommonState *s,
+                             uint32_t *pline_offset,
+                             uint32_t *pstart_addr,
+                             uint32_t *pline_compare)
+{
+    NV2AState *d = container_of(s, NV2AState, vga);
+    uint32_t start_addr, line_offset, line_compare;
+
+    line_offset = s->cr[0x13]
+        | ((s->cr[0x19] & 0xe0) << 3)
+        | ((s->cr[0x25] & 0x20) << 6);
+    line_offset <<= 3;
+    *pline_offset = line_offset;
+
+    start_addr = d->pcrtc.start / 4;
+    *pstart_addr = start_addr;
+
+    line_compare = s->cr[VGA_CRTC_LINE_COMPARE] |
+        ((s->cr[VGA_CRTC_OVERFLOW] & 0x10) << 4) |
+        ((s->cr[VGA_CRTC_MAX_SCAN] & 0x40) << 3);
+    *pline_compare = line_compare;
+}
+
 
 /* Graphic console methods. Need to wrap all of these since
  * graphic_console_init takes a single opaque, and we
@@ -3120,24 +3503,6 @@ static int nv2a_get_bpp(VGACommonState *s)
 static void nv2a_vga_update(void *opaque)
 {
     NV2AState *d = NV2A_DEVICE(opaque);
-
-    qemu_mutex_lock(&d->pgraph.lock);
-    GraphicsContext *context = &d->pgraph.context[d->pgraph.channel_id];
-    if (context->channel_3d) {
-        //NV2A_DPRINTF("3d ping! %d\n", nv2a_get_bpp(&d->vga));
-
-        pgraph_context_set_current(context);
-
-        //glClearColor(1, 0, 0, 1);
-        //glClear(GL_COLOR_BUFFER_BIT);
-        glReadPixels(0, 0, 640, 480, GL_RGBA, GL_UNSIGNED_BYTE,
-            d->vga.vram_ptr);
-        assert(glGetError() == GL_NO_ERROR);
-        memory_region_set_dirty(&d->vga.vram, 0, 640*480*4);
-
-        pgraph_context_set_current(NULL);
-    }
-    qemu_mutex_unlock(&d->pgraph.lock);
 
     d->vga.update(&d->vga);
 
@@ -3186,9 +3551,12 @@ static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
     d->vram_ptr = memory_region_get_ram_ptr(d->vram);
     d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
 
-
-    memory_region_add_subregion(d->vram, 0, &d->vga.vram);
-    memory_region_set_enabled(&d->vga.vram, false);
+    /* hacky. swap out vga's vram */
+    memory_region_destroy(&d->vga.vram);
+    memory_region_init_alias(&d->vga.vram, "vga.vram",
+                             d->vram, 0, memory_region_size(d->vram));
+    d->vga.vram_ptr = memory_region_get_ram_ptr(&d->vga.vram);
+    vga_dirty_log_start(&d->vga);
 }
 
 static int nv2a_initfn(PCIDevice *dev)
@@ -3215,6 +3583,7 @@ static int nv2a_initfn(PCIDevice *dev)
 
     vga_common_init(vga);
     vga->get_bpp = nv2a_get_bpp;
+    vga->get_offsets = nv2a_get_offsets;
 
     vga->ds = graphic_console_init(nv2a_vga_update,
                                    nv2a_vga_invalidate,
@@ -3242,7 +3611,8 @@ static int nv2a_initfn(PCIDevice *dev)
     QSIMPLEQ_INIT(&d->pfifo.cache1.cache);
 
     qemu_mutex_init(&d->pgraph.lock);
-    qemu_cond_init(&d->pgraph.context_cond);
+    qemu_cond_init(&d->pgraph.interrupt_cond);
+    qemu_cond_init(&d->pgraph.fifo_access_cond);
 
     /* fire up graphics contexts */
     for (i=0; i<NV2A_NUM_CHANNELS; i++) {
@@ -3263,7 +3633,8 @@ static void nv2a_exitfn(PCIDevice *dev)
     qemu_cond_destroy(&d->pfifo.cache1.cache_cond);
 
     qemu_mutex_destroy(&d->pgraph.lock);
-    qemu_cond_destroy(&d->pgraph.context_cond);
+    qemu_cond_destroy(&d->pgraph.interrupt_cond);
+    qemu_cond_destroy(&d->pgraph.fifo_access_cond);
 
     for (i=0; i<NV2A_NUM_CHANNELS; i++) {
         pgraph_context_destroy(&d->pgraph.context[i]);
