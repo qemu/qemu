@@ -98,6 +98,11 @@ static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
 #define GDK_KEY_minus GDK_minus
 #endif
 
+static const int modifier_keycode[] = {
+    /* shift, control, alt keys, meta keys, both left & right */
+    0x2a, 0x36, 0x1d, 0x9d, 0x38, 0xb8, 0xdb, 0xdd,
+};
+
 typedef struct VirtualConsole
 {
     GtkWidget *menu_item;
@@ -157,6 +162,8 @@ typedef struct GtkDisplayState
     gboolean free_scale;
 
     bool external_pause_update;
+
+    bool modifier_pressed[ARRAY_SIZE(modifier_keycode)];
 } GtkDisplayState;
 
 static GtkDisplayState *global_state;
@@ -261,6 +268,26 @@ static void gd_update_full_redraw(GtkDisplayState *s)
     int ww, wh;
     gdk_drawable_get_size(gtk_widget_get_window(s->drawing_area), &ww, &wh);
     gtk_widget_queue_draw_area(s->drawing_area, 0, 0, ww, wh);
+}
+
+static void gtk_release_modifiers(GtkDisplayState *s)
+{
+    int i, keycode;
+
+    if (!gd_on_vga(s)) {
+        return;
+    }
+    for (i = 0; i < ARRAY_SIZE(modifier_keycode); i++) {
+        keycode = modifier_keycode[i];
+        if (!s->modifier_pressed[i]) {
+            continue;
+        }
+        if (keycode & SCANCODE_GREY) {
+            kbd_put_keycode(SCANCODE_EMUL0);
+        }
+        kbd_put_keycode(keycode | SCANCODE_UP);
+        s->modifier_pressed[i] = false;
+    }
 }
 
 /** DisplayState Callbacks **/
@@ -393,8 +420,9 @@ static gboolean gd_window_key_event(GtkWidget *widget, GdkEventKey *key, void *o
     if (!handled && propagate_accel) {
         handled = gtk_window_activate_key(GTK_WINDOW(widget), key);
     }
-
-    if (!handled) {
+    if (handled) {
+        gtk_release_modifiers(s);
+    } else {
         handled = gtk_window_propagate_key_event(GTK_WINDOW(widget), key);
     }
 
@@ -624,8 +652,10 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
 
 static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
+    GtkDisplayState *s = opaque;
     int gdk_keycode;
     int qemu_keycode;
+    int i;
 
     gdk_keycode = key->hardware_keycode;
 
@@ -646,6 +676,12 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
     DPRINTF("translated GDK keycode %d to QEMU keycode %d (%s)\n",
             gdk_keycode, qemu_keycode,
             (key->type == GDK_KEY_PRESS) ? "down" : "up");
+
+    for (i = 0; i < ARRAY_SIZE(modifier_keycode); i++) {
+        if (qemu_keycode == modifier_keycode[i]) {
+            s->modifier_pressed[i] = (key->type == GDK_KEY_PRESS);
+        }
+    }
 
     if (qemu_keycode & SCANCODE_GREY) {
         kbd_put_keycode(SCANCODE_EMUL0);
@@ -702,6 +738,7 @@ static void gd_menu_switch_vc(GtkMenuItem *item, void *opaque)
     } else {
         int i;
 
+        gtk_release_modifiers(s);
         for (i = 0; i < s->nb_vcs; i++) {
             if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->vc[i].menu_item))) {
                 gtk_notebook_set_current_page(GTK_NOTEBOOK(s->notebook), i + 1);
@@ -1002,6 +1039,16 @@ static gboolean gd_leave_event(GtkWidget *widget, GdkEventCrossing *crossing, gp
     return TRUE;
 }
 
+static gboolean gd_focus_out_event(GtkWidget *widget,
+                                   GdkEventCrossing *crossing, gpointer data)
+{
+    GtkDisplayState *s = data;
+
+    gtk_release_modifiers(s);
+
+    return TRUE;
+}
+
 /** Virtual Console Callbacks **/
 
 static int gd_vc_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
@@ -1185,6 +1232,8 @@ static void gd_connect_signals(GtkDisplayState *s)
                      G_CALLBACK(gd_enter_event), s);
     g_signal_connect(s->drawing_area, "leave-notify-event",
                      G_CALLBACK(gd_leave_event), s);
+    g_signal_connect(s->drawing_area, "focus-out-event",
+                     G_CALLBACK(gd_focus_out_event), s);
 }
 
 static void gd_create_menus(GtkDisplayState *s)
