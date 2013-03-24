@@ -441,7 +441,8 @@ static int qemu_rbd_aio_flush_cb(void *opaque)
     return (s->qemu_aio_count > 0);
 }
 
-static int qemu_rbd_open(BlockDriverState *bs, const char *filename, int flags)
+static int qemu_rbd_open(BlockDriverState *bs, const char *filename,
+                         QDict *options, int flags)
 {
     BDRVRBDState *s = bs->opaque;
     char pool[RBD_MAX_POOL_NAME_SIZE];
