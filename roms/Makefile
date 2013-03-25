@@ -57,13 +57,13 @@ lgplvgabios-%:
 
 pxerom: $(patsubst %,pxe-rom-%,$(pxerom_variants))
 
-pxe-rom-%:
+pxe-rom-%: ipxe/src/config/local/general.h
 	make -C ipxe/src bin/$(VID)$(DID).rom
 	cp ipxe/src/bin/$(VID)$(DID).rom ../pc-bios/pxe-$*.rom
 
 efirom: $(patsubst %,efi-rom-%,$(pxerom_variants))
 
-efi-rom-%:
+efi-rom-%: ipxe/src/config/local/general.h
 	make -C ipxe/src bin/$(VID)$(DID).rom
 	make -C ipxe/src bin-i386-efi/$(VID)$(DID).efidrv
 	make -C ipxe/src bin-x86_64-efi/$(VID)$(DID).efidrv
@@ -72,3 +72,6 @@ efi-rom-%:
 		-ec ipxe/src/bin-i386-efi/$(VID)$(DID).efidrv \
 		-ec ipxe/src/bin-x86_64-efi/$(VID)$(DID).efidrv \
 		-o ../pc-bios/efi-$*.rom
+
+ipxe/src/config/local/%: config.ipxe.%
+	cp $< $@
