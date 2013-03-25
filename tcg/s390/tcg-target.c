@@ -770,7 +770,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     /* If we get here, both the high and low parts have non-zero bits.  */
 
     /* Recurse to load the lower 32-bits.  */
-    tcg_out_movi(s, TCG_TYPE_I32, ret, sval);
+    tcg_out_movi(s, TCG_TYPE_I64, ret, uval & 0xffffffff);
 
     /* Insert data into the high 32-bits.  */
     uval = uval >> 31 >> 1;
