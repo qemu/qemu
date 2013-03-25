@@ -32,6 +32,14 @@ QString *qstring_new(void)
 }
 
 /**
+ * qstring_get_length(): Get the length of a QString
+ */
+size_t qstring_get_length(const QString *qstring)
+{
+    return qstring->length;
+}
+
+/**
  * qstring_from_substr(): Create a new QString from a C string substring
  *
  * Return string reference
