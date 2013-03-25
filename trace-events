@@ -970,6 +970,12 @@ displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
 
 # vga.c
 ppm_save(const char *filename, void *display_surface) "%s surface=%p"
+vmware_value_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_value_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_palette_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_palette_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_scratch_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_scratch_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
 
 # savevm.c
 

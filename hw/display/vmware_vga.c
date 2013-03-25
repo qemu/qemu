@@ -721,61 +721,79 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
     uint32_t caps;
     struct vmsvga_state_s *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->vga.con);
+    uint32_t ret;
 
     switch (s->index) {
     case SVGA_REG_ID:
-        return s->svgaid;
+        ret = s->svgaid;
+        break;
 
     case SVGA_REG_ENABLE:
-        return s->enable;
+        ret = s->enable;
+        break;
 
     case SVGA_REG_WIDTH:
-        return surface_width(surface);
+        ret = surface_width(surface);
+        break;
 
     case SVGA_REG_HEIGHT:
-        return surface_height(surface);
+        ret = surface_height(surface);
+        break;
 
     case SVGA_REG_MAX_WIDTH:
-        return SVGA_MAX_WIDTH;
+        ret = SVGA_MAX_WIDTH;
+        break;
 
     case SVGA_REG_MAX_HEIGHT:
-        return SVGA_MAX_HEIGHT;
+        ret = SVGA_MAX_HEIGHT;
+        break;
 
     case SVGA_REG_DEPTH:
-        return s->depth;
+        ret = s->depth;
+        break;
 
     case SVGA_REG_BITS_PER_PIXEL:
-        return (s->depth + 7) & ~7;
+        ret = (s->depth + 7) & ~7;
+        break;
 
     case SVGA_REG_PSEUDOCOLOR:
-        return 0x0;
+        ret = 0x0;
+        break;
 
     case SVGA_REG_RED_MASK:
-        return surface->pf.rmask;
+        ret = surface->pf.rmask;
+        break;
 
     case SVGA_REG_GREEN_MASK:
-        return surface->pf.gmask;
+        ret = surface->pf.gmask;
+        break;
 
     case SVGA_REG_BLUE_MASK:
-        return surface->pf.bmask;
+        ret = surface->pf.bmask;
+        break;
 
     case SVGA_REG_BYTES_PER_LINE:
-        return s->bypp * s->new_width;
+        ret = s->bypp * s->new_width;
+        break;
 
     case SVGA_REG_FB_START: {
         struct pci_vmsvga_state_s *pci_vmsvga
             = container_of(s, struct pci_vmsvga_state_s, chip);
-        return pci_get_bar_addr(&pci_vmsvga->card, 1);
+        ret = pci_get_bar_addr(&pci_vmsvga->card, 1);
+        break;
     }
 
     case SVGA_REG_FB_OFFSET:
-        return 0x0;
+        ret = 0x0;
+        break;
 
     case SVGA_REG_VRAM_SIZE:
-        return s->vga.vram_size; /* No physical VRAM besides the framebuffer */
+        ret = s->vga.vram_size; /* No physical VRAM besides the framebuffer */
+        break;
 
     case SVGA_REG_FB_SIZE:
-        return s->vga.vram_size;
+        ret = s->vga.vram_size;
+        break;
 
     case SVGA_REG_CAPABILITIES:
         caps = SVGA_CAP_NONE;
@@ -791,66 +809,96 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
                     SVGA_CAP_CURSOR_BYPASS;
         }
 #endif
-        return caps;
+        ret = caps;
+        break;
 
     case SVGA_REG_MEM_START: {
         struct pci_vmsvga_state_s *pci_vmsvga
             = container_of(s, struct pci_vmsvga_state_s, chip);
-        return pci_get_bar_addr(&pci_vmsvga->card, 2);
+        ret = pci_get_bar_addr(&pci_vmsvga->card, 2);
+        break;
     }
 
     case SVGA_REG_MEM_SIZE:
-        return s->fifo_size;
+        ret = s->fifo_size;
+        break;
 
     case SVGA_REG_CONFIG_DONE:
-        return s->config;
+        ret = s->config;
+        break;
 
     case SVGA_REG_SYNC:
     case SVGA_REG_BUSY:
-        return s->syncing;
+        ret = s->syncing;
+        break;
 
     case SVGA_REG_GUEST_ID:
-        return s->guest;
+        ret = s->guest;
+        break;
 
     case SVGA_REG_CURSOR_ID:
-        return s->cursor.id;
+        ret = s->cursor.id;
+        break;
 
     case SVGA_REG_CURSOR_X:
-        return s->cursor.x;
+        ret = s->cursor.x;
+        break;
 
     case SVGA_REG_CURSOR_Y:
-        return s->cursor.x;
+        ret = s->cursor.x;
+        break;
 
     case SVGA_REG_CURSOR_ON:
-        return s->cursor.on;
+        ret = s->cursor.on;
+        break;
 
     case SVGA_REG_HOST_BITS_PER_PIXEL:
-        return (s->depth + 7) & ~7;
+        ret = (s->depth + 7) & ~7;
+        break;
 
     case SVGA_REG_SCRATCH_SIZE:
-        return s->scratch_size;
+        ret = s->scratch_size;
+        break;
 
     case SVGA_REG_MEM_REGS:
     case SVGA_REG_NUM_DISPLAYS:
     case SVGA_REG_PITCHLOCK:
     case SVGA_PALETTE_BASE ... SVGA_PALETTE_END:
-        return 0;
+        ret = 0;
+        break;
 
     default:
         if (s->index >= SVGA_SCRATCH_BASE &&
             s->index < SVGA_SCRATCH_BASE + s->scratch_size) {
-            return s->scratch[s->index - SVGA_SCRATCH_BASE];
+            ret = s->scratch[s->index - SVGA_SCRATCH_BASE];
+            break;
         }
         printf("%s: Bad register %02x\n", __func__, s->index);
+        ret = 0;
+        break;
     }
 
-    return 0;
+    if (s->index >= SVGA_SCRATCH_BASE) {
+        trace_vmware_scratch_read(s->index, ret);
+    } else if (s->index >= SVGA_PALETTE_BASE) {
+        trace_vmware_palette_read(s->index, ret);
+    } else {
+        trace_vmware_value_read(s->index, ret);
+    }
+    return ret;
 }
 
 static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
 {
     struct vmsvga_state_s *s = opaque;
 
+    if (s->index >= SVGA_SCRATCH_BASE) {
+        trace_vmware_scratch_write(s->index, value);
+    } else if (s->index >= SVGA_PALETTE_BASE) {
+        trace_vmware_palette_write(s->index, value);
+    } else {
+        trace_vmware_value_write(s->index, value);
+    }
     switch (s->index) {
     case SVGA_REG_ID:
         if (value == SVGA_ID_2 || value == SVGA_ID_1 || value == SVGA_ID_0) {
