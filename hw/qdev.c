@@ -710,6 +710,7 @@ static void device_initfn(Object *obj)
     DeviceState *dev = DEVICE(obj);
     ObjectClass *class;
     Property *prop;
+    Error *err = NULL;
 
     if (qdev_hotplug) {
         dev->hotplugged = 1;
@@ -725,15 +726,18 @@ static void device_initfn(Object *obj)
     class = object_get_class(OBJECT(dev));
     do {
         for (prop = DEVICE_CLASS(class)->props; prop && prop->name; prop++) {
-            qdev_property_add_legacy(dev, prop, NULL);
-            qdev_property_add_static(dev, prop, NULL);
+            qdev_property_add_legacy(dev, prop, &err);
+            assert_no_error(err);
+            qdev_property_add_static(dev, prop, &err);
+            assert_no_error(err);
         }
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
     qdev_prop_set_globals(dev);
 
     object_property_add_link(OBJECT(dev), "parent_bus", TYPE_BUS,
-                             (Object **)&dev->parent_bus, NULL);
+                             (Object **)&dev->parent_bus, &err);
+    assert_no_error(err);
 }
 
 /* Unlink device from bus and free the structure.  */
