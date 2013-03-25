@@ -976,6 +976,7 @@ vmware_palette_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
 vmware_palette_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
 vmware_scratch_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
 vmware_scratch_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_setmode(uint32_t w, uint32_t h, uint32_t bpp) "%dx%d @ %d bpp"
 
 # savevm.c
 
