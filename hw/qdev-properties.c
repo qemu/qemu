@@ -7,6 +7,20 @@
 #include "qapi/visitor.h"
 #include "char/char.h"
 
+void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
+                                  Error **errp)
+{
+    if (dev->id) {
+        error_setg(errp, "Attempt to set property '%s' on device '%s' "
+                   "(type '%s') after it was realized", name, dev->id,
+                   object_get_typename(OBJECT(dev)));
+    } else {
+        error_setg(errp, "Attempt to set property '%s' on anonymous device "
+                   "(type '%s') after it was realized", name,
+                   object_get_typename(OBJECT(dev)));
+    }
+}
+
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
 {
     void *ptr = dev;
@@ -33,7 +47,7 @@ static void set_enum(Object *obj, Visitor *v, void *opaque,
     int *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -86,7 +100,7 @@ static void set_bit(Object *obj, Visitor *v, void *opaque,
     bool value;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -126,7 +140,7 @@ static void set_uint8(Object *obj, Visitor *v, void *opaque,
     uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -193,7 +207,7 @@ static void set_uint16(Object *obj, Visitor *v, void *opaque,
     uint16_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -226,7 +240,7 @@ static void set_uint32(Object *obj, Visitor *v, void *opaque,
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -251,7 +265,7 @@ static void set_int32(Object *obj, Visitor *v, void *opaque,
     int32_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -324,7 +338,7 @@ static void set_uint64(Object *obj, Visitor *v, void *opaque,
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -414,7 +428,7 @@ static void set_string(Object *obj, Visitor *v, void *opaque,
     char *str;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -478,7 +492,7 @@ static void set_mac(Object *obj, Visitor *v, void *opaque,
     char *str, *p;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -570,7 +584,7 @@ static void set_pci_devfn(Object *obj, Visitor *v, void *opaque,
     char *str;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -641,7 +655,7 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
     const int64_t max = 32768;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -709,7 +723,7 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, void *opaque,
     unsigned int slot = 0, func = 0;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -824,7 +838,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, void *opaque,
     int i;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
     if (*alenptr) {

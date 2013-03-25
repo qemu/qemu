@@ -167,4 +167,16 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
  */
 void qdev_property_add_static(DeviceState *dev, Property *prop, Error **errp);
 
+/**
+ * @qdev_prop_set_after_realize:
+ * @dev: device
+ * @name: name of property
+ * @errp: indirect pointer to Error to be set
+ * Set the Error object to report that an attempt was made to set a property
+ * on a device after it has already been realized. This is a utility function
+ * which allows property-setter functions to easily report the error in
+ * a friendly format identifying both the device and the property.
+ */
+void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
+                                 Error **errp);
 #endif

@@ -43,7 +43,7 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
     int ret;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -287,7 +287,7 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
     NetClientState *hubport;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 

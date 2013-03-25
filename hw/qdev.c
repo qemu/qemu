@@ -562,7 +562,7 @@ static void qdev_set_legacy_property(Object *obj, Visitor *v, void *opaque,
     int ret;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
