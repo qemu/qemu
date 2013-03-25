@@ -629,7 +629,18 @@ void object_property_add(Object *obj, const char *name, const char *type,
                          ObjectPropertyRelease *release,
                          void *opaque, Error **errp)
 {
-    ObjectProperty *prop = g_malloc0(sizeof(*prop));
+    ObjectProperty *prop;
+
+    QTAILQ_FOREACH(prop, &obj->properties, node) {
+        if (strcmp(prop->name, name) == 0) {
+            error_setg(errp, "attempt to add duplicate property '%s'"
+                       " to object (type '%s')", name,
+                       object_get_typename(obj));
+            return;
+        }
+    }
+
+    prop = g_malloc0(sizeof(*prop));
 
     prop->name = g_strdup(name);
     prop->type = g_strdup(type);
