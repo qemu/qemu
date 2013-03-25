@@ -11,6 +11,11 @@
 
 #define MAX_QUEUE_NUM 1024
 
+/* Maximum GSO packet size (64k) plus plenty of room for
+ * the ethernet and virtio_net headers
+ */
+#define NET_BUFSIZE (4096 + 65536)
+
 struct MACAddr {
     uint8_t a[6];
 };

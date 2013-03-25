@@ -20,10 +20,34 @@
 
 #include <stdint.h>
 
-uint32_t net_checksum_add(int len, uint8_t *buf);
+uint32_t net_checksum_add_cont(int len, uint8_t *buf, int seq);
 uint16_t net_checksum_finish(uint32_t sum);
 uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
                              uint8_t *addrs, uint8_t *buf);
 void net_checksum_calculate(uint8_t *data, int length);
+
+static inline uint32_t
+net_checksum_add(int len, uint8_t *buf)
+{
+    return net_checksum_add_cont(len, buf, 0);
+}
+
+static inline uint16_t
+net_raw_checksum(uint8_t *data, int length)
+{
+    return net_checksum_finish(net_checksum_add(length, data));
+}
+
+/**
+ * net_checksum_add_iov: scatter-gather vector checksumming
+ *
+ * @iov: input scatter-gather array
+ * @iov_cnt: number of array elements
+ * @iov_off: starting iov offset for checksumming
+ * @size: length of data to be checksummed
+ */
+uint32_t net_checksum_add_iov(const struct iovec *iov,
+                              const unsigned int iov_cnt,
+                              uint32_t iov_off, uint32_t size);
 
 #endif /* QEMU_NET_CHECKSUM_H */

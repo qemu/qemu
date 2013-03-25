@@ -40,7 +40,7 @@ typedef struct NetSocketState {
     unsigned int index;
     unsigned int packet_len;
     unsigned int send_index;      /* number of bytes sent (only SOCK_STREAM) */
-    uint8_t buf[4096];
+    uint8_t buf[NET_BUFSIZE];
     struct sockaddr_in dgram_dst; /* contains inet host and port destination iff connectionless (SOCK_DGRAM) */
     IOHandler *send_fn;           /* differs between SOCK_STREAM/SOCK_DGRAM */
     bool read_poll;               /* waiting to receive data? */
@@ -146,7 +146,7 @@ static void net_socket_send(void *opaque)
     NetSocketState *s = opaque;
     int size, err;
     unsigned l;
-    uint8_t buf1[4096];
+    uint8_t buf1[NET_BUFSIZE];
     const uint8_t *buf;
 
     size = qemu_recv(s->fd, buf1, sizeof(buf1), 0);
@@ -437,6 +437,9 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
 
     s->fd = fd;
     s->listen_fd = -1;
+
+    /* Disable Nagle algorithm on TCP sockets to reduce latency */
+    socket_set_nodelay(fd);
 
     if (is_connected) {
         net_socket_connect(s);
