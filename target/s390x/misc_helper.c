@@ -678,3 +678,62 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
     }
 }
 #endif
+
+/* The maximum bit defined at the moment is 129.  */
+#define MAX_STFL_WORDS  3
+
+/* Canonicalize the current cpu's features into the 64-bit words required
+   by STFLE.  Return the index-1 of the max word that is non-zero.  */
+static unsigned do_stfle(CPUS390XState *env, uint64_t words[MAX_STFL_WORDS])
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    const unsigned long *features = cpu->model->features;
+    unsigned max_bit = 0;
+    S390Feat feat;
+
+    memset(words, 0, sizeof(uint64_t) * MAX_STFL_WORDS);
+
+    if (test_bit(S390_FEAT_ZARCH, features)) {
+        /* z/Architecture is always active if around */
+        words[0] = 1ull << (63 - 2);
+    }
+
+    for (feat = find_first_bit(features, S390_FEAT_MAX);
+         feat < S390_FEAT_MAX;
+         feat = find_next_bit(features, S390_FEAT_MAX, feat + 1)) {
+        const S390FeatDef *def = s390_feat_def(feat);
+        if (def->type == S390_FEAT_TYPE_STFL) {
+            unsigned bit = def->bit;
+            if (bit > max_bit) {
+                max_bit = bit;
+            }
+            assert(bit / 64 < MAX_STFL_WORDS);
+            words[bit / 64] |= 1ULL << (63 - bit % 64);
+        }
+    }
+
+    return max_bit / 64;
+}
+
+void HELPER(stfl)(CPUS390XState *env)
+{
+    uint64_t words[MAX_STFL_WORDS];
+
+    do_stfle(env, words);
+    cpu_stl_data(env, 200, words[0] >> 32);
+}
+
+uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
+{
+    uint64_t words[MAX_STFL_WORDS];
+    unsigned count_m1 = env->regs[0] & 0xff;
+    unsigned max_m1 = do_stfle(env, words);
+    unsigned i;
+
+    for (i = 0; i <= count_m1; ++i) {
+        cpu_stq_data(env, addr + 8 * i, words[i]);
+    }
+
+    env->regs[0] = deposit64(env->regs[0], 0, 8, max_m1);
+    return (count_m1 >= max_m1 ? 0 : 3);
+}
