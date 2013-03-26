@@ -39,6 +39,7 @@
 #include "qmp-commands.h"
 #include "trace.h"
 #include "qemu/bitops.h"
+#include "qemu/iov.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
@@ -113,6 +114,7 @@ void qemu_announce_self(void)
 /* savevm/loadvm support */
 
 #define IO_BUF_SIZE 32768
+#define MAX_IOV_SIZE MIN(IOV_MAX, 64)
 
 struct QEMUFile {
     const QEMUFileOps *ops;
@@ -127,6 +129,9 @@ struct QEMUFile {
     int buf_index;
     int buf_size; /* 0 when writing */
     uint8_t buf[IO_BUF_SIZE];
+
+    struct iovec iov[MAX_IOV_SIZE];
+    unsigned int iovcnt;
 
     int last_error;
 };
@@ -169,6 +174,19 @@ static void coroutine_fn yield_until_fd_readable(int fd)
     data.fd = fd;
     qemu_set_fd_handler(fd, fd_coroutine_enter, NULL, &data);
     qemu_coroutine_yield();
+}
+
+static ssize_t socket_writev_buffer(void *opaque, struct iovec *iov, int iovcnt)
+{
+    QEMUFileSocket *s = opaque;
+    ssize_t len;
+    ssize_t size = iov_size(iov, iovcnt);
+
+    len = iov_send(s->fd, iov, iovcnt, 0, size);
+    if (len < size) {
+        len = -socket_error();
+    }
+    return len;
 }
 
 static int socket_get_fd(void *opaque)
@@ -275,7 +293,7 @@ static int stdio_fclose(void *opaque)
     QEMUFileStdio *s = opaque;
     int ret = 0;
 
-    if (s->file->ops->put_buffer) {
+    if (s->file->ops->put_buffer || s->file->ops->writev_buffer) {
         int fd = fileno(s->stdio_file);
         struct stat st;
 
@@ -387,6 +405,7 @@ static const QEMUFileOps socket_read_ops = {
 static const QEMUFileOps socket_write_ops = {
     .get_fd =     socket_get_fd,
     .put_buffer = socket_put_buffer,
+    .writev_buffer = socket_writev_buffer,
     .close =      socket_close
 };
 
@@ -497,22 +516,38 @@ static void qemu_file_set_error(QEMUFile *f, int ret)
     }
 }
 
-/** Flushes QEMUFile buffer
+/**
+ * Flushes QEMUFile buffer
  *
+ * If there is writev_buffer QEMUFileOps it uses it otherwise uses
+ * put_buffer ops.
  */
 static void qemu_fflush(QEMUFile *f)
 {
-    int ret = 0;
+    ssize_t ret = 0;
+    int i = 0;
 
-    if (!f->ops->put_buffer) {
+    if (!f->ops->writev_buffer && !f->ops->put_buffer) {
         return;
     }
-    if (f->is_write && f->buf_index > 0) {
-        ret = f->ops->put_buffer(f->opaque, f->buf, f->pos, f->buf_index);
-        if (ret >= 0) {
-            f->pos += f->buf_index;
+
+    if (f->is_write && f->iovcnt > 0) {
+        if (f->ops->writev_buffer) {
+            ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt);
+            if (ret >= 0) {
+                f->pos += ret;
+            }
+        } else {
+            for (i = 0; i < f->iovcnt && ret >= 0; i++) {
+                ret = f->ops->put_buffer(f->opaque, f->iov[i].iov_base, f->pos,
+                                         f->iov[i].iov_len);
+                if (ret >= 0) {
+                    f->pos += ret;
+                }
+            }
         }
         f->buf_index = 0;
+        f->iovcnt = 0;
     }
     if (ret < 0) {
         qemu_file_set_error(f, ret);
@@ -586,6 +621,40 @@ int qemu_fclose(QEMUFile *f)
     return ret;
 }
 
+static void add_to_iovec(QEMUFile *f, const uint8_t *buf, int size)
+{
+    /* check for adjacent buffer and coalesce them */
+    if (f->iovcnt > 0 && buf == f->iov[f->iovcnt - 1].iov_base +
+        f->iov[f->iovcnt - 1].iov_len) {
+        f->iov[f->iovcnt - 1].iov_len += size;
+    } else {
+        f->iov[f->iovcnt].iov_base = (uint8_t *)buf;
+        f->iov[f->iovcnt++].iov_len = size;
+    }
+}
+
+void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size)
+{
+    if (f->last_error) {
+        return;
+    }
+
+    if (f->is_write == 0 && f->buf_index > 0) {
+        fprintf(stderr,
+                "Attempted to write to buffer while read buffer is not empty\n");
+        abort();
+    }
+
+    add_to_iovec(f, buf, size);
+
+    f->is_write = 1;
+    f->bytes_xfer += size;
+
+    if (f->buf_index >= IO_BUF_SIZE || f->iovcnt >= MAX_IOV_SIZE) {
+        qemu_fflush(f);
+    }
+}
+
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
     int l;
@@ -607,15 +676,12 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         memcpy(f->buf + f->buf_index, buf, l);
         f->is_write = 1;
         f->buf_index += l;
-        f->bytes_xfer += l;
+        qemu_put_buffer_async(f, f->buf + (f->buf_index - l), l);
+        if (qemu_file_get_error(f)) {
+            break;
+        }
         buf += l;
         size -= l;
-        if (f->buf_index >= IO_BUF_SIZE) {
-            qemu_fflush(f);
-            if (qemu_file_get_error(f)) {
-                break;
-            }
-        }
     }
 }
 
@@ -633,7 +699,11 @@ void qemu_put_byte(QEMUFile *f, int v)
 
     f->buf[f->buf_index++] = v;
     f->is_write = 1;
-    if (f->buf_index >= IO_BUF_SIZE) {
+    f->bytes_xfer++;
+
+    add_to_iovec(f, f->buf + (f->buf_index - 1), 1);
+
+    if (f->buf_index >= IO_BUF_SIZE || f->iovcnt >= MAX_IOV_SIZE) {
         qemu_fflush(f);
     }
 }
@@ -1072,6 +1142,27 @@ const VMStateInfo vmstate_info_uint64 = {
     .put  = put_uint64,
 };
 
+/* 64 bit unsigned int. See that the received value is the same than the one
+   in the field */
+
+static int get_uint64_equal(QEMUFile *f, void *pv, size_t size)
+{
+    uint64_t *v = pv;
+    uint64_t v2;
+    qemu_get_be64s(f, &v2);
+
+    if (*v == v2) {
+        return 0;
+    }
+    return -EINVAL;
+}
+
+const VMStateInfo vmstate_info_uint64_equal = {
+    .name = "int64 equal",
+    .get  = get_uint64_equal,
+    .put  = put_uint64,
+};
+
 /* 8 bit int. See that the received value is the same than the one
    in the field */
 
@@ -1110,6 +1201,29 @@ const VMStateInfo vmstate_info_uint16_equal = {
     .name = "uint16 equal",
     .get  = get_uint16_equal,
     .put  = put_uint16,
+};
+
+/* floating point */
+
+static int get_float64(QEMUFile *f, void *pv, size_t size)
+{
+    float64 *v = pv;
+
+    *v = make_float64(qemu_get_be64(f));
+    return 0;
+}
+
+static void put_float64(QEMUFile *f, void *pv, size_t size)
+{
+    uint64_t *v = pv;
+
+    qemu_put_be64(f, float64_val(*v));
+}
+
+const VMStateInfo vmstate_info_float64 = {
+    .name = "float64",
+    .get  = get_float64,
+    .put  = put_float64,
 };
 
 /* timers  */

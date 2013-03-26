@@ -51,11 +51,18 @@ typedef int (QEMUFileCloseFunc)(void *opaque);
  */
 typedef int (QEMUFileGetFD)(void *opaque);
 
+/*
+ * This function writes an iovec to file.
+ */
+typedef ssize_t (QEMUFileWritevBufferFunc)(void *opaque, struct iovec *iov,
+                                           int iovcnt);
+
 typedef struct QEMUFileOps {
     QEMUFilePutBufferFunc *put_buffer;
     QEMUFileGetBufferFunc *get_buffer;
     QEMUFileCloseFunc *close;
     QEMUFileGetFD *get_fd;
+    QEMUFileWritevBufferFunc *writev_buffer;
 } QEMUFileOps;
 
 QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
@@ -68,6 +75,11 @@ int qemu_fclose(QEMUFile *f);
 int64_t qemu_ftell(QEMUFile *f);
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);
 void qemu_put_byte(QEMUFile *f, int v);
+/*
+ * put_buffer without copying the buffer.
+ * The buffer should be available till it is sent asynchronously.
+ */
+void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size);
 
 static inline void qemu_put_ubyte(QEMUFile *f, unsigned int v)
 {

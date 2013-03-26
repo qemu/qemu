@@ -52,16 +52,22 @@ int qemu_boot_set(const char *boot_devices);
 #if TARGET_LONG_BITS == 64
 #define VMSTATE_UINTTL_V(_f, _s, _v)                                  \
     VMSTATE_UINT64_V(_f, _s, _v)
+#define VMSTATE_UINTTL_EQUAL_V(_f, _s, _v)                            \
+    VMSTATE_UINT64_EQUAL_V(_f, _s, _v)
 #define VMSTATE_UINTTL_ARRAY_V(_f, _s, _n, _v)                        \
     VMSTATE_UINT64_ARRAY_V(_f, _s, _n, _v)
 #else
 #define VMSTATE_UINTTL_V(_f, _s, _v)                                  \
     VMSTATE_UINT32_V(_f, _s, _v)
+#define VMSTATE_UINTTL_EQUAL_V(_f, _s, _v)                            \
+    VMSTATE_UINT32_EQUAL_V(_f, _s, _v)
 #define VMSTATE_UINTTL_ARRAY_V(_f, _s, _n, _v)                        \
     VMSTATE_UINT32_ARRAY_V(_f, _s, _n, _v)
 #endif
 #define VMSTATE_UINTTL(_f, _s)                                        \
     VMSTATE_UINTTL_V(_f, _s, 0)
+#define VMSTATE_UINTTL_EQUAL(_f, _s)                                  \
+    VMSTATE_UINTTL_EQUAL_V(_f, _s, 0)
 #define VMSTATE_UINTTL_ARRAY(_f, _s, _n)                              \
     VMSTATE_UINTTL_ARRAY_V(_f, _s, _n, 0)
 
