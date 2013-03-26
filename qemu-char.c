@@ -140,6 +140,33 @@ int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len)
     return s->chr_write(s, buf, len);
 }
 
+int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len)
+{
+    int offset = 0;
+    int res;
+
+    while (offset < len) {
+        do {
+            res = s->chr_write(s, buf + offset, len - offset);
+            if (res == -1 && errno == EAGAIN) {
+                g_usleep(100);
+            }
+        } while (res == -1 && errno == EAGAIN);
+
+        if (res == 0) {
+            break;
+        }
+
+        if (res < 0) {
+            return res;
+        }
+
+        offset += res;
+    }
+
+    return offset;
+}
+
 int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg)
 {
     if (!s->chr_ioctl)

@@ -170,6 +170,21 @@ int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
 int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len);
 
 /**
+ * @qemu_chr_fe_write_all:
+ *
+ * Write data to a character backend from the front end.  This function will
+ * send data from the front end to the back end.  Unlike @qemu_chr_fe_write,
+ * this function will block if the back end cannot consume all of the data
+ * attempted to be written.
+ *
+ * @buf the data
+ * @len the number of bytes to send
+ *
+ * Returns: the number of bytes consumed
+ */
+int qemu_chr_fe_write_all(CharDriverState *s, const uint8_t *buf, int len);
+
+/**
  * @qemu_chr_fe_ioctl:
  *
  * Issue a device specific ioctl to a backend.
