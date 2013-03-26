@@ -92,10 +92,8 @@ typedef struct VirtIOSerialPortClass {
     int (*exit)(VirtIOSerialPort *port);
 
     /* Callbacks for guest events */
-        /* Guest opened device. */
-    void (*guest_open)(VirtIOSerialPort *port);
-        /* Guest closed device. */
-    void (*guest_close)(VirtIOSerialPort *port);
+        /* Guest opened/closed device. */
+    void (*set_guest_connected)(VirtIOSerialPort *port, int guest_connected);
 
         /* Guest is now ready to accept data (virtqueues set up). */
     void (*guest_ready)(VirtIOSerialPort *port);

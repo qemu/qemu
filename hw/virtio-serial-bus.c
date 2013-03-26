@@ -372,14 +372,9 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
 
     case VIRTIO_CONSOLE_PORT_OPEN:
         port->guest_connected = cpkt.value;
-        if (cpkt.value && vsc->guest_open) {
+        if (vsc->set_guest_connected) {
             /* Send the guest opened notification if an app is interested */
-            vsc->guest_open(port);
-        }
-
-        if (!cpkt.value && vsc->guest_close) {
-            /* Send the guest closed notification if an app is interested */
-            vsc->guest_close(port);
+            vsc->set_guest_connected(port, cpkt.value);
         }
         break;
     }
@@ -484,9 +479,9 @@ static void guest_reset(VirtIOSerial *vser)
         vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
         if (port->guest_connected) {
             port->guest_connected = false;
-
-            if (vsc->guest_close)
-                vsc->guest_close(port);
+            if (vsc->set_guest_connected) {
+                vsc->set_guest_connected(port, false);
+            }
         }
     }
 }

@@ -66,26 +66,15 @@ static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
     return ret;
 }
 
-/* Callback function that's called when the guest opens the port */
-static void guest_open(VirtIOSerialPort *port)
+/* Callback function that's called when the guest opens/closes the port */
+static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
     if (!vcon->chr) {
         return;
     }
-    qemu_chr_fe_set_open(vcon->chr, 1);
-}
-
-/* Callback function that's called when the guest closes the port */
-static void guest_close(VirtIOSerialPort *port)
-{
-    VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
-
-    if (!vcon->chr) {
-        return;
-    }
-    qemu_chr_fe_set_open(vcon->chr, 0);
+    qemu_chr_fe_set_open(vcon->chr, guest_connected);
 }
 
 /* Readiness of the guest to accept data on a port */
@@ -152,8 +141,7 @@ static void virtconsole_class_init(ObjectClass *klass, void *data)
     k->is_console = true;
     k->init = virtconsole_initfn;
     k->have_data = flush_buf;
-    k->guest_open = guest_open;
-    k->guest_close = guest_close;
+    k->set_guest_connected = set_guest_connected;
     dc->props = virtconsole_properties;
 }
 
@@ -176,8 +164,7 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
 
     k->init = virtconsole_initfn;
     k->have_data = flush_buf;
-    k->guest_open = guest_open;
-    k->guest_close = guest_close;
+    k->set_guest_connected = set_guest_connected;
     dc->props = virtserialport_properties;
 }
 
