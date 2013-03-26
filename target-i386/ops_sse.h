@@ -1933,8 +1933,7 @@ void glue(helper_mpsadbw, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
 }
 
 /* SSE4.2 op helpers */
-/* it's unclear whether signed or unsigned */
-#define FCMPGTQ(d, s) (d > s ? -1 : 0)
+#define FCMPGTQ(d, s) ((int64_t)d > (int64_t)s ? -1 : 0)
 SSE_HELPER_Q(helper_pcmpgtq, FCMPGTQ)
 
 static inline int pcmp_elen(CPUX86State *env, int reg, uint32_t ctrl)
