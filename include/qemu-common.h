@@ -469,4 +469,14 @@ void hexdump(const char *buf, FILE *fp, const char *prefix, size_t size);
 #define ALL_EQ(v1, v2) ((v1) == (v2))
 #endif
 
+#define BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR 8
+static inline bool
+can_use_buffer_find_nonzero_offset(const void *buf, size_t len)
+{
+    return (len % (BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR
+                   * sizeof(VECTYPE)) == 0
+            && ((uintptr_t) buf) % sizeof(VECTYPE) == 0);
+}
+size_t buffer_find_nonzero_offset(const void *buf, size_t len);
+
 #endif
