@@ -876,12 +876,12 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
  *
  *  -errno: in error cases
  *
- * TODO Get rid of keep_clusters, n_start, n_end
+ * TODO Get rid of n_start, n_end
  * TODO Make *bytes actually behave as specified above
  */
 static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m,
-    int keep_clusters, int n_start, int n_end)
+    int n_start, int n_end)
 {
     BDRVQcowState *s = bs->opaque;
     int l2_index;
@@ -892,7 +892,6 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
 
     uint64_t alloc_offset;
     uint64_t alloc_cluster_offset;
-    uint64_t keep_bytes = keep_clusters * s->cluster_size;
 
     trace_qcow2_handle_alloc(qemu_coroutine_self(), guest_offset, *host_offset,
                              *bytes);
@@ -911,14 +910,13 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
         return ret;
     }
 
-    entry = be64_to_cpu(l2_table[l2_index + keep_clusters]);
+    entry = be64_to_cpu(l2_table[l2_index]);
 
     /* For the moment, overwrite compressed clusters one by one */
     if (entry & QCOW_OFLAG_COMPRESSED) {
         nb_clusters = 1;
     } else {
-        nb_clusters = count_cow_clusters(s, nb_clusters, l2_table,
-                                         l2_index + keep_clusters);
+        nb_clusters = count_cow_clusters(s, nb_clusters, l2_table, l2_index);
     }
 
     ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
@@ -932,13 +930,8 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     }
 
     /* Calculate start and size of allocation */
-    alloc_offset = guest_offset + keep_bytes;
-
-    if (keep_clusters == 0) {
-        alloc_cluster_offset = 0;
-    } else {
-        alloc_cluster_offset = *host_offset + keep_bytes;
-    }
+    alloc_offset = guest_offset;
+    alloc_cluster_offset = *host_offset;
 
     /* Allocate, if necessary at a given offset in the image file */
     ret = do_alloc_cluster_offset(bs, alloc_offset, &alloc_cluster_offset,
@@ -961,13 +954,13 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
          * newly allocated cluster to the end of the aread that the write
          * request actually writes to (excluding COW at the end)
          */
-        int requested_sectors = n_end - keep_clusters * s->cluster_sectors;
+        int requested_sectors = n_end;
         int avail_sectors = nb_clusters
                             << (s->cluster_bits - BDRV_SECTOR_BITS);
-        int alloc_n_start = keep_clusters == 0 ? n_start : 0;
+        int alloc_n_start = *host_offset == 0 ? n_start : 0;
         int nb_sectors = MIN(requested_sectors, avail_sectors);
 
-        if (keep_clusters == 0) {
+        if (*host_offset == 0) {
             *host_offset = alloc_cluster_offset;
         }
 
@@ -1130,9 +1123,26 @@ again:
         goto done;
     }
 
+    int alloc_n_start;
+    int alloc_n_end;
+
+    if (keep_clusters != 0) {
+        offset         = start_of_cluster(s, offset
+                                             + keep_clusters * s->cluster_size);
+        cluster_offset = start_of_cluster(s, cluster_offset
+                                             + keep_clusters * s->cluster_size);
+
+        alloc_n_start = 0;
+        alloc_n_end = n_end - keep_clusters * s->cluster_sectors;
+    } else {
+        alloc_n_start = n_start;
+        alloc_n_end = n_end;
+    }
+
     cur_bytes = nb_clusters * s->cluster_size;
+
     ret = handle_alloc(bs, offset, &cluster_offset, &cur_bytes, m,
-                       keep_clusters, n_start, n_end);
+                       alloc_n_start, alloc_n_end);
     if (ret < 0) {
         return ret;
     }
