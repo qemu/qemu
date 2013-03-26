@@ -3412,6 +3412,10 @@ void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo)
 
 void qemu_chr_fe_open(struct CharDriverState *chr)
 {
+    if (chr->fe_open) {
+        return;
+    }
+    chr->fe_open = 1;
     if (chr->chr_guest_open) {
         chr->chr_guest_open(chr);
     }
@@ -3419,6 +3423,10 @@ void qemu_chr_fe_open(struct CharDriverState *chr)
 
 void qemu_chr_fe_close(struct CharDriverState *chr)
 {
+    if (!chr->fe_open) {
+        return;
+    }
+    chr->fe_open = 0;
     if (chr->chr_guest_close) {
         chr->chr_guest_close(chr);
     }
