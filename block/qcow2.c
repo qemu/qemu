@@ -869,9 +869,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                 QLIST_REMOVE(l2meta, next_in_flight);
             }
 
-            qemu_co_mutex_unlock(&s->lock);
             qemu_co_queue_restart_all(&l2meta->dependent_requests);
-            qemu_co_mutex_lock(&s->lock);
 
             g_free(l2meta);
             l2meta = NULL;
