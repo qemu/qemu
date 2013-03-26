@@ -876,17 +876,18 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
  *
  *  -errno: in error cases
  *
- * TODO Get rid of nb_clusters, keep_clusters, n_start, n_end
+ * TODO Get rid of keep_clusters, n_start, n_end
  * TODO Make *bytes actually behave as specified above
  */
 static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m,
-    unsigned int nb_clusters, int keep_clusters, int n_start, int n_end)
+    int keep_clusters, int n_start, int n_end)
 {
     BDRVQcowState *s = bs->opaque;
     int l2_index;
     uint64_t *l2_table;
     uint64_t entry;
+    unsigned int nb_clusters;
     int ret;
 
     uint64_t alloc_offset;
@@ -896,6 +897,13 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     trace_qcow2_handle_alloc(qemu_coroutine_self(), guest_offset, *host_offset,
                              *bytes);
     assert(*bytes > 0);
+
+    /*
+     * Calculate the number of clusters to look for. We stop at L2 table
+     * boundaries to keep things simple.
+     */
+    l2_index = offset_to_l2_index(s, guest_offset);
+    nb_clusters = MIN(size_to_clusters(s, *bytes), s->l2_size - l2_index);
 
     /* Find L2 entry for the first involved cluster */
     ret = get_cluster_table(bs, guest_offset, &l2_table, &l2_index);
@@ -1103,6 +1111,7 @@ again:
     }
 
     cluster_offset &= L2E_OFFSET_MASK;
+    *host_offset = cluster_offset;
 
     /*
      * The L2 table isn't used any more after this. As long as the cache works
@@ -1123,11 +1132,14 @@ again:
 
     cur_bytes = nb_clusters * s->cluster_size;
     ret = handle_alloc(bs, offset, &cluster_offset, &cur_bytes, m,
-                       nb_clusters, keep_clusters, n_start, n_end);
+                       keep_clusters, n_start, n_end);
     if (ret < 0) {
         return ret;
     }
 
+    if (!*host_offset) {
+        *host_offset = cluster_offset;
+    }
     nb_clusters = size_to_clusters(s, cur_bytes);
 
     /* Some cleanup work */
@@ -1139,7 +1151,6 @@ done:
 
     assert(sectors > n_start);
     *num = sectors - n_start;
-    *host_offset = cluster_offset;
 
     return 0;
 }
