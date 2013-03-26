@@ -830,8 +830,6 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
  *          the length of the area that can be written to.
  *
  *  -errno: in error cases
- *
- * TODO Make non-zero host_offset behave like describe above
  */
 static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
     uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m)
@@ -846,7 +844,6 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
 
     trace_qcow2_handle_copied(qemu_coroutine_self(), guest_offset, *host_offset,
                               *bytes);
-    assert(*host_offset == 0);
 
     /*
      * Calculate the number of clusters to look for. We stop at L2 table
@@ -870,6 +867,16 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
     if (qcow2_get_cluster_type(cluster_offset) == QCOW2_CLUSTER_NORMAL
         && (cluster_offset & QCOW_OFLAG_COPIED))
     {
+        /* If a specific host_offset is required, check it */
+        bool offset_matches =
+            (cluster_offset & L2E_OFFSET_MASK) == *host_offset;
+
+        if (*host_offset != 0 && !offset_matches) {
+            *bytes = 0;
+            ret = 0;
+            goto out;
+        }
+
         /* We keep all QCOW_OFLAG_COPIED clusters */
         keep_clusters =
             count_contiguous_clusters(nb_clusters, s->cluster_size,
@@ -883,17 +890,20 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
 
         ret = 1;
     } else {
-        cluster_offset = 0;
         ret = 0;
     }
 
-    cluster_offset &= L2E_OFFSET_MASK;
-    *host_offset = cluster_offset;
-
     /* Cleanup */
+out:
     pret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
     if (pret < 0) {
         return pret;
+    }
+
+    /* Only return a host offset if we actually made progress. Otherwise we
+     * would make requirements for handle_alloc() that it can't fulfill */
+    if (ret) {
+        *host_offset = cluster_offset & L2E_OFFSET_MASK;
     }
 
     return ret;
@@ -1165,7 +1175,6 @@ again:
 
     /*
      * 2. Count contiguous COPIED clusters.
-     *    TODO: Consider cluster_offset if set in step 1c.
      */
     uint64_t tmp_bytes = cur_bytes;
     ret = handle_copied(bs, offset, &cluster_offset, &tmp_bytes, m);
@@ -1179,6 +1188,9 @@ again:
         if (!*host_offset) {
             *host_offset = cluster_offset;
         }
+    } else if (cur_bytes == 0) {
+        keep_clusters = 0;
+        goto done;
     } else {
         keep_clusters = 0;
     }
