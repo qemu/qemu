@@ -147,6 +147,7 @@ typedef enum S390Opcode {
     RRE_LRVR    = 0xb91f,
     RRE_LRVGR   = 0xb90f,
     RRE_LTGR    = 0xb902,
+    RRE_MLGR    = 0xb986,
     RRE_MSGR    = 0xb90c,
     RRE_MSR     = 0xb252,
     RRE_NGR     = 0xb980,
@@ -1981,6 +1982,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_divu2_i64:
         tcg_out_insn(s, RRE, DLGR, TCG_REG_R2, args[4]);
         break;
+    case INDEX_op_mulu2_i64:
+        tcg_out_insn(s, RRE, MLGR, TCG_REG_R2, args[3]);
+        break;
 
     case INDEX_op_shl_i64:
         op = RSY_SLLG;
@@ -2156,6 +2160,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
 
     { INDEX_op_div2_i64, { "b", "a", "0", "1", "r" } },
     { INDEX_op_divu2_i64, { "b", "a", "0", "1", "r" } },
+    { INDEX_op_mulu2_i64, { "b", "a", "0", "r" } },
 
     { INDEX_op_and_i64, { "r", "0", "rA" } },
     { INDEX_op_or_i64, { "r", "0", "rO" } },
