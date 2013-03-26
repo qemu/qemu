@@ -250,7 +250,7 @@ void qemu_chr_add_handlers(CharDriverState *s,
                            IOEventHandler *fd_event,
                            void *opaque);
 
-void qemu_chr_generic_open(CharDriverState *s);
+void qemu_chr_be_generic_open(CharDriverState *s);
 void qemu_chr_accept_input(CharDriverState *s);
 int qemu_chr_add_client(CharDriverState *s, int fd);
 void qemu_chr_info_print(Monitor *mon, const QObject *ret_data);

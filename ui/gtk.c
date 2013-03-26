@@ -1163,7 +1163,7 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
 
     gtk_menu_shell_append(GTK_MENU_SHELL(s->view_menu), vc->menu_item);
 
-    qemu_chr_generic_open(vc->chr);
+    qemu_chr_be_generic_open(vc->chr);
     if (vc->chr->init) {
         vc->chr->init(vc->chr);
     }
