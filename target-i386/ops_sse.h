@@ -2116,16 +2116,16 @@ void glue(helper_pcmpestrm, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
     if ((ctrl >> 6) & 1) {
         if (ctrl & 1) {
             for (i = 0; i < 8; i++, res >>= 1) {
-                d->W(i) = (res & 1) ? ~0 : 0;
+                env->xmm_regs[0].W(i) = (res & 1) ? ~0 : 0;
             }
         } else {
             for (i = 0; i < 16; i++, res >>= 1) {
-                d->B(i) = (res & 1) ? ~0 : 0;
+                env->xmm_regs[0].B(i) = (res & 1) ? ~0 : 0;
             }
         }
     } else {
-        d->Q(1) = 0;
-        d->Q(0) = res;
+        env->xmm_regs[0].Q(1) = 0;
+        env->xmm_regs[0].Q(0) = res;
     }
 }
 
@@ -2154,16 +2154,16 @@ void glue(helper_pcmpistrm, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
     if ((ctrl >> 6) & 1) {
         if (ctrl & 1) {
             for (i = 0; i < 8; i++, res >>= 1) {
-                d->W(i) = (res & 1) ? ~0 : 0;
+                env->xmm_regs[0].W(i) = (res & 1) ? ~0 : 0;
             }
         } else {
             for (i = 0; i < 16; i++, res >>= 1) {
-                d->B(i) = (res & 1) ? ~0 : 0;
+                env->xmm_regs[0].B(i) = (res & 1) ? ~0 : 0;
             }
         }
     } else {
-        d->Q(1) = 0;
-        d->Q(0) = res;
+        env->xmm_regs[0].Q(1) = 0;
+        env->xmm_regs[0].Q(0) = res;
     }
 }
 
