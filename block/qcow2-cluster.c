@@ -875,13 +875,9 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
  *          newly allocated cluster.
  *
  *  -errno: in error cases
- *
- * TODO Get rid of n_start, n_end
- * TODO Make *bytes actually behave as specified above
  */
 static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m,
-    int n_start, int n_end)
+    uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m)
 {
     BDRVQcowState *s = bs->opaque;
     int l2_index;
@@ -901,8 +897,11 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
      * Calculate the number of clusters to look for. We stop at L2 table
      * boundaries to keep things simple.
      */
+    nb_clusters =
+        size_to_clusters(s, offset_into_cluster(s, guest_offset) + *bytes);
+
     l2_index = offset_to_l2_index(s, guest_offset);
-    nb_clusters = MIN(size_to_clusters(s, *bytes), s->l2_size - l2_index);
+    nb_clusters = MIN(nb_clusters, s->l2_size - l2_index);
 
     /* Find L2 entry for the first involved cluster */
     ret = get_cluster_table(bs, guest_offset, &l2_table, &l2_index);
@@ -954,10 +953,13 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
          * newly allocated cluster to the end of the aread that the write
          * request actually writes to (excluding COW at the end)
          */
-        int requested_sectors = n_end;
+        int requested_sectors =
+            (*bytes + offset_into_cluster(s, guest_offset))
+            >> BDRV_SECTOR_BITS;
         int avail_sectors = nb_clusters
                             << (s->cluster_bits - BDRV_SECTOR_BITS);
-        int alloc_n_start = *host_offset == 0 ? n_start : 0;
+        int alloc_n_start = offset_into_cluster(s, guest_offset)
+                            >> BDRV_SECTOR_BITS;
         int nb_sectors = MIN(requested_sectors, avail_sectors);
 
         if (*host_offset == 0) {
@@ -984,7 +986,9 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
         qemu_co_queue_init(&(*m)->dependent_requests);
         QLIST_INSERT_HEAD(&s->cluster_allocs, *m, next_in_flight);
 
-        *bytes = nb_clusters * s->cluster_size;
+        *bytes = MIN(*bytes, (nb_sectors * BDRV_SECTOR_SIZE)
+                             - offset_into_cluster(s, guest_offset));
+        assert(*bytes != 0);
     } else {
         *bytes = 0;
         return 0;
@@ -1139,10 +1143,9 @@ again:
         alloc_n_end = n_end;
     }
 
-    cur_bytes = nb_clusters * s->cluster_size;
+    cur_bytes = MIN(cur_bytes, ((alloc_n_end - alloc_n_start) << BDRV_SECTOR_BITS));
 
-    ret = handle_alloc(bs, offset, &cluster_offset, &cur_bytes, m,
-                       alloc_n_start, alloc_n_end);
+    ret = handle_alloc(bs, offset, &cluster_offset, &cur_bytes, m);
     if (ret < 0) {
         return ret;
     }
@@ -1150,7 +1153,7 @@ again:
     if (!*host_offset) {
         *host_offset = cluster_offset;
     }
-    nb_clusters = size_to_clusters(s, cur_bytes);
+    nb_clusters = size_to_clusters(s, cur_bytes + offset_into_cluster(s, offset));
 
     /* Some cleanup work */
 done:

@@ -271,6 +271,11 @@ static inline int64_t start_of_cluster(BDRVQcowState *s, int64_t offset)
     return offset & ~(s->cluster_size - 1);
 }
 
+static inline int64_t offset_into_cluster(BDRVQcowState *s, int64_t offset)
+{
+    return offset & (s->cluster_size - 1);
+}
+
 static inline int size_to_clusters(BDRVQcowState *s, int64_t size)
 {
     return (size + (s->cluster_size - 1)) >> s->cluster_bits;
