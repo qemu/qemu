@@ -158,6 +158,9 @@ typedef enum S390Opcode {
     RRE_SLBGR   = 0xb989,
     RRE_XGR     = 0xb982,
 
+    RRF_LOCR    = 0xb9f2,
+    RRF_LOCGR   = 0xb9e2,
+
     RR_AR       = 0x1a,
     RR_ALR      = 0x1e,
     RR_BASR     = 0x0d,
@@ -342,6 +345,7 @@ static uint8_t *tb_ret_addr;
 #define FACILITY_LONG_DISP	(1ULL << (63 - 18))
 #define FACILITY_EXT_IMM	(1ULL << (63 - 21))
 #define FACILITY_GEN_INST_EXT	(1ULL << (63 - 34))
+#define FACILITY_LOAD_ON_COND   (1ULL << (63 - 45))
 
 static uint64_t facilities;
 
@@ -636,6 +640,12 @@ static void tcg_out_insn_RRE(TCGContext *s, S390Opcode op,
                              TCGReg r1, TCGReg r2)
 {
     tcg_out32(s, (op << 16) | (r1 << 4) | r2);
+}
+
+static void tcg_out_insn_RRF(TCGContext *s, S390Opcode op,
+                             TCGReg r1, TCGReg r2, int m3)
+{
+    tcg_out32(s, (op << 16) | (m3 << 12) | (r1 << 4) | r2);
 }
 
 static void tcg_out_insn_RI(TCGContext *s, S390Opcode op, TCGReg r1, int i2)
@@ -1169,14 +1179,31 @@ static int tgen_cmp(TCGContext *s, TCGType type, TCGCond c, TCGReg r1,
 }
 
 static void tgen_setcond(TCGContext *s, TCGType type, TCGCond c,
-                         TCGReg dest, TCGReg r1, TCGArg c2, int c2const)
+                         TCGReg dest, TCGReg c1, TCGArg c2, int c2const)
 {
-    int cc = tgen_cmp(s, type, c, r1, c2, c2const);
+    int cc = tgen_cmp(s, type, c, c1, c2, c2const);
 
     /* Emit: r1 = 1; if (cc) goto over; r1 = 0; over:  */
     tcg_out_movi(s, type, dest, 1);
     tcg_out_insn(s, RI, BRC, cc, (4 + 4) >> 1);
     tcg_out_movi(s, type, dest, 0);
+}
+
+static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
+                         TCGReg c1, TCGArg c2, int c2const, TCGReg r3)
+{
+    int cc;
+    if (facilities & FACILITY_LOAD_ON_COND) {
+        cc = tgen_cmp(s, type, c, c1, c2, c2const);
+        tcg_out_insn(s, RRF, LOCGR, dest, r3, cc);
+    } else {
+        c = tcg_invert_cond(c);
+        cc = tgen_cmp(s, type, c, c1, c2, c2const);
+
+        /* Emit: if (cc) goto over; dest = r3; over:  */
+        tcg_out_insn(s, RI, BRC, cc, (4 + 4) >> 1);
+        tcg_out_insn(s, RRE, LGR, dest, r3);
+    }
 }
 
 static void tgen_gotoi(TCGContext *s, int cc, tcg_target_long dest)
@@ -1855,6 +1882,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tgen_setcond(s, TCG_TYPE_I32, args[3], args[0], args[1],
                      args[2], const_args[2]);
         break;
+    case INDEX_op_movcond_i32:
+        tgen_movcond(s, TCG_TYPE_I32, args[5], args[0], args[1],
+                     args[2], const_args[2], args[3]);
+        break;
 
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, LD_UINT8);
@@ -2060,6 +2091,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tgen_setcond(s, TCG_TYPE_I64, args[3], args[0], args[1],
                      args[2], const_args[2]);
         break;
+    case INDEX_op_movcond_i64:
+        tgen_movcond(s, TCG_TYPE_I64, args[5], args[0], args[1],
+                     args[2], const_args[2], args[3]);
+        break;
 
     case INDEX_op_qemu_ld32u:
         tcg_out_qemu_ld(s, args, LD_UINT32);
@@ -2125,6 +2160,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
 
     { INDEX_op_brcond_i32, { "r", "rWC" } },
     { INDEX_op_setcond_i32, { "r", "r", "rWC" } },
+    { INDEX_op_movcond_i32, { "r", "r", "rWC", "r", "0" } },
 
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },
@@ -2191,6 +2227,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
 
     { INDEX_op_brcond_i64, { "r", "rC" } },
     { INDEX_op_setcond_i64, { "r", "r", "rC" } },
+    { INDEX_op_movcond_i64, { "r", "r", "rC", "r", "0" } },
 
     { INDEX_op_qemu_ld32u, { "r", "L" } },
     { INDEX_op_qemu_ld32s, { "r", "L" } },
