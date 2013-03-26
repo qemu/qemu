@@ -1152,8 +1152,10 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
     size = bdrv_getlength(bs->file);
     nb_clusters = size_to_clusters(s, size);
-    res->bfi.total_clusters = nb_clusters;
     refcount_table = g_malloc0(nb_clusters * sizeof(uint16_t));
+
+    res->bfi.total_clusters =
+        size_to_clusters(s, bs->total_sectors * BDRV_SECTOR_SIZE);
 
     /* header */
     inc_refcounts(bs, res, refcount_table, nb_clusters,
