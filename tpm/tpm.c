@@ -257,14 +257,13 @@ static TPMInfo *qmp_query_tpm_inst(TPMBackend *drv)
 
     res->id = g_strdup(drv->id);
     res->model = drv->fe_model;
-    res->type = drv->ops->type;
-    res->tpm_options = g_new0(TpmTypeOptions, 1);
+    res->options = g_new0(TpmTypeOptions, 1);
 
-    switch (res->type) {
+    switch (drv->ops->type) {
     case TPM_TYPE_PASSTHROUGH:
-        res->tpm_options->kind = TPM_TYPE_OPTIONS_KIND_TPM_PASSTHROUGH_OPTIONS;
+        res->options->kind = TPM_TYPE_OPTIONS_KIND_PASSTHROUGH;
         tpo = g_new0(TPMPassthroughOptions, 1);
-        res->tpm_options->tpm_passthrough_options = tpo;
+        res->options->passthrough = tpo;
         if (drv->path) {
             tpo->path = g_strdup(drv->path);
             tpo->has_path = true;

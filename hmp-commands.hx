@@ -1643,6 +1643,8 @@ show qdev device model list
 show roms
 @item info tpm
 show the TPM device
+@item info cpu_max
+show the number of CPUs supported by the machine being emulated.
 @end table
 ETEXI
 

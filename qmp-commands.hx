@@ -385,6 +385,28 @@ Note: CPUs' indexes are obtained with the 'query-cpus' command.
 EQMP
 
     {
+        .name       = "query-cpu-max",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_cpu_max,
+    },
+
+SQMP
+query-cpu-max
+-------------
+
+Get the maximum CPUs supported by the machine being currently
+emulated.
+
+Returns json-int.
+
+Example:
+
+-> { "execute": "query-cpu-max" }
+<- { "return": 255 }
+
+EQMP
+
+    {
         .name       = "memsave",
         .args_type  = "val:l,size:i,filename:s,cpu:i?",
         .mhandler.cmd_new = qmp_marshal_input_memsave,
@@ -2721,17 +2743,75 @@ EQMP
         .mhandler.cmd_new = qmp_marshal_input_query_tpm,
     },
 
+SQMP
+query-tpm
+---------
+
+Return information about the TPM device.
+
+Arguments: None
+
+Example:
+
+-> { "execute": "query-tpm" }
+<- { "return":
+     [
+       { "model": "tpm-tis",
+         "options":
+           { "type": "passthrough",
+             "data":
+               { "cancel-path": "/sys/class/misc/tpm0/device/cancel",
+                 "path": "/dev/tpm0"
+               }
+           },
+         "id": "tpm0"
+       }
+     ]
+   }
+
+EQMP
+
     {
         .name       = "query-tpm-models",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_tpm_models,
     },
 
+SQMP
+query-tpm-models
+----------------
+
+Return a list of supported TPM models.
+
+Arguments: None
+
+Example:
+
+-> { "execute": "query-tpm-models" }
+<- { "return": [ "tpm-tis" ] }
+
+EQMP
+
     {
         .name       = "query-tpm-types",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_tpm_types,
     },
+
+SQMP
+query-tpm-types
+---------------
+
+Return a list of supported TPM types.
+
+Arguments: None
+
+Example:
+
+-> { "execute": "query-tpm-types" }
+<- { "return": [ "passthrough" ] }
+
+EQMP
 
     {
         .name       = "chardev-add",
