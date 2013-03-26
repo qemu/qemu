@@ -74,7 +74,7 @@ static void guest_open(VirtIOSerialPort *port)
     if (!vcon->chr) {
         return;
     }
-    qemu_chr_fe_open(vcon->chr);
+    qemu_chr_fe_set_open(vcon->chr, 1);
 }
 
 /* Callback function that's called when the guest closes the port */
@@ -85,7 +85,7 @@ static void guest_close(VirtIOSerialPort *port)
     if (!vcon->chr) {
         return;
     }
-    qemu_chr_fe_close(vcon->chr);
+    qemu_chr_fe_set_open(vcon->chr, 0);
 }
 
 /* Readiness of the guest to accept data on a port */

@@ -238,11 +238,7 @@ void qemu_chr_add_handlers(CharDriverState *s,
         s->chr_update_read_handler(s);
 
     if (!s->explicit_fe_open) {
-        if (fe_open) {
-            qemu_chr_fe_open(s);
-        } else {
-            qemu_chr_fe_close(s);
-        }
+        qemu_chr_fe_set_open(s, fe_open);
     }
 
     /* We're connecting to an already opened device, so let's make sure we
@@ -3423,24 +3419,16 @@ void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo)
     }
 }
 
-void qemu_chr_fe_open(struct CharDriverState *chr)
+void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open)
 {
-    if (chr->fe_open) {
+    if (chr->fe_open == fe_open) {
         return;
     }
-    chr->fe_open = 1;
-    if (chr->chr_guest_open) {
+    chr->fe_open = fe_open;
+    if (fe_open && chr->chr_guest_open) {
         chr->chr_guest_open(chr);
     }
-}
-
-void qemu_chr_fe_close(struct CharDriverState *chr)
-{
-    if (!chr->fe_open) {
-        return;
-    }
-    chr->fe_open = 0;
-    if (chr->chr_guest_close) {
+    if (!fe_open && chr->chr_guest_close) {
         chr->chr_guest_close(chr);
     }
 }

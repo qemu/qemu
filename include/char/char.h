@@ -129,21 +129,12 @@ void qemu_chr_delete(CharDriverState *chr);
 void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo);
 
 /**
- * @qemu_chr_fe_open:
+ * @qemu_chr_fe_set_open:
  *
- * Open a character backend.  This function call is an indication that the
- * front end is ready to begin doing I/O.
+ * Set character frontend open status.  This is an indication that the
+ * front end is ready (or not) to begin doing I/O.
  */
-void qemu_chr_fe_open(struct CharDriverState *chr);
-
-/**
- * @qemu_chr_fe_close:
- *
- * Close a character backend.  This function call indicates that the front end
- * no longer is able to process I/O.  To process I/O again, the front end will
- * call @qemu_chr_fe_open.
- */
-void qemu_chr_fe_close(struct CharDriverState *chr);
+void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open);
 
 /**
  * @qemu_chr_fe_printf:
