@@ -340,7 +340,13 @@ ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
     unsigned long nr = base + (start >> TARGET_PAGE_BITS);
     unsigned long size = base + (int128_get64(mr->size) >> TARGET_PAGE_BITS);
 
-    unsigned long next = find_next_bit(migration_bitmap, size, nr);
+    unsigned long next;
+
+    if (ram_bulk_stage && nr > base) {
+        next = nr + 1;
+    } else {
+        next = find_next_bit(migration_bitmap, size, nr);
+    }
 
     if (next < size) {
         clear_bit(next, migration_bitmap);
