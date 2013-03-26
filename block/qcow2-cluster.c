@@ -831,23 +831,34 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
  *
  *  -errno: in error cases
  *
- * TODO Get rid of keep_clusters, nb_clusters parameters
+ * TODO Get rid of keep_clusters parameter
  * TODO Make bytes behave like described above
  * TODO Make non-zero host_offset behave like describe above
  */
 static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
     uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m,
-    unsigned int *keep_clusters, unsigned int *nb_clusters)
+    unsigned int *keep_clusters)
 {
     BDRVQcowState *s = bs->opaque;
     int l2_index;
     uint64_t cluster_offset;
     uint64_t *l2_table;
+    unsigned int nb_clusters;
     int ret, pret;
 
     trace_qcow2_handle_copied(qemu_coroutine_self(), guest_offset, *host_offset,
                               *bytes);
     assert(*host_offset == 0);
+
+    /*
+     * Calculate the number of clusters to look for. We stop at L2 table
+     * boundaries to keep things simple.
+     */
+    nb_clusters =
+        size_to_clusters(s, offset_into_cluster(s, guest_offset) + *bytes);
+
+    l2_index = offset_to_l2_index(s, guest_offset);
+    nb_clusters = MIN(nb_clusters, s->l2_size - l2_index);
 
     /* Find L2 entry for the first involved cluster */
     ret = get_cluster_table(bs, guest_offset, &l2_table, &l2_index);
@@ -863,11 +874,10 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
     {
         /* We keep all QCOW_OFLAG_COPIED clusters */
         *keep_clusters =
-            count_contiguous_clusters(*nb_clusters, s->cluster_size,
+            count_contiguous_clusters(nb_clusters, s->cluster_size,
                                       &l2_table[l2_index], 0,
                                       QCOW_OFLAG_COPIED | QCOW_OFLAG_ZERO);
-        assert(*keep_clusters <= *nb_clusters);
-        *nb_clusters -= *keep_clusters;
+        assert(*keep_clusters <= nb_clusters);
 
         ret = 1;
     } else {
@@ -1159,10 +1169,12 @@ again:
      */
     uint64_t tmp_bytes = cur_bytes;
     ret = handle_copied(bs, offset, &cluster_offset, &tmp_bytes, m,
-                        &keep_clusters, &nb_clusters);
+                        &keep_clusters);
     if (ret < 0) {
         return ret;
     } else if (ret) {
+        nb_clusters -= keep_clusters;
+
         if (!*host_offset) {
             *host_offset = cluster_offset;
         }
