@@ -136,9 +136,11 @@ static void release_chr(Object *obj, const char *name, void *opaque)
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+    CharDriverState *chr = *ptr;
 
-    if (*ptr) {
-        qemu_chr_add_handlers(*ptr, NULL, NULL, NULL, NULL);
+    if (chr) {
+        qemu_chr_add_handlers(chr, NULL, NULL, NULL, NULL);
+        ++chr->avail_connections;
     }
 }
 
