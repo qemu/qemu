@@ -946,10 +946,7 @@ again:
 
     cluster_offset = be64_to_cpu(l2_table[l2_index]);
 
-    /*
-     * Check how many clusters are already allocated and don't need COW, and how
-     * many need a new allocation.
-     */
+    /* Check how many clusters are already allocated and don't need COW */
     if (qcow2_get_cluster_type(cluster_offset) == QCOW2_CLUSTER_NORMAL
         && (cluster_offset & QCOW_OFLAG_COPIED))
     {
@@ -963,17 +960,6 @@ again:
     } else {
         keep_clusters = 0;
         cluster_offset = 0;
-    }
-
-    if (nb_clusters > 0) {
-        /* For the moment, overwrite compressed clusters one by one */
-        uint64_t entry = be64_to_cpu(l2_table[l2_index + keep_clusters]);
-        if (entry & QCOW_OFLAG_COMPRESSED) {
-            nb_clusters = 1;
-        } else {
-            nb_clusters = count_cow_clusters(s, nb_clusters, l2_table,
-                                             l2_index + keep_clusters);
-        }
     }
 
     cluster_offset &= L2E_OFFSET_MASK;
@@ -995,6 +981,25 @@ again:
         uint64_t alloc_offset;
         uint64_t alloc_cluster_offset;
         uint64_t keep_bytes = keep_clusters * s->cluster_size;
+
+        ret = get_cluster_table(bs, offset, &l2_table, &l2_index);
+        if (ret < 0) {
+            return ret;
+        }
+
+        /* For the moment, overwrite compressed clusters one by one */
+        uint64_t entry = be64_to_cpu(l2_table[l2_index + keep_clusters]);
+        if (entry & QCOW_OFLAG_COMPRESSED) {
+            nb_clusters = 1;
+        } else {
+            nb_clusters = count_cow_clusters(s, nb_clusters, l2_table,
+                                             l2_index + keep_clusters);
+        }
+
+        ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+        if (ret < 0) {
+            return ret;
+        }
 
         /* Calculate start and size of allocation */
         alloc_offset = offset + keep_bytes;
