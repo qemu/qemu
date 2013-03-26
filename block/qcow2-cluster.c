@@ -831,19 +831,17 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
  *
  *  -errno: in error cases
  *
- * TODO Get rid of keep_clusters parameter
- * TODO Make bytes behave like described above
  * TODO Make non-zero host_offset behave like describe above
  */
 static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m,
-    unsigned int *keep_clusters)
+    uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m)
 {
     BDRVQcowState *s = bs->opaque;
     int l2_index;
     uint64_t cluster_offset;
     uint64_t *l2_table;
     unsigned int nb_clusters;
+    unsigned int keep_clusters;
     int ret, pret;
 
     trace_qcow2_handle_copied(qemu_coroutine_self(), guest_offset, *host_offset,
@@ -873,17 +871,19 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
         && (cluster_offset & QCOW_OFLAG_COPIED))
     {
         /* We keep all QCOW_OFLAG_COPIED clusters */
-        *keep_clusters =
+        keep_clusters =
             count_contiguous_clusters(nb_clusters, s->cluster_size,
                                       &l2_table[l2_index], 0,
                                       QCOW_OFLAG_COPIED | QCOW_OFLAG_ZERO);
-        assert(*keep_clusters <= nb_clusters);
+        assert(keep_clusters <= nb_clusters);
+
+        *bytes = MIN(*bytes,
+                 keep_clusters * s->cluster_size
+                 - offset_into_cluster(s, guest_offset));
 
         ret = 1;
     } else {
-        *keep_clusters = 0;
         cluster_offset = 0;
-
         ret = 0;
     }
 
@@ -1168,16 +1168,19 @@ again:
      *    TODO: Consider cluster_offset if set in step 1c.
      */
     uint64_t tmp_bytes = cur_bytes;
-    ret = handle_copied(bs, offset, &cluster_offset, &tmp_bytes, m,
-                        &keep_clusters);
+    ret = handle_copied(bs, offset, &cluster_offset, &tmp_bytes, m);
     if (ret < 0) {
         return ret;
     } else if (ret) {
+        keep_clusters =
+            size_to_clusters(s, tmp_bytes + offset_into_cluster(s, offset));
         nb_clusters -= keep_clusters;
 
         if (!*host_offset) {
             *host_offset = cluster_offset;
         }
+    } else {
+        keep_clusters = 0;
     }
 
     /* If there is something left to allocate, do that now */
