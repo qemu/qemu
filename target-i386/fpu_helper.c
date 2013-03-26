@@ -20,6 +20,7 @@
 #include <math.h>
 #include "cpu.h"
 #include "helper.h"
+#include "qemu/host-utils.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "exec/softmmu_exec.h"

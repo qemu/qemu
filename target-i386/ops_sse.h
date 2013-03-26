@@ -2064,34 +2064,6 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
     return res;
 }
 
-static inline int rffs1(unsigned int val)
-{
-    int ret = 1, hi;
-
-    for (hi = sizeof(val) * 4; hi; hi /= 2) {
-        if (val >> hi) {
-            val >>= hi;
-            ret += hi;
-        }
-    }
-
-    return ret;
-}
-
-static inline int ffs1(unsigned int val)
-{
-    int ret = 1, hi;
-
-    for (hi = sizeof(val) * 4; hi; hi /= 2) {
-        if (val << hi) {
-            val <<= hi;
-            ret += hi;
-        }
-    }
-
-    return ret;
-}
-
 void glue(helper_pcmpestri, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                     uint32_t ctrl)
 {
@@ -2100,7 +2072,7 @@ void glue(helper_pcmpestri, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                  pcmp_elen(env, R_EAX, ctrl));
 
     if (res) {
-        env->regs[R_ECX] = (ctrl & (1 << 6)) ? rffs1(res) - 1 : 32 - ffs1(res);
+        env->regs[R_ECX] = (ctrl & (1 << 6)) ? 31 - clz32(res) : ctz32(res);
     } else {
         env->regs[R_ECX] = 16 >> (ctrl & (1 << 0));
     }
@@ -2138,7 +2110,7 @@ void glue(helper_pcmpistri, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                  pcmp_ilen(d, ctrl));
 
     if (res) {
-        env->regs[R_ECX] = (ctrl & (1 << 6)) ? rffs1(res) - 1 : 32 - ffs1(res);
+        env->regs[R_ECX] = (ctrl & (1 << 6)) ? 31 - clz32(res) : ctz32(res);
     } else {
         env->regs[R_ECX] = 16 >> (ctrl & (1 << 0));
     }
