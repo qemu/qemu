@@ -2099,7 +2099,7 @@ void glue(helper_pcmpestri, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                  pcmp_elen(env, R_EAX, ctrl));
 
     if (res) {
-        env->regs[R_ECX] = ((ctrl & (1 << 6)) ? rffs1 : ffs1)(res) - 1;
+        env->regs[R_ECX] = (ctrl & (1 << 6)) ? rffs1(res) - 1 : 32 - ffs1(res);
     } else {
         env->regs[R_ECX] = 16 >> (ctrl & (1 << 0));
     }
@@ -2137,7 +2137,7 @@ void glue(helper_pcmpistri, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                  pcmp_ilen(d, ctrl));
 
     if (res) {
-        env->regs[R_ECX] = ((ctrl & (1 << 6)) ? rffs1 : ffs1)(res) - 1;
+        env->regs[R_ECX] = (ctrl & (1 << 6)) ? rffs1(res) - 1 : 32 - ffs1(res);
     } else {
         env->regs[R_ECX] = 16 >> (ctrl & (1 << 0));
     }
