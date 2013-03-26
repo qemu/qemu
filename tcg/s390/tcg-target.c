@@ -2302,17 +2302,24 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
 
     tcg_add_target_add_op_defs(s390_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
+    tcg_target_long frame_size;
+
     /* stmg %r6,%r15,48(%r15) (save registers) */
     tcg_out_insn(s, RXY, STMG, TCG_REG_R6, TCG_REG_R15, TCG_REG_R15, 48);
 
-    /* aghi %r15,-160 (stack frame) */
-    tcg_out_insn(s, RI, AGHI, TCG_REG_R15, -160);
+    /* aghi %r15,-frame_size */
+    frame_size = TCG_TARGET_CALL_STACK_OFFSET;
+    frame_size += TCG_STATIC_CALL_ARGS_SIZE;
+    frame_size += CPU_TEMP_BUF_NLONGS * sizeof(long);
+    tcg_out_insn(s, RI, AGHI, TCG_REG_R15, -frame_size);
+
+    tcg_set_frame(s, TCG_REG_CALL_STACK,
+                  TCG_STATIC_CALL_ARGS_SIZE + TCG_TARGET_CALL_STACK_OFFSET,
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 
     if (GUEST_BASE >= 0x80000) {
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, GUEST_BASE);
@@ -2325,8 +2332,9 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     tb_ret_addr = s->code_ptr;
 
-    /* lmg %r6,%r15,208(%r15) (restore registers) */
-    tcg_out_insn(s, RXY, LMG, TCG_REG_R6, TCG_REG_R15, TCG_REG_R15, 208);
+    /* lmg %r6,%r15,fs+48(%r15) (restore registers) */
+    tcg_out_insn(s, RXY, LMG, TCG_REG_R6, TCG_REG_R15, TCG_REG_R15,
+                 frame_size + 48);
 
     /* br %r14 (return) */
     tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_R14);

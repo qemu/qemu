@@ -100,7 +100,7 @@ typedef enum TCGReg {
 /* used for function call generation */
 #define TCG_REG_CALL_STACK		TCG_REG_R15
 #define TCG_TARGET_STACK_ALIGN		8
-#define TCG_TARGET_CALL_STACK_OFFSET	0
+#define TCG_TARGET_CALL_STACK_OFFSET	160
 
 #define TCG_TARGET_EXTEND_ARGS 1
 
