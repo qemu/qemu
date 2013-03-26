@@ -95,6 +95,7 @@ struct PCIExpressDevice {
 
 /* PCI express capability helper functions */
 int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port);
+int pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset);
 void pcie_cap_exit(PCIDevice *dev);
 uint8_t pcie_cap_get_type(const PCIDevice *dev);
 void pcie_cap_flags_set_vector(PCIDevice *dev, uint8_t vector);

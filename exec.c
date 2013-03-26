@@ -925,6 +925,8 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
     RAMBlock *block, *next_block;
     ram_addr_t offset = RAM_ADDR_MAX, mingap = RAM_ADDR_MAX;
 
+    assert(size != 0); /* it would hand out same offset multiple times */
+
     if (QTAILQ_EMPTY(&ram_list.blocks))
         return 0;
 

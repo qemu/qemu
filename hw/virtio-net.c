@@ -528,13 +528,14 @@ static int virtio_net_handle_vlan_table(VirtIONet *n, uint8_t cmd,
 }
 
 static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
-                                VirtQueueElement *elem)
+                                struct iovec *iov, unsigned int iov_cnt)
 {
-    struct virtio_net_ctrl_mq s;
+    struct virtio_net_ctrl_mq mq;
+    size_t s;
+    uint16_t queues;
 
-    if (elem->out_num != 2 ||
-        elem->out_sg[1].iov_len != sizeof(struct virtio_net_ctrl_mq)) {
-        error_report("virtio-net ctrl invalid steering command");
+    s = iov_to_buf(iov, iov_cnt, 0, &mq, sizeof(mq));
+    if (s != sizeof(mq)) {
         return VIRTIO_NET_ERR;
     }
 
@@ -542,16 +543,16 @@ static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
         return VIRTIO_NET_ERR;
     }
 
-    memcpy(&s, elem->out_sg[1].iov_base, sizeof(struct virtio_net_ctrl_mq));
+    queues = lduw_p(&mq.virtqueue_pairs);
 
-    if (s.virtqueue_pairs < VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN ||
-        s.virtqueue_pairs > VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX ||
-        s.virtqueue_pairs > n->max_queues ||
+    if (queues < VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN ||
+        queues > VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX ||
+        queues > n->max_queues ||
         !n->multiqueue) {
         return VIRTIO_NET_ERR;
     }
 
-    n->curr_queues = s.virtqueue_pairs;
+    n->curr_queues = queues;
     /* stop the backend before changing the number of queues to avoid handling a
      * disabled queue */
     virtio_net_set_status(&n->vdev, n->vdev.status);
@@ -589,7 +590,7 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         } else if (ctrl.class == VIRTIO_NET_CTRL_VLAN) {
             status = virtio_net_handle_vlan_table(n, ctrl.cmd, iov, iov_cnt);
         } else if (ctrl.class == VIRTIO_NET_CTRL_MQ) {
-            status = virtio_net_handle_mq(n, ctrl.cmd, &elem);
+            status = virtio_net_handle_mq(n, ctrl.cmd, iov, iov_cnt);
         }
 
         s = iov_from_buf(elem.in_sg, elem.in_num, 0, &status, sizeof(status));

@@ -75,6 +75,11 @@ static const TypeInfo pci_bus_info = {
     .class_init = pci_bus_class_init,
 };
 
+static const TypeInfo pcie_bus_info = {
+    .name = TYPE_PCIE_BUS,
+    .parent = TYPE_PCI_BUS,
+};
+
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num);
 static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
@@ -292,13 +297,23 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
 
+bool pci_bus_is_express(PCIBus *bus)
+{
+    return object_dynamic_cast(OBJECT(bus), TYPE_PCIE_BUS);
+}
+
+bool pci_bus_is_root(PCIBus *bus)
+{
+    return !bus->parent_dev;
+}
+
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
-                         uint8_t devfn_min)
+                         uint8_t devfn_min, const char *typename)
 {
-    qbus_create_inplace(bus, TYPE_PCI_BUS, parent, name);
+    qbus_create_inplace(bus, typename, parent, name);
     pci_bus_init(bus, parent, name, address_space_mem,
                  address_space_io, devfn_min);
 }
@@ -306,11 +321,11 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
 PCIBus *pci_bus_new(DeviceState *parent, const char *name,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
-                    uint8_t devfn_min)
+                    uint8_t devfn_min, const char *typename)
 {
     PCIBus *bus;
 
-    bus = PCI_BUS(qbus_create(TYPE_PCI_BUS, parent, name));
+    bus = PCI_BUS(qbus_create(typename, parent, name));
     pci_bus_init(bus, parent, name, address_space_mem,
                  address_space_io, devfn_min);
     return bus;
@@ -338,19 +353,19 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          void *irq_opaque,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
-                         uint8_t devfn_min, int nirq)
+                         uint8_t devfn_min, int nirq, const char *typename)
 {
     PCIBus *bus;
 
     bus = pci_bus_new(parent, name, address_space_mem,
-                      address_space_io, devfn_min);
+                      address_space_io, devfn_min, typename);
     pci_bus_irqs(bus, set_irq, map_irq, irq_opaque, nirq);
     return bus;
 }
 
 int pci_bus_num(PCIBus *s)
 {
-    if (!s->parent_dev)
+    if (pci_bus_is_root(s))
         return 0;       /* pci host bridge */
     return s->parent_dev->config[PCI_SECONDARY_BUS];
 }
@@ -668,12 +683,10 @@ static void pci_init_mask_bridge(PCIDevice *d)
     pci_word_test_and_set_mask(d->config + PCI_PREF_MEMORY_LIMIT,
                                PCI_PREF_RANGE_TYPE_64);
 
-/* TODO: add this define to pci_regs.h in linux and then in qemu. */
-#define  PCI_BRIDGE_CTL_VGA_16BIT	0x10	/* VGA 16-bit decode */
-#define  PCI_BRIDGE_CTL_DISCARD		0x100	/* Primary discard timer */
-#define  PCI_BRIDGE_CTL_SEC_DISCARD	0x200	/* Secondary discard timer */
-#define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
-#define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
+    /*
+     * TODO: Bridges default to 10-bit VGA decoding but we currently only
+     * implement 16-bit decoding (no alias support).
+     */
     pci_set_word(d->wmask + PCI_BRIDGE_CONTROL,
                  PCI_BRIDGE_CTL_PARITY |
                  PCI_BRIDGE_CTL_SERR |
@@ -875,6 +888,8 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
             continue;
         memory_region_del_subregion(r->address_space, r->memory);
     }
+
+    pci_unregister_vga(pci_dev);
 }
 
 static int pci_unregister_device(DeviceState *dev)
@@ -935,6 +950,63 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         = type & PCI_BASE_ADDRESS_SPACE_IO
         ? pci_dev->bus->address_space_io
         : pci_dev->bus->address_space_mem;
+}
+
+static void pci_update_vga(PCIDevice *pci_dev)
+{
+    uint16_t cmd;
+
+    if (!pci_dev->has_vga) {
+        return;
+    }
+
+    cmd = pci_get_word(pci_dev->config + PCI_COMMAND);
+
+    memory_region_set_enabled(pci_dev->vga_regions[QEMU_PCI_VGA_MEM],
+                              cmd & PCI_COMMAND_MEMORY);
+    memory_region_set_enabled(pci_dev->vga_regions[QEMU_PCI_VGA_IO_LO],
+                              cmd & PCI_COMMAND_IO);
+    memory_region_set_enabled(pci_dev->vga_regions[QEMU_PCI_VGA_IO_HI],
+                              cmd & PCI_COMMAND_IO);
+}
+
+void pci_register_vga(PCIDevice *pci_dev, MemoryRegion *mem,
+                      MemoryRegion *io_lo, MemoryRegion *io_hi)
+{
+    assert(!pci_dev->has_vga);
+
+    assert(memory_region_size(mem) == QEMU_PCI_VGA_MEM_SIZE);
+    pci_dev->vga_regions[QEMU_PCI_VGA_MEM] = mem;
+    memory_region_add_subregion_overlap(pci_dev->bus->address_space_mem,
+                                        QEMU_PCI_VGA_MEM_BASE, mem, 1);
+
+    assert(memory_region_size(io_lo) == QEMU_PCI_VGA_IO_LO_SIZE);
+    pci_dev->vga_regions[QEMU_PCI_VGA_IO_LO] = io_lo;
+    memory_region_add_subregion_overlap(pci_dev->bus->address_space_io,
+                                        QEMU_PCI_VGA_IO_LO_BASE, io_lo, 1);
+
+    assert(memory_region_size(io_hi) == QEMU_PCI_VGA_IO_HI_SIZE);
+    pci_dev->vga_regions[QEMU_PCI_VGA_IO_HI] = io_hi;
+    memory_region_add_subregion_overlap(pci_dev->bus->address_space_io,
+                                        QEMU_PCI_VGA_IO_HI_BASE, io_hi, 1);
+    pci_dev->has_vga = true;
+
+    pci_update_vga(pci_dev);
+}
+
+void pci_unregister_vga(PCIDevice *pci_dev)
+{
+    if (!pci_dev->has_vga) {
+        return;
+    }
+
+    memory_region_del_subregion(pci_dev->bus->address_space_mem,
+                                pci_dev->vga_regions[QEMU_PCI_VGA_MEM]);
+    memory_region_del_subregion(pci_dev->bus->address_space_io,
+                                pci_dev->vga_regions[QEMU_PCI_VGA_IO_LO]);
+    memory_region_del_subregion(pci_dev->bus->address_space_io,
+                                pci_dev->vga_regions[QEMU_PCI_VGA_IO_HI]);
+    pci_dev->has_vga = false;
 }
 
 pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num)
@@ -1036,6 +1108,8 @@ static void pci_update_mappings(PCIDevice *d)
                                                 r->addr, r->memory, 1);
         }
     }
+
+    pci_update_vga(d);
 }
 
 static inline int pci_irq_disabled(PCIDevice *d)
@@ -1117,7 +1191,7 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
 /* Special hooks used by device assignment */
 void pci_bus_set_route_irq_fn(PCIBus *bus, pci_route_irq_fn route_intx_to_irq)
 {
-    assert(!bus->parent_dev);
+    assert(pci_bus_is_root(bus));
     bus->route_intx_to_irq = route_intx_to_irq;
 }
 
@@ -1156,9 +1230,10 @@ void pci_bus_fire_intx_routing_notifier(PCIBus *bus)
         if (dev && dev->intx_routing_notifier) {
             dev->intx_routing_notifier(dev);
         }
-        QLIST_FOREACH(sec, &bus->child, sibling) {
-            pci_bus_fire_intx_routing_notifier(sec);
-        }
+    }
+
+    QLIST_FOREACH(sec, &bus->child, sibling) {
+        pci_bus_fire_intx_routing_notifier(sec);
     }
 }
 
@@ -1581,7 +1656,7 @@ static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
     }
 
     /* Consider all bus numbers in range for the host pci bridge. */
-    if (bus->parent_dev &&
+    if (!pci_bus_is_root(bus) &&
         !pci_secondary_bus_in_range(bus->parent_dev, bus_num)) {
         return NULL;
     }
@@ -1589,7 +1664,7 @@ static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
     /* try child bus */
     for (; bus; bus = sec) {
         QLIST_FOREACH(sec, &bus->child, sibling) {
-            assert(sec->parent_dev);
+            assert(!pci_bus_is_root(sec));
             if (sec->parent_dev->config[PCI_SECONDARY_BUS] == bus_num) {
                 return sec;
             }
@@ -1852,7 +1927,12 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     size = get_image_size(path);
     if (size < 0) {
         error_report("%s: failed to find romfile \"%s\"",
-                     __FUNCTION__, pdev->romfile);
+                     __func__, pdev->romfile);
+        g_free(path);
+        return -1;
+    } else if (size == 0) {
+        error_report("%s: ignoring empty romfile \"%s\"",
+                     __func__, pdev->romfile);
         g_free(path);
         return -1;
     }
@@ -2171,6 +2251,7 @@ static const TypeInfo pci_device_type_info = {
 static void pci_register_types(void)
 {
     type_register_static(&pci_bus_info);
+    type_register_static(&pcie_bus_info);
     type_register_static(&pci_device_type_info);
 }
 

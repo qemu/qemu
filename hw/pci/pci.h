@@ -109,6 +109,20 @@ typedef struct PCIIORegion {
 #define PCI_ROM_SLOT 6
 #define PCI_NUM_REGIONS 7
 
+enum {
+    QEMU_PCI_VGA_MEM,
+    QEMU_PCI_VGA_IO_LO,
+    QEMU_PCI_VGA_IO_HI,
+    QEMU_PCI_VGA_NUM_REGIONS,
+};
+
+#define QEMU_PCI_VGA_MEM_BASE 0xa0000
+#define QEMU_PCI_VGA_MEM_SIZE 0x20000
+#define QEMU_PCI_VGA_IO_LO_BASE 0x3b0
+#define QEMU_PCI_VGA_IO_LO_SIZE 0xc
+#define QEMU_PCI_VGA_IO_HI_BASE 0x3c0
+#define QEMU_PCI_VGA_IO_HI_SIZE 0x20
+
 #include "hw/pci/pci_regs.h"
 
 /* PCI HEADER_TYPE */
@@ -235,6 +249,10 @@ struct PCIDevice {
     /* IRQ objects for the INTA-INTD pins.  */
     qemu_irq *irq;
 
+    /* Legacy PCI VGA regions */
+    MemoryRegion *vga_regions[QEMU_PCI_VGA_NUM_REGIONS];
+    bool has_vga;
+
     /* Current IRQ levels.  Used internally by the generic PCI code.  */
     uint8_t irq_state;
 
@@ -288,6 +306,9 @@ struct PCIDevice {
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
                       uint8_t attr, MemoryRegion *memory);
+void pci_register_vga(PCIDevice *pci_dev, MemoryRegion *mem,
+                      MemoryRegion *io_lo, MemoryRegion *io_hi);
+void pci_unregister_vga(PCIDevice *pci_dev);
 pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num);
 
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
@@ -319,15 +340,22 @@ typedef enum {
 
 typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev,
                               PCIHotplugState state);
+
+#define TYPE_PCI_BUS "PCI"
+#define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
+#define TYPE_PCIE_BUS "PCIE"
+
+bool pci_bus_is_express(PCIBus *bus);
+bool pci_bus_is_root(PCIBus *bus);
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
-                         uint8_t devfn_min);
+                         uint8_t devfn_min, const char *typename);
 PCIBus *pci_bus_new(DeviceState *parent, const char *name,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
-                    uint8_t devfn_min);
+                    uint8_t devfn_min, const char *typename);
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                   void *irq_opaque, int nirq);
 int pci_bus_get_irq_level(PCIBus *bus, int irq_num);
@@ -339,7 +367,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          void *irq_opaque,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
-                         uint8_t devfn_min, int nirq);
+                         uint8_t devfn_min, int nirq, const char *typename);
 void pci_bus_set_route_irq_fn(PCIBus *, pci_route_irq_fn);
 PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin);
 bool pci_intx_route_changed(PCIINTxRoute *old, PCIINTxRoute *new);

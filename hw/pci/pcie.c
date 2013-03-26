@@ -87,6 +87,22 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
     return pos;
 }
 
+int pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset)
+{
+    uint8_t type = PCI_EXP_TYPE_ENDPOINT;
+
+    /*
+     * Windows guests will report Code 10, device cannot start, if
+     * a regular Endpoint type is exposed on a root complex.  These
+     * should instead be Root Complex Integrated Endpoints.
+     */
+    if (pci_bus_is_express(dev->bus) && pci_bus_is_root(dev->bus)) {
+        type = PCI_EXP_TYPE_RC_END;
+    }
+
+    return pcie_cap_init(dev, offset, type, 0);
+}
+
 void pcie_cap_exit(PCIDevice *dev)
 {
     pci_del_capability(dev, PCI_CAP_ID_EXP, PCI_EXP_VER2_SIZEOF);
