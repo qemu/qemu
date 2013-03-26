@@ -215,6 +215,11 @@ bool buffer_is_zero(const void *buf, size_t len)
     long d0, d1, d2, d3;
     const long * const data = buf;
 
+    /* use vector optimized zero check if possible */
+    if (can_use_buffer_find_nonzero_offset(buf, len)) {
+        return buffer_find_nonzero_offset(buf, len) == len;
+    }
+
     assert(len % (4 * sizeof(long)) == 0);
     len /= sizeof(long);
 
