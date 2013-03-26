@@ -773,7 +773,7 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
         uint64_t old_start = old_alloc->offset >> s->cluster_bits;
         uint64_t old_end = old_start + old_alloc->nb_clusters;
 
-        if (end < old_start || start > old_end) {
+        if (end <= old_start || start >= old_end) {
             /* No intersection */
         } else {
             if (start < old_start) {
