@@ -146,19 +146,10 @@ int qemu_read_default_config_files(bool userconfig)
     return 0;
 }
 
-static int is_dup_page(uint8_t *page)
+static inline bool is_zero_page(uint8_t *p)
 {
-    VECTYPE *p = (VECTYPE *)page;
-    VECTYPE val = SPLAT(page);
-    int i;
-
-    for (i = 0; i < TARGET_PAGE_SIZE / sizeof(VECTYPE); i++) {
-        if (!ALL_EQ(val, p[i])) {
-            return 0;
-        }
-    }
-
-    return 1;
+    return buffer_find_nonzero_offset(p, TARGET_PAGE_SIZE) ==
+        TARGET_PAGE_SIZE;
 }
 
 /* struct contains XBZRLE cache and a static page
@@ -445,12 +436,12 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
 
             /* In doubt sent page as normal */
             bytes_sent = -1;
-            if (is_dup_page(p)) {
+            if (is_zero_page(p)) {
                 acct_info.dup_pages++;
                 bytes_sent = save_block_hdr(f, block, offset, cont,
                                             RAM_SAVE_FLAG_COMPRESS);
-                qemu_put_byte(f, *p);
-                bytes_sent += 1;
+                qemu_put_byte(f, 0);
+                bytes_sent++;
             } else if (migrate_use_xbzrle()) {
                 current_addr = block->offset + offset;
                 bytes_sent = save_xbzrle_page(f, p, current_addr, block,
