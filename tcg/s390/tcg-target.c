@@ -68,6 +68,7 @@
 typedef enum S390Opcode {
     RIL_AFI     = 0xc209,
     RIL_AGFI    = 0xc208,
+    RIL_ALFI    = 0xc20b,
     RIL_ALGFI   = 0xc20a,
     RIL_BRASL   = 0xc005,
     RIL_BRCL    = 0xc004,
@@ -89,6 +90,7 @@ typedef enum S390Opcode {
     RIL_NILF    = 0xc00b,
     RIL_OIHF    = 0xc00c,
     RIL_OILF    = 0xc00d,
+    RIL_SLFI    = 0xc205,
     RIL_XIHF    = 0xc006,
     RIL_XILF    = 0xc007,
 
@@ -125,6 +127,9 @@ typedef enum S390Opcode {
     RIE_CRJ     = 0xec76,
 
     RRE_AGR     = 0xb908,
+    RRE_ALGR    = 0xb90a,
+    RRE_ALCR    = 0xb998,
+    RRE_ALCGR   = 0xb988,
     RRE_CGR     = 0xb920,
     RRE_CLGR    = 0xb921,
     RRE_DLGR    = 0xb987,
@@ -147,9 +152,13 @@ typedef enum S390Opcode {
     RRE_NGR     = 0xb980,
     RRE_OGR     = 0xb981,
     RRE_SGR     = 0xb909,
+    RRE_SLGR    = 0xb90b,
+    RRE_SLBR    = 0xb999,
+    RRE_SLBGR   = 0xb989,
     RRE_XGR     = 0xb982,
 
     RR_AR       = 0x1a,
+    RR_ALR      = 0x1e,
     RR_BASR     = 0x0d,
     RR_BCR      = 0x07,
     RR_CLR      = 0x15,
@@ -161,6 +170,7 @@ typedef enum S390Opcode {
     RR_NR       = 0x14,
     RR_OR       = 0x16,
     RR_SR       = 0x1b,
+    RR_SLR      = 0x1f,
     RR_XR       = 0x17,
 
     RSY_RLL     = 0xeb1d,
@@ -1821,6 +1831,17 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_insn(s, RRE, LRVR, args[0], args[1]);
         break;
 
+    case INDEX_op_add2_i32:
+        /* ??? Make use of ALFI.  */
+        tcg_out_insn(s, RR, ALR, args[0], args[4]);
+        tcg_out_insn(s, RRE, ALCR, args[1], args[5]);
+        break;
+    case INDEX_op_sub2_i32:
+        /* ??? Make use of SLFI.  */
+        tcg_out_insn(s, RR, SLR, args[0], args[4]);
+        tcg_out_insn(s, RRE, SLBR, args[1], args[5]);
+        break;
+
     case INDEX_op_br:
         tgen_branch(s, S390_CC_ALWAYS, args[0]);
         break;
@@ -2016,6 +2037,17 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tgen_ext32u(s, args[0], args[1]);
         break;
 
+    case INDEX_op_add2_i64:
+        /* ??? Make use of ALGFI and SLGFI.  */
+        tcg_out_insn(s, RRE, ALGR, args[0], args[4]);
+        tcg_out_insn(s, RRE, ALCGR, args[1], args[5]);
+        break;
+    case INDEX_op_sub2_i64:
+        /* ??? Make use of ALGFI and SLGFI.  */
+        tcg_out_insn(s, RRE, SLGR, args[0], args[4]);
+        tcg_out_insn(s, RRE, SLBGR, args[1], args[5]);
+        break;
+
     case INDEX_op_brcond_i64:
         tgen_brcond(s, TCG_TYPE_I64, args[2], args[0],
                     args[1], const_args[1], args[3]);
@@ -2084,6 +2116,9 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_bswap16_i32, { "r", "r" } },
     { INDEX_op_bswap32_i32, { "r", "r" } },
 
+    { INDEX_op_add2_i32, { "r", "r", "0", "1", "r", "r" } },
+    { INDEX_op_sub2_i32, { "r", "r", "0", "1", "r", "r" } },
+
     { INDEX_op_brcond_i32, { "r", "rWC" } },
     { INDEX_op_setcond_i32, { "r", "r", "rWC" } },
 
@@ -2145,6 +2180,9 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_bswap16_i64, { "r", "r" } },
     { INDEX_op_bswap32_i64, { "r", "r" } },
     { INDEX_op_bswap64_i64, { "r", "r" } },
+
+    { INDEX_op_add2_i64, { "r", "r", "0", "1", "r", "r" } },
+    { INDEX_op_sub2_i64, { "r", "r", "0", "1", "r", "r" } },
 
     { INDEX_op_brcond_i64, { "r", "rC" } },
     { INDEX_op_setcond_i64, { "r", "r", "rC" } },
