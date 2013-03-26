@@ -4404,9 +4404,9 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     if (mod == 3)
                         gen_op_mov_TN_reg(OT_LONG, 0, rm);
                     else
-                        tcg_gen_qemu_ld8u(cpu_tmp0, cpu_A0,
+                        tcg_gen_qemu_ld8u(cpu_T[0], cpu_A0,
                                         (s->mem_index >> 2) - 1);
-                    tcg_gen_st8_tl(cpu_tmp0, cpu_env, offsetof(CPUX86State,
+                    tcg_gen_st8_tl(cpu_T[0], cpu_env, offsetof(CPUX86State,
                                             xmm_regs[reg].XMM_B(val & 15)));
                     break;
                 case 0x21: /* insertps */
