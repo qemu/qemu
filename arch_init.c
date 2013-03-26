@@ -183,6 +183,7 @@ int64_t xbzrle_cache_resize(int64_t new_size)
 /* accounting for migration statistics */
 typedef struct AccountingInfo {
     uint64_t dup_pages;
+    uint64_t skipped_pages;
     uint64_t norm_pages;
     uint64_t iterations;
     uint64_t xbzrle_bytes;
@@ -206,6 +207,16 @@ uint64_t dup_mig_bytes_transferred(void)
 uint64_t dup_mig_pages_transferred(void)
 {
     return acct_info.dup_pages;
+}
+
+uint64_t skipped_mig_bytes_transferred(void)
+{
+    return acct_info.skipped_pages * TARGET_PAGE_SIZE;
+}
+
+uint64_t skipped_mig_pages_transferred(void)
+{
+    return acct_info.skipped_pages;
 }
 
 uint64_t norm_mig_bytes_transferred(void)
@@ -440,10 +451,15 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
             bytes_sent = -1;
             if (is_zero_page(p)) {
                 acct_info.dup_pages++;
-                bytes_sent = save_block_hdr(f, block, offset, cont,
-                                            RAM_SAVE_FLAG_COMPRESS);
-                qemu_put_byte(f, 0);
-                bytes_sent++;
+                if (!ram_bulk_stage) {
+                    bytes_sent = save_block_hdr(f, block, offset, cont,
+                                                RAM_SAVE_FLAG_COMPRESS);
+                    qemu_put_byte(f, 0);
+                    bytes_sent++;
+                } else {
+                    acct_info.skipped_pages++;
+                    bytes_sent = 0;
+                }
             } else if (migrate_use_xbzrle()) {
                 current_addr = block->offset + offset;
                 bytes_sent = save_xbzrle_page(f, p, current_addr, block,
