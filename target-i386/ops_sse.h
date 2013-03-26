@@ -2025,7 +2025,7 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
         }
         break;
     case 2:
-        res = (2 << (upper - MAX(valids, validd))) - 1;
+        res = (1 << (upper - MAX(valids, validd))) - 1;
         res <<= MAX(valids, validd) - MIN(valids, validd);
         for (i = MIN(valids, validd); i >= 0; i--) {
             res <<= 1;
