@@ -824,15 +824,9 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
     uint64_t *host_offset, unsigned int *nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
-    int ret;
 
     trace_qcow2_do_alloc_clusters_offset(qemu_coroutine_self(), guest_offset,
                                          *host_offset, *nb_clusters);
-
-    ret = handle_dependencies(bs, guest_offset, nb_clusters);
-    if (ret < 0) {
-        return ret;
-    }
 
     /* Allocate new clusters */
     trace_qcow2_cluster_alloc_phys(qemu_coroutine_self());
@@ -845,7 +839,7 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
         *host_offset = cluster_offset;
         return 0;
     } else {
-        ret = qcow2_alloc_clusters_at(bs, *host_offset, *nb_clusters);
+        int ret = qcow2_alloc_clusters_at(bs, *host_offset, *nb_clusters);
         if (ret < 0) {
             return ret;
         }
@@ -885,19 +879,54 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
     trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset,
                                       n_start, n_end);
 
-    /* Find L2 entry for the first involved cluster */
 again:
-    ret = get_cluster_table(bs, offset, &l2_table, &l2_index);
-    if (ret < 0) {
-        return ret;
-    }
-
     /*
      * Calculate the number of clusters to look for. We stop at L2 table
      * boundaries to keep things simple.
      */
+    l2_index = offset_to_l2_index(s, offset);
     nb_clusters = MIN(size_to_clusters(s, n_end << BDRV_SECTOR_BITS),
                       s->l2_size - l2_index);
+
+    /*
+     * Now start gathering as many contiguous clusters as possible:
+     *
+     * 1. Check for overlaps with in-flight allocations
+     *
+     *      a) Overlap not in the first cluster -> shorten this request and let
+     *         the caller handle the rest in its next loop iteration.
+     *
+     *      b) Real overlaps of two requests. Yield and restart the search for
+     *         contiguous clusters (the situation could have changed while we
+     *         were sleeping)
+     *
+     *      c) TODO: Request starts in the same cluster as the in-flight
+     *         allocation ends. Shorten the COW of the in-fight allocation, set
+     *         cluster_offset to write to the same cluster and set up the right
+     *         synchronisation between the in-flight request and the new one.
+     *
+     * 2. Count contiguous COPIED clusters.
+     *    TODO: Consider cluster_offset if set in step 1c.
+     *
+     * 3. If the request still hasn't completed, allocate new clusters,
+     *    considering any cluster_offset of steps 1c or 2.
+     */
+    ret = handle_dependencies(bs, offset, &nb_clusters);
+    if (ret == -EAGAIN) {
+        goto again;
+    } else if (ret < 0) {
+        return ret;
+    } else {
+        /* handle_dependencies() may have decreased cur_bytes (shortened
+         * the allocations below) so that the next dependency is processed
+         * correctly during the next loop iteration. */
+    }
+
+    /* Find L2 entry for the first involved cluster */
+    ret = get_cluster_table(bs, offset, &l2_table, &l2_index);
+    if (ret < 0) {
+        return ret;
+    }
 
     cluster_offset = be64_to_cpu(l2_table[l2_index]);
 
@@ -963,9 +992,7 @@ again:
         /* Allocate, if necessary at a given offset in the image file */
         ret = do_alloc_cluster_offset(bs, alloc_offset, &alloc_cluster_offset,
                                       &nb_clusters);
-        if (ret == -EAGAIN) {
-            goto again;
-        } else if (ret < 0) {
+        if (ret < 0) {
             goto fail;
         }
 
