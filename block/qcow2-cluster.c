@@ -1069,10 +1069,13 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     int alloc_n_start = offset_into_cluster(s, guest_offset)
                         >> BDRV_SECTOR_BITS;
     int nb_sectors = MIN(requested_sectors, avail_sectors);
+    QCowL2Meta *old_m = *m;
 
     *m = g_malloc0(sizeof(**m));
 
     **m = (QCowL2Meta) {
+        .next           = old_m,
+
         .alloc_offset   = alloc_cluster_offset,
         .offset         = start_of_cluster(s, guest_offset),
         .nb_clusters    = nb_clusters,

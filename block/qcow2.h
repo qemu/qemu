@@ -250,6 +250,9 @@ typedef struct QCowL2Meta
      */
     Qcow2COWRegion cow_end;
 
+    /** Pointer to next L2Meta of the same write request */
+    struct QCowL2Meta *next;
+
     QLIST_ENTRY(QCowL2Meta) next_in_flight;
 } QCowL2Meta;
 

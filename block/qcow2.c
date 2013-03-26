@@ -858,7 +858,9 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
             goto fail;
         }
 
-        if (l2meta != NULL) {
+        while (l2meta != NULL) {
+            QCowL2Meta *next;
+
             ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
             if (ret < 0) {
                 goto fail;
@@ -871,8 +873,9 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 
             qemu_co_queue_restart_all(&l2meta->dependent_requests);
 
+            next = l2meta->next;
             g_free(l2meta);
-            l2meta = NULL;
+            l2meta = next;
         }
 
         remaining_sectors -= cur_nr_sectors;
@@ -885,12 +888,17 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 fail:
     qemu_co_mutex_unlock(&s->lock);
 
-    if (l2meta != NULL) {
+    while (l2meta != NULL) {
+        QCowL2Meta *next;
+
         if (l2meta->nb_clusters != 0) {
             QLIST_REMOVE(l2meta, next_in_flight);
         }
         qemu_co_queue_restart_all(&l2meta->dependent_requests);
+
+        next = l2meta->next;
         g_free(l2meta);
+        l2meta = next;
     }
 
     qemu_iovec_destroy(&hd_qiov);
