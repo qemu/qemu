@@ -24,6 +24,11 @@
  * THE SOFTWARE.
  */
 
+/* We only support generating code for 64-bit mode.  */
+#if TCG_TARGET_REG_BITS != 64
+#error "unsupported code generation mode"
+#endif
+
 /* ??? The translation blocks produced by TCG are generally small enough to
    be entirely reachable with a 16-bit displacement.  Leaving the option for
    a 32-bit displacement here Just In Case.  */
@@ -252,9 +257,6 @@ static const int tcg_target_call_iarg_regs[] = {
 
 static const int tcg_target_call_oarg_regs[] = {
     TCG_REG_R2,
-#if TCG_TARGET_REG_BITS == 32
-    TCG_REG_R3
-#endif
 };
 
 #define S390_CC_EQ      8
@@ -1620,14 +1622,9 @@ static void tcg_out_qemu_st(TCGContext* s, const TCGArg* args, int opc)
 #endif
 }
 
-#if TCG_TARGET_REG_BITS == 64
 # define OP_32_64(x) \
         case glue(glue(INDEX_op_,x),_i32): \
         case glue(glue(INDEX_op_,x),_i64)
-#else
-# define OP_32_64(x) \
-        case glue(glue(INDEX_op_,x),_i32)
-#endif
 
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                 const TCGArg *args, const int *const_args)
@@ -1870,7 +1867,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args, LD_UINT64);
         break;
 
-#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_mov_i64:
         tcg_out_mov(s, TCG_TYPE_I64, args[0], args[1]);
         break;
@@ -2035,7 +2031,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_qemu_ld32s:
         tcg_out_qemu_ld(s, args, LD_INT32);
         break;
-#endif /* TCG_TARGET_REG_BITS == 64 */
 
     default:
         fprintf(stderr,"unimplemented opc 0x%x\n",opc);
@@ -2104,7 +2099,6 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_qemu_st32, { "L", "L" } },
     { INDEX_op_qemu_st64, { "L", "L" } },
 
-#if defined(__s390x__)
     { INDEX_op_mov_i64, { "r", "r" } },
     { INDEX_op_movi_i64, { "r" } },
 
@@ -2157,7 +2151,6 @@ static const TCGTargetOpDef s390_op_defs[] = {
 
     { INDEX_op_qemu_ld32u, { "r", "L" } },
     { INDEX_op_qemu_ld32s, { "r", "L" } },
-#endif
 
     { -1 },
 };

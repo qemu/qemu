@@ -70,7 +70,6 @@ typedef enum TCGReg {
 #define TCG_TARGET_HAS_mulu2_i32        0
 #define TCG_TARGET_HAS_muls2_i32        0
 
-#if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_div2_i64         1
 #define TCG_TARGET_HAS_rot_i64          1
 #define TCG_TARGET_HAS_ext8s_i64        1
@@ -95,7 +94,6 @@ typedef enum TCGReg {
 #define TCG_TARGET_HAS_sub2_i64         0
 #define TCG_TARGET_HAS_mulu2_i64        0
 #define TCG_TARGET_HAS_muls2_i64        0
-#endif
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK		TCG_REG_R15
