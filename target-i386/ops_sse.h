@@ -2019,8 +2019,8 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
             res <<= 1;
             v = pcmp_val(s, ctrl, j);
             for (i = ((validd - 1) | 1); i >= 0; i -= 2) {
-                res |= (pcmp_val(d, ctrl, i - 0) <= v &&
-                        pcmp_val(d, ctrl, i - 1) >= v);
+                res |= (pcmp_val(d, ctrl, i - 0) >= v &&
+                        pcmp_val(d, ctrl, i - 1) <= v);
             }
         }
         break;
