@@ -319,6 +319,7 @@ static ram_addr_t last_offset;
 static unsigned long *migration_bitmap;
 static uint64_t migration_dirty_pages;
 static uint32_t last_version;
+static bool ram_bulk_stage;
 
 static inline
 ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
@@ -426,6 +427,7 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
             if (!block) {
                 block = QTAILQ_FIRST(&ram_list.blocks);
                 complete_round = true;
+                ram_bulk_stage = false;
             }
         } else {
             uint8_t *p;
@@ -529,6 +531,7 @@ static void reset_ram_globals(void)
     last_sent_block = NULL;
     last_offset = 0;
     last_version = ram_list.version;
+    ram_bulk_stage = true;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
