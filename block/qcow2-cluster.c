@@ -1127,26 +1127,22 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
     int n_start, int n_end, int *num, uint64_t *host_offset, QCowL2Meta **m)
 {
     BDRVQcowState *s = bs->opaque;
-    int l2_index, ret, sectors;
-    unsigned int nb_clusters, keep_clusters;
+    uint64_t start, remaining;
     uint64_t cluster_offset;
     uint64_t cur_bytes;
+    int ret;
 
     trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset,
                                       n_start, n_end);
 
+    assert(n_start * BDRV_SECTOR_SIZE == offset_into_cluster(s, offset));
+    offset = start_of_cluster(s, offset);
+
 again:
+    start = offset + (n_start << BDRV_SECTOR_BITS);
+    remaining = (n_end - n_start) << BDRV_SECTOR_BITS;
     cluster_offset = 0;
     *host_offset = 0;
-
-    /*
-     * Calculate the number of clusters to look for. We stop at L2 table
-     * boundaries to keep things simple.
-     */
-    l2_index = offset_to_l2_index(s, offset);
-    nb_clusters = MIN(size_to_clusters(s, n_end << BDRV_SECTOR_BITS),
-                      s->l2_size - l2_index);
-    n_end = MIN(n_end, nb_clusters * s->cluster_sectors);
 
     /*
      * Now start gathering as many contiguous clusters as possible:
@@ -1165,8 +1161,8 @@ again:
      *         cluster_offset to write to the same cluster and set up the right
      *         synchronisation between the in-flight request and the new one.
      */
-    cur_bytes = (n_end - n_start) * BDRV_SECTOR_SIZE;
-    ret = handle_dependencies(bs, offset, &cur_bytes);
+    cur_bytes = remaining;
+    ret = handle_dependencies(bs, start, &cur_bytes);
     if (ret == -EAGAIN) {
         goto again;
     } else if (ret < 0) {
@@ -1177,33 +1173,28 @@ again:
          * correctly during the next loop iteration. */
     }
 
-    nb_clusters = size_to_clusters(s, offset + cur_bytes)
-                - (offset >> s->cluster_bits);
-
     /*
      * 2. Count contiguous COPIED clusters.
      */
-    uint64_t tmp_bytes = cur_bytes;
-    ret = handle_copied(bs, offset, &cluster_offset, &tmp_bytes, m);
+    ret = handle_copied(bs, start, &cluster_offset, &cur_bytes, m);
     if (ret < 0) {
         return ret;
     } else if (ret) {
-        keep_clusters =
-            size_to_clusters(s, tmp_bytes + offset_into_cluster(s, offset));
-        nb_clusters -= keep_clusters;
-
         if (!*host_offset) {
             *host_offset = start_of_cluster(s, cluster_offset);
         }
+
+        start           += cur_bytes;
+        remaining       -= cur_bytes;
+        cluster_offset  += cur_bytes;
+
+        cur_bytes = remaining;
     } else if (cur_bytes == 0) {
-        keep_clusters = 0;
         goto done;
-    } else {
-        keep_clusters = 0;
     }
 
     /* If there is something left to allocate, do that now */
-    if (nb_clusters == 0) {
+    if (remaining == 0) {
         goto done;
     }
 
@@ -1211,43 +1202,24 @@ again:
      * 3. If the request still hasn't completed, allocate new clusters,
      *    considering any cluster_offset of steps 1c or 2.
      */
-    int alloc_n_start;
-    int alloc_n_end;
-
-    if (keep_clusters != 0) {
-        offset         = start_of_cluster(s, offset
-                                             + keep_clusters * s->cluster_size);
-        cluster_offset = start_of_cluster(s, cluster_offset
-                                             + keep_clusters * s->cluster_size);
-
-        alloc_n_start = 0;
-        alloc_n_end = n_end - keep_clusters * s->cluster_sectors;
-    } else {
-        alloc_n_start = n_start;
-        alloc_n_end = n_end;
-    }
-
-    cur_bytes = MIN(cur_bytes, ((alloc_n_end - alloc_n_start) << BDRV_SECTOR_BITS));
-
-    ret = handle_alloc(bs, offset, &cluster_offset, &cur_bytes, m);
+    ret = handle_alloc(bs, start, &cluster_offset, &cur_bytes, m);
     if (ret < 0) {
         return ret;
-    }
+    } else if (ret) {
+        if (!*host_offset) {
+            *host_offset = start_of_cluster(s, cluster_offset);
+        }
 
-    if (!*host_offset) {
-        *host_offset = start_of_cluster(s, cluster_offset);
+        start           += cur_bytes;
+        remaining       -= cur_bytes;
+        cluster_offset  += cur_bytes;
     }
-    nb_clusters = size_to_clusters(s, cur_bytes + offset_into_cluster(s, offset));
 
     /* Some cleanup work */
 done:
-    sectors = (keep_clusters + nb_clusters) << (s->cluster_bits - 9);
-    if (sectors > n_end) {
-        sectors = n_end;
-    }
-
-    assert(sectors > n_start);
-    *num = sectors - n_start;
+    *num = (n_end - n_start) - (remaining >> BDRV_SECTOR_BITS);
+    assert(*num > 0);
+    assert(*host_offset != 0);
 
     return 0;
 }
