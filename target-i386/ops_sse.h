@@ -2036,10 +2036,11 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
     case 3:
         for (j = valids - validd; j >= 0; j--) {
             res <<= 1;
-            res |= 1;
+            v = 1;
             for (i = MIN(upper - j, validd); i >= 0; i--) {
-                res &= (pcmp_val(s, ctrl, i + j) == pcmp_val(d, ctrl, i));
+                v &= (pcmp_val(s, ctrl, i + j) == pcmp_val(d, ctrl, i));
             }
+            res |= v;
         }
         break;
     }
