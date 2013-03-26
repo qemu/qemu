@@ -817,7 +817,9 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
  * *host_offset is not zero, only physically contiguous clusters beginning at
  * this host offset are counted.
  *
- * Note that guest_offset may not be cluster aligned.
+ * Note that guest_offset may not be cluster aligned. In this case, the
+ * returned *host_offset points to exact byte referenced by guest_offset and
+ * therefore isn't cluster aligned as well.
  *
  * Returns:
  *   0:     if no allocated clusters are available at the given offset.
@@ -844,6 +846,9 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
 
     trace_qcow2_handle_copied(qemu_coroutine_self(), guest_offset, *host_offset,
                               *bytes);
+
+    assert(*host_offset == 0 ||    offset_into_cluster(s, guest_offset)
+                                == offset_into_cluster(s, *host_offset));
 
     /*
      * Calculate the number of clusters to look for. We stop at L2 table
@@ -903,7 +908,8 @@ out:
     /* Only return a host offset if we actually made progress. Otherwise we
      * would make requirements for handle_alloc() that it can't fulfill */
     if (ret) {
-        *host_offset = cluster_offset & L2E_OFFSET_MASK;
+        *host_offset = (cluster_offset & L2E_OFFSET_MASK)
+                     + offset_into_cluster(s, guest_offset);
     }
 
     return ret;
@@ -961,7 +967,9 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
  * copy on write. If *host_offset is non-zero, clusters are only allocated if
  * the new allocation can match the specified host offset.
  *
- * Note that guest_offset may not be cluster aligned.
+ * Note that guest_offset may not be cluster aligned. In this case, the
+ * returned *host_offset points to exact byte referenced by guest_offset and
+ * therefore isn't cluster aligned as well.
  *
  * Returns:
  *   0:     if no clusters could be allocated. *bytes is set to 0,
@@ -1026,7 +1034,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     }
 
     /* Allocate, if necessary at a given offset in the image file */
-    alloc_cluster_offset = *host_offset;
+    alloc_cluster_offset = start_of_cluster(s, *host_offset);
     ret = do_alloc_cluster_offset(bs, guest_offset, &alloc_cluster_offset,
                                   &nb_clusters);
     if (ret < 0) {
@@ -1062,12 +1070,10 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
                         >> BDRV_SECTOR_BITS;
     int nb_sectors = MIN(requested_sectors, avail_sectors);
 
-    *host_offset = alloc_cluster_offset;
-
     *m = g_malloc0(sizeof(**m));
 
     **m = (QCowL2Meta) {
-        .alloc_offset   = *host_offset,
+        .alloc_offset   = alloc_cluster_offset,
         .offset         = start_of_cluster(s, guest_offset),
         .nb_clusters    = nb_clusters,
         .nb_available   = nb_sectors,
@@ -1084,6 +1090,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     qemu_co_queue_init(&(*m)->dependent_requests);
     QLIST_INSERT_HEAD(&s->cluster_allocs, *m, next_in_flight);
 
+    *host_offset = alloc_cluster_offset + offset_into_cluster(s, guest_offset);
     *bytes = MIN(*bytes, (nb_sectors * BDRV_SECTOR_SIZE)
                          - offset_into_cluster(s, guest_offset));
     assert(*bytes != 0);
@@ -1186,7 +1193,7 @@ again:
         nb_clusters -= keep_clusters;
 
         if (!*host_offset) {
-            *host_offset = cluster_offset;
+            *host_offset = start_of_cluster(s, cluster_offset);
         }
     } else if (cur_bytes == 0) {
         keep_clusters = 0;
@@ -1228,7 +1235,7 @@ again:
     }
 
     if (!*host_offset) {
-        *host_offset = cluster_offset;
+        *host_offset = start_of_cluster(s, cluster_offset);
     }
     nb_clusters = size_to_clusters(s, cur_bytes + offset_into_cluster(s, offset));
 
