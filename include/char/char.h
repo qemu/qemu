@@ -68,8 +68,7 @@ struct CharDriverState {
     void (*chr_close)(struct CharDriverState *chr);
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
-    void (*chr_guest_open)(struct CharDriverState *chr);
-    void (*chr_guest_close)(struct CharDriverState *chr);
+    void (*chr_set_fe_open)(struct CharDriverState *chr, int fe_open);
     void *opaque;
     int idle_tag;
     char *label;

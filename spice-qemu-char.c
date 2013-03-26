@@ -176,16 +176,14 @@ static void spice_chr_close(struct CharDriverState *chr)
     g_free(s);
 }
 
-static void spice_chr_guest_open(struct CharDriverState *chr)
+static void spice_chr_set_fe_open(struct CharDriverState *chr, int fe_open)
 {
     SpiceCharDriver *s = chr->opaque;
-    vmc_register_interface(s);
-}
-
-static void spice_chr_guest_close(struct CharDriverState *chr)
-{
-    SpiceCharDriver *s = chr->opaque;
-    vmc_unregister_interface(s);
+    if (fe_open) {
+        vmc_register_interface(s);
+    } else {
+        vmc_unregister_interface(s);
+    }
 }
 
 static void print_allowed_subtypes(void)
@@ -218,8 +216,7 @@ static CharDriverState *chr_open(const char *subtype)
     chr->opaque = s;
     chr->chr_write = spice_chr_write;
     chr->chr_close = spice_chr_close;
-    chr->chr_guest_open = spice_chr_guest_open;
-    chr->chr_guest_close = spice_chr_guest_close;
+    chr->chr_set_fe_open = spice_chr_set_fe_open;
 
     QLIST_INSERT_HEAD(&spice_chars, s, next);
 

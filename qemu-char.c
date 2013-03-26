@@ -514,8 +514,7 @@ static CharDriverState *qemu_chr_open_mux(CharDriverState *drv)
     chr->chr_update_read_handler = mux_chr_update_read_handler;
     chr->chr_accept_input = mux_chr_accept_input;
     /* Frontend guest-open / -close notification is not support with muxes */
-    chr->chr_guest_open = NULL;
-    chr->chr_guest_close = NULL;
+    chr->chr_set_fe_open = NULL;
 
     /* Muxes are always open on creation */
     qemu_chr_be_generic_open(chr);
@@ -3425,11 +3424,8 @@ void qemu_chr_fe_set_open(struct CharDriverState *chr, int fe_open)
         return;
     }
     chr->fe_open = fe_open;
-    if (fe_open && chr->chr_guest_open) {
-        chr->chr_guest_open(chr);
-    }
-    if (!fe_open && chr->chr_guest_close) {
-        chr->chr_guest_close(chr);
+    if (chr->chr_set_fe_open) {
+        chr->chr_set_fe_open(chr, fe_open);
     }
 }
 
