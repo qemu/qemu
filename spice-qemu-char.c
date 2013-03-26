@@ -100,8 +100,8 @@ static void vmc_state(SpiceCharDeviceInstance *sin, int connected)
     }
 #endif
 
-    if ((scd->chr->opened && connected) ||
-        (!scd->chr->opened && !connected)) {
+    if ((scd->chr->be_open && connected) ||
+        (!scd->chr->be_open && !connected)) {
         return;
     }
 

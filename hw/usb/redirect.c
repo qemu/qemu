@@ -258,7 +258,7 @@ static int usbredir_write(void *priv, uint8_t *data, int count)
 {
     USBRedirDevice *dev = priv;
 
-    if (!dev->cs->opened) {
+    if (!dev->cs->be_open) {
         return 0;
     }
 

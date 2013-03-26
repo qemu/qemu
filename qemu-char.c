@@ -108,10 +108,10 @@ void qemu_chr_be_event(CharDriverState *s, int event)
     /* Keep track if the char device is open */
     switch (event) {
         case CHR_EVENT_OPENED:
-            s->opened = 1;
+            s->be_open = 1;
             break;
         case CHR_EVENT_CLOSED:
-            s->opened = 0;
+            s->be_open = 0;
             break;
     }
 
@@ -234,7 +234,7 @@ void qemu_chr_add_handlers(CharDriverState *s,
 
     /* We're connecting to an already opened device, so let's make sure we
        also get the open event */
-    if (s->opened) {
+    if (s->be_open) {
         qemu_chr_generic_open(s);
     }
 }
