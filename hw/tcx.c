@@ -37,7 +37,6 @@
 
 typedef struct TCXState {
     SysBusDevice busdev;
-    hwaddr addr;
     QemuConsole *con;
     uint8_t *vram;
     uint32_t *vram24, *cplane;
@@ -707,7 +706,6 @@ write_err:
 }
 
 static Property tcx_properties[] = {
-    DEFINE_PROP_TADDR("addr",      TCXState, addr,      -1),
     DEFINE_PROP_HEX32("vram_size", TCXState, vram_size, -1),
     DEFINE_PROP_UINT16("width",    TCXState, width,     -1),
     DEFINE_PROP_UINT16("height",   TCXState, height,    -1),
