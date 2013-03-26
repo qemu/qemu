@@ -2050,7 +2050,7 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
         res ^= (2 << upper) - 1;
         break;
     case 3:
-        res ^= (2 << valids) - 1;
+        res ^= (1 << (valids + 1)) - 1;
         break;
     }
 
