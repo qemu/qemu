@@ -76,6 +76,7 @@ struct CharDriverState {
     char *filename;
     int be_open;
     int fe_open;
+    int explicit_fe_open;
     int avail_connections;
     QemuOpts *opts;
     QTAILQ_ENTRY(CharDriverState) next;

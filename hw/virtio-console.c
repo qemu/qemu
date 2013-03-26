@@ -131,6 +131,7 @@ static int virtconsole_initfn(VirtIOSerialPort *port)
     }
 
     if (vcon->chr) {
+        vcon->chr->explicit_fe_open = 1;
         qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read, chr_event,
                               vcon);
     }

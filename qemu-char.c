@@ -221,9 +221,14 @@ void qemu_chr_add_handlers(CharDriverState *s,
                            IOEventHandler *fd_event,
                            void *opaque)
 {
+    int fe_open;
+
     if (!opaque && !fd_can_read && !fd_read && !fd_event) {
         /* chr driver being released. */
         ++s->avail_connections;
+        fe_open = 0;
+    } else {
+        fe_open = 1;
     }
     s->chr_can_read = fd_can_read;
     s->chr_read = fd_read;
@@ -231,6 +236,14 @@ void qemu_chr_add_handlers(CharDriverState *s,
     s->handler_opaque = opaque;
     if (s->chr_update_read_handler)
         s->chr_update_read_handler(s);
+
+    if (!s->explicit_fe_open) {
+        if (fe_open) {
+            qemu_chr_fe_open(s);
+        } else {
+            qemu_chr_fe_close(s);
+        }
+    }
 
     /* We're connecting to an already opened device, so let's make sure we
        also get the open event */
