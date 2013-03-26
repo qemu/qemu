@@ -31,6 +31,9 @@ static int virtio_ccw_hcall_notify(const uint64_t *args)
     if (!sch || !css_subch_visible(sch)) {
         return -EINVAL;
     }
+    if (queue >= VIRTIO_PCI_QUEUE_MAX) {
+        return -EINVAL;
+    }
     virtio_queue_notify(virtio_ccw_get_vdev(sch), queue);
     return 0;
 
