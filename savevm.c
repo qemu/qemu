@@ -422,7 +422,7 @@ QEMUFile *qemu_fopen_socket(int fd, const char *mode)
 
     s->fd = fd;
     if (mode[0] == 'w') {
-        socket_set_block(s->fd);
+        qemu_set_block(s->fd);
         s->file = qemu_fopen_ops(s, &socket_write_ops);
     } else {
         s->file = qemu_fopen_ops(s, &socket_read_ops);

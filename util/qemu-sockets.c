@@ -277,7 +277,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
     }
     qemu_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
     if (connect_state != NULL) {
-        socket_set_nonblock(sock);
+        qemu_set_nonblock(sock);
     }
     /* connect to peer */
     do {
@@ -737,7 +737,7 @@ int unix_connect_opts(QemuOpts *opts, Error **errp,
         connect_state = g_malloc0(sizeof(*connect_state));
         connect_state->callback = callback;
         connect_state->opaque = opaque;
-        socket_set_nonblock(sock);
+        qemu_set_nonblock(sock);
     }
 
     memset(&un, 0, sizeof(un));
