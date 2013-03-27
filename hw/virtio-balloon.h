@@ -18,6 +18,10 @@
 #include "hw/virtio.h"
 #include "hw/pci/pci.h"
 
+#define TYPE_VIRTIO_BALLOON "virtio-balloon"
+#define VIRTIO_BALLOON(obj) \
+        OBJECT_CHECK(VirtIOBalloon, (obj), TYPE_VIRTIO_BALLOON)
+
 /* from Linux's linux/virtio_balloon.h */
 
 /* The ID for virtio_balloon */
