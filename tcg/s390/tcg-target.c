@@ -393,6 +393,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_set32(ct->u.regs, 0, 0xffff);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R2);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
+        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
         break;
     case 'a':                  /* force R2 for division */
         ct->ct |= TCG_CT_REG;
@@ -1436,27 +1437,29 @@ static void tcg_out_qemu_st_direct(TCGContext *s, int opc, TCGReg data,
 }
 
 #if defined(CONFIG_SOFTMMU)
-static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
-                                  TCGReg addr_reg, int mem_index, int opc,
-                                  uint16_t **label2_ptr_p, int is_store)
+static TCGReg tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
+                                    TCGReg addr_reg, int mem_index, int opc,
+                                    uint16_t **label2_ptr_p, int is_store)
 {
-    const TCGReg arg0 = TCG_REG_R2;
-    const TCGReg arg1 = TCG_REG_R3;
+    const TCGReg arg0 = tcg_target_call_iarg_regs[0];
+    const TCGReg arg1 = tcg_target_call_iarg_regs[1];
+    const TCGReg arg2 = tcg_target_call_iarg_regs[2];
+    const TCGReg arg3 = tcg_target_call_iarg_regs[3];
     int s_bits = opc & 3;
     uint16_t *label1_ptr;
     tcg_target_long ofs;
 
     if (TARGET_LONG_BITS == 32) {
-        tgen_ext32u(s, arg0, addr_reg);
+        tgen_ext32u(s, arg1, addr_reg);
     } else {
-        tcg_out_mov(s, TCG_TYPE_I64, arg0, addr_reg);
+        tcg_out_mov(s, TCG_TYPE_I64, arg1, addr_reg);
     }
 
-    tcg_out_sh64(s, RSY_SRLG, arg1, addr_reg, TCG_REG_NONE,
+    tcg_out_sh64(s, RSY_SRLG, arg2, addr_reg, TCG_REG_NONE,
                  TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
-    tgen_andi(s, TCG_TYPE_I64, arg0, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
-    tgen_andi(s, TCG_TYPE_I64, arg1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
+    tgen_andi(s, TCG_TYPE_I64, arg1, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
+    tgen_andi(s, TCG_TYPE_I64, arg2, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
 
     if (is_store) {
         ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
@@ -1466,15 +1469,15 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
     assert(ofs < 0x80000);
 
     if (TARGET_LONG_BITS == 32) {
-        tcg_out_mem(s, RX_C, RXY_CY, arg0, arg1, TCG_AREG0, ofs);
+        tcg_out_mem(s, RX_C, RXY_CY, arg1, arg2, TCG_AREG0, ofs);
     } else {
-        tcg_out_mem(s, 0, RXY_CG, arg0, arg1, TCG_AREG0, ofs);
+        tcg_out_mem(s, 0, RXY_CG, arg1, arg2, TCG_AREG0, ofs);
     }
 
     if (TARGET_LONG_BITS == 32) {
-        tgen_ext32u(s, arg0, addr_reg);
+        tgen_ext32u(s, arg1, addr_reg);
     } else {
-        tcg_out_mov(s, TCG_TYPE_I64, arg0, addr_reg);
+        tcg_out_mov(s, TCG_TYPE_I64, arg1, addr_reg);
     }
 
     label1_ptr = (uint16_t*)s->code_ptr;
@@ -1488,56 +1491,42 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
            for the calling convention.  */
         switch (opc) {
         case LD_UINT8:
-            tgen_ext8u(s, TCG_TYPE_I64, arg1, data_reg);
+            tgen_ext8u(s, TCG_TYPE_I64, arg2, data_reg);
             break;
         case LD_UINT16:
-            tgen_ext16u(s, TCG_TYPE_I64, arg1, data_reg);
+            tgen_ext16u(s, TCG_TYPE_I64, arg2, data_reg);
             break;
         case LD_UINT32:
-            tgen_ext32u(s, arg1, data_reg);
+            tgen_ext32u(s, arg2, data_reg);
             break;
         case LD_UINT64:
-            tcg_out_mov(s, TCG_TYPE_I64, arg1, data_reg);
+            tcg_out_mov(s, TCG_TYPE_I64, arg2, data_reg);
             break;
         default:
             tcg_abort();
         }
-        tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R4, mem_index);
-        /* XXX/FIXME: suboptimal */
-        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[3],
-                    tcg_target_call_iarg_regs[2]);
-        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
-                    tcg_target_call_iarg_regs[1]);
-        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[1],
-                    tcg_target_call_iarg_regs[0]);
-        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0],
-                    TCG_AREG0);
+        tcg_out_movi(s, TCG_TYPE_I32, arg3, mem_index);
+        tcg_out_mov(s, TCG_TYPE_I64, arg0, TCG_AREG0);
         tgen_calli(s, (tcg_target_ulong)qemu_st_helpers[s_bits]);
     } else {
-        tcg_out_movi(s, TCG_TYPE_I32, arg1, mem_index);
-        /* XXX/FIXME: suboptimal */
-        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
-                    tcg_target_call_iarg_regs[1]);
-        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[1],
-                    tcg_target_call_iarg_regs[0]);
-        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0],
-                    TCG_AREG0);
+        tcg_out_movi(s, TCG_TYPE_I32, arg2, mem_index);
+        tcg_out_mov(s, TCG_TYPE_I64, arg0, TCG_AREG0);
         tgen_calli(s, (tcg_target_ulong)qemu_ld_helpers[s_bits]);
 
         /* sign extension */
         switch (opc) {
         case LD_INT8:
-            tgen_ext8s(s, TCG_TYPE_I64, data_reg, arg0);
+            tgen_ext8s(s, TCG_TYPE_I64, data_reg, TCG_REG_R2);
             break;
         case LD_INT16:
-            tgen_ext16s(s, TCG_TYPE_I64, data_reg, arg0);
+            tgen_ext16s(s, TCG_TYPE_I64, data_reg, TCG_REG_R2);
             break;
         case LD_INT32:
-            tgen_ext32s(s, data_reg, arg0);
+            tgen_ext32s(s, data_reg, TCG_REG_R2);
             break;
         default:
             /* unsigned -> just copy */
-            tcg_out_mov(s, TCG_TYPE_I64, data_reg, arg0);
+            tcg_out_mov(s, TCG_TYPE_I64, data_reg, TCG_REG_R2);
             break;
         }
     }
@@ -1554,7 +1543,9 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
     ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addend);
     assert(ofs < 0x80000);
 
-    tcg_out_mem(s, 0, RXY_AG, arg0, arg1, TCG_AREG0, ofs);
+    tcg_out_mem(s, 0, RXY_AG, arg1, arg2, TCG_AREG0, ofs);
+
+    return arg1;
 }
 
 static void tcg_finish_qemu_ldst(TCGContext* s, uint16_t *label2_ptr)
@@ -1600,10 +1591,10 @@ static void tcg_out_qemu_ld(TCGContext* s, const TCGArg* args, int opc)
 #if defined(CONFIG_SOFTMMU)
     mem_index = *args;
 
-    tcg_prepare_qemu_ldst(s, data_reg, addr_reg, mem_index,
-                          opc, &label2_ptr, 0);
+    addr_reg = tcg_prepare_qemu_ldst(s, data_reg, addr_reg, mem_index,
+                                     opc, &label2_ptr, 0);
 
-    tcg_out_qemu_ld_direct(s, opc, data_reg, TCG_REG_R2, TCG_REG_NONE, 0);
+    tcg_out_qemu_ld_direct(s, opc, data_reg, addr_reg, TCG_REG_NONE, 0);
 
     tcg_finish_qemu_ldst(s, label2_ptr);
 #else
@@ -1629,10 +1620,10 @@ static void tcg_out_qemu_st(TCGContext* s, const TCGArg* args, int opc)
 #if defined(CONFIG_SOFTMMU)
     mem_index = *args;
 
-    tcg_prepare_qemu_ldst(s, data_reg, addr_reg, mem_index,
-                          opc, &label2_ptr, 1);
+    addr_reg = tcg_prepare_qemu_ldst(s, data_reg, addr_reg, mem_index,
+                                     opc, &label2_ptr, 1);
 
-    tcg_out_qemu_st_direct(s, opc, data_reg, TCG_REG_R2, TCG_REG_NONE, 0);
+    tcg_out_qemu_st_direct(s, opc, data_reg, addr_reg, TCG_REG_NONE, 0);
 
     tcg_finish_qemu_ldst(s, label2_ptr);
 #else
