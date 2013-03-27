@@ -770,7 +770,7 @@ out:
  *           must start over anyway, so consider *cur_bytes undefined.
  */
 static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *cur_bytes)
+    uint64_t *cur_bytes, QCowL2Meta **m)
 {
     BDRVQcowState *s = bs->opaque;
     QCowL2Meta *old_alloc;
@@ -791,6 +791,15 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
                 bytes = old_start - start;
             } else {
                 bytes = 0;
+            }
+
+            /* Stop if already an l2meta exists. After yielding, it wouldn't
+             * be valid any more, so we'd have to clean up the old L2Metas
+             * and deal with requests depending on them before starting to
+             * gather new ones. Not worth the trouble. */
+            if (bytes == 0 && *m) {
+                *cur_bytes = 0;
+                return 0;
             }
 
             if (bytes == 0) {
@@ -1023,14 +1032,14 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
         nb_clusters = count_cow_clusters(s, nb_clusters, l2_table, l2_index);
     }
 
+    /* This function is only called when there were no non-COW clusters, so if
+     * we can't find any unallocated or COW clusters either, something is
+     * wrong with our code. */
+    assert(nb_clusters > 0);
+
     ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
     if (ret < 0) {
         return ret;
-    }
-
-    if (nb_clusters == 0) {
-        *bytes = 0;
-        return 0;
     }
 
     /* Allocate, if necessary at a given offset in the image file */
@@ -1146,8 +1155,27 @@ again:
     remaining = (n_end - n_start) << BDRV_SECTOR_BITS;
     cluster_offset = 0;
     *host_offset = 0;
+    cur_bytes = 0;
+    *m = NULL;
 
     while (true) {
+
+        if (!*host_offset) {
+            *host_offset = start_of_cluster(s, cluster_offset);
+        }
+
+        assert(remaining >= cur_bytes);
+
+        start           += cur_bytes;
+        remaining       -= cur_bytes;
+        cluster_offset  += cur_bytes;
+
+        if (remaining == 0) {
+            break;
+        }
+
+        cur_bytes = remaining;
+
         /*
          * Now start gathering as many contiguous clusters as possible:
          *
@@ -1166,12 +1194,17 @@ again:
          *         the right synchronisation between the in-flight request and
          *         the new one.
          */
-        cur_bytes = remaining;
-        ret = handle_dependencies(bs, start, &cur_bytes);
+        ret = handle_dependencies(bs, start, &cur_bytes, m);
         if (ret == -EAGAIN) {
+            /* Currently handle_dependencies() doesn't yield if we already had
+             * an allocation. If it did, we would have to clean up the L2Meta
+             * structs before starting over. */
+            assert(*m == NULL);
             goto again;
         } else if (ret < 0) {
             return ret;
+        } else if (cur_bytes == 0) {
+            break;
         } else {
             /* handle_dependencies() may have decreased cur_bytes (shortened
              * the allocations below) so that the next dependency is processed
@@ -1185,21 +1218,8 @@ again:
         if (ret < 0) {
             return ret;
         } else if (ret) {
-            if (!*host_offset) {
-                *host_offset = start_of_cluster(s, cluster_offset);
-            }
-
-            start           += cur_bytes;
-            remaining       -= cur_bytes;
-            cluster_offset  += cur_bytes;
-
-            cur_bytes = remaining;
+            continue;
         } else if (cur_bytes == 0) {
-            break;
-        }
-
-        /* If there is something left to allocate, do that now */
-        if (remaining == 0) {
             break;
         }
 
@@ -1211,15 +1231,7 @@ again:
         if (ret < 0) {
             return ret;
         } else if (ret) {
-            if (!*host_offset) {
-                *host_offset = start_of_cluster(s, cluster_offset);
-            }
-
-            start           += cur_bytes;
-            remaining       -= cur_bytes;
-            cluster_offset  += cur_bytes;
-
-            break;
+            continue;
         } else {
             assert(cur_bytes == 0);
             break;
