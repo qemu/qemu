@@ -38,7 +38,6 @@
 #define TCG_CT_CONST_NEG   0x0200
 #define TCG_CT_CONST_ADDI  0x0400
 #define TCG_CT_CONST_MULI  0x0800
-#define TCG_CT_CONST_ANDI  0x1000
 #define TCG_CT_CONST_ORI   0x2000
 #define TCG_CT_CONST_XORI  0x4000
 #define TCG_CT_CONST_CMPI  0x8000
@@ -417,9 +416,6 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'K':
         ct->ct |= TCG_CT_CONST_MULI;
         break;
-    case 'A':
-        ct->ct |= TCG_CT_CONST_ANDI;
-        break;
     case 'O':
         ct->ct |= TCG_CT_CONST_ORI;
         break;
@@ -436,63 +432,6 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     *pct_str = ct_str;
 
     return 0;
-}
-
-/* Immediates to be used with logical AND.  This is an optimization only,
-   since a full 64-bit immediate AND can always be performed with 4 sequential
-   NI[LH][LH] instructions.  What we're looking for is immediates that we
-   can load efficiently, and the immediate load plus the reg-reg AND is
-   smaller than the sequential NI's.  */
-
-static int tcg_match_andi(int ct, tcg_target_ulong val)
-{
-    int i;
-
-    if (facilities & FACILITY_EXT_IMM) {
-        if (ct & TCG_CT_CONST_32) {
-            /* All 32-bit ANDs can be performed with 1 48-bit insn.  */
-            return 1;
-        }
-
-        /* Zero-extensions.  */
-        if (val == 0xff || val == 0xffff || val == 0xffffffff) {
-            return 1;
-        }
-    } else {
-        if (ct & TCG_CT_CONST_32) {
-            val = (uint32_t)val;
-        } else if (val == 0xffffffff) {
-            return 1;
-        }
-    }
-
-    /* Try all 32-bit insns that can perform it in one go.  */
-    for (i = 0; i < 4; i++) {
-        tcg_target_ulong mask = ~(0xffffull << i*16);
-        if ((val & mask) == mask) {
-            return 1;
-        }
-    }
-
-    /* Look for 16-bit values performing the mask.  These are better
-       to load with LLI[LH][LH].  */
-    for (i = 0; i < 4; i++) {
-        tcg_target_ulong mask = 0xffffull << i*16;
-        if ((val & mask) == val) {
-            return 0;
-        }
-    }
-
-    /* Look for 32-bit values performing the 64-bit mask.  These
-       are better to load with LLI[LH]F, or if extended immediates
-       not available, with a pair of LLI insns.  */
-    if ((ct & TCG_CT_CONST_32) == 0) {
-        if (val <= 0xffffffff || (val & 0xffffffff) == 0) {
-            return 0;
-        }
-    }
-
-    return 1;
 }
 
 /* Immediates to be used with logical OR.  This is an optimization only,
@@ -617,8 +556,6 @@ static int tcg_target_const_match(tcg_target_long val,
         } else {
             return val == (int16_t)val;
         }
-    } else if (ct & TCG_CT_CONST_ANDI) {
-        return tcg_match_andi(ct, val);
     } else if (ct & TCG_CT_CONST_ORI) {
         return tcg_match_ori(ct, val);
     } else if (ct & TCG_CT_CONST_XORI) {
@@ -1003,7 +940,7 @@ static inline void tgen64_addi(TCGContext *s, TCGReg dest, int64_t val)
 
 }
 
-static void tgen64_andi(TCGContext *s, TCGReg dest, tcg_target_ulong val)
+static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
 {
     static const S390Opcode ni_insns[4] = {
         RI_NILL, RI_NILH, RI_NIHL, RI_NIHH
@@ -1011,63 +948,51 @@ static void tgen64_andi(TCGContext *s, TCGReg dest, tcg_target_ulong val)
     static const S390Opcode nif_insns[2] = {
         RIL_NILF, RIL_NIHF
     };
-
+    uint64_t valid = (type == TCG_TYPE_I32 ? 0xffffffffull : -1ull);
     int i;
 
-    /* Look for no-op.  */
-    if (val == -1) {
-        return;
-    }
-
     /* Look for the zero-extensions.  */
-    if (val == 0xffffffff) {
+    if ((val & valid) == 0xffffffff) {
         tgen_ext32u(s, dest, dest);
         return;
     }
-
     if (facilities & FACILITY_EXT_IMM) {
-        if (val == 0xff) {
+        if ((val & valid) == 0xff) {
             tgen_ext8u(s, TCG_TYPE_I64, dest, dest);
             return;
         }
-        if (val == 0xffff) {
+        if ((val & valid) == 0xffff) {
             tgen_ext16u(s, TCG_TYPE_I64, dest, dest);
             return;
         }
+    }
 
-        /* Try all 32-bit insns that can perform it in one go.  */
-        for (i = 0; i < 4; i++) {
-            tcg_target_ulong mask = ~(0xffffull << i*16);
-            if ((val & mask) == mask) {
-                tcg_out_insn_RI(s, ni_insns[i], dest, val >> i*16);
+    /* Try all 32-bit insns that can perform it in one go.  */
+    for (i = 0; i < 4; i++) {
+        tcg_target_ulong mask = ~(0xffffull << i*16);
+        if (((val | ~valid) & mask) == mask) {
+            tcg_out_insn_RI(s, ni_insns[i], dest, val >> i*16);
+            return;
+        }
+    }
+
+    /* Try all 48-bit insns that can perform it in one go.  */
+    if (facilities & FACILITY_EXT_IMM) {
+        for (i = 0; i < 2; i++) {
+            tcg_target_ulong mask = ~(0xffffffffull << i*32);
+            if (((val | ~valid) & mask) == mask) {
+                tcg_out_insn_RIL(s, nif_insns[i], dest, val >> i*32);
                 return;
             }
         }
+    }
 
-        /* Try all 48-bit insns that can perform it in one go.  */
-        if (facilities & FACILITY_EXT_IMM) {
-            for (i = 0; i < 2; i++) {
-                tcg_target_ulong mask = ~(0xffffffffull << i*32);
-                if ((val & mask) == mask) {
-                    tcg_out_insn_RIL(s, nif_insns[i], dest, val >> i*32);
-                    return;
-                }
-            }
-        }
-
-        /* Perform the AND via sequential modifications to the high and low
-           parts.  Do this via recursion to handle 16-bit vs 32-bit masks in
-           each half.  */
-        tgen64_andi(s, dest, val | 0xffffffff00000000ull);
-        tgen64_andi(s, dest, val | 0x00000000ffffffffull);
+    /* Fall back to loading the constant.  */
+    tcg_out_movi(s, type, TCG_TMP0, val);
+    if (type == TCG_TYPE_I32) {
+        tcg_out_insn(s, RR, NR, dest, TCG_TMP0);
     } else {
-        /* With no extended-immediate facility, just emit the sequence.  */
-        for (i = 0; i < 4; i++) {
-            tcg_target_ulong mask = 0xffffull << i*16;
-            if ((val & mask) != mask) {
-                tcg_out_insn_RI(s, ni_insns[i], dest, val >> i*16);
-            }
-        }
+        tcg_out_insn(s, RRE, NGR, dest, TCG_TMP0);
     }
 }
 
@@ -1463,16 +1388,6 @@ static void tcg_out_qemu_st_direct(TCGContext *s, int opc, TCGReg data,
 }
 
 #if defined(CONFIG_SOFTMMU)
-static void tgen64_andi_tmp(TCGContext *s, TCGReg dest, tcg_target_ulong val)
-{
-    if (tcg_match_andi(0, val)) {
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_TMP0, val);
-        tcg_out_insn(s, RRE, NGR, dest, TCG_TMP0);
-    } else {
-        tgen64_andi(s, dest, val);
-    }
-}
-
 static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
                                   TCGReg addr_reg, int mem_index, int opc,
                                   uint16_t **label2_ptr_p, int is_store)
@@ -1492,8 +1407,8 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
     tcg_out_sh64(s, RSY_SRLG, arg1, addr_reg, TCG_REG_NONE,
                  TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
-    tgen64_andi_tmp(s, arg0, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
-    tgen64_andi_tmp(s, arg1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
+    tgen_andi(s, TCG_TYPE_I64, arg0, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
+    tgen_andi(s, TCG_TYPE_I64, arg1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
 
     if (is_store) {
         ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
@@ -1777,7 +1692,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_and_i32:
         if (const_args[2]) {
-            tgen64_andi(s, args[0], args[2] | 0xffffffff00000000ull);
+            tgen_andi(s, TCG_TYPE_I32, args[0], args[2]);
         } else {
             tcg_out_insn(s, RR, NR, args[0], args[2]);
         }
@@ -1982,7 +1897,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_and_i64:
         if (const_args[2]) {
-            tgen64_andi(s, args[0], args[2]);
+            tgen_andi(s, TCG_TYPE_I64, args[0], args[2]);
         } else {
             tcg_out_insn(s, RRE, NGR, args[0], args[2]);
         }
@@ -2156,7 +2071,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_div2_i32, { "b", "a", "0", "1", "r" } },
     { INDEX_op_divu2_i32, { "b", "a", "0", "1", "r" } },
 
-    { INDEX_op_and_i32, { "r", "0", "rWA" } },
+    { INDEX_op_and_i32, { "r", "0", "ri" } },
     { INDEX_op_or_i32, { "r", "0", "rWO" } },
     { INDEX_op_xor_i32, { "r", "0", "rWX" } },
 
@@ -2221,7 +2136,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_divu2_i64, { "b", "a", "0", "1", "r" } },
     { INDEX_op_mulu2_i64, { "b", "a", "0", "r" } },
 
-    { INDEX_op_and_i64, { "r", "0", "rA" } },
+    { INDEX_op_and_i64, { "r", "0", "ri" } },
     { INDEX_op_or_i64, { "r", "0", "rO" } },
     { INDEX_op_xor_i64, { "r", "0", "rX" } },
 
