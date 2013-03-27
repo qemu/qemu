@@ -556,6 +556,7 @@ static int ipoctal_init(IPackDevice *ip)
 
             if (ch->dev) {
                 index++;
+                qemu_chr_fe_claim_no_fail(ch->dev);
                 qemu_chr_add_handlers(ch->dev, hostdev_can_receive,
                                       hostdev_receive, hostdev_event, ch);
                 DPRINTF("Redirecting channel %u to %s (%s)\n",

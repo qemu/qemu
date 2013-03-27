@@ -3025,6 +3025,7 @@ int gdbserver_start(const char *device)
         if (!chr)
             return -1;
 
+        qemu_chr_fe_claim_no_fail(chr);
         qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
                               gdb_chr_event, NULL);
     }

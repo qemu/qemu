@@ -3411,6 +3411,7 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*in
         error_free(err);
     }
     if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
+        qemu_chr_fe_claim_no_fail(chr);
         monitor_init(chr, MONITOR_USE_READLINE);
     }
     return chr;
@@ -3523,9 +3524,16 @@ CharDriverState *qemu_chr_find(const char *name)
 CharDriverState *qemu_char_get_next_serial(void)
 {
     static int next_serial;
+    CharDriverState *chr;
 
     /* FIXME: This function needs to go away: use chardev properties!  */
-    return serial_hds[next_serial++];
+
+    while (next_serial < MAX_SERIAL_PORTS && serial_hds[next_serial]) {
+        chr = serial_hds[next_serial++];
+        qemu_chr_fe_claim_no_fail(chr);
+        return chr;
+    }
+    return NULL;
 }
 
 QemuOptsList qemu_chardev_opts = {
