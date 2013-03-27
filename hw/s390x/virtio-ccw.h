@@ -16,6 +16,7 @@
 #include <hw/virtio-net.h>
 #include <hw/virtio-serial.h>
 #include <hw/virtio-scsi.h>
+#include "hw/virtio-balloon.h"
 #include <hw/virtio-rng.h>
 #include <hw/virtio-bus.h>
 
@@ -115,6 +116,16 @@ typedef struct VirtIOBlkCcw {
     VirtIOBlkConf blk;
 } VirtIOBlkCcw;
 
+/* virtio-balloon-ccw */
+
+#define TYPE_VIRTIO_BALLOON_CCW "virtio-balloon-ccw"
+#define VIRTIO_BALLOON_CCW(obj) \
+        OBJECT_CHECK(VirtIOBalloonCcw, (obj), TYPE_VIRTIO_BALLOON_CCW)
+
+typedef struct VirtIOBalloonCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOBalloon vdev;
+} VirtIOBalloonCcw;
 
 VirtualCssBus *virtual_css_bus_init(void);
 void virtio_ccw_device_update_status(SubchDev *sch);
