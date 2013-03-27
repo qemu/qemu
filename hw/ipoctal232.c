@@ -93,7 +93,6 @@ typedef struct SCC2698Block SCC2698Block;
 struct SCC2698Channel {
     IPOctalState *ipoctal;
     CharDriverState *dev;
-    char *devpath;
     bool rx_enabled;
     uint8_t mr[2];
     uint8_t mr_idx;
@@ -545,26 +544,12 @@ static int ipoctal_init(IPackDevice *ip)
         ch->ipoctal = s;
 
         /* Redirect IP-Octal channels to host character devices */
-        if (ch->devpath) {
-            const char chr_name[] = "ipoctal";
-            char label[ARRAY_SIZE(chr_name) + 2];
-            static int index;
-
-            snprintf(label, sizeof(label), "%s%d", chr_name, index);
-
-            ch->dev = qemu_chr_new(label, ch->devpath, NULL);
-
-            if (ch->dev) {
-                index++;
-                qemu_chr_fe_claim_no_fail(ch->dev);
-                qemu_chr_add_handlers(ch->dev, hostdev_can_receive,
-                                      hostdev_receive, hostdev_event, ch);
-                DPRINTF("Redirecting channel %u to %s (%s)\n",
-                        i, ch->devpath, label);
-            } else {
-                DPRINTF("Could not redirect channel %u to %s\n",
-                        i, ch->devpath);
-            }
+        if (ch->dev) {
+            qemu_chr_add_handlers(ch->dev, hostdev_can_receive,
+                                  hostdev_receive, hostdev_event, ch);
+            DPRINTF("Redirecting channel %u to %s\n", i, ch->dev->label);
+        } else {
+            DPRINTF("Could not redirect channel %u, no chardev set\n", i);
         }
     }
 
@@ -572,14 +557,14 @@ static int ipoctal_init(IPackDevice *ip)
 }
 
 static Property ipoctal_properties[] = {
-    DEFINE_PROP_STRING("serial0", IPOctalState, ch[0].devpath),
-    DEFINE_PROP_STRING("serial1", IPOctalState, ch[1].devpath),
-    DEFINE_PROP_STRING("serial2", IPOctalState, ch[2].devpath),
-    DEFINE_PROP_STRING("serial3", IPOctalState, ch[3].devpath),
-    DEFINE_PROP_STRING("serial4", IPOctalState, ch[4].devpath),
-    DEFINE_PROP_STRING("serial5", IPOctalState, ch[5].devpath),
-    DEFINE_PROP_STRING("serial6", IPOctalState, ch[6].devpath),
-    DEFINE_PROP_STRING("serial7", IPOctalState, ch[7].devpath),
+    DEFINE_PROP_CHR("chardev0", IPOctalState, ch[0].dev),
+    DEFINE_PROP_CHR("chardev1", IPOctalState, ch[1].dev),
+    DEFINE_PROP_CHR("chardev2", IPOctalState, ch[2].dev),
+    DEFINE_PROP_CHR("chardev3", IPOctalState, ch[3].dev),
+    DEFINE_PROP_CHR("chardev4", IPOctalState, ch[4].dev),
+    DEFINE_PROP_CHR("chardev5", IPOctalState, ch[5].dev),
+    DEFINE_PROP_CHR("chardev6", IPOctalState, ch[6].dev),
+    DEFINE_PROP_CHR("chardev7", IPOctalState, ch[7].dev),
     DEFINE_PROP_END_OF_LIST(),
 };
 
