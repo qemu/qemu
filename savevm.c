@@ -219,18 +219,6 @@ static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
     return len;
 }
 
-static int socket_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int size)
-{
-    QEMUFileSocket *s = opaque;
-    ssize_t len;
-
-    len = qemu_send_full(s->fd, buf, size, 0);
-    if (len < size) {
-        len = -socket_error();
-    }
-    return len;
-}
-
 static int socket_close(void *opaque)
 {
     QEMUFileSocket *s = opaque;
@@ -404,7 +392,6 @@ static const QEMUFileOps socket_read_ops = {
 
 static const QEMUFileOps socket_write_ops = {
     .get_fd =     socket_get_fd,
-    .put_buffer = socket_put_buffer,
     .writev_buffer = socket_writev_buffer,
     .close =      socket_close
 };
