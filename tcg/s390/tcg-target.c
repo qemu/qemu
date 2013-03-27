@@ -827,6 +827,15 @@ static void tcg_out_ld_abs(TCGContext *s, TCGType type, TCGReg dest, void *abs)
     tcg_out_ld(s, type, dest, dest, addr & 0xffff);
 }
 
+static inline void tcg_out_risbg(TCGContext *s, TCGReg dest, TCGReg src,
+                                 int msb, int lsb, int ofs, int z)
+{
+    /* Format RIE-f */
+    tcg_out16(s, (RIE_RISBG & 0xff00) | (dest << 4) | src);
+    tcg_out16(s, (msb << 8) | (z << 7) | lsb);
+    tcg_out16(s, (ofs << 8) | (RIE_RISBG & 0xff));
+}
+
 static void tgen_ext8s(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
 {
     if (facilities & FACILITY_EXT_IMM) {
@@ -940,6 +949,36 @@ static inline void tgen64_addi(TCGContext *s, TCGReg dest, int64_t val)
 
 }
 
+/* Accept bit patterns like these:
+    0....01....1
+    1....10....0
+    1..10..01..1
+    0..01..10..0
+   Copied from gcc sources.  */
+static inline bool risbg_mask(uint64_t c)
+{
+    uint64_t lsb;
+    /* We don't change the number of transitions by inverting,
+       so make sure we start with the LSB zero.  */
+    if (c & 1) {
+        c = ~c;
+    }
+    /* Reject all zeros or all ones.  */
+    if (c == 0) {
+        return false;
+    }
+    /* Find the first transition.  */
+    lsb = c & -c;
+    /* Invert to look for a second transition.  */
+    c = ~c;
+    /* Erase the first transition.  */
+    c &= -lsb;
+    /* Find the second transition, if any.  */
+    lsb = c & -c;
+    /* Match if all the bits are 1's, or if c is zero.  */
+    return c == -lsb;
+}
+
 static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
 {
     static const S390Opcode ni_insns[4] = {
@@ -985,6 +1024,19 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
                 return;
             }
         }
+    }
+    if ((facilities & FACILITY_GEN_INST_EXT) && risbg_mask(val)) {
+        int msb, lsb;
+        if ((val & 0x8000000000000001ull) == 0x8000000000000001ull) {
+            /* Achieve wraparound by swapping msb and lsb.  */
+            msb = 63 - ctz64(~val);
+            lsb = clz64(~val) + 1;
+        } else {
+            msb = clz64(val);
+            lsb = 63 - ctz64(val);
+        }
+        tcg_out_risbg(s, dest, dest, msb, lsb, 0, 1);
+        return;
     }
 
     /* Fall back to loading the constant.  */
@@ -1142,11 +1194,7 @@ static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
 {
     int lsb = (63 - ofs);
     int msb = lsb - (len - 1);
-
-    /* Format RIE-f */
-    tcg_out16(s, (RIE_RISBG & 0xff00) | (dest << 4) | src);
-    tcg_out16(s, (msb << 8) | lsb);
-    tcg_out16(s, (ofs << 8) | (RIE_RISBG & 0xff));
+    tcg_out_risbg(s, dest, src, msb, lsb, ofs, 0);
 }
 
 static void tgen_gotoi(TCGContext *s, int cc, tcg_target_long dest)
