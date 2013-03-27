@@ -123,11 +123,10 @@ static int parse_chr(DeviceState *dev, const char *str, void **ptr)
     if (chr == NULL) {
         return -ENOENT;
     }
-    if (chr->avail_connections < 1) {
+    if (qemu_chr_fe_claim(chr) != 0) {
         return -EEXIST;
     }
     *ptr = chr;
-    --chr->avail_connections;
     return 0;
 }
 
@@ -140,7 +139,7 @@ static void release_chr(Object *obj, const char *name, void *opaque)
 
     if (chr) {
         qemu_chr_add_handlers(chr, NULL, NULL, NULL, NULL);
-        ++chr->avail_connections;
+        qemu_chr_fe_release(chr);
     }
 }
 

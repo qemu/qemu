@@ -3452,6 +3452,29 @@ int qemu_chr_fe_add_watch(CharDriverState *s, GIOCondition cond,
     return tag;
 }
 
+int qemu_chr_fe_claim(CharDriverState *s)
+{
+    if (s->avail_connections < 1) {
+        return -1;
+    }
+    s->avail_connections--;
+    return 0;
+}
+
+void qemu_chr_fe_claim_no_fail(CharDriverState *s)
+{
+    if (qemu_chr_fe_claim(s) != 0) {
+        fprintf(stderr, "%s: error chardev \"%s\" already used\n",
+                __func__, s->label);
+        exit(1);
+    }
+}
+
+void qemu_chr_fe_release(CharDriverState *s)
+{
+    s->avail_connections++;
+}
+
 void qemu_chr_delete(CharDriverState *chr)
 {
     QTAILQ_REMOVE(&chardevs, chr, next);
