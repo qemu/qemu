@@ -674,6 +674,7 @@ static int net_socket_udp_init(NetClientState *peer,
         closesocket(fd);
         return -1;
     }
+    qemu_set_nonblock(fd);
 
     s = net_socket_fd_init(peer, model, name, fd, 0);
     if (!s) {
@@ -712,7 +713,11 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
         int fd;
 
         fd = monitor_handle_fd_param(cur_mon, sock->fd);
-        if (fd == -1 || !net_socket_fd_init(peer, "socket", name, fd, 1)) {
+        if (fd == -1) {
+            return -1;
+        }
+        qemu_set_nonblock(fd);
+        if (!net_socket_fd_init(peer, "socket", name, fd, 1)) {
             return -1;
         }
         return 0;
