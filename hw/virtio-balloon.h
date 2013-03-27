@@ -57,7 +57,7 @@ typedef struct VirtIOBalloonStat {
 } QEMU_PACKED VirtIOBalloonStat;
 
 typedef struct VirtIOBalloon {
-    VirtIODevice vdev;
+    VirtIODevice parent_obj;
     VirtQueue *ivq, *dvq, *svq;
     uint32_t num_pages;
     uint32_t actual;
