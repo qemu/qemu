@@ -748,10 +748,11 @@ static void tcg_out_mem(TCGContext *s, S390Opcode opc_rx, S390Opcode opc_rxy,
                         tcg_target_long ofs)
 {
     if (ofs < -0x80000 || ofs >= 0x80000) {
-        /* Combine the low 16 bits of the offset with the actual load insn;
-           the high 48 bits must come from an immediate load.  */
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, ofs & ~0xffff);
-        ofs &= 0xffff;
+        /* Combine the low 20 bits of the offset with the actual load insn;
+           the high 44 bits must come from an immediate load.  */
+        tcg_target_long low = ((ofs & 0xfffff) ^ 0x80000) - 0x80000;
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, ofs - low);
+        ofs = low;
 
         /* If we were already given an index register, add it in.  */
         if (index != TCG_REG_NONE) {
