@@ -910,6 +910,7 @@ int socket_connect(SocketAddress *addr, Error **errp,
     case SOCKET_ADDRESS_KIND_FD:
         fd = monitor_get_fd(cur_mon, addr->fd->str, errp);
         if (callback) {
+            qemu_set_nonblock(fd);
             callback(fd, opaque);
         }
         break;
