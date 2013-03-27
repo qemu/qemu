@@ -63,7 +63,7 @@ typedef enum TCGReg {
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_nor_i32          0
-#define TCG_TARGET_HAS_deposit_i32      0
+#define TCG_TARGET_HAS_deposit_i32      1
 #define TCG_TARGET_HAS_movcond_i32      1
 #define TCG_TARGET_HAS_add2_i32         1
 #define TCG_TARGET_HAS_sub2_i32         1
@@ -88,12 +88,16 @@ typedef enum TCGReg {
 #define TCG_TARGET_HAS_eqv_i64          0
 #define TCG_TARGET_HAS_nand_i64         0
 #define TCG_TARGET_HAS_nor_i64          0
-#define TCG_TARGET_HAS_deposit_i64      0
+#define TCG_TARGET_HAS_deposit_i64      1
 #define TCG_TARGET_HAS_movcond_i64      1
 #define TCG_TARGET_HAS_add2_i64         1
 #define TCG_TARGET_HAS_sub2_i64         1
 #define TCG_TARGET_HAS_mulu2_i64        1
 #define TCG_TARGET_HAS_muls2_i64        0
+
+extern bool tcg_target_deposit_valid(int ofs, int len);
+#define TCG_TARGET_deposit_i32_valid  tcg_target_deposit_valid
+#define TCG_TARGET_deposit_i64_valid  tcg_target_deposit_valid
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK		TCG_REG_R15
