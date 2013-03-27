@@ -159,16 +159,22 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
     for (si = 0; si < iov_cnt && offset >= iov[si].iov_len; ++si) {
         offset -= iov[si].iov_len;
     }
+
+    /* si == iov_cnt would only be valid if bytes == 0, which
+     * we already ruled out above.  */
+    assert(si < iov_cnt);
+    iov += si;
+    iov_cnt -= si;
+
     if (offset) {
-        assert(si < iov_cnt);
         /* second, skip `offset' bytes from the (now) first element,
          * undo it on exit */
-        iov[si].iov_base += offset;
-        iov[si].iov_len -= offset;
+        iov[0].iov_base += offset;
+        iov[0].iov_len -= offset;
     }
     /* Find the end position skipping `bytes' bytes: */
     /* first, skip all full-sized elements */
-    for (ei = si; ei < iov_cnt && iov[ei].iov_len <= bytes; ++ei) {
+    for (ei = 0; ei < iov_cnt && iov[ei].iov_len <= bytes; ++ei) {
         bytes -= iov[ei].iov_len;
     }
     if (bytes) {
@@ -183,12 +189,12 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
         ++ei;
     }
 
-    ret = do_send_recv(sockfd, iov + si, ei - si, do_send);
+    ret = do_send_recv(sockfd, iov, ei, do_send);
 
     /* Undo the changes above */
     if (offset) {
-        iov[si].iov_base -= offset;
-        iov[si].iov_len += offset;
+        iov[0].iov_base -= offset;
+        iov[0].iov_len += offset;
     }
     if (bytes) {
         iov[ei-1].iov_len += bytes;
