@@ -335,8 +335,8 @@ static const uint8_t qemu_ccid_descriptor[] = {
                      */
         0x07,       /* u8  bVoltageSupport; 01h - 5.0v, 02h - 3.0, 03 - 1.8 */
 
-        0x03, 0x00, /* u32 dwProtocols; RRRR PPPP. RRRR = 0000h.*/
-        0x00, 0x00, /* PPPP: 0001h = Protocol T=0, 0002h = Protocol T=1 */
+        0x00, 0x00, /* u32 dwProtocols; RRRR PPPP. RRRR = 0000h.*/
+        0x01, 0x00, /* PPPP: 0001h = Protocol T=0, 0002h = Protocol T=1 */
                     /* u32 dwDefaultClock; in kHZ (0x0fa0 is 4 MHz) */
         0xa0, 0x0f, 0x00, 0x00,
                     /* u32 dwMaximumClock; */
@@ -875,7 +875,7 @@ static const CCID_ProtocolDataStructure defaultProtocolDataStructure = {
 
 static void ccid_reset_parameters(USBCCIDState *s)
 {
-   s->bProtocolNum = 1; /* T=1 */
+   s->bProtocolNum = 0; /* T=0 */
    s->abProtocolDataStructure = defaultProtocolDataStructure;
 }
 
