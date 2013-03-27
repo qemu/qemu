@@ -146,7 +146,7 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
 {
     ssize_t ret;
     size_t orig_len, tail;
-    unsigned si, ei;            /* start and end indexes */
+    unsigned niov;
 
     if (bytes == 0) {
         /* Catch the do-nothing case early, as otherwise we will pass an
@@ -158,15 +158,15 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
 
     /* Find the start position, skipping `offset' bytes:
      * first, skip all full-sized vector elements, */
-    for (si = 0; si < iov_cnt && offset >= iov[si].iov_len; ++si) {
-        offset -= iov[si].iov_len;
+    for (niov = 0; niov < iov_cnt && offset >= iov[niov].iov_len; ++niov) {
+        offset -= iov[niov].iov_len;
     }
 
-    /* si == iov_cnt would only be valid if bytes == 0, which
+    /* niov == iov_cnt would only be valid if bytes == 0, which
      * we already ruled out above.  */
-    assert(si < iov_cnt);
-    iov += si;
-    iov_cnt -= si;
+    assert(niov < iov_cnt);
+    iov += niov;
+    iov_cnt -= niov;
 
     if (offset) {
         /* second, skip `offset' bytes from the (now) first element,
@@ -177,23 +177,23 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
     /* Find the end position skipping `bytes' bytes: */
     /* first, skip all full-sized elements */
     tail = bytes;
-    for (ei = 0; ei < iov_cnt && iov[ei].iov_len <= tail; ++ei) {
-        tail -= iov[ei].iov_len;
+    for (niov = 0; niov < iov_cnt && iov[niov].iov_len <= tail; ++niov) {
+        tail -= iov[niov].iov_len;
     }
     if (tail) {
         /* second, fixup the last element, and remember the original
          * length */
-        assert(ei < iov_cnt);
-        assert(iov[ei].iov_len > tail);
-        orig_len = iov[ei].iov_len;
-        iov[ei++].iov_len = tail;
+        assert(niov < iov_cnt);
+        assert(iov[niov].iov_len > tail);
+        orig_len = iov[niov].iov_len;
+        iov[niov++].iov_len = tail;
     }
 
-    ret = do_send_recv(sockfd, iov, ei, do_send);
+    ret = do_send_recv(sockfd, iov, niov, do_send);
 
     /* Undo the changes above */
     if (tail) {
-        iov[ei-1].iov_len = orig_len;
+        iov[niov-1].iov_len = orig_len;
     }
     if (offset) {
         iov[0].iov_base -= offset;
