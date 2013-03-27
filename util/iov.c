@@ -145,7 +145,9 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
                       bool do_send)
 {
     ssize_t ret;
+    size_t orig_len, tail;
     unsigned si, ei;            /* start and end indexes */
+
     if (bytes == 0) {
         /* Catch the do-nothing case early, as otherwise we will pass an
          * empty iovec to sendmsg/recvmsg(), and not all implementations
@@ -174,30 +176,28 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
     }
     /* Find the end position skipping `bytes' bytes: */
     /* first, skip all full-sized elements */
-    for (ei = 0; ei < iov_cnt && iov[ei].iov_len <= bytes; ++ei) {
-        bytes -= iov[ei].iov_len;
+    tail = bytes;
+    for (ei = 0; ei < iov_cnt && iov[ei].iov_len <= tail; ++ei) {
+        tail -= iov[ei].iov_len;
     }
-    if (bytes) {
-        /* second, fixup the last element, and remember
-         * the length we've cut from the end of it in `bytes' */
-        size_t tail;
+    if (tail) {
+        /* second, fixup the last element, and remember the original
+         * length */
         assert(ei < iov_cnt);
-        assert(iov[ei].iov_len > bytes);
-        tail = iov[ei].iov_len - bytes;
-        iov[ei].iov_len = bytes;
-        bytes = tail;  /* bytes is now equal to the tail size */
-        ++ei;
+        assert(iov[ei].iov_len > tail);
+        orig_len = iov[ei].iov_len;
+        iov[ei++].iov_len = tail;
     }
 
     ret = do_send_recv(sockfd, iov, ei, do_send);
 
     /* Undo the changes above */
+    if (tail) {
+        iov[ei-1].iov_len = orig_len;
+    }
     if (offset) {
         iov[0].iov_base -= offset;
         iov[0].iov_len += offset;
-    }
-    if (bytes) {
-        iov[ei-1].iov_len += bytes;
     }
 
     return ret;
