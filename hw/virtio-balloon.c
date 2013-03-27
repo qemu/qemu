@@ -339,27 +339,13 @@ static int virtio_balloon_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static VirtIODevice *virtio_balloon_common_init(DeviceState *dev,
-                                                VirtIOBalloon **ps)
+static int virtio_balloon_device_init(VirtIODevice *vdev)
 {
-    VirtIOBalloon *s = *ps;
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
     int ret;
 
-    /*
-     * We have two cases here: the old virtio-balloon-x device, and the
-     * refactored virtio-balloon.
-     * This will disappear later in the serie.
-     */
-    int old_device = (s == NULL);
-    if (s == NULL) {
-        /* old virtio-balloon-pci or virtio-balloon-s390, no memory allocated */
-        s = (VirtIOBalloon *)virtio_common_init("virtio-balloon",
-                                                VIRTIO_ID_BALLOON,
-                                                8, sizeof(VirtIOBalloon));
-    } else {
-        /* new API virtio-balloon. (memory allocated by qdev) */
-        virtio_init(VIRTIO_DEVICE(s), "virtio-balloon", VIRTIO_ID_BALLOON, 8);
-    }
+    virtio_init(vdev, "virtio-balloon", VIRTIO_ID_BALLOON, 8);
 
     s->vdev.get_config = virtio_balloon_get_config;
     s->vdev.set_config = virtio_balloon_set_config;
@@ -367,60 +353,27 @@ static VirtIODevice *virtio_balloon_common_init(DeviceState *dev,
 
     ret = qemu_add_balloon_handler(virtio_balloon_to_target,
                                    virtio_balloon_stat, s);
-    if ((ret < 0) && (old_device)) {
-        virtio_cleanup(&s->vdev);
-        return NULL;
-    }
+
     if (ret < 0) {
         virtio_common_cleanup(VIRTIO_DEVICE(s));
-        return NULL;
+        return -1;
     }
 
-    s->ivq = virtio_add_queue(&s->vdev, 128, virtio_balloon_handle_output);
-    s->dvq = virtio_add_queue(&s->vdev, 128, virtio_balloon_handle_output);
-    s->svq = virtio_add_queue(&s->vdev, 128, virtio_balloon_receive_stats);
+    s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+    s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+    s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
 
-    s->qdev = dev;
-    register_savevm(dev, "virtio-balloon", -1, 1,
+    s->qdev = qdev;
+    register_savevm(qdev, "virtio-balloon", -1, 1,
                     virtio_balloon_save, virtio_balloon_load, s);
 
-    object_property_add(OBJECT(dev), "guest-stats", "guest statistics",
+    object_property_add(OBJECT(qdev), "guest-stats", "guest statistics",
                         balloon_stats_get_all, NULL, NULL, s, NULL);
 
-    object_property_add(OBJECT(dev), "guest-stats-polling-interval", "int",
+    object_property_add(OBJECT(qdev), "guest-stats-polling-interval", "int",
                         balloon_stats_get_poll_interval,
                         balloon_stats_set_poll_interval,
                         NULL, s, NULL);
-
-    return &s->vdev;
-}
-
-/*
- * This two functions will be removed later in the serie.
- */
-VirtIODevice *virtio_balloon_init(DeviceState *dev)
-{
-    VirtIOBalloon *s = NULL;
-    return virtio_balloon_common_init(dev, &s);
-}
-
-void virtio_balloon_exit(VirtIODevice *vdev)
-{
-    VirtIOBalloon *s = DO_UPCAST(VirtIOBalloon, vdev, vdev);
-
-    balloon_stats_destroy_timer(s);
-    qemu_remove_balloon_handler(s);
-    unregister_savevm(s->qdev, "virtio-balloon", s);
-    virtio_cleanup(vdev);
-}
-
-static int virtio_balloon_device_init(VirtIODevice *vdev)
-{
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-    if (virtio_balloon_common_init(qdev, &s) == NULL) {
-        return -1;
-    }
     return 0;
 }
 
