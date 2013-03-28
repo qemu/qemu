@@ -27,6 +27,7 @@
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "qemu/sockets.h"
+#include "backends/tpm.h"
 #include "tpm_int.h"
 #include "hw/hw.h"
 #include "hw/pc.h"
@@ -43,8 +44,11 @@
     do { } while (0)
 #endif
 
-/* data structures */
+#define TYPE_TPM_PASSTHROUGH "tpm-passthrough"
+#define TPM_PASSTHROUGH(obj) \
+    OBJECT_CHECK(TPMPassthruState, (obj), TYPE_TPM_PASSTHROUGH)
 
+/* data structures */
 typedef struct TPMPassthruThreadParams {
     TPMState *tpm_state;
 
@@ -53,6 +57,8 @@ typedef struct TPMPassthruThreadParams {
 } TPMPassthruThreadParams;
 
 struct TPMPassthruState {
+    TPMBackend parent;
+
     TPMBackendThread tbt;
 
     TPMPassthruThreadParams tpm_thread_params;
@@ -64,6 +70,8 @@ struct TPMPassthruState {
     int cancel_fd;
     bool had_startup_error;
 };
+
+typedef struct TPMPassthruState TPMPassthruState;
 
 #define TPM_PASSTHROUGH_DEFAULT_DEVICE "/dev/tpm0"
 
@@ -149,7 +157,7 @@ static void tpm_passthrough_worker_thread(gpointer data,
                                           gpointer user_data)
 {
     TPMPassthruThreadParams *thr_parms = user_data;
-    TPMPassthruState *tpm_pt = thr_parms->tb->s.tpm_pt;
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(thr_parms->tb);
     TPMBackendCmd cmd = (TPMBackendCmd)data;
 
     DPRINTF("tpm_passthrough: processing command type %d\n", cmd);
@@ -176,21 +184,21 @@ static void tpm_passthrough_worker_thread(gpointer data,
  */
 static int tpm_passthrough_startup_tpm(TPMBackend *tb)
 {
-    TPMPassthruState *tpm_pt = tb->s.tpm_pt;
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
     /* terminate a running TPM */
     tpm_backend_thread_end(&tpm_pt->tbt);
 
     tpm_backend_thread_create(&tpm_pt->tbt,
                               tpm_passthrough_worker_thread,
-                              &tb->s.tpm_pt->tpm_thread_params);
+                              &tpm_pt->tpm_thread_params);
 
     return 0;
 }
 
 static void tpm_passthrough_reset(TPMBackend *tb)
 {
-    TPMPassthruState *tpm_pt = tb->s.tpm_pt;
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
     DPRINTF("tpm_passthrough: CALL TO TPM_RESET!\n");
 
@@ -204,7 +212,7 @@ static void tpm_passthrough_reset(TPMBackend *tb)
 static int tpm_passthrough_init(TPMBackend *tb, TPMState *s,
                                 TPMRecvDataCB *recv_data_cb)
 {
-    TPMPassthruState *tpm_pt = tb->s.tpm_pt;
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
     tpm_pt->tpm_thread_params.tpm_state = s;
     tpm_pt->tpm_thread_params.recv_data_callback = recv_data_cb;
@@ -220,7 +228,7 @@ static bool tpm_passthrough_get_tpm_established_flag(TPMBackend *tb)
 
 static bool tpm_passthrough_get_startup_error(TPMBackend *tb)
 {
-    TPMPassthruState *tpm_pt = tb->s.tpm_pt;
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
     return tpm_pt->had_startup_error;
 }
@@ -238,14 +246,14 @@ static size_t tpm_passthrough_realloc_buffer(TPMSizedBuffer *sb)
 
 static void tpm_passthrough_deliver_request(TPMBackend *tb)
 {
-    TPMPassthruState *tpm_pt = tb->s.tpm_pt;
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
     tpm_backend_thread_deliver_request(&tpm_pt->tbt);
 }
 
 static void tpm_passthrough_cancel_cmd(TPMBackend *tb)
 {
-    TPMPassthruState *tpm_pt = tb->s.tpm_pt;
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
     int n;
 
     /*
@@ -412,6 +420,7 @@ static int tpm_passthrough_open_sysfs_cancel(TPMBackend *tb)
 
 static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
 {
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
     const char *value;
 
     value = qemu_opt_get(opts, "cancel-path");
@@ -424,45 +433,45 @@ static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
         value = TPM_PASSTHROUGH_DEFAULT_DEVICE;
     }
 
-    tb->s.tpm_pt->tpm_dev = g_strdup(value);
+    tpm_pt->tpm_dev = g_strdup(value);
 
-    tb->path = g_strdup(tb->s.tpm_pt->tpm_dev);
+    tb->path = g_strdup(tpm_pt->tpm_dev);
 
-    tb->s.tpm_pt->tpm_fd = qemu_open(tb->s.tpm_pt->tpm_dev, O_RDWR);
-    if (tb->s.tpm_pt->tpm_fd < 0) {
+    tpm_pt->tpm_fd = qemu_open(tpm_pt->tpm_dev, O_RDWR);
+    if (tpm_pt->tpm_fd < 0) {
         error_report("Cannot access TPM device using '%s': %s\n",
-                     tb->s.tpm_pt->tpm_dev, strerror(errno));
+                     tpm_pt->tpm_dev, strerror(errno));
         goto err_free_parameters;
     }
 
-    if (tpm_passthrough_test_tpmdev(tb->s.tpm_pt->tpm_fd)) {
+    if (tpm_passthrough_test_tpmdev(tpm_pt->tpm_fd)) {
         error_report("'%s' is not a TPM device.\n",
-                     tb->s.tpm_pt->tpm_dev);
+                     tpm_pt->tpm_dev);
         goto err_close_tpmdev;
     }
 
     return 0;
 
  err_close_tpmdev:
-    qemu_close(tb->s.tpm_pt->tpm_fd);
-    tb->s.tpm_pt->tpm_fd = -1;
+    qemu_close(tpm_pt->tpm_fd);
+    tpm_pt->tpm_fd = -1;
 
  err_free_parameters:
     g_free(tb->path);
     tb->path = NULL;
 
-    g_free(tb->s.tpm_pt->tpm_dev);
-    tb->s.tpm_pt->tpm_dev = NULL;
+    g_free(tpm_pt->tpm_dev);
+    tpm_pt->tpm_dev = NULL;
 
     return 1;
 }
 
 static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
 {
-    TPMBackend *tb;
+    Object *obj = object_new(TYPE_TPM_PASSTHROUGH);
+    TPMBackend *tb = TPM_BACKEND(obj);
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
-    tb = g_new0(TPMBackend, 1);
-    tb->s.tpm_pt = g_new0(TPMPassthruState, 1);
     tb->id = g_strdup(id);
     /* let frontend set the fe_model to proper value */
     tb->fe_model = -1;
@@ -473,8 +482,8 @@ static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
         goto err_exit;
     }
 
-    tb->s.tpm_pt->cancel_fd = tpm_passthrough_open_sysfs_cancel(tb);
-    if (tb->s.tpm_pt->cancel_fd < 0) {
+    tpm_pt->cancel_fd = tpm_passthrough_open_sysfs_cancel(tb);
+    if (tpm_pt->cancel_fd < 0) {
         goto err_exit;
     }
 
@@ -482,29 +491,25 @@ static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
 
 err_exit:
     g_free(tb->id);
-    g_free(tb->s.tpm_pt);
-    g_free(tb);
 
     return NULL;
 }
 
 static void tpm_passthrough_destroy(TPMBackend *tb)
 {
-    TPMPassthruState *tpm_pt = tb->s.tpm_pt;
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
     tpm_passthrough_cancel_cmd(tb);
 
     tpm_backend_thread_end(&tpm_pt->tbt);
 
     qemu_close(tpm_pt->tpm_fd);
-    qemu_close(tb->s.tpm_pt->cancel_fd);
+    qemu_close(tpm_pt->cancel_fd);
 
     g_free(tb->id);
     g_free(tb->path);
     g_free(tb->cancel_path);
-    g_free(tb->s.tpm_pt->tpm_dev);
-    g_free(tb->s.tpm_pt);
-    g_free(tb);
+    g_free(tpm_pt->tpm_dev);
 }
 
 const TPMDriverOps tpm_passthrough_driver = {
@@ -522,8 +527,33 @@ const TPMDriverOps tpm_passthrough_driver = {
     .get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag,
 };
 
+static void tpm_passthrough_inst_init(Object *obj)
+{
+}
+
+static void tpm_passthrough_inst_finalize(Object *obj)
+{
+}
+
+static void tpm_passthrough_class_init(ObjectClass *klass, void *data)
+{
+    TPMBackendClass *tbc = TPM_BACKEND_CLASS(klass);
+
+    tbc->ops = &tpm_passthrough_driver;
+}
+
+static const TypeInfo tpm_passthrough_info = {
+    .name = TYPE_TPM_PASSTHROUGH,
+    .parent = TYPE_TPM_BACKEND,
+    .instance_size = sizeof(TPMPassthruState),
+    .class_init = tpm_passthrough_class_init,
+    .instance_init = tpm_passthrough_inst_init,
+    .instance_finalize = tpm_passthrough_inst_finalize,
+};
+
 static void tpm_passthrough_register(void)
 {
+    type_register_static(&tpm_passthrough_info);
     tpm_register_driver(&tpm_passthrough_driver);
 }
 
