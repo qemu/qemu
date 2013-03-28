@@ -441,9 +441,6 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
     assert(tb_ptr);
 
     for (;;) {
-#if defined(GETPC)
-        tci_tb_ptr = (uintptr_t)tb_ptr;
-#endif
         TCGOpcode opc = tb_ptr[0];
 #if !defined(NDEBUG)
         uint8_t op_size = tb_ptr[1];
@@ -464,6 +461,10 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
         uint64_t tmp64;
 #if TCG_TARGET_REG_BITS == 32
         uint64_t v64;
+#endif
+
+#if defined(GETPC)
+        tci_tb_ptr = (uintptr_t)tb_ptr;
 #endif
 
         /* Skip opcode and size entry. */
