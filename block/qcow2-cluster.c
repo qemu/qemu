@@ -759,31 +759,50 @@ out:
  * Check if there already is an AIO write request in flight which allocates
  * the same cluster. In this case we need to wait until the previous
  * request has completed and updated the L2 table accordingly.
+ *
+ * Returns:
+ *   0       if there was no dependency. *cur_bytes indicates the number of
+ *           bytes from guest_offset that can be read before the next
+ *           dependency must be processed (or the request is complete)
+ *
+ *   -EAGAIN if we had to wait for another request, previously gathered
+ *           information on cluster allocation may be invalid now. The caller
+ *           must start over anyway, so consider *cur_bytes undefined.
  */
 static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
-    unsigned int *nb_clusters)
+    uint64_t *cur_bytes, QCowL2Meta **m)
 {
     BDRVQcowState *s = bs->opaque;
     QCowL2Meta *old_alloc;
+    uint64_t bytes = *cur_bytes;
 
     QLIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
 
-        uint64_t start = guest_offset >> s->cluster_bits;
-        uint64_t end = start + *nb_clusters;
-        uint64_t old_start = old_alloc->offset >> s->cluster_bits;
-        uint64_t old_end = old_start + old_alloc->nb_clusters;
+        uint64_t start = guest_offset;
+        uint64_t end = start + bytes;
+        uint64_t old_start = l2meta_cow_start(old_alloc);
+        uint64_t old_end = l2meta_cow_end(old_alloc);
 
-        if (end < old_start || start > old_end) {
+        if (end <= old_start || start >= old_end) {
             /* No intersection */
         } else {
             if (start < old_start) {
                 /* Stop at the start of a running allocation */
-                *nb_clusters = old_start - start;
+                bytes = old_start - start;
             } else {
-                *nb_clusters = 0;
+                bytes = 0;
             }
 
-            if (*nb_clusters == 0) {
+            /* Stop if already an l2meta exists. After yielding, it wouldn't
+             * be valid any more, so we'd have to clean up the old L2Metas
+             * and deal with requests depending on them before starting to
+             * gather new ones. Not worth the trouble. */
+            if (bytes == 0 && *m) {
+                *cur_bytes = 0;
+                return 0;
+            }
+
+            if (bytes == 0) {
                 /* Wait for the dependency to complete. We need to recheck
                  * the free/allocated clusters when we continue. */
                 qemu_co_mutex_unlock(&s->lock);
@@ -794,11 +813,115 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
         }
     }
 
-    if (!*nb_clusters) {
-        abort();
-    }
+    /* Make sure that existing clusters and new allocations are only used up to
+     * the next dependency if we shortened the request above */
+    *cur_bytes = bytes;
 
     return 0;
+}
+
+/*
+ * Checks how many already allocated clusters that don't require a copy on
+ * write there are at the given guest_offset (up to *bytes). If
+ * *host_offset is not zero, only physically contiguous clusters beginning at
+ * this host offset are counted.
+ *
+ * Note that guest_offset may not be cluster aligned. In this case, the
+ * returned *host_offset points to exact byte referenced by guest_offset and
+ * therefore isn't cluster aligned as well.
+ *
+ * Returns:
+ *   0:     if no allocated clusters are available at the given offset.
+ *          *bytes is normally unchanged. It is set to 0 if the cluster
+ *          is allocated and doesn't need COW, but doesn't have the right
+ *          physical offset.
+ *
+ *   1:     if allocated clusters that don't require a COW are available at
+ *          the requested offset. *bytes may have decreased and describes
+ *          the length of the area that can be written to.
+ *
+ *  -errno: in error cases
+ */
+static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
+    uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m)
+{
+    BDRVQcowState *s = bs->opaque;
+    int l2_index;
+    uint64_t cluster_offset;
+    uint64_t *l2_table;
+    unsigned int nb_clusters;
+    unsigned int keep_clusters;
+    int ret, pret;
+
+    trace_qcow2_handle_copied(qemu_coroutine_self(), guest_offset, *host_offset,
+                              *bytes);
+
+    assert(*host_offset == 0 ||    offset_into_cluster(s, guest_offset)
+                                == offset_into_cluster(s, *host_offset));
+
+    /*
+     * Calculate the number of clusters to look for. We stop at L2 table
+     * boundaries to keep things simple.
+     */
+    nb_clusters =
+        size_to_clusters(s, offset_into_cluster(s, guest_offset) + *bytes);
+
+    l2_index = offset_to_l2_index(s, guest_offset);
+    nb_clusters = MIN(nb_clusters, s->l2_size - l2_index);
+
+    /* Find L2 entry for the first involved cluster */
+    ret = get_cluster_table(bs, guest_offset, &l2_table, &l2_index);
+    if (ret < 0) {
+        return ret;
+    }
+
+    cluster_offset = be64_to_cpu(l2_table[l2_index]);
+
+    /* Check how many clusters are already allocated and don't need COW */
+    if (qcow2_get_cluster_type(cluster_offset) == QCOW2_CLUSTER_NORMAL
+        && (cluster_offset & QCOW_OFLAG_COPIED))
+    {
+        /* If a specific host_offset is required, check it */
+        bool offset_matches =
+            (cluster_offset & L2E_OFFSET_MASK) == *host_offset;
+
+        if (*host_offset != 0 && !offset_matches) {
+            *bytes = 0;
+            ret = 0;
+            goto out;
+        }
+
+        /* We keep all QCOW_OFLAG_COPIED clusters */
+        keep_clusters =
+            count_contiguous_clusters(nb_clusters, s->cluster_size,
+                                      &l2_table[l2_index], 0,
+                                      QCOW_OFLAG_COPIED | QCOW_OFLAG_ZERO);
+        assert(keep_clusters <= nb_clusters);
+
+        *bytes = MIN(*bytes,
+                 keep_clusters * s->cluster_size
+                 - offset_into_cluster(s, guest_offset));
+
+        ret = 1;
+    } else {
+        ret = 0;
+    }
+
+    /* Cleanup */
+out:
+    pret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+    if (pret < 0) {
+        return pret;
+    }
+
+    /* Only return a host offset if we actually made progress. Otherwise we
+     * would make requirements for handle_alloc() that it can't fulfill */
+    if (ret) {
+        *host_offset = (cluster_offset & L2E_OFFSET_MASK)
+                     + offset_into_cluster(s, guest_offset);
+    }
+
+    return ret;
 }
 
 /*
@@ -824,15 +947,9 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
     uint64_t *host_offset, unsigned int *nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
-    int ret;
 
     trace_qcow2_do_alloc_clusters_offset(qemu_coroutine_self(), guest_offset,
                                          *host_offset, *nb_clusters);
-
-    ret = handle_dependencies(bs, guest_offset, nb_clusters);
-    if (ret < 0) {
-        return ret;
-    }
 
     /* Allocate new clusters */
     trace_qcow2_cluster_alloc_phys(qemu_coroutine_self());
@@ -845,13 +962,158 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
         *host_offset = cluster_offset;
         return 0;
     } else {
-        ret = qcow2_alloc_clusters_at(bs, *host_offset, *nb_clusters);
+        int ret = qcow2_alloc_clusters_at(bs, *host_offset, *nb_clusters);
         if (ret < 0) {
             return ret;
         }
         *nb_clusters = ret;
         return 0;
     }
+}
+
+/*
+ * Allocates new clusters for an area that either is yet unallocated or needs a
+ * copy on write. If *host_offset is non-zero, clusters are only allocated if
+ * the new allocation can match the specified host offset.
+ *
+ * Note that guest_offset may not be cluster aligned. In this case, the
+ * returned *host_offset points to exact byte referenced by guest_offset and
+ * therefore isn't cluster aligned as well.
+ *
+ * Returns:
+ *   0:     if no clusters could be allocated. *bytes is set to 0,
+ *          *host_offset is left unchanged.
+ *
+ *   1:     if new clusters were allocated. *bytes may be decreased if the
+ *          new allocation doesn't cover all of the requested area.
+ *          *host_offset is updated to contain the host offset of the first
+ *          newly allocated cluster.
+ *
+ *  -errno: in error cases
+ */
+static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
+    uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m)
+{
+    BDRVQcowState *s = bs->opaque;
+    int l2_index;
+    uint64_t *l2_table;
+    uint64_t entry;
+    unsigned int nb_clusters;
+    int ret;
+
+    uint64_t alloc_cluster_offset;
+
+    trace_qcow2_handle_alloc(qemu_coroutine_self(), guest_offset, *host_offset,
+                             *bytes);
+    assert(*bytes > 0);
+
+    /*
+     * Calculate the number of clusters to look for. We stop at L2 table
+     * boundaries to keep things simple.
+     */
+    nb_clusters =
+        size_to_clusters(s, offset_into_cluster(s, guest_offset) + *bytes);
+
+    l2_index = offset_to_l2_index(s, guest_offset);
+    nb_clusters = MIN(nb_clusters, s->l2_size - l2_index);
+
+    /* Find L2 entry for the first involved cluster */
+    ret = get_cluster_table(bs, guest_offset, &l2_table, &l2_index);
+    if (ret < 0) {
+        return ret;
+    }
+
+    entry = be64_to_cpu(l2_table[l2_index]);
+
+    /* For the moment, overwrite compressed clusters one by one */
+    if (entry & QCOW_OFLAG_COMPRESSED) {
+        nb_clusters = 1;
+    } else {
+        nb_clusters = count_cow_clusters(s, nb_clusters, l2_table, l2_index);
+    }
+
+    /* This function is only called when there were no non-COW clusters, so if
+     * we can't find any unallocated or COW clusters either, something is
+     * wrong with our code. */
+    assert(nb_clusters > 0);
+
+    ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* Allocate, if necessary at a given offset in the image file */
+    alloc_cluster_offset = start_of_cluster(s, *host_offset);
+    ret = do_alloc_cluster_offset(bs, guest_offset, &alloc_cluster_offset,
+                                  &nb_clusters);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /* Can't extend contiguous allocation */
+    if (nb_clusters == 0) {
+        *bytes = 0;
+        return 0;
+    }
+
+    /*
+     * Save info needed for meta data update.
+     *
+     * requested_sectors: Number of sectors from the start of the first
+     * newly allocated cluster to the end of the (possibly shortened
+     * before) write request.
+     *
+     * avail_sectors: Number of sectors from the start of the first
+     * newly allocated to the end of the last newly allocated cluster.
+     *
+     * nb_sectors: The number of sectors from the start of the first
+     * newly allocated cluster to the end of the area that the write
+     * request actually writes to (excluding COW at the end)
+     */
+    int requested_sectors =
+        (*bytes + offset_into_cluster(s, guest_offset))
+        >> BDRV_SECTOR_BITS;
+    int avail_sectors = nb_clusters
+                        << (s->cluster_bits - BDRV_SECTOR_BITS);
+    int alloc_n_start = offset_into_cluster(s, guest_offset)
+                        >> BDRV_SECTOR_BITS;
+    int nb_sectors = MIN(requested_sectors, avail_sectors);
+    QCowL2Meta *old_m = *m;
+
+    *m = g_malloc0(sizeof(**m));
+
+    **m = (QCowL2Meta) {
+        .next           = old_m,
+
+        .alloc_offset   = alloc_cluster_offset,
+        .offset         = start_of_cluster(s, guest_offset),
+        .nb_clusters    = nb_clusters,
+        .nb_available   = nb_sectors,
+
+        .cow_start = {
+            .offset     = 0,
+            .nb_sectors = alloc_n_start,
+        },
+        .cow_end = {
+            .offset     = nb_sectors * BDRV_SECTOR_SIZE,
+            .nb_sectors = avail_sectors - nb_sectors,
+        },
+    };
+    qemu_co_queue_init(&(*m)->dependent_requests);
+    QLIST_INSERT_HEAD(&s->cluster_allocs, *m, next_in_flight);
+
+    *host_offset = alloc_cluster_offset + offset_into_cluster(s, guest_offset);
+    *bytes = MIN(*bytes, (nb_sectors * BDRV_SECTOR_SIZE)
+                         - offset_into_cluster(s, guest_offset));
+    assert(*bytes != 0);
+
+    return 1;
+
+fail:
+    if (*m && (*m)->nb_clusters > 0) {
+        QLIST_REMOVE(*m, next_in_flight);
+    }
+    return ret;
 }
 
 /*
@@ -877,161 +1139,110 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
     int n_start, int n_end, int *num, uint64_t *host_offset, QCowL2Meta **m)
 {
     BDRVQcowState *s = bs->opaque;
-    int l2_index, ret, sectors;
-    uint64_t *l2_table;
-    unsigned int nb_clusters, keep_clusters;
+    uint64_t start, remaining;
     uint64_t cluster_offset;
+    uint64_t cur_bytes;
+    int ret;
 
     trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset,
                                       n_start, n_end);
 
-    /* Find L2 entry for the first involved cluster */
+    assert(n_start * BDRV_SECTOR_SIZE == offset_into_cluster(s, offset));
+    offset = start_of_cluster(s, offset);
+
 again:
-    ret = get_cluster_table(bs, offset, &l2_table, &l2_index);
-    if (ret < 0) {
-        return ret;
-    }
+    start = offset + (n_start << BDRV_SECTOR_BITS);
+    remaining = (n_end - n_start) << BDRV_SECTOR_BITS;
+    cluster_offset = 0;
+    *host_offset = 0;
+    cur_bytes = 0;
+    *m = NULL;
 
-    /*
-     * Calculate the number of clusters to look for. We stop at L2 table
-     * boundaries to keep things simple.
-     */
-    nb_clusters = MIN(size_to_clusters(s, n_end << BDRV_SECTOR_BITS),
-                      s->l2_size - l2_index);
+    while (true) {
 
-    cluster_offset = be64_to_cpu(l2_table[l2_index]);
-
-    /*
-     * Check how many clusters are already allocated and don't need COW, and how
-     * many need a new allocation.
-     */
-    if (qcow2_get_cluster_type(cluster_offset) == QCOW2_CLUSTER_NORMAL
-        && (cluster_offset & QCOW_OFLAG_COPIED))
-    {
-        /* We keep all QCOW_OFLAG_COPIED clusters */
-        keep_clusters =
-            count_contiguous_clusters(nb_clusters, s->cluster_size,
-                                      &l2_table[l2_index], 0,
-                                      QCOW_OFLAG_COPIED | QCOW_OFLAG_ZERO);
-        assert(keep_clusters <= nb_clusters);
-        nb_clusters -= keep_clusters;
-    } else {
-        keep_clusters = 0;
-        cluster_offset = 0;
-    }
-
-    if (nb_clusters > 0) {
-        /* For the moment, overwrite compressed clusters one by one */
-        uint64_t entry = be64_to_cpu(l2_table[l2_index + keep_clusters]);
-        if (entry & QCOW_OFLAG_COMPRESSED) {
-            nb_clusters = 1;
-        } else {
-            nb_clusters = count_cow_clusters(s, nb_clusters, l2_table,
-                                             l2_index + keep_clusters);
-        }
-    }
-
-    cluster_offset &= L2E_OFFSET_MASK;
-
-    /*
-     * The L2 table isn't used any more after this. As long as the cache works
-     * synchronously, it's important to release it before calling
-     * do_alloc_cluster_offset, which may yield if we need to wait for another
-     * request to complete. If we still had the reference, we could use up the
-     * whole cache with sleeping requests.
-     */
-    ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
-    if (ret < 0) {
-        return ret;
-    }
-
-    /* If there is something left to allocate, do that now */
-    if (nb_clusters > 0) {
-        uint64_t alloc_offset;
-        uint64_t alloc_cluster_offset;
-        uint64_t keep_bytes = keep_clusters * s->cluster_size;
-
-        /* Calculate start and size of allocation */
-        alloc_offset = offset + keep_bytes;
-
-        if (keep_clusters == 0) {
-            alloc_cluster_offset = 0;
-        } else {
-            alloc_cluster_offset = cluster_offset + keep_bytes;
+        if (!*host_offset) {
+            *host_offset = start_of_cluster(s, cluster_offset);
         }
 
-        /* Allocate, if necessary at a given offset in the image file */
-        ret = do_alloc_cluster_offset(bs, alloc_offset, &alloc_cluster_offset,
-                                      &nb_clusters);
+        assert(remaining >= cur_bytes);
+
+        start           += cur_bytes;
+        remaining       -= cur_bytes;
+        cluster_offset  += cur_bytes;
+
+        if (remaining == 0) {
+            break;
+        }
+
+        cur_bytes = remaining;
+
+        /*
+         * Now start gathering as many contiguous clusters as possible:
+         *
+         * 1. Check for overlaps with in-flight allocations
+         *
+         *      a) Overlap not in the first cluster -> shorten this request and
+         *         let the caller handle the rest in its next loop iteration.
+         *
+         *      b) Real overlaps of two requests. Yield and restart the search
+         *         for contiguous clusters (the situation could have changed
+         *         while we were sleeping)
+         *
+         *      c) TODO: Request starts in the same cluster as the in-flight
+         *         allocation ends. Shorten the COW of the in-fight allocation,
+         *         set cluster_offset to write to the same cluster and set up
+         *         the right synchronisation between the in-flight request and
+         *         the new one.
+         */
+        ret = handle_dependencies(bs, start, &cur_bytes, m);
         if (ret == -EAGAIN) {
+            /* Currently handle_dependencies() doesn't yield if we already had
+             * an allocation. If it did, we would have to clean up the L2Meta
+             * structs before starting over. */
+            assert(*m == NULL);
             goto again;
         } else if (ret < 0) {
-            goto fail;
+            return ret;
+        } else if (cur_bytes == 0) {
+            break;
+        } else {
+            /* handle_dependencies() may have decreased cur_bytes (shortened
+             * the allocations below) so that the next dependency is processed
+             * correctly during the next loop iteration. */
         }
 
-        /* save info needed for meta data update */
-        if (nb_clusters > 0) {
-            /*
-             * requested_sectors: Number of sectors from the start of the first
-             * newly allocated cluster to the end of the (possibly shortened
-             * before) write request.
-             *
-             * avail_sectors: Number of sectors from the start of the first
-             * newly allocated to the end of the last newly allocated cluster.
-             *
-             * nb_sectors: The number of sectors from the start of the first
-             * newly allocated cluster to the end of the aread that the write
-             * request actually writes to (excluding COW at the end)
-             */
-            int requested_sectors = n_end - keep_clusters * s->cluster_sectors;
-            int avail_sectors = nb_clusters
-                                << (s->cluster_bits - BDRV_SECTOR_BITS);
-            int alloc_n_start = keep_clusters == 0 ? n_start : 0;
-            int nb_sectors = MIN(requested_sectors, avail_sectors);
+        /*
+         * 2. Count contiguous COPIED clusters.
+         */
+        ret = handle_copied(bs, start, &cluster_offset, &cur_bytes, m);
+        if (ret < 0) {
+            return ret;
+        } else if (ret) {
+            continue;
+        } else if (cur_bytes == 0) {
+            break;
+        }
 
-            if (keep_clusters == 0) {
-                cluster_offset = alloc_cluster_offset;
-            }
-
-            *m = g_malloc0(sizeof(**m));
-
-            **m = (QCowL2Meta) {
-                .alloc_offset   = alloc_cluster_offset,
-                .offset         = alloc_offset & ~(s->cluster_size - 1),
-                .nb_clusters    = nb_clusters,
-                .nb_available   = nb_sectors,
-
-                .cow_start = {
-                    .offset     = 0,
-                    .nb_sectors = alloc_n_start,
-                },
-                .cow_end = {
-                    .offset     = nb_sectors * BDRV_SECTOR_SIZE,
-                    .nb_sectors = avail_sectors - nb_sectors,
-                },
-            };
-            qemu_co_queue_init(&(*m)->dependent_requests);
-            QLIST_INSERT_HEAD(&s->cluster_allocs, *m, next_in_flight);
+        /*
+         * 3. If the request still hasn't completed, allocate new clusters,
+         *    considering any cluster_offset of steps 1c or 2.
+         */
+        ret = handle_alloc(bs, start, &cluster_offset, &cur_bytes, m);
+        if (ret < 0) {
+            return ret;
+        } else if (ret) {
+            continue;
+        } else {
+            assert(cur_bytes == 0);
+            break;
         }
     }
 
-    /* Some cleanup work */
-    sectors = (keep_clusters + nb_clusters) << (s->cluster_bits - 9);
-    if (sectors > n_end) {
-        sectors = n_end;
-    }
-
-    assert(sectors > n_start);
-    *num = sectors - n_start;
-    *host_offset = cluster_offset;
+    *num = (n_end - n_start) - (remaining >> BDRV_SECTOR_BITS);
+    assert(*num > 0);
+    assert(*host_offset != 0);
 
     return 0;
-
-fail:
-    if (*m && (*m)->nb_clusters > 0) {
-        QLIST_REMOVE(*m, next_in_flight);
-    }
-    return ret;
 }
 
 static int decompress_buffer(uint8_t *out_buf, int out_buf_size,

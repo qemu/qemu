@@ -680,6 +680,18 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     trace_bdrv_open_common(bs, filename, flags, drv->format_name);
 
+    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
+        return -ENOTSUP;
+    }
+
+    /* bdrv_open() with directly using a protocol as drv. This layer is already
+     * opened, so assign it to bs (while file becomes a closed BlockDriverState)
+     * and return immediately. */
+    if (file != NULL && drv->bdrv_file_open) {
+        bdrv_swap(file, bs);
+        return 0;
+    }
+
     bs->open_flags = flags;
     bs->buffer_alignment = 512;
 
@@ -694,10 +706,6 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
         bs->filename[0] = '\0';
     }
 
-    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
-        return -ENOTSUP;
-    }
-
     bs->drv = drv;
     bs->opaque = g_malloc0(drv->instance_size);
 
@@ -708,13 +716,9 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     /* Open the image, either directly or using a protocol */
     if (drv->bdrv_file_open) {
-        if (file != NULL) {
-            bdrv_swap(file, bs);
-            ret = 0;
-        } else {
-            assert(drv->bdrv_parse_filename || filename != NULL);
-            ret = drv->bdrv_file_open(bs, filename, options, open_flags);
-        }
+        assert(file == NULL);
+        assert(drv->bdrv_parse_filename || filename != NULL);
+        ret = drv->bdrv_file_open(bs, filename, options, open_flags);
     } else {
         assert(file != NULL);
         bs->file = file;

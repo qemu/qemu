@@ -34,6 +34,38 @@ qemu-io> wrote 65536/65536 bytes at offset 917504
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 65536/65536 bytes at offset 983040
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1048576
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1114112
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1179648
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1245184
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1310720
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1376256
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1441792
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1507328
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1572864
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1638400
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1703936
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1769472
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1835008
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1900544
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 1966080
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 2031616
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=6442450944 backing_file='TEST_DIR/t.IMGFMT.base' 
 
 == Some concurrent requests touching the same cluster ==
@@ -89,6 +121,24 @@ qemu-io> wrote 8192/8192 bytes at offset XXX
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 57344/57344 bytes at offset XXX
 56 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> qemu-io> blkdebug: Suspended request 'A'
+qemu-io> qemu-io> qemu-io> blkdebug: Resuming request 'A'
+qemu-io> wrote 8192/8192 bytes at offset XXX
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 98304/98304 bytes at offset XXX
+96 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> qemu-io> blkdebug: Suspended request 'A'
+qemu-io> qemu-io> qemu-io> blkdebug: Resuming request 'A'
+qemu-io> wrote 8192/8192 bytes at offset XXX
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 81920/81920 bytes at offset XXX
+80 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> qemu-io> blkdebug: Suspended request 'A'
+qemu-io> qemu-io> qemu-io> blkdebug: Resuming request 'A'
+qemu-io> wrote 32768/32768 bytes at offset XXX
+32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 98304/98304 bytes at offset XXX
+96 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> 
 == Verify image content ==
 qemu-io> read 65536/65536 bytes at offset 0
@@ -159,5 +209,31 @@ qemu-io> read 57344/57344 bytes at offset 696320
 56 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 32768/32768 bytes at offset 753664
 32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 16384/16384 bytes at offset 786432
+16 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 98304/98304 bytes at offset 802816
+96 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 8192/8192 bytes at offset 901120
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 8192/8192 bytes at offset 909312
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 16384/16384 bytes at offset 917504
+16 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 81920/81920 bytes at offset 933888
+80 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 16384/16384 bytes at offset 1015808
+16 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 8192/8192 bytes at offset 1032192
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 8192/8192 bytes at offset 1040384
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 16384/16384 bytes at offset 1048576
+16 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 32768/32768 bytes at offset 1064960
+32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 32768/32768 bytes at offset 1130496
+32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> read 16384/16384 bytes at offset 1163264
+16 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> No errors were found on the image.
 *** done

@@ -2941,6 +2941,8 @@ int main(int argc, char **argv, char **envp)
     nb_numa_nodes = 0;
     nb_nics = 0;
 
+    bdrv_init_with_whitelist();
+
     autostart= 1;
 
     /* first pass of option parsing */
@@ -4198,8 +4200,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     cpu_exec_init_all();
-
-    bdrv_init_with_whitelist();
 
     blk_mig_init();
 
