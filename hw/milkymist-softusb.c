@@ -132,6 +132,7 @@ static inline void softusb_read_dmem(MilkymistSoftUsbState *s,
     if (offset + len >= s->dmem_size) {
         error_report("milkymist_softusb: read dmem out of bounds "
                 "at offset 0x%x, len %d", offset, len);
+        memset(buf, 0, len);
         return;
     }
 
@@ -156,6 +157,7 @@ static inline void softusb_read_pmem(MilkymistSoftUsbState *s,
     if (offset + len >= s->pmem_size) {
         error_report("milkymist_softusb: read pmem out of bounds "
                 "at offset 0x%x, len %d", offset, len);
+        memset(buf, 0, len);
         return;
     }
 
