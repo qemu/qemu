@@ -45,9 +45,6 @@
 #define TCG_TARGET_STACK_ALIGN          16
 #define TCG_TARGET_CALL_STACK_OFFSET    0
 
-/* TODO: documentation. */
-static uint8_t *tb_ret_addr;
-
 /* Macros used in tcg_target_op_defs. */
 #define R       "r"
 #define RI      "ri"
@@ -912,7 +909,6 @@ static void tcg_target_init(TCGContext *s)
 }
 
 /* Generate global QEMU prologue and epilogue code. */
-static void tcg_target_qemu_prologue(TCGContext *s)
+static inline void tcg_target_qemu_prologue(TCGContext *s)
 {
-    tb_ret_addr = s->code_ptr;
 }
