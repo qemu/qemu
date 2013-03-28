@@ -37,10 +37,8 @@
 #define __packed QEMU_PACKED
 
 #if defined(HOST_WORDS_BIGENDIAN)
-#define const_cpu_to_le64(x) bswap_64(x)
 #define __BIG_ENDIAN_BITFIELD
 #else
-#define const_cpu_to_le64(x) (x)
 #endif
 
 /*
@@ -137,10 +135,10 @@ struct UPT1_RSSConf {
 
 /* features */
 enum {
-    UPT1_F_RXCSUM        = const_cpu_to_le64(0x0001), /* rx csum verification */
-    UPT1_F_RSS        = const_cpu_to_le64(0x0002),
-    UPT1_F_RXVLAN        = const_cpu_to_le64(0x0004), /* VLAN tag stripping */
-    UPT1_F_LRO        = const_cpu_to_le64(0x0008),
+    UPT1_F_RXCSUM        = 0x0001, /* rx csum verification */
+    UPT1_F_RSS           = 0x0002,
+    UPT1_F_RXVLAN        = 0x0004, /* VLAN tag stripping */
+    UPT1_F_LRO           = 0x0008,
 };
 
 /* all registers are 32 bit wide */
@@ -752,7 +750,6 @@ struct Vmxnet3_DriverShared {
 #undef __le32
 #undef __le64
 #undef __packed
-#undef const_cpu_to_le64
 #if defined(HOST_WORDS_BIGENDIAN)
 #undef __BIG_ENDIAN_BITFIELD
 #endif
