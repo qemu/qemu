@@ -6,7 +6,9 @@ config-target.*
 trace/generated-tracers.h
 trace/generated-tracers.c
 trace/generated-tracers-dtrace.h
-trace/generated-tracers-dtrace.dtrace
+trace/generated-tracers.dtrace
+trace/generated-events.h
+trace/generated-events.c
 libcacard/trace/generated-tracers.c
 *-timestamp
 *-softmmu

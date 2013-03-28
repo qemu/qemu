@@ -35,6 +35,9 @@ GENERATED_HEADERS = config-host.h qemu-options.def
 GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h
 GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c
 
+GENERATED_HEADERS += trace/generated-events.h
+GENERATED_SOURCES += trace/generated-events.c
+
 GENERATED_HEADERS += trace/generated-tracers.h
 ifeq ($(TRACE_BACKEND),dtrace)
 GENERATED_HEADERS += trace/generated-tracers-dtrace.h
