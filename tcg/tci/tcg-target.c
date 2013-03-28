@@ -513,7 +513,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
         tcg_out_op_t(s, INDEX_op_ld_i64);
         tcg_out_r(s, ret);
         tcg_out_r(s, arg1);
-        assert(arg2 == (uint32_t)arg2);
+        assert(arg2 == (int32_t)arg2);
         tcg_out32(s, arg2);
 #else
         TODO();
@@ -636,7 +636,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_st_i64:
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
-        assert(args[2] == (uint32_t)args[2]);
+        assert(args[2] == (int32_t)args[2]);
         tcg_out32(s, args[2]);
         break;
     case INDEX_op_add_i32:
