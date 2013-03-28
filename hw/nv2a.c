@@ -545,7 +545,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
         {4, true,  false, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, 0, GL_RGBA},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8] =
-        {4, false, false, GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {4, false, true,  GL_RGBA, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     /* TODO: how do opengl alpha textures work? */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8] =
         {2, true,  false, GL_RED,  GL_RED,  GL_UNSIGNED_BYTE},
@@ -658,7 +658,7 @@ typedef struct Texture {
     unsigned int color_format;
     unsigned int log_width, log_height;
 
-    unsigned int width, height;
+    unsigned int rect_width, rect_height;
 
     unsigned int min_mipmap_level, max_mipmap_level;
     unsigned int pitch;
@@ -1141,6 +1141,8 @@ static void kelvin_bind_converted_vertex_attributes(NV2AState *d,
                 }
             }
 
+            attribute->converted_elements = num_elements;
+
             glVertexAttribPointer(i,
                 attribute->converted_count,
                 attribute->gl_type,
@@ -1305,6 +1307,7 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
 
             GLenum gl_target;
             GLuint gl_texture;
+            unsigned int width, height;
             if (f.linear) {
                 /* linear textures use unnormalised texcoords.
                  * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
@@ -1314,9 +1317,15 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
                  * Not sure if that'll be an issue. */
                 gl_target = GL_TEXTURE_RECTANGLE_ARB;
                 gl_texture = texture->gl_texture_rect;
+                
+                width = texture->rect_width;
+                height = texture->rect_height;
             } else {
                 gl_target = GL_TEXTURE_2D;
                 gl_texture = texture->gl_texture;
+
+                width = 1 << texture->log_width;
+                height = 1 << texture->log_height;
             }
 
             glBindTexture(gl_target, gl_texture);
@@ -1350,7 +1359,7 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
 
             NV2A_DPRINTF(" texture %d is format %d, (%d, %d; %d)\n",
                          i, texture->color_format,
-                         texture->width, texture->height, texture->pitch);
+                         width, height, texture->pitch);
 
             /* TODO: handle swizzling */
 
@@ -1363,24 +1372,24 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
                     block_size = 16;
                 }
                 glCompressedTexImage2D(gl_target, 0, f.gl_internal_format,
-                                       1 << texture->log_width,
-                                       1 << texture->log_height,
-                                       0,
-                                       (1 << texture->log_width)/4
-                                            * (1 << texture->log_height)/4
-                                            * block_size,
+                                       width, height, 0,
+                                       width/4 * height/4 * block_size,
                                        d->vram_ptr
                                             + dma.start + texture->offset);
             } else {
-                /* Can't handle retarded strides */
-                assert(texture->pitch % f.bytes_per_pixel == 0);
-                glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                              texture->pitch/f.bytes_per_pixel);
+                if (f.linear) {
+                    /* Can't handle retarded strides */
+                    assert(texture->pitch % f.bytes_per_pixel == 0);
+                    glPixelStorei(GL_UNPACK_ROW_LENGTH,
+                                  texture->pitch/f.bytes_per_pixel);
+                }
                 glTexImage2D(gl_target, 0, f.gl_internal_format,
-                             texture->width, texture->height, 0,
+                             width, height, 0,
                              f.gl_format, f.gl_type,
                              d->vram_ptr + dma.start + texture->offset);
-                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                if (f.linear) {
+                    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                }
             }
 
             texture->dirty = false;
@@ -2022,9 +2031,9 @@ static void pgraph_method(NV2AState *d,
     CASE_4(NV097_SET_TEXTURE_IMAGE_RECT, 64):
         slot = (class_method - NV097_SET_TEXTURE_IMAGE_RECT) / 64;
         
-        kelvin->textures[slot].width = 
+        kelvin->textures[slot].rect_width = 
             GET_MASK(parameter, NV097_SET_TEXTURE_IMAGE_RECT_WIDTH);
-        kelvin->textures[slot].height =
+        kelvin->textures[slot].rect_height =
             GET_MASK(parameter, NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT);
         
         kelvin->textures[slot].dirty = true;
