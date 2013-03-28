@@ -1033,6 +1033,7 @@ vmxnet3_indicate_packet(VMXNET3State *s)
         is_head = false;
         ready_rxcd_pa = new_rxcd_pa;
         new_rxcd_pa = 0;
+        num_frags++;
     }
 
     if (0 != ready_rxcd_pa) {
@@ -1324,6 +1325,10 @@ static void vmxnet3_activate_device(VMXNET3State *s)
     s->max_rx_frags =
         VMXNET3_READ_DRV_SHARED16(s->drv_shmem, devRead.misc.maxNumRxSG);
 
+    if (s->max_rx_frags == 0) {
+        s->max_rx_frags = 1;
+    }
+
     VMW_CFPRN("Max RX fragments is %u", s->max_rx_frags);
 
     s->event_int_idx =
@@ -1522,6 +1527,12 @@ static uint64_t vmxnet3_get_command_status(VMXNET3State *s)
     case VMXNET3_CMD_ACTIVATE_DEV:
         ret = (s->device_active) ? 0 : -1;
         VMW_CFPRN("Device active: %" PRIx64, ret);
+        break;
+
+    case VMXNET3_CMD_RESET_DEV:
+    case VMXNET3_CMD_QUIESCE_DEV:
+    case VMXNET3_CMD_GET_QUEUE_STATUS:
+        ret = 0;
         break;
 
     case VMXNET3_CMD_GET_LINK:
