@@ -845,18 +845,33 @@ fail:
     return ret;
 }
 
-int bdrv_open_backing_file(BlockDriverState *bs)
+/*
+ * Opens the backing file for a BlockDriverState if not yet open
+ *
+ * options is a QDict of options to pass to the block drivers, or NULL for an
+ * empty set of options. The reference to the QDict is transferred to this
+ * function (even on failure), so if the caller intends to reuse the dictionary,
+ * it needs to use QINCREF() before calling bdrv_file_open.
+ */
+int bdrv_open_backing_file(BlockDriverState *bs, QDict *options)
 {
     char backing_filename[PATH_MAX];
     int back_flags, ret;
     BlockDriver *back_drv = NULL;
 
     if (bs->backing_hd != NULL) {
+        QDECREF(options);
         return 0;
     }
 
+    /* NULL means an empty set of options */
+    if (options == NULL) {
+        options = qdict_new();
+    }
+
     bs->open_flags &= ~BDRV_O_NO_BACKING;
-    if (bs->backing_file[0] == '\0') {
+    if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
+        QDECREF(options);
         return 0;
     }
 
@@ -871,7 +886,8 @@ int bdrv_open_backing_file(BlockDriverState *bs)
     /* backing files always opened read-only */
     back_flags = bs->open_flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT);
 
-    ret = bdrv_open(bs->backing_hd, backing_filename, NULL,
+    ret = bdrv_open(bs->backing_hd,
+                    *backing_filename ? backing_filename : NULL, options,
                     back_flags, back_drv);
     if (ret < 0) {
         bdrv_delete(bs->backing_hd);
@@ -1027,7 +1043,10 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
 
     /* If there is a backing file, use it */
     if ((flags & BDRV_O_NO_BACKING) == 0) {
-        ret = bdrv_open_backing_file(bs);
+        QDict *backing_options;
+
+        extract_subqdict(options, &backing_options, "backing.");
+        ret = bdrv_open_backing_file(bs, backing_options);
         if (ret < 0) {
             goto close_and_fail;
         }
