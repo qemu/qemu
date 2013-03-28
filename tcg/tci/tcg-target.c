@@ -40,11 +40,6 @@
 /* Bitfield n...m (in 32 bit value). */
 #define BITS(n, m) (((0xffffffffU << (31 - n)) >> (31 - n + m)) << m)
 
-/* Used for function call generation. */
-#define TCG_REG_CALL_STACK              TCG_REG_R4
-#define TCG_TARGET_STACK_ALIGN          16
-#define TCG_TARGET_CALL_STACK_OFFSET    0
-
 /* Macros used in tcg_target_op_defs. */
 #define R       "r"
 #define RI      "ri"
@@ -901,10 +896,15 @@ static void tcg_target_init(TCGContext *s)
     /* TODO: Which registers should be set here? */
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
                      BIT(TCG_TARGET_NB_REGS) - 1);
+
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_add_target_add_op_defs(tcg_target_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
+
+    /* We use negative offsets from "sp" so that we can distinguish
+       stores that might pretend to be call arguments.  */
+    tcg_set_frame(s, TCG_REG_CALL_STACK,
+                  -CPU_TEMP_BUF_NLONGS * sizeof(long),
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 
