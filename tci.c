@@ -51,11 +51,6 @@ typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong);
 #endif
 
-/* TCI can optionally use a global register variable for env. */
-#if !defined(AREG0)
-CPUArchState *env;
-#endif
-
 /* Targets which don't use GETPC also don't need tci_tb_ptr
    which makes them a little faster. */
 #if defined(GETPC)
@@ -438,11 +433,10 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
 }
 
 /* Interpret pseudo code in tb. */
-tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
+tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
 {
     tcg_target_ulong next_tb = 0;
 
-    env = cpustate;
     tci_reg[TCG_AREG0] = (tcg_target_ulong)env;
     assert(tb_ptr);
 
