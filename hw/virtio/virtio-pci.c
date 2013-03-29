@@ -1236,7 +1236,7 @@ static Property virtio_scsi_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
                        DEV_NVECTORS_UNSPECIFIED),
     DEFINE_VIRTIO_SCSI_FEATURES(VirtIOPCIProxy, host_features),
-    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSIPCI, vdev.conf),
+    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSIPCI, vdev.parent_obj.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1244,9 +1244,10 @@ static int virtio_scsi_pci_init_pci(VirtIOPCIProxy *vpci_dev)
 {
     VirtIOSCSIPCI *dev = VIRTIO_SCSI_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
-        vpci_dev->nvectors = dev->vdev.conf.num_queues + 3;
+        vpci_dev->nvectors = vs->conf.num_queues + 3;
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
