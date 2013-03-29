@@ -25,6 +25,9 @@
 #include "hw/virtio/virtio-serial.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-bus.h"
+#ifdef CONFIG_VHOST_SCSI
+#include "hw/virtio/vhost-scsi.h"
+#endif
 
 #define VIRTIO_DEV_OFFS_TYPE		0	/* 8 bits */
 #define VIRTIO_DEV_OFFS_NUM_VQ		1	/* 8 bits */
@@ -159,5 +162,18 @@ typedef struct VirtIONetS390 {
     VirtIOS390Device parent_obj;
     VirtIONet vdev;
 } VirtIONetS390;
+
+/* vhost-scsi-s390 */
+
+#ifdef CONFIG_VHOST_SCSI
+#define TYPE_VHOST_SCSI_S390 "vhost-scsi-s390"
+#define VHOST_SCSI_S390(obj) \
+        OBJECT_CHECK(VHostSCSIS390, (obj), TYPE_VHOST_SCSI_S390)
+
+typedef struct VHostSCSIS390 {
+    VirtIOS390Device parent_obj;
+    VHostSCSI vdev;
+} VHostSCSIS390;
+#endif
 
 #endif
