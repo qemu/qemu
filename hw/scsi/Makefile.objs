@@ -6,4 +6,8 @@ common-obj-$(CONFIG_VMW_PVSCSI_SCSI_PCI) += vmw_pvscsi.o
 common-obj-$(CONFIG_ESP) += esp.o
 common-obj-$(CONFIG_ESP_PCI) += esp-pci.o
 obj-$(CONFIG_PSERIES) += spapr_vscsi.o
-obj-$(CONFIG_VIRTIO) += virtio-scsi.o
+
+ifeq ($(CONFIG_VIRTIO),y)
+obj-y += virtio-scsi.o
+obj-$(CONFIG_VHOST_SCSI) += vhost-scsi.o
+endif

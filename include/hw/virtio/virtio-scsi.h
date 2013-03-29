@@ -151,6 +151,8 @@ struct VirtIOSCSIConf {
     uint32_t num_queues;
     uint32_t max_sectors;
     uint32_t cmd_per_lun;
+    char *vhostfd;
+    char *wwpn;
 };
 
 typedef struct VirtIOSCSICommon {
