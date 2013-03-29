@@ -727,33 +727,37 @@ static GIOChannel *io_channel_from_socket(int fd)
     return chan;
 }
 
-static int io_channel_send_all(GIOChannel *fd, const void *_buf, int len1)
+static int io_channel_send(GIOChannel *fd, const void *buf, size_t len)
 {
     GIOStatus status;
-    gsize bytes_written;
-    int len;
-    const uint8_t *buf = _buf;
+    size_t offset;
 
-    len = len1;
-    while (len > 0) {
-        status = g_io_channel_write_chars(fd, (const gchar *)buf, len,
+    offset = 0;
+    while (offset < len) {
+        gsize bytes_written;
+
+        status = g_io_channel_write_chars(fd, buf + offset, len - offset,
                                           &bytes_written, NULL);
         if (status != G_IO_STATUS_NORMAL) {
             if (status == G_IO_STATUS_AGAIN) {
+                /* If we've written any data, return a partial write. */
+                if (offset) {
+                    break;
+                }
                 errno = EAGAIN;
-                return -1;
             } else {
                 errno = EINVAL;
-                return -1;
             }
+
+            return -1;
         } else if (status == G_IO_STATUS_EOF) {
             break;
-        } else {
-            buf += bytes_written;
-            len -= bytes_written;
         }
+
+        offset += bytes_written;
     }
-    return len1 - len;
+
+    return offset;
 }
 
 #ifndef _WIN32
@@ -770,7 +774,7 @@ static int fd_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     FDCharDriver *s = chr->opaque;
     
-    return io_channel_send_all(s->fd_out, buf, len);
+    return io_channel_send(s->fd_out, buf, len);
 }
 
 static gboolean fd_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
@@ -1088,7 +1092,7 @@ static int pty_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
         pty_chr_update_read_handler(chr);
         return 0;
     }
-    return io_channel_send_all(s->fd, buf, len);
+    return io_channel_send(s->fd, buf, len);
 }
 
 static GSource *pty_chr_add_watch(CharDriverState *chr, GIOCondition cond)
@@ -2347,7 +2351,7 @@ static int tcp_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     TCPCharDriver *s = chr->opaque;
     if (s->connected) {
-        return io_channel_send_all(s->chan, buf, len);
+        return io_channel_send(s->chan, buf, len);
     } else {
         /* XXX: indicate an error ? */
         return len;
