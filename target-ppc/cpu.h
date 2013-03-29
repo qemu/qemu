@@ -1026,7 +1026,6 @@ struct CPUPPCState {
     /* Exception vectors */
     target_ulong excp_vectors[POWERPC_EXCP_NB];
     target_ulong excp_prefix;
-    target_ulong hreset_excp_prefix;
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;

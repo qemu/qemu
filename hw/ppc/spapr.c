@@ -801,8 +801,10 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
 
-        /* PAPR always has exception vectors in RAM not ROM */
-        env->hreset_excp_prefix = 0;
+        /* PAPR always has exception vectors in RAM not ROM. To ensure this,
+         * MSR[IP] should never be set.
+         */
+        env->msr_mask &= ~(1 << 6);
 
         /* Tell KVM that we're in PAPR mode */
         if (kvm_enabled()) {
