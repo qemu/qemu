@@ -1627,6 +1627,7 @@ int kvm_cpu_exec(CPUArchState *env)
             abort();
         }
 
+        trace_kvm_run_exit(cpu->cpu_index, run->exit_reason);
         switch (run->exit_reason) {
         case KVM_EXIT_IO:
             DPRINTF("handle_io\n");
