@@ -81,12 +81,17 @@ static void xbox_memory_init(MemoryRegion *system_memory,
     } else {
         bios_size = -1;
     }
+    if (bios_size <= 0 ||
+        (bios_size % 65536) != 0) {
+        goto bios_error;
+    }
     bios = g_malloc(sizeof(*bios));
     memory_region_init_ram(bios, "xbox.bios", bios_size);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
     if (ret != 0) {
+bios_error:
         fprintf(stderr, "qemu: could not load xbox BIOS '%s'\n", bios_name);
         exit(1);
     }
