@@ -33,6 +33,7 @@ int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
 #endif /* !CONFIG_USER_ONLY */
 int kvmppc_fixup_cpu(PowerPCCPU *cpu);
+bool kvmppc_has_cap_epr(void);
 
 #else
 
@@ -128,6 +129,11 @@ static inline int kvmppc_update_sdr1(CPUPPCState *env)
 static inline int kvmppc_fixup_cpu(PowerPCCPU *cpu)
 {
     return -1;
+}
+
+static inline bool kvmppc_has_cap_epr(void)
+{
+    return false;
 }
 #endif
 

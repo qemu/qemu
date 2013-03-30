@@ -16,6 +16,7 @@
 #include "sysemu/device_tree.h"
 #include "hw/pci/pci.h"
 #include "hw/ppc/openpic.h"
+#include "kvm_ppc.h"
 
 static void e500plat_fixup_devtree(PPCE500Params *params, void *fdt)
 {
@@ -47,6 +48,12 @@ static void e500plat_init(QEMUMachineInitArgs *args)
         .fixup_devtree = e500plat_fixup_devtree,
         .mpic_version = OPENPIC_MODEL_FSL_MPIC_42,
     };
+
+    /* Older KVM versions don't support EPR which breaks guests when we announce
+       MPIC variants that support EPR. Revert to an older one for those */
+    if (kvm_enabled() && !kvmppc_has_cap_epr()) {
+        params.mpic_version = OPENPIC_MODEL_FSL_MPIC_20;
+    }
 
     ppce500_init(&params);
 }

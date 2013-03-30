@@ -63,6 +63,7 @@ static int cap_ppc_rma;
 static int cap_spapr_tce;
 static int cap_hior;
 static int cap_one_reg;
+static int cap_epr;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -95,6 +96,7 @@ int kvm_arch_init(KVMState *s)
     cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
     cap_one_reg = kvm_check_extension(s, KVM_CAP_ONE_REG);
     cap_hior = kvm_check_extension(s, KVM_CAP_PPC_HIOR);
+    cap_epr = kvm_check_extension(s, KVM_CAP_PPC_EPR);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -1528,6 +1530,11 @@ int kvmppc_fixup_cpu(PowerPCCPU *cpu)
         + (cs->cpu_index % smp_threads);
 
     return 0;
+}
+
+bool kvmppc_has_cap_epr(void)
+{
+    return cap_epr;
 }
 
 static int kvm_ppc_register_host_cpu_type(void)
