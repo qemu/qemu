@@ -746,7 +746,7 @@ static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
 {
     TCGv t0 = tcg_temp_new();
 
-    tcg_gen_xor_tl(cpu_ov, arg0, arg1);
+    tcg_gen_xor_tl(cpu_ov, arg0, arg2);
     tcg_gen_xor_tl(t0, arg1, arg2);
     if (sub) {
         tcg_gen_and_tl(cpu_ov, cpu_ov, t0);
