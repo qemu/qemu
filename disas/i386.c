@@ -665,6 +665,12 @@ fetch_data(struct disassemble_info *info, bfd_byte *addr)
 #define PREGRP96  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 96 } }
 #define PREGRP97  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 97 } }
 #define PREGRP98  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 98 } }
+#define PREGRP99  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 99 } }
+#define PREGRP100 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 100 } }
+#define PREGRP101 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 101 } }
+#define PREGRP102 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 102 } }
+#define PREGRP103 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 103 } }
+#define PREGRP104 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 104 } }
 
 
 #define X86_64_0  NULL, { { NULL, X86_64_SPECIAL }, { NULL, 0 } }
@@ -2719,6 +2725,55 @@ static const struct dis386 prefix_user_table[][4] = {
     { "pclmulqdq", { XM, EXx, Ib } },
     { "(bad)",	{ XX } },
   },
+
+  /* PREGRP99 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesimc", { XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP100 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesenc", { XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP101 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesenclast", { XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP102 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesdec", { XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP103 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesdeclast", { XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP104 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aeskeygenassist", { XM, EXx, Ib } },
+    { "(bad)",	{ XX } },
+  },
+
 };
 
 static const struct dis386 x86_64_table[][2] = {
@@ -2990,11 +3045,11 @@ static const struct dis386 three_byte_table[][256] = {
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
-    { "(bad)", { XX } },
-    { "(bad)", { XX } },
-    { "(bad)", { XX } },
-    { "(bad)", { XX } },
-    { "(bad)", { XX } },
+    { PREGRP99 },
+    { PREGRP100 },
+    { PREGRP101 },
+    { PREGRP102 },
+    { PREGRP103 },
     /* e0 */
     { "(bad)", { XX } },
     { "(bad)", { XX } },
@@ -3285,7 +3340,7 @@ static const struct dis386 three_byte_table[][256] = {
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
-    { "(bad)", { XX } },
+    { PREGRP104 },
     /* e0 */
     { "(bad)", { XX } },
     { "(bad)", { XX } },
