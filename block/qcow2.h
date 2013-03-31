@@ -25,7 +25,7 @@
 #ifndef BLOCK_QCOW2_H
 #define BLOCK_QCOW2_H
 
-#include "block/aes.h"
+#include "qemu/aes.h"
 #include "block/coroutine.h"
 
 //#define DEBUG_ALLOC

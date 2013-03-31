@@ -28,7 +28,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "qemu-common.h"
-#include "block/aes.h"
+#include "qemu/aes.h"
 
 #ifndef NDEBUG
 #define NDEBUG
