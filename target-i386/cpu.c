@@ -687,7 +687,7 @@ static x86_def_t builtin_x86_defs[] = {
              CPUID_DE | CPUID_FP87,
         .ext_features = CPUID_EXT_AES | CPUID_EXT_POPCNT | CPUID_EXT_SSE42 |
              CPUID_EXT_SSE41 | CPUID_EXT_CX16 | CPUID_EXT_SSSE3 |
-             CPUID_EXT_SSE3,
+             CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSE3,
         .ext2_features = CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         .ext3_features = CPUID_EXT3_LAHF_LM,
         .xlevel = 0x8000000A,
