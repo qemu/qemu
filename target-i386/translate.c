@@ -3147,6 +3147,8 @@ struct SSEOpHelper_eppi {
 #define SSE41_OP(x) { { NULL, gen_helper_ ## x ## _xmm }, CPUID_EXT_SSE41 }
 #define SSE42_OP(x) { { NULL, gen_helper_ ## x ## _xmm }, CPUID_EXT_SSE42 }
 #define SSE41_SPECIAL { { NULL, SSE_SPECIAL }, CPUID_EXT_SSE41 }
+#define PCLMULQDQ_OP(x) { { NULL, gen_helper_ ## x ## _xmm }, \
+        CPUID_EXT_PCLMULQDQ }
 
 static const struct SSEOpHelper_epp sse_op_table6[256] = {
     [0x00] = SSSE3_OP(pshufb),
@@ -3216,6 +3218,7 @@ static const struct SSEOpHelper_eppi sse_op_table7[256] = {
     [0x40] = SSE41_OP(dpps),
     [0x41] = SSE41_OP(dppd),
     [0x42] = SSE41_OP(mpsadbw),
+    [0x44] = PCLMULQDQ_OP(pclmulqdq),
     [0x60] = SSE42_OP(pcmpestrm),
     [0x61] = SSE42_OP(pcmpestri),
     [0x62] = SSE42_OP(pcmpistrm),

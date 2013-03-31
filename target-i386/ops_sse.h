@@ -2179,6 +2179,30 @@ target_ulong helper_popcnt(CPUX86State *env, target_ulong n, uint32_t type)
     return POPCOUNT(n, 5);
 #endif
 }
+
+void glue(helper_pclmulqdq, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
+                                    uint32_t ctrl)
+{
+    uint64_t ah, al, b, resh, resl;
+
+    ah = 0;
+    al = d->Q((ctrl & 1) != 0);
+    b = s->Q((ctrl & 16) != 0);
+    resh = resl = 0;
+
+    while (b) {
+        if (b & 1) {
+            resl ^= al;
+            resh ^= ah;
+        }
+        ah = (ah << 1) | (al >> 63);
+        al <<= 1;
+        b >>= 1;
+    }
+
+    d->Q(0) = resl;
+    d->Q(1) = resh;
+}
 #endif
 
 #undef SHIFT

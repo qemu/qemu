@@ -336,6 +336,11 @@ DEF_HELPER_3(crc32, tl, i32, tl, i32)
 DEF_HELPER_3(popcnt, tl, env, tl, i32)
 #endif
 
+/* AES-NI op helpers */
+#if SHIFT == 1
+DEF_HELPER_4(glue(pclmulqdq, SUFFIX), void, env, Reg, Reg, i32)
+#endif
+
 #undef SHIFT
 #undef Reg
 #undef SUFFIX
