@@ -268,6 +268,16 @@ void tcg_prologue_init(TCGContext *s)
     tcg_target_qemu_prologue(s);
     flush_icache_range((tcg_target_ulong)s->code_buf,
                        (tcg_target_ulong)s->code_ptr);
+
+#ifdef DEBUG_DISAS
+    if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
+        size_t size = s->code_ptr - s->code_buf;
+        qemu_log("PROLOGUE: [size=%zu]\n", size);
+        log_disas(s->code_buf, size);
+        qemu_log("\n");
+        qemu_log_flush();
+    }
+#endif
 }
 
 void tcg_set_frame(TCGContext *s, int reg,
