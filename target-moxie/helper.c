@@ -102,7 +102,7 @@ void helper_debug(CPUMoxieState *env)
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt(CPUState *env)
+void moxie_cpu_do_interrupt(CPUState *env)
 {
     env->exception_index = -1;
 }
@@ -147,8 +147,11 @@ int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
 }
 
 
-void do_interrupt(CPUMoxieState *env)
+void moxie_cpu_do_interrupt(CPUState *cs)
 {
+    MoxieCPU *cpu = MOXIE_CPU(cs);
+    CPUMoxieState *env = &cpu->env;
+
     switch (env->exception_index) {
     case MOXIE_EX_BREAK:
         break;
