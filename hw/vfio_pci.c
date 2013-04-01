@@ -30,6 +30,7 @@
 #include "qemu/event_notifier.h"
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
+#include "sysemu/sysemu.h"
 #include "exec/memory.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
@@ -160,6 +161,7 @@ typedef struct VFIODevice {
     uint32_t features;
 #define VFIO_FEATURE_ENABLE_VGA_BIT 0
 #define VFIO_FEATURE_ENABLE_VGA (1 << VFIO_FEATURE_ENABLE_VGA_BIT)
+    int32_t bootindex;
     uint8_t pm_cap;
     bool reset_works;
     bool has_vga;
@@ -3070,6 +3072,8 @@ static int vfio_initfn(PCIDevice *pdev)
         }
     }
 
+    add_boot_device_path(vdev->bootindex, &pdev->qdev, NULL);
+
     return 0;
 
 out_teardown:
@@ -3157,6 +3161,7 @@ static Property vfio_pci_dev_properties[] = {
                        intx.mmap_timeout, 1100),
     DEFINE_PROP_BIT("x-vga", VFIODevice, features,
                     VFIO_FEATURE_ENABLE_VGA_BIT, false),
+    DEFINE_PROP_INT32("bootindex", VFIODevice, bootindex, -1),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIODevice, vfiofd_name),
