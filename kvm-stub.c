@@ -102,16 +102,6 @@ int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset)
 }
 #endif
 
-int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
-{
-    return -ENOSYS;
-}
-
-int kvm_set_ioeventfd_mmio(int fd, uint32_t adr, uint32_t val, bool assign, uint32_t len)
-{
-    return -ENOSYS;
-}
-
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
     return 1;

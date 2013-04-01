@@ -283,10 +283,6 @@ int kvm_physical_memory_addr_from_host(KVMState *s, void *ram_addr,
 #endif
 
 #endif
-int kvm_set_ioeventfd_mmio(int fd, uint32_t adr, uint32_t val, bool assign,
-                           uint32_t size);
-
-int kvm_set_ioeventfd_pio_word(int fd, uint16_t adr, uint16_t val, bool assign);
 
 int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg);
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg);
