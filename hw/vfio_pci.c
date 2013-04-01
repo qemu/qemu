@@ -117,6 +117,7 @@ typedef struct VFIODevice {
     int fd;
     VFIOINTx intx;
     unsigned int config_size;
+    uint8_t *emulated_config_bits; /* QEMU emulated bits, little-endian */
     off_t config_offset; /* Offset of config space region within device fd */
     unsigned int rom_size;
     off_t rom_offset; /* Offset of ROM region within device fd */
@@ -963,44 +964,29 @@ static const MemoryRegionOps vfio_bar_ops = {
 static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
 {
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
-    uint32_t val = 0;
+    uint32_t emu_bits = 0, emu_val = 0, phys_val = 0, val;
 
-    /*
-     * We only need QEMU PCI config support for the ROM BAR, the MSI and MSIX
-     * capabilities, and the multifunction bit below.  We let VFIO handle
-     * virtualizing everything else.  Performance is not a concern here.
-     */
-    if (ranges_overlap(addr, len, PCI_ROM_ADDRESS, 4) ||
-        (pdev->cap_present & QEMU_PCI_CAP_MSIX &&
-         ranges_overlap(addr, len, pdev->msix_cap, MSIX_CAP_LENGTH)) ||
-        (pdev->cap_present & QEMU_PCI_CAP_MSI &&
-         ranges_overlap(addr, len, pdev->msi_cap, vdev->msi_cap_size))) {
+    memcpy(&emu_bits, vdev->emulated_config_bits + addr, len);
+    emu_bits = le32_to_cpu(emu_bits);
 
-        val = pci_default_read_config(pdev, addr, len);
-    } else {
-        if (pread(vdev->fd, &val, len, vdev->config_offset + addr) != len) {
+    if (emu_bits) {
+        emu_val = pci_default_read_config(pdev, addr, len);
+    }
+
+    if (~emu_bits & (0xffffffffU >> (32 - len * 8))) {
+        ssize_t ret;
+
+        ret = pread(vdev->fd, &phys_val, len, vdev->config_offset + addr);
+        if (ret != len) {
             error_report("%s(%04x:%02x:%02x.%x, 0x%x, 0x%x) failed: %m",
                          __func__, vdev->host.domain, vdev->host.bus,
                          vdev->host.slot, vdev->host.function, addr, len);
             return -errno;
         }
-        val = le32_to_cpu(val);
+        phys_val = le32_to_cpu(phys_val);
     }
 
-    /* Multifunction bit is virualized in QEMU */
-    if (unlikely(ranges_overlap(addr, len, PCI_HEADER_TYPE, 1))) {
-        uint32_t mask = PCI_HEADER_TYPE_MULTI_FUNCTION;
-
-        if (len == 4) {
-            mask <<= 16;
-        }
-
-        if (pdev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION) {
-            val |= mask;
-        } else {
-            val &= ~mask;
-        }
-    }
+    val = (emu_val & emu_bits) | (phys_val & ~emu_bits);
 
     DPRINTF("%s(%04x:%02x:%02x.%x, @0x%x, len=0x%x) %x\n", __func__,
             vdev->host.domain, vdev->host.bus, vdev->host.slot,
@@ -1026,12 +1012,6 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
                      vdev->host.slot, vdev->host.function, addr, val, len);
     }
 
-    /* Write standard header bits to emulation */
-    if (addr < PCI_CONFIG_HEADER_SIZE) {
-        pci_default_write_config(pdev, addr, val, len);
-        return;
-    }
-
     /* MSI/MSI-X Enabling/Disabling */
     if (pdev->cap_present & QEMU_PCI_CAP_MSI &&
         ranges_overlap(addr, len, pdev->msi_cap, vdev->msi_cap_size)) {
@@ -1046,9 +1026,7 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
         } else if (was_enabled && !is_enabled) {
             vfio_disable_msi(vdev);
         }
-    }
-
-    if (pdev->cap_present & QEMU_PCI_CAP_MSIX &&
+    } else if (pdev->cap_present & QEMU_PCI_CAP_MSIX &&
         ranges_overlap(addr, len, pdev->msix_cap, MSIX_CAP_LENGTH)) {
         int is_enabled, was_enabled = msix_enabled(pdev);
 
@@ -1061,6 +1039,9 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
         } else if (was_enabled && !is_enabled) {
             vfio_disable_msix(vdev);
         }
+    } else {
+        /* Write everything to QEMU to keep emulated bits correct */
+        pci_default_write_config(pdev, addr, val, len);
     }
 }
 
@@ -2003,6 +1984,16 @@ static int vfio_initfn(PCIDevice *pdev)
         goto out_put;
     }
 
+    /* vfio emulates a lot for us, but some bits need extra love */
+    vdev->emulated_config_bits = g_malloc0(vdev->config_size);
+
+    /* QEMU can choose to expose the ROM or not */
+    memset(vdev->emulated_config_bits + PCI_ROM_ADDRESS, 0xff, 4);
+
+    /* QEMU can change multi-function devices to single function, or reverse */
+    vdev->emulated_config_bits[PCI_HEADER_TYPE] =
+                                              PCI_HEADER_TYPE_MULTI_FUNCTION;
+
     /*
      * Clear host resource mapping info.  If we choose not to register a
      * BAR, such as might be the case with the option ROM, we can get
@@ -2025,6 +2016,17 @@ static int vfio_initfn(PCIDevice *pdev)
         goto out_teardown;
     }
 
+    /* QEMU emulates all of MSI & MSIX */
+    if (pdev->cap_present & QEMU_PCI_CAP_MSIX) {
+        memset(vdev->emulated_config_bits + pdev->msix_cap, 0xff,
+               MSIX_CAP_LENGTH);
+    }
+
+    if (pdev->cap_present & QEMU_PCI_CAP_MSI) {
+        memset(vdev->emulated_config_bits + pdev->msi_cap, 0xff,
+               vdev->msi_cap_size);
+    }
+
     if (vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1)) {
         vdev->intx.mmap_timer = qemu_new_timer_ms(vm_clock,
                                                   vfio_intx_mmap_enable, vdev);
@@ -2042,6 +2044,7 @@ out_teardown:
     vfio_teardown_msi(vdev);
     vfio_unmap_bars(vdev);
 out_put:
+    g_free(vdev->emulated_config_bits);
     vfio_put_device(vdev);
     vfio_put_group(group);
     return ret;
@@ -2059,6 +2062,7 @@ static void vfio_exitfn(PCIDevice *pdev)
     }
     vfio_teardown_msi(vdev);
     vfio_unmap_bars(vdev);
+    g_free(vdev->emulated_config_bits);
     vfio_put_device(vdev);
     vfio_put_group(group);
 }
