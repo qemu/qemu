@@ -34,7 +34,7 @@ install: $(OBJS)
 	@msgfmt -o $@ $(SRC_PATH)/po/`basename $@ .mo`.po
 
 messages.po: $(SRC_PATH)/ui/gtk.c
-	@xgettext -o $@ --foreign-user --package-name=QEMU --package-version=1.0.50 --msgid-bugs-address=qemu-devel@nongnu.org -k_ -C $<
+	@xgettext -o $@ --foreign-user --package-name=QEMU --package-version=$(VERSION) --msgid-bugs-address=qemu-devel@nongnu.org -k_ -C $<
 
 %.po: messages.po
 	@msgmerge $@ $< > $@.bak && mv $@.bak $@
