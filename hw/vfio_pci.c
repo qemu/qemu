@@ -19,26 +19,26 @@
  */
 
 #include <dirent.h>
-#include <unistd.h>
+#include <linux/vfio.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <linux/vfio.h>
+#include <unistd.h>
 
 #include "config.h"
-#include "qemu/event_notifier.h"
 #include "exec/address-spaces.h"
-#include "sysemu/kvm.h"
-#include "sysemu/sysemu.h"
 #include "exec/memory.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
+#include "qemu/event_notifier.h"
 #include "qemu/queue.h"
 #include "qemu/range.h"
+#include "sysemu/kvm.h"
+#include "sysemu/sysemu.h"
 
 /* #define DEBUG_VFIO */
 #ifdef DEBUG_VFIO
