@@ -1506,6 +1506,124 @@ static uint8_t vfio_std_cap_max_size(PCIDevice *pdev, uint8_t pos)
     return next - pos;
 }
 
+static void vfio_set_word_bits(uint8_t *buf, uint16_t val, uint16_t mask)
+{
+    pci_set_word(buf, (pci_get_word(buf) & ~mask) | val);
+}
+
+static void vfio_add_emulated_word(VFIODevice *vdev, int pos,
+                                   uint16_t val, uint16_t mask)
+{
+    vfio_set_word_bits(vdev->pdev.config + pos, val, mask);
+    vfio_set_word_bits(vdev->pdev.wmask + pos, ~mask, mask);
+    vfio_set_word_bits(vdev->emulated_config_bits + pos, mask, mask);
+}
+
+static void vfio_set_long_bits(uint8_t *buf, uint32_t val, uint32_t mask)
+{
+    pci_set_long(buf, (pci_get_long(buf) & ~mask) | val);
+}
+
+static void vfio_add_emulated_long(VFIODevice *vdev, int pos,
+                                   uint32_t val, uint32_t mask)
+{
+    vfio_set_long_bits(vdev->pdev.config + pos, val, mask);
+    vfio_set_long_bits(vdev->pdev.wmask + pos, ~mask, mask);
+    vfio_set_long_bits(vdev->emulated_config_bits + pos, mask, mask);
+}
+
+static int vfio_setup_pcie_cap(VFIODevice *vdev, int pos, uint8_t size)
+{
+    uint16_t flags;
+    uint8_t type;
+
+    flags = pci_get_word(vdev->pdev.config + pos + PCI_CAP_FLAGS);
+    type = (flags & PCI_EXP_FLAGS_TYPE) >> 4;
+
+    if (type != PCI_EXP_TYPE_ENDPOINT &&
+        type != PCI_EXP_TYPE_LEG_END &&
+        type != PCI_EXP_TYPE_RC_END) {
+
+        error_report("vfio: Assignment of PCIe type 0x%x "
+                     "devices is not currently supported", type);
+        return -EINVAL;
+    }
+
+    if (!pci_bus_is_express(vdev->pdev.bus)) {
+        /*
+         * Use express capability as-is on PCI bus.  It doesn't make much
+         * sense to even expose, but some drivers (ex. tg3) depend on it
+         * and guests don't seem to be particular about it.  We'll need
+         * to revist this or force express devices to express buses if we
+         * ever expose an IOMMU to the guest.
+         */
+    } else if (pci_bus_is_root(vdev->pdev.bus)) {
+        /*
+         * On a Root Complex bus Endpoints become Root Complex Integrated
+         * Endpoints, which changes the type and clears the LNK & LNK2 fields.
+         */
+        if (type == PCI_EXP_TYPE_ENDPOINT) {
+            vfio_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
+                                   PCI_EXP_TYPE_RC_END << 4,
+                                   PCI_EXP_FLAGS_TYPE);
+
+            /* Link Capabilities, Status, and Control goes away */
+            if (size > PCI_EXP_LNKCTL) {
+                vfio_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP, 0, ~0);
+                vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL, 0, ~0);
+                vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKSTA, 0, ~0);
+
+#ifndef PCI_EXP_LNKCAP2
+#define PCI_EXP_LNKCAP2 44
+#endif
+#ifndef PCI_EXP_LNKSTA2
+#define PCI_EXP_LNKSTA2 50
+#endif
+                /* Link 2 Capabilities, Status, and Control goes away */
+                if (size > PCI_EXP_LNKCAP2) {
+                    vfio_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP2, 0, ~0);
+                    vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL2, 0, ~0);
+                    vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKSTA2, 0, ~0);
+                }
+            }
+
+        } else if (type == PCI_EXP_TYPE_LEG_END) {
+            /*
+             * Legacy endpoints don't belong on the root complex.  Windows
+             * seems to be happier with devices if we skip the capability.
+             */
+            return 0;
+        }
+
+    } else {
+        /*
+         * Convert Root Complex Integrated Endpoints to regular endpoints.
+         * These devices don't support LNK/LNK2 capabilities, so make them up.
+         */
+        if (type == PCI_EXP_TYPE_RC_END) {
+            vfio_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
+                                   PCI_EXP_TYPE_ENDPOINT << 4,
+                                   PCI_EXP_FLAGS_TYPE);
+            vfio_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP,
+                                   PCI_EXP_LNK_MLW_1 | PCI_EXP_LNK_LS_25, ~0);
+            vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL, 0, ~0);
+        }
+
+        /* Mark the Link Status bits as emulated to allow virtual negotiation */
+        vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKSTA,
+                               pci_get_word(vdev->pdev.config + pos +
+                                            PCI_EXP_LNKSTA),
+                               PCI_EXP_LNKCAP_MLW | PCI_EXP_LNKCAP_SLS);
+    }
+
+    pos = pci_add_capability(&vdev->pdev, PCI_CAP_ID_EXP, pos, size);
+    if (pos >= 0) {
+        vdev->pdev.exp.exp_cap = pos;
+    }
+
+    return pos;
+}
+
 static int vfio_add_std_cap(VFIODevice *vdev, uint8_t pos)
 {
     PCIDevice *pdev = &vdev->pdev;
@@ -1536,12 +1654,21 @@ static int vfio_add_std_cap(VFIODevice *vdev, uint8_t pos)
             return ret;
         }
     } else {
-        pdev->config[PCI_CAPABILITY_LIST] = 0; /* Begin the rebuild */
+        /* Begin the rebuild, use QEMU emulated list bits */
+        pdev->config[PCI_CAPABILITY_LIST] = 0;
+        vdev->emulated_config_bits[PCI_CAPABILITY_LIST] = 0xff;
+        vdev->emulated_config_bits[PCI_STATUS] |= PCI_STATUS_CAP_LIST;
     }
+
+    /* Use emulated next pointer to allow dropping caps */
+    pci_set_byte(vdev->emulated_config_bits + pos + 1, 0xff);
 
     switch (cap_id) {
     case PCI_CAP_ID_MSI:
         ret = vfio_setup_msi(vdev, pos);
+        break;
+    case PCI_CAP_ID_EXP:
+        ret = vfio_setup_pcie_cap(vdev, pos, size);
         break;
     case PCI_CAP_ID_MSIX:
         ret = vfio_setup_msix(vdev, pos);
