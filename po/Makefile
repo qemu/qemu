@@ -2,9 +2,8 @@
 # process and also within the source tree to update the translation files.
 
 VERSION=$(shell cat ../VERSION)
-TRANSLATIONS=de_DE it
-SRCS=$(addsuffix .po, $(TRANSLATIONS))
-OBJS=$(addsuffix .mo, $(TRANSLATIONS))
+SRCS=$(filter-out messages.po,$(wildcard *.po))
+OBJS=$(patsubst %.po,%.mo,$(SRCS))
 
 SRC_PATH=..
 
@@ -37,10 +36,7 @@ install: $(OBJS)
 messages.po: $(SRC_PATH)/ui/gtk.c
 	@xgettext -o $@ --foreign-user --package-name=QEMU --package-version=1.0.50 --msgid-bugs-address=qemu-devel@nongnu.org -k_ -C $<
 
-de_DE.po: messages.po $(SRC_PATH)/ui/gtk.c
+%.po: messages.po
 	@msgmerge $@ $< > $@.bak && mv $@.bak $@
 
-it.po: messages.po $(SRC_PATH)/ui/gtk.c
-	@msgmerge $@ $< > $@.bak && mv $@.bak $@
-
-.PHONY: $(SRCS) clean all
+.PHONY: clean all
