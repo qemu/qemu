@@ -6,3 +6,4 @@ obj-$(CONFIG_KVM) += kvm.o hyperv.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-$(CONFIG_LINUX_USER) += ioport-user.o
 obj-$(CONFIG_BSD_USER) += ioport-user.o
+obj-$(CONFIG_XBOX) += gloffscreen_common.o gloffscreen_wgl.o gloffscreen_glx.o gloffscreen_cgl.o

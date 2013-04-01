@@ -2446,6 +2446,17 @@ if test "$opengl" != "no" ; then
 #include <GLUT/glut.h>
 int main(void) { return GL_VERSION != 0; }
 EOF
+  elif test "$mingw32" = "yes" ; then
+	opengl_libs="-lglut32win -lOpenGL32 -lglu32 -lglew32 -lgdi32"
+	cat > $TMPC << EOF
+#include <windows.h>
+#include <GL/glew.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
+#include <GL/wglext.h>
+#include <GL/glut.h>
+int main(void) { return GL_VERSION != 0; }
+EOF
   else
     opengl_libs="-lGL -lX11"
     cat > $TMPC << EOF

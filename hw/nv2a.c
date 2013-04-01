@@ -37,13 +37,22 @@
 #include <OpenGL/CGLCurrent.h>
 #include <GLUT/glut.h>
 #else
+#ifdef _WIN32
+#include <GL/glew.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
+#include <GL/wglext.h>
+#include <GL/glut.h>
+#else
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glut.h>
 #endif
+#endif
 
 #include "nv2a.h"
+#include "gloffscreen.h"
 
 //#define DEBUG_NV2A
 #ifdef DEBUG_NV2A
@@ -766,7 +775,7 @@ typedef struct GraphicsContext {
     uint32_t zstencil_clear_value;
     uint32_t color_clear_value;
 
-    CGLContextObj gl_context;
+    GloContext *gl_context;
 
     GLuint gl_framebuffer;
     GLuint gl_renderbuffer;
@@ -1433,6 +1442,28 @@ static void kelvin_bind_fragment_shader(NV2AState *d, KelvinState *kelvin)
 
 }
 
+#ifdef _WIN32
+/* Need to define it since its not available in GLU 1.2 Windows*/
+GLboolean gluCheckExtension( const GLubyte *extName, const GLubyte *extString )
+{
+	char *p = (char *) glGetString(GL_EXTENSIONS); 
+	char *end;
+	if(p==NULL)
+		return GL_FALSE;
+	end = p + strlen(p);
+	
+	while (p < end) {
+		int n = strcspn(p, " ");
+		if((strlen(extName) == n) && (strncmp(extName,p,n) == 0)) {
+			return GL_TRUE;
+		}
+		p += (n + 1);
+	}
+	return GL_FALSE;
+}
+
+#endif
+
 static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
 {
     /* read the renderbuffer into the set surface */
@@ -1485,20 +1516,10 @@ static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
 
 static void pgraph_context_init(GraphicsContext *context)
 {
-    /* TODO: context creation on linux */
-    CGLPixelFormatAttribute attributes[] = {
-        kCGLPFAAccelerated,
-        (CGLPixelFormatAttribute)0
-    };
 
-    CGLPixelFormatObj pix;
-    GLint num;
-    CGLChoosePixelFormat(attributes, &pix, &num);
-    CGLCreateContext(pix, NULL, &context->gl_context);
-    CGLDestroyPixelFormat(pix);
+	context->gl_context = glo_context_create(GLO_FF_DEFAULT);
 
-    CGLSetCurrentContext(context->gl_context);
-
+    /* TODO: create glo functions for Mac */
 
     /* Check context capabilities */
     const GLubyte *extensions;
@@ -1523,8 +1544,6 @@ static void pgraph_context_init(GraphicsContext *context)
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_vertex_attributes);
     assert(max_vertex_attributes >= NV2A_VERTEXSHADER_ATTRIBUTES);
 
-
-
     glGenFramebuffersEXT(1, &context->gl_framebuffer);
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, context->gl_framebuffer);
 
@@ -1545,29 +1564,28 @@ static void pgraph_context_init(GraphicsContext *context)
 
     assert(glGetError() == GL_NO_ERROR);
 
-
-    CGLSetCurrentContext(NULL);
+    glo_set_current(NULL);
 }
 
 static void pgraph_context_set_current(GraphicsContext *context)
 {
     if (context) {
-        CGLSetCurrentContext(context->gl_context);
+        glo_set_current(context->gl_context);
     } else {
-        CGLSetCurrentContext(NULL);
+        glo_set_current(NULL);
     }
 }
 
 static void pgraph_context_destroy(GraphicsContext *context)
 {
-    CGLSetCurrentContext(context->gl_context);
+    glo_set_current(context->gl_context);
 
     glDeleteRenderbuffersEXT(1, &context->gl_renderbuffer);
     glDeleteFramebuffersEXT(1, &context->gl_framebuffer);
 
-    CGLSetCurrentContext(NULL);
+    glo_set_current(NULL);
 
-    CGLDestroyContext(context->gl_context);
+    glo_context_destroy(context->gl_context);
 }
 
 static void pgraph_method(NV2AState *d,
