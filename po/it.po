@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 1.4.50\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2013-02-08 09:21-0600\n"
+"POT-Creation-Date: 2013-03-31 20:42+0200\n"
 "PO-Revision-Date: 2012-02-27 08:23+0100\n"
 "Last-Translator: Paolo Bonzini <pbonzini@redhat.com>\n"
 "Language-Team: Italian <it@li.org>\n"
@@ -16,26 +16,49 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
-#: ../ui/gtk.c:990
-msgid "_File"
-msgstr "_File"
+#: ../ui/gtk.c:213
+msgid " - Press Ctrl+Alt+G to release grab"
+msgstr ""
 
-#: ../ui/gtk.c:1000
+#: ../ui/gtk.c:217
+msgid " [Paused]"
+msgstr ""
+
+#: ../ui/gtk.c:1250
+msgid "_Machine"
+msgstr ""
+
+#: ../ui/gtk.c:1252
+msgid "_Pause"
+msgstr ""
+
+#: ../ui/gtk.c:1258
+msgid "_Reset"
+msgstr ""
+
+#: ../ui/gtk.c:1261
+msgid "Power _Down"
+msgstr ""
+
+#: ../ui/gtk.c:1276
 msgid "_View"
 msgstr "_Visualizza"
 
-#: ../ui/gtk.c:1029
+#: ../ui/gtk.c:1306
 msgid "Zoom To _Fit"
 msgstr "Adatta alla _finestra"
 
-#: ../ui/gtk.c:1035
+#: ../ui/gtk.c:1312
 msgid "Grab On _Hover"
 msgstr "Cattura _automatica input"
 
-#: ../ui/gtk.c:1038
+#: ../ui/gtk.c:1315
 msgid "_Grab Input"
 msgstr "_Cattura input"
 
-#: ../ui/gtk.c:1064
+#: ../ui/gtk.c:1341
 msgid "Show _Tabs"
 msgstr "Mostra _tab"
+
+#~ msgid "_File"
+#~ msgstr "_File"
