@@ -210,11 +210,11 @@ static void gd_update_caption(GtkDisplayState *s)
     bool is_paused = !runstate_is_running();
 
     if (gd_is_grab_active(s)) {
-        grab = " - Press Ctrl+Alt+G to release grab";
+        grab = _(" - Press Ctrl+Alt+G to release grab");
     }
 
     if (is_paused) {
-        status = " [Paused]";
+        status = _(" [Paused]");
     }
     s->external_pause_update = true;
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->pause_item),
