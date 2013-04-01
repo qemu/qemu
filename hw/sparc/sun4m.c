@@ -575,7 +575,6 @@ static void tcx_init(hwaddr addr, int vram_size, int width,
     SysBusDevice *s;
 
     dev = qdev_create(NULL, "SUNW,tcx");
-    qdev_prop_set_taddr(dev, "addr", addr);
     qdev_prop_set_uint32(dev, "vram_size", vram_size);
     qdev_prop_set_uint16(dev, "width", width);
     qdev_prop_set_uint16(dev, "height", height);
