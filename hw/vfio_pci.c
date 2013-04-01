@@ -48,6 +48,16 @@
     do { } while (0)
 #endif
 
+struct VFIODevice;
+
+typedef struct VFIOQuirk {
+    MemoryRegion mem;
+    struct VFIODevice *vdev;
+    QLIST_ENTRY(VFIOQuirk) next;
+    uint32_t data;
+    uint32_t data2;
+} VFIOQuirk;
+
 typedef struct VFIOBAR {
     off_t fd_offset; /* offset of BAR within device fd */
     int fd; /* device fd, allows us to pass VFIOBAR as opaque data */
@@ -57,12 +67,14 @@ typedef struct VFIOBAR {
     size_t size;
     uint32_t flags; /* VFIO region flags (rd/wr/mmap) */
     uint8_t nr; /* cache the BAR number for debug */
+    QLIST_HEAD(, VFIOQuirk) quirks;
 } VFIOBAR;
 
 typedef struct VFIOVGARegion {
     MemoryRegion mem;
     off_t offset;
     int nr;
+    QLIST_HEAD(, VFIOQuirk) quirks;
 } VFIOVGARegion;
 
 typedef struct VFIOVGA {
@@ -81,8 +93,6 @@ typedef struct VFIOINTx {
     uint32_t mmap_timeout; /* delay to re-enable mmaps after interrupt */
     QEMUTimer *mmap_timer; /* enable mmaps after periods w/o interrupts */
 } VFIOINTx;
-
-struct VFIODevice;
 
 typedef struct VFIOMSIVector {
     EventNotifier interrupt; /* eventfd triggered on interrupt */
@@ -169,6 +179,8 @@ static QLIST_HEAD(, VFIOGroup)
 
 static void vfio_disable_interrupts(VFIODevice *vdev);
 static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
+static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
+                                  uint32_t val, int len);
 static void vfio_mmap_set_enabled(VFIODevice *vdev, bool enabled);
 
 /*
@@ -1059,6 +1071,700 @@ static const MemoryRegionOps vfio_vga_ops = {
 };
 
 /*
+ * Device specific quirks
+ */
+
+#define PCI_VENDOR_ID_ATI               0x1002
+
+/*
+ * Device 1002:68f9 (Advanced Micro Devices [AMD] nee ATI Cedar PRO [Radeon
+ * HD 5450/6350]) reports the upper byte of the physical address of the
+ * I/O port BAR4 through VGA register 0x3c3.  The BAR is 256 bytes, so the
+ * lower byte is known to be zero.  Probing for this quirk reads 0xff from
+ * port 0x3c3 on some devices so we store the physical address and replace
+ * reads with the virtual address any time it matches.  XXX Research when
+ * to enable quirk.
+ */
+static uint64_t vfio_ati_3c3_quirk_read(void *opaque,
+                                        hwaddr addr, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    PCIDevice *pdev = &vdev->pdev;
+    uint64_t data = vfio_vga_read(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+                                  addr + 0x3, size);
+
+    if (data == quirk->data) {
+        data = pci_get_byte(pdev->config + PCI_BASE_ADDRESS_4 + 1);
+        DPRINTF("%s(0x3c3, 1) = 0x%"PRIx64"\n", __func__, data);
+    }
+
+    return data;
+}
+
+static const MemoryRegionOps vfio_ati_3c3_quirk = {
+    .read = vfio_ati_3c3_quirk_read,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_vga_probe_ati_3c3_quirk(VFIODevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    off_t physoffset = vdev->config_offset + PCI_BASE_ADDRESS_4;
+    uint32_t physbar;
+    VFIOQuirk *quirk;
+
+    if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI ||
+        vdev->bars[4].size < 256) {
+        return;
+    }
+
+    /* Get I/O port BAR physical address */
+    if (pread(vdev->fd, &physbar, 4, physoffset) != 4) {
+        error_report("vfio: probe failed for ATI/AMD 0x3c3 quirk on device "
+                     "%04x:%02x:%02x.%x", vdev->host.domain,
+                     vdev->host.bus, vdev->host.slot, vdev->host.function);
+        return;
+    }
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->vdev = vdev;
+    quirk->data = (physbar >> 8) & 0xff;
+
+    memory_region_init_io(&quirk->mem, &vfio_ati_3c3_quirk, quirk,
+                          "vfio-ati-3c3-quirk", 1);
+    memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem, 3,
+                                &quirk->mem);
+
+    QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
+                      quirk, next);
+
+    DPRINTF("Enabled ATI/AMD quirk 0x3c3 for device %04x:%02x:%02x.%x\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+}
+
+/*
+ * Device 1002:68f9 (Advanced Micro Devices [AMD] nee ATI Cedar PRO [Radeon
+ * HD 5450/6350]) reports the physical address of MMIO BAR0 through a
+ * write/read operation on I/O port BAR4.  When uint32_t 0x4010 is written
+ * to offset 0x0, the subsequent read from offset 0x4 returns the contents
+ * of BAR0.  Test for this quirk on all ATI/AMD devices.  XXX - Note that
+ * 0x10 is the offset of BAR0 in config sapce, is this a window to all of
+ * config space?
+ */
+static uint64_t vfio_ati_4010_quirk_read(void *opaque,
+                                         hwaddr addr, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    PCIDevice *pdev = &vdev->pdev;
+    uint64_t data = vfio_bar_read(&vdev->bars[4], addr, size);
+
+    if (addr == 4 && size == 4 && quirk->data) {
+        data = pci_get_long(pdev->config + PCI_BASE_ADDRESS_0);
+        DPRINTF("%s(BAR4+0x4) = 0x%"PRIx64"\n", __func__, data);
+    }
+
+    quirk->data = 0;
+
+    return data;
+}
+
+static void vfio_ati_4010_quirk_write(void *opaque, hwaddr addr,
+                                      uint64_t data, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+
+    vfio_bar_write(&vdev->bars[4], addr, data, size);
+
+    quirk->data = (addr == 0 && size == 4 && data == 0x4010) ? 1 : 0;
+}
+
+static const MemoryRegionOps vfio_ati_4010_quirk = {
+    .read = vfio_ati_4010_quirk_read,
+    .write = vfio_ati_4010_quirk_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_probe_ati_4010_quirk(VFIODevice *vdev, int nr)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    off_t physoffset = vdev->config_offset + PCI_BASE_ADDRESS_0;
+    uint32_t physbar0;
+    uint64_t data;
+    VFIOQuirk *quirk;
+
+    if (!vdev->has_vga || nr != 4 || !vdev->bars[0].size ||
+        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI) {
+        return;
+    }
+
+    /* Get I/O port BAR physical address */
+    if (pread(vdev->fd, &physbar0, 4, physoffset) != 4) {
+        error_report("vfio: probe failed for ATI/AMD 0x4010 quirk on device "
+                     "%04x:%02x:%02x.%x", vdev->host.domain,
+                     vdev->host.bus, vdev->host.slot, vdev->host.function);
+        return;
+    }
+
+    /* Write 0x4010 to I/O port BAR offset 0 */
+    vfio_bar_write(&vdev->bars[4], 0, 0x4010, 4);
+    /* Read back result */
+    data = vfio_bar_read(&vdev->bars[4], 4, 4);
+
+    /* If the register matches the physical address of BAR0, we need a quirk */
+    if (data != physbar0) {
+        return;
+    }
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->vdev = vdev;
+
+    memory_region_init_io(&quirk->mem, &vfio_ati_4010_quirk, quirk,
+                          "vfio-ati-4010-quirk", 8);
+    memory_region_add_subregion_overlap(&vdev->bars[nr].mem, 0, &quirk->mem, 1);
+
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+
+    DPRINTF("Enabled ATI/AMD quirk 0x4010 for device %04x:%02x:%02x.%x\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+}
+
+/*
+ * Device 1002:5b63 (Advanced Micro Devices [AMD] nee ATI RV370 [Radeon X550])
+ * retrieves the upper half of the MMIO BAR0 physical address by writing
+ * 0xf10 to I/O port BAR1 offset 0 and reading the result from offset 6.
+ * XXX - 0x10 is the offset of BAR0 in PCI config space, this could provide
+ * full access to config space.  Config space is little endian, so the data
+ * register probably starts at 0x4.
+ */
+static uint64_t vfio_ati_f10_quirk_read(void *opaque,
+                                        hwaddr addr, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    PCIDevice *pdev = &vdev->pdev;
+    uint64_t data = vfio_bar_read(&vdev->bars[1], addr, size);
+
+    if (addr == 6 && size == 2 && quirk->data) {
+        data = pci_get_word(pdev->config + PCI_BASE_ADDRESS_0 + 2);
+        DPRINTF("%s(BAR1+0x6) = 0x%"PRIx64"\n", __func__, data);
+    }
+
+    quirk->data = 0;
+
+    return data;
+}
+
+static void vfio_ati_f10_quirk_write(void *opaque, hwaddr addr,
+                                     uint64_t data, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+
+    vfio_bar_write(&vdev->bars[1], addr, data, size);
+
+    quirk->data = (addr == 0 && size == 4 && data == 0xf10) ? 1 : 0;
+}
+
+static const MemoryRegionOps vfio_ati_f10_quirk = {
+    .read = vfio_ati_f10_quirk_read,
+    .write = vfio_ati_f10_quirk_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_probe_ati_f10_quirk(VFIODevice *vdev, int nr)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    off_t physoffset = vdev->config_offset + PCI_BASE_ADDRESS_0;
+    uint32_t physbar0;
+    uint64_t data;
+    VFIOQuirk *quirk;
+
+    if (!vdev->has_vga || nr != 1 || !vdev->bars[0].size ||
+        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI) {
+        return;
+    }
+
+    /* Get I/O port BAR physical address */
+    if (pread(vdev->fd, &physbar0, 4, physoffset) != 4) {
+        error_report("vfio: probe failed for ATI/AMD 0xf10 quirk on device "
+                     "%04x:%02x:%02x.%x", vdev->host.domain,
+                     vdev->host.bus, vdev->host.slot, vdev->host.function);
+        return;
+    }
+
+    vfio_bar_write(&vdev->bars[1], 0, 0xf10, 4);
+    data = vfio_bar_read(&vdev->bars[1], 0x6, 2);
+
+    /* If the register matches the physical address of BAR0, we need a quirk */
+    if (data != (le32_to_cpu(physbar0) >> 16)) {
+        return;
+    }
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->vdev = vdev;
+
+    memory_region_init_io(&quirk->mem, &vfio_ati_f10_quirk, quirk,
+                          "vfio-ati-f10-quirk", 8);
+    memory_region_add_subregion_overlap(&vdev->bars[nr].mem, 0, &quirk->mem, 1);
+
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+
+    DPRINTF("Enabled ATI/AMD quirk 0xf10 for device %04x:%02x:%02x.%x\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+}
+
+#define PCI_VENDOR_ID_NVIDIA                    0x10de
+
+/*
+ * Nvidia has several different methods to get to config space, the
+ * nouveu project has several of these documented here:
+ * https://github.com/pathscale/envytools/tree/master/hwdocs
+ *
+ * The first quirk is actually not documented in envytools and is found
+ * on 10de:01d1 (NVIDIA Corporation G72 [GeForce 7300 LE]).  This is an
+ * NV46 chipset.  The backdoor uses the legacy VGA I/O ports to access
+ * the mirror of PCI config space found at BAR0 offset 0x1800.  The access
+ * sequence first writes 0x338 to I/O port 0x3d4.  The target offset is
+ * then written to 0x3d0.  Finally 0x538 is written for a read and 0x738
+ * is written for a write to 0x3d4.  The BAR0 offset is then accessible
+ * through 0x3d0.  This quirk doesn't seem to be necessary on newer cards
+ * that use the I/O port BAR5 window but it doesn't hurt to leave it.
+ */
+enum {
+    NV_3D0_NONE,
+    NV_3D0_SELECT,
+    NV_3D0_WINDOW,
+    NV_3D0_READ,
+    NV_3D0_WRITE,
+};
+
+static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
+                                           hwaddr addr, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    PCIDevice *pdev = &vdev->pdev;
+    uint64_t data = vfio_vga_read(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+                                  addr + 0x10, size);
+
+    if (quirk->data == NV_3D0_READ && addr == 0) {
+        data = vfio_pci_read_config(pdev, quirk->data2, size);
+        DPRINTF("%s(0x3d0, %d) = 0x%"PRIx64"\n", __func__, size, data);
+    }
+
+    quirk->data = NV_3D0_NONE;
+
+    return data;
+}
+
+static void vfio_nvidia_3d0_quirk_write(void *opaque, hwaddr addr,
+                                        uint64_t data, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    PCIDevice *pdev = &vdev->pdev;
+
+    switch (quirk->data) {
+    case NV_3D0_NONE:
+        if (addr == 4 && data == 0x338) {
+            quirk->data = NV_3D0_SELECT;
+        }
+        break;
+    case NV_3D0_SELECT:
+        quirk->data = NV_3D0_NONE;
+        if (addr == 0 && (data & ~0xff) == 0x1800) {
+            quirk->data = NV_3D0_WINDOW;
+            quirk->data2 = data & 0xff;
+        }
+        break;
+    case NV_3D0_WINDOW:
+        quirk->data = NV_3D0_NONE;
+        if (addr == 4) {
+            if (data == 0x538) {
+                quirk->data = NV_3D0_READ;
+            } else if (data == 0x738) {
+                quirk->data = NV_3D0_WRITE;
+            }
+        }
+        break;
+    case NV_3D0_WRITE:
+        quirk->data = NV_3D0_NONE;
+        if (addr == 0) {
+            vfio_pci_write_config(pdev, quirk->data2, data, size);
+            DPRINTF("%s(0x3d0, 0x%"PRIx64", %d)\n", __func__, data, size);
+            return;
+        }
+        break;
+    default:
+        quirk->data = NV_3D0_NONE;
+    }
+
+    vfio_vga_write(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+                   addr + 0x10, data, size);
+}
+
+static const MemoryRegionOps vfio_nvidia_3d0_quirk = {
+    .read = vfio_nvidia_3d0_quirk_read,
+    .write = vfio_nvidia_3d0_quirk_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_vga_probe_nvidia_3d0_quirk(VFIODevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    VFIOQuirk *quirk;
+
+    if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA ||
+        !vdev->bars[1].size) {
+        return;
+    }
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->vdev = vdev;
+
+    memory_region_init_io(&quirk->mem, &vfio_nvidia_3d0_quirk, quirk,
+                          "vfio-nvidia-3d0-quirk", 6);
+    memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
+                                0x10, &quirk->mem);
+
+    QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
+                      quirk, next);
+
+    DPRINTF("Enabled NVIDIA VGA 0x3d0 quirk for device %04x:%02x:%02x.%x\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+}
+
+/*
+ * The second quirk is documented in envytools.  The I/O port BAR5 is just
+ * a set of address/data ports to the MMIO BARs.  The BAR we care about is
+ * again BAR0.  This backdoor is apparently a bit newer than the one above
+ * so we need to not only trap 256 bytes @0x1800, but all of PCI config
+ * space, including extended space is available at the 4k @0x88000.
+ */
+enum {
+    NV_BAR5_ADDRESS = 0x1,
+    NV_BAR5_ENABLE = 0x2,
+    NV_BAR5_MASTER = 0x4,
+    NV_BAR5_VALID = 0x7,
+};
+
+static uint64_t vfio_nvidia_bar5_window_quirk_read(void *opaque,
+                                                   hwaddr addr, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    uint64_t data = vfio_bar_read(&vdev->bars[5], addr, size);
+
+    if (addr == 0xc && quirk->data == NV_BAR5_VALID) {
+        data = vfio_pci_read_config(&vdev->pdev, quirk->data2, size);
+        DPRINTF("%s(%04x:%02x:%02x.%x:BAR5+0x%"HWADDR_PRIx", %d) = 0x%"
+                PRIx64"\n", __func__, vdev->host.domain, vdev->host.bus,
+                vdev->host.slot, vdev->host.function, addr, size, data);
+    }
+
+    return data;
+}
+
+static void vfio_nvidia_bar5_window_quirk_write(void *opaque, hwaddr addr,
+                                                uint64_t data, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+
+    /*
+     * Use quirk->data to track enables and quirk->data2 for the offset
+     */
+    switch (addr) {
+    case 0x0:
+        if (data & 0x1) {
+            quirk->data |= NV_BAR5_MASTER;
+        } else {
+            quirk->data &= ~NV_BAR5_MASTER;
+        }
+        break;
+    case 0x4:
+        if (data & 0x1) {
+            quirk->data |= NV_BAR5_ENABLE;
+        } else {
+            quirk->data &= ~NV_BAR5_ENABLE;
+        }
+        break;
+    case 0x8:
+        if (quirk->data & NV_BAR5_MASTER) {
+            if ((data & ~0xfff) == 0x88000) {
+                quirk->data |= NV_BAR5_ADDRESS;
+                quirk->data2 = data & 0xfff;
+            } else if ((data & ~0xff) == 0x1800) {
+                quirk->data |= NV_BAR5_ADDRESS;
+                quirk->data2 = data & 0xff;
+            } else {
+                quirk->data &= ~NV_BAR5_ADDRESS;
+            }
+        }
+        break;
+    case 0xc:
+        if (quirk->data == NV_BAR5_VALID) {
+            vfio_pci_write_config(&vdev->pdev, quirk->data2, data, size);
+            DPRINTF("%s(%04x:%02x:%02x.%x:BAR5+0x%"HWADDR_PRIx", 0x%"
+                    PRIx64", %d)\n", __func__, vdev->host.domain,
+                    vdev->host.bus, vdev->host.slot, vdev->host.function,
+                    addr, data, size);
+            return;
+        }
+    }
+
+    vfio_bar_write(&vdev->bars[5], addr, data, size);
+}
+
+static const MemoryRegionOps vfio_nvidia_bar5_window_quirk = {
+    .read = vfio_nvidia_bar5_window_quirk_read,
+    .write = vfio_nvidia_bar5_window_quirk_write,
+    .valid.min_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_probe_nvidia_bar5_window_quirk(VFIODevice *vdev, int nr)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    VFIOQuirk *quirk;
+
+    if (!vdev->has_vga || nr != 5 ||
+        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
+        return;
+    }
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->vdev = vdev;
+
+    memory_region_init_io(&quirk->mem, &vfio_nvidia_bar5_window_quirk, quirk,
+                          "vfio-nvidia-bar5-window-quirk", 16);
+    memory_region_add_subregion_overlap(&vdev->bars[nr].mem, 0, &quirk->mem, 1);
+
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+
+    DPRINTF("Enabled NVIDIA BAR5 window quirk for device %04x:%02x:%02x.%x\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+}
+
+/*
+ * Finally, BAR0 itself.  We want to redirect any accesses to either
+ * 0x1800 or 0x88000 through the PCI config space access functions.
+ *
+ * NB - quirk at a page granularity or else they don't seem to work when
+ *      BARs are mmap'd
+ *
+ * Here's offset 0x88000...
+ */
+static uint64_t vfio_nvidia_bar0_88000_quirk_read(void *opaque,
+                                                  hwaddr addr, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    hwaddr base = 0x88000 & TARGET_PAGE_MASK;
+    hwaddr offset = 0x88000 & ~TARGET_PAGE_MASK;
+    uint64_t data = vfio_bar_read(&vdev->bars[0], addr + base, size);
+
+    if (ranges_overlap(addr, size, offset, PCI_CONFIG_SPACE_SIZE)) {
+        data = vfio_pci_read_config(&vdev->pdev, addr - offset, size);
+
+        DPRINTF("%s(%04x:%02x:%02x.%x:BAR0+0x%"HWADDR_PRIx", %d) = 0x%"
+                PRIx64"\n", __func__, vdev->host.domain, vdev->host.bus,
+                vdev->host.slot, vdev->host.function, addr + base, size, data);
+    }
+
+    return data;
+}
+
+static void vfio_nvidia_bar0_88000_quirk_write(void *opaque, hwaddr addr,
+                                               uint64_t data, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    hwaddr base = 0x88000 & TARGET_PAGE_MASK;
+    hwaddr offset = 0x88000 & ~TARGET_PAGE_MASK;
+
+    if (ranges_overlap(addr, size, offset, PCI_CONFIG_SPACE_SIZE)) {
+        vfio_pci_write_config(&vdev->pdev, addr - offset, data, size);
+
+        DPRINTF("%s(%04x:%02x:%02x.%x:BAR0+0x%"HWADDR_PRIx", 0x%"
+                PRIx64", %d)\n", __func__, vdev->host.domain, vdev->host.bus,
+                vdev->host.slot, vdev->host.function, addr + base, data, size);
+    } else {
+        vfio_bar_write(&vdev->bars[0], addr + base, data, size);
+    }
+}
+
+static const MemoryRegionOps vfio_nvidia_bar0_88000_quirk = {
+    .read = vfio_nvidia_bar0_88000_quirk_read,
+    .write = vfio_nvidia_bar0_88000_quirk_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_probe_nvidia_bar0_88000_quirk(VFIODevice *vdev, int nr)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    VFIOQuirk *quirk;
+
+    if (!vdev->has_vga || nr != 0 ||
+        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
+        return;
+    }
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->vdev = vdev;
+
+    memory_region_init_io(&quirk->mem, &vfio_nvidia_bar0_88000_quirk, quirk,
+                          "vfio-nvidia-bar0-88000-quirk",
+                          TARGET_PAGE_ALIGN(PCIE_CONFIG_SPACE_SIZE));
+    memory_region_add_subregion_overlap(&vdev->bars[nr].mem,
+                                        0x88000 & TARGET_PAGE_MASK,
+                                        &quirk->mem, 1);
+
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+
+    DPRINTF("Enabled NVIDIA BAR0 0x88000 quirk for device %04x:%02x:%02x.%x\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+}
+
+/*
+ * And here's the same for BAR0 offset 0x1800...
+ */
+static uint64_t vfio_nvidia_bar0_1800_quirk_read(void *opaque,
+                                                 hwaddr addr, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    hwaddr base = 0x1800 & TARGET_PAGE_MASK;
+    hwaddr offset = 0x1800 & ~TARGET_PAGE_MASK;
+    uint64_t data = vfio_bar_read(&vdev->bars[0], addr + base, size);
+
+    if (ranges_overlap(addr, size, offset, PCI_CONFIG_SPACE_SIZE)) {
+        data = vfio_pci_read_config(&vdev->pdev, addr - offset, size);
+
+        DPRINTF("%s(%04x:%02x:%02x.%x:BAR0+0x%"HWADDR_PRIx", %d) = 0x%"
+                PRIx64"\n", __func__, vdev->host.domain, vdev->host.bus,
+                vdev->host.slot, vdev->host.function, addr + base, size, data);
+    }
+
+    return data;
+}
+
+static void vfio_nvidia_bar0_1800_quirk_write(void *opaque, hwaddr addr,
+                                              uint64_t data, unsigned size)
+{
+    VFIOQuirk *quirk = opaque;
+    VFIODevice *vdev = quirk->vdev;
+    hwaddr base = 0x1800 & TARGET_PAGE_MASK;
+    hwaddr offset = 0x1800 & ~TARGET_PAGE_MASK;
+
+    if (ranges_overlap(addr, size, offset, PCI_CONFIG_SPACE_SIZE)) {
+        vfio_pci_write_config(&vdev->pdev, addr - offset, data, size);
+
+        DPRINTF("%s(%04x:%02x:%02x.%x:BAR0+0x%"HWADDR_PRIx", 0x%"
+                PRIx64", %d)\n", __func__, vdev->host.domain, vdev->host.bus,
+                vdev->host.slot, vdev->host.function, addr + base, data, size);
+    } else {
+        vfio_bar_write(&vdev->bars[0], addr + base, data, size);
+    }
+}
+
+static const MemoryRegionOps vfio_nvidia_bar0_1800_quirk = {
+    .read = vfio_nvidia_bar0_1800_quirk_read,
+    .write = vfio_nvidia_bar0_1800_quirk_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_probe_nvidia_bar0_1800_quirk(VFIODevice *vdev, int nr)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    VFIOQuirk *quirk;
+
+    if (!vdev->has_vga || nr != 0 ||
+        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
+        return;
+    }
+
+    /* Log the chipset ID */
+    DPRINTF("Nvidia NV%02x\n",
+            (unsigned int)(vfio_bar_read(&vdev->bars[0], 0, 4) >> 20) & 0xff);
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->vdev = vdev;
+
+    memory_region_init_io(&quirk->mem, &vfio_nvidia_bar0_1800_quirk, quirk,
+                          "vfio-nvidia-bar0-1800-quirk",
+                          TARGET_PAGE_ALIGN(PCI_CONFIG_SPACE_SIZE));
+    memory_region_add_subregion_overlap(&vdev->bars[nr].mem,
+                                        0x1800 & TARGET_PAGE_MASK,
+                                        &quirk->mem, 1);
+
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+
+    DPRINTF("Enabled NVIDIA BAR0 0x1800 quirk for device %04x:%02x:%02x.%x\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+}
+
+/*
+ * TODO - Some Nvidia devices provide config access to their companion HDA
+ * device and even to their parent bridge via these config space mirrors.
+ * Add quirks for those regions.
+ */
+
+/*
+ * Common quirk probe entry points.
+ */
+static void vfio_vga_quirk_setup(VFIODevice *vdev)
+{
+    vfio_vga_probe_ati_3c3_quirk(vdev);
+    vfio_vga_probe_nvidia_3d0_quirk(vdev);
+}
+
+static void vfio_vga_quirk_teardown(VFIODevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
+        while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
+            VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
+            memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
+            QLIST_REMOVE(quirk, next);
+            g_free(quirk);
+        }
+    }
+}
+
+static void vfio_bar_quirk_setup(VFIODevice *vdev, int nr)
+{
+    vfio_probe_ati_4010_quirk(vdev, nr);
+    vfio_probe_ati_f10_quirk(vdev, nr);
+    vfio_probe_nvidia_bar5_window_quirk(vdev, nr);
+    vfio_probe_nvidia_bar0_88000_quirk(vdev, nr);
+    vfio_probe_nvidia_bar0_1800_quirk(vdev, nr);
+}
+
+static void vfio_bar_quirk_teardown(VFIODevice *vdev, int nr)
+{
+    VFIOBAR *bar = &vdev->bars[nr];
+
+    while (!QLIST_EMPTY(&bar->quirks)) {
+        VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
+        memory_region_del_subregion(&bar->mem, &quirk->mem);
+        QLIST_REMOVE(quirk, next);
+        g_free(quirk);
+    }
+}
+
+/*
  * PCI config space
  */
 static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
@@ -1459,6 +2165,8 @@ static void vfio_unmap_bar(VFIODevice *vdev, int nr)
         return;
     }
 
+    vfio_bar_quirk_teardown(vdev, nr);
+
     memory_region_del_subregion(&bar->mem, &bar->mmap_mem);
     munmap(bar->mmap, memory_region_size(&bar->mmap_mem));
 
@@ -1569,6 +2277,8 @@ static void vfio_map_bar(VFIODevice *vdev, int nr)
             error_report("%s unsupported. Performance may be slow", name);
         }
     }
+
+    vfio_bar_quirk_setup(vdev, nr);
 }
 
 static void vfio_map_bars(VFIODevice *vdev)
@@ -1599,6 +2309,7 @@ static void vfio_map_bars(VFIODevice *vdev)
         pci_register_vga(&vdev->pdev, &vdev->vga.region[QEMU_PCI_VGA_MEM].mem,
                          &vdev->vga.region[QEMU_PCI_VGA_IO_LO].mem,
                          &vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem);
+        vfio_vga_quirk_setup(vdev);
     }
 }
 
@@ -1611,6 +2322,7 @@ static void vfio_unmap_bars(VFIODevice *vdev)
     }
 
     if (vdev->has_vga) {
+        vfio_vga_quirk_teardown(vdev);
         pci_unregister_vga(&vdev->pdev);
         memory_region_destroy(&vdev->vga.region[QEMU_PCI_VGA_MEM].mem);
         memory_region_destroy(&vdev->vga.region[QEMU_PCI_VGA_IO_LO].mem);
@@ -2104,6 +2816,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
         vdev->bars[i].fd_offset = reg_info.offset;
         vdev->bars[i].fd = vdev->fd;
         vdev->bars[i].nr = i;
+        QLIST_INIT(&vdev->bars[i].quirks);
     }
 
     reg_info.index = VFIO_PCI_ROM_REGION_INDEX;
@@ -2169,12 +2882,15 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
 
         vdev->vga.region[QEMU_PCI_VGA_MEM].offset = QEMU_PCI_VGA_MEM_BASE;
         vdev->vga.region[QEMU_PCI_VGA_MEM].nr = QEMU_PCI_VGA_MEM;
+        QLIST_INIT(&vdev->vga.region[QEMU_PCI_VGA_MEM].quirks);
 
         vdev->vga.region[QEMU_PCI_VGA_IO_LO].offset = QEMU_PCI_VGA_IO_LO_BASE;
         vdev->vga.region[QEMU_PCI_VGA_IO_LO].nr = QEMU_PCI_VGA_IO_LO;
+        QLIST_INIT(&vdev->vga.region[QEMU_PCI_VGA_IO_LO].quirks);
 
         vdev->vga.region[QEMU_PCI_VGA_IO_HI].offset = QEMU_PCI_VGA_IO_HI_BASE;
         vdev->vga.region[QEMU_PCI_VGA_IO_HI].nr = QEMU_PCI_VGA_IO_HI;
+        QLIST_INIT(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks);
 
         vdev->has_vga = true;
     }
