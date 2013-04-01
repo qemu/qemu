@@ -500,8 +500,8 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
-static int kvm_set_ioeventfd_mmio(int fd, uint32_t addr, uint32_t val, bool assign,
-                                  uint32_t size)
+static int kvm_set_ioeventfd_mmio(int fd, uint32_t addr, uint32_t val,
+                                  bool assign, uint32_t size)
 {
     int ret;
     struct kvm_ioeventfd iofd;
@@ -529,13 +529,13 @@ static int kvm_set_ioeventfd_mmio(int fd, uint32_t addr, uint32_t val, bool assi
     return 0;
 }
 
-static int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val,
-                                      bool assign)
+static int kvm_set_ioeventfd_pio(int fd, uint16_t addr, uint16_t val,
+                                 bool assign, uint32_t size)
 {
     struct kvm_ioeventfd kick = {
         .datamatch = val,
         .addr = addr,
-        .len = 2,
+        .len = size,
         .flags = KVM_IOEVENTFD_FLAG_DATAMATCH | KVM_IOEVENTFD_FLAG_PIO,
         .fd = fd,
     };
@@ -571,7 +571,7 @@ static int kvm_check_many_ioeventfds(void)
         if (ioeventfds[i] < 0) {
             break;
         }
-        ret = kvm_set_ioeventfd_pio_word(ioeventfds[i], 0, i, true);
+        ret = kvm_set_ioeventfd_pio(ioeventfds[i], 0, i, true, 2);
         if (ret < 0) {
             close(ioeventfds[i]);
             break;
@@ -582,7 +582,7 @@ static int kvm_check_many_ioeventfds(void)
     ret = i == ARRAY_SIZE(ioeventfds);
 
     while (i-- > 0) {
-        kvm_set_ioeventfd_pio_word(ioeventfds[i], 0, i, false);
+        kvm_set_ioeventfd_pio(ioeventfds[i], 0, i, false, 2);
         close(ioeventfds[i]);
     }
     return ret;
@@ -834,10 +834,10 @@ static void kvm_io_ioeventfd_add(MemoryListener *listener,
     int fd = event_notifier_get_fd(e);
     int r;
 
-    assert(match_data && section->size == 2);
+    assert(match_data && section->size <= 8);
 
-    r = kvm_set_ioeventfd_pio_word(fd, section->offset_within_address_space,
-                                   data, true);
+    r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
+                              data, true, section->size);
     if (r < 0) {
         abort();
     }
@@ -852,8 +852,8 @@ static void kvm_io_ioeventfd_del(MemoryListener *listener,
     int fd = event_notifier_get_fd(e);
     int r;
 
-    r = kvm_set_ioeventfd_pio_word(fd, section->offset_within_address_space,
-                                   data, false);
+    r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
+                              data, false, section->size);
     if (r < 0) {
         abort();
     }
