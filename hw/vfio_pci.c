@@ -160,6 +160,7 @@ typedef struct VFIODevice {
     uint32_t features;
 #define VFIO_FEATURE_ENABLE_VGA_BIT 0
 #define VFIO_FEATURE_ENABLE_VGA (1 << VFIO_FEATURE_ENABLE_VGA_BIT)
+    uint8_t pm_cap;
     bool reset_works;
     bool has_vga;
 } VFIODevice;
@@ -2534,6 +2535,8 @@ static int vfio_add_std_cap(VFIODevice *vdev, uint8_t pos)
     case PCI_CAP_ID_MSIX:
         ret = vfio_setup_msix(vdev, pos);
         break;
+    case PCI_CAP_ID_PM:
+        vdev->pm_cap = pos;
     default:
         ret = pci_add_capability(pdev, cap_id, pos, size);
         break;
@@ -3107,6 +3110,26 @@ static void vfio_pci_reset(DeviceState *dev)
             vdev->host.bus, vdev->host.slot, vdev->host.function);
 
     vfio_disable_interrupts(vdev);
+
+    /* Make sure the device is in D0 */
+    if (vdev->pm_cap) {
+        uint16_t pmcsr;
+        uint8_t state;
+
+        pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
+        state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+        if (state) {
+            pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+            vfio_pci_write_config(pdev, vdev->pm_cap + PCI_PM_CTRL, pmcsr, 2);
+            /* vfio handles the necessary delay here */
+            pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
+            state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+            if (state) {
+                error_report("vfio: Unable to power on device, stuck in D%d\n",
+                             state);
+            }
+        }
+    }
 
     /*
      * Stop any ongoing DMA by disconecting I/O, MMIO, and bus master.
