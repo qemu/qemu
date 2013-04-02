@@ -382,6 +382,7 @@ static int tcg_target_const_match (tcg_target_long val,
 #define SRAWI  XO31(824)
 #define NEG    XO31(104)
 #define MFCR   XO31( 19)
+#define MFOCRF (MFCR | (1u << 20))
 #define NOR    XO31(124)
 #define CNTLZW XO31( 26)
 #define CNTLZD XO31( 58)
@@ -430,6 +431,7 @@ static int tcg_target_const_match (tcg_target_long val,
 #define ME(e) ((e)<<1)
 #define BO(o) ((o)<<21)
 #define MB64(b) ((b)<<5)
+#define FXM(b) (1 << (19 - (b)))
 
 #define LK    1
 
@@ -1226,10 +1228,12 @@ static void tcg_out_setcond (TCGContext *s, TCGType type, TCGCond cond,
         sh = 31;
         crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_GT) | BB (7, CR_GT);
     crtest:
-        tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7, type);
-        if (crop) tcg_out32 (s, crop);
-        tcg_out32 (s, MFCR | RT (0));
-        tcg_out_rlw(s, RLWINM, arg0, 0, sh, 31, 31);
+        tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
+        if (crop) {
+            tcg_out32(s, crop);
+        }
+        tcg_out32(s, MFOCRF | RT(TCG_REG_R0) | FXM(7));
+        tcg_out_rlw(s, RLWINM, arg0, TCG_REG_R0, sh, 31, 31);
         break;
 
     default:
