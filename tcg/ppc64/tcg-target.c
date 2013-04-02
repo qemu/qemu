@@ -1129,6 +1129,12 @@ static void tcg_out_setcond (TCGContext *s, TCGType type, TCGCond cond,
             tcg_out32 (s, XOR | SAB (arg1, 0, arg2));
         }
 
+        /* Make sure and discard the high 32-bits of the input.  */
+        if (type == TCG_TYPE_I32) {
+            tcg_out32(s, EXTSW | RA(TCG_REG_R0) | RS(arg));
+            arg = TCG_REG_R0;
+        }
+
         if (arg == arg1 && arg1 == arg0) {
             tcg_out32(s, ADDIC | TAI(0, arg, -1));
             tcg_out32(s, SUBFE | TAB(arg0, 0, arg));
