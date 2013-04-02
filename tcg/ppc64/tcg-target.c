@@ -1053,8 +1053,8 @@ static void tcg_out_st (TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
         tcg_out_ldsta (s, arg, arg1, arg2, STD, STDX);
 }
 
-static void tcg_out_cmp (TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
-                         int const_arg2, int cr, int arch64)
+static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
+                        int const_arg2, int cr, TCGType type)
 {
     int imm;
     uint32_t op;
@@ -1111,19 +1111,17 @@ static void tcg_out_cmp (TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
     default:
         tcg_abort ();
     }
-    op |= BF (cr) | (arch64 << 21);
+    op |= BF(cr) | ((type == TCG_TYPE_I64) << 21);
 
-    if (imm)
-        tcg_out32 (s, op | RA (arg1) | (arg2 & 0xffff));
-    else {
+    if (imm) {
+        tcg_out32(s, op | RA(arg1) | (arg2 & 0xffff));
+    } else {
         if (const_arg2) {
-            tcg_out_movi (s, TCG_TYPE_I64, 0, arg2);
-            tcg_out32 (s, op | RA (arg1) | RB (0));
+            tcg_out_movi(s, type, 0, arg2);
+            arg2 = 0;
         }
-        else
-            tcg_out32 (s, op | RA (arg1) | RB (arg2));
+        tcg_out32(s, op | RA(arg1) | RB(arg2));
     }
-
 }
 
 static void tcg_out_setcond (TCGContext *s, TCGType type, TCGCond cond,
@@ -1223,7 +1221,7 @@ static void tcg_out_setcond (TCGContext *s, TCGType type, TCGCond cond,
         sh = 31;
         crop = CRNOR | BT (7, CR_EQ) | BA (7, CR_GT) | BB (7, CR_GT);
     crtest:
-        tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7, type == TCG_TYPE_I64);
+        tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7, type);
         if (crop) tcg_out32 (s, crop);
         tcg_out32 (s, MFCR | RT (0));
         tcg_out_rlw(s, RLWINM, arg0, 0, sh, 31, 31);
@@ -1249,12 +1247,12 @@ static void tcg_out_bc (TCGContext *s, int bc, int label_index)
     }
 }
 
-static void tcg_out_brcond (TCGContext *s, TCGCond cond,
-                            TCGArg arg1, TCGArg arg2, int const_arg2,
-                            int label_index, int arch64)
+static void tcg_out_brcond(TCGContext *s, TCGCond cond,
+                           TCGArg arg1, TCGArg arg2, int const_arg2,
+                           int label_index, TCGType type)
 {
-    tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7, arch64);
-    tcg_out_bc (s, tcg_to_bc[cond], label_index);
+    tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
+    tcg_out_bc(s, tcg_to_bc[cond], label_index);
 }
 
 void ppc_tb_set_jmp_target (unsigned long jmp_addr, unsigned long addr)
@@ -1538,11 +1536,13 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_brcond_i32:
-        tcg_out_brcond (s, args[2], args[0], args[1], const_args[1], args[3], 0);
+        tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
+                       args[3], TCG_TYPE_I32);
         break;
 
     case INDEX_op_brcond_i64:
-        tcg_out_brcond (s, args[2], args[0], args[1], const_args[1], args[3], 1);
+        tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
+                       args[3], TCG_TYPE_I64);
         break;
 
     case INDEX_op_neg_i32:
