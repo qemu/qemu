@@ -262,8 +262,8 @@ void glo_set_current(GloContext *context) {
 }
 
 /* Destroy a previously created OpenGL context */
-void glo_context_destroy(GloContext *context) {
-
+void glo_context_destroy(GloContext *context)
+{
     if (!context) return;
 
     wglMakeCurrent( NULL, NULL );
@@ -275,27 +275,30 @@ void glo_context_destroy(GloContext *context) {
         ReleaseDC( glo.hWnd, context->hDC );
     }
     if (context->hContext) {
-      wglDeleteContext(context->hContext);
+        wglDeleteContext(context->hContext);
     }
     free(context);
 }
 
 
-/* Check extension implementation for Windows. The Glu 1.2 framework in Windows doesn't include them... */
-GLboolean glo_check_extension( const GLubyte *extName, const GLubyte *extString ) {
+/* Check extension implementation for Windows. 
+ * The Glu 1.2 framework in Windows doesn't include them... */
+GLboolean glo_check_extension(const GLubyte *extName, 
+    const GLubyte *extString)
+{
+    char *p = (char *) glGetString(GL_EXTENSIONS);
+    char *end;
+    if (p == NULL) {
+        return GL_FALSE;
+    }
+    end = p + strlen(p);
 
-	char *p = (char *) glGetString(GL_EXTENSIONS); 
-	char *end;
-	if(p==NULL)
-		return GL_FALSE;
-	end = p + strlen(p);
-	
-	while (p < end) {
-		int n = strcspn(p, " ");
-		if((strlen(extName) == n) && (strncmp(extName,p,n) == 0)) {
-			return GL_TRUE;
-		}
-		p += (n + 1);
-	}
-	return GL_FALSE;
+    while (p < end) {
+        int n = strcspn(p, " ");
+        if ((strlen(extName) == n) && (strncmp(extName, p, n) == 0)) {
+            return GL_TRUE;
+        }
+        p += (n + 1);
+    }
+    return GL_FALSE;
 }

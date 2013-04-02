@@ -1501,19 +1501,19 @@ static void pgraph_context_init(GraphicsContext *context)
     const GLubyte *extensions;
     extensions = glGetString (GL_EXTENSIONS);
 
-    assert(glo_check_extension((const GLubyte*)"GL_EXT_texture_compression_s3tc",
+    assert(glo_check_extension(const GLubyte *)"GL_EXT_texture_compression_s3tc",
                              extensions));
 
-    assert(glo_check_extension((const GLubyte*)"GL_EXT_framebuffer_object",
+    assert(glo_check_extension(const GLubyte *)"GL_EXT_framebuffer_object",
                              extensions));
 
-    assert(glo_check_extension((const GLubyte*)"GL_ARB_vertex_program",
+    assert(glo_check_extension(const GLubyte *)"GL_ARB_vertex_program",
                              extensions));
 
-    assert(glo_check_extension((const GLubyte*)"GL_ARB_fragment_program",
+    assert(glo_check_extension(const GLubyte *)"GL_ARB_fragment_program",
                              extensions));
 
-    assert(glo_check_extension((const GLubyte*)"GL_ARB_texture_rectangle",
+    assert(glo_check_extension(const GLubyte *)"GL_ARB_texture_rectangle",
                              extensions));
 
     GLint max_vertex_attributes;

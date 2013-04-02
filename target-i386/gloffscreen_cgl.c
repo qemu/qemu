@@ -52,7 +52,7 @@ struct GloMain glo;
 int glo_inited = 0;
 
 struct _GloContext {
-  CGLContextObj         cglContext;
+  CGLContextObj     cglContext;
 };
 
 int glo_initialised(void) {
@@ -74,18 +74,19 @@ void glo_init(void) {
 
 /* Uninitialise gloffscreen */
 void glo_kill(void) {
-	glo_inited = 0;
+    glo_inited = 0;
 }
 
 /* Create an OpenGL context for a certain pixel format. formatflags are from the GLO_ constants */
-GloContext *glo_context_create( int formatFlags ) {
+GloContext *glo_context_create(int formatFlags)
+{
     GloContext *context;
 
-	context = (GloContext*)malloc(sizeof(GloContext));
+    context = (GloContext*)malloc(sizeof(GloContext));
     memset(context, 0, sizeof(GloContext));
-	
-	// pixel format attributes
-	 CGLPixelFormatAttribute attributes[] = {
+
+    // pixel format attributes
+     CGLPixelFormatAttribute attributes[] = {
         kCGLPFAAccelerated,
         (CGLPixelFormatAttribute)0
     };
@@ -97,31 +98,35 @@ GloContext *glo_context_create( int formatFlags ) {
     CGLDestroyPixelFormat(pix);
 
     if (!glo_inited)
-		glo_init();
+        glo_init();
 
-	glo_set_current(context);
-	
+    glo_set_current(context);
+
     return context;
 }
 
 /* Check if an extension is available. */
-GLboolean glo_check_extension( const GLubyte *extName, const GLubyte *extString ) {
-	return gluCheckExtension(extName, extString);
+GLboolean glo_check_extension(const GLubyte *extName, 
+    const GLubyte *extString)
+{
+    return gluCheckExtension(extName, extString);
 }
 
 /* Set current context */
-void glo_set_current( GloContext *context ) {
-	if(context == NULL)
-		CGLSetCurrentContext(NULL);
-	else
-		CGLSetCurrentContext(context->cglContext);
+void glo_set_current(GloContext *context)
+{
+    if(context == NULL)
+        CGLSetCurrentContext(NULL);
+    else
+        CGLSetCurrentContext(context->cglContext);
 }
 
 /* Destroy a previously created OpenGL context */
-void glo_context_destroy( GloContext *context ) {
+void glo_context_destroy(GloContext *context)
+{
     if (!context) return;
 
-	glo_set_current( NULL );
+    glo_set_current(NULL);
 	
-	CGLDestroyContext(context->cglContext);	
+    CGLDestroyContext(context->cglContext);
 }
