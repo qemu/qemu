@@ -30,7 +30,7 @@ install: $(OBJS)
 	    $(INSTALL) -m644 $$obj $(DESTDIR)$(prefix)/share/locale/$$base/LC_MESSAGES/qemu.mo; \
 	done
 
-%.mo:
+%.mo: %.po
 	@msgfmt -o $@ $(SRC_PATH)/po/`basename $@ .mo`.po
 
 messages.po: $(SRC_PATH)/ui/gtk.c
