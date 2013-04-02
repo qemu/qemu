@@ -2444,6 +2444,9 @@ static void unix_process_msgfd(CharDriverState *chr, struct msghdr *msg)
         if (fd < 0)
             continue;
 
+        /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
+        qemu_set_block(fd);
+
 #ifndef MSG_CMSG_CLOEXEC
         qemu_set_cloexec(fd);
 #endif
@@ -2574,7 +2577,7 @@ static int tcp_chr_add_client(CharDriverState *chr, int fd)
     if (s->fd != -1)
 	return -1;
 
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
     if (s->do_nodelay)
         socket_set_nodelay(fd);
     s->fd = fd;
@@ -2726,7 +2729,7 @@ static CharDriverState *qemu_chr_open_socket_fd(int fd, bool do_nodelay,
         printf("QEMU waiting for connection on: %s\n",
                chr->filename);
         tcp_chr_accept(s->listen_chan, G_IO_IN, chr);
-        socket_set_nonblock(s->listen_fd);
+        qemu_set_nonblock(s->listen_fd);
     }
     return chr;
 }
@@ -2768,7 +2771,7 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
     }
 
     if (!is_waitconnect)
-        socket_set_nonblock(fd);
+        qemu_set_nonblock(fd);
 
     chr = qemu_chr_open_socket_fd(fd, do_nodelay, is_listen, is_telnet,
                                   is_waitconnect, &local_err);
@@ -3657,7 +3660,7 @@ static CharDriverState *qmp_chardev_open_serial(ChardevHostdev *serial,
     if (error_is_set(errp)) {
         return NULL;
     }
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
     return qemu_chr_open_tty_fd(fd);
 #else
     error_setg(errp, "character device backend type 'serial' not supported");
