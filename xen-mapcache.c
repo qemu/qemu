@@ -74,8 +74,7 @@ typedef struct MapCache {
     QTAILQ_HEAD(map_cache_head, MapCacheRev) locked_entries;
 
     /* For most cases (>99.9%), the page address is the same. */
-    hwaddr last_address_index;
-    uint8_t *last_address_vaddr;
+    MapCacheEntry *last_entry;
     unsigned long max_mcache_size;
     unsigned int mcache_bucket_shift;
 
@@ -105,7 +104,6 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
     mapcache->opaque = opaque;
 
     QTAILQ_INIT(&mapcache->locked_entries);
-    mapcache->last_address_index = -1;
 
     if (geteuid() == 0) {
         rlimit_as.rlim_cur = RLIM_INFINITY;
@@ -210,9 +208,11 @@ tryagain:
 
     trace_xen_map_cache(phys_addr);
 
-    if (address_index == mapcache->last_address_index && !lock && !__size) {
-        trace_xen_map_cache_return(mapcache->last_address_vaddr + address_offset);
-        return mapcache->last_address_vaddr + address_offset;
+    if (mapcache->last_entry != NULL &&
+        mapcache->last_entry->paddr_index == address_index &&
+        !lock && !__size) {
+        trace_xen_map_cache_return(mapcache->last_entry->vaddr_base + address_offset);
+        return mapcache->last_entry->vaddr_base + address_offset;
     }
 
     /* size is always a multiple of MCACHE_BUCKET_SIZE */
@@ -249,7 +249,7 @@ tryagain:
 
     if(!test_bits(address_offset >> XC_PAGE_SHIFT, size >> XC_PAGE_SHIFT,
                 entry->valid_mapping)) {
-        mapcache->last_address_index = -1;
+        mapcache->last_entry = NULL;
         if (!translated && mapcache->phys_offset_to_gaddr) {
             phys_addr = mapcache->phys_offset_to_gaddr(phys_addr, size, mapcache->opaque);
             translated = true;
@@ -259,19 +259,18 @@ tryagain:
         return NULL;
     }
 
-    mapcache->last_address_index = address_index;
-    mapcache->last_address_vaddr = entry->vaddr_base;
+    mapcache->last_entry = entry;
     if (lock) {
         MapCacheRev *reventry = g_malloc0(sizeof(MapCacheRev));
         entry->lock++;
-        reventry->vaddr_req = mapcache->last_address_vaddr + address_offset;
-        reventry->paddr_index = mapcache->last_address_index;
+        reventry->vaddr_req = mapcache->last_entry->vaddr_base + address_offset;
+        reventry->paddr_index = mapcache->last_entry->paddr_index;
         reventry->size = entry->size;
         QTAILQ_INSERT_HEAD(&mapcache->locked_entries, reventry, next);
     }
 
-    trace_xen_map_cache_return(mapcache->last_address_vaddr + address_offset);
-    return mapcache->last_address_vaddr + address_offset;
+    trace_xen_map_cache_return(mapcache->last_entry->vaddr_base + address_offset);
+    return mapcache->last_entry->vaddr_base + address_offset;
 }
 
 ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
@@ -338,9 +337,9 @@ void xen_invalidate_map_cache_entry(uint8_t *buffer)
     QTAILQ_REMOVE(&mapcache->locked_entries, reventry, next);
     g_free(reventry);
 
-    if (mapcache->last_address_index == paddr_index) {
-        mapcache->last_address_index = -1;
-        mapcache->last_address_vaddr = NULL;
+    if (mapcache->last_entry != NULL &&
+        mapcache->last_entry->paddr_index == paddr_index) {
+        mapcache->last_entry = NULL;
     }
 
     entry = &mapcache->entry[paddr_index % mapcache->nr_buckets];
@@ -404,8 +403,7 @@ void xen_invalidate_map_cache(void)
         entry->valid_mapping = NULL;
     }
 
-    mapcache->last_address_index = -1;
-    mapcache->last_address_vaddr = NULL;
+    mapcache->last_entry = NULL;
 
     mapcache_unlock();
 }
