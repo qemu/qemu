@@ -1493,7 +1493,7 @@ static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
 static void pgraph_context_init(GraphicsContext *context)
 {
 
-	context->gl_context = glo_context_create(GLO_FF_DEFAULT);
+    context->gl_context = glo_context_create(GLO_FF_DEFAULT);
 
     /* TODO: create glo functions for Mac */
 
