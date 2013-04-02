@@ -870,9 +870,8 @@ static void pl330_dmasev(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
         ch->parent->int_status |= (1 << ev_id);
         DB_PRINT("event interrupt raised %d\n", ev_id);
         qemu_irq_raise(ch->parent->irq[ev_id]);
-    } else {
-        ch->parent->ev_status |= (1 << ev_id);
     }
+    ch->parent->ev_status |= (1 << ev_id);
 }
 
 static void pl330_dmast(PL330Chan *ch, uint8_t opcode, uint8_t *args, int len)
