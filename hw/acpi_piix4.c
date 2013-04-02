@@ -418,7 +418,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
-    acpi_pm1_cnt_init(&s->ar, &s->io);
+    acpi_pm1_cnt_init(&s->ar, &s->io, s->s4_val);
     acpi_gpe_init(&s->ar, GPE_LEN);
 
     s->powerdown_notifier.notify = piix4_pm_powerdown_req;
