@@ -15,11 +15,8 @@
 #include "exec/memory.h"
 #include "tpm/tpm_tis.h"
 
-struct TPMDriverOps;
-typedef struct TPMDriverOps TPMDriverOps;
-
 /* overall state of the TPM interface */
-typedef struct TPMState {
+struct TPMState {
     ISADevice busdev;
     MemoryRegion mmio;
 
@@ -32,11 +29,9 @@ typedef struct TPMState {
 
     char *backend;
     TPMBackend *be_driver;
-} TPMState;
+};
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
-
-typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty);
 
 struct TPMDriverOps {
     enum TpmType type;

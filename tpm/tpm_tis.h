@@ -35,10 +35,10 @@
 #define TYPE_TPM_TIS                "tpm-tis"
 
 
-typedef struct TPMSizedBuffer {
+struct TPMSizedBuffer {
     uint32_t size;
     uint8_t  *buffer;
-} TPMSizedBuffer;
+};
 
 typedef enum {
     TPM_TIS_STATE_IDLE = 0,
