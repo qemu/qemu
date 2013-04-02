@@ -82,10 +82,10 @@ GloContext *glo_context_create(int formatFlags)
 {
     GloContext *context;
 
-    context = (GloContext*)malloc(sizeof(GloContext));
+    context = (GloContext *)malloc(sizeof(GloContext));
     memset(context, 0, sizeof(GloContext));
 
-    // pixel format attributes
+    /* pixel format attributes */
      CGLPixelFormatAttribute attributes[] = {
         kCGLPFAAccelerated,
         (CGLPixelFormatAttribute)0
@@ -106,7 +106,7 @@ GloContext *glo_context_create(int formatFlags)
 }
 
 /* Check if an extension is available. */
-GLboolean glo_check_extension(const GLubyte *extName, 
+GLboolean glo_check_extension(const GLubyte *extName,
     const GLubyte *extString)
 {
     return gluCheckExtension(extName, extString);
@@ -115,7 +115,7 @@ GLboolean glo_check_extension(const GLubyte *extName,
 /* Set current context */
 void glo_set_current(GloContext *context)
 {
-    if(context == NULL)
+    if (context == NULL)
         CGLSetCurrentContext(NULL);
     else
         CGLSetCurrentContext(context->cglContext);

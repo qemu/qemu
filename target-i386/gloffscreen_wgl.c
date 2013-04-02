@@ -281,9 +281,9 @@ void glo_context_destroy(GloContext *context)
 }
 
 
-/* Check extension implementation for Windows. 
+/* Check extension implementation for Windows.
  * The Glu 1.2 framework in Windows doesn't include them... */
-GLboolean glo_check_extension(const GLubyte *extName, 
+GLboolean glo_check_extension(const GLubyte *extName,
     const GLubyte *extString)
 {
     char *p = (char *) glGetString(GL_EXTENSIONS);
