@@ -262,15 +262,42 @@ error:
 }
 #endif
 
-static int raw_open_common(BlockDriverState *bs, const char *filename,
+static QemuOptsList raw_runtime_opts = {
+    .name = "raw",
+    .head = QTAILQ_HEAD_INITIALIZER(raw_runtime_opts.head),
+    .desc = {
+        {
+            .name = "filename",
+            .type = QEMU_OPT_STRING,
+            .help = "File name of the image",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int raw_open_common(BlockDriverState *bs, QDict *options,
                            int bdrv_flags, int open_flags)
 {
     BDRVRawState *s = bs->opaque;
+    QemuOpts *opts;
+    Error *local_err = NULL;
+    const char *filename;
     int fd, ret;
+
+    opts = qemu_opts_create_nofail(&raw_runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    filename = qemu_opt_get(opts, "filename");
 
     ret = raw_normalize_devicepath(&filename);
     if (ret != 0) {
-        return ret;
+        goto fail;
     }
 
     s->open_flags = open_flags;
@@ -280,16 +307,18 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     fd = qemu_open(filename, s->open_flags, 0644);
     if (fd < 0) {
         ret = -errno;
-        if (ret == -EROFS)
+        if (ret == -EROFS) {
             ret = -EACCES;
-        return ret;
+        }
+        goto fail;
     }
     s->fd = fd;
 
 #ifdef CONFIG_LINUX_AIO
     if (raw_set_aio(&s->aio_ctx, &s->use_aio, bdrv_flags)) {
         qemu_close(fd);
-        return -errno;
+        ret = -errno;
+        goto fail;
     }
 #endif
 
@@ -300,7 +329,10 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     }
 #endif
 
-    return 0;
+    ret = 0;
+fail:
+    qemu_opts_del(opts);
+    return ret;
 }
 
 static int raw_open(BlockDriverState *bs, const char *filename,
@@ -309,7 +341,7 @@ static int raw_open(BlockDriverState *bs, const char *filename,
     BDRVRawState *s = bs->opaque;
 
     s->type = FTYPE_FILE;
-    return raw_open_common(bs, filename, flags, 0);
+    return raw_open_common(bs, options, flags, 0);
 }
 
 static int raw_reopen_prepare(BDRVReopenState *state,
@@ -1293,11 +1325,12 @@ static int check_hdev_writable(BDRVRawState *s)
     return 0;
 }
 
-static int hdev_open(BlockDriverState *bs, const char *filename,
+static int hdev_open(BlockDriverState *bs, const char *dummy,
                      QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
+    const char *filename = qdict_get_str(options, "filename");
 
 #if defined(__APPLE__) && defined(__MACH__)
     if (strstart(filename, "/dev/cdrom", NULL)) {
@@ -1338,7 +1371,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename,
     }
 #endif
 
-    ret = raw_open_common(bs, filename, flags, 0);
+    ret = raw_open_common(bs, options, flags, 0);
     if (ret < 0) {
         return ret;
     }
@@ -1541,7 +1574,7 @@ static int floppy_open(BlockDriverState *bs, const char *filename,
     s->type = FTYPE_FD;
 
     /* open will not fail even if no floppy is inserted, so add O_NONBLOCK */
-    ret = raw_open_common(bs, filename, flags, O_NONBLOCK);
+    ret = raw_open_common(bs, options, flags, O_NONBLOCK);
     if (ret)
         return ret;
 
@@ -1663,7 +1696,7 @@ static int cdrom_open(BlockDriverState *bs, const char *filename,
     s->type = FTYPE_CD;
 
     /* open will not fail even if no CD is inserted, so add O_NONBLOCK */
-    return raw_open_common(bs, filename, flags, O_NONBLOCK);
+    return raw_open_common(bs, options, flags, O_NONBLOCK);
 }
 
 static int cdrom_probe_device(const char *filename)
@@ -1772,7 +1805,7 @@ static int cdrom_open(BlockDriverState *bs, const char *filename,
 
     s->type = FTYPE_CD;
 
-    ret = raw_open_common(bs, filename, flags, 0);
+    ret = raw_open_common(bs, options, flags, 0);
     if (ret)
         return ret;
 
