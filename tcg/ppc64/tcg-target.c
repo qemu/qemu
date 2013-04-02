@@ -1059,6 +1059,11 @@ static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
     int imm;
     uint32_t op;
 
+    /* Simplify the comparisons below wrt CMPI.  */
+    if (type == TCG_TYPE_I32) {
+        arg2 = (int32_t)arg2;
+    }
+
     switch (cond) {
     case TCG_COND_EQ:
     case TCG_COND_NE:
