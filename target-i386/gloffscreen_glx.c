@@ -48,7 +48,6 @@ int glo_inited = 0;
 
 struct _GloContext {
   GLuint                formatFlags;
-
   GLXFBConfig           fbConfig;
   GLXContext            context;
 };
@@ -57,46 +56,48 @@ struct _GloContext {
 #define MAX_SURF 128
 static GloContext *ctx_arr[MAX_CTX];
 
-static void glo_test_readback_methods(void);
-
 /* ------------------------------------------------------------------------ */
 
-int glo_initialised(void) {
-  return glo_inited;
+int glo_initialised(void)
+{
+    return glo_inited;
 }
 
 /* Initialise gloffscreen */
-void glo_init(void) {
+void glo_init(void)
+{
     if (glo_inited) {
-        printf( "gloffscreen already inited\n" );
-        exit( EXIT_FAILURE );
+        printf("gloffscreen already inited\n");
+        exit(EXIT_FAILURE);
     }
     /* Open a connection to the X server */
-    glo.dpy = XOpenDisplay( NULL );
-    if ( glo.dpy == NULL ) {
-        printf( "Unable to open a connection to the X server\n" );
-        exit( EXIT_FAILURE );
+    glo.dpy = XOpenDisplay(NULL);
+    if (glo.dpy == NULL) {
+        printf("Unable to open a connection to the X server\n");
+        exit(EXIT_FAILURE);
     }
     glo_inited = 1;
-    glo_test_readback_methods();
 }
 
 /* Uninitialise gloffscreen */
-void glo_kill(void) {
+void glo_kill(void)
+{
     XCloseDisplay(glo.dpy);
     glo.dpy = NULL;
 }
 
-/* Create an OpenGL context for a certain pixel format. formatflags are from the GLO_ constants */
-GloContext *glo_context_create(int formatFlags, GloContext *shareLists) {
-  if (!glo_inited)
-    glo_init();
+/* Create an OpenGL context for a certain pixel format. formatflags
+ * are from the GLO_ constants */
+GloContext *glo_context_create(int formatFlags)
+{
+    if (!glo_inited)
+        glo_init();
 
-  GLXFBConfig          *fbConfigs;
-  int                   numReturned;
-  GloContext           *context;
-  int                   rgbaBits[4];
-  int                   bufferAttributes[] = {
+    GLXFBConfig          *fbConfigs;
+    int                   numReturned;
+    GloContext           *context;
+    int                   rgbaBits[4];
+    int                   bufferAttributes[] = {
       GLX_DRAWABLE_TYPE, GLX_PIXMAP_BIT,
       GLX_RENDER_TYPE,   GLX_RGBA_BIT,
       GLX_RED_SIZE,      8,
@@ -106,160 +107,82 @@ GloContext *glo_context_create(int formatFlags, GloContext *shareLists) {
       GLX_DEPTH_SIZE,    0,
       GLX_STENCIL_SIZE,  0,
       None
-  };
+    };
 
-  if (!glo_inited)
-    glo_init();
+    if (!glo_inited)
+        glo_init();
 
-  // set up the surface format from the flags we were given
-  glo_flags_get_rgba_bits(formatFlags, rgbaBits);
-  bufferAttributes[5]  = rgbaBits[0];
-  bufferAttributes[7]  = rgbaBits[1];
-  bufferAttributes[9]  = rgbaBits[2];
-  bufferAttributes[11] = rgbaBits[3];
-  bufferAttributes[13] = glo_flags_get_depth_bits(formatFlags);
-  bufferAttributes[15] = glo_flags_get_stencil_bits(formatFlags);
+    // set up the surface format from the flags we were given
+    glo_flags_get_rgba_bits(formatFlags, rgbaBits);
+    bufferAttributes[5]  = rgbaBits[0];
+    bufferAttributes[7]  = rgbaBits[1];
+    bufferAttributes[9]  = rgbaBits[2];
+    bufferAttributes[11] = rgbaBits[3];
+    bufferAttributes[13] = glo_flags_get_depth_bits(formatFlags);
+    bufferAttributes[15] = glo_flags_get_stencil_bits(formatFlags);
 
-  //printf("Got R%d, G%d, B%d, A%d\n", rgbaBits[0], rgbaBits[1], rgbaBits[2], rgbaBits[3]);
-
-  fbConfigs = glXChooseFBConfig( glo.dpy, DefaultScreen(glo.dpy),
+    fbConfigs = glXChooseFBConfig( glo.dpy, DefaultScreen(glo.dpy),
                                  bufferAttributes, &numReturned );
-  if (numReturned==0) {
-      printf( "No matching configs found.\n" );
-      exit( EXIT_FAILURE );
-  }
-  context = (GloContext*)malloc(sizeof(GloContext));
-  memset(context, 0, sizeof(GloContext));
-  context->formatFlags = formatFlags;
-  context->fbConfig = fbConfigs[0];
-
-  /* Create a GLX context for OpenGL rendering */
-  context->context = glXCreateNewContext(glo.dpy, context->fbConfig,
-                                         GLX_RGBA_TYPE,
-                                         shareLists ? shareLists->context: NULL,
-                                         True );
-
-  if (!context->context) {
-    printf( "glXCreateNewContext failed\n" );
-    exit( EXIT_FAILURE );
-  }
-  {
-  int i;
-  for(i = 0 ; i < MAX_CTX ; i++)
-    if(ctx_arr[i] == NULL) {
-      ctx_arr[i] = context;
-      break;
+    if (numReturned==0) {
+        printf("No matching configs found.\n");
+        exit(EXIT_FAILURE);
     }
-  }
-fprintf(stderr, "Nct: %p\n", context->context);
+    context = (GloContext *)malloc(sizeof(GloContext));
+    memset(context, 0, sizeof(GloContext));
+    context->formatFlags = formatFlags;
+    context->fbConfig = fbConfigs[0];
 
-  return context;
+    /* Create a GLX context for OpenGL rendering */
+    context->context = glXCreateNewContext(glo.dpy, context->fbConfig,
+                                         GLX_RGBA_TYPE,
+                                         NULL,
+                                         True);
+
+    if (!context->context) {
+        printf("glXCreateNewContext failed\n");
+        exit(EXIT_FAILURE);
+    }
+    {
+        int i;
+        for(i = 0; i < MAX_CTX; i++)
+        if (ctx_arr[i] == NULL) {
+            ctx_arr[i] = context;
+            break;
+        }
+    }
+    fprintf(stderr, "Nct: %p\n", context->context);
+
+    return context;
 }
 
 /* Destroy a previously created OpenGL context */
-void glo_context_destroy(GloContext *context) {
+void glo_context_destroy(GloContext *context)
 {
-int i;
-  if (!context) fprintf(stderr, "CTX NOT FOUND NULL\n");;
-    for(i = 0 ; i < MAX_CTX ; i++)
-    if(ctx_arr[i] == context) {
-      ctx_arr[i] = NULL;
-      break;
-    }
-    if(i == MAX_CTX)
-      fprintf(stderr, "CTX NOT FOUND %p\n", context);
-    for(i = 0 ; i < MAX_SURF ; i++)
-      if(sur_arr[i])
-        if(sur_arr[i]->context == context)
-          fprintf(stderr, "In USE! %p\n", sur_arr[i]);
-}   
+    {
+        int i;
+        if (!context) fprintf(stderr, "CTX NOT FOUND NULL\n");;
+        for(i = 0 ; i < MAX_CTX ; i++)
+        if (ctx_arr[i] == context) {
+            ctx_arr[i] = NULL;
+            break;
+        }
+        if (i == MAX_CTX) {
+            fprintf(stderr, "CTX NOT FOUND %p\n", context);
+        }
+        for (i = 0 ; i < MAX_SURF ; i++) {
+            if (sur_arr[i]) {
+                if (sur_arr[i]->context == context) {
+                    fprintf(stderr, "In USE! %p\n", sur_arr[i]);
+                }
+            }
+        }
+    }   
 
 
-  if (!context) return;
-  // TODO: check for GloSurfaces using this?
-  fprintf(stderr, "Dst: %p\n", context->context);
-  glXDestroyContext( glo.dpy, context->context);
-  free(context);
-}
-
-
-#define TX (17)
-#define TY (16)
-
-static int glo_can_readback(void) {
-    GloContext *context;
-    GloSurface *surface;
-
-    unsigned char *datain = (unsigned char *)malloc(4*TX*TY);
-    unsigned char *datain_flip = (unsigned char *)malloc(4*TX*TY); // flipped input data (for GL)
-    unsigned char *dataout = (unsigned char *)malloc(4*TX*TY);
-    unsigned char *p;
-    int x,y;
-
-    const int bufferAttributes[] = {
-            GLX_RED_SIZE,      8,
-            GLX_GREEN_SIZE,    8,
-            GLX_BLUE_SIZE,     8,
-            GLX_ALPHA_SIZE,    8,
-            GLX_DEPTH_SIZE,    0,
-            GLX_STENCIL_SIZE,  0,
-            0,
-        };
-
-    int bufferFlags = glo_flags_get_from_glx(bufferAttributes, 0);
-    int bpp = glo_flags_get_bytes_per_pixel(bufferFlags);
-    int glFormat, glType;
-
-    memset(datain_flip, 0, TX*TY*4);
-    memset(datain, 0, TX*TY*4);
-
-    p = datain;
-    for (y=0;y<TY;y++) {
-      for (x=0;x<TX;x++) {
-        p[0] = x;
-        p[1] = y;
-        //if (y&1) { p[0]=0; p[1]=0; }
-        if (bpp>2) p[2] = 0;
-        if (bpp>3) p[3] = 0xFF;
-        p+=bpp;
-      }
-      memcpy(&datain_flip[((TY-1)-y)*bpp*TX], &datain[y*bpp*TX], bpp*TX);
-    }
-
-    context = glo_context_create(bufferFlags, 0);
-    surface = glo_surface_create(TX, TY, context);
-
-    glo_surface_makecurrent(surface);
-
-    glClear(GL_COLOR_BUFFER_BIT);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0,TX, 0,TY, 0, 1);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glRasterPos2f(0,0);
-    glo_flags_get_readpixel_type(bufferFlags, &glFormat, &glType);
-    glDrawPixels(TX,TY,glFormat, glType, datain_flip);
-    glFlush();
-
-    memset(dataout, 0, bpp*TX*TY);
-
-    glo_surface_getcontents(surface, TX*4, bpp*8, dataout);
-
-    glo_surface_destroy(surface);
-    glo_context_destroy(context);
-
-    if (memcmp(datain, dataout, bpp*TX*TY)==0)
-        return 1;
-
-    return 0;
-}
-
-static void glo_test_readback_methods(void) {
-    glo.use_ximage = 1;
-    if(!glo_can_readback())
-      glo.use_ximage = 0;
-
-    fprintf(stderr, "VM GL: Using %s readback\n", glo.use_ximage?"XImage":"glReadPixels");
+    if (!context) return;
+    /* TODO: check for GloSurfaces using this? */
+    fprintf(stderr, "Dst: %p\n", context->context);
+    glXDestroyContext( glo.dpy, context->context);
+    free(context);
 }
 

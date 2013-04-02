@@ -36,16 +36,16 @@
 #include "gloffscreen.h"
 
 /* In Windows, you must create a window *before* you can create a pbuffer or
- * get a context. So we create a hidden Window on startup (see glo_init/GloMain).
+ * get a context. So we create a hidden Window on startup(see glo_init/GloMain).
  *
- * Also, you can't share contexts that have different pixel formats, so we can't just
- * create a new context from the window. We must create a whole new PBuffer just for
- * a context :(
+ * Also, you can't share contexts that have different pixel formats, so we can't
+ * just create a new context from the window. We must create a whole new PBuffer 
+ * just for a context :(
  */
 
 struct GloMain {
-	int init;
-	// Not needed for CGL?
+    int init;
+    /* Not needed for CGL? */
 };
 
 struct GloMain glo; 
@@ -61,8 +61,8 @@ int glo_initialised(void) {
 
 /* Initialise gloffscreen */
 void glo_init(void) {
-	// TODO: CGL Implementation.
-	// Initialization needed for CGL?
+    /* TODO: CGL Implementation.
+     * Initialization needed for CGL? */
   
     if (glo_inited) {
         printf( "gloffscreen already inited\n" );
@@ -77,7 +77,8 @@ void glo_kill(void) {
     glo_inited = 0;
 }
 
-/* Create an OpenGL context for a certain pixel format. formatflags are from the GLO_ constants */
+/* Create an OpenGL context for a certain pixel format. formatflags are from 
+ * the GLO_ constants */
 GloContext *glo_context_create(int formatFlags)
 {
     GloContext *context;
@@ -115,10 +116,12 @@ GLboolean glo_check_extension(const GLubyte *extName,
 /* Set current context */
 void glo_set_current(GloContext *context)
 {
-    if (context == NULL)
+    if (context == NULL) {
         CGLSetCurrentContext(NULL);
-    else
+    }
+    else {
         CGLSetCurrentContext(context->cglContext);
+    }
 }
 
 /* Destroy a previously created OpenGL context */
@@ -127,6 +130,6 @@ void glo_context_destroy(GloContext *context)
     if (!context) return;
 
     glo_set_current(NULL);
-	
+    
     CGLDestroyContext(context->cglContext);
 }
