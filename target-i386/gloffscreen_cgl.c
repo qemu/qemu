@@ -39,7 +39,7 @@
  * get a context. So we create a hidden Window on startup(see glo_init/GloMain).
  *
  * Also, you can't share contexts that have different pixel formats, so we can't
- * just create a new context from the window. We must create a whole new PBuffer 
+ * just create a new context from the window. We must create a whole new PBuffer
  * just for a context :(
  */
 
@@ -118,8 +118,7 @@ void glo_set_current(GloContext *context)
 {
     if (context == NULL) {
         CGLSetCurrentContext(NULL);
-    }
-    else {
+    } else {
         CGLSetCurrentContext(context->cglContext);
     }
 }
@@ -128,8 +127,6 @@ void glo_set_current(GloContext *context)
 void glo_context_destroy(GloContext *context)
 {
     if (!context) return;
-
     glo_set_current(NULL);
-    
     CGLDestroyContext(context->cglContext);
 }

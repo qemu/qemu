@@ -42,16 +42,16 @@
 /* In Windows, you must create a window *before* you can create a pbuffer or
  * get a context. So we create a hidden Window on startup(see glo_init/GloMain).
  *
- * Also, you can't share contexts that have different pixel formats, so we can't 
- * just create a new context from the window. We must create a whole new PBuffer 
+ * Also, you can't share contexts that have different pixel formats, so we can't
+ * just create a new context from the window. We must create a whole new PBuffer
  * just for a context :(
  */
 
 struct GloMain {
-  HINSTANCE             hInstance;
-  HDC                   hDC;
-  HWND                  hWnd; /* Our hidden window */
-  HGLRC                 hContext;
+    HINSTANCE             hInstance;
+    HDC                   hDC;
+    HWND                  hWnd; /* Our hidden window */
+    HGLRC                 hContext;
 };
 
 struct GloMain glo;
@@ -62,7 +62,7 @@ struct _GloContext {
     /* Pixel format returned by wglChoosePixelFormat */
     int                   wglPixelFormat;
     /* We need a pbuffer to make a context of the right pixelformat :( */
-    HPBUFFERARB           hPBuffer; 
+    HPBUFFERARB           hPBuffer;
     HDC                   hDC;
     HGLRC                 hContext;
 };
@@ -117,7 +117,7 @@ void glo_init(void) {
 
     if (!glo.hWnd) {
         printf("Unable to create window\n");
-        exit(EXIT_FAILURE );
+        exit(EXIT_FAILURE);
     }
     glo.hDC = GetDC(glo.hWnd);
 
@@ -151,24 +151,22 @@ void glo_init(void) {
                             wglGetProcAddress("wglCreatePbufferARB");
     wglDestroyPbufferARB = (PFNWGLDESTROYPBUFFERARBPROC)
                             wglGetProcAddress("wglDestroyPbufferARB");
-    
+
     if (!wglChoosePixelFormatARB ||
         !wglGetPbufferDCARB ||
         !wglReleasePbufferDCARB ||
         !wglCreatePbufferARB ||
         !wglDestroyPbufferARB) {
-        printf( "Unable to load the required WGL extensions\n" );
-        exit( EXIT_FAILURE );
+        printf("Unable to load the required WGL extensions\n");
+        exit(EXIT_FAILURE);
     }
 
     /* Initialize glew */
-    if (GLEW_OK != glewInit())
-    {
+    if (GLEW_OK != glewInit()) {
         /* GLEW failed! */
         printf("Glew init failed.");
         exit(1);
     }
-    
     glo_inited = 1;
 }
 
@@ -238,24 +236,22 @@ GloContext *glo_context_create(int formatFlags) {
 
     /* We create a tiny pbuffer - just so we can make a context of 
      * the right pixel format */
-    context->hPBuffer = wglCreatePbufferARB( glo.hDC, context->wglPixelFormat,
-                                             16, 16, pb_attr );
+    context->hPBuffer = wglCreatePbufferARB(glo.hDC, context->wglPixelFormat,
+                                             16, 16, pb_attr);
     if (!context->hPBuffer) {
-        printf( "Couldn't create the PBuffer\n" );
+        printf("Couldn't create the PBuffer\n");
         exit(EXIT_FAILURE);
     }
-    context->hDC = wglGetPbufferDCARB( context->hPBuffer );
+    context->hDC = wglGetPbufferDCARB(context->hPBuffer);
     if (!context->hDC) {
-        printf( "Couldn't create the DC\n" );
+        printf("Couldn't create the DC\n");
         exit(EXIT_FAILURE);
     }
-
     context->hContext = wglCreateContext(context->hDC);
     if (context->hContext == NULL) {
-        printf( "Unable to create GL context\n" );
+        printf("Unable to create GL context\n");
         exit(EXIT_FAILURE);
     }
-
     glo_set_current(context);
     return context;
 }
@@ -263,10 +259,11 @@ GloContext *glo_context_create(int formatFlags) {
 /* Set current context */
 void glo_set_current(GloContext *context) {
 
-    if(context == NULL)
+    if (context == NULL) {
         wglMakeCurrent(NULL, NULL);
-    else
+    } else {
         wglMakeCurrent(context->hDC, context->hContext);
+    }
 }
 
 /* Destroy a previously created OpenGL context */
@@ -276,11 +273,11 @@ void glo_context_destroy(GloContext *context)
 
     wglMakeCurrent(NULL, NULL);
     if (context->hPBuffer != NULL) {
-        wglReleasePbufferDCARB( context->hPBuffer, context->hDC );
-        wglDestroyPbufferARB( context->hPBuffer );
+        wglReleasePbufferDCARB(context->hPBuffer, context->hDC);
+        wglDestroyPbufferARB(context->hPBuffer);
     }
     if (context->hDC != NULL) {
-        ReleaseDC( glo.hWnd, context->hDC );
+        ReleaseDC(glo.hWnd, context->hDC);
     }
     if (context->hContext) {
         wglDeleteContext(context->hContext);

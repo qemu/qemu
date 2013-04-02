@@ -90,8 +90,9 @@ void glo_kill(void)
  * are from the GLO_ constants */
 GloContext *glo_context_create(int formatFlags)
 {
-    if (!glo_inited)
+    if (!glo_inited) {
         glo_init();
+    }
 
     GLXFBConfig          *fbConfigs;
     int                   numReturned;
@@ -112,7 +113,7 @@ GloContext *glo_context_create(int formatFlags)
     if (!glo_inited)
         glo_init();
 
-    // set up the surface format from the flags we were given
+    /* set up the surface format from the flags we were given */
     glo_flags_get_rgba_bits(formatFlags, rgbaBits);
     bufferAttributes[5]  = rgbaBits[0];
     bufferAttributes[7]  = rgbaBits[1];
@@ -121,9 +122,9 @@ GloContext *glo_context_create(int formatFlags)
     bufferAttributes[13] = glo_flags_get_depth_bits(formatFlags);
     bufferAttributes[15] = glo_flags_get_stencil_bits(formatFlags);
 
-    fbConfigs = glXChooseFBConfig( glo.dpy, DefaultScreen(glo.dpy),
-                                 bufferAttributes, &numReturned );
-    if (numReturned==0) {
+    fbConfigs = glXChooseFBConfig(glo.dpy, DefaultScreen(glo.dpy),
+                                 bufferAttributes, &numReturned);
+    if (numReturned == 0) {
         printf("No matching configs found.\n");
         exit(EXIT_FAILURE);
     }
@@ -144,10 +145,11 @@ GloContext *glo_context_create(int formatFlags)
     }
     {
         int i;
-        for(i = 0; i < MAX_CTX; i++)
-        if (ctx_arr[i] == NULL) {
-            ctx_arr[i] = context;
-            break;
+        for (i = 0; i < MAX_CTX; i++) {
+            if (ctx_arr[i] == NULL) {
+                ctx_arr[i] = context;
+                break;
+            }
         }
     }
     fprintf(stderr, "Nct: %p\n", context->context);
@@ -160,11 +162,12 @@ void glo_context_destroy(GloContext *context)
 {
     {
         int i;
-        if (!context) fprintf(stderr, "CTX NOT FOUND NULL\n");;
-        for(i = 0 ; i < MAX_CTX ; i++)
-        if (ctx_arr[i] == context) {
-            ctx_arr[i] = NULL;
-            break;
+        if (!context) fprintf(stderr, "CTX NOT FOUND NULL\n");
+        for (i = 0 ; i < MAX_CTX ; i++) {
+            if (ctx_arr[i] == context) {
+                ctx_arr[i] = NULL;
+                break;
+            }
         }
         if (i == MAX_CTX) {
             fprintf(stderr, "CTX NOT FOUND %p\n", context);
@@ -176,13 +179,14 @@ void glo_context_destroy(GloContext *context)
                 }
             }
         }
-    }   
+    }
 
 
-    if (!context) return;
+    if (!context) {
+        return;
+    }
     /* TODO: check for GloSurfaces using this? */
     fprintf(stderr, "Dst: %p\n", context->context);
-    glXDestroyContext( glo.dpy, context->context);
+    glXDestroyContext(glo.dpy, context->context);
     free(context);
 }
-
