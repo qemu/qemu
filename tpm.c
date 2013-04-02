@@ -16,8 +16,7 @@
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
 #include "backends/tpm.h"
-#include "tpm_int.h"
-#include "tpm/tpm.h"
+#include "sysemu/tpm.h"
 #include "qemu/config-file.h"
 #include "qmp-commands.h"
 
@@ -62,20 +61,6 @@ static bool tpm_model_is_registered(enum TpmModel model)
     return false;
 }
 
-/*
- * Write an error message in the given output buffer.
- */
-void tpm_write_fatal_error_response(uint8_t *out, uint32_t out_len)
-{
-    if (out_len >= sizeof(struct tpm_resp_hdr)) {
-        struct tpm_resp_hdr *resp = (struct tpm_resp_hdr *)out;
-
-        resp->tag = cpu_to_be16(TPM_TAG_RSP_COMMAND);
-        resp->len = cpu_to_be32(sizeof(struct tpm_resp_hdr));
-        resp->errcode = cpu_to_be32(TPM_FAIL);
-    }
-}
-
 const TPMDriverOps *tpm_get_backend_driver(const char *type)
 {
     int i;
@@ -109,7 +94,7 @@ int tpm_register_driver(const TPMDriverOps *tdo)
  * Walk the list of available TPM backend drivers and display them on the
  * screen.
  */
-void tpm_display_backend_drivers(void)
+static void tpm_display_backend_drivers(void)
 {
     int i;
 

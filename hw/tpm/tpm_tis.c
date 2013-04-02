@@ -26,7 +26,7 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci_ids.h"
-#include "tpm/tpm_tis.h"
+#include "tpm_tis.h"
 #include "qemu-common.h"
 
 /*#define DEBUG_TIS */

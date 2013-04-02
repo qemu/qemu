@@ -13,7 +13,7 @@
 #define TPM_TPM_INT_H
 
 #include "exec/memory.h"
-#include "tpm/tpm_tis.h"
+#include "tpm_tis.h"
 
 /* overall state of the TPM interface */
 struct TPMState {
@@ -32,32 +32,6 @@ struct TPMState {
 };
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
-
-struct TPMDriverOps {
-    enum TpmType type;
-    /* get a descriptive text of the backend to display to the user */
-    const char *(*desc)(void);
-
-    TPMBackend *(*create)(QemuOpts *opts, const char *id);
-    void (*destroy)(TPMBackend *t);
-
-    /* initialize the backend */
-    int (*init)(TPMBackend *t, TPMState *s, TPMRecvDataCB *datacb);
-    /* start up the TPM on the backend */
-    int (*startup_tpm)(TPMBackend *t);
-    /* returns true if nothing will ever answer TPM requests */
-    bool (*had_startup_error)(TPMBackend *t);
-
-    size_t (*realloc_buffer)(TPMSizedBuffer *sb);
-
-    void (*deliver_request)(TPMBackend *t);
-
-    void (*reset)(TPMBackend *t);
-
-    void (*cancel_cmd)(TPMBackend *t);
-
-    bool (*get_tpm_established_flag)(TPMBackend *t);
-};
 
 struct tpm_req_hdr {
     uint16_t tag;
@@ -82,14 +56,5 @@ struct tpm_resp_hdr {
 #define TPM_FAIL                  9
 
 #define TPM_ORD_GetTicks          0xf1
-
-TPMBackend *qemu_find_tpm(const char *id);
-int tpm_register_model(enum TpmModel model);
-int tpm_register_driver(const TPMDriverOps *tdo);
-void tpm_display_backend_drivers(void);
-const TPMDriverOps *tpm_get_backend_driver(const char *type);
-void tpm_write_fatal_error_response(uint8_t *out, uint32_t out_len);
-
-extern const TPMDriverOps tpm_passthrough_driver;
 
 #endif /* TPM_TPM_INT_H */
