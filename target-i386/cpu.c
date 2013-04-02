@@ -2131,14 +2131,14 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
         env->cpuid_svm_features &= TCG_SVM_FEATURES;
     } else {
-#ifdef CONFIG_KVM
-        filter_features_for_kvm(cpu);
-#endif
         if (check_cpuid && kvm_check_features_against_host(cpu)
             && enforce_cpuid) {
             error_setg(errp, "Host's CPU doesn't support requested features");
             return;
         }
+#ifdef CONFIG_KVM
+        filter_features_for_kvm(cpu);
+#endif
     }
 
 #ifndef CONFIG_USER_ONLY
