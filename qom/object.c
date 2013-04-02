@@ -362,6 +362,10 @@ static void object_property_del_child(Object *obj, Object *child, Error **errp)
 
 void object_unparent(Object *obj)
 {
+    if (!obj->parent) {
+        return;
+    }
+
     object_ref(obj);
     if (obj->class->unparent) {
         (obj->class->unparent)(obj);
