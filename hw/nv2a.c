@@ -36,8 +36,7 @@
 #include <OpenGL/CGLTypes.h>
 #include <OpenGL/CGLCurrent.h>
 #include <GLUT/glut.h>
-#else
-#ifdef _WIN32
+#elif defined(_WIN32)
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
@@ -49,12 +48,11 @@
 #include <GL/glx.h>
 #include <GL/glut.h>
 #endif
-#endif
 
 #include "nv2a.h"
 #include "gloffscreen.h"
 
-//#define DEBUG_NV2A
+#define DEBUG_NV2A
 #ifdef DEBUG_NV2A
 # define NV2A_DPRINTF(format, ...)       printf(format, ## __VA_ARGS__)
 #else
@@ -1442,28 +1440,6 @@ static void kelvin_bind_fragment_shader(NV2AState *d, KelvinState *kelvin)
 
 }
 
-#ifdef _WIN32
-/* Need to define it since its not available in GLU 1.2 Windows*/
-GLboolean gluCheckExtension( const GLubyte *extName, const GLubyte *extString )
-{
-	char *p = (char *) glGetString(GL_EXTENSIONS); 
-	char *end;
-	if(p==NULL)
-		return GL_FALSE;
-	end = p + strlen(p);
-	
-	while (p < end) {
-		int n = strcspn(p, " ");
-		if((strlen(extName) == n) && (strncmp(extName,p,n) == 0)) {
-			return GL_TRUE;
-		}
-		p += (n + 1);
-	}
-	return GL_FALSE;
-}
-
-#endif
-
 static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
 {
     /* read the renderbuffer into the set surface */
@@ -1525,19 +1501,19 @@ static void pgraph_context_init(GraphicsContext *context)
     const GLubyte *extensions;
     extensions = glGetString (GL_EXTENSIONS);
 
-    assert(gluCheckExtension((const GLubyte*)"GL_EXT_texture_compression_s3tc",
+    assert(glo_check_extension((const GLubyte*)"GL_EXT_texture_compression_s3tc",
                              extensions));
 
-    assert(gluCheckExtension((const GLubyte*)"GL_EXT_framebuffer_object",
+    assert(glo_check_extension((const GLubyte*)"GL_EXT_framebuffer_object",
                              extensions));
 
-    assert(gluCheckExtension((const GLubyte*)"GL_ARB_vertex_program",
+    assert(glo_check_extension((const GLubyte*)"GL_ARB_vertex_program",
                              extensions));
 
-    assert(gluCheckExtension((const GLubyte*)"GL_ARB_fragment_program",
+    assert(glo_check_extension((const GLubyte*)"GL_ARB_fragment_program",
                              extensions));
 
-    assert(gluCheckExtension((const GLubyte*)"GL_ARB_texture_rectangle",
+    assert(glo_check_extension((const GLubyte*)"GL_ARB_texture_rectangle",
                              extensions));
 
     GLint max_vertex_attributes;

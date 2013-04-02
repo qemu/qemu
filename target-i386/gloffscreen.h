@@ -2,7 +2,7 @@
  *  Offscreen OpenGL abstraction layer
  *
  *  Copyright (c) 2010 Intel
- *  Written by: 
+ *  Written by:
  *    Gordon Williams <gordon.williams@collabora.co.uk>
  *    Ian Molton <ian.molton@collabora.co.uk>
  *
@@ -28,12 +28,15 @@
 #ifndef GLOFFSCREEN_H_
 #define GLOFFSCREEN_H_
 
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#else
+#include <GL/gl.h>
+#endif
+
 /* Used to hold data for the OpenGL context */
 struct _GloContext;
 typedef struct _GloContext GloContext;
-/* Used to hold data for an offscreen surface. */
-struct _GloSurface;
-typedef struct _GloSurface GloSurface;
 
 /* Format flags for glo_surface_create */
 #define GLO_FF_ALPHA_MASK  (0x0001)
@@ -54,7 +57,7 @@ typedef struct _GloSurface GloSurface;
 #define GLO_FF_STENCIL_8      (0x1000)
 
 /* The only currently supported format */
-#define GLO_FF_DEFAULT     (GLO_FF_BITS_24|GLO_FF_DEPTH_24)//(GLO_FF_BITS_32|GLO_FF_ALPHA)
+#define GLO_FF_DEFAULT (GLO_FF_BITS_24|GLO_FF_DEPTH_24)
 
 /* Has gloffscreen been previously initialised? */
 extern int glo_initialised(void);
@@ -68,33 +71,16 @@ extern void glo_set_current(GloContext *context);
 /* Uninitialise gloffscreen */
 extern void glo_kill(void);
 
-/* Like wglGetProcAddress/glxGetProcAddress */
-extern void *glo_getprocaddress(const char *procName);
+/* Check GL Extensions */
+extern GLboolean glo_check_extension( const GLubyte *extName, const GLubyte *extString );
 
-/* OS-independent glXQueryExtensionsString */
-extern const char *glo_glXQueryExtensionsString(void);
-
-/* Create an OpenGL context for a certain pixel format. formatflags are from the GLO_ constants */
+/* Create an OpenGL context for a certain 
+ * pixel format. formatflags are from the 
+ * GLO_ constants */
 extern GloContext *glo_context_create(int formatFlags);
 
 /* Destroy a previouslu created OpenGL context */
 extern void glo_context_destroy(GloContext *context);
-
-/* Create a surface with given width and height, */
-extern GloSurface *glo_surface_create(int width, int height, GloContext *context);
-
-/* Destroy the given surface */
-extern void glo_surface_destroy(GloSurface *surface);
-
-/* Make the given surface current */
-extern int glo_surface_makecurrent(GloSurface *surface);
-
-/* Get the contents of the given surface. Note that this is top-down, not
- * bottom-up as glReadPixels would do. */
-extern void glo_surface_getcontents(GloSurface *surface, int stride, int type, void *data);
-
-/* Return the width and height of the given surface */
-extern void glo_surface_get_size(GloSurface *surface, int *width, int *height);
 
 /* Functions to decode the format flags */
 extern int glo_flags_get_depth_bits(int formatFlags);
@@ -125,7 +111,5 @@ extern int glo_get_glx_from_flags(int formatFlags, int glxEnum);
  * GL_UNSIGNED_BYTE, but there don't appear to be any speed increase from
  * doing this on Windows at least.
  */
-
-
  
 #endif /* GLOFFSCREEN_H_ */
