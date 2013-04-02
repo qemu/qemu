@@ -142,7 +142,7 @@ void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
                        MemoryRegion *parent);
 
 /* PM1a_CNT: piix and ich9 don't implement PM1b CNT. */
-void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent);
+void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent, uint8_t s4_val);
 void acpi_pm1_cnt_update(ACPIREGS *ar,
                          bool sci_enable, bool sci_disable);
 void acpi_pm1_cnt_reset(ACPIREGS *ar);

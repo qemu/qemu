@@ -212,7 +212,7 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
 
     acpi_pm_tmr_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
     acpi_pm1_evt_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
-    acpi_pm1_cnt_init(&pm->acpi_regs, &pm->io);
+    acpi_pm1_cnt_init(&pm->acpi_regs, &pm->io, 2);
 
     acpi_gpe_init(&pm->acpi_regs, ICH9_PMIO_GPE0_LEN);
     memory_region_init_io(&pm->io_gpe, &ich9_gpe_ops, pm, "apci-gpe0",
