@@ -501,21 +501,24 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
 }
 
 static int kvm_set_ioeventfd_mmio(int fd, uint32_t addr, uint32_t val,
-                                  bool assign, uint32_t size)
+                                  bool assign, uint32_t size, bool datamatch)
 {
     int ret;
     struct kvm_ioeventfd iofd;
 
-    iofd.datamatch = val;
+    iofd.datamatch = datamatch ? val : 0;
     iofd.addr = addr;
     iofd.len = size;
-    iofd.flags = KVM_IOEVENTFD_FLAG_DATAMATCH;
+    iofd.flags = 0;
     iofd.fd = fd;
 
     if (!kvm_enabled()) {
         return -ENOSYS;
     }
 
+    if (datamatch) {
+        iofd.flags |= KVM_IOEVENTFD_FLAG_DATAMATCH;
+    }
     if (!assign) {
         iofd.flags |= KVM_IOEVENTFD_FLAG_DEASSIGN;
     }
@@ -530,18 +533,21 @@ static int kvm_set_ioeventfd_mmio(int fd, uint32_t addr, uint32_t val,
 }
 
 static int kvm_set_ioeventfd_pio(int fd, uint16_t addr, uint16_t val,
-                                 bool assign, uint32_t size)
+                                 bool assign, uint32_t size, bool datamatch)
 {
     struct kvm_ioeventfd kick = {
-        .datamatch = val,
+        .datamatch = datamatch ? val : 0,
         .addr = addr,
+        .flags = KVM_IOEVENTFD_FLAG_PIO,
         .len = size,
-        .flags = KVM_IOEVENTFD_FLAG_DATAMATCH | KVM_IOEVENTFD_FLAG_PIO,
         .fd = fd,
     };
     int r;
     if (!kvm_enabled()) {
         return -ENOSYS;
+    }
+    if (datamatch) {
+        kick.flags |= KVM_IOEVENTFD_FLAG_DATAMATCH;
     }
     if (!assign) {
         kick.flags |= KVM_IOEVENTFD_FLAG_DEASSIGN;
@@ -571,7 +577,7 @@ static int kvm_check_many_ioeventfds(void)
         if (ioeventfds[i] < 0) {
             break;
         }
-        ret = kvm_set_ioeventfd_pio(ioeventfds[i], 0, i, true, 2);
+        ret = kvm_set_ioeventfd_pio(ioeventfds[i], 0, i, true, 2, true);
         if (ret < 0) {
             close(ioeventfds[i]);
             break;
@@ -582,7 +588,7 @@ static int kvm_check_many_ioeventfds(void)
     ret = i == ARRAY_SIZE(ioeventfds);
 
     while (i-- > 0) {
-        kvm_set_ioeventfd_pio(ioeventfds[i], 0, i, false, 2);
+        kvm_set_ioeventfd_pio(ioeventfds[i], 0, i, false, 2, true);
         close(ioeventfds[i]);
     }
     return ret;
@@ -802,10 +808,8 @@ static void kvm_mem_ioeventfd_add(MemoryListener *listener,
     int fd = event_notifier_get_fd(e);
     int r;
 
-    assert(match_data && section->size <= 8);
-
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
-                               data, true, section->size);
+                               data, true, section->size, match_data);
     if (r < 0) {
         abort();
     }
@@ -820,7 +824,7 @@ static void kvm_mem_ioeventfd_del(MemoryListener *listener,
     int r;
 
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
-                               data, false, section->size);
+                               data, false, section->size, match_data);
     if (r < 0) {
         abort();
     }
@@ -834,10 +838,8 @@ static void kvm_io_ioeventfd_add(MemoryListener *listener,
     int fd = event_notifier_get_fd(e);
     int r;
 
-    assert(match_data && section->size <= 8);
-
     r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
-                              data, true, section->size);
+                              data, true, section->size, match_data);
     if (r < 0) {
         abort();
     }
@@ -853,7 +855,7 @@ static void kvm_io_ioeventfd_del(MemoryListener *listener,
     int r;
 
     r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
-                              data, false, section->size);
+                              data, false, section->size, match_data);
     if (r < 0) {
         abort();
     }
