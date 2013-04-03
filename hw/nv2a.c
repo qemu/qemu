@@ -50,7 +50,7 @@
 #endif
 
 #include "nv2a.h"
-#include "gloffscreen.h"
+#include "gl/gloffscreen.h"
 
 #define DEBUG_NV2A
 #ifdef DEBUG_NV2A
@@ -1058,7 +1058,7 @@ static void load_graphics_object(NV2AState *d, hwaddr instance_address,
         kelvin = &obj->data.kelvin;
 
         /* generate vertex programs */
-        for (i=0; i<NV2A_VERTEXSHADER_SLOTS; i++) {
+        for (i = 0; i < NV2A_VERTEXSHADER_SLOTS; i++) {
             VertexShader *shader = &kelvin->vertexshaders[i];
             glGenProgramsARB(1, &shader->gl_program);
         }
@@ -1069,7 +1069,7 @@ static void load_graphics_object(NV2AState *d, hwaddr instance_address,
         kelvin->fragment_program_dirty = true;
 
         /* generate textures */
-        for (i=0; i<NV2A_MAX_TEXTURES; i++) {
+        for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
             Texture *texture = &kelvin->textures[i];
             glGenTextures(1, &texture->gl_texture);
             glGenTextures(1, &texture->gl_texture_rect);

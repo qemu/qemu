@@ -132,6 +132,12 @@ else
 obj-y += hw/$(TARGET_BASE_ARCH)/
 endif
 
+# OpenGl Support
+obj-gl-y += gl/gloffscreen_common.o 
+obj-gl-$(CONFIG_WIN32) += gl/gloffscreen_wgl.o
+obj-gl-$(CONFIG_DARWIN) += gl/gloffscreen_cgl.o
+obj-$(CONFIG_OPENGL) += $(obj-gl-y)
+
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 GENERATED_HEADERS += hmp-commands.h qmp-commands-old.h
