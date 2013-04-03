@@ -1,15 +1,6 @@
-obj-y += zynq_slcr.o
-obj-y += a9scu.o
-obj-y += arm_sysctl.o arm11mpcore.o a9mpcore.o
-obj-y += exynos4210_pmu.o
+obj-y += arm11mpcore.o a9mpcore.o
 obj-y += a15mpcore.o
-obj-y += pxa2xx_pcmcia.o
-obj-y += omap_clk.o
-obj-y += omap_gpmc.o omap_sdrc.o omap_tap.o omap_l4.o
-obj-y += cbus.o
-obj-y += mst_fpga.o
 obj-y += strongarm.o
-obj-y += imx_ccm.o
 
 obj-y := $(addprefix ../,$(obj-y))
 

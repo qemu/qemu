@@ -1,8 +1,4 @@
-obj-y += sga.o
-obj-y += vmport.o
-obj-y += debugexit.o
 obj-y += kvm/
-obj-y += pc-testdev.o
 
 obj-y := $(addprefix ../,$(obj-y))
 
