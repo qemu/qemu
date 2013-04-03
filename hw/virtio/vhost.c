@@ -382,8 +382,6 @@ static void vhost_set_memory(MemoryListener *listener,
     bool log_dirty = memory_region_is_logging(section->mr);
     int s = offsetof(struct vhost_memory, regions) +
         (dev->mem->nregions + 1) * sizeof dev->mem->regions[0];
-    uint64_t log_size;
-    int r;
     void *ram;
 
     dev->mem = g_realloc(dev->mem, s);
@@ -416,12 +414,47 @@ static void vhost_set_memory(MemoryListener *listener,
         /* Remove old mapping for this memory, if any. */
         vhost_dev_unassign_memory(dev, start_addr, size);
     }
+    dev->mem_changed_start_addr = MIN(dev->mem_changed_start_addr, start_addr);
+    dev->mem_changed_end_addr = MAX(dev->mem_changed_end_addr, start_addr + size - 1);
+    dev->memory_changed = true;
+}
 
+static bool vhost_section(MemoryRegionSection *section)
+{
+    return memory_region_is_ram(section->mr);
+}
+
+static void vhost_begin(MemoryListener *listener)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    dev->mem_changed_end_addr = 0;
+    dev->mem_changed_start_addr = -1;
+}
+
+static void vhost_commit(MemoryListener *listener)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    hwaddr start_addr = 0;
+    ram_addr_t size = 0;
+    uint64_t log_size;
+    int r;
+
+    if (!dev->memory_changed) {
+        return;
+    }
     if (!dev->started) {
+        return;
+    }
+    if (dev->mem_changed_start_addr > dev->mem_changed_end_addr) {
         return;
     }
 
     if (dev->started) {
+        start_addr = dev->mem_changed_start_addr;
+        size = dev->mem_changed_end_addr - dev->mem_changed_start_addr + 1;
+
         r = vhost_verify_ring_mappings(dev, start_addr, size);
         assert(r >= 0);
     }
@@ -429,6 +462,7 @@ static void vhost_set_memory(MemoryListener *listener,
     if (!dev->log_enabled) {
         r = ioctl(dev->control, VHOST_SET_MEM_TABLE, dev->mem);
         assert(r >= 0);
+        dev->memory_changed = false;
         return;
     }
     log_size = vhost_get_log_size(dev);
@@ -445,19 +479,7 @@ static void vhost_set_memory(MemoryListener *listener,
     if (dev->log_size > log_size + VHOST_LOG_BUFFER) {
         vhost_dev_log_resize(dev, log_size);
     }
-}
-
-static bool vhost_section(MemoryRegionSection *section)
-{
-    return memory_region_is_ram(section->mr);
-}
-
-static void vhost_begin(MemoryListener *listener)
-{
-}
-
-static void vhost_commit(MemoryListener *listener)
-{
+    dev->memory_changed = false;
 }
 
 static void vhost_region_add(MemoryListener *listener,
@@ -842,6 +864,7 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
     hdev->log_size = 0;
     hdev->log_enabled = false;
     hdev->started = false;
+    hdev->memory_changed = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     hdev->force = force;
     return 0;
