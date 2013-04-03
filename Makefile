@@ -76,7 +76,10 @@ config-all-devices.mak:
 	$(call quiet-command,echo '# no devices' > $@,"  GEN   $@")
 else
 config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
-	$(call quiet-command,cat $(SUBDIR_DEVICES_MAK) | grep =y | sort -u > $@,"  GEN   $@")
+	$(call quiet-command, sed -n \
+             's|^\([^=]*\)=\(.*\)$$|\1:=$$(findstring y,$$(\1)\2)|p' \
+             $(SUBDIR_DEVICES_MAK) | sort -u > $@, \
+             "  GEN   $@")
 endif
 
 -include $(SUBDIR_DEVICES_MAK_DEP)
