@@ -768,22 +768,25 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
 {
     TCGv t0 = ret;
 
-    if (((compute_ca && add_ca) || compute_ov)
-        && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
+    if (compute_ca || compute_ov) {
         t0 = tcg_temp_new();
     }
 
     if (compute_ca) {
         if (NARROW_MODE(ctx)) {
+            /* Caution: a non-obvious corner case of the spec is that we
+               must produce the *entire* 64-bit addition, but produce the
+               carry into bit 32.  */
             TCGv t1 = tcg_temp_new();
-            tcg_gen_ext32u_tl(t1, arg2);
-            tcg_gen_ext32u_tl(t0, arg1);
-            tcg_gen_add_tl(t0, t0, t1);
-            tcg_temp_free(t1);
+            tcg_gen_xor_tl(t1, arg1, arg2);        /* add without carry */
+            tcg_gen_add_tl(t0, arg1, arg2);
             if (add_ca) {
                 tcg_gen_add_tl(t0, t0, cpu_ca);
             }
-            tcg_gen_shri_tl(cpu_ca, t0, 32);
+            tcg_gen_xor_tl(cpu_ca, t0, t1);        /* bits changed w/ carry */
+            tcg_temp_free(t1);
+            tcg_gen_shri_tl(cpu_ca, cpu_ca, 32);   /* extract bit 32 */
+            tcg_gen_andi_tl(cpu_ca, cpu_ca, 1);
         } else {
             TCGv zero = tcg_const_tl(0);
             if (add_ca) {
@@ -1122,24 +1125,30 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
 {
     TCGv t0 = ret;
 
-    if (compute_ov && (TCGV_EQUAL(ret, arg1) || TCGV_EQUAL(ret, arg2)))  {
+    if (compute_ca || compute_ov) {
         t0 = tcg_temp_new();
     }
 
     if (compute_ca) {
         /* dest = ~arg1 + arg2 [+ ca].  */
         if (NARROW_MODE(ctx)) {
+            /* Caution: a non-obvious corner case of the spec is that we
+               must produce the *entire* 64-bit addition, but produce the
+               carry into bit 32.  */
             TCGv inv1 = tcg_temp_new();
+            TCGv t1 = tcg_temp_new();
             tcg_gen_not_tl(inv1, arg1);
-            tcg_gen_ext32u_tl(t0, arg2);
-            tcg_gen_ext32u_tl(inv1, inv1);
             if (add_ca) {
-                tcg_gen_add_tl(t0, t0, cpu_ca);
+                tcg_gen_add_tl(t0, arg2, cpu_ca);
             } else {
-                tcg_gen_addi_tl(t0, t0, 1);
+                tcg_gen_addi_tl(t0, arg2, 1);
             }
+            tcg_gen_xor_tl(t1, arg2, inv1);         /* add without carry */
             tcg_gen_add_tl(t0, t0, inv1);
-            tcg_gen_shri_tl(cpu_ca, t0, 32);
+            tcg_gen_xor_tl(cpu_ca, t0, t1);         /* bits changes w/ carry */
+            tcg_temp_free(t1);
+            tcg_gen_shri_tl(cpu_ca, cpu_ca, 32);    /* extract bit 32 */
+            tcg_gen_andi_tl(cpu_ca, cpu_ca, 1);
         } else if (add_ca) {
             TCGv zero, inv1 = tcg_temp_new();
             tcg_gen_not_tl(inv1, arg1);
