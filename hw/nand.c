@@ -297,6 +297,7 @@ static void nand_command(NANDFlashState *s)
         break;
 
     case NAND_CMD_BLOCKERASE2:
+        s->addr &= (1ull << s->addrlen * 8) - 1;
         if (nand_flash_ids[s->chip_id].options & NAND_SAMSUNG_LP)
             s->addr <<= 16;
         else
