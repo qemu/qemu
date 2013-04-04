@@ -1928,12 +1928,22 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_deposit_i32:
-        tcg_out_rlw(s, RLWIMI, args[0], args[2], args[3],
-                    32 - args[3] - args[4], 31 - args[3]);
+        if (const_args[2]) {
+            uint32_t mask = ((2u << (args[4] - 1)) - 1) << args[3];
+            tcg_out_andi32(s, args[0], args[0], ~mask);
+        } else {
+            tcg_out_rlw(s, RLWIMI, args[0], args[2], args[3],
+                        32 - args[3] - args[4], 31 - args[3]);
+        }
         break;
     case INDEX_op_deposit_i64:
-        tcg_out_rld(s, RLDIMI, args[0], args[2], args[3],
-                    64 - args[3] - args[4]);
+        if (const_args[2]) {
+            uint64_t mask = ((2ull << (args[4] - 1)) - 1) << args[3];
+            tcg_out_andi64(s, args[0], args[0], ~mask);
+        } else {
+            tcg_out_rld(s, RLDIMI, args[0], args[2], args[3],
+                        64 - args[3] - args[4]);
+        }
         break;
 
     case INDEX_op_movcond_i32:
@@ -2136,8 +2146,8 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_bswap32_i64, { "r", "r" } },
     { INDEX_op_bswap64_i64, { "r", "r" } },
 
-    { INDEX_op_deposit_i32, { "r", "0", "r" } },
-    { INDEX_op_deposit_i64, { "r", "0", "r" } },
+    { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
+    { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
 
     { INDEX_op_add2_i64, { "r", "r", "r", "rI", "r", "rZM" } },
     { INDEX_op_sub2_i64, { "r", "r", "rI", "r", "rZM", "r" } },
