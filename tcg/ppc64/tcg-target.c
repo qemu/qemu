@@ -329,6 +329,7 @@ static int tcg_target_const_match (tcg_target_long val,
 #define MULLI  OPCD(  7)
 #define CMPLI  OPCD( 10)
 #define CMPI   OPCD( 11)
+#define SUBFIC OPCD( 8)
 
 #define LWZU   OPCD( 33)
 #define STWU   OPCD( 37)
@@ -1314,7 +1315,13 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_sub_i32:
         a0 = args[0], a1 = args[1], a2 = args[2];
-        if (const_args[2]) {
+        if (const_args[1]) {
+            if (const_args[2]) {
+                tcg_out_movi(s, TCG_TYPE_I32, a0, a1 - a2);
+            } else {
+                tcg_out32(s, SUBFIC | TAI(a0, a2, a1));
+            }
+        } else if (const_args[2]) {
             a2 = -a2;
             goto do_addi_32;
         } else {
@@ -1483,7 +1490,13 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_sub_i64:
         a0 = args[0], a1 = args[1], a2 = args[2];
-        if (const_args[2]) {
+        if (const_args[1]) {
+            if (const_args[2]) {
+                tcg_out_movi(s, TCG_TYPE_I64, a0, a1 - a2);
+            } else {
+                tcg_out32(s, SUBFIC | TAI(a0, a2, a1));
+            }
+        } else if (const_args[2]) {
             a2 = -a2;
             goto do_addi_64;
         } else {
@@ -1639,7 +1652,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_divu_i32, { "r", "r", "r" } },
     { INDEX_op_rem_i32, { "r", "r", "r" } },
     { INDEX_op_remu_i32, { "r", "r", "r" } },
-    { INDEX_op_sub_i32, { "r", "r", "ri" } },
+    { INDEX_op_sub_i32, { "r", "rI", "ri" } },
     { INDEX_op_and_i32, { "r", "r", "ri" } },
     { INDEX_op_or_i32, { "r", "r", "ri" } },
     { INDEX_op_xor_i32, { "r", "r", "ri" } },
@@ -1655,7 +1668,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_not_i32, { "r", "r" } },
 
     { INDEX_op_add_i64, { "r", "r", "rT" } },
-    { INDEX_op_sub_i64, { "r", "r", "rT" } },
+    { INDEX_op_sub_i64, { "r", "rI", "rT" } },
     { INDEX_op_and_i64, { "r", "r", "rU" } },
     { INDEX_op_or_i64, { "r", "r", "rU" } },
     { INDEX_op_xor_i64, { "r", "r", "rU" } },
