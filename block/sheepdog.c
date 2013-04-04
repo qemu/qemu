@@ -549,7 +549,7 @@ static coroutine_fn void do_co_req(void *opaque)
     co = qemu_coroutine_self();
     qemu_aio_set_fd_handler(sockfd, NULL, restart_co_req, NULL, co);
 
-    socket_set_block(sockfd);
+    qemu_set_block(sockfd);
     ret = send_co_req(sockfd, hdr, data, wlen);
     if (ret < 0) {
         goto out;
@@ -579,7 +579,7 @@ static coroutine_fn void do_co_req(void *opaque)
     ret = 0;
 out:
     qemu_aio_set_fd_handler(sockfd, NULL, NULL, NULL, NULL);
-    socket_set_nonblock(sockfd);
+    qemu_set_nonblock(sockfd);
 
     srco->ret = ret;
     srco->finished = true;
@@ -812,7 +812,7 @@ static int get_sheep_fd(BDRVSheepdogState *s)
         return fd;
     }
 
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
 
     ret = set_nodelay(fd);
     if (ret) {
