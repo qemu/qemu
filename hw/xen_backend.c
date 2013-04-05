@@ -85,9 +85,17 @@ char *xenstore_read_str(const char *base, const char *node)
 
 int xenstore_write_int(const char *base, const char *node, int ival)
 {
-    char val[32];
+    char val[12];
 
     snprintf(val, sizeof(val), "%d", ival);
+    return xenstore_write_str(base, node, val);
+}
+
+int xenstore_write_int64(const char *base, const char *node, int64_t ival)
+{
+    char val[21];
+
+    snprintf(val, sizeof(val), "%"PRId64, ival);
     return xenstore_write_str(base, node, val);
 }
 
@@ -112,6 +120,11 @@ int xenstore_write_be_str(struct XenDevice *xendev, const char *node, const char
 int xenstore_write_be_int(struct XenDevice *xendev, const char *node, int ival)
 {
     return xenstore_write_int(xendev->be, node, ival);
+}
+
+int xenstore_write_be_int64(struct XenDevice *xendev, const char *node, int64_t ival)
+{
+    return xenstore_write_int64(xendev->be, node, ival);
 }
 
 char *xenstore_read_be_str(struct XenDevice *xendev, const char *node)
