@@ -3867,10 +3867,7 @@ static bool bdrv_exceed_io_limits(BlockDriverState *bs, int nb_sectors,
     int      bps_ret, iops_ret;
 
     now = qemu_get_clock_ns(vm_clock);
-    if ((bs->slice_start < now)
-        && (bs->slice_end > now)) {
-        bs->slice_end = now + BLOCK_IO_SLICE_TIME;
-    } else {
+    if (now > bs->slice_end) {
         bs->slice_start = now;
         bs->slice_end   = now + BLOCK_IO_SLICE_TIME;
         memset(&bs->slice_submitted, 0, sizeof(bs->slice_submitted));
