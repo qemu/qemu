@@ -13,11 +13,17 @@ typedef struct SpiceCharDriver {
     SpiceCharDeviceInstance     sin;
     char                  *subtype;
     bool                  active;
+    bool                  blocked;
     uint8_t               *buffer;
     uint8_t               *datapos;
     ssize_t               bufsize, datalen;
     QLIST_ENTRY(SpiceCharDriver) next;
 } SpiceCharDriver;
+
+typedef struct SpiceCharSource {
+    GSource               source;
+    SpiceCharDriver       *scd;
+} SpiceCharSource;
 
 static QLIST_HEAD(, SpiceCharDriver) spice_chars =
     QLIST_HEAD_INITIALIZER(spice_chars);
@@ -54,9 +60,10 @@ static int vmc_read(SpiceCharDeviceInstance *sin, uint8_t *buf, int len)
         scd->datapos += bytes;
         scd->datalen -= bytes;
         assert(scd->datalen >= 0);
-        if (scd->datalen == 0) {
-            scd->datapos = 0;
-        }
+    }
+    if (scd->datalen == 0) {
+        scd->datapos = 0;
+        scd->blocked = false;
     }
     trace_spice_vmc_read(bytes, len);
     return bytes;
@@ -129,10 +136,54 @@ static void vmc_unregister_interface(SpiceCharDriver *scd)
     trace_spice_vmc_unregister_interface(scd);
 }
 
+static gboolean spice_char_source_prepare(GSource *source, gint *timeout)
+{
+    SpiceCharSource *src = (SpiceCharSource *)source;
+
+    *timeout = -1;
+
+    return !src->scd->blocked;
+}
+
+static gboolean spice_char_source_check(GSource *source)
+{
+    SpiceCharSource *src = (SpiceCharSource *)source;
+
+    return !src->scd->blocked;
+}
+
+static gboolean spice_char_source_dispatch(GSource *source,
+    GSourceFunc callback, gpointer user_data)
+{
+    GIOFunc func = (GIOFunc)callback;
+
+    return func(NULL, G_IO_OUT, user_data);
+}
+
+GSourceFuncs SpiceCharSourceFuncs = {
+    .prepare  = spice_char_source_prepare,
+    .check    = spice_char_source_check,
+    .dispatch = spice_char_source_dispatch,
+};
+
+static GSource *spice_chr_add_watch(CharDriverState *chr, GIOCondition cond)
+{
+    SpiceCharDriver *scd = chr->opaque;
+    SpiceCharSource *src;
+
+    assert(cond == G_IO_OUT);
+
+    src = (SpiceCharSource *)g_source_new(&SpiceCharSourceFuncs,
+                                          sizeof(SpiceCharSource));
+    src->scd = scd;
+
+    return (GSource *)src;
+}
 
 static int spice_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     SpiceCharDriver *s = chr->opaque;
+    int read_bytes;
 
     assert(s->datalen == 0);
     if (s->bufsize < len) {
@@ -143,7 +194,14 @@ static int spice_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     s->datapos = s->buffer;
     s->datalen = len;
     spice_server_char_device_wakeup(&s->sin);
-    return len;
+    read_bytes = len - s->datalen;
+    if (read_bytes != len) {
+        /* We'll get passed in the unconsumed data with the next call */
+        s->datalen = 0;
+        s->datapos = NULL;
+        s->blocked = true;
+    }
+    return read_bytes;
 }
 
 static void spice_chr_close(struct CharDriverState *chr)
@@ -199,6 +257,7 @@ static CharDriverState *chr_open(const char *subtype)
     s->sin.subtype = g_strdup(subtype);
     chr->opaque = s;
     chr->chr_write = spice_chr_write;
+    chr->chr_add_watch = spice_chr_add_watch;
     chr->chr_close = spice_chr_close;
     chr->chr_set_fe_open = spice_chr_set_fe_open;
 
