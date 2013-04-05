@@ -149,7 +149,7 @@ static void arm_gic_common_reset(DeviceState *dev)
         s->current_pending[i] = 1023;
         s->running_irq[i] = 1023;
         s->running_priority[i] = 0x100;
-        s->cpu_enabled[i] = 0;
+        s->cpu_enabled[i] = false;
     }
     for (i = 0; i < 16; i++) {
         GIC_SET_ENABLED(i, ALL_CPU_MASK);
@@ -161,7 +161,7 @@ static void arm_gic_common_reset(DeviceState *dev)
             s->irq_target[i] = 1;
         }
     }
-    s->enabled = 0;
+    s->enabled = false;
 }
 
 static Property arm_gic_common_properties[] = {
