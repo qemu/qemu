@@ -825,8 +825,8 @@ static int blk_connect(struct XenDevice *xendev)
 
     /* Fill in number of sector size and number of sectors */
     xenstore_write_be_int(&blkdev->xendev, "sector-size", blkdev->file_blk);
-    xenstore_write_be_int(&blkdev->xendev, "sectors",
-                          blkdev->file_size / blkdev->file_blk);
+    xenstore_write_be_int64(&blkdev->xendev, "sectors",
+                            blkdev->file_size / blkdev->file_blk);
 
     if (xenstore_read_fe_int(&blkdev->xendev, "ring-ref", &blkdev->ring_ref) == -1) {
         return -1;
