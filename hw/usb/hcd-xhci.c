@@ -405,6 +405,7 @@ struct XHCIEPContext {
 
 typedef struct XHCISlot {
     bool enabled;
+    bool addressed;
     dma_addr_t ctx;
     USBPort *uport;
     XHCIEPContext * eps[31];
@@ -2041,6 +2042,7 @@ static TRBCCode xhci_disable_slot(XHCIState *xhci, unsigned int slotid)
     }
 
     xhci->slots[slotid-1].enabled = 0;
+    xhci->slots[slotid-1].addressed = 0;
     return CC_SUCCESS;
 }
 
@@ -2167,6 +2169,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     xhci_dma_write_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
     xhci_dma_write_u32s(xhci, octx+32, ep0_ctx, sizeof(ep0_ctx));
 
+    xhci->slots[slotid-1].addressed = 1;
     return res;
 }
 
