@@ -3079,8 +3079,15 @@ static void xhci_doorbell_write(void *ptr, hwaddr reg,
     }
 }
 
+static void xhci_cap_write(void *opaque, hwaddr addr, uint64_t val,
+                           unsigned width)
+{
+    /* nothing */
+}
+
 static const MemoryRegionOps xhci_cap_ops = {
     .read = xhci_cap_read,
+    .write = xhci_cap_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
     .impl.min_access_size = 4,
