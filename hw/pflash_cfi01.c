@@ -67,7 +67,7 @@ struct pflash_t {
     uint64_t sector_len;
     uint8_t width;
     uint8_t be;
-    int wcycle; /* if 0, the flash is read normally */
+    uint8_t wcycle; /* if 0, the flash is read normally */
     int ro;
     uint8_t cmd;
     uint8_t status;
@@ -77,12 +77,25 @@ struct pflash_t {
     uint16_t ident3;
     uint8_t cfi_len;
     uint8_t cfi_table[0x52];
-    hwaddr counter;
+    uint64_t counter;
     unsigned int writeblock_size;
     QEMUTimer *timer;
     MemoryRegion mem;
     char *name;
     void *storage;
+};
+
+static const VMStateDescription vmstate_pflash = {
+    .name = "pflash_cfi01",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(wcycle, pflash_t),
+        VMSTATE_UINT8(cmd, pflash_t),
+        VMSTATE_UINT8(status, pflash_t),
+        VMSTATE_UINT64(counter, pflash_t),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static void pflash_timer (void *opaque)
@@ -223,7 +236,7 @@ static inline void pflash_data_write(pflash_t *pfl, hwaddr offset,
     uint8_t *p = pfl->storage;
 
     DPRINTF("%s: block write offset " TARGET_FMT_plx
-            " value %x counter " TARGET_FMT_plx "\n",
+            " value %x counter %016" PRIx64 "\n",
             __func__, offset, value, pfl->counter);
     switch (width) {
     case 1:
@@ -701,6 +714,7 @@ static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
 
     k->init = pflash_cfi01_init;
     dc->props = pflash_cfi01_properties;
+    dc->vmsd = &vmstate_pflash;
 }
 
 
