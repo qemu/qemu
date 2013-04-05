@@ -117,8 +117,7 @@ extern int use_rt_clock;
 
 static inline int64_t get_clock(void)
 {
-#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000) \
-    || defined(__DragonFly__) || defined(__FreeBSD_kernel__)
+#ifdef CLOCK_MONOTONIC
     if (use_rt_clock) {
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);
