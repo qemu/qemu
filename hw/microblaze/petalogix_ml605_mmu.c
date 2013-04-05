@@ -158,8 +158,7 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
         for (i = 0; i < NUM_SPI_FLASHES; i++) {
             qemu_irq cs_line;
 
-            dev = ssi_create_slave_no_init(spi, "n25q128");
-            qdev_init_nofail(dev);
+            dev = ssi_create_slave(spi, "n25q128");
             cs_line = qdev_get_gpio_in(dev, 0);
             sysbus_connect_irq(busdev, i+1, cs_line);
         }
