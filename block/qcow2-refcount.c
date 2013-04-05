@@ -747,10 +747,9 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     if (l1_table_offset != s->l1_table_offset) {
         l1_table = g_malloc0(align_offset(l1_size2, 512));
         l1_allocated = 1;
-        if (bdrv_pread(bs->file, l1_table_offset,
-                       l1_table, l1_size2) != l1_size2)
-        {
-            ret = -EIO;
+
+        ret = bdrv_pread(bs->file, l1_table_offset, l1_table, l1_size2);
+        if (ret < 0) {
             goto fail;
         }
 
@@ -802,7 +801,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                         }
 
                         if (refcount < 0) {
-                            ret = -EIO;
+                            ret = refcount;
                             goto fail;
                         }
                     }
@@ -833,7 +832,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                 refcount = get_refcount(bs, l2_offset >> s->cluster_bits);
             }
             if (refcount < 0) {
-                ret = -EIO;
+                ret = refcount;
                 goto fail;
             } else if (refcount == 1) {
                 l2_offset |= QCOW_OFLAG_COPIED;
@@ -852,14 +851,16 @@ fail:
     }
 
     /* Update L1 only if it isn't deleted anyway (addend = -1) */
-    if (addend >= 0 && l1_modified) {
-        for(i = 0; i < l1_size; i++)
+    if (ret == 0 && addend >= 0 && l1_modified) {
+        for (i = 0; i < l1_size; i++) {
             cpu_to_be64s(&l1_table[i]);
-        if (bdrv_pwrite_sync(bs->file, l1_table_offset, l1_table,
-                        l1_size2) < 0)
-            goto fail;
-        for(i = 0; i < l1_size; i++)
+        }
+
+        ret = bdrv_pwrite_sync(bs->file, l1_table_offset, l1_table, l1_size2);
+
+        for (i = 0; i < l1_size; i++) {
             be64_to_cpus(&l1_table[i]);
+        }
     }
     if (l1_allocated)
         g_free(l1_table);
