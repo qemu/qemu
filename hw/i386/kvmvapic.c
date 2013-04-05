@@ -60,6 +60,9 @@ typedef struct VAPICROMState {
     bool rom_mapped_writable;
 } VAPICROMState;
 
+#define TYPE_VAPIC "kvmvapic"
+#define VAPIC(obj) OBJECT_CHECK(VAPICROMState, (obj), TYPE_VAPIC)
+
 #define TPR_INSTR_ABS_MODRM             0x1
 #define TPR_INSTR_MATCH_MODRM_REG       0x2
 
@@ -690,7 +693,7 @@ static const MemoryRegionOps vapic_ops = {
 
 static int vapic_init(SysBusDevice *dev)
 {
-    VAPICROMState *s = FROM_SYSBUS(VAPICROMState, dev);
+    VAPICROMState *s = VAPIC(dev);
 
     memory_region_init_io(&s->io, &vapic_ops, s, "kvmvapic", 2);
     sysbus_add_io(dev, VAPIC_IO_PORT, &s->io);
@@ -806,7 +809,7 @@ static void vapic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo vapic_type = {
-    .name          = "kvmvapic",
+    .name          = TYPE_VAPIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VAPICROMState),
     .class_init    = vapic_class_init,
