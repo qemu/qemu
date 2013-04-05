@@ -63,11 +63,13 @@ extern const char *xen_protocol;
 /* xenstore helper functions */
 int xenstore_write_str(const char *base, const char *node, const char *val);
 int xenstore_write_int(const char *base, const char *node, int ival);
+int xenstore_write_int64(const char *base, const char *node, int64_t ival);
 char *xenstore_read_str(const char *base, const char *node);
 int xenstore_read_int(const char *base, const char *node, int *ival);
 
 int xenstore_write_be_str(struct XenDevice *xendev, const char *node, const char *val);
 int xenstore_write_be_int(struct XenDevice *xendev, const char *node, int ival);
+int xenstore_write_be_int64(struct XenDevice *xendev, const char *node, int64_t ival);
 char *xenstore_read_be_str(struct XenDevice *xendev, const char *node);
 int xenstore_read_be_int(struct XenDevice *xendev, const char *node, int *ival);
 char *xenstore_read_fe_str(struct XenDevice *xendev, const char *node);
