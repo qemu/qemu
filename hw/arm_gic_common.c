@@ -20,89 +20,64 @@
 
 #include "hw/arm_gic_internal.h"
 
-static void gic_save(QEMUFile *f, void *opaque)
+static void gic_pre_save(void *opaque)
 {
     GICState *s = (GICState *)opaque;
     ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
-    int i;
-    int j;
 
     if (c->pre_save) {
         c->pre_save(s);
     }
-
-    qemu_put_be32(f, s->enabled);
-    for (i = 0; i < s->num_cpu; i++) {
-        qemu_put_be32(f, s->cpu_enabled[i]);
-        for (j = 0; j < GIC_INTERNAL; j++) {
-            qemu_put_be32(f, s->priority1[j][i]);
-        }
-        for (j = 0; j < s->num_irq; j++) {
-            qemu_put_be32(f, s->last_active[j][i]);
-        }
-        qemu_put_be32(f, s->priority_mask[i]);
-        qemu_put_be32(f, s->running_irq[i]);
-        qemu_put_be32(f, s->running_priority[i]);
-        qemu_put_be32(f, s->current_pending[i]);
-    }
-    for (i = 0; i < s->num_irq - GIC_INTERNAL; i++) {
-        qemu_put_be32(f, s->priority2[i]);
-    }
-    for (i = 0; i < s->num_irq; i++) {
-        qemu_put_be32(f, s->irq_target[i]);
-        qemu_put_byte(f, s->irq_state[i].enabled);
-        qemu_put_byte(f, s->irq_state[i].pending);
-        qemu_put_byte(f, s->irq_state[i].active);
-        qemu_put_byte(f, s->irq_state[i].level);
-        qemu_put_byte(f, s->irq_state[i].model);
-        qemu_put_byte(f, s->irq_state[i].trigger);
-    }
 }
 
-static int gic_load(QEMUFile *f, void *opaque, int version_id)
+static int gic_post_load(void *opaque, int version_id)
 {
     GICState *s = (GICState *)opaque;
     ARMGICCommonClass *c = ARM_GIC_COMMON_GET_CLASS(s);
-    int i;
-    int j;
-
-    if (version_id != 3) {
-        return -EINVAL;
-    }
-
-    s->enabled = qemu_get_be32(f);
-    for (i = 0; i < s->num_cpu; i++) {
-        s->cpu_enabled[i] = qemu_get_be32(f);
-        for (j = 0; j < GIC_INTERNAL; j++) {
-            s->priority1[j][i] = qemu_get_be32(f);
-        }
-        for (j = 0; j < s->num_irq; j++) {
-            s->last_active[j][i] = qemu_get_be32(f);
-        }
-        s->priority_mask[i] = qemu_get_be32(f);
-        s->running_irq[i] = qemu_get_be32(f);
-        s->running_priority[i] = qemu_get_be32(f);
-        s->current_pending[i] = qemu_get_be32(f);
-    }
-    for (i = 0; i < s->num_irq - GIC_INTERNAL; i++) {
-        s->priority2[i] = qemu_get_be32(f);
-    }
-    for (i = 0; i < s->num_irq; i++) {
-        s->irq_target[i] = qemu_get_be32(f);
-        s->irq_state[i].enabled = qemu_get_byte(f);
-        s->irq_state[i].pending = qemu_get_byte(f);
-        s->irq_state[i].active = qemu_get_byte(f);
-        s->irq_state[i].level = qemu_get_byte(f);
-        s->irq_state[i].model = qemu_get_byte(f);
-        s->irq_state[i].trigger = qemu_get_byte(f);
-    }
 
     if (c->post_load) {
         c->post_load(s);
     }
-
     return 0;
 }
+
+static const VMStateDescription vmstate_gic_irq_state = {
+    .name = "arm_gic_irq_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(enabled, gic_irq_state),
+        VMSTATE_UINT8(pending, gic_irq_state),
+        VMSTATE_UINT8(active, gic_irq_state),
+        VMSTATE_UINT8(level, gic_irq_state),
+        VMSTATE_BOOL(model, gic_irq_state),
+        VMSTATE_BOOL(trigger, gic_irq_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_gic = {
+    .name = "arm_gic",
+    .version_id = 4,
+    .minimum_version_id = 4,
+    .pre_save = gic_pre_save,
+    .post_load = gic_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(enabled, GICState),
+        VMSTATE_BOOL_ARRAY(cpu_enabled, GICState, NCPU),
+        VMSTATE_STRUCT_ARRAY(irq_state, GICState, GIC_MAXIRQ, 1,
+                             vmstate_gic_irq_state, gic_irq_state),
+        VMSTATE_UINT8_ARRAY(irq_target, GICState, GIC_MAXIRQ),
+        VMSTATE_UINT8_2DARRAY(priority1, GICState, GIC_INTERNAL, NCPU),
+        VMSTATE_UINT8_ARRAY(priority2, GICState, GIC_MAXIRQ - GIC_INTERNAL),
+        VMSTATE_UINT16_2DARRAY(last_active, GICState, GIC_MAXIRQ, NCPU),
+        VMSTATE_UINT16_ARRAY(priority_mask, GICState, NCPU),
+        VMSTATE_UINT16_ARRAY(running_irq, GICState, NCPU),
+        VMSTATE_UINT16_ARRAY(running_priority, GICState, NCPU),
+        VMSTATE_UINT16_ARRAY(current_pending, GICState, NCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void arm_gic_common_realize(DeviceState *dev, Error **errp)
 {
@@ -131,8 +106,6 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
                    num_irq);
         return;
     }
-
-    register_savevm(NULL, "arm_gic", -1, 3, gic_save, gic_load, s);
 }
 
 static void arm_gic_common_reset(DeviceState *dev)
@@ -182,6 +155,7 @@ static void arm_gic_common_class_init(ObjectClass *klass, void *data)
     dc->reset = arm_gic_common_reset;
     dc->realize = arm_gic_common_realize;
     dc->props = arm_gic_common_properties;
+    dc->vmsd = &vmstate_gic;
     dc->no_user = 1;
 }
 
