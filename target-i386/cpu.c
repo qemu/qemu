@@ -2050,9 +2050,8 @@ static void mce_init(X86CPU *cpu)
 }
 
 #ifndef CONFIG_USER_ONLY
-static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
+static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
 {
-    static int apic_mapped;
     CPUX86State *env = &cpu->env;
     APICCommonState *apic;
     const char *apic_type = "apic";
@@ -2075,6 +2074,16 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
     /* TODO: convert to link<> */
     apic = APIC_COMMON(env->apic_state);
     apic->cpu = cpu;
+}
+
+static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
+{
+    CPUX86State *env = &cpu->env;
+    static int apic_mapped;
+
+    if (env->apic_state == NULL) {
+        return;
+    }
 
     if (qdev_init(env->apic_state)) {
         error_setg(errp, "APIC device '%s' could not be initialized",
@@ -2091,6 +2100,10 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
                                 APIC_DEFAULT_ADDRESS, 0x1000);
         apic_mapped = 1;
     }
+}
+#else
+static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
+{
 }
 #endif
 
@@ -2142,7 +2155,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
 
     if (cpu->env.cpuid_features & CPUID_APIC || smp_cpus > 1) {
-        x86_cpu_apic_init(cpu, &local_err);
+        x86_cpu_apic_create(cpu, &local_err);
         if (local_err != NULL) {
             goto out;
         }
@@ -2151,6 +2164,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     mce_init(cpu);
     qemu_init_vcpu(&cpu->env);
+
+    x86_cpu_apic_realize(cpu, &local_err);
+    if (local_err != NULL) {
+        goto out;
+    }
     cpu_reset(CPU(cpu));
 
     xcc->parent_realize(dev, &local_err);
