@@ -3800,7 +3800,7 @@ static bool bdrv_exceed_bps_limits(BlockDriverState *bs, int nb_sectors,
                 BLOCK_IO_SLICE_TIME;
     bs->slice_end += extension;
     if (wait) {
-        *wait = wait_time * BLOCK_IO_SLICE_TIME * 10;
+        *wait = wait_time * NANOSECONDS_PER_SECOND;
     }
 
     return true;
@@ -3841,7 +3841,7 @@ static bool bdrv_exceed_iops_limits(BlockDriverState *bs, bool is_write,
         return false;
     }
 
-    /* Calc approx time to dispatch */
+    /* Calc approx time to dispatch, in seconds */
     wait_time = (ios_base + 1) / iops_limit;
     if (wait_time > elapsed_time) {
         wait_time = wait_time - elapsed_time;
@@ -3852,7 +3852,7 @@ static bool bdrv_exceed_iops_limits(BlockDriverState *bs, bool is_write,
     /* Exceeded current slice, extend it by another slice time */
     bs->slice_end += BLOCK_IO_SLICE_TIME;
     if (wait) {
-        *wait = wait_time * BLOCK_IO_SLICE_TIME * 10;
+        *wait = wait_time * NANOSECONDS_PER_SECOND;
     }
 
     return true;
