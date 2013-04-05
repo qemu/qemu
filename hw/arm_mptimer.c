@@ -253,14 +253,15 @@ static int arm_mptimer_init(SysBusDevice *dev)
 
 static const VMStateDescription vmstate_timerblock = {
     .name = "arm_mptimer_timerblock",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(count, TimerBlock),
         VMSTATE_UINT32(load, TimerBlock),
         VMSTATE_UINT32(control, TimerBlock),
         VMSTATE_UINT32(status, TimerBlock),
         VMSTATE_INT64(tick, TimerBlock),
+        VMSTATE_TIMER(timer, TimerBlock),
         VMSTATE_END_OF_LIST()
     }
 };
