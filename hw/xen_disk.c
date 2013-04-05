@@ -700,7 +700,7 @@ static void blk_alloc(struct XenDevice *xendev)
 static int blk_init(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
-    int index, qflags, info = 0;
+    int info = 0;
 
     /* read xenstore entries */
     if (blkdev->params == NULL) {
@@ -743,10 +743,7 @@ static int blk_init(struct XenDevice *xendev)
     }
 
     /* read-only ? */
-    qflags = BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NATIVE_AIO;
-    if (strcmp(blkdev->mode, "w") == 0) {
-        qflags |= BDRV_O_RDWR;
-    } else {
+    if (strcmp(blkdev->mode, "w")) {
         info  |= VDISK_READONLY;
     }
 
@@ -755,50 +752,14 @@ static int blk_init(struct XenDevice *xendev)
         info  |= VDISK_CDROM;
     }
 
-    /* init qemu block driver */
-    index = (blkdev->xendev.dev - 202 * 256) / 16;
-    blkdev->dinfo = drive_get(IF_XEN, 0, index);
-    if (!blkdev->dinfo) {
-        /* setup via xenbus -> create new block driver instance */
-        xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
-        blkdev->bs = bdrv_new(blkdev->dev);
-        if (blkdev->bs) {
-            if (bdrv_open(blkdev->bs, blkdev->filename, NULL, qflags,
-                        bdrv_find_whitelisted_format(blkdev->fileproto)) != 0) {
-                bdrv_delete(blkdev->bs);
-                blkdev->bs = NULL;
-            }
-        }
-        if (!blkdev->bs) {
-            goto out_error;
-        }
-    } else {
-        /* setup via qemu cmdline -> already setup for us */
-        xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");
-        blkdev->bs = blkdev->dinfo->bdrv;
-    }
-    bdrv_attach_dev_nofail(blkdev->bs, blkdev);
     blkdev->file_blk  = BLOCK_SIZE;
-    blkdev->file_size = bdrv_getlength(blkdev->bs);
-    if (blkdev->file_size < 0) {
-        xen_be_printf(&blkdev->xendev, 1, "bdrv_getlength: %d (%s) | drv %s\n",
-                      (int)blkdev->file_size, strerror(-blkdev->file_size),
-                      bdrv_get_format_name(blkdev->bs) ?: "-");
-        blkdev->file_size = 0;
-    }
 
-    xen_be_printf(xendev, 1, "type \"%s\", fileproto \"%s\", filename \"%s\","
-                  " size %" PRId64 " (%" PRId64 " MB)\n",
-                  blkdev->type, blkdev->fileproto, blkdev->filename,
-                  blkdev->file_size, blkdev->file_size >> 20);
-
-    /* fill info */
+    /* fill info
+     * blk_connect supplies sector-size and sectors
+     */
     xenstore_write_be_int(&blkdev->xendev, "feature-flush-cache", 1);
     xenstore_write_be_int(&blkdev->xendev, "feature-persistent", 1);
-    xenstore_write_be_int(&blkdev->xendev, "info",            info);
-    xenstore_write_be_int(&blkdev->xendev, "sector-size",     blkdev->file_blk);
-    xenstore_write_be_int(&blkdev->xendev, "sectors",
-                          blkdev->file_size / blkdev->file_blk);
+    xenstore_write_be_int(&blkdev->xendev, "info", info);
     return 0;
 
 out_error:
@@ -818,7 +779,54 @@ out_error:
 static int blk_connect(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
-    int pers;
+    int pers, index, qflags;
+
+    /* read-only ? */
+    qflags = BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NATIVE_AIO;
+    if (strcmp(blkdev->mode, "w") == 0) {
+        qflags |= BDRV_O_RDWR;
+    }
+
+    /* init qemu block driver */
+    index = (blkdev->xendev.dev - 202 * 256) / 16;
+    blkdev->dinfo = drive_get(IF_XEN, 0, index);
+    if (!blkdev->dinfo) {
+        /* setup via xenbus -> create new block driver instance */
+        xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
+        blkdev->bs = bdrv_new(blkdev->dev);
+        if (blkdev->bs) {
+            if (bdrv_open(blkdev->bs, blkdev->filename, NULL, qflags,
+                        bdrv_find_whitelisted_format(blkdev->fileproto)) != 0) {
+                bdrv_delete(blkdev->bs);
+                blkdev->bs = NULL;
+            }
+        }
+        if (!blkdev->bs) {
+            return -1;
+        }
+    } else {
+        /* setup via qemu cmdline -> already setup for us */
+        xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");
+        blkdev->bs = blkdev->dinfo->bdrv;
+    }
+    bdrv_attach_dev_nofail(blkdev->bs, blkdev);
+    blkdev->file_size = bdrv_getlength(blkdev->bs);
+    if (blkdev->file_size < 0) {
+        xen_be_printf(&blkdev->xendev, 1, "bdrv_getlength: %d (%s) | drv %s\n",
+                      (int)blkdev->file_size, strerror(-blkdev->file_size),
+                      bdrv_get_format_name(blkdev->bs) ?: "-");
+        blkdev->file_size = 0;
+    }
+
+    xen_be_printf(xendev, 1, "type \"%s\", fileproto \"%s\", filename \"%s\","
+                  " size %" PRId64 " (%" PRId64 " MB)\n",
+                  blkdev->type, blkdev->fileproto, blkdev->filename,
+                  blkdev->file_size, blkdev->file_size >> 20);
+
+    /* Fill in number of sector size and number of sectors */
+    xenstore_write_be_int(&blkdev->xendev, "sector-size", blkdev->file_blk);
+    xenstore_write_be_int(&blkdev->xendev, "sectors",
+                          blkdev->file_size / blkdev->file_blk);
 
     if (xenstore_read_fe_int(&blkdev->xendev, "ring-ref", &blkdev->ring_ref) == -1) {
         return -1;
