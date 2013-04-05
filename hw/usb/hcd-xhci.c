@@ -2526,7 +2526,6 @@ static void xhci_process_commands(XHCIState *xhci)
             }
             break;
         case CR_SET_TR_DEQUEUE:
-            fprintf(stderr, "%s: CR_SET_TR_DEQUEUE\n", __func__);
             slotid = xhci_get_slot(xhci, &event, &trb);
             if (slotid) {
                 unsigned int epid = (trb.control >> TRB_CR_EPID_SHIFT)
