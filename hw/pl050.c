@@ -24,14 +24,13 @@ typedef struct {
 
 static const VMStateDescription vmstate_pl050 = {
     .name = "pl050",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(cr, pl050_state),
         VMSTATE_UINT32(clk, pl050_state),
         VMSTATE_UINT32(last, pl050_state),
         VMSTATE_INT32(pending, pl050_state),
-        VMSTATE_INT32(is_mouse, pl050_state),
         VMSTATE_END_OF_LIST()
     }
 };
