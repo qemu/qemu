@@ -34,7 +34,8 @@ static gboolean chr_write_unblocked(GIOChannel *chan, GIOCondition cond,
 }
 
 /* Callback function that's called when the guest sends us data */
-static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
+static ssize_t flush_buf(VirtIOSerialPort *port,
+                         const uint8_t *buf, ssize_t len)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
     ssize_t ret;
@@ -47,7 +48,7 @@ static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
     ret = qemu_chr_fe_write(vcon->chr, buf, len);
     trace_virtio_console_flush_buf(port->id, len, ret);
 
-    if (ret <= 0) {
+    if (ret < len) {
         VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
         /*
@@ -56,7 +57,8 @@ static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
          * we had a finer-grained message, like -EPIPE, we could close
          * this connection.
          */
-        ret = 0;
+        if (ret < 0)
+            ret = 0;
         if (!k->is_console) {
             virtio_serial_throttle_port(port, true);
             qemu_chr_fe_add_watch(vcon->chr, G_IO_OUT, chr_write_unblocked,

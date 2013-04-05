@@ -104,7 +104,7 @@ typedef struct VirtIOSerialPortClass {
      * 'len'.  In this case, throttling will be enabled for this port.
      */
     ssize_t (*have_data)(VirtIOSerialPort *port, const uint8_t *buf,
-                         size_t len);
+                         ssize_t len);
 } VirtIOSerialPortClass;
 
 /*
