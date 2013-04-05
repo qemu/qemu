@@ -348,6 +348,7 @@ void path_combine(char *dest, int dest_size,
                   const char *base_path,
                   const char *filename);
 
+int bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
                       int64_t pos, int size);
 
