@@ -140,7 +140,6 @@ void bdrv_io_limits_disable(BlockDriverState *bs)
 
     bs->slice_start = 0;
     bs->slice_end   = 0;
-    bs->slice_time  = 0;
 }
 
 static void bdrv_block_timer(void *opaque)
@@ -1432,7 +1431,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     bs_dest->enable_write_cache = bs_src->enable_write_cache;
 
     /* i/o timing parameters */
-    bs_dest->slice_time         = bs_src->slice_time;
     bs_dest->slice_start        = bs_src->slice_start;
     bs_dest->slice_end          = bs_src->slice_end;
     bs_dest->slice_submitted    = bs_src->slice_submitted;
@@ -3749,6 +3747,7 @@ static bool bdrv_exceed_bps_limits(BlockDriverState *bs, int nb_sectors,
                  bool is_write, double elapsed_time, uint64_t *wait)
 {
     uint64_t bps_limit = 0;
+    uint64_t extension;
     double   bytes_limit, bytes_base, bytes_res;
     double   slice_time, wait_time;
 
@@ -3796,8 +3795,10 @@ static bool bdrv_exceed_bps_limits(BlockDriverState *bs, int nb_sectors,
      * info can be kept until the timer fire, so it is increased and tuned
      * based on the result of experiment.
      */
-    bs->slice_time = wait_time * BLOCK_IO_SLICE_TIME * 10;
-    bs->slice_end += bs->slice_time - 3 * BLOCK_IO_SLICE_TIME;
+    extension = wait_time * NANOSECONDS_PER_SECOND;
+    extension = DIV_ROUND_UP(extension, BLOCK_IO_SLICE_TIME) *
+                BLOCK_IO_SLICE_TIME;
+    bs->slice_end += extension;
     if (wait) {
         *wait = wait_time * BLOCK_IO_SLICE_TIME * 10;
     }
@@ -3848,8 +3849,8 @@ static bool bdrv_exceed_iops_limits(BlockDriverState *bs, bool is_write,
         wait_time = 0;
     }
 
-    bs->slice_time = wait_time * BLOCK_IO_SLICE_TIME * 10;
-    bs->slice_end += bs->slice_time - 3 * BLOCK_IO_SLICE_TIME;
+    /* Exceeded current slice, extend it by another slice time */
+    bs->slice_end += BLOCK_IO_SLICE_TIME;
     if (wait) {
         *wait = wait_time * BLOCK_IO_SLICE_TIME * 10;
     }
@@ -3868,12 +3869,10 @@ static bool bdrv_exceed_io_limits(BlockDriverState *bs, int nb_sectors,
     now = qemu_get_clock_ns(vm_clock);
     if ((bs->slice_start < now)
         && (bs->slice_end > now)) {
-        bs->slice_end = now + bs->slice_time;
+        bs->slice_end = now + BLOCK_IO_SLICE_TIME;
     } else {
-        bs->slice_time  =  5 * BLOCK_IO_SLICE_TIME;
         bs->slice_start = now;
-        bs->slice_end   = now + bs->slice_time;
-
+        bs->slice_end   = now + BLOCK_IO_SLICE_TIME;
         memset(&bs->slice_submitted, 0, sizeof(bs->slice_submitted));
     }
 

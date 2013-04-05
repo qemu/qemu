@@ -252,7 +252,6 @@ struct BlockDriverState {
     unsigned int copy_on_read_in_flight;
 
     /* the time for latest disk I/O */
-    int64_t slice_time;
     int64_t slice_start;
     int64_t slice_end;
     BlockIOLimit io_limits;
