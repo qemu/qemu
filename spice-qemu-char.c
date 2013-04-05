@@ -14,9 +14,8 @@ typedef struct SpiceCharDriver {
     char                  *subtype;
     bool                  active;
     bool                  blocked;
-    uint8_t               *buffer;
-    uint8_t               *datapos;
-    ssize_t               bufsize, datalen;
+    const uint8_t         *datapos;
+    int                   datalen;
     QLIST_ENTRY(SpiceCharDriver) next;
 } SpiceCharDriver;
 
@@ -186,12 +185,7 @@ static int spice_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     int read_bytes;
 
     assert(s->datalen == 0);
-    if (s->bufsize < len) {
-        s->bufsize = len;
-        s->buffer = g_realloc(s->buffer, s->bufsize);
-    }
-    memcpy(s->buffer, buf, len);
-    s->datapos = s->buffer;
+    s->datapos = buf;
     s->datalen = len;
     spice_server_char_device_wakeup(&s->sin);
     read_bytes = len - s->datalen;
