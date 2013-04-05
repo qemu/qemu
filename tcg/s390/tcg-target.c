@@ -1231,7 +1231,7 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
     int cc;
 
     if (facilities & FACILITY_GEN_INST_EXT) {
-        bool is_unsigned = (c > TCG_COND_GT);
+        bool is_unsigned = is_unsigned_cond(c);
         bool in_range;
         S390Opcode opc;
 
