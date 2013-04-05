@@ -2099,9 +2099,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     X86CPU *cpu = X86_CPU(dev);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
-#ifndef CONFIG_USER_ONLY
     Error *local_err = NULL;
-#endif
 
     if (env->cpuid_7_0_ebx_features && env->cpuid_level < 7) {
         env->cpuid_level = 7;
@@ -2131,8 +2129,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     } else {
         if (check_cpuid && kvm_check_features_against_host(cpu)
             && enforce_cpuid) {
-            error_setg(errp, "Host's CPU doesn't support requested features");
-            return;
+            error_setg(&local_err,
+                       "Host's CPU doesn't support requested features");
+            goto out;
         }
 #ifdef CONFIG_KVM
         filter_features_for_kvm(cpu);
@@ -2145,8 +2144,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     if (cpu->env.cpuid_features & CPUID_APIC || smp_cpus > 1) {
         x86_cpu_apic_init(cpu, &local_err);
         if (local_err != NULL) {
-            error_propagate(errp, local_err);
-            return;
+            goto out;
         }
     }
 #endif
@@ -2155,7 +2153,12 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     qemu_init_vcpu(&cpu->env);
     cpu_reset(CPU(cpu));
 
-    xcc->parent_realize(dev, errp);
+    xcc->parent_realize(dev, &local_err);
+out:
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 /* Enables contiguous-apic-ID mode, for compatibility */
