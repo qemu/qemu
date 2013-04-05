@@ -436,6 +436,15 @@ extern const VMStateInfo vmstate_info_bitmap;
     .offset     = offsetof(_state, _field),                          \
 }
 
+#define VMSTATE_BUFFER_POINTER_UNSAFE(_field, _state, _version, _size) { \
+    .name       = (stringify(_field)),                               \
+    .version_id = (_version),                                        \
+    .size       = (_size),                                           \
+    .info       = &vmstate_info_buffer,                              \
+    .flags      = VMS_BUFFER|VMS_POINTER,                            \
+    .offset     = offsetof(_state, _field),                          \
+}
+
 #define VMSTATE_UNUSED_BUFFER(_test, _version, _size) {              \
     .name         = "unused",                                        \
     .field_exists = (_test),                                         \
