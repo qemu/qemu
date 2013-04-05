@@ -1658,17 +1658,11 @@ static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
     BDRVQcowState *s = bs->opaque;
     int growable = bs->growable;
     int ret;
-    void *buf;
-
-    buf = qemu_blockalign(bs, qiov->size);
-    qemu_iovec_to_buf(qiov, 0, buf, qiov->size);
 
     BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_SAVE);
     bs->growable = 1;
-    ret = bdrv_pwrite(bs, qcow2_vm_state_offset(s) + pos, buf, qiov->size);
+    ret = bdrv_pwritev(bs, qcow2_vm_state_offset(s) + pos, qiov);
     bs->growable = growable;
-
-    qemu_vfree(buf);
 
     return ret;
 }
