@@ -35,7 +35,8 @@ static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
     uint8_t* p = (uint8_t*)buf;
 
     while (len > 0) {
-        last_out = MIN(len, qemu_chr_be_can_write(scd->chr));
+        int can_write = qemu_chr_be_can_write(scd->chr);
+        last_out = MIN(len, can_write);
         if (last_out <= 0) {
             break;
         }
