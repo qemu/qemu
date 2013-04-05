@@ -782,7 +782,7 @@ static int blk_connect(struct XenDevice *xendev)
     int pers, index, qflags;
 
     /* read-only ? */
-    qflags = BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NATIVE_AIO;
+    qflags = BDRV_O_CACHE_WB | BDRV_O_NATIVE_AIO;
     if (strcmp(blkdev->mode, "w") == 0) {
         qflags |= BDRV_O_RDWR;
     }
