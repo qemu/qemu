@@ -458,10 +458,10 @@ static void armv7m_nvic_reset(DeviceState *dev)
      * as enabled by default, and with a priority mask which allows
      * all interrupts through.
      */
-    s->gic.cpu_enabled[0] = 1;
+    s->gic.cpu_enabled[0] = true;
     s->gic.priority_mask[0] = 0x100;
     /* The NVIC as a whole is always enabled. */
-    s->gic.enabled = 1;
+    s->gic.enabled = true;
     systick_reset(s);
 }
 

@@ -129,8 +129,6 @@ static void n800_mmc_cs_cb(void *opaque, int line, int level)
     /* TODO: this seems to actually be connected to the menelaus, to
      * which also both MMC slots connect.  */
     omap_mmc_enable((struct omap_mmc_s *) opaque, !level);
-
-    printf("%s: MMC slot %i active\n", __FUNCTION__, level + 1);
 }
 
 static void n8x0_gpio_setup(struct n800_s *s)
@@ -428,9 +426,6 @@ struct mipid_s {
 
 static void mipid_reset(struct mipid_s *s)
 {
-    if (!s->sleep)
-        fprintf(stderr, "%s: Display off\n", __FUNCTION__);
-
     s->pm = 0;
     s->cmd = 0;
 
@@ -578,11 +573,9 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
 
     case 0x28:	/* DISPOFF */
         s->onoff = 0;
-        fprintf(stderr, "%s: Display off\n", __FUNCTION__);
         break;
     case 0x29:	/* DISPON */
         s->onoff = 1;
-        fprintf(stderr, "%s: Display on\n", __FUNCTION__);
         break;
 
     case 0x2a:	/* CASET */
@@ -669,7 +662,8 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
 
     default:
     bad_cmd:
-        fprintf(stderr, "%s: unknown command %02x\n", __FUNCTION__, s->cmd);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: unknown command %02x\n", __func__, s->cmd);
         break;
     }
 
@@ -1347,7 +1341,6 @@ static void n8x0_init(QEMUMachineInitArgs *args,
 
     if (option_rom[0].name &&
         (args->boot_device[0] == 'n' || !args->kernel_filename)) {
-        int rom_size;
         uint8_t nolo_tags[0x10000];
         /* No, wait, better start at the ROM.  */
         s->mpu->cpu->env.regs[15] = OMAP2_Q2_BASE + 0x400000;
@@ -1361,10 +1354,9 @@ static void n8x0_init(QEMUMachineInitArgs *args,
          *
          * The code above is for loading the `zImage' file from Nokia
          * images.  */
-        rom_size = load_image_targphys(option_rom[0].name,
-                                       OMAP2_Q2_BASE + 0x400000,
-                                       sdram_size - 0x400000);
-        printf("%i bytes of image loaded\n", rom_size);
+        load_image_targphys(option_rom[0].name,
+                            OMAP2_Q2_BASE + 0x400000,
+                            sdram_size - 0x400000);
 
         n800_setup_nolo_tags(nolo_tags);
         cpu_physical_memory_write(OMAP2_SRAM_BASE, nolo_tags, 0x10000);
