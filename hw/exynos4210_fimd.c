@@ -296,7 +296,7 @@ struct Exynos4210fimdWindow {
 typedef struct {
     SysBusDevice busdev;
     MemoryRegion iomem;
-    DisplayState *console;
+    QemuConsole *console;
     qemu_irq irq[3];
 
     uint32_t vidcon[4];     /* Video main control registers 0-3 */
@@ -1221,16 +1221,18 @@ static void exynos4210_fimd_invalidate(void *opaque)
 
 static void exynos4210_update_resolution(Exynos4210fimdState *s)
 {
+    DisplaySurface *surface = qemu_console_surface(s->console);
+
     /* LCD resolution is stored in VIDEO TIME CONTROL REGISTER 2 */
     uint32_t width = ((s->vidtcon[2] >> FIMD_VIDTCON2_HOR_SHIFT) &
             FIMD_VIDTCON2_SIZE_MASK) + 1;
     uint32_t height = ((s->vidtcon[2] >> FIMD_VIDTCON2_VER_SHIFT) &
             FIMD_VIDTCON2_SIZE_MASK) + 1;
 
-    if (s->ifb == NULL || ds_get_width(s->console) != width ||
-            ds_get_height(s->console) != height) {
+    if (s->ifb == NULL || surface_width(surface) != width ||
+            surface_height(surface) != height) {
         DPRINT_L1("Resolution changed from %ux%u to %ux%u\n",
-           ds_get_width(s->console), ds_get_height(s->console), width, height);
+           surface_width(surface), surface_height(surface), width, height);
         qemu_console_resize(s->console, width, height);
         s->ifb = g_realloc(s->ifb, width * height * RGBA_SIZE + 1);
         memset(s->ifb, 0, width * height * RGBA_SIZE + 1);
@@ -1241,6 +1243,7 @@ static void exynos4210_update_resolution(Exynos4210fimdState *s)
 static void exynos4210_fimd_update(void *opaque)
 {
     Exynos4210fimdState *s = (Exynos4210fimdState *)opaque;
+    DisplaySurface *surface = qemu_console_surface(s->console);
     Exynos4210fimdWindow *w;
     int i, line;
     hwaddr fb_line_addr, inc_size;
@@ -1253,7 +1256,7 @@ static void exynos4210_fimd_update(void *opaque)
     const int global_height = ((s->vidtcon[2] >> FIMD_VIDTCON2_VER_SHIFT) &
             FIMD_VIDTCON2_SIZE_MASK) + 1;
 
-    if (!s || !s->console || !ds_get_bits_per_pixel(s->console) ||
+    if (!s || !s->console || !surface_bits_per_pixel(surface) ||
             !s->enabled) {
         return;
     }
@@ -1299,10 +1302,10 @@ static void exynos4210_fimd_update(void *opaque)
         uint8_t *d;
         int bpp;
 
-        bpp = ds_get_bits_per_pixel(s->console);
+        bpp = surface_bits_per_pixel(surface);
         fimd_update_putpix_qemu(bpp);
         bpp = (bpp + 1) >> 3;
-        d = ds_get_data(s->console);
+        d = surface_data(surface);
         for (line = first_line; line <= last_line; line++) {
             fimd_copy_line_toqemu(global_width, s->ifb + global_width * line *
                     RGBA_SIZE, d + global_width * line * bpp);

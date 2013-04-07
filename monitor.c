@@ -47,6 +47,7 @@
 #include "migration/migration.h"
 #include "sysemu/kvm.h"
 #include "qemu/acl.h"
+#include "tpm/tpm.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qfloat.h"
 #include "qapi/qmp/qlist.h"
@@ -260,11 +261,30 @@ int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
     }
 }
 
+static gboolean monitor_unblocked(GIOChannel *chan, GIOCondition cond,
+                                  void *opaque)
+{
+    monitor_flush(opaque);
+    return FALSE;
+}
+
 void monitor_flush(Monitor *mon)
 {
+    int rc;
+
     if (mon && mon->outbuf_index != 0 && !mon->mux_out) {
-        qemu_chr_fe_write(mon->chr, mon->outbuf, mon->outbuf_index);
-        mon->outbuf_index = 0;
+        rc = qemu_chr_fe_write(mon->chr, mon->outbuf, mon->outbuf_index);
+        if (rc == mon->outbuf_index) {
+            /* all flushed */
+            mon->outbuf_index = 0;
+            return;
+        }
+        if (rc > 0) {
+            /* partinal write */
+            memmove(mon->outbuf, mon->outbuf + rc, mon->outbuf_index - rc);
+            mon->outbuf_index -= rc;
+        }
+        qemu_chr_fe_add_watch(mon->chr, G_IO_OUT, monitor_unblocked, mon);
     }
 }
 
@@ -457,6 +477,7 @@ static const char *monitor_event_names[] = {
     [QEVENT_BLOCK_JOB_CANCELLED] = "BLOCK_JOB_CANCELLED",
     [QEVENT_BLOCK_JOB_ERROR] = "BLOCK_JOB_ERROR",
     [QEVENT_BLOCK_JOB_READY] = "BLOCK_JOB_READY",
+    [QEVENT_DEVICE_DELETED] = "DEVICE_DELETED",
     [QEVENT_DEVICE_TRAY_MOVED] = "DEVICE_TRAY_MOVED",
     [QEVENT_SUSPEND] = "SUSPEND",
     [QEVENT_SUSPEND_DISK] = "SUSPEND_DISK",
@@ -740,9 +761,18 @@ static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
-    int ret = trace_event_set_state(tp_name, new_state);
 
-    if (!ret) {
+    bool found = false;
+    TraceEvent *ev = NULL;
+    while ((ev = trace_event_pattern(tp_name, ev)) != NULL) {
+        found = true;
+        if (!trace_event_get_state_static(ev)) {
+            monitor_printf(mon, "event \"%s\" is not traceable\n", tp_name);
+        } else {
+            trace_event_set_state_dynamic(ev, new_state);
+        }
+    }
+    if (!trace_event_is_pattern(tp_name) && !found) {
         monitor_printf(mon, "unknown event name \"%s\"\n", tp_name);
     }
 }
@@ -855,17 +885,14 @@ EventInfoList *qmp_query_events(Error **errp)
 /* set the current CPU defined by the user */
 int monitor_set_cpu(int cpu_index)
 {
-    CPUArchState *env;
     CPUState *cpu;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu = ENV_GET_CPU(env);
-        if (cpu->cpu_index == cpu_index) {
-            cur_mon->mon_cpu = env;
-            return 0;
-        }
+    cpu = qemu_get_cpu(cpu_index);
+    if (cpu == NULL) {
+        return -1;
     }
-    return -1;
+    cur_mon->mon_cpu = cpu->env_ptr;
+    return 0;
 }
 
 static CPUArchState *mon_get_cpu(void)
@@ -2722,6 +2749,20 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.cmd = do_trace_print_events,
     },
     {
+        .name       = "tpm",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the TPM device",
+        .mhandler.cmd = hmp_info_tpm,
+    },
+    {
+        .name       = "cpu_max",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Get maximum number of VCPUs supported by machine",
+        .mhandler.cmd = hmp_query_cpu_max,
+    },
+    {
         .name       = NULL,
     },
 };
@@ -2936,10 +2977,6 @@ static const MonitorDef monitor_defs[] = {
     { "xer", 0, &monitor_get_xer, },
     { "tbu", 0, &monitor_get_tbu, },
     { "tbl", 0, &monitor_get_tbl, },
-#if defined(TARGET_PPC64)
-    /* Address space register */
-    { "asr", offsetof(CPUPPCState, asr) },
-#endif
     /* Segment registers */
     { "sdr1", offsetof(CPUPPCState, spr[SPR_SDR1]) },
     { "sr0", offsetof(CPUPPCState, sr[0]) },
@@ -3536,10 +3573,10 @@ static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
  * If @cmdline is blank, return NULL.
  * If it can't be parsed, report to @mon, and return NULL.
  * Else, insert command arguments into @qdict, and return the command.
- * If sub-command table exist, and if @cmdline contains addtional string for
- * sub-command, this function will try search sub-command table. if no
- * addtional string for sub-command exist, this function will return the found
- * one in @table.
+ * If a sub-command table exists, and if @cmdline contains an additional string
+ * for a sub-command, this function will try to search the sub-command table.
+ * If no additional string for a sub-command is present, this function will
+ * return the command found in @table.
  * Do not assume the returned command points into @table!  It doesn't
  * when the command is a sub-command.
  */

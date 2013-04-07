@@ -36,7 +36,7 @@ static void xen_init_pv(QEMUMachineInitArgs *args)
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
     X86CPU *cpu;
-    CPUX86State *env;
+    CPUState *cs;
     DriveInfo *dinfo;
     int i;
 
@@ -49,8 +49,8 @@ static void xen_init_pv(QEMUMachineInitArgs *args)
 #endif
     }
     cpu = cpu_x86_init(cpu_model);
-    env = &cpu->env;
-    env->halted = 1;
+    cs = CPU(cpu);
+    cs->halted = 1;
 
     /* Initialize backend core & drivers */
     if (xen_be_init() != 0) {

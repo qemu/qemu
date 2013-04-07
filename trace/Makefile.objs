@@ -1,7 +1,29 @@
 # -*- mode: makefile -*-
 
 ######################################################################
-# Auto-generated header for tracing routines
+# Auto-generated event descriptions
+
+$(obj)/generated-events.h: $(obj)/generated-events.h-timestamp
+$(obj)/generated-events.h-timestamp: $(SRC_PATH)/trace-events
+	$(call quiet-command,$(TRACETOOL) \
+		--format=events-h \
+		--backend=events \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-events.c: $(obj)/generated-events.c-timestamp $(BUILD_DIR)/config-host.mak
+$(obj)/generated-events.c-timestamp: $(SRC_PATH)/trace-events
+	$(call quiet-command,$(TRACETOOL) \
+		--format=events-c \
+		--backend=events \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+util-obj-y += generated-events.o
+
+
+######################################################################
+# Auto-generated tracing routines
 
 $(obj)/generated-tracers.h: $(obj)/generated-tracers.h-timestamp
 	@cmp -s $< $@ || cp $< $@

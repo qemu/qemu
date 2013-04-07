@@ -76,14 +76,19 @@ struct BlockDriver {
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_probe_device)(const char *filename);
 
+    /* Any driver implementing this callback is expected to be able to handle
+     * NULL file names in its .bdrv_open() implementation */
+    void (*bdrv_parse_filename)(const char *filename, QDict *options, Error **errp);
+
     /* For handling image reopen for split or non-split files */
     int (*bdrv_reopen_prepare)(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue, Error **errp);
     void (*bdrv_reopen_commit)(BDRVReopenState *reopen_state);
     void (*bdrv_reopen_abort)(BDRVReopenState *reopen_state);
 
-    int (*bdrv_open)(BlockDriverState *bs, int flags);
-    int (*bdrv_file_open)(BlockDriverState *bs, const char *filename, int flags);
+    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags);
+    int (*bdrv_file_open)(BlockDriverState *bs, const char *filename,
+                          QDict *options, int flags);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
                      uint8_t *buf, int nb_sectors);
     int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,
@@ -287,12 +292,20 @@ struct BlockDriverState {
     /* long-running background operation */
     BlockJob *job;
 
+    QDict *options;
 };
 
 int get_tmp_filename(char *filename, int size);
 
 void bdrv_set_io_limits(BlockDriverState *bs,
                         BlockIOLimit *io_limits);
+
+/**
+ * bdrv_get_aio_context:
+ *
+ * Returns: the currently bound #AioContext
+ */
+AioContext *bdrv_get_aio_context(BlockDriverState *bs);
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);

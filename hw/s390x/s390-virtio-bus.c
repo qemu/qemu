@@ -162,16 +162,23 @@ static int s390_virtio_net_init(VirtIOS390Device *dev)
     return s390_virtio_device_init(dev, vdev);
 }
 
-static int s390_virtio_blk_init(VirtIOS390Device *dev)
+static int s390_virtio_blk_init(VirtIOS390Device *s390_dev)
 {
-    VirtIODevice *vdev;
-
-    vdev = virtio_blk_init((DeviceState *)dev, &dev->blk);
-    if (!vdev) {
+    VirtIOBlkS390 *dev = VIRTIO_BLK_S390(s390_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+    virtio_blk_set_conf(vdev, &(dev->blk));
+    qdev_set_parent_bus(vdev, BUS(&s390_dev->bus));
+    if (qdev_init(vdev) < 0) {
         return -1;
     }
+    return s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+}
 
-    return s390_virtio_device_init(dev, vdev);
+static void s390_virtio_blk_instance_init(Object *obj)
+{
+    VirtIOBlkS390 *dev = VIRTIO_BLK_S390(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BLK);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
 static int s390_virtio_serial_init(VirtIOS390Device *dev)
@@ -195,16 +202,24 @@ static int s390_virtio_serial_init(VirtIOS390Device *dev)
     return r;
 }
 
-static int s390_virtio_scsi_init(VirtIOS390Device *dev)
+static int s390_virtio_scsi_init(VirtIOS390Device *s390_dev)
 {
-    VirtIODevice *vdev;
+    VirtIOSCSIS390 *dev = VIRTIO_SCSI_S390(s390_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
 
-    vdev = virtio_scsi_init((DeviceState *)dev, &dev->scsi);
-    if (!vdev) {
+    qdev_set_parent_bus(vdev, BUS(&s390_dev->bus));
+    if (qdev_init(vdev) < 0) {
         return -1;
     }
 
-    return s390_virtio_device_init(dev, vdev);
+    return s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+}
+
+static void s390_virtio_scsi_instance_init(Object *obj)
+{
+    VirtIOSCSIS390 *dev = VIRTIO_SCSI_S390(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_SCSI);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
 static int s390_virtio_rng_init(VirtIOS390Device *dev)
@@ -428,12 +443,7 @@ static const TypeInfo s390_virtio_net = {
 };
 
 static Property s390_virtio_blk_properties[] = {
-    DEFINE_BLOCK_PROPERTIES(VirtIOS390Device, blk.conf),
-    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOS390Device, blk.conf),
-    DEFINE_PROP_STRING("serial", VirtIOS390Device, blk.serial),
-#ifdef __linux__
-    DEFINE_PROP_BIT("scsi", VirtIOS390Device, blk.scsi, 0, true),
-#endif
+    DEFINE_VIRTIO_BLK_PROPERTIES(VirtIOBlkS390, blk),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -449,7 +459,8 @@ static void s390_virtio_blk_class_init(ObjectClass *klass, void *data)
 static const TypeInfo s390_virtio_blk = {
     .name          = "virtio-blk-s390",
     .parent        = TYPE_VIRTIO_S390_DEVICE,
-    .instance_size = sizeof(VirtIOS390Device),
+    .instance_size = sizeof(VirtIOBlkS390),
+    .instance_init = s390_virtio_blk_instance_init,
     .class_init    = s390_virtio_blk_class_init,
 };
 
@@ -535,7 +546,8 @@ static const TypeInfo virtio_s390_device_info = {
 };
 
 static Property s390_virtio_scsi_properties[] = {
-    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOS390Device, host_features, scsi),
+    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSIS390, vdev.conf),
+    DEFINE_VIRTIO_SCSI_FEATURES(VirtIOS390Device, host_features),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -549,9 +561,10 @@ static void s390_virtio_scsi_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo s390_virtio_scsi = {
-    .name          = "virtio-scsi-s390",
+    .name          = TYPE_VIRTIO_SCSI_S390,
     .parent        = TYPE_VIRTIO_S390_DEVICE,
-    .instance_size = sizeof(VirtIOS390Device),
+    .instance_size = sizeof(VirtIOSCSIS390),
+    .instance_init = s390_virtio_scsi_instance_init,
     .class_init    = s390_virtio_scsi_class_init,
 };
 
@@ -588,7 +601,7 @@ void virtio_s390_bus_new(VirtioBusState *bus, VirtIOS390Device *dev)
     BusState *qbus;
     qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_S390_BUS, qdev, NULL);
     qbus = BUS(bus);
-    qbus->allow_hotplug = 0;
+    qbus->allow_hotplug = 1;
 }
 
 static void virtio_s390_bus_class_init(ObjectClass *klass, void *data)

@@ -115,8 +115,8 @@ virtio_blk_data_plane_complete_request(void *s, unsigned int head, int ret) "dat
 vring_setup(uint64_t physical, void *desc, void *avail, void *used) "vring physical %#"PRIx64" desc %p avail %p used %p"
 
 # thread-pool.c
-thread_pool_submit(void *req, void *opaque) "req %p opaque %p"
-thread_pool_complete(void *req, void *opaque, int ret) "req %p opaque %p ret %d"
+thread_pool_submit(void *pool, void *req, void *opaque) "pool %p req %p opaque %p"
+thread_pool_complete(void *pool, void *req, void *opaque, int ret) "pool %p req %p opaque %p ret %d"
 thread_pool_cancel(void *req, void *opaque) "req %p opaque %p"
 
 # posix-aio-compat.c
@@ -473,6 +473,8 @@ scsi_request_sense(int target, int lun, int tag) "target %d lun %d tag %d"
 
 # vl.c
 vm_state_notify(int running, int reason) "running %d reason %d"
+load_file(const char *name, const char *path) "name %s location %s"
+runstate_set(int new_state) "new state %d"
 
 # block/qcow2.c
 qcow2_writev_start_req(void *co, int64_t sector, int nb_sectors) "co %p sector %" PRIx64 " nb_sectors %d"
@@ -482,6 +484,8 @@ qcow2_writev_done_part(void *co, int cur_nr_sectors) "co %p cur_nr_sectors %d"
 qcow2_writev_data(void *co, uint64_t offset) "co %p offset %" PRIx64
 
 qcow2_alloc_clusters_offset(void *co, uint64_t offset, int n_start, int n_end) "co %p offet %" PRIx64 " n_start %d n_end %d"
+qcow2_handle_copied(void *co, uint64_t guest_offset, uint64_t host_offset, uint64_t bytes) "co %p guest_offet %" PRIx64 " host_offset %" PRIx64 " bytes %" PRIx64
+qcow2_handle_alloc(void *co, uint64_t guest_offset, uint64_t host_offset, uint64_t bytes) "co %p guest_offet %" PRIx64 " host_offset %" PRIx64 " bytes %" PRIx64
 qcow2_do_alloc_clusters_offset(void *co, uint64_t guest_offset, uint64_t host_offset, int nb_clusters) "co %p guest_offet %" PRIx64 " host_offset %" PRIx64 " nb_clusters %d"
 qcow2_cluster_alloc_phys(void *co) "co %p"
 qcow2_cluster_link_l2(void *co, int nb_clusters) "co %p nb_clusters %d"
@@ -957,8 +961,11 @@ dma_bdrv_cb(void *dbs, int ret) "dbs=%p ret=%d"
 dma_map_wait(void *dbs) "dbs=%p"
 
 # console.h
-displaysurface_free(void *display_state, void *display_surface) "state=%p surface=%p"
-displaysurface_resize(void *display_state, void *display_surface, int width, int height) "state=%p surface=%p %dx%d"
+displaysurface_create(void *display_surface, int w, int h) "surface=%p, %dx%d"
+displaysurface_create_from(void *display_surface, int w, int h, int bpp, int swap) "surface=%p, %dx%d, bpp %d, bswap %d"
+displaysurface_free(void *display_surface) "surface=%p"
+displaychangelistener_register(void *dcl, const char *name) "%p [ %s ]"
+displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
 
 # vga.c
 ppm_save(const char *filename, void *display_surface) "%s surface=%p"

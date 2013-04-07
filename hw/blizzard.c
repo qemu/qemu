@@ -69,7 +69,7 @@ typedef struct {
     uint8_t effect;
     uint8_t iformat;
     uint8_t source;
-    DisplayState *state;
+    QemuConsole *con;
     blizzard_fn_t *line_fn_tab[2];
     void *fb;
 
@@ -144,6 +144,7 @@ static inline void blizzard_rgb2yuv(int r, int g, int b,
 
 static void blizzard_window(BlizzardState *s)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     uint8_t *src, *dst;
     int bypp[2];
     int bypl[3];
@@ -162,7 +163,7 @@ static void blizzard_window(BlizzardState *s)
         s->my[1] = s->data.y + s->data.dy;
 
     bypp[0] = s->bpp;
-    bypp[1] = (ds_get_bits_per_pixel(s->state) + 7) >> 3;
+    bypp[1] = surface_bytes_per_pixel(surface);
     bypl[0] = bypp[0] * s->data.pitch;
     bypl[1] = bypp[1] * s->x;
     bypl[2] = bypp[0] * s->data.dx;
@@ -883,23 +884,25 @@ void s1d13745_write_block(void *opaque, int dc,
 static void blizzard_update_display(void *opaque)
 {
     BlizzardState *s = (BlizzardState *) opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int y, bypp, bypl, bwidth;
     uint8_t *src, *dst;
 
     if (!s->enable)
         return;
 
-    if (s->x != ds_get_width(s->state) || s->y != ds_get_height(s->state)) {
+    if (s->x != surface_width(surface) || s->y != surface_height(surface)) {
         s->invalidate = 1;
-        qemu_console_resize(s->state, s->x, s->y);
+        qemu_console_resize(s->con, s->x, s->y);
+        surface = qemu_console_surface(s->con);
     }
 
     if (s->invalidate) {
         s->invalidate = 0;
 
         if (s->blank) {
-            bypp = (ds_get_bits_per_pixel(s->state) + 7) >> 3;
-            memset(ds_get_data(s->state), 0, bypp * s->x * s->y);
+            bypp = surface_bytes_per_pixel(surface);
+            memset(surface_data(surface), 0, bypp * s->x * s->y);
             return;
         }
 
@@ -912,16 +915,16 @@ static void blizzard_update_display(void *opaque)
     if (s->mx[1] <= s->mx[0])
         return;
 
-    bypp = (ds_get_bits_per_pixel(s->state) + 7) >> 3;
+    bypp = surface_bytes_per_pixel(surface);
     bypl = bypp * s->x;
     bwidth = bypp * (s->mx[1] - s->mx[0]);
     y = s->my[0];
     src = s->fb + bypl * y + bypp * s->mx[0];
-    dst = ds_get_data(s->state) + bypl * y + bypp * s->mx[0];
+    dst = surface_data(surface) + bypl * y + bypp * s->mx[0];
     for (; y < s->my[1]; y ++, src += bypl, dst += bypl)
         memcpy(dst, src, bwidth);
 
-    dpy_gfx_update(s->state, s->mx[0], s->my[0],
+    dpy_gfx_update(s->con, s->mx[0], s->my[0],
                    s->mx[1] - s->mx[0], y - s->my[0]);
 
     s->mx[0] = s->x;
@@ -934,10 +937,12 @@ static void blizzard_screen_dump(void *opaque, const char *filename,
                                  bool cswitch, Error **errp)
 {
     BlizzardState *s = (BlizzardState *) opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
 
     blizzard_update_display(opaque);
-    if (s && ds_get_data(s->state))
-        ppm_save(filename, s->state->surface, errp);
+    if (s && surface_data(surface)) {
+        ppm_save(filename, surface, errp);
+    }
 }
 
 #define DEPTH 8
@@ -954,14 +959,16 @@ static void blizzard_screen_dump(void *opaque, const char *filename,
 void *s1d13745_init(qemu_irq gpio_int)
 {
     BlizzardState *s = (BlizzardState *) g_malloc0(sizeof(*s));
+    DisplaySurface *surface;
 
     s->fb = g_malloc(0x180000);
 
-    s->state = graphic_console_init(blizzard_update_display,
-                                 blizzard_invalidate_display,
-                                 blizzard_screen_dump, NULL, s);
+    s->con = graphic_console_init(blizzard_update_display,
+                                  blizzard_invalidate_display,
+                                  blizzard_screen_dump, NULL, s);
+    surface = qemu_console_surface(s->con);
 
-    switch (ds_get_bits_per_pixel(s->state)) {
+    switch (surface_bits_per_pixel(surface)) {
     case 0:
         s->line_fn_tab[0] = s->line_fn_tab[1] =
                 g_malloc0(sizeof(blizzard_fn_t) * 0x10);

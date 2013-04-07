@@ -16,6 +16,13 @@
 
 #include "hw/virtio.h"
 #include "hw/block-common.h"
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+#include "dataplane/virtio-blk.h"
+#endif
+
+#define TYPE_VIRTIO_BLK "virtio-blk"
+#define VIRTIO_BLK(obj) \
+        OBJECT_CHECK(VirtIOBlock, (obj), TYPE_VIRTIO_BLK)
 
 /* from Linux's linux/virtio_blk.h */
 
@@ -108,7 +115,39 @@ struct VirtIOBlkConf
     uint32_t data_plane;
 };
 
+typedef struct VirtIOBlock {
+    VirtIODevice parent_obj;
+    BlockDriverState *bs;
+    VirtQueue *vq;
+    void *rq;
+    QEMUBH *bh;
+    BlockConf *conf;
+    VirtIOBlkConf blk;
+    unsigned short sector_mask;
+    VMChangeStateEntry *change;
+#ifdef CONFIG_VIRTIO_BLK_DATA_PLANE
+    VirtIOBlockDataPlane *dataplane;
+#endif
+} VirtIOBlock;
+
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)
+
+#ifdef __linux__
+#define DEFINE_VIRTIO_BLK_PROPERTIES(_state, _field)                          \
+        DEFINE_BLOCK_PROPERTIES(_state, _field.conf),                         \
+        DEFINE_BLOCK_CHS_PROPERTIES(_state, _field.conf),                     \
+        DEFINE_PROP_STRING("serial", _state, _field.serial),                  \
+        DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true),    \
+        DEFINE_PROP_BIT("scsi", _state, _field.scsi, 0, true)
+#else
+#define DEFINE_VIRTIO_BLK_PROPERTIES(_state, _field)                          \
+        DEFINE_BLOCK_PROPERTIES(_state, _field.conf),                         \
+        DEFINE_BLOCK_CHS_PROPERTIES(_state, _field.conf),                     \
+        DEFINE_PROP_STRING("serial", _state, _field.serial),                  \
+        DEFINE_PROP_BIT("config-wce", _state, _field.config_wce, 0, true)
+#endif /* __linux__ */
+
+void virtio_blk_set_conf(DeviceState *dev, VirtIOBlkConf *blk);
 
 #endif

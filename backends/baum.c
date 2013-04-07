@@ -561,7 +561,7 @@ static void baum_close(struct CharDriverState *chr)
     g_free(baum);
 }
 
-static CharDriverState *chr_baum_init(QemuOpts *opts)
+CharDriverState *chr_baum_init(void)
 {
     BaumDriverState *baum;
     CharDriverState *chr;
@@ -611,7 +611,7 @@ static CharDriverState *chr_baum_init(QemuOpts *opts)
 
     qemu_set_fd_handler(baum->brlapi_fd, baum_chr_read, NULL, baum);
 
-    qemu_chr_generic_open(chr);
+    qemu_chr_be_generic_open(chr);
 
     return chr;
 
@@ -627,7 +627,7 @@ fail_handle:
 
 static void register_types(void)
 {
-    register_char_driver("braille", chr_baum_init);
+    register_char_driver_qapi("braille", CHARDEV_BACKEND_KIND_BRAILLE, NULL);
 }
 
 type_init(register_types);

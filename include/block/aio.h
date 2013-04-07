@@ -66,6 +66,9 @@ typedef struct AioContext {
 
     /* GPollFDs for aio_poll() */
     GArray *pollfds;
+
+    /* Thread pool for performing work and receiving completion callbacks */
+    struct ThreadPool *thread_pool;
 } AioContext;
 
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
@@ -222,6 +225,9 @@ void aio_set_event_notifier(AioContext *ctx,
  * to this AioContext.
  */
 GSource *aio_get_g_source(AioContext *ctx);
+
+/* Return the ThreadPool bound to this AioContext */
+struct ThreadPool *aio_get_thread_pool(AioContext *ctx);
 
 /* Functions to operate on the main QEMU AioContext.  */
 

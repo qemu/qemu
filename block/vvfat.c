@@ -988,7 +988,8 @@ static void vvfat_rebind(BlockDriverState *bs)
     s->bs = bs;
 }
 
-static int vvfat_open(BlockDriverState *bs, const char* dirname, int flags)
+static int vvfat_open(BlockDriverState *bs, const char* dirname,
+                      QDict *options, int flags)
 {
     BDRVVVFATState *s = bs->opaque;
     int i, cyls, heads, secs;
@@ -2830,7 +2831,7 @@ static int enable_write_target(BDRVVVFATState *s)
         return -1;
     }
 
-    ret = bdrv_open(s->qcow, s->qcow_filename,
+    ret = bdrv_open(s->qcow, s->qcow_filename, NULL,
             BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, bdrv_qcow);
     if (ret < 0) {
 	return ret;

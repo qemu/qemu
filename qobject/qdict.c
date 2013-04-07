@@ -401,6 +401,28 @@ const QDictEntry *qdict_next(const QDict *qdict, const QDictEntry *entry)
 }
 
 /**
+ * qdict_clone_shallow(): Clones a given QDict. Its entries are not copied, but
+ * another reference is added.
+ */
+QDict *qdict_clone_shallow(const QDict *src)
+{
+    QDict *dest;
+    QDictEntry *entry;
+    int i;
+
+    dest = qdict_new();
+
+    for (i = 0; i < QDICT_BUCKET_MAX; i++) {
+        QLIST_FOREACH(entry, &src->table[i], next) {
+            qobject_incref(entry->value);
+            qdict_put_obj(dest, entry->key, entry->value);
+        }
+    }
+
+    return dest;
+}
+
+/**
  * qentry_destroy(): Free all the memory allocated by a QDictEntry
  */
 static void qentry_destroy(QDictEntry *e)

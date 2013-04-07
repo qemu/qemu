@@ -202,7 +202,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  * Methods are always <emphasis>virtual</emphasis>. Overriding a method in
  * #TypeInfo.class_init of a subclass leads to any user of the class obtained
  * via OBJECT_GET_CLASS() accessing the overridden function.
- * The original function is not automatically invoked. It is the responsability
+ * The original function is not automatically invoked. It is the responsibility
  * of the overriding class to determine whether and when to invoke the method
  * being overridden.
  *

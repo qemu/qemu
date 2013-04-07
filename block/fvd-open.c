@@ -23,7 +23,8 @@ static int init_journal (int read_only, BlockDriverState * bs,
 static int init_compact_image (BDRVFvdState * s, FvdHeader * header,
                                const char *const filename);
 
-static int fvd_open (BlockDriverState * bs, const char *filename, int flags)
+static int fvd_open(BlockDriverState * bs, const char *filename,
+                    QDict *options, int flags)
 {
     BDRVFvdState *s = bs->opaque;
     int ret;
@@ -48,7 +49,7 @@ static int fvd_open (BlockDriverState * bs, const char *filename, int flags)
     }
 
     s->fvd_metadata = bdrv_new ("");
-    ret = bdrv_open (s->fvd_metadata, filename, flags, drv);
+    ret = bdrv_open(s->fvd_metadata, filename, NULL, flags, drv);
     if (ret < 0) {
         fprintf (stderr, "Failed to open %s\n", filename);
         return ret;
@@ -333,7 +334,7 @@ static int init_data_file (BDRVFvdState * s, FvdHeader * header, int flags)
         }
 
         if (header->data_file_fmt[0] == 0) {
-            ret = bdrv_open (s->fvd_data, header->data_file, flags, NULL);
+            ret = bdrv_open(s->fvd_data, header->data_file, NULL, flags, NULL);
         } else {
             BlockDriver *data_drv = bdrv_find_format (header->data_file_fmt);
             if (!data_drv) {
@@ -342,7 +343,8 @@ static int init_data_file (BDRVFvdState * s, FvdHeader * header, int flags)
                          header->data_file_fmt, header->data_file);
                 return -1;
             }
-            ret = bdrv_open (s->fvd_data, header->data_file, flags, data_drv);
+            ret = bdrv_open(s->fvd_data, header->data_file,
+                            NULL, flags, data_drv);
         }
         if (ret != 0) {
             fprintf (stderr, "Failed to open data file %s\n",

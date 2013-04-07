@@ -143,6 +143,7 @@ int main(int argc, char **argv)
 #include "sysemu/blockdev.h"
 #include "hw/block-common.h"
 #include "migration/block.h"
+#include "tpm/tpm.h"
 #include "sysemu/dma.h"
 #include "audio/audio.h"
 #include "migration/migration.h"
@@ -182,7 +183,8 @@ int main(int argc, char **argv)
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
 
-static const char *data_dir;
+static const char *data_dir[16];
+static int data_dir_idx;
 const char *bios_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 DisplayType display_type = DT_DEFAULT;
@@ -236,6 +238,7 @@ int ctrl_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
+bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
@@ -463,6 +466,9 @@ static QemuOptsList qemu_boot_opts = {
         }, {
             .name = "reboot-timeout",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "strict",
+            .type = QEMU_OPT_STRING,
         },
         { /*End of list */ }
     },
@@ -495,6 +501,30 @@ static QemuOptsList qemu_object_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
     .desc = {
         { }
+    },
+};
+
+static QemuOptsList qemu_tpmdev_opts = {
+    .name = "tpmdev",
+    .implied_opt_name = "type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_tpmdev_opts.head),
+    .desc = {
+        {
+            .name = "type",
+            .type = QEMU_OPT_STRING,
+            .help = "Type of TPM backend",
+        },
+        {
+            .name = "cancel-path",
+            .type = QEMU_OPT_STRING,
+            .help = "Sysfs file entry for canceling TPM commands",
+        },
+        {
+            .name = "path",
+            .type = QEMU_OPT_STRING,
+            .help = "Path to TPM device on the host",
+        },
+        { /* end of list */ }
     },
 };
 
@@ -619,7 +649,7 @@ void runstate_set(RunState new_state)
                 RunState_lookup[new_state]);
         abort();
     }
-
+    trace_runstate_set(new_state);
     current_run_state = new_state;
 }
 
@@ -637,6 +667,11 @@ StatusInfo *qmp_query_status(Error **errp)
     info->status = current_run_state;
 
     return info;
+}
+
+int64_t qmp_query_cpu_max(Error **errp)
+{
+    return current_machine->max_cpus;
 }
 
 /***********************************************************/
@@ -1248,6 +1283,12 @@ char *get_boot_devices_list(size_t *size)
 
     *size = total;
 
+    if (boot_strict && *size > 0) {
+        list[total-1] = '\n';
+        list = g_realloc(list, total + 4);
+        memcpy(&list[total], "HALT", 4);
+        *size = total + 4;
+    }
     return list;
 }
 
@@ -1620,13 +1661,13 @@ void gui_setup_refresh(DisplayState *ds)
     bool have_text = false;
 
     QLIST_FOREACH(dcl, &ds->listeners, next) {
-        if (dcl->dpy_refresh != NULL) {
+        if (dcl->ops->dpy_refresh != NULL) {
             need_timer = true;
         }
-        if (dcl->dpy_gfx_update != NULL) {
+        if (dcl->ops->dpy_gfx_update != NULL) {
             have_gfx = true;
         }
-        if (dcl->dpy_text_update != NULL) {
+        if (dcl->ops->dpy_text_update != NULL) {
             have_text = true;
         }
     }
@@ -2294,14 +2335,16 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID data)
 
 char *qemu_find_file(int type, const char *name)
 {
-    int len;
+    int i;
     const char *subdir;
     char *buf;
 
     /* Try the name as a straight path first */
     if (access(name, R_OK) == 0) {
+        trace_load_file(name, name);
         return g_strdup(name);
     }
+
     switch (type) {
     case QEMU_FILE_TYPE_BIOS:
         subdir = "";
@@ -2312,14 +2355,16 @@ char *qemu_find_file(int type, const char *name)
     default:
         abort();
     }
-    len = strlen(data_dir) + strlen(name) + strlen(subdir) + 2;
-    buf = g_malloc0(len);
-    snprintf(buf, len, "%s/%s%s", data_dir, subdir, name);
-    if (access(buf, R_OK)) {
+
+    for (i = 0; i < data_dir_idx; i++) {
+        buf = g_strdup_printf("%s/%s%s", data_dir[i], subdir, name);
+        if (access(buf, R_OK) == 0) {
+            trace_load_file(name, buf);
+            return buf;
+        }
         g_free(buf);
-        return NULL;
     }
-    return buf;
+    return NULL;
 }
 
 static int device_help_func(QemuOpts *opts, void *opaque)
@@ -2911,6 +2956,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_sandbox_opts);
     qemu_add_opts(&qemu_add_fd_opts);
     qemu_add_opts(&qemu_object_opts);
+    qemu_add_opts(&qemu_tpmdev_opts);
 
     runstate_init();
 
@@ -2945,6 +2991,8 @@ int main(int argc, char **argv, char **envp)
 
     nb_numa_nodes = 0;
     nb_nics = 0;
+
+    bdrv_init_with_whitelist();
 
     autostart= 1;
 
@@ -3151,7 +3199,7 @@ int main(int argc, char **argv, char **envp)
                     static const char * const params[] = {
                         "order", "once", "menu",
                         "splash", "splash-time",
-                        "reboot-timeout", NULL
+                        "reboot-timeout", "strict", NULL
                     };
                     char buf[sizeof(boot_devices)];
                     char *standard_boot_devices;
@@ -3187,6 +3235,19 @@ int main(int argc, char **argv, char **envp)
                                 boot_menu = 1;
                             } else if (!strcmp(buf, "off")) {
                                 boot_menu = 0;
+                            } else {
+                                fprintf(stderr,
+                                        "qemu: invalid option value '%s'\n",
+                                        buf);
+                                exit(1);
+                            }
+                        }
+                        if (get_param_value(buf, sizeof(buf),
+                                            "strict", optarg)) {
+                            if (!strcmp(buf, "on")) {
+                                boot_strict = true;
+                            } else if (!strcmp(buf, "off")) {
+                                boot_strict = false;
                             } else {
                                 fprintf(stderr,
                                         "qemu: invalid option value '%s'\n",
@@ -3282,6 +3343,13 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             }
+#ifdef CONFIG_TPM
+            case QEMU_OPTION_tpmdev:
+                if (tpm_config_parse(qemu_find_opts("tpmdev"), optarg) < 0) {
+                    exit(1);
+                }
+                break;
+#endif
             case QEMU_OPTION_mempath:
                 mem_path = optarg;
                 break;
@@ -3303,7 +3371,9 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_GDB, optarg);
                 break;
             case QEMU_OPTION_L:
-                data_dir = optarg;
+                if (data_dir_idx < ARRAY_SIZE(data_dir)) {
+                    data_dir[data_dir_idx++] = optarg;
+                }
                 break;
             case QEMU_OPTION_bios:
                 bios_name = optarg;
@@ -3946,12 +4016,15 @@ int main(int argc, char **argv, char **envp)
 
     /* If no data_dir is specified then try to find it relative to the
        executable path.  */
-    if (!data_dir) {
-        data_dir = os_find_datadir(argv[0]);
+    if (data_dir_idx < ARRAY_SIZE(data_dir)) {
+        data_dir[data_dir_idx] = os_find_datadir(argv[0]);
+        if (data_dir[data_dir_idx] != NULL) {
+            data_dir_idx++;
+        }
     }
     /* If all else fails use the install path specified when building. */
-    if (!data_dir) {
-        data_dir = CONFIG_QEMU_DATADIR;
+    if (data_dir_idx < ARRAY_SIZE(data_dir)) {
+        data_dir[data_dir_idx++] = CONFIG_QEMU_DATADIR;
     }
 
     /*
@@ -4162,6 +4235,12 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+#ifdef CONFIG_TPM
+    if (tpm_init() < 0) {
+        exit(1);
+    }
+#endif
+
     /* init the bluetooth world */
     if (foreach_device_config(DEV_BT, bt_parse))
         exit(1);
@@ -4175,8 +4254,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     cpu_exec_init_all();
-
-    bdrv_init_with_whitelist();
 
     blk_mig_init();
 
@@ -4407,6 +4484,9 @@ int main(int argc, char **argv, char **envp)
     bdrv_close_all();
     pause_all_vcpus();
     res_free();
+#ifdef CONFIG_TPM
+    tpm_cleanup();
+#endif
 
     return 0;
 }

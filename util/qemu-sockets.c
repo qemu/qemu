@@ -33,10 +33,10 @@
 
 static const int on=1, off=0;
 
-/* used temporarely until all users are converted to QemuOpts */
-static QemuOptsList dummy_opts = {
-    .name = "dummy",
-    .head = QTAILQ_HEAD_INITIALIZER(dummy_opts.head),
+/* used temporarily until all users are converted to QemuOpts */
+QemuOptsList socket_optslist = {
+    .name = "socket",
+    .head = QTAILQ_HEAD_INITIALIZER(socket_optslist.head),
     .desc = {
         {
             .name = "path",
@@ -156,12 +156,12 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
             continue;
         }
 
-        setsockopt(slisten,SOL_SOCKET,SO_REUSEADDR,(void*)&on,sizeof(on));
+        qemu_setsockopt(slisten, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 #ifdef IPV6_V6ONLY
         if (e->ai_family == PF_INET6) {
             /* listen on both ipv4 and ipv6 */
-            setsockopt(slisten,IPPROTO_IPV6,IPV6_V6ONLY,(void*)&off,
-                sizeof(off));
+            qemu_setsockopt(slisten, IPPROTO_IPV6, IPV6_V6ONLY, &off,
+                            sizeof(off));
         }
 #endif
 
@@ -229,7 +229,7 @@ static void wait_for_connect(void *opaque)
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
 
     do {
-        rc = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (void *) &val, &valsize);
+        rc = qemu_getsockopt(s->fd, SOL_SOCKET, SO_ERROR, &val, &valsize);
     } while (rc == -1 && socket_error() == EINTR);
 
     /* update rc to contain error */
@@ -456,7 +456,7 @@ int inet_dgram_opts(QemuOpts *opts, Error **errp)
         error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
         goto err;
     }
-    setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,(void*)&on,sizeof(on));
+    qemu_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
     /* bind socket */
     if (bind(sock, local->ai_addr, local->ai_addrlen) < 0) {
@@ -485,7 +485,7 @@ err:
 }
 
 /* compatibility wrapper */
-static InetSocketAddress *inet_parse(const char *str, Error **errp)
+InetSocketAddress *inet_parse(const char *str, Error **errp)
 {
     InetSocketAddress *addr;
     const char *optstr, *h;
@@ -555,7 +555,7 @@ fail:
     return NULL;
 }
 
-static void inet_addr_to_opts(QemuOpts *opts, InetSocketAddress *addr)
+static void inet_addr_to_opts(QemuOpts *opts, const InetSocketAddress *addr)
 {
     bool ipv4 = addr->ipv4 || !addr->has_ipv4;
     bool ipv6 = addr->ipv6 || !addr->has_ipv6;
@@ -583,7 +583,7 @@ int inet_listen(const char *str, char *ostr, int olen,
 
     addr = inet_parse(str, errp);
     if (addr != NULL) {
-        opts = qemu_opts_create_nofail(&dummy_opts);
+        opts = qemu_opts_create_nofail(&socket_optslist);
         inet_addr_to_opts(opts, addr);
         qapi_free_InetSocketAddress(addr);
         sock = inet_listen_opts(opts, port_offset, errp);
@@ -622,7 +622,7 @@ int inet_connect(const char *str, Error **errp)
 
     addr = inet_parse(str, errp);
     if (addr != NULL) {
-        opts = qemu_opts_create_nofail(&dummy_opts);
+        opts = qemu_opts_create_nofail(&socket_optslist);
         inet_addr_to_opts(opts, addr);
         qapi_free_InetSocketAddress(addr);
         sock = inet_connect_opts(opts, errp, NULL, NULL);
@@ -656,7 +656,7 @@ int inet_nonblocking_connect(const char *str,
 
     addr = inet_parse(str, errp);
     if (addr != NULL) {
-        opts = qemu_opts_create_nofail(&dummy_opts);
+        opts = qemu_opts_create_nofail(&socket_optslist);
         inet_addr_to_opts(opts, addr);
         qapi_free_InetSocketAddress(addr);
         sock = inet_connect_opts(opts, errp, callback, opaque);
@@ -799,7 +799,7 @@ int unix_listen(const char *str, char *ostr, int olen, Error **errp)
     char *path, *optstr;
     int sock, len;
 
-    opts = qemu_opts_create_nofail(&dummy_opts);
+    opts = qemu_opts_create_nofail(&socket_optslist);
 
     optstr = strchr(str, ',');
     if (optstr) {
@@ -827,7 +827,7 @@ int unix_connect(const char *path, Error **errp)
     QemuOpts *opts;
     int sock;
 
-    opts = qemu_opts_create_nofail(&dummy_opts);
+    opts = qemu_opts_create_nofail(&socket_optslist);
     qemu_opt_set(opts, "path", path);
     sock = unix_connect_opts(opts, errp, NULL, NULL);
     qemu_opts_del(opts);
@@ -844,7 +844,7 @@ int unix_nonblocking_connect(const char *path,
 
     g_assert(callback != NULL);
 
-    opts = qemu_opts_create_nofail(&dummy_opts);
+    opts = qemu_opts_create_nofail(&socket_optslist);
     qemu_opt_set(opts, "path", path);
     sock = unix_connect_opts(opts, errp, callback, opaque);
     qemu_opts_del(opts);
@@ -895,7 +895,7 @@ int socket_connect(SocketAddress *addr, Error **errp,
     QemuOpts *opts;
     int fd;
 
-    opts = qemu_opts_create_nofail(&dummy_opts);
+    opts = qemu_opts_create_nofail(&socket_optslist);
     switch (addr->kind) {
     case SOCKET_ADDRESS_KIND_INET:
         inet_addr_to_opts(opts, addr->inet);
@@ -926,7 +926,7 @@ int socket_listen(SocketAddress *addr, Error **errp)
     QemuOpts *opts;
     int fd;
 
-    opts = qemu_opts_create_nofail(&dummy_opts);
+    opts = qemu_opts_create_nofail(&socket_optslist);
     switch (addr->kind) {
     case SOCKET_ADDRESS_KIND_INET:
         inet_addr_to_opts(opts, addr->inet);
@@ -944,6 +944,31 @@ int socket_listen(SocketAddress *addr, Error **errp)
 
     default:
         abort();
+    }
+    qemu_opts_del(opts);
+    return fd;
+}
+
+int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
+{
+    QemuOpts *opts;
+    int fd;
+
+    opts = qemu_opts_create_nofail(&socket_optslist);
+    switch (remote->kind) {
+    case SOCKET_ADDRESS_KIND_INET:
+        qemu_opt_set(opts, "host", remote->inet->host);
+        qemu_opt_set(opts, "port", remote->inet->port);
+        if (local) {
+            qemu_opt_set(opts, "localaddr", local->inet->host);
+            qemu_opt_set(opts, "localport", local->inet->port);
+        }
+        fd = inet_dgram_opts(opts, errp);
+        break;
+
+    default:
+        error_setg(errp, "socket type unsupported for datagram");
+        return -1;
     }
     qemu_opts_del(opts);
     return fd;

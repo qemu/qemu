@@ -1686,7 +1686,8 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
     case 253:
         /* WAIT */
         tmp = tcg_const_i64(1);
-        tcg_gen_st32_i64(tmp, cpu_env, offsetof(CPUAlphaState, halted));
+        tcg_gen_st32_i64(tmp, cpu_env, -offsetof(AlphaCPU, env) +
+                                       offsetof(CPUState, halted));
         return gen_excp(ctx, EXCP_HLT, 0);
 
     case 252:

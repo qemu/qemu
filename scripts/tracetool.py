@@ -90,8 +90,8 @@ def main(args):
             arg_format = arg
 
         elif opt == "--list-backends":
-            backends = tracetool.backend.get_list()
-            out(", ".join([ b for b,_ in backends ]))
+            public_backends = tracetool.backend.get_list(only_public = True)
+            out(", ".join([ b for b,_ in public_backends ]))
             sys.exit(0)
         elif opt == "--check-backend":
             check_backend = True

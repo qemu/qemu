@@ -661,7 +661,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
 
         path_combine(extent_path, sizeof(extent_path),
                 desc_file_path, fname);
-        ret = bdrv_file_open(&extent_file, extent_path, bs->open_flags);
+        ret = bdrv_file_open(&extent_file, extent_path, NULL, bs->open_flags);
         if (ret) {
             return ret;
         }
@@ -723,7 +723,7 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
     return vmdk_parse_extents(buf, bs, bs->file->filename);
 }
 
-static int vmdk_open(BlockDriverState *bs, int flags)
+static int vmdk_open(BlockDriverState *bs, QDict *options, int flags)
 {
     int ret;
     BDRVVmdkState *s = bs->opaque;
@@ -1527,7 +1527,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     if (backing_file) {
         char parent_filename[PATH_MAX];
         BlockDriverState *bs = bdrv_new("");
-        ret = bdrv_open(bs, backing_file, 0, NULL);
+        ret = bdrv_open(bs, backing_file, NULL, 0, NULL);
         if (ret != 0) {
             bdrv_delete(bs);
             return ret;

@@ -59,7 +59,7 @@ static int i82801b11_bridge_initfn(PCIDevice *d)
 {
     int rc;
 
-    rc = pci_bridge_initfn(d);
+    rc = pci_bridge_initfn(d, TYPE_PCI_BUS);
     if (rc < 0) {
         return rc;
     }

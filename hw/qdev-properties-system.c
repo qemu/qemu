@@ -43,7 +43,7 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
     int ret;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -136,9 +136,11 @@ static void release_chr(Object *obj, const char *name, void *opaque)
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+    CharDriverState *chr = *ptr;
 
-    if (*ptr) {
-        qemu_chr_add_handlers(*ptr, NULL, NULL, NULL, NULL);
+    if (chr) {
+        qemu_chr_add_handlers(chr, NULL, NULL, NULL, NULL);
+        ++chr->avail_connections;
     }
 }
 
@@ -287,7 +289,7 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
     NetClientState *hubport;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 

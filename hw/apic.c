@@ -151,15 +151,15 @@ static void apic_local_deliver(APICCommonState *s, int vector)
 
     switch ((lvt >> 8) & 7) {
     case APIC_DM_SMI:
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_SMI);
+        cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_SMI);
         break;
 
     case APIC_DM_NMI:
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_NMI);
+        cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_NMI);
         break;
 
     case APIC_DM_EXTINT:
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HARD);
         break;
 
     case APIC_DM_FIXED:
@@ -187,7 +187,7 @@ void apic_deliver_pic_intr(DeviceState *d, int level)
             reset_bit(s->irr, lvt & 0xff);
             /* fall through */
         case APIC_DM_EXTINT:
-            cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+            cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_HARD);
             break;
         }
     }
@@ -248,20 +248,20 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
 
         case APIC_DM_SMI:
             foreach_apic(apic_iter, deliver_bitmask,
-                cpu_interrupt(&apic_iter->cpu->env, CPU_INTERRUPT_SMI)
+                cpu_interrupt(CPU(apic_iter->cpu), CPU_INTERRUPT_SMI)
             );
             return;
 
         case APIC_DM_NMI:
             foreach_apic(apic_iter, deliver_bitmask,
-                cpu_interrupt(&apic_iter->cpu->env, CPU_INTERRUPT_NMI)
+                cpu_interrupt(CPU(apic_iter->cpu), CPU_INTERRUPT_NMI)
             );
             return;
 
         case APIC_DM_INIT:
             /* normal INIT IPI sent to processors */
             foreach_apic(apic_iter, deliver_bitmask,
-                         cpu_interrupt(&apic_iter->cpu->env,
+                         cpu_interrupt(CPU(apic_iter->cpu),
                                        CPU_INTERRUPT_INIT)
             );
             return;
@@ -363,15 +363,16 @@ static int apic_irq_pending(APICCommonState *s)
 /* signal the CPU if an irq is pending */
 static void apic_update_irq(APICCommonState *s)
 {
-    CPUState *cpu = CPU(s->cpu);
+    CPUState *cpu;
 
     if (!(s->spurious_vec & APIC_SV_ENABLE)) {
         return;
     }
+    cpu = CPU(s->cpu);
     if (!qemu_cpu_is_self(cpu)) {
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_POLL);
+        cpu_interrupt(cpu, CPU_INTERRUPT_POLL);
     } else if (apic_irq_pending(s) > 0) {
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(cpu, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -478,14 +479,14 @@ static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
 static void apic_startup(APICCommonState *s, int vector_num)
 {
     s->sipi_vector = vector_num;
-    cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_SIPI);
+    cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_SIPI);
 }
 
 void apic_sipi(DeviceState *d)
 {
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
 
-    cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_SIPI);
+    cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_SIPI);
 
     if (!s->wait_for_sipi)
         return;

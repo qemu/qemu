@@ -304,7 +304,8 @@ fail:
 }
 
 /* Valid blkdebug filenames look like blkdebug:path/to/config:path/to/image */
-static int blkdebug_open(BlockDriverState *bs, const char *filename, int flags)
+static int blkdebug_open(BlockDriverState *bs, const char *filename,
+                         QDict *options, int flags)
 {
     BDRVBlkdebugState *s = bs->opaque;
     int ret;
@@ -335,7 +336,7 @@ static int blkdebug_open(BlockDriverState *bs, const char *filename, int flags)
     s->state = 1;
 
     /* Open the backing file */
-    ret = bdrv_file_open(&bs->file, filename, flags);
+    ret = bdrv_file_open(&bs->file, filename, NULL, flags);
     if (ret < 0) {
         return ret;
     }

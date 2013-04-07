@@ -255,6 +255,7 @@ static uint32_t sh7750_mem_readw(void *opaque, hwaddr addr)
 static uint32_t sh7750_mem_readl(void *opaque, hwaddr addr)
 {
     SH7750State *s = opaque;
+    SuperHCPUClass *scc;
 
     switch (addr) {
     case SH7750_BCR1_A7:
@@ -288,11 +289,14 @@ static uint32_t sh7750_mem_readl(void *opaque, hwaddr addr)
     case SH7750_CCR_A7:
 	return s->ccr;
     case 0x1f000030:		/* Processor version */
-	return s->cpu->pvr;
+        scc = SUPERH_CPU_GET_CLASS(s->cpu);
+        return scc->pvr;
     case 0x1f000040:		/* Cache version */
-	return s->cpu->cvr;
+        scc = SUPERH_CPU_GET_CLASS(s->cpu);
+        return scc->cvr;
     case 0x1f000044:		/* Processor revision */
-	return s->cpu->prr;
+        scc = SUPERH_CPU_GET_CLASS(s->cpu);
+        return scc->prr;
     default:
 	error_access("long read", addr);
         abort();

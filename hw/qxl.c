@@ -118,8 +118,6 @@ static QXLMode qxl_modes[] = {
     QXL_MODE_EX(3200, 2400),
 };
 
-static PCIQXLDevice *qxl0;
-
 static void qxl_send_events(PCIQXLDevice *d, uint32_t events);
 static int qxl_destroy_primary(PCIQXLDevice *d, qxl_async_io async);
 static void qxl_reset_memslots(PCIQXLDevice *d);
@@ -1075,8 +1073,8 @@ static void qxl_enter_vga_mode(PCIQXLDevice *d)
     trace_qxl_enter_vga_mode(d->id);
     qemu_spice_create_host_primary(&d->ssd);
     d->mode = QXL_MODE_VGA;
-    dpy_gfx_resize(d->ssd.ds);
     vga_dirty_log_start(&d->vga);
+    vga_hw_update();
 }
 
 static void qxl_exit_vga_mode(PCIQXLDevice *d)
@@ -1784,7 +1782,7 @@ static void qxl_hw_screen_dump(void *opaque, const char *filename, bool cswitch,
     case QXL_MODE_COMPAT:
     case QXL_MODE_NATIVE:
         qxl_render_update(qxl);
-        ppm_save(filename, qxl->ssd.ds->surface, errp);
+        ppm_save(filename, qxl->ssd.ds, errp);
         break;
     case QXL_MODE_VGA:
         vga->screen_dump(vga, filename, cswitch, errp);
@@ -1866,35 +1864,45 @@ static void qxl_vm_change_state_handler(void *opaque, int running,
 
 /* display change listener */
 
-static void display_update(struct DisplayState *ds, int x, int y, int w, int h)
+static void display_update(DisplayChangeListener *dcl,
+                           int x, int y, int w, int h)
 {
-    if (qxl0->mode == QXL_MODE_VGA) {
-        qemu_spice_display_update(&qxl0->ssd, x, y, w, h);
+    PCIQXLDevice *qxl = container_of(dcl, PCIQXLDevice, ssd.dcl);
+
+    if (qxl->mode == QXL_MODE_VGA) {
+        qemu_spice_display_update(&qxl->ssd, x, y, w, h);
     }
 }
 
-static void display_resize(struct DisplayState *ds)
+static void display_switch(DisplayChangeListener *dcl,
+                           struct DisplaySurface *surface)
 {
-    if (qxl0->mode == QXL_MODE_VGA) {
-        qemu_spice_display_resize(&qxl0->ssd);
+    PCIQXLDevice *qxl = container_of(dcl, PCIQXLDevice, ssd.dcl);
+
+    qxl->ssd.ds = surface;
+    if (qxl->mode == QXL_MODE_VGA) {
+        qemu_spice_display_switch(&qxl->ssd, surface);
     }
 }
 
-static void display_refresh(struct DisplayState *ds)
+static void display_refresh(DisplayChangeListener *dcl)
 {
-    if (qxl0->mode == QXL_MODE_VGA) {
-        qemu_spice_display_refresh(&qxl0->ssd);
+    PCIQXLDevice *qxl = container_of(dcl, PCIQXLDevice, ssd.dcl);
+
+    if (qxl->mode == QXL_MODE_VGA) {
+        qemu_spice_display_refresh(&qxl->ssd);
     } else {
-        qemu_mutex_lock(&qxl0->ssd.lock);
-        qemu_spice_cursor_refresh_unlocked(&qxl0->ssd);
-        qemu_mutex_unlock(&qxl0->ssd.lock);
+        qemu_mutex_lock(&qxl->ssd.lock);
+        qemu_spice_cursor_refresh_unlocked(&qxl->ssd);
+        qemu_mutex_unlock(&qxl->ssd.lock);
     }
 }
 
-static DisplayChangeListener display_listener = {
+static DisplayChangeListenerOps display_listener_ops = {
+    .dpy_name        = "spice/qxl",
     .dpy_gfx_update  = display_update,
-    .dpy_gfx_resize  = display_resize,
-    .dpy_refresh = display_refresh,
+    .dpy_gfx_switch  = display_switch,
+    .dpy_refresh     = display_refresh,
 };
 
 static void qxl_init_ramsize(PCIQXLDevice *qxl)
@@ -2055,6 +2063,7 @@ static int qxl_init_primary(PCIDevice *dev)
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
     VGACommonState *vga = &qxl->vga;
     PortioList *qxl_vga_port_list = g_new(PortioList, 1);
+    DisplayState *ds;
     int rc;
 
     qxl->id = 0;
@@ -2065,18 +2074,20 @@ static int qxl_init_primary(PCIDevice *dev)
     portio_list_init(qxl_vga_port_list, qxl_vga_portio_list, vga, "vga");
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
 
-    vga->ds = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
-                                   qxl_hw_screen_dump, qxl_hw_text_update, qxl);
-    qemu_spice_display_init_common(&qxl->ssd, vga->ds);
-
-    qxl0 = qxl;
+    vga->con = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
+                                    qxl_hw_screen_dump, qxl_hw_text_update,
+                                    qxl);
+    qxl->ssd.con = vga->con,
+    qemu_spice_display_init_common(&qxl->ssd);
 
     rc = qxl_init_common(qxl);
     if (rc != 0) {
         return rc;
     }
 
-    register_displaychangelistener(vga->ds, &display_listener);
+    qxl->ssd.dcl.ops = &display_listener_ops;
+    ds = qemu_console_displaystate(vga->con);
+    register_displaychangelistener(ds, &qxl->ssd.dcl);
     return rc;
 }
 

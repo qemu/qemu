@@ -37,17 +37,18 @@
 
 static void glue(tc6393xb_draw_graphic, BITS)(TC6393xbState *s)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int i;
     uint16_t *data_buffer;
     uint8_t *data_display;
 
     data_buffer = s->vram_ptr;
-    data_display = ds_get_data(s->ds);
+    data_display = surface_data(surface);
     for(i = 0; i < s->scr_height; i++) {
 #if (BITS == 16)
         memcpy(data_display, data_buffer, s->scr_width * 2);
         data_buffer += s->scr_width;
-        data_display += ds_get_linesize(s->ds);
+        data_display += surface_stride(surface);
 #else
         int j;
         for (j = 0; j < s->scr_width; j++, data_display += BITS / 8, data_buffer++) {

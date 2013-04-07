@@ -105,7 +105,9 @@ void QEMU_NORETURN helper_debug(CPUSH4State *env)
 
 void QEMU_NORETURN helper_sleep(CPUSH4State *env)
 {
-    env->halted = 1;
+    CPUState *cs = CPU(sh_env_get_cpu(env));
+
+    cs->halted = 1;
     env->in_sleep = 1;
     raise_exception(env, EXCP_HLT, 0);
 }

@@ -329,7 +329,7 @@ static int apb_pci_bridge_initfn(PCIDevice *dev)
 {
     int rc;
 
-    rc = pci_bridge_initfn(dev);
+    rc = pci_bridge_initfn(dev, TYPE_PCI_BUS);
     if (rc < 0) {
         return rc;
     }
@@ -381,7 +381,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
                               pci_apb_set_irq, pci_pbm_map_irq, d,
                               &d->pci_mmio,
                               get_system_io(),
-                              0, 32);
+                              0, 32, TYPE_PCI_BUS);
 
     *pbm_irqs = d->pbm_irqs;
     d->ivec_irqs = ivec_irqs;

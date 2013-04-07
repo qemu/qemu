@@ -32,6 +32,8 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "qemu/sockets.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qint.h"
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -65,17 +67,19 @@ typedef struct BDRVNBDState {
     Coroutine *recv_coroutine[MAX_NBD_REQUESTS];
     struct nbd_reply reply;
 
-    int is_unix;
-    char *host_spec;
+    bool is_unix;
+    QemuOpts *socket_opts;
+
     char *export_name; /* An NBD server may export several devices */
 } BDRVNBDState;
 
-static int nbd_parse_uri(BDRVNBDState *s, const char *filename)
+static int nbd_parse_uri(const char *filename, QDict *options)
 {
     URI *uri;
     const char *p;
     QueryParams *qp = NULL;
     int ret = 0;
+    bool is_unix;
 
     uri = uri_parse(filename);
     if (!uri) {
@@ -84,11 +88,11 @@ static int nbd_parse_uri(BDRVNBDState *s, const char *filename)
 
     /* transport */
     if (!strcmp(uri->scheme, "nbd")) {
-        s->is_unix = false;
+        is_unix = false;
     } else if (!strcmp(uri->scheme, "nbd+tcp")) {
-        s->is_unix = false;
+        is_unix = false;
     } else if (!strcmp(uri->scheme, "nbd+unix")) {
-        s->is_unix = true;
+        is_unix = true;
     } else {
         ret = -EINVAL;
         goto out;
@@ -97,32 +101,35 @@ static int nbd_parse_uri(BDRVNBDState *s, const char *filename)
     p = uri->path ? uri->path : "/";
     p += strspn(p, "/");
     if (p[0]) {
-        s->export_name = g_strdup(p);
+        qdict_put(options, "export", qstring_from_str(p));
     }
 
     qp = query_params_parse(uri->query);
-    if (qp->n > 1 || (s->is_unix && !qp->n) || (!s->is_unix && qp->n)) {
+    if (qp->n > 1 || (is_unix && !qp->n) || (!is_unix && qp->n)) {
         ret = -EINVAL;
         goto out;
     }
 
-    if (s->is_unix) {
+    if (is_unix) {
         /* nbd+unix:///export?socket=path */
         if (uri->server || uri->port || strcmp(qp->p[0].name, "socket")) {
             ret = -EINVAL;
             goto out;
         }
-        s->host_spec = g_strdup(qp->p[0].value);
+        qdict_put(options, "path", qstring_from_str(qp->p[0].value));
     } else {
-        /* nbd[+tcp]://host:port/export */
+        /* nbd[+tcp]://host[:port]/export */
         if (!uri->server) {
             ret = -EINVAL;
             goto out;
         }
-        if (!uri->port) {
-            uri->port = NBD_DEFAULT_PORT;
+
+        qdict_put(options, "host", qstring_from_str(uri->server));
+        if (uri->port) {
+            char* port_str = g_strdup_printf("%d", uri->port);
+            qdict_put(options, "port", qstring_from_str(port_str));
+            g_free(port_str);
         }
-        s->host_spec = g_strdup_printf("%s:%d", uri->server, uri->port);
     }
 
 out:
@@ -133,16 +140,29 @@ out:
     return ret;
 }
 
-static int nbd_config(BDRVNBDState *s, const char *filename)
+static void nbd_parse_filename(const char *filename, QDict *options,
+                               Error **errp)
 {
     char *file;
     char *export_name;
     const char *host_spec;
     const char *unixpath;
-    int err = -EINVAL;
+
+    if (qdict_haskey(options, "host")
+        || qdict_haskey(options, "port")
+        || qdict_haskey(options, "path"))
+    {
+        error_setg(errp, "host/port/path and a file name may not be specified "
+                         "at the same time");
+        return;
+    }
 
     if (strstr(filename, "://")) {
-        return nbd_parse_uri(s, filename);
+        int ret = nbd_parse_uri(filename, options);
+        if (ret < 0) {
+            error_setg(errp, "No valid URL specified");
+        }
+        return;
     }
 
     file = g_strdup(filename);
@@ -154,33 +174,78 @@ static int nbd_config(BDRVNBDState *s, const char *filename)
         }
         export_name[0] = 0; /* truncate 'file' */
         export_name += strlen(EN_OPTSTR);
-        s->export_name = g_strdup(export_name);
+
+        qdict_put(options, "export", qstring_from_str(export_name));
     }
 
     /* extract the host_spec - fail if it's not nbd:... */
     if (!strstart(file, "nbd:", &host_spec)) {
+        error_setg(errp, "File name string for NBD must start with 'nbd:'");
+        goto out;
+    }
+
+    if (!*host_spec) {
         goto out;
     }
 
     /* are we a UNIX or TCP socket? */
     if (strstart(host_spec, "unix:", &unixpath)) {
-        s->is_unix = true;
-        s->host_spec = g_strdup(unixpath);
+        qdict_put(options, "path", qstring_from_str(unixpath));
     } else {
-        s->is_unix = false;
-        s->host_spec = g_strdup(host_spec);
-    }
+        InetSocketAddress *addr = NULL;
 
-    err = 0;
+        addr = inet_parse(host_spec, errp);
+        if (error_is_set(errp)) {
+            goto out;
+        }
+
+        qdict_put(options, "host", qstring_from_str(addr->host));
+        qdict_put(options, "port", qstring_from_str(addr->port));
+        qapi_free_InetSocketAddress(addr);
+    }
 
 out:
     g_free(file);
-    if (err != 0) {
-        g_free(s->export_name);
-        g_free(s->host_spec);
-    }
-    return err;
 }
+
+static int nbd_config(BDRVNBDState *s, QDict *options)
+{
+    Error *local_err = NULL;
+
+    if (qdict_haskey(options, "path")) {
+        if (qdict_haskey(options, "host")) {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR, "path and host may not "
+                          "be used at the same time.");
+            return -EINVAL;
+        }
+        s->is_unix = true;
+    } else if (qdict_haskey(options, "host")) {
+        s->is_unix = false;
+    } else {
+        return -EINVAL;
+    }
+
+    s->socket_opts = qemu_opts_create_nofail(&socket_optslist);
+
+    qemu_opts_absorb_qdict(s->socket_opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -EINVAL;
+    }
+
+    if (!qemu_opt_get(s->socket_opts, "port")) {
+        qemu_opt_set_number(s->socket_opts, "port", NBD_DEFAULT_PORT);
+    }
+
+    s->export_name = g_strdup(qdict_get_try_str(options, "export"));
+    if (s->export_name) {
+        qdict_del(options, "export");
+    }
+
+    return 0;
+}
+
 
 static void nbd_coroutine_start(BDRVNBDState *s, struct nbd_request *request)
 {
@@ -328,9 +393,9 @@ static int nbd_establish_connection(BlockDriverState *bs)
     size_t blocksize;
 
     if (s->is_unix) {
-        sock = unix_socket_outgoing(s->host_spec);
+        sock = unix_socket_outgoing(qemu_opt_get(s->socket_opts, "path"));
     } else {
-        sock = tcp_socket_outgoing_spec(s->host_spec);
+        sock = tcp_socket_outgoing_opts(s->socket_opts);
     }
 
     /* Failed to establish connection */
@@ -376,7 +441,8 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     closesocket(s->sock);
 }
 
-static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
+static int nbd_open(BlockDriverState *bs, const char* filename,
+                    QDict *options, int flags)
 {
     BDRVNBDState *s = bs->opaque;
     int result;
@@ -385,7 +451,7 @@ static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
     qemu_co_mutex_init(&s->free_sema);
 
     /* Pop the config into our state object. Exit if invalid. */
-    result = nbd_config(s, filename);
+    result = nbd_config(s, options);
     if (result != 0) {
         return result;
     }
@@ -549,7 +615,7 @@ static void nbd_close(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
     g_free(s->export_name);
-    g_free(s->host_spec);
+    qemu_opts_del(s->socket_opts);
 
     nbd_teardown_connection(bs);
 }
@@ -565,6 +631,7 @@ static BlockDriver bdrv_nbd = {
     .format_name         = "nbd",
     .protocol_name       = "nbd",
     .instance_size       = sizeof(BDRVNBDState),
+    .bdrv_parse_filename = nbd_parse_filename,
     .bdrv_file_open      = nbd_open,
     .bdrv_co_readv       = nbd_co_readv,
     .bdrv_co_writev      = nbd_co_writev,
@@ -578,6 +645,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .format_name         = "nbd",
     .protocol_name       = "nbd+tcp",
     .instance_size       = sizeof(BDRVNBDState),
+    .bdrv_parse_filename = nbd_parse_filename,
     .bdrv_file_open      = nbd_open,
     .bdrv_co_readv       = nbd_co_readv,
     .bdrv_co_writev      = nbd_co_writev,
@@ -591,6 +659,7 @@ static BlockDriver bdrv_nbd_unix = {
     .format_name         = "nbd",
     .protocol_name       = "nbd+unix",
     .instance_size       = sizeof(BDRVNBDState),
+    .bdrv_parse_filename = nbd_parse_filename,
     .bdrv_file_open      = nbd_open,
     .bdrv_co_readv       = nbd_co_readv,
     .bdrv_co_writev      = nbd_co_writev,

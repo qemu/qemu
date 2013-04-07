@@ -39,7 +39,7 @@ typedef struct G364State {
     uint32_t top_of_screen;
     uint32_t width, height; /* in pixels */
     /* display refresh support */
-    DisplayState *ds;
+    QemuConsole *con;
     int depth;
     int blanked;
 } G364State;
@@ -77,6 +77,7 @@ static inline void reset_dirty(G364State *s,
 
 static void g364fb_draw_graphic8(G364State *s)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int i, w;
     uint8_t *vram;
     uint8_t *data_display, *dd;
@@ -87,7 +88,7 @@ static void g364fb_draw_graphic8(G364State *s)
     int xcursor, ycursor;
     unsigned int (*rgb_to_pixel)(unsigned int r, unsigned int g, unsigned int b);
 
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(surface)) {
         case 8:
             rgb_to_pixel = rgb_to_pixel8;
             w = 1;
@@ -106,7 +107,7 @@ static void g364fb_draw_graphic8(G364State *s)
             break;
         default:
             hw_error("g364: unknown host depth %d",
-                     ds_get_bits_per_pixel(s->ds));
+                     surface_bits_per_pixel(surface));
             return;
     }
 
@@ -129,7 +130,7 @@ static void g364fb_draw_graphic8(G364State *s)
 
     vram = s->vram + s->top_of_screen;
     /* XXX: out of range in vram? */
-    data_display = dd = ds_get_data(s->ds);
+    data_display = dd = surface_data(surface);
     while (y < s->height) {
         if (check_dirty(s, page)) {
             if (y < ymin)
@@ -182,7 +183,7 @@ static void g364fb_draw_graphic8(G364State *s)
                         ymax = s->height - 1;
                         goto done;
                     }
-                    data_display = dd = data_display + ds_get_linesize(s->ds);
+                    data_display = dd = data_display + surface_stride(surface);
                     xmin = 0;
                     x = 0;
                 }
@@ -197,7 +198,7 @@ static void g364fb_draw_graphic8(G364State *s)
                 reset_dirty(s, page_min, page_max);
                 page_min = (ram_addr_t)-1;
                 page_max = 0;
-                dpy_gfx_update(s->ds, xmin, ymin,
+                dpy_gfx_update(s->con, xmin, ymin,
                                xmax - xmin + 1, ymax - ymin + 1);
                 xmin = s->width;
                 xmax = 0;
@@ -209,7 +210,7 @@ static void g364fb_draw_graphic8(G364State *s)
             x = x % s->width;
             y += dy;
             vram += G364_PAGE_SIZE;
-            data_display += dy * ds_get_linesize(s->ds);
+            data_display += dy * surface_stride(surface);
             dd = data_display + x * w;
         }
         page += G364_PAGE_SIZE;
@@ -217,13 +218,14 @@ static void g364fb_draw_graphic8(G364State *s)
 
 done:
     if (page_min != (ram_addr_t)-1) {
-        dpy_gfx_update(s->ds, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
+        dpy_gfx_update(s->con, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
         reset_dirty(s, page_min, page_max);
     }
 }
 
 static void g364fb_draw_blank(G364State *s)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int i, w;
     uint8_t *d;
 
@@ -232,28 +234,30 @@ static void g364fb_draw_blank(G364State *s)
         return;
     }
 
-    w = s->width * ((ds_get_bits_per_pixel(s->ds) + 7) >> 3);
-    d = ds_get_data(s->ds);
+    w = s->width * surface_bytes_per_pixel(surface);
+    d = surface_data(surface);
     for (i = 0; i < s->height; i++) {
         memset(d, 0, w);
-        d += ds_get_linesize(s->ds);
+        d += surface_stride(surface);
     }
 
-    dpy_gfx_update(s->ds, 0, 0, s->width, s->height);
+    dpy_gfx_update(s->con, 0, 0, s->width, s->height);
     s->blanked = 1;
 }
 
 static void g364fb_update_display(void *opaque)
 {
     G364State *s = opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
 
     qemu_flush_coalesced_mmio_buffer();
 
     if (s->width == 0 || s->height == 0)
         return;
 
-    if (s->width != ds_get_width(s->ds) || s->height != ds_get_height(s->ds)) {
-        qemu_console_resize(s->ds, s->width, s->height);
+    if (s->width != surface_width(surface) ||
+        s->height != surface_height(surface)) {
+        qemu_console_resize(s->con, s->width, s->height);
     }
 
     if (s->ctla & CTLA_FORCE_BLANK) {
@@ -413,13 +417,14 @@ static void g364fb_update_depth(G364State *s)
 
 static void g364_invalidate_cursor_position(G364State *s)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int ymin, ymax, start, end;
 
     /* invalidate only near the cursor */
     ymin = s->cursor_position & 0xfff;
     ymax = MIN(s->height, ymin + 64);
-    start = ymin * ds_get_linesize(s->ds);
-    end = (ymax + 1) * ds_get_linesize(s->ds);
+    start = ymin * surface_stride(surface);
+    end = (ymax + 1) * surface_stride(surface);
 
     memory_region_set_dirty(&s->mem_vram, start, end - start);
 }
@@ -545,9 +550,9 @@ static void g364fb_init(DeviceState *dev, G364State *s)
 {
     s->vram = g_malloc0(s->vram_size);
 
-    s->ds = graphic_console_init(g364fb_update_display,
-                                 g364fb_invalidate_display,
-                                 g364fb_screen_dump, NULL, s);
+    s->con = graphic_console_init(g364fb_update_display,
+                                  g364fb_invalidate_display,
+                                  g364fb_screen_dump, NULL, s);
 
     memory_region_init_io(&s->mem_ctrl, &g364fb_ctrl_ops, s, "ctrl", 0x180000);
     memory_region_init_ram_ptr(&s->mem_vram, "vram",

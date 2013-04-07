@@ -364,7 +364,7 @@ static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
     return result;
 }
 
-static int vdi_open(BlockDriverState *bs, int flags)
+static int vdi_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVVdiState *s = bs->opaque;
     VdiHeader header;

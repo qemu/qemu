@@ -29,16 +29,19 @@
 
 static void microblaze_pic_cpu_handler(void *opaque, int irq, int level)
 {
-    CPUMBState *env = (CPUMBState *)opaque;
+    MicroBlazeCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
     int type = irq ? CPU_INTERRUPT_NMI : CPU_INTERRUPT_HARD;
 
-    if (level)
-        cpu_interrupt(env, type);
-    else
-        cpu_reset_interrupt(env, type);
+    if (level) {
+        cpu_interrupt(cs, type);
+    } else {
+        cpu_reset_interrupt(cs, type);
+    }
 }
 
 qemu_irq *microblaze_pic_init_cpu(CPUMBState *env)
 {
-    return qemu_allocate_irqs(microblaze_pic_cpu_handler, env, 2);
+    return qemu_allocate_irqs(microblaze_pic_cpu_handler, mb_env_get_cpu(env),
+                              2);
 }

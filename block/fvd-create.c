@@ -134,9 +134,9 @@ static int fvd_create (const char *filename, QEMUOptionParameter * options)
                          base_img_fmt);
                 return -1;
             }
-            ret = bdrv_open (bs, header->data_file, 0, drv);
+            ret = bdrv_open(bs, header->data_file, NULL, 0, drv);
         } else {
-            ret = bdrv_open (bs, base_img, 0, NULL);
+            ret = bdrv_open(bs, base_img, NULL, 0, NULL);
         }
 
         if (ret < 0) {

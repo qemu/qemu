@@ -1776,7 +1776,7 @@ void ppc40x_core_reset(PowerPCCPU *cpu)
     target_ulong dbsr;
 
     printf("Reset PowerPC core\n");
-    cpu_interrupt(env, CPU_INTERRUPT_RESET);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_RESET);
     dbsr = env->spr[SPR_40x_DBSR];
     dbsr &= ~0x00000300;
     dbsr |= 0x00000100;
@@ -1789,7 +1789,7 @@ void ppc40x_chip_reset(PowerPCCPU *cpu)
     target_ulong dbsr;
 
     printf("Reset PowerPC chip\n");
-    cpu_interrupt(env, CPU_INTERRUPT_RESET);
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_RESET);
     /* XXX: TODO reset all internal peripherals */
     dbsr = env->spr[SPR_40x_DBSR];
     dbsr &= ~0x00000300;

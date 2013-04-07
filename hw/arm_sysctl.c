@@ -9,6 +9,7 @@
 
 #include "hw/hw.h"
 #include "qemu/timer.h"
+#include "qemu/bitops.h"
 #include "hw/sysbus.h"
 #include "hw/primecell.h"
 #include "sysemu/sysemu.h"
@@ -34,11 +35,17 @@ typedef struct {
     uint32_t sys_cfgctrl;
     uint32_t sys_cfgstat;
     uint32_t sys_clcd;
+    uint32_t mb_clock[6];
+    uint32_t *db_clock;
+    uint32_t db_num_vsensors;
+    uint32_t *db_voltage;
+    uint32_t db_num_clocks;
+    uint32_t *db_clock_reset;
 } arm_sysctl_state;
 
 static const VMStateDescription vmstate_arm_sysctl = {
     .name = "realview_sysctl",
-    .version_id = 3,
+    .version_id = 4,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(leds, arm_sysctl_state),
@@ -53,6 +60,9 @@ static const VMStateDescription vmstate_arm_sysctl = {
         VMSTATE_UINT32_V(sys_cfgctrl, arm_sysctl_state, 2),
         VMSTATE_UINT32_V(sys_cfgstat, arm_sysctl_state, 2),
         VMSTATE_UINT32_V(sys_clcd, arm_sysctl_state, 3),
+        VMSTATE_UINT32_ARRAY_V(mb_clock, arm_sysctl_state, 6, 4),
+        VMSTATE_VARRAY_UINT32(db_clock, arm_sysctl_state, db_num_clocks,
+                              4, vmstate_info_uint32, uint32_t),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -76,6 +86,7 @@ static int board_id(arm_sysctl_state *s)
 static void arm_sysctl_reset(DeviceState *d)
 {
     arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, SYS_BUS_DEVICE(d));
+    int i;
 
     s->leds = 0;
     s->lockval = 0;
@@ -83,6 +94,17 @@ static void arm_sysctl_reset(DeviceState *d)
     s->cfgdata2 = 0;
     s->flags = 0;
     s->resetlevel = 0;
+    /* Motherboard oscillators (in Hz) */
+    s->mb_clock[0] = 50000000; /* Static memory clock: 50MHz */
+    s->mb_clock[1] = 23750000; /* motherboard CLCD clock: 23.75MHz */
+    s->mb_clock[2] = 24000000; /* IO FPGA peripheral clock: 24MHz */
+    s->mb_clock[3] = 24000000; /* IO FPGA reserved clock: 24MHz */
+    s->mb_clock[4] = 24000000; /* System bus global clock: 24MHz */
+    s->mb_clock[5] = 24000000; /* IO FPGA reserved clock: 24MHz */
+    /* Daughterboard oscillators: reset from property values */
+    for (i = 0; i < s->db_num_clocks; i++) {
+        s->db_clock[i] = s->db_clock_reset[i];
+    }
     if (board_id(s) == BOARD_ID_VEXPRESS) {
         /* On VExpress this register will RAZ/WI */
         s->sys_clcd = 0;
@@ -189,6 +211,166 @@ static uint64_t arm_sysctl_read(void *opaque, hwaddr offset,
                       (int)offset);
         return 0;
     }
+}
+
+/* SYS_CFGCTRL functions */
+#define SYS_CFG_OSC 1
+#define SYS_CFG_VOLT 2
+#define SYS_CFG_AMP 3
+#define SYS_CFG_TEMP 4
+#define SYS_CFG_RESET 5
+#define SYS_CFG_SCC 6
+#define SYS_CFG_MUXFPGA 7
+#define SYS_CFG_SHUTDOWN 8
+#define SYS_CFG_REBOOT 9
+#define SYS_CFG_DVIMODE 11
+#define SYS_CFG_POWER 12
+#define SYS_CFG_ENERGY 13
+
+/* SYS_CFGCTRL site field values */
+#define SYS_CFG_SITE_MB 0
+#define SYS_CFG_SITE_DB1 1
+#define SYS_CFG_SITE_DB2 2
+
+/**
+ * vexpress_cfgctrl_read:
+ * @s: arm_sysctl_state pointer
+ * @dcc, @function, @site, @position, @device: split out values from
+ * SYS_CFGCTRL register
+ * @val: pointer to where to put the read data on success
+ *
+ * Handle a VExpress SYS_CFGCTRL register read. On success, return true and
+ * write the read value to *val. On failure, return false (and val may
+ * or may not be written to).
+ */
+static bool vexpress_cfgctrl_read(arm_sysctl_state *s, unsigned int dcc,
+                                  unsigned int function, unsigned int site,
+                                  unsigned int position, unsigned int device,
+                                  uint32_t *val)
+{
+    /* We don't support anything other than DCC 0, board stack position 0
+     * or sites other than motherboard/daughterboard:
+     */
+    if (dcc != 0 || position != 0 ||
+        (site != SYS_CFG_SITE_MB && site != SYS_CFG_SITE_DB1)) {
+        goto cfgctrl_unimp;
+    }
+
+    switch (function) {
+    case SYS_CFG_VOLT:
+        if (site == SYS_CFG_SITE_DB1 && device < s->db_num_vsensors) {
+            *val = s->db_voltage[device];
+            return true;
+        }
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            /* There is only one motherboard voltage sensor:
+             * VIO : 3.3V : bus voltage between mother and daughterboard
+             */
+            *val = 3300000;
+            return true;
+        }
+        break;
+    case SYS_CFG_OSC:
+        if (site == SYS_CFG_SITE_MB && device < sizeof(s->mb_clock)) {
+            /* motherboard clock */
+            *val = s->mb_clock[device];
+            return true;
+        }
+        if (site == SYS_CFG_SITE_DB1 && device < s->db_num_clocks) {
+            /* daughterboard clock */
+            *val = s->db_clock[device];
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+
+cfgctrl_unimp:
+    qemu_log_mask(LOG_UNIMP,
+                  "arm_sysctl: Unimplemented SYS_CFGCTRL read of function "
+                  "0x%x DCC 0x%x site 0x%x position 0x%x device 0x%x\n",
+                  function, dcc, site, position, device);
+    return false;
+}
+
+/**
+ * vexpress_cfgctrl_write:
+ * @s: arm_sysctl_state pointer
+ * @dcc, @function, @site, @position, @device: split out values from
+ * SYS_CFGCTRL register
+ * @val: data to write
+ *
+ * Handle a VExpress SYS_CFGCTRL register write. On success, return true.
+ * On failure, return false.
+ */
+static bool vexpress_cfgctrl_write(arm_sysctl_state *s, unsigned int dcc,
+                                   unsigned int function, unsigned int site,
+                                   unsigned int position, unsigned int device,
+                                   uint32_t val)
+{
+    /* We don't support anything other than DCC 0, board stack position 0
+     * or sites other than motherboard/daughterboard:
+     */
+    if (dcc != 0 || position != 0 ||
+        (site != SYS_CFG_SITE_MB && site != SYS_CFG_SITE_DB1)) {
+        goto cfgctrl_unimp;
+    }
+
+    switch (function) {
+    case SYS_CFG_OSC:
+        if (site == SYS_CFG_SITE_MB && device < sizeof(s->mb_clock)) {
+            /* motherboard clock */
+            s->mb_clock[device] = val;
+            return true;
+        }
+        if (site == SYS_CFG_SITE_DB1 && device < s->db_num_clocks) {
+            /* daughterboard clock */
+            s->db_clock[device] = val;
+            return true;
+        }
+        break;
+    case SYS_CFG_MUXFPGA:
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            /* Select whether video output comes from motherboard
+             * or daughterboard: log and ignore as QEMU doesn't
+             * support this.
+             */
+            qemu_log_mask(LOG_UNIMP, "arm_sysctl: selection of video output "
+                          "not supported, ignoring\n");
+            return true;
+        }
+        break;
+    case SYS_CFG_SHUTDOWN:
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            qemu_system_shutdown_request();
+            return true;
+        }
+        break;
+    case SYS_CFG_REBOOT:
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            qemu_system_reset_request();
+            return true;
+        }
+        break;
+    case SYS_CFG_DVIMODE:
+        if (site == SYS_CFG_SITE_MB && device == 0) {
+            /* Selecting DVI mode is meaningless for QEMU: we will
+             * always display the output correctly according to the
+             * pixel height/width programmed into the CLCD controller.
+             */
+            return true;
+        }
+    default:
+        break;
+    }
+
+cfgctrl_unimp:
+    qemu_log_mask(LOG_UNIMP,
+                  "arm_sysctl: Unimplemented SYS_CFGCTRL write of function "
+                  "0x%x DCC 0x%x site 0x%x position 0x%x device 0x%x\n",
+                  function, dcc, site, position, device);
+    return false;
 }
 
 static void arm_sysctl_write(void *opaque, hwaddr offset,
@@ -322,17 +504,33 @@ static void arm_sysctl_write(void *opaque, hwaddr offset,
         if (board_id(s) != BOARD_ID_VEXPRESS) {
             goto bad_reg;
         }
-        s->sys_cfgctrl = val & ~(3 << 18);
-        s->sys_cfgstat = 1;            /* complete */
-        switch (s->sys_cfgctrl) {
-        case 0xc0800000:            /* SYS_CFG_SHUTDOWN to motherboard */
-            qemu_system_shutdown_request();
-            break;
-        case 0xc0900000:            /* SYS_CFG_REBOOT to motherboard */
-            qemu_system_reset_request();
-            break;
-        default:
-            s->sys_cfgstat |= 2;        /* error */
+        /* Undefined bits [19:18] are RAZ/WI, and writing to
+         * the start bit just triggers the action; it always reads
+         * as zero.
+         */
+        s->sys_cfgctrl = val & ~((3 << 18) | (1 << 31));
+        if (val & (1 << 31)) {
+            /* Start bit set -- actually do something */
+            unsigned int dcc = extract32(s->sys_cfgctrl, 26, 4);
+            unsigned int function = extract32(s->sys_cfgctrl, 20, 6);
+            unsigned int site = extract32(s->sys_cfgctrl, 16, 2);
+            unsigned int position = extract32(s->sys_cfgctrl, 12, 4);
+            unsigned int device = extract32(s->sys_cfgctrl, 0, 12);
+            s->sys_cfgstat = 1;            /* complete */
+            if (s->sys_cfgctrl & (1 << 30)) {
+                if (!vexpress_cfgctrl_write(s, dcc, function, site, position,
+                                            device, s->sys_cfgdata)) {
+                    s->sys_cfgstat |= 2;        /* error */
+                }
+            } else {
+                uint32_t val;
+                if (!vexpress_cfgctrl_read(s, dcc, function, site, position,
+                                           device, &val)) {
+                    s->sys_cfgstat |= 2;        /* error */
+                } else {
+                    s->sys_cfgdata = val;
+                }
+            }
         }
         s->sys_cfgctrl &= ~(1 << 31);
         return;
@@ -385,29 +583,50 @@ static void arm_sysctl_gpio_set(void *opaque, int line, int level)
     }
 }
 
-static int arm_sysctl_init(SysBusDevice *dev)
+static void arm_sysctl_init(Object *obj)
 {
-    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
+    DeviceState *dev = DEVICE(obj);
+    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
+    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, sd);
 
     memory_region_init_io(&s->iomem, &arm_sysctl_ops, s, "arm-sysctl", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    qdev_init_gpio_in(&s->busdev.qdev, arm_sysctl_gpio_set, 2);
-    qdev_init_gpio_out(&s->busdev.qdev, &s->pl110_mux_ctrl, 1);
-    return 0;
+    sysbus_init_mmio(sd, &s->iomem);
+    qdev_init_gpio_in(dev, arm_sysctl_gpio_set, 2);
+    qdev_init_gpio_out(dev, &s->pl110_mux_ctrl, 1);
+}
+
+static void arm_sysctl_realize(DeviceState *d, Error **errp)
+{
+    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, SYS_BUS_DEVICE(d));
+    s->db_clock = g_new0(uint32_t, s->db_num_clocks);
+}
+
+static void arm_sysctl_finalize(Object *obj)
+{
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
+    g_free(s->db_voltage);
+    g_free(s->db_clock);
+    g_free(s->db_clock_reset);
 }
 
 static Property arm_sysctl_properties[] = {
     DEFINE_PROP_UINT32("sys_id", arm_sysctl_state, sys_id, 0),
     DEFINE_PROP_UINT32("proc_id", arm_sysctl_state, proc_id, 0),
+    /* Daughterboard power supply voltages (as reported via SYS_CFG) */
+    DEFINE_PROP_ARRAY("db-voltage", arm_sysctl_state, db_num_vsensors,
+                      db_voltage, qdev_prop_uint32, uint32_t),
+    /* Daughterboard clock reset values (as reported via SYS_CFG) */
+    DEFINE_PROP_ARRAY("db-clock", arm_sysctl_state, db_num_clocks,
+                      db_clock_reset, qdev_prop_uint32, uint32_t),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void arm_sysctl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = arm_sysctl_init;
+    dc->realize = arm_sysctl_realize;
     dc->reset = arm_sysctl_reset;
     dc->vmsd = &vmstate_arm_sysctl;
     dc->props = arm_sysctl_properties;
@@ -417,6 +636,8 @@ static const TypeInfo arm_sysctl_info = {
     .name          = "realview_sysctl",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(arm_sysctl_state),
+    .instance_init = arm_sysctl_init,
+    .instance_finalize = arm_sysctl_finalize,
     .class_init    = arm_sysctl_class_init,
 };
 

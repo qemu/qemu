@@ -52,16 +52,18 @@ static void cpu_ppc_tb_start (CPUPPCState *env);
 
 void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
 {
+    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     unsigned int old_pending = env->pending_interrupts;
 
     if (level) {
         env->pending_interrupts |= 1 << n_IRQ;
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
         env->pending_interrupts &= ~(1 << n_IRQ);
-        if (env->pending_interrupts == 0)
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        if (env->pending_interrupts == 0) {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
     }
 
     if (old_pending != env->pending_interrupts) {
@@ -72,7 +74,7 @@ void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
 
     LOG_IRQ("%s: %p n_IRQ %d level %d => pending %08" PRIx32
                 "req %08x\n", __func__, env, n_IRQ, level,
-                env->pending_interrupts, env->interrupt_request);
+                env->pending_interrupts, CPU(cpu)->interrupt_request);
 }
 
 /* PowerPC 6xx / 7xx internal IRQ controller */
@@ -87,6 +89,8 @@ static void ppc6xx_set_irq(void *opaque, int pin, int level)
     cur_level = (env->irq_input_state >> pin) & 1;
     /* Don't generate spurious events */
     if ((cur_level == 1 && level == 0) || (cur_level == 0 && level != 0)) {
+        CPUState *cs = CPU(cpu);
+
         switch (pin) {
         case PPC6xx_INPUT_TBEN:
             /* Level sensitive - active high */
@@ -126,14 +130,14 @@ static void ppc6xx_set_irq(void *opaque, int pin, int level)
             /* XXX: Note that the only way to restart the CPU is to reset it */
             if (level) {
                 LOG_IRQ("%s: stop the CPU\n", __func__);
-                env->halted = 1;
+                cs->halted = 1;
             }
             break;
         case PPC6xx_INPUT_HRESET:
             /* Level sensitive - active low */
             if (level) {
                 LOG_IRQ("%s: reset the CPU\n", __func__);
-                cpu_interrupt(env, CPU_INTERRUPT_RESET);
+                cpu_interrupt(cs, CPU_INTERRUPT_RESET);
             }
             break;
         case PPC6xx_INPUT_SRESET:
@@ -174,6 +178,8 @@ static void ppc970_set_irq(void *opaque, int pin, int level)
     cur_level = (env->irq_input_state >> pin) & 1;
     /* Don't generate spurious events */
     if ((cur_level == 1 && level == 0) || (cur_level == 0 && level != 0)) {
+        CPUState *cs = CPU(cpu);
+
         switch (pin) {
         case PPC970_INPUT_INT:
             /* Level sensitive - active high */
@@ -203,17 +209,17 @@ static void ppc970_set_irq(void *opaque, int pin, int level)
             /* XXX: TODO: relay the signal to CKSTP_OUT pin */
             if (level) {
                 LOG_IRQ("%s: stop the CPU\n", __func__);
-                env->halted = 1;
+                cs->halted = 1;
             } else {
                 LOG_IRQ("%s: restart the CPU\n", __func__);
-                env->halted = 0;
-                qemu_cpu_kick(CPU(cpu));
+                cs->halted = 0;
+                qemu_cpu_kick(cs);
             }
             break;
         case PPC970_INPUT_HRESET:
             /* Level sensitive - active low */
             if (level) {
-                cpu_interrupt(env, CPU_INTERRUPT_RESET);
+                cpu_interrupt(cs, CPU_INTERRUPT_RESET);
             }
             break;
         case PPC970_INPUT_SRESET:
@@ -295,6 +301,8 @@ static void ppc40x_set_irq(void *opaque, int pin, int level)
     cur_level = (env->irq_input_state >> pin) & 1;
     /* Don't generate spurious events */
     if ((cur_level == 1 && level == 0) || (cur_level == 0 && level != 0)) {
+        CPUState *cs = CPU(cpu);
+
         switch (pin) {
         case PPC40x_INPUT_RESET_SYS:
             if (level) {
@@ -332,11 +340,11 @@ static void ppc40x_set_irq(void *opaque, int pin, int level)
             /* Level sensitive - active low */
             if (level) {
                 LOG_IRQ("%s: stop the CPU\n", __func__);
-                env->halted = 1;
+                cs->halted = 1;
             } else {
                 LOG_IRQ("%s: restart the CPU\n", __func__);
-                env->halted = 0;
-                qemu_cpu_kick(CPU(cpu));
+                cs->halted = 0;
+                qemu_cpu_kick(cs);
             }
             break;
         case PPC40x_INPUT_DEBUG:

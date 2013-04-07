@@ -58,6 +58,9 @@
 
 #define DEFAULT_CLUSTER_SIZE 65536
 
+
+#define QCOW2_OPT_LAZY_REFCOUNTS "lazy_refcounts"
+
 typedef struct QCowHeader {
     uint32_t magic;
     uint32_t version;
@@ -173,6 +176,7 @@ typedef struct BDRVQcowState {
 
     int flags;
     int qcow_version;
+    bool use_lazy_refcounts;
 
     uint64_t incompatible_features;
     uint64_t compatible_features;
@@ -246,6 +250,9 @@ typedef struct QCowL2Meta
      */
     Qcow2COWRegion cow_end;
 
+    /** Pointer to next L2Meta of the same write request */
+    struct QCowL2Meta *next;
+
     QLIST_ENTRY(QCowL2Meta) next_in_flight;
 } QCowL2Meta;
 
@@ -262,6 +269,16 @@ enum {
 
 #define REFT_OFFSET_MASK 0xffffffffffffff00ULL
 
+static inline int64_t start_of_cluster(BDRVQcowState *s, int64_t offset)
+{
+    return offset & ~(s->cluster_size - 1);
+}
+
+static inline int64_t offset_into_cluster(BDRVQcowState *s, int64_t offset)
+{
+    return offset & (s->cluster_size - 1);
+}
+
 static inline int size_to_clusters(BDRVQcowState *s, int64_t size)
 {
     return (size + (s->cluster_size - 1)) >> s->cluster_bits;
@@ -271,6 +288,11 @@ static inline int size_to_l1(BDRVQcowState *s, int64_t size)
 {
     int shift = s->cluster_bits + s->l2_bits;
     return (size + (1ULL << shift) - 1) >> shift;
+}
+
+static inline int offset_to_l2_index(BDRVQcowState *s, int64_t offset)
+{
+    return (offset >> s->cluster_bits) & (s->l2_size - 1);
 }
 
 static inline int64_t align_offset(int64_t offset, int n)
@@ -296,6 +318,17 @@ static inline int qcow2_get_cluster_type(uint64_t l2_entry)
 static inline bool qcow2_need_accurate_refcounts(BDRVQcowState *s)
 {
     return !(s->incompatible_features & QCOW2_INCOMPAT_DIRTY);
+}
+
+static inline uint64_t l2meta_cow_start(QCowL2Meta *m)
+{
+    return m->offset + m->cow_start.offset;
+}
+
+static inline uint64_t l2meta_cow_end(QCowL2Meta *m)
+{
+    return m->offset + m->cow_end.offset
+        + (m->cow_end.nb_sectors << BDRV_SECTOR_BITS);
 }
 
 // FIXME Need qcow2_ prefix to global functions

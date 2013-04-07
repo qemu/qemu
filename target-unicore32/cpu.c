@@ -132,6 +132,7 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = uc32_cpu_realizefn;
 
     cc->class_by_name = uc32_cpu_class_by_name;
+    cc->do_interrupt = uc32_cpu_do_interrupt;
     dc->vmsd = &vmstate_uc32_cpu;
 }
 

@@ -35,6 +35,7 @@
 #include "sdl_zoom.h"
 
 static DisplayChangeListener *dcl;
+static DisplaySurface *surface;
 static SDL_Surface *real_screen;
 static SDL_Surface *guest_screen = NULL;
 static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
@@ -59,7 +60,8 @@ static SDL_PixelFormat host_format;
 static int scaling_active = 0;
 static Notifier mouse_mode_notifier;
 
-static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
+static void sdl_update(DisplayChangeListener *dcl,
+                       int x, int y, int w, int h)
 {
     //    printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
     SDL_Rect rec;
@@ -79,16 +81,6 @@ static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
         }
     } 
     SDL_UpdateRect(real_screen, rec.x, rec.y, rec.w, rec.h);
-}
-
-static void sdl_setdata(DisplayState *ds)
-{
-    if (guest_screen != NULL) SDL_FreeSurface(guest_screen);
-
-    guest_screen = SDL_CreateRGBSurfaceFrom(ds_get_data(ds), ds_get_width(ds), ds_get_height(ds),
-                                            ds_get_bits_per_pixel(ds), ds_get_linesize(ds),
-                                            ds->surface->pf.rmask, ds->surface->pf.gmask,
-                                            ds->surface->pf.bmask, ds->surface->pf.amask);
 }
 
 static void do_sdl_resize(int width, int height, int bpp)
@@ -114,15 +106,32 @@ static void do_sdl_resize(int width, int height, int bpp)
     }
 }
 
-static void sdl_resize(DisplayState *ds)
+static void sdl_switch(DisplayChangeListener *dcl,
+                       DisplaySurface *new_surface)
 {
-    if (!scaling_active) {
-        do_sdl_resize(ds_get_width(ds), ds_get_height(ds), 0);
-    } else if (real_screen->format->BitsPerPixel != ds_get_bits_per_pixel(ds)) {
-        do_sdl_resize(real_screen->w, real_screen->h,
-                      ds_get_bits_per_pixel(ds));
+
+    /* temporary hack: allows to call sdl_switch to handle scaling changes */
+    if (new_surface) {
+        surface = new_surface;
     }
-    sdl_setdata(ds);
+
+    if (!scaling_active) {
+        do_sdl_resize(surface_width(surface), surface_height(surface), 0);
+    } else if (real_screen->format->BitsPerPixel !=
+               surface_bits_per_pixel(surface)) {
+        do_sdl_resize(real_screen->w, real_screen->h,
+                      surface_bits_per_pixel(surface));
+    }
+
+    if (guest_screen != NULL) {
+        SDL_FreeSurface(guest_screen);
+    }
+    guest_screen = SDL_CreateRGBSurfaceFrom
+        (surface_data(surface),
+         surface_width(surface), surface_height(surface),
+         surface_bits_per_pixel(surface), surface_stride(surface),
+         surface->pf.rmask, surface->pf.gmask,
+         surface->pf.bmask, surface->pf.amask);
 }
 
 /* generic keyboard conversion */
@@ -445,7 +454,7 @@ static void sdl_send_mouse_event(int dx, int dy, int dz, int x, int y, int state
     kbd_mouse_event(dx, dy, dz, buttons);
 }
 
-static void sdl_scale(DisplayState *ds, int width, int height)
+static void sdl_scale(int width, int height)
 {
     int bpp = real_screen->format->BitsPerPixel;
 
@@ -454,32 +463,30 @@ static void sdl_scale(DisplayState *ds, int width, int height)
     }
     do_sdl_resize(width, height, bpp);
     scaling_active = 1;
-    if (!is_buffer_shared(ds->surface)) {
-        ds->surface = qemu_resize_displaysurface(ds, ds_get_width(ds),
-                                                 ds_get_height(ds));
-        dpy_gfx_resize(ds);
-    }
 }
 
-static void toggle_full_screen(DisplayState *ds)
+static void toggle_full_screen(void)
 {
+    int width = surface_width(surface);
+    int height = surface_height(surface);
+    int bpp = surface_bits_per_pixel(surface);
+
     gui_fullscreen = !gui_fullscreen;
     if (gui_fullscreen) {
         gui_saved_width = real_screen->w;
         gui_saved_height = real_screen->h;
         gui_saved_scaling = scaling_active;
 
-        do_sdl_resize(ds_get_width(ds), ds_get_height(ds),
-                      ds_get_bits_per_pixel(ds));
+        do_sdl_resize(width, height, bpp);
         scaling_active = 0;
 
         gui_saved_grab = gui_grab;
         sdl_grab_start();
     } else {
         if (gui_saved_scaling) {
-            sdl_scale(ds, gui_saved_width, gui_saved_height);
+            sdl_scale(gui_saved_width, gui_saved_height);
         } else {
-            do_sdl_resize(ds_get_width(ds), ds_get_height(ds), 0);
+            do_sdl_resize(width, height, 0);
         }
         if (!gui_saved_grab || !is_graphic_console()) {
             sdl_grab_end();
@@ -489,7 +496,7 @@ static void toggle_full_screen(DisplayState *ds)
     vga_hw_update();
 }
 
-static void handle_keydown(DisplayState *ds, SDL_Event *ev)
+static void handle_keydown(SDL_Event *ev)
 {
     int mod_state;
     int keycode;
@@ -508,13 +515,13 @@ static void handle_keydown(DisplayState *ds, SDL_Event *ev)
         keycode = sdl_keyevent_to_keycode(&ev->key);
         switch (keycode) {
         case 0x21: /* 'f' key on US keyboard */
-            toggle_full_screen(ds);
+            toggle_full_screen();
             gui_keysym = 1;
             break;
         case 0x16: /* 'u' key on US keyboard */
             if (scaling_active) {
                 scaling_active = 0;
-                sdl_resize(ds);
+                sdl_switch(dcl, NULL);
                 vga_hw_invalidate();
                 vga_hw_update();
             }
@@ -545,9 +552,10 @@ static void handle_keydown(DisplayState *ds, SDL_Event *ev)
             if (!gui_fullscreen) {
                 int width = MAX(real_screen->w + (keycode == 0x1b ? 50 : -50),
                                 160);
-                int height = (ds_get_height(ds) * width) / ds_get_width(ds);
+                int height = (surface_height(surface) * width) /
+                    surface_width(surface);
 
-                sdl_scale(ds, width, height);
+                sdl_scale(width, height);
                 vga_hw_invalidate();
                 vga_hw_update();
                 gui_keysym = 1;
@@ -634,7 +642,7 @@ static void handle_keydown(DisplayState *ds, SDL_Event *ev)
     }
 }
 
-static void handle_keyup(DisplayState *ds, SDL_Event *ev)
+static void handle_keyup(SDL_Event *ev)
 {
     int mod_state;
 
@@ -666,7 +674,7 @@ static void handle_keyup(DisplayState *ds, SDL_Event *ev)
     }
 }
 
-static void handle_mousemotion(DisplayState *ds, SDL_Event *ev)
+static void handle_mousemotion(SDL_Event *ev)
 {
     int max_x, max_y;
 
@@ -690,7 +698,7 @@ static void handle_mousemotion(DisplayState *ds, SDL_Event *ev)
     }
 }
 
-static void handle_mousebutton(DisplayState *ds, SDL_Event *ev)
+static void handle_mousebutton(SDL_Event *ev)
 {
     int buttonstate = SDL_GetMouseState(NULL, NULL);
     SDL_MouseButtonEvent *bev;
@@ -726,7 +734,7 @@ static void handle_mousebutton(DisplayState *ds, SDL_Event *ev)
     }
 }
 
-static void handle_activation(DisplayState *ds, SDL_Event *ev)
+static void handle_activation(SDL_Event *ev)
 {
 #ifdef _WIN32
     /* Disable grab if the window no longer has the focus
@@ -753,7 +761,7 @@ static void handle_activation(DisplayState *ds, SDL_Event *ev)
     }
 }
 
-static void sdl_refresh(DisplayState *ds)
+static void sdl_refresh(DisplayChangeListener *dcl)
 {
     SDL_Event ev1, *ev = &ev1;
 
@@ -768,13 +776,13 @@ static void sdl_refresh(DisplayState *ds)
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {
         case SDL_VIDEOEXPOSE:
-            sdl_update(ds, 0, 0, real_screen->w, real_screen->h);
+            sdl_update(dcl, 0, 0, real_screen->w, real_screen->h);
             break;
         case SDL_KEYDOWN:
-            handle_keydown(ds, ev);
+            handle_keydown(ev);
             break;
         case SDL_KEYUP:
-            handle_keyup(ds, ev);
+            handle_keyup(ev);
             break;
         case SDL_QUIT:
             if (!no_quit) {
@@ -783,17 +791,17 @@ static void sdl_refresh(DisplayState *ds)
             }
             break;
         case SDL_MOUSEMOTION:
-            handle_mousemotion(ds, ev);
+            handle_mousemotion(ev);
             break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
-            handle_mousebutton(ds, ev);
+            handle_mousebutton(ev);
             break;
         case SDL_ACTIVEEVENT:
-            handle_activation(ds, ev);
+            handle_activation(ev);
             break;
         case SDL_VIDEORESIZE:
-            sdl_scale(ds, ev->resize.w, ev->resize.h);
+            sdl_scale(ev->resize.w, ev->resize.h);
             vga_hw_invalidate();
             vga_hw_update();
             break;
@@ -803,7 +811,8 @@ static void sdl_refresh(DisplayState *ds)
     }
 }
 
-static void sdl_mouse_warp(DisplayState *ds, int x, int y, int on)
+static void sdl_mouse_warp(DisplayChangeListener *dcl,
+                           int x, int y, int on)
 {
     if (on) {
         if (!guest_cursor)
@@ -819,7 +828,8 @@ static void sdl_mouse_warp(DisplayState *ds, int x, int y, int on)
     guest_x = x, guest_y = y;
 }
 
-static void sdl_mouse_define(DisplayState *ds, QEMUCursor *c)
+static void sdl_mouse_define(DisplayChangeListener *dcl,
+                             QEMUCursor *c)
 {
     uint8_t *image, *mask;
     int bpl;
@@ -848,6 +858,15 @@ static void sdl_cleanup(void)
         SDL_FreeCursor(guest_sprite);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
+
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name          = "sdl",
+    .dpy_gfx_update    = sdl_update,
+    .dpy_gfx_switch    = sdl_switch,
+    .dpy_refresh       = sdl_refresh,
+    .dpy_mouse_set     = sdl_mouse_warp,
+    .dpy_cursor_define = sdl_mouse_define,
+};
 
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 {
@@ -917,12 +936,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     }
 
     dcl = g_malloc0(sizeof(DisplayChangeListener));
-    dcl->dpy_gfx_update = sdl_update;
-    dcl->dpy_gfx_resize = sdl_resize;
-    dcl->dpy_refresh = sdl_refresh;
-    dcl->dpy_gfx_setdata = sdl_setdata;
-    dcl->dpy_mouse_set = sdl_mouse_warp;
-    dcl->dpy_cursor_define = sdl_mouse_define;
+    dcl->ops = &dcl_ops;
     register_displaychangelistener(ds, dcl);
 
     mouse_mode_notifier.notify = sdl_mouse_mode_change;

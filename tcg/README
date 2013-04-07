@@ -14,6 +14,10 @@ the emulated architecture. As TCG started as a generic C backend used
 for cross compiling, it is assumed that the TCG target is different
 from the host, although it is never the case for QEMU.
 
+In this document, we use "guest" to specify what architecture we are
+emulating; "target" always means the TCG target, the machine on which
+we are running QEMU.
+
 A TCG "function" corresponds to a QEMU Translated Block (TB).
 
 A TCG "temporary" is a variable only live in a basic
@@ -379,7 +383,7 @@ double-word product T0.  The later is returned in two single-word outputs.
 
 Similar to mulu2, except the two inputs T1 and T2 are signed.
 
-********* 64-bit target on 32-bit host support
+********* 64-bit guest on 32-bit host support
 
 The following opcodes are internal to TCG.  Thus they are to be implemented by
 32-bit host code generators, but are not to be emitted by guest translators.
@@ -521,9 +525,9 @@ register.
   a better generated code, but it reduces the memory usage of TCG and
   the speed of the translation.
 
-- Don't hesitate to use helpers for complicated or seldom used target
+- Don't hesitate to use helpers for complicated or seldom used guest
   instructions. There is little performance advantage in using TCG to
-  implement target instructions taking more than about twenty TCG
+  implement guest instructions taking more than about twenty TCG
   instructions. Note that this rule of thumb is more applicable to
   helpers doing complex logic or arithmetic, where the C compiler has
   scope to do a good job of optimisation; it is less relevant where
@@ -531,9 +535,9 @@ register.
   inline TCG may still be faster for longer sequences.
 
 - The hard limit on the number of TCG instructions you can generate
-  per target instruction is set by MAX_OP_PER_INSTR in exec-all.h --
+  per guest instruction is set by MAX_OP_PER_INSTR in exec-all.h --
   you cannot exceed this without risking a buffer overrun.
 
 - Use the 'discard' instruction if you know that TCG won't be able to
   prove that a given global is "dead" at a given program point. The
-  x86 target uses it to improve the condition codes optimisation.
+  x86 guest uses it to improve the condition codes optimisation.

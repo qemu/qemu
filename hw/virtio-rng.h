@@ -25,4 +25,23 @@ struct VirtIORNGConf {
     RndRandom *default_backend;
 };
 
+typedef struct VirtIORNG {
+    VirtIODevice vdev;
+
+    DeviceState *qdev;
+
+    /* Only one vq - guest puts buffer(s) on it when it needs entropy */
+    VirtQueue *vq;
+
+    VirtIORNGConf *conf;
+
+    RngBackend *rng;
+
+    /* We purposefully don't migrate this state.  The quota will reset on the
+     * destination as a result.  Rate limiting is host state, not guest state.
+     */
+    QEMUTimer *rate_limit_timer;
+    int64_t quota_remaining;
+} VirtIORNG;
+
 #endif

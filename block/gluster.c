@@ -283,7 +283,7 @@ static int qemu_gluster_aio_flush_cb(void *opaque)
 }
 
 static int qemu_gluster_open(BlockDriverState *bs, const char *filename,
-    int bdrv_flags)
+    QDict *options, int bdrv_flags)
 {
     BDRVGlusterState *s = bs->opaque;
     int open_flags = O_BINARY;

@@ -42,7 +42,7 @@ static void set_taddr(Object *obj, Visitor *v, void *opaque,
     int64_t value;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 

@@ -219,16 +219,16 @@ void cpu_exec_init_all(void)
 #endif
 }
 
-#if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
 
 static int cpu_common_post_load(void *opaque, int version_id)
 {
-    CPUArchState *env = opaque;
+    CPUState *cpu = opaque;
 
     /* 0x01 was CPU_INTERRUPT_EXIT. This line can be removed when the
        version_id is increased. */
-    env->interrupt_request &= ~0x01;
-    tlb_flush(env, 1);
+    cpu->interrupt_request &= ~0x01;
+    tlb_flush(cpu->env_ptr, 1);
 
     return 0;
 }
@@ -240,11 +240,13 @@ static const VMStateDescription vmstate_cpu_common = {
     .minimum_version_id_old = 1,
     .post_load = cpu_common_post_load,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT32(halted, CPUArchState),
-        VMSTATE_UINT32(interrupt_request, CPUArchState),
+        VMSTATE_UINT32(halted, CPUState),
+        VMSTATE_UINT32(interrupt_request, CPUState),
         VMSTATE_END_OF_LIST()
     }
 };
+#else
+#define vmstate_cpu_common vmstate_dummy
 #endif
 
 CPUState *qemu_get_cpu(int index)
@@ -260,12 +262,13 @@ CPUState *qemu_get_cpu(int index)
         env = env->next_cpu;
     }
 
-    return cpu;
+    return env ? cpu : NULL;
 }
 
 void cpu_exec_init(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
+    CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState **penv;
     int cpu_index;
 
@@ -296,11 +299,15 @@ void cpu_exec_init(CPUArchState *env)
 #if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
 #endif
+    vmstate_register(NULL, cpu_index, &vmstate_cpu_common, cpu);
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
-    vmstate_register(NULL, cpu_index, &vmstate_cpu_common, env);
     register_savevm(NULL, "cpu", cpu_index, CPU_SAVE_VERSION,
                     cpu_save, cpu_load, env);
+    assert(cc->vmsd == NULL);
 #endif
+    if (cc->vmsd != NULL) {
+        vmstate_register(NULL, cpu_index, cc->vmsd, cpu);
+    }
 }
 
 #if defined(TARGET_HAS_ICE)
@@ -489,11 +496,6 @@ void cpu_single_step(CPUArchState *env, int enabled)
         }
     }
 #endif
-}
-
-void cpu_reset_interrupt(CPUArchState *env, int mask)
-{
-    env->interrupt_request &= ~mask;
 }
 
 void cpu_exit(CPUArchState *env)
@@ -888,6 +890,8 @@ static void *file_ram_alloc(RAMBlock *block,
                             const char *path)
 {
     char *filename;
+    char *sanitized_name;
+    char *c;
     void *area;
     int fd;
 #ifdef MAP_POPULATE
@@ -909,7 +913,16 @@ static void *file_ram_alloc(RAMBlock *block,
         return NULL;
     }
 
-    filename = g_strdup_printf("%s/qemu_back_mem.XXXXXX", path);
+    /* Make name safe to use with mkstemp by replacing '/' with '_'. */
+    sanitized_name = g_strdup(block->mr->name);
+    for (c = sanitized_name; *c != '\0'; c++) {
+        if (*c == '/')
+            *c = '_';
+    }
+
+    filename = g_strdup_printf("%s/qemu_back_mem.%s.XXXXXX", path,
+                               sanitized_name);
+    g_free(sanitized_name);
 
     fd = mkstemp(filename);
     if (fd < 0) {
@@ -955,6 +968,8 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
 {
     RAMBlock *block, *next_block;
     ram_addr_t offset = RAM_ADDR_MAX, mingap = RAM_ADDR_MAX;
+
+    assert(size != 0); /* it would hand out same offset multiple times */
 
     if (QTAILQ_EMPTY(&ram_list.blocks))
         return 0;
@@ -1514,7 +1529,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
         /* We re-entered the check after replacing the TB. Now raise
          * the debug interrupt so that is will trigger after the
          * current instruction. */
-        cpu_interrupt(env, CPU_INTERRUPT_DEBUG);
+        cpu_interrupt(ENV_GET_CPU(env), CPU_INTERRUPT_DEBUG);
         return;
     }
     vaddr = (env->mem_io_vaddr & TARGET_PAGE_MASK) + offset;

@@ -154,7 +154,7 @@ static void raven_pcihost_initfn(Object *obj)
     DeviceState *pci_dev;
 
     pci_bus_new_inplace(&s->pci_bus, DEVICE(obj), NULL,
-                        address_space_mem, address_space_io, 0);
+                        address_space_mem, address_space_io, 0, TYPE_PCI_BUS);
     h->bus = &s->pci_bus;
 
     object_initialize(&s->pci_dev, TYPE_RAVEN_PCI_DEVICE);

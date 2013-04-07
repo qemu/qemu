@@ -303,7 +303,8 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     return 0;
 }
 
-static int raw_open(BlockDriverState *bs, const char *filename, int flags)
+static int raw_open(BlockDriverState *bs, const char *filename,
+                    QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -750,6 +751,7 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
     RawPosixAIOData *acb = g_slice_new(RawPosixAIOData);
+    ThreadPool *pool;
 
     acb->bs = bs;
     acb->aio_type = type;
@@ -763,7 +765,8 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
     acb->aio_offset = sector_num * 512;
 
     trace_paio_submit(acb, opaque, sector_num, nb_sectors, type);
-    return thread_pool_submit_aio(aio_worker, acb, cb, opaque);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
 
 static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
@@ -1290,7 +1293,8 @@ static int check_hdev_writable(BDRVRawState *s)
     return 0;
 }
 
-static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
+static int hdev_open(BlockDriverState *bs, const char *filename,
+                     QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -1413,6 +1417,7 @@ static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData *acb;
+    ThreadPool *pool;
 
     if (fd_open(bs) < 0)
         return NULL;
@@ -1424,7 +1429,8 @@ static BlockDriverAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
     acb->aio_offset = 0;
     acb->aio_ioctl_buf = buf;
     acb->aio_ioctl_cmd = req;
-    return thread_pool_submit_aio(aio_worker, acb, cb, opaque);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -1526,7 +1532,8 @@ static BlockDriver bdrv_host_device = {
 };
 
 #ifdef __linux__
-static int floppy_open(BlockDriverState *bs, const char *filename, int flags)
+static int floppy_open(BlockDriverState *bs, const char *filename,
+                       QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -1648,7 +1655,8 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_eject         = floppy_eject,
 };
 
-static int cdrom_open(BlockDriverState *bs, const char *filename, int flags)
+static int cdrom_open(BlockDriverState *bs, const char *filename,
+                      QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -1756,7 +1764,8 @@ static BlockDriver bdrv_host_cdrom = {
 #endif /* __linux__ */
 
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
-static int cdrom_open(BlockDriverState *bs, const char *filename, int flags)
+static int cdrom_open(BlockDriverState *bs, const char *filename,
+                      QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int ret;

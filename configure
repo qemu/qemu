@@ -219,7 +219,7 @@ spice=""
 rbd=""
 smartcard_nss=""
 usb_redir=""
-opengl=""
+glx=""
 zlib="yes"
 guest_agent="yes"
 want_tools="yes"
@@ -230,6 +230,7 @@ glusterfs=""
 virtio_blk_data_plane=""
 gtk=""
 gtkabi="2.0"
+tpm="no"
 
 # parse CC options first
 for opt do
@@ -892,9 +893,9 @@ for opt do
   ;;
   --enable-vhost-net) vhost_net="yes"
   ;;
-  --disable-opengl) opengl="no"
+  --disable-glx) glx="no"
   ;;
-  --enable-opengl) opengl="yes"
+  --enable-glx) glx="yes"
   ;;
   --disable-rbd) rbd="no"
   ;;
@@ -939,6 +940,8 @@ for opt do
   --enable-gtk) gtk="yes"
   ;;
   --with-gtkabi=*) gtkabi="$optarg"
+  ;;
+  --enable-tpm) tpm="yes"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -993,6 +996,7 @@ mips-softmmu \
 mipsel-softmmu \
 mips64-softmmu \
 mips64el-softmmu \
+moxie-softmmu \
 or32-softmmu \
 ppc-softmmu \
 ppcemb-softmmu \
@@ -1082,6 +1086,7 @@ echo "  --mandir=PATH            install man pages in PATH"
 echo "  --datadir=PATH           install firmware in PATH$confsuffix"
 echo "  --docdir=PATH            install documentation in PATH$confsuffix"
 echo "  --bindir=PATH            install binaries in PATH"
+echo "  --libdir=PATH            install libraries in PATH"
 echo "  --sysconfdir=PATH        install config in PATH$confsuffix"
 echo "  --localstatedir=PATH     install local state in PATH"
 echo "  --with-confsuffix=SUFFIX suffix for QEMU data inside datadir and sysconfdir [$confsuffix]"
@@ -1195,6 +1200,7 @@ echo "  --enable-glusterfs       enable GlusterFS backend"
 echo "  --disable-glusterfs      disable GlusterFS backend"
 echo "  --enable-gcov            enable test coverage analysis with gcov"
 echo "  --gcov=GCOV              use specified gcov [$gcov_tool]"
+echo "  --enable-tpm             enable TPM support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2475,23 +2481,23 @@ EOF
 fi
 
 ##########################################
-# opengl probe, used by milkymist-tmu2
-if test "$opengl" != "no" ; then
-  opengl_libs="-lGL -lX11"
+# GLX probe, used by milkymist-tmu2
+if test "$glx" != "no" ; then
+  glx_libs="-lGL -lX11"
   cat > $TMPC << EOF
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
-int main(void) { return GL_VERSION != 0; }
+int main(void) { glBegin(0); glXQueryVersion(0,0,0); return 0; }
 EOF
-  if compile_prog "" "-lGL" ; then
-    opengl=yes
+  if compile_prog "" "-lGL -lX11" ; then
+    glx=yes
   else
-    if test "$opengl" = "yes" ; then
-      feature_not_found "opengl"
+    if test "$glx" = "yes" ; then
+      feature_not_found "glx"
     fi
-    opengl_libs=
-    opengl=no
+    glx_libs=
+    glx=no
   fi
 fi
 
@@ -2802,6 +2808,20 @@ int main(void)
 EOF
 if compile_prog "" "" ; then
   epoll_pwait=yes
+fi
+
+# check for sendfile support
+sendfile=no
+cat > $TMPC << EOF
+#include <sys/sendfile.h>
+
+int main(void)
+{
+    return sendfile(0, 0, 0, 0);
+}
+EOF
+if compile_prog "" "" ; then
+  sendfile=yes
 fi
 
 # Check if tools are available to build documentation.
@@ -3462,7 +3482,7 @@ echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
 echo "usb net redir     $usb_redir"
-echo "OpenGL support    $opengl"
+echo "GLX support       $glx"
 echo "libiscsi support  $libiscsi"
 echo "build guest agent $guest_agent"
 echo "seccomp support   $seccomp"
@@ -3471,6 +3491,7 @@ echo "GlusterFS support $glusterfs"
 echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
+echo "TPM support       $tpm"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3683,6 +3704,9 @@ fi
 if test "$epoll_pwait" = "yes" ; then
   echo "CONFIG_EPOLL_PWAIT=y" >> $config_host_mak
 fi
+if test "$sendfile" = "yes" ; then
+  echo "CONFIG_SENDFILE=y" >> $config_host_mak
+fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak
 fi
@@ -3773,8 +3797,8 @@ if test "$usb_redir" = "yes" ; then
   echo "CONFIG_USB_REDIR=y" >> $config_host_mak
 fi
 
-if test "$opengl" = "yes" ; then
-  echo "CONFIG_OPENGL=y" >> $config_host_mak
+if test "$glx" = "yes" ; then
+  echo "CONFIG_GLX=y" >> $config_host_mak
 fi
 
 if test "$libiscsi" = "yes" ; then
@@ -3979,7 +4003,7 @@ target_arch2=`echo $target | cut -d '-' -f 1`
 target_bigendian="no"
 
 case "$target_arch2" in
-  armeb|lm32|m68k|microblaze|mips|mipsn32|mips64|or32|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
+  armeb|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or32|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
   target_bigendian=yes
   ;;
 esac
@@ -4052,7 +4076,7 @@ case "$target_arch2" in
     target_nptl="yes"
   ;;
   lm32)
-    target_libs_softmmu="$opengl_libs"
+    target_libs_softmmu="$glx_libs"
   ;;
   m68k)
     bflt="yes"
@@ -4082,6 +4106,8 @@ case "$target_arch2" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
     target_long_alignment=8
+  ;;
+  moxie)
   ;;
   or32)
     TARGET_ARCH=openrisc
@@ -4320,6 +4346,10 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     echo "CONFIG_MIPS_DIS=y"  >> $config_target_mak
     echo "CONFIG_MIPS_DIS=y"  >> config-all-disas.mak
   ;;
+  moxie*)
+    echo "CONFIG_MOXIE_DIS=y"  >> $config_target_mak
+    echo "CONFIG_MOXIE_DIS=y"  >> config-all-disas.mak
+  ;;
   or32)
     echo "CONFIG_OPENRISC_DIS=y"  >> $config_target_mak
     echo "CONFIG_OPENRISC_DIS=y"  >> config-all-disas.mak
@@ -4381,6 +4411,12 @@ if test "$gprof" = "yes" ; then
   if test "$target_softmmu" = "yes" ; then
     ldflags="-p $ldflags"
     echo "GPROF_CFLAGS=-p" >> $config_target_mak
+  fi
+fi
+
+if test "$tpm" = "yes"; then
+  if test "$target_softmmu" = "yes" ; then
+    echo "CONFIG_TPM=y" >> $config_host_mak
   fi
 fi
 

@@ -56,11 +56,11 @@ s3c24xx_percolate_interrupt(struct s3c24xx_irq_state_s *s)
     /* TODO: Priority encoder could go here */
     if (ints & s->irq_reg[S3C_IRQ_INTMOD]) {
         /* Detected a FIQ */
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_FIQ);
+        cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_FIQ);
         return;
     } else {
         /* No FIQ here today */
-        cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_FIQ);
+        cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_FIQ);
     }
 
     /* No FIQ, check for a normal IRQ */
@@ -76,9 +76,9 @@ s3c24xx_percolate_interrupt(struct s3c24xx_irq_state_s *s)
     }
 
     if (s->irq_reg[S3C_IRQ_INTPND] != 0) {
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HARD);
     } else {
-        cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_HARD);
     }
 }
 

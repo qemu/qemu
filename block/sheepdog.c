@@ -65,6 +65,7 @@
 #define SD_RES_WAIT_FOR_FORMAT  0x16 /* Waiting for a format operation */
 #define SD_RES_WAIT_FOR_JOIN    0x17 /* Waiting for other nodes joining */
 #define SD_RES_JOIN_FAILED   0x18 /* Target node had failed to join sheepdog */
+#define SD_RES_HALT          0x19 /* Sheepdog is stopped serving IO request */
 
 /*
  * Object ID rules
@@ -344,6 +345,7 @@ static const char * sd_strerror(int err)
         {SD_RES_WAIT_FOR_FORMAT, "Sheepdog is waiting for a format operation"},
         {SD_RES_WAIT_FOR_JOIN, "Sheepdog is waiting for other nodes joining"},
         {SD_RES_JOIN_FAILED, "Target node had failed to join sheepdog"},
+        {SD_RES_HALT, "Sheepdog is stopped serving IO request"},
     };
 
     for (i = 0; i < ARRAY_SIZE(errors); ++i) {
@@ -468,6 +470,8 @@ static int connect_to_sdog(BDRVSheepdogState *s)
     if (err != NULL) {
         qerror_report_err(err);
         error_free(err);
+    } else {
+        socket_set_nonblock(fd);
     }
 
     return fd;
@@ -499,6 +503,13 @@ static void restart_co_req(void *opaque)
     qemu_coroutine_enter(co, NULL);
 }
 
+static int have_co_req(void *opaque)
+{
+    /* this handler is set only when there is a pending request, so
+     * always returns 1. */
+    return 1;
+}
+
 typedef struct SheepdogReqCo {
     int sockfd;
     SheepdogReq *hdr;
@@ -521,15 +532,14 @@ static coroutine_fn void do_co_req(void *opaque)
     unsigned int *rlen = srco->rlen;
 
     co = qemu_coroutine_self();
-    qemu_aio_set_fd_handler(sockfd, NULL, restart_co_req, NULL, co);
+    qemu_aio_set_fd_handler(sockfd, NULL, restart_co_req, have_co_req, co);
 
-    socket_set_block(sockfd);
     ret = send_co_req(sockfd, hdr, data, wlen);
     if (ret < 0) {
         goto out;
     }
 
-    qemu_aio_set_fd_handler(sockfd, restart_co_req, NULL, NULL, co);
+    qemu_aio_set_fd_handler(sockfd, restart_co_req, NULL, have_co_req, co);
 
     ret = qemu_co_recv(sockfd, hdr, sizeof(*hdr));
     if (ret < sizeof(*hdr)) {
@@ -552,8 +562,9 @@ static coroutine_fn void do_co_req(void *opaque)
     }
     ret = 0;
 out:
+    /* there is at most one request for this sockfd, so it is safe to
+     * set each handler to NULL. */
     qemu_aio_set_fd_handler(sockfd, NULL, NULL, NULL, NULL);
-    socket_set_nonblock(sockfd);
 
     srco->ret = ret;
     srco->finished = true;
@@ -775,8 +786,6 @@ static int get_sheep_fd(BDRVSheepdogState *s)
     if (fd < 0) {
         return fd;
     }
-
-    socket_set_nonblock(fd);
 
     qemu_aio_set_fd_handler(fd, co_read_response, NULL, aio_flush_request, s);
     return fd;
@@ -1117,7 +1126,8 @@ static int write_object(int fd, char *buf, uint64_t oid, int copies,
                              create, cache_flags);
 }
 
-static int sd_open(BlockDriverState *bs, const char *filename, int flags)
+static int sd_open(BlockDriverState *bs, const char *filename,
+                   QDict *options, int flags)
 {
     int ret, fd;
     uint32_t vid = 0;
@@ -1260,7 +1270,7 @@ static int sd_prealloc(const char *filename)
     void *buf = g_malloc0(SD_DATA_OBJ_SIZE);
     int ret;
 
-    ret = bdrv_file_open(&bs, filename, BDRV_O_RDWR);
+    ret = bdrv_file_open(&bs, filename, NULL, BDRV_O_RDWR);
     if (ret < 0) {
         goto out;
     }
@@ -1358,7 +1368,7 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
             goto out;
         }
 
-        ret = bdrv_file_open(&bs, backing_file, 0);
+        ret = bdrv_file_open(&bs, backing_file, NULL, 0);
         if (ret < 0) {
             goto out;
         }

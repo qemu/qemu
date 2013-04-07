@@ -200,6 +200,8 @@
 #define TARGET_NR__newselect         230 /* Linux Specific                              */
 #define TARGET_NR_time               231 /* Linux Specific                              */
 #define TARGET_NR_stime              233 /* Linux Specific                              */
+#define TARGET_NR_statfs64           234 /* Linux Specific                              */
+#define TARGET_NR_fstatfs64          235 /* Linux Specific                              */
 #define TARGET_NR__llseek            236 /* Linux Specific                              */
 #define TARGET_NR_mlock              237
 #define TARGET_NR_munlock            238

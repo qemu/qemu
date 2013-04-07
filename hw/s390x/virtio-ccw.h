@@ -16,6 +16,8 @@
 #include <hw/virtio-net.h>
 #include <hw/virtio-serial.h>
 #include <hw/virtio-scsi.h>
+#include "hw/virtio-balloon.h"
+#include <hw/virtio-rng.h>
 #include <hw/virtio-bus.h>
 
 #define VIRTUAL_CSSID 0xfe
@@ -71,12 +73,11 @@ struct VirtioCcwDevice {
     SubchDev *sch;
     VirtIODevice *vdev;
     char *bus_id;
-    VirtIOBlkConf blk;
     NICConf nic;
     uint32_t host_features[VIRTIO_CCW_FEATURE_SIZE];
     virtio_serial_conf serial;
     virtio_net_conf net;
-    VirtIOSCSIConf scsi;
+    VirtIORNGConf rng;
     VirtioBusState bus;
     /* Guest provided values: */
     hwaddr indicators;
@@ -91,6 +92,40 @@ typedef struct VirtualCssBus {
 #define TYPE_VIRTUAL_CSS_BUS "virtual-css-bus"
 #define VIRTUAL_CSS_BUS(obj) \
      OBJECT_CHECK(VirtualCssBus, (obj), TYPE_VIRTUAL_CSS_BUS)
+
+/* virtio-scsi-ccw */
+
+#define TYPE_VIRTIO_SCSI_CCW "virtio-scsi-ccw"
+#define VIRTIO_SCSI_CCW(obj) \
+        OBJECT_CHECK(VirtIOSCSICcw, (obj), TYPE_VIRTIO_SCSI_CCW)
+
+typedef struct VirtIOSCSICcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOSCSI vdev;
+} VirtIOSCSICcw;
+
+/* virtio-blk-ccw */
+
+#define TYPE_VIRTIO_BLK_CCW "virtio-blk-ccw"
+#define VIRTIO_BLK_CCW(obj) \
+        OBJECT_CHECK(VirtIOBlkCcw, (obj), TYPE_VIRTIO_BLK_CCW)
+
+typedef struct VirtIOBlkCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOBlock vdev;
+    VirtIOBlkConf blk;
+} VirtIOBlkCcw;
+
+/* virtio-balloon-ccw */
+
+#define TYPE_VIRTIO_BALLOON_CCW "virtio-balloon-ccw"
+#define VIRTIO_BALLOON_CCW(obj) \
+        OBJECT_CHECK(VirtIOBalloonCcw, (obj), TYPE_VIRTIO_BALLOON_CCW)
+
+typedef struct VirtIOBalloonCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOBalloon vdev;
+} VirtIOBalloonCcw;
 
 VirtualCssBus *virtual_css_bus_init(void);
 void virtio_ccw_device_update_status(SubchDev *sch);

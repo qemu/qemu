@@ -781,7 +781,8 @@ static int cpu_gdb_write_register(CPUPPCState *env, uint8_t *mem_buf, int n)
             /* fpscr */
             if (gdb_has_xml)
                 return 0;
-            return 4;
+            store_fpscr(env, ldtul_p(mem_buf), 0xffffffff);
+            return sizeof(target_ulong);
         }
     }
     return 0;
@@ -2408,7 +2409,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 cpu_synchronize_state(env);
                 len = snprintf((char *)mem_buf, sizeof(mem_buf),
                                "CPU#%d [%s]", cpu->cpu_index,
-                               env->halted ? "halted " : "running");
+                               cpu->halted ? "halted " : "running");
                 memtohex(buf, mem_buf, len);
                 put_packet(s, buf);
             }
@@ -2887,7 +2888,7 @@ static int gdbserver_open(int port)
 
     /* allow fast reuse */
     val = 1;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&val, sizeof(val));
+    qemu_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
     sockaddr.sin_family = AF_INET;
     sockaddr.sin_port = htons(port);

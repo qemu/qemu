@@ -25,14 +25,7 @@ def begin(events):
         '#include "qemu-common.h"')
 
 def end(events):
-    for e in events:
-        if "disable" in e.properties:
-            enabled = 0
-        else:
-            enabled = 1
-        out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
-    out('',
-        '#endif /* TRACE__GENERATED_TRACERS_H */')
+    out('#endif /* TRACE__GENERATED_TRACERS_H */')
 
 def nop(events):
     for e in events:

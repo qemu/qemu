@@ -150,7 +150,8 @@ struct VncDisplay
     bool websocket;
     char *ws_display;
 #endif
-    DisplayState *ds;
+    DisplaySurface *ds;
+    DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
     QemuMutex mutex;
@@ -247,7 +248,6 @@ struct VncState
 {
     int csock;
 
-    DisplayState *ds;
     DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT], VNC_DIRTY_BITS);
     uint8_t **lossy_rect; /* Not an Array to avoid costly memcpy in
                            * vnc-jobs-async.c */

@@ -303,11 +303,11 @@ int print_insn_lm32(bfd_vma memaddr, struct disassemble_info *info)
                 }
                 case 'c': {
                     uint8_t csr;
-                    const char *csr_name;
+                    const Lm32CsrInfo *info;
                     csr = (op >> 21) & 0x1f;
-                    csr_name = find_csr_info(csr)->name;
-                    if (csr_name) {
-                        fprintf_fn(stream, "%s", csr_name);
+                    info = find_csr_info(csr);
+                    if (info) {
+                        fprintf_fn(stream, "%s", info->name);
                     } else {
                         fprintf_fn(stream, "0x%x", csr);
                     }

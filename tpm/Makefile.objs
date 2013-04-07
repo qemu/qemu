@@ -1,0 +1,6 @@
+common-obj-y = tpm.o
+ifeq ($(CONFIG_TPM),y)
+common-obj-y += tpm_backend.o
+common-obj-$(CONFIG_TPM_TIS) += tpm_tis.o
+common-obj-$(CONFIG_TPM_PASSTHROUGH) += tpm_passthrough.o
+endif

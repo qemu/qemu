@@ -52,4 +52,19 @@ mvi r3, 0
 cmpgi r3, r3, 0
 check_r3 0
 
+test_name CMPGI_11
+mvi r1, 0
+cmpgi r3, r1, -32768
+check_r3 1
+
+test_name CMPGI_12
+mvi r1, -1
+cmpgi r3, r1, -32768
+check_r3 1
+
+test_name CMPGI_13
+mvi r1, -32768
+cmpgi r3, r1, -32768
+check_r3 0
+
 end

@@ -72,8 +72,10 @@ void switch_mode(CPUUniCore32State *env, int mode)
 }
 
 /* Handle a CPU exception.  */
-void do_interrupt(CPUUniCore32State *env)
+void uc32_cpu_do_interrupt(CPUState *cs)
 {
+    UniCore32CPU *cpu = UNICORE32_CPU(cs);
+    CPUUniCore32State *env = &cpu->env;
     uint32_t addr;
     int new_mode;
 
@@ -112,7 +114,7 @@ void do_interrupt(CPUUniCore32State *env)
     /* The PC already points to the proper instruction.  */
     env->regs[30] = env->regs[31];
     env->regs[31] = addr;
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
 static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,

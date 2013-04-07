@@ -345,8 +345,10 @@ int cpu_alpha_handle_mmu_fault(CPUAlphaState *env, target_ulong addr, int rw,
 }
 #endif /* USER_ONLY */
 
-void do_interrupt (CPUAlphaState *env)
+void alpha_cpu_do_interrupt(CPUState *cs)
 {
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+    CPUAlphaState *env = &cpu->env;
     int i = env->exception_index;
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {

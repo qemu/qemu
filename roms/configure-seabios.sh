@@ -2,4 +2,4 @@
 config="$1"
 make -C seabios clean distclean
 cp "$config" seabios/.config
-make -C seabios oldnoconfig
+make -C seabios olddefconfig

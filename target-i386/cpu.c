@@ -2011,7 +2011,7 @@ static void x86_cpu_reset(CPUState *s)
         apic_designate_bsp(env->apic_state);
     }
 
-    env->halted = !cpu_is_bsp(cpu);
+    s->halted = !cpu_is_bsp(cpu);
 #endif
 }
 
@@ -2247,6 +2247,9 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     xcc->parent_reset = cc->reset;
     cc->reset = x86_cpu_reset;
+
+    cc->do_interrupt = x86_cpu_do_interrupt;
+    cpu_class_set_vmsd(cc, &vmstate_x86_cpu);
 }
 
 static const TypeInfo x86_cpu_type_info = {

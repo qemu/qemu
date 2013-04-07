@@ -420,26 +420,28 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env)
 static void ppce500_cpu_reset_sec(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
 
     /* Secondary CPU starts in halted state for now. Needs to change when
        implementing non-kernel boot. */
-    env->halted = 1;
+    cs->halted = 1;
     env->exception_index = EXCP_HLT;
 }
 
 static void ppce500_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     struct boot_info *bi = env->load_info;
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
 
     /* Set initial guest state. */
-    env->halted = 0;
+    cs->halted = 0;
     env->gpr[1] = (16<<20) - 8;
     env->gpr[3] = bi->dt_base;
     env->nip = bi->entry;

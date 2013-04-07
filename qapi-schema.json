@@ -496,7 +496,9 @@
 #
 # @total: total amount of bytes involved in the migration process
 #
-# @duplicate: number of duplicate pages (since 1.2)
+# @duplicate: number of duplicate (zero) pages (since 1.2)
+#
+# @skipped: number of skipped zero pages (since 1.5)
 #
 # @normal : number of normal pages (since 1.2)
 #
@@ -509,8 +511,8 @@
 ##
 { 'type': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
-           'duplicate': 'int', 'normal': 'int', 'normal-bytes': 'int',
-           'dirty-pages-rate' : 'int' } }
+           'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
+           'normal-bytes': 'int', 'dirty-pages-rate' : 'int' } }
 
 ##
 # @XBZRLECacheStats
@@ -1832,6 +1834,17 @@
 { 'command': 'query-migrate-cache-size', 'returns': 'int' }
 
 ##
+## @query-cpu-max
+##
+## query maximum number of CPUs supported by machine
+##
+## Returns: number of CPUs
+##
+## Since: 1.5
+###
+{ 'command': 'query-cpu-max', 'returns': 'int' }
+
+##
 # @ObjectPropertyInfo:
 #
 # @name: the name of the property
@@ -2354,7 +2367,9 @@
 # Notes: When this command completes, the device may not be removed from the
 #        guest.  Hot removal is an operation that requires guest cooperation.
 #        This command merely requests that the guest begin the hot removal
-#        process.
+#        process.  Completion of the device removal process is signaled with a
+#        DEVICE_DELETED event. Guest reset will automatically complete removal
+#        for all devices.
 #
 # Since: 0.14.0
 ##
@@ -2994,9 +3009,9 @@
 ##
 { 'enum': 'TargetType',
   'data': [ 'alpha', 'arm', 'cris', 'i386', 'lm32', 'm68k', 'microblazeel',
-            'microblaze', 'mips64el', 'mips64', 'mipsel', 'mips', 'or32',
-            'ppc64', 'ppcemb', 'ppc', 's390x', 'sh4eb', 'sh4', 'sparc64',
-            'sparc', 'unicore32', 'x86_64', 'xtensaeb', 'xtensa' ] }
+            'microblaze', 'mips64el', 'mips64', 'mipsel', 'mips', 'moxie',
+            'or32', 'ppc64', 'ppcemb', 'ppc', 's390x', 'sh4eb', 'sh4',
+            'sparc64', 'sparc', 'unicore32', 'x86_64', 'xtensaeb', 'xtensa' ] }
 
 ##
 # @TargetInfo:
@@ -3153,7 +3168,7 @@
 ##
 # @ChardevHostdev:
 #
-# Configuration info for device chardevs.
+# Configuration info for device and pipe chardevs.
 #
 # @device: The name of the special file for the device,
 #          i.e. /dev/ttyS0 on Unix or COM1: on Windows
@@ -3166,7 +3181,7 @@
 ##
 # @ChardevSocket:
 #
-# Configuration info for socket chardevs.
+# Configuration info for (stream) socket chardevs.
 #
 # @addr: socket address to listen on (server=true)
 #        or connect to (server=false)
@@ -3185,6 +3200,93 @@
                                      '*telnet'  : 'bool' } }
 
 ##
+# @ChardevDgram:
+#
+# Configuration info for datagram socket chardevs.
+#
+# @remote: remote address
+# @local: #optional local address
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevDgram', 'data': { 'remote' : 'SocketAddress',
+                                    '*local' : 'SocketAddress' } }
+
+##
+# @ChardevMux:
+#
+# Configuration info for mux chardevs.
+#
+# @chardev: name of the base chardev.
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevMux', 'data': { 'chardev' : 'str' } }
+
+##
+# @ChardevStdio:
+#
+# Configuration info for stdio chardevs.
+#
+# @signal: #optional Allow signals (such as SIGINT triggered by ^C)
+#          be delivered to qemu.  Default: true in -nographic mode,
+#          false otherwise.
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevStdio', 'data': { '*signal' : 'bool' } }
+
+##
+# @ChardevSpiceChannel:
+#
+# Configuration info for spice vm channel chardevs.
+#
+# @type: kind of channel (for example vdagent).
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' } }
+
+##
+# @ChardevSpicePort:
+#
+# Configuration info for spice port chardevs.
+#
+# @fqdn: name of the channel (see docs/spice-port-fqdn.txt)
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' } }
+
+##
+# @ChardevVC:
+#
+# Configuration info for virtual console chardevs.
+#
+# @width:  console width,  in pixels
+# @height: console height, in pixels
+# @cols:   console width,  in chars
+# @rows:   console height, in chars
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevVC', 'data': { '*width'  : 'int',
+                                 '*height' : 'int',
+                                 '*cols'   : 'int',
+                                 '*rows'   : 'int' } }
+
+##
+# @ChardevRingbuf:
+#
+# Configuration info for memory chardevs
+#
+# @size: #optional Ringbuffer size, must be power of two, default is 65536
+#
+# Since: 1.5
+##
+{ 'type': 'ChardevRingbuf', 'data': { '*size'  : 'int' } }
+
+##
 # @ChardevBackend:
 #
 # Configuration info for the new chardev backend.
@@ -3196,9 +3298,20 @@
 { 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
                                        'serial' : 'ChardevHostdev',
                                        'parallel': 'ChardevHostdev',
+                                       'pipe'   : 'ChardevHostdev',
                                        'socket' : 'ChardevSocket',
+                                       'dgram'  : 'ChardevDgram',
                                        'pty'    : 'ChardevDummy',
-                                       'null'   : 'ChardevDummy' } }
+                                       'null'   : 'ChardevDummy',
+                                       'mux'    : 'ChardevMux',
+                                       'msmouse': 'ChardevDummy',
+                                       'braille': 'ChardevDummy',
+                                       'stdio'  : 'ChardevStdio',
+                                       'console': 'ChardevDummy',
+                                       'spicevmc' : 'ChardevSpiceChannel',
+                                       'spiceport' : 'ChardevSpicePort',
+                                       'vc'     : 'ChardevVC',
+                                       'memory' : 'ChardevRingbuf' } }
 
 ##
 # @ChardevReturn:
@@ -3240,3 +3353,103 @@
 # Since: 1.4
 ##
 { 'command': 'chardev-remove', 'data': {'id': 'str'} }
+
+##
+# @TpmModel:
+#
+# An enumeration of TPM models
+#
+# @tpm-tis: TPM TIS model
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmModel', 'data': [ 'tpm-tis' ] }
+
+##
+# @query-tpm-models:
+#
+# Return a list of supported TPM models
+#
+# Returns: a list of TpmModel
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
+
+##
+# @TpmType:
+#
+# An enumeration of TPM types
+#
+# @passthrough: TPM passthrough type
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmType', 'data': [ 'passthrough' ] }
+
+##
+# @query-tpm-types:
+#
+# Return a list of supported TPM types
+#
+# Returns: a list of TpmType
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm-types', 'returns': ['TpmType'] }
+
+##
+# @TPMPassthroughOptions:
+#
+# Information about the TPM passthrough type
+#
+# @path: #optional string describing the path used for accessing the TPM device
+#
+# @cancel-path: #optional string showing the TPM's sysfs cancel file
+#               for cancellation of TPM commands while they are executing
+#
+# Since: 1.5
+##
+{ 'type': 'TPMPassthroughOptions', 'data': { '*path' : 'str',
+                                             '*cancel-path' : 'str'} }
+
+##
+# @TpmTypeOptions:
+#
+# A union referencing different TPM backend types' configuration options
+#
+# @passthrough: The configuration options for the TPM passthrough type
+#
+# Since: 1.5
+##
+{ 'union': 'TpmTypeOptions',
+   'data': { 'passthrough' : 'TPMPassthroughOptions' } }
+
+##
+# @TpmInfo:
+#
+# Information about the TPM
+#
+# @id: The Id of the TPM
+#
+# @model: The TPM frontend model
+#
+# @options: The TPM (backend) type configuration options
+#
+# Since: 1.5
+##
+{ 'type': 'TPMInfo',
+  'data': {'id': 'str',
+           'model': 'TpmModel',
+           'options': 'TpmTypeOptions' } }
+
+##
+# @query-tpm:
+#
+# Return information about the TPM device
+#
+# Returns: @TPMInfo on success
+#
+# Since: 1.5
+##
+{ 'command': 'query-tpm', 'returns': ['TPMInfo'] }

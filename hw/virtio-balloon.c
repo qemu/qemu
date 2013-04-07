@@ -29,25 +29,7 @@
 #include <sys/mman.h>
 #endif
 
-typedef struct VirtIOBalloon
-{
-    VirtIODevice vdev;
-    VirtQueue *ivq, *dvq, *svq;
-    uint32_t num_pages;
-    uint32_t actual;
-    uint64_t stats[VIRTIO_BALLOON_S_NR];
-    VirtQueueElement stats_vq_elem;
-    size_t stats_vq_offset;
-    QEMUTimer *stats_timer;
-    int64_t stats_last_update;
-    int64_t stats_poll_interval;
-    DeviceState *qdev;
-} VirtIOBalloon;
-
-static VirtIOBalloon *to_virtio_balloon(VirtIODevice *vdev)
-{
-    return (VirtIOBalloon *)vdev;
-}
+#include "hw/virtio-bus.h"
 
 static void balloon_page(void *addr, int deflate)
 {
@@ -84,7 +66,8 @@ static inline void reset_stats(VirtIOBalloon *dev)
 
 static bool balloon_stats_supported(const VirtIOBalloon *s)
 {
-    return s->vdev.guest_features & (1 << VIRTIO_BALLOON_F_STATS_VQ);
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    return vdev->guest_features & (1 << VIRTIO_BALLOON_F_STATS_VQ);
 }
 
 static bool balloon_stats_enabled(const VirtIOBalloon *s)
@@ -110,6 +93,7 @@ static void balloon_stats_change_timer(VirtIOBalloon *s, int secs)
 static void balloon_stats_poll_cb(void *opaque)
 {
     VirtIOBalloon *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
     if (!balloon_stats_supported(s)) {
         /* re-schedule */
@@ -118,7 +102,7 @@ static void balloon_stats_poll_cb(void *opaque)
     }
 
     virtqueue_push(s->svq, &s->stats_vq_elem, s->stats_vq_offset);
-    virtio_notify(&s->vdev, s->svq);
+    virtio_notify(vdev, s->svq);
 }
 
 static void balloon_stats_get_all(Object *obj, struct Visitor *v,
@@ -196,7 +180,7 @@ static void balloon_stats_set_poll_interval(Object *obj, struct Visitor *v,
 
 static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOBalloon *s = to_virtio_balloon(vdev);
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
     VirtQueueElement elem;
     MemoryRegionSection section;
 
@@ -230,7 +214,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
 static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOBalloon *s = DO_UPCAST(VirtIOBalloon, vdev, vdev);
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
     VirtQueueElement *elem = &s->stats_vq_elem;
     VirtIOBalloonStat stat;
     size_t offset = 0;
@@ -272,7 +256,7 @@ out:
 
 static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
-    VirtIOBalloon *dev = to_virtio_balloon(vdev);
+    VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
     struct virtio_balloon_config config;
 
     config.num_pages = cpu_to_le32(dev->num_pages);
@@ -284,7 +268,7 @@ static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
 static void virtio_balloon_set_config(VirtIODevice *vdev,
                                       const uint8_t *config_data)
 {
-    VirtIOBalloon *dev = to_virtio_balloon(vdev);
+    VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
     struct virtio_balloon_config config;
     uint32_t oldactual = dev->actual;
     memcpy(&config, config_data, 8);
@@ -310,22 +294,24 @@ static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
 
 static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
 {
-    VirtIOBalloon *dev = opaque;
+    VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
 
     if (target > ram_size) {
         target = ram_size;
     }
     if (target) {
         dev->num_pages = (ram_size - target) >> VIRTIO_BALLOON_PFN_SHIFT;
-        virtio_notify_config(&dev->vdev);
+        virtio_notify_config(vdev);
     }
 }
 
 static void virtio_balloon_save(QEMUFile *f, void *opaque)
 {
-    VirtIOBalloon *s = opaque;
+    VirtIOBalloon *s = VIRTIO_BALLOON(opaque);
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
-    virtio_save(&s->vdev, f);
+    virtio_save(vdev, f);
 
     qemu_put_be32(f, s->num_pages);
     qemu_put_be32(f, s->actual);
@@ -333,13 +319,14 @@ static void virtio_balloon_save(QEMUFile *f, void *opaque)
 
 static int virtio_balloon_load(QEMUFile *f, void *opaque, int version_id)
 {
-    VirtIOBalloon *s = opaque;
+    VirtIOBalloon *s = VIRTIO_BALLOON(opaque);
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
     int ret;
 
     if (version_id != 1)
         return -EINVAL;
 
-    ret = virtio_load(&s->vdev, f);
+    ret = virtio_load(vdev, f);
     if (ret) {
         return ret;
     }
@@ -349,51 +336,81 @@ static int virtio_balloon_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-VirtIODevice *virtio_balloon_init(DeviceState *dev)
+static int virtio_balloon_device_init(VirtIODevice *vdev)
 {
-    VirtIOBalloon *s;
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
     int ret;
 
-    s = (VirtIOBalloon *)virtio_common_init("virtio-balloon",
-                                            VIRTIO_ID_BALLOON,
-                                            8, sizeof(VirtIOBalloon));
+    virtio_init(vdev, "virtio-balloon", VIRTIO_ID_BALLOON, 8);
 
-    s->vdev.get_config = virtio_balloon_get_config;
-    s->vdev.set_config = virtio_balloon_set_config;
-    s->vdev.get_features = virtio_balloon_get_features;
+    vdev->get_config = virtio_balloon_get_config;
+    vdev->set_config = virtio_balloon_set_config;
+    vdev->get_features = virtio_balloon_get_features;
 
     ret = qemu_add_balloon_handler(virtio_balloon_to_target,
                                    virtio_balloon_stat, s);
+
     if (ret < 0) {
-        virtio_cleanup(&s->vdev);
-        return NULL;
+        virtio_common_cleanup(VIRTIO_DEVICE(s));
+        return -1;
     }
 
-    s->ivq = virtio_add_queue(&s->vdev, 128, virtio_balloon_handle_output);
-    s->dvq = virtio_add_queue(&s->vdev, 128, virtio_balloon_handle_output);
-    s->svq = virtio_add_queue(&s->vdev, 128, virtio_balloon_receive_stats);
+    s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+    s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+    s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
 
-    s->qdev = dev;
-    register_savevm(dev, "virtio-balloon", -1, 1,
+    register_savevm(qdev, "virtio-balloon", -1, 1,
                     virtio_balloon_save, virtio_balloon_load, s);
 
-    object_property_add(OBJECT(dev), "guest-stats", "guest statistics",
+    object_property_add(OBJECT(qdev), "guest-stats", "guest statistics",
                         balloon_stats_get_all, NULL, NULL, s, NULL);
 
-    object_property_add(OBJECT(dev), "guest-stats-polling-interval", "int",
+    object_property_add(OBJECT(qdev), "guest-stats-polling-interval", "int",
                         balloon_stats_get_poll_interval,
                         balloon_stats_set_poll_interval,
                         NULL, s, NULL);
-
-    return &s->vdev;
+    return 0;
 }
 
-void virtio_balloon_exit(VirtIODevice *vdev)
+static int virtio_balloon_device_exit(DeviceState *qdev)
 {
-    VirtIOBalloon *s = DO_UPCAST(VirtIOBalloon, vdev, vdev);
+    VirtIOBalloon *s = VIRTIO_BALLOON(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
 
     balloon_stats_destroy_timer(s);
     qemu_remove_balloon_handler(s);
-    unregister_savevm(s->qdev, "virtio-balloon", s);
-    virtio_cleanup(vdev);
+    unregister_savevm(qdev, "virtio-balloon", s);
+    virtio_common_cleanup(vdev);
+    return 0;
 }
+
+static Property virtio_balloon_properties[] = {
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_balloon_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    dc->exit = virtio_balloon_device_exit;
+    dc->props = virtio_balloon_properties;
+    vdc->init = virtio_balloon_device_init;
+    vdc->get_config = virtio_balloon_get_config;
+    vdc->set_config = virtio_balloon_set_config;
+    vdc->get_features = virtio_balloon_get_features;
+}
+
+static const TypeInfo virtio_balloon_info = {
+    .name = TYPE_VIRTIO_BALLOON,
+    .parent = TYPE_VIRTIO_DEVICE,
+    .instance_size = sizeof(VirtIOBalloon),
+    .class_init = virtio_balloon_class_init,
+};
+
+static void virtio_register_types(void)
+{
+    type_register_static(&virtio_balloon_info);
+}
+
+type_init(virtio_register_types)

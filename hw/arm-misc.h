@@ -14,7 +14,7 @@
 #include "exec/memory.h"
 #include "hw/irq.h"
 
-/* The CPU is also modeled as an interrupt controller.  */
+/* The CPU is also modelled as an interrupt controller.  */
 #define ARM_PIC_CPU_IRQ 0
 #define ARM_PIC_CPU_FIQ 1
 qemu_irq *arm_pic_init_cpu(ARMCPU *cpu);

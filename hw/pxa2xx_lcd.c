@@ -39,7 +39,7 @@ struct PXA2xxLCDState {
     int irqlevel;
 
     int invalidated;
-    DisplayState *ds;
+    QemuConsole *con;
     drawfn *line_fn[2];
     int dest_width;
     int xres, yres;
@@ -579,6 +579,7 @@ static const MemoryRegionOps pxa2xx_lcdc_ops = {
 /* Load new palette for a given DMA channel, convert to internal format */
 static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int i, n, format, r, g, b, alpha;
     uint32_t *dest;
     uint8_t *src;
@@ -652,7 +653,7 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
             src += 4;
             break;
         }
-        switch (ds_get_bits_per_pixel(s->ds)) {
+        switch (surface_bits_per_pixel(surface)) {
         case 8:
             *dest = rgb_to_pixel8(r, g, b) | alpha;
             break;
@@ -676,6 +677,7 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
 static void pxa2xx_lcdc_dma0_redraw_rot0(PXA2xxLCDState *s,
                 hwaddr addr, int *miny, int *maxy)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int src_width, dest_width;
     drawfn fn = NULL;
     if (s->dest_width)
@@ -693,7 +695,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot0(PXA2xxLCDState *s,
 
     dest_width = s->xres * s->dest_width;
     *miny = 0;
-    framebuffer_update_display(s->ds, s->sysmem,
+    framebuffer_update_display(surface, s->sysmem,
                                addr, s->xres, s->yres,
                                src_width, dest_width, s->dest_width,
                                s->invalidated,
@@ -703,6 +705,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot0(PXA2xxLCDState *s,
 static void pxa2xx_lcdc_dma0_redraw_rot90(PXA2xxLCDState *s,
                hwaddr addr, int *miny, int *maxy)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int src_width, dest_width;
     drawfn fn = NULL;
     if (s->dest_width)
@@ -720,7 +723,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot90(PXA2xxLCDState *s,
 
     dest_width = s->yres * s->dest_width;
     *miny = 0;
-    framebuffer_update_display(s->ds, s->sysmem,
+    framebuffer_update_display(surface, s->sysmem,
                                addr, s->xres, s->yres,
                                src_width, s->dest_width, -dest_width,
                                s->invalidated,
@@ -731,6 +734,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot90(PXA2xxLCDState *s,
 static void pxa2xx_lcdc_dma0_redraw_rot180(PXA2xxLCDState *s,
                 hwaddr addr, int *miny, int *maxy)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int src_width, dest_width;
     drawfn fn = NULL;
     if (s->dest_width) {
@@ -751,7 +755,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot180(PXA2xxLCDState *s,
 
     dest_width = s->xres * s->dest_width;
     *miny = 0;
-    framebuffer_update_display(s->ds, s->sysmem,
+    framebuffer_update_display(surface, s->sysmem,
                                addr, s->xres, s->yres,
                                src_width, -dest_width, -s->dest_width,
                                s->invalidated,
@@ -761,6 +765,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot180(PXA2xxLCDState *s,
 static void pxa2xx_lcdc_dma0_redraw_rot270(PXA2xxLCDState *s,
                hwaddr addr, int *miny, int *maxy)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int src_width, dest_width;
     drawfn fn = NULL;
     if (s->dest_width) {
@@ -781,7 +786,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot270(PXA2xxLCDState *s,
 
     dest_width = s->yres * s->dest_width;
     *miny = 0;
-    framebuffer_update_display(s->ds, s->sysmem,
+    framebuffer_update_display(surface, s->sysmem,
                                addr, s->xres, s->yres,
                                src_width, -s->dest_width, dest_width,
                                s->invalidated,
@@ -800,9 +805,9 @@ static void pxa2xx_lcdc_resize(PXA2xxLCDState *s)
 
     if (width != s->xres || height != s->yres) {
         if (s->orientation == 90 || s->orientation == 270) {
-            qemu_console_resize(s->ds, height, width);
+            qemu_console_resize(s->con, height, width);
         } else {
-            qemu_console_resize(s->ds, width, height);
+            qemu_console_resize(s->con, width, height);
         }
         s->invalidated = 1;
         s->xres = width;
@@ -871,20 +876,20 @@ static void pxa2xx_update_display(void *opaque)
     if (miny >= 0) {
         switch (s->orientation) {
         case 0:
-            dpy_gfx_update(s->ds, 0, miny, s->xres, maxy - miny + 1);
+            dpy_gfx_update(s->con, 0, miny, s->xres, maxy - miny + 1);
             break;
         case 90:
-            dpy_gfx_update(s->ds, miny, 0, maxy - miny + 1, s->xres);
+            dpy_gfx_update(s->con, miny, 0, maxy - miny + 1, s->xres);
             break;
         case 180:
             maxy = s->yres - maxy - 1;
             miny = s->yres - miny - 1;
-            dpy_gfx_update(s->ds, 0, maxy, s->xres, miny - maxy + 1);
+            dpy_gfx_update(s->con, 0, maxy, s->xres, miny - maxy + 1);
             break;
         case 270:
             maxy = s->yres - maxy - 1;
             miny = s->yres - miny - 1;
-            dpy_gfx_update(s->ds, maxy, 0, miny - maxy + 1, s->xres);
+            dpy_gfx_update(s->con, maxy, 0, miny - maxy + 1, s->xres);
             break;
         }
     }
@@ -990,6 +995,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
                                  hwaddr base, qemu_irq irq)
 {
     PXA2xxLCDState *s;
+    DisplaySurface *surface;
 
     s = (PXA2xxLCDState *) g_malloc0(sizeof(PXA2xxLCDState));
     s->invalidated = 1;
@@ -1002,11 +1008,12 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
                           "pxa2xx-lcd-controller", 0x00100000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->ds = graphic_console_init(pxa2xx_update_display,
-                                 pxa2xx_invalidate_display,
-                                 NULL, NULL, s);
+    s->con = graphic_console_init(pxa2xx_update_display,
+                                  pxa2xx_invalidate_display,
+                                  NULL, NULL, s);
+    surface = qemu_console_surface(s->con);
 
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(surface)) {
     case 0:
         s->dest_width = 0;
         break;

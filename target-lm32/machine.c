@@ -1,9 +1,9 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 
-static const VMStateDescription vmstate_cpu = {
-    .name = "cpu",
-    .version_id = CPU_SAVE_VERSION,
+static const VMStateDescription vmstate_env = {
+    .name = "env",
+    .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField[]) {
@@ -22,12 +22,13 @@ static const VMStateDescription vmstate_cpu = {
     }
 };
 
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    vmstate_save_state(f, &vmstate_cpu, opaque);
-}
-
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    return vmstate_load_state(f, &vmstate_cpu, opaque, version_id);
-}
+const VMStateDescription vmstate_lm32_cpu = {
+    .name = "cpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_STRUCT(env, LM32CPU, 1, vmstate_env, CPULM32State),
+        VMSTATE_END_OF_LIST()
+    }
+};

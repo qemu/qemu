@@ -1101,9 +1101,9 @@
                 "PowerPC 7457A v1.2 (G4)")
     /* 64 bits PowerPC                                                       */
 #if defined (TARGET_PPC64)
+#if defined(TODO)
     POWERPC_DEF("620",           CPU_POWERPC_620,                    620,
                 "PowerPC 620")
-#if defined(TODO)
     POWERPC_DEF("630",           CPU_POWERPC_630,                    630,
                 "PowerPC 630 (POWER3)")
 #endif

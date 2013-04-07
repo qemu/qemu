@@ -44,17 +44,12 @@
 
 #include "hw/vhost_net.h"
 
-/* Maximum GSO packet size (64k) plus plenty of room for
- * the ethernet and virtio_net headers
- */
-#define TAP_BUFSIZE (4096 + 65536)
-
 typedef struct TAPState {
     NetClientState nc;
     int fd;
     char down_script[1024];
     char down_script_arg[128];
-    uint8_t buf[TAP_BUFSIZE];
+    uint8_t buf[NET_BUFSIZE];
     bool read_poll;
     bool write_poll;
     bool using_vnet_hdr;
@@ -696,7 +691,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     /* QEMU vlans does not support multiqueue tap, in this case peer is set.
      * For -netdev, peer is always NULL. */
     if (peer && (tap->has_queues || tap->has_fds || tap->has_vhostfds)) {
-        error_report("Multiqueue tap cannnot be used with QEMU vlans");
+        error_report("Multiqueue tap cannot be used with QEMU vlans");
         return -1;
     }
 

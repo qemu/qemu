@@ -462,7 +462,7 @@ typedef struct musicpal_lcd_state {
     uint32_t irqctrl;
     uint32_t page;
     uint32_t page_off;
-    DisplayState *ds;
+    QemuConsole *con;
     uint8_t video_ram[128*64/8];
 } musicpal_lcd_state;
 
@@ -483,7 +483,8 @@ static inline void glue(set_lcd_pixel, depth) \
         (musicpal_lcd_state *s, int x, int y, type col) \
 { \
     int dx, dy; \
-    type *pixel = &((type *) ds_get_data(s->ds))[(y * 128 * 3 + x) * 3]; \
+    DisplaySurface *surface = qemu_console_surface(s->con); \
+    type *pixel = &((type *) surface_data(surface))[(y * 128 * 3 + x) * 3]; \
 \
     for (dy = 0; dy < 3; dy++, pixel += 127 * 3) \
         for (dx = 0; dx < 3; dx++, pixel++) \
@@ -496,9 +497,10 @@ SET_LCD_PIXEL(32, uint32_t)
 static void lcd_refresh(void *opaque)
 {
     musicpal_lcd_state *s = opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int x, y, col;
 
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(surface)) {
     case 0:
         return;
 #define LCD_REFRESH(depth, func) \
@@ -518,14 +520,14 @@ static void lcd_refresh(void *opaque)
         break;
     LCD_REFRESH(8, rgb_to_pixel8)
     LCD_REFRESH(16, rgb_to_pixel16)
-    LCD_REFRESH(32, (is_surface_bgr(s->ds->surface) ?
+    LCD_REFRESH(32, (is_surface_bgr(surface) ?
                      rgb_to_pixel32bgr : rgb_to_pixel32))
     default:
         hw_error("unsupported colour depth %i\n",
-                  ds_get_bits_per_pixel(s->ds));
+                 surface_bits_per_pixel(surface));
     }
 
-    dpy_gfx_update(s->ds, 0, 0, 128*3, 64*3);
+    dpy_gfx_update(s->con, 0, 0, 128*3, 64*3);
 }
 
 static void lcd_invalidate(void *opaque)
@@ -609,9 +611,9 @@ static int musicpal_lcd_init(SysBusDevice *dev)
                           "musicpal-lcd", MP_LCD_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
-    s->ds = graphic_console_init(lcd_refresh, lcd_invalidate,
-                                 NULL, NULL, s);
-    qemu_console_resize(s->ds, 128*3, 64*3);
+    s->con = graphic_console_init(lcd_refresh, lcd_invalidate,
+                                  NULL, NULL, s);
+    qemu_console_resize(s->con, 128*3, 64*3);
 
     qdev_init_gpio_in(&dev->qdev, musicpal_lcd_gpio_brigthness_in, 3);
 

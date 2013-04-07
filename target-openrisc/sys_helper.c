@@ -31,6 +31,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
     int idx;
 
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
 
     switch (spr) {
     case TO_SPR(0, 0): /* VR */
@@ -132,7 +133,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
                 env->ttmr = (rb & ~TTMR_IP) + ip;
             } else {    /* Clear IP bit.  */
                 env->ttmr = rb & ~TTMR_IP;
-                env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
+                cs->interrupt_request &= ~CPU_INTERRUPT_TIMER;
             }
 
             cpu_openrisc_count_update(cpu);

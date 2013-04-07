@@ -275,7 +275,6 @@ struct CPUMBState {
 void mb_tcg_init(void);
 MicroBlazeCPU *cpu_mb_init(const char *cpu_model);
 int cpu_mb_exec(CPUMBState *s);
-void do_interrupt(CPUMBState *env);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -374,9 +373,7 @@ void cpu_unassigned_access(CPUMBState *env1, hwaddr addr,
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUMBState *env = &MICROBLAZE_CPU(cpu)->env;
-
-    return env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
 #include "exec/exec-all.h"

@@ -125,7 +125,7 @@ struct TC6393xbState {
     DeviceState *flash;
     ECCState ecc;
 
-    DisplayState *ds;
+    QemuConsole *con;
     MemoryRegion vram;
     uint16_t *vram_ptr;
     uint32_t scr_width, scr_height; /* in pixels */
@@ -433,7 +433,9 @@ static void tc6393xb_nand_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) 
 
 static void tc6393xb_draw_graphic(TC6393xbState *s, int full_update)
 {
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    DisplaySurface *surface = qemu_console_surface(s->con);
+
+    switch (surface_bits_per_pixel(surface)) {
         case 8:
             tc6393xb_draw_graphic8(s);
             break;
@@ -450,34 +452,37 @@ static void tc6393xb_draw_graphic(TC6393xbState *s, int full_update)
             tc6393xb_draw_graphic32(s);
             break;
         default:
-            printf("tc6393xb: unknown depth %d\n", ds_get_bits_per_pixel(s->ds));
+            printf("tc6393xb: unknown depth %d\n",
+                   surface_bits_per_pixel(surface));
             return;
     }
 
-    dpy_gfx_update(s->ds, 0, 0, s->scr_width, s->scr_height);
+    dpy_gfx_update(s->con, 0, 0, s->scr_width, s->scr_height);
 }
 
 static void tc6393xb_draw_blank(TC6393xbState *s, int full_update)
 {
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int i, w;
     uint8_t *d;
 
     if (!full_update)
         return;
 
-    w = s->scr_width * ((ds_get_bits_per_pixel(s->ds) + 7) >> 3);
-    d = ds_get_data(s->ds);
+    w = s->scr_width * surface_bytes_per_pixel(surface);
+    d = surface_data(surface);
     for(i = 0; i < s->scr_height; i++) {
         memset(d, 0, w);
-        d += ds_get_linesize(s->ds);
+        d += surface_stride(surface);
     }
 
-    dpy_gfx_update(s->ds, 0, 0, s->scr_width, s->scr_height);
+    dpy_gfx_update(s->con, 0, 0, s->scr_width, s->scr_height);
 }
 
 static void tc6393xb_update_display(void *opaque)
 {
     TC6393xbState *s = opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int full_update;
 
     if (s->scr_width == 0 || s->scr_height == 0)
@@ -488,8 +493,9 @@ static void tc6393xb_update_display(void *opaque)
         s->blanked = s->blank;
         full_update = 1;
     }
-    if (s->scr_width != ds_get_width(s->ds) || s->scr_height != ds_get_height(s->ds)) {
-        qemu_console_resize(s->ds, s->scr_width, s->scr_height);
+    if (s->scr_width != surface_width(surface) ||
+        s->scr_height != surface_height(surface)) {
+        qemu_console_resize(s->con, s->scr_width, s->scr_height);
         full_update = 1;
     }
     if (s->blanked)
@@ -577,7 +583,7 @@ TC6393xbState *tc6393xb_init(MemoryRegion *sysmem, uint32_t base, qemu_irq irq)
     memory_region_add_subregion(sysmem, base + 0x100000, &s->vram);
     s->scr_width = 480;
     s->scr_height = 640;
-    s->ds = graphic_console_init(tc6393xb_update_display,
+    s->con = graphic_console_init(tc6393xb_update_display,
             NULL, /* invalidate */
             NULL, /* screen_dump */
             NULL, /* text_update */

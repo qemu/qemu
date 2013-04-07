@@ -349,7 +349,7 @@ static int ppc4xx_pcihost_initfn(SysBusDevice *dev)
 
     b = pci_register_bus(DEVICE(dev), NULL, ppc4xx_pci_set_irq,
                          ppc4xx_pci_map_irq, s->irq, get_system_memory(),
-                         get_system_io(), 0, 4);
+                         get_system_io(), 0, 4, TYPE_PCI_BUS);
     h->bus = b;
 
     pci_create_simple(b, 0, "ppc4xx-host-bridge");

@@ -346,7 +346,7 @@ OpenRISCCPU *cpu_openrisc_init(const char *cpu_model);
 
 void cpu_openrisc_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_openrisc_exec(CPUOpenRISCState *s);
-void do_interrupt(CPUOpenRISCState *env);
+void openrisc_cpu_do_interrupt(CPUState *cpu);
 void openrisc_translate_init(void);
 int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
                                   target_ulong address,
@@ -423,9 +423,7 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env)
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUOpenRISCState *env = &OPENRISC_CPU(cpu)->env;
-
-    return env->interrupt_request & (CPU_INTERRUPT_HARD |
+    return cpu->interrupt_request & (CPU_INTERRUPT_HARD |
                                      CPU_INTERRUPT_TIMER);
 }
 

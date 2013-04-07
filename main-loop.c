@@ -109,6 +109,11 @@ static int qemu_signal_init(void)
 
 static AioContext *qemu_aio_context;
 
+AioContext *qemu_get_aio_context(void)
+{
+    return qemu_aio_context;
+}
+
 void qemu_notify_event(void)
 {
     if (!qemu_aio_context) {

@@ -52,4 +52,19 @@ mvi r3, 0
 cmpgei r3, r3, 0
 check_r3 1
 
+test_name CMPGEI_11
+mvi r1, 0
+cmpgei r3, r1, -32768
+check_r3 1
+
+test_name CMPGEI_12
+mvi r1, -1
+cmpgei r3, r1, -32768
+check_r3 1
+
+test_name CMPGEI_13
+mvi r1, -32768
+cmpgei r3, r1, -32768
+check_r3 1
+
 end

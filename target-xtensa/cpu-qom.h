@@ -80,4 +80,6 @@ static inline XtensaCPU *xtensa_env_get_cpu(const CPUXtensaState *env)
 
 #define ENV_OFFSET offsetof(XtensaCPU, env)
 
+void xtensa_cpu_do_interrupt(CPUState *cpu);
+
 #endif

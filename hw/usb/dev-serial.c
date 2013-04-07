@@ -495,7 +495,7 @@ static int usb_serial_initfn(USBDevice *dev)
                           usb_serial_event, s);
     usb_serial_handle_reset(dev);
 
-    if (s->cs->opened && !dev->attached) {
+    if (s->cs->be_open && !dev->attached) {
         usb_device_attach(dev);
     }
     return 0;

@@ -144,6 +144,7 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
         BlockDriverCompletionFunc *cb, void *opaque, int type)
 {
     RawWin32AIOData *acb = g_slice_new(RawWin32AIOData);
+    ThreadPool *pool;
 
     acb->bs = bs;
     acb->hfile = hfile;
@@ -157,7 +158,8 @@ static BlockDriverAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
     acb->aio_offset = sector_num * 512;
 
     trace_paio_submit(acb, opaque, sector_num, nb_sectors, type);
-    return thread_pool_submit_aio(aio_worker, acb, cb, opaque);
+    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
 
 int qemu_ftruncate64(int fd, int64_t length)
@@ -219,7 +221,8 @@ static void raw_parse_flags(int flags, int *access_flags, DWORD *overlapped)
     }
 }
 
-static int raw_open(BlockDriverState *bs, const char *filename, int flags)
+static int raw_open(BlockDriverState *bs, const char *filename,
+                    QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int access_flags;
@@ -492,7 +495,8 @@ static int hdev_probe_device(const char *filename)
     return 0;
 }
 
-static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
+static int hdev_open(BlockDriverState *bs, const char *filename,
+                     QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int access_flags, create_flags;

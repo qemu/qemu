@@ -21,10 +21,9 @@ typedef struct {
     MemoryRegion mmio;
     qemu_irq irq;
     //~ hwaddr base;
-    DisplayState *ds;
     drawfn *line_fn;
-
-    uint32_t con[5];
+    QemuConsole *con;
+    uint32_t caddr[5];
     uint32_t saddr[3];
     uint32_t r;
     uint32_t g;
@@ -67,11 +66,11 @@ static void s3c24xx_lcd_reset(S3C24xxLCD_State *s)
     s->width = -1;
     s->height = -1;
 
-    s->con[0] = 0x00000000;
-    s->con[1] = 0x00000000;
-    s->con[2] = 0x00000000;
-    s->con[3] = 0x00000000;
-    s->con[4] = 0x00000000;
+    s->caddr[0] = 0x00000000;
+    s->caddr[1] = 0x00000000;
+    s->caddr[2] = 0x00000000;
+    s->caddr[3] = 0x00000000;
+    s->caddr[4] = 0x00000000;
     s->saddr[0] = 0x00000000;
     s->saddr[1] = 0x00000000;
     s->saddr[2] = 0x00000000;
@@ -115,15 +114,15 @@ static uint64_t s3c24xx_lcd_read(void *opaque,
 
     switch (addr) {
     case S3C24XX_LCDCON1:
-        return s->con[0];		/* XXX Return random LINECNT? */
+        return s->caddr[0];		/* XXX Return random LINECNT? */
     case S3C24XX_LCDCON2:
-        return s->con[1];
+        return s->caddr[1];
     case S3C24XX_LCDCON3:
-        return s->con[2];
+        return s->caddr[2];
     case S3C24XX_LCDCON4:
-        return s->con[3];
+        return s->caddr[3];
     case S3C24XX_LCDCON5:
-        return s->con[4];		/* XXX Return random STATUS? */
+        return s->caddr[4];		/* XXX Return random STATUS? */
     case S3C24XX_LCDSADDR1:
         return s->saddr[0];
     case S3C24XX_LCDSADDR2:
@@ -165,25 +164,25 @@ static void s3c24xx_lcd_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case S3C24XX_LCDCON1:
-        s->con[0] = value & 0x0003ffff;
+        s->caddr[0] = value & 0x0003ffff;
         s->enable = value & 1;
         s->bpp = (value >> 1) & 0xf;
         s->invalidate = 1;
         s->invalidatep = 1;
         break;
     case S3C24XX_LCDCON2:
-        s->con[1] = value;
+        s->caddr[1] = value;
         s->invalidate = 1;
         break;
     case S3C24XX_LCDCON3:
-        s->con[2] = value;
+        s->caddr[2] = value;
         s->invalidate = 1;
         break;
     case S3C24XX_LCDCON4:
-        s->con[3] = value & 0xffff;
+        s->caddr[3] = value & 0xffff;
         break;
     case S3C24XX_LCDCON5:
-        s->con[4] = value & 0x1fff;
+        s->caddr[4] = value & 0x1fff;
         s->frm565 = (value >> 11) & 1;
         s->msb = (value >> 12) & 1;
         s->invalidatep = 1;
@@ -262,12 +261,12 @@ static const MemoryRegionOps s3c24xx_lcd_ops = {
 static inline void s3c24xx_lcd_resize(S3C24xxLCD_State *s)
 {
     int new_width, new_height;
-    new_height = ((s->con[1] >> 14) & 0x3ff) + 1;
-    new_width = ((s->con[2] >> 8) & 0x7ff) + 1;
+    new_height = ((s->caddr[1] >> 14) & 0x3ff) + 1;
+    new_width = ((s->caddr[2] >> 8) & 0x7ff) + 1;
     if (s->width != new_width || s->height != new_height) {
         s->width = new_width;
         s->height = new_height;
-        qemu_console_resize(s->ds, s->width, s->height);
+        qemu_console_resize(s->con, s->width, s->height);
         s->invalidate = 1;
     }
 }
@@ -302,10 +301,10 @@ uint32_t s3c24xx_rgb_to_pixel32(unsigned int r, unsigned int g, unsigned b)
     return (r << 16) | (g << 8) | b;
 }
 
-static inline uint32_t s3c24xx_rgb(S3C24xxLCD_State *s,
+static inline uint32_t s3c24xx_rgb(DisplaySurface *surface,
                                    unsigned int r, unsigned int g, unsigned b)
 {
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(surface)) {
     case 8:
         return s3c24xx_rgb_to_pixel32(r << 2, g << 2, b << 2);
     case 15:
@@ -371,24 +370,24 @@ static void s3c24xx_lcd_palette_load(S3C24xxLCD_State *s)
     if (s->bpp & 8) {
         for (i = 0; i < n; i ++)
             if (s->frm565)
-                s->palette[i] = s3c24xx_rgb(s,
+                s->palette[i] = s3c24xx_rgb(qemu_console_surface(s->con),
                                             (s->raw_pal[i] >> 10) & 0x3e,
                                             (s->raw_pal[i] >> 5) & 0x3f,
                                             (s->raw_pal[i] << 1) & 0x3e);
             else
-                s->palette[i] = s3c24xx_rgb(s,
+                s->palette[i] = s3c24xx_rgb(qemu_console_surface(s->con),
                                             ((s->raw_pal[i] >> 10) & 0x3e) | (s->raw_pal[i] & 1),
                                             ((s->raw_pal[i] >> 6) & 0x3e) | (s->raw_pal[i] & 1),
                                             s->raw_pal[i] & 0x3f);
     } else {
         for (i = 0; i < n; i ++)
             if (n < 256)
-                s->palette[i] = s3c24xx_rgb(s,
+                s->palette[i] = s3c24xx_rgb(qemu_console_surface(s->con),
                                             ((s->r >> (i * 4)) & 0xf) << 2,
                                             ((s->g >> (i * 4)) & 0xf) << 2,
                                             ((s->b >> (i * 4)) & 0xf) << 2);
             else
-                s->palette[i] = s3c24xx_rgb(s,
+                s->palette[i] = s3c24xx_rgb(qemu_console_surface(s->con),
                                             ((s->r >> (((i >> 5) & 7) * 4)) & 0xf) << 2,
                                             ((s->g >> (((i >> 2) & 7) * 4)) & 0xf) << 2,
                                             ((s->b >> ((i & 3) * 4)) & 0xf) << 2);
@@ -413,7 +412,7 @@ static void s3c24xx_update_display(void *opaque)
     src_width = s->src_width;
     dest_width = s->width * s->dest_width;
 
-    framebuffer_update_display(s->ds,
+    framebuffer_update_display(qemu_console_surface(s->con),
                                &s->mmio, s->width, s->height,
                                src_width, dest_width, s->dest_width,
                                0, s->invalidate,
@@ -422,7 +421,7 @@ static void s3c24xx_update_display(void *opaque)
 
     s->srcpnd |= (1 << 1);			/* INT_FrSyn */
     s3c24xx_lcd_update(s);
-    dpy_gfx_update(s->ds, 0, miny, s->width, maxy);
+    dpy_gfx_update(s->con, 0, miny, s->width, maxy);
 }
 
 static void s3c24xx_invalidate_display(void *opaque)
@@ -464,13 +463,13 @@ static int s3c24xx_lcd_init(SysBusDevice *dev)
 
     s3c24xx_lcd_reset(s);
 
-    s->ds = graphic_console_init(s3c24xx_update_display,
-                                 s3c24xx_invalidate_display,
-                                 s3c24xx_screen_dump, NULL, s);
+    s->con = graphic_console_init(s3c24xx_update_display,
+                                  s3c24xx_invalidate_display,
+                                  s3c24xx_screen_dump, NULL, s);
 
     //~ qdev_init_gpio_in(&dev->qdev, s3c24xx_lcd_gpio_brigthness_in, 3);
 
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(qemu_console_surface(s->con))) {
     case 0:
         s->dest_width = 0;
         break;

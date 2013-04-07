@@ -212,7 +212,7 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .driver   = "ide-drive",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "virtio-blk-pci",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
@@ -221,6 +221,26 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .property = "vectors",\
             /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\
             .value    = stringify(0xFFFFFFFF),\
-	}
+        },{\
+            .driver   = "e1000",\
+            .property = "romfile",\
+            .value    = "pxe-e1000.rom",\
+        },{\
+            .driver   = "ne2k_pci",\
+            .property = "romfile",\
+            .value    = "pxe-ne2k_pci.rom",\
+        },{\
+            .driver   = "pcnet",\
+            .property = "romfile",\
+            .value    = "pxe-pcnet.rom",\
+        },{\
+            .driver   = "rtl8139",\
+            .property = "romfile",\
+            .value    = "pxe-rtl8139.rom",\
+        },{\
+            .driver   = "virtio-net-pci",\
+            .property = "romfile",\
+            .value    = "pxe-virtio.rom",\
+        }
 
 #endif

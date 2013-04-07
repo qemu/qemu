@@ -580,8 +580,8 @@ static int sim_probe (const uint8_t * buf, int buf_size, const char *filename)
     return 2;
 }
 
-static int sim_open (BlockDriverState * bs, const char *filename,
-                     int bdrv_flags)
+static int sim_open(BlockDriverState * bs, const char *filename,
+                    QDict *options, int bdrv_flags)
 {
     BDRVSimState *s = bs->opaque;
     int open_flags = O_BINARY | O_LARGEFILE;

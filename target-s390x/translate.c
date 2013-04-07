@@ -1142,7 +1142,7 @@ struct DisasInsn {
 };
 
 /* ====================================================================== */
-/* Miscelaneous helpers, used by several operations.  */
+/* Miscellaneous helpers, used by several operations.  */
 
 static void help_l2_shift(DisasContext *s, DisasFields *f,
                           DisasOps *o, int mask)

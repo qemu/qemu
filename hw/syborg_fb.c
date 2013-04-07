@@ -66,8 +66,7 @@ enum {
 typedef struct {
     SysBusDevice busdev;
     MemoryRegion iomem;
-    DisplayState *ds;
-    /*QEMUConsole *console;*/
+    QemuConsole *con;
     uint32_t need_update : 1;
     uint32_t need_int : 1;
     uint32_t enabled : 1;
@@ -134,6 +133,7 @@ static void syborg_fb_update_palette(SyborgFBState *s)
     int n, i;
     uint32_t raw;
     unsigned int r, g, b;
+    DisplaySurface *surface = qemu_console_surface(s->con);
 
     switch (s->bpp) {
     case BPP_SRC_1: n = 2; break;
@@ -148,7 +148,7 @@ static void syborg_fb_update_palette(SyborgFBState *s)
         r = (raw >> 16) & 0xff;
         g = (raw >> 8) & 0xff;
         b = raw & 0xff;
-        switch (ds_get_bits_per_pixel(s->ds)) {
+        switch (surface_bits_per_pixel(surface)) {
         case 8:
             s->palette[i] = rgb_to_pixel8(r, g, b);
             break;
@@ -172,6 +172,7 @@ static void syborg_fb_update_palette(SyborgFBState *s)
 static void syborg_fb_update_display(void *opaque)
 {
     SyborgFBState *s = (SyborgFBState *)opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
     drawfn* fntable;
     drawfn fn;
     int dest_width;
@@ -183,7 +184,7 @@ static void syborg_fb_update_display(void *opaque)
     if (!syborg_fb_enabled(s))
         return;
 
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(surface)) {
     case 0:
         return;
     case 8:
@@ -272,14 +273,15 @@ static void syborg_fb_update_display(void *opaque)
         if (s->need_update && s->bpp <= BPP_SRC_8) {
             syborg_fb_update_palette(s);
         }
-        framebuffer_update_display(s->ds, sysbus_address_space(&s->busdev),
+        framebuffer_update_display(surface,
+                                   sysbus_address_space(&s->busdev),
                                    s->base, s->cols, s->rows,
                                    src_width, dest_width, 0,
                                    s->need_update,
                                    fn, s->palette,
                                    &first, &last);
         if (first >= 0) {
-            dpy_gfx_update(s->ds, 0, first, s->cols, last - first + 1);
+            dpy_gfx_update(s->con, 0, first, s->cols, last - first + 1);
         }
 
         s->int_status |= FB_INT_VSYNC;
@@ -511,24 +513,29 @@ static int syborg_fb_load(QEMUFile *f, void *opaque, int version_id)
 static int syborg_fb_init(SysBusDevice *dev)
 {
     SyborgFBState *s = FROM_SYSBUS(SyborgFBState, dev);
+    DisplaySurface *surface;
 
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_fb_ops, s,
                           "framebuffer", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
-    s->ds = graphic_console_init(syborg_fb_update_display,
-                                 syborg_fb_invalidate_display,
-                                 NULL, NULL, s);
+    s->con = graphic_console_init(syborg_fb_update_display,
+                                  syborg_fb_invalidate_display,
+                                  NULL, NULL, s);
+
+    surface = qemu_console_surface(s->con);
 
     if (s->cols != 0 && s->rows != 0) {
-        qemu_console_resize(s->ds, s->cols, s->rows);
+        qemu_console_resize(s->con, s->cols, s->rows);
     }
 
-    if (!s->cols)
-        s->cols = ds_get_width(s->ds);
-    if (!s->rows)
-        s->rows = ds_get_height(s->ds);
+    if (!s->cols) {
+        s->cols = surface_width(surface);
+    }
+    if (!s->rows) {
+        s->rows = surface_height(surface);
+    }
 
     register_savevm(&dev->qdev, "syborg_framebuffer", -1, 1,
                     syborg_fb_save, syborg_fb_load, s);

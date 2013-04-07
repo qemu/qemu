@@ -112,7 +112,7 @@ static void spin_kick(void *data)
     map_start = ldq_p(&curspin->addr) & ~(map_size - 1);
     mmubooke_create_initial_mapping(env, 0, map_start, map_size);
 
-    env->halted = 0;
+    cpu->halted = 0;
     env->exception_index = -1;
     cpu->stopped = false;
     qemu_cpu_kick(cpu);

@@ -21,10 +21,14 @@
 #include "hw/virtio-rng.h"
 #include "hw/virtio-serial.h"
 #include "hw/virtio-scsi.h"
+#include "hw/virtio-balloon.h"
 #include "hw/virtio-bus.h"
 #include "hw/9pfs/virtio-9p-device.h"
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
+typedef struct VirtIOBlkPCI VirtIOBlkPCI;
+typedef struct VirtIOSCSIPCI VirtIOSCSIPCI;
+typedef struct VirtIOBalloonPCI VirtIOBalloonPCI;
 
 /* virtio-pci-bus */
 
@@ -73,7 +77,6 @@ struct VirtIOPCIProxy {
     uint32_t flags;
     uint32_t class_code;
     uint32_t nvectors;
-    VirtIOBlkConf blk;
     NICConf nic;
     uint32_t host_features;
 #ifdef CONFIG_VIRTFS
@@ -81,13 +84,50 @@ struct VirtIOPCIProxy {
 #endif
     virtio_serial_conf serial;
     virtio_net_conf net;
-    VirtIOSCSIConf scsi;
     VirtIORNGConf rng;
     bool ioeventfd_disabled;
     bool ioeventfd_started;
     VirtIOIRQFD *vector_irqfd;
     int nvqs_with_notifiers;
     VirtioBusState bus;
+};
+
+
+/*
+ * virtio-scsi-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VIRTIO_SCSI_PCI "virtio-scsi-pci"
+#define VIRTIO_SCSI_PCI(obj) \
+        OBJECT_CHECK(VirtIOSCSIPCI, (obj), TYPE_VIRTIO_SCSI_PCI)
+
+struct VirtIOSCSIPCI {
+    VirtIOPCIProxy parent_obj;
+    VirtIOSCSI vdev;
+};
+
+/*
+ * virtio-blk-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VIRTIO_BLK_PCI "virtio-blk-pci"
+#define VIRTIO_BLK_PCI(obj) \
+        OBJECT_CHECK(VirtIOBlkPCI, (obj), TYPE_VIRTIO_BLK_PCI)
+
+struct VirtIOBlkPCI {
+    VirtIOPCIProxy parent_obj;
+    VirtIOBlock vdev;
+    VirtIOBlkConf blk;
+};
+
+/*
+ * virtio-balloon-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VIRTIO_BALLOON_PCI "virtio-balloon-pci"
+#define VIRTIO_BALLOON_PCI(obj) \
+        OBJECT_CHECK(VirtIOBalloonPCI, (obj), TYPE_VIRTIO_BALLOON_PCI)
+
+struct VirtIOBalloonPCI {
+    VirtIOPCIProxy parent_obj;
+    VirtIOBalloon vdev;
 };
 
 void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev);

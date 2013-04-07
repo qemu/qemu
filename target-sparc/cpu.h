@@ -553,7 +553,6 @@ int cpu_cwp_dec(CPUSPARCState *env1, int cwp);
 void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 
 /* int_helper.c */
-void do_interrupt(CPUSPARCState *env);
 void leon3_irq_manager(CPUSPARCState *env, void *irq_manager, int intno);
 
 /* sun4m.c, sun4u.c */
@@ -762,9 +761,10 @@ static inline bool tb_am_enabled(int tb_flags)
 
 static inline bool cpu_has_work(CPUState *cpu)
 {
-    CPUSPARCState *env1 = &SPARC_CPU(cpu)->env;
+    SPARCCPU *sparc_cpu = SPARC_CPU(cpu);
+    CPUSPARCState *env1 = &sparc_cpu->env;
 
-    return (env1->interrupt_request & CPU_INTERRUPT_HARD) &&
+    return (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
            cpu_interrupts_enabled(env1);
 }
 

@@ -30,6 +30,8 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
+#include "qapi/qmp/qjson.h"
+#include "monitor/monitor.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -117,11 +119,10 @@ DeviceState *qdev_create(BusState *bus, const char *name)
         if (bus) {
             error_report("Unknown device '%s' for bus '%s'", name,
                          object_get_typename(OBJECT(bus)));
-            abort();
         } else {
             error_report("Unknown device '%s' for default sysbus", name);
-            abort();
         }
+        abort();
     }
 
     return dev;
@@ -563,7 +564,7 @@ static void qdev_set_legacy_property(Object *obj, Visitor *v, void *opaque,
     int ret;
 
     if (dev->realized) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
@@ -711,6 +712,7 @@ static void device_initfn(Object *obj)
     DeviceState *dev = DEVICE(obj);
     ObjectClass *class;
     Property *prop;
+    Error *err = NULL;
 
     if (qdev_hotplug) {
         dev->hotplugged = 1;
@@ -726,15 +728,18 @@ static void device_initfn(Object *obj)
     class = object_get_class(OBJECT(dev));
     do {
         for (prop = DEVICE_CLASS(class)->props; prop && prop->name; prop++) {
-            qdev_property_add_legacy(dev, prop, NULL);
-            qdev_property_add_static(dev, prop, NULL);
+            qdev_property_add_legacy(dev, prop, &err);
+            assert_no_error(err);
+            qdev_property_add_static(dev, prop, &err);
+            assert_no_error(err);
         }
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
     qdev_prop_set_globals(dev);
 
     object_property_add_link(OBJECT(dev), "parent_bus", TYPE_BUS,
-                             (Object **)&dev->parent_bus, NULL);
+                             (Object **)&dev->parent_bus, &err);
+    assert_no_error(err);
 }
 
 /* Unlink device from bus and free the structure.  */
@@ -761,6 +766,8 @@ static void device_unparent(Object *obj)
     DeviceState *dev = DEVICE(obj);
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     BusState *bus;
+    QObject *event_data;
+    gchar *path = object_get_canonical_path(obj);
 
     while (dev->num_child_bus) {
         bus = QLIST_FIRST(&dev->child_bus);
@@ -779,6 +786,16 @@ static void device_unparent(Object *obj)
         object_unref(OBJECT(dev->parent_bus));
         dev->parent_bus = NULL;
     }
+
+    if (dev->id) {
+        event_data = qobject_from_jsonf("{ 'device': %s, 'path': %s }",
+                                        dev->id, path);
+    } else {
+        event_data = qobject_from_jsonf("{ 'path': %s }", path);
+    }
+    monitor_protocol_event(QEVENT_DEVICE_DELETED, event_data);
+    qobject_decref(event_data);
+    g_free(path);
 }
 
 static void device_class_init(ObjectClass *class, void *data)

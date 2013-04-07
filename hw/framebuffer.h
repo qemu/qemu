@@ -8,7 +8,7 @@
 typedef void (*drawfn)(void *, uint8_t *, const uint8_t *, int, int);
 
 void framebuffer_update_display(
-    DisplayState *ds,
+    DisplaySurface *ds,
     MemoryRegion *address_space,
     hwaddr base,
     int cols,

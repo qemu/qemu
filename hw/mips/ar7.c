@@ -82,7 +82,7 @@
 #include "hw/sysbus.h"          /* SysBusDevice */
 #include "hw/vlynq.h"           /* vlynq_create_bus */
 
-#include "target-mips/cpu.h"    /* do_interrupt */
+#include "target-mips/cpu-qom.h" /* mips_cpu_do_interrupt */
 
 #if 0 /* Support Titan SoC. */
 #define CONFIG_TITAN
@@ -2903,7 +2903,7 @@ static void watchdog_cb(void *opaque)
     logout("watchdog expired\n");
     env->exception_index = EXCP_NMI;
     env->error_code = 0;
-    do_interrupt(env);
+    mips_cpu_do_interrupt(ENV_GET_CPU(env));
 }
 
 /*****************************************************************************
@@ -3611,7 +3611,7 @@ static void ar7_reset(DeviceState *d)
     logout("%s:%u\n", __FILE__, __LINE__);
     //~ env->exception_index = EXCP_RESET;
     //~ env->exception_index = EXCP_SRESET;
-    //~ do_interrupt(env);
+    //~ mips_cpu_do_interrupt(env);
     //~ env->CP0_Cause |= 0x00000400;
     //~ cpu_interrupt(env, CPU_INTERRUPT_RESET);
 }

@@ -26,7 +26,7 @@ struct omap_lcd_panel_s {
     MemoryRegion *sysmem;
     MemoryRegion iomem;
     qemu_irq irq;
-    DisplayState *state;
+    QemuConsole *con;
 
     int plm;
     int tft;
@@ -113,14 +113,16 @@ static draw_line_func draw_line_table2[33] = {
 static void omap_update_display(void *opaque)
 {
     struct omap_lcd_panel_s *omap_lcd = (struct omap_lcd_panel_s *) opaque;
+    DisplaySurface *surface = qemu_console_surface(omap_lcd->con);
     draw_line_func draw_line;
     int size, height, first, last;
     int width, linesize, step, bpp, frame_offset;
     hwaddr frame_base;
 
-    if (!omap_lcd || omap_lcd->plm == 1 ||
-                    !omap_lcd->enable || !ds_get_bits_per_pixel(omap_lcd->state))
+    if (!omap_lcd || omap_lcd->plm == 1 || !omap_lcd->enable ||
+        !surface_bits_per_pixel(surface)) {
         return;
+    }
 
     frame_offset = 0;
     if (omap_lcd->plm != 2) {
@@ -139,25 +141,25 @@ static void omap_update_display(void *opaque)
     /* Colour depth */
     switch ((omap_lcd->palette[0] >> 12) & 7) {
     case 1:
-        draw_line = draw_line_table2[ds_get_bits_per_pixel(omap_lcd->state)];
+        draw_line = draw_line_table2[surface_bits_per_pixel(surface)];
         bpp = 2;
         break;
 
     case 2:
-        draw_line = draw_line_table4[ds_get_bits_per_pixel(omap_lcd->state)];
+        draw_line = draw_line_table4[surface_bits_per_pixel(surface)];
         bpp = 4;
         break;
 
     case 3:
-        draw_line = draw_line_table8[ds_get_bits_per_pixel(omap_lcd->state)];
+        draw_line = draw_line_table8[surface_bits_per_pixel(surface)];
         bpp = 8;
         break;
 
     case 4 ... 7:
         if (!omap_lcd->tft)
-            draw_line = draw_line_table12[ds_get_bits_per_pixel(omap_lcd->state)];
+            draw_line = draw_line_table12[surface_bits_per_pixel(surface)];
         else
-            draw_line = draw_line_table16[ds_get_bits_per_pixel(omap_lcd->state)];
+            draw_line = draw_line_table16[surface_bits_per_pixel(surface)];
         bpp = 16;
         break;
 
@@ -168,10 +170,11 @@ static void omap_update_display(void *opaque)
 
     /* Resolution */
     width = omap_lcd->width;
-    if (width != ds_get_width(omap_lcd->state) ||
-            omap_lcd->height != ds_get_height(omap_lcd->state)) {
-        qemu_console_resize(omap_lcd->state,
+    if (width != surface_width(surface) ||
+        omap_lcd->height != surface_height(surface)) {
+        qemu_console_resize(omap_lcd->con,
                             omap_lcd->width, omap_lcd->height);
+        surface = qemu_console_surface(omap_lcd->con);
         omap_lcd->invalidate = 1;
     }
 
@@ -196,8 +199,9 @@ static void omap_update_display(void *opaque)
     if (omap_lcd->dma->dual)
         omap_lcd->dma->current_frame ^= 1;
 
-    if (!ds_get_bits_per_pixel(omap_lcd->state))
+    if (!surface_bits_per_pixel(surface)) {
         return;
+    }
 
     first = 0;
     height = omap_lcd->height;
@@ -210,15 +214,15 @@ static void omap_update_display(void *opaque)
     }
 
     step = width * bpp >> 3;
-    linesize = ds_get_linesize(omap_lcd->state);
-    framebuffer_update_display(omap_lcd->state, omap_lcd->sysmem,
+    linesize = surface_stride(surface);
+    framebuffer_update_display(surface, omap_lcd->sysmem,
                                frame_base, width, height,
                                step, linesize, 0,
                                omap_lcd->invalidate,
                                draw_line, omap_lcd->palette,
                                &first, &last);
     if (first >= 0) {
-        dpy_gfx_update(omap_lcd->state, 0, first, width, last - first + 1);
+        dpy_gfx_update(omap_lcd->con, 0, first, width, last - first + 1);
     }
     omap_lcd->invalidate = 0;
 }
@@ -298,12 +302,13 @@ static void omap_screen_dump(void *opaque, const char *filename, bool cswitch,
                              Error **errp)
 {
     struct omap_lcd_panel_s *omap_lcd = opaque;
+    DisplaySurface *surface = qemu_console_surface(omap_lcd->con);
 
     omap_update_display(opaque);
-    if (omap_lcd && ds_get_data(omap_lcd->state))
-        omap_ppm_save(filename, ds_get_data(omap_lcd->state),
+    if (omap_lcd && surface_data(surface))
+        omap_ppm_save(filename, surface_data(surface),
                     omap_lcd->width, omap_lcd->height,
-                    ds_get_linesize(omap_lcd->state), errp);
+                    surface_stride(surface), errp);
 }
 
 static void omap_invalidate_display(void *opaque) {
@@ -480,9 +485,9 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
     memory_region_init_io(&s->iomem, &omap_lcdc_ops, s, "omap.lcdc", 0x100);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->state = graphic_console_init(omap_update_display,
-                                    omap_invalidate_display,
-                                    omap_screen_dump, NULL, s);
+    s->con = graphic_console_init(omap_update_display,
+                                  omap_invalidate_display,
+                                  omap_screen_dump, NULL, s);
 
     return s;
 }

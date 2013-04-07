@@ -763,7 +763,7 @@ static void sdhci_do_adma(SDHCIState *s)
         }
     }
 
-    /* we have unfinished bussiness - reschedule to continue ADMA */
+    /* we have unfinished business - reschedule to continue ADMA */
     qemu_mod_timer(s->transfer_timer,
                    qemu_get_clock_ns(vm_clock) + SDHC_TRANSFER_DELAY);
 }

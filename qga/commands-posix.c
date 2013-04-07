@@ -15,6 +15,10 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
@@ -116,7 +120,78 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
         return;
     }
 
-    /* succeded */
+    /* succeeded */
+}
+
+int64_t qmp_guest_get_time(Error **errp)
+{
+   int ret;
+   qemu_timeval tq;
+   int64_t time_ns;
+
+   ret = qemu_gettimeofday(&tq);
+   if (ret < 0) {
+       error_setg_errno(errp, errno, "Failed to get time");
+       return -1;
+   }
+
+   time_ns = tq.tv_sec * 1000000000LL + tq.tv_usec * 1000;
+   return time_ns;
+}
+
+void qmp_guest_set_time(int64_t time_ns, Error **errp)
+{
+    int ret;
+    int status;
+    pid_t pid;
+    Error *local_err = NULL;
+    struct timeval tv;
+
+    /* year-2038 will overflow in case time_t is 32bit */
+    if (time_ns / 1000000000 != (time_t)(time_ns / 1000000000)) {
+        error_setg(errp, "Time %" PRId64 " is too large", time_ns);
+        return;
+    }
+
+    tv.tv_sec = time_ns / 1000000000;
+    tv.tv_usec = (time_ns % 1000000000) / 1000;
+
+    ret = settimeofday(&tv, NULL);
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "Failed to set time to guest");
+        return;
+    }
+
+    /* Set the Hardware Clock to the current System Time. */
+    pid = fork();
+    if (pid == 0) {
+        setsid();
+        reopen_fd_to_null(0);
+        reopen_fd_to_null(1);
+        reopen_fd_to_null(2);
+
+        execle("/sbin/hwclock", "hwclock", "-w", NULL, environ);
+        _exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        error_setg_errno(errp, errno, "failed to create child process");
+        return;
+    }
+
+    ga_wait_child(pid, &status, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (!WIFEXITED(status)) {
+        error_setg(errp, "child process has terminated abnormally");
+        return;
+    }
+
+    if (WEXITSTATUS(status)) {
+        error_setg(errp, "hwclock failed to set hardware clock to system time");
+        return;
+    }
 }
 
 typedef struct GuestFileHandle {
@@ -129,14 +204,22 @@ static struct {
     QTAILQ_HEAD(, GuestFileHandle) filehandles;
 } guest_file_state;
 
-static void guest_file_handle_add(FILE *fh)
+static int64_t guest_file_handle_add(FILE *fh, Error **errp)
 {
     GuestFileHandle *gfh;
+    int64_t handle;
+
+    handle = ga_get_fd_handle(ga_state, errp);
+    if (error_is_set(errp)) {
+        return 0;
+    }
 
     gfh = g_malloc0(sizeof(GuestFileHandle));
-    gfh->id = fileno(fh);
+    gfh->id = handle;
     gfh->fh = fh;
     QTAILQ_INSERT_TAIL(&guest_file_state.filehandles, gfh, next);
+
+    return handle;
 }
 
 static GuestFileHandle *guest_file_handle_find(int64_t id, Error **err)
@@ -158,7 +241,7 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode, E
 {
     FILE *fh;
     int fd;
-    int64_t ret = -1;
+    int64_t ret = -1, handle;
 
     if (!has_mode) {
         mode = "r";
@@ -184,9 +267,14 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode, E
         return -1;
     }
 
-    guest_file_handle_add(fh);
-    slog("guest-file-open, handle: %d", fd);
-    return fd;
+    handle = guest_file_handle_add(fh, err);
+    if (error_is_set(err)) {
+        fclose(fh);
+        return -1;
+    }
+
+    slog("guest-file-open, handle: %d", handle);
+    return handle;
 }
 
 void qmp_guest_file_close(int64_t handle, Error **err)
@@ -1027,6 +1115,162 @@ error:
     return NULL;
 }
 
+#define SYSCONF_EXACT(name, err) sysconf_exact((name), #name, (err))
+
+static long sysconf_exact(int name, const char *name_str, Error **err)
+{
+    long ret;
+
+    errno = 0;
+    ret = sysconf(name);
+    if (ret == -1) {
+        if (errno == 0) {
+            error_setg(err, "sysconf(%s): value indefinite", name_str);
+        } else {
+            error_setg_errno(err, errno, "sysconf(%s)", name_str);
+        }
+    }
+    return ret;
+}
+
+/* Transfer online/offline status between @vcpu and the guest system.
+ *
+ * On input either @errp or *@errp must be NULL.
+ *
+ * In system-to-@vcpu direction, the following @vcpu fields are accessed:
+ * - R: vcpu->logical_id
+ * - W: vcpu->online
+ * - W: vcpu->can_offline
+ *
+ * In @vcpu-to-system direction, the following @vcpu fields are accessed:
+ * - R: vcpu->logical_id
+ * - R: vcpu->online
+ *
+ * Written members remain unmodified on error.
+ */
+static void transfer_vcpu(GuestLogicalProcessor *vcpu, bool sys2vcpu,
+                          Error **errp)
+{
+    char *dirpath;
+    int dirfd;
+
+    dirpath = g_strdup_printf("/sys/devices/system/cpu/cpu%" PRId64 "/",
+                              vcpu->logical_id);
+    dirfd = open(dirpath, O_RDONLY | O_DIRECTORY);
+    if (dirfd == -1) {
+        error_setg_errno(errp, errno, "open(\"%s\")", dirpath);
+    } else {
+        static const char fn[] = "online";
+        int fd;
+        int res;
+
+        fd = openat(dirfd, fn, sys2vcpu ? O_RDONLY : O_RDWR);
+        if (fd == -1) {
+            if (errno != ENOENT) {
+                error_setg_errno(errp, errno, "open(\"%s/%s\")", dirpath, fn);
+            } else if (sys2vcpu) {
+                vcpu->online = true;
+                vcpu->can_offline = false;
+            } else if (!vcpu->online) {
+                error_setg(errp, "logical processor #%" PRId64 " can't be "
+                           "offlined", vcpu->logical_id);
+            } /* otherwise pretend successful re-onlining */
+        } else {
+            unsigned char status;
+
+            res = pread(fd, &status, 1, 0);
+            if (res == -1) {
+                error_setg_errno(errp, errno, "pread(\"%s/%s\")", dirpath, fn);
+            } else if (res == 0) {
+                error_setg(errp, "pread(\"%s/%s\"): unexpected EOF", dirpath,
+                           fn);
+            } else if (sys2vcpu) {
+                vcpu->online = (status != '0');
+                vcpu->can_offline = true;
+            } else if (vcpu->online != (status != '0')) {
+                status = '0' + vcpu->online;
+                if (pwrite(fd, &status, 1, 0) == -1) {
+                    error_setg_errno(errp, errno, "pwrite(\"%s/%s\")", dirpath,
+                                     fn);
+                }
+            } /* otherwise pretend successful re-(on|off)-lining */
+
+            res = close(fd);
+            g_assert(res == 0);
+        }
+
+        res = close(dirfd);
+        g_assert(res == 0);
+    }
+
+    g_free(dirpath);
+}
+
+GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
+{
+    int64_t current;
+    GuestLogicalProcessorList *head, **link;
+    long sc_max;
+    Error *local_err = NULL;
+
+    current = 0;
+    head = NULL;
+    link = &head;
+    sc_max = SYSCONF_EXACT(_SC_NPROCESSORS_CONF, &local_err);
+
+    while (local_err == NULL && current < sc_max) {
+        GuestLogicalProcessor *vcpu;
+        GuestLogicalProcessorList *entry;
+
+        vcpu = g_malloc0(sizeof *vcpu);
+        vcpu->logical_id = current++;
+        vcpu->has_can_offline = true; /* lolspeak ftw */
+        transfer_vcpu(vcpu, true, &local_err);
+
+        entry = g_malloc0(sizeof *entry);
+        entry->value = vcpu;
+
+        *link = entry;
+        link = &entry->next;
+    }
+
+    if (local_err == NULL) {
+        /* there's no guest with zero VCPUs */
+        g_assert(head != NULL);
+        return head;
+    }
+
+    qapi_free_GuestLogicalProcessorList(head);
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
+int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
+{
+    int64_t processed;
+    Error *local_err = NULL;
+
+    processed = 0;
+    while (vcpus != NULL) {
+        transfer_vcpu(vcpus->value, false, &local_err);
+        if (local_err != NULL) {
+            break;
+        }
+        ++processed;
+        vcpus = vcpus->next;
+    }
+
+    if (local_err != NULL) {
+        if (processed == 0) {
+            error_propagate(errp, local_err);
+        } else {
+            error_free(local_err);
+        }
+    }
+
+    return processed;
+}
+
 #else /* defined(__linux__) */
 
 void qmp_guest_suspend_disk(Error **err)
@@ -1048,6 +1292,18 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
     error_set(errp, QERR_UNSUPPORTED);
     return NULL;
+}
+
+GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
+{
+    error_set(errp, QERR_UNSUPPORTED);
+    return -1;
 }
 
 #endif

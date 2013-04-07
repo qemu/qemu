@@ -43,7 +43,7 @@ void pci_bridge_disable_base_limit(PCIDevice *dev);
 void pci_bridge_reset_reg(PCIDevice *dev);
 void pci_bridge_reset(DeviceState *qdev);
 
-int pci_bridge_initfn(PCIDevice *pci_dev);
+int pci_bridge_initfn(PCIDevice *pci_dev, const char *typename);
 void pci_bridge_exitfn(PCIDevice *pci_dev);
 
 
@@ -55,12 +55,11 @@ void pci_bridge_exitfn(PCIDevice *pci_dev);
 void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
                         pci_map_irq_fn map_irq);
 
+/* TODO: add this define to pci_regs.h in linux and then in qemu. */
+#define  PCI_BRIDGE_CTL_VGA_16BIT	0x10	/* VGA 16-bit decode */
+#define  PCI_BRIDGE_CTL_DISCARD		0x100	/* Primary discard timer */
+#define  PCI_BRIDGE_CTL_SEC_DISCARD	0x200	/* Secondary discard timer */
+#define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
+#define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
+
 #endif  /* QEMU_PCI_BRIDGE_H */
-/*
- * Local variables:
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 8
- *  indent-tab-mode: nil
- * End:
- */

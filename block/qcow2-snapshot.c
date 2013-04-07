@@ -180,10 +180,13 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
 
     /* Allocate space for the new snapshot list */
     snapshots_offset = qcow2_alloc_clusters(bs, snapshots_size);
-    bdrv_flush(bs->file);
     offset = snapshots_offset;
     if (offset < 0) {
         return offset;
+    }
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
+        return ret;
     }
 
     /* Write all snapshots to the new list */
@@ -374,11 +377,6 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
      * to the new L1 table.
      */
     ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1);
-    if (ret < 0) {
-        goto fail;
-    }
-
-    ret = bdrv_flush(bs);
     if (ret < 0) {
         goto fail;
     }

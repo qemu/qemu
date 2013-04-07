@@ -197,10 +197,10 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->remaining = ram_bytes_remaining();
         info->ram->total = ram_bytes_total();
         info->ram->duplicate = dup_mig_pages_transferred();
+        info->ram->skipped = skipped_mig_pages_transferred();
         info->ram->normal = norm_mig_pages_transferred();
         info->ram->normal_bytes = norm_mig_bytes_transferred();
         info->ram->dirty_pages_rate = s->dirty_pages_rate;
-
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -227,6 +227,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->remaining = 0;
         info->ram->total = ram_bytes_total();
         info->ram->duplicate = dup_mig_pages_transferred();
+        info->ram->skipped = skipped_mig_pages_transferred();
         info->ram->normal = norm_mig_pages_transferred();
         info->ram->normal_bytes = norm_mig_bytes_transferred();
         break;

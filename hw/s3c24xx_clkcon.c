@@ -62,7 +62,7 @@ static void s3c24xx_clkcon_write(void *opaque, hwaddr addr_,
     s->clkcon_reg[addr] = value;
 
     if (idle_rising_edge) {
-        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HALT);
+        cpu_interrupt(CPU(s), CPU_INTERRUPT_HALT);
     }
 }
 

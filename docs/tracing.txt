@@ -100,48 +100,36 @@ respectively.  This ensures portability between 32- and 64-bit platforms.
 
 == Generic interface and monitor commands ==
 
-You can programmatically query and control the dynamic state of trace events
-through a backend-agnostic interface:
+You can programmatically query and control the state of trace events through a
+backend-agnostic interface provided by the header "trace/control.h".
 
-* trace_print_events
+Note that some of the backends do not provide an implementation for some parts
+of this interface, in which case QEMU will just print a warning (please refer to
+header "trace/control.h" to see which routines are backend-dependent).
 
-* trace_event_set_state
-  Enables or disables trace events at runtime inside QEMU.
-  The function returns "true" if the state of the event has been successfully
-  changed, or "false" otherwise:
-
-    #include "trace/control.h"
-    
-    trace_event_set_state("virtio_irq", true); /* enable */
-    [...]
-    trace_event_set_state("virtio_irq", false); /* disable */
-
-Note that some of the backends do not provide an implementation for this
-interface, in which case QEMU will just print a warning.
-
-This functionality is also provided through monitor commands:
+The state of events can also be queried and modified through monitor commands:
 
 * info trace-events
   View available trace events and their state.  State 1 means enabled, state 0
   means disabled.
 
 * trace-event NAME on|off
-  Enable/disable a given trace event or a group of events having common prefix
-  through wildcard.
+  Enable/disable a given trace event or a group of events (using wildcards).
 
 The "-trace events=<file>" command line argument can be used to enable the
 events listed in <file> from the very beginning of the program. This file must
 contain one event name per line.
 
-A basic wildcard matching is supported in both the monitor command "trace
--event" and the events list file. That means you can enable/disable the events
-having a common prefix in a batch. For example, virtio-blk trace events could
-be enabled using:
-  trace-event virtio_blk_* on
-
 If a line in the "-trace events=<file>" file begins with a '-', the trace event
 will be disabled instead of enabled.  This is useful when a wildcard was used
 to enable an entire family of events but one noisy event needs to be disabled.
+
+Wildcard matching is supported in both the monitor command "trace-event" and the
+events list file. That means you can enable/disable the events having a common
+prefix in a batch. For example, virtio-blk trace events could be enabled using
+the following monitor command:
+
+    trace-event virtio_blk_* on
 
 == Trace backends ==
 
@@ -263,3 +251,7 @@ guard such computations and avoid its compilation when the event is disabled:
         }
         return ptr;
     }
+
+You can check both if the event has been disabled and is dynamically enabled at
+the same time using the 'trace_event_get_state' routine (see header
+"trace/control.h" for more information).

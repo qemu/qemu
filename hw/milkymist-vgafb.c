@@ -66,7 +66,7 @@ enum {
 struct MilkymistVgafbState {
     SysBusDevice busdev;
     MemoryRegion regs_region;
-    DisplayState *ds;
+    QemuConsole *con;
 
     int invalidate;
     uint32_t fb_offset;
@@ -84,6 +84,7 @@ static int vgafb_enabled(MilkymistVgafbState *s)
 static void vgafb_update_display(void *opaque)
 {
     MilkymistVgafbState *s = opaque;
+    DisplaySurface *surface = qemu_console_surface(s->con);
     int first = 0;
     int last = 0;
     drawfn fn;
@@ -94,7 +95,7 @@ static void vgafb_update_display(void *opaque)
 
     int dest_width = s->regs[R_HRES];
 
-    switch (ds_get_bits_per_pixel(s->ds)) {
+    switch (surface_bits_per_pixel(surface)) {
     case 0:
         return;
     case 8:
@@ -121,7 +122,7 @@ static void vgafb_update_display(void *opaque)
         break;
     }
 
-    framebuffer_update_display(s->ds, sysbus_address_space(&s->busdev),
+    framebuffer_update_display(surface, sysbus_address_space(&s->busdev),
                                s->regs[R_BASEADDRESS] + s->fb_offset,
                                s->regs[R_HRES],
                                s->regs[R_VRES],
@@ -134,7 +135,7 @@ static void vgafb_update_display(void *opaque)
                                &first, &last);
 
     if (first >= 0) {
-        dpy_gfx_update(s->ds, 0, first, s->regs[R_HRES], last - first + 1);
+        dpy_gfx_update(s->con, 0, first, s->regs[R_HRES], last - first + 1);
     }
     s->invalidate = 0;
 }
@@ -151,7 +152,7 @@ static void vgafb_resize(MilkymistVgafbState *s)
         return;
     }
 
-    qemu_console_resize(s->ds, s->regs[R_HRES], s->regs[R_VRES]);
+    qemu_console_resize(s->con, s->regs[R_HRES], s->regs[R_VRES]);
     s->invalidate = 1;
 }
 
@@ -277,9 +278,9 @@ static int milkymist_vgafb_init(SysBusDevice *dev)
             "milkymist-vgafb", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
-    s->ds = graphic_console_init(vgafb_update_display,
-                                 vgafb_invalidate_display,
-                                 NULL, NULL, s);
+    s->con = graphic_console_init(vgafb_update_display,
+                                  vgafb_invalidate_display,
+                                  NULL, NULL, s);
 
     return 0;
 }

@@ -38,7 +38,7 @@ do { printf("pci_host_data: " fmt , ## __VA_ARGS__); } while (0)
  * bit  0 -  7: offset in configuration space of a given pci device
  */
 
-/* the helper functio to get a PCIDeice* for a given pci address */
+/* the helper function to get a PCIDevice* for a given pci address */
 static inline PCIDevice *pci_dev_find_by_addr(PCIBus *bus, uint32_t addr)
 {
     uint8_t bus_num = addr >> 16;

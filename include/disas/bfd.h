@@ -218,6 +218,7 @@ enum bfd_architecture
 #define bfd_mach_cris_v32      32
 #define bfd_mach_cris_v10_v32  1032
   bfd_arch_microblaze, /* Xilinx MicroBlaze.  */
+  bfd_arch_moxie,      /* The Moxie core.  */
   bfd_arch_ia64,      /* HP/Intel ia64 */
 #define bfd_mach_ia64_elf64    64
 #define bfd_mach_ia64_elf32    32
@@ -392,6 +393,7 @@ int print_insn_m32r             (bfd_vma, disassemble_info*);
 int print_insn_m88k             (bfd_vma, disassemble_info*);
 int print_insn_mn10200          (bfd_vma, disassemble_info*);
 int print_insn_mn10300          (bfd_vma, disassemble_info*);
+int print_insn_moxie            (bfd_vma, disassemble_info*);
 int print_insn_ns32k            (bfd_vma, disassemble_info*);
 int print_insn_big_powerpc      (bfd_vma, disassemble_info*);
 int print_insn_little_powerpc   (bfd_vma, disassemble_info*);

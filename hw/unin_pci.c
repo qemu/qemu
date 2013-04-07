@@ -239,7 +239,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
                               pic,
                               &d->pci_mmio,
                               address_space_io,
-                              PCI_DEVFN(11, 0), 4);
+                              PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
 #if 0
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north");
@@ -305,7 +305,7 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
                               pic,
                               &d->pci_mmio,
                               address_space_io,
-                              PCI_DEVFN(11, 0), 4);
+                              PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
     sysbus_mmio_map(s, 0, 0xf0800000);
     sysbus_mmio_map(s, 1, 0xf0c00000);

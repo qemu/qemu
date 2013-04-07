@@ -26,8 +26,11 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt (CPUMBState *env)
+void mb_cpu_do_interrupt(CPUState *cs)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
+
     env->exception_index = -1;
     env->res_addr = RES_ADDR_NONE;
     env->regs[14] = env->sregs[SR_PC];
@@ -109,8 +112,10 @@ int cpu_mb_handle_mmu_fault (CPUMBState *env, target_ulong address, int rw,
     return r;
 }
 
-void do_interrupt(CPUMBState *env)
+void mb_cpu_do_interrupt(CPUState *cs)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
     uint32_t t;
 
     /* IMM flag cannot propagate across a branch and into the dslot.  */

@@ -16,6 +16,12 @@
 
 #include "hw/virtio.h"
 #include "hw/pci/pci.h"
+#include "hw/scsi.h"
+
+#define TYPE_VIRTIO_SCSI "virtio-scsi"
+#define VIRTIO_SCSI(obj) \
+        OBJECT_CHECK(VirtIOSCSI, (obj), TYPE_VIRTIO_SCSI)
+
 
 /* The ID for virtio_scsi */
 #define VIRTIO_ID_SCSI  8
@@ -31,12 +37,30 @@ struct VirtIOSCSIConf {
     uint32_t cmd_per_lun;
 };
 
-#define DEFINE_VIRTIO_SCSI_PROPERTIES(_state, _features_field, _conf_field) \
-    DEFINE_VIRTIO_COMMON_FEATURES(_state, _features_field), \
-    DEFINE_PROP_UINT32("num_queues", _state, _conf_field.num_queues, 1), \
-    DEFINE_PROP_UINT32("max_sectors", _state, _conf_field.max_sectors, 0xFFFF), \
-    DEFINE_PROP_UINT32("cmd_per_lun", _state, _conf_field.cmd_per_lun, 128), \
-    DEFINE_PROP_BIT("hotplug", _state, _features_field, VIRTIO_SCSI_F_HOTPLUG, true), \
-    DEFINE_PROP_BIT("param_change", _state, _features_field, VIRTIO_SCSI_F_CHANGE, true)
+typedef struct VirtIOSCSI {
+    VirtIODevice parent_obj;
+    VirtIOSCSIConf conf;
+
+    SCSIBus bus;
+    uint32_t sense_size;
+    uint32_t cdb_size;
+    int resetting;
+    bool events_dropped;
+    VirtQueue *ctrl_vq;
+    VirtQueue *event_vq;
+    VirtQueue **cmd_vqs;
+} VirtIOSCSI;
+
+#define DEFINE_VIRTIO_SCSI_PROPERTIES(_state, _conf_field)                     \
+    DEFINE_PROP_UINT32("num_queues", _state, _conf_field.num_queues, 1),       \
+    DEFINE_PROP_UINT32("max_sectors", _state, _conf_field.max_sectors, 0xFFFF),\
+    DEFINE_PROP_UINT32("cmd_per_lun", _state, _conf_field.cmd_per_lun, 128)
+
+#define DEFINE_VIRTIO_SCSI_FEATURES(_state, _feature_field)                    \
+    DEFINE_VIRTIO_COMMON_FEATURES(_state, _feature_field),                     \
+    DEFINE_PROP_BIT("hotplug", _state, _feature_field, VIRTIO_SCSI_F_HOTPLUG,  \
+                                                       true),                  \
+    DEFINE_PROP_BIT("param_change", _state, _feature_field,                    \
+                                            VIRTIO_SCSI_F_CHANGE, true)
 
 #endif /* _QEMU_VIRTIO_SCSI_H */

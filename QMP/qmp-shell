@@ -101,7 +101,12 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             try:
                 value = int(opt[1])
             except ValueError:
-                value = opt[1]
+                if opt[1] == 'true':
+                    value = True
+                elif opt[1] == 'false':
+                    value = False
+                else:
+                    value = opt[1]
             qmpcmd['arguments'][opt[0]] = value
         return qmpcmd
 

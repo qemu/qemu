@@ -35,6 +35,7 @@ struct icp_state;
 qemu_irq xics_get_qirq(struct icp_state *icp, int irq);
 void xics_set_irq_type(struct icp_state *icp, int irq, bool lsi);
 
-struct icp_state *xics_system_init(int nr_irqs);
+struct icp_state *xics_system_init(int nr_servers, int nr_irqs);
+void xics_cpu_setup(struct icp_state *icp, PowerPCCPU *cpu);
 
 #endif /* __XICS_H__ */

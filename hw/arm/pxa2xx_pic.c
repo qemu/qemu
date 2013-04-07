@@ -46,12 +46,13 @@ static void pxa2xx_pic_update(void *opaque)
 {
     uint32_t mask[2];
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
+    CPUState *cpu = CPU(s->cpu);
 
-    if (s->cpu->env.halted) {
+    if (cpu->halted) {
         mask[0] = s->int_pending[0] & (s->int_enabled[0] | s->int_idle);
         mask[1] = s->int_pending[1] & (s->int_enabled[1] | s->int_idle);
         if (mask[0] || mask[1]) {
-            cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_EXITTB);
+            cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
         }
     }
 
@@ -59,15 +60,15 @@ static void pxa2xx_pic_update(void *opaque)
     mask[1] = s->int_pending[1] & s->int_enabled[1];
 
     if ((mask[0] & s->is_fiq[0]) || (mask[1] & s->is_fiq[1])) {
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_FIQ);
+        cpu_interrupt(cpu, CPU_INTERRUPT_FIQ);
     } else {
-        cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_FIQ);
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_FIQ);
     }
 
     if ((mask[0] & ~s->is_fiq[0]) || (mask[1] & ~s->is_fiq[1])) {
-        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(cpu, CPU_INTERRUPT_HARD);
     } else {
-        cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_HARD);
     }
 }
 

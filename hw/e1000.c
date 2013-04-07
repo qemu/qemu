@@ -1378,7 +1378,7 @@ static void e1000_class_init(ObjectClass *klass, void *data)
 
     k->init = pci_e1000_init;
     k->exit = pci_e1000_uninit;
-    k->romfile = "pxe-e1000.rom";
+    k->romfile = "efi-e1000.rom";
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = E1000_DEVID;
     k->revision = 0x03;
