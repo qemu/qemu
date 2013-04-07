@@ -1446,11 +1446,35 @@ off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
 
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
 {
+    struct kvm_ppc_smmu_info info;
+    long rampagesize, best_page_shift;
+    int i;
+
     if (cap_ppc_rma >= 2) {
         return current_size;
     }
+
+    /* Find the largest hardware supported page size that's less than
+     * or equal to the (logical) backing page size of guest RAM */
+    kvm_get_smmu_info(ppc_env_get_cpu(first_cpu), &info);
+    rampagesize = getrampagesize();
+    best_page_shift = 0;
+
+    for (i = 0; i < KVM_PPC_PAGE_SIZES_MAX_SZ; i++) {
+        struct kvm_ppc_one_seg_page_size *sps = &info.sps[i];
+
+        if (!sps->page_shift) {
+            continue;
+        }
+
+        if ((sps->page_shift > best_page_shift)
+            && ((1UL << sps->page_shift) <= rampagesize)) {
+            best_page_shift = sps->page_shift;
+        }
+    }
+
     return MIN(current_size,
-               getrampagesize() << (hash_shift - 7));
+               1ULL << (best_page_shift + hash_shift - 7));
 }
 #endif
 
