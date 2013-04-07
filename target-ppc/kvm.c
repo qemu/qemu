@@ -66,6 +66,7 @@ static int cap_hior;
 static int cap_one_reg;
 static int cap_epr;
 static int cap_ppc_watchdog;
+static int cap_papr;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -100,6 +101,8 @@ int kvm_arch_init(KVMState *s)
     cap_hior = kvm_check_extension(s, KVM_CAP_PPC_HIOR);
     cap_epr = kvm_check_extension(s, KVM_CAP_PPC_EPR);
     cap_ppc_watchdog = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_WATCHDOG);
+    /* Note: we don't set cap_papr here, because this capability is
+     * only activated after this by kvmppc_set_papr() */
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -657,6 +660,103 @@ static int kvm_get_fp(CPUState *cs)
     return 0;
 }
 
+#if defined(TARGET_PPC64)
+static int kvm_get_vpa(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int ret;
+
+    reg.id = KVM_REG_PPC_VPA_ADDR;
+    reg.addr = (uintptr_t)&env->vpa_addr;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (ret < 0) {
+        dprintf("Unable to get VPA address from KVM: %s\n", strerror(errno));
+        return ret;
+    }
+
+    assert((uintptr_t)&env->slb_shadow_size
+           == ((uintptr_t)&env->slb_shadow_addr + 8));
+    reg.id = KVM_REG_PPC_VPA_SLB;
+    reg.addr = (uintptr_t)&env->slb_shadow_addr;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (ret < 0) {
+        dprintf("Unable to get SLB shadow state from KVM: %s\n",
+                strerror(errno));
+        return ret;
+    }
+
+    assert((uintptr_t)&env->dtl_size == ((uintptr_t)&env->dtl_addr + 8));
+    reg.id = KVM_REG_PPC_VPA_DTL;
+    reg.addr = (uintptr_t)&env->dtl_addr;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (ret < 0) {
+        dprintf("Unable to get dispatch trace log state from KVM: %s\n",
+                strerror(errno));
+        return ret;
+    }
+
+    return 0;
+}
+
+static int kvm_put_vpa(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int ret;
+
+    /* SLB shadow or DTL can't be registered unless a master VPA is
+     * registered.  That means when restoring state, if a VPA *is*
+     * registered, we need to set that up first.  If not, we need to
+     * deregister the others before deregistering the master VPA */
+    assert(env->vpa_addr || !(env->slb_shadow_addr || env->dtl_addr));
+
+    if (env->vpa_addr) {
+        reg.id = KVM_REG_PPC_VPA_ADDR;
+        reg.addr = (uintptr_t)&env->vpa_addr;
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            dprintf("Unable to set VPA address to KVM: %s\n", strerror(errno));
+            return ret;
+        }
+    }
+
+    assert((uintptr_t)&env->slb_shadow_size
+           == ((uintptr_t)&env->slb_shadow_addr + 8));
+    reg.id = KVM_REG_PPC_VPA_SLB;
+    reg.addr = (uintptr_t)&env->slb_shadow_addr;
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret < 0) {
+        dprintf("Unable to set SLB shadow state to KVM: %s\n", strerror(errno));
+        return ret;
+    }
+
+    assert((uintptr_t)&env->dtl_size == ((uintptr_t)&env->dtl_addr + 8));
+    reg.id = KVM_REG_PPC_VPA_DTL;
+    reg.addr = (uintptr_t)&env->dtl_addr;
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret < 0) {
+        dprintf("Unable to set dispatch trace log state to KVM: %s\n",
+                strerror(errno));
+        return ret;
+    }
+
+    if (!env->vpa_addr) {
+        reg.id = KVM_REG_PPC_VPA_ADDR;
+        reg.addr = (uintptr_t)&env->vpa_addr;
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            dprintf("Unable to set VPA address to KVM: %s\n", strerror(errno));
+            return ret;
+        }
+    }
+
+    return 0;
+}
+#endif /* TARGET_PPC64 */
+
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -757,6 +857,14 @@ int kvm_arch_put_registers(CPUState *cs, int level)
                 kvm_put_one_spr(cs, id, i);
             }
         }
+
+#ifdef TARGET_PPC64
+        if (cap_papr) {
+            if (kvm_put_vpa(cs) < 0) {
+                dprintf("Warning: Unable to set VPA information to KVM\n");
+            }
+        }
+#endif /* TARGET_PPC64 */
     }
 
     return ret;
@@ -958,6 +1066,14 @@ int kvm_arch_get_registers(CPUState *cs)
                 kvm_get_one_spr(cs, id, i);
             }
         }
+
+#ifdef TARGET_PPC64
+        if (cap_papr) {
+            if (kvm_get_vpa(cs) < 0) {
+                dprintf("Warning: Unable to get VPA information from KVM\n");
+            }
+        }
+#endif
     }
 
     return 0;
@@ -1377,6 +1493,10 @@ void kvmppc_set_papr(PowerPCCPU *cpu)
     if (ret) {
         cpu_abort(env, "This KVM version does not support PAPR\n");
     }
+
+    /* Update the capability flag so we sync the right information
+     * with kvm */
+    cap_papr = 1;
 }
 
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
