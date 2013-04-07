@@ -379,7 +379,7 @@ static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
      * the given dev might already be in the list.
      */
     QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
-        other = DO_UPCAST(VIOsPAPRDevice, qdev, kid->child);
+        other = VIO_SPAPR_DEVICE(kid->child);
 
         if (other != dev && other->reg == dev->reg) {
             return other;
@@ -391,7 +391,7 @@ static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
 
 static void spapr_vio_busdev_reset(DeviceState *qdev)
 {
-    VIOsPAPRDevice *dev = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
+    VIOsPAPRDevice *dev = VIO_SPAPR_DEVICE(qdev);
     VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
 
     /* Shut down the request queue and TCEs if necessary */
