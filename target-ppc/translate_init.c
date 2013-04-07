@@ -7004,6 +7004,7 @@ static void init_proc_POWER7 (CPUPPCState *env)
     init_excp_POWER7(env);
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
+
     /* Allocate hardware IRQ controller */
     ppcPOWER7_irq_init(env);
     /* Can't find information on what this should be on reset.  This
@@ -7041,6 +7042,8 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
                  POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
                  POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR;
+    pcc->l1_dcache_size = 0x8000;
+    pcc->l1_icache_size = 0x8000;
 }
 #endif /* defined (TARGET_PPC64) */
 
