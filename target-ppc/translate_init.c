@@ -6977,6 +6977,18 @@ static void init_proc_POWER7 (CPUPPCState *env)
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_DSCR, 0x00000000);
+    spr_register_kvm(env, SPR_MMCRA, "SPR_MMCRA",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_MMCRA, 0x00000000);
+    spr_register_kvm(env, SPR_PMC5, "SPR_PMC5",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_PMC5, 0x00000000);
+    spr_register_kvm(env, SPR_PMC6, "SPR_PMC6",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_PMC6, 0x00000000);
 #endif /* !CONFIG_USER_ONLY */
     /* Memory management */
     /* XXX : not implemented */
