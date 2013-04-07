@@ -121,7 +121,7 @@ void process_incoming_migration(QEMUFile *f)
     int fd = qemu_get_fd(f);
 
     assert(fd != -1);
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
     qemu_coroutine_enter(co, f);
 }
 

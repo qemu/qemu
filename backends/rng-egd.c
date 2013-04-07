@@ -149,6 +149,11 @@ static void rng_egd_opened(RngBackend *b, Error **errp)
         return;
     }
 
+    if (qemu_chr_fe_claim(s->chr) != 0) {
+        error_set(errp, QERR_DEVICE_IN_USE, s->chr_name);
+        return;
+    }
+
     /* FIXME we should resubmit pending requests when the CDS reconnects. */
     qemu_chr_add_handlers(s->chr, rng_egd_chr_can_read, rng_egd_chr_read,
                           NULL, s);
@@ -191,6 +196,7 @@ static void rng_egd_finalize(Object *obj)
 
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, NULL);
+        qemu_chr_fe_release(s->chr);
     }
 
     g_free(s->chr_name);

@@ -1317,6 +1317,23 @@ static void dec_br(DisasContext *dc)
     /* Memory barrier.  */
     mbar = (dc->ir >> 16) & 31;
     if (mbar == 2 && dc->imm == 4) {
+        /* mbar IMM & 16 decodes to sleep.  */
+        if (dc->rd & 16) {
+            TCGv_i32 tmp_hlt = tcg_const_i32(EXCP_HLT);
+            TCGv_i32 tmp_1 = tcg_const_i32(1);
+
+            LOG_DIS("sleep\n");
+
+            t_sync_flags(dc);
+            tcg_gen_st_i32(tmp_1, cpu_env,
+                           -offsetof(MicroBlazeCPU, env)
+                           +offsetof(CPUState, halted));
+            tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc + 4);
+            gen_helper_raise_exception(cpu_env, tmp_hlt);
+            tcg_temp_free_i32(tmp_hlt);
+            tcg_temp_free_i32(tmp_1);
+            return;
+        }
         LOG_DIS("mbar %d\n", dc->rd);
         /* Break the TB.  */
         dc->cpustate_changed = 1;

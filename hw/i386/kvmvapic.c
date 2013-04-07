@@ -13,8 +13,6 @@
 #include "sysemu/kvm.h"
 #include "hw/apic_internal.h"
 
-#define APIC_DEFAULT_ADDRESS    0xfee00000
-
 #define VAPIC_IO_PORT           0x7e
 
 #define VAPIC_CPU_SHIFT         7

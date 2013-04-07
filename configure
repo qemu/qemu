@@ -593,6 +593,11 @@ if test "$mingw32" = "yes" ; then
   # MinGW needs -mthreads for TLS and macro _MT.
   QEMU_CFLAGS="-mthreads $QEMU_CFLAGS"
   QEMU_CFLAGS="-I\$(SRC_PATH)/hosts/w32/include $QEMU_CFLAGS"
+  if test "$cpu" = "i386"; then
+    # We need something better than i386 for __sync_val_compare_and_swap
+    # and can expect that QEMU will only run on i686 or later.
+    QEMU_CFLAGS="-march=i686 $QEMU_CFLAGS"
+  fi
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
 cat > $TMPC << EOF
 int main(void) { return 0; }
@@ -1092,6 +1097,8 @@ echo "  --localstatedir=PATH     install local state in PATH"
 echo "  --with-confsuffix=SUFFIX suffix for QEMU data inside datadir and sysconfdir [$confsuffix]"
 echo "  --enable-debug-tcg       enable TCG debugging"
 echo "  --disable-debug-tcg      disable TCG debugging (default)"
+echo "  --enable-debug-info       enable debugging information (default)"
+echo "  --disable-debug-info      disable debugging information"
 echo "  --enable-debug           enable common debug build options"
 echo "  --enable-sparse          enable sparse checker"
 echo "  --disable-sparse         disable sparse checker (default)"
@@ -3947,8 +3954,6 @@ else
   echo "AUTOCONF_HOST := "                             >> $config_host_mak
 fi
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
-echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
-echo "ARLIBS_END=$arlibs_end" >> $config_host_mak
 echo "LIBS+=$LIBS" >> $config_host_mak
 echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak

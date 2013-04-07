@@ -203,6 +203,35 @@ int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
 int qemu_chr_fe_get_msgfd(CharDriverState *s);
 
 /**
+ * @qemu_chr_fe_claim:
+ *
+ * Claim a backend before using it, should be called before calling
+ * qemu_chr_add_handlers(). 
+ *
+ * Returns: -1 if the backend is already in use by another frontend, 0 on
+ *          success.
+ */
+int qemu_chr_fe_claim(CharDriverState *s);
+
+/**
+ * @qemu_chr_fe_claim_no_fail:
+ *
+ * Like qemu_chr_fe_claim, but will exit qemu with an error when the
+ * backend is already in use.
+ */
+void qemu_chr_fe_claim_no_fail(CharDriverState *s);
+
+/**
+ * @qemu_chr_fe_claim:
+ *
+ * Release a backend for use by another frontend.
+ *
+ * Returns: -1 if the backend is already in use by another frontend, 0 on
+ *          success.
+ */
+void qemu_chr_fe_release(CharDriverState *s);
+
+/**
  * @qemu_chr_be_can_write:
  *
  * Determine how much data the front end can currently accept.  This function

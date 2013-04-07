@@ -292,6 +292,7 @@ static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *
         fprintf(stderr, "creating eventfd for eventfd %d failed\n", eventfd);
         exit(-1);
     }
+    qemu_chr_fe_claim_no_fail(chr);
 
     /* if MSI is supported we need multiple interrupts */
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {

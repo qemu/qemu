@@ -1103,11 +1103,16 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid)
     return 0;
 }
 
-void do_acpitable_option(const char *optarg)
+void do_acpitable_option(const QemuOpts *opts)
 {
 #ifdef TARGET_I386
-    if (acpi_table_add(optarg) < 0) {
-        fprintf(stderr, "Wrong acpi table provided\n");
+    Error *err = NULL;
+
+    acpi_table_add(opts, &err);
+    if (err) {
+        fprintf(stderr, "Wrong acpi table provided: %s\n",
+                error_get_pretty(err));
+        error_free(err);
         exit(1);
     }
 #endif

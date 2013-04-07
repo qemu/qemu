@@ -415,7 +415,7 @@ static int nbd_establish_connection(BlockDriverState *bs)
 
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */
-    socket_set_nonblock(sock);
+    qemu_set_nonblock(sock);
     qemu_aio_set_fd_handler(sock, nbd_reply_ready, NULL,
                             nbd_have_request, s);
 

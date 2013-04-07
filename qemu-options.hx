@@ -1360,7 +1360,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net tap[,vlan=n][,name=str],ifname=name\n"
     "                connect the host TAP network interface to VLAN 'n'\n"
 #else
-    "-net tap[,vlan=n][,name=str][,fd=h][,fds=x:y:...:z][,ifname=name][,script=file][,downscript=dfile][,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off][,vhostfd=h][,vhostfds=x:y:...:z][,vhostforce=on|off]\n"
+    "-net tap[,vlan=n][,name=str][,fd=h][,fds=x:y:...:z][,ifname=name][,script=file][,downscript=dfile][,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off][,vhostfd=h][,vhostfds=x:y:...:z][,vhostforce=on|off][,queues=n]\n"
     "                connect the host TAP network interface to VLAN 'n'\n"
     "                use network scripts 'file' (default=" DEFAULT_NETWORK_SCRIPT ")\n"
     "                to configure it and 'dfile' (default=" DEFAULT_NETWORK_DOWN_SCRIPT ")\n"
@@ -1379,6 +1379,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                use vhostforce=on to force vhost on for non-MSIX virtio guests\n"
     "                use 'vhostfd=h' to connect to an already opened vhost net device\n"
     "                use 'vhostfds=x:y:...:z to connect to multiple already opened vhost net devices\n"
+    "                use 'queues=n' to specify the number of queues to be created for multiqueue TAP\n"
     "-net bridge[,vlan=n][,name=str][,br=bridge][,helper=helper]\n"
     "                connects a host TAP network interface to a host bridge device 'br'\n"
     "                (default=" DEFAULT_BRIDGE_INTERFACE ") using the program 'helper'\n"

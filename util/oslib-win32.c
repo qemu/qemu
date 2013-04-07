@@ -100,14 +100,14 @@ struct tm *localtime_r(const time_t *timep, struct tm *result)
     return p;
 }
 
-void socket_set_block(int fd)
+void qemu_set_block(int fd)
 {
     unsigned long opt = 0;
     WSAEventSelect(fd, NULL, 0);
     ioctlsocket(fd, FIONBIO, &opt);
 }
 
-void socket_set_nonblock(int fd)
+void qemu_set_nonblock(int fd)
 {
     unsigned long opt = 1;
     ioctlsocket(fd, FIONBIO, &opt);

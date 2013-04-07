@@ -969,7 +969,7 @@ vmxnet3_indicate_packet(VMXNET3State *s)
     struct Vmxnet3_RxDesc rxd;
     bool is_head = true;
     uint32_t rxd_idx;
-    uint32_t rx_ridx;
+    uint32_t rx_ridx = 0;
 
     struct Vmxnet3_RxCompDesc rxcd;
     uint32_t new_rxcd_gen = VMXNET3_INIT_GEN;

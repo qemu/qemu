@@ -210,11 +210,11 @@ static void gd_update_caption(GtkDisplayState *s)
     bool is_paused = !runstate_is_running();
 
     if (gd_is_grab_active(s)) {
-        grab = " - Press Ctrl+Alt+G to release grab";
+        grab = _(" - Press Ctrl+Alt+G to release grab");
     }
 
     if (is_paused) {
-        status = " [Paused]";
+        status = _(" [Paused]");
     }
     s->external_pause_update = true;
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->pause_item),
@@ -1363,6 +1363,7 @@ static const DisplayChangeListenerOps dcl_ops = {
 void gtk_display_init(DisplayState *ds)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
+    char *filename;
 
     gtk_init(NULL, NULL);
 
@@ -1393,6 +1394,18 @@ void gtk_display_init(DisplayState *ds)
     qemu_add_vm_change_state_handler(gd_change_runstate, s);
 
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), s->drawing_area, gtk_label_new("VGA"));
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "qemu-icon.bmp");
+    if (filename) {
+        GError *error = NULL;
+        GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(filename, &error);
+        if (pixbuf) {
+            gtk_window_set_icon(GTK_WINDOW(s->window), pixbuf);
+        } else {
+            g_error_free(error);
+        }
+        g_free(filename);
+    }
 
     gd_create_menus(s);
 

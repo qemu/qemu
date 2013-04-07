@@ -177,10 +177,10 @@ static inline DeviceState *milkymist_minimac2_create(hwaddr base,
 
     qemu_check_nic_model(&nd_table[0], "minimac2");
     dev = qdev_create(NULL, "milkymist-minimac2");
-    qdev_prop_set_taddr(dev, "buffers_base", buffers_base);
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, buffers_base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, rx_irq);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, tx_irq);
 
@@ -194,12 +194,12 @@ static inline DeviceState *milkymist_softusb_create(hwaddr base,
     DeviceState *dev;
 
     dev = qdev_create(NULL, "milkymist-softusb");
-    qdev_prop_set_uint32(dev, "pmem_base", pmem_base);
     qdev_prop_set_uint32(dev, "pmem_size", pmem_size);
-    qdev_prop_set_uint32(dev, "dmem_base", dmem_base);
     qdev_prop_set_uint32(dev, "dmem_size", dmem_size);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, pmem_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, dmem_base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     return dev;

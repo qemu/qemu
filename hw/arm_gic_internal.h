@@ -45,14 +45,14 @@
 #define GIC_SET_ACTIVE(irq, cm) s->irq_state[irq].active |= (cm)
 #define GIC_CLEAR_ACTIVE(irq, cm) s->irq_state[irq].active &= ~(cm)
 #define GIC_TEST_ACTIVE(irq, cm) ((s->irq_state[irq].active & (cm)) != 0)
-#define GIC_SET_MODEL(irq) s->irq_state[irq].model = 1
-#define GIC_CLEAR_MODEL(irq) s->irq_state[irq].model = 0
+#define GIC_SET_MODEL(irq) s->irq_state[irq].model = true
+#define GIC_CLEAR_MODEL(irq) s->irq_state[irq].model = false
 #define GIC_TEST_MODEL(irq) s->irq_state[irq].model
 #define GIC_SET_LEVEL(irq, cm) s->irq_state[irq].level = (cm)
 #define GIC_CLEAR_LEVEL(irq, cm) s->irq_state[irq].level &= ~(cm)
 #define GIC_TEST_LEVEL(irq, cm) ((s->irq_state[irq].level & (cm)) != 0)
-#define GIC_SET_TRIGGER(irq) s->irq_state[irq].trigger = 1
-#define GIC_CLEAR_TRIGGER(irq) s->irq_state[irq].trigger = 0
+#define GIC_SET_TRIGGER(irq) s->irq_state[irq].trigger = true
+#define GIC_CLEAR_TRIGGER(irq) s->irq_state[irq].trigger = false
 #define GIC_TEST_TRIGGER(irq) s->irq_state[irq].trigger
 #define GIC_GET_PRIORITY(irq, cpu) (((irq) < GIC_INTERNAL) ?            \
                                     s->priority1[irq][cpu] :            \
@@ -61,30 +61,30 @@
 
 typedef struct gic_irq_state {
     /* The enable bits are only banked for per-cpu interrupts.  */
-    unsigned enabled:NCPU;
-    unsigned pending:NCPU;
-    unsigned active:NCPU;
-    unsigned level:NCPU;
-    unsigned model:1; /* 0 = N:N, 1 = 1:N */
-    unsigned trigger:1; /* nonzero = edge triggered.  */
+    uint8_t enabled;
+    uint8_t pending;
+    uint8_t active;
+    uint8_t level;
+    bool model; /* 0 = N:N, 1 = 1:N */
+    bool trigger; /* nonzero = edge triggered.  */
 } gic_irq_state;
 
 typedef struct GICState {
     SysBusDevice busdev;
     qemu_irq parent_irq[NCPU];
-    int enabled;
-    int cpu_enabled[NCPU];
+    bool enabled;
+    bool cpu_enabled[NCPU];
 
     gic_irq_state irq_state[GIC_MAXIRQ];
-    int irq_target[GIC_MAXIRQ];
-    int priority1[GIC_INTERNAL][NCPU];
-    int priority2[GIC_MAXIRQ - GIC_INTERNAL];
-    int last_active[GIC_MAXIRQ][NCPU];
+    uint8_t irq_target[GIC_MAXIRQ];
+    uint8_t priority1[GIC_INTERNAL][NCPU];
+    uint8_t priority2[GIC_MAXIRQ - GIC_INTERNAL];
+    uint16_t last_active[GIC_MAXIRQ][NCPU];
 
-    int priority_mask[NCPU];
-    int running_irq[NCPU];
-    int running_priority[NCPU];
-    int current_pending[NCPU];
+    uint16_t priority_mask[NCPU];
+    uint16_t running_irq[NCPU];
+    uint16_t running_priority[NCPU];
+    uint16_t current_pending[NCPU];
 
     uint32_t num_cpu;
 

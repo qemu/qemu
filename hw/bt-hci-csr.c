@@ -439,6 +439,7 @@ CharDriverState *uart_hci_init(qemu_irq wakeup)
     s->chr.opaque = s;
     s->chr.chr_write = csrhci_write;
     s->chr.chr_ioctl = csrhci_ioctl;
+    s->chr.avail_connections = 1;
 
     s->hci = qemu_next_hci();
     s->hci->opaque = s;

@@ -360,7 +360,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
-    acpi_pm1_cnt_init(&s->ar, &s->io);
+    acpi_pm1_cnt_init(&s->ar, &s->io, 2);
 
     return 0;
 }

@@ -2732,7 +2732,7 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth, bool websocket)
 
     VNC_DEBUG("New client on socket %d\n", csock);
     vd->dcl.idle = 0;
-    socket_set_nonblock(vs->csock);
+    qemu_set_nonblock(vs->csock);
 #ifdef CONFIG_VNC_WS
     if (websocket) {
         vs->websocket = 1;

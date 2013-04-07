@@ -516,6 +516,8 @@ static void enet_write(void *opaque, hwaddr addr,
             s->rcw[addr & 1] = value;
             if ((addr & 1) && value & RCW1_RST) {
                 axienet_rx_reset(s);
+            } else {
+                qemu_flush_queued_packets(qemu_get_queue(s->nic));
             }
             break;
 

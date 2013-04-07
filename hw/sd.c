@@ -478,7 +478,7 @@ static const VMStateDescription sd_vmstate = {
         VMSTATE_UINT64(data_start, SDState),
         VMSTATE_UINT32(data_offset, SDState),
         VMSTATE_UINT8_ARRAY(data, SDState, 512),
-        VMSTATE_BUFFER_UNSAFE(buf, SDState, 1, 512),
+        VMSTATE_BUFFER_POINTER_UNSAFE(buf, SDState, 1, 512),
         VMSTATE_BOOL(enable, SDState),
         VMSTATE_END_OF_LIST()
     }

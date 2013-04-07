@@ -185,7 +185,7 @@
 #define HF2_VINTR_SHIFT      3 /* value of V_INTR_MASKING bit */
 
 #define HF2_GIF_MASK          (1 << HF2_GIF_SHIFT)
-#define HF2_HIF_MASK          (1 << HF2_HIF_SHIFT) 
+#define HF2_HIF_MASK          (1 << HF2_HIF_SHIFT)
 #define HF2_NMI_MASK          (1 << HF2_NMI_SHIFT)
 #define HF2_VINTR_MASK        (1 << HF2_VINTR_SHIFT)
 
@@ -1268,5 +1268,7 @@ const char *get_register_name_32(unsigned int reg);
 
 uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index);
 void enable_compat_apic_id_mode(void);
+
+#define APIC_DEFAULT_ADDRESS 0xfee00000
 
 #endif /* CPU_I386_H */

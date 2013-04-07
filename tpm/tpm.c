@@ -15,6 +15,7 @@
 
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
+#include "backends/tpm.h"
 #include "tpm_int.h"
 #include "tpm/tpm.h"
 #include "qemu/config-file.h"
@@ -145,6 +146,7 @@ static int configure_tpm(QemuOpts *opts)
     const char *id;
     const TPMDriverOps *be;
     TPMBackend *drv;
+    Error *local_err = NULL;
 
     if (!QLIST_EMPTY(&tpm_backends)) {
         error_report("Only one TPM is allowed.\n");
@@ -177,6 +179,13 @@ static int configure_tpm(QemuOpts *opts)
         return 1;
     }
 
+    tpm_backend_open(drv, &local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return 1;
+    }
+
     QLIST_INSERT_HEAD(&tpm_backends, drv, list);
 
     return 0;
@@ -197,7 +206,7 @@ void tpm_cleanup(void)
 
     QLIST_FOREACH_SAFE(drv, &tpm_backends, list, next) {
         QLIST_REMOVE(drv, list);
-        drv->ops->destroy(drv);
+        tpm_backend_destroy(drv);
     }
 }
 

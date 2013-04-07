@@ -133,7 +133,7 @@ static inline void gen_goto_tb(CPUMoxieState *env, DisasContext *ctx,
         !ctx->singlestep_enabled) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_exit_tb((long) tb + n);
+        tcg_gen_exit_tb((tcg_target_long)tb + n);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
         if (ctx->singlestep_enabled) {

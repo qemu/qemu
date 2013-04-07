@@ -117,7 +117,7 @@ static inline MoxieCPU *moxie_env_get_cpu(CPUMoxieState *env)
 
 MoxieCPU *cpu_moxie_init(const char *cpu_model);
 int cpu_moxie_exec(CPUMoxieState *s);
-void do_interrupt(CPUMoxieState *env);
+void moxie_cpu_do_interrupt(CPUState *cs);
 void moxie_translate_init(void);
 int cpu_moxie_signal_handler(int host_signum, void *pinfo,
                              void *puc);

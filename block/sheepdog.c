@@ -471,7 +471,7 @@ static int connect_to_sdog(BDRVSheepdogState *s)
         qerror_report_err(err);
         error_free(err);
     } else {
-        socket_set_nonblock(fd);
+        qemu_set_nonblock(fd);
     }
 
     return fd;

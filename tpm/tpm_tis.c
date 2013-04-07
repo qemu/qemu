@@ -19,6 +19,7 @@
  * specification.
  */
 
+#include "backends/tpm.h"
 #include "tpm_int.h"
 #include "block/block.h"
 #include "exec/address-spaces.h"
@@ -160,7 +161,7 @@ static void tpm_tis_tpm_send(TPMState *s, uint8_t locty)
      */
     tis->loc[locty].state = TPM_TIS_STATE_EXECUTION;
 
-    s->be_driver->ops->deliver_request(s->be_driver);
+    tpm_backend_deliver_request(s->be_driver);
 }
 
 /* raise an interrupt if allowed */
@@ -284,7 +285,7 @@ static void tpm_tis_prep_abort(TPMState *s, uint8_t locty, uint8_t newlocty)
              * request the backend to cancel. Some backends may not
              * support it
              */
-            s->be_driver->ops->cancel_cmd(s->be_driver);
+            tpm_backend_cancel_cmd(s->be_driver);
             return;
         }
     }
@@ -426,7 +427,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
     uint8_t locty = tpm_tis_locality_from_addr(addr);
     uint32_t avail;
 
-    if (s->be_driver->ops->had_startup_error(s->be_driver)) {
+    if (tpm_backend_had_startup_error(s->be_driver)) {
         return val;
     }
 
@@ -438,7 +439,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         if (tpm_tis_check_request_use_except(s, locty)) {
             val |= TPM_TIS_ACCESS_PENDING_REQUEST;
         }
-        val |= !s->be_driver->ops->get_tpm_established_flag(s->be_driver);
+        val |= !tpm_backend_get_tpm_established_flag(s->be_driver);
         break;
     case TPM_TIS_REG_INT_ENABLE:
         val = tis->loc[locty].inte;
@@ -529,7 +530,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
         return;
     }
 
-    if (s->be_driver->ops->had_startup_error(s->be_driver)) {
+    if (tpm_backend_had_startup_error(s->be_driver)) {
         return;
     }
 
@@ -804,7 +805,7 @@ static const MemoryRegionOps tpm_tis_memory_ops = {
 
 static int tpm_tis_do_startup_tpm(TPMState *s)
 {
-    return s->be_driver->ops->startup_tpm(s->be_driver);
+    return tpm_backend_startup_tpm(s->be_driver);
 }
 
 /*
@@ -817,7 +818,7 @@ static void tpm_tis_reset(DeviceState *dev)
     TPMTISEmuState *tis = &s->s.tis;
     int c;
 
-    s->be_driver->ops->reset(s->be_driver);
+    tpm_backend_reset(s->be_driver);
 
     tis->active_locty = TPM_TIS_NO_LOCALITY;
     tis->next_locty = TPM_TIS_NO_LOCALITY;
@@ -831,9 +832,9 @@ static void tpm_tis_reset(DeviceState *dev)
         tis->loc[c].state = TPM_TIS_STATE_IDLE;
 
         tis->loc[c].w_offset = 0;
-        s->be_driver->ops->realloc_buffer(&tis->loc[c].w_buffer);
+        tpm_backend_realloc_buffer(s->be_driver, &tis->loc[c].w_buffer);
         tis->loc[c].r_offset = 0;
-        s->be_driver->ops->realloc_buffer(&tis->loc[c].r_buffer);
+        tpm_backend_realloc_buffer(s->be_driver, &tis->loc[c].r_buffer);
     }
 
     tpm_tis_do_startup_tpm(s);
@@ -865,7 +866,7 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 
     s->be_driver->fe_model = TPM_MODEL_TPM_TIS;
 
-    if (s->be_driver->ops->init(s->be_driver, s, tpm_tis_receive_cb)) {
+    if (tpm_backend_init(s->be_driver, s, tpm_tis_receive_cb)) {
         error_setg(errp, "tpm_tis: backend driver with id %s could not be "
                    "initialized", s->backend);
         return;

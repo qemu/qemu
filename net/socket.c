@@ -308,7 +308,7 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
         }
     }
 
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
     return fd;
 fail:
     if (fd >= 0)
@@ -519,7 +519,7 @@ static int net_socket_listen_init(NetClientState *peer,
         perror("socket");
         return -1;
     }
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
 
     /* allow fast reuse */
     val = 1;
@@ -565,7 +565,7 @@ static int net_socket_connect_init(NetClientState *peer,
         perror("socket");
         return -1;
     }
-    socket_set_nonblock(fd);
+    qemu_set_nonblock(fd);
 
     connected = 0;
     for(;;) {
@@ -674,6 +674,7 @@ static int net_socket_udp_init(NetClientState *peer,
         closesocket(fd);
         return -1;
     }
+    qemu_set_nonblock(fd);
 
     s = net_socket_fd_init(peer, model, name, fd, 0);
     if (!s) {
@@ -712,7 +713,11 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
         int fd;
 
         fd = monitor_handle_fd_param(cur_mon, sock->fd);
-        if (fd == -1 || !net_socket_fd_init(peer, "socket", name, fd, 1)) {
+        if (fd == -1) {
+            return -1;
+        }
+        qemu_set_nonblock(fd);
+        if (!net_socket_fd_init(peer, "socket", name, fd, 1)) {
             return -1;
         }
         return 0;

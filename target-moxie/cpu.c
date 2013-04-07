@@ -98,6 +98,7 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = moxie_cpu_class_by_name;
 
     dc->vmsd = &vmstate_moxie_cpu;
+    cc->do_interrupt = moxie_cpu_do_interrupt;
 }
 
 static void moxielite_initfn(Object *obj)

@@ -1285,9 +1285,9 @@ char *get_boot_devices_list(size_t *size)
 
     if (boot_strict && *size > 0) {
         list[total-1] = '\n';
-        list = g_realloc(list, total + 4);
-        memcpy(&list[total], "HALT", 4);
-        *size = total + 4;
+        list = g_realloc(list, total + 5);
+        memcpy(&list[total], "HALT", 5);
+        *size = total + 5;
     }
     return list;
 }
@@ -2439,6 +2439,7 @@ static int mon_init_func(QemuOpts *opts, void *opaque)
         exit(1);
     }
 
+    qemu_chr_fe_claim_no_fail(chr);
     monitor_init(chr, flags);
     return 0;
 }
@@ -3637,7 +3638,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             }
             case QEMU_OPTION_acpitable:
-                do_acpitable_option(optarg);
+                opts = qemu_opts_parse(qemu_find_opts("acpi"), optarg, 1);
+                g_assert(opts != NULL);
+                do_acpitable_option(opts);
                 break;
             case QEMU_OPTION_smbios:
                 do_smbios_option(optarg);

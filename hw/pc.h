@@ -109,11 +109,11 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 /* acpi.c */
 extern int acpi_enabled;
-extern char *acpi_tables;
+extern char unsigned *acpi_tables;
 extern size_t acpi_tables_len;
 
 void acpi_bios_init(void);
-int acpi_table_add(const char *table_desc);
+void acpi_table_add(const QemuOpts *opts, Error **errp);
 
 /* acpi_piix.c */
 

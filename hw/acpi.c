@@ -23,10 +23,14 @@
 #include "hw/pc.h"
 #include "hw/acpi.h"
 #include "monitor/monitor.h"
+#include "qemu/config-file.h"
+#include "qapi/opts-visitor.h"
+#include "qapi/dealloc-visitor.h"
+#include "qapi-visit.h"
 
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */
-                              /* XXX why we have 2 length fields here? */
+                              /* allows easier parsing for fw_cfg clients */
     char sig[4];              /* ACPI signature (4 ASCII characters) */
     uint32_t length;          /* Length of table, in bytes, including header */
     uint8_t revision;         /* ACPI Specification minor version # */
@@ -41,15 +45,28 @@ struct acpi_table_header {
 #define ACPI_TABLE_HDR_SIZE sizeof(struct acpi_table_header)
 #define ACPI_TABLE_PFX_SIZE sizeof(uint16_t)  /* size of the extra prefix */
 
-static const char dfl_hdr[ACPI_TABLE_HDR_SIZE] =
-    "\0\0"                   /* fake _length (2) */
+static const char unsigned dfl_hdr[ACPI_TABLE_HDR_SIZE - ACPI_TABLE_PFX_SIZE] =
     "QEMU\0\0\0\0\1\0"       /* sig (4), len(4), revno (1), csum (1) */
     "QEMUQEQEMUQEMU\1\0\0\0" /* OEM id (6), table (8), revno (4) */
     "QEMU\1\0\0\0"           /* ASL compiler ID (4), version (4) */
     ;
 
-char *acpi_tables;
+char unsigned *acpi_tables;
 size_t acpi_tables_len;
+
+static QemuOptsList qemu_acpi_opts = {
+    .name = "acpi",
+    .implied_opt_name = "data",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_acpi_opts.head),
+    .desc = { { 0 } } /* validated with OptsVisitor */
+};
+
+static void acpi_register_config(void)
+{
+    qemu_add_opts(&qemu_acpi_opts);
+}
+
+machine_init(acpi_register_config);
 
 static int acpi_checksum(const uint8_t *data, int len)
 {
@@ -61,184 +78,235 @@ static int acpi_checksum(const uint8_t *data, int len)
     return (-sum) & 0xff;
 }
 
-/* XXX fixme: this function uses obsolete argument parsing interface */
-int acpi_table_add(const char *t)
+
+/* Install a copy of the ACPI table specified in @blob.
+ *
+ * If @has_header is set, @blob starts with the System Description Table Header
+ * structure. Otherwise, "dfl_hdr" is prepended. In any case, each header field
+ * is optionally overwritten from @hdrs.
+ *
+ * It is valid to call this function with
+ * (@blob == NULL && bloblen == 0 && !has_header).
+ *
+ * @hdrs->file and @hdrs->data are ignored.
+ *
+ * SIZE_MAX is considered "infinity" in this function.
+ *
+ * The number of tables that can be installed is not limited, but the 16-bit
+ * counter at the beginning of "acpi_tables" wraps around after UINT16_MAX.
+ */
+static void acpi_table_install(const char unsigned *blob, size_t bloblen,
+                               bool has_header,
+                               const struct AcpiTableOptions *hdrs,
+                               Error **errp)
 {
-    char buf[1024], *p, *f;
-    unsigned long val;
-    size_t len, start, allen;
-    bool has_header;
-    int changed;
-    int r;
-    struct acpi_table_header hdr;
+    size_t body_start;
+    const char unsigned *hdr_src;
+    size_t body_size, acpi_payload_size;
+    struct acpi_table_header *ext_hdr;
+    unsigned changed_fields;
 
-    r = 0;
-    r |= get_param_value(buf, sizeof(buf), "data", t) ? 1 : 0;
-    r |= get_param_value(buf, sizeof(buf), "file", t) ? 2 : 0;
-    switch (r) {
-    case 0:
-        buf[0] = '\0';
-        /* fallthrough for default behavior */
-    case 1:
-        has_header = false;
-        break;
-    case 2:
-        has_header = true;
-        break;
-    default:
-        fprintf(stderr, "acpitable: both data and file are specified\n");
-        return -1;
-    }
+    /* Calculate where the ACPI table body starts within the blob, plus where
+     * to copy the ACPI table header from.
+     */
+    if (has_header) {
+        /*   _length             | ACPI header in blob | blob body
+         *   ^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^
+         *   ACPI_TABLE_PFX_SIZE     sizeof dfl_hdr      body_size
+         *                           == body_start
+         *
+         *                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         *                           acpi_payload_size == bloblen
+         */
+        body_start = sizeof dfl_hdr;
 
-    if (!acpi_tables) {
-        allen = sizeof(uint16_t);
-        acpi_tables = g_malloc0(allen);
+        if (bloblen < body_start) {
+            error_setg(errp, "ACPI table claiming to have header is too "
+                       "short, available: %zu, expected: %zu", bloblen,
+                       body_start);
+            return;
+        }
+        hdr_src = blob;
     } else {
-        allen = acpi_tables_len;
+        /*   _length             | ACPI header in template | blob body
+         *   ^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^
+         *   ACPI_TABLE_PFX_SIZE       sizeof dfl_hdr        body_size
+         *                                                   == bloblen
+         *
+         *                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         *                                  acpi_payload_size
+         */
+        body_start = 0;
+        hdr_src = dfl_hdr;
+    }
+    body_size = bloblen - body_start;
+    acpi_payload_size = sizeof dfl_hdr + body_size;
+
+    if (acpi_payload_size > UINT16_MAX) {
+        error_setg(errp, "ACPI table too big, requested: %zu, max: %u",
+                   acpi_payload_size, (unsigned)UINT16_MAX);
+        return;
     }
 
-    start = allen;
-    acpi_tables = g_realloc(acpi_tables, start + ACPI_TABLE_HDR_SIZE);
-    allen += has_header ? ACPI_TABLE_PFX_SIZE : ACPI_TABLE_HDR_SIZE;
+    /* We won't fail from here on. Initialize / extend the globals. */
+    if (acpi_tables == NULL) {
+        acpi_tables_len = sizeof(uint16_t);
+        acpi_tables = g_malloc0(acpi_tables_len);
+    }
+
+    acpi_tables = g_realloc(acpi_tables, acpi_tables_len +
+                                         ACPI_TABLE_PFX_SIZE +
+                                         sizeof dfl_hdr + body_size);
+
+    ext_hdr = (struct acpi_table_header *)(acpi_tables + acpi_tables_len);
+    acpi_tables_len += ACPI_TABLE_PFX_SIZE;
+
+    memcpy(acpi_tables + acpi_tables_len, hdr_src, sizeof dfl_hdr);
+    acpi_tables_len += sizeof dfl_hdr;
+
+    if (blob != NULL) {
+        memcpy(acpi_tables + acpi_tables_len, blob + body_start, body_size);
+        acpi_tables_len += body_size;
+    }
+
+    /* increase number of tables */
+    cpu_to_le16wu((uint16_t *)acpi_tables,
+                  le16_to_cpupu((uint16_t *)acpi_tables) + 1u);
+
+    /* Update the header fields. The strings need not be NUL-terminated. */
+    changed_fields = 0;
+    ext_hdr->_length = cpu_to_le16(acpi_payload_size);
+
+    if (hdrs->has_sig) {
+        strncpy(ext_hdr->sig, hdrs->sig, sizeof ext_hdr->sig);
+        ++changed_fields;
+    }
+
+    if (has_header && le32_to_cpu(ext_hdr->length) != acpi_payload_size) {
+        fprintf(stderr,
+                "warning: ACPI table has wrong length, header says "
+                "%" PRIu32 ", actual size %zu bytes\n",
+                le32_to_cpu(ext_hdr->length), acpi_payload_size);
+    }
+    ext_hdr->length = cpu_to_le32(acpi_payload_size);
+
+    if (hdrs->has_rev) {
+        ext_hdr->revision = hdrs->rev;
+        ++changed_fields;
+    }
+
+    ext_hdr->checksum = 0;
+
+    if (hdrs->has_oem_id) {
+        strncpy(ext_hdr->oem_id, hdrs->oem_id, sizeof ext_hdr->oem_id);
+        ++changed_fields;
+    }
+    if (hdrs->has_oem_table_id) {
+        strncpy(ext_hdr->oem_table_id, hdrs->oem_table_id,
+                sizeof ext_hdr->oem_table_id);
+        ++changed_fields;
+    }
+    if (hdrs->has_oem_rev) {
+        ext_hdr->oem_revision = cpu_to_le32(hdrs->oem_rev);
+        ++changed_fields;
+    }
+    if (hdrs->has_asl_compiler_id) {
+        strncpy(ext_hdr->asl_compiler_id, hdrs->asl_compiler_id,
+                sizeof ext_hdr->asl_compiler_id);
+        ++changed_fields;
+    }
+    if (hdrs->has_asl_compiler_rev) {
+        ext_hdr->asl_compiler_revision = cpu_to_le32(hdrs->asl_compiler_rev);
+        ++changed_fields;
+    }
+
+    if (!has_header && changed_fields == 0) {
+        fprintf(stderr, "warning: ACPI table: no headers are specified\n");
+    }
+
+    /* recalculate checksum */
+    ext_hdr->checksum = acpi_checksum((const char unsigned *)ext_hdr +
+                                      ACPI_TABLE_PFX_SIZE, acpi_payload_size);
+}
+
+void acpi_table_add(const QemuOpts *opts, Error **errp)
+{
+    AcpiTableOptions *hdrs = NULL;
+    Error *err = NULL;
+    char **pathnames = NULL;
+    char **cur;
+    size_t bloblen = 0;
+    char unsigned *blob = NULL;
+
+    {
+        OptsVisitor *ov;
+
+        ov = opts_visitor_new(opts);
+        visit_type_AcpiTableOptions(opts_get_visitor(ov), &hdrs, NULL, &err);
+        opts_visitor_cleanup(ov);
+    }
+
+    if (err) {
+        goto out;
+    }
+    if (hdrs->has_file == hdrs->has_data) {
+        error_setg(&err, "'-acpitable' requires one of 'data' or 'file'");
+        goto out;
+    }
+
+    pathnames = g_strsplit(hdrs->has_file ? hdrs->file : hdrs->data, ":", 0);
+    if (pathnames == NULL || pathnames[0] == NULL) {
+        error_setg(&err, "'-acpitable' requires at least one pathname");
+        goto out;
+    }
 
     /* now read in the data files, reallocating buffer as needed */
-
-    for (f = strtok(buf, ":"); f; f = strtok(NULL, ":")) {
-        int fd = open(f, O_RDONLY | O_BINARY);
+    for (cur = pathnames; *cur; ++cur) {
+        int fd = open(*cur, O_RDONLY | O_BINARY);
 
         if (fd < 0) {
-            fprintf(stderr, "can't open file %s: %s\n", f, strerror(errno));
-            return -1;
+            error_setg(&err, "can't open file %s: %s", *cur, strerror(errno));
+            goto out;
         }
 
         for (;;) {
-            char data[8192];
-            r = read(fd, data, sizeof(data));
+            char unsigned data[8192];
+            ssize_t r;
+
+            r = read(fd, data, sizeof data);
             if (r == 0) {
                 break;
             } else if (r > 0) {
-                acpi_tables = g_realloc(acpi_tables, allen + r);
-                memcpy(acpi_tables + allen, data, r);
-                allen += r;
+                blob = g_realloc(blob, bloblen + r);
+                memcpy(blob + bloblen, data, r);
+                bloblen += r;
             } else if (errno != EINTR) {
-                fprintf(stderr, "can't read file %s: %s\n",
-                        f, strerror(errno));
+                error_setg(&err, "can't read file %s: %s",
+                           *cur, strerror(errno));
                 close(fd);
-                return -1;
+                goto out;
             }
         }
 
         close(fd);
     }
 
-    /* now fill in the header fields */
+    acpi_table_install(blob, bloblen, hdrs->has_file, hdrs, &err);
 
-    f = acpi_tables + start;   /* start of the table */
-    changed = 0;
+out:
+    g_free(blob);
+    g_strfreev(pathnames);
 
-    /* copy the header to temp place to align the fields */
-    memcpy(&hdr, has_header ? f : dfl_hdr, ACPI_TABLE_HDR_SIZE);
+    if (hdrs != NULL) {
+        QapiDeallocVisitor *dv;
 
-    /* length of the table minus our prefix */
-    len = allen - start - ACPI_TABLE_PFX_SIZE;
-
-    hdr._length = cpu_to_le16(len);
-
-    if (get_param_value(buf, sizeof(buf), "sig", t)) {
-        /* strncpy is justified: the field need not be NUL-terminated. */
-        strncpy(hdr.sig, buf, sizeof(hdr.sig));
-        ++changed;
+        dv = qapi_dealloc_visitor_new();
+        visit_type_AcpiTableOptions(qapi_dealloc_get_visitor(dv), &hdrs, NULL,
+                                    NULL);
+        qapi_dealloc_visitor_cleanup(dv);
     }
 
-    /* length of the table including header, in bytes */
-    if (has_header) {
-        /* check if actual length is correct */
-        val = le32_to_cpu(hdr.length);
-        if (val != len) {
-            fprintf(stderr,
-                "warning: acpitable has wrong length,"
-                " header says %lu, actual size %zu bytes\n",
-                val, len);
-            ++changed;
-        }
-    }
-    /* we may avoid putting length here if has_header is true */
-    hdr.length = cpu_to_le32(len);
-
-    if (get_param_value(buf, sizeof(buf), "rev", t)) {
-        val = strtoul(buf, &p, 0);
-        if (val > 255 || *p) {
-            fprintf(stderr, "acpitable: \"rev=%s\" is invalid\n", buf);
-            return -1;
-        }
-        hdr.revision = (uint8_t)val;
-        ++changed;
-    }
-
-    if (get_param_value(buf, sizeof(buf), "oem_id", t)) {
-        /* strncpy is justified: the field need not be NUL-terminated. */
-        strncpy(hdr.oem_id, buf, sizeof(hdr.oem_id));
-        ++changed;
-    }
-
-    if (get_param_value(buf, sizeof(buf), "oem_table_id", t)) {
-        /* strncpy is justified: the field need not be NUL-terminated. */
-        strncpy(hdr.oem_table_id, buf, sizeof(hdr.oem_table_id));
-        ++changed;
-    }
-
-    if (get_param_value(buf, sizeof(buf), "oem_rev", t)) {
-        val = strtol(buf, &p, 0);
-        if (*p) {
-            fprintf(stderr, "acpitable: \"oem_rev=%s\" is invalid\n", buf);
-            return -1;
-        }
-        hdr.oem_revision = cpu_to_le32(val);
-        ++changed;
-    }
-
-    if (get_param_value(buf, sizeof(buf), "asl_compiler_id", t)) {
-        /* strncpy is justified: the field need not be NUL-terminated. */
-        strncpy(hdr.asl_compiler_id, buf, sizeof(hdr.asl_compiler_id));
-        ++changed;
-    }
-
-    if (get_param_value(buf, sizeof(buf), "asl_compiler_rev", t)) {
-        val = strtol(buf, &p, 0);
-        if (*p) {
-            fprintf(stderr, "acpitable: \"%s=%s\" is invalid\n",
-                    "asl_compiler_rev", buf);
-            return -1;
-        }
-        hdr.asl_compiler_revision = cpu_to_le32(val);
-        ++changed;
-    }
-
-    if (!has_header && !changed) {
-        fprintf(stderr, "warning: acpitable: no table headers are specified\n");
-    }
-
-
-    /* now calculate checksum of the table, complete with the header */
-    /* we may as well leave checksum intact if has_header is true */
-    /* alternatively there may be a way to set cksum to a given value */
-    hdr.checksum = 0;    /* for checksum calculation */
-
-    /* put header back */
-    memcpy(f, &hdr, sizeof(hdr));
-
-    if (changed || !has_header || 1) {
-        ((struct acpi_table_header *)f)->checksum =
-            acpi_checksum((uint8_t *)f + ACPI_TABLE_PFX_SIZE, len);
-    }
-
-    /* increase number of tables */
-    (*(uint16_t *)acpi_tables) =
-        cpu_to_le32(le32_to_cpu(*(uint16_t *)acpi_tables) + 1);
-
-    acpi_tables_len = allen;
-    return 0;
-
+    error_propagate(errp, err);
 }
 
 static void acpi_notify_wakeup(Notifier *notifier, void *data)
@@ -472,8 +540,9 @@ static const MemoryRegionOps acpi_pm_cnt_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent)
+void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent, uint8_t s4_val)
 {
+    ar->pm1.cnt.s4_val = s4_val;
     ar->wakeup.notify = acpi_notify_wakeup;
     qemu_register_wakeup_notifier(&ar->wakeup);
     memory_region_init_io(&ar->pm1.cnt.io, &acpi_pm_cnt_ops, ar, "acpi-cnt", 2);

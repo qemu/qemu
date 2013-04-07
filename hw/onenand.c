@@ -185,7 +185,8 @@ static const VMStateDescription vmstate_onenand = {
         VMSTATE_UINT8(ecc.cp, OneNANDState),
         VMSTATE_UINT16_ARRAY(ecc.lp, OneNANDState, 2),
         VMSTATE_UINT16(ecc.count, OneNANDState),
-        VMSTATE_BUFFER_UNSAFE(otp, OneNANDState, 0, ((64 + 2) << PAGE_SHIFT)),
+        VMSTATE_BUFFER_POINTER_UNSAFE(otp, OneNANDState, 0,
+            ((64 + 2) << PAGE_SHIFT)),
         VMSTATE_END_OF_LIST()
     }
 };

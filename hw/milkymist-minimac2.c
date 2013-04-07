@@ -96,7 +96,6 @@ struct MilkymistMinimac2State {
     NICState *nic;
     NICConf conf;
     char *phy_model;
-    hwaddr buffers_base;
     MemoryRegion buffers;
     MemoryRegion regs_region;
 
@@ -475,7 +474,7 @@ static int milkymist_minimac2_init(SysBusDevice *dev)
     s->rx1_buf = s->rx0_buf + MINIMAC2_BUFFER_SIZE;
     s->tx_buf = s->rx1_buf + MINIMAC2_BUFFER_SIZE;
 
-    sysbus_add_memory(dev, s->buffers_base, &s->buffers);
+    sysbus_init_mmio(dev, &s->buffers);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_milkymist_minimac2_info, &s->conf,
@@ -517,8 +516,6 @@ static const VMStateDescription vmstate_milkymist_minimac2 = {
 };
 
 static Property milkymist_minimac2_properties[] = {
-    DEFINE_PROP_TADDR("buffers_base", MilkymistMinimac2State,
-    buffers_base, 0),
     DEFINE_NIC_PROPERTIES(MilkymistMinimac2State, conf),
     DEFINE_PROP_STRING("phy_model", MilkymistMinimac2State, phy_model),
     DEFINE_PROP_END_OF_LIST(),

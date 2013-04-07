@@ -207,7 +207,8 @@ static int scsi_qdev_exit(DeviceState *qdev)
 
 /* handle legacy '-drive if=scsi,...' cmd line args */
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
-                                      int unit, bool removable, int bootindex)
+                                      int unit, bool removable, int bootindex,
+                                      const char *serial)
 {
     const char *driver;
     DeviceState *dev;
@@ -220,6 +221,9 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
     }
     if (object_property_find(OBJECT(dev), "removable", NULL)) {
         qdev_prop_set_bit(dev, "removable", removable);
+    }
+    if (serial) {
+        qdev_prop_set_string(dev, "serial", serial);
     }
     if (qdev_prop_set_drive(dev, "drive", bdrv) < 0) {
         qdev_free(dev);
@@ -243,7 +247,7 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
             continue;
         }
         qemu_opts_loc_restore(dinfo->opts);
-        if (!scsi_bus_legacy_add_drive(bus, dinfo->bdrv, unit, false, -1)) {
+        if (!scsi_bus_legacy_add_drive(bus, dinfo->bdrv, unit, false, -1, NULL)) {
             res = -1;
             break;
         }

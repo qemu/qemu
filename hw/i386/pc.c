@@ -51,6 +51,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/arch_init.h"
 #include "qemu/bitmap.h"
+#include "qemu/config-file.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -70,6 +71,8 @@
 #define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)
 #define FW_CFG_E820_TABLE (FW_CFG_ARCH_LOCAL + 3)
 #define FW_CFG_HPET (FW_CFG_ARCH_LOCAL + 4)
+
+#define IO_APIC_DEFAULT_ADDRESS 0xfec00000
 
 #define E820_NR_ENTRIES		16
 
@@ -646,8 +649,8 @@ static long get_file_size(FILE *f)
 
 static void load_linux(void *fw_cfg,
                        const char *kernel_filename,
-		       const char *initrd_filename,
-		       const char *kernel_cmdline,
+                       const char *initrd_filename,
+                       const char *kernel_cmdline,
                        hwaddr max_ram_size)
 {
     uint16_t protocol;
@@ -664,60 +667,62 @@ static void load_linux(void *fw_cfg,
     /* load the kernel header */
     f = fopen(kernel_filename, "rb");
     if (!f || !(kernel_size = get_file_size(f)) ||
-	fread(header, 1, MIN(ARRAY_SIZE(header), kernel_size), f) !=
-	MIN(ARRAY_SIZE(header), kernel_size)) {
-	fprintf(stderr, "qemu: could not load kernel '%s': %s\n",
-		kernel_filename, strerror(errno));
-	exit(1);
+        fread(header, 1, MIN(ARRAY_SIZE(header), kernel_size), f) !=
+        MIN(ARRAY_SIZE(header), kernel_size)) {
+        fprintf(stderr, "qemu: could not load kernel '%s': %s\n",
+                kernel_filename, strerror(errno));
+        exit(1);
     }
 
     /* kernel protocol version */
 #if 0
     fprintf(stderr, "header magic: %#x\n", ldl_p(header+0x202));
 #endif
-    if (ldl_p(header+0x202) == 0x53726448)
-	protocol = lduw_p(header+0x206);
-    else {
-	/* This looks like a multiboot kernel. If it is, let's stop
-	   treating it like a Linux kernel. */
+    if (ldl_p(header+0x202) == 0x53726448) {
+        protocol = lduw_p(header+0x206);
+    } else {
+        /* This looks like a multiboot kernel. If it is, let's stop
+           treating it like a Linux kernel. */
         if (load_multiboot(fw_cfg, f, kernel_filename, initrd_filename,
-                           kernel_cmdline, kernel_size, header))
+                           kernel_cmdline, kernel_size, header)) {
             return;
-	protocol = 0;
+        }
+        protocol = 0;
     }
 
     if (protocol < 0x200 || !(header[0x211] & 0x01)) {
-	/* Low kernel */
-	real_addr    = 0x90000;
-	cmdline_addr = 0x9a000 - cmdline_size;
-	prot_addr    = 0x10000;
+        /* Low kernel */
+        real_addr    = 0x90000;
+        cmdline_addr = 0x9a000 - cmdline_size;
+        prot_addr    = 0x10000;
     } else if (protocol < 0x202) {
-	/* High but ancient kernel */
-	real_addr    = 0x90000;
-	cmdline_addr = 0x9a000 - cmdline_size;
-	prot_addr    = 0x100000;
+        /* High but ancient kernel */
+        real_addr    = 0x90000;
+        cmdline_addr = 0x9a000 - cmdline_size;
+        prot_addr    = 0x100000;
     } else {
-	/* High and recent kernel */
-	real_addr    = 0x10000;
-	cmdline_addr = 0x20000;
-	prot_addr    = 0x100000;
+        /* High and recent kernel */
+        real_addr    = 0x10000;
+        cmdline_addr = 0x20000;
+        prot_addr    = 0x100000;
     }
 
 #if 0
     fprintf(stderr,
-	    "qemu: real_addr     = 0x" TARGET_FMT_plx "\n"
-	    "qemu: cmdline_addr  = 0x" TARGET_FMT_plx "\n"
-	    "qemu: prot_addr     = 0x" TARGET_FMT_plx "\n",
-	    real_addr,
-	    cmdline_addr,
-	    prot_addr);
+            "qemu: real_addr     = 0x" TARGET_FMT_plx "\n"
+            "qemu: cmdline_addr  = 0x" TARGET_FMT_plx "\n"
+            "qemu: prot_addr     = 0x" TARGET_FMT_plx "\n",
+            real_addr,
+            cmdline_addr,
+            prot_addr);
 #endif
 
     /* highest address for loading the initrd */
-    if (protocol >= 0x203)
-	initrd_max = ldl_p(header+0x22c);
-    else
-	initrd_max = 0x37ffffff;
+    if (protocol >= 0x203) {
+        initrd_max = ldl_p(header+0x22c);
+    } else {
+        initrd_max = 0x37ffffff;
+    }
 
     if (initrd_max >= max_ram_size-ACPI_DATA_SIZE)
     	initrd_max = max_ram_size-ACPI_DATA_SIZE-1;
@@ -727,10 +732,10 @@ static void load_linux(void *fw_cfg,
     fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
 
     if (protocol >= 0x202) {
-	stl_p(header+0x228, cmdline_addr);
+        stl_p(header+0x228, cmdline_addr);
     } else {
-	stw_p(header+0x20, 0xA33F);
-	stw_p(header+0x22, cmdline_addr-real_addr);
+        stw_p(header+0x20, 0xA33F);
+        stw_p(header+0x22, cmdline_addr-real_addr);
     }
 
     /* handle vga= parameter */
@@ -755,23 +760,23 @@ static void load_linux(void *fw_cfg,
     /* High nybble = B reserved for QEMU; low nybble is revision number.
        If this code is substantially changed, you may want to consider
        incrementing the revision. */
-    if (protocol >= 0x200)
-	header[0x210] = 0xB0;
-
+    if (protocol >= 0x200) {
+        header[0x210] = 0xB0;
+    }
     /* heap */
     if (protocol >= 0x201) {
-	header[0x211] |= 0x80;	/* CAN_USE_HEAP */
-	stw_p(header+0x224, cmdline_addr-real_addr-0x200);
+        header[0x211] |= 0x80;	/* CAN_USE_HEAP */
+        stw_p(header+0x224, cmdline_addr-real_addr-0x200);
     }
 
     /* load initrd */
     if (initrd_filename) {
-	if (protocol < 0x200) {
-	    fprintf(stderr, "qemu: linux kernel too old to load a ram disk\n");
-	    exit(1);
-	}
+        if (protocol < 0x200) {
+            fprintf(stderr, "qemu: linux kernel too old to load a ram disk\n");
+            exit(1);
+        }
 
-	initrd_size = get_image_size(initrd_filename);
+        initrd_size = get_image_size(initrd_filename);
         if (initrd_size < 0) {
             fprintf(stderr, "qemu: error reading initrd %s\n",
                     initrd_filename);
@@ -787,14 +792,15 @@ static void load_linux(void *fw_cfg,
         fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, initrd_data, initrd_size);
 
-	stl_p(header+0x218, initrd_addr);
-	stl_p(header+0x21c, initrd_size);
+        stl_p(header+0x218, initrd_addr);
+        stl_p(header+0x21c, initrd_size);
     }
 
     /* load kernel and setup */
     setup_size = header[0x1f1];
-    if (setup_size == 0)
-	setup_size = 4;
+    if (setup_size == 0) {
+        setup_size = 4;
+    }
     setup_size = (setup_size+1)*512;
     kernel_size -= setup_size;
 
@@ -885,7 +891,7 @@ void pc_cpus_init(const char *cpu_model)
 
 void pc_acpi_init(const char *default_dsdt)
 {
-    char *filename = NULL, *arg = NULL;
+    char *filename;
 
     if (acpi_tables != NULL) {
         /* manually set via -acpitable, leave it alone */
@@ -895,15 +901,26 @@ void pc_acpi_init(const char *default_dsdt)
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, default_dsdt);
     if (filename == NULL) {
         fprintf(stderr, "WARNING: failed to find %s\n", default_dsdt);
-        return;
-    }
+    } else {
+        char *arg;
+        QemuOpts *opts;
+        Error *err = NULL;
 
-    arg = g_strdup_printf("file=%s", filename);
-    if (acpi_table_add(arg) != 0) {
-        fprintf(stderr, "WARNING: failed to load %s\n", filename);
+        arg = g_strdup_printf("file=%s", filename);
+
+        /* creates a deep copy of "arg" */
+        opts = qemu_opts_parse(qemu_find_opts("acpi"), arg, 0);
+        g_assert(opts != NULL);
+
+        acpi_table_add(opts, &err);
+        if (err) {
+            fprintf(stderr, "WARNING: failed to load %s: %s\n", filename,
+                    error_get_pretty(err));
+            error_free(err);
+        }
+        g_free(arg);
+        g_free(filename);
     }
-    g_free(arg);
-    g_free(filename);
 }
 
 void *pc_memory_init(MemoryRegion *system_memory,
@@ -1155,7 +1172,7 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
     }
     qdev_init_nofail(dev);
     d = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(d, 0, 0xfec00000);
+    sysbus_mmio_map(d, 0, IO_APIC_DEFAULT_ADDRESS);
 
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {
         gsi_state->ioapic_irq[i] = qdev_get_gpio_in(dev, i);
