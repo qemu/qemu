@@ -16,16 +16,7 @@ block-obj-y += qapi-types.o qapi-visit.o
 
 block-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
 block-obj-y += qemu-coroutine-sleep.o
-ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
-block-obj-$(CONFIG_POSIX) += coroutine-ucontext.o
-else
-ifeq ($(CONFIG_SIGALTSTACK_COROUTINE),y)
-block-obj-$(CONFIG_POSIX) += coroutine-sigaltstack.o
-else
-block-obj-$(CONFIG_POSIX) += coroutine-gthread.o
-endif
-endif
-block-obj-$(CONFIG_WIN32) += coroutine-win32.o
+block-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o
 
 ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
 # Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.

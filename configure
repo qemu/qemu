@@ -3071,31 +3071,58 @@ fi
 ##########################################
 # check and set a backend for coroutine
 
-# default is ucontext, but always fallback to gthread
-# windows autodetected by make
-if test "$coroutine" = "" -o "$coroutine" = "ucontext"; then
-  if test "$darwin" != "yes"; then
-    cat > $TMPC << EOF
+# We prefer ucontext, but it's not always possible. The fallback
+# is sigcontext. gthread is not selectable except explicitly, because
+# it is not functional enough to run QEMU proper. (It is occasionally
+# useful for debugging purposes.)  On Windows the only valid backend
+# is the Windows-specific one.
+
+ucontext_works=no
+if test "$darwin" != "yes"; then
+  cat > $TMPC << EOF
 #include <ucontext.h>
 #ifdef __stub_makecontext
 #error Ignoring glibc stub makecontext which will always fail
 #endif
 int main(void) { makecontext(0, 0, 0); return 0; }
 EOF
-    if compile_prog "" "" ; then
-        coroutine_backend=ucontext
-    else
-	coroutine_backend=gthread
-    fi
+  if compile_prog "" "" ; then
+    ucontext_works=yes
   fi
-elif test "$coroutine" = "gthread" ; then
-  coroutine_backend=gthread
-elif test "$coroutine" = "windows" ; then
-  coroutine_backend=windows
-elif test "$coroutine" = "sigaltstack" ; then
-  coroutine_backend=sigaltstack
+fi
+
+if test "$coroutine" = ""; then
+  if test "$mingw32" = "yes"; then
+    coroutine=win32
+  elif test "$ucontext_works" = "yes"; then
+    coroutine=ucontext
+  else
+    coroutine=sigaltstack
+  fi
 else
-  error_exit "unknown coroutine backend $coroutine"
+  case $coroutine in
+  windows)
+    if test "$mingw32" != "yes"; then
+      error_exit "'windows' coroutine backend only valid for Windows"
+    fi
+    # Unfortunately the user visible backend name doesn't match the
+    # coroutine-*.c filename for this case, so we have to adjust it here.
+    coroutine=win32
+    ;;
+  ucontext)
+    if test "$ucontext_works" != "yes"; then
+      feature_not_found "ucontext"
+    fi
+    ;;
+  gthread|sigaltstack)
+    if test "$mingw32" = "yes"; then
+      error_exit "only the 'windows' coroutine backend is valid for Windows"
+    fi
+    ;;
+  *)
+    error_exit "unknown coroutine backend $coroutine"
+    ;;
+  esac
 fi
 
 ##########################################
@@ -3402,7 +3429,7 @@ echo "GLX support       $glx"
 echo "libiscsi support  $libiscsi"
 echo "build guest agent $guest_agent"
 echo "seccomp support   $seccomp"
-echo "coroutine backend $coroutine_backend"
+echo "coroutine backend $coroutine"
 echo "GlusterFS support $glusterfs"
 echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
@@ -3735,11 +3762,7 @@ if test "$rbd" = "yes" ; then
   echo "CONFIG_RBD=y" >> $config_host_mak
 fi
 
-if test "$coroutine_backend" = "ucontext" ; then
-  echo "CONFIG_UCONTEXT_COROUTINE=y" >> $config_host_mak
-elif test "$coroutine_backend" = "sigaltstack" ; then
-  echo "CONFIG_SIGALTSTACK_COROUTINE=y" >> $config_host_mak
-fi
+echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
 
 if test "$open_by_handle_at" = "yes" ; then
   echo "CONFIG_OPEN_BY_HANDLE=y" >> $config_host_mak
