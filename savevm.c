@@ -626,7 +626,7 @@ static void add_to_iovec(QEMUFile *f, const uint8_t *buf, int size)
         f->iov[f->iovcnt++].iov_len = size;
     }
 
-    if (f->buf_index >= IO_BUF_SIZE || f->iovcnt >= MAX_IOV_SIZE) {
+    if (f->iovcnt >= MAX_IOV_SIZE) {
         qemu_fflush(f);
     }
 }
@@ -662,12 +662,10 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         f->bytes_xfer += size;
         if (f->ops->writev_buffer) {
             add_to_iovec(f, f->buf + f->buf_index, l);
-            f->buf_index += l;
-        } else {
-            f->buf_index += l;
-            if (f->buf_index == IO_BUF_SIZE) {
-                qemu_fflush(f);
-            }
+        }
+        f->buf_index += l;
+        if (f->buf_index == IO_BUF_SIZE) {
+            qemu_fflush(f);
         }
         if (qemu_file_get_error(f)) {
             break;
@@ -687,12 +685,10 @@ void qemu_put_byte(QEMUFile *f, int v)
     f->bytes_xfer++;
     if (f->ops->writev_buffer) {
         add_to_iovec(f, f->buf + f->buf_index, 1);
-        f->buf_index++;
-    } else {
-        f->buf_index++;
-        if (f->buf_index == IO_BUF_SIZE) {
-            qemu_fflush(f);
-        }
+    }
+    f->buf_index++;
+    if (f->buf_index == IO_BUF_SIZE) {
+        qemu_fflush(f);
     }
 }
 
