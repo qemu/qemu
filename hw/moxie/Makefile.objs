@@ -1,5 +1,2 @@
 # moxie boards
-obj-y = serial.o mc146818rtc.o vga.o
-
-obj-y := $(addprefix ../,$(obj-y))
 obj-y += moxiesim.o

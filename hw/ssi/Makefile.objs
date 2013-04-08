@@ -1,0 +1,6 @@
+common-obj-$(CONFIG_PL022) += pl022.o
+common-obj-$(CONFIG_SSI) += ssi.o
+common-obj-$(CONFIG_XILINX_SPI) += xilinx_spi.o
+common-obj-$(CONFIG_XILINX_SPIPS) += xilinx_spips.o
+
+obj-$(CONFIG_OMAP) += omap_spi.o

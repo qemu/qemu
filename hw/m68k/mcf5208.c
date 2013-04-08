@@ -6,7 +6,7 @@
  * This code is licensed under the GPL
  */
 #include "hw/hw.h"
-#include "hw/mcf.h"
+#include "hw/m68k/mcf.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "sysemu/sysemu.h"

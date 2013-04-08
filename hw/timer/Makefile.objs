@@ -1,0 +1,28 @@
+common-obj-$(CONFIG_ARM_TIMER) += arm_timer.o
+common-obj-$(CONFIG_CADENCE) += cadence_ttc.o
+common-obj-$(CONFIG_DS1338) += ds1338.o
+common-obj-$(CONFIG_HPET) += hpet.o
+common-obj-$(CONFIG_I8254) += i8254_common.o i8254.o
+common-obj-$(CONFIG_M48T59) += m48t59.o
+common-obj-$(CONFIG_PL031) += pl031.o
+common-obj-$(CONFIG_PUV3) += puv3_ost.o
+common-obj-$(CONFIG_TWL92230) += twl92230.o
+common-obj-$(CONFIG_XILINX) += xilinx_timer.o
+common-obj-$(CONFIG_SLAVIO) += slavio_timer.o
+common-obj-$(CONFIG_ETRAXFS) += etraxfs_timer.o
+common-obj-$(CONFIG_GRLIB) += grlib_gptimer.o
+common-obj-$(CONFIG_IMX) += imx_timer.o
+common-obj-$(CONFIG_LM32) += lm32_timer.o
+common-obj-$(CONFIG_MILKYMIST) += milkymist-sysctl.o
+
+obj-$(CONFIG_EXYNOS4) += exynos4210_mct.o
+obj-$(CONFIG_EXYNOS4) += exynos4210_pwm.o
+obj-$(CONFIG_EXYNOS4) += exynos4210_rtc.o
+obj-$(CONFIG_OMAP) += omap_gptimer.o
+obj-$(CONFIG_OMAP) += omap_synctimer.o
+obj-$(CONFIG_PXA2XX) += pxa2xx_timer.o
+obj-$(CONFIG_SH4) += sh_timer.o
+obj-$(CONFIG_TUSB6010) += tusb6010.o
+
+obj-$(CONFIG_ARM_MPTIMER) += arm_mptimer.o
+obj-$(CONFIG_MC146818RTC) += mc146818rtc.o

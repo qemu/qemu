@@ -1,0 +1,151 @@
+/*
+ * OSTimer device simulation in PKUnity SoC
+ *
+ * Copyright (C) 2010-2012 Guan Xuetao
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation, or any later version.
+ * See the COPYING file in the top-level directory.
+ */
+#include "hw/sysbus.h"
+#include "hw/ptimer.h"
+
+#undef DEBUG_PUV3
+#include "hw/unicore32/puv3.h"
+
+/* puv3 ostimer implementation. */
+typedef struct {
+    SysBusDevice busdev;
+    MemoryRegion iomem;
+    QEMUBH *bh;
+    qemu_irq irq;
+    ptimer_state *ptimer;
+
+    uint32_t reg_OSMR0;
+    uint32_t reg_OSCR;
+    uint32_t reg_OSSR;
+    uint32_t reg_OIER;
+} PUV3OSTState;
+
+static uint64_t puv3_ost_read(void *opaque, hwaddr offset,
+        unsigned size)
+{
+    PUV3OSTState *s = opaque;
+    uint32_t ret = 0;
+
+    switch (offset) {
+    case 0x10: /* Counter Register */
+        ret = s->reg_OSMR0 - (uint32_t)ptimer_get_count(s->ptimer);
+        break;
+    case 0x14: /* Status Register */
+        ret = s->reg_OSSR;
+        break;
+    case 0x1c: /* Interrupt Enable Register */
+        ret = s->reg_OIER;
+        break;
+    default:
+        DPRINTF("Bad offset %x\n", (int)offset);
+    }
+    DPRINTF("offset 0x%x, value 0x%x\n", offset, ret);
+    return ret;
+}
+
+static void puv3_ost_write(void *opaque, hwaddr offset,
+        uint64_t value, unsigned size)
+{
+    PUV3OSTState *s = opaque;
+
+    DPRINTF("offset 0x%x, value 0x%x\n", offset, value);
+    switch (offset) {
+    case 0x00: /* Match Register 0 */
+        s->reg_OSMR0 = value;
+        if (s->reg_OSMR0 > s->reg_OSCR) {
+            ptimer_set_count(s->ptimer, s->reg_OSMR0 - s->reg_OSCR);
+        } else {
+            ptimer_set_count(s->ptimer, s->reg_OSMR0 +
+                    (0xffffffff - s->reg_OSCR));
+        }
+        ptimer_run(s->ptimer, 2);
+        break;
+    case 0x14: /* Status Register */
+        assert(value == 0);
+        if (s->reg_OSSR) {
+            s->reg_OSSR = value;
+            qemu_irq_lower(s->irq);
+        }
+        break;
+    case 0x1c: /* Interrupt Enable Register */
+        s->reg_OIER = value;
+        break;
+    default:
+        DPRINTF("Bad offset %x\n", (int)offset);
+    }
+}
+
+static const MemoryRegionOps puv3_ost_ops = {
+    .read = puv3_ost_read,
+    .write = puv3_ost_write,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static void puv3_ost_tick(void *opaque)
+{
+    PUV3OSTState *s = opaque;
+
+    DPRINTF("ost hit when ptimer counter from 0x%x to 0x%x!\n",
+            s->reg_OSCR, s->reg_OSMR0);
+
+    s->reg_OSCR = s->reg_OSMR0;
+    if (s->reg_OIER) {
+        s->reg_OSSR = 1;
+        qemu_irq_raise(s->irq);
+    }
+}
+
+static int puv3_ost_init(SysBusDevice *dev)
+{
+    PUV3OSTState *s = FROM_SYSBUS(PUV3OSTState, dev);
+
+    s->reg_OIER = 0;
+    s->reg_OSSR = 0;
+    s->reg_OSMR0 = 0;
+    s->reg_OSCR = 0;
+
+    sysbus_init_irq(dev, &s->irq);
+
+    s->bh = qemu_bh_new(puv3_ost_tick, s);
+    s->ptimer = ptimer_init(s->bh);
+    ptimer_set_freq(s->ptimer, 50 * 1000 * 1000);
+
+    memory_region_init_io(&s->iomem, &puv3_ost_ops, s, "puv3_ost",
+            PUV3_REGS_OFFSET);
+    sysbus_init_mmio(dev, &s->iomem);
+
+    return 0;
+}
+
+static void puv3_ost_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = puv3_ost_init;
+}
+
+static const TypeInfo puv3_ost_info = {
+    .name = "puv3_ost",
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PUV3OSTState),
+    .class_init = puv3_ost_class_init,
+};
+
+static void puv3_ost_register_type(void)
+{
+    type_register_static(&puv3_ost_info);
+}
+
+type_init(puv3_ost_register_type)

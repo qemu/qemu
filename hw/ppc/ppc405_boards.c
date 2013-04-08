@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/ppc.h"
-#include "hw/ppc405.h"
-#include "hw/nvram.h"
-#include "hw/flash.h"
+#include "hw/ppc/ppc.h"
+#include "ppc405.h"
+#include "hw/timer/m48t59.h"
+#include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
 #include "block/block.h"
 #include "hw/boards.h"

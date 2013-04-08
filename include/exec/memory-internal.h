@@ -20,7 +20,7 @@
 #define MEMORY_INTERNAL_H
 
 #ifndef CONFIG_USER_ONLY
-#include "hw/xen.h"
+#include "hw/xen/xen.h"
 
 typedef struct PhysPageEntry PhysPageEntry;
 

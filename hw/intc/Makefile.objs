@@ -1,0 +1,23 @@
+common-obj-$(CONFIG_HEATHROW_PIC) += heathrow_pic.o
+common-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
+common-obj-$(CONFIG_PL190) += pl190.o
+common-obj-$(CONFIG_PUV3) += puv3_intc.o
+common-obj-$(CONFIG_XILINX) += xilinx_intc.o
+common-obj-$(CONFIG_ETRAXFS) += etraxfs_pic.o
+common-obj-$(CONFIG_IMX) += imx_avic.o
+common-obj-$(CONFIG_LM32) += lm32_pic.o
+common-obj-$(CONFIG_REALVIEW) += realview_gic.o
+common-obj-$(CONFIG_SLAVIO) += sbi.o slavio_intctl.o sun4c_intctl.o
+common-obj-$(CONFIG_IOAPIC) += ioapic_common.o
+common-obj-$(CONFIG_ARM_GIC) += arm_gic_common.o
+
+obj-$(CONFIG_APIC) += apic.o apic_common.o
+obj-$(CONFIG_ARM_GIC) += arm_gic.o
+obj-$(CONFIG_ARM_GIC_KVM) += arm_gic_kvm.o
+obj-$(CONFIG_STELLARIS) += armv7m_nvic.o
+obj-$(CONFIG_EXYNOS4) += exynos4210_gic.o exynos4210_combiner.o
+obj-$(CONFIG_GRLIB) += grlib_irqmp.o
+obj-$(CONFIG_IOAPIC) += ioapic.o
+obj-$(CONFIG_OMAP) += omap_intc.o
+obj-$(CONFIG_OPENPIC) += openpic.o
+obj-$(CONFIG_SH4) += sh_intc.o

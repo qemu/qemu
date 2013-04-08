@@ -23,7 +23,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/microblaze_pic_cpu.h"
+#include "pic_cpu.h"
 
 #define D(x)
 

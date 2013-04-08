@@ -3797,7 +3797,7 @@ if test "$glusterfs" = "yes" ; then
 fi
 
 if test "$virtio_blk_data_plane" = "yes" ; then
-  echo "CONFIG_VIRTIO_BLK_DATA_PLANE=y" >> $config_host_mak
+  echo 'CONFIG_VIRTIO_BLK_DATA_PLANE=$(CONFIG_VIRTIO)' >> $config_host_mak
 fi
 
 # USB host support

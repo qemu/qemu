@@ -27,8 +27,8 @@
 
 #include "hw/hw.h"
 #include "trace.h"
-#include "hw/spapr.h"
-#include "hw/xics.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/xics.h"
 
 /*
  * ICP: Presentation layer

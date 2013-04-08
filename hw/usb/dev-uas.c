@@ -16,8 +16,8 @@
 
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "hw/scsi.h"
-#include "hw/scsi-defs.h"
+#include "hw/scsi/scsi.h"
+#include "block/scsi.h"
 
 /* --------------------------------------------------------------------- */
 

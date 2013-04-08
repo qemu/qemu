@@ -24,9 +24,9 @@
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
-#include "hw/arm-misc.h"
+#include "hw/arm.h"
 #include "exec/address-spaces.h"
-#include "hw/exynos4210.h"
+#include "hw/arm/exynos4210.h"
 #include "hw/boards.h"
 
 #undef DEBUG

@@ -25,7 +25,7 @@
 #include "hw/hw.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "hw/cris-boot.h"
+#include "boot.h"
 
 static void main_cpu_reset(void *opaque)
 {

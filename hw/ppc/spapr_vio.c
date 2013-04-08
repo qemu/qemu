@@ -30,9 +30,9 @@
 #include "sysemu/device_tree.h"
 #include "kvm_ppc.h"
 
-#include "hw/spapr.h"
-#include "hw/spapr_vio.h"
-#include "hw/xics.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
+#include "hw/ppc/xics.h"
 
 #ifdef CONFIG_FDT
 #include <libfdt.h>

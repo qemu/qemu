@@ -7,12 +7,12 @@
  * non-internal declarations are in hw/ide.h
  */
 #include <hw/ide.h>
-#include <hw/isa.h>
+#include <hw/isa/isa.h>
 #include "exec/iorange.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
-#include "hw/block-common.h"
-#include "hw/scsi-defs.h"
+#include "hw/block/block.h"
+#include "block/scsi.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE

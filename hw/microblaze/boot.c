@@ -31,7 +31,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 
-#include "hw/microblaze_boot.h"
+#include "boot.h"
 
 static struct
 {

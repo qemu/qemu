@@ -32,7 +32,7 @@
 #include "trace.h"
 #include "exec/address-spaces.h"
 
-#include "hw/grlib.h"
+#include "hw/sparc/grlib.h"
 
 /* Default system clock.  */
 #define CPU_CLK (40 * 1000 * 1000)

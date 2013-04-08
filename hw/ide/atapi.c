@@ -24,7 +24,7 @@
  */
 
 #include "hw/ide/internal.h"
-#include "hw/scsi.h"
+#include "hw/scsi/scsi.h"
 
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret);
 

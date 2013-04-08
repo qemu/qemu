@@ -1,20 +1,4 @@
-obj-y += mc146818rtc.o
-obj-y += apic_common.o apic.o
-obj-y += sga.o ioapic_common.o ioapic.o piix_pci.o
-obj-y += vmport.o
-obj-y += pci/pci-hotplug.o wdt_ib700.o
-obj-y += debugcon.o debugexit.o
-obj-y += pc_sysfw.o
-obj-y += lpc_ich9.o q35.o
-obj-$(CONFIG_XEN) += xen_platform.o xen_apic.o
-obj-$(CONFIG_XEN_PCI_PASSTHROUGH) += xen-host-pci-device.o
-obj-$(CONFIG_XEN_PCI_PASSTHROUGH) += xen_pt.o xen_pt_config_init.o xen_pt_msi.o
-obj-y += kvm/
-obj-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
-obj-y += pc-testdev.o
-
-obj-y := $(addprefix ../,$(obj-y))
-
+obj-$(CONFIG_KVM) += kvm/
 obj-y += multiboot.o smbios.o
 obj-y += pc.o pc_piix.o pc_q35.o
 obj-$(CONFIG_XEN) += xen_domainbuild.o xen_machine_pv.o

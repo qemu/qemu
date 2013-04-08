@@ -25,8 +25,8 @@
 #include <glib.h>
 
 #include "hw/hw.h"
-#include "hw/pc.h"
-#include "hw/apic.h"
+#include "hw/i386/pc.h"
+#include "hw/i386/apic.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/usb.h"
@@ -39,8 +39,8 @@
 #include "hw/sysbus.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/blockdev.h"
-#include "hw/smbus.h"
-#include "hw/xen.h"
+#include "hw/i2c/smbus.h"
+#include "hw/xen/xen.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"

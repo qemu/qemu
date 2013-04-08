@@ -16,10 +16,10 @@
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 
 #undef DEBUG_PUV3
-#include "hw/puv3.h"
+#include "hw/unicore32/puv3.h"
 
 #define KERNEL_LOAD_ADDR        0x03000000
 #define KERNEL_MAX_SIZE         0x00800000 /* Just a guess */

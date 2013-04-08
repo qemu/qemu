@@ -8,9 +8,9 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/devices.h"
+#include "hw/arm/devices.h"
 #include "hw/boards.h"
-#include "hw/arm-misc.h"
+#include "hw/arm.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"

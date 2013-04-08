@@ -42,9 +42,9 @@
 
 #include "sysemu/sysemu.h"
 #ifndef CONFIG_USER_ONLY
-#include "hw/xen.h"
+#include "hw/xen/xen.h"
 #include "hw/sysbus.h"
-#include "hw/apic_internal.h"
+#include "hw/i386/apic_internal.h"
 #endif
 
 static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,

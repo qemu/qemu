@@ -21,7 +21,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/mips_cpudevs.h"
+#include "hw/mips/cpudevs.h"
 
 uint64_t cpu_mips_kseg0_to_phys(void *opaque, uint64_t addr)
 {

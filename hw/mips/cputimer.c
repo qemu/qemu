@@ -21,7 +21,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/mips_cpudevs.h"
+#include "hw/mips/cpudevs.h"
 #include "qemu/timer.h"
 
 #define TIMER_FREQ	100 * 1000 * 1000

@@ -9,7 +9,7 @@
  */
 
 #include "qemu-common.h"
-#include "hw/xen.h"
+#include "hw/xen/xen.h"
 #include "exec/memory.h"
 #include "qmp-commands.h"
 

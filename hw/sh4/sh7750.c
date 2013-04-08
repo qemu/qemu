@@ -24,11 +24,11 @@
  */
 #include <stdio.h>
 #include "hw/hw.h"
-#include "hw/sh.h"
+#include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
-#include "hw/sh7750_regs.h"
-#include "hw/sh7750_regnames.h"
-#include "hw/sh_intc.h"
+#include "sh7750_regs.h"
+#include "sh7750_regnames.h"
+#include "hw/sh4/sh_intc.h"
 #include "cpu.h"
 #include "exec/address-spaces.h"
 

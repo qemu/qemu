@@ -1,7 +1,3 @@
-obj-y = mcf_uart.o mcf_fec.o
-
-obj-y := $(addprefix ../,$(obj-y))
-
 obj-y += an5206.o mcf5208.o
 obj-y += dummy_m68k.o
 

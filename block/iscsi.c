@@ -31,14 +31,14 @@
 #include "qemu/error-report.h"
 #include "block/block_int.h"
 #include "trace.h"
-#include "hw/scsi-defs.h"
+#include "block/scsi.h"
 
 #include <iscsi/iscsi.h>
 #include <iscsi/scsi-lowlevel.h>
 
 #ifdef __linux__
 #include <scsi/sg.h>
-#include <hw/scsi-defs.h>
+#include <block/scsi.h>
 #endif
 
 typedef struct IscsiLun {

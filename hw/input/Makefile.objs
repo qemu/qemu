@@ -1,0 +1,13 @@
+common-obj-$(CONFIG_ADB) += adb.o
+common-obj-y += hid.o
+common-obj-$(CONFIG_LM832X) += lm832x.o
+common-obj-$(CONFIG_PCKBD) += pckbd.o
+common-obj-$(CONFIG_PL050) += pl050.o
+common-obj-y += ps2.o
+common-obj-$(CONFIG_STELLARIS_INPUT) += stellaris_input.o
+common-obj-$(CONFIG_TSC2005) += tsc2005.o
+common-obj-$(CONFIG_VMMOUSE) += vmmouse.o
+
+obj-$(CONFIG_MILKYMIST) += milkymist-softusb.o
+obj-$(CONFIG_PXA2XX) += pxa2xx_keypad.o
+obj-$(CONFIG_TSC210X) += tsc210x.o
