@@ -525,26 +525,23 @@ static void qemu_file_set_error(QEMUFile *f, int ret)
 static void qemu_fflush(QEMUFile *f)
 {
     ssize_t ret = 0;
-    int i = 0;
 
     if (!f->ops->writev_buffer && !f->ops->put_buffer) {
         return;
     }
 
-    if (f->is_write && f->iovcnt > 0) {
+    if (f->is_write) {
         if (f->ops->writev_buffer) {
-            ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt);
-            if (ret >= 0) {
-                f->pos += ret;
+            if (f->iovcnt > 0) {
+                ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt);
             }
         } else {
-            for (i = 0; i < f->iovcnt && ret >= 0; i++) {
-                ret = f->ops->put_buffer(f->opaque, f->iov[i].iov_base, f->pos,
-                                         f->iov[i].iov_len);
-                if (ret >= 0) {
-                    f->pos += ret;
-                }
+            if (f->buf_index > 0) {
+                ret = f->ops->put_buffer(f->opaque, f->buf, f->pos, f->buf_index);
             }
+        }
+        if (ret >= 0) {
+            f->pos += ret;
         }
         f->buf_index = 0;
         f->iovcnt = 0;
@@ -640,6 +637,11 @@ static void add_to_iovec(QEMUFile *f, const uint8_t *buf, int size)
 
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size)
 {
+    if (!f->ops->writev_buffer) {
+        qemu_put_buffer(f, buf, size);
+        return;
+    }
+
     if (f->last_error) {
         return;
     }
@@ -673,8 +675,17 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         if (l > size)
             l = size;
         memcpy(f->buf + f->buf_index, buf, l);
-        f->buf_index += l;
-        qemu_put_buffer_async(f, f->buf + (f->buf_index - l), l);
+        f->bytes_xfer += size;
+        if (f->ops->writev_buffer) {
+            add_to_iovec(f, f->buf + f->buf_index, l);
+            f->buf_index += l;
+        } else {
+            f->is_write = 1;
+            f->buf_index += l;
+            if (f->buf_index == IO_BUF_SIZE) {
+                qemu_fflush(f);
+            }
+        }
         if (qemu_file_get_error(f)) {
             break;
         }
@@ -697,8 +708,16 @@ void qemu_put_byte(QEMUFile *f, int v)
 
     f->buf[f->buf_index] = v;
     f->bytes_xfer++;
-    add_to_iovec(f, f->buf + f->buf_index, 1);
-    f->buf_index++;
+    if (f->ops->writev_buffer) {
+        add_to_iovec(f, f->buf + f->buf_index, 1);
+        f->buf_index++;
+    } else {
+        f->is_write = 1;
+        f->buf_index++;
+        if (f->buf_index == IO_BUF_SIZE) {
+            qemu_fflush(f);
+        }
+    }
 }
 
 static void qemu_file_skip(QEMUFile *f, int size)
