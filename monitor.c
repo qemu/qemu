@@ -33,7 +33,7 @@
 #include "exec/gdbstub.h"
 #include "net/net.h"
 #include "net/slirp.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"

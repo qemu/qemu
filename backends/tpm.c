@@ -12,7 +12,7 @@
  * Based on backends/rng.c by Anthony Liguori
  */
 
-#include "backends/tpm.h"
+#include "sysemu/tpm_backend.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm.h"
 #include "qemu/thread.h"

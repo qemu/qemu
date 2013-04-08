@@ -19,7 +19,7 @@
  * specification.
  */
 
-#include "backends/tpm.h"
+#include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
 #include "block/block.h"
 #include "exec/address-spaces.h"

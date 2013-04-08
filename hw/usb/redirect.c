@@ -30,7 +30,7 @@
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "qemu/iov.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 
 #include <dirent.h>
 #include <sys/ioctl.h>

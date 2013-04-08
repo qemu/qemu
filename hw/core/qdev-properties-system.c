@@ -17,7 +17,7 @@
 #include "hw/block/block.h"
 #include "net/hub.h"
 #include "qapi/visitor.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 
 static void get_pointer(Object *obj, Visitor *v, Property *prop,
                         const char *(*print)(void *ptr),

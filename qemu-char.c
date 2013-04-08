@@ -26,7 +26,7 @@
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "hw/usb.h"
 #include "qmp-commands.h"
 

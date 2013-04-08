@@ -27,7 +27,7 @@
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "qemu/sockets.h"
-#include "backends/tpm.h"
+#include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"

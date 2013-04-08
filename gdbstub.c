@@ -30,7 +30,7 @@
 #include "qemu.h"
 #else
 #include "monitor/monitor.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
 #endif

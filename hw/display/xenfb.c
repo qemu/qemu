@@ -37,7 +37,7 @@
 
 #include "hw/hw.h"
 #include "ui/console.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "hw/xen/xen_backend.h"
 
 #include <xen/event_channel.h>

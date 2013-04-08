@@ -15,7 +15,7 @@
 
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
-#include "backends/tpm.h"
+#include "sysemu/tpm_backend.h"
 #include "sysemu/tpm.h"
 #include "qemu/config-file.h"
 #include "qmp-commands.h"

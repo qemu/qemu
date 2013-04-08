@@ -23,7 +23,7 @@
  */
 
 #include "hw/sysbus.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 
 #define DUART(x)
 

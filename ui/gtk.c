@@ -62,7 +62,7 @@
 #include "qmp-commands.h"
 #include "x_keymap.h"
 #include "keymaps.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 
 //#define DEBUG_GTK
 
