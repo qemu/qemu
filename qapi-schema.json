@@ -2861,11 +2861,14 @@
 #
 # @default: #optional whether the machine is default
 #
+# @cpu-max: maximum number of CPUs supported by the machine type
+#           (since 1.5.0)
+#
 # Since: 1.2.0
 ##
 { 'type': 'MachineInfo',
   'data': { 'name': 'str', '*alias': 'str',
-            '*is-default': 'bool' } }
+            '*is-default': 'bool', 'cpu-max': 'int' } }
 
 ##
 # @query-machines:
