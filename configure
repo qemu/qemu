@@ -27,6 +27,17 @@ printf " '%s'" "$0" "$@" >> config.log
 echo >> config.log
 echo "#" >> config.log
 
+error_exit() {
+    echo
+    echo "ERROR: $1"
+    while test -n "$2"; do
+        echo "       $2"
+        shift
+    done
+    echo
+    exit 1
+}
+
 do_cc() {
     # Run the compiler, capturing its output to the log.
     echo $cc "$@" >> config.log
@@ -46,11 +57,10 @@ do_cc() {
     esac
     echo $cc -Werror "$@" >> config.log
     $cc -Werror "$@" >> config.log 2>&1 && return $?
-    echo "ERROR: configure test passed without -Werror but failed with -Werror."
-    echo "This is probably a bug in the configure script. The failing command"
-    echo "will be at the bottom of config.log."
-    echo "You can run configure with --disable-werror to bypass this check."
-    exit 1
+    error_exit "configure test passed without -Werror but failed with -Werror." \
+        "This is probably a bug in the configure script. The failing command" \
+        "will be at the bottom of config.log." \
+        "You can run configure with --disable-werror to bypass this check."
 }
 
 compile_object() {
@@ -494,11 +504,10 @@ SunOS)
         LDFLAGS="-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib $LDFLAGS"
         LIBS="-lsunmath $LIBS"
       else
-        echo "QEMU will not link correctly on Solaris 8/X86 or 9/x86 without"
-        echo "libsunmath from the Sun Studio compilers tools, due to a lack of"
-        echo "C99 math features in libm.so in Solaris 8/x86 and Solaris 9/x86"
-        echo "Studio 11 can be downloaded from www.sun.com."
-        exit 1
+        error_exit "QEMU will not link correctly on Solaris 8/X86 or 9/x86 without" \
+            "libsunmath from the Sun Studio compilers tools, due to a lack of" \
+            "C99 math features in libm.so in Solaris 8/x86 and Solaris 9/x86" \
+            "Studio 11 can be downloaded from www.sun.com."
       fi
     fi
   fi
@@ -1185,8 +1194,7 @@ if test "$ARCH" = "unknown"; then
         echo "Unsupported CPU = $cpu, will use TCG with TCI (experimental)"
         ARCH=tci
     else
-        echo "Unsupported CPU = $cpu, try --enable-tcg-interpreter"
-        exit 1
+        error_exit "Unsupported CPU = $cpu, try --enable-tcg-interpreter"
     fi
 fi
 
@@ -1198,8 +1206,7 @@ EOF
 if compile_object ; then
   : C compiler works ok
 else
-    echo "ERROR: \"$cc\" either does not exist or does not work"
-    exit 1
+    error_exit "\"$cc\" either does not exist or does not work"
 fi
 
 # Consult white-list to determine whether to enable werror
@@ -1254,8 +1261,7 @@ fi
 
 if test "$static" = "yes" ; then
   if test "$pie" = "yes" ; then
-    echo "static and pie are mutually incompatible"
-    exit 1
+    error_exit "static and pie are mutually incompatible"
   else
     pie="no"
   fi
@@ -1294,8 +1300,7 @@ EOF
     fi
   else
     if test "$pie" = "yes"; then
-      echo "PIE not available due to missing toolchain support"
-      exit 1
+      error_exit "PIE not available due to missing toolchain support"
     else
       echo "Disabling PIE due to missing toolchain support"
       pie="no"
@@ -1310,40 +1315,36 @@ if test "$solaris" = "yes" ; then
   if has $install; then
     :
   else
-    echo "Solaris install program not found. Use --install=/usr/ucb/install or"
-    echo "install fileutils from www.blastwave.org using pkg-get -i fileutils"
-    echo "to get ginstall which is used by default (which lives in /opt/csw/bin)"
-    exit 1
+    error_exit "Solaris install program not found. Use --install=/usr/ucb/install or" \
+        "install fileutils from www.blastwave.org using pkg-get -i fileutils" \
+        "to get ginstall which is used by default (which lives in /opt/csw/bin)"
   fi
   if test "`path_of $install`" = "/usr/sbin/install" ; then
-    echo "Error: Solaris /usr/sbin/install is not an appropriate install program."
-    echo "try ginstall from the GNU fileutils available from www.blastwave.org"
-    echo "using pkg-get -i fileutils, or use --install=/usr/ucb/install"
-    exit 1
+    error_exit "Solaris /usr/sbin/install is not an appropriate install program." \
+        "try ginstall from the GNU fileutils available from www.blastwave.org" \
+        "using pkg-get -i fileutils, or use --install=/usr/ucb/install"
   fi
   if has ar; then
     :
   else
-    echo "Error: No path includes ar"
     if test -f /usr/ccs/bin/ar ; then
-      echo "Add /usr/ccs/bin to your path and rerun configure"
+      error_exit "No path includes ar" \
+          "Add /usr/ccs/bin to your path and rerun configure"
     fi
-    exit 1
+    error_exit "No path includes ar"
   fi
 fi
 
 if ! has $python; then
-  echo "Python not found. Use --python=/path/to/python"
-  exit 1
+  error_exit "Python not found. Use --python=/path/to/python"
 fi
 
 # Note that if the Python conditional here evaluates True we will exit
 # with status 1 which is a shell 'false' value.
 if ! "$python" -c 'import sys; sys.exit(sys.version_info < (2,4) or sys.version_info >= (3,))'; then
-  echo "Cannot use '$python', Python 2.4 or later is required."
-  echo "Note that Python 3 or later is not yet supported."
-  echo "Use --python=/path/to/python to specify a supported Python."
-  exit 1
+  error_exit "Cannot use '$python', Python 2.4 or later is required." \
+      "Note that Python 3 or later is not yet supported." \
+      "Use --python=/path/to/python to specify a supported Python."
 fi
 
 if test -z "${target_list+xxx}" ; then
@@ -1362,11 +1363,8 @@ esac
 feature_not_found() {
   feature=$1
 
-  echo "ERROR"
-  echo "ERROR: User requested feature $feature"
-  echo "ERROR: configure was not able to find it"
-  echo "ERROR"
-  exit 1;
+  error_exit "User requested feature $feature" \
+      "configure was not able to find it"
 }
 
 if test -z "$cross_prefix" ; then
@@ -1408,8 +1406,7 @@ fi
 # pkg-config probe
 
 if ! has "$pkg_config_exe"; then
-  echo "Error: pkg-config binary '$pkg_config_exe' not found"
-  exit 1
+  error_exit "pkg-config binary '$pkg_config_exe' not found"
 fi
 
 ##########################################
@@ -1448,11 +1445,8 @@ EOF
     if compile_prog "" "-lz" ; then
         :
     else
-        echo
-        echo "Error: zlib check failed"
-        echo "Make sure to have the zlib libs and headers installed."
-        echo
-        exit 1
+        error_exit "zlib check failed" \
+            "Make sure to have the zlib libs and headers installed."
     fi
 fi
 
@@ -1629,14 +1623,12 @@ if test "$xen_pci_passthrough" != "no"; then
     xen_pci_passthrough=yes
   else
     if test "$xen_pci_passthrough" = "yes"; then
-      echo "ERROR"
-      echo "ERROR: User requested feature Xen PCI Passthrough"
-      echo "ERROR: but this feature require /sys from Linux"
       if test "$xen_ctrl_version" -lt 340; then
-        echo "ERROR: This feature does not work with Xen 3.3"
+        error_exit "User requested feature Xen PCI Passthrough" \
+            "This feature does not work with Xen 3.3"
       fi
-      echo "ERROR"
-      exit 1;
+      error_exit "User requested feature Xen PCI Passthrough" \
+          " but this feature requires /sys from Linux"
     fi
     xen_pci_passthrough=no
   fi
@@ -2010,11 +2002,8 @@ EOF
     if compile_prog "$cfl" "$lib" ; then
         :
     else
-        echo
-        echo "Error: $drv check failed"
-        echo "Make sure to have the $drv libs and headers installed."
-        echo
-        exit 1
+        error_exit "$drv check failed" \
+            "Make sure to have the $drv libs and headers installed."
     fi
 }
 
@@ -2029,11 +2018,8 @@ for drv in $audio_drv_list; do
 
     fmod)
     if test -z $fmod_lib || test -z $fmod_inc; then
-        echo
-        echo "Error: You must specify path to FMOD library and headers"
-        echo "Example: --fmod-inc=/path/include/fmod --fmod-lib=/path/lib/libfmod-3.74.so"
-        echo
-        exit 1
+        error_exit "You must specify path to FMOD library and headers" \
+            "Example: --fmod-inc=/path/include/fmod --fmod-lib=/path/lib/libfmod-3.74.so"
     fi
     audio_drv_probe $drv fmod.h $fmod_lib "return FSOUND_GetVersion();" "-I $fmod_inc"
     libs_softmmu="$fmod_lib $libs_softmmu"
@@ -2076,11 +2062,8 @@ for drv in $audio_drv_list; do
 
     *)
     echo "$audio_possible_drivers" | grep -q "\<$drv\>" || {
-        echo
-        echo "Error: Unknown driver '$drv' selected"
-        echo "Possible drivers are: $audio_possible_drivers"
-        echo
-        exit 1
+        error_exit "Unknown driver '$drv' selected" \
+            "Possible drivers are: $audio_possible_drivers"
     }
     ;;
     esac
@@ -2209,8 +2192,7 @@ then
     LIBS="$glib_libs $LIBS"
     libs_qga="$glib_libs $libs_qga"
 else
-    echo "glib-$glib_req_ver required to compile QEMU"
-    exit 1
+    error_exit "glib-$glib_req_ver required to compile QEMU"
 fi
 
 ##########################################
@@ -2227,11 +2209,10 @@ if test "$pixman" = ""; then
 fi
 if test "$pixman" = "none"; then
   if test "$want_tools" != "no" -o "$softmmu" != "no"; then
-    echo "ERROR: pixman disabled but system emulation or tools build"
-    echo "       enabled.  You can turn off pixman only if you also"
-    echo "       disable all system emulation targets and the tools"
-    echo "       build with '--disable-tools --disable-system'."
-    exit 1
+    error_exit "pixman disabled but system emulation or tools build" \
+        "enabled.  You can turn off pixman only if you also" \
+        "disable all system emulation targets and the tools" \
+        "build with '--disable-tools --disable-system'."
   fi
   pixman_cflags=
   pixman_libs=
@@ -2240,12 +2221,11 @@ elif test "$pixman" = "system"; then
   pixman_libs=`$pkg_config --libs pixman-1 2>/dev/null`
 else
   if test ! -d ${source_path}/pixman/pixman; then
-    echo "ERROR: pixman not present. Your options:"
-    echo "  (1) Preferred: Install the pixman devel package (any recent"
-    echo "      distro should have packages as Xorg needs pixman too)."
-    echo "  (2) Fetch the pixman submodule, using:"
-    echo "      git submodule update --init pixman"
-    exit 1
+    error_exit "pixman not present. Your options:" \
+        "  (1) Preferred: Install the pixman devel package (any recent" \
+        "      distro should have packages as Xorg needs pixman too)." \
+        "  (2) Fetch the pixman submodule, using:" \
+        "      git submodule update --init pixman"
   fi
   mkdir -p pixman/pixman
   pixman_cflags="-I\$(SRC_PATH)/pixman/pixman -I\$(BUILD_DIR)/pixman/pixman"
@@ -2304,11 +2284,8 @@ else
 fi
 
 if test "$mingw32" != yes -a "$pthread" = no; then
-  echo
-  echo "Error: pthread check failed"
-  echo "Make sure to have the pthread libs and headers installed."
-  echo
-  exit 1
+  error_exit "pthread check failed" \
+      "Make sure to have the pthread libs and headers installed."
 fi
 
 ##########################################
@@ -2363,8 +2340,7 @@ fi
 
 if test "$virtio_blk_data_plane" = "yes" -a \
 	"$linux_aio" != "yes" ; then
-  echo "Error: virtio-blk-data-plane requires Linux AIO, please try --enable-linux-aio"
-  exit 1
+  error_exit "virtio-blk-data-plane requires Linux AIO, please try --enable-linux-aio"
 elif test -z "$virtio_blk_data_plane" ; then
   virtio_blk_data_plane=$linux_aio
 fi
@@ -2861,10 +2837,7 @@ elif compile_prog "" "-lm" ; then
   LIBS="-lm $LIBS"
   libs_qga="-lm $libs_qga"
 else
-  echo
-  echo "Error: libm check failed"
-  echo
-  exit 1
+  error_exit "libm check failed"
 fi
 
 ##########################################
@@ -3040,11 +3013,8 @@ fi
 
 $python "$source_path/scripts/tracetool.py" "--backend=$trace_backend" --check-backend  > /dev/null 2> /dev/null
 if test "$?" -ne 0 ; then
-  echo
-  echo "Error: invalid trace backend"
-  echo "Please choose a supported trace backend."
-  echo
-  exit 1
+  error_exit "invalid trace backend" \
+      "Please choose a supported trace backend."
 fi
 
 ##########################################
@@ -3059,10 +3029,7 @@ EOF
     LIBS="-lust -lurcu-bp $LIBS"
     libs_qga="-lust -lurcu-bp $libs_qga"
   else
-    echo
-    echo "Error: Trace backend 'ust' missing libust header files"
-    echo
-    exit 1
+    error_exit "Trace backend 'ust' missing libust header files"
   fi
 fi
 
@@ -3070,10 +3037,7 @@ fi
 # For 'dtrace' backend, test if 'dtrace' command is present
 if test "$trace_backend" = "dtrace"; then
   if ! has 'dtrace' ; then
-    echo
-    echo "Error: dtrace command is not found in PATH $PATH"
-    echo
-    exit 1
+    error_exit "dtrace command is not found in PATH $PATH"
   fi
   trace_backend_stap="no"
   if has 'stap' ; then
@@ -3131,10 +3095,7 @@ elif test "$coroutine" = "windows" ; then
 elif test "$coroutine" = "sigaltstack" ; then
   coroutine_backend=sigaltstack
 else
-  echo
-  echo "Error: unknown coroutine backend $coroutine"
-  echo
-  exit 1
+  error_exit "unknown coroutine backend $coroutine"
 fi
 
 ##########################################
@@ -3319,8 +3280,7 @@ if test "$softmmu" = yes ; then
       tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
     else
       if test "$virtfs" = yes; then
-        echo "VirtFS is supported only on Linux and requires libcap-devel and libattr-devel"
-        exit 1
+        error_exit "VirtFS is supported only on Linux and requires libcap-devel and libattr-devel"
       fi
       virtfs=no
     fi
@@ -3967,22 +3927,20 @@ case "$target" in
     ;;
   ${target_arch2}-linux-user)
     if test "$linux" != "yes" ; then
-      echo "ERROR: Target '$target' is only available on a Linux host"
-      exit 1
+      error_exit "Target '$target' is only available on a Linux host"
     fi
     target_user_only="yes"
     target_linux_user="yes"
     ;;
   ${target_arch2}-bsd-user)
     if test "$bsd" != "yes" ; then
-      echo "ERROR: Target '$target' is only available on a BSD host"
-      exit 1
+      error_exit "Target '$target' is only available on a BSD host"
     fi
     target_user_only="yes"
     target_bsd_user="yes"
     ;;
   *)
-    echo "ERROR: Target '$target' not recognised"
+    error_exit "Target '$target' not recognised"
     exit 1
     ;;
 esac
@@ -4113,8 +4071,7 @@ case "$target_arch2" in
     TARGET_ARCH=xtensa
   ;;
   *)
-    echo "Unsupported target CPU"
-    exit 1
+    error_exit "Unsupported target CPU"
   ;;
 esac
 # TARGET_BASE_ARCH needs to be defined after TARGET_ARCH
