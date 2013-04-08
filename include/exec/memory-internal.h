@@ -49,12 +49,6 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr);
 void qemu_ram_free(ram_addr_t addr);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
 
-struct MemoryRegion;
-struct MemoryRegionSection;
-
-void qemu_register_coalesced_mmio(hwaddr addr, ram_addr_t size);
-void qemu_unregister_coalesced_mmio(hwaddr addr, ram_addr_t size);
-
 #define VGA_DIRTY_FLAG       0x01
 #define CODE_DIRTY_FLAG      0x02
 #define MIGRATION_DIRTY_FLAG 0x08
