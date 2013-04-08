@@ -23,7 +23,6 @@
 #include "sysemu/memory_mapping.h"
 #include "qapi/error.h"
 #include "qmp-commands.h"
-#include "exec/gdbstub.h"
 
 static uint16_t cpu_convert_to_target16(uint16_t val, int endian)
 {
@@ -266,6 +265,11 @@ static int write_elf64_note(DumpState *s)
     }
 
     return 0;
+}
+
+static inline int cpu_index(CPUState *cpu)
+{
+    return cpu->cpu_index + 1;
 }
 
 static int write_elf64_notes(DumpState *s)

@@ -14,7 +14,6 @@
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "cpu.h"
-#include "exec/gdbstub.h"
 #include "sysemu/kvm.h"
 
 KVMState *kvm_state;

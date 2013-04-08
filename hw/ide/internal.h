@@ -8,7 +8,6 @@
  */
 #include <hw/ide.h>
 #include <hw/isa/isa.h>
-#include "exec/iorange.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
 #include "hw/block/block.h"

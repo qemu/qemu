@@ -40,7 +40,6 @@
 #include "hw/audio/audio.h"
 #include "sysemu/kvm.h"
 #include "migration/migration.h"
-#include "exec/gdbstub.h"
 #include "hw/i386/smbios.h"
 #include "exec/address-spaces.h"
 #include "hw/audio/pcspk.h"

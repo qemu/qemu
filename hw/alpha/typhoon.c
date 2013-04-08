@@ -7,7 +7,6 @@
  */
 
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "hw/hw.h"
 #include "hw/devices.h"
 #include "sysemu/sysemu.h"
