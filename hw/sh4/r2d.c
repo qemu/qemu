@@ -258,7 +258,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
     vmstate_register_ram_global(sdram);
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */
-    s = sh7750_init(env, address_space_mem);
+    s = sh7750_init(cpu, address_space_mem);
     irq = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
 
     dev = qdev_create(NULL, "sh_pci");

@@ -41,7 +41,7 @@ static void shix_init(QEMUMachineInitArgs *args)
 {
     const char *cpu_model = args->cpu_model;
     int ret;
-    CPUSH4State *env;
+    SuperHCPU *cpu;
     struct SH7750State *s;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
@@ -51,8 +51,8 @@ static void shix_init(QEMUMachineInitArgs *args)
         cpu_model = "any";
 
     printf("Initializing CPU\n");
-    env = cpu_init(cpu_model);
-    if (env == NULL) {
+    cpu = cpu_sh4_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
@@ -85,7 +85,7 @@ static void shix_init(QEMUMachineInitArgs *args)
     }
 
     /* Register peripherals */
-    s = sh7750_init(env, sysmem);
+    s = sh7750_init(cpu, sysmem);
     /* XXXXX Check success */
     tc58128_init(s, "shix_linux_nand.bin", NULL);
     fprintf(stderr, "initialization terminated\n");

@@ -44,7 +44,7 @@ typedef struct SH7750State {
     MemoryRegion iomem_ffc;
     MemoryRegion mmct_iomem;
     /* CPU */
-    CPUSH4State *cpu;
+    SuperHCPU *cpu;
     /* Peripheral frequency in Hz */
     uint32_t periph_freq;
     /* SDRAM controller */
@@ -79,7 +79,7 @@ typedef struct SH7750State {
 
 static inline int has_bcr3_and_bcr4(SH7750State * s)
 {
-	return (s->cpu->features & SH_FEATURE_BCR3_AND_BCR4);
+    return s->cpu->env.features & SH_FEATURE_BCR3_AND_BCR4;
 }
 /**********************************************************************
  I/O ports
@@ -271,21 +271,21 @@ static uint32_t sh7750_mem_readl(void *opaque, hwaddr addr)
         ignore_access("long read", addr);
         return 0;
     case SH7750_MMUCR_A7:
-	return s->cpu->mmucr;
+        return s->cpu->env.mmucr;
     case SH7750_PTEH_A7:
-	return s->cpu->pteh;
+        return s->cpu->env.pteh;
     case SH7750_PTEL_A7:
-	return s->cpu->ptel;
+        return s->cpu->env.ptel;
     case SH7750_TTB_A7:
-	return s->cpu->ttb;
+        return s->cpu->env.ttb;
     case SH7750_TEA_A7:
-	return s->cpu->tea;
+        return s->cpu->env.tea;
     case SH7750_TRA_A7:
-	return s->cpu->tra;
+        return s->cpu->env.tra;
     case SH7750_EXPEVT_A7:
-	return s->cpu->expevt;
+        return s->cpu->env.expevt;
     case SH7750_INTEVT_A7:
-	return s->cpu->intevt;
+        return s->cpu->env.intevt;
     case SH7750_CCR_A7:
 	return s->ccr;
     case 0x1f000030:		/* Processor version */
@@ -409,37 +409,38 @@ static void sh7750_mem_writel(void *opaque, hwaddr addr,
 	return;
     case SH7750_MMUCR_A7:
         if (mem_value & MMUCR_TI) {
-            cpu_sh4_invalidate_tlb(s->cpu);
+            cpu_sh4_invalidate_tlb(&s->cpu->env);
         }
-        s->cpu->mmucr = mem_value & ~MMUCR_TI;
+        s->cpu->env.mmucr = mem_value & ~MMUCR_TI;
         return;
     case SH7750_PTEH_A7:
         /* If asid changes, clear all registered tlb entries. */
-	if ((s->cpu->pteh & 0xff) != (mem_value & 0xff))
-	    tlb_flush(s->cpu, 1);
-	s->cpu->pteh = mem_value;
-	return;
+        if ((s->cpu->env.pteh & 0xff) != (mem_value & 0xff)) {
+            tlb_flush(&s->cpu->env, 1);
+        }
+        s->cpu->env.pteh = mem_value;
+        return;
     case SH7750_PTEL_A7:
-	s->cpu->ptel = mem_value;
-	return;
+        s->cpu->env.ptel = mem_value;
+        return;
     case SH7750_PTEA_A7:
-	s->cpu->ptea = mem_value & 0x0000000f;
-	return;
+        s->cpu->env.ptea = mem_value & 0x0000000f;
+        return;
     case SH7750_TTB_A7:
-	s->cpu->ttb = mem_value;
-	return;
+        s->cpu->env.ttb = mem_value;
+        return;
     case SH7750_TEA_A7:
-	s->cpu->tea = mem_value;
-	return;
+        s->cpu->env.tea = mem_value;
+        return;
     case SH7750_TRA_A7:
-	s->cpu->tra = mem_value & 0x000007ff;
-	return;
+        s->cpu->env.tra = mem_value & 0x000007ff;
+        return;
     case SH7750_EXPEVT_A7:
-	s->cpu->expevt = mem_value & 0x000007ff;
-	return;
+        s->cpu->env.expevt = mem_value & 0x000007ff;
+        return;
     case SH7750_INTEVT_A7:
-	s->cpu->intevt = mem_value & 0x000007ff;
-	return;
+        s->cpu->env.intevt = mem_value & 0x000007ff;
+        return;
     case SH7750_CCR_A7:
 	s->ccr = mem_value;
 	return;
@@ -651,20 +652,20 @@ static uint64_t sh7750_mmct_read(void *opaque, hwaddr addr,
         /* do nothing */
 	break;
     case MM_ITLB_ADDR:
-        ret = cpu_sh4_read_mmaped_itlb_addr(s->cpu, addr);
+        ret = cpu_sh4_read_mmaped_itlb_addr(&s->cpu->env, addr);
         break;
     case MM_ITLB_DATA:
-        ret = cpu_sh4_read_mmaped_itlb_data(s->cpu, addr);
+        ret = cpu_sh4_read_mmaped_itlb_data(&s->cpu->env, addr);
         break;
     case MM_OCACHE_ADDR:
     case MM_OCACHE_DATA:
         /* do nothing */
 	break;
     case MM_UTLB_ADDR:
-        ret = cpu_sh4_read_mmaped_utlb_addr(s->cpu, addr);
+        ret = cpu_sh4_read_mmaped_utlb_addr(&s->cpu->env, addr);
         break;
     case MM_UTLB_DATA:
-        ret = cpu_sh4_read_mmaped_utlb_data(s->cpu, addr);
+        ret = cpu_sh4_read_mmaped_utlb_data(&s->cpu->env, addr);
         break;
     default:
         abort();
@@ -694,10 +695,10 @@ static void sh7750_mmct_write(void *opaque, hwaddr addr,
         /* do nothing */
 	break;
     case MM_ITLB_ADDR:
-        cpu_sh4_write_mmaped_itlb_addr(s->cpu, addr, mem_value);
+        cpu_sh4_write_mmaped_itlb_addr(&s->cpu->env, addr, mem_value);
         break;
     case MM_ITLB_DATA:
-        cpu_sh4_write_mmaped_itlb_data(s->cpu, addr, mem_value);
+        cpu_sh4_write_mmaped_itlb_data(&s->cpu->env, addr, mem_value);
         abort();
 	break;
     case MM_OCACHE_ADDR:
@@ -705,10 +706,10 @@ static void sh7750_mmct_write(void *opaque, hwaddr addr,
         /* do nothing */
 	break;
     case MM_UTLB_ADDR:
-        cpu_sh4_write_mmaped_utlb_addr(s->cpu, addr, mem_value);
+        cpu_sh4_write_mmaped_utlb_addr(&s->cpu->env, addr, mem_value);
 	break;
     case MM_UTLB_DATA:
-        cpu_sh4_write_mmaped_utlb_data(s->cpu, addr, mem_value);
+        cpu_sh4_write_mmaped_utlb_data(&s->cpu->env, addr, mem_value);
 	break;
     default:
         abort();
@@ -722,7 +723,7 @@ static const MemoryRegionOps sh7750_mmct_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
+SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 {
     SH7750State *s;
 
@@ -768,7 +769,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
 			     _INTC_ARRAY(vectors),
 			     _INTC_ARRAY(groups));
 
-    cpu->intc_handle = &s->intc;
+    cpu->env.intc_handle = &s->intc;
 
     sh_serial_init(sysmem, 0x1fe00000,
                    0, s->periph_freq, serial_hds[0],
@@ -794,19 +795,19 @@ SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
 		s->intc.irqs[TMU2_TUNI],
 		s->intc.irqs[TMU2_TICPI]);
 
-    if (cpu->id & (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7751)) {
+    if (cpu->env.id & (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7751)) {
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_dma4),
 				 _INTC_ARRAY(groups_dma4));
     }
 
-    if (cpu->id & (SH_CPU_SH7750R | SH_CPU_SH7751R)) {
+    if (cpu->env.id & (SH_CPU_SH7750R | SH_CPU_SH7751R)) {
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_dma8),
 				 _INTC_ARRAY(groups_dma8));
     }
 
-    if (cpu->id & (SH_CPU_SH7750R | SH_CPU_SH7751 | SH_CPU_SH7751R)) {
+    if (cpu->env.id & (SH_CPU_SH7750R | SH_CPU_SH7751 | SH_CPU_SH7751R)) {
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_tmu34),
 				 NULL, 0);
@@ -816,13 +817,13 @@ SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
 		    NULL, NULL);
     }
 
-    if (cpu->id & (SH_CPU_SH7751_ALL)) {
+    if (cpu->env.id & (SH_CPU_SH7751_ALL)) {
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_pci),
 				 _INTC_ARRAY(groups_pci));
     }
 
-    if (cpu->id & (SH_CPU_SH7750S | SH_CPU_SH7750R | SH_CPU_SH7751_ALL)) {
+    if (cpu->env.id & (SH_CPU_SH7750S | SH_CPU_SH7750R | SH_CPU_SH7751_ALL)) {
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_irlm),
 				 NULL, 0);

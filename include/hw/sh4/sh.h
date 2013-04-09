@@ -11,7 +11,7 @@
 struct SH7750State;
 struct MemoryRegion;
 
-struct SH7750State *sh7750_init(CPUSH4State * cpu, struct MemoryRegion *sysmem);
+struct SH7750State *sh7750_init(SuperHCPU *cpu, struct MemoryRegion *sysmem);
 
 typedef struct {
     /* The callback will be triggered if any of the designated lines change */
