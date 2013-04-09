@@ -887,51 +887,38 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
     return 0;
 }
 
-static VirtIODevice *virtio_serial_common_init(DeviceState *dev,
-                                               virtio_serial_conf *conf,
-                                               VirtIODevice **pvdev)
+static int virtio_serial_device_init(VirtIODevice *vdev)
 {
-    VirtIOSerial *vser;
-    VirtIODevice *vdev = *pvdev;
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIOSerial *vser = VIRTIO_SERIAL(vdev);
     uint32_t i, max_supported_ports;
 
-    if (!conf->max_virtserial_ports)
-        return NULL;
+    if (!vser->serial.max_virtserial_ports) {
+        return -1;
+    }
 
     /* Each port takes 2 queues, and one pair is for the control queue */
     max_supported_ports = VIRTIO_PCI_QUEUE_MAX / 2 - 1;
 
-    if (conf->max_virtserial_ports > max_supported_ports) {
+    if (vser->serial.max_virtserial_ports > max_supported_ports) {
         error_report("maximum ports supported: %u", max_supported_ports);
-        return NULL;
+        return -1;
     }
 
-    /*
-     * We have two cases here: the old virtio-serial-pci device, and the
-     * refactored virtio-serial.
-     */
-    if (vdev == NULL) {
-        /* virtio-serial-pci */
-        vdev = virtio_common_init("virtio-serial", VIRTIO_ID_CONSOLE,
-                                  sizeof(struct virtio_console_config),
-                                  sizeof(VirtIOSerial));
-        vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
-    } else {
-        /* virtio-serial */
-        virtio_init(vdev, "virtio-serial", VIRTIO_ID_CONSOLE,
-                    sizeof(struct virtio_console_config));
-        vser = VIRTIO_SERIAL(vdev);
-    }
+    virtio_init(vdev, "virtio-serial", VIRTIO_ID_CONSOLE,
+                sizeof(struct virtio_console_config));
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
-    qbus_create_inplace(&vser->bus.qbus, TYPE_VIRTIO_SERIAL_BUS, dev, NULL);
+    qbus_create_inplace(&vser->bus.qbus, TYPE_VIRTIO_SERIAL_BUS, qdev, NULL);
     vser->bus.qbus.allow_hotplug = 1;
     vser->bus.vser = vser;
     QTAILQ_INIT(&vser->ports);
 
-    vser->bus.max_nr_ports = conf->max_virtserial_ports;
-    vser->ivqs = g_malloc(conf->max_virtserial_ports * sizeof(VirtQueue *));
-    vser->ovqs = g_malloc(conf->max_virtserial_ports * sizeof(VirtQueue *));
+    vser->bus.max_nr_ports = vser->serial.max_virtserial_ports;
+    vser->ivqs = g_malloc(vser->serial.max_virtserial_ports
+                          * sizeof(VirtQueue *));
+    vser->ovqs = g_malloc(vser->serial.max_virtserial_ports
+                          * sizeof(VirtQueue *));
 
     /* Add a queue for host to guest transfers for port 0 (backward compat) */
     vser->ivqs[0] = virtio_add_queue(vdev, 128, handle_input);
@@ -956,8 +943,8 @@ static VirtIODevice *virtio_serial_common_init(DeviceState *dev,
         vser->ovqs[i] = virtio_add_queue(vdev, 128, handle_output);
     }
 
-    vser->config.max_nr_ports = tswap32(conf->max_virtserial_ports);
-    vser->ports_map = g_malloc0(((conf->max_virtserial_ports + 31) / 32)
+    vser->config.max_nr_ports = tswap32(vser->serial.max_virtserial_ports);
+    vser->ports_map = g_malloc0(((vser->serial.max_virtserial_ports + 31) / 32)
         * sizeof(vser->ports_map[0]));
     /*
      * Reserve location 0 for a console port for backward compat
@@ -971,7 +958,7 @@ static VirtIODevice *virtio_serial_common_init(DeviceState *dev,
     vser->vdev.set_status = set_status;
     vser->vdev.reset = vser_reset;
 
-    vser->qdev = dev;
+    vser->qdev = qdev;
 
     vser->post_load = NULL;
 
@@ -979,38 +966,10 @@ static VirtIODevice *virtio_serial_common_init(DeviceState *dev,
      * Register for the savevm section with the virtio-console name
      * to preserve backward compat
      */
-    register_savevm(dev, "virtio-console", -1, 3, virtio_serial_save,
+    register_savevm(qdev, "virtio-console", -1, 3, virtio_serial_save,
                     virtio_serial_load, vser);
 
-    return vdev;
-}
-
-/*
- * The two following functions will be cleaned up at the end.
- */
-
-VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
-{
-    VirtIODevice *vdev = NULL;
-    return virtio_serial_common_init(dev, conf, &vdev);
-}
-
-void virtio_serial_exit(VirtIODevice *vdev)
-{
-    VirtIOSerial *vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
-
-    unregister_savevm(vser->qdev, "virtio-console", vser);
-
-    g_free(vser->ivqs);
-    g_free(vser->ovqs);
-    g_free(vser->ports_map);
-    if (vser->post_load) {
-        g_free(vser->post_load->connected);
-        qemu_del_timer(vser->post_load->timer);
-        qemu_free_timer(vser->post_load->timer);
-        g_free(vser->post_load);
-    }
-    virtio_cleanup(vdev);
+    return 0;
 }
 
 static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
@@ -1031,17 +990,6 @@ static const TypeInfo virtio_serial_port_type_info = {
     .class_size = sizeof(VirtIOSerialPortClass),
     .class_init = virtio_serial_port_class_init,
 };
-
-static int virtio_serial_device_init(VirtIODevice *vdev)
-{
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIOSerial *vser = VIRTIO_SERIAL(vdev);
-    virtio_serial_conf *conf = &(vser->serial);
-    if (virtio_serial_common_init(qdev, conf, &vdev) == NULL) {
-        return -1;
-    }
-    return 0;
-}
 
 static int virtio_serial_device_exit(DeviceState *dev)
 {
