@@ -667,10 +667,10 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
  * Removes all processed options from *options.
  */
 static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
-    const char *filename, QDict *options,
-    int flags, BlockDriver *drv)
+    QDict *options, int flags, BlockDriver *drv)
 {
     int ret, open_flags;
+    const char *filename;
 
     assert(drv != NULL);
     assert(bs->file == NULL);
@@ -696,6 +696,12 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     assert(bs->copy_on_read == 0); /* bdrv_new() and bdrv_close() make it so */
     if ((flags & BDRV_O_RDWR) && (flags & BDRV_O_COPY_ON_READ)) {
         bdrv_enable_copy_on_read(bs);
+    }
+
+    if (file != NULL) {
+        filename = file->filename;
+    } else {
+        filename = qdict_get_try_str(options, "filename");
     }
 
     if (filename != NULL) {
@@ -780,6 +786,18 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     bs->options = options;
     options = qdict_clone_shallow(options);
 
+    /* Fetch the file name from the options QDict if necessary */
+    if (!filename) {
+        filename = qdict_get_try_str(options, "filename");
+    } else if (filename && !qdict_haskey(options, "filename")) {
+        qdict_put(options, "filename", qstring_from_str(filename));
+    } else {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR, "Can't specify 'file' and "
+                      "'filename' options at the same time");
+        ret = -EINVAL;
+        goto fail;
+    }
+
     /* Find the right block driver */
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
@@ -816,9 +834,14 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
         goto fail;
     }
 
-    ret = bdrv_open_common(bs, NULL, filename, options, flags, drv);
+    ret = bdrv_open_common(bs, NULL, options, flags, drv);
     if (ret < 0) {
         goto fail;
+    }
+
+    /* TODO Remove once all protocols know the filename option */
+    if (qdict_haskey(options, "filename")) {
+        qdict_del(options, "filename");
     }
 
     /* Check if any unknown options were used */
@@ -1031,7 +1054,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     }
 
     /* Open the image */
-    ret = bdrv_open_common(bs, file, filename, options, flags, drv);
+    ret = bdrv_open_common(bs, file, options, flags, drv);
     if (ret < 0) {
         goto unlink_and_fail;
     }
