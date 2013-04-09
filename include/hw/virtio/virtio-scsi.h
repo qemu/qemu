@@ -18,7 +18,7 @@
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
 
-#define TYPE_VIRTIO_SCSI "virtio-scsi"
+#define TYPE_VIRTIO_SCSI "virtio-scsi-device"
 #define VIRTIO_SCSI(obj) \
         OBJECT_CHECK(VirtIOSCSI, (obj), TYPE_VIRTIO_SCSI)
 

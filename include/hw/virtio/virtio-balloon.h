@@ -18,7 +18,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/pci/pci.h"
 
-#define TYPE_VIRTIO_BALLOON "virtio-balloon"
+#define TYPE_VIRTIO_BALLOON "virtio-balloon-device"
 #define VIRTIO_BALLOON(obj) \
         OBJECT_CHECK(VirtIOBalloon, (obj), TYPE_VIRTIO_BALLOON)
 

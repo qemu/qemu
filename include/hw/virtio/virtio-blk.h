@@ -17,7 +17,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/block/block.h"
 
-#define TYPE_VIRTIO_BLK "virtio-blk"
+#define TYPE_VIRTIO_BLK "virtio-blk-device"
 #define VIRTIO_BLK(obj) \
         OBJECT_CHECK(VirtIOBlock, (obj), TYPE_VIRTIO_BLK)
 
