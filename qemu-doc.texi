@@ -423,6 +423,7 @@ snapshots.
 * disk_images_sheepdog::      Sheepdog disk images
 * disk_images_iscsi::         iSCSI LUNs
 * disk_images_gluster::       GlusterFS disk images
+* disk_images_ssh::           Secure Shell (ssh) disk images
 @end menu
 
 @node disk_images_quickstart
@@ -1037,6 +1038,54 @@ qemu-system-x86_64 -drive file=gluster+tcp://server.domain.com:24007/testvol/dir
 qemu-system-x86_64 -drive file=gluster+unix:///testvol/dir/a.img?socket=/tmp/glusterd.socket
 qemu-system-x86_64 -drive file=gluster+rdma://1.2.3.4:24007/testvol/a.img
 @end example
+
+@node disk_images_ssh
+@subsection Secure Shell (ssh) disk images
+
+You can access disk images located on a remote ssh server
+by using the ssh protocol:
+
+@example
+qemu-system-x86_64 -drive file=ssh://[@var{user}@@]@var{server}[:@var{port}]/@var{path}[?host_key_check=@var{host_key_check}]
+@end example
+
+Alternative syntax using properties:
+
+@example
+qemu-system-x86_64 -drive file.driver=ssh[,file.user=@var{user}],file.host=@var{server}[,file.port=@var{port}],file.path=@var{path}[,file.host_key_check=@var{host_key_check}]
+@end example
+
+@var{ssh} is the protocol.
+
+@var{user} is the remote user.  If not specified, then the local
+username is tried.
+
+@var{server} specifies the remote ssh server.  Any ssh server can be
+used, but it must implement the sftp-server protocol.  Most Unix/Linux
+systems should work without requiring any extra configuration.
+
+@var{port} is the port number on which sshd is listening.  By default
+the standard ssh port (22) is used.
+
+@var{path} is the path to the disk image.
+
+The optional @var{host_key_check} parameter controls how the remote
+host's key is checked.  The default is @code{yes} which means to use
+the local @file{.ssh/known_hosts} file.  Setting this to @code{no}
+turns off known-hosts checking.  Or you can check that the host key
+matches a specific fingerprint:
+@code{host_key_check=md5:78:45:8e:14:57:4f:d5:45:83:0a:0e:f3:49:82:c9:c8}
+(@code{sha1:} can also be used as a prefix, but note that OpenSSH
+tools only use MD5 to print fingerprints).
+
+Currently authentication must be done using ssh-agent.  Other
+authentication methods may be supported in future.
+
+Note: The ssh driver does not obey disk flush requests (ie. to commit
+data to the backing disk when the guest requests it).  This is because
+the underlying protocol (SFTP) does not support this.  Thus there is a
+risk of guest disk corruption if the remote server or network goes
+down during writes.
 
 @node pcsys_network
 @section Network emulation
