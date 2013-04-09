@@ -17,7 +17,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw/hw.h"
-#include "hw/arm.h"
+#include "hw/arm/arm.h"
 #include "hw/arm/omap.h"
 #include "sysemu/sysemu.h"
 #include "hw/arm/soc_dma.h"

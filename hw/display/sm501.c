@@ -26,7 +26,7 @@
 #include "hw/hw.h"
 #include "hw/char/serial.h"
 #include "ui/console.h"
-#include "hw/arm/devices.h"
+#include "hw/devices.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-addr.h"
 #include "qemu/range.h"

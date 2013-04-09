@@ -13,8 +13,8 @@
 
 #include "hw/hw.h"
 #include "hw/arm/pxa.h"
-#include "hw/arm.h"
-#include "hw/arm/devices.h"
+#include "hw/arm/arm.h"
+#include "hw/devices.h"
 #include "hw/arm/sharpsl.h"
 #include "hw/pcmcia.h"
 #include "block/block.h"

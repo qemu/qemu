@@ -28,7 +28,7 @@
 #include "net/net.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
-#include "hw/arm/devices.h"
+#include "hw/devices.h"
 #include "hw/boards.h"
 #include "hw/xilinx.h"
 #include "sysemu/blockdev.h"
