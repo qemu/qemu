@@ -718,6 +718,13 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
         assert(drv->bdrv_parse_filename || filename != NULL);
         ret = drv->bdrv_file_open(bs, filename, options, open_flags);
     } else {
+        if (file == NULL) {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR, "Can't use '%s' as a "
+                          "block driver for the protocol level",
+                          drv->format_name);
+            ret = -EINVAL;
+            goto free_and_fail;
+        }
         assert(file != NULL);
         bs->file = file;
         ret = drv->bdrv_open(bs, options, open_flags);
