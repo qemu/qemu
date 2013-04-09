@@ -192,7 +192,7 @@ typedef struct VirtIOSerialPostLoad {
 } VirtIOSerialPostLoad;
 
 struct VirtIOSerial {
-    VirtIODevice vdev;
+    VirtIODevice parent_obj;
 
     VirtQueue *c_ivq, *c_ovq;
     /* Arrays of ivqs and ovqs: one per port */
