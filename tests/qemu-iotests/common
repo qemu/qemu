@@ -137,6 +137,7 @@ check options
     -rbd                test rbd
     -sheepdog           test sheepdog
     -nbd                test nbd
+    -ssh                test ssh
     -xdiff		graphical mode diff
     -nocache		use O_DIRECT on backing file
     -misalign		misalign memory allocations
@@ -206,6 +207,10 @@ testlist options
 	    IMGPROTO=nbd
 	    xpand=false
 	    ;;
+        -ssh)
+            IMGPROTO=ssh
+            xpand=false
+            ;;
 	-nocache)
 	    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --nocache"
 	    xpand=false
