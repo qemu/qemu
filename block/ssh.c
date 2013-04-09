@@ -72,6 +72,10 @@ typedef struct BDRVSSHState {
      * updated if it changes (eg by writing at the end of the file).
      */
     LIBSSH2_SFTP_ATTRIBUTES attrs;
+
+    /* Used to warn if 'flush' is not supported. */
+    char *hostport;
+    bool unsafe_flush_warning;
 } BDRVSSHState;
 
 static void ssh_state_init(BDRVSSHState *s)
@@ -84,6 +88,7 @@ static void ssh_state_init(BDRVSSHState *s)
 
 static void ssh_state_free(BDRVSSHState *s)
 {
+    g_free(s->hostport);
     if (s->sftp_handle) {
         libssh2_sftp_close(s->sftp_handle);
     }
@@ -479,7 +484,6 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     Error *err = NULL;
     const char *host, *user, *path, *host_key_check;
     int port;
-    char *hostport = NULL;
 
     host = qdict_get_str(options, "host");
 
@@ -507,9 +511,12 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         host_key_check = "yes";
     }
 
+    /* Construct the host:port name for inet_connect. */
+    g_free(s->hostport);
+    s->hostport = g_strdup_printf("%s:%d", host, port);
+
     /* Open the socket and connect. */
-    hostport = g_strdup_printf("%s:%d", host, port);
-    s->sock = inet_connect(hostport, &err);
+    s->sock = inet_connect(s->hostport, &err);
     if (err != NULL) {
         ret = -errno;
         qerror_report_err(err);
@@ -581,7 +588,6 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     qdict_del(options, "path");
     qdict_del(options, "host_key_check");
 
-    g_free(hostport);
     return 0;
 
  err:
@@ -600,7 +606,6 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         libssh2_session_free(s->session);
     }
     s->session = NULL;
-    g_free(hostport);
 
     return ret;
 }
@@ -953,6 +958,68 @@ static coroutine_fn int ssh_co_writev(BlockDriverState *bs,
     return ret;
 }
 
+static void unsafe_flush_warning(BDRVSSHState *s, const char *what)
+{
+    if (!s->unsafe_flush_warning) {
+        error_report("warning: ssh server %s does not support fsync",
+                     s->hostport);
+        if (what) {
+            error_report("to support fsync, you need %s", what);
+        }
+        s->unsafe_flush_warning = true;
+    }
+}
+
+#ifdef HAS_LIBSSH2_SFTP_FSYNC
+
+static coroutine_fn int ssh_flush(BDRVSSHState *s)
+{
+    int r;
+
+    DPRINTF("fsync");
+ again:
+    r = libssh2_sftp_fsync(s->sftp_handle);
+    if (r == LIBSSH2_ERROR_EAGAIN || r == LIBSSH2_ERROR_TIMEOUT) {
+        co_yield(s);
+        goto again;
+    }
+    if (r == LIBSSH2_ERROR_SFTP_PROTOCOL &&
+        libssh2_sftp_last_error(s->sftp) == LIBSSH2_FX_OP_UNSUPPORTED) {
+        unsafe_flush_warning(s, "OpenSSH >= 6.3");
+        return 0;
+    }
+    if (r < 0) {
+        sftp_error_report(s, "fsync failed");
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static coroutine_fn int ssh_co_flush(BlockDriverState *bs)
+{
+    BDRVSSHState *s = bs->opaque;
+    int ret;
+
+    qemu_co_mutex_lock(&s->lock);
+    ret = ssh_flush(s);
+    qemu_co_mutex_unlock(&s->lock);
+
+    return ret;
+}
+
+#else /* !HAS_LIBSSH2_SFTP_FSYNC */
+
+static coroutine_fn int ssh_co_flush(BlockDriverState *bs)
+{
+    BDRVSSHState *s = bs->opaque;
+
+    unsafe_flush_warning(s, "libssh2 >= 1.4.4");
+    return 0;
+}
+
+#endif /* !HAS_LIBSSH2_SFTP_FSYNC */
+
 static int64_t ssh_getlength(BlockDriverState *bs)
 {
     BDRVSSHState *s = bs->opaque;
@@ -976,6 +1043,7 @@ static BlockDriver bdrv_ssh = {
     .bdrv_co_readv                = ssh_co_readv,
     .bdrv_co_writev               = ssh_co_writev,
     .bdrv_getlength               = ssh_getlength,
+    .bdrv_co_flush_to_disk        = ssh_co_flush,
     .create_options               = ssh_create_options,
 };
 

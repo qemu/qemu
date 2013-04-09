@@ -2357,6 +2357,31 @@ EOF
 fi
 
 ##########################################
+# libssh2_sftp_fsync probe
+
+if test "$libssh2" = "yes"; then
+  cat > $TMPC <<EOF
+#include <stdio.h>
+#include <libssh2.h>
+#include <libssh2_sftp.h>
+int main(void) {
+    LIBSSH2_SESSION *session;
+    LIBSSH2_SFTP *sftp;
+    LIBSSH2_SFTP_HANDLE *sftp_handle;
+    session = libssh2_session_init ();
+    sftp = libssh2_sftp_init (session);
+    sftp_handle = libssh2_sftp_open (sftp, "/", 0, 0);
+    libssh2_sftp_fsync (sftp_handle);
+    return 0;
+}
+EOF
+  # libssh2_cflags/libssh2_libs defined in previous test.
+  if compile_prog "$libssh2_cflags" "$libssh2_libs" ; then
+    QEMU_CFLAGS="-DHAS_LIBSSH2_SFTP_FSYNC $QEMU_CFLAGS"
+  fi
+fi
+
+##########################################
 # linux-aio probe
 
 if test "$linux_aio" != "no" ; then
