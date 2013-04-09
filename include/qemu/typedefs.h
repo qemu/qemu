@@ -18,6 +18,10 @@ typedef struct DeviceState DeviceState;
 typedef struct BusState BusState;
 typedef struct BusClass BusClass;
 
+typedef struct AddressSpace AddressSpace;
+typedef struct MemoryRegion MemoryRegion;
+typedef struct MemoryRegionSection MemoryRegionSection;
+
 typedef struct NICInfo NICInfo;
 typedef struct HCIInfo HCIInfo;
 typedef struct AudioState AudioState;
