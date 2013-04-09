@@ -52,6 +52,10 @@ static void shix_init(QEMUMachineInitArgs *args)
 
     printf("Initializing CPU\n");
     env = cpu_init(cpu_model);
+    if (env == NULL) {
+        fprintf(stderr, "Unable to find CPU definition\n");
+        exit(1);
+    }
 
     /* Allocate memory space */
     printf("Allocating ROM\n");
