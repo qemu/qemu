@@ -470,23 +470,24 @@ void store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
 
 void helper_float_check_status(CPUPPCState *env)
 {
+    int status = get_float_exception_flags(&env->fp_status);
+
+    if (status & float_flag_divbyzero) {
+        float_zero_divide_excp(env);
+    } else if (status & float_flag_overflow) {
+        float_overflow_excp(env);
+    } else if (status & float_flag_underflow) {
+        float_underflow_excp(env);
+    } else if (status & float_flag_inexact) {
+        float_inexact_excp(env);
+    }
+
     if (env->exception_index == POWERPC_EXCP_PROGRAM &&
         (env->error_code & POWERPC_EXCP_FP)) {
         /* Differred floating-point exception after target FPR update */
         if (msr_fe0 != 0 || msr_fe1 != 0) {
             helper_raise_exception_err(env, env->exception_index,
                                        env->error_code);
-        }
-    } else {
-        int status = get_float_exception_flags(&env->fp_status);
-        if (status & float_flag_divbyzero) {
-            float_zero_divide_excp(env);
-        } else if (status & float_flag_overflow) {
-            float_overflow_excp(env);
-        } else if (status & float_flag_underflow) {
-            float_underflow_excp(env);
-        } else if (status & float_flag_inexact) {
-            float_inexact_excp(env);
         }
     }
 }
