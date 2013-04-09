@@ -308,7 +308,7 @@ static void sd_set_csd(SDState *sd, uint64_t size)
         sd->csd[13] = 0x40;
         sd->csd[14] = 0x00;
         sd->csd[15] = 0x00;
-        sd->ocr |= 1 << 30;	/* High Capacity SD Memort Card */
+        sd->ocr |= 1 << 30;     /* High Capacity SD Memory Card */
     }
 }
 
@@ -1541,7 +1541,7 @@ void sd_write_data(SDState *sd, uint8_t value)
 
     case 25:	/* CMD25:  WRITE_MULTIPLE_BLOCK */
         if (sd->data_offset == 0) {
-            /* Start of the block - lets check the address is valid */
+            /* Start of the block - let's check the address is valid */
             if (sd->data_start + sd->blk_len > sd->size) {
                 sd->card_status |= ADDRESS_ERROR;
                 break;
