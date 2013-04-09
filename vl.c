@@ -662,11 +662,6 @@ StatusInfo *qmp_query_status(Error **errp)
     return info;
 }
 
-int64_t qmp_query_cpu_max(Error **errp)
-{
-    return current_machine->max_cpus;
-}
-
 /***********************************************************/
 /* real time host monotonic timer */
 

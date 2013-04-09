@@ -1834,17 +1834,6 @@
 { 'command': 'query-migrate-cache-size', 'returns': 'int' }
 
 ##
-## @query-cpu-max
-##
-## query maximum number of CPUs supported by machine
-##
-## Returns: number of CPUs
-##
-## Since: 1.5
-###
-{ 'command': 'query-cpu-max', 'returns': 'int' }
-
-##
 # @ObjectPropertyInfo:
 #
 # @name: the name of the property
