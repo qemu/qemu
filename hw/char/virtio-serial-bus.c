@@ -887,10 +887,12 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
     return 0;
 }
 
-VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
+static VirtIODevice *virtio_serial_common_init(DeviceState *dev,
+                                               virtio_serial_conf *conf,
+                                               VirtIODevice **pvdev)
 {
     VirtIOSerial *vser;
-    VirtIODevice *vdev;
+    VirtIODevice *vdev = *pvdev;
     uint32_t i, max_supported_ports;
 
     if (!conf->max_virtserial_ports)
@@ -904,11 +906,22 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
         return NULL;
     }
 
-    vdev = virtio_common_init("virtio-serial", VIRTIO_ID_CONSOLE,
-                              sizeof(struct virtio_console_config),
-                              sizeof(VirtIOSerial));
-
-    vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
+    /*
+     * We have two cases here: the old virtio-serial-pci device, and the
+     * refactored virtio-serial.
+     */
+    if (vdev == NULL) {
+        /* virtio-serial-pci */
+        vdev = virtio_common_init("virtio-serial", VIRTIO_ID_CONSOLE,
+                                  sizeof(struct virtio_console_config),
+                                  sizeof(VirtIOSerial));
+        vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
+    } else {
+        /* virtio-serial */
+        virtio_init(vdev, "virtio-serial", VIRTIO_ID_CONSOLE,
+                    sizeof(struct virtio_console_config));
+        vser = VIRTIO_SERIAL(vdev);
+    }
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
     qbus_create_inplace(&vser->bus.qbus, TYPE_VIRTIO_SERIAL_BUS, dev, NULL);
@@ -972,6 +985,16 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
     return vdev;
 }
 
+/*
+ * The two following functions will be cleaned up at the end.
+ */
+
+VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
+{
+    VirtIODevice *vdev = NULL;
+    return virtio_serial_common_init(dev, conf, &vdev);
+}
+
 void virtio_serial_exit(VirtIODevice *vdev)
 {
     VirtIOSerial *vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
@@ -1009,10 +1032,68 @@ static const TypeInfo virtio_serial_port_type_info = {
     .class_init = virtio_serial_port_class_init,
 };
 
+static int virtio_serial_device_init(VirtIODevice *vdev)
+{
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIOSerial *vser = VIRTIO_SERIAL(vdev);
+    virtio_serial_conf *conf = &(vser->serial);
+    if (virtio_serial_common_init(qdev, conf, &vdev) == NULL) {
+        return -1;
+    }
+    return 0;
+}
+
+static int virtio_serial_device_exit(DeviceState *dev)
+{
+    VirtIOSerial *vser = VIRTIO_SERIAL(dev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+
+    unregister_savevm(dev, "virtio-console", vser);
+
+    g_free(vser->ivqs);
+    g_free(vser->ovqs);
+    g_free(vser->ports_map);
+    if (vser->post_load) {
+        g_free(vser->post_load->connected);
+        qemu_del_timer(vser->post_load->timer);
+        qemu_free_timer(vser->post_load->timer);
+        g_free(vser->post_load);
+    }
+    virtio_common_cleanup(vdev);
+    return 0;
+}
+
+static Property virtio_serial_properties[] = {
+    DEFINE_VIRTIO_SERIAL_PROPERTIES(VirtIOSerial, serial),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_serial_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    dc->exit = virtio_serial_device_exit;
+    dc->props = virtio_serial_properties;
+    vdc->init = virtio_serial_device_init;
+    vdc->get_features = get_features;
+    vdc->get_config = get_config;
+    vdc->set_config = set_config;
+    vdc->set_status = set_status;
+    vdc->reset = vser_reset;
+}
+
+static const TypeInfo virtio_device_info = {
+    .name = TYPE_VIRTIO_SERIAL,
+    .parent = TYPE_VIRTIO_DEVICE,
+    .instance_size = sizeof(VirtIOSerial),
+    .class_init = virtio_serial_class_init,
+};
+
 static void virtio_serial_register_types(void)
 {
     type_register_static(&virtser_bus_info);
     type_register_static(&virtio_serial_port_type_info);
+    type_register_static(&virtio_device_info);
 }
 
 type_init(virtio_serial_register_types)

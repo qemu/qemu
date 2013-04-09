@@ -465,8 +465,7 @@ static const TypeInfo s390_virtio_blk = {
 };
 
 static Property s390_virtio_serial_properties[] = {
-    DEFINE_PROP_UINT32("max_ports", VirtIOS390Device,
-                       serial.max_virtserial_ports, 31),
+    DEFINE_VIRTIO_SERIAL_PROPERTIES(VirtIOS390Device, serial),
     DEFINE_PROP_END_OF_LIST(),
 };
 
