@@ -960,8 +960,6 @@ static int virtio_serial_device_init(VirtIODevice *vdev)
     vdev->set_status = set_status;
     vdev->reset = vser_reset;
 
-    vser->qdev = qdev;
-
     vser->post_load = NULL;
 
     /*
