@@ -1600,7 +1600,7 @@
 ##
 { 'union': 'BlockdevAction',
   'data': {
-       'blockdev-snapshot-sync': 'BlockdevSnapshot',
+       'blockdev-snapshot-sync': 'BlockdevSnapshot'
    } }
 
 ##
