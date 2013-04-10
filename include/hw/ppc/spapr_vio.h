@@ -63,6 +63,7 @@ struct VIOsPAPRDevice {
     uint32_t irq;
     target_ulong signal_state;
     VIOsPAPR_CRQ crq;
+    sPAPRTCETable *tcet;
     DMAContext *dma;
 };
 

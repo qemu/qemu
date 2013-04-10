@@ -36,8 +36,6 @@ enum sPAPRTCEAccess {
     SPAPR_TCE_RW = 3,
 };
 
-typedef struct sPAPRTCETable sPAPRTCETable;
-
 struct sPAPRTCETable {
     DMAContext dma;
     uint32_t liobn;
@@ -122,7 +120,7 @@ static int spapr_tce_translate(DMAContext *dma,
     return 0;
 }
 
-DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size)
+sPAPRTCETable *spapr_tce_new_table(uint32_t liobn, size_t window_size)
 {
     sPAPRTCETable *tcet;
 
@@ -155,43 +153,40 @@ DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size)
     }
 
 #ifdef DEBUG_TCE
-    fprintf(stderr, "spapr_iommu: New TCE table, liobn=0x%x, context @ %p, "
-            "table @ %p, fd=%d\n", liobn, &tcet->dma, tcet->table, tcet->fd);
+    fprintf(stderr, "spapr_iommu: New TCE table @ %p, liobn=0x%x, "
+            "table @ %p, fd=%d\n", tcet, liobn, tcet->table, tcet->fd);
 #endif
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
+    return tcet;
+}
+
+void spapr_tce_free(sPAPRTCETable *tcet)
+{
+    QLIST_REMOVE(tcet, list);
+
+    if (!kvm_enabled() ||
+        (kvmppc_remove_spapr_tce(tcet->table, tcet->fd,
+                                 tcet->window_size) != 0)) {
+        g_free(tcet->table);
+    }
+
+    g_free(tcet);
+}
+
+DMAContext *spapr_tce_get_dma(sPAPRTCETable *tcet)
+{
     return &tcet->dma;
 }
 
-void spapr_tce_free(DMAContext *dma)
+void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass)
 {
-
-    if (dma) {
-        sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
-
-        QLIST_REMOVE(tcet, list);
-
-        if (!kvm_enabled() ||
-            (kvmppc_remove_spapr_tce(tcet->table, tcet->fd,
-                                     tcet->window_size) != 0)) {
-            g_free(tcet->table);
-        }
-
-        g_free(tcet);
-    }
-}
-
-void spapr_tce_set_bypass(DMAContext *dma, bool bypass)
-{
-    sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
-
     tcet->bypass = bypass;
 }
 
-void spapr_tce_reset(DMAContext *dma)
+void spapr_tce_reset(sPAPRTCETable *tcet)
 {
-    sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
     size_t table_size = (tcet->window_size >> SPAPR_TCE_PAGE_SHIFT)
         * sizeof(sPAPRTCE);
 
@@ -277,17 +272,12 @@ int spapr_dma_dt(void *fdt, int node_off, const char *propname,
 }
 
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
-                      DMAContext *iommu)
+                      sPAPRTCETable *tcet)
 {
-    if (!iommu) {
+    if (!tcet) {
         return 0;
     }
 
-    if (iommu->translate == spapr_tce_translate) {
-        sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, iommu);
-        return spapr_dma_dt(fdt, node_off, propname,
-                tcet->liobn, 0, tcet->window_size);
-    }
-
-    return -1;
+    return spapr_dma_dt(fdt, node_off, propname,
+                        tcet->liobn, 0, tcet->window_size);
 }
