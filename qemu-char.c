@@ -663,6 +663,7 @@ static guint io_add_watch_poll(GIOChannel *channel,
                                gpointer user_data)
 {
     IOWatchPoll *iwp;
+    int tag;
 
     iwp = (IOWatchPoll *) g_source_new(&io_watch_poll_funcs, sizeof(IOWatchPoll));
     iwp->fd_can_read = fd_can_read;
@@ -671,7 +672,9 @@ static guint io_add_watch_poll(GIOChannel *channel,
     iwp->fd_read = (GSourceFunc) fd_read;
     iwp->src = NULL;
 
-    return g_source_attach(&iwp->parent, NULL);
+    tag = g_source_attach(&iwp->parent, NULL);
+    g_source_unref(&iwp->parent);
+    return tag;
 }
 
 #ifndef _WIN32
