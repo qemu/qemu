@@ -63,7 +63,6 @@ static MemoryRegion *system_io;
 
 AddressSpace address_space_io;
 AddressSpace address_space_memory;
-DMAContext dma_context_memory;
 
 MemoryRegion io_mem_rom, io_mem_notdirty;
 static MemoryRegion io_mem_unassigned;
@@ -1839,8 +1838,6 @@ static void memory_map_init(void)
     memory_listener_register(&core_memory_listener, &address_space_memory);
     memory_listener_register(&io_memory_listener, &address_space_io);
     memory_listener_register(&tcg_memory_listener, &address_space_memory);
-
-    dma_context_init(&dma_context_memory, &address_space_memory);
 }
 
 MemoryRegion *get_system_memory(void)

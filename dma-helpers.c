@@ -14,11 +14,9 @@
 
 /* #define DEBUG_IOMMU */
 
-int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len)
+int dma_memory_set(AddressSpace *as, dma_addr_t addr, uint8_t c, dma_addr_t len)
 {
-    AddressSpace *as = dma->as;
-
-    dma_barrier(dma, DMA_DIRECTION_FROM_DEVICE);
+    dma_barrier(as, DMA_DIRECTION_FROM_DEVICE);
 
 #define FILLBUF_SIZE 512
     uint8_t fillbuf[FILLBUF_SIZE];
@@ -36,13 +34,13 @@ int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len)
     return error;
 }
 
-void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint, DMAContext *dma)
+void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint, AddressSpace *as)
 {
     qsg->sg = g_malloc(alloc_hint * sizeof(ScatterGatherEntry));
     qsg->nsg = 0;
     qsg->nalloc = alloc_hint;
     qsg->size = 0;
-    qsg->dma = dma;
+    qsg->as = as;
 }
 
 void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len)
@@ -102,7 +100,7 @@ static void dma_bdrv_unmap(DMAAIOCB *dbs)
     int i;
 
     for (i = 0; i < dbs->iov.niov; ++i) {
-        dma_memory_unmap(dbs->sg->dma, dbs->iov.iov[i].iov_base,
+        dma_memory_unmap(dbs->sg->as, dbs->iov.iov[i].iov_base,
                          dbs->iov.iov[i].iov_len, dbs->dir,
                          dbs->iov.iov[i].iov_len);
     }
@@ -150,7 +148,7 @@ static void dma_bdrv_cb(void *opaque, int ret)
     while (dbs->sg_cur_index < dbs->sg->nsg) {
         cur_addr = dbs->sg->sg[dbs->sg_cur_index].base + dbs->sg_cur_byte;
         cur_len = dbs->sg->sg[dbs->sg_cur_index].len - dbs->sg_cur_byte;
-        mem = dma_memory_map(dbs->sg->dma, cur_addr, &cur_len, dbs->dir);
+        mem = dma_memory_map(dbs->sg->as, cur_addr, &cur_len, dbs->dir);
         if (!mem)
             break;
         qemu_iovec_add(&dbs->iov, mem, cur_len);
@@ -247,7 +245,7 @@ static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg,
     while (len > 0) {
         ScatterGatherEntry entry = sg->sg[sg_cur_index++];
         int32_t xfer = MIN(len, entry.len);
-        dma_memory_rw(sg->dma, entry.base, ptr, xfer, dir);
+        dma_memory_rw(sg->as, entry.base, ptr, xfer, dir);
         ptr += xfer;
         len -= xfer;
         resid -= xfer;
@@ -270,12 +268,4 @@ void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
                     QEMUSGList *sg, enum BlockAcctType type)
 {
     bdrv_acct_start(bs, cookie, sg->size, type);
-}
-
-void dma_context_init(DMAContext *dma, AddressSpace *as)
-{
-#ifdef DEBUG_IOMMU
-    fprintf(stderr, "dma_context_init(%p -> %p)\n", dma, as);
-#endif
-    dma->as = as;
 }

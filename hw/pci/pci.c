@@ -815,8 +815,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                              dma_as->root, 0, memory_region_size(dma_as->root));
     memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
     address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region);
-    pci_dev->dma = g_new(DMAContext, 1);
-    dma_context_init(pci_dev->dma, &pci_dev->bus_master_as);
 
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
@@ -873,8 +871,6 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
 
     address_space_destroy(&pci_dev->bus_master_as);
     memory_region_destroy(&pci_dev->bus_master_enable_region);
-    g_free(pci_dev->dma);
-    pci_dev->dma = NULL;
 }
 
 static void pci_unregister_io_regions(PCIDevice *pci_dev)

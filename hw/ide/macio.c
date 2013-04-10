@@ -71,7 +71,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     s->io_buffer_size = io->len;
 
     qemu_sglist_init(&s->sg, io->len / MACIO_PAGE_SIZE + 1,
-                     &dma_context_memory);
+                     &address_space_memory);
     qemu_sglist_add(&s->sg, io->addr, io->len);
     io->addr += io->len;
     io->len = 0;
@@ -128,7 +128,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     s->io_buffer_size = io->len;
 
     qemu_sglist_init(&s->sg, io->len / MACIO_PAGE_SIZE + 1,
-                     &dma_context_memory);
+                     &address_space_memory);
     qemu_sglist_add(&s->sg, io->addr, io->len);
     io->addr += io->len;
     io->len = 0;
