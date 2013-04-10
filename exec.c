@@ -1840,8 +1840,7 @@ static void memory_map_init(void)
     memory_listener_register(&io_memory_listener, &address_space_io);
     memory_listener_register(&tcg_memory_listener, &address_space_memory);
 
-    dma_context_init(&dma_context_memory, &address_space_memory,
-                     NULL, NULL, NULL);
+    dma_context_init(&dma_context_memory, &address_space_memory);
 }
 
 MemoryRegion *get_system_memory(void)

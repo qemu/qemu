@@ -814,8 +814,9 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
         address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region);
         pci_dev->dma = g_new(DMAContext, 1);
-        dma_context_init(pci_dev->dma, &pci_dev->bus_master_as, NULL, NULL, NULL);
+        dma_context_init(pci_dev->dma, &pci_dev->bus_master_as);
     }
+
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     pci_dev->irq_state = 0;

@@ -14,32 +14,26 @@
 
 /* #define DEBUG_IOMMU */
 
-static void do_dma_memory_set(AddressSpace *as,
-                              dma_addr_t addr, uint8_t c, dma_addr_t len)
+int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len)
 {
+    AddressSpace *as = dma->as;
+
+    dma_barrier(dma, DMA_DIRECTION_FROM_DEVICE);
+
 #define FILLBUF_SIZE 512
     uint8_t fillbuf[FILLBUF_SIZE];
     int l;
+    bool error = false;
 
     memset(fillbuf, c, FILLBUF_SIZE);
     while (len > 0) {
         l = len < FILLBUF_SIZE ? len : FILLBUF_SIZE;
-        address_space_rw(as, addr, fillbuf, l, true);
+        error |= address_space_rw(as, addr, fillbuf, l, true);
         len -= l;
         addr += l;
     }
-}
 
-int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len)
-{
-    dma_barrier(dma, DMA_DIRECTION_FROM_DEVICE);
-
-    if (dma_has_iommu(dma)) {
-        return iommu_dma_memory_set(dma, addr, c, len);
-    }
-    do_dma_memory_set(dma->as, addr, c, len);
-
-    return 0;
+    return error;
 }
 
 void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint, DMAContext *dma)
@@ -278,162 +272,10 @@ void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
     bdrv_acct_start(bs, cookie, sg->size, type);
 }
 
-bool iommu_dma_memory_valid(DMAContext *dma, dma_addr_t addr, dma_addr_t len,
-                            DMADirection dir)
-{
-    hwaddr paddr, plen;
-
-#ifdef DEBUG_IOMMU
-    fprintf(stderr, "dma_memory_check context=%p addr=0x" DMA_ADDR_FMT
-            " len=0x" DMA_ADDR_FMT " dir=%d\n", dma, addr, len, dir);
-#endif
-
-    while (len) {
-        if (dma->translate(dma, addr, &paddr, &plen, dir) != 0) {
-            return false;
-        }
-
-        /* The translation might be valid for larger regions. */
-        if (plen > len) {
-            plen = len;
-        }
-
-        if (!address_space_access_valid(dma->as, paddr, len,
-                                        dir == DMA_DIRECTION_FROM_DEVICE)) {
-            return false;
-        }
-
-        len -= plen;
-        addr += plen;
-    }
-
-    return true;
-}
-
-int iommu_dma_memory_rw(DMAContext *dma, dma_addr_t addr,
-                        void *buf, dma_addr_t len, DMADirection dir)
-{
-    hwaddr paddr, plen;
-    int err;
-
-#ifdef DEBUG_IOMMU
-    fprintf(stderr, "dma_memory_rw context=%p addr=0x" DMA_ADDR_FMT " len=0x"
-            DMA_ADDR_FMT " dir=%d\n", dma, addr, len, dir);
-#endif
-
-    while (len) {
-        err = dma->translate(dma, addr, &paddr, &plen, dir);
-        if (err) {
-	    /*
-             * In case of failure on reads from the guest, we clean the
-             * destination buffer so that a device that doesn't test
-             * for errors will not expose qemu internal memory.
-	     */
-	    memset(buf, 0, len);
-            return -1;
-        }
-
-        /* The translation might be valid for larger regions. */
-        if (plen > len) {
-            plen = len;
-        }
-
-        address_space_rw(dma->as, paddr, buf, plen, dir == DMA_DIRECTION_FROM_DEVICE);
-
-        len -= plen;
-        addr += plen;
-        buf += plen;
-    }
-
-    return 0;
-}
-
-int iommu_dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c,
-                         dma_addr_t len)
-{
-    hwaddr paddr, plen;
-    int err;
-
-#ifdef DEBUG_IOMMU
-    fprintf(stderr, "dma_memory_set context=%p addr=0x" DMA_ADDR_FMT
-            " len=0x" DMA_ADDR_FMT "\n", dma, addr, len);
-#endif
-
-    while (len) {
-        err = dma->translate(dma, addr, &paddr, &plen,
-                             DMA_DIRECTION_FROM_DEVICE);
-        if (err) {
-            return err;
-        }
-
-        /* The translation might be valid for larger regions. */
-        if (plen > len) {
-            plen = len;
-        }
-
-        do_dma_memory_set(dma->as, paddr, c, plen);
-
-        len -= plen;
-        addr += plen;
-    }
-
-    return 0;
-}
-
-void dma_context_init(DMAContext *dma, AddressSpace *as, DMATranslateFunc translate,
-                      DMAMapFunc map, DMAUnmapFunc unmap)
+void dma_context_init(DMAContext *dma, AddressSpace *as)
 {
 #ifdef DEBUG_IOMMU
-    fprintf(stderr, "dma_context_init(%p, %p, %p, %p)\n",
-            dma, translate, map, unmap);
+    fprintf(stderr, "dma_context_init(%p -> %p)\n", dma, as);
 #endif
     dma->as = as;
-    dma->translate = translate;
-    dma->map = map;
-    dma->unmap = unmap;
-}
-
-void *iommu_dma_memory_map(DMAContext *dma, dma_addr_t addr, dma_addr_t *len,
-                           DMADirection dir)
-{
-    int err;
-    hwaddr paddr, plen;
-    void *buf;
-
-    if (dma->map) {
-        return dma->map(dma, addr, len, dir);
-    }
-
-    plen = *len;
-    err = dma->translate(dma, addr, &paddr, &plen, dir);
-    if (err) {
-        return NULL;
-    }
-
-    /*
-     * If this is true, the virtual region is contiguous,
-     * but the translated physical region isn't. We just
-     * clamp *len, much like address_space_map() does.
-     */
-    if (plen < *len) {
-        *len = plen;
-    }
-
-    buf = address_space_map(dma->as, paddr, &plen, dir == DMA_DIRECTION_FROM_DEVICE);
-    *len = plen;
-
-    return buf;
-}
-
-void iommu_dma_memory_unmap(DMAContext *dma, void *buffer, dma_addr_t len,
-                            DMADirection dir, dma_addr_t access_len)
-{
-    if (dma->unmap) {
-        dma->unmap(dma, buffer, len, dir, access_len);
-        return;
-    }
-
-    address_space_unmap(dma->as, buffer, len, dir == DMA_DIRECTION_FROM_DEVICE,
-                        access_len);
-
 }
