@@ -544,6 +544,7 @@ Haiku)
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
+  QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers $QEMU_INCLUDES"
 ;;
 esac
 
@@ -4226,10 +4227,6 @@ else
   includes="-I\$(SRC_PATH)/tcg/\$(ARCH) $includes"
 fi
 includes="-I\$(SRC_PATH)/tcg $includes"
-
-if test "$linux" = "yes" ; then
-  includes="-I\$(SRC_PATH)/linux-headers $includes"
-fi
 
 for i in $ARCH $TARGET_BASE_ARCH ; do
   case "$i" in
