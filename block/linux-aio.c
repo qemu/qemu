@@ -39,7 +39,6 @@ struct qemu_laiocb {
 struct qemu_laio_state {
     io_context_t ctx;
     EventNotifier e;
-    int count;
 };
 
 static inline ssize_t io_event_ret(struct io_event *ev)
@@ -54,8 +53,6 @@ static void qemu_laio_process_completion(struct qemu_laio_state *s,
     struct qemu_laiocb *laiocb)
 {
     int ret;
-
-    s->count--;
 
     ret = laiocb->ret;
     if (ret != -ECANCELED) {
@@ -99,13 +96,6 @@ static void qemu_laio_completion_cb(EventNotifier *e)
             qemu_laio_process_completion(s, laiocb);
         }
     }
-}
-
-static int qemu_laio_flush_cb(EventNotifier *e)
-{
-    struct qemu_laio_state *s = container_of(e, struct qemu_laio_state, e);
-
-    return (s->count > 0) ? 1 : 0;
 }
 
 static void laio_cancel(BlockDriverAIOCB *blockacb)
@@ -177,14 +167,11 @@ BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         goto out_free_aiocb;
     }
     io_set_eventfd(&laiocb->iocb, event_notifier_get_fd(&s->e));
-    s->count++;
 
     if (io_submit(s->ctx, 1, &iocbs) < 0)
-        goto out_dec_count;
+        goto out_free_aiocb;
     return &laiocb->common;
 
-out_dec_count:
-    s->count--;
 out_free_aiocb:
     qemu_aio_release(laiocb);
     return NULL;
@@ -204,7 +191,7 @@ void *laio_init(void)
     }
 
     qemu_aio_set_event_notifier(&s->e, qemu_laio_completion_cb,
-                                qemu_laio_flush_cb);
+                                NULL);
 
     return s;
 
