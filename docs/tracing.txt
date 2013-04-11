@@ -175,6 +175,22 @@ unless you have specific needs for more advanced backends.
 The "simple" backend currently does not capture string arguments, it simply
 records the char* pointer value instead of the string that is pointed to.
 
+=== Ftrace ===
+
+The "ftrace" backend writes trace data to ftrace marker. This effectively
+sends trace events to ftrace ring buffer, and you can compare qemu trace
+data and kernel(especially kvm.ko when using KVM) trace data.
+
+if you use KVM, enable kvm events in ftrace:
+
+   # echo 1 > /sys/kernel/debug/tracing/events/kvm/enable
+
+After running qemu by root user, you can get the trace:
+
+   # cat /sys/kernel/debug/tracing/trace
+
+Restriction: "ftrace" backend is restricted to Linux only.
+
 ==== Monitor commands ====
 
 * trace-file on|off|flush|set <path>
