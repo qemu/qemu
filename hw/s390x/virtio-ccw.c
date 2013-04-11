@@ -551,23 +551,25 @@ static int virtio_ccw_exit(VirtioCcwDevice *dev)
     return 0;
 }
 
-static int virtio_ccw_net_init(VirtioCcwDevice *dev)
+static int virtio_ccw_net_init(VirtioCcwDevice *ccw_dev)
 {
-    VirtIODevice *vdev;
+    VirtIONetCcw *dev = VIRTIO_NET_CCW(ccw_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
 
-    vdev = virtio_net_init((DeviceState *)dev, &dev->nic, &dev->net,
-                           dev->host_features[0]);
-    if (!vdev) {
+    virtio_net_set_config_size(&dev->vdev, ccw_dev->host_features[0]);
+    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
+    if (qdev_init(vdev) < 0) {
         return -1;
     }
 
-    return virtio_ccw_device_init(dev, vdev);
+    return virtio_ccw_device_init(ccw_dev, VIRTIO_DEVICE(vdev));
 }
 
-static int virtio_ccw_net_exit(VirtioCcwDevice *dev)
+static void virtio_ccw_net_instance_init(Object *obj)
 {
-    virtio_net_exit(dev->vdev);
-    return virtio_ccw_exit(dev);
+    VirtIONetCcw *dev = VIRTIO_NET_CCW(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_NET);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
 static int virtio_ccw_blk_init(VirtioCcwDevice *ccw_dev)
@@ -768,8 +770,8 @@ static const VirtIOBindings virtio_ccw_bindings = {
 static Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_VIRTIO_NET_FEATURES(VirtioCcwDevice, host_features[0]),
-    DEFINE_NIC_PROPERTIES(VirtioCcwDevice, nic),
-    DEFINE_VIRTIO_NET_PROPERTIES(VirtioCcwDevice, net),
+    DEFINE_VIRTIO_NET_PROPERTIES(VirtIONetCcw, vdev.net_conf),
+    DEFINE_NIC_PROPERTIES(VirtIONetCcw, vdev.nic_conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -779,15 +781,16 @@ static void virtio_ccw_net_class_init(ObjectClass *klass, void *data)
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->init = virtio_ccw_net_init;
-    k->exit = virtio_ccw_net_exit;
+    k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_net_properties;
 }
 
 static const TypeInfo virtio_ccw_net = {
-    .name          = "virtio-net-ccw",
+    .name          = TYPE_VIRTIO_NET_CCW,
     .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtioCcwDevice),
+    .instance_size = sizeof(VirtIONetCcw),
+    .instance_init = virtio_ccw_net_instance_init,
     .class_init    = virtio_ccw_net_class_init,
 };
 

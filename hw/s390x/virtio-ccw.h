@@ -73,9 +73,7 @@ struct VirtioCcwDevice {
     SubchDev *sch;
     VirtIODevice *vdev;
     char *bus_id;
-    NICConf nic;
     uint32_t host_features[VIRTIO_CCW_FEATURE_SIZE];
-    virtio_net_conf net;
     VirtIORNGConf rng;
     VirtioBusState bus;
     /* Guest provided values: */
@@ -136,6 +134,17 @@ typedef struct VirtioSerialCcw {
     VirtioCcwDevice parent_obj;
     VirtIOSerial vdev;
 } VirtioSerialCcw;
+
+/* virtio-net-ccw */
+
+#define TYPE_VIRTIO_NET_CCW "virtio-net-ccw"
+#define VIRTIO_NET_CCW(obj) \
+        OBJECT_CHECK(VirtIONetCcw, (obj), TYPE_VIRTIO_NET_CCW)
+
+typedef struct VirtIONetCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIONet vdev;
+} VirtIONetCcw;
 
 VirtualCssBus *virtual_css_bus_init(void);
 void virtio_ccw_device_update_status(SubchDev *sch);
