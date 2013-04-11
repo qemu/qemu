@@ -153,7 +153,7 @@ typedef struct VirtIONetQueue {
 } VirtIONetQueue;
 
 typedef struct VirtIONet {
-    VirtIODevice vdev;
+    VirtIODevice parent_obj;
     uint8_t mac[ETH_ALEN];
     uint16_t status;
     VirtIONetQueue *vqs;
