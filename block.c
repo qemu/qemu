@@ -148,7 +148,6 @@ static void bdrv_block_timer(void *opaque)
 
 void bdrv_io_limits_enable(BlockDriverState *bs)
 {
-    qemu_co_queue_init(&bs->throttled_reqs);
     bs->block_timer = qemu_new_timer_ns(vm_clock, bdrv_block_timer, bs);
     bs->io_limits_enabled = true;
 }
@@ -306,6 +305,7 @@ BlockDriverState *bdrv_new(const char *device_name)
     bdrv_iostatus_disable(bs);
     notifier_list_init(&bs->close_notifiers);
     notifier_with_return_list_init(&bs->before_write_notifiers);
+    qemu_co_queue_init(&bs->throttled_reqs);
 
     return bs;
 }
@@ -1428,6 +1428,35 @@ void bdrv_close_all(void)
     }
 }
 
+/* Check if any requests are in-flight (including throttled requests) */
+static bool bdrv_requests_pending(BlockDriverState *bs)
+{
+    if (!QLIST_EMPTY(&bs->tracked_requests)) {
+        return true;
+    }
+    if (!qemu_co_queue_empty(&bs->throttled_reqs)) {
+        return true;
+    }
+    if (bs->file && bdrv_requests_pending(bs->file)) {
+        return true;
+    }
+    if (bs->backing_hd && bdrv_requests_pending(bs->backing_hd)) {
+        return true;
+    }
+    return false;
+}
+
+static bool bdrv_requests_pending_all(void)
+{
+    BlockDriverState *bs;
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        if (bdrv_requests_pending(bs)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /*
  * Wait for pending requests to complete across all BlockDriverStates
  *
@@ -1442,12 +1471,11 @@ void bdrv_close_all(void)
  */
 void bdrv_drain_all(void)
 {
+    /* Always run first iteration so any pending completion BHs run */
+    bool busy = true;
     BlockDriverState *bs;
-    bool busy;
 
-    do {
-        busy = qemu_aio_wait();
-
+    while (busy) {
         /* FIXME: We do not have timer support here, so this is effectively
          * a busy wait.
          */
@@ -1456,12 +1484,9 @@ void bdrv_drain_all(void)
                 busy = true;
             }
         }
-    } while (busy);
 
-    /* If requests are still pending there is a bug somewhere */
-    QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        assert(QLIST_EMPTY(&bs->tracked_requests));
-        assert(qemu_co_queue_empty(&bs->throttled_reqs));
+        busy = bdrv_requests_pending_all();
+        busy |= aio_poll(qemu_get_aio_context(), busy);
     }
 }
 
