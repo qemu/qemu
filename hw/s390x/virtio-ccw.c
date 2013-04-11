@@ -769,11 +769,7 @@ static Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_VIRTIO_NET_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_NIC_PROPERTIES(VirtioCcwDevice, nic),
-    DEFINE_PROP_UINT32("x-txtimer", VirtioCcwDevice,
-                       net.txtimer, TX_TIMER_INTERVAL),
-    DEFINE_PROP_INT32("x-txburst", VirtioCcwDevice,
-                      net.txburst, TX_BURST),
-    DEFINE_PROP_STRING("tx", VirtioCcwDevice, net.tx),
+    DEFINE_VIRTIO_NET_PROPERTIES(VirtioCcwDevice, net),
     DEFINE_PROP_END_OF_LIST(),
 };
 

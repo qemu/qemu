@@ -427,11 +427,7 @@ static const VirtIOBindings virtio_s390_bindings = {
 static Property s390_virtio_net_properties[] = {
     DEFINE_NIC_PROPERTIES(VirtIOS390Device, nic),
     DEFINE_VIRTIO_NET_FEATURES(VirtIOS390Device, host_features),
-    DEFINE_PROP_UINT32("x-txtimer", VirtIOS390Device,
-                       net.txtimer, TX_TIMER_INTERVAL),
-    DEFINE_PROP_INT32("x-txburst", VirtIOS390Device,
-                      net.txburst, TX_BURST),
-    DEFINE_PROP_STRING("tx", VirtIOS390Device, net.tx),
+    DEFINE_VIRTIO_NET_PROPERTIES(VirtIOS390Device, net),
     DEFINE_PROP_END_OF_LIST(),
 };
 

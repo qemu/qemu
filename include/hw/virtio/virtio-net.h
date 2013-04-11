@@ -17,6 +17,10 @@
 #include "hw/virtio/virtio.h"
 #include "hw/pci/pci.h"
 
+#define TYPE_VIRTIO_NET "virtio-net-device"
+#define VIRTIO_NET(obj) \
+        OBJECT_CHECK(VirtIONet, (obj), TYPE_VIRTIO_NET)
+
 #define ETH_ALEN    6
 
 /* from Linux's virtio_net.h */
@@ -177,6 +181,8 @@ typedef struct VirtIONet {
         uint8_t *macs;
     } mac_table;
     uint32_t *vlans;
+    virtio_net_conf net_conf;
+    NICConf nic_conf;
     DeviceState *qdev;
     int multiqueue;
     uint16_t max_queues;
@@ -242,5 +248,12 @@ struct virtio_net_ctrl_mq {
         DEFINE_PROP_BIT("ctrl_rx_extra", _state, _field, VIRTIO_NET_F_CTRL_RX_EXTRA, true), \
         DEFINE_PROP_BIT("ctrl_mac_addr", _state, _field, VIRTIO_NET_F_CTRL_MAC_ADDR, true), \
         DEFINE_PROP_BIT("mq", _state, _field, VIRTIO_NET_F_MQ, false)
+
+#define DEFINE_VIRTIO_NET_PROPERTIES(_state, _field)                           \
+    DEFINE_PROP_UINT32("x-txtimer", _state, _field.txtimer, TX_TIMER_INTERVAL),\
+    DEFINE_PROP_INT32("x-txburst", _state, _field.txburst, TX_BURST),          \
+    DEFINE_PROP_STRING("tx", _state, _field.tx)
+
+void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features);
 
 #endif

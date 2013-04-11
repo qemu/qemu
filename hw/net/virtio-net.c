@@ -20,6 +20,7 @@
 #include "qemu/timer.h"
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
+#include "hw/virtio/virtio-bus.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
@@ -64,6 +65,9 @@ static int vq2q(int queue_index)
  * - we could suppress RX interrupt if we were so inclined.
  */
 
+/*
+ * Moving to QOM later in this serie.
+ */
 static VirtIONet *to_virtio_net(VirtIODevice *vdev)
 {
     return (VirtIONet *)vdev;
@@ -1252,22 +1256,45 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
                              vdev, idx, mask);
 }
 
-VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
-                              virtio_net_conf *net, uint32_t host_features)
+void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features)
 {
-    VirtIONet *n;
     int i, config_size = 0;
-
     for (i = 0; feature_sizes[i].flags != 0; i++) {
         if (host_features & feature_sizes[i].flags) {
             config_size = MAX(feature_sizes[i].end, config_size);
         }
     }
-
-    n = (VirtIONet *)virtio_common_init("virtio-net", VIRTIO_ID_NET,
-                                        config_size, sizeof(VirtIONet));
-
     n->config_size = config_size;
+}
+
+static VirtIODevice *virtio_net_common_init(DeviceState *dev, NICConf *conf,
+                                            virtio_net_conf *net,
+                                            uint32_t host_features,
+                                            VirtIONet **pn)
+{
+    VirtIONet *n = *pn;
+    int i, config_size = 0;
+
+    /*
+     * We have two cases here: the old virtio-net-pci device, and the
+     * refactored virtio-net.
+     */
+    if (n == NULL) {
+        /* virtio-net-pci */
+        for (i = 0; feature_sizes[i].flags != 0; i++) {
+            if (host_features & feature_sizes[i].flags) {
+                config_size = MAX(feature_sizes[i].end, config_size);
+            }
+        }
+        n = (VirtIONet *)virtio_common_init("virtio-net", VIRTIO_ID_NET,
+                                            config_size, sizeof(VirtIONet));
+        n->config_size = config_size;
+    } else {
+        /* virtio-net */
+        virtio_init(VIRTIO_DEVICE(n), "virtio-net", VIRTIO_ID_NET,
+                                                    n->config_size);
+    }
+
     n->vdev.get_config = virtio_net_get_config;
     n->vdev.set_config = virtio_net_set_config;
     n->vdev.get_features = virtio_net_get_features;
@@ -1337,6 +1364,13 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
     return &n->vdev;
 }
 
+VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
+                              virtio_net_conf *net, uint32_t host_features)
+{
+    VirtIONet *n = NULL;
+    return virtio_net_common_init(dev, conf, net, host_features, &n);
+}
+
 void virtio_net_exit(VirtIODevice *vdev)
 {
     VirtIONet *n = DO_UPCAST(VirtIONet, vdev, vdev);
@@ -1368,3 +1402,107 @@ void virtio_net_exit(VirtIODevice *vdev)
     qemu_del_nic(n->nic);
     virtio_cleanup(&n->vdev);
 }
+
+static int virtio_net_device_init(VirtIODevice *vdev)
+{
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIONet *n = VIRTIO_NET(vdev);
+
+    /*
+     * Initially, the new VirtIONet device will have a config size =
+     * sizeof(struct config), because we can't get host_features here.
+     */
+    if (virtio_net_common_init(qdev, &(n->nic_conf),
+                               &(n->net_conf), 0, &n) == NULL) {
+        return -1;
+    }
+    return 0;
+}
+
+static int virtio_net_device_exit(DeviceState *qdev)
+{
+    VirtIONet *n = VIRTIO_NET(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    int i;
+
+    /* This will stop vhost backend if appropriate. */
+    virtio_net_set_status(vdev, 0);
+
+    unregister_savevm(qdev, "virtio-net", n);
+
+    g_free(n->mac_table.macs);
+    g_free(n->vlans);
+
+    for (i = 0; i < n->max_queues; i++) {
+        VirtIONetQueue *q = &n->vqs[i];
+        NetClientState *nc = qemu_get_subqueue(n->nic, i);
+
+        qemu_purge_queued_packets(nc);
+
+        if (q->tx_timer) {
+            qemu_del_timer(q->tx_timer);
+            qemu_free_timer(q->tx_timer);
+        } else {
+            qemu_bh_delete(q->tx_bh);
+        }
+    }
+
+    g_free(n->vqs);
+    qemu_del_nic(n->nic);
+    virtio_common_cleanup(&n->vdev);
+
+    return 0;
+}
+
+static void virtio_net_instance_init(Object *obj)
+{
+    VirtIONet *n = VIRTIO_NET(obj);
+
+    /*
+     * The default config_size is sizeof(struct virtio_net_config).
+     * Can be overriden with virtio_net_set_config_size.
+     */
+    n->config_size = sizeof(struct virtio_net_config);
+}
+
+static Property virtio_net_properties[] = {
+    DEFINE_NIC_PROPERTIES(VirtIONet, nic_conf),
+    DEFINE_PROP_UINT32("x-txtimer", VirtIONet, net_conf.txtimer,
+                                               TX_TIMER_INTERVAL),
+    DEFINE_PROP_INT32("x-txburst", VirtIONet, net_conf.txburst, TX_BURST),
+    DEFINE_PROP_STRING("tx", VirtIONet, net_conf.tx),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_net_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    dc->exit = virtio_net_device_exit;
+    dc->props = virtio_net_properties;
+    vdc->init = virtio_net_device_init;
+    vdc->get_config = virtio_net_get_config;
+    vdc->set_config = virtio_net_set_config;
+    vdc->get_features = virtio_net_get_features;
+    vdc->set_features = virtio_net_set_features;
+    vdc->bad_features = virtio_net_bad_features;
+    vdc->reset = virtio_net_reset;
+    vdc->set_status = virtio_net_set_status;
+    vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;
+    vdc->guest_notifier_pending = virtio_net_guest_notifier_pending;
+}
+
+static const TypeInfo virtio_net_info = {
+    .name = TYPE_VIRTIO_NET,
+    .parent = TYPE_VIRTIO_DEVICE,
+    .instance_size = sizeof(VirtIONet),
+    .instance_init = virtio_net_instance_init,
+    .class_init = virtio_net_class_init,
+};
+
+static void virtio_register_types(void)
+{
+    type_register_static(&virtio_net_info);
+}
+
+type_init(virtio_register_types)
