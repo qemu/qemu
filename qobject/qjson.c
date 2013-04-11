@@ -136,68 +136,56 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
     case QTYPE_QSTRING: {
         QString *val = qobject_to_qstring(obj);
         const char *ptr;
+        int cp;
+        char buf[16];
+        char *end;
 
         ptr = qstring_get_str(val);
         qstring_append(str, "\"");
-        while (*ptr) {
-            if ((ptr[0] & 0xE0) == 0xE0 &&
-                (ptr[1] & 0x80) && (ptr[2] & 0x80)) {
-                uint16_t wchar;
-                char escape[7];
 
-                wchar  = (ptr[0] & 0x0F) << 12;
-                wchar |= (ptr[1] & 0x3F) << 6;
-                wchar |= (ptr[2] & 0x3F);
-                ptr += 2;
-
-                snprintf(escape, sizeof(escape), "\\u%04X", wchar);
-                qstring_append(str, escape);
-            } else if ((ptr[0] & 0xE0) == 0xC0 && (ptr[1] & 0x80)) {
-                uint16_t wchar;
-                char escape[7];
-
-                wchar  = (ptr[0] & 0x1F) << 6;
-                wchar |= (ptr[1] & 0x3F);
-                ptr++;
-
-                snprintf(escape, sizeof(escape), "\\u%04X", wchar);
-                qstring_append(str, escape);
-            } else switch (ptr[0]) {
-                case '\"':
-                    qstring_append(str, "\\\"");
-                    break;
-                case '\\':
-                    qstring_append(str, "\\\\");
-                    break;
-                case '\b':
-                    qstring_append(str, "\\b");
-                    break;
-                case '\f':
-                    qstring_append(str, "\\f");
-                    break;
-                case '\n':
-                    qstring_append(str, "\\n");
-                    break;
-                case '\r':
-                    qstring_append(str, "\\r");
-                    break;
-                case '\t':
-                    qstring_append(str, "\\t");
-                    break;
-                default: {
-                    if (ptr[0] <= 0x1F) {
-                        char escape[7];
-                        snprintf(escape, sizeof(escape), "\\u%04X", ptr[0]);
-                        qstring_append(str, escape);
-                    } else {
-                        char buf[2] = { ptr[0], 0 };
-                        qstring_append(str, buf);
-                    }
-                    break;
+        for (; *ptr; ptr = end) {
+            cp = mod_utf8_codepoint(ptr, 6, &end);
+            switch (cp) {
+            case '\"':
+                qstring_append(str, "\\\"");
+                break;
+            case '\\':
+                qstring_append(str, "\\\\");
+                break;
+            case '\b':
+                qstring_append(str, "\\b");
+                break;
+            case '\f':
+                qstring_append(str, "\\f");
+                break;
+            case '\n':
+                qstring_append(str, "\\n");
+                break;
+            case '\r':
+                qstring_append(str, "\\r");
+                break;
+            case '\t':
+                qstring_append(str, "\\t");
+                break;
+            default:
+                if (cp < 0) {
+                    cp = 0xFFFD; /* replacement character */
                 }
+                if (cp > 0xFFFF) {
+                    /* beyond BMP; need a surrogate pair */
+                    snprintf(buf, sizeof(buf), "\\u%04X\\u%04X",
+                             0xD800 + ((cp - 0x10000) >> 10),
+                             0xDC00 + ((cp - 0x10000) & 0x3FF));
+                } else if (cp < 0x20 || cp >= 0x7F) {
+                    snprintf(buf, sizeof(buf), "\\u%04X", cp);
+                } else {
+                    buf[0] = cp;
+                    buf[1] = 0;
                 }
-            ptr++;
-        }
+                qstring_append(str, buf);
+            }
+        };
+
         qstring_append(str, "\"");
         break;
     }
