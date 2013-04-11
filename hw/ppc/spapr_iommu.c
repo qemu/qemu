@@ -37,10 +37,6 @@ enum sPAPRTCEAccess {
 };
 
 struct sPAPRTCETable {
-    /* temporary until everyone has its own AddressSpace */
-    DMAContext dma;
-    AddressSpace as;
-
     uint32_t liobn;
     uint32_t window_size;
     sPAPRTCE *table;
@@ -157,8 +153,6 @@ sPAPRTCETable *spapr_tce_new_table(uint32_t liobn, size_t window_size)
 
     memory_region_init_iommu(&tcet->iommu, &spapr_iommu_ops,
                              "iommu-spapr", UINT64_MAX);
-    address_space_init(&tcet->as, &tcet->iommu);
-    dma_context_init(&tcet->dma, &tcet->as);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
@@ -176,11 +170,6 @@ void spapr_tce_free(sPAPRTCETable *tcet)
     }
 
     g_free(tcet);
-}
-
-DMAContext *spapr_tce_get_dma(sPAPRTCETable *tcet)
-{
-    return &tcet->dma;
 }
 
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet)

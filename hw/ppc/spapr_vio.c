@@ -454,7 +454,8 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
     if (pc->rtce_window_size) {
         uint32_t liobn = SPAPR_VIO_BASE_LIOBN | dev->reg;
         dev->tcet = spapr_tce_new_table(liobn, pc->rtce_window_size);
-        dev->dma = spapr_tce_get_dma(dev->tcet);
+        address_space_init(&dev->as, spapr_tce_get_iommu(dev->tcet));
+        dma_context_init(&dev->dma, &dev->as);
     }
 
     return pc->init(dev);
