@@ -23,8 +23,6 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 
-//#define CONFIG_DEBUG_EXEC
-
 bool qemu_cpu_has_work(CPUState *cpu)
 {
     return cpu_has_work(cpu);
@@ -567,7 +565,7 @@ int cpu_exec(CPUArchState *env)
                     env->exception_index = EXCP_INTERRUPT;
                     cpu_loop_exit(env);
                 }
-#if defined(DEBUG_DISAS) || defined(CONFIG_DEBUG_EXEC)
+#if defined(DEBUG_DISAS)
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
                     /* restore flags in standard format */
 #if defined(TARGET_I386)
@@ -582,7 +580,7 @@ int cpu_exec(CPUArchState *env)
                     log_cpu_state(env, 0);
 #endif
                 }
-#endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */
+#endif /* DEBUG_DISAS */
                 spin_lock(&tcg_ctx.tb_ctx.tb_lock);
                 tb = tb_find_fast(env);
                 /* Note: we do it here to avoid a gcc bug on Mac OS X when
@@ -594,11 +592,10 @@ int cpu_exec(CPUArchState *env)
                     next_tb = 0;
                     tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
                 }
-#ifdef CONFIG_DEBUG_EXEC
-                qemu_log_mask(CPU_LOG_EXEC, "Trace %p [" TARGET_FMT_lx "] %s\n",
-                             tb->tc_ptr, tb->pc,
-                             lookup_symbol(tb->pc));
-#endif
+                if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
+                    qemu_log("Trace %p [" TARGET_FMT_lx "] %s\n",
+                             tb->tc_ptr, tb->pc, lookup_symbol(tb->pc));
+                }
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct
                    jump. */
