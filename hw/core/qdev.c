@@ -684,10 +684,6 @@ static void device_set_realized(Object *obj, bool value, Error **err)
     Error *local_err = NULL;
 
     if (value && !dev->realized) {
-        if (dc->realize) {
-            dc->realize(dev, &local_err);
-        }
-
         if (!obj->parent && local_err == NULL) {
             static int unattached_count;
             gchar *name = g_strdup_printf("device[%d]", unattached_count++);
@@ -696,6 +692,10 @@ static void device_set_realized(Object *obj, bool value, Error **err)
                                                     "/unattached"),
                                       name, obj, &local_err);
             g_free(name);
+        }
+
+        if (dc->realize) {
+            dc->realize(dev, &local_err);
         }
 
         if (qdev_get_vmsd(dev) && local_err == NULL) {
