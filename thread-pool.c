@@ -197,12 +197,6 @@ restart:
     }
 }
 
-static int thread_pool_active(EventNotifier *notifier)
-{
-    ThreadPool *pool = container_of(notifier, ThreadPool, notifier);
-    return !QLIST_EMPTY(&pool->head);
-}
-
 static void thread_pool_cancel(BlockDriverAIOCB *acb)
 {
     ThreadPoolElement *elem = (ThreadPoolElement *)acb;
@@ -310,7 +304,7 @@ static void thread_pool_init_one(ThreadPool *pool, AioContext *ctx)
     QTAILQ_INIT(&pool->request_list);
 
     aio_set_event_notifier(ctx, &pool->notifier, event_notifier_ready,
-                           thread_pool_active);
+                           NULL);
 }
 
 ThreadPool *thread_pool_new(AioContext *ctx)
