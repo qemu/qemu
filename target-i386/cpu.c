@@ -1563,7 +1563,7 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
 }
 
-X86CPU *cpu_x86_init(const char *cpu_model)
+X86CPU *cpu_x86_create(const char *cpu_model, Error **errp)
 {
     X86CPU *cpu = NULL;
     CPUX86State *env;
@@ -1593,13 +1593,25 @@ X86CPU *cpu_x86_init(const char *cpu_model)
         goto out;
     }
 
-    object_property_set_bool(OBJECT(cpu), true, "realized", &error);
+out:
+    error_propagate(errp, error);
+    g_strfreev(model_pieces);
+    return cpu;
+}
+
+X86CPU *cpu_x86_init(const char *cpu_model)
+{
+    Error *error = NULL;
+    X86CPU *cpu;
+
+    cpu = cpu_x86_create(cpu_model, &error);
     if (error) {
         goto out;
     }
 
+    object_property_set_bool(OBJECT(cpu), true, "realized", &error);
+
 out:
-    g_strfreev(model_pieces);
     if (error) {
         fprintf(stderr, "%s\n", error_get_pretty(error));
         error_free(error);
