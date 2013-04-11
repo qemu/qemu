@@ -509,13 +509,6 @@ static void restart_co_req(void *opaque)
     qemu_coroutine_enter(co, NULL);
 }
 
-static int have_co_req(void *opaque)
-{
-    /* this handler is set only when there is a pending request, so
-     * always returns 1. */
-    return 1;
-}
-
 typedef struct SheepdogReqCo {
     int sockfd;
     SheepdogReq *hdr;
@@ -538,14 +531,14 @@ static coroutine_fn void do_co_req(void *opaque)
     unsigned int *rlen = srco->rlen;
 
     co = qemu_coroutine_self();
-    qemu_aio_set_fd_handler(sockfd, NULL, restart_co_req, have_co_req, co);
+    qemu_aio_set_fd_handler(sockfd, NULL, restart_co_req, NULL, co);
 
     ret = send_co_req(sockfd, hdr, data, wlen);
     if (ret < 0) {
         goto out;
     }
 
-    qemu_aio_set_fd_handler(sockfd, restart_co_req, NULL, have_co_req, co);
+    qemu_aio_set_fd_handler(sockfd, restart_co_req, NULL, NULL, co);
 
     ret = qemu_co_recv(sockfd, hdr, sizeof(*hdr));
     if (ret < sizeof(*hdr)) {
@@ -796,14 +789,6 @@ static void co_write_request(void *opaque)
     qemu_coroutine_enter(s->co_send, NULL);
 }
 
-static int aio_flush_request(void *opaque)
-{
-    BDRVSheepdogState *s = opaque;
-
-    return !QLIST_EMPTY(&s->inflight_aio_head) ||
-        !QLIST_EMPTY(&s->pending_aio_head);
-}
-
 /*
  * Return a socket discriptor to read/write objects.
  *
@@ -819,7 +804,7 @@ static int get_sheep_fd(BDRVSheepdogState *s)
         return fd;
     }
 
-    qemu_aio_set_fd_handler(fd, co_read_response, NULL, aio_flush_request, s);
+    qemu_aio_set_fd_handler(fd, co_read_response, NULL, NULL, s);
     return fd;
 }
 
@@ -1070,7 +1055,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
     qemu_co_mutex_lock(&s->lock);
     s->co_send = qemu_coroutine_self();
     qemu_aio_set_fd_handler(s->fd, co_read_response, co_write_request,
-                            aio_flush_request, s);
+                            NULL, s);
     socket_set_cork(s->fd, 1);
 
     /* send a header */
@@ -1092,7 +1077,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
 
     socket_set_cork(s->fd, 0);
     qemu_aio_set_fd_handler(s->fd, co_read_response, NULL,
-                            aio_flush_request, s);
+                            NULL, s);
     qemu_co_mutex_unlock(&s->lock);
 
     return 0;
