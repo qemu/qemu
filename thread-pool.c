@@ -303,8 +303,7 @@ static void thread_pool_init_one(ThreadPool *pool, AioContext *ctx)
     QLIST_INIT(&pool->head);
     QTAILQ_INIT(&pool->request_list);
 
-    aio_set_event_notifier(ctx, &pool->notifier, event_notifier_ready,
-                           NULL);
+    aio_set_event_notifier(ctx, &pool->notifier, event_notifier_ready);
 }
 
 ThreadPool *thread_pool_new(AioContext *ctx)
@@ -338,7 +337,7 @@ void thread_pool_free(ThreadPool *pool)
 
     qemu_mutex_unlock(&pool->lock);
 
-    aio_set_event_notifier(pool->ctx, &pool->notifier, NULL, NULL);
+    aio_set_event_notifier(pool->ctx, &pool->notifier, NULL);
     qemu_sem_destroy(&pool->sem);
     qemu_cond_destroy(&pool->check_cancel);
     qemu_cond_destroy(&pool->worker_stopped);

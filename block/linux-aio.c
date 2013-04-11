@@ -190,8 +190,7 @@ void *laio_init(void)
         goto out_close_efd;
     }
 
-    qemu_aio_set_event_notifier(&s->e, qemu_laio_completion_cb,
-                                NULL);
+    qemu_aio_set_event_notifier(&s->e, qemu_laio_completion_cb);
 
     return s;
 

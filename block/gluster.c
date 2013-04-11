@@ -339,7 +339,7 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
     }
     fcntl(s->fds[GLUSTER_FD_READ], F_SETFL, O_NONBLOCK);
     qemu_aio_set_fd_handler(s->fds[GLUSTER_FD_READ],
-        qemu_gluster_aio_event_reader, NULL, NULL, s);
+        qemu_gluster_aio_event_reader, NULL, s);
 
 out:
     qemu_opts_del(opts);
@@ -438,8 +438,7 @@ static void gluster_finish_aiocb(struct glfs_fd *fd, ssize_t ret, void *arg)
         qemu_aio_release(acb);
         close(s->fds[GLUSTER_FD_READ]);
         close(s->fds[GLUSTER_FD_WRITE]);
-        qemu_aio_set_fd_handler(s->fds[GLUSTER_FD_READ], NULL, NULL, NULL,
-            NULL);
+        qemu_aio_set_fd_handler(s->fds[GLUSTER_FD_READ], NULL, NULL, NULL);
         bs->drv = NULL; /* Make the disk inaccessible */
         qemu_mutex_unlock_iothread();
     }
@@ -595,7 +594,7 @@ static void qemu_gluster_close(BlockDriverState *bs)
 
     close(s->fds[GLUSTER_FD_READ]);
     close(s->fds[GLUSTER_FD_WRITE]);
-    qemu_aio_set_fd_handler(s->fds[GLUSTER_FD_READ], NULL, NULL, NULL, NULL);
+    qemu_aio_set_fd_handler(s->fds[GLUSTER_FD_READ], NULL, NULL, NULL);
 
     if (s->fd) {
         glfs_close(s->fd);

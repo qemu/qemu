@@ -233,11 +233,11 @@ static void test_set_event_notifier(void)
 {
     EventNotifierTestData data = { .n = 0, .active = 0 };
     event_notifier_init(&data.e, false);
-    aio_set_event_notifier(ctx, &data.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &data.e, event_ready_cb);
     g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
 
-    aio_set_event_notifier(ctx, &data.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &data.e, NULL);
     g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
     event_notifier_cleanup(&data.e);
@@ -247,7 +247,7 @@ static void test_wait_event_notifier(void)
 {
     EventNotifierTestData data = { .n = 0, .active = 1 };
     event_notifier_init(&data.e, false);
-    aio_set_event_notifier(ctx, &data.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &data.e, event_ready_cb);
     g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 1);
@@ -261,7 +261,7 @@ static void test_wait_event_notifier(void)
     g_assert_cmpint(data.n, ==, 1);
     g_assert_cmpint(data.active, ==, 0);
 
-    aio_set_event_notifier(ctx, &data.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &data.e, NULL);
     g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 1);
 
@@ -272,7 +272,7 @@ static void test_flush_event_notifier(void)
 {
     EventNotifierTestData data = { .n = 0, .active = 10, .auto_set = true };
     event_notifier_init(&data.e, false);
-    aio_set_event_notifier(ctx, &data.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &data.e, event_ready_cb);
     g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 10);
@@ -288,7 +288,7 @@ static void test_flush_event_notifier(void)
     g_assert_cmpint(data.active, ==, 0);
     g_assert(!aio_poll(ctx, false));
 
-    aio_set_event_notifier(ctx, &data.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &data.e, NULL);
     g_assert(!aio_poll(ctx, false));
     event_notifier_cleanup(&data.e);
 }
@@ -299,7 +299,7 @@ static void test_wait_event_notifier_noflush(void)
     EventNotifierTestData dummy = { .n = 0, .active = 1 };
 
     event_notifier_init(&data.e, false);
-    aio_set_event_notifier(ctx, &data.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &data.e, event_ready_cb);
 
     g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
@@ -312,7 +312,7 @@ static void test_wait_event_notifier_noflush(void)
 
     /* An active event notifier forces aio_poll to look at EventNotifiers.  */
     event_notifier_init(&dummy.e, false);
-    aio_set_event_notifier(ctx, &dummy.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &dummy.e, event_ready_cb);
 
     event_notifier_set(&data.e);
     g_assert(aio_poll(ctx, false));
@@ -332,10 +332,10 @@ static void test_wait_event_notifier_noflush(void)
     g_assert_cmpint(dummy.n, ==, 1);
     g_assert_cmpint(dummy.active, ==, 0);
 
-    aio_set_event_notifier(ctx, &dummy.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &dummy.e, NULL);
     event_notifier_cleanup(&dummy.e);
 
-    aio_set_event_notifier(ctx, &data.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &data.e, NULL);
     g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 2);
 
@@ -515,11 +515,11 @@ static void test_source_set_event_notifier(void)
 {
     EventNotifierTestData data = { .n = 0, .active = 0 };
     event_notifier_init(&data.e, false);
-    aio_set_event_notifier(ctx, &data.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &data.e, event_ready_cb);
     while (g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 0);
 
-    aio_set_event_notifier(ctx, &data.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &data.e, NULL);
     while (g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 0);
     event_notifier_cleanup(&data.e);
@@ -529,7 +529,7 @@ static void test_source_wait_event_notifier(void)
 {
     EventNotifierTestData data = { .n = 0, .active = 1 };
     event_notifier_init(&data.e, false);
-    aio_set_event_notifier(ctx, &data.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &data.e, event_ready_cb);
     g_assert(g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 1);
@@ -543,7 +543,7 @@ static void test_source_wait_event_notifier(void)
     g_assert_cmpint(data.n, ==, 1);
     g_assert_cmpint(data.active, ==, 0);
 
-    aio_set_event_notifier(ctx, &data.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &data.e, NULL);
     while (g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 1);
 
@@ -554,7 +554,7 @@ static void test_source_flush_event_notifier(void)
 {
     EventNotifierTestData data = { .n = 0, .active = 10, .auto_set = true };
     event_notifier_init(&data.e, false);
-    aio_set_event_notifier(ctx, &data.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &data.e, event_ready_cb);
     g_assert(g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 10);
@@ -570,7 +570,7 @@ static void test_source_flush_event_notifier(void)
     g_assert_cmpint(data.active, ==, 0);
     g_assert(!g_main_context_iteration(NULL, false));
 
-    aio_set_event_notifier(ctx, &data.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &data.e, NULL);
     while (g_main_context_iteration(NULL, false));
     event_notifier_cleanup(&data.e);
 }
@@ -581,7 +581,7 @@ static void test_source_wait_event_notifier_noflush(void)
     EventNotifierTestData dummy = { .n = 0, .active = 1 };
 
     event_notifier_init(&data.e, false);
-    aio_set_event_notifier(ctx, &data.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &data.e, event_ready_cb);
 
     while (g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 0);
@@ -594,7 +594,7 @@ static void test_source_wait_event_notifier_noflush(void)
 
     /* An active event notifier forces aio_poll to look at EventNotifiers.  */
     event_notifier_init(&dummy.e, false);
-    aio_set_event_notifier(ctx, &dummy.e, event_ready_cb, NULL);
+    aio_set_event_notifier(ctx, &dummy.e, event_ready_cb);
 
     event_notifier_set(&data.e);
     g_assert(g_main_context_iteration(NULL, false));
@@ -614,10 +614,10 @@ static void test_source_wait_event_notifier_noflush(void)
     g_assert_cmpint(dummy.n, ==, 1);
     g_assert_cmpint(dummy.active, ==, 0);
 
-    aio_set_event_notifier(ctx, &dummy.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &dummy.e, NULL);
     event_notifier_cleanup(&dummy.e);
 
-    aio_set_event_notifier(ctx, &data.e, NULL, NULL);
+    aio_set_event_notifier(ctx, &data.e, NULL);
     while (g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 2);
 

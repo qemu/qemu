@@ -46,7 +46,6 @@ void aio_set_fd_handler(AioContext *ctx,
                         int fd,
                         IOHandler *io_read,
                         IOHandler *io_write,
-                        AioFlushHandler *io_flush,
                         void *opaque)
 {
     AioHandler *node;
@@ -95,12 +94,10 @@ void aio_set_fd_handler(AioContext *ctx,
 
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
-                            EventNotifierHandler *io_read,
-                            AioFlushEventNotifierHandler *io_flush)
+                            EventNotifierHandler *io_read)
 {
     aio_set_fd_handler(ctx, event_notifier_get_fd(notifier),
-                       (IOHandler *)io_read, NULL,
-                       (AioFlushHandler *)io_flush, notifier);
+                       (IOHandler *)io_read, NULL, notifier);
 }
 
 bool aio_pending(AioContext *ctx)

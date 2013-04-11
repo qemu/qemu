@@ -758,13 +758,13 @@ static coroutine_fn void set_fd_handler(BDRVSSHState *s)
     DPRINTF("s->sock=%d rd_handler=%p wr_handler=%p", s->sock,
             rd_handler, wr_handler);
 
-    qemu_aio_set_fd_handler(s->sock, rd_handler, wr_handler, NULL, co);
+    qemu_aio_set_fd_handler(s->sock, rd_handler, wr_handler, co);
 }
 
 static coroutine_fn void clear_fd_handler(BDRVSSHState *s)
 {
     DPRINTF("s->sock=%d", s->sock);
-    qemu_aio_set_fd_handler(s->sock, NULL, NULL, NULL, NULL);
+    qemu_aio_set_fd_handler(s->sock, NULL, NULL, NULL);
 }
 
 /* A non-blocking call returned EAGAIN, so yield, ensuring the

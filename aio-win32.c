@@ -30,8 +30,7 @@ struct AioHandler {
 
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *e,
-                            EventNotifierHandler *io_notify,
-                            AioFlushEventNotifierHandler *io_flush)
+                            EventNotifierHandler *io_notify)
 {
     AioHandler *node;
 

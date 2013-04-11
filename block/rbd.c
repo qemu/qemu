@@ -545,7 +545,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags)
     fcntl(s->fds[0], F_SETFL, O_NONBLOCK);
     fcntl(s->fds[1], F_SETFL, O_NONBLOCK);
     qemu_aio_set_fd_handler(s->fds[RBD_FD_READ], qemu_rbd_aio_event_reader,
-                            NULL, NULL, s);
+                            NULL, s);
 
 
     qemu_opts_del(opts);
@@ -569,7 +569,7 @@ static void qemu_rbd_close(BlockDriverState *bs)
 
     close(s->fds[0]);
     close(s->fds[1]);
-    qemu_aio_set_fd_handler(s->fds[RBD_FD_READ], NULL, NULL, NULL, NULL);
+    qemu_aio_set_fd_handler(s->fds[RBD_FD_READ], NULL, NULL, NULL);
 
     rbd_close(s->image);
     rados_ioctx_destroy(s->io_ctx);

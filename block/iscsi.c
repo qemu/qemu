@@ -159,7 +159,6 @@ iscsi_set_events(IscsiLun *iscsilun)
         qemu_aio_set_fd_handler(iscsi_get_fd(iscsi),
                       iscsi_process_read,
                       (ev & POLLOUT) ? iscsi_process_write : NULL,
-                      NULL,
                       iscsilun);
 
     }
@@ -1208,7 +1207,7 @@ static void iscsi_close(BlockDriverState *bs)
         qemu_del_timer(iscsilun->nop_timer);
         qemu_free_timer(iscsilun->nop_timer);
     }
-    qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), NULL, NULL, NULL, NULL);
+    qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), NULL, NULL, NULL);
     iscsi_destroy_context(iscsi);
     memset(iscsilun, 0, sizeof(IscsiLun));
 }

@@ -334,8 +334,7 @@ static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
 
     qemu_co_mutex_lock(&s->send_mutex);
     s->send_coroutine = qemu_coroutine_self();
-    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, nbd_restart_write,
-                            NULL, s);
+    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, nbd_restart_write, s);
     if (qiov) {
         if (!s->is_unix) {
             socket_set_cork(s->sock, 1);
@@ -354,8 +353,7 @@ static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
     } else {
         rc = nbd_send_request(s->sock, request);
     }
-    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, NULL,
-                            NULL, s);
+    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, NULL, s);
     s->send_coroutine = NULL;
     qemu_co_mutex_unlock(&s->send_mutex);
     return rc;
@@ -431,8 +429,7 @@ static int nbd_establish_connection(BlockDriverState *bs)
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */
     qemu_set_nonblock(sock);
-    qemu_aio_set_fd_handler(sock, nbd_reply_ready, NULL,
-                            NULL, s);
+    qemu_aio_set_fd_handler(sock, nbd_reply_ready, NULL, s);
 
     s->sock = sock;
     s->size = size;
@@ -452,7 +449,7 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     request.len = 0;
     nbd_send_request(s->sock, &request);
 
-    qemu_aio_set_fd_handler(s->sock, NULL, NULL, NULL, NULL);
+    qemu_aio_set_fd_handler(s->sock, NULL, NULL, NULL);
     closesocket(s->sock);
 }
 
