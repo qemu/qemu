@@ -639,12 +639,6 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
             iotlb |= phys_section_rom;
         }
     } else {
-        /* IO handlers are currently passed a physical address.
-           It would be nice to pass an offset from the base address
-           of that region.  This would avoid having to special case RAM,
-           and avoid full address decoding in every device.
-           We can't use the high bits of pd for this because
-           IO_MEM_ROMD uses these as a ram address.  */
         iotlb = section - phys_sections;
         iotlb += memory_region_section_addr(section, paddr);
     }
