@@ -254,7 +254,7 @@ static void test_wait_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 1 };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb, event_active_cb);
-    g_assert(aio_poll(ctx, false));
+    g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 1);
 
@@ -279,7 +279,7 @@ static void test_flush_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 10, .auto_set = true };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb, event_active_cb);
-    g_assert(aio_poll(ctx, false));
+    g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 10);
 
@@ -313,7 +313,7 @@ static void test_wait_event_notifier_noflush(void)
     /* Until there is an active descriptor, aio_poll may or may not call
      * event_ready_cb.  Still, it must not block.  */
     event_notifier_set(&data.e);
-    g_assert(!aio_poll(ctx, true));
+    g_assert(aio_poll(ctx, true));
     data.n = 0;
 
     /* An active event notifier forces aio_poll to look at EventNotifiers.  */
@@ -323,13 +323,13 @@ static void test_wait_event_notifier_noflush(void)
     event_notifier_set(&data.e);
     g_assert(aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 1);
-    g_assert(aio_poll(ctx, false));
+    g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 1);
 
     event_notifier_set(&data.e);
     g_assert(aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 2);
-    g_assert(aio_poll(ctx, false));
+    g_assert(!aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 2);
 
     event_notifier_set(&dummy.e);
