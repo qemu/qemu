@@ -158,7 +158,7 @@ static void utf8_string(void)
      * consider using overlong encoding \xC0\x80 for U+0000 ("modified
      * UTF-8").
      *
-     * Test cases are scraped from Markus Kuhn's UTF-8 decoder
+     * Most test cases are scraped from Markus Kuhn's UTF-8 decoder
      * capability and stress test at
      * http://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt
      */
@@ -256,11 +256,19 @@ static void utf8_string(void)
             "\xDF\xBF",
             "\"\\u07FF\"",
         },
-        /* 2.2.3  3 bytes U+FFFF */
+        /*
+         * 2.2.3  3 bytes U+FFFC
+         * The last possible sequence is actually U+FFFF.  But that's
+         * a noncharacter, and already covered by its own test case
+         * under 5.3.  Same for U+FFFE.  U+FFFD is the last character
+         * in the BMP, and covered under 2.3.  Because of U+FFFD's
+         * special role as replacement character, it's worth testing
+         * U+FFFC here.
+         */
         {
-            "\"\xEF\xBF\xBF\"",
-            "\xEF\xBF\xBF",
-            "\"\\uFFFF\"",
+            "\"\xEF\xBF\xBC\"",
+            "\xEF\xBF\xBC",
+            "\"\\uFFFC\"",
         },
         /* 2.2.4  4 bytes U+1FFFFF */
         {
@@ -303,10 +311,10 @@ static void utf8_string(void)
             "\"\\uFFFD\"",
         },
         {
-            /* last one in last plane: U+10FFFF */
-            "\"\xF4\x8F\xBF\xBF\"",
-            "\xF4\x8F\xBF\xBF",
-            "\"\\u43FF\\uFFFF\"", /* bug: want "\"\\uDBFF\\uDFFF\"" */
+            /* last one in last plane: U+10FFFD */
+            "\"\xF4\x8F\xBF\xBD\"",
+            "\xF4\x8F\xBF\xBD",
+            "\"\\u43FF\\uFFFF\"", /* bug: want "\"\\uDBFF\\uDFFD\"" */
         },
         {
             /* first one beyond Unicode range: U+110000 */
@@ -589,9 +597,14 @@ static void utf8_string(void)
             "\"\\u07FF\"",
         },
         {
-            /* \U+FFFF */
-            "\"\xF0\x8F\xBF\xBF\"",
-            "\xF0\x8F\xBF\xBF",   /* bug: not corrected */
+            /*
+             * \U+FFFC
+             * The actual maximum would be U+FFFF, but that's a
+             * noncharacter.  Testing U+FFFC seems more useful.  See
+             * also 2.2.3
+             */
+            "\"\xF0\x8F\xBF\xBC\"",
+            "\xF0\x8F\xBF\xBC",   /* bug: not corrected */
             "\"\\u03FF\\uFFFF\"", /* bug: want "\"\\uFFFF\"" */
         },
         {
@@ -736,6 +749,7 @@ static void utf8_string(void)
             "\"\\uDBFF\\uDFFF\"", /* bug: want "\"\\uFFFF\\uFFFF\"" */
         },
         /* 5.3  Other illegal code positions */
+        /* BMP noncharacters */
         {
             /* \U+FFFE */
             "\"\xEF\xBF\xBE\"",
@@ -747,6 +761,64 @@ static void utf8_string(void)
             "\"\xEF\xBF\xBF\"",
             "\xEF\xBF\xBF",     /* bug: not corrected */
             "\"\\uFFFF\"",      /* bug: not corrected */
+        },
+        {
+            /* U+FDD0 */
+            "\"\xEF\xB7\x90\"",
+            "\xEF\xB7\x90",     /* bug: not corrected */
+            "\"\\uFDD0\"",      /* bug: not corrected */
+        },
+        {
+            /* U+FDEF */
+            "\"\xEF\xB7\xAF\"",
+            "\xEF\xB7\xAF",     /* bug: not corrected */
+            "\"\\uFDEF\"",      /* bug: not corrected */
+        },
+        /* Plane 1 .. 16 noncharacters */
+        {
+            /* U+1FFFE U+1FFFF U+2FFFE U+2FFFF ... U+10FFFE U+10FFFF */
+            "\"\xF0\x9F\xBF\xBE\xF0\x9F\xBF\xBF"
+            "\xF0\xAF\xBF\xBE\xF0\xAF\xBF\xBF"
+            "\xF0\xBF\xBF\xBE\xF0\xBF\xBF\xBF"
+            "\xF1\x8F\xBF\xBE\xF1\x8F\xBF\xBF"
+            "\xF1\x9F\xBF\xBE\xF1\x9F\xBF\xBF"
+            "\xF1\xAF\xBF\xBE\xF1\xAF\xBF\xBF"
+            "\xF1\xBF\xBF\xBE\xF1\xBF\xBF\xBF"
+            "\xF2\x8F\xBF\xBE\xF2\x8F\xBF\xBF"
+            "\xF2\x9F\xBF\xBE\xF2\x9F\xBF\xBF"
+            "\xF2\xAF\xBF\xBE\xF2\xAF\xBF\xBF"
+            "\xF2\xBF\xBF\xBE\xF2\xBF\xBF\xBF"
+            "\xF3\x8F\xBF\xBE\xF3\x8F\xBF\xBF"
+            "\xF3\x9F\xBF\xBE\xF3\x9F\xBF\xBF"
+            "\xF3\xAF\xBF\xBE\xF3\xAF\xBF\xBF"
+            "\xF3\xBF\xBF\xBE\xF3\xBF\xBF\xBF"
+            "\xF4\x8F\xBF\xBE\xF4\x8F\xBF\xBF\"",
+            /* bug: not corrected */
+            "\xF0\x9F\xBF\xBE\xF0\x9F\xBF\xBF"
+            "\xF0\xAF\xBF\xBE\xF0\xAF\xBF\xBF"
+            "\xF0\xBF\xBF\xBE\xF0\xBF\xBF\xBF"
+            "\xF1\x8F\xBF\xBE\xF1\x8F\xBF\xBF"
+            "\xF1\x9F\xBF\xBE\xF1\x9F\xBF\xBF"
+            "\xF1\xAF\xBF\xBE\xF1\xAF\xBF\xBF"
+            "\xF1\xBF\xBF\xBE\xF1\xBF\xBF\xBF"
+            "\xF2\x8F\xBF\xBE\xF2\x8F\xBF\xBF"
+            "\xF2\x9F\xBF\xBE\xF2\x9F\xBF\xBF"
+            "\xF2\xAF\xBF\xBE\xF2\xAF\xBF\xBF"
+            "\xF2\xBF\xBF\xBE\xF2\xBF\xBF\xBF"
+            "\xF3\x8F\xBF\xBE\xF3\x8F\xBF\xBF"
+            "\xF3\x9F\xBF\xBE\xF3\x9F\xBF\xBF"
+            "\xF3\xAF\xBF\xBE\xF3\xAF\xBF\xBF"
+            "\xF3\xBF\xBF\xBE\xF3\xBF\xBF\xBF"
+            "\xF4\x8F\xBF\xBE\xF4\x8F\xBF\xBF",
+            /* bug: not corrected */
+            "\"\\u07FF\\uFFFF\\u07FF\\uFFFF\\u0BFF\\uFFFF\\u0BFF\\uFFFF"
+            "\\u0FFF\\uFFFF\\u0FFF\\uFFFF\\u13FF\\uFFFF\\u13FF\\uFFFF"
+            "\\u17FF\\uFFFF\\u17FF\\uFFFF\\u1BFF\\uFFFF\\u1BFF\\uFFFF"
+            "\\u1FFF\\uFFFF\\u1FFF\\uFFFF\\u23FF\\uFFFF\\u23FF\\uFFFF"
+            "\\u27FF\\uFFFF\\u27FF\\uFFFF\\u2BFF\\uFFFF\\u2BFF\\uFFFF"
+            "\\u2FFF\\uFFFF\\u2FFF\\uFFFF\\u33FF\\uFFFF\\u33FF\\uFFFF"
+            "\\u37FF\\uFFFF\\u37FF\\uFFFF\\u3BFF\\uFFFF\\u3BFF\\uFFFF"
+            "\\u3FFF\\uFFFF\\u3FFF\\uFFFF\\u43FF\\uFFFF\\u43FF\\uFFFF\"",
         },
         {}
     };
