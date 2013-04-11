@@ -442,6 +442,9 @@ int64_t pow2floor(int64_t value);
 int uleb128_encode_small(uint8_t *out, uint32_t n);
 int uleb128_decode_small(const uint8_t *in, uint32_t *n);
 
+/* unicode.c */
+int mod_utf8_codepoint(const char *s, size_t n, char **end);
+
 /*
  * Hexdump a buffer to a file. An optional string prefix is added to every line
  */
