@@ -76,5 +76,6 @@ endif
 util-obj-$(CONFIG_TRACE_DEFAULT) += default.o
 util-obj-$(CONFIG_TRACE_SIMPLE) += simple.o
 util-obj-$(CONFIG_TRACE_STDERR) += stderr.o
+util-obj-$(CONFIG_TRACE_FTRACE) += ftrace.o
 util-obj-y += control.o
 util-obj-y += generated-tracers.o
