@@ -866,6 +866,21 @@ MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
                                              hwaddr *xlat, hwaddr *len,
                                              bool is_write);
 
+/* address_space_access_valid: check for validity of accessing an address
+ * space range
+ *
+ * Check whether memory is assigned to the given address space range.
+ *
+ * For now, addr and len should be aligned to a page size.  This limitation
+ * will be lifted in the future.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @len: length of the area to be checked
+ * @is_write: indicates the transfer direction
+ */
+bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_write);
+
 /* address_space_map: map a physical memory region into a host virtual address
  *
  * May map a subset of the requested range, given by and returned in @plen.

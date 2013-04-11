@@ -2067,6 +2067,27 @@ static void cpu_notify_map_clients(void)
     }
 }
 
+bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_write)
+{
+    MemoryRegionSection *section;
+    hwaddr l, xlat;
+
+    while (len > 0) {
+        l = len;
+        section = address_space_translate(as, addr, &xlat, &l, is_write);
+        if (!memory_access_is_direct(section->mr, is_write)) {
+            l = memory_access_size(l, addr);
+            if (!memory_region_access_valid(section->mr, xlat, l, is_write)) {
+                return false;
+            }
+        }
+
+        len -= l;
+        addr += l;
+    }
+    return true;
+}
+
 /* Map a physical memory region into a host virtual address.
  * May map a subset of the requested range, given by and returned in *plen.
  * May return NULL if resources needed to perform the mapping are exhausted.
