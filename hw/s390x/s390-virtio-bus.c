@@ -149,17 +149,25 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
     return 0;
 }
 
-static int s390_virtio_net_init(VirtIOS390Device *dev)
+static int s390_virtio_net_init(VirtIOS390Device *s390_dev)
 {
-    VirtIODevice *vdev;
+    VirtIONetS390 *dev = VIRTIO_NET_S390(s390_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
 
-    vdev = virtio_net_init((DeviceState *)dev, &dev->nic, &dev->net,
-                           dev->host_features);
-    if (!vdev) {
+    virtio_net_set_config_size(&dev->vdev, s390_dev->host_features);
+    qdev_set_parent_bus(vdev, BUS(&s390_dev->bus));
+    if (qdev_init(vdev) < 0) {
         return -1;
     }
 
-    return s390_virtio_device_init(dev, vdev);
+    return s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
+}
+
+static void s390_virtio_net_instance_init(Object *obj)
+{
+    VirtIONetS390 *dev = VIRTIO_NET_S390(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_NET);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
 static int s390_virtio_blk_init(VirtIOS390Device *s390_dev)
@@ -425,9 +433,9 @@ static const VirtIOBindings virtio_s390_bindings = {
 };
 
 static Property s390_virtio_net_properties[] = {
-    DEFINE_NIC_PROPERTIES(VirtIOS390Device, nic),
+    DEFINE_NIC_PROPERTIES(VirtIONetS390, vdev.nic_conf),
     DEFINE_VIRTIO_NET_FEATURES(VirtIOS390Device, host_features),
-    DEFINE_VIRTIO_NET_PROPERTIES(VirtIOS390Device, net),
+    DEFINE_VIRTIO_NET_PROPERTIES(VirtIONetS390, vdev.net_conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -441,9 +449,10 @@ static void s390_virtio_net_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo s390_virtio_net = {
-    .name          = "virtio-net-s390",
+    .name          = TYPE_VIRTIO_NET_S390,
     .parent        = TYPE_VIRTIO_S390_DEVICE,
-    .instance_size = sizeof(VirtIOS390Device),
+    .instance_size = sizeof(VirtIONetS390),
+    .instance_init = s390_virtio_net_instance_init,
     .class_init    = s390_virtio_net_class_init,
 };
 
