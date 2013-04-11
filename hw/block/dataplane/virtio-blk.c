@@ -261,11 +261,6 @@ static int process_request(IOQueue *ioq, struct iovec iov[],
     }
 }
 
-static int flush_true(EventNotifier *e)
-{
-    return true;
-}
-
 static void handle_notify(EventNotifier *e)
 {
     VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
@@ -343,14 +338,6 @@ static void handle_notify(EventNotifier *e)
             exit(1);
         }
     }
-}
-
-static int flush_io(EventNotifier *e)
-{
-    VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
-                                           io_notifier);
-
-    return s->num_reqs > 0;
 }
 
 static void handle_io(EventNotifier *e)
@@ -485,7 +472,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         exit(1);
     }
     s->host_notifier = *virtio_queue_get_host_notifier(vq);
-    aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify, flush_true);
+    aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify, NULL);
 
     /* Set up ioqueue */
     ioq_init(&s->ioqueue, s->fd, REQ_MAX);
@@ -493,7 +480,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         ioq_put_iocb(&s->ioqueue, &s->requests[i].iocb);
     }
     s->io_notifier = *ioq_get_notifier(&s->ioqueue);
-    aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io, flush_io);
+    aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io, NULL);
 
     s->started = true;
     trace_virtio_blk_data_plane_start(s);
