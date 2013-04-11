@@ -4,7 +4,7 @@
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
- *  Markus Armbruster <armbru@redhat.com>,
+ *  Markus Armbruster <armbru@redhat.com>
  *
  * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
  * See the COPYING.LIB file in the top-level directory.
@@ -285,31 +285,31 @@ static void utf8_string(void)
         },
         /* 2.3  Other boundary conditions */
         {
-            /* U+D7FF */
+            /* last one before surrogate range: U+D7FF */
             "\"\xED\x9F\xBF\"",
             "\xED\x9F\xBF",
             "\"\\uD7FF\"",
         },
         {
-            /* U+E000 */
+            /* first one after surrogate range: U+E000 */
             "\"\xEE\x80\x80\"",
             "\xEE\x80\x80",
             "\"\\uE000\"",
         },
         {
-            /* U+FFFD */
+            /* last one in BMP: U+FFFD */
             "\"\xEF\xBF\xBD\"",
             "\xEF\xBF\xBD",
             "\"\\uFFFD\"",
         },
         {
-            /* U+10FFFF */
+            /* last one in last plane: U+10FFFF */
             "\"\xF4\x8F\xBF\xBF\"",
             "\xF4\x8F\xBF\xBF",
             "\"\\u43FF\\uFFFF\"", /* bug: want "\"\\uDBFF\\uDFFF\"" */
         },
         {
-            /* U+110000 */
+            /* first one beyond Unicode range: U+110000 */
             "\"\xF4\x90\x80\x80\"",
             "\xF4\x90\x80\x80",
             "\"\\u4400\\uFFFF\"", /* bug: want "\"\\uFFFF\"" */
@@ -462,8 +462,7 @@ static void utf8_string(void)
         },
         /* 3.3.4  5-byte sequence with last byte missing (U+0000) */
         {
-            /* invalid */
-            "\"\xF8\x80\x80\x80\"", /* bug: not corrected */
+            "\"\xF8\x80\x80\x80\"",
             NULL,                   /* bug: rejected */
             "\"\\u8000\\uFFFF\"",   /* bug: want "\"\\uFFFF\"" */
             "\xF8\x80\x80\x80",
@@ -570,7 +569,12 @@ static void utf8_string(void)
             "\"\\uC000\\uFFFF\\uFFFF\\uFFFF\"", /* bug: want "\"/\"" */
             "\xFC\x80\x80\x80\x80\xAF",
         },
-        /* 4.2  Maximum overlong sequences */
+        /*
+         * 4.2  Maximum overlong sequences
+         * Highest Unicode value that is still resulting in an
+         * overlong sequence if represented with the given number of
+         * bytes.  This is a boundary test for safe UTF-8 decoders.
+         */
         {
             /* \U+007F */
             "\"\xC1\xBF\"",
