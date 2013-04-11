@@ -1273,34 +1273,15 @@ void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features)
     n->config_size = config_size;
 }
 
-static VirtIODevice *virtio_net_common_init(DeviceState *dev, NICConf *conf,
-                                            virtio_net_conf *net,
-                                            uint32_t host_features,
-                                            VirtIONet **pn)
+static int virtio_net_device_init(VirtIODevice *vdev)
 {
-    VirtIONet *n = *pn;
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    int i, config_size = 0;
+    int i;
 
-    /*
-     * We have two cases here: the old virtio-net-pci device, and the
-     * refactored virtio-net.
-     */
-    if (n == NULL) {
-        /* virtio-net-pci */
-        for (i = 0; feature_sizes[i].flags != 0; i++) {
-            if (host_features & feature_sizes[i].flags) {
-                config_size = MAX(feature_sizes[i].end, config_size);
-            }
-        }
-        n = (VirtIONet *)virtio_common_init("virtio-net", VIRTIO_ID_NET,
-                                            config_size, sizeof(VirtIONet));
-        n->config_size = config_size;
-    } else {
-        /* virtio-net */
-        virtio_init(VIRTIO_DEVICE(n), "virtio-net", VIRTIO_ID_NET,
-                                                    n->config_size);
-    }
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIONet *n = VIRTIO_NET(vdev);
+
+    virtio_init(VIRTIO_DEVICE(n), "virtio-net", VIRTIO_ID_NET,
+                                  n->config_size);
 
     vdev->get_config = virtio_net_get_config;
     vdev->set_config = virtio_net_set_config;
@@ -1311,21 +1292,22 @@ static VirtIODevice *virtio_net_common_init(DeviceState *dev, NICConf *conf,
     vdev->set_status = virtio_net_set_status;
     vdev->guest_notifier_mask = virtio_net_guest_notifier_mask;
     vdev->guest_notifier_pending = virtio_net_guest_notifier_pending;
-    n->max_queues = MAX(conf->queues, 1);
+    n->max_queues = MAX(n->nic_conf.queues, 1);
     n->vqs = g_malloc0(sizeof(VirtIONetQueue) * n->max_queues);
     n->vqs[0].rx_vq = virtio_add_queue(vdev, 256, virtio_net_handle_rx);
     n->curr_queues = 1;
     n->vqs[0].n = n;
-    n->tx_timeout = net->txtimer;
+    n->tx_timeout = n->net_conf.txtimer;
 
-    if (net->tx && strcmp(net->tx, "timer") && strcmp(net->tx, "bh")) {
+    if (n->net_conf.tx && strcmp(n->net_conf.tx, "timer")
+                       && strcmp(n->net_conf.tx, "bh")) {
         error_report("virtio-net: "
                      "Unknown option tx=%s, valid options: \"timer\" \"bh\"",
-                     net->tx);
+                     n->net_conf.tx);
         error_report("Defaulting to \"bh\"");
     }
 
-    if (net->tx && !strcmp(net->tx, "timer")) {
+    if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
         n->vqs[0].tx_vq = virtio_add_queue(vdev, 256,
                                            virtio_net_handle_tx_timer);
         n->vqs[0].tx_timer = qemu_new_timer_ns(vm_clock, virtio_net_tx_timer,
@@ -1336,11 +1318,12 @@ static VirtIODevice *virtio_net_common_init(DeviceState *dev, NICConf *conf,
         n->vqs[0].tx_bh = qemu_bh_new(virtio_net_tx_bh, &n->vqs[0]);
     }
     n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
-    qemu_macaddr_default_if_unset(&conf->macaddr);
-    memcpy(&n->mac[0], &conf->macaddr, sizeof(n->mac));
+    qemu_macaddr_default_if_unset(&n->nic_conf.macaddr);
+    memcpy(&n->mac[0], &n->nic_conf.macaddr, sizeof(n->mac));
     n->status = VIRTIO_NET_S_LINK_UP;
 
-    n->nic = qemu_new_nic(&net_virtio_info, conf, object_get_typename(OBJECT(dev)), dev->id, n);
+    n->nic = qemu_new_nic(&net_virtio_info, &n->nic_conf,
+                          object_get_typename(OBJECT(qdev)), qdev->id, n);
     peer_test_vnet_hdr(n);
     if (peer_has_vnet_hdr(n)) {
         for (i = 0; i < n->max_queues; i++) {
@@ -1351,10 +1334,10 @@ static VirtIODevice *virtio_net_common_init(DeviceState *dev, NICConf *conf,
         n->host_hdr_len = 0;
     }
 
-    qemu_format_nic_info_str(qemu_get_queue(n->nic), conf->macaddr.a);
+    qemu_format_nic_info_str(qemu_get_queue(n->nic), n->nic_conf.macaddr.a);
 
     n->vqs[0].tx_waiting = 0;
-    n->tx_burst = net->txburst;
+    n->tx_burst = n->net_conf.txburst;
     virtio_net_set_mrg_rx_bufs(n, 0);
     n->promisc = 1; /* for compatibility */
 
@@ -1362,67 +1345,11 @@ static VirtIODevice *virtio_net_common_init(DeviceState *dev, NICConf *conf,
 
     n->vlans = g_malloc0(MAX_VLAN >> 3);
 
-    n->qdev = dev;
-    register_savevm(dev, "virtio-net", -1, VIRTIO_NET_VM_VERSION,
+    n->qdev = qdev;
+    register_savevm(qdev, "virtio-net", -1, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
 
-    add_boot_device_path(conf->bootindex, dev, "/ethernet-phy@0");
-
-    return vdev;
-}
-
-VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
-                              virtio_net_conf *net, uint32_t host_features)
-{
-    VirtIONet *n = NULL;
-    return virtio_net_common_init(dev, conf, net, host_features, &n);
-}
-
-void virtio_net_exit(VirtIODevice *vdev)
-{
-    VirtIONet *n = VIRTIO_NET(vdev);
-    int i;
-
-    /* This will stop vhost backend if appropriate. */
-    virtio_net_set_status(vdev, 0);
-
-    unregister_savevm(n->qdev, "virtio-net", n);
-
-    g_free(n->mac_table.macs);
-    g_free(n->vlans);
-
-    for (i = 0; i < n->max_queues; i++) {
-        VirtIONetQueue *q = &n->vqs[i];
-        NetClientState *nc = qemu_get_subqueue(n->nic, i);
-
-        qemu_purge_queued_packets(nc);
-
-        if (q->tx_timer) {
-            qemu_del_timer(q->tx_timer);
-            qemu_free_timer(q->tx_timer);
-        } else {
-            qemu_bh_delete(q->tx_bh);
-        }
-    }
-
-    g_free(n->vqs);
-    qemu_del_nic(n->nic);
-    virtio_cleanup(vdev);
-}
-
-static int virtio_net_device_init(VirtIODevice *vdev)
-{
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIONet *n = VIRTIO_NET(vdev);
-
-    /*
-     * Initially, the new VirtIONet device will have a config size =
-     * sizeof(struct config), because we can't get host_features here.
-     */
-    if (virtio_net_common_init(qdev, &(n->nic_conf),
-                               &(n->net_conf), 0, &n) == NULL) {
-        return -1;
-    }
+    add_boot_device_path(n->nic_conf.bootindex, qdev, "/ethernet-phy@0");
     return 0;
 }
 
