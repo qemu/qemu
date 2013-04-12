@@ -889,7 +889,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options)
     }
 
     bs->open_flags &= ~BDRV_O_NO_BACKING;
-    if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
+    if (qdict_haskey(options, "file.filename")) {
+        backing_filename[0] = '\0';
+    } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
         QDECREF(options);
         return 0;
     }
