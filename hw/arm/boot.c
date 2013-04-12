@@ -128,7 +128,7 @@ static void set_kernel_args(const struct arm_boot_info *info)
         int cmdline_size;
 
         cmdline_size = strlen(info->kernel_cmdline);
-        cpu_physical_memory_write(p + 8, (void *)info->kernel_cmdline,
+        cpu_physical_memory_write(p + 8, info->kernel_cmdline,
                                   cmdline_size + 1);
         cmdline_size = (cmdline_size >> 2) + 1;
         WRITE_WORD(p, cmdline_size + 2);
@@ -219,7 +219,7 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     }
     s = info->kernel_cmdline;
     if (s) {
-        cpu_physical_memory_write(p, (void *)s, strlen(s) + 1);
+        cpu_physical_memory_write(p, s, strlen(s) + 1);
     } else {
         WRITE_WORD(p, 0);
     }

@@ -151,7 +151,7 @@ static inline void pxa2xx_dma_descriptor_fetch(
     if ((s->chan[ch].descr & DDADR_BREN) && (s->chan[ch].state & DCSR_CMPST))
         daddr += 32;
 
-    cpu_physical_memory_read(daddr, (uint8_t *) desc, 16);
+    cpu_physical_memory_read(daddr, desc, 16);
     s->chan[ch].descr = desc[DDADR];
     s->chan[ch].src = desc[DSADR];
     s->chan[ch].dest = desc[DTADR];

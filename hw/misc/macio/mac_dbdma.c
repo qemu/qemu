@@ -192,7 +192,7 @@ static void dbdma_cmdptr_load(DBDMA_channel *ch)
     DBDMA_DPRINTF("dbdma_cmdptr_load 0x%08x\n",
                   ch->regs[DBDMA_CMDPTR_LO]);
     cpu_physical_memory_read(ch->regs[DBDMA_CMDPTR_LO],
-                             (uint8_t*)&ch->current, sizeof(dbdma_cmd));
+                             &ch->current, sizeof(dbdma_cmd));
 }
 
 static void dbdma_cmdptr_save(DBDMA_channel *ch)
@@ -203,7 +203,7 @@ static void dbdma_cmdptr_save(DBDMA_channel *ch)
                   le16_to_cpu(ch->current.xfer_status),
                   le16_to_cpu(ch->current.res_count));
     cpu_physical_memory_write(ch->regs[DBDMA_CMDPTR_LO],
-                              (uint8_t*)&ch->current, sizeof(dbdma_cmd));
+                              &ch->current, sizeof(dbdma_cmd));
 }
 
 static void kill_channel(DBDMA_channel *ch)
@@ -454,7 +454,7 @@ static void load_word(DBDMA_channel *ch, int key, uint32_t addr,
         return;
     }
 
-    cpu_physical_memory_read(addr, (uint8_t*)&val, len);
+    cpu_physical_memory_read(addr, &val, len);
 
     if (len == 2)
         val = (val << 16) | (current->cmd_dep & 0x0000ffff);
@@ -499,7 +499,7 @@ static void store_word(DBDMA_channel *ch, int key, uint32_t addr,
     else if (len == 1)
         val >>= 24;
 
-    cpu_physical_memory_write(addr, (uint8_t*)&val, len);
+    cpu_physical_memory_write(addr, &val, len);
 
     if (conditional_wait(ch))
         goto wait;

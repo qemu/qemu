@@ -970,7 +970,7 @@ static void n800_gpmc_init(struct n800_s *s)
             (4 << 0);		/* BASEADDRESS */
 
     cpu_physical_memory_write(0x6800a078,		/* GPMC_CONFIG7_0 */
-                    (void *) &config7, sizeof(config7));
+                              &config7, sizeof(config7));
 }
 
 /* Setup sequence done by the bootloader */
@@ -982,7 +982,7 @@ static void n8x0_boot_init(void *opaque)
     /* PRCM setup */
 #define omap_writel(addr, val)	\
     buf = (val);			\
-    cpu_physical_memory_write(addr, (void *) &buf, sizeof(buf))
+    cpu_physical_memory_write(addr, &buf, sizeof(buf))
 
     omap_writel(0x48008060, 0x41);		/* PRCM_CLKSRC_CTRL */
     omap_writel(0x48008070, 1);			/* PRCM_CLKOUT_CTRL */

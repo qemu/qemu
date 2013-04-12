@@ -80,7 +80,7 @@ static int microblaze_load_dtb(hwaddr addr,
         }
     }
 
-    cpu_physical_memory_write(addr, (void *)fdt, fdt_size);
+    cpu_physical_memory_write(addr, fdt, fdt_size);
 #else
     /* We lack libfdt so we cannot manipulate the fdt. Just pass on the blob
        to the kernel.  */

@@ -197,7 +197,7 @@ static void stream_desc_load(struct Stream *s, hwaddr addr)
 {
     struct SDesc *d = &s->desc;
 
-    cpu_physical_memory_read(addr, (void *) d, sizeof *d);
+    cpu_physical_memory_read(addr, d, sizeof *d);
 
     /* Convert from LE into host endianness.  */
     d->buffer_address = le64_to_cpu(d->buffer_address);
@@ -215,7 +215,7 @@ static void stream_desc_store(struct Stream *s, hwaddr addr)
     d->nxtdesc = cpu_to_le64(d->nxtdesc);
     d->control = cpu_to_le32(d->control);
     d->status = cpu_to_le32(d->status);
-    cpu_physical_memory_write(addr, (void *) d, sizeof *d);
+    cpu_physical_memory_write(addr, d, sizeof *d);
 }
 
 static void stream_update_irq(struct Stream *s)

@@ -108,7 +108,7 @@ typedef struct {
 
 static void mcf_fec_read_bd(mcf_fec_bd *bd, uint32_t addr)
 {
-    cpu_physical_memory_read(addr, (uint8_t *)bd, sizeof(*bd));
+    cpu_physical_memory_read(addr, bd, sizeof(*bd));
     be16_to_cpus(&bd->flags);
     be16_to_cpus(&bd->length);
     be32_to_cpus(&bd->data);
@@ -120,7 +120,7 @@ static void mcf_fec_write_bd(mcf_fec_bd *bd, uint32_t addr)
     tmp.flags = cpu_to_be16(bd->flags);
     tmp.length = cpu_to_be16(bd->length);
     tmp.data = cpu_to_be32(bd->data);
-    cpu_physical_memory_write(addr, (uint8_t *)&tmp, sizeof(tmp));
+    cpu_physical_memory_write(addr, &tmp, sizeof(tmp));
 }
 
 static void mcf_fec_update(mcf_fec_state *s)
