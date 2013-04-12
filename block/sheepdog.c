@@ -1126,7 +1126,21 @@ static int write_object(int fd, char *buf, uint64_t oid, int copies,
                              create, cache_flags);
 }
 
-static int sd_open(BlockDriverState *bs, const char *filename,
+/* TODO Convert to fine grained options */
+static QemuOptsList runtime_opts = {
+    .name = "sheepdog",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "filename",
+            .type = QEMU_OPT_STRING,
+            .help = "URL to the sheepdog image",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int sd_open(BlockDriverState *bs, const char *dummy,
                    QDict *options, int flags)
 {
     int ret, fd;
@@ -1135,6 +1149,20 @@ static int sd_open(BlockDriverState *bs, const char *filename,
     char vdi[SD_MAX_VDI_LEN], tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
     char *buf = NULL;
+    QemuOpts *opts;
+    Error *local_err = NULL;
+    const char *filename;
+
+    opts = qemu_opts_create_nofail(&runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    filename = qemu_opt_get(opts, "filename");
 
     QLIST_INIT(&s->inflight_aio_head);
     QLIST_INIT(&s->pending_aio_head);
@@ -1199,6 +1227,7 @@ static int sd_open(BlockDriverState *bs, const char *filename,
     bs->total_sectors = s->inode.vdi_size / SECTOR_SIZE;
     pstrcpy(s->name, sizeof(s->name), vdi);
     qemu_co_mutex_init(&s->lock);
+    qemu_opts_del(opts);
     g_free(buf);
     return 0;
 out:
@@ -1206,6 +1235,7 @@ out:
     if (s->fd >= 0) {
         closesocket(s->fd);
     }
+    qemu_opts_del(opts);
     g_free(buf);
     return ret;
 }
