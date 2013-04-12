@@ -196,6 +196,12 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     }
 }
 
+static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
+{
+    pc_sysfw_flash_vs_rom_bug_compatible = true;
+    pc_q35_init(args);
+}
+
 static QEMUMachine pc_q35_machine_v1_5 = {
     .name = "pc-q35-1.5",
     .alias = "q35",
@@ -208,7 +214,7 @@ static QEMUMachine pc_q35_machine_v1_5 = {
 static QEMUMachine pc_q35_machine_v1_4 = {
     .name = "pc-q35-1.4",
     .desc = "Standard PC (Q35 + ICH9, 2009)",
-    .init = pc_q35_init,
+    .init = pc_q35_init_1_4,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_4,

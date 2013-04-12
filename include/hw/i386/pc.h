@@ -168,6 +168,7 @@ static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)
 }
 
 /* pc_sysfw.c */
+extern bool pc_sysfw_flash_vs_rom_bug_compatible;
 void pc_system_firmware_init(MemoryRegion *rom_memory);
 
 /* e820 types */
@@ -233,6 +234,10 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .driver   = "virtio-net-pci",\
             .property = "romfile",\
             .value    = "pxe-virtio.rom",\
+        },{\
+            .driver   = "pc-sysfw",\
+            .property = "rom_only",\
+            .value    = stringify(0),\
         }
 
 #endif
