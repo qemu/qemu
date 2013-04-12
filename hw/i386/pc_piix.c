@@ -245,7 +245,8 @@ static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
 static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
 {
     disable_kvm_pv_eoi();
-    pc_init_pci_1_3(args);
+    enable_compat_apic_id_mode();
+    pc_init_pci(args);
 }
 
 /* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
