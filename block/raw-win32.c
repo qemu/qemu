@@ -234,8 +234,7 @@ static QemuOptsList raw_runtime_opts = {
     },
 };
 
-static int raw_open(BlockDriverState *bs, const char *unused,
-                    QDict *options, int flags)
+static int raw_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int access_flags;
@@ -531,8 +530,7 @@ static int hdev_probe_device(const char *filename)
     return 0;
 }
 
-static int hdev_open(BlockDriverState *bs, const char *dummy,
-                     QDict *options, int flags)
+static int hdev_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int access_flags, create_flags;

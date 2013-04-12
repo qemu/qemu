@@ -608,8 +608,7 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     return ret;
 }
 
-static int ssh_file_open(BlockDriverState *bs, const char *filename,
-                         QDict *options, int bdrv_flags)
+static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags)
 {
     BDRVSSHState *s = bs->opaque;
     int ret;

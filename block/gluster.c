@@ -296,8 +296,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int qemu_gluster_open(BlockDriverState *bs, const char *dummy,
-    QDict *options, int bdrv_flags)
+static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
+                             int bdrv_flags)
 {
     BDRVGlusterState *s = bs->opaque;
     int open_flags = O_BINARY;

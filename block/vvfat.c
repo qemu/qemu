@@ -1065,8 +1065,7 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     qdict_put(options, "rw", qbool_from_int(rw));
 }
 
-static int vvfat_open(BlockDriverState *bs, const char* dummy,
-                      QDict *options, int flags)
+static int vvfat_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVVVFATState *s = bs->opaque;
     int cyls, heads, secs;

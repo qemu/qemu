@@ -1140,8 +1140,7 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int sd_open(BlockDriverState *bs, const char *dummy,
-                   QDict *options, int flags)
+static int sd_open(BlockDriverState *bs, QDict *options, int flags)
 {
     int ret, fd;
     uint32_t vid = 0;

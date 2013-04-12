@@ -1021,8 +1021,7 @@ static QemuOptsList runtime_opts = {
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
  */
-static int iscsi_open(BlockDriverState *bs, const char *dummy,
-                      QDict *options, int flags)
+static int iscsi_open(BlockDriverState *bs, QDict *options, int flags)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = NULL;
@@ -1237,7 +1236,7 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options)
 
     bs_options = qdict_new();
     qdict_put(bs_options, "filename", qstring_from_str(filename));
-    ret = iscsi_open(&bs, NULL, bs_options, 0);
+    ret = iscsi_open(&bs, bs_options, 0);
     QDECREF(bs_options);
 
     if (ret != 0) {

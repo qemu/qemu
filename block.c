@@ -722,7 +722,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     if (drv->bdrv_file_open) {
         assert(file == NULL);
         assert(drv->bdrv_parse_filename || filename != NULL);
-        ret = drv->bdrv_file_open(bs, filename, options, open_flags);
+        ret = drv->bdrv_file_open(bs, options, open_flags);
     } else {
         if (file == NULL) {
             qerror_report(ERROR_CLASS_GENERIC_ERROR, "Can't use '%s' as a "
@@ -826,6 +826,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
             ret = -EINVAL;
             goto fail;
         }
+        qdict_del(options, "filename");
     } else if (!drv->bdrv_parse_filename && !filename) {
         qerror_report(ERROR_CLASS_GENERIC_ERROR,
                       "The '%s' block driver requires a file name",
@@ -837,11 +838,6 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     ret = bdrv_open_common(bs, NULL, options, flags, drv);
     if (ret < 0) {
         goto fail;
-    }
-
-    /* TODO Remove once all protocols know the filename option */
-    if (qdict_haskey(options, "filename")) {
-        qdict_del(options, "filename");
     }
 
     /* Check if any unknown options were used */
