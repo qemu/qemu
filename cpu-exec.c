@@ -215,6 +215,14 @@ int cpu_exec(CPUArchState *env)
 
     cpu_single_env = env;
 
+    /* As long as cpu_single_env is null, up to the assignment just above,
+     * requests by other threads to exit the execution loop are expected to
+     * be issued using the exit_request global. We must make sure that our
+     * evaluation of the global value is performed past the cpu_single_env
+     * value transition point, which requires a memory barrier as well as
+     * an instruction scheduling constraint on modern architectures.  */
+    smp_mb();
+
     if (unlikely(exit_request)) {
         cpu->exit_request = 1;
     }

@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 #include <windows.h>
+#include <mmsystem.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -67,27 +68,19 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
     return TRUE;
 }
 
+static TIMECAPS mm_tc;
+
+static void os_undo_timer_resolution(void)
+{
+    timeEndPeriod(mm_tc.wPeriodMin);
+}
+
 void os_setup_early_signal_handling(void)
 {
-    /* Note: cpu_interrupt() is currently not SMP safe, so we force
-       QEMU to run on a single CPU */
-    HANDLE h;
-    DWORD_PTR mask, smask;
-    int i;
-
     SetConsoleCtrlHandler(qemu_ctrl_handler, TRUE);
-
-    h = GetCurrentProcess();
-    if (GetProcessAffinityMask(h, &mask, &smask)) {
-        for(i = 0; i < 32; i++) {
-            if (mask & (1 << i))
-                break;
-        }
-        if (i != 32) {
-            mask = 1 << i;
-            SetProcessAffinityMask(h, mask);
-        }
-    }
+    timeGetDevCaps(&mm_tc, sizeof(mm_tc));
+    timeBeginPeriod(mm_tc.wPeriodMin);
+    atexit(os_undo_timer_resolution);
 }
 
 /* Look for support files in the same directory as the executable.  */
