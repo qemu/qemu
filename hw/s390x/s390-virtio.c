@@ -240,7 +240,7 @@ static void s390_init(QEMUMachineInitArgs *args)
     }
     my_ram_size = my_ram_size >> (20 + shift) << (20 + shift);
 
-    /* lets propagate the changed ram size into the global variable. */
+    /* let's propagate the changed ram size into the global variable. */
     ram_size = my_ram_size;
 
     /* get a BUS */

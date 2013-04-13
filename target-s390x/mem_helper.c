@@ -344,7 +344,7 @@ uint64_t HELPER(srst)(CPUS390XState *env, uint64_t r0, uint64_t end,
     env->retxl = str;
 
     /* Lest we fail to service interrupts in a timely manner, limit the
-       amount of work we're willing to do.  For now, lets cap at 8k.  */
+       amount of work we're willing to do.  For now, let's cap at 8k.  */
     for (len = 0; len < 0x2000; ++len) {
         if (str + len == end) {
             /* Character not found.  R1 & R2 are unmodified.  */
@@ -375,7 +375,7 @@ uint64_t HELPER(clst)(CPUS390XState *env, uint64_t c, uint64_t s1, uint64_t s2)
     s2 = fix_address(env, s2);
 
     /* Lest we fail to service interrupts in a timely manner, limit the
-       amount of work we're willing to do.  For now, lets cap at 8k.  */
+       amount of work we're willing to do.  For now, let's cap at 8k.  */
     for (len = 0; len < 0x2000; ++len) {
         uint8_t v1 = cpu_ldub_data(env, s1 + len);
         uint8_t v2 = cpu_ldub_data(env, s2 + len);
@@ -424,7 +424,7 @@ uint64_t HELPER(mvst)(CPUS390XState *env, uint64_t c, uint64_t d, uint64_t s)
     s = fix_address(env, s);
 
     /* Lest we fail to service interrupts in a timely manner, limit the
-       amount of work we're willing to do.  For now, lets cap at 8k.  */
+       amount of work we're willing to do.  For now, let's cap at 8k.  */
     for (len = 0; len < 0x2000; ++len) {
         uint8_t v = cpu_ldub_data(env, s + len);
         cpu_stb_data(env, d + len, v);
@@ -708,7 +708,7 @@ uint64_t HELPER(cksm)(CPUS390XState *env, uint64_t r1,
     uint64_t cksm = (uint32_t)r1;
 
     /* Lest we fail to service interrupts in a timely manner, limit the
-       amount of work we're willing to do.  For now, lets cap at 8k.  */
+       amount of work we're willing to do.  For now, let's cap at 8k.  */
     max_len = (src_len > 0x2000 ? 0x2000 : src_len);
 
     /* Process full words as available.  */
