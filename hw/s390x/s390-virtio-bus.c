@@ -531,11 +531,19 @@ static const TypeInfo s390_virtio_serial = {
     .class_init    = s390_virtio_serial_class_init,
 };
 
+static Property s390_virtio_rng_properties[] = {
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOS390Device, host_features),
+    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORNGS390, vdev.conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void s390_virtio_rng_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOS390DeviceClass *k = VIRTIO_S390_DEVICE_CLASS(klass);
 
     k->init = s390_virtio_rng_init;
+    dc->props = s390_virtio_rng_properties;
 }
 
 static const TypeInfo s390_virtio_rng = {
