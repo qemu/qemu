@@ -33,6 +33,7 @@
 #include "virtio-pci.h"
 #include "qemu/range.h"
 #include "hw/virtio/virtio-bus.h"
+#include "qapi/visitor.h"
 
 /* from Linux's linux/virtio_pci.h */
 
@@ -1344,6 +1345,32 @@ static const TypeInfo virtio_scsi_pci_info = {
 
 /* virtio-balloon-pci */
 
+static void balloon_pci_stats_get_all(Object *obj, struct Visitor *v,
+                                      void *opaque, const char *name,
+                                      Error **errp)
+{
+    VirtIOBalloonPCI *dev = opaque;
+    object_property_get(OBJECT(&dev->vdev), v, "guest-stats", errp);
+}
+
+static void balloon_pci_stats_get_poll_interval(Object *obj, struct Visitor *v,
+                                                void *opaque, const char *name,
+                                                Error **errp)
+{
+    VirtIOBalloonPCI *dev = opaque;
+    object_property_get(OBJECT(&dev->vdev), v, "guest-stats-polling-interval",
+                        errp);
+}
+
+static void balloon_pci_stats_set_poll_interval(Object *obj, struct Visitor *v,
+                                                void *opaque, const char *name,
+                                                Error **errp)
+{
+    VirtIOBalloonPCI *dev = opaque;
+    object_property_set(OBJECT(&dev->vdev), v, "guest-stats-polling-interval",
+                        errp);
+}
+
 static Property virtio_balloon_pci_properties[] = {
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
     DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
@@ -1385,6 +1412,15 @@ static void virtio_balloon_pci_instance_init(Object *obj)
     VirtIOBalloonPCI *dev = VIRTIO_BALLOON_PCI(obj);
     object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BALLOON);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    object_property_add(obj, "guest-stats", "guest statistics",
+                        balloon_pci_stats_get_all, NULL, NULL, dev,
+                        NULL);
+
+    object_property_add(obj, "guest-stats-polling-interval", "int",
+                        balloon_pci_stats_get_poll_interval,
+                        balloon_pci_stats_set_poll_interval,
+                        NULL, dev, NULL);
 }
 
 static const TypeInfo virtio_balloon_pci_info = {
