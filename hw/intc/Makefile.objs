@@ -7,7 +7,7 @@ common-obj-$(CONFIG_ETRAXFS) += etraxfs_pic.o
 common-obj-$(CONFIG_IMX) += imx_avic.o
 common-obj-$(CONFIG_LM32) += lm32_pic.o
 common-obj-$(CONFIG_REALVIEW) += realview_gic.o
-common-obj-$(CONFIG_SLAVIO) += sbi.o slavio_intctl.o sun4c_intctl.o
+common-obj-$(CONFIG_SLAVIO) += slavio_intctl.o
 common-obj-$(CONFIG_IOAPIC) += ioapic_common.o
 common-obj-$(CONFIG_ARM_GIC) += arm_gic_common.o
 

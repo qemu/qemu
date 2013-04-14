@@ -292,19 +292,6 @@ static const sparc_def_t sparc_defs[] = {
     },
 #else
     {
-        .name = "Fujitsu MB86900",
-        .iu_version = 0x00 << 24, /* Impl 0, ver 0 */
-        .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
-        .mmu_version = 0x00 << 24, /* Impl 0, ver 0 */
-        .mmu_bm = 0x00004000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
-        .mmu_sfsr_mask = 0xffffffff,
-        .mmu_trcr_mask = 0xffffffff,
-        .nwindows = 7,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_FSMULD,
-    },
-    {
         .name = "Fujitsu MB86904",
         .iu_version = 0x04 << 24, /* Impl 0, ver 4 */
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
@@ -329,48 +316,6 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_trcr_mask = 0xffffffff,
         .nwindows = 8,
         .features = CPU_DEFAULT_FEATURES,
-    },
-    {
-        .name = "LSI L64811",
-        .iu_version = 0x10 << 24, /* Impl 1, ver 0 */
-        .fpu_version = 1 << 17, /* FPU version 1 (LSI L64814) */
-        .mmu_version = 0x10 << 24,
-        .mmu_bm = 0x00004000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
-        .mmu_sfsr_mask = 0xffffffff,
-        .mmu_trcr_mask = 0xffffffff,
-        .nwindows = 8,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT |
-        CPU_FEATURE_FSMULD,
-    },
-    {
-        .name = "Cypress CY7C601",
-        .iu_version = 0x11 << 24, /* Impl 1, ver 1 */
-        .fpu_version = 3 << 17, /* FPU version 3 (Cypress CY7C602) */
-        .mmu_version = 0x10 << 24,
-        .mmu_bm = 0x00004000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
-        .mmu_sfsr_mask = 0xffffffff,
-        .mmu_trcr_mask = 0xffffffff,
-        .nwindows = 8,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT |
-        CPU_FEATURE_FSMULD,
-    },
-    {
-        .name = "Cypress CY7C611",
-        .iu_version = 0x13 << 24, /* Impl 1, ver 3 */
-        .fpu_version = 3 << 17, /* FPU version 3 (Cypress CY7C602) */
-        .mmu_version = 0x10 << 24,
-        .mmu_bm = 0x00004000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
-        .mmu_sfsr_mask = 0xffffffff,
-        .mmu_trcr_mask = 0xffffffff,
-        .nwindows = 8,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT |
-        CPU_FEATURE_FSMULD,
     },
     {
         .name = "TI MicroSparc I",
@@ -491,73 +436,6 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
         .mxcc_version = 0x00000104,
-        .nwindows = 8,
-        .features = CPU_DEFAULT_FEATURES,
-    },
-    {
-        .name = "Ross RT625",
-        .iu_version = 0x1e000000,
-        .fpu_version = 1 << 17,
-        .mmu_version = 0x1e000000,
-        .mmu_bm = 0x00004000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
-        .mmu_sfsr_mask = 0xffffffff,
-        .mmu_trcr_mask = 0xffffffff,
-        .nwindows = 8,
-        .features = CPU_DEFAULT_FEATURES,
-    },
-    {
-        .name = "Ross RT620",
-        .iu_version = 0x1f000000,
-        .fpu_version = 1 << 17,
-        .mmu_version = 0x1f000000,
-        .mmu_bm = 0x00004000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
-        .mmu_sfsr_mask = 0xffffffff,
-        .mmu_trcr_mask = 0xffffffff,
-        .nwindows = 8,
-        .features = CPU_DEFAULT_FEATURES,
-    },
-    {
-        .name = "BIT B5010",
-        .iu_version = 0x20000000,
-        .fpu_version = 0 << 17, /* B5010/B5110/B5120/B5210 */
-        .mmu_version = 0x20000000,
-        .mmu_bm = 0x00004000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
-        .mmu_sfsr_mask = 0xffffffff,
-        .mmu_trcr_mask = 0xffffffff,
-        .nwindows = 8,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT |
-        CPU_FEATURE_FSMULD,
-    },
-    {
-        .name = "Matsushita MN10501",
-        .iu_version = 0x50000000,
-        .fpu_version = 0 << 17,
-        .mmu_version = 0x50000000,
-        .mmu_bm = 0x00004000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
-        .mmu_sfsr_mask = 0xffffffff,
-        .mmu_trcr_mask = 0xffffffff,
-        .nwindows = 8,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_MUL | CPU_FEATURE_FSQRT |
-        CPU_FEATURE_FSMULD,
-    },
-    {
-        .name = "Weitek W8601",
-        .iu_version = 0x90 << 24, /* Impl 9, ver 0 */
-        .fpu_version = 3 << 17, /* FPU version 3 (Weitek WTL3170/2) */
-        .mmu_version = 0x10 << 24,
-        .mmu_bm = 0x00004000,
-        .mmu_ctpr_mask = 0x007ffff0,
-        .mmu_cxr_mask = 0x0000003f,
-        .mmu_sfsr_mask = 0xffffffff,
-        .mmu_trcr_mask = 0xffffffff,
         .nwindows = 8,
         .features = CPU_DEFAULT_FEATURES,
     },
