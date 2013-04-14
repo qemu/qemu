@@ -24,19 +24,7 @@ gcov-files-test-string-input-visitor-y = qapi/string-input-visitor.c
 check-unit-y += tests/test-string-output-visitor$(EXESUF)
 gcov-files-test-string-output-visitor-y = qapi/string-output-visitor.c
 check-unit-y += tests/test-coroutine$(EXESUF)
-ifeq ($(CONFIG_WIN32),y)
-gcov-files-test-coroutine-y = coroutine-win32.c
-else
-ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
-gcov-files-test-coroutine-y = coroutine-ucontext.c
-else
-ifeq ($(CONFIG_SIGALTSTACK_COROUTINE),y)
-gcov-files-test-coroutine-y = coroutine-sigaltstack.c
-else
-gcov-files-test-coroutine-y = coroutine-gthread.c
-endif
-endif
-endif
+gcov-files-test-coroutine-y = coroutine-$(CONFIG_COROUTINE_BACKEND).c
 check-unit-y += tests/test-visitor-serialization$(EXESUF)
 check-unit-y += tests/test-iov$(EXESUF)
 gcov-files-test-iov-y = util/iov.c
