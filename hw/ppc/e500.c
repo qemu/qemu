@@ -472,6 +472,38 @@ static void ppce500_cpu_reset(void *opaque)
     mmubooke_create_initial_mapping(env);
 }
 
+static qemu_irq *ppce500_init_mpic(PPCE500Params *params, MemoryRegion *ccsr,
+                                   qemu_irq **irqs)
+{
+    qemu_irq *mpic;
+    DeviceState *dev;
+    SysBusDevice *s;
+    int i, j, k;
+
+    mpic = g_new(qemu_irq, 256);
+    dev = qdev_create(NULL, "openpic");
+    qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
+    qdev_prop_set_uint32(dev, "model", params->mpic_version);
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+
+    k = 0;
+    for (i = 0; i < smp_cpus; i++) {
+        for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
+            sysbus_connect_irq(s, k++, irqs[i][j]);
+        }
+    }
+
+    for (i = 0; i < 256; i++) {
+        mpic[i] = qdev_get_gpio_in(dev, i);
+    }
+
+    memory_region_add_subregion(ccsr, MPC8544_MPIC_REGS_OFFSET,
+                                s->mmio[0].memory);
+
+    return mpic;
+}
+
 void ppce500_init(PPCE500Params *params)
 {
     MemoryRegion *address_space_mem = get_system_memory();
@@ -487,7 +519,7 @@ void ppce500_init(PPCE500Params *params)
     target_ulong initrd_base = 0;
     target_long initrd_size = 0;
     target_ulong cur_base = 0;
-    int i = 0, j, k;
+    int i;
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq **irqs, *mpic;
     DeviceState *dev;
@@ -563,27 +595,7 @@ void ppce500_init(PPCE500Params *params)
     memory_region_add_subregion(address_space_mem, MPC8544_CCSRBAR_BASE,
                                 ccsr_addr_space);
 
-    /* MPIC */
-    mpic = g_new(qemu_irq, 256);
-    dev = qdev_create(NULL, "openpic");
-    qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
-    qdev_prop_set_uint32(dev, "model", params->mpic_version);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
-
-    k = 0;
-    for (i = 0; i < smp_cpus; i++) {
-        for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
-            sysbus_connect_irq(s, k++, irqs[i][j]);
-        }
-    }
-
-    for (i = 0; i < 256; i++) {
-        mpic[i] = qdev_get_gpio_in(dev, i);
-    }
-
-    memory_region_add_subregion(ccsr_addr_space, MPC8544_MPIC_REGS_OFFSET,
-                                s->mmio[0].memory);
+    mpic = ppce500_init_mpic(params, ccsr_addr_space, irqs);
 
     /* Serial */
     if (serial_hds[0]) {
