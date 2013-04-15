@@ -180,6 +180,19 @@ static void device_realize(DeviceState *dev, Error **err)
     }
 }
 
+static void device_unrealize(DeviceState *dev, Error **errp)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (dc->exit) {
+        int rc = dc->exit(dev);
+        if (rc < 0) {
+            error_setg(errp, "Device exit failed.");
+            return;
+        }
+    }
+}
+
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version)
 {
@@ -692,6 +705,9 @@ static void device_set_realized(Object *obj, bool value, Error **err)
             device_reset(dev);
         }
     } else if (!value && dev->realized) {
+        if (qdev_get_vmsd(dev)) {
+            vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
+        }
         if (dc->unrealize) {
             dc->unrealize(dev, &local_err);
         }
@@ -758,7 +774,6 @@ static void device_class_base_init(ObjectClass *class, void *data)
 static void device_unparent(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
     BusState *bus;
 
     while (dev->num_child_bus) {
@@ -766,12 +781,7 @@ static void device_unparent(Object *obj)
         qbus_free(bus);
     }
     if (dev->realized) {
-        if (qdev_get_vmsd(dev)) {
-            vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
-        }
-        if (dc->exit) {
-            dc->exit(dev);
-        }
+        object_property_set_bool(obj, false, "realized", NULL);
     }
     if (dev->parent_bus) {
         bus_remove_child(dev->parent_bus, dev);
@@ -786,6 +796,7 @@ static void device_class_init(ObjectClass *class, void *data)
 
     class->unparent = device_unparent;
     dc->realize = device_realize;
+    dc->unrealize = device_unrealize;
 }
 
 void device_reset(DeviceState *dev)
