@@ -3308,6 +3308,20 @@ if compile_prog "" "" ; then
     int128=yes
 fi
 
+########################################
+# check if getauxval is available.
+
+getauxval=no
+cat > $TMPC << EOF
+#include <sys/auxv.h>
+int main(void) {
+  return getauxval(AT_HWCAP) == 0;
+}
+EOF
+if compile_prog "" "" ; then
+    getauxval=yes
+fi
+
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
@@ -3856,6 +3870,10 @@ fi
 
 if test "$int128" = "yes" ; then
   echo "CONFIG_INT128=y" >> $config_host_mak
+fi
+
+if test "$getauxval" = "yes" ; then
+  echo "CONFIG_GETAUXVAL=y" >> $config_host_mak
 fi
 
 if test "$glusterfs" = "yes" ; then
