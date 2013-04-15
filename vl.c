@@ -4127,6 +4127,10 @@ int main(int argc, char **argv, char **envp)
 
     configure_accelerator();
 
+    if (!qtest_enabled() && qtest_chrdev) {
+        qtest_init();
+    }
+
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
         kernel_filename = qemu_opt_get(machine_opts, "kernel");
