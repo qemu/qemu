@@ -1775,6 +1775,7 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, int is_right)
     if (is_right) {
         tcg_gen_shri_tl(cpu_cc_src2, cpu_T[0], mask - 1);
         tcg_gen_shri_tl(cpu_cc_dst, cpu_T[0], mask);
+        tcg_gen_andi_tl(cpu_cc_dst, cpu_cc_dst, 1);
     } else {
         tcg_gen_shri_tl(cpu_cc_src2, cpu_T[0], mask);
         tcg_gen_andi_tl(cpu_cc_dst, cpu_T[0], 1);
