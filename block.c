@@ -743,7 +743,6 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
             ret = -EINVAL;
             goto free_and_fail;
         }
-        assert(file != NULL);
         bs->file = file;
         ret = drv->bdrv_open(bs, options, open_flags);
     }
