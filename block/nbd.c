@@ -339,7 +339,7 @@ static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
         ret = qemu_co_sendv(s->sock, qiov->iov, qiov->niov,
                             offset, request->len);
         if (ret != request->len) {
-            return -EIO;
+            rc = -EIO;
         }
     }
     qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, NULL,
