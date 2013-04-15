@@ -406,6 +406,9 @@ static int nbd_establish_connection(BlockDriverState *bs)
         sock = unix_socket_outgoing(qemu_opt_get(s->socket_opts, "path"));
     } else {
         sock = tcp_socket_outgoing_opts(s->socket_opts);
+        if (sock >= 0) {
+            socket_set_nodelay(sock);
+        }
     }
 
     /* Failed to establish connection */
