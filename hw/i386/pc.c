@@ -52,6 +52,7 @@
 #include "sysemu/arch_init.h"
 #include "qemu/bitmap.h"
 #include "qemu/config-file.h"
+#include "hw/acpi/acpi.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ

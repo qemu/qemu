@@ -20,7 +20,7 @@
 
 #include "qemu-common.h"
 #include "ui/console.h"
-#include "hw/arm/devices.h"
+#include "hw/devices.h"
 #include "vga_int.h"
 #include "ui/pixel_ops.h"
 

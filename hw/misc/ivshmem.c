@@ -24,7 +24,7 @@
 #include "migration/migration.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/event_notifier.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 
 #include <sys/mman.h>
 #include <sys/types.h>

@@ -11,7 +11,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "hw/hw.h"
-#include "hw/arm/devices.h"
+#include "hw/devices.h"
 #include "hw/block/flash.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"

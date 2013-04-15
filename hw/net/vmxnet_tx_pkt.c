@@ -15,6 +15,7 @@
  *
  */
 
+#include "hw/hw.h"
 #include "vmxnet_tx_pkt.h"
 #include "net/eth.h"
 #include "qemu-common.h"
@@ -22,7 +23,6 @@
 #include "net/checksum.h"
 #include "net/tap.h"
 #include "net/net.h"
-#include "exec/cpu-common.h"
 
 enum {
     VMXNET_TX_PKT_VHDR_FRAG = 0,

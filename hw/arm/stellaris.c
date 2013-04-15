@@ -9,8 +9,8 @@
 
 #include "hw/sysbus.h"
 #include "hw/ssi.h"
-#include "hw/arm.h"
-#include "hw/arm/devices.h"
+#include "hw/arm/arm.h"
+#include "hw/devices.h"
 #include "qemu/timer.h"
 #include "hw/i2c/i2c.h"
 #include "net/net.h"

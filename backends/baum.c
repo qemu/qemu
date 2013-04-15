@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
 #include <brlapi.h>

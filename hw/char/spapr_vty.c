@@ -1,5 +1,5 @@
 #include "hw/qdev.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 

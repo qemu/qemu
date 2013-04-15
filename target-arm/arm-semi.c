@@ -34,7 +34,7 @@
 #else
 #include "qemu-common.h"
 #include "exec/gdbstub.h"
-#include "hw/arm.h"
+#include "hw/arm/arm.h"
 #endif
 
 #define TARGET_SYS_OPEN        0x01

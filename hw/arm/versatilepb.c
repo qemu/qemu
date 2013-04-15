@@ -8,8 +8,8 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm.h"
-#include "hw/arm/devices.h"
+#include "hw/arm/arm.h"
+#include "hw/devices.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"

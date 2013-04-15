@@ -8,7 +8,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "ccid.h"

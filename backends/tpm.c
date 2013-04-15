@@ -12,9 +12,11 @@
  * Based on backends/rng.c by Anthony Liguori
  */
 
-#include "backends/tpm.h"
-#include "tpm/tpm_int.h"
+#include "sysemu/tpm_backend.h"
 #include "qapi/qmp/qerror.h"
+#include "sysemu/tpm.h"
+#include "qemu/thread.h"
+#include "sysemu/tpm_backend_int.h"
 
 enum TpmType tpm_backend_get_type(TPMBackend *s)
 {
@@ -135,6 +137,40 @@ static void tpm_backend_instance_init(Object *obj)
                              tpm_backend_prop_get_opened,
                              tpm_backend_prop_set_opened,
                              NULL);
+}
+
+void tpm_backend_thread_deliver_request(TPMBackendThread *tbt)
+{
+   g_thread_pool_push(tbt->pool, (gpointer)TPM_BACKEND_CMD_PROCESS_CMD, NULL);
+}
+
+void tpm_backend_thread_create(TPMBackendThread *tbt,
+                               GFunc func, gpointer user_data)
+{
+    if (!tbt->pool) {
+        tbt->pool = g_thread_pool_new(func, user_data, 1, TRUE, NULL);
+        g_thread_pool_push(tbt->pool, (gpointer)TPM_BACKEND_CMD_INIT, NULL);
+    }
+}
+
+void tpm_backend_thread_end(TPMBackendThread *tbt)
+{
+    if (tbt->pool) {
+        g_thread_pool_push(tbt->pool, (gpointer)TPM_BACKEND_CMD_END, NULL);
+        g_thread_pool_free(tbt->pool, FALSE, TRUE);
+        tbt->pool = NULL;
+    }
+}
+
+void tpm_backend_thread_tpm_reset(TPMBackendThread *tbt,
+                                  GFunc func, gpointer user_data)
+{
+    if (!tbt->pool) {
+        tpm_backend_thread_create(tbt, func, user_data);
+    } else {
+        g_thread_pool_push(tbt->pool, (gpointer)TPM_BACKEND_CMD_TPM_RESET,
+                           NULL);
+    }
 }
 
 static const TypeInfo tpm_backend_info = {

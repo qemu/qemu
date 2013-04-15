@@ -12,8 +12,8 @@
 #ifndef _QEMU_VIRTIO_RNG_H
 #define _QEMU_VIRTIO_RNG_H
 
-#include "qemu/rng.h"
-#include "qemu/rng-random.h"
+#include "sysemu/rng.h"
+#include "sysemu/rng-random.h"
 
 /* The Virtio ID for the virtio rng device */
 #define VIRTIO_ID_RNG    4

@@ -16,7 +16,7 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm.h"
+#include "hw/arm/arm.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"

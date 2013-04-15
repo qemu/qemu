@@ -27,7 +27,6 @@
 #include "qemu/int128.h"
 
 typedef struct MemoryRegionOps MemoryRegionOps;
-typedef struct MemoryRegion MemoryRegion;
 typedef struct MemoryRegionPortio MemoryRegionPortio;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
 
@@ -157,8 +156,6 @@ struct MemoryRegionPortio {
 
 #define PORTIO_END_OF_LIST() { }
 
-typedef struct AddressSpace AddressSpace;
-
 /**
  * AddressSpace: describes a mapping of addresses to #MemoryRegion objects
  */
@@ -172,8 +169,6 @@ struct AddressSpace {
     struct AddressSpaceDispatch *dispatch;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
 };
-
-typedef struct MemoryRegionSection MemoryRegionSection;
 
 /**
  * MemoryRegionSection: describes a fragment of a #MemoryRegion

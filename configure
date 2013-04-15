@@ -545,6 +545,7 @@ Haiku)
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
+  QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers $QEMU_INCLUDES"
 ;;
 esac
 
@@ -2404,6 +2405,15 @@ EOF
 fi
 
 ##########################################
+# TPM passthrough is only on x86 Linux
+
+if test "$targetos" = Linux && test "$cpu" = i386 -o "$cpu" = x86_64; then
+  tpm_passthrough=$tpm
+else
+  tpm_passthrough=no
+fi
+
+##########################################
 # adjust virtio-blk-data-plane based on linux-aio
 
 if test "$virtio_blk_data_plane" = "yes" -a \
@@ -3518,6 +3528,7 @@ echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
 echo "libssh2 support   $libssh2"
+echo "TPM passthrough   $tpm_passthrough"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3900,6 +3911,14 @@ bsd)
   echo "HOST_USB=stub" >> $config_host_mak
 ;;
 esac
+
+# TPM passthrough support?
+if test "$tpm" = "yes"; then
+  echo 'CONFIG_TPM=$(CONFIG_SOFTMMU)' >> $config_host_mak
+  if test "$tpm_passthrough" = "yes"; then
+    echo "CONFIG_TPM_PASSTHROUGH=y" >> $config_host_mak
+  fi
+fi
 
 # use default implementation for tracing backend-specific routines
 trace_default=yes
@@ -4318,10 +4337,6 @@ else
 fi
 includes="-I\$(SRC_PATH)/tcg $includes"
 
-if test "$linux" = "yes" ; then
-  includes="-I\$(SRC_PATH)/linux-headers $includes"
-fi
-
 for i in $ARCH $TARGET_BASE_ARCH ; do
   case "$i" in
   alpha)
@@ -4429,12 +4444,6 @@ if test "$gprof" = "yes" ; then
   if test "$target_softmmu" = "yes" ; then
     ldflags="-p $ldflags"
     echo "GPROF_CFLAGS=-p" >> $config_target_mak
-  fi
-fi
-
-if test "$tpm" = "yes"; then
-  if test "$target_softmmu" = "yes" ; then
-    echo "CONFIG_TPM=y" >> $config_host_mak
   fi
 fi
 

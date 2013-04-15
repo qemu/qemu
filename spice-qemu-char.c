@@ -1,7 +1,7 @@
 #include "config-host.h"
 #include "trace.h"
 #include "ui/qemu-spice.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include <spice.h>
 #include <spice-experimental.h>
 #include <spice/protocol.h>

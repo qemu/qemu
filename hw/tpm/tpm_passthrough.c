@@ -27,12 +27,12 @@
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "qemu/sockets.h"
-#include "backends/tpm.h"
+#include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
+#include "sysemu/tpm_backend_int.h"
 #include "tpm_tis.h"
-#include "tpm_backend.h"
 
 /* #define DEBUG_TPM */
 
@@ -47,6 +47,8 @@
 #define TYPE_TPM_PASSTHROUGH "tpm-passthrough"
 #define TPM_PASSTHROUGH(obj) \
     OBJECT_CHECK(TPMPassthruState, (obj), TYPE_TPM_PASSTHROUGH)
+
+static const TPMDriverOps tpm_passthrough_driver;
 
 /* data structures */
 typedef struct TPMPassthruThreadParams {
@@ -94,6 +96,20 @@ static uint32_t tpm_passthrough_get_size_from_buffer(const uint8_t *buf)
     struct tpm_resp_hdr *resp = (struct tpm_resp_hdr *)buf;
 
     return be32_to_cpu(resp->len);
+}
+
+/*
+ * Write an error message in the given output buffer.
+ */
+static void tpm_write_fatal_error_response(uint8_t *out, uint32_t out_len)
+{
+    if (out_len >= sizeof(struct tpm_resp_hdr)) {
+        struct tpm_resp_hdr *resp = (struct tpm_resp_hdr *)out;
+
+        resp->tag = cpu_to_be16(TPM_TAG_RSP_COMMAND);
+        resp->len = cpu_to_be32(sizeof(struct tpm_resp_hdr));
+        resp->errcode = cpu_to_be32(TPM_FAIL);
+    }
 }
 
 static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
@@ -512,7 +528,7 @@ static void tpm_passthrough_destroy(TPMBackend *tb)
     g_free(tpm_pt->tpm_dev);
 }
 
-const TPMDriverOps tpm_passthrough_driver = {
+static const TPMDriverOps tpm_passthrough_driver = {
     .type                     = TPM_TYPE_PASSTHROUGH,
     .desc                     = tpm_passthrough_create_desc,
     .create                   = tpm_passthrough_create,

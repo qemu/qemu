@@ -18,7 +18,7 @@
  */
 
 #include "qemu-common.h"
-#include "bt/bt.h"
+#include "sysemu/bt.h"
 #include "qemu/main-loop.h"
 
 #ifndef _WIN32

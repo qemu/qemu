@@ -23,7 +23,7 @@
 #include "hw/usb.h"
 #include "hw/arm/omap.h"
 #include "hw/irq.h"
-#include "hw/arm/devices.h"
+#include "hw/devices.h"
 #include "hw/sysbus.h"
 
 typedef struct TUSBState {

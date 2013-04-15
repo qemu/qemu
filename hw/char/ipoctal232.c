@@ -10,7 +10,7 @@
 
 #include "ipack.h"
 #include "qemu/bitops.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 
 /* #define DEBUG_IPOCTAL */
 

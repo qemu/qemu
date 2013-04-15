@@ -24,7 +24,7 @@
 #include "hw/hw.h"
 #include "sysemu/blockdev.h"
 #include "hw/ssi.h"
-#include "hw/arm/devices.h"
+#include "hw/devices.h"
 
 #ifdef M25P80_ERR_DEBUG
 #define DB_PRINT(...) do { \

@@ -25,7 +25,7 @@
  */
 
 #include "hw/hw.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "hw/isa/isa.h"
 #include "hw/i386/pc.h"
 
