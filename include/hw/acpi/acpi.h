@@ -19,6 +19,12 @@
  * <http://www.gnu.org/licenses/>.
  */
 
+#include "qapi/error.h"
+#include "qemu/typedefs.h"
+#include "qemu/notify.h"
+#include "qemu/option.h"
+#include "exec/memory.h"
+
 /* from linux include/acpi/actype.h */
 /* Default ACPI register widths */
 
