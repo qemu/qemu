@@ -385,28 +385,6 @@ Note: CPUs' indexes are obtained with the 'query-cpus' command.
 EQMP
 
     {
-        .name       = "query-cpu-max",
-        .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_input_query_cpu_max,
-    },
-
-SQMP
-query-cpu-max
--------------
-
-Get the maximum CPUs supported by the machine being currently
-emulated.
-
-Returns json-int.
-
-Example:
-
--> { "execute": "query-cpu-max" }
-<- { "return": 255 }
-
-EQMP
-
-    {
         .name       = "memsave",
         .args_type  = "val:l,size:i,filename:s,cpu:i?",
         .mhandler.cmd_new = qmp_marshal_input_memsave,

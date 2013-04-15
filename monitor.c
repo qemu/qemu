@@ -2765,13 +2765,6 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.cmd = hmp_info_tpm,
     },
     {
-        .name       = "cpu_max",
-        .args_type  = "",
-        .params     = "",
-        .help       = "Get maximum number of VCPUs supported by machine",
-        .mhandler.cmd = hmp_query_cpu_max,
-    },
-    {
         .name       = NULL,
     },
 };

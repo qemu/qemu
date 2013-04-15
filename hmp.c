@@ -750,14 +750,6 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
     g_free(data);
 }
 
-void hmp_query_cpu_max(Monitor *mon, const QDict *qdict)
-{
-    int cpu_max;
-
-    cpu_max = qmp_query_cpu_max(NULL);
-    monitor_printf(mon, "Maximum number of CPUs is %d\n", cpu_max);
-}
-
 static void hmp_cont_cb(void *opaque, int err)
 {
     if (!err) {

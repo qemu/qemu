@@ -662,11 +662,6 @@ StatusInfo *qmp_query_status(Error **errp)
     return info;
 }
 
-int64_t qmp_query_cpu_max(Error **errp)
-{
-    return current_machine->max_cpus;
-}
-
 /***********************************************************/
 /* real time host monotonic timer */
 
@@ -1617,6 +1612,7 @@ MachineInfoList *qmp_query_machines(Error **errp)
         }
 
         info->name = g_strdup(m->name);
+        info->cpu_max = !m->max_cpus ? 1 : m->max_cpus;
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;
