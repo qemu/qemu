@@ -1425,12 +1425,8 @@ static int img_convert(int argc, char **argv)
             }
             assert (remainder == 0);
 
-            if (n < cluster_sectors) {
-                memset(buf + n * 512, 0, cluster_size - n * 512);
-            }
-            if (!buffer_is_zero(buf, cluster_size)) {
-                ret = bdrv_write_compressed(out_bs, sector_num, buf,
-                                            cluster_sectors);
+            if (!buffer_is_zero(buf, n * BDRV_SECTOR_SIZE)) {
+                ret = bdrv_write_compressed(out_bs, sector_num, buf, n);
                 if (ret != 0) {
                     error_report("error while compressing sector %" PRId64
                                  ": %s", sector_num, strerror(-ret));
