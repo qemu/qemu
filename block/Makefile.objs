@@ -13,6 +13,7 @@ block-obj-$(CONFIG_LIBISCSI) += iscsi.o
 block-obj-$(CONFIG_CURL) += curl.o
 block-obj-$(CONFIG_RBD) += rbd.o
 block-obj-$(CONFIG_GLUSTERFS) += gluster.o
+block-obj-$(CONFIG_LIBSSH2) += ssh.o
 endif
 
 common-obj-y += stream.o

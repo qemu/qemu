@@ -175,7 +175,8 @@ static void coroutine_fn yield_until_fd_readable(int fd)
     qemu_coroutine_yield();
 }
 
-static ssize_t socket_writev_buffer(void *opaque, struct iovec *iov, int iovcnt)
+static ssize_t socket_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
+                                    int64_t pos)
 {
     QEMUFileSocket *s = opaque;
     ssize_t len;
@@ -457,6 +458,21 @@ fail:
     return NULL;
 }
 
+static ssize_t block_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
+                                   int64_t pos)
+{
+    int ret;
+    QEMUIOVector qiov;
+
+    qemu_iovec_init_external(&qiov, iov, iovcnt);
+    ret = bdrv_writev_vmstate(opaque, &qiov, pos);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return qiov.size;
+}
+
 static int block_put_buffer(void *opaque, const uint8_t *buf,
                            int64_t pos, int size)
 {
@@ -480,8 +496,9 @@ static const QEMUFileOps bdrv_read_ops = {
 };
 
 static const QEMUFileOps bdrv_write_ops = {
-    .put_buffer = block_put_buffer,
-    .close =      bdrv_fclose
+    .put_buffer     = block_put_buffer,
+    .writev_buffer  = block_writev_buffer,
+    .close          = bdrv_fclose
 };
 
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
@@ -535,7 +552,7 @@ static void qemu_fflush(QEMUFile *f)
 
     if (f->ops->writev_buffer) {
         if (f->iovcnt > 0) {
-            ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt);
+            ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt, f->pos);
         }
     } else {
         if (f->buf_index > 0) {

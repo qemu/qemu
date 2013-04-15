@@ -1652,8 +1652,8 @@ static void dump_refcounts(BlockDriverState *bs)
 }
 #endif
 
-static int qcow2_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
-                              int64_t pos, int size)
+static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
+                              int64_t pos)
 {
     BDRVQcowState *s = bs->opaque;
     int growable = bs->growable;
@@ -1661,7 +1661,7 @@ static int qcow2_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 
     BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_SAVE);
     bs->growable = 1;
-    ret = bdrv_pwrite(bs, qcow2_vm_state_offset(s) + pos, buf, size);
+    ret = bdrv_pwritev(bs, qcow2_vm_state_offset(s) + pos, qiov);
     bs->growable = growable;
 
     return ret;

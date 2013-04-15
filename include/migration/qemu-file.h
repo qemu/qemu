@@ -55,7 +55,7 @@ typedef int (QEMUFileGetFD)(void *opaque);
  * This function writes an iovec to file.
  */
 typedef ssize_t (QEMUFileWritevBufferFunc)(void *opaque, struct iovec *iov,
-                                           int iovcnt);
+                                           int iovcnt, int64_t pos);
 
 typedef struct QEMUFileOps {
     QEMUFilePutBufferFunc *put_buffer;

@@ -61,10 +61,23 @@ $QEMU_IO -c "read -pP 0xa 0 $size" $TEST_IMG | _filter_qemu_io
 echo
 echo "unaligned pwrite"
 $QEMU_IO -c 'write -pP 0xab 66 42' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'write -pP 0xac 512 288' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'write -pP 0xad 800 224' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'write -pP 0xae 66000 128k' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'write -pP 0xaf 256k 42' $TEST_IMG | _filter_qemu_io
 
 echo
 echo "verify pattern"
+$QEMU_IO -c 'read -pP 0xa 0 66' $TEST_IMG | _filter_qemu_io
 $QEMU_IO -c 'read -pP 0xab 66 42' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'read -pP 0xa 108 404' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'read -pP 0xac 512 288' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'read -pP 0xad 800 224' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'read -pP 0xa 1k 64976' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'read -pP 0xae 66000 128k' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'read -pP 0xa 197072 65072' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'read -pP 0xaf 256k 42' $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c 'read -pP 0xa 262186 470' $TEST_IMG | _filter_qemu_io
 
 # success, all done
 echo "*** done"
