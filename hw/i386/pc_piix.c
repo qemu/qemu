@@ -43,6 +43,7 @@
 #include "hw/xen/xen.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "hw/acpi/acpi.h"
 #include "cpu.h"
 #ifdef CONFIG_XEN
 #  include <xen/hvm/hvm_info_table.h>
