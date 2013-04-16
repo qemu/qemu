@@ -319,7 +319,7 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
 
     DB_PRINT("offset = %#x, len = %d\n", offset, len);
     if ((s->pi->flags & capa_to_assert) != capa_to_assert) {
-        hw_error("m25p80: %dk erase size not supported by device\n", len);
+        hw_error("m25p80: %d erase size not supported by device\n", len);
     }
 
     if (!s->write_enable) {
@@ -349,8 +349,8 @@ void flash_write8(Flash *s, uint64_t addr, uint8_t data)
     }
 
     if ((prev ^ data) & data) {
-        DB_PRINT("programming zero to one! addr=%lx  %x -> %x\n",
-                  addr, prev, data);
+        DB_PRINT("programming zero to one! addr=%" PRIx64 "  %" PRIx8
+                 " -> %" PRIx8 "\n", addr, prev, data);
     }
 
     if (s->pi->flags & WR_1) {
@@ -538,15 +538,16 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
     switch (s->state) {
 
     case STATE_PAGE_PROGRAM:
-        DB_PRINT("page program cur_addr=%lx data=%x\n", s->cur_addr,
-                 (uint8_t)tx);
+        DB_PRINT("page program cur_addr=%#" PRIx64 " data=%" PRIx8 "\n",
+                 s->cur_addr, (uint8_t)tx);
         flash_write8(s, s->cur_addr, (uint8_t)tx);
         s->cur_addr++;
         break;
 
     case STATE_READ:
         r = s->storage[s->cur_addr];
-        DB_PRINT("READ 0x%lx=%x\n", s->cur_addr, r);
+        DB_PRINT("READ 0x%" PRIx64 "=%" PRIx8 "\n", s->cur_addr,
+                 (uint8_t)r);
         s->cur_addr = (s->cur_addr + 1) % s->size;
         break;
 
