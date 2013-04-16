@@ -606,6 +606,7 @@ static int m25p80_init(SSISlave *ss)
             return 1;
         }
     } else {
+        DB_PRINT_L(0, "No BDRV - binding to RAM\n");
         memset(s->storage, 0xFF, s->size);
     }
 
