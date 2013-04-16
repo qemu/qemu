@@ -19,6 +19,12 @@ seems to have been used for an in-tree build. You can fix this by running \
 endif
 endif
 
+CONFIG_SOFTMMU := $(if $(filter %-softmmu,$(TARGET_DIRS)),y)
+CONFIG_USER_ONLY := $(if $(filter %-user,$(TARGET_DIRS)),y)
+CONFIG_ALL=y
+-include config-all-devices.mak
+-include config-all-disas.mak
+
 include $(SRC_PATH)/rules.mak
 config-host.mak: $(SRC_PATH)/configure
 	@echo $@ is out-of-date, running configure
@@ -106,12 +112,6 @@ endif
 
 defconfig:
 	rm -f config-all-devices.mak $(SUBDIR_DEVICES_MAK)
-
--include config-all-devices.mak
--include config-all-disas.mak
-CONFIG_SOFTMMU := $(if $(filter %-softmmu,$(TARGET_DIRS)),y)
-CONFIG_USER_ONLY := $(if $(filter %-user,$(TARGET_DIRS)),y)
-CONFIG_ALL=y
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/Makefile.objs
