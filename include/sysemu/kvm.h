@@ -250,8 +250,8 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
 uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
                                       uint32_t index, int reg);
 void kvm_cpu_synchronize_state(CPUArchState *env);
-void kvm_cpu_synchronize_post_reset(CPUArchState *env);
-void kvm_cpu_synchronize_post_init(CPUArchState *env);
+void kvm_cpu_synchronize_post_reset(CPUState *cpu);
+void kvm_cpu_synchronize_post_init(CPUState *cpu);
 
 /* generic hooks - to be moved/refactored once there are more users */
 
@@ -262,17 +262,17 @@ static inline void cpu_synchronize_state(CPUArchState *env)
     }
 }
 
-static inline void cpu_synchronize_post_reset(CPUArchState *env)
+static inline void cpu_synchronize_post_reset(CPUState *cpu)
 {
     if (kvm_enabled()) {
-        kvm_cpu_synchronize_post_reset(env);
+        kvm_cpu_synchronize_post_reset(cpu);
     }
 }
 
-static inline void cpu_synchronize_post_init(CPUArchState *env)
+static inline void cpu_synchronize_post_init(CPUState *cpu)
 {
     if (kvm_enabled()) {
-        kvm_cpu_synchronize_post_init(env);
+        kvm_cpu_synchronize_post_init(cpu);
     }
 }
 

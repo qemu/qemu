@@ -41,11 +41,11 @@ void kvm_cpu_synchronize_state(CPUArchState *env)
 {
 }
 
-void kvm_cpu_synchronize_post_reset(CPUArchState *env)
+void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 {
 }
 
-void kvm_cpu_synchronize_post_init(CPUArchState *env)
+void kvm_cpu_synchronize_post_init(CPUState *cpu)
 {
 }
 
