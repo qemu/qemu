@@ -1576,8 +1576,9 @@ void address_space_init(AddressSpace *as, MemoryRegion *root)
     as->ioeventfds = NULL;
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->name = NULL;
-    memory_region_transaction_commit();
     address_space_init_dispatch(as);
+    memory_region_update_pending |= root->enabled;
+    memory_region_transaction_commit();
 }
 
 void address_space_destroy(AddressSpace *as)
