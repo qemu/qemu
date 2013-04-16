@@ -99,7 +99,7 @@ static void process_incoming_migration_co(void *opaque)
     qemu_fclose(f);
     if (ret < 0) {
         fprintf(stderr, "load of migration failed\n");
-        exit(0);
+        exit(EXIT_FAILURE);
     }
     qemu_announce_self();
     DPRINTF("successfully loaded vm state\n");
