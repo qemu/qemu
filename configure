@@ -226,6 +226,7 @@ trace_file="trace"
 spice=""
 rbd=""
 smartcard_nss=""
+libusb=""
 usb_redir=""
 glx=""
 zlib="yes"
@@ -890,6 +891,10 @@ for opt do
   ;;
   --enable-smartcard-nss) smartcard_nss="yes"
   ;;
+  --disable-libusb) libusb="no"
+  ;;
+  --enable-libusb) libusb="yes"
+  ;;
   --disable-usb-redir) usb_redir="no"
   ;;
   --enable-usb-redir) usb_redir="yes"
@@ -1175,6 +1180,8 @@ echo "  --disable-libiscsi       disable iscsi support"
 echo "  --enable-libiscsi        enable iscsi support"
 echo "  --disable-smartcard-nss  disable smartcard nss support"
 echo "  --enable-smartcard-nss   enable smartcard nss support"
+echo "  --disable-libusb         disable libusb (for usb passthrough)"
+echo "  --enable-libusb          enable libusb (for usb passthrough)"
 echo "  --disable-usb-redir      disable usb network redirection support"
 echo "  --enable-usb-redir       enable usb network redirection support"
 echo "  --disable-guest-agent    disable building of the QEMU Guest Agent"
@@ -3005,6 +3012,23 @@ EOF
     fi
 fi
 
+# check for libusb
+if test "$libusb" != "no" ; then
+    if $pkg_config libusb-1.0 >/dev/null 2>&1 ; then
+        libusb="yes"
+	usb="libusb"
+        libusb_cflags=$($pkg_config --cflags libusb-1.0 2>/dev/null)
+        libusb_libs=$($pkg_config --libs libusb-1.0 2>/dev/null)
+        QEMU_CFLAGS="$QEMU_CFLAGS $libusb_cflags"
+        libs_softmmu="$libs_softmmu $libusb_libs"
+    else
+        if test "$libusb" = "yes"; then
+            feature_not_found "libusb"
+        fi
+        libusb="no"
+    fi
+fi
+
 # check for usbredirparser for usb network redirection support
 if test "$usb_redir" != "no" ; then
     if $pkg_config --atleast-version=0.6 libusbredirparser-0.5 >/dev/null 2>&1 ; then
@@ -3516,6 +3540,7 @@ echo "spice support     $spice ($spice_protocol_version/$spice_server_version)"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
+echo "libusb            $libusb"
 echo "usb net redir     $usb_redir"
 echo "GLX support       $glx"
 echo "libiscsi support  $libiscsi"
@@ -3823,6 +3848,10 @@ if test "$smartcard_nss" = "yes" ; then
   echo "libcacard_cflags=$libcacard_cflags" >> $config_host_mak
 fi
 
+if test "$libusb" = "yes" ; then
+  echo "CONFIG_USB_LIBUSB=y" >> $config_host_mak
+fi
+
 if test "$usb_redir" = "yes" ; then
   echo "CONFIG_USB_REDIR=y" >> $config_host_mak
 fi
@@ -3906,6 +3935,13 @@ linux)
 ;;
 bsd)
   echo "HOST_USB=bsd" >> $config_host_mak
+;;
+libusb)
+  if test "$linux" = "yes"; then
+    echo "HOST_USB=libusb linux legacy" >> $config_host_mak
+  else
+    echo "HOST_USB=libusb legacy" >> $config_host_mak
+  fi
 ;;
 *)
   echo "HOST_USB=stub" >> $config_host_mak
