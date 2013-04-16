@@ -32,6 +32,11 @@
 
 #define D(x)
 
+#define TYPE_XILINX_AXI_DMA "xlnx.axi-dma"
+
+#define XILINX_AXI_DMA(obj) \
+     OBJECT_CHECK(XilinxAXIDMA, (obj), TYPE_XILINX_AXI_DMA)
+
 #define R_DMACR             (0x00 / 4)
 #define R_DMASR             (0x04 / 4)
 #define R_CURDESC           (0x08 / 4)
@@ -355,7 +360,7 @@ static void stream_process_s2mem(struct Stream *s,
 static void
 axidma_push(StreamSlave *obj, unsigned char *buf, size_t len, uint32_t *app)
 {
-    XilinxAXIDMA *d = FROM_SYSBUS(typeof(*d), SYS_BUS_DEVICE(obj));
+    XilinxAXIDMA *d = XILINX_AXI_DMA(obj);
     struct Stream *s = &d->streams[1];
 
     if (!app) {
@@ -461,7 +466,7 @@ static const MemoryRegionOps axidma_ops = {
 
 static int xilinx_axidma_init(SysBusDevice *dev)
 {
-    XilinxAXIDMA *s = FROM_SYSBUS(typeof(*s), dev);
+    XilinxAXIDMA *s = XILINX_AXI_DMA(dev);
     int i;
 
     sysbus_init_irq(dev, &s->streams[0].irq);
@@ -483,7 +488,7 @@ static int xilinx_axidma_init(SysBusDevice *dev)
 
 static void xilinx_axidma_initfn(Object *obj)
 {
-    XilinxAXIDMA *s = FROM_SYSBUS(typeof(*s), SYS_BUS_DEVICE(obj));
+    XilinxAXIDMA *s = XILINX_AXI_DMA(obj);
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
                              (Object **) &s->tx_dev, NULL);
@@ -506,7 +511,7 @@ static void axidma_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo axidma_info = {
-    .name          = "xlnx.axi-dma",
+    .name          = TYPE_XILINX_AXI_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XilinxAXIDMA),
     .class_init    = axidma_class_init,
