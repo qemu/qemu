@@ -134,6 +134,8 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     dma = qdev_create(NULL, "xlnx.axi-dma");
 
     /* FIXME: attach to the sysbus instead */
+    object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth0),
+                              NULL);
     object_property_add_child(qdev_get_machine(), "xilinx-dma", OBJECT(dma),
                               NULL);
 
