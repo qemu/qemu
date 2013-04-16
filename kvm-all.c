@@ -985,7 +985,7 @@ void kvm_init_irq_routing(KVMState *s)
     kvm_arch_init_irq_routing(s);
 }
 
-static void kvm_irqchip_commit_routes(KVMState *s)
+void kvm_irqchip_commit_routes(KVMState *s)
 {
     int ret;
 
@@ -1019,8 +1019,6 @@ static void kvm_add_routing_entry(KVMState *s,
     new->u = entry->u;
 
     set_gsi(s, entry->gsi);
-
-    kvm_irqchip_commit_routes(s);
 }
 
 static int kvm_update_routing_entry(KVMState *s,
@@ -1171,6 +1169,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
         route->kroute.u.msi.data = le32_to_cpu(msg.data);
 
         kvm_add_routing_entry(s, &route->kroute);
+        kvm_irqchip_commit_routes(s);
 
         QTAILQ_INSERT_TAIL(&s->msi_hashtab[kvm_hash_msi(msg.data)], route,
                            entry);
@@ -1203,6 +1202,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     kroute.u.msi.data = le32_to_cpu(msg.data);
 
     kvm_add_routing_entry(s, &kroute);
+    kvm_irqchip_commit_routes(s);
 
     return virq;
 }
