@@ -740,14 +740,6 @@ static void restart_coroutine(void *opaque)
     qemu_coroutine_enter(co, NULL);
 }
 
-/* Always true because when we have called set_fd_handler there is
- * always a request being processed.
- */
-static int return_true(void *opaque)
-{
-    return 1;
-}
-
 static coroutine_fn void set_fd_handler(BDRVSSHState *s)
 {
     int r;
@@ -766,7 +758,7 @@ static coroutine_fn void set_fd_handler(BDRVSSHState *s)
     DPRINTF("s->sock=%d rd_handler=%p wr_handler=%p", s->sock,
             rd_handler, wr_handler);
 
-    qemu_aio_set_fd_handler(s->sock, rd_handler, wr_handler, return_true, co);
+    qemu_aio_set_fd_handler(s->sock, rd_handler, wr_handler, NULL, co);
 }
 
 static coroutine_fn void clear_fd_handler(BDRVSSHState *s)
