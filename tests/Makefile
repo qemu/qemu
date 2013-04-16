@@ -116,8 +116,8 @@ tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(
 
 tests/test-mul64$(EXESUF): tests/test-mul64.o libqemuutil.a
 
-libqos-obj-y = tests/libqos/pci.o
-libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
+libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o
+libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o tests/libqos/fw_cfg-pc.o
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
