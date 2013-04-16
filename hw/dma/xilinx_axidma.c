@@ -27,6 +27,7 @@
 #include "hw/ptimer.h"
 #include "qemu/log.h"
 #include "hw/qdev-addr.h"
+#include "qapi/qmp/qerror.h"
 
 #include "hw/stream.h"
 
@@ -474,17 +475,10 @@ static const MemoryRegionOps axidma_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int xilinx_axidma_init(SysBusDevice *dev)
+static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
 {
     XilinxAXIDMA *s = XILINX_AXI_DMA(dev);
     int i;
-
-    sysbus_init_irq(dev, &s->streams[0].irq);
-    sysbus_init_irq(dev, &s->streams[1].irq);
-
-    memory_region_init_io(&s->iomem, &axidma_ops, s,
-                          "xlnx.axi-dma", R_MAX * 4 * 2);
-    sysbus_init_mmio(dev, &s->iomem);
 
     for (i = 0; i < 2; i++) {
         s->streams[i].nr = i;
@@ -492,15 +486,22 @@ static int xilinx_axidma_init(SysBusDevice *dev)
         s->streams[i].ptimer = ptimer_init(s->streams[i].bh);
         ptimer_set_freq(s->streams[i].ptimer, s->freqhz);
     }
-    return 0;
 }
 
-static void xilinx_axidma_initfn(Object *obj)
+static void xilinx_axidma_init(Object *obj)
 {
     XilinxAXIDMA *s = XILINX_AXI_DMA(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
                              (Object **) &s->tx_dev, NULL);
+
+    sysbus_init_irq(sbd, &s->streams[0].irq);
+    sysbus_init_irq(sbd, &s->streams[1].irq);
+
+    memory_region_init_io(&s->iomem, &axidma_ops, s,
+                          "xlnx.axi-dma", R_MAX * 4 * 2);
+    sysbus_init_mmio(sbd, &s->iomem);
 }
 
 static Property axidma_properties[] = {
@@ -511,10 +512,9 @@ static Property axidma_properties[] = {
 static void axidma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
     StreamSlaveClass *ssc = STREAM_SLAVE_CLASS(klass);
 
-    k->init = xilinx_axidma_init;
+    dc->realize = xilinx_axidma_realize,
     dc->reset = xilinx_axidma_reset;
     dc->props = axidma_properties;
     ssc->push = axidma_push;
@@ -525,7 +525,7 @@ static const TypeInfo axidma_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XilinxAXIDMA),
     .class_init    = axidma_class_init,
-    .instance_init = xilinx_axidma_initfn,
+    .instance_init = xilinx_axidma_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_STREAM_SLAVE },
         { }
