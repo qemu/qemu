@@ -169,6 +169,7 @@ Coroutine *qemu_coroutine_new(void)
 #ifdef CONFIG_VALGRIND_H
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
 /* Work around an unused variable in the valgrind.h macro... */
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
 static inline void valgrind_stack_deregister(CoroutineUContext *co)
@@ -176,7 +177,7 @@ static inline void valgrind_stack_deregister(CoroutineUContext *co)
     VALGRIND_STACK_DEREGISTER(co->valgrind_stack_id);
 }
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
-#pragma GCC diagnostic error "-Wunused-but-set-variable"
+#pragma GCC diagnostic pop
 #endif
 #endif
 

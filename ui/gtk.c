@@ -38,11 +38,12 @@
 
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
 /* Work around an -Wstrict-prototypes warning in GTK headers */
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #endif
 #include <gtk/gtk.h>
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
-#pragma GCC diagnostic error "-Wstrict-prototypes"
+#pragma GCC diagnostic pop
 #endif
 
 
