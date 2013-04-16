@@ -18,6 +18,7 @@
  */
 
 #include "hw/qdev.h"
+#include "hw/sysbus.h"
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
 #include "qmp-commands.h"
@@ -415,7 +416,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     DeviceClass *k;
     const char *driver, *path, *id;
     DeviceState *qdev;
-    BusState *bus;
+    BusState *bus = NULL;
 
     driver = qemu_opt_get(opts, "driver");
     if (!driver) {
@@ -453,7 +454,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
                           driver, object_get_typename(OBJECT(bus)));
             return NULL;
         }
-    } else {
+    } else if (k->bus_type != NULL) {
         bus = qbus_find_recursive(sysbus_get_default(), NULL, k->bus_type);
         if (!bus) {
             qerror_report(QERR_NO_BUS_FOR_DEVICE,
@@ -461,18 +462,17 @@ DeviceState *qdev_device_add(QemuOpts *opts)
             return NULL;
         }
     }
-    if (qdev_hotplug && !bus->allow_hotplug) {
+    if (qdev_hotplug && bus && !bus->allow_hotplug) {
         qerror_report(QERR_BUS_NO_HOTPLUG, bus->name);
         return NULL;
     }
 
-    if (!bus) {
-        bus = sysbus_get_default();
-    }
-
     /* create device, set properties */
     qdev = DEVICE(object_new(driver));
-    qdev_set_parent_bus(qdev, bus);
+
+    if (bus) {
+        qdev_set_parent_bus(qdev, bus);
+    }
 
     id = qemu_opts_id(opts);
     if (id) {
