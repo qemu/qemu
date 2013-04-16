@@ -357,6 +357,16 @@ static void stream_process_s2mem(struct Stream *s,
     }
 }
 
+static void xilinx_axidma_reset(DeviceState *dev)
+{
+    int i;
+    XilinxAXIDMA *s = XILINX_AXI_DMA(dev);
+
+    for (i = 0; i < 2; i++) {
+        stream_reset(&s->streams[i]);
+    }
+}
+
 static void
 axidma_push(StreamSlave *obj, unsigned char *buf, size_t len, uint32_t *app)
 {
@@ -477,7 +487,6 @@ static int xilinx_axidma_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->iomem);
 
     for (i = 0; i < 2; i++) {
-        stream_reset(&s->streams[i]);
         s->streams[i].nr = i;
         s->streams[i].bh = qemu_bh_new(timer_hit, &s->streams[i]);
         s->streams[i].ptimer = ptimer_init(s->streams[i].bh);
@@ -506,6 +515,7 @@ static void axidma_class_init(ObjectClass *klass, void *data)
     StreamSlaveClass *ssc = STREAM_SLAVE_CLASS(klass);
 
     k->init = xilinx_axidma_init;
+    dc->reset = xilinx_axidma_reset;
     dc->props = axidma_properties;
     ssc->push = axidma_push;
 }
