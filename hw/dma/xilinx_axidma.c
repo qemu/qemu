@@ -38,6 +38,8 @@
 #define R_TAILDESC          (0x10 / 4)
 #define R_MAX               (0x30 / 4)
 
+typedef struct XilinxAXIDMA XilinxAXIDMA;
+
 enum {
     DMACR_RUNSTOP = 1,
     DMACR_TAILPTR_MODE = 2,
@@ -353,7 +355,7 @@ static void stream_process_s2mem(struct Stream *s,
 static void
 axidma_push(StreamSlave *obj, unsigned char *buf, size_t len, uint32_t *app)
 {
-    struct XilinxAXIDMA *d = FROM_SYSBUS(typeof(*d), SYS_BUS_DEVICE(obj));
+    XilinxAXIDMA *d = FROM_SYSBUS(typeof(*d), SYS_BUS_DEVICE(obj));
     struct Stream *s = &d->streams[1];
 
     if (!app) {
@@ -366,7 +368,7 @@ axidma_push(StreamSlave *obj, unsigned char *buf, size_t len, uint32_t *app)
 static uint64_t axidma_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
-    struct XilinxAXIDMA *d = opaque;
+    XilinxAXIDMA *d = opaque;
     struct Stream *s;
     uint32_t r = 0;
     int sid;
@@ -401,7 +403,7 @@ static uint64_t axidma_read(void *opaque, hwaddr addr,
 static void axidma_write(void *opaque, hwaddr addr,
                          uint64_t value, unsigned size)
 {
-    struct XilinxAXIDMA *d = opaque;
+    XilinxAXIDMA *d = opaque;
     struct Stream *s;
     int sid;
 
@@ -459,7 +461,7 @@ static const MemoryRegionOps axidma_ops = {
 
 static int xilinx_axidma_init(SysBusDevice *dev)
 {
-    struct XilinxAXIDMA *s = FROM_SYSBUS(typeof(*s), dev);
+    XilinxAXIDMA *s = FROM_SYSBUS(typeof(*s), dev);
     int i;
 
     sysbus_init_irq(dev, &s->streams[0].irq);
@@ -481,14 +483,14 @@ static int xilinx_axidma_init(SysBusDevice *dev)
 
 static void xilinx_axidma_initfn(Object *obj)
 {
-    struct XilinxAXIDMA *s = FROM_SYSBUS(typeof(*s), SYS_BUS_DEVICE(obj));
+    XilinxAXIDMA *s = FROM_SYSBUS(typeof(*s), SYS_BUS_DEVICE(obj));
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
                              (Object **) &s->tx_dev, NULL);
 }
 
 static Property axidma_properties[] = {
-    DEFINE_PROP_UINT32("freqhz", struct XilinxAXIDMA, freqhz, 50000000),
+    DEFINE_PROP_UINT32("freqhz", XilinxAXIDMA, freqhz, 50000000),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -506,7 +508,7 @@ static void axidma_class_init(ObjectClass *klass, void *data)
 static const TypeInfo axidma_info = {
     .name          = "xlnx.axi-dma",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct XilinxAXIDMA),
+    .instance_size = sizeof(XilinxAXIDMA),
     .class_init    = axidma_class_init,
     .instance_init = xilinx_axidma_initfn,
     .interfaces = (InterfaceInfo[]) {
