@@ -1131,7 +1131,7 @@ static KVMMSIRoute *kvm_lookup_msi_route(KVMState *s, MSIMessage msg)
     QTAILQ_FOREACH(route, &s->msi_hashtab[hash], entry) {
         if (route->kroute.u.msi.address_lo == (uint32_t)msg.address &&
             route->kroute.u.msi.address_hi == (msg.address >> 32) &&
-            route->kroute.u.msi.data == msg.data) {
+            route->kroute.u.msi.data == le32_to_cpu(msg.data)) {
             return route;
         }
     }
@@ -1146,7 +1146,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
     if (s->direct_msi) {
         msi.address_lo = (uint32_t)msg.address;
         msi.address_hi = msg.address >> 32;
-        msi.data = msg.data;
+        msi.data = le32_to_cpu(msg.data);
         msi.flags = 0;
         memset(msi.pad, 0, sizeof(msi.pad));
 
@@ -1168,7 +1168,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
         route->kroute.flags = 0;
         route->kroute.u.msi.address_lo = (uint32_t)msg.address;
         route->kroute.u.msi.address_hi = msg.address >> 32;
-        route->kroute.u.msi.data = msg.data;
+        route->kroute.u.msi.data = le32_to_cpu(msg.data);
 
         kvm_add_routing_entry(s, &route->kroute);
 
@@ -1200,7 +1200,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     kroute.flags = 0;
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
-    kroute.u.msi.data = msg.data;
+    kroute.u.msi.data = le32_to_cpu(msg.data);
 
     kvm_add_routing_entry(s, &kroute);
 
@@ -1220,7 +1220,7 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
     kroute.flags = 0;
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
-    kroute.u.msi.data = msg.data;
+    kroute.u.msi.data = le32_to_cpu(msg.data);
 
     return kvm_update_routing_entry(s, &kroute);
 }
