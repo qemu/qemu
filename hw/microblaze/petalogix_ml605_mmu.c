@@ -140,8 +140,10 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     object_property_add_child(qdev_get_machine(), "xilinx-dma", OBJECT(dma),
                               NULL);
 
-    xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(dma),
-                                   0x82780000, irq[3], 0x1000, 0x1000);
+    peer = object_property_get_link(OBJECT(dma),
+                                    "axistream-connected-target", NULL);
+    xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(peer),
+                            0x82780000, irq[3], 0x1000, 0x1000);
 
     peer = object_property_get_link(OBJECT(eth0),
                                     "axistream-connected-target", NULL);
