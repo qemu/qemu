@@ -381,7 +381,7 @@ static void xilinx_axidma_reset(DeviceState *dev)
     }
 }
 
-static void
+static size_t
 xilinx_axidma_data_stream_push(StreamSlave *obj, unsigned char *buf, size_t len,
                                uint32_t *app)
 {
@@ -393,6 +393,7 @@ xilinx_axidma_data_stream_push(StreamSlave *obj, unsigned char *buf, size_t len,
     }
     stream_process_s2mem(s, buf, len, app);
     stream_update_irq(s);
+    return len;
 }
 
 static uint64_t axidma_read(void *opaque, hwaddr addr,

@@ -815,7 +815,7 @@ static void eth_cleanup(NetClientState *nc)
     g_free(s);
 }
 
-static void
+static size_t
 xilinx_axienet_data_stream_push(StreamSlave *obj, uint8_t *buf, size_t size,
                                 uint32_t *hdr)
 {
@@ -824,13 +824,13 @@ xilinx_axienet_data_stream_push(StreamSlave *obj, uint8_t *buf, size_t size,
 
     /* TX enable ?  */
     if (!(s->tc & TC_TX)) {
-        return;
+        return size;
     }
 
     /* Jumbo or vlan sizes ?  */
     if (!(s->tc & TC_JUM)) {
         if (size > 1518 && size <= 1522 && !(s->tc & TC_VLAN)) {
-            return;
+            return size;
         }
     }
 
@@ -858,6 +858,8 @@ xilinx_axienet_data_stream_push(StreamSlave *obj, uint8_t *buf, size_t size,
     s->stats.tx_bytes += size;
     s->regs[R_IS] |= IS_TX_COMPLETE;
     enet_update_irq(s);
+
+    return size;
 }
 
 static NetClientInfo net_xilinx_enet_info = {
