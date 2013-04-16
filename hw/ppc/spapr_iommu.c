@@ -68,15 +68,8 @@ static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
     return NULL;
 }
 
-static int spapr_tce_translate(DMAContext *dma,
-                               dma_addr_t addr,
-                               hwaddr *paddr,
-                               hwaddr *len,
-                               DMADirection dir)
+static IOMMUTLBEntry spapr_tce_translate_iommu(sPAPRTCETable *tcet, hwaddr addr)
 {
-    sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
-    enum sPAPRTCEAccess access = (dir == DMA_DIRECTION_FROM_DEVICE)
-        ? SPAPR_TCE_WO : SPAPR_TCE_RO;
     uint64_t tce;
 
 #ifdef DEBUG_TCE
@@ -85,9 +78,13 @@ static int spapr_tce_translate(DMAContext *dma,
 #endif
 
     if (tcet->bypass) {
-        *paddr = addr;
-        *len = (hwaddr)-1;
-        return 0;
+        return (IOMMUTLBEntry) {
+            .target_as = &address_space_memory,
+            .iova = 0,
+            .translated_addr = 0,
+            .addr_mask = ~(hwaddr)0,
+            .perm = IOMMU_RW,
+        };
     }
 
     /* Check if we are in bound */
@@ -95,28 +92,41 @@ static int spapr_tce_translate(DMAContext *dma,
 #ifdef DEBUG_TCE
         fprintf(stderr, "spapr_tce_translate out of bounds\n");
 #endif
-        return -EFAULT;
+        return (IOMMUTLBEntry) { .perm = IOMMU_NONE };
     }
 
     tce = tcet->table[addr >> SPAPR_TCE_PAGE_SHIFT].tce;
 
-    /* Check TCE */
-    if (!(tce & access)) {
+#ifdef DEBUG_TCE
+    fprintf(stderr, " ->  *paddr=0x%llx, *len=0x%llx\n",
+            (tce & ~SPAPR_TCE_PAGE_MASK), SPAPR_TCE_PAGE_MASK + 1);
+#endif
+
+    return (IOMMUTLBEntry) {
+        .target_as = &address_space_memory,
+        .iova = addr & ~SPAPR_TCE_PAGE_MASK,
+        .translated_addr = tce & ~SPAPR_TCE_PAGE_MASK,
+        .addr_mask = SPAPR_TCE_PAGE_MASK,
+        .perm = tce,
+    };
+}
+
+static int spapr_tce_translate(DMAContext *dma,
+                               dma_addr_t addr,
+                               hwaddr *paddr,
+                               hwaddr *len,
+                               DMADirection dir)
+ {
+    sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
+    bool is_write = (dir == DMA_DIRECTION_FROM_DEVICE);
+    IOMMUTLBEntry entry = spapr_tce_translate_iommu(tcet, addr);
+    if (!(entry.perm & (1 << is_write))) {
         return -EPERM;
     }
 
-    /* How much til end of page ? */
-    *len = ((~addr) & SPAPR_TCE_PAGE_MASK) + 1;
-
     /* Translate */
-    *paddr = (tce & ~SPAPR_TCE_PAGE_MASK) |
-        (addr & SPAPR_TCE_PAGE_MASK);
-
-#ifdef DEBUG_TCE
-    fprintf(stderr, " ->  *paddr=0x" TARGET_FMT_plx ", *len=0x"
-            TARGET_FMT_plx "\n", *paddr, *len);
-#endif
-
+    *paddr = entry.translated_addr | (addr & entry.addr_mask);
+    *len = (addr | entry.addr_mask) - addr + 1;
     return 0;
 }
 
