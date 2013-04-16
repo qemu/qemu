@@ -41,6 +41,9 @@ static void entropy_available(void *opaque)
     ssize_t len;
 
     len = read(s->fd, buffer, s->size);
+    if (len < 0 && errno == EAGAIN) {
+        return;
+    }
     g_assert(len != -1);
 
     s->receive_func(s->opaque, buffer, len);
