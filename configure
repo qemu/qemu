@@ -4511,7 +4511,7 @@ if [ "$pixman" = "internal" ]; then
 fi
 
 # build tree in object directory in case the source is not in the current directory
-DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32"
+DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32 tests/libqos"
 DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS qapi-generated"

@@ -77,6 +77,7 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o
 
 $(test-obj-y): QEMU_INCLUDES += -Itests
+QEMU_CFLAGS += -I$(SRC_PATH)/tests
 
 tests/test-x86-cpuid.o: QEMU_INCLUDES += -I$(SRC_PATH)/target-i386
 
@@ -105,7 +106,6 @@ tests/test-qmp-commands.h tests/test-qmp-marshal.c :\
 $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py $(gen-out-type) -o tests -p "test-" < $<, "  GEN   $@")
 
-
 tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
@@ -115,6 +115,9 @@ tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marsh
 tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 
 tests/test-mul64$(EXESUF): tests/test-mul64.o libqemuutil.a
+
+libqos-obj-y = tests/libqos/pci.o
+libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
