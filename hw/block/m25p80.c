@@ -319,11 +319,12 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
 
     DB_PRINT("offset = %#x, len = %d\n", offset, len);
     if ((s->pi->flags & capa_to_assert) != capa_to_assert) {
-        hw_error("m25p80: %d erase size not supported by device\n", len);
+        qemu_log_mask(LOG_GUEST_ERROR, "M25P80: %d erase size not supported by"
+                      " device\n", len);
     }
 
     if (!s->write_enable) {
-        DB_PRINT("erase with write protect!\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "M25P80: erase with write protect!\n");
         return;
     }
     memset(s->storage + offset, 0xff, len);
@@ -345,7 +346,7 @@ void flash_write8(Flash *s, uint64_t addr, uint8_t data)
     uint8_t prev = s->storage[s->cur_addr];
 
     if (!s->write_enable) {
-        DB_PRINT("write with write protect!\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "M25P80: write with write protect!\n");
     }
 
     if ((prev ^ data) & data) {
@@ -503,13 +504,14 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             DB_PRINT("chip erase\n");
             flash_erase(s, 0, BULK_ERASE);
         } else {
-            DB_PRINT("chip erase with write protect!\n");
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: chip erase with write "
+                          "protect!\n");
         }
         break;
     case NOP:
         break;
     default:
-        DB_PRINT("Unknown cmd %x\n", value);
+        qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Unknown cmd %x\n", value);
         break;
     }
 }
