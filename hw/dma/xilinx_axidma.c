@@ -276,7 +276,7 @@ static void stream_process_mem2s(struct Stream *s,
         stream_desc_load(s, s->regs[R_CURDESC]);
 
         if (s->desc.status & SDESC_STATUS_COMPLETE) {
-            s->regs[R_DMASR] |= DMASR_IDLE;
+            s->regs[R_DMASR] |= DMASR_HALTED;
             break;
         }
 
@@ -331,7 +331,7 @@ static void stream_process_s2mem(struct Stream *s,
         stream_desc_load(s, s->regs[R_CURDESC]);
 
         if (s->desc.status & SDESC_STATUS_COMPLETE) {
-            s->regs[R_DMASR] |= DMASR_IDLE;
+            s->regs[R_DMASR] |= DMASR_HALTED;
             break;
         }
 
