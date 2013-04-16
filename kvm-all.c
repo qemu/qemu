@@ -954,7 +954,7 @@ static void clear_gsi(KVMState *s, unsigned int gsi)
     s->used_gsi_bitmap[gsi / 32] &= ~(1U << (gsi % 32));
 }
 
-static void kvm_init_irq_routing(KVMState *s)
+void kvm_init_irq_routing(KVMState *s)
 {
     int gsi_count, i;
 
@@ -1242,7 +1242,7 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
 
 #else /* !KVM_CAP_IRQ_ROUTING */
 
-static void kvm_init_irq_routing(KVMState *s)
+void kvm_init_irq_routing(KVMState *s)
 {
 }
 
