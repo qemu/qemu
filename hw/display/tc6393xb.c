@@ -548,6 +548,10 @@ static void tc6393xb_writeb(void *opaque, hwaddr addr,
                 (uint32_t) addr, (int)value & 0xff);
 }
 
+static const GraphicHwOps tc6393xb_gfx_ops = {
+    .gfx_update  = tc6393xb_update_display,
+};
+
 TC6393xbState *tc6393xb_init(MemoryRegion *sysmem, uint32_t base, qemu_irq irq)
 {
     TC6393xbState *s;
@@ -583,11 +587,7 @@ TC6393xbState *tc6393xb_init(MemoryRegion *sysmem, uint32_t base, qemu_irq irq)
     memory_region_add_subregion(sysmem, base + 0x100000, &s->vram);
     s->scr_width = 480;
     s->scr_height = 640;
-    s->con = graphic_console_init(tc6393xb_update_display,
-            NULL, /* invalidate */
-            NULL, /* screen_dump */
-            NULL, /* text_update */
-            s);
+    s->con = graphic_console_init(&tc6393xb_gfx_ops, s);
 
     return s;
 }

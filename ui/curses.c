@@ -56,7 +56,7 @@ static void curses_update(DisplayChangeListener *dcl,
 
 static void curses_calc_pad(void)
 {
-    if (is_fixedsize_console()) {
+    if (qemu_console_is_fixedsize(NULL)) {
         width = gwidth;
         height = gheight;
     } else {
@@ -143,8 +143,9 @@ static void curses_cursor_position(DisplayChangeListener *dcl,
             curs_set(1);
             /* it seems that curs_set(1) must always be called before
              * curs_set(2) for the latter to have effect */
-            if (!is_graphic_console())
+            if (!qemu_console_is_graphic(NULL)) {
                 curs_set(2);
+            }
             return;
         }
     }
@@ -166,11 +167,11 @@ static void curses_refresh(DisplayChangeListener *dcl)
         clear();
         refresh();
         curses_calc_pad();
-        vga_hw_invalidate();
+        graphic_hw_invalidate(NULL);
         invalidate = 0;
     }
 
-    vga_hw_text_update(screen);
+    graphic_hw_text_update(NULL, screen);
 
     nextchr = ERR;
     while (1) {
@@ -252,7 +253,7 @@ static void curses_refresh(DisplayChangeListener *dcl)
         if (keycode == -1)
             continue;
 
-        if (is_graphic_console()) {
+        if (qemu_console_is_graphic(NULL)) {
             /* since terminals don't know about key press and release
              * events, we need to emit both for each key received */
             if (keycode & SHIFT)

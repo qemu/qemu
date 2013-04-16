@@ -34,9 +34,9 @@
 #include "qmp-commands.h"
 #include "qemu/osdep.h"
 
-#define VNC_REFRESH_INTERVAL_BASE 30
+#define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
 #define VNC_REFRESH_INTERVAL_INC  50
-#define VNC_REFRESH_INTERVAL_MAX  2000
+#define VNC_REFRESH_INTERVAL_MAX  GUI_REFRESH_INTERVAL_IDLE
 static const struct timeval VNC_REFRESH_STATS = { 0, 500000 };
 static const struct timeval VNC_REFRESH_LOSSY = { 2, 0 };
 
@@ -419,14 +419,12 @@ out_error:
 static int vnc_update_client(VncState *vs, int has_dirty);
 static int vnc_update_client_sync(VncState *vs, int has_dirty);
 static void vnc_disconnect_start(VncState *vs);
-static void vnc_init_timer(VncDisplay *vd);
-static void vnc_remove_timer(VncDisplay *vd);
 
 static void vnc_colordepth(VncState *vs);
 static void framebuffer_update_request(VncState *vs, int incremental,
                                        int x_position, int y_position,
                                        int w, int h);
-static void vnc_refresh(void *opaque);
+static void vnc_refresh(DisplayChangeListener *dcl);
 static int vnc_refresh_server_surface(VncDisplay *vd);
 
 static void vnc_dpy_update(DisplayChangeListener *dcl,
@@ -1064,11 +1062,6 @@ void vnc_disconnect_finish(VncState *vs)
         qemu_remove_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
     }
 
-    if (QTAILQ_EMPTY(&vs->vd->clients)) {
-        vs->vd->dcl.idle = 1;
-    }
-
-    vnc_remove_timer(vs->vd);
     if (vs->vd->lock_key_sync)
         qemu_remove_led_event_handler(vs->led);
     vnc_unlock_output(vs);
@@ -1616,7 +1609,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         }
     }
 
-    if (is_graphic_console()) {
+    if (qemu_console_is_graphic(NULL)) {
         if (keycode & SCANCODE_GREY)
             kbd_put_keycode(SCANCODE_EMUL0);
         if (down)
@@ -1735,7 +1728,7 @@ static void vnc_release_modifiers(VncState *vs)
     };
     int i, keycode;
 
-    if (!is_graphic_console()) {
+    if (!qemu_console_is_graphic(NULL)) {
         return;
     }
     for (i = 0; i < ARRAY_SIZE(keycodes); i++) {
@@ -1755,7 +1748,7 @@ static void key_event(VncState *vs, int down, uint32_t sym)
     int keycode;
     int lsym = sym;
 
-    if (lsym >= 'A' && lsym <= 'Z' && is_graphic_console()) {
+    if (lsym >= 'A' && lsym <= 'Z' && qemu_console_is_graphic(NULL)) {
         lsym = lsym - 'A' + 'a';
     }
 
@@ -1956,8 +1949,8 @@ static void set_pixel_format(VncState *vs,
 
     set_pixel_conversion(vs);
 
-    vga_hw_invalidate();
-    vga_hw_update();
+    graphic_hw_invalidate(NULL);
+    graphic_hw_update(NULL);
 }
 
 static void pixel_format_message (VncState *vs) {
@@ -2013,9 +2006,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
     VncDisplay *vd = vs->vd;
 
     if (data[0] > 3) {
-        vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
-        if (!qemu_timer_expired(vd->timer, qemu_get_clock_ms(rt_clock) + vd->timer_interval))
-            qemu_mod_timer(vd->timer, qemu_get_clock_ms(rt_clock) + vd->timer_interval);
+        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
     }
 
     switch (data[0]) {
@@ -2647,18 +2638,16 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
     return has_dirty;
 }
 
-static void vnc_refresh(void *opaque)
+static void vnc_refresh(DisplayChangeListener *dcl)
 {
-    VncDisplay *vd = opaque;
+    VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
     VncState *vs, *vn;
     int has_dirty, rects = 0;
 
-    vga_hw_update();
+    graphic_hw_update(NULL);
 
     if (vnc_trylock_display(vd)) {
-        vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
-        qemu_mod_timer(vd->timer, qemu_get_clock_ms(rt_clock) +
-                       vd->timer_interval);
+        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
         return;
     }
 
@@ -2670,39 +2659,21 @@ static void vnc_refresh(void *opaque)
         /* vs might be free()ed here */
     }
 
-    /* vd->timer could be NULL now if the last client disconnected,
-     * in this case don't update the timer */
-    if (vd->timer == NULL)
+    if (QTAILQ_EMPTY(&vd->clients)) {
+        update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_MAX);
         return;
+    }
 
     if (has_dirty && rects) {
-        vd->timer_interval /= 2;
-        if (vd->timer_interval < VNC_REFRESH_INTERVAL_BASE)
-            vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
+        vd->dcl.update_interval /= 2;
+        if (vd->dcl.update_interval < VNC_REFRESH_INTERVAL_BASE) {
+            vd->dcl.update_interval = VNC_REFRESH_INTERVAL_BASE;
+        }
     } else {
-        vd->timer_interval += VNC_REFRESH_INTERVAL_INC;
-        if (vd->timer_interval > VNC_REFRESH_INTERVAL_MAX)
-            vd->timer_interval = VNC_REFRESH_INTERVAL_MAX;
-    }
-    qemu_mod_timer(vd->timer, qemu_get_clock_ms(rt_clock) + vd->timer_interval);
-}
-
-static void vnc_init_timer(VncDisplay *vd)
-{
-    vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
-    if (vd->timer == NULL && !QTAILQ_EMPTY(&vd->clients)) {
-        vd->timer = qemu_new_timer_ms(rt_clock, vnc_refresh, vd);
-        vga_hw_update();
-        vnc_refresh(vd);
-    }
-}
-
-static void vnc_remove_timer(VncDisplay *vd)
-{
-    if (vd->timer != NULL && QTAILQ_EMPTY(&vd->clients)) {
-        qemu_del_timer(vd->timer);
-        qemu_free_timer(vd->timer);
-        vd->timer = NULL;
+        vd->dcl.update_interval += VNC_REFRESH_INTERVAL_INC;
+        if (vd->dcl.update_interval > VNC_REFRESH_INTERVAL_MAX) {
+            vd->dcl.update_interval = VNC_REFRESH_INTERVAL_MAX;
+        }
     }
 }
 
@@ -2731,7 +2702,7 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth, bool websocket)
     }
 
     VNC_DEBUG("New client on socket %d\n", csock);
-    vd->dcl.idle = 0;
+    update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
     qemu_set_nonblock(vs->csock);
 #ifdef CONFIG_VNC_WS
     if (websocket) {
@@ -2775,7 +2746,7 @@ void vnc_init_state(VncState *vs)
 
     QTAILQ_INSERT_HEAD(&vd->clients, vs, next);
 
-    vga_hw_update();
+    graphic_hw_update(NULL);
 
     vnc_write(vs, "RFB 003.008\n", 12);
     vnc_flush(vs);
@@ -2786,8 +2757,6 @@ void vnc_init_state(VncState *vs)
 
     vs->mouse_mode_notifier.notify = check_pointer_type_change;
     qemu_add_mouse_mode_change_notifier(&vs->mouse_mode_notifier);
-
-    vnc_init_timer(vd);
 
     /* vs might be free()ed here */
 }
@@ -2800,7 +2769,7 @@ static void vnc_listen_read(void *opaque, bool websocket)
     int csock;
 
     /* Catch-up */
-    vga_hw_update();
+    graphic_hw_update(NULL);
 #ifdef CONFIG_VNC_WS
     if (websocket) {
         csock = qemu_accept(vs->lwebsock, (struct sockaddr *)&addr, &addrlen);
@@ -2829,6 +2798,7 @@ static void vnc_listen_websocket_read(void *opaque)
 
 static const DisplayChangeListenerOps dcl_ops = {
     .dpy_name          = "vnc",
+    .dpy_refresh       = vnc_refresh,
     .dpy_gfx_copy      = vnc_dpy_copy,
     .dpy_gfx_update    = vnc_dpy_update,
     .dpy_gfx_switch    = vnc_dpy_switch,
@@ -2840,7 +2810,6 @@ void vnc_display_init(DisplayState *ds)
 {
     VncDisplay *vs = g_malloc0(sizeof(*vs));
 
-    vs->dcl.idle = 1;
     vnc_display = vs;
 
     vs->lsock = -1;

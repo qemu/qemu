@@ -270,6 +270,11 @@ static void milkymist_vgafb_reset(DeviceState *d)
     s->regs[R_BASEADDRESS] = 0;
 }
 
+static const GraphicHwOps vgafb_ops = {
+    .invalidate  = vgafb_invalidate_display,
+    .gfx_update  = vgafb_update_display,
+};
+
 static int milkymist_vgafb_init(SysBusDevice *dev)
 {
     MilkymistVgafbState *s = FROM_SYSBUS(typeof(*s), dev);
@@ -278,9 +283,7 @@ static int milkymist_vgafb_init(SysBusDevice *dev)
             "milkymist-vgafb", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
-    s->con = graphic_console_init(vgafb_update_display,
-                                  vgafb_invalidate_display,
-                                  NULL, NULL, s);
+    s->con = graphic_console_init(&vgafb_ops, s);
 
     return 0;
 }

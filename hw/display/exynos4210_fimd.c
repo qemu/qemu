@@ -1242,7 +1242,7 @@ static void exynos4210_update_resolution(Exynos4210fimdState *s)
 static void exynos4210_fimd_update(void *opaque)
 {
     Exynos4210fimdState *s = (Exynos4210fimdState *)opaque;
-    DisplaySurface *surface = qemu_console_surface(s->console);
+    DisplaySurface *surface;
     Exynos4210fimdWindow *w;
     int i, line;
     hwaddr fb_line_addr, inc_size;
@@ -1255,11 +1255,12 @@ static void exynos4210_fimd_update(void *opaque)
     const int global_height = ((s->vidtcon[2] >> FIMD_VIDTCON2_VER_SHIFT) &
             FIMD_VIDTCON2_SIZE_MASK) + 1;
 
-    if (!s || !s->console || !surface_bits_per_pixel(surface) ||
-            !s->enabled) {
+    if (!s || !s->console || !s->enabled ||
+        surface_bits_per_pixel(qemu_console_surface(s->console)) == 0) {
         return;
     }
     exynos4210_update_resolution(s);
+    surface = qemu_console_surface(s->console);
 
     for (i = 0; i < NUM_OF_WINDOWS; i++) {
         w = &s->window[i];
@@ -1886,6 +1887,11 @@ static const VMStateDescription exynos4210_fimd_vmstate = {
     }
 };
 
+static const GraphicHwOps exynos4210_fimd_ops = {
+    .invalidate  = exynos4210_fimd_invalidate,
+    .gfx_update  = exynos4210_fimd_update,
+};
+
 static int exynos4210_fimd_init(SysBusDevice *dev)
 {
     Exynos4210fimdState *s = FROM_SYSBUS(Exynos4210fimdState, dev);
@@ -1899,8 +1905,7 @@ static int exynos4210_fimd_init(SysBusDevice *dev)
     memory_region_init_io(&s->iomem, &exynos4210_fimd_mmio_ops, s,
             "exynos4210.fimd", FIMD_REGS_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
-    s->console = graphic_console_init(exynos4210_fimd_update,
-                                  exynos4210_fimd_invalidate, NULL, NULL, s);
+    s->console = graphic_console_init(&exynos4210_fimd_ops, s);
 
     return 0;
 }

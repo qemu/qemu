@@ -1626,55 +1626,6 @@ MachineInfoList *qmp_query_machines(Error **errp)
 /***********************************************************/
 /* main execution loop */
 
-static void gui_update(void *opaque)
-{
-    uint64_t interval = GUI_REFRESH_INTERVAL;
-    DisplayState *ds = opaque;
-    DisplayChangeListener *dcl;
-
-    dpy_refresh(ds);
-
-    QLIST_FOREACH(dcl, &ds->listeners, next) {
-        if (dcl->gui_timer_interval &&
-            dcl->gui_timer_interval < interval)
-            interval = dcl->gui_timer_interval;
-    }
-    qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock_ms(rt_clock));
-}
-
-void gui_setup_refresh(DisplayState *ds)
-{
-    DisplayChangeListener *dcl;
-    bool need_timer = false;
-    bool have_gfx = false;
-    bool have_text = false;
-
-    QLIST_FOREACH(dcl, &ds->listeners, next) {
-        if (dcl->ops->dpy_refresh != NULL) {
-            need_timer = true;
-        }
-        if (dcl->ops->dpy_gfx_update != NULL) {
-            have_gfx = true;
-        }
-        if (dcl->ops->dpy_text_update != NULL) {
-            have_text = true;
-        }
-    }
-
-    if (need_timer && ds->gui_timer == NULL) {
-        ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
-        qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
-    }
-    if (!need_timer && ds->gui_timer != NULL) {
-        qemu_del_timer(ds->gui_timer);
-        qemu_free_timer(ds->gui_timer);
-        ds->gui_timer = NULL;
-    }
-
-    ds->have_gfx = have_gfx;
-    ds->have_text = have_text;
-}
-
 struct vm_change_state_entry {
     VMChangeStateHandler *cb;
     void *opaque;
@@ -4331,8 +4282,7 @@ int main(int argc, char **argv, char **envp)
 
     net_check_clients();
 
-    /* just use the first displaystate for the moment */
-    ds = get_displaystate();
+    ds = init_displaystate();
 
     /* init local displays */
     switch (display_type) {
@@ -4387,9 +4337,6 @@ int main(int argc, char **argv, char **envp)
         qemu_spice_display_init(ds);
     }
 #endif
-
-    /* display setup */
-    text_consoles_set_display(ds);
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);

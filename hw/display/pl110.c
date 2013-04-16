@@ -444,6 +444,11 @@ static int vmstate_pl110_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const GraphicHwOps pl110_gfx_ops = {
+    .invalidate  = pl110_invalidate_display,
+    .gfx_update  = pl110_update_display,
+};
+
 static int pl110_init(SysBusDevice *dev)
 {
     pl110_state *s = FROM_SYSBUS(pl110_state, dev);
@@ -452,9 +457,7 @@ static int pl110_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_in(&s->busdev.qdev, pl110_mux_ctrl_set, 1);
-    s->con = graphic_console_init(pl110_update_display,
-                                  pl110_invalidate_display,
-                                  NULL, NULL, s);
+    s->con = graphic_console_init(&pl110_gfx_ops, s);
     return 0;
 }
 

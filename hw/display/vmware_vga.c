@@ -39,8 +39,6 @@ struct vmsvga_state_s {
     VGACommonState vga;
 
     int invalidated;
-    int depth;
-    int bypp;
     int enable;
     int config;
     struct {
@@ -55,6 +53,7 @@ struct vmsvga_state_s {
     uint32_t *scratch;
     int new_width;
     int new_height;
+    int new_depth;
     uint32_t guest;
     uint32_t svgaid;
     int syncing;
@@ -721,61 +720,88 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
     uint32_t caps;
     struct vmsvga_state_s *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->vga.con);
+    PixelFormat pf;
+    uint32_t ret;
 
     switch (s->index) {
     case SVGA_REG_ID:
-        return s->svgaid;
+        ret = s->svgaid;
+        break;
 
     case SVGA_REG_ENABLE:
-        return s->enable;
+        ret = s->enable;
+        break;
 
     case SVGA_REG_WIDTH:
-        return surface_width(surface);
+        ret = s->new_width ? s->new_width : surface_width(surface);
+        break;
 
     case SVGA_REG_HEIGHT:
-        return surface_height(surface);
+        ret = s->new_height ? s->new_height : surface_height(surface);
+        break;
 
     case SVGA_REG_MAX_WIDTH:
-        return SVGA_MAX_WIDTH;
+        ret = SVGA_MAX_WIDTH;
+        break;
 
     case SVGA_REG_MAX_HEIGHT:
-        return SVGA_MAX_HEIGHT;
+        ret = SVGA_MAX_HEIGHT;
+        break;
 
     case SVGA_REG_DEPTH:
-        return s->depth;
+        ret = (s->new_depth == 32) ? 24 : s->new_depth;
+        break;
 
     case SVGA_REG_BITS_PER_PIXEL:
-        return (s->depth + 7) & ~7;
+    case SVGA_REG_HOST_BITS_PER_PIXEL:
+        ret = s->new_depth;
+        break;
 
     case SVGA_REG_PSEUDOCOLOR:
-        return 0x0;
+        ret = 0x0;
+        break;
 
     case SVGA_REG_RED_MASK:
-        return surface->pf.rmask;
+        pf = qemu_default_pixelformat(s->new_depth);
+        ret = pf.rmask;
+        break;
 
     case SVGA_REG_GREEN_MASK:
-        return surface->pf.gmask;
+        pf = qemu_default_pixelformat(s->new_depth);
+        ret = pf.gmask;
+        break;
 
     case SVGA_REG_BLUE_MASK:
-        return surface->pf.bmask;
+        pf = qemu_default_pixelformat(s->new_depth);
+        ret = pf.bmask;
+        break;
 
     case SVGA_REG_BYTES_PER_LINE:
-        return s->bypp * s->new_width;
+        if (s->new_width) {
+            ret = (s->new_depth * s->new_width) / 8;
+        } else {
+            ret = surface_stride(surface);
+        }
+        break;
 
     case SVGA_REG_FB_START: {
         struct pci_vmsvga_state_s *pci_vmsvga
             = container_of(s, struct pci_vmsvga_state_s, chip);
-        return pci_get_bar_addr(&pci_vmsvga->card, 1);
+        ret = pci_get_bar_addr(&pci_vmsvga->card, 1);
+        break;
     }
 
     case SVGA_REG_FB_OFFSET:
-        return 0x0;
+        ret = 0x0;
+        break;
 
     case SVGA_REG_VRAM_SIZE:
-        return s->vga.vram_size; /* No physical VRAM besides the framebuffer */
+        ret = s->vga.vram_size; /* No physical VRAM besides the framebuffer */
+        break;
 
     case SVGA_REG_FB_SIZE:
-        return s->vga.vram_size;
+        ret = s->vga.vram_size;
+        break;
 
     case SVGA_REG_CAPABILITIES:
         caps = SVGA_CAP_NONE;
@@ -791,66 +817,92 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
                     SVGA_CAP_CURSOR_BYPASS;
         }
 #endif
-        return caps;
+        ret = caps;
+        break;
 
     case SVGA_REG_MEM_START: {
         struct pci_vmsvga_state_s *pci_vmsvga
             = container_of(s, struct pci_vmsvga_state_s, chip);
-        return pci_get_bar_addr(&pci_vmsvga->card, 2);
+        ret = pci_get_bar_addr(&pci_vmsvga->card, 2);
+        break;
     }
 
     case SVGA_REG_MEM_SIZE:
-        return s->fifo_size;
+        ret = s->fifo_size;
+        break;
 
     case SVGA_REG_CONFIG_DONE:
-        return s->config;
+        ret = s->config;
+        break;
 
     case SVGA_REG_SYNC:
     case SVGA_REG_BUSY:
-        return s->syncing;
+        ret = s->syncing;
+        break;
 
     case SVGA_REG_GUEST_ID:
-        return s->guest;
+        ret = s->guest;
+        break;
 
     case SVGA_REG_CURSOR_ID:
-        return s->cursor.id;
+        ret = s->cursor.id;
+        break;
 
     case SVGA_REG_CURSOR_X:
-        return s->cursor.x;
+        ret = s->cursor.x;
+        break;
 
     case SVGA_REG_CURSOR_Y:
-        return s->cursor.x;
+        ret = s->cursor.x;
+        break;
 
     case SVGA_REG_CURSOR_ON:
-        return s->cursor.on;
-
-    case SVGA_REG_HOST_BITS_PER_PIXEL:
-        return (s->depth + 7) & ~7;
+        ret = s->cursor.on;
+        break;
 
     case SVGA_REG_SCRATCH_SIZE:
-        return s->scratch_size;
+        ret = s->scratch_size;
+        break;
 
     case SVGA_REG_MEM_REGS:
     case SVGA_REG_NUM_DISPLAYS:
     case SVGA_REG_PITCHLOCK:
     case SVGA_PALETTE_BASE ... SVGA_PALETTE_END:
-        return 0;
+        ret = 0;
+        break;
 
     default:
         if (s->index >= SVGA_SCRATCH_BASE &&
             s->index < SVGA_SCRATCH_BASE + s->scratch_size) {
-            return s->scratch[s->index - SVGA_SCRATCH_BASE];
+            ret = s->scratch[s->index - SVGA_SCRATCH_BASE];
+            break;
         }
         printf("%s: Bad register %02x\n", __func__, s->index);
+        ret = 0;
+        break;
     }
 
-    return 0;
+    if (s->index >= SVGA_SCRATCH_BASE) {
+        trace_vmware_scratch_read(s->index, ret);
+    } else if (s->index >= SVGA_PALETTE_BASE) {
+        trace_vmware_palette_read(s->index, ret);
+    } else {
+        trace_vmware_value_read(s->index, ret);
+    }
+    return ret;
 }
 
 static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
 {
     struct vmsvga_state_s *s = opaque;
 
+    if (s->index >= SVGA_SCRATCH_BASE) {
+        trace_vmware_scratch_write(s->index, value);
+    } else if (s->index >= SVGA_PALETTE_BASE) {
+        trace_vmware_palette_write(s->index, value);
+    } else {
+        trace_vmware_value_write(s->index, value);
+    }
     switch (s->index) {
     case SVGA_REG_ID:
         if (value == SVGA_ID_2 || value == SVGA_ID_1 || value == SVGA_ID_0) {
@@ -861,7 +913,7 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
     case SVGA_REG_ENABLE:
         s->enable = !!value;
         s->invalidated = 1;
-        s->vga.invalidate(&s->vga);
+        s->vga.hw_ops->invalidate(&s->vga);
         if (s->enable && s->config) {
             vga_dirty_log_stop(&s->vga);
         } else {
@@ -888,9 +940,10 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         break;
 
     case SVGA_REG_BITS_PER_PIXEL:
-        if (value != s->depth) {
+        if (value != 32) {
             printf("%s: Bad bits per pixel: %i bits\n", __func__, value);
             s->config = 0;
+            s->invalidated = 1;
         }
         break;
 
@@ -986,8 +1039,14 @@ static inline void vmsvga_check_size(struct vmsvga_state_s *s)
     DisplaySurface *surface = qemu_console_surface(s->vga.con);
 
     if (s->new_width != surface_width(surface) ||
-        s->new_height != surface_height(surface)) {
-        qemu_console_resize(s->vga.con, s->new_width, s->new_height);
+        s->new_height != surface_height(surface) ||
+        s->new_depth != surface_bits_per_pixel(surface)) {
+        int stride = (s->new_depth * s->new_width) / 8;
+        trace_vmware_setmode(s->new_width, s->new_height, s->new_depth);
+        surface = qemu_create_displaysurface_from(s->new_width, s->new_height,
+                                                  s->new_depth, stride,
+                                                  s->vga.vram_ptr, false);
+        dpy_gfx_replace_surface(s->vga.con, surface);
         s->invalidated = 1;
     }
 }
@@ -995,15 +1054,16 @@ static inline void vmsvga_check_size(struct vmsvga_state_s *s)
 static void vmsvga_update_display(void *opaque)
 {
     struct vmsvga_state_s *s = opaque;
-    DisplaySurface *surface = qemu_console_surface(s->vga.con);
+    DisplaySurface *surface;
     bool dirty = false;
 
     if (!s->enable) {
-        s->vga.update(&s->vga);
+        s->vga.hw_ops->gfx_update(&s->vga);
         return;
     }
 
     vmsvga_check_size(s);
+    surface = qemu_console_surface(s->vga.con);
 
     vmsvga_fifo_run(s);
     vmsvga_update_rect_flush(s);
@@ -1020,8 +1080,6 @@ static void vmsvga_update_display(void *opaque)
     }
     if (s->invalidated || dirty) {
         s->invalidated = 0;
-        memcpy(surface_data(surface), s->vga.vram_ptr,
-               surface_stride(surface) * surface_height(surface));
         dpy_gfx_update(s->vga.con, 0, 0,
                    surface_width(surface), surface_height(surface));
     }
@@ -1054,44 +1112,19 @@ static void vmsvga_invalidate_display(void *opaque)
 {
     struct vmsvga_state_s *s = opaque;
     if (!s->enable) {
-        s->vga.invalidate(&s->vga);
+        s->vga.hw_ops->invalidate(&s->vga);
         return;
     }
 
     s->invalidated = 1;
 }
 
-/* save the vga display in a PPM image even if no display is
-   available */
-static void vmsvga_screen_dump(void *opaque, const char *filename, bool cswitch,
-                               Error **errp)
-{
-    struct vmsvga_state_s *s = opaque;
-    DisplaySurface *surface = qemu_console_surface(s->vga.con);
-
-    if (!s->enable) {
-        s->vga.screen_dump(&s->vga, filename, cswitch, errp);
-        return;
-    }
-
-    if (surface_bits_per_pixel(surface) == 32) {
-        DisplaySurface *ds = qemu_create_displaysurface_from(
-                                 surface_width(surface),
-                                 surface_height(surface),
-                                 32,
-                                 surface_stride(surface),
-                                 s->vga.vram_ptr, false);
-        ppm_save(filename, ds, errp);
-        g_free(ds);
-    }
-}
-
 static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
 {
     struct vmsvga_state_s *s = opaque;
 
-    if (s->vga.text_update) {
-        s->vga.text_update(&s->vga, chardata);
+    if (s->vga.hw_ops->text_update) {
+        s->vga.hw_ops->text_update(&s->vga, chardata);
     }
 }
 
@@ -1113,7 +1146,7 @@ static const VMStateDescription vmstate_vmware_vga_internal = {
     .minimum_version_id_old = 0,
     .post_load = vmsvga_post_load,
     .fields      = (VMStateField[]) {
-        VMSTATE_INT32_EQUAL(depth, struct vmsvga_state_s),
+        VMSTATE_INT32_EQUAL(new_depth, struct vmsvga_state_s),
         VMSTATE_INT32(enable, struct vmsvga_state_s),
         VMSTATE_INT32(config, struct vmsvga_state_s),
         VMSTATE_INT32(cursor.id, struct vmsvga_state_s),
@@ -1146,19 +1179,19 @@ static const VMStateDescription vmstate_vmware_vga = {
     }
 };
 
+static const GraphicHwOps vmsvga_ops = {
+    .invalidate  = vmsvga_invalidate_display,
+    .gfx_update  = vmsvga_update_display,
+    .text_update = vmsvga_text_update,
+};
+
 static void vmsvga_init(struct vmsvga_state_s *s,
                         MemoryRegion *address_space, MemoryRegion *io)
 {
-    DisplaySurface *surface;
-
     s->scratch_size = SVGA_SCRATCH_SIZE;
     s->scratch = g_malloc(s->scratch_size * 4);
 
-    s->vga.con = graphic_console_init(vmsvga_update_display,
-                                      vmsvga_invalidate_display,
-                                      vmsvga_screen_dump,
-                                      vmsvga_text_update, s);
-    surface = qemu_console_surface(s->vga.con);
+    s->vga.con = graphic_console_init(&vmsvga_ops, s);
 
     s->fifo_size = SVGA_FIFO_SIZE;
     memory_region_init_ram(&s->fifo_ram, "vmsvga.fifo", s->fifo_size);
@@ -1168,10 +1201,7 @@ static void vmsvga_init(struct vmsvga_state_s *s,
     vga_common_init(&s->vga);
     vga_init(&s->vga, address_space, io, true);
     vmstate_register(NULL, 0, &vmstate_vga_common, &s->vga);
-    /* Save some values here in case they are changed later.
-     * This is suspicious and needs more though why it is needed. */
-    s->depth = surface_bits_per_pixel(surface);
-    s->bypp = surface_bytes_per_pixel(surface);
+    s->new_depth = 32;
 }
 
 static uint64_t vmsvga_io_read(void *opaque, hwaddr addr, unsigned size)

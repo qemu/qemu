@@ -166,9 +166,6 @@ static uint32_t expand4[256];
 static uint16_t expand2[256];
 static uint8_t expand4to8[16];
 
-static void vga_screen_dump(void *opaque, const char *filename, bool cswitch,
-                            Error **errp);
-
 static void vga_update_memory_access(VGACommonState *s)
 {
     MemoryRegion *region, *old_region = s->chain4_alias;
@@ -2253,6 +2250,12 @@ const VMStateDescription vmstate_vga_common = {
     }
 };
 
+static const GraphicHwOps vga_ops = {
+    .invalidate  = vga_invalidate_display,
+    .gfx_update  = vga_update_display,
+    .text_update = vga_update_text,
+};
+
 void vga_common_init(VGACommonState *s)
 {
     int i, j, v, b;
@@ -2296,10 +2299,7 @@ void vga_common_init(VGACommonState *s)
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
     s->get_resolution = vga_get_resolution;
-    s->update = vga_update_display;
-    s->invalidate = vga_invalidate_display;
-    s->screen_dump = vga_screen_dump;
-    s->text_update = vga_update_text;
+    s->hw_ops = &vga_ops;
     switch (vga_retrace_method) {
     case VGA_RETRACE_DUMB:
         s->retrace = vga_dumb_retrace;
@@ -2392,66 +2392,4 @@ void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
                                 VBE_DISPI_LFB_PHYSICAL_ADDRESS,
                                 &s->vram_vbe);
     s->vbe_mapped = 1;
-}
-/********************************************************/
-/* vga screen dump */
-
-void ppm_save(const char *filename, struct DisplaySurface *ds, Error **errp)
-{
-    int width = pixman_image_get_width(ds->image);
-    int height = pixman_image_get_height(ds->image);
-    FILE *f;
-    int y;
-    int ret;
-    pixman_image_t *linebuf;
-
-    trace_ppm_save(filename, ds);
-    f = fopen(filename, "wb");
-    if (!f) {
-        error_setg(errp, "failed to open file '%s': %s", filename,
-                   strerror(errno));
-        return;
-    }
-    ret = fprintf(f, "P6\n%d %d\n%d\n", width, height, 255);
-    if (ret < 0) {
-        linebuf = NULL;
-        goto write_err;
-    }
-    linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
-    for (y = 0; y < height; y++) {
-        qemu_pixman_linebuf_fill(linebuf, ds->image, width, 0, y);
-        clearerr(f);
-        ret = fwrite(pixman_image_get_data(linebuf), 1,
-                     pixman_image_get_stride(linebuf), f);
-        (void)ret;
-        if (ferror(f)) {
-            goto write_err;
-        }
-    }
-
-out:
-    qemu_pixman_image_unref(linebuf);
-    fclose(f);
-    return;
-
-write_err:
-    error_setg(errp, "failed to write to file '%s': %s", filename,
-               strerror(errno));
-    unlink(filename);
-    goto out;
-}
-
-/* save the vga display in a PPM image even if no display is
-   available */
-static void vga_screen_dump(void *opaque, const char *filename, bool cswitch,
-                            Error **errp)
-{
-    VGACommonState *s = opaque;
-    DisplaySurface *surface = qemu_console_surface(s->con);
-
-    if (cswitch) {
-        vga_invalidate_display(s);
-    }
-    vga_hw_update();
-    ppm_save(filename, surface, errp);
 }

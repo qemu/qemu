@@ -254,6 +254,12 @@ static const VMStateDescription vmstate_jazz_led = {
     }
 };
 
+static const GraphicHwOps jazz_led_ops = {
+    .invalidate  = jazz_led_invalidate_display,
+    .gfx_update  = jazz_led_update_display,
+    .text_update = jazz_led_text_update,
+};
+
 static int jazz_led_init(SysBusDevice *dev)
 {
     LedState *s = FROM_SYSBUS(LedState, dev);
@@ -261,10 +267,7 @@ static int jazz_led_init(SysBusDevice *dev)
     memory_region_init_io(&s->iomem, &led_ops, s, "led", 1);
     sysbus_init_mmio(dev, &s->iomem);
 
-    s->con = graphic_console_init(jazz_led_update_display,
-                                  jazz_led_invalidate_display,
-                                  NULL,
-                                  jazz_led_text_update, s);
+    s->con = graphic_console_init(&jazz_led_ops, s);
 
     return 0;
 }

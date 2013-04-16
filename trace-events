@@ -962,6 +962,10 @@ dma_bdrv_cb(void *dbs, int ret) "dbs=%p ret=%d"
 dma_map_wait(void *dbs) "dbs=%p"
 
 # console.h
+console_gfx_new(void) ""
+console_txt_new(int w, int h) "%dx%d"
+console_select(int nr) "%d"
+console_refresh(int interval) "interval %d ms"
 displaysurface_create(void *display_surface, int w, int h) "surface=%p, %dx%d"
 displaysurface_create_from(void *display_surface, int w, int h, int bpp, int swap) "surface=%p, %dx%d, bpp %d, bswap %d"
 displaysurface_free(void *display_surface) "surface=%p"
@@ -970,6 +974,13 @@ displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
 
 # vga.c
 ppm_save(const char *filename, void *display_surface) "%s surface=%p"
+vmware_value_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_value_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_palette_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_palette_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_scratch_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_scratch_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_setmode(uint32_t w, uint32_t h, uint32_t bpp) "%dx%d @ %d bpp"
 
 # savevm.c
 

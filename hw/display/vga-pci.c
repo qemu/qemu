@@ -150,8 +150,7 @@ static int pci_std_vga_initfn(PCIDevice *dev)
     vga_common_init(s);
     vga_init(s, pci_address_space(dev), pci_address_space_io(dev), true);
 
-    s->con = graphic_console_init(s->update, s->invalidate,
-                                  s->screen_dump, s->text_update, s);
+    s->con = graphic_console_init(s->hw_ops, s);
 
     /* XXX: VGA_RAM_SIZE must be a power of two */
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
