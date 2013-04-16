@@ -79,6 +79,7 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     const char *cpu_model = args->cpu_model;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev, *dma, *eth0;
+    Object *peer;
     MicroBlazeCPU *cpu;
     SysBusDevice *busdev;
     CPUMBState *env;
@@ -142,7 +143,9 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(dma),
                                    0x82780000, irq[3], 0x1000, 0x1000);
 
-    xilinx_axidma_init(dma, STREAM_SLAVE(eth0), 0x84600000, irq[1], irq[0],
+    peer = object_property_get_link(OBJECT(eth0),
+                                    "axistream-connected-target", NULL);
+    xilinx_axidma_init(dma, STREAM_SLAVE(peer), 0x84600000, irq[1], irq[0],
                        100 * 1000000);
 
     {
