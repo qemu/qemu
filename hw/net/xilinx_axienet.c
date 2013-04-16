@@ -32,6 +32,11 @@
 
 #define DPHY(x)
 
+#define TYPE_XILINX_AXI_ENET "xlnx.axi-ethernet"
+
+#define XILINX_AXI_ENET(obj) \
+     OBJECT_CHECK(XilinxAXIEnet, (obj), TYPE_XILINX_AXI_ENET)
+
 /* Advertisement control register. */
 #define ADVERTISE_10HALF        0x0020  /* Try for 10mbps half-duplex  */
 #define ADVERTISE_10FULL        0x0040  /* Try for 10mbps full-duplex  */
@@ -848,7 +853,7 @@ static NetClientInfo net_xilinx_enet_info = {
 
 static int xilinx_enet_init(SysBusDevice *dev)
 {
-    XilinxAXIEnet *s = FROM_SYSBUS(typeof(*s), dev);
+    XilinxAXIEnet *s = XILINX_AXI_ENET(dev);
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -873,7 +878,7 @@ static int xilinx_enet_init(SysBusDevice *dev)
 
 static void xilinx_enet_initfn(Object *obj)
 {
-    XilinxAXIEnet *s = FROM_SYSBUS(typeof(*s), SYS_BUS_DEVICE(obj));
+    XilinxAXIEnet *s = XILINX_AXI_ENET(obj);
     Error *errp = NULL;
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
@@ -901,7 +906,7 @@ static void xilinx_enet_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xilinx_enet_info = {
-    .name          = "xlnx.axi-ethernet",
+    .name          = TYPE_XILINX_AXI_ENET,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XilinxAXIEnet),
     .class_init    = xilinx_enet_class_init,
