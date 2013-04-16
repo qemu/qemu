@@ -383,6 +383,9 @@ struct XilinxAXIEnet {
 
 
     uint8_t *rxmem;
+    uint32_t *rxapp;
+    uint32_t rxsize;
+    uint32_t rxpos;
 };
 
 static void axienet_rx_reset(XilinxAXIEnet *s)
@@ -645,7 +648,7 @@ static int eth_can_rx(NetClientState *nc)
     XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
 
     /* RX enabled?  */
-    return !axienet_rx_resetting(s) && axienet_rx_enabled(s);
+    return !s->rxsize && !axienet_rx_resetting(s) && axienet_rx_enabled(s);
 }
 
 static int enet_match_addr(const uint8_t *buf, uint32_t f0, uint32_t f1)
@@ -661,6 +664,23 @@ static int enet_match_addr(const uint8_t *buf, uint32_t f0, uint32_t f1)
     }
 
     return match;
+}
+
+static void axienet_eth_rx_notify(void *opaque)
+{
+    XilinxAXIEnet *s = XILINX_AXI_ENET(opaque);
+
+    while (s->rxsize && stream_can_push(s->tx_dev, axienet_eth_rx_notify, s)) {
+        size_t ret = stream_push(s->tx_dev, (void *)s->rxmem + s->rxpos,
+                                 s->rxsize, s->rxapp);
+        s->rxsize -= ret;
+        s->rxpos += ret;
+        if (!s->rxsize) {
+            s->regs[R_IS] |= IS_RX_COMPLETE;
+            g_free(s->rxapp);
+        }
+    }
+    enet_update_irq(s);
 }
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
@@ -800,9 +820,11 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     /* Good frame.  */
     app[2] |= 1 << 6;
 
-    stream_push(s->tx_dev, (void *)s->rxmem, size, app);
+    s->rxsize = size;
+    s->rxpos = 0;
+    s->rxapp = g_memdup(app, sizeof(app));
+    axienet_eth_rx_notify(s);
 
-    s->regs[R_IS] |= IS_RX_COMPLETE;
     enet_update_irq(s);
     return size;
 }

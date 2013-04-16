@@ -117,6 +117,9 @@ struct XilinxAXIDMA {
     XilinxAXIDMAStreamSlave rx_data_dev;
 
     struct Stream streams[2];
+
+    StreamCanPushNotifyFn notify;
+    void *notify_opaque;
 };
 
 /*
@@ -315,16 +318,16 @@ static void stream_process_mem2s(struct Stream *s,
     }
 }
 
-static void stream_process_s2mem(struct Stream *s,
-                                 unsigned char *buf, size_t len, uint32_t *app)
+static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
+                                   size_t len, uint32_t *app)
 {
     uint32_t prev_d;
     unsigned int rxlen;
-    int pos = 0;
+    size_t pos = 0;
     int sof = 1;
 
     if (!stream_running(s) || stream_idle(s)) {
-        return;
+        return 0;
     }
 
     while (len) {
@@ -369,6 +372,8 @@ static void stream_process_s2mem(struct Stream *s,
             break;
         }
     }
+
+    return pos;
 }
 
 static void xilinx_axidma_reset(DeviceState *dev)
@@ -381,19 +386,37 @@ static void xilinx_axidma_reset(DeviceState *dev)
     }
 }
 
+static bool
+xilinx_axidma_data_stream_can_push(StreamSlave *obj,
+                                   StreamCanPushNotifyFn notify,
+                                   void *notify_opaque)
+{
+    XilinxAXIDMAStreamSlave *ds = XILINX_AXI_DMA_DATA_STREAM(obj);
+    struct Stream *s = &ds->dma->streams[1];
+
+    if (!stream_running(s) || stream_idle(s)) {
+        ds->dma->notify = notify;
+        ds->dma->notify_opaque = notify_opaque;
+        return false;
+    }
+
+    return true;
+}
+
 static size_t
 xilinx_axidma_data_stream_push(StreamSlave *obj, unsigned char *buf, size_t len,
                                uint32_t *app)
 {
     XilinxAXIDMAStreamSlave *ds = XILINX_AXI_DMA_DATA_STREAM(obj);
     struct Stream *s = &ds->dma->streams[1];
+    size_t ret;
 
     if (!app) {
         hw_error("No stream app data!\n");
     }
-    stream_process_s2mem(s, buf, len, app);
+    ret = stream_process_s2mem(s, buf, len, app);
     stream_update_irq(s);
-    return len;
+    return ret;
 }
 
 static uint64_t axidma_read(void *opaque, hwaddr addr,
@@ -481,6 +504,10 @@ static void axidma_write(void *opaque, hwaddr addr,
             s->regs[addr] = value;
             break;
     }
+    if (sid == 1 && d->notify) {
+        d->notify(d->notify_opaque);
+        d->notify = NULL;
+    }
     stream_update_irq(s);
 }
 
@@ -558,11 +585,17 @@ static void axidma_class_init(ObjectClass *klass, void *data)
     dc->props = axidma_properties;
 }
 
+static StreamSlaveClass xilinx_axidma_data_stream_class = {
+    .push = xilinx_axidma_data_stream_push,
+    .can_push = xilinx_axidma_data_stream_can_push,
+};
+
 static void xilinx_axidma_stream_class_init(ObjectClass *klass, void *data)
 {
     StreamSlaveClass *ssc = STREAM_SLAVE_CLASS(klass);
 
-    ssc->push = data;
+    ssc->push = ((StreamSlaveClass *)data)->push;
+    ssc->can_push = ((StreamSlaveClass *)data)->can_push;
 }
 
 static const TypeInfo axidma_info = {
@@ -578,7 +611,7 @@ static const TypeInfo xilinx_axidma_data_stream_info = {
     .parent        = TYPE_OBJECT,
     .instance_size = sizeof(struct XilinxAXIDMAStreamSlave),
     .class_init    = xilinx_axidma_stream_class_init,
-    .class_data    = xilinx_axidma_data_stream_push,
+    .class_data    = &xilinx_axidma_data_stream_class,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_STREAM_SLAVE },
         { }
