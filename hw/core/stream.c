@@ -1,11 +1,11 @@
 #include "hw/stream.h"
 
 size_t
-stream_push(StreamSlave *sink, uint8_t *buf, size_t len, uint32_t *app)
+stream_push(StreamSlave *sink, uint8_t *buf, size_t len)
 {
     StreamSlaveClass *k =  STREAM_SLAVE_GET_CLASS(sink);
 
-    return k->push(sink, buf, len, app);
+    return k->push(sink, buf, len);
 }
 
 bool

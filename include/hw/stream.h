@@ -43,12 +43,11 @@ typedef struct StreamSlaveClass {
      * @buf: Data to write
      * @len: Maximum number of bytes to write
      */
-    size_t (*push)(StreamSlave *obj, unsigned char *buf, size_t len,
-                                                    uint32_t *app);
+    size_t (*push)(StreamSlave *obj, unsigned char *buf, size_t len);
 } StreamSlaveClass;
 
 size_t
-stream_push(StreamSlave *sink, uint8_t *buf, size_t len, uint32_t *app);
+stream_push(StreamSlave *sink, uint8_t *buf, size_t len);
 
 bool
 stream_can_push(StreamSlave *sink, StreamCanPushNotifyFn notify,
