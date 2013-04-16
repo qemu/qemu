@@ -109,13 +109,19 @@ static QXLMode qxl_modes[] = {
     /* these modes need more than 8 MB video memory */
     QXL_MODE_EX(1920, 1200),
     QXL_MODE_EX(1920, 1440),
+    QXL_MODE_EX(2000, 2000),
     QXL_MODE_EX(2048, 1536),
+    QXL_MODE_EX(2048, 2048),
     QXL_MODE_EX(2560, 1440),
     QXL_MODE_EX(2560, 1600),
     /* these modes need more than 16 MB video memory */
     QXL_MODE_EX(2560, 2048),
     QXL_MODE_EX(2800, 2100),
     QXL_MODE_EX(3200, 2400),
+    QXL_MODE_EX(3840, 2160), /* 4k mainstream */
+    QXL_MODE_EX(4096, 2160), /* 4k            */
+    QXL_MODE_EX(7680, 4320), /* 8k mainstream */
+    QXL_MODE_EX(8192, 4320), /* 8k            */
 };
 
 static void qxl_send_events(PCIQXLDevice *d, uint32_t events);
@@ -224,7 +230,7 @@ static void qxl_spice_destroy_surfaces_complete(PCIQXLDevice *qxl)
     trace_qxl_spice_destroy_surfaces_complete(qxl->id);
     qemu_mutex_lock(&qxl->track_lock);
     memset(qxl->guest_surfaces.cmds, 0,
-           sizeof(qxl->guest_surfaces.cmds) * qxl->ssd.num_surfaces);
+           sizeof(qxl->guest_surfaces.cmds[0]) * qxl->ssd.num_surfaces);
     qxl->guest_surfaces.count = 0;
     qemu_mutex_unlock(&qxl->track_lock);
 }
