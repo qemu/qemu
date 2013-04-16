@@ -402,8 +402,10 @@ static inline int axienet_newfunc_enabled(XilinxAXIEnet *s)
     return !!(s->regs[R_RAF] & RAF_NEWFUNC_EN);
 }
 
-static void axienet_reset(XilinxAXIEnet *s)
+static void xilinx_axienet_reset(DeviceState *d)
 {
+    XilinxAXIEnet *s = XILINX_AXI_ENET(d);
+
     axienet_rx_reset(s);
     axienet_tx_reset(s);
 
@@ -871,7 +873,6 @@ static int xilinx_enet_init(SysBusDevice *dev)
     s->TEMAC.parent = s;
 
     s->rxmem = g_malloc(s->c_rxmem);
-    axienet_reset(s);
 
     return 0;
 }
@@ -902,6 +903,7 @@ static void xilinx_enet_class_init(ObjectClass *klass, void *data)
 
     k->init = xilinx_enet_init;
     dc->props = xilinx_enet_properties;
+    dc->reset = xilinx_axienet_reset;
     ssc->push = axienet_stream_push;
 }
 
