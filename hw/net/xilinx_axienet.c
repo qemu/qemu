@@ -853,18 +853,13 @@ static NetClientInfo net_xilinx_enet_info = {
     .cleanup = eth_cleanup,
 };
 
-static int xilinx_enet_init(SysBusDevice *dev)
+static void xilinx_enet_realize(DeviceState *dev, Error **errp)
 {
     XilinxAXIEnet *s = XILINX_AXI_ENET(dev);
 
-    sysbus_init_irq(dev, &s->irq);
-
-    memory_region_init_io(&s->iomem, &enet_ops, s, "enet", 0x40000);
-    sysbus_init_mmio(dev, &s->iomem);
-
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_enet_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     tdk_init(&s->TEMAC.phy);
@@ -873,18 +868,22 @@ static int xilinx_enet_init(SysBusDevice *dev)
     s->TEMAC.parent = s;
 
     s->rxmem = g_malloc(s->c_rxmem);
-
-    return 0;
 }
 
-static void xilinx_enet_initfn(Object *obj)
+static void xilinx_enet_init(Object *obj)
 {
     XilinxAXIEnet *s = XILINX_AXI_ENET(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     Error *errp = NULL;
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
                              (Object **) &s->tx_dev, &errp);
     assert_no_error(errp);
+
+    sysbus_init_irq(sbd, &s->irq);
+
+    memory_region_init_io(&s->iomem, &enet_ops, s, "enet", 0x40000);
+    sysbus_init_mmio(sbd, &s->iomem);
 }
 
 static Property xilinx_enet_properties[] = {
@@ -898,10 +897,9 @@ static Property xilinx_enet_properties[] = {
 static void xilinx_enet_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
     StreamSlaveClass *ssc = STREAM_SLAVE_CLASS(klass);
 
-    k->init = xilinx_enet_init;
+    dc->realize = xilinx_enet_realize;
     dc->props = xilinx_enet_properties;
     dc->reset = xilinx_axienet_reset;
     ssc->push = axienet_stream_push;
@@ -912,7 +910,7 @@ static const TypeInfo xilinx_enet_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XilinxAXIEnet),
     .class_init    = xilinx_enet_class_init,
-    .instance_init = xilinx_enet_initfn,
+    .instance_init = xilinx_enet_init,
     .interfaces = (InterfaceInfo[]) {
             { TYPE_STREAM_SLAVE },
             { }
