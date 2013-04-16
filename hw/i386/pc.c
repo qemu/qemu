@@ -595,9 +595,9 @@ static unsigned int pc_apic_id_limit(unsigned int max_cpus)
     return x86_cpu_apic_id_from_index(max_cpus - 1) + 1;
 }
 
-static void *bochs_bios_init(void)
+static FWCfgState *bochs_bios_init(void)
 {
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
     uint8_t *smbios_table;
     size_t smbios_len;
     uint64_t *numa_fw_cfg;
@@ -674,7 +674,7 @@ static long get_file_size(FILE *f)
     return size;
 }
 
-static void load_linux(void *fw_cfg,
+static void load_linux(FWCfgState *fw_cfg,
                        const char *kernel_filename,
                        const char *initrd_filename,
                        const char *kernel_cmdline,
@@ -1012,19 +1012,19 @@ void pc_acpi_init(const char *default_dsdt)
     }
 }
 
-void *pc_memory_init(MemoryRegion *system_memory,
-                    const char *kernel_filename,
-                    const char *kernel_cmdline,
-                    const char *initrd_filename,
-                    ram_addr_t below_4g_mem_size,
-                    ram_addr_t above_4g_mem_size,
-                    MemoryRegion *rom_memory,
-                    MemoryRegion **ram_memory)
+FWCfgState *pc_memory_init(MemoryRegion *system_memory,
+                           const char *kernel_filename,
+                           const char *kernel_cmdline,
+                           const char *initrd_filename,
+                           ram_addr_t below_4g_mem_size,
+                           ram_addr_t above_4g_mem_size,
+                           MemoryRegion *rom_memory,
+                           MemoryRegion **ram_memory)
 {
     int linux_boot, i;
     MemoryRegion *ram, *option_rom_mr;
     MemoryRegion *ram_below_4g, *ram_above_4g;
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
 
     linux_boot = (kernel_filename != NULL);
 

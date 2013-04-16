@@ -1,6 +1,7 @@
 #ifndef LOADER_H
 #define LOADER_H
 #include "qapi/qmp/qdict.h"
+#include "hw/nvram/fw_cfg.h"
 
 /* loader.c */
 int get_image_size(const char *filename);
@@ -30,7 +31,7 @@ int rom_add_blob(const char *name, const void *blob, size_t len,
 int rom_add_elf_program(const char *name, void *data, size_t datasize,
                         size_t romsize, hwaddr addr);
 int rom_load_all(void);
-void rom_set_fw(void *f);
+void rom_set_fw(FWCfgState *f);
 int rom_copy(uint8_t *dest, hwaddr addr, size_t size);
 void *rom_ptr(hwaddr addr);
 void do_info_roms(Monitor *mon, const QDict *qdict);
