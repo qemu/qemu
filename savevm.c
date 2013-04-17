@@ -219,18 +219,6 @@ static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
     return len;
 }
 
-static int socket_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int size)
-{
-    QEMUFileSocket *s = opaque;
-    ssize_t len;
-
-    len = qemu_send_full(s->fd, buf, size, 0);
-    if (len < size) {
-        len = -socket_error();
-    }
-    return len;
-}
-
 static int socket_close(void *opaque)
 {
     QEMUFileSocket *s = opaque;
@@ -368,9 +356,94 @@ static const QEMUFileOps stdio_file_write_ops = {
     .close =      stdio_fclose
 };
 
+static ssize_t unix_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
+                                  int64_t pos)
+{
+    QEMUFileSocket *s = opaque;
+    ssize_t len, offset;
+    ssize_t size = iov_size(iov, iovcnt);
+    ssize_t total = 0;
+
+    assert(iovcnt > 0);
+    offset = 0;
+    while (size > 0) {
+        /* Find the next start position; skip all full-sized vector elements  */
+        while (offset >= iov[0].iov_len) {
+            offset -= iov[0].iov_len;
+            iov++, iovcnt--;
+        }
+
+        /* skip `offset' bytes from the (now) first element, undo it on exit */
+        assert(iovcnt > 0);
+        iov[0].iov_base += offset;
+        iov[0].iov_len -= offset;
+
+        do {
+            len = writev(s->fd, iov, iovcnt);
+        } while (len == -1 && errno == EINTR);
+        if (len == -1) {
+            return -errno;
+        }
+
+        /* Undo the changes above */
+        iov[0].iov_base -= offset;
+        iov[0].iov_len += offset;
+
+        /* Prepare for the next iteration */
+        offset += len;
+        total += len;
+        size -= len;
+    }
+
+    return total;
+}
+
+static int unix_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFileSocket *s = opaque;
+    ssize_t len;
+
+    for (;;) {
+        len = read(s->fd, buf, size);
+        if (len != -1) {
+            break;
+        }
+        if (errno == EAGAIN) {
+            yield_until_fd_readable(s->fd);
+        } else if (errno != EINTR) {
+            break;
+        }
+    }
+
+    if (len == -1) {
+        len = -errno;
+    }
+    return len;
+}
+
+static int unix_close(void *opaque)
+{
+    QEMUFileSocket *s = opaque;
+    close(s->fd);
+    g_free(s);
+    return 0;
+}
+
+static const QEMUFileOps unix_read_ops = {
+    .get_fd =     socket_get_fd,
+    .get_buffer = unix_get_buffer,
+    .close =      unix_close
+};
+
+static const QEMUFileOps unix_write_ops = {
+    .get_fd =     socket_get_fd,
+    .writev_buffer = unix_writev_buffer,
+    .close =      unix_close
+};
+
 QEMUFile *qemu_fdopen(int fd, const char *mode)
 {
-    QEMUFileStdio *s;
+    QEMUFileSocket *s;
 
     if (mode == NULL ||
 	(mode[0] != 'r' && mode[0] != 'w') ||
@@ -379,21 +452,15 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileStdio));
-    s->stdio_file = fdopen(fd, mode);
-    if (!s->stdio_file)
-        goto fail;
+    s = g_malloc0(sizeof(QEMUFileSocket));
+    s->fd = fd;
 
     if(mode[0] == 'r') {
-        s->file = qemu_fopen_ops(s, &stdio_file_read_ops);
+        s->file = qemu_fopen_ops(s, &unix_read_ops);
     } else {
-        s->file = qemu_fopen_ops(s, &stdio_file_write_ops);
+        s->file = qemu_fopen_ops(s, &unix_write_ops);
     }
     return s->file;
-
-fail:
-    g_free(s);
-    return NULL;
 }
 
 static const QEMUFileOps socket_read_ops = {
@@ -404,7 +471,6 @@ static const QEMUFileOps socket_read_ops = {
 
 static const QEMUFileOps socket_write_ops = {
     .get_fd =     socket_get_fd,
-    .put_buffer = socket_put_buffer,
     .writev_buffer = socket_writev_buffer,
     .close =      socket_close
 };
