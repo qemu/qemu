@@ -2,6 +2,13 @@
 #define QEMU_TYPES_H
 #include "cpu.h"
 
+#ifndef ABI_SHORT_ALIGNMENT
+#define ABI_SHORT_ALIGNMENT 2
+#endif
+
+typedef int16_t abi_short __attribute__ ((aligned(ABI_SHORT_ALIGNMENT)));
+typedef uint16_t abi_ushort __attribute__((aligned(ABI_SHORT_ALIGNMENT)));
+
 #ifdef TARGET_ABI32
 typedef uint32_t abi_ulong;
 typedef int32_t abi_long;

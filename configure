@@ -4153,7 +4153,6 @@ bflt="no"
 target_nptl="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_arch2/g"`
 gdb_xml_files=""
-target_short_alignment=2
 target_int_alignment=4
 target_long_alignment=4
 target_llong_alignment=8
@@ -4295,7 +4294,6 @@ case "$cpu" in
   ;;
 esac
 
-echo "TARGET_SHORT_ALIGNMENT=$target_short_alignment" >> $config_target_mak
 echo "TARGET_INT_ALIGNMENT=$target_int_alignment" >> $config_target_mak
 echo "TARGET_LONG_ALIGNMENT=$target_long_alignment" >> $config_target_mak
 echo "TARGET_LLONG_ALIGNMENT=$target_llong_alignment" >> $config_target_mak

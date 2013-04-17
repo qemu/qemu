@@ -110,8 +110,8 @@ typedef abi_ulong       target_elf_greg_t;
 #endif
 
 #ifdef USE_UID16
-typedef target_ushort   target_uid_t;
-typedef target_ushort   target_gid_t;
+typedef abi_ushort      target_uid_t;
+typedef abi_ushort      target_gid_t;
 #else
 typedef target_uint     target_uid_t;
 typedef target_uint     target_gid_t;
@@ -2116,7 +2116,7 @@ struct target_elf_siginfo {
 
 struct target_elf_prstatus {
     struct target_elf_siginfo pr_info;      /* Info associated with signal */
-    target_short       pr_cursig;    /* Current signal */
+    abi_short          pr_cursig;    /* Current signal */
     abi_ulong          pr_sigpend;   /* XXX */
     abi_ulong          pr_sighold;   /* XXX */
     target_pid_t       pr_pid;
