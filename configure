@@ -574,11 +574,6 @@ if test "$mingw32" = "yes" ; then
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
   # enable C99/POSIX format strings (needs mingw32-runtime 3.15 or later)
   QEMU_CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 $QEMU_CFLAGS"
-  if test "$cpu" = "i386"; then
-    # We need something better than i386 for __sync_val_compare_and_swap
-    # and can expect that QEMU will only run on i686 or later.
-    QEMU_CFLAGS="-march=i686 $QEMU_CFLAGS"
-  fi
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
 cat > $TMPC << EOF
 int main(void) { return 0; }
@@ -1326,9 +1321,33 @@ EOF
   fi
 fi
 
-#
+##########################################
+# __sync_fetch_and_and requires at least -march=i486. Many toolchains
+# use i686 as default anyway, but for those that don't, an explicit
+# specification is necessary
+
+if test "$cpu" = "i386"; then
+  cat > $TMPC << EOF
+static int sfaa(int *ptr)
+{
+  return __sync_fetch_and_and(ptr, 0);
+}
+
+int main(void)
+{
+  int val = 42;
+  sfaa(&val);
+  return val;
+}
+EOF
+  if ! compile_prog "" "" ; then
+    QEMU_CFLAGS="-march=i486 $QEMU_CFLAGS"
+  fi
+fi
+
+#########################################
 # Solaris specific configure tool chain decisions
-#
+
 if test "$solaris" = "yes" ; then
   if has $install; then
     :
@@ -3165,29 +3184,6 @@ if test "$trace_backend" = "dtrace"; then
   trace_backend_stap="no"
   if has 'stap' ; then
     trace_backend_stap="yes"
-  fi
-fi
-
-##########################################
-# __sync_fetch_and_and requires at least -march=i486. Many toolchains
-# use i686 as default anyway, but for those that don't, an explicit
-# specification is necessary
-if test "$vhost_net" = "yes" && test "$cpu" = "i386"; then
-  cat > $TMPC << EOF
-static int sfaa(int *ptr)
-{
-  return __sync_fetch_and_and(ptr, 0);
-}
-
-int main(void)
-{
-  int val = 42;
-  sfaa(&val);
-  return val;
-}
-EOF
-  if ! compile_prog "" "" ; then
-    QEMU_CFLAGS="-march=i486 $QEMU_CFLAGS"
   fi
 fi
 
