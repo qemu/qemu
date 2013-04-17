@@ -4008,6 +4008,19 @@ if test "$trace_default" = "yes"; then
   echo "CONFIG_TRACE_DEFAULT=y" >> $config_host_mak
 fi
 
+if test "$tcg_interpreter" = "yes"; then
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/tci $QEMU_INCLUDES"
+elif test "$ARCH" = "sparc64" ; then
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/sparc $QEMU_INCLUDES"
+elif test "$ARCH" = "s390x" ; then
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/s390 $QEMU_INCLUDES"
+elif test "$ARCH" = "x86_64" ; then
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/i386 $QEMU_INCLUDES"
+else
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/\$(ARCH) $QEMU_INCLUDES"
+fi
+QEMU_INCLUDES="-I\$(SRC_PATH)/tcg $QEMU_INCLUDES"
+
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
@@ -4379,21 +4392,7 @@ fi
 # generate QEMU_CFLAGS/LDFLAGS for targets
 
 cflags=""
-includes=""
 ldflags=""
-
-if test "$tcg_interpreter" = "yes"; then
-  includes="-I\$(SRC_PATH)/tcg/tci $includes"
-elif test "$ARCH" = "sparc64" ; then
-  includes="-I\$(SRC_PATH)/tcg/sparc $includes"
-elif test "$ARCH" = "s390x" ; then
-  includes="-I\$(SRC_PATH)/tcg/s390 $includes"
-elif test "$ARCH" = "x86_64" ; then
-  includes="-I\$(SRC_PATH)/tcg/i386 $includes"
-else
-  includes="-I\$(SRC_PATH)/tcg/\$(ARCH) $includes"
-fi
-includes="-I\$(SRC_PATH)/tcg $includes"
 
 for i in $ARCH $TARGET_BASE_ARCH ; do
   case "$i" in
@@ -4524,7 +4523,6 @@ fi
 
 echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
-echo "QEMU_INCLUDES+=$includes" >> $config_target_mak
 
 done # for target in $targets
 
