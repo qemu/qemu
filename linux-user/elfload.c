@@ -113,10 +113,10 @@ typedef abi_ulong       target_elf_greg_t;
 typedef abi_ushort      target_uid_t;
 typedef abi_ushort      target_gid_t;
 #else
-typedef target_uint     target_uid_t;
-typedef target_uint     target_gid_t;
+typedef abi_uint        target_uid_t;
+typedef abi_uint        target_gid_t;
 #endif
-typedef target_int      target_pid_t;
+typedef abi_int         target_pid_t;
 
 #ifdef TARGET_I386
 
@@ -2109,9 +2109,9 @@ struct memelfnote {
 };
 
 struct target_elf_siginfo {
-    target_int  si_signo; /* signal number */
-    target_int  si_code;  /* extra code */
-    target_int  si_errno; /* errno */
+    abi_int    si_signo; /* signal number */
+    abi_int    si_code;  /* extra code */
+    abi_int    si_errno; /* errno */
 };
 
 struct target_elf_prstatus {
@@ -2128,7 +2128,7 @@ struct target_elf_prstatus {
     struct target_timeval pr_cutime; /* XXX Cumulative user time */
     struct target_timeval pr_cstime; /* XXX Cumulative system time */
     target_elf_gregset_t      pr_reg;       /* GP registers */
-    target_int         pr_fpvalid;   /* XXX */
+    abi_int            pr_fpvalid;   /* XXX */
 };
 
 #define ELF_PRARGSZ     (80) /* Number of chars for args */
