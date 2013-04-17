@@ -297,25 +297,25 @@ typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUARMState *env)
 {
-    (*regs)[0] = tswapl(env->regs[0]);
-    (*regs)[1] = tswapl(env->regs[1]);
-    (*regs)[2] = tswapl(env->regs[2]);
-    (*regs)[3] = tswapl(env->regs[3]);
-    (*regs)[4] = tswapl(env->regs[4]);
-    (*regs)[5] = tswapl(env->regs[5]);
-    (*regs)[6] = tswapl(env->regs[6]);
-    (*regs)[7] = tswapl(env->regs[7]);
-    (*regs)[8] = tswapl(env->regs[8]);
-    (*regs)[9] = tswapl(env->regs[9]);
-    (*regs)[10] = tswapl(env->regs[10]);
-    (*regs)[11] = tswapl(env->regs[11]);
-    (*regs)[12] = tswapl(env->regs[12]);
-    (*regs)[13] = tswapl(env->regs[13]);
-    (*regs)[14] = tswapl(env->regs[14]);
-    (*regs)[15] = tswapl(env->regs[15]);
+    (*regs)[0] = tswapreg(env->regs[0]);
+    (*regs)[1] = tswapreg(env->regs[1]);
+    (*regs)[2] = tswapreg(env->regs[2]);
+    (*regs)[3] = tswapreg(env->regs[3]);
+    (*regs)[4] = tswapreg(env->regs[4]);
+    (*regs)[5] = tswapreg(env->regs[5]);
+    (*regs)[6] = tswapreg(env->regs[6]);
+    (*regs)[7] = tswapreg(env->regs[7]);
+    (*regs)[8] = tswapreg(env->regs[8]);
+    (*regs)[9] = tswapreg(env->regs[9]);
+    (*regs)[10] = tswapreg(env->regs[10]);
+    (*regs)[11] = tswapreg(env->regs[11]);
+    (*regs)[12] = tswapreg(env->regs[12]);
+    (*regs)[13] = tswapreg(env->regs[13]);
+    (*regs)[14] = tswapreg(env->regs[14]);
+    (*regs)[15] = tswapreg(env->regs[15]);
 
-    (*regs)[16] = tswapl(cpsr_read((CPUARMState *)env));
-    (*regs)[17] = tswapl(env->regs[0]); /* XXX */
+    (*regs)[16] = tswapreg(cpsr_read((CPUARMState *)env));
+    (*regs)[17] = tswapreg(env->regs[0]); /* XXX */
 }
 
 #define USE_ELF_CORE_DUMP
@@ -681,19 +681,19 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
     target_ulong ccr = 0;
 
     for (i = 0; i < ARRAY_SIZE(env->gpr); i++) {
-        (*regs)[i] = tswapl(env->gpr[i]);
+        (*regs)[i] = tswapreg(env->gpr[i]);
     }
 
-    (*regs)[32] = tswapl(env->nip);
-    (*regs)[33] = tswapl(env->msr);
-    (*regs)[35] = tswapl(env->ctr);
-    (*regs)[36] = tswapl(env->lr);
-    (*regs)[37] = tswapl(env->xer);
+    (*regs)[32] = tswapreg(env->nip);
+    (*regs)[33] = tswapreg(env->msr);
+    (*regs)[35] = tswapreg(env->ctr);
+    (*regs)[36] = tswapreg(env->lr);
+    (*regs)[37] = tswapreg(env->xer);
 
     for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
         ccr |= env->crf[i] << (32 - ((i + 1) * 4));
     }
-    (*regs)[38] = tswapl(ccr);
+    (*regs)[38] = tswapreg(ccr);
 }
 
 #define USE_ELF_CORE_DUMP
@@ -801,11 +801,11 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
     int i, pos = 0;
 
     for (i = 0; i < 32; i++) {
-        (*regs)[pos++] = tswapl(env->regs[i]);
+        (*regs)[pos++] = tswapreg(env->regs[i]);
     }
 
     for (i = 0; i < 6; i++) {
-        (*regs)[pos++] = tswapl(env->sregs[i]);
+        (*regs)[pos++] = tswapreg(env->sregs[i]);
     }
 }
 
@@ -841,11 +841,11 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
     int i;
 
     for (i = 0; i < 32; i++) {
-        (*regs)[i] = tswapl(env->gpr[i]);
+        (*regs)[i] = tswapreg(env->gpr[i]);
     }
 
-    (*regs)[32] = tswapl(env->pc);
-    (*regs)[33] = tswapl(env->sr);
+    (*regs)[32] = tswapreg(env->pc);
+    (*regs)[33] = tswapreg(env->sr);
 }
 #define ELF_HWCAP 0
 #define ELF_PLATFORM NULL
@@ -890,15 +890,15 @@ static inline void elf_core_copy_regs(target_elf_gregset_t *regs,
     int i;
 
     for (i = 0; i < 16; i++) {
-        (*regs[i]) = tswapl(env->gregs[i]);
+        (*regs[i]) = tswapreg(env->gregs[i]);
     }
 
-    (*regs)[TARGET_REG_PC] = tswapl(env->pc);
-    (*regs)[TARGET_REG_PR] = tswapl(env->pr);
-    (*regs)[TARGET_REG_SR] = tswapl(env->sr);
-    (*regs)[TARGET_REG_GBR] = tswapl(env->gbr);
-    (*regs)[TARGET_REG_MACH] = tswapl(env->mach);
-    (*regs)[TARGET_REG_MACL] = tswapl(env->macl);
+    (*regs)[TARGET_REG_PC] = tswapreg(env->pc);
+    (*regs)[TARGET_REG_PR] = tswapreg(env->pr);
+    (*regs)[TARGET_REG_SR] = tswapreg(env->sr);
+    (*regs)[TARGET_REG_GBR] = tswapreg(env->gbr);
+    (*regs)[TARGET_REG_MACH] = tswapreg(env->mach);
+    (*regs)[TARGET_REG_MACL] = tswapreg(env->macl);
     (*regs)[TARGET_REG_SYSCALL] = 0; /* FIXME */
 }
 
@@ -952,25 +952,25 @@ typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
 
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *env)
 {
-    (*regs)[0] = tswapl(env->dregs[1]);
-    (*regs)[1] = tswapl(env->dregs[2]);
-    (*regs)[2] = tswapl(env->dregs[3]);
-    (*regs)[3] = tswapl(env->dregs[4]);
-    (*regs)[4] = tswapl(env->dregs[5]);
-    (*regs)[5] = tswapl(env->dregs[6]);
-    (*regs)[6] = tswapl(env->dregs[7]);
-    (*regs)[7] = tswapl(env->aregs[0]);
-    (*regs)[8] = tswapl(env->aregs[1]);
-    (*regs)[9] = tswapl(env->aregs[2]);
-    (*regs)[10] = tswapl(env->aregs[3]);
-    (*regs)[11] = tswapl(env->aregs[4]);
-    (*regs)[12] = tswapl(env->aregs[5]);
-    (*regs)[13] = tswapl(env->aregs[6]);
-    (*regs)[14] = tswapl(env->dregs[0]);
-    (*regs)[15] = tswapl(env->aregs[7]);
-    (*regs)[16] = tswapl(env->dregs[0]); /* FIXME: orig_d0 */
-    (*regs)[17] = tswapl(env->sr);
-    (*regs)[18] = tswapl(env->pc);
+    (*regs)[0] = tswapreg(env->dregs[1]);
+    (*regs)[1] = tswapreg(env->dregs[2]);
+    (*regs)[2] = tswapreg(env->dregs[3]);
+    (*regs)[3] = tswapreg(env->dregs[4]);
+    (*regs)[4] = tswapreg(env->dregs[5]);
+    (*regs)[5] = tswapreg(env->dregs[6]);
+    (*regs)[6] = tswapreg(env->dregs[7]);
+    (*regs)[7] = tswapreg(env->aregs[0]);
+    (*regs)[8] = tswapreg(env->aregs[1]);
+    (*regs)[9] = tswapreg(env->aregs[2]);
+    (*regs)[10] = tswapreg(env->aregs[3]);
+    (*regs)[11] = tswapreg(env->aregs[4]);
+    (*regs)[12] = tswapreg(env->aregs[5]);
+    (*regs)[13] = tswapreg(env->aregs[6]);
+    (*regs)[14] = tswapreg(env->dregs[0]);
+    (*regs)[15] = tswapreg(env->aregs[7]);
+    (*regs)[16] = tswapreg(env->dregs[0]); /* FIXME: orig_d0 */
+    (*regs)[17] = tswapreg(env->sr);
+    (*regs)[18] = tswapreg(env->pc);
     (*regs)[19] = 0;  /* FIXME: regs->format | regs->vector */
 }
 
