@@ -11,6 +11,11 @@
 #ifdef TARGET_M68K
 #define ABI_INT_ALIGNMENT 2
 #define ABI_LONG_ALIGNMENT 2
+#define ABI_LLONG_ALIGNMENT 2
+#endif
+
+#ifdef TARGET_ARM
+#define ABI_LLONG_ALIGNMENT 4
 #endif
 
 #ifndef ABI_SHORT_ALIGNMENT
@@ -22,11 +27,16 @@
 #ifndef ABI_LONG_ALIGNMENT
 #define ABI_LONG_ALIGNMENT (TARGET_ABI_BITS / 8)
 #endif
+#ifndef ABI_LLONG_ALIGNMENT
+#define ABI_LLONG_ALIGNMENT 8
+#endif
 
 typedef int16_t abi_short __attribute__ ((aligned(ABI_SHORT_ALIGNMENT)));
 typedef uint16_t abi_ushort __attribute__((aligned(ABI_SHORT_ALIGNMENT)));
 typedef int32_t abi_int __attribute__((aligned(ABI_INT_ALIGNMENT)));
 typedef uint32_t abi_uint __attribute__((aligned(ABI_INT_ALIGNMENT)));
+typedef int64_t abi_llong __attribute__((aligned(ABI_LLONG_ALIGNMENT)));
+typedef uint64_t abi_ullong __attribute__((aligned(ABI_LLONG_ALIGNMENT)));
 
 #ifdef TARGET_ABI32
 typedef uint32_t abi_ulong __attribute__((aligned(ABI_LONG_ALIGNMENT)));

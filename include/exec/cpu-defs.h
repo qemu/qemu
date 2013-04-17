@@ -36,8 +36,6 @@
 
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
 
-typedef int64_t target_llong __attribute__((aligned(TARGET_LLONG_ALIGNMENT)));
-typedef uint64_t target_ullong __attribute__((aligned(TARGET_LLONG_ALIGNMENT)));
 /* target_ulong is the type of a virtual address */
 #if TARGET_LONG_SIZE == 4
 typedef int32_t target_long;

@@ -102,8 +102,8 @@ enum {
 #endif
 
 #ifdef TARGET_ABI_MIPSN32
-typedef target_ulong    target_elf_greg_t;
-#define tswapreg(ptr)   tswapl(ptr)
+typedef abi_ullong      target_elf_greg_t;
+#define tswapreg(ptr)   tswap64(ptr)
 #else
 typedef abi_ulong       target_elf_greg_t;
 #define tswapreg(ptr)   tswapal(ptr)

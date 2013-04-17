@@ -4153,7 +4153,6 @@ bflt="no"
 target_nptl="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_arch2/g"`
 gdb_xml_files=""
-target_llong_alignment=8
 target_libs_softmmu=
 
 TARGET_ARCH="$target_arch2"
@@ -4174,7 +4173,6 @@ case "$target_arch2" in
     bflt="yes"
     target_nptl="yes"
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
-    target_llong_alignment=4
   ;;
   cris)
     target_nptl="yes"
@@ -4185,7 +4183,6 @@ case "$target_arch2" in
   m68k)
     bflt="yes"
     gdb_xml_files="cf-core.xml cf-fp.xml"
-    target_llong_alignment=2
   ;;
   microblaze|microblazeel)
     TARGET_ARCH=microblaze
@@ -4284,7 +4281,6 @@ case "$cpu" in
   ;;
 esac
 
-echo "TARGET_LLONG_ALIGNMENT=$target_llong_alignment" >> $config_target_mak
 echo "TARGET_ARCH=$TARGET_ARCH" >> $config_target_mak
 target_arch_name="`upper $TARGET_ARCH`"
 echo "TARGET_$target_arch_name=y" >> $config_target_mak
