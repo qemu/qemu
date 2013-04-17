@@ -4153,7 +4153,6 @@ bflt="no"
 target_nptl="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_arch2/g"`
 gdb_xml_files=""
-target_long_alignment=4
 target_llong_alignment=8
 target_libs_softmmu=
 
@@ -4166,10 +4165,8 @@ case "$target_arch2" in
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
-    target_long_alignment=8
   ;;
   alpha)
-    target_long_alignment=8
     target_nptl="yes"
   ;;
   arm|armeb)
@@ -4188,7 +4185,6 @@ case "$target_arch2" in
   m68k)
     bflt="yes"
     gdb_xml_files="cf-core.xml cf-fp.xml"
-    target_long_alignment=2
     target_llong_alignment=2
   ;;
   microblaze|microblazeel)
@@ -4211,7 +4207,6 @@ case "$target_arch2" in
     TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
-    target_long_alignment=8
   ;;
   moxie)
   ;;
@@ -4233,7 +4228,6 @@ case "$target_arch2" in
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
-    target_long_alignment=8
   ;;
   ppc64abi32)
     TARGET_ARCH=ppc64
@@ -4251,7 +4245,6 @@ case "$target_arch2" in
   ;;
   sparc64)
     TARGET_BASE_ARCH=sparc
-    target_long_alignment=8
   ;;
   sparc32plus)
     TARGET_ARCH=sparc64
@@ -4261,7 +4254,6 @@ case "$target_arch2" in
   ;;
   s390x)
     target_nptl="yes"
-    target_long_alignment=8
   ;;
   unicore32)
   ;;
@@ -4292,7 +4284,6 @@ case "$cpu" in
   ;;
 esac
 
-echo "TARGET_LONG_ALIGNMENT=$target_long_alignment" >> $config_target_mak
 echo "TARGET_LLONG_ALIGNMENT=$target_llong_alignment" >> $config_target_mak
 echo "TARGET_ARCH=$TARGET_ARCH" >> $config_target_mak
 target_arch_name="`upper $TARGET_ARCH`"
