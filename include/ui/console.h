@@ -2,6 +2,7 @@
 #define CONSOLE_H
 
 #include "ui/qemu-pixman.h"
+#include "qom/object.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/notify.h"
 #include "monitor/monitor.h"
@@ -92,6 +93,20 @@ void do_mouse_set(Monitor *mon, const QDict *qdict);
 void kbd_put_keysym(int keysym);
 
 /* consoles */
+
+#define TYPE_QEMU_CONSOLE "qemu-console"
+#define QEMU_CONSOLE(obj) \
+    OBJECT_CHECK(QemuConsole, (obj), TYPE_QEMU_CONSOLE)
+#define QEMU_CONSOLE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(QemuConsoleClass, (obj), TYPE_QEMU_CONSOLE)
+#define QEMU_CONSOLE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(QemuConsoleClass, (klass), TYPE_QEMU_CONSOLE)
+
+typedef struct QemuConsoleClass QemuConsoleClass;
+
+struct QemuConsoleClass {
+    ObjectClass parent_class;
+};
 
 #define QEMU_BIG_ENDIAN_FLAG    0x01
 #define QEMU_ALLOCATED_FLAG     0x02

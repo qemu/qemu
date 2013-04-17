@@ -113,6 +113,8 @@ typedef enum {
 } console_type_t;
 
 struct QemuConsole {
+    Object parent;
+
     int index;
     console_type_t console_type;
     DisplayState *ds;
@@ -1197,12 +1199,14 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
 
 static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
 {
+    Object *obj;
     QemuConsole *s;
     int i;
 
     if (nb_consoles >= MAX_CONSOLES)
         return NULL;
-    s = g_malloc0(sizeof(QemuConsole));
+    obj = object_new(TYPE_QEMU_CONSOLE);
+    s = QEMU_CONSOLE(obj);
     if (!active_console || ((active_console->console_type != GRAPHIC_CONSOLE) &&
         (console_type == GRAPHIC_CONSOLE))) {
         active_console = s;
@@ -1920,8 +1924,17 @@ static void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
+static const TypeInfo qemu_console_info = {
+    .name = TYPE_QEMU_CONSOLE,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(QemuConsole),
+    .class_size = sizeof(QemuConsoleClass),
+};
+
+
 static void register_types(void)
 {
+    type_register_static(&qemu_console_info);
     register_char_driver_qapi("vc", CHARDEV_BACKEND_KIND_VC,
                               qemu_chr_parse_vc);
 }
