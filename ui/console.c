@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "ui/console.h"
+#include "hw/qdev-core.h"
 #include "qemu/timer.h"
 #include "qmp-commands.h"
 #include "sysemu/char.h"
@@ -122,6 +123,7 @@ struct QemuConsole {
     int dcls;
 
     /* Graphic console state.  */
+    Object *device;
     const GraphicHwOps *hw_ops;
     void *hw;
 
@@ -1199,14 +1201,19 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
 
 static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
 {
+    Error *local_err = NULL;
     Object *obj;
     QemuConsole *s;
     int i;
 
     if (nb_consoles >= MAX_CONSOLES)
         return NULL;
+
     obj = object_new(TYPE_QEMU_CONSOLE);
     s = QEMU_CONSOLE(obj);
+    object_property_add_link(obj, "device", TYPE_DEVICE,
+                             (Object **)&s->device, &local_err);
+
     if (!active_console || ((active_console->console_type != GRAPHIC_CONSOLE) &&
         (console_type == GRAPHIC_CONSOLE))) {
         active_console = s;
@@ -1557,9 +1564,11 @@ DisplayState *init_displaystate(void)
     return display_state;
 }
 
-QemuConsole *graphic_console_init(const GraphicHwOps *hw_ops,
+QemuConsole *graphic_console_init(DeviceState *dev,
+                                  const GraphicHwOps *hw_ops,
                                   void *opaque)
 {
+    Error *local_err = NULL;
     int width = 640;
     int height = 480;
     QemuConsole *s;
@@ -1570,6 +1579,10 @@ QemuConsole *graphic_console_init(const GraphicHwOps *hw_ops,
     s = new_console(ds, GRAPHIC_CONSOLE);
     s->hw_ops = hw_ops;
     s->hw = opaque;
+    if (dev) {
+        object_property_set_link(OBJECT(s), OBJECT(dev),
+                                 "device", &local_err);
+    }
 
     s->surface = qemu_create_displaysurface(width, height);
     return s;

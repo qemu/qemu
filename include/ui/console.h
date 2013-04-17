@@ -278,7 +278,8 @@ typedef struct GraphicHwOps {
     void (*update_interval)(void *opaque, uint64_t interval);
 } GraphicHwOps;
 
-QemuConsole *graphic_console_init(const GraphicHwOps *ops,
+QemuConsole *graphic_console_init(DeviceState *dev,
+                                  const GraphicHwOps *ops,
                                   void *opaque);
 
 void graphic_hw_update(QemuConsole *con);
