@@ -4299,12 +4299,9 @@ case "$target_arch2" in
       if test "$xen_pci_passthrough" = yes; then
         echo "CONFIG_XEN_PCI_PASSTHROUGH=y" >> "$config_target_mak"
       fi
-    else
-      echo "CONFIG_NO_XEN=y" >> $config_target_mak
     fi
     ;;
   *)
-    echo "CONFIG_NO_XEN=y" >> $config_target_mak
 esac
 case "$target_arch2" in
   arm|i386|x86_64|ppcemb|ppc|ppc64|s390x)
