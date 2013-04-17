@@ -2110,8 +2110,8 @@ struct target_elf_siginfo {
 struct target_elf_prstatus {
     struct target_elf_siginfo pr_info;      /* Info associated with signal */
     target_short       pr_cursig;    /* Current signal */
-    target_ulong       pr_sigpend;   /* XXX */
-    target_ulong       pr_sighold;   /* XXX */
+    abi_ulong          pr_sigpend;   /* XXX */
+    abi_ulong          pr_sighold;   /* XXX */
     target_pid_t       pr_pid;
     target_pid_t       pr_ppid;
     target_pid_t       pr_pgrp;
@@ -2131,7 +2131,7 @@ struct target_elf_prpsinfo {
     char         pr_sname;       /* char for pr_state */
     char         pr_zomb;        /* zombie */
     char         pr_nice;        /* nice val */
-    target_ulong pr_flag;        /* flags */
+    abi_ulong    pr_flag;        /* flags */
     target_uid_t pr_uid;
     target_gid_t pr_gid;
     target_pid_t pr_pid, pr_ppid, pr_pgrp, pr_sid;
@@ -2215,12 +2215,12 @@ static int write_note_info(struct elf_note_info *, int);
 #ifdef BSWAP_NEEDED
 static void bswap_prstatus(struct target_elf_prstatus *prstatus)
 {
-    prstatus->pr_info.si_signo = tswapl(prstatus->pr_info.si_signo);
-    prstatus->pr_info.si_code = tswapl(prstatus->pr_info.si_code);
-    prstatus->pr_info.si_errno = tswapl(prstatus->pr_info.si_errno);
+    prstatus->pr_info.si_signo = tswap32(prstatus->pr_info.si_signo);
+    prstatus->pr_info.si_code = tswap32(prstatus->pr_info.si_code);
+    prstatus->pr_info.si_errno = tswap32(prstatus->pr_info.si_errno);
     prstatus->pr_cursig = tswap16(prstatus->pr_cursig);
-    prstatus->pr_sigpend = tswapl(prstatus->pr_sigpend);
-    prstatus->pr_sighold = tswapl(prstatus->pr_sighold);
+    prstatus->pr_sigpend = tswapal(prstatus->pr_sigpend);
+    prstatus->pr_sighold = tswapal(prstatus->pr_sighold);
     prstatus->pr_pid = tswap32(prstatus->pr_pid);
     prstatus->pr_ppid = tswap32(prstatus->pr_ppid);
     prstatus->pr_pgrp = tswap32(prstatus->pr_pgrp);
@@ -2232,7 +2232,7 @@ static void bswap_prstatus(struct target_elf_prstatus *prstatus)
 
 static void bswap_psinfo(struct target_elf_prpsinfo *psinfo)
 {
-    psinfo->pr_flag = tswapl(psinfo->pr_flag);
+    psinfo->pr_flag = tswapal(psinfo->pr_flag);
     psinfo->pr_uid = tswap16(psinfo->pr_uid);
     psinfo->pr_gid = tswap16(psinfo->pr_gid);
     psinfo->pr_pid = tswap32(psinfo->pr_pid);
