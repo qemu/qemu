@@ -101,7 +101,14 @@ enum {
 #define ELF_DATA        ELFDATA2LSB
 #endif
 
+#ifdef TARGET_ABI_MIPSN32
 typedef target_ulong    target_elf_greg_t;
+#define tswapreg(ptr)   tswapl(ptr)
+#else
+typedef abi_ulong       target_elf_greg_t;
+#define tswapreg(ptr)   tswapal(ptr)
+#endif
+
 #ifdef USE_UID16
 typedef target_ushort   target_uid_t;
 typedef target_ushort   target_gid_t;
@@ -747,17 +754,17 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMIPSState *e
     (*regs)[TARGET_EF_R0] = 0;
 
     for (i = 1; i < ARRAY_SIZE(env->active_tc.gpr); i++) {
-        (*regs)[TARGET_EF_R0 + i] = tswapl(env->active_tc.gpr[i]);
+        (*regs)[TARGET_EF_R0 + i] = tswapreg(env->active_tc.gpr[i]);
     }
 
     (*regs)[TARGET_EF_R26] = 0;
     (*regs)[TARGET_EF_R27] = 0;
-    (*regs)[TARGET_EF_LO] = tswapl(env->active_tc.LO[0]);
-    (*regs)[TARGET_EF_HI] = tswapl(env->active_tc.HI[0]);
-    (*regs)[TARGET_EF_CP0_EPC] = tswapl(env->active_tc.PC);
-    (*regs)[TARGET_EF_CP0_BADVADDR] = tswapl(env->CP0_BadVAddr);
-    (*regs)[TARGET_EF_CP0_STATUS] = tswapl(env->CP0_Status);
-    (*regs)[TARGET_EF_CP0_CAUSE] = tswapl(env->CP0_Cause);
+    (*regs)[TARGET_EF_LO] = tswapreg(env->active_tc.LO[0]);
+    (*regs)[TARGET_EF_HI] = tswapreg(env->active_tc.HI[0]);
+    (*regs)[TARGET_EF_CP0_EPC] = tswapreg(env->active_tc.PC);
+    (*regs)[TARGET_EF_CP0_BADVADDR] = tswapreg(env->CP0_BadVAddr);
+    (*regs)[TARGET_EF_CP0_STATUS] = tswapreg(env->CP0_Status);
+    (*regs)[TARGET_EF_CP0_CAUSE] = tswapreg(env->CP0_Cause);
 }
 
 #define USE_ELF_CORE_DUMP
