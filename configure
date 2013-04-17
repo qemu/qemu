@@ -1467,6 +1467,7 @@ EOF
             "Make sure to have the zlib libs and headers installed."
     fi
 fi
+libs_softmmu="$libs_softmmu -lz"
 
 ##########################################
 # libseccomp check
@@ -3607,6 +3608,7 @@ echo "qemu_helperdir=$libexecdir" >> $config_host_mak
 echo "extra_cflags=$EXTRA_CFLAGS" >> $config_host_mak
 echo "extra_ldflags=$EXTRA_LDFLAGS" >> $config_host_mak
 echo "qemu_localedir=$qemu_localedir" >> $config_host_mak
+echo "libs_softmmu=$libs_softmmu" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 
@@ -4331,7 +4333,7 @@ if test "$target_bigendian" = "yes" ; then
 fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
-  echo "LIBS+=$libs_softmmu $target_libs_softmmu" >> $config_target_mak
+  echo "LIBS+=$target_libs_softmmu" >> $config_target_mak
   case "$target_arch2" in
     i386|x86_64)
       echo "CONFIG_HAVE_CORE_DUMP=y" >> $config_target_mak

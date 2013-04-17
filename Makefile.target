@@ -31,10 +31,6 @@ PROGS+=$(QEMU_PROGW)
 endif
 STPFILES=
 
-ifndef CONFIG_HAIKU
-LIBS+=-lm
-endif
-
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
 
@@ -119,7 +115,7 @@ obj-$(CONFIG_HAVE_GET_MEMORY_MAPPING) += memory_mapping.o
 obj-$(CONFIG_HAVE_CORE_DUMP) += dump.o
 obj-$(CONFIG_NO_GET_MEMORY_MAPPING) += memory_mapping-stub.o
 obj-$(CONFIG_NO_CORE_DUMP) += dump-stub.o
-LIBS+=-lz
+LIBS+=$(libs_softmmu)
 
 # xen support
 obj-$(CONFIG_XEN) += xen-all.o xen-mapcache.o
@@ -148,6 +144,10 @@ include $(SRC_PATH)/Makefile.objs
 
 all-obj-y = $(obj-y)
 all-obj-y += $(addprefix ../, $(common-obj-y))
+
+ifndef CONFIG_HAIKU
+LIBS+=-lm
+endif
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.
