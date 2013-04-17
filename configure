@@ -3891,6 +3891,7 @@ fi
 
 if test "$glx" = "yes" ; then
   echo "CONFIG_GLX=y" >> $config_host_mak
+  echo "GLX_LIBS=$glx_libs" >> $config_host_mak
 fi
 
 if test "$libiscsi" = "yes" ; then
@@ -4164,7 +4165,6 @@ bflt="no"
 target_nptl="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_arch2/g"`
 gdb_xml_files=""
-target_libs_softmmu=
 
 TARGET_ARCH="$target_arch2"
 TARGET_BASE_ARCH=""
@@ -4189,7 +4189,6 @@ case "$target_arch2" in
     target_nptl="yes"
   ;;
   lm32)
-    target_libs_softmmu="$glx_libs"
   ;;
   m68k)
     bflt="yes"
@@ -4333,7 +4332,6 @@ if test "$target_bigendian" = "yes" ; then
 fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
-  echo "LIBS+=$target_libs_softmmu" >> $config_target_mak
   case "$target_arch2" in
     i386|x86_64)
       echo "CONFIG_HAVE_CORE_DUMP=y" >> $config_target_mak
