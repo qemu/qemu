@@ -3609,6 +3609,15 @@ echo "extra_ldflags=$EXTRA_LDFLAGS" >> $config_host_mak
 echo "qemu_localedir=$qemu_localedir" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
+
+case "$cpu" in
+  i386|x86_64|ppc)
+    # The TCG interpreter currently does not support ld/st optimization.
+    if test "$tcg_interpreter" = "no" ; then
+        echo "CONFIG_QEMU_LDST_OPTIMIZATION=y" >> $config_host_mak
+    fi
+  ;;
+esac
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
@@ -4271,15 +4280,6 @@ symlink "$source_path/Makefile.target" "$target_dir/Makefile"
 upper() {
     echo "$@"| LC_ALL=C tr '[a-z]' '[A-Z]'
 }
-
-case "$cpu" in
-  i386|x86_64|ppc)
-    # The TCG interpreter currently does not support ld/st optimization.
-    if test "$tcg_interpreter" = "no" ; then
-        echo "CONFIG_QEMU_LDST_OPTIMIZATION=y" >> $config_target_mak
-    fi
-  ;;
-esac
 
 echo "TARGET_ARCH=$TARGET_ARCH" >> $config_target_mak
 target_arch_name="`upper $TARGET_ARCH`"
