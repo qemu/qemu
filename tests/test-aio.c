@@ -15,11 +15,26 @@
 
 AioContext *ctx;
 
+typedef struct {
+    EventNotifier e;
+    int n;
+    int active;
+    bool auto_set;
+} EventNotifierTestData;
+
 /* Wait until there are no more BHs or AIO requests */
 static void wait_for_aio(void)
 {
     while (aio_poll(ctx, true)) {
         /* Do nothing */
+    }
+}
+
+/* Wait until event notifier becomes inactive */
+static void wait_until_inactive(EventNotifierTestData *data)
+{
+    while (data->active > 0) {
+        aio_poll(ctx, true);
     }
 }
 
@@ -49,13 +64,6 @@ static void bh_delete_cb(void *opaque)
         data->bh = NULL;
     }
 }
-
-typedef struct {
-    EventNotifier e;
-    int n;
-    int active;
-    bool auto_set;
-} EventNotifierTestData;
 
 static int event_active_cb(EventNotifier *e)
 {
@@ -281,7 +289,7 @@ static void test_flush_event_notifier(void)
     g_assert_cmpint(data.active, ==, 9);
     g_assert(aio_poll(ctx, false));
 
-    wait_for_aio();
+    wait_until_inactive(&data);
     g_assert_cmpint(data.n, ==, 10);
     g_assert_cmpint(data.active, ==, 0);
     g_assert(!aio_poll(ctx, false));
@@ -325,7 +333,7 @@ static void test_wait_event_notifier_noflush(void)
     g_assert_cmpint(data.n, ==, 2);
 
     event_notifier_set(&dummy.e);
-    wait_for_aio();
+    wait_until_inactive(&dummy);
     g_assert_cmpint(data.n, ==, 2);
     g_assert_cmpint(dummy.n, ==, 1);
     g_assert_cmpint(dummy.active, ==, 0);
