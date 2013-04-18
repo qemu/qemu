@@ -53,6 +53,7 @@ DriveInfo *drive_get_next(BlockInterfaceType type);
 void drive_get_ref(DriveInfo *dinfo);
 void drive_put_ref(DriveInfo *dinfo);
 DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
+void drive_append(DriveInfo *dinfo);
 
 QemuOpts *drive_def(const char *optstr);
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,

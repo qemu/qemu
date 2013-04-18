@@ -204,6 +204,11 @@ DriveInfo *drive_get_by_blockdev(BlockDriverState *bs)
     return NULL;
 }
 
+void drive_append(DriveInfo *dinfo)
+{
+    QTAILQ_INSERT_TAIL(&drives, dinfo, next);
+}
+
 static void bdrv_format_print(void *opaque, const char *name)
 {
     error_printf(" %s", name);
@@ -624,7 +629,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     if (serial != NULL) {
         dinfo->serial = g_strdup(serial);
     }
-    QTAILQ_INSERT_TAIL(&drives, dinfo, next);
+    drive_append(dinfo);
 
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
 
