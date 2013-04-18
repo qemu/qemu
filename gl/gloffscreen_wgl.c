@@ -78,12 +78,8 @@ PFNWGLRELEASEPBUFFERDCARBPROC wglReleasePbufferDCARB;
 PFNWGLCREATEPBUFFERARBPROC wglCreatePbufferARB;
 PFNWGLDESTROYPBUFFERARBPROC wglDestroyPbufferARB;
 
-int glo_initialised(void) {
-    return glo_inited;
-}
-
 /* Initialise gloffscreen */
-void glo_init(void) {
+static void glo_init(void) {
     WNDCLASSEX wcx;
     PIXELFORMATDESCRIPTOR pfd;
 
@@ -172,7 +168,7 @@ void glo_init(void) {
 }
 
 /* Uninitialise gloffscreen */
-void glo_kill(void) {
+static void glo_kill(void) {
     if (glo.hContext) {
         wglMakeCurrent(NULL, NULL);
         wglDeleteContext(glo.hContext);

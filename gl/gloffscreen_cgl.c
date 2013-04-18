@@ -33,47 +33,9 @@
 
 #include "gloffscreen.h"
 
-/* In Windows, you must create a window *before* you can create a pbuffer or
- * get a context. So we create a hidden Window on startup(see glo_init/GloMain).
- *
- * Also, you can't share contexts that have different pixel formats, so we can't
- * just create a new context from the window. We must create a whole new PBuffer
- * just for a context :(
- */
-
-struct GloMain {
-    int init;
-    /* Not needed for CGL? */
-};
-
-struct GloMain glo; 
-int glo_inited = 0;
-
 struct _GloContext {
   CGLContextObj     cglContext;
 };
-
-int glo_initialised(void) {
-  return glo_inited;
-}
-
-/* Initialise gloffscreen */
-void glo_init(void) {
-    /* TODO: CGL Implementation.
-     * Initialization needed for CGL? */
-  
-    if (glo_inited) {
-        printf( "gloffscreen already inited\n" );
-        exit( EXIT_FAILURE );
-    }
-
-    glo_inited = 1;
-}
-
-/* Uninitialise gloffscreen */
-void glo_kill(void) {
-    glo_inited = 0;
-}
 
 /* Create an OpenGL context for a certain pixel format. formatflags are from 
  * the GLO_ constants */
@@ -95,9 +57,6 @@ GloContext *glo_context_create(int formatFlags)
     CGLChoosePixelFormat(attributes, &pix, &num);
     CGLCreateContext(pix, NULL, &context->cglContext);
     CGLDestroyPixelFormat(pix);
-
-    if (!glo_inited)
-        glo_init();
 
     glo_set_current(context);
 

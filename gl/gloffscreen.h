@@ -60,17 +60,8 @@ typedef struct _GloContext GloContext;
 /* The only currently supported format */
 #define GLO_FF_DEFAULT (GLO_FF_BITS_24|GLO_FF_DEPTH_24)
 
-/* Has gloffscreen been previously initialised? */
-extern int glo_initialised(void);
-
-/* Initialise gloffscreen */
-extern void glo_init(void);
-
 /* Change current context */
 extern void glo_set_current(GloContext *context);
-
-/* Uninitialise gloffscreen */
-extern void glo_kill(void);
 
 /* Check GL Extensions */
 extern GLboolean glo_check_extension(
