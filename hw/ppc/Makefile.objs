@@ -1,26 +1,12 @@
-# PREP target
-obj-y += mc146818rtc.o
-# IBM pSeries (sPAPR)
-obj-$(CONFIG_PSERIES) += spapr_vty.o spapr_llan.o spapr_vscsi.o
-obj-$(CONFIG_PSERIES) += spapr_pci.o pci/pci-hotplug.o
-obj-$(CONFIG_PSERIES) += spapr_nvram.o
-# PowerPC 4xx boards
-obj-y += ppc4xx_pci.o
-# PowerPC OpenPIC
-obj-y += openpic.o
-
-# Xilinx PPC peripherals
-obj-y += xilinx_ethlite.o
-
-obj-y := $(addprefix ../,$(obj-y))
-
 # shared objects
 obj-y += ppc.o ppc_booke.o
 # IBM pSeries (sPAPR)
 obj-$(CONFIG_PSERIES) += spapr.o xics.o spapr_vio.o spapr_events.o
 obj-$(CONFIG_PSERIES) += spapr_hcall.o spapr_iommu.o spapr_rtas.o
+obj-$(CONFIG_PSERIES) += spapr_pci.o
 # PowerPC 4xx boards
 obj-y += ppc405_boards.o ppc4xx_devs.o ppc405_uc.o ppc440_bamboo.o
+obj-y += ppc4xx_pci.o
 # PReP
 obj-y += prep.o
 # OldWorld PowerMac

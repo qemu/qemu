@@ -2179,6 +2179,117 @@ target_ulong helper_popcnt(CPUX86State *env, target_ulong n, uint32_t type)
     return POPCOUNT(n, 5);
 #endif
 }
+
+void glue(helper_pclmulqdq, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
+                                    uint32_t ctrl)
+{
+    uint64_t ah, al, b, resh, resl;
+
+    ah = 0;
+    al = d->Q((ctrl & 1) != 0);
+    b = s->Q((ctrl & 16) != 0);
+    resh = resl = 0;
+
+    while (b) {
+        if (b & 1) {
+            resl ^= al;
+            resh ^= ah;
+        }
+        ah = (ah << 1) | (al >> 63);
+        al <<= 1;
+        b >>= 1;
+    }
+
+    d->Q(0) = resl;
+    d->Q(1) = resh;
+}
+
+/* AES-NI op helpers */
+static const uint8_t aes_shifts[16] = {
+    0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11
+};
+
+static const uint8_t aes_ishifts[16] = {
+    0, 13, 10, 7, 4, 1, 14, 11, 8, 5, 2, 15, 12, 9, 6, 3
+};
+
+void glue(helper_aesdec, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg st = *d;
+    Reg rk = *s;
+
+    for (i = 0 ; i < 4 ; i++) {
+        d->L(i) = rk.L(i) ^ bswap32(AES_Td0[st.B(aes_ishifts[4*i+0])] ^
+                                    AES_Td1[st.B(aes_ishifts[4*i+1])] ^
+                                    AES_Td2[st.B(aes_ishifts[4*i+2])] ^
+                                    AES_Td3[st.B(aes_ishifts[4*i+3])]);
+    }
+}
+
+void glue(helper_aesdeclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg st = *d;
+    Reg rk = *s;
+
+    for (i = 0; i < 16; i++) {
+        d->B(i) = rk.B(i) ^ (AES_Td4[st.B(aes_ishifts[i])] & 0xff);
+    }
+}
+
+void glue(helper_aesenc, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg st = *d;
+    Reg rk = *s;
+
+    for (i = 0 ; i < 4 ; i++) {
+        d->L(i) = rk.L(i) ^ bswap32(AES_Te0[st.B(aes_shifts[4*i+0])] ^
+                                    AES_Te1[st.B(aes_shifts[4*i+1])] ^
+                                    AES_Te2[st.B(aes_shifts[4*i+2])] ^
+                                    AES_Te3[st.B(aes_shifts[4*i+3])]);
+    }
+}
+
+void glue(helper_aesenclast, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg st = *d;
+    Reg rk = *s;
+
+    for (i = 0; i < 16; i++) {
+        d->B(i) = rk.B(i) ^ (AES_Te4[st.B(aes_shifts[i])] & 0xff);
+    }
+
+}
+
+void glue(helper_aesimc, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+    Reg tmp = *s;
+
+    for (i = 0 ; i < 4 ; i++) {
+        d->L(i) = bswap32(AES_Td0[AES_Te4[tmp.B(4*i+0)] & 0xff] ^
+                          AES_Td1[AES_Te4[tmp.B(4*i+1)] & 0xff] ^
+                          AES_Td2[AES_Te4[tmp.B(4*i+2)] & 0xff] ^
+                          AES_Td3[AES_Te4[tmp.B(4*i+3)] & 0xff]);
+    }
+}
+
+void glue(helper_aeskeygenassist, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
+                                          uint32_t ctrl)
+{
+    int i;
+    Reg tmp = *s;
+
+    for (i = 0 ; i < 4 ; i++) {
+        d->B(i) = AES_Te4[tmp.B(i + 4)] & 0xff;
+        d->B(i + 8) = AES_Te4[tmp.B(i + 12)] & 0xff;
+    }
+    d->L(1) = (d->L(0) << 24 | d->L(0) >> 8) ^ ctrl;
+    d->L(3) = (d->L(2) << 24 | d->L(2) >> 8) ^ ctrl;
+}
 #endif
 
 #undef SHIFT

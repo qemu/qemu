@@ -1,6 +1,1 @@
-obj-y = mc146818rtc.o
-obj-y += alpha_typhoon.o
-
-obj-y := $(addprefix ../,$(obj-y))
-
-obj-y += dp264.o pci.o
+obj-y += dp264.o pci.o typhoon.o

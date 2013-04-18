@@ -60,7 +60,7 @@
 
 #include "hw/hw.h"
 #include "hw/boards.h"
-#include "hw/mips.h"
+#include "hw/mips/mips.h"
 #include "net/net.h"
 #include "pci/pci.h"
 
@@ -75,10 +75,10 @@
 #include "elf.h"                /* EM_MIPS (needed by loader.h) */
 #include "exec/address-spaces.h" /* get_system_memory */
 #include "hw/loader.h"          /* load_elf, load_image_targphys */
-#include "hw/mips_cpudevs.h"    /* cpu_mips_kseg0_to_phys, ... */
+#include "hw/mips/cpudevs.h"    /* cpu_mips_kseg0_to_phys, ... */
 
-#include "hw/serial.h"          /* serial_16550_init, ... */
-#include "hw/pflash.h"          /* pflash_device_register, ... */
+#include "hw/char/serial.h"     /* serial_16550_init, ... */
+#include "hw/block/pflash.h"    /* pflash_device_register, ... */
 #include "hw/sysbus.h"          /* SysBusDevice */
 #include "hw/vlynq.h"           /* vlynq_create_bus */
 

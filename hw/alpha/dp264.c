@@ -10,12 +10,12 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/boards.h"
-#include "hw/alpha_sys.h"
+#include "alpha_sys.h"
 #include "sysemu/sysemu.h"
-#include "hw/mc146818rtc.h"
+#include "hw/timer/mc146818rtc.h"
 #include "hw/ide.h"
-#include "hw/i8254.h"
-#include "hw/serial.h"
+#include "hw/timer/i8254.h"
+#include "hw/char/serial.h"
 
 #define MAX_IDE_BUS 2
 

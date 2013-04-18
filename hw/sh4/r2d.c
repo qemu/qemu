@@ -25,17 +25,17 @@
 
 #include "hw/sysbus.h"
 #include "hw/hw.h"
-#include "hw/sh.h"
-#include "hw/devices.h"
+#include "hw/sh4/sh.h"
+#include "hw/arm/devices.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
-#include "hw/sh7750_regs.h"
+#include "sh7750_regs.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "hw/usb.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
@@ -258,7 +258,7 @@ static void r2d_init(QEMUMachineInitArgs *args)
     vmstate_register_ram_global(sdram);
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */
-    s = sh7750_init(env, address_space_mem);
+    s = sh7750_init(cpu, address_space_mem);
     irq = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
 
     dev = qdev_create(NULL, "sh_pci");

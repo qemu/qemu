@@ -28,7 +28,7 @@
 #include "exec/memory.h"
 #include "hw/sysbus.h"
 #include "hw/ide/internal.h"
-#include "hw/adb.h"
+#include "hw/input/adb.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1

@@ -24,7 +24,7 @@
  */
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
-#include "hw/mac_dbdma.h"
+#include "hw/ppc/mac_dbdma.h"
 #include "block/block.h"
 #include "sysemu/dma.h"
 

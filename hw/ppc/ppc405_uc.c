@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/ppc.h"
-#include "hw/ppc405.h"
-#include "hw/serial.h"
+#include "hw/ppc/ppc.h"
+#include "ppc405.h"
+#include "hw/char/serial.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"

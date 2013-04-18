@@ -1,0 +1,3 @@
+common-obj-y += pci_bridge_dev.o
+common-obj-y += ioh3420.o xio3130_upstream.o xio3130_downstream.o
+common-obj-y += i82801b11.o

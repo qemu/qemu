@@ -1,0 +1,9 @@
+common-obj-y += isa-bus.o
+common-obj-$(CONFIG_APM) += apm.o
+common-obj-$(CONFIG_I82378) += i82378.o
+common-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
+common-obj-$(CONFIG_PC87312) += pc87312.o
+common-obj-$(CONFIG_PIIX4) += piix4.o
+common-obj-$(CONFIG_VT82C686) += vt82c686.o
+
+obj-$(CONFIG_LPC_ICH9) += lpc_ich9.o

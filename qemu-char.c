@@ -596,9 +596,11 @@ typedef struct IOWatchPoll
 {
     GSource parent;
 
+    GIOChannel *channel;
     GSource *src;
 
     IOCanReadHandler *fd_can_read;
+    GSourceFunc fd_read;
     void *opaque;
 } IOWatchPoll;
 
@@ -611,15 +613,19 @@ static gboolean io_watch_poll_prepare(GSource *source, gint *timeout_)
 {
     IOWatchPoll *iwp = io_watch_poll_from_source(source);
     bool now_active = iwp->fd_can_read(iwp->opaque) > 0;
-    bool was_active = g_source_get_context(iwp->src) != NULL;
+    bool was_active = iwp->src != NULL;
     if (was_active == now_active) {
         return FALSE;
     }
 
     if (now_active) {
+        iwp->src = g_io_create_watch(iwp->channel, G_IO_IN | G_IO_ERR | G_IO_HUP);
+        g_source_set_callback(iwp->src, iwp->fd_read, iwp->opaque, NULL);
         g_source_attach(iwp->src, NULL);
     } else {
-        g_source_remove(g_source_get_id(iwp->src));
+        g_source_destroy(iwp->src);
+        g_source_unref(iwp->src);
+        iwp->src = NULL;
     }
     return FALSE;
 }
@@ -638,7 +644,9 @@ static gboolean io_watch_poll_dispatch(GSource *source, GSourceFunc callback,
 static void io_watch_poll_finalize(GSource *source)
 {
     IOWatchPoll *iwp = io_watch_poll_from_source(source);
+    g_source_destroy(iwp->src);
     g_source_unref(iwp->src);
+    iwp->src = NULL;
 }
 
 static GSourceFuncs io_watch_poll_funcs = {
@@ -659,8 +667,9 @@ static guint io_add_watch_poll(GIOChannel *channel,
     iwp = (IOWatchPoll *) g_source_new(&io_watch_poll_funcs, sizeof(IOWatchPoll));
     iwp->fd_can_read = fd_can_read;
     iwp->opaque = user_data;
-    iwp->src = g_io_create_watch(channel, G_IO_IN | G_IO_ERR | G_IO_HUP);
-    g_source_set_callback(iwp->src, (GSourceFunc)fd_read, user_data, NULL);
+    iwp->channel = channel;
+    iwp->fd_read = (GSourceFunc) fd_read;
+    iwp->src = NULL;
 
     return g_source_attach(&iwp->parent, NULL);
 }

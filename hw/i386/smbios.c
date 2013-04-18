@@ -14,7 +14,7 @@
  */
 
 #include "sysemu/sysemu.h"
-#include "hw/smbios.h"
+#include "hw/i386/smbios.h"
 #include "hw/loader.h"
 
 /*

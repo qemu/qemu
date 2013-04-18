@@ -23,7 +23,7 @@
 #ifndef QEMU_VLYNQ_H
 #define QEMU_VLYNQ_H
 
-#include "qdev.h"
+#include "hw/qdev.h"
 
 typedef struct _VLYNQBus VLYNQBus;
 typedef struct _VLYNQSlave VLYNQSlave;

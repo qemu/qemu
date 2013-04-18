@@ -8,14 +8,14 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm-misc.h"
-#include "hw/primecell.h"
-#include "hw/devices.h"
+#include "hw/arm.h"
+#include "hw/arm/primecell.h"
+#include "hw/arm/devices.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/i2c.h"
+#include "hw/i2c/i2c.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 

@@ -3,7 +3,7 @@
 
 const VMStateDescription vmstate_moxie_cpu = {
     .name = "cpu",
-    .version_id = CPU_SAVE_VERSION,
+    .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField[]) {
@@ -16,13 +16,3 @@ const VMStateDescription vmstate_moxie_cpu = {
         VMSTATE_END_OF_LIST()
     }
 };
-
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    vmstate_save_state(f, &vmstate_moxie_cpu, opaque);
-}
-
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    return vmstate_load_state(f, &vmstate_moxie_cpu, opaque, version_id);
-}

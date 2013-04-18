@@ -26,16 +26,16 @@
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "net/net.h"
-#include "hw/flash.h"
+#include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
-#include "hw/devices.h"
+#include "hw/arm/devices.h"
 #include "hw/boards.h"
 #include "hw/xilinx.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
-#include "hw/microblaze_boot.h"
-#include "hw/microblaze_pic_cpu.h"
+#include "boot.h"
+#include "pic_cpu.h"
 
 #define LMB_BRAM_SIZE  (128 * 1024)
 #define FLASH_SIZE     (16 * 1024 * 1024)

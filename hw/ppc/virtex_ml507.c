@@ -24,10 +24,10 @@
 
 #include "hw/sysbus.h"
 #include "hw/hw.h"
-#include "hw/serial.h"
-#include "hw/flash.h"
+#include "hw/char/serial.h"
+#include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
-#include "hw/devices.h"
+#include "hw/arm/devices.h"
 #include "hw/boards.h"
 #include "sysemu/device_tree.h"
 #include "hw/loader.h"
@@ -35,9 +35,9 @@
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 
-#include "hw/ppc.h"
-#include "hw/ppc4xx.h"
-#include "hw/ppc405.h"
+#include "hw/ppc/ppc.h"
+#include "hw/ppc/ppc4xx.h"
+#include "ppc405.h"
 
 #include "sysemu/blockdev.h"
 #include "hw/xilinx.h"

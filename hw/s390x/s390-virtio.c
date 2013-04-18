@@ -29,7 +29,7 @@
 #include "hw/boards.h"
 #include "monitor/monitor.h"
 #include "hw/loader.h"
-#include "hw/virtio.h"
+#include "hw/virtio/virtio.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
@@ -240,7 +240,7 @@ static void s390_init(QEMUMachineInitArgs *args)
     }
     my_ram_size = my_ram_size >> (20 + shift) << (20 + shift);
 
-    /* lets propagate the changed ram size into the global variable. */
+    /* let's propagate the changed ram size into the global variable. */
     ram_size = my_ram_size;
 
     /* get a BUS */

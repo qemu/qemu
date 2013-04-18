@@ -1,0 +1,5 @@
+common-obj-$(CONFIG_DS1225Y) += ds1225y.o
+common-obj-y += eeprom93xx.o
+common-obj-y += fw_cfg.o
+common-obj-$(CONFIG_MAC_NVRAM) += mac_nvram.o
+obj-$(CONFIG_PSERIES) += spapr_nvram.o

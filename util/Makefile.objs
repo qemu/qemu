@@ -1,4 +1,4 @@
-util-obj-y = osdep.o cutils.o qemu-timer-common.o
+util-obj-y = osdep.o cutils.o unicode.o qemu-timer-common.o
 util-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o event_notifier-win32.o
 util-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o event_notifier-posix.o
 util-obj-y += envlist.o path.o host-utils.o cache-utils.o module.o

@@ -1,0 +1,1 @@
+obj-y += clock.o apic.o i8259.o ioapic.o i8254.o pci-assign.o

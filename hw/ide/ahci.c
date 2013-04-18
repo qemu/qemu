@@ -23,7 +23,7 @@
 
 #include <hw/hw.h>
 #include <hw/pci/msi.h>
-#include <hw/pc.h>
+#include <hw/i386/pc.h>
 #include <hw/pci/pci.h>
 #include <hw/sysbus.h>
 

@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/ppc.h"
-#include "hw/ppc4xx.h"
+#include "hw/ppc/ppc.h"
+#include "hw/ppc/ppc4xx.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 

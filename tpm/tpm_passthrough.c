@@ -30,7 +30,7 @@
 #include "backends/tpm.h"
 #include "tpm_int.h"
 #include "hw/hw.h"
-#include "hw/pc.h"
+#include "hw/i386/pc.h"
 #include "tpm_tis.h"
 #include "tpm_backend.h"
 

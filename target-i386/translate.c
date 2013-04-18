@@ -3148,6 +3148,9 @@ struct SSEOpHelper_eppi {
 #define SSE41_OP(x) { { NULL, gen_helper_ ## x ## _xmm }, CPUID_EXT_SSE41 }
 #define SSE42_OP(x) { { NULL, gen_helper_ ## x ## _xmm }, CPUID_EXT_SSE42 }
 #define SSE41_SPECIAL { { NULL, SSE_SPECIAL }, CPUID_EXT_SSE41 }
+#define PCLMULQDQ_OP(x) { { NULL, gen_helper_ ## x ## _xmm }, \
+        CPUID_EXT_PCLMULQDQ }
+#define AESNI_OP(x) { { NULL, gen_helper_ ## x ## _xmm }, CPUID_EXT_AES }
 
 static const struct SSEOpHelper_epp sse_op_table6[256] = {
     [0x00] = SSSE3_OP(pshufb),
@@ -3196,6 +3199,11 @@ static const struct SSEOpHelper_epp sse_op_table6[256] = {
     [0x3f] = SSE41_OP(pmaxud),
     [0x40] = SSE41_OP(pmulld),
     [0x41] = SSE41_OP(phminposuw),
+    [0xdb] = AESNI_OP(aesimc),
+    [0xdc] = AESNI_OP(aesenc),
+    [0xdd] = AESNI_OP(aesenclast),
+    [0xde] = AESNI_OP(aesdec),
+    [0xdf] = AESNI_OP(aesdeclast),
 };
 
 static const struct SSEOpHelper_eppi sse_op_table7[256] = {
@@ -3217,10 +3225,12 @@ static const struct SSEOpHelper_eppi sse_op_table7[256] = {
     [0x40] = SSE41_OP(dpps),
     [0x41] = SSE41_OP(dppd),
     [0x42] = SSE41_OP(mpsadbw),
+    [0x44] = PCLMULQDQ_OP(pclmulqdq),
     [0x60] = SSE42_OP(pcmpestrm),
     [0x61] = SSE42_OP(pcmpestri),
     [0x62] = SSE42_OP(pcmpistrm),
     [0x63] = SSE42_OP(pcmpistri),
+    [0xdf] = AESNI_OP(aeskeygenassist),
 };
 
 static void gen_sse(CPUX86State *env, DisasContext *s, int b,

@@ -23,7 +23,7 @@
 #include "sysemu/dma.h"
 #include "exec/address-spaces.h"
 
-#include "hw/spapr.h"
+#include "hw/ppc/spapr.h"
 
 #include <libfdt.h>
 

@@ -1,0 +1,8 @@
+common-obj-$(CONFIG_PL181) += pl181.o
+common-obj-$(CONFIG_SSI_SD) += ssi-sd.o
+common-obj-$(CONFIG_SD) += sd.o
+common-obj-$(CONFIG_SDHCI) += sdhci.o
+
+obj-$(CONFIG_MILKYMIST) += milkymist-memcard.o
+obj-$(CONFIG_OMAP) += omap_mmc.o
+obj-$(CONFIG_PXA2XX) += pxa2xx_mmci.o

@@ -20,10 +20,10 @@
 #include "audio/audio.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
-#include "hw/omap.h"
+#include "hw/arm/omap.h"
 #include "hw/boards.h"
-#include "hw/arm-misc.h"
-#include "hw/devices.h"
+#include "hw/arm.h"
+#include "hw/arm/devices.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
 

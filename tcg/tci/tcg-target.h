@@ -127,7 +127,6 @@ typedef enum {
     TCG_REG_R5,
     TCG_REG_R6,
     TCG_REG_R7,
-    TCG_AREG0 = TCG_REG_R7,
 #if TCG_TARGET_NB_REGS >= 16
     TCG_REG_R8,
     TCG_REG_R9,
@@ -159,6 +158,13 @@ typedef enum {
     /* Special value UINT8_MAX is used by TCI to encode constant values. */
     TCG_CONST = UINT8_MAX
 } TCGReg;
+
+#define TCG_AREG0                       (TCG_TARGET_NB_REGS - 2)
+
+/* Used for function call generation. */
+#define TCG_REG_CALL_STACK              (TCG_TARGET_NB_REGS - 1)
+#define TCG_TARGET_CALL_STACK_OFFSET    0
+#define TCG_TARGET_STACK_ALIGN          16
 
 void tci_disas(uint8_t opc);
 

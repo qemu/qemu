@@ -21,7 +21,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "elf.h"
-#include "hw/serial.h"
+#include "hw/char/serial.h"
 #include "net/net.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"

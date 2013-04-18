@@ -34,13 +34,13 @@
 #include "kvm_ppc.h"
 
 #include "hw/boards.h"
-#include "hw/ppc.h"
+#include "hw/ppc/ppc.h"
 #include "hw/loader.h"
 
-#include "hw/spapr.h"
-#include "hw/spapr_vio.h"
-#include "hw/spapr_pci.h"
-#include "hw/xics.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
+#include "hw/pci-host/spapr.h"
+#include "hw/ppc/xics.h"
 #include "hw/pci/msi.h"
 
 #include "sysemu/kvm.h"

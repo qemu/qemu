@@ -17,7 +17,7 @@
 #ifndef TPM_TPM_TIS_H
 #define TPM_TPM_TIS_H
 
-#include "hw/isa.h"
+#include "hw/isa/isa.h"
 #include "qemu-common.h"
 
 #define TPM_TIS_ADDR_BASE           0xFED40000

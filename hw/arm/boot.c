@@ -9,7 +9,7 @@
 
 #include "config.h"
 #include "hw/hw.h"
-#include "hw/arm-misc.h"
+#include "hw/arm.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/loader.h"

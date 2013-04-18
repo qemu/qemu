@@ -31,7 +31,7 @@
  */
 
 #include "sysemu/blockdev.h"
-#include "hw/block-common.h"
+#include "hw/block/block.h"
 #include "block/blockjob.h"
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"

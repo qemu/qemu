@@ -24,9 +24,9 @@
 #include "hw/boards.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
-#include "hw/arm-misc.h"
+#include "hw/arm.h"
 #include "hw/loader.h"
-#include "hw/exynos4210.h"
+#include "hw/arm/exynos4210.h"
 #include "hw/usb/hcd-ehci.h"
 
 #define EXYNOS4210_CHIPID_ADDR         0x10000000
