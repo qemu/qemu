@@ -10,8 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu/rng.h"
-#include "char/char.h"
+#include "sysemu/rng.h"
+#include "sysemu/char.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/qdev.h" /* just for DEFINE_PROP_CHR */
 

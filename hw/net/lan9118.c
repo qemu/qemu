@@ -12,7 +12,7 @@
 
 #include "hw/sysbus.h"
 #include "net/net.h"
-#include "hw/arm/devices.h"
+#include "hw/devices.h"
 #include "sysemu/sysemu.h"
 #include "hw/ptimer.h"
 /* For crc32 */

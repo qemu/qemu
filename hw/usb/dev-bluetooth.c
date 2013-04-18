@@ -21,7 +21,7 @@
 #include "qemu-common.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "bt/bt.h"
+#include "sysemu/bt.h"
 #include "hw/bt.h"
 
 struct USBBtState {

@@ -18,8 +18,9 @@ common-obj-$(CONFIG_FRAMEBUFFER) += framebuffer.o
 common-obj-$(CONFIG_MILKYMIST) += milkymist-vgafb.o
 common-obj-$(CONFIG_ZAURUS) += tc6393xb.o
 
-ifeq ($(CONFIG_GLX),y)
-common-obj-$(CONFIG_MILKYMIST) += milkymist-tmu2.o
+ifeq ($(CONFIG_MILKYMIST_TMU2),y)
+common-obj-y += milkymist-tmu2.o
+libs_softmmu += $(GLX_LIBS)
 endif
 
 obj-$(CONFIG_OMAP) += omap_dss.o

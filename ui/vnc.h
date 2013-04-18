@@ -142,8 +142,6 @@ struct VncDisplay
     QTAILQ_HEAD(, VncState) clients;
     int num_exclusive;
     VncSharePolicy share_policy;
-    QEMUTimer *timer;
-    int timer_interval;
     int lsock;
 #ifdef CONFIG_VNC_WS
     int lwebsock;

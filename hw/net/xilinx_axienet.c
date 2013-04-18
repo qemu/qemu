@@ -32,11 +32,29 @@
 
 #define DPHY(x)
 
+#define TYPE_XILINX_AXI_ENET "xlnx.axi-ethernet"
+#define TYPE_XILINX_AXI_ENET_DATA_STREAM "xilinx-axienet-data-stream"
+#define TYPE_XILINX_AXI_ENET_CONTROL_STREAM "xilinx-axienet-control-stream"
+
+#define XILINX_AXI_ENET(obj) \
+     OBJECT_CHECK(XilinxAXIEnet, (obj), TYPE_XILINX_AXI_ENET)
+
+#define XILINX_AXI_ENET_DATA_STREAM(obj) \
+     OBJECT_CHECK(XilinxAXIEnetStreamSlave, (obj),\
+     TYPE_XILINX_AXI_ENET_DATA_STREAM)
+
+#define XILINX_AXI_ENET_CONTROL_STREAM(obj) \
+     OBJECT_CHECK(XilinxAXIEnetStreamSlave, (obj),\
+     TYPE_XILINX_AXI_ENET_CONTROL_STREAM)
+
 /* Advertisement control register. */
 #define ADVERTISE_10HALF        0x0020  /* Try for 10mbps half-duplex  */
 #define ADVERTISE_10FULL        0x0040  /* Try for 10mbps full-duplex  */
 #define ADVERTISE_100HALF       0x0080  /* Try for 100mbps half-duplex */
 #define ADVERTISE_100FULL       0x0100  /* Try for 100mbps full-duplex */
+
+#define CONTROL_PAYLOAD_WORDS 5
+#define CONTROL_PAYLOAD_SIZE (CONTROL_PAYLOAD_WORDS * (sizeof(uint32_t)))
 
 struct PHY {
     uint32_t regs[32];
@@ -306,11 +324,23 @@ struct TEMAC  {
     void *parent;
 };
 
+typedef struct XilinxAXIEnetStreamSlave XilinxAXIEnetStreamSlave;
+typedef struct XilinxAXIEnet XilinxAXIEnet;
+
+struct XilinxAXIEnetStreamSlave {
+    Object parent;
+
+    struct XilinxAXIEnet *enet;
+} ;
+
 struct XilinxAXIEnet {
     SysBusDevice busdev;
     MemoryRegion iomem;
     qemu_irq irq;
-    StreamSlave *tx_dev;
+    StreamSlave *tx_data_dev;
+    StreamSlave *tx_control_dev;
+    XilinxAXIEnetStreamSlave rx_data_dev;
+    XilinxAXIEnetStreamSlave rx_control_dev;
     NICState *nic;
     NICConf conf;
 
@@ -361,42 +391,50 @@ struct XilinxAXIEnet {
     /* 32K x 1 lookup filter.  */
     uint32_t ext_mtable[1024];
 
+    uint32_t hdr[CONTROL_PAYLOAD_WORDS];
 
     uint8_t *rxmem;
+    uint32_t rxsize;
+    uint32_t rxpos;
+
+    uint8_t rxapp[CONTROL_PAYLOAD_SIZE];
+    uint32_t rxappsize;
 };
 
-static void axienet_rx_reset(struct XilinxAXIEnet *s)
+static void axienet_rx_reset(XilinxAXIEnet *s)
 {
     s->rcw[1] = RCW1_JUM | RCW1_FCS | RCW1_RX | RCW1_VLAN;
 }
 
-static void axienet_tx_reset(struct XilinxAXIEnet *s)
+static void axienet_tx_reset(XilinxAXIEnet *s)
 {
     s->tc = TC_JUM | TC_TX | TC_VLAN;
 }
 
-static inline int axienet_rx_resetting(struct XilinxAXIEnet *s)
+static inline int axienet_rx_resetting(XilinxAXIEnet *s)
 {
     return s->rcw[1] & RCW1_RST;
 }
 
-static inline int axienet_rx_enabled(struct XilinxAXIEnet *s)
+static inline int axienet_rx_enabled(XilinxAXIEnet *s)
 {
     return s->rcw[1] & RCW1_RX;
 }
 
-static inline int axienet_extmcf_enabled(struct XilinxAXIEnet *s)
+static inline int axienet_extmcf_enabled(XilinxAXIEnet *s)
 {
     return !!(s->regs[R_RAF] & RAF_EMCF_EN);
 }
 
-static inline int axienet_newfunc_enabled(struct XilinxAXIEnet *s)
+static inline int axienet_newfunc_enabled(XilinxAXIEnet *s)
 {
     return !!(s->regs[R_RAF] & RAF_NEWFUNC_EN);
 }
 
-static void axienet_reset(struct XilinxAXIEnet *s)
+static void xilinx_axienet_reset(DeviceState *d)
 {
+    XilinxAXIEnet *s = XILINX_AXI_ENET(d);
+
     axienet_rx_reset(s);
     axienet_tx_reset(s);
 
@@ -406,7 +444,7 @@ static void axienet_reset(struct XilinxAXIEnet *s)
     s->emmc = EMMC_LINKSPEED_100MB;
 }
 
-static void enet_update_irq(struct XilinxAXIEnet *s)
+static void enet_update_irq(XilinxAXIEnet *s)
 {
     s->regs[R_IP] = s->regs[R_IS] & s->regs[R_IE];
     qemu_set_irq(s->irq, !!s->regs[R_IP]);
@@ -414,7 +452,7 @@ static void enet_update_irq(struct XilinxAXIEnet *s)
 
 static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct XilinxAXIEnet *s = opaque;
+    XilinxAXIEnet *s = opaque;
     uint32_t r = 0;
     addr >>= 2;
 
@@ -506,7 +544,7 @@ static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 static void enet_write(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
-    struct XilinxAXIEnet *s = opaque;
+    XilinxAXIEnet *s = opaque;
     struct TEMAC *t = &s->TEMAC;
 
     addr >>= 2;
@@ -620,10 +658,10 @@ static const MemoryRegionOps enet_ops = {
 
 static int eth_can_rx(NetClientState *nc)
 {
-    struct XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
+    XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
 
     /* RX enabled?  */
-    return !axienet_rx_resetting(s) && axienet_rx_enabled(s);
+    return !s->rxsize && !axienet_rx_resetting(s) && axienet_rx_enabled(s);
 }
 
 static int enet_match_addr(const uint8_t *buf, uint32_t f0, uint32_t f1)
@@ -641,13 +679,38 @@ static int enet_match_addr(const uint8_t *buf, uint32_t f0, uint32_t f1)
     return match;
 }
 
+static void axienet_eth_rx_notify(void *opaque)
+{
+    XilinxAXIEnet *s = XILINX_AXI_ENET(opaque);
+
+    while (s->rxappsize && stream_can_push(s->tx_control_dev,
+                                           axienet_eth_rx_notify, s)) {
+        size_t ret = stream_push(s->tx_control_dev,
+                                 (void *)s->rxapp + CONTROL_PAYLOAD_SIZE
+                                 - s->rxappsize, s->rxappsize);
+        s->rxappsize -= ret;
+    }
+
+    while (s->rxsize && stream_can_push(s->tx_data_dev,
+                                        axienet_eth_rx_notify, s)) {
+        size_t ret = stream_push(s->tx_data_dev, (void *)s->rxmem + s->rxpos,
+                                 s->rxsize);
+        s->rxsize -= ret;
+        s->rxpos += ret;
+        if (!s->rxsize) {
+            s->regs[R_IS] |= IS_RX_COMPLETE;
+        }
+    }
+    enet_update_irq(s);
+}
+
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
+    XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
                                               0xff, 0xff, 0xff};
     static const unsigned char sa_ipmcast[3] = {0x01, 0x00, 0x52};
-    uint32_t app[6] = {0};
+    uint32_t app[CONTROL_PAYLOAD_WORDS] = {0};
     int promisc = s->fmi & (1 << 31);
     int unicast, broadcast, multicast, ip_multicast = 0;
     uint32_t csum32;
@@ -778,9 +841,15 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     /* Good frame.  */
     app[2] |= 1 << 6;
 
-    stream_push(s->tx_dev, (void *)s->rxmem, size, app);
+    s->rxsize = size;
+    s->rxpos = 0;
+    for (i = 0; i < ARRAY_SIZE(app); ++i) {
+        app[i] = cpu_to_le32(app[i]);
+    }
+    s->rxappsize = CONTROL_PAYLOAD_SIZE;
+    memcpy(s->rxapp, app, s->rxappsize);
+    axienet_eth_rx_notify(s);
 
-    s->regs[R_IS] |= IS_RX_COMPLETE;
     enet_update_irq(s);
     return size;
 }
@@ -788,38 +857,59 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 static void eth_cleanup(NetClientState *nc)
 {
     /* FIXME.  */
-    struct XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
+    XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
     g_free(s->rxmem);
     g_free(s);
 }
 
-static void
-axienet_stream_push(StreamSlave *obj, uint8_t *buf, size_t size, uint32_t *hdr)
+static size_t
+xilinx_axienet_control_stream_push(StreamSlave *obj, uint8_t *buf, size_t len)
 {
-    struct XilinxAXIEnet *s = FROM_SYSBUS(typeof(*s), SYS_BUS_DEVICE(obj));
+    int i;
+    XilinxAXIEnetStreamSlave *cs = XILINX_AXI_ENET_CONTROL_STREAM(obj);
+    XilinxAXIEnet *s = cs->enet;
+
+    if (len != CONTROL_PAYLOAD_SIZE) {
+        hw_error("AXI Enet requires %d byte control stream payload\n",
+                 (int)CONTROL_PAYLOAD_SIZE);
+    }
+
+    memcpy(s->hdr, buf, len);
+
+    for (i = 0; i < ARRAY_SIZE(s->hdr); ++i) {
+        s->hdr[i] = le32_to_cpu(s->hdr[i]);
+    }
+    return len;
+}
+
+static size_t
+xilinx_axienet_data_stream_push(StreamSlave *obj, uint8_t *buf, size_t size)
+{
+    XilinxAXIEnetStreamSlave *ds = XILINX_AXI_ENET_DATA_STREAM(obj);
+    XilinxAXIEnet *s = ds->enet;
 
     /* TX enable ?  */
     if (!(s->tc & TC_TX)) {
-        return;
+        return size;
     }
 
     /* Jumbo or vlan sizes ?  */
     if (!(s->tc & TC_JUM)) {
         if (size > 1518 && size <= 1522 && !(s->tc & TC_VLAN)) {
-            return;
+            return size;
         }
     }
 
-    if (hdr[0] & 1) {
-        unsigned int start_off = hdr[1] >> 16;
-        unsigned int write_off = hdr[1] & 0xffff;
+    if (s->hdr[0] & 1) {
+        unsigned int start_off = s->hdr[1] >> 16;
+        unsigned int write_off = s->hdr[1] & 0xffff;
         uint32_t tmp_csum;
         uint16_t csum;
 
         tmp_csum = net_checksum_add(size - start_off,
                                     (uint8_t *)buf + start_off);
         /* Accumulate the seed.  */
-        tmp_csum += hdr[2] & 0xffff;
+        tmp_csum += s->hdr[2] & 0xffff;
 
         /* Fold the 32bit partial checksum.  */
         csum = net_checksum_finish(tmp_csum);
@@ -834,6 +924,8 @@ axienet_stream_push(StreamSlave *obj, uint8_t *buf, size_t size, uint32_t *hdr)
     s->stats.tx_bytes += size;
     s->regs[R_IS] |= IS_TX_COMPLETE;
     enet_update_irq(s);
+
+    return size;
 }
 
 static NetClientInfo net_xilinx_enet_info = {
@@ -844,18 +936,30 @@ static NetClientInfo net_xilinx_enet_info = {
     .cleanup = eth_cleanup,
 };
 
-static int xilinx_enet_init(SysBusDevice *dev)
+static void xilinx_enet_realize(DeviceState *dev, Error **errp)
 {
-    struct XilinxAXIEnet *s = FROM_SYSBUS(typeof(*s), dev);
+    XilinxAXIEnet *s = XILINX_AXI_ENET(dev);
+    XilinxAXIEnetStreamSlave *ds = XILINX_AXI_ENET_DATA_STREAM(&s->rx_data_dev);
+    XilinxAXIEnetStreamSlave *cs = XILINX_AXI_ENET_CONTROL_STREAM(
+                                                            &s->rx_control_dev);
+    Error *local_errp = NULL;
 
-    sysbus_init_irq(dev, &s->irq);
-
-    memory_region_init_io(&s->iomem, &enet_ops, s, "enet", 0x40000);
-    sysbus_init_mmio(dev, &s->iomem);
+    object_property_add_link(OBJECT(ds), "enet", "xlnx.axi-ethernet",
+                             (Object **) &ds->enet, &local_errp);
+    object_property_add_link(OBJECT(cs), "enet", "xlnx.axi-ethernet",
+                             (Object **) &cs->enet, &local_errp);
+    if (local_errp) {
+        goto xilinx_enet_realize_fail;
+    }
+    object_property_set_link(OBJECT(ds), OBJECT(s), "enet", &local_errp);
+    object_property_set_link(OBJECT(cs), OBJECT(s), "enet", &local_errp);
+    if (local_errp) {
+        goto xilinx_enet_realize_fail;
+    }
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_enet_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     tdk_init(&s->TEMAC.phy);
@@ -864,46 +968,93 @@ static int xilinx_enet_init(SysBusDevice *dev)
     s->TEMAC.parent = s;
 
     s->rxmem = g_malloc(s->c_rxmem);
-    axienet_reset(s);
+    return;
 
-    return 0;
+xilinx_enet_realize_fail:
+    if (!*errp) {
+        *errp = local_errp;
+    }
 }
 
-static void xilinx_enet_initfn(Object *obj)
+static void xilinx_enet_init(Object *obj)
 {
-    struct XilinxAXIEnet *s = FROM_SYSBUS(typeof(*s), SYS_BUS_DEVICE(obj));
+    XilinxAXIEnet *s = XILINX_AXI_ENET(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     Error *errp = NULL;
 
     object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
-                             (Object **) &s->tx_dev, &errp);
+                             (Object **) &s->tx_data_dev, &errp);
     assert_no_error(errp);
+    object_property_add_link(obj, "axistream-control-connected",
+                             TYPE_STREAM_SLAVE,
+                             (Object **) &s->tx_control_dev, &errp);
+    assert_no_error(errp);
+
+    object_initialize(&s->rx_data_dev, TYPE_XILINX_AXI_ENET_DATA_STREAM);
+    object_initialize(&s->rx_control_dev, TYPE_XILINX_AXI_ENET_CONTROL_STREAM);
+    object_property_add_child(OBJECT(s), "axistream-connected-target",
+                              (Object *)&s->rx_data_dev, &errp);
+    assert_no_error(errp);
+    object_property_add_child(OBJECT(s), "axistream-control-connected-target",
+                              (Object *)&s->rx_control_dev, &errp);
+    assert_no_error(errp);
+
+    sysbus_init_irq(sbd, &s->irq);
+
+    memory_region_init_io(&s->iomem, &enet_ops, s, "enet", 0x40000);
+    sysbus_init_mmio(sbd, &s->iomem);
 }
 
 static Property xilinx_enet_properties[] = {
-    DEFINE_PROP_UINT32("phyaddr", struct XilinxAXIEnet, c_phyaddr, 7),
-    DEFINE_PROP_UINT32("rxmem", struct XilinxAXIEnet, c_rxmem, 0x1000),
-    DEFINE_PROP_UINT32("txmem", struct XilinxAXIEnet, c_txmem, 0x1000),
-    DEFINE_NIC_PROPERTIES(struct XilinxAXIEnet, conf),
+    DEFINE_PROP_UINT32("phyaddr", XilinxAXIEnet, c_phyaddr, 7),
+    DEFINE_PROP_UINT32("rxmem", XilinxAXIEnet, c_rxmem, 0x1000),
+    DEFINE_PROP_UINT32("txmem", XilinxAXIEnet, c_txmem, 0x1000),
+    DEFINE_NIC_PROPERTIES(XilinxAXIEnet, conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xilinx_enet_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    dc->realize = xilinx_enet_realize;
+    dc->props = xilinx_enet_properties;
+    dc->reset = xilinx_axienet_reset;
+}
+
+static void xilinx_enet_stream_class_init(ObjectClass *klass, void *data)
+{
     StreamSlaveClass *ssc = STREAM_SLAVE_CLASS(klass);
 
-    k->init = xilinx_enet_init;
-    dc->props = xilinx_enet_properties;
-    ssc->push = axienet_stream_push;
+    ssc->push = data;
 }
 
 static const TypeInfo xilinx_enet_info = {
-    .name          = "xlnx.axi-ethernet",
+    .name          = TYPE_XILINX_AXI_ENET,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct XilinxAXIEnet),
+    .instance_size = sizeof(XilinxAXIEnet),
     .class_init    = xilinx_enet_class_init,
-    .instance_init = xilinx_enet_initfn,
+    .instance_init = xilinx_enet_init,
+};
+
+static const TypeInfo xilinx_enet_data_stream_info = {
+    .name          = TYPE_XILINX_AXI_ENET_DATA_STREAM,
+    .parent        = TYPE_OBJECT,
+    .instance_size = sizeof(struct XilinxAXIEnetStreamSlave),
+    .class_init    = xilinx_enet_stream_class_init,
+    .class_data    = xilinx_axienet_data_stream_push,
+    .interfaces = (InterfaceInfo[]) {
+            { TYPE_STREAM_SLAVE },
+            { }
+    }
+};
+
+static const TypeInfo xilinx_enet_control_stream_info = {
+    .name          = TYPE_XILINX_AXI_ENET_CONTROL_STREAM,
+    .parent        = TYPE_OBJECT,
+    .instance_size = sizeof(struct XilinxAXIEnetStreamSlave),
+    .class_init    = xilinx_enet_stream_class_init,
+    .class_data    = xilinx_axienet_control_stream_push,
     .interfaces = (InterfaceInfo[]) {
             { TYPE_STREAM_SLAVE },
             { }
@@ -913,6 +1064,8 @@ static const TypeInfo xilinx_enet_info = {
 static void xilinx_enet_register_types(void)
 {
     type_register_static(&xilinx_enet_info);
+    type_register_static(&xilinx_enet_data_stream_info);
+    type_register_static(&xilinx_enet_control_stream_info);
 }
 
 type_init(xilinx_enet_register_types)

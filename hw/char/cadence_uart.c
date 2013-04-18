@@ -17,7 +17,7 @@
  */
 
 #include "hw/sysbus.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "qemu/timer.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG

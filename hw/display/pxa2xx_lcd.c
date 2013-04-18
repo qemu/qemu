@@ -991,6 +991,11 @@ static const VMStateDescription vmstate_pxa2xx_lcdc = {
 #define BITS 32
 #include "pxa2xx_template.h"
 
+static const GraphicHwOps pxa2xx_ops = {
+    .invalidate  = pxa2xx_invalidate_display,
+    .gfx_update  = pxa2xx_update_display,
+};
+
 PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
                                  hwaddr base, qemu_irq irq)
 {
@@ -1008,9 +1013,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
                           "pxa2xx-lcd-controller", 0x00100000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->con = graphic_console_init(pxa2xx_update_display,
-                                  pxa2xx_invalidate_display,
-                                  NULL, NULL, s);
+    s->con = graphic_console_init(&pxa2xx_ops, s);
     surface = qemu_console_surface(s->con);
 
     switch (surface_bits_per_pixel(surface)) {

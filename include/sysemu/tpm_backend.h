@@ -18,7 +18,7 @@
 #include "qapi/error.h"
 #include "qapi-types.h"
 #include "qemu/option.h"
-#include "tpm/tpm.h"
+#include "sysemu/tpm.h"
 
 #define TYPE_TPM_BACKEND "tpm-backend"
 #define TPM_BACKEND(obj) \
@@ -54,6 +54,39 @@ struct TPMBackend {
     const TPMDriverOps *ops;
 
     QLIST_ENTRY(TPMBackend) list;
+};
+
+typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty);
+
+typedef struct TPMSizedBuffer {
+    uint32_t size;
+    uint8_t  *buffer;
+} TPMSizedBuffer;
+
+struct TPMDriverOps {
+    enum TpmType type;
+    /* get a descriptive text of the backend to display to the user */
+    const char *(*desc)(void);
+
+    TPMBackend *(*create)(QemuOpts *opts, const char *id);
+    void (*destroy)(TPMBackend *t);
+
+    /* initialize the backend */
+    int (*init)(TPMBackend *t, TPMState *s, TPMRecvDataCB *datacb);
+    /* start up the TPM on the backend */
+    int (*startup_tpm)(TPMBackend *t);
+    /* returns true if nothing will ever answer TPM requests */
+    bool (*had_startup_error)(TPMBackend *t);
+
+    size_t (*realloc_buffer)(TPMSizedBuffer *sb);
+
+    void (*deliver_request)(TPMBackend *t);
+
+    void (*reset)(TPMBackend *t);
+
+    void (*cancel_cmd)(TPMBackend *t);
+
+    bool (*get_tpm_established_flag)(TPMBackend *t);
 };
 
 
@@ -166,5 +199,11 @@ bool tpm_backend_get_tpm_established_flag(TPMBackend *s);
  * function on an already opened backend will not result in an error.
  */
 void tpm_backend_open(TPMBackend *s, Error **errp);
+
+TPMBackend *qemu_find_tpm(const char *id);
+
+const TPMDriverOps *tpm_get_backend_driver(const char *type);
+int tpm_register_model(enum TpmModel model);
+int tpm_register_driver(const TPMDriverOps *tdo);
 
 #endif

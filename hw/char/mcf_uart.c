@@ -7,7 +7,7 @@
  */
 #include "hw/hw.h"
 #include "hw/m68k/mcf.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "exec/address-spaces.h"
 
 typedef struct {

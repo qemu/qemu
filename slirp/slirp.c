@@ -23,7 +23,7 @@
  */
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "slirp.h"
 #include "hw/hw.h"
 

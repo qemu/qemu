@@ -26,7 +26,7 @@
  */
 #include "hw/hw.h"
 #include "hw/sh4/sh.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "exec/address-spaces.h"
 
 //#define DEBUG_SERIAL

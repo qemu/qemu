@@ -227,90 +227,6 @@ static void omap_update_display(void *opaque)
     omap_lcd->invalidate = 0;
 }
 
-static void omap_ppm_save(const char *filename, uint8_t *data,
-                    int w, int h, int linesize, Error **errp)
-{
-    FILE *f;
-    uint8_t *d, *d1;
-    unsigned int v;
-    int ret, y, x, bpp;
-
-    f = fopen(filename, "wb");
-    if (!f) {
-        error_setg(errp, "failed to open file '%s': %s", filename,
-                   strerror(errno));
-        return;
-    }
-    ret = fprintf(f, "P6\n%d %d\n%d\n", w, h, 255);
-    if (ret < 0) {
-        goto write_err;
-    }
-    d1 = data;
-    bpp = linesize / w;
-    for (y = 0; y < h; y ++) {
-        d = d1;
-        for (x = 0; x < w; x ++) {
-            v = *(uint32_t *) d;
-            switch (bpp) {
-            case 2:
-                ret = fputc((v >> 8) & 0xf8, f);
-                if (ret == EOF) {
-                    goto write_err;
-                }
-                ret = fputc((v >> 3) & 0xfc, f);
-                if (ret == EOF) {
-                    goto write_err;
-                }
-                ret = fputc((v << 3) & 0xf8, f);
-                if (ret == EOF) {
-                    goto write_err;
-                }
-                break;
-            case 3:
-            case 4:
-            default:
-                ret = fputc((v >> 16) & 0xff, f);
-                if (ret == EOF) {
-                    goto write_err;
-                }
-                ret = fputc((v >> 8) & 0xff, f);
-                if (ret == EOF) {
-                    goto write_err;
-                }
-                ret = fputc((v) & 0xff, f);
-                if (ret == EOF) {
-                    goto write_err;
-                }
-                break;
-            }
-            d += bpp;
-        }
-        d1 += linesize;
-    }
-out:
-    fclose(f);
-    return;
-
-write_err:
-    error_setg(errp, "failed to write to file '%s': %s", filename,
-               strerror(errno));
-    unlink(filename);
-    goto out;
-}
-
-static void omap_screen_dump(void *opaque, const char *filename, bool cswitch,
-                             Error **errp)
-{
-    struct omap_lcd_panel_s *omap_lcd = opaque;
-    DisplaySurface *surface = qemu_console_surface(omap_lcd->con);
-
-    omap_update_display(opaque);
-    if (omap_lcd && surface_data(surface))
-        omap_ppm_save(filename, surface_data(surface),
-                    omap_lcd->width, omap_lcd->height,
-                    surface_stride(surface), errp);
-}
-
 static void omap_invalidate_display(void *opaque) {
     struct omap_lcd_panel_s *omap_lcd = opaque;
     omap_lcd->invalidate = 1;
@@ -468,6 +384,11 @@ void omap_lcdc_reset(struct omap_lcd_panel_s *s)
     s->ctrl = 0;
 }
 
+static const GraphicHwOps omap_ops = {
+    .invalidate  = omap_invalidate_display,
+    .gfx_update  = omap_update_display,
+};
+
 struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
                                         hwaddr base,
                                         qemu_irq irq,
@@ -485,9 +406,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
     memory_region_init_io(&s->iomem, &omap_lcdc_ops, s, "omap.lcdc", 0x100);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->con = graphic_console_init(omap_update_display,
-                                  omap_invalidate_display,
-                                  omap_screen_dump, NULL, s);
+    s->con = graphic_console_init(&omap_ops, s);
 
     return s;
 }

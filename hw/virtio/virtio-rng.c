@@ -14,7 +14,7 @@
 #include "qapi/qmp/qerror.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-rng.h"
-#include "qemu/rng.h"
+#include "sysemu/rng.h"
 
 static bool is_guest_ready(VirtIORNG *vrng)
 {

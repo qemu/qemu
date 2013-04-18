@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 #include "hw/hw.h"
-#include "hw/arm/devices.h"
+#include "hw/devices.h"
 #include "ui/console.h"
 
 typedef struct {

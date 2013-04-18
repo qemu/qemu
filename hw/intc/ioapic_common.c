@@ -59,7 +59,7 @@ static int ioapic_dispatch_post_load(void *opaque, int version_id)
 
 static int ioapic_init_common(SysBusDevice *dev)
 {
-    IOAPICCommonState *s = FROM_SYSBUS(IOAPICCommonState, dev);
+    IOAPICCommonState *s = IOAPIC_COMMON(dev);
     IOAPICCommonClass *info;
     static int ioapic_no;
 

@@ -228,6 +228,7 @@ trace_file="trace"
 spice=""
 rbd=""
 smartcard_nss=""
+libusb=""
 usb_redir=""
 glx=""
 zlib="yes"
@@ -241,6 +242,7 @@ virtio_blk_data_plane=""
 gtk=""
 gtkabi="2.0"
 tpm="no"
+libssh2=""
 
 # parse CC options first
 for opt do
@@ -570,6 +572,7 @@ Haiku)
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
+  QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers $QEMU_INCLUDES"
 ;;
 esac
 
@@ -602,11 +605,6 @@ if test "$mingw32" = "yes" ; then
   # MinGW needs -mthreads for TLS and macro _MT.
   QEMU_CFLAGS="-mthreads $QEMU_CFLAGS"
   QEMU_CFLAGS="-I\$(SRC_PATH)/hosts/w32/include $QEMU_CFLAGS"
-  if test "$cpu" = "i386"; then
-    # We need something better than i386 for __sync_val_compare_and_swap
-    # and can expect that QEMU will only run on i686 or later.
-    QEMU_CFLAGS="-march=i686 $QEMU_CFLAGS"
-  fi
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
 cat > $TMPC << EOF
 int main(void) { return 0; }
@@ -923,6 +921,10 @@ for opt do
   ;;
   --enable-smartcard-nss) smartcard_nss="yes"
   ;;
+  --disable-libusb) libusb="no"
+  ;;
+  --enable-libusb) libusb="yes"
+  ;;
   --disable-usb-redir) usb_redir="no"
   ;;
   --enable-usb-redir) usb_redir="yes"
@@ -957,6 +959,10 @@ for opt do
   ;;
   --enable-tpm) tpm="yes"
   ;;
+  --disable-libssh2) libssh2="no"
+  ;;
+  --enable-libssh2) libssh2="yes"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -965,32 +971,35 @@ done
 case "$cpu" in
     sparc)
            LDFLAGS="-m32 $LDFLAGS"
-           QEMU_CFLAGS="-m32 -mcpu=ultrasparc $QEMU_CFLAGS"
+           CPU_CFLAGS="-m32 -mcpu=ultrasparc"
            ;;
     sparc64)
            LDFLAGS="-m64 $LDFLAGS"
-           QEMU_CFLAGS="-m64 -mcpu=ultrasparc $QEMU_CFLAGS"
+           CPU_CFLAGS="-m64 -mcpu=ultrasparc"
            ;;
     s390)
-           QEMU_CFLAGS="-m31 -march=z990 $QEMU_CFLAGS"
+           CPU_CFLAGS="-m31 -march=z990"
            LDFLAGS="-m31 $LDFLAGS"
            ;;
     s390x)
-           QEMU_CFLAGS="-m64 -march=z990 $QEMU_CFLAGS"
+           CPU_CFLAGS="-m64 -march=z990"
            LDFLAGS="-m64 $LDFLAGS"
            ;;
     i386)
-           QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
+           CPU_CFLAGS="-m32"
            LDFLAGS="-m32 $LDFLAGS"
            cc_i386='$(CC) -m32'
            ;;
     x86_64)
-           QEMU_CFLAGS="-m64 $QEMU_CFLAGS"
+           CPU_CFLAGS="-m64"
            LDFLAGS="-m64 $LDFLAGS"
            cc_i386='$(CC) -m32'
            ;;
     # No special flags required for other host CPUs
 esac
+
+QEMU_CFLAGS="$CPU_CFLAGS $QEMU_CFLAGS"
+EXTRA_CFLAGS="$CPU_CFLAGS $EXTRA_CFLAGS"
 
 default_target_list=""
 
@@ -1204,6 +1213,8 @@ echo "  --disable-libiscsi       disable iscsi support"
 echo "  --enable-libiscsi        enable iscsi support"
 echo "  --disable-smartcard-nss  disable smartcard nss support"
 echo "  --enable-smartcard-nss   enable smartcard nss support"
+echo "  --disable-libusb         disable libusb (for usb passthrough)"
+echo "  --enable-libusb          enable libusb (for usb passthrough)"
 echo "  --disable-usb-redir      disable usb network redirection support"
 echo "  --enable-usb-redir       enable usb network redirection support"
 echo "  --disable-guest-agent    disable building of the QEMU Guest Agent"
@@ -1217,6 +1228,8 @@ echo "  --disable-glusterfs      disable GlusterFS backend"
 echo "  --enable-gcov            enable test coverage analysis with gcov"
 echo "  --gcov=GCOV              use specified gcov [$gcov_tool]"
 echo "  --enable-tpm             enable TPM support"
+echo "  --disable-libssh2        disable ssh block device support"
+echo "  --enable-libssh2         enable ssh block device support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -1344,9 +1357,33 @@ EOF
   fi
 fi
 
-#
+##########################################
+# __sync_fetch_and_and requires at least -march=i486. Many toolchains
+# use i686 as default anyway, but for those that don't, an explicit
+# specification is necessary
+
+if test "$cpu" = "i386"; then
+  cat > $TMPC << EOF
+static int sfaa(int *ptr)
+{
+  return __sync_fetch_and_and(ptr, 0);
+}
+
+int main(void)
+{
+  int val = 42;
+  sfaa(&val);
+  return val;
+}
+EOF
+  if ! compile_prog "" "" ; then
+    QEMU_CFLAGS="-march=i486 $QEMU_CFLAGS"
+  fi
+fi
+
+#########################################
 # Solaris specific configure tool chain decisions
-#
+
 if test "$solaris" = "yes" ; then
   if has $install; then
     :
@@ -1485,6 +1522,7 @@ EOF
             "Make sure to have the zlib libs and headers installed."
     fi
 fi
+libs_softmmu="$libs_softmmu -lz"
 
 ##########################################
 # libseccomp check
@@ -2356,6 +2394,67 @@ EOF
 fi
 
 ##########################################
+# libssh2 probe
+if test "$libssh2" != "no" ; then
+  cat > $TMPC <<EOF
+#include <stdio.h>
+#include <libssh2.h>
+#include <libssh2_sftp.h>
+int main(void) {
+    LIBSSH2_SESSION *session;
+    session = libssh2_session_init ();
+    (void) libssh2_sftp_init (session);
+    return 0;
+}
+EOF
+
+  if $pkg_config libssh2 --modversion >/dev/null 2>&1; then
+    libssh2_cflags=`$pkg_config libssh2 --cflags`
+    libssh2_libs=`$pkg_config libssh2 --libs`
+  else
+    libssh2_cflags=
+    libssh2_libs="-lssh2"
+  fi
+
+  if compile_prog "$libssh2_cflags" "$libssh2_libs" ; then
+    libssh2=yes
+    libs_tools="$libssh2_libs $libs_tools"
+    libs_softmmu="$libssh2_libs $libs_softmmu"
+    QEMU_CFLAGS="$QEMU_CFLAGS $libssh2_cflags"
+  else
+    if test "$libssh2" = "yes" ; then
+      feature_not_found "libssh2"
+    fi
+    libssh2=no
+  fi
+fi
+
+##########################################
+# libssh2_sftp_fsync probe
+
+if test "$libssh2" = "yes"; then
+  cat > $TMPC <<EOF
+#include <stdio.h>
+#include <libssh2.h>
+#include <libssh2_sftp.h>
+int main(void) {
+    LIBSSH2_SESSION *session;
+    LIBSSH2_SFTP *sftp;
+    LIBSSH2_SFTP_HANDLE *sftp_handle;
+    session = libssh2_session_init ();
+    sftp = libssh2_sftp_init (session);
+    sftp_handle = libssh2_sftp_open (sftp, "/", 0, 0);
+    libssh2_sftp_fsync (sftp_handle);
+    return 0;
+}
+EOF
+  # libssh2_cflags/libssh2_libs defined in previous test.
+  if compile_prog "$libssh2_cflags" "$libssh2_libs" ; then
+    QEMU_CFLAGS="-DHAS_LIBSSH2_SFTP_FSYNC $QEMU_CFLAGS"
+  fi
+fi
+
+##########################################
 # linux-aio probe
 
 if test "$linux_aio" != "no" ; then
@@ -2375,6 +2474,15 @@ EOF
     fi
     linux_aio=no
   fi
+fi
+
+##########################################
+# TPM passthrough is only on x86 Linux
+
+if test "$targetos" = Linux && test "$cpu" = i386 -o "$cpu" = x86_64; then
+  tpm_passthrough=$tpm
+else
+  tpm_passthrough=no
 fi
 
 ##########################################
@@ -2450,16 +2558,33 @@ if test "$fdt" != "no" ; then
 int main(void) { return 0; }
 EOF
   if compile_prog "" "$fdt_libs" ; then
+    # system DTC is good - use it
     fdt=yes
-    libs_softmmu="$libs_softmmu $fdt_libs"
-  else
-    if test "$fdt" = "yes" ; then
-      feature_not_found "fdt"
+  elif test -d ${source_path}/dtc/libfdt ; then
+    # have submodule DTC - use it
+    fdt=yes
+    dtc_internal="yes"
+    mkdir -p dtc
+    if [ "$source_path" != `pwd` ] ; then
+       symlink "$source_path/dtc/Makefile" "dtc/Makefile"
+       symlink "$source_path/dtc/scripts" "dtc/scripts"
     fi
+    fdt_cflags="-I\$(SRC_PATH)/dtc/libfdt"
+    fdt_libs="-L\$(BUILD_DIR)/dtc/libfdt $fdt_libs"
+  elif test "$fdt" = "yes" ; then
+    # have neither and want - prompt for system/submodule install
+    error_exit "ERROR: DTC not present. Your options:" \
+        "  (1) Preferred: Install the DTC devel package" \
+        "  (2) Fetch the DTC submodule, using:" \
+        "      git submodule update --init dtc"
+  else
+    # don't have and don't want
     fdt_libs=
     fdt=no
   fi
 fi
+
+libs_softmmu="$libs_softmmu $fdt_libs"
 
 ##########################################
 # GLX probe, used by milkymist-tmu2
@@ -2977,6 +3102,23 @@ EOF
     fi
 fi
 
+# check for libusb
+if test "$libusb" != "no" ; then
+    if $pkg_config libusb-1.0 >/dev/null 2>&1 ; then
+        libusb="yes"
+	usb="libusb"
+        libusb_cflags=$($pkg_config --cflags libusb-1.0 2>/dev/null)
+        libusb_libs=$($pkg_config --libs libusb-1.0 2>/dev/null)
+        QEMU_CFLAGS="$QEMU_CFLAGS $libusb_cflags"
+        libs_softmmu="$libs_softmmu $libusb_libs"
+    else
+        if test "$libusb" = "yes"; then
+            feature_not_found "libusb"
+        fi
+        libusb="no"
+    fi
+fi
+
 # check for usbredirparser for usb network redirection support
 if test "$usb_redir" != "no" ; then
     if $pkg_config --atleast-version=0.6 libusbredirparser-0.5 >/dev/null 2>&1 ; then
@@ -3096,29 +3238,6 @@ if test "$trace_backend" = "dtrace"; then
 fi
 
 ##########################################
-# __sync_fetch_and_and requires at least -march=i486. Many toolchains
-# use i686 as default anyway, but for those that don't, an explicit
-# specification is necessary
-if test "$vhost_net" = "yes" && test "$cpu" = "i386"; then
-  cat > $TMPC << EOF
-static int sfaa(int *ptr)
-{
-  return __sync_fetch_and_and(ptr, 0);
-}
-
-int main(void)
-{
-  int val = 42;
-  sfaa(&val);
-  return val;
-}
-EOF
-  if ! compile_prog "" "" ; then
-    QEMU_CFLAGS="-march=i486 $QEMU_CFLAGS"
-  fi
-fi
-
-##########################################
 # check and set a backend for coroutine
 
 # We prefer ucontext, but it's not always possible. The fallback
@@ -3216,8 +3335,10 @@ fi
 
 pragma_disable_unused_but_set=no
 cat > $TMPC << EOF
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#pragma GCC diagnostic pop
 
 int main(void) {
     return 0;
@@ -3286,6 +3407,20 @@ int main (void) {
 EOF
 if compile_prog "" "" ; then
     int128=yes
+fi
+
+########################################
+# check if getauxval is available.
+
+getauxval=no
+cat > $TMPC << EOF
+#include <sys/auxv.h>
+int main(void) {
+  return getauxval(AT_HWCAP) == 0;
+}
+EOF
+if compile_prog "" "" ; then
+    getauxval=yes
 fi
 
 ##########################################
@@ -3379,7 +3514,7 @@ if test "$cpu" = "ppc64" -a "$targetos" != "Darwin" ; then
 fi
 
 # add pixman flags after all config tests are done
-QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags"
+QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags $fdt_cflags"
 libs_softmmu="$libs_softmmu $pixman_libs"
 
 echo "Install prefix    $prefix"
@@ -3473,6 +3608,7 @@ echo "spice support     $spice ($spice_protocol_version/$spice_server_version)"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
+echo "libusb            $libusb"
 echo "usb net redir     $usb_redir"
 echo "GLX support       $glx"
 echo "libiscsi support  $libiscsi"
@@ -3484,6 +3620,8 @@ echo "virtio-blk-data-plane $virtio_blk_data_plane"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
+echo "libssh2 support   $libssh2"
+echo "TPM passthrough   $tpm_passthrough"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3515,8 +3653,18 @@ echo "qemu_helperdir=$libexecdir" >> $config_host_mak
 echo "extra_cflags=$EXTRA_CFLAGS" >> $config_host_mak
 echo "extra_ldflags=$EXTRA_LDFLAGS" >> $config_host_mak
 echo "qemu_localedir=$qemu_localedir" >> $config_host_mak
+echo "libs_softmmu=$libs_softmmu" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
+
+case "$cpu" in
+  i386|x86_64|ppc)
+    # The TCG interpreter currently does not support ld/st optimization.
+    if test "$tcg_interpreter" = "no" ; then
+        echo "CONFIG_QEMU_LDST_OPTIMIZATION=y" >> $config_host_mak
+    fi
+  ;;
+esac
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
@@ -3782,12 +3930,17 @@ if test "$smartcard_nss" = "yes" ; then
   echo "libcacard_cflags=$libcacard_cflags" >> $config_host_mak
 fi
 
+if test "$libusb" = "yes" ; then
+  echo "CONFIG_USB_LIBUSB=y" >> $config_host_mak
+fi
+
 if test "$usb_redir" = "yes" ; then
   echo "CONFIG_USB_REDIR=y" >> $config_host_mak
 fi
 
 if test "$glx" = "yes" ; then
   echo "CONFIG_GLX=y" >> $config_host_mak
+  echo "GLX_LIBS=$glx_libs" >> $config_host_mak
 fi
 
 if test "$libiscsi" = "yes" ; then
@@ -3842,8 +3995,16 @@ if test "$int128" = "yes" ; then
   echo "CONFIG_INT128=y" >> $config_host_mak
 fi
 
+if test "$getauxval" = "yes" ; then
+  echo "CONFIG_GETAUXVAL=y" >> $config_host_mak
+fi
+
 if test "$glusterfs" = "yes" ; then
   echo "CONFIG_GLUSTERFS=y" >> $config_host_mak
+fi
+
+if test "$libssh2" = "yes" ; then
+  echo "CONFIG_LIBSSH2=y" >> $config_host_mak
 fi
 
 if test "$virtio_blk_data_plane" = "yes" ; then
@@ -3858,10 +4019,25 @@ linux)
 bsd)
   echo "HOST_USB=bsd" >> $config_host_mak
 ;;
+libusb)
+  if test "$linux" = "yes"; then
+    echo "HOST_USB=libusb linux legacy" >> $config_host_mak
+  else
+    echo "HOST_USB=libusb legacy" >> $config_host_mak
+  fi
+;;
 *)
   echo "HOST_USB=stub" >> $config_host_mak
 ;;
 esac
+
+# TPM passthrough support?
+if test "$tpm" = "yes"; then
+  echo 'CONFIG_TPM=$(CONFIG_SOFTMMU)' >> $config_host_mak
+  if test "$tpm_passthrough" = "yes"; then
+    echo "CONFIG_TPM_PASSTHROUGH=y" >> $config_host_mak
+  fi
+fi
 
 # use default implementation for tracing backend-specific routines
 trace_default=yes
@@ -3892,6 +4068,19 @@ echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
 if test "$trace_default" = "yes"; then
   echo "CONFIG_TRACE_DEFAULT=y" >> $config_host_mak
 fi
+
+if test "$tcg_interpreter" = "yes"; then
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/tci $QEMU_INCLUDES"
+elif test "$ARCH" = "sparc64" ; then
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/sparc $QEMU_INCLUDES"
+elif test "$ARCH" = "s390x" ; then
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/s390 $QEMU_INCLUDES"
+elif test "$ARCH" = "x86_64" ; then
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/i386 $QEMU_INCLUDES"
+else
+  QEMU_INCLUDES="-I\$(SRC_PATH)/tcg/\$(ARCH) $QEMU_INCLUDES"
+fi
+QEMU_INCLUDES="-I\$(SRC_PATH)/tcg $QEMU_INCLUDES"
 
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
@@ -4025,11 +4214,6 @@ bflt="no"
 target_nptl="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_arch2/g"`
 gdb_xml_files=""
-target_short_alignment=2
-target_int_alignment=4
-target_long_alignment=4
-target_llong_alignment=8
-target_libs_softmmu=
 
 TARGET_ARCH="$target_arch2"
 TARGET_BASE_ARCH=""
@@ -4040,10 +4224,8 @@ case "$target_arch2" in
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
-    target_long_alignment=8
   ;;
   alpha)
-    target_long_alignment=8
     target_nptl="yes"
   ;;
   arm|armeb)
@@ -4051,20 +4233,15 @@ case "$target_arch2" in
     bflt="yes"
     target_nptl="yes"
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
-    target_llong_alignment=4
   ;;
   cris)
     target_nptl="yes"
   ;;
   lm32)
-    target_libs_softmmu="$glx_libs"
   ;;
   m68k)
     bflt="yes"
     gdb_xml_files="cf-core.xml cf-fp.xml"
-    target_int_alignment=2
-    target_long_alignment=2
-    target_llong_alignment=2
   ;;
   microblaze|microblazeel)
     TARGET_ARCH=microblaze
@@ -4086,7 +4263,6 @@ case "$target_arch2" in
     TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
-    target_long_alignment=8
   ;;
   moxie)
   ;;
@@ -4108,7 +4284,6 @@ case "$target_arch2" in
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
-    target_long_alignment=8
   ;;
   ppc64abi32)
     TARGET_ARCH=ppc64
@@ -4126,7 +4301,6 @@ case "$target_arch2" in
   ;;
   sparc64)
     TARGET_BASE_ARCH=sparc
-    target_long_alignment=8
   ;;
   sparc32plus)
     TARGET_ARCH=sparc64
@@ -4136,7 +4310,6 @@ case "$target_arch2" in
   ;;
   s390x)
     target_nptl="yes"
-    target_long_alignment=8
   ;;
   unicore32)
   ;;
@@ -4158,19 +4331,6 @@ upper() {
     echo "$@"| LC_ALL=C tr '[a-z]' '[A-Z]'
 }
 
-case "$cpu" in
-  i386|x86_64|ppc)
-    # The TCG interpreter currently does not support ld/st optimization.
-    if test "$tcg_interpreter" = "no" ; then
-        echo "CONFIG_QEMU_LDST_OPTIMIZATION=y" >> $config_target_mak
-    fi
-  ;;
-esac
-
-echo "TARGET_SHORT_ALIGNMENT=$target_short_alignment" >> $config_target_mak
-echo "TARGET_INT_ALIGNMENT=$target_int_alignment" >> $config_target_mak
-echo "TARGET_LONG_ALIGNMENT=$target_long_alignment" >> $config_target_mak
-echo "TARGET_LLONG_ALIGNMENT=$target_llong_alignment" >> $config_target_mak
 echo "TARGET_ARCH=$TARGET_ARCH" >> $config_target_mak
 target_arch_name="`upper $TARGET_ARCH`"
 echo "TARGET_$target_arch_name=y" >> $config_target_mak
@@ -4188,12 +4348,9 @@ case "$target_arch2" in
       if test "$xen_pci_passthrough" = yes; then
         echo "CONFIG_XEN_PCI_PASSTHROUGH=y" >> "$config_target_mak"
       fi
-    else
-      echo "CONFIG_NO_XEN=y" >> $config_target_mak
     fi
     ;;
   *)
-    echo "CONFIG_NO_XEN=y" >> $config_target_mak
 esac
 case "$target_arch2" in
   arm|i386|x86_64|ppcemb|ppc|ppc64|s390x)
@@ -4221,7 +4378,6 @@ if test "$target_bigendian" = "yes" ; then
 fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
-  echo "LIBS+=$libs_softmmu $target_libs_softmmu" >> $config_target_mak
   case "$target_arch2" in
     i386|x86_64)
       echo "CONFIG_HAVE_CORE_DUMP=y" >> $config_target_mak
@@ -4264,25 +4420,7 @@ fi
 # generate QEMU_CFLAGS/LDFLAGS for targets
 
 cflags=""
-includes=""
 ldflags=""
-
-if test "$tcg_interpreter" = "yes"; then
-  includes="-I\$(SRC_PATH)/tcg/tci $includes"
-elif test "$ARCH" = "sparc64" ; then
-  includes="-I\$(SRC_PATH)/tcg/sparc $includes"
-elif test "$ARCH" = "s390x" ; then
-  includes="-I\$(SRC_PATH)/tcg/s390 $includes"
-elif test "$ARCH" = "x86_64" ; then
-  includes="-I\$(SRC_PATH)/tcg/i386 $includes"
-else
-  includes="-I\$(SRC_PATH)/tcg/\$(ARCH) $includes"
-fi
-includes="-I\$(SRC_PATH)/tcg $includes"
-
-if test "$linux" = "yes" ; then
-  includes="-I\$(SRC_PATH)/linux-headers $includes"
-fi
 
 for i in $ARCH $TARGET_BASE_ARCH ; do
   case "$i" in
@@ -4394,12 +4532,6 @@ if test "$gprof" = "yes" ; then
   fi
 fi
 
-if test "$tpm" = "yes"; then
-  if test "$target_softmmu" = "yes" ; then
-    echo "CONFIG_TPM=y" >> $config_host_mak
-  fi
-fi
-
 if test "$ARCH" = "tci"; then
   linker_script=""
 else
@@ -4419,7 +4551,6 @@ fi
 
 echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
-echo "QEMU_INCLUDES+=$includes" >> $config_target_mak
 
 done # for target in $targets
 
@@ -4427,8 +4558,12 @@ if [ "$pixman" = "internal" ]; then
   echo "config-host.h: subdir-pixman" >> $config_host_mak
 fi
 
+if [ "$dtc_internal" = "yes" ]; then
+  echo "config-host.h: subdir-dtc" >> $config_host_mak
+fi
+
 # build tree in object directory in case the source is not in the current directory
-DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32"
+DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32 tests/libqos"
 DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS qapi-generated"

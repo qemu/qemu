@@ -45,6 +45,12 @@
 #include "hw/usb/desc.h"
 #include "hw/usb/host.h"
 
+#ifdef CONFIG_USB_LIBUSB
+# define DEVNAME "usb-host-linux"
+#else
+# define DEVNAME "usb-host"
+#endif
+
 /* We redefine it to avoid version problems */
 struct usb_ctrltransfer {
     uint8_t  bRequestType;
@@ -1487,7 +1493,7 @@ static int usb_host_initfn(USBDevice *dev)
 }
 
 static const VMStateDescription vmstate_usb_host = {
-    .name = "usb-host",
+    .name = DEVNAME,
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = usb_host_post_load,
@@ -1527,7 +1533,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo usb_host_dev_info = {
-    .name          = "usb-host",
+    .name          = DEVNAME,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHostDevice),
     .class_init    = usb_host_class_initfn,
@@ -1767,6 +1773,8 @@ static void usb_host_auto_check(void *unused)
     qemu_mod_timer(usb_auto_timer, qemu_get_clock_ms(rt_clock) + 2000);
 }
 
+#ifndef CONFIG_USB_LIBUSB
+
 /**********************/
 /* USB host device info */
 
@@ -1898,3 +1906,5 @@ void usb_host_info(Monitor *mon, const QDict *qdict)
                        bus, addr, f->port ? f->port : "*", vid, pid);
     }
 }
+
+#endif

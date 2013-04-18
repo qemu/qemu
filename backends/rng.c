@@ -10,7 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu/rng.h"
+#include "sysemu/rng.h"
 #include "qapi/qmp/qerror.h"
 
 void rng_backend_request_entropy(RngBackend *s, size_t size,

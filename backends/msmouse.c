@@ -23,7 +23,7 @@
  */
 #include <stdlib.h>
 #include "qemu-common.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "ui/console.h"
 
 #define MSMOUSE_LO6(n) ((n) & 0x3f)

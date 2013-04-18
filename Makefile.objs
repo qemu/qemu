@@ -65,7 +65,7 @@ common-obj-y += bt-host.o bt-vhci.o
 
 common-obj-y += dma-helpers.o
 common-obj-y += vl.o
-common-obj-y += tpm/
+common-obj-y += tpm.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/
 

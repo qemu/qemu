@@ -109,13 +109,19 @@ static QXLMode qxl_modes[] = {
     /* these modes need more than 8 MB video memory */
     QXL_MODE_EX(1920, 1200),
     QXL_MODE_EX(1920, 1440),
+    QXL_MODE_EX(2000, 2000),
     QXL_MODE_EX(2048, 1536),
+    QXL_MODE_EX(2048, 2048),
     QXL_MODE_EX(2560, 1440),
     QXL_MODE_EX(2560, 1600),
     /* these modes need more than 16 MB video memory */
     QXL_MODE_EX(2560, 2048),
     QXL_MODE_EX(2800, 2100),
     QXL_MODE_EX(3200, 2400),
+    QXL_MODE_EX(3840, 2160), /* 4k mainstream */
+    QXL_MODE_EX(4096, 2160), /* 4k            */
+    QXL_MODE_EX(7680, 4320), /* 8k mainstream */
+    QXL_MODE_EX(8192, 4320), /* 8k            */
 };
 
 static void qxl_send_events(PCIQXLDevice *d, uint32_t events);
@@ -224,7 +230,7 @@ static void qxl_spice_destroy_surfaces_complete(PCIQXLDevice *qxl)
     trace_qxl_spice_destroy_surfaces_complete(qxl->id);
     qemu_mutex_lock(&qxl->track_lock);
     memset(qxl->guest_surfaces.cmds, 0,
-           sizeof(qxl->guest_surfaces.cmds) * qxl->ssd.num_surfaces);
+           sizeof(qxl->guest_surfaces.cmds[0]) * qxl->ssd.num_surfaces);
     qxl->guest_surfaces.count = 0;
     qemu_mutex_unlock(&qxl->track_lock);
 }
@@ -1074,7 +1080,7 @@ static void qxl_enter_vga_mode(PCIQXLDevice *d)
     qemu_spice_create_host_primary(&d->ssd);
     d->mode = QXL_MODE_VGA;
     vga_dirty_log_start(&d->vga);
-    vga_hw_update();
+    graphic_hw_update(d->vga.con);
 }
 
 static void qxl_exit_vga_mode(PCIQXLDevice *d)
@@ -1753,7 +1759,7 @@ static void qxl_hw_update(void *opaque)
 
     switch (qxl->mode) {
     case QXL_MODE_VGA:
-        vga->update(vga);
+        vga->hw_ops->gfx_update(vga);
         break;
     case QXL_MODE_COMPAT:
     case QXL_MODE_NATIVE:
@@ -1769,26 +1775,9 @@ static void qxl_hw_invalidate(void *opaque)
     PCIQXLDevice *qxl = opaque;
     VGACommonState *vga = &qxl->vga;
 
-    vga->invalidate(vga);
-}
-
-static void qxl_hw_screen_dump(void *opaque, const char *filename, bool cswitch,
-                               Error **errp)
-{
-    PCIQXLDevice *qxl = opaque;
-    VGACommonState *vga = &qxl->vga;
-
-    switch (qxl->mode) {
-    case QXL_MODE_COMPAT:
-    case QXL_MODE_NATIVE:
-        qxl_render_update(qxl);
-        ppm_save(filename, qxl->ssd.ds, errp);
-        break;
-    case QXL_MODE_VGA:
-        vga->screen_dump(vga, filename, cswitch, errp);
-        break;
-    default:
-        break;
+    if (qxl->mode == QXL_MODE_VGA) {
+        vga->hw_ops->invalidate(vga);
+        return;
     }
 }
 
@@ -1798,7 +1787,7 @@ static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
     VGACommonState *vga = &qxl->vga;
 
     if (qxl->mode == QXL_MODE_VGA) {
-        vga->text_update(vga, chardata);
+        vga->hw_ops->text_update(vga, chardata);
         return;
     }
 }
@@ -2058,6 +2047,12 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     return 0;
 }
 
+static const GraphicHwOps qxl_ops = {
+    .invalidate  = qxl_hw_invalidate,
+    .gfx_update  = qxl_hw_update,
+    .text_update = qxl_hw_text_update,
+};
+
 static int qxl_init_primary(PCIDevice *dev)
 {
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
@@ -2074,10 +2069,7 @@ static int qxl_init_primary(PCIDevice *dev)
     portio_list_init(qxl_vga_port_list, qxl_vga_portio_list, vga, "vga");
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
 
-    vga->con = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
-                                    qxl_hw_screen_dump, qxl_hw_text_update,
-                                    qxl);
-    qxl->ssd.con = vga->con,
+    vga->con = graphic_console_init(&qxl_ops, qxl);
     qemu_spice_display_init_common(&qxl->ssd);
 
     rc = qxl_init_common(qxl);
@@ -2086,6 +2078,7 @@ static int qxl_init_primary(PCIDevice *dev)
     }
 
     qxl->ssd.dcl.ops = &display_listener_ops;
+    qxl->ssd.dcl.con = vga->con;
     ds = qemu_console_displaystate(vga->con);
     register_displaychangelistener(ds, &qxl->ssd.dcl);
     return rc;
@@ -2101,6 +2094,7 @@ static int qxl_init_secondary(PCIDevice *dev)
     memory_region_init_ram(&qxl->vga.vram, "qxl.vgavram", qxl->vga.vram_size);
     vmstate_register_ram(&qxl->vga.vram, &qxl->pci.qdev);
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
+    qxl->vga.con = graphic_console_init(&qxl_ops, qxl);
 
     return qxl_init_common(qxl);
 }

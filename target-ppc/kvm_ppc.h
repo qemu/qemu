@@ -9,8 +9,6 @@
 #ifndef __KVM_PPC_H__
 #define __KVM_PPC_H__
 
-#include "exec/memory.h"
-
 #define TYPE_HOST_POWERPC_CPU "host-" TYPE_POWERPC_CPU
 
 void kvmppc_init(void);

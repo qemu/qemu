@@ -25,7 +25,7 @@ extern bool xen_allowed;
 
 static inline bool xen_enabled(void)
 {
-#if defined(CONFIG_XEN_BACKEND) && !defined(CONFIG_NO_XEN)
+#if defined(CONFIG_XEN_BACKEND) && defined(CONFIG_XEN)
     return xen_allowed;
 #else
     return 0;

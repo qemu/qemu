@@ -71,7 +71,6 @@ typedef struct SimpleSpiceDisplay SimpleSpiceDisplay;
 typedef struct SimpleSpiceUpdate SimpleSpiceUpdate;
 
 struct SimpleSpiceDisplay {
-    QemuConsole *con;
     DisplaySurface *ds;
     DisplayChangeListener dcl;
     void *buf;

@@ -135,9 +135,7 @@ int isa_vga_mm_init(hwaddr vram_base,
     vga_common_init(&s->vga);
     vga_mm_init(s, vram_base, ctrl_base, it_shift, address_space);
 
-    s->vga.con = graphic_console_init(s->vga.update, s->vga.invalidate,
-                                      s->vga.screen_dump, s->vga.text_update,
-                                      s);
+    s->vga.con = graphic_console_init(s->vga.hw_ops, s);
 
     vga_init_vbe(&s->vga, address_space);
     return 0;

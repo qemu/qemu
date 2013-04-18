@@ -107,14 +107,6 @@ void cpu_smm_register(cpu_set_smm_t callback, void *arg);
 
 void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
-/* acpi.c */
-extern int acpi_enabled;
-extern char unsigned *acpi_tables;
-extern size_t acpi_tables_len;
-
-void acpi_bios_init(void);
-void acpi_table_add(const QemuOpts *opts, Error **errp);
-
 /* acpi_piix.c */
 
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,

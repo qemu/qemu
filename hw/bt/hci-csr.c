@@ -19,10 +19,10 @@
  */
 
 #include "qemu-common.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "qemu/timer.h"
 #include "hw/irq.h"
-#include "bt/bt.h"
+#include "sysemu/bt.h"
 #include "hw/bt.h"
 
 struct csrhci_s {

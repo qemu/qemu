@@ -55,16 +55,19 @@ xilinx_ethlite_create(NICInfo *nd, hwaddr base, qemu_irq irq,
 }
 
 static inline void
-xilinx_axiethernet_init(DeviceState *dev, NICInfo *nd, StreamSlave *peer,
-                        hwaddr base, qemu_irq irq, int txmem, int rxmem)
+xilinx_axiethernet_init(DeviceState *dev, NICInfo *nd, StreamSlave *ds,
+                        StreamSlave *cs, hwaddr base, qemu_irq irq, int txmem,
+                        int rxmem)
 {
     Error *errp = NULL;
 
     qdev_set_nic_properties(dev, nd);
     qdev_prop_set_uint32(dev, "rxmem", rxmem);
     qdev_prop_set_uint32(dev, "txmem", txmem);
-    object_property_set_link(OBJECT(dev), OBJECT(peer), "axistream-connected",
-                             &errp);
+    object_property_set_link(OBJECT(dev), OBJECT(ds),
+                             "axistream-connected", &errp);
+    object_property_set_link(OBJECT(dev), OBJECT(cs),
+                             "axistream-control-connected", &errp);
     assert_no_error(errp);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
@@ -72,14 +75,16 @@ xilinx_axiethernet_init(DeviceState *dev, NICInfo *nd, StreamSlave *peer,
 }
 
 static inline void
-xilinx_axidma_init(DeviceState *dev, StreamSlave *peer, hwaddr base,
-                   qemu_irq irq, qemu_irq irq2, int freqhz)
+xilinx_axidma_init(DeviceState *dev, StreamSlave *ds, StreamSlave *cs,
+                   hwaddr base, qemu_irq irq, qemu_irq irq2, int freqhz)
 {
     Error *errp = NULL;
 
     qdev_prop_set_uint32(dev, "freqhz", freqhz);
-    object_property_set_link(OBJECT(dev), OBJECT(peer), "axistream-connected",
-                             &errp);
+    object_property_set_link(OBJECT(dev), OBJECT(ds),
+                             "axistream-connected", &errp);
+    object_property_set_link(OBJECT(dev), OBJECT(cs),
+                             "axistream-control-connected", &errp);
     assert_no_error(errp);
     qdev_init_nofail(dev);
 

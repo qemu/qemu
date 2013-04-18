@@ -40,7 +40,6 @@ extern int daemon(int, int);
       Valgrind does not support alignments larger than 1 MiB,
       therefore we need special code which handles running on Valgrind. */
 #  define QEMU_VMALLOC_ALIGN (512 * 4096)
-#  define CONFIG_VALGRIND
 #elif defined(__linux__) && defined(__s390x__)
    /* Use 1 MiB (segment size) alignment so gmap can be used by KVM. */
 #  define QEMU_VMALLOC_ALIGN (256 * 4096)
@@ -52,12 +51,8 @@ extern int daemon(int, int);
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/sockets.h"
+#include <sys/mman.h>
 
-#if defined(CONFIG_VALGRIND)
-static int running_on_valgrind = -1;
-#else
-#  define running_on_valgrind 0
-#endif
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
 #endif
@@ -108,22 +103,28 @@ void *qemu_memalign(size_t alignment, size_t size)
 /* alloc shared memory pages */
 void *qemu_vmalloc(size_t size)
 {
-    void *ptr;
     size_t align = QEMU_VMALLOC_ALIGN;
+    size_t total = size + align - getpagesize();
+    void *ptr = mmap(0, total, PROT_READ | PROT_WRITE,
+                     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    size_t offset = QEMU_ALIGN_UP((uintptr_t)ptr, align) - (uintptr_t)ptr;
 
-#if defined(CONFIG_VALGRIND)
-    if (running_on_valgrind < 0) {
-        /* First call, test whether we are running on Valgrind.
-           This is a substitute for RUNNING_ON_VALGRIND from valgrind.h. */
-        const char *ld = getenv("LD_PRELOAD");
-        running_on_valgrind = (ld != NULL && strstr(ld, "vgpreload"));
+    if (ptr == MAP_FAILED) {
+        fprintf(stderr, "Failed to allocate %zu B: %s\n",
+                size, strerror(errno));
+        abort();
     }
-#endif
 
-    if (size < align || running_on_valgrind) {
-        align = getpagesize();
+    ptr += offset;
+    total -= offset;
+
+    if (offset > 0) {
+        munmap(ptr - offset, offset);
     }
-    ptr = qemu_memalign(align, size);
+    if (total > size) {
+        munmap(ptr + size, total - size);
+    }
+
     trace_qemu_vmalloc(size, ptr);
     return ptr;
 }

@@ -19,6 +19,12 @@
  * <http://www.gnu.org/licenses/>.
  */
 
+#include "qapi/error.h"
+#include "qemu/typedefs.h"
+#include "qemu/notify.h"
+#include "qemu/option.h"
+#include "exec/memory.h"
+
 /* from linux include/acpi/actype.h */
 /* Default ACPI register widths */
 
@@ -153,5 +159,12 @@ void acpi_gpe_reset(ACPIREGS *ar);
 
 void acpi_gpe_ioport_writeb(ACPIREGS *ar, uint32_t addr, uint32_t val);
 uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr);
+
+/* acpi.c */
+extern int acpi_enabled;
+extern char unsigned *acpi_tables;
+extern size_t acpi_tables_len;
+
+void acpi_table_add(const QemuOpts *opts, Error **errp);
 
 #endif /* !QEMU_HW_ACPI_H */

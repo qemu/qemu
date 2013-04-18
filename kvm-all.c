@@ -1510,18 +1510,14 @@ void kvm_cpu_synchronize_state(CPUArchState *env)
     }
 }
 
-void kvm_cpu_synchronize_post_reset(CPUArchState *env)
+void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE);
     cpu->kvm_vcpu_dirty = false;
 }
 
-void kvm_cpu_synchronize_post_init(CPUArchState *env)
+void kvm_cpu_synchronize_post_init(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
     cpu->kvm_vcpu_dirty = false;
 }

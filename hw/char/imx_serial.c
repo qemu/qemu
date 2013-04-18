@@ -20,7 +20,7 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "hw/arm/imx.h"
 
 //#define DEBUG_SERIAL 1

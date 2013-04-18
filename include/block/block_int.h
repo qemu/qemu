@@ -165,8 +165,8 @@ struct BlockDriver {
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
     int (*bdrv_update)(BlockDriverState *bs, int argc, char **argv);
 
-    int (*bdrv_save_vmstate)(BlockDriverState *bs, const uint8_t *buf,
-                             int64_t pos, int size);
+    int (*bdrv_save_vmstate)(BlockDriverState *bs, QEMUIOVector *qiov,
+                             int64_t pos);
     int (*bdrv_load_vmstate)(BlockDriverState *bs, uint8_t *buf,
                              int64_t pos, int size);
 

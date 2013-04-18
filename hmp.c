@@ -15,7 +15,7 @@
 
 #include "hmp.h"
 #include "net/net.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qmp-commands.h"
@@ -748,14 +748,6 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
     }
     monitor_printf(mon, "\n");
     g_free(data);
-}
-
-void hmp_query_cpu_max(Monitor *mon, const QDict *qdict)
-{
-    int cpu_max;
-
-    cpu_max = qmp_query_cpu_max(NULL);
-    monitor_printf(mon, "Maximum number of CPUs is %d\n", cpu_max);
 }
 
 static void hmp_cont_cb(void *opaque, int err)

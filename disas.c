@@ -325,6 +325,7 @@ void disas(FILE *out, void *code, unsigned long size)
     s.info.mach = bfd_mach_x86_64;
     print_insn = print_insn_i386;
 #elif defined(_ARCH_PPC)
+    s.info.disassembler_options = (char *)"any";
     print_insn = print_insn_ppc;
 #elif defined(__alpha__)
     print_insn = print_insn_alpha;

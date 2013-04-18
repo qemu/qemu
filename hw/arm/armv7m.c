@@ -8,7 +8,7 @@
  */
 
 #include "hw/sysbus.h"
-#include "hw/arm.h"
+#include "hw/arm/arm.h"
 #include "hw/loader.h"
 #include "elf.h"
 

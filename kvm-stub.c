@@ -14,7 +14,6 @@
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "cpu.h"
-#include "exec/gdbstub.h"
 #include "sysemu/kvm.h"
 
 KVMState *kvm_state;
@@ -42,11 +41,11 @@ void kvm_cpu_synchronize_state(CPUArchState *env)
 {
 }
 
-void kvm_cpu_synchronize_post_reset(CPUArchState *env)
+void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 {
 }
 
-void kvm_cpu_synchronize_post_init(CPUArchState *env)
+void kvm_cpu_synchronize_post_init(CPUState *cpu)
 {
 }
 

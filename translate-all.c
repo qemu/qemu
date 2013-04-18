@@ -32,9 +32,6 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg.h"
-#include "qemu/timer.h"
-#include "exec/memory.h"
-#include "exec/address-spaces.h"
 #if defined(CONFIG_USER_ONLY)
 #include "qemu.h"
 #if defined(TARGET_X86_64)
@@ -55,6 +52,8 @@
 #include <libutil.h>
 #endif
 #endif
+#else
+#include "exec/address-spaces.h"
 #endif
 
 #include "exec/cputlb.h"

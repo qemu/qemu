@@ -64,8 +64,8 @@
 #include "net/net.h"
 #include "pci/pci.h"
 
+#include "sysemu/char.h"        /* qemu_chr_fe_printf */
 #include "sysemu/sysemu.h"      /* serial_hds */
-#include "char/char.h"          /* qemu_chr_fe_printf */
 #include "qemu/timer.h"         /* vm_clock */
 
 #include "block/block.h"        /* bdrv_getlength */

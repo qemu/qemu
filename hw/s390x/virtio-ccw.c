@@ -551,23 +551,25 @@ static int virtio_ccw_exit(VirtioCcwDevice *dev)
     return 0;
 }
 
-static int virtio_ccw_net_init(VirtioCcwDevice *dev)
+static int virtio_ccw_net_init(VirtioCcwDevice *ccw_dev)
 {
-    VirtIODevice *vdev;
+    VirtIONetCcw *dev = VIRTIO_NET_CCW(ccw_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
 
-    vdev = virtio_net_init((DeviceState *)dev, &dev->nic, &dev->net,
-                           dev->host_features[0]);
-    if (!vdev) {
+    virtio_net_set_config_size(&dev->vdev, ccw_dev->host_features[0]);
+    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
+    if (qdev_init(vdev) < 0) {
         return -1;
     }
 
-    return virtio_ccw_device_init(dev, vdev);
+    return virtio_ccw_device_init(ccw_dev, VIRTIO_DEVICE(vdev));
 }
 
-static int virtio_ccw_net_exit(VirtioCcwDevice *dev)
+static void virtio_ccw_net_instance_init(Object *obj)
 {
-    virtio_net_exit(dev->vdev);
-    return virtio_ccw_exit(dev);
+    VirtIONetCcw *dev = VIRTIO_NET_CCW(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_NET);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
 static int virtio_ccw_blk_init(VirtioCcwDevice *ccw_dev)
@@ -590,22 +592,25 @@ static void virtio_ccw_blk_instance_init(Object *obj)
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
-static int virtio_ccw_serial_init(VirtioCcwDevice *dev)
+static int virtio_ccw_serial_init(VirtioCcwDevice *ccw_dev)
 {
-    VirtIODevice *vdev;
+    VirtioSerialCcw *dev = VIRTIO_SERIAL_CCW(ccw_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
 
-    vdev = virtio_serial_init((DeviceState *)dev, &dev->serial);
-    if (!vdev) {
+    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
+    if (qdev_init(vdev) < 0) {
         return -1;
     }
 
-    return virtio_ccw_device_init(dev, vdev);
+    return virtio_ccw_device_init(ccw_dev, VIRTIO_DEVICE(vdev));
 }
 
-static int virtio_ccw_serial_exit(VirtioCcwDevice *dev)
+
+static void virtio_ccw_serial_instance_init(Object *obj)
 {
-    virtio_serial_exit(dev->vdev);
-    return virtio_ccw_exit(dev);
+    VirtioSerialCcw *dev = VIRTIO_SERIAL_CCW(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_SERIAL);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
 static int virtio_ccw_balloon_init(VirtioCcwDevice *ccw_dev)
@@ -621,11 +626,45 @@ static int virtio_ccw_balloon_init(VirtioCcwDevice *ccw_dev)
     return virtio_ccw_device_init(ccw_dev, VIRTIO_DEVICE(vdev));
 }
 
+static void balloon_ccw_stats_get_all(Object *obj, struct Visitor *v,
+                                      void *opaque, const char *name,
+                                      Error **errp)
+{
+    VirtIOBalloonCcw *dev = opaque;
+    object_property_get(OBJECT(&dev->vdev), v, "guest-stats", errp);
+}
+
+static void balloon_ccw_stats_get_poll_interval(Object *obj, struct Visitor *v,
+                                                void *opaque, const char *name,
+                                                Error **errp)
+{
+    VirtIOBalloonCcw *dev = opaque;
+    object_property_get(OBJECT(&dev->vdev), v, "guest-stats-polling-interval",
+                        errp);
+}
+
+static void balloon_ccw_stats_set_poll_interval(Object *obj, struct Visitor *v,
+                                                void *opaque, const char *name,
+                                                Error **errp)
+{
+    VirtIOBalloonCcw *dev = opaque;
+    object_property_set(OBJECT(&dev->vdev), v, "guest-stats-polling-interval",
+                        errp);
+}
+
 static void virtio_ccw_balloon_instance_init(Object *obj)
 {
     VirtIOBalloonCcw *dev = VIRTIO_BALLOON_CCW(obj);
     object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BALLOON);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    object_property_add(obj, "guest-stats", "guest statistics",
+                        balloon_ccw_stats_get_all, NULL, NULL, dev, NULL);
+
+    object_property_add(obj, "guest-stats-polling-interval", "int",
+                        balloon_ccw_stats_get_poll_interval,
+                        balloon_ccw_stats_set_poll_interval,
+                        NULL, dev, NULL);
 }
 
 static int virtio_ccw_scsi_init(VirtioCcwDevice *ccw_dev)
@@ -731,12 +770,8 @@ static const VirtIOBindings virtio_ccw_bindings = {
 static Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_VIRTIO_NET_FEATURES(VirtioCcwDevice, host_features[0]),
-    DEFINE_NIC_PROPERTIES(VirtioCcwDevice, nic),
-    DEFINE_PROP_UINT32("x-txtimer", VirtioCcwDevice,
-                       net.txtimer, TX_TIMER_INTERVAL),
-    DEFINE_PROP_INT32("x-txburst", VirtioCcwDevice,
-                      net.txburst, TX_BURST),
-    DEFINE_PROP_STRING("tx", VirtioCcwDevice, net.tx),
+    DEFINE_VIRTIO_NET_PROPERTIES(VirtIONetCcw, vdev.net_conf),
+    DEFINE_NIC_PROPERTIES(VirtIONetCcw, vdev.nic_conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -746,15 +781,16 @@ static void virtio_ccw_net_class_init(ObjectClass *klass, void *data)
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->init = virtio_ccw_net_init;
-    k->exit = virtio_ccw_net_exit;
+    k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_net_properties;
 }
 
 static const TypeInfo virtio_ccw_net = {
-    .name          = "virtio-net-ccw",
+    .name          = TYPE_VIRTIO_NET_CCW,
     .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtioCcwDevice),
+    .instance_size = sizeof(VirtIONetCcw),
+    .instance_init = virtio_ccw_net_instance_init,
     .class_init    = virtio_ccw_net_class_init,
 };
 
@@ -786,8 +822,7 @@ static const TypeInfo virtio_ccw_blk = {
 
 static Property virtio_ccw_serial_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
-    DEFINE_PROP_UINT32("max_ports", VirtioCcwDevice,
-                       serial.max_virtserial_ports, 31),
+    DEFINE_VIRTIO_SERIAL_PROPERTIES(VirtioSerialCcw, vdev.serial),
     DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -798,15 +833,16 @@ static void virtio_ccw_serial_class_init(ObjectClass *klass, void *data)
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->init = virtio_ccw_serial_init;
-    k->exit = virtio_ccw_serial_exit;
+    k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_serial_properties;
 }
 
 static const TypeInfo virtio_ccw_serial = {
-    .name          = "virtio-serial-ccw",
+    .name          = TYPE_VIRTIO_SERIAL_CCW,
     .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtioCcwDevice),
+    .instance_size = sizeof(VirtioSerialCcw),
+    .instance_init = virtio_ccw_serial_instance_init,
     .class_init    = virtio_ccw_serial_class_init,
 };
 

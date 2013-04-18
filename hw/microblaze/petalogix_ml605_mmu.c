@@ -30,7 +30,7 @@
 #include "net/net.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
-#include "hw/arm/devices.h"
+#include "hw/devices.h"
 #include "hw/boards.h"
 #include "hw/xilinx.h"
 #include "sysemu/blockdev.h"
@@ -79,6 +79,7 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     const char *cpu_model = args->cpu_model;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev, *dma, *eth0;
+    Object *ds, *cs;
     MicroBlazeCPU *cpu;
     SysBusDevice *busdev;
     CPUMBState *env;
@@ -134,14 +135,25 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     dma = qdev_create(NULL, "xlnx.axi-dma");
 
     /* FIXME: attach to the sysbus instead */
-    object_property_add_child(container_get(qdev_get_machine(), "/unattached"),
-                                  "xilinx-dma", OBJECT(dma), NULL);
+    object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth0),
+                              NULL);
+    object_property_add_child(qdev_get_machine(), "xilinx-dma", OBJECT(dma),
+                              NULL);
 
-    xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(dma),
-                                   0x82780000, irq[3], 0x1000, 0x1000);
+    ds = object_property_get_link(OBJECT(dma),
+                                  "axistream-connected-target", NULL);
+    cs = object_property_get_link(OBJECT(dma),
+                                  "axistream-control-connected-target", NULL);
+    xilinx_axiethernet_init(eth0, &nd_table[0], STREAM_SLAVE(ds),
+                            STREAM_SLAVE(cs), 0x82780000, irq[3], 0x1000,
+                            0x1000);
 
-    xilinx_axidma_init(dma, STREAM_SLAVE(eth0), 0x84600000, irq[1], irq[0],
-                       100 * 1000000);
+    ds = object_property_get_link(OBJECT(eth0),
+                                  "axistream-connected-target", NULL);
+    cs = object_property_get_link(OBJECT(eth0),
+                                  "axistream-control-connected-target", NULL);
+    xilinx_axidma_init(dma, STREAM_SLAVE(ds), STREAM_SLAVE(cs), 0x84600000,
+                       irq[1], irq[0], 100 * 1000000);
 
     {
         SSIBus *spi;

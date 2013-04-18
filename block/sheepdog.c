@@ -2054,12 +2054,19 @@ cleanup:
     return ret;
 }
 
-static int sd_save_vmstate(BlockDriverState *bs, const uint8_t *data,
-                           int64_t pos, int size)
+static int sd_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
+                           int64_t pos)
 {
     BDRVSheepdogState *s = bs->opaque;
+    void *buf;
+    int ret;
 
-    return do_load_save_vmstate(s, (uint8_t *)data, pos, size, 0);
+    buf = qemu_blockalign(bs, qiov->size);
+    qemu_iovec_to_buf(qiov, 0, buf, qiov->size);
+    ret = do_load_save_vmstate(s, (uint8_t *) buf, pos, qiov->size, 0);
+    qemu_vfree(buf);
+
+    return ret;
 }
 
 static int sd_load_vmstate(BlockDriverState *bs, uint8_t *data,

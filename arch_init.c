@@ -40,7 +40,6 @@
 #include "hw/audio/audio.h"
 #include "sysemu/kvm.h"
 #include "migration/migration.h"
-#include "exec/gdbstub.h"
 #include "hw/i386/smbios.h"
 #include "exec/address-spaces.h"
 #include "hw/audio/pcspk.h"
@@ -49,6 +48,7 @@
 #include "qmp-commands.h"
 #include "trace.h"
 #include "exec/cpu-all.h"
+#include "hw/acpi/acpi.h"
 
 #ifdef DEBUG_ARCH_INIT
 #define DPRINTF(fmt, ...) \

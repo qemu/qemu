@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 #include "hw/qdev.h"
 #include "hw/loader.h"
 #include "monitor/qdev.h"
-#include "bt/bt.h"
+#include "sysemu/bt.h"
 #include "net/net.h"
 #include "net/slirp.h"
 #include "monitor/monitor.h"
@@ -138,12 +138,12 @@ int main(int argc, char **argv)
 #include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
-#include "char/char.h"
+#include "sysemu/char.h"
 #include "qemu/cache-utils.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "migration/block.h"
-#include "tpm/tpm.h"
+#include "sysemu/tpm.h"
 #include "sysemu/dma.h"
 #include "audio/audio.h"
 #include "migration/migration.h"
@@ -667,11 +667,6 @@ StatusInfo *qmp_query_status(Error **errp)
     info->status = current_run_state;
 
     return info;
-}
-
-int64_t qmp_query_cpu_max(Error **errp)
-{
-    return current_machine->max_cpus;
 }
 
 /***********************************************************/
@@ -1624,6 +1619,7 @@ MachineInfoList *qmp_query_machines(Error **errp)
         }
 
         info->name = g_strdup(m->name);
+        info->cpu_max = !m->max_cpus ? 1 : m->max_cpus;
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;
@@ -1636,55 +1632,6 @@ MachineInfoList *qmp_query_machines(Error **errp)
 
 /***********************************************************/
 /* main execution loop */
-
-static void gui_update(void *opaque)
-{
-    uint64_t interval = GUI_REFRESH_INTERVAL;
-    DisplayState *ds = opaque;
-    DisplayChangeListener *dcl;
-
-    dpy_refresh(ds);
-
-    QLIST_FOREACH(dcl, &ds->listeners, next) {
-        if (dcl->gui_timer_interval &&
-            dcl->gui_timer_interval < interval)
-            interval = dcl->gui_timer_interval;
-    }
-    qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock_ms(rt_clock));
-}
-
-void gui_setup_refresh(DisplayState *ds)
-{
-    DisplayChangeListener *dcl;
-    bool need_timer = false;
-    bool have_gfx = false;
-    bool have_text = false;
-
-    QLIST_FOREACH(dcl, &ds->listeners, next) {
-        if (dcl->ops->dpy_refresh != NULL) {
-            need_timer = true;
-        }
-        if (dcl->ops->dpy_gfx_update != NULL) {
-            have_gfx = true;
-        }
-        if (dcl->ops->dpy_text_update != NULL) {
-            have_text = true;
-        }
-    }
-
-    if (need_timer && ds->gui_timer == NULL) {
-        ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
-        qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
-    }
-    if (!need_timer && ds->gui_timer != NULL) {
-        qemu_del_timer(ds->gui_timer);
-        qemu_free_timer(ds->gui_timer);
-        ds->gui_timer = NULL;
-    }
-
-    ds->have_gfx = have_gfx;
-    ds->have_text = have_text;
-}
 
 struct vm_change_state_entry {
     VMChangeStateHandler *cb;
@@ -4185,6 +4132,10 @@ int main(int argc, char **argv, char **envp)
 
     configure_accelerator();
 
+    if (!qtest_enabled() && qtest_chrdev) {
+        qtest_init();
+    }
+
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
         kernel_filename = qemu_opt_get(machine_opts, "kernel");
@@ -4385,8 +4336,7 @@ int main(int argc, char **argv, char **envp)
 
     net_check_clients();
 
-    /* just use the first displaystate for the moment */
-    ds = get_displaystate();
+    ds = init_displaystate();
 
     /* init local displays */
     switch (display_type) {
@@ -4441,9 +4391,6 @@ int main(int argc, char **argv, char **envp)
         qemu_spice_display_init(ds);
     }
 #endif
-
-    /* display setup */
-    text_consoles_set_display(ds);
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);

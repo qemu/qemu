@@ -1600,7 +1600,7 @@
 ##
 { 'union': 'BlockdevAction',
   'data': {
-       'blockdev-snapshot-sync': 'BlockdevSnapshot',
+       'blockdev-snapshot-sync': 'BlockdevSnapshot'
    } }
 
 ##
@@ -1832,17 +1832,6 @@
 # Since: 1.2
 ##
 { 'command': 'query-migrate-cache-size', 'returns': 'int' }
-
-##
-## @query-cpu-max
-##
-## query maximum number of CPUs supported by machine
-##
-## Returns: number of CPUs
-##
-## Since: 1.5
-###
-{ 'command': 'query-cpu-max', 'returns': 'int' }
 
 ##
 # @ObjectPropertyInfo:
@@ -2861,11 +2850,14 @@
 #
 # @default: #optional whether the machine is default
 #
+# @cpu-max: maximum number of CPUs supported by the machine type
+#           (since 1.5.0)
+#
 # Since: 1.2.0
 ##
 { 'type': 'MachineInfo',
   'data': { 'name': 'str', '*alias': 'str',
-            '*is-default': 'bool' } }
+            '*is-default': 'bool', 'cpu-max': 'int' } }
 
 ##
 # @query-machines:
