@@ -433,6 +433,14 @@ static QemuOptsList qemu_machine_opts = {
             .name = "bootrom",
             .type = QEMU_OPT_STRING,
             .help = "Xbox bootrom file",
+        },{
+            .name = "mediaboard_rom",
+            .type = QEMU_OPT_STRING,
+            .help = "Chihiro mediaboard rom file",
+        },{
+            .name = "mediaboard_filesystem",
+            .type = QEMU_OPT_STRING,
+            .help = "Chihiro mediaboard filesystem file",
         },
         { /* End of list */ }
     },

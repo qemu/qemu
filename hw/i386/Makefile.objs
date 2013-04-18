@@ -17,7 +17,7 @@ obj-y := $(addprefix ../,$(obj-y))
 
 obj-y += multiboot.o smbios.o
 obj-y += pc.o pc_piix.o pc_q35.o
-obj-$(CONFIG_XBOX) += xbox.o
+obj-$(CONFIG_XBOX) += xbox.o chihiro.o
 obj-$(CONFIG_XEN) += xen_domainbuild.o xen_machine_pv.o
 
 obj-y += kvmvapic.o
