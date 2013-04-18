@@ -80,19 +80,11 @@ extern int glo_flags_get_depth_bits(int formatFlags);
 extern int glo_flags_get_stencil_bits(int formatFlags);
 extern void glo_flags_get_rgba_bits(int formatFlags, int *rgba);
 extern int glo_flags_get_bytes_per_pixel(int formatFlags);
-extern void glo_flags_get_readpixel_type(int formatFlags, int *glFormat, int *glType);
 /* Score how close the given format flags match. 0=great, >0 not so great */
 extern int glo_flags_score(int formatFlagsExpected, int formatFlagsReal);
 
-/* In terms of speed, glReadPixels actually seems the best we can do.
- * * On Windows PFB_DRAW_TO_BITMAP is software-only.
- * * http://www.opengl.org/registry/specs/ARB/pixel_buffer_object.txt would be
- * useful if we didn't want the data right away (as we could avoid flushing the
- * pipeline).
- * * The internal data format seems to be GL_BGRA - and this is indeed faster.
- * * Apple suggests using GL_UNSIGNED_INT_8_8_8_8_REV instead of
- * GL_UNSIGNED_BYTE, but there don't appear to be any speed increase from
- * doing this on Windows at least.
- */
+ /* Note that this is top-down, not bottom-up as glReadPixels would do. */
+extern void glo_readpixels(GLenum gl_format, GLenum gl_type, int stride,
+                           int width, int height, void *data);
  
 #endif /* GLOFFSCREEN_H_ */

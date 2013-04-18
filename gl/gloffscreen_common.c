@@ -24,26 +24,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <string.h>
+
+#include "qemu-common.h"
 #include "gloffscreen.h"
 
-#ifdef _WIN32
-#include <windows.h>
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#elif defined(_WIN32)
 #include <GL/gl.h>
 #include <GL/glext.h>
 #else
 #include <GL/gl.h>
 #endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-// ---------------------------------------------------
-
-extern void glo_surface_getcontents_readpixels(int formatFlags, int stride,
-                             int bpp, int width, int height, void *data);
-
-// ---------------------------------------------------
 
 int glo_flags_get_depth_bits(int formatFlags) {
   switch ( formatFlags & GLO_FF_DEPTH_MASK ) {
@@ -101,41 +94,6 @@ int glo_flags_get_bytes_per_pixel(int formatFlags) {
     }
 }
 
-void glo_flags_get_readpixel_type(int formatFlags, int *glFormat, int *glType) {
-    GLenum gFormat, gType;
-
-    if (formatFlags & GLO_FF_ALPHA) {
-      switch ( formatFlags & GLO_FF_BITS_MASK ) {
-       case GLO_FF_BITS_16:
-         gFormat = GL_RGBA;
-         gType = GL_UNSIGNED_SHORT_4_4_4_4;
-         break;
-       case GLO_FF_BITS_24:
-       case GLO_FF_BITS_32:
-       default:
-         gFormat = GL_BGRA;
-         gType = GL_UNSIGNED_BYTE;
-         break;
-      }
-    } else {
-      switch ( formatFlags & GLO_FF_BITS_MASK ) {
-       case GLO_FF_BITS_16:
-         gFormat = GL_RGB;
-         gType = GL_UNSIGNED_SHORT_5_6_5;
-         break;
-       case GLO_FF_BITS_24:
-       case GLO_FF_BITS_32:
-       default:
-         gFormat = GL_BGR;
-         gType = GL_UNSIGNED_BYTE;
-         break;
-      }
-    }
-
-    if (glFormat) *glFormat = gFormat;
-    if (glType) *glType = gType;
-}
-
 int glo_flags_score(int formatFlagsExpected, int formatFlagsReal) {
   if (formatFlagsExpected == formatFlagsReal) return 0;
   int score = 1;
@@ -158,3 +116,45 @@ int glo_flags_score(int formatFlagsExpected, int formatFlagsReal) {
   return score;
 }
 
+
+void glo_readpixels(GLenum gl_format, GLenum gl_type, int stride,
+                    int width, int height, void *data)
+{
+    /* Save guest processes GL state before we ReadPixels() */
+    int rl, pa;
+    glGetIntegerv(GL_PACK_ROW_LENGTH, &rl);
+    glGetIntegerv(GL_PACK_ALIGNMENT, &pa);
+    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+
+#ifdef GETCONTENTS_INDIVIDUAL
+    GLubyte *b = (GLubyte *) data;
+    int irow;
+
+    for (irow = height - 1; irow >= 0; irow--) {
+        glReadPixels(0, irow, width, 1, gl_format, gl_type, b);
+        b += stride;
+    }
+#else
+    /* Faster buffer flip */
+    GLubyte *b = (GLubyte *) data;
+    GLubyte *c = &((GLubyte *) data)[stride * (height - 1)];
+    GLubyte *tmp = (GLubyte *) g_malloc(stride);
+    int irow;
+
+    glReadPixels(0, 0, width, height, gl_format, gl_type, data);
+
+    for (irow = 0; irow < height / 2; irow++) {
+        memcpy(tmp, b, stride);
+        memcpy(b, c, stride);
+        memcpy(c, tmp, stride);
+        b += stride;
+        c -= stride;
+    }
+    g_free(tmp);
+#endif
+
+    /* Restore GL state */
+    glPixelStorei(GL_PACK_ROW_LENGTH, rl);
+    glPixelStorei(GL_PACK_ALIGNMENT, pa);
+}
