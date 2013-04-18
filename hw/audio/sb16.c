@@ -1386,7 +1386,7 @@ static int sb16_initfn (ISADevice *dev)
     return 0;
 }
 
-int SB16_init (ISABus *bus)
+static int SB16_init (ISABus *bus)
 {
     isa_create_simple (bus, TYPE_SB16);
     return 0;
@@ -1421,6 +1421,7 @@ static const TypeInfo sb16_info = {
 static void sb16_register_types (void)
 {
     type_register_static (&sb16_info);
+    isa_register_soundhw("sb16", "Creative Sound Blaster 16", SB16_init);
 }
 
 type_init (sb16_register_types)

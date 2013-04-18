@@ -25,6 +25,7 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
+#include "hw/audio/audio.h"
 #include "audio/audio.h"
 #include "qemu/timer.h"
 #include "hw/timer/i8254.h"
@@ -108,7 +109,7 @@ static void pcspk_callback(void *opaque, int free)
     }
 }
 
-int pcspk_audio_init(ISABus *bus)
+static int pcspk_audio_init(ISABus *bus)
 {
     PCSpkState *s = pcspk_state;
     struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUD_FMT_U8, 0};
@@ -200,5 +201,6 @@ static const TypeInfo pcspk_info = {
 static void pcspk_register(void)
 {
     type_register_static(&pcspk_info);
+    isa_register_soundhw("pcspk", "PC speaker", pcspk_audio_init);
 }
 type_init(pcspk_register)

@@ -899,96 +899,30 @@ struct soundhw {
     } init;
 };
 
-static struct soundhw soundhw[] = {
-#ifdef HAS_AUDIO_CHOICE
-#ifdef CONFIG_PCSPK
-    {
-        "pcspk",
-        "PC speaker",
-        0,
-        1,
-        { .init_isa = pcspk_audio_init }
-    },
-#endif
+static struct soundhw soundhw[9];
+static int soundhw_count;
 
-#ifdef CONFIG_SB16
-    {
-        "sb16",
-        "Creative Sound Blaster 16",
-        0,
-        1,
-        { .init_isa = SB16_init }
-    },
-#endif
+void isa_register_soundhw(const char *name, const char *descr,
+                          int (*init_isa)(ISABus *bus))
+{
+    assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
+    soundhw[soundhw_count].name = name;
+    soundhw[soundhw_count].descr = descr;
+    soundhw[soundhw_count].isa = 1;
+    soundhw[soundhw_count].init.init_isa = init_isa;
+    soundhw_count++;
+}
 
-#ifdef CONFIG_CS4231A
-    {
-        "cs4231a",
-        "CS4231A",
-        0,
-        1,
-        { .init_isa = cs4231a_init }
-    },
-#endif
-
-#ifdef CONFIG_ADLIB
-    {
-        "adlib",
-#ifdef HAS_YMF262
-        "Yamaha YMF262 (OPL3)",
-#else
-        "Yamaha YM3812 (OPL2)",
-#endif
-        0,
-        1,
-        { .init_isa = Adlib_init }
-    },
-#endif
-
-#ifdef CONFIG_GUS
-    {
-        "gus",
-        "Gravis Ultrasound GF1",
-        0,
-        1,
-        { .init_isa = GUS_init }
-    },
-#endif
-
-#ifdef CONFIG_AC97
-    {
-        "ac97",
-        "Intel 82801AA AC97 Audio",
-        0,
-        0,
-        { .init_pci = ac97_init }
-    },
-#endif
-
-#ifdef CONFIG_ES1370
-    {
-        "es1370",
-        "ENSONIQ AudioPCI ES1370",
-        0,
-        0,
-        { .init_pci = es1370_init }
-    },
-#endif
-
-#ifdef CONFIG_HDA
-    {
-        "hda",
-        "Intel HD Audio",
-        0,
-        0,
-        { .init_pci = intel_hda_and_codec_init }
-    },
-#endif
-
-#endif /* HAS_AUDIO_CHOICE */
-
-    { NULL, NULL, 0, 0, { NULL } }
-};
+void pci_register_soundhw(const char *name, const char *descr,
+                          int (*init_pci)(PCIBus *bus))
+{
+    assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
+    soundhw[soundhw_count].name = name;
+    soundhw[soundhw_count].descr = descr;
+    soundhw[soundhw_count].isa = 0;
+    soundhw[soundhw_count].init.init_pci = init_pci;
+    soundhw_count++;
+}
 
 void select_soundhw(const char *optarg)
 {
@@ -997,16 +931,16 @@ void select_soundhw(const char *optarg)
     if (is_help_option(optarg)) {
     show_valid_cards:
 
-#ifdef HAS_AUDIO_CHOICE
-        printf("Valid sound card names (comma separated):\n");
-        for (c = soundhw; c->name; ++c) {
-            printf ("%-11s %s\n", c->name, c->descr);
+        if (soundhw_count) {
+             printf("Valid sound card names (comma separated):\n");
+             for (c = soundhw; c->name; ++c) {
+                 printf ("%-11s %s\n", c->name, c->descr);
+             }
+             printf("\n-soundhw all will enable all of the above\n");
+        } else {
+             printf("Machine has no user-selectable audio hardware "
+                    "(it may or may not have always-present audio hardware).\n");
         }
-        printf("\n-soundhw all will enable all of the above\n");
-#else
-        printf("Machine has no user-selectable audio hardware "
-               "(it may or may not have always-present audio hardware).\n");
-#endif
         exit(!is_help_option(optarg));
     }
     else {

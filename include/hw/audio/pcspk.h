@@ -42,6 +42,4 @@ static inline ISADevice *pcspk_init(ISABus *bus, ISADevice *pit)
     return dev;
 }
 
-int pcspk_audio_init(ISABus *bus);
-
 #endif /* !HW_PCSPK_H */
