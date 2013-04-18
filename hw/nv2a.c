@@ -25,6 +25,7 @@
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qapi/qmp/qstring.h"
+#include "gl/gloffscreen.h"
 
 #include "u_format_r11g11b10f.h"
 
@@ -32,25 +33,15 @@
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
-#include <OpenGL/OpenGL.h>
-#include <OpenGL/CGLTypes.h>
-#include <OpenGL/CGLCurrent.h>
-#include <GLUT/glut.h>
 #elif defined(_WIN32)
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
-#include <GL/wglext.h>
-#include <GL/glut.h>
 #else
-#include <X11/Xlib.h>
 #include <GL/gl.h>
-#include <GL/glx.h>
-#include <GL/glut.h>
 #endif
 
 #include "nv2a.h"
-#include "gl/gloffscreen.h"
 
 #define DEBUG_NV2A
 #ifdef DEBUG_NV2A
@@ -1459,16 +1450,13 @@ static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
         
         GLenum gl_format;
         GLenum gl_type;
-        unsigned int bytes_per_pixel;
         switch (kelvin->surface_color.format) {
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5:
-            bytes_per_pixel = 2;
             gl_format = GL_RGB;
             gl_type = GL_UNSIGNED_SHORT_5_6_5_REV;
             break;
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8:
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8:
-            bytes_per_pixel = 4;
             gl_format = GL_RGBA;
             gl_type = GL_UNSIGNED_INT_8_8_8_8_REV;
             break;
@@ -1476,16 +1464,13 @@ static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
             assert(false);
         }
 
-        assert(kelvin->surface_color.pitch % bytes_per_pixel == 0);
-        
-        glPixelStorei(GL_PACK_ROW_LENGTH,
-                      kelvin->surface_color.pitch / bytes_per_pixel);
-        glReadPixels(kelvin->surface_color.x, kelvin->surface_color.y,
-                     kelvin->surface_color.width, kelvin->surface_color.height,
-                     gl_format, gl_type,
-                     d->vram_ptr
+        /* TODO */
+        assert(kelvin->surface_color.x == 0 && kelvin->surface_color.y == 0);
+
+        glo_readpixels(gl_format, gl_type, kelvin->surface_color.pitch,
+                       kelvin->surface_color.width, kelvin->surface_color.height,
+                       d->vram_ptr
                         + color_dma.start + kelvin->surface_color.offset);
-        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
     }
 }
 
