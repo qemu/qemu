@@ -522,8 +522,6 @@ void usb_desc_attach(USBDevice *dev)
     } else if (desc->full && (dev->port->speedmask & USB_SPEED_MASK_FULL)) {
         dev->speed = USB_SPEED_FULL;
     } else {
-        fprintf(stderr, "usb: port/device speed mismatch for \"%s\"\n",
-                usb_device_get_product_desc(dev));
         return;
     }
     usb_desc_setdefaults(dev);

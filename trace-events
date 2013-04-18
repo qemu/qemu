@@ -277,7 +277,7 @@ usb_packet_state_fault(int bus, const char *port, int ep, void *p, const char *o
 
 # hw/usb/bus.c
 usb_port_claim(int bus, const char *port) "bus %d, port %s"
-usb_port_attach(int bus, const char *port) "bus %d, port %s"
+usb_port_attach(int bus, const char *port, const char *devspeed, const char *portspeed) "bus %d, port %s, devspeed %s, portspeed %s"
 usb_port_detach(int bus, const char *port) "bus %d, port %s"
 usb_port_release(int bus, const char *port) "bus %d, port %s"
 
