@@ -41,6 +41,8 @@
 #include "hw/nv2a.h"
 #include "hw/mcpx_apu.h"
 
+#include "hw/xbox.h"
+
 /* mostly from pc_memory_init */
 static void xbox_memory_init(MemoryRegion *system_memory,
                              ram_addr_t mem_size,
@@ -116,21 +118,19 @@ bios_error:
 
 }
 
-#define MAX_IDE_BUS 2
-
 /* mostly from pc_init1 */
-static void xbox_init(QEMUMachineInitArgs *args)
+void xbox_init_common(QEMUMachineInitArgs *args,
+                      uint8_t *default_eeprom,
+                      ISABus **out_isa_bus)
 {
     int i;
-    ram_addr_t ram_size;
-    const char *cpu_model;
-    const char *boot_device;
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *boot_device = args->boot_device;
 
     PCIBus *host_bus;
     ISABus *isa_bus;
 
-    MemoryRegion *system_memory;
-    MemoryRegion *system_io;
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
 
@@ -140,7 +140,6 @@ static void xbox_init(QEMUMachineInitArgs *args)
     GSIState *gsi_state;
 
     PCIDevice *ide_dev;
-    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BusState *idebus[MAX_IDE_BUS];
 
     ISADevice *rtc_state;
@@ -148,21 +147,13 @@ static void xbox_init(QEMUMachineInitArgs *args)
     i2c_bus *smbus;
     PCIBus *agp_bus;
 
-
-    ram_size = args->ram_size;
-    cpu_model = args->cpu_model;
-    boot_device = args->boot_device;
-    system_memory = get_system_memory();
-    system_io = get_system_io();
-
-
     pc_cpus_init(cpu_model);
 
     pci_memory = g_new(MemoryRegion, 1);
     memory_region_init(pci_memory, "pci", INT64_MAX);
 
     /* allocate ram and load rom/bios */
-    xbox_memory_init(system_memory, ram_size,
+    xbox_memory_init(get_system_memory(), ram_size,
                      pci_memory, &ram_memory);
 
 
@@ -172,7 +163,7 @@ static void xbox_init(QEMUMachineInitArgs *args)
 
     /* init buses */
     host_bus = xbox_pci_init(gsi,
-                             system_memory, system_io,
+                             get_system_memory(), get_system_io(),
                              pci_memory, ram_memory);
 
 
@@ -199,9 +190,10 @@ static void xbox_init(QEMUMachineInitArgs *args)
     /* does apparently have a pc speaker, though not used? */
     pcspk_init(isa_bus, pit);
 
-    /* hdd shit
+    /* IDE shit
      * piix3's ide be right for now, maybe
      */
+    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     ide_drive_get(hd, MAX_IDE_BUS);
     ide_dev = pci_piix3_ide_init(host_bus, hd, PCI_DEVFN(9, 0));
 
@@ -212,14 +204,42 @@ static void xbox_init(QEMUMachineInitArgs *args)
     pc_cmos_init(ram_size, 0, boot_device,
                  NULL, idebus[0], idebus[1], rtc_state);
 
+    uint8_t *eeprom_buf = g_malloc0(256);
+    memcpy(eeprom_buf, default_eeprom, 256);
+    smbus_eeprom_init_single(smbus, 0x54, eeprom_buf);
+    
+    smbus_xbox_smc_init(smbus, 0x10);
+    smbus_cx25871_init(smbus, 0x45);
+    smbus_adm1032_init(smbus, 0x4c);
 
-    /* Temporary blank eeprom for xbox 1.0:
+
+    /* USB */
+    pci_create_simple(host_bus, PCI_DEVFN(2, 0), "pci-ohci");
+    pci_create_simple(host_bus, PCI_DEVFN(3, 0), "pci-ohci");
+
+    /* Ethernet! */
+    nvnet_init(host_bus, PCI_DEVFN(4, 0), gsi[4]);
+
+    /* APU! */
+    mcpx_apu_init(host_bus, PCI_DEVFN(5, 0), gsi[5]);
+
+    /* ACI! */
+    mcpx_aci_init(host_bus, PCI_DEVFN(6, 0), gsi[6]);
+
+    /* GPU! */
+    nv2a_init(agp_bus, PCI_DEVFN(0, 0), gsi[3], ram_memory);
+
+    *out_isa_bus = isa_bus;
+}
+
+static void xbox_init(QEMUMachineInitArgs *args)
+{
+    /* Placeholder blank eeprom for xbox 1.0:
      *   Serial number 000000000000
      *   Mac address 00:00:00:00:00:00
      *   ...etc.
-     * TODO: persist it...
      */
-    const uint8_t tmp_eeprom[] = {
+    const uint8_t eeprom[] = {
         0x25, 0x42, 0x88, 0x24, 0xA3, 0x1A, 0x7D, 0xF4,
         0xEE, 0x53, 0x3F, 0x39, 0x5D, 0x27, 0x98, 0x0E,
         0x58, 0xB3, 0x26, 0xC3, 0x70, 0x82, 0xE5, 0xC6,
@@ -253,31 +273,9 @@ static void xbox_init(QEMUMachineInitArgs *args)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
-    uint8_t *eeprom_buf = g_malloc0(256);
-    memcpy(eeprom_buf, tmp_eeprom, 256);
 
-    smbus_eeprom_init_single(smbus, 0x54, eeprom_buf);
-    
-    smbus_xbox_smc_init(smbus, 0x10);
-    smbus_cx25871_init(smbus, 0x45);
-    smbus_adm1032_init(smbus, 0x4c);
-
-
-    /* USB */
-    pci_create_simple(host_bus, PCI_DEVFN(2, 0), "pci-ohci");
-    pci_create_simple(host_bus, PCI_DEVFN(3, 0), "pci-ohci");
-
-    /* Ethernet! */
-    nvnet_init(host_bus, PCI_DEVFN(4, 0), gsi[4]);
-
-    /* APU! */
-    mcpx_apu_init(host_bus, PCI_DEVFN(5, 0), gsi[5]);
-
-    /* ACI! */
-    mcpx_aci_init(host_bus, PCI_DEVFN(6, 0), gsi[6]);
-
-    /* GPU! */
-    nv2a_init(agp_bus, PCI_DEVFN(0, 0), gsi[3], ram_memory);
+    ISABus *isa_bus;
+    xbox_init_common(args, (uint8_t*)eeprom, &isa_bus);
 }
 
 static QEMUMachine xbox_machine = {
@@ -286,6 +284,7 @@ static QEMUMachine xbox_machine = {
     .init = xbox_init,
     .max_cpus = 1,
     .no_floppy = 1,
+    .no_cdrom = 1,
     .no_sdcard = 1,
     DEFAULT_MACHINE_OPTIONS
 };
