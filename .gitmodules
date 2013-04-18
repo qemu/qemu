@@ -22,3 +22,6 @@
 [submodule "pixman"]
 	path = pixman
 	url = git://anongit.freedesktop.org/pixman
+[submodule "dtc"]
+	path = dtc
+	url = git://git.qemu.org/dtc.git
