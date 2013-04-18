@@ -3678,10 +3678,6 @@ fi
 if test "$cap_ng" = "yes" ; then
   echo "CONFIG_LIBCAP=y" >> $config_host_mak
 fi
-for card in $audio_card_list; do
-    def=CONFIG_`echo $card | LC_ALL=C tr '[a-z]' '[A-Z]'`
-    echo "$def=y" >> $config_host_mak
-done
 echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
 for drv in $audio_drv_list; do
     def=CONFIG_`echo $drv | LC_ALL=C tr '[a-z]' '[A-Z]'`
@@ -4361,11 +4357,6 @@ if test "$target_user_only" = "yes" -a "$guest_base" = "yes"; then
 fi
 if test "$target_bsd_user" = "yes" ; then
   echo "CONFIG_BSD_USER=y" >> $config_target_mak
-fi
-
-# the static way of configuring available audio cards requires this workaround
-if test "$target_user_only" != "yes" && grep -q CONFIG_PCSPK $source_path/default-configs/$target.mak; then
-  echo "CONFIG_PCSPK=y" >> $config_target_mak
 fi
 
 # generate QEMU_CFLAGS/LDFLAGS for targets
