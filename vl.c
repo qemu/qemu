@@ -182,7 +182,6 @@ int main(int argc, char **argv)
 static const char *data_dir[16];
 static int data_dir_idx;
 const char *bios_name = NULL;
-const char *bootrom_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 DisplayType display_type = DT_DEFAULT;
 static int display_remote;
@@ -430,6 +429,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "usb",
             .type = QEMU_OPT_BOOL,
             .help = "Set on/off to enable/disable usb",
+        },{
+            .name = "bootrom",
+            .type = QEMU_OPT_STRING,
+            .help = "Xbox bootrom file",
         },
         { /* End of list */ }
     },
@@ -3297,9 +3300,6 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_bios:
                 bios_name = optarg;
-                break;
-            case QEMU_OPTION_bootrom:
-                bootrom_name = optarg;
                 break;
             case QEMU_OPTION_singlestep:
                 singlestep = 1;

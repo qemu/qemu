@@ -2624,14 +2624,6 @@ STEXI
 Set the filename for the BIOS.
 ETEXI
 
-DEF("bootrom", HAS_ARG, QEMU_OPTION_bootrom, \
-    "-bootrom file      set the filename for the boot rom\n", QEMU_ARCH_ALL)
-STEXI
-@item -bootrom @var{file}
-@findex -bootrom
-Set the filename for the boot rom.
-ETEXI
-
 DEF("enable-kvm", 0, QEMU_OPTION_enable_kvm, \
     "-enable-kvm     enable KVM full virtualization support\n", QEMU_ARCH_ALL)
 STEXI

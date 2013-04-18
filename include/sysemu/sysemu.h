@@ -13,7 +13,6 @@
 /* vl.c */
 
 extern const char *bios_name;
-extern const char *bootrom_name;
 
 extern const char *qemu_name;
 extern uint8_t qemu_uuid[];

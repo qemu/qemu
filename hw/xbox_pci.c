@@ -20,8 +20,8 @@
 #include "qemu/range.h"
 #include "isa.h"
 #include "sysbus.h"
-#include "sysemu/sysemu.h"
 #include "loader.h"
+#include "qemu/config-file.h"
 #include "pc.h"
 #include "pci/pci.h"
 #include "pci/pci_bus.h"
@@ -241,25 +241,32 @@ static int xbox_lpc_initfn(PCIDevice *d)
 
     /* southbridge chip contains and controls bootrom image.
      * can't load it through loader.c because it overlaps with the bios...
+     * We really should just commandeer the entire top 16Mb.
      */
-    char *filename;
-    int rc, fd = -1;
-    if (bootrom_name
-          && (filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bootrom_name))) {
-        s->bootrom_size = get_image_size(filename);
+    QemuOpts *machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        const char *bootrom_file = qemu_opt_get(machine_opts, "bootrom");
+        if (!bootrom_file) bootrom_file = "mcpx.bin";
 
-        if (s->bootrom_size != 512) {
-            fprintf(stderr, "MCPX bootrom should be 512 bytes, got %d\n",
-                    s->bootrom_size);
-            return -1;
+        char *filename;
+        int rc, fd = -1;
+        if (bootrom_file
+              && (filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bootrom_file))) {
+            s->bootrom_size = get_image_size(filename);
+
+            if (s->bootrom_size != 512) {
+                fprintf(stderr, "MCPX bootrom should be 512 bytes, got %d\n",
+                        s->bootrom_size);
+                return -1;
+            }
+
+            fd = open(filename, O_RDONLY | O_BINARY);
+            assert(fd != -1);
+            rc = read(fd, s->bootrom_data, s->bootrom_size);
+            assert(rc == s->bootrom_size);
+
+            close(fd);
         }
-
-        fd = open(filename, O_RDONLY | O_BINARY);
-        assert(fd != -1);
-        rc = read(fd, s->bootrom_data, s->bootrom_size);
-        assert(rc == s->bootrom_size);
-
-        close(fd);
     }
 
 
