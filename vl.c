@@ -4294,6 +4294,8 @@ int main(int argc, char **argv, char **envp)
                                  .cpu_model = cpu_model };
     machine->init(&args);
 
+    audio_init();
+
     cpu_synchronize_all_post_init();
 
     set_numa_modes();

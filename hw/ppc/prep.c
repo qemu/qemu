@@ -658,9 +658,6 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
 
     /* Special port to get debug messages from Open-Firmware */
     register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
-
-    /* Initialize audio subsystem */
-    audio_init();
 }
 
 static QEMUMachine prep_machine = {
