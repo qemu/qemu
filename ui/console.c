@@ -1596,6 +1596,25 @@ QemuConsole *qemu_console_lookup_by_index(unsigned int index)
     return consoles[index];
 }
 
+QemuConsole *qemu_console_lookup_by_device(DeviceState *dev)
+{
+    Error *local_err = NULL;
+    Object *obj;
+    int i;
+
+    for (i = 0; i < nb_consoles; i++) {
+        if (!consoles[i]) {
+            continue;
+        }
+        obj = object_property_get_link(OBJECT(consoles[i]),
+                                       "device", &local_err);
+        if (DEVICE(obj) == dev) {
+            return consoles[i];
+        }
+    }
+    return NULL;
+}
+
 bool qemu_console_is_visible(QemuConsole *con)
 {
     return (con == active_console) || (con->dcls > 0);

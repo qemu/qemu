@@ -287,6 +287,7 @@ void graphic_hw_invalidate(QemuConsole *con);
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata);
 
 QemuConsole *qemu_console_lookup_by_index(unsigned int index);
+QemuConsole *qemu_console_lookup_by_device(DeviceState *dev);
 bool qemu_console_is_visible(QemuConsole *con);
 bool qemu_console_is_graphic(QemuConsole *con);
 bool qemu_console_is_fixedsize(QemuConsole *con);
