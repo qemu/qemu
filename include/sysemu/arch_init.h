@@ -30,7 +30,6 @@ void select_soundhw(const char *optarg);
 void do_acpitable_option(const QemuOpts *opts);
 void do_smbios_option(const char *optarg);
 void cpudef_init(void);
-int audio_available(void);
 void audio_init(ISABus *isa_bus, PCIBus *pci_bus);
 int tcg_available(void);
 int kvm_available(void);

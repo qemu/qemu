@@ -736,7 +736,6 @@ info mice
 @end example
 ETEXI
 
-#ifdef HAS_AUDIO
     {
         .name       = "wavcapture",
         .args_type  = "path:F,freq:i?,bits:i?,nchannels:i?",
@@ -744,7 +743,6 @@ ETEXI
         .help       = "capture audio to a wave file (default frequency=44100 bits=16 channels=2)",
         .mhandler.cmd = do_wav_capture,
     },
-#endif
 STEXI
 @item wavcapture @var{filename} [@var{frequency} [@var{bits} [@var{channels}]]]
 @findex wavcapture
@@ -759,7 +757,6 @@ Defaults:
 @end itemize
 ETEXI
 
-#ifdef HAS_AUDIO
     {
         .name       = "stopcapture",
         .args_type  = "n:i",
@@ -767,7 +764,6 @@ ETEXI
         .help       = "stop capture",
         .mhandler.cmd = do_stop_capture,
     },
-#endif
 STEXI
 @item stopcapture @var{index}
 @findex stopcapture

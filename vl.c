@@ -3232,18 +3232,10 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_BT, optarg);
                 break;
             case QEMU_OPTION_audio_help:
-                if (!(audio_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
-                    exit(1);
-                }
                 AUD_help ();
                 exit (0);
                 break;
             case QEMU_OPTION_soundhw:
-                if (!(audio_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
-                    exit(1);
-                }
                 select_soundhw (optarg);
                 break;
             case QEMU_OPTION_h:

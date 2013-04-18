@@ -1862,7 +1862,6 @@ static void do_info_capture(Monitor *mon, const QDict *qdict)
     }
 }
 
-#ifdef HAS_AUDIO
 static void do_stop_capture(Monitor *mon, const QDict *qdict)
 {
     int i;
@@ -1903,7 +1902,6 @@ static void do_wav_capture(Monitor *mon, const QDict *qdict)
     }
     QLIST_INSERT_HEAD (&capture_head, s, entries);
 }
-#endif
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
 {

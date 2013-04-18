@@ -887,7 +887,6 @@ SaveVMHandlers savevm_ram_handlers = {
     .cancel = ram_migration_cancel,
 };
 
-#ifdef HAS_AUDIO
 struct soundhw {
     const char *name;
     const char *descr;
@@ -1006,14 +1005,6 @@ void audio_init(ISABus *isa_bus, PCIBus *pci_bus)
         }
     }
 }
-#else
-void select_soundhw(const char *optarg)
-{
-}
-void audio_init(ISABus *isa_bus, PCIBus *pci_bus)
-{
-}
-#endif
 
 int qemu_uuid_parse(const char *str, uint8_t *uuid)
 {
@@ -1066,15 +1057,6 @@ void cpudef_init(void)
 {
 #if defined(cpudef_setup)
     cpudef_setup(); /* parse cpu definitions in target config file */
-#endif
-}
-
-int audio_available(void)
-{
-#ifdef HAS_AUDIO
-    return 1;
-#else
-    return 0;
 #endif
 }
 

@@ -4457,14 +4457,6 @@ alpha)
 ;;
 esac
 
-if test "$target_softmmu" = "yes" ; then
-  case "$TARGET_BASE_ARCH" in
-  arm|lm32|i386|mips|ppc)
-    cflags="-DHAS_AUDIO $cflags"
-  ;;
-  esac
-fi
-
 if test "$gprof" = "yes" ; then
   echo "TARGET_GPROF=yes" >> $config_target_mak
   if test "$target_linux_user" = "yes" ; then
