@@ -987,20 +987,26 @@ void select_soundhw(const char *optarg)
     }
 }
 
-void audio_init(ISABus *isa_bus, PCIBus *pci_bus)
+void audio_init(void)
 {
     struct soundhw *c;
+    ISABus *isa_bus = (ISABus *) object_resolve_path_type("", TYPE_ISA_BUS, NULL);
+    PCIBus *pci_bus = (PCIBus *) object_resolve_path_type("", TYPE_PCI_BUS, NULL);
 
     for (c = soundhw; c->name; ++c) {
         if (c->enabled) {
             if (c->isa) {
-                if (isa_bus) {
-                    c->init.init_isa(isa_bus);
+                if (!isa_bus) {
+                    fprintf(stderr, "ISA bus not available for %s\n", c->name);
+                    exit(1);
                 }
+                c->init.init_isa(isa_bus);
             } else {
-                if (pci_bus) {
-                    c->init.init_pci(pci_bus);
+                if (!pci_bus) {
+                    fprintf(stderr, "PCI bus not available for %s\n", c->name);
+                    exit(1);
                 }
+                c->init.init_pci(pci_bus);
             }
         }
     }

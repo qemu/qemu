@@ -88,7 +88,6 @@ static void pc_init1(MemoryRegion *system_memory,
     void *fw_cfg = NULL;
 
     pc_cpus_init(cpu_model);
-    pc_acpi_init("acpi-dsdt.aml");
 
     if (kvmclock_enabled) {
         kvmclock_create();
@@ -194,7 +193,7 @@ static void pc_init1(MemoryRegion *system_memory,
         }
     }
 
-    audio_init(isa_bus, pci_enabled ? pci_bus : NULL);
+    audio_init();
 
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device,
                  floppy, idebus[0], idebus[1], rtc_state);

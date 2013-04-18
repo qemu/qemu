@@ -189,7 +189,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 
     /* the rest devices to which pci devfn is automatically assigned */
     pc_vga_init(isa_bus, host_bus);
-    audio_init(isa_bus, host_bus);
+    audio_init();
     pc_nic_init(isa_bus, host_bus);
     if (pci_enabled) {
         pc_pci_device_init(host_bus);
