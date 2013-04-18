@@ -1113,21 +1113,13 @@ static Object *object_resolve_partial_path(Object *parent,
 Object *object_resolve_path_type(const char *path, const char *typename,
                                  bool *ambiguous)
 {
-    bool partial_path = true;
     Object *obj;
     gchar **parts;
 
     parts = g_strsplit(path, "/", 0);
-    if (parts == NULL || parts[0] == NULL) {
-        g_strfreev(parts);
-        return object_get_root();
-    }
+    assert(parts);
 
-    if (strcmp(parts[0], "") == 0) {
-        partial_path = false;
-    }
-
-    if (partial_path) {
+    if (parts[0] == NULL || strcmp(parts[0], "") != 0) {
         if (ambiguous) {
             *ambiguous = false;
         }
