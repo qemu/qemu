@@ -1,6 +1,7 @@
 # Default configuration for i386-softmmu
 
 include pci.mak
+include sound.mak
 include usb.mak
 CONFIG_VGA=y
 CONFIG_QXL=$(CONFIG_SPICE)
@@ -22,7 +23,6 @@ CONFIG_IDE_ISA=y
 CONFIG_IDE_PIIX=y
 CONFIG_NE2000_ISA=y
 CONFIG_PIIX_PCI=y
-CONFIG_SOUND=y
 CONFIG_HPET=y
 CONFIG_APPLESMC=y
 CONFIG_I8259=y

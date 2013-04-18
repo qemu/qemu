@@ -123,8 +123,6 @@ interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_prefix=""
 audio_drv_list=""
-audio_card_list="ac97 es1370 sb16 hda"
-audio_possible_cards="ac97 es1370 sb16 cs4231a adlib gus hda"
 block_drv_whitelist=""
 host_cc="cc"
 libs_softmmu=""
@@ -704,8 +702,6 @@ for opt do
   ;;
   --oss-lib=*) oss_lib="$optarg"
   ;;
-  --audio-card-list=*) audio_card_list=`echo "$optarg" | sed -e 's/,/ /g'`
-  ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
   --block-drv-whitelist=*) block_drv_whitelist=`echo "$optarg" | sed -e 's/,/ /g'`
@@ -1105,8 +1101,6 @@ echo "  --disable-cocoa          disable Cocoa (Mac OS X only)"
 echo "  --enable-cocoa           enable Cocoa (default on Mac OS X)"
 echo "  --audio-drv-list=LIST    set audio drivers list:"
 echo "                           Available drivers: $audio_possible_drivers"
-echo "  --audio-card-list=LIST   set list of emulated audio cards [$audio_card_list]"
-echo "                           Available cards: $audio_possible_cards"
 echo "  --block-drv-whitelist=L  set block driver whitelist"
 echo "                           (affects only QEMU, not qemu-img)"
 echo "  --enable-mixemu          enable mixer emulation"
@@ -3513,7 +3507,6 @@ echo "curses support    $curses"
 echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
-echo "Extra audio cards $audio_card_list"
 echo "Block whitelist   $block_drv_whitelist"
 echo "Mixer emulation   $mixemu"
 echo "VirtFS support    $virtfs"
