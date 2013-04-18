@@ -2496,16 +2496,33 @@ if test "$fdt" != "no" ; then
 int main(void) { return 0; }
 EOF
   if compile_prog "" "$fdt_libs" ; then
+    # system DTC is good - use it
     fdt=yes
-    libs_softmmu="$libs_softmmu $fdt_libs"
-  else
-    if test "$fdt" = "yes" ; then
-      feature_not_found "fdt"
+  elif test -d ${source_path}/dtc/libfdt ; then
+    # have submodule DTC - use it
+    fdt=yes
+    dtc_internal="yes"
+    mkdir -p dtc
+    if [ "$source_path" != `pwd` ] ; then
+       symlink "$source_path/dtc/Makefile" "dtc/Makefile"
+       symlink "$source_path/dtc/scripts" "dtc/scripts"
     fi
+    fdt_cflags="-I\$(SRC_PATH)/dtc/libfdt"
+    fdt_libs="-L\$(BUILD_DIR)/dtc/libfdt $fdt_libs"
+  elif test "$fdt" = "yes" ; then
+    # have neither and want - prompt for system/submodule install
+    error_exit "ERROR: DTC not present. Your options:" \
+        "  (1) Preferred: Install the DTC devel package" \
+        "  (2) Fetch the DTC submodule, using:" \
+        "      git submodule update --init dtc"
+  else
+    # don't have and don't want
     fdt_libs=
     fdt=no
   fi
 fi
+
+libs_softmmu="$libs_softmmu $fdt_libs"
 
 ##########################################
 # GLX probe, used by milkymist-tmu2
@@ -3452,7 +3469,7 @@ if test "$cpu" = "ppc64" -a "$targetos" != "Darwin" ; then
 fi
 
 # add pixman flags after all config tests are done
-QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags"
+QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags $fdt_cflags"
 libs_softmmu="$libs_softmmu $pixman_libs"
 
 echo "Install prefix    $prefix"
@@ -4513,6 +4530,10 @@ done # for target in $targets
 
 if [ "$pixman" = "internal" ]; then
   echo "config-host.h: subdir-pixman" >> $config_host_mak
+fi
+
+if [ "$dtc_internal" = "yes" ]; then
+  echo "config-host.h: subdir-dtc" >> $config_host_mak
 fi
 
 # build tree in object directory in case the source is not in the current directory
