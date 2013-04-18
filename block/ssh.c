@@ -109,7 +109,7 @@ static void ssh_state_free(BDRVSSHState *s)
 /* Wrappers around error_report which make sure to dump as much
  * information from libssh2 as possible.
  */
-static void
+static void GCC_FMT_ATTR(2, 3)
 session_error_report(BDRVSSHState *s, const char *fs, ...)
 {
     va_list args;
@@ -132,7 +132,7 @@ session_error_report(BDRVSSHState *s, const char *fs, ...)
     error_printf("\n");
 }
 
-static void
+static void GCC_FMT_ATTR(2, 3)
 sftp_error_report(BDRVSSHState *s, const char *fs, ...)
 {
     va_list args;
