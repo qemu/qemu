@@ -941,32 +941,35 @@ done
 case "$cpu" in
     sparc)
            LDFLAGS="-m32 $LDFLAGS"
-           QEMU_CFLAGS="-m32 -mcpu=ultrasparc $QEMU_CFLAGS"
+           CPU_CFLAGS="-m32 -mcpu=ultrasparc"
            ;;
     sparc64)
            LDFLAGS="-m64 $LDFLAGS"
-           QEMU_CFLAGS="-m64 -mcpu=ultrasparc $QEMU_CFLAGS"
+           CPU_CFLAGS="-m64 -mcpu=ultrasparc"
            ;;
     s390)
-           QEMU_CFLAGS="-m31 -march=z990 $QEMU_CFLAGS"
+           CPU_CFLAGS="-m31 -march=z990"
            LDFLAGS="-m31 $LDFLAGS"
            ;;
     s390x)
-           QEMU_CFLAGS="-m64 -march=z990 $QEMU_CFLAGS"
+           CPU_CFLAGS="-m64 -march=z990"
            LDFLAGS="-m64 $LDFLAGS"
            ;;
     i386)
-           QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
+           CPU_CFLAGS="-m32"
            LDFLAGS="-m32 $LDFLAGS"
            cc_i386='$(CC) -m32'
            ;;
     x86_64)
-           QEMU_CFLAGS="-m64 $QEMU_CFLAGS"
+           CPU_CFLAGS="-m64"
            LDFLAGS="-m64 $LDFLAGS"
            cc_i386='$(CC) -m32'
            ;;
     # No special flags required for other host CPUs
 esac
+
+QEMU_CFLAGS="$CPU_CFLAGS $QEMU_CFLAGS"
+EXTRA_CFLAGS="$CPU_CFLAGS $EXTRA_CFLAGS"
 
 default_target_list=""
 
