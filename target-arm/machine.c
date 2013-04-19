@@ -116,9 +116,9 @@ static const VMStateInfo vmstate_cpsr = {
 
 const VMStateDescription vmstate_arm_cpu = {
     .name = "cpu",
-    .version_id = 10,
-    .minimum_version_id = 10,
-    .minimum_version_id_old = 10,
+    .version_id = 11,
+    .minimum_version_id = 11,
+    .minimum_version_id_old = 11,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.regs, ARMCPU, 16),
         {
@@ -172,9 +172,16 @@ const VMStateDescription vmstate_arm_cpu = {
         VMSTATE_UINT32(env.cp15.c13_tls2, ARMCPU),
         VMSTATE_UINT32(env.cp15.c13_tls3, ARMCPU),
         VMSTATE_UINT32(env.cp15.c15_cpar, ARMCPU),
+        VMSTATE_UINT32(env.cp15.c15_ticonfig, ARMCPU),
+        VMSTATE_UINT32(env.cp15.c15_i_max, ARMCPU),
+        VMSTATE_UINT32(env.cp15.c15_i_min, ARMCPU),
+        VMSTATE_UINT32(env.cp15.c15_threadid, ARMCPU),
         VMSTATE_UINT32(env.cp15.c15_power_control, ARMCPU),
         VMSTATE_UINT32(env.cp15.c15_diagnostic, ARMCPU),
         VMSTATE_UINT32(env.cp15.c15_power_diagnostic, ARMCPU),
+        VMSTATE_UINT32(env.exclusive_addr, ARMCPU),
+        VMSTATE_UINT32(env.exclusive_val, ARMCPU),
+        VMSTATE_UINT32(env.exclusive_high, ARMCPU),
         VMSTATE_UINT64(env.features, ARMCPU),
         VMSTATE_END_OF_LIST()
     },
