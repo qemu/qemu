@@ -1028,7 +1028,6 @@ typedef struct {
     GIOChannel *fd;
     guint fd_tag;
     int connected;
-    int polling;
     int read_bytes;
     guint timer_tag;
 } PtyCharDriver;
@@ -1042,12 +1041,6 @@ static gboolean pty_chr_timer(gpointer opaque)
     PtyCharDriver *s = chr->opaque;
 
     if (s->connected) {
-        goto out;
-    }
-    if (s->polling) {
-        /* If we arrive here without polling being cleared due
-         * read returning -EIO, then we are (re-)connected */
-        pty_chr_state(chr, 1);
         goto out;
     }
 
@@ -1128,22 +1121,17 @@ static gboolean pty_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
 static void pty_chr_update_read_handler(CharDriverState *chr)
 {
     PtyCharDriver *s = chr->opaque;
+    GPollFD pfd;
 
-    if (s->fd_tag) {
-        g_source_remove(s->fd_tag);
+    pfd.fd = g_io_channel_unix_get_fd(s->fd);
+    pfd.events = G_IO_OUT;
+    pfd.revents = 0;
+    g_poll(&pfd, 1, 0);
+    if (pfd.revents & G_IO_HUP) {
+        pty_chr_state(chr, 0);
+    } else {
+        pty_chr_state(chr, 1);
     }
-
-    s->fd_tag = io_add_watch_poll(s->fd, pty_chr_read_poll, pty_chr_read, chr);
-    s->polling = 1;
-    /*
-     * Short timeout here: just need wait long enougth that qemu makes
-     * it through the poll loop once.  When reconnected we want a
-     * short timeout so we notice it almost instantly.  Otherwise
-     * read() gives us -EIO instantly, making pty_chr_state() reset the
-     * timeout to the normal (much longer) poll interval before the
-     * timer triggers.
-     */
-    pty_chr_rearm_timer(chr, 10);
 }
 
 static void pty_chr_state(CharDriverState *chr, int connected)
@@ -1156,15 +1144,20 @@ static void pty_chr_state(CharDriverState *chr, int connected)
             s->fd_tag = 0;
         }
         s->connected = 0;
-        s->polling = 0;
         /* (re-)connect poll interval for idle guests: once per second.
          * We check more frequently in case the guests sends data to
          * the virtual device linked to our pty. */
         pty_chr_rearm_timer(chr, 1000);
     } else {
-        if (!s->connected)
+        if (s->timer_tag) {
+            g_source_remove(s->timer_tag);
+            s->timer_tag = 0;
+        }
+        if (!s->connected) {
             qemu_chr_be_generic_open(chr);
-        s->connected = 1;
+            s->connected = 1;
+            s->fd_tag = io_add_watch_poll(s->fd, pty_chr_read_poll, pty_chr_read, chr);
+        }
     }
 }
 
