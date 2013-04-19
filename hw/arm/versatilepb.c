@@ -224,9 +224,10 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     dev = qdev_create(NULL, "versatile_pci");
     busdev = SYS_BUS_DEVICE(dev);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(busdev, 0, 0x41000000); /* PCI self-config */
-    sysbus_mmio_map(busdev, 1, 0x42000000); /* PCI config */
-    sysbus_mmio_map(busdev, 2, 0x43000000); /* PCI I/O */
+    sysbus_mmio_map(busdev, 0, 0x10001000); /* PCI controller regs */
+    sysbus_mmio_map(busdev, 1, 0x41000000); /* PCI self-config */
+    sysbus_mmio_map(busdev, 2, 0x42000000); /* PCI config */
+    sysbus_mmio_map(busdev, 3, 0x43000000); /* PCI I/O */
     sysbus_connect_irq(busdev, 0, sic[27]);
     sysbus_connect_irq(busdev, 1, sic[28]);
     sysbus_connect_irq(busdev, 2, sic[29]);

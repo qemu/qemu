@@ -39,6 +39,7 @@ typedef struct {
     PCIHostState parent_obj;
 
     qemu_irq irq[4];
+    MemoryRegion controlregs;
     MemoryRegion mem_config;
     MemoryRegion mem_config2;
     MemoryRegion pci_io_space;
@@ -50,8 +51,26 @@ typedef struct {
     int realview;
 
     /* Variable state: */
+    uint32_t imap[3];
+    uint32_t smap[3];
+    uint32_t selfid;
+    uint32_t flags;
     uint8_t irq_mapping;
 } PCIVPBState;
+
+static const VMStateDescription pci_vpb_vmstate = {
+    .name = "versatile-pci",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(imap, PCIVPBState, 3),
+        VMSTATE_UINT32_ARRAY(smap, PCIVPBState, 3),
+        VMSTATE_UINT32(selfid, PCIVPBState),
+        VMSTATE_UINT32(flags, PCIVPBState),
+        VMSTATE_UINT8(irq_mapping, PCIVPBState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 #define TYPE_VERSATILE_PCI "versatile_pci"
 #define PCI_VPB(obj) \
@@ -60,6 +79,93 @@ typedef struct {
 #define TYPE_VERSATILE_PCI_HOST "versatile_pci_host"
 #define PCI_VPB_HOST(obj) \
     OBJECT_CHECK(PCIDevice, (obj), TYPE_VERSATILE_PCIHOST)
+
+typedef enum {
+    PCI_IMAP0 = 0x0,
+    PCI_IMAP1 = 0x4,
+    PCI_IMAP2 = 0x8,
+    PCI_SELFID = 0xc,
+    PCI_FLAGS = 0x10,
+    PCI_SMAP0 = 0x14,
+    PCI_SMAP1 = 0x18,
+    PCI_SMAP2 = 0x1c,
+} PCIVPBControlRegs;
+
+static void pci_vpb_reg_write(void *opaque, hwaddr addr,
+                              uint64_t val, unsigned size)
+{
+    PCIVPBState *s = opaque;
+
+    switch (addr) {
+    case PCI_IMAP0:
+    case PCI_IMAP1:
+    case PCI_IMAP2:
+    {
+        int win = (addr - PCI_IMAP0) >> 2;
+        s->imap[win] = val;
+        break;
+    }
+    case PCI_SELFID:
+        s->selfid = val;
+        break;
+    case PCI_FLAGS:
+        s->flags = val;
+        break;
+    case PCI_SMAP0:
+    case PCI_SMAP1:
+    case PCI_SMAP2:
+    {
+        int win = (addr - PCI_SMAP0) >> 2;
+        s->smap[win] = val;
+        break;
+    }
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pci_vpb_reg_write: Bad offset %x\n", (int)addr);
+        break;
+    }
+}
+
+static uint64_t pci_vpb_reg_read(void *opaque, hwaddr addr,
+                                 unsigned size)
+{
+    PCIVPBState *s = opaque;
+
+    switch (addr) {
+    case PCI_IMAP0:
+    case PCI_IMAP1:
+    case PCI_IMAP2:
+    {
+        int win = (addr - PCI_IMAP0) >> 2;
+        return s->imap[win];
+    }
+    case PCI_SELFID:
+        return s->selfid;
+    case PCI_FLAGS:
+        return s->flags;
+    case PCI_SMAP0:
+    case PCI_SMAP1:
+    case PCI_SMAP2:
+    {
+        int win = (addr - PCI_SMAP0) >> 2;
+        return s->smap[win];
+    }
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pci_vpb_reg_read: Bad offset %x\n", (int)addr);
+        return 0;
+    }
+}
+
+static const MemoryRegionOps pci_vpb_reg_ops = {
+    .read = pci_vpb_reg_read,
+    .write = pci_vpb_reg_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
 
 static inline uint32_t vpb_pci_config_addr(hwaddr addr)
 {
@@ -155,6 +261,14 @@ static void pci_vpb_reset(DeviceState *d)
 {
     PCIVPBState *s = PCI_VPB(d);
 
+    s->imap[0] = 0;
+    s->imap[1] = 0;
+    s->imap[2] = 0;
+    s->smap[0] = 0;
+    s->smap[1] = 0;
+    s->smap[2] = 0;
+    s->selfid = 0;
+    s->flags = 0;
     s->irq_mapping = PCI_VPB_IRQMAP_ASSUME_OK;
 }
 
@@ -195,13 +309,15 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
 
     pci_bus_irqs(&s->pci_bus, pci_vpb_set_irq, mapfn, s->irq, 4);
 
-    /* ??? Register memory space.  */
-
     /* Our memory regions are:
-     * 0 : PCI self config window
-     * 1 : PCI config window
-     * 2 : PCI IO window
+     * 0 : our control registers
+     * 1 : PCI self config window
+     * 2 : PCI config window
+     * 3 : PCI IO window
      */
+    memory_region_init_io(&s->controlregs, &pci_vpb_reg_ops, s, "pci-vpb-regs",
+                          0x1000);
+    sysbus_init_mmio(sbd, &s->controlregs);
     memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, s,
                           "pci-vpb-selfconfig", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config);
@@ -252,6 +368,7 @@ static void pci_vpb_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pci_vpb_realize;
     dc->reset = pci_vpb_reset;
+    dc->vmsd = &pci_vpb_vmstate;
 }
 
 static const TypeInfo pci_vpb_info = {
