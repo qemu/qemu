@@ -623,7 +623,7 @@ static int net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         vhostfdname || (tap->has_vhostforce && tap->vhostforce)) {
         int vhostfd;
 
-        if (tap->has_vhostfd) {
+        if (tap->has_vhostfd || tap->has_vhostfds) {
             vhostfd = monitor_handle_fd_param(cur_mon, vhostfdname);
             if (vhostfd == -1) {
                 return -1;
