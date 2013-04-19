@@ -6762,6 +6762,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             }
             ARCH(6);
             gen_srs(s, (insn & 0x1f), (insn >> 23) & 3, insn & (1 << 21));
+            return;
         } else if ((insn & 0x0e50ffe0) == 0x08100a00) {
             /* rfe */
             int32_t offset;
