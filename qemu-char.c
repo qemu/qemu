@@ -644,9 +644,11 @@ static gboolean io_watch_poll_dispatch(GSource *source, GSourceFunc callback,
 static void io_watch_poll_finalize(GSource *source)
 {
     IOWatchPoll *iwp = io_watch_poll_from_source(source);
-    g_source_destroy(iwp->src);
-    g_source_unref(iwp->src);
-    iwp->src = NULL;
+    if (iwp->src) {
+        g_source_destroy(iwp->src);
+        g_source_unref(iwp->src);
+        iwp->src = NULL;
+    }
 }
 
 static GSourceFuncs io_watch_poll_funcs = {
@@ -816,6 +818,7 @@ static void fd_chr_update_read_handler(CharDriverState *chr)
 
     if (s->fd_in_tag) {
         g_source_remove(s->fd_in_tag);
+        s->fd_in_tag = 0;
     }
 
     if (s->fd_in) {
@@ -1148,8 +1151,10 @@ static void pty_chr_state(CharDriverState *chr, int connected)
     PtyCharDriver *s = chr->opaque;
 
     if (!connected) {
-        g_source_remove(s->fd_tag);
-        s->fd_tag = 0;
+        if (s->fd_tag) {
+            g_source_remove(s->fd_tag);
+            s->fd_tag = 0;
+        }
         s->connected = 0;
         s->polling = 0;
         /* (re-)connect poll interval for idle guests: once per second.
@@ -1171,12 +1176,14 @@ static void pty_chr_close(struct CharDriverState *chr)
 
     if (s->fd_tag) {
         g_source_remove(s->fd_tag);
+        s->fd_tag = 0;
     }
     fd = g_io_channel_unix_get_fd(s->fd);
     g_io_channel_unref(s->fd);
     close(fd);
     if (s->timer_tag) {
         g_source_remove(s->timer_tag);
+        s->timer_tag = 0;
     }
     g_free(s);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
@@ -2277,6 +2284,7 @@ static void udp_chr_close(CharDriverState *chr)
     NetCharDriver *s = chr->opaque;
     if (s->tag) {
         g_source_remove(s->tag);
+        s->tag = 0;
     }
     if (s->chan) {
         g_io_channel_unref(s->chan);
@@ -2508,8 +2516,10 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
         if (s->listen_chan) {
             s->listen_tag = g_io_add_watch(s->listen_chan, G_IO_IN, tcp_chr_accept, chr);
         }
-        g_source_remove(s->tag);
-        s->tag = 0;
+        if (s->tag) {
+            g_source_remove(s->tag);
+            s->tag = 0;
+        }
         g_io_channel_unref(s->chan);
         s->chan = NULL;
         closesocket(s->fd);
@@ -2570,8 +2580,10 @@ static int tcp_chr_add_client(CharDriverState *chr, int fd)
         socket_set_nodelay(fd);
     s->fd = fd;
     s->chan = io_channel_from_socket(fd);
-    g_source_remove(s->listen_tag);
-    s->listen_tag = 0;
+    if (s->listen_tag) {
+        g_source_remove(s->listen_tag);
+        s->listen_tag = 0;
+    }
     tcp_chr_connect(chr);
 
     return 0;
@@ -2621,6 +2633,7 @@ static void tcp_chr_close(CharDriverState *chr)
     if (s->fd >= 0) {
         if (s->tag) {
             g_source_remove(s->tag);
+            s->tag = 0;
         }
         if (s->chan) {
             g_io_channel_unref(s->chan);
@@ -2630,6 +2643,7 @@ static void tcp_chr_close(CharDriverState *chr)
     if (s->listen_fd >= 0) {
         if (s->listen_tag) {
             g_source_remove(s->listen_tag);
+            s->listen_tag = 0;
         }
         if (s->listen_chan) {
             g_io_channel_unref(s->listen_chan);
