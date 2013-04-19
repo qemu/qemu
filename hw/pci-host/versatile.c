@@ -13,6 +13,28 @@
 #include "hw/pci/pci_host.h"
 #include "exec/address-spaces.h"
 
+/* Old and buggy versions of QEMU used the wrong mapping from
+ * PCI IRQs to system interrupt lines. Unfortunately the Linux
+ * kernel also had the corresponding bug in setting up interrupts
+ * (so older kernels work on QEMU and not on real hardware).
+ * We automatically detect these broken kernels and flip back
+ * to the broken irq mapping by spotting guest writes to the
+ * PCI_INTERRUPT_LINE register to see where the guest thinks
+ * interrupts are going to be routed. So we start in state
+ * ASSUME_OK on reset, and transition to either BROKEN or
+ * FORCE_OK at the first write to an INTERRUPT_LINE register for
+ * a slot where broken and correct interrupt mapping would differ.
+ * Once in either BROKEN or FORCE_OK we never transition again;
+ * this allows a newer kernel to use the INTERRUPT_LINE
+ * registers arbitrarily once it has indicated that it isn't
+ * broken in its init code somewhere.
+ */
+enum {
+    PCI_VPB_IRQMAP_ASSUME_OK,
+    PCI_VPB_IRQMAP_BROKEN,
+    PCI_VPB_IRQMAP_FORCE_OK,
+};
+
 typedef struct {
     PCIHostState parent_obj;
 
@@ -26,6 +48,9 @@ typedef struct {
 
     /* Constant for life of device: */
     int realview;
+
+    /* Variable state: */
+    uint8_t irq_mapping;
 } PCIVPBState;
 
 #define TYPE_VERSATILE_PCI "versatile_pci"
@@ -44,14 +69,27 @@ static inline uint32_t vpb_pci_config_addr(hwaddr addr)
 static void pci_vpb_config_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-    pci_data_write(opaque, vpb_pci_config_addr(addr), val, size);
+    PCIVPBState *s = opaque;
+    if (!s->realview && (addr & 0xff) == PCI_INTERRUPT_LINE
+        && s->irq_mapping == PCI_VPB_IRQMAP_ASSUME_OK) {
+        uint8_t devfn = addr >> 8;
+        if ((PCI_SLOT(devfn) % PCI_NUM_PINS) != 2) {
+            if (val == 27) {
+                s->irq_mapping = PCI_VPB_IRQMAP_BROKEN;
+            } else {
+                s->irq_mapping = PCI_VPB_IRQMAP_FORCE_OK;
+            }
+        }
+    }
+    pci_data_write(&s->pci_bus, vpb_pci_config_addr(addr), val, size);
 }
 
 static uint64_t pci_vpb_config_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
+    PCIVPBState *s = opaque;
     uint32_t val;
-    val = pci_data_read(opaque, vpb_pci_config_addr(addr), size);
+    val = pci_data_read(&s->pci_bus, vpb_pci_config_addr(addr), size);
     return val;
 }
 
@@ -63,7 +101,47 @@ static const MemoryRegionOps pci_vpb_config_ops = {
 
 static int pci_vpb_map_irq(PCIDevice *d, int irq_num)
 {
-    return irq_num;
+    PCIVPBState *s = container_of(d->bus, PCIVPBState, pci_bus);
+
+    if (s->irq_mapping == PCI_VPB_IRQMAP_BROKEN) {
+        /* Legacy broken IRQ mapping for compatibility with old and
+         * buggy Linux guests
+         */
+        return irq_num;
+    }
+
+    /* Slot to IRQ mapping for RealView Platform Baseboard 926 backplane
+     *      name    slot    IntA    IntB    IntC    IntD
+     *      A       31      IRQ28   IRQ29   IRQ30   IRQ27
+     *      B       30      IRQ27   IRQ28   IRQ29   IRQ30
+     *      C       29      IRQ30   IRQ27   IRQ28   IRQ29
+     * Slot C is for the host bridge; A and B the peripherals.
+     * Our output irqs 0..3 correspond to the baseboard's 27..30.
+     *
+     * This mapping function takes account of an oddity in the PB926
+     * board wiring, where the FPGA's P_nINTA input is connected to
+     * the INTB connection on the board PCI edge connector, P_nINTB
+     * is connected to INTC, and so on, so everything is one number
+     * further round from where you might expect.
+     */
+    return pci_swizzle_map_irq_fn(d, irq_num + 2);
+}
+
+static int pci_vpb_rv_map_irq(PCIDevice *d, int irq_num)
+{
+    /* Slot to IRQ mapping for RealView EB and PB1176 backplane
+     *      name    slot    IntA    IntB    IntC    IntD
+     *      A       31      IRQ50   IRQ51   IRQ48   IRQ49
+     *      B       30      IRQ49   IRQ50   IRQ51   IRQ48
+     *      C       29      IRQ48   IRQ49   IRQ50   IRQ51
+     * Slot C is for the host bridge; A and B the peripherals.
+     * Our output irqs 0..3 correspond to the baseboard's 48..51.
+     *
+     * The PB1176 and EB boards don't have the PB926 wiring oddity
+     * described above; P_nINTA connects to INTA, P_nINTB to INTB
+     * and so on, which is why this mapping function is different.
+     */
+    return pci_swizzle_map_irq_fn(d, irq_num + 3);
 }
 
 static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
@@ -71,6 +149,13 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
     qemu_irq *pic = opaque;
 
     qemu_set_irq(pic[irq_num], level);
+}
+
+static void pci_vpb_reset(DeviceState *d)
+{
+    PCIVPBState *s = PCI_VPB(d);
+
+    s->irq_mapping = PCI_VPB_IRQMAP_ASSUME_OK;
 }
 
 static void pci_vpb_init(Object *obj)
@@ -95,13 +180,20 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
 {
     PCIVPBState *s = PCI_VPB(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    pci_map_irq_fn mapfn;
     int i;
 
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
     }
 
-    pci_bus_irqs(&s->pci_bus, pci_vpb_set_irq, pci_vpb_map_irq, s->irq, 4);
+    if (s->realview) {
+        mapfn = pci_vpb_rv_map_irq;
+    } else {
+        mapfn = pci_vpb_map_irq;
+    }
+
+    pci_bus_irqs(&s->pci_bus, pci_vpb_set_irq, mapfn, s->irq, 4);
 
     /* ??? Register memory space.  */
 
@@ -110,10 +202,10 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
      * 1 : PCI config window
      * 2 : PCI IO window
      */
-    memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, &s->pci_bus,
+    memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, s,
                           "pci-vpb-selfconfig", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config);
-    memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, &s->pci_bus,
+    memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, s,
                           "pci-vpb-config", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config2);
 
@@ -159,6 +251,7 @@ static void pci_vpb_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pci_vpb_realize;
+    dc->reset = pci_vpb_reset;
 }
 
 static const TypeInfo pci_vpb_info = {
