@@ -31,7 +31,7 @@ uint32_t omap_badwidth_read8(void *opaque, hwaddr addr)
     uint8_t ret;
 
     OMAP_8B_REG(addr);
-    cpu_physical_memory_read(addr, (void *) &ret, 1);
+    cpu_physical_memory_read(addr, &ret, 1);
     return ret;
 }
 
@@ -41,7 +41,7 @@ void omap_badwidth_write8(void *opaque, hwaddr addr,
     uint8_t val8 = value;
 
     OMAP_8B_REG(addr);
-    cpu_physical_memory_write(addr, (void *) &val8, 1);
+    cpu_physical_memory_write(addr, &val8, 1);
 }
 
 uint32_t omap_badwidth_read16(void *opaque, hwaddr addr)
@@ -49,7 +49,7 @@ uint32_t omap_badwidth_read16(void *opaque, hwaddr addr)
     uint16_t ret;
 
     OMAP_16B_REG(addr);
-    cpu_physical_memory_read(addr, (void *) &ret, 2);
+    cpu_physical_memory_read(addr, &ret, 2);
     return ret;
 }
 
@@ -59,7 +59,7 @@ void omap_badwidth_write16(void *opaque, hwaddr addr,
     uint16_t val16 = value;
 
     OMAP_16B_REG(addr);
-    cpu_physical_memory_write(addr, (void *) &val16, 2);
+    cpu_physical_memory_write(addr, &val16, 2);
 }
 
 uint32_t omap_badwidth_read32(void *opaque, hwaddr addr)
@@ -67,7 +67,7 @@ uint32_t omap_badwidth_read32(void *opaque, hwaddr addr)
     uint32_t ret;
 
     OMAP_32B_REG(addr);
-    cpu_physical_memory_read(addr, (void *) &ret, 4);
+    cpu_physical_memory_read(addr, &ret, 4);
     return ret;
 }
 
@@ -75,7 +75,7 @@ void omap_badwidth_write32(void *opaque, hwaddr addr,
                 uint32_t value)
 {
     OMAP_32B_REG(addr);
-    cpu_physical_memory_write(addr, (void *) &value, 4);
+    cpu_physical_memory_write(addr, &value, 4);
 }
 
 /* MPU OS timers */

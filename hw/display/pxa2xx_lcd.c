@@ -315,7 +315,7 @@ static void pxa2xx_descriptor_load(PXA2xxLCDState *s)
             continue;
         }
 
-        cpu_physical_memory_read(descptr, (void *)&desc, sizeof(desc));
+        cpu_physical_memory_read(descptr, &desc, sizeof(desc));
         s->dma_ch[i].descriptor = tswap32(desc.fdaddr);
         s->dma_ch[i].source = tswap32(desc.fsaddr);
         s->dma_ch[i].id = tswap32(desc.fidr);

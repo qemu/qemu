@@ -109,7 +109,7 @@ static void ssh_state_free(BDRVSSHState *s)
 /* Wrappers around error_report which make sure to dump as much
  * information from libssh2 as possible.
  */
-static void
+static void GCC_FMT_ATTR(2, 3)
 session_error_report(BDRVSSHState *s, const char *fs, ...)
 {
     va_list args;
@@ -132,7 +132,7 @@ session_error_report(BDRVSSHState *s, const char *fs, ...)
     error_printf("\n");
 }
 
-static void
+static void GCC_FMT_ATTR(2, 3)
 sftp_error_report(BDRVSSHState *s, const char *fs, ...)
 {
     va_list args;
@@ -387,15 +387,13 @@ static int check_host_key(BDRVSSHState *s, const char *host, int port,
     }
 
     /* host_key_check=md5:xx:yy:zz:... */
-    if (strlen(host_key_check) >= 4 &&
-        strncmp(host_key_check, "md5:", 4) == 0) {
+    if (strncmp(host_key_check, "md5:", 4) == 0) {
         return check_host_key_hash(s, &host_key_check[4],
                                    LIBSSH2_HOSTKEY_HASH_MD5, 16);
     }
 
     /* host_key_check=sha1:xx:yy:zz:... */
-    if (strlen(host_key_check) >= 5 &&
-        strncmp(host_key_check, "sha1:", 5) == 0) {
+    if (strncmp(host_key_check, "sha1:", 5) == 0) {
         return check_host_key_hash(s, &host_key_check[5],
                                    LIBSSH2_HOSTKEY_HASH_SHA1, 20);
     }

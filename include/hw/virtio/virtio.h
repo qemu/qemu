@@ -258,7 +258,6 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
                               uint32_t host_features);
 typedef struct virtio_serial_conf virtio_serial_conf;
 VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *serial);
-VirtIODevice *virtio_balloon_init(DeviceState *dev);
 typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *conf);
 typedef struct VirtIORNGConf VirtIORNGConf;
@@ -270,7 +269,6 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf);
 
 void virtio_net_exit(VirtIODevice *vdev);
 void virtio_serial_exit(VirtIODevice *vdev);
-void virtio_balloon_exit(VirtIODevice *vdev);
 void virtio_scsi_exit(VirtIODevice *vdev);
 void virtio_rng_exit(VirtIODevice *vdev);
 

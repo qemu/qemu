@@ -170,12 +170,12 @@ static void eth_rx_desc_put(uint32_t addr, mv88w8618_rx_desc *desc)
     cpu_to_le16s(&desc->buffer_size);
     cpu_to_le32s(&desc->buffer);
     cpu_to_le32s(&desc->next);
-    cpu_physical_memory_write(addr, (void *)desc, sizeof(*desc));
+    cpu_physical_memory_write(addr, desc, sizeof(*desc));
 }
 
 static void eth_rx_desc_get(uint32_t addr, mv88w8618_rx_desc *desc)
 {
-    cpu_physical_memory_read(addr, (void *)desc, sizeof(*desc));
+    cpu_physical_memory_read(addr, desc, sizeof(*desc));
     le32_to_cpus(&desc->cmdstat);
     le16_to_cpus(&desc->bytes);
     le16_to_cpus(&desc->buffer_size);
@@ -229,12 +229,12 @@ static void eth_tx_desc_put(uint32_t addr, mv88w8618_tx_desc *desc)
     cpu_to_le16s(&desc->bytes);
     cpu_to_le32s(&desc->buffer);
     cpu_to_le32s(&desc->next);
-    cpu_physical_memory_write(addr, (void *)desc, sizeof(*desc));
+    cpu_physical_memory_write(addr, desc, sizeof(*desc));
 }
 
 static void eth_tx_desc_get(uint32_t addr, mv88w8618_tx_desc *desc)
 {
-    cpu_physical_memory_read(addr, (void *)desc, sizeof(*desc));
+    cpu_physical_memory_read(addr, desc, sizeof(*desc));
     le32_to_cpus(&desc->cmdstat);
     le16_to_cpus(&desc->res);
     le16_to_cpus(&desc->bytes);
