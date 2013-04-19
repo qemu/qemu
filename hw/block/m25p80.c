@@ -24,7 +24,6 @@
 #include "hw/hw.h"
 #include "sysemu/blockdev.h"
 #include "hw/ssi.h"
-#include "hw/devices.h"
 
 #ifndef M25P80_ERR_DEBUG
 #define M25P80_ERR_DEBUG 0
