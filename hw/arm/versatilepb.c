@@ -226,14 +226,13 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     qdev_init_nofail(dev);
     sysbus_mmio_map(busdev, 0, 0x41000000); /* PCI self-config */
     sysbus_mmio_map(busdev, 1, 0x42000000); /* PCI config */
+    sysbus_mmio_map(busdev, 2, 0x43000000); /* PCI I/O */
     sysbus_connect_irq(busdev, 0, sic[27]);
     sysbus_connect_irq(busdev, 1, sic[28]);
     sysbus_connect_irq(busdev, 2, sic[29]);
     sysbus_connect_irq(busdev, 3, sic[30]);
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
 
-    /* The Versatile PCI bridge does not provide access to PCI IO space,
-       so many of the qemu PCI devices are not useable.  */
     for(n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];
 

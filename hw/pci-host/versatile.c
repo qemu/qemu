@@ -77,7 +77,7 @@ static int pci_vpb_init(SysBusDevice *dev)
     /* Our memory regions are:
      * 0 : PCI self config window
      * 1 : PCI config window
-     * 2 : PCI IO window (realview_pci only)
+     * 2 : PCI IO window
      */
     memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, bus,
                           "pci-vpb-selfconfig", 0x1000000);
@@ -85,10 +85,8 @@ static int pci_vpb_init(SysBusDevice *dev)
     memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, bus,
                           "pci-vpb-config", 0x1000000);
     sysbus_init_mmio(dev, &s->mem_config2);
-    if (s->realview) {
-        isa_mmio_setup(&s->isa, 0x0100000);
-        sysbus_init_mmio(dev, &s->isa);
-    }
+    isa_mmio_setup(&s->isa, 0x0100000);
+    sysbus_init_mmio(dev, &s->isa);
 
     pci_create_simple(bus, -1, "versatile_pci_host");
     return 0;
