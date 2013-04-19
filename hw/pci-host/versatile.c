@@ -214,11 +214,6 @@ static const MemoryRegionOps pci_vpb_reg_ops = {
     },
 };
 
-static inline uint32_t vpb_pci_config_addr(hwaddr addr)
-{
-    return addr & 0xffffff;
-}
-
 static void pci_vpb_config_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
@@ -234,7 +229,7 @@ static void pci_vpb_config_write(void *opaque, hwaddr addr,
             }
         }
     }
-    pci_data_write(&s->pci_bus, vpb_pci_config_addr(addr), val, size);
+    pci_data_write(&s->pci_bus, addr, val, size);
 }
 
 static uint64_t pci_vpb_config_read(void *opaque, hwaddr addr,
@@ -242,7 +237,7 @@ static uint64_t pci_vpb_config_read(void *opaque, hwaddr addr,
 {
     PCIVPBState *s = opaque;
     uint32_t val;
-    val = pci_data_read(&s->pci_bus, vpb_pci_config_addr(addr), size);
+    val = pci_data_read(&s->pci_bus, addr, size);
     return val;
 }
 
