@@ -2364,35 +2364,19 @@ fi
 
 ##########################################
 # libssh2 probe
+min_libssh2_version=1.2.8
 if test "$libssh2" != "no" ; then
-  cat > $TMPC <<EOF
-#include <stdio.h>
-#include <libssh2.h>
-#include <libssh2_sftp.h>
-int main(void) {
-    LIBSSH2_SESSION *session;
-    session = libssh2_session_init ();
-    (void) libssh2_sftp_init (session);
-    return 0;
-}
-EOF
-
-  if $pkg_config libssh2 --modversion >/dev/null 2>&1; then
+  if $pkg_config --atleast-version=$min_libssh2_version libssh2 >/dev/null 2>&1
+  then
     libssh2_cflags=`$pkg_config libssh2 --cflags`
     libssh2_libs=`$pkg_config libssh2 --libs`
-  else
-    libssh2_cflags=
-    libssh2_libs="-lssh2"
-  fi
-
-  if compile_prog "$libssh2_cflags" "$libssh2_libs" ; then
     libssh2=yes
     libs_tools="$libssh2_libs $libs_tools"
     libs_softmmu="$libssh2_libs $libs_softmmu"
     QEMU_CFLAGS="$QEMU_CFLAGS $libssh2_cflags"
   else
     if test "$libssh2" = "yes" ; then
-      feature_not_found "libssh2"
+      error_exit "libssh2 >= $min_libssh2_version required for --enable-libssh2"
     fi
     libssh2=no
   fi
