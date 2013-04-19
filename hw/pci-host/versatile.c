@@ -42,13 +42,20 @@ typedef struct {
     MemoryRegion controlregs;
     MemoryRegion mem_config;
     MemoryRegion mem_config2;
+    /* Containers representing the PCI address spaces */
     MemoryRegion pci_io_space;
+    MemoryRegion pci_mem_space;
+    /* Alias regions into PCI address spaces which we expose as sysbus regions.
+     * The offsets into pci_mem_space are controlled by the imap registers.
+     */
     MemoryRegion pci_io_window;
+    MemoryRegion pci_mem_window[3];
     PCIBus pci_bus;
     PCIDevice pci_dev;
 
     /* Constant for life of device: */
     int realview;
+    uint32_t mem_win_size[3];
 
     /* Variable state: */
     uint32_t imap[3];
@@ -58,10 +65,49 @@ typedef struct {
     uint8_t irq_mapping;
 } PCIVPBState;
 
+static void pci_vpb_update_window(PCIVPBState *s, int i)
+{
+    /* Adjust the offset of the alias region we use for
+     * the memory window i to account for a change in the
+     * value of the corresponding IMAP register.
+     * Note that the semantics of the IMAP register differ
+     * for realview and versatile variants of the controller.
+     */
+    hwaddr offset;
+    if (s->realview) {
+        /* Top bits of register (masked according to window size) provide
+         * top bits of PCI address.
+         */
+        offset = s->imap[i] & ~(s->mem_win_size[i] - 1);
+    } else {
+        /* Bottom 4 bits of register provide top 4 bits of PCI address */
+        offset = s->imap[i] << 28;
+    }
+    memory_region_set_alias_offset(&s->pci_mem_window[i], offset);
+}
+
+static void pci_vpb_update_all_windows(PCIVPBState *s)
+{
+    /* Update all alias windows based on the current register state */
+    int i;
+
+    for (i = 0; i < 3; i++) {
+        pci_vpb_update_window(s, i);
+    }
+}
+
+static int pci_vpb_post_load(void *opaque, int version_id)
+{
+    PCIVPBState *s = opaque;
+    pci_vpb_update_all_windows(s);
+    return 0;
+}
+
 static const VMStateDescription pci_vpb_vmstate = {
     .name = "versatile-pci",
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = pci_vpb_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(imap, PCIVPBState, 3),
         VMSTATE_UINT32_ARRAY(smap, PCIVPBState, 3),
@@ -103,6 +149,7 @@ static void pci_vpb_reg_write(void *opaque, hwaddr addr,
     {
         int win = (addr - PCI_IMAP0) >> 2;
         s->imap[win] = val;
+        pci_vpb_update_window(s, win);
         break;
     }
     case PCI_SELFID:
@@ -270,6 +317,8 @@ static void pci_vpb_reset(DeviceState *d)
     s->selfid = 0;
     s->flags = 0;
     s->irq_mapping = PCI_VPB_IRQMAP_ASSUME_OK;
+
+    pci_vpb_update_all_windows(s);
 }
 
 static void pci_vpb_init(Object *obj)
@@ -278,9 +327,10 @@ static void pci_vpb_init(Object *obj)
     PCIVPBState *s = PCI_VPB(obj);
 
     memory_region_init(&s->pci_io_space, "pci_io", 1ULL << 32);
+    memory_region_init(&s->pci_mem_space, "pci_mem", 1ULL << 32);
 
     pci_bus_new_inplace(&s->pci_bus, DEVICE(obj), "pci",
-                        get_system_memory(), &s->pci_io_space,
+                        &s->pci_mem_space, &s->pci_io_space,
                         PCI_DEVFN(11, 0), TYPE_PCI_BUS);
     h->bus = &s->pci_bus;
 
@@ -288,6 +338,11 @@ static void pci_vpb_init(Object *obj)
     qdev_set_parent_bus(DEVICE(&s->pci_dev), BUS(&s->pci_bus));
     object_property_set_int(OBJECT(&s->pci_dev), PCI_DEVFN(29, 0), "addr",
                             NULL);
+
+    /* Window sizes for VersatilePB; realview_pci's init will override */
+    s->mem_win_size[0] = 0x0c000000;
+    s->mem_win_size[1] = 0x10000000;
+    s->mem_win_size[2] = 0x10000000;
 }
 
 static void pci_vpb_realize(DeviceState *dev, Error **errp)
@@ -314,6 +369,7 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
      * 1 : PCI self config window
      * 2 : PCI config window
      * 3 : PCI IO window
+     * 4..6 : PCI memory windows
      */
     memory_region_init_io(&s->controlregs, &pci_vpb_reg_ops, s, "pci-vpb-regs",
                           0x1000);
@@ -332,6 +388,16 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
                              &s->pci_io_space, 0, 0x100000);
 
     sysbus_init_mmio(sbd, &s->pci_io_space);
+
+    /* Create the alias regions corresponding to our three windows onto
+     * PCI memory space. The sizes vary from board to board; the base
+     * offsets are guest controllable via the IMAP registers.
+     */
+    for (i = 0; i < 3; i++) {
+        memory_region_init_alias(&s->pci_mem_window[i], "pci-vbp-window",
+                                 &s->pci_mem_space, 0, s->mem_win_size[i]);
+        sysbus_init_mmio(sbd, &s->pci_mem_window[i]);
+    }
 
     /* TODO Remove once realize propagates to child devices. */
     object_property_set_bool(OBJECT(&s->pci_dev), true, "realized", errp);
@@ -384,6 +450,10 @@ static void pci_realview_init(Object *obj)
     PCIVPBState *s = PCI_VPB(obj);
 
     s->realview = 1;
+    /* The PCI window sizes are different on Realview boards */
+    s->mem_win_size[0] = 0x01000000;
+    s->mem_win_size[1] = 0x04000000;
+    s->mem_win_size[2] = 0x08000000;
 }
 
 static const TypeInfo pci_realview_info = {

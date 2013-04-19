@@ -221,6 +221,9 @@ static void realview_init(QEMUMachineInitArgs *args,
         sysbus_mmio_map(busdev, 1, 0x60000000); /* PCI self-config */
         sysbus_mmio_map(busdev, 2, 0x61000000); /* PCI config */
         sysbus_mmio_map(busdev, 3, 0x62000000); /* PCI I/O */
+        sysbus_mmio_map(busdev, 4, 0x63000000); /* PCI memory window 1 */
+        sysbus_mmio_map(busdev, 5, 0x64000000); /* PCI memory window 2 */
+        sysbus_mmio_map(busdev, 6, 0x68000000); /* PCI memory window 3 */
         sysbus_connect_irq(busdev, 0, pic[48]);
         sysbus_connect_irq(busdev, 1, pic[49]);
         sysbus_connect_irq(busdev, 2, pic[50]);
