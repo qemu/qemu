@@ -106,4 +106,9 @@ static inline bool is_daemonized(void)
     return false;
 }
 
+static inline int os_mlock(void)
+{
+    return -ENOSYS;
+}
+
 #endif
