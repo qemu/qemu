@@ -9,16 +9,22 @@
 
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
 #include "exec/address-spaces.h"
 
 typedef struct {
-    SysBusDevice busdev;
+    PCIHostState parent_obj;
+
     qemu_irq irq[4];
-    int realview;
     MemoryRegion mem_config;
     MemoryRegion mem_config2;
     MemoryRegion isa;
+    PCIBus pci_bus;
+    PCIDevice pci_dev;
+
+    /* Constant for life of device: */
+    int realview;
 } PCIVPBState;
 
 #define TYPE_VERSATILE_PCI "versatile_pci"
@@ -66,20 +72,31 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
+static void pci_vpb_init(Object *obj)
+{
+    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    PCIVPBState *s = PCI_VPB(obj);
+
+    pci_bus_new_inplace(&s->pci_bus, DEVICE(obj), "pci",
+                        get_system_memory(), get_system_io(),
+                        PCI_DEVFN(11, 0), TYPE_PCI_BUS);
+    h->bus = &s->pci_bus;
+
+    object_initialize(&s->pci_dev, TYPE_VERSATILE_PCI_HOST);
+    qdev_set_parent_bus(DEVICE(&s->pci_dev), BUS(&s->pci_bus));
+}
+
 static void pci_vpb_realize(DeviceState *dev, Error **errp)
 {
     PCIVPBState *s = PCI_VPB(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    PCIBus *bus;
     int i;
 
     for (i = 0; i < 4; i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
     }
-    bus = pci_register_bus(dev, "pci",
-                           pci_vpb_set_irq, pci_vpb_map_irq, s->irq,
-                           get_system_memory(), get_system_io(),
-                           PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
+
+    pci_bus_irqs(&s->pci_bus, pci_vpb_set_irq, pci_vpb_map_irq, s->irq, 4);
 
     /* ??? Register memory space.  */
 
@@ -88,16 +105,17 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
      * 1 : PCI config window
      * 2 : PCI IO window
      */
-    memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, bus,
+    memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, &s->pci_bus,
                           "pci-vpb-selfconfig", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config);
-    memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, bus,
+    memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, &s->pci_bus,
                           "pci-vpb-config", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config2);
     isa_mmio_setup(&s->isa, 0x0100000);
     sysbus_init_mmio(sbd, &s->isa);
 
-    pci_create_simple(bus, -1, "versatile_pci_host");
+    /* TODO Remove once realize propagates to child devices. */
+    object_property_set_bool(OBJECT(&s->pci_dev), true, "realized", errp);
 }
 
 static int versatile_pci_host_init(PCIDevice *d)
@@ -134,8 +152,9 @@ static void pci_vpb_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pci_vpb_info = {
     .name          = TYPE_VERSATILE_PCI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PCIVPBState),
+    .instance_init = pci_vpb_init,
     .class_init    = pci_vpb_class_init,
 };
 
