@@ -643,12 +643,18 @@ static gboolean io_watch_poll_dispatch(GSource *source, GSourceFunc callback,
 
 static void io_watch_poll_finalize(GSource *source)
 {
+    /* Due to a glib bug, removing the last reference to a source
+     * inside a finalize callback causes recursive locking (and a
+     * deadlock).  This is not a problem inside other callbacks,
+     * including dispatch callbacks, so we call io_remove_watch_poll
+     * to remove this source.  At this point, iwp->src must
+     * be NULL, or we would leak it.
+     *
+     * This would be solved much more elegantly by child sources,
+     * but we support older glib versions that do not have them.
+     */
     IOWatchPoll *iwp = io_watch_poll_from_source(source);
-    if (iwp->src) {
-        g_source_destroy(iwp->src);
-        g_source_unref(iwp->src);
-        iwp->src = NULL;
-    }
+    assert(iwp->src == NULL);
 }
 
 static GSourceFuncs io_watch_poll_funcs = {
@@ -677,6 +683,25 @@ static guint io_add_watch_poll(GIOChannel *channel,
     tag = g_source_attach(&iwp->parent, NULL);
     g_source_unref(&iwp->parent);
     return tag;
+}
+
+static void io_remove_watch_poll(guint tag)
+{
+    GSource *source;
+    IOWatchPoll *iwp;
+
+    g_return_if_fail (tag > 0);
+
+    source = g_main_context_find_source_by_id(NULL, tag);
+    g_return_if_fail (source != NULL);
+
+    iwp = io_watch_poll_from_source(source);
+    if (iwp->src) {
+        g_source_destroy(iwp->src);
+        g_source_unref(iwp->src);
+        iwp->src = NULL;
+    }
+    g_source_destroy(&iwp->parent);
 }
 
 #ifndef _WIN32
@@ -788,7 +813,7 @@ static gboolean fd_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
                                      len, &bytes_read, NULL);
     if (status == G_IO_STATUS_EOF) {
         if (s->fd_in_tag) {
-            g_source_remove(s->fd_in_tag);
+            io_remove_watch_poll(s->fd_in_tag);
             s->fd_in_tag = 0;
         }
         qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
@@ -821,7 +846,7 @@ static void fd_chr_update_read_handler(CharDriverState *chr)
     FDCharDriver *s = chr->opaque;
 
     if (s->fd_in_tag) {
-        g_source_remove(s->fd_in_tag);
+        io_remove_watch_poll(s->fd_in_tag);
         s->fd_in_tag = 0;
     }
 
@@ -835,7 +860,7 @@ static void fd_chr_close(struct CharDriverState *chr)
     FDCharDriver *s = chr->opaque;
 
     if (s->fd_in_tag) {
-        g_source_remove(s->fd_in_tag);
+        io_remove_watch_poll(s->fd_in_tag);
         s->fd_in_tag = 0;
     }
 
@@ -1145,7 +1170,7 @@ static void pty_chr_state(CharDriverState *chr, int connected)
 
     if (!connected) {
         if (s->fd_tag) {
-            g_source_remove(s->fd_tag);
+            io_remove_watch_poll(s->fd_tag);
             s->fd_tag = 0;
         }
         s->connected = 0;
@@ -1173,7 +1198,7 @@ static void pty_chr_close(struct CharDriverState *chr)
     int fd;
 
     if (s->fd_tag) {
-        g_source_remove(s->fd_tag);
+        io_remove_watch_poll(s->fd_tag);
         s->fd_tag = 0;
     }
     fd = g_io_channel_unix_get_fd(s->fd);
@@ -2252,7 +2277,7 @@ static gboolean udp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     s->bufptr = s->bufcnt;
     if (status != G_IO_STATUS_NORMAL) {
         if (s->tag) {
-            g_source_remove(s->tag);
+            io_remove_watch_poll(s->tag);
             s->tag = 0;
         }
         return FALSE;
@@ -2273,7 +2298,7 @@ static void udp_chr_update_read_handler(CharDriverState *chr)
     NetCharDriver *s = chr->opaque;
 
     if (s->tag) {
-        g_source_remove(s->tag);
+        io_remove_watch_poll(s->tag);
         s->tag = 0;
     }
 
@@ -2286,7 +2311,7 @@ static void udp_chr_close(CharDriverState *chr)
 {
     NetCharDriver *s = chr->opaque;
     if (s->tag) {
-        g_source_remove(s->tag);
+        io_remove_watch_poll(s->tag);
         s->tag = 0;
     }
     if (s->chan) {
@@ -2520,7 +2545,7 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
             s->listen_tag = g_io_add_watch(s->listen_chan, G_IO_IN, tcp_chr_accept, chr);
         }
         if (s->tag) {
-            g_source_remove(s->tag);
+            io_remove_watch_poll(s->tag);
             s->tag = 0;
         }
         g_io_channel_unref(s->chan);
@@ -2635,7 +2660,7 @@ static void tcp_chr_close(CharDriverState *chr)
     TCPCharDriver *s = chr->opaque;
     if (s->fd >= 0) {
         if (s->tag) {
-            g_source_remove(s->tag);
+            io_remove_watch_poll(s->tag);
             s->tag = 0;
         }
         if (s->chan) {
