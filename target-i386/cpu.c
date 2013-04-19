@@ -2351,6 +2351,12 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->reset = x86_cpu_reset;
 
     cc->do_interrupt = x86_cpu_do_interrupt;
+#ifndef CONFIG_USER_ONLY
+    cc->write_elf64_note = x86_cpu_write_elf64_note;
+    cc->write_elf64_qemunote = x86_cpu_write_elf64_qemunote;
+    cc->write_elf32_note = x86_cpu_write_elf32_note;
+    cc->write_elf32_qemunote = x86_cpu_write_elf32_qemunote;
+#endif
     cpu_class_set_vmsd(cc, &vmstate_x86_cpu);
 
     cc->get_arch_id = x86_cpu_get_arch_id;

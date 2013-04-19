@@ -64,6 +64,65 @@ void cpu_reset_interrupt(CPUState *cpu, int mask)
     cpu->interrupt_request &= ~mask;
 }
 
+int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                             void *opaque)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return (*cc->write_elf32_qemunote)(f, cpu, opaque);
+}
+
+static int cpu_common_write_elf32_qemunote(WriteCoreDumpFunction f,
+                                           CPUState *cpu, void *opaque)
+{
+    return -1;
+}
+
+int cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
+                         int cpuid, void *opaque)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return (*cc->write_elf32_note)(f, cpu, cpuid, opaque);
+}
+
+static int cpu_common_write_elf32_note(WriteCoreDumpFunction f,
+                                       CPUState *cpu, int cpuid,
+                                       void *opaque)
+{
+    return -1;
+}
+
+int cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                             void *opaque)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return (*cc->write_elf64_qemunote)(f, cpu, opaque);
+}
+
+static int cpu_common_write_elf64_qemunote(WriteCoreDumpFunction f,
+                                           CPUState *cpu, void *opaque)
+{
+    return -1;
+}
+
+int cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
+                         int cpuid, void *opaque)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return (*cc->write_elf64_note)(f, cpu, cpuid, opaque);
+}
+
+static int cpu_common_write_elf64_note(WriteCoreDumpFunction f,
+                                       CPUState *cpu, int cpuid,
+                                       void *opaque)
+{
+    return -1;
+}
+
+
 void cpu_reset(CPUState *cpu)
 {
     CPUClass *klass = CPU_GET_CLASS(cpu);
@@ -117,6 +176,10 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     k->class_by_name = cpu_common_class_by_name;
     k->reset = cpu_common_reset;
     k->get_arch_id = cpu_common_get_arch_id;
+    k->write_elf32_qemunote = cpu_common_write_elf32_qemunote;
+    k->write_elf32_note = cpu_common_write_elf32_note;
+    k->write_elf64_qemunote = cpu_common_write_elf64_qemunote;
+    k->write_elf64_note = cpu_common_write_elf64_note;
     dc->realize = cpu_common_realizefn;
     dc->no_user = 1;
 }

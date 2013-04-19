@@ -20,15 +20,6 @@ typedef struct ArchDumpInfo {
     int d_class;    /* ELFCLASS32 or ELFCLASS64 */
 } ArchDumpInfo;
 
-typedef int (*write_core_dump_function)(void *buf, size_t size, void *opaque);
-int cpu_write_elf64_note(write_core_dump_function f, CPUArchState *env,
-                                                  int cpuid, void *opaque);
-int cpu_write_elf32_note(write_core_dump_function f, CPUArchState *env,
-                                                  int cpuid, void *opaque);
-int cpu_write_elf64_qemunote(write_core_dump_function f, CPUArchState *env,
-                                                          void *opaque);
-int cpu_write_elf32_qemunote(write_core_dump_function f, CPUArchState *env,
-                                                          void *opaque);
 int cpu_get_dump_info(ArchDumpInfo *info);
 ssize_t cpu_get_note_size(int class, int machine, int nr_cpus);
 

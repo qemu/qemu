@@ -24,6 +24,8 @@
 #include "hw/qdev-core.h"
 #include "qemu/thread.h"
 
+typedef int (*WriteCoreDumpFunction)(void *buf, size_t size, void *opaque);
+
 /**
  * SECTION:cpu
  * @section_id: QEMU-cpu
@@ -62,6 +64,14 @@ typedef struct CPUClass {
     int64_t (*get_arch_id)(CPUState *cpu);
 
     const struct VMStateDescription *vmsd;
+    int (*write_elf64_note)(WriteCoreDumpFunction f, CPUState *cpu,
+                            int cpuid, void *opaque);
+    int (*write_elf64_qemunote)(WriteCoreDumpFunction f, CPUState *cpu,
+                                void *opaque);
+    int (*write_elf32_note)(WriteCoreDumpFunction f, CPUState *cpu,
+                            int cpuid, void *opaque);
+    int (*write_elf32_qemunote)(WriteCoreDumpFunction f, CPUState *cpu,
+                                void *opaque);
 } CPUClass;
 
 struct KVMState;
@@ -127,6 +137,45 @@ struct CPUState {
     uint32_t halted; /* used by alpha, cris, ppc TCG */
 };
 
+/**
+ * cpu_write_elf64_note:
+ * @f: pointer to a function that writes memory to a file
+ * @cpu: The CPU whose memory is to be dumped
+ * @cpuid: ID number of the CPU
+ * @opaque: pointer to the CPUState struct
+ */
+int cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
+                         int cpuid, void *opaque);
+
+/**
+ * cpu_write_elf64_qemunote:
+ * @f: pointer to a function that writes memory to a file
+ * @cpu: The CPU whose memory is to be dumped
+ * @cpuid: ID number of the CPU
+ * @opaque: pointer to the CPUState struct
+ */
+int cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                             void *opaque);
+
+/**
+ * cpu_write_elf32_note:
+ * @f: pointer to a function that writes memory to a file
+ * @cpu: The CPU whose memory is to be dumped
+ * @cpuid: ID number of the CPU
+ * @opaque: pointer to the CPUState struct
+ */
+int cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
+                         int cpuid, void *opaque);
+
+/**
+ * cpu_write_elf32_qemunote:
+ * @f: pointer to a function that writes memory to a file
+ * @cpu: The CPU whose memory is to be dumped
+ * @cpuid: ID number of the CPU
+ * @opaque: pointer to the CPUState struct
+ */
+int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                             void *opaque);
 
 /**
  * cpu_reset:
