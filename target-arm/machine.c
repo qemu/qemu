@@ -9,17 +9,51 @@ static bool vfp_needed(void *opaque)
     return arm_feature(env, ARM_FEATURE_VFP);
 }
 
+static int get_fpscr(QEMUFile *f, void *opaque, size_t size)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+    uint32_t val = qemu_get_be32(f);
+
+    vfp_set_fpscr(env, val);
+    return 0;
+}
+
+static void put_fpscr(QEMUFile *f, void *opaque, size_t size)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    qemu_put_be32(f, vfp_get_fpscr(env));
+}
+
+static const VMStateInfo vmstate_fpscr = {
+    .name = "fpscr",
+    .get = get_fpscr,
+    .put = put_fpscr,
+};
+
 static const VMStateDescription vmstate_vfp = {
     .name = "cpu/vfp",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields = (VMStateField[]) {
         VMSTATE_FLOAT64_ARRAY(env.vfp.regs, ARMCPU, 32),
-        VMSTATE_UINT32_ARRAY(env.vfp.xregs, ARMCPU, 16),
-        /* TODO: Should use proper FPSCR access functions.  */
-        VMSTATE_INT32(env.vfp.vec_len, ARMCPU),
-        VMSTATE_INT32(env.vfp.vec_stride, ARMCPU),
+        /* The xregs array is a little awkward because element 1 (FPSCR)
+         * requires a specific accessor, so we have to split it up in
+         * the vmstate:
+         */
+        VMSTATE_UINT32(env.vfp.xregs[0], ARMCPU),
+        VMSTATE_UINT32_SUB_ARRAY(env.vfp.xregs, ARMCPU, 2, 14),
+        {
+            .name = "fpscr",
+            .version_id = 0,
+            .size = sizeof(uint32_t),
+            .info = &vmstate_fpscr,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
         VMSTATE_END_OF_LIST()
     }
 };
