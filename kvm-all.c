@@ -500,6 +500,66 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
+static int kvm_set_ioeventfd_mmio(int fd, uint32_t addr, uint32_t val,
+                                  bool assign, uint32_t size, bool datamatch)
+{
+    int ret;
+    struct kvm_ioeventfd iofd;
+
+    iofd.datamatch = datamatch ? val : 0;
+    iofd.addr = addr;
+    iofd.len = size;
+    iofd.flags = 0;
+    iofd.fd = fd;
+
+    if (!kvm_enabled()) {
+        return -ENOSYS;
+    }
+
+    if (datamatch) {
+        iofd.flags |= KVM_IOEVENTFD_FLAG_DATAMATCH;
+    }
+    if (!assign) {
+        iofd.flags |= KVM_IOEVENTFD_FLAG_DEASSIGN;
+    }
+
+    ret = kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &iofd);
+
+    if (ret < 0) {
+        return -errno;
+    }
+
+    return 0;
+}
+
+static int kvm_set_ioeventfd_pio(int fd, uint16_t addr, uint16_t val,
+                                 bool assign, uint32_t size, bool datamatch)
+{
+    struct kvm_ioeventfd kick = {
+        .datamatch = datamatch ? val : 0,
+        .addr = addr,
+        .flags = KVM_IOEVENTFD_FLAG_PIO,
+        .len = size,
+        .fd = fd,
+    };
+    int r;
+    if (!kvm_enabled()) {
+        return -ENOSYS;
+    }
+    if (datamatch) {
+        kick.flags |= KVM_IOEVENTFD_FLAG_DATAMATCH;
+    }
+    if (!assign) {
+        kick.flags |= KVM_IOEVENTFD_FLAG_DEASSIGN;
+    }
+    r = kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &kick);
+    if (r < 0) {
+        return r;
+    }
+    return 0;
+}
+
+
 static int kvm_check_many_ioeventfds(void)
 {
     /* Userspace can use ioeventfd for io notification.  This requires a host
@@ -517,7 +577,7 @@ static int kvm_check_many_ioeventfds(void)
         if (ioeventfds[i] < 0) {
             break;
         }
-        ret = kvm_set_ioeventfd_pio_word(ioeventfds[i], 0, i, true);
+        ret = kvm_set_ioeventfd_pio(ioeventfds[i], 0, i, true, 2, true);
         if (ret < 0) {
             close(ioeventfds[i]);
             break;
@@ -528,7 +588,7 @@ static int kvm_check_many_ioeventfds(void)
     ret = i == ARRAY_SIZE(ioeventfds);
 
     while (i-- > 0) {
-        kvm_set_ioeventfd_pio_word(ioeventfds[i], 0, i, false);
+        kvm_set_ioeventfd_pio(ioeventfds[i], 0, i, false, 2, true);
         close(ioeventfds[i]);
     }
     return ret;
@@ -748,10 +808,8 @@ static void kvm_mem_ioeventfd_add(MemoryListener *listener,
     int fd = event_notifier_get_fd(e);
     int r;
 
-    assert(match_data && section->size <= 8);
-
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
-                               data, true, section->size);
+                               data, true, section->size, match_data);
     if (r < 0) {
         abort();
     }
@@ -766,7 +824,7 @@ static void kvm_mem_ioeventfd_del(MemoryListener *listener,
     int r;
 
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
-                               data, false, section->size);
+                               data, false, section->size, match_data);
     if (r < 0) {
         abort();
     }
@@ -780,10 +838,8 @@ static void kvm_io_ioeventfd_add(MemoryListener *listener,
     int fd = event_notifier_get_fd(e);
     int r;
 
-    assert(match_data && section->size == 2);
-
-    r = kvm_set_ioeventfd_pio_word(fd, section->offset_within_address_space,
-                                   data, true);
+    r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
+                              data, true, section->size, match_data);
     if (r < 0) {
         abort();
     }
@@ -798,8 +854,8 @@ static void kvm_io_ioeventfd_del(MemoryListener *listener,
     int fd = event_notifier_get_fd(e);
     int r;
 
-    r = kvm_set_ioeventfd_pio_word(fd, section->offset_within_address_space,
-                                   data, false);
+    r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
+                              data, false, section->size, match_data);
     if (r < 0) {
         abort();
     }
@@ -1967,59 +2023,6 @@ int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset)
 
     return r;
 }
-
-int kvm_set_ioeventfd_mmio(int fd, uint32_t addr, uint32_t val, bool assign,
-                           uint32_t size)
-{
-    int ret;
-    struct kvm_ioeventfd iofd;
-
-    iofd.datamatch = val;
-    iofd.addr = addr;
-    iofd.len = size;
-    iofd.flags = KVM_IOEVENTFD_FLAG_DATAMATCH;
-    iofd.fd = fd;
-
-    if (!kvm_enabled()) {
-        return -ENOSYS;
-    }
-
-    if (!assign) {
-        iofd.flags |= KVM_IOEVENTFD_FLAG_DEASSIGN;
-    }
-
-    ret = kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &iofd);
-
-    if (ret < 0) {
-        return -errno;
-    }
-
-    return 0;
-}
-
-int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
-{
-    struct kvm_ioeventfd kick = {
-        .datamatch = val,
-        .addr = addr,
-        .len = 2,
-        .flags = KVM_IOEVENTFD_FLAG_DATAMATCH | KVM_IOEVENTFD_FLAG_PIO,
-        .fd = fd,
-    };
-    int r;
-    if (!kvm_enabled()) {
-        return -ENOSYS;
-    }
-    if (!assign) {
-        kick.flags |= KVM_IOEVENTFD_FLAG_DEASSIGN;
-    }
-    r = kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &kick);
-    if (r < 0) {
-        return r;
-    }
-    return 0;
-}
-
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
     return kvm_arch_on_sigbus_vcpu(cpu, code, addr);
