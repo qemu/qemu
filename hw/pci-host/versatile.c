@@ -104,7 +104,7 @@ static int pci_realview_init(SysBusDevice *dev)
 static int versatile_pci_host_init(PCIDevice *d)
 {
     pci_set_word(d->config + PCI_STATUS,
-		 PCI_STATUS_66MHZ | PCI_STATUS_DEVSEL_MEDIUM);
+                 PCI_STATUS_66MHZ | PCI_STATUS_DEVSEL_MEDIUM);
     pci_set_byte(d->config + PCI_LATENCY_TIMER, 0x10);
     return 0;
 }
