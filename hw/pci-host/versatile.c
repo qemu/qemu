@@ -87,6 +87,8 @@ static void pci_vpb_init(Object *obj)
 
     object_initialize(&s->pci_dev, TYPE_VERSATILE_PCI_HOST);
     qdev_set_parent_bus(DEVICE(&s->pci_dev), BUS(&s->pci_bus));
+    object_property_set_int(OBJECT(&s->pci_dev), PCI_DEVFN(29, 0), "addr",
+                            NULL);
 }
 
 static void pci_vpb_realize(DeviceState *dev, Error **errp)
