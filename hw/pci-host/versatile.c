@@ -19,7 +19,8 @@ typedef struct {
     qemu_irq irq[4];
     MemoryRegion mem_config;
     MemoryRegion mem_config2;
-    MemoryRegion isa;
+    MemoryRegion pci_io_space;
+    MemoryRegion pci_io_window;
     PCIBus pci_bus;
     PCIDevice pci_dev;
 
@@ -77,8 +78,10 @@ static void pci_vpb_init(Object *obj)
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     PCIVPBState *s = PCI_VPB(obj);
 
+    memory_region_init(&s->pci_io_space, "pci_io", 1ULL << 32);
+
     pci_bus_new_inplace(&s->pci_bus, DEVICE(obj), "pci",
-                        get_system_memory(), get_system_io(),
+                        get_system_memory(), &s->pci_io_space,
                         PCI_DEVFN(11, 0), TYPE_PCI_BUS);
     h->bus = &s->pci_bus;
 
@@ -111,8 +114,14 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, &s->pci_bus,
                           "pci-vpb-config", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config2);
-    isa_mmio_setup(&s->isa, 0x0100000);
-    sysbus_init_mmio(sbd, &s->isa);
+
+    /* The window into I/O space is always into a fixed base address;
+     * its size is the same for both realview and versatile.
+     */
+    memory_region_init_alias(&s->pci_io_window, "pci-vbp-io-window",
+                             &s->pci_io_space, 0, 0x100000);
+
+    sysbus_init_mmio(sbd, &s->pci_io_space);
 
     /* TODO Remove once realize propagates to child devices. */
     object_property_set_bool(OBJECT(&s->pci_dev), true, "realized", errp);
