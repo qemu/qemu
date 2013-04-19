@@ -68,6 +68,7 @@ static bool has_msr_tsc_deadline;
 static bool has_msr_async_pf_en;
 static bool has_msr_pv_eoi_en;
 static bool has_msr_misc_enable;
+static bool has_msr_kvm_steal_time;
 static int lm_capable_kernel;
 
 bool kvm_allows_irq0_override(void)
@@ -506,6 +507,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
     has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
 
     has_msr_pv_eoi_en = c->eax & (1 << KVM_FEATURE_PV_EOI);
+
+    has_msr_kvm_steal_time = c->eax & (1 << KVM_FEATURE_STEAL_TIME);
 
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
 
@@ -1107,6 +1110,10 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++], MSR_KVM_PV_EOI_EN,
                               env->pv_eoi_en_msr);
         }
+        if (has_msr_kvm_steal_time) {
+            kvm_msr_entry_set(&msrs[n++], MSR_KVM_STEAL_TIME,
+                              env->steal_time_msr);
+        }
         if (hyperv_hypercall_available()) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_GUEST_OS_ID, 0);
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_HYPERCALL, 0);
@@ -1360,6 +1367,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_pv_eoi_en) {
         msrs[n++].index = MSR_KVM_PV_EOI_EN;
     }
+    if (has_msr_kvm_steal_time) {
+        msrs[n++].index = MSR_KVM_STEAL_TIME;
+    }
 
     if (env->mcg_cap) {
         msrs[n++].index = MSR_MCG_STATUS;
@@ -1444,6 +1454,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_KVM_PV_EOI_EN:
             env->pv_eoi_en_msr = msrs[i].data;
+            break;
+        case MSR_KVM_STEAL_TIME:
+            env->steal_time_msr = msrs[i].data;
             break;
         }
     }

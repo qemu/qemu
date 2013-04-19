@@ -292,6 +292,24 @@ static bool pv_eoi_msr_needed(void *opaque)
     return cpu->env.pv_eoi_en_msr != 0;
 }
 
+static bool steal_time_msr_needed(void *opaque)
+{
+    CPUX86State *cpu = opaque;
+
+    return cpu->steal_time_msr != 0;
+}
+
+static const VMStateDescription vmstate_steal_time_msr = {
+    .name = "cpu/steal_time_msr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(steal_time_msr, CPUX86State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_async_pf_msr = {
     .name = "cpu/async_pf_msr",
     .version_id = 1,
@@ -502,6 +520,9 @@ const VMStateDescription vmstate_x86_cpu = {
         } , {
             .vmsd = &vmstate_pv_eoi_msr,
             .needed = pv_eoi_msr_needed,
+        } , {
+            .vmsd = &vmstate_steal_time_msr,
+            .needed = steal_time_msr_needed,
         } , {
             .vmsd = &vmstate_fpop_ip_dp,
             .needed = fpop_ip_dp_needed,
