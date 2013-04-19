@@ -687,6 +687,28 @@ static void virtio_ccw_scsi_instance_init(Object *obj)
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
+#ifdef CONFIG_VHOST_SCSI
+static int vhost_ccw_scsi_init(VirtioCcwDevice *ccw_dev)
+{
+    VHostSCSICcw *dev = VHOST_SCSI_CCW(ccw_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+
+    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
+    if (qdev_init(vdev) < 0) {
+        return -1;
+    }
+
+    return virtio_ccw_device_init(ccw_dev, VIRTIO_DEVICE(vdev));
+}
+
+static void vhost_ccw_scsi_instance_init(Object *obj)
+{
+    VHostSCSICcw *dev = VHOST_SCSI_CCW(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VHOST_SCSI);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+}
+#endif
+
 static int virtio_ccw_rng_init(VirtioCcwDevice *dev)
 {
     VirtIODevice *vdev;
@@ -897,6 +919,34 @@ static const TypeInfo virtio_ccw_scsi = {
     .class_init    = virtio_ccw_scsi_class_init,
 };
 
+#ifdef CONFIG_VHOST_SCSI
+static Property vhost_ccw_scsi_properties[] = {
+    DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
+    DEFINE_VHOST_SCSI_PROPERTIES(VirtIOSCSICcw, vdev.parent_obj.conf),
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void vhost_ccw_scsi_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
+
+    k->init = vhost_ccw_scsi_init;
+    k->exit = virtio_ccw_exit;
+    dc->reset = virtio_ccw_reset;
+    dc->props = vhost_ccw_scsi_properties;
+}
+
+static const TypeInfo vhost_ccw_scsi = {
+    .name          = TYPE_VHOST_SCSI_CCW,
+    .parent        = TYPE_VIRTIO_CCW_DEVICE,
+    .instance_size = sizeof(VirtIOSCSICcw),
+    .instance_init = vhost_ccw_scsi_instance_init,
+    .class_init    = vhost_ccw_scsi_class_init,
+};
+#endif
+
 static void virtio_ccw_rng_initfn(Object *obj)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(obj);
@@ -1054,6 +1104,7 @@ static void virtio_ccw_register(void)
     type_register_static(&virtio_ccw_net);
     type_register_static(&virtio_ccw_balloon);
     type_register_static(&virtio_ccw_scsi);
+    type_register_static(&vhost_ccw_scsi);
     type_register_static(&virtio_ccw_rng);
     type_register_static(&virtual_css_bridge_info);
 }

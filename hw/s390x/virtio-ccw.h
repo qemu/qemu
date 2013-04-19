@@ -16,6 +16,9 @@
 #include <hw/virtio/virtio-net.h>
 #include <hw/virtio/virtio-serial.h>
 #include <hw/virtio/virtio-scsi.h>
+#ifdef CONFIG_VHOST_SCSI
+#include <hw/virtio/vhost-scsi.h>
+#endif
 #include <hw/virtio/virtio-balloon.h>
 #include <hw/virtio/virtio-rng.h>
 #include <hw/virtio/virtio-bus.h>
@@ -100,6 +103,17 @@ typedef struct VirtIOSCSICcw {
     VirtioCcwDevice parent_obj;
     VirtIOSCSI vdev;
 } VirtIOSCSICcw;
+
+/* vhost-scsi-ccw */
+
+#define TYPE_VHOST_SCSI_CCW "vhost-scsi-ccw"
+#define VHOST_SCSI_CCW(obj) \
+        OBJECT_CHECK(VHostSCSICcw, (obj), TYPE_VHOST_SCSI_CCW)
+
+typedef struct VHostSCSICcw {
+    VirtioCcwDevice parent_obj;
+    VHostSCSI vdev;
+} VHostSCSICcw;
 
 /* virtio-blk-ccw */
 
