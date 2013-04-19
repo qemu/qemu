@@ -21,6 +21,14 @@ typedef struct {
     MemoryRegion isa;
 } PCIVPBState;
 
+#define TYPE_VERSATILE_PCI "versatile_pci"
+#define PCI_VPB(obj) \
+    OBJECT_CHECK(PCIVPBState, (obj), TYPE_VERSATILE_PCI)
+
+#define TYPE_VERSATILE_PCI_HOST "versatile_pci_host"
+#define PCI_VPB_HOST(obj) \
+    OBJECT_CHECK(PCIDevice, (obj), TYPE_VERSATILE_PCIHOST)
+
 static inline uint32_t vpb_pci_config_addr(hwaddr addr)
 {
     return addr & 0xffffff;
@@ -58,16 +66,17 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-static int pci_vpb_init(SysBusDevice *dev)
+static void pci_vpb_realize(DeviceState *dev, Error **errp)
 {
-    PCIVPBState *s = FROM_SYSBUS(PCIVPBState, dev);
+    PCIVPBState *s = PCI_VPB(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     PCIBus *bus;
     int i;
 
     for (i = 0; i < 4; i++) {
-        sysbus_init_irq(dev, &s->irq[i]);
+        sysbus_init_irq(sbd, &s->irq[i]);
     }
-    bus = pci_register_bus(&dev->qdev, "pci",
+    bus = pci_register_bus(dev, "pci",
                            pci_vpb_set_irq, pci_vpb_map_irq, s->irq,
                            get_system_memory(), get_system_io(),
                            PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
@@ -81,22 +90,14 @@ static int pci_vpb_init(SysBusDevice *dev)
      */
     memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, bus,
                           "pci-vpb-selfconfig", 0x1000000);
-    sysbus_init_mmio(dev, &s->mem_config);
+    sysbus_init_mmio(sbd, &s->mem_config);
     memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, bus,
                           "pci-vpb-config", 0x1000000);
-    sysbus_init_mmio(dev, &s->mem_config2);
+    sysbus_init_mmio(sbd, &s->mem_config2);
     isa_mmio_setup(&s->isa, 0x0100000);
-    sysbus_init_mmio(dev, &s->isa);
+    sysbus_init_mmio(sbd, &s->isa);
 
     pci_create_simple(bus, -1, "versatile_pci_host");
-    return 0;
-}
-
-static int pci_realview_init(SysBusDevice *dev)
-{
-    PCIVPBState *s = FROM_SYSBUS(PCIVPBState, dev);
-    s->realview = 1;
-    return pci_vpb_init(dev);
 }
 
 static int versatile_pci_host_init(PCIDevice *d)
@@ -118,7 +119,7 @@ static void versatile_pci_host_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo versatile_pci_host_info = {
-    .name          = "versatile_pci_host",
+    .name          = TYPE_VERSATILE_PCI_HOST,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = versatile_pci_host_class_init,
@@ -126,30 +127,29 @@ static const TypeInfo versatile_pci_host_info = {
 
 static void pci_vpb_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    sdc->init = pci_vpb_init;
+    dc->realize = pci_vpb_realize;
 }
 
 static const TypeInfo pci_vpb_info = {
-    .name          = "versatile_pci",
+    .name          = TYPE_VERSATILE_PCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PCIVPBState),
     .class_init    = pci_vpb_class_init,
 };
 
-static void pci_realview_class_init(ObjectClass *klass, void *data)
+static void pci_realview_init(Object *obj)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    PCIVPBState *s = PCI_VPB(obj);
 
-    sdc->init = pci_realview_init;
+    s->realview = 1;
 }
 
 static const TypeInfo pci_realview_info = {
     .name          = "realview_pci",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PCIVPBState),
-    .class_init    = pci_realview_class_init,
+    .parent        = TYPE_VERSATILE_PCI,
+    .instance_init = pci_realview_init,
 };
 
 static void versatile_pci_register_types(void)
