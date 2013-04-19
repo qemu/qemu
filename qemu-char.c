@@ -781,12 +781,16 @@ static gboolean fd_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
         len = s->max_size;
     }
     if (len == 0) {
-        return FALSE;
+        return TRUE;
     }
 
     status = g_io_channel_read_chars(chan, (gchar *)buf,
                                      len, &bytes_read, NULL);
     if (status == G_IO_STATUS_EOF) {
+        if (s->fd_in_tag) {
+            g_source_remove(s->fd_in_tag);
+            s->fd_in_tag = 0;
+        }
         qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
         return FALSE;
     }
@@ -1105,8 +1109,9 @@ static gboolean pty_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     len = sizeof(buf);
     if (len > s->read_bytes)
         len = s->read_bytes;
-    if (len == 0)
-        return FALSE;
+    if (len == 0) {
+        return TRUE;
+    }
     status = g_io_channel_read_chars(s->fd, (gchar *)buf, len, &size, NULL);
     if (status != G_IO_STATUS_NORMAL) {
         pty_chr_state(chr, 0);
@@ -2238,13 +2243,18 @@ static gboolean udp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     gsize bytes_read = 0;
     GIOStatus status;
 
-    if (s->max_size == 0)
-        return FALSE;
+    if (s->max_size == 0) {
+        return TRUE;
+    }
     status = g_io_channel_read_chars(s->chan, (gchar *)s->buf, sizeof(s->buf),
                                      &bytes_read, NULL);
     s->bufcnt = bytes_read;
     s->bufptr = s->bufcnt;
     if (status != G_IO_STATUS_NORMAL) {
+        if (s->tag) {
+            g_source_remove(s->tag);
+            s->tag = 0;
+        }
         return FALSE;
     }
 
@@ -2497,7 +2507,7 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     int len, size;
 
     if (!s->connected || s->max_size <= 0) {
-        return FALSE;
+        return TRUE;
     }
     len = sizeof(buf);
     if (len > s->max_size)
