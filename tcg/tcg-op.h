@@ -2188,9 +2188,9 @@ static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
 
 #if TCG_TARGET_REG_BITS == 32
     if (ofs >= 32) {
-        tcg_gen_mov_i32(TCGV_LOW(ret), TCGV_LOW(arg1));
         tcg_gen_deposit_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1),
                             TCGV_LOW(arg2), ofs - 32, len);
+        tcg_gen_mov_i32(TCGV_LOW(ret), TCGV_LOW(arg1));
         return;
     }
     if (ofs + len <= 32) {
