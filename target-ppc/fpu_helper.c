@@ -596,37 +596,6 @@ uint64_t helper_fdiv(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
     return farg1.ll;
 }
 
-/* fabs */
-uint64_t helper_fabs(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
-
-    farg.ll = arg;
-    farg.d = float64_abs(farg.d);
-    return farg.ll;
-}
-
-/* fnabs */
-uint64_t helper_fnabs(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
-
-    farg.ll = arg;
-    farg.d = float64_abs(farg.d);
-    farg.d = float64_chs(farg.d);
-    return farg.ll;
-}
-
-/* fneg */
-uint64_t helper_fneg(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
-
-    farg.ll = arg;
-    farg.d = float64_chs(farg.d);
-    return farg.ll;
-}
-
 /* fctiw - fctiw. */
 uint64_t helper_fctiw(CPUPPCState *env, uint64_t arg)
 {

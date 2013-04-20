@@ -2170,7 +2170,16 @@ static void gen_fcmpu(DisasContext *ctx)
 /***                         Floating-point move                           ***/
 /* fabs */
 /* XXX: beware that fabs never checks for NaNs nor update FPSCR */
-GEN_FLOAT_B(abs, 0x08, 0x08, 0, PPC_FLOAT);
+static void gen_fabs(DisasContext *ctx)
+{
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    tcg_gen_andi_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)],
+                     ~(1ULL << 63));
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
+}
 
 /* fmr  - fmr. */
 /* XXX: beware that fmr never checks for NaNs nor update FPSCR */
@@ -2186,10 +2195,29 @@ static void gen_fmr(DisasContext *ctx)
 
 /* fnabs */
 /* XXX: beware that fnabs never checks for NaNs nor update FPSCR */
-GEN_FLOAT_B(nabs, 0x08, 0x04, 0, PPC_FLOAT);
+static void gen_fnabs(DisasContext *ctx)
+{
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    tcg_gen_ori_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)],
+                    1ULL << 63);
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
+}
+
 /* fneg */
 /* XXX: beware that fneg never checks for NaNs nor update FPSCR */
-GEN_FLOAT_B(neg, 0x08, 0x01, 0, PPC_FLOAT);
+static void gen_fneg(DisasContext *ctx)
+{
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    tcg_gen_xori_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)],
+                     1ULL << 63);
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
+}
 
 /***                  Floating-Point status & ctrl register                ***/
 
@@ -8485,7 +8513,10 @@ GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT),
 GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT),
 GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT),
 GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT),
+GEN_HANDLER(fabs, 0x3F, 0x08, 0x08, 0x001F0000, PPC_FLOAT),
 GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT),
+GEN_HANDLER(fnabs, 0x3F, 0x08, 0x04, 0x001F0000, PPC_FLOAT),
+GEN_HANDLER(fneg, 0x3F, 0x08, 0x01, 0x001F0000, PPC_FLOAT),
 GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT),
 GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT),
 GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT),
@@ -8842,9 +8873,6 @@ GEN_FLOAT_B(rin, 0x08, 0x0C, 1, PPC_FLOAT_EXT),
 GEN_FLOAT_B(riz, 0x08, 0x0D, 1, PPC_FLOAT_EXT),
 GEN_FLOAT_B(rip, 0x08, 0x0E, 1, PPC_FLOAT_EXT),
 GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT),
-GEN_FLOAT_B(abs, 0x08, 0x08, 0, PPC_FLOAT),
-GEN_FLOAT_B(nabs, 0x08, 0x04, 0, PPC_FLOAT),
-GEN_FLOAT_B(neg, 0x08, 0x01, 0, PPC_FLOAT),
 
 #undef GEN_LD
 #undef GEN_LDU
