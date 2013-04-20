@@ -28,7 +28,6 @@
 #include "ui/console.h"
 #include "hw/devices.h"
 #include "hw/sysbus.h"
-#include "hw/qdev-addr.h"
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
 

@@ -27,7 +27,6 @@
 #include "trace.h"
 #include "net/net.h"
 #include "qemu/error-report.h"
-#include "hw/qdev-addr.h"
 
 #include <zlib.h>
 

@@ -26,7 +26,6 @@
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "hw/sysbus.h"
-#include "hw/qdev-addr.h"
 
 #define MAXX 1024
 #define MAXY 768

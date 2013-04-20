@@ -26,7 +26,6 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "qemu/log.h"
-#include "hw/qdev-addr.h"
 #include "qapi/qmp/qerror.h"
 
 #include "hw/stream.h"
