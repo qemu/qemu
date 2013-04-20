@@ -914,7 +914,7 @@ static inline abi_long copy_to_user_fdset(abi_ulong target_fds_addr,
     for (i = 0; i < nw; i++) {
         v = 0;
         for (j = 0; j < TARGET_ABI_BITS; j++) {
-            v |= ((FD_ISSET(k, fds) != 0) << j);
+            v |= ((abi_ulong)(FD_ISSET(k, fds) != 0) << j);
             k++;
         }
         __put_user(v, &target_fds[i]);
@@ -7743,12 +7743,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (gidsetsize == 0)
                 break;
             if (!is_error(ret)) {
-                target_grouplist = lock_user(VERIFY_WRITE, arg2, gidsetsize * 2, 0);
+                target_grouplist = lock_user(VERIFY_WRITE, arg2, gidsetsize * sizeof(target_id), 0);
                 if (!target_grouplist)
                     goto efault;
                 for(i = 0;i < ret; i++)
                     target_grouplist[i] = tswapid(high2lowgid(grouplist[i]));
-                unlock_user(target_grouplist, arg2, gidsetsize * 2);
+                unlock_user(target_grouplist, arg2, gidsetsize * sizeof(target_id));
             }
         }
         break;
@@ -7760,7 +7760,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             int i;
             if (gidsetsize) {
                 grouplist = alloca(gidsetsize * sizeof(gid_t));
-                target_grouplist = lock_user(VERIFY_READ, arg2, gidsetsize * 2, 1);
+                target_grouplist = lock_user(VERIFY_READ, arg2, gidsetsize * sizeof(target_id), 1);
                 if (!target_grouplist) {
                     ret = -TARGET_EFAULT;
                     goto fail;
