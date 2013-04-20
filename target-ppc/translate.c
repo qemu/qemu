@@ -739,6 +739,13 @@ static void gen_isel(DisasContext *ctx)
     tcg_temp_free_i32(t0);
 }
 
+/* cmpb: PowerPC 2.05 specification */
+static void gen_cmpb(DisasContext *ctx)
+{
+    gen_helper_cmpb(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)],
+                    cpu_gpr[rB(ctx->opcode)]);
+}
+
 /***                           Integer arithmetic                          ***/
 
 static inline void gen_op_arith_compute_ov(DisasContext *ctx, TCGv arg0,
@@ -8463,6 +8470,7 @@ GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpl, 0x1F, 0x00, 0x01, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
+GEN_HANDLER_E(cmpb, 0x1F, 0x1C, 0x0F, 0x00000001, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
 GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),

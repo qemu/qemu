@@ -53,6 +53,21 @@ target_ulong helper_cntlzd(target_ulong t)
 }
 #endif
 
+target_ulong helper_cmpb(target_ulong rs, target_ulong rb)
+{
+    target_ulong mask = 0xff;
+    target_ulong ra = 0;
+    int i;
+
+    for (i = 0; i < sizeof(target_ulong); i++) {
+        if ((rs & mask) == (rb & mask)) {
+            ra |= mask;
+        }
+        mask <<= 8;
+    }
+    return ra;
+}
+
 /* shift right arithmetic helper */
 target_ulong helper_sraw(CPUPPCState *env, target_ulong value,
                          target_ulong shift)
