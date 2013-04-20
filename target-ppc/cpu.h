@@ -1870,8 +1870,10 @@ enum {
     PPC2_PRCNTL        = 0x0000000000000008ULL,
     /* Byte-reversed, indexed, double-word load and store                    */
     PPC2_DBRX          = 0x0000000000000010ULL,
+    /* Book I 2.05 PowerPC specification                                     */
+    PPC2_ISA205        = 0x0000000000000020ULL,
 
-#define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_DBRX)
+#define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_DBRX | PPC2_ISA205)
 };
 
 /*****************************************************************************/
