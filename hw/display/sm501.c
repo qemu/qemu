@@ -1434,7 +1434,7 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
     /* bridge to usb host emulation module */
     dev = qdev_create(NULL, "sysbus-ohci");
     qdev_prop_set_uint32(dev, "num-ports", 2);
-    qdev_prop_set_taddr(dev, "dma-offset", base);
+    qdev_prop_set_uint64(dev, "dma-offset", base);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
                     base + MMIO_BASE_OFFSET + SM501_USB_HOST);
