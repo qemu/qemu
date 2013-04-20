@@ -3300,6 +3300,26 @@ GEN_LDFS(lfd, ld64, 0x12, PPC_FLOAT);
  /* lfs lfsu lfsux lfsx */
 GEN_LDFS(lfs, ld32fs, 0x10, PPC_FLOAT);
 
+/* lfiwax */
+static void gen_lfiwax(DisasContext *ctx)
+{
+    TCGv EA;
+    TCGv t0;
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_FLOAT);
+    EA = tcg_temp_new();
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    gen_qemu_ld32u(ctx, t0, EA);
+    tcg_gen_ext_tl_i64(cpu_fpr[rD(ctx->opcode)], t0);
+    tcg_gen_ext32s_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);
+    tcg_temp_free(EA);
+    tcg_temp_free(t0);
+}
+
 /***                         Floating-point store                          ***/
 #define GEN_STF(name, stop, opc, type)                                        \
 static void glue(gen_, name)(DisasContext *ctx)                                       \
@@ -9014,6 +9034,7 @@ GEN_LDXF(name, ldop, 0x17, op | 0x00, type)
 
 GEN_LDFS(lfd, ld64, 0x12, PPC_FLOAT)
 GEN_LDFS(lfs, ld32fs, 0x10, PPC_FLOAT)
+GEN_HANDLER_E(lfiwax, 0x1f, 0x17, 0x1a, 0x00000001, PPC_NONE, PPC2_ISA205),
 
 #undef GEN_STF
 #undef GEN_STUF
