@@ -202,6 +202,8 @@ typedef struct DisasContext {
     int spe_enabled;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
+    uint64_t insns_flags;
+    uint64_t insns_flags2;
 } DisasContext;
 
 /* True when active word size < size of target_long.  */
@@ -423,9 +425,14 @@ EXTRACT_HELPER(ME, 1, 5);
 EXTRACT_HELPER(TO, 21, 5);
 
 EXTRACT_HELPER(CRM, 12, 8);
-EXTRACT_HELPER(FM, 17, 8);
 EXTRACT_HELPER(SR, 16, 4);
+
+/* mtfsf/mtfsfi */
+EXTRACT_HELPER(FPBF, 19, 3);
 EXTRACT_HELPER(FPIMM, 12, 4);
+EXTRACT_HELPER(FPL, 21, 1);
+EXTRACT_HELPER(FPFLM, 17, 8);
+EXTRACT_HELPER(FPW, 16, 1);
 
 /***                            Jump target decoding                       ***/
 /* Displacement */
@@ -2360,19 +2367,27 @@ static void gen_mtfsb1(DisasContext *ctx)
 static void gen_mtfsf(DisasContext *ctx)
 {
     TCGv_i32 t0;
-    int L = ctx->opcode & 0x02000000;
+    int flm, l, w;
 
     if (unlikely(!ctx->fpu_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
+    flm = FPFLM(ctx->opcode);
+    l = FPL(ctx->opcode);
+    w = FPW(ctx->opcode);
+    if (unlikely(w & !(ctx->insns_flags2 & PPC2_ISA205))) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        return;
+    }
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
-    if (L)
-        t0 = tcg_const_i32(0xff);
-    else
-        t0 = tcg_const_i32(FM(ctx->opcode));
+    if (l) {
+        t0 = tcg_const_i32((ctx->insns_flags2 & PPC2_ISA205) ? 0xffff : 0xff);
+    } else {
+        t0 = tcg_const_i32(flm << (w * 8));
+    }
     gen_helper_store_fpscr(cpu_env, cpu_fpr[rB(ctx->opcode)], t0);
     tcg_temp_free_i32(t0);
     if (unlikely(Rc(ctx->opcode) != 0)) {
@@ -2386,7 +2401,7 @@ static void gen_mtfsf(DisasContext *ctx)
 /* mtfsfi */
 static void gen_mtfsfi(DisasContext *ctx)
 {
-    int bf, sh;
+    int bf, sh, w;
     TCGv_i64 t0;
     TCGv_i32 t1;
 
@@ -2394,12 +2409,17 @@ static void gen_mtfsfi(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    bf = crbD(ctx->opcode) >> 2;
-    sh = 7 - bf;
+    w = FPW(ctx->opcode);
+    bf = FPBF(ctx->opcode);
+    if (unlikely(w & !(ctx->insns_flags2 & PPC2_ISA205))) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        return;
+    }
+    sh = (8 * w) + 7 - bf;
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
-    t0 = tcg_const_i64(FPIMM(ctx->opcode) << (4 * sh));
+    t0 = tcg_const_i64(((uint64_t)FPIMM(ctx->opcode)) << (4 * sh));
     t1 = tcg_const_i32(1 << sh);
     gen_helper_store_fpscr(cpu_env, t0, t1);
     tcg_temp_free_i64(t0);
@@ -8689,8 +8709,8 @@ GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT),
 GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT),
 GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT),
 GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT),
-GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x00010000, PPC_FLOAT),
-GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT),
+GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x00000000, PPC_FLOAT),
+GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006e0800, PPC_FLOAT),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B),
 GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX),
@@ -9728,6 +9748,8 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
     ctx.exception = POWERPC_EXCP_NONE;
     ctx.spr_cb = env->spr_cb;
     ctx.mem_idx = env->mmu_idx;
+    ctx.insns_flags = env->insns_flags;
+    ctx.insns_flags2 = env->insns_flags2;
     ctx.access_type = -1;
     ctx.le_mode = env->hflags & (1 << MSR_LE) ? 1 : 0;
 #if defined(TARGET_PPC64)

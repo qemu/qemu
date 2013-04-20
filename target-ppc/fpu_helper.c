@@ -430,20 +430,17 @@ void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
 
 void helper_store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
 {
-    /*
-     * We use only the 32 LSB of the incoming fpr
-     */
-    uint32_t prev, new;
+    target_ulong prev, new;
     int i;
 
     prev = env->fpscr;
-    new = (uint32_t)arg;
-    new &= ~0x60000000;
-    new |= prev & 0x60000000;
-    for (i = 0; i < 8; i++) {
+    new = (target_ulong)arg;
+    new &= ~0x60000000LL;
+    new |= prev & 0x60000000LL;
+    for (i = 0; i < sizeof(target_ulong) * 2; i++) {
         if (mask & (1 << i)) {
-            env->fpscr &= ~(0xF << (4 * i));
-            env->fpscr |= new & (0xF << (4 * i));
+            env->fpscr &= ~(0xFLL << (4 * i));
+            env->fpscr |= new & (0xFLL << (4 * i));
         }
     }
     /* Update VX and FEX */
