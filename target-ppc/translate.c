@@ -3459,6 +3459,52 @@ GEN_STFS(stfd, st64, 0x16, PPC_FLOAT);
 /* stfs stfsu stfsux stfsx */
 GEN_STFS(stfs, st32fs, 0x14, PPC_FLOAT);
 
+/* stfdp */
+static void gen_stfdp(DisasContext *ctx)
+{
+    TCGv EA;
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_FLOAT);
+    EA = tcg_temp_new();
+    gen_addr_imm_index(ctx, EA, 0);                                           \
+    if (unlikely(ctx->le_mode)) {
+        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
+        tcg_gen_addi_tl(EA, EA, 8);
+        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
+    } else {
+        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
+        tcg_gen_addi_tl(EA, EA, 8);
+        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
+    }
+    tcg_temp_free(EA);
+}
+
+/* stfdpx */
+static void gen_stfdpx(DisasContext *ctx)
+{
+    TCGv EA;
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_FLOAT);
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    if (unlikely(ctx->le_mode)) {
+        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
+        tcg_gen_addi_tl(EA, EA, 8);
+        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
+    } else {
+        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode)], EA);
+        tcg_gen_addi_tl(EA, EA, 8);
+        gen_qemu_st64(ctx, cpu_fpr[rD(ctx->opcode) + 1], EA);
+    }
+    tcg_temp_free(EA);
+}
+
 /* Optional: */
 static inline void gen_qemu_st32fiw(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
 {
@@ -9106,6 +9152,8 @@ GEN_STXF(name, stop, 0x17, op | 0x00, type)
 GEN_STFS(stfd, st64, 0x16, PPC_FLOAT)
 GEN_STFS(stfs, st32fs, 0x14, PPC_FLOAT)
 GEN_STXF(stfiw, st32fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX)
+GEN_HANDLER_E(stfdp, 0x3D, 0xFF, 0xFF, 0x00200003, PPC_NONE, PPC2_ISA205),
+GEN_HANDLER_E(stfdpx, 0x1F, 0x17, 0x1C, 0x00200001, PPC_NONE, PPC2_ISA205),
 
 #undef GEN_CRLOGIC
 #define GEN_CRLOGIC(name, tcg_op, opc)                                        \
