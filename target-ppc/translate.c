@@ -1467,6 +1467,38 @@ static void gen_popcntd(DisasContext *ctx)
 }
 #endif
 
+/* prtyw: PowerPC 2.05 specification */
+static void gen_prtyw(DisasContext *ctx)
+{
+    TCGv ra = cpu_gpr[rA(ctx->opcode)];
+    TCGv rs = cpu_gpr[rS(ctx->opcode)];
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_shri_tl(t0, rs, 16);
+    tcg_gen_xor_tl(ra, rs, t0);
+    tcg_gen_shri_tl(t0, ra, 8);
+    tcg_gen_xor_tl(ra, ra, t0);
+    tcg_gen_andi_tl(ra, ra, (target_ulong)0x100000001ULL);
+    tcg_temp_free(t0);
+}
+
+#if defined(TARGET_PPC64)
+/* prtyd: PowerPC 2.05 specification */
+static void gen_prtyd(DisasContext *ctx)
+{
+    TCGv ra = cpu_gpr[rA(ctx->opcode)];
+    TCGv rs = cpu_gpr[rS(ctx->opcode)];
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_shri_tl(t0, rs, 32);
+    tcg_gen_xor_tl(ra, rs, t0);
+    tcg_gen_shri_tl(t0, ra, 16);
+    tcg_gen_xor_tl(ra, ra, t0);
+    tcg_gen_shri_tl(t0, ra, 8);
+    tcg_gen_xor_tl(ra, ra, t0);
+    tcg_gen_andi_tl(ra, ra, 1);
+    tcg_temp_free(t0);
+}
+#endif
+
 #if defined(TARGET_PPC64)
 /* extsw & extsw. */
 GEN_LOGICAL1(extsw, tcg_gen_ext32s_tl, 0x1E, PPC_64B);
@@ -8498,9 +8530,11 @@ GEN_HANDLER(xori, 0x1A, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(xoris, 0x1B, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(popcntb, 0x1F, 0x03, 0x03, 0x0000F801, PPC_POPCNTB),
 GEN_HANDLER(popcntw, 0x1F, 0x1A, 0x0b, 0x0000F801, PPC_POPCNTWD),
+GEN_HANDLER_E(prtyw, 0x1F, 0x1A, 0x04, 0x0000F801, PPC_NONE, PPC2_ISA205),
 #if defined(TARGET_PPC64)
 GEN_HANDLER(popcntd, 0x1F, 0x1A, 0x0F, 0x0000F801, PPC_POPCNTWD),
 GEN_HANDLER(cntlzd, 0x1F, 0x1A, 0x01, 0x00000000, PPC_64B),
+GEN_HANDLER_E(prtyd, 0x1F, 0x1A, 0x05, 0x0000F801, PPC_NONE, PPC2_ISA205),
 #endif
 GEN_HANDLER(rlwimi, 0x14, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(rlwinm, 0x15, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
