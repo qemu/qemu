@@ -429,3 +429,46 @@ int socket_init(void)
 #endif
     return 0;
 }
+
+#ifndef CONFIG_IOVEC
+/* helper function for iov_send_recv() */
+static ssize_t
+readv_writev(int fd, const struct iovec *iov, int iov_cnt, bool do_write)
+{
+    unsigned i = 0;
+    ssize_t ret = 0;
+    while (i < iov_cnt) {
+        ssize_t r = do_write
+            ? write(fd, iov[i].iov_base, iov[i].iov_len)
+            : read(fd, iov[i].iov_base, iov[i].iov_len);
+        if (r > 0) {
+            ret += r;
+        } else if (!r) {
+            break;
+        } else if (errno == EINTR) {
+            continue;
+        } else {
+            /* else it is some "other" error,
+             * only return if there was no data processed. */
+            if (ret == 0) {
+                ret = -1;
+            }
+            break;
+        }
+        i++;
+    }
+    return ret;
+}
+
+ssize_t
+readv(int fd, const struct iovec *iov, int iov_cnt)
+{
+    return readv_writev(fd, iov, iov_cnt, false);
+}
+
+ssize_t
+writev(int fd, const struct iovec *iov, int iov_cnt)
+{
+    return readv_writev(fd, iov, iov_cnt, true);
+}
+#endif

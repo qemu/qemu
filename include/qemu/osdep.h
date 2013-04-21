@@ -1,6 +1,7 @@
 #ifndef QEMU_OSDEP_H
 #define QEMU_OSDEP_H
 
+#include "config-host.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -160,6 +161,22 @@ int qemu_close(int fd);
 
 int qemu_create_pidfile(const char *filename);
 int qemu_get_thread_id(void);
+
+#ifndef CONFIG_IOVEC
+struct iovec {
+    void *iov_base;
+    size_t iov_len;
+};
+/*
+ * Use the same value as Linux for now.
+ */
+#define IOV_MAX 1024
+
+ssize_t readv(int fd, const struct iovec *iov, int iov_cnt);
+ssize_t writev(int fd, const struct iovec *iov, int iov_cnt);
+#else
+#include <sys/uio.h>
+#endif
 
 #ifdef _WIN32
 static inline void qemu_timersub(const struct timeval *val1,
