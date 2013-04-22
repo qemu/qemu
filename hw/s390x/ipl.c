@@ -82,16 +82,20 @@ static int s390_ipl_init(SysBusDevice *dev)
         }
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        bios_size = load_image_targphys(bios_filename, ZIPL_IMAGE_START, 4096);
-        ipl->start_addr = ZIPL_IMAGE_START;
+        bios_size = load_elf(bios_filename, NULL, NULL, &ipl->start_addr, NULL,
+                             NULL, 1, ELF_MACHINE, 0);
+        if (bios_size == -1UL) {
+            bios_size = load_image_targphys(bios_filename, ZIPL_IMAGE_START,
+                                            4096);
+            ipl->start_addr = ZIPL_IMAGE_START;
+            if (bios_size > 4096) {
+                hw_error("stage1 bootloader is > 4k\n");
+            }
+        }
         g_free(bios_filename);
 
         if ((long)bios_size < 0) {
             hw_error("could not load bootloader '%s'\n", bios_name);
-        }
-
-        if (bios_size > 4096) {
-            hw_error("stage1 bootloader is > 4k\n");
         }
         return 0;
     } else {
