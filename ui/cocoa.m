@@ -960,6 +960,8 @@ int main (int argc, const char * argv[]) {
 static void cocoa_update(DisplayChangeListener *dcl,
                          int x, int y, int w, int h)
 {
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+
     COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
 
     NSRect rect;
@@ -973,18 +975,24 @@ static void cocoa_update(DisplayChangeListener *dcl,
             h * [cocoaView cdy]);
     }
     [cocoaView setNeedsDisplayInRect:rect];
+
+    [pool release];
 }
 
 static void cocoa_switch(DisplayChangeListener *dcl,
                          DisplaySurface *surface)
 {
-    COCOA_DEBUG("qemu_cocoa: cocoa_resize\n");
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
+    COCOA_DEBUG("qemu_cocoa: cocoa_switch\n");
     [cocoaView switchSurface:surface];
+    [pool release];
 }
 
 static void cocoa_refresh(DisplayChangeListener *dcl)
 {
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
 
     if (kbd_mouse_is_absolute()) {
@@ -1007,6 +1015,7 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
         }
     } while(event != nil);
     graphic_hw_update(NULL);
+    [pool release];
 }
 
 static void cocoa_cleanup(void)
