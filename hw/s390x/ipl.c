@@ -23,7 +23,6 @@
 #define INITRD_PARM_START               0x010408UL
 #define INITRD_PARM_SIZE                0x010410UL
 #define PARMFILE_START                  0x001000UL
-#define ZIPL_FILENAME                   "s390-zipl.rom"
 #define ZIPL_IMAGE_START                0x009000UL
 #define IPL_PSW_MASK                    (PSW_MASK_32 | PSW_MASK_64)
 
@@ -54,6 +53,7 @@ typedef struct S390IPLState {
     char *kernel;
     char *initrd;
     char *cmdline;
+    char *firmware;
 } S390IPLState;
 
 
@@ -78,7 +78,7 @@ static int s390_ipl_init(SysBusDevice *dev)
 
         /* Load zipl bootloader */
         if (bios_name == NULL) {
-            bios_name = ZIPL_FILENAME;
+            bios_name = ipl->firmware;
         }
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
@@ -144,6 +144,7 @@ static Property s390_ipl_properties[] = {
     DEFINE_PROP_STRING("kernel", S390IPLState, kernel),
     DEFINE_PROP_STRING("initrd", S390IPLState, initrd),
     DEFINE_PROP_STRING("cmdline", S390IPLState, cmdline),
+    DEFINE_PROP_STRING("firmware", S390IPLState, firmware),
     DEFINE_PROP_END_OF_LIST(),
 };
 

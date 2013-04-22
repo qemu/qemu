@@ -23,6 +23,7 @@ void s390_register_virtio_hypercall(uint64_t code, s390_virtio_fn fn);
 void s390_init_cpus(const char *cpu_model, uint8_t *storage_keys);
 void s390_init_ipl_dev(const char *kernel_filename,
                        const char *kernel_cmdline,
-                       const char *initrd_filename);
+                       const char *initrd_filename,
+                       const char *firmware);
 void s390_create_virtio_net(BusState *bus, const char *name);
 #endif
