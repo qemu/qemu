@@ -83,7 +83,7 @@ static void ccw_init(QEMUMachineInitArgs *args)
     css_bus = virtual_css_bus_init();
     s390_sclp_init();
     s390_init_ipl_dev(args->kernel_filename, args->kernel_cmdline,
-                      args->initrd_filename, "s390-zipl.rom");
+                      args->initrd_filename, "s390-ccw.img");
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();
