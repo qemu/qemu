@@ -295,6 +295,7 @@ qemu-icon.bmp \
 bamboo.dtb petalogix-s3adsp1800.dtb petalogix-ml605.dtb \
 multiboot.bin linuxboot.bin kvmvapic.bin \
 s390-zipl.rom \
+s390-ccw.img \
 spapr-rtas.bin slof.bin \
 palcode-clipper
 else
