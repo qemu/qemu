@@ -4,6 +4,7 @@
 #include "config-host.h"
 #include <inttypes.h>
 #include <limits.h>
+#include <string.h>
 #include "fpu/softfloat.h"
 
 #ifdef CONFIG_MACHINE_BSWAP_H

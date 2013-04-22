@@ -33,7 +33,6 @@
 #include "qemu/timer.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
-#include "hw/qdev-addr.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"

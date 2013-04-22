@@ -865,7 +865,7 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
         CONTEXT tcgContext;
 
         if (SuspendThread(cpu->hThread) == (DWORD)-1) {
-            fprintf(stderr, "qemu:%s: GetLastError:%d\n", __func__,
+            fprintf(stderr, "qemu:%s: GetLastError:%lu\n", __func__,
                     GetLastError());
             exit(1);
         }
@@ -881,7 +881,7 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
         cpu_signal(0);
 
         if (ResumeThread(cpu->hThread) == (DWORD)-1) {
-            fprintf(stderr, "qemu:%s: GetLastError:%d\n", __func__,
+            fprintf(stderr, "qemu:%s: GetLastError:%lu\n", __func__,
                     GetLastError());
             exit(1);
         }

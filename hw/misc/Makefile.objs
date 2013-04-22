@@ -4,6 +4,7 @@ common-obj-$(CONFIG_TMP105) += tmp105.o
 common-obj-$(CONFIG_ISA_DEBUG) += debugexit.o
 common-obj-$(CONFIG_SGA) += sga.o
 common-obj-$(CONFIG_ISA_TESTDEV) += pc-testdev.o
+common-obj-$(CONFIG_PCI_TESTDEV) += pci-testdev.o
 
 obj-$(CONFIG_VMPORT) += vmport.o
 

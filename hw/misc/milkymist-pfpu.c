@@ -228,8 +228,8 @@ static int pfpu_decode_insn(MilkymistPFPUState *s)
         hwaddr dma_ptr =
             get_dma_address(s->regs[R_MESHBASE],
                     s->gp_regs[GPR_X], s->gp_regs[GPR_Y]);
-        cpu_physical_memory_write(dma_ptr, (uint8_t *)&a, 4);
-        cpu_physical_memory_write(dma_ptr + 4, (uint8_t *)&b, 4);
+        cpu_physical_memory_write(dma_ptr, &a, 4);
+        cpu_physical_memory_write(dma_ptr + 4, &b, 4);
         s->regs[R_LASTDMA] = dma_ptr + 4;
         D_EXEC(qemu_log("VECTOUT a=%08x b=%08x dma=%08x\n", a, b, dma_ptr));
         trace_milkymist_pfpu_vectout(a, b, dma_ptr);

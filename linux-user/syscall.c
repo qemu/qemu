@@ -914,7 +914,7 @@ static inline abi_long copy_to_user_fdset(abi_ulong target_fds_addr,
     for (i = 0; i < nw; i++) {
         v = 0;
         for (j = 0; j < TARGET_ABI_BITS; j++) {
-            v |= ((FD_ISSET(k, fds) != 0) << j);
+            v |= ((abi_ulong)(FD_ISSET(k, fds) != 0) << j);
             k++;
         }
         __put_user(v, &target_fds[i]);
@@ -2764,7 +2764,7 @@ static inline abi_long do_semop(int semid, abi_long ptr, unsigned nsops)
     if (target_to_host_sembuf(sops, ptr, nsops))
         return -TARGET_EFAULT;
 
-    return semop(semid, sops, nsops);
+    return get_errno(semop(semid, sops, nsops));
 }
 
 struct target_msqid_ds
@@ -6955,7 +6955,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_semop
     case TARGET_NR_semop:
-        ret = get_errno(do_semop(arg1, arg2, arg3));
+        ret = do_semop(arg1, arg2, arg3);
         break;
 #endif
 #ifdef TARGET_NR_semctl
@@ -7741,12 +7741,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (gidsetsize == 0)
                 break;
             if (!is_error(ret)) {
-                target_grouplist = lock_user(VERIFY_WRITE, arg2, gidsetsize * 2, 0);
+                target_grouplist = lock_user(VERIFY_WRITE, arg2, gidsetsize * sizeof(target_id), 0);
                 if (!target_grouplist)
                     goto efault;
                 for(i = 0;i < ret; i++)
                     target_grouplist[i] = tswapid(high2lowgid(grouplist[i]));
-                unlock_user(target_grouplist, arg2, gidsetsize * 2);
+                unlock_user(target_grouplist, arg2, gidsetsize * sizeof(target_id));
             }
         }
         break;
@@ -7758,7 +7758,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             int i;
             if (gidsetsize) {
                 grouplist = alloca(gidsetsize * sizeof(gid_t));
-                target_grouplist = lock_user(VERIFY_READ, arg2, gidsetsize * 2, 1);
+                target_grouplist = lock_user(VERIFY_READ, arg2, gidsetsize * sizeof(target_id), 1);
                 if (!target_grouplist) {
                     ret = -TARGET_EFAULT;
                     goto fail;

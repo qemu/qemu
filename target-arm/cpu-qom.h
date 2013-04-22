@@ -111,6 +111,10 @@ static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
 
 #define ENV_OFFSET offsetof(ARMCPU, env)
 
+#ifndef CONFIG_USER_ONLY
+extern const struct VMStateDescription vmstate_arm_cpu;
+#endif
+
 void register_cp_regs_for_features(ARMCPU *cpu);
 
 void arm_cpu_do_interrupt(CPUState *cpu);

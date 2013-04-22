@@ -56,7 +56,7 @@ static uint32_t bitband_readw(void *opaque, hwaddr offset)
     addr = bitband_addr(opaque, offset) & ~1;
     mask = (1 << ((offset >> 2) & 15));
     mask = tswap16(mask);
-    cpu_physical_memory_read(addr, (uint8_t *)&v, 2);
+    cpu_physical_memory_read(addr, &v, 2);
     return (v & mask) != 0;
 }
 
@@ -69,12 +69,12 @@ static void bitband_writew(void *opaque, hwaddr offset,
     addr = bitband_addr(opaque, offset) & ~1;
     mask = (1 << ((offset >> 2) & 15));
     mask = tswap16(mask);
-    cpu_physical_memory_read(addr, (uint8_t *)&v, 2);
+    cpu_physical_memory_read(addr, &v, 2);
     if (value & 1)
         v |= mask;
     else
         v &= ~mask;
-    cpu_physical_memory_write(addr, (uint8_t *)&v, 2);
+    cpu_physical_memory_write(addr, &v, 2);
 }
 
 static uint32_t bitband_readl(void *opaque, hwaddr offset)
@@ -85,7 +85,7 @@ static uint32_t bitband_readl(void *opaque, hwaddr offset)
     addr = bitband_addr(opaque, offset) & ~3;
     mask = (1 << ((offset >> 2) & 31));
     mask = tswap32(mask);
-    cpu_physical_memory_read(addr, (uint8_t *)&v, 4);
+    cpu_physical_memory_read(addr, &v, 4);
     return (v & mask) != 0;
 }
 
@@ -98,12 +98,12 @@ static void bitband_writel(void *opaque, hwaddr offset,
     addr = bitband_addr(opaque, offset) & ~3;
     mask = (1 << ((offset >> 2) & 31));
     mask = tswap32(mask);
-    cpu_physical_memory_read(addr, (uint8_t *)&v, 4);
+    cpu_physical_memory_read(addr, &v, 4);
     if (value & 1)
         v |= mask;
     else
         v &= ~mask;
-    cpu_physical_memory_write(addr, (uint8_t *)&v, 4);
+    cpu_physical_memory_write(addr, &v, 4);
 }
 
 static const MemoryRegionOps bitband_ops = {

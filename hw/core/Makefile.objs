@@ -9,6 +9,5 @@ common-obj-$(CONFIG_PTIMER) += ptimer.o
 common-obj-$(CONFIG_SOFTMMU) += sysbus.o
 common-obj-$(CONFIG_SOFTMMU) += null-machine.o
 common-obj-$(CONFIG_SOFTMMU) += loader.o
-common-obj-$(CONFIG_SOFTMMU) += qdev-addr.o
 common-obj-$(CONFIG_SOFTMMU) += qdev-properties-system.o
 

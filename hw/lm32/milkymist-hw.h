@@ -2,7 +2,6 @@
 #define QEMU_HW_MILKYMIST_H
 
 #include "hw/qdev.h"
-#include "hw/qdev-addr.h"
 #include "net/net.h"
 
 static inline DeviceState *milkymist_uart_create(hwaddr base,
