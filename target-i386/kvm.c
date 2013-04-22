@@ -613,7 +613,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
     cpuid_data.cpuid.nent = cpuid_i;
 
     if (((env->cpuid_version >> 8)&0xF) >= 6
-        && (env->cpuid_features&(CPUID_MCE|CPUID_MCA)) == (CPUID_MCE|CPUID_MCA)
+        && (env->cpuid_features & (CPUID_MCE | CPUID_MCA)) ==
+           (CPUID_MCE | CPUID_MCA)
         && kvm_check_extension(cs->kvm_state, KVM_CAP_MCE) > 0) {
         uint64_t mcg_cap;
         int banks;
