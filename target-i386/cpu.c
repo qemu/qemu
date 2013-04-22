@@ -152,8 +152,10 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
 
 typedef struct FeatureWordInfo {
     const char **feat_names;
-    uint32_t cpuid_eax; /* Input EAX for CPUID */
-    int cpuid_reg;      /* R_* register constant */
+    uint32_t cpuid_eax;   /* Input EAX for CPUID */
+    bool cpuid_needs_ecx; /* CPUID instruction uses ECX as input */
+    uint32_t cpuid_ecx;   /* Input ECX value for CPUID */
+    int cpuid_reg;        /* output register (R_* constant) */
 } FeatureWordInfo;
 
 static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
@@ -187,7 +189,9 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     },
     [FEAT_7_0_EBX] = {
         .feat_names = cpuid_7_0_ebx_feature_name,
-        .cpuid_eax = 7, .cpuid_reg = R_EBX,
+        .cpuid_eax = 7,
+        .cpuid_needs_ecx = true, .cpuid_ecx = 0,
+        .cpuid_reg = R_EBX,
     },
 };
 
