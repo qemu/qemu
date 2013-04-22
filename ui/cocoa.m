@@ -810,7 +810,7 @@ QemuCocoaView *cocoaView;
         exit(0);
     } else if(returnCode == NSOKButton) {
         const char *bin = "qemu";
-        char *img = (char*)[ [ sheet filename ] cStringUsingEncoding:NSASCIIStringEncoding];
+        char *img = (char*)[ [ [ sheet URL ] path ] cStringUsingEncoding:NSASCIIStringEncoding];
 
         char **argv = (char**)malloc( sizeof(char*)*3 );
 
