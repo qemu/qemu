@@ -1126,8 +1126,7 @@ static void kelvin_bind_converted_vertex_attributes(NV2AState *d,
 
             for (j=attribute->converted_elements; j<num_elements; j++) {
                 uint8_t *in = data + j * attribute->stride;
-                uint8_t *out = attribute->converted_buffer
-                                + j * stride;
+                uint8_t *out = attribute->converted_buffer + j * stride;
 
                 switch (attribute->format) {
                 case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_CMP:
@@ -1268,6 +1267,8 @@ static void kelvin_bind_vertexshader(KelvinState *kelvin)
                           &native);
         assert(native);
 
+        assert(glGetError() == GL_NO_ERROR);
+
         QDECREF(shader_code);
         shader->dirty = false;
     }
@@ -1355,7 +1356,7 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
 
             assert(dma.start + texture->offset < memory_region_size(d->vram));
 
-            NV2A_DPRINTF(" texture %d is format %d, (%d, %d; %d)\n",
+            NV2A_DPRINTF(" texture %d is format 0x%x, (%d, %d; %d)\n",
                          i, texture->color_format,
                          width, height, texture->pitch);
 
@@ -1471,6 +1472,12 @@ static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
                        kelvin->surface_color.width, kelvin->surface_color.height,
                        d->vram_ptr
                         + color_dma.start + kelvin->surface_color.offset);
+        assert(glGetError() == GL_NO_ERROR);
+
+        memory_region_set_dirty(d->vram,
+                                color_dma.start + kelvin->surface_color.offset,
+                                kelvin->surface_color.pitch
+                                    * kelvin->surface_color.height);
     }
 }
 
@@ -1680,13 +1687,11 @@ static void pgraph_method(NV2AState *d,
             for (y=0; y<image_blit->height; y++) {
                 uint8_t *source_row = source
                     + (image_blit->in_y + y) * context_surfaces->source_pitch
-                    + image_blit->in_x
-                        * bytes_per_pixel;
+                    + image_blit->in_x * bytes_per_pixel;
                 
                 uint8_t *dest_row = dest
                     + (image_blit->out_y + y) * context_surfaces->dest_pitch
-                    + image_blit->out_x
-                        * bytes_per_pixel;
+                    + image_blit->out_x * bytes_per_pixel;
 
                 memmove(dest_row, source_row,
                         image_blit->width * bytes_per_pixel);
@@ -1930,8 +1935,17 @@ static void pgraph_method(NV2AState *d,
                 glDrawArrays(kelvin->gl_primitive_mode,
                              0, index_count);
             } else if (kelvin->array_batch_length) {
+
+
+                uint32_t max_element = 0;
+                uint32_t min_elemenet = (uint32_t)-1;
+                for (i=0; i<kelvin->array_batch_length; i++) {
+                    max_element = MAX(kelvin->array_batch[i], max_element);
+                    min_elemenet = MIN(kelvin->array_batch[i], min_elemenet);
+                }
+
                 kelvin_bind_converted_vertex_attributes(d, kelvin,
-                    false, kelvin->array_batch_length);
+                    false, max_element+1);
                 glDrawElements(kelvin->gl_primitive_mode,
                                kelvin->array_batch_length,
                                GL_UNSIGNED_INT,
