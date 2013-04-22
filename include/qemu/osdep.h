@@ -67,6 +67,10 @@ typedef signed int              int_fast16_t;
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+#ifndef ROUND_UP
+#define ROUND_UP(n,d) (((n) + (d) - 1) & -(d))
+#endif
+
 #ifndef DIV_ROUND_UP
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #endif

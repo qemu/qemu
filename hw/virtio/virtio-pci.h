@@ -24,6 +24,9 @@
 #include "hw/virtio/virtio-balloon.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-9p.h"
+#ifdef CONFIG_VHOST_SCSI
+#include "hw/virtio/vhost-scsi.h"
+#endif
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 typedef struct VirtIOBlkPCI VirtIOBlkPCI;
@@ -31,6 +34,7 @@ typedef struct VirtIOSCSIPCI VirtIOSCSIPCI;
 typedef struct VirtIOBalloonPCI VirtIOBalloonPCI;
 typedef struct VirtIOSerialPCI VirtIOSerialPCI;
 typedef struct VirtIONetPCI VirtIONetPCI;
+typedef struct VHostSCSIPCI VHostSCSIPCI;
 
 /* virtio-pci-bus */
 
@@ -103,6 +107,20 @@ struct VirtIOSCSIPCI {
     VirtIOPCIProxy parent_obj;
     VirtIOSCSI vdev;
 };
+
+#ifdef CONFIG_VHOST_SCSI
+/*
+ * vhost-scsi-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VHOST_SCSI_PCI "vhost-scsi-pci"
+#define VHOST_SCSI_PCI(obj) \
+        OBJECT_CHECK(VHostSCSIPCI, (obj), TYPE_VHOST_SCSI_PCI)
+
+struct VHostSCSIPCI {
+    VirtIOPCIProxy parent_obj;
+    VHostSCSI vdev;
+};
+#endif
 
 /*
  * virtio-blk-pci: This extends VirtioPCIProxy.

@@ -179,6 +179,7 @@ libattr=""
 xfs=""
 
 vhost_net="no"
+vhost_scsi="no"
 kvm="no"
 gprof="no"
 debug_tcg="no"
@@ -543,6 +544,7 @@ Haiku)
   usb="linux"
   kvm="yes"
   vhost_net="yes"
+  vhost_scsi="yes"
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
@@ -869,6 +871,10 @@ for opt do
   --disable-vhost-net) vhost_net="no"
   ;;
   --enable-vhost-net) vhost_net="yes"
+  ;;
+  --disable-vhost-scsi) vhost_scsi="no"
+  ;;
+  --enable-vhost-scsi) vhost_scsi="yes"
   ;;
   --disable-glx) glx="no"
   ;;
@@ -3553,6 +3559,7 @@ echo "sigev_thread_id   $sigev_thread_id"
 echo "uuid support      $uuid"
 echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
+echo "vhost-scsi support $vhost_scsi"
 echo "Trace backend     $trace_backend"
 echo "Trace output file $trace_file-<pid>"
 echo "spice support     $spice ($spice_protocol_version/$spice_server_version)"
@@ -3835,6 +3842,9 @@ if test "$libattr" = "yes" ; then
 fi
 if test "$virtfs" = "yes" ; then
   echo "CONFIG_VIRTFS=y" >> $config_host_mak
+fi
+if test "$vhost_scsi" = "yes" ; then
+  echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak

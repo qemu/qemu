@@ -45,6 +45,9 @@ struct vhost_dev {
     vhost_log_chunk_t *log;
     unsigned long long log_size;
     bool force;
+    bool memory_changed;
+    hwaddr mem_changed_start_addr;
+    hwaddr mem_changed_end_addr;
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
