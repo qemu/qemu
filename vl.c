@@ -502,21 +502,7 @@ static QemuOptsList qemu_tpmdev_opts = {
     .implied_opt_name = "type",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_tpmdev_opts.head),
     .desc = {
-        {
-            .name = "type",
-            .type = QEMU_OPT_STRING,
-            .help = "Type of TPM backend",
-        },
-        {
-            .name = "cancel-path",
-            .type = QEMU_OPT_STRING,
-            .help = "Sysfs file entry for canceling TPM commands",
-        },
-        {
-            .name = "path",
-            .type = QEMU_OPT_STRING,
-            .help = "Path to TPM device on the host",
-        },
+        /* options are defined in the TPM backends */
         { /* end of list */ }
     },
 };

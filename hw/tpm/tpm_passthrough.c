@@ -488,8 +488,24 @@ static void tpm_passthrough_destroy(TPMBackend *tb)
     g_free(tpm_pt->tpm_dev);
 }
 
+static const QemuOptDesc tpm_passthrough_cmdline_opts[] = {
+    TPM_STANDARD_CMDLINE_OPTS,
+    {
+        .name = "cancel-path",
+        .type = QEMU_OPT_STRING,
+        .help = "Sysfs file entry for canceling TPM commands",
+    },
+    {
+        .name = "path",
+        .type = QEMU_OPT_STRING,
+        .help = "Path to TPM device on the host",
+    },
+    { /* end of list */ },
+};
+
 static const TPMDriverOps tpm_passthrough_driver = {
     .type                     = TPM_TYPE_PASSTHROUGH,
+    .opts                     = tpm_passthrough_cmdline_opts,
     .desc                     = tpm_passthrough_create_desc,
     .create                   = tpm_passthrough_create,
     .destroy                  = tpm_passthrough_destroy,
