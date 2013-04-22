@@ -676,7 +676,13 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     assert(bs->file == NULL);
     assert(options != NULL && bs->options != options);
 
-    trace_bdrv_open_common(bs, filename, flags, drv->format_name);
+    if (file != NULL) {
+        filename = file->filename;
+    } else {
+        filename = qdict_get_try_str(options, "filename");
+    }
+
+    trace_bdrv_open_common(bs, filename ?: "", flags, drv->format_name);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
         return -ENOTSUP;
@@ -696,12 +702,6 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     assert(bs->copy_on_read == 0); /* bdrv_new() and bdrv_close() make it so */
     if ((flags & BDRV_O_RDWR) && (flags & BDRV_O_COPY_ON_READ)) {
         bdrv_enable_copy_on_read(bs);
-    }
-
-    if (file != NULL) {
-        filename = file->filename;
-    } else {
-        filename = qdict_get_try_str(options, "filename");
     }
 
     if (filename != NULL) {
