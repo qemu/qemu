@@ -142,6 +142,13 @@ run_qemu -drive media=cdrom,cache=writethrough
 run_qemu -drive media=cdrom,cache=unsafe
 run_qemu -drive media=cdrom,cache=invalid_value
 
+echo
+echo === Specifying the protocol layer ===
+echo
+
+run_qemu -drive file=$TEST_IMG,file.driver=file
+run_qemu -drive file=$TEST_IMG,file.driver=qcow2
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

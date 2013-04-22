@@ -667,10 +667,10 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
  * Removes all processed options from *options.
  */
 static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
-    const char *filename, QDict *options,
-    int flags, BlockDriver *drv)
+    QDict *options, int flags, BlockDriver *drv)
 {
     int ret, open_flags;
+    const char *filename;
 
     assert(drv != NULL);
     assert(bs->file == NULL);
@@ -698,6 +698,12 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
         bdrv_enable_copy_on_read(bs);
     }
 
+    if (file != NULL) {
+        filename = file->filename;
+    } else {
+        filename = qdict_get_try_str(options, "filename");
+    }
+
     if (filename != NULL) {
         pstrcpy(bs->filename, sizeof(bs->filename), filename);
     } else {
@@ -716,8 +722,15 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     if (drv->bdrv_file_open) {
         assert(file == NULL);
         assert(drv->bdrv_parse_filename || filename != NULL);
-        ret = drv->bdrv_file_open(bs, filename, options, open_flags);
+        ret = drv->bdrv_file_open(bs, options, open_flags);
     } else {
+        if (file == NULL) {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR, "Can't use '%s' as a "
+                          "block driver for the protocol level",
+                          drv->format_name);
+            ret = -EINVAL;
+            goto free_and_fail;
+        }
         assert(file != NULL);
         bs->file = file;
         ret = drv->bdrv_open(bs, options, open_flags);
@@ -773,6 +786,18 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     bs->options = options;
     options = qdict_clone_shallow(options);
 
+    /* Fetch the file name from the options QDict if necessary */
+    if (!filename) {
+        filename = qdict_get_try_str(options, "filename");
+    } else if (filename && !qdict_haskey(options, "filename")) {
+        qdict_put(options, "filename", qstring_from_str(filename));
+    } else {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR, "Can't specify 'file' and "
+                      "'filename' options at the same time");
+        ret = -EINVAL;
+        goto fail;
+    }
+
     /* Find the right block driver */
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
@@ -801,6 +826,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
             ret = -EINVAL;
             goto fail;
         }
+        qdict_del(options, "filename");
     } else if (!drv->bdrv_parse_filename && !filename) {
         qerror_report(ERROR_CLASS_GENERIC_ERROR,
                       "The '%s' block driver requires a file name",
@@ -809,7 +835,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
         goto fail;
     }
 
-    ret = bdrv_open_common(bs, NULL, filename, options, flags, drv);
+    ret = bdrv_open_common(bs, NULL, options, flags, drv);
     if (ret < 0) {
         goto fail;
     }
@@ -838,18 +864,35 @@ fail:
     return ret;
 }
 
-int bdrv_open_backing_file(BlockDriverState *bs)
+/*
+ * Opens the backing file for a BlockDriverState if not yet open
+ *
+ * options is a QDict of options to pass to the block drivers, or NULL for an
+ * empty set of options. The reference to the QDict is transferred to this
+ * function (even on failure), so if the caller intends to reuse the dictionary,
+ * it needs to use QINCREF() before calling bdrv_file_open.
+ */
+int bdrv_open_backing_file(BlockDriverState *bs, QDict *options)
 {
     char backing_filename[PATH_MAX];
     int back_flags, ret;
     BlockDriver *back_drv = NULL;
 
     if (bs->backing_hd != NULL) {
+        QDECREF(options);
         return 0;
     }
 
+    /* NULL means an empty set of options */
+    if (options == NULL) {
+        options = qdict_new();
+    }
+
     bs->open_flags &= ~BDRV_O_NO_BACKING;
-    if (bs->backing_file[0] == '\0') {
+    if (qdict_haskey(options, "file.filename")) {
+        backing_filename[0] = '\0';
+    } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
+        QDECREF(options);
         return 0;
     }
 
@@ -864,7 +907,8 @@ int bdrv_open_backing_file(BlockDriverState *bs)
     /* backing files always opened read-only */
     back_flags = bs->open_flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT);
 
-    ret = bdrv_open(bs->backing_hd, backing_filename, NULL,
+    ret = bdrv_open(bs->backing_hd,
+                    *backing_filename ? backing_filename : NULL, options,
                     back_flags, back_drv);
     if (ret < 0) {
         bdrv_delete(bs->backing_hd);
@@ -1008,7 +1052,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     }
 
     /* Open the image */
-    ret = bdrv_open_common(bs, file, filename, options, flags, drv);
+    ret = bdrv_open_common(bs, file, options, flags, drv);
     if (ret < 0) {
         goto unlink_and_fail;
     }
@@ -1020,7 +1064,10 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
 
     /* If there is a backing file, use it */
     if ((flags & BDRV_O_NO_BACKING) == 0) {
-        ret = bdrv_open_backing_file(bs);
+        QDict *backing_options;
+
+        extract_subqdict(options, &backing_options, "backing.");
+        ret = bdrv_open_backing_file(bs, backing_options);
         if (ret < 0) {
             goto close_and_fail;
         }

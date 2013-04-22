@@ -69,44 +69,100 @@ static void GCC_FMT_ATTR(2, 3) blkverify_err(BlkverifyAIOCB *acb,
 }
 
 /* Valid blkverify filenames look like blkverify:path/to/raw_image:path/to/image */
-static int blkverify_open(BlockDriverState *bs, const char *filename,
-                          QDict *options, int flags)
+static void blkverify_parse_filename(const char *filename, QDict *options,
+                                     Error **errp)
 {
-    BDRVBlkverifyState *s = bs->opaque;
-    int ret;
-    char *raw, *c;
+    const char *c;
+    QString *raw_path;
+
 
     /* Parse the blkverify: prefix */
-    if (strncmp(filename, "blkverify:", strlen("blkverify:"))) {
-        return -EINVAL;
+    if (!strstart(filename, "blkverify:", &filename)) {
+        error_setg(errp, "File name string must start with 'blkverify:'");
+        return;
     }
-    filename += strlen("blkverify:");
 
     /* Parse the raw image filename */
     c = strchr(filename, ':');
     if (c == NULL) {
-        return -EINVAL;
+        error_setg(errp, "blkverify requires raw copy and original image path");
+        return;
     }
 
-    raw = g_strdup(filename);
-    raw[c - filename] = '\0';
-    ret = bdrv_file_open(&bs->file, raw, NULL, flags);
-    g_free(raw);
-    if (ret < 0) {
-        return ret;
-    }
+    /* TODO Implement option pass-through and set raw.filename here */
+    raw_path = qstring_from_substr(filename, 0, c - filename - 1);
+    qdict_put(options, "x-raw", raw_path);
+
+    /* TODO Allow multi-level nesting and set file.filename here */
     filename = c + 1;
+    qdict_put(options, "x-image", qstring_from_str(filename));
+}
+
+static QemuOptsList runtime_opts = {
+    .name = "blkverify",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "x-raw",
+            .type = QEMU_OPT_STRING,
+            .help = "[internal use only, will be removed]",
+        },
+        {
+            .name = "x-image",
+            .type = QEMU_OPT_STRING,
+            .help = "[internal use only, will be removed]",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int blkverify_open(BlockDriverState *bs, QDict *options, int flags)
+{
+    BDRVBlkverifyState *s = bs->opaque;
+    QemuOpts *opts;
+    Error *local_err = NULL;
+    const char *filename, *raw;
+    int ret;
+
+    opts = qemu_opts_create_nofail(&runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Parse the raw image filename */
+    raw = qemu_opt_get(opts, "x-raw");
+    if (raw == NULL) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    ret = bdrv_file_open(&bs->file, raw, NULL, flags);
+    if (ret < 0) {
+        goto fail;
+    }
 
     /* Open the test file */
+    filename = qemu_opt_get(opts, "x-image");
+    if (filename == NULL) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
     s->test_file = bdrv_new("");
     ret = bdrv_open(s->test_file, filename, NULL, flags, NULL);
     if (ret < 0) {
         bdrv_delete(s->test_file);
         s->test_file = NULL;
-        return ret;
+        goto fail;
     }
 
-    return 0;
+    ret = 0;
+fail:
+    return ret;
 }
 
 static void blkverify_close(BlockDriverState *bs)
@@ -344,19 +400,18 @@ static BlockDriverAIOCB *blkverify_aio_flush(BlockDriverState *bs,
 }
 
 static BlockDriver bdrv_blkverify = {
-    .format_name        = "blkverify",
-    .protocol_name      = "blkverify",
+    .format_name            = "blkverify",
+    .protocol_name          = "blkverify",
+    .instance_size          = sizeof(BDRVBlkverifyState),
 
-    .instance_size      = sizeof(BDRVBlkverifyState),
+    .bdrv_parse_filename    = blkverify_parse_filename,
+    .bdrv_file_open         = blkverify_open,
+    .bdrv_close             = blkverify_close,
+    .bdrv_getlength         = blkverify_getlength,
 
-    .bdrv_getlength     = blkverify_getlength,
-
-    .bdrv_file_open     = blkverify_open,
-    .bdrv_close         = blkverify_close,
-
-    .bdrv_aio_readv     = blkverify_aio_readv,
-    .bdrv_aio_writev    = blkverify_aio_writev,
-    .bdrv_aio_flush     = blkverify_aio_flush,
+    .bdrv_aio_readv         = blkverify_aio_readv,
+    .bdrv_aio_writev        = blkverify_aio_writev,
+    .bdrv_aio_flush         = blkverify_aio_flush,
 };
 
 static void bdrv_blkverify_init(void)

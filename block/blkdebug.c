@@ -273,11 +273,6 @@ static int read_config(BDRVBlkdebugState *s, const char *filename)
     int ret;
     struct add_rule_data d;
 
-    /* Allow usage without config file */
-    if (!*filename) {
-        return 0;
-    }
-
     f = fopen(filename, "r");
     if (f == NULL) {
         return -errno;
@@ -304,44 +299,98 @@ fail:
 }
 
 /* Valid blkdebug filenames look like blkdebug:path/to/config:path/to/image */
-static int blkdebug_open(BlockDriverState *bs, const char *filename,
-                         QDict *options, int flags)
+static void blkdebug_parse_filename(const char *filename, QDict *options,
+                                    Error **errp)
 {
-    BDRVBlkdebugState *s = bs->opaque;
-    int ret;
-    char *config, *c;
+    const char *c;
 
     /* Parse the blkdebug: prefix */
-    if (strncmp(filename, "blkdebug:", strlen("blkdebug:"))) {
-        return -EINVAL;
+    if (!strstart(filename, "blkdebug:", &filename)) {
+        error_setg(errp, "File name string must start with 'blkdebug:'");
+        return;
     }
-    filename += strlen("blkdebug:");
 
-    /* Read rules from config file */
+    /* Parse config file path */
     c = strchr(filename, ':');
     if (c == NULL) {
-        return -EINVAL;
+        error_setg(errp, "blkdebug requires both config file and image path");
+        return;
     }
 
-    config = g_strdup(filename);
-    config[c - filename] = '\0';
-    ret = read_config(s, config);
-    g_free(config);
-    if (ret < 0) {
-        return ret;
+    if (c != filename) {
+        QString *config_path;
+        config_path = qstring_from_substr(filename, 0, c - filename - 1);
+        qdict_put(options, "config", config_path);
     }
+
+    /* TODO Allow multi-level nesting and set file.filename here */
     filename = c + 1;
+    qdict_put(options, "x-image", qstring_from_str(filename));
+}
+
+static QemuOptsList runtime_opts = {
+    .name = "blkdebug",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "config",
+            .type = QEMU_OPT_STRING,
+            .help = "Path to the configuration file",
+        },
+        {
+            .name = "x-image",
+            .type = QEMU_OPT_STRING,
+            .help = "[internal use only, will be removed]",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+    QemuOpts *opts;
+    Error *local_err = NULL;
+    const char *filename, *config;
+    int ret;
+
+    opts = qemu_opts_create_nofail(&runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Read rules from config file */
+    config = qemu_opt_get(opts, "config");
+    if (config) {
+        ret = read_config(s, config);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
 
     /* Set initial state */
     s->state = 1;
 
     /* Open the backing file */
-    ret = bdrv_file_open(&bs->file, filename, NULL, flags);
-    if (ret < 0) {
-        return ret;
+    filename = qemu_opt_get(opts, "x-image");
+    if (filename == NULL) {
+        ret = -EINVAL;
+        goto fail;
     }
 
-    return 0;
+    ret = bdrv_file_open(&bs->file, filename, NULL, flags);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    ret = 0;
+fail:
+    qemu_opts_del(opts);
+    return ret;
 }
 
 static void error_callback_bh(void *opaque)
@@ -569,17 +618,17 @@ static int64_t blkdebug_getlength(BlockDriverState *bs)
 }
 
 static BlockDriver bdrv_blkdebug = {
-    .format_name        = "blkdebug",
-    .protocol_name      = "blkdebug",
+    .format_name            = "blkdebug",
+    .protocol_name          = "blkdebug",
+    .instance_size          = sizeof(BDRVBlkdebugState),
 
-    .instance_size      = sizeof(BDRVBlkdebugState),
+    .bdrv_parse_filename    = blkdebug_parse_filename,
+    .bdrv_file_open         = blkdebug_open,
+    .bdrv_close             = blkdebug_close,
+    .bdrv_getlength         = blkdebug_getlength,
 
-    .bdrv_file_open     = blkdebug_open,
-    .bdrv_close         = blkdebug_close,
-    .bdrv_getlength     = blkdebug_getlength,
-
-    .bdrv_aio_readv     = blkdebug_aio_readv,
-    .bdrv_aio_writev    = blkdebug_aio_writev,
+    .bdrv_aio_readv         = blkdebug_aio_readv,
+    .bdrv_aio_writev        = blkdebug_aio_writev,
 
     .bdrv_debug_event           = blkdebug_debug_event,
     .bdrv_debug_breakpoint      = blkdebug_debug_breakpoint,

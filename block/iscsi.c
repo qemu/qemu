@@ -1003,12 +1003,25 @@ out:
     return ret;
 }
 
+/* TODO Convert to fine grained options */
+static QemuOptsList runtime_opts = {
+    .name = "iscsi",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "filename",
+            .type = QEMU_OPT_STRING,
+            .help = "URL to the iscsi image",
+        },
+        { /* end of list */ }
+    },
+};
+
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
  */
-static int iscsi_open(BlockDriverState *bs, const char *filename,
-                      QDict *options, int flags)
+static int iscsi_open(BlockDriverState *bs, QDict *options, int flags)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = NULL;
@@ -1016,6 +1029,9 @@ static int iscsi_open(BlockDriverState *bs, const char *filename,
     struct scsi_task *task = NULL;
     struct scsi_inquiry_standard *inq = NULL;
     char *initiator_name = NULL;
+    QemuOpts *opts;
+    Error *local_err = NULL;
+    const char *filename;
     int ret;
 
     if ((BDRV_SECTOR_SIZE % 512) != 0) {
@@ -1024,6 +1040,18 @@ static int iscsi_open(BlockDriverState *bs, const char *filename,
                      "of 512", BDRV_SECTOR_SIZE);
         return -EINVAL;
     }
+
+    opts = qemu_opts_create_nofail(&runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    filename = qemu_opt_get(opts, "filename");
+
 
     iscsi_url = iscsi_parse_full_url(iscsi, filename);
     if (iscsi_url == NULL) {
@@ -1126,6 +1154,7 @@ static int iscsi_open(BlockDriverState *bs, const char *filename,
 #endif
 
 out:
+    qemu_opts_del(opts);
     if (initiator_name != NULL) {
         g_free(initiator_name);
     }
@@ -1190,6 +1219,7 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options)
     int64_t total_size = 0;
     BlockDriverState bs;
     IscsiLun *iscsilun = NULL;
+    QDict *bs_options;
 
     memset(&bs, 0, sizeof(BlockDriverState));
 
@@ -1204,7 +1234,11 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options)
     bs.opaque = g_malloc0(sizeof(struct IscsiLun));
     iscsilun = bs.opaque;
 
-    ret = iscsi_open(&bs, filename, NULL, 0);
+    bs_options = qdict_new();
+    qdict_put(bs_options, "filename", qstring_from_str(filename));
+    ret = iscsi_open(&bs, bs_options, 0);
+    QDECREF(bs_options);
+
     if (ret != 0) {
         goto out;
     }

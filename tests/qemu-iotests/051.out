@@ -159,4 +159,14 @@ q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 Testing: -drive media=cdrom,cache=invalid_value
 QEMU_PROG: -drive media=cdrom,cache=invalid_value: invalid cache option
 
+
+=== Specifying the protocol layer ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,file.driver=file
+q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: Can't use 'qcow2' as a block driver for the protocol level
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: could not open disk image TEST_DIR/t.qcow2: Invalid argument
+
 *** done

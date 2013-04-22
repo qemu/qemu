@@ -335,12 +335,9 @@ static void curl_clean_state(CURLState *s)
     s->in_use = 0;
 }
 
-static int curl_open(BlockDriverState *bs, const char *filename,
-                     QDict *options, int flags)
+static void curl_parse_filename(const char *filename, QDict *options,
+                                Error **errp)
 {
-    BDRVCURLState *s = bs->opaque;
-    CURLState *state = NULL;
-    double d;
 
     #define RA_OPTSTR ":readahead="
     char *file;
@@ -348,19 +345,17 @@ static int curl_open(BlockDriverState *bs, const char *filename,
     const char *ra_val;
     int parse_state = 0;
 
-    static int inited = 0;
-
     file = g_strdup(filename);
-    s->readahead_size = READ_AHEAD_SIZE;
 
     /* Parse a trailing ":readahead=#:" param, if present. */
     ra = file + strlen(file) - 1;
     while (ra >= file) {
         if (parse_state == 0) {
-            if (*ra == ':')
+            if (*ra == ':') {
                 parse_state++;
-            else
+            } else {
                 break;
+            }
         } else if (parse_state == 1) {
             if (*ra > '9' || *ra < '0') {
                 char *opt_start = ra - strlen(RA_OPTSTR) + 1;
@@ -369,19 +364,67 @@ static int curl_open(BlockDriverState *bs, const char *filename,
                     ra_val = ra + 1;
                     ra -= strlen(RA_OPTSTR) - 1;
                     *ra = '\0';
-                    s->readahead_size = atoi(ra_val);
-                    break;
-                } else {
-                    break;
+                    qdict_put(options, "readahead", qstring_from_str(ra_val));
                 }
+                break;
             }
         }
         ra--;
     }
 
+    qdict_put(options, "url", qstring_from_str(file));
+
+    g_free(file);
+}
+
+static QemuOptsList runtime_opts = {
+    .name = "curl",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "url",
+            .type = QEMU_OPT_STRING,
+            .help = "URL to open",
+        },
+        {
+            .name = "readahead",
+            .type = QEMU_OPT_SIZE,
+            .help = "Readahead size",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int curl_open(BlockDriverState *bs, QDict *options, int flags)
+{
+    BDRVCURLState *s = bs->opaque;
+    CURLState *state = NULL;
+    QemuOpts *opts;
+    Error *local_err = NULL;
+    const char *file;
+    double d;
+
+    static int inited = 0;
+
+    opts = qemu_opts_create_nofail(&runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        goto out_noclean;
+    }
+
+    s->readahead_size = qemu_opt_get_size(opts, "readahead", READ_AHEAD_SIZE);
     if ((s->readahead_size & 0x1ff) != 0) {
         fprintf(stderr, "HTTP_READAHEAD_SIZE %zd is not a multiple of 512\n",
                 s->readahead_size);
+        goto out_noclean;
+    }
+
+    file = qemu_opt_get(opts, "url");
+    if (file == NULL) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR, "curl block driver requires "
+                      "an 'url' option");
         goto out_noclean;
     }
 
@@ -391,7 +434,7 @@ static int curl_open(BlockDriverState *bs, const char *filename,
     }
 
     DPRINTF("CURL: Opening %s\n", file);
-    s->url = file;
+    s->url = g_strdup(file);
     state = curl_init_state(s);
     if (!state)
         goto out_noclean;
@@ -423,6 +466,7 @@ static int curl_open(BlockDriverState *bs, const char *filename,
     curl_multi_setopt( s->multi, CURLMOPT_SOCKETFUNCTION, curl_sock_cb ); 
     curl_multi_do(s);
 
+    qemu_opts_del(opts);
     return 0;
 
 out:
@@ -430,7 +474,8 @@ out:
     curl_easy_cleanup(state->curl);
     state->curl = NULL;
 out_noclean:
-    g_free(file);
+    g_free(s->url);
+    qemu_opts_del(opts);
     return -EINVAL;
 }
 
@@ -568,63 +613,68 @@ static int64_t curl_getlength(BlockDriverState *bs)
 }
 
 static BlockDriver bdrv_http = {
-    .format_name     = "http",
-    .protocol_name   = "http",
+    .format_name            = "http",
+    .protocol_name          = "http",
 
-    .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_file_open  = curl_open,
-    .bdrv_close      = curl_close,
-    .bdrv_getlength  = curl_getlength,
+    .instance_size          = sizeof(BDRVCURLState),
+    .bdrv_parse_filename    = curl_parse_filename,
+    .bdrv_file_open         = curl_open,
+    .bdrv_close             = curl_close,
+    .bdrv_getlength         = curl_getlength,
 
-    .bdrv_aio_readv  = curl_aio_readv,
+    .bdrv_aio_readv         = curl_aio_readv,
 };
 
 static BlockDriver bdrv_https = {
-    .format_name     = "https",
-    .protocol_name   = "https",
+    .format_name            = "https",
+    .protocol_name          = "https",
 
-    .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_file_open  = curl_open,
-    .bdrv_close      = curl_close,
-    .bdrv_getlength  = curl_getlength,
+    .instance_size          = sizeof(BDRVCURLState),
+    .bdrv_parse_filename    = curl_parse_filename,
+    .bdrv_file_open         = curl_open,
+    .bdrv_close             = curl_close,
+    .bdrv_getlength         = curl_getlength,
 
-    .bdrv_aio_readv  = curl_aio_readv,
+    .bdrv_aio_readv         = curl_aio_readv,
 };
 
 static BlockDriver bdrv_ftp = {
-    .format_name     = "ftp",
-    .protocol_name   = "ftp",
+    .format_name            = "ftp",
+    .protocol_name          = "ftp",
 
-    .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_file_open  = curl_open,
-    .bdrv_close      = curl_close,
-    .bdrv_getlength  = curl_getlength,
+    .instance_size          = sizeof(BDRVCURLState),
+    .bdrv_parse_filename    = curl_parse_filename,
+    .bdrv_file_open         = curl_open,
+    .bdrv_close             = curl_close,
+    .bdrv_getlength         = curl_getlength,
 
-    .bdrv_aio_readv  = curl_aio_readv,
+    .bdrv_aio_readv         = curl_aio_readv,
 };
 
 static BlockDriver bdrv_ftps = {
-    .format_name     = "ftps",
-    .protocol_name   = "ftps",
+    .format_name            = "ftps",
+    .protocol_name          = "ftps",
 
-    .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_file_open  = curl_open,
-    .bdrv_close      = curl_close,
-    .bdrv_getlength  = curl_getlength,
+    .instance_size          = sizeof(BDRVCURLState),
+    .bdrv_parse_filename    = curl_parse_filename,
+    .bdrv_file_open         = curl_open,
+    .bdrv_close             = curl_close,
+    .bdrv_getlength         = curl_getlength,
 
-    .bdrv_aio_readv  = curl_aio_readv,
+    .bdrv_aio_readv         = curl_aio_readv,
 };
 
 static BlockDriver bdrv_tftp = {
-    .format_name     = "tftp",
-    .protocol_name   = "tftp",
+    .format_name            = "tftp",
+    .protocol_name          = "tftp",
 
-    .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_file_open  = curl_open,
-    .bdrv_close      = curl_close,
-    .bdrv_getlength  = curl_getlength,
+    .instance_size          = sizeof(BDRVCURLState),
+    .bdrv_parse_filename    = curl_parse_filename,
+    .bdrv_file_open         = curl_open,
+    .bdrv_close             = curl_close,
+    .bdrv_getlength         = curl_getlength,
 
-    .bdrv_aio_readv  = curl_aio_readv,
+    .bdrv_aio_readv         = curl_aio_readv,
 };
 
 static void curl_block_init(void)
