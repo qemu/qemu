@@ -48,8 +48,9 @@ typedef struct S390IPLClass {
 typedef struct S390IPLState {
     /*< private >*/
     SysBusDevice parent_obj;
-    /*< public >*/
+    uint64_t start_addr;
 
+    /*< public >*/
     char *kernel;
     char *initrd;
     char *cmdline;
@@ -82,6 +83,7 @@ static int s390_ipl_init(SysBusDevice *dev)
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         bios_size = load_image_targphys(bios_filename, ZIPL_IMAGE_START, 4096);
+        ipl->start_addr = ZIPL_IMAGE_START;
         g_free(bios_filename);
 
         if ((long)bios_size < 0) {
@@ -104,6 +106,13 @@ static int s390_ipl_init(SysBusDevice *dev)
         }
         /* we have to overwrite values in the kernel image, which are "rom" */
         strcpy(rom_ptr(KERN_PARM_AREA), ipl->cmdline);
+
+        /*
+         * we can not rely on the ELF entry point, since up to 3.2 this
+         * value was 0x800 (the SALIPL loader) and it wont work. For
+         * all (Linux) cases 0x10000 (KERN_IMAGE_START) should be fine.
+         */
+        ipl->start_addr = KERN_IMAGE_START;
     }
     if (ipl->initrd) {
         ram_addr_t initrd_offset, initrd_size;
@@ -138,16 +147,7 @@ static void s390_ipl_reset(DeviceState *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
 
-    if (ipl->kernel) {
-        /*
-         * we can not rely on the ELF entry point, since up to 3.2 this
-         * value was 0x800 (the SALIPL loader) and it wont work. For
-         * all (Linux) cases 0x10000 (KERN_IMAGE_START) should be fine.
-         */
-        return s390_ipl_cpu(KERN_IMAGE_START);
-    } else {
-        return s390_ipl_cpu(ZIPL_IMAGE_START);
-    }
+    s390_ipl_cpu(ipl->start_addr);
 }
 
 static void s390_ipl_class_init(ObjectClass *klass, void *data)
