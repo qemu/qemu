@@ -35,6 +35,9 @@
 #ifndef MAC_OS_X_VERSION_10_5
 #define MAC_OS_X_VERSION_10_5 1050
 #endif
+#ifndef MAC_OS_X_VERSION_10_6
+#define MAC_OS_X_VERSION_10_6 1060
+#endif
 
 
 //#define DEBUG
@@ -771,9 +774,20 @@ QemuCocoaView *cocoaView;
         NSOpenPanel *op = [[NSOpenPanel alloc] init];
         [op setPrompt:@"Boot image"];
         [op setMessage:@"Select the disk image you want to boot.\n\nHit the \"Cancel\" button to quit"];
-        [op beginSheetForDirectory:nil file:nil types:[NSArray arrayWithObjects:@"img",@"iso",@"dmg",@"qcow",@"cow",@"cloop",@"vmdk",nil]
+        NSArray *filetypes = [NSArray arrayWithObjects:@"img", @"iso", @"dmg",
+                                 @"qcow", @"cow", @"cloop", @"vmdk", nil];
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
+        [op setAllowedFileTypes:filetypes];
+        [op beginSheetModalForWindow:normalWindow
+            completionHandler:^(NSInteger returnCode)
+            { [self openPanelDidEnd:op
+                  returnCode:returnCode contextInfo:NULL ]; } ];
+#else
+        // Compatibility code for pre-10.6, using deprecated method
+        [op beginSheetForDirectory:nil file:nil types:filetypes
               modalForWindow:normalWindow modalDelegate:self
               didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+#endif
     } else {
         // or launch QEMU, with the global args
         [self startEmulationWithArgc:gArgc argv:(char **)gArgv];
