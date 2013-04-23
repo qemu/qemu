@@ -337,7 +337,7 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
     GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
     gint x_root, y_root;
 
-    gdk_window_get_root_coords(s->drawing_area->window,
+    gdk_window_get_root_coords(gtk_widget_get_window(s->drawing_area),
                                x, y, &x_root, &y_root);
     gdk_display_warp_pointer(gtk_widget_get_display(s->drawing_area),
                              gtk_widget_get_screen(s->drawing_area),
@@ -357,7 +357,7 @@ static void gd_cursor_define(DisplayChangeListener *dcl,
                                       NULL, NULL);
     cursor = gdk_cursor_new_from_pixbuf(gtk_widget_get_display(s->drawing_area),
                                         pixbuf, c->hot_x, c->hot_y);
-    gdk_window_set_cursor(s->drawing_area->window, cursor);
+    gdk_window_set_cursor(gtk_widget_get_window(s->drawing_area), cursor);
     g_object_unref(pixbuf);
     g_object_unref(cursor);
 }
