@@ -78,6 +78,11 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
     }
 }
 
+static int64_t cpu_common_get_arch_id(CPUState *cpu)
+{
+    return cpu->cpu_index;
+}
+
 static void cpu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -85,6 +90,7 @@ static void cpu_class_init(ObjectClass *klass, void *data)
 
     k->class_by_name = cpu_common_class_by_name;
     k->reset = cpu_common_reset;
+    k->get_arch_id = cpu_common_get_arch_id;
     dc->realize = cpu_common_realizefn;
     dc->no_user = 1;
 }
