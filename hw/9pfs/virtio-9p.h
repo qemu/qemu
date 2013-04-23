@@ -12,7 +12,6 @@
 #include "qemu/thread.h"
 #include "block/coroutine.h"
 
-
 /* The feature bitmap for virtio 9P */
 /* The mount point is specified in a config variable */
 #define VIRTIO_9P_MOUNT_TAG 0

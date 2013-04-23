@@ -24,6 +24,9 @@
 #include "hw/virtio/virtio-balloon.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-9p.h"
+#ifdef CONFIG_VIRTFS
+#include "hw/9pfs/virtio-9p.h"
+#endif
 #ifdef CONFIG_VHOST_SCSI
 #include "hw/virtio/vhost-scsi.h"
 #endif
@@ -84,9 +87,6 @@ struct VirtIOPCIProxy {
     uint32_t class_code;
     uint32_t nvectors;
     uint32_t host_features;
-#ifdef CONFIG_VIRTFS
-    V9fsConf fsconf;
-#endif
     VirtIORNGConf rng;
     bool ioeventfd_disabled;
     bool ioeventfd_started;
@@ -170,6 +170,23 @@ struct VirtIONetPCI {
     VirtIOPCIProxy parent_obj;
     VirtIONet vdev;
 };
+
+/*
+ * virtio-9p-pci: This extends VirtioPCIProxy.
+ */
+
+#ifdef CONFIG_VIRTFS
+
+#define TYPE_VIRTIO_9P_PCI "virtio-9p-pci"
+#define VIRTIO_9P_PCI(obj) \
+        OBJECT_CHECK(V9fsPCIState, (obj), TYPE_VIRTIO_9P_PCI)
+
+typedef struct V9fsPCIState {
+    VirtIOPCIProxy parent_obj;
+    V9fsState vdev;
+} V9fsPCIState;
+
+#endif
 
 void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev);
 void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev);
