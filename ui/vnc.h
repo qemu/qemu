@@ -276,9 +276,12 @@ struct VncState
     VncStateSASL sasl;
 #endif
 #ifdef CONFIG_VNC_WS
+#ifdef CONFIG_VNC_TLS
+    VncStateTLS ws_tls;
+#endif /* CONFIG_VNC_TLS */
     bool encode_ws;
     bool websocket;
-#endif
+#endif /* CONFIG_VNC_WS */
 
     QObject *info;
 

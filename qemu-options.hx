@@ -1127,6 +1127,8 @@ By definition the Websocket port is 5700+@var{display}. If @var{host} is
 specified connections will only be allowed from this host.
 As an alternative the Websocket port could be specified by using
 @code{websocket}=@var{port}.
+TLS encryption for the Websocket connection is supported if the required
+certificates are specified with the VNC option @option{x509}.
 
 @item password
 

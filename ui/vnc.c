@@ -1111,6 +1111,23 @@ void vnc_client_error(VncState *vs)
     vnc_disconnect_start(vs);
 }
 
+#ifdef CONFIG_VNC_TLS
+static long vnc_client_write_tls(gnutls_session_t *session,
+                                 const uint8_t *data,
+                                 size_t datalen)
+{
+    long ret = gnutls_write(*session, data, datalen);
+    if (ret < 0) {
+        if (ret == GNUTLS_E_AGAIN) {
+            errno = EAGAIN;
+        } else {
+            errno = EIO;
+        }
+        ret = -1;
+    }
+    return ret;
+}
+#endif /* CONFIG_VNC_TLS */
 
 /*
  * Called to write a chunk of data to the client socket. The data may
@@ -1132,17 +1149,20 @@ long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
     long ret;
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
-        ret = gnutls_write(vs->tls.session, data, datalen);
-        if (ret < 0) {
-            if (ret == GNUTLS_E_AGAIN)
-                errno = EAGAIN;
-            else
-                errno = EIO;
-            ret = -1;
-        }
-    } else
+        ret = vnc_client_write_tls(&vs->tls.session, data, datalen);
+    } else {
+#ifdef CONFIG_VNC_WS
+        if (vs->ws_tls.session) {
+            ret = vnc_client_write_tls(&vs->ws_tls.session, data, datalen);
+        } else
+#endif /* CONFIG_VNC_WS */
 #endif /* CONFIG_VNC_TLS */
-        ret = send(vs->csock, (const void *)data, datalen, 0);
+        {
+            ret = send(vs->csock, (const void *)data, datalen, 0);
+        }
+#ifdef CONFIG_VNC_TLS
+    }
+#endif /* CONFIG_VNC_TLS */
     VNC_DEBUG("Wrote wire %p %zd -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, socket_error());
 }
@@ -1240,6 +1260,22 @@ void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
     vs->read_handler_expect = expecting;
 }
 
+#ifdef CONFIG_VNC_TLS
+static long vnc_client_read_tls(gnutls_session_t *session, uint8_t *data,
+                                size_t datalen)
+{
+    long ret = gnutls_read(*session, data, datalen);
+    if (ret < 0) {
+        if (ret == GNUTLS_E_AGAIN) {
+            errno = EAGAIN;
+        } else {
+            errno = EIO;
+        }
+        ret = -1;
+    }
+    return ret;
+}
+#endif /* CONFIG_VNC_TLS */
 
 /*
  * Called to read a chunk of data from the client socket. The data may
@@ -1261,17 +1297,20 @@ long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
     long ret;
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
-        ret = gnutls_read(vs->tls.session, data, datalen);
-        if (ret < 0) {
-            if (ret == GNUTLS_E_AGAIN)
-                errno = EAGAIN;
-            else
-                errno = EIO;
-            ret = -1;
-        }
-    } else
+        ret = vnc_client_read_tls(&vs->tls.session, data, datalen);
+    } else {
+#ifdef CONFIG_VNC_WS
+        if (vs->ws_tls.session) {
+            ret = vnc_client_read_tls(&vs->ws_tls.session, data, datalen);
+        } else
+#endif /* CONFIG_VNC_WS */
 #endif /* CONFIG_VNC_TLS */
-        ret = qemu_recv(vs->csock, data, datalen, 0);
+        {
+            ret = qemu_recv(vs->csock, data, datalen, 0);
+        }
+#ifdef CONFIG_VNC_TLS
+    }
+#endif /* CONFIG_VNC_TLS */
     VNC_DEBUG("Read wire %p %zd -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, socket_error());
 }
@@ -2761,7 +2800,16 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth, bool websocket)
 #ifdef CONFIG_VNC_WS
     if (websocket) {
         vs->websocket = 1;
-        qemu_set_fd_handler2(vs->csock, NULL, vncws_handshake_read, NULL, vs);
+#ifdef CONFIG_VNC_TLS
+        if (vd->tls.x509cert) {
+            qemu_set_fd_handler2(vs->csock, NULL, vncws_tls_handshake_peek,
+                                 NULL, vs);
+        } else
+#endif /* CONFIG_VNC_TLS */
+        {
+            qemu_set_fd_handler2(vs->csock, NULL, vncws_handshake_read,
+                                 NULL, vs);
+        }
     } else
 #endif /* CONFIG_VNC_WS */
     {
