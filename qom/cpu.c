@@ -62,6 +62,7 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
 
     if (dev->hotplugged) {
         cpu_synchronize_post_init(cpu);
+        cpu_resume(cpu);
     }
 }
 
