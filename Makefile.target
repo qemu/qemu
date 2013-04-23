@@ -60,6 +60,12 @@ all: $(PROGS) stap
 # Dummy command so that make thinks it has done something
 	@true
 
+CONFIG_NO_PCI = $(if $(subst n,,$(CONFIG_PCI)),n,y)
+CONFIG_NO_KVM = $(if $(subst n,,$(CONFIG_KVM)),n,y)
+CONFIG_NO_XEN = $(if $(subst n,,$(CONFIG_XEN)),n,y)
+CONFIG_NO_GET_MEMORY_MAPPING = $(if $(subst n,,$(CONFIG_HAVE_GET_MEMORY_MAPPING)),n,y)
+CONFIG_NO_CORE_DUMP = $(if $(subst n,,$(CONFIG_HAVE_CORE_DUMP)),n,y)
+
 #########################################################
 # cpu emulator library
 obj-y = exec.o translate-all.o cpu-exec.o
@@ -70,6 +76,7 @@ obj-y += fpu/softfloat.o
 obj-y += target-$(TARGET_BASE_ARCH)/
 obj-y += disas.o
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
+obj-$(CONFIG_NO_KVM) += kvm-stub.o
 
 #########################################################
 # Linux user emulator target
@@ -98,18 +105,11 @@ endif #CONFIG_BSD_USER
 #########################################################
 # System emulator target
 ifdef CONFIG_SOFTMMU
-CONFIG_NO_PCI = $(if $(subst n,,$(CONFIG_PCI)),n,y)
-CONFIG_NO_KVM = $(if $(subst n,,$(CONFIG_KVM)),n,y)
-CONFIG_NO_XEN = $(if $(subst n,,$(CONFIG_XEN)),n,y)
-CONFIG_NO_GET_MEMORY_MAPPING = $(if $(subst n,,$(CONFIG_HAVE_GET_MEMORY_MAPPING)),n,y)
-CONFIG_NO_CORE_DUMP = $(if $(subst n,,$(CONFIG_HAVE_CORE_DUMP)),n,y)
-
 obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o
 obj-y += qtest.o
 obj-y += hw/
 obj-$(CONFIG_FDT) += device_tree.o
 obj-$(CONFIG_KVM) += kvm-all.o
-obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-y += memory.o savevm.o cputlb.o
 obj-$(CONFIG_HAVE_GET_MEMORY_MAPPING) += memory_mapping.o
 obj-$(CONFIG_HAVE_CORE_DUMP) += dump.o

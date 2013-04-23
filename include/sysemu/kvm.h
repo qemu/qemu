@@ -144,10 +144,10 @@ int kvm_cpu_exec(CPUArchState *env);
 #if !defined(CONFIG_USER_ONLY)
 void *kvm_vmalloc(ram_addr_t size);
 void *kvm_arch_vmalloc(ram_addr_t size);
-void kvm_setup_guest_memory(void *start, size_t size);
-
-void kvm_flush_coalesced_mmio_buffer(void);
 #endif
+
+void kvm_setup_guest_memory(void *start, size_t size);
+void kvm_flush_coalesced_mmio_buffer(void);
 
 int kvm_insert_breakpoint(CPUArchState *current_env, target_ulong addr,
                           target_ulong len, int type);
