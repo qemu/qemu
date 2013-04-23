@@ -45,6 +45,9 @@ typedef unsigned long long __u64;
 
 #include "cio.h"
 
+/* start.s */
+void disabled_wait(void);
+
 /* main.c */
 void virtio_panic(const char *string);
 

@@ -16,6 +16,7 @@ char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 void virtio_panic(const char *string)
 {
     sclp_print(string);
+    disabled_wait();
     while (1) { }
 }
 
@@ -52,5 +53,6 @@ int main(void)
     virtio_setup();
     if (zipl_load() < 0)
         sclp_print("Failed to load OS from hard disk\n");
+    disabled_wait();
     while (1) { }
 }
