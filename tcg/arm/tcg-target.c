@@ -201,8 +201,6 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 
     /* qemu_st address & data_reg */
     case 's':
-    /* qemu_st64 data_reg2 */
-    case 'S':
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
         /* r0-r2 will be overwritten when reading the tlb entry (softmmu only)
@@ -1928,7 +1926,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_st8, { "s", "s" } },
     { INDEX_op_qemu_st16, { "s", "s" } },
     { INDEX_op_qemu_st32, { "s", "s" } },
-    { INDEX_op_qemu_st64, { "S", "S", "s" } },
+    { INDEX_op_qemu_st64, { "s", "s", "s" } },
 #else
     { INDEX_op_qemu_ld8u, { "r", "l", "l" } },
     { INDEX_op_qemu_ld8s, { "r", "l", "l" } },
@@ -1940,7 +1938,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_st8, { "s", "s", "s" } },
     { INDEX_op_qemu_st16, { "s", "s", "s" } },
     { INDEX_op_qemu_st32, { "s", "s", "s" } },
-    { INDEX_op_qemu_st64, { "S", "S", "s", "s" } },
+    { INDEX_op_qemu_st64, { "s", "s", "s", "s" } },
 #endif
 
     { INDEX_op_bswap16_i32, { "r", "r" } },
