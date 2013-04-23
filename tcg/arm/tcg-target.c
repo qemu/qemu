@@ -1055,14 +1055,9 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, int label_index)
 {
     TCGLabel *l = &s->labels[label_index];
 
-    if (l->has_value)
+    if (l->has_value) {
         tcg_out_goto(s, cond, l->u.value);
-    else if (cond == COND_AL) {
-        tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_PC, -4);
-        tcg_out_reloc(s, s->code_ptr, R_ARM_ABS32, label_index, 31337);
-        s->code_ptr += 4;
     } else {
-        /* Probably this should be preferred even for COND_AL... */
         tcg_out_reloc(s, s->code_ptr, R_ARM_PC24, label_index, 31337);
         tcg_out_b_noaddr(s, cond);
     }
