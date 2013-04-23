@@ -122,7 +122,9 @@ static void vring_send_buf(struct vring *vr, void *p, int len, int flags)
     vr->desc[vr->next_idx].addr = (ulong)p;
     vr->desc[vr->next_idx].len = len;
     vr->desc[vr->next_idx].flags = flags & ~VRING_HIDDEN_IS_CHAIN;
-    vr->desc[vr->next_idx].next = ++vr->next_idx;
+    vr->desc[vr->next_idx].next = vr->next_idx;
+    vr->desc[vr->next_idx].next++;
+    vr->next_idx++;
 
     /* Chains only have a single ID */
     if (!(flags & VRING_DESC_F_NEXT)) {
