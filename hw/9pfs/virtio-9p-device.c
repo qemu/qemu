@@ -46,30 +46,17 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
     g_free(cfg);
 }
 
-static VirtIODevice *virtio_9p_common_init(DeviceState *dev, V9fsConf *conf,
-                                           V9fsState **ps)
+static int virtio_9p_device_init(VirtIODevice *vdev)
 {
-    V9fsState *s = *ps;
+    V9fsState *s = VIRTIO_9P(vdev);
     int i, len;
     struct stat stat;
     FsDriverEntry *fse;
     V9fsPath path;
 
-    /*
-     * We have two cases here: the old virtio-9p-pci device, and the
-     * refactored virtio-9p.
-     */
+    virtio_init(VIRTIO_DEVICE(s), "virtio-9p", VIRTIO_ID_9P,
+                sizeof(struct virtio_9p_config) + MAX_TAG_LEN);
 
-    if (s == NULL) {
-        s = (V9fsState *)virtio_common_init("virtio-9p",
-                                        VIRTIO_ID_9P,
-                                        sizeof(struct virtio_9p_config)+
-                                        MAX_TAG_LEN,
-                                        sizeof(V9fsState));
-    } else {
-        virtio_init(VIRTIO_DEVICE(s), "virtio-9p", VIRTIO_ID_9P,
-                    sizeof(struct virtio_9p_config) + MAX_TAG_LEN);
-    }
     /* initialize pdu allocator */
     QLIST_INIT(&s->free_list);
     QLIST_INIT(&s->active_list);
@@ -77,35 +64,36 @@ static VirtIODevice *virtio_9p_common_init(DeviceState *dev, V9fsConf *conf,
         QLIST_INSERT_HEAD(&s->free_list, &s->pdus[i], next);
     }
 
-    s->vq = virtio_add_queue(&s->vdev, MAX_REQ, handle_9p_output);
+    s->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output);
 
-    fse = get_fsdev_fsentry(conf->fsdev_id);
+    fse = get_fsdev_fsentry(s->fsconf.fsdev_id);
 
     if (!fse) {
         /* We don't have a fsdev identified by fsdev_id */
         fprintf(stderr, "Virtio-9p device couldn't find fsdev with the "
-                "id = %s\n", conf->fsdev_id ? conf->fsdev_id : "NULL");
-        exit(1);
+                "id = %s\n",
+                s->fsconf.fsdev_id ? s->fsconf.fsdev_id : "NULL");
+        return -1;
     }
 
-    if (!conf->tag) {
+    if (!s->fsconf.tag) {
         /* we haven't specified a mount_tag */
         fprintf(stderr, "fsdev with id %s needs mount_tag arguments\n",
-                conf->fsdev_id);
-        exit(1);
+                s->fsconf.fsdev_id);
+        return -1;
     }
 
     s->ctx.export_flags = fse->export_flags;
     s->ctx.fs_root = g_strdup(fse->path);
     s->ctx.exops.get_st_gen = NULL;
-    len = strlen(conf->tag);
+    len = strlen(s->fsconf.tag);
     if (len > MAX_TAG_LEN - 1) {
         fprintf(stderr, "mount tag '%s' (%d bytes) is longer than "
-                "maximum (%d bytes)", conf->tag, len, MAX_TAG_LEN - 1);
-        exit(1);
+                "maximum (%d bytes)", s->fsconf.tag, len, MAX_TAG_LEN - 1);
+        return -1;
     }
 
-    s->tag = g_strdup(conf->tag);
+    s->tag = strdup(s->fsconf.tag);
     s->ctx.uid = -1;
 
     s->ops = fse->ops;
@@ -117,12 +105,12 @@ static VirtIODevice *virtio_9p_common_init(DeviceState *dev, V9fsConf *conf,
 
     if (s->ops->init(&s->ctx) < 0) {
         fprintf(stderr, "Virtio-9p Failed to initialize fs-driver with id:%s"
-                " and export path:%s\n", conf->fsdev_id, s->ctx.fs_root);
-        exit(1);
+                " and export path:%s\n", s->fsconf.fsdev_id, s->ctx.fs_root);
+        return -1;
     }
     if (v9fs_init_worker_threads() < 0) {
         fprintf(stderr, "worker thread initialization failed\n");
-        exit(1);
+        return -1;
     }
 
     /*
@@ -134,38 +122,21 @@ static VirtIODevice *virtio_9p_common_init(DeviceState *dev, V9fsConf *conf,
     if (s->ops->name_to_path(&s->ctx, NULL, "/", &path) < 0) {
         fprintf(stderr,
                 "error in converting name to path %s", strerror(errno));
-        exit(1);
+        return -1;
     }
     if (s->ops->lstat(&s->ctx, &path, &stat)) {
         fprintf(stderr, "share path %s does not exist\n", fse->path);
-        exit(1);
+        return -1;
     } else if (!S_ISDIR(stat.st_mode)) {
         fprintf(stderr, "share path %s is not a directory\n", fse->path);
-        exit(1);
+        return -1;
     }
     v9fs_path_free(&path);
 
-    return &s->vdev;
-}
-
-VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
-{
-    V9fsState *s = NULL;
-    return virtio_9p_common_init(dev, conf, &s);
+    return 0;
 }
 
 /* virtio-9p device */
-
-static int virtio_9p_device_init(VirtIODevice *vdev)
-{
-    DeviceState *qdev = DEVICE(vdev);
-    V9fsState *s = VIRTIO_9P(vdev);
-    V9fsConf *fsconf = &(s->fsconf);
-    if (virtio_9p_common_init(qdev, fsconf, &s) == NULL) {
-        return -1;
-    }
-    return 0;
-}
 
 static Property virtio_9p_properties[] = {
     DEFINE_VIRTIO_9P_PROPERTIES(V9fsState, fsconf),
