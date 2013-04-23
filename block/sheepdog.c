@@ -89,7 +89,6 @@
 #define SD_NR_VDIS   (1U << 24)
 #define SD_DATA_OBJ_SIZE (UINT64_C(1) << 22)
 #define SD_MAX_VDI_SIZE (SD_DATA_OBJ_SIZE * MAX_DATA_OBJS)
-#define SECTOR_SIZE 512
 
 #define SD_INODE_SIZE (sizeof(SheepdogInode))
 #define CURRENT_VDI_ID 0
@@ -1246,7 +1245,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags)
     s->min_dirty_data_idx = UINT32_MAX;
     s->max_dirty_data_idx = 0;
 
-    bs->total_sectors = s->inode.vdi_size / SECTOR_SIZE;
+    bs->total_sectors = s->inode.vdi_size / BDRV_SECTOR_SIZE;
     pstrcpy(s->name, sizeof(s->name), vdi);
     qemu_co_mutex_init(&s->lock);
     qemu_opts_del(opts);
@@ -1633,10 +1632,10 @@ static int coroutine_fn sd_co_rw_vector(void *p)
 {
     SheepdogAIOCB *acb = p;
     int ret = 0;
-    unsigned long len, done = 0, total = acb->nb_sectors * SECTOR_SIZE;
-    unsigned long idx = acb->sector_num * SECTOR_SIZE / SD_DATA_OBJ_SIZE;
+    unsigned long len, done = 0, total = acb->nb_sectors * BDRV_SECTOR_SIZE;
+    unsigned long idx = acb->sector_num * BDRV_SECTOR_SIZE / SD_DATA_OBJ_SIZE;
     uint64_t oid;
-    uint64_t offset = (acb->sector_num * SECTOR_SIZE) % SD_DATA_OBJ_SIZE;
+    uint64_t offset = (acb->sector_num * BDRV_SECTOR_SIZE) % SD_DATA_OBJ_SIZE;
     BDRVSheepdogState *s = acb->common.bs->opaque;
     SheepdogInode *inode = &s->inode;
     AIOReq *aio_req;
@@ -1755,7 +1754,7 @@ static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
     int ret;
 
     if (bs->growable && sector_num + nb_sectors > bs->total_sectors) {
-        ret = sd_truncate(bs, (sector_num + nb_sectors) * SECTOR_SIZE);
+        ret = sd_truncate(bs, (sector_num + nb_sectors) * BDRV_SECTOR_SIZE);
         if (ret < 0) {
             return ret;
         }
