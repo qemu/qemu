@@ -27,6 +27,8 @@
 #define SD_OP_CREATE_AND_WRITE_OBJ  0x01
 #define SD_OP_READ_OBJ       0x02
 #define SD_OP_WRITE_OBJ      0x03
+/* 0x04 is used internally by Sheepdog */
+#define SD_OP_DISCARD_OBJ    0x05
 
 #define SD_OP_NEW_VDI        0x11
 #define SD_OP_LOCK_VDI       0x12
@@ -269,6 +271,7 @@ enum AIOCBState {
     AIOCB_WRITE_UDATA,
     AIOCB_READ_UDATA,
     AIOCB_FLUSH_CACHE,
+    AIOCB_DISCARD_OBJ,
 };
 
 struct SheepdogAIOCB {
@@ -298,6 +301,7 @@ typedef struct BDRVSheepdogState {
     char name[SD_MAX_VDI_LEN];
     bool is_snapshot;
     uint32_t cache_flags;
+    bool discard_supported;
 
     char *host_spec;
     bool is_unix;
@@ -656,7 +660,7 @@ static void coroutine_fn aio_read_response(void *opaque)
     int ret;
     AIOReq *aio_req = NULL;
     SheepdogAIOCB *acb;
-    unsigned long idx;
+    uint64_t idx;
 
     if (QLIST_EMPTY(&s->inflight_aio_head)) {
         goto out;
@@ -727,6 +731,21 @@ static void coroutine_fn aio_read_response(void *opaque)
             rsp.result = SD_RES_SUCCESS;
         }
         break;
+    case AIOCB_DISCARD_OBJ:
+        switch (rsp.result) {
+        case SD_RES_INVALID_PARMS:
+            error_report("sheep(%s) doesn't support discard command",
+                         s->host_spec);
+            rsp.result = SD_RES_SUCCESS;
+            s->discard_supported = false;
+            break;
+        case SD_RES_SUCCESS:
+            idx = data_oid_to_idx(aio_req->oid);
+            s->inode.data_vdi_id[idx] = 0;
+            break;
+        default:
+            break;
+        }
     }
 
     if (rsp.result != SD_RES_SUCCESS) {
@@ -1016,6 +1035,9 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
         wlen = datalen;
         hdr.flags = SD_FLAG_CMD_WRITE | flags;
         break;
+    case AIOCB_DISCARD_OBJ:
+        hdr.opcode = SD_OP_DISCARD_OBJ;
+        break;
     }
 
     if (s->cache_flags) {
@@ -1197,6 +1219,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags)
     if (flags & BDRV_O_NOCACHE) {
         s->cache_flags = SD_FLAG_CMD_DIRECT;
     }
+    s->discard_supported = true;
 
     if (snapid || tag[0] != '\0') {
         dprintf("%" PRIx32 " snapshot inode was open.\n", vid);
@@ -1662,6 +1685,15 @@ static int coroutine_fn sd_co_rw_vector(void *p)
                 flags = SD_FLAG_CMD_COW;
             }
             break;
+        case AIOCB_DISCARD_OBJ:
+            /*
+             * We discard the object only when the whole object is
+             * 1) allocated 2) trimmed. Otherwise, simply skip it.
+             */
+            if (len != SD_DATA_OBJ_SIZE || inode->data_vdi_id[idx] == 0) {
+                goto done;
+            }
+            break;
         default:
             break;
         }
@@ -2107,6 +2139,33 @@ static int sd_load_vmstate(BlockDriverState *bs, uint8_t *data,
 }
 
 
+static coroutine_fn int sd_co_discard(BlockDriverState *bs, int64_t sector_num,
+                                      int nb_sectors)
+{
+    SheepdogAIOCB *acb;
+    QEMUIOVector dummy;
+    BDRVSheepdogState *s = bs->opaque;
+    int ret;
+
+    if (!s->discard_supported) {
+            return 0;
+    }
+
+    acb = sd_aio_setup(bs, &dummy, sector_num, nb_sectors);
+    acb->aiocb_type = AIOCB_DISCARD_OBJ;
+    acb->aio_done_func = sd_finish_aiocb;
+
+    ret = sd_co_rw_vector(acb);
+    if (ret <= 0) {
+        qemu_aio_release(acb);
+        return ret;
+    }
+
+    qemu_coroutine_yield();
+
+    return acb->ret;
+}
+
 static QEMUOptionParameter sd_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
@@ -2139,6 +2198,7 @@ static BlockDriver bdrv_sheepdog = {
     .bdrv_co_readv  = sd_co_readv,
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
+    .bdrv_co_discard = sd_co_discard,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
     .bdrv_snapshot_goto     = sd_snapshot_goto,
@@ -2164,6 +2224,7 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_co_readv  = sd_co_readv,
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
+    .bdrv_co_discard = sd_co_discard,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
     .bdrv_snapshot_goto     = sd_snapshot_goto,
@@ -2189,6 +2250,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_co_readv  = sd_co_readv,
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
+    .bdrv_co_discard = sd_co_discard,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
     .bdrv_snapshot_goto     = sd_snapshot_goto,
