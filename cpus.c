@@ -993,6 +993,13 @@ void pause_all_vcpus(void)
     }
 }
 
+void cpu_resume(CPUState *cpu)
+{
+    cpu->stop = false;
+    cpu->stopped = false;
+    qemu_cpu_kick(cpu);
+}
+
 void resume_all_vcpus(void)
 {
     CPUArchState *penv = first_cpu;
@@ -1000,9 +1007,7 @@ void resume_all_vcpus(void)
     qemu_clock_enable(vm_clock, true);
     while (penv) {
         CPUState *pcpu = ENV_GET_CPU(penv);
-        pcpu->stop = false;
-        pcpu->stopped = false;
-        qemu_cpu_kick(pcpu);
+        cpu_resume(pcpu);
         penv = penv->next_cpu;
     }
 }

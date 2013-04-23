@@ -256,5 +256,12 @@ void cpu_interrupt(CPUState *cpu, int mask);
  */
 void cpu_reset_interrupt(CPUState *cpu, int mask);
 
+/**
+ * cpu_resume:
+ * @cpu: The CPU to resume.
+ *
+ * Resumes CPU, i.e. puts CPU into runnable state.
+ */
+void cpu_resume(CPUState *cpu);
 
 #endif
