@@ -152,7 +152,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                           env->sregs[SR_ESR], env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, env, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
-            env->sregs[SR_PC] = 0x20;
+            env->sregs[SR_PC] = cpu->base_vectors + 0x20;
             break;
 
         case EXCP_MMU:
@@ -192,7 +192,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                           env->sregs[SR_PC], env->sregs[SR_EAR], env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, env, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
-            env->sregs[SR_PC] = 0x20;
+            env->sregs[SR_PC] = cpu->base_vectors + 0x20;
             break;
 
         case EXCP_IRQ:
@@ -233,7 +233,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             env->sregs[SR_MSR] |= t;
 
             env->regs[14] = env->sregs[SR_PC];
-            env->sregs[SR_PC] = 0x10;
+            env->sregs[SR_PC] = cpu->base_vectors + 0x10;
             //log_cpu_state_mask(CPU_LOG_INT, env, 0);
             break;
 
@@ -252,7 +252,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             if (env->exception_index == EXCP_HW_BREAK) {
                 env->regs[16] = env->sregs[SR_PC];
                 env->sregs[SR_MSR] |= MSR_BIP;
-                env->sregs[SR_PC] = 0x18;
+                env->sregs[SR_PC] = cpu->base_vectors + 0x18;
             } else
                 env->sregs[SR_PC] = env->btarget;
             break;

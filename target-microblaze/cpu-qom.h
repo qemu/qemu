@@ -56,6 +56,7 @@ typedef struct MicroBlazeCPUClass {
 typedef struct MicroBlazeCPU {
     /*< private >*/
     CPUState parent_obj;
+    uint32_t base_vectors;
     /*< public >*/
 
     CPUMBState env;
