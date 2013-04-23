@@ -3060,7 +3060,7 @@ fi
 
 # check for libusb
 if test "$libusb" != "no" ; then
-    if $pkg_config libusb-1.0 >/dev/null 2>&1 ; then
+    if $pkg_config --atleast-version=1.0.13 libusb-1.0 >/dev/null 2>&1 ; then
         libusb="yes"
 	usb="libusb"
         libusb_cflags=$($pkg_config --cflags libusb-1.0 2>/dev/null)

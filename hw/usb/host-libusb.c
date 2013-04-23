@@ -236,8 +236,6 @@ static int usb_host_init(void)
 
 static int usb_host_get_port(libusb_device *dev, char *port, size_t len)
 {
-#if defined(LIBUSBX_API_VERSION) && (LIBUSBX_API_VERSION >= 0x010000ff)
-    /* have libusb_get_port_path() */
     uint8_t path[7];
     size_t off;
     int rc, i;
@@ -251,9 +249,6 @@ static int usb_host_get_port(libusb_device *dev, char *port, size_t len)
         off += snprintf(port+off, len-off, ".%d", path[i]);
     }
     return off;
-#else
-    return snprintf(port, len, "FIXME");
-#endif
 }
 
 static void usb_host_libusb_error(const char *func, int rc)
