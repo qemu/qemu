@@ -1030,7 +1030,7 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
 
     // register vga output callbacks
     dcl->ops = &dcl_ops;
-    register_displaychangelistener(ds, dcl);
+    register_displaychangelistener(dcl);
 
     // register cleanup function
     atexit(cocoa_cleanup);

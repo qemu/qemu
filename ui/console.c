@@ -178,6 +178,7 @@ static int nb_consoles = 0;
 
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds);
 static void dpy_refresh(DisplayState *s);
+static DisplayState *get_alloc_displaystate(void);
 
 static void gui_update(void *opaque)
 {
@@ -1309,15 +1310,14 @@ void qemu_free_displaysurface(DisplaySurface *surface)
     g_free(surface);
 }
 
-void register_displaychangelistener(DisplayState *ds,
-                                    DisplayChangeListener *dcl)
+void register_displaychangelistener(DisplayChangeListener *dcl)
 {
     QemuConsole *con;
 
     trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);
-    dcl->ds = ds;
-    QLIST_INSERT_HEAD(&ds->listeners, dcl, next);
-    gui_setup_refresh(ds);
+    dcl->ds = get_alloc_displaystate();
+    QLIST_INSERT_HEAD(&dcl->ds->listeners, dcl, next);
+    gui_setup_refresh(dcl->ds);
     if (dcl->con) {
         dcl->con->dcls++;
         con = dcl->con;

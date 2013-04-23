@@ -2058,7 +2058,6 @@ static int qxl_init_primary(PCIDevice *dev)
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
     VGACommonState *vga = &qxl->vga;
     PortioList *qxl_vga_port_list = g_new(PortioList, 1);
-    DisplayState *ds;
     int rc;
 
     qxl->id = 0;
@@ -2079,8 +2078,7 @@ static int qxl_init_primary(PCIDevice *dev)
 
     qxl->ssd.dcl.ops = &display_listener_ops;
     qxl->ssd.dcl.con = vga->con;
-    ds = qemu_console_displaystate(vga->con);
-    register_displaychangelistener(ds, &qxl->ssd.dcl);
+    register_displaychangelistener(&qxl->ssd.dcl);
     return rc;
 }
 

@@ -1470,7 +1470,7 @@ void gtk_display_init(DisplayState *ds)
 
     gtk_widget_show_all(s->window);
 
-    register_displaychangelistener(ds, &s->dcl);
+    register_displaychangelistener(&s->dcl);
 
     global_state = s;
 }

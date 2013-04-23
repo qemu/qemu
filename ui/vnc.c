@@ -2832,7 +2832,7 @@ void vnc_display_init(DisplayState *ds)
     vnc_start_worker_thread();
 
     vs->dcl.ops = &dcl_ops;
-    register_displaychangelistener(ds, &vs->dcl);
+    register_displaychangelistener(&vs->dcl);
 }
 
 

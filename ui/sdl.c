@@ -937,7 +937,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 
     dcl = g_malloc0(sizeof(DisplayChangeListener));
     dcl->ops = &dcl_ops;
-    register_displaychangelistener(ds, dcl);
+    register_displaychangelistener(dcl);
 
     mouse_mode_notifier.notify = sdl_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&mouse_mode_notifier);

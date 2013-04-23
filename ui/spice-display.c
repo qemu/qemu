@@ -625,7 +625,7 @@ void qemu_spice_display_init(DisplayState *ds)
 
     ssd->dcl.ops = &display_listener_ops;
     ssd->dcl.con = qemu_console_lookup_by_index(0);
-    register_displaychangelistener(ds, &ssd->dcl);
+    register_displaychangelistener(&ssd->dcl);
 
     qemu_spice_create_host_primary(ssd);
 }
