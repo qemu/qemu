@@ -1040,8 +1040,7 @@ static Property virtio_9p_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
-    DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
-    DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
+    DEFINE_VIRTIO_9P_PROPERTIES(VirtIOPCIProxy, fsconf),
     DEFINE_PROP_END_OF_LIST(),
 };
 

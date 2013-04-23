@@ -46,19 +46,30 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
     g_free(cfg);
 }
 
-VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
+static VirtIODevice *virtio_9p_common_init(DeviceState *dev, V9fsConf *conf,
+                                           V9fsState **ps)
 {
-    V9fsState *s;
+    V9fsState *s = *ps;
     int i, len;
     struct stat stat;
     FsDriverEntry *fse;
     V9fsPath path;
 
-    s = (V9fsState *)virtio_common_init("virtio-9p",
-                                    VIRTIO_ID_9P,
-                                    sizeof(struct virtio_9p_config)+
-                                    MAX_TAG_LEN,
-                                    sizeof(V9fsState));
+    /*
+     * We have two cases here: the old virtio-9p-pci device, and the
+     * refactored virtio-9p.
+     */
+
+    if (s == NULL) {
+        s = (V9fsState *)virtio_common_init("virtio-9p",
+                                        VIRTIO_ID_9P,
+                                        sizeof(struct virtio_9p_config)+
+                                        MAX_TAG_LEN,
+                                        sizeof(V9fsState));
+    } else {
+        virtio_init(VIRTIO_DEVICE(s), "virtio-9p", VIRTIO_ID_9P,
+                    sizeof(struct virtio_9p_config) + MAX_TAG_LEN);
+    }
     /* initialize pdu allocator */
     QLIST_INIT(&s->free_list);
     QLIST_INIT(&s->active_list);
@@ -136,3 +147,51 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
 
     return &s->vdev;
 }
+
+VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
+{
+    V9fsState *s = NULL;
+    return virtio_9p_common_init(dev, conf, &s);
+}
+
+/* virtio-9p device */
+
+static int virtio_9p_device_init(VirtIODevice *vdev)
+{
+    DeviceState *qdev = DEVICE(vdev);
+    V9fsState *s = VIRTIO_9P(vdev);
+    V9fsConf *fsconf = &(s->fsconf);
+    if (virtio_9p_common_init(qdev, fsconf, &s) == NULL) {
+        return -1;
+    }
+    return 0;
+}
+
+static Property virtio_9p_properties[] = {
+    DEFINE_VIRTIO_9P_PROPERTIES(V9fsState, fsconf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_9p_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    dc->props = virtio_9p_properties;
+    vdc->init = virtio_9p_device_init;
+    vdc->get_features = virtio_9p_get_features;
+    vdc->get_config = virtio_9p_get_config;
+}
+
+static const TypeInfo virtio_device_info = {
+    .name = TYPE_VIRTIO_9P,
+    .parent = TYPE_VIRTIO_DEVICE,
+    .instance_size = sizeof(V9fsState),
+    .class_init = virtio_9p_class_init,
+};
+
+static void virtio_9p_register_types(void)
+{
+    type_register_static(&virtio_device_info);
+}
+
+type_init(virtio_9p_register_types)

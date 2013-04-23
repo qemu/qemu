@@ -225,6 +225,7 @@ typedef struct V9fsState
     CoRwlock rename_lock;
     int32_t root_fid;
     Error *migration_blocker;
+    V9fsConf fsconf;
 } V9fsState;
 
 typedef struct V9fsStatState {
@@ -400,5 +401,13 @@ extern int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
     v9fs_marshal(pdu->elem.in_sg, pdu->elem.in_num, offset, 1, fmt, ##args)
 #define pdu_unmarshal(pdu, offset, fmt, args...)  \
     v9fs_unmarshal(pdu->elem.out_sg, pdu->elem.out_num, offset, 1, fmt, ##args)
+
+#define TYPE_VIRTIO_9P "virtio-9p-device"
+#define VIRTIO_9P(obj) \
+        OBJECT_CHECK(V9fsState, (obj), TYPE_VIRTIO_9P)
+
+#define DEFINE_VIRTIO_9P_PROPERTIES(_state, _field)             \
+        DEFINE_PROP_STRING("mount_tag", _state, _field.tag),    \
+        DEFINE_PROP_STRING("fsdev", _state, _field.fsdev_id)
 
 #endif
