@@ -2165,6 +2165,40 @@ static coroutine_fn int sd_co_discard(BlockDriverState *bs, int64_t sector_num,
     return acb->ret;
 }
 
+static coroutine_fn int
+sd_co_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+                   int *pnum)
+{
+    BDRVSheepdogState *s = bs->opaque;
+    SheepdogInode *inode = &s->inode;
+    unsigned long start = sector_num * BDRV_SECTOR_SIZE / SD_DATA_OBJ_SIZE,
+                  end = DIV_ROUND_UP((sector_num + nb_sectors) *
+                                     BDRV_SECTOR_SIZE, SD_DATA_OBJ_SIZE);
+    unsigned long idx;
+    int ret = 1;
+
+    for (idx = start; idx < end; idx++) {
+        if (inode->data_vdi_id[idx] == 0) {
+            break;
+        }
+    }
+    if (idx == start) {
+        /* Get the longest length of unallocated sectors */
+        ret = 0;
+        for (idx = start + 1; idx < end; idx++) {
+            if (inode->data_vdi_id[idx] != 0) {
+                break;
+            }
+        }
+    }
+
+    *pnum = (idx - start) * SD_DATA_OBJ_SIZE / BDRV_SECTOR_SIZE;
+    if (*pnum > nb_sectors) {
+        *pnum = nb_sectors;
+    }
+    return ret;
+}
+
 static QEMUOptionParameter sd_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
@@ -2198,6 +2232,7 @@ static BlockDriver bdrv_sheepdog = {
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
     .bdrv_co_discard = sd_co_discard,
+    .bdrv_co_is_allocated = sd_co_is_allocated,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
     .bdrv_snapshot_goto     = sd_snapshot_goto,
@@ -2224,6 +2259,7 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
     .bdrv_co_discard = sd_co_discard,
+    .bdrv_co_is_allocated = sd_co_is_allocated,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
     .bdrv_snapshot_goto     = sd_snapshot_goto,
@@ -2250,6 +2286,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_co_writev = sd_co_writev,
     .bdrv_co_flush_to_disk  = sd_co_flush_to_disk,
     .bdrv_co_discard = sd_co_discard,
+    .bdrv_co_is_allocated = sd_co_is_allocated,
 
     .bdrv_snapshot_create   = sd_snapshot_create,
     .bdrv_snapshot_goto     = sd_snapshot_goto,
