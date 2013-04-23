@@ -269,18 +269,20 @@ static void ppm_save(const char *filename, struct DisplaySurface *ds,
 {
     int width = pixman_image_get_width(ds->image);
     int height = pixman_image_get_height(ds->image);
+    int fd;
     FILE *f;
     int y;
     int ret;
     pixman_image_t *linebuf;
 
     trace_ppm_save(filename, ds);
-    f = fopen(filename, "wb");
-    if (!f) {
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
+    if (fd == -1) {
         error_setg(errp, "failed to open file '%s': %s", filename,
                    strerror(errno));
         return;
     }
+    f = fdopen(fd, "wb");
     ret = fprintf(f, "P6\n%d %d\n%d\n", width, height, 255);
     if (ret < 0) {
         linebuf = NULL;
