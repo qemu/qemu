@@ -26,16 +26,11 @@ static uint32_t virtio_9p_get_features(VirtIODevice *vdev, uint32_t features)
     return features;
 }
 
-static V9fsState *to_virtio_9p(VirtIODevice *vdev)
-{
-    return (V9fsState *)vdev;
-}
-
 static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     int len;
     struct virtio_9p_config *cfg;
-    V9fsState *s = to_virtio_9p(vdev);
+    V9fsState *s = VIRTIO_9P(vdev);
 
     len = strlen(s->tag);
     cfg = g_malloc0(sizeof(struct virtio_9p_config) + len);
@@ -97,9 +92,9 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
     s->ctx.uid = -1;
 
     s->ops = fse->ops;
-    s->vdev.get_features = virtio_9p_get_features;
+    vdev->get_features = virtio_9p_get_features;
     s->config_size = sizeof(struct virtio_9p_config) + len;
-    s->vdev.get_config = virtio_9p_get_config;
+    vdev->get_config = virtio_9p_get_config;
     s->fid_list = NULL;
     qemu_co_rwlock_init(&s->rename_lock);
 

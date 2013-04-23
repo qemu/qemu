@@ -631,7 +631,7 @@ static void complete_pdu(V9fsState *s, V9fsPDU *pdu, ssize_t len)
     virtqueue_push(s->vq, &pdu->elem, len);
 
     /* FIXME: we should batch these completions */
-    virtio_notify(&s->vdev, s->vq);
+    virtio_notify(VIRTIO_DEVICE(s), s->vq);
 
     /* Now wakeup anybody waiting in flush for this request */
     qemu_co_queue_next(&pdu->complete);
