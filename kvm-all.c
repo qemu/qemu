@@ -107,6 +107,7 @@ struct KVMState
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
 bool kvm_async_interrupts_allowed;
+bool kvm_halt_in_kernel_allowed;
 bool kvm_irqfds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
@@ -1303,6 +1304,7 @@ static int kvm_irqchip_create(KVMState *s)
      * interrupt delivery (though the reverse is not necessarily true)
      */
     kvm_async_interrupts_allowed = true;
+    kvm_halt_in_kernel_allowed = true;
 
     kvm_init_irq_routing(s);
 

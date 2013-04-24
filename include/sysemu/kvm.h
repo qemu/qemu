@@ -42,6 +42,7 @@
 extern bool kvm_allowed;
 extern bool kvm_kernel_irqchip;
 extern bool kvm_async_interrupts_allowed;
+extern bool kvm_halt_in_kernel_allowed;
 extern bool kvm_irqfds_allowed;
 extern bool kvm_msi_via_irqfd_allowed;
 extern bool kvm_gsi_routing_allowed;
@@ -71,6 +72,14 @@ extern bool kvm_readonly_mem_allowed;
  * (where the vcpu must be stopped at a suitable point first).
  */
 #define kvm_async_interrupts_enabled() (kvm_async_interrupts_allowed)
+
+/**
+ * kvm_halt_in_kernel
+ *
+ * Returns: true if halted cpus should still get a KVM_RUN ioctl to run
+ * inside of kernel space. This only works if MP state is implemented.
+ */
+#define kvm_halt_in_kernel() (kvm_halt_in_kernel_allowed)
 
 /**
  * kvm_irqfds_enabled:
@@ -110,6 +119,7 @@ extern bool kvm_readonly_mem_allowed;
 #define kvm_enabled()           (0)
 #define kvm_irqchip_in_kernel() (false)
 #define kvm_async_interrupts_enabled() (false)
+#define kvm_halt_in_kernel() (false)
 #define kvm_irqfds_enabled() (false)
 #define kvm_msi_via_irqfd_enabled() (false)
 #define kvm_gsi_routing_allowed() (false)
