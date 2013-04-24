@@ -130,86 +130,11 @@ static void check_rate_limit(void *opaque)
                    qemu_get_clock_ms(vm_clock) + s->conf.period_ms);
 }
 
-static VirtIODevice *virtio_rng_common_init(DeviceState *dev,
-                                            VirtIORNGConf *conf,
-                                            VirtIORNG **pvrng)
-{
-    VirtIORNG *vrng = *pvrng;
-    VirtIODevice *vdev;
-    Error *local_err = NULL;
-
-    /*
-     * We have two cases here: the old virtio-rng-x device, and the
-     * refactored virtio-rng.
-     * This will disappear later in the serie.
-     */
-    if (vrng == NULL) {
-        vdev = virtio_common_init("virtio-rng", VIRTIO_ID_RNG, 0,
-                                  sizeof(VirtIORNG));
-        vrng = DO_UPCAST(VirtIORNG, vdev, vdev);
-    } else {
-        vdev = VIRTIO_DEVICE(vrng);
-        virtio_init(vdev, "virtio-rng", VIRTIO_ID_RNG, 0);
-    }
-
-    vrng->rng = conf->rng;
-    if (vrng->rng == NULL) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "rng", "a valid object");
-        return NULL;
-    }
-
-    rng_backend_open(vrng->rng, &local_err);
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return NULL;
-    }
-
-    vrng->vq = virtio_add_queue(vdev, 8, handle_input);
-
-    vrng->vdev.get_features = get_features;
-
-    vrng->qdev = dev;
-    memcpy(&(vrng->conf), conf, sizeof(struct VirtIORNGConf));
-
-    assert(vrng->conf.max_bytes <= INT64_MAX);
-    vrng->quota_remaining = vrng->conf.max_bytes;
-
-    vrng->rate_limit_timer = qemu_new_timer_ms(vm_clock,
-                                               check_rate_limit, vrng);
-
-    qemu_mod_timer(vrng->rate_limit_timer,
-                   qemu_get_clock_ms(vm_clock) + vrng->conf.period_ms);
-
-    register_savevm(dev, "virtio-rng", -1, 1, virtio_rng_save,
-                    virtio_rng_load, vrng);
-
-    return vdev;
-}
-
-/*
- * This two functions will be removed later in the serie.
- */
-VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
-{
-    VirtIORNG *vdev = NULL;
-    return virtio_rng_common_init(dev, conf, &vdev);
-}
-
-void virtio_rng_exit(VirtIODevice *vdev)
-{
-    VirtIORNG *vrng = DO_UPCAST(VirtIORNG, vdev, vdev);
-
-    qemu_del_timer(vrng->rate_limit_timer);
-    qemu_free_timer(vrng->rate_limit_timer);
-    unregister_savevm(vrng->qdev, "virtio-rng", vrng);
-    virtio_cleanup(vdev);
-}
-
 static int virtio_rng_device_init(VirtIODevice *vdev)
 {
     DeviceState *qdev = DEVICE(vdev);
     VirtIORNG *vrng = VIRTIO_RNG(vdev);
+    Error *local_err = NULL;
 
     if (vrng->conf.rng == NULL) {
         vrng->conf.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
@@ -224,9 +149,39 @@ static int virtio_rng_device_init(VirtIODevice *vdev)
                                  "rng", NULL);
     }
 
-    if (virtio_rng_common_init(qdev, &(vrng->conf), &vrng) == NULL) {
+    virtio_init(vdev, "virtio-rng", VIRTIO_ID_RNG, 0);
+
+    vrng->rng = vrng->conf.rng;
+    if (vrng->rng == NULL) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "rng", "a valid object");
         return -1;
     }
+
+    rng_backend_open(vrng->rng, &local_err);
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -1;
+    }
+
+    vrng->vq = virtio_add_queue(vdev, 8, handle_input);
+
+    vrng->vdev.get_features = get_features;
+
+    vrng->qdev = qdev;
+
+    assert(vrng->conf.max_bytes <= INT64_MAX);
+    vrng->quota_remaining = vrng->conf.max_bytes;
+
+    vrng->rate_limit_timer = qemu_new_timer_ms(vm_clock,
+                                               check_rate_limit, vrng);
+
+    qemu_mod_timer(vrng->rate_limit_timer,
+                   qemu_get_clock_ms(vm_clock) + vrng->conf.period_ms);
+
+    register_savevm(qdev, "virtio-rng", -1, 1, virtio_rng_save,
+                    virtio_rng_load, vrng);
+
     return 0;
 }
 

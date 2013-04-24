@@ -261,7 +261,6 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *serial);
 typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *conf);
 typedef struct VirtIORNGConf VirtIORNGConf;
-VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf);
 #ifdef CONFIG_VIRTFS
 VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf);
 #endif
@@ -270,7 +269,6 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf);
 void virtio_net_exit(VirtIODevice *vdev);
 void virtio_serial_exit(VirtIODevice *vdev);
 void virtio_scsi_exit(VirtIODevice *vdev);
-void virtio_rng_exit(VirtIODevice *vdev);
 
 #define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field) \
 	DEFINE_PROP_BIT("indirect_desc", _state, _field, \
