@@ -30,7 +30,7 @@ struct VirtIORNGConf {
 };
 
 typedef struct VirtIORNG {
-    VirtIODevice vdev;
+    VirtIODevice parent_obj;
 
     /* Only one vq - guest puts buffer(s) on it when it needs entropy */
     VirtQueue *vq;
