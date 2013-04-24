@@ -1218,25 +1218,10 @@ static XHCIEPContext *xhci_alloc_epctx(XHCIState *xhci,
     return epctx;
 }
 
-static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
-                               unsigned int epid, dma_addr_t pctx,
-                               uint32_t *ctx)
+static void xhci_init_epctx(XHCIEPContext *epctx,
+                            dma_addr_t pctx, uint32_t *ctx)
 {
-    XHCISlot *slot;
-    XHCIEPContext *epctx;
     dma_addr_t dequeue;
-
-    trace_usb_xhci_ep_enable(slotid, epid);
-    assert(slotid >= 1 && slotid <= xhci->numslots);
-    assert(epid >= 1 && epid <= 31);
-
-    slot = &xhci->slots[slotid-1];
-    if (slot->eps[epid-1]) {
-        xhci_disable_ep(xhci, slotid, epid);
-    }
-
-    epctx = xhci_alloc_epctx(xhci, slotid, epid);
-    slot->eps[epid-1] = epctx;
 
     dequeue = xhci_addr64(ctx[2] & ~0xf, ctx[3]);
 
@@ -1252,11 +1237,33 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
     if (epctx->max_pstreams) {
         xhci_alloc_streams(epctx, dequeue);
     } else {
-        xhci_ring_init(xhci, &epctx->ring, dequeue);
+        xhci_ring_init(epctx->xhci, &epctx->ring, dequeue);
         epctx->ring.ccs = ctx[2] & 1;
     }
 
     epctx->interval = 1 << (ctx[0] >> 16) & 0xff;
+}
+
+static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
+                               unsigned int epid, dma_addr_t pctx,
+                               uint32_t *ctx)
+{
+    XHCISlot *slot;
+    XHCIEPContext *epctx;
+
+    trace_usb_xhci_ep_enable(slotid, epid);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
+    assert(epid >= 1 && epid <= 31);
+
+    slot = &xhci->slots[slotid-1];
+    if (slot->eps[epid-1]) {
+        xhci_disable_ep(xhci, slotid, epid);
+    }
+
+    epctx = xhci_alloc_epctx(xhci, slotid, epid);
+    slot->eps[epid-1] = epctx;
+    xhci_init_epctx(epctx, pctx, ctx);
+
     epctx->mfindex_last = 0;
 
     epctx->state = EP_RUNNING;
