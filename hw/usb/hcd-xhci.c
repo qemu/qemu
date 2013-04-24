@@ -1198,6 +1198,26 @@ static void xhci_ep_kick_timer(void *opaque)
     xhci_kick_ep(epctx->xhci, epctx->slotid, epctx->epid, 0);
 }
 
+static XHCIEPContext *xhci_alloc_epctx(XHCIState *xhci,
+                                       unsigned int slotid,
+                                       unsigned int epid)
+{
+    XHCIEPContext *epctx;
+    int i;
+
+    epctx = g_new0(XHCIEPContext, 1);
+    epctx->xhci = xhci;
+    epctx->slotid = slotid;
+    epctx->epid = epid;
+
+    for (i = 0; i < ARRAY_SIZE(epctx->transfers); i++) {
+        usb_packet_init(&epctx->transfers[i].packet);
+    }
+    epctx->kick_timer = qemu_new_timer_ns(vm_clock, xhci_ep_kick_timer, epctx);
+
+    return epctx;
+}
+
 static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
                                unsigned int epid, dma_addr_t pctx,
                                uint32_t *ctx)
@@ -1205,7 +1225,6 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
     XHCISlot *slot;
     XHCIEPContext *epctx;
     dma_addr_t dequeue;
-    int i;
 
     trace_usb_xhci_ep_enable(slotid, epid);
     assert(slotid >= 1 && slotid <= xhci->numslots);
@@ -1216,12 +1235,7 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
         xhci_disable_ep(xhci, slotid, epid);
     }
 
-    epctx = g_malloc(sizeof(XHCIEPContext));
-    memset(epctx, 0, sizeof(XHCIEPContext));
-    epctx->xhci = xhci;
-    epctx->slotid = slotid;
-    epctx->epid = epid;
-
+    epctx = xhci_alloc_epctx(xhci, slotid, epid);
     slot->eps[epid-1] = epctx;
 
     dequeue = xhci_addr64(ctx[2] & ~0xf, ctx[3]);
@@ -1241,13 +1255,9 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
         xhci_ring_init(xhci, &epctx->ring, dequeue);
         epctx->ring.ccs = ctx[2] & 1;
     }
-    for (i = 0; i < ARRAY_SIZE(epctx->transfers); i++) {
-        usb_packet_init(&epctx->transfers[i].packet);
-    }
 
     epctx->interval = 1 << (ctx[0] >> 16) & 0xff;
     epctx->mfindex_last = 0;
-    epctx->kick_timer = qemu_new_timer_ns(vm_clock, xhci_ep_kick_timer, epctx);
 
     epctx->state = EP_RUNNING;
     ctx[0] &= ~EP_STATE_MASK;
