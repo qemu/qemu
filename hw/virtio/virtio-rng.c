@@ -124,10 +124,10 @@ static void check_rate_limit(void *opaque)
 {
     VirtIORNG *s = opaque;
 
-    s->quota_remaining = s->conf->max_bytes;
+    s->quota_remaining = s->conf.max_bytes;
     virtio_rng_process(s);
     qemu_mod_timer(s->rate_limit_timer,
-                   qemu_get_clock_ms(vm_clock) + s->conf->period_ms);
+                   qemu_get_clock_ms(vm_clock) + s->conf.period_ms);
 }
 
 
@@ -159,16 +159,16 @@ VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
     vrng->vdev.get_features = get_features;
 
     vrng->qdev = dev;
-    vrng->conf = conf;
+    memcpy(&(vrng->conf), conf, sizeof(struct VirtIORNGConf));
 
-    assert(vrng->conf->max_bytes <= INT64_MAX);
-    vrng->quota_remaining = vrng->conf->max_bytes;
+    assert(vrng->conf.max_bytes <= INT64_MAX);
+    vrng->quota_remaining = vrng->conf.max_bytes;
 
     vrng->rate_limit_timer = qemu_new_timer_ms(vm_clock,
                                                check_rate_limit, vrng);
 
     qemu_mod_timer(vrng->rate_limit_timer,
-                   qemu_get_clock_ms(vm_clock) + vrng->conf->period_ms);
+                   qemu_get_clock_ms(vm_clock) + vrng->conf.period_ms);
 
     register_savevm(dev, "virtio-rng", -1, 1, virtio_rng_save,
                     virtio_rng_load, vrng);

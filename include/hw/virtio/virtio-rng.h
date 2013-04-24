@@ -33,7 +33,7 @@ typedef struct VirtIORNG {
     /* Only one vq - guest puts buffer(s) on it when it needs entropy */
     VirtQueue *vq;
 
-    VirtIORNGConf *conf;
+    VirtIORNGConf conf;
 
     RngBackend *rng;
 
