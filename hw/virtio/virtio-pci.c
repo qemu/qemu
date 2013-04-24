@@ -257,15 +257,6 @@ static void virtio_pci_stop_ioeventfd(VirtIOPCIProxy *proxy)
     proxy->ioeventfd_started = false;
 }
 
-static void virtio_pci_reset(DeviceState *d)
-{
-    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
-    virtio_pci_stop_ioeventfd(proxy);
-    virtio_reset(proxy->vdev);
-    msix_unuse_all_vectors(&proxy->pci_dev);
-    proxy->flags &= ~VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
-}
-
 static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     VirtIOPCIProxy *proxy = opaque;
@@ -943,79 +934,6 @@ static void virtio_exit_pci(PCIDevice *pci_dev)
     msix_uninit_exclusive_bar(pci_dev);
 }
 
-static int virtio_rng_init_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-    VirtIODevice *vdev;
-
-    if (proxy->rng.rng == NULL) {
-        proxy->rng.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
-
-        object_property_add_child(OBJECT(pci_dev),
-                                  "default-backend",
-                                  OBJECT(proxy->rng.default_backend),
-                                  NULL);
-
-        object_property_set_link(OBJECT(pci_dev),
-                                 OBJECT(proxy->rng.default_backend),
-                                 "rng", NULL);
-    }
-
-    vdev = virtio_rng_init(&pci_dev->qdev, &proxy->rng);
-    if (!vdev) {
-        return -1;
-    }
-    virtio_init_pci(proxy, vdev);
-    return 0;
-}
-
-static void virtio_rng_exit_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-
-    virtio_pci_stop_ioeventfd(proxy);
-    virtio_rng_exit(proxy->vdev);
-    virtio_exit_pci(pci_dev);
-}
-
-static void virtio_rng_initfn(Object *obj)
-{
-    PCIDevice *pci_dev = PCI_DEVICE(obj);
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-
-    object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
-                             (Object **)&proxy->rng.rng, NULL);
-}
-
-static Property virtio_rng_properties[] = {
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
-    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIOPCIProxy, rng),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void virtio_rng_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = virtio_rng_init_pci;
-    k->exit = virtio_rng_exit_pci;
-    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
-    k->device_id = PCI_DEVICE_ID_VIRTIO_RNG;
-    k->revision = VIRTIO_PCI_ABI_VERSION;
-    k->class_id = PCI_CLASS_OTHERS;
-    dc->reset = virtio_pci_reset;
-    dc->props = virtio_rng_properties;
-}
-
-static const TypeInfo virtio_rng_info = {
-    .name          = "virtio-rng-pci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VirtIOPCIProxy),
-    .instance_init = virtio_rng_initfn,
-    .class_init    = virtio_rng_class_init,
-};
-
 #ifdef CONFIG_VIRTFS
 static int virtio_9p_init_pci(VirtIOPCIProxy *vpci_dev)
 {
@@ -1137,11 +1055,7 @@ static void virtio_pci_exit(PCIDevice *pci_dev)
     virtio_exit_pci(pci_dev);
 }
 
-/*
- * This will be renamed virtio_pci_reset at the end of the series.
- * virtio_pci_reset is still in use at this moment.
- */
-static void virtio_pci_rst(DeviceState *qdev)
+static void virtio_pci_reset(DeviceState *qdev)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(qdev);
     VirtioBusState *bus = VIRTIO_BUS(&proxy->bus);
@@ -1161,7 +1075,7 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_OTHERS;
-    dc->reset = virtio_pci_rst;
+    dc->reset = virtio_pci_reset;
 }
 
 static const TypeInfo virtio_pci_info = {
@@ -1550,6 +1464,64 @@ static const TypeInfo virtio_net_pci_info = {
     .class_init    = virtio_net_pci_class_init,
 };
 
+/* virtio-rng-pci */
+
+static Property virtio_rng_pci_properties[] = {
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORngPCI, vdev.conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static int virtio_rng_pci_init(VirtIOPCIProxy *vpci_dev)
+{
+    VirtIORngPCI *vrng = VIRTIO_RNG_PCI(vpci_dev);
+    DeviceState *vdev = DEVICE(&vrng->vdev);
+
+    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
+    if (qdev_init(vdev) < 0) {
+        return -1;
+    }
+
+    object_property_set_link(OBJECT(vrng),
+                             OBJECT(vrng->vdev.conf.default_backend), "rng",
+                             NULL);
+
+    return 0;
+}
+
+static void virtio_rng_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
+    PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
+
+    k->init = virtio_rng_pci_init;
+    dc->props = virtio_rng_pci_properties;
+
+    pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_RNG;
+    pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;
+    pcidev_k->class_id = PCI_CLASS_OTHERS;
+}
+
+static void virtio_rng_initfn(Object *obj)
+{
+    VirtIORngPCI *dev = VIRTIO_RNG_PCI(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_RNG);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+    object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
+                             (Object **)&dev->vdev.conf.rng, NULL);
+
+}
+
+static const TypeInfo virtio_rng_pci_info = {
+    .name          = TYPE_VIRTIO_RNG_PCI,
+    .parent        = TYPE_VIRTIO_PCI,
+    .instance_size = sizeof(VirtIORngPCI),
+    .instance_init = virtio_rng_initfn,
+    .class_init    = virtio_rng_pci_class_init,
+};
+
 /* virtio-pci-bus */
 
 void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev)
@@ -1588,7 +1560,7 @@ static const TypeInfo virtio_pci_bus_info = {
 
 static void virtio_pci_register_types(void)
 {
-    type_register_static(&virtio_rng_info);
+    type_register_static(&virtio_rng_pci_info);
     type_register_static(&virtio_pci_bus_info);
     type_register_static(&virtio_pci_info);
 #ifdef CONFIG_VIRTFS
