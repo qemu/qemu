@@ -709,28 +709,21 @@ static void vhost_ccw_scsi_instance_init(Object *obj)
 }
 #endif
 
-static int virtio_ccw_rng_init(VirtioCcwDevice *dev)
+static int virtio_ccw_rng_init(VirtioCcwDevice *ccw_dev)
 {
-    VirtIODevice *vdev;
+    VirtIORNGCcw *dev = VIRTIO_RNG_CCW(ccw_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
 
-    if (dev->rng.rng == NULL) {
-        dev->rng.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
-        object_property_add_child(OBJECT(dev), "default-backend",
-                                  OBJECT(dev->rng.default_backend), NULL);
-        object_property_set_link(OBJECT(dev), OBJECT(dev->rng.default_backend),
-                                 "rng", NULL);
-    }
-    vdev = virtio_rng_init((DeviceState *)dev, &dev->rng);
-    if (!vdev) {
+    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
+    if (qdev_init(vdev) < 0) {
         return -1;
     }
-    return virtio_ccw_device_init(dev, vdev);
-}
 
-static int virtio_ccw_rng_exit(VirtioCcwDevice *dev)
-{
-    virtio_rng_exit(dev->vdev);
-    return virtio_ccw_exit(dev);
+    object_property_set_link(OBJECT(dev),
+                             OBJECT(dev->vdev.conf.default_backend), "rng",
+                             NULL);
+
+    return virtio_ccw_device_init(ccw_dev, VIRTIO_DEVICE(vdev));
 }
 
 /* DeviceState to VirtioCcwDevice. Note: used on datapath,
@@ -947,18 +940,19 @@ static const TypeInfo vhost_ccw_scsi = {
 };
 #endif
 
-static void virtio_ccw_rng_initfn(Object *obj)
+static void virtio_ccw_rng_instance_init(Object *obj)
 {
-    VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(obj);
-
+    VirtIORNGCcw *dev = VIRTIO_RNG_CCW(obj);
+    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_RNG);
+    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
-                             (Object **)&dev->rng.rng, NULL);
+                             (Object **)&dev->vdev.conf.rng, NULL);
 }
 
 static Property virtio_ccw_rng_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
-    DEFINE_VIRTIO_RNG_PROPERTIES(VirtioCcwDevice, rng),
+    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORNGCcw, vdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -968,16 +962,16 @@ static void virtio_ccw_rng_class_init(ObjectClass *klass, void *data)
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->init = virtio_ccw_rng_init;
-    k->exit = virtio_ccw_rng_exit;
+    k->exit = virtio_ccw_exit;
     dc->reset = virtio_ccw_reset;
     dc->props = virtio_ccw_rng_properties;
 }
 
 static const TypeInfo virtio_ccw_rng = {
-    .name          = "virtio-rng-ccw",
+    .name          = TYPE_VIRTIO_RNG_CCW,
     .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtioCcwDevice),
-    .instance_init = virtio_ccw_rng_initfn,
+    .instance_size = sizeof(VirtIORNGCcw),
+    .instance_init = virtio_ccw_rng_instance_init,
     .class_init    = virtio_ccw_rng_class_init,
 };
 

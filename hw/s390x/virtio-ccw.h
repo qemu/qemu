@@ -77,7 +77,6 @@ struct VirtioCcwDevice {
     VirtIODevice *vdev;
     char *bus_id;
     uint32_t host_features[VIRTIO_CCW_FEATURE_SIZE];
-    VirtIORNGConf rng;
     VirtioBusState bus;
     /* Guest provided values: */
     hwaddr indicators;
@@ -159,6 +158,17 @@ typedef struct VirtIONetCcw {
     VirtioCcwDevice parent_obj;
     VirtIONet vdev;
 } VirtIONetCcw;
+
+/* virtio-rng-ccw */
+
+#define TYPE_VIRTIO_RNG_CCW "virtio-rng-ccw"
+#define VIRTIO_RNG_CCW(obj) \
+        OBJECT_CHECK(VirtIORNGCcw, (obj), TYPE_VIRTIO_RNG_CCW)
+
+typedef struct VirtIORNGCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIORNG vdev;
+} VirtIORNGCcw;
 
 VirtualCssBus *virtual_css_bus_init(void);
 void virtio_ccw_device_update_status(SubchDev *sch);
