@@ -60,8 +60,6 @@ typedef struct VirtioBusClass VirtioCcwBusClass;
 
 typedef struct VirtioCcwDevice VirtioCcwDevice;
 
-void virtio_ccw_bus_new(VirtioBusState *bus, VirtioCcwDevice *dev);
-
 typedef struct VirtIOCCWDeviceClass {
     DeviceClass parent_class;
     int (*init)(VirtioCcwDevice *dev);

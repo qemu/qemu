@@ -79,8 +79,6 @@ typedef struct VirtioBusClass VirtioS390BusClass;
 
 typedef struct VirtIOS390Device VirtIOS390Device;
 
-void virtio_s390_bus_new(VirtioBusState *bus, VirtIOS390Device *dev);
-
 typedef struct VirtIOS390DeviceClass {
     DeviceClass qdev;
     int (*init)(VirtIOS390Device *dev);

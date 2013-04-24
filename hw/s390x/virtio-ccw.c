@@ -27,6 +27,8 @@
 #include "virtio-ccw.h"
 #include "trace.h"
 
+static void virtio_ccw_bus_new(VirtioBusState *bus, VirtioCcwDevice *dev);
+
 static int virtual_css_bus_reset(BusState *qbus)
 {
     /* This should actually be modelled via the generic css */
@@ -1060,7 +1062,7 @@ static const TypeInfo virtual_css_bridge_info = {
 
 /* virtio-ccw-bus */
 
-void virtio_ccw_bus_new(VirtioBusState *bus, VirtioCcwDevice *dev)
+static void virtio_ccw_bus_new(VirtioBusState *bus, VirtioCcwDevice *dev)
 {
     DeviceState *qdev = DEVICE(dev);
     BusState *qbus;

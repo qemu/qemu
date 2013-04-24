@@ -98,6 +98,8 @@
 /* HACK for virtio to determine if it's running a big endian guest */
 bool virtio_is_big_endian(void);
 
+static void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev);
+
 /* virtio device */
 /* DeviceState to VirtIOPCIProxy. For use off data-path. TODO: use QOM. */
 static inline VirtIOPCIProxy *to_virtio_pci_proxy(DeviceState *d)
@@ -1524,7 +1526,7 @@ static const TypeInfo virtio_rng_pci_info = {
 
 /* virtio-pci-bus */
 
-void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev)
+static void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev)
 {
     DeviceState *qdev = DEVICE(dev);
     BusState *qbus;
