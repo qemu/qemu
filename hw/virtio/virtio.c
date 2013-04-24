@@ -910,17 +910,11 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     return 0;
 }
 
-void virtio_common_cleanup(VirtIODevice *vdev)
+void virtio_cleanup(VirtIODevice *vdev)
 {
     qemu_del_vm_change_state_handler(vdev->vmstate);
     g_free(vdev->config);
     g_free(vdev->vq);
-}
-
-void virtio_cleanup(VirtIODevice *vdev)
-{
-    virtio_common_cleanup(vdev);
-    g_free(vdev);
 }
 
 static void virtio_vmstate_change(void *opaque, int running, RunState state)
@@ -970,15 +964,6 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     }
     vdev->vmstate = qemu_add_vm_change_state_handler(virtio_vmstate_change,
                                                      vdev);
-}
-
-VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
-                                 size_t config_size, size_t struct_size)
-{
-    VirtIODevice *vdev;
-    vdev = g_malloc0(struct_size);
-    virtio_init(vdev, name, device_id, config_size);
-    return vdev;
 }
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n)

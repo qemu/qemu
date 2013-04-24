@@ -147,7 +147,7 @@ typedef struct VirtioDeviceClass {
 
 void virtio_init(VirtIODevice *vdev, const char *name,
                          uint16_t device_id, size_t config_size);
-void virtio_common_cleanup(VirtIODevice *vdev);
+void virtio_cleanup(VirtIODevice *vdev);
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             void (*handle_output)(VirtIODevice *,
@@ -176,8 +176,6 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f);
 
 int virtio_load(VirtIODevice *vdev, QEMUFile *f);
 
-void virtio_cleanup(VirtIODevice *vdev);
-
 void virtio_notify_config(VirtIODevice *vdev);
 
 void virtio_queue_set_notification(VirtQueue *vq, int enable);
@@ -188,8 +186,6 @@ int virtio_queue_empty(VirtQueue *vq);
 
 /* Host binding interface.  */
 
-VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
-                                 size_t config_size, size_t struct_size);
 uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr);
 uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr);
 uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr);

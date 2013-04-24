@@ -192,7 +192,7 @@ static int virtio_rng_device_exit(DeviceState *qdev)
     qemu_del_timer(vrng->rate_limit_timer);
     qemu_free_timer(vrng->rate_limit_timer);
     unregister_savevm(qdev, "virtio-rng", vrng);
-    virtio_common_cleanup(vdev);
+    virtio_cleanup(vdev);
     return 0;
 }
 

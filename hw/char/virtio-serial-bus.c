@@ -1001,7 +1001,7 @@ static int virtio_serial_device_exit(DeviceState *dev)
         qemu_free_timer(vser->post_load->timer);
         g_free(vser->post_load);
     }
-    virtio_common_cleanup(vdev);
+    virtio_cleanup(vdev);
     return 0;
 }
 
