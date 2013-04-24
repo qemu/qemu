@@ -92,9 +92,7 @@ static int virtio_9p_device_init(VirtIODevice *vdev)
     s->ctx.uid = -1;
 
     s->ops = fse->ops;
-    vdev->get_features = virtio_9p_get_features;
     s->config_size = sizeof(struct virtio_9p_config) + len;
-    vdev->get_config = virtio_9p_get_config;
     s->fid_list = NULL;
     qemu_co_rwlock_init(&s->rename_lock);
 

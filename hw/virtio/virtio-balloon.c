@@ -344,10 +344,6 @@ static int virtio_balloon_device_init(VirtIODevice *vdev)
 
     virtio_init(vdev, "virtio-balloon", VIRTIO_ID_BALLOON, 8);
 
-    vdev->get_config = virtio_balloon_get_config;
-    vdev->set_config = virtio_balloon_set_config;
-    vdev->get_features = virtio_balloon_get_features;
-
     ret = qemu_add_balloon_handler(virtio_balloon_to_target,
                                    virtio_balloon_stat, s);
 

@@ -267,10 +267,10 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
     switch (addr) {
     case VIRTIO_PCI_GUEST_FEATURES:
-	/* Guest does not negotiate properly?  We have to assume nothing. */
-	if (val & (1 << VIRTIO_F_BAD_FEATURE)) {
-            val = vdev->bad_features ? vdev->bad_features(vdev) : 0;
-	}
+        /* Guest does not negotiate properly?  We have to assume nothing. */
+        if (val & (1 << VIRTIO_F_BAD_FEATURE)) {
+            val = virtio_bus_get_vdev_bad_features(&proxy->bus);
+        }
         virtio_set_features(vdev, val);
         break;
     case VIRTIO_PCI_QUEUE_PFN:
@@ -535,6 +535,7 @@ static int kvm_virtio_pci_vector_use(VirtIOPCIProxy *proxy, int nvqs)
 {
     PCIDevice *dev = &proxy->pci_dev;
     VirtIODevice *vdev = proxy->vdev;
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     unsigned int vector;
     int ret, queue_no;
     MSIMessage msg;
@@ -555,7 +556,7 @@ static int kvm_virtio_pci_vector_use(VirtIOPCIProxy *proxy, int nvqs)
         /* If guest supports masking, set up irqfd now.
          * Otherwise, delay until unmasked in the frontend.
          */
-        if (proxy->vdev->guest_notifier_mask) {
+        if (k->guest_notifier_mask) {
             ret = kvm_virtio_pci_irqfd_use(proxy, queue_no, vector);
             if (ret < 0) {
                 kvm_virtio_pci_vq_vector_release(proxy, vector);
@@ -571,7 +572,7 @@ undo:
         if (vector >= msix_nr_vectors_allocated(dev)) {
             continue;
         }
-        if (proxy->vdev->guest_notifier_mask) {
+        if (k->guest_notifier_mask) {
             kvm_virtio_pci_irqfd_release(proxy, queue_no, vector);
         }
         kvm_virtio_pci_vq_vector_release(proxy, vector);
@@ -585,6 +586,7 @@ static void kvm_virtio_pci_vector_release(VirtIOPCIProxy *proxy, int nvqs)
     VirtIODevice *vdev = proxy->vdev;
     unsigned int vector;
     int queue_no;
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     for (queue_no = 0; queue_no < nvqs; queue_no++) {
         if (!virtio_queue_get_num(vdev, queue_no)) {
@@ -597,7 +599,7 @@ static void kvm_virtio_pci_vector_release(VirtIOPCIProxy *proxy, int nvqs)
         /* If guest supports masking, clean up irqfd now.
          * Otherwise, it was cleaned when masked in the frontend.
          */
-        if (proxy->vdev->guest_notifier_mask) {
+        if (k->guest_notifier_mask) {
             kvm_virtio_pci_irqfd_release(proxy, queue_no, vector);
         }
         kvm_virtio_pci_vq_vector_release(proxy, vector);
@@ -609,6 +611,7 @@ static int virtio_pci_vq_vector_unmask(VirtIOPCIProxy *proxy,
                                        unsigned int vector,
                                        MSIMessage msg)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(proxy->vdev);
     VirtQueue *vq = virtio_get_queue(proxy->vdev, queue_no);
     EventNotifier *n = virtio_queue_get_guest_notifier(vq);
     VirtIOIRQFD *irqfd;
@@ -627,11 +630,11 @@ static int virtio_pci_vq_vector_unmask(VirtIOPCIProxy *proxy,
     /* If guest supports masking, irqfd is already setup, unmask it.
      * Otherwise, set it up now.
      */
-    if (proxy->vdev->guest_notifier_mask) {
-        proxy->vdev->guest_notifier_mask(proxy->vdev, queue_no, false);
+    if (k->guest_notifier_mask) {
+        k->guest_notifier_mask(proxy->vdev, queue_no, false);
         /* Test after unmasking to avoid losing events. */
-        if (proxy->vdev->guest_notifier_pending &&
-            proxy->vdev->guest_notifier_pending(proxy->vdev, queue_no)) {
+        if (k->guest_notifier_pending &&
+            k->guest_notifier_pending(proxy->vdev, queue_no)) {
             event_notifier_set(n);
         }
     } else {
@@ -644,11 +647,13 @@ static void virtio_pci_vq_vector_mask(VirtIOPCIProxy *proxy,
                                              unsigned int queue_no,
                                              unsigned int vector)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(proxy->vdev);
+
     /* If guest supports masking, keep irqfd but mask it.
      * Otherwise, clean it up now.
      */ 
-    if (proxy->vdev->guest_notifier_mask) {
-        proxy->vdev->guest_notifier_mask(proxy->vdev, queue_no, true);
+    if (k->guest_notifier_mask) {
+        k->guest_notifier_mask(proxy->vdev, queue_no, true);
     } else {
         kvm_virtio_pci_irqfd_release(proxy, queue_no, vector);
     }
@@ -708,6 +713,7 @@ static void virtio_pci_vector_poll(PCIDevice *dev,
 {
     VirtIOPCIProxy *proxy = container_of(dev, VirtIOPCIProxy, pci_dev);
     VirtIODevice *vdev = proxy->vdev;
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     int queue_no;
     unsigned int vector;
     EventNotifier *notifier;
@@ -724,8 +730,8 @@ static void virtio_pci_vector_poll(PCIDevice *dev,
         }
         vq = virtio_get_queue(vdev, queue_no);
         notifier = virtio_queue_get_guest_notifier(vq);
-        if (vdev->guest_notifier_pending) {
-            if (vdev->guest_notifier_pending(vdev, queue_no)) {
+        if (k->guest_notifier_pending) {
+            if (k->guest_notifier_pending(vdev, queue_no)) {
                 msix_set_pending(dev, vector);
             }
         } else if (event_notifier_test_and_clear(notifier)) {
@@ -765,6 +771,7 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtIODevice *vdev = proxy->vdev;
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     int r, n;
     bool with_irqfd = msix_enabled(&proxy->pci_dev) &&
         kvm_msi_via_irqfd_enabled();
@@ -779,7 +786,7 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
     proxy->nvqs_with_notifiers = nvqs;
 
     /* Must unset vector notifier while guest notifier is still assigned */
-    if ((proxy->vector_irqfd || vdev->guest_notifier_mask) && !assign) {
+    if ((proxy->vector_irqfd || k->guest_notifier_mask) && !assign) {
         msix_unset_vector_notifiers(&proxy->pci_dev);
         if (proxy->vector_irqfd) {
             kvm_virtio_pci_vector_release(proxy, nvqs);
@@ -801,7 +808,7 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
     }
 
     /* Must set vector notifier after guest notifier has been assigned */
-    if ((with_irqfd || vdev->guest_notifier_mask) && assign) {
+    if ((with_irqfd || k->guest_notifier_mask) && assign) {
         if (with_irqfd) {
             proxy->vector_irqfd =
                 g_malloc0(sizeof(*proxy->vector_irqfd) *

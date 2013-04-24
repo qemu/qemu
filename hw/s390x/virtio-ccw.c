@@ -235,9 +235,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             features.index = ldub_phys(ccw.cda + sizeof(features.features));
             features.features = ldl_le_phys(ccw.cda);
             if (features.index < ARRAY_SIZE(dev->host_features)) {
-                if (dev->vdev->set_features) {
-                    dev->vdev->set_features(dev->vdev, features.features);
-                }
+                virtio_bus_set_vdev_features(&dev->bus, features.features);
                 dev->vdev->guest_features = features.features;
             } else {
                 /*
@@ -265,7 +263,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         if (!ccw.cda) {
             ret = -EFAULT;
         } else {
-            dev->vdev->get_config(dev->vdev, dev->vdev->config);
+            virtio_bus_get_vdev_config(&dev->bus, dev->vdev->config);
             /* XXX config space endianness */
             cpu_physical_memory_write(ccw.cda, dev->vdev->config, len);
             sch->curr_status.scsw.count = ccw.count - len;
@@ -292,9 +290,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 /* XXX config space endianness */
                 memcpy(dev->vdev->config, config, len);
                 cpu_physical_memory_unmap(config, hw_len, 0, hw_len);
-                if (dev->vdev->set_config) {
-                    dev->vdev->set_config(dev->vdev, dev->vdev->config);
-                }
+                virtio_bus_set_vdev_config(&dev->bus, dev->vdev->config);
                 sch->curr_status.scsw.count = ccw.count - len;
                 ret = 0;
             }
@@ -527,7 +523,9 @@ static int virtio_ccw_device_init(VirtioCcwDevice *dev, VirtIODevice *vdev)
 
     virtio_bind_device(vdev, &virtio_ccw_bindings, DEVICE(dev));
     /* Only the first 32 feature bits are used. */
-    dev->host_features[0] = vdev->get_features(vdev, dev->host_features[0]);
+    dev->host_features[0] = virtio_bus_get_vdev_features(&dev->bus,
+                                                         dev->host_features[0]);
+
     dev->host_features[0] |= 0x1 << VIRTIO_F_NOTIFY_ON_EMPTY;
     dev->host_features[0] |= 0x1 << VIRTIO_F_BAD_FEATURE;
 

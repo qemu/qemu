@@ -599,8 +599,6 @@ int virtio_scsi_common_init(VirtIOSCSICommon *s)
     s->sense_size = VIRTIO_SCSI_SENSE_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_SIZE;
 
-    vdev->get_config = virtio_scsi_get_config;
-
     s->ctrl_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE,
                                   virtio_scsi_handle_ctrl);
     s->event_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE,
@@ -625,10 +623,6 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
     if (ret < 0) {
         return ret;
     }
-
-    vdev->get_features = virtio_scsi_get_features;
-    vdev->set_config = virtio_scsi_set_config;
-    vdev->reset = virtio_scsi_reset;
 
     scsi_bus_new(&s->bus, qdev, &virtio_scsi_scsi_info);
     if (!qdev->hotplugged) {

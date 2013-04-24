@@ -652,11 +652,6 @@ static int virtio_blk_device_init(VirtIODevice *vdev)
     virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
                 sizeof(struct virtio_blk_config));
 
-    vdev->get_config = virtio_blk_update_config;
-    vdev->set_config = virtio_blk_set_config;
-    vdev->get_features = virtio_blk_get_features;
-    vdev->set_status = virtio_blk_set_status;
-    vdev->reset = virtio_blk_reset;
     s->bs = blk->conf.bs;
     s->conf = &blk->conf;
     memcpy(&(s->blk), blk, sizeof(struct VirtIOBlkConf));

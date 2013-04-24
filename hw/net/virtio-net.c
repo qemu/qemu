@@ -1283,15 +1283,6 @@ static int virtio_net_device_init(VirtIODevice *vdev)
     virtio_init(VIRTIO_DEVICE(n), "virtio-net", VIRTIO_ID_NET,
                                   n->config_size);
 
-    vdev->get_config = virtio_net_get_config;
-    vdev->set_config = virtio_net_set_config;
-    vdev->get_features = virtio_net_get_features;
-    vdev->set_features = virtio_net_set_features;
-    vdev->bad_features = virtio_net_bad_features;
-    vdev->reset = virtio_net_reset;
-    vdev->set_status = virtio_net_set_status;
-    vdev->guest_notifier_mask = virtio_net_guest_notifier_mask;
-    vdev->guest_notifier_pending = virtio_net_guest_notifier_pending;
     n->max_queues = MAX(n->nic_conf.queues, 1);
     n->vqs = g_malloc0(sizeof(VirtIONetQueue) * n->max_queues);
     n->vqs[0].rx_vq = virtio_add_queue(vdev, 256, virtio_net_handle_rx);

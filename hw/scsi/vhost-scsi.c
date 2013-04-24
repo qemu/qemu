@@ -217,10 +217,6 @@ static int vhost_scsi_init(VirtIODevice *vdev)
         return ret;
     }
 
-    vdev->get_features = vhost_scsi_get_features;
-    vdev->set_config = vhost_scsi_set_config;
-    vdev->set_status = vhost_scsi_set_status;
-
     s->dev.nvqs = VHOST_SCSI_VQ_NUM_FIXED + vs->conf.num_queues;
     s->dev.vqs = g_new(struct vhost_virtqueue, s->dev.nvqs);
     s->dev.vq_index = 0;

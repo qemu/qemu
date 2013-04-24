@@ -519,10 +519,11 @@ void virtio_update_irq(VirtIODevice *vdev)
 
 void virtio_set_status(VirtIODevice *vdev, uint8_t val)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     trace_virtio_set_status(vdev, val);
 
-    if (vdev->set_status) {
-        vdev->set_status(vdev, val);
+    if (k->set_status) {
+        k->set_status(vdev, val);
     }
     vdev->status = val;
 }
@@ -530,12 +531,14 @@ void virtio_set_status(VirtIODevice *vdev, uint8_t val)
 void virtio_reset(void *opaque)
 {
     VirtIODevice *vdev = opaque;
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     int i;
 
     virtio_set_status(vdev, 0);
 
-    if (vdev->reset)
-        vdev->reset(vdev);
+    if (k->reset) {
+        k->reset(vdev);
+    }
 
     vdev->guest_features = 0;
     vdev->queue_sel = 0;
@@ -559,9 +562,10 @@ void virtio_reset(void *opaque)
 
 uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val;
 
-    vdev->get_config(vdev, vdev->config);
+    k->get_config(vdev, vdev->config);
 
     if (addr > (vdev->config_len - sizeof(val)))
         return (uint32_t)-1;
@@ -572,9 +576,10 @@ uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr)
 
 uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val;
 
-    vdev->get_config(vdev, vdev->config);
+    k->get_config(vdev, vdev->config);
 
     if (addr > (vdev->config_len - sizeof(val)))
         return (uint32_t)-1;
@@ -585,9 +590,10 @@ uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr)
 
 uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val;
 
-    vdev->get_config(vdev, vdev->config);
+    k->get_config(vdev, vdev->config);
 
     if (addr > (vdev->config_len - sizeof(val)))
         return (uint32_t)-1;
@@ -598,6 +604,7 @@ uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr)
 
 void virtio_config_writeb(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val = data;
 
     if (addr > (vdev->config_len - sizeof(val)))
@@ -605,12 +612,14 @@ void virtio_config_writeb(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
     stb_p(vdev->config + addr, val);
 
-    if (vdev->set_config)
-        vdev->set_config(vdev, vdev->config);
+    if (k->set_config) {
+        k->set_config(vdev, vdev->config);
+    }
 }
 
 void virtio_config_writew(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val = data;
 
     if (addr > (vdev->config_len - sizeof(val)))
@@ -618,12 +627,14 @@ void virtio_config_writew(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
     stw_p(vdev->config + addr, val);
 
-    if (vdev->set_config)
-        vdev->set_config(vdev, vdev->config);
+    if (k->set_config) {
+        k->set_config(vdev, vdev->config);
+    }
 }
 
 void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val = data;
 
     if (addr > (vdev->config_len - sizeof(val)))
@@ -631,8 +642,9 @@ void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
     stl_p(vdev->config + addr, val);
 
-    if (vdev->set_config)
-        vdev->set_config(vdev, vdev->config);
+    if (k->set_config) {
+        k->set_config(vdev, vdev->config);
+    }
 }
 
 void virtio_queue_set_addr(VirtIODevice *vdev, int n, hwaddr addr)
@@ -810,13 +822,14 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 
 int virtio_set_features(VirtIODevice *vdev, uint32_t val)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t supported_features =
         vdev->binding->get_features(vdev->binding_opaque);
     bool bad = (val & ~supported_features) != 0;
 
     val &= supported_features;
-    if (vdev->set_features) {
-        vdev->set_features(vdev, val);
+    if (k->set_features) {
+        k->set_features(vdev, val);
     }
     vdev->guest_features = val;
     return bad ? -1 : 0;

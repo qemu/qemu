@@ -136,12 +136,13 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
     dev_len = VIRTIO_DEV_OFFS_CONFIG;
     dev_len += s390_virtio_device_num_vq(dev) * VIRTIO_VQCONFIG_LEN;
     dev_len += dev->feat_len * 2;
-    dev_len += vdev->config_len;
+    dev_len += virtio_bus_get_vdev_config_len(&dev->bus);
 
     bus->dev_offs += dev_len;
 
     virtio_bind_device(vdev, &virtio_s390_bindings, DEVICE(dev));
-    dev->host_features = vdev->get_features(vdev, dev->host_features);
+    dev->host_features = virtio_bus_get_vdev_features(&dev->bus,
+                                                      dev->host_features);
     s390_virtio_device_sync(dev);
     s390_virtio_reset_idx(dev);
     if (dev->qdev.hotplugged) {
@@ -368,9 +369,7 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
     cur_offs += dev->feat_len * 2;
 
     /* Sync config space */
-    if (dev->vdev->get_config) {
-        dev->vdev->get_config(dev->vdev, dev->vdev->config);
-    }
+    virtio_bus_get_vdev_config(&dev->bus, dev->vdev->config);
 
     cpu_physical_memory_write(cur_offs,
                               dev->vdev->config, dev->vdev->config_len);
