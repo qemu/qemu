@@ -90,20 +90,6 @@ typedef struct VirtQueueElement
     struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
 } VirtQueueElement;
 
-typedef struct {
-    void (*notify)(DeviceState *d, uint16_t vector);
-    void (*save_config)(DeviceState *d, QEMUFile *f);
-    void (*save_queue)(DeviceState *d, int n, QEMUFile *f);
-    int (*load_config)(DeviceState *d, QEMUFile *f);
-    int (*load_queue)(DeviceState *d, int n, QEMUFile *f);
-    int (*load_done)(DeviceState *d, QEMUFile *f);
-    unsigned (*get_features)(DeviceState *d);
-    bool (*query_guest_notifiers)(DeviceState *d);
-    int (*set_guest_notifiers)(DeviceState *d, int nvqs, bool assigned);
-    int (*set_host_notifier)(DeviceState *d, int n, bool assigned);
-    void (*vmstate_change)(DeviceState *d, bool running);
-} VirtIOBindings;
-
 #define VIRTIO_PCI_QUEUE_MAX 64
 
 #define VIRTIO_NO_VECTOR 0xffff
@@ -129,8 +115,6 @@ struct VirtIODevice
     uint16_t config_vector;
     int nvectors;
     VirtQueue *vq;
-    const VirtIOBindings *binding;
-    DeviceState *binding_opaque;
     uint16_t device_id;
     bool vm_running;
     VMChangeStateEntry *vmstate;
@@ -222,9 +206,6 @@ void virtio_set_status(VirtIODevice *vdev, uint8_t val);
 void virtio_reset(void *opaque);
 void virtio_update_irq(VirtIODevice *vdev);
 int virtio_set_features(VirtIODevice *vdev, uint32_t val);
-
-void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
-                        DeviceState *opaque);
 
 /* Base devices.  */
 typedef struct VirtIOBlkConf VirtIOBlkConf;

@@ -37,6 +37,7 @@
 #include <stdio.h>
 
 #include "hw/virtio/vhost.h"
+#include "hw/virtio/virtio-bus.h"
 
 struct vhost_net {
     struct vhost_dev dev;
@@ -211,9 +212,12 @@ static void vhost_net_stop_one(struct vhost_net *net,
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
                     int total_queues)
 {
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int r, i = 0;
 
-    if (!dev->binding->set_guest_notifiers) {
+    if (!k->set_guest_notifiers) {
         error_report("binding does not support guest notifiers");
         r = -ENOSYS;
         goto err;
@@ -227,9 +231,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         }
     }
 
-    r = dev->binding->set_guest_notifiers(dev->binding_opaque,
-                                          total_queues * 2,
-                                          true);
+    r = k->set_guest_notifiers(qbus->parent, total_queues * 2, true);
     if (r < 0) {
         error_report("Error binding guest notifier: %d", -r);
         goto err;
@@ -247,11 +249,12 @@ err:
 void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
                     int total_queues)
 {
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r;
 
-    r = dev->binding->set_guest_notifiers(dev->binding_opaque,
-                                          total_queues * 2,
-                                          false);
+    r = k->set_guest_notifiers(qbus->parent, total_queues * 2, false);
     if (r < 0) {
         fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", r);
         fflush(stderr);

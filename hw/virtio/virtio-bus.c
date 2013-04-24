@@ -48,23 +48,6 @@ int virtio_bus_plug_device(VirtIODevice *vdev)
 
     bus->vdev = vdev;
 
-    /*
-     * The lines below will disappear when we drop VirtIOBindings, at the end
-     * of the series.
-     */
-    bus->bindings.notify = klass->notify;
-    bus->bindings.save_config = klass->save_config;
-    bus->bindings.save_queue = klass->save_queue;
-    bus->bindings.load_config = klass->load_config;
-    bus->bindings.load_queue = klass->load_queue;
-    bus->bindings.load_done = klass->load_done;
-    bus->bindings.get_features = klass->get_features;
-    bus->bindings.query_guest_notifiers = klass->query_guest_notifiers;
-    bus->bindings.set_guest_notifiers = klass->set_guest_notifiers;
-    bus->bindings.set_host_notifier = klass->set_host_notifier;
-    bus->bindings.vmstate_change = klass->vmstate_change;
-    virtio_bind_device(bus->vdev, &bus->bindings, qbus->parent);
-
     if (klass->device_plugged != NULL) {
         klass->device_plugged(qbus->parent);
     }

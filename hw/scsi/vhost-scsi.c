@@ -22,6 +22,7 @@
 #include "hw/virtio/vhost-scsi.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-scsi.h"
+#include "hw/virtio/virtio-bus.h"
 
 static int vhost_scsi_set_endpoint(VHostSCSI *s)
 {
@@ -52,8 +53,10 @@ static int vhost_scsi_start(VHostSCSI *s)
 {
     int ret, abi_version, i;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
-    if (!vdev->binding->set_guest_notifiers) {
+    if (!k->set_guest_notifiers) {
         error_report("binding does not support guest notifiers");
         return -ENOSYS;
     }
@@ -88,7 +91,7 @@ static int vhost_scsi_start(VHostSCSI *s)
         goto err_vhost_stop;
     }
 
-    ret = vdev->binding->set_guest_notifiers(vdev->binding_opaque, s->dev.nvqs, true);
+    ret = k->set_guest_notifiers(qbus->parent, s->dev.nvqs, true);
     if (ret < 0) {
         error_report("Error binding guest notifier");
         goto err_endpoint;
@@ -116,11 +119,12 @@ err_notifiers:
 static void vhost_scsi_stop(VHostSCSI *s)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret = 0;
 
-    if (!vdev->binding->set_guest_notifiers) {
-        ret = vdev->binding->set_guest_notifiers(vdev->binding_opaque,
-                                                 s->dev.nvqs, false);
+    if (!k->set_guest_notifiers) {
+        ret = k->set_guest_notifiers(qbus->parent, s->dev.nvqs, false);
         if (ret < 0) {
                 error_report("vhost guest notifier cleanup failed: %d\n", ret);
         }

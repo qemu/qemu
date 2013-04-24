@@ -70,10 +70,6 @@ struct VirtioBusState {
      * Only one VirtIODevice can be plugged on the bus.
      */
     VirtIODevice *vdev;
-    /*
-     * This will be removed at the end of the series.
-     */
-    VirtIOBindings bindings;
 };
 
 int virtio_bus_plug_device(VirtIODevice *vdev);

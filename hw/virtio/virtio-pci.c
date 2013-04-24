@@ -879,19 +879,6 @@ static void virtio_pci_vmstate_change(DeviceState *d, bool running)
     }
 }
 
-static const VirtIOBindings virtio_pci_bindings = {
-    .notify = virtio_pci_notify,
-    .save_config = virtio_pci_save_config,
-    .load_config = virtio_pci_load_config,
-    .save_queue = virtio_pci_save_queue,
-    .load_queue = virtio_pci_load_queue,
-    .get_features = virtio_pci_get_features,
-    .query_guest_notifiers = virtio_pci_query_guest_notifiers,
-    .set_host_notifier = virtio_pci_set_host_notifier,
-    .set_guest_notifiers = virtio_pci_set_guest_notifiers,
-    .vmstate_change = virtio_pci_vmstate_change,
-};
-
 #ifdef CONFIG_VIRTFS
 static int virtio_9p_init_pci(VirtIOPCIProxy *vpci_dev)
 {

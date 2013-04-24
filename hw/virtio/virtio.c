@@ -507,8 +507,11 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 /* virtio device */
 static void virtio_notify_vector(VirtIODevice *vdev, uint16_t vector)
 {
-    if (vdev->binding->notify) {
-        vdev->binding->notify(vdev->binding_opaque, vector);
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
+    if (k->notify) {
+        k->notify(qbus->parent, vector);
     }
 }
 
@@ -789,10 +792,13 @@ void virtio_notify_config(VirtIODevice *vdev)
 
 void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 {
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int i;
 
-    if (vdev->binding->save_config)
-        vdev->binding->save_config(vdev->binding_opaque, f);
+    if (k->save_config) {
+        k->save_config(qbus->parent, f);
+    }
 
     qemu_put_8s(f, &vdev->status);
     qemu_put_8s(f, &vdev->isr);
@@ -815,16 +821,18 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
         qemu_put_be32(f, vdev->vq[i].vring.num);
         qemu_put_be64(f, vdev->vq[i].pa);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
-        if (vdev->binding->save_queue)
-            vdev->binding->save_queue(vdev->binding_opaque, i, f);
+        if (k->save_queue) {
+            k->save_queue(qbus->parent, i, f);
+        }
     }
 }
 
 int virtio_set_features(VirtIODevice *vdev, uint32_t val)
 {
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *vbusk = VIRTIO_BUS_GET_CLASS(qbus);
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
-    uint32_t supported_features =
-        vdev->binding->get_features(vdev->binding_opaque);
+    uint32_t supported_features = vbusk->get_features(qbus->parent);
     bool bad = (val & ~supported_features) != 0;
 
     val &= supported_features;
@@ -840,9 +848,11 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     int num, i, ret;
     uint32_t features;
     uint32_t supported_features;
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
-    if (vdev->binding->load_config) {
-        ret = vdev->binding->load_config(vdev->binding_opaque, f);
+    if (k->load_config) {
+        ret = k->load_config(qbus->parent, f);
         if (ret)
             return ret;
     }
@@ -853,7 +863,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     qemu_get_be32s(f, &features);
 
     if (virtio_set_features(vdev, features) < 0) {
-        supported_features = vdev->binding->get_features(vdev->binding_opaque);
+        supported_features = k->get_features(qbus->parent);
         error_report("Features 0x%x unsupported. Allowed features: 0x%x",
                      features, supported_features);
         return -1;
@@ -889,8 +899,8 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
                          i, vdev->vq[i].last_avail_idx);
                 return -1;
 	}
-        if (vdev->binding->load_queue) {
-            ret = vdev->binding->load_queue(vdev->binding_opaque, i, f);
+        if (k->load_queue) {
+            ret = k->load_queue(qbus->parent, i, f);
             if (ret)
                 return ret;
         }
@@ -916,6 +926,8 @@ void virtio_cleanup(VirtIODevice *vdev)
 static void virtio_vmstate_change(void *opaque, int running, RunState state)
 {
     VirtIODevice *vdev = opaque;
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     bool backend_run = running && (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK);
     vdev->vm_running = running;
 
@@ -923,8 +935,8 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
         virtio_set_status(vdev, vdev->status);
     }
 
-    if (vdev->binding->vmstate_change) {
-        vdev->binding->vmstate_change(vdev->binding_opaque, backend_run);
+    if (k->vmstate_change) {
+        k->vmstate_change(qbus->parent, backend_run);
     }
 
     if (!backend_run) {
@@ -967,13 +979,6 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
     vdev = g_malloc0(struct_size);
     virtio_init(vdev, name, device_id, config_size);
     return vdev;
-}
-
-void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
-                        DeviceState *opaque)
-{
-    vdev->binding = binding;
-    vdev->binding_opaque = opaque;
 }
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n)

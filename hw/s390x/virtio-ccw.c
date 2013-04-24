@@ -53,8 +53,6 @@ static const TypeInfo virtual_css_bus_info = {
     .class_init = virtual_css_bus_class_init,
 };
 
-static const VirtIOBindings virtio_ccw_bindings;
-
 VirtIODevice *virtio_ccw_get_vdev(SubchDev *sch)
 {
     VirtIODevice *vdev = NULL;
@@ -521,7 +519,6 @@ static int virtio_ccw_device_init(VirtioCcwDevice *dev, VirtIODevice *vdev)
     sch->id.cu_type = VIRTIO_CCW_CU_TYPE;
     sch->id.cu_model = dev->vdev->device_id;
 
-    virtio_bind_device(vdev, &virtio_ccw_bindings, DEVICE(dev));
     /* Only the first 32 feature bits are used. */
     dev->host_features[0] = virtio_bus_get_vdev_features(&dev->bus,
                                                          dev->host_features[0]);
@@ -776,11 +773,6 @@ static void virtio_ccw_reset(DeviceState *d)
 }
 
 /**************** Virtio-ccw Bus Device Descriptions *******************/
-
-static const VirtIOBindings virtio_ccw_bindings = {
-    .notify = virtio_ccw_notify,
-    .get_features = virtio_ccw_get_features,
-};
 
 static Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
