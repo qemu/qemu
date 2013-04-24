@@ -958,8 +958,7 @@ static void virtio_ccw_rng_initfn(Object *obj)
 static Property virtio_ccw_rng_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_VIRTIO_COMMON_FEATURES(VirtioCcwDevice, host_features[0]),
-    DEFINE_PROP_UINT64("max-bytes", VirtioCcwDevice, rng.max_bytes, INT64_MAX),
-    DEFINE_PROP_UINT32("period", VirtioCcwDevice, rng.period_ms, 1 << 16),
+    DEFINE_VIRTIO_RNG_PROPERTIES(VirtioCcwDevice, rng),
     DEFINE_PROP_END_OF_LIST(),
 };
 

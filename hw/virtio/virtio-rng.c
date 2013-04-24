@@ -130,17 +130,27 @@ static void check_rate_limit(void *opaque)
                    qemu_get_clock_ms(vm_clock) + s->conf.period_ms);
 }
 
-
-VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
+static VirtIODevice *virtio_rng_common_init(DeviceState *dev,
+                                            VirtIORNGConf *conf,
+                                            VirtIORNG **pvrng)
 {
-    VirtIORNG *vrng;
+    VirtIORNG *vrng = *pvrng;
     VirtIODevice *vdev;
     Error *local_err = NULL;
 
-    vdev = virtio_common_init("virtio-rng", VIRTIO_ID_RNG, 0,
-                              sizeof(VirtIORNG));
-
-    vrng = DO_UPCAST(VirtIORNG, vdev, vdev);
+    /*
+     * We have two cases here: the old virtio-rng-x device, and the
+     * refactored virtio-rng.
+     * This will disappear later in the serie.
+     */
+    if (vrng == NULL) {
+        vdev = virtio_common_init("virtio-rng", VIRTIO_ID_RNG, 0,
+                                  sizeof(VirtIORNG));
+        vrng = DO_UPCAST(VirtIORNG, vdev, vdev);
+    } else {
+        vdev = VIRTIO_DEVICE(vrng);
+        virtio_init(vdev, "virtio-rng", VIRTIO_ID_RNG, 0);
+    }
 
     vrng->rng = conf->rng;
     if (vrng->rng == NULL) {
@@ -156,6 +166,7 @@ VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
     }
 
     vrng->vq = virtio_add_queue(vdev, 8, handle_input);
+
     vrng->vdev.get_features = get_features;
 
     vrng->qdev = dev;
@@ -176,6 +187,15 @@ VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
     return vdev;
 }
 
+/*
+ * This two functions will be removed later in the serie.
+ */
+VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
+{
+    VirtIORNG *vdev = NULL;
+    return virtio_rng_common_init(dev, conf, &vdev);
+}
+
 void virtio_rng_exit(VirtIODevice *vdev)
 {
     VirtIORNG *vrng = DO_UPCAST(VirtIORNG, vdev, vdev);
@@ -185,3 +205,77 @@ void virtio_rng_exit(VirtIODevice *vdev)
     unregister_savevm(vrng->qdev, "virtio-rng", vrng);
     virtio_cleanup(vdev);
 }
+
+static int virtio_rng_device_init(VirtIODevice *vdev)
+{
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIORNG *vrng = VIRTIO_RNG(vdev);
+
+    if (vrng->conf.rng == NULL) {
+        vrng->conf.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
+
+        object_property_add_child(OBJECT(qdev),
+                                  "default-backend",
+                                  OBJECT(vrng->conf.default_backend),
+                                  NULL);
+
+        object_property_set_link(OBJECT(qdev),
+                                 OBJECT(vrng->conf.default_backend),
+                                 "rng", NULL);
+    }
+
+    if (virtio_rng_common_init(qdev, &(vrng->conf), &vrng) == NULL) {
+        return -1;
+    }
+    return 0;
+}
+
+static int virtio_rng_device_exit(DeviceState *qdev)
+{
+    VirtIORNG *vrng = VIRTIO_RNG(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+
+    qemu_del_timer(vrng->rate_limit_timer);
+    qemu_free_timer(vrng->rate_limit_timer);
+    unregister_savevm(qdev, "virtio-rng", vrng);
+    virtio_common_cleanup(vdev);
+    return 0;
+}
+
+static Property virtio_rng_properties[] = {
+    DEFINE_VIRTIO_RNG_PROPERTIES(VirtIORNG, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_rng_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    dc->exit = virtio_rng_device_exit;
+    dc->props = virtio_rng_properties;
+    vdc->init = virtio_rng_device_init;
+    vdc->get_features = get_features;
+}
+
+static void virtio_rng_initfn(Object *obj)
+{
+    VirtIORNG *vrng = VIRTIO_RNG(obj);
+
+    object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
+                             (Object **)&vrng->conf.rng, NULL);
+}
+
+static const TypeInfo virtio_rng_info = {
+    .name = TYPE_VIRTIO_RNG,
+    .parent = TYPE_VIRTIO_DEVICE,
+    .instance_size = sizeof(VirtIORNG),
+    .instance_init = virtio_rng_initfn,
+    .class_init = virtio_rng_class_init,
+};
+
+static void virtio_register_types(void)
+{
+    type_register_static(&virtio_rng_info);
+}
+
+type_init(virtio_register_types)
