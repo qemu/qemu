@@ -168,8 +168,6 @@ static int virtio_rng_device_init(VirtIODevice *vdev)
 
     vrng->vdev.get_features = get_features;
 
-    vrng->qdev = qdev;
-
     assert(vrng->conf.max_bytes <= INT64_MAX);
     vrng->quota_remaining = vrng->conf.max_bytes;
 
