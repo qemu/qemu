@@ -885,57 +885,6 @@ static const VirtIOBindings virtio_pci_bindings = {
     .vmstate_change = virtio_pci_vmstate_change,
 };
 
-void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev)
-{
-    uint8_t *config;
-    uint32_t size;
-
-    proxy->vdev = vdev;
-
-    config = proxy->pci_dev.config;
-
-    if (proxy->class_code) {
-        pci_config_set_class(config, proxy->class_code);
-    }
-    pci_set_word(config + PCI_SUBSYSTEM_VENDOR_ID,
-                 pci_get_word(config + PCI_VENDOR_ID));
-    pci_set_word(config + PCI_SUBSYSTEM_ID, vdev->device_id);
-    config[PCI_INTERRUPT_PIN] = 1;
-
-    if (vdev->nvectors &&
-        msix_init_exclusive_bar(&proxy->pci_dev, vdev->nvectors, 1)) {
-        vdev->nvectors = 0;
-    }
-
-    proxy->pci_dev.config_write = virtio_write_config;
-
-    size = VIRTIO_PCI_REGION_SIZE(&proxy->pci_dev) + vdev->config_len;
-    if (size & (size-1))
-        size = 1 << qemu_fls(size);
-
-    memory_region_init_io(&proxy->bar, &virtio_pci_config_ops, proxy,
-                          "virtio-pci", size);
-    pci_register_bar(&proxy->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
-                     &proxy->bar);
-
-    if (!kvm_has_many_ioeventfds()) {
-        proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
-    }
-
-    virtio_bind_device(vdev, &virtio_pci_bindings, DEVICE(proxy));
-    proxy->host_features |= 0x1 << VIRTIO_F_NOTIFY_ON_EMPTY;
-    proxy->host_features |= 0x1 << VIRTIO_F_BAD_FEATURE;
-    proxy->host_features = vdev->get_features(vdev, proxy->host_features);
-}
-
-static void virtio_exit_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-
-    memory_region_destroy(&proxy->bar);
-    msix_uninit_exclusive_bar(pci_dev);
-}
-
 #ifdef CONFIG_VIRTFS
 static int virtio_9p_init_pci(VirtIOPCIProxy *vpci_dev)
 {
@@ -1054,7 +1003,8 @@ static void virtio_pci_exit(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     virtio_pci_stop_ioeventfd(proxy);
-    virtio_exit_pci(pci_dev);
+    memory_region_destroy(&proxy->bar);
+    msix_uninit_exclusive_bar(pci_dev);
 }
 
 static void virtio_pci_reset(DeviceState *qdev)
