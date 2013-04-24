@@ -94,7 +94,8 @@ struct USBHostDevice {
     } ifs[USB_MAX_INTERFACES];
 
     /* callbacks & friends */
-    QEMUBH                           *bh;
+    QEMUBH                           *bh_nodev;
+    QEMUBH                           *bh_postld;
     Notifier                         exit;
 
     /* request queues */
@@ -835,10 +836,10 @@ static void usb_host_nodev_bh(void *opaque)
 
 static void usb_host_nodev(USBHostDevice *s)
 {
-    if (!s->bh) {
-        s->bh = qemu_bh_new(usb_host_nodev_bh, s);
+    if (!s->bh_nodev) {
+        s->bh_nodev = qemu_bh_new(usb_host_nodev_bh, s);
     }
-    qemu_bh_schedule(s->bh);
+    qemu_bh_schedule(s->bh_nodev);
 }
 
 static void usb_host_exit_notifier(struct Notifier *n, void *data)
@@ -1228,9 +1229,52 @@ static void usb_host_handle_reset(USBDevice *udev)
     usb_host_ep_update(s);
 }
 
+/*
+ * This is *NOT* about restoring state.  We have absolutely no idea
+ * what state the host device is in at the moment and whenever it is
+ * still present in the first place.  Attemping to contine where we
+ * left off is impossible.
+ *
+ * What we are going to to to here is emulate a surprise removal of
+ * the usb device passed through, then kick host scan so the device
+ * will get re-attached (and re-initialized by the guest) in case it
+ * is still present.
+ *
+ * As the device removal will change the state of other devices (usb
+ * host controller, most likely interrupt controller too) we have to
+ * wait with it until *all* vmstate is loaded.  Thus post_load just
+ * kicks a bottom half which then does the actual work.
+ */
+static void usb_host_post_load_bh(void *opaque)
+{
+    USBHostDevice *dev = opaque;
+    USBDevice *udev = USB_DEVICE(dev);
+
+    if (dev->dh != NULL) {
+        usb_host_close(dev);
+    }
+    if (udev->attached) {
+        usb_device_detach(udev);
+    }
+    usb_host_auto_check(NULL);
+}
+
+static int usb_host_post_load(void *opaque, int version_id)
+{
+    USBHostDevice *dev = opaque;
+
+    if (!dev->bh_postld) {
+        dev->bh_postld = qemu_bh_new(usb_host_post_load_bh, dev);
+    }
+    qemu_bh_schedule(dev->bh_postld);
+    return 0;
+}
+
 static const VMStateDescription vmstate_usb_host = {
     .name = "usb-host",
-    .unmigratable = 1,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = usb_host_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_USB_DEVICE(parent_obj, USBHostDevice),
         VMSTATE_END_OF_LIST()
