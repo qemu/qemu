@@ -974,27 +974,3 @@ int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
     qemu_opts_del(opts);
     return fd;
 }
-
-#ifdef _WIN32
-static void socket_cleanup(void)
-{
-    WSACleanup();
-}
-#endif
-
-int socket_init(void)
-{
-#ifdef _WIN32
-    WSADATA Data;
-    int ret, err;
-
-    ret = WSAStartup(MAKEWORD(2,2), &Data);
-    if (ret != 0) {
-        err = WSAGetLastError();
-        fprintf(stderr, "WSAStartup: %d\n", err);
-        return -1;
-    }
-    atexit(socket_cleanup);
-#endif
-    return 0;
-}

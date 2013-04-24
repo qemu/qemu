@@ -25,11 +25,6 @@ typedef struct VCardEmulStruct VCardEmul;
 
 #define MAX_CHANNEL 4
 
-/* create an ATR with appropriate historical bytes */
-#define VCARD_ATR_PREFIX(size) 0x3b, 0x68+(size), 0x00, 0xff, \
-                               'V', 'C', 'A', 'R', 'D', '_'
-
-
 typedef enum {
     VCARD_DONE,
     VCARD_NEXT,

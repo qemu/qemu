@@ -5,6 +5,12 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
+#ifdef G_LOG_DOMAIN
+#undef G_LOG_DOMAIN
+#endif
+#define G_LOG_DOMAIN "libcacard"
+#include <glib.h>
+
 #include "qemu-common.h"
 #include "qemu/thread.h"
 
@@ -13,6 +19,9 @@
 #include "card_7816.h"
 #include "vreader.h"
 #include "vevent.h"
+#include "cac.h" /* just for debugging defines */
+
+#define LIBCACARD_LOG_DOMAIN "libcacard"
 
 struct VReaderStruct {
     int    reference_count;
@@ -23,6 +32,66 @@ struct VReaderStruct {
     VReaderEmul  *reader_private;
     VReaderEmulFree reader_private_free;
 };
+
+/*
+ * Debug helpers
+ */
+
+static const char *
+apdu_ins_to_string(int ins)
+{
+    switch (ins) {
+    case VCARD7816_INS_MANAGE_CHANNEL:
+        return "manage channel";
+    case VCARD7816_INS_EXTERNAL_AUTHENTICATE:
+        return "external authenticate";
+    case VCARD7816_INS_GET_CHALLENGE:
+        return "get challenge";
+    case VCARD7816_INS_INTERNAL_AUTHENTICATE:
+        return "internal authenticate";
+    case VCARD7816_INS_ERASE_BINARY:
+        return "erase binary";
+    case VCARD7816_INS_READ_BINARY:
+        return "read binary";
+    case VCARD7816_INS_WRITE_BINARY:
+        return "write binary";
+    case VCARD7816_INS_UPDATE_BINARY:
+        return "update binary";
+    case VCARD7816_INS_READ_RECORD:
+        return "read record";
+    case VCARD7816_INS_WRITE_RECORD:
+        return "write record";
+    case VCARD7816_INS_UPDATE_RECORD:
+        return "update record";
+    case VCARD7816_INS_APPEND_RECORD:
+        return "append record";
+    case VCARD7816_INS_ENVELOPE:
+        return "envelope";
+    case VCARD7816_INS_PUT_DATA:
+        return "put data";
+    case VCARD7816_INS_GET_DATA:
+        return "get data";
+    case VCARD7816_INS_SELECT_FILE:
+        return "select file";
+    case VCARD7816_INS_VERIFY:
+        return "verify";
+    case VCARD7816_INS_GET_RESPONSE:
+        return "get response";
+    case CAC_GET_PROPERTIES:
+        return "get properties";
+    case CAC_GET_ACR:
+        return "get acr";
+    case CAC_READ_BUFFER:
+        return "read buffer";
+    case CAC_UPDATE_BUFFER:
+        return "update buffer";
+    case CAC_SIGN_DECRYPT:
+        return "sign decrypt";
+    case CAC_GET_CERTIFICATE:
+        return "get certificate";
+    }
+    return "unknown";
+}
 
 /* manage locking */
 static inline void
@@ -204,7 +273,15 @@ vreader_xfr_bytes(VReader *reader,
         response = vcard_make_response(status);
         card_status = VCARD_DONE;
     } else {
+        g_debug("%s: CLS=0x%x,INS=0x%x,P1=0x%x,P2=0x%x,Lc=%d,Le=%d %s\n",
+              __func__, apdu->a_cla, apdu->a_ins, apdu->a_p1, apdu->a_p2,
+              apdu->a_Lc, apdu->a_Le, apdu_ins_to_string(apdu->a_ins));
         card_status = vcard_process_apdu(card, apdu, &response);
+        if (response) {
+            g_debug("%s: status=%d sw1=0x%x sw2=0x%x len=%d (total=%d)\n",
+                  __func__, response->b_status, response->b_sw1,
+                  response->b_sw2, response->b_len, response->b_total_len);
+        }
     }
     assert(card_status == VCARD_DONE);
     if (card_status == VCARD_DONE) {

@@ -1244,7 +1244,7 @@ fi
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
 gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
-gcc_flags="-fstack-protector-all -Wendif-labels $gcc_flags"
+gcc_flags="-Wendif-labels $gcc_flags"
 gcc_flags="-Wno-initializer-overrides $gcc_flags"
 # Note that we do not add -Werror to gcc_flags here, because that would
 # enable it for all configure tests. If a configure test failed due
@@ -1262,6 +1262,11 @@ for flag in $gcc_flags; do
 	QEMU_CFLAGS="$QEMU_CFLAGS $flag"
     fi
 done
+
+if compile_prog "-Werror -fstack-protector-all" "" ; then
+    QEMU_CFLAGS="$QEMU_CFLAGS -fstack-protector-all"
+    LIBTOOLFLAGS="$LIBTOOLFLAGS -Wc,-fstack-protector-all"
+fi
 
 # Workaround for http://gcc.gnu.org/PR55489.  Happens with -fPIE/-fPIC and
 # large functions that use global variables.  The bug is in all releases of
@@ -4078,6 +4083,7 @@ else
   echo "AUTOCONF_HOST := "                             >> $config_host_mak
 fi
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
+echo "LIBTOOLFLAGS=$LIBTOOLFLAGS" >> $config_host_mak
 echo "LIBS+=$LIBS" >> $config_host_mak
 echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
