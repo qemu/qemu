@@ -386,7 +386,7 @@ static void migration_bitmap_sync(void)
     }
 
     trace_migration_bitmap_sync_start();
-    memory_global_sync_dirty_bitmap(get_system_memory());
+    address_space_sync_dirty_bitmap(&address_space_memory);
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {

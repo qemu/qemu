@@ -766,13 +766,12 @@ memory_region_section_addr(MemoryRegionSection *section,
 }
 
 /**
- * memory_global_sync_dirty_bitmap: synchronize the dirty log for all memory
+ * address_space_sync_dirty_bitmap: synchronize the dirty log for all memory
  *
  * Synchronizes the dirty page log for an entire address space.
- * @address_space: a top-level (i.e. parentless) region that contains the
- *       memory being synchronized
+ * @as: the address space that contains the memory being synchronized
  */
-void memory_global_sync_dirty_bitmap(MemoryRegion *address_space);
+void address_space_sync_dirty_bitmap(AddressSpace *as);
 
 /**
  * memory_region_transaction_begin: Start a transaction.
