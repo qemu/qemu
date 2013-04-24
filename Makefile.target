@@ -18,7 +18,7 @@ ifdef CONFIG_USER_ONLY
 QEMU_PROG=qemu-$(TARGET_ARCH2)
 else
 # system emulator name
-ifneq (,$(findstring -mwindows,$(LIBS)))
+ifneq (,$(findstring -mwindows,$(libs_softmmu)))
 # Terminate program name with a 'w' because the linker builds a windows executable.
 QEMU_PROGW=qemu-system-$(TARGET_ARCH2)w$(EXESUF)
 endif # windows executable
