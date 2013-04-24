@@ -45,7 +45,7 @@ typedef struct ICH9LPCPMRegs {
 } ICH9LPCPMRegs;
 
 void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
-                  qemu_irq sci_irq, qemu_irq cmos_s3_resume);
+                  qemu_irq sci_irq);
 void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base);
 extern const VMStateDescription vmstate_ich9_pm;
 

@@ -45,17 +45,6 @@
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
 
-/* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
- *    BIOS will read it and start S3 resume at POST Entry */
-static void pc_cmos_set_s3_resume(void *opaque, int irq, int level)
-{
-    ISADevice *s = opaque;
-
-    if (level) {
-        rtc_set_memory(s, 0xF, 0xFE);
-    }
-}
-
 /* PC hardware initialisation */
 static void pc_q35_init(QEMUMachineInitArgs *args)
 {
@@ -84,7 +73,6 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     int i;
     ICH9LPCState *ich9_lpc;
     PCIDevice *ahci;
-    qemu_irq *cmos_s3;
 
     pc_cpus_init(cpu_model);
     pc_acpi_init("q35-acpi-dsdt.aml");
@@ -175,8 +163,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, false);
 
     /* connect pm stuff to lpc */
-    cmos_s3 = qemu_allocate_irqs(pc_cmos_set_s3_resume, rtc_state, 1);
-    ich9_lpc_pm_init(lpc, *cmos_s3);
+    ich9_lpc_pm_init(lpc);
 
     /* ahci and SATA device, for q35 1 ahci controller is built-in */
     ahci = pci_create_simple_multifunction(host_bus,
