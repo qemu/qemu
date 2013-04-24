@@ -586,6 +586,14 @@ static const char *TRBCCode_names[] = {
     [CC_SPLIT_TRANSACTION_ERROR]       = "CC_SPLIT_TRANSACTION_ERROR",
 };
 
+static const char *ep_state_names[] = {
+    [EP_DISABLED] = "disabled",
+    [EP_RUNNING]  = "running",
+    [EP_HALTED]   = "halted",
+    [EP_STOPPED]  = "stopped",
+    [EP_ERROR]    = "error",
+};
+
 static const char *lookup_name(uint32_t index, const char **list, uint32_t llen)
 {
     if (index >= llen || list[index] == NULL) {
@@ -604,6 +612,12 @@ static const char *event_name(XHCIEvent *event)
 {
     return lookup_name(event->ccode, TRBCCode_names,
                        ARRAY_SIZE(TRBCCode_names));
+}
+
+static const char *ep_state_name(uint32_t state)
+{
+    return lookup_name(state, ep_state_names,
+                       ARRAY_SIZE(ep_state_names));
 }
 
 static uint64_t xhci_mfindex_get(XHCIState *xhci)
@@ -1203,6 +1217,11 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
     }
 
     xhci_dma_write_u32s(xhci, epctx->pctx, ctx, sizeof(ctx));
+    if (epctx->state != state) {
+        trace_usb_xhci_ep_state(epctx->slotid, epctx->epid,
+                                ep_state_name(epctx->state),
+                                ep_state_name(state));
+    }
     epctx->state = state;
 }
 
