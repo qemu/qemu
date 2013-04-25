@@ -36,6 +36,7 @@
 #define SD_OP_GET_VDI_INFO   0x14
 #define SD_OP_READ_VDIS      0x15
 #define SD_OP_FLUSH_VDI      0x16
+#define SD_OP_DEL_VDI        0x17
 
 #define SD_FLAG_CMD_WRITE    0x01
 #define SD_FLAG_CMD_COW      0x02
@@ -1666,6 +1667,43 @@ out:
     sd_finish_aiocb(acb);
 }
 
+/* Delete current working VDI on the snapshot chain */
+static bool sd_delete(BDRVSheepdogState *s)
+{
+    unsigned int wlen = SD_MAX_VDI_LEN, rlen = 0;
+    SheepdogVdiReq hdr = {
+        .opcode = SD_OP_DEL_VDI,
+        .vdi_id = s->inode.vdi_id,
+        .data_length = wlen,
+        .flags = SD_FLAG_CMD_WRITE,
+    };
+    SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
+    int fd, ret;
+
+    fd = connect_to_sdog(s);
+    if (fd < 0) {
+        return false;
+    }
+
+    ret = do_req(fd, (SheepdogReq *)&hdr, s->name, &wlen, &rlen);
+    closesocket(fd);
+    if (ret) {
+        return false;
+    }
+    switch (rsp->result) {
+    case SD_RES_NO_VDI:
+        error_report("%s was already deleted", s->name);
+        /* fall through */
+    case SD_RES_SUCCESS:
+        break;
+    default:
+        error_report("%s, %s", sd_strerror(rsp->result), s->name);
+        return false;
+    }
+
+    return true;
+}
+
 /*
  * Create a writable VDI from a snapshot
  */
@@ -1674,12 +1712,20 @@ static int sd_create_branch(BDRVSheepdogState *s)
     int ret, fd;
     uint32_t vid;
     char *buf;
+    bool deleted;
 
     dprintf("%" PRIx32 " is snapshot.\n", s->inode.vdi_id);
 
     buf = g_malloc(SD_INODE_SIZE);
 
-    ret = do_sd_create(s, s->name, s->inode.vdi_size, s->inode.vdi_id, &vid, 1);
+    /*
+     * Even If deletion fails, we will just create extra snapshot based on
+     * the workding VDI which was supposed to be deleted. So no need to
+     * false bail out.
+     */
+    deleted = sd_delete(s);
+    ret = do_sd_create(s, s->name, s->inode.vdi_size, s->inode.vdi_id, &vid,
+                       !deleted);
     if (ret) {
         goto out;
     }
@@ -1995,6 +2041,12 @@ cleanup:
     return ret;
 }
 
+/*
+ * We implement rollback(loadvm) operation to the specified snapshot by
+ * 1) switch to the snapshot
+ * 2) rely on sd_create_branch to delete working VDI and
+ * 3) create a new working VDI based on the speicified snapshot
+ */
 static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
 {
     BDRVSheepdogState *s = bs->opaque;
