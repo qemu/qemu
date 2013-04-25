@@ -1300,6 +1300,28 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
     return surface;
 }
 
+static DisplaySurface *qemu_create_dummy_surface(void)
+{
+    static const char msg[] =
+        "This VM has no graphic display device.";
+    DisplaySurface *surface = qemu_create_displaysurface(640, 480);
+    pixman_color_t bg = color_table_rgb[0][COLOR_BLACK];
+    pixman_color_t fg = color_table_rgb[0][COLOR_WHITE];
+    pixman_image_t *glyph;
+    int len, x, y, i;
+
+    len = strlen(msg);
+    x = (640/FONT_WIDTH  - len) / 2;
+    y = (480/FONT_HEIGHT - 1)   / 2;
+    for (i = 0; i < len; i++) {
+        glyph = qemu_pixman_glyph_from_vgafont(FONT_HEIGHT, vgafont16, msg[i]);
+        qemu_pixman_glyph_render(glyph, surface->image, &fg, &bg,
+                                 x+i, y, FONT_WIDTH, FONT_HEIGHT);
+        qemu_pixman_image_unref(glyph);
+    }
+    return surface;
+}
+
 void qemu_free_displaysurface(DisplaySurface *surface)
 {
     if (surface == NULL) {
@@ -1312,6 +1334,7 @@ void qemu_free_displaysurface(DisplaySurface *surface)
 
 void register_displaychangelistener(DisplayChangeListener *dcl)
 {
+    static DisplaySurface *dummy;
     QemuConsole *con;
 
     trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);
@@ -1324,8 +1347,15 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
     } else {
         con = active_console;
     }
-    if (dcl->ops->dpy_gfx_switch && con) {
-        dcl->ops->dpy_gfx_switch(dcl, con->surface);
+    if (dcl->ops->dpy_gfx_switch) {
+        if (con) {
+            dcl->ops->dpy_gfx_switch(dcl, con->surface);
+        } else {
+            if (!dummy) {
+                dummy = qemu_create_dummy_surface();
+            }
+            dcl->ops->dpy_gfx_switch(dcl, dummy);
+        }
     }
 }
 
