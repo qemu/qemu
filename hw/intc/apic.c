@@ -874,7 +874,7 @@ static const MemoryRegionOps apic_io_ops = {
 static void apic_init(APICCommonState *s)
 {
     memory_region_init_io(&s->io_memory, &apic_io_ops, s, "apic-msi",
-                          MSI_SPACE_SIZE);
+                          APIC_SPACE_SIZE);
 
     s->timer = qemu_new_timer_ns(vm_clock, apic_timer, s);
     local_apics[s->idx] = s;

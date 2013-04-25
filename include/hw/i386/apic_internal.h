@@ -66,8 +66,6 @@
 
 #define MAX_APICS 255
 
-#define MSI_SPACE_SIZE                  0x100000
-
 typedef struct APICCommonState APICCommonState;
 
 #define TYPE_APIC_COMMON "apic-common"
