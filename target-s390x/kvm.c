@@ -467,12 +467,16 @@ static int kvm_handle_css_inst(S390CPU *cpu, struct kvm_run *run,
     int r = 0;
     int no_cc = 0;
     CPUS390XState *env = &cpu->env;
+    CPUState *cs = ENV_GET_CPU(env);
 
     if (ipa0 != 0xb2) {
         /* Not handled for now. */
         return -1;
     }
-    cpu_synchronize_state(env);
+
+    kvm_s390_get_registers_partial(cs);
+    cs->kvm_vcpu_dirty = true;
+
     switch (ipa1) {
     case PRIV_XSCH:
         r = ioinst_handle_xsch(env, env->regs[1]);
@@ -603,7 +607,10 @@ static int handle_priv(S390CPU *cpu, struct kvm_run *run,
 
 static int handle_hypercall(CPUS390XState *env, struct kvm_run *run)
 {
-    cpu_synchronize_state(env);
+    CPUState *cs = ENV_GET_CPU(env);
+
+    kvm_s390_get_registers_partial(cs);
+    cs->kvm_vcpu_dirty = true;
     env->regs[2] = s390_virtio_hypercall(env);
 
     return 0;
@@ -808,7 +815,9 @@ static int handle_tsch(S390CPU *cpu)
     struct kvm_run *run = cs->kvm_run;
     int ret;
 
-    cpu_synchronize_state(env);
+    kvm_s390_get_registers_partial(cs);
+    cs->kvm_vcpu_dirty = true;
+
     ret = ioinst_handle_tsch(env, env->regs[1], run->s390_tsch.ipb);
     if (ret >= 0) {
         /* Success; set condition code. */
