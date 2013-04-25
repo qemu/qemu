@@ -384,6 +384,7 @@ enum {
 #define VNC_ENCODING_EXT_KEY_EVENT        0XFFFFFEFE /* -258 */
 #define VNC_ENCODING_AUDIO                0XFFFFFEFD /* -259 */
 #define VNC_ENCODING_TIGHT_PNG            0xFFFFFEFC /* -260 */
+#define VNC_ENCODING_LED_STATE            0XFFFFFEFB /* -261 */
 #define VNC_ENCODING_WMVi                 0x574D5669
 
 /*****************************************************************************
@@ -422,6 +423,7 @@ enum {
 #define VNC_FEATURE_TIGHT_PNG                8
 #define VNC_FEATURE_ZRLE                     9
 #define VNC_FEATURE_ZYWRLE                  10
+#define VNC_FEATURE_LED_STATE               11
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
 #define VNC_FEATURE_HEXTILE_MASK             (1 << VNC_FEATURE_HEXTILE)
@@ -434,6 +436,7 @@ enum {
 #define VNC_FEATURE_TIGHT_PNG_MASK           (1 << VNC_FEATURE_TIGHT_PNG)
 #define VNC_FEATURE_ZRLE_MASK                (1 << VNC_FEATURE_ZRLE)
 #define VNC_FEATURE_ZYWRLE_MASK              (1 << VNC_FEATURE_ZYWRLE)
+#define VNC_FEATURE_LED_STATE_MASK           (1 << VNC_FEATURE_LED_STATE)
 
 
 /* Client -> Server message IDs */
