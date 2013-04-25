@@ -12,6 +12,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
 #include "hw/i386/apic_internal.h"
+#include "hw/sysbus.h"
 
 #define VAPIC_IO_PORT           0x7e
 
