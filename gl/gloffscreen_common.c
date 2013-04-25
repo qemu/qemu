@@ -117,15 +117,19 @@ int glo_flags_score(int formatFlagsExpected, int formatFlagsReal) {
 }
 
 
-void glo_readpixels(GLenum gl_format, GLenum gl_type, int stride,
-                    int width, int height, void *data)
+void glo_readpixels(GLenum gl_format, GLenum gl_type,
+                    unsigned int bytes_per_pixel, unsigned int stride,
+                    unsigned int width, unsigned int height, void *data)
 {
+    /* TODO: weird strides */
+    assert(stride % bytes_per_pixel == 0);
+
     /* Save guest processes GL state before we ReadPixels() */
     int rl, pa;
     glGetIntegerv(GL_PACK_ROW_LENGTH, &rl);
     glGetIntegerv(GL_PACK_ALIGNMENT, &pa);
-    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
-    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glPixelStorei(GL_PACK_ROW_LENGTH, stride / bytes_per_pixel);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
 
 #ifdef GETCONTENTS_INDIVIDUAL
     GLubyte *b = (GLubyte *) data;

@@ -336,6 +336,9 @@
 #   define NV_DMA_TARGET_NVM_TILED                                0x00010000
 #   define NV_DMA_TARGET_PCI                                      0x00020000
 #   define NV_DMA_TARGET_AGP                                      0x00030000
+#define NV_DMA_ADJUST                                         0xFFF00000
+
+#define NV_DMA_ADDRESS                                        0xFFFFF000
 
 
 #define NV_RAMHT_HANDLE                                       0xFFFFFFFF
@@ -409,6 +412,7 @@
 #       define NV097_SET_SURFACE_PITCH_ZETA                       0xFFFF0000
 #   define NV097_SET_SURFACE_COLOR_OFFSET                     0x00970210
 #   define NV097_SET_SURFACE_ZETA_OFFSET                      0x00970214
+#   define NV097_SET_COLOR_MASK                               0x00970358
 #   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
 #   define NV097_SET_VIEWPORT_SCALE                           0x00970AF0
 #   define NV097_SET_TRANSFORM_PROGRAM                        0x00970B00
@@ -602,15 +606,12 @@ typedef struct RAMHTEntry {
     bool valid;
 } RAMHTEntry;
 
-
 typedef struct DMAObject {
     unsigned int dma_class;
-    hwaddr start;
+    unsigned int dma_target;
+    hwaddr address;
     hwaddr limit;
 } DMAObject;
-
-
-
 
 typedef struct VertexAttribute {
     bool dma_select;
@@ -691,8 +692,10 @@ typedef struct KelvinState {
     hwaddr dma_semaphore;
     unsigned int semaphore_offset;
 
+    bool surface_dirty;
     Surface surface_color;
     Surface surface_zeta;
+    uint32_t color_mask;
 
     unsigned int vertexshader_start_slot;
     unsigned int vertexshader_load_slot;
@@ -1005,24 +1008,33 @@ static RAMHTEntry ramht_lookup(NV2AState *d, uint32_t handle)
     };
 }
 
-
-static DMAObject load_dma_object(NV2AState *d, hwaddr address)
+static DMAObject nv_dma_load(NV2AState *d, hwaddr dma_obj_address)
 {
-    uint8_t *dma_ptr;
-    uint32_t flags;
+    assert(dma_obj_address < memory_region_size(&d->ramin));
 
-    assert(address < memory_region_size(&d->ramin));
-
-    dma_ptr = d->ramin_ptr + address;
-    flags = le32_to_cpupu((uint32_t*)dma_ptr);
+    uint32_t *dma_obj = (uint32_t*)(d->ramin_ptr + dma_obj_address);
+    uint32_t flags = le32_to_cpupu(dma_obj);
+    uint32_t limit = le32_to_cpupu(dma_obj + 1);
+    uint32_t frame = le32_to_cpupu(dma_obj + 2);
 
     return (DMAObject){
-        .dma_class = flags & NV_DMA_CLASS,
-
-        /* XXX: Why is this layout different to nouveau? */
-        .limit = le32_to_cpupu((uint32_t*)(dma_ptr + 4)),
-        .start = le32_to_cpupu((uint32_t*)(dma_ptr + 8)) & (~3),
+        .dma_class = GET_MASK(flags, NV_DMA_CLASS),
+        .dma_target = GET_MASK(flags, NV_DMA_TARGET),
+        .address = (frame & NV_DMA_ADDRESS) | GET_MASK(flags, NV_DMA_ADJUST),
+        .limit = limit,
     };
+}
+
+static void *nv_dma_map(NV2AState *d, hwaddr dma_obj_address, hwaddr *len)
+{
+    assert(dma_obj_address < memory_region_size(&d->ramin));
+
+    DMAObject dma = nv_dma_load(d, dma_obj_address);
+
+    /* TODO: Handle targets and classes properly */
+    assert(dma.address + dma.limit < memory_region_size(d->vram));
+    *len = dma.limit;
+    return d->vram_ptr + dma.address;
 }
 
 static void load_graphics_object(NV2AState *d, hwaddr instance_address,
@@ -1100,19 +1112,15 @@ static void kelvin_bind_converted_vertex_attributes(NV2AState *d,
                 data = (uint8_t*)kelvin->inline_vertex_data
                         + attribute->inline_offset;
             } else {
-                DMAObject vertex_dma;
-
-                /* TODO: cache coherence */
+                hwaddr dma_len;
                 if (attribute->dma_select) {
-                    vertex_dma = load_dma_object(d, kelvin->dma_vertex_b);
+                    data = nv_dma_map(d, kelvin->dma_vertex_b, &dma_len);
                 } else {
-                    vertex_dma = load_dma_object(d, kelvin->dma_vertex_a);
+                    data = nv_dma_map(d, kelvin->dma_vertex_a, &dma_len);
                 }
-                assert(vertex_dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
-                assert(attribute->offset < vertex_dma.limit);
-                assert(vertex_dma.start + attribute->offset
-                            < memory_region_size(d->vram));
-                data = d->vram_ptr + vertex_dma.start + attribute->offset;
+
+                assert(attribute->offset < dma_len);
+                data += attribute->offset;
             }
 
             unsigned int stride = attribute->converted_size
@@ -1189,25 +1197,24 @@ static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
         VertexAttribute *attribute = &kelvin->vertex_attributes[i];
         if (attribute->count) {
             if (!attribute->needs_conversion) {
-                DMAObject vertex_dma;
+                hwaddr dma_len;
+                uint8_t *vertex_data;
 
                 /* TODO: cache coherence */
                 if (attribute->dma_select) {
-                    vertex_dma = load_dma_object(d, kelvin->dma_vertex_b);
+                    vertex_data = nv_dma_map(d, kelvin->dma_vertex_b, &dma_len);
                 } else {
-                    vertex_dma = load_dma_object(d, kelvin->dma_vertex_a);
+                    vertex_data = nv_dma_map(d, kelvin->dma_vertex_a, &dma_len);
                 }
-                assert(vertex_dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
-                assert(attribute->offset < vertex_dma.limit);
-                assert(vertex_dma.start + attribute->offset
-                            < memory_region_size(d->vram));
+                assert(attribute->offset < dma_len);
+                vertex_data += attribute->offset;
 
                 glVertexAttribPointer(i,
                     attribute->count,
                     attribute->gl_type,
                     attribute->gl_normalize,
                     attribute->stride,
-                    d->vram_ptr + vertex_dma.start + attribute->offset);
+                    vertex_data);
             }
 
             glEnableVertexAttribArray(i);
@@ -1344,17 +1351,15 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
 
             /* load texture data*/
 
-            DMAObject dma;
+            hwaddr dma_len;
+            uint8_t *texture_data;
             if (texture->dma_select) {
-                dma = load_dma_object(d, kelvin->dma_b);
+                texture_data = nv_dma_map(d, kelvin->dma_b, &dma_len);
             } else {
-                dma = load_dma_object(d, kelvin->dma_a);
+                texture_data = nv_dma_map(d, kelvin->dma_a, &dma_len);
             }
-
-            assert(texture->offset < dma.limit);
-            assert(dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
-
-            assert(dma.start + texture->offset < memory_region_size(d->vram));
+            assert(texture->offset < dma_len);
+            texture_data += texture->offset;
 
             NV2A_DPRINTF(" texture %d is format 0x%x, (%d, %d; %d)\n",
                          i, texture->color_format,
@@ -1373,19 +1378,18 @@ static void kelvin_bind_textures(NV2AState *d, KelvinState *kelvin)
                 glCompressedTexImage2D(gl_target, 0, f.gl_internal_format,
                                        width, height, 0,
                                        width/4 * height/4 * block_size,
-                                       d->vram_ptr
-                                            + dma.start + texture->offset);
+                                       texture_data);
             } else {
                 if (f.linear) {
                     /* Can't handle retarded strides */
                     assert(texture->pitch % f.bytes_per_pixel == 0);
                     glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                                  texture->pitch/f.bytes_per_pixel);
+                                  texture->pitch / f.bytes_per_pixel);
                 }
                 glTexImage2D(gl_target, 0, f.gl_internal_format,
                              width, height, 0,
                              f.gl_format, f.gl_type,
-                             d->vram_ptr + dma.start + texture->offset);
+                             texture_data);
                 if (f.linear) {
                     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
                 }
@@ -1435,29 +1439,37 @@ static void kelvin_bind_fragment_shader(NV2AState *d, KelvinState *kelvin)
 static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
 {
     /* read the renderbuffer into the set surface */
-    if (kelvin->surface_color.format != 0) {
-        DMAObject color_dma = load_dma_object(d, kelvin->dma_color);
+    if (kelvin->surface_color.format != 0 && kelvin->color_mask) {
+
+        /* There's a bunch of bugs that could cause us to hit this functino
+         * at the wrong time and get a invalid dma object.
+         * Check that it's sane. */
+        DMAObject color_dma = nv_dma_load(d, kelvin->dma_color);
         assert(color_dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
 
-        if (color_dma.start + kelvin->surface_color.offset == 0
-                || kelvin->surface_color.offset >= color_dma.limit) {
-            /* BUGBUGBUG? Should this really be silently ignored? */
-            return;
-        }
 
-        assert(kelvin->surface_color.offset < color_dma.limit);
-        assert(color_dma.start + kelvin->surface_color.offset
-                < memory_region_size(d->vram));
+        assert(color_dma.address + kelvin->surface_color.offset != 0);
+        assert(kelvin->surface_color.offset <= color_dma.limit);
+        assert(kelvin->surface_color.offset 
+                + kelvin->surface_color.pitch * kelvin->surface_color.height
+                    <= color_dma.limit + 1);
+
+
+        hwaddr color_len;
+        uint8_t *color_data = nv_dma_map(d, kelvin->dma_color, &color_len);
         
         GLenum gl_format;
         GLenum gl_type;
+        unsigned int bytes_per_pixel;
         switch (kelvin->surface_color.format) {
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5:
+            bytes_per_pixel = 2;
             gl_format = GL_RGB;
             gl_type = GL_UNSIGNED_SHORT_5_6_5_REV;
             break;
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8:
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8:
+            bytes_per_pixel = 4;
             gl_format = GL_RGBA;
             gl_type = GL_UNSIGNED_INT_8_8_8_8_REV;
             break;
@@ -1468,16 +1480,24 @@ static void kelvin_read_surface(NV2AState *d, KelvinState *kelvin)
         /* TODO */
         assert(kelvin->surface_color.x == 0 && kelvin->surface_color.y == 0);
 
-        glo_readpixels(gl_format, gl_type, kelvin->surface_color.pitch,
+        glo_readpixels(gl_format, gl_type,
+                       bytes_per_pixel, kelvin->surface_color.pitch,
                        kelvin->surface_color.width, kelvin->surface_color.height,
-                       d->vram_ptr
-                        + color_dma.start + kelvin->surface_color.offset);
+                       color_data + kelvin->surface_color.offset);
         assert(glGetError() == GL_NO_ERROR);
 
         memory_region_set_dirty(d->vram,
-                                color_dma.start + kelvin->surface_color.offset,
+                                color_dma.address + kelvin->surface_color.offset,
                                 kelvin->surface_color.pitch
                                     * kelvin->surface_color.height);
+    }
+}
+
+static void kelvin_update_surface(NV2AState *d, KelvinState *kelvin)
+{
+    if (kelvin->surface_dirty) {
+        kelvin_read_surface(d, kelvin);
+        kelvin->surface_dirty = false;
     }
 }
 
@@ -1571,7 +1591,6 @@ static void pgraph_method(NV2AState *d,
     GraphicsSubchannel *subchannel_data;
     GraphicsObject *object;
 
-    DMAObject dma_semaphore;
     unsigned int slot;
     VertexAttribute *vertex_attribute;
     VertexShader *vertexshader;
@@ -1654,11 +1673,7 @@ static void pgraph_method(NV2AState *d,
                 == NV_CONTEXT_SURFACES_2D);
 
             ContextSurfaces2DState *context_surfaces =
-                &context_surfaces_obj->data.context_surfaces_2d;;
-            DMAObject dma_source =
-                load_dma_object(d, context_surfaces->dma_image_source);
-            DMAObject dma_dest =
-                load_dma_object(d, context_surfaces->dma_image_dest);
+                &context_surfaces_obj->data.context_surfaces_2d;
 
             unsigned int bytes_per_pixel;
             switch (context_surfaces->color_format) {
@@ -1671,17 +1686,18 @@ static void pgraph_method(NV2AState *d,
                 assert(false);
             }
 
-            assert(context_surfaces->source_offset < dma_source.limit);
-            assert(dma_source.start + context_surfaces->source_offset
-                    < memory_region_size(d->vram));
-            uint8_t *source =
-                d->vram_ptr + dma_source.start + context_surfaces->source_offset;
-            
-            assert(context_surfaces->dest_offset < dma_dest.limit);
-            assert(dma_dest.start + context_surfaces->dest_offset
-                    < memory_region_size(d->vram));
-            uint8_t *dest =
-                d->vram_ptr + dma_dest.start + context_surfaces->dest_offset;
+            hwaddr source_dma_len, dest_dma_len;
+            uint8_t *source, *dest;
+
+            source = nv_dma_map(d, context_surfaces->dma_image_source,
+                                &source_dma_len);
+            assert(context_surfaces->source_offset < source_dma_len);
+            source += context_surfaces->source_offset;
+
+            dest = nv_dma_map(d, context_surfaces->dma_image_source,
+                              &dest_dma_len);
+            assert(context_surfaces->dest_offset < dest_dma_len);
+            dest += context_surfaces->dest_offset;
 
             int y;
             for (y=0; y<image_blit->height; y++) {
@@ -1735,11 +1751,11 @@ static void pgraph_method(NV2AState *d,
     
     case NV097_WAIT_FOR_IDLE:
         glFinish();
-        kelvin_read_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin);
         break;
 
     case NV097_FLIP_STALL:
-        kelvin_read_surface(d, kelvin);
+        kelvin_update_surface(d, kelvin);
         break;
     
     case NV097_SET_CONTEXT_DMA_NOTIFIES:
@@ -1755,6 +1771,9 @@ static void pgraph_method(NV2AState *d,
         kelvin->dma_state = parameter;
         break;
     case NV097_SET_CONTEXT_DMA_COLOR:
+        /* try to get any straggling draws in before the surface's changed :/ */
+        kelvin_update_surface(d, kelvin);
+
         kelvin->dma_color = parameter;
         break;
     case NV097_SET_CONTEXT_DMA_ZETA:
@@ -1771,34 +1790,49 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_SET_SURFACE_CLIP_HORIZONTAL:
+        kelvin_update_surface(d, kelvin);
+
         kelvin->surface_color.x =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_X);
         kelvin->surface_color.width =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH);
         break;
     case NV097_SET_SURFACE_CLIP_VERTICAL:
+        kelvin_update_surface(d, kelvin);
+
         kelvin->surface_color.y =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_Y);
         kelvin->surface_color.height =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT);
         break;
     case NV097_SET_SURFACE_FORMAT:
+        kelvin_update_surface(d, kelvin);
+
         kelvin->surface_color.format =
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_COLOR);
         kelvin->surface_zeta.format =
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_ZETA);
         break;
     case NV097_SET_SURFACE_PITCH:
+        kelvin_update_surface(d, kelvin);
+
         kelvin->surface_color.pitch =
             GET_MASK(parameter, NV097_SET_SURFACE_PITCH_COLOR);
         kelvin->surface_zeta.pitch =
             GET_MASK(parameter, NV097_SET_SURFACE_PITCH_ZETA);
         break;
     case NV097_SET_SURFACE_COLOR_OFFSET:
+        kelvin_update_surface(d, kelvin);
+
         kelvin->surface_color.offset = parameter;
         break;
     case NV097_SET_SURFACE_ZETA_OFFSET:
+        kelvin_update_surface(d, kelvin);
+
         kelvin->surface_zeta.offset = parameter;
+        break;
+    case NV097_SET_COLOR_MASK:
+        kelvin->color_mask = parameter;
         break;
 
     case NV097_SET_VIEWPORT_OFFSET ...
@@ -1975,6 +2009,7 @@ static void pgraph_method(NV2AState *d,
             kelvin->array_batch_length = 0;
             kelvin->inline_vertex_data_length = 0;
         }
+        kelvin->surface_dirty = true;
         break;
     CASE_4(NV097_SET_TEXTURE_OFFSET, 64):
         slot = (class_method - NV097_SET_TEXTURE_OFFSET) / 64;
@@ -2055,6 +2090,8 @@ static void pgraph_method(NV2AState *d,
         kelvin_bind_converted_vertex_attributes(d, kelvin,
             false, start + count);
         glDrawArrays(kelvin->gl_primitive_mode, start, count);
+
+        kelvin->surface_dirty = true;
         break;
     }
     case NV097_INLINE_ARRAY:
@@ -2066,21 +2103,23 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_SEMAPHORE_OFFSET:
         kelvin->semaphore_offset = parameter;
         break;
-    case NV097_BACK_END_WRITE_SEMAPHORE_RELEASE:
+    case NV097_BACK_END_WRITE_SEMAPHORE_RELEASE: {
         //qemu_mutex_unlock(&d->pgraph.lock);
         //qemu_mutex_lock_iothread();
 
-        dma_semaphore = load_dma_object(d, kelvin->dma_semaphore);
-        assert(kelvin->semaphore_offset < dma_semaphore.limit);
+        hwaddr semaphore_dma_len;
+        uint8_t *semaphore_data = nv_dma_map(d, kelvin->dma_semaphore, 
+                                             &semaphore_dma_len);
+        assert(kelvin->semaphore_offset < semaphore_dma_len);
+        semaphore_data += kelvin->semaphore_offset;
 
-        stl_le_phys(dma_semaphore.start + kelvin->semaphore_offset,
-                    parameter);
+        cpu_to_le32wu((uint32_t*)semaphore_data, parameter);
 
         //qemu_mutex_lock(&d->pgraph.lock);
         //qemu_mutex_unlock_iothread();
 
         break;
-
+    }
     case NV097_SET_ZSTENCIL_CLEAR_VALUE:
         context->zstencil_clear_value = parameter;
         break;
@@ -2111,6 +2150,8 @@ static void pgraph_method(NV2AState *d,
             gl_mask |= GL_COLOR_BUFFER_BIT;
         }
         glClear(gl_mask);
+
+        kelvin->surface_dirty = true;
         break;
 
     case NV097_SET_TRANSFORM_EXECUTION_MODE:
@@ -2287,7 +2328,8 @@ static void pfifo_run_pusher(NV2AState *d) {
     ChannelControl *control;
     Cache1State *state;
     CacheEntry *command;
-    DMAObject dma;
+    uint8_t *dma;
+    hwaddr dma_len;
     uint32_t word;
 
     /* TODO: How is cache1 selected? */
@@ -2310,21 +2352,20 @@ static void pfifo_run_pusher(NV2AState *d) {
     /* We're running so there should be no pending errors... */
     assert(state->error == NV_PFIFO_CACHE1_DMA_STATE_ERROR_NONE);
 
-    dma = load_dma_object(d, state->dma_instance);
-    assert(dma.dma_class == NV_DMA_FROM_MEMORY_CLASS);
+    dma = nv_dma_map(d, state->dma_instance, &dma_len);
 
-    NV2A_DPRINTF("nv2a DMA pusher: 0x%llx - 0x%llx, 0x%llx - 0x%llx\n",
-                 dma.start, dma.limit, control->dma_get, control->dma_put);
+    NV2A_DPRINTF("nv2a DMA pusher: max 0x%llx, 0x%llx - 0x%llx\n",
+                 dma_len, control->dma_get, control->dma_put);
 
     /* based on the convenient pseudocode in envytools */
     while (control->dma_get != control->dma_put) {
-        if (control->dma_get >= dma.limit) {
+        if (control->dma_get >= dma_len) {
 
             state->error = NV_PFIFO_CACHE1_DMA_STATE_ERROR_PROTECTION;
             break;
         }
 
-        word = ldl_le_phys(dma.start+control->dma_get);
+        word = le32_to_cpupu((uint32_t*)(dma + control->dma_get));
         control->dma_get += 4;
 
         if (state->method_count) {

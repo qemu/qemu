@@ -84,7 +84,8 @@ extern int glo_flags_get_bytes_per_pixel(int formatFlags);
 extern int glo_flags_score(int formatFlagsExpected, int formatFlagsReal);
 
  /* Note that this is top-down, not bottom-up as glReadPixels would do. */
-extern void glo_readpixels(GLenum gl_format, GLenum gl_type, int stride,
-                           int width, int height, void *data);
+extern void glo_readpixels(GLenum gl_format, GLenum gl_type,
+                    unsigned int bytes_per_pixel, unsigned int stride,
+                    unsigned int width, unsigned int height, void *data);
  
 #endif /* GLOFFSCREEN_H_ */
