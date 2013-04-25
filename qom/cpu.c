@@ -24,6 +24,32 @@
 #include "qemu/notify.h"
 #include "sysemu/sysemu.h"
 
+typedef struct CPUExistsArgs {
+    int64_t id;
+    bool found;
+} CPUExistsArgs;
+
+static void cpu_exist_cb(CPUState *cpu, void *data)
+{
+    CPUClass *klass = CPU_GET_CLASS(cpu);
+    CPUExistsArgs *arg = data;
+
+    if (klass->get_arch_id(cpu) == arg->id) {
+        arg->found = true;
+    }
+}
+
+bool cpu_exists(int64_t id)
+{
+    CPUExistsArgs data = {
+        .id = id,
+        .found = false,
+    };
+
+    qemu_for_each_cpu(cpu_exist_cb, &data);
+    return data.found;
+}
+
 /* CPU hot-plug notifiers */
 static NotifierList cpu_added_notifiers =
     NOTIFIER_LIST_INITIALIZER(cpu_add_notifiers);
