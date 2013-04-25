@@ -1271,6 +1271,43 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
     cpu->env.tsc_khz = value / 1000;
 }
 
+static void x86_cpuid_get_apic_id(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    int64_t value = cpu->env.cpuid_apic_id;
+
+    visit_type_int(v, &value, name, errp);
+}
+
+static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    const int64_t min = 0;
+    const int64_t max = UINT32_MAX;
+    Error *error = NULL;
+    int64_t value;
+
+    visit_type_int(v, &value, name, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+    if (value < min || value > max) {
+        error_setg(errp, "Property %s.%s doesn't take value %" PRId64
+                   " (minimum: %" PRId64 ", maximum: %" PRId64 ")" ,
+                   object_get_typename(obj), name, value, min, max);
+        return;
+    }
+
+    if ((value != cpu->env.cpuid_apic_id) && cpu_exists(value)) {
+        error_setg(errp, "CPU with APIC ID %" PRIi64 " exists", value);
+        return;
+    }
+    cpu->env.cpuid_apic_id = value;
+}
+
 static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
 {
     x86_def_t *def;
@@ -2270,6 +2307,9 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add(obj, "tsc-frequency", "int",
                         x86_cpuid_get_tsc_freq,
                         x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
+    object_property_add(obj, "apic-id", "int",
+                        x86_cpuid_get_apic_id,
+                        x86_cpuid_set_apic_id, NULL, NULL, NULL);
 
     env->cpuid_apic_id = x86_cpu_apic_id_from_index(cs->cpu_index);
 

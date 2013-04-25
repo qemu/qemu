@@ -894,9 +894,33 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
+static X86CPU *pc_new_cpu(const char *cpu_model, int64_t apic_id, Error **errp)
+{
+    X86CPU *cpu;
+    Error *local_err = NULL;
+
+    cpu = cpu_x86_create(cpu_model, errp);
+    if (!cpu) {
+        return cpu;
+    }
+
+    object_property_set_int(OBJECT(cpu), apic_id, "apic-id", &local_err);
+    object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
+
+    if (local_err) {
+        if (cpu != NULL) {
+            object_unref(OBJECT(cpu));
+            cpu = NULL;
+        }
+        error_propagate(errp, local_err);
+    }
+    return cpu;
+}
+
 void pc_cpus_init(const char *cpu_model)
 {
     int i;
+    Error *error = NULL;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -908,7 +932,10 @@ void pc_cpus_init(const char *cpu_model)
     }
 
     for (i = 0; i < smp_cpus; i++) {
-        if (!cpu_x86_init(cpu_model)) {
+        pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i), &error);
+        if (error) {
+            fprintf(stderr, "%s\n", error_get_pretty(error));
+            error_free(error);
             exit(1);
         }
     }
