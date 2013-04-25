@@ -309,7 +309,7 @@ static void virtio_net_set_queues(VirtIONet *n)
     }
 }
 
-static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue, int ctrl);
+static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue);
 
 static uint32_t virtio_net_get_features(VirtIODevice *vdev, uint32_t features)
 {
@@ -364,8 +364,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
     VirtIONet *n = VIRTIO_NET(vdev);
     int i;
 
-    virtio_net_set_multiqueue(n, !!(features & (1 << VIRTIO_NET_F_MQ)),
-                              !!(features & (1 << VIRTIO_NET_F_CTRL_VQ)));
+    virtio_net_set_multiqueue(n, !!(features & (1 << VIRTIO_NET_F_MQ)));
 
     virtio_net_set_mrg_rx_bufs(n, !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF)));
 
@@ -1038,7 +1037,7 @@ static void virtio_net_tx_bh(void *opaque)
     }
 }
 
-static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue, int ctrl)
+static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     int i, max = multiqueue ? n->max_queues : 1;
@@ -1067,9 +1066,11 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue, int ctrl)
         n->vqs[i].n = n;
     }
 
-    if (ctrl) {
-        n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
-    }
+    /* Note: Minux Guests (version 3.2.1) use ctrl vq but don't ack
+     * VIRTIO_NET_F_CTRL_VQ. Create ctrl vq unconditionally to avoid
+     * breaking them.
+     */
+    n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
 
     virtio_net_set_queues(n);
 }
