@@ -123,6 +123,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
+    struct kvm_one_reg reg;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     int ret;
@@ -146,6 +147,30 @@ int kvm_arch_put_registers(CPUState *cs, int level)
             return ret;
         }
     }
+
+    if (env->runtime_reg_dirty_mask == KVM_S390_RUNTIME_DIRTY_FULL) {
+        reg.id = KVM_REG_S390_CPU_TIMER;
+        reg.addr = (__u64)&(env->cputm);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            return ret;
+        }
+
+        reg.id = KVM_REG_S390_CLOCK_COMP;
+        reg.addr = (__u64)&(env->ckc);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            return ret;
+        }
+
+        reg.id = KVM_REG_S390_TODPR;
+        reg.addr = (__u64)&(env->todpr);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+    env->runtime_reg_dirty_mask = KVM_S390_RUNTIME_DIRTY_NONE;
 
     /* Do we need to save more than that? */
     if (level == KVM_PUT_RUNTIME_STATE) {
@@ -186,10 +211,51 @@ int kvm_arch_get_registers(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int r;
+
+    r = kvm_s390_get_registers_partial(cs);
+    if (r < 0) {
+        return r;
+    }
+
+    reg.id = KVM_REG_S390_CPU_TIMER;
+    reg.addr = (__u64)&(env->cputm);
+    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (r < 0) {
+        return r;
+    }
+
+    reg.id = KVM_REG_S390_CLOCK_COMP;
+    reg.addr = (__u64)&(env->ckc);
+    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (r < 0) {
+        return r;
+    }
+
+    reg.id = KVM_REG_S390_TODPR;
+    reg.addr = (__u64)&(env->todpr);
+    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (r < 0) {
+        return r;
+    }
+
+    env->runtime_reg_dirty_mask = KVM_S390_RUNTIME_DIRTY_FULL;
+    return 0;
+}
+
+int kvm_s390_get_registers_partial(CPUState *cs)
+{
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     int ret;
     int i;
+
+    if (env->runtime_reg_dirty_mask) {
+        return 0;
+    }
 
     /* get the PSW */
     env->psw.addr = cs->kvm_run->psw_addr;
@@ -236,6 +302,7 @@ int kvm_arch_get_registers(CPUState *cs)
         /* no prefix without sync regs */
     }
 
+    env->runtime_reg_dirty_mask = KVM_S390_RUNTIME_DIRTY_PARTIAL;
     return 0;
 }
 
