@@ -1150,6 +1150,42 @@ static int write_object(int fd, char *buf, uint64_t oid, int copies,
                              create, cache_flags);
 }
 
+/* update inode with the latest state */
+static int reload_inode(BDRVSheepdogState *s, uint32_t snapid, const char *tag)
+{
+    SheepdogInode *inode;
+    int ret = 0, fd;
+    uint32_t vid = 0;
+
+    fd = connect_to_sdog(s);
+    if (fd < 0) {
+        return -EIO;
+    }
+
+    inode = g_malloc(sizeof(s->inode));
+
+    ret = find_vdi_name(s, s->name, snapid, tag, &vid, false);
+    if (ret) {
+        goto out;
+    }
+
+    ret = read_object(fd, (char *)inode, vid_to_vdi_oid(vid),
+                      s->inode.nr_copies, sizeof(*inode), 0, s->cache_flags);
+    if (ret < 0) {
+        goto out;
+    }
+
+    if (inode->vdi_id != s->inode.vdi_id) {
+        memcpy(&s->inode, inode, sizeof(s->inode));
+    }
+
+out:
+    g_free(inode);
+    closesocket(fd);
+
+    return ret;
+}
+
 /* TODO Convert to fine grained options */
 static QemuOptsList runtime_opts = {
     .name = "sheepdog",
@@ -1905,17 +1941,13 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
 {
     BDRVSheepdogState *s = bs->opaque;
     BDRVSheepdogState *old_s;
-    char vdi[SD_MAX_VDI_LEN], tag[SD_MAX_VDI_TAG_LEN];
-    char *buf = NULL;
-    uint32_t vid;
+    char tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid = 0;
-    int ret = 0, fd;
+    int ret = 0;
 
     old_s = g_malloc(sizeof(BDRVSheepdogState));
 
     memcpy(old_s, s, sizeof(BDRVSheepdogState));
-
-    pstrcpy(vdi, sizeof(vdi), s->name);
 
     snapid = strtoul(snapshot_id, NULL, 10);
     if (snapid) {
@@ -1924,29 +1956,10 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         pstrcpy(tag, sizeof(tag), s->name);
     }
 
-    ret = find_vdi_name(s, vdi, snapid, tag, &vid, false);
-    if (ret) {
-        error_report("Failed to find_vdi_name");
-        goto out;
-    }
-
-    fd = connect_to_sdog(s);
-    if (fd < 0) {
-        ret = fd;
-        goto out;
-    }
-
-    buf = g_malloc(SD_INODE_SIZE);
-    ret = read_object(fd, buf, vid_to_vdi_oid(vid), s->inode.nr_copies,
-                      SD_INODE_SIZE, 0, s->cache_flags);
-
-    closesocket(fd);
-
+    ret = reload_inode(s, snapid, tag);
     if (ret) {
         goto out;
     }
-
-    memcpy(&s->inode, buf, sizeof(s->inode));
 
     if (!s->inode.vm_state_size) {
         error_report("Invalid snapshot");
@@ -1956,14 +1969,12 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
 
     s->is_snapshot = true;
 
-    g_free(buf);
     g_free(old_s);
 
     return 0;
 out:
     /* recover bdrv_sd_state */
     memcpy(s, old_s, sizeof(BDRVSheepdogState));
-    g_free(buf);
     g_free(old_s);
 
     error_report("failed to open. recover old bdrv_sd_state.");
