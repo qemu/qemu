@@ -605,6 +605,7 @@ static int do_req(int sockfd, SheepdogReq *hdr, void *data,
 static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
                            struct iovec *iov, int niov, bool create,
                            enum AIOCBState aiocb_type);
+static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req);
 
 
 static AIOReq *find_pending_req(BDRVSheepdogState *s, uint64_t oid)
@@ -749,9 +750,19 @@ static void coroutine_fn aio_read_response(void *opaque)
         }
     }
 
-    if (rsp.result != SD_RES_SUCCESS) {
+    switch (rsp.result) {
+    case SD_RES_SUCCESS:
+        break;
+    case SD_RES_READONLY:
+        ret = resend_aioreq(s, aio_req);
+        if (ret == SD_RES_SUCCESS) {
+            goto out;
+        }
+        /* fall through */
+    default:
         acb->ret = -EIO;
         error_report("%s", sd_strerror(rsp.result));
+        break;
     }
 
     free_aio_req(s, aio_req);
@@ -1184,6 +1195,53 @@ out:
     closesocket(fd);
 
     return ret;
+}
+
+static int coroutine_fn resend_aioreq(BDRVSheepdogState *s, AIOReq *aio_req)
+{
+    SheepdogAIOCB *acb = aio_req->aiocb;
+    bool create = false;
+    int ret;
+
+    ret = reload_inode(s, 0, "");
+    if (ret < 0) {
+        return ret;
+    }
+
+    aio_req->oid = vid_to_data_oid(s->inode.vdi_id,
+                                   data_oid_to_idx(aio_req->oid));
+
+    /* check whether this request becomes a CoW one */
+    if (acb->aiocb_type == AIOCB_WRITE_UDATA) {
+        int idx = data_oid_to_idx(aio_req->oid);
+        AIOReq *areq;
+
+        if (s->inode.data_vdi_id[idx] == 0) {
+            create = true;
+            goto out;
+        }
+        if (is_data_obj_writable(&s->inode, idx)) {
+            goto out;
+        }
+
+        /* link to the pending list if there is another CoW request to
+         * the same object */
+        QLIST_FOREACH(areq, &s->inflight_aio_head, aio_siblings) {
+            if (areq != aio_req && areq->oid == aio_req->oid) {
+                dprintf("simultaneous CoW to %" PRIx64 "\n", aio_req->oid);
+                QLIST_REMOVE(aio_req, aio_siblings);
+                QLIST_INSERT_HEAD(&s->pending_aio_head, aio_req, aio_siblings);
+                return SD_RES_SUCCESS;
+            }
+        }
+
+        aio_req->base_oid = vid_to_data_oid(s->inode.data_vdi_id[idx], idx);
+        aio_req->flags |= SD_FLAG_CMD_COW;
+        create = true;
+    }
+out:
+    return add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov,
+                           create, acb->aiocb_type);
 }
 
 /* TODO Convert to fine grained options */
