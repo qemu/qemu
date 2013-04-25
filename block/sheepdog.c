@@ -68,6 +68,7 @@
 #define SD_RES_WAIT_FOR_JOIN    0x17 /* Waiting for other nodes joining */
 #define SD_RES_JOIN_FAILED   0x18 /* Target node had failed to join sheepdog */
 #define SD_RES_HALT          0x19 /* Sheepdog is stopped serving IO request */
+#define SD_RES_READONLY      0x1A /* Object is read-only */
 
 /*
  * Object ID rules
@@ -349,6 +350,7 @@ static const char * sd_strerror(int err)
         {SD_RES_WAIT_FOR_JOIN, "Sheepdog is waiting for other nodes joining"},
         {SD_RES_JOIN_FAILED, "Target node had failed to join sheepdog"},
         {SD_RES_HALT, "Sheepdog is stopped serving IO request"},
+        {SD_RES_READONLY, "Object is read-only"},
     };
 
     for (i = 0; i < ARRAY_SIZE(errors); ++i) {
