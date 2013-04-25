@@ -5,10 +5,6 @@
 #include "qemu/main-loop.h"
 #include "qemu/notify.h"
 
-#ifdef __FreeBSD__
-#include <sys/param.h>
-#endif
-
 /* timers */
 
 #define SCALE_MS 1000000
