@@ -5,6 +5,7 @@
 #include "qapi/qmp/qerror.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
+#include "qmp-commands.h"
 
 static QemuOptsList *vm_config_groups[32];
 
@@ -35,6 +36,72 @@ QemuOptsList *qemu_find_opts(const char *group)
     }
 
     return ret;
+}
+
+static CommandLineParameterInfoList *query_option_descs(const QemuOptDesc *desc)
+{
+    CommandLineParameterInfoList *param_list = NULL, *entry;
+    CommandLineParameterInfo *info;
+    int i;
+
+    for (i = 0; desc[i].name != NULL; i++) {
+        info = g_malloc0(sizeof(*info));
+        info->name = g_strdup(desc[i].name);
+
+        switch (desc[i].type) {
+        case QEMU_OPT_STRING:
+            info->type = COMMAND_LINE_PARAMETER_TYPE_STRING;
+            break;
+        case QEMU_OPT_BOOL:
+            info->type = COMMAND_LINE_PARAMETER_TYPE_BOOLEAN;
+            break;
+        case QEMU_OPT_NUMBER:
+            info->type = COMMAND_LINE_PARAMETER_TYPE_NUMBER;
+            break;
+        case QEMU_OPT_SIZE:
+            info->type = COMMAND_LINE_PARAMETER_TYPE_SIZE;
+            break;
+        }
+
+        if (desc[i].help) {
+            info->has_help = true;
+            info->help = g_strdup(desc[i].help);
+        }
+
+        entry = g_malloc0(sizeof(*entry));
+        entry->value = info;
+        entry->next = param_list;
+        param_list = entry;
+    }
+
+    return param_list;
+}
+
+CommandLineOptionInfoList *qmp_query_command_line_options(bool has_option,
+                                                          const char *option,
+                                                          Error **errp)
+{
+    CommandLineOptionInfoList *conf_list = NULL, *entry;
+    CommandLineOptionInfo *info;
+    int i;
+
+    for (i = 0; vm_config_groups[i] != NULL; i++) {
+        if (!has_option || !strcmp(option, vm_config_groups[i]->name)) {
+            info = g_malloc0(sizeof(*info));
+            info->option = g_strdup(vm_config_groups[i]->name);
+            info->parameters = query_option_descs(vm_config_groups[i]->desc);
+            entry = g_malloc0(sizeof(*entry));
+            entry->value = info;
+            entry->next = conf_list;
+            conf_list = entry;
+        }
+    }
+
+    if (conf_list == NULL) {
+        error_setg(errp, "invalid option name: %s", option);
+    }
+
+    return conf_list;
 }
 
 QemuOptsList *qemu_find_opts_err(const char *group, Error **errp)

@@ -2416,6 +2416,53 @@ EQMP
     },
 
 SQMP
+query-command-line-options
+--------------------------
+
+Show command line option schema.
+
+Return a json-array of command line option schema for all options (or for
+the given option), returning an error if the given option doesn't exist.
+
+Each array entry contains the following:
+
+- "option": option name (json-string)
+- "parameters": a json-array describes all parameters of the option:
+    - "name": parameter name (json-string)
+    - "type": parameter type (one of 'string', 'boolean', 'number',
+              or 'size')
+    - "help": human readable description of the parameter
+              (json-string, optional)
+
+Example:
+
+-> { "execute": "query-command-line-options", "arguments": { "option": "option-rom" } }
+<- { "return": [
+        {
+            "parameters": [
+                {
+                    "name": "romfile",
+                    "type": "string"
+                },
+                {
+                    "name": "bootindex",
+                    "type": "number"
+                }
+            ],
+            "option": "option-rom"
+        }
+     ]
+   }
+
+EQMP
+
+    {
+        .name       = "query-command-line-options",
+        .args_type  = "option:s?",
+        .mhandler.cmd_new = qmp_marshal_input_query_command_line_options,
+    },
+
+SQMP
 query-migrate
 -------------
 

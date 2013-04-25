@@ -3505,3 +3505,69 @@
     '*asl_compiler_rev':  'uint32',
     '*file':              'str',
     '*data':              'str' }}
+
+##
+# @CommandLineParameterType:
+#
+# Possible types for an option parameter.
+#
+# @string: accepts a character string
+#
+# @boolean: accepts "on" or "off"
+#
+# @number: accepts a number
+#
+# @size: accepts a number followed by an optional suffix (K)ilo,
+#        (M)ega, (G)iga, (T)era
+#
+# Since 1.5
+##
+{ 'enum': 'CommandLineParameterType',
+  'data': ['string', 'boolean', 'number', 'size'] }
+
+##
+# @CommandLineParameterInfo:
+#
+# Details about a single parameter of a command line option.
+#
+# @name: parameter name
+#
+# @type: parameter @CommandLineParameterType
+#
+# @help: #optional human readable text string, not suitable for parsing.
+#
+# Since 1.5
+##
+{ 'type': 'CommandLineParameterInfo',
+  'data': { 'name': 'str',
+            'type': 'CommandLineParameterType',
+            '*help': 'str' } }
+
+##
+# @CommandLineOptionInfo:
+#
+# Details about a command line option, including its list of parameter details
+#
+# @option: option name
+#
+# @parameters: an array of @CommandLineParameterInfo
+#
+# Since 1.5
+##
+{ 'type': 'CommandLineOptionInfo',
+  'data': { 'option': 'str', 'parameters': ['CommandLineParameterInfo'] } }
+
+##
+# @query-command-line-options:
+#
+# Query command line option schema.
+#
+# @option: #optional option name
+#
+# Returns: list of @CommandLineOptionInfo for all options (or for the given
+#          @option).  Returns an error if the given @option doesn't exist.
+#
+# Since 1.5
+##
+{'command': 'query-command-line-options', 'data': { '*option': 'str' },
+ 'returns': ['CommandLineOptionInfo'] }
