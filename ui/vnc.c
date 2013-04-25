@@ -1613,7 +1613,11 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         break;
     }
 
+    /* Turn off the lock state sync logic if the client support the led
+       state extension.
+    */
     if (down && vs->vd->lock_key_sync &&
+        !vnc_has_feature(vs, VNC_FEATURE_LED_STATE) &&
         keycode_is_keypad(vs->vd->kbd_layout, keycode)) {
         /* If the numlock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
@@ -1633,6 +1637,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
     }
 
     if (down && vs->vd->lock_key_sync &&
+        !vnc_has_feature(vs, VNC_FEATURE_LED_STATE) &&
         ((sym >= 'A' && sym <= 'Z') || (sym >= 'a' && sym <= 'z'))) {
         /* If the capslock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
