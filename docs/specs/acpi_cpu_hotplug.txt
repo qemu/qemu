@@ -1,0 +1,22 @@
+QEMU<->ACPI BIOS CPU hotplug interface
+--------------------------------------
+
+QEMU supports CPU hotplug via ACPI. This document
+describes the interface between QEMU and the ACPI BIOS.
+
+ACPI GPE block (IO ports 0xafe0-0xafe3, byte access):
+-----------------------------------------
+
+Generic ACPI GPE block. Bit 2 (GPE.2) used to notify CPU
+hot-add/remove event to ACPI BIOS, via SCI interrupt.
+
+CPU present bitmap (IO port 0xaf00-0xae1f, 1-byte access):
+---------------------------------------------------------------
+One bit per CPU. Bit position reflects corresponding CPU APIC ID.
+Read-only.
+
+CPU hot-add/remove notification:
+-----------------------------------------------------
+QEMU sets/clears corresponding CPU bit on hot-add/remove event.
+CPU present map read by ACPI BIOS GPE.2 handler to notify OS of CPU
+hot-(un)plug events.
