@@ -1271,19 +1271,18 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
     return surface;
 }
 
-static DisplaySurface *qemu_create_dummy_surface(void)
+static DisplaySurface *qemu_create_message_surface(int w, int h,
+                                                   const char *msg)
 {
-    static const char msg[] =
-        "This VM has no graphic display device.";
-    DisplaySurface *surface = qemu_create_displaysurface(640, 480);
+    DisplaySurface *surface = qemu_create_displaysurface(w, h);
     pixman_color_t bg = color_table_rgb[0][COLOR_BLACK];
     pixman_color_t fg = color_table_rgb[0][COLOR_WHITE];
     pixman_image_t *glyph;
     int len, x, y, i;
 
     len = strlen(msg);
-    x = (640/FONT_WIDTH  - len) / 2;
-    y = (480/FONT_HEIGHT - 1)   / 2;
+    x = (w / FONT_WIDTH  - len) / 2;
+    y = (h / FONT_HEIGHT - 1)   / 2;
     for (i = 0; i < len; i++) {
         glyph = qemu_pixman_glyph_from_vgafont(FONT_HEIGHT, vgafont16, msg[i]);
         qemu_pixman_glyph_render(glyph, surface->image, &fg, &bg,
@@ -1305,6 +1304,8 @@ void qemu_free_displaysurface(DisplaySurface *surface)
 
 void register_displaychangelistener(DisplayChangeListener *dcl)
 {
+    static const char nodev[] =
+        "This VM has no graphic display device.";
     static DisplaySurface *dummy;
     QemuConsole *con;
 
@@ -1323,7 +1324,7 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
             dcl->ops->dpy_gfx_switch(dcl, con->surface);
         } else {
             if (!dummy) {
-                dummy = qemu_create_dummy_surface();
+                dummy = qemu_create_message_surface(640, 480, nodev);
             }
             dcl->ops->dpy_gfx_switch(dcl, dummy);
         }
@@ -1590,6 +1591,8 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
                                   const GraphicHwOps *hw_ops,
                                   void *opaque)
 {
+    static const char noinit[] =
+        "Guest has not initialized the display (yet).";
     int width = 640;
     int height = 480;
     QemuConsole *s;
@@ -1605,7 +1608,7 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
                                  &error_abort);
     }
 
-    s->surface = qemu_create_displaysurface(width, height);
+    s->surface = qemu_create_message_surface(width, height, noinit);
     return s;
 }
 
