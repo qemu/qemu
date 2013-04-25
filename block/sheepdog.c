@@ -941,8 +941,9 @@ static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
     return ret;
 }
 
-static int find_vdi_name(BDRVSheepdogState *s, char *filename, uint32_t snapid,
-                         char *tag, uint32_t *vid, int for_snapshot)
+static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
+                         uint32_t snapid, const char *tag, uint32_t *vid,
+                         bool lock)
 {
     int ret, fd;
     SheepdogVdiReq hdr;
@@ -963,10 +964,10 @@ static int find_vdi_name(BDRVSheepdogState *s, char *filename, uint32_t snapid,
     strncpy(buf + SD_MAX_VDI_LEN, tag, SD_MAX_VDI_TAG_LEN);
 
     memset(&hdr, 0, sizeof(hdr));
-    if (for_snapshot) {
-        hdr.opcode = SD_OP_GET_VDI_INFO;
-    } else {
+    if (lock) {
         hdr.opcode = SD_OP_LOCK_VDI;
+    } else {
+        hdr.opcode = SD_OP_GET_VDI_INFO;
     }
     wlen = SD_MAX_VDI_LEN + SD_MAX_VDI_TAG_LEN;
     hdr.proto_ver = SD_PROTO_VER;
@@ -1205,7 +1206,7 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags)
         goto out;
     }
 
-    ret = find_vdi_name(s, vdi, snapid, tag, &vid, 0);
+    ret = find_vdi_name(s, vdi, snapid, tag, &vid, true);
     if (ret) {
         goto out;
     }
@@ -1921,7 +1922,7 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         pstrcpy(tag, sizeof(tag), s->name);
     }
 
-    ret = find_vdi_name(s, vdi, snapid, tag, &vid, 1);
+    ret = find_vdi_name(s, vdi, snapid, tag, &vid, false);
     if (ret) {
         error_report("Failed to find_vdi_name");
         goto out;
