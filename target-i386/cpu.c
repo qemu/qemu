@@ -657,7 +657,8 @@ static x86_def_t builtin_x86_defs[] = {
             /* Some CPUs got no CPUID_SEP */
         .features[FEAT_1_ECX] =
             CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_SSSE3 |
-            CPUID_EXT_DSCPL | CPUID_EXT_EST | CPUID_EXT_TM2 | CPUID_EXT_XTPR,
+            CPUID_EXT_DSCPL | CPUID_EXT_EST | CPUID_EXT_TM2 | CPUID_EXT_XTPR |
+            CPUID_EXT_MOVBE,
         .features[FEAT_8000_0001_EDX] =
             (PPRO_FEATURES & CPUID_EXT2_AMD_ALIASES) |
             CPUID_EXT2_NX,
