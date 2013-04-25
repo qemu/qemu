@@ -971,6 +971,32 @@ static x86_def_t builtin_x86_defs[] = {
     },
 };
 
+/**
+ * x86_cpu_compat_set_features:
+ * @cpu_model: CPU model name to be changed. If NULL, all CPU models are changed
+ * @w: Identifies the feature word to be changed.
+ * @feat_add: Feature bits to be added to feature word
+ * @feat_remove: Feature bits to be removed from feature word
+ *
+ * Change CPU model feature bits for compatibility.
+ *
+ * This function may be used by machine-type compatibility functions
+ * to enable or disable feature bits on specific CPU models.
+ */
+void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
+                                 uint32_t feat_add, uint32_t feat_remove)
+{
+    x86_def_t *def;
+    int i;
+    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
+        def = &builtin_x86_defs[i];
+        if (!cpu_model || !strcmp(cpu_model, def->name)) {
+            def->features[w] |= feat_add;
+            def->features[w] &= ~feat_remove;
+        }
+    }
+}
+
 #ifdef CONFIG_KVM
 static int cpu_x86_fill_model_id(char *str)
 {
