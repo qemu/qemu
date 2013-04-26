@@ -114,8 +114,8 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
         return;
     }
 
-    if (!!n->vhost_started == virtio_net_started(n, status) &&
-                              !nc->peer->link_down) {
+    if (!!n->vhost_started ==
+        (virtio_net_started(n, status) && !nc->peer->link_down)) {
         return;
     }
     if (!n->vhost_started) {
