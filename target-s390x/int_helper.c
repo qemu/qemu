@@ -97,8 +97,7 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
         ret = al / b;
     } else {
         /* ??? Move i386 idivq helper to host-utils.  */
-#if HOST_LONG_BITS == 64 && defined(__GNUC__)
-        /* assuming 64-bit hosts have __uint128_t */
+#ifdef CONFIG_INT128
         __uint128_t a = ((__uint128_t)ah << 64) | al;
         __uint128_t q = a / b;
         env->retxl = a % b;

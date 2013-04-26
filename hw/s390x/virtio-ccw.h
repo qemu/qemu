@@ -101,6 +101,7 @@ typedef struct VirtIOSCSICcw {
     VirtIOSCSI vdev;
 } VirtIOSCSICcw;
 
+#ifdef CONFIG_VHOST_SCSI
 /* vhost-scsi-ccw */
 
 #define TYPE_VHOST_SCSI_CCW "vhost-scsi-ccw"
@@ -111,6 +112,7 @@ typedef struct VHostSCSICcw {
     VirtioCcwDevice parent_obj;
     VHostSCSI vdev;
 } VHostSCSICcw;
+#endif
 
 /* virtio-blk-ccw */
 

@@ -691,7 +691,9 @@ static void s390_virtio_register_types(void)
     type_register_static(&s390_virtio_blk);
     type_register_static(&s390_virtio_net);
     type_register_static(&s390_virtio_scsi);
+#ifdef CONFIG_VHOST_SCSI
     type_register_static(&s390_vhost_scsi);
+#endif
     type_register_static(&s390_virtio_rng);
     type_register_static(&s390_virtio_bridge_info);
 }

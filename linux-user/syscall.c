@@ -7603,7 +7603,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #else
     case TARGET_NR_sendfile:
-#ifdef TARGET_NR_sendfile64:
+#ifdef TARGET_NR_sendfile64
     case TARGET_NR_sendfile64:
 #endif
         goto unimplemented;
