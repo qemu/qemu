@@ -84,7 +84,9 @@ static int run_ccw(struct subchannel_id schid, int cmd, void *ptr, int len)
      *     assume that a simple tsch will have finished the CCW processing,
      *     but the architecture allows for asynchronous operation
      */
-    drain_irqs(schid);
+    if (!r) {
+        r = drain_irqs(schid);
+    }
     return r;
 }
 
@@ -92,7 +94,9 @@ static void virtio_set_status(struct subchannel_id schid,
                               unsigned long dev_addr)
 {
     unsigned char status = dev_addr;
-    run_ccw(schid, CCW_CMD_WRITE_STATUS, &status, sizeof(status));
+    if (run_ccw(schid, CCW_CMD_WRITE_STATUS, &status, sizeof(status))) {
+        virtio_panic("Could not write status to host!\n");
+    }
 }
 
 static void virtio_reset(struct subchannel_id schid)
@@ -193,6 +197,7 @@ static int virtio_read_many(ulong sector, void *load_addr, int sec_num)
 {
     struct virtio_blk_outhdr out_hdr;
     u8 status;
+    int r;
 
     /* Tell the host we want to read */
     out_hdr.type = VIRTIO_BLK_T_IN;
@@ -213,8 +218,11 @@ static int virtio_read_many(ulong sector, void *load_addr, int sec_num)
     /* Now we can tell the host to read */
     vring_wait_reply(&block, 0);
 
-    drain_irqs(block.schid);
-
+    r = drain_irqs(block.schid);
+    if (r) {
+        /* Well, whatever status is supposed to contain... */
+        status = 1;
+    }
     return status;
 }
 
@@ -262,8 +270,9 @@ void virtio_setup_block(struct subchannel_id schid)
     info.num = 128;
     block.schid = schid;
 
-    run_ccw(schid, CCW_CMD_SET_VQ, &info, sizeof(info));
-    virtio_set_status(schid, VIRTIO_CONFIG_S_DRIVER_OK);
+    if (!run_ccw(schid, CCW_CMD_SET_VQ, &info, sizeof(info))) {
+        virtio_set_status(schid, VIRTIO_CONFIG_S_DRIVER_OK);
+    }
 }
 
 bool virtio_is_blk(struct subchannel_id schid)
