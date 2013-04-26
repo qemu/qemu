@@ -1307,6 +1307,16 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
     return -1;
 }
 
+/* Convert all '_' in a feature string option name to '-', to make feature
+ * name conform to QOM property naming rule, which uses '-' instead of '_'.
+ */
+static inline void feat2prop(char *s)
+{
+    while ((s = strchr(s, '_'))) {
+        *s = '-';
+    }
+}
+
 /* Parse "+feature,-feature,feature=foo" CPU feature string
  */
 static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
@@ -1329,6 +1339,7 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
             add_flagname_to_bitmaps(featurestr + 1, minus_features);
         } else if ((val = strchr(featurestr, '='))) {
             *val = 0; val++;
+            feat2prop(featurestr);
             if (!strcmp(featurestr, "family")) {
                 object_property_parse(OBJECT(cpu), val, featurestr, errp);
             } else if (!strcmp(featurestr, "model")) {
@@ -1355,9 +1366,9 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 object_property_parse(OBJECT(cpu), num, featurestr, errp);
             } else if (!strcmp(featurestr, "vendor")) {
                 object_property_parse(OBJECT(cpu), val, featurestr, errp);
-            } else if (!strcmp(featurestr, "model_id")) {
-                object_property_parse(OBJECT(cpu), val, "model-id", errp);
-            } else if (!strcmp(featurestr, "tsc_freq")) {
+            } else if (!strcmp(featurestr, "model-id")) {
+                object_property_parse(OBJECT(cpu), val, featurestr, errp);
+            } else if (!strcmp(featurestr, "tsc-freq")) {
                 int64_t tsc_freq;
                 char *err;
                 char num[32];
@@ -1370,7 +1381,7 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 }
                 snprintf(num, sizeof(num), "%" PRId64, tsc_freq);
                 object_property_parse(OBJECT(cpu), num, "tsc-frequency", errp);
-            } else if (!strcmp(featurestr, "hv_spinlocks")) {
+            } else if (!strcmp(featurestr, "hv-spinlocks")) {
                 char *err;
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
