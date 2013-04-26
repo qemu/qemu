@@ -25,6 +25,10 @@ int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
 void kvmppc_set_papr(PowerPCCPU *cpu);
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
 int kvmppc_smt_threads(void);
+int kvmppc_clear_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits);
+int kvmppc_or_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits);
+int kvmppc_set_tcr(PowerPCCPU *cpu);
+int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu);
 #ifndef CONFIG_USER_ONLY
 off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd);
@@ -33,6 +37,7 @@ int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
 #endif /* !CONFIG_USER_ONLY */
 int kvmppc_fixup_cpu(PowerPCCPU *cpu);
+bool kvmppc_has_cap_epr(void);
 
 #else
 
@@ -89,6 +94,26 @@ static inline int kvmppc_smt_threads(void)
     return 1;
 }
 
+static inline int kvmppc_or_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits)
+{
+    return 0;
+}
+
+static inline int kvmppc_clear_tsr_bits(PowerPCCPU *cpu, uint32_t tsr_bits)
+{
+    return 0;
+}
+
+static inline int kvmppc_set_tcr(PowerPCCPU *cpu)
+{
+    return 0;
+}
+
+static inline int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
+{
+    return -1;
+}
+
 #ifndef CONFIG_USER_ONLY
 static inline off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
 {
@@ -128,6 +153,11 @@ static inline int kvmppc_update_sdr1(CPUPPCState *env)
 static inline int kvmppc_fixup_cpu(PowerPCCPU *cpu)
 {
     return -1;
+}
+
+static inline bool kvmppc_has_cap_epr(void)
+{
+    return false;
 }
 #endif
 

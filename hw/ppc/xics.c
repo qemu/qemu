@@ -101,6 +101,7 @@ static void icp_set_cppr(struct icp_state *icp, int server, uint8_t cppr)
         if (XISR(ss) && (cppr <= ss->pending_priority)) {
             old_xisr = XISR(ss);
             ss->xirr &= ~XISR_MASK; /* Clear XISR */
+            ss->pending_priority = 0xff;
             qemu_irq_lower(ss->output);
             ics_reject(icp->ics, old_xisr);
         }
@@ -127,6 +128,7 @@ static uint32_t icp_accept(struct icp_server_state *ss)
 
     qemu_irq_lower(ss->output);
     ss->xirr = ss->pending_priority << 24;
+    ss->pending_priority = 0xff;
 
     trace_xics_icp_accept(xirr, ss->xirr);
 

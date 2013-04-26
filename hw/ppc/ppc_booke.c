@@ -28,6 +28,7 @@
 #include "hw/timer/m48t59.h"
 #include "qemu/log.h"
 #include "hw/loader.h"
+#include "kvm_ppc.h"
 
 
 /* Timer Control Register */
@@ -211,6 +212,7 @@ void store_booke_tsr(CPUPPCState *env, target_ulong val)
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
 
     env->spr[SPR_BOOKE_TSR] &= ~val;
+    kvmppc_clear_tsr_bits(cpu, val);
     booke_update_irq(cpu);
 }
 
@@ -222,6 +224,7 @@ void store_booke_tcr(CPUPPCState *env, target_ulong val)
 
     tb_env = env->tb_env;
     env->spr[SPR_BOOKE_TCR] = val;
+    kvmppc_set_tcr(cpu);
 
     booke_update_irq(cpu);
 
@@ -234,7 +237,6 @@ void store_booke_tcr(CPUPPCState *env, target_ulong val)
                              booke_get_wdt_target(env, tb_env),
                              &booke_timer->wdt_next,
                              booke_timer->wdt_timer);
-
 }
 
 static void ppc_booke_timer_reset_handle(void *opaque)
@@ -242,16 +244,39 @@ static void ppc_booke_timer_reset_handle(void *opaque)
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
 
-    env->spr[SPR_BOOKE_TSR] = 0;
-    env->spr[SPR_BOOKE_TCR] = 0;
+    store_booke_tcr(env, 0);
+    store_booke_tsr(env, -1);
+}
 
-    booke_update_irq(cpu);
+/*
+ * This function will be called whenever the CPU state changes.
+ * CPU states are defined "typedef enum RunState".
+ * Regarding timer, When CPU state changes to running after debug halt
+ * or similar cases which takes time then in between final watchdog
+ * expiry happenes. This will cause exit to QEMU and configured watchdog
+ * action will be taken. To avoid this we always clear the watchdog state when
+ * state changes to running.
+ */
+static void cpu_state_change_handler(void *opaque, int running, RunState state)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+
+    if (!running) {
+        return;
+    }
+
+    /*
+     * Clear watchdog interrupt condition by clearing TSR.
+     */
+    store_booke_tsr(env, TSR_ENW | TSR_WIS | TSR_WRS_MASK);
 }
 
 void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags)
 {
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
+    int ret = 0;
 
     tb_env      = g_malloc0(sizeof(ppc_tb_t));
     booke_timer = g_malloc0(sizeof(booke_timer_t));
@@ -268,6 +293,18 @@ void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags)
         qemu_new_timer_ns(vm_clock, &booke_fit_cb, cpu);
     booke_timer->wdt_timer =
         qemu_new_timer_ns(vm_clock, &booke_wdt_cb, cpu);
+
+    ret = kvmppc_booke_watchdog_enable(cpu);
+
+    if (ret) {
+        /* TODO: Start the QEMU emulated watchdog if not running on KVM.
+         * Also start the QEMU emulated watchdog if KVM does not support
+         * emulated watchdog or somehow it is not enabled (supported but
+         * not enabled is though some bug and requires debugging :)).
+         */
+    }
+
+    qemu_add_vm_change_state_handler(cpu_state_change_handler, cpu);
 
     qemu_register_reset(ppc_booke_timer_reset_handle, cpu);
 }
