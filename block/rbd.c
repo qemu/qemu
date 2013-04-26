@@ -478,20 +478,20 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags)
     }
 
     filename = qemu_opt_get(opts, "filename");
-    qemu_opts_del(opts);
 
     if (qemu_rbd_parsename(filename, pool, sizeof(pool),
                            snap_buf, sizeof(snap_buf),
                            s->name, sizeof(s->name),
                            conf, sizeof(conf)) < 0) {
-        return -EINVAL;
+        r = -EINVAL;
+        goto failed_opts;
     }
 
     clientname = qemu_rbd_parse_clientname(conf, clientname_buf);
     r = rados_create(&s->cluster, clientname);
     if (r < 0) {
         error_report("error initializing");
-        return r;
+        goto failed_opts;
     }
 
     s->snap = NULL;
@@ -557,6 +557,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags)
                             NULL, qemu_rbd_aio_flush_cb, s);
 
 
+    qemu_opts_del(opts);
     return 0;
 
 failed:
@@ -566,6 +567,8 @@ failed_open:
 failed_shutdown:
     rados_shutdown(s->cluster);
     g_free(s->snap);
+failed_opts:
+    qemu_opts_del(opts);
     return r;
 }
 
