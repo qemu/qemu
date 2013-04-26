@@ -2551,7 +2551,6 @@ static inline void gen_qemu_ld32u(DisasContext *ctx, TCGv arg1, TCGv arg2)
     }
 }
 
-#if defined(TARGET_PPC64)
 static inline void gen_qemu_ld32s(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     if (unlikely(ctx->le_mode)) {
@@ -2561,7 +2560,6 @@ static inline void gen_qemu_ld32s(DisasContext *ctx, TCGv arg1, TCGv arg2)
     } else
         tcg_gen_qemu_ld32s(arg1, arg2, ctx->mem_idx);
 }
-#endif
 
 static inline void gen_qemu_ld64(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
 {
@@ -3379,9 +3377,8 @@ static void gen_lfiwax(DisasContext *ctx)
     EA = tcg_temp_new();
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld32u(ctx, t0, EA);
+    gen_qemu_ld32s(ctx, t0, EA);
     tcg_gen_ext_tl_i64(cpu_fpr[rD(ctx->opcode)], t0);
-    tcg_gen_ext32s_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);
     tcg_temp_free(EA);
     tcg_temp_free(t0);
 }
