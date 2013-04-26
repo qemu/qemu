@@ -34,6 +34,8 @@
 #include "sysemu/kvm.h"
 #include "cpu.h"
 #include "sysemu/device_tree.h"
+#include "qapi/qmp/qjson.h"
+#include "monitor/monitor.h"
 
 /* #define DEBUG_KVM */
 
@@ -779,9 +781,18 @@ static int handle_intercept(S390CPU *cpu)
             r = handle_instruction(cpu, run);
             break;
         case ICPT_WAITPSW:
-            if (s390_del_running_cpu(cpu) == 0 &&
-                is_special_wait_psw(cs)) {
-                qemu_system_shutdown_request();
+            /* disabled wait, since enabled wait is handled in kernel */
+            if (s390_del_running_cpu(cpu) == 0) {
+                if (is_special_wait_psw(cs)) {
+                    qemu_system_shutdown_request();
+                } else {
+                    QObject *data;
+
+                    data = qobject_from_jsonf("{ 'action': %s }", "pause");
+                    monitor_protocol_event(QEVENT_GUEST_PANICKED, data);
+                    qobject_decref(data);
+                    vm_stop(RUN_STATE_GUEST_PANICKED);
+                }
             }
             r = EXCP_HALTED;
             break;
