@@ -167,9 +167,7 @@ recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
 version.o: $(SRC_PATH)/version.rc config-host.h | version.lo
-	$(call quiet-command,$(WINDRES) -I. -o $@ $<,"  RC    $(TARGET_DIR)$@")
 version.lo: $(SRC_PATH)/version.rc config-host.h
-	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=RC $(WINDRES) -I. -o $@ $<,"lt RC   $(TARGET_DIR)$@")
 
 version-obj-$(CONFIG_WIN32) += version.o
 version-lobj-$(CONFIG_WIN32) += $(if $(LIBTOOL),version.lo)
