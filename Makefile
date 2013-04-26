@@ -170,8 +170,7 @@ version.o: $(SRC_PATH)/version.rc config-host.h | version.lo
 version.lo: $(SRC_PATH)/version.rc config-host.h
 
 version-obj-$(CONFIG_WIN32) += version.o
-version-lobj-$(CONFIG_WIN32) += $(if $(LIBTOOL),version.lo)
-Makefile: $(version-obj-y) $(version-lobj-y)
+version-lobj-$(CONFIG_WIN32) += version.lo
 
 
 ######################################################################
