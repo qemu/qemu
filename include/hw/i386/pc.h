@@ -171,6 +171,9 @@ static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)
 extern bool pc_sysfw_flash_vs_rom_bug_compatible;
 void pc_system_firmware_init(MemoryRegion *rom_memory);
 
+/* pvpanic.c */
+int pvpanic_init(ISABus *bus);
+
 /* e820 types */
 #define E820_RAM        1
 #define E820_RESERVED   2
