@@ -22,6 +22,7 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid);
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
 int runstate_is_running(void);
+bool runstate_needs_reset(void);
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 
