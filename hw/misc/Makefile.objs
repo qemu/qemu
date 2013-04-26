@@ -39,3 +39,5 @@ obj-$(CONFIG_OMAP) += omap_tap.o
 obj-$(CONFIG_PXA2XX) += pxa2xx_pcmcia.o
 obj-$(CONFIG_SLAVIO) += slavio_misc.o
 obj-$(CONFIG_ZYNQ) += zynq_slcr.o
+
+obj-$(CONFIG_PVPANIC) += pvpanic.o
