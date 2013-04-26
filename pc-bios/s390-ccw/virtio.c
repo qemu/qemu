@@ -38,12 +38,21 @@ static void virtio_notify(struct subchannel_id schid)
  *             Virtio functions                *
  ***********************************************/
 
-static void drain_irqs(struct subchannel_id schid)
+static int drain_irqs(struct subchannel_id schid)
 {
     struct irb irb = {};
+    int r = 0;
+
     while (1) {
+        /* FIXME: make use of TPI, for that enable subchannel and isc */
         if (tsch(schid, &irb)) {
-            return;
+            /* Might want to differentiate error codes later on. */
+            if (irb.scsw.cstat) {
+                r = -EIO;
+            } else if (irb.scsw.dstat != 0xc) {
+                r = -EIO;
+            }
+            return r;
         }
     }
 }
