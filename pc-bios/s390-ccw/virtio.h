@@ -53,6 +53,11 @@ struct vq_info_block {
     u16 num;
 } __attribute__((packed));
 
+struct vq_config_block {
+    u16 index;
+    u16 num;
+} __attribute__((packed));
+
 struct virtio_dev {
     struct virtio_dev_header *header;
     struct virtio_vqconfig *vqconfig;
