@@ -1284,10 +1284,17 @@ static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, void *opaque,
                                   const char *name, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
+    DeviceState *dev = DEVICE(obj);
     const int64_t min = 0;
     const int64_t max = UINT32_MAX;
     Error *error = NULL;
     int64_t value;
+
+    if (dev->realized) {
+        error_setg(errp, "Attempt to set property '%s' on '%s' after "
+                   "it was realized", name, object_get_typename(obj));
+        return;
+    }
 
     visit_type_int(v, &value, name, &error);
     if (error) {
