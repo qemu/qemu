@@ -22,7 +22,7 @@ void virtio_panic(const char *string)
 
 static void virtio_setup(void)
 {
-    struct irb irb;
+    struct schib schib;
     int i;
     int r;
     bool found = false;
@@ -31,8 +31,11 @@ static void virtio_setup(void)
 
     for (i = 0; i < 0x10000; i++) {
         blk_schid.sch_no = i;
-        r = tsch(blk_schid, &irb);
-        if (r != 3) {
+        r = stsch_err(blk_schid, &schib);
+        if (r == 3) {
+            break;
+        }
+        if (schib.pmcw.dnv) {
             if (virtio_is_blk(blk_schid)) {
                 found = true;
                 break;
