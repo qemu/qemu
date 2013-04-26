@@ -1222,6 +1222,24 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
     QTAILQ_INSERT_TAIL(&fw_boot_order, node, link);
 }
 
+DeviceState *get_boot_device(uint32_t position)
+{
+    uint32_t counter = 0;
+    FWBootEntry *i = NULL;
+    DeviceState *res = NULL;
+
+    if (!QTAILQ_EMPTY(&fw_boot_order)) {
+        QTAILQ_FOREACH(i, &fw_boot_order, link) {
+            if (counter == position) {
+                res = i->dev;
+                break;
+            }
+            counter++;
+        }
+    }
+    return res;
+}
+
 /*
  * This function returns null terminated string that consist of new line
  * separated device paths.

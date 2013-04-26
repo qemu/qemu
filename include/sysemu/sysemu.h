@@ -181,6 +181,8 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);
 char *get_boot_devices_list(size_t *size);
 
+DeviceState *get_boot_device(uint32_t position);
+
 bool usb_enabled(bool default_usb);
 
 extern QemuOptsList qemu_drive_opts;
