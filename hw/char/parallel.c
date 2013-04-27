@@ -80,8 +80,13 @@ typedef struct ParallelState {
     int it_shift;
 } ParallelState;
 
+#define TYPE_ISA_PARALLEL "isa-parallel"
+#define ISA_PARALLEL(obj) \
+    OBJECT_CHECK(ISAParallelState, (obj), TYPE_ISA_PARALLEL)
+
 typedef struct ISAParallelState {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     uint32_t index;
     uint32_t iobase;
     uint32_t isairq;
@@ -475,7 +480,7 @@ static const MemoryRegionPortio isa_parallel_portio_sw_list[] = {
 static int parallel_isa_initfn(ISADevice *dev)
 {
     static int index;
-    ISAParallelState *isa = DO_UPCAST(ISAParallelState, dev, dev);
+    ISAParallelState *isa = ISA_PARALLEL(dev);
     ParallelState *s = &isa->state;
     int base;
     uint8_t dummy;
@@ -600,7 +605,7 @@ static void parallel_isa_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo parallel_isa_info = {
-    .name          = "isa-parallel",
+    .name          = TYPE_ISA_PARALLEL,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAParallelState),
     .class_init    = parallel_isa_class_initfn,
