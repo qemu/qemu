@@ -26,8 +26,11 @@
 #include "hw/char/serial.h"
 #include "hw/isa/isa.h"
 
+#define ISA_SERIAL(obj) OBJECT_CHECK(ISASerialState, (obj), TYPE_ISA_SERIAL)
+
 typedef struct ISASerialState {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     uint32_t index;
     uint32_t iobase;
     uint32_t isairq;
@@ -44,7 +47,7 @@ static const int isa_serial_irq[MAX_SERIAL_PORTS] = {
 static int serial_isa_initfn(ISADevice *dev)
 {
     static int index;
-    ISASerialState *isa = DO_UPCAST(ISASerialState, dev, dev);
+    ISASerialState *isa = ISA_SERIAL(dev);
     SerialState *s = &isa->state;
 
     if (isa->index == -1) {
@@ -100,7 +103,7 @@ static void serial_isa_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo serial_isa_info = {
-    .name          = "isa-serial",
+    .name          = TYPE_ISA_SERIAL,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISASerialState),
     .class_init    = serial_isa_class_initfn,
@@ -117,7 +120,7 @@ bool serial_isa_init(ISABus *bus, int index, CharDriverState *chr)
 {
     ISADevice *dev;
 
-    dev = isa_try_create(bus, "isa-serial");
+    dev = isa_try_create(bus, TYPE_ISA_SERIAL);
     if (!dev) {
         return false;
     }
