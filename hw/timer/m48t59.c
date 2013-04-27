@@ -72,8 +72,13 @@ struct M48t59State {
     uint8_t  lock;
 };
 
+#define TYPE_ISA_M48T59 "m48t59_isa"
+#define ISA_M48T59(obj) \
+    OBJECT_CHECK(M48t59ISAState, (obj), TYPE_ISA_M48T59)
+
 typedef struct M48t59ISAState {
-    ISADevice busdev;
+    ISADevice parent_obj;
+
     M48t59State state;
     MemoryRegion io;
 } M48t59ISAState;
@@ -608,7 +613,7 @@ static void m48t59_reset_common(M48t59State *NVRAM)
 
 static void m48t59_reset_isa(DeviceState *d)
 {
-    M48t59ISAState *isa = container_of(d, M48t59ISAState, busdev.qdev);
+    M48t59ISAState *isa = ISA_M48T59(d);
     M48t59State *NVRAM = &isa->state;
 
     m48t59_reset_common(NVRAM);
@@ -665,20 +670,22 @@ M48t59State *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
                              int model)
 {
     M48t59ISAState *d;
-    ISADevice *dev;
+    ISADevice *isadev;
+    DeviceState *dev;
     M48t59State *s;
 
-    dev = isa_create(bus, "m48t59_isa");
-    qdev_prop_set_uint32(&dev->qdev, "model", model);
-    qdev_prop_set_uint32(&dev->qdev, "size", size);
-    qdev_prop_set_uint32(&dev->qdev, "io_base", io_base);
-    qdev_init_nofail(&dev->qdev);
-    d = DO_UPCAST(M48t59ISAState, busdev, dev);
+    isadev = isa_create(bus, TYPE_ISA_M48T59);
+    dev = DEVICE(isadev);
+    qdev_prop_set_uint32(dev, "model", model);
+    qdev_prop_set_uint32(dev, "size", size);
+    qdev_prop_set_uint32(dev, "io_base", io_base);
+    qdev_init_nofail(dev);
+    d = ISA_M48T59(isadev);
     s = &d->state;
 
     memory_region_init_io(&d->io, &m48t59_io_ops, s, "m48t59", 4);
     if (io_base != 0) {
-        isa_register_ioport(dev, &d->io, io_base);
+        isa_register_ioport(isadev, &d->io, io_base);
     }
 
     return s;
@@ -698,7 +705,7 @@ static void m48t59_init_common(M48t59State *s)
 
 static int m48t59_init_isa1(ISADevice *dev)
 {
-    M48t59ISAState *d = DO_UPCAST(M48t59ISAState, busdev, dev);
+    M48t59ISAState *d = ISA_M48T59(dev);
     M48t59State *s = &d->state;
 
     isa_init_irq(dev, &s->IRQ, 8);
@@ -728,7 +735,7 @@ static Property m48t59_isa_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void m48t59_init_class_isa1(ObjectClass *klass, void *data)
+static void m48t59_isa_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
@@ -739,10 +746,10 @@ static void m48t59_init_class_isa1(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo m48t59_isa_info = {
-    .name          = "m48t59_isa",
+    .name          = TYPE_ISA_M48T59,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(M48t59ISAState),
-    .class_init    = m48t59_init_class_isa1,
+    .class_init    = m48t59_isa_class_init,
 };
 
 static Property m48t59_properties[] = {
