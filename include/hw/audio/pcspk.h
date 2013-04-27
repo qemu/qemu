@@ -28,11 +28,13 @@
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
 
+#define TYPE_PC_SPEAKER "isa-pcspk"
+
 static inline ISADevice *pcspk_init(ISABus *bus, ISADevice *pit)
 {
     ISADevice *dev;
 
-    dev = isa_create(bus, "isa-pcspk");
+    dev = isa_create(bus, TYPE_PC_SPEAKER);
     qdev_prop_set_uint32(&dev->qdev, "iobase", 0x61);
     qdev_prop_set_ptr(&dev->qdev, "pit", pit);
     qdev_init_nofail(&dev->qdev);

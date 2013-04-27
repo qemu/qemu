@@ -35,8 +35,11 @@
 #define PCSPK_MAX_FREQ (PCSPK_SAMPLE_RATE >> 1)
 #define PCSPK_MIN_COUNT ((PIT_FREQ + PCSPK_MAX_FREQ - 1) / PCSPK_MAX_FREQ)
 
+#define PC_SPEAKER(obj) OBJECT_CHECK(PCSpkState, (obj), TYPE_PC_SPEAKER)
+
 typedef struct {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     MemoryRegion ioport;
     uint32_t iobase;
     uint8_t sample_buf[PCSPK_BUF_LEN];
@@ -161,7 +164,7 @@ static const MemoryRegionOps pcspk_io_ops = {
 
 static int pcspk_initfn(ISADevice *dev)
 {
-    PCSpkState *s = DO_UPCAST(PCSpkState, dev, dev);
+    PCSpkState *s = PC_SPEAKER(dev);
 
     memory_region_init_io(&s->ioport, &pcspk_io_ops, s, "elcr", 1);
     isa_register_ioport(dev, &s->ioport, s->iobase);
@@ -188,7 +191,7 @@ static void pcspk_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pcspk_info = {
-    .name           = "isa-pcspk",
+    .name           = TYPE_PC_SPEAKER,
     .parent         = TYPE_ISA_DEVICE,
     .instance_size  = sizeof(PCSpkState),
     .class_init     = pcspk_class_initfn,
