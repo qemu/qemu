@@ -458,7 +458,7 @@ static QEMUMachine pc_machine_v1_1 = {
             .property = "rom_only",\
             .value    = stringify(1),\
         }, {\
-            .driver   = "isa-fdc",\
+            .driver   = TYPE_ISA_FDC,\
             .property = "check_media_rate",\
             .value    = "off",\
         }, {\

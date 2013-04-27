@@ -549,8 +549,11 @@ typedef struct FDCtrlSysBus {
     struct FDCtrl state;
 } FDCtrlSysBus;
 
+#define ISA_FDC(obj) OBJECT_CHECK(FDCtrlISABus, (obj), TYPE_ISA_FDC)
+
 typedef struct FDCtrlISABus {
-    ISADevice busdev;
+    ISADevice parent_obj;
+
     uint32_t iobase;
     uint32_t irq;
     uint32_t dma;
@@ -778,7 +781,7 @@ static void fdctrl_external_reset_sysbus(DeviceState *d)
 
 static void fdctrl_external_reset_isa(DeviceState *d)
 {
-    FDCtrlISABus *isa = container_of(d, FDCtrlISABus, busdev.qdev);
+    FDCtrlISABus *isa = ISA_FDC(d);
     FDCtrl *s = &isa->state;
 
     fdctrl_reset(s, 0);
@@ -2021,7 +2024,7 @@ ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
 {
     ISADevice *dev;
 
-    dev = isa_try_create(bus, "isa-fdc");
+    dev = isa_try_create(bus, TYPE_ISA_FDC);
     if (!dev) {
         return NULL;
     }
@@ -2116,13 +2119,13 @@ static const MemoryRegionPortio fdc_portio_list[] = {
 
 static int isabus_fdc_init1(ISADevice *dev)
 {
-    FDCtrlISABus *isa = DO_UPCAST(FDCtrlISABus, busdev, dev);
+    FDCtrlISABus *isa = ISA_FDC(dev);
     FDCtrl *fdctrl = &isa->state;
     int ret;
 
     isa_register_portio_list(dev, isa->iobase, fdc_portio_list, fdctrl, "fdc");
 
-    isa_init_irq(&isa->busdev, &fdctrl->irq, isa->irq);
+    isa_init_irq(dev, &fdctrl->irq, isa->irq);
     fdctrl->dma_chann = isa->dma;
 
     qdev_set_legacy_instance_id(&dev->qdev, isa->iobase, 2);
@@ -2169,7 +2172,7 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
 
 FDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
 {
-    FDCtrlISABus *isa = DO_UPCAST(FDCtrlISABus, busdev, fdc);
+    FDCtrlISABus *isa = ISA_FDC(fdc);
 
     return isa->state.drives[i].drive;
 }
@@ -2197,7 +2200,7 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void isabus_fdc_class_init1(ObjectClass *klass, void *data)
+static void isabus_fdc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
@@ -2210,10 +2213,10 @@ static void isabus_fdc_class_init1(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo isa_fdc_info = {
-    .name          = "isa-fdc",
+    .name          = TYPE_ISA_FDC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(FDCtrlISABus),
-    .class_init    = isabus_fdc_class_init1,
+    .class_init    = isabus_fdc_class_init,
 };
 
 static const VMStateDescription vmstate_sysbus_fdc ={

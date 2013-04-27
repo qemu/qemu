@@ -13,6 +13,8 @@ typedef enum FDriveType {
     FDRIVE_DRV_NONE = 0x03,   /* No drive connected     */
 } FDriveType;
 
+#define TYPE_ISA_FDC "isa-fdc"
+
 ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds);
 void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
                         hwaddr mmio_base, DriveInfo **fds);
