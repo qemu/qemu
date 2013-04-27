@@ -35,9 +35,13 @@
 #define VMPORT_ENTRIES 0x2c
 #define VMPORT_MAGIC   0x564D5868
 
-typedef struct _VMPortState
+#define TYPE_VMPORT "vmport"
+#define VMPORT(obj) OBJECT_CHECK(VMPortState, (obj), TYPE_VMPORT)
+
+typedef struct VMPortState
 {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     MemoryRegion io;
     IOPortReadFunc *func[VMPORT_ENTRIES];
     void *opaque[VMPORT_ENTRIES];
@@ -135,7 +139,7 @@ static const MemoryRegionOps vmport_ops = {
 
 static int vmport_initfn(ISADevice *dev)
 {
-    VMPortState *s = DO_UPCAST(VMPortState, dev, dev);
+    VMPortState *s = VMPORT(dev);
 
     memory_region_init_io(&s->io, &vmport_ops, s, "vmport", 1);
     isa_register_ioport(dev, &s->io, 0x5658);
@@ -156,7 +160,7 @@ static void vmport_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo vmport_info = {
-    .name          = "vmport",
+    .name          = TYPE_VMPORT,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(VMPortState),
     .class_init    = vmport_class_initfn,
