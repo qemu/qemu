@@ -47,8 +47,12 @@
 
 static const char e3[] = "COPYRIGHT (C) CREATIVE TECHNOLOGY LTD, 1992.";
 
+#define TYPE_SB16 "sb16"
+#define SB16(obj) OBJECT_CHECK (SB16State, (obj), TYPE_SB16)
+
 typedef struct SB16State {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     QEMUSoundCard card;
     qemu_irq pic;
     uint32_t irq;
@@ -1354,9 +1358,7 @@ static const MemoryRegionPortio sb16_ioport_list[] = {
 
 static int sb16_initfn (ISADevice *dev)
 {
-    SB16State *s;
-
-    s = DO_UPCAST (SB16State, dev, dev);
+    SB16State *s = SB16 (dev);
 
     s->cmd = -1;
     isa_init_irq (dev, &s->pic, s->irq);
@@ -1386,7 +1388,7 @@ static int sb16_initfn (ISADevice *dev)
 
 int SB16_init (ISABus *bus)
 {
-    isa_create_simple (bus, "sb16");
+    isa_create_simple (bus, TYPE_SB16);
     return 0;
 }
 
@@ -1410,7 +1412,7 @@ static void sb16_class_initfn (ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sb16_info = {
-    .name          = "sb16",
+    .name          = TYPE_SB16,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (SB16State),
     .class_init    = sb16_class_initfn,
