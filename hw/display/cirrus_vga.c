@@ -250,8 +250,13 @@ typedef struct PCICirrusVGAState {
     CirrusVGAState cirrus_vga;
 } PCICirrusVGAState;
 
+#define TYPE_ISA_CIRRUS_VGA "isa-cirrus-vga"
+#define ISA_CIRRUS_VGA(obj) \
+    OBJECT_CHECK(ISACirrusVGAState, (obj), TYPE_ISA_CIRRUS_VGA)
+
 typedef struct ISACirrusVGAState {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     CirrusVGAState cirrus_vga;
 } ISACirrusVGAState;
 
@@ -2904,7 +2909,7 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
 
 static int vga_initfn(ISADevice *dev)
 {
-    ISACirrusVGAState *d = DO_UPCAST(ISACirrusVGAState, dev, dev);
+    ISACirrusVGAState *d = ISA_CIRRUS_VGA(dev);
     VGACommonState *s = &d->cirrus_vga.vga;
 
     vga_common_init(s);
@@ -2917,7 +2922,7 @@ static int vga_initfn(ISADevice *dev)
     return 0;
 }
 
-static Property isa_vga_cirrus_properties[] = {
+static Property isa_cirrus_vga_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", struct ISACirrusVGAState,
                        cirrus_vga.vga.vram_size_mb, 8),
     DEFINE_PROP_END_OF_LIST(),
@@ -2930,11 +2935,11 @@ static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd  = &vmstate_cirrus_vga;
     k->init   = vga_initfn;
-    dc->props = isa_vga_cirrus_properties;
+    dc->props = isa_cirrus_vga_properties;
 }
 
 static const TypeInfo isa_cirrus_vga_info = {
-    .name          = "isa-cirrus-vga",
+    .name          = TYPE_ISA_CIRRUS_VGA,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISACirrusVGAState),
     .class_init = isa_cirrus_vga_class_init,
