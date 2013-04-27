@@ -104,8 +104,12 @@ static void i82374_init(I82374State *s)
     memset(s->commands, 0, sizeof(s->commands));
 }
 
+#define TYPE_I82374 "i82374"
+#define I82374(obj) OBJECT_CHECK(ISAi82374State, (obj), TYPE_I82374)
+
 typedef struct ISAi82374State {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     uint32_t iobase;
     I82374State state;
 } ISAi82374State;
@@ -122,7 +126,7 @@ static const VMStateDescription vmstate_isa_i82374 = {
 
 static int i82374_isa_init(ISADevice *dev)
 {
-    ISAi82374State *isa = DO_UPCAST(ISAi82374State, dev, dev);
+    ISAi82374State *isa = I82374(dev);
     I82374State *s = &isa->state;
 
     register_ioport_read(isa->iobase + 0x0A, 1, 1, i82374_read_isr, s);
@@ -154,7 +158,7 @@ static void i82374_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo i82374_isa_info = {
-    .name  = "i82374",
+    .name  = TYPE_I82374,
     .parent = TYPE_ISA_DEVICE,
     .instance_size  = sizeof(ISAi82374State),
     .class_init = i82374_class_init,
