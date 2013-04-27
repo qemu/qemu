@@ -35,8 +35,12 @@
 #define ib700_debug(fs,...)
 #endif
 
+#define TYPE_IB700 "ib700"
+#define IB700(obj) OBJECT_CHECK(IB700State, (obj), TYPE_IB700)
+
 typedef struct IB700state {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     QEMUTimer *timer;
 } IB700State;
 
@@ -95,7 +99,7 @@ static const VMStateDescription vmstate_ib700 = {
 
 static int wdt_ib700_init(ISADevice *dev)
 {
-    IB700State *s = DO_UPCAST(IB700State, dev, dev);
+    IB700State *s = IB700(dev);
 
     ib700_debug("watchdog init\n");
 
@@ -108,7 +112,7 @@ static int wdt_ib700_init(ISADevice *dev)
 
 static void wdt_ib700_reset(DeviceState *dev)
 {
-    IB700State *s = DO_UPCAST(IB700State, dev.qdev, dev);
+    IB700State *s = IB700(dev);
 
     ib700_debug("watchdog reset\n");
 
@@ -130,7 +134,7 @@ static void wdt_ib700_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo wdt_ib700_info = {
-    .name          = "ib700",
+    .name          = TYPE_IB700,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(IB700State),
     .class_init    = wdt_ib700_class_init,
