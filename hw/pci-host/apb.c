@@ -66,7 +66,7 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 #define RESET_WCMASK 0x98000000
 #define RESET_WMASK  0x60000000
 
-#define MAX_IVEC 0x30
+#define MAX_IVEC 0x40
 
 typedef struct APBState {
     SysBusDevice busdev;
