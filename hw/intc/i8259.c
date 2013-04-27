@@ -182,7 +182,7 @@ static void pic_intack(PICCommonState *s, int irq)
 
 int pic_read_irq(DeviceState *d)
 {
-    PICCommonState *s = DO_UPCAST(PICCommonState, dev.qdev, d);
+    PICCommonState *s = PIC_COMMON(d);
     int irq, irq2, intno;
 
     irq = pic_get_irq(s);
@@ -229,7 +229,7 @@ static void pic_init_reset(PICCommonState *s)
 
 static void pic_reset(DeviceState *dev)
 {
-    PICCommonState *s = DO_UPCAST(PICCommonState, dev.qdev, dev);
+    PICCommonState *s = PIC_COMMON(dev);
 
     s->elcr = 0;
     pic_init_reset(s);
@@ -361,7 +361,7 @@ static uint64_t pic_ioport_read(void *opaque, hwaddr addr,
 
 int pic_get_output(DeviceState *d)
 {
-    PICCommonState *s = DO_UPCAST(PICCommonState, dev.qdev, d);
+    PICCommonState *s = PIC_COMMON(d);
 
     return (pic_get_irq(s) >= 0);
 }
@@ -400,11 +400,13 @@ static const MemoryRegionOps pic_elcr_ioport_ops = {
 
 static void pic_init(PICCommonState *s)
 {
+    DeviceState *dev = DEVICE(s);
+
     memory_region_init_io(&s->base_io, &pic_base_ioport_ops, s, "pic", 2);
     memory_region_init_io(&s->elcr_io, &pic_elcr_ioport_ops, s, "elcr", 1);
 
-    qdev_init_gpio_out(&s->dev.qdev, s->int_out, ARRAY_SIZE(s->int_out));
-    qdev_init_gpio_in(&s->dev.qdev, pic_set_irq, 8);
+    qdev_init_gpio_out(dev, s->int_out, ARRAY_SIZE(s->int_out));
+    qdev_init_gpio_in(dev, pic_set_irq, 8);
 }
 
 void pic_info(Monitor *mon, const QDict *qdict)
@@ -416,7 +418,7 @@ void pic_info(Monitor *mon, const QDict *qdict)
         return;
     }
     for (i = 0; i < 2; i++) {
-        s = i == 0 ? DO_UPCAST(PICCommonState, dev.qdev, isa_pic) : slave_pic;
+        s = i == 0 ? PIC_COMMON(isa_pic) : slave_pic;
         monitor_printf(mon, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
                        "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
                        i, s->irr, s->imr, s->isr, s->priority_add,
@@ -467,7 +469,7 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
         irq_set[i + 8] = qdev_get_gpio_in(&dev->qdev, i);
     }
 
-    slave_pic = DO_UPCAST(PICCommonState, dev, dev);
+    slave_pic = PIC_COMMON(dev);
 
     return irq_set;
 }

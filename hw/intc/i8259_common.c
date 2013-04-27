@@ -68,7 +68,7 @@ static int pic_dispatch_post_load(void *opaque, int version_id)
 
 static int pic_init_common(ISADevice *dev)
 {
-    PICCommonState *s = DO_UPCAST(PICCommonState, dev, dev);
+    PICCommonState *s = PIC_COMMON(dev);
     PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
 
     info->init(s);
@@ -78,7 +78,7 @@ static int pic_init_common(ISADevice *dev)
         isa_register_ioport(NULL, &s->elcr_io, s->elcr_addr);
     }
 
-    qdev_set_legacy_instance_id(&s->dev.qdev, s->iobase, 1);
+    qdev_set_legacy_instance_id(DEVICE(dev), s->iobase, 1);
 
     return 0;
 }
@@ -153,9 +153,9 @@ static const TypeInfo pic_common_type = {
     .abstract = true,
 };
 
-static void register_types(void)
+static void pic_common_register_types(void)
 {
     type_register_static(&pic_common_type);
 }
 
-type_init(register_types);
+type_init(pic_common_register_types)

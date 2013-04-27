@@ -48,7 +48,8 @@ typedef struct PICCommonClass
 } PICCommonClass;
 
 struct PICCommonState {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     uint8_t last_irr; /* edge detection */
     uint8_t irr; /* interrupt request register */
     uint8_t imr; /* interrupt mask register */
