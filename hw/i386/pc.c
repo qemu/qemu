@@ -429,9 +429,13 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     qemu_register_reset(pc_cmos_init_late, &arg);
 }
 
+#define TYPE_PORT92 "port92"
+#define PORT92(obj) OBJECT_CHECK(Port92State, (obj), TYPE_PORT92)
+
 /* port 92 stuff: could be split off */
 typedef struct Port92State {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     MemoryRegion io;
     uint8_t outport;
     qemu_irq *a20_out;
@@ -463,7 +467,7 @@ static uint64_t port92_read(void *opaque, hwaddr addr,
 
 static void port92_init(ISADevice *dev, qemu_irq *a20_out)
 {
-    Port92State *s = DO_UPCAST(Port92State, dev, dev);
+    Port92State *s = PORT92(dev);
 
     s->a20_out = a20_out;
 }
@@ -481,7 +485,7 @@ static const VMStateDescription vmstate_port92_isa = {
 
 static void port92_reset(DeviceState *d)
 {
-    Port92State *s = container_of(d, Port92State, dev.qdev);
+    Port92State *s = PORT92(d);
 
     s->outport &= ~1;
 }
@@ -498,7 +502,7 @@ static const MemoryRegionOps port92_ops = {
 
 static int port92_initfn(ISADevice *dev)
 {
-    Port92State *s = DO_UPCAST(Port92State, dev, dev);
+    Port92State *s = PORT92(dev);
 
     memory_region_init_io(&s->io, &port92_ops, s, "port92", 1);
     isa_register_ioport(dev, &s->io, 0x92);
@@ -518,7 +522,7 @@ static void port92_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo port92_info = {
-    .name          = "port92",
+    .name          = TYPE_PORT92,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(Port92State),
     .class_init    = port92_class_initfn,
