@@ -2493,7 +2493,7 @@ The main json-object contains the following:
             byte (json-int)
             These are sent over the wire much more efficiently.
          - "skipped": number of skipped zero pages (json-int)
-         - "normal" : number of whole pages transfered.  I.e. they
+         - "normal" : number of whole pages transferred.  I.e. they
             were not sent as duplicate or xbzrle pages (json-int)
          - "normal-bytes" : number of bytes transferred in whole
             pages. This is just normal pages times size of one page,
