@@ -11,6 +11,7 @@
  */
 
 #include "libqos/fw_cfg.h"
+#include "qemu/bswap.h"
 
 void qfw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
 {
@@ -32,20 +33,20 @@ uint16_t qfw_cfg_get_u16(QFWCFG *fw_cfg, uint16_t key)
 {
     uint16_t value;
     qfw_cfg_get(fw_cfg, key, &value, sizeof(value));
-    return value;
+    return le16_to_cpu(value);
 }
 
 uint32_t qfw_cfg_get_u32(QFWCFG *fw_cfg, uint16_t key)
 {
     uint32_t value;
     qfw_cfg_get(fw_cfg, key, &value, sizeof(value));
-    return value;
+    return le32_to_cpu(value);
 }
 
 uint64_t qfw_cfg_get_u64(QFWCFG *fw_cfg, uint16_t key)
 {
     uint64_t value;
     qfw_cfg_get(fw_cfg, key, &value, sizeof(value));
-    return value;
+    return le64_to_cpu(value);
 }
 
