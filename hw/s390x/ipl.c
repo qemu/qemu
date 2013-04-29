@@ -82,6 +82,10 @@ static int s390_ipl_init(SysBusDevice *dev)
         }
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (bios_filename == NULL) {
+            hw_error("could not find stage1 bootloader\n");
+        }
+
         bios_size = load_elf(bios_filename, NULL, NULL, &ipl->start_addr, NULL,
                              NULL, 1, ELF_MACHINE, 0);
         if (bios_size == -1UL) {
