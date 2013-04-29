@@ -37,6 +37,7 @@
 #include "hw/kvm/clock.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
+#include "hw/cpu/icc_bus.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/blockdev.h"
 #include "hw/i2c/smbus.h"
@@ -87,7 +88,12 @@ static void pc_init1(MemoryRegion *system_memory,
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
+    DeviceState *icc_bridge;
     void *fw_cfg = NULL;
+
+    icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
+    object_property_add_child(qdev_get_machine(), "icc-bridge",
+                              OBJECT(icc_bridge), NULL);
 
     pc_cpus_init(cpu_model);
     pc_acpi_init("acpi-dsdt.aml");
@@ -163,6 +169,7 @@ static void pc_init1(MemoryRegion *system_memory,
     if (pci_enabled) {
         ioapic_init_gsi(gsi_state, "i440fx");
     }
+    qdev_init_nofail(icc_bridge);
 
     pc_register_ferr_irq(gsi[13]);
 
