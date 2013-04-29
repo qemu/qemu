@@ -162,6 +162,7 @@ int qdev_init(DeviceState *dev)
 
     object_property_set_bool(OBJECT(dev), true, "realized", &local_err);
     if (local_err != NULL) {
+        qerror_report_err(local_err);
         error_free(local_err);
         qdev_free(dev);
         return -1;
