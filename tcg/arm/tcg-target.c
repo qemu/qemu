@@ -1190,7 +1190,7 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
         tcg_out_memop_12(s, COND_AL, INSN_LDR_IMM, TCG_REG_R0,
                          TCG_REG_R2, tlb_offset, 1, 1);
         if (TARGET_LONG_BITS == 64) {
-            tcg_out_memop_12(s, COND_AL, INSN_LDR_IMM, TCG_REG_R0,
+            tcg_out_memop_12(s, COND_AL, INSN_LDR_IMM, TCG_REG_R1,
                              TCG_REG_R2, 4, 1, 0);
         }
     }
