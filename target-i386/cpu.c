@@ -41,6 +41,7 @@
 #endif
 
 #include "sysemu/sysemu.h"
+#include "hw/cpu/icc_bus.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen/xen.h"
 #include "hw/sysbus.h"
@@ -1618,7 +1619,8 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
 }
 
-X86CPU *cpu_x86_create(const char *cpu_model, Error **errp)
+X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
+                       Error **errp)
 {
     X86CPU *cpu = NULL;
     CPUX86State *env;
@@ -1635,6 +1637,14 @@ X86CPU *cpu_x86_create(const char *cpu_model, Error **errp)
     features = model_pieces[1];
 
     cpu = X86_CPU(object_new(TYPE_X86_CPU));
+#ifndef CONFIG_USER_ONLY
+    if (icc_bridge == NULL) {
+        error_setg(&error, "Invalid icc-bridge value");
+        goto out;
+    }
+    qdev_set_parent_bus(DEVICE(cpu), qdev_get_child_bus(icc_bridge, "icc"));
+    object_unref(OBJECT(cpu));
+#endif
     env = &cpu->env;
     env->cpu_model_str = cpu_model;
 
@@ -1659,7 +1669,7 @@ X86CPU *cpu_x86_init(const char *cpu_model)
     Error *error = NULL;
     X86CPU *cpu;
 
-    cpu = cpu_x86_create(cpu_model, &error);
+    cpu = cpu_x86_create(cpu_model, NULL, &error);
     if (error) {
         goto out;
     }
@@ -2346,6 +2356,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     xcc->parent_realize = dc->realize;
     dc->realize = x86_cpu_realizefn;
+    dc->bus_type = TYPE_ICC_BUS;
 
     xcc->parent_reset = cc->reset;
     cc->reset = x86_cpu_reset;

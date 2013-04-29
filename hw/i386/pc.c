@@ -894,12 +894,13 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
-static X86CPU *pc_new_cpu(const char *cpu_model, int64_t apic_id, Error **errp)
+static X86CPU *pc_new_cpu(const char *cpu_model, int64_t apic_id,
+                          DeviceState *icc_bridge, Error **errp)
 {
     X86CPU *cpu;
     Error *local_err = NULL;
 
-    cpu = cpu_x86_create(cpu_model, errp);
+    cpu = cpu_x86_create(cpu_model, icc_bridge, errp);
     if (!cpu) {
         return cpu;
     }
@@ -917,7 +918,7 @@ static X86CPU *pc_new_cpu(const char *cpu_model, int64_t apic_id, Error **errp)
     return cpu;
 }
 
-void pc_cpus_init(const char *cpu_model)
+void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
 {
     int i;
     Error *error = NULL;
@@ -932,7 +933,8 @@ void pc_cpus_init(const char *cpu_model)
     }
 
     for (i = 0; i < smp_cpus; i++) {
-        pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i), &error);
+        pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i),
+                   icc_bridge, &error);
         if (error) {
             fprintf(stderr, "%s\n", error_get_pretty(error));
             error_free(error);

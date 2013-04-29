@@ -95,7 +95,7 @@ static void pc_init1(MemoryRegion *system_memory,
     object_property_add_child(qdev_get_machine(), "icc-bridge",
                               OBJECT(icc_bridge), NULL);
 
-    pc_cpus_init(cpu_model);
+    pc_cpus_init(cpu_model, icc_bridge);
     pc_acpi_init("acpi-dsdt.aml");
 
     if (kvmclock_enabled) {
