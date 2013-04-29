@@ -19,6 +19,10 @@ QEMU_CFLAGS += -I$(<D) -I$(@D)
 
 %.o: %.c
 	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
+%.o: %.rc
+	$(call quiet-command,$(WINDRES) -I. -o $@ $<,"  RC    $(TARGET_DIR)$@")
+
+Makefile: $(version-obj-y)
 
 ifeq ($(LIBTOOL),)
 LIBTOOL = /bin/false
@@ -26,9 +30,12 @@ LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
        $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
+Makefile: $(version-lobj-y)
 LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
 	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
+%.lo: %.rc
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=RC $(WINDRES) -I. -o $@ $<,"lt RC   $(TARGET_DIR)$@")
 %.lo: %.dtrace
 	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, " lt GEN $(TARGET_DIR)$@")
 

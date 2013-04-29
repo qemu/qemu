@@ -99,7 +99,7 @@ size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt)
 static ssize_t
 do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
 {
-#if defined CONFIG_IOVEC && defined CONFIG_POSIX
+#ifdef CONFIG_POSIX
     ssize_t ret;
     struct msghdr msg;
     memset(&msg, 0, sizeof(msg));
