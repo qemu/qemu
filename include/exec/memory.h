@@ -192,7 +192,7 @@ struct MemoryRegionPortio {
  */
 struct AddressSpace {
     /* All fields are private. */
-    const char *name;
+    char *name;
     MemoryRegion *root;
     struct FlatView *current_map;
     int ioeventfd_nb;
@@ -892,8 +892,10 @@ void mtree_info(fprintf_function mon_printf, void *f);
  *
  * @as: an uninitialized #AddressSpace
  * @root: a #MemoryRegion that routes addesses for the address space
+ * @name: an address space name.  The name is only used for debugging
+ *        output.
  */
-void address_space_init(AddressSpace *as, MemoryRegion *root);
+void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name);
 
 
 /**

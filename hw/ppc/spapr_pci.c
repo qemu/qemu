@@ -650,7 +650,9 @@ static int spapr_phb_init(SysBusDevice *s)
         fprintf(stderr, "Unable to create TCE table for %s\n", sphb->dtbusname);
         return -1;
     }
-    address_space_init(&sphb->iommu_as, spapr_tce_get_iommu(sphb->tcet));
+    address_space_init(&sphb->iommu_as, spapr_tce_get_iommu(sphb->tcet),
+                       sphb->dtbusname);
+
     pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
 
     QLIST_INSERT_HEAD(&spapr->phbs, sphb, list);

@@ -1657,7 +1657,7 @@ void memory_listener_unregister(MemoryListener *listener)
     QTAILQ_REMOVE(&memory_listeners, listener, link);
 }
 
-void address_space_init(AddressSpace *as, MemoryRegion *root)
+void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
     memory_region_transaction_begin();
     as->root = root;
@@ -1666,7 +1666,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root)
     as->ioeventfd_nb = 0;
     as->ioeventfds = NULL;
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
-    as->name = NULL;
+    as->name = g_strdup(name ? name : "anonymous");
     address_space_init_dispatch(as);
     memory_region_update_pending |= root->enabled;
     memory_region_transaction_commit();
@@ -1681,6 +1681,7 @@ void address_space_destroy(AddressSpace *as)
     QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
     address_space_destroy_dispatch(as);
     flatview_destroy(as->current_map);
+    g_free(as->name);
     g_free(as->current_map);
     g_free(as->ioeventfds);
 }
@@ -1807,9 +1808,6 @@ void mtree_info(fprintf_function mon_printf, void *f)
     QTAILQ_INIT(&ml_head);
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        if (!as->name) {
-            continue;
-        }
         mon_printf(f, "%s\n", as->name);
         mtree_print_mr(mon_printf, f, as->root, 0, 0, &ml_head);
     }
