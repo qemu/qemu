@@ -114,6 +114,17 @@ typedef struct VHDXMetadataEntries {
 } VHDXMetadataEntries;
 
 
+typedef struct VHDXSectorInfo {
+    uint32_t bat_idx;       /* BAT entry index */
+    uint32_t sectors_avail; /* sectors available in payload block */
+    uint32_t bytes_left;    /* bytes left in the block after data to r/w */
+    uint32_t bytes_avail;   /* bytes available in payload block */
+    uint64_t file_offset;   /* absolute offset in bytes, in file */
+    uint64_t block_offset;  /* block offset, in bytes */
+} VHDXSectorInfo;
+
+
+
 typedef struct BDRVVHDXState {
     CoMutex lock;
 
@@ -792,7 +803,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags)
         goto fail;
     }
 
-    /* TODO: differencing files, read, write */
+    /* TODO: differencing files, write */
 
     return 0;
 fail:
@@ -810,10 +821,118 @@ static int vhdx_reopen_prepare(BDRVReopenState *state,
 }
 
 
+/*
+ * Perform sector to block offset translations, to get various
+ * sector and file offsets into the image.  See VHDXSectorInfo
+ */
+static void vhdx_block_translate(BDRVVHDXState *s, int64_t sector_num,
+                                 int nb_sectors, VHDXSectorInfo *sinfo)
+{
+    uint32_t block_offset;
+
+    sinfo->bat_idx = sector_num >> s->sectors_per_block_bits;
+    /* effectively a modulo - this gives us the offset into the block
+     * (in sector sizes) for our sector number */
+    block_offset = sector_num - (sinfo->bat_idx << s->sectors_per_block_bits);
+    /* the chunk ratio gives us the interleaving of the sector
+     * bitmaps, so we need to advance our page block index by the
+     * sector bitmaps entry number */
+    sinfo->bat_idx += sinfo->bat_idx >> s->chunk_ratio_bits;
+
+    /* the number of sectors we can read/write in this cycle */
+    sinfo->sectors_avail = s->sectors_per_block - block_offset;
+
+    sinfo->bytes_left = sinfo->sectors_avail << s->logical_sector_size_bits;
+
+    if (sinfo->sectors_avail > nb_sectors) {
+        sinfo->sectors_avail = nb_sectors;
+    }
+
+    sinfo->bytes_avail = sinfo->sectors_avail << s->logical_sector_size_bits;
+
+    sinfo->file_offset = s->bat[sinfo->bat_idx] >> VHDX_BAT_FILE_OFF_BITS;
+
+    sinfo->block_offset = block_offset << s->logical_sector_size_bits;
+
+    /* The file offset must be past the header section, so must be > 0 */
+    if (sinfo->file_offset == 0) {
+        return;
+    }
+
+    /* block offset is the offset in vhdx logical sectors, in
+     * the payload data block. Convert that to a byte offset
+     * in the block, and add in the payload data block offset
+     * in the file, in bytes, to get the final read address */
+
+    sinfo->file_offset <<= 20;  /* now in bytes, rather than 1MB units */
+    sinfo->file_offset += sinfo->block_offset;
+}
+
+
+
 static coroutine_fn int vhdx_co_readv(BlockDriverState *bs, int64_t sector_num,
                                       int nb_sectors, QEMUIOVector *qiov)
 {
-    return -ENOTSUP;
+    BDRVVHDXState *s = bs->opaque;
+    int ret = 0;
+    VHDXSectorInfo sinfo;
+    uint64_t bytes_done = 0;
+    QEMUIOVector hd_qiov;
+
+    qemu_iovec_init(&hd_qiov, qiov->niov);
+
+    qemu_co_mutex_lock(&s->lock);
+
+    while (nb_sectors > 0) {
+        /* We are a differencing file, so we need to inspect the sector bitmap
+         * to see if we have the data or not */
+        if (s->params.data_bits & VHDX_PARAMS_HAS_PARENT) {
+            /* not supported yet */
+            ret = -ENOTSUP;
+            goto exit;
+        } else {
+            vhdx_block_translate(s, sector_num, nb_sectors, &sinfo);
+
+            qemu_iovec_reset(&hd_qiov);
+            qemu_iovec_concat(&hd_qiov, qiov,  bytes_done, sinfo.bytes_avail);
+
+            /* check the payload block state */
+            switch (s->bat[sinfo.bat_idx] & VHDX_BAT_STATE_BIT_MASK) {
+            case PAYLOAD_BLOCK_NOT_PRESENT: /* fall through */
+            case PAYLOAD_BLOCK_UNDEFINED:   /* fall through */
+            case PAYLOAD_BLOCK_UNMAPPED:    /* fall through */
+            case PAYLOAD_BLOCK_ZERO:
+                /* return zero */
+                qemu_iovec_memset(&hd_qiov, 0, 0, sinfo.bytes_avail);
+                break;
+            case PAYLOAD_BLOCK_FULL_PRESENT:
+                qemu_co_mutex_unlock(&s->lock);
+                ret = bdrv_co_readv(bs->file,
+                                    sinfo.file_offset >> BDRV_SECTOR_BITS,
+                                    sinfo.sectors_avail, &hd_qiov);
+                qemu_co_mutex_lock(&s->lock);
+                if (ret < 0) {
+                    goto exit;
+                }
+                break;
+            case PAYLOAD_BLOCK_PARTIALLY_PRESENT:
+                /* we don't yet support difference files, fall through
+                 * to error */
+            default:
+                ret = -EIO;
+                goto exit;
+                break;
+            }
+            nb_sectors -= sinfo.sectors_avail;
+            sector_num += sinfo.sectors_avail;
+            bytes_done += sinfo.bytes_avail;
+        }
+    }
+    ret = 0;
+exit:
+    qemu_co_mutex_unlock(&s->lock);
+    qemu_iovec_destroy(&hd_qiov);
+    return ret;
 }
 
 
