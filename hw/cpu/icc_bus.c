@@ -80,6 +80,7 @@ typedef struct ICCBridgeState {
     /*< public >*/
 
     ICCBus icc_bus;
+    MemoryRegion apic_container;
 } ICCBridgeState;
 
 #define ICC_BRIGDE(obj) OBJECT_CHECK(ICCBridgeState, (obj), TYPE_ICC_BRIDGE)
@@ -87,8 +88,17 @@ typedef struct ICCBridgeState {
 static void icc_bridge_init(Object *obj)
 {
     ICCBridgeState *s = ICC_BRIGDE(obj);
+    SysBusDevice *sb = SYS_BUS_DEVICE(obj);
 
     qbus_create_inplace(&s->icc_bus, TYPE_ICC_BUS, DEVICE(s), "icc");
+
+    /* Do not change order of registering regions,
+     * APIC must be first registered region, board maps it by 0 index
+     */
+    memory_region_init(&s->apic_container, "icc-apic-container",
+                       APIC_SPACE_SIZE);
+    sysbus_init_mmio(sb, &s->apic_container);
+    s->icc_bus.apic_address_space = &s->apic_container;
 }
 
 static const TypeInfo icc_bridge_info = {
