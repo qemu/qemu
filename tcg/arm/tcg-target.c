@@ -1611,17 +1611,15 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_exit_tb:
-        {
-            uint8_t *ld_ptr = s->code_ptr;
-            if (args[0] >> 8)
-                tcg_out_ld32_12(s, COND_AL, TCG_REG_R0, TCG_REG_PC, 0);
-            else
-                tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R0, 0, args[0]);
+        if (use_armv7_instructions || check_fit_imm(args[0])) {
+            tcg_out_movi32(s, COND_AL, TCG_REG_R0, args[0]);
             tcg_out_goto(s, COND_AL, (tcg_target_ulong) tb_ret_addr);
-            if (args[0] >> 8) {
-                *ld_ptr = (uint8_t) (s->code_ptr - ld_ptr) - 8;
-                tcg_out32(s, args[0]);
-            }
+        } else {
+            uint8_t *ld_ptr = s->code_ptr;
+            tcg_out_ld32_12(s, COND_AL, TCG_REG_R0, TCG_REG_PC, 0);
+            tcg_out_goto(s, COND_AL, (tcg_target_ulong) tb_ret_addr);
+            *ld_ptr = (uint8_t) (s->code_ptr - ld_ptr) - 8;
+            tcg_out32(s, args[0]);
         }
         break;
     case INDEX_op_goto_tb:
