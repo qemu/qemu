@@ -57,16 +57,6 @@ typedef struct S390IPLState {
 } S390IPLState;
 
 
-static void s390_ipl_cpu(uint64_t pswaddr)
-{
-    S390CPU *cpu = S390_CPU(qemu_get_cpu(0));
-    CPUS390XState *env = &cpu->env;
-
-    env->psw.addr = pswaddr;
-    env->psw.mask = IPL_PSW_MASK;
-    s390_add_running_cpu(cpu);
-}
-
 static int s390_ipl_init(SysBusDevice *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
@@ -155,8 +145,12 @@ static Property s390_ipl_properties[] = {
 static void s390_ipl_reset(DeviceState *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
+    S390CPU *cpu = S390_CPU(qemu_get_cpu(0));
+    CPUS390XState *env = &cpu->env;
 
-    s390_ipl_cpu(ipl->start_addr);
+    env->psw.addr = ipl->start_addr;
+    env->psw.mask = IPL_PSW_MASK;
+    s390_add_running_cpu(cpu);
 }
 
 static void s390_ipl_class_init(ObjectClass *klass, void *data)
