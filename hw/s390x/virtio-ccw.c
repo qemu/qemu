@@ -1062,8 +1062,10 @@ static void virtio_ccw_bus_new(VirtioBusState *bus, VirtioCcwDevice *dev)
 {
     DeviceState *qdev = DEVICE(dev);
     BusState *qbus;
+    char virtio_bus_name[] = "virtio-bus";
 
-    qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_CCW_BUS, qdev, NULL);
+    qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_CCW_BUS, qdev,
+                        virtio_bus_name);
     qbus = BUS(bus);
     qbus->allow_hotplug = 1;
 }
