@@ -16,6 +16,8 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
+#include "hw/s390x/virtio-ccw.h"
+#include "hw/s390x/css.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -150,6 +152,22 @@ static void s390_ipl_reset(DeviceState *dev)
 
     env->psw.addr = ipl->start_addr;
     env->psw.mask = IPL_PSW_MASK;
+
+    if (!ipl->kernel) {
+        /* booting firmware, tell what device to boot from */
+        DeviceState *dev_st = get_boot_device(0);
+        VirtioCcwDevice *ccw_dev = (VirtioCcwDevice *) object_dynamic_cast(
+                OBJECT(&(dev_st->parent_obj)), "virtio-blk-ccw");
+
+        if (ccw_dev) {
+            env->regs[7] = ccw_dev->sch->cssid << 24 |
+                           ccw_dev->sch->ssid << 16 |
+                           ccw_dev->sch->devno;
+        } else {
+            env->regs[7] = -1;
+        }
+    }
+
     s390_add_running_cpu(cpu);
 }
 
