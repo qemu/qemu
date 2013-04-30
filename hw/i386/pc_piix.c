@@ -335,6 +335,7 @@ static QEMUMachine pc_i440fx_machine_v1_5 = {
     .alias = "pc",
     .desc = "Standard PC (i440FX + PIIX, 1996)",
     .init = pc_init_pci,
+    .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
     .is_default = 1,
     DEFAULT_MACHINE_OPTIONS,

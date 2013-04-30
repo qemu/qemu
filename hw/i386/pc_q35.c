@@ -220,6 +220,7 @@ static QEMUMachine pc_q35_machine_v1_5 = {
     .alias = "q35",
     .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init,
+    .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
     DEFAULT_MACHINE_OPTIONS,
 };
