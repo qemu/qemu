@@ -22,12 +22,15 @@ typedef void QEMUMachineInitFunc(QEMUMachineInitArgs *args);
 
 typedef void QEMUMachineResetFunc(void);
 
+typedef void QEMUMachineHotAddCPUFunc(const int64_t id, Error **errp);
+
 typedef struct QEMUMachine {
     const char *name;
     const char *alias;
     const char *desc;
     QEMUMachineInitFunc *init;
     QEMUMachineResetFunc *reset;
+    QEMUMachineHotAddCPUFunc *hot_add_cpu;
     BlockInterfaceType block_default_type;
     int max_cpus;
     unsigned int no_serial:1,
