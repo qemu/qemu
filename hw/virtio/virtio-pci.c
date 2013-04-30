@@ -1297,6 +1297,8 @@ static int virtio_serial_pci_init(VirtIOPCIProxy *vpci_dev)
 {
     VirtIOSerialPCI *dev = VIRTIO_SERIAL_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    DeviceState *proxy = DEVICE(vpci_dev);
+    char *bus_name;
 
     if (vpci_dev->class_code != PCI_CLASS_COMMUNICATION_OTHER &&
         vpci_dev->class_code != PCI_CLASS_DISPLAY_OTHER && /* qemu 0.10 */
@@ -1308,6 +1310,16 @@ static int virtio_serial_pci_init(VirtIOPCIProxy *vpci_dev)
        DEV_NVECTORS_UNSPECIFIED */
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
         vpci_dev->nvectors = dev->vdev.serial.max_virtserial_ports + 1;
+    }
+
+    /*
+     * For command line compatibility, this sets the virtio-serial-device bus
+     * name as before.
+     */
+    if (proxy->id) {
+        bus_name = g_strdup_printf("%s.0", proxy->id);
+        virtio_device_set_child_bus_name(VIRTIO_DEVICE(vdev), bus_name);
+        g_free(bus_name);
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));

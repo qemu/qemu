@@ -593,6 +593,18 @@ static int virtio_ccw_serial_init(VirtioCcwDevice *ccw_dev)
 {
     VirtioSerialCcw *dev = VIRTIO_SERIAL_CCW(ccw_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    DeviceState *proxy = DEVICE(ccw_dev);
+    char *bus_name;
+
+    /*
+     * For command line compatibility, this sets the virtio-serial-device bus
+     * name as before.
+     */
+    if (proxy->id) {
+        bus_name = g_strdup_printf("%s.0", proxy->id);
+        virtio_device_set_child_bus_name(VIRTIO_DEVICE(vdev), bus_name);
+        g_free(bus_name);
+    }
 
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     if (qdev_init(vdev) < 0) {

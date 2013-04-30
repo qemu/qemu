@@ -197,8 +197,19 @@ static int s390_virtio_serial_init(VirtIOS390Device *s390_dev)
     DeviceState *qdev = DEVICE(s390_dev);
     VirtIOS390Bus *bus;
     int r;
+    char *bus_name;
 
     bus = DO_UPCAST(VirtIOS390Bus, bus, qdev->parent_bus);
+
+    /*
+     * For command line compatibility, this sets the virtio-serial-device bus
+     * name as before.
+     */
+    if (qdev->id) {
+        bus_name = g_strdup_printf("%s.0", qdev->id);
+        virtio_device_set_child_bus_name(VIRTIO_DEVICE(vdev), bus_name);
+        g_free(bus_name);
+    }
 
     qdev_set_parent_bus(vdev, BUS(&s390_dev->bus));
     if (qdev_init(vdev) < 0) {
