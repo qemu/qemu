@@ -453,6 +453,11 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
     TypeImpl *type = class->type;
     ObjectClass *ret = NULL;
 
+    if (!target_type) {
+        /* target class type unknown, so fail the cast */
+        return NULL;
+    }
+
     if (type->class->interfaces &&
             type_is_ancestor(target_type, type_interface)) {
         int found = 0;
