@@ -2159,7 +2159,7 @@ static int megasas_scsi_init(PCIDevice *dev)
         s->frames[i].state = s;
     }
 
-    scsi_bus_new(&s->bus, &dev->qdev, &megasas_scsi_info);
+    scsi_bus_new(&s->bus, &dev->qdev, &megasas_scsi_info, NULL);
     scsi_bus_legacy_handle_cmdline(&s->bus);
     return 0;
 }

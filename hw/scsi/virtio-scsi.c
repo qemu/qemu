@@ -624,7 +624,7 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
         return ret;
     }
 
-    scsi_bus_new(&s->bus, qdev, &virtio_scsi_scsi_info);
+    scsi_bus_new(&s->bus, qdev, &virtio_scsi_scsi_info, NULL);
     if (!qdev->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }

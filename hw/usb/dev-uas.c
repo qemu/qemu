@@ -888,7 +888,7 @@ static int usb_uas_init(USBDevice *dev)
     QTAILQ_INIT(&uas->requests);
     uas->status_bh = qemu_bh_new(usb_uas_send_status_bh, uas);
 
-    scsi_bus_new(&uas->bus, &uas->dev.qdev, &usb_uas_scsi_info);
+    scsi_bus_new(&uas->bus, &uas->dev.qdev, &usb_uas_scsi_info, NULL);
 
     return 0;
 }

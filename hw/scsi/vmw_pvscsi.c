@@ -1088,7 +1088,7 @@ pvscsi_init(PCIDevice *pci_dev)
         return -ENOMEM;
     }
 
-    scsi_bus_new(&s->bus, &pci_dev->qdev, &pvscsi_scsi_info);
+    scsi_bus_new(&s->bus, &pci_dev->qdev, &pvscsi_scsi_info, NULL);
     pvscsi_reset_state(s);
 
     return 0;

@@ -915,7 +915,7 @@ static int spapr_vscsi_init(VIOsPAPRDevice *dev)
 
     dev->crq.SendFunc = vscsi_do_crq;
 
-    scsi_bus_new(&s->bus, &dev->qdev, &vscsi_scsi_info);
+    scsi_bus_new(&s->bus, &dev->qdev, &vscsi_scsi_info, NULL);
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }
