@@ -1106,9 +1106,21 @@ static int virtio_scsi_pci_init_pci(VirtIOPCIProxy *vpci_dev)
     VirtIOSCSIPCI *dev = VIRTIO_SCSI_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
+    DeviceState *proxy = DEVICE(vpci_dev);
+    char *bus_name;
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
         vpci_dev->nvectors = vs->conf.num_queues + 3;
+    }
+
+    /*
+     * For command line compatibility, this sets the virtio-scsi-device bus
+     * name as before.
+     */
+    if (proxy->id) {
+        bus_name = g_strdup_printf("%s.0", proxy->id);
+        virtio_device_set_child_bus_name(VIRTIO_DEVICE(vdev), bus_name);
+        g_free(bus_name);
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));

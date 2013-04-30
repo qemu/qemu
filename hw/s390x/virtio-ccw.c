@@ -680,6 +680,18 @@ static int virtio_ccw_scsi_init(VirtioCcwDevice *ccw_dev)
 {
     VirtIOSCSICcw *dev = VIRTIO_SCSI_CCW(ccw_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    DeviceState *qdev = DEVICE(ccw_dev);
+    char *bus_name;
+
+    /*
+     * For command line compatibility, this sets the virtio-scsi-device bus
+     * name as before.
+     */
+    if (qdev->id) {
+        bus_name = g_strdup_printf("%s.0", qdev->id);
+        virtio_device_set_child_bus_name(VIRTIO_DEVICE(vdev), bus_name);
+        g_free(bus_name);
+    }
 
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     if (qdev_init(vdev) < 0) {

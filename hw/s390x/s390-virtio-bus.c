@@ -235,6 +235,18 @@ static int s390_virtio_scsi_init(VirtIOS390Device *s390_dev)
 {
     VirtIOSCSIS390 *dev = VIRTIO_SCSI_S390(s390_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    DeviceState *qdev = DEVICE(s390_dev);
+    char *bus_name;
+
+    /*
+     * For command line compatibility, this sets the virtio-scsi-device bus
+     * name as before.
+     */
+    if (qdev->id) {
+        bus_name = g_strdup_printf("%s.0", qdev->id);
+        virtio_device_set_child_bus_name(VIRTIO_DEVICE(vdev), bus_name);
+        g_free(bus_name);
+    }
 
     qdev_set_parent_bus(vdev, BUS(&s390_dev->bus));
     if (qdev_init(vdev) < 0) {
