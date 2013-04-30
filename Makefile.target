@@ -130,8 +130,6 @@ else
 obj-y += hw/$(TARGET_BASE_ARCH)/
 endif
 
-main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
-
 GENERATED_HEADERS += hmp-commands.h qmp-commands-old.h
 
 endif # CONFIG_SOFTMMU
