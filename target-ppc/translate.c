@@ -4005,19 +4005,19 @@ static inline void gen_op_mfspr(DisasContext *ctx)
              * allowing userland application to read the PVR
              */
             if (sprn != SPR_PVR) {
-                qemu_log("Trying to read privileged spr %d %03x at "
-                         TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
-                printf("Trying to read privileged spr %d %03x at "
-                       TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
+                qemu_log("Trying to read privileged spr %d (0x%03x) at "
+                         TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+                printf("Trying to read privileged spr %d (0x%03x) at "
+                       TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
             }
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         }
     } else {
         /* Not defined */
-        qemu_log("Trying to read invalid spr %d %03x at "
-                    TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
-        printf("Trying to read invalid spr %d %03x at " TARGET_FMT_lx "\n",
-               sprn, sprn, ctx->nip);
+        qemu_log("Trying to read invalid spr %d (0x%03x) at "
+                 TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+        printf("Trying to read invalid spr %d (0x%03x) at "
+               TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
     }
 }
@@ -4150,18 +4150,18 @@ static void gen_mtspr(DisasContext *ctx)
             (*write_cb)(ctx, sprn, rS(ctx->opcode));
         } else {
             /* Privilege exception */
-            qemu_log("Trying to write privileged spr %d %03x at "
-                     TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
-            printf("Trying to write privileged spr %d %03x at " TARGET_FMT_lx
-                   "\n", sprn, sprn, ctx->nip);
+            qemu_log("Trying to write privileged spr %d (0x%03x) at "
+                     TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+            printf("Trying to write privileged spr %d (0x%03x) at "
+                   TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         }
     } else {
         /* Not defined */
-        qemu_log("Trying to write invalid spr %d %03x at "
-                 TARGET_FMT_lx "\n", sprn, sprn, ctx->nip);
-        printf("Trying to write invalid spr %d %03x at " TARGET_FMT_lx "\n",
-               sprn, sprn, ctx->nip);
+        qemu_log("Trying to write invalid spr %d (0x%03x) at "
+                 TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+        printf("Trying to write invalid spr %d (0x%03x) at "
+               TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
     }
 }
