@@ -105,13 +105,17 @@ static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
 static int set_property(const char *name, const char *value, void *opaque)
 {
     DeviceState *dev = opaque;
+    Error *err = NULL;
 
     if (strcmp(name, "driver") == 0)
         return 0;
     if (strcmp(name, "bus") == 0)
         return 0;
 
-    if (qdev_prop_parse(dev, name, value) == -1) {
+    qdev_prop_parse(dev, name, value, &err);
+    if (err != NULL) {
+        qerror_report_err(err);
+        error_free(err);
         return -1;
     }
     return 0;
