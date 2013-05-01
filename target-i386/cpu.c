@@ -1751,6 +1751,7 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     CPUX86State *env;
     gchar **model_pieces;
     char *name, *features;
+    char *typename;
     Error *error = NULL;
 
     model_pieces = g_strsplit(cpu_model, ",", 2);
@@ -1774,6 +1775,14 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     env->cpu_model_str = cpu_model;
 
     cpu_x86_register(cpu, name, &error);
+    if (error) {
+        goto out;
+    }
+
+    /* Emulate per-model subclasses for global properties */
+    typename = g_strdup_printf("%s-" TYPE_X86_CPU, name);
+    qdev_prop_set_globals_for_type(DEVICE(cpu), typename, &error);
+    g_free(typename);
     if (error) {
         goto out;
     }
