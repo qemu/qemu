@@ -191,7 +191,7 @@ struct Monitor {
     QString *outbuf;
     ReadLineState *rs;
     MonitorControl *mc;
-    CPUArchState *mon_cpu;
+    CPUState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
     QError *error;
@@ -900,7 +900,7 @@ int monitor_set_cpu(int cpu_index)
     if (cpu == NULL) {
         return -1;
     }
-    cur_mon->mon_cpu = cpu->env_ptr;
+    cur_mon->mon_cpu = cpu;
     return 0;
 }
 
@@ -910,7 +910,7 @@ static CPUArchState *mon_get_cpu(void)
         monitor_set_cpu(0);
     }
     cpu_synchronize_state(cur_mon->mon_cpu);
-    return cur_mon->mon_cpu;
+    return cur_mon->mon_cpu->env_ptr;
 }
 
 int monitor_get_cpu_index(void)

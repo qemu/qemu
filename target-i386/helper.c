@@ -187,7 +187,7 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf,
     char cc_op_name[32];
     static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(cs);
 
     eflags = cpu_compute_eflags(env);
 #ifdef TARGET_X86_64
@@ -1116,7 +1116,7 @@ static void do_inject_x86_mce(void *data)
     CPUState *cpu = CPU(params->cpu);
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
 
-    cpu_synchronize_state(cenv);
+    cpu_synchronize_state(cpu);
 
     /*
      * If there is an MCE exception being processed, ignore this SRAO MCE

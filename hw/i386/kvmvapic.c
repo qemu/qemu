@@ -456,7 +456,7 @@ void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(cs);
 
     if (evaluate_tpr_instruction(s, env, &ip, access) < 0) {
         if (s->state == VAPIC_ACTIVE) {
@@ -627,7 +627,7 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
     hwaddr rom_paddr;
     VAPICROMState *s = opaque;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(CPU(x86_env_get_cpu(env)));
 
     /*
      * The VAPIC supports two PIO-based hypercalls, both via port 0x7E.

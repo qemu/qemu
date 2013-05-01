@@ -263,10 +263,10 @@ void kvm_cpu_synchronize_state(CPUState *cpu);
 
 /* generic hooks - to be moved/refactored once there are more users */
 
-static inline void cpu_synchronize_state(CPUArchState *env)
+static inline void cpu_synchronize_state(CPUState *cpu)
 {
     if (kvm_enabled()) {
-        kvm_cpu_synchronize_state(ENV_GET_CPU(env));
+        kvm_cpu_synchronize_state(cpu);
     }
 }
 

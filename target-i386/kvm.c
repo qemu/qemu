@@ -2079,7 +2079,7 @@ static int kvm_handle_debug(X86CPU *cpu,
         ret = EXCP_DEBUG;
     }
     if (ret == 0) {
-        cpu_synchronize_state(env);
+        cpu_synchronize_state(CPU(cpu));
         assert(env->exception_injected == -1);
 
         /* pass to guest */

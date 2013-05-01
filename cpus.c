@@ -407,10 +407,10 @@ void hw_error(const char *fmt, ...)
 
 void cpu_synchronize_all_states(void)
 {
-    CPUArchState *cpu;
+    CPUArchState *env;
 
-    for (cpu = first_cpu; cpu; cpu = cpu->next_cpu) {
-        cpu_synchronize_state(cpu);
+    for (env = first_cpu; env; env = env->next_cpu) {
+        cpu_synchronize_state(ENV_GET_CPU(env));
     }
 }
 
@@ -1219,7 +1219,7 @@ CpuInfoList *qmp_query_cpus(Error **errp)
         CPUState *cpu = ENV_GET_CPU(env);
         CpuInfoList *info;
 
-        cpu_synchronize_state(env);
+        cpu_synchronize_state(cpu);
 
         info = g_malloc0(sizeof(*info));
         info->value = g_malloc0(sizeof(*info->value));
