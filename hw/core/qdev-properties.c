@@ -1099,23 +1099,37 @@ void qdev_prop_register_global_list(GlobalProperty *props)
     }
 }
 
+void qdev_prop_set_globals_for_type(DeviceState *dev, const char *typename,
+                                    Error **errp)
+{
+    GlobalProperty *prop;
+
+    QTAILQ_FOREACH(prop, &global_props, next) {
+        Error *err = NULL;
+
+        if (strcmp(typename, prop->driver) != 0) {
+            continue;
+        }
+        qdev_prop_parse(dev, prop->property, prop->value, &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
+}
+
 void qdev_prop_set_globals(DeviceState *dev, Error **errp)
 {
     ObjectClass *class = object_get_class(OBJECT(dev));
 
     do {
-        GlobalProperty *prop;
-        QTAILQ_FOREACH(prop, &global_props, next) {
-            Error *err = NULL;
+        Error *err = NULL;
 
-            if (strcmp(object_class_get_name(class), prop->driver) != 0) {
-                continue;
-            }
-            qdev_prop_parse(dev, prop->property, prop->value, &err);
-            if (err != NULL) {
-                error_propagate(errp, err);
-                return;
-            }
+        qdev_prop_set_globals_for_type(dev, object_class_get_name(class),
+                                       &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
         }
         class = object_class_get_parent(class);
     } while (class);
