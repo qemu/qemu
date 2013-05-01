@@ -242,6 +242,10 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .driver   = "pc-sysfw",\
             .property = "rom_only",\
             .value    = stringify(0),\
+        },{\
+            .driver   = "486-" TYPE_X86_CPU,\
+            .property = "model",\
+            .value    = stringify(0),\
         }
 
 #endif

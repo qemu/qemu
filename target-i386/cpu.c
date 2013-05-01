@@ -588,7 +588,7 @@ static x86_def_t builtin_x86_defs[] = {
         .level = 1,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 4,
-        .model = 0,
+        .model = 8,
         .stepping = 0,
         .features[FEAT_1_EDX] =
             I486_FEATURES,
