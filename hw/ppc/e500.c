@@ -547,6 +547,7 @@ void ppce500_init(PPCE500Params *params)
 
     /* Fixup Memory size on a alignment boundary */
     ram_size &= ~(RAM_SIZES_ALIGN - 1);
+    params->ram_size = ram_size;
 
     /* Register Memory */
     memory_region_init_ram(ram, "mpc8544ds.ram", ram_size);
