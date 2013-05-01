@@ -42,7 +42,7 @@ void kvm_flush_coalesced_mmio_buffer(void)
 {
 }
 
-void kvm_cpu_synchronize_state(CPUArchState *env)
+void kvm_cpu_synchronize_state(CPUState *cpu)
 {
 }
 

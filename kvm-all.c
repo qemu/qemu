@@ -1590,10 +1590,8 @@ static void do_kvm_cpu_synchronize_state(void *arg)
     }
 }
 
-void kvm_cpu_synchronize_state(CPUArchState *env)
+void kvm_cpu_synchronize_state(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     if (!cpu->kvm_vcpu_dirty) {
         run_on_cpu(cpu, do_kvm_cpu_synchronize_state, cpu);
     }
