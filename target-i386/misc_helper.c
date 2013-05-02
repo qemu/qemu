@@ -291,22 +291,22 @@ void helper_wrmsr(CPUX86State *env)
             uint64_t update_mask;
 
             update_mask = 0;
-            if (env->cpuid_ext2_features & CPUID_EXT2_SYSCALL) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_SYSCALL) {
                 update_mask |= MSR_EFER_SCE;
             }
-            if (env->cpuid_ext2_features & CPUID_EXT2_LM) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
                 update_mask |= MSR_EFER_LME;
             }
-            if (env->cpuid_ext2_features & CPUID_EXT2_FFXSR) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_FFXSR) {
                 update_mask |= MSR_EFER_FFXSR;
             }
-            if (env->cpuid_ext2_features & CPUID_EXT2_NX) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_NX) {
                 update_mask |= MSR_EFER_NXE;
             }
-            if (env->cpuid_ext3_features & CPUID_EXT3_SVM) {
+            if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM) {
                 update_mask |= MSR_EFER_SVME;
             }
-            if (env->cpuid_ext2_features & CPUID_EXT2_FFXSR) {
+            if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_FFXSR) {
                 update_mask |= MSR_EFER_FFXSR;
             }
             cpu_load_efer(env, (env->efer & ~update_mask) |
@@ -513,7 +513,7 @@ void helper_rdmsr(CPUX86State *env)
         val = env->mtrr_deftype;
         break;
     case MSR_MTRRcap:
-        if (env->cpuid_features & CPUID_MTRR) {
+        if (env->features[FEAT_1_EDX] & CPUID_MTRR) {
             val = MSR_MTRRcap_VCNT | MSR_MTRRcap_FIXRANGE_SUPPORT |
                 MSR_MTRRcap_WC_SUPPORTED;
         } else {

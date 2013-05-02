@@ -110,7 +110,7 @@ static const char *get_elf_platform(void)
 
 static uint32_t get_elf_hwcap(void)
 {
-  return thread_env->cpuid_features;
+    return thread_env->features[FEAT_1_EDX];
 }
 
 #ifdef TARGET_X86_64

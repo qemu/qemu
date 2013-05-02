@@ -644,6 +644,12 @@ F: qom/cpu.c
 F: include/qemu/cpu.h
 F: target-i386/cpu.c
 
+ICC Bus
+M: Igor Mammedov <imammedo@redhat.com>
+S: Supported
+F: include/hw/cpu/icc_bus.h
+F: hw/cpu/icc_bus.c
+
 Device Tree
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
 M: Alexander Graf <agraf@suse.de>

@@ -21,7 +21,7 @@
 #define QEMU_APIC_INTERNAL_H
 
 #include "exec/memory.h"
-#include "hw/sysbus.h"
+#include "hw/cpu/icc_bus.h"
 #include "qemu/timer.h"
 
 /* APIC Local Vector Table */
@@ -66,8 +66,6 @@
 
 #define MAX_APICS 255
 
-#define MSI_SPACE_SIZE                  0x100000
-
 typedef struct APICCommonState APICCommonState;
 
 #define TYPE_APIC_COMMON "apic-common"
@@ -80,7 +78,7 @@ typedef struct APICCommonState APICCommonState;
 
 typedef struct APICCommonClass
 {
-    SysBusDeviceClass parent_class;
+    ICCDeviceClass parent_class;
 
     void (*init)(APICCommonState *s);
     void (*set_base)(APICCommonState *s, uint64_t val);
@@ -94,7 +92,7 @@ typedef struct APICCommonClass
 } APICCommonClass;
 
 struct APICCommonState {
-    SysBusDevice busdev;
+    ICCDevice busdev;
 
     MemoryRegion io_memory;
     X86CPU *cpu;

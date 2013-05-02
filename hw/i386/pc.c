@@ -53,6 +53,8 @@
 #include "qemu/bitmap.h"
 #include "qemu/config-file.h"
 #include "hw/acpi/acpi.h"
+#include "hw/cpu/icc_bus.h"
+#include "hw/boards.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -338,6 +340,21 @@ static void pc_cmos_init_late(void *opaque)
     qemu_unregister_reset(pc_cmos_init_late, opaque);
 }
 
+typedef struct RTCCPUHotplugArg {
+    Notifier cpu_added_notifier;
+    ISADevice *rtc_state;
+} RTCCPUHotplugArg;
+
+static void rtc_notify_cpu_added(Notifier *notifier, void *data)
+{
+    RTCCPUHotplugArg *arg = container_of(notifier, RTCCPUHotplugArg,
+                                         cpu_added_notifier);
+    ISADevice *s = arg->rtc_state;
+
+    /* increment the number of CPUs */
+    rtc_set_memory(s, 0x5f, rtc_get_memory(s, 0x5f) + 1);
+}
+
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device,
                   ISADevice *floppy, BusState *idebus0, BusState *idebus1,
@@ -346,6 +363,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     int val, nb, i;
     FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
     static pc_cmos_init_late_arg arg;
+    static RTCCPUHotplugArg cpu_hotplug_cb;
 
     /* various important CMOS locations needed by PC/Bochs bios */
 
@@ -384,6 +402,10 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     /* set the number of CPU */
     rtc_set_memory(s, 0x5f, smp_cpus - 1);
+    /* init CPU hotplug notifier */
+    cpu_hotplug_cb.rtc_state = s;
+    cpu_hotplug_cb.cpu_added_notifier.notify = rtc_notify_cpu_added;
+    qemu_register_cpu_added_notifier(&cpu_hotplug_cb.cpu_added_notifier);
 
     /* set boot devices, and disable floppy signature check if requested */
     if (set_boot_dev(s, boot_device, fd_bootchk)) {
@@ -874,9 +896,59 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
-void pc_cpus_init(const char *cpu_model)
+static X86CPU *pc_new_cpu(const char *cpu_model, int64_t apic_id,
+                          DeviceState *icc_bridge, Error **errp)
+{
+    X86CPU *cpu;
+    Error *local_err = NULL;
+
+    cpu = cpu_x86_create(cpu_model, icc_bridge, errp);
+    if (!cpu) {
+        return cpu;
+    }
+
+    object_property_set_int(OBJECT(cpu), apic_id, "apic-id", &local_err);
+    object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
+
+    if (local_err) {
+        if (cpu != NULL) {
+            object_unref(OBJECT(cpu));
+            cpu = NULL;
+        }
+        error_propagate(errp, local_err);
+    }
+    return cpu;
+}
+
+static const char *current_cpu_model;
+
+void pc_hot_add_cpu(const int64_t id, Error **errp)
+{
+    DeviceState *icc_bridge;
+    int64_t apic_id = x86_cpu_apic_id_from_index(id);
+
+    if (cpu_exists(apic_id)) {
+        error_setg(errp, "Unable to add CPU: %" PRIi64
+                   ", it already exists", id);
+        return;
+    }
+
+    if (id >= max_cpus) {
+        error_setg(errp, "Unable to add CPU: %" PRIi64
+                   ", max allowed: %d", id, max_cpus - 1);
+        return;
+    }
+
+    icc_bridge = DEVICE(object_resolve_path_type("icc-bridge",
+                                                 TYPE_ICC_BRIDGE, NULL));
+    pc_new_cpu(current_cpu_model, apic_id, icc_bridge, errp);
+}
+
+void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
 {
     int i;
+    X86CPU *cpu = NULL;
+    Error *error = NULL;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -886,11 +958,23 @@ void pc_cpus_init(const char *cpu_model)
         cpu_model = "qemu32";
 #endif
     }
+    current_cpu_model = cpu_model;
 
     for (i = 0; i < smp_cpus; i++) {
-        if (!cpu_x86_init(cpu_model)) {
+        cpu = pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i),
+                         icc_bridge, &error);
+        if (error) {
+            fprintf(stderr, "%s\n", error_get_pretty(error));
+            error_free(error);
             exit(1);
         }
+    }
+
+    /* map APIC MMIO area if CPU has APIC */
+    if (cpu && cpu->env.apic_state) {
+        /* XXX: what if the base changes? */
+        sysbus_mmio_map_overlap(SYS_BUS_DEVICE(icc_bridge), 0,
+                                APIC_DEFAULT_ADDRESS, 0x1000);
     }
 }
 

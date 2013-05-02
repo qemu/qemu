@@ -8290,11 +8290,11 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
     if (flags & HF_SOFTMMU_MASK) {
         dc->mem_index = (cpu_mmu_index(env) + 1) << 2;
     }
-    dc->cpuid_features = env->cpuid_features;
-    dc->cpuid_ext_features = env->cpuid_ext_features;
-    dc->cpuid_ext2_features = env->cpuid_ext2_features;
-    dc->cpuid_ext3_features = env->cpuid_ext3_features;
-    dc->cpuid_7_0_ebx_features = env->cpuid_7_0_ebx_features;
+    dc->cpuid_features = env->features[FEAT_1_EDX];
+    dc->cpuid_ext_features = env->features[FEAT_1_ECX];
+    dc->cpuid_ext2_features = env->features[FEAT_8000_0001_EDX];
+    dc->cpuid_ext3_features = env->features[FEAT_8000_0001_ECX];
+    dc->cpuid_7_0_ebx_features = env->features[FEAT_7_0_EBX];
 #ifdef TARGET_X86_64
     dc->lma = (flags >> HF_LMA_SHIFT) & 1;
     dc->code64 = (flags >> HF_CS64_SHIFT) & 1;

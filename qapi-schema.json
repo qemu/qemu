@@ -1390,6 +1390,19 @@
 { 'command': 'cpu', 'data': {'index': 'int'} }
 
 ##
+# @cpu-add
+#
+# Adds CPU with specified ID
+#
+# @id: ID of CPU to be created, valid values [0..max_cpus)
+#
+# Returns: Nothing on success
+#
+# Since 1.5
+##
+{ 'command': 'cpu-add', 'data': {'id': 'int'} }
+
+##
 # @memsave:
 #
 # Save a portion of guest memory to a file.

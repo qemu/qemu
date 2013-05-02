@@ -37,6 +37,7 @@
 #include "hw/kvm/clock.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
+#include "hw/cpu/icc_bus.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/blockdev.h"
 #include "hw/i2c/smbus.h"
@@ -87,9 +88,14 @@ static void pc_init1(MemoryRegion *system_memory,
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
+    DeviceState *icc_bridge;
     void *fw_cfg = NULL;
 
-    pc_cpus_init(cpu_model);
+    icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
+    object_property_add_child(qdev_get_machine(), "icc-bridge",
+                              OBJECT(icc_bridge), NULL);
+
+    pc_cpus_init(cpu_model, icc_bridge);
     pc_acpi_init("acpi-dsdt.aml");
 
     if (kvmclock_enabled) {
@@ -163,6 +169,7 @@ static void pc_init1(MemoryRegion *system_memory,
     if (pci_enabled) {
         ioapic_init_gsi(gsi_state, "i440fx");
     }
+    qdev_init_nofail(icc_bridge);
 
     pc_register_ferr_irq(gsi[13]);
 
@@ -328,6 +335,7 @@ static QEMUMachine pc_i440fx_machine_v1_5 = {
     .alias = "pc",
     .desc = "Standard PC (i440FX + PIIX, 1996)",
     .init = pc_init_pci,
+    .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
     .is_default = 1,
     DEFAULT_MACHINE_OPTIONS,
