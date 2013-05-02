@@ -27,17 +27,21 @@
  */
 
 /* predefined ops */
-DEF(end, 0, 0, 0, 0) /* must be kept first */
-DEF(nop, 0, 0, 0, 0)
-DEF(nop1, 0, 0, 1, 0)
-DEF(nop2, 0, 0, 2, 0)
-DEF(nop3, 0, 0, 3, 0)
-DEF(nopn, 0, 0, 1, 0) /* variable number of parameters */
+DEF(end, 0, 0, 0, TCG_OPF_NOT_PRESENT) /* must be kept first */
+DEF(nop, 0, 0, 0, TCG_OPF_NOT_PRESENT)
+DEF(nop1, 0, 0, 1, TCG_OPF_NOT_PRESENT)
+DEF(nop2, 0, 0, 2, TCG_OPF_NOT_PRESENT)
+DEF(nop3, 0, 0, 3, TCG_OPF_NOT_PRESENT)
 
-DEF(discard, 1, 0, 0, 0)
+/* variable number of parameters */
+DEF(nopn, 0, 0, 1, TCG_OPF_NOT_PRESENT)
 
-DEF(set_label, 0, 0, 1, TCG_OPF_BB_END)
-DEF(call, 0, 1, 2, TCG_OPF_CALL_CLOBBER) /* variable number of parameters */
+DEF(discard, 1, 0, 0, TCG_OPF_NOT_PRESENT)
+DEF(set_label, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_NOT_PRESENT)
+
+/* variable number of parameters */
+DEF(call, 0, 1, 2, TCG_OPF_CALL_CLOBBER)
+
 DEF(br, 0, 0, 1, TCG_OPF_BB_END)
 
 #define IMPL(X) (__builtin_constant_p(X) && !(X) ? TCG_OPF_NOT_PRESENT : 0)
@@ -166,9 +170,9 @@ DEF(muls2_i64, 2, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_muls2_i64))
 
 /* QEMU specific */
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-DEF(debug_insn_start, 0, 0, 2, 0)
+DEF(debug_insn_start, 0, 0, 2, TCG_OPF_NOT_PRESENT)
 #else
-DEF(debug_insn_start, 0, 0, 1, 0)
+DEF(debug_insn_start, 0, 0, 1, TCG_OPF_NOT_PRESENT)
 #endif
 DEF(exit_tb, 0, 0, 1, TCG_OPF_BB_END)
 DEF(goto_tb, 0, 0, 1, TCG_OPF_BB_END)

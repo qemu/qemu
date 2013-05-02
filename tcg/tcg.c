@@ -1160,9 +1160,7 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
     i = 0;
     for (op = 0; op < ARRAY_SIZE(tcg_op_defs); op++) {
         const TCGOpDef *def = &tcg_op_defs[op];
-        if (op < INDEX_op_call
-            || op == INDEX_op_debug_insn_start
-            || (def->flags & TCG_OPF_NOT_PRESENT)) {
+        if (def->flags & TCG_OPF_NOT_PRESENT) {
             /* Wrong entry in op definitions? */
             if (def->used) {
                 fprintf(stderr, "Invalid op definition for %s\n", def->name);
