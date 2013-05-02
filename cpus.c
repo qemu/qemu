@@ -974,9 +974,10 @@ void pause_all_vcpus(void)
     if (qemu_in_vcpu_thread()) {
         cpu_stop_current();
         if (!kvm_enabled()) {
+            penv = first_cpu;
             while (penv) {
                 CPUState *pcpu = ENV_GET_CPU(penv);
-                pcpu->stop = 0;
+                pcpu->stop = false;
                 pcpu->stopped = true;
                 penv = penv->next_cpu;
             }
