@@ -67,6 +67,13 @@ static const int use_armv7_instructions = 0;
 #endif
 #undef USE_ARMV7_INSTRUCTIONS
 
+#ifndef use_idiv_instructions
+bool use_idiv_instructions;
+#endif
+#ifdef CONFIG_GETAUXVAL
+# include <sys/auxv.h>
+#endif
+
 #ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r0",
@@ -2029,16 +2036,21 @@ static const TCGTargetOpDef arm_op_defs[] = {
 
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
 
-#if TCG_TARGET_HAS_div_i32
     { INDEX_op_div_i32, { "r", "r", "r" } },
     { INDEX_op_divu_i32, { "r", "r", "r" } },
-#endif
 
     { -1 },
 };
 
 static void tcg_target_init(TCGContext *s)
 {
+#if defined(CONFIG_GETAUXVAL) && !defined(use_idiv_instructions)
+    {
+        unsigned long hwcap = getauxval(AT_HWCAP);
+        use_idiv_instructions = (hwcap & HWCAP_ARM_IDIVA) != 0;
+    }
+#endif
+
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
                      (1 << TCG_REG_R0) |
