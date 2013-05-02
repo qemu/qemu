@@ -98,7 +98,6 @@ struct NBDExport {
     off_t size;
     uint32_t nbdflags;
     QTAILQ_HEAD(, NBDClient) clients;
-    QSIMPLEQ_HEAD(, NBDRequest) requests;
     QTAILQ_ENTRY(NBDExport) next;
 };
 
@@ -850,13 +849,8 @@ static NBDRequest *nbd_request_get(NBDClient *client)
     assert(client->nb_requests <= MAX_NBD_REQUESTS - 1);
     client->nb_requests++;
 
-    if (QSIMPLEQ_EMPTY(&exp->requests)) {
-        req = g_malloc0(sizeof(NBDRequest));
-        req->data = qemu_blockalign(exp->bs, NBD_BUFFER_SIZE);
-    } else {
-        req = QSIMPLEQ_FIRST(&exp->requests);
-        QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
-    }
+    req = g_slice_new0(NBDRequest);
+    req->data = qemu_blockalign(exp->bs, NBD_BUFFER_SIZE);
     nbd_client_get(client);
     req->client = client;
     return req;
@@ -865,7 +859,10 @@ static NBDRequest *nbd_request_get(NBDClient *client)
 static void nbd_request_put(NBDRequest *req)
 {
     NBDClient *client = req->client;
-    QSIMPLEQ_INSERT_HEAD(&client->exp->requests, req, entry);
+
+    qemu_vfree(req->data);
+    g_slice_free(NBDRequest, req);
+
     if (client->nb_requests-- == MAX_NBD_REQUESTS) {
         qemu_notify_event();
     }
@@ -877,7 +874,6 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
                           void (*close)(NBDExport *))
 {
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
-    QSIMPLEQ_INIT(&exp->requests);
     exp->refcount = 1;
     QTAILQ_INIT(&exp->clients);
     exp->bs = bs;
@@ -951,13 +947,6 @@ void nbd_export_put(NBDExport *exp)
 
         if (exp->close) {
             exp->close(exp);
-        }
-
-        while (!QSIMPLEQ_EMPTY(&exp->requests)) {
-            NBDRequest *first = QSIMPLEQ_FIRST(&exp->requests);
-            QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
-            qemu_vfree(first->data);
-            g_free(first);
         }
 
         g_free(exp);
