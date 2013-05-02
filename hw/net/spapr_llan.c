@@ -336,6 +336,8 @@ static target_ulong h_register_logical_lan(PowerPCCPU *cpu,
     spapr_vio_dma_set(sdev, VLAN_BD_ADDR(rec_queue), 0, VLAN_BD_LEN(rec_queue));
 
     dev->isopen = 1;
+    qemu_flush_queued_packets(qemu_get_queue(dev->nic));
+
     return H_SUCCESS;
 }
 
