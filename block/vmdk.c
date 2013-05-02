@@ -813,14 +813,15 @@ static int get_whole_cluster(BlockDriverState *bs,
 
 static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data)
 {
+    uint32_t offset;
+    QEMU_BUILD_BUG_ON(sizeof(offset) != sizeof(m_data->offset));
+    offset = cpu_to_le32(m_data->offset);
     /* update L2 table */
     if (bdrv_pwrite_sync(
                 extent->file,
                 ((int64_t)m_data->l2_offset * 512)
                     + (m_data->l2_index * sizeof(m_data->offset)),
-                &(m_data->offset),
-                sizeof(m_data->offset)
-            ) < 0) {
+                &offset, sizeof(offset)) < 0) {
         return VMDK_ERROR;
     }
     /* update backup L2 table */
@@ -830,8 +831,7 @@ static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data)
                     extent->file,
                     ((int64_t)m_data->l2_offset * 512)
                         + (m_data->l2_index * sizeof(m_data->offset)),
-                    &(m_data->offset), sizeof(m_data->offset)
-                ) < 0) {
+                    &offset, sizeof(offset)) < 0) {
             return VMDK_ERROR;
         }
     }
@@ -848,7 +848,7 @@ static int get_cluster_offset(BlockDriverState *bs,
 {
     unsigned int l1_index, l2_offset, l2_index;
     int min_index, i, j;
-    uint32_t min_count, *l2_table, tmp = 0;
+    uint32_t min_count, *l2_table;
     bool zeroed = false;
 
     if (m_data) {
@@ -924,8 +924,7 @@ static int get_cluster_offset(BlockDriverState *bs,
         }
 
         *cluster_offset >>= 9;
-        tmp = cpu_to_le32(*cluster_offset);
-        l2_table[l2_index] = tmp;
+        l2_table[l2_index] = cpu_to_le32(*cluster_offset);
 
         /* First of all we write grain itself, to avoid race condition
          * that may to corrupt the image.
@@ -938,7 +937,7 @@ static int get_cluster_offset(BlockDriverState *bs,
         }
 
         if (m_data) {
-            m_data->offset = tmp;
+            m_data->offset = *cluster_offset;
             m_data->l1_index = l1_index;
             m_data->l2_index = l2_index;
             m_data->l2_offset = l2_offset;
