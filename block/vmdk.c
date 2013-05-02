@@ -32,6 +32,7 @@
 #define VMDK3_MAGIC (('C' << 24) | ('O' << 16) | ('W' << 8) | 'D')
 #define VMDK4_MAGIC (('K' << 24) | ('D' << 16) | ('M' << 8) | 'V')
 #define VMDK4_COMPRESSION_DEFLATE 1
+#define VMDK4_FLAG_NL_DETECT (1 << 0)
 #define VMDK4_FLAG_RGD (1 << 1)
 /* Zeroed-grain enable bit */
 #define VMDK4_FLAG_ZERO_GRAIN   (1 << 2)
@@ -1287,7 +1288,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     magic = cpu_to_be32(VMDK4_MAGIC);
     memset(&header, 0, sizeof(header));
     header.version = zeroed_grain ? 2 : 1;
-    header.flags = 3
+    header.flags = VMDK4_FLAG_RGD | VMDK4_FLAG_NL_DETECT
                    | (compress ? VMDK4_FLAG_COMPRESS | VMDK4_FLAG_MARKER : 0)
                    | (zeroed_grain ? VMDK4_FLAG_ZERO_GRAIN : 0);
     header.compressAlgorithm = compress ? VMDK4_COMPRESSION_DEFLATE : 0;
