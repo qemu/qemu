@@ -124,6 +124,7 @@ typedef struct VmdkMetaData {
     unsigned int l2_index;
     unsigned int l2_offset;
     int valid;
+    uint32_t *l2_cache_entry;
 } VmdkMetaData;
 
 typedef struct VmdkGrainMarker {
@@ -835,6 +836,9 @@ static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data)
             return VMDK_ERROR;
         }
     }
+    if (m_data->l2_cache_entry) {
+        *m_data->l2_cache_entry = offset;
+    }
 
     return VMDK_OK;
 }
@@ -905,6 +909,14 @@ static int get_cluster_offset(BlockDriverState *bs,
     l2_index = ((offset >> 9) / extent->cluster_sectors) % extent->l2_size;
     *cluster_offset = le32_to_cpu(l2_table[l2_index]);
 
+    if (m_data) {
+        m_data->valid = 1;
+        m_data->l1_index = l1_index;
+        m_data->l2_index = l2_index;
+        m_data->offset = *cluster_offset;
+        m_data->l2_offset = l2_offset;
+        m_data->l2_cache_entry = &l2_table[l2_index];
+    }
     if (extent->has_zero_grain && *cluster_offset == VMDK_GTE_ZEROED) {
         zeroed = true;
     }
@@ -938,10 +950,6 @@ static int get_cluster_offset(BlockDriverState *bs,
 
         if (m_data) {
             m_data->offset = *cluster_offset;
-            m_data->l1_index = l1_index;
-            m_data->l2_index = l2_index;
-            m_data->l2_offset = l2_offset;
-            m_data->valid = 1;
         }
     }
     *cluster_offset <<= 9;
@@ -1164,8 +1172,17 @@ static coroutine_fn int vmdk_co_read(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
+/**
+ * vmdk_write:
+ * @zeroed:       buf is ignored (data is zero), use zeroed_grain GTE feature
+ * if possible, otherwise return -ENOTSUP.
+ * @zero_dry_run: used for zeroed == true only, don't update L2 table, just
+ *
+ * Returns: error code with 0 for success.
+ */
 static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
-                     const uint8_t *buf, int nb_sectors)
+                      const uint8_t *buf, int nb_sectors,
+                      bool zeroed, bool zero_dry_run)
 {
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent = NULL;
@@ -1211,7 +1228,7 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
                                         &cluster_offset);
             }
         }
-        if (ret) {
+        if (ret == VMDK_ERROR) {
             return -EINVAL;
         }
         extent_begin_sector = extent->end_sector - extent->sectors;
@@ -1221,17 +1238,34 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
         if (n > nb_sectors) {
             n = nb_sectors;
         }
-
-        ret = vmdk_write_extent(extent,
-                        cluster_offset, index_in_cluster * 512,
-                        buf, n, sector_num);
-        if (ret) {
-            return ret;
-        }
-        if (m_data.valid) {
-            /* update L2 tables */
-            if (vmdk_L2update(extent, &m_data) == -1) {
-                return -EIO;
+        if (zeroed) {
+            /* Do zeroed write, buf is ignored */
+            if (extent->has_zero_grain &&
+                    index_in_cluster == 0 &&
+                    n >= extent->cluster_sectors) {
+                n = extent->cluster_sectors;
+                if (!zero_dry_run) {
+                    m_data.offset = VMDK_GTE_ZEROED;
+                    /* update L2 tables */
+                    if (vmdk_L2update(extent, &m_data) != VMDK_OK) {
+                        return -EIO;
+                    }
+                }
+            } else {
+                return -ENOTSUP;
+            }
+        } else {
+            ret = vmdk_write_extent(extent,
+                            cluster_offset, index_in_cluster * 512,
+                            buf, n, sector_num);
+            if (ret) {
+                return ret;
+            }
+            if (m_data.valid) {
+                /* update L2 tables */
+                if (vmdk_L2update(extent, &m_data) != VMDK_OK) {
+                    return -EIO;
+                }
             }
         }
         nb_sectors -= n;
@@ -1257,7 +1291,22 @@ static coroutine_fn int vmdk_co_write(BlockDriverState *bs, int64_t sector_num,
     int ret;
     BDRVVmdkState *s = bs->opaque;
     qemu_co_mutex_lock(&s->lock);
-    ret = vmdk_write(bs, sector_num, buf, nb_sectors);
+    ret = vmdk_write(bs, sector_num, buf, nb_sectors, false, false);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
+static int coroutine_fn vmdk_co_write_zeroes(BlockDriverState *bs,
+                                             int64_t sector_num,
+                                             int nb_sectors)
+{
+    int ret;
+    BDRVVmdkState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = vmdk_write(bs, sector_num, NULL, nb_sectors, true, true);
+    if (!ret) {
+        ret = vmdk_write(bs, sector_num, NULL, nb_sectors, true, false);
+    }
     qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
@@ -1737,6 +1786,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_reopen_prepare = vmdk_reopen_prepare,
     .bdrv_read      = vmdk_co_read,
     .bdrv_write     = vmdk_co_write,
+    .bdrv_co_write_zeroes = vmdk_co_write_zeroes,
     .bdrv_close     = vmdk_close,
     .bdrv_create    = vmdk_create,
     .bdrv_co_flush_to_disk  = vmdk_co_flush,
