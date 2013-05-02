@@ -48,6 +48,8 @@
 #define VMDK_UNALLOC (-2)
 #define VMDK_ZEROED  (-3)
 
+#define BLOCK_OPT_ZEROED_GRAIN "zeroed_grain"
+
 typedef struct {
     uint32_t version;
     uint32_t flags;
@@ -1262,7 +1264,7 @@ static coroutine_fn int vmdk_co_write(BlockDriverState *bs, int64_t sector_num,
 
 
 static int vmdk_create_extent(const char *filename, int64_t filesize,
-                              bool flat, bool compress)
+                              bool flat, bool compress, bool zeroed_grain)
 {
     int ret, i;
     int fd = 0;
@@ -1284,9 +1286,10 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     }
     magic = cpu_to_be32(VMDK4_MAGIC);
     memset(&header, 0, sizeof(header));
-    header.version = 1;
-    header.flags =
-        3 | (compress ? VMDK4_FLAG_COMPRESS | VMDK4_FLAG_MARKER : 0);
+    header.version = zeroed_grain ? 2 : 1;
+    header.flags = 3
+                   | (compress ? VMDK4_FLAG_COMPRESS | VMDK4_FLAG_MARKER : 0)
+                   | (zeroed_grain ? VMDK4_FLAG_ZERO_GRAIN : 0);
     header.compressAlgorithm = compress ? VMDK4_COMPRESSION_DEFLATE : 0;
     header.capacity = filesize / 512;
     header.granularity = 128;
@@ -1467,6 +1470,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     char parent_desc_line[BUF_SIZE] = "";
     uint32_t parent_cid = 0xffffffff;
     uint32_t number_heads = 16;
+    bool zeroed_grain = false;
     const char desc_template[] =
         "# Disk DescriptorFile\n"
         "version=1\n"
@@ -1502,6 +1506,8 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
             flags |= options->value.n ? BLOCK_FLAG_COMPAT6 : 0;
         } else if (!strcmp(options->name, BLOCK_OPT_SUBFMT)) {
             fmt = options->value.s;
+        } else if (!strcmp(options->name, BLOCK_OPT_ZEROED_GRAIN)) {
+            zeroed_grain |= options->value.n;
         }
         options++;
     }
@@ -1588,7 +1594,8 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
         snprintf(ext_filename, sizeof(ext_filename), "%s%s",
                 path, desc_filename);
 
-        if (vmdk_create_extent(ext_filename, size, flat, compress)) {
+        if (vmdk_create_extent(ext_filename, size,
+                               flat, compress, zeroed_grain)) {
             return -EINVAL;
         }
         filesize -= size;
@@ -1713,6 +1720,11 @@ static QEMUOptionParameter vmdk_create_options[] = {
         .help =
             "VMDK flat extent format, can be one of "
             "{monolithicSparse (default) | monolithicFlat | twoGbMaxExtentSparse | twoGbMaxExtentFlat | streamOptimized} "
+    },
+    {
+        .name = BLOCK_OPT_ZEROED_GRAIN,
+        .type = OPT_FLAG,
+        .help = "Enable efficient zero writes using the zeroed-grain GTE feature"
     },
     { NULL }
 };
