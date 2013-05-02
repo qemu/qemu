@@ -1118,6 +1118,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 void qmp_block_resize(const char *device, int64_t size, Error **errp)
 {
     BlockDriverState *bs;
+    int ret;
 
     bs = bdrv_find(device);
     if (!bs) {
@@ -1133,7 +1134,8 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
     /* complete all in-flight operations before resizing the device */
     bdrv_drain_all();
 
-    switch (bdrv_truncate(bs, size)) {
+    ret = bdrv_truncate(bs, size);
+    switch (ret) {
     case 0:
         break;
     case -ENOMEDIUM:
@@ -1149,7 +1151,7 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
         error_set(errp, QERR_DEVICE_IN_USE, device);
         break;
     default:
-        error_set(errp, QERR_UNDEFINED_ERROR);
+        error_setg_errno(errp, -ret, "Could not resize");
         break;
     }
 }
