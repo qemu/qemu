@@ -40,7 +40,7 @@ DEF(set_label, 0, 0, 1, TCG_OPF_BB_END)
 DEF(call, 0, 1, 2, TCG_OPF_CALL_CLOBBER) /* variable number of parameters */
 DEF(br, 0, 0, 1, TCG_OPF_BB_END)
 
-#define IMPL(X) (X ? 0 : TCG_OPF_NOT_PRESENT)
+#define IMPL(X) (__builtin_constant_p(X) && !(X) ? TCG_OPF_NOT_PRESENT : 0)
 #if TCG_TARGET_REG_BITS == 32
 # define IMPL64  TCG_OPF_64BIT | TCG_OPF_NOT_PRESENT
 #else
