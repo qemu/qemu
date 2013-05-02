@@ -1,7 +1,7 @@
 /*
  * QEMU/moxiesim emulation
  *
- * Emulates a very simple machine model similiar to the one use by the
+ * Emulates a very simple machine model similar to the one used by the
  * GDB moxie simulator.
  *
  * Copyright (c) 2008, 2009, 2010, 2013 Anthony Green

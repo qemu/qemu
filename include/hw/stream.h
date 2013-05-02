@@ -25,9 +25,9 @@ typedef struct StreamSlaveClass {
     /**
      * can push - determine if a stream slave is capable of accepting at least
      * one byte of data. Returns false if cannot accept. If not implemented, the
-     * slave is assumed to always be capable of recieveing.
+     * slave is assumed to always be capable of receiving.
      * @notify: Optional callback that the slave will call when the slave is
-     * capable of recieving again. Only called if false is returned.
+     * capable of receiving again. Only called if false is returned.
      * @notify_opaque: opaque data to pass to notify call.
      */
     bool (*can_push)(StreamSlave *obj, StreamCanPushNotifyFn notify,
@@ -37,7 +37,7 @@ typedef struct StreamSlaveClass {
      * returned. If the slave short returns, the master must wait before trying
      * again, the slave may continue to just return 0 waiting for the vm time to
      * advance. The can_push() function can be used to trap the point in time
-     * where the slave is ready to recieve again, otherwise polling on a QEMU
+     * where the slave is ready to receive again, otherwise polling on a QEMU
      * timer will work.
      * @obj: Stream slave to push to
      * @buf: Data to write
