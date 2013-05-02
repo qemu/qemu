@@ -33,10 +33,13 @@
 #define VMDK4_MAGIC (('K' << 24) | ('D' << 16) | ('M' << 8) | 'V')
 #define VMDK4_COMPRESSION_DEFLATE 1
 #define VMDK4_FLAG_RGD (1 << 1)
+/* Zeroed-grain enable bit */
+#define VMDK4_FLAG_ZERO_GRAIN   (1 << 2)
 #define VMDK4_FLAG_COMPRESS (1 << 16)
 #define VMDK4_FLAG_MARKER (1 << 17)
 #define VMDK4_GD_AT_END 0xffffffffffffffffULL
 
+#define VMDK_GTE_ZEROED 0x1
 
 /* VMDK internal error codes */
 #define VMDK_OK      0
@@ -81,6 +84,8 @@ typedef struct VmdkExtent {
     bool flat;
     bool compressed;
     bool has_marker;
+    bool has_zero_grain;
+    int version;
     int64_t sectors;
     int64_t end_sector;
     int64_t flat_start_offset;
@@ -569,6 +574,8 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     extent->compressed =
         le16_to_cpu(header.compressAlgorithm) == VMDK4_COMPRESSION_DEFLATE;
     extent->has_marker = le32_to_cpu(header.flags) & VMDK4_FLAG_MARKER;
+    extent->version = le32_to_cpu(header.version);
+    extent->has_zero_grain = le32_to_cpu(header.flags) & VMDK4_FLAG_ZERO_GRAIN;
     ret = vmdk_init_tables(bs, extent);
     if (ret) {
         /* free extent allocated by vmdk_add_extent */
@@ -839,6 +846,7 @@ static int get_cluster_offset(BlockDriverState *bs,
     unsigned int l1_index, l2_offset, l2_index;
     int min_index, i, j;
     uint32_t min_count, *l2_table, tmp = 0;
+    bool zeroed = false;
 
     if (m_data) {
         m_data->valid = 0;
@@ -894,9 +902,13 @@ static int get_cluster_offset(BlockDriverState *bs,
     l2_index = ((offset >> 9) / extent->cluster_sectors) % extent->l2_size;
     *cluster_offset = le32_to_cpu(l2_table[l2_index]);
 
-    if (!*cluster_offset) {
+    if (extent->has_zero_grain && *cluster_offset == VMDK_GTE_ZEROED) {
+        zeroed = true;
+    }
+
+    if (!*cluster_offset || zeroed) {
         if (!allocate) {
-            return VMDK_UNALLOC;
+            return zeroed ? VMDK_ZEROED : VMDK_UNALLOC;
         }
 
         /* Avoid the L2 tables update for the images that have snapshots. */
@@ -967,8 +979,8 @@ static int coroutine_fn vmdk_co_is_allocated(BlockDriverState *bs,
     ret = get_cluster_offset(bs, extent, NULL,
                             sector_num * 512, 0, &offset);
     qemu_co_mutex_unlock(&s->lock);
-    /* get_cluster_offset returning 0 means success */
-    ret = !ret;
+
+    ret = (ret == VMDK_OK || ret == VMDK_ZEROED);
 
     index_in_cluster = sector_num % extent->cluster_sectors;
     n = extent->cluster_sectors - index_in_cluster;
@@ -1111,9 +1123,9 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
         if (n > nb_sectors) {
             n = nb_sectors;
         }
-        if (ret) {
+        if (ret != VMDK_OK) {
             /* if not allocated, try to read from parent image, if exist */
-            if (bs->backing_hd) {
+            if (bs->backing_hd && ret != VMDK_ZEROED) {
                 if (!vmdk_is_cid_valid(bs)) {
                     return -EINVAL;
                 }
