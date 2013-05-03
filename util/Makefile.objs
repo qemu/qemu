@@ -10,3 +10,4 @@ util-obj-$(CONFIG_POSIX) += compatfd.o
 util-obj-y += iov.o aes.o qemu-config.o qemu-sockets.o uri.o notify.o
 util-obj-y += qemu-option.o qemu-progress.o
 util-obj-y += hexdump.o
+util-obj-y += crc32c.o

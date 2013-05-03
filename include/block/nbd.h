@@ -58,7 +58,8 @@ enum {
 
 #define NBD_DEFAULT_PORT	10809
 
-#define NBD_BUFFER_SIZE (1024*1024)
+/* Maximum size of a single READ/WRITE data buffer */
+#define NBD_MAX_BUFFER_SIZE (32 * 1024 * 1024)
 
 ssize_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read);
 int tcp_socket_incoming(const char *address, uint16_t port);
