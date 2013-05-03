@@ -768,10 +768,6 @@ static void memory_region_destructor_ram_from_ptr(MemoryRegion *mr)
     qemu_ram_free_from_ptr(mr->ram_addr);
 }
 
-static void memory_region_destructor_iomem(MemoryRegion *mr)
-{
-}
-
 static void memory_region_destructor_rom_device(MemoryRegion *mr)
 {
     qemu_ram_free(mr->ram_addr & TARGET_PAGE_MASK);
@@ -929,7 +925,6 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->ops = ops;
     mr->opaque = opaque;
     mr->terminates = true;
-    mr->destructor = memory_region_destructor_iomem;
     mr->ram_addr = ~(ram_addr_t)0;
 }
 
