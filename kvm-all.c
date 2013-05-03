@@ -33,6 +33,7 @@
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "qemu/event_notifier.h"
+#include "trace.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
@@ -1626,6 +1627,7 @@ int kvm_cpu_exec(CPUArchState *env)
             abort();
         }
 
+        trace_kvm_run_exit(cpu->cpu_index, run->exit_reason);
         switch (run->exit_reason) {
         case KVM_EXIT_IO:
             DPRINTF("handle_io\n");
@@ -1687,6 +1689,7 @@ int kvm_ioctl(KVMState *s, int type, ...)
     arg = va_arg(ap, void *);
     va_end(ap);
 
+    trace_kvm_ioctl(type, arg);
     ret = ioctl(s->fd, type, arg);
     if (ret == -1) {
         ret = -errno;
@@ -1704,6 +1707,7 @@ int kvm_vm_ioctl(KVMState *s, int type, ...)
     arg = va_arg(ap, void *);
     va_end(ap);
 
+    trace_kvm_vm_ioctl(type, arg);
     ret = ioctl(s->vmfd, type, arg);
     if (ret == -1) {
         ret = -errno;
@@ -1721,6 +1725,7 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
     arg = va_arg(ap, void *);
     va_end(ap);
 
+    trace_kvm_vcpu_ioctl(cpu->cpu_index, type, arg);
     ret = ioctl(cpu->kvm_fd, type, arg);
     if (ret == -1) {
         ret = -errno;

@@ -1153,3 +1153,10 @@ virtio_ccw_new_device(int cssid, int ssid, int schid, int devno, const char *dev
 
 # migration.c
 migrate_set_state(int new_state) "new state %d"
+
+# kvm-all.c
+kvm_ioctl(int type, void *arg) "type %d, arg %p"
+kvm_vm_ioctl(int type, void *arg) "type %d, arg %p"
+kvm_vcpu_ioctl(int cpu_index, int type, void *arg) "cpu_index %d, type %d, arg %p"
+kvm_run_exit(int cpu_index, uint32_t reason) "cpu_index %d, reason %d"
+

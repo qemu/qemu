@@ -4004,6 +4004,14 @@ if test "$trace_backend" = "dtrace"; then
     echo "CONFIG_TRACE_SYSTEMTAP=y" >> $config_host_mak
   fi
 fi
+if test "$trace_backend" = "ftrace"; then
+  if test "$linux" = "yes" ; then
+    echo "CONFIG_TRACE_FTRACE=y" >> $config_host_mak
+    trace_default=no
+  else
+    feature_not_found "ftrace(trace backend)"
+  fi
+fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
 if test "$trace_default" = "yes"; then
   echo "CONFIG_TRACE_DEFAULT=y" >> $config_host_mak
