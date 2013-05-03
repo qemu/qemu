@@ -157,8 +157,7 @@ void qemu_macaddr_default_if_unset(MACAddr *macaddr)
 /**
  * Generate a name for net client
  *
- * Only net clients created with the legacy -net option need this.  Naming is
- * mandatory for net clients created with -netdev.
+ * Only net clients created with the legacy -net option and NICs need this.
  */
 static char *assign_name(NetClientState *nc1, const char *model)
 {
@@ -170,9 +169,7 @@ static char *assign_name(NetClientState *nc1, const char *model)
         if (nc == nc1) {
             continue;
         }
-        /* For compatibility only bump id for net clients on a vlan */
-        if (strcmp(nc->model, model) == 0 &&
-            net_hub_id_for_client(nc, NULL) == 0) {
+        if (strcmp(nc->model, model) == 0) {
             id++;
         }
     }
