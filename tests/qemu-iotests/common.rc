@@ -129,6 +129,7 @@ _make_test_img()
             -e "s# static=\\(on\\|off\\)##g" \
             -e "s# zeroed_grain=\\(on\\|off\\)##g" \
             -e "s# subformat='[^']*'##g" \
+            -e "s# adapter_type='[^']*'##g" \
             -e "s# lazy_refcounts=\\(on\\|off\\)##g"
 
     # Start an NBD server on the image file, which is what we'll be talking to
