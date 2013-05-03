@@ -95,6 +95,10 @@ typedef struct {
     uint32_t sr;
     uint32_t ir;
     uint32_t ocr1;
+    uint32_t ocr2;
+    uint32_t ocr3;
+    uint32_t icr1;
+    uint32_t icr2;
     uint32_t cnt;
 
     uint32_t waiting_rov;
@@ -103,15 +107,19 @@ typedef struct {
 
 static const VMStateDescription vmstate_imx_timerg = {
     .name = "imx-timerg",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT32(cr, IMXTimerGState),
         VMSTATE_UINT32(pr, IMXTimerGState),
         VMSTATE_UINT32(sr, IMXTimerGState),
         VMSTATE_UINT32(ir, IMXTimerGState),
         VMSTATE_UINT32(ocr1, IMXTimerGState),
+        VMSTATE_UINT32(ocr2, IMXTimerGState),
+        VMSTATE_UINT32(ocr3, IMXTimerGState),
+        VMSTATE_UINT32(icr1, IMXTimerGState),
+        VMSTATE_UINT32(icr2, IMXTimerGState),
         VMSTATE_UINT32(cnt, IMXTimerGState),
         VMSTATE_UINT32(waiting_rov, IMXTimerGState),
         VMSTATE_PTIMER(timer, IMXTimerGState),
@@ -155,7 +163,6 @@ static void imx_timerg_update(IMXTimerGState *s)
             s->ir & GPT_SR_OF1 ? "OF1" : "",
             s->ir & GPT_SR_ROV ? "ROV" : "",
             s->cr & GPT_CR_EN ? "CR_EN" : "Not Enabled");
-
 
     qemu_set_irq(s->irq, (s->cr & GPT_CR_EN) && flags);
 }
@@ -221,6 +228,21 @@ static uint64_t imx_timerg_read(void *opaque, hwaddr offset,
         DPRINTF(" ocr1 = %x\n", s->ocr1);
         return s->ocr1;
 
+    case 5: /* Output Compare Register 2 */
+        DPRINTF(" ocr2 = %x\n", s->ocr2);
+        return s->ocr2;
+
+    case 6: /* Output Compare Register 3 */
+        DPRINTF(" ocr3 = %x\n", s->ocr3);
+        return s->ocr3;
+
+    case 7: /* input Capture Register 1 */
+        DPRINTF(" icr1 = %x\n", s->icr1);
+        return s->icr1;
+
+    case 8: /* input Capture Register 2 */
+        DPRINTF(" icr2 = %x\n", s->icr2);
+        return s->icr2;
 
     case 9: /* cnt */
         imx_timerg_update_counts(s);
@@ -230,6 +252,7 @@ static uint64_t imx_timerg_read(void *opaque, hwaddr offset,
 
     IPRINTF("imx_timerg_read: Bad offset %x\n",
             (int)offset >> 2);
+
     return 0;
 }
 
@@ -240,14 +263,20 @@ static void imx_timerg_reset(DeviceState *dev)
     /*
      * Soft reset doesn't touch some bits; hard reset clears them
      */
-    s->cr &= ~(GPT_CR_EN|GPT_CR_DOZEN|GPT_CR_WAITEN|GPT_CR_DBGEN);
+    s->cr &= ~(GPT_CR_EN|GPT_CR_ENMOD|GPT_CR_STOPEN|GPT_CR_DOZEN|
+               GPT_CR_WAITEN|GPT_CR_DBGEN);
     s->sr = 0;
     s->pr = 0;
     s->ir = 0;
     s->cnt = 0;
     s->ocr1 = TIMER_MAX;
+    s->ocr2 = TIMER_MAX;
+    s->ocr3 = TIMER_MAX;
+    s->icr1 = 0;
+    s->icr2 = 0;
     ptimer_stop(s->timer);
     ptimer_set_limit(s->timer, TIMER_MAX, 1);
+    ptimer_set_count(s->timer, TIMER_MAX);
     imx_timerg_set_freq(s);
 }
 
@@ -323,6 +352,8 @@ static void imx_timerg_write(void *opaque, hwaddr offset,
         s->ocr1 = value;
         return;
 
+    case 5: /* OCR2 -- output compare register */
+    case 6: /* OCR3 -- output compare register */
     default:
         IPRINTF("imx_timerg_write: Bad offset %x\n",
                 (int)offset >> 2);
@@ -411,7 +442,7 @@ static int imx_timerg_init(SysBusDevice *dev)
 #define CR_SWR      (1 << 16)
 #define CR_IOVW     (1 << 17)
 #define CR_DBGEN    (1 << 18)
-#define CR_EPIT     (1 << 19)
+#define CR_WAITEN   (1 << 19)
 #define CR_DOZEN    (1 << 20)
 #define CR_STOPEN   (1 << 21)
 #define CR_CLKSRC_SHIFT (24)
@@ -423,24 +454,26 @@ static int imx_timerg_init(SysBusDevice *dev)
  * These are typical.
  */
 static const IMXClk imx_timerp_clocks[] =  {
-    0,        /* disabled */
-    IPG, /* ipg_clk, ~532MHz */
-    IPG, /* ipg_clk_highfreq */
-    CLK_32k,    /* ipg_clk_32k -- ~32kHz */
+    0,        /* 00 disabled */
+    IPG,      /* 01 ipg_clk, ~532MHz */
+    IPG,      /* 10 ipg_clk_highfreq */
+    CLK_32k,  /* 11 ipg_clk_32k -- ~32kHz */
 };
 
 typedef struct {
     SysBusDevice busdev;
-    ptimer_state *timer;
+    ptimer_state *timer_reload;
+    ptimer_state *timer_cmp;
     MemoryRegion iomem;
     DeviceState *ccm;
 
     uint32_t cr;
+    uint32_t sr;
     uint32_t lr;
     uint32_t cmp;
+    uint32_t cnt;
 
     uint32_t freq;
-    int int_level;
     qemu_irq irq;
 } IMXTimerPState;
 
@@ -449,54 +482,11 @@ typedef struct {
  */
 static void imx_timerp_update(IMXTimerPState *s)
 {
-    if (s->int_level && (s->cr & CR_OCIEN)) {
+    if (s->sr && (s->cr & CR_OCIEN)) {
         qemu_irq_raise(s->irq);
     } else {
         qemu_irq_lower(s->irq);
     }
-}
-
-static void imx_timerp_reset(DeviceState *dev)
-{
-    IMXTimerPState *s = container_of(dev, IMXTimerPState, busdev.qdev);
-
-    s->cr = 0;
-    s->lr = TIMER_MAX;
-    s->int_level = 0;
-    s->cmp = 0;
-    ptimer_stop(s->timer);
-    ptimer_set_count(s->timer, TIMER_MAX);
-}
-
-static uint64_t imx_timerp_read(void *opaque, hwaddr offset,
-                                unsigned size)
-{
-    IMXTimerPState *s = (IMXTimerPState *)opaque;
-
-    DPRINTF("p-read(offset=%x)", offset >> 2);
-    switch (offset >> 2) {
-    case 0: /* Control Register */
-        DPRINTF("cr %x\n", s->cr);
-        return s->cr;
-
-    case 1: /* Status Register */
-        DPRINTF("int_level %x\n", s->int_level);
-        return s->int_level;
-
-    case 2: /* LR - ticks*/
-        DPRINTF("lr %x\n", s->lr);
-        return s->lr;
-
-    case 3: /* CMP */
-        DPRINTF("cmp %x\n", s->cmp);
-        return s->cmp;
-
-    case 4: /* CNT */
-        return ptimer_get_count(s->timer);
-    }
-    IPRINTF("imx_timerp_read: Bad offset %x\n",
-            (int)offset >> 2);
-    return 0;
 }
 
 static void set_timerp_freq(IMXTimerPState *s)
@@ -513,7 +503,91 @@ static void set_timerp_freq(IMXTimerPState *s)
     DPRINTF("Setting ptimer frequency to %u\n", freq);
 
     if (freq) {
-        ptimer_set_freq(s->timer, freq);
+        ptimer_set_freq(s->timer_reload, freq);
+        ptimer_set_freq(s->timer_cmp, freq);
+    }
+}
+
+static void imx_timerp_reset(DeviceState *dev)
+{
+    IMXTimerPState *s = container_of(dev, IMXTimerPState, busdev.qdev);
+
+    /*
+     * Soft reset doesn't touch some bits; hard reset clears them
+     */
+    s->cr &= ~(CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
+    s->sr = 0;
+    s->lr = TIMER_MAX;
+    s->cmp = 0;
+    s->cnt = 0;
+    /* stop both timers */
+    ptimer_stop(s->timer_cmp);
+    ptimer_stop(s->timer_reload);
+    /* compute new frequency */
+    set_timerp_freq(s);
+    /* init both timers to TIMER_MAX */
+    ptimer_set_limit(s->timer_cmp, TIMER_MAX, 1);
+    ptimer_set_limit(s->timer_reload, TIMER_MAX, 1);
+    if (s->freq && (s->cr & CR_EN)) {
+        /* if the timer is still enabled, restart it */
+        ptimer_run(s->timer_reload, 1);
+    }
+}
+
+static uint32_t imx_timerp_update_counts(IMXTimerPState *s)
+{
+     s->cnt = ptimer_get_count(s->timer_reload);
+
+     return s->cnt;
+}
+
+static uint64_t imx_timerp_read(void *opaque, hwaddr offset,
+                                unsigned size)
+{
+    IMXTimerPState *s = (IMXTimerPState *)opaque;
+
+    DPRINTF("p-read(offset=%x)", offset >> 2);
+    switch (offset >> 2) {
+    case 0: /* Control Register */
+        DPRINTF("cr %x\n", s->cr);
+        return s->cr;
+
+    case 1: /* Status Register */
+        DPRINTF("sr %x\n", s->sr);
+        return s->sr;
+
+    case 2: /* LR - ticks*/
+        DPRINTF("lr %x\n", s->lr);
+        return s->lr;
+
+    case 3: /* CMP */
+        DPRINTF("cmp %x\n", s->cmp);
+        return s->cmp;
+
+    case 4: /* CNT */
+        imx_timerp_update_counts(s);
+        DPRINTF(" cnt = %x\n", s->cnt);
+        return s->cnt;
+    }
+
+    IPRINTF("imx_timerp_read: Bad offset %x\n",
+            (int)offset >> 2);
+    return 0;
+}
+
+static void imx_reload_compare_timer(IMXTimerPState *s)
+{
+    if ((s->cr & CR_OCIEN) && s->cmp) {
+        /* if the compare feature is on */
+        uint32_t tmp = imx_timerp_update_counts(s);
+        if (tmp > s->cmp) {
+            /* reinit the cmp timer if required */
+            ptimer_set_count(s->timer_cmp, tmp - s->cmp);
+            if ((s->cr & CR_EN)) {
+                /* Restart the cmp timer if required */
+                ptimer_run(s->timer_cmp, 0);
+            }
+        }
     }
 }
 
@@ -526,40 +600,62 @@ static void imx_timerp_write(void *opaque, hwaddr offset,
 
     switch (offset >> 2) {
     case 0: /* CR */
-        if (value & CR_SWR) {
-            imx_timerp_reset(&s->busdev.qdev);
-            value &= ~CR_SWR;
-        }
         s->cr = value & 0x03ffffff;
-        set_timerp_freq(s);
+        if (s->cr & CR_SWR) {
+            /* handle the reset */
+            imx_timerp_reset(&s->busdev.qdev);
+        } else {
+            set_timerp_freq(s);
+        }
 
         if (s->freq && (s->cr & CR_EN)) {
-            if (!(s->cr & CR_ENMOD)) {
-                ptimer_set_count(s->timer, s->lr);
+            if (s->cr & CR_ENMOD) {
+                if (s->cr & CR_RLD) {
+                    ptimer_set_limit(s->timer_reload, s->lr, 1);
+                } else {
+                    ptimer_set_limit(s->timer_reload, TIMER_MAX, 1);
+                }
             }
-            ptimer_run(s->timer, 0);
+
+            imx_reload_compare_timer(s);
+
+            ptimer_run(s->timer_reload, 1);
         } else {
-            ptimer_stop(s->timer);
+            /* stop both timers */
+            ptimer_stop(s->timer_reload);
+            ptimer_stop(s->timer_cmp);
         }
         break;
 
     case 1: /* SR - ACK*/
-        s->int_level = 0;
-        imx_timerp_update(s);
+        /* writing 1 to OCIF clear the OCIF bit */
+        if (value & 0x01) {
+            s->sr = 0;
+            imx_timerp_update(s);
+        }
         break;
 
     case 2: /* LR - set ticks */
         s->lr = value;
-        ptimer_set_limit(s->timer, value, !!(s->cr & CR_IOVW));
+
+        if (s->cr & CR_RLD) {
+            /* Also set the limit if the LRD bit is set */
+            /* If IOVW bit is set then set the timer value */
+            ptimer_set_limit(s->timer_reload, s->lr, s->cr & CR_IOVW);
+        } else if (s->cr & CR_IOVW) {
+            /* If IOVW bit is set then set the timer value */
+            ptimer_set_count(s->timer_reload, s->lr);
+        }
+
+        imx_reload_compare_timer(s);
+
         break;
 
     case 3: /* CMP */
         s->cmp = value;
-        if (value) {
-            IPRINTF(
-                "Values for EPIT comparison other than zero not supported\n"
-            );
-        }
+
+        imx_reload_compare_timer(s);
+
         break;
 
     default:
@@ -568,16 +664,50 @@ static void imx_timerp_write(void *opaque, hwaddr offset,
     }
 }
 
-static void imx_timerp_tick(void *opaque)
+static void imx_timerp_reload(void *opaque)
 {
     IMXTimerPState *s = (IMXTimerPState *)opaque;
 
-   DPRINTF("imxp tick\n");
-    if (!(s->cr & CR_RLD)) {
-        ptimer_set_count(s->timer, TIMER_MAX);
+    DPRINTF("imxp reload\n");
+
+    if (!(s->cr & CR_EN)) {
+        return;
     }
-    s->int_level = 1;
-    imx_timerp_update(s);
+
+    if (s->cr & CR_RLD) {
+        ptimer_set_limit(s->timer_reload, s->lr, 1);
+    } else {
+        ptimer_set_limit(s->timer_reload, TIMER_MAX, 1);
+    }
+
+    if (s->cr & CR_OCIEN) {
+        /* if compare register is 0 then we handle the interrupt here */
+        if (s->cmp == 0) {
+            s->sr = 1;
+            imx_timerp_update(s);
+        } else if (s->cmp <= s->lr) {
+            /* We should launch the compare register */
+            ptimer_set_count(s->timer_cmp, s->lr - s->cmp);
+            ptimer_run(s->timer_cmp, 0);
+        } else {
+            IPRINTF("imxp reload: s->lr < s->cmp\n");
+        }
+    }
+}
+
+static void imx_timerp_cmp(void *opaque)
+{
+    IMXTimerPState *s = (IMXTimerPState *)opaque;
+
+    DPRINTF("imxp compare\n");
+
+    ptimer_stop(s->timer_cmp);
+
+    /* compare register is not 0 */
+    if (s->cmp) {
+        s->sr = 1;
+        imx_timerp_update(s);
+    }
 }
 
 void imx_timerp_create(const hwaddr addr,
@@ -600,16 +730,18 @@ static const MemoryRegionOps imx_timerp_ops = {
 
 static const VMStateDescription vmstate_imx_timerp = {
     .name = "imx-timerp",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT32(cr, IMXTimerPState),
+        VMSTATE_UINT32(sr, IMXTimerPState),
         VMSTATE_UINT32(lr, IMXTimerPState),
         VMSTATE_UINT32(cmp, IMXTimerPState),
+        VMSTATE_UINT32(cnt, IMXTimerPState),
         VMSTATE_UINT32(freq, IMXTimerPState),
-        VMSTATE_INT32(int_level, IMXTimerPState),
-        VMSTATE_PTIMER(timer, IMXTimerPState),
+        VMSTATE_PTIMER(timer_reload, IMXTimerPState),
+        VMSTATE_PTIMER(timer_cmp, IMXTimerPState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -620,15 +752,17 @@ static int imx_timerp_init(SysBusDevice *dev)
     QEMUBH *bh;
 
     DPRINTF("imx_timerp_init\n");
-
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &imx_timerp_ops,
                           s, "imxp-timer",
                           0x00001000);
     sysbus_init_mmio(dev, &s->iomem);
 
-    bh = qemu_bh_new(imx_timerp_tick, s);
-    s->timer = ptimer_init(bh);
+    bh = qemu_bh_new(imx_timerp_reload, s);
+    s->timer_reload = ptimer_init(bh);
+
+    bh = qemu_bh_new(imx_timerp_cmp, s);
+    s->timer_cmp = ptimer_init(bh);
 
     return 0;
 }
