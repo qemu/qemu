@@ -1685,6 +1685,14 @@ if ! has $libtool; then
     libtool=
 fi
 
+# MacOSX ships with a libtool which isn't the GNU one; weed this
+# out by checking whether libtool supports the --version switch
+if test -n "$libtool"; then
+  if ! "$libtool" --version >/dev/null 2>&1; then
+    libtool=
+  fi
+fi
+
 ##########################################
 # Sparse probe
 if test "$sparse" != "no" ; then
