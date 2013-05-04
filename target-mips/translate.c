@@ -2777,11 +2777,11 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
         opn = "ddivu";
         break;
     case OPC_DMULT:
-        gen_helper_dmult(cpu_env, acc, t0, t1);
+        gen_helper_0e2i(dmult, t0, t1, acc);
         opn = "dmult";
         break;
     case OPC_DMULTU:
-        gen_helper_dmultu(cpu_env, acc, t0, t1);
+        gen_helper_0e2i(dmultu, t0, t1, acc);
         opn = "dmultu";
         break;
 #endif
