@@ -108,7 +108,9 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
     xilinx_ethlite_create(&nd_table[0], ETHLITE_BASEADDR, irq[1], 0, 0);
 
     microblaze_load_kernel(cpu, ddr_base, ram_size,
-                           BINARY_DEVICE_TREE_FILE, machine_cpu_reset);
+                           args->initrd_filename,
+                           BINARY_DEVICE_TREE_FILE,
+                           machine_cpu_reset);
 }
 
 static QEMUMachine petalogix_s3adsp1800_machine = {
