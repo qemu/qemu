@@ -269,7 +269,7 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
     switch (addr) {
     case 0x0092:
         /* Special port 92 */
-        retval = 0x00;
+        retval = sysctrl->endian << 1;
         break;
     case 0x0800:
         /* Motorola CPU configuration register */
