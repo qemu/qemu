@@ -176,8 +176,9 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
         }
     }
 
-    microblaze_load_kernel(cpu, ddr_base, ram_size, BINARY_DEVICE_TREE_FILE,
-                                                            machine_cpu_reset);
+    microblaze_load_kernel(cpu, ddr_base, ram_size,
+                           BINARY_DEVICE_TREE_FILE,
+                           machine_cpu_reset);
 
 }
 

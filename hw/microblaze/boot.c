@@ -57,9 +57,9 @@ static void main_cpu_reset(void *opaque)
 }
 
 static int microblaze_load_dtb(hwaddr addr,
-                                      uint32_t ramsize,
-                                      const char *kernel_cmdline,
-                                      const char *dtb_filename)
+                               uint32_t ramsize,
+                               const char *kernel_cmdline,
+                               const char *dtb_filename)
 {
     int fdt_size;
     void *fdt = NULL;
@@ -157,8 +157,9 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
         }
         /* Provide a device-tree.  */
         boot_info.fdt = boot_info.cmdline + 4096;
-        microblaze_load_dtb(boot_info.fdt, ram_size, kernel_cmdline,
-                                                     dtb_filename);
+        microblaze_load_dtb(boot_info.fdt, ram_size,
+                            kernel_cmdline,
+                            dtb_filename);
     }
 
 }
