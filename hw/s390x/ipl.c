@@ -16,6 +16,8 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
+#include "hw/s390x/virtio-ccw.h"
+#include "hw/s390x/css.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -57,16 +59,6 @@ typedef struct S390IPLState {
 } S390IPLState;
 
 
-static void s390_ipl_cpu(uint64_t pswaddr)
-{
-    S390CPU *cpu = S390_CPU(qemu_get_cpu(0));
-    CPUS390XState *env = &cpu->env;
-
-    env->psw.addr = pswaddr;
-    env->psw.mask = IPL_PSW_MASK;
-    s390_add_running_cpu(cpu);
-}
-
 static int s390_ipl_init(SysBusDevice *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
@@ -82,6 +74,10 @@ static int s390_ipl_init(SysBusDevice *dev)
         }
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (bios_filename == NULL) {
+            hw_error("could not find stage1 bootloader\n");
+        }
+
         bios_size = load_elf(bios_filename, NULL, NULL, &ipl->start_addr, NULL,
                              NULL, 1, ELF_MACHINE, 0);
         if (bios_size == -1UL) {
@@ -151,8 +147,28 @@ static Property s390_ipl_properties[] = {
 static void s390_ipl_reset(DeviceState *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
+    S390CPU *cpu = S390_CPU(qemu_get_cpu(0));
+    CPUS390XState *env = &cpu->env;
 
-    s390_ipl_cpu(ipl->start_addr);
+    env->psw.addr = ipl->start_addr;
+    env->psw.mask = IPL_PSW_MASK;
+
+    if (!ipl->kernel) {
+        /* booting firmware, tell what device to boot from */
+        DeviceState *dev_st = get_boot_device(0);
+        VirtioCcwDevice *ccw_dev = (VirtioCcwDevice *) object_dynamic_cast(
+                OBJECT(&(dev_st->parent_obj)), "virtio-blk-ccw");
+
+        if (ccw_dev) {
+            env->regs[7] = ccw_dev->sch->cssid << 24 |
+                           ccw_dev->sch->ssid << 16 |
+                           ccw_dev->sch->devno;
+        } else {
+            env->regs[7] = -1;
+        }
+    }
+
+    s390_add_running_cpu(cpu);
 }
 
 static void s390_ipl_class_init(ObjectClass *klass, void *data)

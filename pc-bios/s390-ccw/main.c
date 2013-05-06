@@ -12,6 +12,7 @@
 
 struct subchannel_id blk_schid;
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
+uint64_t boot_value;
 
 void virtio_panic(const char *string)
 {
@@ -20,14 +21,21 @@ void virtio_panic(const char *string)
     while (1) { }
 }
 
-static void virtio_setup(void)
+static void virtio_setup(uint64_t dev_info)
 {
     struct schib schib;
     int i;
     int r;
     bool found = false;
-
+    bool check_devno = false;
+    uint16_t dev_no = -1;
     blk_schid.one = 1;
+
+    if (dev_info != -1) {
+        check_devno = true;
+        dev_no = dev_info & 0xffff;
+        debug_print_int("device no. ", dev_no);
+    }
 
     for (i = 0; i < 0x10000; i++) {
         blk_schid.sch_no = i;
@@ -36,9 +44,11 @@ static void virtio_setup(void)
             break;
         }
         if (schib.pmcw.dnv) {
-            if (virtio_is_blk(blk_schid)) {
-                found = true;
-                break;
+            if (!check_devno || (schib.pmcw.dev == dev_no)) {
+                if (virtio_is_blk(blk_schid)) {
+                    found = true;
+                    break;
+                }
             }
         }
     }
@@ -53,7 +63,9 @@ static void virtio_setup(void)
 int main(void)
 {
     sclp_setup();
-    virtio_setup();
+    debug_print_int("boot reg[7] ", boot_value);
+    virtio_setup(boot_value);
+
     if (zipl_load() < 0)
         sclp_print("Failed to load OS from hard disk\n");
     disabled_wait();
