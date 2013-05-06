@@ -137,7 +137,7 @@ static void mmio_ide_initfn(Object *obj)
     SysBusDevice *d = SYS_BUS_DEVICE(obj);
     MMIOState *s = MMIO_IDE(obj);
 
-    ide_bus_new(&s->bus, DEVICE(obj), 0);
+    ide_bus_new(&s->bus, DEVICE(obj), 0, 2);
     sysbus_init_irq(d, &s->irq);
 }
 
