@@ -30,6 +30,8 @@
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
 
+#include "qapi-types.h"
+#include "qapi-visit.h"
 #include "qapi/visitor.h"
 #include "sysemu/arch_init.h"
 
@@ -195,23 +197,34 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     },
 };
 
+typedef struct X86RegisterInfo32 {
+    /* Name of register */
+    const char *name;
+    /* QAPI enum value register */
+    X86CPURegister32 qapi_enum;
+} X86RegisterInfo32;
+
+#define REGISTER(reg) \
+    [R_##reg] = { .name = #reg, .qapi_enum = X86_C_P_U_REGISTER32_##reg }
+X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
+    REGISTER(EAX),
+    REGISTER(ECX),
+    REGISTER(EDX),
+    REGISTER(EBX),
+    REGISTER(ESP),
+    REGISTER(EBP),
+    REGISTER(ESI),
+    REGISTER(EDI),
+};
+#undef REGISTER
+
+
 const char *get_register_name_32(unsigned int reg)
 {
-    static const char *reg_names[CPU_NB_REGS32] = {
-        [R_EAX] = "EAX",
-        [R_ECX] = "ECX",
-        [R_EDX] = "EDX",
-        [R_EBX] = "EBX",
-        [R_ESP] = "ESP",
-        [R_EBP] = "EBP",
-        [R_ESI] = "ESI",
-        [R_EDI] = "EDI",
-    };
-
     if (reg > CPU_NB_REGS32) {
         return NULL;
     }
-    return reg_names[reg];
+    return x86_reg_info_32[reg].name;
 }
 
 /* collects per-function cpuid data
@@ -1405,6 +1418,36 @@ static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, void *opaque,
     cpu->env.cpuid_apic_id = value;
 }
 
+static void x86_cpu_get_feature_words(Object *obj, Visitor *v, void *opaque,
+                                      const char *name, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+    FeatureWord w;
+    Error *err = NULL;
+    X86CPUFeatureWordInfo word_infos[FEATURE_WORDS] = { };
+    X86CPUFeatureWordInfoList list_entries[FEATURE_WORDS] = { };
+    X86CPUFeatureWordInfoList *list = NULL;
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        FeatureWordInfo *wi = &feature_word_info[w];
+        X86CPUFeatureWordInfo *qwi = &word_infos[w];
+        qwi->cpuid_input_eax = wi->cpuid_eax;
+        qwi->has_cpuid_input_ecx = wi->cpuid_needs_ecx;
+        qwi->cpuid_input_ecx = wi->cpuid_ecx;
+        qwi->cpuid_register = x86_reg_info_32[wi->cpuid_reg].qapi_enum;
+        qwi->features = env->features[w];
+
+        /* List will be in reverse order, but order shouldn't matter */
+        list_entries[w].next = list;
+        list_entries[w].value = &word_infos[w];
+        list = &list_entries[w];
+    }
+
+    visit_type_X86CPUFeatureWordInfoList(v, &list, "feature-words", &err);
+    error_propagate(errp, err);
+}
+
 static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
 {
     x86_def_t *def;
@@ -2396,6 +2439,9 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add(obj, "apic-id", "int",
                         x86_cpuid_get_apic_id,
                         x86_cpuid_set_apic_id, NULL, NULL, NULL);
+    object_property_add(obj, "feature-words", "X86CPUFeatureWordInfo",
+                        x86_cpu_get_feature_words,
+                        NULL, NULL, NULL, NULL);
 
     env->cpuid_apic_id = x86_cpu_apic_id_from_index(cs->cpu_index);
 
