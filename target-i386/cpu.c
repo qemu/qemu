@@ -1698,9 +1698,12 @@ static void filter_features_for_kvm(X86CPU *cpu)
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         FeatureWordInfo *wi = &feature_word_info[w];
-        env->features[w] &= kvm_arch_get_supported_cpuid(s, wi->cpuid_eax,
-                                                            wi->cpuid_ecx,
-                                                            wi->cpuid_reg);
+        uint32_t host_feat = kvm_arch_get_supported_cpuid(s, wi->cpuid_eax,
+                                                             wi->cpuid_ecx,
+                                                             wi->cpuid_reg);
+        uint32_t requested_features = env->features[w];
+        env->features[w] &= host_feat;
+        cpu->filtered_features[w] = requested_features & ~env->features[w];
     }
 }
 #endif
