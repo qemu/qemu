@@ -1288,15 +1288,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
 }
 #endif /* !_WIN32 */
 
-/* Return a host pointer to ram allocated with qemu_ram_alloc.
-   With the exception of the softmmu code in this file, this should
-   only be used for local memory (e.g. video ram) that the device owns,
-   and knows it isn't going to access beyond the end of the block.
-
-   It should not be used for general purpose DMA.
-   Use cpu_physical_memory_map/cpu_physical_memory_rw instead.
- */
-void *qemu_get_ram_ptr(ram_addr_t addr)
+static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
 {
     RAMBlock *block;
 
@@ -1316,6 +1308,21 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
 
 found:
     ram_list.mru_block = block;
+    return block;
+}
+
+/* Return a host pointer to ram allocated with qemu_ram_alloc.
+   With the exception of the softmmu code in this file, this should
+   only be used for local memory (e.g. video ram) that the device owns,
+   and knows it isn't going to access beyond the end of the block.
+
+   It should not be used for general purpose DMA.
+   Use cpu_physical_memory_map/cpu_physical_memory_rw instead.
+ */
+void *qemu_get_ram_ptr(ram_addr_t addr)
+{
+    RAMBlock *block = qemu_get_ram_block(addr);
+
     if (xen_enabled()) {
         /* We need to check if the requested address is in the RAM
          * because we don't want to map the entire memory in QEMU.
@@ -1392,14 +1399,14 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size)
 
 /* Some of the softmmu routines need to translate from a host pointer
    (typically a TLB entry) back to a ram offset.  */
-int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
+MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 {
     RAMBlock *block;
     uint8_t *host = ptr;
 
     if (xen_enabled()) {
         *ram_addr = xen_ram_addr_from_mapcache(ptr);
-        return 0;
+        return qemu_get_ram_block(*ram_addr)->mr;
     }
 
     block = ram_list.mru_block;
@@ -1417,11 +1424,11 @@ int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
         }
     }
 
-    return -1;
+    return NULL;
 
 found:
     *ram_addr = block->offset + (host - block->host);
-    return 0;
+    return block->mr;
 }
 
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
@@ -2111,8 +2118,8 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
     if (buffer != bounce.buffer) {
         if (is_write) {
             ram_addr_t addr1;
-            int rc = qemu_ram_addr_from_host(buffer, &addr1);
-            assert(rc == 0);
+            MemoryRegion *mr = qemu_ram_addr_from_host(buffer, &addr1);
+            assert(mr != NULL);
             while (access_len) {
                 unsigned l;
                 l = TARGET_PAGE_SIZE;
