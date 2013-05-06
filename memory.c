@@ -578,13 +578,15 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
 
 static void address_space_update_ioeventfds(AddressSpace *as)
 {
+    FlatView *view;
     FlatRange *fr;
     unsigned ioeventfd_nb = 0;
     MemoryRegionIoeventfd *ioeventfds = NULL;
     AddrRange tmp;
     unsigned i;
 
-    FOR_EACH_FLAT_RANGE(fr, as->current_map) {
+    view = as->current_map;
+    FOR_EACH_FLAT_RANGE(fr, view) {
         for (i = 0; i < fr->mr->ioeventfd_nb; ++i) {
             tmp = addrrange_shift(fr->mr->ioeventfds[i].addr,
                                   int128_sub(fr->addr.start,
@@ -1144,7 +1146,8 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
     FlatRange *fr;
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        FOR_EACH_FLAT_RANGE(fr, as->current_map) {
+        FlatView *view = as->current_map;
+        FOR_EACH_FLAT_RANGE(fr, view) {
             if (fr->mr == mr) {
                 MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, log_sync);
             }
@@ -1194,12 +1197,14 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
 
 static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpace *as)
 {
+    FlatView *view;
     FlatRange *fr;
     CoalescedMemoryRange *cmr;
     AddrRange tmp;
     MemoryRegionSection section;
 
-    FOR_EACH_FLAT_RANGE(fr, as->current_map) {
+    view = as->current_map;
+    FOR_EACH_FLAT_RANGE(fr, view) {
         if (fr->mr == mr) {
             section = (MemoryRegionSection) {
                 .address_space = as,
@@ -1490,9 +1495,9 @@ static int cmp_flatrange_addr(const void *addr_, const void *fr_)
     return 0;
 }
 
-static FlatRange *address_space_lookup(AddressSpace *as, AddrRange addr)
+static FlatRange *flatview_lookup(FlatView *view, AddrRange addr)
 {
-    return bsearch(&addr, as->current_map->ranges, as->current_map->nr,
+    return bsearch(&addr, view->ranges, view->nr,
                    sizeof(FlatRange), cmp_flatrange_addr);
 }
 
@@ -1513,6 +1518,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     MemoryRegion *root;
     AddressSpace *as;
     AddrRange range;
+    FlatView *view;
     FlatRange *fr;
 
     addr += mr->addr;
@@ -1523,13 +1529,14 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
 
     as = memory_region_to_address_space(root);
     range = addrrange_make(int128_make64(addr), int128_make64(size));
-    fr = address_space_lookup(as, range);
+
+    view = as->current_map;
+    fr = flatview_lookup(view, range);
     if (!fr) {
         return ret;
     }
 
-    while (fr > as->current_map->ranges
-           && addrrange_intersects(fr[-1].addr, range)) {
+    while (fr > view->ranges && addrrange_intersects(fr[-1].addr, range)) {
         --fr;
     }
 
@@ -1549,9 +1556,11 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
 
 void address_space_sync_dirty_bitmap(AddressSpace *as)
 {
+    FlatView *view;
     FlatRange *fr;
 
-    FOR_EACH_FLAT_RANGE(fr, as->current_map) {
+    view = as->current_map;
+    FOR_EACH_FLAT_RANGE(fr, view) {
         MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, log_sync);
     }
 }
@@ -1571,6 +1580,7 @@ void memory_global_dirty_log_stop(void)
 static void listener_add_address_space(MemoryListener *listener,
                                        AddressSpace *as)
 {
+    FlatView *view;
     FlatRange *fr;
 
     if (listener->address_space_filter
@@ -1584,7 +1594,8 @@ static void listener_add_address_space(MemoryListener *listener,
         }
     }
 
-    FOR_EACH_FLAT_RANGE(fr, as->current_map) {
+    view = as->current_map;
+    FOR_EACH_FLAT_RANGE(fr, view) {
         MemoryRegionSection section = {
             .mr = fr->mr,
             .address_space = as,
