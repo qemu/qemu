@@ -1400,18 +1400,26 @@ int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
         return 0;
     }
 
+    block = ram_list.mru_block;
+    if (block && block->host && host - block->host < block->length) {
+        goto found;
+    }
+
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         /* This case append when the block is not mapped. */
         if (block->host == NULL) {
             continue;
         }
         if (host - block->host < block->length) {
-            *ram_addr = block->offset + (host - block->host);
-            return 0;
+            goto found;
         }
     }
 
     return -1;
+
+found:
+    *ram_addr = block->offset + (host - block->host);
+    return 0;
 }
 
 /* Some of the softmmu routines need to translate from a host pointer
