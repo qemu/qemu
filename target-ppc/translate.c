@@ -1733,8 +1733,6 @@ static inline void gen_rldnm(DisasContext *ctx, uint32_t mb, uint32_t me)
 {
     TCGv t0;
 
-    mb = MB(ctx->opcode);
-    me = ME(ctx->opcode);
     t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x3f);
     tcg_gen_rotl_tl(t0, cpu_gpr[rS(ctx->opcode)], t0);
