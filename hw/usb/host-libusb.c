@@ -667,6 +667,42 @@ static void usb_host_iso_data_out(USBHostDevice *s, USBPacket *p)
 
 /* ------------------------------------------------------------------------ */
 
+static bool usb_host_full_speed_compat(USBHostDevice *s)
+{
+    struct libusb_config_descriptor *conf;
+    const struct libusb_interface_descriptor *intf;
+    const struct libusb_endpoint_descriptor *endp;
+    uint8_t type;
+    int rc, c, i, a, e;
+
+    for (c = 0;; c++) {
+        rc = libusb_get_config_descriptor(s->dev, c, &conf);
+        if (rc != 0) {
+            break;
+        }
+        for (i = 0; i < conf->bNumInterfaces; i++) {
+            for (a = 0; a < conf->interface[i].num_altsetting; a++) {
+                intf = &conf->interface[i].altsetting[a];
+                for (e = 0; e < intf->bNumEndpoints; e++) {
+                    endp = &intf->endpoint[e];
+                    type = endp->bmAttributes & 0x3;
+                    switch (type) {
+                    case 0x01: /* ISO */
+                        return false;
+                    case 0x03: /* INTERRUPT */
+                        if (endp->wMaxPacketSize > 64) {
+                            return false;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        libusb_free_config_descriptor(conf);
+    }
+    return true;
+}
+
 static void usb_host_ep_update(USBHostDevice *s)
 {
     static const char *tname[] = {
@@ -758,11 +794,9 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
 
     udev->speed     = speed_map[libusb_get_device_speed(dev)];
     udev->speedmask = (1 << udev->speed);
-#if 0
-    if (udev->speed == USB_SPEED_HIGH && usb_linux_full_speed_compat(dev)) {
+    if (udev->speed == USB_SPEED_HIGH && usb_host_full_speed_compat(s)) {
         udev->speedmask |= USB_SPEED_MASK_FULL;
     }
-#endif
 
     if (s->ddesc.iProduct) {
         libusb_get_string_descriptor_ascii(s->dh, s->ddesc.iProduct,
