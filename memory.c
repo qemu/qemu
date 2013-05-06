@@ -29,11 +29,25 @@ static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool global_dirty_log = false;
 
+/* flat_view_mutex is taken around reading as->current_map; the critical
+ * section is extremely short, so I'm using a single mutex for every AS.
+ * We could also RCU for the read-side.
+ *
+ * The BQL is taken around transaction commits, hence both locks are taken
+ * while writing to as->current_map (with the BQL taken outside).
+ */
+static QemuMutex flat_view_mutex;
+
 static QTAILQ_HEAD(memory_listeners, MemoryListener) memory_listeners
     = QTAILQ_HEAD_INITIALIZER(memory_listeners);
 
 static QTAILQ_HEAD(, AddressSpace) address_spaces
     = QTAILQ_HEAD_INITIALIZER(address_spaces);
+
+static void memory_init(void)
+{
+    qemu_mutex_init(&flat_view_mutex);
+}
 
 typedef struct AddrRange AddrRange;
 
@@ -225,6 +239,7 @@ struct FlatRange {
  * order.
  */
 struct FlatView {
+    unsigned ref;
     FlatRange *ranges;
     unsigned nr;
     unsigned nr_allocated;
@@ -246,6 +261,7 @@ static bool flatrange_equal(FlatRange *a, FlatRange *b)
 
 static void flatview_init(FlatView *view)
 {
+    view->ref = 1;
     view->ranges = NULL;
     view->nr = 0;
     view->nr_allocated = 0;
@@ -277,6 +293,18 @@ static void flatview_destroy(FlatView *view)
     }
     g_free(view->ranges);
     g_free(view);
+}
+
+static void flatview_ref(FlatView *view)
+{
+    atomic_inc(&view->ref);
+}
+
+static void flatview_unref(FlatView *view)
+{
+    if (atomic_fetch_dec(&view->ref) == 1) {
+        flatview_destroy(view);
+    }
 }
 
 static bool can_merge(FlatRange *r1, FlatRange *r2)
@@ -578,6 +606,17 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
     }
 }
 
+static FlatView *address_space_get_flatview(AddressSpace *as)
+{
+    FlatView *view;
+
+    qemu_mutex_lock(&flat_view_mutex);
+    view = as->current_map;
+    flatview_ref(view);
+    qemu_mutex_unlock(&flat_view_mutex);
+    return view;
+}
+
 static void address_space_update_ioeventfds(AddressSpace *as)
 {
     FlatView *view;
@@ -587,7 +626,7 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     AddrRange tmp;
     unsigned i;
 
-    view = as->current_map;
+    view = address_space_get_flatview(as);
     FOR_EACH_FLAT_RANGE(fr, view) {
         for (i = 0; i < fr->mr->ioeventfd_nb; ++i) {
             tmp = addrrange_shift(fr->mr->ioeventfds[i].addr,
@@ -609,6 +648,7 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     g_free(as->ioeventfds);
     as->ioeventfds = ioeventfds;
     as->ioeventfd_nb = ioeventfd_nb;
+    flatview_unref(view);
 }
 
 static void address_space_update_topology_pass(AddressSpace *as,
@@ -676,14 +716,25 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
 static void address_space_update_topology(AddressSpace *as)
 {
-    FlatView *old_view = as->current_map;
+    FlatView *old_view = address_space_get_flatview(as);
     FlatView *new_view = generate_memory_topology(as->root);
 
     address_space_update_topology_pass(as, old_view, new_view, false);
     address_space_update_topology_pass(as, old_view, new_view, true);
 
+    qemu_mutex_lock(&flat_view_mutex);
+    flatview_unref(as->current_map);
     as->current_map = new_view;
-    flatview_destroy(old_view);
+    qemu_mutex_unlock(&flat_view_mutex);
+
+    /* Note that all the old MemoryRegions are still alive up to this
+     * point.  This relieves most MemoryListeners from the need to
+     * ref/unref the MemoryRegions they get---unless they use them
+     * outside the iothread mutex, in which case precise reference
+     * counting is necessary.
+     */
+    flatview_unref(old_view);
+
     address_space_update_ioeventfds(as);
 }
 
@@ -1148,12 +1199,13 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
     FlatRange *fr;
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        FlatView *view = as->current_map;
+        FlatView *view = address_space_get_flatview(as);
         FOR_EACH_FLAT_RANGE(fr, view) {
             if (fr->mr == mr) {
                 MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, log_sync);
             }
         }
+        flatview_unref(view);
     }
 }
 
@@ -1205,7 +1257,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
     AddrRange tmp;
     MemoryRegionSection section;
 
-    view = as->current_map;
+    view = address_space_get_flatview(as);
     FOR_EACH_FLAT_RANGE(fr, view) {
         if (fr->mr == mr) {
             section = (MemoryRegionSection) {
@@ -1231,6 +1283,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
             }
         }
     }
+    flatview_unref(view);
 }
 
 static void memory_region_update_coalesced_range(MemoryRegion *mr)
@@ -1532,7 +1585,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     as = memory_region_to_address_space(root);
     range = addrrange_make(int128_make64(addr), int128_make64(size));
 
-    view = as->current_map;
+    view = address_space_get_flatview(as);
     fr = flatview_lookup(view, range);
     if (!fr) {
         return ret;
@@ -1553,6 +1606,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     ret.readonly = fr->readonly;
     memory_region_ref(ret.mr);
 
+    flatview_unref(view);
     return ret;
 }
 
@@ -1561,10 +1615,11 @@ void address_space_sync_dirty_bitmap(AddressSpace *as)
     FlatView *view;
     FlatRange *fr;
 
-    view = as->current_map;
+    view = address_space_get_flatview(as);
     FOR_EACH_FLAT_RANGE(fr, view) {
         MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, log_sync);
     }
+    flatview_unref(view);
 }
 
 void memory_global_dirty_log_start(void)
@@ -1596,7 +1651,7 @@ static void listener_add_address_space(MemoryListener *listener,
         }
     }
 
-    view = as->current_map;
+    view = address_space_get_flatview(as);
     FOR_EACH_FLAT_RANGE(fr, view) {
         MemoryRegionSection section = {
             .mr = fr->mr,
@@ -1610,6 +1665,7 @@ static void listener_add_address_space(MemoryListener *listener,
             listener->region_add(listener, &section);
         }
     }
+    flatview_unref(view);
 }
 
 void memory_listener_register(MemoryListener *listener, AddressSpace *filter)
@@ -1643,6 +1699,10 @@ void memory_listener_unregister(MemoryListener *listener)
 
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
+    if (QTAILQ_EMPTY(&address_spaces)) {
+        memory_init();
+    }
+
     memory_region_transaction_begin();
     as->root = root;
     as->current_map = g_new(FlatView, 1);
@@ -1664,9 +1724,8 @@ void address_space_destroy(AddressSpace *as)
     memory_region_transaction_commit();
     QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
     address_space_destroy_dispatch(as);
-    flatview_destroy(as->current_map);
+    flatview_unref(as->current_map);
     g_free(as->name);
-    g_free(as->current_map);
     g_free(as->ioeventfds);
 }
 
