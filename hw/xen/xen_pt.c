@@ -606,6 +606,7 @@ static void xen_pt_region_add(MemoryListener *l, MemoryRegionSection *sec)
     XenPCIPassthroughState *s = container_of(l, XenPCIPassthroughState,
                                              memory_listener);
 
+    memory_region_ref(sec->mr);
     xen_pt_region_update(s, sec, true);
 }
 
@@ -615,6 +616,7 @@ static void xen_pt_region_del(MemoryListener *l, MemoryRegionSection *sec)
                                              memory_listener);
 
     xen_pt_region_update(s, sec, false);
+    memory_region_unref(sec->mr);
 }
 
 static void xen_pt_io_region_add(MemoryListener *l, MemoryRegionSection *sec)
@@ -622,6 +624,7 @@ static void xen_pt_io_region_add(MemoryListener *l, MemoryRegionSection *sec)
     XenPCIPassthroughState *s = container_of(l, XenPCIPassthroughState,
                                              io_listener);
 
+    memory_region_ref(sec->mr);
     xen_pt_region_update(s, sec, true);
 }
 
@@ -631,6 +634,7 @@ static void xen_pt_io_region_del(MemoryListener *l, MemoryRegionSection *sec)
                                              io_listener);
 
     xen_pt_region_update(s, sec, false);
+    memory_region_unref(sec->mr);
 }
 
 static const MemoryListener xen_pt_memory_listener = {

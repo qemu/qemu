@@ -497,6 +497,7 @@ static void vhost_region_add(MemoryListener *listener,
     dev->mem_sections = g_renew(MemoryRegionSection, dev->mem_sections,
                                 dev->n_mem_sections);
     dev->mem_sections[dev->n_mem_sections - 1] = *section;
+    memory_region_ref(section->mr);
     vhost_set_memory(listener, section, true);
 }
 
@@ -512,6 +513,7 @@ static void vhost_region_del(MemoryListener *listener,
     }
 
     vhost_set_memory(listener, section, false);
+    memory_region_unref(section->mr);
     for (i = 0; i < dev->n_mem_sections; ++i) {
         if (dev->mem_sections[i].offset_within_address_space
             == section->offset_within_address_space) {

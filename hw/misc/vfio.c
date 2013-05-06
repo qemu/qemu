@@ -1969,6 +1969,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     DPRINTF("region_add %"HWADDR_PRIx" - %"HWADDR_PRIx" [%p]\n",
             iova, end - 1, vaddr);
 
+    memory_region_ref(section->mr);
     ret = vfio_dma_map(container, iova, end - iova, vaddr, section->readonly);
     if (ret) {
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
@@ -2010,6 +2011,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
             iova, end - 1);
 
     ret = vfio_dma_unmap(container, iova, end - iova);
+    memory_region_unref(section->mr);
     if (ret) {
         error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx") = %d (%m)",

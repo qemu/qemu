@@ -605,6 +605,7 @@ static void vapic_map_rom_writable(VAPICROMState *s)
                              rom_size);
     memory_region_add_subregion_overlap(as, rom_paddr, &s->rom, 1000);
     s->rom_mapped_writable = true;
+    memory_region_unref(section.mr);
 }
 
 static int vapic_prepare(VAPICROMState *s)

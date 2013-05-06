@@ -789,6 +789,7 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
 static void kvm_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
+    memory_region_ref(section->mr);
     kvm_set_phys_mem(section, true);
 }
 
@@ -796,6 +797,7 @@ static void kvm_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
     kvm_set_phys_mem(section, false);
+    memory_region_unref(section->mr);
 }
 
 static void kvm_log_sync(MemoryListener *listener,

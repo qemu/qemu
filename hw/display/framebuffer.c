@@ -54,11 +54,11 @@ void framebuffer_update_display(
     src_len = src_width * rows;
 
     mem_section = memory_region_find(address_space, base, src_len);
+    mem = mem_section.mr;
     if (int128_get64(mem_section.size) != src_len ||
             !memory_region_is_ram(mem_section.mr)) {
-        return;
+        goto out;
     }
-    mem = mem_section.mr;
     assert(mem);
     assert(mem_section.offset_within_address_space == base);
 
@@ -68,10 +68,10 @@ void framebuffer_update_display(
        but it's not really worth it as dirty flag tracking will probably
        already have failed above.  */
     if (!src_base)
-        return;
+        goto out;
     if (src_len != src_width * rows) {
         cpu_physical_memory_unmap(src_base, src_len, 0, 0);
-        return;
+        goto out;
     }
     src = src_base;
     dest = surface_data(ds);
@@ -102,10 +102,12 @@ void framebuffer_update_display(
     }
     cpu_physical_memory_unmap(src_base, src_len, 0, 0);
     if (first < 0) {
-        return;
+        goto out;
     }
     memory_region_reset_dirty(mem, mem_section.offset_within_region, src_len,
                               DIRTY_MEMORY_VGA);
     *first_row = first;
     *last_row = last;
+out:
+    memory_region_unref(mem);
 }

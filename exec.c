@@ -763,11 +763,14 @@ static uint16_t phys_section_add(MemoryRegionSection *section)
                                 phys_sections_nb_alloc);
     }
     phys_sections[phys_sections_nb] = *section;
+    memory_region_ref(section->mr);
     return phys_sections_nb++;
 }
 
 static void phys_section_destroy(MemoryRegion *mr)
 {
+    memory_region_unref(mr);
+
     if (mr->subpage) {
         subpage_t *subpage = container_of(mr, subpage_t, iomem);
         memory_region_destroy(&subpage->iomem);

@@ -459,6 +459,7 @@ static void xen_set_memory(struct MemoryListener *listener,
 static void xen_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
+    memory_region_ref(section->mr);
     xen_set_memory(listener, section, true);
 }
 
@@ -466,6 +467,7 @@ static void xen_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
     xen_set_memory(listener, section, false);
+    memory_region_unref(section->mr);
 }
 
 static void xen_sync_dirty_bitmap(XenIOState *state,
