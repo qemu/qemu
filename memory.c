@@ -276,6 +276,7 @@ static void flatview_destroy(FlatView *view)
         memory_region_unref(view->ranges[i].mr);
     }
     g_free(view->ranges);
+    g_free(view);
 }
 
 static bool can_merge(FlatRange *r1, FlatRange *r2)
@@ -512,17 +513,18 @@ static void render_memory_region(FlatView *view,
 }
 
 /* Render a memory topology into a list of disjoint absolute ranges. */
-static FlatView generate_memory_topology(MemoryRegion *mr)
+static FlatView *generate_memory_topology(MemoryRegion *mr)
 {
-    FlatView view;
+    FlatView *view;
 
-    flatview_init(&view);
+    view = g_new(FlatView, 1);
+    flatview_init(view);
 
     if (mr) {
-        render_memory_region(&view, mr, int128_zero(),
+        render_memory_region(view, mr, int128_zero(),
                              addrrange_make(int128_zero(), int128_2_64()), false);
     }
-    flatview_simplify(&view);
+    flatview_simplify(view);
 
     return view;
 }
@@ -610,8 +612,8 @@ static void address_space_update_ioeventfds(AddressSpace *as)
 }
 
 static void address_space_update_topology_pass(AddressSpace *as,
-                                               FlatView old_view,
-                                               FlatView new_view,
+                                               const FlatView *old_view,
+                                               const FlatView *new_view,
                                                bool adding)
 {
     unsigned iold, inew;
@@ -621,14 +623,14 @@ static void address_space_update_topology_pass(AddressSpace *as,
      * Kill ranges in the old map, and instantiate ranges in the new map.
      */
     iold = inew = 0;
-    while (iold < old_view.nr || inew < new_view.nr) {
-        if (iold < old_view.nr) {
-            frold = &old_view.ranges[iold];
+    while (iold < old_view->nr || inew < new_view->nr) {
+        if (iold < old_view->nr) {
+            frold = &old_view->ranges[iold];
         } else {
             frold = NULL;
         }
-        if (inew < new_view.nr) {
-            frnew = &new_view.ranges[inew];
+        if (inew < new_view->nr) {
+            frnew = &new_view->ranges[inew];
         } else {
             frnew = NULL;
         }
@@ -674,14 +676,14 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
 static void address_space_update_topology(AddressSpace *as)
 {
-    FlatView old_view = *as->current_map;
-    FlatView new_view = generate_memory_topology(as->root);
+    FlatView *old_view = as->current_map;
+    FlatView *new_view = generate_memory_topology(as->root);
 
     address_space_update_topology_pass(as, old_view, new_view, false);
     address_space_update_topology_pass(as, old_view, new_view, true);
 
-    *as->current_map = new_view;
-    flatview_destroy(&old_view);
+    as->current_map = new_view;
+    flatview_destroy(old_view);
     address_space_update_ioeventfds(as);
 }
 
