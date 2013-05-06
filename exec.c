@@ -203,6 +203,12 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
         && mr != &io_mem_watch;
 }
 
+static MemoryRegionSection *address_space_lookup_region(AddressSpace *as,
+                                                        hwaddr addr)
+{
+    return phys_page_find(as->dispatch, addr >> TARGET_PAGE_BITS);
+}
+
 MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
                                              hwaddr *xlat, hwaddr *plen,
                                              bool is_write)
@@ -210,7 +216,7 @@ MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
     MemoryRegionSection *section;
     Int128 diff;
 
-    section = phys_page_find(as->dispatch, addr >> TARGET_PAGE_BITS);
+    section = address_space_lookup_region(as, addr);
     /* Compute offset within MemoryRegionSection */
     addr -= section->offset_within_address_space;
 
