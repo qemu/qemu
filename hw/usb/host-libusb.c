@@ -385,7 +385,7 @@ out:
 static void usb_host_req_abort(USBHostRequest *r)
 {
     USBHostDevice  *s = r->host;
-    bool inflight = (r->p && r->p->state == USB_RET_ASYNC);
+    bool inflight = (r->p && r->p->state == USB_PACKET_ASYNC);
 
     if (inflight) {
         r->p->status = USB_RET_NODEV;
