@@ -1716,6 +1716,11 @@ static int xhci_complete_packet(XHCITransfer *xfer)
         xhci_xfer_report(xfer);
         xhci_stall_ep(xfer);
         break;
+    case USB_RET_BABBLE:
+        xfer->status = CC_BABBLE_DETECTED;
+        xhci_xfer_report(xfer);
+        xhci_stall_ep(xfer);
+        break;
     default:
         fprintf(stderr, "%s: FIXME: status = %d\n", __func__,
                 xfer->packet.status);
