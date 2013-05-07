@@ -718,24 +718,34 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
 /**
- * memory_region_find: locate a MemoryRegion in an address space
+ * memory_region_find: translate an address/size relative to a
+ * MemoryRegion into a #MemoryRegionSection.
  *
- * Locates the first #MemoryRegion within an address space given by
- * @address_space that overlaps the range given by @addr and @size.
+ * Locates the first #MemoryRegion within @mr that overlaps the range
+ * given by @addr and @size.
  *
  * Returns a #MemoryRegionSection that describes a contiguous overlap.
  * It will have the following characteristics:
- *    .@offset_within_address_space >= @addr
- *    .@offset_within_address_space + .@size <= @addr + @size
  *    .@size = 0 iff no overlap was found
  *    .@mr is non-%NULL iff an overlap was found
  *
- * @address_space: a top-level (i.e. parentless) region that contains
- *       the region to be found
- * @addr: start of the area within @address_space to be searched
+ * Remember that in the return value the @offset_within_region is
+ * relative to the returned region (in the .@mr field), not to the
+ * @mr argument.
+ *
+ * Similarly, the .@offset_within_address_space is relative to the
+ * address space that contains both regions, the passed and the
+ * returned one.  However, in the special case where the @mr argument
+ * has no parent (and thus is the root of the address space), the
+ * following will hold:
+ *    .@offset_within_address_space >= @addr
+ *    .@offset_within_address_space + .@size <= @addr + @size
+ *
+ * @mr: a MemoryRegion within which @addr is a relative address
+ * @addr: start of the area within @as to be searched
  * @size: size of the area to be searched
  */
-MemoryRegionSection memory_region_find(MemoryRegion *address_space,
+MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size);
 
 /**

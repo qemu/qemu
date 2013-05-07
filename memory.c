@@ -1451,15 +1451,24 @@ static FlatRange *address_space_lookup(AddressSpace *as, AddrRange addr)
                    sizeof(FlatRange), cmp_flatrange_addr);
 }
 
-MemoryRegionSection memory_region_find(MemoryRegion *address_space,
+MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size)
 {
-    AddressSpace *as = memory_region_to_address_space(address_space);
-    AddrRange range = addrrange_make(int128_make64(addr),
-                                     int128_make64(size));
-    FlatRange *fr = address_space_lookup(as, range);
     MemoryRegionSection ret = { .mr = NULL, .size = 0 };
+    MemoryRegion *root;
+    AddressSpace *as;
+    AddrRange range;
+    FlatRange *fr;
 
+    addr += mr->addr;
+    for (root = mr; root->parent; ) {
+        root = root->parent;
+        addr += root->addr;
+    }
+
+    as = memory_region_to_address_space(root);
+    range = addrrange_make(int128_make64(addr), int128_make64(size));
+    fr = address_space_lookup(as, range);
     if (!fr) {
         return ret;
     }
@@ -1470,6 +1479,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *address_space,
     }
 
     ret.mr = fr->mr;
+    ret.address_space = as;
     range = addrrange_intersection(range, fr->addr);
     ret.offset_within_region = fr->offset_in_region;
     ret.offset_within_region += int128_get64(int128_sub(range.start,
