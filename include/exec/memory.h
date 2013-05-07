@@ -126,7 +126,7 @@ struct MemoryRegion {
     ram_addr_t ram_addr;
     bool subpage;
     bool terminates;
-    bool readable;
+    bool romd_mode;
     bool ram;
     bool readonly; /* For RAM regions */
     bool enabled;
@@ -355,16 +355,16 @@ uint64_t memory_region_size(MemoryRegion *mr);
 bool memory_region_is_ram(MemoryRegion *mr);
 
 /**
- * memory_region_is_romd: check whether a memory region is ROMD
+ * memory_region_is_romd: check whether a memory region is in ROMD mode
  *
- * Returns %true is a memory region is ROMD and currently set to allow
+ * Returns %true if a memory region is a ROM device and currently set to allow
  * direct reads.
  *
  * @mr: the memory region being queried
  */
 static inline bool memory_region_is_romd(MemoryRegion *mr)
 {
-    return mr->rom_device && mr->readable;
+    return mr->rom_device && mr->romd_mode;
 }
 
 /**
@@ -502,18 +502,18 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly);
 
 /**
- * memory_region_rom_device_set_readable: enable/disable ROM readability
+ * memory_region_rom_device_set_romd: enable/disable ROMD mode
  *
  * Allows a ROM device (initialized with memory_region_init_rom_device() to
- * to be marked as readable (default) or not readable.  When it is readable,
- * the device is mapped to guest memory.  When not readable, reads are
- * forwarded to the #MemoryRegion.read function.
+ * set to ROMD mode (default) or MMIO mode.  When it is in ROMD mode, the
+ * device is mapped to guest memory and satisfies read access directly.
+ * When in MMIO mode, reads are forwarded to the #MemoryRegion.read function.
+ * Writes are always handled by the #MemoryRegion.write function.
  *
  * @mr: the memory region to be updated
- * @readable: whether reads are satisified directly (%true) or via callbacks
- *            (%false)
+ * @romd_mode: %true to put the region into ROMD mode
  */
-void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable);
+void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode);
 
 /**
  * memory_region_set_coalescing: Enable memory coalescing for the region.
