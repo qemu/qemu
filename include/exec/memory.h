@@ -382,6 +382,13 @@ void memory_region_init_iommu(MemoryRegion *mr,
 void memory_region_destroy(MemoryRegion *mr);
 
 /**
+ * memory_region_owner: get a memory region's owner.
+ *
+ * @mr: the memory region being queried.
+ */
+struct Object *memory_region_owner(MemoryRegion *mr);
+
+/**
  * memory_region_size: get a memory region's size.
  *
  * @mr: the memory region being queried.

@@ -738,6 +738,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->owner = owner;
     mr->iommu_ops = NULL;
     mr->parent = NULL;
+    mr->owner = NULL;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
@@ -1011,6 +1012,11 @@ void memory_region_destroy(MemoryRegion *mr)
     memory_region_clear_coalescing(mr);
     g_free((char *)mr->name);
     g_free(mr->ioeventfds);
+}
+
+Object *memory_region_owner(MemoryRegion *mr)
+{
+    return mr->owner;
 }
 
 uint64_t memory_region_size(MemoryRegion *mr)
