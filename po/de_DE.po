@@ -18,11 +18,11 @@ msgstr ""
 
 #: ../ui/gtk.c:213
 msgid " - Press Ctrl+Alt+G to release grab"
-msgstr "- Strg+Alt+G drücken, um Eingabegeräte freizugeben"
+msgstr " - Strg+Alt+G drücken, um Eingabegeräte freizugeben"
 
 #: ../ui/gtk.c:217
 msgid " [Paused]"
-msgstr "[Angehalten]"
+msgstr " [Angehalten]"
 
 #: ../ui/gtk.c:1250
 msgid "_Machine"
