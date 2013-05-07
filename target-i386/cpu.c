@@ -30,6 +30,8 @@
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
 
+#include "qapi-types.h"
+#include "qapi-visit.h"
 #include "qapi/visitor.h"
 #include "sysemu/arch_init.h"
 
@@ -152,8 +154,10 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
 
 typedef struct FeatureWordInfo {
     const char **feat_names;
-    uint32_t cpuid_eax; /* Input EAX for CPUID */
-    int cpuid_reg;      /* R_* register constant */
+    uint32_t cpuid_eax;   /* Input EAX for CPUID */
+    bool cpuid_needs_ecx; /* CPUID instruction uses ECX as input */
+    uint32_t cpuid_ecx;   /* Input ECX value for CPUID */
+    int cpuid_reg;        /* output register (R_* constant) */
 } FeatureWordInfo;
 
 static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
@@ -187,27 +191,40 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     },
     [FEAT_7_0_EBX] = {
         .feat_names = cpuid_7_0_ebx_feature_name,
-        .cpuid_eax = 7, .cpuid_reg = R_EBX,
+        .cpuid_eax = 7,
+        .cpuid_needs_ecx = true, .cpuid_ecx = 0,
+        .cpuid_reg = R_EBX,
     },
 };
 
+typedef struct X86RegisterInfo32 {
+    /* Name of register */
+    const char *name;
+    /* QAPI enum value register */
+    X86CPURegister32 qapi_enum;
+} X86RegisterInfo32;
+
+#define REGISTER(reg) \
+    [R_##reg] = { .name = #reg, .qapi_enum = X86_C_P_U_REGISTER32_##reg }
+X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
+    REGISTER(EAX),
+    REGISTER(ECX),
+    REGISTER(EDX),
+    REGISTER(EBX),
+    REGISTER(ESP),
+    REGISTER(EBP),
+    REGISTER(ESI),
+    REGISTER(EDI),
+};
+#undef REGISTER
+
+
 const char *get_register_name_32(unsigned int reg)
 {
-    static const char *reg_names[CPU_NB_REGS32] = {
-        [R_EAX] = "EAX",
-        [R_ECX] = "ECX",
-        [R_EDX] = "EDX",
-        [R_EBX] = "EBX",
-        [R_ESP] = "ESP",
-        [R_EBP] = "EBP",
-        [R_ESI] = "ESI",
-        [R_EDI] = "EDI",
-    };
-
     if (reg > CPU_NB_REGS32) {
         return NULL;
     }
-    return reg_names[reg];
+    return x86_reg_info_32[reg].name;
 }
 
 /* collects per-function cpuid data
@@ -571,7 +588,7 @@ static x86_def_t builtin_x86_defs[] = {
         .level = 1,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 4,
-        .model = 0,
+        .model = 8,
         .stepping = 0,
         .features[FEAT_1_EDX] =
             I486_FEATURES,
@@ -640,7 +657,8 @@ static x86_def_t builtin_x86_defs[] = {
             /* Some CPUs got no CPUID_SEP */
         .features[FEAT_1_ECX] =
             CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_SSSE3 |
-            CPUID_EXT_DSCPL | CPUID_EXT_EST | CPUID_EXT_TM2 | CPUID_EXT_XTPR,
+            CPUID_EXT_DSCPL | CPUID_EXT_EST | CPUID_EXT_TM2 | CPUID_EXT_XTPR |
+            CPUID_EXT_MOVBE,
         .features[FEAT_8000_0001_EDX] =
             (PPRO_FEATURES & CPUID_EXT2_AMD_ALIASES) |
             CPUID_EXT2_NX,
@@ -953,6 +971,32 @@ static x86_def_t builtin_x86_defs[] = {
         .model_id = "AMD Opteron 63xx class CPU",
     },
 };
+
+/**
+ * x86_cpu_compat_set_features:
+ * @cpu_model: CPU model name to be changed. If NULL, all CPU models are changed
+ * @w: Identifies the feature word to be changed.
+ * @feat_add: Feature bits to be added to feature word
+ * @feat_remove: Feature bits to be removed from feature word
+ *
+ * Change CPU model feature bits for compatibility.
+ *
+ * This function may be used by machine-type compatibility functions
+ * to enable or disable feature bits on specific CPU models.
+ */
+void x86_cpu_compat_set_features(const char *cpu_model, FeatureWord w,
+                                 uint32_t feat_add, uint32_t feat_remove)
+{
+    x86_def_t *def;
+    int i;
+    for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
+        def = &builtin_x86_defs[i];
+        if (!cpu_model || !strcmp(cpu_model, def->name)) {
+            def->features[w] |= feat_add;
+            def->features[w] &= ~feat_remove;
+        }
+    }
+}
 
 #ifdef CONFIG_KVM
 static int cpu_x86_fill_model_id(char *str)
@@ -1401,6 +1445,36 @@ static void x86_cpuid_set_apic_id(Object *obj, Visitor *v, void *opaque,
     cpu->env.cpuid_apic_id = value;
 }
 
+/* Generic getter for "feature-words" and "filtered-features" properties */
+static void x86_cpu_get_feature_words(Object *obj, Visitor *v, void *opaque,
+                                      const char *name, Error **errp)
+{
+    uint32_t *array = (uint32_t *)opaque;
+    FeatureWord w;
+    Error *err = NULL;
+    X86CPUFeatureWordInfo word_infos[FEATURE_WORDS] = { };
+    X86CPUFeatureWordInfoList list_entries[FEATURE_WORDS] = { };
+    X86CPUFeatureWordInfoList *list = NULL;
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        FeatureWordInfo *wi = &feature_word_info[w];
+        X86CPUFeatureWordInfo *qwi = &word_infos[w];
+        qwi->cpuid_input_eax = wi->cpuid_eax;
+        qwi->has_cpuid_input_ecx = wi->cpuid_needs_ecx;
+        qwi->cpuid_input_ecx = wi->cpuid_ecx;
+        qwi->cpuid_register = x86_reg_info_32[wi->cpuid_reg].qapi_enum;
+        qwi->features = array[w];
+
+        /* List will be in reverse order, but order shouldn't matter */
+        list_entries[w].next = list;
+        list_entries[w].value = &word_infos[w];
+        list = &list_entries[w];
+    }
+
+    visit_type_X86CPUFeatureWordInfoList(v, &list, "feature-words", &err);
+    error_propagate(errp, err);
+}
+
 static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
 {
     x86_def_t *def;
@@ -1647,24 +1721,17 @@ static void filter_features_for_kvm(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
     KVMState *s = kvm_state;
+    FeatureWord w;
 
-    env->features[FEAT_1_EDX] &=
-        kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
-    env->features[FEAT_1_ECX] &=
-        kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX);
-    env->features[FEAT_8000_0001_EDX] &=
-        kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_EDX);
-    env->features[FEAT_8000_0001_ECX] &=
-        kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_ECX);
-    env->features[FEAT_SVM]  &=
-        kvm_arch_get_supported_cpuid(s, 0x8000000A, 0, R_EDX);
-    env->features[FEAT_7_0_EBX] &=
-        kvm_arch_get_supported_cpuid(s, 7, 0, R_EBX);
-    env->features[FEAT_KVM] &=
-        kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
-    env->features[FEAT_C000_0001_EDX] &=
-        kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
-
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        FeatureWordInfo *wi = &feature_word_info[w];
+        uint32_t host_feat = kvm_arch_get_supported_cpuid(s, wi->cpuid_eax,
+                                                             wi->cpuid_ecx,
+                                                             wi->cpuid_reg);
+        uint32_t requested_features = env->features[w];
+        env->features[w] &= host_feat;
+        cpu->filtered_features[w] = requested_features & ~env->features[w];
+    }
 }
 #endif
 
@@ -1711,6 +1778,7 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     CPUX86State *env;
     gchar **model_pieces;
     char *name, *features;
+    char *typename;
     Error *error = NULL;
 
     model_pieces = g_strsplit(cpu_model, ",", 2);
@@ -1734,6 +1802,14 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     env->cpu_model_str = cpu_model;
 
     cpu_x86_register(cpu, name, &error);
+    if (error) {
+        goto out;
+    }
+
+    /* Emulate per-model subclasses for global properties */
+    typename = g_strdup_printf("%s-" TYPE_X86_CPU, name);
+    qdev_prop_set_globals_for_type(DEVICE(cpu), typename, &error);
+    g_free(typename);
     if (error) {
         goto out;
     }
@@ -2402,6 +2478,12 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add(obj, "apic-id", "int",
                         x86_cpuid_get_apic_id,
                         x86_cpuid_set_apic_id, NULL, NULL, NULL);
+    object_property_add(obj, "feature-words", "X86CPUFeatureWordInfo",
+                        x86_cpu_get_feature_words,
+                        NULL, NULL, (void *)env->features, NULL);
+    object_property_add(obj, "filtered-features", "X86CPUFeatureWordInfo",
+                        x86_cpu_get_feature_words,
+                        NULL, NULL, (void *)cpu->filtered_features, NULL);
 
     env->cpuid_apic_id = x86_cpu_apic_id_from_index(cs->cpu_index);
 

@@ -65,6 +65,9 @@ typedef struct X86CPU {
     /*< public >*/
 
     CPUX86State env;
+
+    /* Features that were filtered out because of missing host capabilities */
+    uint32_t filtered_features[FEATURE_WORDS];
 } X86CPU;
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
