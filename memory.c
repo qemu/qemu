@@ -1019,6 +1019,20 @@ Object *memory_region_owner(MemoryRegion *mr)
     return mr->owner;
 }
 
+void memory_region_ref(MemoryRegion *mr)
+{
+    if (mr && mr->owner) {
+        object_ref(mr->owner);
+    }
+}
+
+void memory_region_unref(MemoryRegion *mr)
+{
+    if (mr && mr->owner) {
+        object_unref(mr->owner);
+    }
+}
+
 uint64_t memory_region_size(MemoryRegion *mr)
 {
     if (int128_eq(mr->size, int128_2_64())) {

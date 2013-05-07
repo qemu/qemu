@@ -247,6 +247,36 @@ void memory_region_init(MemoryRegion *mr,
                         struct Object *owner,
                         const char *name,
                         uint64_t size);
+
+/**
+ * memory_region_ref: Add 1 to a memory region's reference count
+ *
+ * Whenever memory regions are accessed outside the BQL, they need to be
+ * preserved against hot-unplug.  MemoryRegions actually do not have their
+ * own reference count; they piggyback on a QOM object, their "owner".
+ * This function adds a reference to the owner.
+ *
+ * All MemoryRegions must have an owner if they can disappear, even if the
+ * device they belong to operates exclusively under the BQL.  This is because
+ * the region could be returned at any time by memory_region_find, and this
+ * is usually under guest control.
+ *
+ * @mr: the #MemoryRegion
+ */
+void memory_region_ref(MemoryRegion *mr);
+
+/**
+ * memory_region_unref: Remove 1 to a memory region's reference count
+ *
+ * Whenever memory regions are accessed outside the BQL, they need to be
+ * preserved against hot-unplug.  MemoryRegions actually do not have their
+ * own reference count; they piggyback on a QOM object, their "owner".
+ * This function removes a reference to the owner and possibly destroys it.
+ *
+ * @mr: the #MemoryRegion
+ */
+void memory_region_unref(MemoryRegion *mr);
+
 /**
  * memory_region_init_io: Initialize an I/O memory region.
  *
