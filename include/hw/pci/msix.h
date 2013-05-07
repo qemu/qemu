@@ -43,4 +43,15 @@ int msix_set_vector_notifiers(PCIDevice *dev,
                               MSIVectorReleaseNotifier release_notifier,
                               MSIVectorPollNotifier poll_notifier);
 void msix_unset_vector_notifiers(PCIDevice *dev);
+
+extern const VMStateDescription vmstate_msix;
+
+#define VMSTATE_MSIX(_field, _state) {                               \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(PCIDevice),                                 \
+    .vmsd       = &vmstate_msix,                                     \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, PCIDevice),   \
+}
+
 #endif
