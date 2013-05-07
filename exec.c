@@ -713,6 +713,12 @@ static void destroy_all_mappings(AddressSpaceDispatch *d)
 
 static uint16_t phys_section_add(MemoryRegionSection *section)
 {
+    /* The physical section number is ORed with a page-aligned
+     * pointer to produce the iotlb entries.  Thus it should
+     * never overflow into the page-aligned value.
+     */
+    assert(phys_sections_nb < TARGET_PAGE_SIZE);
+
     if (phys_sections_nb == phys_sections_nb_alloc) {
         phys_sections_nb_alloc = MAX(phys_sections_nb_alloc * 2, 16);
         phys_sections = g_renew(MemoryRegionSection, phys_sections,
