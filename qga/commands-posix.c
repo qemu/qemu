@@ -242,17 +242,27 @@ static GuestFileHandle *guest_file_handle_find(int64_t id, Error **err)
 
 typedef const char * const ccpc;
 
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 /* http://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html */
 static const struct {
     ccpc *forms;
     int oflag_base;
 } guest_file_open_modes[] = {
-    { (ccpc[]){ "r",  "rb",         NULL }, O_RDONLY                      },
-    { (ccpc[]){ "w",  "wb",         NULL }, O_WRONLY | O_CREAT | O_TRUNC  },
-    { (ccpc[]){ "a",  "ab",         NULL }, O_WRONLY | O_CREAT | O_APPEND },
-    { (ccpc[]){ "r+", "rb+", "r+b", NULL }, O_RDWR                        },
-    { (ccpc[]){ "w+", "wb+", "w+b", NULL }, O_RDWR   | O_CREAT | O_TRUNC  },
-    { (ccpc[]){ "a+", "ab+", "a+b", NULL }, O_RDWR   | O_CREAT | O_APPEND }
+    { (ccpc[]){ "r",          NULL }, O_RDONLY                                 },
+    { (ccpc[]){ "rb",         NULL }, O_RDONLY                      | O_BINARY },
+    { (ccpc[]){ "w",          NULL }, O_WRONLY | O_CREAT | O_TRUNC             },
+    { (ccpc[]){ "wb",         NULL }, O_WRONLY | O_CREAT | O_TRUNC  | O_BINARY },
+    { (ccpc[]){ "a",          NULL }, O_WRONLY | O_CREAT | O_APPEND            },
+    { (ccpc[]){ "ab",         NULL }, O_WRONLY | O_CREAT | O_APPEND | O_BINARY },
+    { (ccpc[]){ "r+",         NULL }, O_RDWR                                   },
+    { (ccpc[]){ "rb+", "r+b", NULL }, O_RDWR                        | O_BINARY },
+    { (ccpc[]){ "w+",         NULL }, O_RDWR   | O_CREAT | O_TRUNC             },
+    { (ccpc[]){ "wb+", "w+b", NULL }, O_RDWR   | O_CREAT | O_TRUNC  | O_BINARY },
+    { (ccpc[]){ "a+",         NULL }, O_RDWR   | O_CREAT | O_APPEND            },
+    { (ccpc[]){ "ab+", "a+b", NULL }, O_RDWR   | O_CREAT | O_APPEND | O_BINARY }
 };
 
 static int
