@@ -785,10 +785,7 @@ typedef struct BlkTransactionStates {
     QSIMPLEQ_ENTRY(BlkTransactionStates) entry;
 } BlkTransactionStates;
 
-static void external_snapshot_prepare(const char *device,
-                                      const char *format,
-                                      const char *new_image_file,
-                                      enum NewImageMode mode,
+static void external_snapshot_prepare(BlockdevAction *action,
                                       BlkTransactionStates *states,
                                       Error **errp)
 {
@@ -796,7 +793,24 @@ static void external_snapshot_prepare(const char *device,
     BlockDriver *drv;
     int flags, ret;
     Error *local_err = NULL;
+    const char *device;
+    const char *new_image_file;
+    const char *format = "qcow2";
+    enum NewImageMode mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
 
+    /* get parameters */
+    g_assert(action->kind == BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
+
+    device = action->blockdev_snapshot_sync->device;
+    new_image_file = action->blockdev_snapshot_sync->snapshot_file;
+    if (action->blockdev_snapshot_sync->has_format) {
+        format = action->blockdev_snapshot_sync->format;
+    }
+    if (action->blockdev_snapshot_sync->has_mode) {
+        mode = action->blockdev_snapshot_sync->mode;
+    }
+
+    /* start processing */
     drv = bdrv_find_format(format);
     if (!drv) {
         error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
@@ -877,10 +891,6 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
     /* We don't do anything in this loop that commits us to the snapshot */
     while (NULL != dev_entry) {
         BlockdevAction *dev_info = NULL;
-        enum NewImageMode mode;
-        const char *new_image_file;
-        const char *device;
-        const char *format = "qcow2";
 
         dev_info = dev_entry->value;
         dev_entry = dev_entry->next;
@@ -890,17 +900,7 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
 
         switch (dev_info->kind) {
         case BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC:
-            device = dev_info->blockdev_snapshot_sync->device;
-            if (!dev_info->blockdev_snapshot_sync->has_mode) {
-                dev_info->blockdev_snapshot_sync->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-            }
-            new_image_file = dev_info->blockdev_snapshot_sync->snapshot_file;
-            if (dev_info->blockdev_snapshot_sync->has_format) {
-                format = dev_info->blockdev_snapshot_sync->format;
-            }
-            mode = dev_info->blockdev_snapshot_sync->mode;
-            external_snapshot_prepare(device, format, new_image_file,
-                                      mode, states, &local_err);
+            external_snapshot_prepare(dev_info, states, errp);
             if (error_is_set(&local_err)) {
                 error_propagate(errp, local_err);
                 goto delete_and_fail;
