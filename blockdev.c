@@ -882,6 +882,13 @@ static void external_snapshot_commit(BlkTransactionStates *states)
                 NULL);
 }
 
+static void external_snapshot_abort(BlkTransactionStates *states)
+{
+    if (states->new_bs) {
+        bdrv_delete(states->new_bs);
+    }
+}
+
 /*
  * 'Atomic' group snapshots.  The snapshots are taken as a set, and if any fail
  *  then we do not pivot any of the devices in the group, and abandon the
@@ -939,9 +946,7 @@ delete_and_fail:
     * the original bs for all images
     */
     QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
-        if (states->new_bs) {
-             bdrv_delete(states->new_bs);
-        }
+        external_snapshot_abort(states);
     }
 exit:
     QSIMPLEQ_FOREACH_SAFE(states, &snap_bdrv_states, entry, next) {
