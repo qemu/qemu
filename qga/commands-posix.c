@@ -355,6 +355,9 @@ safe_open_or_create(const char *path, const char *mode, Error **err)
             }
 
             close(fd);
+            if (oflag & O_CREAT) {
+                unlink(path);
+            }
         }
     }
 
