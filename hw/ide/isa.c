@@ -69,7 +69,7 @@ static int isa_ide_initfn(ISADevice *dev)
 {
     ISAIDEState *s = ISA_IDE(dev);
 
-    ide_bus_new(&s->bus, DEVICE(dev), 0);
+    ide_bus_new(&s->bus, DEVICE(dev), 0, 2);
     ide_init_ioport(&s->bus, dev, s->iobase, s->iobase2);
     isa_init_irq(dev, &s->irq, s->isairq);
     ide_init2(&s->bus, s->irq);

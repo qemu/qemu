@@ -47,10 +47,11 @@ static const TypeInfo ide_bus_info = {
     .class_init = ide_bus_class_init,
 };
 
-void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id)
+void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id, int max_units)
 {
     qbus_create_inplace(&idebus->qbus, TYPE_IDE_BUS, dev, NULL);
     idebus->bus_id = bus_id;
+    idebus->max_units = max_units;
 }
 
 static char *idebus_get_fw_dev_path(DeviceState *dev)
@@ -76,6 +77,13 @@ static int ide_qdev_init(DeviceState *qdev)
     if (dev->unit == -1) {
         dev->unit = bus->master ? 1 : 0;
     }
+
+    if (dev->unit >= bus->max_units) {
+        error_report("Can't create IDE unit %d, bus supports only %d units",
+                     dev->unit, bus->max_units);
+        goto err;
+    }
+
     switch (dev->unit) {
     case 0:
         if (bus->master) {

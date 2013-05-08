@@ -1,5 +1,5 @@
 QA output created by 018
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=6442450944 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=6442450944
 Filling base image
 
 === IO: pattern 0
