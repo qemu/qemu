@@ -779,14 +779,43 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
 
 
 /* New and old BlockDriverState structs for group snapshots */
-typedef struct BlkTransactionStates {
+
+typedef struct BlkTransactionStates BlkTransactionStates;
+
+/* Only prepare() may fail. In a single transaction, only one of commit() or
+   abort() will be called, clean() will always be called if it present. */
+typedef struct BdrvActionOps {
+    /* Size of state struct, in bytes. */
+    size_t instance_size;
+    /* Prepare the work, must NOT be NULL. */
+    void (*prepare)(BlkTransactionStates *common, Error **errp);
+    /* Commit the changes, must NOT be NULL. */
+    void (*commit)(BlkTransactionStates *common);
+    /* Abort the changes on fail, can be NULL. */
+    void (*abort)(BlkTransactionStates *common);
+    /* Clean up resource in the end, can be NULL. */
+    void (*clean)(BlkTransactionStates *common);
+} BdrvActionOps;
+
+/*
+ * This structure must be arranged as first member in child type, assuming
+ * that compiler will also arrange it to the same address with parent instance.
+ * Later it will be used in free().
+ */
+struct BlkTransactionStates {
+    BlockdevAction *action;
+    const BdrvActionOps *ops;
+    QSIMPLEQ_ENTRY(BlkTransactionStates) entry;
+};
+
+/* external snapshot private data */
+typedef struct ExternalSnapshotStates {
+    BlkTransactionStates common;
     BlockDriverState *old_bs;
     BlockDriverState *new_bs;
-    QSIMPLEQ_ENTRY(BlkTransactionStates) entry;
-} BlkTransactionStates;
+} ExternalSnapshotStates;
 
-static void external_snapshot_prepare(BlockdevAction *action,
-                                      BlkTransactionStates *states,
+static void external_snapshot_prepare(BlkTransactionStates *common,
                                       Error **errp)
 {
     BlockDriver *proto_drv;
@@ -797,6 +826,9 @@ static void external_snapshot_prepare(BlockdevAction *action,
     const char *new_image_file;
     const char *format = "qcow2";
     enum NewImageMode mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    ExternalSnapshotStates *states =
+                             DO_UPCAST(ExternalSnapshotStates, common, common);
+    BlockdevAction *action = common->action;
 
     /* get parameters */
     g_assert(action->kind == BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
@@ -871,8 +903,11 @@ static void external_snapshot_prepare(BlockdevAction *action,
     }
 }
 
-static void external_snapshot_commit(BlkTransactionStates *states)
+static void external_snapshot_commit(BlkTransactionStates *common)
 {
+    ExternalSnapshotStates *states =
+                             DO_UPCAST(ExternalSnapshotStates, common, common);
+
     /* This removes our old bs from the bdrv_states, and adds the new bs */
     bdrv_append(states->new_bs, states->old_bs);
     /* We don't need (or want) to use the transactional
@@ -882,12 +917,23 @@ static void external_snapshot_commit(BlkTransactionStates *states)
                 NULL);
 }
 
-static void external_snapshot_abort(BlkTransactionStates *states)
+static void external_snapshot_abort(BlkTransactionStates *common)
 {
+    ExternalSnapshotStates *states =
+                             DO_UPCAST(ExternalSnapshotStates, common, common);
     if (states->new_bs) {
         bdrv_delete(states->new_bs);
     }
 }
+
+static const BdrvActionOps actions[] = {
+    [BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
+        .instance_size = sizeof(ExternalSnapshotStates),
+        .prepare  = external_snapshot_prepare,
+        .commit   = external_snapshot_commit,
+        .abort = external_snapshot_abort,
+    },
+};
 
 /*
  * 'Atomic' group snapshots.  The snapshots are taken as a set, and if any fail
@@ -909,32 +955,28 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
     /* We don't do anything in this loop that commits us to the snapshot */
     while (NULL != dev_entry) {
         BlockdevAction *dev_info = NULL;
+        const BdrvActionOps *ops;
 
         dev_info = dev_entry->value;
         dev_entry = dev_entry->next;
 
-        states = g_malloc0(sizeof(BlkTransactionStates));
+        assert(dev_info->kind < ARRAY_SIZE(actions));
+
+        ops = &actions[dev_info->kind];
+        states = g_malloc0(ops->instance_size);
+        states->ops = ops;
+        states->action = dev_info;
         QSIMPLEQ_INSERT_TAIL(&snap_bdrv_states, states, entry);
 
-        switch (dev_info->kind) {
-        case BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC:
-            external_snapshot_prepare(dev_info, states, errp);
-            if (error_is_set(&local_err)) {
-                error_propagate(errp, local_err);
-                goto delete_and_fail;
-            }
-            break;
-        default:
-            abort();
+        states->ops->prepare(states, &local_err);
+        if (error_is_set(&local_err)) {
+            error_propagate(errp, local_err);
+            goto delete_and_fail;
         }
-
     }
 
-
-    /* Now we are going to do the actual pivot.  Everything up to this point
-     * is reversible, but we are committed at this point */
     QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
-        external_snapshot_commit(states);
+        states->ops->commit(states);
     }
 
     /* success */
@@ -946,10 +988,15 @@ delete_and_fail:
     * the original bs for all images
     */
     QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
-        external_snapshot_abort(states);
+        if (states->ops->abort) {
+            states->ops->abort(states);
+        }
     }
 exit:
     QSIMPLEQ_FOREACH_SAFE(states, &snap_bdrv_states, entry, next) {
+        if (states->ops->clean) {
+            states->ops->clean(states);
+        }
         g_free(states);
     }
 }
