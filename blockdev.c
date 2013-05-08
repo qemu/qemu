@@ -871,6 +871,17 @@ static void external_snapshot_prepare(BlockdevAction *action,
     }
 }
 
+static void external_snapshot_commit(BlkTransactionStates *states)
+{
+    /* This removes our old bs from the bdrv_states, and adds the new bs */
+    bdrv_append(states->new_bs, states->old_bs);
+    /* We don't need (or want) to use the transactional
+     * bdrv_reopen_multiple() across all the entries at once, because we
+     * don't want to abort all of them if one of them fails the reopen */
+    bdrv_reopen(states->new_bs, states->new_bs->open_flags & ~BDRV_O_RDWR,
+                NULL);
+}
+
 /*
  * 'Atomic' group snapshots.  The snapshots are taken as a set, and if any fail
  *  then we do not pivot any of the devices in the group, and abandon the
@@ -916,13 +927,7 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
     /* Now we are going to do the actual pivot.  Everything up to this point
      * is reversible, but we are committed at this point */
     QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
-        /* This removes our old bs from the bdrv_states, and adds the new bs */
-        bdrv_append(states->new_bs, states->old_bs);
-        /* We don't need (or want) to use the transactional
-         * bdrv_reopen_multiple() across all the entries at once, because we
-         * don't want to abort all of them if one of them fails the reopen */
-        bdrv_reopen(states->new_bs, states->new_bs->open_flags & ~BDRV_O_RDWR,
-                    NULL);
+        external_snapshot_commit(states);
     }
 
     /* success */
