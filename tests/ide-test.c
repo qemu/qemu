@@ -29,8 +29,12 @@
 #include <glib.h>
 
 #include "libqtest.h"
+#include "libqos/pci-pc.h"
+#include "libqos/malloc-pc.h"
 
 #include "qemu-common.h"
+#include "hw/pci/pci_ids.h"
+#include "hw/pci/pci_regs.h"
 
 #define TEST_IMAGE_SIZE 64 * 1024 * 1024
 
@@ -60,11 +64,41 @@ enum {
 };
 
 enum {
+    LBA     = 0x40,
+};
+
+enum {
+    bmreg_cmd       = 0x0,
+    bmreg_status    = 0x2,
+    bmreg_prdt      = 0x4,
+};
+
+enum {
+    CMD_READ_DMA    = 0xc8,
+    CMD_WRITE_DMA   = 0xca,
     CMD_IDENTIFY    = 0xec,
+};
+
+enum {
+    BM_CMD_START    =  0x1,
+    BM_CMD_WRITE    =  0x8, /* write = from device to memory */
+};
+
+enum {
+    BM_STS_ACTIVE   =  0x1,
+    BM_STS_ERROR    =  0x2,
+    BM_STS_INTR     =  0x4,
+};
+
+enum {
+    PRDT_EOT        = 0x80000000,
 };
 
 #define assert_bit_set(data, mask) g_assert_cmphex((data) & (mask), ==, (mask))
 #define assert_bit_clear(data, mask) g_assert_cmphex((data) & (mask), ==, 0)
+
+static QPCIBus *pcibus = NULL;
+static QGuestAllocator *guest_malloc;
 
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
 
@@ -79,11 +113,194 @@ static void ide_test_start(const char *cmdline_fmt, ...)
 
     qtest_start(cmdline);
     qtest_irq_intercept_in(global_qtest, "ioapic");
+    guest_malloc = pc_alloc_init();
 }
 
 static void ide_test_quit(void)
 {
     qtest_quit(global_qtest);
+}
+
+static QPCIDevice *get_pci_device(uint16_t *bmdma_base)
+{
+    QPCIDevice *dev;
+    uint16_t vendor_id, device_id;
+
+    if (!pcibus) {
+        pcibus = qpci_init_pc();
+    }
+
+    /* Find PCI device and verify it's the right one */
+    dev = qpci_device_find(pcibus, QPCI_DEVFN(IDE_PCI_DEV, IDE_PCI_FUNC));
+    g_assert(dev != NULL);
+
+    vendor_id = qpci_config_readw(dev, PCI_VENDOR_ID);
+    device_id = qpci_config_readw(dev, PCI_DEVICE_ID);
+    g_assert(vendor_id == PCI_VENDOR_ID_INTEL);
+    g_assert(device_id == PCI_DEVICE_ID_INTEL_82371SB_1);
+
+    /* Map bmdma BAR */
+    *bmdma_base = (uint16_t)(uintptr_t) qpci_iomap(dev, 4);
+
+    qpci_device_enable(dev);
+
+    return dev;
+}
+
+static void free_pci_device(QPCIDevice *dev)
+{
+    /* libqos doesn't have a function for this, so free it manually */
+    g_free(dev);
+}
+
+typedef struct PrdtEntry {
+    uint32_t addr;
+    uint32_t size;
+} QEMU_PACKED PrdtEntry;
+
+#define assert_bit_set(data, mask) g_assert_cmphex((data) & (mask), ==, (mask))
+#define assert_bit_clear(data, mask) g_assert_cmphex((data) & (mask), ==, 0)
+
+static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
+                            PrdtEntry *prdt, int prdt_entries)
+{
+    QPCIDevice *dev;
+    uint16_t bmdma_base;
+    uintptr_t guest_prdt;
+    size_t len;
+    bool from_dev;
+    uint8_t status;
+
+    dev = get_pci_device(&bmdma_base);
+
+    switch (cmd) {
+    case CMD_READ_DMA:
+        from_dev = true;
+        break;
+    case CMD_WRITE_DMA:
+        from_dev = false;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    /* Select device 0 */
+    outb(IDE_BASE + reg_device, 0 | LBA);
+
+    /* Stop any running transfer, clear any pending interrupt */
+    outb(bmdma_base + bmreg_cmd, 0);
+    outb(bmdma_base + bmreg_status, BM_STS_INTR);
+
+    /* Setup PRDT */
+    len = sizeof(*prdt) * prdt_entries;
+    guest_prdt = guest_alloc(guest_malloc, len);
+    memwrite(guest_prdt, prdt, len);
+    outl(bmdma_base + bmreg_prdt, guest_prdt);
+
+    /* ATA DMA command */
+    outb(IDE_BASE + reg_nsectors, nb_sectors);
+
+    outb(IDE_BASE + reg_lba_low,    sector & 0xff);
+    outb(IDE_BASE + reg_lba_middle, (sector >> 8) & 0xff);
+    outb(IDE_BASE + reg_lba_high,   (sector >> 16) & 0xff);
+
+    outb(IDE_BASE + reg_command, cmd);
+
+    /* Start DMA transfer */
+    outb(bmdma_base + bmreg_cmd, BM_CMD_START | (from_dev ? BM_CMD_WRITE : 0));
+
+    /* Wait for the DMA transfer to complete */
+    do {
+        status = inb(bmdma_base + bmreg_status);
+    } while ((status & (BM_STS_ACTIVE | BM_STS_INTR)) == BM_STS_ACTIVE);
+
+    g_assert_cmpint(get_irq(IDE_PRIMARY_IRQ), ==, !!(status & BM_STS_INTR));
+
+    /* Check IDE status code */
+    assert_bit_set(inb(IDE_BASE + reg_status), DRDY);
+    assert_bit_clear(inb(IDE_BASE + reg_status), BSY | DRQ);
+
+    /* Reading the status register clears the IRQ */
+    g_assert(!get_irq(IDE_PRIMARY_IRQ));
+
+    /* Stop DMA transfer if still active */
+    if (status & BM_STS_ACTIVE) {
+        outb(bmdma_base + bmreg_cmd, 0);
+    }
+
+    free_pci_device(dev);
+
+    return status;
+}
+
+static void test_bmdma_simple_rw(void)
+{
+    uint8_t status;
+    uint8_t *buf;
+    uint8_t *cmpbuf;
+    size_t len = 512;
+    uintptr_t guest_buf = guest_alloc(guest_malloc, len);
+
+    PrdtEntry prdt[] = {
+        { .addr = guest_buf, .size = len | PRDT_EOT },
+    };
+
+    buf = g_malloc(len);
+    cmpbuf = g_malloc(len);
+
+    /* Write 0x55 pattern to sector 0 */
+    memset(buf, 0x55, len);
+    memwrite(guest_buf, buf, len);
+
+    status = send_dma_request(CMD_WRITE_DMA, 0, 1, prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, BM_STS_INTR);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+
+    /* Write 0xaa pattern to sector 1 */
+    memset(buf, 0xaa, len);
+    memwrite(guest_buf, buf, len);
+
+    status = send_dma_request(CMD_WRITE_DMA, 1, 1, prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, BM_STS_INTR);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+
+    /* Read and verify 0x55 pattern in sector 0 */
+    memset(cmpbuf, 0x55, len);
+
+    status = send_dma_request(CMD_READ_DMA, 0, 1, prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, BM_STS_INTR);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+
+    memread(guest_buf, buf, len);
+    g_assert(memcmp(buf, cmpbuf, len) == 0);
+
+    /* Read and verify 0xaa pattern in sector 1 */
+    memset(cmpbuf, 0xaa, len);
+
+    status = send_dma_request(CMD_READ_DMA, 1, 1, prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, BM_STS_INTR);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+
+    memread(guest_buf, buf, len);
+    g_assert(memcmp(buf, cmpbuf, len) == 0);
+
+
+    g_free(buf);
+    g_free(cmpbuf);
+}
+
+static void test_bmdma_setup(void)
+{
+    ide_test_start(
+        "-vnc none "
+        "-drive file=%s,if=ide,serial=%s,cache=writeback "
+        "-global ide-hd.ver=%s",
+        tmp_path, "testdisk", "version");
+}
+
+static void test_bmdma_teardown(void)
+{
+    ide_test_quit();
 }
 
 static void test_identify(void)
@@ -155,6 +372,10 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/ide/identify", test_identify);
+
+    qtest_add_func("/ide/bmdma/setup", test_bmdma_setup);
+    qtest_add_func("/ide/bmdma/simple_rw", test_bmdma_simple_rw);
+    qtest_add_func("/ide/bmdma/teardown", test_bmdma_teardown);
 
     ret = g_test_run();
 
