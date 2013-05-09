@@ -161,6 +161,7 @@ typedef struct CPUWatchpoint {
     uint32_t halted; /* Nonzero if the CPU is in suspend state */       \
     uint32_t interrupt_request;                                         \
     volatile sig_atomic_t exit_request;                                 \
+    volatile sig_atomic_t tcg_exit_req;                                 \
     CPU_COMMON_TLB                                                      \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
     /* buffer for temporaries in the code generator */                  \

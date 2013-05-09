@@ -686,6 +686,10 @@ extern uint8_t *code_gen_prologue;
  *        would hit zero midway through it. In this case the next-TB pointer
  *        returned is the TB we were about to execute, and the caller must
  *        arrange to execute the remaining count of instructions.
+ *  3:    we stopped because the CPU's exit_request flag was set
+ *        (usually meaning that there is an interrupt that needs to be
+ *        handled). The next-TB pointer returned is the TB we were
+ *        about to execute when we noticed the pending exit request.
  *
  * If the bottom two bits indicate an exit-via-index then the CPU
  * state is correctly synchronised and ready for execution of the next
@@ -702,6 +706,7 @@ extern uint8_t *code_gen_prologue;
 #define TB_EXIT_IDX0 0
 #define TB_EXIT_IDX1 1
 #define TB_EXIT_ICOUNT_EXPIRED 2
+#define TB_EXIT_REQUESTED 3
 
 #if !defined(tcg_qemu_tb_exec)
 # define tcg_qemu_tb_exec(env, tb_ptr) \

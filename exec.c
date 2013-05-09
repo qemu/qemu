@@ -493,7 +493,7 @@ void cpu_reset_interrupt(CPUArchState *env, int mask)
 void cpu_exit(CPUArchState *env)
 {
     env->exit_request = 1;
-    cpu_unlink_tb(env);
+    env->tcg_exit_req = 1;
 }
 
 void cpu_abort(CPUArchState *env, const char *fmt, ...)
