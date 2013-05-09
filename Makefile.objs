@@ -79,9 +79,14 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 ######################################################################
 # qapi
 
-common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
+common-obj-y += qmp-marshal.o
 common-obj-y += qmp.o hmp.o
 endif
+
+######################################################################
+# some qapi visitors are used by both system and user emulation:
+
+common-obj-y += qapi-visit.o qapi-types.o
 
 #######################################################################
 # Target-independent parts used in system and user emulation

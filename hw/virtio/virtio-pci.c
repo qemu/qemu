@@ -744,6 +744,7 @@ static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign,
                                          bool with_irqfd)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(proxy->vdev);
     VirtQueue *vq = virtio_get_queue(proxy->vdev, n);
     EventNotifier *notifier = virtio_queue_get_guest_notifier(vq);
 
@@ -756,6 +757,10 @@ static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign,
     } else {
         virtio_queue_set_guest_notifier_fd_handler(vq, false, with_irqfd);
         event_notifier_cleanup(notifier);
+    }
+
+    if (!msix_enabled(&proxy->pci_dev) && vdc->guest_notifier_mask) {
+        vdc->guest_notifier_mask(proxy->vdev, n, !assign);
     }
 
     return 0;

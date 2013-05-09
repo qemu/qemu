@@ -40,7 +40,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 # Any format supporting backing files
-_supported_fmt qcow qcow2 vmdk qed
+_supported_fmt qcow2 qed
 _supported_proto generic
 _supported_os Linux
 

@@ -51,6 +51,7 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 # really in libqtest, not in the testcases themselves.
 check-qtest-i386-y = tests/fdc-test$(EXESUF)
 gcov-files-i386-y = hw/fdc.c
+check-qtest-i386-y += tests/ide-test$(EXESUF)
 check-qtest-i386-y += tests/hd-geo-test$(EXESUF)
 gcov-files-i386-y += hw/hd-geometry.c
 check-qtest-i386-y += tests/rtc-test$(EXESUF)
@@ -127,6 +128,7 @@ libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
 tests/fdc-test$(EXESUF): tests/fdc-test.o
+tests/ide-test$(EXESUF): tests/ide-test.o $(libqos-pc-obj-y)
 tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o
 tests/tmp105-test$(EXESUF): tests/tmp105-test.o $(libqos-omap-obj-y)
 tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)

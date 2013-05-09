@@ -312,6 +312,7 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
                 bdrv_drain_all();
                 assert(bm->bus->dma->aiocb == NULL);
             }
+            bm->status &= ~BM_STATUS_DMAING;
         } else {
             bm->cur_addr = bm->addr;
             if (!(bm->status & BM_STATUS_DMAING)) {

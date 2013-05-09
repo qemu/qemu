@@ -71,7 +71,7 @@ void qpci_device_enable(QPCIDevice *dev)
 
     /* FIXME -- does this need to be a bus callout? */
     cmd = qpci_config_readw(dev, PCI_COMMAND);
-    cmd |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
+    cmd |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
     qpci_config_writew(dev, PCI_COMMAND, cmd);
 }
 

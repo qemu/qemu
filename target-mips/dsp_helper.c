@@ -2921,7 +2921,7 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong rs,  \
         return rt;                                              \
     }                                                           \
                                                                 \
-    filter = ((int32_t)0x01 << size) - 1;                       \
+    filter = ((int64_t)0x01 << size) - 1;                       \
     filter = filter << pos;                                     \
     temprs = (rs << pos) & filter;                              \
     temprt = rt & ~filter;                                      \
@@ -2930,7 +2930,7 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong rs,  \
     return (target_long)(ret_type)temp;                         \
 }
 
-BIT_INSV(insv, 0x1F, 0x1F, int32_t);
+BIT_INSV(insv, 0x1F, 0x3F, int32_t);
 #ifdef TARGET_MIPS64
 BIT_INSV(dinsv, 0x7F, 0x3F, target_long);
 #endif

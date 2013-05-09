@@ -568,10 +568,11 @@ uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr)
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val;
 
-    k->get_config(vdev, vdev->config);
-
-    if (addr > (vdev->config_len - sizeof(val)))
+    if (addr + sizeof(val) > vdev->config_len) {
         return (uint32_t)-1;
+    }
+
+    k->get_config(vdev, vdev->config);
 
     val = ldub_p(vdev->config + addr);
     return val;
@@ -582,10 +583,11 @@ uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr)
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val;
 
-    k->get_config(vdev, vdev->config);
-
-    if (addr > (vdev->config_len - sizeof(val)))
+    if (addr + sizeof(val) > vdev->config_len) {
         return (uint32_t)-1;
+    }
+
+    k->get_config(vdev, vdev->config);
 
     val = lduw_p(vdev->config + addr);
     return val;
@@ -596,10 +598,11 @@ uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr)
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val;
 
-    k->get_config(vdev, vdev->config);
-
-    if (addr > (vdev->config_len - sizeof(val)))
+    if (addr + sizeof(val) > vdev->config_len) {
         return (uint32_t)-1;
+    }
+
+    k->get_config(vdev, vdev->config);
 
     val = ldl_p(vdev->config + addr);
     return val;
@@ -610,8 +613,9 @@ void virtio_config_writeb(VirtIODevice *vdev, uint32_t addr, uint32_t data)
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val = data;
 
-    if (addr > (vdev->config_len - sizeof(val)))
+    if (addr + sizeof(val) > vdev->config_len) {
         return;
+    }
 
     stb_p(vdev->config + addr, val);
 
@@ -625,8 +629,9 @@ void virtio_config_writew(VirtIODevice *vdev, uint32_t addr, uint32_t data)
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val = data;
 
-    if (addr > (vdev->config_len - sizeof(val)))
+    if (addr + sizeof(val) > vdev->config_len) {
         return;
+    }
 
     stw_p(vdev->config + addr, val);
 
@@ -640,8 +645,9 @@ void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val = data;
 
-    if (addr > (vdev->config_len - sizeof(val)))
+    if (addr + sizeof(val) > vdev->config_len) {
         return;
+    }
 
     stl_p(vdev->config + addr, val);
 

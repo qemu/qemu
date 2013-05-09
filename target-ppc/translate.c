@@ -676,48 +676,48 @@ static inline void gen_set_Rc0(DisasContext *ctx, TCGv reg)
 /* cmp */
 static void gen_cmp(DisasContext *ctx)
 {
-    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
-        gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
-                     1, crfD(ctx->opcode));
-    } else {
+    if ((ctx->opcode & 0x00200000) && (ctx->insns_flags & PPC_64B)) {
         gen_op_cmp(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                    1, crfD(ctx->opcode));
+    } else {
+        gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
+                     1, crfD(ctx->opcode));
     }
 }
 
 /* cmpi */
 static void gen_cmpi(DisasContext *ctx)
 {
-    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
-        gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], SIMM(ctx->opcode),
-                      1, crfD(ctx->opcode));
-    } else {
+    if ((ctx->opcode & 0x00200000) && (ctx->insns_flags & PPC_64B)) {
         gen_op_cmpi(cpu_gpr[rA(ctx->opcode)], SIMM(ctx->opcode),
                     1, crfD(ctx->opcode));
+    } else {
+        gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], SIMM(ctx->opcode),
+                      1, crfD(ctx->opcode));
     }
 }
 
 /* cmpl */
 static void gen_cmpl(DisasContext *ctx)
 {
-    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
-        gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
-                     0, crfD(ctx->opcode));
-    } else {
+    if ((ctx->opcode & 0x00200000) && (ctx->insns_flags & PPC_64B)) {
         gen_op_cmp(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
                    0, crfD(ctx->opcode));
+    } else {
+        gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
+                     0, crfD(ctx->opcode));
     }
 }
 
 /* cmpli */
 static void gen_cmpli(DisasContext *ctx)
 {
-    if (NARROW_MODE(ctx) || !(ctx->opcode & 0x00200000)) {
-        gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], UIMM(ctx->opcode),
-                      0, crfD(ctx->opcode));
-    } else {
+    if ((ctx->opcode & 0x00200000) && (ctx->insns_flags & PPC_64B)) {
         gen_op_cmpi(cpu_gpr[rA(ctx->opcode)], UIMM(ctx->opcode),
                     0, crfD(ctx->opcode));
+    } else {
+        gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], UIMM(ctx->opcode),
+                      0, crfD(ctx->opcode));
     }
 }
 
@@ -1734,8 +1734,6 @@ static inline void gen_rldnm(DisasContext *ctx, uint32_t mb, uint32_t me)
 {
     TCGv t0;
 
-    mb = MB(ctx->opcode);
-    me = ME(ctx->opcode);
     t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x3f);
     tcg_gen_rotl_tl(t0, cpu_gpr[rS(ctx->opcode)], t0);
