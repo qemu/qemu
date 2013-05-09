@@ -462,16 +462,19 @@ typedef struct EnumTable {
     uint32_t value;
 } EnumTable;
 
-EnumTable backend_enum_table[] = {
+static const EnumTable backend_enum_table[] = {
     {BACKEND_NSS_EMULATED_NAME, BACKEND_NSS_EMULATED},
     {BACKEND_CERTIFICATES_NAME, BACKEND_CERTIFICATES},
     {NULL, 0},
 };
 
 static uint32_t parse_enumeration(char *str,
-    EnumTable *table, uint32_t not_found_value)
+    const EnumTable *table, uint32_t not_found_value)
 {
     uint32_t ret = not_found_value;
+
+    if (str == NULL)
+        return 0;
 
     while (table->name != NULL) {
         if (strcmp(table->name, str) == 0) {
@@ -487,7 +490,7 @@ static int emulated_initfn(CCIDCardState *base)
 {
     EmulatedState *card = DO_UPCAST(EmulatedState, base, base);
     VCardEmulError ret;
-    EnumTable *ptable;
+    const EnumTable *ptable;
 
     QSIMPLEQ_INIT(&card->event_list);
     QSIMPLEQ_INIT(&card->guest_apdu_list);
@@ -500,9 +503,15 @@ static int emulated_initfn(CCIDCardState *base)
     if (init_pipe_signaling(card) < 0) {
         return -1;
     }
-    card->backend = parse_enumeration(card->backend_str, backend_enum_table, 0);
+
+    card->backend = 0;
+    if (card->backend_str) {
+        card->backend = parse_enumeration(card->backend_str,
+                                          backend_enum_table, 0);
+    }
+
     if (card->backend == 0) {
-        printf("unknown backend, must be one of:\n");
+        printf("backend must be one of:\n");
         for (ptable = backend_enum_table; ptable->name != NULL; ++ptable) {
             printf("%s\n", ptable->name);
         }

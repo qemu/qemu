@@ -99,8 +99,8 @@ static pid_t qtest_qemu_pid(QTestState *s)
         if (fgets(buffer, sizeof(buffer), f)) {
             pid = atoi(buffer);
         }
+        fclose(f);
     }
-    fclose(f);
     return pid;
 }
 

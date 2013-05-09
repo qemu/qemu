@@ -309,7 +309,7 @@ static void virtio_net_set_queues(VirtIONet *n)
     }
 }
 
-static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue, int ctrl);
+static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue);
 
 static uint32_t virtio_net_get_features(VirtIODevice *vdev, uint32_t features)
 {
@@ -364,8 +364,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
     VirtIONet *n = VIRTIO_NET(vdev);
     int i;
 
-    virtio_net_set_multiqueue(n, !!(features & (1 << VIRTIO_NET_F_MQ)),
-                              !!(features & (1 << VIRTIO_NET_F_CTRL_VQ)));
+    virtio_net_set_multiqueue(n, !!(features & (1 << VIRTIO_NET_F_MQ)));
 
     virtio_net_set_mrg_rx_bufs(n, !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF)));
 
@@ -1038,7 +1037,7 @@ static void virtio_net_tx_bh(void *opaque)
     }
 }
 
-static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue, int ctrl)
+static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     int i, max = multiqueue ? n->max_queues : 1;
@@ -1067,9 +1066,11 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue, int ctrl)
         n->vqs[i].n = n;
     }
 
-    if (ctrl) {
-        n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
-    }
+    /* Note: Minux Guests (version 3.2.1) use ctrl vq but don't ack
+     * VIRTIO_NET_F_CTRL_VQ. Create ctrl vq unconditionally to avoid
+     * breaking them.
+     */
+    n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
 
     virtio_net_set_queues(n);
 }
@@ -1265,6 +1266,7 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
 void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features)
 {
     int i, config_size = 0;
+    host_features |= (1 << VIRTIO_NET_F_MAC);
     for (i = 0; feature_sizes[i].flags != 0; i++) {
         if (host_features & feature_sizes[i].flags) {
             config_size = MAX(feature_sizes[i].end, config_size);
@@ -1283,15 +1285,6 @@ static int virtio_net_device_init(VirtIODevice *vdev)
     virtio_init(VIRTIO_DEVICE(n), "virtio-net", VIRTIO_ID_NET,
                                   n->config_size);
 
-    vdev->get_config = virtio_net_get_config;
-    vdev->set_config = virtio_net_set_config;
-    vdev->get_features = virtio_net_get_features;
-    vdev->set_features = virtio_net_set_features;
-    vdev->bad_features = virtio_net_bad_features;
-    vdev->reset = virtio_net_reset;
-    vdev->set_status = virtio_net_set_status;
-    vdev->guest_notifier_mask = virtio_net_guest_notifier_mask;
-    vdev->guest_notifier_pending = virtio_net_guest_notifier_pending;
     n->max_queues = MAX(n->nic_conf.queues, 1);
     n->vqs = g_malloc0(sizeof(VirtIONetQueue) * n->max_queues);
     n->vqs[0].rx_vq = virtio_add_queue(vdev, 256, virtio_net_handle_rx);
@@ -1383,7 +1376,7 @@ static int virtio_net_device_exit(DeviceState *qdev)
 
     g_free(n->vqs);
     qemu_del_nic(n->nic);
-    virtio_common_cleanup(vdev);
+    virtio_cleanup(vdev);
 
     return 0;
 }

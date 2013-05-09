@@ -20,6 +20,69 @@
 
 #include "vnc.h"
 
+#ifdef CONFIG_VNC_TLS
+#include "qemu/sockets.h"
+
+static void vncws_tls_handshake_io(void *opaque);
+
+static int vncws_start_tls_handshake(struct VncState *vs)
+{
+    int ret = gnutls_handshake(vs->ws_tls.session);
+
+    if (ret < 0) {
+        if (!gnutls_error_is_fatal(ret)) {
+            VNC_DEBUG("Handshake interrupted (blocking)\n");
+            if (!gnutls_record_get_direction(vs->ws_tls.session)) {
+                qemu_set_fd_handler(vs->csock, vncws_tls_handshake_io,
+                                    NULL, vs);
+            } else {
+                qemu_set_fd_handler(vs->csock, NULL, vncws_tls_handshake_io,
+                                    vs);
+            }
+            return 0;
+        }
+        VNC_DEBUG("Handshake failed %s\n", gnutls_strerror(ret));
+        vnc_client_error(vs);
+        return -1;
+    }
+
+    VNC_DEBUG("Handshake done, switching to TLS data mode\n");
+    vs->ws_tls.wiremode = VNC_WIREMODE_TLS;
+    qemu_set_fd_handler2(vs->csock, NULL, vncws_handshake_read, NULL, vs);
+
+    return 0;
+}
+
+static void vncws_tls_handshake_io(void *opaque)
+{
+    struct VncState *vs = (struct VncState *)opaque;
+
+    VNC_DEBUG("Handshake IO continue\n");
+    vncws_start_tls_handshake(vs);
+}
+
+void vncws_tls_handshake_peek(void *opaque)
+{
+    VncState *vs = opaque;
+    long ret;
+
+    if (!vs->ws_tls.session) {
+        char peek[4];
+        ret = qemu_recv(vs->csock, peek, sizeof(peek), MSG_PEEK);
+        if (ret && (strncmp(peek, "\x16", 1) == 0
+                    || strncmp(peek, "\x80", 1) == 0)) {
+            VNC_DEBUG("TLS Websocket connection recognized");
+            vnc_tls_client_setup(vs, 1);
+            vncws_start_tls_handshake(vs);
+        } else {
+            vncws_handshake_read(vs);
+        }
+    } else {
+        qemu_set_fd_handler2(vs->csock, NULL, vncws_handshake_read, NULL, vs);
+    }
+}
+#endif /* CONFIG_VNC_TLS */
+
 void vncws_handshake_read(void *opaque)
 {
     VncState *vs = opaque;

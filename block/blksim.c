@@ -580,11 +580,35 @@ static int sim_probe (const uint8_t * buf, int buf_size, const char *filename)
     return 2;
 }
 
-static int sim_open(BlockDriverState * bs, const char *filename,
-                    QDict *options, int bdrv_flags)
+static QemuOptsList runtime_opts = {
+    .name = "sim",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "filename",
+            .type = QEMU_OPT_STRING,
+            .help = "File name of the image",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int sim_open(BlockDriverState *bs, QDict *options, int bdrv_flags)
 {
     BDRVSimState *s = bs->opaque;
     int open_flags = O_BINARY | O_LARGEFILE;
+    Error *local_err = NULL;
+    const char *filename;
+
+    QemuOpts *opts = qemu_opts_create_nofail(&runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -EINVAL;
+    }
+
+    filename = qemu_opt_get(opts, "filename");
 
     if ((bdrv_flags & BDRV_O_RDWR)) {
         open_flags |= O_RDWR;

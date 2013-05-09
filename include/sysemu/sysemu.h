@@ -22,6 +22,7 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid);
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
 int runstate_is_running(void);
+bool runstate_needs_reset(void);
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 
@@ -152,6 +153,9 @@ void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
 /* generic hotplug */
 void drive_hot_add(Monitor *mon, const QDict *qdict);
 
+/* CPU hotplug */
+void qemu_register_cpu_added_notifier(Notifier *notifier);
+
 /* pcie aer error injection */
 void pcie_aer_inject_error_print(Monitor *mon, const QObject *data);
 int do_pcie_aer_inject_error(Monitor *mon,
@@ -175,11 +179,11 @@ void usb_info(Monitor *mon, const QDict *qdict);
 
 void rtc_change_mon_event(struct tm *tm);
 
-void register_devices(void);
-
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);
 char *get_boot_devices_list(size_t *size);
+
+DeviceState *get_boot_device(uint32_t position);
 
 bool usb_enabled(bool default_usb);
 

@@ -81,7 +81,7 @@
 #define FW_CFG_SPARC64_HEIGHT (FW_CFG_ARCH_LOCAL + 0x01)
 #define FW_CFG_SPARC64_DEPTH (FW_CFG_ARCH_LOCAL + 0x02)
 
-#define IVEC_MAX             0x30
+#define IVEC_MAX             0x40
 
 #define TICK_MAX             0x7fffffffffffffffULL
 

@@ -441,8 +441,21 @@ static int qemu_rbd_aio_flush_cb(void *opaque)
     return (s->qemu_aio_count > 0);
 }
 
-static int qemu_rbd_open(BlockDriverState *bs, const char *filename,
-                         QDict *options, int flags)
+/* TODO Convert to fine grained options */
+static QemuOptsList runtime_opts = {
+    .name = "rbd",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "filename",
+            .type = QEMU_OPT_STRING,
+            .help = "Specification of the rbd image",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags)
 {
     BDRVRBDState *s = bs->opaque;
     char pool[RBD_MAX_POOL_NAME_SIZE];
@@ -450,20 +463,35 @@ static int qemu_rbd_open(BlockDriverState *bs, const char *filename,
     char conf[RBD_MAX_CONF_SIZE];
     char clientname_buf[RBD_MAX_CONF_SIZE];
     char *clientname;
+    QemuOpts *opts;
+    Error *local_err = NULL;
+    const char *filename;
     int r;
+
+    opts = qemu_opts_create_nofail(&runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        qemu_opts_del(opts);
+        return -EINVAL;
+    }
+
+    filename = qemu_opt_get(opts, "filename");
 
     if (qemu_rbd_parsename(filename, pool, sizeof(pool),
                            snap_buf, sizeof(snap_buf),
                            s->name, sizeof(s->name),
                            conf, sizeof(conf)) < 0) {
-        return -EINVAL;
+        r = -EINVAL;
+        goto failed_opts;
     }
 
     clientname = qemu_rbd_parse_clientname(conf, clientname_buf);
     r = rados_create(&s->cluster, clientname);
     if (r < 0) {
         error_report("error initializing");
-        return r;
+        goto failed_opts;
     }
 
     s->snap = NULL;
@@ -529,6 +557,7 @@ static int qemu_rbd_open(BlockDriverState *bs, const char *filename,
                             NULL, qemu_rbd_aio_flush_cb, s);
 
 
+    qemu_opts_del(opts);
     return 0;
 
 failed:
@@ -538,6 +567,8 @@ failed_open:
 failed_shutdown:
     rados_shutdown(s->cluster);
     g_free(s->snap);
+failed_opts:
+    qemu_opts_del(opts);
     return r;
 }
 

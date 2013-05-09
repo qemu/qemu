@@ -24,6 +24,12 @@
 #include "hw/virtio/virtio-balloon.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-9p.h"
+#ifdef CONFIG_VIRTFS
+#include "hw/9pfs/virtio-9p.h"
+#endif
+#ifdef CONFIG_VHOST_SCSI
+#include "hw/virtio/vhost-scsi.h"
+#endif
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 typedef struct VirtIOBlkPCI VirtIOBlkPCI;
@@ -31,6 +37,8 @@ typedef struct VirtIOSCSIPCI VirtIOSCSIPCI;
 typedef struct VirtIOBalloonPCI VirtIOBalloonPCI;
 typedef struct VirtIOSerialPCI VirtIOSerialPCI;
 typedef struct VirtIONetPCI VirtIONetPCI;
+typedef struct VHostSCSIPCI VHostSCSIPCI;
+typedef struct VirtIORngPCI VirtIORngPCI;
 
 /* virtio-pci-bus */
 
@@ -80,10 +88,6 @@ struct VirtIOPCIProxy {
     uint32_t class_code;
     uint32_t nvectors;
     uint32_t host_features;
-#ifdef CONFIG_VIRTFS
-    V9fsConf fsconf;
-#endif
-    VirtIORNGConf rng;
     bool ioeventfd_disabled;
     bool ioeventfd_started;
     VirtIOIRQFD *vector_irqfd;
@@ -103,6 +107,20 @@ struct VirtIOSCSIPCI {
     VirtIOPCIProxy parent_obj;
     VirtIOSCSI vdev;
 };
+
+#ifdef CONFIG_VHOST_SCSI
+/*
+ * vhost-scsi-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VHOST_SCSI_PCI "vhost-scsi-pci"
+#define VHOST_SCSI_PCI(obj) \
+        OBJECT_CHECK(VHostSCSIPCI, (obj), TYPE_VHOST_SCSI_PCI)
+
+struct VHostSCSIPCI {
+    VirtIOPCIProxy parent_obj;
+    VHostSCSI vdev;
+};
+#endif
 
 /*
  * virtio-blk-pci: This extends VirtioPCIProxy.
@@ -153,8 +171,34 @@ struct VirtIONetPCI {
     VirtIONet vdev;
 };
 
-void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev);
-void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev);
+/*
+ * virtio-9p-pci: This extends VirtioPCIProxy.
+ */
+
+#ifdef CONFIG_VIRTFS
+
+#define TYPE_VIRTIO_9P_PCI "virtio-9p-pci"
+#define VIRTIO_9P_PCI(obj) \
+        OBJECT_CHECK(V9fsPCIState, (obj), TYPE_VIRTIO_9P_PCI)
+
+typedef struct V9fsPCIState {
+    VirtIOPCIProxy parent_obj;
+    V9fsState vdev;
+} V9fsPCIState;
+
+#endif
+
+/*
+ * virtio-rng-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VIRTIO_RNG_PCI "virtio-rng-pci"
+#define VIRTIO_RNG_PCI(obj) \
+        OBJECT_CHECK(VirtIORngPCI, (obj), TYPE_VIRTIO_RNG_PCI)
+
+struct VirtIORngPCI {
+    VirtIOPCIProxy parent_obj;
+    VirtIORNG vdev;
+};
 
 /* Virtio ABI version, if we increment this, we break the guest driver. */
 #define VIRTIO_PCI_ABI_VERSION          0

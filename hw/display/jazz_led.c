@@ -267,7 +267,7 @@ static int jazz_led_init(SysBusDevice *dev)
     memory_region_init_io(&s->iomem, &led_ops, s, "led", 1);
     sysbus_init_mmio(dev, &s->iomem);
 
-    s->con = graphic_console_init(&jazz_led_ops, s);
+    s->con = graphic_console_init(DEVICE(dev), &jazz_led_ops, s);
 
     return 0;
 }

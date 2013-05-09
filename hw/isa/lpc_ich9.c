@@ -356,13 +356,13 @@ static void ich9_set_sci(void *opaque, int irq_num, int level)
     }
 }
 
-void ich9_lpc_pm_init(PCIDevice *lpc_pci, qemu_irq cmos_s3)
+void ich9_lpc_pm_init(PCIDevice *lpc_pci)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(lpc_pci);
     qemu_irq *sci_irq;
 
     sci_irq = qemu_allocate_irqs(ich9_set_sci, lpc, 1);
-    ich9_pm_init(lpc_pci, &lpc->pm, sci_irq[0], cmos_s3);
+    ich9_pm_init(lpc_pci, &lpc->pm, sci_irq[0]);
 
     ich9_lpc_reset(&lpc->d.qdev);
 }

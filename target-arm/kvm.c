@@ -62,8 +62,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
     r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP | 31;
     r.addr = (uintptr_t)(&v);
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
-    if (ret == ENOENT) {
-        return EINVAL;
+    if (ret == -ENOENT) {
+        return -EINVAL;
     }
     return ret;
 }

@@ -53,9 +53,29 @@ static Property spapr_vio_props[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static char *spapr_vio_get_dev_name(DeviceState *qdev)
+{
+    VIOsPAPRDevice *dev = VIO_SPAPR_DEVICE(qdev);
+    VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
+    char *name;
+
+    /* Device tree style name device@reg */
+    name = g_strdup_printf("%s@%x", pc->dt_name, dev->reg);
+
+    return name;
+}
+
+static void spapr_vio_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+
+    k->get_dev_path = spapr_vio_get_dev_name;
+}
+
 static const TypeInfo spapr_vio_bus_info = {
     .name = TYPE_SPAPR_VIO_BUS,
     .parent = TYPE_BUS,
+    .class_init = spapr_vio_bus_class_init,
     .instance_size = sizeof(VIOsPAPRBus),
 };
 
@@ -74,17 +94,6 @@ VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
     return NULL;
 }
 
-static char *vio_format_dev_name(VIOsPAPRDevice *dev)
-{
-    VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
-    char *name;
-
-    /* Device tree style name device@reg */
-    name = g_strdup_printf("%s@%x", pc->dt_name, dev->reg);
-
-    return name;
-}
-
 #ifdef CONFIG_FDT
 static int vio_make_devnode(VIOsPAPRDevice *dev,
                             void *fdt)
@@ -98,7 +107,7 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
         return vdevice_off;
     }
 
-    dt_name = vio_format_dev_name(dev);
+    dt_name = spapr_vio_get_dev_name(DEVICE(dev));
     node_off = fdt_add_subnode(fdt, vdevice_off, dt_name);
     g_free(dt_name);
     if (node_off < 0) {
@@ -379,7 +388,7 @@ static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
      * the given dev might already be in the list.
      */
     QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
-        other = DO_UPCAST(VIOsPAPRDevice, qdev, kid->child);
+        other = VIO_SPAPR_DEVICE(kid->child);
 
         if (other != dev && other->reg == dev->reg) {
             return other;
@@ -391,7 +400,7 @@ static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
 
 static void spapr_vio_busdev_reset(DeviceState *qdev)
 {
-    VIOsPAPRDevice *dev = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
+    VIOsPAPRDevice *dev = VIO_SPAPR_DEVICE(qdev);
     VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
 
     /* Shut down the request queue and TCEs if necessary */
@@ -437,7 +446,7 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
 
     /* Don't overwrite ids assigned on the command line */
     if (!dev->qdev.id) {
-        id = vio_format_dev_name(dev);
+        id = spapr_vio_get_dev_name(DEVICE(dev));
         dev->qdev.id = id;
     }
 
@@ -636,7 +645,7 @@ int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus)
         return offset;
     }
 
-    name = vio_format_dev_name(dev);
+    name = spapr_vio_get_dev_name(DEVICE(dev));
     path = g_strdup_printf("/vdevice/%s", name);
 
     ret = fdt_setprop_string(fdt, offset, "linux,stdout-path", path);

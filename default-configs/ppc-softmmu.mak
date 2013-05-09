@@ -1,6 +1,7 @@
 # Default configuration for ppc-softmmu
 
 include pci.mak
+include sound.mak
 include usb.mak
 CONFIG_GDBSTUB_XML=y
 CONFIG_ISA_MMIO=y
@@ -34,7 +35,6 @@ CONFIG_IDE_ISA=y
 CONFIG_IDE_CMD646=y
 CONFIG_IDE_MACIO=y
 CONFIG_NE2000_ISA=y
-CONFIG_SOUND=y
 CONFIG_PFLASH_CFI01=y
 CONFIG_PFLASH_CFI02=y
 CONFIG_PTIMER=y

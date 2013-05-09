@@ -6,7 +6,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#include "libi2c.h"
+#include "libqos/i2c.h"
 #include "libqtest.h"
 
 void i2c_send(I2CAdapter *i2c, uint8_t addr,

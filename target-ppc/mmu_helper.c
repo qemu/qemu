@@ -1188,6 +1188,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_06d:
         dump_slb(f, cpu_fprintf, env);
         break;
@@ -1324,6 +1325,7 @@ hwaddr cpu_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_06d:
         return ppc_hash64_get_phys_page_debug(env, addr);
 #endif
@@ -1815,6 +1817,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_06d:
 #endif /* defined(TARGET_PPC64) */
         tlb_flush(env, 1);
@@ -1884,6 +1887,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_06d:
         /* tlbie invalidate TLBs for all segments */
         /* XXX: given the fact that there are too many segments to invalidate,

@@ -430,20 +430,17 @@ void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
 
 void helper_store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
 {
-    /*
-     * We use only the 32 LSB of the incoming fpr
-     */
-    uint32_t prev, new;
+    target_ulong prev, new;
     int i;
 
     prev = env->fpscr;
-    new = (uint32_t)arg;
-    new &= ~0x60000000;
-    new |= prev & 0x60000000;
-    for (i = 0; i < 8; i++) {
+    new = (target_ulong)arg;
+    new &= ~0x60000000LL;
+    new |= prev & 0x60000000LL;
+    for (i = 0; i < sizeof(target_ulong) * 2; i++) {
         if (mask & (1 << i)) {
-            env->fpscr &= ~(0xF << (4 * i));
-            env->fpscr |= new & (0xF << (4 * i));
+            env->fpscr &= ~(0xFLL << (4 * i));
+            env->fpscr |= new & (0xFLL << (4 * i));
         }
     }
     /* Update VX and FEX */
@@ -470,23 +467,24 @@ void store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
 
 void helper_float_check_status(CPUPPCState *env)
 {
+    int status = get_float_exception_flags(&env->fp_status);
+
+    if (status & float_flag_divbyzero) {
+        float_zero_divide_excp(env);
+    } else if (status & float_flag_overflow) {
+        float_overflow_excp(env);
+    } else if (status & float_flag_underflow) {
+        float_underflow_excp(env);
+    } else if (status & float_flag_inexact) {
+        float_inexact_excp(env);
+    }
+
     if (env->exception_index == POWERPC_EXCP_PROGRAM &&
         (env->error_code & POWERPC_EXCP_FP)) {
         /* Differred floating-point exception after target FPR update */
         if (msr_fe0 != 0 || msr_fe1 != 0) {
             helper_raise_exception_err(env, env->exception_index,
                                        env->error_code);
-        }
-    } else {
-        int status = get_float_exception_flags(&env->fp_status);
-        if (status & float_flag_divbyzero) {
-            float_zero_divide_excp(env);
-        } else if (status & float_flag_overflow) {
-            float_overflow_excp(env);
-        } else if (status & float_flag_underflow) {
-            float_underflow_excp(env);
-        } else if (status & float_flag_inexact) {
-            float_inexact_excp(env);
         }
     }
 }
@@ -593,37 +591,6 @@ uint64_t helper_fdiv(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
     }
 
     return farg1.ll;
-}
-
-/* fabs */
-uint64_t helper_fabs(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
-
-    farg.ll = arg;
-    farg.d = float64_abs(farg.d);
-    return farg.ll;
-}
-
-/* fnabs */
-uint64_t helper_fnabs(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
-
-    farg.ll = arg;
-    farg.d = float64_abs(farg.d);
-    farg.d = float64_chs(farg.d);
-    return farg.ll;
-}
-
-/* fneg */
-uint64_t helper_fneg(CPUPPCState *env, uint64_t arg)
-{
-    CPU_DoubleU farg;
-
-    farg.ll = arg;
-    farg.d = float64_chs(farg.d);
-    return farg.ll;
 }
 
 /* fctiw - fctiw. */

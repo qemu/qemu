@@ -102,6 +102,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
                             CharDriverState *chr, enum device_endian end);
 
 /* serial-isa.c */
+#define TYPE_ISA_SERIAL "isa-serial"
 bool serial_isa_init(ISABus *bus, int index, CharDriverState *chr);
 
 #endif

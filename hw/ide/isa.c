@@ -33,8 +33,12 @@
 /***********************************************************/
 /* ISA IDE definitions */
 
+#define TYPE_ISA_IDE "isa-ide"
+#define ISA_IDE(obj) OBJECT_CHECK(ISAIDEState, (obj), TYPE_ISA_IDE)
+
 typedef struct ISAIDEState {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     IDEBus    bus;
     uint32_t  iobase;
     uint32_t  iobase2;
@@ -44,7 +48,7 @@ typedef struct ISAIDEState {
 
 static void isa_ide_reset(DeviceState *d)
 {
-    ISAIDEState *s = container_of(d, ISAIDEState, dev.qdev);
+    ISAIDEState *s = ISA_IDE(d);
 
     ide_bus_reset(&s->bus);
 }
@@ -63,9 +67,9 @@ static const VMStateDescription vmstate_ide_isa = {
 
 static int isa_ide_initfn(ISADevice *dev)
 {
-    ISAIDEState *s = DO_UPCAST(ISAIDEState, dev, dev);
+    ISAIDEState *s = ISA_IDE(dev);
 
-    ide_bus_new(&s->bus, &s->dev.qdev, 0);
+    ide_bus_new(&s->bus, DEVICE(dev), 0);
     ide_init_ioport(&s->bus, dev, s->iobase, s->iobase2);
     isa_init_irq(dev, &s->irq, s->isairq);
     ide_init2(&s->bus, s->irq);
@@ -76,22 +80,27 @@ static int isa_ide_initfn(ISADevice *dev)
 ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
                         DriveInfo *hd0, DriveInfo *hd1)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
     ISAIDEState *s;
 
-    dev = isa_create(bus, "isa-ide");
-    qdev_prop_set_uint32(&dev->qdev, "iobase",  iobase);
-    qdev_prop_set_uint32(&dev->qdev, "iobase2", iobase2);
-    qdev_prop_set_uint32(&dev->qdev, "irq",     isairq);
-    if (qdev_init(&dev->qdev) < 0)
+    isadev = isa_create(bus, TYPE_ISA_IDE);
+    dev = DEVICE(isadev);
+    qdev_prop_set_uint32(dev, "iobase",  iobase);
+    qdev_prop_set_uint32(dev, "iobase2", iobase2);
+    qdev_prop_set_uint32(dev, "irq",     isairq);
+    if (qdev_init(dev) < 0) {
         return NULL;
+    }
 
-    s = DO_UPCAST(ISAIDEState, dev, dev);
-    if (hd0)
+    s = ISA_IDE(dev);
+    if (hd0) {
         ide_create_drive(&s->bus, 0, hd0);
-    if (hd1)
+    }
+    if (hd1) {
         ide_create_drive(&s->bus, 1, hd1);
-    return dev;
+    }
+    return isadev;
 }
 
 static Property isa_ide_properties[] = {
@@ -112,7 +121,7 @@ static void isa_ide_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo isa_ide_info = {
-    .name          = "isa-ide",
+    .name          = TYPE_ISA_IDE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAIDEState),
     .class_init    = isa_ide_class_initfn,

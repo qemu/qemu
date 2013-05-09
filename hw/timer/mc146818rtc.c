@@ -57,8 +57,11 @@
 #define RTC_CLOCK_RATE            32768
 #define UIP_HOLD_LENGTH           (8 * NSEC_PER_SEC / 32768)
 
+#define MC146818_RTC(obj) OBJECT_CHECK(RTCState, (obj), TYPE_MC146818_RTC)
+
 typedef struct RTCState {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     MemoryRegion io;
     uint8_t cmos_data[128];
     uint8_t cmos_index;
@@ -672,14 +675,21 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
 
 void rtc_set_memory(ISADevice *dev, int addr, int val)
 {
-    RTCState *s = DO_UPCAST(RTCState, dev, dev);
+    RTCState *s = MC146818_RTC(dev);
     if (addr >= 0 && addr <= 127)
         s->cmos_data[addr] = val;
 }
 
+int rtc_get_memory(ISADevice *dev, int addr)
+{
+    RTCState *s = MC146818_RTC(dev);
+    assert(addr >= 0 && addr <= 127);
+    return s->cmos_data[addr];
+}
+
 static void rtc_set_date_from_host(ISADevice *dev)
 {
-    RTCState *s = DO_UPCAST(RTCState, dev, dev);
+    RTCState *s = MC146818_RTC(dev);
     struct tm tm;
 
     qemu_get_timedate(&tm, 0);
@@ -741,7 +751,7 @@ static void rtc_notify_clock_reset(Notifier *notifier, void *data)
     RTCState *s = container_of(notifier, RTCState, clock_reset_notifier);
     int64_t now = *(int64_t *)data;
 
-    rtc_set_date_from_host(&s->dev);
+    rtc_set_date_from_host(ISA_DEVICE(s));
     periodic_timer_update(s, now);
     check_update_timer(s);
 #ifdef TARGET_I386
@@ -756,7 +766,7 @@ static void rtc_notify_clock_reset(Notifier *notifier, void *data)
 static void rtc_notify_suspend(Notifier *notifier, void *data)
 {
     RTCState *s = container_of(notifier, RTCState, suspend_notifier);
-    rtc_set_memory(&s->dev, 0xF, 0xFE);
+    rtc_set_memory(ISA_DEVICE(s), 0xF, 0xFE);
 }
 
 static void rtc_reset(void *opaque)
@@ -789,8 +799,7 @@ static const MemoryRegionOps cmos_ops = {
 static void rtc_get_date(Object *obj, Visitor *v, void *opaque,
                          const char *name, Error **errp)
 {
-    ISADevice *isa = ISA_DEVICE(obj);
-    RTCState *s = DO_UPCAST(RTCState, dev, isa);
+    RTCState *s = MC146818_RTC(obj);
     struct tm current_tm;
 
     rtc_update_time(s);
@@ -807,7 +816,7 @@ static void rtc_get_date(Object *obj, Visitor *v, void *opaque,
 
 static int rtc_initfn(ISADevice *dev)
 {
-    RTCState *s = DO_UPCAST(RTCState, dev, dev);
+    RTCState *s = MC146818_RTC(dev);
     int base = 0x70;
 
     s->cmos_data[RTC_REG_A] = 0x26;
@@ -866,19 +875,21 @@ static int rtc_initfn(ISADevice *dev)
 
 ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
     RTCState *s;
 
-    dev = isa_create(bus, "mc146818rtc");
-    s = DO_UPCAST(RTCState, dev, dev);
-    qdev_prop_set_int32(&dev->qdev, "base_year", base_year);
-    qdev_init_nofail(&dev->qdev);
+    isadev = isa_create(bus, TYPE_MC146818_RTC);
+    dev = DEVICE(isadev);
+    s = MC146818_RTC(isadev);
+    qdev_prop_set_int32(dev, "base_year", base_year);
+    qdev_init_nofail(dev);
     if (intercept_irq) {
         s->irq = intercept_irq;
     } else {
-        isa_init_irq(dev, &s->irq, RTC_ISA_IRQ);
+        isa_init_irq(isadev, &s->irq, RTC_ISA_IRQ);
     }
-    return dev;
+    return isadev;
 }
 
 static Property mc146818rtc_properties[] = {
@@ -899,7 +910,7 @@ static void rtc_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mc146818rtc_info = {
-    .name          = "mc146818rtc",
+    .name          = TYPE_MC146818_RTC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(RTCState),
     .class_init    = rtc_class_initfn,

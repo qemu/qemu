@@ -31,8 +31,11 @@
 
 #define SGABIOS_FILENAME "sgabios.bin"
 
-typedef struct ISAGAState {
-    ISADevice dev;
+#define TYPE_SGA "sga"
+#define SGA(obj) OBJECT_CHECK(ISASGAState, (obj), TYPE_SGA)
+
+typedef struct ISASGAState {
+    ISADevice parent_obj;
 } ISASGAState;
 
 static int sga_initfn(ISADevice *dev)
@@ -40,6 +43,7 @@ static int sga_initfn(ISADevice *dev)
     rom_add_vga(SGABIOS_FILENAME);
     return 0;
 }
+
 static void sga_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -49,7 +53,7 @@ static void sga_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sga_info = {
-    .name          = "sga",
+    .name          = TYPE_SGA,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISASGAState),
     .class_init    = sga_class_initfn,

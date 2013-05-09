@@ -24,6 +24,8 @@
 #include "hw/qdev-core.h"
 #include "qemu/thread.h"
 
+typedef int (*WriteCoreDumpFunction)(void *buf, size_t size, void *opaque);
+
 /**
  * SECTION:cpu
  * @section_id: QEMU-cpu
@@ -45,6 +47,7 @@ typedef struct CPUState CPUState;
  * instantiatable CPU type.
  * @reset: Callback to reset the #CPUState to its initial state.
  * @do_interrupt: Callback for interrupt handling.
+ * @get_arch_id: Callback for getting architecture-dependent CPU ID.
  * @vmsd: State description for migration.
  *
  * Represents a CPU family or model.
@@ -58,8 +61,17 @@ typedef struct CPUClass {
 
     void (*reset)(CPUState *cpu);
     void (*do_interrupt)(CPUState *cpu);
+    int64_t (*get_arch_id)(CPUState *cpu);
 
     const struct VMStateDescription *vmsd;
+    int (*write_elf64_note)(WriteCoreDumpFunction f, CPUState *cpu,
+                            int cpuid, void *opaque);
+    int (*write_elf64_qemunote)(WriteCoreDumpFunction f, CPUState *cpu,
+                                void *opaque);
+    int (*write_elf32_note)(WriteCoreDumpFunction f, CPUState *cpu,
+                            int cpuid, void *opaque);
+    int (*write_elf32_qemunote)(WriteCoreDumpFunction f, CPUState *cpu,
+                                void *opaque);
 } CPUClass;
 
 struct KVMState;
@@ -125,6 +137,45 @@ struct CPUState {
     uint32_t halted; /* used by alpha, cris, ppc TCG */
 };
 
+/**
+ * cpu_write_elf64_note:
+ * @f: pointer to a function that writes memory to a file
+ * @cpu: The CPU whose memory is to be dumped
+ * @cpuid: ID number of the CPU
+ * @opaque: pointer to the CPUState struct
+ */
+int cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
+                         int cpuid, void *opaque);
+
+/**
+ * cpu_write_elf64_qemunote:
+ * @f: pointer to a function that writes memory to a file
+ * @cpu: The CPU whose memory is to be dumped
+ * @cpuid: ID number of the CPU
+ * @opaque: pointer to the CPUState struct
+ */
+int cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                             void *opaque);
+
+/**
+ * cpu_write_elf32_note:
+ * @f: pointer to a function that writes memory to a file
+ * @cpu: The CPU whose memory is to be dumped
+ * @cpuid: ID number of the CPU
+ * @opaque: pointer to the CPUState struct
+ */
+int cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
+                         int cpuid, void *opaque);
+
+/**
+ * cpu_write_elf32_qemunote:
+ * @f: pointer to a function that writes memory to a file
+ * @cpu: The CPU whose memory is to be dumped
+ * @cpuid: ID number of the CPU
+ * @opaque: pointer to the CPUState struct
+ */
+int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                             void *opaque);
 
 /**
  * cpu_reset:
@@ -214,6 +265,15 @@ bool cpu_is_stopped(CPUState *cpu);
 void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
 
 /**
+ * qemu_for_each_cpu:
+ * @func: The function to be executed.
+ * @data: Data to pass to the function.
+ *
+ * Executes @func for each CPU.
+ */
+void qemu_for_each_cpu(void (*func)(CPUState *cpu, void *data), void *data);
+
+/**
  * qemu_get_cpu:
  * @index: The CPUState@cpu_index value of the CPU to obtain.
  *
@@ -222,6 +282,16 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
  * Returns: The CPU or %NULL if there is no matching CPU.
  */
 CPUState *qemu_get_cpu(int index);
+
+/**
+ * cpu_exists:
+ * @id: Guest-exposed CPU ID to lookup.
+ *
+ * Search for CPU with specified ID.
+ *
+ * Returns: %true - CPU is found, %false - CPU isn't found.
+ */
+bool cpu_exists(int64_t id);
 
 #ifndef CONFIG_USER_ONLY
 
@@ -256,5 +326,12 @@ void cpu_interrupt(CPUState *cpu, int mask);
  */
 void cpu_reset_interrupt(CPUState *cpu, int mask);
 
+/**
+ * cpu_resume:
+ * @cpu: The CPU to resume.
+ *
+ * Resumes CPU, i.e. puts CPU into runnable state.
+ */
+void cpu_resume(CPUState *cpu);
 
 #endif

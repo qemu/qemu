@@ -293,7 +293,7 @@ static int gus_initfn (ISADevice *dev)
     return 0;
 }
 
-int GUS_init (ISABus *bus)
+static int GUS_init (ISABus *bus)
 {
     isa_create_simple (bus, "gus");
     return 0;
@@ -327,6 +327,7 @@ static const TypeInfo gus_info = {
 static void gus_register_types (void)
 {
     type_register_static (&gus_info);
+    isa_register_soundhw("gus", "Gravis Ultrasound GF1", GUS_init);
 }
 
 type_init (gus_register_types)

@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "ui/console.h"
+#include "hw/qdev-core.h"
 #include "qemu/timer.h"
 #include "qmp-commands.h"
 #include "sysemu/char.h"
@@ -113,6 +114,8 @@ typedef enum {
 } console_type_t;
 
 struct QemuConsole {
+    Object parent;
+
     int index;
     console_type_t console_type;
     DisplayState *ds;
@@ -120,6 +123,7 @@ struct QemuConsole {
     int dcls;
 
     /* Graphic console state.  */
+    Object *device;
     const GraphicHwOps *hw_ops;
     void *hw;
 
@@ -174,6 +178,7 @@ static int nb_consoles = 0;
 
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds);
 static void dpy_refresh(DisplayState *s);
+static DisplayState *get_alloc_displaystate(void);
 
 static void gui_update(void *opaque)
 {
@@ -265,18 +270,20 @@ static void ppm_save(const char *filename, struct DisplaySurface *ds,
 {
     int width = pixman_image_get_width(ds->image);
     int height = pixman_image_get_height(ds->image);
+    int fd;
     FILE *f;
     int y;
     int ret;
     pixman_image_t *linebuf;
 
     trace_ppm_save(filename, ds);
-    f = fopen(filename, "wb");
-    if (!f) {
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
+    if (fd == -1) {
         error_setg(errp, "failed to open file '%s': %s", filename,
                    strerror(errno));
         return;
     }
+    f = fdopen(fd, "wb");
     ret = fprintf(f, "P6\n%d %d\n%d\n", width, height, 255);
     if (ret < 0) {
         linebuf = NULL;
@@ -1197,12 +1204,19 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
 
 static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
 {
+    Error *local_err = NULL;
+    Object *obj;
     QemuConsole *s;
     int i;
 
     if (nb_consoles >= MAX_CONSOLES)
         return NULL;
-    s = g_malloc0(sizeof(QemuConsole));
+
+    obj = object_new(TYPE_QEMU_CONSOLE);
+    s = QEMU_CONSOLE(obj);
+    object_property_add_link(obj, "device", TYPE_DEVICE,
+                             (Object **)&s->device, &local_err);
+
     if (!active_console || ((active_console->console_type != GRAPHIC_CONSOLE) &&
         (console_type == GRAPHIC_CONSOLE))) {
         active_console = s;
@@ -1286,6 +1300,28 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
     return surface;
 }
 
+static DisplaySurface *qemu_create_dummy_surface(void)
+{
+    static const char msg[] =
+        "This VM has no graphic display device.";
+    DisplaySurface *surface = qemu_create_displaysurface(640, 480);
+    pixman_color_t bg = color_table_rgb[0][COLOR_BLACK];
+    pixman_color_t fg = color_table_rgb[0][COLOR_WHITE];
+    pixman_image_t *glyph;
+    int len, x, y, i;
+
+    len = strlen(msg);
+    x = (640/FONT_WIDTH  - len) / 2;
+    y = (480/FONT_HEIGHT - 1)   / 2;
+    for (i = 0; i < len; i++) {
+        glyph = qemu_pixman_glyph_from_vgafont(FONT_HEIGHT, vgafont16, msg[i]);
+        qemu_pixman_glyph_render(glyph, surface->image, &fg, &bg,
+                                 x+i, y, FONT_WIDTH, FONT_HEIGHT);
+        qemu_pixman_image_unref(glyph);
+    }
+    return surface;
+}
+
 void qemu_free_displaysurface(DisplaySurface *surface)
 {
     if (surface == NULL) {
@@ -1296,23 +1332,30 @@ void qemu_free_displaysurface(DisplaySurface *surface)
     g_free(surface);
 }
 
-void register_displaychangelistener(DisplayState *ds,
-                                    DisplayChangeListener *dcl)
+void register_displaychangelistener(DisplayChangeListener *dcl)
 {
+    static DisplaySurface *dummy;
     QemuConsole *con;
 
     trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);
-    dcl->ds = ds;
-    QLIST_INSERT_HEAD(&ds->listeners, dcl, next);
-    gui_setup_refresh(ds);
+    dcl->ds = get_alloc_displaystate();
+    QLIST_INSERT_HEAD(&dcl->ds->listeners, dcl, next);
+    gui_setup_refresh(dcl->ds);
     if (dcl->con) {
         dcl->con->dcls++;
         con = dcl->con;
     } else {
         con = active_console;
     }
-    if (dcl->ops->dpy_gfx_switch && con) {
-        dcl->ops->dpy_gfx_switch(dcl, con->surface);
+    if (dcl->ops->dpy_gfx_switch) {
+        if (con) {
+            dcl->ops->dpy_gfx_switch(dcl, con->surface);
+        } else {
+            if (!dummy) {
+                dummy = qemu_create_dummy_surface();
+            }
+            dcl->ops->dpy_gfx_switch(dcl, dummy);
+        }
     }
 }
 
@@ -1553,9 +1596,11 @@ DisplayState *init_displaystate(void)
     return display_state;
 }
 
-QemuConsole *graphic_console_init(const GraphicHwOps *hw_ops,
+QemuConsole *graphic_console_init(DeviceState *dev,
+                                  const GraphicHwOps *hw_ops,
                                   void *opaque)
 {
+    Error *local_err = NULL;
     int width = 640;
     int height = 480;
     QemuConsole *s;
@@ -1566,6 +1611,10 @@ QemuConsole *graphic_console_init(const GraphicHwOps *hw_ops,
     s = new_console(ds, GRAPHIC_CONSOLE);
     s->hw_ops = hw_ops;
     s->hw = opaque;
+    if (dev) {
+        object_property_set_link(OBJECT(s), OBJECT(dev),
+                                 "device", &local_err);
+    }
 
     s->surface = qemu_create_displaysurface(width, height);
     return s;
@@ -1577,6 +1626,25 @@ QemuConsole *qemu_console_lookup_by_index(unsigned int index)
         return NULL;
     }
     return consoles[index];
+}
+
+QemuConsole *qemu_console_lookup_by_device(DeviceState *dev)
+{
+    Error *local_err = NULL;
+    Object *obj;
+    int i;
+
+    for (i = 0; i < nb_consoles; i++) {
+        if (!consoles[i]) {
+            continue;
+        }
+        obj = object_property_get_link(OBJECT(consoles[i]),
+                                       "device", &local_err);
+        if (DEVICE(obj) == dev) {
+            return consoles[i];
+        }
+    }
+    return NULL;
 }
 
 bool qemu_console_is_visible(QemuConsole *con)
@@ -1920,8 +1988,17 @@ static void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
+static const TypeInfo qemu_console_info = {
+    .name = TYPE_QEMU_CONSOLE,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(QemuConsole),
+    .class_size = sizeof(QemuConsoleClass),
+};
+
+
 static void register_types(void)
 {
+    type_register_static(&qemu_console_info);
     register_char_driver_qapi("vc", CHARDEV_BACKEND_KIND_VC,
                               qemu_chr_parse_vc);
 }

@@ -308,6 +308,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         CPUState *cpu = CPU(ppc_env_get_cpu(env));
+        PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
         int index = cpu->cpu_index;
         uint32_t servers_prop[smp_threads];
         uint32_t gservers_prop[smp_threads * 2];
@@ -333,10 +334,26 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         _FDT((fdt_property_string(fdt, "device_type", "cpu")));
 
         _FDT((fdt_property_cell(fdt, "cpu-version", env->spr[SPR_PVR])));
-        _FDT((fdt_property_cell(fdt, "dcache-block-size",
+        _FDT((fdt_property_cell(fdt, "d-cache-block-size",
                                 env->dcache_line_size)));
-        _FDT((fdt_property_cell(fdt, "icache-block-size",
+        _FDT((fdt_property_cell(fdt, "d-cache-line-size",
+                                env->dcache_line_size)));
+        _FDT((fdt_property_cell(fdt, "i-cache-block-size",
                                 env->icache_line_size)));
+        _FDT((fdt_property_cell(fdt, "i-cache-line-size",
+                                env->icache_line_size)));
+
+        if (pcc->l1_dcache_size) {
+            _FDT((fdt_property_cell(fdt, "d-cache-size", pcc->l1_dcache_size)));
+        } else {
+            fprintf(stderr, "Warning: Unknown L1 dcache size for cpu\n");
+        }
+        if (pcc->l1_icache_size) {
+            _FDT((fdt_property_cell(fdt, "i-cache-size", pcc->l1_icache_size)));
+        } else {
+            fprintf(stderr, "Warning: Unknown L1 icache size for cpu\n");
+        }
+
         _FDT((fdt_property_cell(fdt, "timebase-frequency", tbfreq)));
         _FDT((fdt_property_cell(fdt, "clock-frequency", cpufreq)));
         _FDT((fdt_property_cell(fdt, "ibm,slb-size", env->slb_nr)));
@@ -801,8 +818,10 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
 
-        /* PAPR always has exception vectors in RAM not ROM */
-        env->hreset_excp_prefix = 0;
+        /* PAPR always has exception vectors in RAM not ROM. To ensure this,
+         * MSR[IP] should never be set.
+         */
+        env->msr_mask &= ~(1 << 6);
 
         /* Tell KVM that we're in PAPR mode */
         if (kvm_enabled()) {

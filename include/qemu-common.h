@@ -90,20 +90,6 @@
 /* Trace unassigned memory or i/o accesses. */
 extern bool trace_unassigned;
 
-#ifndef CONFIG_IOVEC
-#define CONFIG_IOVEC
-struct iovec {
-    void *iov_base;
-    size_t iov_len;
-};
-/*
- * Use the same value as Linux for now.
- */
-#define IOV_MAX		1024
-#else
-#include <sys/uio.h>
-#endif
-
 typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
@@ -128,16 +114,12 @@ static inline char *realpath(const char *path, char *resolved_path)
 void configure_icount(const char *option);
 extern int use_icount;
 
-/* FIXME: Remove NEED_CPU_H.  */
-#ifndef NEED_CPU_H
-
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
 
-#else
-
+/* FIXME: Remove NEED_CPU_H.  */
+#ifdef NEED_CPU_H
 #include "cpu.h"
-
 #endif /* !defined(NEED_CPU_H) */
 
 /* main function, renamed */
@@ -487,5 +469,10 @@ can_use_buffer_find_nonzero_offset(const void *buf, size_t len)
             && ((uintptr_t) buf) % sizeof(VECTYPE) == 0);
 }
 size_t buffer_find_nonzero_offset(const void *buf, size_t len);
+
+/*
+ * helper to parse debug environment variables
+ */
+int parse_debug_env(const char *name, int max, int initial);
 
 #endif

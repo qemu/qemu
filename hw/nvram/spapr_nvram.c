@@ -36,6 +36,10 @@ typedef struct sPAPRNVRAM {
     BlockDriverState *drive;
 } sPAPRNVRAM;
 
+#define TYPE_VIO_SPAPR_NVRAM "spapr-nvram"
+#define VIO_SPAPR_NVRAM(obj) \
+     OBJECT_CHECK(sPAPRNVRAM, (obj), TYPE_VIO_SPAPR_NVRAM)
+
 #define MIN_NVRAM_SIZE 8192
 #define DEFAULT_NVRAM_SIZE 65536
 #define MAX_NVRAM_SIZE (UINT16_MAX * 16)
@@ -134,7 +138,7 @@ static void rtas_nvram_store(sPAPREnvironment *spapr,
 
 static int spapr_nvram_init(VIOsPAPRDevice *dev)
 {
-    sPAPRNVRAM *nvram = (sPAPRNVRAM *)dev;
+    sPAPRNVRAM *nvram = VIO_SPAPR_NVRAM(dev);
 
     if (nvram->drive) {
         nvram->size = bdrv_getlength(nvram->drive);
@@ -157,7 +161,7 @@ static int spapr_nvram_init(VIOsPAPRDevice *dev)
 
 static int spapr_nvram_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
 {
-    sPAPRNVRAM *nvram = (sPAPRNVRAM *)dev;
+    sPAPRNVRAM *nvram = VIO_SPAPR_NVRAM(dev);
 
     return fdt_setprop_cell(fdt, node_off, "#bytes", nvram->size);
 }
@@ -182,7 +186,7 @@ static void spapr_nvram_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo spapr_nvram_type_info = {
-    .name          = "spapr-nvram",
+    .name          = TYPE_VIO_SPAPR_NVRAM,
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(sPAPRNVRAM),
     .class_init    = spapr_nvram_class_init,

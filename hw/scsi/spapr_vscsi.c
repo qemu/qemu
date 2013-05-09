@@ -91,6 +91,9 @@ typedef struct vscsi_req {
     int                     total_desc;
 } vscsi_req;
 
+#define TYPE_VIO_SPAPR_VSCSI_DEVICE "spapr-vscsi"
+#define VIO_SPAPR_VSCSI_DEVICE(obj) \
+     OBJECT_CHECK(VSCSIState, (obj), TYPE_VIO_SPAPR_VSCSI_DEVICE)
 
 typedef struct {
     VIOsPAPRDevice vdev;
@@ -461,7 +464,7 @@ static int vscsi_preprocess_desc(vscsi_req *req)
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
 static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 {
-    VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
+    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
     vscsi_req *req = sreq->hba_private;
     uint8_t *buf;
     int rc = 0;
@@ -492,7 +495,7 @@ static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
 static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status, size_t resid)
 {
-    VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
+    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
     vscsi_req *req = sreq->hba_private;
     int32_t res_in = 0, res_out = 0;
 
@@ -827,7 +830,7 @@ static void vscsi_got_payload(VSCSIState *s, vscsi_crq *crq)
 
 static int vscsi_do_crq(struct VIOsPAPRDevice *dev, uint8_t *crq_data)
 {
-    VSCSIState *s = DO_UPCAST(VSCSIState, vdev, dev);
+    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
     vscsi_crq crq;
 
     memcpy(crq.raw, crq_data, 16);
@@ -897,7 +900,7 @@ static const struct SCSIBusInfo vscsi_scsi_info = {
 
 static void spapr_vscsi_reset(VIOsPAPRDevice *dev)
 {
-    VSCSIState *s = DO_UPCAST(VSCSIState, vdev, dev);
+    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
     int i;
 
     memset(s->reqs, 0, sizeof(s->reqs));
@@ -908,11 +911,11 @@ static void spapr_vscsi_reset(VIOsPAPRDevice *dev)
 
 static int spapr_vscsi_init(VIOsPAPRDevice *dev)
 {
-    VSCSIState *s = DO_UPCAST(VSCSIState, vdev, dev);
+    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
 
     dev->crq.SendFunc = vscsi_do_crq;
 
-    scsi_bus_new(&s->bus, &dev->qdev, &vscsi_scsi_info);
+    scsi_bus_new(&s->bus, &dev->qdev, &vscsi_scsi_info, NULL);
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }
@@ -968,7 +971,7 @@ static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo spapr_vscsi_info = {
-    .name          = "spapr-vscsi",
+    .name          = TYPE_VIO_SPAPR_VSCSI_DEVICE,
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(VSCSIState),
     .class_init    = spapr_vscsi_class_init,

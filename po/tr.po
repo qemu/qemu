@@ -1,0 +1,62 @@
+# Turkish translation for QEMU.
+# This file is put in the public domain.
+# Ozan Çağlayan <ozancag@gmail.com>, 2013.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: QEMU 1.4.50\n"
+"Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
+"POT-Creation-Date: 2013-04-22 18:33+0300\n"
+"PO-Revision-Date: 2013-04-22 18:35+0300\n"
+"Last-Translator: Ozan Çağlayan <ozancag@gmail.com>\n"
+"Language-Team: Türkçe <>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Gtranslator 2.91.6\n"
+
+#: ../ui/gtk.c:214
+msgid " - Press Ctrl+Alt+G to release grab"
+msgstr " - Yakalamayı durdurmak için Ctrl+Alt+G tuşlarına basın"
+
+#: ../ui/gtk.c:218
+msgid " [Paused]"
+msgstr " [Duraklatıldı]"
+
+#: ../ui/gtk.c:1282
+msgid "_Machine"
+msgstr "_Makine"
+
+#: ../ui/gtk.c:1284
+msgid "_Pause"
+msgstr "_Duraklat"
+
+#: ../ui/gtk.c:1290
+msgid "_Reset"
+msgstr "_Sıfırla"
+
+#: ../ui/gtk.c:1293
+msgid "Power _Down"
+msgstr "_Kapat"
+
+#: ../ui/gtk.c:1308
+msgid "_View"
+msgstr "_Görüntüle"
+
+#: ../ui/gtk.c:1338
+msgid "Zoom To _Fit"
+msgstr "Yakınlaş ve Sığ_dır"
+
+#: ../ui/gtk.c:1344
+msgid "Grab On _Hover"
+msgstr "Ü_zerindeyken Yakala"
+
+#: ../ui/gtk.c:1347
+msgid "_Grab Input"
+msgstr "Girdiyi _Yakala"
+
+#: ../ui/gtk.c:1373
+msgid "Show _Tabs"
+msgstr "Se_kmeleri Göster"

@@ -55,9 +55,11 @@
 #else
 #include "exec/address-spaces.h"
 #endif
+#include "qemu/timer.h"
 
 #include "exec/cputlb.h"
 #include "translate-all.h"
+#include "qemu/timer.h"
 
 //#define DEBUG_TB_INVALIDATE
 //#define DEBUG_FLUSH

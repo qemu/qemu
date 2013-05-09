@@ -23,8 +23,20 @@ static int init_journal (int read_only, BlockDriverState * bs,
 static int init_compact_image (BDRVFvdState * s, FvdHeader * header,
                                const char *const filename);
 
-static int fvd_open(BlockDriverState * bs, const char *filename,
-                    QDict *options, int flags)
+static QemuOptsList runtime_opts = {
+    .name = "sim",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "filename",
+            .type = QEMU_OPT_STRING,
+            .help = "File name of the image",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int fvd_open(BlockDriverState * bs, QDict *options, int flags)
 {
     BDRVFvdState *s = bs->opaque;
     int ret;
@@ -33,6 +45,19 @@ static int fvd_open(BlockDriverState * bs, const char *filename,
 
     /* A trick to figure out whether it runs a qemu tool such as qemu-nbd. */
     const int in_qemu_tool = (rt_clock == NULL);
+
+    Error *local_err = NULL;
+    const char *filename;
+
+    QemuOpts *opts = qemu_opts_create_nofail(&runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -EINVAL;
+    }
+
+    filename = qemu_opt_get(opts, "filename");
 
     const char * protocol = strchr (filename, ':');
     if (protocol) {

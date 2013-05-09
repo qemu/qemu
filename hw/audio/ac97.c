@@ -1396,7 +1396,7 @@ static void ac97_exitfn (PCIDevice *dev)
     memory_region_destroy (&s->io_nabm);
 }
 
-int ac97_init (PCIBus *bus)
+static int ac97_init (PCIBus *bus)
 {
     pci_create_simple (bus, -1, "AC97");
     return 0;
@@ -1433,6 +1433,7 @@ static const TypeInfo ac97_info = {
 static void ac97_register_types (void)
 {
     type_register_static (&ac97_info);
+    pci_register_soundhw("ac97", "Intel 82801AA AC97 Audio", ac97_init);
 }
 
 type_init (ac97_register_types)

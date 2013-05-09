@@ -274,7 +274,6 @@ static NotifierList machine_init_done_notifiers =
     NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
 
 static bool tcg_allowed = true;
-bool kvm_allowed;
 bool xen_allowed;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
@@ -509,20 +508,18 @@ static QemuOptsList qemu_tpmdev_opts = {
     .implied_opt_name = "type",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_tpmdev_opts.head),
     .desc = {
+        /* options are defined in the TPM backends */
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_realtime_opts = {
+    .name = "realtime",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_realtime_opts.head),
+    .desc = {
         {
-            .name = "type",
-            .type = QEMU_OPT_STRING,
-            .help = "Type of TPM backend",
-        },
-        {
-            .name = "cancel-path",
-            .type = QEMU_OPT_STRING,
-            .help = "Sysfs file entry for canceling TPM commands",
-        },
-        {
-            .name = "path",
-            .type = QEMU_OPT_STRING,
-            .help = "Path to TPM device on the host",
+            .name = "mlock",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },
@@ -603,6 +600,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_RUNNING, RUN_STATE_SAVE_VM },
     { RUN_STATE_RUNNING, RUN_STATE_SHUTDOWN },
     { RUN_STATE_RUNNING, RUN_STATE_WATCHDOG },
+    { RUN_STATE_RUNNING, RUN_STATE_GUEST_PANICKED },
 
     { RUN_STATE_SAVE_VM, RUN_STATE_RUNNING },
 
@@ -616,6 +614,8 @@ static const RunStateTransition runstate_transitions_def[] = {
 
     { RUN_STATE_WATCHDOG, RUN_STATE_RUNNING },
     { RUN_STATE_WATCHDOG, RUN_STATE_FINISH_MIGRATE },
+
+    { RUN_STATE_GUEST_PANICKED, RUN_STATE_PAUSED },
 
     { RUN_STATE_MAX, RUN_STATE_MAX },
 };
@@ -656,6 +656,13 @@ void runstate_set(RunState new_state)
 int runstate_is_running(void)
 {
     return runstate_check(RUN_STATE_RUNNING);
+}
+
+bool runstate_needs_reset(void)
+{
+    return runstate_check(RUN_STATE_INTERNAL_ERROR) ||
+        runstate_check(RUN_STATE_SHUTDOWN) ||
+        runstate_check(RUN_STATE_GUEST_PANICKED);
 }
 
 StatusInfo *qmp_query_status(Error **errp)
@@ -1231,6 +1238,24 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
     QTAILQ_INSERT_TAIL(&fw_boot_order, node, link);
 }
 
+DeviceState *get_boot_device(uint32_t position)
+{
+    uint32_t counter = 0;
+    FWBootEntry *i = NULL;
+    DeviceState *res = NULL;
+
+    if (!QTAILQ_EMPTY(&fw_boot_order)) {
+        QTAILQ_FOREACH(i, &fw_boot_order, link) {
+            if (counter == position) {
+                res = i->dev;
+                break;
+            }
+            counter++;
+        }
+    }
+    return res;
+}
+
 /*
  * This function returns null terminated string that consist of new line
  * separated device paths.
@@ -1425,6 +1450,20 @@ static void smp_parse(const char *optarg)
     smp_threads = threads > 0 ? threads : 1;
     if (max_cpus == 0)
         max_cpus = smp_cpus;
+}
+
+static void configure_realtime(QemuOpts *opts)
+{
+    bool enable_mlock;
+
+    enable_mlock = qemu_opt_get_bool(opts, "mlock", true);
+
+    if (enable_mlock) {
+        if (os_mlock() < 0) {
+            fprintf(stderr, "qemu: locking memory failed\n");
+            exit(1);
+        }
+    }
 }
 
 /***********************************************************/
@@ -1961,8 +2000,7 @@ static bool main_loop_should_exit(void)
         cpu_synchronize_all_states();
         qemu_system_reset(VMRESET_REPORT);
         resume_all_vcpus();
-        if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
-            runstate_check(RUN_STATE_SHUTDOWN)) {
+        if (runstate_needs_reset()) {
             runstate_set(RUN_STATE_PAUSED);
         }
     }
@@ -2905,6 +2943,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_add_fd_opts);
     qemu_add_opts(&qemu_object_opts);
     qemu_add_opts(&qemu_tpmdev_opts);
+    qemu_add_opts(&qemu_realtime_opts);
 
     runstate_init();
 
@@ -3252,18 +3291,10 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_BT, optarg);
                 break;
             case QEMU_OPTION_audio_help:
-                if (!(audio_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
-                    exit(1);
-                }
                 AUD_help ();
                 exit (0);
                 break;
             case QEMU_OPTION_soundhw:
-                if (!(audio_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
-                    exit(1);
-                }
                 select_soundhw (optarg);
                 break;
             case QEMU_OPTION_h:
@@ -3889,6 +3920,13 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+            case QEMU_OPTION_realtime:
+                opts = qemu_opts_parse(qemu_find_opts("realtime"), optarg, 0);
+                if (!opts) {
+                    exit(1);
+                }
+                configure_realtime(opts);
+                break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
             }
@@ -4318,6 +4356,8 @@ int main(int argc, char **argv, char **envp)
                                  .cpu_model = cpu_model };
     machine->init(&args);
 
+    audio_init();
+
     cpu_synchronize_all_post_init();
 
     set_numa_modes();
@@ -4429,7 +4469,6 @@ int main(int argc, char **argv, char **envp)
 
     os_setup_post();
 
-    resume_all_vcpus();
     main_loop();
     bdrv_close_all();
     pause_all_vcpus();

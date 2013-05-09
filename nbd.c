@@ -98,7 +98,6 @@ struct NBDExport {
     off_t size;
     uint32_t nbdflags;
     QTAILQ_HEAD(, NBDClient) clients;
-    QSIMPLEQ_HEAD(, NBDRequest) requests;
     QTAILQ_ENTRY(NBDExport) next;
 };
 
@@ -845,18 +844,11 @@ void nbd_client_close(NBDClient *client)
 static NBDRequest *nbd_request_get(NBDClient *client)
 {
     NBDRequest *req;
-    NBDExport *exp = client->exp;
 
     assert(client->nb_requests <= MAX_NBD_REQUESTS - 1);
     client->nb_requests++;
 
-    if (QSIMPLEQ_EMPTY(&exp->requests)) {
-        req = g_malloc0(sizeof(NBDRequest));
-        req->data = qemu_blockalign(exp->bs, NBD_BUFFER_SIZE);
-    } else {
-        req = QSIMPLEQ_FIRST(&exp->requests);
-        QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
-    }
+    req = g_slice_new0(NBDRequest);
     nbd_client_get(client);
     req->client = client;
     return req;
@@ -865,7 +857,12 @@ static NBDRequest *nbd_request_get(NBDClient *client)
 static void nbd_request_put(NBDRequest *req)
 {
     NBDClient *client = req->client;
-    QSIMPLEQ_INSERT_HEAD(&client->exp->requests, req, entry);
+
+    if (req->data) {
+        qemu_vfree(req->data);
+    }
+    g_slice_free(NBDRequest, req);
+
     if (client->nb_requests-- == MAX_NBD_REQUESTS) {
         qemu_notify_event();
     }
@@ -877,7 +874,6 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
                           void (*close)(NBDExport *))
 {
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
-    QSIMPLEQ_INIT(&exp->requests);
     exp->refcount = 1;
     QTAILQ_INIT(&exp->clients);
     exp->bs = bs;
@@ -953,13 +949,6 @@ void nbd_export_put(NBDExport *exp)
             exp->close(exp);
         }
 
-        while (!QSIMPLEQ_EMPTY(&exp->requests)) {
-            NBDRequest *first = QSIMPLEQ_FIRST(&exp->requests);
-            QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
-            qemu_vfree(first->data);
-            g_free(first);
-        }
-
         g_free(exp);
     }
 }
@@ -1018,6 +1007,7 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
 {
     NBDClient *client = req->client;
     int csock = client->sock;
+    uint32_t command;
     ssize_t rc;
 
     client->recv_coroutine = qemu_coroutine_self();
@@ -1029,9 +1019,9 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
         goto out;
     }
 
-    if (request->len > NBD_BUFFER_SIZE) {
+    if (request->len > NBD_MAX_BUFFER_SIZE) {
         LOG("len (%u) is larger than max len (%u)",
-            request->len, NBD_BUFFER_SIZE);
+            request->len, NBD_MAX_BUFFER_SIZE);
         rc = -EINVAL;
         goto out;
     }
@@ -1045,7 +1035,11 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
 
     TRACE("Decoding type");
 
-    if ((request->type & NBD_CMD_MASK_COMMAND) == NBD_CMD_WRITE) {
+    command = request->type & NBD_CMD_MASK_COMMAND;
+    if (command == NBD_CMD_READ || command == NBD_CMD_WRITE) {
+        req->data = qemu_blockalign(client->exp->bs, request->len);
+    }
+    if (command == NBD_CMD_WRITE) {
         TRACE("Reading %u byte(s)", request->len);
 
         if (qemu_co_recv(csock, req->data, request->len) != request->len) {

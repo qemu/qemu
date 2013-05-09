@@ -29,8 +29,12 @@
 #include "ne2000.h"
 #include "exec/address-spaces.h"
 
+#define TYPE_ISA_NE2000 "ne2k_isa"
+#define ISA_NE2000(obj) OBJECT_CHECK(ISANE2000State, (obj), TYPE_ISA_NE2000)
+
 typedef struct ISANE2000State {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     uint32_t iobase;
     uint32_t isairq;
     NE2000State ne2000;
@@ -64,7 +68,7 @@ static const VMStateDescription vmstate_isa_ne2000 = {
 
 static int isa_ne2000_initfn(ISADevice *dev)
 {
-    ISANE2000State *isa = DO_UPCAST(ISANE2000State, dev, dev);
+    ISANE2000State *isa = ISA_NE2000(dev);
     NE2000State *s = &isa->ne2000;
 
     ne2000_setup_io(s, 0x20);
@@ -98,7 +102,7 @@ static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ne2000_isa_info = {
-    .name          = "ne2k_isa",
+    .name          = TYPE_ISA_NE2000,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISANE2000State),
     .class_init    = isa_ne2000_class_initfn,

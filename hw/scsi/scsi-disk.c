@@ -244,14 +244,15 @@ done:
     }
 }
 
-static void scsi_dma_complete(void *opaque, int ret)
+static void scsi_dma_complete_noio(void *opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
-    assert(r->req.aiocb != NULL);
-    r->req.aiocb = NULL;
-    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    if (r->req.aiocb != NULL) {
+        r->req.aiocb = NULL;
+        bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    }
     if (r->req.io_canceled) {
         goto done;
     }
@@ -275,6 +276,14 @@ done:
     if (!r->req.io_canceled) {
         scsi_req_unref(&r->req);
     }
+}
+
+static void scsi_dma_complete(void *opaque, int ret)
+{
+    SCSIDiskReq *r = (SCSIDiskReq *)opaque;
+
+    assert(r->req.aiocb != NULL);
+    scsi_dma_complete_noio(opaque, ret);
 }
 
 static void scsi_read_complete(void * opaque, int ret)
@@ -496,7 +505,7 @@ static void scsi_write_data(SCSIRequest *req)
     if (r->req.cmd.buf[0] == VERIFY_10 || r->req.cmd.buf[0] == VERIFY_12 ||
         r->req.cmd.buf[0] == VERIFY_16) {
         if (r->req.sg) {
-            scsi_dma_complete(r, 0);
+            scsi_dma_complete_noio(r, 0);
         } else {
             scsi_write_complete(r, 0);
         }

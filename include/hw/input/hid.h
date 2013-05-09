@@ -31,6 +31,7 @@ typedef struct HIDKeyboardState {
     uint8_t leds;
     uint8_t key[16];
     int32_t keys;
+    QEMUPutKbdEntry *eh_entry;
 } HIDKeyboardState;
 
 struct HIDState {

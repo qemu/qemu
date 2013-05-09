@@ -659,7 +659,7 @@ static int cs4231a_initfn (ISADevice *dev)
     return 0;
 }
 
-int cs4231a_init (ISABus *bus)
+static int cs4231a_init (ISABus *bus)
 {
     isa_create_simple (bus, "cs4231a");
     return 0;
@@ -692,6 +692,7 @@ static const TypeInfo cs4231a_info = {
 static void cs4231a_register_types (void)
 {
     type_register_static (&cs4231a_info);
+    isa_register_soundhw("cs4231a", "CS4231A", cs4231a_init);
 }
 
 type_init (cs4231a_register_types)

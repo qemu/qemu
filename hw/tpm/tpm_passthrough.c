@@ -352,45 +352,17 @@ static int tpm_passthrough_test_tpmdev(int fd)
 }
 
 /*
- * Check whether the given base path, e.g.,  /sys/class/misc/tpm0/device,
- * is the sysfs directory of a TPM. A TPM sysfs directory should be uniquely
- * recognizable by the file entries 'pcrs' and 'cancel'.
- * Upon success 'true' is returned and the basebath buffer has '/cancel'
- * appended.
- */
-static bool tpm_passthrough_check_sysfs_cancel(char *basepath, size_t bufsz)
-{
-    char path[PATH_MAX];
-    struct stat statbuf;
-
-    snprintf(path, sizeof(path), "%s/pcrs", basepath);
-    if (stat(path, &statbuf) == -1 || !S_ISREG(statbuf.st_mode)) {
-        return false;
-    }
-
-    snprintf(path, sizeof(path), "%s/cancel", basepath);
-    if (stat(path, &statbuf) == -1 || !S_ISREG(statbuf.st_mode)) {
-        return false;
-    }
-
-    strncpy(basepath, path, bufsz);
-
-    return true;
-}
-
-/*
  * Unless path or file descriptor set has been provided by user,
  * determine the sysfs cancel file following kernel documentation
  * in Documentation/ABI/stable/sysfs-class-tpm.
+ * From /dev/tpm0 create /sys/class/misc/tpm0/device/cancel
  */
 static int tpm_passthrough_open_sysfs_cancel(TPMBackend *tb)
 {
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
     int fd = -1;
-    unsigned int idx;
-    DIR *pnp_dir;
+    char *dev;
     char path[PATH_MAX];
-    struct dirent entry, *result;
-    int len;
 
     if (tb->cancel_path) {
         fd = qemu_open(tb->cancel_path, O_WRONLY);
@@ -401,34 +373,22 @@ static int tpm_passthrough_open_sysfs_cancel(TPMBackend *tb)
         return fd;
     }
 
-    snprintf(path, sizeof(path), "/sys/class/misc");
-    pnp_dir = opendir(path);
-    if (pnp_dir != NULL) {
-        while (readdir_r(pnp_dir, &entry, &result) == 0 &&
-               result != NULL) {
-            /*
-             * only allow /sys/class/misc/tpm%u type of paths
-             */
-            if (sscanf(entry.d_name, "tpm%u%n", &idx, &len) < 1 ||
-                len <= strlen("tpm") ||
-                len != strlen(entry.d_name)) {
-                continue;
-            }
-
-            snprintf(path, sizeof(path), "/sys/class/misc/%s/device",
-                     entry.d_name);
-            if (!tpm_passthrough_check_sysfs_cancel(path, sizeof(path))) {
-                continue;
-            }
-
+    dev = strrchr(tpm_pt->tpm_dev, '/');
+    if (dev) {
+        dev++;
+        if (snprintf(path, sizeof(path), "/sys/class/misc/%s/device/cancel",
+                     dev) < sizeof(path)) {
             fd = qemu_open(path, O_WRONLY);
-            break;
+            if (fd >= 0) {
+                tb->cancel_path = g_strdup(path);
+            } else {
+                error_report("tpm_passthrough: Could not open TPM cancel "
+                             "path %s : %s", path, strerror(errno));
+            }
         }
-        closedir(pnp_dir);
-    }
-
-    if (fd >= 0) {
-        tb->cancel_path = g_strdup(path);
+    } else {
+       error_report("tpm_passthrough: Bad TPM device path %s",
+                    tpm_pt->tpm_dev);
     }
 
     return fd;
@@ -528,8 +488,24 @@ static void tpm_passthrough_destroy(TPMBackend *tb)
     g_free(tpm_pt->tpm_dev);
 }
 
+static const QemuOptDesc tpm_passthrough_cmdline_opts[] = {
+    TPM_STANDARD_CMDLINE_OPTS,
+    {
+        .name = "cancel-path",
+        .type = QEMU_OPT_STRING,
+        .help = "Sysfs file entry for canceling TPM commands",
+    },
+    {
+        .name = "path",
+        .type = QEMU_OPT_STRING,
+        .help = "Path to TPM device on the host",
+    },
+    { /* end of list */ },
+};
+
 static const TPMDriverOps tpm_passthrough_driver = {
     .type                     = TPM_TYPE_PASSTHROUGH,
+    .opts                     = tpm_passthrough_cmdline_opts,
     .desc                     = tpm_passthrough_create_desc,
     .create                   = tpm_passthrough_create,
     .destroy                  = tpm_passthrough_destroy,

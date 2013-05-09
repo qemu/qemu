@@ -15,13 +15,14 @@ MAKEFLAGS += -rR
 QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 
 # Same as -I$(SRC_PATH) -I., but for the nested source/object directories
-QEMU_CFLAGS += -I$(<D) -I$(@D)
+QEMU_INCLUDES += -I$(<D) -I$(@D)
 
 %.o: %.c
 	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
+%.o: %.rc
+	$(call quiet-command,$(WINDRES) -I. -o $@ $<,"  RC    $(TARGET_DIR)$@")
 
 ifeq ($(LIBTOOL),)
-LIBTOOL = /bin/false
 LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
        $(LIBS),"  LINK  $(TARGET_DIR)$@")
@@ -29,13 +30,17 @@ else
 LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
 	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
+%.lo: %.rc
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=RC $(WINDRES) -I. -o $@ $<,"lt RC   $(TARGET_DIR)$@")
 %.lo: %.dtrace
 	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, " lt GEN $(TARGET_DIR)$@")
 
 LINK = $(call quiet-command,\
        $(if $(filter %.lo %.la,$^),$(LIBTOOL) --mode=link --tag=CC \
        )$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
-       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
+       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) \
+       $(if $(filter %.lo %.la,$^),$(version-lobj-y),$(version-obj-y)) \
+       $(if $(filter %.lo %.la,$^),$(LIBTOOLFLAGS)) \
        $(LIBS),$(if $(filter %.lo %.la,$^),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
 endif
 
@@ -65,7 +70,7 @@ quiet-command = $(if $(V),$1,$(if $(2),@echo $2 && $1, @$1))
 cc-option = $(if $(shell $(CC) $1 $2 -S -o /dev/null -xc /dev/null \
               >/dev/null 2>&1 && echo OK), $2, $3)
 
-VPATH_SUFFIXES = %.c %.h %.S %.m %.mak %.texi %.sh
+VPATH_SUFFIXES = %.c %.h %.S %.m %.mak %.texi %.sh %.rc
 set-vpath = $(if $1,$(foreach PATTERN,$(VPATH_SUFFIXES),$(eval vpath $(PATTERN) $1)))
 
 # find-in-path

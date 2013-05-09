@@ -23,3 +23,4 @@ stub-obj-y += sysbus.o
 stub-obj-y += vm-stop.o
 stub-obj-y += vmstate.o
 stub-obj-$(CONFIG_WIN32) += fd-register.o
+stub-obj-y += cpus.o

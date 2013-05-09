@@ -354,7 +354,7 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
     s->irq = pci->dev.irq[0];
 
-    scsi_bus_new(&s->bus, &dev->qdev, &esp_pci_scsi_info);
+    scsi_bus_new(&s->bus, &dev->qdev, &esp_pci_scsi_info, NULL);
     if (!dev->qdev.hotplugged) {
         return scsi_bus_legacy_handle_cmdline(&s->bus);
     }

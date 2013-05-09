@@ -911,7 +911,8 @@ static int virtio_serial_device_init(VirtIODevice *vdev)
                 sizeof(struct virtio_console_config));
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
-    qbus_create_inplace(&vser->bus.qbus, TYPE_VIRTIO_SERIAL_BUS, qdev, NULL);
+    qbus_create_inplace(&vser->bus.qbus, TYPE_VIRTIO_SERIAL_BUS, qdev,
+                        vdev->bus_name);
     vser->bus.qbus.allow_hotplug = 1;
     vser->bus.vser = vser;
     QTAILQ_INIT(&vser->ports);
@@ -953,12 +954,6 @@ static int virtio_serial_device_init(VirtIODevice *vdev)
      * (old kernel, new qemu)
      */
     mark_port_added(vser, 0);
-
-    vdev->get_features = get_features;
-    vdev->get_config = get_config;
-    vdev->set_config = set_config;
-    vdev->set_status = set_status;
-    vdev->reset = vser_reset;
 
     vser->post_load = NULL;
 
@@ -1007,7 +1002,7 @@ static int virtio_serial_device_exit(DeviceState *dev)
         qemu_free_timer(vser->post_load->timer);
         g_free(vser->post_load);
     }
-    virtio_common_cleanup(vdev);
+    virtio_cleanup(vdev);
     return 0;
 }
 

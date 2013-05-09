@@ -55,6 +55,12 @@ static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
 {
     sPAPRTCETable *tcet;
 
+    if (liobn & 0xFFFFFFFF00000000ULL) {
+        hcall_dprintf("Request for out-of-bounds LIOBN 0x" TARGET_FMT_lx "\n",
+                      liobn);
+        return NULL;
+    }
+
     QLIST_FOREACH(tcet, &spapr_tce_tables, list) {
         if (tcet->liobn == liobn) {
             return tcet;
@@ -199,7 +205,7 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
     sPAPRTCE *tcep;
 
     if (ioba >= tcet->window_size) {
-        hcall_dprintf("spapr_vio_put_tce on out-of-boards IOBA 0x"
+        hcall_dprintf("spapr_vio_put_tce on out-of-bounds IOBA 0x"
                       TARGET_FMT_lx "\n", ioba);
         return H_PARAMETER;
     }
@@ -217,12 +223,6 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong ioba = args[1];
     target_ulong tce = args[2];
     sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
-
-    if (liobn & 0xFFFFFFFF00000000ULL) {
-        hcall_dprintf("spapr_vio_put_tce on out-of-boundsw LIOBN "
-                      TARGET_FMT_lx "\n", liobn);
-        return H_PARAMETER;
-    }
 
     ioba &= ~(SPAPR_TCE_PAGE_SIZE - 1);
 

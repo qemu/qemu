@@ -326,7 +326,6 @@ typedef enum EPType {
 } EPType;
 
 typedef struct XHCIRing {
-    dma_addr_t base;
     dma_addr_t dequeue;
     bool ccs;
 } XHCIRing;
@@ -943,7 +942,6 @@ static void xhci_event(XHCIState *xhci, XHCIEvent *event, int v)
 static void xhci_ring_init(XHCIState *xhci, XHCIRing *ring,
                            dma_addr_t base)
 {
-    ring->base = base;
     ring->dequeue = base;
     ring->ccs = 1;
 }
@@ -1948,7 +1946,7 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         streamid = 0;
         xhci_set_ep_state(xhci, epctx, NULL, EP_RUNNING);
     }
-    assert(ring->base != 0);
+    assert(ring->dequeue != 0);
 
     while (1) {
         XHCITransfer *xfer = &epctx->transfers[epctx->next_xfer];

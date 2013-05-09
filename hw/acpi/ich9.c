@@ -203,7 +203,7 @@ static void pm_powerdown_req(Notifier *n, void *opaque)
 }
 
 void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
-                  qemu_irq sci_irq, qemu_irq cmos_s3)
+                  qemu_irq sci_irq)
 {
     memory_region_init(&pm->io, "ich9-pm", ICH9_PMIO_SIZE);
     memory_region_set_enabled(&pm->io, false);

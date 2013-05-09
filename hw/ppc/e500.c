@@ -37,6 +37,7 @@
 #include "qemu/host-utils.h"
 #include "hw/pci-host/ppce500.h"
 
+#define EPAPR_MAGIC                (0x45504150)
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
 #define DTC_LOAD_PAD               0x1800000
@@ -393,11 +394,10 @@ static inline hwaddr booke206_page_size_to_tlb(uint64_t size)
     return 63 - clz64(size >> 10);
 }
 
-static void mmubooke_create_initial_mapping(CPUPPCState *env)
+static int booke206_initial_map_tsize(CPUPPCState *env)
 {
     struct boot_info *bi = env->load_info;
-    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
-    hwaddr size, dt_end;
+    hwaddr dt_end;
     int ps;
 
     /* Our initial TLB entry needs to cover everything from 0 to
@@ -408,6 +408,24 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env)
         /* e500v2 can only do even TLB size bits */
         ps++;
     }
+    return ps;
+}
+
+static uint64_t mmubooke_initial_mapsize(CPUPPCState *env)
+{
+    int tsize;
+
+    tsize = booke206_initial_map_tsize(env);
+    return (1ULL << 10 << tsize);
+}
+
+static void mmubooke_create_initial_mapping(CPUPPCState *env)
+{
+    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
+    hwaddr size;
+    int ps;
+
+    ps = booke206_initial_map_tsize(env);
     size = (ps << MAS1_TSIZE_SHIFT);
     tlb->mas1 = MAS1_VALID | size;
     tlb->mas2 = 0;
@@ -444,6 +462,12 @@ static void ppce500_cpu_reset(void *opaque)
     cs->halted = 0;
     env->gpr[1] = (16<<20) - 8;
     env->gpr[3] = bi->dt_base;
+    env->gpr[4] = 0;
+    env->gpr[5] = 0;
+    env->gpr[6] = EPAPR_MAGIC;
+    env->gpr[7] = mmubooke_initial_mapsize(env);
+    env->gpr[8] = 0;
+    env->gpr[9] = 0;
     env->nip = bi->entry;
     mmubooke_create_initial_mapping(env);
 }
@@ -523,6 +547,7 @@ void ppce500_init(PPCE500Params *params)
 
     /* Fixup Memory size on a alignment boundary */
     ram_size &= ~(RAM_SIZES_ALIGN - 1);
+    params->ram_size = ram_size;
 
     /* Register Memory */
     memory_region_init_ram(ram, "mpc8544ds.ram", ram_size);

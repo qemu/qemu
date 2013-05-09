@@ -33,6 +33,13 @@ struct TPMState {
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
 
+#define TPM_STANDARD_CMDLINE_OPTS \
+    { \
+        .name = "type", \
+        .type = QEMU_OPT_STRING, \
+        .help = "Type of TPM backend", \
+    }
+
 struct tpm_req_hdr {
     uint16_t tag;
     uint32_t len;

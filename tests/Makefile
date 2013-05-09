@@ -119,14 +119,16 @@ tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(
 tests/test-mul64$(EXESUF): tests/test-mul64.o libqemuutil.a
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o
+libqos-obj-y += tests/libqos/i2c.o
 libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o tests/libqos/fw_cfg-pc.o
 libqos-pc-obj-y += tests/libqos/malloc-pc.o
+libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
 tests/fdc-test$(EXESUF): tests/fdc-test.o
 tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o
-tests/tmp105-test$(EXESUF): tests/tmp105-test.o
+tests/tmp105-test$(EXESUF): tests/tmp105-test.o $(libqos-omap-obj-y)
 tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)
 tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
 
@@ -137,7 +139,6 @@ QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TA
 check-qtest-$(CONFIG_POSIX)=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
 
 qtest-obj-y = tests/libqtest.o libqemuutil.a libqemustub.a
-qtest-obj-y += tests/libi2c.o tests/libi2c-omap.o
 $(check-qtest-y): $(qtest-obj-y)
 
 .PHONY: check-help

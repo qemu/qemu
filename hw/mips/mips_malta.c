@@ -1004,9 +1004,6 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     }
     fdctrl_init_isa(isa_bus, fd);
 
-    /* Sound card */
-    audio_init(isa_bus, pci_bus);
-
     /* Network card */
     network_init();
 

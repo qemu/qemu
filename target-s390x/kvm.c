@@ -34,6 +34,8 @@
 #include "sysemu/kvm.h"
 #include "cpu.h"
 #include "sysemu/device_tree.h"
+#include "qapi/qmp/qjson.h"
+#include "monitor/monitor.h"
 
 /* #define DEBUG_KVM */
 
@@ -123,6 +125,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
+    struct kvm_one_reg reg;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     int ret;
@@ -146,6 +149,30 @@ int kvm_arch_put_registers(CPUState *cs, int level)
             return ret;
         }
     }
+
+    if (env->runtime_reg_dirty_mask == KVM_S390_RUNTIME_DIRTY_FULL) {
+        reg.id = KVM_REG_S390_CPU_TIMER;
+        reg.addr = (__u64)&(env->cputm);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            return ret;
+        }
+
+        reg.id = KVM_REG_S390_CLOCK_COMP;
+        reg.addr = (__u64)&(env->ckc);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            return ret;
+        }
+
+        reg.id = KVM_REG_S390_TODPR;
+        reg.addr = (__u64)&(env->todpr);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+    env->runtime_reg_dirty_mask = KVM_S390_RUNTIME_DIRTY_NONE;
 
     /* Do we need to save more than that? */
     if (level == KVM_PUT_RUNTIME_STATE) {
@@ -186,10 +213,51 @@ int kvm_arch_get_registers(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int r;
+
+    r = kvm_s390_get_registers_partial(cs);
+    if (r < 0) {
+        return r;
+    }
+
+    reg.id = KVM_REG_S390_CPU_TIMER;
+    reg.addr = (__u64)&(env->cputm);
+    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (r < 0) {
+        return r;
+    }
+
+    reg.id = KVM_REG_S390_CLOCK_COMP;
+    reg.addr = (__u64)&(env->ckc);
+    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (r < 0) {
+        return r;
+    }
+
+    reg.id = KVM_REG_S390_TODPR;
+    reg.addr = (__u64)&(env->todpr);
+    r = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (r < 0) {
+        return r;
+    }
+
+    env->runtime_reg_dirty_mask = KVM_S390_RUNTIME_DIRTY_FULL;
+    return 0;
+}
+
+int kvm_s390_get_registers_partial(CPUState *cs)
+{
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     int ret;
     int i;
+
+    if (env->runtime_reg_dirty_mask) {
+        return 0;
+    }
 
     /* get the PSW */
     env->psw.addr = cs->kvm_run->psw_addr;
@@ -236,6 +304,7 @@ int kvm_arch_get_registers(CPUState *cs)
         /* no prefix without sync regs */
     }
 
+    env->runtime_reg_dirty_mask = KVM_S390_RUNTIME_DIRTY_PARTIAL;
     return 0;
 }
 
@@ -400,12 +469,16 @@ static int kvm_handle_css_inst(S390CPU *cpu, struct kvm_run *run,
     int r = 0;
     int no_cc = 0;
     CPUS390XState *env = &cpu->env;
+    CPUState *cs = ENV_GET_CPU(env);
 
     if (ipa0 != 0xb2) {
         /* Not handled for now. */
         return -1;
     }
-    cpu_synchronize_state(env);
+
+    kvm_s390_get_registers_partial(cs);
+    cs->kvm_vcpu_dirty = true;
+
     switch (ipa1) {
     case PRIV_XSCH:
         r = ioinst_handle_xsch(env, env->regs[1]);
@@ -536,7 +609,10 @@ static int handle_priv(S390CPU *cpu, struct kvm_run *run,
 
 static int handle_hypercall(CPUS390XState *env, struct kvm_run *run)
 {
-    cpu_synchronize_state(env);
+    CPUState *cs = ENV_GET_CPU(env);
+
+    kvm_s390_get_registers_partial(cs);
+    cs->kvm_vcpu_dirty = true;
     env->regs[2] = s390_virtio_hypercall(env);
 
     return 0;
@@ -705,9 +781,18 @@ static int handle_intercept(S390CPU *cpu)
             r = handle_instruction(cpu, run);
             break;
         case ICPT_WAITPSW:
-            if (s390_del_running_cpu(cpu) == 0 &&
-                is_special_wait_psw(cs)) {
-                qemu_system_shutdown_request();
+            /* disabled wait, since enabled wait is handled in kernel */
+            if (s390_del_running_cpu(cpu) == 0) {
+                if (is_special_wait_psw(cs)) {
+                    qemu_system_shutdown_request();
+                } else {
+                    QObject *data;
+
+                    data = qobject_from_jsonf("{ 'action': %s }", "pause");
+                    monitor_protocol_event(QEVENT_GUEST_PANICKED, data);
+                    qobject_decref(data);
+                    vm_stop(RUN_STATE_GUEST_PANICKED);
+                }
             }
             r = EXCP_HALTED;
             break;
@@ -741,7 +826,9 @@ static int handle_tsch(S390CPU *cpu)
     struct kvm_run *run = cs->kvm_run;
     int ret;
 
-    cpu_synchronize_state(env);
+    kvm_s390_get_registers_partial(cs);
+    cs->kvm_vcpu_dirty = true;
+
     ret = ioinst_handle_tsch(env, env->regs[1], run->s390_tsch.ipb);
     if (ret >= 0) {
         /* Success; set condition code. */

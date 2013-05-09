@@ -119,6 +119,9 @@ enum powerpc_mmu_t {
     /* Architecture 2.06 variant                               */
     POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
                              | POWERPC_MMU_AMR | 0x00000003,
+    /* Architecture 2.06 "degraded" (no 1T segments)           */
+    POWERPC_MMU_2_06a      = POWERPC_MMU_64 | POWERPC_MMU_AMR
+                             | 0x00000003,
     /* Architecture 2.06 "degraded" (no 1T segments or AMR)    */
     POWERPC_MMU_2_06d      = POWERPC_MMU_64 | 0x00000003,
 #endif /* defined(TARGET_PPC64) */
@@ -1026,7 +1029,6 @@ struct CPUPPCState {
     /* Exception vectors */
     target_ulong excp_vectors[POWERPC_EXCP_NB];
     target_ulong excp_prefix;
-    target_ulong hreset_excp_prefix;
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;
@@ -1446,6 +1448,7 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_PERF2             (0x302)
 #define SPR_RCPU_MI_RBA2      (0x302)
 #define SPR_MPC_MI_AP         (0x302)
+#define SPR_MMCRA             (0x302)
 #define SPR_PERF3             (0x303)
 #define SPR_RCPU_MI_RBA3      (0x303)
 #define SPR_MPC_MI_EPN        (0x303)
@@ -1870,8 +1873,10 @@ enum {
     PPC2_PRCNTL        = 0x0000000000000008ULL,
     /* Byte-reversed, indexed, double-word load and store                    */
     PPC2_DBRX          = 0x0000000000000010ULL,
+    /* Book I 2.05 PowerPC specification                                     */
+    PPC2_ISA205        = 0x0000000000000020ULL,
 
-#define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_DBRX)
+#define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_PRCNTL | PPC2_DBRX | PPC2_ISA205)
 };
 
 /*****************************************************************************/

@@ -1,6 +1,13 @@
 #ifndef FW_CFG_H
 #define FW_CFG_H
 
+#ifndef NO_QEMU_PROTOS
+#include <stdint.h>
+#include <stddef.h>
+
+#include "exec/hwaddr.h"
+#endif
+
 #define FW_CFG_SIGNATURE        0x00
 #define FW_CFG_ID               0x01
 #define FW_CFG_UUID             0x02

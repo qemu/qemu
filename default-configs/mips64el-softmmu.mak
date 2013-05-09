@@ -1,6 +1,7 @@
 # Default configuration for mips64el-softmmu
 
 include pci.mak
+include sound.mak
 include usb.mak
 CONFIG_ISA_MMIO=y
 CONFIG_ESP=y
@@ -24,7 +25,6 @@ CONFIG_IDE_ISA=y
 CONFIG_IDE_PIIX=y
 CONFIG_IDE_VIA=y
 CONFIG_NE2000_ISA=y
-CONFIG_SOUND=y
 CONFIG_RC4030=y
 CONFIG_DP8393X=y
 CONFIG_DS1225Y=y

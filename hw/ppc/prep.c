@@ -40,7 +40,9 @@
 #include "hw/isa/pc87312.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/arch_init.h"
+#include "sysemu/qtest.h"
 #include "exec/address-spaces.h"
+#include "elf.h"
 
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO
@@ -267,7 +269,7 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
     switch (addr) {
     case 0x0092:
         /* Special port 92 */
-        retval = 0x00;
+        retval = sysctrl->endian << 1;
         break;
     case 0x0800:
         /* Motorola CPU configuration register */
@@ -427,6 +429,9 @@ static void ppc_prep_reset(void *opaque)
     PowerPCCPU *cpu = opaque;
 
     cpu_reset(CPU(cpu));
+
+    /* Reset address */
+    cpu->env.nip = 0xfffffffc;
 }
 
 /* PowerPC PREP hardware initialisation */
@@ -502,18 +507,29 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
         bios_name = BIOS_FILENAME;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
-        bios_size = get_image_size(filename);
+        bios_size = load_elf(filename, NULL, NULL, NULL,
+                             NULL, NULL, 1, ELF_MACHINE, 0);
+        if (bios_size < 0) {
+            bios_size = get_image_size(filename);
+            if (bios_size > 0 && bios_size <= BIOS_SIZE) {
+                hwaddr bios_addr;
+                bios_size = (bios_size + 0xfff) & ~0xfff;
+                bios_addr = (uint32_t)(-bios_size);
+                bios_size = load_image_targphys(filename, bios_addr, bios_size);
+            }
+            if (bios_size > BIOS_SIZE) {
+                fprintf(stderr, "qemu: PReP bios '%s' is too large (0x%x)\n",
+                        bios_name, bios_size);
+                exit(1);
+            }
+        }
     } else {
         bios_size = -1;
     }
-    if (bios_size > 0 && bios_size <= BIOS_SIZE) {
-        hwaddr bios_addr;
-        bios_size = (bios_size + 0xfff) & ~0xfff;
-        bios_addr = (uint32_t)(-bios_size);
-        bios_size = load_image_targphys(filename, bios_addr, bios_size);
-    }
-    if (bios_size < 0 || bios_size > BIOS_SIZE) {
-        hw_error("qemu: could not load PPC PREP bios '%s'\n", bios_name);
+    if (bios_size < 0 && !qtest_enabled()) {
+        fprintf(stderr, "qemu: could not load PPC PReP bios '%s'\n",
+                bios_name);
+        exit(1);
     }
     if (filename) {
         g_free(filename);
@@ -658,9 +674,6 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
 
     /* Special port to get debug messages from Open-Firmware */
     register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
-
-    /* Initialize audio subsystem */
-    audio_init(isa_bus, pci_bus);
 }
 
 static QEMUMachine prep_machine = {

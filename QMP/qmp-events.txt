@@ -446,3 +446,17 @@ Example:
 
 Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
 followed respectively by the RESET, SHUTDOWN, or STOP events.
+
+GUEST_PANICKED
+--------------
+
+Emitted when guest OS panic is detected.
+
+Data:
+
+- "action": Action that has been taken (json-string, currently always "pause").
+
+Example:
+
+{ "event": "GUEST_PANICKED",
+     "data": { "action": "pause" } }

@@ -19,6 +19,12 @@ seems to have been used for an in-tree build. You can fix this by running \
 endif
 endif
 
+CONFIG_SOFTMMU := $(if $(filter %-softmmu,$(TARGET_DIRS)),y)
+CONFIG_USER_ONLY := $(if $(filter %-user,$(TARGET_DIRS)),y)
+CONFIG_ALL=y
+-include config-all-devices.mak
+-include config-all-disas.mak
+
 include $(SRC_PATH)/rules.mak
 config-host.mak: $(SRC_PATH)/configure
 	@echo $@ is out-of-date, running configure
@@ -104,12 +110,6 @@ endif
 defconfig:
 	rm -f config-all-devices.mak $(SUBDIR_DEVICES_MAK)
 
--include config-all-devices.mak
--include config-all-disas.mak
-CONFIG_SOFTMMU := $(if $(filter %-softmmu,$(TARGET_DIRS)),y)
-CONFIG_USER_ONLY := $(if $(filter %-user,$(TARGET_DIRS)),y)
-CONFIG_ALL=y
-
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/Makefile.objs
 include $(SRC_PATH)/tests/Makefile
@@ -156,10 +156,10 @@ $(SRC_PATH)/pixman/configure:
 	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
 
 DTC_MAKE_ARGS=-I$(SRC_PATH)/dtc VPATH=$(SRC_PATH)/dtc -C dtc V="$(V)" LIBFDT_srcdir=$(SRC_PATH)/dtc/libfdt
-DTC_CFLAGS=$(CFLAGS) $(extra_cflags) -I$(BUILD_DIR)/dtc -I$(SRC_PATH)/dtc -I$(SRC_PATH)/dtc/libfdt
+DTC_CFLAGS=$(CFLAGS) $(QEMU_CFLAGS) -I$(BUILD_DIR)/dtc -I$(SRC_PATH)/dtc -I$(SRC_PATH)/dtc/libfdt
 
 subdir-dtc:dtc/libfdt dtc/tests
-	$(call quiet-command,$(MAKE) $(DTC_MAKE_ARGS) CPPFLAGS="$(DTC_CFLAGS)" LDFLAGS="$(LDFLAGS)" ARFLAGS="$(ARFLAGS)" CC="$(CC)" AR="$(AR)" LD="$(LD)" $(SUBDIR_MAKEFLAGS) libfdt,)
+	$(call quiet-command,$(MAKE) $(DTC_MAKE_ARGS) CFLAGS="$(DTC_CFLAGS)" LDFLAGS="$(LDFLAGS)" ARFLAGS="$(ARFLAGS)" CC="$(CC)" AR="$(AR)" LD="$(LD)" $(SUBDIR_MAKEFLAGS) libfdt/libfdt.a,)
 
 dtc/%:
 	mkdir -p $@
@@ -176,11 +176,13 @@ recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
-version.o: $(SRC_PATH)/version.rc config-host.h
-	$(call quiet-command,$(WINDRES) -I. -o $@ $<,"  RC    $(TARGET_DIR)$@")
+version.o: $(SRC_PATH)/version.rc config-host.h | version.lo
+version.lo: $(SRC_PATH)/version.rc config-host.h
 
 version-obj-$(CONFIG_WIN32) += version.o
-Makefile: $(version-obj-y)
+version-lobj-$(CONFIG_WIN32) += version.lo
+
+Makefile: $(version-obj-y) $(version-lobj-y)
 
 ######################################################################
 # Build libraries
@@ -301,6 +303,7 @@ qemu-icon.bmp \
 bamboo.dtb petalogix-s3adsp1800.dtb petalogix-ml605.dtb \
 multiboot.bin linuxboot.bin kvmvapic.bin \
 s390-zipl.rom \
+s390-ccw.img \
 spapr-rtas.bin slof.bin \
 palcode-clipper
 else

@@ -1051,7 +1051,7 @@ static void es1370_exitfn (PCIDevice *dev)
     memory_region_destroy (&s->io);
 }
 
-int es1370_init (PCIBus *bus)
+static int es1370_init (PCIBus *bus)
 {
     pci_create_simple (bus, -1, "ES1370");
     return 0;
@@ -1083,6 +1083,7 @@ static const TypeInfo es1370_info = {
 static void es1370_register_types (void)
 {
     type_register_static (&es1370_info);
+    pci_register_soundhw("es1370", "ENSONIQ AudioPCI ES1370", es1370_init);
 }
 
 type_init (es1370_register_types)

@@ -681,7 +681,7 @@ static int sysbus_esp_init(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, sysbus_esp_gpio_demux, 2);
 
-    scsi_bus_new(&s->bus, &dev->qdev, &esp_scsi_info);
+    scsi_bus_new(&s->bus, &dev->qdev, &esp_scsi_info, NULL);
     return scsi_bus_legacy_handle_cmdline(&s->bus);
 }
 

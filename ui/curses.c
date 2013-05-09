@@ -359,7 +359,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
 
     dcl = (DisplayChangeListener *) g_malloc0(sizeof(DisplayChangeListener));
     dcl->ops = &dcl_ops;
-    register_displaychangelistener(ds, dcl);
+    register_displaychangelistener(dcl);
 
     invalidate = 1;
 }

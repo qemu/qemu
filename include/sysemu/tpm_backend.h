@@ -65,6 +65,7 @@ typedef struct TPMSizedBuffer {
 
 struct TPMDriverOps {
     enum TpmType type;
+    const QemuOptDesc *opts;
     /* get a descriptive text of the backend to display to the user */
     const char *(*desc)(void);
 

@@ -129,7 +129,7 @@ static const TypeInfo kvmclock_info = {
 void kvmclock_create(void)
 {
     if (kvm_enabled() &&
-        first_cpu->cpuid_kvm_features & ((1ULL << KVM_FEATURE_CLOCKSOURCE) |
+        first_cpu->features[FEAT_KVM] & ((1ULL << KVM_FEATURE_CLOCKSOURCE) |
                                          (1ULL << KVM_FEATURE_CLOCKSOURCE2))) {
         sysbus_create_simple("kvmclock", -1, NULL);
     }

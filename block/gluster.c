@@ -282,13 +282,42 @@ static int qemu_gluster_aio_flush_cb(void *opaque)
     return (s->qemu_aio_count > 0);
 }
 
-static int qemu_gluster_open(BlockDriverState *bs, const char *filename,
-    QDict *options, int bdrv_flags)
+/* TODO Convert to fine grained options */
+static QemuOptsList runtime_opts = {
+    .name = "gluster",
+    .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
+    .desc = {
+        {
+            .name = "filename",
+            .type = QEMU_OPT_STRING,
+            .help = "URL to the gluster image",
+        },
+        { /* end of list */ }
+    },
+};
+
+static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
+                             int bdrv_flags)
 {
     BDRVGlusterState *s = bs->opaque;
     int open_flags = O_BINARY;
     int ret = 0;
     GlusterConf *gconf = g_malloc0(sizeof(GlusterConf));
+    QemuOpts *opts;
+    Error *local_err = NULL;
+    const char *filename;
+
+    opts = qemu_opts_create_nofail(&runtime_opts);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    filename = qemu_opt_get(opts, "filename");
+
 
     s->glfs = qemu_gluster_init(gconf, filename);
     if (!s->glfs) {
@@ -322,6 +351,7 @@ static int qemu_gluster_open(BlockDriverState *bs, const char *filename,
         qemu_gluster_aio_event_reader, NULL, qemu_gluster_aio_flush_cb, s);
 
 out:
+    qemu_opts_del(opts);
     qemu_gluster_gconf_free(gconf);
     if (!ret) {
         return ret;

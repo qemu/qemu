@@ -10,7 +10,10 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
+#ifndef _WIN32
 #include <netdb.h>
+#endif
+#include <glib.h>
 
 #include "qemu-common.h"
 #include "qemu/thread.h"
@@ -22,9 +25,7 @@
 #include "vcard_emul.h"
 #include "vevent.h"
 
-int verbose;
-
-int sock;
+static int verbose;
 
 static void
 print_byte_array(
@@ -51,7 +52,47 @@ print_usage(void) {
     vcard_emul_usage();
 }
 
-static QemuMutex write_lock;
+static GIOChannel *channel_socket;
+static GByteArray *socket_to_send;
+static QemuMutex socket_to_send_lock;
+static guint socket_tag;
+
+static void
+update_socket_watch(gboolean out);
+
+static gboolean
+do_socket_send(GIOChannel *source,
+               GIOCondition condition,
+               gpointer data)
+{
+    gsize bw;
+    GError *err = NULL;
+
+    g_return_val_if_fail(socket_to_send->len != 0, FALSE);
+    g_return_val_if_fail(condition & G_IO_OUT, FALSE);
+
+    g_io_channel_write_chars(channel_socket,
+        (gchar *)socket_to_send->data, socket_to_send->len, &bw, &err);
+    if (err != NULL) {
+        g_error("Error while sending socket %s", err->message);
+        return FALSE;
+    }
+    g_byte_array_remove_range(socket_to_send, 0, bw);
+
+    if (socket_to_send->len == 0) {
+        update_socket_watch(FALSE);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static gboolean
+socket_prepare_sending(gpointer user_data)
+{
+    update_socket_watch(TRUE);
+
+    return FALSE;
+}
 
 static int
 send_msg(
@@ -60,10 +101,9 @@ send_msg(
     const void *msg,
     unsigned int length
 ) {
-    int rv;
     VSCMsgHeader mhHeader;
 
-    qemu_mutex_lock(&write_lock);
+    qemu_mutex_lock(&socket_to_send_lock);
 
     if (verbose > 10) {
         printf("sending type=%d id=%u, len =%u (0x%x)\n",
@@ -73,23 +113,11 @@ send_msg(
     mhHeader.type = htonl(type);
     mhHeader.reader_id = 0;
     mhHeader.length = htonl(length);
-    rv = write(sock, &mhHeader, sizeof(mhHeader));
-    if (rv < 0) {
-        /* Error */
-        fprintf(stderr, "write header error\n");
-        close(sock);
-        qemu_mutex_unlock(&write_lock);
-        return 16;
-    }
-    rv = write(sock, msg, length);
-    if (rv < 0) {
-        /* Error */
-        fprintf(stderr, "write error\n");
-        close(sock);
-        qemu_mutex_unlock(&write_lock);
-        return 16;
-    }
-    qemu_mutex_unlock(&write_lock);
+    g_byte_array_append(socket_to_send, (guint8 *)&mhHeader, sizeof(mhHeader));
+    g_byte_array_append(socket_to_send, (guint8 *)msg, length);
+    g_idle_add(socket_prepare_sending, NULL);
+
+    qemu_mutex_unlock(&socket_to_send_lock);
 
     return 0;
 }
@@ -211,18 +239,237 @@ get_id_from_string(char *string, unsigned int default_id)
     return id;
 }
 
-static void
-do_command(void)
+static int
+on_host_init(VSCMsgHeader *mhHeader, VSCMsgInit *incoming)
 {
-    char inbuf[255];
+    uint32_t *capabilities = (incoming->capabilities);
+    int num_capabilities =
+        1 + ((mhHeader->length - sizeof(VSCMsgInit)) / sizeof(uint32_t));
+    int i;
+    QemuThread thread_id;
+
+    incoming->version = ntohl(incoming->version);
+    if (incoming->version != VSCARD_VERSION) {
+        if (verbose > 0) {
+            printf("warning: host has version %d, we have %d\n",
+                verbose, VSCARD_VERSION);
+        }
+    }
+    if (incoming->magic != VSCARD_MAGIC) {
+        printf("unexpected magic: got %d, expected %d\n",
+            incoming->magic, VSCARD_MAGIC);
+        return -1;
+    }
+    for (i = 0 ; i < num_capabilities; ++i) {
+        capabilities[i] = ntohl(capabilities[i]);
+    }
+    /* Future: check capabilities */
+    /* remove whatever reader might be left in qemu,
+     * in case of an unclean previous exit. */
+    send_msg(VSC_ReaderRemove, VSCARD_MINIMAL_READER_ID, NULL, 0);
+    /* launch the event_thread. This will trigger reader adds for all the
+     * existing readers */
+    qemu_thread_create(&thread_id, event_thread, NULL, 0);
+    return 0;
+}
+
+
+enum {
+    STATE_HEADER,
+    STATE_MESSAGE,
+};
+
+#define APDUBufSize 270
+
+static gboolean
+do_socket_read(GIOChannel *source,
+               GIOCondition condition,
+               gpointer data)
+{
+    int rv;
+    int dwSendLength;
+    int dwRecvLength;
+    uint8_t pbRecvBuffer[APDUBufSize];
+    static uint8_t pbSendBuffer[APDUBufSize];
+    VReaderStatus reader_status;
+    VReader *reader = NULL;
+    static VSCMsgHeader mhHeader;
+    VSCMsgError *error_msg;
+    GError *err = NULL;
+
+    static gchar *buf;
+    static gsize br, to_read;
+    static int state = STATE_HEADER;
+
+    if (state == STATE_HEADER && to_read == 0) {
+        buf = (gchar *)&mhHeader;
+        to_read = sizeof(mhHeader);
+    }
+
+    if (to_read > 0) {
+        g_io_channel_read_chars(source, (gchar *)buf, to_read, &br, &err);
+        if (err != NULL) {
+            g_error("error while reading: %s", err->message);
+        }
+        buf += br;
+        to_read -= br;
+        if (to_read != 0) {
+            return TRUE;
+        }
+    }
+
+    if (state == STATE_HEADER) {
+        mhHeader.type = ntohl(mhHeader.type);
+        mhHeader.reader_id = ntohl(mhHeader.reader_id);
+        mhHeader.length = ntohl(mhHeader.length);
+        if (verbose) {
+            printf("Header: type=%d, reader_id=%u length=%d (0x%x)\n",
+                   mhHeader.type, mhHeader.reader_id, mhHeader.length,
+                   mhHeader.length);
+        }
+        switch (mhHeader.type) {
+        case VSC_APDU:
+        case VSC_Flush:
+        case VSC_Error:
+        case VSC_Init:
+            buf = (gchar *)pbSendBuffer;
+            to_read = mhHeader.length;
+            state = STATE_MESSAGE;
+            return TRUE;
+        default:
+            fprintf(stderr, "Unexpected message of type 0x%X\n", mhHeader.type);
+            return FALSE;
+        }
+    }
+
+    if (state == STATE_MESSAGE) {
+        switch (mhHeader.type) {
+        case VSC_APDU:
+            if (verbose) {
+                printf(" recv APDU: ");
+                print_byte_array(pbSendBuffer, mhHeader.length);
+            }
+            /* Transmit received APDU */
+            dwSendLength = mhHeader.length;
+            dwRecvLength = sizeof(pbRecvBuffer);
+            reader = vreader_get_reader_by_id(mhHeader.reader_id);
+            reader_status = vreader_xfr_bytes(reader,
+                                              pbSendBuffer, dwSendLength,
+                                              pbRecvBuffer, &dwRecvLength);
+            if (reader_status == VREADER_OK) {
+                mhHeader.length = dwRecvLength;
+                if (verbose) {
+                    printf(" send response: ");
+                    print_byte_array(pbRecvBuffer, mhHeader.length);
+                }
+                send_msg(VSC_APDU, mhHeader.reader_id,
+                         pbRecvBuffer, dwRecvLength);
+            } else {
+                rv = reader_status; /* warning: not meaningful */
+                send_msg(VSC_Error, mhHeader.reader_id, &rv, sizeof(uint32_t));
+            }
+            vreader_free(reader);
+            reader = NULL; /* we've freed it, don't use it by accident
+                              again */
+            break;
+        case VSC_Flush:
+            /* TODO: actually flush */
+            send_msg(VSC_FlushComplete, mhHeader.reader_id, NULL, 0);
+            break;
+        case VSC_Error:
+            error_msg = (VSCMsgError *) pbSendBuffer;
+            if (error_msg->code == VSC_SUCCESS) {
+                qemu_mutex_lock(&pending_reader_lock);
+                if (pending_reader) {
+                    vreader_set_id(pending_reader, mhHeader.reader_id);
+                    vreader_free(pending_reader);
+                    pending_reader = NULL;
+                    qemu_cond_signal(&pending_reader_condition);
+                }
+                qemu_mutex_unlock(&pending_reader_lock);
+                break;
+            }
+            printf("warning: qemu refused to add reader\n");
+            if (error_msg->code == VSC_CANNOT_ADD_MORE_READERS) {
+                /* clear pending reader, qemu can't handle any more */
+                qemu_mutex_lock(&pending_reader_lock);
+                if (pending_reader) {
+                    pending_reader = NULL;
+                    /* make sure the event loop doesn't hang */
+                    qemu_cond_signal(&pending_reader_condition);
+                }
+                qemu_mutex_unlock(&pending_reader_lock);
+            }
+            break;
+        case VSC_Init:
+            if (on_host_init(&mhHeader, (VSCMsgInit *)pbSendBuffer) < 0) {
+                return FALSE;
+            }
+            break;
+        default:
+            g_warn_if_reached();
+            return FALSE;
+        }
+
+        state = STATE_HEADER;
+    }
+
+
+    return TRUE;
+}
+
+static gboolean
+do_socket(GIOChannel *source,
+          GIOCondition condition,
+          gpointer data)
+{
+    /* not sure if two watches work well with a single win32 sources */
+    if (condition & G_IO_OUT) {
+        if (!do_socket_send(source, condition, data)) {
+            return FALSE;
+        }
+    }
+
+    if (condition & G_IO_IN) {
+        if (!do_socket_read(source, condition, data)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static void
+update_socket_watch(gboolean out)
+{
+    if (socket_tag != 0) {
+        g_source_remove(socket_tag);
+    }
+
+    socket_tag = g_io_add_watch(channel_socket,
+        G_IO_IN | (out ? G_IO_OUT : 0), do_socket, NULL);
+}
+
+static gboolean
+do_command(GIOChannel *source,
+           GIOCondition condition,
+           gpointer data)
+{
     char *string;
     VCardEmulError error;
     static unsigned int default_reader_id;
     unsigned int reader_id;
     VReader *reader = NULL;
+    GError *err = NULL;
+
+    g_assert(condition & G_IO_IN);
 
     reader_id = default_reader_id;
-    string = fgets(inbuf, sizeof(inbuf), stdin);
+    g_io_channel_read_line(source, &string, NULL, NULL, &err);
+    if (err != NULL) {
+        g_error("Error while reading command: %s", err->message);
+    }
+
     if (string != NULL) {
         if (strncmp(string, "exit", 4) == 0) {
             /* remove all the readers */
@@ -336,10 +583,10 @@ do_command(void)
     vreader_free(reader);
     printf("> ");
     fflush(stdout);
+
+    return TRUE;
 }
 
-
-#define APDUBufSize 270
 
 /* just for ease of parsing command line arguments. */
 #define MAX_CERTS 100
@@ -351,7 +598,7 @@ connect_to_qemu(
 ) {
     struct addrinfo hints;
     struct addrinfo *server;
-    int ret;
+    int ret, sock;
 
     sock = qemu_socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
@@ -385,67 +632,26 @@ connect_to_qemu(
     return sock;
 }
 
-static int on_host_init(VSCMsgHeader *mhHeader, VSCMsgInit *incoming)
-{
-    uint32_t *capabilities = (incoming->capabilities);
-    int num_capabilities =
-        1 + ((mhHeader->length - sizeof(VSCMsgInit)) / sizeof(uint32_t));
-    int i;
-    int rv;
-    pthread_t thread_id;
-
-    incoming->version = ntohl(incoming->version);
-    if (incoming->version != VSCARD_VERSION) {
-        if (verbose > 0) {
-            printf("warning: host has version %d, we have %d\n",
-                verbose, VSCARD_VERSION);
-        }
-    }
-    if (incoming->magic != VSCARD_MAGIC) {
-        printf("unexpected magic: got %d, expected %d\n",
-            incoming->magic, VSCARD_MAGIC);
-        return -1;
-    }
-    for (i = 0 ; i < num_capabilities; ++i) {
-        capabilities[i] = ntohl(capabilities[i]);
-    }
-    /* Future: check capabilities */
-    /* remove whatever reader might be left in qemu,
-     * in case of an unclean previous exit. */
-    send_msg(VSC_ReaderRemove, VSCARD_MINIMAL_READER_ID, NULL, 0);
-    /* launch the event_thread. This will trigger reader adds for all the
-     * existing readers */
-    rv = pthread_create(&thread_id, NULL, event_thread, NULL);
-    if (rv < 0) {
-        perror("pthread_create");
-        return rv;
-    }
-    return 0;
-}
-
 int
 main(
     int argc,
     char *argv[]
 ) {
+    GMainLoop *loop;
+    GIOChannel *channel_stdin;
     char *qemu_host;
     char *qemu_port;
     VSCMsgHeader mhHeader;
-    VSCMsgError *error_msg;
 
-    int rv;
-    int dwSendLength;
-    int dwRecvLength;
-    uint8_t pbRecvBuffer[APDUBufSize];
-    uint8_t pbSendBuffer[APDUBufSize];
-     VReaderStatus reader_status;
-    VReader *reader = NULL;
     VCardEmulOptions *command_line_options = NULL;
 
     char *cert_names[MAX_CERTS];
     char *emul_args = NULL;
     int cert_count = 0;
-    int c;
+    int c, sock;
+
+    if (socket_init() != 0)
+        return 1;
 
     while ((c = getopt(argc, argv, "c:e:pd:")) != -1) {
         switch (c) {
@@ -511,14 +717,32 @@ main(
         exit(5);
     }
 
-    qemu_mutex_init(&write_lock);
+    socket_to_send = g_byte_array_new();
+    qemu_mutex_init(&socket_to_send_lock);
     qemu_mutex_init(&pending_reader_lock);
     qemu_cond_init(&pending_reader_condition);
 
     vcard_emul_init(command_line_options);
 
+    loop = g_main_loop_new(NULL, true);
+
     printf("> ");
     fflush(stdout);
+
+#ifdef _WIN32
+    channel_stdin = g_io_channel_win32_new_fd(STDIN_FILENO);
+#else
+    channel_stdin = g_io_channel_unix_new(STDIN_FILENO);
+#endif
+    g_io_add_watch(channel_stdin, G_IO_IN, do_command, NULL);
+#ifdef _WIN32
+    channel_socket = g_io_channel_win32_new_socket(sock);
+#else
+    channel_socket = g_io_channel_unix_new(sock);
+#endif
+    g_io_channel_set_encoding(channel_socket, NULL, NULL);
+    /* we buffer ourself for thread safety reasons */
+    g_io_channel_set_buffered(channel_socket, FALSE);
 
     /* Send init message, Host responds (and then we send reader attachments) */
     VSCMsgInit init = {
@@ -528,130 +752,12 @@ main(
     };
     send_msg(VSC_Init, mhHeader.reader_id, &init, sizeof(init));
 
-    do {
-        fd_set fds;
+    g_main_loop_run(loop);
+    g_main_loop_unref(loop);
 
-        FD_ZERO(&fds);
-        FD_SET(1, &fds);
-        FD_SET(sock, &fds);
-
-        /* waiting on input from the socket */
-        rv = select(sock+1, &fds, NULL, NULL, NULL);
-        if (rv < 0) {
-            /* handle error */
-            perror("select");
-            return 7;
-        }
-        if (FD_ISSET(1, &fds)) {
-            do_command();
-        }
-        if (!FD_ISSET(sock, &fds)) {
-            continue;
-        }
-
-        rv = read(sock, &mhHeader, sizeof(mhHeader));
-        if (rv < sizeof(mhHeader)) {
-            /* Error */
-            if (rv < 0) {
-                perror("header read error\n");
-            } else {
-                fprintf(stderr, "header short read %d\n", rv);
-            }
-            return 8;
-        }
-        mhHeader.type = ntohl(mhHeader.type);
-        mhHeader.reader_id = ntohl(mhHeader.reader_id);
-        mhHeader.length = ntohl(mhHeader.length);
-        if (verbose) {
-            printf("Header: type=%d, reader_id=%u length=%d (0x%x)\n",
-                    mhHeader.type, mhHeader.reader_id, mhHeader.length,
-                                               mhHeader.length);
-        }
-        switch (mhHeader.type) {
-        case VSC_APDU:
-        case VSC_Flush:
-        case VSC_Error:
-        case VSC_Init:
-            rv = read(sock, pbSendBuffer, mhHeader.length);
-            break;
-        default:
-            fprintf(stderr, "Unexpected message of type 0x%X\n", mhHeader.type);
-            return 0;
-        }
-        switch (mhHeader.type) {
-        case VSC_APDU:
-            if (rv < 0) {
-                /* Error */
-                fprintf(stderr, "read error\n");
-                close(sock);
-                return 8;
-            }
-            if (verbose) {
-                printf(" recv APDU: ");
-                print_byte_array(pbSendBuffer, mhHeader.length);
-            }
-            /* Transmit received APDU */
-            dwSendLength = mhHeader.length;
-            dwRecvLength = sizeof(pbRecvBuffer);
-            reader = vreader_get_reader_by_id(mhHeader.reader_id);
-            reader_status = vreader_xfr_bytes(reader,
-                pbSendBuffer, dwSendLength,
-                pbRecvBuffer, &dwRecvLength);
-            if (reader_status == VREADER_OK) {
-                mhHeader.length = dwRecvLength;
-                if (verbose) {
-                    printf(" send response: ");
-                    print_byte_array(pbRecvBuffer, mhHeader.length);
-                }
-                send_msg(VSC_APDU, mhHeader.reader_id,
-                         pbRecvBuffer, dwRecvLength);
-            } else {
-                rv = reader_status; /* warning: not meaningful */
-                send_msg(VSC_Error, mhHeader.reader_id, &rv, sizeof(uint32_t));
-            }
-            vreader_free(reader);
-            reader = NULL; /* we've freed it, don't use it by accident
-                              again */
-            break;
-        case VSC_Flush:
-            /* TODO: actually flush */
-            send_msg(VSC_FlushComplete, mhHeader.reader_id, NULL, 0);
-            break;
-        case VSC_Error:
-            error_msg = (VSCMsgError *) pbSendBuffer;
-            if (error_msg->code == VSC_SUCCESS) {
-                qemu_mutex_lock(&pending_reader_lock);
-                if (pending_reader) {
-                    vreader_set_id(pending_reader, mhHeader.reader_id);
-                    vreader_free(pending_reader);
-                    pending_reader = NULL;
-                    qemu_cond_signal(&pending_reader_condition);
-                }
-                qemu_mutex_unlock(&pending_reader_lock);
-                break;
-            }
-            printf("warning: qemu refused to add reader\n");
-            if (error_msg->code == VSC_CANNOT_ADD_MORE_READERS) {
-                /* clear pending reader, qemu can't handle any more */
-                qemu_mutex_lock(&pending_reader_lock);
-                if (pending_reader) {
-                    pending_reader = NULL;
-                    /* make sure the event loop doesn't hang */
-                    qemu_cond_signal(&pending_reader_condition);
-                }
-                qemu_mutex_unlock(&pending_reader_lock);
-            }
-            break;
-        case VSC_Init:
-            if (on_host_init(&mhHeader, (VSCMsgInit *)pbSendBuffer) < 0) {
-                return -1;
-            }
-            break;
-        default:
-            printf("Default\n");
-            return 0;
-        }
-    } while (rv >= 0);
+    g_io_channel_unref(channel_stdin);
+    g_io_channel_unref(channel_socket);
+    g_byte_array_unref(socket_to_send);
 
     return 0;
 }

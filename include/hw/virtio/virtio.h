@@ -90,20 +90,6 @@ typedef struct VirtQueueElement
     struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
 } VirtQueueElement;
 
-typedef struct {
-    void (*notify)(DeviceState *d, uint16_t vector);
-    void (*save_config)(DeviceState *d, QEMUFile *f);
-    void (*save_queue)(DeviceState *d, int n, QEMUFile *f);
-    int (*load_config)(DeviceState *d, QEMUFile *f);
-    int (*load_queue)(DeviceState *d, int n, QEMUFile *f);
-    int (*load_done)(DeviceState *d, QEMUFile *f);
-    unsigned (*get_features)(DeviceState *d);
-    bool (*query_guest_notifiers)(DeviceState *d);
-    int (*set_guest_notifiers)(DeviceState *d, int nvqs, bool assigned);
-    int (*set_host_notifier)(DeviceState *d, int n, bool assigned);
-    void (*vmstate_change)(DeviceState *d, bool running);
-} VirtIOBindings;
-
 #define VIRTIO_PCI_QUEUE_MAX 64
 
 #define VIRTIO_NO_VECTOR 0xffff
@@ -128,36 +114,11 @@ struct VirtIODevice
     void *config;
     uint16_t config_vector;
     int nvectors;
-    /*
-     * Function pointers will be removed at the end of the series as they are in
-     * VirtioDeviceClass.
-     */
-    uint32_t (*get_features)(VirtIODevice *vdev, uint32_t requested_features);
-    uint32_t (*bad_features)(VirtIODevice *vdev);
-    void (*set_features)(VirtIODevice *vdev, uint32_t val);
-    void (*get_config)(VirtIODevice *vdev, uint8_t *config);
-    void (*set_config)(VirtIODevice *vdev, const uint8_t *config);
-    void (*reset)(VirtIODevice *vdev);
-    void (*set_status)(VirtIODevice *vdev, uint8_t val);
-    /* Test and clear event pending status.
-     * Should be called after unmask to avoid losing events.
-     * If backend does not support masking,
-     * must check in frontend instead.
-     */
-    bool (*guest_notifier_pending)(VirtIODevice *vdev, int n);
-    /* Mask/unmask events from this vq. Any events reported
-     * while masked will become pending.
-     * If backend does not support masking,
-     * must mask in frontend instead.
-     */
-    void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask);
-
     VirtQueue *vq;
-    const VirtIOBindings *binding;
-    DeviceState *binding_opaque;
     uint16_t device_id;
     bool vm_running;
     VMChangeStateEntry *vmstate;
+    char *bus_name;
 };
 
 typedef struct VirtioDeviceClass {
@@ -187,7 +148,10 @@ typedef struct VirtioDeviceClass {
 
 void virtio_init(VirtIODevice *vdev, const char *name,
                          uint16_t device_id, size_t config_size);
-void virtio_common_cleanup(VirtIODevice *vdev);
+void virtio_cleanup(VirtIODevice *vdev);
+
+/* Set the child bus name. */
+void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name);
 
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             void (*handle_output)(VirtIODevice *,
@@ -216,8 +180,6 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f);
 
 int virtio_load(VirtIODevice *vdev, QEMUFile *f);
 
-void virtio_cleanup(VirtIODevice *vdev);
-
 void virtio_notify_config(VirtIODevice *vdev);
 
 void virtio_queue_set_notification(VirtQueue *vq, int enable);
@@ -228,8 +190,6 @@ int virtio_queue_empty(VirtQueue *vq);
 
 /* Host binding interface.  */
 
-VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
-                                 size_t config_size, size_t struct_size);
 uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr);
 uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr);
 uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr);
@@ -247,9 +207,6 @@ void virtio_reset(void *opaque);
 void virtio_update_irq(VirtIODevice *vdev);
 int virtio_set_features(VirtIODevice *vdev, uint32_t val);
 
-void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
-                        DeviceState *opaque);
-
 /* Base devices.  */
 typedef struct VirtIOBlkConf VirtIOBlkConf;
 struct virtio_net_conf;
@@ -257,20 +214,8 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
                               struct virtio_net_conf *net,
                               uint32_t host_features);
 typedef struct virtio_serial_conf virtio_serial_conf;
-VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *serial);
 typedef struct VirtIOSCSIConf VirtIOSCSIConf;
-VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *conf);
 typedef struct VirtIORNGConf VirtIORNGConf;
-VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf);
-#ifdef CONFIG_VIRTFS
-VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf);
-#endif
-
-
-void virtio_net_exit(VirtIODevice *vdev);
-void virtio_serial_exit(VirtIODevice *vdev);
-void virtio_scsi_exit(VirtIODevice *vdev);
-void virtio_rng_exit(VirtIODevice *vdev);
 
 #define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field) \
 	DEFINE_PROP_BIT("indirect_desc", _state, _field, \

@@ -31,6 +31,12 @@
 
 #define ADLIB_KILL_TIMERS 1
 
+#ifdef HAS_YMF262
+#define ADLIB_DESC "Yamaha YMF262 (OPL3)"
+#else
+#define ADLIB_DESC "Yamaha YM3812 (OPL2)"
+#endif
+
 #ifdef DEBUG
 #include "qemu/timer.h"
 #endif
@@ -56,13 +62,15 @@ void YMF262UpdateOneQEMU (int which, INT16 *dst, int length);
 #define IO_WRITE_PROTO(name) \
     void name (void *opaque, uint32_t nport, uint32_t val)
 
-static struct {
-    int port;
-    int freq;
-} conf = {0x220, 44100};
+#define TYPE_ADLIB "adlib"
+#define ADLIB(obj) OBJECT_CHECK(AdlibState, (obj), TYPE_ADLIB)
 
 typedef struct {
+    ISADevice parent_obj;
+
     QEMUSoundCard card;
+    uint32_t freq;
+    uint32_t port;
     int ticking[2];
     int enabled;
     int active;
@@ -80,7 +88,7 @@ typedef struct {
 #endif
 } AdlibState;
 
-static AdlibState glob_adlib;
+static AdlibState *glob_adlib;
 
 static void adlib_stop_opl_timer (AdlibState *s, size_t n)
 {
@@ -150,7 +158,7 @@ static IO_READ_PROTO (adlib_read)
 
 static void timer_handler (int c, double interval_Sec)
 {
-    AdlibState *s = &glob_adlib;
+    AdlibState *s = glob_adlib;
     unsigned n = c & 1;
 #ifdef DEBUG
     double interval;
@@ -275,14 +283,20 @@ static void Adlib_fini (AdlibState *s)
     AUD_remove_card (&s->card);
 }
 
-int Adlib_init (ISABus *bus)
+static int Adlib_initfn (ISADevice *dev)
 {
-    AdlibState *s = &glob_adlib;
+    AdlibState *s = ADLIB(dev);
     struct audsettings as;
 
+    if (glob_adlib) {
+        dolog ("Cannot create more than 1 adlib device\n");
+        return -1;
+    }
+    glob_adlib = s;
+
 #ifdef HAS_YMF262
-    if (YMF262Init (1, 14318180, conf.freq)) {
-        dolog ("YMF262Init %d failed\n", conf.freq);
+    if (YMF262Init (1, 14318180, s->freq)) {
+        dolog ("YMF262Init %d failed\n", s->freq);
         return -1;
     }
     else {
@@ -290,9 +304,9 @@ int Adlib_init (ISABus *bus)
         s->enabled = 1;
     }
 #else
-    s->opl = OPLCreate (OPL_TYPE_YM3812, 3579545, conf.freq);
+    s->opl = OPLCreate (OPL_TYPE_YM3812, 3579545, s->freq);
     if (!s->opl) {
-        dolog ("OPLCreate %d failed\n", conf.freq);
+        dolog ("OPLCreate %d failed\n", s->freq);
         return -1;
     }
     else {
@@ -301,7 +315,7 @@ int Adlib_init (ISABus *bus)
     }
 #endif
 
-    as.freq = conf.freq;
+    as.freq = s->freq;
     as.nchannels = SHIFT;
     as.fmt = AUD_FMT_S16;
     as.endianness = AUDIO_HOST_ENDIANNESS;
@@ -327,11 +341,47 @@ int Adlib_init (ISABus *bus)
     register_ioport_read (0x388, 4, 1, adlib_read, s);
     register_ioport_write (0x388, 4, 1, adlib_write, s);
 
-    register_ioport_read (conf.port, 4, 1, adlib_read, s);
-    register_ioport_write (conf.port, 4, 1, adlib_write, s);
+    register_ioport_read (s->port, 4, 1, adlib_read, s);
+    register_ioport_write (s->port, 4, 1, adlib_write, s);
 
-    register_ioport_read (conf.port + 8, 2, 1, adlib_read, s);
-    register_ioport_write (conf.port + 8, 2, 1, adlib_write, s);
+    register_ioport_read (s->port + 8, 2, 1, adlib_read, s);
+    register_ioport_write (s->port + 8, 2, 1, adlib_write, s);
 
     return 0;
 }
+
+static Property adlib_properties[] = {
+    DEFINE_PROP_HEX32  ("iobase",  AdlibState, port, 0x220),
+    DEFINE_PROP_UINT32 ("freq",    AdlibState, freq,  44100),
+    DEFINE_PROP_END_OF_LIST (),
+};
+
+static void adlib_class_initfn (ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS (klass);
+    ISADeviceClass *ic = ISA_DEVICE_CLASS (klass);
+    ic->init = Adlib_initfn;
+    dc->desc = ADLIB_DESC;
+    dc->props = adlib_properties;
+}
+
+static const TypeInfo adlib_info = {
+    .name          = TYPE_ADLIB,
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof (AdlibState),
+    .class_init    = adlib_class_initfn,
+};
+
+static int Adlib_init (ISABus *bus)
+{
+    isa_create_simple (bus, TYPE_ADLIB);
+    return 0;
+}
+
+static void adlib_register_types (void)
+{
+    type_register_static (&adlib_info);
+    isa_register_soundhw("adlib", ADLIB_DESC, Adlib_init);
+}
+
+type_init (adlib_register_types)

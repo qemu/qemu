@@ -32,6 +32,7 @@ libcacard-y += libcacard/vcard.o libcacard/vreader.o
 libcacard-y += libcacard/vcard_emul_nss.o
 libcacard-y += libcacard/vcard_emul_type.o
 libcacard-y += libcacard/card_7816.o
+libcacard-y += libcacard/vcardt.o
 
 ######################################################################
 # Target independent part of system emulation. The long term path is to

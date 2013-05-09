@@ -1185,13 +1185,13 @@ static const GraphicHwOps vmsvga_ops = {
     .text_update = vmsvga_text_update,
 };
 
-static void vmsvga_init(struct vmsvga_state_s *s,
+static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
                         MemoryRegion *address_space, MemoryRegion *io)
 {
     s->scratch_size = SVGA_SCRATCH_SIZE;
     s->scratch = g_malloc(s->scratch_size * 4);
 
-    s->vga.con = graphic_console_init(&vmsvga_ops, s);
+    s->vga.con = graphic_console_init(dev, &vmsvga_ops, s);
 
     s->fifo_size = SVGA_FIFO_SIZE;
     memory_region_init_ram(&s->fifo_ram, "vmsvga.fifo", s->fifo_size);
@@ -1258,7 +1258,8 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
     memory_region_set_flush_coalesced(&s->io_bar);
     pci_register_bar(&s->card, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
 
-    vmsvga_init(&s->chip, pci_address_space(dev), pci_address_space_io(dev));
+    vmsvga_init(DEVICE(dev), &s->chip,
+                pci_address_space(dev), pci_address_space_io(dev));
 
     pci_register_bar(&s->card, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,
                      &s->chip.vga.vram);

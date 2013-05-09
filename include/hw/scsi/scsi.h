@@ -152,7 +152,8 @@ struct SCSIBus {
     const SCSIBusInfo *info;
 };
 
-void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info);
+void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info,
+                  const char *bus_name);
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 {

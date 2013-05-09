@@ -162,6 +162,7 @@ int qdev_init(DeviceState *dev)
 
     object_property_set_bool(OBJECT(dev), true, "realized", &local_err);
     if (local_err != NULL) {
+        qerror_report_err(local_err);
         error_free(local_err);
         qdev_free(dev);
         return -1;
@@ -207,7 +208,7 @@ void qdev_unplug(DeviceState *dev, Error **errp)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
-    if (!dev->parent_bus->allow_hotplug) {
+    if (dev->parent_bus && !dev->parent_bus->allow_hotplug) {
         error_set(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
         return;
     }

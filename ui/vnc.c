@@ -1111,6 +1111,23 @@ void vnc_client_error(VncState *vs)
     vnc_disconnect_start(vs);
 }
 
+#ifdef CONFIG_VNC_TLS
+static long vnc_client_write_tls(gnutls_session_t *session,
+                                 const uint8_t *data,
+                                 size_t datalen)
+{
+    long ret = gnutls_write(*session, data, datalen);
+    if (ret < 0) {
+        if (ret == GNUTLS_E_AGAIN) {
+            errno = EAGAIN;
+        } else {
+            errno = EIO;
+        }
+        ret = -1;
+    }
+    return ret;
+}
+#endif /* CONFIG_VNC_TLS */
 
 /*
  * Called to write a chunk of data to the client socket. The data may
@@ -1132,17 +1149,20 @@ long vnc_client_write_buf(VncState *vs, const void *data, size_t datalen)
     long ret;
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
-        ret = gnutls_write(vs->tls.session, data, datalen);
-        if (ret < 0) {
-            if (ret == GNUTLS_E_AGAIN)
-                errno = EAGAIN;
-            else
-                errno = EIO;
-            ret = -1;
-        }
-    } else
+        ret = vnc_client_write_tls(&vs->tls.session, data, datalen);
+    } else {
+#ifdef CONFIG_VNC_WS
+        if (vs->ws_tls.session) {
+            ret = vnc_client_write_tls(&vs->ws_tls.session, data, datalen);
+        } else
+#endif /* CONFIG_VNC_WS */
 #endif /* CONFIG_VNC_TLS */
-        ret = send(vs->csock, (const void *)data, datalen, 0);
+        {
+            ret = send(vs->csock, (const void *)data, datalen, 0);
+        }
+#ifdef CONFIG_VNC_TLS
+    }
+#endif /* CONFIG_VNC_TLS */
     VNC_DEBUG("Wrote wire %p %zd -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, socket_error());
 }
@@ -1240,6 +1260,22 @@ void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
     vs->read_handler_expect = expecting;
 }
 
+#ifdef CONFIG_VNC_TLS
+static long vnc_client_read_tls(gnutls_session_t *session, uint8_t *data,
+                                size_t datalen)
+{
+    long ret = gnutls_read(*session, data, datalen);
+    if (ret < 0) {
+        if (ret == GNUTLS_E_AGAIN) {
+            errno = EAGAIN;
+        } else {
+            errno = EIO;
+        }
+        ret = -1;
+    }
+    return ret;
+}
+#endif /* CONFIG_VNC_TLS */
 
 /*
  * Called to read a chunk of data from the client socket. The data may
@@ -1261,17 +1297,20 @@ long vnc_client_read_buf(VncState *vs, void *data, size_t datalen)
     long ret;
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
-        ret = gnutls_read(vs->tls.session, data, datalen);
-        if (ret < 0) {
-            if (ret == GNUTLS_E_AGAIN)
-                errno = EAGAIN;
-            else
-                errno = EIO;
-            ret = -1;
-        }
-    } else
+        ret = vnc_client_read_tls(&vs->tls.session, data, datalen);
+    } else {
+#ifdef CONFIG_VNC_WS
+        if (vs->ws_tls.session) {
+            ret = vnc_client_read_tls(&vs->ws_tls.session, data, datalen);
+        } else
+#endif /* CONFIG_VNC_WS */
 #endif /* CONFIG_VNC_TLS */
-        ret = qemu_recv(vs->csock, data, datalen, 0);
+        {
+            ret = qemu_recv(vs->csock, data, datalen, 0);
+        }
+#ifdef CONFIG_VNC_TLS
+    }
+#endif /* CONFIG_VNC_TLS */
     VNC_DEBUG("Read wire %p %zd -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, socket_error());
 }
@@ -1522,19 +1561,64 @@ static void press_key(VncState *vs, int keysym)
     kbd_put_keycode(keycode | SCANCODE_UP);
 }
 
+static int current_led_state(VncState *vs)
+{
+    int ledstate = 0;
+
+    if (vs->modifiers_state[0x46]) {
+        ledstate |= QEMU_SCROLL_LOCK_LED;
+    }
+    if (vs->modifiers_state[0x45]) {
+        ledstate |= QEMU_NUM_LOCK_LED;
+    }
+    if (vs->modifiers_state[0x3a]) {
+        ledstate |= QEMU_CAPS_LOCK_LED;
+    }
+
+    return ledstate;
+}
+
+static void vnc_led_state_change(VncState *vs)
+{
+    int ledstate = 0;
+
+    if (!vnc_has_feature(vs, VNC_FEATURE_LED_STATE)) {
+        return;
+    }
+
+    ledstate = current_led_state(vs);
+    vnc_lock_output(vs);
+    vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
+    vnc_write_u8(vs, 0);
+    vnc_write_u16(vs, 1);
+    vnc_framebuffer_update(vs, 0, 0, 1, 1, VNC_ENCODING_LED_STATE);
+    vnc_write_u8(vs, ledstate);
+    vnc_unlock_output(vs);
+    vnc_flush(vs);
+}
+
 static void kbd_leds(void *opaque, int ledstate)
 {
     VncState *vs = opaque;
-    int caps, num;
+    int caps, num, scr;
 
     caps = ledstate & QEMU_CAPS_LOCK_LED ? 1 : 0;
     num  = ledstate & QEMU_NUM_LOCK_LED  ? 1 : 0;
+    scr  = ledstate & QEMU_SCROLL_LOCK_LED ? 1 : 0;
 
     if (vs->modifiers_state[0x3a] != caps) {
         vs->modifiers_state[0x3a] = caps;
     }
     if (vs->modifiers_state[0x45] != num) {
         vs->modifiers_state[0x45] = num;
+    }
+    if (vs->modifiers_state[0x46] != scr) {
+        vs->modifiers_state[0x46] = scr;
+    }
+
+    /* Sending the current led state message to the client */
+    if (ledstate != current_led_state(vs)) {
+        vnc_led_state_change(vs);
     }
 }
 
@@ -1568,7 +1652,11 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         break;
     }
 
+    /* Turn off the lock state sync logic if the client support the led
+       state extension.
+    */
     if (down && vs->vd->lock_key_sync &&
+        !vnc_has_feature(vs, VNC_FEATURE_LED_STATE) &&
         keycode_is_keypad(vs->vd->kbd_layout, keycode)) {
         /* If the numlock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
@@ -1588,6 +1676,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
     }
 
     if (down && vs->vd->lock_key_sync &&
+        !vnc_has_feature(vs, VNC_FEATURE_LED_STATE) &&
         ((sym >= 'A' && sym <= 'Z') || (sym >= 'a' && sym <= 'z'))) {
         /* If the capslock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
@@ -1889,6 +1978,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
         case VNC_ENCODING_WMVi:
             vs->features |= VNC_FEATURE_WMVI_MASK;
             break;
+        case VNC_ENCODING_LED_STATE:
+            vs->features |= VNC_FEATURE_LED_STATE_MASK;
+            break;
         case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
             vs->tight.compression = (enc & 0x0F);
             break;
@@ -1904,6 +1996,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
     }
     vnc_desktop_resize(vs);
     check_pointer_type_change(&vs->mouse_mode_notifier, NULL);
+    vnc_led_state_change(vs);
 }
 
 static void set_pixel_conversion(VncState *vs)
@@ -2707,7 +2800,16 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth, bool websocket)
 #ifdef CONFIG_VNC_WS
     if (websocket) {
         vs->websocket = 1;
-        qemu_set_fd_handler2(vs->csock, NULL, vncws_handshake_read, NULL, vs);
+#ifdef CONFIG_VNC_TLS
+        if (vd->tls.x509cert) {
+            qemu_set_fd_handler2(vs->csock, NULL, vncws_tls_handshake_peek,
+                                 NULL, vs);
+        } else
+#endif /* CONFIG_VNC_TLS */
+        {
+            qemu_set_fd_handler2(vs->csock, NULL, vncws_handshake_read,
+                                 NULL, vs);
+        }
     } else
 #endif /* CONFIG_VNC_WS */
     {
@@ -2832,7 +2934,7 @@ void vnc_display_init(DisplayState *ds)
     vnc_start_worker_thread();
 
     vs->dcl.ops = &dcl_ops;
-    register_displaychangelistener(ds, &vs->dcl);
+    register_displaychangelistener(&vs->dcl);
 }
 
 

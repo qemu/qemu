@@ -19,118 +19,6 @@
 #include <block/scsi.h>
 #include <hw/virtio/virtio-bus.h>
 
-#define VIRTIO_SCSI_VQ_SIZE     128
-#define VIRTIO_SCSI_CDB_SIZE    32
-#define VIRTIO_SCSI_SENSE_SIZE  96
-#define VIRTIO_SCSI_MAX_CHANNEL 0
-#define VIRTIO_SCSI_MAX_TARGET  255
-#define VIRTIO_SCSI_MAX_LUN     16383
-
-/* Response codes */
-#define VIRTIO_SCSI_S_OK                       0
-#define VIRTIO_SCSI_S_OVERRUN                  1
-#define VIRTIO_SCSI_S_ABORTED                  2
-#define VIRTIO_SCSI_S_BAD_TARGET               3
-#define VIRTIO_SCSI_S_RESET                    4
-#define VIRTIO_SCSI_S_BUSY                     5
-#define VIRTIO_SCSI_S_TRANSPORT_FAILURE        6
-#define VIRTIO_SCSI_S_TARGET_FAILURE           7
-#define VIRTIO_SCSI_S_NEXUS_FAILURE            8
-#define VIRTIO_SCSI_S_FAILURE                  9
-#define VIRTIO_SCSI_S_FUNCTION_SUCCEEDED       10
-#define VIRTIO_SCSI_S_FUNCTION_REJECTED        11
-#define VIRTIO_SCSI_S_INCORRECT_LUN            12
-
-/* Controlq type codes.  */
-#define VIRTIO_SCSI_T_TMF                      0
-#define VIRTIO_SCSI_T_AN_QUERY                 1
-#define VIRTIO_SCSI_T_AN_SUBSCRIBE             2
-
-/* Valid TMF subtypes.  */
-#define VIRTIO_SCSI_T_TMF_ABORT_TASK           0
-#define VIRTIO_SCSI_T_TMF_ABORT_TASK_SET       1
-#define VIRTIO_SCSI_T_TMF_CLEAR_ACA            2
-#define VIRTIO_SCSI_T_TMF_CLEAR_TASK_SET       3
-#define VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET      4
-#define VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET   5
-#define VIRTIO_SCSI_T_TMF_QUERY_TASK           6
-#define VIRTIO_SCSI_T_TMF_QUERY_TASK_SET       7
-
-/* Events.  */
-#define VIRTIO_SCSI_T_EVENTS_MISSED            0x80000000
-#define VIRTIO_SCSI_T_NO_EVENT                 0
-#define VIRTIO_SCSI_T_TRANSPORT_RESET          1
-#define VIRTIO_SCSI_T_ASYNC_NOTIFY             2
-#define VIRTIO_SCSI_T_PARAM_CHANGE             3
-
-/* Reasons for transport reset event */
-#define VIRTIO_SCSI_EVT_RESET_HARD             0
-#define VIRTIO_SCSI_EVT_RESET_RESCAN           1
-#define VIRTIO_SCSI_EVT_RESET_REMOVED          2
-
-/* SCSI command request, followed by data-out */
-typedef struct {
-    uint8_t lun[8];              /* Logical Unit Number */
-    uint64_t tag;                /* Command identifier */
-    uint8_t task_attr;           /* Task attribute */
-    uint8_t prio;
-    uint8_t crn;
-    uint8_t cdb[];
-} QEMU_PACKED VirtIOSCSICmdReq;
-
-/* Response, followed by sense data and data-in */
-typedef struct {
-    uint32_t sense_len;          /* Sense data length */
-    uint32_t resid;              /* Residual bytes in data buffer */
-    uint16_t status_qualifier;   /* Status qualifier */
-    uint8_t status;              /* Command completion status */
-    uint8_t response;            /* Response values */
-    uint8_t sense[];
-} QEMU_PACKED VirtIOSCSICmdResp;
-
-/* Task Management Request */
-typedef struct {
-    uint32_t type;
-    uint32_t subtype;
-    uint8_t lun[8];
-    uint64_t tag;
-} QEMU_PACKED VirtIOSCSICtrlTMFReq;
-
-typedef struct {
-    uint8_t response;
-} QEMU_PACKED VirtIOSCSICtrlTMFResp;
-
-/* Asynchronous notification query/subscription */
-typedef struct {
-    uint32_t type;
-    uint8_t lun[8];
-    uint32_t event_requested;
-} QEMU_PACKED VirtIOSCSICtrlANReq;
-
-typedef struct {
-    uint32_t event_actual;
-    uint8_t response;
-} QEMU_PACKED VirtIOSCSICtrlANResp;
-
-typedef struct {
-    uint32_t event;
-    uint8_t lun[8];
-    uint32_t reason;
-} QEMU_PACKED VirtIOSCSIEvent;
-
-typedef struct {
-    uint32_t num_queues;
-    uint32_t seg_max;
-    uint32_t max_sectors;
-    uint32_t cmd_per_lun;
-    uint32_t event_info_size;
-    uint32_t sense_size;
-    uint32_t cdb_size;
-    uint16_t max_channel;
-    uint16_t max_target;
-    uint32_t max_lun;
-} QEMU_PACKED VirtIOSCSIConfig;
-
 typedef struct VirtIOSCSIReq {
     VirtIOSCSI *dev;
     VirtQueue *vq;
@@ -237,9 +125,10 @@ static VirtIOSCSIReq *virtio_scsi_pop_req(VirtIOSCSI *s, VirtQueue *vq)
 static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
 {
     VirtIOSCSIReq *req = sreq->hba_private;
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(req->dev);
     uint32_t n = virtio_queue_get_id(req->vq) - 2;
 
-    assert(n < req->dev->conf.num_queues);
+    assert(n < vs->conf.num_queues);
     qemu_put_be32s(f, &n);
     qemu_put_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
 }
@@ -248,14 +137,15 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
 {
     SCSIBus *bus = sreq->bus;
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     VirtIOSCSIReq *req;
     uint32_t n;
 
     req = g_malloc(sizeof(*req));
     qemu_get_be32s(f, &n);
-    assert(n < s->conf.num_queues);
+    assert(n < vs->conf.num_queues);
     qemu_get_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
-    virtio_scsi_parse_req(s, s->cmd_vqs[n], req);
+    virtio_scsi_parse_req(s, vs->cmd_vqs[n], req);
 
     scsi_req_ref(sreq);
     req->sreq = sreq;
@@ -457,7 +347,10 @@ static void virtio_scsi_fail_cmd_req(VirtIOSCSIReq *req)
 
 static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
 {
+    /* use non-QOM casts in the data path */
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
+    VirtIOSCSICommon *vs = &s->parent_obj;
+
     VirtIOSCSIReq *req;
     int n;
 
@@ -470,8 +363,8 @@ static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
 
         out_size = req->elem.out_sg[0].iov_len;
         in_size = req->elem.in_sg[0].iov_len;
-        if (out_size < sizeof(VirtIOSCSICmdReq) + s->cdb_size ||
-            in_size < sizeof(VirtIOSCSICmdResp) + s->sense_size) {
+        if (out_size < sizeof(VirtIOSCSICmdReq) + vs->cdb_size ||
+            in_size < sizeof(VirtIOSCSICmdResp) + vs->sense_size) {
             virtio_scsi_bad_req();
         }
 
@@ -513,7 +406,7 @@ static void virtio_scsi_get_config(VirtIODevice *vdev,
                                    uint8_t *config)
 {
     VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
-    VirtIOSCSI *s = (VirtIOSCSI *)vdev;
+    VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(vdev);
 
     stl_raw(&scsiconf->num_queues, s->conf.num_queues);
     stl_raw(&scsiconf->seg_max, 128 - 2);
@@ -531,7 +424,7 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
                                    const uint8_t *config)
 {
     VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
-    VirtIOSCSI *s = (VirtIOSCSI *)vdev;
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
     if ((uint32_t) ldl_raw(&scsiconf->sense_size) >= 65536 ||
         (uint32_t) ldl_raw(&scsiconf->cdb_size) >= 256) {
@@ -539,8 +432,8 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
         exit(1);
     }
 
-    s->sense_size = ldl_raw(&scsiconf->sense_size);
-    s->cdb_size = ldl_raw(&scsiconf->cdb_size);
+    vs->sense_size = ldl_raw(&scsiconf->sense_size);
+    vs->cdb_size = ldl_raw(&scsiconf->cdb_size);
 }
 
 static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
@@ -551,14 +444,15 @@ static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
 
 static void virtio_scsi_reset(VirtIODevice *vdev)
 {
-    VirtIOSCSI *s = (VirtIOSCSI *)vdev;
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
     s->resetting++;
     qbus_reset_all(&s->bus.qbus);
     s->resetting--;
 
-    s->sense_size = VIRTIO_SCSI_SENSE_SIZE;
-    s->cdb_size = VIRTIO_SCSI_CDB_SIZE;
+    vs->sense_size = VIRTIO_SCSI_SENSE_SIZE;
+    vs->cdb_size = VIRTIO_SCSI_CDB_SIZE;
     s->events_dropped = false;
 }
 
@@ -586,7 +480,8 @@ static int virtio_scsi_load(QEMUFile *f, void *opaque, int version_id)
 static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
                                    uint32_t event, uint32_t reason)
 {
-    VirtIOSCSIReq *req = virtio_scsi_pop_req(s, s->event_vq);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+    VirtIOSCSIReq *req = virtio_scsi_pop_req(s, vs->event_vq);
     VirtIOSCSIEvent *evt;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     int in_size;
@@ -692,23 +587,17 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .load_request = virtio_scsi_load_request,
 };
 
-static int virtio_scsi_device_init(VirtIODevice *vdev)
+int virtio_scsi_common_init(VirtIOSCSICommon *s)
 {
-    DeviceState *qdev = DEVICE(vdev);
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
-    static int virtio_scsi_id;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
     int i;
 
     virtio_init(VIRTIO_DEVICE(s), "virtio-scsi", VIRTIO_ID_SCSI,
                 sizeof(VirtIOSCSIConfig));
 
     s->cmd_vqs = g_malloc0(s->conf.num_queues * sizeof(VirtQueue *));
-
-    /* TODO set up vdev function pointers */
-    vdev->get_config = virtio_scsi_get_config;
-    vdev->set_config = virtio_scsi_set_config;
-    vdev->get_features = virtio_scsi_get_features;
-    vdev->reset = virtio_scsi_reset;
+    s->sense_size = VIRTIO_SCSI_SENSE_SIZE;
+    s->cdb_size = VIRTIO_SCSI_CDB_SIZE;
 
     s->ctrl_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE,
                                   virtio_scsi_handle_ctrl);
@@ -719,7 +608,24 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
                                          virtio_scsi_handle_cmd);
     }
 
-    scsi_bus_new(&s->bus, qdev, &virtio_scsi_scsi_info);
+    return 0;
+}
+
+static int virtio_scsi_device_init(VirtIODevice *vdev)
+{
+    DeviceState *qdev = DEVICE(vdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    static int virtio_scsi_id;
+    int ret;
+
+    ret = virtio_scsi_common_init(vs);
+    if (ret < 0) {
+        return ret;
+    }
+
+    scsi_bus_new(&s->bus, qdev, &virtio_scsi_scsi_info, vdev->bus_name);
+
     if (!qdev->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }
@@ -730,21 +636,35 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
     return 0;
 }
 
-static int virtio_scsi_device_exit(DeviceState *qdev)
+int virtio_scsi_common_exit(VirtIOSCSICommon *vs)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(qdev);
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(vs);
 
-    unregister_savevm(qdev, "virtio-scsi", s);
-    g_free(s->cmd_vqs);
-    virtio_common_cleanup(vdev);
+    g_free(vs->cmd_vqs);
+    virtio_cleanup(vdev);
     return 0;
 }
 
+static int virtio_scsi_device_exit(DeviceState *qdev)
+{
+    VirtIOSCSI *s = VIRTIO_SCSI(qdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(qdev);
+
+    unregister_savevm(qdev, "virtio-scsi", s);
+    return virtio_scsi_common_exit(vs);
+}
+
 static Property virtio_scsi_properties[] = {
-    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSI, conf),
+    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSI, parent_obj.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void virtio_scsi_common_class_init(ObjectClass *klass, void *data)
+{
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    vdc->get_config = virtio_scsi_get_config;
+}
 
 static void virtio_scsi_class_init(ObjectClass *klass, void *data)
 {
@@ -753,21 +673,28 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
     dc->exit = virtio_scsi_device_exit;
     dc->props = virtio_scsi_properties;
     vdc->init = virtio_scsi_device_init;
-    vdc->get_config = virtio_scsi_get_config;
     vdc->set_config = virtio_scsi_set_config;
     vdc->get_features = virtio_scsi_get_features;
     vdc->reset = virtio_scsi_reset;
 }
 
+static const TypeInfo virtio_scsi_common_info = {
+    .name = TYPE_VIRTIO_SCSI_COMMON,
+    .parent = TYPE_VIRTIO_DEVICE,
+    .instance_size = sizeof(VirtIOSCSICommon),
+    .class_init = virtio_scsi_common_class_init,
+};
+
 static const TypeInfo virtio_scsi_info = {
     .name = TYPE_VIRTIO_SCSI,
-    .parent = TYPE_VIRTIO_DEVICE,
+    .parent = TYPE_VIRTIO_SCSI_COMMON,
     .instance_size = sizeof(VirtIOSCSI),
     .class_init = virtio_scsi_class_init,
 };
 
 static void virtio_register_types(void)
 {
+    type_register_static(&virtio_scsi_common_info);
     type_register_static(&virtio_scsi_info);
 }
 

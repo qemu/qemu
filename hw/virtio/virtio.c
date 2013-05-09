@@ -507,8 +507,11 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 /* virtio device */
 static void virtio_notify_vector(VirtIODevice *vdev, uint16_t vector)
 {
-    if (vdev->binding->notify) {
-        vdev->binding->notify(vdev->binding_opaque, vector);
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
+    if (k->notify) {
+        k->notify(qbus->parent, vector);
     }
 }
 
@@ -519,10 +522,11 @@ void virtio_update_irq(VirtIODevice *vdev)
 
 void virtio_set_status(VirtIODevice *vdev, uint8_t val)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     trace_virtio_set_status(vdev, val);
 
-    if (vdev->set_status) {
-        vdev->set_status(vdev, val);
+    if (k->set_status) {
+        k->set_status(vdev, val);
     }
     vdev->status = val;
 }
@@ -530,12 +534,14 @@ void virtio_set_status(VirtIODevice *vdev, uint8_t val)
 void virtio_reset(void *opaque)
 {
     VirtIODevice *vdev = opaque;
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     int i;
 
     virtio_set_status(vdev, 0);
 
-    if (vdev->reset)
-        vdev->reset(vdev);
+    if (k->reset) {
+        k->reset(vdev);
+    }
 
     vdev->guest_features = 0;
     vdev->queue_sel = 0;
@@ -559,9 +565,10 @@ void virtio_reset(void *opaque)
 
 uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val;
 
-    vdev->get_config(vdev, vdev->config);
+    k->get_config(vdev, vdev->config);
 
     if (addr > (vdev->config_len - sizeof(val)))
         return (uint32_t)-1;
@@ -572,9 +579,10 @@ uint32_t virtio_config_readb(VirtIODevice *vdev, uint32_t addr)
 
 uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val;
 
-    vdev->get_config(vdev, vdev->config);
+    k->get_config(vdev, vdev->config);
 
     if (addr > (vdev->config_len - sizeof(val)))
         return (uint32_t)-1;
@@ -585,9 +593,10 @@ uint32_t virtio_config_readw(VirtIODevice *vdev, uint32_t addr)
 
 uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val;
 
-    vdev->get_config(vdev, vdev->config);
+    k->get_config(vdev, vdev->config);
 
     if (addr > (vdev->config_len - sizeof(val)))
         return (uint32_t)-1;
@@ -598,6 +607,7 @@ uint32_t virtio_config_readl(VirtIODevice *vdev, uint32_t addr)
 
 void virtio_config_writeb(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint8_t val = data;
 
     if (addr > (vdev->config_len - sizeof(val)))
@@ -605,12 +615,14 @@ void virtio_config_writeb(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
     stb_p(vdev->config + addr, val);
 
-    if (vdev->set_config)
-        vdev->set_config(vdev, vdev->config);
+    if (k->set_config) {
+        k->set_config(vdev, vdev->config);
+    }
 }
 
 void virtio_config_writew(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint16_t val = data;
 
     if (addr > (vdev->config_len - sizeof(val)))
@@ -618,12 +630,14 @@ void virtio_config_writew(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
     stw_p(vdev->config + addr, val);
 
-    if (vdev->set_config)
-        vdev->set_config(vdev, vdev->config);
+    if (k->set_config) {
+        k->set_config(vdev, vdev->config);
+    }
 }
 
 void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint32_t val = data;
 
     if (addr > (vdev->config_len - sizeof(val)))
@@ -631,8 +645,9 @@ void virtio_config_writel(VirtIODevice *vdev, uint32_t addr, uint32_t data)
 
     stl_p(vdev->config + addr, val);
 
-    if (vdev->set_config)
-        vdev->set_config(vdev, vdev->config);
+    if (k->set_config) {
+        k->set_config(vdev, vdev->config);
+    }
 }
 
 void virtio_queue_set_addr(VirtIODevice *vdev, int n, hwaddr addr)
@@ -777,10 +792,13 @@ void virtio_notify_config(VirtIODevice *vdev)
 
 void virtio_save(VirtIODevice *vdev, QEMUFile *f)
 {
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int i;
 
-    if (vdev->binding->save_config)
-        vdev->binding->save_config(vdev->binding_opaque, f);
+    if (k->save_config) {
+        k->save_config(qbus->parent, f);
+    }
 
     qemu_put_8s(f, &vdev->status);
     qemu_put_8s(f, &vdev->isr);
@@ -803,20 +821,23 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
         qemu_put_be32(f, vdev->vq[i].vring.num);
         qemu_put_be64(f, vdev->vq[i].pa);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
-        if (vdev->binding->save_queue)
-            vdev->binding->save_queue(vdev->binding_opaque, i, f);
+        if (k->save_queue) {
+            k->save_queue(qbus->parent, i, f);
+        }
     }
 }
 
 int virtio_set_features(VirtIODevice *vdev, uint32_t val)
 {
-    uint32_t supported_features =
-        vdev->binding->get_features(vdev->binding_opaque);
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *vbusk = VIRTIO_BUS_GET_CLASS(qbus);
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint32_t supported_features = vbusk->get_features(qbus->parent);
     bool bad = (val & ~supported_features) != 0;
 
     val &= supported_features;
-    if (vdev->set_features) {
-        vdev->set_features(vdev, val);
+    if (k->set_features) {
+        k->set_features(vdev, val);
     }
     vdev->guest_features = val;
     return bad ? -1 : 0;
@@ -827,9 +848,11 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     int num, i, ret;
     uint32_t features;
     uint32_t supported_features;
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
-    if (vdev->binding->load_config) {
-        ret = vdev->binding->load_config(vdev->binding_opaque, f);
+    if (k->load_config) {
+        ret = k->load_config(qbus->parent, f);
         if (ret)
             return ret;
     }
@@ -840,7 +863,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     qemu_get_be32s(f, &features);
 
     if (virtio_set_features(vdev, features) < 0) {
-        supported_features = vdev->binding->get_features(vdev->binding_opaque);
+        supported_features = k->get_features(qbus->parent);
         error_report("Features 0x%x unsupported. Allowed features: 0x%x",
                      features, supported_features);
         return -1;
@@ -876,8 +899,8 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
                          i, vdev->vq[i].last_avail_idx);
                 return -1;
 	}
-        if (vdev->binding->load_queue) {
-            ret = vdev->binding->load_queue(vdev->binding_opaque, i, f);
+        if (k->load_queue) {
+            ret = k->load_queue(qbus->parent, i, f);
             if (ret)
                 return ret;
         }
@@ -887,22 +910,18 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     return 0;
 }
 
-void virtio_common_cleanup(VirtIODevice *vdev)
+void virtio_cleanup(VirtIODevice *vdev)
 {
     qemu_del_vm_change_state_handler(vdev->vmstate);
     g_free(vdev->config);
     g_free(vdev->vq);
 }
 
-void virtio_cleanup(VirtIODevice *vdev)
-{
-    virtio_common_cleanup(vdev);
-    g_free(vdev);
-}
-
 static void virtio_vmstate_change(void *opaque, int running, RunState state)
 {
     VirtIODevice *vdev = opaque;
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     bool backend_run = running && (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK);
     vdev->vm_running = running;
 
@@ -910,8 +929,8 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
         virtio_set_status(vdev, vdev->status);
     }
 
-    if (vdev->binding->vmstate_change) {
-        vdev->binding->vmstate_change(vdev->binding_opaque, backend_run);
+    if (k->vmstate_change) {
+        k->vmstate_change(qbus->parent, backend_run);
     }
 
     if (!backend_run) {
@@ -945,22 +964,6 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     }
     vdev->vmstate = qemu_add_vm_change_state_handler(virtio_vmstate_change,
                                                      vdev);
-}
-
-VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
-                                 size_t config_size, size_t struct_size)
-{
-    VirtIODevice *vdev;
-    vdev = g_malloc0(struct_size);
-    virtio_init(vdev, name, device_id, config_size);
-    return vdev;
-}
-
-void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
-                        DeviceState *opaque)
-{
-    vdev->binding = binding;
-    vdev->binding_opaque = opaque;
 }
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n)
@@ -1084,6 +1087,18 @@ EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq)
     return &vq->host_notifier;
 }
 
+void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name)
+{
+    if (vdev->bus_name) {
+        g_free(vdev->bus_name);
+        vdev->bus_name = NULL;
+    }
+
+    if (bus_name) {
+        vdev->bus_name = g_strdup(bus_name);
+    }
+}
+
 static int virtio_device_init(DeviceState *qdev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
@@ -1096,11 +1111,23 @@ static int virtio_device_init(DeviceState *qdev)
     return 0;
 }
 
+static int virtio_device_exit(DeviceState *qdev)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+
+    if (vdev->bus_name) {
+        g_free(vdev->bus_name);
+        vdev->bus_name = NULL;
+    }
+    return 0;
+}
+
 static void virtio_device_class_init(ObjectClass *klass, void *data)
 {
     /* Set the default value here. */
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->init = virtio_device_init;
+    dc->exit = virtio_device_exit;
     dc->bus_type = TYPE_VIRTIO_BUS;
 }
 

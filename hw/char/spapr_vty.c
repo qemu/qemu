@@ -12,16 +12,20 @@ typedef struct VIOsPAPRVTYDevice {
     uint8_t buf[VTERM_BUFSIZE];
 } VIOsPAPRVTYDevice;
 
+#define TYPE_VIO_SPAPR_VTY_DEVICE "spapr-vty"
+#define VIO_SPAPR_VTY_DEVICE(obj) \
+     OBJECT_CHECK(VIOsPAPRVTYDevice, (obj), TYPE_VIO_SPAPR_VTY_DEVICE)
+
 static int vty_can_receive(void *opaque)
 {
-    VIOsPAPRVTYDevice *dev = (VIOsPAPRVTYDevice *)opaque;
+    VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(opaque);
 
     return (dev->in - dev->out) < VTERM_BUFSIZE;
 }
 
 static void vty_receive(void *opaque, const uint8_t *buf, int size)
 {
-    VIOsPAPRVTYDevice *dev = (VIOsPAPRVTYDevice *)opaque;
+    VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(opaque);
     int i;
 
     if ((dev->in == dev->out) && size) {
@@ -36,7 +40,7 @@ static void vty_receive(void *opaque, const uint8_t *buf, int size)
 
 static int vty_getchars(VIOsPAPRDevice *sdev, uint8_t *buf, int max)
 {
-    VIOsPAPRVTYDevice *dev = (VIOsPAPRVTYDevice *)sdev;
+    VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(sdev);
     int n = 0;
 
     while ((n < max) && (dev->out != dev->in)) {
@@ -48,7 +52,7 @@ static int vty_getchars(VIOsPAPRDevice *sdev, uint8_t *buf, int max)
 
 void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len)
 {
-    VIOsPAPRVTYDevice *dev = (VIOsPAPRVTYDevice *)sdev;
+    VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(sdev);
 
     /* FIXME: should check the qemu_chr_fe_write() return value */
     qemu_chr_fe_write(dev->chardev, buf, len);
@@ -56,7 +60,7 @@ void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len)
 
 static int spapr_vty_init(VIOsPAPRDevice *sdev)
 {
-    VIOsPAPRVTYDevice *dev = (VIOsPAPRVTYDevice *)sdev;
+    VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(sdev);
 
     if (!dev->chardev) {
         fprintf(stderr, "spapr-vty: Can't create vty without a chardev!\n");
@@ -151,7 +155,7 @@ static void spapr_vty_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo spapr_vty_info = {
-    .name          = "spapr-vty",
+    .name          = TYPE_VIO_SPAPR_VTY_DEVICE,
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(VIOsPAPRVTYDevice),
     .class_init    = spapr_vty_class_init,
@@ -177,7 +181,7 @@ VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
             continue;
         }
 
-        sdev = DO_UPCAST(VIOsPAPRDevice, qdev, iter);
+        sdev = VIO_SPAPR_DEVICE(iter);
 
         /* First VTY we've found, so it is selected for now */
         if (!selected) {

@@ -288,9 +288,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
         parallel_mm_init(address_space, 0x80008000, 0, rc4030[0],
                          parallel_hds[0]);
 
-    /* Sound card */
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
-    audio_init(isa_bus, NULL);
 
     /* NVRAM */
     dev = qdev_create(NULL, "ds1225y");

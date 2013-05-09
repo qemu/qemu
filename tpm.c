@@ -159,6 +159,14 @@ static int configure_tpm(QemuOpts *opts)
         return 1;
     }
 
+    /* validate backend specific opts */
+    qemu_opts_validate(opts, be->opts, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return 1;
+    }
+
     drv = be->create(opts, id);
     if (!drv) {
         return 1;

@@ -431,8 +431,12 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     qemu_register_reset(kbd_reset, s);
 }
 
+#define TYPE_I8042 "i8042"
+#define I8042(obj) OBJECT_CHECK(ISAKBDState, (obj), TYPE_I8042)
+
 typedef struct ISAKBDState {
-    ISADevice dev;
+    ISADevice parent_obj;
+
     KBDState kbd;
     MemoryRegion io[2];
 } ISAKBDState;
@@ -440,14 +444,16 @@ typedef struct ISAKBDState {
 void i8042_isa_mouse_fake_event(void *opaque)
 {
     ISADevice *dev = opaque;
-    KBDState *s = &(DO_UPCAST(ISAKBDState, dev, dev)->kbd);
+    ISAKBDState *isa = I8042(dev);
+    KBDState *s = &isa->kbd;
 
     ps2_mouse_fake_event(s->mouse);
 }
 
 void i8042_setup_a20_line(ISADevice *dev, qemu_irq *a20_out)
 {
-    KBDState *s = &(DO_UPCAST(ISAKBDState, dev, dev)->kbd);
+    ISAKBDState *isa = I8042(dev);
+    KBDState *s = &isa->kbd;
 
     s->a20_out = a20_out;
 }
@@ -485,7 +491,7 @@ static const MemoryRegionOps i8042_cmd_ops = {
 
 static int i8042_initfn(ISADevice *dev)
 {
-    ISAKBDState *isa_s = DO_UPCAST(ISAKBDState, dev, dev);
+    ISAKBDState *isa_s = I8042(dev);
     KBDState *s = &isa_s->kbd;
 
     isa_init_irq(dev, &s->irq_kbd, 1);
@@ -513,7 +519,7 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo i8042_info = {
-    .name          = "i8042",
+    .name          = TYPE_I8042,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAKBDState),
     .class_init    = i8042_class_initfn,

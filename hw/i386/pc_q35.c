@@ -41,20 +41,12 @@
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci.h"
 #include "hw/usb.h"
+#include "hw/cpu/icc_bus.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
 
-/* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
- *    BIOS will read it and start S3 resume at POST Entry */
-static void pc_cmos_set_s3_resume(void *opaque, int irq, int level)
-{
-    ISADevice *s = opaque;
-
-    if (level) {
-        rtc_set_memory(s, 0xF, 0xFE);
-    }
-}
+static bool has_pvpanic = true;
 
 /* PC hardware initialisation */
 static void pc_q35_init(QEMUMachineInitArgs *args)
@@ -84,9 +76,13 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     int i;
     ICH9LPCState *ich9_lpc;
     PCIDevice *ahci;
-    qemu_irq *cmos_s3;
+    DeviceState *icc_bridge;
 
-    pc_cpus_init(cpu_model);
+    icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
+    object_property_add_child(qdev_get_machine(), "icc-bridge",
+                              OBJECT(icc_bridge), NULL);
+
+    pc_cpus_init(cpu_model, icc_bridge);
     pc_acpi_init("q35-acpi-dsdt.aml");
 
     kvmclock_create();
@@ -168,6 +164,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     if (pci_enabled) {
         ioapic_init_gsi(gsi_state, NULL);
     }
+    qdev_init_nofail(icc_bridge);
 
     pc_register_ferr_irq(gsi[13]);
 
@@ -175,8 +172,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, false);
 
     /* connect pm stuff to lpc */
-    cmos_s3 = qemu_allocate_irqs(pc_cmos_set_s3_resume, rtc_state, 1);
-    ich9_lpc_pm_init(lpc, *cmos_s3);
+    ich9_lpc_pm_init(lpc);
 
     /* ahci and SATA device, for q35 1 ahci controller is built-in */
     ahci = pci_create_simple_multifunction(host_bus,
@@ -202,11 +198,21 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 
     /* the rest devices to which pci devfn is automatically assigned */
     pc_vga_init(isa_bus, host_bus);
-    audio_init(isa_bus, host_bus);
     pc_nic_init(isa_bus, host_bus);
     if (pci_enabled) {
         pc_pci_device_init(host_bus);
     }
+
+    if (has_pvpanic) {
+        pvpanic_init(isa_bus);
+    }
+}
+
+static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
+{
+    pc_sysfw_flash_vs_rom_bug_compatible = true;
+    has_pvpanic = false;
+    pc_q35_init(args);
 }
 
 static QEMUMachine pc_q35_machine_v1_5 = {
@@ -214,6 +220,7 @@ static QEMUMachine pc_q35_machine_v1_5 = {
     .alias = "q35",
     .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init,
+    .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
     DEFAULT_MACHINE_OPTIONS,
 };
@@ -221,7 +228,7 @@ static QEMUMachine pc_q35_machine_v1_5 = {
 static QEMUMachine pc_q35_machine_v1_4 = {
     .name = "pc-q35-1.4",
     .desc = "Standard PC (Q35 + ICH9, 2009)",
-    .init = pc_q35_init,
+    .init = pc_q35_init_1_4,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
         PC_COMPAT_1_4,

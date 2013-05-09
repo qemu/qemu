@@ -1127,6 +1127,8 @@ By definition the Websocket port is 5700+@var{display}. If @var{host} is
 specified connections will only be allowed from this host.
 As an alternative the Websocket port could be specified by using
 @code{websocket}=@var{port}.
+TLS encryption for the Websocket connection is supported if the required
+certificates are specified with the VNC option @option{x509}.
 
 @item password
 
@@ -2581,6 +2583,19 @@ STEXI
 @item -S
 @findex -S
 Do not start CPU at startup (you must type 'c' in the monitor).
+ETEXI
+
+DEF("realtime", HAS_ARG, QEMU_OPTION_realtime,
+    "-realtime [mlock=on|off]\n"
+    "                run qemu with realtime features\n"
+    "                mlock=on|off controls mlock support (default: on)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -realtime mlock=on|off
+@findex -realtime
+Run qemu with realtime features.
+mlocking qemu and guest memory can be enabled via @option{mlock=on}
+(enabled by default).
 ETEXI
 
 DEF("gdb", HAS_ARG, QEMU_OPTION_gdb, \

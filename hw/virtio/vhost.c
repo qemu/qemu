@@ -19,6 +19,7 @@
 #include "qemu/range.h"
 #include <linux/vhost.h>
 #include "exec/address-spaces.h"
+#include "hw/virtio/virtio-bus.h"
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
                                   MemoryRegionSection *section,
@@ -382,8 +383,6 @@ static void vhost_set_memory(MemoryListener *listener,
     bool log_dirty = memory_region_is_logging(section->mr);
     int s = offsetof(struct vhost_memory, regions) +
         (dev->mem->nregions + 1) * sizeof dev->mem->regions[0];
-    uint64_t log_size;
-    int r;
     void *ram;
 
     dev->mem = g_realloc(dev->mem, s);
@@ -416,12 +415,47 @@ static void vhost_set_memory(MemoryListener *listener,
         /* Remove old mapping for this memory, if any. */
         vhost_dev_unassign_memory(dev, start_addr, size);
     }
+    dev->mem_changed_start_addr = MIN(dev->mem_changed_start_addr, start_addr);
+    dev->mem_changed_end_addr = MAX(dev->mem_changed_end_addr, start_addr + size - 1);
+    dev->memory_changed = true;
+}
 
+static bool vhost_section(MemoryRegionSection *section)
+{
+    return memory_region_is_ram(section->mr);
+}
+
+static void vhost_begin(MemoryListener *listener)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    dev->mem_changed_end_addr = 0;
+    dev->mem_changed_start_addr = -1;
+}
+
+static void vhost_commit(MemoryListener *listener)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    hwaddr start_addr = 0;
+    ram_addr_t size = 0;
+    uint64_t log_size;
+    int r;
+
+    if (!dev->memory_changed) {
+        return;
+    }
     if (!dev->started) {
+        return;
+    }
+    if (dev->mem_changed_start_addr > dev->mem_changed_end_addr) {
         return;
     }
 
     if (dev->started) {
+        start_addr = dev->mem_changed_start_addr;
+        size = dev->mem_changed_end_addr - dev->mem_changed_start_addr + 1;
+
         r = vhost_verify_ring_mappings(dev, start_addr, size);
         assert(r >= 0);
     }
@@ -429,6 +463,7 @@ static void vhost_set_memory(MemoryListener *listener,
     if (!dev->log_enabled) {
         r = ioctl(dev->control, VHOST_SET_MEM_TABLE, dev->mem);
         assert(r >= 0);
+        dev->memory_changed = false;
         return;
     }
     log_size = vhost_get_log_size(dev);
@@ -445,19 +480,7 @@ static void vhost_set_memory(MemoryListener *listener,
     if (dev->log_size > log_size + VHOST_LOG_BUFFER) {
         vhost_dev_log_resize(dev, log_size);
     }
-}
-
-static bool vhost_section(MemoryRegionSection *section)
-{
-    return memory_region_is_ram(section->mr);
-}
-
-static void vhost_begin(MemoryListener *listener)
-{
-}
-
-static void vhost_commit(MemoryListener *listener)
-{
+    dev->memory_changed = false;
 }
 
 static void vhost_region_add(MemoryListener *listener,
@@ -842,6 +865,7 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
     hdev->log_size = 0;
     hdev->log_enabled = false;
     hdev->started = false;
+    hdev->memory_changed = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     hdev->force = force;
     return 0;
@@ -869,9 +893,13 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
 
 bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
-    return !vdev->binding->query_guest_notifiers ||
-        vdev->binding->query_guest_notifiers(vdev->binding_opaque) ||
-        hdev->force;
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+
+    return !k->query_guest_notifiers ||
+           k->query_guest_notifiers(qbus->parent) ||
+           hdev->force;
 }
 
 /* Stop processing guest IO notifications in qemu.
@@ -879,17 +907,18 @@ bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev)
  */
 int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r;
-    if (!vdev->binding->set_host_notifier) {
+    if (!k->set_host_notifier) {
         fprintf(stderr, "binding does not support host notifiers\n");
         r = -ENOSYS;
         goto fail;
     }
 
     for (i = 0; i < hdev->nvqs; ++i) {
-        r = vdev->binding->set_host_notifier(vdev->binding_opaque,
-                                             hdev->vq_index + i,
-                                             true);
+        r = k->set_host_notifier(qbus->parent, hdev->vq_index + i, true);
         if (r < 0) {
             fprintf(stderr, "vhost VQ %d notifier binding failed: %d\n", i, -r);
             goto fail_vq;
@@ -899,9 +928,7 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     return 0;
 fail_vq:
     while (--i >= 0) {
-        r = vdev->binding->set_host_notifier(vdev->binding_opaque,
-                                             hdev->vq_index + i,
-                                             false);
+        r = k->set_host_notifier(qbus->parent, hdev->vq_index + i, false);
         if (r < 0) {
             fprintf(stderr, "vhost VQ %d notifier cleanup error: %d\n", i, -r);
             fflush(stderr);
@@ -919,12 +946,13 @@ fail:
  */
 void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r;
 
     for (i = 0; i < hdev->nvqs; ++i) {
-        r = vdev->binding->set_host_notifier(vdev->binding_opaque,
-                                             hdev->vq_index + i,
-                                             false);
+        r = k->set_host_notifier(qbus->parent, hdev->vq_index + i, false);
         if (r < 0) {
             fprintf(stderr, "vhost VQ %d notifier cleanup failed: %d\n", i, -r);
             fflush(stderr);

@@ -22,6 +22,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
 
@@ -119,6 +120,11 @@ static const VMStateDescription vmstate_mb_cpu = {
     .unmigratable = 1,
 };
 
+static Property mb_properties[] = {
+    DEFINE_PROP_UINT32("xlnx.base-vectors", MicroBlazeCPU, base_vectors, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void mb_cpu_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -133,6 +139,8 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->do_interrupt = mb_cpu_do_interrupt;
     dc->vmsd = &vmstate_mb_cpu;
+
+    dc->props = mb_properties;
 }
 
 static const TypeInfo mb_cpu_type_info = {
