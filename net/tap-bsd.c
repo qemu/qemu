@@ -44,7 +44,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     struct stat s;
 #endif
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || \
+    defined(__OpenBSD__) || defined(__APPLE__)
     /* if no ifname is given, always start the search from tap0/tun0. */
     int i;
     char dname[100];
