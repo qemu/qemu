@@ -248,7 +248,7 @@ static int send_fd(int sockfd, int fd)
 static int send_status(int sockfd, struct iovec *iovec, int status)
 {
     ProxyHeader header;
-    int retval, msg_size;;
+    int retval, msg_size;
 
     if (status < 0) {
         header.type = T_ERROR;
@@ -381,7 +381,7 @@ static int send_response(int sock, struct iovec *iovec, int size)
     proxy_marshal(iovec, 0, "dd", header.type, header.size);
     retval = socket_write(sock, iovec->iov_base, header.size + PROXY_HDR_SZ);
     if (retval < 0) {
-        return retval;;
+        return retval;
     }
     return 0;
 }
