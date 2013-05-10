@@ -431,15 +431,16 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
     return NULL;
 }
 
-Object *object_dynamic_cast_assert(Object *obj, const char *typename)
+Object *object_dynamic_cast_assert(Object *obj, const char *typename,
+                                   const char *file, int line, const char *func)
 {
     Object *inst;
 
     inst = object_dynamic_cast(obj, typename);
 
     if (!inst && obj) {
-        fprintf(stderr, "Object %p is not an instance of type %s\n",
-                obj, typename);
+        fprintf(stderr, "%s:%d:%s: Object %p is not an instance of type %s\n",
+                file, line, func, obj, typename);
         abort();
     }
 
@@ -495,13 +496,15 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
 }
 
 ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
-                                              const char *typename)
+                                              const char *typename,
+                                              const char *file, int line,
+                                              const char *func)
 {
     ObjectClass *ret = object_class_dynamic_cast(class, typename);
 
     if (!ret && class) {
-        fprintf(stderr, "Object %p is not an instance of type %s\n",
-                class, typename);
+        fprintf(stderr, "%s:%d:%s: Object %p is not an instance of type %s\n",
+                file, line, func, class, typename);
         abort();
     }
 

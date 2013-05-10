@@ -476,7 +476,8 @@ struct TypeInfo
  * generated.
  */
 #define OBJECT_CHECK(type, obj, name) \
-    ((type *)object_dynamic_cast_assert(OBJECT(obj), (name)))
+    ((type *)object_dynamic_cast_assert(OBJECT(obj), (name), \
+                                        __FILE__, __LINE__, __func__))
 
 /**
  * OBJECT_CLASS_CHECK:
@@ -489,7 +490,8 @@ struct TypeInfo
  * specific class type.
  */
 #define OBJECT_CLASS_CHECK(class, obj, name) \
-    ((class *)object_class_dynamic_cast_assert(OBJECT_CLASS(obj), (name)))
+    ((class *)object_class_dynamic_cast_assert(OBJECT_CLASS(obj), (name), \
+                                               __FILE__, __LINE__, __func__))
 
 /**
  * OBJECT_GET_CLASS:
@@ -547,7 +549,8 @@ struct InterfaceClass
  * Returns: @obj casted to @interface if cast is valid, otherwise raise error.
  */
 #define INTERFACE_CHECK(interface, obj, name) \
-    ((interface *)object_dynamic_cast_assert(OBJECT((obj)), (name)))
+    ((interface *)object_dynamic_cast_assert(OBJECT((obj)), (name), \
+                                             __FILE__, __LINE__, __func__))
 
 /**
  * object_new:
@@ -615,7 +618,8 @@ Object *object_dynamic_cast(Object *obj, const char *typename);
  * instead of returning #NULL on failure.  This function is not meant to be
  * called directly, but only through the wrapper macro OBJECT_CHECK.
  */
-Object *object_dynamic_cast_assert(Object *obj, const char *typename);
+Object *object_dynamic_cast_assert(Object *obj, const char *typename,
+                                   const char *file, int line, const char *func);
 
 /**
  * object_get_class:
@@ -667,7 +671,9 @@ Type type_register(const TypeInfo *info);
  * OBJECT_CLASS_CHECK and INTERFACE_CHECK.
  */
 ObjectClass *object_class_dynamic_cast_assert(ObjectClass *klass,
-                                              const char *typename);
+                                              const char *typename,
+                                              const char *file, int line,
+                                              const char *func);
 
 /**
  * object_class_dynamic_cast:
