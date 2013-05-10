@@ -612,7 +612,8 @@ Object *object_dynamic_cast(Object *obj, const char *typename);
  *
  * See object_dynamic_cast() for a description of the parameters of this
  * function.  The only difference in behavior is that this function asserts
- * instead of returning #NULL on failure.
+ * instead of returning #NULL on failure.  This function is not meant to be
+ * called directly, but only through the wrapper macro OBJECT_CHECK.
  */
 Object *object_dynamic_cast_assert(Object *obj, const char *typename);
 
@@ -659,11 +660,29 @@ Type type_register(const TypeInfo *info);
  * @klass: The #ObjectClass to attempt to cast.
  * @typename: The QOM typename of the class to cast to.
  *
- * Returns: This function always returns @klass and asserts on failure.
+ * See object_class_dynamic_cast() for a description of the parameters
+ * of this function.  The only difference in behavior is that this function
+ * asserts instead of returning #NULL on failure.  This function is not
+ * meant to be called directly, but only through the wrapper macros
+ * OBJECT_CLASS_CHECK and INTERFACE_CHECK.
  */
 ObjectClass *object_class_dynamic_cast_assert(ObjectClass *klass,
                                               const char *typename);
 
+/**
+ * object_class_dynamic_cast:
+ * @klass: The #ObjectClass to attempt to cast.
+ * @typename: The QOM typename of the class to cast to.
+ *
+ * Returns: If @typename is a class, this function returns @klass if
+ * @typename is a subtype of @klass, else returns #NULL.
+ *
+ * If @typename is an interface, this function returns the interface
+ * definition for @klass if @klass implements it unambiguously; #NULL
+ * is returned if @klass does not implement the interface or if multiple
+ * classes or interfaces on the hierarchy leading to @klass implement
+ * it.  (FIXME: perhaps this can be detected at type definition time?)
+ */
 ObjectClass *object_class_dynamic_cast(ObjectClass *klass,
                                        const char *typename);
 
