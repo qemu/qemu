@@ -229,17 +229,6 @@ typedef struct TestArgs {
     void *test_data;
 } TestArgs;
 
-#define FLOAT_STRING_PRECISION 6 /* corresponding to n in %.nf formatting */
-static gsize calc_float_string_storage(double value)
-{
-    int whole_value = value;
-    gsize i = 0;
-    do {
-        i++;
-    } while (whole_value /= 10);
-    return i + 2 + FLOAT_STRING_PRECISION;
-}
-
 static void test_primitives(gconstpointer opaque)
 {
     TestArgs *args = (TestArgs *) opaque;
@@ -248,7 +237,6 @@ static void test_primitives(gconstpointer opaque)
     PrimitiveType *pt_copy = g_malloc0(sizeof(*pt_copy));
     Error *err = NULL;
     void *serialize_data;
-    char *double1, *double2;
 
     pt_copy->type = pt->type;
     ops->serialize(pt, &serialize_data, visit_primitive_type, &err);
@@ -260,14 +248,17 @@ static void test_primitives(gconstpointer opaque)
         g_assert_cmpstr(pt->value.string, ==, pt_copy->value.string);
         g_free((char *)pt_copy->value.string);
     } else if (pt->type == PTYPE_NUMBER) {
+        GString *double_expected = g_string_new("");
+        GString *double_actual = g_string_new("");
         /* we serialize with %f for our reference visitors, so rather than fuzzy
          * floating math to test "equality", just compare the formatted values
          */
-        double1 = g_malloc0(calc_float_string_storage(pt->value.number));
-        double2 = g_malloc0(calc_float_string_storage(pt_copy->value.number));
-        g_assert_cmpstr(double1, ==, double2);
-        g_free(double1);
-        g_free(double2);
+        g_string_printf(double_expected, "%.6f", pt->value.number);
+        g_string_printf(double_actual, "%.6f", pt_copy->value.number);
+        g_assert_cmpstr(double_actual->str, ==, double_expected->str);
+
+        g_string_free(double_expected, true);
+        g_string_free(double_actual, true);
     } else if (pt->type == PTYPE_BOOLEAN) {
         g_assert_cmpint(!!pt->value.max, ==, !!pt->value.max);
     } else {
