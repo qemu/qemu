@@ -75,6 +75,24 @@ static void test_visitor_in_int(TestInputVisitorData *data,
     g_assert_cmpint(res, ==, value);
 }
 
+static void test_visitor_in_int_overflow(TestInputVisitorData *data,
+                                         const void *unused)
+{
+    int64_t res = 0;
+    Error *errp = NULL;
+    Visitor *v;
+
+    /* this will overflow a Qint/int64, so should be deserialized into
+     * a QFloat/double field instead, leading to an error if we pass it
+     * to visit_type_int. confirm this.
+     */
+    v = visitor_input_test_init(data, "%f", DBL_MAX);
+
+    visit_type_int(v, &res, NULL, &errp);
+    g_assert(error_is_set(&errp));
+    error_free(errp);
+}
+
 static void test_visitor_in_bool(TestInputVisitorData *data,
                                  const void *unused)
 {
@@ -292,6 +310,8 @@ int main(int argc, char **argv)
 
     input_visitor_test_add("/visitor/input/int",
                            &in_visitor_data, test_visitor_in_int);
+    input_visitor_test_add("/visitor/input/int_overflow",
+                           &in_visitor_data, test_visitor_in_int_overflow);
     input_visitor_test_add("/visitor/input/bool",
                            &in_visitor_data, test_visitor_in_bool);
     input_visitor_test_add("/visitor/input/number",
