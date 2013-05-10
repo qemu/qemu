@@ -457,7 +457,12 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
         return NULL;
     }
 
+    /* A simple fast path that can trigger a lot for leaf classes.  */
     type = class->type;
+    if (type->name == typename) {
+        return class;
+    }
+
     target_type = type_get_by_name(typename);
     if (!target_type) {
         /* target class type unknown, so fail the cast */
