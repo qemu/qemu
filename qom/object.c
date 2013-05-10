@@ -449,10 +449,16 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename)
 ObjectClass *object_class_dynamic_cast(ObjectClass *class,
                                        const char *typename)
 {
-    TypeImpl *target_type = type_get_by_name(typename);
-    TypeImpl *type = class->type;
     ObjectClass *ret = NULL;
+    TypeImpl *target_type;
+    TypeImpl *type;
 
+    if (!class) {
+        return NULL;
+    }
+
+    type = class->type;
+    target_type = type_get_by_name(typename);
     if (!target_type) {
         /* target class type unknown, so fail the cast */
         return NULL;
@@ -488,7 +494,7 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
 {
     ObjectClass *ret = object_class_dynamic_cast(class, typename);
 
-    if (!ret) {
+    if (!ret && class) {
         fprintf(stderr, "Object %p is not an instance of type %s\n",
                 class, typename);
         abort();
