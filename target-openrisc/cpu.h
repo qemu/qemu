@@ -335,7 +335,7 @@ typedef struct OpenRISCCPU {
 
 static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
 {
-    return OPENRISC_CPU(container_of(env, OpenRISCCPU, env));
+    return container_of(env, OpenRISCCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(openrisc_env_get_cpu(e))

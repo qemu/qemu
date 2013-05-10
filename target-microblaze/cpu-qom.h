@@ -64,7 +64,7 @@ typedef struct MicroBlazeCPU {
 
 static inline MicroBlazeCPU *mb_env_get_cpu(CPUMBState *env)
 {
-    return MICROBLAZE_CPU(container_of(env, MicroBlazeCPU, env));
+    return container_of(env, MicroBlazeCPU, env);
 }
 
 #define ENV_GET_CPU(e) CPU(mb_env_get_cpu(e))
