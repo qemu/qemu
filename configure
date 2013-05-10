@@ -220,6 +220,7 @@ blobs="yes"
 pkgversion=""
 pie=""
 zero_malloc=""
+qom_cast_debug="yes"
 trace_backend="nop"
 trace_file="trace"
 spice=""
@@ -687,6 +688,10 @@ for opt do
   --disable-sdl) sdl="no"
   ;;
   --enable-sdl) sdl="yes"
+  ;;
+  --disable-qom-cast-debug) qom_cast_debug="no"
+  ;;
+  --enable-qom-cast-debug) qom_cast_debug="yes"
   ;;
   --disable-virtfs) virtfs="no"
   ;;
@@ -3575,6 +3580,7 @@ echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
 echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
+echo "QOM debugging     $qom_cast_debug"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3908,6 +3914,9 @@ echo "CONFIG_UNAME_RELEASE=\"$uname_release\"" >> $config_host_mak
 
 if test "$zero_malloc" = "yes" ; then
   echo "CONFIG_ZERO_MALLOC=y" >> $config_host_mak
+fi
+if test "$qom_cast_debug" = "yes" ; then
+  echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
 fi
 if test "$rbd" = "yes" ; then
   echo "CONFIG_RBD=y" >> $config_host_mak

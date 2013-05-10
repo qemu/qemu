@@ -435,12 +435,11 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
 Object *object_dynamic_cast_assert(Object *obj, const char *typename,
                                    const char *file, int line, const char *func)
 {
-    Object *inst;
-
     trace_object_dynamic_cast_assert(obj ? obj->class->type->name : "(null)",
                                      typename, file, line, func);
 
-    inst = object_dynamic_cast(obj, typename);
+#ifdef CONFIG_QOM_CAST_DEBUG
+    Object *inst = object_dynamic_cast(obj, typename);
 
     if (!inst && obj) {
         fprintf(stderr, "%s:%d:%s: Object %p is not an instance of type %s\n",
@@ -448,7 +447,9 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
         abort();
     }
 
-    return inst;
+    assert(obj == inst);
+#endif
+    return obj;
 }
 
 ObjectClass *object_class_dynamic_cast(ObjectClass *class,
@@ -508,6 +509,12 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
 
     trace_object_class_dynamic_cast_assert(class ? class->type->name : "(null)",
                                            typename, file, line, func);
+
+#ifndef CONFIG_QOM_CAST_DEBUG
+    if (!class->interfaces) {
+        return class;
+    }
+#endif
 
     ret = object_class_dynamic_cast(class, typename);
     if (!ret && class) {

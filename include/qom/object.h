@@ -615,8 +615,9 @@ Object *object_dynamic_cast(Object *obj, const char *typename);
  *
  * See object_dynamic_cast() for a description of the parameters of this
  * function.  The only difference in behavior is that this function asserts
- * instead of returning #NULL on failure.  This function is not meant to be
- * called directly, but only through the wrapper macro OBJECT_CHECK.
+ * instead of returning #NULL on failure if QOM cast debugging is enabled.
+ * This function is not meant to be called directly, but only through
+ * the wrapper macro OBJECT_CHECK.
  */
 Object *object_dynamic_cast_assert(Object *obj, const char *typename,
                                    const char *file, int line, const char *func);
@@ -666,9 +667,9 @@ Type type_register(const TypeInfo *info);
  *
  * See object_class_dynamic_cast() for a description of the parameters
  * of this function.  The only difference in behavior is that this function
- * asserts instead of returning #NULL on failure.  This function is not
- * meant to be called directly, but only through the wrapper macros
- * OBJECT_CLASS_CHECK and INTERFACE_CHECK.
+ * asserts instead of returning #NULL on failure if QOM cast debugging is
+ * enabled.  This function is not meant to be called directly, but only through
+ * the wrapper macros OBJECT_CLASS_CHECK and INTERFACE_CHECK.
  */
 ObjectClass *object_class_dynamic_cast_assert(ObjectClass *klass,
                                               const char *typename,
