@@ -209,7 +209,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
      * TODO This device exists only so that users can switch between
      * use of flash and ROM for the BIOS.  The ability to switch was
      * created because flash doesn't work with KVM.  Once it does, we
-     * should drop this device for new machine types.
+     * should drop this device.
      */
     sysfw_dev = (PcSysFwDevice*) qdev_create(NULL, "pc-sysfw");
 
@@ -226,9 +226,9 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
        Use old rom based firmware initialization for KVM. */
     /*
      * This is a Bad Idea, because it makes enabling/disabling KVM
-     * guest-visible.  Do it only in bug-compatibility mode.
+     * guest-visible.  Let's fix it for real in QEMU 1.6.
      */
-    if (pc_sysfw_flash_vs_rom_bug_compatible && kvm_enabled()) {
+    if (kvm_enabled()) {
         if (pflash_drv != NULL) {
             fprintf(stderr, "qemu: pflash cannot be used with kvm enabled\n");
             exit(1);
@@ -255,7 +255,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
 }
 
 static Property pcsysfw_properties[] = {
-    DEFINE_PROP_UINT8("rom_only", PcSysFwDevice, rom_only, 1),
+    DEFINE_PROP_UINT8("rom_only", PcSysFwDevice, rom_only, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

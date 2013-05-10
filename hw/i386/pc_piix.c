@@ -248,7 +248,6 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
 
 static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
 {
-    pc_sysfw_flash_vs_rom_bug_compatible = true;
     has_pvpanic = false;
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     pc_init_pci(args);
@@ -257,7 +256,6 @@ static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
 static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
 {
     enable_compat_apic_id_mode();
-    pc_sysfw_flash_vs_rom_bug_compatible = true;
     has_pvpanic = false;
     pc_init_pci(args);
 }
@@ -267,7 +265,6 @@ static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
 {
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
-    pc_sysfw_flash_vs_rom_bug_compatible = true;
     has_pvpanic = false;
     pc_init_pci(args);
 }
