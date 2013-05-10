@@ -331,6 +331,24 @@ static void gd_refresh(DisplayChangeListener *dcl)
     graphic_hw_update(dcl->con);
 }
 
+#if GTK_CHECK_VERSION(3, 0, 0)
+static void gd_mouse_set(DisplayChangeListener *dcl,
+                         int x, int y, int visible)
+{
+    GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
+    GdkDisplay *dpy;
+    GdkDeviceManager *mgr;
+    gint x_root, y_root;
+
+    dpy = gtk_widget_get_display(s->drawing_area);
+    mgr = gdk_display_get_device_manager(dpy);
+    gdk_window_get_root_coords(gtk_widget_get_window(s->drawing_area),
+                               x, y, &x_root, &y_root);
+    gdk_device_warp(gdk_device_manager_get_client_pointer(mgr),
+                    gtk_widget_get_screen(s->drawing_area),
+                    x, y);
+}
+#else
 static void gd_mouse_set(DisplayChangeListener *dcl,
                          int x, int y, int visible)
 {
@@ -343,6 +361,7 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
                              gtk_widget_get_screen(s->drawing_area),
                              x_root, y_root);
 }
+#endif
 
 static void gd_cursor_define(DisplayChangeListener *dcl,
                              QEMUCursor *c)
