@@ -1160,3 +1160,6 @@ kvm_vm_ioctl(int type, void *arg) "type %d, arg %p"
 kvm_vcpu_ioctl(int cpu_index, int type, void *arg) "cpu_index %d, type %d, arg %p"
 kvm_run_exit(int cpu_index, uint32_t reason) "cpu_index %d, reason %d"
 
+# qom/object.c
+object_dynamic_cast_assert(const char *type, const char *target, const char *file, int line, const char *func) "%s->%s (%s:%d:%s)"
+object_class_dynamic_cast_assert(const char *type, const char *target, const char *file, int line, const char *func) "%s->%s (%s:%d:%s)"

@@ -16,6 +16,7 @@
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/qmp/qerror.h"
+#include "trace.h"
 
 /* TODO: replace QObject with a simpler visitor to avoid a dependency
  * of the QOM core on QObject?  */
@@ -436,6 +437,9 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
 {
     Object *inst;
 
+    trace_object_dynamic_cast_assert(obj ? obj->class->type->name : "(null)",
+                                     typename, file, line, func);
+
     inst = object_dynamic_cast(obj, typename);
 
     if (!inst && obj) {
@@ -500,8 +504,12 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
                                               const char *file, int line,
                                               const char *func)
 {
-    ObjectClass *ret = object_class_dynamic_cast(class, typename);
+    ObjectClass *ret;
 
+    trace_object_class_dynamic_cast_assert(class ? class->type->name : "(null)",
+                                           typename, file, line, func);
+
+    ret = object_class_dynamic_cast(class, typename);
     if (!ret && class) {
         fprintf(stderr, "%s:%d:%s: Object %p is not an instance of type %s\n",
                 file, line, func, class, typename);
