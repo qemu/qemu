@@ -178,7 +178,7 @@ Makefile: $(version-obj-y) $(version-lobj-y)
 # Build libraries
 
 libqemustub.a: $(stub-obj-y)
-libqemuutil.a: $(util-obj-y)
+libqemuutil.a: $(util-obj-y) qapi-types.o qapi-visit.o
 
 ######################################################################
 
@@ -215,10 +215,10 @@ $(SRC_PATH)/qga/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 
 qapi-types.c qapi-types.h :\
 $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py $(gen-out-type) -o "." < $<, "  GEN   $@")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py $(gen-out-type) -o "." -b < $<, "  GEN   $@")
 qapi-visit.c qapi-visit.h :\
 $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py $(gen-out-type) -o "."  < $<, "  GEN   $@")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py $(gen-out-type) -o "." -b < $<, "  GEN   $@")
 qmp-commands.h qmp-marshal.c :\
 $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py $(gen-out-type) -m -o "." < $<, "  GEN   $@")
