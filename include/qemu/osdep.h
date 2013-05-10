@@ -5,8 +5,8 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdbool.h>
-#ifdef __OpenBSD__
 #include <sys/types.h>
+#ifdef __OpenBSD__
 #include <sys/signal.h>
 #endif
 
