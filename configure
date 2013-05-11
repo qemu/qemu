@@ -1346,6 +1346,7 @@ static int sfaa(int *ptr)
 int main(void)
 {
   int val = 42;
+  val = __sync_val_compare_and_swap(&val, 0, 1);
   sfaa(&val);
   return val;
 }
