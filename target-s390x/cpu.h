@@ -34,7 +34,10 @@
 #include "exec/cpu-defs.h"
 #define TARGET_PAGE_BITS 12
 
-#define TARGET_PHYS_ADDR_SPACE_BITS 64
+/* Actually 64-bits, limited by the memory API to 62 bits.  We
+ * never use that much.
+ */
+#define TARGET_PHYS_ADDR_SPACE_BITS 62
 #define TARGET_VIRT_ADDR_SPACE_BITS 64
 
 #include "exec/cpu-all.h"
