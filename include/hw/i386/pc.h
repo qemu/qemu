@@ -8,7 +8,6 @@
 #include "hw/block/fdc.h"
 #include "net/net.h"
 #include "hw/i386/ioapic.h"
-#include "hw/nvram/fw_cfg.h"
 
 /* PC-style peripherals (also used by other machines).  */
 

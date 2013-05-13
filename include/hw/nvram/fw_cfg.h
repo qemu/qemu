@@ -6,6 +6,7 @@
 #include <stddef.h>
 
 #include "exec/hwaddr.h"
+#include "qemu/typedefs.h"
 #endif
 
 #define FW_CFG_SIGNATURE        0x00
@@ -60,7 +61,6 @@ typedef struct FWCfgFiles {
 
 typedef void (*FWCfgCallback)(void *opaque, uint8_t *data);
 
-typedef struct FWCfgState FWCfgState;
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len);
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value);
 void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value);
