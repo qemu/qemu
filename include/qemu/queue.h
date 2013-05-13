@@ -104,6 +104,19 @@ struct {                                                                \
         (head)->lh_first = NULL;                                        \
 } while (/*CONSTCOND*/0)
 
+#define QLIST_SWAP(dstlist, srclist, field) do {                        \
+        void *tmplist;                                                  \
+        tmplist = (srclist)->lh_first;                                  \
+        (srclist)->lh_first = (dstlist)->lh_first;                      \
+        if ((srclist)->lh_first != NULL) {                              \
+            (srclist)->lh_first->field.le_prev = &(srclist)->lh_first;  \
+        }                                                               \
+        (dstlist)->lh_first = tmplist;                                  \
+        if ((dstlist)->lh_first != NULL) {                              \
+            (dstlist)->lh_first->field.le_prev = &(dstlist)->lh_first;  \
+        }                                                               \
+} while (/*CONSTCOND*/0)
+
 #define QLIST_INSERT_AFTER(listelm, elm, field) do {                    \
         if (((elm)->field.le_next = (listelm)->field.le_next) != NULL)  \
                 (listelm)->field.le_next->field.le_prev =               \
