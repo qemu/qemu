@@ -1790,17 +1790,17 @@ int kvm_has_intx_set_mask(void)
     return kvm_state->intx_set_mask;
 }
 
-void *kvm_vmalloc(ram_addr_t size)
+void *kvm_ram_alloc(ram_addr_t size)
 {
 #ifdef TARGET_S390X
     void *mem;
 
-    mem = kvm_arch_vmalloc(size);
+    mem = kvm_arch_ram_alloc(size);
     if (mem) {
         return mem;
     }
 #endif
-    return qemu_vmalloc(size);
+    return qemu_anon_ram_alloc(size);
 }
 
 void kvm_setup_guest_memory(void *start, size_t size)

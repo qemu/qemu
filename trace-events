@@ -32,7 +32,7 @@ g_free(void *ptr) "ptr %p"
 
 # osdep.c
 qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
-qemu_vmalloc(size_t size, void *ptr) "size %zu ptr %p"
+qemu_anon_ram_alloc(size_t size, void *ptr) "size %zu ptr %p"
 qemu_vfree(void *ptr) "ptr %p"
 
 # hw/virtio.c

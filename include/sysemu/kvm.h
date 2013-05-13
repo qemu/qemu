@@ -142,8 +142,8 @@ int kvm_init_vcpu(CPUState *cpu);
 int kvm_cpu_exec(CPUArchState *env);
 
 #if !defined(CONFIG_USER_ONLY)
-void *kvm_vmalloc(ram_addr_t size);
-void *kvm_arch_vmalloc(ram_addr_t size);
+void *kvm_ram_alloc(ram_addr_t size);
+void *kvm_arch_ram_alloc(ram_addr_t size);
 #endif
 
 void kvm_setup_guest_memory(void *start, size_t size);

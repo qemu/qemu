@@ -78,16 +78,15 @@ avoided.
 Use of the malloc/free/realloc/calloc/valloc/memalign/posix_memalign
 APIs is not allowed in the QEMU codebase. Instead of these routines,
 use the GLib memory allocation routines g_malloc/g_malloc0/g_new/
-g_new0/g_realloc/g_free or QEMU's qemu_vmalloc/qemu_memalign/qemu_vfree
+g_new0/g_realloc/g_free or QEMU's qemu_memalign/qemu_blockalign/qemu_vfree
 APIs.
 
 Please note that g_malloc will exit on allocation failure, so there
 is no need to test for failure (as you would have to with malloc).
 Calling g_malloc with a zero size is valid and will return NULL.
 
-Memory allocated by qemu_vmalloc or qemu_memalign must be freed with
-qemu_vfree, since breaking this will cause problems on Win32 and user
-emulators.
+Memory allocated by qemu_memalign or qemu_blockalign must be freed with
+qemu_vfree, since breaking this will cause problems on Win32.
 
 4. String manipulation
 
