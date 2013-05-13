@@ -34,6 +34,7 @@ g_free(void *ptr) "ptr %p"
 qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
 qemu_anon_ram_alloc(size_t size, void *ptr) "size %zu ptr %p"
 qemu_vfree(void *ptr) "ptr %p"
+qemu_anon_ram_free(void *ptr, size_t size) "size %zu ptr %p"
 
 # hw/virtio.c
 virtqueue_fill(void *vq, const void *elem, unsigned int len, unsigned int idx) "vq %p elem %p len %u idx %u"

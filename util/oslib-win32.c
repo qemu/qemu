@@ -76,6 +76,14 @@ void qemu_vfree(void *ptr)
     }
 }
 
+void qemu_anon_ram_free(void *ptr, size_t size)
+{
+    trace_qemu_anon_ram_free(ptr, size);
+    if (ptr) {
+        VirtualFree(ptr, 0, MEM_RELEASE);
+    }
+}
+
 /* FIXME: add proper locking */
 struct tm *gmtime_r(const time_t *timep, struct tm *result)
 {

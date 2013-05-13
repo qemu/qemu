@@ -1156,21 +1156,17 @@ void qemu_ram_free(ram_addr_t addr)
                     munmap(block->host, block->length);
                     close(block->fd);
                 } else {
-                    qemu_vfree(block->host);
+                    qemu_anon_ram_free(block->host, block->length);
                 }
 #else
                 abort();
 #endif
             } else {
-#if defined(TARGET_S390X) && defined(CONFIG_KVM)
-                munmap(block->host, block->length);
-#else
                 if (xen_enabled()) {
                     xen_invalidate_map_cache_entry(block->host);
                 } else {
-                    qemu_vfree(block->host);
+                    qemu_anon_ram_free(block->host, block->length);
                 }
-#endif
             }
             g_free(block);
             break;

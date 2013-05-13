@@ -135,6 +135,14 @@ void qemu_vfree(void *ptr)
     free(ptr);
 }
 
+void qemu_anon_ram_free(void *ptr, size_t size)
+{
+    trace_qemu_anon_ram_free(ptr, size);
+    if (ptr) {
+        munmap(ptr, size);
+    }
+}
+
 void qemu_set_block(int fd)
 {
     int f;
