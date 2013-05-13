@@ -439,7 +439,16 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
                                      typename, file, line, func);
 
 #ifdef CONFIG_QOM_CAST_DEBUG
-    Object *inst = object_dynamic_cast(obj, typename);
+    int i;
+    Object *inst;
+
+    for (i = 0; i < OBJECT_CLASS_CAST_CACHE; i++) {
+        if (obj->class->cast_cache[i] == typename) {
+            goto out;
+        }
+    }
+
+    inst = object_dynamic_cast(obj, typename);
 
     if (!inst && obj) {
         fprintf(stderr, "%s:%d:%s: Object %p is not an instance of type %s\n",
@@ -448,6 +457,15 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
     }
 
     assert(obj == inst);
+
+    if (obj == inst) {
+        for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
+            obj->class->cast_cache[i - 1] = obj->class->cast_cache[i];
+        }
+        obj->class->cast_cache[i - 1] = typename;
+    }
+
+out:
 #endif
     return obj;
 }
@@ -510,7 +528,16 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
     trace_object_class_dynamic_cast_assert(class ? class->type->name : "(null)",
                                            typename, file, line, func);
 
-#ifndef CONFIG_QOM_CAST_DEBUG
+#ifdef CONFIG_QOM_CAST_DEBUG
+    int i;
+
+    for (i = 0; i < OBJECT_CLASS_CAST_CACHE; i++) {
+        if (class->cast_cache[i] == typename) {
+            ret = class;
+            goto out;
+        }
+    }
+#else
     if (!class->interfaces) {
         return class;
     }
@@ -523,6 +550,15 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
         abort();
     }
 
+#ifdef CONFIG_QOM_CAST_DEBUG
+    if (ret == class) {
+        for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
+            class->cast_cache[i - 1] = class->cast_cache[i];
+        }
+        class->cast_cache[i - 1] = typename;
+    }
+out:
+#endif
     return ret;
 }
 

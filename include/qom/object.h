@@ -344,6 +344,8 @@ typedef void (ObjectUnparent)(Object *obj);
  */
 typedef void (ObjectFree)(void *obj);
 
+#define OBJECT_CLASS_CAST_CACHE 4
+
 /**
  * ObjectClass:
  *
@@ -355,6 +357,8 @@ struct ObjectClass
     /*< private >*/
     Type type;
     GSList *interfaces;
+
+    const char *cast_cache[OBJECT_CLASS_CAST_CACHE];
 
     ObjectUnparent *unparent;
 };
