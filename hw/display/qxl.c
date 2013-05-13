@@ -23,6 +23,7 @@
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "qemu/queue.h"
+#include "qemu/atomic.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
@@ -1726,7 +1727,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
         trace_qxl_send_events_vm_stopped(d->id, events);
         return;
     }
-    old_pending = __sync_fetch_and_or(&d->ram->int_pending, le_events);
+    old_pending = atomic_fetch_or(&d->ram->int_pending, le_events);
     if ((old_pending & le_events) == le_events) {
         return;
     }
