@@ -750,8 +750,8 @@ void do_commit(Monitor *mon, const QDict *qdict)
 
 static void blockdev_do_action(int kind, void *data, Error **errp)
 {
-    BlockdevAction action;
-    BlockdevActionList list;
+    TransactionAction action;
+    TransactionActionList list;
 
     action.kind = kind;
     action.data = data;
@@ -773,8 +773,8 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
         .has_mode = has_mode,
         .mode = mode,
     };
-    blockdev_do_action(BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC, &snapshot,
-                       errp);
+    blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC,
+                       &snapshot, errp);
 }
 
 
@@ -803,7 +803,7 @@ typedef struct BdrvActionOps {
  * Later it will be used in free().
  */
 struct BlkTransactionStates {
-    BlockdevAction *action;
+    TransactionAction *action;
     const BdrvActionOps *ops;
     QSIMPLEQ_ENTRY(BlkTransactionStates) entry;
 };
@@ -828,10 +828,10 @@ static void external_snapshot_prepare(BlkTransactionStates *common,
     enum NewImageMode mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     ExternalSnapshotStates *states =
                              DO_UPCAST(ExternalSnapshotStates, common, common);
-    BlockdevAction *action = common->action;
+    TransactionAction *action = common->action;
 
     /* get parameters */
-    g_assert(action->kind == BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
+    g_assert(action->kind == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
 
     device = action->blockdev_snapshot_sync->device;
     new_image_file = action->blockdev_snapshot_sync->snapshot_file;
@@ -927,7 +927,7 @@ static void external_snapshot_abort(BlkTransactionStates *common)
 }
 
 static const BdrvActionOps actions[] = {
-    [BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
+    [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
         .instance_size = sizeof(ExternalSnapshotStates),
         .prepare  = external_snapshot_prepare,
         .commit   = external_snapshot_commit,
@@ -940,9 +940,9 @@ static const BdrvActionOps actions[] = {
  *  then we do not pivot any of the devices in the group, and abandon the
  *  snapshots
  */
-void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
+void qmp_transaction(TransactionActionList *dev_list, Error **errp)
 {
-    BlockdevActionList *dev_entry = dev_list;
+    TransactionActionList *dev_entry = dev_list;
     BlkTransactionStates *states, *next;
     Error *local_err = NULL;
 
@@ -954,7 +954,7 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
 
     /* We don't do anything in this loop that commits us to the snapshot */
     while (NULL != dev_entry) {
-        BlockdevAction *dev_info = NULL;
+        TransactionAction *dev_info = NULL;
         const BdrvActionOps *ops;
 
         dev_info = dev_entry->value;
