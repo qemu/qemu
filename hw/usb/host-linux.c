@@ -651,7 +651,7 @@ static void usb_host_handle_reset(USBDevice *dev)
 
     trace_usb_host_reset(s->bus_num, s->addr);
 
-    usb_host_do_reset(s);;
+    usb_host_do_reset(s);
 
     usb_host_claim_interfaces(s, 0);
     usb_linux_update_endp_table(s);
@@ -1429,7 +1429,7 @@ static void usb_host_exit_notifier(struct Notifier *n, void *data)
 
     usb_host_release_port(s);
     if (s->fd != -1) {
-        usb_host_do_reset(s);;
+        usb_host_do_reset(s);
     }
 }
 

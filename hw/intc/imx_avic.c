@@ -370,7 +370,7 @@ static void imx_avic_reset(DeviceState *dev)
 
 static int imx_avic_init(SysBusDevice *dev)
 {
-    IMXAVICState *s = FROM_SYSBUS(IMXAVICState, dev);;
+    IMXAVICState *s = FROM_SYSBUS(IMXAVICState, dev);
 
     memory_region_init_io(&s->iomem, &imx_avic_ops, s, "imx_avic", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);

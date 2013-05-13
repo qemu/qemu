@@ -878,7 +878,7 @@ static int local_remove(FsContext *ctx, const char *path)
          * Now remove the name from parent directory
          * .virtfs_metadata directory
          */
-        err = remove(local_mapped_attr_path(ctx, path, buffer));;
+        err = remove(local_mapped_attr_path(ctx, path, buffer));
         if (err < 0 && errno != ENOENT) {
             /*
              * We didn't had the .virtfs_metadata file. May be file created
