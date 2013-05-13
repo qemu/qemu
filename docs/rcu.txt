@@ -82,7 +82,50 @@ The core RCU API is small:
         Note that it would be valid for another update to come while
         synchronize_rcu is running.  Because of this, it is better that
         the updater releases any locks it may hold before calling
-        synchronize_rcu.
+        synchronize_rcu.  If this is not possible (for example, because
+        the updater is protected by the BQL), you can use call_rcu.
+
+     void call_rcu1(struct rcu_head * head,
+                    void (*func)(struct rcu_head *head));
+
+        This function invokes func(head) after all pre-existing RCU
+        read-side critical sections on all threads have completed.  This
+        marks the end of the removal phase, with func taking care
+        asynchronously of the reclamation phase.
+
+        The foo struct needs to have an rcu_head structure added,
+        perhaps as follows:
+
+            struct foo {
+                struct rcu_head rcu;
+                int a;
+                char b;
+                long c;
+            };
+
+        so that the reclaimer function can fetch the struct foo address
+        and free it:
+
+            call_rcu1(&foo.rcu, foo_reclaim);
+
+            void foo_reclaim(struct rcu_head *rp)
+            {
+                struct foo *fp = container_of(rp, struct foo, rcu);
+                g_free(fp);
+            }
+
+        For the common case where the rcu_head member is the first of the
+        struct, you can use the following macro.
+
+     void call_rcu(T *p,
+                   void (*func)(T *p),
+                   field-name);
+
+        call_rcu1 is typically used through this macro, in the common case
+        where the "struct rcu_head" is the first field in the struct.  In
+        the above case, one could have written simply:
+
+            call_rcu(foo_reclaim, g_free, rcu);
 
      typeof(*p) atomic_rcu_read(p);
 
@@ -153,6 +196,11 @@ DIFFERENCES WITH LINUX
 - atomic_rcu_read and atomic_rcu_set replace rcu_dereference and
   rcu_assign_pointer.  They take a _pointer_ to the variable being accessed.
 
+- call_rcu is a macro that has an extra argument (the name of the first
+  field in the struct, which must be a struct rcu_head), and expects the
+  type of the callback's argument to be the type of the first argument.
+  call_rcu1 is the same as Linux's call_rcu.
+
 
 RCU PATTERNS
 ============
@@ -206,7 +254,47 @@ The write side looks simply like this (with appropriate locking):
     synchronize_rcu();
     free(old);
 
-Note that the same idiom would be possible with reader/writer
+If the processing cannot be done purely within the critical section, it
+is possible to combine this idiom with a "real" reference count:
+
+    rcu_read_lock();
+    p = atomic_rcu_read(&foo);
+    foo_ref(p);
+    rcu_read_unlock();
+    /* do something with p. */
+    foo_unref(p);
+
+The write side can be like this:
+
+    qemu_mutex_lock(&foo_mutex);
+    old = foo;
+    atomic_rcu_set(&foo, new);
+    qemu_mutex_unlock(&foo_mutex);
+    synchronize_rcu();
+    foo_unref(old);
+
+or with call_rcu:
+
+    qemu_mutex_lock(&foo_mutex);
+    old = foo;
+    atomic_rcu_set(&foo, new);
+    qemu_mutex_unlock(&foo_mutex);
+    call_rcu(foo_unref, old, rcu);
+
+In both cases, the write side only performs removal.  Reclamation
+happens when the last reference to a "foo" object is dropped.
+Using synchronize_rcu() is undesirably expensive, because the
+last reference may be dropped on the read side.  Hence you can
+use call_rcu() instead:
+
+     foo_unref(struct foo *p) {
+        if (atomic_fetch_dec(&p->refcount) == 1) {
+            call_rcu(foo_destroy, p, rcu);
+        }
+    }
+
+
+Note that the same idioms would be possible with reader/writer
 locks:
 
     read_lock(&foo_rwlock);         write_mutex_lock(&foo_rwlock);
@@ -216,13 +304,27 @@ locks:
                                     write_mutex_unlock(&foo_rwlock);
                                     free(p);
 
+    ------------------------------------------------------------------
+
+    read_lock(&foo_rwlock);         write_mutex_lock(&foo_rwlock);
+    p = foo;                        old = foo;
+    foo_ref(p);                     foo = new;
+    read_unlock(&foo_rwlock);       foo_unref(old);
+    /* do something with p. */      write_mutex_unlock(&foo_rwlock);
+    read_lock(&foo_rwlock);
+    foo_unref(p);
+    read_unlock(&foo_rwlock);
+
+foo_unref could use a mechanism such as bottom halves to move deallocation
+out of the write-side critical section.
+
 
 RCU resizable arrays
 --------------------
 
 Resizable arrays can be used with RCU.  The expensive RCU synchronization
-only needs to take place when the array is resized.  The two items to
-take care of are:
+(or call_rcu) only needs to take place when the array is resized.
+The two items to take care of are:
 
 - ensuring that the old version of the array is available between removal
   and reclamation;

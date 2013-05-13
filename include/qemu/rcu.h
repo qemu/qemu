@@ -118,6 +118,28 @@ extern void synchronize_rcu(void);
 extern void rcu_register_thread(void);
 extern void rcu_unregister_thread(void);
 
+struct rcu_head;
+typedef void RCUCBFunc(struct rcu_head *head);
+
+struct rcu_head {
+    struct rcu_head *next;
+    RCUCBFunc *func;
+};
+
+extern void call_rcu1(struct rcu_head *head, RCUCBFunc *func);
+
+/* The operands of the minus operator must have the same type,
+ * which must be the one that we specify in the cast.
+ */
+#define call_rcu(head, func, field)                                      \
+    call_rcu1(({                                                         \
+         char __attribute__((unused))                                    \
+            offset_must_be_zero[-offsetof(typeof(*(head)), field)],      \
+            func_type_invalid = (func) - (void (*)(typeof(head)))(func); \
+         &(head)->field;                                                 \
+      }),                                                                \
+      (RCUCBFunc *)(func))
+
 #ifdef __cplusplus
 }
 #endif
