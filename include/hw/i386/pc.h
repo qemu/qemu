@@ -20,6 +20,7 @@ typedef struct PcPciInfo {
 
 struct PcGuestInfo {
     PcPciInfo pci_info;
+    bool has_pci_info;
     FWCfgState *fw_cfg;
 };
 

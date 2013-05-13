@@ -57,6 +57,7 @@ static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
 static bool has_pvpanic = true;
+static bool has_pci_info = true;
 
 /* PC hardware initialisation */
 static void pc_init1(MemoryRegion *system_memory,
@@ -126,6 +127,7 @@ static void pc_init1(MemoryRegion *system_memory,
     }
 
     guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
+    guest_info->has_pci_info = has_pci_info;
 
     /* Set PCI window size the way seabios has always done it. */
     /* Power of 2 so bios can cover it with a single MTRR */
@@ -260,8 +262,15 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
              initrd_filename, cpu_model, 1, 1);
 }
 
+static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
+{
+    has_pci_info = false;
+    pc_init_pci(args);
+}
+
 static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
 {
+    has_pci_info = false;
     has_pvpanic = false;
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     pc_init_pci(args);
@@ -269,6 +278,7 @@ static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
 
 static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
 {
+    has_pci_info = false;
     enable_compat_apic_id_mode();
     has_pvpanic = false;
     pc_init_pci(args);
@@ -277,6 +287,7 @@ static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
 /* PC machine init function for pc-1.1 to pc-1.2 */
 static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
 {
+    has_pci_info = false;
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
     has_pvpanic = false;
@@ -286,6 +297,7 @@ static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
 /* PC machine init function for pc-0.14 to pc-1.0 */
 static void pc_init_pci_1_0(QEMUMachineInitArgs *args)
 {
+    has_pci_info = false;
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
     has_pvpanic = false;
@@ -302,6 +314,7 @@ static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
     const char *initrd_filename = args->initrd_filename;
     const char *boot_device = args->boot_device;
     has_pvpanic = false;
+    has_pci_info = false;
     disable_kvm_pv_eoi();
     enable_compat_apic_id_mode();
     pc_init1(get_system_memory(),
@@ -320,6 +333,7 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
     const char *initrd_filename = args->initrd_filename;
     const char *boot_device = args->boot_device;
     has_pvpanic = false;
+    has_pci_info = false;
     if (cpu_model == NULL)
         cpu_model = "486";
     disable_kvm_pv_eoi();
@@ -359,7 +373,7 @@ static QEMUMachine pc_i440fx_machine_v1_6 = {
 static QEMUMachine pc_i440fx_machine_v1_5 = {
     .name = "pc-i440fx-1.5",
     .desc = "Standard PC (i440FX + PIIX, 1996)",
-    .init = pc_init_pci,
+    .init = pc_init_pci_1_5,
     .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
     .compat_props = (GlobalProperty[]) {
