@@ -1948,6 +1948,8 @@ fi
 
 ##########################################
 # uuid_generate() probe, used for vdi block driver
+# Note that on some systems (notably MacOSX) no extra library
+# need be linked to get the uuid functions.
 if test "$uuid" != "no" ; then
   uuid_libs="-luuid"
   cat > $TMPC << EOF
@@ -1959,7 +1961,9 @@ int main(void)
     return 0;
 }
 EOF
-  if compile_prog "" "$uuid_libs" ; then
+  if compile_prog "" "" ; then
+    uuid="yes"
+  elif compile_prog "" "$uuid_libs" ; then
     uuid="yes"
     libs_softmmu="$uuid_libs $libs_softmmu"
     libs_tools="$uuid_libs $libs_tools"
