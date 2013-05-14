@@ -1334,11 +1334,6 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size)
     }
 }
 
-void qemu_put_ram_ptr(void *addr)
-{
-    trace_qemu_put_ram_ptr(addr);
-}
-
 int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 {
     RAMBlock *block;
@@ -1928,7 +1923,6 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                 ptr = qemu_get_ram_ptr(addr1);
                 memcpy(ptr, buf, l);
                 invalidate_and_set_dirty(addr1, l);
-                qemu_put_ram_ptr(ptr);
             }
         } else {
             if (!(memory_region_is_ram(section->mr) ||
@@ -1958,7 +1952,6 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                                        + memory_region_section_addr(section,
                                                                     addr));
                 memcpy(buf, ptr, l);
-                qemu_put_ram_ptr(ptr);
             }
         }
         len -= l;
@@ -2020,7 +2013,6 @@ void cpu_physical_memory_write_rom(hwaddr addr,
             ptr = qemu_get_ram_ptr(addr1);
             memcpy(ptr, buf, l);
             invalidate_and_set_dirty(addr1, l);
-            qemu_put_ram_ptr(ptr);
         }
         len -= l;
         buf += l;

@@ -711,7 +711,6 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
 
         ptr = memory_region_get_ram_ptr(&s->dev.rom);
         memcpy(biosver, ptr + 0x41, 31);
-        qemu_put_ram_ptr(ptr);
         memcpy(info.image_component[1].name, "BIOS", 4);
         memcpy(info.image_component[1].version, biosver,
                strlen((const char *)biosver));
