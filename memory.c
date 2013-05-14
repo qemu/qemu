@@ -1072,6 +1072,7 @@ void memory_region_init_iommu(MemoryRegion *mr,
     memory_region_init(mr, name, size);
     mr->iommu_ops = ops,
     mr->terminates = true;  /* then re-forwards */
+    notifier_list_init(&mr->iommu_notify);
 }
 
 void memory_region_init_reservation(MemoryRegion *mr,
@@ -1122,6 +1123,23 @@ bool memory_region_is_rom(MemoryRegion *mr)
 bool memory_region_is_iommu(MemoryRegion *mr)
 {
     return mr->iommu_ops;
+}
+
+void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n)
+{
+    notifier_list_add(&mr->iommu_notify, n);
+}
+
+void memory_region_unregister_iommu_notifier(Notifier *n)
+{
+    notifier_remove(n);
+}
+
+void memory_region_notify_iommu(MemoryRegion *mr,
+                                IOMMUTLBEntry entry)
+{
+    assert(memory_region_is_iommu(mr));
+    notifier_list_notify(&mr->iommu_notify, &entry);
 }
 
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)

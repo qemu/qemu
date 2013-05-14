@@ -25,6 +25,7 @@
 #include "exec/iorange.h"
 #include "exec/ioport.h"
 #include "qemu/int128.h"
+#include "qemu/notify.h"
 
 #define MAX_PHYS_ADDR_SPACE_BITS 62
 #define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
@@ -173,6 +174,7 @@ struct MemoryRegion {
     uint8_t dirty_log_mask;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+    NotifierList iommu_notify;
 };
 
 struct MemoryRegionPortio {
@@ -422,6 +424,36 @@ static inline bool memory_region_is_romd(MemoryRegion *mr)
  * @mr: the memory region being queried
  */
 bool memory_region_is_iommu(MemoryRegion *mr);
+
+/**
+ * memory_region_notify_iommu: notify a change in an IOMMU translation entry.
+ *
+ * @mr: the memory region that was changed
+ * @entry: the new entry in the IOMMU translation table.  The entry
+ *         replaces all old entries for the same virtual I/O address range.
+ *         Deleted entries have .@perm == 0.
+ */
+void memory_region_notify_iommu(MemoryRegion *mr,
+                                IOMMUTLBEntry entry);
+
+/**
+ * memory_region_register_iommu_notifier: register a notifier for changes to
+ * IOMMU translation entries.
+ *
+ * @mr: the memory region to observe
+ * @n: the notifier to be added; the notifier receives a pointer to an
+ *     #IOMMUTLBEntry as the opaque value; the pointer ceases to be
+ *     valid on exit from the notifier.
+ */
+void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n);
+
+/**
+ * memory_region_unregister_iommu_notifier: unregister a notifier for
+ * changes to IOMMU translation entries.
+ *
+ * @n: the notifier to be removed.
+ */
+void memory_region_unregister_iommu_notifier(Notifier *n);
 
 /**
  * memory_region_name: get a memory region's name
