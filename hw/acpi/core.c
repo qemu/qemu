@@ -462,8 +462,15 @@ static uint64_t acpi_pm_tmr_read(void *opaque, hwaddr addr, unsigned width)
     return acpi_pm_tmr_get(opaque);
 }
 
+static void acpi_pm_tmr_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned width)
+{
+    /* nothing */
+}
+
 static const MemoryRegionOps acpi_pm_tmr_ops = {
     .read = acpi_pm_tmr_read,
+    .write = acpi_pm_tmr_write,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
