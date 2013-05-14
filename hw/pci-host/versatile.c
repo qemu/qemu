@@ -28,6 +28,32 @@
  * this allows a newer kernel to use the INTERRUPT_LINE
  * registers arbitrarily once it has indicated that it isn't
  * broken in its init code somewhere.
+ *
+ * Unfortunately we have to cope with multiple different
+ * variants on the broken kernel behaviour:
+ *  phase I (before kernel commit 1bc39ac5d) kernels assume old
+ *   QEMU behaviour, so they use IRQ 27 for all slots
+ *  phase II (1bc39ac5d and later, but before e3e92a7be6) kernels
+ *   swizzle IRQs between slots, but do it wrongly, so they
+ *   work only for every fourth PCI card, and only if (like old
+ *   QEMU) the PCI host device is at slot 0 rather than where
+ *   the h/w actually puts it
+ *  phase III (e3e92a7be6 and later) kernels still swizzle IRQs between
+ *   slots wrongly, but add a fixed offset of 64 to everything
+ *   they write to PCI_INTERRUPT_LINE.
+ *
+ * We live in hope of a mythical phase IV kernel which might
+ * actually behave in ways that work on the hardware. Such a
+ * kernel should probably start off by writing some value neither
+ * 27 nor 91 to slot zero's PCI_INTERRUPT_LINE register to
+ * disable the autodetection. After that it can do what it likes.
+ *
+ * Slot % 4 | hw | I  | II | III
+ * -------------------------------
+ *   0      | 29 | 27 | 27 | 91
+ *   1      | 30 | 27 | 28 | 92
+ *   2      | 27 | 27 | 29 | 93
+ *   3      | 28 | 27 | 30 | 94
  */
 enum {
     PCI_VPB_IRQMAP_ASSUME_OK,
@@ -214,6 +240,41 @@ static const MemoryRegionOps pci_vpb_reg_ops = {
     },
 };
 
+static int pci_vpb_broken_irq(int slot, int irq)
+{
+    /* Determine whether this IRQ value for this slot represents a
+     * known broken Linux kernel behaviour for this slot.
+     * Return one of the PCI_VPB_IRQMAP_ constants:
+     *   BROKEN : if this definitely looks like a broken kernel
+     *   FORCE_OK : if this definitely looks good
+     *   ASSUME_OK : if we can't tell
+     */
+    slot %= PCI_NUM_PINS;
+
+    if (irq == 27) {
+        if (slot == 2) {
+            /* Might be a Phase I kernel, or might be a fixed kernel,
+             * since slot 2 is where we expect this IRQ.
+             */
+            return PCI_VPB_IRQMAP_ASSUME_OK;
+        }
+        /* Phase I kernel */
+        return PCI_VPB_IRQMAP_BROKEN;
+    }
+    if (irq == slot + 27) {
+        /* Phase II kernel */
+        return PCI_VPB_IRQMAP_BROKEN;
+    }
+    if (irq == slot + 27 + 64) {
+        /* Phase III kernel */
+        return PCI_VPB_IRQMAP_BROKEN;
+    }
+    /* Anything else must be a fixed kernel, possibly using an
+     * arbitrary irq map.
+     */
+    return PCI_VPB_IRQMAP_FORCE_OK;
+}
+
 static void pci_vpb_config_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
@@ -221,13 +282,7 @@ static void pci_vpb_config_write(void *opaque, hwaddr addr,
     if (!s->realview && (addr & 0xff) == PCI_INTERRUPT_LINE
         && s->irq_mapping == PCI_VPB_IRQMAP_ASSUME_OK) {
         uint8_t devfn = addr >> 8;
-        if ((PCI_SLOT(devfn) % PCI_NUM_PINS) != 2) {
-            if (val == 27) {
-                s->irq_mapping = PCI_VPB_IRQMAP_BROKEN;
-            } else {
-                s->irq_mapping = PCI_VPB_IRQMAP_FORCE_OK;
-            }
-        }
+        s->irq_mapping = pci_vpb_broken_irq(PCI_SLOT(devfn), val);
     }
     pci_data_write(&s->pci_bus, addr, val, size);
 }
