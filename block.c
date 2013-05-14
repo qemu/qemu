@@ -4857,8 +4857,12 @@ void bdrv_img_create(const char *filename, const char *fmt,
             error_setg(errp,"Formatting or formatting option not supported for "
                             "file format '%s'", fmt);
         } else if (ret == -EFBIG) {
-            error_setg(errp, "The image size is too large for file format '%s'",
-                       fmt);
+            const char *cluster_size_hint = "";
+            if (get_option_parameter(create_options, BLOCK_OPT_CLUSTER_SIZE)) {
+                cluster_size_hint = " (try using a larger cluster size)";
+            }
+            error_setg(errp, "The image size is too large for file format '%s'%s",
+                       fmt, cluster_size_hint);
         } else {
             error_setg(errp, "%s: error while creating %s: %s", filename, fmt,
                        strerror(-ret));
