@@ -31,7 +31,6 @@
 #include "hw/ptimer.h"
 
 #include "hw/hw.h"
-#include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 
 #include "hw/arm/exynos4210.h"

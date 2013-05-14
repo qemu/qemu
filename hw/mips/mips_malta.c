@@ -37,7 +37,6 @@
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/arch_init.h"
-#include "hw/boards.h"
 #include "qemu/log.h"
 #include "hw/mips/bios.h"
 #include "hw/ide.h"
