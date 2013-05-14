@@ -55,7 +55,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
-#include <pty.h>
 #include <math.h>
 
 #include "ui/console.h"

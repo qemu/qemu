@@ -42,6 +42,18 @@
 #include <signal.h>
 #include "glib-compat.h"
 
+#if defined(__GLIBC__)
+# include <pty.h>
+#elif defined CONFIG_BSD
+# if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+#  include <libutil.h>
+# else
+#  include <util.h>
+# endif
+#elif defined CONFIG_SOLARIS
+# include <stropts.h>
+#endif
+
 #ifdef _WIN32
 #include "sysemu/os-win32.h"
 #endif
