@@ -54,6 +54,10 @@
  *   1      | 30 | 27 | 28 | 92
  *   2      | 27 | 27 | 29 | 93
  *   3      | 28 | 27 | 30 | 94
+ *
+ * Since our autodetection is not perfect we also provide a
+ * property so the user can make us start in BROKEN or FORCE_OK
+ * on reset if they know they have a bad or good kernel.
  */
 enum {
     PCI_VPB_IRQMAP_ASSUME_OK,
@@ -82,6 +86,7 @@ typedef struct {
     /* Constant for life of device: */
     int realview;
     uint32_t mem_win_size[3];
+    uint8_t irq_mapping_prop;
 
     /* Variable state: */
     uint32_t imap[3];
@@ -366,7 +371,7 @@ static void pci_vpb_reset(DeviceState *d)
     s->smap[2] = 0;
     s->selfid = 0;
     s->flags = 0;
-    s->irq_mapping = PCI_VPB_IRQMAP_ASSUME_OK;
+    s->irq_mapping = s->irq_mapping_prop;
 
     pci_vpb_update_all_windows(s);
 }
@@ -476,6 +481,12 @@ static const TypeInfo versatile_pci_host_info = {
     .class_init    = versatile_pci_host_class_init,
 };
 
+static Property pci_vpb_properties[] = {
+    DEFINE_PROP_UINT8("broken-irq-mapping", PCIVPBState, irq_mapping_prop,
+                      PCI_VPB_IRQMAP_ASSUME_OK),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void pci_vpb_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -483,6 +494,7 @@ static void pci_vpb_class_init(ObjectClass *klass, void *data)
     dc->realize = pci_vpb_realize;
     dc->reset = pci_vpb_reset;
     dc->vmsd = &pci_vpb_vmstate;
+    dc->props = pci_vpb_properties;
 }
 
 static const TypeInfo pci_vpb_info = {
