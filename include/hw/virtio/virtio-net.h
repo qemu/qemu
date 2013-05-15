@@ -188,6 +188,8 @@ typedef struct VirtIONet {
     uint16_t max_queues;
     uint16_t curr_queues;
     size_t config_size;
+    char *netclient_name;
+    char *netclient_type;
 } VirtIONet;
 
 #define VIRTIO_NET_CTRL_MAC    1
@@ -255,5 +257,7 @@ struct virtio_net_ctrl_mq {
     DEFINE_PROP_STRING("tx", _state, _field.tx)
 
 void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features);
+void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
+                                   const char *type);
 
 #endif

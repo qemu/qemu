@@ -1275,6 +1275,29 @@ void virtio_net_set_config_size(VirtIONet *n, uint32_t host_features)
     n->config_size = config_size;
 }
 
+void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
+                                   const char *type)
+{
+    /*
+     * The name can be NULL, the netclient name will be type.x.
+     */
+    assert(type != NULL);
+
+    if (n->netclient_name) {
+        g_free(n->netclient_name);
+        n->netclient_name = NULL;
+    }
+    if (n->netclient_type) {
+        g_free(n->netclient_type);
+        n->netclient_type = NULL;
+    }
+
+    if (name != NULL) {
+        n->netclient_name = g_strdup(name);
+    }
+    n->netclient_type = g_strdup(type);
+}
+
 static int virtio_net_device_init(VirtIODevice *vdev)
 {
     int i;
@@ -1315,8 +1338,17 @@ static int virtio_net_device_init(VirtIODevice *vdev)
     memcpy(&n->mac[0], &n->nic_conf.macaddr, sizeof(n->mac));
     n->status = VIRTIO_NET_S_LINK_UP;
 
-    n->nic = qemu_new_nic(&net_virtio_info, &n->nic_conf,
-                          object_get_typename(OBJECT(qdev)), qdev->id, n);
+    if (n->netclient_type) {
+        /*
+         * Happen when virtio_net_set_netclient_name has been called.
+         */
+        n->nic = qemu_new_nic(&net_virtio_info, &n->nic_conf,
+                              n->netclient_type, n->netclient_name, n);
+    } else {
+        n->nic = qemu_new_nic(&net_virtio_info, &n->nic_conf,
+                              object_get_typename(OBJECT(qdev)), qdev->id, n);
+    }
+
     peer_test_vnet_hdr(n);
     if (peer_has_vnet_hdr(n)) {
         for (i = 0; i < n->max_queues; i++) {
@@ -1356,6 +1388,15 @@ static int virtio_net_device_exit(DeviceState *qdev)
     virtio_net_set_status(vdev, 0);
 
     unregister_savevm(qdev, "virtio-net", n);
+
+    if (n->netclient_name) {
+        g_free(n->netclient_name);
+        n->netclient_name = NULL;
+    }
+    if (n->netclient_type) {
+        g_free(n->netclient_type);
+        n->netclient_type = NULL;
+    }
 
     g_free(n->mac_table.macs);
     g_free(n->vlans);
