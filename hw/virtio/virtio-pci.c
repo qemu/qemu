@@ -1398,10 +1398,13 @@ static Property virtio_net_properties[] = {
 
 static int virtio_net_pci_init(VirtIOPCIProxy *vpci_dev)
 {
+    DeviceState *qdev = DEVICE(vpci_dev);
     VirtIONetPCI *dev = VIRTIO_NET_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
     virtio_net_set_config_size(&dev->vdev, vpci_dev->host_features);
+    virtio_net_set_netclient_name(&dev->vdev, qdev->id,
+                                  object_get_typename(OBJECT(qdev)));
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
     if (qdev_init(vdev) < 0) {
         return -1;

@@ -550,10 +550,13 @@ static int virtio_ccw_exit(VirtioCcwDevice *dev)
 
 static int virtio_ccw_net_init(VirtioCcwDevice *ccw_dev)
 {
+    DeviceState *qdev = DEVICE(ccw_dev);
     VirtIONetCcw *dev = VIRTIO_NET_CCW(ccw_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
     virtio_net_set_config_size(&dev->vdev, ccw_dev->host_features[0]);
+    virtio_net_set_netclient_name(&dev->vdev, qdev->id,
+                                  object_get_typename(OBJECT(qdev)));
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
     if (qdev_init(vdev) < 0) {
         return -1;

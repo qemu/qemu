@@ -152,10 +152,13 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
 
 static int s390_virtio_net_init(VirtIOS390Device *s390_dev)
 {
+    DeviceState *qdev = DEVICE(s390_dev);
     VirtIONetS390 *dev = VIRTIO_NET_S390(s390_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
     virtio_net_set_config_size(&dev->vdev, s390_dev->host_features);
+    virtio_net_set_netclient_name(&dev->vdev, qdev->id,
+                                  object_get_typename(OBJECT(qdev)));
     qdev_set_parent_bus(vdev, BUS(&s390_dev->bus));
     if (qdev_init(vdev) < 0) {
         return -1;
