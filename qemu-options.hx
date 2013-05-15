@@ -2092,18 +2092,13 @@ QEMU supports using either local sheepdog devices or remote networked
 devices.
 
 Syntax for specifying a sheepdog device
-@table @list
-``sheepdog:<vdiname>''
-
-``sheepdog:<vdiname>:<snapid>''
-
-``sheepdog:<vdiname>:<tag>''
-
-``sheepdog:<host>:<port>:<vdiname>''
-
-``sheepdog:<host>:<port>:<vdiname>:<snapid>''
-
-``sheepdog:<host>:<port>:<vdiname>:<tag>''
+@table @code
+@item sheepdog:<vdiname>
+@item sheepdog:<vdiname>:<snapid>
+@item sheepdog:<vdiname>:<tag>
+@item sheepdog:<host>:<port>:<vdiname>
+@item sheepdog:<host>:<port>:<vdiname>:<snapid>
+@item sheepdog:<host>:<port>:<vdiname>:<tag>
 @end table
 
 Example
