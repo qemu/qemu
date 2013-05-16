@@ -443,7 +443,7 @@ int mod_utf8_codepoint(const char *s, size_t n, char **end);
  * Hexdump a buffer to a file. An optional string prefix is added to every line
  */
 
-void hexdump(const char *buf, FILE *fp, const char *prefix, size_t size);
+void qemu_hexdump(const char *buf, FILE *fp, const char *prefix, size_t size);
 
 /* vector definitions */
 #ifdef __ALTIVEC__
