@@ -333,11 +333,11 @@ static int pollfds_fill(GArray *pollfds, fd_set *rfds, fd_set *wfds,
         GPollFD *pfd = &g_array_index(pollfds, GPollFD, i);
         int fd = pfd->fd;
         int events = pfd->events;
-        if (events & (G_IO_IN | G_IO_HUP | G_IO_ERR)) {
+        if (events & G_IO_IN) {
             FD_SET(fd, rfds);
             nfds = MAX(nfds, fd);
         }
-        if (events & (G_IO_OUT | G_IO_ERR)) {
+        if (events & G_IO_OUT) {
             FD_SET(fd, wfds);
             nfds = MAX(nfds, fd);
         }
@@ -360,10 +360,10 @@ static void pollfds_poll(GArray *pollfds, int nfds, fd_set *rfds,
         int revents = 0;
 
         if (FD_ISSET(fd, rfds)) {
-            revents |= G_IO_IN | G_IO_HUP | G_IO_ERR;
+            revents |= G_IO_IN;
         }
         if (FD_ISSET(fd, wfds)) {
-            revents |= G_IO_OUT | G_IO_ERR;
+            revents |= G_IO_OUT;
         }
         if (FD_ISSET(fd, xfds)) {
             revents |= G_IO_PRI;
