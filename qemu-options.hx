@@ -2528,6 +2528,7 @@ Redirect the monitor to host device @var{dev} (same devices as the
 serial port).
 The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
+Use @code{-monitor none} to disable the default monitor.
 ETEXI
 DEF("qmp", HAS_ARG, QEMU_OPTION_qmp, \
     "-qmp dev        like -monitor but opens in 'control' mode\n",
