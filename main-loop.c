@@ -394,6 +394,20 @@ static int os_host_main_loop_wait(uint32_t timeout)
         return ret;
     }
 
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    FD_ZERO(&xfds);
+    nfds = pollfds_fill(gpollfds, &rfds, &wfds, &xfds);
+    if (nfds >= 0) {
+        select_ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
+        if (select_ret != 0) {
+            timeout = 0;
+        }
+        if (select_ret > 0) {
+            pollfds_poll(gpollfds, nfds, &rfds, &wfds, &xfds);
+        }
+    }
+
     g_main_context_prepare(context, &max_priority);
     n_poll_fds = g_main_context_query(context, max_priority, &poll_timeout,
                                       poll_fds, ARRAY_SIZE(poll_fds));
@@ -424,24 +438,6 @@ static int os_host_main_loop_wait(uint32_t timeout)
 
     if (g_main_context_check(context, max_priority, poll_fds, n_poll_fds)) {
         g_main_context_dispatch(context);
-    }
-
-    /* Call select after g_poll to avoid a useless iteration and therefore
-     * improve socket latency.
-     */
-
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&xfds);
-    nfds = pollfds_fill(gpollfds, &rfds, &wfds, &xfds);
-    if (nfds >= 0) {
-        select_ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
-        if (select_ret != 0) {
-            timeout = 0;
-        }
-        if (select_ret > 0) {
-            pollfds_poll(gpollfds, nfds, &rfds, &wfds, &xfds);
-        }
     }
 
     return select_ret || g_poll_ret;
