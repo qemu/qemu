@@ -366,8 +366,7 @@ static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_CACHE] = "cache error",
 };
 
-#if !defined(CONFIG_USER_ONLY)
-static target_ulong exception_resume_pc (CPUMIPSState *env)
+target_ulong exception_resume_pc (CPUMIPSState *env)
 {
     target_ulong bad_pc;
     target_ulong isa_mode;
@@ -383,6 +382,7 @@ static target_ulong exception_resume_pc (CPUMIPSState *env)
     return bad_pc;
 }
 
+#if !defined(CONFIG_USER_ONLY)
 static void set_hflags_for_handler (CPUMIPSState *env)
 {
     /* Exception handlers are entered in 32-bit mode.  */

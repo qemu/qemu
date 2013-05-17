@@ -2528,7 +2528,8 @@ setup_sigcontext(CPUMIPSState *regs, struct target_sigcontext *sc)
     int err = 0;
     int i;
 
-    err |= __put_user(regs->active_tc.PC, &sc->sc_pc);
+    err |= __put_user(exception_resume_pc(regs), &sc->sc_pc);
+    regs->hflags &= ~MIPS_HFLAG_BMASK;
 
     __put_user(0, &sc->sc_regs[0]);
     for (i = 1; i < 32; ++i) {
