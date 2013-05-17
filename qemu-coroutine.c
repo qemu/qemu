@@ -45,6 +45,7 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
     }
 
     co->entry = entry;
+    QTAILQ_INIT(&co->co_queue_wakeup);
     return co;
 }
 
@@ -86,6 +87,8 @@ static void coroutine_swap(Coroutine *from, Coroutine *to)
     CoroutineAction ret;
 
     ret = qemu_coroutine_switch(from, to, COROUTINE_YIELD);
+
+    qemu_co_queue_run_restart(to);
 
     switch (ret) {
     case COROUTINE_YIELD:
