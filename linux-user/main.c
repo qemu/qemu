@@ -160,7 +160,7 @@ static inline void start_exclusive(void)
         other_cpu = ENV_GET_CPU(other);
         if (other_cpu->running) {
             pending_cpus++;
-            cpu_exit(other);
+            cpu_exit(other_cpu);
         }
     }
     if (pending_cpus > 1) {

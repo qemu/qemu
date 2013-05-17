@@ -421,8 +421,6 @@ DECLARE_TLS(CPUArchState *,cpu_single_env);
      | CPU_INTERRUPT_TGT_EXT_3   \
      | CPU_INTERRUPT_TGT_EXT_4)
 
-void cpu_exit(CPUArchState *s);
-
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01
 #define BP_MEM_WRITE          0x02

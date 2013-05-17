@@ -91,6 +91,12 @@ void cpu_reset_interrupt(CPUState *cpu, int mask)
     cpu->interrupt_request &= ~mask;
 }
 
+void cpu_exit(CPUState *cpu)
+{
+    cpu->exit_request = 1;
+    cpu->tcg_exit_req = 1;
+}
+
 int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                              void *opaque)
 {

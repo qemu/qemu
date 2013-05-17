@@ -2655,7 +2655,7 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
        is still in the running state, which can cause packets to be dropped
        and state transition 'T' packets to be sent while the syscall is still
        being processed.  */
-    cpu_exit(s->c_cpu);
+    cpu_exit(ENV_GET_CPU(s->c_cpu));
 #endif
 }
 

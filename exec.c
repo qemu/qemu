@@ -598,14 +598,6 @@ void cpu_single_step(CPUArchState *env, int enabled)
 #endif
 }
 
-void cpu_exit(CPUArchState *env)
-{
-    CPUState *cpu = ENV_GET_CPU(env);
-
-    cpu->exit_request = 1;
-    cpu->tcg_exit_req = 1;
-}
-
 void cpu_abort(CPUArchState *env, const char *fmt, ...)
 {
     va_list ap;

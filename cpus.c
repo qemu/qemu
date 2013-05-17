@@ -473,7 +473,7 @@ static void cpu_handle_guest_debug(CPUArchState *env)
 static void cpu_signal(int sig)
 {
     if (cpu_single_env) {
-        cpu_exit(cpu_single_env);
+        cpu_exit(ENV_GET_CPU(cpu_single_env));
     }
     exit_request = 1;
 }
@@ -1088,7 +1088,7 @@ void cpu_stop_current(void)
         CPUState *cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
         cpu_single_cpu->stop = false;
         cpu_single_cpu->stopped = true;
-        cpu_exit(cpu_single_env);
+        cpu_exit(cpu_single_cpu);
         qemu_cond_signal(&qemu_pause_cond);
     }
 }

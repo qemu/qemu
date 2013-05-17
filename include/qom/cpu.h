@@ -371,6 +371,14 @@ void cpu_interrupt(CPUState *cpu, int mask);
 void cpu_reset_interrupt(CPUState *cpu, int mask);
 
 /**
+ * cpu_exit:
+ * @cpu: The CPU to exit.
+ *
+ * Requests the CPU @cpu to exit execution.
+ */
+void cpu_exit(CPUState *cpu);
+
+/**
  * cpu_resume:
  * @cpu: The CPU to resume.
  *
