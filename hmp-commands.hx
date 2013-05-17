@@ -991,7 +991,6 @@ server will ask the spice/vnc client to automatically reconnect using the
 new parameters (if specified) once the vm migration finished successfully.
 ETEXI
 
-#if defined(CONFIG_HAVE_CORE_DUMP)
     {
         .name       = "dump-guest-memory",
         .args_type  = "paging:-p,filename:F,begin:i?,length:i?",
@@ -1015,7 +1014,6 @@ gdb.
     length: the memory size, in bytes. It's optional, and should be specified
             with begin together.
 ETEXI
-#endif
 
     {
         .name       = "snapshot_blkdev",

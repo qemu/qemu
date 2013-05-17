@@ -4303,10 +4303,6 @@ if test "$target_bigendian" = "yes" ; then
 fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
-  case "$target_arch2" in
-    i386|x86_64)
-      echo "CONFIG_HAVE_CORE_DUMP=y" >> $config_target_mak
-  esac
 fi
 if test "$target_user_only" = "yes" ; then
   echo "CONFIG_USER_ONLY=y" >> $config_target_mak

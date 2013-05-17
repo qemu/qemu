@@ -110,7 +110,7 @@ obj-$(CONFIG_FDT) += device_tree.o
 obj-$(CONFIG_KVM) += kvm-all.o
 obj-y += memory.o savevm.o cputlb.o
 obj-y += memory_mapping.o
-obj-$(CONFIG_HAVE_CORE_DUMP) += dump.o
+obj-y += dump.o
 LIBS+=$(libs_softmmu)
 
 # xen support
