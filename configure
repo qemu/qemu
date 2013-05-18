@@ -587,7 +587,7 @@ EOF
   qemu_docdir="\${prefix}"
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
-  local_statedir="\${prefix}"
+  local_statedir=
   confsuffix=""
   libs_qga="-lws2_32 -lwinmm -lpowrprof $libs_qga"
 fi
@@ -1082,7 +1082,7 @@ echo "  --docdir=PATH            install documentation in PATH$confsuffix"
 echo "  --bindir=PATH            install binaries in PATH"
 echo "  --libdir=PATH            install libraries in PATH"
 echo "  --sysconfdir=PATH        install config in PATH$confsuffix"
-echo "  --localstatedir=PATH     install local state in PATH"
+echo "  --localstatedir=PATH     install local state in PATH (set at runtime on win32)"
 echo "  --with-confsuffix=SUFFIX suffix for QEMU data inside datadir and sysconfdir [$confsuffix]"
 echo "  --enable-debug-tcg       enable TCG debugging"
 echo "  --disable-debug-tcg      disable TCG debugging (default)"
@@ -3487,10 +3487,12 @@ echo "library directory `eval echo $libdir`"
 echo "libexec directory `eval echo $libexecdir`"
 echo "include directory `eval echo $includedir`"
 echo "config directory  `eval echo $sysconfdir`"
-echo "local state directory   `eval echo $local_statedir`"
 if test "$mingw32" = "no" ; then
+echo "local state directory   `eval echo $local_statedir`"
 echo "Manual directory  `eval echo $mandir`"
 echo "ELF interp prefix $interp_prefix"
+else
+echo "local state directory   queried at runtime"
 fi
 echo "Source path       $source_path"
 echo "C compiler        $cc"
@@ -3611,7 +3613,9 @@ echo "sysconfdir=$sysconfdir" >> $config_host_mak
 echo "qemu_confdir=$qemu_confdir" >> $config_host_mak
 echo "qemu_datadir=$qemu_datadir" >> $config_host_mak
 echo "qemu_docdir=$qemu_docdir" >> $config_host_mak
-echo "qemu_localstatedir=$local_statedir" >> $config_host_mak
+if test "$mingw32" = "no" ; then
+  echo "qemu_localstatedir=$local_statedir" >> $config_host_mak
+fi
 echo "qemu_helperdir=$libexecdir" >> $config_host_mak
 echo "extra_cflags=$EXTRA_CFLAGS" >> $config_host_mak
 echo "extra_ldflags=$EXTRA_LDFLAGS" >> $config_host_mak
