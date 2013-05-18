@@ -1022,7 +1022,16 @@ int main(int argc, char **argv)
         case 's':
             service = optarg;
             if (strcmp(service, "install") == 0) {
-                return ga_install_service(path, log_filepath);
+                const char *fixed_state_dir;
+
+                /* If the user passed the "-t" option, we save that state dir
+                 * in the service. Otherwise we let the service fetch the state
+                 * dir from the environment when it starts.
+                 */
+                fixed_state_dir = (state_dir == dfl_pathnames.state_dir) ?
+                                  NULL :
+                                  state_dir;
+                return ga_install_service(path, log_filepath, fixed_state_dir);
             } else if (strcmp(service, "uninstall") == 0) {
                 return ga_uninstall_service();
             } else {
