@@ -318,13 +318,21 @@ endif
 install-datadir:
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)"
 
+install-localstatedir:
+ifdef CONFIG_POSIX
+ifneq (,$(findstring qemu-ga,$(TOOLS)))
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_localstatedir)"/run
+endif
+endif
+
 install-confdir:
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_confdir)"
 
 install-sysconfig: install-datadir install-confdir
 	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(qemu_confdir)"
 
-install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig install-datadir
+install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig \
+install-datadir install-localstatedir
 	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
 ifneq ($(TOOLS),)
 	$(INSTALL_PROG) $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
