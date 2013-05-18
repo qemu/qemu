@@ -2162,7 +2162,7 @@ query_params_append (struct QueryParams *ps,
     }
 
     ps->p[ps->n].name = g_strdup(name);
-    ps->p[ps->n].value = value ? g_strdup(value) : NULL;
+    ps->p[ps->n].value = g_strdup(value);
     ps->p[ps->n].ignore = 0;
     ps->n++;
 

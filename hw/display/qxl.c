@@ -1077,6 +1077,9 @@ static void qxl_enter_vga_mode(PCIQXLDevice *d)
         return;
     }
     trace_qxl_enter_vga_mode(d->id);
+#if SPICE_SERVER_VERSION >= 0x000c03 /* release 0.12.3 */
+    spice_qxl_driver_unload(&d->ssd.qxl);
+#endif
     qemu_spice_create_host_primary(&d->ssd);
     d->mode = QXL_MODE_VGA;
     vga_dirty_log_start(&d->vga);

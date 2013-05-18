@@ -27,6 +27,7 @@
 #define IS_NORM 0
 #define IS_ESC  1
 #define IS_CSI  2
+#define IS_SS3  3
 
 #undef printf
 #define printf do_not_use_printf
@@ -397,6 +398,9 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         if (ch == '[') {
             rs->esc_state = IS_CSI;
             rs->esc_param = 0;
+        } else if (ch == 'O') {
+            rs->esc_state = IS_SS3;
+            rs->esc_param = 0;
         } else {
             rs->esc_state = IS_NORM;
         }
@@ -438,6 +442,17 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         }
         rs->esc_state = IS_NORM;
     the_end:
+        break;
+    case IS_SS3:
+        switch(ch) {
+        case 'F':
+            readline_eol(rs);
+            break;
+        case 'H':
+            readline_bol(rs);
+            break;
+        }
+        rs->esc_state = IS_NORM;
         break;
     }
     readline_update(rs);

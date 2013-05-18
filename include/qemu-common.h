@@ -42,6 +42,18 @@
 #include <signal.h>
 #include "glib-compat.h"
 
+#if defined(__GLIBC__)
+# include <pty.h>
+#elif defined CONFIG_BSD
+# if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+#  include <libutil.h>
+# else
+#  include <util.h>
+# endif
+#elif defined CONFIG_SOLARIS
+# include <stropts.h>
+#endif
+
 #ifdef _WIN32
 #include "sysemu/os-win32.h"
 #endif
@@ -442,12 +454,18 @@ void hexdump(const char *buf, FILE *fp, const char *prefix, size_t size);
 /* vector definitions */
 #ifdef __ALTIVEC__
 #include <altivec.h>
-#define VECTYPE        vector unsigned char
+/* The altivec.h header says we're allowed to undef these for
+ * C++ compatibility.  Here we don't care about C++, but we
+ * undef them anyway to avoid namespace pollution.
+ */
+#undef vector
+#undef pixel
+#undef bool
+#define VECTYPE        __vector unsigned char
 #define SPLAT(p)       vec_splat(vec_ld(0, p), 0)
 #define ALL_EQ(v1, v2) vec_all_eq(v1, v2)
 /* altivec.h may redefine the bool macro as vector type.
  * Reset it to POSIX semantics. */
-#undef bool
 #define bool _Bool
 #elif defined __SSE2__
 #include <emmintrin.h>

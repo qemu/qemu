@@ -307,6 +307,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
     QemuOpts *opts;
     Error *local_err = NULL;
     uint64_t ext_end;
+    uint64_t l1_vm_state_index;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -424,7 +425,14 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
 
     /* read the level 1 table */
     s->l1_size = header.l1_size;
-    s->l1_vm_state_index = size_to_l1(s, header.size);
+
+    l1_vm_state_index = size_to_l1(s, header.size);
+    if (l1_vm_state_index > INT_MAX) {
+        ret = -EFBIG;
+        goto fail;
+    }
+    s->l1_vm_state_index = l1_vm_state_index;
+
     /* the L1 table must contain at least enough entries to put
        header.size bytes */
     if (s->l1_size < s->l1_vm_state_index) {
@@ -1480,7 +1488,8 @@ static coroutine_fn int qcow2_co_discard(BlockDriverState *bs,
 static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
 {
     BDRVQcowState *s = bs->opaque;
-    int ret, new_l1_size;
+    int64_t new_l1_size;
+    int ret;
 
     if (offset & 511) {
         error_report("The new size must be a multiple of 512");

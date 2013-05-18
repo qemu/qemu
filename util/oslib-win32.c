@@ -53,7 +53,7 @@ void *qemu_memalign(size_t alignment, size_t size)
     return ptr;
 }
 
-void *qemu_vmalloc(size_t size)
+void *qemu_anon_ram_alloc(size_t size)
 {
     void *ptr;
 
@@ -64,13 +64,21 @@ void *qemu_vmalloc(size_t size)
         abort();
     }
     ptr = qemu_oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
-    trace_qemu_vmalloc(size, ptr);
+    trace_qemu_anon_ram_alloc(size, ptr);
     return ptr;
 }
 
 void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);
+    if (ptr) {
+        VirtualFree(ptr, 0, MEM_RELEASE);
+    }
+}
+
+void qemu_anon_ram_free(void *ptr, size_t size)
+{
+    trace_qemu_anon_ram_free(ptr, size);
     if (ptr) {
         VirtualFree(ptr, 0, MEM_RELEASE);
     }

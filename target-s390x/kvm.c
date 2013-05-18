@@ -332,7 +332,7 @@ static void *legacy_s390_alloc(ram_addr_t size)
     return mem;
 }
 
-void *kvm_arch_vmalloc(ram_addr_t size)
+void *kvm_arch_ram_alloc(ram_addr_t size)
 {
     /* Can we use the standard allocation ? */
     if (kvm_check_extension(kvm_state, KVM_CAP_S390_GMAP) &&

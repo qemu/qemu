@@ -252,7 +252,10 @@ static void test_bmdma_simple_rw(void)
     uintptr_t guest_buf = guest_alloc(guest_malloc, len);
 
     PrdtEntry prdt[] = {
-        { .addr = guest_buf, .size = len | PRDT_EOT },
+        {
+            .addr = cpu_to_le32(guest_buf),
+            .size = cpu_to_le32(len | PRDT_EOT),
+        },
     };
 
     buf = g_malloc(len);
@@ -304,7 +307,10 @@ static void test_bmdma_short_prdt(void)
     uint8_t status;
 
     PrdtEntry prdt[] = {
-        { .addr = 0, .size = 0x10 | PRDT_EOT },
+        {
+            .addr = 0,
+            .size = cpu_to_le32(0x10 | PRDT_EOT),
+        },
     };
 
     /* Normal request */
@@ -325,7 +331,10 @@ static void test_bmdma_long_prdt(void)
     uint8_t status;
 
     PrdtEntry prdt[] = {
-        { .addr = 0, .size = 0x1000 | PRDT_EOT },
+        {
+            .addr = 0,
+            .size = cpu_to_le32(0x1000 | PRDT_EOT),
+        },
     };
 
     /* Normal request */
@@ -353,6 +362,17 @@ static void test_bmdma_setup(void)
 static void test_bmdma_teardown(void)
 {
     ide_test_quit();
+}
+
+static void string_cpu_to_be16(uint16_t *s, size_t bytes)
+{
+    g_assert((bytes & 1) == 0);
+    bytes /= 2;
+
+    while (bytes--) {
+        *s = cpu_to_be16(*s);
+        s++;
+    }
 }
 
 static void test_identify(void)
@@ -389,10 +409,12 @@ static void test_identify(void)
     assert_bit_clear(data, BSY | DF | ERR | DRQ);
 
     /* Check serial number/version in the buffer */
-    ret = memcmp(&buf[10], "ettsidks            ", 20);
+    string_cpu_to_be16(&buf[10], 20);
+    ret = memcmp(&buf[10], "testdisk            ", 20);
     g_assert(ret == 0);
 
-    ret = memcmp(&buf[23], "evsroi n", 8);
+    string_cpu_to_be16(&buf[23], 8);
+    ret = memcmp(&buf[23], "version ", 8);
     g_assert(ret == 0);
 
     /* Write cache enabled bit */

@@ -284,7 +284,7 @@ static inline int size_to_clusters(BDRVQcowState *s, int64_t size)
     return (size + (s->cluster_size - 1)) >> s->cluster_bits;
 }
 
-static inline int size_to_l1(BDRVQcowState *s, int64_t size)
+static inline int64_t size_to_l1(BDRVQcowState *s, int64_t size)
 {
     int shift = s->cluster_bits + s->l2_bits;
     return (size + (1ULL << shift) - 1) >> shift;
@@ -360,7 +360,8 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                           BdrvCheckMode fix);
 
 /* qcow2-cluster.c functions */
-int qcow2_grow_l1_table(BlockDriverState *bs, int min_size, bool exact_size);
+int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
+                        bool exact_size);
 void qcow2_l2_cache_reset(BlockDriverState *bs);
 int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset);
 void qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,

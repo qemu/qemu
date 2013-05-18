@@ -1106,7 +1106,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 #if defined (__linux__) && !defined(TARGET_S390X)
             new_block->host = file_ram_alloc(new_block, size, mem_path);
             if (!new_block->host) {
-                new_block->host = qemu_vmalloc(size);
+                new_block->host = qemu_anon_ram_alloc(size);
                 memory_try_enable_merging(new_block->host, size);
             }
 #else
@@ -1118,9 +1118,9 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                 xen_ram_alloc(new_block->offset, size, mr);
             } else if (kvm_enabled()) {
                 /* some s390/kvm configurations have special constraints */
-                new_block->host = kvm_vmalloc(size);
+                new_block->host = kvm_ram_alloc(size);
             } else {
-                new_block->host = qemu_vmalloc(size);
+                new_block->host = qemu_anon_ram_alloc(size);
             }
             memory_try_enable_merging(new_block->host, size);
         }
@@ -1200,21 +1200,17 @@ void qemu_ram_free(ram_addr_t addr)
                     munmap(block->host, block->length);
                     close(block->fd);
                 } else {
-                    qemu_vfree(block->host);
+                    qemu_anon_ram_free(block->host, block->length);
                 }
 #else
                 abort();
 #endif
             } else {
-#if defined(TARGET_S390X) && defined(CONFIG_KVM)
-                munmap(block->host, block->length);
-#else
                 if (xen_enabled()) {
                     xen_invalidate_map_cache_entry(block->host);
                 } else {
-                    qemu_vfree(block->host);
+                    qemu_anon_ram_free(block->host, block->length);
                 }
-#endif
             }
             g_free(block);
             break;

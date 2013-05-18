@@ -128,7 +128,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     q35_host->mch.ram_memory = ram_memory;
     q35_host->mch.pci_address_space = pci_memory;
     q35_host->mch.system_memory = get_system_memory();
-    q35_host->mch.address_space_io = get_system_io();;
+    q35_host->mch.address_space_io = get_system_io();
     q35_host->mch.below_4g_mem_size = below_4g_mem_size;
     q35_host->mch.above_4g_mem_size = above_4g_mem_size;
     /* pci */
@@ -210,7 +210,6 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
 
 static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
 {
-    pc_sysfw_flash_vs_rom_bug_compatible = true;
     has_pvpanic = false;
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
     pc_q35_init(args);

@@ -333,11 +333,11 @@ static int pollfds_fill(GArray *pollfds, fd_set *rfds, fd_set *wfds,
         GPollFD *pfd = &g_array_index(pollfds, GPollFD, i);
         int fd = pfd->fd;
         int events = pfd->events;
-        if (events & (G_IO_IN | G_IO_HUP | G_IO_ERR)) {
+        if (events & G_IO_IN) {
             FD_SET(fd, rfds);
             nfds = MAX(nfds, fd);
         }
-        if (events & (G_IO_OUT | G_IO_ERR)) {
+        if (events & G_IO_OUT) {
             FD_SET(fd, wfds);
             nfds = MAX(nfds, fd);
         }
@@ -360,10 +360,10 @@ static void pollfds_poll(GArray *pollfds, int nfds, fd_set *rfds,
         int revents = 0;
 
         if (FD_ISSET(fd, rfds)) {
-            revents |= G_IO_IN | G_IO_HUP | G_IO_ERR;
+            revents |= G_IO_IN;
         }
         if (FD_ISSET(fd, wfds)) {
-            revents |= G_IO_OUT | G_IO_ERR;
+            revents |= G_IO_OUT;
         }
         if (FD_ISSET(fd, xfds)) {
             revents |= G_IO_PRI;
@@ -392,6 +392,20 @@ static int os_host_main_loop_wait(uint32_t timeout)
     }
     if (ret != 0) {
         return ret;
+    }
+
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    FD_ZERO(&xfds);
+    nfds = pollfds_fill(gpollfds, &rfds, &wfds, &xfds);
+    if (nfds >= 0) {
+        select_ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
+        if (select_ret != 0) {
+            timeout = 0;
+        }
+        if (select_ret > 0) {
+            pollfds_poll(gpollfds, nfds, &rfds, &wfds, &xfds);
+        }
     }
 
     g_main_context_prepare(context, &max_priority);
@@ -424,24 +438,6 @@ static int os_host_main_loop_wait(uint32_t timeout)
 
     if (g_main_context_check(context, max_priority, poll_fds, n_poll_fds)) {
         g_main_context_dispatch(context);
-    }
-
-    /* Call select after g_poll to avoid a useless iteration and therefore
-     * improve socket latency.
-     */
-
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&xfds);
-    nfds = pollfds_fill(gpollfds, &rfds, &wfds, &xfds);
-    if (nfds >= 0) {
-        select_ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
-        if (select_ret != 0) {
-            timeout = 0;
-        }
-        if (select_ret > 0) {
-            pollfds_poll(gpollfds, nfds, &rfds, &wfds, &xfds);
-        }
     }
 
     return select_ret || g_poll_ret;

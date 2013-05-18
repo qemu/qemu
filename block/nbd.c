@@ -609,7 +609,7 @@ static int nbd_co_discard(BlockDriverState *bs, int64_t sector_num,
         return 0;
     }
     request.type = NBD_CMD_TRIM;
-    request.from = sector_num * 512;;
+    request.from = sector_num * 512;
     request.len = nb_sectors * 512;
 
     nbd_coroutine_start(s, &request);

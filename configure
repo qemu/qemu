@@ -222,6 +222,7 @@ blobs="yes"
 pkgversion=""
 pie=""
 zero_malloc=""
+qom_cast_debug="yes"
 trace_backend="nop"
 trace_file="trace"
 spice=""
@@ -718,6 +719,10 @@ for opt do
   --disable-sdl) sdl="no"
   ;;
   --enable-sdl) sdl="yes"
+  ;;
+  --disable-qom-cast-debug) qom_cast_debug="no"
+  ;;
+  --enable-qom-cast-debug) qom_cast_debug="yes"
   ;;
   --disable-virtfs) virtfs="no"
   ;;
@@ -1377,6 +1382,7 @@ static int sfaa(int *ptr)
 int main(void)
 {
   int val = 42;
+  val = __sync_val_compare_and_swap(&val, 0, 1);
   sfaa(&val);
   return val;
 }
@@ -1984,6 +1990,8 @@ fi
 
 ##########################################
 # uuid_generate() probe, used for vdi block driver
+# Note that on some systems (notably MacOSX) no extra library
+# need be linked to get the uuid functions.
 if test "$uuid" != "no" ; then
   uuid_libs="-luuid"
   cat > $TMPC << EOF
@@ -1995,7 +2003,9 @@ int main(void)
     return 0;
 }
 EOF
-  if compile_prog "" "$uuid_libs" ; then
+  if compile_prog "" "" ; then
+    uuid="yes"
+  elif compile_prog "" "$uuid_libs" ; then
     uuid="yes"
     libs_softmmu="$uuid_libs $libs_softmmu"
     libs_tools="$uuid_libs $libs_tools"
@@ -3624,6 +3634,7 @@ echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
 echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
+echo "QOM debugging     $qom_cast_debug"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3961,6 +3972,9 @@ echo "CONFIG_UNAME_RELEASE=\"$uname_release\"" >> $config_host_mak
 
 if test "$zero_malloc" = "yes" ; then
   echo "CONFIG_ZERO_MALLOC=y" >> $config_host_mak
+fi
+if test "$qom_cast_debug" = "yes" ; then
+  echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
 fi
 if test "$rbd" = "yes" ; then
   echo "CONFIG_RBD=y" >> $config_host_mak

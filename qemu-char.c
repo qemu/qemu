@@ -53,13 +53,6 @@
 #include <sys/select.h>
 #ifdef CONFIG_BSD
 #include <sys/stat.h>
-#if defined(__GLIBC__)
-#include <pty.h>
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-#include <libutil.h>
-#else
-#include <util.h>
-#endif
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <dev/ppbus/ppi.h>
 #include <dev/ppbus/ppbconf.h>
@@ -69,8 +62,6 @@
 #endif
 #else
 #ifdef __linux__
-#include <pty.h>
-
 #include <linux/ppdev.h>
 #include <linux/parport.h>
 #endif
@@ -87,7 +78,6 @@
 #include <netinet/tcp.h>
 #include <net/if.h>
 #include <syslog.h>
-#include <stropts.h>
 #endif
 #endif
 #endif

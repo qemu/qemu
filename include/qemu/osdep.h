@@ -5,8 +5,8 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdbool.h>
-#ifdef __OpenBSD__
 #include <sys/types.h>
+#ifdef __OpenBSD__
 #include <sys/signal.h>
 #endif
 
@@ -96,8 +96,9 @@ typedef signed int              int_fast16_t;
 
 int qemu_daemon(int nochdir, int noclose);
 void *qemu_memalign(size_t alignment, size_t size);
-void *qemu_vmalloc(size_t size);
+void *qemu_anon_ram_alloc(size_t size);
 void qemu_vfree(void *ptr);
+void qemu_anon_ram_free(void *ptr, size_t size);
 
 #define QEMU_MADV_INVALID -1
 

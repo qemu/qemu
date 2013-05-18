@@ -16,6 +16,7 @@
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/qmp/qerror.h"
+#include "trace.h"
 
 /* TODO: replace QObject with a simpler visitor to avoid a dependency
  * of the QOM core on QObject?  */
@@ -431,28 +432,62 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
     return NULL;
 }
 
-Object *object_dynamic_cast_assert(Object *obj, const char *typename)
+Object *object_dynamic_cast_assert(Object *obj, const char *typename,
+                                   const char *file, int line, const char *func)
 {
+    trace_object_dynamic_cast_assert(obj ? obj->class->type->name : "(null)",
+                                     typename, file, line, func);
+
+#ifdef CONFIG_QOM_CAST_DEBUG
+    int i;
     Object *inst;
+
+    for (i = 0; i < OBJECT_CLASS_CAST_CACHE; i++) {
+        if (obj->class->cast_cache[i] == typename) {
+            goto out;
+        }
+    }
 
     inst = object_dynamic_cast(obj, typename);
 
     if (!inst && obj) {
-        fprintf(stderr, "Object %p is not an instance of type %s\n",
-                obj, typename);
+        fprintf(stderr, "%s:%d:%s: Object %p is not an instance of type %s\n",
+                file, line, func, obj, typename);
         abort();
     }
 
-    return inst;
+    assert(obj == inst);
+
+    if (obj == inst) {
+        for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
+            obj->class->cast_cache[i - 1] = obj->class->cast_cache[i];
+        }
+        obj->class->cast_cache[i - 1] = typename;
+    }
+
+out:
+#endif
+    return obj;
 }
 
 ObjectClass *object_class_dynamic_cast(ObjectClass *class,
                                        const char *typename)
 {
-    TypeImpl *target_type = type_get_by_name(typename);
-    TypeImpl *type = class->type;
     ObjectClass *ret = NULL;
+    TypeImpl *target_type;
+    TypeImpl *type;
 
+    if (!class) {
+        return NULL;
+    }
+
+    /* A simple fast path that can trigger a lot for leaf classes.  */
+    type = class->type;
+    if (type->name == typename) {
+        return class;
+    }
+
+    target_type = type_get_by_name(typename);
     if (!target_type) {
         /* target class type unknown, so fail the cast */
         return NULL;
@@ -484,16 +519,46 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *class,
 }
 
 ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
-                                              const char *typename)
+                                              const char *typename,
+                                              const char *file, int line,
+                                              const char *func)
 {
-    ObjectClass *ret = object_class_dynamic_cast(class, typename);
+    ObjectClass *ret;
 
-    if (!ret) {
-        fprintf(stderr, "Object %p is not an instance of type %s\n",
-                class, typename);
+    trace_object_class_dynamic_cast_assert(class ? class->type->name : "(null)",
+                                           typename, file, line, func);
+
+#ifdef CONFIG_QOM_CAST_DEBUG
+    int i;
+
+    for (i = 0; i < OBJECT_CLASS_CAST_CACHE; i++) {
+        if (class->cast_cache[i] == typename) {
+            ret = class;
+            goto out;
+        }
+    }
+#else
+    if (!class->interfaces) {
+        return class;
+    }
+#endif
+
+    ret = object_class_dynamic_cast(class, typename);
+    if (!ret && class) {
+        fprintf(stderr, "%s:%d:%s: Object %p is not an instance of type %s\n",
+                file, line, func, class, typename);
         abort();
     }
 
+#ifdef CONFIG_QOM_CAST_DEBUG
+    if (ret == class) {
+        for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
+            class->cast_cache[i - 1] = class->cast_cache[i];
+        }
+        class->cast_cache[i - 1] = typename;
+    }
+out:
+#endif
     return ret;
 }
 

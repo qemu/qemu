@@ -154,12 +154,26 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
     }
 }
 
+static char *virtio_bus_get_dev_path(DeviceState *dev)
+{
+    BusState *bus = qdev_get_parent_bus(dev);
+    DeviceState *proxy = DEVICE(bus->parent);
+    return qdev_get_dev_path(proxy);
+}
+
+static void virtio_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *bus_class = BUS_CLASS(klass);
+    bus_class->get_dev_path = virtio_bus_get_dev_path;
+}
+
 static const TypeInfo virtio_bus_info = {
     .name = TYPE_VIRTIO_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(VirtioBusState),
     .abstract = true,
     .class_size = sizeof(VirtioBusClass),
+    .class_init = virtio_bus_class_init
 };
 
 static void virtio_register_types(void)

@@ -498,7 +498,6 @@ static void *migration_thread(void *opaque)
 {
     MigrationState *s = opaque;
     int64_t initial_time = qemu_get_clock_ms(rt_clock);
-    int64_t sleep_time = 0;
     int64_t initial_bytes = 0;
     int64_t max_size = 0;
     int64_t start_time = initial_time;
@@ -541,7 +540,7 @@ static void *migration_thread(void *opaque)
         current_time = qemu_get_clock_ms(rt_clock);
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = qemu_ftell(s->file) - initial_bytes;
-            uint64_t time_spent = current_time - initial_time - sleep_time;
+            uint64_t time_spent = current_time - initial_time;
             double bandwidth = transferred_bytes / time_spent;
             max_size = bandwidth * migrate_max_downtime() / 1000000;
 
@@ -555,14 +554,12 @@ static void *migration_thread(void *opaque)
             }
 
             qemu_file_reset_rate_limit(s->file);
-            sleep_time = 0;
             initial_time = current_time;
             initial_bytes = qemu_ftell(s->file);
         }
         if (qemu_file_rate_limit(s->file)) {
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
-            sleep_time += qemu_get_clock_ms(rt_clock) - current_time;
         }
     }
 

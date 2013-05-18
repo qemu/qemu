@@ -1057,6 +1057,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 /* Simplify LT/GE comparisons vs zero to a single compare
                    vs the high word of the input.  */
                 s->gen_opc_buf[op_index] = INDEX_op_setcond_i32;
+                reset_temp(args[0]);
                 gen_args[0] = args[0];
                 gen_args[1] = args[2];
                 gen_args[2] = args[4];

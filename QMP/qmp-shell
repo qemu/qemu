@@ -99,6 +99,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         for arg in cmdargs[1:]:
             opt = arg.split('=')
             try:
+                if(len(opt) > 2):
+                    opt[1] = '='.join(opt[1:])
                 value = int(opt[1])
             except ValueError:
                 if opt[1] == 'true':
