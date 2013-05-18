@@ -19,6 +19,7 @@
 
 #include "cpu.h"
 #include "helper.h"
+#include "qemu/bitops.h"
 
 /* As the byte ordering doesn't matter, i.e. all columns are treated
    identically, these unions can be used directly.  */
@@ -90,10 +91,10 @@ static inline void set_DSPControl_pos(uint32_t pos, CPUMIPSState *env)
     dspc = env->active_tc.DSPControl;
 #ifndef TARGET_MIPS64
     dspc = dspc & 0xFFFFFFC0;
-    dspc |= pos;
+    dspc |= (pos & 0x3F);
 #else
     dspc = dspc & 0xFFFFFF80;
-    dspc |= pos;
+    dspc |= (pos & 0x7F);
 #endif
     env->active_tc.DSPControl = dspc;
 }
@@ -3439,10 +3440,9 @@ target_ulong helper_extpdp(target_ulong ac, target_ulong size,
     if (sub >= -1) {
         acc  = ((uint64_t)env->active_tc.HI[ac] << 32) |
                ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);
-        temp = (acc >> (start_pos - size)) &
-               (((uint32_t)0x01 << (size + 1)) - 1);
+        temp = extract64(acc, start_pos - size, size + 1);
 
-        set_DSPControl_pos(start_pos - (size + 1), env);
+        set_DSPControl_pos(sub, env);
         set_DSPControl_efi(0, env);
     } else {
         set_DSPControl_efi(1, env);
