@@ -1041,6 +1041,20 @@ int main(int argc, char **argv)
         }
     }
 
+#ifdef _WIN32
+    /* On win32 the state directory is application specific (be it the default
+     * or a user override). We got past the command line parsing; let's create
+     * the directory (with any intermediate directories). If we run into an
+     * error later on, we won't try to clean up the directory, it is considered
+     * persistent.
+     */
+    if (g_mkdir_with_parents(state_dir, S_IRWXU) == -1) {
+        g_critical("unable to create (an ancestor of) the state directory"
+                   " '%s': %s", state_dir, strerror(errno));
+        return EXIT_FAILURE;
+    }
+#endif
+
     s = g_malloc0(sizeof(GAState));
     s->log_level = log_level;
     s->log_file = stderr;
