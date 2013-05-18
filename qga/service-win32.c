@@ -35,7 +35,8 @@ static int printf_win_error(const char *text)
     return n;
 }
 
-int ga_install_service(const char *path, const char *logfile)
+int ga_install_service(const char *path, const char *logfile,
+                       const char *state_dir)
 {
     SC_HANDLE manager;
     SC_HANDLE service;
@@ -55,6 +56,9 @@ int ga_install_service(const char *path, const char *logfile)
     }
     if (logfile) {
         g_string_append_printf(cmdline, " -l %s -v", logfile);
+    }
+    if (state_dir) {
+        g_string_append_printf(cmdline, " -t %s", state_dir);
     }
 
     g_debug("service's cmdline: %s", cmdline->str);

@@ -1002,7 +1002,8 @@ int main(int argc, char **argv)
         case 's':
             service = optarg;
             if (strcmp(service, "install") == 0) {
-                return ga_install_service(path, log_filepath);
+                const char *fixed_state_dir;
+                return ga_install_service(path, log_filepath, state_dir);
             } else if (strcmp(service, "uninstall") == 0) {
                 return ga_uninstall_service();
             } else {
