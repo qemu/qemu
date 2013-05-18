@@ -47,6 +47,8 @@ extern int daemon(int, int);
 #  define QEMU_VMALLOC_ALIGN getpagesize()
 #endif
 
+#include <glib/gprintf.h>
+
 #include "config-host.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
@@ -231,4 +233,11 @@ int qemu_utimens(const char *path, const struct timespec *times)
     }
 
     return utimes(path, &tv[0]);
+}
+
+char *
+qemu_get_local_state_pathname(const char *relative_pathname)
+{
+    return g_strdup_printf("%s/%s", CONFIG_QEMU_LOCALSTATEDIR,
+                           relative_pathname);
 }
