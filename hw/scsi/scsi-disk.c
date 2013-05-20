@@ -1984,6 +1984,9 @@ static void scsi_disk_reset(DeviceState *dev)
         nb_sectors--;
     }
     s->qdev.max_lba = nb_sectors;
+    /* reset tray statuses */
+    s->tray_locked = 0;
+    s->tray_open = 0;
 }
 
 static void scsi_destroy(SCSIDevice *dev)
