@@ -2902,13 +2902,13 @@ target_ulong helper_bitrev(target_ulong rt)
     return (target_ulong)rd;
 }
 
-#define BIT_INSV(name, posfilter, sizefilter, ret_type)         \
+#define BIT_INSV(name, posfilter, ret_type)                     \
 target_ulong helper_##name(CPUMIPSState *env, target_ulong rs,  \
                            target_ulong rt)                     \
 {                                                               \
     uint32_t pos, size, msb, lsb;                               \
-    target_ulong filter;                                        \
-    target_ulong temp, temprs, temprt;                          \
+    uint32_t const sizefilter = 0x3F;                           \
+    target_ulong temp;                                          \
     target_ulong dspc;                                          \
                                                                 \
     dspc = env->active_tc.DSPControl;                           \
@@ -2923,18 +2923,14 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong rs,  \
         return rt;                                              \
     }                                                           \
                                                                 \
-    filter = ((int64_t)0x01 << size) - 1;                       \
-    filter = filter << pos;                                     \
-    temprs = (rs << pos) & filter;                              \
-    temprt = rt & ~filter;                                      \
-    temp = temprs | temprt;                                     \
+    temp = deposit64(rt, pos, size, rs);                        \
                                                                 \
     return (target_long)(ret_type)temp;                         \
 }
 
-BIT_INSV(insv, 0x1F, 0x3F, int32_t);
+BIT_INSV(insv, 0x1F, int32_t);
 #ifdef TARGET_MIPS64
-BIT_INSV(dinsv, 0x7F, 0x3F, target_long);
+BIT_INSV(dinsv, 0x7F, target_long);
 #endif
 
 #undef BIT_INSV

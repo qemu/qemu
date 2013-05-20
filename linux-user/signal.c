@@ -2522,7 +2522,8 @@ setup_sigcontext(CPUMIPSState *regs, struct target_sigcontext *sc)
     int err = 0;
     int i;
 
-    err |= __put_user(regs->active_tc.PC, &sc->sc_pc);
+    err |= __put_user(exception_resume_pc(regs), &sc->sc_pc);
+    regs->hflags &= ~MIPS_HFLAG_BMASK;
 
     __put_user(0, &sc->sc_regs[0]);
     for (i = 1; i < 32; ++i) {
@@ -2614,6 +2615,15 @@ get_sigframe(struct target_sigaction *ka, CPUMIPSState *regs, size_t frame_size)
     return (sp - frame_size) & ~7;
 }
 
+static void mips_set_hflags_isa_mode_from_pc(CPUMIPSState *env)
+{
+    if (env->insn_flags & (ASE_MIPS16 | ASE_MICROMIPS)) {
+        env->hflags &= ~MIPS_HFLAG_M16;
+        env->hflags |= (env->active_tc.PC & 1) << MIPS_HFLAG_M16_SHIFT;
+        env->active_tc.PC &= ~(target_ulong) 1;
+    }
+}
+
 # if defined(TARGET_ABI_MIPSO32)
 /* compare linux/arch/mips/kernel/signal.c:setup_frame() */
 static void setup_frame(int sig, struct target_sigaction * ka,
@@ -2656,6 +2666,7 @@ static void setup_frame(int sig, struct target_sigaction * ka,
     * since it returns to userland using eret
     * we cannot do this here, and we must set PC directly */
     regs->active_tc.PC = regs->active_tc.gpr[25] = ka->_sa_handler;
+    mips_set_hflags_isa_mode_from_pc(regs);
     unlock_user_struct(frame, frame_addr, 1);
     return;
 
@@ -2703,6 +2714,7 @@ long do_sigreturn(CPUMIPSState *regs)
 #endif
 
     regs->active_tc.PC = regs->CP0_EPC;
+    mips_set_hflags_isa_mode_from_pc(regs);
     /* I am not sure this is right, but it seems to work
     * maybe a problem with nested signals ? */
     regs->CP0_EPC = 0;
@@ -2765,6 +2777,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     * since it returns to userland using eret
     * we cannot do this here, and we must set PC directly */
     env->active_tc.PC = env->active_tc.gpr[25] = ka->_sa_handler;
+    mips_set_hflags_isa_mode_from_pc(env);
     unlock_user_struct(frame, frame_addr, 1);
     return;
 
@@ -2798,6 +2811,7 @@ long do_rt_sigreturn(CPUMIPSState *env)
         goto badframe;
 
     env->active_tc.PC = env->CP0_EPC;
+    mips_set_hflags_isa_mode_from_pc(env);
     /* I am not sure this is right, but it seems to work
     * maybe a problem with nested signals ? */
     env->CP0_EPC = 0;
