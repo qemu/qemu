@@ -217,6 +217,10 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .property = "vectors",\
             /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\
             .value    = stringify(0xFFFFFFFF),\
+        },{ \
+            .driver   = "virtio-net-pci", \
+            .property = "ctrl_guest_offloads", \
+            .value    = "off", \
         },{\
             .driver   = "e1000",\
             .property = "romfile",\
