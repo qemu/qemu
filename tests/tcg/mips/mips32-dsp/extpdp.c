@@ -42,5 +42,23 @@ int main()
     efi = (dsp >> 14) & 0x01;
     assert(efi == 1);
 
+
+    ach = 0;
+    acl = 0;
+    dsp = 0;
+    result = 0;
+
+    __asm
+        ("wrdsp %1\n\t"
+         "mthi %2, $ac1\n\t"
+         "mtlo %3, $ac1\n\t"
+         "extpdp %0, $ac1, 0x00\n\t"
+         "rddsp %1\n\t"
+         : "=r"(rt), "+r"(dsp)
+         : "r"(ach), "r"(acl)
+        );
+    assert(dsp == 0x3F);
+    assert(result == rt);
+
     return 0;
 }

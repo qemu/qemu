@@ -1157,7 +1157,7 @@ static int pl330_exec_cycle(PL330Chan *channel)
         if (PL330_ERR_DEBUG > 1) {
             DB_PRINT("PL330 read from memory @%08x (size = %08x):\n",
                       q->addr, len);
-            hexdump((char *)buf, stderr, "", len);
+            qemu_hexdump((char *)buf, stderr, "", len);
         }
         fifo_res = pl330_fifo_push(&s->fifo, buf, len, q->tag);
         if (fifo_res == PL330_FIFO_OK) {
@@ -1189,7 +1189,7 @@ static int pl330_exec_cycle(PL330Chan *channel)
             if (PL330_ERR_DEBUG > 1) {
                 DB_PRINT("PL330 read from memory @%08x (size = %08x):\n",
                          q->addr, len);
-                hexdump((char *)buf, stderr, "", len);
+                qemu_hexdump((char *)buf, stderr, "", len);
             }
             if (q->inc) {
                 q->addr += len;
