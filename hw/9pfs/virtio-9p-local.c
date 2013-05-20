@@ -284,7 +284,7 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
     if ((fs_ctx->export_flags & V9FS_SM_MAPPED) ||
         (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE)) {
         int fd;
-        fd = open(rpath(fs_ctx, path, buffer), O_RDONLY);
+        fd = open(rpath(fs_ctx, path, buffer), O_RDONLY | O_NOFOLLOW);
         if (fd == -1) {
             return -1;
         }
