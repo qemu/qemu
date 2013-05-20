@@ -1343,6 +1343,19 @@ if test -z "${target_list+xxx}" ; then
 else
     target_list=`echo "$target_list" | sed -e 's/,/ /g'`
 fi
+
+# Check that we recognised the target name; this allows a more
+# friendly error message than if we let it fall through.
+for target in $target_list; do
+    case " $default_target_list " in
+        *" $target "*)
+            ;;
+        *)
+            error_exit "Unknown target name '$target'"
+            ;;
+    esac
+done
+
 # see if system emulation was really requested
 case " $target_list " in
   *"-softmmu "*) softmmu=yes
