@@ -102,7 +102,6 @@ uint32_t lduw_phys(hwaddr addr);
 uint32_t ldl_phys(hwaddr addr);
 uint64_t ldq_phys(hwaddr addr);
 void stl_phys_notdirty(hwaddr addr, uint32_t val);
-void stq_phys_notdirty(hwaddr addr, uint64_t val);
 void stw_phys(hwaddr addr, uint32_t val);
 void stl_phys(hwaddr addr, uint32_t val);
 void stq_phys(hwaddr addr, uint64_t val);
