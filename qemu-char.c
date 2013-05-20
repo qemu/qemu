@@ -3698,12 +3698,12 @@ static CharDriverState *qmp_chardev_open_socket(ChardevSocket *sock,
                                    is_telnet, is_waitconnect, errp);
 }
 
-static CharDriverState *qmp_chardev_open_dgram(ChardevDgram *dgram,
-                                               Error **errp)
+static CharDriverState *qmp_chardev_open_udp(ChardevUdp *udp,
+                                             Error **errp)
 {
     int fd;
 
-    fd = socket_dgram(dgram->remote, dgram->local, errp);
+    fd = socket_dgram(udp->remote, udp->local, errp);
     if (error_is_set(errp)) {
         return NULL;
     }
@@ -3739,8 +3739,8 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_SOCKET:
         chr = qmp_chardev_open_socket(backend->socket, errp);
         break;
-    case CHARDEV_BACKEND_KIND_DGRAM:
-        chr = qmp_chardev_open_dgram(backend->dgram, errp);
+    case CHARDEV_BACKEND_KIND_UDP:
+        chr = qmp_chardev_open_udp(backend->udp, errp);
         break;
 #ifdef HAVE_CHARDEV_TTY
     case CHARDEV_BACKEND_KIND_PTY:

@@ -3210,7 +3210,7 @@
                                      '*telnet'  : 'bool' } }
 
 ##
-# @ChardevDgram:
+# @ChardevUdp:
 #
 # Configuration info for datagram socket chardevs.
 #
@@ -3219,8 +3219,8 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevDgram', 'data': { 'remote' : 'SocketAddress',
-                                    '*local' : 'SocketAddress' } }
+{ 'type': 'ChardevUdp', 'data': { 'remote' : 'SocketAddress',
+                                  '*local' : 'SocketAddress' } }
 
 ##
 # @ChardevMux:
@@ -3310,7 +3310,7 @@
                                        'parallel': 'ChardevHostdev',
                                        'pipe'   : 'ChardevHostdev',
                                        'socket' : 'ChardevSocket',
-                                       'dgram'  : 'ChardevDgram',
+                                       'udp'    : 'ChardevUdp',
                                        'pty'    : 'ChardevDummy',
                                        'null'   : 'ChardevDummy',
                                        'mux'    : 'ChardevMux',
