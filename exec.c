@@ -81,6 +81,22 @@ int use_icount;
 
 #if !defined(CONFIG_USER_ONLY)
 
+typedef struct PhysPageEntry PhysPageEntry;
+
+struct PhysPageEntry {
+    uint16_t is_leaf : 1;
+     /* index into phys_sections (is_leaf) or phys_map_nodes (!is_leaf) */
+    uint16_t ptr : 15;
+};
+
+struct AddressSpaceDispatch {
+    /* This is a multi-level map on the physical address space.
+     * The bottom level has pointers to MemoryRegionSections.
+     */
+    PhysPageEntry phys_map;
+    MemoryListener listener;
+};
+
 static MemoryRegionSection *phys_sections;
 static unsigned phys_sections_nb, phys_sections_nb_alloc;
 static uint16_t phys_section_unassigned;
