@@ -3276,6 +3276,7 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         ChardevReturn *ret = NULL;
         const char *id = qemu_opts_id(opts);
         const char *bid = NULL;
+        char *filename = g_strdup(qemu_opt_get(opts, "backend"));
 
         if (qemu_opt_get_bool(opts, "mux", 0)) {
             bid = g_strdup_printf("%s-base", id);
@@ -3308,6 +3309,7 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         }
 
         chr = qemu_chr_find(id);
+        chr->filename = filename;
 
     qapi_out:
         qapi_free_ChardevBackend(backend);
