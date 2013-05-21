@@ -1902,7 +1902,7 @@ static inline int memory_access_size(int l, hwaddr addr)
     return 1;
 }
 
-void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
+bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                       int len, bool is_write)
 {
     hwaddr l;
@@ -1910,6 +1910,7 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
     uint64_t val;
     hwaddr addr1;
     MemoryRegionSection *section;
+    bool error = false;
 
     while (len > 0) {
         l = len;
@@ -1923,15 +1924,15 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                 if (l == 4) {
                     /* 32 bit write access */
                     val = ldl_p(buf);
-                    io_mem_write(section->mr, addr1, val, 4);
+                    error |= io_mem_write(section->mr, addr1, val, 4);
                 } else if (l == 2) {
                     /* 16 bit write access */
                     val = lduw_p(buf);
-                    io_mem_write(section->mr, addr1, val, 2);
+                    error |= io_mem_write(section->mr, addr1, val, 2);
                 } else {
                     /* 8 bit write access */
                     val = ldub_p(buf);
-                    io_mem_write(section->mr, addr1, val, 1);
+                    error |= io_mem_write(section->mr, addr1, val, 1);
                 }
             } else {
                 addr1 += memory_region_get_ram_addr(section->mr);
@@ -1946,15 +1947,15 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                 l = memory_access_size(l, addr1);
                 if (l == 4) {
                     /* 32 bit read access */
-                    io_mem_read(section->mr, addr1, &val, 4);
+                    error |= io_mem_read(section->mr, addr1, &val, 4);
                     stl_p(buf, val);
                 } else if (l == 2) {
                     /* 16 bit read access */
-                    io_mem_read(section->mr, addr1, &val, 2);
+                    error |= io_mem_read(section->mr, addr1, &val, 2);
                     stw_p(buf, val);
                 } else {
                     /* 8 bit read access */
-                    io_mem_read(section->mr, addr1, &val, 1);
+                    error |= io_mem_read(section->mr, addr1, &val, 1);
                     stb_p(buf, val);
                 }
             } else {
@@ -1967,31 +1968,26 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
         buf += l;
         addr += l;
     }
+
+    return error;
 }
 
-void address_space_write(AddressSpace *as, hwaddr addr,
+bool address_space_write(AddressSpace *as, hwaddr addr,
                          const uint8_t *buf, int len)
 {
-    address_space_rw(as, addr, (uint8_t *)buf, len, true);
+    return address_space_rw(as, addr, (uint8_t *)buf, len, true);
 }
 
-/**
- * address_space_read: read from an address space.
- *
- * @as: #AddressSpace to be accessed
- * @addr: address within that address space
- * @buf: buffer with the data transferred
- */
-void address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len)
+bool address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len)
 {
-    address_space_rw(as, addr, buf, len, false);
+    return address_space_rw(as, addr, buf, len, false);
 }
 
 
 void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
                             int len, int is_write)
 {
-    return address_space_rw(&address_space_memory, addr, buf, len, is_write);
+    address_space_rw(&address_space_memory, addr, buf, len, is_write);
 }
 
 /* used for ROM loading : can write in RAM and ROM */

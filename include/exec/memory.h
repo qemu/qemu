@@ -825,32 +825,38 @@ void address_space_destroy(AddressSpace *as);
 /**
  * address_space_rw: read from or write to an address space.
  *
+ * Return true if the operation hit any unassigned memory.
+ *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
  * @buf: buffer with the data transferred
  * @is_write: indicates the transfer direction
  */
-void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
+bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                       int len, bool is_write);
 
 /**
  * address_space_write: write to address space.
  *
- * @as: #AddressSpace to be accessed
- * @addr: address within that address space
- * @buf: buffer with the data transferred
- */
-void address_space_write(AddressSpace *as, hwaddr addr,
-                         const uint8_t *buf, int len);
-
-/**
- * address_space_read: read from an address space.
+ * Return true if the operation hit any unassigned memory.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
  * @buf: buffer with the data transferred
  */
-void address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
+bool address_space_write(AddressSpace *as, hwaddr addr,
+                         const uint8_t *buf, int len);
+
+/**
+ * address_space_read: read from an address space.
+ *
+ * Return true if the operation hit any unassigned memory.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @buf: buffer with the data transferred
+ */
+bool address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
 
 /* address_space_translate: translate an address range into an address space
  * into a MemoryRegionSection and an address range into that section
