@@ -3286,7 +3286,7 @@
                                  '*rows'   : 'int' } }
 
 ##
-# @ChardevRingbuf:
+# @ChardevMemory:
 #
 # Configuration info for memory chardevs
 #
@@ -3294,7 +3294,7 @@
 #
 # Since: 1.5
 ##
-{ 'type': 'ChardevRingbuf', 'data': { '*size'  : 'int' } }
+{ 'type': 'ChardevMemory', 'data': { '*size'  : 'int' } }
 
 ##
 # @ChardevBackend:
@@ -3321,7 +3321,7 @@
                                        'spicevmc' : 'ChardevSpiceChannel',
                                        'spiceport' : 'ChardevSpicePort',
                                        'vc'     : 'ChardevVC',
-                                       'memory' : 'ChardevRingbuf' } }
+                                       'memory' : 'ChardevMemory' } }
 
 ##
 # @ChardevReturn:
