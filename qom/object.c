@@ -442,7 +442,7 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
     int i;
     Object *inst;
 
-    for (i = 0; i < OBJECT_CLASS_CAST_CACHE; i++) {
+    for (i = 0; obj && i < OBJECT_CLASS_CAST_CACHE; i++) {
         if (obj->class->cast_cache[i] == typename) {
             goto out;
         }
@@ -458,7 +458,7 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
 
     assert(obj == inst);
 
-    if (obj == inst) {
+    if (obj && obj == inst) {
         for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
             obj->class->cast_cache[i - 1] = obj->class->cast_cache[i];
         }
