@@ -2920,7 +2920,7 @@ void qmp_ringbuf_write(const char *device, const char *data,
     CharDriverState *chr;
     const uint8_t *write_data;
     int ret;
-    size_t write_count;
+    gsize write_count;
 
     chr = qemu_chr_find(device);
     if (!chr) {
