@@ -21,7 +21,6 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <glib.h>
-#include <strings.h>
 
 #include "qemu-common.h"
 #include "migration/page_cache.h"

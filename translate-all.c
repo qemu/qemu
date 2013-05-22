@@ -55,7 +55,6 @@
 #else
 #include "exec/address-spaces.h"
 #endif
-#include "qemu/timer.h"
 
 #include "exec/cputlb.h"
 #include "translate-all.h"

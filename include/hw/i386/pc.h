@@ -7,7 +7,6 @@
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
 #include "net/net.h"
-#include "exec/memory.h"
 #include "hw/i386/ioapic.h"
 
 /* PC-style peripherals (also used by other machines).  */

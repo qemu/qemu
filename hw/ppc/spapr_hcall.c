@@ -1,6 +1,5 @@
 #include "sysemu/sysemu.h"
 #include "cpu.h"
-#include "sysemu/sysemu.h"
 #include "helper_regs.h"
 #include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"

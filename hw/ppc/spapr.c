@@ -43,8 +43,6 @@
 #include "hw/ppc/xics.h"
 #include "hw/pci/msi.h"
 
-#include "sysemu/kvm.h"
-#include "kvm_ppc.h"
 #include "hw/pci/pci.h"
 
 #include "exec/address-spaces.h"
