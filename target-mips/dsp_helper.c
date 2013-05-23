@@ -390,7 +390,7 @@ static inline int32_t mipsdsp_mul_q15_q15_overflowflag21(uint16_t a, uint16_t b,
         temp = 0x7FFFFFFF;
         set_DSPControl_overflow_flag(1, 21, env);
     } else {
-        temp = ((int32_t)(int16_t)a * (int32_t)(int16_t)b) << 1;
+        temp = ((int16_t)a * (int16_t)b) << 1;
     }
 
     return temp;
@@ -622,7 +622,7 @@ static inline int16_t mipsdsp_rndq15_mul_q15_q15(uint16_t a, uint16_t b,
         temp = 0x7FFF0000;
         set_DSPControl_overflow_flag(1, 21, env);
     } else {
-        temp = (a * b) << 1;
+        temp = ((int16_t)a * (int16_t)b) << 1;
         temp = temp + 0x00008000;
     }
 
