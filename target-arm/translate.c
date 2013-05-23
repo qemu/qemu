@@ -841,52 +841,6 @@ static inline void store_reg_from_load(CPUARMState *env, DisasContext *s,
     }
 }
 
-static inline TCGv_i32 gen_ld8s(TCGv_i32 addr, int index)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld8s(tmp, addr, index);
-    return tmp;
-}
-static inline TCGv_i32 gen_ld8u(TCGv_i32 addr, int index)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld8u(tmp, addr, index);
-    return tmp;
-}
-static inline TCGv_i32 gen_ld16s(TCGv_i32 addr, int index)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld16s(tmp, addr, index);
-    return tmp;
-}
-static inline TCGv_i32 gen_ld16u(TCGv_i32 addr, int index)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld16u(tmp, addr, index);
-    return tmp;
-}
-static inline TCGv_i32 gen_ld32(TCGv_i32 addr, int index)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_qemu_ld32u(tmp, addr, index);
-    return tmp;
-}
-static inline void gen_st8(TCGv_i32 val, TCGv_i32 addr, int index)
-{
-    tcg_gen_qemu_st8(val, addr, index);
-    tcg_temp_free_i32(val);
-}
-static inline void gen_st16(TCGv_i32 val, TCGv_i32 addr, int index)
-{
-    tcg_gen_qemu_st16(val, addr, index);
-    tcg_temp_free_i32(val);
-}
-static inline void gen_st32(TCGv_i32 val, TCGv_i32 addr, int index)
-{
-    tcg_gen_qemu_st32(val, addr, index);
-    tcg_temp_free_i32(val);
-}
-
 static inline void gen_set_pc_im(uint32_t val)
 {
     tcg_gen_movi_i32(cpu_R[15], val);
