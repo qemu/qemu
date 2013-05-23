@@ -2572,18 +2572,18 @@ static void gen_neon_dup_high16(TCGv_i32 var)
 static TCGv_i32 gen_load_and_replicate(DisasContext *s, TCGv_i32 addr, int size)
 {
     /* Load a single Neon element and replicate into a 32 bit TCG reg */
-    TCGv_i32 tmp;
+    TCGv_i32 tmp = tcg_temp_new_i32();
     switch (size) {
     case 0:
-        tmp = gen_ld8u(addr, IS_USER(s));
+        tcg_gen_qemu_ld8u(tmp, addr, IS_USER(s));
         gen_neon_dup_u8(tmp, 0);
         break;
     case 1:
-        tmp = gen_ld16u(addr, IS_USER(s));
+        tcg_gen_qemu_ld16u(tmp, addr, IS_USER(s));
         gen_neon_dup_low16(tmp);
         break;
     case 2:
-        tmp = gen_ld32(addr, IS_USER(s));
+        tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
         break;
     default: /* Avoid compiler warnings.  */
         abort();
@@ -3872,18 +3872,22 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 for (pass = 0; pass < 2; pass++) {
                     if (size == 2) {
                         if (load) {
-                            tmp = gen_ld32(addr, IS_USER(s));
+                            tmp = tcg_temp_new_i32();
+                            tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
                             neon_store_reg(rd, pass, tmp);
                         } else {
                             tmp = neon_load_reg(rd, pass);
-                            gen_st32(tmp, addr, IS_USER(s));
+                            tcg_gen_qemu_st32(tmp, addr, IS_USER(s));
+                            tcg_temp_free_i32(tmp);
                         }
                         tcg_gen_addi_i32(addr, addr, stride);
                     } else if (size == 1) {
                         if (load) {
-                            tmp = gen_ld16u(addr, IS_USER(s));
+                            tmp = tcg_temp_new_i32();
+                            tcg_gen_qemu_ld16u(tmp, addr, IS_USER(s));
                             tcg_gen_addi_i32(addr, addr, stride);
-                            tmp2 = gen_ld16u(addr, IS_USER(s));
+                            tmp2 = tcg_temp_new_i32();
+                            tcg_gen_qemu_ld16u(tmp2, addr, IS_USER(s));
                             tcg_gen_addi_i32(addr, addr, stride);
                             tcg_gen_shli_i32(tmp2, tmp2, 16);
                             tcg_gen_or_i32(tmp, tmp, tmp2);
@@ -3893,16 +3897,19 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                             tmp = neon_load_reg(rd, pass);
                             tmp2 = tcg_temp_new_i32();
                             tcg_gen_shri_i32(tmp2, tmp, 16);
-                            gen_st16(tmp, addr, IS_USER(s));
+                            tcg_gen_qemu_st16(tmp, addr, IS_USER(s));
+                            tcg_temp_free_i32(tmp);
                             tcg_gen_addi_i32(addr, addr, stride);
-                            gen_st16(tmp2, addr, IS_USER(s));
+                            tcg_gen_qemu_st16(tmp2, addr, IS_USER(s));
+                            tcg_temp_free_i32(tmp2);
                             tcg_gen_addi_i32(addr, addr, stride);
                         }
                     } else /* size == 0 */ {
                         if (load) {
                             TCGV_UNUSED_I32(tmp2);
                             for (n = 0; n < 4; n++) {
-                                tmp = gen_ld8u(addr, IS_USER(s));
+                                tmp = tcg_temp_new_i32();
+                                tcg_gen_qemu_ld8u(tmp, addr, IS_USER(s));
                                 tcg_gen_addi_i32(addr, addr, stride);
                                 if (n == 0) {
                                     tmp2 = tmp;
@@ -3922,7 +3929,8 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                                 } else {
                                     tcg_gen_shri_i32(tmp, tmp2, n * 8);
                                 }
-                                gen_st8(tmp, addr, IS_USER(s));
+                                tcg_gen_qemu_st8(tmp, addr, IS_USER(s));
+                                tcg_temp_free_i32(tmp);
                                 tcg_gen_addi_i32(addr, addr, stride);
                             }
                             tcg_temp_free_i32(tmp2);
@@ -4042,15 +4050,16 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             load_reg_var(s, addr, rn);
             for (reg = 0; reg < nregs; reg++) {
                 if (load) {
+                    tmp = tcg_temp_new_i32();
                     switch (size) {
                     case 0:
-                        tmp = gen_ld8u(addr, IS_USER(s));
+                        tcg_gen_qemu_ld8u(tmp, addr, IS_USER(s));
                         break;
                     case 1:
-                        tmp = gen_ld16u(addr, IS_USER(s));
+                        tcg_gen_qemu_ld16u(tmp, addr, IS_USER(s));
                         break;
                     case 2:
-                        tmp = gen_ld32(addr, IS_USER(s));
+                        tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
                         break;
                     default: /* Avoid compiler warnings.  */
                         abort();
@@ -4068,15 +4077,16 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         tcg_gen_shri_i32(tmp, tmp, shift);
                     switch (size) {
                     case 0:
-                        gen_st8(tmp, addr, IS_USER(s));
+                        tcg_gen_qemu_st8(tmp, addr, IS_USER(s));
                         break;
                     case 1:
-                        gen_st16(tmp, addr, IS_USER(s));
+                        tcg_gen_qemu_st16(tmp, addr, IS_USER(s));
                         break;
                     case 2:
-                        gen_st32(tmp, addr, IS_USER(s));
+                        tcg_gen_qemu_st32(tmp, addr, IS_USER(s));
                         break;
                     }
+                    tcg_temp_free_i32(tmp);
                 }
                 rd += stride;
                 tcg_gen_addi_i32(addr, addr, 1 << size);
