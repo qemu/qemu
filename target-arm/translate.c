@@ -1473,13 +1473,15 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
                         tcg_gen_qemu_ld64(cpu_M0, addr, IS_USER(s));
                         i = 0;
                     } else {				/* WLDRW wRd */
-                        tmp = gen_ld32(addr, IS_USER(s));
+                        tmp = tcg_temp_new_i32();
+                        tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
                     }
                 } else {
+                    tmp = tcg_temp_new_i32();
                     if (insn & (1 << 22)) {		/* WLDRH */
-                        tmp = gen_ld16u(addr, IS_USER(s));
+                        tcg_gen_qemu_ld16u(tmp, addr, IS_USER(s));
                     } else {				/* WLDRB */
-                        tmp = gen_ld8u(addr, IS_USER(s));
+                        tcg_gen_qemu_ld8u(tmp, addr, IS_USER(s));
                     }
                 }
                 if (i) {
@@ -1491,28 +1493,28 @@ static int disas_iwmmxt_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
         } else {
             if ((insn >> 28) == 0xf) {			/* WSTRW wCx */
                 tmp = iwmmxt_load_creg(wrd);
-                gen_st32(tmp, addr, IS_USER(s));
+                tcg_gen_qemu_st32(tmp, addr, IS_USER(s));
             } else {
                 gen_op_iwmmxt_movq_M0_wRn(wrd);
                 tmp = tcg_temp_new_i32();
                 if (insn & (1 << 8)) {
                     if (insn & (1 << 22)) {		/* WSTRD */
-                        tcg_temp_free_i32(tmp);
                         tcg_gen_qemu_st64(cpu_M0, addr, IS_USER(s));
                     } else {				/* WSTRW wRd */
                         tcg_gen_trunc_i64_i32(tmp, cpu_M0);
-                        gen_st32(tmp, addr, IS_USER(s));
+                        tcg_gen_qemu_st32(tmp, addr, IS_USER(s));
                     }
                 } else {
                     if (insn & (1 << 22)) {		/* WSTRH */
                         tcg_gen_trunc_i64_i32(tmp, cpu_M0);
-                        gen_st16(tmp, addr, IS_USER(s));
+                        tcg_gen_qemu_st16(tmp, addr, IS_USER(s));
                     } else {				/* WSTRB */
                         tcg_gen_trunc_i64_i32(tmp, cpu_M0);
-                        gen_st8(tmp, addr, IS_USER(s));
+                        tcg_gen_qemu_st8(tmp, addr, IS_USER(s));
                     }
                 }
             }
+            tcg_temp_free_i32(tmp);
         }
         tcg_temp_free_i32(addr);
         return 0;
