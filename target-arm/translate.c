@@ -8134,18 +8134,22 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 }
                 if (insn & (1 << 20)) {
                     /* ldrd */
-                    tmp = gen_ld32(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
                     store_reg(s, rs, tmp);
                     tcg_gen_addi_i32(addr, addr, 4);
-                    tmp = gen_ld32(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
                     store_reg(s, rd, tmp);
                 } else {
                     /* strd */
                     tmp = load_reg(s, rs);
-                    gen_st32(tmp, addr, IS_USER(s));
+                    tcg_gen_qemu_st32(tmp, addr, IS_USER(s));
+                    tcg_temp_free_i32(tmp);
                     tcg_gen_addi_i32(addr, addr, 4);
                     tmp = load_reg(s, rd);
-                    gen_st32(tmp, addr, IS_USER(s));
+                    tcg_gen_qemu_st32(tmp, addr, IS_USER(s));
+                    tcg_temp_free_i32(tmp);
                 }
                 if (insn & (1 << 21)) {
                     /* Base writeback.  */
@@ -8181,10 +8185,12 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     /* tbh */
                     tcg_gen_add_i32(addr, addr, tmp);
                     tcg_temp_free_i32(tmp);
-                    tmp = gen_ld16u(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    tcg_gen_qemu_ld16u(tmp, addr, IS_USER(s));
                 } else { /* tbb */
                     tcg_temp_free_i32(tmp);
-                    tmp = gen_ld8u(addr, IS_USER(s));
+                    tmp = tcg_temp_new_i32();
+                    tcg_gen_qemu_ld8u(tmp, addr, IS_USER(s));
                 }
                 tcg_temp_free_i32(addr);
                 tcg_gen_shli_i32(tmp, tmp, 1);
@@ -8219,9 +8225,11 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     if ((insn & (1 << 24)) == 0)
                         tcg_gen_addi_i32(addr, addr, -8);
                     /* Load PC into tmp and CPSR into tmp2.  */
-                    tmp = gen_ld32(addr, 0);
+                    tmp = tcg_temp_new_i32();
+                    tcg_gen_qemu_ld32u(tmp, addr, 0);
                     tcg_gen_addi_i32(addr, addr, 4);
-                    tmp2 = gen_ld32(addr, 0);
+                    tmp2 = tcg_temp_new_i32();
+                    tcg_gen_qemu_ld32u(tmp2, addr, 0);
                     if (insn & (1 << 21)) {
                         /* Base writeback.  */
                         if (insn & (1 << 24)) {
@@ -8259,7 +8267,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         continue;
                     if (insn & (1 << 20)) {
                         /* Load.  */
-                        tmp = gen_ld32(addr, IS_USER(s));
+                        tmp = tcg_temp_new_i32();
+                        tcg_gen_qemu_ld32u(tmp, addr, IS_USER(s));
                         if (i == 15) {
                             gen_bx(s, tmp);
                         } else if (i == rn) {
@@ -8271,7 +8280,8 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                     } else {
                         /* Store.  */
                         tmp = load_reg(s, i);
-                        gen_st32(tmp, addr, IS_USER(s));
+                        tcg_gen_qemu_st32(tmp, addr, IS_USER(s));
+                        tcg_temp_free_i32(tmp);
                     }
                     tcg_gen_addi_i32(addr, addr, 4);
                 }
