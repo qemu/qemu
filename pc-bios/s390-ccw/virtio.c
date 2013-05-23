@@ -114,8 +114,13 @@ static void vring_init(struct vring *vr, unsigned int num, void *p,
     vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + align-1)
                 & ~(align - 1));
 
+    /* Zero out all relevant field */
+    vr->avail->flags = 0;
+    vr->avail->idx = 0;
+
     /* We're running with interrupts off anyways, so don't bother */
     vr->used->flags = VRING_USED_F_NO_NOTIFY;
+    vr->used->idx = 0;
 
     debug_print_addr("init vr", vr);
 }
