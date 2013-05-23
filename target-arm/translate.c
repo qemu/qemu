@@ -871,12 +871,6 @@ static inline TCGv_i32 gen_ld32(TCGv_i32 addr, int index)
     tcg_gen_qemu_ld32u(tmp, addr, index);
     return tmp;
 }
-static inline TCGv_i64 gen_ld64(TCGv_i32 addr, int index)
-{
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_qemu_ld64(tmp, addr, index);
-    return tmp;
-}
 static inline void gen_st8(TCGv_i32 val, TCGv_i32 addr, int index)
 {
     tcg_gen_qemu_st8(val, addr, index);
@@ -891,11 +885,6 @@ static inline void gen_st32(TCGv_i32 val, TCGv_i32 addr, int index)
 {
     tcg_gen_qemu_st32(val, addr, index);
     tcg_temp_free_i32(val);
-}
-static inline void gen_st64(TCGv_i64 val, TCGv_i32 addr, int index)
-{
-    tcg_gen_qemu_st64(val, addr, index);
-    tcg_temp_free_i64(val);
 }
 
 static inline void gen_set_pc_im(uint32_t val)
@@ -3867,15 +3856,15 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 tcg_gen_addi_i32(addr, addr, 1 << size);
             }
             if (size == 3) {
+                tmp64 = tcg_temp_new_i64();
                 if (load) {
-                    tmp64 = gen_ld64(addr, IS_USER(s));
+                    tcg_gen_qemu_ld64(tmp64, addr, IS_USER(s));
                     neon_store_reg64(tmp64, rd);
-                    tcg_temp_free_i64(tmp64);
                 } else {
-                    tmp64 = tcg_temp_new_i64();
                     neon_load_reg64(tmp64, rd);
-                    gen_st64(tmp64, addr, IS_USER(s));
+                    tcg_gen_qemu_st64(tmp64, addr, IS_USER(s));
                 }
+                tcg_temp_free_i64(tmp64);
                 tcg_gen_addi_i32(addr, addr, stride);
             } else {
                 for (pass = 0; pass < 2; pass++) {
