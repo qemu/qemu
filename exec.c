@@ -66,8 +66,8 @@ AddressSpace address_space_io;
 AddressSpace address_space_memory;
 DMAContext dma_context_memory;
 
-MemoryRegion io_mem_rom, io_mem_unassigned, io_mem_notdirty;
-static MemoryRegion io_mem_subpage_ram;
+MemoryRegion io_mem_rom, io_mem_notdirty;
+static MemoryRegion io_mem_unassigned, io_mem_subpage_ram;
 
 #endif
 

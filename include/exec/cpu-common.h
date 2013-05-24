@@ -111,7 +111,6 @@ void cpu_physical_memory_write_rom(hwaddr addr,
                                    const uint8_t *buf, int len);
 
 extern struct MemoryRegion io_mem_rom;
-extern struct MemoryRegion io_mem_unassigned;
 extern struct MemoryRegion io_mem_notdirty;
 
 #endif
