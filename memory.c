@@ -851,10 +851,10 @@ const MemoryRegionOps unassigned_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static bool memory_region_access_valid(MemoryRegion *mr,
-                                       hwaddr addr,
-                                       unsigned size,
-                                       bool is_write)
+bool memory_region_access_valid(MemoryRegion *mr,
+                                hwaddr addr,
+                                unsigned size,
+                                bool is_write)
 {
     if (mr->ops->valid.accepts
         && !mr->ops->valid.accepts(mr->opaque, addr, size, is_write)) {
