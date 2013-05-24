@@ -63,7 +63,6 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               target_ulong addr,
                                               uintptr_t retaddr)
 {
-    DATA_TYPE res;
     MemoryRegion *mr = iotlb_to_region(physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
@@ -73,18 +72,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
     }
 
     env->mem_io_vaddr = addr;
-#if SHIFT <= 2
-    res = io_mem_read(mr, physaddr, 1 << SHIFT);
-#else
-#ifdef TARGET_WORDS_BIGENDIAN
-    res = io_mem_read(mr, physaddr, 4) << 32;
-    res |= io_mem_read(mr, physaddr + 4, 4);
-#else
-    res = io_mem_read(mr, physaddr, 4);
-    res |= io_mem_read(mr, physaddr + 4, 4) << 32;
-#endif
-#endif /* SHIFT > 2 */
-    return res;
+    return io_mem_read(mr, physaddr, 1 << SHIFT);
 }
 
 /* handle all cases except unaligned access which span two pages */
@@ -221,17 +209,7 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
 
     env->mem_io_vaddr = addr;
     env->mem_io_pc = retaddr;
-#if SHIFT <= 2
     io_mem_write(mr, physaddr, val, 1 << SHIFT);
-#else
-#ifdef TARGET_WORDS_BIGENDIAN
-    io_mem_write(mr, physaddr, (val >> 32), 4);
-    io_mem_write(mr, physaddr + 4, (uint32_t)val, 4);
-#else
-    io_mem_write(mr, physaddr, (uint32_t)val, 4);
-    io_mem_write(mr, physaddr + 4, val >> 32, 4);
-#endif
-#endif /* SHIFT > 2 */
 }
 
 void glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
