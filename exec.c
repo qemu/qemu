@@ -1856,6 +1856,18 @@ static void invalidate_and_set_dirty(hwaddr addr,
     xen_modified_memory(addr, length);
 }
 
+static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
+{
+    if (memory_region_is_ram(mr)) {
+        return !(is_write && mr->readonly);
+    }
+    if (memory_region_is_romd(mr)) {
+        return !is_write;
+    }
+
+    return false;
+}
+
 void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                       int len, bool is_write)
 {
@@ -1870,7 +1882,7 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
         section = address_space_translate(as, addr, &addr1, &l, is_write);
 
         if (is_write) {
-            if (!memory_region_is_ram(section->mr)) {
+            if (!memory_access_is_direct(section->mr, is_write)) {
                 /* XXX: could force cpu_single_env to NULL to avoid
                    potential bugs */
                 if (l >= 4 && ((addr1 & 3) == 0)) {
@@ -1889,7 +1901,7 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                     io_mem_write(section->mr, addr1, val, 1);
                     l = 1;
                 }
-            } else if (!section->readonly) {
+            } else {
                 addr1 += memory_region_get_ram_addr(section->mr);
                 /* RAM case */
                 ptr = qemu_get_ram_ptr(addr1);
@@ -1897,8 +1909,7 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                 invalidate_and_set_dirty(addr1, l);
             }
         } else {
-            if (!(memory_region_is_ram(section->mr) ||
-                  memory_region_is_romd(section->mr))) {
+            if (!memory_access_is_direct(section->mr, is_write)) {
                 /* I/O case */
                 if (l >= 4 && ((addr1 & 3) == 0)) {
                     /* 32 bit read access */
@@ -2053,7 +2064,7 @@ void *address_space_map(AddressSpace *as,
         l = len;
         section = address_space_translate(as, addr, &xlat, &l, is_write);
 
-        if (!(memory_region_is_ram(section->mr) && !section->readonly)) {
+        if (!memory_access_is_direct(section->mr, is_write)) {
             if (todo || bounce.buffer) {
                 break;
             }
@@ -2143,9 +2154,7 @@ static inline uint32_t ldl_phys_internal(hwaddr addr,
 
     section = address_space_translate(&address_space_memory, addr, &addr1, &l,
                                       false);
-    if (l < 4 ||
-        !(memory_region_is_ram(section->mr) ||
-          memory_region_is_romd(section->mr))) {
+    if (l < 4 || !memory_access_is_direct(section->mr, false)) {
         /* I/O case */
         val = io_mem_read(section->mr, addr1, 4);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -2204,9 +2213,7 @@ static inline uint64_t ldq_phys_internal(hwaddr addr,
 
     section = address_space_translate(&address_space_memory, addr, &addr1, &l,
                                       false);
-    if (l < 8 ||
-        !(memory_region_is_ram(section->mr) ||
-          memory_region_is_romd(section->mr))) {
+    if (l < 8 || !memory_access_is_direct(section->mr, false)) {
         /* I/O case */
 
         /* XXX This is broken when device endian != cpu endian.
@@ -2273,9 +2280,7 @@ static inline uint32_t lduw_phys_internal(hwaddr addr,
 
     section = address_space_translate(&address_space_memory, addr, &addr1, &l,
                                       false);
-    if (l < 2 ||
-        !(memory_region_is_ram(section->mr) ||
-          memory_region_is_romd(section->mr))) {
+    if (l < 2 || !memory_access_is_direct(section->mr, false)) {
         /* I/O case */
         val = io_mem_read(section->mr, addr1, 2);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -2334,7 +2339,7 @@ void stl_phys_notdirty(hwaddr addr, uint32_t val)
 
     section = address_space_translate(&address_space_memory, addr, &addr1, &l,
                                       true);
-    if (l < 4 || !memory_region_is_ram(section->mr) || section->readonly) {
+    if (l < 4 || !memory_access_is_direct(section->mr, true)) {
         io_mem_write(section->mr, addr1, val, 4);
     } else {
         addr1 += memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK;
@@ -2364,7 +2369,7 @@ static inline void stl_phys_internal(hwaddr addr, uint32_t val,
 
     section = address_space_translate(&address_space_memory, addr, &addr1, &l,
                                       true);
-    if (l < 4 || !memory_region_is_ram(section->mr) || section->readonly) {
+    if (l < 4 || !memory_access_is_direct(section->mr, true)) {
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -2427,7 +2432,7 @@ static inline void stw_phys_internal(hwaddr addr, uint32_t val,
 
     section = address_space_translate(&address_space_memory, addr, &addr1, &l,
                                       true);
-    if (l < 2 || !memory_region_is_ram(section->mr) || section->readonly) {
+    if (l < 2 || !memory_access_is_direct(section->mr, true)) {
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);
