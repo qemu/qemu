@@ -227,7 +227,6 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
 
 static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
 {
-#ifdef CONFIG_FDT
     uint32_t *mem_reg_property;
     uint32_t mem_reg_propsize;
     void *fdt = NULL;
@@ -308,12 +307,6 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
     cpu_physical_memory_write(addr, fdt, size);
 
     return 0;
-
-#else
-    fprintf(stderr, "Device tree requested, "
-                "but qemu was compiled without fdt support\n");
-    return -1;
-#endif
 }
 
 static void do_cpu_reset(void *opaque)
