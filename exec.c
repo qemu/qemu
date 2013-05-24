@@ -1868,6 +1868,17 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
     return false;
 }
 
+static inline int memory_access_size(int l, hwaddr addr)
+{
+    if (l >= 4 && ((addr & 3) == 0)) {
+        return 4;
+    }
+    if (l >= 2 && ((addr & 1) == 0)) {
+        return 2;
+    }
+    return 1;
+}
+
 void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                       int len, bool is_write)
 {
@@ -1883,23 +1894,21 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
 
         if (is_write) {
             if (!memory_access_is_direct(section->mr, is_write)) {
+                l = memory_access_size(l, addr1);
                 /* XXX: could force cpu_single_env to NULL to avoid
                    potential bugs */
-                if (l >= 4 && ((addr1 & 3) == 0)) {
+                if (l == 4) {
                     /* 32 bit write access */
                     val = ldl_p(buf);
                     io_mem_write(section->mr, addr1, val, 4);
-                    l = 4;
-                } else if (l >= 2 && ((addr1 & 1) == 0)) {
+                } else if (l == 2) {
                     /* 16 bit write access */
                     val = lduw_p(buf);
                     io_mem_write(section->mr, addr1, val, 2);
-                    l = 2;
                 } else {
                     /* 8 bit write access */
                     val = ldub_p(buf);
                     io_mem_write(section->mr, addr1, val, 1);
-                    l = 1;
                 }
             } else {
                 addr1 += memory_region_get_ram_addr(section->mr);
@@ -1911,21 +1920,19 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
         } else {
             if (!memory_access_is_direct(section->mr, is_write)) {
                 /* I/O case */
-                if (l >= 4 && ((addr1 & 3) == 0)) {
+                l = memory_access_size(l, addr1);
+                if (l == 4) {
                     /* 32 bit read access */
                     val = io_mem_read(section->mr, addr1, 4);
                     stl_p(buf, val);
-                    l = 4;
-                } else if (l >= 2 && ((addr1 & 1) == 0)) {
+                } else if (l == 2) {
                     /* 16 bit read access */
                     val = io_mem_read(section->mr, addr1, 2);
                     stw_p(buf, val);
-                    l = 2;
                 } else {
                     /* 8 bit read access */
                     val = io_mem_read(section->mr, addr1, 1);
                     stb_p(buf, val);
-                    l = 1;
                 }
             } else {
                 /* RAM case */
