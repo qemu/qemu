@@ -66,7 +66,7 @@ AddressSpace address_space_io;
 AddressSpace address_space_memory;
 DMAContext dma_context_memory;
 
-MemoryRegion io_mem_ram, io_mem_rom, io_mem_unassigned, io_mem_notdirty;
+MemoryRegion io_mem_rom, io_mem_unassigned, io_mem_notdirty;
 static MemoryRegion io_mem_subpage_ram;
 
 #endif
@@ -200,8 +200,7 @@ MemoryRegionSection *phys_page_find(AddressSpaceDispatch *d, hwaddr index)
 
 bool memory_region_is_unassigned(MemoryRegion *mr)
 {
-    return mr != &io_mem_ram && mr != &io_mem_rom
-        && mr != &io_mem_notdirty && !mr->rom_device
+    return mr != &io_mem_rom && mr != &io_mem_notdirty && !mr->rom_device
         && mr != &io_mem_watch;
 }
 #endif
@@ -1419,18 +1418,6 @@ static uint64_t error_mem_read(void *opaque, hwaddr addr,
     abort();
 }
 
-static void error_mem_write(void *opaque, hwaddr addr,
-                            uint64_t value, unsigned size)
-{
-    abort();
-}
-
-static const MemoryRegionOps error_mem_ops = {
-    .read = error_mem_read,
-    .write = error_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
 static const MemoryRegionOps rom_mem_ops = {
     .read = error_mem_read,
     .write = unassigned_mem_write,
@@ -1691,7 +1678,6 @@ MemoryRegion *iotlb_to_region(hwaddr index)
 
 static void io_mem_init(void)
 {
-    memory_region_init_io(&io_mem_ram, &error_mem_ops, NULL, "ram", UINT64_MAX);
     memory_region_init_io(&io_mem_rom, &rom_mem_ops, NULL, "rom", UINT64_MAX);
     memory_region_init_io(&io_mem_unassigned, &unassigned_mem_ops, NULL,
                           "unassigned", UINT64_MAX);

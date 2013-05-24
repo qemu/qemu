@@ -68,7 +68,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     env->mem_io_pc = retaddr;
-    if (mr != &io_mem_ram && mr != &io_mem_rom
+    if (mr != &io_mem_rom
         && mr != &io_mem_unassigned
         && mr != &io_mem_notdirty
             && !can_do_io(env)) {
@@ -218,7 +218,7 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
     MemoryRegion *mr = iotlb_to_region(physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    if (mr != &io_mem_ram && mr != &io_mem_rom
+    if (mr != &io_mem_rom
         && mr != &io_mem_unassigned
         && mr != &io_mem_notdirty
             && !can_do_io(env)) {
