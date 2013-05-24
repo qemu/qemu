@@ -928,10 +928,6 @@ static uint64_t memory_region_dispatch_read1(MemoryRegion *mr,
 {
     uint64_t data = 0;
 
-    if (!memory_region_access_valid(mr, addr, size, false)) {
-        return unassigned_mem_read(mr, addr, size);
-    }
-
     if (mr->ops->read) {
         access_with_adjusted_size(addr, &data, size,
                                   mr->ops->impl.min_access_size,
@@ -966,25 +962,29 @@ static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
     }
 }
 
-static uint64_t memory_region_dispatch_read(MemoryRegion *mr,
-                                            hwaddr addr,
-                                            unsigned size)
+static bool memory_region_dispatch_read(MemoryRegion *mr,
+                                        hwaddr addr,
+                                        uint64_t *pval,
+                                        unsigned size)
 {
-    uint64_t ret;
+    if (!memory_region_access_valid(mr, addr, size, false)) {
+        *pval = unassigned_mem_read(mr, addr, size);
+        return true;
+    }
 
-    ret = memory_region_dispatch_read1(mr, addr, size);
-    adjust_endianness(mr, &ret, size);
-    return ret;
+    *pval = memory_region_dispatch_read1(mr, addr, size);
+    adjust_endianness(mr, pval, size);
+    return false;
 }
 
-static void memory_region_dispatch_write(MemoryRegion *mr,
+static bool memory_region_dispatch_write(MemoryRegion *mr,
                                          hwaddr addr,
                                          uint64_t data,
                                          unsigned size)
 {
     if (!memory_region_access_valid(mr, addr, size, true)) {
         unassigned_mem_write(mr, addr, data, size);
-        return;
+        return true;
     }
 
     adjust_endianness(mr, &data, size);
@@ -998,6 +998,7 @@ static void memory_region_dispatch_write(MemoryRegion *mr,
         access_with_adjusted_size(addr, &data, size, 1, 4,
                                   memory_region_oldmmio_write_accessor, mr);
     }
+    return false;
 }
 
 void memory_region_init_io(MemoryRegion *mr,
@@ -1650,15 +1651,15 @@ void address_space_destroy(AddressSpace *as)
     g_free(as->ioeventfds);
 }
 
-uint64_t io_mem_read(MemoryRegion *mr, hwaddr addr, unsigned size)
+bool io_mem_read(MemoryRegion *mr, hwaddr addr, uint64_t *pval, unsigned size)
 {
-    return memory_region_dispatch_read(mr, addr, size);
+    return memory_region_dispatch_read(mr, addr, pval, size);
 }
 
-void io_mem_write(MemoryRegion *mr, hwaddr addr,
+bool io_mem_write(MemoryRegion *mr, hwaddr addr,
                   uint64_t val, unsigned size)
 {
-    memory_region_dispatch_write(mr, addr, val, size);
+    return memory_region_dispatch_write(mr, addr, val, size);
 }
 
 typedef struct MemoryRegionList MemoryRegionList;

@@ -1526,6 +1526,8 @@ static uint64_t subpage_read(void *opaque, hwaddr addr,
 {
     subpage_t *mmio = opaque;
     unsigned int idx = SUBPAGE_IDX(addr);
+    uint64_t val;
+
     MemoryRegionSection *section;
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d\n", __func__,
@@ -1536,7 +1538,8 @@ static uint64_t subpage_read(void *opaque, hwaddr addr,
     addr += mmio->base;
     addr -= section->offset_within_address_space;
     addr += section->offset_within_region;
-    return io_mem_read(section->mr, addr, len);
+    io_mem_read(section->mr, addr, &val, len);
+    return val;
 }
 
 static void subpage_write(void *opaque, hwaddr addr,
@@ -1904,7 +1907,7 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
 {
     hwaddr l;
     uint8_t *ptr;
-    uint32_t val;
+    uint64_t val;
     hwaddr addr1;
     MemoryRegionSection *section;
 
@@ -1943,15 +1946,15 @@ void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                 l = memory_access_size(l, addr1);
                 if (l == 4) {
                     /* 32 bit read access */
-                    val = io_mem_read(section->mr, addr1, 4);
+                    io_mem_read(section->mr, addr1, &val, 4);
                     stl_p(buf, val);
                 } else if (l == 2) {
                     /* 16 bit read access */
-                    val = io_mem_read(section->mr, addr1, 2);
+                    io_mem_read(section->mr, addr1, &val, 2);
                     stw_p(buf, val);
                 } else {
                     /* 8 bit read access */
-                    val = io_mem_read(section->mr, addr1, 1);
+                    io_mem_read(section->mr, addr1, &val, 1);
                     stb_p(buf, val);
                 }
             } else {
@@ -2195,7 +2198,7 @@ static inline uint32_t ldl_phys_internal(hwaddr addr,
                                          enum device_endian endian)
 {
     uint8_t *ptr;
-    uint32_t val;
+    uint64_t val;
     MemoryRegionSection *section;
     hwaddr l = 4;
     hwaddr addr1;
@@ -2204,7 +2207,7 @@ static inline uint32_t ldl_phys_internal(hwaddr addr,
                                       false);
     if (l < 4 || !memory_access_is_direct(section->mr, false)) {
         /* I/O case */
-        val = io_mem_read(section->mr, addr1, 4);
+        io_mem_read(section->mr, addr1, &val, 4);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -2263,7 +2266,7 @@ static inline uint64_t ldq_phys_internal(hwaddr addr,
                                       false);
     if (l < 8 || !memory_access_is_direct(section->mr, false)) {
         /* I/O case */
-        val = io_mem_read(section->mr, addr1, 8);
+        io_mem_read(section->mr, addr1, &val, 8);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap64(val);
@@ -2330,7 +2333,7 @@ static inline uint32_t lduw_phys_internal(hwaddr addr,
                                       false);
     if (l < 2 || !memory_access_is_direct(section->mr, false)) {
         /* I/O case */
-        val = io_mem_read(section->mr, addr1, 2);
+        io_mem_read(section->mr, addr1, &val, 2);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);

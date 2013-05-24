@@ -63,6 +63,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               target_ulong addr,
                                               uintptr_t retaddr)
 {
+    uint64_t val;
     MemoryRegion *mr = iotlb_to_region(physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
@@ -72,7 +73,8 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
     }
 
     env->mem_io_vaddr = addr;
-    return io_mem_read(mr, physaddr, 1 << SHIFT);
+    io_mem_read(mr, physaddr, &val, 1 << SHIFT);
+    return val;
 }
 
 /* handle all cases except unaligned access which span two pages */
