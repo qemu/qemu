@@ -1358,7 +1358,7 @@ void tb_invalidate_phys_addr(hwaddr addr)
     section = phys_page_find(address_space_memory.dispatch,
                              addr >> TARGET_PAGE_BITS);
     if (!(memory_region_is_ram(section->mr)
-          || (section->mr->rom_device && section->mr->readable))) {
+          || memory_region_is_romd(section->mr))) {
         return;
     }
     ram_addr = (memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK)

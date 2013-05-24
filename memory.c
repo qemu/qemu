@@ -213,7 +213,7 @@ struct FlatRange {
     hwaddr offset_in_region;
     AddrRange addr;
     uint8_t dirty_log_mask;
-    bool readable;
+    bool romd_mode;
     bool readonly;
 };
 
@@ -236,7 +236,7 @@ static bool flatrange_equal(FlatRange *a, FlatRange *b)
     return a->mr == b->mr
         && addrrange_equal(a->addr, b->addr)
         && a->offset_in_region == b->offset_in_region
-        && a->readable == b->readable
+        && a->romd_mode == b->romd_mode
         && a->readonly == b->readonly;
 }
 
@@ -276,7 +276,7 @@ static bool can_merge(FlatRange *r1, FlatRange *r2)
                                 r1->addr.size),
                      int128_make64(r2->offset_in_region))
         && r1->dirty_log_mask == r2->dirty_log_mask
-        && r1->readable == r2->readable
+        && r1->romd_mode == r2->romd_mode
         && r1->readonly == r2->readonly;
 }
 
@@ -532,7 +532,7 @@ static void render_memory_region(FlatView *view,
             fr.offset_in_region = offset_in_region;
             fr.addr = addrrange_make(base, now);
             fr.dirty_log_mask = mr->dirty_log_mask;
-            fr.readable = mr->readable;
+            fr.romd_mode = mr->romd_mode;
             fr.readonly = readonly;
             flatview_insert(view, i, &fr);
             ++i;
@@ -552,7 +552,7 @@ static void render_memory_region(FlatView *view,
         fr.offset_in_region = offset_in_region;
         fr.addr = addrrange_make(base, remain);
         fr.dirty_log_mask = mr->dirty_log_mask;
-        fr.readable = mr->readable;
+        fr.romd_mode = mr->romd_mode;
         fr.readonly = readonly;
         flatview_insert(view, i, &fr);
     }
@@ -768,10 +768,6 @@ static void memory_region_destructor_ram_from_ptr(MemoryRegion *mr)
     qemu_ram_free_from_ptr(mr->ram_addr);
 }
 
-static void memory_region_destructor_iomem(MemoryRegion *mr)
-{
-}
-
 static void memory_region_destructor_rom_device(MemoryRegion *mr)
 {
     qemu_ram_free(mr->ram_addr & TARGET_PAGE_MASK);
@@ -801,7 +797,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->enabled = true;
     mr->terminates = false;
     mr->ram = false;
-    mr->readable = true;
+    mr->romd_mode = true;
     mr->readonly = false;
     mr->rom_device = false;
     mr->destructor = memory_region_destructor_none;
@@ -929,7 +925,6 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->ops = ops;
     mr->opaque = opaque;
     mr->terminates = true;
-    mr->destructor = memory_region_destructor_iomem;
     mr->ram_addr = ~(ram_addr_t)0;
 }
 
@@ -1121,11 +1116,11 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
     }
 }
 
-void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable)
+void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode)
 {
-    if (mr->readable != readable) {
+    if (mr->romd_mode != romd_mode) {
         memory_region_transaction_begin();
-        mr->readable = readable;
+        mr->romd_mode = romd_mode;
         memory_region_update_pending |= mr->enabled;
         memory_region_transaction_commit();
     }
@@ -1451,15 +1446,24 @@ static FlatRange *address_space_lookup(AddressSpace *as, AddrRange addr)
                    sizeof(FlatRange), cmp_flatrange_addr);
 }
 
-MemoryRegionSection memory_region_find(MemoryRegion *address_space,
+MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size)
 {
-    AddressSpace *as = memory_region_to_address_space(address_space);
-    AddrRange range = addrrange_make(int128_make64(addr),
-                                     int128_make64(size));
-    FlatRange *fr = address_space_lookup(as, range);
     MemoryRegionSection ret = { .mr = NULL, .size = 0 };
+    MemoryRegion *root;
+    AddressSpace *as;
+    AddrRange range;
+    FlatRange *fr;
 
+    addr += mr->addr;
+    for (root = mr; root->parent; ) {
+        root = root->parent;
+        addr += root->addr;
+    }
+
+    as = memory_region_to_address_space(root);
+    range = addrrange_make(int128_make64(addr), int128_make64(size));
+    fr = address_space_lookup(as, range);
     if (!fr) {
         return ret;
     }
@@ -1470,6 +1474,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *address_space,
     }
 
     ret.mr = fr->mr;
+    ret.address_space = as;
     range = addrrange_intersection(range, fr->addr);
     ret.offset_within_region = fr->offset_in_region;
     ret.offset_within_region += int128_get64(int128_sub(range.start,
@@ -1480,9 +1485,8 @@ MemoryRegionSection memory_region_find(MemoryRegion *address_space,
     return ret;
 }
 
-void memory_global_sync_dirty_bitmap(MemoryRegion *address_space)
+void address_space_sync_dirty_bitmap(AddressSpace *as)
 {
-    AddressSpace *as = memory_region_to_address_space(address_space);
     FlatRange *fr;
 
     FOR_EACH_FLAT_RANGE(fr, as->current_map) {
@@ -1568,10 +1572,13 @@ void address_space_init(AddressSpace *as, MemoryRegion *root)
     as->root = root;
     as->current_map = g_new(FlatView, 1);
     flatview_init(as->current_map);
+    as->ioeventfd_nb = 0;
+    as->ioeventfds = NULL;
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->name = NULL;
-    memory_region_transaction_commit();
     address_space_init_dispatch(as);
+    memory_region_update_pending |= root->enabled;
+    memory_region_transaction_commit();
 }
 
 void address_space_destroy(AddressSpace *as)
@@ -1584,6 +1591,7 @@ void address_space_destroy(AddressSpace *as)
     address_space_destroy_dispatch(as);
     flatview_destroy(as->current_map);
     g_free(as->current_map);
+    g_free(as->ioeventfds);
 }
 
 uint64_t io_mem_read(MemoryRegion *mr, hwaddr addr, unsigned size)
@@ -1649,9 +1657,9 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    base + mr->addr
                    + (hwaddr)int128_get64(mr->size) - 1,
                    mr->priority,
-                   mr->readable ? 'R' : '-',
-                   !mr->readonly && !(mr->rom_device && mr->readable) ? 'W'
-                                                                      : '-',
+                   mr->romd_mode ? 'R' : '-',
+                   !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
+                                                                       : '-',
                    mr->name,
                    mr->alias->name,
                    mr->alias_offset,
@@ -1664,9 +1672,9 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    base + mr->addr
                    + (hwaddr)int128_get64(mr->size) - 1,
                    mr->priority,
-                   mr->readable ? 'R' : '-',
-                   !mr->readonly && !(mr->rom_device && mr->readable) ? 'W'
-                                                                      : '-',
+                   mr->romd_mode ? 'R' : '-',
+                   !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
+                                                                       : '-',
                    mr->name);
     }
 

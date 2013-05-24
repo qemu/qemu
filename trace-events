@@ -813,9 +813,6 @@ xen_map_cache_return(void* ptr) "%p"
 xen_map_block(uint64_t phys_addr, uint64_t size) "%#"PRIx64", size %#"PRIx64
 xen_unmap_block(void* addr, unsigned long size) "%p, size %#lx"
 
-# exec.c
-qemu_put_ram_ptr(void* addr) "%p"
-
 # hw/xen_platform.c
 xen_platform_log(char *s) "xen platform: %s"
 

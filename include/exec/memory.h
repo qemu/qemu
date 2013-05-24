@@ -26,6 +26,9 @@
 #include "exec/ioport.h"
 #include "qemu/int128.h"
 
+#define MAX_PHYS_ADDR_SPACE_BITS 62
+#define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
+
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionPortio MemoryRegionPortio;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
@@ -126,7 +129,7 @@ struct MemoryRegion {
     ram_addr_t ram_addr;
     bool subpage;
     bool terminates;
-    bool readable;
+    bool romd_mode;
     bool ram;
     bool readonly; /* For RAM regions */
     bool enabled;
@@ -355,16 +358,16 @@ uint64_t memory_region_size(MemoryRegion *mr);
 bool memory_region_is_ram(MemoryRegion *mr);
 
 /**
- * memory_region_is_romd: check whether a memory region is ROMD
+ * memory_region_is_romd: check whether a memory region is in ROMD mode
  *
- * Returns %true is a memory region is ROMD and currently set to allow
+ * Returns %true if a memory region is a ROM device and currently set to allow
  * direct reads.
  *
  * @mr: the memory region being queried
  */
 static inline bool memory_region_is_romd(MemoryRegion *mr)
 {
-    return mr->rom_device && mr->readable;
+    return mr->rom_device && mr->romd_mode;
 }
 
 /**
@@ -502,18 +505,18 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly);
 
 /**
- * memory_region_rom_device_set_readable: enable/disable ROM readability
+ * memory_region_rom_device_set_romd: enable/disable ROMD mode
  *
  * Allows a ROM device (initialized with memory_region_init_rom_device() to
- * to be marked as readable (default) or not readable.  When it is readable,
- * the device is mapped to guest memory.  When not readable, reads are
- * forwarded to the #MemoryRegion.read function.
+ * set to ROMD mode (default) or MMIO mode.  When it is in ROMD mode, the
+ * device is mapped to guest memory and satisfies read access directly.
+ * When in MMIO mode, reads are forwarded to the #MemoryRegion.read function.
+ * Writes are always handled by the #MemoryRegion.write function.
  *
  * @mr: the memory region to be updated
- * @readable: whether reads are satisified directly (%true) or via callbacks
- *            (%false)
+ * @romd_mode: %true to put the region into ROMD mode
  */
-void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable);
+void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode);
 
 /**
  * memory_region_set_coalescing: Enable memory coalescing for the region.
@@ -718,24 +721,34 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
 /**
- * memory_region_find: locate a MemoryRegion in an address space
+ * memory_region_find: translate an address/size relative to a
+ * MemoryRegion into a #MemoryRegionSection.
  *
- * Locates the first #MemoryRegion within an address space given by
- * @address_space that overlaps the range given by @addr and @size.
+ * Locates the first #MemoryRegion within @mr that overlaps the range
+ * given by @addr and @size.
  *
  * Returns a #MemoryRegionSection that describes a contiguous overlap.
  * It will have the following characteristics:
- *    .@offset_within_address_space >= @addr
- *    .@offset_within_address_space + .@size <= @addr + @size
  *    .@size = 0 iff no overlap was found
  *    .@mr is non-%NULL iff an overlap was found
  *
- * @address_space: a top-level (i.e. parentless) region that contains
- *       the region to be found
- * @addr: start of the area within @address_space to be searched
+ * Remember that in the return value the @offset_within_region is
+ * relative to the returned region (in the .@mr field), not to the
+ * @mr argument.
+ *
+ * Similarly, the .@offset_within_address_space is relative to the
+ * address space that contains both regions, the passed and the
+ * returned one.  However, in the special case where the @mr argument
+ * has no parent (and thus is the root of the address space), the
+ * following will hold:
+ *    .@offset_within_address_space >= @addr
+ *    .@offset_within_address_space + .@size <= @addr + @size
+ *
+ * @mr: a MemoryRegion within which @addr is a relative address
+ * @addr: start of the area within @as to be searched
  * @size: size of the area to be searched
  */
-MemoryRegionSection memory_region_find(MemoryRegion *address_space,
+MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size);
 
 /**
@@ -756,13 +769,12 @@ memory_region_section_addr(MemoryRegionSection *section,
 }
 
 /**
- * memory_global_sync_dirty_bitmap: synchronize the dirty log for all memory
+ * address_space_sync_dirty_bitmap: synchronize the dirty log for all memory
  *
  * Synchronizes the dirty page log for an entire address space.
- * @address_space: a top-level (i.e. parentless) region that contains the
- *       memory being synchronized
+ * @as: the address space that contains the memory being synchronized
  */
-void memory_global_sync_dirty_bitmap(MemoryRegion *address_space);
+void address_space_sync_dirty_bitmap(AddressSpace *as);
 
 /**
  * memory_region_transaction_begin: Start a transaction.

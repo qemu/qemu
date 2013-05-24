@@ -49,9 +49,6 @@ typedef void CPUWriteMemoryFunc(void *opaque, hwaddr addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(void *opaque, hwaddr addr);
 
 void qemu_ram_remap(ram_addr_t addr, ram_addr_t length);
-/* This should only be used for ram local to a device.  */
-void *qemu_get_ram_ptr(ram_addr_t addr);
-void qemu_put_ram_ptr(void *addr);
 /* This should not be used by devices.  */
 int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr);
 ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr);
@@ -105,7 +102,6 @@ uint32_t lduw_phys(hwaddr addr);
 uint32_t ldl_phys(hwaddr addr);
 uint64_t ldq_phys(hwaddr addr);
 void stl_phys_notdirty(hwaddr addr, uint32_t val);
-void stq_phys_notdirty(hwaddr addr, uint64_t val);
 void stw_phys(hwaddr addr, uint32_t val);
 void stl_phys(hwaddr addr, uint32_t val);
 void stq_phys(hwaddr addr, uint64_t val);
