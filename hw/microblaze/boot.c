@@ -61,7 +61,6 @@ static int microblaze_load_dtb(hwaddr addr,
                                       const char *dtb_filename)
 {
     int fdt_size;
-#ifdef CONFIG_FDT
     void *fdt = NULL;
     int r;
 
@@ -81,17 +80,6 @@ static int microblaze_load_dtb(hwaddr addr,
     }
 
     cpu_physical_memory_write(addr, fdt, fdt_size);
-#else
-    /* We lack libfdt so we cannot manipulate the fdt. Just pass on the blob
-       to the kernel.  */
-    if (dtb_filename) {
-        fdt_size = load_image_targphys(dtb_filename, addr, 0x10000);
-    }
-    if (kernel_cmdline) {
-        fprintf(stderr,
-                "Warning: missing libfdt, cannot pass cmdline to kernel!\n");
-    }
-#endif
     return fdt_size;
 }
 
