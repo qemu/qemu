@@ -1558,9 +1558,29 @@ static void subpage_write(void *opaque, hwaddr addr,
     io_mem_write(section->mr, addr, value, len);
 }
 
+static bool subpage_accepts(void *opaque, hwaddr addr,
+                            unsigned size, bool is_write)
+{
+    subpage_t *mmio = opaque;
+    unsigned int idx = SUBPAGE_IDX(addr);
+    MemoryRegionSection *section;
+#if defined(DEBUG_SUBPAGE)
+    printf("%s: subpage %p %c len %d addr " TARGET_FMT_plx
+           " idx %d\n", __func__, mmio,
+           is_write ? 'w' : 'r', len, addr, idx);
+#endif
+
+    section = &phys_sections[mmio->sub_section[idx]];
+    addr += mmio->base;
+    addr -= section->offset_within_address_space;
+    addr += section->offset_within_region;
+    return memory_region_access_valid(section->mr, addr, size, is_write);
+}
+
 static const MemoryRegionOps subpage_ops = {
     .read = subpage_read,
     .write = subpage_write,
+    .valid.accepts = subpage_accepts,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
