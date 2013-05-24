@@ -302,6 +302,20 @@ static void flatview_simplify(FlatView *view)
     }
 }
 
+static void memory_region_oldmmio_read_accessor(void *opaque,
+                                                hwaddr addr,
+                                                uint64_t *value,
+                                                unsigned size,
+                                                unsigned shift,
+                                                uint64_t mask)
+{
+    MemoryRegion *mr = opaque;
+    uint64_t tmp;
+
+    tmp = mr->ops->old_mmio.read[ctz32(size)](mr->opaque, addr);
+    *value |= (tmp & mask) << shift;
+}
+
 static void memory_region_read_accessor(void *opaque,
                                         hwaddr addr,
                                         uint64_t *value,
@@ -317,6 +331,20 @@ static void memory_region_read_accessor(void *opaque,
     }
     tmp = mr->ops->read(mr->opaque, addr, size);
     *value |= (tmp & mask) << shift;
+}
+
+static void memory_region_oldmmio_write_accessor(void *opaque,
+                                                 hwaddr addr,
+                                                 uint64_t *value,
+                                                 unsigned size,
+                                                 unsigned shift,
+                                                 uint64_t mask)
+{
+    MemoryRegion *mr = opaque;
+    uint64_t tmp;
+
+    tmp = (*value >> shift) & mask;
+    mr->ops->old_mmio.write[ctz32(size)](mr->opaque, addr, tmp);
 }
 
 static void memory_region_write_accessor(void *opaque,
@@ -359,6 +387,8 @@ static void access_with_adjusted_size(hwaddr addr,
     if (!access_size_max) {
         access_size_max = 4;
     }
+
+    /* FIXME: support unaligned access? */
     access_size = MAX(MIN(size, access_size_max), access_size_min);
     access_mask = -1ULL >> (64 - access_size * 8);
     for (i = 0; i < size; i += access_size) {
@@ -902,15 +932,15 @@ static uint64_t memory_region_dispatch_read1(MemoryRegion *mr,
         return unassigned_mem_read(mr, addr, size);
     }
 
-    if (!mr->ops->read) {
-        return mr->ops->old_mmio.read[ctz32(size)](mr->opaque, addr);
+    if (mr->ops->read) {
+        access_with_adjusted_size(addr, &data, size,
+                                  mr->ops->impl.min_access_size,
+                                  mr->ops->impl.max_access_size,
+                                  memory_region_read_accessor, mr);
+    } else {
+        access_with_adjusted_size(addr, &data, size, 1, 4,
+                                  memory_region_oldmmio_read_accessor, mr);
     }
-
-    /* FIXME: support unaligned access */
-    access_with_adjusted_size(addr, &data, size,
-                              mr->ops->impl.min_access_size,
-                              mr->ops->impl.max_access_size,
-                              memory_region_read_accessor, mr);
 
     return data;
 }
@@ -956,16 +986,15 @@ static void memory_region_dispatch_write(MemoryRegion *mr,
 
     adjust_endianness(mr, &data, size);
 
-    if (!mr->ops->write) {
-        mr->ops->old_mmio.write[ctz32(size)](mr->opaque, addr, data);
-        return;
+    if (mr->ops->write) {
+        access_with_adjusted_size(addr, &data, size,
+                                  mr->ops->impl.min_access_size,
+                                  mr->ops->impl.max_access_size,
+                                  memory_region_write_accessor, mr);
+    } else {
+        access_with_adjusted_size(addr, &data, size, 1, 4,
+                                  memory_region_oldmmio_write_accessor, mr);
     }
-
-    /* FIXME: support unaligned access */
-    access_with_adjusted_size(addr, &data, size,
-                              mr->ops->impl.min_access_size,
-                              mr->ops->impl.max_access_size,
-                              memory_region_write_accessor, mr);
 }
 
 void memory_region_init_io(MemoryRegion *mr,
