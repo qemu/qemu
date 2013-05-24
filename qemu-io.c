@@ -1635,12 +1635,43 @@ static const cmdinfo_t alloc_cmd = {
     .oneline    = "checks if a sector is present in the file",
 };
 
+
+static int map_is_allocated(int64_t sector_num, int64_t nb_sectors, int64_t *pnum)
+{
+    int num, num_checked;
+    int ret, firstret;
+
+    num_checked = MIN(nb_sectors, INT_MAX);
+    ret = bdrv_is_allocated(bs, sector_num, num_checked, &num);
+    if (ret < 0) {
+        return ret;
+    }
+
+    firstret = ret;
+    *pnum = num;
+
+    while (nb_sectors > 0 && ret == firstret) {
+        sector_num += num;
+        nb_sectors -= num;
+
+        num_checked = MIN(nb_sectors, INT_MAX);
+        ret = bdrv_is_allocated(bs, sector_num, num_checked, &num);
+        if (ret == firstret) {
+            *pnum += num;
+        } else {
+            break;
+        }
+    }
+
+    return firstret;
+}
+
 static int map_f(int argc, char **argv)
 {
     int64_t offset;
     int64_t nb_sectors;
     char s1[64];
-    int num, num_checked;
+    int64_t num;
     int ret;
     const char *retstr;
 
@@ -1648,12 +1679,17 @@ static int map_f(int argc, char **argv)
     nb_sectors = bs->total_sectors;
 
     do {
-        num_checked = MIN(nb_sectors, INT_MAX);
-        ret = bdrv_is_allocated(bs, offset, num_checked, &num);
+        ret = map_is_allocated(offset, nb_sectors, &num);
+        if (ret < 0) {
+            error_report("Failed to get allocation status: %s", strerror(-ret));
+            return 0;
+        }
+
         retstr = ret ? "    allocated" : "not allocated";
         cvtstr(offset << 9ULL, s1, sizeof(s1));
-        printf("[% 24" PRId64 "] % 8d/% 8d sectors %s at offset %s (%d)\n",
-               offset << 9ULL, num, num_checked, retstr, s1, ret);
+        printf("[% 24" PRId64 "] % 8" PRId64 "/% 8" PRId64 " sectors %s "
+               "at offset %s (%d)\n",
+               offset << 9ULL, num, nb_sectors, retstr, s1, ret);
 
         offset += num;
         nb_sectors -= num;

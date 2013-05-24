@@ -1609,12 +1609,12 @@
             '*mode': 'NewImageMode' } }
 
 ##
-# @BlockdevAction
+# @TransactionAction
 #
 # A discriminated record of operations that can be performed with
 # @transaction.
 ##
-{ 'union': 'BlockdevAction',
+{ 'union': 'TransactionAction',
   'data': {
        'blockdev-snapshot-sync': 'BlockdevSnapshot'
    } }
@@ -1622,25 +1622,24 @@
 ##
 # @transaction
 #
-# Atomically operate on a group of one or more block devices.  If
-# any operation fails, then the entire set of actions will be
-# abandoned and the appropriate error returned.  The only operation
-# supported is currently blockdev-snapshot-sync.
+# Executes a number of transactionable QMP commands atomically. If any
+# operation fails, then the entire set of actions will be abandoned and the
+# appropriate error returned.
 #
 #  List of:
-#  @BlockdevAction: information needed for the device snapshot
+#  @TransactionAction: information needed for the respective operation
 #
 # Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
+#          Errors depend on the operations of the transaction
 #
-# Note: The transaction aborts on the first failure.  Therefore, there will
-# be only one device or snapshot file returned in an error condition, and
+# Note: The transaction aborts on the first failure.  Therefore, there will be
+# information on only one failed operation returned in an error condition, and
 # subsequent actions will not have been attempted.
 #
 # Since 1.1
 ##
 { 'command': 'transaction',
-  'data': { 'actions': [ 'BlockdevAction' ] } }
+  'data': { 'actions': [ 'TransactionAction' ] } }
 
 ##
 # @blockdev-snapshot-sync
