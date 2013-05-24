@@ -1412,18 +1412,6 @@ static const MemoryRegionOps unassigned_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t error_mem_read(void *opaque, hwaddr addr,
-                               unsigned size)
-{
-    abort();
-}
-
-static const MemoryRegionOps rom_mem_ops = {
-    .read = error_mem_read,
-    .write = unassigned_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
 {
@@ -1455,7 +1443,7 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
 }
 
 static const MemoryRegionOps notdirty_mem_ops = {
-    .read = error_mem_read,
+    .read = unassigned_mem_read,
     .write = notdirty_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
@@ -1676,7 +1664,7 @@ MemoryRegion *iotlb_to_region(hwaddr index)
 
 static void io_mem_init(void)
 {
-    memory_region_init_io(&io_mem_rom, &rom_mem_ops, NULL, "rom", UINT64_MAX);
+    memory_region_init_io(&io_mem_rom, &unassigned_mem_ops, NULL, "rom", UINT64_MAX);
     memory_region_init_io(&io_mem_unassigned, &unassigned_mem_ops, NULL,
                           "unassigned", UINT64_MAX);
     memory_region_init_io(&io_mem_notdirty, &notdirty_mem_ops, NULL,
