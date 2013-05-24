@@ -752,23 +752,6 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size);
 
 /**
- * memory_region_section_addr: get offset within MemoryRegionSection
- *
- * Returns offset within MemoryRegionSection
- *
- * @section: the memory region section being queried
- * @addr: address in address space
- */
-static inline hwaddr
-memory_region_section_addr(MemoryRegionSection *section,
-                           hwaddr addr)
-{
-    addr -= section->offset_within_address_space;
-    addr += section->offset_within_region;
-    return addr;
-}
-
-/**
  * address_space_sync_dirty_bitmap: synchronize the dirty log for all memory
  *
  * Synchronizes the dirty page log for an entire address space.
@@ -868,6 +851,20 @@ void address_space_write(AddressSpace *as, hwaddr addr,
  * @buf: buffer with the data transferred
  */
 void address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
+
+/* address_space_translate: translate an address range into an address space
+ * into a MemoryRegionSection and an address range into that section
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @xlat: pointer to address within the returned memory region section's
+ * #MemoryRegion.
+ * @len: pointer to length
+ * @is_write: indicates the transfer direction
+ */
+MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
+                                             hwaddr *xlat, hwaddr *len,
+                                             bool is_write);
 
 /* address_space_map: map a physical memory region into a host virtual address
  *
