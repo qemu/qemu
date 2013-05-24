@@ -25,11 +25,7 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#ifdef __OpenBSD__
-#include <soundcard.h>
-#else
 #include <sys/soundcard.h>
-#endif
 #include "qemu-common.h"
 #include "qemu/main-loop.h"
 #include "qemu/host-utils.h"

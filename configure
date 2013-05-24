@@ -468,9 +468,8 @@ NetBSD)
 OpenBSD)
   bsd="yes"
   make="${MAKE-gmake}"
-  audio_drv_list="oss"
-  audio_possible_drivers="oss sdl esd"
-  oss_lib="-lossaudio"
+  audio_drv_list="sdl"
+  audio_possible_drivers="sdl esd"
 ;;
 Darwin)
   bsd="yes"
