@@ -2263,15 +2263,21 @@ static inline uint64_t ldq_phys_internal(hwaddr addr,
                                       false);
     if (l < 8 || !memory_access_is_direct(section->mr, false)) {
         /* I/O case */
-
-        /* XXX This is broken when device endian != cpu endian.
-               Fix and add "endian" variable check */
 #ifdef TARGET_WORDS_BIGENDIAN
         val = io_mem_read(section->mr, addr1, 4) << 32;
         val |= io_mem_read(section->mr, addr1 + 4, 4);
 #else
         val = io_mem_read(section->mr, addr1, 4);
         val |= io_mem_read(section->mr, addr1 + 4, 4) << 32;
+#endif
+#if defined(TARGET_WORDS_BIGENDIAN)
+        if (endian == DEVICE_LITTLE_ENDIAN) {
+            val = bswap64(val);
+        }
+#else
+        if (endian == DEVICE_BIG_ENDIAN) {
+            val = bswap64(val);
+        }
 #endif
     } else {
         /* RAM case */

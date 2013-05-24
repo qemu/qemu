@@ -957,6 +957,9 @@ static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
         case 4:
             *data = bswap32(*data);
             break;
+        case 8:
+            *data = bswap64(*data);
+            break;
         default:
             abort();
         }
