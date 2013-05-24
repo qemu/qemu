@@ -2486,6 +2486,26 @@ fi
 
 ##########################################
 # fdt probe
+# fdt support is mandatory for at least some target architectures,
+# so insist on it if we're building those system emulators.
+fdt_required=no
+for target in $target_list; do
+  case $target in
+    arm*-softmmu|ppc*-softmmu|microblaze*-softmmu)
+      fdt_required=yes
+    ;;
+  esac
+done
+
+if test "$fdt_required" = "yes"; then
+  if test "$fdt" = "no"; then
+    error_exit "fdt disabled but some requested targets require it." \
+      "You can turn off fdt only if you also disable all the system emulation" \
+      "targets which need it (by specifying a cut down --target-list)."
+  fi
+  fdt=yes
+fi
+
 if test "$fdt" != "no" ; then
   fdt_libs="-lfdt"
   # explicitly check for libfdt_env.h as it is missing in some stable installs
