@@ -2600,7 +2600,6 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 #endif
 	cirrus_vga_write_sr(c, val);
         break;
-	break;
     case 0x3c6:
 	cirrus_write_hidden_dac(c, val);
 	break;
