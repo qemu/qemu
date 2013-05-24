@@ -1383,32 +1383,14 @@ ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
     return ram_addr;
 }
 
-static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
-                                    unsigned size)
+static bool unassigned_mem_accepts(void *opaque, hwaddr addr,
+                                   unsigned size, bool is_write)
 {
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
-#endif
-#if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
-    cpu_unassigned_access(cpu_single_env, addr, 0, 0, 0, size);
-#endif
-    return 0;
+    return false;
 }
 
-static void unassigned_mem_write(void *opaque, hwaddr addr,
-                                 uint64_t val, unsigned size)
-{
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
-#endif
-#if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
-    cpu_unassigned_access(cpu_single_env, addr, 1, 0, 0, size);
-#endif
-}
-
-static const MemoryRegionOps unassigned_mem_ops = {
-    .read = unassigned_mem_read,
-    .write = unassigned_mem_write,
+const MemoryRegionOps unassigned_mem_ops = {
+    .valid.accepts = unassigned_mem_accepts,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -1442,9 +1424,15 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
         tlb_set_dirty(cpu_single_env, cpu_single_env->mem_io_vaddr);
 }
 
+static bool notdirty_mem_accepts(void *opaque, hwaddr addr,
+                                 unsigned size, bool is_write)
+{
+    return is_write;
+}
+
 static const MemoryRegionOps notdirty_mem_ops = {
-    .read = unassigned_mem_read,
     .write = notdirty_mem_write,
+    .valid.accepts = notdirty_mem_accepts,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

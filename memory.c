@@ -814,6 +814,29 @@ void memory_region_init(MemoryRegion *mr,
     mr->flush_coalesced_mmio = false;
 }
 
+static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
+                                    unsigned size)
+{
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
+#endif
+#if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
+    cpu_unassigned_access(cpu_single_env, addr, 0, 0, 0, size);
+#endif
+    return 0;
+}
+
+static void unassigned_mem_write(void *opaque, hwaddr addr,
+                                 uint64_t val, unsigned size)
+{
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
+#endif
+#if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
+    cpu_unassigned_access(cpu_single_env, addr, 1, 0, 0, size);
+#endif
+}
+
 static bool memory_region_access_valid(MemoryRegion *mr,
                                        hwaddr addr,
                                        unsigned size,
@@ -847,7 +870,7 @@ static uint64_t memory_region_dispatch_read1(MemoryRegion *mr,
     uint64_t data = 0;
 
     if (!memory_region_access_valid(mr, addr, size, false)) {
-        return -1U; /* FIXME: better signalling */
+        return unassigned_mem_read(mr, addr, size);
     }
 
     if (!mr->ops->read) {
@@ -898,7 +921,8 @@ static void memory_region_dispatch_write(MemoryRegion *mr,
                                          unsigned size)
 {
     if (!memory_region_access_valid(mr, addr, size, true)) {
-        return; /* FIXME: better signalling */
+        unassigned_mem_write(mr, addr, data, size);
+        return;
     }
 
     adjust_endianness(mr, &data, size);
