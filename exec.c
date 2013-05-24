@@ -2335,9 +2335,6 @@ void stl_phys_notdirty(hwaddr addr, uint32_t val)
     section = address_space_translate(&address_space_memory, addr, &addr1, &l,
                                       true);
     if (l < 4 || !memory_region_is_ram(section->mr) || section->readonly) {
-        if (memory_region_is_ram(section->mr)) {
-            section = &phys_sections[phys_section_rom];
-        }
         io_mem_write(section->mr, addr1, val, 4);
     } else {
         addr1 += memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK;
@@ -2368,9 +2365,6 @@ static inline void stl_phys_internal(hwaddr addr, uint32_t val,
     section = address_space_translate(&address_space_memory, addr, &addr1, &l,
                                       true);
     if (l < 4 || !memory_region_is_ram(section->mr) || section->readonly) {
-        if (memory_region_is_ram(section->mr)) {
-            section = &phys_sections[phys_section_rom];
-        }
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -2434,9 +2428,6 @@ static inline void stw_phys_internal(hwaddr addr, uint32_t val,
     section = address_space_translate(&address_space_memory, addr, &addr1, &l,
                                       true);
     if (l < 2 || !memory_region_is_ram(section->mr) || section->readonly) {
-        if (memory_region_is_ram(section->mr)) {
-            section = &phys_sections[phys_section_rom];
-        }
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);
