@@ -262,17 +262,14 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
 #endif
 
     address = vaddr;
-    if (!(memory_region_is_ram(section->mr) ||
-          memory_region_is_romd(section->mr))) {
-        /* IO memory case (romd handled later) */
+    if (!memory_region_is_ram(section->mr) && !memory_region_is_romd(section->mr)) {
+        /* IO memory case */
         address |= TLB_MMIO;
-    }
-    if (memory_region_is_ram(section->mr) ||
-        memory_region_is_romd(section->mr)) {
+        addend = 0;
+    } else {
+        /* TLB_MMIO for rom/romd handled below */
         addend = (uintptr_t)memory_region_get_ram_ptr(section->mr)
         + memory_region_section_addr(section, paddr);
-    } else {
-        addend = 0;
     }
 
     code_address = address;
