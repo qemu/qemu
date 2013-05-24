@@ -2657,9 +2657,9 @@ static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
     img->sym[1].st_size = buf_size;
 
     img->di.cu_low_pc = buf;
-    img->di.cu_high_pc = buf_size;
+    img->di.cu_high_pc = buf + buf_size;
     img->di.fn_low_pc = buf;
-    img->di.fn_high_pc = buf_size;
+    img->di.fn_high_pc = buf + buf_size;
 
 #ifdef DEBUG_JIT
     /* Enable this block to be able to debug the ELF image file creation.
