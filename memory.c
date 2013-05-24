@@ -856,24 +856,35 @@ bool memory_region_access_valid(MemoryRegion *mr,
                                 unsigned size,
                                 bool is_write)
 {
-    if (mr->ops->valid.accepts
-        && !mr->ops->valid.accepts(mr->opaque, addr, size, is_write)) {
-        return false;
-    }
+    int access_size_min, access_size_max;
+    int access_size, i;
 
     if (!mr->ops->valid.unaligned && (addr & (size - 1))) {
         return false;
     }
 
-    /* Treat zero as compatibility all valid */
-    if (!mr->ops->valid.max_access_size) {
+    if (!mr->ops->valid.accepts) {
         return true;
     }
 
-    if (size > mr->ops->valid.max_access_size
-        || size < mr->ops->valid.min_access_size) {
-        return false;
+    access_size_min = mr->ops->valid.min_access_size;
+    if (!mr->ops->valid.min_access_size) {
+        access_size_min = 1;
     }
+
+    access_size_max = mr->ops->valid.max_access_size;
+    if (!mr->ops->valid.max_access_size) {
+        access_size_max = 4;
+    }
+
+    access_size = MAX(MIN(size, access_size_max), access_size_min);
+    for (i = 0; i < size; i += access_size) {
+        if (!mr->ops->valid.accepts(mr->opaque, addr + i, access_size,
+                                    is_write)) {
+            return false;
+        }
+    }
+
     return true;
 }
 
