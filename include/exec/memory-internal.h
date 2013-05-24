@@ -43,6 +43,8 @@ struct AddressSpaceDispatch {
 void address_space_init_dispatch(AddressSpace *as);
 void address_space_destroy_dispatch(AddressSpace *as);
 
+extern const MemoryRegionOps unassigned_mem_ops;
+
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr);
 ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr);

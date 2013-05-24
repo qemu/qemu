@@ -22,6 +22,8 @@
 
 #include "exec/memory-internal.h"
 
+//#define DEBUG_UNASSIGNED
+
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool global_dirty_log = false;
@@ -837,6 +839,17 @@ static void unassigned_mem_write(void *opaque, hwaddr addr,
 #endif
 }
 
+static bool unassigned_mem_accepts(void *opaque, hwaddr addr,
+                                   unsigned size, bool is_write)
+{
+    return false;
+}
+
+const MemoryRegionOps unassigned_mem_ops = {
+    .valid.accepts = unassigned_mem_accepts,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static bool memory_region_access_valid(MemoryRegion *mr,
                                        hwaddr addr,
                                        unsigned size,
@@ -1001,40 +1014,11 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->ram_addr = qemu_ram_alloc(size, mr);
 }
 
-static uint64_t invalid_read(void *opaque, hwaddr addr,
-                             unsigned size)
-{
-    MemoryRegion *mr = opaque;
-
-    if (!mr->warning_printed) {
-        fprintf(stderr, "Invalid read from memory region %s\n", mr->name);
-        mr->warning_printed = true;
-    }
-    return -1U;
-}
-
-static void invalid_write(void *opaque, hwaddr addr, uint64_t data,
-                          unsigned size)
-{
-    MemoryRegion *mr = opaque;
-
-    if (!mr->warning_printed) {
-        fprintf(stderr, "Invalid write to memory region %s\n", mr->name);
-        mr->warning_printed = true;
-    }
-}
-
-static const MemoryRegionOps reservation_ops = {
-    .read = invalid_read,
-    .write = invalid_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
 void memory_region_init_reservation(MemoryRegion *mr,
                                     const char *name,
                                     uint64_t size)
 {
-    memory_region_init_io(mr, &reservation_ops, mr, name, size);
+    memory_region_init_io(mr, &unassigned_mem_ops, mr, name, size);
 }
 
 void memory_region_destroy(MemoryRegion *mr)

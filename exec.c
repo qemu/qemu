@@ -50,7 +50,6 @@
 
 #include "exec/memory-internal.h"
 
-//#define DEBUG_UNASSIGNED
 //#define DEBUG_SUBPAGE
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1401,17 +1400,6 @@ ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
     }
     return ram_addr;
 }
-
-static bool unassigned_mem_accepts(void *opaque, hwaddr addr,
-                                   unsigned size, bool is_write)
-{
-    return false;
-}
-
-const MemoryRegionOps unassigned_mem_ops = {
-    .valid.accepts = unassigned_mem_accepts,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
 
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
