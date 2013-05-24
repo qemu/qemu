@@ -34,9 +34,7 @@
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/xics.h"
 
-#ifdef CONFIG_FDT
 #include <libfdt.h>
-#endif /* CONFIG_FDT */
 
 /* #define DEBUG_SPAPR */
 
@@ -94,7 +92,6 @@ VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
     return NULL;
 }
 
-#ifdef CONFIG_FDT
 static int vio_make_devnode(VIOsPAPRDevice *dev,
                             void *fdt)
 {
@@ -159,7 +156,6 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
 
     return node_off;
 }
-#endif /* CONFIG_FDT */
 
 /*
  * CRQ handling
@@ -570,7 +566,6 @@ static void spapr_vio_register_types(void)
 
 type_init(spapr_vio_register_types)
 
-#ifdef CONFIG_FDT
 static int compare_reg(const void *p1, const void *p2)
 {
     VIOsPAPRDevice const *dev1, *dev2;
@@ -655,4 +650,3 @@ int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus)
 
     return ret;
 }
-#endif /* CONFIG_FDT */
