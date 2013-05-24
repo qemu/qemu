@@ -788,7 +788,8 @@ void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size)
 {
-    mr->ops = NULL;
+    mr->ops = &unassigned_mem_ops;
+    mr->opaque = NULL;
     mr->parent = NULL;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
