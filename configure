@@ -2153,13 +2153,12 @@ fi
 
 ##########################################
 # curses probe
-if test "$mingw32" = "yes" ; then
-    curses_list="-lpdcurses"
-else
-    curses_list="-lncurses:-lcurses:$($pkg_config --libs ncurses 2>/dev/null)"
-fi
-
 if test "$curses" != "no" ; then
+  if test "$mingw32" = "yes" ; then
+    curses_list="-lpdcurses"
+  else
+    curses_list="-lncurses:-lcurses:$($pkg_config --libs ncurses 2>/dev/null)"
+  fi
   curses_found=no
   cat > $TMPC << EOF
 #include <curses.h>
@@ -2191,14 +2190,12 @@ fi
 
 ##########################################
 # curl probe
-
-if $pkg_config libcurl --modversion >/dev/null 2>&1; then
-  curlconfig="$pkg_config libcurl"
-else
-  curlconfig=curl-config
-fi
-
 if test "$curl" != "no" ; then
+  if $pkg_config libcurl --modversion >/dev/null 2>&1; then
+    curlconfig="$pkg_config libcurl"
+  else
+    curlconfig=curl-config
+  fi
   cat > $TMPC << EOF
 #include <curl/curl.h>
 int main(void) { curl_easy_init(); curl_multi_setopt(0, 0, 0); return 0; }
