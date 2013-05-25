@@ -99,9 +99,6 @@ static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
 static QLIST_HEAD(, BlockDriver) bdrv_drivers =
     QLIST_HEAD_INITIALIZER(bdrv_drivers);
 
-/* The device to use for VM snapshots */
-static BlockDriverState *bs_snapshots;
-
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -1368,9 +1365,6 @@ void bdrv_close(BlockDriverState *bs)
     notifier_list_notify(&bs->close_notifiers, bs);
 
     if (bs->drv) {
-        if (bs == bs_snapshots) {
-            bs_snapshots = NULL;
-        }
         if (bs->backing_hd) {
             bdrv_delete(bs->backing_hd);
             bs->backing_hd = NULL;
@@ -1602,7 +1596,6 @@ void bdrv_delete(BlockDriverState *bs)
 
     bdrv_close(bs);
 
-    assert(bs != bs_snapshots);
     g_free(bs);
 }
 
@@ -1646,9 +1639,6 @@ void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
 {
     bs->dev_ops = ops;
     bs->dev_opaque = opaque;
-    if (bdrv_dev_has_removable_media(bs) && bs == bs_snapshots) {
-        bs_snapshots = NULL;
-    }
 }
 
 void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
@@ -3390,24 +3380,6 @@ int bdrv_can_snapshot(BlockDriverState *bs)
 int bdrv_is_snapshot(BlockDriverState *bs)
 {
     return !!(bs->open_flags & BDRV_O_SNAPSHOT);
-}
-
-BlockDriverState *bdrv_snapshots(void)
-{
-    BlockDriverState *bs;
-
-    if (bs_snapshots) {
-        return bs_snapshots;
-    }
-
-    bs = NULL;
-    while ((bs = bdrv_next(bs))) {
-        if (bdrv_can_snapshot(bs)) {
-            bs_snapshots = bs;
-            return bs;
-        }
-    }
-    return NULL;
 }
 
 int bdrv_snapshot_create(BlockDriverState *bs,

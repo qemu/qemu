@@ -2262,6 +2262,17 @@ out:
     return ret;
 }
 
+static BlockDriverState *find_vmstate_bs(void)
+{
+    BlockDriverState *bs = NULL;
+    while ((bs = bdrv_next(bs))) {
+        if (bdrv_can_snapshot(bs)) {
+            return bs;
+        }
+    }
+    return NULL;
+}
+
 static int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
                               const char *name)
 {
@@ -2338,7 +2349,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         }
     }
 
-    bs = bdrv_snapshots();
+    bs = find_vmstate_bs();
     if (!bs) {
         monitor_printf(mon, "No block device can accept snapshots\n");
         return;
@@ -2440,7 +2451,7 @@ int load_vmstate(const char *name)
     QEMUFile *f;
     int ret;
 
-    bs_vm_state = bdrv_snapshots();
+    bs_vm_state = find_vmstate_bs();
     if (!bs_vm_state) {
         error_report("No block device supports snapshots");
         return -ENOTSUP;
@@ -2519,7 +2530,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
     int ret;
     const char *name = qdict_get_str(qdict, "name");
 
-    bs = bdrv_snapshots();
+    bs = find_vmstate_bs();
     if (!bs) {
         monitor_printf(mon, "No block device supports snapshots\n");
         return;
@@ -2551,7 +2562,7 @@ void do_info_snapshots(Monitor *mon, const QDict *qdict)
     int *available_snapshots;
     char buf[256];
 
-    bs = bdrv_snapshots();
+    bs = find_vmstate_bs();
     if (!bs) {
         monitor_printf(mon, "No available block device supports snapshots\n");
         return;
