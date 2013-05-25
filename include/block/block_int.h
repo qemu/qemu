@@ -33,6 +33,7 @@
 #include "qapi/qmp/qerror.h"
 #include "monitor/monitor.h"
 #include "qemu/hbitmap.h"
+#include "block/snapshot.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
 #define BLOCK_FLAG_COMPAT6          4

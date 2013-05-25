@@ -7,11 +7,6 @@
 #include "block/coroutine.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi-types.h"
-/*
- * snapshot.h is needed since bdrv_snapshot_dump(), it can be removed when the
- * function is moved to other file.
- */
-#include "block/snapshot.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
@@ -323,12 +318,8 @@ void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
 void bdrv_get_full_backing_filename(BlockDriverState *bs,
                                     char *dest, size_t sz);
-BlockInfo *bdrv_query_info(BlockDriverState *s);
-BlockStats *bdrv_query_stats(const BlockDriverState *bs);
 int bdrv_is_snapshot(BlockDriverState *bs);
-char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn);
 
-char *get_human_readable_size(char *buf, int buf_size, int64_t size);
 int path_is_absolute(const char *path);
 void path_combine(char *dest, int dest_size,
                   const char *base_path,

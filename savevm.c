@@ -41,6 +41,7 @@
 #include "qemu/bitops.h"
 #include "qemu/iov.h"
 #include "block/snapshot.h"
+#include "block/qapi.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
