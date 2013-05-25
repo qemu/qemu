@@ -1554,16 +1554,17 @@ static void dump_snapshots(BlockDriverState *bs)
 {
     QEMUSnapshotInfo *sn_tab, *sn;
     int nb_sns, i;
-    char buf[256];
 
     nb_sns = bdrv_snapshot_list(bs, &sn_tab);
     if (nb_sns <= 0)
         return;
     printf("Snapshot list:\n");
-    printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), NULL));
+    bdrv_snapshot_dump(fprintf, stdout, NULL);
+    printf("\n");
     for(i = 0; i < nb_sns; i++) {
         sn = &sn_tab[i];
-        printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), sn));
+        bdrv_snapshot_dump(fprintf, stdout, sn);
+        printf("\n");
     }
     g_free(sn_tab);
 }
@@ -1613,7 +1614,7 @@ static void dump_human_image_info_list(ImageInfoList *list)
         }
         delim = true;
 
-        bdrv_image_info_dump(elem->value);
+        bdrv_image_info_dump(fprintf, stdout, elem->value);
     }
 }
 

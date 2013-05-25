@@ -36,6 +36,8 @@ void bdrv_collect_image_info(BlockDriverState *bs,
 BlockInfo *bdrv_query_info(BlockDriverState *s);
 BlockStats *bdrv_query_stats(const BlockDriverState *bs);
 
-char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn);
-void bdrv_image_info_dump(ImageInfo *info);
+void bdrv_snapshot_dump(fprintf_function func_fprintf, void *f,
+                        QEMUSnapshotInfo *sn);
+void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
+                          ImageInfo *info);
 #endif

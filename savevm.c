@@ -2540,7 +2540,6 @@ void do_info_snapshots(Monitor *mon, const QDict *qdict)
     int nb_sns, i, ret, available;
     int total;
     int *available_snapshots;
-    char buf[256];
 
     bs = find_vmstate_bs();
     if (!bs) {
@@ -2583,10 +2582,12 @@ void do_info_snapshots(Monitor *mon, const QDict *qdict)
     }
 
     if (total > 0) {
-        monitor_printf(mon, "%s\n", bdrv_snapshot_dump(buf, sizeof(buf), NULL));
+        bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, NULL);
+        monitor_printf(mon, "\n");
         for (i = 0; i < total; i++) {
             sn = &sn_tab[available_snapshots[i]];
-            monitor_printf(mon, "%s\n", bdrv_snapshot_dump(buf, sizeof(buf), sn));
+            bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, sn);
+            monitor_printf(mon, "\n");
         }
     } else {
         monitor_printf(mon, "There is no suitable snapshot available\n");

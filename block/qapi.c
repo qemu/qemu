@@ -259,7 +259,8 @@ static char *get_human_readable_size(char *buf, int buf_size, int64_t size)
     return buf;
 }
 
-char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
+void bdrv_snapshot_dump(fprintf_function func_fprintf, void *f,
+                        QEMUSnapshotInfo *sn)
 {
     char buf1[128], date_buf[128], clock_buf[128];
     struct tm tm;
@@ -267,9 +268,9 @@ char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
     int64_t secs;
 
     if (!sn) {
-        snprintf(buf, buf_size,
-                 "%-10s%-20s%7s%20s%15s",
-                 "ID", "TAG", "VM SIZE", "DATE", "VM CLOCK");
+        func_fprintf(f,
+                     "%-10s%-20s%7s%20s%15s",
+                     "ID", "TAG", "VM SIZE", "DATE", "VM CLOCK");
     } else {
         ti = sn->date_sec;
         localtime_r(&ti, &tm);
@@ -282,17 +283,18 @@ char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
                  (int)((secs / 60) % 60),
                  (int)(secs % 60),
                  (int)((sn->vm_clock_nsec / 1000000) % 1000));
-        snprintf(buf, buf_size,
-                 "%-10s%-20s%7s%20s%15s",
-                 sn->id_str, sn->name,
-                 get_human_readable_size(buf1, sizeof(buf1), sn->vm_state_size),
-                 date_buf,
-                 clock_buf);
+        func_fprintf(f,
+                     "%-10s%-20s%7s%20s%15s",
+                     sn->id_str, sn->name,
+                     get_human_readable_size(buf1, sizeof(buf1),
+                                             sn->vm_state_size),
+                     date_buf,
+                     clock_buf);
     }
-    return buf;
 }
 
-void bdrv_image_info_dump(ImageInfo *info)
+void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
+                          ImageInfo *info)
 {
     char size_buf[128], dsize_buf[128];
     if (!info->has_actual_size) {
@@ -302,43 +304,46 @@ void bdrv_image_info_dump(ImageInfo *info)
                                 info->actual_size);
     }
     get_human_readable_size(size_buf, sizeof(size_buf), info->virtual_size);
-    printf("image: %s\n"
-           "file format: %s\n"
-           "virtual size: %s (%" PRId64 " bytes)\n"
-           "disk size: %s\n",
-           info->filename, info->format, size_buf,
-           info->virtual_size,
-           dsize_buf);
+    func_fprintf(f,
+                 "image: %s\n"
+                 "file format: %s\n"
+                 "virtual size: %s (%" PRId64 " bytes)\n"
+                 "disk size: %s\n",
+                 info->filename, info->format, size_buf,
+                 info->virtual_size,
+                 dsize_buf);
 
     if (info->has_encrypted && info->encrypted) {
-        printf("encrypted: yes\n");
+        func_fprintf(f, "encrypted: yes\n");
     }
 
     if (info->has_cluster_size) {
-        printf("cluster_size: %" PRId64 "\n", info->cluster_size);
+        func_fprintf(f, "cluster_size: %" PRId64 "\n",
+                       info->cluster_size);
     }
 
     if (info->has_dirty_flag && info->dirty_flag) {
-        printf("cleanly shut down: no\n");
+        func_fprintf(f, "cleanly shut down: no\n");
     }
 
     if (info->has_backing_filename) {
-        printf("backing file: %s", info->backing_filename);
+        func_fprintf(f, "backing file: %s", info->backing_filename);
         if (info->has_full_backing_filename) {
-            printf(" (actual path: %s)", info->full_backing_filename);
+            func_fprintf(f, " (actual path: %s)", info->full_backing_filename);
         }
-        putchar('\n');
+        func_fprintf(f, "\n");
         if (info->has_backing_filename_format) {
-            printf("backing file format: %s\n", info->backing_filename_format);
+            func_fprintf(f, "backing file format: %s\n",
+                         info->backing_filename_format);
         }
     }
 
     if (info->has_snapshots) {
         SnapshotInfoList *elem;
-        char buf[256];
 
-        printf("Snapshot list:\n");
-        printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), NULL));
+        func_fprintf(f, "Snapshot list:\n");
+        bdrv_snapshot_dump(func_fprintf, f, NULL);
+        func_fprintf(f, "\n");
 
         /* Ideally bdrv_snapshot_dump() would operate on SnapshotInfoList but
          * we convert to the block layer's native QEMUSnapshotInfo for now.
@@ -354,7 +359,8 @@ void bdrv_image_info_dump(ImageInfo *info)
 
             pstrcpy(sn.id_str, sizeof(sn.id_str), elem->value->id);
             pstrcpy(sn.name, sizeof(sn.name), elem->value->name);
-            printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), &sn));
+            bdrv_snapshot_dump(func_fprintf, f, &sn);
+            func_fprintf(f, "\n");
         }
     }
 }
