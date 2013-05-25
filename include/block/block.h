@@ -7,6 +7,11 @@
 #include "block/coroutine.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi-types.h"
+/*
+ * snapshot.h is needed since bdrv_snapshot_dump(), it can be removed when the
+ * function is moved to other file.
+ */
+#include "block/snapshot.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
@@ -26,17 +31,6 @@ typedef struct BlockFragInfo {
     uint64_t fragmented_clusters;
     uint64_t compressed_clusters;
 } BlockFragInfo;
-
-typedef struct QEMUSnapshotInfo {
-    char id_str[128]; /* unique snapshot id */
-    /* the following fields are informative. They are not needed for
-       the consistency of the snapshot */
-    char name[256]; /* user chosen name */
-    uint64_t vm_state_size; /* VM state info size */
-    uint32_t date_sec; /* UTC date of the snapshot */
-    uint32_t date_nsec;
-    uint64_t vm_clock_nsec; /* VM clock relative to boot */
-} QEMUSnapshotInfo;
 
 /* Callbacks for block device models */
 typedef struct BlockDevOps {
@@ -331,17 +325,7 @@ void bdrv_get_full_backing_filename(BlockDriverState *bs,
                                     char *dest, size_t sz);
 BlockInfo *bdrv_query_info(BlockDriverState *s);
 BlockStats *bdrv_query_stats(const BlockDriverState *bs);
-int bdrv_can_snapshot(BlockDriverState *bs);
 int bdrv_is_snapshot(BlockDriverState *bs);
-int bdrv_snapshot_create(BlockDriverState *bs,
-                         QEMUSnapshotInfo *sn_info);
-int bdrv_snapshot_goto(BlockDriverState *bs,
-                       const char *snapshot_id);
-int bdrv_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
-int bdrv_snapshot_list(BlockDriverState *bs,
-                       QEMUSnapshotInfo **psn_info);
-int bdrv_snapshot_load_tmp(BlockDriverState *bs,
-                           const char *snapshot_name);
 char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn);
 
 char *get_human_readable_size(char *buf, int buf_size, int64_t size);
