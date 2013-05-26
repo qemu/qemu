@@ -1913,12 +1913,12 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
     return false;
 }
 
-static inline int memory_access_size(int l, hwaddr addr)
+static inline int memory_access_size(MemoryRegion *mr, int l, hwaddr addr)
 {
-    if (l >= 4 && ((addr & 3) == 0)) {
+    if (l >= 4 && (((addr & 3) == 0 || mr->ops->impl.unaligned))) {
         return 4;
     }
-    if (l >= 2 && ((addr & 1) == 0)) {
+    if (l >= 2 && (((addr & 1) == 0) || mr->ops->impl.unaligned)) {
         return 2;
     }
     return 1;
@@ -1940,7 +1940,7 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
 
         if (is_write) {
             if (!memory_access_is_direct(section->mr, is_write)) {
-                l = memory_access_size(l, addr1);
+                l = memory_access_size(section->mr, l, addr1);
                 /* XXX: could force cpu_single_env to NULL to avoid
                    potential bugs */
                 if (l == 4) {
@@ -1966,7 +1966,7 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
         } else {
             if (!memory_access_is_direct(section->mr, is_write)) {
                 /* I/O case */
-                l = memory_access_size(l, addr1);
+                l = memory_access_size(section->mr, l, addr1);
                 if (l == 4) {
                     /* 32 bit read access */
                     error |= io_mem_read(section->mr, addr1, &val, 4);
@@ -2097,7 +2097,7 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_
         l = len;
         section = address_space_translate(as, addr, &xlat, &l, is_write);
         if (!memory_access_is_direct(section->mr, is_write)) {
-            l = memory_access_size(l, addr);
+            l = memory_access_size(section->mr, l, addr);
             if (!memory_region_access_valid(section->mr, xlat, l, is_write)) {
                 return false;
             }
