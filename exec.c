@@ -97,6 +97,13 @@ struct AddressSpaceDispatch {
     MemoryListener listener;
 };
 
+#define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
+typedef struct subpage_t {
+    MemoryRegion iomem;
+    hwaddr base;
+    uint16_t sub_section[TARGET_PAGE_SIZE];
+} subpage_t;
+
 static MemoryRegionSection *phys_sections;
 static unsigned phys_sections_nb, phys_sections_nb_alloc;
 static uint16_t phys_section_unassigned;
@@ -220,19 +227,28 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
 }
 
 static MemoryRegionSection *address_space_lookup_region(AddressSpace *as,
-                                                        hwaddr addr)
+                                                        hwaddr addr,
+                                                        bool resolve_subpage)
 {
-    return phys_page_find(as->dispatch, addr >> TARGET_PAGE_BITS);
+    MemoryRegionSection *section;
+    subpage_t *subpage;
+
+    section = phys_page_find(as->dispatch, addr >> TARGET_PAGE_BITS);
+    if (resolve_subpage && section->mr->subpage) {
+        subpage = container_of(section->mr, subpage_t, iomem);
+        section = &phys_sections[subpage->sub_section[SUBPAGE_IDX(addr)]];
+    }
+    return section;
 }
 
-MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
-                                             hwaddr *xlat, hwaddr *plen,
-                                             bool is_write)
+static MemoryRegionSection *
+address_space_translate_internal(AddressSpace *as, hwaddr addr, hwaddr *xlat,
+                                 hwaddr *plen, bool resolve_subpage)
 {
     MemoryRegionSection *section;
     Int128 diff;
 
-    section = address_space_lookup_region(as, addr);
+    section = address_space_lookup_region(as, addr, resolve_subpage);
     /* Compute offset within MemoryRegionSection */
     addr -= section->offset_within_address_space;
 
@@ -242,6 +258,20 @@ MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
     diff = int128_sub(section->mr->size, int128_make64(addr));
     *plen = int128_get64(int128_min(diff, int128_make64(*plen)));
     return section;
+}
+
+MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
+                                             hwaddr *xlat, hwaddr *plen,
+                                             bool is_write)
+{
+    return address_space_translate_internal(as, addr, xlat, plen, true);
+}
+
+MemoryRegionSection *
+address_space_translate_for_iotlb(AddressSpace *as, hwaddr addr, hwaddr *xlat,
+                                  hwaddr *plen)
+{
+    return address_space_translate_internal(as, addr, xlat, plen, false);
 }
 #endif
 
@@ -696,13 +726,6 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
 #endif /* defined(CONFIG_USER_ONLY) */
 
 #if !defined(CONFIG_USER_ONLY)
-
-#define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
-typedef struct subpage_t {
-    MemoryRegion iomem;
-    hwaddr base;
-    uint16_t sub_section[TARGET_PAGE_SIZE];
-} subpage_t;
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
