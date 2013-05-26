@@ -1525,10 +1525,8 @@ static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
     }
 }
 
-static int kvm_handle_internal_error(CPUArchState *env, struct kvm_run *run)
+static int kvm_handle_internal_error(CPUState *cpu, struct kvm_run *run)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     fprintf(stderr, "KVM internal error.");
     if (kvm_check_extension(kvm_state, KVM_CAP_INTERNAL_ERROR_DATA)) {
         int i;
@@ -1690,7 +1688,7 @@ int kvm_cpu_exec(CPUArchState *env)
             ret = -1;
             break;
         case KVM_EXIT_INTERNAL_ERROR:
-            ret = kvm_handle_internal_error(env, run);
+            ret = kvm_handle_internal_error(cpu, run);
             break;
         default:
             DPRINTF("kvm_arch_handle_exit\n");
