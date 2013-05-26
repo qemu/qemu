@@ -66,7 +66,7 @@ AddressSpace address_space_memory;
 DMAContext dma_context_memory;
 
 MemoryRegion io_mem_rom, io_mem_notdirty;
-static MemoryRegion io_mem_unassigned, io_mem_subpage_ram;
+static MemoryRegion io_mem_unassigned;
 
 #endif
 
@@ -95,11 +95,13 @@ struct AddressSpaceDispatch {
      */
     PhysPageEntry phys_map;
     MemoryListener listener;
+    AddressSpace *as;
 };
 
 #define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
 typedef struct subpage_t {
     MemoryRegion iomem;
+    AddressSpace *as;
     hwaddr base;
     uint16_t sub_section[TARGET_PAGE_SIZE];
 } subpage_t;
@@ -729,7 +731,7 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
-static subpage_t *subpage_init(hwaddr base);
+static subpage_t *subpage_init(AddressSpace *as, hwaddr base);
 static void destroy_page_desc(uint16_t section_index)
 {
     MemoryRegionSection *section = &phys_sections[section_index];
@@ -806,7 +808,7 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
     assert(existing->mr->subpage || existing->mr == &io_mem_unassigned);
 
     if (!(existing->mr->subpage)) {
-        subpage = subpage_init(base);
+        subpage = subpage_init(d->as, base);
         subsection.mr = &subpage->iomem;
         phys_page_set(d, base >> TARGET_PAGE_BITS, 1,
                       phys_section_add(&subsection));
@@ -1569,98 +1571,70 @@ static const MemoryRegionOps watch_mem_ops = {
 static uint64_t subpage_read(void *opaque, hwaddr addr,
                              unsigned len)
 {
-    subpage_t *mmio = opaque;
-    unsigned int idx = SUBPAGE_IDX(addr);
-    uint64_t val;
+    subpage_t *subpage = opaque;
+    uint8_t buf[4];
 
-    MemoryRegionSection *section;
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d\n", __func__,
-           mmio, len, addr, idx);
+    printf("%s: subpage %p len %d addr " TARGET_FMT_plx "\n", __func__,
+           subpage, len, addr);
 #endif
-
-    section = &phys_sections[mmio->sub_section[idx]];
-    addr += mmio->base;
-    addr -= section->offset_within_address_space;
-    addr += section->offset_within_region;
-    io_mem_read(section->mr, addr, &val, len);
-    return val;
+    address_space_read(subpage->as, addr + subpage->base, buf, len);
+    switch (len) {
+    case 1:
+        return ldub_p(buf);
+    case 2:
+        return lduw_p(buf);
+    case 4:
+        return ldl_p(buf);
+    default:
+        abort();
+    }
 }
 
 static void subpage_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned len)
 {
-    subpage_t *mmio = opaque;
-    unsigned int idx = SUBPAGE_IDX(addr);
-    MemoryRegionSection *section;
+    subpage_t *subpage = opaque;
+    uint8_t buf[4];
+
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p len %d addr " TARGET_FMT_plx
-           " idx %d value %"PRIx64"\n",
-           __func__, mmio, len, addr, idx, value);
+           " value %"PRIx64"\n",
+           __func__, subpage, len, addr, value);
 #endif
-
-    section = &phys_sections[mmio->sub_section[idx]];
-    addr += mmio->base;
-    addr -= section->offset_within_address_space;
-    addr += section->offset_within_region;
-    io_mem_write(section->mr, addr, value, len);
+    switch (len) {
+    case 1:
+        stb_p(buf, value);
+        break;
+    case 2:
+        stw_p(buf, value);
+        break;
+    case 4:
+        stl_p(buf, value);
+        break;
+    default:
+        abort();
+    }
+    address_space_write(subpage->as, addr + subpage->base, buf, len);
 }
 
 static bool subpage_accepts(void *opaque, hwaddr addr,
                             unsigned size, bool is_write)
 {
-    subpage_t *mmio = opaque;
-    unsigned int idx = SUBPAGE_IDX(addr);
-    MemoryRegionSection *section;
+    subpage_t *subpage = opaque;
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p %c len %d addr " TARGET_FMT_plx
-           " idx %d\n", __func__, mmio,
-           is_write ? 'w' : 'r', len, addr, idx);
+    printf("%s: subpage %p %c len %d addr " TARGET_FMT_plx "\n",
+           __func__, subpage, is_write ? 'w' : 'r', len, addr);
 #endif
 
-    section = &phys_sections[mmio->sub_section[idx]];
-    addr += mmio->base;
-    addr -= section->offset_within_address_space;
-    addr += section->offset_within_region;
-    return memory_region_access_valid(section->mr, addr, size, is_write);
+    return address_space_access_valid(subpage->as, addr + subpage->base,
+                                      size, is_write);
 }
 
 static const MemoryRegionOps subpage_ops = {
     .read = subpage_read,
     .write = subpage_write,
     .valid.accepts = subpage_accepts,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
-static uint64_t subpage_ram_read(void *opaque, hwaddr addr,
-                                 unsigned size)
-{
-    ram_addr_t raddr = addr;
-    void *ptr = qemu_get_ram_ptr(raddr);
-    switch (size) {
-    case 1: return ldub_p(ptr);
-    case 2: return lduw_p(ptr);
-    case 4: return ldl_p(ptr);
-    default: abort();
-    }
-}
-
-static void subpage_ram_write(void *opaque, hwaddr addr,
-                              uint64_t value, unsigned size)
-{
-    ram_addr_t raddr = addr;
-    void *ptr = qemu_get_ram_ptr(raddr);
-    switch (size) {
-    case 1: return stb_p(ptr, value);
-    case 2: return stw_p(ptr, value);
-    case 4: return stl_p(ptr, value);
-    default: abort();
-    }
-}
-
-static const MemoryRegionOps subpage_ram_ops = {
-    .read = subpage_ram_read,
-    .write = subpage_ram_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -1677,11 +1651,6 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     printf("%s: %p start %08x end %08x idx %08x eidx %08x mem %ld\n", __func__,
            mmio, start, end, idx, eidx, memory);
 #endif
-    if (memory_region_is_ram(phys_sections[section].mr)) {
-        MemoryRegionSection new_section = phys_sections[section];
-        new_section.mr = &io_mem_subpage_ram;
-        section = phys_section_add(&new_section);
-    }
     for (; idx <= eidx; idx++) {
         mmio->sub_section[idx] = section;
     }
@@ -1689,12 +1658,13 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     return 0;
 }
 
-static subpage_t *subpage_init(hwaddr base)
+static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
 {
     subpage_t *mmio;
 
     mmio = g_malloc0(sizeof(subpage_t));
 
+    mmio->as = as;
     mmio->base = base;
     memory_region_init_io(&mmio->iomem, &subpage_ops, mmio,
                           "subpage", TARGET_PAGE_SIZE);
@@ -1732,8 +1702,6 @@ static void io_mem_init(void)
                           "unassigned", UINT64_MAX);
     memory_region_init_io(&io_mem_notdirty, &notdirty_mem_ops, NULL,
                           "notdirty", UINT64_MAX);
-    memory_region_init_io(&io_mem_subpage_ram, &subpage_ram_ops, NULL,
-                          "subpage-ram", UINT64_MAX);
     memory_region_init_io(&io_mem_watch, &watch_mem_ops, NULL,
                           "watch", UINT64_MAX);
 }
@@ -1823,6 +1791,7 @@ void address_space_init_dispatch(AddressSpace *as)
         .region_nop = mem_add,
         .priority = 0,
     };
+    d->as = as;
     as->dispatch = d;
     memory_listener_register(&d->listener, as);
 }
