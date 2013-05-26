@@ -54,9 +54,9 @@ void kvm_cpu_synchronize_post_init(CPUState *cpu)
 {
 }
 
-int kvm_cpu_exec(CPUArchState *env)
+int kvm_cpu_exec(CPUState *cpu)
 {
-    abort ();
+    abort();
 }
 
 int kvm_has_sync_mmu(void)

@@ -752,7 +752,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
 
     while (1) {
         if (cpu_can_run(cpu)) {
-            r = kvm_cpu_exec(env);
+            r = kvm_cpu_exec(cpu);
             if (r == EXCP_DEBUG) {
                 cpu_handle_guest_debug(env);
             }

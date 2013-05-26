@@ -147,9 +147,9 @@ int kvm_has_gsi_routing(void);
 int kvm_has_intx_set_mask(void);
 
 int kvm_init_vcpu(CPUState *cpu);
+int kvm_cpu_exec(CPUState *cpu);
 
 #ifdef NEED_CPU_H
-int kvm_cpu_exec(CPUArchState *env);
 
 #if !defined(CONFIG_USER_ONLY)
 void *kvm_ram_alloc(ram_addr_t size);

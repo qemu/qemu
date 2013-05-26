@@ -1607,9 +1607,8 @@ void kvm_cpu_synchronize_post_init(CPUState *cpu)
     cpu->kvm_vcpu_dirty = false;
 }
 
-int kvm_cpu_exec(CPUArchState *env)
+int kvm_cpu_exec(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     struct kvm_run *run = cpu->kvm_run;
     int ret, run_ret;
 
