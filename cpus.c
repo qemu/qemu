@@ -568,9 +568,8 @@ static void dummy_signal(int sig)
 {
 }
 
-static void qemu_kvm_init_cpu_signals(CPUArchState *env)
+static void qemu_kvm_init_cpu_signals(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     int r;
     sigset_t set;
     struct sigaction sigact;
@@ -604,7 +603,7 @@ static void qemu_tcg_init_cpu_signals(void)
 }
 
 #else /* _WIN32 */
-static void qemu_kvm_init_cpu_signals(CPUArchState *env)
+static void qemu_kvm_init_cpu_signals(CPUState *cpu)
 {
     abort();
 }
@@ -745,7 +744,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
         exit(1);
     }
 
-    qemu_kvm_init_cpu_signals(env);
+    qemu_kvm_init_cpu_signals(cpu);
 
     /* signal CPU creation */
     cpu->created = true;
