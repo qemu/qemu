@@ -717,10 +717,8 @@ static void qemu_tcg_wait_io_event(void)
     }
 }
 
-static void qemu_kvm_wait_io_event(CPUArchState *env)
+static void qemu_kvm_wait_io_event(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     while (cpu_thread_is_idle(cpu)) {
         qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
     }
@@ -759,7 +757,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
                 cpu_handle_guest_debug(env);
             }
         }
-        qemu_kvm_wait_io_event(env);
+        qemu_kvm_wait_io_event(cpu);
     }
 
     return NULL;
