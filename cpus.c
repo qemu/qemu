@@ -570,6 +570,7 @@ static void dummy_signal(int sig)
 
 static void qemu_kvm_init_cpu_signals(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int r;
     sigset_t set;
     struct sigaction sigact;
@@ -581,7 +582,7 @@ static void qemu_kvm_init_cpu_signals(CPUArchState *env)
     pthread_sigmask(SIG_BLOCK, NULL, &set);
     sigdelset(&set, SIG_IPI);
     sigdelset(&set, SIGBUS);
-    r = kvm_set_signal_mask(env, &set);
+    r = kvm_set_signal_mask(cpu, &set);
     if (r) {
         fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
         exit(1);

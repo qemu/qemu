@@ -2039,9 +2039,8 @@ void kvm_remove_all_breakpoints(CPUArchState *current_env)
 }
 #endif /* !KVM_CAP_SET_GUEST_DEBUG */
 
-int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset)
+int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     struct kvm_signal_mask *sigmask;
     int r;
 

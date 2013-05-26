@@ -166,7 +166,7 @@ int kvm_remove_breakpoint(CPUArchState *current_env, target_ulong addr,
 void kvm_remove_all_breakpoints(CPUArchState *current_env);
 int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap);
 #ifndef _WIN32
-int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset);
+int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset);
 #endif
 
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
