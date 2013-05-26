@@ -62,10 +62,8 @@
 
 static CPUArchState *next_cpu;
 
-static bool cpu_thread_is_idle(CPUArchState *env)
+static bool cpu_thread_is_idle(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     if (cpu->stop || cpu->queued_work_first) {
         return false;
     }
@@ -84,7 +82,7 @@ static bool all_cpu_threads_idle(void)
     CPUArchState *env;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        if (!cpu_thread_is_idle(env)) {
+        if (!cpu_thread_is_idle(ENV_GET_CPU(env))) {
             return false;
         }
     }
@@ -723,7 +721,7 @@ static void qemu_kvm_wait_io_event(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
 
-    while (cpu_thread_is_idle(env)) {
+    while (cpu_thread_is_idle(cpu)) {
         qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
     }
 
