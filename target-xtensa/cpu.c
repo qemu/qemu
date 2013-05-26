@@ -102,6 +102,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = xtensa_cpu_reset;
 
     cc->do_interrupt = xtensa_cpu_do_interrupt;
+    cc->dump_state = xtensa_cpu_dump_state;
     dc->vmsd = &vmstate_xtensa_cpu;
 }
 

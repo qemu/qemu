@@ -816,6 +816,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = arm_cpu_class_by_name;
     cc->do_interrupt = arm_cpu_do_interrupt;
+    cc->dump_state = arm_cpu_dump_state;
     cpu_class_set_vmsd(cc, &vmstate_arm_cpu);
 }
 

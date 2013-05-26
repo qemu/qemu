@@ -921,9 +921,11 @@ int monitor_get_cpu_index(void)
 
 static void do_info_registers(Monitor *mon, const QDict *qdict)
 {
+    CPUState *cpu;
     CPUArchState *env;
     env = mon_get_cpu();
-    cpu_dump_state(env, (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
+    cpu = ENV_GET_CPU(env);
+    cpu_dump_state(cpu, (FILE *)mon, monitor_fprintf, CPU_DUMP_FPU);
 }
 
 static void do_info_jit(Monitor *mon, const QDict *qdict)
@@ -948,16 +950,15 @@ static void do_info_history(Monitor *mon, const QDict *qdict)
     }
 }
 
-#if defined(TARGET_PPC)
-/* XXX: not implemented in other targets */
 static void do_info_cpu_stats(Monitor *mon, const QDict *qdict)
 {
+    CPUState *cpu;
     CPUArchState *env;
 
     env = mon_get_cpu();
-    cpu_dump_statistics(env, (FILE *)mon, &monitor_fprintf, 0);
+    cpu = ENV_GET_CPU(env);
+    cpu_dump_statistics(cpu, (FILE *)mon, &monitor_fprintf, 0);
 }
-#endif
 
 static void do_trace_print_events(Monitor *mon, const QDict *qdict)
 {
@@ -2678,7 +2679,6 @@ static mon_cmd_t info_cmds[] = {
         .help       = "show the current VM UUID",
         .mhandler.cmd = hmp_info_uuid,
     },
-#if defined(TARGET_PPC)
     {
         .name       = "cpustats",
         .args_type  = "",
@@ -2686,7 +2686,6 @@ static mon_cmd_t info_cmds[] = {
         .help       = "show CPU statistics",
         .mhandler.cmd = do_info_cpu_stats,
     },
-#endif
 #if defined(CONFIG_SLIRP)
     {
         .name       = "usernet",

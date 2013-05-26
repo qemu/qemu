@@ -368,7 +368,9 @@ void HELPER(wsr_lend)(CPUXtensaState *env, uint32_t v)
 
 void HELPER(dump_state)(CPUXtensaState *env)
 {
-    cpu_dump_state(env, stderr, fprintf, 0);
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+
+    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
 }
 
 void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)

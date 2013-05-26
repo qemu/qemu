@@ -86,9 +86,11 @@ static uint64_t pc_to_link_info(DisasContext *s, uint64_t pc)
     return pc;
 }
 
-void cpu_dump_state(CPUS390XState *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags)
+void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     int i;
 
     if (env->cc_op > 3) {

@@ -265,6 +265,7 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = alpha_cpu_class_by_name;
     cc->do_interrupt = alpha_cpu_do_interrupt;
+    cc->dump_state = alpha_cpu_dump_state;
     device_class_set_vmsd(dc, &vmstate_alpha_cpu);
 }
 

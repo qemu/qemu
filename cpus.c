@@ -397,7 +397,7 @@ void hw_error(const char *fmt, ...)
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         cpu = ENV_GET_CPU(env);
         fprintf(stderr, "CPU #%d:\n", cpu->cpu_index);
-        cpu_dump_state(env, stderr, fprintf, CPU_DUMP_FPU);
+        cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_FPU);
     }
     va_end(ap);
     abort();

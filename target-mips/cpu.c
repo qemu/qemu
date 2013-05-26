@@ -80,6 +80,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->reset = mips_cpu_reset;
 
     cc->do_interrupt = mips_cpu_do_interrupt;
+    cc->dump_state = mips_cpu_dump_state;
 }
 
 static const TypeInfo mips_cpu_type_info = {

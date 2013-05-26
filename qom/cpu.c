@@ -18,8 +18,8 @@
  * <http://www.gnu.org/licenses/gpl-2.0.html>
  */
 
-#include "qom/cpu.h"
 #include "qemu-common.h"
+#include "qom/cpu.h"
 #include "sysemu/kvm.h"
 #include "qemu/notify.h"
 #include "sysemu/sysemu.h"
@@ -155,6 +155,26 @@ static int cpu_common_write_elf64_note(WriteCoreDumpFunction f,
     return -1;
 }
 
+
+void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                    int flags)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->dump_state) {
+        cc->dump_state(cpu, f, cpu_fprintf, flags);
+    }
+}
+
+void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->dump_statistics) {
+        cc->dump_statistics(cpu, f, cpu_fprintf, flags);
+    }
+}
 
 void cpu_reset(CPUState *cpu)
 {

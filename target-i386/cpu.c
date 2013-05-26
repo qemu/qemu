@@ -2526,6 +2526,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->reset = x86_cpu_reset;
 
     cc->do_interrupt = x86_cpu_do_interrupt;
+    cc->dump_state = x86_cpu_dump_state;
     cc->get_arch_id = x86_cpu_get_arch_id;
     cc->get_paging_enabled = x86_cpu_get_paging_enabled;
 #ifndef CONFIG_USER_ONLY

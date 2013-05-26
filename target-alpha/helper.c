@@ -464,8 +464,8 @@ void alpha_cpu_do_interrupt(CPUState *cs)
 #endif /* !USER_ONLY */
 }
 
-void cpu_dump_state (CPUAlphaState *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void alpha_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                          int flags)
 {
     static const char *linux_reg_names[] = {
         "v0 ", "t0 ", "t1 ", "t2 ", "t3 ", "t4 ", "t5 ", "t6 ",
@@ -473,6 +473,8 @@ void cpu_dump_state (CPUAlphaState *env, FILE *f, fprintf_function cpu_fprintf,
         "a0 ", "a1 ", "a2 ", "a3 ", "a4 ", "a5 ", "t8 ", "t9 ",
         "t10", "t11", "ra ", "t12", "at ", "gp ", "sp ", "zero",
     };
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+    CPUAlphaState *env = &cpu->env;
     int i;
 
     cpu_fprintf(f, "     PC  " TARGET_FMT_lx "      PS  %02x\n",

@@ -660,9 +660,11 @@ static void cpu_print_cc(FILE *f, fprintf_function cpu_fprintf,
 #define REGS_PER_LINE 8
 #endif
 
-void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags)
+void sparc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                          int flags)
 {
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
     int i, x;
 
     cpu_fprintf(f, "pc: " TARGET_FMT_lx "  npc: " TARGET_FMT_lx "\n", env->pc,
@@ -771,6 +773,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = sparc_cpu_reset;
 
     cc->do_interrupt = sparc_cpu_do_interrupt;
+    cc->dump_state = sparc_cpu_dump_state;
 }
 
 static const TypeInfo sparc_cpu_type_info = {

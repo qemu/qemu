@@ -3104,9 +3104,11 @@ void gen_intermediate_code_pc(CPUM68KState *env, TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_dump_state(CPUM68KState *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags)
+void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
     int i;
     uint16_t sr;
     CPU_DoubleU u;

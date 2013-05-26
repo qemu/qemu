@@ -3014,9 +3014,11 @@ void gen_intermediate_code_pc(CPUXtensaState *env, TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_dump_state(CPUXtensaState *env, FILE *f, fprintf_function cpu_fprintf,
-        int flags)
+void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
+                           fprintf_function cpu_fprintf, int flags)
 {
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
     int i, j;
 
     cpu_fprintf(f, "PC=%08x\n\n", env->pc);

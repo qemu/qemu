@@ -97,8 +97,9 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = moxie_cpu_class_by_name;
 
-    cpu_class_set_vmsd(cc, &vmstate_moxie_cpu);
     cc->do_interrupt = moxie_cpu_do_interrupt;
+    cc->dump_state = moxie_cpu_dump_state;
+    cpu_class_set_vmsd(cc, &vmstate_moxie_cpu);
 }
 
 static void moxielite_initfn(Object *obj)

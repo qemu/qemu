@@ -48,6 +48,8 @@ typedef struct CPUState CPUState;
  * instantiatable CPU type.
  * @reset: Callback to reset the #CPUState to its initial state.
  * @do_interrupt: Callback for interrupt handling.
+ * @dump_state: Callback for dumping state.
+ * @dump_statistics: Callback for dumping statistics.
  * @get_arch_id: Callback for getting architecture-dependent CPU ID.
  * @get_paging_enabled: Callback for inquiring whether paging is enabled.
  * @get_memory_mapping: Callback for obtaining the memory mappings.
@@ -64,6 +66,10 @@ typedef struct CPUClass {
 
     void (*reset)(CPUState *cpu);
     void (*do_interrupt)(CPUState *cpu);
+    void (*dump_state)(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                       int flags);
+    void (*dump_statistics)(CPUState *cpu, FILE *f,
+                            fprintf_function cpu_fprintf, int flags);
     int64_t (*get_arch_id)(CPUState *cpu);
     bool (*get_paging_enabled)(const CPUState *cpu);
     void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
@@ -199,6 +205,42 @@ int cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
  */
 int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                              void *opaque);
+
+/**
+ * CPUDumpFlags:
+ * @CPU_DUMP_CODE:
+ * @CPU_DUMP_FPU: dump FPU register state, not just integer
+ * @CPU_DUMP_CCOP: dump info about TCG QEMU's condition code optimization state
+ */
+enum CPUDumpFlags {
+    CPU_DUMP_CODE = 0x00010000,
+    CPU_DUMP_FPU  = 0x00020000,
+    CPU_DUMP_CCOP = 0x00040000,
+};
+
+/**
+ * cpu_dump_state:
+ * @cpu: The CPU whose state is to be dumped.
+ * @f: File to dump to.
+ * @cpu_fprintf: Function to dump with.
+ * @flags: Flags what to dump.
+ *
+ * Dumps CPU state.
+ */
+void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                    int flags);
+
+/**
+ * cpu_dump_statistics:
+ * @cpu: The CPU whose state is to be dumped.
+ * @f: File to dump to.
+ * @cpu_fprintf: Function to dump with.
+ * @flags: Flags what to dump.
+ *
+ * Dumps CPU statistics.
+ */
+void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                         int flags);
 
 /**
  * cpu_reset:

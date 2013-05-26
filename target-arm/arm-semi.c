@@ -178,6 +178,7 @@ static void arm_semi_flen_cb(CPUARMState *env, target_ulong ret, target_ulong er
 #define SET_ARG(n, val) put_user_ual(val, args + (n) * 4)
 uint32_t do_arm_semihosting(CPUARMState *env)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
     target_ulong args;
     target_ulong arg0, arg1, arg2, arg3;
     char * s;
@@ -549,7 +550,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         exit(0);
     default:
         fprintf(stderr, "qemu: Unsupported SemiHosting SWI 0x%02x\n", nr);
-        cpu_dump_state(env, stderr, fprintf, 0);
+        cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
         abort();
     }
 }

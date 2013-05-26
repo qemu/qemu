@@ -252,6 +252,7 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = cris_cpu_class_by_name;
     cc->do_interrupt = cris_cpu_do_interrupt;
+    cc->dump_state = cris_cpu_dump_state;
 }
 
 static const TypeInfo cris_cpu_type_info = {

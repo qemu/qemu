@@ -1949,9 +1949,11 @@ void gen_intermediate_code_pc (CPUMBState *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_dump_state (CPUMBState *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void mb_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                       int flags)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
     int i;
 
     if (!env || !f)
