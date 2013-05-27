@@ -118,10 +118,11 @@ TimersState timers_state;
 int64_t cpu_get_icount(void)
 {
     int64_t icount;
-    CPUArchState *env = cpu_single_env;
+    CPUState *cpu = current_cpu;
 
     icount = qemu_icount;
-    if (env) {
+    if (cpu) {
+        CPUArchState *env = cpu->env_ptr;
         if (!can_do_io(env)) {
             fprintf(stderr, "Bad clock read\n");
         }
@@ -468,8 +469,8 @@ static void cpu_handle_guest_debug(CPUState *cpu)
 
 static void cpu_signal(int sig)
 {
-    if (cpu_single_env) {
-        cpu_exit(ENV_GET_CPU(cpu_single_env));
+    if (current_cpu) {
+        cpu_exit(current_cpu);
     }
     exit_request = 1;
 }
@@ -660,10 +661,10 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
 
     qemu_cpu_kick(cpu);
     while (!wi.done) {
-        CPUArchState *self_env = cpu_single_env;
+        CPUState *self_cpu = current_cpu;
 
         qemu_cond_wait(&qemu_work_cond, &qemu_global_mutex);
-        cpu_single_env = self_env;
+        current_cpu = self_cpu;
     }
 }
 
@@ -733,7 +734,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_get_self(cpu->thread);
     cpu->thread_id = qemu_get_thread_id();
-    cpu_single_env = cpu->env_ptr;
+    current_cpu = cpu;
 
     r = kvm_init_vcpu(cpu);
     if (r < 0) {
@@ -781,9 +782,9 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
     cpu->created = true;
     qemu_cond_signal(&qemu_cpu_cond);
 
-    cpu_single_env = cpu->env_ptr;
+    current_cpu = cpu;
     while (1) {
-        cpu_single_env = NULL;
+        current_cpu = NULL;
         qemu_mutex_unlock_iothread();
         do {
             int sig;
@@ -794,7 +795,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
             exit(1);
         }
         qemu_mutex_lock_iothread();
-        cpu_single_env = cpu->env_ptr;
+        current_cpu = cpu;
         qemu_wait_io_event_common(cpu);
     }
 
@@ -894,12 +895,11 @@ void qemu_cpu_kick(CPUState *cpu)
 void qemu_cpu_kick_self(void)
 {
 #ifndef _WIN32
-    assert(cpu_single_env);
-    CPUState *cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
+    assert(current_cpu);
 
-    if (!cpu_single_cpu->thread_kicked) {
-        qemu_cpu_kick_thread(cpu_single_cpu);
-        cpu_single_cpu->thread_kicked = true;
+    if (!current_cpu->thread_kicked) {
+        qemu_cpu_kick_thread(current_cpu);
+        current_cpu->thread_kicked = true;
     }
 #else
     abort();
@@ -913,7 +913,7 @@ bool qemu_cpu_is_self(CPUState *cpu)
 
 static bool qemu_in_vcpu_thread(void)
 {
-    return cpu_single_env && qemu_cpu_is_self(ENV_GET_CPU(cpu_single_env));
+    return current_cpu && qemu_cpu_is_self(current_cpu);
 }
 
 void qemu_mutex_lock_iothread(void)
@@ -1069,11 +1069,10 @@ void qemu_init_vcpu(CPUState *cpu)
 
 void cpu_stop_current(void)
 {
-    if (cpu_single_env) {
-        CPUState *cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
-        cpu_single_cpu->stop = false;
-        cpu_single_cpu->stopped = true;
-        cpu_exit(cpu_single_cpu);
+    if (current_cpu) {
+        current_cpu->stop = false;
+        current_cpu->stopped = true;
+        cpu_exit(current_cpu);
         qemu_cond_signal(&qemu_pause_cond);
     }
 }

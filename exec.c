@@ -72,7 +72,7 @@ static MemoryRegion io_mem_unassigned;
 CPUArchState *first_cpu;
 /* current CPU in the current thread. It is only valid inside
    cpu_exec() */
-DEFINE_TLS(CPUArchState *,cpu_single_env);
+DEFINE_TLS(CPUState *, current_cpu);
 /* 0 = Do not count executed instructions.
    1 = Precise instruction counting.
    2 = Adaptive rate instruction counting.  */
@@ -1472,8 +1472,10 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     cpu_physical_memory_set_dirty_flags(ram_addr, dirty_flags);
     /* we remove the notdirty callback only if the code has been
        flushed */
-    if (dirty_flags == 0xff)
-        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_io_vaddr);
+    if (dirty_flags == 0xff) {
+        CPUArchState *env = current_cpu->env_ptr;
+        tlb_set_dirty(env, env->mem_io_vaddr);
+    }
 }
 
 static bool notdirty_mem_accepts(void *opaque, hwaddr addr,
@@ -1491,7 +1493,7 @@ static const MemoryRegionOps notdirty_mem_ops = {
 /* Generate a debug exception if a watchpoint has been hit.  */
 static void check_watchpoint(int offset, int len_mask, int flags)
 {
-    CPUArchState *env = cpu_single_env;
+    CPUArchState *env = current_cpu->env_ptr;
     target_ulong pc, cs_base;
     target_ulong vaddr;
     CPUWatchpoint *wp;
@@ -1930,7 +1932,7 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
         if (is_write) {
             if (!memory_access_is_direct(mr, is_write)) {
                 l = memory_access_size(mr, l, addr1);
-                /* XXX: could force cpu_single_env to NULL to avoid
+                /* XXX: could force current_cpu to NULL to avoid
                    potential bugs */
                 if (l == 4) {
                     /* 32 bit write access */

@@ -24,6 +24,7 @@
 #include "hw/qdev-core.h"
 #include "exec/hwaddr.h"
 #include "qemu/thread.h"
+#include "qemu/tls.h"
 #include "qemu/typedefs.h"
 
 typedef int (*WriteCoreDumpFunction)(void *buf, size_t size, void *opaque);
@@ -155,6 +156,9 @@ struct CPUState {
     int cpu_index; /* used by alpha TCG */
     uint32_t halted; /* used by alpha, cris, ppc TCG */
 };
+
+DECLARE_TLS(CPUState *, current_cpu);
+#define current_cpu tls_var(current_cpu)
 
 /**
  * cpu_paging_enabled:

@@ -62,11 +62,13 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     VMPortState *s = opaque;
-    CPUX86State *env = cpu_single_env;
+    CPUState *cs = current_cpu;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     unsigned char command;
     uint32_t eax;
 
-    cpu_synchronize_state(CPU(x86_env_get_cpu(env)));
+    cpu_synchronize_state(cs);
 
     eax = env->regs[R_EAX];
     if (eax != VMPORT_MAGIC)
@@ -89,29 +91,32 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
 static void vmport_ioport_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    CPUX86State *env = cpu_single_env;
+    X86CPU *cpu = X86_CPU(current_cpu);
 
-    env->regs[R_EAX] = vmport_ioport_read(opaque, addr, 4);
+    cpu->env.regs[R_EAX] = vmport_ioport_read(opaque, addr, 4);
 }
 
 static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
 {
-    CPUX86State *env = cpu_single_env;
-    env->regs[R_EBX] = VMPORT_MAGIC;
+    X86CPU *cpu = X86_CPU(current_cpu);
+
+    cpu->env.regs[R_EBX] = VMPORT_MAGIC;
     return 6;
 }
 
 static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 {
-    CPUX86State *env = cpu_single_env;
-    env->regs[R_EBX] = 0x1177;
+    X86CPU *cpu = X86_CPU(current_cpu);
+
+    cpu->env.regs[R_EBX] = 0x1177;
     return ram_size;
 }
 
 /* vmmouse helpers */
 void vmmouse_get_data(uint32_t *data)
 {
-    CPUX86State *env = cpu_single_env;
+    X86CPU *cpu = X86_CPU(current_cpu);
+    CPUX86State *env = &cpu->env;
 
     data[0] = env->regs[R_EAX]; data[1] = env->regs[R_EBX];
     data[2] = env->regs[R_ECX]; data[3] = env->regs[R_EDX];
@@ -120,7 +125,8 @@ void vmmouse_get_data(uint32_t *data)
 
 void vmmouse_set_data(const uint32_t *data)
 {
-    CPUX86State *env = cpu_single_env;
+    X86CPU *cpu = X86_CPU(current_cpu);
+    CPUX86State *env = &cpu->env;
 
     env->regs[R_EAX] = data[0]; env->regs[R_EBX] = data[1];
     env->regs[R_ECX] = data[2]; env->regs[R_EDX] = data[3];

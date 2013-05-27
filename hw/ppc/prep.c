@@ -417,10 +417,10 @@ static const MemoryRegionOps PPC_prep_io_ops = {
 
 static void cpu_request_exit(void *opaque, int irq, int level)
 {
-    CPUPPCState *env = cpu_single_env;
+    CPUState *cpu = current_cpu;
 
-    if (env && level) {
-        cpu_exit(CPU(ppc_env_get_cpu(env)));
+    if (cpu && level) {
+        cpu_exit(cpu);
     }
 }
 

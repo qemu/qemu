@@ -886,8 +886,9 @@ void pc_init_ne2k_isa(ISABus *bus, NICInfo *nd)
 
 DeviceState *cpu_get_current_apic(void)
 {
-    if (cpu_single_env) {
-        return cpu_single_env->apic_state;
+    if (current_cpu) {
+        X86CPU *cpu = X86_CPU(current_cpu);
+        return cpu->env.apic_state;
     } else {
         return NULL;
     }
@@ -1176,10 +1177,10 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
 
 static void cpu_request_exit(void *opaque, int irq, int level)
 {
-    CPUX86State *env = cpu_single_env;
+    CPUState *cpu = current_cpu;
 
-    if (env && level) {
-        cpu_exit(CPU(x86_env_get_cpu(env)));
+    if (cpu && level) {
+        cpu_exit(cpu);
     }
 }
 

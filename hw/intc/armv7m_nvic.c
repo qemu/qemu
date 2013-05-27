@@ -140,6 +140,7 @@ void armv7m_nvic_complete_irq(void *opaque, int irq)
 
 static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
 {
+    ARMCPU *cpu;
     uint32_t val;
     int irq;
 
@@ -171,7 +172,8 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
     case 0x1c: /* SysTick Calibration Value.  */
         return 10000;
     case 0xd00: /* CPUID Base.  */
-        return cpu_single_env->cp15.c0_cpuid;
+        cpu = ARM_CPU(current_cpu);
+        return cpu->env.cp15.c0_cpuid;
     case 0xd04: /* Interrupt Control State.  */
         /* VECTACTIVE */
         val = s->gic.running_irq[0];
@@ -206,7 +208,8 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
             val |= (1 << 31);
         return val;
     case 0xd08: /* Vector Table Offset.  */
-        return cpu_single_env->v7m.vecbase;
+        cpu = ARM_CPU(current_cpu);
+        return cpu->env.v7m.vecbase;
     case 0xd0c: /* Application Interrupt/Reset Control.  */
         return 0xfa05000;
     case 0xd10: /* System Control.  */
@@ -279,6 +282,7 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
 
 static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
 {
+    ARMCPU *cpu;
     uint32_t oldval;
     switch (offset) {
     case 0x10: /* SysTick Control and Status.  */
@@ -331,7 +335,8 @@ static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
         }
         break;
     case 0xd08: /* Vector Table Offset.  */
-        cpu_single_env->v7m.vecbase = value & 0xffffff80;
+        cpu = ARM_CPU(current_cpu);
+        cpu->env.v7m.vecbase = value & 0xffffff80;
         break;
     case 0xd0c: /* Application Interrupt/Reset Control.  */
         if ((value >> 16) == 0x05fa) {
