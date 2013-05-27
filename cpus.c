@@ -459,10 +459,8 @@ static bool cpu_can_run(CPUState *cpu)
     return true;
 }
 
-static void cpu_handle_guest_debug(CPUArchState *env)
+static void cpu_handle_guest_debug(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     gdb_set_stop_cpu(cpu);
     qemu_system_debug_request();
     cpu->stopped = true;
@@ -754,7 +752,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
         if (cpu_can_run(cpu)) {
             r = kvm_cpu_exec(cpu);
             if (r == EXCP_DEBUG) {
-                cpu_handle_guest_debug(env);
+                cpu_handle_guest_debug(cpu);
             }
         }
         qemu_kvm_wait_io_event(cpu);
@@ -1172,7 +1170,7 @@ static void tcg_exec_all(void)
         if (cpu_can_run(cpu)) {
             r = tcg_cpu_exec(env);
             if (r == EXCP_DEBUG) {
-                cpu_handle_guest_debug(env);
+                cpu_handle_guest_debug(cpu);
                 break;
             }
         } else if (cpu->stop || cpu->stopped) {
