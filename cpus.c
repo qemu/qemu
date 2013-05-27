@@ -766,8 +766,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
     fprintf(stderr, "qtest is not supported under Windows\n");
     exit(1);
 #else
-    CPUArchState *env = arg;
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = arg;
     sigset_t waitset;
     int r;
 
@@ -782,7 +781,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
     cpu->created = true;
     qemu_cond_signal(&qemu_cpu_cond);
 
-    cpu_single_env = env;
+    cpu_single_env = cpu->env_ptr;
     while (1) {
         cpu_single_env = NULL;
         qemu_mutex_unlock_iothread();
@@ -795,7 +794,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
             exit(1);
         }
         qemu_mutex_lock_iothread();
-        cpu_single_env = env;
+        cpu_single_env = cpu->env_ptr;
         qemu_wait_io_event_common(cpu);
     }
 
@@ -1042,14 +1041,12 @@ static void qemu_kvm_start_vcpu(CPUState *cpu)
     }
 }
 
-static void qemu_dummy_start_vcpu(CPUArchState *env)
+static void qemu_dummy_start_vcpu(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     cpu->thread = g_malloc0(sizeof(QemuThread));
     cpu->halt_cond = g_malloc0(sizeof(QemuCond));
     qemu_cond_init(cpu->halt_cond);
-    qemu_thread_create(cpu->thread, qemu_dummy_cpu_thread_fn, env,
+    qemu_thread_create(cpu->thread, qemu_dummy_cpu_thread_fn, cpu,
                        QEMU_THREAD_JOINABLE);
     while (!cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
@@ -1069,7 +1066,7 @@ void qemu_init_vcpu(void *_env)
     } else if (tcg_enabled()) {
         qemu_tcg_init_vcpu(cpu);
     } else {
-        qemu_dummy_start_vcpu(env);
+        qemu_dummy_start_vcpu(cpu);
     }
 }
 
