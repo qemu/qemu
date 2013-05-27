@@ -672,7 +672,7 @@ static x86_def_t builtin_x86_defs[] = {
         .level = 2,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 6,
-        .model = 2,
+        .model = 15,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
@@ -694,7 +694,7 @@ static x86_def_t builtin_x86_defs[] = {
         .level = 2,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 6,
-        .model = 2,
+        .model = 23,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
@@ -717,7 +717,7 @@ static x86_def_t builtin_x86_defs[] = {
         .level = 2,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 6,
-        .model = 2,
+        .model = 26,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |

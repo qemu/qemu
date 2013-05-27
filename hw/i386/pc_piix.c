@@ -344,6 +344,10 @@ static QEMUMachine pc_i440fx_machine_v1_5 = {
     .init = pc_init_pci,
     .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_5,
+        { /* end of list */ }
+    },
     DEFAULT_MACHINE_OPTIONS,
 };
 

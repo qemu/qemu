@@ -231,6 +231,10 @@ static QEMUMachine pc_q35_machine_v1_5 = {
     .init = pc_q35_init,
     .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_5,
+        { /* end of list */ }
+    },
     DEFAULT_MACHINE_OPTIONS,
 };
 
