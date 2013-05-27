@@ -95,7 +95,7 @@ int kvm_remove_breakpoint(CPUArchState *env, target_ulong addr,
     return -EINVAL;
 }
 
-void kvm_remove_all_breakpoints(CPUArchState *env)
+void kvm_remove_all_breakpoints(CPUState *cpu)
 {
 }
 

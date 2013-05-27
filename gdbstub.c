@@ -2019,7 +2019,7 @@ static void gdb_breakpoint_remove_all(void)
     CPUArchState *env;
 
     if (kvm_enabled()) {
-        kvm_remove_all_breakpoints(gdbserver_state->c_cpu);
+        kvm_remove_all_breakpoints(ENV_GET_CPU(gdbserver_state->c_cpu));
         return;
     }
 
