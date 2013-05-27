@@ -4,3 +4,7 @@
 void cpu_resume(CPUState *cpu)
 {
 }
+
+void qemu_init_vcpu(CPUState *cpu)
+{
+}

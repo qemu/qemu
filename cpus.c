@@ -1053,11 +1053,8 @@ static void qemu_dummy_start_vcpu(CPUState *cpu)
     }
 }
 
-void qemu_init_vcpu(void *_env)
+void qemu_init_vcpu(CPUState *cpu)
 {
-    CPUArchState *env = _env;
-    CPUState *cpu = ENV_GET_CPU(env);
-
     cpu->nr_cores = smp_cores;
     cpu->nr_threads = smp_threads;
     cpu->stopped = true;

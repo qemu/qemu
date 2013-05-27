@@ -730,10 +730,7 @@ void sparc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 
 static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    SPARCCPU *cpu = SPARC_CPU(dev);
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(dev);
-
-    qemu_init_vcpu(&cpu->env);
 
     scc->parent_realize(dev, errp);
 }

@@ -295,14 +295,6 @@ struct qemu_work_item {
     int done;
 };
 
-#ifdef CONFIG_USER_ONLY
-static inline void qemu_init_vcpu(void *env)
-{
-}
-#else
-void qemu_init_vcpu(void *env);
-#endif
-
 
 /**
  * Sends a (part of) iovec down a socket, yielding when the socket is full, or

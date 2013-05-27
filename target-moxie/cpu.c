@@ -44,12 +44,11 @@ static void moxie_cpu_reset(CPUState *s)
 static void moxie_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     MoxieCPU *cpu = MOXIE_CPU(dev);
-    MoxieCPUClass *occ = MOXIE_CPU_GET_CLASS(dev);
+    MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(dev);
 
-    qemu_init_vcpu(&cpu->env);
     cpu_reset(CPU(cpu));
 
-    occ->parent_realize(dev, errp);
+    mcc->parent_realize(dev, errp);
 }
 
 static void moxie_cpu_initfn(Object *obj)

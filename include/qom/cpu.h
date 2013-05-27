@@ -428,6 +428,14 @@ void cpu_exit(CPUState *cpu);
  */
 void cpu_resume(CPUState *cpu);
 
+/**
+ * qemu_init_vcpu:
+ * @cpu: The vCPU to initialize.
+ *
+ * Initializes a vCPU.
+ */
+void qemu_init_vcpu(CPUState *cpu);
+
 #ifdef CONFIG_SOFTMMU
 extern const struct VMStateDescription vmstate_cpu_common;
 #else

@@ -83,10 +83,7 @@ static const UniCore32CPUInfo uc32_cpus[] = {
 
 static void uc32_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    UniCore32CPU *cpu = UNICORE32_CPU(dev);
     UniCore32CPUClass *ucc = UNICORE32_CPU_GET_CLASS(dev);
-
-    qemu_init_vcpu(&cpu->env);
 
     ucc->parent_realize(dev, errp);
 }

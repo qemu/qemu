@@ -139,7 +139,6 @@ static void cris_cpu_realizefn(DeviceState *dev, Error **errp)
     CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(dev);
 
     cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
 
     ccc->parent_realize(dev, errp);
 }

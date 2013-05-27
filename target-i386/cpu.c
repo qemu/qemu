@@ -2392,7 +2392,6 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     mce_init(cpu);
-    qemu_init_vcpu(&cpu->env);
 
     x86_cpu_apic_realize(cpu, &local_err);
     if (local_err != NULL) {

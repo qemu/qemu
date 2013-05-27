@@ -59,10 +59,7 @@ static void xtensa_cpu_reset(CPUState *s)
 
 static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    XtensaCPU *cpu = XTENSA_CPU(dev);
     XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(dev);
-
-    qemu_init_vcpu(&cpu->env);
 
     xcc->parent_realize(dev, errp);
 }

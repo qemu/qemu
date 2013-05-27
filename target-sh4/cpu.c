@@ -234,7 +234,6 @@ static void superh_cpu_realizefn(DeviceState *dev, Error **errp)
     SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(dev);
 
     cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
 
     scc->parent_realize(dev, errp);
 }

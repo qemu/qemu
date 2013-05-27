@@ -26,10 +26,7 @@
 
 static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    AlphaCPU *cpu = ALPHA_CPU(dev);
     AlphaCPUClass *acc = ALPHA_CPU_GET_CLASS(dev);
-
-    qemu_init_vcpu(&cpu->env);
 
     acc->parent_realize(dev, errp);
 }

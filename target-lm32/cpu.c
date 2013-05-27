@@ -49,8 +49,6 @@ static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)
 
     cpu_reset(CPU(cpu));
 
-    qemu_init_vcpu(&cpu->env);
-
     lcc->parent_realize(dev, errp);
 }
 
