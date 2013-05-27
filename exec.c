@@ -835,21 +835,10 @@ static void register_multipage(AddressSpaceDispatch *d, MemoryRegionSection *sec
                   section_index);
 }
 
-QEMU_BUILD_BUG_ON(TARGET_PHYS_ADDR_SPACE_BITS > MAX_PHYS_ADDR_SPACE_BITS)
-
-static MemoryRegionSection limit(MemoryRegionSection section)
-{
-    section.size = MIN(section.offset_within_address_space + section.size,
-                       MAX_PHYS_ADDR + 1)
-                   - section.offset_within_address_space;
-
-    return section;
-}
-
 static void mem_add(MemoryListener *listener, MemoryRegionSection *section)
 {
     AddressSpaceDispatch *d = container_of(listener, AddressSpaceDispatch, listener);
-    MemoryRegionSection now = limit(*section), remain = limit(*section);
+    MemoryRegionSection now = *section, remain = *section;
 
     if ((now.offset_within_address_space & ~TARGET_PAGE_MASK)
         || (now.size < TARGET_PAGE_SIZE)) {
