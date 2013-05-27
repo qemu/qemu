@@ -295,7 +295,10 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
 
 typedef struct TestStructList
 {
-    TestStruct *value;
+    union {
+        TestStruct *value;
+        uint64_t padding;
+    };
     struct TestStructList *next;
 } TestStructList;
 
