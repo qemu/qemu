@@ -2488,7 +2488,9 @@ fi
 # fdt probe
 if test "$fdt" != "no" ; then
   fdt_libs="-lfdt"
+  # explicitly check for libfdt_env.h as it is missing in some stable installs
   cat > $TMPC << EOF
+#include <libfdt_env.h>
 int main(void) { return 0; }
 EOF
   if compile_prog "" "$fdt_libs" ; then
