@@ -20,8 +20,6 @@ struct ex_list {
 char *strdup(const char *);
 #endif
 
-void do_wait(int);
-
 #define EMU_NONE 0x0
 
 /* TCP emulations */
@@ -51,21 +49,9 @@ struct emu_t {
     struct emu_t *next;
 };
 
-extern int x_port, x_server, x_display;
-
-int show_x(char *, struct socket *);
-void redir_x(uint32_t, int, int, int);
 void slirp_insque(void *, void *);
 void slirp_remque(void *);
 int add_exec(struct ex_list **, int, char *, struct in_addr, int);
-int slirp_openpty(int *, int *);
 int fork_exec(struct socket *so, const char *ex, int do_pty);
-void snooze_hup(int);
-void snooze(void);
-void relay(int);
-void add_emu(char *);
-void fd_nonblock(int);
-void fd_block(int);
-int rsh_exec(struct socket *, struct socket *, char *, char *, char *);
 
 #endif
