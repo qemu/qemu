@@ -215,9 +215,18 @@ static void pc_q35_init_1_4(QEMUMachineInitArgs *args)
     pc_q35_init(args);
 }
 
+static QEMUMachine pc_q35_machine_v1_6 = {
+    .name = "pc-q35-1.6",
+    .alias = "q35",
+    .desc = "Standard PC (Q35 + ICH9, 2009)",
+    .init = pc_q35_init,
+    .hot_add_cpu = pc_hot_add_cpu,
+    .max_cpus = 255,
+    DEFAULT_MACHINE_OPTIONS,
+};
+
 static QEMUMachine pc_q35_machine_v1_5 = {
     .name = "pc-q35-1.5",
-    .alias = "q35",
     .desc = "Standard PC (Q35 + ICH9, 2009)",
     .init = pc_q35_init,
     .hot_add_cpu = pc_hot_add_cpu,
@@ -239,6 +248,7 @@ static QEMUMachine pc_q35_machine_v1_4 = {
 
 static void pc_q35_machine_init(void)
 {
+    qemu_register_machine(&pc_q35_machine_v1_6);
     qemu_register_machine(&pc_q35_machine_v1_5);
     qemu_register_machine(&pc_q35_machine_v1_4);
 }
