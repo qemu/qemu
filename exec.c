@@ -824,15 +824,11 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
 static void register_multipage(AddressSpaceDispatch *d, MemoryRegionSection *section)
 {
     hwaddr start_addr = section->offset_within_address_space;
-    ram_addr_t size = section->size;
-    hwaddr addr;
     uint16_t section_index = phys_section_add(section);
+    uint64_t num_pages = section->size >> TARGET_PAGE_BITS;
 
-    assert(size);
-
-    addr = start_addr;
-    phys_page_set(d, addr >> TARGET_PAGE_BITS, size >> TARGET_PAGE_BITS,
-                  section_index);
+    assert(num_pages);
+    phys_page_set(d, start_addr >> TARGET_PAGE_BITS, num_pages, section_index);
 }
 
 static void mem_add(MemoryListener *listener, MemoryRegionSection *section)
@@ -840,32 +836,29 @@ static void mem_add(MemoryListener *listener, MemoryRegionSection *section)
     AddressSpaceDispatch *d = container_of(listener, AddressSpaceDispatch, listener);
     MemoryRegionSection now = *section, remain = *section;
 
-    if ((now.offset_within_address_space & ~TARGET_PAGE_MASK)
-        || (now.size < TARGET_PAGE_SIZE)) {
-        now.size = MIN(TARGET_PAGE_ALIGN(now.offset_within_address_space)
-                       - now.offset_within_address_space,
-                       now.size);
+    if (now.offset_within_address_space & ~TARGET_PAGE_MASK) {
+        uint64_t left = TARGET_PAGE_ALIGN(now.offset_within_address_space)
+                       - now.offset_within_address_space;
+
+        now.size = MIN(left, now.size);
         register_subpage(d, &now);
+    } else {
+        now.size = 0;
+    }
+    while (remain.size != now.size) {
         remain.size -= now.size;
         remain.offset_within_address_space += now.size;
         remain.offset_within_region += now.size;
-    }
-    while (remain.size >= TARGET_PAGE_SIZE) {
         now = remain;
-        if (remain.offset_within_region & ~TARGET_PAGE_MASK) {
+        if (remain.size < TARGET_PAGE_SIZE) {
+            register_subpage(d, &now);
+        } else if (remain.offset_within_region & ~TARGET_PAGE_MASK) {
             now.size = TARGET_PAGE_SIZE;
             register_subpage(d, &now);
         } else {
-            now.size &= TARGET_PAGE_MASK;
+            now.size &= -TARGET_PAGE_SIZE;
             register_multipage(d, &now);
         }
-        remain.size -= now.size;
-        remain.offset_within_address_space += now.size;
-        remain.offset_within_region += now.size;
-    }
-    now = remain;
-    if (now.size) {
-        register_subpage(d, &now);
     }
 }
 
