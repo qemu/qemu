@@ -98,7 +98,7 @@ static void pc_init1(MemoryRegion *system_memory,
     pc_cpus_init(cpu_model, icc_bridge);
     pc_acpi_init("acpi-dsdt.aml");
 
-    if (kvmclock_enabled) {
+    if (kvm_enabled() && kvmclock_enabled) {
         kvmclock_create();
     }
 
@@ -323,7 +323,7 @@ static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
     if (xen_hvm_init() != 0) {
         hw_error("xen hardware virtual machine initialisation failed");
     }
-    pc_init_pci_no_kvmclock(args);
+    pc_init_pci(args);
 }
 #endif
 
