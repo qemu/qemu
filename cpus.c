@@ -463,7 +463,7 @@ static void cpu_handle_guest_debug(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
 
-    gdb_set_stop_cpu(env);
+    gdb_set_stop_cpu(cpu);
     qemu_system_debug_request();
     cpu->stopped = true;
 }

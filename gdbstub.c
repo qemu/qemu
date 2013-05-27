@@ -2506,8 +2506,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     return RS_IDLE;
 }
 
-void gdb_set_stop_cpu(CPUArchState *env)
+void gdb_set_stop_cpu(CPUState *cpu)
 {
+    CPUArchState *env = cpu->env_ptr;
+
     gdbserver_state->c_cpu = env;
     gdbserver_state->g_cpu = env;
 }
