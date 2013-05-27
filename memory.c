@@ -152,7 +152,7 @@ static bool memory_listener_match(MemoryListener *listener,
         .mr = (fr)->mr,                                                 \
         .address_space = (as),                                          \
         .offset_within_region = (fr)->offset_in_region,                 \
-        .size = int128_get64((fr)->addr.size),                          \
+        .size = (fr)->addr.size,                                        \
         .offset_within_address_space = int128_get64((fr)->addr.start),  \
         .readonly = (fr)->readonly,                                     \
               }))
@@ -634,7 +634,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
             section = (MemoryRegionSection) {
                 .address_space = as,
                 .offset_within_address_space = int128_get64(fd->addr.start),
-                .size = int128_get64(fd->addr.size),
+                .size = fd->addr.size,
             };
             MEMORY_LISTENER_CALL(eventfd_del, Forward, &section,
                                  fd->match_data, fd->data, fd->e);
@@ -647,7 +647,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
             section = (MemoryRegionSection) {
                 .address_space = as,
                 .offset_within_address_space = int128_get64(fd->addr.start),
-                .size = int128_get64(fd->addr.size),
+                .size = fd->addr.size,
             };
             MEMORY_LISTENER_CALL(eventfd_add, Reverse, &section,
                                  fd->match_data, fd->data, fd->e);
@@ -1215,7 +1215,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
             section = (MemoryRegionSection) {
                 .address_space = as,
                 .offset_within_address_space = int128_get64(fr->addr.start),
-                .size = int128_get64(fr->addr.size),
+                .size = fr->addr.size,
             };
 
             MEMORY_LISTENER_CALL(coalesced_mmio_del, Reverse, &section,
@@ -1506,7 +1506,7 @@ static FlatRange *address_space_lookup(AddressSpace *as, AddrRange addr)
 MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size)
 {
-    MemoryRegionSection ret = { .mr = NULL, .size = 0 };
+    MemoryRegionSection ret = { .mr = NULL };
     MemoryRegion *root;
     AddressSpace *as;
     AddrRange range;
@@ -1536,7 +1536,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     ret.offset_within_region = fr->offset_in_region;
     ret.offset_within_region += int128_get64(int128_sub(range.start,
                                                         fr->addr.start));
-    ret.size = int128_get64(range.size);
+    ret.size = range.size;
     ret.offset_within_address_space = int128_get64(range.start);
     ret.readonly = fr->readonly;
     return ret;
@@ -1584,7 +1584,7 @@ static void listener_add_address_space(MemoryListener *listener,
             .mr = fr->mr,
             .address_space = as,
             .offset_within_region = fr->offset_in_region,
-            .size = int128_get64(fr->addr.size),
+            .size = fr->addr.size,
             .offset_within_address_space = int128_get64(fr->addr.start),
             .readonly = fr->readonly,
         };
@@ -1712,7 +1712,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    "-" TARGET_FMT_plx "\n",
                    base + mr->addr,
                    base + mr->addr
-                   + (hwaddr)int128_get64(mr->size) - 1,
+                   + (hwaddr)int128_get64(int128_sub(mr->size, int128_make64(1))),
                    mr->priority,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
@@ -1727,7 +1727,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %c%c): %s\n",
                    base + mr->addr,
                    base + mr->addr
-                   + (hwaddr)int128_get64(mr->size) - 1,
+                   + (hwaddr)int128_get64(int128_sub(mr->size, int128_make64(1))),
                    mr->priority,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'

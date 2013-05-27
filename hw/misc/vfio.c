@@ -1953,7 +1953,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     }
 
     iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
-    end = (section->offset_within_address_space + section->size) &
+    end = (section->offset_within_address_space + int128_get64(section->size)) &
           TARGET_PAGE_MASK;
 
     if (iova >= end) {
@@ -1997,7 +1997,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
     }
 
     iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
-    end = (section->offset_within_address_space + section->size) &
+    end = (section->offset_within_address_space + int128_get64(section->size)) &
           TARGET_PAGE_MASK;
 
     if (iova >= end) {

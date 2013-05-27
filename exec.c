@@ -801,7 +801,7 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
     MemoryRegionSection *existing = phys_page_find(d, base >> TARGET_PAGE_BITS);
     MemoryRegionSection subsection = {
         .offset_within_address_space = base,
-        .size = TARGET_PAGE_SIZE,
+        .size = int128_make64(TARGET_PAGE_SIZE),
     };
     hwaddr start, end;
 
@@ -816,16 +816,18 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
         subpage = container_of(existing->mr, subpage_t, iomem);
     }
     start = section->offset_within_address_space & ~TARGET_PAGE_MASK;
-    end = start + section->size - 1;
+    end = start + int128_get64(section->size) - 1;
     subpage_register(subpage, start, end, phys_section_add(section));
 }
 
 
-static void register_multipage(AddressSpaceDispatch *d, MemoryRegionSection *section)
+static void register_multipage(AddressSpaceDispatch *d,
+                               MemoryRegionSection *section)
 {
     hwaddr start_addr = section->offset_within_address_space;
     uint16_t section_index = phys_section_add(section);
-    uint64_t num_pages = section->size >> TARGET_PAGE_BITS;
+    uint64_t num_pages = int128_get64(int128_rshift(section->size,
+                                                    TARGET_PAGE_BITS));
 
     assert(num_pages);
     phys_page_set(d, start_addr >> TARGET_PAGE_BITS, num_pages, section_index);
@@ -835,28 +837,29 @@ static void mem_add(MemoryListener *listener, MemoryRegionSection *section)
 {
     AddressSpaceDispatch *d = container_of(listener, AddressSpaceDispatch, listener);
     MemoryRegionSection now = *section, remain = *section;
+    Int128 page_size = int128_make64(TARGET_PAGE_SIZE);
 
     if (now.offset_within_address_space & ~TARGET_PAGE_MASK) {
         uint64_t left = TARGET_PAGE_ALIGN(now.offset_within_address_space)
                        - now.offset_within_address_space;
 
-        now.size = MIN(left, now.size);
+        now.size = int128_min(int128_make64(left), now.size);
         register_subpage(d, &now);
     } else {
-        now.size = 0;
+        now.size = int128_zero();
     }
-    while (remain.size != now.size) {
-        remain.size -= now.size;
-        remain.offset_within_address_space += now.size;
-        remain.offset_within_region += now.size;
+    while (int128_ne(remain.size, now.size)) {
+        remain.size = int128_sub(remain.size, now.size);
+        remain.offset_within_address_space += int128_get64(now.size);
+        remain.offset_within_region += int128_get64(now.size);
         now = remain;
-        if (remain.size < TARGET_PAGE_SIZE) {
+        if (int128_lt(remain.size, page_size)) {
             register_subpage(d, &now);
         } else if (remain.offset_within_region & ~TARGET_PAGE_MASK) {
-            now.size = TARGET_PAGE_SIZE;
+            now.size = page_size;
             register_subpage(d, &now);
         } else {
-            now.size &= -TARGET_PAGE_SIZE;
+            now.size = int128_and(now.size, int128_neg(page_size));
             register_multipage(d, &now);
         }
     }
@@ -1666,7 +1669,7 @@ static uint16_t dummy_section(MemoryRegion *mr)
         .mr = mr,
         .offset_within_address_space = 0,
         .offset_within_region = 0,
-        .size = UINT64_MAX,
+        .size = int128_2_64(),
     };
 
     return phys_section_add(&section);
@@ -1735,14 +1738,16 @@ static void io_region_add(MemoryListener *listener,
     mrio->mr = section->mr;
     mrio->offset = section->offset_within_region;
     iorange_init(&mrio->iorange, &memory_region_iorange_ops,
-                 section->offset_within_address_space, section->size);
+                 section->offset_within_address_space,
+                 int128_get64(section->size));
     ioport_register(&mrio->iorange);
 }
 
 static void io_region_del(MemoryListener *listener,
                           MemoryRegionSection *section)
 {
-    isa_unassign_ioport(section->offset_within_address_space, section->size);
+    isa_unassign_ioport(section->offset_within_address_space,
+                        int128_get64(section->size));
 }
 
 static MemoryListener core_memory_listener = {

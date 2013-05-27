@@ -1133,7 +1133,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     DPRINT_TRACE("Window %u framebuffer changed: address=0x%08x, len=0x%x\n",
             win, fb_start_addr, w->fb_len);
 
-    if (w->mem_section.size != w->fb_len ||
+    if (int128_get64(w->mem_section.size) != w->fb_len ||
             !memory_region_is_ram(w->mem_section.mr)) {
         DPRINT_ERROR("Failed to find window %u framebuffer region\n", win);
         goto error_return;
@@ -1155,7 +1155,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
 
 error_return:
     w->mem_section.mr = NULL;
-    w->mem_section.size = 0;
+    w->mem_section.size = int128_zero();
     w->host_fb_addr = NULL;
     w->fb_len = 0;
 }

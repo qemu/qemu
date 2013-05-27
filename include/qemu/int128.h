@@ -34,6 +34,25 @@ static inline Int128 int128_2_64(void)
     return (Int128) { 0, 1 };
 }
 
+static inline Int128 int128_and(Int128 a, Int128 b)
+{
+    return (Int128) { a.lo & b.lo, a.hi & b.hi };
+}
+
+static inline Int128 int128_rshift(Int128 a, int n)
+{
+    int64_t h;
+    if (!n) {
+        return a;
+    }
+    h = a.hi >> (n & 63);
+    if (n >= 64) {
+        return (Int128) { h, h >> 63 };
+    } else {
+        return (Int128) { (a.lo >> n) | (a.hi << (64 - n)), h };
+    }
+}
+
 static inline Int128 int128_add(Int128 a, Int128 b)
 {
     Int128 r = { a.lo + b.lo, a.hi + b.hi };

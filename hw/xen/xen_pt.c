@@ -547,7 +547,7 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
     struct CheckBarArgs args = {
         .s = s,
         .addr = sec->offset_within_address_space,
-        .size = sec->size,
+        .size = int128_get64(sec->size),
         .rc = false,
     };
 
@@ -576,7 +576,7 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
     if (d->io_regions[bar].type & PCI_BASE_ADDRESS_SPACE_IO) {
         uint32_t guest_port = sec->offset_within_address_space;
         uint32_t machine_port = s->bases[bar].access.pio_base;
-        uint32_t size = sec->size;
+        uint32_t size = int128_get64(sec->size);
         rc = xc_domain_ioport_mapping(xen_xc, xen_domid,
                                       guest_port, machine_port, size,
                                       op);
@@ -588,7 +588,7 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
         pcibus_t guest_addr = sec->offset_within_address_space;
         pcibus_t machine_addr = s->bases[bar].access.maddr
             + sec->offset_within_region;
-        pcibus_t size = sec->size;
+        pcibus_t size = int128_get64(sec->size);
         rc = xc_domain_memory_mapping(xen_xc, xen_domid,
                                       XEN_PFN(guest_addr + XC_PAGE_SIZE - 1),
                                       XEN_PFN(machine_addr + XC_PAGE_SIZE - 1),

@@ -26,6 +26,9 @@
 #include "exec/ioport.h"
 #include "qemu/int128.h"
 
+#define MAX_PHYS_ADDR_SPACE_BITS 62
+#define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
+
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionPortio MemoryRegionPortio;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
@@ -185,7 +188,7 @@ struct MemoryRegionSection {
     MemoryRegion *mr;
     AddressSpace *address_space;
     hwaddr offset_within_region;
-    uint64_t size;
+    Int128 size;
     hwaddr offset_within_address_space;
     bool readonly;
 };
