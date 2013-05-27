@@ -3801,6 +3801,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         chr->label = g_strdup(id);
         chr->avail_connections =
             (backend->kind == CHARDEV_BACKEND_KIND_MUX) ? MAX_MUX : 1;
+        if (!chr->filename) {
+            chr->filename = g_strdup(ChardevBackendKind_lookup[backend->kind]);
+        }
         QTAILQ_INSERT_TAIL(&chardevs, chr, next);
         return ret;
     } else {
