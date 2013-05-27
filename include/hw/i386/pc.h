@@ -191,12 +191,24 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
             .property = "model",\
             .value    = stringify(2),\
         },{\
+            .driver   = "Conroe-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(2),\
+        },{\
             .driver   = "Penryn-" TYPE_X86_CPU,\
             .property = "model",\
             .value    = stringify(2),\
         },{\
+            .driver   = "Penryn-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(2),\
+        },{\
             .driver   = "Nehalem-" TYPE_X86_CPU,\
             .property = "model",\
+            .value    = stringify(2),\
+        },{\
+            .driver   = "Nehalem-" TYPE_X86_CPU,\
+            .property = "level",\
             .value    = stringify(2),\
         }
 
