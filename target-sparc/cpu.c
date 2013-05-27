@@ -771,6 +771,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->do_interrupt = sparc_cpu_do_interrupt;
     cc->dump_state = sparc_cpu_dump_state;
+    cpu_class_set_do_unassigned_access(cc, sparc_cpu_unassigned_access);
 }
 
 static const TypeInfo sparc_cpu_type_info = {

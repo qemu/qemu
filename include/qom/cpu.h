@@ -22,6 +22,7 @@
 
 #include <signal.h>
 #include "hw/qdev-core.h"
+#include "exec/hwaddr.h"
 #include "qemu/thread.h"
 #include "qemu/typedefs.h"
 
@@ -42,12 +43,17 @@ typedef int (*WriteCoreDumpFunction)(void *buf, size_t size, void *opaque);
 
 typedef struct CPUState CPUState;
 
+typedef void (*CPUUnassignedAccess)(CPUState *cpu, hwaddr addr,
+                                    bool is_write, bool is_exec, int opaque,
+                                    unsigned size);
+
 /**
  * CPUClass:
  * @class_by_name: Callback to map -cpu command line model name to an
  * instantiatable CPU type.
  * @reset: Callback to reset the #CPUState to its initial state.
  * @do_interrupt: Callback for interrupt handling.
+ * @do_unassigned_access: Callback for unassigned access handling.
  * @dump_state: Callback for dumping state.
  * @dump_statistics: Callback for dumping statistics.
  * @get_arch_id: Callback for getting architecture-dependent CPU ID.
@@ -66,6 +72,7 @@ typedef struct CPUClass {
 
     void (*reset)(CPUState *cpu);
     void (*do_interrupt)(CPUState *cpu);
+    CPUUnassignedAccess do_unassigned_access;
     void (*dump_state)(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                        int flags);
     void (*dump_statistics)(CPUState *cpu, FILE *f,
@@ -280,6 +287,17 @@ static inline void cpu_class_set_vmsd(CPUClass *cc,
 #define cpu_class_set_vmsd(cc, value) ((cc)->vmsd = NULL)
 #endif
 
+#ifndef CONFIG_USER_ONLY
+static inline void cpu_class_set_do_unassigned_access(CPUClass *cc,
+                                                      CPUUnassignedAccess value)
+{
+    cc->do_unassigned_access = value;
+}
+#else
+#define cpu_class_set_do_unassigned_access(cc, value) \
+    ((cc)->do_unassigned_access = NULL)
+#endif
+
 /**
  * device_class_set_vmsd:
  * @dc: Device class
@@ -402,6 +420,21 @@ static inline void cpu_interrupt(CPUState *cpu, int mask)
 void cpu_interrupt(CPUState *cpu, int mask);
 
 #endif /* USER_ONLY */
+
+#ifndef CONFIG_USER_ONLY
+
+static inline void cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                                         bool is_write, bool is_exec,
+                                         int opaque, unsigned size)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->do_unassigned_access) {
+        cc->do_unassigned_access(cpu, addr, is_write, is_exec, opaque, size);
+    }
+}
+
+#endif
 
 /**
  * cpu_reset_interrupt:

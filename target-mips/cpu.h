@@ -493,8 +493,9 @@ void r4k_helper_tlbwr(CPUMIPSState *env);
 void r4k_helper_tlbp(CPUMIPSState *env);
 void r4k_helper_tlbr(CPUMIPSState *env);
 
-void cpu_unassigned_access(CPUMIPSState *env, hwaddr addr,
-                           int is_write, int is_exec, int unused, int size);
+void mips_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                                bool is_write, bool is_exec, int unused,
+                                unsigned size);
 #endif
 
 void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf);

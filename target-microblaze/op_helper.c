@@ -495,12 +495,21 @@ void helper_mmu_write(CPUMBState *env, uint32_t rn, uint32_t v)
     mmu_write(env, rn, v);
 }
 
-void cpu_unassigned_access(CPUMBState *env, hwaddr addr,
-                           int is_write, int is_exec, int is_asi, int size)
+void mb_cpu_unassigned_access(CPUState *cs, hwaddr addr,
+                              bool is_write, bool is_exec, int is_asi,
+                              unsigned size)
 {
+    MicroBlazeCPU *cpu;
+    CPUMBState *env;
+
     qemu_log_mask(CPU_LOG_INT, "Unassigned " TARGET_FMT_plx " wr=%d exe=%d\n",
-             addr, is_write, is_exec);
-    if (!env || !(env->sregs[SR_MSR] & MSR_EE)) {
+             addr, is_write ? 1 : 0, is_exec ? 1 : 0);
+    if (cs == NULL) {
+        return;
+    }
+    cpu = MICROBLAZE_CPU(cs);
+    env = &cpu->env;
+    if (!(env->sregs[SR_MSR] & MSR_EE)) {
         return;
     }
 

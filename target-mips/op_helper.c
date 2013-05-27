@@ -2147,13 +2147,18 @@ void tlb_fill(CPUMIPSState *env, target_ulong addr, int is_write, int mmu_idx,
     }
 }
 
-void cpu_unassigned_access(CPUMIPSState *env, hwaddr addr,
-                           int is_write, int is_exec, int unused, int size)
+void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
+                                bool is_write, bool is_exec, int unused,
+                                unsigned size)
 {
-    if (is_exec)
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
+    if (is_exec) {
         helper_raise_exception(env, EXCP_IBE);
-    else
+    } else {
         helper_raise_exception(env, EXCP_DBE);
+    }
 }
 #endif /* !CONFIG_USER_ONLY */
 

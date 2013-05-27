@@ -457,9 +457,9 @@ uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env);
 void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val);
 #ifndef CONFIG_USER_ONLY
 void swap_shadow_regs(CPUAlphaState *env);
-QEMU_NORETURN void cpu_unassigned_access(CPUAlphaState *env1,
-                                         hwaddr addr, int is_write,
-                                         int is_exec, int unused, int size);
+QEMU_NORETURN void alpha_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                                               bool is_write, bool is_exec,
+                                               int unused, unsigned size);
 #endif
 
 /* Bits in TB->FLAGS that control how translation is processed.  */
