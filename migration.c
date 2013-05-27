@@ -349,7 +349,6 @@ static MigrationState *migrate_init(const MigrationParams *params)
            sizeof(enabled_capabilities));
 
     memset(s, 0, sizeof(*s));
-    s->bandwidth_limit = bandwidth_limit;
     s->params = *params;
     memcpy(s->enabled_capabilities, enabled_capabilities,
            sizeof(enabled_capabilities));
