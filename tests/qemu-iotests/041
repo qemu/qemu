@@ -32,46 +32,28 @@ target_img = os.path.join(iotests.test_dir, 'target.img')
 class ImageMirroringTestCase(iotests.QMPTestCase):
     '''Abstract base class for image mirroring test cases'''
 
-    def cancel_and_wait(self, drive='drive0', wait_ready=True):
-        '''Cancel a block job and wait for it to finish'''
-        if wait_ready:
-            ready = False
-            while not ready:
-                for event in self.vm.get_qmp_events(wait=True):
-                    if event['event'] == 'BLOCK_JOB_READY':
-                        self.assert_qmp(event, 'data/type', 'mirror')
-                        self.assert_qmp(event, 'data/device', drive)
-                        ready = True
-
-        result = self.vm.qmp('block-job-cancel', device=drive,
-                             force=not wait_ready)
-        self.assert_qmp(result, 'return', {})
-
-        cancelled = False
-        while not cancelled:
+    def wait_ready(self, drive='drive0'):
+        '''Wait until a block job BLOCK_JOB_READY event'''
+        ready = False
+        while not ready:
             for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED' or \
-                   event['event'] == 'BLOCK_JOB_CANCELLED':
+                if event['event'] == 'BLOCK_JOB_READY':
                     self.assert_qmp(event, 'data/type', 'mirror')
                     self.assert_qmp(event, 'data/device', drive)
-                    if wait_ready:
-                        self.assertEquals(event['event'], 'BLOCK_JOB_COMPLETED')
-                        self.assert_qmp(event, 'data/offset', self.image_len)
-                        self.assert_qmp(event, 'data/len', self.image_len)
-                    cancelled = True
+                    ready = True
 
-        self.assert_no_active_block_jobs()
+    def wait_ready_and_cancel(self, drive='drive0'):
+        self.wait_ready(drive)
+        event = self.cancel_and_wait()
+        self.assertEquals(event['event'], 'BLOCK_JOB_COMPLETED')
+        self.assert_qmp(event, 'data/type', 'mirror')
+        self.assert_qmp(event, 'data/offset', self.image_len)
+        self.assert_qmp(event, 'data/len', self.image_len)
 
     def complete_and_wait(self, drive='drive0', wait_ready=True):
         '''Complete a block job and wait for it to finish'''
         if wait_ready:
-            ready = False
-            while not ready:
-                for event in self.vm.get_qmp_events(wait=True):
-                    if event['event'] == 'BLOCK_JOB_READY':
-                        self.assert_qmp(event, 'data/type', 'mirror')
-                        self.assert_qmp(event, 'data/device', drive)
-                        ready = True
+            self.wait_ready()
 
         result = self.vm.qmp('block-job-complete', device=drive)
         self.assert_qmp(result, 'return', {})
@@ -158,7 +140,7 @@ class TestSingleDrive(ImageMirroringTestCase):
                              target=target_img)
         self.assert_qmp(result, 'return', {})
 
-        self.cancel_and_wait(wait_ready=False)
+        self.cancel_and_wait(force=True)
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/inserted/file', test_img)
         self.vm.shutdown()
@@ -170,7 +152,7 @@ class TestSingleDrive(ImageMirroringTestCase):
                              target=target_img)
         self.assert_qmp(result, 'return', {})
 
-        self.cancel_and_wait()
+        self.wait_ready_and_cancel()
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/inserted/file', test_img)
         self.vm.shutdown()
@@ -312,7 +294,7 @@ class TestMirrorNoBacking(ImageMirroringTestCase):
                              mode='existing', target=target_img)
         self.assert_qmp(result, 'return', {})
 
-        self.cancel_and_wait()
+        self.wait_ready_and_cancel()
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/inserted/file', test_img)
         self.vm.shutdown()
@@ -705,7 +687,7 @@ class TestSetSpeed(ImageMirroringTestCase):
         self.assert_qmp(result, 'return[0]/device', 'drive0')
         self.assert_qmp(result, 'return[0]/speed', 8 * 1024 * 1024)
 
-        self.cancel_and_wait()
+        self.wait_ready_and_cancel()
 
         # Check setting speed in drive-mirror works
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
@@ -716,7 +698,7 @@ class TestSetSpeed(ImageMirroringTestCase):
         self.assert_qmp(result, 'return[0]/device', 'drive0')
         self.assert_qmp(result, 'return[0]/speed', 4 * 1024 * 1024)
 
-        self.cancel_and_wait()
+        self.wait_ready_and_cancel()
 
     def test_set_speed_invalid(self):
         self.assert_no_active_block_jobs()
@@ -734,7 +716,7 @@ class TestSetSpeed(ImageMirroringTestCase):
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-        self.cancel_and_wait()
+        self.wait_ready_and_cancel()
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'])

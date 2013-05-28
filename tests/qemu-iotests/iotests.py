@@ -174,6 +174,24 @@ class QMPTestCase(unittest.TestCase):
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return', [])
 
+    def cancel_and_wait(self, drive='drive0', force=False):
+        '''Cancel a block job and wait for it to finish, returning the event'''
+        result = self.vm.qmp('block-job-cancel', device=drive, force=force)
+        self.assert_qmp(result, 'return', {})
+
+        cancelled = False
+        result = None
+        while not cancelled:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED' or \
+                   event['event'] == 'BLOCK_JOB_CANCELLED':
+                    self.assert_qmp(event, 'data/device', drive)
+                    result = event
+                    cancelled = True
+
+        self.assert_no_active_block_jobs()
+        return result
+
 def notrun(reason):
     '''Skip this test suite'''
     # Each test in qemu-iotests has a number ("seq")
