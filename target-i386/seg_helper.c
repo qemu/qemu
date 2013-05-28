@@ -330,7 +330,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         cpu_stl_kernel(env, env->tr.base + (0x28 + 3 * 4), env->regs[R_EBX]);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 4 * 4), env->regs[R_ESP]);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 5 * 4), env->regs[R_EBP]);
-        cpu_stl_kernel(env, env->tr.base + (0x28 + 6 * 4), ESI);
+        cpu_stl_kernel(env, env->tr.base + (0x28 + 6 * 4), env->regs[R_ESI]);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 7 * 4), EDI);
         for (i = 0; i < 6; i++) {
             cpu_stw_kernel(env, env->tr.base + (0x48 + i * 4),
@@ -346,7 +346,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         cpu_stw_kernel(env, env->tr.base + (0x12 + 3 * 2), env->regs[R_EBX]);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 4 * 2), env->regs[R_ESP]);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 5 * 2), env->regs[R_EBP]);
-        cpu_stw_kernel(env, env->tr.base + (0x12 + 6 * 2), ESI);
+        cpu_stw_kernel(env, env->tr.base + (0x12 + 6 * 2), env->regs[R_ESI]);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 7 * 2), EDI);
         for (i = 0; i < 4; i++) {
             cpu_stw_kernel(env, env->tr.base + (0x22 + i * 4),
@@ -402,7 +402,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
     env->regs[R_EBX] = new_regs[3];
     env->regs[R_ESP] = new_regs[4];
     env->regs[R_EBP] = new_regs[5];
-    ESI = new_regs[6];
+    env->regs[R_ESI] = new_regs[6];
     EDI = new_regs[7];
     if (new_eflags & VM_MASK) {
         for (i = 0; i < 6; i++) {

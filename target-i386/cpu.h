@@ -1101,8 +1101,6 @@ static inline int cpu_mmu_index (CPUX86State *env)
         ? MMU_KSMAP_IDX : MMU_KERNEL_IDX;
 }
 
-#undef ESI
-#define ESI (env->regs[R_ESI])
 #undef EDI
 #define EDI (env->regs[R_EDI])
 #undef EIP

@@ -88,7 +88,7 @@ void do_smm_enter(CPUX86State *env)
     stq_phys(sm_state + 0x7fe0, env->regs[R_EBX]);
     stq_phys(sm_state + 0x7fd8, env->regs[R_ESP]);
     stq_phys(sm_state + 0x7fd0, env->regs[R_EBP]);
-    stq_phys(sm_state + 0x7fc8, ESI);
+    stq_phys(sm_state + 0x7fc8, env->regs[R_ESI]);
     stq_phys(sm_state + 0x7fc0, EDI);
     for (i = 8; i < 16; i++) {
         stq_phys(sm_state + 0x7ff8 - i * 8, env->regs[i]);
@@ -110,7 +110,7 @@ void do_smm_enter(CPUX86State *env)
     stl_phys(sm_state + 0x7ff4, cpu_compute_eflags(env));
     stl_phys(sm_state + 0x7ff0, env->eip);
     stl_phys(sm_state + 0x7fec, EDI);
-    stl_phys(sm_state + 0x7fe8, ESI);
+    stl_phys(sm_state + 0x7fe8, env->regs[R_ESI]);
     stl_phys(sm_state + 0x7fe4, env->regs[R_EBP]);
     stl_phys(sm_state + 0x7fe0, env->regs[R_ESP]);
     stl_phys(sm_state + 0x7fdc, env->regs[R_EBX]);
@@ -219,7 +219,7 @@ void helper_rsm(CPUX86State *env)
     env->regs[R_EBX] = ldq_phys(sm_state + 0x7fe0);
     env->regs[R_ESP] = ldq_phys(sm_state + 0x7fd8);
     env->regs[R_EBP] = ldq_phys(sm_state + 0x7fd0);
-    ESI = ldq_phys(sm_state + 0x7fc8);
+    env->regs[R_ESI] = ldq_phys(sm_state + 0x7fc8);
     EDI = ldq_phys(sm_state + 0x7fc0);
     for (i = 8; i < 16; i++) {
         env->regs[i] = ldq_phys(sm_state + 0x7ff8 - i * 8);
@@ -245,7 +245,7 @@ void helper_rsm(CPUX86State *env)
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
     env->eip = ldl_phys(sm_state + 0x7ff0);
     EDI = ldl_phys(sm_state + 0x7fec);
-    ESI = ldl_phys(sm_state + 0x7fe8);
+    env->regs[R_ESI] = ldl_phys(sm_state + 0x7fe8);
     env->regs[R_EBP] = ldl_phys(sm_state + 0x7fe4);
     env->regs[R_ESP] = ldl_phys(sm_state + 0x7fe0);
     env->regs[R_EBX] = ldl_phys(sm_state + 0x7fdc);
