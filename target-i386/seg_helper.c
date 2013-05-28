@@ -324,7 +324,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         /* 32 bit */
         cpu_stl_kernel(env, env->tr.base + 0x20, next_eip);
         cpu_stl_kernel(env, env->tr.base + 0x24, old_eflags);
-        cpu_stl_kernel(env, env->tr.base + (0x28 + 0 * 4), EAX);
+        cpu_stl_kernel(env, env->tr.base + (0x28 + 0 * 4), env->regs[R_EAX]);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 1 * 4), ECX);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 2 * 4), EDX);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 3 * 4), EBX);
@@ -340,7 +340,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         /* 16 bit */
         cpu_stw_kernel(env, env->tr.base + 0x0e, next_eip);
         cpu_stw_kernel(env, env->tr.base + 0x10, old_eflags);
-        cpu_stw_kernel(env, env->tr.base + (0x12 + 0 * 2), EAX);
+        cpu_stw_kernel(env, env->tr.base + (0x12 + 0 * 2), env->regs[R_EAX]);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 1 * 2), ECX);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 2 * 2), EDX);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 3 * 2), EBX);
@@ -396,7 +396,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
     }
     cpu_load_eflags(env, new_eflags, eflags_mask);
     /* XXX: what to do in 16 bit case? */
-    EAX = new_regs[0];
+    env->regs[R_EAX] = new_regs[0];
     ECX = new_regs[1];
     EDX = new_regs[2];
     EBX = new_regs[3];
@@ -1175,7 +1175,7 @@ static void do_interrupt_all(CPUX86State *env, int intno, int is_int,
             if (intno == 0x0e) {
                 qemu_log(" CR2=" TARGET_FMT_lx, env->cr[2]);
             } else {
-                qemu_log(" EAX=" TARGET_FMT_lx, EAX);
+                qemu_log(" env->regs[R_EAX]=" TARGET_FMT_lx, env->regs[R_EAX]);
             }
             qemu_log("\n");
             log_cpu_state(env, CPU_DUMP_CCOP);

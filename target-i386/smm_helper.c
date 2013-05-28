@@ -82,7 +82,7 @@ void do_smm_enter(CPUX86State *env)
 
     stq_phys(sm_state + 0x7ed0, env->efer);
 
-    stq_phys(sm_state + 0x7ff8, EAX);
+    stq_phys(sm_state + 0x7ff8, env->regs[R_EAX]);
     stq_phys(sm_state + 0x7ff0, ECX);
     stq_phys(sm_state + 0x7fe8, EDX);
     stq_phys(sm_state + 0x7fe0, EBX);
@@ -116,7 +116,7 @@ void do_smm_enter(CPUX86State *env)
     stl_phys(sm_state + 0x7fdc, EBX);
     stl_phys(sm_state + 0x7fd8, EDX);
     stl_phys(sm_state + 0x7fd4, ECX);
-    stl_phys(sm_state + 0x7fd0, EAX);
+    stl_phys(sm_state + 0x7fd0, env->regs[R_EAX]);
     stl_phys(sm_state + 0x7fcc, env->dr[6]);
     stl_phys(sm_state + 0x7fc8, env->dr[7]);
 
@@ -213,7 +213,7 @@ void helper_rsm(CPUX86State *env)
     env->tr.limit = ldl_phys(sm_state + 0x7e94);
     env->tr.flags = (lduw_phys(sm_state + 0x7e92) & 0xf0ff) << 8;
 
-    EAX = ldq_phys(sm_state + 0x7ff8);
+    env->regs[R_EAX] = ldq_phys(sm_state + 0x7ff8);
     ECX = ldq_phys(sm_state + 0x7ff0);
     EDX = ldq_phys(sm_state + 0x7fe8);
     EBX = ldq_phys(sm_state + 0x7fe0);
@@ -251,7 +251,7 @@ void helper_rsm(CPUX86State *env)
     EBX = ldl_phys(sm_state + 0x7fdc);
     EDX = ldl_phys(sm_state + 0x7fd8);
     ECX = ldl_phys(sm_state + 0x7fd4);
-    EAX = ldl_phys(sm_state + 0x7fd0);
+    env->regs[R_EAX] = ldl_phys(sm_state + 0x7fd0);
     env->dr[6] = ldl_phys(sm_state + 0x7fcc);
     env->dr[7] = ldl_phys(sm_state + 0x7fc8);
 
