@@ -1101,8 +1101,6 @@ static inline int cpu_mmu_index (CPUX86State *env)
         ? MMU_KSMAP_IDX : MMU_KERNEL_IDX;
 }
 
-#define DF  (env->df)
-
 #define CC_DST  (env->cc_dst)
 #define CC_SRC  (env->cc_src)
 #define CC_SRC2 (env->cc_src2)
@@ -1196,7 +1194,7 @@ uint32_t cpu_cc_compute_all(CPUX86State *env1, int op);
 
 static inline uint32_t cpu_compute_eflags(CPUX86State *env)
 {
-    return env->eflags | cpu_cc_compute_all(env, CC_OP) | (DF & DF_MASK);
+    return env->eflags | cpu_cc_compute_all(env, CC_OP) | (env->df & DF_MASK);
 }
 
 /* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */
@@ -1204,7 +1202,7 @@ static inline void cpu_load_eflags(CPUX86State *env, int eflags,
                                    int update_mask)
 {
     CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    DF = 1 - (2 * ((eflags >> 10) & 1));
+    env->df = 1 - (2 * ((eflags >> 10) & 1));
     env->eflags = (env->eflags & ~update_mask) |
         (eflags & update_mask) | 0x2;
 }

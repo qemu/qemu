@@ -230,7 +230,7 @@ int cpu_exec(CPUArchState *env)
 #if defined(TARGET_I386)
     /* put eflags in CPU temporary format */
     CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    DF = 1 - (2 * ((env->eflags >> 10) & 1));
+    env->df = 1 - (2 * ((env->eflags >> 10) & 1));
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_SPARC)
@@ -681,7 +681,7 @@ int cpu_exec(CPUArchState *env)
 #if defined(TARGET_I386)
     /* restore flags in standard format */
     env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
-        | (DF & DF_MASK);
+        | (env->df & DF_MASK);
 #elif defined(TARGET_ARM)
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_UNICORE32)
