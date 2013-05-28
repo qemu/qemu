@@ -1101,8 +1101,6 @@ static inline int cpu_mmu_index (CPUX86State *env)
         ? MMU_KSMAP_IDX : MMU_KERNEL_IDX;
 }
 
-#undef EIP
-#define EIP (env->eip)
 #define DF  (env->df)
 
 #define CC_DST  (env->cc_dst)

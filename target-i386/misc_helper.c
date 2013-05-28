@@ -569,7 +569,7 @@ void helper_hlt(CPUX86State *env, int next_eip_addend)
     X86CPU *cpu = x86_env_get_cpu(env);
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0);
-    EIP += next_eip_addend;
+    env->eip += next_eip_addend;
 
     do_hlt(cpu);
 }
@@ -592,7 +592,7 @@ void helper_mwait(CPUX86State *env, int next_eip_addend)
         raise_exception(env, EXCP0D_GPF);
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0);
-    EIP += next_eip_addend;
+    env->eip += next_eip_addend;
 
     cpu = x86_env_get_cpu(env);
     cs = CPU(cpu);

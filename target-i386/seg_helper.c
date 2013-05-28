@@ -457,7 +457,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         tss_load_seg(env, R_GS, new_segs[R_GS]);
     }
 
-    /* check that EIP is in the CS segment limits */
+    /* check that env->eip is in the CS segment limits */
     if (new_eip > env->segs[R_CS].limit) {
         /* XXX: different exception if CALL? */
         raise_exception_err(env, EXCP0D_GPF, 0);
@@ -1122,7 +1122,7 @@ static void do_interrupt_user(CPUX86State *env, int intno, int is_int,
        exiting the emulation with the suitable exception and error
        code */
     if (is_int) {
-        EIP = next_eip;
+        env->eip = next_eip;
     }
 }
 
@@ -1157,7 +1157,7 @@ static void handle_even_inj(CPUX86State *env, int intno, int is_int,
 
 /*
  * Begin execution of an interruption. is_int is TRUE if coming from
- * the int instruction. next_eip is the EIP value AFTER the interrupt
+ * the int instruction. next_eip is the env->eip value AFTER the interrupt
  * instruction. It is only relevant if is_int is TRUE.
  */
 static void do_interrupt_all(CPUX86State *env, int intno, int is_int,
@@ -1171,8 +1171,8 @@ static void do_interrupt_all(CPUX86State *env, int intno, int is_int,
                      " pc=" TARGET_FMT_lx " SP=%04x:" TARGET_FMT_lx,
                      count, intno, error_code, is_int,
                      env->hflags & HF_CPL_MASK,
-                     env->segs[R_CS].selector, EIP,
-                     (int)env->segs[R_CS].base + EIP,
+                     env->segs[R_CS].selector, env->eip,
+                     (int)env->segs[R_CS].base + env->eip,
                      env->segs[R_SS].selector, env->regs[R_ESP]);
             if (intno == 0x0e) {
                 qemu_log(" CR2=" TARGET_FMT_lx, env->cr[2]);
@@ -1584,7 +1584,7 @@ void helper_ljmp_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
         }
         cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
                        get_seg_base(e1, e2), limit, e2);
-        EIP = new_eip;
+        env->eip = new_eip;
     } else {
         /* jump to call or task gate */
         dpl = (e2 >> DESC_DPL_SHIFT) & 3;
@@ -1637,7 +1637,7 @@ void helper_ljmp_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
             }
             cpu_x86_load_seg_cache(env, R_CS, (gate_cs & 0xfffc) | cpl,
                                    get_seg_base(e1, e2), limit, e2);
-            EIP = new_eip;
+            env->eip = new_eip;
             break;
         default:
             raise_exception_err(env, EXCP0D_GPF, new_cs & 0xfffc);
@@ -1731,7 +1731,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
             cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
                                    get_seg_base(e1, e2),
                                    get_seg_limit(e1, e2), e2);
-            EIP = new_eip;
+            env->eip = new_eip;
         } else
 #endif
         {
@@ -1754,7 +1754,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
             SET_ESP(sp, sp_mask);
             cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
                                    get_seg_base(e1, e2), limit, e2);
-            EIP = new_eip;
+            env->eip = new_eip;
         }
     } else {
         /* check gate type */
@@ -1895,7 +1895,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
                        e2);
         cpu_x86_set_cpl(env, dpl);
         SET_ESP(sp, sp_mask);
-        EIP = offset;
+        env->eip = offset;
     }
 }
 
@@ -2251,7 +2251,7 @@ void helper_sysenter(CPUX86State *env)
                            DESC_S_MASK |
                            DESC_W_MASK | DESC_A_MASK);
     env->regs[R_ESP] = env->sysenter_esp;
-    EIP = env->sysenter_eip;
+    env->eip = env->sysenter_eip;
 }
 
 void helper_sysexit(CPUX86State *env, int dflag)
@@ -2291,7 +2291,7 @@ void helper_sysexit(CPUX86State *env, int dflag)
                                DESC_W_MASK | DESC_A_MASK);
     }
     env->regs[R_ESP] = env->regs[R_ECX];
-    EIP = env->regs[R_EDX];
+    env->eip = env->regs[R_EDX];
 }
 
 target_ulong helper_lsl(CPUX86State *env, target_ulong selector1)
