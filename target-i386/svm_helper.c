@@ -658,8 +658,10 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
                        R_DS);
 
     env->eip = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip));
-    env->regs[R_ESP] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rsp));
-    env->regs[R_EAX] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rax));
+    env->regs[R_ESP] = ldq_phys(env->vm_hsave +
+                                offsetof(struct vmcb, save.rsp));
+    env->regs[R_EAX] = ldq_phys(env->vm_hsave +
+                                offsetof(struct vmcb, save.rax));
 
     env->dr[6] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr6));
     env->dr[7] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr7));

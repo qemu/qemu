@@ -1811,9 +1811,9 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
         if (!(e2 & DESC_C_MASK) && dpl < cpl) {
             /* to inner privilege */
             get_ss_esp_from_tss(env, &ss, &sp, dpl);
-            LOG_PCALL("new ss:esp=%04x:%08x param_count=%d env->regs[R_ESP]=" TARGET_FMT_lx
-                      "\n",
-                      ss, sp, param_count, env->regs[R_ESP]);
+            LOG_PCALL("new ss:esp=%04x:%08x param_count=%d env->regs[R_ESP]="
+                      TARGET_FMT_lx "\n", ss, sp, param_count,
+                      env->regs[R_ESP]);
             if ((ss & 0xfffc) == 0) {
                 raise_exception_err(env, EXCP0A_TSS, ss & 0xfffc);
             }
@@ -1847,16 +1847,18 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
                 PUSHL(ssp, sp, sp_mask, env->segs[R_SS].selector);
                 PUSHL(ssp, sp, sp_mask, env->regs[R_ESP]);
                 for (i = param_count - 1; i >= 0; i--) {
-                    val = cpu_ldl_kernel(env, old_ssp + ((env->regs[R_ESP] + i * 4) &
-                                                         old_sp_mask));
+                    val = cpu_ldl_kernel(env, old_ssp +
+                                         ((env->regs[R_ESP] + i * 4) &
+                                          old_sp_mask));
                     PUSHL(ssp, sp, sp_mask, val);
                 }
             } else {
                 PUSHW(ssp, sp, sp_mask, env->segs[R_SS].selector);
                 PUSHW(ssp, sp, sp_mask, env->regs[R_ESP]);
                 for (i = param_count - 1; i >= 0; i--) {
-                    val = cpu_lduw_kernel(env, old_ssp + ((env->regs[R_ESP] + i * 2) &
-                                                          old_sp_mask));
+                    val = cpu_lduw_kernel(env, old_ssp +
+                                          ((env->regs[R_ESP] + i * 2) &
+                                           old_sp_mask));
                     PUSHW(ssp, sp, sp_mask, val);
                 }
             }
