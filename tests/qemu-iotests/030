@@ -22,30 +22,16 @@ import time
 import os
 import iotests
 from iotests import qemu_img, qemu_io
-import struct
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 mid_img = os.path.join(iotests.test_dir, 'mid.img')
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
-class ImageStreamingTestCase(iotests.QMPTestCase):
-    '''Abstract base class for image streaming test cases'''
-
-    def create_image(self, name, size):
-        file = open(name, 'w')
-        i = 0
-        while i < size:
-            sector = struct.pack('>l504xl', i / 512, i / 512)
-            file.write(sector)
-            i = i + 512
-        file.close()
-
-
-class TestSingleDrive(ImageStreamingTestCase):
+class TestSingleDrive(iotests.QMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
 
     def setUp(self):
-        self.create_image(backing_img, TestSingleDrive.image_len)
+        iotests.create_image(backing_img, TestSingleDrive.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
@@ -145,12 +131,12 @@ class TestSingleDrive(ImageStreamingTestCase):
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
 
 
-class TestSmallerBackingFile(ImageStreamingTestCase):
+class TestSmallerBackingFile(iotests.QMPTestCase):
     backing_len = 1 * 1024 * 1024 # MB
     image_len = 2 * backing_len
 
     def setUp(self):
-        self.create_image(backing_img, self.backing_len)
+        iotests.create_image(backing_img, self.backing_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img, str(self.image_len))
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
@@ -176,7 +162,7 @@ class TestSmallerBackingFile(ImageStreamingTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-class TestErrors(ImageStreamingTestCase):
+class TestErrors(iotests.QMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     # this should match STREAM_BUFFER_SIZE/512 in block/stream.c
@@ -208,7 +194,7 @@ new_state = "1"
 class TestEIO(TestErrors):
     def setUp(self):
         self.blkdebug_file = backing_img + ".blkdebug"
-        self.create_image(backing_img, TestErrors.image_len)
+        iotests.create_image(backing_img, TestErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "read_aio", 5)
         qemu_img('create', '-f', iotests.imgfmt,
                  '-o', 'backing_file=blkdebug:%s:%s,backing_fmt=raw'
@@ -344,7 +330,7 @@ class TestEIO(TestErrors):
 class TestENOSPC(TestErrors):
     def setUp(self):
         self.blkdebug_file = backing_img + ".blkdebug"
-        self.create_image(backing_img, TestErrors.image_len)
+        iotests.create_image(backing_img, TestErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "read_aio", 28)
         qemu_img('create', '-f', iotests.imgfmt,
                  '-o', 'backing_file=blkdebug:%s:%s,backing_fmt=raw'
@@ -397,7 +383,7 @@ class TestENOSPC(TestErrors):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-class TestStreamStop(ImageStreamingTestCase):
+class TestStreamStop(iotests.QMPTestCase):
     image_len = 8 * 1024 * 1024 * 1024 # GB
 
     def setUp(self):
@@ -423,7 +409,7 @@ class TestStreamStop(ImageStreamingTestCase):
 
         self.cancel_and_wait()
 
-class TestSetSpeed(ImageStreamingTestCase):
+class TestSetSpeed(iotests.QMPTestCase):
     image_len = 80 * 1024 * 1024 # MB
 
     def setUp(self):

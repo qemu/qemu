@@ -22,7 +22,6 @@ import time
 import os
 import iotests
 from iotests import qemu_img, qemu_io
-import struct
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 target_backing_img = os.path.join(iotests.test_dir, 'target-backing.img')
@@ -71,20 +70,11 @@ class ImageMirroringTestCase(iotests.QMPTestCase):
 
         self.assert_no_active_block_jobs()
 
-    def create_image(self, name, size):
-        file = open(name, 'w')
-        i = 0
-        while i < size:
-            sector = struct.pack('>l504xl', i / 512, i / 512)
-            file.write(sector)
-            i = i + 512
-        file.close()
-
 class TestSingleDrive(ImageMirroringTestCase):
     image_len = 1 * 1024 * 1024 # MB
 
     def setUp(self):
-        self.create_image(backing_img, TestSingleDrive.image_len)
+        iotests.create_image(backing_img, TestSingleDrive.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
@@ -230,15 +220,15 @@ class TestMirrorNoBacking(ImageMirroringTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     def complete_and_wait(self, drive='drive0', wait_ready=True):
-        self.create_image(target_backing_img, TestMirrorNoBacking.image_len)
+        iotests.create_image(target_backing_img, TestMirrorNoBacking.image_len)
         return ImageMirroringTestCase.complete_and_wait(self, drive, wait_ready)
 
     def compare_images(self, img1, img2):
-        self.create_image(target_backing_img, TestMirrorNoBacking.image_len)
+        iotests.create_image(target_backing_img, TestMirrorNoBacking.image_len)
         return iotests.compare_images(img1, img2)
 
     def setUp(self):
-        self.create_image(backing_img, TestMirrorNoBacking.image_len)
+        iotests.create_image(backing_img, TestMirrorNoBacking.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
@@ -306,7 +296,7 @@ class TestMirrorResized(ImageMirroringTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     def setUp(self):
-        self.create_image(backing_img, TestMirrorResized.backing_len)
+        iotests.create_image(backing_img, TestMirrorResized.backing_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         qemu_img('resize', test_img, '2M')
         self.vm = iotests.VM().add_drive(test_img)
@@ -381,7 +371,7 @@ new_state = "1"
 
     def setUp(self):
         self.blkdebug_file = backing_img + ".blkdebug"
-        self.create_image(backing_img, TestReadErrors.image_len)
+        iotests.create_image(backing_img, TestReadErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "read_aio", 5)
         qemu_img('create', '-f', iotests.imgfmt,
                  '-o', 'backing_file=blkdebug:%s:%s,backing_fmt=raw'
@@ -536,7 +526,7 @@ new_state = "1"
 
     def setUp(self):
         self.blkdebug_file = target_img + ".blkdebug"
-        self.create_image(backing_img, TestWriteErrors.image_len)
+        iotests.create_image(backing_img, TestWriteErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "write_aio", 5)
         qemu_img('create', '-f', iotests.imgfmt, '-obacking_file=%s' %(backing_img), test_img)
         self.vm = iotests.VM().add_drive(test_img)

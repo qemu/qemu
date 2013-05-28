@@ -23,6 +23,7 @@ import string
 import unittest
 import sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'QMP'))
 import qmp
+import struct
 
 __all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
            'VM', 'QMPTestCase', 'notrun', 'main']
@@ -55,6 +56,16 @@ def compare_images(img1, img2):
     '''Return True if two image files are identical'''
     return qemu_img('compare', '-f', imgfmt,
                     '-F', imgfmt, img1, img2) == 0
+
+def create_image(name, size):
+    '''Create a fully-allocated raw image with sector markers'''
+    file = open(name, 'w')
+    i = 0
+    while i < size:
+        sector = struct.pack('>l504xl', i / 512, i / 512)
+        file.write(sector)
+        i = i + 512
+    file.close()
 
 class VM(object):
     '''A QEMU VM'''
