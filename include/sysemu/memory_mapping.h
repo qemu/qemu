@@ -15,6 +15,7 @@
 #define MEMORY_MAPPING_H
 
 #include "qemu/queue.h"
+#include "qemu/typedefs.h"
 
 /* The physical and virtual address in the memory mapping are contiguous. */
 typedef struct MemoryMapping {
@@ -24,11 +25,11 @@ typedef struct MemoryMapping {
     QTAILQ_ENTRY(MemoryMapping) next;
 } MemoryMapping;
 
-typedef struct MemoryMappingList {
+struct MemoryMappingList {
     unsigned int num;
     MemoryMapping *last_mapping;
     QTAILQ_HEAD(, MemoryMapping) head;
-} MemoryMappingList;
+};
 
 int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env);
 
