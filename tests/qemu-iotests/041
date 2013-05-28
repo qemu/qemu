@@ -32,10 +32,6 @@ target_img = os.path.join(iotests.test_dir, 'target.img')
 class ImageMirroringTestCase(iotests.QMPTestCase):
     '''Abstract base class for image mirroring test cases'''
 
-    def assert_no_active_mirrors(self):
-        result = self.vm.qmp('query-block-jobs')
-        self.assert_qmp(result, 'return', [])
-
     def cancel_and_wait(self, drive='drive0', wait_ready=True):
         '''Cancel a block job and wait for it to finish'''
         if wait_ready:
@@ -64,7 +60,7 @@ class ImageMirroringTestCase(iotests.QMPTestCase):
                         self.assert_qmp(event, 'data/len', self.image_len)
                     cancelled = True
 
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
     def complete_and_wait(self, drive='drive0', wait_ready=True):
         '''Complete a block job and wait for it to finish'''
@@ -91,7 +87,7 @@ class ImageMirroringTestCase(iotests.QMPTestCase):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
     def create_image(self, name, size):
         file = open(name, 'w')
@@ -142,7 +138,7 @@ class TestSingleDrive(ImageMirroringTestCase):
             pass
 
     def test_complete(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img)
@@ -156,7 +152,7 @@ class TestSingleDrive(ImageMirroringTestCase):
                         'target image does not match source after mirroring')
 
     def test_cancel(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img)
@@ -168,7 +164,7 @@ class TestSingleDrive(ImageMirroringTestCase):
         self.vm.shutdown()
 
     def test_cancel_after_ready(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img)
@@ -182,7 +178,7 @@ class TestSingleDrive(ImageMirroringTestCase):
                         'target image does not match source after mirroring')
 
     def test_pause(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img)
@@ -208,7 +204,7 @@ class TestSingleDrive(ImageMirroringTestCase):
                         'target image does not match source after mirroring')
 
     def test_small_buffer(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         # A small buffer is rounded up automatically
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
@@ -223,7 +219,7 @@ class TestSingleDrive(ImageMirroringTestCase):
                         'target image does not match source after mirroring')
 
     def test_small_buffer2(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,size=%d'
                         % (TestSingleDrive.image_len, TestSingleDrive.image_len), target_img)
@@ -239,7 +235,7 @@ class TestSingleDrive(ImageMirroringTestCase):
                         'target image does not match source after mirroring')
 
     def test_large_cluster(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,backing_file=%s'
                         % (TestSingleDrive.image_len, backing_img), target_img)
@@ -294,7 +290,7 @@ class TestMirrorNoBacking(ImageMirroringTestCase):
         os.remove(target_img)
 
     def test_complete(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, target_img)
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
@@ -309,7 +305,7 @@ class TestMirrorNoBacking(ImageMirroringTestCase):
                         'target image does not match source after mirroring')
 
     def test_cancel(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, target_img)
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
@@ -324,7 +320,7 @@ class TestMirrorNoBacking(ImageMirroringTestCase):
                         'target image does not match source after mirroring')
 
     def test_large_cluster(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         # qemu-img create fails if the image is not there
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'size=%d'
@@ -365,7 +361,7 @@ class TestMirrorResized(ImageMirroringTestCase):
             pass
 
     def test_complete_top(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='top',
                              target=target_img)
@@ -379,7 +375,7 @@ class TestMirrorResized(ImageMirroringTestCase):
                         'target image does not match source after mirroring')
 
     def test_complete_full(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img)
@@ -443,7 +439,7 @@ new_state = "1"
         os.remove(self.blkdebug_file)
 
     def test_report_read(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img)
@@ -467,11 +463,11 @@ new_state = "1"
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
     def test_ignore_read(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img, on_source_error='ignore')
@@ -487,7 +483,7 @@ new_state = "1"
         self.vm.shutdown()
 
     def test_large_cluster(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         # Test COW into the target image.  The first half of the
         # cluster at MIRROR_GRANULARITY has to be copied from
@@ -513,7 +509,7 @@ new_state = "1"
                         'target image does not match source after mirroring')
 
     def test_stop_read(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img, on_source_error='stop')
@@ -544,7 +540,7 @@ new_state = "1"
         self.assert_qmp(result, 'return[0]/io-status', 'ok')
 
         self.complete_and_wait(wait_ready=False)
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
 class TestWriteErrors(ImageMirroringTestCase):
@@ -594,7 +590,7 @@ new_state = "1"
         os.remove(self.blkdebug_file)
 
     def test_report_write(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              mode='existing', target=self.target_img)
@@ -618,11 +614,11 @@ new_state = "1"
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
     def test_ignore_write(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              mode='existing', target=self.target_img,
@@ -639,7 +635,7 @@ new_state = "1"
         self.vm.shutdown()
 
     def test_stop_write(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              mode='existing', target=self.target_img,
@@ -671,7 +667,7 @@ new_state = "1"
                     ready = True
 
         self.complete_and_wait(wait_ready=False)
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
 class TestSetSpeed(ImageMirroringTestCase):
@@ -690,7 +686,7 @@ class TestSetSpeed(ImageMirroringTestCase):
         os.remove(target_img)
 
     def test_set_speed(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img)
@@ -723,13 +719,13 @@ class TestSetSpeed(ImageMirroringTestCase):
         self.cancel_and_wait()
 
     def test_set_speed_invalid(self):
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img, speed=-1)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-        self.assert_no_active_mirrors()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
                              target=target_img)
