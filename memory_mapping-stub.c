@@ -19,9 +19,3 @@ int qemu_get_guest_memory_mapping(MemoryMappingList *list)
 {
     return -2;
 }
-
-int cpu_get_memory_mapping(MemoryMappingList *list,
-					                                          CPUArchState *env)
-{
-    return -1;
-}

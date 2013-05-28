@@ -183,13 +183,14 @@ int qemu_get_guest_memory_mapping(MemoryMappingList *list)
     CPUArchState *env, *first_paging_enabled_cpu;
     RAMBlock *block;
     ram_addr_t offset, length;
-    int ret;
 
     first_paging_enabled_cpu = find_paging_enabled_cpu(first_cpu);
     if (first_paging_enabled_cpu) {
         for (env = first_paging_enabled_cpu; env != NULL; env = env->next_cpu) {
-            ret = cpu_get_memory_mapping(list, env);
-            if (ret < 0) {
+            Error *err = NULL;
+            cpu_get_memory_mapping(ENV_GET_CPU(env), list, &err);
+            if (err) {
+                error_free(err);
                 return -1;
             }
         }

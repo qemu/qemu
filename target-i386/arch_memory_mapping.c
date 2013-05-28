@@ -239,11 +239,15 @@ static void walk_pml4e(MemoryMappingList *list,
 }
 #endif
 
-int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env)
+void x86_cpu_get_memory_mapping(CPUState *cs, MemoryMappingList *list,
+                                Error **errp)
 {
-    if (!cpu_paging_enabled(ENV_GET_CPU(env))) {
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    if (!cpu_paging_enabled(cs)) {
         /* paging is disabled */
-        return 0;
+        return;
     }
 
     if (env->cr[4] & CR4_PAE_MASK) {
@@ -269,7 +273,5 @@ int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env)
         pse = !!(env->cr[4] & CR4_PSE_MASK);
         walk_pde2(list, pde_addr, env->a20_mask, pse);
     }
-
-    return 0;
 }
 

@@ -31,8 +31,6 @@ struct MemoryMappingList {
     QTAILQ_HEAD(, MemoryMapping) head;
 };
 
-int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env);
-
 /*
  * add or merge the memory region [phys_addr, phys_addr + length) into the
  * memory mapping's list. The region's virtual address starts with virt_addr,
