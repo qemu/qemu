@@ -51,6 +51,11 @@ def qemu_io(*args):
     args = qemu_io_args + list(args)
     return subprocess.Popen(args, stdout=subprocess.PIPE).communicate()[0]
 
+def compare_images(img1, img2):
+    '''Return True if two image files are identical'''
+    return qemu_img('compare', '-f', imgfmt,
+                    '-F', imgfmt, img1, img2) == 0
+
 class VM(object):
     '''A QEMU VM'''
 
