@@ -171,7 +171,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip),
              EIP + next_eip_addend);
-    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rsp), ESP);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rsp), env->regs[R_ESP]);
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rax), env->regs[R_EAX]);
 
     /* load the interception bitmaps so we do not need to access the
@@ -250,7 +250,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 
     EIP = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip));
     env->eip = EIP;
-    ESP = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rsp));
+    env->regs[R_ESP] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rsp));
     env->regs[R_EAX] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rax));
     env->dr[7] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr7));
     env->dr[6] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr6));
@@ -606,7 +606,7 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
              cpu_compute_eflags(env));
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip),
              env->eip);
-    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rsp), ESP);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rsp), env->regs[R_ESP]);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rax), env->regs[R_EAX]);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr7), env->dr[7]);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr6), env->dr[6]);
@@ -658,7 +658,7 @@ void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
                        R_DS);
 
     EIP = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip));
-    ESP = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rsp));
+    env->regs[R_ESP] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rsp));
     env->regs[R_EAX] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rax));
 
     env->dr[6] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr6));
