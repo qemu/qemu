@@ -489,18 +489,18 @@ void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
                                               control.msrpm_base_pa));
             uint32_t t0, t1;
 
-            switch ((uint32_t)ECX) {
+            switch ((uint32_t)env->regs[R_ECX]) {
             case 0 ... 0x1fff:
-                t0 = (ECX * 2) % 8;
-                t1 = (ECX * 2) / 8;
+                t0 = (env->regs[R_ECX] * 2) % 8;
+                t1 = (env->regs[R_ECX] * 2) / 8;
                 break;
             case 0xc0000000 ... 0xc0001fff:
-                t0 = (8192 + ECX - 0xc0000000) * 2;
+                t0 = (8192 + env->regs[R_ECX] - 0xc0000000) * 2;
                 t1 = (t0 / 8);
                 t0 %= 8;
                 break;
             case 0xc0010000 ... 0xc0011fff:
-                t0 = (16384 + ECX - 0xc0010000) * 2;
+                t0 = (16384 + env->regs[R_ECX] - 0xc0010000) * 2;
                 t1 = (t0 / 8);
                 t0 %= 8;
                 break;

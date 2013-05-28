@@ -325,7 +325,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         cpu_stl_kernel(env, env->tr.base + 0x20, next_eip);
         cpu_stl_kernel(env, env->tr.base + 0x24, old_eflags);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 0 * 4), env->regs[R_EAX]);
-        cpu_stl_kernel(env, env->tr.base + (0x28 + 1 * 4), ECX);
+        cpu_stl_kernel(env, env->tr.base + (0x28 + 1 * 4), env->regs[R_ECX]);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 2 * 4), EDX);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 3 * 4), env->regs[R_EBX]);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 4 * 4), ESP);
@@ -341,7 +341,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         cpu_stw_kernel(env, env->tr.base + 0x0e, next_eip);
         cpu_stw_kernel(env, env->tr.base + 0x10, old_eflags);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 0 * 2), env->regs[R_EAX]);
-        cpu_stw_kernel(env, env->tr.base + (0x12 + 1 * 2), ECX);
+        cpu_stw_kernel(env, env->tr.base + (0x12 + 1 * 2), env->regs[R_ECX]);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 2 * 2), EDX);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 3 * 2), env->regs[R_EBX]);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 4 * 2), ESP);
@@ -397,7 +397,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
     cpu_load_eflags(env, new_eflags, eflags_mask);
     /* XXX: what to do in 16 bit case? */
     env->regs[R_EAX] = new_regs[0];
-    ECX = new_regs[1];
+    env->regs[R_ECX] = new_regs[1];
     EDX = new_regs[2];
     env->regs[R_EBX] = new_regs[3];
     ESP = new_regs[4];
@@ -949,7 +949,7 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
     if (env->hflags & HF_LMA_MASK) {
         int code64;
 
-        ECX = env->eip + next_eip_addend;
+        env->regs[R_ECX] = env->eip + next_eip_addend;
         env->regs[11] = cpu_compute_eflags(env);
 
         code64 = env->hflags & HF_CS64_MASK;
@@ -974,7 +974,7 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
             env->eip = env->cstar;
         }
     } else {
-        ECX = (uint32_t)(env->eip + next_eip_addend);
+        env->regs[R_ECX] = (uint32_t)(env->eip + next_eip_addend);
 
         cpu_x86_set_cpl(env, 0);
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc,
@@ -1015,14 +1015,14 @@ void helper_sysret(CPUX86State *env, int dflag)
                                    DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                    DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK |
                                    DESC_L_MASK);
-            env->eip = ECX;
+            env->eip = env->regs[R_ECX];
         } else {
             cpu_x86_load_seg_cache(env, R_CS, selector | 3,
                                    0, 0xffffffff,
                                    DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                                    DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                    DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
-            env->eip = (uint32_t)ECX;
+            env->eip = (uint32_t)env->regs[R_ECX];
         }
         cpu_x86_load_seg_cache(env, R_SS, selector + 8,
                                0, 0xffffffff,
@@ -1039,7 +1039,7 @@ void helper_sysret(CPUX86State *env, int dflag)
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
                                DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
-        env->eip = (uint32_t)ECX;
+        env->eip = (uint32_t)env->regs[R_ECX];
         cpu_x86_load_seg_cache(env, R_SS, selector + 8,
                                0, 0xffffffff,
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
@@ -2288,7 +2288,7 @@ void helper_sysexit(CPUX86State *env, int dflag)
                                DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
                                DESC_W_MASK | DESC_A_MASK);
     }
-    ESP = ECX;
+    ESP = env->regs[R_ECX];
     EIP = EDX;
 }
 
