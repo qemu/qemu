@@ -249,7 +249,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                        R_DS);
 
     env->eip = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip));
-    env->eip = env->eip;
+
     env->regs[R_ESP] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rsp));
     env->regs[R_EAX] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rax));
     env->dr[7] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr7));
