@@ -124,7 +124,7 @@ void helper_cpuid(CPUX86State *env)
 
     cpu_x86_cpuid(env, (uint32_t)env->regs[R_EAX], (uint32_t)ECX, &eax, &ebx, &ecx, &edx);
     env->regs[R_EAX] = eax;
-    EBX = ebx;
+    env->regs[R_EBX] = ebx;
     ECX = ecx;
     EDX = edx;
 }

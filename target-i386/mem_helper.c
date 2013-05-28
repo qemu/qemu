@@ -46,7 +46,7 @@ void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
     eflags = cpu_cc_compute_all(env, CC_OP);
     d = cpu_ldq_data(env, a0);
     if (d == (((uint64_t)EDX << 32) | (uint32_t)env->regs[R_EAX])) {
-        cpu_stq_data(env, a0, ((uint64_t)ECX << 32) | (uint32_t)EBX);
+        cpu_stq_data(env, a0, ((uint64_t)ECX << 32) | (uint32_t)env->regs[R_EBX]);
         eflags |= CC_Z;
     } else {
         /* always do the store */
@@ -71,7 +71,7 @@ void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
     d0 = cpu_ldq_data(env, a0);
     d1 = cpu_ldq_data(env, a0 + 8);
     if (d0 == env->regs[R_EAX] && d1 == EDX) {
-        cpu_stq_data(env, a0, EBX);
+        cpu_stq_data(env, a0, env->regs[R_EBX]);
         cpu_stq_data(env, a0 + 8, ECX);
         eflags |= CC_Z;
     } else {

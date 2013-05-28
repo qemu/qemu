@@ -327,7 +327,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         cpu_stl_kernel(env, env->tr.base + (0x28 + 0 * 4), env->regs[R_EAX]);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 1 * 4), ECX);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 2 * 4), EDX);
-        cpu_stl_kernel(env, env->tr.base + (0x28 + 3 * 4), EBX);
+        cpu_stl_kernel(env, env->tr.base + (0x28 + 3 * 4), env->regs[R_EBX]);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 4 * 4), ESP);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 5 * 4), EBP);
         cpu_stl_kernel(env, env->tr.base + (0x28 + 6 * 4), ESI);
@@ -343,7 +343,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
         cpu_stw_kernel(env, env->tr.base + (0x12 + 0 * 2), env->regs[R_EAX]);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 1 * 2), ECX);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 2 * 2), EDX);
-        cpu_stw_kernel(env, env->tr.base + (0x12 + 3 * 2), EBX);
+        cpu_stw_kernel(env, env->tr.base + (0x12 + 3 * 2), env->regs[R_EBX]);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 4 * 2), ESP);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 5 * 2), EBP);
         cpu_stw_kernel(env, env->tr.base + (0x12 + 6 * 2), ESI);
@@ -399,7 +399,7 @@ static void switch_tss(CPUX86State *env, int tss_selector,
     env->regs[R_EAX] = new_regs[0];
     ECX = new_regs[1];
     EDX = new_regs[2];
-    EBX = new_regs[3];
+    env->regs[R_EBX] = new_regs[3];
     ESP = new_regs[4];
     EBP = new_regs[5];
     ESI = new_regs[6];
