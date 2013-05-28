@@ -1101,8 +1101,6 @@ static inline int cpu_mmu_index (CPUX86State *env)
         ? MMU_KSMAP_IDX : MMU_KERNEL_IDX;
 }
 
-#undef EDX
-#define EDX (env->regs[R_EDX])
 #undef ESP
 #define ESP (env->regs[R_ESP])
 #undef EBP

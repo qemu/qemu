@@ -126,7 +126,7 @@ void helper_cpuid(CPUX86State *env)
     env->regs[R_EAX] = eax;
     env->regs[R_EBX] = ebx;
     env->regs[R_ECX] = ecx;
-    EDX = edx;
+    env->regs[R_EDX] = edx;
 }
 
 #if defined(CONFIG_USER_ONLY)
@@ -235,7 +235,7 @@ void helper_rdtsc(CPUX86State *env)
 
     val = cpu_get_tsc(env) + env->tsc_offset;
     env->regs[R_EAX] = (uint32_t)(val);
-    EDX = (uint32_t)(val >> 32);
+    env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 
 void helper_rdtscp(CPUX86State *env)
@@ -271,7 +271,7 @@ void helper_wrmsr(CPUX86State *env)
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 1);
 
-    val = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)EDX) << 32);
+    val = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
 
     switch ((uint32_t)env->regs[R_ECX]) {
     case MSR_IA32_SYSENTER_CS:
@@ -549,7 +549,7 @@ void helper_rdmsr(CPUX86State *env)
         break;
     }
     env->regs[R_EAX] = (uint32_t)(val);
-    EDX = (uint32_t)(val >> 32);
+    env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 #endif
 

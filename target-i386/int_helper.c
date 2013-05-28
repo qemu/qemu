@@ -81,7 +81,7 @@ void helper_divw_AX(CPUX86State *env, target_ulong t0)
 {
     unsigned int num, den, q, r;
 
-    num = (env->regs[R_EAX] & 0xffff) | ((EDX & 0xffff) << 16);
+    num = (env->regs[R_EAX] & 0xffff) | ((env->regs[R_EDX] & 0xffff) << 16);
     den = (t0 & 0xffff);
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -93,14 +93,14 @@ void helper_divw_AX(CPUX86State *env, target_ulong t0)
     q &= 0xffff;
     r = (num % den) & 0xffff;
     env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | q;
-    EDX = (EDX & ~0xffff) | r;
+    env->regs[R_EDX] = (env->regs[R_EDX] & ~0xffff) | r;
 }
 
 void helper_idivw_AX(CPUX86State *env, target_ulong t0)
 {
     int num, den, q, r;
 
-    num = (env->regs[R_EAX] & 0xffff) | ((EDX & 0xffff) << 16);
+    num = (env->regs[R_EAX] & 0xffff) | ((env->regs[R_EDX] & 0xffff) << 16);
     den = (int16_t)t0;
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -112,7 +112,7 @@ void helper_idivw_AX(CPUX86State *env, target_ulong t0)
     q &= 0xffff;
     r = (num % den) & 0xffff;
     env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | q;
-    EDX = (EDX & ~0xffff) | r;
+    env->regs[R_EDX] = (env->regs[R_EDX] & ~0xffff) | r;
 }
 
 void helper_divl_EAX(CPUX86State *env, target_ulong t0)
@@ -120,7 +120,7 @@ void helper_divl_EAX(CPUX86State *env, target_ulong t0)
     unsigned int den, r;
     uint64_t num, q;
 
-    num = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)EDX) << 32);
+    num = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
     den = t0;
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -131,7 +131,7 @@ void helper_divl_EAX(CPUX86State *env, target_ulong t0)
         raise_exception(env, EXCP00_DIVZ);
     }
     env->regs[R_EAX] = (uint32_t)q;
-    EDX = (uint32_t)r;
+    env->regs[R_EDX] = (uint32_t)r;
 }
 
 void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
@@ -139,7 +139,7 @@ void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
     int den, r;
     int64_t num, q;
 
-    num = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)EDX) << 32);
+    num = ((uint32_t)env->regs[R_EAX]) | ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
     den = t0;
     if (den == 0) {
         raise_exception(env, EXCP00_DIVZ);
@@ -150,7 +150,7 @@ void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
         raise_exception(env, EXCP00_DIVZ);
     }
     env->regs[R_EAX] = (uint32_t)q;
-    EDX = (uint32_t)r;
+    env->regs[R_EDX] = (uint32_t)r;
 }
 
 /* bcd */
@@ -382,12 +382,12 @@ void helper_divq_EAX(CPUX86State *env, target_ulong t0)
         raise_exception(env, EXCP00_DIVZ);
     }
     r0 = env->regs[R_EAX];
-    r1 = EDX;
+    r1 = env->regs[R_EDX];
     if (div64(&r0, &r1, t0)) {
         raise_exception(env, EXCP00_DIVZ);
     }
     env->regs[R_EAX] = r0;
-    EDX = r1;
+    env->regs[R_EDX] = r1;
 }
 
 void helper_idivq_EAX(CPUX86State *env, target_ulong t0)
@@ -398,12 +398,12 @@ void helper_idivq_EAX(CPUX86State *env, target_ulong t0)
         raise_exception(env, EXCP00_DIVZ);
     }
     r0 = env->regs[R_EAX];
-    r1 = EDX;
+    r1 = env->regs[R_EDX];
     if (idiv64(&r0, &r1, t0)) {
         raise_exception(env, EXCP00_DIVZ);
     }
     env->regs[R_EAX] = r0;
-    EDX = r1;
+    env->regs[R_EDX] = r1;
 }
 #endif
 

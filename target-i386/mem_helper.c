@@ -45,13 +45,13 @@ void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
 
     eflags = cpu_cc_compute_all(env, CC_OP);
     d = cpu_ldq_data(env, a0);
-    if (d == (((uint64_t)EDX << 32) | (uint32_t)env->regs[R_EAX])) {
+    if (d == (((uint64_t)env->regs[R_EDX] << 32) | (uint32_t)env->regs[R_EAX])) {
         cpu_stq_data(env, a0, ((uint64_t)env->regs[R_ECX] << 32) | (uint32_t)env->regs[R_EBX]);
         eflags |= CC_Z;
     } else {
         /* always do the store */
         cpu_stq_data(env, a0, d);
-        EDX = (uint32_t)(d >> 32);
+        env->regs[R_EDX] = (uint32_t)(d >> 32);
         env->regs[R_EAX] = (uint32_t)d;
         eflags &= ~CC_Z;
     }
@@ -70,7 +70,7 @@ void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
     eflags = cpu_cc_compute_all(env, CC_OP);
     d0 = cpu_ldq_data(env, a0);
     d1 = cpu_ldq_data(env, a0 + 8);
-    if (d0 == env->regs[R_EAX] && d1 == EDX) {
+    if (d0 == env->regs[R_EAX] && d1 == env->regs[R_EDX]) {
         cpu_stq_data(env, a0, env->regs[R_EBX]);
         cpu_stq_data(env, a0 + 8, env->regs[R_ECX]);
         eflags |= CC_Z;
@@ -78,7 +78,7 @@ void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
         /* always do the store */
         cpu_stq_data(env, a0, d0);
         cpu_stq_data(env, a0 + 8, d1);
-        EDX = d1;
+        env->regs[R_EDX] = d1;
         env->regs[R_EAX] = d0;
         eflags &= ~CC_Z;
     }
