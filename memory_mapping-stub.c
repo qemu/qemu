@@ -25,9 +25,3 @@ int cpu_get_memory_mapping(MemoryMappingList *list,
 {
     return -1;
 }
-
-bool cpu_paging_enabled(CPUArchState *env)
-{
-    return true;
-}
-

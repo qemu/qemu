@@ -2505,6 +2505,13 @@ static int64_t x86_cpu_get_arch_id(CPUState *cs)
     return env->cpuid_apic_id;
 }
 
+static bool x86_cpu_get_paging_enabled(const CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+
+    return cpu->env.cr[0] & CR0_PG_MASK;
+}
+
 static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 {
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
@@ -2519,6 +2526,8 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->reset = x86_cpu_reset;
 
     cc->do_interrupt = x86_cpu_do_interrupt;
+    cc->get_arch_id = x86_cpu_get_arch_id;
+    cc->get_paging_enabled = x86_cpu_get_paging_enabled;
 #ifndef CONFIG_USER_ONLY
     cc->write_elf64_note = x86_cpu_write_elf64_note;
     cc->write_elf64_qemunote = x86_cpu_write_elf64_qemunote;
@@ -2526,8 +2535,6 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->write_elf32_qemunote = x86_cpu_write_elf32_qemunote;
 #endif
     cpu_class_set_vmsd(cc, &vmstate_x86_cpu);
-
-    cc->get_arch_id = x86_cpu_get_arch_id;
 }
 
 static const TypeInfo x86_cpu_type_info = {

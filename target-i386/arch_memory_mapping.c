@@ -241,7 +241,7 @@ static void walk_pml4e(MemoryMappingList *list,
 
 int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env)
 {
-    if (!cpu_paging_enabled(env)) {
+    if (!cpu_paging_enabled(ENV_GET_CPU(env))) {
         /* paging is disabled */
         return 0;
     }
@@ -273,7 +273,3 @@ int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env)
     return 0;
 }
 
-bool cpu_paging_enabled(CPUArchState *env)
-{
-    return env->cr[0] & CR0_PG_MASK;
-}

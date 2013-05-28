@@ -170,7 +170,7 @@ static CPUArchState *find_paging_enabled_cpu(CPUArchState *start_cpu)
     CPUArchState *env;
 
     for (env = start_cpu; env != NULL; env = env->next_cpu) {
-        if (cpu_paging_enabled(env)) {
+        if (cpu_paging_enabled(ENV_GET_CPU(env))) {
             return env;
         }
     }
