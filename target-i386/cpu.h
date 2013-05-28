@@ -1103,8 +1103,6 @@ static inline int cpu_mmu_index (CPUX86State *env)
 
 #undef ESP
 #define ESP (env->regs[R_ESP])
-#undef EBP
-#define EBP (env->regs[R_EBP])
 #undef ESI
 #define ESI (env->regs[R_ESI])
 #undef EDI
