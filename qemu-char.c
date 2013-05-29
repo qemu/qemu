@@ -3276,7 +3276,6 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         ChardevReturn *ret = NULL;
         const char *id = qemu_opts_id(opts);
         const char *bid = NULL;
-        char *filename = g_strdup(qemu_opt_get(opts, "backend"));
 
         if (qemu_opt_get_bool(opts, "mux", 0)) {
             bid = g_strdup_printf("%s-base", id);
@@ -3309,7 +3308,6 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         }
 
         chr = qemu_chr_find(id);
-        chr->filename = filename;
 
     qapi_out:
         qapi_free_ChardevBackend(backend);
@@ -3803,6 +3801,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         chr->label = g_strdup(id);
         chr->avail_connections =
             (backend->kind == CHARDEV_BACKEND_KIND_MUX) ? MAX_MUX : 1;
+        if (!chr->filename) {
+            chr->filename = g_strdup(ChardevBackendKind_lookup[backend->kind]);
+        }
         QTAILQ_INSERT_TAIL(&chardevs, chr, next);
         return ret;
     } else {
