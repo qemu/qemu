@@ -658,7 +658,7 @@ static mode_t v9mode_to_mode(uint32_t mode, V9fsString *extension)
         ret |= S_IFIFO;
     }
     if (mode & P9_STAT_MODE_DEVICE) {
-        if (extension && extension->data[0] == 'c') {
+        if (extension->size && extension->data[0] == 'c') {
             ret |= S_IFCHR;
         } else {
             ret |= S_IFBLK;

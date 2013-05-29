@@ -59,6 +59,33 @@ static const char *local_mapped_attr_path(FsContext *ctx,
     return buffer;
 }
 
+static FILE *local_fopen(const char *path, const char *mode)
+{
+    int fd, o_mode = 0;
+    FILE *fp;
+    int flags = O_NOFOLLOW;
+    /*
+     * only supports two modes
+     */
+    if (mode[0] == 'r') {
+        flags |= O_RDONLY;
+    } else if (mode[0] == 'w') {
+        flags |= O_WRONLY | O_TRUNC | O_CREAT;
+        o_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+    } else {
+        return NULL;
+    }
+    fd = open(path, flags, o_mode);
+    if (fd == -1) {
+        return NULL;
+    }
+    fp = fdopen(fd, mode);
+    if (!fp) {
+        close(fd);
+    }
+    return fp;
+}
+
 #define ATTR_MAX 100
 static void local_mapped_file_attr(FsContext *ctx, const char *path,
                                    struct stat *stbuf)
@@ -68,7 +95,7 @@ static void local_mapped_file_attr(FsContext *ctx, const char *path,
     char attr_path[PATH_MAX];
 
     local_mapped_attr_path(ctx, path, attr_path);
-    fp = fopen(attr_path, "r");
+    fp = local_fopen(attr_path, "r");
     if (!fp) {
         return;
     }
@@ -152,7 +179,7 @@ static int local_set_mapped_file_attr(FsContext *ctx,
     char attr_path[PATH_MAX];
     int uid = -1, gid = -1, mode = -1, rdev = -1;
 
-    fp = fopen(local_mapped_attr_path(ctx, path, attr_path), "r");
+    fp = local_fopen(local_mapped_attr_path(ctx, path, attr_path), "r");
     if (!fp) {
         goto create_map_file;
     }
@@ -179,7 +206,7 @@ create_map_file:
     }
 
 update_map_file:
-    fp = fopen(attr_path, "w");
+    fp = local_fopen(attr_path, "w");
     if (!fp) {
         ret = -1;
         goto err_out;
@@ -284,7 +311,7 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
     if ((fs_ctx->export_flags & V9FS_SM_MAPPED) ||
         (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE)) {
         int fd;
-        fd = open(rpath(fs_ctx, path, buffer), O_RDONLY);
+        fd = open(rpath(fs_ctx, path, buffer), O_RDONLY | O_NOFOLLOW);
         if (fd == -1) {
             return -1;
         }
@@ -316,7 +343,7 @@ static int local_open(FsContext *ctx, V9fsPath *fs_path,
     char buffer[PATH_MAX];
     char *path = fs_path->data;
 
-    fs->fd = open(rpath(ctx, path, buffer), flags);
+    fs->fd = open(rpath(ctx, path, buffer), flags | O_NOFOLLOW);
     return fs->fd;
 }
 
@@ -601,6 +628,11 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     V9fsString fullname;
     char buffer[PATH_MAX];
 
+    /*
+     * Mark all the open to not follow symlinks
+     */
+    flags |= O_NOFOLLOW;
+
     v9fs_string_init(&fullname);
     v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
     path = fullname.data;
@@ -676,8 +708,9 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
     if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         int fd;
         ssize_t oldpath_size, write_size;
-        fd = open(rpath(fs_ctx, newpath, buffer), O_CREAT|O_EXCL|O_RDWR,
-                SM_LOCAL_MODE_BITS);
+        fd = open(rpath(fs_ctx, newpath, buffer),
+                  O_CREAT|O_EXCL|O_RDWR|O_NOFOLLOW,
+                  SM_LOCAL_MODE_BITS);
         if (fd == -1) {
             err = fd;
             goto out;
@@ -705,7 +738,8 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         int fd;
         ssize_t oldpath_size, write_size;
-        fd = open(rpath(fs_ctx, newpath, buffer), O_CREAT|O_EXCL|O_RDWR,
+        fd = open(rpath(fs_ctx, newpath, buffer),
+                  O_CREAT|O_EXCL|O_RDWR|O_NOFOLLOW,
                   SM_LOCAL_MODE_BITS);
         if (fd == -1) {
             err = fd;
