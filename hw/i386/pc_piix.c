@@ -713,6 +713,11 @@ static QEMUMachine isapc_machine = {
             .property = "rom_only",
             .value    = stringify(1),
         },
+        {
+            .driver   = "pc-sysfw",
+            .property = "isapc_ram_fw",
+            .value    = stringify(1),
+        },
         { /* end of list */ }
     },
     DEFAULT_MACHINE_OPTIONS,

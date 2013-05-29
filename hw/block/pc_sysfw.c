@@ -39,6 +39,7 @@
 typedef struct PcSysFwDevice {
     SysBusDevice busdev;
     uint8_t rom_only;
+    uint8_t isapc_ram_fw;
 } PcSysFwDevice;
 
 static void pc_isa_bios_init(MemoryRegion *rom_memory,
@@ -139,7 +140,7 @@ static void pc_system_flash_init(MemoryRegion *rom_memory,
     pc_isa_bios_init(rom_memory, flash_mem, size);
 }
 
-static void old_pc_system_rom_init(MemoryRegion *rom_memory)
+static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
     char *filename;
     MemoryRegion *bios, *isa_bios;
@@ -163,7 +164,9 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory)
     bios = g_malloc(sizeof(*bios));
     memory_region_init_ram(bios, "pc.bios", bios_size);
     vmstate_register_ram_global(bios);
-    memory_region_set_readonly(bios, true);
+    if (!isapc_ram_fw) {
+        memory_region_set_readonly(bios, true);
+    }
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
     if (ret != 0) {
     bios_error:
@@ -186,7 +189,9 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory)
                                         0x100000 - isa_bios_size,
                                         isa_bios,
                                         1);
-    memory_region_set_readonly(isa_bios, true);
+    if (!isapc_ram_fw) {
+        memory_region_set_readonly(isa_bios, true);
+    }
 
     /* map all the bios at the top of memory */
     memory_region_add_subregion(rom_memory,
@@ -216,7 +221,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
     qdev_init_nofail(DEVICE(sysfw_dev));
 
     if (sysfw_dev->rom_only) {
-        old_pc_system_rom_init(rom_memory);
+        old_pc_system_rom_init(rom_memory, sysfw_dev->isapc_ram_fw);
         return;
     }
 
@@ -234,7 +239,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
             exit(1);
         } else {
             sysfw_dev->rom_only = 1;
-            old_pc_system_rom_init(rom_memory);
+            old_pc_system_rom_init(rom_memory, sysfw_dev->isapc_ram_fw);
             return;
         }
     }
@@ -255,6 +260,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
 }
 
 static Property pcsysfw_properties[] = {
+    DEFINE_PROP_UINT8("isapc_ram_fw", PcSysFwDevice, isapc_ram_fw, 0),
     DEFINE_PROP_UINT8("rom_only", PcSysFwDevice, rom_only, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
