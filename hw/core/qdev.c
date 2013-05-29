@@ -515,7 +515,7 @@ static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
             l += snprintf(p + l, size - l, "%s", d);
             g_free(d);
         } else {
-            l += snprintf(p + l, size - l, "%s", object_get_typename(OBJECT(dev)));
+            return l;
         }
     }
     l += snprintf(p + l , size - l, "/");
@@ -867,9 +867,17 @@ static void qbus_initfn(Object *obj)
     QTAILQ_INIT(&bus->children);
 }
 
+static char *default_bus_get_fw_dev_path(DeviceState *dev)
+{
+    return g_strdup(object_get_typename(OBJECT(dev)));
+}
+
 static void bus_class_init(ObjectClass *class, void *data)
 {
+    BusClass *bc = BUS_CLASS(class);
+
     class->unparent = bus_unparent;
+    bc->get_fw_dev_path = default_bus_get_fw_dev_path;
 }
 
 static void qbus_finalize(Object *obj)
