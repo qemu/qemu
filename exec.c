@@ -122,7 +122,7 @@ typedef struct PhysPageMap {
     MemoryRegionSection *sections;
 } PhysPageMap;
 
-static PhysPageMap cur_map;
+static PhysPageMap *prev_map;
 static PhysPageMap next_map;
 
 #define PHYS_MAP_NODE_NIL (((uint16_t)~0) >> 1)
@@ -790,7 +790,7 @@ static void phys_section_destroy(MemoryRegion *mr)
     }
 }
 
-static void phys_sections_clear(PhysPageMap *map)
+static void phys_sections_free(PhysPageMap *map)
 {
     while (map->sections_nb > 0) {
         MemoryRegionSection *section = &map->sections[--map->sections_nb];
@@ -798,6 +798,7 @@ static void phys_sections_clear(PhysPageMap *map)
     }
     g_free(map->sections);
     g_free(map->nodes);
+    g_free(map);
 }
 
 static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *section)
@@ -1731,6 +1732,9 @@ static void core_begin(MemoryListener *listener)
 {
     uint16_t n;
 
+    prev_map = g_new(PhysPageMap, 1);
+    *prev_map = next_map;
+
     memset(&next_map, 0, sizeof(next_map));
     n = dummy_section(&io_mem_unassigned);
     assert(n == PHYS_SECTION_UNASSIGNED);
@@ -1747,9 +1751,7 @@ static void core_begin(MemoryListener *listener)
  */
 static void core_commit(MemoryListener *listener)
 {
-    PhysPageMap info = cur_map;
-    cur_map = next_map;
-    phys_sections_clear(&info);
+    phys_sections_free(prev_map);
 }
 
 static void tcg_commit(MemoryListener *listener)
