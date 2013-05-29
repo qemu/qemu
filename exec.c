@@ -841,7 +841,7 @@ static void register_multipage(AddressSpaceDispatch *d,
 static void mem_add(MemoryListener *listener, MemoryRegionSection *section)
 {
     AddressSpace *as = container_of(listener, AddressSpace, dispatch_listener);
-    AddressSpaceDispatch *d = as->dispatch;
+    AddressSpaceDispatch *d = as->next_dispatch;
     MemoryRegionSection now = *section, remain = *section;
     Int128 page_size = int128_make64(TARGET_PAGE_SIZE);
 
@@ -1704,9 +1704,21 @@ static void io_mem_init(void)
 static void mem_begin(MemoryListener *listener)
 {
     AddressSpace *as = container_of(listener, AddressSpace, dispatch_listener);
+    AddressSpaceDispatch *d = g_new(AddressSpaceDispatch, 1);
+
+    d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .is_leaf = 0 };
+    d->as = as;
+    as->next_dispatch = d;
+}
+
+static void mem_commit(MemoryListener *listener)
+{
+    AddressSpace *as = container_of(listener, AddressSpace, dispatch_listener);
     AddressSpaceDispatch *d = as->dispatch;
 
-    d->phys_map.ptr = PHYS_MAP_NODE_NIL;
+    /* cur_map will soon be switched to next_map, too.  */
+    as->dispatch = as->next_dispatch;
+    g_free(d);
 }
 
 static void core_begin(MemoryListener *listener)
@@ -1770,13 +1782,10 @@ static MemoryListener tcg_memory_listener = {
 
 void address_space_init_dispatch(AddressSpace *as)
 {
-    AddressSpaceDispatch *d = g_new(AddressSpaceDispatch, 1);
-
-    d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .is_leaf = 0 };
-    d->as = as;
-    as->dispatch = d;
+    as->dispatch = NULL;
     as->dispatch_listener = (MemoryListener) {
         .begin = mem_begin,
+        .commit = mem_commit,
         .region_add = mem_add,
         .region_nop = mem_add,
         .priority = 0,

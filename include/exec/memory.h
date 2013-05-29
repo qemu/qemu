@@ -209,6 +209,7 @@ struct AddressSpace {
     int ioeventfd_nb;
     struct MemoryRegionIoeventfd *ioeventfds;
     struct AddressSpaceDispatch *dispatch;
+    struct AddressSpaceDispatch *next_dispatch;
     MemoryListener dispatch_listener;
 
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
