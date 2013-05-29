@@ -111,6 +111,7 @@ bool kvm_irqfds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
 bool kvm_allowed;
+bool kvm_readonly_mem_allowed;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -1424,6 +1425,11 @@ int kvm_init(void)
     if (kvm_check_extension(s, KVM_CAP_IRQ_INJECT_STATUS)) {
         s->irq_set_ioctl = KVM_IRQ_LINE_STATUS;
     }
+
+#ifdef KVM_CAP_READONLY_MEM
+    kvm_readonly_mem_allowed =
+        (kvm_check_extension(s, KVM_CAP_READONLY_MEM) > 0);
+#endif
 
     ret = kvm_arch_init(s);
     if (ret < 0) {
