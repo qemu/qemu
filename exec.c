@@ -88,11 +88,15 @@ struct PhysPageEntry {
     uint16_t ptr : 15;
 };
 
+typedef PhysPageEntry Node[L2_SIZE];
+
 struct AddressSpaceDispatch {
     /* This is a multi-level map on the physical address space.
      * The bottom level has pointers to MemoryRegionSections.
      */
     PhysPageEntry phys_map;
+    Node *nodes;
+    MemoryRegionSection *sections;
     AddressSpace *as;
 };
 
@@ -108,8 +112,6 @@ typedef struct subpage_t {
 #define PHYS_SECTION_NOTDIRTY 1
 #define PHYS_SECTION_ROM 2
 #define PHYS_SECTION_WATCH 3
-
-typedef PhysPageEntry Node[L2_SIZE];
 
 typedef struct PhysPageMap {
     unsigned sections_nb;
@@ -232,14 +234,15 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpace *as,
                                                         hwaddr addr,
                                                         bool resolve_subpage)
 {
+    AddressSpaceDispatch *d = as->dispatch;
     MemoryRegionSection *section;
     subpage_t *subpage;
 
-    section = phys_page_find(as->dispatch->phys_map, addr >> TARGET_PAGE_BITS,
-                             cur_map.nodes, cur_map.sections);
+    section = phys_page_find(d->phys_map, addr >> TARGET_PAGE_BITS,
+                             d->nodes, d->sections);
     if (resolve_subpage && section->mr->subpage) {
         subpage = container_of(section->mr, subpage_t, iomem);
-        section = &cur_map.sections[subpage->sub_section[SUBPAGE_IDX(addr)]];
+        section = &d->sections[subpage->sub_section[SUBPAGE_IDX(addr)]];
     }
     return section;
 }
@@ -730,7 +733,7 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
             iotlb |= PHYS_SECTION_ROM;
         }
     } else {
-        iotlb = section - cur_map.sections;
+        iotlb = section - address_space_memory.dispatch->sections;
         iotlb += xlat;
     }
 
@@ -1687,7 +1690,7 @@ static uint16_t dummy_section(MemoryRegion *mr)
 
 MemoryRegion *iotlb_to_region(hwaddr index)
 {
-    return cur_map.sections[index & ~TARGET_PAGE_MASK].mr;
+    return address_space_memory.dispatch->sections[index & ~TARGET_PAGE_MASK].mr;
 }
 
 static void io_mem_init(void)
@@ -1714,11 +1717,14 @@ static void mem_begin(MemoryListener *listener)
 static void mem_commit(MemoryListener *listener)
 {
     AddressSpace *as = container_of(listener, AddressSpace, dispatch_listener);
-    AddressSpaceDispatch *d = as->dispatch;
+    AddressSpaceDispatch *cur = as->dispatch;
+    AddressSpaceDispatch *next = as->next_dispatch;
 
-    /* cur_map will soon be switched to next_map, too.  */
-    as->dispatch = as->next_dispatch;
-    g_free(d);
+    next->nodes = next_map.nodes;
+    next->sections = next_map.sections;
+
+    as->dispatch = next;
+    g_free(cur);
 }
 
 static void core_begin(MemoryListener *listener)
