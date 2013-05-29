@@ -130,7 +130,6 @@ static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
                                          uint32_t nret, target_ulong rets)
 {
     target_ulong id;
-    CPUPPCState *env;
     CPUState *cpu;
 
     if (nargs != 1 || nret != 2) {
@@ -139,12 +138,8 @@ static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
     }
 
     id = rtas_ld(args, 0);
-    for (env = first_cpu; env; env = env->next_cpu) {
-        cpu = CPU(ppc_env_get_cpu(env));
-        if (cpu->cpu_index != id) {
-            continue;
-        }
-
+    cpu = qemu_get_cpu(id);
+    if (cpu != NULL) {
         if (cpu->halted) {
             rtas_st(rets, 1, 0);
         } else {
