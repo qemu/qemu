@@ -859,7 +859,7 @@ bool address_space_write(AddressSpace *as, hwaddr addr,
 bool address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
 
 /* address_space_translate: translate an address range into an address space
- * into a MemoryRegionSection and an address range into that section
+ * into a MemoryRegion and an address range into that section
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
@@ -868,9 +868,9 @@ bool address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
  * @len: pointer to length
  * @is_write: indicates the transfer direction
  */
-MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
-                                             hwaddr *xlat, hwaddr *len,
-                                             bool is_write);
+MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
+                                      hwaddr *xlat, hwaddr *len,
+                                      bool is_write);
 
 /* address_space_access_valid: check for validity of accessing an address
  * space range
