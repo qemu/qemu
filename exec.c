@@ -154,12 +154,6 @@ static uint16_t phys_map_node_alloc(void)
     return ret;
 }
 
-static void phys_map_nodes_reset(void)
-{
-    phys_map_nodes_nb = 0;
-}
-
-
 static void phys_page_set_level(PhysPageEntry *lp, hwaddr *index,
                                 hwaddr *nb, uint16_t leaf,
                                 int level)
@@ -755,31 +749,6 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
 static subpage_t *subpage_init(AddressSpace *as, hwaddr base);
 
-static void destroy_l2_mapping(PhysPageEntry *lp, unsigned level)
-{
-    unsigned i;
-    PhysPageEntry *p;
-
-    if (lp->ptr == PHYS_MAP_NODE_NIL) {
-        return;
-    }
-
-    p = phys_map_nodes[lp->ptr];
-    for (i = 0; i < L2_SIZE; ++i) {
-        if (!p[i].is_leaf) {
-            destroy_l2_mapping(&p[i], level - 1);
-        }
-    }
-    lp->is_leaf = 0;
-    lp->ptr = PHYS_MAP_NODE_NIL;
-}
-
-static void destroy_all_mappings(AddressSpaceDispatch *d)
-{
-    destroy_l2_mapping(&d->phys_map, P_L2_LEVELS - 1);
-    phys_map_nodes_reset();
-}
-
 static uint16_t phys_section_add(MemoryRegionSection *section)
 {
     /* The physical section number is ORed with a page-aligned
@@ -812,6 +781,7 @@ static void phys_sections_clear(void)
         MemoryRegionSection *section = &phys_sections[--phys_sections_nb];
         phys_section_destroy(section->mr);
     }
+    phys_map_nodes_nb = 0;
 }
 
 static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *section)
@@ -1716,7 +1686,6 @@ static void mem_begin(MemoryListener *listener)
 {
     AddressSpaceDispatch *d = container_of(listener, AddressSpaceDispatch, listener);
 
-    destroy_all_mappings(d);
     d->phys_map.ptr = PHYS_MAP_NODE_NIL;
 }
 
@@ -1783,7 +1752,6 @@ void address_space_destroy_dispatch(AddressSpace *as)
     AddressSpaceDispatch *d = as->dispatch;
 
     memory_listener_unregister(&d->listener);
-    destroy_l2_mapping(&d->phys_map, P_L2_LEVELS - 1);
     g_free(d);
     as->dispatch = NULL;
 }
