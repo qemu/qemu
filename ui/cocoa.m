@@ -35,6 +35,9 @@
 #ifndef MAC_OS_X_VERSION_10_5
 #define MAC_OS_X_VERSION_10_5 1050
 #endif
+#ifndef MAC_OS_X_VERSION_10_6
+#define MAC_OS_X_VERSION_10_6 1060
+#endif
 
 
 //#define DEBUG
@@ -771,9 +774,20 @@ QemuCocoaView *cocoaView;
         NSOpenPanel *op = [[NSOpenPanel alloc] init];
         [op setPrompt:@"Boot image"];
         [op setMessage:@"Select the disk image you want to boot.\n\nHit the \"Cancel\" button to quit"];
-        [op beginSheetForDirectory:nil file:nil types:[NSArray arrayWithObjects:@"img",@"iso",@"dmg",@"qcow",@"cow",@"cloop",@"vmdk",nil]
+        NSArray *filetypes = [NSArray arrayWithObjects:@"img", @"iso", @"dmg",
+                                 @"qcow", @"cow", @"cloop", @"vmdk", nil];
+#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
+        [op setAllowedFileTypes:filetypes];
+        [op beginSheetModalForWindow:normalWindow
+            completionHandler:^(NSInteger returnCode)
+            { [self openPanelDidEnd:op
+                  returnCode:returnCode contextInfo:NULL ]; } ];
+#else
+        // Compatibility code for pre-10.6, using deprecated method
+        [op beginSheetForDirectory:nil file:nil types:filetypes
               modalForWindow:normalWindow modalDelegate:self
               didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+#endif
     } else {
         // or launch QEMU, with the global args
         [self startEmulationWithArgc:gArgc argv:(char **)gArgv];
@@ -810,7 +824,7 @@ QemuCocoaView *cocoaView;
         exit(0);
     } else if(returnCode == NSOKButton) {
         const char *bin = "qemu";
-        char *img = (char*)[ [ sheet filename ] cStringUsingEncoding:NSASCIIStringEncoding];
+        char *img = (char*)[ [ [ sheet URL ] path ] cStringUsingEncoding:NSASCIIStringEncoding];
 
         char **argv = (char**)malloc( sizeof(char*)*3 );
 
@@ -851,22 +865,10 @@ QemuCocoaView *cocoaView;
 
 
 
-// Dock Connection
-typedef struct CPSProcessSerNum
-{
-        UInt32                lo;
-        UInt32                hi;
-} CPSProcessSerNum;
-
-OSErr CPSGetCurrentProcess( CPSProcessSerNum *psn);
-OSErr CPSEnableForegroundOperation( CPSProcessSerNum *psn, UInt32 _arg2, UInt32 _arg3, UInt32 _arg4, UInt32 _arg5);
-OSErr CPSSetFrontProcess( CPSProcessSerNum *psn);
-
 int main (int argc, const char * argv[]) {
 
     gArgc = argc;
     gArgv = (char **)argv;
-    CPSProcessSerNum PSN;
     int i;
 
     /* In case we don't need to display a window, let's not do that */
@@ -890,12 +892,13 @@ int main (int argc, const char * argv[]) {
     }
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    [NSApplication sharedApplication];
 
-    if (!CPSGetCurrentProcess(&PSN))
-        if (!CPSEnableForegroundOperation(&PSN,0x03,0x3C,0x2C,0x1103))
-            if (!CPSSetFrontProcess(&PSN))
-                [NSApplication sharedApplication];
+    // Pull this console process up to being a fully-fledged graphical
+    // app with a menubar and Dock icon
+    ProcessSerialNumber psn = { 0, kCurrentProcess };
+    TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+
+    [NSApplication sharedApplication];
 
     // Add menus
     NSMenu      *menu;
@@ -960,6 +963,8 @@ int main (int argc, const char * argv[]) {
 static void cocoa_update(DisplayChangeListener *dcl,
                          int x, int y, int w, int h)
 {
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+
     COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
 
     NSRect rect;
@@ -973,18 +978,24 @@ static void cocoa_update(DisplayChangeListener *dcl,
             h * [cocoaView cdy]);
     }
     [cocoaView setNeedsDisplayInRect:rect];
+
+    [pool release];
 }
 
 static void cocoa_switch(DisplayChangeListener *dcl,
                          DisplaySurface *surface)
 {
-    COCOA_DEBUG("qemu_cocoa: cocoa_resize\n");
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
+    COCOA_DEBUG("qemu_cocoa: cocoa_switch\n");
     [cocoaView switchSurface:surface];
+    [pool release];
 }
 
 static void cocoa_refresh(DisplayChangeListener *dcl)
 {
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
 
     if (kbd_mouse_is_absolute()) {
@@ -1007,6 +1018,7 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
         }
     } while(event != nil);
     graphic_hw_update(NULL);
+    [pool release];
 }
 
 static void cocoa_cleanup(void)
