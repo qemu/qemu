@@ -174,6 +174,9 @@ static int execute_command(BlockDriverState *bdrv,
     r->io_header.flags |= SG_FLAG_DIRECT_IO;
 
     r->req.aiocb = bdrv_aio_ioctl(bdrv, SG_IO, &r->io_header, complete, r);
+    if (r->req.aiocb == NULL) {
+        return -EIO;
+    }
 
     return 0;
 }
