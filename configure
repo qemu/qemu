@@ -123,7 +123,8 @@ interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_prefix=""
 audio_drv_list=""
-block_drv_whitelist=""
+block_drv_rw_whitelist=""
+block_drv_ro_whitelist=""
 host_cc="cc"
 libs_softmmu=""
 libs_tools=""
@@ -708,7 +709,9 @@ for opt do
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
-  --block-drv-whitelist=*) block_drv_whitelist=`echo "$optarg" | sed -e 's/,/ /g'`
+  --block-drv-rw-whitelist=*|--block-drv-whitelist=*) block_drv_rw_whitelist=`echo "$optarg" | sed -e 's/,/ /g'`
+  ;;
+  --block-drv-ro-whitelist=*) block_drv_ro_whitelist=`echo "$optarg" | sed -e 's/,/ /g'`
   ;;
   --enable-debug-tcg) debug_tcg="yes"
   ;;
@@ -1049,7 +1052,12 @@ echo "  --disable-cocoa          disable Cocoa (Mac OS X only)"
 echo "  --enable-cocoa           enable Cocoa (default on Mac OS X)"
 echo "  --audio-drv-list=LIST    set audio drivers list:"
 echo "                           Available drivers: $audio_possible_drivers"
-echo "  --block-drv-whitelist=L  set block driver whitelist"
+echo "  --block-drv-whitelist=L  Same as --block-drv-rw-whitelist=L"
+echo "  --block-drv-rw-whitelist=L"
+echo "                           set block driver read-write whitelist"
+echo "                           (affects only QEMU, not qemu-img)"
+echo "  --block-drv-ro-whitelist=L"
+echo "                           set block driver read-only whitelist"
 echo "                           (affects only QEMU, not qemu-img)"
 echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-xen            disable xen backend driver support"
@@ -3481,7 +3489,8 @@ echo "curses support    $curses"
 echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
-echo "Block whitelist   $block_drv_whitelist"
+echo "Block whitelist (rw) $block_drv_rw_whitelist"
+echo "Block whitelist (ro) $block_drv_ro_whitelist"
 echo "Mixer emulation   $mixemu"
 echo "VirtFS support    $virtfs"
 echo "VNC support       $vnc"
@@ -3662,7 +3671,8 @@ fi
 if test "$audio_win_int" = "yes" ; then
   echo "CONFIG_AUDIO_WIN_INT=y" >> $config_host_mak
 fi
-echo "CONFIG_BDRV_WHITELIST=$block_drv_whitelist" >> $config_host_mak
+echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
+echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
 if test "$mixemu" = "yes" ; then
   echo "CONFIG_MIXEMU=y" >> $config_host_mak
 fi

@@ -328,28 +328,40 @@ BlockDriver *bdrv_find_format(const char *format_name)
     return NULL;
 }
 
-static int bdrv_is_whitelisted(BlockDriver *drv)
+static int bdrv_is_whitelisted(BlockDriver *drv, bool read_only)
 {
-    static const char *whitelist[] = {
-        CONFIG_BDRV_WHITELIST
+    static const char *whitelist_rw[] = {
+        CONFIG_BDRV_RW_WHITELIST
+    };
+    static const char *whitelist_ro[] = {
+        CONFIG_BDRV_RO_WHITELIST
     };
     const char **p;
 
-    if (!whitelist[0])
+    if (!whitelist_rw[0] && !whitelist_ro[0]) {
         return 1;               /* no whitelist, anything goes */
+    }
 
-    for (p = whitelist; *p; p++) {
+    for (p = whitelist_rw; *p; p++) {
         if (!strcmp(drv->format_name, *p)) {
             return 1;
+        }
+    }
+    if (read_only) {
+        for (p = whitelist_ro; *p; p++) {
+            if (!strcmp(drv->format_name, *p)) {
+                return 1;
+            }
         }
     }
     return 0;
 }
 
-BlockDriver *bdrv_find_whitelisted_format(const char *format_name)
+BlockDriver *bdrv_find_whitelisted_format(const char *format_name,
+                                          bool read_only)
 {
     BlockDriver *drv = bdrv_find_format(format_name);
-    return drv && bdrv_is_whitelisted(drv) ? drv : NULL;
+    return drv && bdrv_is_whitelisted(drv, read_only) ? drv : NULL;
 }
 
 typedef struct CreateCo {
@@ -684,10 +696,6 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     trace_bdrv_open_common(bs, filename ?: "", flags, drv->format_name);
 
-    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
-        return -ENOTSUP;
-    }
-
     /* bdrv_open() with directly using a protocol as drv. This layer is already
      * opened, so assign it to bs (while file becomes a closed BlockDriverState)
      * and return immediately. */
@@ -698,9 +706,15 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     bs->open_flags = flags;
     bs->buffer_alignment = 512;
+    open_flags = bdrv_open_flags(bs, flags);
+    bs->read_only = !(open_flags & BDRV_O_RDWR);
+
+    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
+        return -ENOTSUP;
+    }
 
     assert(bs->copy_on_read == 0); /* bdrv_new() and bdrv_close() make it so */
-    if ((flags & BDRV_O_RDWR) && (flags & BDRV_O_COPY_ON_READ)) {
+    if (!bs->read_only && (flags & BDRV_O_COPY_ON_READ)) {
         bdrv_enable_copy_on_read(bs);
     }
 
@@ -714,9 +728,6 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     bs->opaque = g_malloc0(drv->instance_size);
 
     bs->enable_write_cache = !!(flags & BDRV_O_CACHE_WB);
-    open_flags = bdrv_open_flags(bs, flags);
-
-    bs->read_only = !(open_flags & BDRV_O_RDWR);
 
     /* Open the image, either directly or using a protocol */
     if (drv->bdrv_file_open) {
@@ -801,7 +812,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename,
     /* Find the right block driver */
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
-        drv = bdrv_find_whitelisted_format(drvname);
+        drv = bdrv_find_whitelisted_format(drvname, !(flags & BDRV_O_RDWR));
         qdict_del(options, "driver");
     } else if (filename) {
         drv = bdrv_find_protocol(filename);
