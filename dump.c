@@ -707,6 +707,7 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
 {
     CPUArchState *env;
     int nr_cpus;
+    Error *err = NULL;
     int ret;
 
     if (runstate_is_running()) {
@@ -757,7 +758,11 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
     /* get memory mapping */
     memory_mapping_list_init(&s->list);
     if (paging) {
-        qemu_get_guest_memory_mapping(&s->list);
+        qemu_get_guest_memory_mapping(&s->list, &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            goto cleanup;
+        }
     } else {
         qemu_get_guest_simple_memory_mapping(&s->list);
     }

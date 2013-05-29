@@ -45,13 +45,7 @@ void memory_mapping_list_free(MemoryMappingList *list);
 
 void memory_mapping_list_init(MemoryMappingList *list);
 
-/*
- * Return value:
- *    0: success
- *   -1: failed
- *   -2: unsupported
- */
-int qemu_get_guest_memory_mapping(MemoryMappingList *list);
+void qemu_get_guest_memory_mapping(MemoryMappingList *list, Error **errp);
 
 /* get guest's memory mapping without do paging(virtual address is 0). */
 void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list);
