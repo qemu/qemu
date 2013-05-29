@@ -356,7 +356,6 @@ CPUArchState *cpu_copy(CPUArchState *env);
 
 void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
-extern CPUArchState *first_cpu;
 
 /* Flags for use in ENV->INTERRUPT_PENDING.
 

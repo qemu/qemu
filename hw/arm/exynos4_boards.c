@@ -131,7 +131,7 @@ static void nuri_init(QEMUMachineInitArgs *args)
 {
     exynos4_boards_init_common(args, EXYNOS4_BOARD_NURI);
 
-    arm_load_kernel(arm_env_get_cpu(first_cpu), &exynos4_board_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), &exynos4_board_binfo);
 }
 
 static void smdkc210_init(QEMUMachineInitArgs *args)
@@ -141,7 +141,7 @@ static void smdkc210_init(QEMUMachineInitArgs *args)
 
     lan9215_init(SMDK_LAN9118_BASE_ADDR,
             qemu_irq_invert(s->irq_table[exynos4210_get_irq(37, 1)]));
-    arm_load_kernel(arm_env_get_cpu(first_cpu), &exynos4_board_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), &exynos4_board_binfo);
 }
 
 static QEMUMachine exynos4_machines[EXYNOS4_NUM_OF_BOARDS] = {

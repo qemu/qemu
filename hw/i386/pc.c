@@ -160,8 +160,9 @@ void cpu_smm_register(cpu_set_smm_t callback, void *arg)
 
 void cpu_smm_update(CPUX86State *env)
 {
-    if (smm_set && smm_arg && env == first_cpu)
+    if (smm_set && smm_arg && CPU(x86_env_get_cpu(env)) == first_cpu) {
         smm_set(!!(env->hflags & HF_SMM_MASK), smm_arg);
+    }
 }
 
 
@@ -185,18 +186,21 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 
 static void pic_irq_request(void *opaque, int irq, int level)
 {
-    CPUX86State *env = first_cpu;
+    CPUState *cs = first_cpu;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
 
     DPRINTF("pic_irqs: %s irq %d\n", level? "raise" : "lower", irq);
     if (env->apic_state) {
-        while (env) {
+        while (cs) {
+            cpu = X86_CPU(cs);
+            env = &cpu->env;
             if (apic_accept_pic_intr(env->apic_state)) {
                 apic_deliver_pic_intr(env->apic_state, level);
             }
-            env = env->next_cpu;
+            cs = cs->next_cpu;
         }
     } else {
-        CPUState *cs = CPU(x86_env_get_cpu(env));
         if (level) {
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         } else {
@@ -1274,8 +1278,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         }
     }
 
-    a20_line = qemu_allocate_irqs(handle_a20_line_change,
-                                  x86_env_get_cpu(first_cpu), 2);
+    a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     i8042 = isa_create_simple(isa_bus, "i8042");
     i8042_setup_a20_line(i8042, &a20_line[0]);
     if (!no_vmport) {

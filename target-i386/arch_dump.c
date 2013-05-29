@@ -185,7 +185,8 @@ int x86_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
     X86CPU *cpu = X86_CPU(cs);
     int ret;
 #ifdef TARGET_X86_64
-    bool lma = !!(first_cpu->hflags & HF_LMA_MASK);
+    X86CPU *first_x86_cpu = X86_CPU(first_cpu);
+    bool lma = !!(first_x86_cpu->env.hflags & HF_LMA_MASK);
 
     if (lma) {
         ret = x86_64_write_elf64_note(f, &cpu->env, cpuid, opaque);
@@ -394,7 +395,9 @@ int cpu_get_dump_info(ArchDumpInfo *info)
     RAMBlock *block;
 
 #ifdef TARGET_X86_64
-    lma = !!(first_cpu->hflags & HF_LMA_MASK);
+    X86CPU *first_x86_cpu = X86_CPU(first_cpu);
+
+    lma = !!(first_x86_cpu->env.hflags & HF_LMA_MASK);
 #endif
 
     if (lma) {

@@ -844,7 +844,8 @@ void mips_malta_init(QEMUMachineInitArgs *args)
         cpu_mips_clock_init(env);
         qemu_register_reset(main_cpu_reset, cpu);
     }
-    env = first_cpu;
+    cpu = MIPS_CPU(first_cpu);
+    env = &cpu->env;
 
     /* allocate RAM */
     if (ram_size > (256 << 20)) {

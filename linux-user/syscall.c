@@ -5030,6 +5030,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg5, abi_long arg6, abi_long arg7,
                     abi_long arg8)
 {
+#ifdef CONFIG_USE_NPTL
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+#endif
     abi_long ret;
     struct stat st;
     struct statfs stfs;
@@ -5052,13 +5055,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
            be disabling signals.  */
         if (first_cpu->next_cpu) {
             TaskState *ts;
-            CPUArchState **lastp;
-            CPUArchState *p;
+            CPUState **lastp;
+            CPUState *p;
 
             cpu_list_lock();
             lastp = &first_cpu;
             p = first_cpu;
-            while (p && p != (CPUArchState *)cpu_env) {
+            while (p && p != cpu) {
                 lastp = &p->next_cpu;
                 p = p->next_cpu;
             }

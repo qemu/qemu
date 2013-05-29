@@ -2628,7 +2628,7 @@ static int fill_note_info(struct elf_note_info *info,
                           long signr, const CPUArchState *env)
 {
 #define NUMNOTES 3
-    CPUArchState *cpu = NULL;
+    CPUState *cpu = NULL;
     TaskState *ts = (TaskState *)env->opaque;
     int i;
 
@@ -2667,9 +2667,10 @@ static int fill_note_info(struct elf_note_info *info,
     /* read and fill status of all threads */
     cpu_list_lock();
     for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
-        if (cpu == thread_env)
+        if (cpu == ENV_GET_CPU(thread_env)) {
             continue;
-        fill_thread_info(info, cpu);
+        }
+        fill_thread_info(info, (CPUArchState *)cpu->env_ptr);
     }
     cpu_list_unlock();
 

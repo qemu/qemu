@@ -681,7 +681,7 @@ static void page_flush_tb(void)
 /* XXX: tb_flush is currently not thread safe */
 void tb_flush(CPUArchState *env1)
 {
-    CPUArchState *env;
+    CPUState *cpu;
 
 #if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%ld\n",
@@ -696,7 +696,9 @@ void tb_flush(CPUArchState *env1)
     }
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        CPUArchState *env = cpu->env_ptr;
+
         memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
     }
 
@@ -821,7 +823,7 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
 /* invalidate one TB */
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
-    CPUArchState *env;
+    CPUState *cpu;
     PageDesc *p;
     unsigned int h, n1;
     tb_page_addr_t phys_pc;
@@ -848,7 +850,9 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        CPUArchState *env = cpu->env_ptr;
+
         if (env->tb_jmp_cache[h] == tb) {
             env->tb_jmp_cache[h] = NULL;
         }

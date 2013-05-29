@@ -33,7 +33,7 @@ static void kvmclock_vm_state_change(void *opaque, int running,
                                      RunState state)
 {
     KVMClockState *s = opaque;
-    CPUArchState *penv = first_cpu;
+    CPUState *cpu = first_cpu;
     int cap_clock_ctrl = kvm_check_extension(kvm_state, KVM_CAP_KVMCLOCK_CTRL);
     int ret;
 
@@ -53,8 +53,8 @@ static void kvmclock_vm_state_change(void *opaque, int running,
         if (!cap_clock_ctrl) {
             return;
         }
-        for (penv = first_cpu; penv != NULL; penv = penv->next_cpu) {
-            ret = kvm_vcpu_ioctl(ENV_GET_CPU(penv), KVM_KVMCLOCK_CTRL, 0);
+        for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+            ret = kvm_vcpu_ioctl(cpu, KVM_KVMCLOCK_CTRL, 0);
             if (ret) {
                 if (ret != -EINVAL) {
                     fprintf(stderr, "%s: %s\n", __func__, strerror(-ret));
@@ -124,9 +124,11 @@ static const TypeInfo kvmclock_info = {
 /* Note: Must be called after VCPU initialization. */
 void kvmclock_create(void)
 {
+    X86CPU *cpu = X86_CPU(first_cpu);
+
     if (kvm_enabled() &&
-        first_cpu->features[FEAT_KVM] & ((1ULL << KVM_FEATURE_CLOCKSOURCE) |
-                                         (1ULL << KVM_FEATURE_CLOCKSOURCE2))) {
+        cpu->env.features[FEAT_KVM] & ((1ULL << KVM_FEATURE_CLOCKSOURCE) |
+                                       (1ULL << KVM_FEATURE_CLOCKSOURCE2))) {
         sysbus_create_simple("kvmclock", -1, NULL);
     }
 }

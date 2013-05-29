@@ -986,16 +986,19 @@ void helper_msgsnd(target_ulong rb)
 {
     int irq = dbell2irq(rb);
     int pir = rb & DBELL_PIRTAG_MASK;
-    CPUPPCState *cenv;
+    CPUState *cs;
 
     if (irq < 0) {
         return;
     }
 
-    for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
+    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        CPUPPCState *cenv = &cpu->env;
+
         if ((rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir)) {
             cenv->pending_interrupts |= 1 << irq;
-            cpu_interrupt(CPU(ppc_env_get_cpu(cenv)), CPU_INTERRUPT_HARD);
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         }
     }
 }

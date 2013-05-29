@@ -275,13 +275,11 @@ static inline int cpu_index(CPUState *cpu)
 
 static int write_elf64_notes(DumpState *s)
 {
-    CPUArchState *env;
     CPUState *cpu;
     int ret;
     int id;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu = ENV_GET_CPU(env);
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
         id = cpu_index(cpu);
         ret = cpu_write_elf64_note(fd_write_vmcore, cpu, id, s);
         if (ret < 0) {
@@ -290,7 +288,7 @@ static int write_elf64_notes(DumpState *s)
         }
     }
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
         ret = cpu_write_elf64_qemunote(fd_write_vmcore, cpu, s);
         if (ret < 0) {
             dump_error(s, "dump: failed to write CPU status.\n");
@@ -327,13 +325,11 @@ static int write_elf32_note(DumpState *s)
 
 static int write_elf32_notes(DumpState *s)
 {
-    CPUArchState *env;
     CPUState *cpu;
     int ret;
     int id;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu = ENV_GET_CPU(env);
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
         id = cpu_index(cpu);
         ret = cpu_write_elf32_note(fd_write_vmcore, cpu, id, s);
         if (ret < 0) {
@@ -342,7 +338,7 @@ static int write_elf32_notes(DumpState *s)
         }
     }
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
         ret = cpu_write_elf32_qemunote(fd_write_vmcore, cpu, s);
         if (ret < 0) {
             dump_error(s, "dump: failed to write CPU status.\n");
@@ -705,7 +701,7 @@ static ram_addr_t get_start_block(DumpState *s)
 static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
                      int64_t begin, int64_t length, Error **errp)
 {
-    CPUArchState *env;
+    CPUState *cpu;
     int nr_cpus;
     Error *err = NULL;
     int ret;
@@ -738,7 +734,7 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
      */
     cpu_synchronize_all_states();
     nr_cpus = 0;
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
         nr_cpus++;
     }
 

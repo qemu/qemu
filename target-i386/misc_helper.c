@@ -610,7 +610,7 @@ void helper_mwait(CPUX86State *env, int next_eip_addend)
     cpu = x86_env_get_cpu(env);
     cs = CPU(cpu);
     /* XXX: not complete but not completely erroneous */
-    if (cs->cpu_index != 0 || env->next_cpu != NULL) {
+    if (cs->cpu_index != 0 || cs->next_cpu != NULL) {
         /* more than one CPU: do not sleep because another CPU may
            wake this one */
     } else {

@@ -1188,6 +1188,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
                         uint64_t misc, int flags)
 {
+    CPUState *cs = CPU(cpu);
     CPUX86State *cenv = &cpu->env;
     MCEInjectionParams params = {
         .mon = mon,
@@ -1200,7 +1201,6 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
         .flags = flags,
     };
     unsigned bank_num = cenv->mcg_cap & 0xff;
-    CPUX86State *env;
 
     if (!cenv->mcg_cap) {
         monitor_printf(mon, "MCE injection not supported\n");
@@ -1220,19 +1220,22 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
         return;
     }
 
-    run_on_cpu(CPU(cpu), do_inject_x86_mce, &params);
+    run_on_cpu(cs, do_inject_x86_mce, &params);
     if (flags & MCE_INJECT_BROADCAST) {
+        CPUState *other_cs;
+
         params.bank = 1;
         params.status = MCI_STATUS_VAL | MCI_STATUS_UC;
         params.mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV;
         params.addr = 0;
         params.misc = 0;
-        for (env = first_cpu; env != NULL; env = env->next_cpu) {
-            if (cenv == env) {
+        for (other_cs = first_cpu; other_cs != NULL;
+             other_cs = other_cs->next_cpu) {
+            if (other_cs == cs) {
                 continue;
             }
-            params.cpu = x86_env_get_cpu(env);
-            run_on_cpu(CPU(cpu), do_inject_x86_mce, &params);
+            params.cpu = X86_CPU(other_cs);
+            run_on_cpu(other_cs, do_inject_x86_mce, &params);
         }
     }
 }

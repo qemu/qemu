@@ -186,11 +186,13 @@ static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
 
 void cpu_tlb_reset_dirty_all(ram_addr_t start1, ram_addr_t length)
 {
+    CPUState *cpu;
     CPUArchState *env;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
         int mmu_idx;
 
+        env = cpu->env_ptr;
         for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
             unsigned int i;
 
