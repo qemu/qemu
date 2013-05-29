@@ -107,10 +107,10 @@ typedef struct subpage_t {
 
 static MemoryRegionSection *phys_sections;
 static unsigned phys_sections_nb, phys_sections_nb_alloc;
-static uint16_t phys_section_unassigned;
-static uint16_t phys_section_notdirty;
-static uint16_t phys_section_rom;
-static uint16_t phys_section_watch;
+#define PHYS_SECTION_UNASSIGNED 0
+#define PHYS_SECTION_NOTDIRTY 1
+#define PHYS_SECTION_ROM 2
+#define PHYS_SECTION_WATCH 3
 
 /* Simple allocator for PhysPageEntry nodes */
 static PhysPageEntry (*phys_map_nodes)[L2_SIZE];
@@ -168,7 +168,7 @@ static void phys_page_set_level(PhysPageEntry *lp, hwaddr *index,
         if (level == 0) {
             for (i = 0; i < L2_SIZE; i++) {
                 p[i].is_leaf = 1;
-                p[i].ptr = phys_section_unassigned;
+                p[i].ptr = PHYS_SECTION_UNASSIGNED;
             }
         }
     } else {
@@ -207,7 +207,7 @@ static MemoryRegionSection *phys_page_find(AddressSpaceDispatch *d, hwaddr index
 
     for (i = P_L2_LEVELS - 1; i >= 0 && !lp.is_leaf; i--) {
         if (lp.ptr == PHYS_MAP_NODE_NIL) {
-            return &phys_sections[phys_section_unassigned];
+            return &phys_sections[PHYS_SECTION_UNASSIGNED];
         }
         p = phys_map_nodes[lp.ptr];
         lp = p[(index >> (i * L2_BITS)) & (L2_SIZE - 1)];
@@ -717,9 +717,9 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
         iotlb = (memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK)
             + xlat;
         if (!section->readonly) {
-            iotlb |= phys_section_notdirty;
+            iotlb |= PHYS_SECTION_NOTDIRTY;
         } else {
-            iotlb |= phys_section_rom;
+            iotlb |= PHYS_SECTION_ROM;
         }
     } else {
         iotlb = section - phys_sections;
@@ -732,7 +732,7 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
         if (vaddr == (wp->vaddr & TARGET_PAGE_MASK)) {
             /* Avoid trapping reads of pages with a write breakpoint. */
             if ((prot & PAGE_WRITE) || (wp->flags & BP_MEM_READ)) {
-                iotlb = phys_section_watch + paddr;
+                iotlb = PHYS_SECTION_WATCH + paddr;
                 *address |= TLB_MMIO;
                 break;
             }
@@ -1656,7 +1656,7 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
     printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
            mmio, base, TARGET_PAGE_SIZE, subpage_memory);
 #endif
-    subpage_register(mmio, 0, TARGET_PAGE_SIZE-1, phys_section_unassigned);
+    subpage_register(mmio, 0, TARGET_PAGE_SIZE-1, PHYS_SECTION_UNASSIGNED);
 
     return mmio;
 }
@@ -1698,11 +1698,17 @@ static void mem_begin(MemoryListener *listener)
 
 static void core_begin(MemoryListener *listener)
 {
+    uint16_t n;
+
     phys_sections_clear();
-    phys_section_unassigned = dummy_section(&io_mem_unassigned);
-    phys_section_notdirty = dummy_section(&io_mem_notdirty);
-    phys_section_rom = dummy_section(&io_mem_rom);
-    phys_section_watch = dummy_section(&io_mem_watch);
+    n = dummy_section(&io_mem_unassigned);
+    assert(n == PHYS_SECTION_UNASSIGNED);
+    n = dummy_section(&io_mem_notdirty);
+    assert(n == PHYS_SECTION_NOTDIRTY);
+    n = dummy_section(&io_mem_rom);
+    assert(n == PHYS_SECTION_ROM);
+    n = dummy_section(&io_mem_watch);
+    assert(n == PHYS_SECTION_WATCH);
 }
 
 static void tcg_commit(MemoryListener *listener)
