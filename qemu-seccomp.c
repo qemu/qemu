@@ -87,6 +87,7 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(stat), 245 },
     { SCMP_SYS(uname), 245 },
     { SCMP_SYS(eventfd2), 245 },
+    { SCMP_SYS(io_getevents), 245 },
     { SCMP_SYS(dup), 245 },
     { SCMP_SYS(dup2), 245 },
     { SCMP_SYS(dup3), 245 },
@@ -229,7 +230,9 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(sendmmsg), 241 },
     { SCMP_SYS(recvmmsg), 241 },
     { SCMP_SYS(prlimit64), 241 },
-    { SCMP_SYS(waitid), 241 }
+    { SCMP_SYS(waitid), 241 },
+    { SCMP_SYS(io_setup), 241 },
+    { SCMP_SYS(io_destroy), 241 }
 };
 
 int seccomp_start(void)
