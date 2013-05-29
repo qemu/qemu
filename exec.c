@@ -105,16 +105,24 @@ typedef struct subpage_t {
     uint16_t sub_section[TARGET_PAGE_SIZE];
 } subpage_t;
 
-static MemoryRegionSection *phys_sections;
-static unsigned phys_sections_nb, phys_sections_nb_alloc;
 #define PHYS_SECTION_UNASSIGNED 0
 #define PHYS_SECTION_NOTDIRTY 1
 #define PHYS_SECTION_ROM 2
 #define PHYS_SECTION_WATCH 3
 
-/* Simple allocator for PhysPageEntry nodes */
-static PhysPageEntry (*phys_map_nodes)[L2_SIZE];
-static unsigned phys_map_nodes_nb, phys_map_nodes_nb_alloc;
+typedef PhysPageEntry Node[L2_SIZE];
+
+typedef struct PhysPageMap {
+    unsigned sections_nb;
+    unsigned sections_nb_alloc;
+    unsigned nodes_nb;
+    unsigned nodes_nb_alloc;
+    Node *nodes;
+    MemoryRegionSection *sections;
+} PhysPageMap;
+
+static PhysPageMap cur_map;
+static PhysPageMap next_map;
 
 #define PHYS_MAP_NODE_NIL (((uint16_t)~0) >> 1)
 
@@ -129,13 +137,13 @@ static MemoryRegion io_mem_watch;
 
 static void phys_map_node_reserve(unsigned nodes)
 {
-    if (phys_map_nodes_nb + nodes > phys_map_nodes_nb_alloc) {
-        typedef PhysPageEntry Node[L2_SIZE];
-        phys_map_nodes_nb_alloc = MAX(phys_map_nodes_nb_alloc * 2, 16);
-        phys_map_nodes_nb_alloc = MAX(phys_map_nodes_nb_alloc,
-                                      phys_map_nodes_nb + nodes);
-        phys_map_nodes = g_renew(Node, phys_map_nodes,
-                                 phys_map_nodes_nb_alloc);
+    if (next_map.nodes_nb + nodes > next_map.nodes_nb_alloc) {
+        next_map.nodes_nb_alloc = MAX(next_map.nodes_nb_alloc * 2,
+                                            16);
+        next_map.nodes_nb_alloc = MAX(next_map.nodes_nb_alloc,
+                                      next_map.nodes_nb + nodes);
+        next_map.nodes = g_renew(Node, next_map.nodes,
+                                 next_map.nodes_nb_alloc);
     }
 }
 
@@ -144,12 +152,12 @@ static uint16_t phys_map_node_alloc(void)
     unsigned i;
     uint16_t ret;
 
-    ret = phys_map_nodes_nb++;
+    ret = next_map.nodes_nb++;
     assert(ret != PHYS_MAP_NODE_NIL);
-    assert(ret != phys_map_nodes_nb_alloc);
+    assert(ret != next_map.nodes_nb_alloc);
     for (i = 0; i < L2_SIZE; ++i) {
-        phys_map_nodes[ret][i].is_leaf = 0;
-        phys_map_nodes[ret][i].ptr = PHYS_MAP_NODE_NIL;
+        next_map.nodes[ret][i].is_leaf = 0;
+        next_map.nodes[ret][i].ptr = PHYS_MAP_NODE_NIL;
     }
     return ret;
 }
@@ -164,7 +172,7 @@ static void phys_page_set_level(PhysPageEntry *lp, hwaddr *index,
 
     if (!lp->is_leaf && lp->ptr == PHYS_MAP_NODE_NIL) {
         lp->ptr = phys_map_node_alloc();
-        p = phys_map_nodes[lp->ptr];
+        p = next_map.nodes[lp->ptr];
         if (level == 0) {
             for (i = 0; i < L2_SIZE; i++) {
                 p[i].is_leaf = 1;
@@ -172,7 +180,7 @@ static void phys_page_set_level(PhysPageEntry *lp, hwaddr *index,
             }
         }
     } else {
-        p = phys_map_nodes[lp->ptr];
+        p = next_map.nodes[lp->ptr];
     }
     lp = &p[(*index >> (level * L2_BITS)) & (L2_SIZE - 1)];
 
@@ -199,20 +207,20 @@ static void phys_page_set(AddressSpaceDispatch *d,
     phys_page_set_level(&d->phys_map, &index, &nb, leaf, P_L2_LEVELS - 1);
 }
 
-static MemoryRegionSection *phys_page_find(AddressSpaceDispatch *d, hwaddr index)
+static MemoryRegionSection *phys_page_find(PhysPageEntry lp, hwaddr index,
+                                           Node *nodes, MemoryRegionSection *sections)
 {
-    PhysPageEntry lp = d->phys_map;
     PhysPageEntry *p;
     int i;
 
     for (i = P_L2_LEVELS - 1; i >= 0 && !lp.is_leaf; i--) {
         if (lp.ptr == PHYS_MAP_NODE_NIL) {
-            return &phys_sections[PHYS_SECTION_UNASSIGNED];
+            return &sections[PHYS_SECTION_UNASSIGNED];
         }
-        p = phys_map_nodes[lp.ptr];
+        p = nodes[lp.ptr];
         lp = p[(index >> (i * L2_BITS)) & (L2_SIZE - 1)];
     }
-    return &phys_sections[lp.ptr];
+    return &sections[lp.ptr];
 }
 
 bool memory_region_is_unassigned(MemoryRegion *mr)
@@ -228,10 +236,11 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpace *as,
     MemoryRegionSection *section;
     subpage_t *subpage;
 
-    section = phys_page_find(as->dispatch, addr >> TARGET_PAGE_BITS);
+    section = phys_page_find(as->dispatch->phys_map, addr >> TARGET_PAGE_BITS,
+                             cur_map.nodes, cur_map.sections);
     if (resolve_subpage && section->mr->subpage) {
         subpage = container_of(section->mr, subpage_t, iomem);
-        section = &phys_sections[subpage->sub_section[SUBPAGE_IDX(addr)]];
+        section = &cur_map.sections[subpage->sub_section[SUBPAGE_IDX(addr)]];
     }
     return section;
 }
@@ -722,7 +731,7 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
             iotlb |= PHYS_SECTION_ROM;
         }
     } else {
-        iotlb = section - phys_sections;
+        iotlb = section - cur_map.sections;
         iotlb += xlat;
     }
 
@@ -755,16 +764,17 @@ static uint16_t phys_section_add(MemoryRegionSection *section)
      * pointer to produce the iotlb entries.  Thus it should
      * never overflow into the page-aligned value.
      */
-    assert(phys_sections_nb < TARGET_PAGE_SIZE);
+    assert(next_map.sections_nb < TARGET_PAGE_SIZE);
 
-    if (phys_sections_nb == phys_sections_nb_alloc) {
-        phys_sections_nb_alloc = MAX(phys_sections_nb_alloc * 2, 16);
-        phys_sections = g_renew(MemoryRegionSection, phys_sections,
-                                phys_sections_nb_alloc);
+    if (next_map.sections_nb == next_map.sections_nb_alloc) {
+        next_map.sections_nb_alloc = MAX(next_map.sections_nb_alloc * 2,
+                                         16);
+        next_map.sections = g_renew(MemoryRegionSection, next_map.sections,
+                                    next_map.sections_nb_alloc);
     }
-    phys_sections[phys_sections_nb] = *section;
+    next_map.sections[next_map.sections_nb] = *section;
     memory_region_ref(section->mr);
-    return phys_sections_nb++;
+    return next_map.sections_nb++;
 }
 
 static void phys_section_destroy(MemoryRegion *mr)
@@ -778,13 +788,14 @@ static void phys_section_destroy(MemoryRegion *mr)
     }
 }
 
-static void phys_sections_clear(void)
+static void phys_sections_clear(PhysPageMap *map)
 {
-    while (phys_sections_nb > 0) {
-        MemoryRegionSection *section = &phys_sections[--phys_sections_nb];
+    while (map->sections_nb > 0) {
+        MemoryRegionSection *section = &map->sections[--map->sections_nb];
         phys_section_destroy(section->mr);
     }
-    phys_map_nodes_nb = 0;
+    g_free(map->sections);
+    g_free(map->nodes);
 }
 
 static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *section)
@@ -792,7 +803,8 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
     subpage_t *subpage;
     hwaddr base = section->offset_within_address_space
         & TARGET_PAGE_MASK;
-    MemoryRegionSection *existing = phys_page_find(d, base >> TARGET_PAGE_BITS);
+    MemoryRegionSection *existing = phys_page_find(d->phys_map, base >> TARGET_PAGE_BITS,
+                                                   next_map.nodes, next_map.sections);
     MemoryRegionSection subsection = {
         .offset_within_address_space = base,
         .size = int128_make64(TARGET_PAGE_SIZE),
@@ -1675,7 +1687,7 @@ static uint16_t dummy_section(MemoryRegion *mr)
 
 MemoryRegion *iotlb_to_region(hwaddr index)
 {
-    return phys_sections[index & ~TARGET_PAGE_MASK].mr;
+    return cur_map.sections[index & ~TARGET_PAGE_MASK].mr;
 }
 
 static void io_mem_init(void)
@@ -1700,7 +1712,7 @@ static void core_begin(MemoryListener *listener)
 {
     uint16_t n;
 
-    phys_sections_clear();
+    memset(&next_map, 0, sizeof(next_map));
     n = dummy_section(&io_mem_unassigned);
     assert(n == PHYS_SECTION_UNASSIGNED);
     n = dummy_section(&io_mem_notdirty);
@@ -1709,6 +1721,16 @@ static void core_begin(MemoryListener *listener)
     assert(n == PHYS_SECTION_ROM);
     n = dummy_section(&io_mem_watch);
     assert(n == PHYS_SECTION_WATCH);
+}
+
+/* This listener's commit run after the other AddressSpaceDispatch listeners'.
+ * All AddressSpaceDispatch instances have switched to the next map.
+ */
+static void core_commit(MemoryListener *listener)
+{
+    PhysPageMap info = cur_map;
+    cur_map = next_map;
+    phys_sections_clear(&info);
 }
 
 static void tcg_commit(MemoryListener *listener)
@@ -1735,6 +1757,7 @@ static void core_log_global_stop(MemoryListener *listener)
 
 static MemoryListener core_memory_listener = {
     .begin = core_begin,
+    .commit = core_commit,
     .log_global_start = core_log_global_start,
     .log_global_stop = core_log_global_stop,
     .priority = 1,
