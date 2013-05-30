@@ -38,7 +38,7 @@ static void walk_pte(MemoryMappingList *list, hwaddr pte_start_addr,
             continue;
         }
 
-        start_vaddr = start_line_addr | ((i & 0x1fff) << 12);
+        start_vaddr = start_line_addr | ((i & 0x1ff) << 12);
         memory_mapping_list_add_merge_sorted(list, start_paddr,
                                              start_vaddr, 1 << 12);
     }
