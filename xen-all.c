@@ -574,29 +574,6 @@ void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
     }
 }
 
-/* VCPU Operations, MMIO, IO ring ... */
-
-static void xen_reset_vcpu(void *opaque)
-{
-    CPUState *cpu = opaque;
-
-    cpu->halted = 1;
-}
-
-void xen_vcpu_init(void)
-{
-    if (first_cpu != NULL) {
-        CPUState *cpu = ENV_GET_CPU(first_cpu);
-
-        qemu_register_reset(xen_reset_vcpu, cpu);
-        xen_reset_vcpu(cpu);
-    }
-    /* if rtc_clock is left to default (host_clock), disable it */
-    if (rtc_clock == host_clock) {
-        qemu_clock_enable(rtc_clock, false);
-    }
-}
-
 /* get the ioreq packets from share mem */
 static ioreq_t *cpu_get_ioreq_from_shared_memory(XenIOState *state, int vcpu)
 {

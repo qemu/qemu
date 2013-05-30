@@ -324,7 +324,6 @@ static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
         hw_error("xen hardware virtual machine initialisation failed");
     }
     pc_init_pci_no_kvmclock(args);
-    xen_vcpu_init();
 }
 #endif
 
