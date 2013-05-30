@@ -9,7 +9,19 @@
 #include "net/net.h"
 #include "hw/i386/ioapic.h"
 
+#include "qemu/range.h"
+
 /* PC-style peripherals (also used by other machines).  */
+
+typedef struct PcPciInfo {
+    Range w32;
+    Range w64;
+} PcPciInfo;
+
+struct PcGuestInfo {
+    PcPciInfo pci_info;
+    FWCfgState *fw_cfg;
+};
 
 /* parallel.c */
 static inline bool parallel_init(ISABus *bus, int index, CharDriverState *chr)
@@ -82,6 +94,10 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge);
 void pc_hot_add_cpu(const int64_t id, Error **errp);
 void pc_acpi_init(const char *default_dsdt);
+
+PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
+                                ram_addr_t above_4g_mem_size);
+
 FWCfgState *pc_memory_init(MemoryRegion *system_memory,
                            const char *kernel_filename,
                            const char *kernel_cmdline,
@@ -89,7 +105,8 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
                            ram_addr_t below_4g_mem_size,
                            ram_addr_t above_4g_mem_size,
                            MemoryRegion *rom_memory,
-                           MemoryRegion **ram_memory);
+                           MemoryRegion **ram_memory,
+                           PcGuestInfo *guest_info);
 qemu_irq *pc_allocate_cpu_irq(void);
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,

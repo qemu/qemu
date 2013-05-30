@@ -244,6 +244,14 @@ static int mch_init(PCIDevice *d)
     hwaddr pci_hole64_size;
     MCHPCIState *mch = MCH_PCI_DEVICE(d);
 
+    /* Leave enough space for the biggest MCFG BAR */
+    /* TODO: this matches current bios behaviour, but
+     * it's not a power of two, which means an MTRR
+     * can't cover it exactly.
+     */
+    mch->guest_info->pci_info.w32.begin = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT +
+        MCH_HOST_BRIDGE_PCIEXBAR_MAX;
+
     /* setup pci memory regions */
     memory_region_init_alias(&mch->pci_hole, "pci-hole",
                              mch->pci_address_space,
