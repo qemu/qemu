@@ -73,6 +73,8 @@ void fw_cfg_add_file(FWCfgState *s, const char *filename, void *data,
 FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
                         hwaddr crl_addr, hwaddr data_addr);
 
+FWCfgState *fw_cfg_find(void);
+
 #endif /* NO_QEMU_PROTOS */
 
 #endif
