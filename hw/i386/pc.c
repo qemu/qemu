@@ -927,6 +927,11 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
     DeviceState *icc_bridge;
     int64_t apic_id = x86_cpu_apic_id_from_index(id);
 
+    if (id < 0) {
+        error_setg(errp, "Invalid CPU id: %" PRIi64, id);
+        return;
+    }
+
     if (cpu_exists(apic_id)) {
         error_setg(errp, "Unable to add CPU: %" PRIi64
                    ", it already exists", id);
