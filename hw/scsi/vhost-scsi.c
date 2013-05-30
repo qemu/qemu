@@ -123,7 +123,7 @@ static void vhost_scsi_stop(VHostSCSI *s)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret = 0;
 
-    if (!k->set_guest_notifiers) {
+    if (k->set_guest_notifiers) {
         ret = k->set_guest_notifiers(qbus->parent, s->dev.nvqs, false);
         if (ret < 0) {
                 error_report("vhost guest notifier cleanup failed: %d\n", ret);
