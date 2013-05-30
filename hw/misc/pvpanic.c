@@ -90,7 +90,7 @@ static int pvpanic_isa_initfn(ISADevice *dev)
 {
     PVPanicState *s = ISA_PVPANIC_DEVICE(dev);
     static bool port_configured;
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
 
     memory_region_init_io(&s->io, &pvpanic_ops, s, "pvpanic", 1);
     isa_register_ioport(dev, &s->io, s->ioport);
