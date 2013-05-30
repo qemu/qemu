@@ -76,6 +76,7 @@ static void q35_host_class_init(ObjectClass *klass, void *data)
 
     k->init = q35_host_init;
     dc->props = mch_props;
+    dc->fw_name = "pci";
 }
 
 static void q35_host_initfn(Object *obj)
