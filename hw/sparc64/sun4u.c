@@ -32,7 +32,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/sparc/firmware_abi.h"
+#include "hw/nvram/openbios_firmware_abi.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "hw/ide.h"

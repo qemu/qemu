@@ -30,7 +30,7 @@
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "hw/boards.h"
-#include "hw/sparc/firmware_abi.h"
+#include "hw/nvram/openbios_firmware_abi.h"
 #include "hw/scsi/esp.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
