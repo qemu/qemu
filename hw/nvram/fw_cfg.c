@@ -496,10 +496,9 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 
     s = DO_UPCAST(FWCfgState, busdev.qdev, dev);
 
-    if (!object_resolve_path(FW_CFG_PATH, NULL)) {
-        object_property_add_child(qdev_get_machine(), FW_CFG_NAME, OBJECT(s),
-                                  NULL);
-    }
+    assert(!object_resolve_path(FW_CFG_PATH, NULL));
+
+    object_property_add_child(qdev_get_machine(), FW_CFG_NAME, OBJECT(s), NULL);
 
     qdev_init_nofail(dev);
 
