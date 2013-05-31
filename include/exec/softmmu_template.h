@@ -63,31 +63,18 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               target_ulong addr,
                                               uintptr_t retaddr)
 {
-    DATA_TYPE res;
+    uint64_t val;
     MemoryRegion *mr = iotlb_to_region(physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     env->mem_io_pc = retaddr;
-    if (mr != &io_mem_ram && mr != &io_mem_rom
-        && mr != &io_mem_unassigned
-        && mr != &io_mem_notdirty
-            && !can_do_io(env)) {
+    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !can_do_io(env)) {
         cpu_io_recompile(env, retaddr);
     }
 
     env->mem_io_vaddr = addr;
-#if SHIFT <= 2
-    res = io_mem_read(mr, physaddr, 1 << SHIFT);
-#else
-#ifdef TARGET_WORDS_BIGENDIAN
-    res = io_mem_read(mr, physaddr, 4) << 32;
-    res |= io_mem_read(mr, physaddr + 4, 4);
-#else
-    res = io_mem_read(mr, physaddr, 4);
-    res |= io_mem_read(mr, physaddr + 4, 4) << 32;
-#endif
-#endif /* SHIFT > 2 */
-    return res;
+    io_mem_read(mr, physaddr, &val, 1 << SHIFT);
+    return val;
 }
 
 /* handle all cases except unaligned access which span two pages */
@@ -218,26 +205,13 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
     MemoryRegion *mr = iotlb_to_region(physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    if (mr != &io_mem_ram && mr != &io_mem_rom
-        && mr != &io_mem_unassigned
-        && mr != &io_mem_notdirty
-            && !can_do_io(env)) {
+    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !can_do_io(env)) {
         cpu_io_recompile(env, retaddr);
     }
 
     env->mem_io_vaddr = addr;
     env->mem_io_pc = retaddr;
-#if SHIFT <= 2
     io_mem_write(mr, physaddr, val, 1 << SHIFT);
-#else
-#ifdef TARGET_WORDS_BIGENDIAN
-    io_mem_write(mr, physaddr, (val >> 32), 4);
-    io_mem_write(mr, physaddr + 4, (uint32_t)val, 4);
-#else
-    io_mem_write(mr, physaddr, (uint32_t)val, 4);
-    io_mem_write(mr, physaddr + 4, val >> 32, 4);
-#endif
-#endif /* SHIFT > 2 */
 }
 
 void glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,

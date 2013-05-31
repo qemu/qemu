@@ -298,6 +298,11 @@ bool iommu_dma_memory_valid(DMAContext *dma, dma_addr_t addr, dma_addr_t len,
             plen = len;
         }
 
+        if (!address_space_access_valid(dma->as, paddr, len,
+                                        dir == DMA_DIRECTION_FROM_DEVICE)) {
+            return false;
+        }
+
         len -= plen;
         addr += plen;
     }

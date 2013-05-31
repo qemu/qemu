@@ -113,7 +113,8 @@ static inline bool dma_memory_valid(DMAContext *dma,
                                     DMADirection dir)
 {
     if (!dma_has_iommu(dma)) {
-        return true;
+        return address_space_access_valid(dma->as, addr, len,
+                                          dir == DMA_DIRECTION_FROM_DEVICE);
     } else {
         return iommu_dma_memory_valid(dma, addr, len, dir);
     }

@@ -22,6 +22,8 @@
 
 #include "exec/memory-internal.h"
 
+//#define DEBUG_UNASSIGNED
+
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool global_dirty_log = false;
@@ -300,6 +302,20 @@ static void flatview_simplify(FlatView *view)
     }
 }
 
+static void memory_region_oldmmio_read_accessor(void *opaque,
+                                                hwaddr addr,
+                                                uint64_t *value,
+                                                unsigned size,
+                                                unsigned shift,
+                                                uint64_t mask)
+{
+    MemoryRegion *mr = opaque;
+    uint64_t tmp;
+
+    tmp = mr->ops->old_mmio.read[ctz32(size)](mr->opaque, addr);
+    *value |= (tmp & mask) << shift;
+}
+
 static void memory_region_read_accessor(void *opaque,
                                         hwaddr addr,
                                         uint64_t *value,
@@ -315,6 +331,20 @@ static void memory_region_read_accessor(void *opaque,
     }
     tmp = mr->ops->read(mr->opaque, addr, size);
     *value |= (tmp & mask) << shift;
+}
+
+static void memory_region_oldmmio_write_accessor(void *opaque,
+                                                 hwaddr addr,
+                                                 uint64_t *value,
+                                                 unsigned size,
+                                                 unsigned shift,
+                                                 uint64_t mask)
+{
+    MemoryRegion *mr = opaque;
+    uint64_t tmp;
+
+    tmp = (*value >> shift) & mask;
+    mr->ops->old_mmio.write[ctz32(size)](mr->opaque, addr, tmp);
 }
 
 static void memory_region_write_accessor(void *opaque,
@@ -357,11 +387,17 @@ static void access_with_adjusted_size(hwaddr addr,
     if (!access_size_max) {
         access_size_max = 4;
     }
+
+    /* FIXME: support unaligned access? */
     access_size = MAX(MIN(size, access_size_max), access_size_min);
     access_mask = -1ULL >> (64 - access_size * 8);
     for (i = 0; i < size; i += access_size) {
-        /* FIXME: big-endian support */
+#ifdef TARGET_WORDS_BIGENDIAN
+        access(opaque, addr + i, value, access_size,
+               (size - access_size - i) * 8, access_mask);
+#else
         access(opaque, addr + i, value, access_size, i * 8, access_mask);
+#endif
     }
 }
 
@@ -786,7 +822,8 @@ void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size)
 {
-    mr->ops = NULL;
+    mr->ops = &unassigned_mem_ops;
+    mr->opaque = NULL;
     mr->parent = NULL;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
@@ -814,29 +851,74 @@ void memory_region_init(MemoryRegion *mr,
     mr->flush_coalesced_mmio = false;
 }
 
-static bool memory_region_access_valid(MemoryRegion *mr,
-                                       hwaddr addr,
-                                       unsigned size,
-                                       bool is_write)
+static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
+                                    unsigned size)
 {
-    if (mr->ops->valid.accepts
-        && !mr->ops->valid.accepts(mr->opaque, addr, size, is_write)) {
-        return false;
-    }
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
+#endif
+#if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
+    cpu_unassigned_access(cpu_single_env, addr, 0, 0, 0, size);
+#endif
+    return 0;
+}
+
+static void unassigned_mem_write(void *opaque, hwaddr addr,
+                                 uint64_t val, unsigned size)
+{
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
+#endif
+#if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
+    cpu_unassigned_access(cpu_single_env, addr, 1, 0, 0, size);
+#endif
+}
+
+static bool unassigned_mem_accepts(void *opaque, hwaddr addr,
+                                   unsigned size, bool is_write)
+{
+    return false;
+}
+
+const MemoryRegionOps unassigned_mem_ops = {
+    .valid.accepts = unassigned_mem_accepts,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+bool memory_region_access_valid(MemoryRegion *mr,
+                                hwaddr addr,
+                                unsigned size,
+                                bool is_write)
+{
+    int access_size_min, access_size_max;
+    int access_size, i;
 
     if (!mr->ops->valid.unaligned && (addr & (size - 1))) {
         return false;
     }
 
-    /* Treat zero as compatibility all valid */
-    if (!mr->ops->valid.max_access_size) {
+    if (!mr->ops->valid.accepts) {
         return true;
     }
 
-    if (size > mr->ops->valid.max_access_size
-        || size < mr->ops->valid.min_access_size) {
-        return false;
+    access_size_min = mr->ops->valid.min_access_size;
+    if (!mr->ops->valid.min_access_size) {
+        access_size_min = 1;
     }
+
+    access_size_max = mr->ops->valid.max_access_size;
+    if (!mr->ops->valid.max_access_size) {
+        access_size_max = 4;
+    }
+
+    access_size = MAX(MIN(size, access_size_max), access_size_min);
+    for (i = 0; i < size; i += access_size) {
+        if (!mr->ops->valid.accepts(mr->opaque, addr + i, access_size,
+                                    is_write)) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -846,19 +928,15 @@ static uint64_t memory_region_dispatch_read1(MemoryRegion *mr,
 {
     uint64_t data = 0;
 
-    if (!memory_region_access_valid(mr, addr, size, false)) {
-        return -1U; /* FIXME: better signalling */
+    if (mr->ops->read) {
+        access_with_adjusted_size(addr, &data, size,
+                                  mr->ops->impl.min_access_size,
+                                  mr->ops->impl.max_access_size,
+                                  memory_region_read_accessor, mr);
+    } else {
+        access_with_adjusted_size(addr, &data, size, 1, 4,
+                                  memory_region_oldmmio_read_accessor, mr);
     }
-
-    if (!mr->ops->read) {
-        return mr->ops->old_mmio.read[ctz32(size)](mr->opaque, addr);
-    }
-
-    /* FIXME: support unaligned access */
-    access_with_adjusted_size(addr, &data, size,
-                              mr->ops->impl.min_access_size,
-                              mr->ops->impl.max_access_size,
-                              memory_region_read_accessor, mr);
 
     return data;
 }
@@ -875,44 +953,52 @@ static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
         case 4:
             *data = bswap32(*data);
             break;
+        case 8:
+            *data = bswap64(*data);
+            break;
         default:
             abort();
         }
     }
 }
 
-static uint64_t memory_region_dispatch_read(MemoryRegion *mr,
-                                            hwaddr addr,
-                                            unsigned size)
+static bool memory_region_dispatch_read(MemoryRegion *mr,
+                                        hwaddr addr,
+                                        uint64_t *pval,
+                                        unsigned size)
 {
-    uint64_t ret;
+    if (!memory_region_access_valid(mr, addr, size, false)) {
+        *pval = unassigned_mem_read(mr, addr, size);
+        return true;
+    }
 
-    ret = memory_region_dispatch_read1(mr, addr, size);
-    adjust_endianness(mr, &ret, size);
-    return ret;
+    *pval = memory_region_dispatch_read1(mr, addr, size);
+    adjust_endianness(mr, pval, size);
+    return false;
 }
 
-static void memory_region_dispatch_write(MemoryRegion *mr,
+static bool memory_region_dispatch_write(MemoryRegion *mr,
                                          hwaddr addr,
                                          uint64_t data,
                                          unsigned size)
 {
     if (!memory_region_access_valid(mr, addr, size, true)) {
-        return; /* FIXME: better signalling */
+        unassigned_mem_write(mr, addr, data, size);
+        return true;
     }
 
     adjust_endianness(mr, &data, size);
 
-    if (!mr->ops->write) {
-        mr->ops->old_mmio.write[ctz32(size)](mr->opaque, addr, data);
-        return;
+    if (mr->ops->write) {
+        access_with_adjusted_size(addr, &data, size,
+                                  mr->ops->impl.min_access_size,
+                                  mr->ops->impl.max_access_size,
+                                  memory_region_write_accessor, mr);
+    } else {
+        access_with_adjusted_size(addr, &data, size, 1, 4,
+                                  memory_region_oldmmio_write_accessor, mr);
     }
-
-    /* FIXME: support unaligned access */
-    access_with_adjusted_size(addr, &data, size,
-                              mr->ops->impl.min_access_size,
-                              mr->ops->impl.max_access_size,
-                              memory_region_write_accessor, mr);
+    return false;
 }
 
 void memory_region_init_io(MemoryRegion *mr,
@@ -977,40 +1063,11 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->ram_addr = qemu_ram_alloc(size, mr);
 }
 
-static uint64_t invalid_read(void *opaque, hwaddr addr,
-                             unsigned size)
-{
-    MemoryRegion *mr = opaque;
-
-    if (!mr->warning_printed) {
-        fprintf(stderr, "Invalid read from memory region %s\n", mr->name);
-        mr->warning_printed = true;
-    }
-    return -1U;
-}
-
-static void invalid_write(void *opaque, hwaddr addr, uint64_t data,
-                          unsigned size)
-{
-    MemoryRegion *mr = opaque;
-
-    if (!mr->warning_printed) {
-        fprintf(stderr, "Invalid write to memory region %s\n", mr->name);
-        mr->warning_printed = true;
-    }
-}
-
-static const MemoryRegionOps reservation_ops = {
-    .read = invalid_read,
-    .write = invalid_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
 void memory_region_init_reservation(MemoryRegion *mr,
                                     const char *name,
                                     uint64_t size)
 {
-    memory_region_init_io(mr, &reservation_ops, mr, name, size);
+    memory_region_init_io(mr, &unassigned_mem_ops, mr, name, size);
 }
 
 void memory_region_destroy(MemoryRegion *mr)
@@ -1594,15 +1651,15 @@ void address_space_destroy(AddressSpace *as)
     g_free(as->ioeventfds);
 }
 
-uint64_t io_mem_read(MemoryRegion *mr, hwaddr addr, unsigned size)
+bool io_mem_read(MemoryRegion *mr, hwaddr addr, uint64_t *pval, unsigned size)
 {
-    return memory_region_dispatch_read(mr, addr, size);
+    return memory_region_dispatch_read(mr, addr, pval, size);
 }
 
-void io_mem_write(MemoryRegion *mr, hwaddr addr,
+bool io_mem_write(MemoryRegion *mr, hwaddr addr,
                   uint64_t val, unsigned size)
 {
-    memory_region_dispatch_write(mr, addr, val, size);
+    return memory_region_dispatch_write(mr, addr, val, size);
 }
 
 typedef struct MemoryRegionList MemoryRegionList;
