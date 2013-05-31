@@ -300,7 +300,7 @@ static int s390_virtio_rng_init(VirtIOS390Device *s390_dev)
     }
 
     object_property_set_link(OBJECT(dev),
-                             OBJECT(dev->vdev.conf.default_backend), "rng",
+                             OBJECT(dev->vdev.conf.rng), "rng",
                              NULL);
 
     return s390_virtio_device_init(s390_dev, VIRTIO_DEVICE(vdev));
