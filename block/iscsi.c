@@ -218,10 +218,8 @@ iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
         if (status == SCSI_STATUS_CHECK_CONDITION
             && acb->task->sense.key == SCSI_SENSE_UNIT_ATTENTION
             && acb->retries-- > 0) {
-            if (acb->task != NULL) {
-                scsi_free_scsi_task(acb->task);
-                acb->task = NULL;
-            }
+            scsi_free_scsi_task(acb->task);
+            acb->task = NULL;
             if (iscsi_aio_writev_acb(acb) == 0) {
                 iscsi_set_events(acb->iscsilun);
                 return;
@@ -303,6 +301,7 @@ iscsi_aio_writev_acb(IscsiAIOCB *acb)
                                    acb);
 #endif
     if (ret != 0) {
+        scsi_free_scsi_task(acb->task);
         g_free(acb->buf);
         return -1;
     }
@@ -333,9 +332,6 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     acb->retries     = ISCSI_CMD_RETRIES;
 
     if (iscsi_aio_writev_acb(acb) != 0) {
-        if (acb->task) {
-            scsi_free_scsi_task(acb->task);
-        }
         qemu_aio_release(acb);
         return NULL;
     }
@@ -364,10 +360,8 @@ iscsi_aio_read16_cb(struct iscsi_context *iscsi, int status,
         if (status == SCSI_STATUS_CHECK_CONDITION
             && acb->task->sense.key == SCSI_SENSE_UNIT_ATTENTION
             && acb->retries-- > 0) {
-            if (acb->task != NULL) {
-                scsi_free_scsi_task(acb->task);
-                acb->task = NULL;
-            }
+            scsi_free_scsi_task(acb->task);
+            acb->task = NULL;
             if (iscsi_aio_readv_acb(acb) == 0) {
                 iscsi_set_events(acb->iscsilun);
                 return;
@@ -445,6 +439,7 @@ iscsi_aio_readv_acb(IscsiAIOCB *acb)
                                    NULL,
                                    acb);
     if (ret != 0) {
+        scsi_free_scsi_task(acb->task);
         return -1;
     }
 
@@ -480,9 +475,6 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
     acb->retries     = ISCSI_CMD_RETRIES;
 
     if (iscsi_aio_readv_acb(acb) != 0) {
-        if (acb->task) {
-            scsi_free_scsi_task(acb->task);
-        }
         qemu_aio_release(acb);
         return NULL;
     }
@@ -509,10 +501,8 @@ iscsi_synccache10_cb(struct iscsi_context *iscsi, int status,
         if (status == SCSI_STATUS_CHECK_CONDITION
             && acb->task->sense.key == SCSI_SENSE_UNIT_ATTENTION
             && acb->retries-- > 0) {
-            if (acb->task != NULL) {
-                scsi_free_scsi_task(acb->task);
-                acb->task = NULL;
-            }
+            scsi_free_scsi_task(acb->task);
+            acb->task = NULL;
             if (iscsi_aio_flush_acb(acb) == 0) {
                 iscsi_set_events(acb->iscsilun);
                 return;
@@ -589,10 +579,8 @@ iscsi_unmap_cb(struct iscsi_context *iscsi, int status,
         if (status == SCSI_STATUS_CHECK_CONDITION
             && acb->task->sense.key == SCSI_SENSE_UNIT_ATTENTION
             && acb->retries-- > 0) {
-            if (acb->task != NULL) {
-                scsi_free_scsi_task(acb->task);
-                acb->task = NULL;
-            }
+            scsi_free_scsi_task(acb->task);
+            acb->task = NULL;
             if (iscsi_aio_discard_acb(acb) == 0) {
                 iscsi_set_events(acb->iscsilun);
                 return;
@@ -647,9 +635,6 @@ iscsi_aio_discard(BlockDriverState *bs,
     acb->retries     = ISCSI_CMD_RETRIES;
 
     if (iscsi_aio_discard_acb(acb) != 0) {
-        if (acb->task) {
-            scsi_free_scsi_task(acb->task);
-        }
         qemu_aio_release(acb);
         return NULL;
     }
