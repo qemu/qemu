@@ -322,13 +322,13 @@ QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
     FILE *stdio_file;
     QEMUFileStdio *s;
 
-    stdio_file = popen(command, mode);
-    if (stdio_file == NULL) {
+    if (mode == NULL || (mode[0] != 'r' && mode[0] != 'w') || mode[1] != 0) {
+        fprintf(stderr, "qemu_popen: Argument validity check failed\n");
         return NULL;
     }
 
-    if (mode == NULL || (mode[0] != 'r' && mode[0] != 'w') || mode[1] != 0) {
-        fprintf(stderr, "qemu_popen: Argument validity check failed\n");
+    stdio_file = popen(command, mode);
+    if (stdio_file == NULL) {
         return NULL;
     }
 
