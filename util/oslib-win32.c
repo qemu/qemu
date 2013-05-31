@@ -26,11 +26,16 @@
  * THE SOFTWARE.
  */
 #include <windows.h>
+#include <glib.h>
+#include <stdlib.h>
 #include "config-host.h"
 #include "sysemu/sysemu.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
 #include "qemu/sockets.h"
+
+/* this must come after including "trace.h" */
+#include <shlobj.h>
 
 void *qemu_oom_check(void *ptr)
 {
@@ -159,4 +164,21 @@ int qemu_gettimeofday(qemu_timeval *tp)
 int qemu_get_thread_id(void)
 {
     return GetCurrentThreadId();
+}
+
+char *
+qemu_get_local_state_pathname(const char *relative_pathname)
+{
+    HRESULT result;
+    char base_path[MAX_PATH+1] = "";
+
+    result = SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL,
+                             /* SHGFP_TYPE_CURRENT */ 0, base_path);
+    if (result != S_OK) {
+        /* misconfigured environment */
+        g_critical("CSIDL_COMMON_APPDATA unavailable: %ld", (long)result);
+        abort();
+    }
+    return g_strdup_printf("%s" G_DIR_SEPARATOR_S "%s", base_path,
+                           relative_pathname);
 }
