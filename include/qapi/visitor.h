@@ -18,7 +18,10 @@
 
 typedef struct GenericList
 {
-    void *value;
+    union {
+        void *value;
+        uint64_t padding;
+    };
     struct GenericList *next;
 } GenericList;
 

@@ -22,7 +22,10 @@ def generate_fwd_struct(name, members, builtin_type=False):
 
 typedef struct %(name)sList
 {
-    %(type)s value;
+    union {
+        %(type)s value;
+        uint64_t padding;
+    };
     struct %(name)sList *next;
 } %(name)sList;
 ''',
@@ -35,7 +38,10 @@ typedef struct %(name)s %(name)s;
 
 typedef struct %(name)sList
 {
-    %(name)s *value;
+    union {
+        %(name)s *value;
+        uint64_t padding;
+    };
     struct %(name)sList *next;
 } %(name)sList;
 ''',
