@@ -230,11 +230,10 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
         && mr != &io_mem_watch;
 }
 
-static MemoryRegionSection *address_space_lookup_region(AddressSpace *as,
+static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
                                                         hwaddr addr,
                                                         bool resolve_subpage)
 {
-    AddressSpaceDispatch *d = as->dispatch;
     MemoryRegionSection *section;
     subpage_t *subpage;
 
@@ -248,13 +247,13 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpace *as,
 }
 
 static MemoryRegionSection *
-address_space_translate_internal(AddressSpace *as, hwaddr addr, hwaddr *xlat,
+address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *xlat,
                                  hwaddr *plen, bool resolve_subpage)
 {
     MemoryRegionSection *section;
     Int128 diff;
 
-    section = address_space_lookup_region(as, addr, resolve_subpage);
+    section = address_space_lookup_region(d, addr, resolve_subpage);
     /* Compute offset within MemoryRegionSection */
     addr -= section->offset_within_address_space;
 
@@ -276,7 +275,7 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
     hwaddr len = *plen;
 
     for (;;) {
-        section = address_space_translate_internal(as, addr, &addr, plen, true);
+        section = address_space_translate_internal(as->dispatch, addr, &addr, plen, true);
         mr = section->mr;
 
         if (!mr->iommu_ops) {
@@ -305,7 +304,7 @@ address_space_translate_for_iotlb(AddressSpace *as, hwaddr addr, hwaddr *xlat,
                                   hwaddr *plen)
 {
     MemoryRegionSection *section;
-    section = address_space_translate_internal(as, addr, xlat, plen, false);
+    section = address_space_translate_internal(as->dispatch, addr, xlat, plen, false);
 
     assert(!section->mr->iommu_ops);
     return section;
