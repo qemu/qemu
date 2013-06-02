@@ -1662,7 +1662,7 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
             tcg_out_rlw(s, RLWINM, args[0], args[1], 32 - args[2], 0, 31);
         } else {
             tcg_out32(s, SUBFIC | TAI(0, args[2], 32));
-            tcg_out32(s, RLWNM | SAB(args[1], args[0], args[2])
+            tcg_out32(s, RLWNM | SAB(args[1], args[0], 0)
                          | MB(0) | ME(31));
         }
         break;
