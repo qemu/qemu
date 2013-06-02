@@ -93,7 +93,6 @@ struct AddressSpaceDispatch {
      * The bottom level has pointers to MemoryRegionSections.
      */
     PhysPageEntry phys_map;
-    MemoryListener listener;
     AddressSpace *as;
 };
 
@@ -841,7 +840,8 @@ static void register_multipage(AddressSpaceDispatch *d,
 
 static void mem_add(MemoryListener *listener, MemoryRegionSection *section)
 {
-    AddressSpaceDispatch *d = container_of(listener, AddressSpaceDispatch, listener);
+    AddressSpace *as = container_of(listener, AddressSpace, dispatch_listener);
+    AddressSpaceDispatch *d = as->dispatch;
     MemoryRegionSection now = *section, remain = *section;
     Int128 page_size = int128_make64(TARGET_PAGE_SIZE);
 
@@ -1703,7 +1703,8 @@ static void io_mem_init(void)
 
 static void mem_begin(MemoryListener *listener)
 {
-    AddressSpaceDispatch *d = container_of(listener, AddressSpaceDispatch, listener);
+    AddressSpace *as = container_of(listener, AddressSpace, dispatch_listener);
+    AddressSpaceDispatch *d = as->dispatch;
 
     d->phys_map.ptr = PHYS_MAP_NODE_NIL;
 }
@@ -1772,22 +1773,22 @@ void address_space_init_dispatch(AddressSpace *as)
     AddressSpaceDispatch *d = g_new(AddressSpaceDispatch, 1);
 
     d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .is_leaf = 0 };
-    d->listener = (MemoryListener) {
+    d->as = as;
+    as->dispatch = d;
+    as->dispatch_listener = (MemoryListener) {
         .begin = mem_begin,
         .region_add = mem_add,
         .region_nop = mem_add,
         .priority = 0,
     };
-    d->as = as;
-    as->dispatch = d;
-    memory_listener_register(&d->listener, as);
+    memory_listener_register(&as->dispatch_listener, as);
 }
 
 void address_space_destroy_dispatch(AddressSpace *as)
 {
     AddressSpaceDispatch *d = as->dispatch;
 
-    memory_listener_unregister(&d->listener);
+    memory_listener_unregister(&as->dispatch_listener);
     g_free(d);
     as->dispatch = NULL;
 }
