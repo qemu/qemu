@@ -1923,8 +1923,6 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
         if (a0 == 0) {
             tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
-            /* Revert the source rotate that we performed above.  */
-            tcg_out_rld(s, RLDICL, a1, a1, 32, 0);
         }
         break;
 
