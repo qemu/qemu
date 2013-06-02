@@ -1959,18 +1959,18 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
            environment.  So in 64-bit mode it's always carry-out of bit 63.
            The fallback code using deposit works just as well for 32-bit.  */
         a0 = args[0], a1 = args[1];
-        if (a0 == args[4] || (!const_args[5] && a0 == args[5])) {
+        if (a0 == args[3] || (!const_args[5] && a0 == args[5])) {
             a0 = TCG_REG_R0;
         }
-        if (const_args[3]) {
-            tcg_out32(s, ADDIC | TAI(a0, args[2], args[3]));
+        if (const_args[4]) {
+            tcg_out32(s, ADDIC | TAI(a0, args[2], args[4]));
         } else {
-            tcg_out32(s, ADDC | TAB(a0, args[2], args[3]));
+            tcg_out32(s, ADDC | TAB(a0, args[2], args[4]));
         }
         if (const_args[5]) {
-            tcg_out32(s, (args[5] ? ADDME : ADDZE) | RT(a1) | RA(args[4]));
+            tcg_out32(s, (args[5] ? ADDME : ADDZE) | RT(a1) | RA(args[3]));
         } else {
-            tcg_out32(s, ADDE | TAB(a1, args[4], args[5]));
+            tcg_out32(s, ADDE | TAB(a1, args[3], args[5]));
         }
         if (a0 != args[0]) {
             tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
@@ -2148,7 +2148,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
     { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
 
-    { INDEX_op_add2_i64, { "r", "r", "r", "rI", "r", "rZM" } },
+    { INDEX_op_add2_i64, { "r", "r", "r", "r", "rI", "rZM" } },
     { INDEX_op_sub2_i64, { "r", "r", "rI", "r", "rZM", "r" } },
     { INDEX_op_muls2_i64, { "r", "r", "r", "r" } },
     { INDEX_op_mulu2_i64, { "r", "r", "r", "r" } },
