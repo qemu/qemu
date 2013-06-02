@@ -193,15 +193,16 @@ static inline void reset_dirty(TCXState *ts, ram_addr_t page_min,
                               ram_addr_t cpage)
 {
     memory_region_reset_dirty(&ts->vram_mem,
-                              page_min, page_max + TARGET_PAGE_SIZE,
+                              page_min,
+                              (page_max - page_min) + TARGET_PAGE_SIZE,
                               DIRTY_MEMORY_VGA);
     memory_region_reset_dirty(&ts->vram_mem,
                               page24 + page_min * 4,
-                              page24 + page_max * 4 + TARGET_PAGE_SIZE,
+                              (page_max - page_min) * 4 + TARGET_PAGE_SIZE,
                               DIRTY_MEMORY_VGA);
     memory_region_reset_dirty(&ts->vram_mem,
                               cpage + page_min * 4,
-                              cpage + page_max * 4 + TARGET_PAGE_SIZE,
+                              (page_max - page_min) * 4 + TARGET_PAGE_SIZE,
                               DIRTY_MEMORY_VGA);
 }
 
@@ -285,7 +286,8 @@ static void tcx_update_display(void *opaque)
     /* reset modified pages */
     if (page_max >= page_min) {
         memory_region_reset_dirty(&ts->vram_mem,
-                                  page_min, page_max + TARGET_PAGE_SIZE,
+                                  page_min,
+                                  (page_max - page_min) + TARGET_PAGE_SIZE,
                                   DIRTY_MEMORY_VGA);
     }
 }
