@@ -165,6 +165,39 @@ struct MemoryRegion {
     NotifierList iommu_notify;
 };
 
+typedef struct MemoryListener MemoryListener;
+
+/**
+ * MemoryListener: callbacks structure for updates to the physical memory map
+ *
+ * Allows a component to adjust to changes in the guest-visible memory map.
+ * Use with memory_listener_register() and memory_listener_unregister().
+ */
+struct MemoryListener {
+    void (*begin)(MemoryListener *listener);
+    void (*commit)(MemoryListener *listener);
+    void (*region_add)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*region_del)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*region_nop)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_start)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_global_start)(MemoryListener *listener);
+    void (*log_global_stop)(MemoryListener *listener);
+    void (*eventfd_add)(MemoryListener *listener, MemoryRegionSection *section,
+                        bool match_data, uint64_t data, EventNotifier *e);
+    void (*eventfd_del)(MemoryListener *listener, MemoryRegionSection *section,
+                        bool match_data, uint64_t data, EventNotifier *e);
+    void (*coalesced_mmio_add)(MemoryListener *listener, MemoryRegionSection *section,
+                               hwaddr addr, hwaddr len);
+    void (*coalesced_mmio_del)(MemoryListener *listener, MemoryRegionSection *section,
+                               hwaddr addr, hwaddr len);
+    /* Lower = earlier (during add), later (during del) */
+    unsigned priority;
+    AddressSpace *address_space_filter;
+    QTAILQ_ENTRY(MemoryListener) link;
+};
+
 /**
  * AddressSpace: describes a mapping of addresses to #MemoryRegion objects
  */
@@ -197,39 +230,6 @@ struct MemoryRegionSection {
     Int128 size;
     hwaddr offset_within_address_space;
     bool readonly;
-};
-
-typedef struct MemoryListener MemoryListener;
-
-/**
- * MemoryListener: callbacks structure for updates to the physical memory map
- *
- * Allows a component to adjust to changes in the guest-visible memory map.
- * Use with memory_listener_register() and memory_listener_unregister().
- */
-struct MemoryListener {
-    void (*begin)(MemoryListener *listener);
-    void (*commit)(MemoryListener *listener);
-    void (*region_add)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*region_del)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*region_nop)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*log_start)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*log_global_start)(MemoryListener *listener);
-    void (*log_global_stop)(MemoryListener *listener);
-    void (*eventfd_add)(MemoryListener *listener, MemoryRegionSection *section,
-                        bool match_data, uint64_t data, EventNotifier *e);
-    void (*eventfd_del)(MemoryListener *listener, MemoryRegionSection *section,
-                        bool match_data, uint64_t data, EventNotifier *e);
-    void (*coalesced_mmio_add)(MemoryListener *listener, MemoryRegionSection *section,
-                               hwaddr addr, hwaddr len);
-    void (*coalesced_mmio_del)(MemoryListener *listener, MemoryRegionSection *section,
-                               hwaddr addr, hwaddr len);
-    /* Lower = earlier (during add), later (during del) */
-    unsigned priority;
-    AddressSpace *address_space_filter;
-    QTAILQ_ENTRY(MemoryListener) link;
 };
 
 /**
