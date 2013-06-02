@@ -3417,8 +3417,10 @@ int main(int argc, char **argv, char **envp)
                     break;
                 }
             case QEMU_OPTION_monitor:
-                monitor_parse(optarg, "readline");
                 default_monitor = 0;
+                if (strncmp(optarg, "none", 4)) {
+                    monitor_parse(optarg, "readline");
+                }
                 break;
             case QEMU_OPTION_qmp:
                 monitor_parse(optarg, "control");

@@ -54,7 +54,7 @@ struct FWCfgState {
 #define JPG_FILE 0
 #define BMP_FILE 1
 
-static char *read_splashfile(char *filename, size_t *file_sizep,
+static char *read_splashfile(char *filename, gsize *file_sizep,
                              int *file_typep)
 {
     GError *err = NULL;
@@ -112,7 +112,7 @@ static void fw_cfg_bootsplash(FWCfgState *s)
     const char *boot_splash_filename = NULL;
     char *p;
     char *filename, *file_data;
-    size_t file_size;
+    gsize file_size;
     int file_type;
     const char *temp;
 

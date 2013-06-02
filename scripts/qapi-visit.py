@@ -174,7 +174,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 ''',
                 abbrev = de_camel_case(name).upper(),
                 enum = c_fun(de_camel_case(key),False).upper(),
-                c_type=members[key],
+                c_type=type_name(members[key]),
                 c_name=c_fun(key))
 
     ret += mcgen('''
@@ -202,12 +202,14 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 
     return ret
 
-def generate_declaration(name, members, genlist=True):
-    ret = mcgen('''
+def generate_declaration(name, members, genlist=True, builtin_type=False):
+    ret = ""
+    if not builtin_type:
+        ret += mcgen('''
 
 void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp);
 ''',
-                name=name)
+                    name=name)
 
     if genlist:
         ret += mcgen('''
@@ -235,8 +237,9 @@ void visit_type_%(name)s(Visitor *m, %(name)s * obj, const char *name, Error **e
                 name=name)
 
 try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "chp:o:",
-                                   ["source", "header", "prefix=", "output-dir="])
+    opts, args = getopt.gnu_getopt(sys.argv[1:], "chbp:o:",
+                                   ["source", "header", "builtins", "prefix=",
+                                    "output-dir="])
 except getopt.GetoptError, err:
     print str(err)
     sys.exit(1)
@@ -248,6 +251,7 @@ h_file = 'qapi-visit.h'
 
 do_c = False
 do_h = False
+do_builtins = False
 
 for o, a in opts:
     if o in ("-p", "--prefix"):
@@ -258,6 +262,8 @@ for o, a in opts:
         do_c = True
     elif o in ("-h", "--header"):
         do_h = True
+    elif o in ("-b", "--builtins"):
+        do_builtins = True
 
 if not do_c and not do_h:
     do_c = True
@@ -324,10 +330,28 @@ fdecl.write(mcgen('''
 
 #include "qapi/visitor.h"
 #include "%(prefix)sqapi-types.h"
+
 ''',
                   prefix=prefix, guard=guardname(h_file)))
 
 exprs = parse_schema(sys.stdin)
+
+# to avoid header dependency hell, we always generate declarations
+# for built-in types in our header files and simply guard them
+fdecl.write(guardstart("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
+for typename in builtin_types:
+    fdecl.write(generate_declaration(typename, None, genlist=True,
+                                     builtin_type=True))
+fdecl.write(guardend("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
+
+# ...this doesn't work for cases where we link in multiple objects that
+# have the functions defined, so we use -b option to provide control
+# over these cases
+if do_builtins:
+    fdef.write(guardstart("QAPI_VISIT_BUILTIN_VISITOR_DEF"))
+    for typename in builtin_types:
+        fdef.write(generate_visit_list(typename, None))
+    fdef.write(guardend("QAPI_VISIT_BUILTIN_VISITOR_DEF"))
 
 for expr in exprs:
     if expr.has_key('type'):

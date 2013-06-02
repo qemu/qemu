@@ -14,6 +14,7 @@
 
 #include "trace.h"
 #include "qemu-common.h"
+#include "qemu/thread.h"
 #include "block/coroutine.h"
 #include "block/coroutine_int.h"
 
@@ -23,6 +24,7 @@ enum {
 };
 
 /** Free list to speed up creation */
+static QemuMutex pool_lock;
 static QSLIST_HEAD(, Coroutine) pool = QSLIST_HEAD_INITIALIZER(pool);
 static unsigned int pool_size;
 
@@ -30,31 +32,44 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
 {
     Coroutine *co;
 
+    qemu_mutex_lock(&pool_lock);
     co = QSLIST_FIRST(&pool);
     if (co) {
         QSLIST_REMOVE_HEAD(&pool, pool_next);
         pool_size--;
-    } else {
+    }
+    qemu_mutex_unlock(&pool_lock);
+
+    if (!co) {
         co = qemu_coroutine_new();
     }
 
     co->entry = entry;
+    QTAILQ_INIT(&co->co_queue_wakeup);
     return co;
 }
 
 static void coroutine_delete(Coroutine *co)
 {
+    qemu_mutex_lock(&pool_lock);
     if (pool_size < POOL_MAX_SIZE) {
         QSLIST_INSERT_HEAD(&pool, co, pool_next);
         co->caller = NULL;
         pool_size++;
+        qemu_mutex_unlock(&pool_lock);
         return;
     }
+    qemu_mutex_unlock(&pool_lock);
 
     qemu_coroutine_delete(co);
 }
 
-static void __attribute__((destructor)) coroutine_cleanup(void)
+static void __attribute__((constructor)) coroutine_pool_init(void)
+{
+    qemu_mutex_init(&pool_lock);
+}
+
+static void __attribute__((destructor)) coroutine_pool_cleanup(void)
 {
     Coroutine *co;
     Coroutine *tmp;
@@ -63,6 +78,8 @@ static void __attribute__((destructor)) coroutine_cleanup(void)
         QSLIST_REMOVE_HEAD(&pool, pool_next);
         qemu_coroutine_delete(co);
     }
+
+    qemu_mutex_destroy(&pool_lock);
 }
 
 static void coroutine_swap(Coroutine *from, Coroutine *to)
@@ -70,6 +87,8 @@ static void coroutine_swap(Coroutine *from, Coroutine *to)
     CoroutineAction ret;
 
     ret = qemu_coroutine_switch(from, to, COROUTINE_YIELD);
+
+    qemu_co_queue_run_restart(to);
 
     switch (ret) {
     case COROUTINE_YIELD:

@@ -1026,6 +1026,21 @@ static void assigned_dev_update_msi(PCIDevice *pci_dev)
     }
 }
 
+static void assigned_dev_update_msi_msg(PCIDevice *pci_dev)
+{
+    AssignedDevice *assigned_dev = DO_UPCAST(AssignedDevice, dev, pci_dev);
+    uint8_t ctrl_byte = pci_get_byte(pci_dev->config + pci_dev->msi_cap +
+                                     PCI_MSI_FLAGS);
+
+    if (assigned_dev->assigned_irq_type != ASSIGNED_IRQ_MSI ||
+        !(ctrl_byte & PCI_MSI_FLAGS_ENABLE)) {
+        return;
+    }
+
+    kvm_irqchip_update_msi_route(kvm_state, assigned_dev->msi_virq[0],
+                                 msi_get_message(pci_dev, 0));
+}
+
 static bool assigned_dev_msix_masked(MSIXTableEntry *entry)
 {
     return (entry->ctrl & cpu_to_le32(0x1)) != 0;
@@ -1201,6 +1216,9 @@ static void assigned_dev_pci_write_config(PCIDevice *pci_dev, uint32_t address,
         if (range_covers_byte(address, len,
                               pci_dev->msi_cap + PCI_MSI_FLAGS)) {
             assigned_dev_update_msi(pci_dev);
+        } else if (ranges_overlap(address, len, /* 32bit MSI only */
+                                  pci_dev->msi_cap + PCI_MSI_ADDRESS_LO, 6)) {
+            assigned_dev_update_msi_msg(pci_dev);
         }
     }
     if (assigned_dev->cap.available & ASSIGNED_DEVICE_CAP_MSIX) {

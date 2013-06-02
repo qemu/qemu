@@ -2875,8 +2875,8 @@ static void ringbuf_chr_close(struct CharDriverState *chr)
     chr->opaque = NULL;
 }
 
-static CharDriverState *qemu_chr_open_ringbuf(ChardevRingbuf *opts,
-                                              Error **errp)
+static CharDriverState *qemu_chr_open_memory(ChardevMemory *opts,
+                                             Error **errp)
 {
     CharDriverState *chr;
     RingBufCharDriver *d;
@@ -2888,7 +2888,7 @@ static CharDriverState *qemu_chr_open_ringbuf(ChardevRingbuf *opts,
 
     /* The size must be power of 2 */
     if (d->size & (d->size - 1)) {
-        error_setg(errp, "size of ringbuf chardev must be power of two");
+        error_setg(errp, "size of memory chardev must be power of two");
         goto fail;
     }
 
@@ -2920,7 +2920,7 @@ void qmp_ringbuf_write(const char *device, const char *data,
     CharDriverState *chr;
     const uint8_t *write_data;
     int ret;
-    size_t write_count;
+    gsize write_count;
 
     chr = qemu_chr_find(device);
     if (!chr) {
@@ -3194,12 +3194,12 @@ static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
     backend->pipe->device = g_strdup(device);
 }
 
-static void qemu_chr_parse_ringbuf(QemuOpts *opts, ChardevBackend *backend,
-                                   Error **errp)
+static void qemu_chr_parse_memory(QemuOpts *opts, ChardevBackend *backend,
+                                  Error **errp)
 {
     int val;
 
-    backend->memory = g_new0(ChardevRingbuf, 1);
+    backend->memory = g_new0(ChardevMemory, 1);
 
     val = qemu_opt_get_number(opts, "size", 0);
     if (val != 0) {
@@ -3791,7 +3791,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         chr = vc_init(backend->vc);
         break;
     case CHARDEV_BACKEND_KIND_MEMORY:
-        chr = qemu_chr_open_ringbuf(backend->memory, errp);
+        chr = qemu_chr_open_memory(backend->memory, errp);
         break;
     default:
         error_setg(errp, "unknown chardev backend (%d)", backend->kind);
@@ -3805,6 +3805,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         chr->label = g_strdup(id);
         chr->avail_connections =
             (backend->kind == CHARDEV_BACKEND_KIND_MUX) ? MAX_MUX : 1;
+        if (!chr->filename) {
+            chr->filename = g_strdup(ChardevBackendKind_lookup[backend->kind]);
+        }
         QTAILQ_INSERT_TAIL(&chardevs, chr, next);
         return ret;
     } else {
@@ -3836,7 +3839,7 @@ static void register_types(void)
     register_char_driver("socket", qemu_chr_open_socket);
     register_char_driver("udp", qemu_chr_open_udp);
     register_char_driver_qapi("memory", CHARDEV_BACKEND_KIND_MEMORY,
-                              qemu_chr_parse_ringbuf);
+                              qemu_chr_parse_memory);
     register_char_driver_qapi("file", CHARDEV_BACKEND_KIND_FILE,
                               qemu_chr_parse_file_out);
     register_char_driver_qapi("stdio", CHARDEV_BACKEND_KIND_STDIO,

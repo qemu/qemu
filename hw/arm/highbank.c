@@ -24,7 +24,6 @@
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/sysbus.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 

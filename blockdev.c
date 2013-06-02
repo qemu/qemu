@@ -750,8 +750,8 @@ void do_commit(Monitor *mon, const QDict *qdict)
 
 static void blockdev_do_action(int kind, void *data, Error **errp)
 {
-    BlockdevAction action;
-    BlockdevActionList list;
+    TransactionAction action;
+    TransactionActionList list;
 
     action.kind = kind;
     action.data = data;
@@ -773,27 +773,176 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
         .has_mode = has_mode,
         .mode = mode,
     };
-    blockdev_do_action(BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC, &snapshot,
-                       errp);
+    blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC,
+                       &snapshot, errp);
 }
 
 
 /* New and old BlockDriverState structs for group snapshots */
-typedef struct BlkTransactionStates {
+
+typedef struct BlkTransactionStates BlkTransactionStates;
+
+/* Only prepare() may fail. In a single transaction, only one of commit() or
+   abort() will be called, clean() will always be called if it present. */
+typedef struct BdrvActionOps {
+    /* Size of state struct, in bytes. */
+    size_t instance_size;
+    /* Prepare the work, must NOT be NULL. */
+    void (*prepare)(BlkTransactionStates *common, Error **errp);
+    /* Commit the changes, must NOT be NULL. */
+    void (*commit)(BlkTransactionStates *common);
+    /* Abort the changes on fail, can be NULL. */
+    void (*abort)(BlkTransactionStates *common);
+    /* Clean up resource in the end, can be NULL. */
+    void (*clean)(BlkTransactionStates *common);
+} BdrvActionOps;
+
+/*
+ * This structure must be arranged as first member in child type, assuming
+ * that compiler will also arrange it to the same address with parent instance.
+ * Later it will be used in free().
+ */
+struct BlkTransactionStates {
+    TransactionAction *action;
+    const BdrvActionOps *ops;
+    QSIMPLEQ_ENTRY(BlkTransactionStates) entry;
+};
+
+/* external snapshot private data */
+typedef struct ExternalSnapshotStates {
+    BlkTransactionStates common;
     BlockDriverState *old_bs;
     BlockDriverState *new_bs;
-    QSIMPLEQ_ENTRY(BlkTransactionStates) entry;
-} BlkTransactionStates;
+} ExternalSnapshotStates;
+
+static void external_snapshot_prepare(BlkTransactionStates *common,
+                                      Error **errp)
+{
+    BlockDriver *proto_drv;
+    BlockDriver *drv;
+    int flags, ret;
+    Error *local_err = NULL;
+    const char *device;
+    const char *new_image_file;
+    const char *format = "qcow2";
+    enum NewImageMode mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    ExternalSnapshotStates *states =
+                             DO_UPCAST(ExternalSnapshotStates, common, common);
+    TransactionAction *action = common->action;
+
+    /* get parameters */
+    g_assert(action->kind == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
+
+    device = action->blockdev_snapshot_sync->device;
+    new_image_file = action->blockdev_snapshot_sync->snapshot_file;
+    if (action->blockdev_snapshot_sync->has_format) {
+        format = action->blockdev_snapshot_sync->format;
+    }
+    if (action->blockdev_snapshot_sync->has_mode) {
+        mode = action->blockdev_snapshot_sync->mode;
+    }
+
+    /* start processing */
+    drv = bdrv_find_format(format);
+    if (!drv) {
+        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+        return;
+    }
+
+    states->old_bs = bdrv_find(device);
+    if (!states->old_bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (!bdrv_is_inserted(states->old_bs)) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        return;
+    }
+
+    if (bdrv_in_use(states->old_bs)) {
+        error_set(errp, QERR_DEVICE_IN_USE, device);
+        return;
+    }
+
+    if (!bdrv_is_read_only(states->old_bs)) {
+        if (bdrv_flush(states->old_bs)) {
+            error_set(errp, QERR_IO_ERROR);
+            return;
+        }
+    }
+
+    flags = states->old_bs->open_flags;
+
+    proto_drv = bdrv_find_protocol(new_image_file);
+    if (!proto_drv) {
+        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+        return;
+    }
+
+    /* create new image w/backing file */
+    if (mode != NEW_IMAGE_MODE_EXISTING) {
+        bdrv_img_create(new_image_file, format,
+                        states->old_bs->filename,
+                        states->old_bs->drv->format_name,
+                        NULL, -1, flags, &local_err, false);
+        if (error_is_set(&local_err)) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
+    /* We will manually add the backing_hd field to the bs later */
+    states->new_bs = bdrv_new("");
+    /* TODO Inherit bs->options or only take explicit options with an
+     * extended QMP command? */
+    ret = bdrv_open(states->new_bs, new_image_file, NULL,
+                    flags | BDRV_O_NO_BACKING, drv);
+    if (ret != 0) {
+        error_set(errp, QERR_OPEN_FILE_FAILED, new_image_file);
+    }
+}
+
+static void external_snapshot_commit(BlkTransactionStates *common)
+{
+    ExternalSnapshotStates *states =
+                             DO_UPCAST(ExternalSnapshotStates, common, common);
+
+    /* This removes our old bs from the bdrv_states, and adds the new bs */
+    bdrv_append(states->new_bs, states->old_bs);
+    /* We don't need (or want) to use the transactional
+     * bdrv_reopen_multiple() across all the entries at once, because we
+     * don't want to abort all of them if one of them fails the reopen */
+    bdrv_reopen(states->new_bs, states->new_bs->open_flags & ~BDRV_O_RDWR,
+                NULL);
+}
+
+static void external_snapshot_abort(BlkTransactionStates *common)
+{
+    ExternalSnapshotStates *states =
+                             DO_UPCAST(ExternalSnapshotStates, common, common);
+    if (states->new_bs) {
+        bdrv_delete(states->new_bs);
+    }
+}
+
+static const BdrvActionOps actions[] = {
+    [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
+        .instance_size = sizeof(ExternalSnapshotStates),
+        .prepare  = external_snapshot_prepare,
+        .commit   = external_snapshot_commit,
+        .abort = external_snapshot_abort,
+    },
+};
 
 /*
  * 'Atomic' group snapshots.  The snapshots are taken as a set, and if any fail
  *  then we do not pivot any of the devices in the group, and abandon the
  *  snapshots
  */
-void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
+void qmp_transaction(TransactionActionList *dev_list, Error **errp)
 {
-    int ret = 0;
-    BlockdevActionList *dev_entry = dev_list;
+    TransactionActionList *dev_entry = dev_list;
     BlkTransactionStates *states, *next;
     Error *local_err = NULL;
 
@@ -805,109 +954,29 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
 
     /* We don't do anything in this loop that commits us to the snapshot */
     while (NULL != dev_entry) {
-        BlockdevAction *dev_info = NULL;
-        BlockDriver *proto_drv;
-        BlockDriver *drv;
-        int flags;
-        enum NewImageMode mode;
-        const char *new_image_file;
-        const char *device;
-        const char *format = "qcow2";
+        TransactionAction *dev_info = NULL;
+        const BdrvActionOps *ops;
 
         dev_info = dev_entry->value;
         dev_entry = dev_entry->next;
 
-        states = g_malloc0(sizeof(BlkTransactionStates));
+        assert(dev_info->kind < ARRAY_SIZE(actions));
+
+        ops = &actions[dev_info->kind];
+        states = g_malloc0(ops->instance_size);
+        states->ops = ops;
+        states->action = dev_info;
         QSIMPLEQ_INSERT_TAIL(&snap_bdrv_states, states, entry);
 
-        switch (dev_info->kind) {
-        case BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC:
-            device = dev_info->blockdev_snapshot_sync->device;
-            if (!dev_info->blockdev_snapshot_sync->has_mode) {
-                dev_info->blockdev_snapshot_sync->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-            }
-            new_image_file = dev_info->blockdev_snapshot_sync->snapshot_file;
-            if (dev_info->blockdev_snapshot_sync->has_format) {
-                format = dev_info->blockdev_snapshot_sync->format;
-            }
-            mode = dev_info->blockdev_snapshot_sync->mode;
-            break;
-        default:
-            abort();
-        }
-
-        drv = bdrv_find_format(format);
-        if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
-            goto delete_and_fail;
-        }
-
-        states->old_bs = bdrv_find(device);
-        if (!states->old_bs) {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, device);
-            goto delete_and_fail;
-        }
-
-        if (!bdrv_is_inserted(states->old_bs)) {
-            error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
-            goto delete_and_fail;
-        }
-
-        if (bdrv_in_use(states->old_bs)) {
-            error_set(errp, QERR_DEVICE_IN_USE, device);
-            goto delete_and_fail;
-        }
-
-        if (!bdrv_is_read_only(states->old_bs)) {
-            if (bdrv_flush(states->old_bs)) {
-                error_set(errp, QERR_IO_ERROR);
-                goto delete_and_fail;
-            }
-        }
-
-        flags = states->old_bs->open_flags;
-
-        proto_drv = bdrv_find_protocol(new_image_file);
-        if (!proto_drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
-            goto delete_and_fail;
-        }
-
-        /* create new image w/backing file */
-        if (mode != NEW_IMAGE_MODE_EXISTING) {
-            bdrv_img_create(new_image_file, format,
-                            states->old_bs->filename,
-                            states->old_bs->drv->format_name,
-                            NULL, -1, flags, &local_err, false);
-            if (error_is_set(&local_err)) {
-                error_propagate(errp, local_err);
-                goto delete_and_fail;
-            }
-        }
-
-        /* We will manually add the backing_hd field to the bs later */
-        states->new_bs = bdrv_new("");
-        /* TODO Inherit bs->options or only take explicit options with an
-         * extended QMP command? */
-        ret = bdrv_open(states->new_bs, new_image_file, NULL,
-                        flags | BDRV_O_NO_BACKING, drv);
-        if (ret != 0) {
-            error_set(errp, QERR_OPEN_FILE_FAILED, new_image_file);
+        states->ops->prepare(states, &local_err);
+        if (error_is_set(&local_err)) {
+            error_propagate(errp, local_err);
             goto delete_and_fail;
         }
     }
 
-
-    /* Now we are going to do the actual pivot.  Everything up to this point
-     * is reversible, but we are committed at this point */
     QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
-        /* This removes our old bs from the bdrv_states, and adds the new bs */
-        bdrv_append(states->new_bs, states->old_bs);
-        /* We don't need (or want) to use the transactional
-         * bdrv_reopen_multiple() across all the entries at once, because we
-         * don't want to abort all of them if one of them fails the reopen */
-        bdrv_reopen(states->new_bs, states->new_bs->open_flags & ~BDRV_O_RDWR,
-                    NULL);
+        states->ops->commit(states);
     }
 
     /* success */
@@ -919,12 +988,15 @@ delete_and_fail:
     * the original bs for all images
     */
     QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
-        if (states->new_bs) {
-             bdrv_delete(states->new_bs);
+        if (states->ops->abort) {
+            states->ops->abort(states);
         }
     }
 exit:
     QSIMPLEQ_FOREACH_SAFE(states, &snap_bdrv_states, entry, next) {
+        if (states->ops->clean) {
+            states->ops->clean(states);
+        }
         g_free(states);
     }
 }

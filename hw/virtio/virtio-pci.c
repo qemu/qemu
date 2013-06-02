@@ -89,12 +89,6 @@
 /* Flags track per-device state like workarounds for quirks in older guests. */
 #define VIRTIO_PCI_FLAG_BUS_MASTER_BUG  (1 << 0)
 
-/* QEMU doesn't strictly need write barriers since everything runs in
- * lock-step.  We'll leave the calls to wmb() in though to make it obvious for
- * KVM or if kqemu gets SMP support.
- */
-#define wmb() do { } while (0)
-
 /* HACK for virtio to determine if it's running a big endian guest */
 bool virtio_is_big_endian(void);
 

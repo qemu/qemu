@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "qmp-commands.h"
 #include "qapi-types.h"
+#include "ui/keymaps.h"
 
 struct QEMUPutMouseEntry {
     QEMUPutMouseEvent *qemu_put_mouse_event;
@@ -260,10 +261,10 @@ static void free_keycodes(void)
 static void release_keys(void *opaque)
 {
     while (keycodes_size > 0) {
-        if (keycodes[--keycodes_size] & 0x80) {
-            kbd_put_keycode(0xe0);
+        if (keycodes[--keycodes_size] & SCANCODE_GREY) {
+            kbd_put_keycode(SCANCODE_EMUL0);
         }
-        kbd_put_keycode(keycodes[keycodes_size] | 0x80);
+        kbd_put_keycode(keycodes[keycodes_size] | SCANCODE_UP);
     }
 
     free_keycodes();
@@ -297,10 +298,10 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
             return;
         }
 
-        if (keycode & 0x80) {
-            kbd_put_keycode(0xe0);
+        if (keycode & SCANCODE_GREY) {
+            kbd_put_keycode(SCANCODE_EMUL0);
         }
-        kbd_put_keycode(keycode & 0x7f);
+        kbd_put_keycode(keycode & SCANCODE_KEYCODEMASK);
 
         keycodes = g_realloc(keycodes, sizeof(int) * (keycodes_size + 1));
         keycodes[keycodes_size++] = keycode;

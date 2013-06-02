@@ -45,6 +45,7 @@
 #if defined(__GLIBC__)
 # include <pty.h>
 #elif defined CONFIG_BSD
+# include <termios.h>
 # if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 #  include <libutil.h>
 # else

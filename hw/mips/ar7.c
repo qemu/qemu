@@ -74,6 +74,7 @@
 #include "disas/disas.h"        /* lookup_symbol */
 #include "elf.h"                /* EM_MIPS (needed by loader.h) */
 #include "exec/address-spaces.h" /* get_system_memory */
+#include "exec/memory-internal.h" /* qemu_get_ram_ptr */
 #include "hw/loader.h"          /* load_elf, load_image_targphys */
 #include "hw/mips/cpudevs.h"    /* cpu_mips_kseg0_to_phys, ... */
 

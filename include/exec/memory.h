@@ -26,6 +26,9 @@
 #include "exec/ioport.h"
 #include "qemu/int128.h"
 
+#define MAX_PHYS_ADDR_SPACE_BITS 62
+#define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
+
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionPortio MemoryRegionPortio;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
@@ -126,7 +129,7 @@ struct MemoryRegion {
     ram_addr_t ram_addr;
     bool subpage;
     bool terminates;
-    bool readable;
+    bool romd_mode;
     bool ram;
     bool readonly; /* For RAM regions */
     bool enabled;
@@ -355,16 +358,16 @@ uint64_t memory_region_size(MemoryRegion *mr);
 bool memory_region_is_ram(MemoryRegion *mr);
 
 /**
- * memory_region_is_romd: check whether a memory region is ROMD
+ * memory_region_is_romd: check whether a memory region is in ROMD mode
  *
- * Returns %true is a memory region is ROMD and currently set to allow
+ * Returns %true if a memory region is a ROM device and currently set to allow
  * direct reads.
  *
  * @mr: the memory region being queried
  */
 static inline bool memory_region_is_romd(MemoryRegion *mr)
 {
-    return mr->rom_device && mr->readable;
+    return mr->rom_device && mr->romd_mode;
 }
 
 /**
@@ -502,18 +505,18 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly);
 
 /**
- * memory_region_rom_device_set_readable: enable/disable ROM readability
+ * memory_region_rom_device_set_romd: enable/disable ROMD mode
  *
  * Allows a ROM device (initialized with memory_region_init_rom_device() to
- * to be marked as readable (default) or not readable.  When it is readable,
- * the device is mapped to guest memory.  When not readable, reads are
- * forwarded to the #MemoryRegion.read function.
+ * set to ROMD mode (default) or MMIO mode.  When it is in ROMD mode, the
+ * device is mapped to guest memory and satisfies read access directly.
+ * When in MMIO mode, reads are forwarded to the #MemoryRegion.read function.
+ * Writes are always handled by the #MemoryRegion.write function.
  *
  * @mr: the memory region to be updated
- * @readable: whether reads are satisified directly (%true) or via callbacks
- *            (%false)
+ * @romd_mode: %true to put the region into ROMD mode
  */
-void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable);
+void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode);
 
 /**
  * memory_region_set_coalescing: Enable memory coalescing for the region.
@@ -718,51 +721,43 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
 /**
- * memory_region_find: locate a MemoryRegion in an address space
+ * memory_region_find: translate an address/size relative to a
+ * MemoryRegion into a #MemoryRegionSection.
  *
- * Locates the first #MemoryRegion within an address space given by
- * @address_space that overlaps the range given by @addr and @size.
+ * Locates the first #MemoryRegion within @mr that overlaps the range
+ * given by @addr and @size.
  *
  * Returns a #MemoryRegionSection that describes a contiguous overlap.
  * It will have the following characteristics:
- *    .@offset_within_address_space >= @addr
- *    .@offset_within_address_space + .@size <= @addr + @size
  *    .@size = 0 iff no overlap was found
  *    .@mr is non-%NULL iff an overlap was found
  *
- * @address_space: a top-level (i.e. parentless) region that contains
- *       the region to be found
- * @addr: start of the area within @address_space to be searched
+ * Remember that in the return value the @offset_within_region is
+ * relative to the returned region (in the .@mr field), not to the
+ * @mr argument.
+ *
+ * Similarly, the .@offset_within_address_space is relative to the
+ * address space that contains both regions, the passed and the
+ * returned one.  However, in the special case where the @mr argument
+ * has no parent (and thus is the root of the address space), the
+ * following will hold:
+ *    .@offset_within_address_space >= @addr
+ *    .@offset_within_address_space + .@size <= @addr + @size
+ *
+ * @mr: a MemoryRegion within which @addr is a relative address
+ * @addr: start of the area within @as to be searched
  * @size: size of the area to be searched
  */
-MemoryRegionSection memory_region_find(MemoryRegion *address_space,
+MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size);
 
 /**
- * memory_region_section_addr: get offset within MemoryRegionSection
- *
- * Returns offset within MemoryRegionSection
- *
- * @section: the memory region section being queried
- * @addr: address in address space
- */
-static inline hwaddr
-memory_region_section_addr(MemoryRegionSection *section,
-                           hwaddr addr)
-{
-    addr -= section->offset_within_address_space;
-    addr += section->offset_within_region;
-    return addr;
-}
-
-/**
- * memory_global_sync_dirty_bitmap: synchronize the dirty log for all memory
+ * address_space_sync_dirty_bitmap: synchronize the dirty log for all memory
  *
  * Synchronizes the dirty page log for an entire address space.
- * @address_space: a top-level (i.e. parentless) region that contains the
- *       memory being synchronized
+ * @as: the address space that contains the memory being synchronized
  */
-void memory_global_sync_dirty_bitmap(MemoryRegion *address_space);
+void address_space_sync_dirty_bitmap(AddressSpace *as);
 
 /**
  * memory_region_transaction_begin: Start a transaction.
@@ -830,32 +825,67 @@ void address_space_destroy(AddressSpace *as);
 /**
  * address_space_rw: read from or write to an address space.
  *
+ * Return true if the operation hit any unassigned memory.
+ *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
  * @buf: buffer with the data transferred
  * @is_write: indicates the transfer direction
  */
-void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
+bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                       int len, bool is_write);
 
 /**
  * address_space_write: write to address space.
  *
- * @as: #AddressSpace to be accessed
- * @addr: address within that address space
- * @buf: buffer with the data transferred
- */
-void address_space_write(AddressSpace *as, hwaddr addr,
-                         const uint8_t *buf, int len);
-
-/**
- * address_space_read: read from an address space.
+ * Return true if the operation hit any unassigned memory.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
  * @buf: buffer with the data transferred
  */
-void address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
+bool address_space_write(AddressSpace *as, hwaddr addr,
+                         const uint8_t *buf, int len);
+
+/**
+ * address_space_read: read from an address space.
+ *
+ * Return true if the operation hit any unassigned memory.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @buf: buffer with the data transferred
+ */
+bool address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
+
+/* address_space_translate: translate an address range into an address space
+ * into a MemoryRegionSection and an address range into that section
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @xlat: pointer to address within the returned memory region section's
+ * #MemoryRegion.
+ * @len: pointer to length
+ * @is_write: indicates the transfer direction
+ */
+MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
+                                             hwaddr *xlat, hwaddr *len,
+                                             bool is_write);
+
+/* address_space_access_valid: check for validity of accessing an address
+ * space range
+ *
+ * Check whether memory is assigned to the given address space range.
+ *
+ * For now, addr and len should be aligned to a page size.  This limitation
+ * will be lifted in the future.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @len: length of the area to be checked
+ * @is_write: indicates the transfer direction
+ */
+bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_write);
 
 /* address_space_map: map a physical memory region into a host virtual address
  *

@@ -105,7 +105,7 @@ static void pflash_timer (void *opaque)
     DPRINTF("%s: command %02x done\n", __func__, pfl->cmd);
     /* Reset flash */
     pfl->status ^= 0x80;
-    memory_region_rom_device_set_readable(&pfl->mem, true);
+    memory_region_rom_device_set_romd(&pfl->mem, true);
     pfl->wcycle = 0;
     pfl->cmd = 0;
 }
@@ -281,7 +281,7 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
 
     if (!pfl->wcycle) {
         /* Set the device in I/O access mode */
-        memory_region_rom_device_set_readable(&pfl->mem, false);
+        memory_region_rom_device_set_romd(&pfl->mem, false);
     }
 
     switch (pfl->wcycle) {
@@ -458,7 +458,7 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
                   "\n", __func__, offset, pfl->wcycle, pfl->cmd, value);
 
  reset_flash:
-    memory_region_rom_device_set_readable(&pfl->mem, true);
+    memory_region_rom_device_set_romd(&pfl->mem, true);
 
     pfl->wcycle = 0;
     pfl->cmd = 0;

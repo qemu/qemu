@@ -45,15 +45,20 @@
 
 #ifndef _WIN32
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
+#define QGA_STATE_RELATIVE_DIR  "run"
 #else
 #define QGA_VIRTIO_PATH_DEFAULT "\\\\.\\Global\\org.qemu.guest_agent.0"
+#define QGA_STATE_RELATIVE_DIR  "qemu-ga"
 #endif
-#define QGA_STATEDIR_DEFAULT CONFIG_QEMU_LOCALSTATEDIR "/run"
-#define QGA_PIDFILE_DEFAULT QGA_STATEDIR_DEFAULT "/qemu-ga.pid"
 #ifdef CONFIG_FSFREEZE
 #define QGA_FSFREEZE_HOOK_DEFAULT CONFIG_QEMU_CONFDIR "/fsfreeze-hook"
 #endif
 #define QGA_SENTINEL_BYTE 0xFF
+
+static struct {
+    const char *state_dir;
+    const char *pidfile;
+} dfl_pathnames;
 
 typedef struct GAPersistentState {
 #define QGA_PSTATE_DEFAULT_FD_COUNTER 1000
@@ -105,6 +110,17 @@ DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
                                   LPVOID ctx);
 VOID WINAPI service_main(DWORD argc, TCHAR *argv[]);
 #endif
+
+static void
+init_dfl_pathnames(void)
+{
+    g_assert(dfl_pathnames.state_dir == NULL);
+    g_assert(dfl_pathnames.pidfile == NULL);
+    dfl_pathnames.state_dir = qemu_get_local_state_pathname(
+      QGA_STATE_RELATIVE_DIR);
+    dfl_pathnames.pidfile   = qemu_get_local_state_pathname(
+      QGA_STATE_RELATIVE_DIR G_DIR_SEPARATOR_S "qemu-ga.pid");
+}
 
 static void quit_handler(int sig)
 {
@@ -198,11 +214,11 @@ static void usage(const char *cmd)
 "  -h, --help        display this help and exit\n"
 "\n"
 "Report bugs to <mdroth@linux.vnet.ibm.com>\n"
-    , cmd, QEMU_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_PIDFILE_DEFAULT,
+    , cmd, QEMU_VERSION, QGA_VIRTIO_PATH_DEFAULT, dfl_pathnames.pidfile,
 #ifdef CONFIG_FSFREEZE
     QGA_FSFREEZE_HOOK_DEFAULT,
 #endif
-    QGA_STATEDIR_DEFAULT);
+    dfl_pathnames.state_dir);
 }
 
 static const char *ga_log_level_str(GLogLevelFlags level)
@@ -908,11 +924,11 @@ int main(int argc, char **argv)
     const char *sopt = "hVvdm:p:l:f:F::b:s:t:";
     const char *method = NULL, *path = NULL;
     const char *log_filepath = NULL;
-    const char *pid_filepath = QGA_PIDFILE_DEFAULT;
+    const char *pid_filepath;
 #ifdef CONFIG_FSFREEZE
     const char *fsfreeze_hook = NULL;
 #endif
-    const char *state_dir = QGA_STATEDIR_DEFAULT;
+    const char *state_dir;
 #ifdef _WIN32
     const char *service = NULL;
 #endif
@@ -941,6 +957,10 @@ int main(int argc, char **argv)
     GAState *s;
 
     module_call_init(MODULE_INIT_QAPI);
+
+    init_dfl_pathnames();
+    pid_filepath = dfl_pathnames.pidfile;
+    state_dir = dfl_pathnames.state_dir;
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -1002,7 +1022,16 @@ int main(int argc, char **argv)
         case 's':
             service = optarg;
             if (strcmp(service, "install") == 0) {
-                return ga_install_service(path, log_filepath);
+                const char *fixed_state_dir;
+
+                /* If the user passed the "-t" option, we save that state dir
+                 * in the service. Otherwise we let the service fetch the state
+                 * dir from the environment when it starts.
+                 */
+                fixed_state_dir = (state_dir == dfl_pathnames.state_dir) ?
+                                  NULL :
+                                  state_dir;
+                return ga_install_service(path, log_filepath, fixed_state_dir);
             } else if (strcmp(service, "uninstall") == 0) {
                 return ga_uninstall_service();
             } else {
@@ -1020,6 +1049,20 @@ int main(int argc, char **argv)
             return EXIT_FAILURE;
         }
     }
+
+#ifdef _WIN32
+    /* On win32 the state directory is application specific (be it the default
+     * or a user override). We got past the command line parsing; let's create
+     * the directory (with any intermediate directories). If we run into an
+     * error later on, we won't try to clean up the directory, it is considered
+     * persistent.
+     */
+    if (g_mkdir_with_parents(state_dir, S_IRWXU) == -1) {
+        g_critical("unable to create (an ancestor of) the state directory"
+                   " '%s': %s", state_dir, strerror(errno));
+        return EXIT_FAILURE;
+    }
+#endif
 
     s = g_malloc0(sizeof(GAState));
     s->log_level = log_level;

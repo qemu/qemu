@@ -813,9 +813,6 @@ xen_map_cache_return(void* ptr) "%p"
 xen_map_block(uint64_t phys_addr, uint64_t size) "%#"PRIx64", size %#"PRIx64
 xen_unmap_block(void* addr, unsigned long size) "%p, size %#lx"
 
-# exec.c
-qemu_put_ram_ptr(void* addr) "%p"
-
 # hw/xen_platform.c
 xen_platform_log(char *s) "xen platform: %s"
 
@@ -825,7 +822,7 @@ qemu_coroutine_yield(void *from, void *to) "from %p to %p"
 qemu_coroutine_terminate(void *co) "self %p"
 
 # qemu-coroutine-lock.c
-qemu_co_queue_next_bh(void) ""
+qemu_co_queue_run_restart(void *co) "co %p"
 qemu_co_queue_next(void *nxt) "next %p"
 qemu_co_mutex_lock_entry(void *mutex, void *self) "mutex %p self %p"
 qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"

@@ -39,6 +39,7 @@
 typedef struct PcSysFwDevice {
     SysBusDevice busdev;
     uint8_t rom_only;
+    uint8_t isapc_ram_fw;
 } PcSysFwDevice;
 
 static void pc_isa_bios_init(MemoryRegion *rom_memory,
@@ -139,7 +140,7 @@ static void pc_system_flash_init(MemoryRegion *rom_memory,
     pc_isa_bios_init(rom_memory, flash_mem, size);
 }
 
-static void old_pc_system_rom_init(MemoryRegion *rom_memory)
+static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
     char *filename;
     MemoryRegion *bios, *isa_bios;
@@ -163,7 +164,9 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory)
     bios = g_malloc(sizeof(*bios));
     memory_region_init_ram(bios, "pc.bios", bios_size);
     vmstate_register_ram_global(bios);
-    memory_region_set_readonly(bios, true);
+    if (!isapc_ram_fw) {
+        memory_region_set_readonly(bios, true);
+    }
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
     if (ret != 0) {
     bios_error:
@@ -186,7 +189,9 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory)
                                         0x100000 - isa_bios_size,
                                         isa_bios,
                                         1);
-    memory_region_set_readonly(isa_bios, true);
+    if (!isapc_ram_fw) {
+        memory_region_set_readonly(isa_bios, true);
+    }
 
     /* map all the bios at the top of memory */
     memory_region_add_subregion(rom_memory,
@@ -215,28 +220,40 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
 
     qdev_init_nofail(DEVICE(sysfw_dev));
 
-    if (sysfw_dev->rom_only) {
-        old_pc_system_rom_init(rom_memory);
-        return;
-    }
-
     pflash_drv = drive_get(IF_PFLASH, 0, 0);
 
-    /* Currently KVM cannot execute from device memory.
-       Use old rom based firmware initialization for KVM. */
-    /*
-     * This is a Bad Idea, because it makes enabling/disabling KVM
-     * guest-visible.  Let's fix it for real in QEMU 1.6.
-     */
-    if (kvm_enabled()) {
-        if (pflash_drv != NULL) {
-            fprintf(stderr, "qemu: pflash cannot be used with kvm enabled\n");
-            exit(1);
-        } else {
-            sysfw_dev->rom_only = 1;
-            old_pc_system_rom_init(rom_memory);
-            return;
+    if (pc_sysfw_flash_vs_rom_bug_compatible) {
+        /*
+         * This is a Bad Idea, because it makes enabling/disabling KVM
+         * guest-visible.  Do it only in bug-compatibility mode.
+         */
+        if (kvm_enabled()) {
+            if (pflash_drv != NULL) {
+                fprintf(stderr, "qemu: pflash cannot be used with kvm enabled\n");
+                exit(1);
+            } else {
+                /* In old pc_sysfw_flash_vs_rom_bug_compatible mode, we assume
+                 * that KVM cannot execute from device memory. In this case, we
+                 * use old rom based firmware initialization for KVM. But, since
+                 * this is different from non-kvm mode, this behavior is
+                 * undesirable */
+                sysfw_dev->rom_only = 1;
+            }
         }
+    } else if (pflash_drv == NULL) {
+        /* When a pflash drive is not found, use rom-mode */
+        sysfw_dev->rom_only = 1;
+    } else if (kvm_enabled() && !kvm_readonly_mem_enabled()) {
+        /* Older KVM cannot execute from device memory. So, flash memory
+         * cannot be used unless the readonly memory kvm capability is present. */
+        fprintf(stderr, "qemu: pflash with kvm requires KVM readonly memory support\n");
+        exit(1);
+    }
+
+    /* If rom-mode is active, use the old pc system rom initialization. */
+    if (sysfw_dev->rom_only) {
+        old_pc_system_rom_init(rom_memory, sysfw_dev->isapc_ram_fw);
+        return;
     }
 
     /* If a pflash drive is not found, then create one using
@@ -255,6 +272,7 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
 }
 
 static Property pcsysfw_properties[] = {
+    DEFINE_PROP_UINT8("isapc_ram_fw", PcSysFwDevice, isapc_ram_fw, 0),
     DEFINE_PROP_UINT8("rom_only", PcSysFwDevice, rom_only, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

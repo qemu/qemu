@@ -32,6 +32,21 @@
 { 'union': 'UserDefUnion',
   'data': { 'a' : 'UserDefA', 'b' : 'UserDefB' } }
 
+# for testing native lists
+{ 'union': 'UserDefNativeListUnion',
+  'data': { 'integer': ['int'],
+            's8': ['int8'],
+            's16': ['int16'],
+            's32': ['int32'],
+            's64': ['int64'],
+            'u8': ['uint8'],
+            'u16': ['uint16'],
+            'u32': ['uint32'],
+            'u64': ['uint64'],
+            'number': ['number'],
+            'boolean': ['bool'],
+            'string': ['str'] } }
+
 # testing commands
 { 'command': 'user_def_cmd', 'data': {} }
 { 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }

@@ -31,6 +31,8 @@
 /* The feature bitmap for virtio net */
 #define VIRTIO_NET_F_CSUM       0       /* Host handles pkts w/ partial csum */
 #define VIRTIO_NET_F_GUEST_CSUM 1       /* Guest handles pkts w/ partial csum */
+#define VIRTIO_NET_F_CTRL_GUEST_OFFLOADS 2 /* Control channel offload
+                                         * configuration support */
 #define VIRTIO_NET_F_MAC        5       /* Host has given MAC address. */
 #define VIRTIO_NET_F_GSO        6       /* Host handles pkts w/ any GSO type */
 #define VIRTIO_NET_F_GUEST_TSO4 7       /* Guest can handle TSOv4 in. */
@@ -190,6 +192,7 @@ typedef struct VirtIONet {
     size_t config_size;
     char *netclient_name;
     char *netclient_type;
+    uint64_t curr_guest_offloads;
 } VirtIONet;
 
 #define VIRTIO_NET_CTRL_MAC    1
@@ -229,6 +232,15 @@ struct virtio_net_ctrl_mq {
  #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN        1
  #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX        0x8000
 
+/*
+ * Control network offloads
+ *
+ * Dynamic offloads are available with the
+ * VIRTIO_NET_F_CTRL_GUEST_OFFLOADS feature bit.
+ */
+#define VIRTIO_NET_CTRL_GUEST_OFFLOADS   5
+ #define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET        0
+
 #define DEFINE_VIRTIO_NET_FEATURES(_state, _field) \
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field), \
         DEFINE_PROP_BIT("csum", _state, _field, VIRTIO_NET_F_CSUM, true), \
@@ -249,6 +261,7 @@ struct virtio_net_ctrl_mq {
         DEFINE_PROP_BIT("ctrl_vlan", _state, _field, VIRTIO_NET_F_CTRL_VLAN, true), \
         DEFINE_PROP_BIT("ctrl_rx_extra", _state, _field, VIRTIO_NET_F_CTRL_RX_EXTRA, true), \
         DEFINE_PROP_BIT("ctrl_mac_addr", _state, _field, VIRTIO_NET_F_CTRL_MAC_ADDR, true), \
+        DEFINE_PROP_BIT("ctrl_guest_offloads", _state, _field, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS, true), \
         DEFINE_PROP_BIT("mq", _state, _field, VIRTIO_NET_F_MQ, false)
 
 #define DEFINE_VIRTIO_NET_PROPERTIES(_state, _field)                           \

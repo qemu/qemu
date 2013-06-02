@@ -63,7 +63,6 @@
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif
-#include "ui/qemu-spice.h"
 #include "exec/memory.h"
 #include "qmp-commands.h"
 #include "hmp.h"

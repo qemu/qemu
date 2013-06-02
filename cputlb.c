@@ -248,13 +248,18 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     target_ulong code_address;
     uintptr_t addend;
     CPUTLBEntry *te;
-    hwaddr iotlb;
+    hwaddr iotlb, xlat, sz;
 
     assert(size >= TARGET_PAGE_SIZE);
     if (size != TARGET_PAGE_SIZE) {
         tlb_add_large_page(env, vaddr, size);
     }
-    section = phys_page_find(address_space_memory.dispatch, paddr >> TARGET_PAGE_BITS);
+
+    sz = size;
+    section = address_space_translate(&address_space_memory, paddr, &xlat, &sz,
+                                      false);
+    assert(sz >= TARGET_PAGE_SIZE);
+
 #if defined(DEBUG_TLB)
     printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x" TARGET_FMT_plx
            " prot=%x idx=%d pd=0x%08lx\n",
@@ -262,22 +267,18 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
 #endif
 
     address = vaddr;
-    if (!(memory_region_is_ram(section->mr) ||
-          memory_region_is_romd(section->mr))) {
-        /* IO memory case (romd handled later) */
+    if (!memory_region_is_ram(section->mr) && !memory_region_is_romd(section->mr)) {
+        /* IO memory case */
         address |= TLB_MMIO;
-    }
-    if (memory_region_is_ram(section->mr) ||
-        memory_region_is_romd(section->mr)) {
-        addend = (uintptr_t)memory_region_get_ram_ptr(section->mr)
-        + memory_region_section_addr(section, paddr);
-    } else {
         addend = 0;
+    } else {
+        /* TLB_MMIO for rom/romd handled below */
+        addend = (uintptr_t)memory_region_get_ram_ptr(section->mr) + xlat;
     }
 
     code_address = address;
-    iotlb = memory_region_section_get_iotlb(env, section, vaddr, paddr, prot,
-                                            &address);
+    iotlb = memory_region_section_get_iotlb(env, section, vaddr, paddr, xlat,
+                                            prot, &address);
 
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     env->iotlb[mmu_idx][index] = iotlb - vaddr;
@@ -300,9 +301,7 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
             /* Write access calls the I/O callback.  */
             te->addr_write = address | TLB_MMIO;
         } else if (memory_region_is_ram(section->mr)
-                   && !cpu_physical_memory_is_dirty(
-                           section->mr->ram_addr
-                           + memory_region_section_addr(section, paddr))) {
+                   && !cpu_physical_memory_is_dirty(section->mr->ram_addr + xlat)) {
             te->addr_write = address | TLB_NOTDIRTY;
         } else {
             te->addr_write = address;
