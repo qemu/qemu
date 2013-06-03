@@ -371,7 +371,7 @@ static inline void gdb_continue(GDBState *s)
 #ifdef CONFIG_USER_ONLY
     s->running_state = 1;
 #else
-    if (runstate_check(RUN_STATE_DEBUG)) {
+    if (!runstate_needs_reset()) {
         vm_start();
     }
 #endif
