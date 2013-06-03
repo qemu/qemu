@@ -377,7 +377,7 @@ static void gd_cursor_define(DisplayChangeListener *dcl,
                                         pixbuf, c->hot_x, c->hot_y);
     gdk_window_set_cursor(gtk_widget_get_window(s->drawing_area), cursor);
     g_object_unref(pixbuf);
-    g_object_unref(cursor);
+    gdk_cursor_unref(cursor);
 }
 
 static void gd_switch(DisplayChangeListener *dcl,
