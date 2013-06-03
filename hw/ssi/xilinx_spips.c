@@ -30,14 +30,16 @@
 #include "hw/ssi.h"
 #include "qemu/bitops.h"
 
-#ifdef XILINX_SPIPS_ERR_DEBUG
-#define DB_PRINT(...) do { \
-    fprintf(stderr,  ": %s: ", __func__); \
-    fprintf(stderr, ## __VA_ARGS__); \
-    } while (0);
-#else
-    #define DB_PRINT(...)
+#ifndef XILINX_SPIPS_ERR_DEBUG
+#define XILINX_SPIPS_ERR_DEBUG 0
 #endif
+
+#define DB_PRINT_L(level, ...) do { \
+    if (XILINX_SPIPS_ERR_DEBUG > (level)) { \
+        fprintf(stderr,  ": %s: ", __func__); \
+        fprintf(stderr, ## __VA_ARGS__); \
+    } \
+} while (0);
 
 /* config register */
 #define R_CONFIG            (0x00 / 4)
@@ -210,10 +212,10 @@ static void xilinx_spips_update_cs_lines(XilinxSPIPS *s)
                                 (s->num_cs * s->num_busses);
 
             if (xilinx_spips_cs_is_set(s, i, field) && !found) {
-                DB_PRINT("selecting slave %d\n", i);
+                DB_PRINT_L(0, "selecting slave %d\n", i);
                 qemu_set_irq(s->cs_lines[cs_to_set], 0);
             } else {
-                DB_PRINT("deselecting slave %d\n", i);
+                DB_PRINT_L(0, "deselecting slave %d\n", i);
                 qemu_set_irq(s->cs_lines[cs_to_set], 1);
             }
         }
@@ -223,7 +225,7 @@ static void xilinx_spips_update_cs_lines(XilinxSPIPS *s)
     }
     if (!found) {
         s->snoop_state = SNOOP_CHECKING;
-        DB_PRINT("moving to snoop check state\n");
+        DB_PRINT_L(1, "moving to snoop check state\n");
     }
 }
 
@@ -306,6 +308,8 @@ static inline void stripe8(uint8_t *x, int num, bool dir)
 
 static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
 {
+    int debug_level = 0;
+
     for (;;) {
         int i;
         uint8_t tx = 0;
@@ -330,14 +334,14 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
         }
 
         for (i = 0; i < num_effective_busses(s); ++i) {
-            DB_PRINT("tx = %02x\n", tx_rx[i]);
+            DB_PRINT_L(debug_level, "tx = %02x\n", tx_rx[i]);
             tx_rx[i] = ssi_transfer(s->spi[i], (uint32_t)tx_rx[i]);
-            DB_PRINT("rx = %02x\n", tx_rx[i]);
+            DB_PRINT_L(debug_level, "rx = %02x\n", tx_rx[i]);
         }
 
         if (fifo8_is_full(&s->rx_fifo)) {
             s->regs[R_INTR_STATUS] |= IXR_RX_FIFO_OVERFLOW;
-            DB_PRINT("rx FIFO overflow");
+            DB_PRINT_L(0, "rx FIFO overflow");
         } else if (s->snoop_state == SNOOP_STRIPING) {
             stripe8(tx_rx, num_effective_busses(s), true);
             for (i = 0; i < num_effective_busses(s); ++i) {
@@ -347,7 +351,8 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
            fifo8_push(&s->rx_fifo, (uint8_t)tx_rx[0]);
         }
 
-        DB_PRINT("initial snoop state: %x\n", (unsigned)s->snoop_state);
+        DB_PRINT_L(debug_level, "initial snoop state: %x\n",
+                   (unsigned)s->snoop_state);
         switch (s->snoop_state) {
         case (SNOOP_CHECKING):
             switch (tx) { /* new instruction code */
@@ -372,11 +377,17 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
             break;
         case (SNOOP_STRIPING):
         case (SNOOP_NONE):
+            /* Once we hit the boring stuff - squelch debug noise */
+            if (!debug_level) {
+                DB_PRINT_L(0, "squelching debug info ....\n");
+                debug_level = 1;
+            }
             break;
         default:
             s->snoop_state--;
         }
-        DB_PRINT("final snoop state: %x\n", (unsigned)s->snoop_state);
+        DB_PRINT_L(debug_level, "final snoop state: %x\n",
+                   (unsigned)s->snoop_state);
     }
 }
 
@@ -406,7 +417,7 @@ static uint64_t xilinx_spips_read(void *opaque, hwaddr addr,
     case R_INTR_STATUS:
         ret = s->regs[addr] & IXR_ALL;
         s->regs[addr] = 0;
-        DB_PRINT("addr=" TARGET_FMT_plx " = %x\n", addr * 4, ret);
+        DB_PRINT_L(0, "addr=" TARGET_FMT_plx " = %x\n", addr * 4, ret);
         return ret;
     case R_INTR_MASK:
         mask = IXR_ALL;
@@ -427,11 +438,12 @@ static uint64_t xilinx_spips_read(void *opaque, hwaddr addr,
         break;
     case R_RX_DATA:
         rx_data_bytes(s, &ret, s->num_txrx_bytes);
-        DB_PRINT("addr=" TARGET_FMT_plx " = %x\n", addr * 4, ret);
+        DB_PRINT_L(0, "addr=" TARGET_FMT_plx " = %x\n", addr * 4, ret);
         xilinx_spips_update_ixr(s);
         return ret;
     }
-    DB_PRINT("addr=" TARGET_FMT_plx " = %x\n", addr * 4, s->regs[addr] & mask);
+    DB_PRINT_L(0, "addr=" TARGET_FMT_plx " = %x\n", addr * 4,
+               s->regs[addr] & mask);
     return s->regs[addr] & mask;
 
 }
@@ -457,7 +469,7 @@ static void xilinx_spips_write(void *opaque, hwaddr addr,
     int man_start_com = 0;
     XilinxSPIPS *s = opaque;
 
-    DB_PRINT("addr=" TARGET_FMT_plx " = %x\n", addr, (unsigned)value);
+    DB_PRINT_L(0, "addr=" TARGET_FMT_plx " = %x\n", addr, (unsigned)value);
     addr >>= 2;
     switch (addr) {
     case R_CONFIG:
@@ -551,7 +563,8 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
     if (addr >= q->lqspi_cached_addr &&
             addr <= q->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
         ret = q->lqspi_buf[(addr - q->lqspi_cached_addr) >> 2];
-        DB_PRINT("addr: %08x, data: %08x\n", (unsigned)addr, (unsigned)ret);
+        DB_PRINT_L(1, "addr: %08x, data: %08x\n", (unsigned)addr,
+                   (unsigned)ret);
         return ret;
     } else {
         int flash_addr = (addr / num_effective_busses(s));
@@ -562,17 +575,18 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
         s->regs[R_LQSPI_STS] &= ~LQSPI_CFG_U_PAGE;
         s->regs[R_LQSPI_STS] |= slave ? LQSPI_CFG_U_PAGE : 0;
 
-        DB_PRINT("config reg status: %08x\n", s->regs[R_LQSPI_CFG]);
+        DB_PRINT_L(0, "config reg status: %08x\n", s->regs[R_LQSPI_CFG]);
 
         fifo8_reset(&s->tx_fifo);
         fifo8_reset(&s->rx_fifo);
 
         /* instruction */
-        DB_PRINT("pushing read instruction: %02x\n",
-                 (uint8_t)(s->regs[R_LQSPI_CFG] & LQSPI_CFG_INST_CODE));
+        DB_PRINT_L(0, "pushing read instruction: %02x\n",
+                   (unsigned)(uint8_t)(s->regs[R_LQSPI_CFG] &
+                                       LQSPI_CFG_INST_CODE));
         fifo8_push(&s->tx_fifo, s->regs[R_LQSPI_CFG] & LQSPI_CFG_INST_CODE);
         /* read address */
-        DB_PRINT("pushing read address %06x\n", flash_addr);
+        DB_PRINT_L(0, "pushing read address %06x\n", flash_addr);
         fifo8_push(&s->tx_fifo, (uint8_t)(flash_addr >> 16));
         fifo8_push(&s->tx_fifo, (uint8_t)(flash_addr >> 8));
         fifo8_push(&s->tx_fifo, (uint8_t)flash_addr);
@@ -585,14 +599,14 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
         /* dummy bytes */
         for (i = 0; i < (extract32(s->regs[R_LQSPI_CFG], LQSPI_CFG_DUMMY_SHIFT,
                                    LQSPI_CFG_DUMMY_WIDTH)); ++i) {
-            DB_PRINT("pushing dummy byte\n");
+            DB_PRINT_L(0, "pushing dummy byte\n");
             fifo8_push(&s->tx_fifo, 0);
         }
         xilinx_spips_update_cs_lines(s);
         xilinx_spips_flush_txfifo(s);
         fifo8_reset(&s->rx_fifo);
 
-        DB_PRINT("starting QSPI data read\n");
+        DB_PRINT_L(0, "starting QSPI data read\n");
 
         for (i = 0; i < LQSPI_CACHE_SIZE / 4; ++i) {
             tx_data_bytes(s, 0, 4);
@@ -626,7 +640,7 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
     XilinxSPIPSClass *xsc = XILINX_SPIPS_GET_CLASS(s);
     int i;
 
-    DB_PRINT("realized spips\n");
+    DB_PRINT_L(0, "realized spips\n");
 
     s->spi = g_new(SSIBus *, s->num_busses);
     for (i = 0; i < s->num_busses; ++i) {
@@ -658,7 +672,7 @@ static void xilinx_qspips_realize(DeviceState *dev, Error **errp)
     XilinxQSPIPS *q = XILINX_QSPIPS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    DB_PRINT("realized qspips\n");
+    DB_PRINT_L(0, "realized qspips\n");
 
     s->num_busses = 2;
     s->num_cs = 2;
