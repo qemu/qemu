@@ -706,6 +706,13 @@ F: nbd.*
 F: qemu-nbd.c
 T: git git://github.com/bonzini/qemu.git nbd-next
 
+QAPI Schema
+M: Eric Blake <eblake@redhat.com>
+M: Luiz Capitulino <lcapitulino@redhat.com>
+M: Markus Armbruster <armbru@redhat.com>
+S: Supported
+F: qapi-schema.json
+
 SLIRP
 M: Jan Kiszka <jan.kiszka@siemens.com>
 S: Maintained
