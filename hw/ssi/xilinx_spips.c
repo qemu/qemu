@@ -161,7 +161,7 @@ typedef struct {
 typedef struct {
     XilinxSPIPS parent_obj;
 
-    uint32_t lqspi_buf[LQSPI_CACHE_SIZE];
+    uint8_t lqspi_buf[LQSPI_CACHE_SIZE];
     hwaddr lqspi_cached_addr;
 } XilinxQSPIPS;
 
@@ -391,14 +391,12 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
     }
 }
 
-static inline void rx_data_bytes(XilinxSPIPS *s, uint32_t *value, int max)
+static inline void rx_data_bytes(XilinxSPIPS *s, uint8_t *value, int max)
 {
     int i;
 
-    *value = 0;
     for (i = 0; i < max && !fifo8_is_empty(&s->rx_fifo); ++i) {
-        uint32_t next = fifo8_pop(&s->rx_fifo) & 0xFF;
-        *value |= next << 8 * (s->regs[R_CONFIG] & ENDIAN ? 3-i : i);
+        value[i] = fifo8_pop(&s->rx_fifo);
     }
 }
 
@@ -408,6 +406,7 @@ static uint64_t xilinx_spips_read(void *opaque, hwaddr addr,
     XilinxSPIPS *s = opaque;
     uint32_t mask = ~0;
     uint32_t ret;
+    uint8_t rx_buf[4];
 
     addr >>= 2;
     switch (addr) {
@@ -437,7 +436,10 @@ static uint64_t xilinx_spips_read(void *opaque, hwaddr addr,
         mask = 0;
         break;
     case R_RX_DATA:
-        rx_data_bytes(s, &ret, s->num_txrx_bytes);
+        memset(rx_buf, 0, sizeof(rx_buf));
+        rx_data_bytes(s, rx_buf, s->num_txrx_bytes);
+        ret = s->regs[R_CONFIG] & ENDIAN ? cpu_to_be32(*(uint32_t *)rx_buf)
+                        : cpu_to_le32(*(uint32_t *)rx_buf);
         DB_PRINT_L(0, "addr=" TARGET_FMT_plx " = %x\n", addr * 4, ret);
         xilinx_spips_update_ixr(s);
         return ret;
@@ -562,7 +564,8 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
 
     if (addr >= q->lqspi_cached_addr &&
             addr <= q->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
-        ret = q->lqspi_buf[(addr - q->lqspi_cached_addr) >> 2];
+        uint8_t *retp = &q->lqspi_buf[addr - q->lqspi_cached_addr];
+        ret = cpu_to_le32(*(uint32_t *)retp);
         DB_PRINT_L(1, "addr: %08x, data: %08x\n", (unsigned)addr,
                    (unsigned)ret);
         return ret;
@@ -608,13 +611,13 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
 
         DB_PRINT_L(0, "starting QSPI data read\n");
 
-        while (cache_entry < LQSPI_CACHE_SIZE / 4) {
-            for (i = 0; i < 16; ++i) {
-                tx_data_bytes(s, 0, 4);
+        while (cache_entry < LQSPI_CACHE_SIZE) {
+            for (i = 0; i < 64; ++i) {
+                tx_data_bytes(s, 0, 1);
             }
             xilinx_spips_flush_txfifo(s);
-            for (i = 0; i < 16; ++i) {
-                rx_data_bytes(s, &q->lqspi_buf[cache_entry++], 4);
+            for (i = 0; i < 64; ++i) {
+                rx_data_bytes(s, &q->lqspi_buf[cache_entry++], 1);
             }
         }
 
@@ -622,7 +625,7 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
         s->regs[R_LQSPI_STS] |= u_page_save;
         xilinx_spips_update_cs_lines(s);
 
-        q->lqspi_cached_addr = addr;
+        q->lqspi_cached_addr = flash_addr * num_effective_busses(s);
         return lqspi_read(opaque, addr, size);
     }
 }
@@ -631,7 +634,7 @@ static const MemoryRegionOps lqspi_ops = {
     .read = lqspi_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 4
     }
 };
