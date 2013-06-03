@@ -106,6 +106,9 @@
 #define RXFF_A          32
 #define TXFF_A          32
 
+#define RXFF_A_Q          (64 * 4)
+#define TXFF_A_Q          (64 * 4)
+
 /* 16MB per linear region */
 #define LQSPI_ADDRESS_BITS 24
 /* Bite off 4k chunks at a time */
@@ -159,12 +162,23 @@ typedef struct {
     hwaddr lqspi_cached_addr;
 } XilinxQSPIPS;
 
+typedef struct XilinxSPIPSClass {
+    SysBusDeviceClass parent_class;
+
+    uint32_t rx_fifo_size;
+    uint32_t tx_fifo_size;
+} XilinxSPIPSClass;
 
 #define TYPE_XILINX_SPIPS "xlnx.ps7-spi"
 #define TYPE_XILINX_QSPIPS "xlnx.ps7-qspi"
 
 #define XILINX_SPIPS(obj) \
      OBJECT_CHECK(XilinxSPIPS, (obj), TYPE_XILINX_SPIPS)
+#define XILINX_SPIPS_CLASS(klass) \
+     OBJECT_CLASS_CHECK(XilinxSPIPSClass, (klass), TYPE_XILINX_SPIPS)
+#define XILINX_SPIPS_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(XilinxSPIPSClass, (obj), TYPE_XILINX_SPIPS)
+
 #define XILINX_QSPIPS(obj) \
      OBJECT_CHECK(XilinxQSPIPS, (obj), TYPE_XILINX_QSPIPS)
 
@@ -531,6 +545,7 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
 {
     XilinxSPIPS *s = XILINX_SPIPS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    XilinxSPIPSClass *xsc = XILINX_SPIPS_GET_CLASS(s);
     int i;
 
     DB_PRINT("realized spips\n");
@@ -555,8 +570,8 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
 
     s->irqline = -1;
 
-    fifo8_create(&s->rx_fifo, RXFF_A);
-    fifo8_create(&s->tx_fifo, TXFF_A);
+    fifo8_create(&s->rx_fifo, xsc->rx_fifo_size);
+    fifo8_create(&s->tx_fifo, xsc->tx_fifo_size);
 }
 
 static void xilinx_qspips_realize(DeviceState *dev, Error **errp)
@@ -611,18 +626,25 @@ static Property xilinx_spips_properties[] = {
 static void xilinx_qspips_class_init(ObjectClass *klass, void * data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
 
     dc->realize = xilinx_qspips_realize;
+    xsc->rx_fifo_size = RXFF_A_Q;
+    xsc->tx_fifo_size = TXFF_A_Q;
 }
 
 static void xilinx_spips_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
 
     dc->realize = xilinx_spips_realize;
     dc->reset = xilinx_spips_reset;
     dc->props = xilinx_spips_properties;
     dc->vmsd = &vmstate_xilinx_spips;
+
+    xsc->rx_fifo_size = RXFF_A;
+    xsc->tx_fifo_size = TXFF_A;
 }
 
 static const TypeInfo xilinx_spips_info = {
@@ -630,6 +652,7 @@ static const TypeInfo xilinx_spips_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(XilinxSPIPS),
     .class_init = xilinx_spips_class_init,
+    .class_size = sizeof(XilinxSPIPSClass),
 };
 
 static const TypeInfo xilinx_qspips_info = {
