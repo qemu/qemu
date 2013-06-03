@@ -190,6 +190,12 @@ static inline int num_effective_busses(XilinxSPIPS *s)
             s->regs[R_LQSPI_CFG] & LQSPI_CFG_TWO_MEM) ? s->num_busses : 1;
 }
 
+static inline bool xilinx_spips_cs_is_set(XilinxSPIPS *s, int i, int field)
+{
+    return ~field & (1 << i) && (s->regs[R_CONFIG] & MANUAL_CS
+                    || !fifo8_is_empty(&s->tx_fifo));
+}
+
 static void xilinx_spips_update_cs_lines(XilinxSPIPS *s)
 {
     int i, j;
@@ -202,14 +208,15 @@ static void xilinx_spips_update_cs_lines(XilinxSPIPS *s)
             int cs_to_set = (j * s->num_cs + i + upage) %
                                 (s->num_cs * s->num_busses);
 
-            if (~field & (1 << i) && !found) {
+            if (xilinx_spips_cs_is_set(s, i, field) && !found) {
                 DB_PRINT("selecting slave %d\n", i);
                 qemu_set_irq(s->cs_lines[cs_to_set], 0);
             } else {
+                DB_PRINT("deselecting slave %d\n", i);
                 qemu_set_irq(s->cs_lines[cs_to_set], 1);
             }
         }
-        if (~field & (1 << i)) {
+        if (xilinx_spips_cs_is_set(s, i, field)) {
             found = true;
         }
     }
@@ -451,12 +458,13 @@ static void xilinx_spips_write(void *opaque, hwaddr addr,
     }
     s->regs[addr] = (s->regs[addr] & ~mask) | (value & mask);
 no_reg_update:
+    xilinx_spips_update_cs_lines(s);
     if ((man_start_com && s->regs[R_CONFIG] & MAN_START_EN) ||
             (fifo8_is_empty(&s->tx_fifo) && s->regs[R_CONFIG] & MAN_START_EN)) {
         xilinx_spips_flush_txfifo(s);
     }
-    xilinx_spips_update_ixr(s);
     xilinx_spips_update_cs_lines(s);
+    xilinx_spips_update_ixr(s);
 }
 
 static const MemoryRegionOps spips_ops = {
@@ -510,7 +518,7 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
         fifo8_reset(&s->rx_fifo);
 
         s->regs[R_CONFIG] &= ~CS;
-        s->regs[R_CONFIG] |= (~(1 << slave) << CS_SHIFT) & CS;
+        s->regs[R_CONFIG] |= ((~(1 << slave) << CS_SHIFT) & CS) | MANUAL_CS;
         xilinx_spips_update_cs_lines(s);
 
         /* instruction */
@@ -534,6 +542,7 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
             DB_PRINT("pushing dummy byte\n");
             fifo8_push(&s->tx_fifo, 0);
         }
+        xilinx_spips_update_cs_lines(s);
         xilinx_spips_flush_txfifo(s);
         fifo8_reset(&s->rx_fifo);
 
@@ -545,6 +554,7 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
             rx_data_bytes(s, &q->lqspi_buf[cache_entry], 4);
             cache_entry++;
         }
+        xilinx_spips_update_cs_lines(s);
 
         s->regs[R_CONFIG] |= CS;
         xilinx_spips_update_cs_lines(s);
