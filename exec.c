@@ -1390,6 +1390,8 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size)
     }
 }
 
+/* Some of the softmmu routines need to translate from a host pointer
+   (typically a TLB entry) back to a ram offset.  */
 int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 {
     RAMBlock *block;
@@ -1420,19 +1422,6 @@ int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 found:
     *ram_addr = block->offset + (host - block->host);
     return 0;
-}
-
-/* Some of the softmmu routines need to translate from a host pointer
-   (typically a TLB entry) back to a ram offset.  */
-ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
-{
-    ram_addr_t ram_addr;
-
-    if (qemu_ram_addr_from_host(ptr, &ram_addr)) {
-        fprintf(stderr, "Bad ram pointer %p\n", ptr);
-        abort();
-    }
-    return ram_addr;
 }
 
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
@@ -2121,7 +2110,9 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
 {
     if (buffer != bounce.buffer) {
         if (is_write) {
-            ram_addr_t addr1 = qemu_ram_addr_from_host_nofail(buffer);
+            ram_addr_t addr1;
+            int rc = qemu_ram_addr_from_host(buffer, &addr1);
+            assert(rc == 0);
             while (access_len) {
                 unsigned l;
                 l = TARGET_PAGE_SIZE;
