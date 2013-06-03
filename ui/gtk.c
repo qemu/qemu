@@ -885,9 +885,11 @@ static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
         s->free_scale = TRUE;
     } else {
         s->free_scale = FALSE;
+        s->scale_x = 1.0;
+        s->scale_y = 1.0;
+        gd_update_windowsize(s);
     }
 
-    gd_update_windowsize(s);
     gd_update_full_redraw(s);
 }
 
