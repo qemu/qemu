@@ -405,15 +405,14 @@ static void sdhci_write_block_to_card(SDHCIState *s)
 
     /* Next data can be written through BUFFER DATORT register */
     s->prnsts |= SDHC_SPACE_AVAILABLE;
-    if (s->norintstsen & SDHC_NISEN_WBUFRDY) {
-        s->norintsts |= SDHC_NIS_WBUFRDY;
-    }
 
     /* Finish transfer if that was the last block of data */
     if ((s->trnmod & SDHC_TRNS_MULTI) == 0 ||
             ((s->trnmod & SDHC_TRNS_MULTI) &&
             (s->trnmod & SDHC_TRNS_BLK_CNT_EN) && (s->blkcnt == 0))) {
         SDHCI_GET_CLASS(s)->end_data_transfer(s);
+    } else if (s->norintstsen & SDHC_NISEN_WBUFRDY) {
+        s->norintsts |= SDHC_NIS_WBUFRDY;
     }
 
     /* Generate Block Gap Event if requested and if not the last block */
