@@ -28,16 +28,9 @@
 #include "hw/hw.h"
 #include "sysemu/sysemu.h"
 #include "exec/memory.h"
+#include "qemu/fifo8.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
-
-typedef struct SerialFIFO {
-    uint8_t data[UART_FIFO_LENGTH];
-    uint8_t count;
-    uint8_t itl;                        /* Interrupt Trigger Level */
-    uint8_t tail;
-    uint8_t head;
-} SerialFIFO;
 
 struct SerialState {
     uint16_t divider;
@@ -67,8 +60,10 @@ struct SerialState {
 
     /* Time when the last byte was successfully sent out of the tsr */
     uint64_t last_xmit_ts;
-    SerialFIFO recv_fifo;
-    SerialFIFO xmit_fifo;
+    Fifo8 recv_fifo;
+    Fifo8 xmit_fifo;
+    /* Interrupt trigger level for recv_fifo */
+    uint8_t recv_fifo_itl;
 
     struct QEMUTimer *fifo_timeout_timer;
     int timeout_ipending;           /* timeout interrupt pending state */
