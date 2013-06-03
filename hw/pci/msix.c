@@ -569,3 +569,36 @@ void msix_unset_vector_notifiers(PCIDevice *dev)
     dev->msix_vector_release_notifier = NULL;
     dev->msix_vector_poll_notifier = NULL;
 }
+
+static void put_msix_state(QEMUFile *f, void *pv, size_t size)
+{
+    msix_save(pv, f);
+}
+
+static int get_msix_state(QEMUFile *f, void *pv, size_t size)
+{
+    msix_load(pv, f);
+    return 0;
+}
+
+static VMStateInfo vmstate_info_msix = {
+    .name = "msix state",
+    .get  = get_msix_state,
+    .put  = put_msix_state,
+};
+
+const VMStateDescription vmstate_msix = {
+    .name = "msix",
+    .fields = (VMStateField[]) {
+        {
+            .name         = "msix",
+            .version_id   = 0,
+            .field_exists = NULL,
+            .size         = 0,   /* ouch */
+            .info         = &vmstate_info_msix,
+            .flags        = VMS_SINGLE,
+            .offset       = 0,
+        },
+        VMSTATE_END_OF_LIST()
+    }
+};
