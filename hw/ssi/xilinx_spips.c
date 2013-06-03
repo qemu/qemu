@@ -273,35 +273,77 @@ static void xilinx_spips_reset(DeviceState *d)
     xilinx_spips_update_cs_lines(s);
 }
 
+/* N way (num) in place bit striper. Lay out row wise bits (LSB to MSB)
+ * column wise (from element 0 to N-1). num is the length of x, and dir
+ * reverses the direction of the transform. Best illustrated by example:
+ * Each digit in the below array is a single bit (num == 3):
+ *
+ * {{ 76543210, }  ----- stripe (dir == false) -----> {{ FCheb630, }
+ *  { hgfedcba, }                                      { GDAfc741, }
+ *  { HGFEDCBA, }} <---- upstripe (dir == true) -----  { HEBgda52, }}
+ */
+
+static inline void stripe8(uint8_t *x, int num, bool dir)
+{
+    uint8_t r[num];
+    memset(r, 0, sizeof(uint8_t) * num);
+    int idx[2] = {0, 0};
+    int bit[2] = {0, 0};
+    int d = dir;
+
+    for (idx[0] = 0; idx[0] < num; ++idx[0]) {
+        for (bit[0] = 0; bit[0] < 8; ++bit[0]) {
+            r[idx[d]] |= x[idx[!d]] & 1 << bit[!d] ? 1 << bit[d] : 0;
+            idx[1] = (idx[1] + 1) % num;
+            if (!idx[1]) {
+                bit[1]++;
+            }
+        }
+    }
+    memcpy(x, r, sizeof(uint8_t) * num);
+}
+
 static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
 {
     for (;;) {
         int i;
-        uint8_t rx;
         uint8_t tx = 0;
+        uint8_t tx_rx[num_effective_busses(s)];
+
+        if (fifo8_is_empty(&s->tx_fifo)) {
+            if (!(s->regs[R_LQSPI_CFG] & LQSPI_CFG_LQ_MODE)) {
+                s->regs[R_INTR_STATUS] |= IXR_TX_FIFO_UNDERFLOW;
+            }
+            xilinx_spips_update_ixr(s);
+            return;
+        } else if (s->snoop_state == SNOOP_STRIPING) {
+            for (i = 0; i < num_effective_busses(s); ++i) {
+                tx_rx[i] = fifo8_pop(&s->tx_fifo);
+            }
+            stripe8(tx_rx, num_effective_busses(s), false);
+        } else {
+            tx = fifo8_pop(&s->tx_fifo);
+            for (i = 0; i < num_effective_busses(s); ++i) {
+                tx_rx[i] = tx;
+            }
+        }
 
         for (i = 0; i < num_effective_busses(s); ++i) {
-            if (!i || s->snoop_state == SNOOP_STRIPING) {
-                if (fifo8_is_empty(&s->tx_fifo)) {
-                    if (!(s->regs[R_LQSPI_CFG] & LQSPI_CFG_LQ_MODE)) {
-                        s->regs[R_INTR_STATUS] |= IXR_TX_FIFO_UNDERFLOW;
-                    }
-                    xilinx_spips_update_ixr(s);
-                    return;
-                } else {
-                    tx = fifo8_pop(&s->tx_fifo);
-                }
+            DB_PRINT("tx = %02x\n", tx_rx[i]);
+            tx_rx[i] = ssi_transfer(s->spi[i], (uint32_t)tx_rx[i]);
+            DB_PRINT("rx = %02x\n", tx_rx[i]);
+        }
+
+        if (fifo8_is_full(&s->rx_fifo)) {
+            s->regs[R_INTR_STATUS] |= IXR_RX_FIFO_OVERFLOW;
+            DB_PRINT("rx FIFO overflow");
+        } else if (s->snoop_state == SNOOP_STRIPING) {
+            stripe8(tx_rx, num_effective_busses(s), true);
+            for (i = 0; i < num_effective_busses(s); ++i) {
+                fifo8_push(&s->rx_fifo, (uint8_t)tx_rx[i]);
             }
-            rx = ssi_transfer(s->spi[i], (uint32_t)tx);
-            DB_PRINT("tx = %02x rx = %02x\n", tx, rx);
-            if (!i || s->snoop_state == SNOOP_STRIPING) {
-                if (fifo8_is_full(&s->rx_fifo)) {
-                    s->regs[R_INTR_STATUS] |= IXR_RX_FIFO_OVERFLOW;
-                    DB_PRINT("rx FIFO overflow");
-                } else {
-                    fifo8_push(&s->rx_fifo, (uint8_t)rx);
-                }
-            }
+        } else {
+           fifo8_push(&s->rx_fifo, (uint8_t)tx_rx[0]);
         }
 
         switch (s->snoop_state) {
