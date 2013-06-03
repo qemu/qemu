@@ -263,8 +263,9 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
     if (s->tsr_retry <= 0) {
         if (s->fcr & UART_FCR_FE) {
             s->tsr = fifo_get(s,XMIT_FIFO);
-            if (!s->xmit_fifo.count)
+            if (!s->xmit_fifo.count) {
                 s->lsr |= UART_LSR_THRE;
+            }
         } else if ((s->lsr & UART_LSR_THRE)) {
             return FALSE;
         } else {
@@ -461,10 +462,11 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
         } else {
             if(s->fcr & UART_FCR_FE) {
                 ret = fifo_get(s,RECV_FIFO);
-                if (s->recv_fifo.count == 0)
+                if (s->recv_fifo.count == 0) {
                     s->lsr &= ~(UART_LSR_DR | UART_LSR_BI);
-                else
+                } else {
                     qemu_mod_timer(s->fifo_timeout_timer, qemu_get_clock_ns (vm_clock) + s->char_transmit_time * 4);
+                }
                 s->timeout_ipending = 0;
             } else {
                 ret = s->rbr;
@@ -534,15 +536,21 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
 static int serial_can_receive(SerialState *s)
 {
     if(s->fcr & UART_FCR_FE) {
-        if(s->recv_fifo.count < UART_FIFO_LENGTH)
-        /* Advertise (fifo.itl - fifo.count) bytes when count < ITL, and 1 if above. If UART_FIFO_LENGTH - fifo.count is
-        advertised the effect will be to almost always fill the fifo completely before the guest has a chance to respond,
-        effectively overriding the ITL that the guest has set. */
-             return (s->recv_fifo.count <= s->recv_fifo.itl) ? s->recv_fifo.itl - s->recv_fifo.count : 1;
-        else
-             return 0;
+        if (s->recv_fifo.count < UART_FIFO_LENGTH) {
+            /*
+             * Advertise (fifo.itl - fifo.count) bytes when count < ITL, and 1
+             * if above. If UART_FIFO_LENGTH - fifo.count is advertised the
+             * effect will be to almost always fill the fifo completely before
+             * the guest has a chance to respond, effectively overriding the ITL
+             * that the guest has set.
+             */
+            return (s->recv_fifo.count <= s->recv_fifo.itl) ?
+                        s->recv_fifo.itl - s->recv_fifo.count : 1;
+        } else {
+            return 0;
+        }
     } else {
-    return !(s->lsr & UART_LSR_DR);
+        return !(s->lsr & UART_LSR_DR);
     }
 }
 
