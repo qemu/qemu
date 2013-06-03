@@ -260,6 +260,7 @@ static void sdhci_send_command(SDHCIState *s)
     sdhci_update_irq(s);
 
     if (s->blksize && (s->cmdreg & SDHC_CMD_DATA_PRESENT)) {
+        s->data_count = 0;
         sdhci_do_data_transfer(s);
     }
 }
@@ -773,7 +774,6 @@ static void sdhci_do_adma(SDHCIState *s)
 static void sdhci_data_transfer(SDHCIState *s)
 {
     SDHCIClass *k = SDHCI_GET_CLASS(s);
-    s->data_count = 0;
 
     if (s->trnmod & SDHC_TRNS_DMA) {
         switch (SDHC_DMA_TYPE(s->hostctl)) {
