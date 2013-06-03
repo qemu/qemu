@@ -23,7 +23,6 @@
  */
 
 #include "hw/hw.h"
-#include "hw/i386/pc.h"
 #include "hw/boards.h"
 #include "hw/xen/xen_backend.h"
 #include "xen_domainbuild.h"
@@ -31,26 +30,11 @@
 
 static void xen_init_pv(QEMUMachineInitArgs *args)
 {
-    const char *cpu_model = args->cpu_model;
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
-    X86CPU *cpu;
-    CPUState *cs;
     DriveInfo *dinfo;
     int i;
-
-    /* Initialize a dummy CPU */
-    if (cpu_model == NULL) {
-#ifdef TARGET_X86_64
-        cpu_model = "qemu64";
-#else
-        cpu_model = "qemu32";
-#endif
-    }
-    cpu = cpu_x86_init(cpu_model);
-    cs = CPU(cpu);
-    cs->halted = 1;
 
     /* Initialize backend core & drivers */
     if (xen_be_init() != 0) {
