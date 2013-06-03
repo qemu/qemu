@@ -129,7 +129,8 @@ typedef enum {
 } FlashCMD;
 
 typedef struct {
-    SysBusDevice busdev;
+    SysBusDevice parent_obj;
+
     MemoryRegion iomem;
     MemoryRegion mmlqspi;
 
@@ -149,15 +150,23 @@ typedef struct {
     uint8_t num_txrx_bytes;
 
     uint32_t regs[R_MAX];
+} XilinxSPIPS;
+
+typedef struct {
+    XilinxSPIPS parent_obj;
 
     uint32_t lqspi_buf[LQSPI_CACHE_SIZE];
     hwaddr lqspi_cached_addr;
-} XilinxSPIPS;
+} XilinxQSPIPS;
 
-#define TYPE_XILINX_SPIPS "xilinx,spips"
+
+#define TYPE_XILINX_SPIPS "xlnx.ps7-spi"
+#define TYPE_XILINX_QSPIPS "xlnx.ps7-qspi"
 
 #define XILINX_SPIPS(obj) \
      OBJECT_CHECK(XilinxSPIPS, (obj), TYPE_XILINX_SPIPS)
+#define XILINX_QSPIPS(obj) \
+     OBJECT_CHECK(XilinxQSPIPS, (obj), TYPE_XILINX_QSPIPS)
 
 static inline int num_effective_busses(XilinxSPIPS *s)
 {
@@ -436,11 +445,12 @@ static uint64_t
 lqspi_read(void *opaque, hwaddr addr, unsigned int size)
 {
     int i;
+    XilinxQSPIPS *q = opaque;
     XilinxSPIPS *s = opaque;
 
-    if (addr >= s->lqspi_cached_addr &&
-            addr <= s->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
-        return s->lqspi_buf[(addr - s->lqspi_cached_addr) >> 2];
+    if (addr >= q->lqspi_cached_addr &&
+            addr <= q->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
+        return q->lqspi_buf[(addr - q->lqspi_cached_addr) >> 2];
     } else {
         int flash_addr = (addr / num_effective_busses(s));
         int slave = flash_addr >> LQSPI_ADDRESS_BITS;
@@ -484,14 +494,14 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
         for (i = 0; i < LQSPI_CACHE_SIZE / 4; ++i) {
             tx_data_bytes(s, 0, 4);
             xilinx_spips_flush_txfifo(s);
-            rx_data_bytes(s, &s->lqspi_buf[cache_entry], 4);
+            rx_data_bytes(s, &q->lqspi_buf[cache_entry], 4);
             cache_entry++;
         }
 
         s->regs[R_CONFIG] |= CS;
         xilinx_spips_update_cs_lines(s);
 
-        s->lqspi_cached_addr = addr;
+        q->lqspi_cached_addr = addr;
         return lqspi_read(opaque, addr, size);
     }
 }
@@ -511,7 +521,7 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     int i;
 
-    DB_PRINT("inited device model\n");
+    DB_PRINT("realized spips\n");
 
     s->spi = g_new(SSIBus *, s->num_busses);
     for (i = 0; i < s->num_busses; ++i) {
@@ -531,15 +541,30 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->iomem, &spips_ops, s, "spi", R_MAX*4);
     sysbus_init_mmio(sbd, &s->iomem);
 
+    s->irqline = -1;
+
+    fifo8_create(&s->rx_fifo, RXFF_A);
+    fifo8_create(&s->tx_fifo, TXFF_A);
+}
+
+static void xilinx_qspips_realize(DeviceState *dev, Error **errp)
+{
+    XilinxSPIPS *s = XILINX_SPIPS(dev);
+    XilinxQSPIPS *q = XILINX_QSPIPS(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    DB_PRINT("realized qspips\n");
+
+    s->num_busses = 2;
+    s->num_cs = 2;
+    s->num_txrx_bytes = 4;
+
+    xilinx_spips_realize(dev, errp);
     memory_region_init_io(&s->mmlqspi, &lqspi_ops, s, "lqspi",
                           (1 << LQSPI_ADDRESS_BITS) * 2);
     sysbus_init_mmio(sbd, &s->mmlqspi);
 
-    s->irqline = -1;
-    s->lqspi_cached_addr = ~0ULL;
-
-    fifo8_create(&s->rx_fifo, RXFF_A);
-    fifo8_create(&s->tx_fifo, TXFF_A);
+    q->lqspi_cached_addr = ~0ULL;
 }
 
 static int xilinx_spips_post_load(void *opaque, int version_id)
@@ -570,6 +595,14 @@ static Property xilinx_spips_properties[] = {
     DEFINE_PROP_UINT8("num-txrx-bytes", XilinxSPIPS, num_txrx_bytes, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void xilinx_qspips_class_init(ObjectClass *klass, void * data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = xilinx_qspips_realize;
+}
+
 static void xilinx_spips_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -587,9 +620,17 @@ static const TypeInfo xilinx_spips_info = {
     .class_init = xilinx_spips_class_init,
 };
 
+static const TypeInfo xilinx_qspips_info = {
+    .name  = TYPE_XILINX_QSPIPS,
+    .parent = TYPE_XILINX_SPIPS,
+    .instance_size  = sizeof(XilinxQSPIPS),
+    .class_init = xilinx_qspips_class_init,
+};
+
 static void xilinx_spips_register_types(void)
 {
     type_register_static(&xilinx_spips_info);
+    type_register_static(&xilinx_qspips_info);
 }
 
 type_init(xilinx_spips_register_types)
