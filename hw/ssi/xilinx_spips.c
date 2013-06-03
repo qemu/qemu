@@ -608,11 +608,14 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
 
         DB_PRINT_L(0, "starting QSPI data read\n");
 
-        for (i = 0; i < LQSPI_CACHE_SIZE / 4; ++i) {
-            tx_data_bytes(s, 0, 4);
+        while (cache_entry < LQSPI_CACHE_SIZE / 4) {
+            for (i = 0; i < 16; ++i) {
+                tx_data_bytes(s, 0, 4);
+            }
             xilinx_spips_flush_txfifo(s);
-            rx_data_bytes(s, &q->lqspi_buf[cache_entry], 4);
-            cache_entry++;
+            for (i = 0; i < 16; ++i) {
+                rx_data_bytes(s, &q->lqspi_buf[cache_entry++], 4);
+            }
         }
 
         s->regs[R_LQSPI_STS] &= ~LQSPI_CFG_U_PAGE;
