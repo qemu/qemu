@@ -650,6 +650,8 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
     int off_idx = -1;
     int off_pos = -1;
     int tbl_entry_size;
+    IDEBus *bus = &ad->port;
+    BusState *qbus = BUS(bus);
 
     if (!sglist_alloc_hint) {
         DPRINTF(ad->port_no, "no sg list given by guest: 0x%08x\n", opts);
@@ -691,7 +693,8 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist, int offset)
             goto out;
         }
 
-        qemu_sglist_init(sglist, (sglist_alloc_hint - off_idx), ad->hba->as);
+        qemu_sglist_init(sglist, qbus->parent, (sglist_alloc_hint - off_idx),
+                         ad->hba->as);
         qemu_sglist_add(sglist, le64_to_cpu(tbl[off_idx].addr + off_pos),
                         le32_to_cpu(tbl[off_idx].flags_size) + 1 - off_pos);
 

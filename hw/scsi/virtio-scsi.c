@@ -77,10 +77,12 @@ static void virtio_scsi_bad_req(void)
     exit(1);
 }
 
-static void qemu_sgl_init_external(QEMUSGList *qsgl, struct iovec *sg,
+static void qemu_sgl_init_external(VirtIOSCSIReq *req, struct iovec *sg,
                                    hwaddr *addr, int num)
 {
-    qemu_sglist_init(qsgl, num, &address_space_memory);
+    QEMUSGList *qsgl = &req->qsgl;
+
+    qemu_sglist_init(qsgl, DEVICE(req->dev), num, &address_space_memory);
     while (num--) {
         qemu_sglist_add(qsgl, *(addr++), (sg++)->iov_len);
     }
@@ -99,11 +101,11 @@ static void virtio_scsi_parse_req(VirtIOSCSI *s, VirtQueue *vq,
     req->resp.buf = req->elem.in_sg[0].iov_base;
 
     if (req->elem.out_num > 1) {
-        qemu_sgl_init_external(&req->qsgl, &req->elem.out_sg[1],
+        qemu_sgl_init_external(req, &req->elem.out_sg[1],
                                &req->elem.out_addr[1],
                                req->elem.out_num - 1);
     } else {
-        qemu_sgl_init_external(&req->qsgl, &req->elem.in_sg[1],
+        qemu_sgl_init_external(req, &req->elem.in_sg[1],
                                &req->elem.in_addr[1],
                                req->elem.in_num - 1);
     }
