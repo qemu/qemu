@@ -511,15 +511,15 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
         int flash_addr = (addr / num_effective_busses(s));
         int slave = flash_addr >> LQSPI_ADDRESS_BITS;
         int cache_entry = 0;
+        uint32_t u_page_save = s->regs[R_LQSPI_STS] & ~LQSPI_CFG_U_PAGE;
+
+        s->regs[R_LQSPI_STS] &= ~LQSPI_CFG_U_PAGE;
+        s->regs[R_LQSPI_STS] |= slave ? LQSPI_CFG_U_PAGE : 0;
 
         DB_PRINT("config reg status: %08x\n", s->regs[R_LQSPI_CFG]);
 
         fifo8_reset(&s->tx_fifo);
         fifo8_reset(&s->rx_fifo);
-
-        s->regs[R_CONFIG] &= ~CS;
-        s->regs[R_CONFIG] |= ((~(1 << slave) << CS_SHIFT) & CS) | MANUAL_CS;
-        xilinx_spips_update_cs_lines(s);
 
         /* instruction */
         DB_PRINT("pushing read instruction: %02x\n",
@@ -554,9 +554,9 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
             rx_data_bytes(s, &q->lqspi_buf[cache_entry], 4);
             cache_entry++;
         }
-        xilinx_spips_update_cs_lines(s);
 
-        s->regs[R_CONFIG] |= CS;
+        s->regs[R_LQSPI_STS] &= ~LQSPI_CFG_U_PAGE;
+        s->regs[R_LQSPI_STS] |= u_page_save;
         xilinx_spips_update_cs_lines(s);
 
         q->lqspi_cached_addr = addr;
