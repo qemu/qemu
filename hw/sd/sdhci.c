@@ -730,6 +730,15 @@ static void sdhci_do_adma(SDHCIState *s)
             break;
         }
 
+        if (dscr.attr & SDHC_ADMA_ATTR_INT) {
+            DPRINT_L1("ADMA interrupt: admasysaddr=0x%lx\n", s->admasysaddr);
+            if (s->norintstsen & SDHC_NISEN_DMA) {
+                s->norintsts |= SDHC_NIS_DMA;
+            }
+
+            sdhci_update_irq(s);
+        }
+
         /* ADMA transfer terminates if blkcnt == 0 or by END attribute */
         if (((s->trnmod & SDHC_TRNS_BLK_CNT_EN) &&
                     (s->blkcnt == 0)) || (dscr.attr & SDHC_ADMA_ATTR_END)) {
@@ -752,15 +761,6 @@ static void sdhci_do_adma(SDHCIState *s)
             return;
         }
 
-        if (dscr.attr & SDHC_ADMA_ATTR_INT) {
-            DPRINT_L1("ADMA interrupt: admasysaddr=0x%lx\n", s->admasysaddr);
-            if (s->norintstsen & SDHC_NISEN_DMA) {
-                s->norintsts |= SDHC_NIS_DMA;
-            }
-
-            sdhci_update_irq(s);
-            return;
-        }
     }
 
     /* we have unfinished business - reschedule to continue ADMA */
