@@ -719,7 +719,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
                 || int128_lt(frold->addr.start, frnew->addr.start)
                 || (int128_eq(frold->addr.start, frnew->addr.start)
                     && !flatrange_equal(frold, frnew)))) {
-            /* In old, but (not in new, or in new but attributes changed). */
+            /* In old but not in new, or in both but attributes changed. */
 
             if (!adding) {
                 MEMORY_LISTENER_UPDATE_REGION(frold, as, Reverse, region_del);
@@ -727,7 +727,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             ++iold;
         } else if (frold && frnew && flatrange_equal(frold, frnew)) {
-            /* In both (logging may have changed) */
+            /* In both and unchanged (except logging may have changed) */
 
             if (adding) {
                 MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_nop);
