@@ -118,13 +118,22 @@ static int nbd_parse_uri(const char *filename, QDict *options)
         }
         qdict_put(options, "path", qstring_from_str(qp->p[0].value));
     } else {
+        QString *host;
         /* nbd[+tcp]://host[:port]/export */
         if (!uri->server) {
             ret = -EINVAL;
             goto out;
         }
 
-        qdict_put(options, "host", qstring_from_str(uri->server));
+        /* strip braces from literal IPv6 address */
+        if (uri->server[0] == '[') {
+            host = qstring_from_substr(uri->server, 1,
+                                       strlen(uri->server) - 2);
+        } else {
+            host = qstring_from_str(uri->server);
+        }
+
+        qdict_put(options, "host", host);
         if (uri->port) {
             char* port_str = g_strdup_printf("%d", uri->port);
             qdict_put(options, "port", qstring_from_str(port_str));
