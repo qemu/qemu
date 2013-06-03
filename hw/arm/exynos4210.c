@@ -249,6 +249,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     /* Internal ROM */
     memory_region_init_ram(&s->irom_mem, "exynos4210.irom",
                            EXYNOS4210_IROM_SIZE);
+    vmstate_register_ram_global(&s->irom_mem);
     memory_region_set_readonly(&s->irom_mem, true);
     memory_region_add_subregion(system_mem, EXYNOS4210_IROM_BASE_ADDR,
                                 &s->irom_mem);
