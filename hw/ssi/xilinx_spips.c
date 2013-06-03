@@ -456,10 +456,13 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
     int i;
     XilinxQSPIPS *q = opaque;
     XilinxSPIPS *s = opaque;
+    uint32_t ret;
 
     if (addr >= q->lqspi_cached_addr &&
             addr <= q->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
-        return q->lqspi_buf[(addr - q->lqspi_cached_addr) >> 2];
+        ret = q->lqspi_buf[(addr - q->lqspi_cached_addr) >> 2];
+        DB_PRINT("addr: %08x, data: %08x\n", (unsigned)addr, (unsigned)ret);
+        return ret;
     } else {
         int flash_addr = (addr / num_effective_busses(s));
         int slave = flash_addr >> LQSPI_ADDRESS_BITS;
