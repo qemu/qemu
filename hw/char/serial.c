@@ -285,15 +285,11 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                     fifo8_pop(&s->xmit_fifo);
                 }
                 fifo8_push(&s->xmit_fifo, s->thr);
-                s->thr_ipending = 0;
                 s->lsr &= ~UART_LSR_TEMT;
-                s->lsr &= ~UART_LSR_THRE;
-                serial_update_irq(s);
-            } else {
-                s->thr_ipending = 0;
-                s->lsr &= ~UART_LSR_THRE;
-                serial_update_irq(s);
             }
+            s->thr_ipending = 0;
+            s->lsr &= ~UART_LSR_THRE;
+            serial_update_irq(s);
             serial_xmit(NULL, G_IO_OUT, s);
         }
         break;
