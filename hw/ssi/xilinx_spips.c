@@ -451,7 +451,8 @@ static void xilinx_spips_write(void *opaque, hwaddr addr,
     }
     s->regs[addr] = (s->regs[addr] & ~mask) | (value & mask);
 no_reg_update:
-    if (man_start_com) {
+    if ((man_start_com && s->regs[R_CONFIG] & MAN_START_EN) ||
+            (fifo8_is_empty(&s->tx_fifo) && s->regs[R_CONFIG] & MAN_START_EN)) {
         xilinx_spips_flush_txfifo(s);
     }
     xilinx_spips_update_ixr(s);
