@@ -9916,7 +9916,6 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
                        invalidate this TB.  */
                     dc->pc += 2;
                     goto done_generating;
-                    break;
                 }
             }
         }

@@ -515,7 +515,6 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
             break;
         default:
             goto abort;
-            break;
         }
     } else if ((insn & 0xff00) == 0x0a00) {
         /* supervisor call */

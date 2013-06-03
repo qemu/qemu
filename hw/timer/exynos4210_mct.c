@@ -1030,7 +1030,6 @@ static uint64_t exynos4210_mct_read(void *opaque, hwaddr offset,
     case G_INT_ENB:
         value = s->g_timer.reg.int_enb;
         break;
-        break;
     case G_WSTAT:
         value = s->g_timer.reg.wstat;
         break;

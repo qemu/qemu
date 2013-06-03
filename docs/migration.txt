@@ -41,7 +41,7 @@ All these four migration protocols use the same infrastructure to
 save/restore state devices.  This infrastructure is shared with the
 savevm/loadvm functionality.
 
-=== State Live Migration ==
+=== State Live Migration ===
 
 This is used for RAM and block devices.  It is not yet ported to vmstate.
 <Fill more information here>
@@ -83,7 +83,7 @@ pointer that is passed to all functions.
 The important functions for us are put_buffer()/get_buffer() that
 allow to write/read a buffer into the QEMUFile.
 
-=== How to save the state of one device ==
+=== How to save the state of one device ===
 
 The state of a device is saved using intermediate buffers.  There are
 some helper functions to assist this saving.
@@ -97,7 +97,7 @@ associated with a series of fields saved.  The save_state always saves
 the state as the newer version.  But load_state sometimes is able to
 load state from an older version.
 
- === Legacy way ===
+=== Legacy way ===
 
 This way is going to disappear as soon as all current users are ported to VMSTATE.
 
@@ -133,7 +133,7 @@ to interpret that definition to be able to load/save the state.  As
 the state is declared only once, it can't go out of sync in the
 save/load functions.
 
-An example (from hw/pckbd.c)
+An example (from hw/input/pckbd.c)
 
 static const VMStateDescription vmstate_kbd = {
     .name = "pckbd",
@@ -158,9 +158,9 @@ We registered this with:
 Note: talk about how vmstate <-> qdev interact, and what the instance ids mean.
 
 You can search for VMSTATE_* macros for lots of types used in QEMU in
-hw/hw.h.
+include/hw/hw.h.
 
-=== More about versions ==
+=== More about versions ===
 
 You can see that there are several version fields:
 
@@ -227,7 +227,7 @@ using a specific functionality, ....
 
 It is impossible to create a way to make migration from any version to
 any other version to work.  But we can do better than only allowing
-migration from older versions no newer ones.  For that fields that are
+migration from older versions to newer ones.  For that fields that are
 only needed sometimes, we add the idea of subsections.  A subsection
 is "like" a device vmstate, but with a particularity, it has a Boolean
 function that tells if that values are needed to be sent or not.  If
@@ -247,7 +247,8 @@ static bool ide_drive_pio_state_needed(void *opaque)
 {
     IDEState *s = opaque;
 
-    return (s->status & DRQ_STAT) != 0;
+    return ((s->status & DRQ_STAT) != 0)
+        || (s->bus->error_status & BM_STATUS_PIO_RETRY);
 }
 
 const VMStateDescription vmstate_ide_drive_pio_state = {

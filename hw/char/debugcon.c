@@ -55,7 +55,7 @@ static void debugcon_ioport_write(void *opaque, hwaddr addr, uint64_t val,
     unsigned char ch = val;
 
 #ifdef DEBUG_DEBUGCON
-    printf("debugcon: write addr=0x%04x val=0x%02x\n", addr, val);
+    printf(" [debugcon: write addr=0x%04" HWADDR_PRIx " val=0x%02" PRIx64 "]\n", addr, val);
 #endif
 
     qemu_chr_fe_write(s->chr, &ch, 1);
@@ -67,7 +67,7 @@ static uint64_t debugcon_ioport_read(void *opaque, hwaddr addr, unsigned width)
     DebugconState *s = opaque;
 
 #ifdef DEBUG_DEBUGCON
-    printf("debugcon: read addr=0x%04x\n", addr);
+    printf("debugcon: read addr=0x%04" HWADDR_PRIx "\n", addr);
 #endif
 
     return s->readback;
