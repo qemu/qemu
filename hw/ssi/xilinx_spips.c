@@ -330,6 +330,10 @@ static uint64_t xilinx_spips_read(void *opaque, hwaddr addr,
         mask = 0x0002FFFF;
         break;
     case R_INTR_STATUS:
+        ret = s->regs[addr] & IXR_ALL;
+        s->regs[addr] = 0;
+        DB_PRINT("addr=" TARGET_FMT_plx " = %x\n", addr * 4, ret);
+        return ret;
     case R_INTR_MASK:
         mask = IXR_ALL;
         break;
