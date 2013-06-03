@@ -610,6 +610,7 @@ static const RunStateTransition runstate_transitions_def[] = {
 
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_PAUSED },
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_GUEST_PANICKED, RUN_STATE_DEBUG },
 
     { RUN_STATE_MAX, RUN_STATE_MAX },
 };
