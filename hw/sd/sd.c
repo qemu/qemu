@@ -43,6 +43,8 @@ do { fprintf(stderr, "SD: " fmt , ## __VA_ARGS__); } while (0)
 #define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
+#define ACMD41_ENQUIRY_MASK 0x00ffffff
+
 typedef enum {
     sd_r0 = 0,    /* no response */
     sd_r1,        /* normal response command */
@@ -1277,9 +1279,14 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
         }
         switch (sd->state) {
         case sd_idle_state:
-            /* We accept any voltage.  10000 V is nothing.  */
-            if (req.arg)
+            /* We accept any voltage.  10000 V is nothing.
+             *
+             * We don't model init delay so just advance straight to ready state
+             * unless it's an enquiry ACMD41 (bits 23:0 == 0).
+             */
+            if (req.arg & ACMD41_ENQUIRY_MASK) {
                 sd->state = sd_ready_state;
+            }
 
             return sd_r3;
 
