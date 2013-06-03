@@ -223,6 +223,7 @@ static void xilinx_spips_update_cs_lines(XilinxSPIPS *s)
     }
     if (!found) {
         s->snoop_state = SNOOP_CHECKING;
+        DB_PRINT("moving to snoop check state\n");
     }
 }
 
@@ -346,6 +347,7 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
            fifo8_push(&s->rx_fifo, (uint8_t)tx_rx[0]);
         }
 
+        DB_PRINT("initial snoop state: %x\n", (unsigned)s->snoop_state);
         switch (s->snoop_state) {
         case (SNOOP_CHECKING):
             switch (tx) { /* new instruction code */
@@ -374,6 +376,7 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
         default:
             s->snoop_state--;
         }
+        DB_PRINT("final snoop state: %x\n", (unsigned)s->snoop_state);
     }
 }
 
