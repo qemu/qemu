@@ -56,6 +56,7 @@
 #define CLK_PH              (1 << 2)
 #define CLK_POL             (1 << 1)
 #define MODE_SEL            (1 << 0)
+#define R_CONFIG_RSVD       (0x7bf40000)
 
 /* interrupt mechanism */
 #define R_INTR_STATUS       (0x04 / 4)
@@ -355,7 +356,7 @@ static uint64_t xilinx_spips_read(void *opaque, hwaddr addr,
     addr >>= 2;
     switch (addr) {
     case R_CONFIG:
-        mask = 0x0002FFFF;
+        mask = ~(R_CONFIG_RSVD | MAN_START_COM);
         break;
     case R_INTR_STATUS:
         ret = s->regs[addr] & IXR_ALL;
@@ -415,7 +416,7 @@ static void xilinx_spips_write(void *opaque, hwaddr addr,
     addr >>= 2;
     switch (addr) {
     case R_CONFIG:
-        mask = 0x0002FFFF;
+        mask = ~(R_CONFIG_RSVD | MAN_START_COM);
         if (value & MAN_START_COM) {
             man_start_com = 1;
         }
