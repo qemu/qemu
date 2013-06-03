@@ -880,7 +880,8 @@ static uint32_t sdhci_read(SDHCIState *s, unsigned int offset, unsigned size)
     case  SDHC_BDATA:
         if (sdhci_buff_access_is_sequential(s, offset - SDHC_BDATA)) {
             ret = SDHCI_GET_CLASS(s)->bdata_read(s, size);
-            DPRINT_L2("read %ub: addr[0x%04x] -> %u\n", size, offset, ret);
+            DPRINT_L2("read %ub: addr[0x%04x] -> %u(0x%x)\n", size, offset,
+                      ret, ret);
             return ret;
         }
         break;
