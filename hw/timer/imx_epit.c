@@ -5,6 +5,7 @@
  * Copyright (c) 2011 NICTA Pty Ltd
  * Originally written by Hans Jiang
  * Updated by Peter Chubb
+ * Updated by Jean-Christophe Dubois
  *
  * This code is licensed under GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
@@ -18,10 +19,31 @@
 #include "hw/sysbus.h"
 #include "hw/arm/imx.h"
 
-//#define DEBUG_TIMER 1
-#ifdef DEBUG_TIMER
+#define TYPE_IMX_EPIT "imx.epit"
+
+#define DEBUG_TIMER 0
+#if DEBUG_TIMER
+
+static char const *imx_epit_reg_name(uint32_t reg)
+{
+    switch (reg) {
+    case 0:
+        return "CR";
+    case 1:
+        return "SR";
+    case 2:
+        return "LR";
+    case 3:
+        return "CMP";
+    case 4:
+        return "CNT";
+    default:
+        return "[?]";
+    }
+}
+
 #  define DPRINTF(fmt, args...) \
-      do { printf("imx_timer: " fmt , ##args); } while (0)
+          do { printf("%s: " fmt , __func__, ##args); } while (0)
 #else
 #  define DPRINTF(fmt, args...) do {} while (0)
 #endif
@@ -32,11 +54,14 @@
  */
 #define DEBUG_IMPLEMENTATION 1
 #if DEBUG_IMPLEMENTATION
-#  define IPRINTF(fmt, args...)                                         \
-    do  { fprintf(stderr, "imx_timer: " fmt, ##args); } while (0)
+#  define IPRINTF(fmt, args...) \
+          do { fprintf(stderr, "%s: " fmt, __func__, ##args); } while (0)
 #else
 #  define IPRINTF(fmt, args...) do {} while (0)
 #endif
+
+#define IMX_EPIT(obj) \
+        OBJECT_CHECK(IMXEPITState, (obj), TYPE_IMX_EPIT)
 
 /*
  * EPIT: Enhanced periodic interrupt timer
@@ -63,7 +88,7 @@
  * Exact clock frequencies vary from board to board.
  * These are typical.
  */
-static const IMXClk imx_timerp_clocks[] =  {
+static const IMXClk imx_epit_clocks[] =  {
     0,        /* 00 disabled */
     IPG,      /* 01 ipg_clk, ~532MHz */
     IPG,      /* 10 ipg_clk_highfreq */
@@ -85,32 +110,33 @@ typedef struct {
 
     uint32_t freq;
     qemu_irq irq;
-} IMXTimerPState;
+} IMXEPITState;
 
 /*
  * Update interrupt status
  */
-static void imx_timerp_update(IMXTimerPState *s)
+static void imx_epit_update_int(IMXEPITState *s)
 {
-    if (s->sr && (s->cr & CR_OCIEN)) {
+    if (s->sr && (s->cr & CR_OCIEN) && (s->cr & CR_EN)) {
         qemu_irq_raise(s->irq);
     } else {
         qemu_irq_lower(s->irq);
     }
 }
 
-static void set_timerp_freq(IMXTimerPState *s)
+static void imx_epit_set_freq(IMXEPITState *s)
 {
-    unsigned clksrc;
-    unsigned prescaler;
+    uint32_t clksrc;
+    uint32_t prescaler;
     uint32_t freq;
 
     clksrc = extract32(s->cr, CR_CLKSRC_SHIFT, 2);
     prescaler = 1 + extract32(s->cr, CR_PRESCALE_SHIFT, 12);
 
-    freq = imx_clock_frequency(s->ccm, imx_timerp_clocks[clksrc]) / prescaler;
+    freq = imx_clock_frequency(s->ccm, imx_epit_clocks[clksrc]) / prescaler;
 
     s->freq = freq;
+
     DPRINTF("Setting ptimer frequency to %u\n", freq);
 
     if (freq) {
@@ -119,9 +145,9 @@ static void set_timerp_freq(IMXTimerPState *s)
     }
 }
 
-static void imx_timerp_reset(DeviceState *dev)
+static void imx_epit_reset(DeviceState *dev)
 {
-    IMXTimerPState *s = container_of(dev, IMXTimerPState, busdev.qdev);
+    IMXEPITState *s = IMX_EPIT(dev);
 
     /*
      * Soft reset doesn't touch some bits; hard reset clears them
@@ -135,7 +161,7 @@ static void imx_timerp_reset(DeviceState *dev)
     ptimer_stop(s->timer_cmp);
     ptimer_stop(s->timer_reload);
     /* compute new frequency */
-    set_timerp_freq(s);
+    imx_epit_set_freq(s);
     /* init both timers to TIMER_MAX */
     ptimer_set_limit(s->timer_cmp, TIMER_MAX, 1);
     ptimer_set_limit(s->timer_reload, TIMER_MAX, 1);
@@ -145,52 +171,56 @@ static void imx_timerp_reset(DeviceState *dev)
     }
 }
 
-static uint32_t imx_timerp_update_counts(IMXTimerPState *s)
+static uint32_t imx_epit_update_count(IMXEPITState *s)
 {
      s->cnt = ptimer_get_count(s->timer_reload);
 
      return s->cnt;
 }
 
-static uint64_t imx_timerp_read(void *opaque, hwaddr offset,
-                                unsigned size)
+static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
 {
-    IMXTimerPState *s = (IMXTimerPState *)opaque;
+    IMXEPITState *s = IMX_EPIT(opaque);
+    uint32_t reg_value = 0;
+    uint32_t reg = offset >> 2;
 
-    DPRINTF("p-read(offset=%x)", (unsigned int)(offset >> 2));
-    switch (offset >> 2) {
+    switch (reg) {
     case 0: /* Control Register */
-        DPRINTF("cr %x\n", s->cr);
-        return s->cr;
+        reg_value = s->cr;
+        break;
 
     case 1: /* Status Register */
-        DPRINTF("sr %x\n", s->sr);
-        return s->sr;
+        reg_value = s->sr;
+        break;
 
     case 2: /* LR - ticks*/
-        DPRINTF("lr %x\n", s->lr);
-        return s->lr;
+        reg_value = s->lr;
+        break;
 
     case 3: /* CMP */
-        DPRINTF("cmp %x\n", s->cmp);
-        return s->cmp;
+        reg_value = s->cmp;
+        break;
 
     case 4: /* CNT */
-        imx_timerp_update_counts(s);
-        DPRINTF(" cnt = %x\n", s->cnt);
-        return s->cnt;
+        imx_epit_update_count(s);
+        reg_value = s->cnt;
+        break;
+
+    default:
+        IPRINTF("Bad offset %x\n", reg);
+        break;
     }
 
-    IPRINTF("imx_timerp_read: Bad offset %x\n",
-            (int)offset >> 2);
-    return 0;
+    DPRINTF("(%s) = 0x%08x\n", imx_epit_reg_name(reg), reg_value);
+
+    return reg_value;
 }
 
-static void imx_reload_compare_timer(IMXTimerPState *s)
+static void imx_epit_reload_compare_timer(IMXEPITState *s)
 {
     if ((s->cr & CR_OCIEN) && s->cmp) {
         /* if the compare feature is on */
-        uint32_t tmp = imx_timerp_update_counts(s);
+        uint32_t tmp = imx_epit_update_count(s);
         if (tmp > s->cmp) {
             /* reinit the cmp timer if required */
             ptimer_set_count(s->timer_cmp, tmp - s->cmp);
@@ -202,21 +232,22 @@ static void imx_reload_compare_timer(IMXTimerPState *s)
     }
 }
 
-static void imx_timerp_write(void *opaque, hwaddr offset,
-                             uint64_t value, unsigned size)
+static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
+                           unsigned size)
 {
-    IMXTimerPState *s = (IMXTimerPState *)opaque;
-    DPRINTF("p-write(offset=%x, value = %x)\n", (unsigned int)offset >> 2,
-            (unsigned int)value);
+    IMXEPITState *s = IMX_EPIT(opaque);
+    uint32_t reg = offset >> 2;
 
-    switch (offset >> 2) {
+    DPRINTF("(%s, value = 0x%08x)\n", imx_epit_reg_name(reg), (uint32_t)value);
+
+    switch (reg) {
     case 0: /* CR */
         s->cr = value & 0x03ffffff;
         if (s->cr & CR_SWR) {
             /* handle the reset */
-            imx_timerp_reset(&s->busdev.qdev);
+            imx_epit_reset(DEVICE(s));
         } else {
-            set_timerp_freq(s);
+            imx_epit_set_freq(s);
         }
 
         if (s->freq && (s->cr & CR_EN)) {
@@ -228,7 +259,7 @@ static void imx_timerp_write(void *opaque, hwaddr offset,
                 }
             }
 
-            imx_reload_compare_timer(s);
+            imx_epit_reload_compare_timer(s);
 
             ptimer_run(s->timer_reload, 1);
         } else {
@@ -242,7 +273,7 @@ static void imx_timerp_write(void *opaque, hwaddr offset,
         /* writing 1 to OCIF clear the OCIF bit */
         if (value & 0x01) {
             s->sr = 0;
-            imx_timerp_update(s);
+            imx_epit_update_int(s);
         }
         break;
 
@@ -258,28 +289,29 @@ static void imx_timerp_write(void *opaque, hwaddr offset,
             ptimer_set_count(s->timer_reload, s->lr);
         }
 
-        imx_reload_compare_timer(s);
+        imx_epit_reload_compare_timer(s);
 
         break;
 
     case 3: /* CMP */
         s->cmp = value;
 
-        imx_reload_compare_timer(s);
+        imx_epit_reload_compare_timer(s);
 
         break;
 
     default:
-        IPRINTF("imx_timerp_write: Bad offset %x\n",
-                   (int)offset >> 2);
+        IPRINTF("Bad offset %x\n", reg);
+
+        break;
     }
 }
 
-static void imx_timerp_reload(void *opaque)
+static void imx_epit_timeout(void *opaque)
 {
-    IMXTimerPState *s = (IMXTimerPState *)opaque;
+    IMXEPITState *s = IMX_EPIT(opaque);
 
-    DPRINTF("imxp reload\n");
+    DPRINTF("\n");
 
     if (!(s->cr & CR_EN)) {
         return;
@@ -295,110 +327,106 @@ static void imx_timerp_reload(void *opaque)
         /* if compare register is 0 then we handle the interrupt here */
         if (s->cmp == 0) {
             s->sr = 1;
-            imx_timerp_update(s);
+            imx_epit_update_int(s);
         } else if (s->cmp <= s->lr) {
             /* We should launch the compare register */
             ptimer_set_count(s->timer_cmp, s->lr - s->cmp);
             ptimer_run(s->timer_cmp, 0);
         } else {
-            IPRINTF("imxp reload: s->lr < s->cmp\n");
+            IPRINTF("s->lr < s->cmp\n");
         }
     }
 }
 
-static void imx_timerp_cmp(void *opaque)
+static void imx_epit_cmp(void *opaque)
 {
-    IMXTimerPState *s = (IMXTimerPState *)opaque;
+    IMXEPITState *s = IMX_EPIT(opaque);
 
-    DPRINTF("imxp compare\n");
+    DPRINTF("\n");
 
     ptimer_stop(s->timer_cmp);
 
     /* compare register is not 0 */
     if (s->cmp) {
         s->sr = 1;
-        imx_timerp_update(s);
+        imx_epit_update_int(s);
     }
 }
 
-void imx_timerp_create(const hwaddr addr,
-                              qemu_irq irq,
-                              DeviceState *ccm)
+void imx_timerp_create(const hwaddr addr, qemu_irq irq, DeviceState *ccm)
 {
-    IMXTimerPState *pp;
+    IMXEPITState *pp;
     DeviceState *dev;
 
-    dev = sysbus_create_simple("imx_timerp", addr, irq);
-    pp = container_of(dev, IMXTimerPState, busdev.qdev);
+    dev = sysbus_create_simple(TYPE_IMX_EPIT, addr, irq);
+    pp = IMX_EPIT(dev);
     pp->ccm = ccm;
 }
 
-static const MemoryRegionOps imx_timerp_ops = {
-  .read = imx_timerp_read,
-  .write = imx_timerp_write,
+static const MemoryRegionOps imx_epit_ops = {
+  .read = imx_epit_read,
+  .write = imx_epit_write,
   .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static const VMStateDescription vmstate_imx_timerp = {
-    .name = "imx-timerp",
+static const VMStateDescription vmstate_imx_timer_epit = {
+    .name = TYPE_IMX_EPIT,
     .version_id = 2,
     .minimum_version_id = 2,
     .minimum_version_id_old = 2,
     .fields      = (VMStateField[]) {
-        VMSTATE_UINT32(cr, IMXTimerPState),
-        VMSTATE_UINT32(sr, IMXTimerPState),
-        VMSTATE_UINT32(lr, IMXTimerPState),
-        VMSTATE_UINT32(cmp, IMXTimerPState),
-        VMSTATE_UINT32(cnt, IMXTimerPState),
-        VMSTATE_UINT32(freq, IMXTimerPState),
-        VMSTATE_PTIMER(timer_reload, IMXTimerPState),
-        VMSTATE_PTIMER(timer_cmp, IMXTimerPState),
+        VMSTATE_UINT32(cr, IMXEPITState),
+        VMSTATE_UINT32(sr, IMXEPITState),
+        VMSTATE_UINT32(lr, IMXEPITState),
+        VMSTATE_UINT32(cmp, IMXEPITState),
+        VMSTATE_UINT32(cnt, IMXEPITState),
+        VMSTATE_UINT32(freq, IMXEPITState),
+        VMSTATE_PTIMER(timer_reload, IMXEPITState),
+        VMSTATE_PTIMER(timer_cmp, IMXEPITState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static int imx_timerp_init(SysBusDevice *dev)
+static void imx_epit_realize(DeviceState *dev, Error **errp)
 {
-    IMXTimerPState *s = FROM_SYSBUS(IMXTimerPState, dev);
+    IMXEPITState *s = IMX_EPIT(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     QEMUBH *bh;
 
-    DPRINTF("imx_timerp_init\n");
-    sysbus_init_irq(dev, &s->irq);
-    memory_region_init_io(&s->iomem, &imx_timerp_ops,
-                          s, "imxp-timer",
-                          0x00001000);
-    sysbus_init_mmio(dev, &s->iomem);
+    DPRINTF("\n");
 
-    bh = qemu_bh_new(imx_timerp_reload, s);
+    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&s->iomem, &imx_epit_ops, s, TYPE_IMX_EPIT,
+                          0x00001000);
+    sysbus_init_mmio(sbd, &s->iomem);
+
+    bh = qemu_bh_new(imx_epit_timeout, s);
     s->timer_reload = ptimer_init(bh);
 
-    bh = qemu_bh_new(imx_timerp_cmp, s);
+    bh = qemu_bh_new(imx_epit_cmp, s);
     s->timer_cmp = ptimer_init(bh);
-
-    return 0;
 }
 
-
-static void imx_timerp_class_init(ObjectClass *klass, void *data)
+static void imx_epit_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc  = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    k->init = imx_timerp_init;
-    dc->vmsd = &vmstate_imx_timerp;
-    dc->reset = imx_timerp_reset;
+
+    dc->realize = imx_epit_realize;
+    dc->reset = imx_epit_reset;
+    dc->vmsd = &vmstate_imx_timer_epit;
     dc->desc = "i.MX periodic timer";
 }
 
-static const TypeInfo imx_timerp_info = {
-    .name = "imx_timerp",
+static const TypeInfo imx_epit_info = {
+    .name = TYPE_IMX_EPIT,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXTimerPState),
-    .class_init = imx_timerp_class_init,
+    .instance_size = sizeof(IMXEPITState),
+    .class_init = imx_epit_class_init,
 };
 
-static void imx_timer_register_types(void)
+static void imx_epit_register_types(void)
 {
-    type_register_static(&imx_timerp_info);
+    type_register_static(&imx_epit_info);
 }
 
-type_init(imx_timer_register_types)
+type_init(imx_epit_register_types)
