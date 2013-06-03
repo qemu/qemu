@@ -556,6 +556,11 @@ static void render_memory_region(FlatView *view,
     base = clip.start;
     remain = clip.size;
 
+    fr.mr = mr;
+    fr.dirty_log_mask = mr->dirty_log_mask;
+    fr.romd_mode = mr->romd_mode;
+    fr.readonly = readonly;
+
     /* Render the region itself into any gaps left by the current view. */
     for (i = 0; i < view->nr && int128_nz(remain); ++i) {
         if (int128_ge(base, addrrange_end(view->ranges[i].addr))) {
@@ -564,12 +569,8 @@ static void render_memory_region(FlatView *view,
         if (int128_lt(base, view->ranges[i].addr.start)) {
             now = int128_min(remain,
                              int128_sub(view->ranges[i].addr.start, base));
-            fr.mr = mr;
             fr.offset_in_region = offset_in_region;
             fr.addr = addrrange_make(base, now);
-            fr.dirty_log_mask = mr->dirty_log_mask;
-            fr.romd_mode = mr->romd_mode;
-            fr.readonly = readonly;
             flatview_insert(view, i, &fr);
             ++i;
             int128_addto(&base, now);
@@ -584,12 +585,8 @@ static void render_memory_region(FlatView *view,
         int128_subfrom(&remain, now);
     }
     if (int128_nz(remain)) {
-        fr.mr = mr;
         fr.offset_in_region = offset_in_region;
         fr.addr = addrrange_make(base, remain);
-        fr.dirty_log_mask = mr->dirty_log_mask;
-        fr.romd_mode = mr->romd_mode;
-        fr.readonly = readonly;
         flatview_insert(view, i, &fr);
     }
 }
