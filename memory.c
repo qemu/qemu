@@ -282,7 +282,7 @@ static bool can_merge(FlatRange *r1, FlatRange *r2)
         && r1->readonly == r2->readonly;
 }
 
-/* Attempt to simplify a view by merging ajacent ranges */
+/* Attempt to simplify a view by merging adjacent ranges */
 static void flatview_simplify(FlatView *view)
 {
     unsigned i, j;
