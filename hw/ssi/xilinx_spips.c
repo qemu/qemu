@@ -204,6 +204,9 @@ static void xilinx_spips_update_cs_lines(XilinxSPIPS *s)
 
 static void xilinx_spips_update_ixr(XilinxSPIPS *s)
 {
+    if (s->regs[R_LQSPI_CFG] & LQSPI_CFG_LQ_MODE) {
+        return;
+    }
     /* These are set/cleared as they occur */
     s->regs[R_INTR_STATUS] &= (IXR_TX_FIFO_UNDERFLOW | IXR_RX_FIFO_OVERFLOW |
                                 IXR_TX_FIFO_MODE_FAIL);
@@ -256,7 +259,9 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
         for (i = 0; i < num_effective_busses(s); ++i) {
             if (!i || s->snoop_state == SNOOP_STRIPING) {
                 if (fifo8_is_empty(&s->tx_fifo)) {
-                    s->regs[R_INTR_STATUS] |= IXR_TX_FIFO_UNDERFLOW;
+                    if (!(s->regs[R_LQSPI_CFG] & LQSPI_CFG_LQ_MODE)) {
+                        s->regs[R_INTR_STATUS] |= IXR_TX_FIFO_UNDERFLOW;
+                    }
                     xilinx_spips_update_ixr(s);
                     return;
                 } else {
