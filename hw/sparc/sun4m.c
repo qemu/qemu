@@ -30,7 +30,7 @@
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "hw/boards.h"
-#include "hw/sparc/firmware_abi.h"
+#include "hw/nvram/openbios_firmware_abi.h"
 #include "hw/scsi/esp.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
@@ -831,7 +831,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *cpu_halt;
     unsigned long kernel_size;
     DriveInfo *fd[MAX_FD];
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
     unsigned int num_vsimms;
 
     /* init CPUs */

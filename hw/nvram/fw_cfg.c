@@ -32,6 +32,9 @@
 
 #define FW_CFG_SIZE 2
 #define FW_CFG_DATA_SIZE 1
+#define TYPE_FW_CFG "fw_cfg"
+#define FW_CFG_NAME "fw_cfg"
+#define FW_CFG_PATH "/machine/" FW_CFG_NAME
 
 typedef struct FWCfgEntry {
     uint32_t len;
@@ -493,10 +496,9 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 
     s = DO_UPCAST(FWCfgState, busdev.qdev, dev);
 
-    if (!object_resolve_path("/machine/fw_cfg", NULL)) {
-        object_property_add_child(qdev_get_machine(), "fw_cfg", OBJECT(s),
-                                  NULL);
-    }
+    assert(!object_resolve_path(FW_CFG_PATH, NULL));
+
+    object_property_add_child(qdev_get_machine(), FW_CFG_NAME, OBJECT(s), NULL);
 
     qdev_init_nofail(dev);
 
@@ -553,6 +555,12 @@ static Property fw_cfg_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+FWCfgState *fw_cfg_find(void)
+{
+    return OBJECT_CHECK(FWCfgState, object_resolve_path(FW_CFG_PATH, NULL),
+                        TYPE_FW_CFG);
+}
+
 static void fw_cfg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -566,7 +574,7 @@ static void fw_cfg_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo fw_cfg_info = {
-    .name          = "fw_cfg",
+    .name          = TYPE_FW_CFG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FWCfgState),
     .class_init    = fw_cfg_class_init,
