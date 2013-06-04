@@ -2324,13 +2324,6 @@ static void query_facilities(void)
 
 static void tcg_target_init(TCGContext *s)
 {
-#if !defined(CONFIG_USER_ONLY)
-    /* fail safe */
-    if ((1 << CPU_TLB_ENTRY_BITS) != sizeof(CPUTLBEntry)) {
-        tcg_abort();
-    }
-#endif
-
     query_facilities();
 
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
