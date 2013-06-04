@@ -4,6 +4,7 @@ block-obj-y += qed.o qed-gencb.o qed-l2-cache.o qed-table.o qed-cluster.o
 block-obj-y += qed-check.o
 block-obj-y += vhdx.o
 block-obj-y += parallels.o blkdebug.o blkverify.o
+block-obj-y += snapshot.o qapi.o
 block-obj-$(CONFIG_WIN32) += raw-win32.o win32-aio.o
 block-obj-$(CONFIG_POSIX) += raw-posix.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o

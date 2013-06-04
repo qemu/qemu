@@ -27,17 +27,6 @@ typedef struct BlockFragInfo {
     uint64_t compressed_clusters;
 } BlockFragInfo;
 
-typedef struct QEMUSnapshotInfo {
-    char id_str[128]; /* unique snapshot id */
-    /* the following fields are informative. They are not needed for
-       the consistency of the snapshot */
-    char name[256]; /* user chosen name */
-    uint64_t vm_state_size; /* VM state info size */
-    uint32_t date_sec; /* UTC date of the snapshot */
-    uint32_t date_nsec;
-    uint64_t vm_clock_nsec; /* VM clock relative to boot */
-} QEMUSnapshotInfo;
-
 /* Callbacks for block device models */
 typedef struct BlockDevOps {
     /*
@@ -124,7 +113,8 @@ void bdrv_init(void);
 void bdrv_init_with_whitelist(void);
 BlockDriver *bdrv_find_protocol(const char *filename);
 BlockDriver *bdrv_find_format(const char *format_name);
-BlockDriver *bdrv_find_whitelisted_format(const char *format_name);
+BlockDriver *bdrv_find_whitelisted_format(const char *format_name,
+                                          bool readonly);
 int bdrv_create(BlockDriver *drv, const char* filename,
     QEMUOptionParameter *options);
 int bdrv_create_file(const char* filename, QEMUOptionParameter *options);
@@ -328,23 +318,8 @@ void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
 void bdrv_get_full_backing_filename(BlockDriverState *bs,
                                     char *dest, size_t sz);
-BlockInfo *bdrv_query_info(BlockDriverState *s);
-BlockStats *bdrv_query_stats(const BlockDriverState *bs);
-int bdrv_can_snapshot(BlockDriverState *bs);
 int bdrv_is_snapshot(BlockDriverState *bs);
-BlockDriverState *bdrv_snapshots(void);
-int bdrv_snapshot_create(BlockDriverState *bs,
-                         QEMUSnapshotInfo *sn_info);
-int bdrv_snapshot_goto(BlockDriverState *bs,
-                       const char *snapshot_id);
-int bdrv_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
-int bdrv_snapshot_list(BlockDriverState *bs,
-                       QEMUSnapshotInfo **psn_info);
-int bdrv_snapshot_load_tmp(BlockDriverState *bs,
-                           const char *snapshot_name);
-char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn);
 
-char *get_human_readable_size(char *buf, int buf_size, int64_t size);
 int path_is_absolute(const char *path);
 void path_combine(char *dest, int dest_size,
                   const char *base_path,

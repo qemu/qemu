@@ -30,6 +30,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "block/block_int.h"
+#include "block/qapi.h"
 #include <getopt.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -1553,16 +1554,17 @@ static void dump_snapshots(BlockDriverState *bs)
 {
     QEMUSnapshotInfo *sn_tab, *sn;
     int nb_sns, i;
-    char buf[256];
 
     nb_sns = bdrv_snapshot_list(bs, &sn_tab);
     if (nb_sns <= 0)
         return;
     printf("Snapshot list:\n");
-    printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), NULL));
+    bdrv_snapshot_dump(fprintf, stdout, NULL);
+    printf("\n");
     for(i = 0; i < nb_sns; i++) {
         sn = &sn_tab[i];
-        printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), sn));
+        bdrv_snapshot_dump(fprintf, stdout, sn);
+        printf("\n");
     }
     g_free(sn_tab);
 }
@@ -1584,39 +1586,6 @@ static void dump_json_image_info_list(ImageInfoList *list)
     QDECREF(str);
 }
 
-static void collect_snapshots(BlockDriverState *bs , ImageInfo *info)
-{
-    int i, sn_count;
-    QEMUSnapshotInfo *sn_tab = NULL;
-    SnapshotInfoList *info_list, *cur_item = NULL;
-    sn_count = bdrv_snapshot_list(bs, &sn_tab);
-
-    for (i = 0; i < sn_count; i++) {
-        info->has_snapshots = true;
-        info_list = g_new0(SnapshotInfoList, 1);
-
-        info_list->value                = g_new0(SnapshotInfo, 1);
-        info_list->value->id            = g_strdup(sn_tab[i].id_str);
-        info_list->value->name          = g_strdup(sn_tab[i].name);
-        info_list->value->vm_state_size = sn_tab[i].vm_state_size;
-        info_list->value->date_sec      = sn_tab[i].date_sec;
-        info_list->value->date_nsec     = sn_tab[i].date_nsec;
-        info_list->value->vm_clock_sec  = sn_tab[i].vm_clock_nsec / 1000000000;
-        info_list->value->vm_clock_nsec = sn_tab[i].vm_clock_nsec % 1000000000;
-
-        /* XXX: waiting for the qapi to support qemu-queue.h types */
-        if (!cur_item) {
-            info->snapshots = cur_item = info_list;
-        } else {
-            cur_item->next = info_list;
-            cur_item = info_list;
-        }
-
-    }
-
-    g_free(sn_tab);
-}
-
 static void dump_json_image_info(ImageInfo *info)
 {
     Error *errp = NULL;
@@ -1634,122 +1603,6 @@ static void dump_json_image_info(ImageInfo *info)
     QDECREF(str);
 }
 
-static void collect_image_info(BlockDriverState *bs,
-                   ImageInfo *info,
-                   const char *filename,
-                   const char *fmt)
-{
-    uint64_t total_sectors;
-    char backing_filename[1024];
-    char backing_filename2[1024];
-    BlockDriverInfo bdi;
-
-    bdrv_get_geometry(bs, &total_sectors);
-
-    info->filename        = g_strdup(filename);
-    info->format          = g_strdup(bdrv_get_format_name(bs));
-    info->virtual_size    = total_sectors * 512;
-    info->actual_size     = bdrv_get_allocated_file_size(bs);
-    info->has_actual_size = info->actual_size >= 0;
-    if (bdrv_is_encrypted(bs)) {
-        info->encrypted = true;
-        info->has_encrypted = true;
-    }
-    if (bdrv_get_info(bs, &bdi) >= 0) {
-        if (bdi.cluster_size != 0) {
-            info->cluster_size = bdi.cluster_size;
-            info->has_cluster_size = true;
-        }
-        info->dirty_flag = bdi.is_dirty;
-        info->has_dirty_flag = true;
-    }
-    bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
-    if (backing_filename[0] != '\0') {
-        info->backing_filename = g_strdup(backing_filename);
-        info->has_backing_filename = true;
-        bdrv_get_full_backing_filename(bs, backing_filename2,
-                                       sizeof(backing_filename2));
-
-        if (strcmp(backing_filename, backing_filename2) != 0) {
-            info->full_backing_filename =
-                        g_strdup(backing_filename2);
-            info->has_full_backing_filename = true;
-        }
-
-        if (bs->backing_format[0]) {
-            info->backing_filename_format = g_strdup(bs->backing_format);
-            info->has_backing_filename_format = true;
-        }
-    }
-}
-
-static void dump_human_image_info(ImageInfo *info)
-{
-    char size_buf[128], dsize_buf[128];
-    if (!info->has_actual_size) {
-        snprintf(dsize_buf, sizeof(dsize_buf), "unavailable");
-    } else {
-        get_human_readable_size(dsize_buf, sizeof(dsize_buf),
-                                info->actual_size);
-    }
-    get_human_readable_size(size_buf, sizeof(size_buf), info->virtual_size);
-    printf("image: %s\n"
-           "file format: %s\n"
-           "virtual size: %s (%" PRId64 " bytes)\n"
-           "disk size: %s\n",
-           info->filename, info->format, size_buf,
-           info->virtual_size,
-           dsize_buf);
-
-    if (info->has_encrypted && info->encrypted) {
-        printf("encrypted: yes\n");
-    }
-
-    if (info->has_cluster_size) {
-        printf("cluster_size: %" PRId64 "\n", info->cluster_size);
-    }
-
-    if (info->has_dirty_flag && info->dirty_flag) {
-        printf("cleanly shut down: no\n");
-    }
-
-    if (info->has_backing_filename) {
-        printf("backing file: %s", info->backing_filename);
-        if (info->has_full_backing_filename) {
-            printf(" (actual path: %s)", info->full_backing_filename);
-        }
-        putchar('\n');
-        if (info->has_backing_filename_format) {
-            printf("backing file format: %s\n", info->backing_filename_format);
-        }
-    }
-
-    if (info->has_snapshots) {
-        SnapshotInfoList *elem;
-        char buf[256];
-
-        printf("Snapshot list:\n");
-        printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), NULL));
-
-        /* Ideally bdrv_snapshot_dump() would operate on SnapshotInfoList but
-         * we convert to the block layer's native QEMUSnapshotInfo for now.
-         */
-        for (elem = info->snapshots; elem; elem = elem->next) {
-            QEMUSnapshotInfo sn = {
-                .vm_state_size = elem->value->vm_state_size,
-                .date_sec = elem->value->date_sec,
-                .date_nsec = elem->value->date_nsec,
-                .vm_clock_nsec = elem->value->vm_clock_sec * 1000000000ULL +
-                                 elem->value->vm_clock_nsec,
-            };
-
-            pstrcpy(sn.id_str, sizeof(sn.id_str), elem->value->id);
-            pstrcpy(sn.name, sizeof(sn.name), elem->value->name);
-            printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), &sn));
-        }
-    }
-}
-
 static void dump_human_image_info_list(ImageInfoList *list)
 {
     ImageInfoList *elem;
@@ -1761,7 +1614,7 @@ static void dump_human_image_info_list(ImageInfoList *list)
         }
         delim = true;
 
-        dump_human_image_info(elem->value);
+        bdrv_image_info_dump(fprintf, stdout, elem->value);
     }
 }
 
@@ -1811,8 +1664,8 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         }
 
         info = g_new0(ImageInfo, 1);
-        collect_image_info(bs, info, filename, fmt);
-        collect_snapshots(bs, info);
+        bdrv_collect_image_info(bs, info, filename);
+        bdrv_collect_snapshots(bs, info);
 
         elem = g_new0(ImageInfoList, 1);
         elem->value = info;
