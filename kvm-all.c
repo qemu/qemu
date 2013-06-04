@@ -1016,11 +1016,8 @@ static void kvm_add_routing_entry(KVMState *s,
     }
     n = s->irq_routes->nr++;
     new = &s->irq_routes->entries[n];
-    memset(new, 0, sizeof(*new));
-    new->gsi = entry->gsi;
-    new->type = entry->type;
-    new->flags = entry->flags;
-    new->u = entry->u;
+
+    *new = *entry;
 
     set_gsi(s, entry->gsi);
 }
@@ -1037,9 +1034,7 @@ static int kvm_update_routing_entry(KVMState *s,
             continue;
         }
 
-        entry->type = new_entry->type;
-        entry->flags = new_entry->flags;
-        entry->u = new_entry->u;
+        *entry = *new_entry;
 
         kvm_irqchip_commit_routes(s);
 
@@ -1051,7 +1046,7 @@ static int kvm_update_routing_entry(KVMState *s,
 
 void kvm_irqchip_add_irq_route(KVMState *s, int irq, int irqchip, int pin)
 {
-    struct kvm_irq_routing_entry e;
+    struct kvm_irq_routing_entry e = {};
 
     assert(pin < s->gsi_count);
 
@@ -1164,7 +1159,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
             return virq;
         }
 
-        route = g_malloc(sizeof(KVMMSIRoute));
+        route = g_malloc0(sizeof(KVMMSIRoute));
         route->kroute.gsi = virq;
         route->kroute.type = KVM_IRQ_ROUTING_MSI;
         route->kroute.flags = 0;
@@ -1186,7 +1181,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
 
 int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
 {
-    struct kvm_irq_routing_entry kroute;
+    struct kvm_irq_routing_entry kroute = {};
     int virq;
 
     if (!kvm_gsi_routing_enabled()) {
@@ -1213,7 +1208,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
 
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
 {
-    struct kvm_irq_routing_entry kroute;
+    struct kvm_irq_routing_entry kroute = {};
 
     if (!kvm_irqchip_in_kernel()) {
         return -ENOSYS;
