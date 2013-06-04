@@ -556,7 +556,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     uint32_t txd_lower = le32_to_cpu(dp->lower.data);
     uint32_t dtype = txd_lower & (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D);
     unsigned int split_size = txd_lower & 0xffff, bytes, sz, op;
-    unsigned int msh = 0xfffff, hdr = 0;
+    unsigned int msh = 0xfffff;
     uint64_t addr;
     struct e1000_context_desc *xp = (struct e1000_context_desc *)dp;
     struct e1000_tx *tp = &s->tx;
@@ -603,8 +603,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         
     addr = le64_to_cpu(dp->buffer_addr);
     if (tp->tse && tp->cptse) {
-        hdr = tp->hdr_len;
-        msh = hdr + tp->mss;
+        msh = tp->hdr_len + tp->mss;
         do {
             bytes = split_size;
             if (tp->size + bytes > msh)
@@ -612,14 +611,16 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 
             bytes = MIN(sizeof(tp->data) - tp->size, bytes);
             pci_dma_read(&s->dev, addr, tp->data + tp->size, bytes);
-            if ((sz = tp->size + bytes) >= hdr && tp->size < hdr)
-                memmove(tp->header, tp->data, hdr);
+            sz = tp->size + bytes;
+            if (sz >= tp->hdr_len && tp->size < tp->hdr_len) {
+                memmove(tp->header, tp->data, tp->hdr_len);
+            }
             tp->size = sz;
             addr += bytes;
             if (sz == msh) {
                 xmit_seg(s);
-                memmove(tp->data, tp->header, hdr);
-                tp->size = hdr;
+                memmove(tp->data, tp->header, tp->hdr_len);
+                tp->size = tp->hdr_len;
             }
         } while (split_size -= bytes);
     } else if (!tp->tse && tp->cptse) {
@@ -633,8 +634,9 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 
     if (!(txd_lower & E1000_TXD_CMD_EOP))
         return;
-    if (!(tp->tse && tp->cptse && tp->size < hdr))
+    if (!(tp->tse && tp->cptse && tp->size < tp->hdr_len)) {
         xmit_seg(s);
+    }
     tp->tso_frames = 0;
     tp->sum_needed = 0;
     tp->vlan_needed = 0;
