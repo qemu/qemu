@@ -4246,7 +4246,6 @@ upper() {
 target_arch_name="`upper $TARGET_ARCH`"
 echo "TARGET_$target_arch_name=y" >> $config_target_mak
 echo "TARGET_NAME=$target_name" >> $config_target_mak
-echo "TARGET_TYPE=TARGET_TYPE_`upper $target_name`" >> $config_target_mak
 echo "TARGET_BASE_ARCH=$TARGET_BASE_ARCH" >> $config_target_mak
 if [ "$TARGET_ABI_DIR" = "" ]; then
   TARGET_ABI_DIR=$TARGET_ARCH
