@@ -1034,6 +1034,10 @@ static int kvm_update_routing_entry(KVMState *s,
             continue;
         }
 
+        if(!memcmp(entry, new_entry, sizeof *entry)) {
+            return 0;
+        }
+
         *entry = *new_entry;
 
         kvm_irqchip_commit_routes(s);
