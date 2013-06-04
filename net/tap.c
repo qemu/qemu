@@ -698,9 +698,10 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     if (tap->has_fd) {
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_helper || tap->has_queues ||
-            tap->has_fds) {
+            tap->has_fds || tap->has_vhostfds) {
             error_report("ifname=, script=, downscript=, vnet_hdr=, "
-                         "helper=, queues=, and fds= are invalid with fd=");
+                         "helper=, queues=, fds=, and vhostfds= "
+                         "are invalid with fd=");
             return -1;
         }
 
@@ -725,9 +726,10 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
 
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_helper || tap->has_queues ||
-            tap->has_fd) {
+            tap->has_vhostfd) {
             error_report("ifname=, script=, downscript=, vnet_hdr=, "
-                         "helper=, queues=, and fd= are invalid with fds=");
+                         "helper=, queues=, and vhostfd= "
+                         "are invalid with fds=");
             return -1;
         }
 
@@ -765,9 +767,9 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         }
     } else if (tap->has_helper) {
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
-            tap->has_vnet_hdr || tap->has_queues || tap->has_fds) {
+            tap->has_vnet_hdr || tap->has_queues || tap->has_vhostfds) {
             error_report("ifname=, script=, downscript=, and vnet_hdr= "
-                         "queues=, and fds= are invalid with helper=");
+                         "queues=, and vhostfds= are invalid with helper=");
             return -1;
         }
 
@@ -785,6 +787,10 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
             return -1;
         }
     } else {
+        if (tap->has_vhostfds) {
+            error_report("vhostfds= is invalid if fds= wasn't specified");
+            return -1;
+        }
         script = tap->has_script ? tap->script : DEFAULT_NETWORK_SCRIPT;
         downscript = tap->has_downscript ? tap->downscript :
             DEFAULT_NETWORK_DOWN_SCRIPT;
