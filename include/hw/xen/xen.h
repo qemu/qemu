@@ -25,11 +25,7 @@ extern bool xen_allowed;
 
 static inline bool xen_enabled(void)
 {
-#if defined(CONFIG_XEN_BACKEND) && defined(CONFIG_XEN)
     return xen_allowed;
-#else
-    return 0;
-#endif
 }
 
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num);
@@ -42,7 +38,6 @@ qemu_irq *xen_interrupt_controller_init(void);
 
 int xen_init(void);
 int xen_hvm_init(void);
-void xen_vcpu_init(void);
 void xenstore_store_pv_console_info(int i, struct CharDriverState *chr);
 
 #if defined(NEED_CPU_H) && !defined(CONFIG_USER_ONLY)
