@@ -670,8 +670,8 @@ void cpu_loop(CPUSPARCState *env)
 
 static void usage(void)
 {
-    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
-           "usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
+    printf("qemu-" TARGET_NAME " version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
+           "usage: qemu-" TARGET_NAME " [options] program [arguments...]\n"
            "BSD CPU emulator (compiled for %s emulation)\n"
            "\n"
            "Standard options:\n"
@@ -706,7 +706,7 @@ static void usage(void)
            "Note that if you provide several changes to single variable\n"
            "last change will stay in effect.\n"
            ,
-           TARGET_ARCH,
+           TARGET_NAME,
            interp_prefix,
            x86_stack_size);
     exit(1);

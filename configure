@@ -4243,7 +4243,6 @@ upper() {
     echo "$@"| LC_ALL=C tr '[a-z]' '[A-Z]'
 }
 
-echo "TARGET_ARCH=$TARGET_ARCH" >> $config_target_mak
 target_arch_name="`upper $TARGET_ARCH`"
 echo "TARGET_$target_arch_name=y" >> $config_target_mak
 echo "TARGET_NAME=$target_name" >> $config_target_mak

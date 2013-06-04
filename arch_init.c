@@ -123,7 +123,7 @@ static struct defconfig_file {
     bool userconfig;
 } default_config_files[] = {
     { CONFIG_QEMU_CONFDIR "/qemu.conf",                   true },
-    { CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf", true },
+    { CONFIG_QEMU_CONFDIR "/target-" TARGET_NAME ".conf", true },
     { NULL }, /* end of list */
 };
 

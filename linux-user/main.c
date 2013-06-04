@@ -3339,7 +3339,7 @@ static void handle_arg_strace(const char *arg)
 
 static void handle_arg_version(const char *arg)
 {
-    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION QEMU_PKGVERSION
+    printf("qemu-" TARGET_NAME " version " QEMU_VERSION QEMU_PKGVERSION
            ", Copyright (c) 2003-2008 Fabrice Bellard\n");
     exit(0);
 }
@@ -3400,8 +3400,8 @@ static void usage(void)
     int maxarglen;
     int maxenvlen;
 
-    printf("usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
-           "Linux CPU emulator (compiled for " TARGET_ARCH " emulation)\n"
+    printf("usage: qemu-" TARGET_NAME " [options] program [arguments...]\n"
+           "Linux CPU emulator (compiled for " TARGET_NAME " emulation)\n"
            "\n"
            "Options and associated environment variables:\n"
            "\n");
