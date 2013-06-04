@@ -243,7 +243,7 @@ static inline int audio_ring_dist (int dst, int src, int len)
     return (dst >= src) ? (dst - src) : (len - src + dst);
 }
 
-static void GCC_ATTR dolog (const char *fmt, ...)
+static inline void GCC_FMT_ATTR(1, 2) dolog (const char *fmt, ...)
 {
     va_list ap;
 
@@ -253,7 +253,7 @@ static void GCC_ATTR dolog (const char *fmt, ...)
 }
 
 #ifdef DEBUG
-static void GCC_ATTR ldebug (const char *fmt, ...)
+static inline void GCC_FMT_ATTR(1, 2) ldebug (const char *fmt, ...)
 {
     va_list ap;
 
@@ -267,14 +267,12 @@ static void GCC_ATTR ldebug (const char *fmt, ...)
 #elif defined NDEBUG && defined _MSC_VER
 #define ldebug __noop
 #else
-static void GCC_ATTR ldebug (const char *fmt, ...)
+static inline void GCC_FMT_ATTR(1, 2) ldebug (const char *fmt, ...)
 {
     (void) fmt;
 }
 #endif
 #endif
-
-#undef GCC_ATTR
 
 #define AUDIO_STRINGIFY_(n) #n
 #define AUDIO_STRINGIFY(n) AUDIO_STRINGIFY_(n)
