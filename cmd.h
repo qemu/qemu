@@ -43,20 +43,6 @@ void qemuio_add_command(const cmdinfo_t *ci);
 
 int qemuio_command_usage(const cmdinfo_t *ci);
 
-/* from input.h */
-void cvtstr(double value, char *str, size_t sz);
-
-struct timeval tsub(struct timeval t1, struct timeval t2);
-double tdiv(double value, struct timeval tv);
-
-enum {
-	DEFAULT_TIME		= 0x0,
-	TERSE_FIXED_TIME	= 0x1,
-	VERBOSE_FIXED_TIME	= 0x2
-};
-
-void timestr(struct timeval *tv, char *str, size_t sz, int flags);
-
 bool qemuio_command(const char *cmd);
 
 #endif	/* __COMMAND_H__ */
