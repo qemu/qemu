@@ -8,9 +8,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu-common.h"
+#include "qemu-io.h"
 #include "block/block_int.h"
-#include "cmd.h"
 
 #define CMD_NOFILE_OK   0x01
 
@@ -50,11 +49,12 @@ static int init_check_command(BlockDriverState *bs, const cmdinfo_t *ct)
     return 1;
 }
 
-static int command(const cmdinfo_t *ct, int argc, char **argv)
+static int command(BlockDriverState *bs, const cmdinfo_t *ct, int argc,
+                   char **argv)
 {
     char *cmd = argv[0];
 
-    if (!init_check_command(qemuio_bs, ct)) {
+    if (!init_check_command(bs, ct)) {
         return 0;
     }
 
@@ -75,7 +75,7 @@ static int command(const cmdinfo_t *ct, int argc, char **argv)
         return 0;
     }
     optind = 0;
-    return ct->cfunc(qemuio_bs, argc, argv);
+    return ct->cfunc(bs, argc, argv);
 }
 
 static const cmdinfo_t *find_command(const char *cmd)
@@ -2068,7 +2068,7 @@ static const cmdinfo_t help_cmd = {
     .oneline    = "help for one or all commands",
 };
 
-bool qemuio_command(const char *cmd)
+bool qemuio_command(BlockDriverState *bs, const char *cmd)
 {
     char *input;
     const cmdinfo_t *ct;
@@ -2081,7 +2081,7 @@ bool qemuio_command(const char *cmd)
     if (c) {
         ct = find_command(v[0]);
         if (ct) {
-            done = command(ct, c, v);
+            done = command(bs, ct, c, v);
         } else {
             fprintf(stderr, "command \"%s\" not found\n", v[0]);
         }

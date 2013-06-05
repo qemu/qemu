@@ -14,10 +14,9 @@
 #include <getopt.h>
 #include <libgen.h>
 
-#include "qemu-common.h"
+#include "qemu-io.h"
 #include "qemu/main-loop.h"
 #include "block/block_int.h"
-#include "cmd.h"
 #include "trace/control.h"
 
 #define VERSION	"0.0.1"
@@ -273,7 +272,7 @@ static void command_loop(void)
     char *input;
 
     for (i = 0; !done && i < ncmdline; i++) {
-        done = qemuio_command(cmdline[i]);
+        done = qemuio_command(qemuio_bs, cmdline[i]);
     }
     if (cmdline) {
         g_free(cmdline);
@@ -298,7 +297,7 @@ static void command_loop(void)
         if (input == NULL) {
             break;
         }
-        done = qemuio_command(input);
+        done = qemuio_command(qemuio_bs, input);
         g_free(input);
 
         prompted = 0;

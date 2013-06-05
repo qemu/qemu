@@ -14,35 +14,33 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __COMMAND_H__
-#define __COMMAND_H__
+
+#ifndef QEMU_IO_H
+#define QEMU_IO_H
 
 #include "qemu-common.h"
 
-#define CMD_FLAG_GLOBAL	((int)0x80000000)	/* don't iterate "args" */
-
-extern BlockDriverState *qemuio_bs;
+#define CMD_FLAG_GLOBAL ((int)0x80000000) /* don't iterate "args" */
 
 typedef int (*cfunc_t)(BlockDriverState *bs, int argc, char **argv);
 typedef void (*helpfunc_t)(void);
 
 typedef struct cmdinfo {
-	const char	*name;
-	const char	*altname;
-	cfunc_t		cfunc;
-	int		argmin;
-	int		argmax;
-	int		canpush;
-	int		flags;
-	const char	*args;
-	const char	*oneline;
-	helpfunc_t      help;
+    const char* name;
+    const char* altname;
+    cfunc_t     cfunc;
+    int         argmin;
+    int         argmax;
+    int         canpush;
+    int         flags;
+    const char  *args;
+    const char  *oneline;
+    helpfunc_t  help;
 } cmdinfo_t;
 
-void qemuio_add_command(const cmdinfo_t *ci);
+bool qemuio_command(BlockDriverState *bs, const char *cmd);
 
+void qemuio_add_command(const cmdinfo_t *ci);
 int qemuio_command_usage(const cmdinfo_t *ci);
 
-bool qemuio_command(const char *cmd);
-
-#endif	/* __COMMAND_H__ */
+#endif /* QEMU_IO_H */
