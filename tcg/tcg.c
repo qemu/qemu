@@ -68,6 +68,24 @@ static void tcg_target_qemu_prologue(TCGContext *s);
 static void patch_reloc(uint8_t *code_ptr, int type, 
                         tcg_target_long value, tcg_target_long addend);
 
+/* The CIE and FDE header definitions will be common to all hosts.  */
+typedef struct {
+    uint32_t len __attribute__((aligned((sizeof(void *)))));
+    uint32_t id;
+    uint8_t version;
+    char augmentation[1];
+    uint8_t code_align;
+    uint8_t data_align;
+    uint8_t return_column;
+} DebugFrameCIE;
+
+typedef struct QEMU_PACKED {
+    uint32_t len __attribute__((aligned((sizeof(void *)))));
+    uint32_t cie_offset;
+    tcg_target_long func_start;
+    tcg_target_long func_len;
+} DebugFrameFDEHeader;
+
 static void tcg_register_jit_int(void *buf, size_t size,
                                  void *debug_frame, size_t debug_frame_size)
     __attribute__((unused));
