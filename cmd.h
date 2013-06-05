@@ -59,7 +59,6 @@ int command(const cmdinfo_t *ci, int argc, char **argv);
 
 /* from input.h */
 char **breakline(char *input, int *count);
-void doneline(char *input, char **vec);
 char *fetchline(void);
 
 void cvtstr(double value, char *str, size_t sz);
@@ -76,5 +75,7 @@ enum {
 void timestr(struct timeval *tv, char *str, size_t sz, int flags);
 
 extern char *progname;
+
+bool qemuio_command(const char *cmd);
 
 #endif	/* __COMMAND_H__ */

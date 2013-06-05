@@ -138,28 +138,11 @@ static char *get_prompt(void);
 
 void command_loop(void)
 {
-    int c, i, done = 0, fetchable = 0, prompted = 0;
+    int i, done = 0, fetchable = 0, prompted = 0;
     char *input;
-    char **v;
-    const cmdinfo_t *ct;
 
     for (i = 0; !done && i < ncmdline; i++) {
-        input = strdup(cmdline[i]);
-        if (!input) {
-            fprintf(stderr, _("cannot strdup command '%s': %s\n"),
-                    cmdline[i], strerror(errno));
-            exit(1);
-        }
-        v = breakline(input, &c);
-        if (c) {
-            ct = find_command(v[0]);
-            if (ct) {
-                done = command(ct, c, v);
-            } else {
-                fprintf(stderr, _("command \"%s\" not found\n"), v[0]);
-            }
-	}
-        doneline(input, v);
+        done = qemuio_command(cmdline[i]);
     }
     if (cmdline) {
         g_free(cmdline);
@@ -179,20 +162,13 @@ void command_loop(void)
         if (!fetchable) {
             continue;
         }
+
         input = fetchline();
         if (input == NULL) {
             break;
         }
-        v = breakline(input, &c);
-        if (c) {
-            ct = find_command(v[0]);
-            if (ct) {
-                done = command(ct, c, v);
-            } else {
-                fprintf(stderr, _("command \"%s\" not found\n"), v[0]);
-            }
-        }
-        doneline(input, v);
+        done = qemuio_command(input);
+        free(input);
 
         prompted = 0;
         fetchable = 0;
@@ -326,15 +302,6 @@ char **breakline(char *input, int *count)
     }
     *count = c;
     return rval;
-}
-
-void
-doneline(
-	char	*input,
-	char	**vec)
-{
-	free(input);
-	free(vec);
 }
 
 #define EXABYTES(x)	((long long)(x) << 60)

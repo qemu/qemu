@@ -1807,6 +1807,30 @@ static int init_check_command(BlockDriverState *bs, const cmdinfo_t *ct)
     return 1;
 }
 
+bool qemuio_command(const char *cmd)
+{
+    char *input;
+    const cmdinfo_t *ct;
+    char **v;
+    int c;
+    bool done = false;
+
+    input = g_strdup(cmd);
+    v = breakline(input, &c);
+    if (c) {
+        ct = find_command(v[0]);
+        if (ct) {
+            done = command(ct, c, v);
+        } else {
+            fprintf(stderr, "command \"%s\" not found\n", v[0]);
+        }
+    }
+    g_free(input);
+    g_free(v);
+
+    return done;
+}
+
 static void __attribute((constructor)) init_qemuio_commands(void)
 {
     /* initialize commands */
