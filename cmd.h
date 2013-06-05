@@ -39,18 +39,11 @@ typedef struct cmdinfo {
 	helpfunc_t      help;
 } cmdinfo_t;
 
-typedef int (*checkfunc_t)(BlockDriverState *bs, const cmdinfo_t *ci);
-
 void qemuio_add_command(const cmdinfo_t *ci);
-void add_user_command(char *optarg);
-void add_check_command(checkfunc_t cf);
 
-void command_loop(void);
 int qemuio_command_usage(const cmdinfo_t *ci);
 
 /* from input.h */
-char *fetchline(void);
-
 void cvtstr(double value, char *str, size_t sz);
 
 struct timeval tsub(struct timeval t1, struct timeval t2);
@@ -63,8 +56,6 @@ enum {
 };
 
 void timestr(struct timeval *tv, char *str, size_t sz, int flags);
-
-extern char *progname;
 
 bool qemuio_command(const char *cmd);
 

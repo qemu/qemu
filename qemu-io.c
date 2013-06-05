@@ -29,6 +29,10 @@ char *progname;
 BlockDriverState *qemuio_bs;
 extern int qemuio_misalign;
 
+/* qemu-io commands passed using -c */
+static int ncmdline;
+static char **cmdline;
+
 static int close_f(BlockDriverState *bs, int argc, char **argv)
 {
     bdrv_delete(bs);
@@ -173,6 +177,141 @@ static void usage(const char *name)
     name);
 }
 
+
+#if defined(ENABLE_READLINE)
+# include <readline/history.h>
+# include <readline/readline.h>
+#elif defined(ENABLE_EDITLINE)
+# include <histedit.h>
+#endif
+
+static char *get_prompt(void)
+{
+    static char prompt[FILENAME_MAX + 2 /*"> "*/ + 1 /*"\0"*/ ];
+
+    if (!prompt[0]) {
+        snprintf(prompt, sizeof(prompt), "%s> ", progname);
+    }
+
+    return prompt;
+}
+
+#if defined(ENABLE_READLINE)
+static char *fetchline(void)
+{
+    char *line = readline(get_prompt());
+    if (line && *line) {
+        add_history(line);
+    }
+    return line;
+}
+#elif defined(ENABLE_EDITLINE)
+static char *el_get_prompt(EditLine *e)
+{
+    return get_prompt();
+}
+
+static char *fetchline(void)
+{
+    static EditLine *el;
+    static History *hist;
+    HistEvent hevent;
+    char *line;
+    int count;
+
+    if (!el) {
+        hist = history_init();
+        history(hist, &hevent, H_SETSIZE, 100);
+        el = el_init(progname, stdin, stdout, stderr);
+        el_source(el, NULL);
+        el_set(el, EL_SIGNAL, 1);
+        el_set(el, EL_PROMPT, el_get_prompt);
+        el_set(el, EL_HIST, history, (const char *)hist);
+    }
+    line = strdup(el_gets(el, &count));
+    if (line) {
+        if (count > 0) {
+            line[count-1] = '\0';
+        }
+        if (*line) {
+            history(hist, &hevent, H_ENTER, line);
+        }
+    }
+    return line;
+}
+#else
+# define MAXREADLINESZ 1024
+static char *fetchline(void)
+{
+    char *p, *line = g_malloc(MAXREADLINESZ);
+
+    if (!fgets(line, MAXREADLINESZ, stdin)) {
+        g_free(line);
+        return NULL;
+    }
+
+    p = line + strlen(line);
+    if (p != line && p[-1] == '\n') {
+        p[-1] = '\0';
+    }
+
+    return line;
+}
+#endif
+
+static void prep_fetchline(void *opaque)
+{
+    int *fetchable = opaque;
+
+    qemu_set_fd_handler(STDIN_FILENO, NULL, NULL, NULL);
+    *fetchable= 1;
+}
+
+static void command_loop(void)
+{
+    int i, done = 0, fetchable = 0, prompted = 0;
+    char *input;
+
+    for (i = 0; !done && i < ncmdline; i++) {
+        done = qemuio_command(cmdline[i]);
+    }
+    if (cmdline) {
+        g_free(cmdline);
+        return;
+    }
+
+    while (!done) {
+        if (!prompted) {
+            printf("%s", get_prompt());
+            fflush(stdout);
+            qemu_set_fd_handler(STDIN_FILENO, prep_fetchline, NULL, &fetchable);
+            prompted = 1;
+        }
+
+        main_loop_wait(false);
+
+        if (!fetchable) {
+            continue;
+        }
+
+        input = fetchline();
+        if (input == NULL) {
+            break;
+        }
+        done = qemuio_command(input);
+        g_free(input);
+
+        prompted = 0;
+        fetchable = 0;
+    }
+    qemu_set_fd_handler(STDIN_FILENO, NULL, NULL, NULL);
+}
+
+static void add_user_command(char *optarg)
+{
+    cmdline = g_realloc(cmdline, ++ncmdline * sizeof(char *));
+    cmdline[ncmdline-1] = optarg;
+}
 
 int main(int argc, char **argv)
 {
