@@ -34,7 +34,6 @@
 cmdinfo_t	*cmdtab;
 int		ncmds;
 
-static argsfunc_t	args_func;
 static checkfunc_t	check_func;
 static int		ncmdline;
 static char		**cmdline;
@@ -127,22 +126,6 @@ void add_user_command(char *optarg)
     cmdline[ncmdline-1] = optarg;
 }
 
-static int
-args_command(
-	int	index)
-{
-	if (args_func)
-		return args_func(index);
-	return 0;
-}
-
-void
-add_args_command(
-	argsfunc_t	af)
-{
-	args_func = af;
-}
-
 static void prep_fetchline(void *opaque)
 {
     int *fetchable = opaque;
@@ -155,7 +138,7 @@ static char *get_prompt(void);
 
 void command_loop(void)
 {
-    int c, i, j = 0, done = 0, fetchable = 0, prompted = 0;
+    int c, i, done = 0, fetchable = 0, prompted = 0;
     char *input;
     char **v;
     const cmdinfo_t *ct;
@@ -171,14 +154,7 @@ void command_loop(void)
         if (c) {
             ct = find_command(v[0]);
             if (ct) {
-                if (ct->flags & CMD_FLAG_GLOBAL) {
-                    done = command(ct, c, v);
-                } else {
-                    j = 0;
-                    while (!done && (j = args_command(j))) {
-                        done = command(ct, c, v);
-                    }
-                }
+                done = command(ct, c, v);
             } else {
                 fprintf(stderr, _("command \"%s\" not found\n"), v[0]);
             }
