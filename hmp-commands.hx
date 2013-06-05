@@ -185,6 +185,8 @@ Remove host block device.  The result is that guest generated IO is no longer
 submitted against the host device underlying the disk.  Once a drive has
 been deleted, the QEMU Block layer returns -EIO which results in IO
 errors in the guest for applications that are reading/writing to the device.
+These errors are always reported to the guest, regardless of the drive's error
+actions (drive options rerror, werror).
 ETEXI
 
     {
