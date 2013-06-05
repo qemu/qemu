@@ -410,32 +410,3 @@ timestr(
 		snprintf(ts, size, "0.%04u sec", (unsigned int) (usec * 10000));
 	}
 }
-
-
-/* from libxcmd/quit.c */
-
-static cmdinfo_t quit_cmd;
-
-/* ARGSUSED */
-static int
-quit_f(
-    BlockDriverState *bs,
-	int	argc,
-	char	**argv)
-{
-	return 1;
-}
-
-void
-quit_init(void)
-{
-	quit_cmd.name = _("quit");
-	quit_cmd.altname = _("q");
-	quit_cmd.cfunc = quit_f;
-	quit_cmd.argmin = -1;
-	quit_cmd.argmax = -1;
-	quit_cmd.flags = CMD_FLAG_GLOBAL;
-	quit_cmd.oneline = _("exit the program");
-
-	add_command(&quit_cmd);
-}

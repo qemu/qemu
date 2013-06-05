@@ -137,6 +137,21 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     return openfile(argv[optind], flags, growable);
 }
 
+static int quit_f(BlockDriverState *bs, int argc, char **argv)
+{
+    return 1;
+}
+
+static const cmdinfo_t quit_cmd = {
+    .name       = "quit",
+    .altname    = "q",
+    .cfunc      = quit_f,
+    .argmin     = -1,
+    .argmax     = -1,
+    .flags      = CMD_FLAG_GLOBAL,
+    .oneline    = "exit the program",
+};
+
 static void usage(const char *name)
 {
     printf(
@@ -247,7 +262,7 @@ int main(int argc, char **argv)
     bdrv_init();
 
     /* initialize commands */
-    quit_init();
+    add_command(&quit_cmd);
     add_command(&open_cmd);
     add_command(&close_cmd);
 
