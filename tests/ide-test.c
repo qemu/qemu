@@ -64,6 +64,7 @@ enum {
 };
 
 enum {
+    DEV     = 0x10,
     LBA     = 0x40,
 };
 
@@ -394,7 +395,7 @@ static void test_identify(void)
 
     /* Read in the IDENTIFY buffer and check registers */
     data = inb(IDE_BASE + reg_device);
-    g_assert_cmpint(data & 0x10, ==, 0);
+    g_assert_cmpint(data & DEV, ==, 0);
 
     for (i = 0; i < 256; i++) {
         data = inb(IDE_BASE + reg_status);
