@@ -2318,6 +2318,9 @@ typedef struct {
     uint8_t fde_reg_ofs[14];
 } DebugFrame;
 
+/* We're expecting a 2 byte uleb128 encoded value.  */
+QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
+
 #if !defined(__ELF__)
     /* Host machine without ELF. */
 #elif TCG_TARGET_REG_BITS == 64
@@ -2381,9 +2384,6 @@ static DebugFrame debug_frame = {
 #if defined(ELF_HOST_MACHINE)
 void tcg_register_jit(void *buf, size_t buf_size)
 {
-    /* We're expecting a 2 byte uleb128 encoded value.  */
-    assert(FRAME_SIZE >> 14 == 0);
-
     debug_frame.fde.func_start = (tcg_target_long) buf;
     debug_frame.fde.func_len = buf_size;
 
