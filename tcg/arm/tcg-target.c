@@ -2088,23 +2088,31 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
     tcg_out_movi32(s, COND_AL, ret, arg);
 }
 
+/* Compute frame size via macros, to share between tcg_target_qemu_prologue
+   and tcg_register_jit.  */
+
+#define PUSH_SIZE  ((11 - 4 + 1 + 1) * sizeof(tcg_target_long))
+
+#define FRAME_SIZE \
+    ((PUSH_SIZE \
+      + TCG_STATIC_CALL_ARGS_SIZE \
+      + CPU_TEMP_BUF_NLONGS * sizeof(long) \
+      + TCG_TARGET_STACK_ALIGN - 1) \
+     & -TCG_TARGET_STACK_ALIGN)
+
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
-    int frame_size;
+    int stack_addend;
 
     /* Calling convention requires us to save r4-r11 and lr.  */
     /* stmdb sp!, { r4 - r11, lr } */
     tcg_out32(s, (COND_AL << 28) | 0x092d4ff0);
 
-    /* Allocate the local stack frame.  */
-    frame_size = TCG_STATIC_CALL_ARGS_SIZE;
-    frame_size += CPU_TEMP_BUF_NLONGS * sizeof(long);
-    /* We saved an odd number of registers above; keep an 8 aligned stack.  */
-    frame_size = ((frame_size + TCG_TARGET_STACK_ALIGN - 1)
-                  & -TCG_TARGET_STACK_ALIGN) + 4;
+    /* Reserve callee argument and tcg temp space.  */
+    stack_addend = FRAME_SIZE - PUSH_SIZE;
 
     tcg_out_dat_rI(s, COND_AL, ARITH_SUB, TCG_REG_CALL_STACK,
-                   TCG_REG_CALL_STACK, frame_size, 1);
+                   TCG_REG_CALL_STACK, stack_addend, 1);
     tcg_set_frame(s, TCG_REG_CALL_STACK, TCG_STATIC_CALL_ARGS_SIZE,
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
@@ -2115,8 +2123,58 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Epilogue.  We branch here via tb_ret_addr.  */
     tcg_out_dat_rI(s, COND_AL, ARITH_ADD, TCG_REG_CALL_STACK,
-                   TCG_REG_CALL_STACK, frame_size, 1);
+                   TCG_REG_CALL_STACK, stack_addend, 1);
 
     /* ldmia sp!, { r4 - r11, pc } */
     tcg_out32(s, (COND_AL << 28) | 0x08bd8ff0);
+}
+
+typedef struct {
+    DebugFrameCIE cie;
+    DebugFrameFDEHeader fde;
+    uint8_t fde_def_cfa[4];
+    uint8_t fde_reg_ofs[18];
+} DebugFrame;
+
+#define ELF_HOST_MACHINE EM_ARM
+
+/* We're expecting a 2 byte uleb128 encoded value.  */
+QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
+
+static DebugFrame debug_frame = {
+    .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
+    .cie.id = -1,
+    .cie.version = 1,
+    .cie.code_align = 1,
+    .cie.data_align = 0x7c,             /* sleb128 -4 */
+    .cie.return_column = 14,
+
+    /* Total FDE size does not include the "len" member.  */
+    .fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, fde.cie_offset),
+
+    .fde_def_cfa = {
+        12, 13,                         /* DW_CFA_def_cfa sp, ... */
+        (FRAME_SIZE & 0x7f) | 0x80,     /* ... uleb128 FRAME_SIZE */
+        (FRAME_SIZE >> 7)
+    },
+    .fde_reg_ofs = {
+        /* The following must match the stmdb in the prologue.  */
+        0x8e, 1,                        /* DW_CFA_offset, lr, -4 */
+        0x8b, 2,                        /* DW_CFA_offset, r11, -8 */
+        0x8a, 3,                        /* DW_CFA_offset, r10, -12 */
+        0x89, 4,                        /* DW_CFA_offset, r9, -16 */
+        0x88, 5,                        /* DW_CFA_offset, r8, -20 */
+        0x87, 6,                        /* DW_CFA_offset, r7, -24 */
+        0x86, 7,                        /* DW_CFA_offset, r6, -28 */
+        0x85, 8,                        /* DW_CFA_offset, r5, -32 */
+        0x84, 9,                        /* DW_CFA_offset, r4, -36 */
+    }
+};
+
+void tcg_register_jit(void *buf, size_t buf_size)
+{
+    debug_frame.fde.func_start = (tcg_target_long) buf;
+    debug_frame.fde.func_len = buf_size;
+
+    tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
