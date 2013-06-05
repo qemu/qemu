@@ -42,19 +42,6 @@
 #include <signal.h>
 #include "glib-compat.h"
 
-#if defined(__GLIBC__)
-# include <pty.h>
-#elif defined CONFIG_BSD
-# include <termios.h>
-# if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-#  include <libutil.h>
-# else
-#  include <util.h>
-# endif
-#elif defined CONFIG_SOLARIS
-# include <stropts.h>
-#endif
-
 #ifdef _WIN32
 #include "sysemu/os-win32.h"
 #endif
@@ -235,6 +222,8 @@ ssize_t qemu_recv_full(int fd, void *buf, size_t count, int flags)
 
 #ifndef _WIN32
 int qemu_pipe(int pipefd[2]);
+/* like openpty() but also makes it raw; return master fd */
+int qemu_openpty_raw(int *aslave, char *pty_name);
 #endif
 
 #ifdef _WIN32
