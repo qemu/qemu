@@ -122,7 +122,7 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
             growable = 1;
             break;
         default:
-            return command_usage(&open_cmd);
+            return qemuio_command_usage(&open_cmd);
         }
     }
 
@@ -131,7 +131,7 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     }
 
     if (optind != argc - 1) {
-        return command_usage(&open_cmd);
+        return qemuio_command_usage(&open_cmd);
     }
 
     return openfile(argv[optind], flags, growable);
@@ -262,9 +262,9 @@ int main(int argc, char **argv)
     bdrv_init();
 
     /* initialize commands */
-    add_command(&quit_cmd);
-    add_command(&open_cmd);
-    add_command(&close_cmd);
+    qemuio_add_command(&quit_cmd);
+    qemuio_add_command(&open_cmd);
+    qemuio_add_command(&close_cmd);
 
     /* open the device */
     if (!readonly) {

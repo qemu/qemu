@@ -16,6 +16,110 @@
 
 int qemuio_misalign;
 
+static cmdinfo_t *cmdtab;
+static int ncmds;
+
+static int compare_cmdname(const void *a, const void *b)
+{
+    return strcmp(((const cmdinfo_t *)a)->name,
+                  ((const cmdinfo_t *)b)->name);
+}
+
+void qemuio_add_command(const cmdinfo_t *ci)
+{
+    cmdtab = g_realloc(cmdtab, ++ncmds * sizeof(*cmdtab));
+    cmdtab[ncmds - 1] = *ci;
+    qsort(cmdtab, ncmds, sizeof(*cmdtab), compare_cmdname);
+}
+
+int qemuio_command_usage(const cmdinfo_t *ci)
+{
+    printf("%s %s -- %s\n", ci->name, ci->args, ci->oneline);
+    return 0;
+}
+
+static int init_check_command(BlockDriverState *bs, const cmdinfo_t *ct)
+{
+    if (ct->flags & CMD_FLAG_GLOBAL) {
+        return 1;
+    }
+    if (!(ct->flags & CMD_NOFILE_OK) && !bs) {
+        fprintf(stderr, "no file open, try 'help open'\n");
+        return 0;
+    }
+    return 1;
+}
+
+static int command(const cmdinfo_t *ct, int argc, char **argv)
+{
+    char *cmd = argv[0];
+
+    if (!init_check_command(qemuio_bs, ct)) {
+        return 0;
+    }
+
+    if (argc - 1 < ct->argmin || (ct->argmax != -1 && argc - 1 > ct->argmax)) {
+        if (ct->argmax == -1) {
+            fprintf(stderr,
+                    "bad argument count %d to %s, expected at least %d arguments\n",
+                    argc-1, cmd, ct->argmin);
+        } else if (ct->argmin == ct->argmax) {
+            fprintf(stderr,
+                    "bad argument count %d to %s, expected %d arguments\n",
+                    argc-1, cmd, ct->argmin);
+        } else {
+            fprintf(stderr,
+                    "bad argument count %d to %s, expected between %d and %d arguments\n",
+                    argc-1, cmd, ct->argmin, ct->argmax);
+        }
+        return 0;
+    }
+    optind = 0;
+    return ct->cfunc(qemuio_bs, argc, argv);
+}
+
+static const cmdinfo_t *find_command(const char *cmd)
+{
+    cmdinfo_t *ct;
+
+    for (ct = cmdtab; ct < &cmdtab[ncmds]; ct++) {
+        if (strcmp(ct->name, cmd) == 0 ||
+            (ct->altname && strcmp(ct->altname, cmd) == 0))
+        {
+            return (const cmdinfo_t *)ct;
+        }
+    }
+    return NULL;
+}
+
+static char **breakline(char *input, int *count)
+{
+    int c = 0;
+    char *p;
+    char **rval = g_malloc0(sizeof(char *));
+    char **tmp;
+
+    while (rval && (p = qemu_strsep(&input, " ")) != NULL) {
+        if (!*p) {
+            continue;
+        }
+        c++;
+        tmp = g_realloc(rval, sizeof(*rval) * (c + 1));
+        if (!tmp) {
+            g_free(rval);
+            rval = NULL;
+            c = 0;
+            break;
+        } else {
+            rval = tmp;
+        }
+        rval[c - 1] = p;
+        rval[c] = NULL;
+    }
+    *count = c;
+    return rval;
+}
+
 static int64_t cvtnum(const char *s)
 {
     char *end;
@@ -467,12 +571,12 @@ static int read_f(BlockDriverState *bs, int argc, char **argv)
             vflag = 1;
             break;
         default:
-            return command_usage(&read_cmd);
+            return qemuio_command_usage(&read_cmd);
         }
     }
 
     if (optind != argc - 2) {
-        return command_usage(&read_cmd);
+        return qemuio_command_usage(&read_cmd);
     }
 
     if (bflag && pflag) {
@@ -494,7 +598,7 @@ static int read_f(BlockDriverState *bs, int argc, char **argv)
     }
 
     if (!Pflag && (lflag || sflag)) {
-        return command_usage(&read_cmd);
+        return qemuio_command_usage(&read_cmd);
     }
 
     if (!lflag) {
@@ -629,12 +733,12 @@ static int readv_f(BlockDriverState *bs, int argc, char **argv)
             vflag = 1;
             break;
         default:
-            return command_usage(&readv_cmd);
+            return qemuio_command_usage(&readv_cmd);
         }
     }
 
     if (optind > argc - 2) {
-        return command_usage(&readv_cmd);
+        return qemuio_command_usage(&readv_cmd);
     }
 
 
@@ -769,12 +873,12 @@ static int write_f(BlockDriverState *bs, int argc, char **argv)
             zflag = 1;
             break;
         default:
-            return command_usage(&write_cmd);
+            return qemuio_command_usage(&write_cmd);
         }
     }
 
     if (optind != argc - 2) {
-        return command_usage(&write_cmd);
+        return qemuio_command_usage(&write_cmd);
     }
 
     if (bflag + pflag + zflag > 1) {
@@ -911,12 +1015,12 @@ static int writev_f(BlockDriverState *bs, int argc, char **argv)
             }
             break;
         default:
-            return command_usage(&writev_cmd);
+            return qemuio_command_usage(&writev_cmd);
         }
     }
 
     if (optind > argc - 2) {
-        return command_usage(&writev_cmd);
+        return qemuio_command_usage(&writev_cmd);
     }
 
     offset = cvtnum(argv[optind]);
@@ -1023,12 +1127,12 @@ static int multiwrite_f(BlockDriverState *bs, int argc, char **argv)
             }
             break;
         default:
-            return command_usage(&writev_cmd);
+            return qemuio_command_usage(&writev_cmd);
         }
     }
 
     if (optind > argc - 2) {
-        return command_usage(&writev_cmd);
+        return qemuio_command_usage(&writev_cmd);
     }
 
     nr_reqs = 1;
@@ -1257,13 +1361,13 @@ static int aio_read_f(BlockDriverState *bs, int argc, char **argv)
             break;
         default:
             g_free(ctx);
-            return command_usage(&aio_read_cmd);
+            return qemuio_command_usage(&aio_read_cmd);
         }
     }
 
     if (optind > argc - 2) {
         g_free(ctx);
-        return command_usage(&aio_read_cmd);
+        return qemuio_command_usage(&aio_read_cmd);
     }
 
     ctx->offset = cvtnum(argv[optind]);
@@ -1349,13 +1453,13 @@ static int aio_write_f(BlockDriverState *bs, int argc, char **argv)
             break;
         default:
             g_free(ctx);
-            return command_usage(&aio_write_cmd);
+            return qemuio_command_usage(&aio_write_cmd);
         }
     }
 
     if (optind > argc - 2) {
         g_free(ctx);
-        return command_usage(&aio_write_cmd);
+        return qemuio_command_usage(&aio_write_cmd);
     }
 
     ctx->offset = cvtnum(argv[optind]);
@@ -1547,12 +1651,12 @@ static int discard_f(BlockDriverState *bs, int argc, char **argv)
             qflag = 1;
             break;
         default:
-            return command_usage(&discard_cmd);
+            return qemuio_command_usage(&discard_cmd);
         }
     }
 
     if (optind != argc - 2) {
-        return command_usage(&discard_cmd);
+        return qemuio_command_usage(&discard_cmd);
     }
 
     offset = cvtnum(argv[optind]);
@@ -1860,18 +1964,6 @@ static const cmdinfo_t help_cmd = {
     .oneline    = "help for one or all commands",
 };
 
-static int init_check_command(BlockDriverState *bs, const cmdinfo_t *ct)
-{
-    if (ct->flags & CMD_FLAG_GLOBAL) {
-        return 1;
-    }
-    if (!(ct->flags & CMD_NOFILE_OK) && !bs) {
-        fprintf(stderr, "no file open, try 'help open'\n");
-        return 0;
-    }
-    return 1;
-}
-
 bool qemuio_command(const char *cmd)
 {
     char *input;
@@ -1899,26 +1991,24 @@ bool qemuio_command(const char *cmd)
 static void __attribute((constructor)) init_qemuio_commands(void)
 {
     /* initialize commands */
-    add_command(&help_cmd);
-    add_command(&read_cmd);
-    add_command(&readv_cmd);
-    add_command(&write_cmd);
-    add_command(&writev_cmd);
-    add_command(&multiwrite_cmd);
-    add_command(&aio_read_cmd);
-    add_command(&aio_write_cmd);
-    add_command(&aio_flush_cmd);
-    add_command(&flush_cmd);
-    add_command(&truncate_cmd);
-    add_command(&length_cmd);
-    add_command(&info_cmd);
-    add_command(&discard_cmd);
-    add_command(&alloc_cmd);
-    add_command(&map_cmd);
-    add_command(&break_cmd);
-    add_command(&resume_cmd);
-    add_command(&wait_break_cmd);
-    add_command(&abort_cmd);
-
-    add_check_command(init_check_command);
+    qemuio_add_command(&help_cmd);
+    qemuio_add_command(&read_cmd);
+    qemuio_add_command(&readv_cmd);
+    qemuio_add_command(&write_cmd);
+    qemuio_add_command(&writev_cmd);
+    qemuio_add_command(&multiwrite_cmd);
+    qemuio_add_command(&aio_read_cmd);
+    qemuio_add_command(&aio_write_cmd);
+    qemuio_add_command(&aio_flush_cmd);
+    qemuio_add_command(&flush_cmd);
+    qemuio_add_command(&truncate_cmd);
+    qemuio_add_command(&length_cmd);
+    qemuio_add_command(&info_cmd);
+    qemuio_add_command(&discard_cmd);
+    qemuio_add_command(&alloc_cmd);
+    qemuio_add_command(&map_cmd);
+    qemuio_add_command(&break_cmd);
+    qemuio_add_command(&resume_cmd);
+    qemuio_add_command(&wait_break_cmd);
+    qemuio_add_command(&abort_cmd);
 }

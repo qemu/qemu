@@ -31,94 +31,9 @@
 
 /* from libxcmd/command.c */
 
-cmdinfo_t	*cmdtab;
-int		ncmds;
-
-static checkfunc_t	check_func;
 static int		ncmdline;
 static char		**cmdline;
 
-static int
-compare(const void *a, const void *b)
-{
-	return strcmp(((const cmdinfo_t *)a)->name,
-		      ((const cmdinfo_t *)b)->name);
-}
-
-void add_command(const cmdinfo_t *ci)
-{
-    cmdtab = g_realloc((void *)cmdtab, ++ncmds * sizeof(*cmdtab));
-    cmdtab[ncmds - 1] = *ci;
-    qsort(cmdtab, ncmds, sizeof(*cmdtab), compare);
-}
-
-static int
-check_command(
-	const cmdinfo_t	*ci)
-{
-	if (check_func)
-		return check_func(qemuio_bs, ci);
-	return 1;
-}
-
-void
-add_check_command(
-	checkfunc_t	cf)
-{
-	check_func = cf;
-}
-
-int
-command_usage(
-	const cmdinfo_t *ci)
-{
-	printf("%s %s -- %s\n", ci->name, ci->args, ci->oneline);
-	return 0;
-}
-
-int
-command(
-	const cmdinfo_t	*ct,
-	int		argc,
-	char		**argv)
-{
-	char		*cmd = argv[0];
-
-	if (!check_command(ct))
-		return 0;
-
-	if (argc-1 < ct->argmin || (ct->argmax != -1 && argc-1 > ct->argmax)) {
-		if (ct->argmax == -1)
-			fprintf(stderr,
-	_("bad argument count %d to %s, expected at least %d arguments\n"),
-				argc-1, cmd, ct->argmin);
-		else if (ct->argmin == ct->argmax)
-			fprintf(stderr,
-	_("bad argument count %d to %s, expected %d arguments\n"),
-				argc-1, cmd, ct->argmin);
-		else
-			fprintf(stderr,
-	_("bad argument count %d to %s, expected between %d and %d arguments\n"),
-			argc-1, cmd, ct->argmin, ct->argmax);
-		return 0;
-	}
-	optind = 0;
-	return ct->cfunc(qemuio_bs, argc, argv);
-}
-
-const cmdinfo_t *
-find_command(
-	const char	*cmd)
-{
-	cmdinfo_t	*ct;
-
-	for (ct = cmdtab; ct < &cmdtab[ncmds]; ct++) {
-		if (strcmp(ct->name, cmd) == 0 ||
-		    (ct->altname && strcmp(ct->altname, cmd) == 0))
-			return (const cmdinfo_t *)ct;
-	}
-	return NULL;
-}
 
 void add_user_command(char *optarg)
 {
@@ -254,34 +169,6 @@ fetchline(void)
 	return line;
 }
 #endif
-
-char **breakline(char *input, int *count)
-{
-    int c = 0;
-    char *p;
-    char **rval = calloc(sizeof(char *), 1);
-    char **tmp;
-
-    while (rval && (p = qemu_strsep(&input, " ")) != NULL) {
-        if (!*p) {
-            continue;
-        }
-        c++;
-        tmp = realloc(rval, sizeof(*rval) * (c + 1));
-        if (!tmp) {
-            free(rval);
-            rval = NULL;
-            c = 0;
-            break;
-        } else {
-            rval = tmp;
-        }
-        rval[c - 1] = p;
-        rval[c] = NULL;
-    }
-    *count = c;
-    return rval;
-}
 
 #define EXABYTES(x)	((long long)(x) << 60)
 #define PETABYTES(x)	((long long)(x) << 50)

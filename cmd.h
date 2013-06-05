@@ -39,23 +39,16 @@ typedef struct cmdinfo {
 	helpfunc_t      help;
 } cmdinfo_t;
 
-extern cmdinfo_t	*cmdtab;
-extern int		ncmds;
-
 typedef int (*checkfunc_t)(BlockDriverState *bs, const cmdinfo_t *ci);
 
-void add_command(const cmdinfo_t *ci);
+void qemuio_add_command(const cmdinfo_t *ci);
 void add_user_command(char *optarg);
 void add_check_command(checkfunc_t cf);
 
-const cmdinfo_t *find_command(const char *cmd);
-
 void command_loop(void);
-int command_usage(const cmdinfo_t *ci);
-int command(const cmdinfo_t *ci, int argc, char **argv);
+int qemuio_command_usage(const cmdinfo_t *ci);
 
 /* from input.h */
-char **breakline(char *input, int *count);
 char *fetchline(void);
 
 void cvtstr(double value, char *str, size_t sz);
