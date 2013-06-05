@@ -77,6 +77,7 @@ enum {
 enum {
     CMD_READ_DMA    = 0xc8,
     CMD_WRITE_DMA   = 0xca,
+    CMD_FLUSH_CACHE = 0xe7,
     CMD_IDENTIFY    = 0xec,
 
     CMDF_ABORT      = 0x100,
@@ -424,6 +425,43 @@ static void test_identify(void)
     ide_test_quit();
 }
 
+static void test_flush(void)
+{
+    uint8_t data;
+
+    ide_test_start(
+        "-vnc none "
+        "-drive file=blkdebug::%s,if=ide,cache=writeback",
+        tmp_path);
+
+    /* Delay the completion of the flush request until we explicitly do it */
+    qmp("{'execute':'human-monitor-command', 'arguments': { "
+        "'command-line': 'qemu-io ide0-hd0 \"break flush_to_os A\"'} }");
+
+    /* FLUSH CACHE command on device 0*/
+    outb(IDE_BASE + reg_device, 0);
+    outb(IDE_BASE + reg_command, CMD_FLUSH_CACHE);
+
+    /* Check status while request is in flight*/
+    data = inb(IDE_BASE + reg_status);
+    assert_bit_set(data, BSY | DRDY);
+    assert_bit_clear(data, DF | ERR | DRQ);
+
+    /* Complete the command */
+    qmp("{'execute':'human-monitor-command', 'arguments': { "
+        "'command-line': 'qemu-io ide0-hd0 \"resume A\"'} }");
+
+    /* Check registers */
+    data = inb(IDE_BASE + reg_device);
+    g_assert_cmpint(data & DEV, ==, 0);
+
+    data = inb(IDE_BASE + reg_status);
+    assert_bit_set(data, DRDY);
+    assert_bit_clear(data, BSY | DF | ERR | DRQ);
+
+    ide_test_quit();
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -453,6 +491,8 @@ int main(int argc, char **argv)
     qtest_add_func("/ide/bmdma/short_prdt", test_bmdma_short_prdt);
     qtest_add_func("/ide/bmdma/long_prdt", test_bmdma_long_prdt);
     qtest_add_func("/ide/bmdma/teardown", test_bmdma_teardown);
+
+    qtest_add_func("/ide/flush", test_flush);
 
     ret = g_test_run();
 
