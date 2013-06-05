@@ -344,43 +344,6 @@ doneline(
 #define MEGABYTES(x)	((long long)(x) << 20)
 #define KILOBYTES(x)	((long long)(x) << 10)
 
-long long
-cvtnum(
-	char		*s)
-{
-	long long	i;
-	char		*sp;
-	int		c;
-
-	i = strtoll(s, &sp, 0);
-	if (i == 0 && sp == s)
-		return -1LL;
-	if (*sp == '\0')
-		return i;
-
-	if (sp[1] != '\0')
-		return -1LL;
-
-	c = qemu_tolower(*sp);
-	switch (c) {
-	default:
-		return i;
-	case 'k':
-		return KILOBYTES(i);
-	case 'm':
-		return MEGABYTES(i);
-	case 'g':
-		return GIGABYTES(i);
-	case 't':
-		return TERABYTES(i);
-	case 'p':
-		return PETABYTES(i);
-	case 'e':
-		return  EXABYTES(i);
-	}
-	return -1LL;
-}
-
 #define TO_EXABYTES(x)	((x) / EXABYTES(1))
 #define TO_PETABYTES(x)	((x) / PETABYTES(1))
 #define TO_TERABYTES(x)	((x) / TERABYTES(1))

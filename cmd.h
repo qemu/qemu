@@ -58,7 +58,6 @@ char **breakline(char *input, int *count);
 void doneline(char *input, char **vec);
 char *fetchline(void);
 
-long long cvtnum(char *s);
 void cvtstr(double value, char *str, size_t sz);
 
 struct timeval tsub(struct timeval t1, struct timeval t2);

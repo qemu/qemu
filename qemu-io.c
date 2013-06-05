@@ -29,6 +29,12 @@ static BlockDriverState *bs;
 
 static int misalign;
 
+static int64_t cvtnum(const char *s)
+{
+    char *end;
+    return strtosz_suffix(s, &end, STRTOSZ_DEFSUFFIX_B);
+}
+
 /*
  * Parse the pattern argument to various sub-commands.
  *
