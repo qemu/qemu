@@ -1795,6 +1795,71 @@ static const cmdinfo_t abort_cmd = {
        .oneline        = "simulate a program crash using abort(3)",
 };
 
+static void help_oneline(const char *cmd, const cmdinfo_t *ct)
+{
+    if (cmd) {
+        printf("%s ", cmd);
+    } else {
+        printf("%s ", ct->name);
+        if (ct->altname) {
+            printf("(or %s) ", ct->altname);
+        }
+    }
+
+    if (ct->args) {
+        printf("%s ", ct->args);
+    }
+    printf("-- %s\n", ct->oneline);
+}
+
+static void help_onecmd(const char *cmd, const cmdinfo_t *ct)
+{
+    help_oneline(cmd, ct);
+    if (ct->help) {
+        ct->help();
+    }
+}
+
+static void help_all(void)
+{
+    const cmdinfo_t *ct;
+
+    for (ct = cmdtab; ct < &cmdtab[ncmds]; ct++) {
+        help_oneline(ct->name, ct);
+    }
+    printf("\nUse 'help commandname' for extended help.\n");
+}
+
+static int help_f(BlockDriverState *bs, int argc, char **argv)
+{
+    const cmdinfo_t *ct;
+
+    if (argc == 1) {
+        help_all();
+        return 0;
+    }
+
+    ct = find_command(argv[1]);
+    if (ct == NULL) {
+        printf("command %s not found\n", argv[1]);
+        return 0;
+    }
+
+    help_onecmd(argv[1], ct);
+    return 0;
+}
+
+static const cmdinfo_t help_cmd = {
+    .name       = "help",
+    .altname    = "?",
+    .cfunc      = help_f,
+    .argmin     = 0,
+    .argmax     = 1,
+    .flags      = CMD_FLAG_GLOBAL,
+    .args       = "[command]",
+    .oneline    = "help for one or all commands",
+};
+
 static int init_check_command(BlockDriverState *bs, const cmdinfo_t *ct)
 {
     if (ct->flags & CMD_FLAG_GLOBAL) {
@@ -1834,7 +1899,7 @@ bool qemuio_command(const char *cmd)
 static void __attribute((constructor)) init_qemuio_commands(void)
 {
     /* initialize commands */
-    help_init();
+    add_command(&help_cmd);
     add_command(&read_cmd);
     add_command(&readv_cmd);
     add_command(&write_cmd);

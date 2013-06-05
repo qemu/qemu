@@ -42,7 +42,6 @@ typedef struct cmdinfo {
 extern cmdinfo_t	*cmdtab;
 extern int		ncmds;
 
-void help_init(void);
 void quit_init(void);
 
 typedef int (*checkfunc_t)(BlockDriverState *bs, const cmdinfo_t *ci);
