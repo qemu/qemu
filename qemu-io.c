@@ -19,8 +19,6 @@
 #include "block/block_int.h"
 #include "trace/control.h"
 
-#define VERSION	"0.0.1"
-
 #define CMD_NOFILE_OK   0x01
 
 char *progname;
@@ -380,7 +378,7 @@ int main(int argc, char **argv)
             }
             break;
         case 'V':
-            printf("%s version %s\n", progname, VERSION);
+            printf("%s version %s\n", progname, QEMU_VERSION);
             exit(0);
         case 'h':
             usage(progname);
