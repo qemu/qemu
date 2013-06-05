@@ -267,6 +267,10 @@ static int64_t suffix_mul(char suffix, int64_t unit)
         return unit * unit * unit;
     case STRTOSZ_DEFSUFFIX_TB:
         return unit * unit * unit * unit;
+    case STRTOSZ_DEFSUFFIX_PB:
+        return unit * unit * unit * unit * unit;
+    case STRTOSZ_DEFSUFFIX_EB:
+        return unit * unit * unit * unit * unit * unit;
     }
     return -1;
 }

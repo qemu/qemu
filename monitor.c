@@ -93,10 +93,10 @@
  * 'M'          Non-negative target long (32 or 64 bit), in user mode the
  *              value is multiplied by 2^20 (think Mebibyte)
  * 'o'          octets (aka bytes)
- *              user mode accepts an optional T, t, G, g, M, m, K, k
- *              suffix, which multiplies the value by 2^40 for
- *              suffixes T and t, 2^30 for suffixes G and g, 2^20 for
- *              M and m, 2^10 for K and k
+ *              user mode accepts an optional E, e, P, p, T, t, G, g, M, m,
+ *              K, k suffix, which multiplies the value by 2^60 for suffixes E
+ *              and e, 2^50 for suffixes P and p, 2^40 for suffixes T and t,
+ *              2^30 for suffixes G and g, 2^20 for M and m, 2^10 for K and k
  * 'T'          double
  *              user mode accepts an optional ms, us, ns suffix,
  *              which divides the value by 1e3, 1e6, 1e9, respectively
