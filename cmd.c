@@ -57,7 +57,7 @@ check_command(
 	const cmdinfo_t	*ci)
 {
 	if (check_func)
-		return check_func(ci);
+		return check_func(qemuio_bs, ci);
 	return 1;
 }
 
@@ -103,7 +103,7 @@ command(
 		return 0;
 	}
 	optind = 0;
-	return ct->cfunc(argc, argv);
+	return ct->cfunc(qemuio_bs, argc, argv);
 }
 
 const cmdinfo_t *
@@ -452,6 +452,7 @@ static cmdinfo_t quit_cmd;
 /* ARGSUSED */
 static int
 quit_f(
+    BlockDriverState *bs,
 	int	argc,
 	char	**argv)
 {
@@ -490,6 +491,7 @@ help_all(void)
 
 static int
 help_f(
+    BlockDriverState *bs,
 	int		argc,
 	char		**argv)
 {

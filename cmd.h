@@ -17,9 +17,13 @@
 #ifndef __COMMAND_H__
 #define __COMMAND_H__
 
+#include "qemu-common.h"
+
 #define CMD_FLAG_GLOBAL	((int)0x80000000)	/* don't iterate "args" */
 
-typedef int (*cfunc_t)(int argc, char **argv);
+extern BlockDriverState *qemuio_bs;
+
+typedef int (*cfunc_t)(BlockDriverState *bs, int argc, char **argv);
 typedef void (*helpfunc_t)(void);
 
 typedef struct cmdinfo {
@@ -41,7 +45,7 @@ extern int		ncmds;
 void help_init(void);
 void quit_init(void);
 
-typedef int (*checkfunc_t)(const cmdinfo_t *ci);
+typedef int (*checkfunc_t)(BlockDriverState *bs, const cmdinfo_t *ci);
 
 void add_command(const cmdinfo_t *ci);
 void add_user_command(char *optarg);
