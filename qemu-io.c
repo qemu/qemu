@@ -1596,7 +1596,10 @@ static int alloc_f(int argc, char **argv)
     int ret;
 
     offset = cvtnum(argv[1]);
-    if (offset & 0x1ff) {
+    if (offset < 0) {
+        printf("non-numeric offset argument -- %s\n", argv[1]);
+        return 0;
+    } else if (offset & 0x1ff) {
         printf("offset %" PRId64 " is not sector aligned\n",
                offset);
         return 0;
@@ -1604,6 +1607,10 @@ static int alloc_f(int argc, char **argv)
 
     if (argc == 3) {
         nb_sectors = cvtnum(argv[2]);
+        if (nb_sectors < 0) {
+            printf("non-numeric length argument -- %s\n", argv[2]);
+            return 0;
+        }
     } else {
         nb_sectors = 1;
     }
