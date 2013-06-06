@@ -36,15 +36,24 @@ static void usb_ehci_sysbus_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(dev);
     EHCISysBusState *i = SYS_BUS_EHCI(dev);
-    SysBusEHCIClass *sec = SYS_BUS_EHCI_GET_CLASS(dev);
+    EHCIState *s = &i->ehci;
+
+    usb_ehci_realize(s, dev, errp);
+    sysbus_init_irq(d, &s->irq);
+}
+
+static void ehci_sysbus_init(Object *obj)
+{
+    SysBusDevice *d = SYS_BUS_DEVICE(obj);
+    EHCISysBusState *i = SYS_BUS_EHCI(obj);
+    SysBusEHCIClass *sec = SYS_BUS_EHCI_GET_CLASS(obj);
     EHCIState *s = &i->ehci;
 
     s->capsbase = sec->capsbase;
     s->opregbase = sec->opregbase;
     s->as = &address_space_memory;
 
-    usb_ehci_realize(s, dev, errp);
-    sysbus_init_irq(d, &s->irq);
+    usb_ehci_init(s, DEVICE(obj));
     sysbus_init_mmio(d, &s->mem);
 }
 
@@ -61,6 +70,7 @@ static const TypeInfo ehci_type_info = {
     .name          = TYPE_SYS_BUS_EHCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(EHCISysBusState),
+    .instance_init = ehci_sysbus_init,
     .abstract      = true,
     .class_init    = ehci_sysbus_class_init,
     .class_size    = sizeof(SysBusEHCIClass),

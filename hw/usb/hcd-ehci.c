@@ -2512,6 +2512,22 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
 {
     int i;
 
+    usb_bus_new(&s->bus, &ehci_bus_ops, dev);
+    for (i = 0; i < NB_PORTS; i++) {
+        usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
+                          USB_SPEED_MASK_HIGH);
+        s->ports[i].dev = 0;
+    }
+
+    s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
+    s->async_bh = qemu_bh_new(ehci_frame_timer, s);
+
+    qemu_register_reset(ehci_reset, s);
+    qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
+}
+
+void usb_ehci_init(EHCIState *s, DeviceState *dev)
+{
     /* 2.2 host controller interface version */
     s->caps[0x00] = (uint8_t)(s->opregbase - s->capsbase);
     s->caps[0x01] = 0x00;
@@ -2525,21 +2541,9 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
     s->caps[0x0a] = 0x00;
     s->caps[0x0b] = 0x00;
 
-    usb_bus_new(&s->bus, &ehci_bus_ops, dev);
-    for(i = 0; i < NB_PORTS; i++) {
-        usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
-                          USB_SPEED_MASK_HIGH);
-        s->ports[i].dev = 0;
-    }
-
-    s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
-    s->async_bh = qemu_bh_new(ehci_frame_timer, s);
     QTAILQ_INIT(&s->aqueues);
     QTAILQ_INIT(&s->pqueues);
     usb_packet_init(&s->ipacket);
-
-    qemu_register_reset(ehci_reset, s);
-    qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
 
     memory_region_init(&s->mem, "ehci", MMIO_SIZE);
     memory_region_init_io(&s->mem_caps, &ehci_mmio_caps_ops, s,
