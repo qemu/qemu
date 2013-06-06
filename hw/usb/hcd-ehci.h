@@ -338,6 +338,7 @@ typedef struct EHCIPCIState {
 #define TYPE_SYS_BUS_EHCI "sysbus-ehci-usb"
 #define TYPE_EXYNOS4210_EHCI "exynos4210-ehci-usb"
 #define TYPE_TEGRA2_EHCI "tegra2-ehci-usb"
+#define TYPE_FUSBH200_EHCI "fusbh200-ehci-usb"
 
 #define SYS_BUS_EHCI(obj) \
     OBJECT_CHECK(EHCISysBusState, (obj), TYPE_SYS_BUS_EHCI)
@@ -364,5 +365,16 @@ typedef struct SysBusEHCIClass {
     uint16_t portscbase;
     uint16_t portnr;
 } SysBusEHCIClass;
+
+#define FUSBH200_EHCI(obj) \
+    OBJECT_CHECK(FUSBH200EHCIState, (obj), TYPE_FUSBH200_EHCI)
+
+typedef struct FUSBH200EHCIState {
+    /*< private >*/
+    EHCISysBusState parent_obj;
+    /*< public >*/
+
+    MemoryRegion mem_vendor;
+} FUSBH200EHCIState;
 
 #endif

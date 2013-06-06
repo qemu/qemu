@@ -124,12 +124,87 @@ static const TypeInfo ehci_tegra2_type_info = {
     .class_init    = ehci_tegra2_class_init,
 };
 
+/*
+ * Faraday FUSBH200 USB 2.0 EHCI
+ */
+
+/**
+ * FUSBH200EHCIRegs:
+ * @FUSBH200_REG_EOF_ASTR: EOF/Async. Sleep Timer Register
+ * @FUSBH200_REG_BMCSR: Bus Monitor Control/Status Register
+ */
+enum FUSBH200EHCIRegs {
+    FUSBH200_REG_EOF_ASTR = 0x34,
+    FUSBH200_REG_BMCSR    = 0x40,
+};
+
+static uint64_t fusbh200_ehci_read(void *opaque, hwaddr addr, unsigned size)
+{
+    EHCIState *s = opaque;
+    hwaddr off = s->opregbase + s->portscbase + 4 * s->portnr + addr;
+
+    switch (off) {
+    case FUSBH200_REG_EOF_ASTR:
+        return 0x00000041;
+    case FUSBH200_REG_BMCSR:
+        /* High-Speed, VBUS valid, interrupt level-high active */
+        return (2 << 9) | (1 << 8) | (1 << 3);
+    }
+
+    return 0;
+}
+
+static void fusbh200_ehci_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
+{
+}
+
+static const MemoryRegionOps fusbh200_ehci_mmio_ops = {
+    .read = fusbh200_ehci_read,
+    .write = fusbh200_ehci_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void fusbh200_ehci_init(Object *obj)
+{
+    EHCISysBusState *i = SYS_BUS_EHCI(obj);
+    FUSBH200EHCIState *f = FUSBH200_EHCI(obj);
+    EHCIState *s = &i->ehci;
+
+    memory_region_init_io(&f->mem_vendor, &fusbh200_ehci_mmio_ops, s,
+                          "fusbh200", 0x4c);
+    memory_region_add_subregion(&s->mem,
+                                s->opregbase + s->portscbase + 4 * s->portnr,
+                                &f->mem_vendor);
+}
+
+static void fusbh200_ehci_class_init(ObjectClass *oc, void *data)
+{
+    SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
+
+    sec->capsbase = 0x0;
+    sec->opregbase = 0x10;
+    sec->portscbase = 0x20;
+    sec->portnr = 1;
+}
+
+static const TypeInfo ehci_fusbh200_type_info = {
+    .name          = TYPE_FUSBH200_EHCI,
+    .parent        = TYPE_SYS_BUS_EHCI,
+    .instance_size = sizeof(FUSBH200EHCIState),
+    .instance_init = fusbh200_ehci_init,
+    .class_init    = fusbh200_ehci_class_init,
+};
+
 static void ehci_sysbus_register_types(void)
 {
     type_register_static(&ehci_type_info);
     type_register_static(&ehci_xlnx_type_info);
     type_register_static(&ehci_exynos4210_type_info);
     type_register_static(&ehci_tegra2_type_info);
+    type_register_static(&ehci_fusbh200_type_info);
 }
 
 type_init(ehci_sysbus_register_types)
