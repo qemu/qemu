@@ -51,6 +51,8 @@ static void ehci_sysbus_init(Object *obj)
 
     s->capsbase = sec->capsbase;
     s->opregbase = sec->opregbase;
+    s->portscbase = sec->portscbase;
+    s->portnr = sec->portnr;
     s->as = &address_space_memory;
 
     usb_ehci_init(s, DEVICE(obj));
@@ -60,6 +62,10 @@ static void ehci_sysbus_init(Object *obj)
 static void ehci_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(klass);
+
+    sec->portscbase = 0x44;
+    sec->portnr = NB_PORTS;
 
     dc->realize = usb_ehci_sysbus_realize;
     dc->vmsd = &vmstate_ehci_sysbus;
