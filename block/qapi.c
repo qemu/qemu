@@ -26,29 +26,56 @@
 #include "block/block_int.h"
 #include "qmp-commands.h"
 
-void bdrv_collect_snapshots(BlockDriverState *bs , ImageInfo *info)
+/*
+ * Returns 0 on success, with *p_list either set to describe snapshot
+ * information, or NULL because there are no snapshots.  Returns -errno on
+ * error, with *p_list untouched.
+ */
+int bdrv_query_snapshot_info_list(BlockDriverState *bs,
+                                  SnapshotInfoList **p_list,
+                                  Error **errp)
 {
     int i, sn_count;
     QEMUSnapshotInfo *sn_tab = NULL;
-    SnapshotInfoList *info_list, *cur_item = NULL;
+    SnapshotInfoList *info_list, *cur_item = NULL, *head = NULL;
+    SnapshotInfo *info;
+
     sn_count = bdrv_snapshot_list(bs, &sn_tab);
+    if (sn_count < 0) {
+        const char *dev = bdrv_get_device_name(bs);
+        switch (sn_count) {
+        case -ENOMEDIUM:
+            error_setg(errp, "Device '%s' is not inserted", dev);
+            break;
+        case -ENOTSUP:
+            error_setg(errp,
+                       "Device '%s' does not support internal snapshots",
+                       dev);
+            break;
+        default:
+            error_setg_errno(errp, -sn_count,
+                             "Can't list snapshots of device '%s'", dev);
+            break;
+        }
+        return sn_count;
+    }
 
     for (i = 0; i < sn_count; i++) {
-        info->has_snapshots = true;
-        info_list = g_new0(SnapshotInfoList, 1);
+        info = g_new0(SnapshotInfo, 1);
+        info->id            = g_strdup(sn_tab[i].id_str);
+        info->name          = g_strdup(sn_tab[i].name);
+        info->vm_state_size = sn_tab[i].vm_state_size;
+        info->date_sec      = sn_tab[i].date_sec;
+        info->date_nsec     = sn_tab[i].date_nsec;
+        info->vm_clock_sec  = sn_tab[i].vm_clock_nsec / 1000000000;
+        info->vm_clock_nsec = sn_tab[i].vm_clock_nsec % 1000000000;
 
-        info_list->value                = g_new0(SnapshotInfo, 1);
-        info_list->value->id            = g_strdup(sn_tab[i].id_str);
-        info_list->value->name          = g_strdup(sn_tab[i].name);
-        info_list->value->vm_state_size = sn_tab[i].vm_state_size;
-        info_list->value->date_sec      = sn_tab[i].date_sec;
-        info_list->value->date_nsec     = sn_tab[i].date_nsec;
-        info_list->value->vm_clock_sec  = sn_tab[i].vm_clock_nsec / 1000000000;
-        info_list->value->vm_clock_nsec = sn_tab[i].vm_clock_nsec % 1000000000;
+        info_list = g_new0(SnapshotInfoList, 1);
+        info_list->value = info;
 
         /* XXX: waiting for the qapi to support qemu-queue.h types */
         if (!cur_item) {
-            info->snapshots = cur_item = info_list;
+            head = cur_item = info_list;
         } else {
             cur_item->next = info_list;
             cur_item = info_list;
@@ -57,6 +84,8 @@ void bdrv_collect_snapshots(BlockDriverState *bs , ImageInfo *info)
     }
 
     g_free(sn_tab);
+    *p_list = head;
+    return 0;
 }
 
 void bdrv_collect_image_info(BlockDriverState *bs,

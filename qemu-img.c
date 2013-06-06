@@ -1667,7 +1667,10 @@ static ImageInfoList *collect_image_info_list(const char *filename,
 
         info = g_new0(ImageInfo, 1);
         bdrv_collect_image_info(bs, info, filename);
-        bdrv_collect_snapshots(bs, info);
+        bdrv_query_snapshot_info_list(bs, &info->snapshots, NULL);
+        if (info->snapshots) {
+            info->has_snapshots = true;
+        }
 
         elem = g_new0(ImageInfoList, 1);
         elem->value = info;

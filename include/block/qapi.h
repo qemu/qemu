@@ -29,7 +29,9 @@
 #include "block/block.h"
 #include "block/snapshot.h"
 
-void bdrv_collect_snapshots(BlockDriverState *bs , ImageInfo *info);
+int bdrv_query_snapshot_info_list(BlockDriverState *bs,
+                                  SnapshotInfoList **p_list,
+                                  Error **errp);
 void bdrv_collect_image_info(BlockDriverState *bs,
                              ImageInfo *info,
                              const char *filename);
