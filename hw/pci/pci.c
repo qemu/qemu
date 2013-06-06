@@ -246,12 +246,12 @@ static void pci_host_bus_register(int domain, PCIBus *bus)
     QLIST_INSERT_HEAD(&host_buses, host, next);
 }
 
-PCIBus *pci_find_root_bus(int domain)
+PCIBus *pci_find_primary_bus(void)
 {
     struct PCIHostBus *host;
 
     QLIST_FOREACH(host, &host_buses, next) {
-        if (host->domain == domain) {
+        if (host->domain == 0) {
             return host->bus;
         }
     }
@@ -583,20 +583,31 @@ int pci_parse_devaddr(const char *addr, int *domp, int *busp,
 
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
 {
+    PCIBus *root = pci_find_primary_bus();
     int dom, bus;
     unsigned slot;
 
+    if (!root) {
+        fprintf(stderr, "No primary PCI bus\n");
+        return NULL;
+    }
+
     if (!devaddr) {
         *devfnp = -1;
-        return pci_find_bus_nr(pci_find_root_bus(0), 0);
+        return pci_find_bus_nr(root, 0);
     }
 
     if (pci_parse_devaddr(devaddr, &dom, &bus, &slot, NULL) < 0) {
         return NULL;
     }
 
+    if (dom != 0) {
+        fprintf(stderr, "No support for non-zero PCI domains\n");
+        return NULL;
+    }
+
     *devfnp = PCI_DEVFN(slot, 0);
-    return pci_find_bus_nr(pci_find_root_bus(dom), bus);
+    return pci_find_bus_nr(root, bus);
 }
 
 static void pci_init_cmask(PCIDevice *dev)

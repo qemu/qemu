@@ -342,7 +342,7 @@ static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
 
     pc_init_pci(args);
 
-    bus = pci_find_root_bus(0);
+    bus = pci_find_primary_bus();
     if (bus != NULL) {
         pci_create_simple(bus, -1, "xen-platform");
     }

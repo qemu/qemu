@@ -36,15 +36,21 @@
 #include "sysemu/blockdev.h"
 #include "qapi/error.h"
 
-static int pci_read_devaddr(Monitor *mon, const char *addr, int *domp,
+static int pci_read_devaddr(Monitor *mon, const char *addr,
                             int *busp, unsigned *slotp)
 {
+    int dom;
+
     /* strip legacy tag */
     if (!strncmp(addr, "pci_addr=", 9)) {
         addr += 9;
     }
-    if (pci_parse_devaddr(addr, domp, busp, slotp, NULL)) {
+    if (pci_parse_devaddr(addr, &dom, busp, slotp, NULL)) {
         monitor_printf(mon, "Invalid pci address\n");
+        return -1;
+    }
+    if (dom != 0) {
+        monitor_printf(mon, "Multiple PCI domains not supported, use device_add\n");
         return -1;
     }
     return 0;
@@ -128,18 +134,22 @@ static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
 
 int pci_drive_hot_add(Monitor *mon, const QDict *qdict, DriveInfo *dinfo)
 {
-    int dom, pci_bus;
+    int pci_bus;
     unsigned slot;
+    PCIBus *root = pci_find_primary_bus();
     PCIDevice *dev;
     const char *pci_addr = qdict_get_str(qdict, "pci_addr");
 
     switch (dinfo->type) {
     case IF_SCSI:
-        if (pci_read_devaddr(mon, pci_addr, &dom, &pci_bus, &slot)) {
+        if (!root) {
+            monitor_printf(mon, "no primary PCI bus\n");
             goto err;
         }
-        dev = pci_find_device(pci_find_root_bus(dom), pci_bus,
-                              PCI_DEVFN(slot, 0));
+        if (pci_read_devaddr(mon, pci_addr, &pci_bus, &slot)) {
+            goto err;
+        }
+        dev = pci_find_device(root, pci_bus, PCI_DEVFN(slot, 0));
         if (!dev) {
             monitor_printf(mon, "no pci device with address %s\n", pci_addr);
             goto err;
@@ -275,16 +285,22 @@ void pci_device_hot_add(Monitor *mon, const QDict *qdict)
 
 static int pci_device_hot_remove(Monitor *mon, const char *pci_addr)
 {
+    PCIBus *root = pci_find_primary_bus();
     PCIDevice *d;
-    int dom, bus;
+    int bus;
     unsigned slot;
     Error *local_err = NULL;
 
-    if (pci_read_devaddr(mon, pci_addr, &dom, &bus, &slot)) {
+    if (!root) {
+        monitor_printf(mon, "no primary PCI bus\n");
         return -1;
     }
 
-    d = pci_find_device(pci_find_root_bus(dom), bus, PCI_DEVFN(slot, 0));
+    if (pci_read_devaddr(mon, pci_addr, &bus, &slot)) {
+        return -1;
+    }
+
+    d = pci_find_device(root, bus, PCI_DEVFN(slot, 0));
     if (!d) {
         monitor_printf(mon, "slot %d empty\n", slot);
         return -1;

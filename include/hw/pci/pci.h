@@ -389,7 +389,7 @@ int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num,
                          void (*fn)(PCIBus *bus, PCIDevice *d, void *opaque),
                          void *opaque);
-PCIBus *pci_find_root_bus(int domain);
+PCIBus *pci_find_primary_bus(void);
 int pci_find_domain(const PCIBus *bus);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
 int pci_qdev_find_device(const char *id, PCIDevice **pdev);
