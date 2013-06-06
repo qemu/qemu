@@ -62,10 +62,17 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
 {
     Error *local_err = NULL;
     QemuOpts *opts;
+    PCIBus *root = pci_find_primary_bus();
     PCIBus *bus;
     int ret, devfn;
 
-    bus = pci_get_bus_devfn(&devfn, pci_find_primary_bus(), devaddr);
+    if (!root) {
+        monitor_printf(mon, "no primary PCI bus (if there are multiple"
+                       " PCI roots, you must use device_add instead)");
+        return NULL;
+    }
+
+    bus = pci_get_bus_devfn(&devfn, root, devaddr);
     if (!bus) {
         monitor_printf(mon, "Invalid PCI device address %s\n", devaddr);
         return NULL;
@@ -92,8 +99,7 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
         monitor_printf(mon, "Parameter addr not supported\n");
         return NULL;
     }
-    return pci_nic_init(&nd_table[ret], pci_find_primary_bus(),
-                        "rtl8139", devaddr);
+    return pci_nic_init(&nd_table[ret], root, "rtl8139", devaddr);
 }
 
 static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
@@ -144,7 +150,8 @@ int pci_drive_hot_add(Monitor *mon, const QDict *qdict, DriveInfo *dinfo)
     switch (dinfo->type) {
     case IF_SCSI:
         if (!root) {
-            monitor_printf(mon, "no primary PCI bus\n");
+            monitor_printf(mon, "no primary PCI bus (if there are multiple"
+                           " PCI roots, you must use device_add instead)");
             goto err;
         }
         if (pci_read_devaddr(mon, pci_addr, &pci_bus, &slot)) {
@@ -177,6 +184,7 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
     DriveInfo *dinfo = NULL;
     int type = -1;
     char buf[128];
+    PCIBus *root = pci_find_primary_bus();
     PCIBus *bus;
     int devfn;
 
@@ -206,7 +214,12 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         dinfo = NULL;
     }
 
-    bus = pci_get_bus_devfn(&devfn, pci_find_primary_bus(), devaddr);
+    if (!root) {
+        monitor_printf(mon, "no primary PCI bus (if there are multiple"
+                       " PCI roots, you must use device_add instead)");
+        return NULL;
+    }
+    bus = pci_get_bus_devfn(&devfn, root, devaddr);
     if (!bus) {
         monitor_printf(mon, "Invalid PCI device address %s\n", devaddr);
         return NULL;
@@ -293,7 +306,8 @@ static int pci_device_hot_remove(Monitor *mon, const char *pci_addr)
     Error *local_err = NULL;
 
     if (!root) {
-        monitor_printf(mon, "no primary PCI bus\n");
+        monitor_printf(mon, "no primary PCI bus (if there are multiple"
+                       " PCI roots, you must use device_del instead)");
         return -1;
     }
 
