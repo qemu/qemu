@@ -92,7 +92,8 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
         monitor_printf(mon, "Parameter addr not supported\n");
         return NULL;
     }
-    return pci_nic_init(&nd_table[ret], "rtl8139", devaddr);
+    return pci_nic_init(&nd_table[ret], pci_find_primary_bus(),
+                        "rtl8139", devaddr);
 }
 
 static int scsi_hot_add(Monitor *mon, DeviceState *adapter,

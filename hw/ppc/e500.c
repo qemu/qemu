@@ -707,7 +707,7 @@ void ppce500_init(PPCE500Params *params)
     if (pci_bus) {
         /* Register network interfaces. */
         for (i = 0; i < nb_nics; i++) {
-            pci_nic_init_nofail(&nd_table[i], "virtio", NULL);
+            pci_nic_init_nofail(&nd_table[i], pci_bus, "virtio", NULL);
         }
     }
 

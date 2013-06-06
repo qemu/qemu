@@ -468,7 +468,7 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
 }
 
 /* Network support */
-static void network_init(void)
+static void network_init(PCIBus *pci_bus)
 {
     int i;
 
@@ -480,7 +480,7 @@ static void network_init(void)
             /* The malta board has a PCNet card using PCI SLOT 11 */
             default_devaddr = "0b";
 
-        pci_nic_init_nofail(nd, "pcnet", default_devaddr);
+        pci_nic_init_nofail(nd, pci_bus, "pcnet", default_devaddr);
     }
 }
 
@@ -985,7 +985,7 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     fdctrl_init_isa(isa_bus, fd);
 
     /* Network card */
-    network_init();
+    network_init(pci_bus);
 
     /* Optional PCI video card */
     pci_vga_init(pci_bus);

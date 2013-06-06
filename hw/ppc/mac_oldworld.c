@@ -259,7 +259,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
                              escc_mem, 0, memory_region_size(escc_mem));
 
     for(i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
 
 
     ide_drive_get(hd, MAX_IDE_BUS);

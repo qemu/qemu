@@ -244,7 +244,7 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
             smc91c111_init(nd, 0x10010000, sic[25]);
             done_smc = 1;
         } else {
-            pci_nic_init_nofail(nd, "rtl8139", NULL);
+            pci_nic_init_nofail(nd, pci_bus, "rtl8139", NULL);
         }
     }
     if (usb_enabled(false)) {
