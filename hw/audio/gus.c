@@ -46,6 +46,9 @@
 #define IO_WRITE_PROTO(name) \
     static void name (void *opaque, uint32_t nport, uint32_t val)
 
+#define TYPE_GUS "gus"
+#define GUS(obj) OBJECT_CHECK (GUSState, (obj), TYPE_GUS)
+
 typedef struct GUSState {
     ISADevice dev;
     GUSEmuState emu;
@@ -250,7 +253,7 @@ static const MemoryRegionPortio gus_portio_list2[] = {
 
 static int gus_initfn (ISADevice *dev)
 {
-    GUSState *s = DO_UPCAST (GUSState, dev, dev);
+    GUSState *s = GUS (dev);
     struct audsettings as;
 
     AUD_register_card ("gus", &s->card);
@@ -295,7 +298,7 @@ static int gus_initfn (ISADevice *dev)
 
 static int GUS_init (ISABus *bus)
 {
-    isa_create_simple (bus, "gus");
+    isa_create_simple (bus, TYPE_GUS);
     return 0;
 }
 
@@ -318,7 +321,7 @@ static void gus_class_initfn (ObjectClass *klass, void *data)
 }
 
 static const TypeInfo gus_info = {
-    .name          = "gus",
+    .name          = TYPE_GUS,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (GUSState),
     .class_init    = gus_class_initfn,
