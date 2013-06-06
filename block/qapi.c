@@ -88,18 +88,29 @@ int bdrv_query_snapshot_info_list(BlockDriverState *bs,
     return 0;
 }
 
-void bdrv_collect_image_info(BlockDriverState *bs,
-                             ImageInfo *info,
-                             const char *filename)
+/**
+ * bdrv_query_image_info:
+ * @bs: block device to examine
+ * @p_info: location to store image information
+ * @errp: location to store error information
+ *
+ * @p_info will be set only on success. On error, store error in @errp.
+ */
+void bdrv_query_image_info(BlockDriverState *bs,
+                           ImageInfo **p_info,
+                           Error **errp)
 {
     uint64_t total_sectors;
-    char backing_filename[1024];
+    const char *backing_filename;
     char backing_filename2[1024];
     BlockDriverInfo bdi;
+    int ret;
+    Error *err = NULL;
+    ImageInfo *info = g_new0(ImageInfo, 1);
 
     bdrv_get_geometry(bs, &total_sectors);
 
-    info->filename        = g_strdup(filename);
+    info->filename        = g_strdup(bs->filename);
     info->format          = g_strdup(bdrv_get_format_name(bs));
     info->virtual_size    = total_sectors * 512;
     info->actual_size     = bdrv_get_allocated_file_size(bs);
@@ -116,7 +127,7 @@ void bdrv_collect_image_info(BlockDriverState *bs,
         info->dirty_flag = bdi.is_dirty;
         info->has_dirty_flag = true;
     }
-    bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
+    backing_filename = bs->backing_file;
     if (backing_filename[0] != '\0') {
         info->backing_filename = g_strdup(backing_filename);
         info->has_backing_filename = true;
@@ -134,6 +145,26 @@ void bdrv_collect_image_info(BlockDriverState *bs,
             info->has_backing_filename_format = true;
         }
     }
+
+    ret = bdrv_query_snapshot_info_list(bs, &info->snapshots, &err);
+    switch (ret) {
+    case 0:
+        if (info->snapshots) {
+            info->has_snapshots = true;
+        }
+        break;
+    /* recoverable error */
+    case -ENOMEDIUM:
+    case -ENOTSUP:
+        error_free(err);
+        break;
+    default:
+        error_propagate(errp, err);
+        qapi_free_ImageInfo(info);
+        return;
+    }
+
+    *p_info = info;
 }
 
 BlockInfo *bdrv_query_info(BlockDriverState *bs)

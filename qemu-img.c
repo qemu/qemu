@@ -1644,6 +1644,7 @@ static ImageInfoList *collect_image_info_list(const char *filename,
     ImageInfoList *head = NULL;
     ImageInfoList **last = &head;
     GHashTable *filenames;
+    Error *err = NULL;
 
     filenames = g_hash_table_new_full(g_str_hash, str_equal_func, NULL, NULL);
 
@@ -1665,11 +1666,11 @@ static ImageInfoList *collect_image_info_list(const char *filename,
             goto err;
         }
 
-        info = g_new0(ImageInfo, 1);
-        bdrv_collect_image_info(bs, info, filename);
-        bdrv_query_snapshot_info_list(bs, &info->snapshots, NULL);
-        if (info->snapshots) {
-            info->has_snapshots = true;
+        bdrv_query_image_info(bs, &info, &err);
+        if (error_is_set(&err)) {
+            error_report("%s", error_get_pretty(err));
+            error_free(err);
+            goto err;
         }
 
         elem = g_new0(ImageInfoList, 1);

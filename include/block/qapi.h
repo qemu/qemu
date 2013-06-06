@@ -32,9 +32,9 @@
 int bdrv_query_snapshot_info_list(BlockDriverState *bs,
                                   SnapshotInfoList **p_list,
                                   Error **errp);
-void bdrv_collect_image_info(BlockDriverState *bs,
-                             ImageInfo *info,
-                             const char *filename);
+void bdrv_query_image_info(BlockDriverState *bs,
+                           ImageInfo **p_info,
+                           Error **errp);
 BlockInfo *bdrv_query_info(BlockDriverState *s);
 BlockStats *bdrv_query_stats(const BlockDriverState *bs);
 
