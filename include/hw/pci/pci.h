@@ -394,7 +394,7 @@ PCIBus *pci_device_root_bus(const PCIDevice *d);
 const char *pci_root_bus_path(PCIDevice *dev);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
 int pci_qdev_find_device(const char *id, PCIDevice **pdev);
-PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
+PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root, const char *devaddr);
 
 int pci_parse_devaddr(const char *addr, int *domp, int *busp,
                       unsigned int *slotp, unsigned int *funcp);

@@ -589,11 +589,12 @@ int pci_parse_devaddr(const char *addr, int *domp, int *busp,
     return 0;
 }
 
-PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
+PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root, const char *devaddr)
 {
-    PCIBus *root = pci_find_primary_bus();
     int dom, bus;
     unsigned slot;
+
+    assert(!root->parent_dev);
 
     if (!root) {
         fprintf(stderr, "No primary PCI bus\n");
@@ -1588,7 +1589,7 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
     if (i < 0)
         return NULL;
 
-    bus = pci_get_bus_devfn(&devfn, devaddr);
+    bus = pci_get_bus_devfn(&devfn, pci_find_primary_bus(), devaddr);
     if (!bus) {
         error_report("Invalid PCI device address %s for device %s",
                      devaddr, pci_nic_names[i]);

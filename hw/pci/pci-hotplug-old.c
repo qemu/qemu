@@ -65,7 +65,7 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
     PCIBus *bus;
     int ret, devfn;
 
-    bus = pci_get_bus_devfn(&devfn, devaddr);
+    bus = pci_get_bus_devfn(&devfn, pci_find_primary_bus(), devaddr);
     if (!bus) {
         monitor_printf(mon, "Invalid PCI device address %s\n", devaddr);
         return NULL;
@@ -205,7 +205,7 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
         dinfo = NULL;
     }
 
-    bus = pci_get_bus_devfn(&devfn, devaddr);
+    bus = pci_get_bus_devfn(&devfn, pci_find_primary_bus(), devaddr);
     if (!bus) {
         monitor_printf(mon, "Invalid PCI device address %s\n", devaddr);
         return NULL;
