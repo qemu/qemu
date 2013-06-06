@@ -22,6 +22,7 @@
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "ui/console.h"
+#include "block/qapi.h"
 #include "qemu-io.h"
 
 static void hmp_handle_error(Monitor *mon, Error **errp)
@@ -278,6 +279,7 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
 void hmp_info_block(Monitor *mon, const QDict *qdict)
 {
     BlockInfoList *block_list, *info;
+    ImageInfo *image_info;
 
     block_list = qmp_query_block(NULL);
 
@@ -319,6 +321,18 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
                             info->value->inserted->iops,
                             info->value->inserted->iops_rd,
                             info->value->inserted->iops_wr);
+
+            monitor_printf(mon, " images:\n");
+            image_info = info->value->inserted->image;
+            while (1) {
+                bdrv_image_info_dump((fprintf_function)monitor_printf, mon,
+                                     image_info);
+                if (image_info->has_backing_image) {
+                    image_info = image_info->backing_image;
+                } else {
+                    break;
+                }
+            }
         } else {
             monitor_printf(mon, " [not inserted]");
         }
