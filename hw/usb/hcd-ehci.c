@@ -2508,7 +2508,7 @@ const VMStateDescription vmstate_ehci = {
     }
 };
 
-void usb_ehci_initfn(EHCIState *s, DeviceState *dev)
+void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
 {
     int i;
 

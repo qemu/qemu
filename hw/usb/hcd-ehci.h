@@ -322,7 +322,7 @@ struct EHCIState {
 
 extern const VMStateDescription vmstate_ehci;
 
-void usb_ehci_initfn(EHCIState *s, DeviceState *dev);
+void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp);
 
 #define TYPE_PCI_EHCI "pci-ehci-usb"
 #define PCI_EHCI(obj) OBJECT_CHECK(EHCIPCIState, (obj), TYPE_PCI_EHCI)

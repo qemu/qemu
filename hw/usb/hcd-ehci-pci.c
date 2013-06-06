@@ -68,7 +68,7 @@ static int usb_ehci_pci_initfn(PCIDevice *dev)
     s->capsbase = 0x00;
     s->opregbase = 0x20;
 
-    usb_ehci_initfn(s, DEVICE(dev));
+    usb_ehci_realize(s, DEVICE(dev), NULL);
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
     return 0;

@@ -32,8 +32,9 @@ static Property ehci_sysbus_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static int usb_ehci_sysbus_initfn(SysBusDevice *dev)
+static void usb_ehci_sysbus_realize(DeviceState *dev, Error **errp)
 {
+    SysBusDevice *d = SYS_BUS_DEVICE(dev);
     EHCISysBusState *i = SYS_BUS_EHCI(dev);
     SysBusEHCIClass *sec = SYS_BUS_EHCI_GET_CLASS(dev);
     EHCIState *s = &i->ehci;
@@ -42,18 +43,16 @@ static int usb_ehci_sysbus_initfn(SysBusDevice *dev)
     s->opregbase = sec->opregbase;
     s->as = &address_space_memory;
 
-    usb_ehci_initfn(s, DEVICE(dev));
-    sysbus_init_irq(dev, &s->irq);
-    sysbus_init_mmio(dev, &s->mem);
-    return 0;
+    usb_ehci_realize(s, dev, errp);
+    sysbus_init_irq(d, &s->irq);
+    sysbus_init_mmio(d, &s->mem);
 }
 
 static void ehci_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = usb_ehci_sysbus_initfn;
+    dc->realize = usb_ehci_sysbus_realize;
     dc->vmsd = &vmstate_ehci_sysbus;
     dc->props = ehci_sysbus_properties;
 }
