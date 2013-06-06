@@ -41,6 +41,8 @@
 # endif
 #endif
 
+static int arm_arch = __ARM_ARCH;
+
 #if defined(__ARM_ARCH_5T__) \
     || defined(__ARM_ARCH_5TE__) || defined(__ARM_ARCH_5TEJ__)
 # define use_armv5t_instructions 1
@@ -48,8 +50,8 @@
 # define use_armv5t_instructions use_armv6_instructions
 #endif
 
-#define use_armv6_instructions  (__ARM_ARCH >= 6)
-#define use_armv7_instructions  (__ARM_ARCH >= 7)
+#define use_armv6_instructions  (__ARM_ARCH >= 6 || arm_arch >= 6)
+#define use_armv7_instructions  (__ARM_ARCH >= 7 || arm_arch >= 7)
 
 #ifndef use_idiv_instructions
 bool use_idiv_instructions;
@@ -2028,12 +2030,22 @@ static const TCGTargetOpDef arm_op_defs[] = {
 
 static void tcg_target_init(TCGContext *s)
 {
-#if defined(CONFIG_GETAUXVAL) && !defined(use_idiv_instructions)
+#if defined(CONFIG_GETAUXVAL)
+    /* Only probe for the platform and capabilities if we havn't already
+       determined maximum values at compile time.  */
+# if !defined(use_idiv_instructions)
     {
         unsigned long hwcap = getauxval(AT_HWCAP);
         use_idiv_instructions = (hwcap & HWCAP_ARM_IDIVA) != 0;
     }
-#endif
+# endif
+    if (__ARM_ARCH < 7) {
+        const char *pl = (const char *)getauxval(AT_PLATFORM);
+        if (pl != NULL && pl[0] == 'v' && pl[1] >= '4' && pl[1] <= '9') {
+            arm_arch = pl[1] - '0';
+        }
+    }
+#endif /* GETAUXVAL */
 
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
