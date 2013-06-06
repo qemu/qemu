@@ -91,7 +91,6 @@ static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 
 struct PCIHostBus {
-    int domain;
     struct PCIBus *bus;
     QLIST_ENTRY(PCIHostBus) next;
 };
@@ -238,11 +237,10 @@ static int pcibus_reset(BusState *qbus)
     return 1;
 }
 
-static void pci_host_bus_register(int domain, PCIBus *bus)
+static void pci_host_bus_register(PCIBus *bus)
 {
     struct PCIHostBus *host;
     host = g_malloc0(sizeof(*host));
-    host->domain = domain;
     host->bus = bus;
     QLIST_INSERT_HEAD(&host_buses, host, next);
 }
@@ -303,7 +301,8 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
 
     /* host bridge */
     QLIST_INIT(&bus->child);
-    pci_host_bus_register(0, bus); /* for now only pci domain 0 is supported */
+
+    pci_host_bus_register(bus);
 
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
