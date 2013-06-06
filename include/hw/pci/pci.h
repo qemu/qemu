@@ -395,8 +395,8 @@ PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
 int pci_qdev_find_device(const char *id, PCIDevice **pdev);
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
 
-int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
-                     unsigned *slotp);
+int pci_parse_devaddr(const char *addr, int *domp, int *busp,
+                      unsigned int *slotp, unsigned int *funcp);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 

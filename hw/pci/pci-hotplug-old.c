@@ -36,6 +36,20 @@
 #include "sysemu/blockdev.h"
 #include "qapi/error.h"
 
+static int pci_read_devaddr(Monitor *mon, const char *addr, int *domp,
+                            int *busp, unsigned *slotp)
+{
+    /* strip legacy tag */
+    if (!strncmp(addr, "pci_addr=", 9)) {
+        addr += 9;
+    }
+    if (pci_parse_devaddr(addr, domp, busp, slotp, NULL)) {
+        monitor_printf(mon, "Invalid pci address\n");
+        return -1;
+    }
+    return 0;
+}
+
 static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
                                        const char *devaddr,
                                        const char *opts_str)

@@ -522,7 +522,7 @@ static void pci_set_default_subsystem_id(PCIDevice *pci_dev)
  * Parse [[<domain>:]<bus>:]<slot>, return -1 on error if funcp == NULL
  *       [[<domain>:]<bus>:]<slot>.<func>, return -1 on error
  */
-static int pci_parse_devaddr(const char *addr, int *domp, int *busp,
+int pci_parse_devaddr(const char *addr, int *domp, int *busp,
                       unsigned int *slotp, unsigned int *funcp)
 {
     const char *p;
@@ -578,20 +578,6 @@ static int pci_parse_devaddr(const char *addr, int *domp, int *busp,
     *slotp = slot;
     if (funcp != NULL)
         *funcp = func;
-    return 0;
-}
-
-int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
-                     unsigned *slotp)
-{
-    /* strip legacy tag */
-    if (!strncmp(addr, "pci_addr=", 9)) {
-        addr += 9;
-    }
-    if (pci_parse_devaddr(addr, domp, busp, slotp, NULL)) {
-        monitor_printf(mon, "Invalid pci address\n");
-        return -1;
-    }
     return 0;
 }
 
