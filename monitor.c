@@ -2472,9 +2472,10 @@ static mon_cmd_t info_cmds[] = {
     },
     {
         .name       = "block",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the block devices",
+        .args_type  = "verbose:-v,device:B?",
+        .params     = "[-v] [device]",
+        .help       = "show info of one block device or all block devices "
+                      "(and details of images with -v option)",
         .mhandler.cmd = hmp_info_block,
     },
     {
