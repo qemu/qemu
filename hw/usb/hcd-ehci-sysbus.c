@@ -104,11 +104,26 @@ static const TypeInfo ehci_exynos4210_type_info = {
     .class_init    = ehci_exynos4210_class_init,
 };
 
+static void ehci_tegra2_class_init(ObjectClass *oc, void *data)
+{
+    SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
+
+    sec->capsbase = 0x100;
+    sec->opregbase = 0x140;
+}
+
+static const TypeInfo ehci_tegra2_type_info = {
+    .name          = TYPE_TEGRA2_EHCI,
+    .parent        = TYPE_SYS_BUS_EHCI,
+    .class_init    = ehci_tegra2_class_init,
+};
+
 static void ehci_sysbus_register_types(void)
 {
     type_register_static(&ehci_type_info);
     type_register_static(&ehci_xlnx_type_info);
     type_register_static(&ehci_exynos4210_type_info);
+    type_register_static(&ehci_tegra2_type_info);
 }
 
 type_init(ehci_sysbus_register_types)
