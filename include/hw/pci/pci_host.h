@@ -46,6 +46,8 @@ struct PCIHostState {
     MemoryRegion mmcfg;
     uint32_t config_reg;
     PCIBus *bus;
+
+    QLIST_ENTRY(PCIHostState) next;
 };
 
 typedef struct PCIHostBridgeClass {

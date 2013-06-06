@@ -90,11 +90,7 @@ static void pci_del_option_rom(PCIDevice *pdev);
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 
-struct PCIHostBus {
-    struct PCIBus *bus;
-    QLIST_ENTRY(PCIHostBus) next;
-};
-static QLIST_HEAD(, PCIHostBus) host_buses;
+static QLIST_HEAD(, PCIHostState) pci_host_bridges;
 
 static const VMStateDescription vmstate_pcibus = {
     .name = "PCIBUS",
@@ -237,20 +233,19 @@ static int pcibus_reset(BusState *qbus)
     return 1;
 }
 
-static void pci_host_bus_register(PCIBus *bus)
+static void pci_host_bus_register(PCIBus *bus, DeviceState *parent)
 {
-    struct PCIHostBus *host;
-    host = g_malloc0(sizeof(*host));
-    host->bus = bus;
-    QLIST_INSERT_HEAD(&host_buses, host, next);
+    PCIHostState *host_bridge = PCI_HOST_BRIDGE(parent);
+
+    QLIST_INSERT_HEAD(&pci_host_bridges, host_bridge, next);
 }
 
 PCIBus *pci_find_primary_bus(void)
 {
     PCIBus *primary_bus = NULL;
-    struct PCIHostBus *host;
+    PCIHostState *host;
 
-    QLIST_FOREACH(host, &host_buses, next) {
+    QLIST_FOREACH(host, &pci_host_bridges, next) {
         if (primary_bus) {
             /* We have multiple root buses, refuse to select a primary */
             return NULL;
@@ -302,7 +297,7 @@ static void pci_bus_init(PCIBus *bus, DeviceState *parent,
     /* host bridge */
     QLIST_INIT(&bus->child);
 
-    pci_host_bus_register(bus);
+    pci_host_bus_register(bus, parent);
 
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
@@ -1533,11 +1528,11 @@ static PciInfo *qmp_query_pci_bus(PCIBus *bus, int bus_num)
 PciInfoList *qmp_query_pci(Error **errp)
 {
     PciInfoList *info, *head = NULL, *cur_item = NULL;
-    struct PCIHostBus *host;
+    PCIHostState *host_bridge;
 
-    QLIST_FOREACH(host, &host_buses, next) {
+    QLIST_FOREACH(host_bridge, &pci_host_bridges, next) {
         info = g_malloc0(sizeof(*info));
-        info->value = qmp_query_pci_bus(host->bus, 0);
+        info->value = qmp_query_pci_bus(host_bridge->bus, 0);
 
         /* XXX: waiting for the qapi to support GSList */
         if (!cur_item) {
@@ -2201,11 +2196,11 @@ static int pci_qdev_find_recursive(PCIBus *bus,
 
 int pci_qdev_find_device(const char *id, PCIDevice **pdev)
 {
-    struct PCIHostBus *host;
+    PCIHostState *host_bridge;
     int rc = -ENODEV;
 
-    QLIST_FOREACH(host, &host_buses, next) {
-        int tmp = pci_qdev_find_recursive(host->bus, id, pdev);
+    QLIST_FOREACH(host_bridge, &pci_host_bridges, next) {
+        int tmp = pci_qdev_find_recursive(host_bridge->bus, id, pdev);
         if (!tmp) {
             rc = 0;
             break;
