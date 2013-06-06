@@ -189,6 +189,8 @@ struct IntelHDAState {
     uint32_t msi;
 };
 
+#define TYPE_INTEL_HDA_GENERIC "intel-hda-generic"
+
 struct IntelHDAReg {
     const char *name;      /* register name */
     uint32_t   size;       /* size in bytes */
@@ -1232,7 +1234,7 @@ static Property intel_hda_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void intel_hda_class_init_common(ObjectClass *klass)
+static void intel_hda_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1251,7 +1253,6 @@ static void intel_hda_class_init_ich6(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    intel_hda_class_init_common(klass);
     k->device_id = 0x2668;
     k->revision = 1;
     dc->desc = "Intel HD Audio Controller (ich6)";
@@ -1262,23 +1263,28 @@ static void intel_hda_class_init_ich9(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    intel_hda_class_init_common(klass);
     k->device_id = 0x293e;
     k->revision = 3;
     dc->desc = "Intel HD Audio Controller (ich9)";
 }
 
-static const TypeInfo intel_hda_info_ich6 = {
-    .name          = "intel-hda",
+static const TypeInfo intel_hda_info = {
+    .name          = TYPE_INTEL_HDA_GENERIC,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IntelHDAState),
+    .class_init    = intel_hda_class_init,
+    .abstract      = true,
+};
+
+static const TypeInfo intel_hda_info_ich6 = {
+    .name          = "intel-hda",
+    .parent        = TYPE_INTEL_HDA_GENERIC,
     .class_init    = intel_hda_class_init_ich6,
 };
 
 static const TypeInfo intel_hda_info_ich9 = {
     .name          = "ich9-intel-hda",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(IntelHDAState),
+    .parent        = TYPE_INTEL_HDA_GENERIC,
     .class_init    = intel_hda_class_init_ich9,
 };
 
@@ -1320,6 +1326,7 @@ static int intel_hda_and_codec_init(PCIBus *bus)
 static void intel_hda_register_types(void)
 {
     type_register_static(&hda_codec_bus_info);
+    type_register_static(&intel_hda_info);
     type_register_static(&intel_hda_info_ich6);
     type_register_static(&intel_hda_info_ich9);
     type_register_static(&hda_codec_device_type_info);
