@@ -656,7 +656,7 @@ void gic_init_irqs_and_distributor(GICState *s, int num_irq)
     for (i = 0; i < NUM_CPU(s); i++) {
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
-    memory_region_init_io(&s->iomem, &gic_dist_ops, s, "gic_dist", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &gic_dist_ops, s, "gic_dist", 0x1000);
 }
 
 static void arm_gic_realize(DeviceState *dev, Error **errp)
@@ -682,11 +682,11 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
      * GIC v2 defines a larger memory region (0x1000) so this will need
      * to be extended when we implement A15.
      */
-    memory_region_init_io(&s->cpuiomem[0], &gic_thiscpu_ops, s,
+    memory_region_init_io(&s->cpuiomem[0], NULL, &gic_thiscpu_ops, s,
                           "gic_cpu", 0x100);
     for (i = 0; i < NUM_CPU(s); i++) {
         s->backref[i] = s;
-        memory_region_init_io(&s->cpuiomem[i+1], &gic_cpu_ops, &s->backref[i],
+        memory_region_init_io(&s->cpuiomem[i+1], NULL, &gic_cpu_ops, &s->backref[i],
                               "gic_cpu", 0x100);
     }
     /* Distributor */

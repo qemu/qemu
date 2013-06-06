@@ -1163,7 +1163,7 @@ static int gem_init(SysBusDevice *dev)
 
     s = FROM_SYSBUS(GemState, dev);
     gem_init_register_masks(s);
-    memory_region_init_io(&s->iomem, &gem_ops, s, "enet", sizeof(s->regs));
+    memory_region_init_io(&s->iomem, NULL, &gem_ops, s, "enet", sizeof(s->regs));
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);

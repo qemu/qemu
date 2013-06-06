@@ -722,7 +722,7 @@ static int hpet_init(SysBusDevice *dev)
     qdev_init_gpio_out(&dev->qdev, &s->pit_enabled, 1);
 
     /* HPET Area */
-    memory_region_init_io(&s->iomem, &hpet_ram_ops, s, "hpet", 0x400);
+    memory_region_init_io(&s->iomem, NULL, &hpet_ram_ops, s, "hpet", 0x400);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }

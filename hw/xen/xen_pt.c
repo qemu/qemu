@@ -416,7 +416,7 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
             }
         }
 
-        memory_region_init_io(&s->bar[i], &ops, &s->dev,
+        memory_region_init_io(&s->bar[i], NULL, &ops, &s->dev,
                               "xen-pci-pt-bar", r->size);
         pci_register_bar(&s->dev, i, type, &s->bar[i]);
 
@@ -440,7 +440,7 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
 
         s->bases[PCI_ROM_SLOT].access.maddr = d->rom.base_addr;
 
-        memory_region_init_rom_device(&s->rom, NULL, NULL,
+        memory_region_init_rom_device(&s->rom, NULL, NULL, NULL,
                                       "xen-pci-pt-rom", d->rom.size);
         pci_register_bar(&s->dev, PCI_ROM_SLOT, PCI_BASE_ADDRESS_MEM_PREFETCH,
                          &s->rom);

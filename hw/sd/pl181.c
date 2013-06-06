@@ -479,7 +479,7 @@ static int pl181_init(SysBusDevice *dev)
     pl181_state *s = FROM_SYSBUS(pl181_state, dev);
     DriveInfo *dinfo;
 
-    memory_region_init_io(&s->iomem, &pl181_ops, s, "pl181", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &pl181_ops, s, "pl181", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq[0]);
     sysbus_init_irq(dev, &s->irq[1]);

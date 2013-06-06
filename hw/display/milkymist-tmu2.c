@@ -447,7 +447,7 @@ static int milkymist_tmu2_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->regs_region, &tmu2_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, NULL, &tmu2_mmio_ops, s,
             "milkymist-tmu2", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 

@@ -480,7 +480,7 @@ struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
     omap_gp_timer_reset(s);
     omap_gp_timer_clk_setup(s);
 
-    memory_region_init_io(&s->iomem, &omap_gp_timer_ops, s, "omap.gptimer",
+    memory_region_init_io(&s->iomem, NULL, &omap_gp_timer_ops, s, "omap.gptimer",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 

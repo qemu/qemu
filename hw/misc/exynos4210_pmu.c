@@ -458,7 +458,7 @@ static int exynos4210_pmu_init(SysBusDevice *dev)
     Exynos4210PmuState *s = FROM_SYSBUS(Exynos4210PmuState, dev);
 
     /* memory mapping */
-    memory_region_init_io(&s->iomem, &exynos4210_pmu_ops, s, "exynos4210.pmu",
+    memory_region_init_io(&s->iomem, NULL, &exynos4210_pmu_ops, s, "exynos4210.pmu",
                           EXYNOS4210_PMU_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;

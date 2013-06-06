@@ -390,7 +390,7 @@ static int exynos4210_pwm_init(SysBusDevice *dev)
         s->timer[i].parent = s;
     }
 
-    memory_region_init_io(&s->iomem, &exynos4210_pwm_ops, s, "exynos4210-pwm",
+    memory_region_init_io(&s->iomem, NULL, &exynos4210_pwm_ops, s, "exynos4210-pwm",
             EXYNOS4210_PWM_REG_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 

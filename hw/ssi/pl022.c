@@ -277,7 +277,7 @@ static int pl022_init(SysBusDevice *dev)
 {
     pl022_state *s = FROM_SYSBUS(pl022_state, dev);
 
-    memory_region_init_io(&s->iomem, &pl022_ops, s, "pl022", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &pl022_ops, s, "pl022", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     s->ssi = ssi_create_bus(&dev->qdev, "ssi");

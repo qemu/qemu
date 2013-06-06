@@ -1194,7 +1194,7 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
     s->vga.con = graphic_console_init(dev, &vmsvga_ops, s);
 
     s->fifo_size = SVGA_FIFO_SIZE;
-    memory_region_init_ram(&s->fifo_ram, "vmsvga.fifo", s->fifo_size);
+    memory_region_init_ram(&s->fifo_ram, NULL, "vmsvga.fifo", s->fifo_size);
     vmstate_register_ram_global(&s->fifo_ram);
     s->fifo_ptr = memory_region_get_ram_ptr(&s->fifo_ram);
 
@@ -1257,7 +1257,7 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
     s->card.config[PCI_LATENCY_TIMER] = 0x40;           /* Latency timer */
     s->card.config[PCI_INTERRUPT_LINE] = 0xff;          /* End */
 
-    memory_region_init_io(&s->io_bar, &vmsvga_io_ops, &s->chip,
+    memory_region_init_io(&s->io_bar, NULL, &vmsvga_io_ops, &s->chip,
                           "vmsvga-io", 0x10);
     memory_region_set_flush_coalesced(&s->io_bar);
     pci_register_bar(&s->card, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);

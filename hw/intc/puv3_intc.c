@@ -106,7 +106,7 @@ static int puv3_intc_init(SysBusDevice *dev)
     s->reg_ICMR = 0;
     s->reg_ICPR = 0;
 
-    memory_region_init_io(&s->iomem, &puv3_intc_ops, s, "puv3_intc",
+    memory_region_init_io(&s->iomem, NULL, &puv3_intc_ops, s, "puv3_intc",
             PUV3_REGS_OFFSET);
     sysbus_init_mmio(dev, &s->iomem);
 

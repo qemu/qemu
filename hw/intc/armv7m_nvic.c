@@ -487,17 +487,17 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
      * We use overlaying to put the GIC like registers
      * over the top of the system control register region.
      */
-    memory_region_init(&s->container, "nvic", 0x1000);
+    memory_region_init(&s->container, NULL, "nvic", 0x1000);
     /* The system register region goes at the bottom of the priority
      * stack as it covers the whole page.
      */
-    memory_region_init_io(&s->sysregmem, &nvic_sysreg_ops, s,
+    memory_region_init_io(&s->sysregmem, NULL, &nvic_sysreg_ops, s,
                           "nvic_sysregs", 0x1000);
     memory_region_add_subregion(&s->container, 0, &s->sysregmem);
     /* Alias the GIC region so we can get only the section of it
      * we need, and layer it on top of the system register region.
      */
-    memory_region_init_alias(&s->gic_iomem_alias, "nvic-gic", &s->gic.iomem,
+    memory_region_init_alias(&s->gic_iomem_alias, NULL, "nvic-gic", &s->gic.iomem,
                              0x100, 0xc00);
     memory_region_add_subregion_overlap(&s->container, 0x100,
                                         &s->gic_iomem_alias, 1);

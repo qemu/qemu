@@ -514,7 +514,7 @@ static void imx_gpt_realize(DeviceState *dev, Error **errp)
     QEMUBH *bh;
 
     sysbus_init_irq(sbd, &s->irq);
-    memory_region_init_io(&s->iomem, &imx_gpt_ops, s, TYPE_IMX_GPT,
+    memory_region_init_io(&s->iomem, NULL, &imx_gpt_ops, s, TYPE_IMX_GPT,
                           0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
 

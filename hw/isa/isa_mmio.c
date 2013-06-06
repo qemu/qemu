@@ -69,7 +69,7 @@ static const MemoryRegionOps isa_mmio_ops = {
 
 void isa_mmio_setup(MemoryRegion *mr, hwaddr size)
 {
-    memory_region_init_io(mr, &isa_mmio_ops, NULL, "isa-mmio", size);
+    memory_region_init_io(mr, NULL, &isa_mmio_ops, NULL, "isa-mmio", size);
 }
 
 void isa_mmio_init(hwaddr base, hwaddr size)

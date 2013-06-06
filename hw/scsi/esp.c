@@ -675,7 +675,7 @@ static int sysbus_esp_init(SysBusDevice *dev)
     assert(sysbus->it_shift != -1);
 
     s->chip_id = TCHI_FAS100A;
-    memory_region_init_io(&sysbus->iomem, &sysbus_esp_mem_ops, sysbus,
+    memory_region_init_io(&sysbus->iomem, NULL, &sysbus_esp_mem_ops, sysbus,
                           "esp", ESP_REGS << sysbus->it_shift);
     sysbus_init_mmio(dev, &sysbus->iomem);
 

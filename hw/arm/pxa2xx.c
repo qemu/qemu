@@ -764,7 +764,7 @@ static int pxa2xx_ssp_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->iomem, &pxa2xx_ssp_ops, s, "pxa2xx-ssp", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_ssp_ops, s, "pxa2xx-ssp", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     register_savevm(&dev->qdev, "pxa2xx_ssp", -1, 0,
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
@@ -1131,7 +1131,7 @@ static int pxa2xx_rtc_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->rtc_irq);
 
-    memory_region_init_io(&s->iomem, &pxa2xx_rtc_ops, s, "pxa2xx-rtc", 0x10000);
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_rtc_ops, s, "pxa2xx-rtc", 0x10000);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
@@ -1481,7 +1481,7 @@ static int pxa2xx_i2c_initfn(SysBusDevice *dev)
 
     s->bus = i2c_init_bus(&dev->qdev, "i2c");
 
-    memory_region_init_io(&s->iomem, &pxa2xx_i2c_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_i2c_ops, s,
                           "pxa2xx-i2x", s->region_size);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
@@ -1720,7 +1720,7 @@ static PXA2xxI2SState *pxa2xx_i2s_init(MemoryRegion *sysmem,
 
     pxa2xx_i2s_reset(s);
 
-    memory_region_init_io(&s->iomem, &pxa2xx_i2s_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_i2s_ops, s,
                           "pxa2xx-i2s", 0x100000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
@@ -1978,7 +1978,7 @@ static PXA2xxFIrState *pxa2xx_fir_init(MemoryRegion *sysmem,
 
     pxa2xx_fir_reset(s);
 
-    memory_region_init_io(&s->iomem, &pxa2xx_fir_ops, s, "pxa2xx-fir", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_fir_ops, s, "pxa2xx-fir", 0x1000);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     if (chr) {
@@ -2027,10 +2027,10 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     s->reset = qemu_allocate_irqs(pxa2xx_reset, s, 1)[0];
 
     /* SDRAM & Internal Memory Storage */
-    memory_region_init_ram(&s->sdram, "pxa270.sdram", sdram_size);
+    memory_region_init_ram(&s->sdram, NULL, "pxa270.sdram", sdram_size);
     vmstate_register_ram_global(&s->sdram);
     memory_region_add_subregion(address_space, PXA2XX_SDRAM_BASE, &s->sdram);
-    memory_region_init_ram(&s->internal, "pxa270.internal", 0x40000);
+    memory_region_init_ram(&s->internal, NULL, "pxa270.internal", 0x40000);
     vmstate_register_ram_global(&s->internal);
     memory_region_add_subregion(address_space, PXA2XX_INTERNAL_BASE,
                                 &s->internal);
@@ -2083,7 +2083,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     s->cm_base = 0x41300000;
     s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */
     s->clkcfg = 0x00000009;		/* Turbo mode active */
-    memory_region_init_io(&s->cm_iomem, &pxa2xx_cm_ops, s, "pxa2xx-cm", 0x1000);
+    memory_region_init_io(&s->cm_iomem, NULL, &pxa2xx_cm_ops, s, "pxa2xx-cm", 0x1000);
     memory_region_add_subregion(address_space, s->cm_base, &s->cm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
@@ -2093,12 +2093,12 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     s->mm_regs[MDMRS >> 2] = 0x00020002;
     s->mm_regs[MDREFR >> 2] = 0x03ca4000;
     s->mm_regs[MECR >> 2] = 0x00000001;	/* Two PC Card sockets */
-    memory_region_init_io(&s->mm_iomem, &pxa2xx_mm_ops, s, "pxa2xx-mm", 0x1000);
+    memory_region_init_io(&s->mm_iomem, NULL, &pxa2xx_mm_ops, s, "pxa2xx-mm", 0x1000);
     memory_region_add_subregion(address_space, s->mm_base, &s->mm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_mm, s);
 
     s->pm_base = 0x40f00000;
-    memory_region_init_io(&s->pm_iomem, &pxa2xx_pm_ops, s, "pxa2xx-pm", 0x100);
+    memory_region_init_io(&s->pm_iomem, NULL, &pxa2xx_pm_ops, s, "pxa2xx-pm", 0x100);
     memory_region_add_subregion(address_space, s->pm_base, &s->pm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_pm, s);
 
@@ -2158,10 +2158,10 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     s->reset = qemu_allocate_irqs(pxa2xx_reset, s, 1)[0];
 
     /* SDRAM & Internal Memory Storage */
-    memory_region_init_ram(&s->sdram, "pxa255.sdram", sdram_size);
+    memory_region_init_ram(&s->sdram, NULL, "pxa255.sdram", sdram_size);
     vmstate_register_ram_global(&s->sdram);
     memory_region_add_subregion(address_space, PXA2XX_SDRAM_BASE, &s->sdram);
-    memory_region_init_ram(&s->internal, "pxa255.internal",
+    memory_region_init_ram(&s->internal, NULL, "pxa255.internal",
                            PXA2XX_INTERNAL_SIZE);
     vmstate_register_ram_global(&s->internal);
     memory_region_add_subregion(address_space, PXA2XX_INTERNAL_BASE,
@@ -2214,7 +2214,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     s->cm_base = 0x41300000;
     s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */
     s->clkcfg = 0x00000009;		/* Turbo mode active */
-    memory_region_init_io(&s->cm_iomem, &pxa2xx_cm_ops, s, "pxa2xx-cm", 0x1000);
+    memory_region_init_io(&s->cm_iomem, NULL, &pxa2xx_cm_ops, s, "pxa2xx-cm", 0x1000);
     memory_region_add_subregion(address_space, s->cm_base, &s->cm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
@@ -2224,12 +2224,12 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     s->mm_regs[MDMRS >> 2] = 0x00020002;
     s->mm_regs[MDREFR >> 2] = 0x03ca4000;
     s->mm_regs[MECR >> 2] = 0x00000001;	/* Two PC Card sockets */
-    memory_region_init_io(&s->mm_iomem, &pxa2xx_mm_ops, s, "pxa2xx-mm", 0x1000);
+    memory_region_init_io(&s->mm_iomem, NULL, &pxa2xx_mm_ops, s, "pxa2xx-mm", 0x1000);
     memory_region_add_subregion(address_space, s->mm_base, &s->mm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_mm, s);
 
     s->pm_base = 0x40f00000;
-    memory_region_init_io(&s->pm_iomem, &pxa2xx_pm_ops, s, "pxa2xx-pm", 0x100);
+    memory_region_init_io(&s->pm_iomem, NULL, &pxa2xx_pm_ops, s, "pxa2xx-pm", 0x100);
     memory_region_add_subregion(address_space, s->pm_base, &s->pm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_pm, s);
 

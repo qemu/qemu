@@ -1154,7 +1154,7 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIODevice *vdev)
     quirk->vdev = vdev;
     quirk->data = (physbar >> 8) & 0xff;
 
-    memory_region_init_io(&quirk->mem, &vfio_ati_3c3_quirk, quirk,
+    memory_region_init_io(&quirk->mem, NULL, &vfio_ati_3c3_quirk, quirk,
                           "vfio-ati-3c3-quirk", 1);
     memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem, 3,
                                 &quirk->mem);
@@ -1245,7 +1245,7 @@ static void vfio_probe_ati_4010_quirk(VFIODevice *vdev, int nr)
     quirk = g_malloc0(sizeof(*quirk));
     quirk->vdev = vdev;
 
-    memory_region_init_io(&quirk->mem, &vfio_ati_4010_quirk, quirk,
+    memory_region_init_io(&quirk->mem, NULL, &vfio_ati_4010_quirk, quirk,
                           "vfio-ati-4010-quirk", 8);
     memory_region_add_subregion_overlap(&vdev->bars[nr].mem, 0, &quirk->mem, 1);
 
@@ -1331,7 +1331,7 @@ static void vfio_probe_ati_f10_quirk(VFIODevice *vdev, int nr)
     quirk = g_malloc0(sizeof(*quirk));
     quirk->vdev = vdev;
 
-    memory_region_init_io(&quirk->mem, &vfio_ati_f10_quirk, quirk,
+    memory_region_init_io(&quirk->mem, NULL, &vfio_ati_f10_quirk, quirk,
                           "vfio-ati-f10-quirk", 8);
     memory_region_add_subregion_overlap(&vdev->bars[nr].mem, 0, &quirk->mem, 1);
 
@@ -1451,7 +1451,7 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIODevice *vdev)
     quirk = g_malloc0(sizeof(*quirk));
     quirk->vdev = vdev;
 
-    memory_region_init_io(&quirk->mem, &vfio_nvidia_3d0_quirk, quirk,
+    memory_region_init_io(&quirk->mem, NULL, &vfio_nvidia_3d0_quirk, quirk,
                           "vfio-nvidia-3d0-quirk", 6);
     memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
                                 0x10, &quirk->mem);
@@ -1566,7 +1566,7 @@ static void vfio_probe_nvidia_bar5_window_quirk(VFIODevice *vdev, int nr)
     quirk = g_malloc0(sizeof(*quirk));
     quirk->vdev = vdev;
 
-    memory_region_init_io(&quirk->mem, &vfio_nvidia_bar5_window_quirk, quirk,
+    memory_region_init_io(&quirk->mem, NULL, &vfio_nvidia_bar5_window_quirk, quirk,
                           "vfio-nvidia-bar5-window-quirk", 16);
     memory_region_add_subregion_overlap(&vdev->bars[nr].mem, 0, &quirk->mem, 1);
 
@@ -1644,7 +1644,7 @@ static void vfio_probe_nvidia_bar0_88000_quirk(VFIODevice *vdev, int nr)
     quirk = g_malloc0(sizeof(*quirk));
     quirk->vdev = vdev;
 
-    memory_region_init_io(&quirk->mem, &vfio_nvidia_bar0_88000_quirk, quirk,
+    memory_region_init_io(&quirk->mem, NULL, &vfio_nvidia_bar0_88000_quirk, quirk,
                           "vfio-nvidia-bar0-88000-quirk",
                           TARGET_PAGE_ALIGN(PCIE_CONFIG_SPACE_SIZE));
     memory_region_add_subregion_overlap(&vdev->bars[nr].mem,
@@ -1723,7 +1723,7 @@ static void vfio_probe_nvidia_bar0_1800_quirk(VFIODevice *vdev, int nr)
     quirk = g_malloc0(sizeof(*quirk));
     quirk->vdev = vdev;
 
-    memory_region_init_io(&quirk->mem, &vfio_nvidia_bar0_1800_quirk, quirk,
+    memory_region_init_io(&quirk->mem, NULL, &vfio_nvidia_bar0_1800_quirk, quirk,
                           "vfio-nvidia-bar0-1800-quirk",
                           TARGET_PAGE_ALIGN(PCI_CONFIG_SPACE_SIZE));
     memory_region_add_subregion_overlap(&vdev->bars[nr].mem,
@@ -2228,11 +2228,11 @@ static int vfio_mmap_bar(VFIOBAR *bar, MemoryRegion *mem, MemoryRegion *submem,
             goto empty_region;
         }
 
-        memory_region_init_ram_ptr(submem, name, size, *map);
+        memory_region_init_ram_ptr(submem, NULL, name, size, *map);
     } else {
 empty_region:
         /* Create a zero sized sub-region to make cleanup easy. */
-        memory_region_init(submem, name, 0);
+        memory_region_init(submem, NULL, name, 0);
     }
 
     memory_region_add_subregion(mem, offset, submem);
@@ -2271,7 +2271,7 @@ static void vfio_map_bar(VFIODevice *vdev, int nr)
            ~PCI_BASE_ADDRESS_IO_MASK : ~PCI_BASE_ADDRESS_MEM_MASK);
 
     /* A "slow" read/write mapping underlies all BARs */
-    memory_region_init_io(&bar->mem, &vfio_bar_ops, bar, name, size);
+    memory_region_init_io(&bar->mem, NULL, &vfio_bar_ops, bar, name, size);
     pci_register_bar(&vdev->pdev, nr, type, &bar->mem);
 
     /*
@@ -2315,17 +2315,17 @@ static void vfio_map_bars(VFIODevice *vdev)
     }
 
     if (vdev->has_vga) {
-        memory_region_init_io(&vdev->vga.region[QEMU_PCI_VGA_MEM].mem,
+        memory_region_init_io(&vdev->vga.region[QEMU_PCI_VGA_MEM].mem, NULL,
                               &vfio_vga_ops,
                               &vdev->vga.region[QEMU_PCI_VGA_MEM],
                               "vfio-vga-mmio@0xa0000",
                               QEMU_PCI_VGA_MEM_SIZE);
-        memory_region_init_io(&vdev->vga.region[QEMU_PCI_VGA_IO_LO].mem,
+        memory_region_init_io(&vdev->vga.region[QEMU_PCI_VGA_IO_LO].mem, NULL,
                               &vfio_vga_ops,
                               &vdev->vga.region[QEMU_PCI_VGA_IO_LO],
                               "vfio-vga-io@0x3b0",
                               QEMU_PCI_VGA_IO_LO_SIZE);
-        memory_region_init_io(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
+        memory_region_init_io(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem, NULL,
                               &vfio_vga_ops,
                               &vdev->vga.region[QEMU_PCI_VGA_IO_HI],
                               "vfio-vga-io@0x3c0",
@@ -2588,7 +2588,7 @@ static int vfio_load_rom(VFIODevice *vdev)
     snprintf(name, sizeof(name), "vfio[%04x:%02x:%02x.%x].rom",
              vdev->host.domain, vdev->host.bus, vdev->host.slot,
              vdev->host.function);
-    memory_region_init_ram(&vdev->pdev.rom, name, size);
+    memory_region_init_ram(&vdev->pdev.rom, NULL, name, size);
     ptr = memory_region_get_ram_ptr(&vdev->pdev.rom);
     memset(ptr, 0xff, size);
 

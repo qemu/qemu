@@ -741,7 +741,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
 
     /* Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
        but the address space hole reserved at this point is 8TB.  */
-    memory_region_init_ram(&s->ram_region, "ram", ram_size);
+    memory_region_init_ram(&s->ram_region, NULL, "ram", ram_size);
     vmstate_register_ram_global(&s->ram_region);
     memory_region_add_subregion(addr_space, 0, &s->ram_region);
 
@@ -750,22 +750,22 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
        the flash ROM.  I'm not sure that we need to implement it at all.  */
 
     /* Pchip0 CSRs, 0x801.8000.0000, 256MB.  */
-    memory_region_init_io(&s->pchip.region, &pchip_ops, s, "pchip0", 256*MB);
+    memory_region_init_io(&s->pchip.region, NULL, &pchip_ops, s, "pchip0", 256*MB);
     memory_region_add_subregion(addr_space, 0x80180000000ULL,
                                 &s->pchip.region);
 
     /* Cchip CSRs, 0x801.A000.0000, 256MB.  */
-    memory_region_init_io(&s->cchip.region, &cchip_ops, s, "cchip0", 256*MB);
+    memory_region_init_io(&s->cchip.region, NULL, &cchip_ops, s, "cchip0", 256*MB);
     memory_region_add_subregion(addr_space, 0x801a0000000ULL,
                                 &s->cchip.region);
 
     /* Dchip CSRs, 0x801.B000.0000, 256MB.  */
-    memory_region_init_io(&s->dchip_region, &dchip_ops, s, "dchip0", 256*MB);
+    memory_region_init_io(&s->dchip_region, NULL, &dchip_ops, s, "dchip0", 256*MB);
     memory_region_add_subregion(addr_space, 0x801b0000000ULL,
                                 &s->dchip_region);
 
     /* Pchip0 PCI memory, 0x800.0000.0000, 4GB.  */
-    memory_region_init(&s->pchip.reg_mem, "pci0-mem", 4*GB);
+    memory_region_init(&s->pchip.reg_mem, NULL, "pci0-mem", 4*GB);
     memory_region_add_subregion(addr_space, 0x80000000000ULL,
                                 &s->pchip.reg_mem);
 
@@ -773,7 +773,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     /* ??? Ideally we drop the "system" i/o space on the floor and give the
        PCI subsystem the full address space reserved by the chipset.
        We can't do that until the MEM and IO paths in memory.c are unified.  */
-    memory_region_init_io(&s->pchip.reg_io, &alpha_pci_bw_io_ops, NULL,
+    memory_region_init_io(&s->pchip.reg_io, NULL, &alpha_pci_bw_io_ops, NULL,
                           "pci0-io", 32*MB);
     memory_region_add_subregion(addr_space, 0x801fc000000ULL,
                                 &s->pchip.reg_io);
@@ -784,13 +784,13 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     phb->bus = b;
 
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
-    memory_region_init_io(&s->pchip.reg_iack, &alpha_pci_iack_ops, b,
+    memory_region_init_io(&s->pchip.reg_iack, NULL, &alpha_pci_iack_ops, b,
                           "pci0-iack", 64*MB);
     memory_region_add_subregion(addr_space, 0x801f8000000ULL,
                                 &s->pchip.reg_iack);
 
     /* Pchip0 PCI configuration, 0x801.FE00.0000, 16MB.  */
-    memory_region_init_io(&s->pchip.reg_conf, &alpha_pci_conf1_ops, b,
+    memory_region_init_io(&s->pchip.reg_conf, NULL, &alpha_pci_conf1_ops, b,
                           "pci0-conf", 16*MB);
     memory_region_add_subregion(addr_space, 0x801fe000000ULL,
                                 &s->pchip.reg_conf);

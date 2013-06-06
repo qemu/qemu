@@ -198,7 +198,7 @@ static void vga_update_memory_access(VGACommonState *s)
         }
         base += isa_mem_base;
         region = g_malloc(sizeof(*region));
-        memory_region_init_alias(region, "vga.chain4", &s->vram, offset, size);
+        memory_region_init_alias(region, NULL, "vga.chain4", &s->vram, offset, size);
         memory_region_add_subregion_overlap(s->legacy_address_space, base,
                                             region, 2);
         s->chain4_alias = region;
@@ -2292,7 +2292,7 @@ void vga_common_init(VGACommonState *s)
     s->vram_size_mb = s->vram_size >> 20;
 
     s->is_vbe_vmstate = 1;
-    memory_region_init_ram(&s->vram, "vga.vram", s->vram_size);
+    memory_region_init_ram(&s->vram, NULL, "vga.vram", s->vram_size);
     vmstate_register_ram_global(&s->vram);
     xen_register_framebuffer(&s->vram);
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
@@ -2343,7 +2343,7 @@ MemoryRegion *vga_init_io(VGACommonState *s,
     *vbe_ports = vbe_portio_list;
 
     vga_mem = g_malloc(sizeof(*vga_mem));
-    memory_region_init_io(vga_mem, &vga_mem_ops, s,
+    memory_region_init_io(vga_mem, NULL, &vga_mem_ops, s,
                           "vga-lowmem", 0x20000);
     memory_region_set_flush_coalesced(vga_mem);
 
@@ -2385,7 +2385,7 @@ void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
     /* With pc-0.12 and below we map both the PCI BAR and the fixed VBE region,
      * so use an alias to avoid double-mapping the same region.
      */
-    memory_region_init_alias(&s->vram_vbe, "vram.vbe",
+    memory_region_init_alias(&s->vram_vbe, NULL, "vram.vbe",
                              &s->vram, 0, memory_region_size(&s->vram));
     /* XXX: use optimized standard vga accesses */
     memory_region_add_subregion(system_memory,

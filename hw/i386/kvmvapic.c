@@ -601,7 +601,7 @@ static void vapic_map_rom_writable(VAPICROMState *s)
     rom_paddr &= TARGET_PAGE_MASK;
     rom_size = TARGET_PAGE_ALIGN(rom_size);
 
-    memory_region_init_alias(&s->rom, "kvmvapic-rom", section.mr, rom_paddr,
+    memory_region_init_alias(&s->rom, NULL, "kvmvapic-rom", section.mr, rom_paddr,
                              rom_size);
     memory_region_add_subregion_overlap(as, rom_paddr, &s->rom, 1000);
     s->rom_mapped_writable = true;
@@ -702,7 +702,7 @@ static int vapic_init(SysBusDevice *dev)
 {
     VAPICROMState *s = VAPIC(dev);
 
-    memory_region_init_io(&s->io, &vapic_ops, s, "kvmvapic", 2);
+    memory_region_init_io(&s->io, NULL, &vapic_ops, s, "kvmvapic", 2);
     sysbus_add_io(dev, VAPIC_IO_PORT, &s->io);
     sysbus_init_ioports(dev, VAPIC_IO_PORT, 2);
 

@@ -211,22 +211,22 @@ static void palmte_init(QEMUMachineInitArgs *args)
     mpu = omap310_mpu_init(address_space_mem, sdram_size, cpu_model);
 
     /* External Flash (EMIFS) */
-    memory_region_init_ram(flash, "palmte.flash", flash_size);
+    memory_region_init_ram(flash, NULL, "palmte.flash", flash_size);
     vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
     memory_region_add_subregion(address_space_mem, OMAP_CS0_BASE, flash);
 
-    memory_region_init_io(&cs[0], &static_ops, &cs0val, "palmte-cs0",
+    memory_region_init_io(&cs[0], NULL, &static_ops, &cs0val, "palmte-cs0",
                           OMAP_CS0_SIZE - flash_size);
     memory_region_add_subregion(address_space_mem, OMAP_CS0_BASE + flash_size,
                                 &cs[0]);
-    memory_region_init_io(&cs[1], &static_ops, &cs1val, "palmte-cs1",
+    memory_region_init_io(&cs[1], NULL, &static_ops, &cs1val, "palmte-cs1",
                           OMAP_CS1_SIZE);
     memory_region_add_subregion(address_space_mem, OMAP_CS1_BASE, &cs[1]);
-    memory_region_init_io(&cs[2], &static_ops, &cs2val, "palmte-cs2",
+    memory_region_init_io(&cs[2], NULL, &static_ops, &cs2val, "palmte-cs2",
                           OMAP_CS2_SIZE);
     memory_region_add_subregion(address_space_mem, OMAP_CS2_BASE, &cs[2]);
-    memory_region_init_io(&cs[3], &static_ops, &cs3val, "palmte-cs3",
+    memory_region_init_io(&cs[3], NULL, &static_ops, &cs3val, "palmte-cs3",
                           OMAP_CS3_SIZE);
     memory_region_add_subregion(address_space_mem, OMAP_CS3_BASE, &cs[3]);
 

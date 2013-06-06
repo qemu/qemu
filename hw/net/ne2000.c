@@ -701,7 +701,7 @@ static const MemoryRegionOps ne2000_ops = {
 
 void ne2000_setup_io(NE2000State *s, unsigned size)
 {
-    memory_region_init_io(&s->io, &ne2000_ops, s, "ne2000", size);
+    memory_region_init_io(&s->io, NULL, &ne2000_ops, s, "ne2000", size);
 }
 
 static void ne2000_cleanup(NetClientState *nc)

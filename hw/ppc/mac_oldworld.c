@@ -126,12 +126,12 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    memory_region_init_ram(ram, "ppc_heathrow.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "ppc_heathrow.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, "ppc_heathrow.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "ppc_heathrow.bios", BIOS_SIZE);
     vmstate_register_ram_global(bios);
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
@@ -255,7 +255,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
 
     escc_mem = escc_init(0, pic[0x0f], pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);
-    memory_region_init_alias(escc_bar, "escc-bar",
+    memory_region_init_alias(escc_bar, NULL, "escc-bar",
                              escc_mem, 0, memory_region_size(escc_mem));
 
     for(i = 0; i < nb_nics; i++)

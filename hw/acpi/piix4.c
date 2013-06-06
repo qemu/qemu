@@ -424,7 +424,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     memory_region_add_subregion(pci_address_space_io(dev),
                                 s->smb_io_base, &s->smb.io);
 
-    memory_region_init(&s->io, "piix4-pm", 64);
+    memory_region_init(&s->io, NULL, "piix4-pm", 64);
     memory_region_set_enabled(&s->io, false);
     memory_region_add_subregion(pci_address_space_io(dev),
                                 0, &s->io);
@@ -671,18 +671,18 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
 static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                            PCIBus *bus, PIIX4PMState *s)
 {
-    memory_region_init_io(&s->io_gpe, &piix4_gpe_ops, s, "apci-gpe0",
+    memory_region_init_io(&s->io_gpe, NULL, &piix4_gpe_ops, s, "apci-gpe0",
                           GPE_LEN);
     memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
 
-    memory_region_init_io(&s->io_pci, &piix4_pci_ops, s, "apci-pci-hotplug",
+    memory_region_init_io(&s->io_pci, NULL, &piix4_pci_ops, s, "apci-pci-hotplug",
                           PCI_HOTPLUG_SIZE);
     memory_region_add_subregion(parent, PCI_HOTPLUG_ADDR,
                                 &s->io_pci);
     pci_bus_hotplug(bus, piix4_device_hotplug, &s->dev.qdev);
 
     qemu_for_each_cpu(piix4_init_cpu_status, &s->gpe_cpu);
-    memory_region_init_io(&s->io_cpu, &cpu_hotplug_ops, s, "apci-cpu-hotplug",
+    memory_region_init_io(&s->io_cpu, NULL, &cpu_hotplug_ops, s, "apci-cpu-hotplug",
                           PIIX4_PROC_LEN);
     memory_region_add_subregion(parent, PIIX4_PROC_BASE, &s->io_cpu);
     s->cpu_added_notifier.notify = piix4_cpu_added_req;

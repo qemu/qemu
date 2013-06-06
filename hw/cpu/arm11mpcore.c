@@ -87,8 +87,8 @@ static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
     SysBusDevice *gicbusdev = SYS_BUS_DEVICE(s->gic);
     SysBusDevice *timerbusdev = SYS_BUS_DEVICE(s->mptimer);
     SysBusDevice *wdtbusdev = SYS_BUS_DEVICE(s->wdtimer);
-    memory_region_init(&s->container, "mpcode-priv-container", 0x2000);
-    memory_region_init_io(&s->iomem, &mpcore_scu_ops, s, "mpcore-scu", 0x100);
+    memory_region_init(&s->container, NULL, "mpcode-priv-container", 0x2000);
+    memory_region_init_io(&s->iomem, NULL, &mpcore_scu_ops, s, "mpcore-scu", 0x100);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
     /* GIC CPU interfaces: "current CPU" at 0x100, then specific CPUs
      * at 0x200, 0x300...

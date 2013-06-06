@@ -40,12 +40,12 @@ static int q35_host_init(SysBusDevice *dev)
     PCIHostState *pci = FROM_SYSBUS(PCIHostState, dev);
     Q35PCIHost *s = Q35_HOST_DEVICE(&dev->qdev);
 
-    memory_region_init_io(&pci->conf_mem, &pci_host_conf_le_ops, pci,
+    memory_region_init_io(&pci->conf_mem, NULL, &pci_host_conf_le_ops, pci,
                           "pci-conf-idx", 4);
     sysbus_add_io(dev, MCH_HOST_BRIDGE_CONFIG_ADDR, &pci->conf_mem);
     sysbus_init_ioports(&pci->busdev, MCH_HOST_BRIDGE_CONFIG_ADDR, 4);
 
-    memory_region_init_io(&pci->data_mem, &pci_host_data_le_ops, pci,
+    memory_region_init_io(&pci->data_mem, NULL, &pci_host_data_le_ops, pci,
                           "pci-conf-data", 4);
     sysbus_add_io(dev, MCH_HOST_BRIDGE_CONFIG_DATA, &pci->data_mem);
     sysbus_init_ioports(&pci->busdev, MCH_HOST_BRIDGE_CONFIG_DATA, 4);
@@ -245,7 +245,7 @@ static int mch_init(PCIDevice *d)
     MCHPCIState *mch = MCH_PCI_DEVICE(d);
 
     /* setup pci memory regions */
-    memory_region_init_alias(&mch->pci_hole, "pci-hole",
+    memory_region_init_alias(&mch->pci_hole, NULL, "pci-hole",
                              mch->pci_address_space,
                              mch->below_4g_mem_size,
                              0x100000000ULL - mch->below_4g_mem_size);
@@ -253,7 +253,7 @@ static int mch_init(PCIDevice *d)
                                 &mch->pci_hole);
     pci_hole64_size = (sizeof(hwaddr) == 4 ? 0 :
                        ((uint64_t)1 << 62));
-    memory_region_init_alias(&mch->pci_hole_64bit, "pci-hole64",
+    memory_region_init_alias(&mch->pci_hole_64bit, NULL, "pci-hole64",
                              mch->pci_address_space,
                              0x100000000ULL + mch->above_4g_mem_size,
                              pci_hole64_size);
@@ -264,7 +264,7 @@ static int mch_init(PCIDevice *d)
     }
     /* smram */
     cpu_smm_register(&mch_set_smm, mch);
-    memory_region_init_alias(&mch->smram_region, "smram-region",
+    memory_region_init_alias(&mch->smram_region, NULL, "smram-region",
                              mch->pci_address_space, 0xa0000, 0x20000);
     memory_region_add_subregion_overlap(mch->system_memory, 0xa0000,
                                         &mch->smram_region, 1);

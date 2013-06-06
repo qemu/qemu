@@ -113,9 +113,9 @@ static void onenand_mem_setup(OneNANDState *s)
     /* XXX: We should use IO_MEM_ROMD but we broke it earlier...
      * Both 0x0000 ... 0x01ff and 0x8000 ... 0x800f can be used to
      * write boot commands.  Also take note of the BWPS bit.  */
-    memory_region_init(&s->container, "onenand", 0x10000 << s->shift);
+    memory_region_init(&s->container, NULL, "onenand", 0x10000 << s->shift);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
-    memory_region_init_alias(&s->mapped_ram, "onenand-mapped-ram",
+    memory_region_init_alias(&s->mapped_ram, NULL, "onenand-mapped-ram",
                              &s->ram, 0x0200 << s->shift,
                              0xbe00 << s->shift);
     memory_region_add_subregion_overlap(&s->container,
@@ -768,7 +768,7 @@ static int onenand_initfn(SysBusDevice *dev)
     s->blockwp = g_malloc(s->blocks);
     s->density_mask = (s->id.dev & 0x08)
         ? (1 << (6 + ((s->id.dev >> 4) & 7))) : 0;
-    memory_region_init_io(&s->iomem, &onenand_ops, s, "onenand",
+    memory_region_init_io(&s->iomem, NULL, &onenand_ops, s, "onenand",
                           0x10000 << s->shift);
     if (!s->bdrv) {
         s->image = memset(g_malloc(size + (size >> 5)),
@@ -782,7 +782,7 @@ static int onenand_initfn(SysBusDevice *dev)
     }
     s->otp = memset(g_malloc((64 + 2) << PAGE_SHIFT),
                     0xff, (64 + 2) << PAGE_SHIFT);
-    memory_region_init_ram(&s->ram, "onenand.ram", 0xc000 << s->shift);
+    memory_region_init_ram(&s->ram, NULL, "onenand.ram", 0xc000 << s->shift);
     vmstate_register_ram_global(&s->ram);
     ram = memory_region_get_ram_ptr(&s->ram);
     s->boot[0] = ram + (0x0000 << s->shift);

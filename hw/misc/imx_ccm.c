@@ -281,7 +281,7 @@ static int imx_ccm_init(SysBusDevice *dev)
 {
     IMXCCMState *s = FROM_SYSBUS(typeof(*s), dev);
 
-    memory_region_init_io(&s->iomem, &imx_ccm_ops, s, "imx_ccm", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &imx_ccm_ops, s, "imx_ccm", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;

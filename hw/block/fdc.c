@@ -2149,7 +2149,7 @@ static int sysbus_fdc_init1(SysBusDevice *dev)
     FDCtrl *fdctrl = &sys->state;
     int ret;
 
-    memory_region_init_io(&fdctrl->iomem, &fdctrl_mem_ops, fdctrl, "fdc", 0x08);
+    memory_region_init_io(&fdctrl->iomem, NULL, &fdctrl_mem_ops, fdctrl, "fdc", 0x08);
     sysbus_init_mmio(dev, &fdctrl->iomem);
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
@@ -2165,7 +2165,7 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
 {
     FDCtrl *fdctrl = &(FROM_SYSBUS(FDCtrlSysBus, dev)->state);
 
-    memory_region_init_io(&fdctrl->iomem, &fdctrl_mem_strict_ops, fdctrl,
+    memory_region_init_io(&fdctrl->iomem, NULL, &fdctrl_mem_strict_ops, fdctrl,
                           "fdctrl", 0x08);
     sysbus_init_mmio(dev, &fdctrl->iomem);
     sysbus_init_irq(dev, &fdctrl->irq);

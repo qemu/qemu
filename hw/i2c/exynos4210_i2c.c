@@ -301,7 +301,7 @@ static int exynos4210_i2c_realize(SysBusDevice *dev)
 {
     Exynos4210I2CState *s = EXYNOS4_I2C(dev);
 
-    memory_region_init_io(&s->iomem, &exynos4210_i2c_ops, s, TYPE_EXYNOS4_I2C,
+    memory_region_init_io(&s->iomem, NULL, &exynos4210_i2c_ops, s, TYPE_EXYNOS4_I2C,
                           EXYNOS4_I2C_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);

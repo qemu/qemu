@@ -886,7 +886,7 @@ static int escc_init1(SysBusDevice *dev)
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];
 
-    memory_region_init_io(&s->mmio, &escc_mem_ops, s, "escc",
+    memory_region_init_io(&s->mmio, NULL, &escc_mem_ops, s, "escc",
                           ESCC_SIZE << s->it_shift);
     sysbus_init_mmio(dev, &s->mmio);
 

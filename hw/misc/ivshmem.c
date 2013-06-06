@@ -339,7 +339,7 @@ static void create_shared_memory_BAR(IVShmemState *s, int fd) {
 
     ptr = mmap(0, s->ivshmem_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 
-    memory_region_init_ram_ptr(&s->ivshmem, "ivshmem.bar2",
+    memory_region_init_ram_ptr(&s->ivshmem, NULL, "ivshmem.bar2",
                                s->ivshmem_size, ptr);
     vmstate_register_ram(&s->ivshmem, &s->dev.qdev);
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
@@ -467,7 +467,7 @@ static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
         /* mmap the region and map into the BAR2 */
         map_ptr = mmap(0, s->ivshmem_size, PROT_READ|PROT_WRITE, MAP_SHARED,
                                                             incoming_fd, 0);
-        memory_region_init_ram_ptr(&s->ivshmem,
+        memory_region_init_ram_ptr(&s->ivshmem, NULL,
                                    "ivshmem.bar2", s->ivshmem_size, map_ptr);
         vmstate_register_ram(&s->ivshmem, &s->dev.qdev);
 
@@ -685,14 +685,14 @@ static int pci_ivshmem_init(PCIDevice *dev)
 
     s->shm_fd = 0;
 
-    memory_region_init_io(&s->ivshmem_mmio, &ivshmem_mmio_ops, s,
+    memory_region_init_io(&s->ivshmem_mmio, NULL, &ivshmem_mmio_ops, s,
                           "ivshmem-mmio", IVSHMEM_REG_BAR_SIZE);
 
     /* region for registers*/
     pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &s->ivshmem_mmio);
 
-    memory_region_init(&s->bar, "ivshmem-bar2-container", s->ivshmem_size);
+    memory_region_init(&s->bar, NULL, "ivshmem-bar2-container", s->ivshmem_size);
     s->ivshmem_attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
     if (s->ivshmem_64bit) {

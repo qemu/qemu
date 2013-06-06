@@ -356,7 +356,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
 
     apm_init(dev, &s->apm, NULL, s);
 
-    memory_region_init(&s->io, "vt82c686-pm", 64);
+    memory_region_init(&s->io, NULL, "vt82c686-pm", 64);
     memory_region_set_enabled(&s->io, false);
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
@@ -443,8 +443,8 @@ static int vt82c686b_initfn(PCIDevice *d)
        }
     }
 
-    memory_region_init_io(&vt82c->superio, &superio_ops, &vt82c->superio_conf,
-                          "superio", 2);
+    memory_region_init_io(&vt82c->superio, NULL, &superio_ops,
+                          &vt82c->superio_conf, "superio", 2);
     memory_region_set_enabled(&vt82c->superio, false);
     /* The floppy also uses 0x3f0 and 0x3f1.
      * But we do not emulate a floppy, so just set it here. */

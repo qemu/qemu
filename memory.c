@@ -17,6 +17,7 @@
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"
 #include "qemu/bitops.h"
+#include "qom/object.h"
 #include "sysemu/kvm.h"
 #include <assert.h>
 
@@ -728,11 +729,13 @@ static bool memory_region_wrong_endianness(MemoryRegion *mr)
 }
 
 void memory_region_init(MemoryRegion *mr,
+                        Object *owner,
                         const char *name,
                         uint64_t size)
 {
     mr->ops = &unassigned_mem_ops;
     mr->opaque = NULL;
+    mr->owner = owner;
     mr->iommu_ops = NULL;
     mr->parent = NULL;
     mr->size = int128_make64(size);
@@ -914,12 +917,13 @@ static bool memory_region_dispatch_write(MemoryRegion *mr,
 }
 
 void memory_region_init_io(MemoryRegion *mr,
+                           Object *owner,
                            const MemoryRegionOps *ops,
                            void *opaque,
                            const char *name,
                            uint64_t size)
 {
-    memory_region_init(mr, name, size);
+    memory_region_init(mr, owner, name, size);
     mr->ops = ops;
     mr->opaque = opaque;
     mr->terminates = true;
@@ -927,10 +931,11 @@ void memory_region_init_io(MemoryRegion *mr,
 }
 
 void memory_region_init_ram(MemoryRegion *mr,
+                            Object *owner,
                             const char *name,
                             uint64_t size)
 {
-    memory_region_init(mr, name, size);
+    memory_region_init(mr, owner, name, size);
     mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
@@ -938,11 +943,12 @@ void memory_region_init_ram(MemoryRegion *mr,
 }
 
 void memory_region_init_ram_ptr(MemoryRegion *mr,
+                                Object *owner,
                                 const char *name,
                                 uint64_t size,
                                 void *ptr)
 {
-    memory_region_init(mr, name, size);
+    memory_region_init(mr, owner, name, size);
     mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram_from_ptr;
@@ -950,23 +956,25 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
 }
 
 void memory_region_init_alias(MemoryRegion *mr,
+                              Object *owner,
                               const char *name,
                               MemoryRegion *orig,
                               hwaddr offset,
                               uint64_t size)
 {
-    memory_region_init(mr, name, size);
+    memory_region_init(mr, owner, name, size);
     mr->alias = orig;
     mr->alias_offset = offset;
 }
 
 void memory_region_init_rom_device(MemoryRegion *mr,
+                                   Object *owner,
                                    const MemoryRegionOps *ops,
                                    void *opaque,
                                    const char *name,
                                    uint64_t size)
 {
-    memory_region_init(mr, name, size);
+    memory_region_init(mr, owner, name, size);
     mr->ops = ops;
     mr->opaque = opaque;
     mr->terminates = true;
@@ -976,21 +984,23 @@ void memory_region_init_rom_device(MemoryRegion *mr,
 }
 
 void memory_region_init_iommu(MemoryRegion *mr,
+                              Object *owner,
                               const MemoryRegionIOMMUOps *ops,
                               const char *name,
                               uint64_t size)
 {
-    memory_region_init(mr, name, size);
+    memory_region_init(mr, owner, name, size);
     mr->iommu_ops = ops,
     mr->terminates = true;  /* then re-forwards */
     notifier_list_init(&mr->iommu_notify);
 }
 
 void memory_region_init_reservation(MemoryRegion *mr,
+                                    Object *owner,
                                     const char *name,
                                     uint64_t size)
 {
-    memory_region_init_io(mr, &unassigned_mem_ops, mr, name, size);
+    memory_region_init_io(mr, owner, &unassigned_mem_ops, mr, name, size);
 }
 
 void memory_region_destroy(MemoryRegion *mr)

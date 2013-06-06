@@ -222,7 +222,7 @@ static void tosa_init(QEMUMachineInitArgs *args)
 
     mpu = pxa255_init(address_space_mem, tosa_binfo.ram_size);
 
-    memory_region_init_ram(rom, "tosa.rom", TOSA_ROM);
+    memory_region_init_ram(rom, NULL, "tosa.rom", TOSA_ROM);
     vmstate_register_ram_global(rom);
     memory_region_set_readonly(rom, true);
     memory_region_add_subregion(address_space_mem, 0, rom);

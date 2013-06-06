@@ -125,20 +125,20 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 
     pci_bus_irqs(&s->pci_bus, prep_set_irq, prep_map_irq, s->irq, 4);
 
-    memory_region_init_io(&h->conf_mem, &pci_host_conf_be_ops, s,
+    memory_region_init_io(&h->conf_mem, NULL, &pci_host_conf_be_ops, s,
                           "pci-conf-idx", 1);
     sysbus_add_io(dev, 0xcf8, &h->conf_mem);
     sysbus_init_ioports(&h->busdev, 0xcf8, 1);
 
-    memory_region_init_io(&h->data_mem, &pci_host_data_be_ops, s,
+    memory_region_init_io(&h->data_mem, NULL, &pci_host_data_be_ops, s,
                           "pci-conf-data", 1);
     sysbus_add_io(dev, 0xcfc, &h->data_mem);
     sysbus_init_ioports(&h->busdev, 0xcfc, 1);
 
-    memory_region_init_io(&h->mmcfg, &PPC_PCIIO_ops, s, "pciio", 0x00400000);
+    memory_region_init_io(&h->mmcfg, NULL, &PPC_PCIIO_ops, s, "pciio", 0x00400000);
     memory_region_add_subregion(address_space_mem, 0x80800000, &h->mmcfg);
 
-    memory_region_init_io(&s->intack, &PPC_intack_ops, s, "pci-intack", 1);
+    memory_region_init_io(&s->intack, NULL, &PPC_intack_ops, s, "pci-intack", 1);
     memory_region_add_subregion(address_space_mem, 0xbffffff0, &s->intack);
 
     /* TODO Remove once realize propagates to child devices. */

@@ -117,7 +117,7 @@ static int lm32_sys_init(SysBusDevice *dev)
 {
     LM32SysState *s = FROM_SYSBUS(typeof(*s), dev);
 
-    memory_region_init_io(&s->iomem, &sys_ops , s, "sys", R_MAX * 4);
+    memory_region_init_io(&s->iomem, NULL, &sys_ops , s, "sys", R_MAX * 4);
     sysbus_init_mmio(dev, &s->iomem);
 
     /* Note: This device is not created in the board initialization,

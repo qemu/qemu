@@ -365,7 +365,7 @@ static int grlib_gptimer_init(SysBusDevice *dev)
         ptimer_set_freq(timer->ptimer, unit->freq_hz);
     }
 
-    memory_region_init_io(&unit->iomem, &grlib_gptimer_ops, unit, "gptimer",
+    memory_region_init_io(&unit->iomem, NULL, &grlib_gptimer_ops, unit, "gptimer",
                           UNIT_REG_SIZE + GPTIMER_REG_SIZE * unit->nr_timers);
 
     sysbus_init_mmio(dev, &unit->iomem);

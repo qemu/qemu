@@ -2090,9 +2090,9 @@ static int lsi_scsi_init(PCIDevice *dev)
     /* Interrupt pin A */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
-    memory_region_init_io(&s->mmio_io, &lsi_mmio_ops, s, "lsi-mmio", 0x400);
-    memory_region_init_io(&s->ram_io, &lsi_ram_ops, s, "lsi-ram", 0x2000);
-    memory_region_init_io(&s->io_io, &lsi_io_ops, s, "lsi-io", 256);
+    memory_region_init_io(&s->mmio_io, NULL, &lsi_mmio_ops, s, "lsi-mmio", 0x400);
+    memory_region_init_io(&s->ram_io, NULL, &lsi_ram_ops, s, "lsi-ram", 0x2000);
+    memory_region_init_io(&s->io_io, NULL, &lsi_io_ops, s, "lsi-io", 256);
 
     pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
     pci_register_bar(&s->dev, 1, 0, &s->mmio_io);

@@ -494,7 +494,7 @@ static int zynq_slcr_init(SysBusDevice *dev)
 {
     ZynqSLCRState *s = FROM_SYSBUS(ZynqSLCRState, dev);
 
-    memory_region_init_io(&s->iomem, &slcr_ops, s, "slcr", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &slcr_ops, s, "slcr", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;

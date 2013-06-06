@@ -199,7 +199,7 @@ static int xilinx_uartlite_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     uart_update_status(s);
-    memory_region_init_io(&s->mmio, &uart_ops, s, "xlnx.xps-uartlite",
+    memory_region_init_io(&s->mmio, NULL, &uart_ops, s, "xlnx.xps-uartlite",
                                                                 R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 

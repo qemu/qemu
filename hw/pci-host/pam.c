@@ -56,17 +56,17 @@ void init_pam(MemoryRegion *ram_memory, MemoryRegion *system_memory,
     int i;
 
     /* RAM */
-    memory_region_init_alias(&mem->alias[3], "pam-ram", ram_memory,
+    memory_region_init_alias(&mem->alias[3], NULL, "pam-ram", ram_memory,
                              start, size);
     /* ROM (XXX: not quite correct) */
-    memory_region_init_alias(&mem->alias[1], "pam-rom", ram_memory,
+    memory_region_init_alias(&mem->alias[1], NULL, "pam-rom", ram_memory,
                              start, size);
     memory_region_set_readonly(&mem->alias[1], true);
 
     /* XXX: should distinguish read/write cases */
-    memory_region_init_alias(&mem->alias[0], "pam-pci", pci_address_space,
+    memory_region_init_alias(&mem->alias[0], NULL, "pam-pci", pci_address_space,
                              start, size);
-    memory_region_init_alias(&mem->alias[2], "pam-pci", pci_address_space,
+    memory_region_init_alias(&mem->alias[2], NULL, "pam-pci", pci_address_space,
                              start, size);
 
     for (i = 0; i < 4; ++i) {

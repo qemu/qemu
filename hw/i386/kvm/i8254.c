@@ -288,7 +288,7 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    memory_region_init_reservation(&pit->ioports, "kvm-pit", 4);
+    memory_region_init_reservation(&pit->ioports, NULL, "kvm-pit", 4);
 
     qdev_init_gpio_in(dev, kvm_pit_irq_control, 1);
 

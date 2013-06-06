@@ -196,12 +196,12 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     }
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "ppc_core99.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "ppc_core99.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, "ppc_core99.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "ppc_core99.bios", BIOS_SIZE);
     vmstate_register_ram_global(bios);
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
@@ -290,10 +290,10 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     isa_mmio_init(0xf2000000, 0x00800000);
 
     /* UniN init: XXX should be a real device */
-    memory_region_init_io(unin_memory, &unin_ops, token, "unin", 0x1000);
+    memory_region_init_io(unin_memory, NULL, &unin_ops, token, "unin", 0x1000);
     memory_region_add_subregion(get_system_memory(), 0xf8000000, unin_memory);
 
-    memory_region_init_io(unin2_memory, &unin_ops, token, "unin", 0x1000);
+    memory_region_init_io(unin2_memory, NULL, &unin_ops, token, "unin", 0x1000);
     memory_region_add_subregion(get_system_memory(), 0xf3000000, unin2_memory);
 
     openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
@@ -371,7 +371,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
 
     escc_mem = escc_init(0, pic[0x25], pic[0x24],
                          serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
-    memory_region_init_alias(escc_bar, "escc-bar",
+    memory_region_init_alias(escc_bar, NULL, "escc-bar",
                              escc_mem, 0, memory_region_size(escc_mem));
 
     for(i = 0; i < nb_nics; i++)

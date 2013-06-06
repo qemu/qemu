@@ -63,7 +63,7 @@ static int serial_pci_init(PCIDevice *dev)
     pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
     s->irq = pci->dev.irq[0];
 
-    memory_region_init_io(&s->io, &serial_io_ops, s, "serial", 8);
+    memory_region_init_io(&s->io, NULL, &serial_io_ops, s, "serial", 8);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     return 0;
 }
@@ -102,7 +102,7 @@ static int multi_serial_pci_init(PCIDevice *dev)
     assert(pci->ports <= PCI_SERIAL_MAX_PORTS);
 
     pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
-    memory_region_init(&pci->iobar, "multiserial", 8 * pci->ports);
+    memory_region_init(&pci->iobar, NULL, "multiserial", 8 * pci->ports);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->iobar);
     pci->irqs = qemu_allocate_irqs(multi_serial_irq_mux, pci,
                                    pci->ports);
@@ -118,7 +118,7 @@ static int multi_serial_pci_init(PCIDevice *dev)
         }
         s->irq = pci->irqs[i];
         pci->name[i] = g_strdup_printf("uart #%d", i+1);
-        memory_region_init_io(&s->io, &serial_io_ops, s, pci->name[i], 8);
+        memory_region_init_io(&s->io, NULL, &serial_io_ops, s, pci->name[i], 8);
         memory_region_add_subregion(&pci->iobar, 8 * i, &s->io);
     }
     return 0;

@@ -278,7 +278,7 @@ DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu)
     qdev_init_gpio_in(dev, pxa2xx_pic_set_irq, PXA2XX_PIC_SRCS);
 
     /* Enable IC memory-mapped registers access.  */
-    memory_region_init_io(&s->iomem, &pxa2xx_pic_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &pxa2xx_pic_ops, s,
                           "pxa2xx-pic", 0x00100000);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);

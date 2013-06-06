@@ -382,7 +382,7 @@ static int xgmac_enet_init(SysBusDevice *dev)
 {
     struct XgmacState *s = FROM_SYSBUS(typeof(*s), dev);
 
-    memory_region_init_io(&s->iomem, &enet_mem_ops, s, "xgmac", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &enet_mem_ops, s, "xgmac", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->sbd_irq);
     sysbus_init_irq(dev, &s->pmt_irq);

@@ -505,12 +505,12 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     }
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "ppc_prep.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "ppc_prep.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, "ppc_prep.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "ppc_prep.bios", BIOS_SIZE);
     memory_region_set_readonly(bios, true);
     memory_region_add_subregion(sysmem, (uint32_t)(-BIOS_SIZE), bios);
     vmstate_register_ram_global(bios);
@@ -621,7 +621,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     qdev_init_nofail(dev);
 
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
-    memory_region_init_io(PPC_io_memory, &PPC_prep_io_ops, sysctrl,
+    memory_region_init_io(PPC_io_memory, NULL, &PPC_prep_io_ops, sysctrl,
                           "ppc-io", 0x00800000);
     memory_region_add_subregion(sysmem, 0x80000000, PPC_io_memory);
 
@@ -658,7 +658,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
 
     /* PowerPC control and status register group */
 #if 0
-    memory_region_init_io(xcsr, &PPC_XCSR_ops, NULL, "ppc-xcsr", 0x1000);
+    memory_region_init_io(xcsr, NULL, &PPC_XCSR_ops, NULL, "ppc-xcsr", 0x1000);
     memory_region_add_subregion(sysmem, 0xFEFF0000, xcsr);
 #endif
 

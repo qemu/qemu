@@ -149,13 +149,13 @@ static void testdev_realizefn(DeviceState *d, Error **errp)
     MemoryRegion *mem = isa_address_space(isa);
     MemoryRegion *io = isa_address_space_io(isa);
 
-    memory_region_init_io(&dev->ioport, &test_ioport_ops, dev,
+    memory_region_init_io(&dev->ioport, NULL, &test_ioport_ops, dev,
                           "pc-testdev-ioport", 4);
-    memory_region_init_io(&dev->flush, &test_flush_ops, dev,
+    memory_region_init_io(&dev->flush, NULL, &test_flush_ops, dev,
                           "pc-testdev-flush-page", 4);
-    memory_region_init_io(&dev->irq, &test_irq_ops, dev,
+    memory_region_init_io(&dev->irq, NULL, &test_irq_ops, dev,
                           "pc-testdev-irq-line", 24);
-    memory_region_init_io(&dev->iomem, &test_iomem_ops, dev,
+    memory_region_init_io(&dev->iomem, NULL, &test_iomem_ops, dev,
                           "pc-testdev-iomem", IOMEM_LEN);
 
     memory_region_add_subregion(io,  0xe0,       &dev->ioport);

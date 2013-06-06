@@ -68,7 +68,7 @@ static int a15mp_priv_init(SysBusDevice *dev)
      *  0x5000-0x5fff -- GIC virtual interface control (not modelled)
      *  0x6000-0x7fff -- GIC virtual CPU interface (not modelled)
      */
-    memory_region_init(&s->container, "a15mp-priv-container", 0x8000);
+    memory_region_init(&s->container, NULL, "a15mp-priv-container", 0x8000);
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(busdev, 0));
     memory_region_add_subregion(&s->container, 0x2000,

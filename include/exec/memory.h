@@ -136,6 +136,7 @@ struct MemoryRegion {
     const MemoryRegionOps *ops;
     const MemoryRegionIOMMUOps *iommu_ops;
     void *opaque;
+    struct Object *owner;
     MemoryRegion *parent;
     Int128 size;
     hwaddr addr;
@@ -238,10 +239,12 @@ struct MemoryListener {
  * memory_region_add_subregion() to add subregions.
  *
  * @mr: the #MemoryRegion to be initialized
+ * @owner: the object that tracks the region's reference count
  * @name: used for debugging; not visible to the user or ABI
  * @size: size of the region; any subregions beyond this size will be clipped
  */
 void memory_region_init(MemoryRegion *mr,
+                        struct Object *owner,
                         const char *name,
                         uint64_t size);
 /**
@@ -251,6 +254,7 @@ void memory_region_init(MemoryRegion *mr,
  * if @size is nonzero, subregions will be clipped to @size.
  *
  * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
  * @ops: a structure containing read and write callbacks to be used when
  *       I/O is performed on the region.
  * @opaque: passed to to the read and write callbacks of the @ops structure.
@@ -258,6 +262,7 @@ void memory_region_init(MemoryRegion *mr,
  * @size: size of the region.
  */
 void memory_region_init_io(MemoryRegion *mr,
+                           struct Object *owner,
                            const MemoryRegionOps *ops,
                            void *opaque,
                            const char *name,
@@ -268,10 +273,12 @@ void memory_region_init_io(MemoryRegion *mr,
  *                          region will modify memory directly.
  *
  * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
  * @name: the name of the region.
  * @size: size of the region.
  */
 void memory_region_init_ram(MemoryRegion *mr,
+                            struct Object *owner,
                             const char *name,
                             uint64_t size);
 
@@ -281,11 +288,13 @@ void memory_region_init_ram(MemoryRegion *mr,
  *                              region will modify memory directly.
  *
  * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
  * @name: the name of the region.
  * @size: size of the region.
  * @ptr: memory to be mapped; must contain at least @size bytes.
  */
 void memory_region_init_ram_ptr(MemoryRegion *mr,
+                                struct Object *owner,
                                 const char *name,
                                 uint64_t size,
                                 void *ptr);
@@ -295,6 +304,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
  *                           part of another memory region.
  *
  * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
  * @name: used for debugging; not visible to the user or ABI
  * @orig: the region to be referenced; @mr will be equivalent to
  *        @orig between @offset and @offset + @size - 1.
@@ -302,6 +312,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
  * @size: size of the region.
  */
 void memory_region_init_alias(MemoryRegion *mr,
+                              struct Object *owner,
                               const char *name,
                               MemoryRegion *orig,
                               hwaddr offset,
@@ -312,11 +323,13 @@ void memory_region_init_alias(MemoryRegion *mr,
  *                                 handled via callbacks.
  *
  * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
  * @ops: callbacks for write access handling.
  * @name: the name of the region.
  * @size: size of the region.
  */
 void memory_region_init_rom_device(MemoryRegion *mr,
+                                   struct Object *owner,
                                    const MemoryRegionOps *ops,
                                    void *opaque,
                                    const char *name,
@@ -331,10 +344,12 @@ void memory_region_init_rom_device(MemoryRegion *mr,
  * the memory API will cause an abort().
  *
  * @mr: the #MemoryRegion to be initialized
+ * @owner: the object that tracks the region's reference count
  * @name: used for debugging; not visible to the user or ABI
  * @size: size of the region.
  */
 void memory_region_init_reservation(MemoryRegion *mr,
+                                    struct Object *owner,
                                     const char *name,
                                     uint64_t size);
 
@@ -346,11 +361,13 @@ void memory_region_init_reservation(MemoryRegion *mr,
  * memory region.
  *
  * @mr: the #MemoryRegion to be initialized
+ * @owner: the object that tracks the region's reference count
  * @ops: a function that translates addresses into the @target region
  * @name: used for debugging; not visible to the user or ABI
  * @size: size of the region.
  */
 void memory_region_init_iommu(MemoryRegion *mr,
+                              struct Object *owner,
                               const MemoryRegionIOMMUOps *ops,
                               const char *name,
                               uint64_t size);

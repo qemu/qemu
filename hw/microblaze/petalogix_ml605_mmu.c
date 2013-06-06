@@ -98,12 +98,12 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
     env = &cpu->env;
 
     /* Attach emulated BRAM through the LMB.  */
-    memory_region_init_ram(phys_lmb_bram, "petalogix_ml605.lmb_bram",
+    memory_region_init_ram(phys_lmb_bram, NULL, "petalogix_ml605.lmb_bram",
                            LMB_BRAM_SIZE);
     vmstate_register_ram_global(phys_lmb_bram);
     memory_region_add_subregion(address_space_mem, 0x00000000, phys_lmb_bram);
 
-    memory_region_init_ram(phys_ram, "petalogix_ml605.ram", ram_size);
+    memory_region_init_ram(phys_ram, NULL, "petalogix_ml605.ram", ram_size);
     vmstate_register_ram_global(phys_ram);
     memory_region_add_subregion(address_space_mem, ddr_base, phys_ram);
 

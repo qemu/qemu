@@ -1516,7 +1516,7 @@ static void map_list(OpenPICState *opp, const MemReg *list, int *count)
     while (list->name) {
         assert(*count < ARRAY_SIZE(opp->sub_io_mem));
 
-        memory_region_init_io(&opp->sub_io_mem[*count], list->ops, opp,
+        memory_region_init_io(&opp->sub_io_mem[*count], NULL, list->ops, opp,
                               list->name, list->size);
 
         memory_region_add_subregion(&opp->mem, list->start_addr,
@@ -1531,7 +1531,7 @@ static void openpic_init(Object *obj)
 {
     OpenPICState *opp = OPENPIC(obj);
 
-    memory_region_init(&opp->mem, "openpic", 0x40000);
+    memory_region_init(&opp->mem, NULL, "openpic", 0x40000);
 }
 
 static void openpic_realize(DeviceState *dev, Error **errp)

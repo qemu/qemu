@@ -405,7 +405,7 @@ static int stellaris_enet_init(SysBusDevice *dev)
 {
     stellaris_enet_state *s = FROM_SYSBUS(stellaris_enet_state, dev);
 
-    memory_region_init_io(&s->mmio, &stellaris_enet_ops, s, "stellaris_enet",
+    memory_region_init_io(&s->mmio, NULL, &stellaris_enet_ops, s, "stellaris_enet",
                           0x1000);
     sysbus_init_mmio(dev, &s->mmio);
     sysbus_init_irq(dev, &s->irq);

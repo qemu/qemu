@@ -72,7 +72,7 @@ static void serial_isa_realizefn(DeviceState *dev, Error **errp)
     serial_realize_core(s, errp);
     qdev_set_legacy_instance_id(dev, isa->iobase, 3);
 
-    memory_region_init_io(&s->io, &serial_io_ops, s, "serial", 8);
+    memory_region_init_io(&s->io, NULL, &serial_io_ops, s, "serial", 8);
     isa_register_ioport(isadev, &s->io, isa->iobase);
 }
 

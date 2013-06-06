@@ -98,9 +98,9 @@ static int pci_dec_21154_device_init(SysBusDevice *dev)
 
     phb = PCI_HOST_BRIDGE(dev);
 
-    memory_region_init_io(&phb->conf_mem, &pci_host_conf_le_ops,
+    memory_region_init_io(&phb->conf_mem, NULL, &pci_host_conf_le_ops,
                           dev, "pci-conf-idx", 0x1000);
-    memory_region_init_io(&phb->data_mem, &pci_host_data_le_ops,
+    memory_region_init_io(&phb->data_mem, NULL, &pci_host_data_le_ops,
                           dev, "pci-data-idx", 0x1000);
     sysbus_init_mmio(dev, &phb->conf_mem);
     sysbus_init_mmio(dev, &phb->data_mem);

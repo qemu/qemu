@@ -117,8 +117,8 @@ static void setup_cmd646_bar(PCIIDEState *d, int bus_num)
 
     bar->bus = bus;
     bar->pci_dev = d;
-    memory_region_init_io(&bar->cmd, &cmd646_cmd_ops, bar, "cmd646-cmd", 4);
-    memory_region_init_io(&bar->data, &cmd646_data_ops, bar, "cmd646-data", 8);
+    memory_region_init_io(&bar->cmd, NULL, &cmd646_cmd_ops, bar, "cmd646-cmd", 4);
+    memory_region_init_io(&bar->data, NULL, &cmd646_data_ops, bar, "cmd646-data", 8);
 }
 
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
@@ -203,13 +203,13 @@ static void bmdma_setup_bar(PCIIDEState *d)
     BMDMAState *bm;
     int i;
 
-    memory_region_init(&d->bmdma_bar, "cmd646-bmdma", 16);
+    memory_region_init(&d->bmdma_bar, NULL, "cmd646-bmdma", 16);
     for(i = 0;i < 2; i++) {
         bm = &d->bmdma[i];
-        memory_region_init_io(&bm->extra_io, &cmd646_bmdma_ops, bm,
+        memory_region_init_io(&bm->extra_io, NULL, &cmd646_bmdma_ops, bm,
                               "cmd646-bmdma-bus", 4);
         memory_region_add_subregion(&d->bmdma_bar, i * 8, &bm->extra_io);
-        memory_region_init_io(&bm->addr_ioport, &bmdma_addr_ioport_ops, bm,
+        memory_region_init_io(&bm->addr_ioport, NULL, &bmdma_addr_ioport_ops, bm,
                               "cmd646-bmdma-ioport", 4);
         memory_region_add_subregion(&d->bmdma_bar, i * 8 + 4, &bm->addr_ioport);
     }

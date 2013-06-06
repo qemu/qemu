@@ -94,7 +94,7 @@ struct omap_synctimer_s *omap_synctimer_init(struct omap_target_agent_s *ta,
     struct omap_synctimer_s *s = g_malloc0(sizeof(*s));
 
     omap_synctimer_reset(s);
-    memory_region_init_io(&s->iomem, &omap_synctimer_ops, s, "omap.synctimer",
+    memory_region_init_io(&s->iomem, NULL, &omap_synctimer_ops, s, "omap.synctimer",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
 

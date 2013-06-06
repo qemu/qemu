@@ -157,10 +157,10 @@ static int pci_std_vga_initfn(PCIDevice *dev)
 
     /* mmio bar for vga register access */
     if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_MMIO)) {
-        memory_region_init(&d->mmio, "vga.mmio", 4096);
-        memory_region_init_io(&d->ioport, &pci_vga_ioport_ops, d,
+        memory_region_init(&d->mmio, NULL, "vga.mmio", 4096);
+        memory_region_init_io(&d->ioport, NULL, &pci_vga_ioport_ops, d,
                               "vga ioports remapped", PCI_VGA_IOPORT_SIZE);
-        memory_region_init_io(&d->bochs, &pci_vga_bochs_ops, d,
+        memory_region_init_io(&d->bochs, NULL, &pci_vga_bochs_ops, d,
                               "bochs dispi interface", PCI_VGA_BOCHS_SIZE);
 
         memory_region_add_subregion(&d->mmio, PCI_VGA_IOPORT_OFFSET,

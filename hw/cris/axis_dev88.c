@@ -269,13 +269,13 @@ void axisdev88_init(QEMUMachineInitArgs *args)
     env = &cpu->env;
 
     /* allocate RAM */
-    memory_region_init_ram(phys_ram, "axisdev88.ram", ram_size);
+    memory_region_init_ram(phys_ram, NULL, "axisdev88.ram", ram_size);
     vmstate_register_ram_global(phys_ram);
     memory_region_add_subregion(address_space_mem, 0x40000000, phys_ram);
 
     /* The ETRAX-FS has 128Kb on chip ram, the docs refer to it as the 
        internal memory.  */
-    memory_region_init_ram(phys_intmem, "axisdev88.chipram", INTMEM_SIZE);
+    memory_region_init_ram(phys_intmem, NULL, "axisdev88.chipram", INTMEM_SIZE);
     vmstate_register_ram_global(phys_intmem);
     memory_region_add_subregion(address_space_mem, 0x38000000, phys_intmem);
 
@@ -283,13 +283,13 @@ void axisdev88_init(QEMUMachineInitArgs *args)
     nand = drive_get(IF_MTD, 0, 0);
     nand_state.nand = nand_init(nand ? nand->bdrv : NULL,
                                 NAND_MFR_STMICRO, 0x39);
-    memory_region_init_io(&nand_state.iomem, &nand_ops, &nand_state,
+    memory_region_init_io(&nand_state.iomem, NULL, &nand_ops, &nand_state,
                           "nand", 0x05000000);
     memory_region_add_subregion(address_space_mem, 0x10000000,
                                 &nand_state.iomem);
 
     gpio_state.nand = &nand_state;
-    memory_region_init_io(&gpio_state.iomem, &gpio_ops, &gpio_state,
+    memory_region_init_io(&gpio_state.iomem, NULL, &gpio_ops, &gpio_state,
                           "gpio", 0x5c);
     memory_region_add_subregion(address_space_mem, 0x3001a000,
                                 &gpio_state.iomem);

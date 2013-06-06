@@ -249,10 +249,10 @@ static int integratorcm_init(SysBusDevice *dev)
     }
     memcpy(integrator_spd + 73, "QEMU-MEMORY", 11);
     s->cm_init = 0x00000112;
-    memory_region_init_ram(&s->flash, "integrator.flash", 0x100000);
+    memory_region_init_ram(&s->flash, NULL, "integrator.flash", 0x100000);
     vmstate_register_ram_global(&s->flash);
 
-    memory_region_init_io(&s->iomem, &integratorcm_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &integratorcm_ops, s,
                           "integratorcm", 0x00800000);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -374,7 +374,7 @@ static int icp_pic_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, icp_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_fiq);
-    memory_region_init_io(&s->iomem, &icp_pic_ops, s, "icp-pic", 0x00800000);
+    memory_region_init_io(&s->iomem, NULL, &icp_pic_ops, s, "icp-pic", 0x00800000);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
@@ -424,7 +424,7 @@ static void icp_control_init(hwaddr base)
     MemoryRegion *io;
 
     io = (MemoryRegion *)g_malloc0(sizeof(MemoryRegion));
-    memory_region_init_io(io, &icp_control_ops, NULL,
+    memory_region_init_io(io, NULL, &icp_control_ops, NULL,
                           "control", 0x00800000);
     memory_region_add_subregion(get_system_memory(), base, io);
     /* ??? Save/restore.  */
@@ -463,14 +463,14 @@ static void integratorcp_init(QEMUMachineInitArgs *args)
         exit(1);
     }
 
-    memory_region_init_ram(ram, "integrator.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "integrator.ram", ram_size);
     vmstate_register_ram_global(ram);
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero*/
     memory_region_add_subregion(address_space_mem, 0, ram);
     /* And again at address 0x80000000 */
-    memory_region_init_alias(ram_alias, "ram.alias", ram, 0, ram_size);
+    memory_region_init_alias(ram_alias, NULL, "ram.alias", ram, 0, ram_size);
     memory_region_add_subregion(address_space_mem, 0x80000000, ram_alias);
 
     dev = qdev_create(NULL, "integrator_core");

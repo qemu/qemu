@@ -330,7 +330,7 @@ static int e500_pcihost_bridge_initfn(PCIDevice *d)
         (d->config[PCI_HEADER_TYPE] & PCI_HEADER_TYPE_MULTI_FUNCTION) |
         PCI_HEADER_TYPE_BRIDGE;
 
-    memory_region_init_alias(&b->bar0, "e500-pci-bar0", &ccsr->ccsr_space,
+    memory_region_init_alias(&b->bar0, NULL, "e500-pci-bar0", &ccsr->ccsr_space,
                              0, int128_get64(ccsr->ccsr_space.size));
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &b->bar0);
 
@@ -352,7 +352,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->irq[i]);
     }
 
-    memory_region_init(&s->pio, "pci-pio", PCIE500_PCI_IOLEN);
+    memory_region_init(&s->pio, NULL, "pci-pio", PCIE500_PCI_IOLEN);
 
     b = pci_register_bus(DEVICE(dev), NULL, mpc85xx_pci_set_irq,
                          mpc85xx_pci_map_irq, s->irq, address_space_mem,
@@ -361,12 +361,12 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
 
     pci_create_simple(b, 0, "e500-host-bridge");
 
-    memory_region_init(&s->container, "pci-container", PCIE500_ALL_SIZE);
-    memory_region_init_io(&h->conf_mem, &pci_host_conf_be_ops, h,
+    memory_region_init(&s->container, NULL, "pci-container", PCIE500_ALL_SIZE);
+    memory_region_init_io(&h->conf_mem, NULL, &pci_host_conf_be_ops, h,
                           "pci-conf-idx", 4);
-    memory_region_init_io(&h->data_mem, &pci_host_data_le_ops, h,
+    memory_region_init_io(&h->data_mem, NULL, &pci_host_data_le_ops, h,
                           "pci-conf-data", 4);
-    memory_region_init_io(&s->iomem, &e500_pci_reg_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &e500_pci_reg_ops, s,
                           "pci.reg", PCIE500_REG_SIZE);
     memory_region_add_subregion(&s->container, PCIE500_CFGADDR, &h->conf_mem);
     memory_region_add_subregion(&s->container, PCIE500_CFGDATA, &h->data_mem);

@@ -90,7 +90,7 @@ static void pvpanic_isa_initfn(Object *obj)
 {
     PVPanicState *s = ISA_PVPANIC_DEVICE(obj);
 
-    memory_region_init_io(&s->io, &pvpanic_ops, s, "pvpanic", 1);
+    memory_region_init_io(&s->io, NULL, &pvpanic_ops, s, "pvpanic", 1);
 }
 
 static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)

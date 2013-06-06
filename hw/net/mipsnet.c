@@ -235,7 +235,7 @@ static int mipsnet_sysbus_init(SysBusDevice *dev)
 {
     MIPSnetState *s = DO_UPCAST(MIPSnetState, busdev, dev);
 
-    memory_region_init_io(&s->io, &mipsnet_ioport_ops, s, "mipsnet-io", 36);
+    memory_region_init_io(&s->io, NULL, &mipsnet_ioport_ops, s, "mipsnet-io", 36);
     sysbus_init_mmio(dev, &s->io);
     sysbus_init_irq(dev, &s->irq);
 

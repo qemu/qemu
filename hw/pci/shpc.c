@@ -612,7 +612,7 @@ int shpc_init(PCIDevice *d, PCIBus *sec_bus, MemoryRegion *bar, unsigned offset)
     }
 
     /* TODO: init cmask */
-    memory_region_init_io(&shpc->mmio, &shpc_mmio_ops, d, "shpc-mmio",
+    memory_region_init_io(&shpc->mmio, NULL, &shpc_mmio_ops, d, "shpc-mmio",
                           SHPC_SIZEOF(d));
     shpc_cap_update_dword(d);
     memory_region_add_subregion(bar, offset, &shpc->mmio);

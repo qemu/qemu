@@ -89,7 +89,7 @@ static void ccw_init(QEMUMachineInitArgs *args)
     virtio_ccw_register_hcalls();
 
     /* allocate RAM */
-    memory_region_init_ram(ram, "s390.ram", my_ram_size);
+    memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
 

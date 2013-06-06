@@ -98,7 +98,7 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     /* pci enabled */
     if (pci_enabled) {
         pci_memory = g_new(MemoryRegion, 1);
-        memory_region_init(pci_memory, "pci", INT64_MAX);
+        memory_region_init(pci_memory, NULL, "pci", INT64_MAX);
         rom_memory = pci_memory;
     } else {
         pci_memory = NULL;

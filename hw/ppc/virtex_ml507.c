@@ -190,7 +190,7 @@ static void virtex_init(QEMUMachineInitArgs *args)
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
 
-    memory_region_init_ram(phys_ram, "ram", ram_size);
+    memory_region_init_ram(phys_ram, NULL, "ram", ram_size);
     vmstate_register_ram_global(phys_ram);
     memory_region_add_subregion(address_space_mem, ram_base, phys_ram);
 

@@ -390,7 +390,7 @@ static void ppc4xx_opba_init(hwaddr base)
 #ifdef DEBUG_OPBA
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    memory_region_init_io(&opba->io, &opba_ops, opba, "opba", 0x002);
+    memory_region_init_io(&opba->io, NULL, &opba_ops, opba, "opba", 0x002);
     memory_region_add_subregion(get_system_memory(), base, &opba->io);
     qemu_register_reset(ppc4xx_opba_reset, opba);
 }
@@ -812,7 +812,7 @@ static void ppc405_gpio_init(hwaddr base)
 #ifdef DEBUG_GPIO
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    memory_region_init_io(&gpio->io, &ppc405_gpio_ops, gpio, "pgio", 0x038);
+    memory_region_init_io(&gpio->io, NULL, &ppc405_gpio_ops, gpio, "pgio", 0x038);
     memory_region_add_subregion(get_system_memory(), base, &gpio->io);
     qemu_register_reset(&ppc405_gpio_reset, gpio);
 }
@@ -972,9 +972,9 @@ static void ppc405_ocm_init(CPUPPCState *env)
 
     ocm = g_malloc0(sizeof(ppc405_ocm_t));
     /* XXX: Size is 4096 or 0x04000000 */
-    memory_region_init_ram(&ocm->isarc_ram, "ppc405.ocm", 4096);
+    memory_region_init_ram(&ocm->isarc_ram, NULL, "ppc405.ocm", 4096);
     vmstate_register_ram_global(&ocm->isarc_ram);
-    memory_region_init_alias(&ocm->dsarc_ram, "ppc405.dsarc", &ocm->isarc_ram,
+    memory_region_init_alias(&ocm->dsarc_ram, NULL, "ppc405.dsarc", &ocm->isarc_ram,
                              0, 4096);
     qemu_register_reset(&ocm_reset, ocm);
     ppc_dcr_register(env, OCM0_ISARC,
@@ -1222,7 +1222,7 @@ static void ppc405_i2c_init(hwaddr base, qemu_irq irq)
 #ifdef DEBUG_I2C
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    memory_region_init_io(&i2c->iomem, &i2c_ops, i2c, "i2c", 0x011);
+    memory_region_init_io(&i2c->iomem, NULL, &i2c_ops, i2c, "i2c", 0x011);
     memory_region_add_subregion(get_system_memory(), base, &i2c->iomem);
     qemu_register_reset(ppc4xx_i2c_reset, i2c);
 }
@@ -1501,7 +1501,7 @@ static void ppc4xx_gpt_init(hwaddr base, qemu_irq irqs[5])
 #ifdef DEBUG_GPT
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    memory_region_init_io(&gpt->iomem, &gpt_ops, gpt, "gpt", 0x0d4);
+    memory_region_init_io(&gpt->iomem, NULL, &gpt_ops, gpt, "gpt", 0x0d4);
     memory_region_add_subregion(get_system_memory(), base, &gpt->iomem);
     qemu_register_reset(ppc4xx_gpt_reset, gpt);
 }

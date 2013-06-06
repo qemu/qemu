@@ -908,7 +908,7 @@ void dp83932_init(NICInfo *nd, hwaddr base, int it_shift,
     qemu_register_reset(nic_reset, s);
     nic_reset(s);
 
-    memory_region_init_io(&s->mmio, &dp8393x_ops, s,
+    memory_region_init_io(&s->mmio, NULL, &dp8393x_ops, s,
                           "dp8393x", 0x40 << it_shift);
     memory_region_add_subregion(address_space, base, &s->mmio);
 }

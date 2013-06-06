@@ -1449,7 +1449,7 @@ static int exynos4210_mct_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->l_timer[i].irq);
     }
 
-    memory_region_init_io(&s->iomem, &exynos4210_mct_ops, s, "exynos4210-mct",
+    memory_region_init_io(&s->iomem, NULL, &exynos4210_mct_ops, s, "exynos4210-mct",
             MCT_SFR_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 

@@ -330,7 +330,7 @@ static int xilinx_spi_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->cs_lines[i]);
     }
 
-    memory_region_init_io(&s->mmio, &spi_ops, s, "xilinx-spi", R_MAX * 4);
+    memory_region_init_io(&s->mmio, NULL, &spi_ops, s, "xilinx-spi", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
     s->irqline = -1;

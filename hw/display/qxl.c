@@ -1981,18 +1981,18 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     pci_set_byte(&config[PCI_INTERRUPT_PIN], 1);
 
     qxl->rom_size = qxl_rom_size();
-    memory_region_init_ram(&qxl->rom_bar, "qxl.vrom", qxl->rom_size);
+    memory_region_init_ram(&qxl->rom_bar, NULL, "qxl.vrom", qxl->rom_size);
     vmstate_register_ram(&qxl->rom_bar, &qxl->pci.qdev);
     init_qxl_rom(qxl);
     init_qxl_ram(qxl);
 
     qxl->guest_surfaces.cmds = g_new0(QXLPHYSICAL, qxl->ssd.num_surfaces);
-    memory_region_init_ram(&qxl->vram_bar, "qxl.vram", qxl->vram_size);
+    memory_region_init_ram(&qxl->vram_bar, NULL, "qxl.vram", qxl->vram_size);
     vmstate_register_ram(&qxl->vram_bar, &qxl->pci.qdev);
-    memory_region_init_alias(&qxl->vram32_bar, "qxl.vram32", &qxl->vram_bar,
+    memory_region_init_alias(&qxl->vram32_bar, NULL, "qxl.vram32", &qxl->vram_bar,
                              0, qxl->vram32_size);
 
-    memory_region_init_io(&qxl->io_bar, &qxl_io_ops, qxl,
+    memory_region_init_io(&qxl->io_bar, NULL, &qxl_io_ops, qxl,
                           "qxl-ioports", io_size);
     if (qxl->id == 0) {
         vga_dirty_log_start(&qxl->vga);
@@ -2093,7 +2093,7 @@ static int qxl_init_secondary(PCIDevice *dev)
 
     qxl->id = device_id++;
     qxl_init_ramsize(qxl);
-    memory_region_init_ram(&qxl->vga.vram, "qxl.vgavram", qxl->vga.vram_size);
+    memory_region_init_ram(&qxl->vga.vram, NULL, "qxl.vgavram", qxl->vga.vram_size);
     vmstate_register_ram(&qxl->vga.vram, &qxl->pci.qdev);
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
     qxl->vga.con = graphic_console_init(DEVICE(dev), &qxl_ops, qxl);

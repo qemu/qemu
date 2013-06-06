@@ -120,7 +120,7 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
         sysbus_init_irq(sbd, &s->parent_irq[i]);
     }
     /* Distributor */
-    memory_region_init_reservation(&s->iomem, "kvm-gic_dist", 0x1000);
+    memory_region_init_reservation(&s->iomem, NULL, "kvm-gic_dist", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     kvm_arm_register_device(&s->iomem,
                             (KVM_ARM_DEVICE_VGIC_V2 << KVM_ARM_DEVICE_ID_SHIFT)
@@ -129,7 +129,7 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
      * provide the "interface for core #N" memory regions, because
      * cores with a VGIC don't have those.
      */
-    memory_region_init_reservation(&s->cpuiomem[0], "kvm-gic_cpu", 0x1000);
+    memory_region_init_reservation(&s->cpuiomem[0], NULL, "kvm-gic_cpu", 0x1000);
     sysbus_init_mmio(sbd, &s->cpuiomem[0]);
     kvm_arm_register_device(&s->cpuiomem[0],
                             (KVM_ARM_DEVICE_VGIC_V2 << KVM_ARM_DEVICE_ID_SHIFT)

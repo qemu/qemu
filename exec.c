@@ -1673,7 +1673,7 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
 
     mmio->as = as;
     mmio->base = base;
-    memory_region_init_io(&mmio->iomem, &subpage_ops, mmio,
+    memory_region_init_io(&mmio->iomem, NULL, &subpage_ops, mmio,
                           "subpage", TARGET_PAGE_SIZE);
     mmio->iomem.subpage = true;
 #if defined(DEBUG_SUBPAGE)
@@ -1704,12 +1704,12 @@ MemoryRegion *iotlb_to_region(hwaddr index)
 
 static void io_mem_init(void)
 {
-    memory_region_init_io(&io_mem_rom, &unassigned_mem_ops, NULL, "rom", UINT64_MAX);
-    memory_region_init_io(&io_mem_unassigned, &unassigned_mem_ops, NULL,
+    memory_region_init_io(&io_mem_rom, NULL, &unassigned_mem_ops, NULL, "rom", UINT64_MAX);
+    memory_region_init_io(&io_mem_unassigned, NULL, &unassigned_mem_ops, NULL,
                           "unassigned", UINT64_MAX);
-    memory_region_init_io(&io_mem_notdirty, &notdirty_mem_ops, NULL,
+    memory_region_init_io(&io_mem_notdirty, NULL, &notdirty_mem_ops, NULL,
                           "notdirty", UINT64_MAX);
-    memory_region_init_io(&io_mem_watch, &watch_mem_ops, NULL,
+    memory_region_init_io(&io_mem_watch, NULL, &watch_mem_ops, NULL,
                           "watch", UINT64_MAX);
 }
 
@@ -1792,11 +1792,11 @@ void address_space_destroy_dispatch(AddressSpace *as)
 static void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));
-    memory_region_init(system_memory, "system", INT64_MAX);
+    memory_region_init(system_memory, NULL, "system", INT64_MAX);
     address_space_init(&address_space_memory, system_memory, "memory");
 
     system_io = g_malloc(sizeof(*system_io));
-    memory_region_init(system_io, "io", 65536);
+    memory_region_init(system_io, NULL, "io", 65536);
     address_space_init(&address_space_io, system_io, "I/O");
 
     memory_listener_register(&core_memory_listener, &address_space_memory);

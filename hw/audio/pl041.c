@@ -543,7 +543,7 @@ static int pl041_init(SysBusDevice *dev)
     }
 
     /* Connect the device to the sysbus */
-    memory_region_init_io(&s->iomem, &pl041_ops, s, "pl041", 0x1000);
+    memory_region_init_io(&s->iomem, NULL, &pl041_ops, s, "pl041", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 

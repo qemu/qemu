@@ -59,7 +59,7 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
         isa_bios_size = 128 * 1024;
     }
     isa_bios = g_malloc(sizeof(*isa_bios));
-    memory_region_init_ram(isa_bios, "isa-bios", isa_bios_size);
+    memory_region_init_ram(isa_bios, NULL, "isa-bios", isa_bios_size);
     vmstate_register_ram_global(isa_bios);
     memory_region_add_subregion_overlap(rom_memory,
                                         0x100000 - isa_bios_size,
@@ -162,7 +162,7 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
         goto bios_error;
     }
     bios = g_malloc(sizeof(*bios));
-    memory_region_init_ram(bios, "pc.bios", bios_size);
+    memory_region_init_ram(bios, NULL, "pc.bios", bios_size);
     vmstate_register_ram_global(bios);
     if (!isapc_ram_fw) {
         memory_region_set_readonly(bios, true);
@@ -183,7 +183,7 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
         isa_bios_size = 128 * 1024;
     }
     isa_bios = g_malloc(sizeof(*isa_bios));
-    memory_region_init_alias(isa_bios, "isa-bios", bios,
+    memory_region_init_alias(isa_bios, NULL, "isa-bios", bios,
                              bios_size - isa_bios_size, isa_bios_size);
     memory_region_add_subregion_overlap(rom_memory,
                                         0x100000 - isa_bios_size,

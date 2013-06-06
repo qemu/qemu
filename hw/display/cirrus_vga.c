@@ -2840,21 +2840,21 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
     }
 
     /* Register ioport 0x3b0 - 0x3df */
-    memory_region_init_io(&s->cirrus_vga_io, &cirrus_vga_io_ops, s,
+    memory_region_init_io(&s->cirrus_vga_io, NULL, &cirrus_vga_io_ops, s,
                           "cirrus-io", 0x30);
     memory_region_add_subregion(system_io, 0x3b0, &s->cirrus_vga_io);
 
-    memory_region_init(&s->low_mem_container,
+    memory_region_init(&s->low_mem_container, NULL,
                        "cirrus-lowmem-container",
                        0x20000);
 
-    memory_region_init_io(&s->low_mem, &cirrus_vga_mem_ops, s,
+    memory_region_init_io(&s->low_mem, NULL, &cirrus_vga_mem_ops, s,
                           "cirrus-low-memory", 0x20000);
     memory_region_add_subregion(&s->low_mem_container, 0, &s->low_mem);
     for (i = 0; i < 2; ++i) {
         static const char *names[] = { "vga.bank0", "vga.bank1" };
         MemoryRegion *bank = &s->cirrus_bank[i];
-        memory_region_init_alias(bank, names[i], &s->vga.vram, 0, 0x8000);
+        memory_region_init_alias(bank, NULL, names[i], &s->vga.vram, 0, 0x8000);
         memory_region_set_enabled(bank, false);
         memory_region_add_subregion_overlap(&s->low_mem_container, i * 0x8000,
                                             bank, 1);
@@ -2866,13 +2866,13 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
     memory_region_set_coalescing(&s->low_mem);
 
     /* I/O handler for LFB */
-    memory_region_init_io(&s->cirrus_linear_io, &cirrus_linear_io_ops, s,
+    memory_region_init_io(&s->cirrus_linear_io, NULL, &cirrus_linear_io_ops, s,
                           "cirrus-linear-io", s->vga.vram_size_mb
                                               * 1024 * 1024);
     memory_region_set_flush_coalesced(&s->cirrus_linear_io);
 
     /* I/O handler for LFB */
-    memory_region_init_io(&s->cirrus_linear_bitblt_io,
+    memory_region_init_io(&s->cirrus_linear_bitblt_io, NULL,
                           &cirrus_linear_bitblt_io_ops,
                           s,
                           "cirrus-bitblt-mmio",
@@ -2880,7 +2880,7 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
     memory_region_set_flush_coalesced(&s->cirrus_linear_bitblt_io);
 
     /* I/O handler for memory-mapped I/O */
-    memory_region_init_io(&s->cirrus_mmio_io, &cirrus_mmio_io_ops, s,
+    memory_region_init_io(&s->cirrus_mmio_io, NULL, &cirrus_mmio_io_ops, s,
                           "cirrus-mmio", CIRRUS_PNPMMIO_SIZE);
     memory_region_set_flush_coalesced(&s->cirrus_mmio_io);
 
@@ -2965,7 +2965,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
 
      /* setup PCI */
 
-    memory_region_init(&s->pci_bar, "cirrus-pci-bar0", 0x2000000);
+    memory_region_init(&s->pci_bar, NULL, "cirrus-pci-bar0", 0x2000000);
 
     /* XXX: add byte swapping apertures */
     memory_region_add_subregion(&s->pci_bar, 0, &s->cirrus_linear_io);

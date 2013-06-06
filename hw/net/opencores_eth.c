@@ -681,11 +681,11 @@ static int sysbus_open_eth_init(SysBusDevice *dev)
 {
     OpenEthState *s = DO_UPCAST(OpenEthState, dev, dev);
 
-    memory_region_init_io(&s->reg_io, &open_eth_reg_ops, s,
+    memory_region_init_io(&s->reg_io, NULL, &open_eth_reg_ops, s,
             "open_eth.regs", 0x54);
     sysbus_init_mmio(dev, &s->reg_io);
 
-    memory_region_init_io(&s->desc_io, &open_eth_desc_ops, s,
+    memory_region_init_io(&s->desc_io, NULL, &open_eth_desc_ops, s,
             "open_eth.desc", 0x400);
     sysbus_init_mmio(dev, &s->desc_io);
 

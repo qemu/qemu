@@ -124,7 +124,7 @@ static int bitband_init(SysBusDevice *dev)
 {
     BitBandState *s = FROM_SYSBUS(BitBandState, dev);
 
-    memory_region_init_io(&s->iomem, &bitband_ops, &s->base, "bitband",
+    memory_region_init_io(&s->iomem, NULL, &bitband_ops, &s->base, "bitband",
                           0x02000000);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
@@ -203,11 +203,11 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
 #endif
 
     /* Flash programming is done via the SCU, so pretend it is ROM.  */
-    memory_region_init_ram(flash, "armv7m.flash", flash_size);
+    memory_region_init_ram(flash, NULL, "armv7m.flash", flash_size);
     vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
     memory_region_add_subregion(address_space_mem, 0, flash);
-    memory_region_init_ram(sram, "armv7m.sram", sram_size);
+    memory_region_init_ram(sram, NULL, "armv7m.sram", sram_size);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(address_space_mem, 0x20000000, sram);
     armv7m_bitband_init();
@@ -247,7 +247,7 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     /* Hack to map an additional page of ram at the top of the address
        space.  This stops qemu complaining about executing code outside RAM
        when returning from an exception.  */
-    memory_region_init_ram(hack, "armv7m.hack", 0x1000);
+    memory_region_init_ram(hack, NULL, "armv7m.hack", 0x1000);
     vmstate_register_ram_global(hack);
     memory_region_add_subregion(address_space_mem, 0xfffff000, hack);
 

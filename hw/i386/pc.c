@@ -525,7 +525,7 @@ static void port92_initfn(Object *obj)
 {
     Port92State *s = PORT92(obj);
 
-    memory_region_init_io(&s->io, &port92_ops, s, "port92", 1);
+    memory_region_init_io(&s->io, NULL, &port92_ops, s, "port92", 1);
 
     s->outport = 0;
 }
@@ -1044,17 +1044,17 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
      * with older qemus that used qemu_ram_alloc().
      */
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, "pc.ram",
+    memory_region_init_ram(ram, NULL, "pc.ram",
                            below_4g_mem_size + above_4g_mem_size);
     vmstate_register_ram_global(ram);
     *ram_memory = ram;
     ram_below_4g = g_malloc(sizeof(*ram_below_4g));
-    memory_region_init_alias(ram_below_4g, "ram-below-4g", ram,
+    memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", ram,
                              0, below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
     if (above_4g_mem_size > 0) {
         ram_above_4g = g_malloc(sizeof(*ram_above_4g));
-        memory_region_init_alias(ram_above_4g, "ram-above-4g", ram,
+        memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g", ram,
                                  below_4g_mem_size, above_4g_mem_size);
         memory_region_add_subregion(system_memory, 0x100000000ULL,
                                     ram_above_4g);
@@ -1065,7 +1065,7 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     pc_system_firmware_init(rom_memory);
 
     option_rom_mr = g_malloc(sizeof(*option_rom_mr));
-    memory_region_init_ram(option_rom_mr, "pc.rom", PC_ROM_SIZE);
+    memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE);
     vmstate_register_ram_global(option_rom_mr);
     memory_region_add_subregion_overlap(rom_memory,
                                         PC_ROM_MIN_VGA,
@@ -1150,10 +1150,10 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     MemoryRegion *ioport80_io = g_new(MemoryRegion, 1);
     MemoryRegion *ioportF0_io = g_new(MemoryRegion, 1);
 
-    memory_region_init_io(ioport80_io, &ioport80_io_ops, NULL, "ioport80", 1);
+    memory_region_init_io(ioport80_io, NULL, &ioport80_io_ops, NULL, "ioport80", 1);
     memory_region_add_subregion(isa_bus->address_space_io, 0x80, ioport80_io);
 
-    memory_region_init_io(ioportF0_io, &ioportF0_io_ops, NULL, "ioportF0", 1);
+    memory_region_init_io(ioportF0_io, NULL, &ioportF0_io_ops, NULL, "ioportF0", 1);
     memory_region_add_subregion(isa_bus->address_space_io, 0xf0, ioportF0_io);
 
     /*

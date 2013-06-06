@@ -389,7 +389,7 @@ static int mv88w8618_eth_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    memory_region_init_io(&s->iomem, &mv88w8618_eth_ops, s, "mv88w8618-eth",
+    memory_region_init_io(&s->iomem, NULL, &mv88w8618_eth_ops, s, "mv88w8618-eth",
                           MP_ETH_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
@@ -612,7 +612,7 @@ static int musicpal_lcd_init(SysBusDevice *dev)
 
     s->brightness = 7;
 
-    memory_region_init_io(&s->iomem, &musicpal_lcd_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &musicpal_lcd_ops, s,
                           "musicpal-lcd", MP_LCD_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -740,7 +740,7 @@ static int mv88w8618_pic_init(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
-    memory_region_init_io(&s->iomem, &mv88w8618_pic_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &mv88w8618_pic_ops, s,
                           "musicpal-pic", MP_PIC_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
@@ -905,7 +905,7 @@ static int mv88w8618_pit_init(SysBusDevice *dev)
         mv88w8618_timer_init(dev, &s->timer[i], 1000000);
     }
 
-    memory_region_init_io(&s->iomem, &mv88w8618_pit_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &mv88w8618_pit_ops, s,
                           "musicpal-pit", MP_PIT_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
@@ -999,7 +999,7 @@ static int mv88w8618_flashcfg_init(SysBusDevice *dev)
     mv88w8618_flashcfg_state *s = FROM_SYSBUS(mv88w8618_flashcfg_state, dev);
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
-    memory_region_init_io(&s->iomem, &mv88w8618_flashcfg_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &mv88w8618_flashcfg_ops, s,
                           "musicpal-flashcfg", MP_FLASHCFG_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
@@ -1074,7 +1074,7 @@ static void musicpal_misc_init(Object *obj)
     SysBusDevice *sd = SYS_BUS_DEVICE(obj);
     MusicPalMiscState *s = MUSICPAL_MISC(obj);
 
-    memory_region_init_io(&s->iomem, &musicpal_misc_ops, NULL,
+    memory_region_init_io(&s->iomem, NULL, &musicpal_misc_ops, NULL,
                           "musicpal-misc", MP_MISC_SIZE);
     sysbus_init_mmio(sd, &s->iomem);
 }
@@ -1121,7 +1121,7 @@ static int mv88w8618_wlan_init(SysBusDevice *dev)
 {
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
 
-    memory_region_init_io(iomem, &mv88w8618_wlan_ops, NULL,
+    memory_region_init_io(iomem, NULL, &mv88w8618_wlan_ops, NULL,
                           "musicpal-wlan", MP_WLAN_SIZE);
     sysbus_init_mmio(dev, iomem);
     return 0;
@@ -1327,7 +1327,7 @@ static int musicpal_gpio_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->iomem, &musicpal_gpio_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &musicpal_gpio_ops, s,
                           "musicpal-gpio", MP_GPIO_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -1484,7 +1484,7 @@ static int musicpal_key_init(SysBusDevice *dev)
 {
     musicpal_key_state *s = FROM_SYSBUS(musicpal_key_state, dev);
 
-    memory_region_init(&s->iomem, "dummy", 0);
+    memory_region_init(&s->iomem, NULL, "dummy", 0);
     sysbus_init_mmio(dev, &s->iomem);
 
     s->kbd_extended = 0;
@@ -1564,11 +1564,11 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     cpu_pic = arm_pic_init_cpu(cpu);
 
     /* For now we use a fixed - the original - RAM size */
-    memory_region_init_ram(ram, "musicpal.ram", MP_RAM_DEFAULT_SIZE);
+    memory_region_init_ram(ram, NULL, "musicpal.ram", MP_RAM_DEFAULT_SIZE);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
-    memory_region_init_ram(sram, "musicpal.sram", MP_SRAM_SIZE);
+    memory_region_init_ram(sram, NULL, "musicpal.sram", MP_SRAM_SIZE);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(address_space_mem, MP_SRAM_BASE, sram);
 

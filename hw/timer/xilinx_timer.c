@@ -218,7 +218,7 @@ static int xilinx_timer_init(SysBusDevice *dev)
         ptimer_set_freq(xt->ptimer, t->freq_hz);
     }
 
-    memory_region_init_io(&t->mmio, &timer_ops, t, "xlnx.xps-timer",
+    memory_region_init_io(&t->mmio, NULL, &timer_ops, t, "xlnx.xps-timer",
                           R_MAX * 4 * num_timers(t));
     sysbus_init_mmio(dev, &t->mmio);
     return 0;

@@ -221,7 +221,7 @@ static int xilinx_ethlite_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     s->rxbuf = 0;
 
-    memory_region_init_io(&s->mmio, &eth_ops, s, "xlnx.xps-ethernetlite",
+    memory_region_init_io(&s->mmio, NULL, &eth_ops, s, "xlnx.xps-ethernetlite",
                                                                     R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 

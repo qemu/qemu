@@ -319,14 +319,14 @@ void tmu012_init(MemoryRegion *sysmem, hwaddr base,
         s->timer[2] = sh_timer_init(freq, timer_feat | TIMER_FEAT_CAPT,
 				    ch2_irq0); /* ch2_irq1 not supported */
 
-    memory_region_init_io(&s->iomem, &tmu012_ops, s,
+    memory_region_init_io(&s->iomem, NULL, &tmu012_ops, s,
                           "timer", 0x100000000ULL);
 
-    memory_region_init_alias(&s->iomem_p4, "timer-p4",
+    memory_region_init_alias(&s->iomem_p4, NULL, "timer-p4",
                              &s->iomem, 0, 0x1000);
     memory_region_add_subregion(sysmem, P4ADDR(base), &s->iomem_p4);
 
-    memory_region_init_alias(&s->iomem_a7, "timer-a7",
+    memory_region_init_alias(&s->iomem_a7, NULL, "timer-a7",
                              &s->iomem, 0, 0x1000);
     memory_region_add_subregion(sysmem, A7ADDR(base), &s->iomem_a7);
     /* ??? Save/restore.  */
