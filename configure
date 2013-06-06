@@ -553,7 +553,9 @@ esac
 
 if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
-    usb="bsd"
+    if [ "$targetos" != "FreeBSD" ]; then
+      usb="bsd"
+    fi
     bsd_user="yes"
   fi
 fi
