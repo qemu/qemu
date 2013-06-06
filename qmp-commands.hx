@@ -1704,6 +1704,47 @@ Each json-object contain the following:
          - "iops": limit total I/O operations per second (json-int)
          - "iops_rd": limit read operations per second (json-int)
          - "iops_wr": limit write operations per second (json-int)
+         - "image": the detail of the image, it is a json-object containing
+            the following:
+             - "filename": image file name (json-string)
+             - "format": image format (json-string)
+             - "virtual-size": image capacity in bytes (json-int)
+             - "dirty-flag": true if image is not cleanly closed, not present
+                             means clean (json-bool, optional)
+             - "actual-size": actual size on disk in bytes of the image, not
+                              present when image does not support thin
+                              provision (json-int, optional)
+             - "cluster-size": size of a cluster in bytes, not present if image
+                               format does not support it (json-int, optional)
+             - "encrypted": true if the image is encrypted, not present means
+                            false or the image format does not support
+                            encryption (json-bool, optional)
+             - "backing_file": backing file name, not present means no backing
+                               file is used or the image format does not
+                               support backing file chain
+                               (json-string, optional)
+             - "full-backing-filename": full path of the backing file, not
+                                        present if it equals backing_file or no
+                                        backing file is used
+                                        (json-string, optional)
+             - "backing-filename-format": the format of the backing file, not
+                                          present means unknown or no backing
+                                          file (json-string, optional)
+             - "snapshots": the internal snapshot info, it is an optional list
+                of json-object containing the following:
+                 - "id": unique snapshot id (json-string)
+                 - "name": snapshot name (json-string)
+                 - "vm-state-size": size of the VM state in bytes (json-int)
+                 - "date-sec": UTC date of the snapshot in seconds (json-int)
+                 - "date-nsec": fractional part in nanoseconds to be used with
+                                date-sec(json-int)
+                 - "vm-clock-sec": VM clock relative to boot in seconds
+                                   (json-int)
+                 - "vm-clock-nsec": fractional part in nanoseconds to be used
+                                    with vm-clock-sec (json-int)
+             - "backing-image": the detail of the backing image, it is an
+                                optional json-object only present when a
+                                backing image present for this image
 
 - "io-status": I/O operation status, only present if the device supports it
                and the VM is configured to stop on errors. It's always reset
@@ -1724,14 +1765,38 @@ Example:
                "ro":false,
                "drv":"qcow2",
                "encrypted":false,
-               "file":"disks/test.img",
-               "backing_file_depth":0,
+               "file":"disks/test.qcow2",
+               "backing_file_depth":1,
                "bps":1000000,
                "bps_rd":0,
                "bps_wr":0,
                "iops":1000000,
                "iops_rd":0,
                "iops_wr":0,
+               "image":{
+                  "filename":"disks/test.qcow2",
+                  "format":"qcow2",
+                  "virtual-size":2048000,
+                  "backing_file":"base.qcow2",
+                  "full-backing-filename":"disks/base.qcow2",
+                  "backing-filename-format:"qcow2",
+                  "snapshots":[
+                     {
+                        "id": "1",
+                        "name": "snapshot1",
+                        "vm-state-size": 0,
+                        "date-sec": 10000200,
+                        "date-nsec": 12,
+                        "vm-clock-sec": 206,
+                        "vm-clock-nsec": 30
+                     }
+                  ],
+                  "backing-image":{
+                      "filename":"disks/base.qcow2",
+                      "format":"qcow2",
+                      "virtual-size":2048000
+                  }
+               }
             },
             "type":"unknown"
          },

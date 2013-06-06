@@ -94,6 +94,13 @@ int bdrv_query_snapshot_info_list(BlockDriverState *bs,
  * @p_info: location to store image information
  * @errp: location to store error information
  *
+ * Store "flat" image information in @p_info.
+ *
+ * "Flat" means it does *not* query backing image information,
+ * i.e. (*pinfo)->has_backing_image will be set to false and
+ * (*pinfo)->backing_image to NULL even when the image does in fact have
+ * a backing image.
+ *
  * @p_info will be set only on success. On error, store error in @errp.
  */
 void bdrv_query_image_info(BlockDriverState *bs,
@@ -167,9 +174,15 @@ void bdrv_query_image_info(BlockDriverState *bs,
     *p_info = info;
 }
 
-BlockInfo *bdrv_query_info(BlockDriverState *bs)
+/* @p_info will be set only on success. */
+void bdrv_query_info(BlockDriverState *bs,
+                     BlockInfo **p_info,
+                     Error **errp)
 {
     BlockInfo *info = g_malloc0(sizeof(*info));
+    BlockDriverState *bs0;
+    ImageInfo **p_image_info;
+    Error *local_err = NULL;
     info->device = g_strdup(bs->device_name);
     info->type = g_strdup("unknown");
     info->locked = bdrv_dev_is_medium_locked(bs);
@@ -223,8 +236,30 @@ BlockInfo *bdrv_query_info(BlockDriverState *bs)
             info->inserted->iops_wr =
                            bs->io_limits.iops[BLOCK_IO_LIMIT_WRITE];
         }
+
+        bs0 = bs;
+        p_image_info = &info->inserted->image;
+        while (1) {
+            bdrv_query_image_info(bs0, p_image_info, &local_err);
+            if (error_is_set(&local_err)) {
+                error_propagate(errp, local_err);
+                goto err;
+            }
+            if (bs0->drv && bs0->backing_hd) {
+                bs0 = bs0->backing_hd;
+                (*p_image_info)->has_backing_image = true;
+                p_image_info = &((*p_image_info)->backing_image);
+            } else {
+                break;
+            }
+        }
     }
-    return info;
+
+    *p_info = info;
+    return;
+
+ err:
+    qapi_free_BlockInfo(info);
 }
 
 BlockStats *bdrv_query_stats(const BlockDriverState *bs)
@@ -261,16 +296,25 @@ BlockInfoList *qmp_query_block(Error **errp)
 {
     BlockInfoList *head = NULL, **p_next = &head;
     BlockDriverState *bs = NULL;
+    Error *local_err = NULL;
 
      while ((bs = bdrv_next(bs))) {
         BlockInfoList *info = g_malloc0(sizeof(*info));
-        info->value = bdrv_query_info(bs);
+        bdrv_query_info(bs, &info->value, &local_err);
+        if (error_is_set(&local_err)) {
+            error_propagate(errp, local_err);
+            goto err;
+        }
 
         *p_next = info;
         p_next = &info->next;
     }
 
     return head;
+
+ err:
+    qapi_free_BlockInfoList(head);
+    return NULL;
 }
 
 BlockStatsList *qmp_query_blockstats(Error **errp)
