@@ -276,7 +276,7 @@ void pci_device_hot_add(Monitor *mon, const QDict *qdict)
 
     if (dev) {
         monitor_printf(mon, "OK domain %d, bus %d, slot %d, function %d\n",
-                       pci_find_domain(dev->bus),
+                       pci_find_domain(dev),
                        pci_bus_num(dev->bus), PCI_SLOT(dev->devfn),
                        PCI_FUNC(dev->devfn));
     } else

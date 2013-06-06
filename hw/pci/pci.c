@@ -259,18 +259,24 @@ PCIBus *pci_find_primary_bus(void)
     return NULL;
 }
 
-int pci_find_domain(const PCIBus *bus)
+PCIBus *pci_device_root_bus(const PCIDevice *d)
 {
-    PCIDevice *d;
-    struct PCIHostBus *host;
+    PCIBus *bus = d->bus;
 
-    /* obtain root bus */
     while ((d = bus->parent_dev) != NULL) {
         bus = d->bus;
     }
 
+    return bus;
+}
+
+int pci_find_domain(const PCIDevice *dev)
+{
+    const PCIBus *rootbus = pci_device_root_bus(dev);
+    struct PCIHostBus *host;
+
     QLIST_FOREACH(host, &host_buses, next) {
-        if (host->bus == bus) {
+        if (host->bus == rootbus) {
             return host->domain;
         }
     }
@@ -1997,7 +2003,7 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                 fprintf(stderr, "ERROR: %04x:%02x:%02x.%x "
                         "Attempt to add PCI capability %x at offset "
                         "%x overlaps existing capability %x at offset %x\n",
-                        pci_find_domain(pdev->bus), pci_bus_num(pdev->bus),
+                        pci_find_domain(pdev), pci_bus_num(pdev->bus),
                         PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
                         cap_id, offset, overlapping_cap, i);
                 return -EINVAL;
@@ -2152,7 +2158,7 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     path[path_len] = '\0';
 
     /* First field is the domain. */
-    s = snprintf(domain, sizeof domain, "%04x:00", pci_find_domain(d->bus));
+    s = snprintf(domain, sizeof domain, "%04x:00", pci_find_domain(d));
     assert(s == domain_len);
     memcpy(path, domain, domain_len);
 

@@ -1022,8 +1022,7 @@ int do_pcie_aer_inject_error(Monitor *mon,
     *ret_data = qobject_from_jsonf("{'id': %s, "
                                    "'domain': %d, 'bus': %d, 'devfn': %d, "
                                    "'ret': %d}",
-                                   id,
-                                   pci_find_domain(dev->bus),
+                                   id, pci_find_domain(dev),
                                    pci_bus_num(dev->bus), dev->devfn,
                                    ret);
     assert(*ret_data);
