@@ -63,6 +63,13 @@ static int q35_host_init(SysBusDevice *dev)
     return 0;
 }
 
+static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
+                                          PCIBus *rootbus)
+{
+    /* For backwards compat with old device paths */
+    return "0000";
+}
+
 static Property mch_props[] = {
     DEFINE_PROP_UINT64("MCFG", Q35PCIHost, host.base_addr,
                         MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT),
@@ -73,7 +80,9 @@ static void q35_host_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
 
+    hc->root_bus_path = q35_host_root_bus_path;
     k->init = q35_host_init;
     dc->props = mch_props;
     dc->fw_name = "pci";

@@ -25,6 +25,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_host.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
@@ -270,19 +271,20 @@ PCIBus *pci_device_root_bus(const PCIDevice *d)
     return bus;
 }
 
-int pci_find_domain(const PCIDevice *dev)
+const char *pci_root_bus_path(PCIDevice *dev)
 {
-    const PCIBus *rootbus = pci_device_root_bus(dev);
-    struct PCIHostBus *host;
+    PCIBus *rootbus = pci_device_root_bus(dev);
+    PCIHostState *host_bridge = PCI_HOST_BRIDGE(rootbus->qbus.parent);
+    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_GET_CLASS(host_bridge);
 
-    QLIST_FOREACH(host, &host_buses, next) {
-        if (host->bus == rootbus) {
-            return host->domain;
-        }
+    assert(!rootbus->parent_dev);
+    assert(host_bridge->bus == rootbus);
+
+    if (hc->root_bus_path) {
+        return (*hc->root_bus_path)(host_bridge, rootbus);
     }
 
-    abort();    /* should not be reached */
-    return -1;
+    return rootbus->qbus.name;
 }
 
 static void pci_bus_init(PCIBus *bus, DeviceState *parent,
@@ -2000,10 +2002,10 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
         for (i = offset; i < offset + size; i++) {
             overlapping_cap = pci_find_capability_at_offset(pdev, i);
             if (overlapping_cap) {
-                fprintf(stderr, "ERROR: %04x:%02x:%02x.%x "
+                fprintf(stderr, "ERROR: %s:%02x:%02x.%x "
                         "Attempt to add PCI capability %x at offset "
                         "%x overlaps existing capability %x at offset %x\n",
-                        pci_find_domain(pdev), pci_bus_num(pdev->bus),
+                        pci_root_bus_path(pdev), pci_bus_num(pdev->bus),
                         PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
                         cap_id, offset, overlapping_cap, i);
                 return -EINVAL;
@@ -2137,13 +2139,16 @@ static char *pcibus_get_dev_path(DeviceState *dev)
      * domain:Bus:Slot.Func for systems without nested PCI bridges.
      * Slot.Function list specifies the slot and function numbers for all
      * devices on the path from root to the specific device. */
-    char domain[] = "DDDD:00";
+    const char *root_bus_path;
+    int root_bus_len;
     char slot[] = ":SS.F";
-    int domain_len = sizeof domain - 1 /* For '\0' */;
     int slot_len = sizeof slot - 1 /* For '\0' */;
     int path_len;
     char *path, *p;
     int s;
+
+    root_bus_path = pci_root_bus_path(d);
+    root_bus_len = strlen(root_bus_path);
 
     /* Calculate # of slots on path between device and root. */;
     slot_depth = 0;
@@ -2151,16 +2156,13 @@ static char *pcibus_get_dev_path(DeviceState *dev)
         ++slot_depth;
     }
 
-    path_len = domain_len + slot_len * slot_depth;
+    path_len = root_bus_len + slot_len * slot_depth;
 
     /* Allocate memory, fill in the terminating null byte. */
     path = g_malloc(path_len + 1 /* For '\0' */);
     path[path_len] = '\0';
 
-    /* First field is the domain. */
-    s = snprintf(domain, sizeof domain, "%04x:00", pci_find_domain(d));
-    assert(s == domain_len);
-    memcpy(path, domain, domain_len);
+    memcpy(path, root_bus_path, root_bus_len);
 
     /* Fill in slot numbers. We walk up from device to root, so need to print
      * them in the reverse order, last to first. */
