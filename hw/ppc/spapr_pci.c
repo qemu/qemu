@@ -581,10 +581,11 @@ static int spapr_phb_init(SysBusDevice *s)
 
     /* Initialize memory regions */
     sprintf(namebuf, "%s.mmio", sphb->dtbusname);
-    memory_region_init(&sphb->memspace, NULL, namebuf, INT64_MAX);
+    memory_region_init(&sphb->memspace, OBJECT(sphb), namebuf, INT64_MAX);
 
     sprintf(namebuf, "%s.mmio-alias", sphb->dtbusname);
-    memory_region_init_alias(&sphb->memwindow, NULL, namebuf, &sphb->memspace,
+    memory_region_init_alias(&sphb->memwindow, OBJECT(sphb),
+                             namebuf, &sphb->memspace,
                              SPAPR_PCI_MEM_WIN_BUS_OFFSET, sphb->mem_win_size);
     memory_region_add_subregion(get_system_memory(), sphb->mem_win_addr,
                                 &sphb->memwindow);
@@ -598,12 +599,13 @@ static int spapr_phb_init(SysBusDevice *s)
      * system_io works around the problem until all the users of
      * old_portion are updated */
     sprintf(namebuf, "%s.io", sphb->dtbusname);
-    memory_region_init(&sphb->iospace, NULL, namebuf, SPAPR_PCI_IO_WIN_SIZE);
+    memory_region_init(&sphb->iospace, OBJECT(sphb),
+                       namebuf, SPAPR_PCI_IO_WIN_SIZE);
     /* FIXME: fix to support multiple PHBs */
     memory_region_add_subregion(get_system_io(), 0, &sphb->iospace);
 
     sprintf(namebuf, "%s.io-alias", sphb->dtbusname);
-    memory_region_init_io(&sphb->iowindow, NULL, &spapr_io_ops, sphb,
+    memory_region_init_io(&sphb->iowindow, OBJECT(sphb), &spapr_io_ops, sphb,
                           namebuf, SPAPR_PCI_IO_WIN_SIZE);
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
                                 &sphb->iowindow);
@@ -613,7 +615,7 @@ static int spapr_phb_init(SysBusDevice *s)
      * from msi_notify()/msix_notify() */
     if (msi_supported) {
         sprintf(namebuf, "%s.msi", sphb->dtbusname);
-        memory_region_init_io(&sphb->msiwindow, NULL, &spapr_msi_ops, sphb,
+        memory_region_init_io(&sphb->msiwindow, OBJECT(sphb), &spapr_msi_ops, sphb,
                               namebuf, SPAPR_MSIX_MAX_DEVS * 0x10000);
         memory_region_add_subregion(get_system_memory(), sphb->msi_win_addr,
                                     &sphb->msiwindow);

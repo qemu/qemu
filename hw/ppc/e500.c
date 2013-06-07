@@ -783,7 +783,7 @@ static int e500_ccsr_initfn(SysBusDevice *dev)
     PPCE500CCSRState *ccsr;
 
     ccsr = CCSR(dev);
-    memory_region_init(&ccsr->ccsr_space, NULL, "e500-ccsr",
+    memory_region_init(&ccsr->ccsr_space, OBJECT(ccsr), "e500-ccsr",
                        MPC8544_CCSRBAR_SIZE);
     return 0;
 }

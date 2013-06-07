@@ -811,7 +811,8 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         dma_as = &address_space_memory;
     }
 
-    memory_region_init_alias(&pci_dev->bus_master_enable_region, NULL, "bus master",
+    memory_region_init_alias(&pci_dev->bus_master_enable_region,
+                             OBJECT(pci_dev), "bus master",
                              dma_as->root, 0, memory_region_size(dma_as->root));
     memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
     address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region,
@@ -1945,7 +1946,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
         snprintf(name, sizeof(name), "%s.rom", object_get_typename(OBJECT(pdev)));
     }
     pdev->has_rom = true;
-    memory_region_init_ram(&pdev->rom, NULL, name, size);
+    memory_region_init_ram(&pdev->rom, OBJECT(pdev), name, size);
     vmstate_register_ram(&pdev->rom, &pdev->qdev);
     ptr = memory_region_get_ram_ptr(&pdev->rom);
     load_image(path, ptr);

@@ -447,7 +447,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
     sysbus_mmio_map(s, 2, special_base + 0x2000000ULL);
     d = FROM_SYSBUS(APBState, s);
 
-    memory_region_init(&d->pci_mmio, NULL, "pci-mmio", 0x100000000ULL);
+    memory_region_init(&d->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
     memory_region_add_subregion(get_system_memory(), mem_base, &d->pci_mmio);
 
     d->bus = pci_register_bus(&d->busdev.qdev, "pci",
@@ -525,18 +525,18 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     s->pci_irq_in = 0ULL;
 
     /* apb_config */
-    memory_region_init_io(&s->apb_config, NULL, &apb_config_ops, s, "apb-config",
-                          0x10000);
+    memory_region_init_io(&s->apb_config, OBJECT(s), &apb_config_ops, s,
+                          "apb-config", 0x10000);
     /* at region 0 */
     sysbus_init_mmio(dev, &s->apb_config);
 
-    memory_region_init_io(&s->pci_config, NULL, &pci_config_ops, s, "apb-pci-config",
-                          0x1000000);
+    memory_region_init_io(&s->pci_config, OBJECT(s), &pci_config_ops, s,
+                          "apb-pci-config", 0x1000000);
     /* at region 1 */
     sysbus_init_mmio(dev, &s->pci_config);
 
     /* pci_ioport */
-    memory_region_init_io(&s->pci_ioport, NULL, &pci_ioport_ops, s,
+    memory_region_init_io(&s->pci_ioport, OBJECT(s), &pci_ioport_ops, s,
                           "apb-pci-ioport", 0x10000);
     /* at region 2 */
     sysbus_init_mmio(dev, &s->pci_ioport);
