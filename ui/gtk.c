@@ -1119,6 +1119,8 @@ static CharDriverState *gd_vc_handler(ChardevVC *unused)
 
     chr = g_malloc0(sizeof(*chr));
     chr->chr_write = gd_vc_chr_write;
+    /* defer OPENED events until our vc is fully initialized */
+    chr->explicit_be_open = true;
 
     vcs[nb_vcs++] = chr;
 
