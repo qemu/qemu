@@ -853,7 +853,7 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
     if  (strstart(file, "file:", &p)) {
         fd = qemu_open(p, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR);
         if (fd < 0) {
-            error_set(errp, QERR_OPEN_FILE_FAILED, p);
+            error_setg_file_open(errp, errno, p);
             return;
         }
     }
