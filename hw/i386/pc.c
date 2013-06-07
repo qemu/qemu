@@ -525,7 +525,7 @@ static void port92_initfn(Object *obj)
 {
     Port92State *s = PORT92(obj);
 
-    memory_region_init_io(&s->io, NULL, &port92_ops, s, "port92", 1);
+    memory_region_init_io(&s->io, OBJECT(s), &port92_ops, s, "port92", 1);
 
     s->outport = 0;
 }

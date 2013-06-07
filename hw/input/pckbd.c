@@ -494,8 +494,10 @@ static void i8042_initfn(Object *obj)
     ISAKBDState *isa_s = I8042(obj);
     KBDState *s = &isa_s->kbd;
 
-    memory_region_init_io(isa_s->io + 0, NULL, &i8042_data_ops, s, "i8042-data", 1);
-    memory_region_init_io(isa_s->io + 1, NULL, &i8042_cmd_ops, s, "i8042-cmd", 1);
+    memory_region_init_io(isa_s->io + 0, obj, &i8042_data_ops, s,
+                          "i8042-data", 1);
+    memory_region_init_io(isa_s->io + 1, obj, &i8042_cmd_ops, s,
+                          "i8042-cmd", 1);
 }
 
 static void i8042_realizefn(DeviceState *dev, Error **errp)

@@ -209,7 +209,7 @@ static int gpio_i2c_init(SysBusDevice *dev)
     GPIOI2CState *s = FROM_SYSBUS(GPIOI2CState, dev);
     i2c_bus *bus;
 
-    memory_region_init(&s->dummy_iomem, NULL, "gpio_i2c", 0);
+    memory_region_init(&s->dummy_iomem, OBJECT(s), "gpio_i2c", 0);
     sysbus_init_mmio(dev, &s->dummy_iomem);
 
     bus = i2c_init_bus(&dev->qdev, "i2c");

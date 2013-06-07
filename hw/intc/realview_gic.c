@@ -43,7 +43,8 @@ static int realview_gic_init(SysBusDevice *dev)
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(&s->busdev.qdev, realview_gic_set_irq, numirq - 32);
 
-    memory_region_init(&s->container, NULL, "realview-gic-container", 0x2000);
+    memory_region_init(&s->container, OBJECT(s),
+                       "realview-gic-container", 0x2000);
     memory_region_add_subregion(&s->container, 0,
                                 sysbus_mmio_get_region(busdev, 1));
     memory_region_add_subregion(&s->container, 0x1000,

@@ -155,7 +155,7 @@ static void kvm_openpic_init(Object *obj)
 {
     KVMOpenPICState *opp = KVM_OPENPIC(obj);
 
-    memory_region_init_io(&opp->mem, NULL, &kvm_openpic_mem_ops, opp,
+    memory_region_init_io(&opp->mem, OBJECT(opp), &kvm_openpic_mem_ops, opp,
                           "kvm-openpic", 0x40000);
 }
 

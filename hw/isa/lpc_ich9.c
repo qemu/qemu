@@ -535,7 +535,7 @@ static int ich9_lpc_initfn(PCIDevice *d)
     pci_set_long(d->wmask + ICH9_LPC_PMBASE,
                  ICH9_LPC_PMBASE_BASE_ADDRESS_MASK);
 
-    memory_region_init_io(&lpc->rbca_mem, NULL, &rbca_mmio_ops, lpc,
+    memory_region_init_io(&lpc->rbca_mem, OBJECT(d), &rbca_mmio_ops, lpc,
                             "lpc-rbca-mmio", ICH9_CC_SIZE);
 
     lpc->isa_bus = isa_bus;
@@ -546,7 +546,7 @@ static int ich9_lpc_initfn(PCIDevice *d)
     lpc->machine_ready.notify = ich9_lpc_machine_ready;
     qemu_add_machine_init_done_notifier(&lpc->machine_ready);
 
-    memory_region_init_io(&lpc->rst_cnt_mem, NULL, &ich9_rst_cnt_ops, lpc,
+    memory_region_init_io(&lpc->rst_cnt_mem, OBJECT(d), &ich9_rst_cnt_ops, lpc,
                           "lpc-reset-control", 1);
     memory_region_add_subregion_overlap(pci_address_space_io(d),
                                         ICH9_RST_CNT_IOPORT, &lpc->rst_cnt_mem,

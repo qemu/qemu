@@ -221,10 +221,12 @@ static int pci_i82378_init(PCIDevice *dev)
 
     pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin 0 */
 
-    memory_region_init_io(&s->io, NULL, &i82378_io_ops, s, "i82378-io", 0x00010000);
+    memory_region_init_io(&s->io, OBJECT(pci), &i82378_io_ops, s,
+                          "i82378-io", 0x00010000);
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->io);
 
-    memory_region_init_io(&s->mem, NULL, &i82378_mem_ops, s, "i82378-mem", 0x01000000);
+    memory_region_init_io(&s->mem, OBJECT(pci), &i82378_mem_ops, s,
+                          "i82378-mem", 0x01000000);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
     /* Make I/O address read only */

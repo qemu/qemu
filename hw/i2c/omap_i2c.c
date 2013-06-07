@@ -448,7 +448,7 @@ static int omap_i2c_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     sysbus_init_irq(dev, &s->drq[0]);
     sysbus_init_irq(dev, &s->drq[1]);
-    memory_region_init_io(&s->iomem, NULL, &omap_i2c_ops, s, "omap.i2c",
+    memory_region_init_io(&s->iomem, OBJECT(s), &omap_i2c_ops, s, "omap.i2c",
                           (s->revision < OMAP2_INTR_REV) ? 0x800 : 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     s->bus = i2c_init_bus(&dev->qdev, NULL);

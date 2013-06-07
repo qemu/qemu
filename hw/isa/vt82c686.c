@@ -356,7 +356,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
 
     apm_init(dev, &s->apm, NULL, s);
 
-    memory_region_init(&s->io, NULL, "vt82c686-pm", 64);
+    memory_region_init(&s->io, OBJECT(dev), "vt82c686-pm", 64);
     memory_region_set_enabled(&s->io, false);
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 

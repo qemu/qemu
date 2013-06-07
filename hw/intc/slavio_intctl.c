@@ -426,7 +426,7 @@ static int slavio_intctl_init1(SysBusDevice *dev)
     char slave_name[45];
 
     qdev_init_gpio_in(&dev->qdev, slavio_set_irq_all, 32 + MAX_CPUS);
-    memory_region_init_io(&s->iomem, NULL, &slavio_intctlm_mem_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &slavio_intctlm_mem_ops, s,
                           "master-interrupt-controller", INTCTLM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -436,7 +436,8 @@ static int slavio_intctl_init1(SysBusDevice *dev)
         for (j = 0; j < MAX_PILS; j++) {
             sysbus_init_irq(dev, &s->cpu_irqs[i][j]);
         }
-        memory_region_init_io(&s->slaves[i].iomem, NULL, &slavio_intctl_mem_ops,
+        memory_region_init_io(&s->slaves[i].iomem, OBJECT(s),
+                              &slavio_intctl_mem_ops,
                               &s->slaves[i], slave_name, INTCTL_SIZE);
         sysbus_init_mmio(dev, &s->slaves[i].iomem);
         s->slaves[i].cpu = i;

@@ -137,7 +137,7 @@ static int pl050_init(SysBusDevice *dev, int is_mouse)
 {
     pl050_state *s = FROM_SYSBUS(pl050_state, dev);
 
-    memory_region_init_io(&s->iomem, NULL, &pl050_ops, s, "pl050", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &pl050_ops, s, "pl050", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     s->is_mouse = is_mouse;
