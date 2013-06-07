@@ -198,7 +198,7 @@ void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2);
 
 int vga_ioport_invalid(VGACommonState *s, uint32_t addr);
 
-void vga_init_vbe(VGACommonState *s, MemoryRegion *address_space);
+void vga_init_vbe(VGACommonState *s, Object *obj, MemoryRegion *address_space);
 uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr);
 void vbe_ioport_write_index(void *opaque, uint32_t addr, uint32_t val);
 void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val);

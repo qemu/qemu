@@ -137,6 +137,6 @@ int isa_vga_mm_init(hwaddr vram_base,
 
     s->vga.con = graphic_console_init(NULL, s->vga.hw_ops, s);
 
-    vga_init_vbe(&s->vga, address_space);
+    vga_init_vbe(&s->vga, NULL, address_space);
     return 0;
 }

@@ -173,7 +173,7 @@ static int pci_std_vga_initfn(PCIDevice *dev)
 
     if (!dev->rom_bar) {
         /* compatibility with pc-0.13 and older */
-        vga_init_vbe(s, pci_address_space(dev));
+        vga_init_vbe(s, OBJECT(dev), pci_address_space(dev));
     }
 
     return 0;

@@ -1272,7 +1272,7 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     if (!dev->rom_bar) {
         /* compatibility with pc-0.13 and older */
-        vga_init_vbe(&s->chip.vga, pci_address_space(dev));
+        vga_init_vbe(&s->chip.vga, OBJECT(dev), pci_address_space(dev));
     }
 
     return 0;
