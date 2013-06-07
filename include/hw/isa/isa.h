@@ -25,7 +25,10 @@ typedef struct ISADeviceClass {
 } ISADeviceClass;
 
 struct ISABus {
-    BusState qbus;
+    /*< private >*/
+    BusState parent_obj;
+    /*< public >*/
+
     MemoryRegion *address_space_io;
     qemu_irq *irqs;
 };

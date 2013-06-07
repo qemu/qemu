@@ -601,7 +601,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     sysbus_connect_irq(&pcihost->busdev, 1, qdev_get_gpio_in(&pci->qdev, 11));
     sysbus_connect_irq(&pcihost->busdev, 2, qdev_get_gpio_in(&pci->qdev, 9));
     sysbus_connect_irq(&pcihost->busdev, 3, qdev_get_gpio_in(&pci->qdev, 11));
-    isa_bus = DO_UPCAST(ISABus, qbus, qdev_get_child_bus(&pci->qdev, "isa.0"));
+    isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(pci), "isa.0"));
 
     /* Super I/O (parallel + serial ports) */
     isa = isa_create(isa_bus, TYPE_PC87312);

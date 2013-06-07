@@ -55,7 +55,7 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io)
         qdev_init_nofail(dev);
     }
 
-    isabus = FROM_QBUS(ISABus, qbus_create(TYPE_ISA_BUS, dev, NULL));
+    isabus = ISA_BUS(qbus_create(TYPE_ISA_BUS, dev, NULL));
     isabus->address_space_io = address_space_io;
     return isabus;
 }
@@ -76,7 +76,7 @@ void isa_bus_irqs(ISABus *bus, qemu_irq *irqs)
  */
 qemu_irq isa_get_irq(ISADevice *dev, int isairq)
 {
-    assert(!dev || DO_UPCAST(ISABus, qbus, dev->qdev.parent_bus) == isabus);
+    assert(!dev || ISA_BUS(qdev_get_parent_bus(DEVICE(dev))) == isabus);
     if (isairq < 0 || isairq > 15) {
         hw_error("isa irq %d invalid", isairq);
     }
@@ -135,7 +135,7 @@ ISADevice *isa_create(ISABus *bus, const char *name)
         hw_error("Tried to create isa device %s with no isa bus present.",
                  name);
     }
-    dev = qdev_create(&bus->qbus, name);
+    dev = qdev_create(BUS(bus), name);
     return ISA_DEVICE(dev);
 }
 
@@ -147,7 +147,7 @@ ISADevice *isa_try_create(ISABus *bus, const char *name)
         hw_error("Tried to create isa device %s with no isa bus present.",
                  name);
     }
-    dev = qdev_try_create(&bus->qbus, name);
+    dev = qdev_try_create(BUS(bus), name);
     return ISA_DEVICE(dev);
 }
 
