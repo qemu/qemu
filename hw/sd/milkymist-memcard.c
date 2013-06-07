@@ -253,7 +253,7 @@ static int milkymist_memcard_init(SysBusDevice *dev)
     s->card = sd_init(dinfo ? dinfo->bdrv : NULL, false);
     s->enabled = dinfo ? bdrv_is_inserted(dinfo->bdrv) : 0;
 
-    memory_region_init_io(&s->regs_region, NULL, &memcard_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(s), &memcard_mmio_ops, s,
             "milkymist-memcard", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 

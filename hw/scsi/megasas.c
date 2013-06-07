@@ -2098,11 +2098,11 @@ static int megasas_scsi_init(PCIDevice *dev)
     /* Interrupt pin 1 */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
-    memory_region_init_io(&s->mmio_io, NULL, &megasas_mmio_ops, s,
+    memory_region_init_io(&s->mmio_io, OBJECT(s), &megasas_mmio_ops, s,
                           "megasas-mmio", 0x4000);
-    memory_region_init_io(&s->port_io, NULL, &megasas_port_ops, s,
+    memory_region_init_io(&s->port_io, OBJECT(s), &megasas_port_ops, s,
                           "megasas-io", 256);
-    memory_region_init_io(&s->queue_io, NULL, &megasas_queue_ops, s,
+    memory_region_init_io(&s->queue_io, OBJECT(s), &megasas_queue_ops, s,
                           "megasas-queue", 0x40000);
 
 #ifdef USE_MSIX
