@@ -108,15 +108,15 @@ qemu-img: Formatting or formatting option not supported for file format 'qcow2'
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=-1024 encryption=off cluster_size=65536 lazy_refcounts=off 
 
 qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- 1kilobyte
-qemu-img: Invalid image size specified! You may use k, M, G or T suffixes for 
-qemu-img: kilobytes, megabytes, gigabytes and terabytes.
+qemu-img: Invalid image size specified! You may use k, M, G, T, P or E suffixes for 
+qemu-img: kilobytes, megabytes, gigabytes, terabytes, petabytes and exabytes.
 
 qemu-img create -f qcow2 -o size=1kilobyte TEST_DIR/t.qcow2
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1024 encryption=off cluster_size=65536 lazy_refcounts=off 
 
 qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- foobar
-qemu-img: Invalid image size specified! You may use k, M, G or T suffixes for 
-qemu-img: kilobytes, megabytes, gigabytes and terabytes.
+qemu-img: Invalid image size specified! You may use k, M, G, T, P or E suffixes for 
+qemu-img: kilobytes, megabytes, gigabytes, terabytes, petabytes and exabytes.
 
 qemu-img create -f qcow2 -o size=foobar TEST_DIR/t.qcow2
 qemu-img: Parameter 'size' expects a size

@@ -22,6 +22,8 @@
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "ui/console.h"
+#include "block/qapi.h"
+#include "qemu-io.h"
 
 static void hmp_handle_error(Monitor *mon, Error **errp)
 {
@@ -277,10 +279,16 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
 void hmp_info_block(Monitor *mon, const QDict *qdict)
 {
     BlockInfoList *block_list, *info;
+    ImageInfo *image_info;
+    const char *device = qdict_get_try_str(qdict, "device");
+    bool verbose = qdict_get_try_bool(qdict, "verbose", 0);
 
     block_list = qmp_query_block(NULL);
 
     for (info = block_list; info; info = info->next) {
+        if (device && strcmp(device, info->value->device)) {
+            continue;
+        }
         monitor_printf(mon, "%s: removable=%d",
                        info->value->device, info->value->removable);
 
@@ -318,6 +326,20 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
                             info->value->inserted->iops,
                             info->value->inserted->iops_rd,
                             info->value->inserted->iops_wr);
+
+            if (verbose) {
+                monitor_printf(mon, " images:\n");
+                image_info = info->value->inserted->image;
+                while (1) {
+                        bdrv_image_info_dump((fprintf_function)monitor_printf,
+                                             mon, image_info);
+                    if (image_info->has_backing_image) {
+                        image_info = image_info->backing_image;
+                    } else {
+                        break;
+                    }
+                }
+            }
         } else {
             monitor_printf(mon, " [not inserted]");
         }
@@ -1424,4 +1446,21 @@ void hmp_chardev_remove(Monitor *mon, const QDict *qdict)
 
     qmp_chardev_remove(qdict_get_str(qdict, "id"), &local_err);
     hmp_handle_error(mon, &local_err);
+}
+
+void hmp_qemu_io(Monitor *mon, const QDict *qdict)
+{
+    BlockDriverState *bs;
+    const char* device = qdict_get_str(qdict, "device");
+    const char* command = qdict_get_str(qdict, "command");
+    Error *err = NULL;
+
+    bs = bdrv_find(device);
+    if (bs) {
+        qemuio_command(bs, command);
+    } else {
+        error_set(&err, QERR_DEVICE_NOT_FOUND, device);
+    }
+
+    hmp_handle_error(mon, &err);
 }

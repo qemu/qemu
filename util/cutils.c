@@ -107,6 +107,27 @@ int qemu_strnlen(const char *s, int max_len)
     return i;
 }
 
+char *qemu_strsep(char **input, const char *delim)
+{
+    char *result = *input;
+    if (result != NULL) {
+        char *p;
+
+        for (p = result; *p != '\0'; p++) {
+            if (strchr(delim, *p)) {
+                break;
+            }
+        }
+        if (*p == '\0') {
+            *input = NULL;
+        } else {
+            *p = '\0';
+            *input = p + 1;
+        }
+    }
+    return result;
+}
+
 time_t mktimegm(struct tm *tm)
 {
     time_t t;
@@ -267,6 +288,10 @@ static int64_t suffix_mul(char suffix, int64_t unit)
         return unit * unit * unit;
     case STRTOSZ_DEFSUFFIX_TB:
         return unit * unit * unit * unit;
+    case STRTOSZ_DEFSUFFIX_PB:
+        return unit * unit * unit * unit * unit;
+    case STRTOSZ_DEFSUFFIX_EB:
+        return unit * unit * unit * unit * unit * unit;
     }
     return -1;
 }

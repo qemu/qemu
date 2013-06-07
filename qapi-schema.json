@@ -236,6 +236,8 @@
 #
 # @snapshots: #optional list of VM snapshots
 #
+# @backing-image: #optional info of the backing image (since 1.6)
+#
 # Since: 1.3
 #
 ##
@@ -245,7 +247,8 @@
            '*actual-size': 'int', 'virtual-size': 'int',
            '*cluster-size': 'int', '*encrypted': 'bool',
            '*backing-filename': 'str', '*full-backing-filename': 'str',
-           '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'] } }
+           '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
+           '*backing-image': 'ImageInfo' } }
 
 ##
 # @ImageCheck:
@@ -756,6 +759,8 @@
 #
 # @iops_wr: write I/O operations per second is specified
 #
+# @image: the info of image used (since: 1.6)
+#
 # Since: 0.14.0
 #
 # Notes: This interface is only found in @BlockInfo.
@@ -765,7 +770,8 @@
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'encrypted': 'bool', 'encryption_key_missing': 'bool',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int'} }
+            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
+            'image': 'ImageInfo' } }
 
 ##
 # @BlockDeviceIoStatus:

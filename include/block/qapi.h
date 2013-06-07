@@ -29,11 +29,15 @@
 #include "block/block.h"
 #include "block/snapshot.h"
 
-void bdrv_collect_snapshots(BlockDriverState *bs , ImageInfo *info);
-void bdrv_collect_image_info(BlockDriverState *bs,
-                             ImageInfo *info,
-                             const char *filename);
-BlockInfo *bdrv_query_info(BlockDriverState *s);
+int bdrv_query_snapshot_info_list(BlockDriverState *bs,
+                                  SnapshotInfoList **p_list,
+                                  Error **errp);
+void bdrv_query_image_info(BlockDriverState *bs,
+                           ImageInfo **p_info,
+                           Error **errp);
+void bdrv_query_info(BlockDriverState *bs,
+                     BlockInfo **p_info,
+                     Error **errp);
 BlockStats *bdrv_query_stats(const BlockDriverState *bs);
 
 void bdrv_snapshot_dump(fprintf_function func_fprintf, void *f,

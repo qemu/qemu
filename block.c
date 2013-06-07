@@ -3186,13 +3186,11 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
 
 void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event)
 {
-    BlockDriver *drv = bs->drv;
-
-    if (!drv || !drv->bdrv_debug_event) {
+    if (!bs || !bs->drv || !bs->drv->bdrv_debug_event) {
         return;
     }
 
-    drv->bdrv_debug_event(bs, event);
+    bs->drv->bdrv_debug_event(bs, event);
 }
 
 int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
@@ -4024,6 +4022,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     }
 
     /* Write back cached data to the OS even with cache=unsafe */
+    BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_OS);
     if (bs->drv->bdrv_co_flush_to_os) {
         ret = bs->drv->bdrv_co_flush_to_os(bs);
         if (ret < 0) {
@@ -4036,6 +4035,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
         goto flush_parent;
     }
 
+    BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_DISK);
     if (bs->drv->bdrv_co_flush_to_disk) {
         ret = bs->drv->bdrv_co_flush_to_disk(bs);
     } else if (bs->drv->bdrv_aio_flush) {

@@ -85,8 +85,9 @@ static void help(void)
            "    options are: 'none', 'writeback' (default, except for convert), 'writethrough',\n"
            "    'directsync' and 'unsafe' (default for convert)\n"
            "  'size' is the disk image size in bytes. Optional suffixes\n"
-           "    'k' or 'K' (kilobyte, 1024), 'M' (megabyte, 1024k), 'G' (gigabyte, 1024M)\n"
-           "    and T (terabyte, 1024G) are supported. 'b' is ignored.\n"
+           "    'k' or 'K' (kilobyte, 1024), 'M' (megabyte, 1024k), 'G' (gigabyte, 1024M),\n"
+           "    'T' (terabyte, 1024G), 'P' (petabyte, 1024T) and 'E' (exabyte, 1024P)  are\n"
+           "    supported. 'b' is ignored.\n"
            "  'output_filename' is the destination disk image filename\n"
            "  'output_fmt' is the destination format\n"
            "  'options' is a comma separated list of format specific options in a\n"
@@ -387,8 +388,9 @@ static int img_create(int argc, char **argv)
                 error_report("Image size must be less than 8 EiB!");
             } else {
                 error_report("Invalid image size specified! You may use k, M, "
-                      "G or T suffixes for ");
-                error_report("kilobytes, megabytes, gigabytes and terabytes.");
+                      "G, T, P or E suffixes for ");
+                error_report("kilobytes, megabytes, gigabytes, terabytes, "
+                             "petabytes and exabytes.");
             }
             return 1;
         }
@@ -1642,6 +1644,7 @@ static ImageInfoList *collect_image_info_list(const char *filename,
     ImageInfoList *head = NULL;
     ImageInfoList **last = &head;
     GHashTable *filenames;
+    Error *err = NULL;
 
     filenames = g_hash_table_new_full(g_str_hash, str_equal_func, NULL, NULL);
 
@@ -1663,9 +1666,12 @@ static ImageInfoList *collect_image_info_list(const char *filename,
             goto err;
         }
 
-        info = g_new0(ImageInfo, 1);
-        bdrv_collect_image_info(bs, info, filename);
-        bdrv_collect_snapshots(bs, info);
+        bdrv_query_image_info(bs, &info, &err);
+        if (error_is_set(&err)) {
+            error_report("%s", error_get_pretty(err));
+            error_free(err);
+            goto err;
+        }
 
         elem = g_new0(ImageInfoList, 1);
         elem->value = info;

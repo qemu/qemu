@@ -13,6 +13,7 @@ block-obj-$(CONFIG_POSIX) += aio-posix.o
 block-obj-$(CONFIG_WIN32) += aio-win32.o
 block-obj-y += block/
 block-obj-y += qapi-types.o qapi-visit.o
+block-obj-y += qemu-io-cmds.o
 
 block-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
 block-obj-y += qemu-coroutine-sleep.o

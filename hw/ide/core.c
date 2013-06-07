@@ -814,6 +814,7 @@ void ide_flush_cache(IDEState *s)
         return;
     }
 
+    s->status |= BUSY_STAT;
     bdrv_acct_start(s->bs, &s->acct, 0, BDRV_ACCT_FLUSH);
     bdrv_aio_flush(s->bs, ide_flush_cb, s);
 }

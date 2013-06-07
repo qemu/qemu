@@ -26,29 +26,56 @@
 #include "block/block_int.h"
 #include "qmp-commands.h"
 
-void bdrv_collect_snapshots(BlockDriverState *bs , ImageInfo *info)
+/*
+ * Returns 0 on success, with *p_list either set to describe snapshot
+ * information, or NULL because there are no snapshots.  Returns -errno on
+ * error, with *p_list untouched.
+ */
+int bdrv_query_snapshot_info_list(BlockDriverState *bs,
+                                  SnapshotInfoList **p_list,
+                                  Error **errp)
 {
     int i, sn_count;
     QEMUSnapshotInfo *sn_tab = NULL;
-    SnapshotInfoList *info_list, *cur_item = NULL;
+    SnapshotInfoList *info_list, *cur_item = NULL, *head = NULL;
+    SnapshotInfo *info;
+
     sn_count = bdrv_snapshot_list(bs, &sn_tab);
+    if (sn_count < 0) {
+        const char *dev = bdrv_get_device_name(bs);
+        switch (sn_count) {
+        case -ENOMEDIUM:
+            error_setg(errp, "Device '%s' is not inserted", dev);
+            break;
+        case -ENOTSUP:
+            error_setg(errp,
+                       "Device '%s' does not support internal snapshots",
+                       dev);
+            break;
+        default:
+            error_setg_errno(errp, -sn_count,
+                             "Can't list snapshots of device '%s'", dev);
+            break;
+        }
+        return sn_count;
+    }
 
     for (i = 0; i < sn_count; i++) {
-        info->has_snapshots = true;
-        info_list = g_new0(SnapshotInfoList, 1);
+        info = g_new0(SnapshotInfo, 1);
+        info->id            = g_strdup(sn_tab[i].id_str);
+        info->name          = g_strdup(sn_tab[i].name);
+        info->vm_state_size = sn_tab[i].vm_state_size;
+        info->date_sec      = sn_tab[i].date_sec;
+        info->date_nsec     = sn_tab[i].date_nsec;
+        info->vm_clock_sec  = sn_tab[i].vm_clock_nsec / 1000000000;
+        info->vm_clock_nsec = sn_tab[i].vm_clock_nsec % 1000000000;
 
-        info_list->value                = g_new0(SnapshotInfo, 1);
-        info_list->value->id            = g_strdup(sn_tab[i].id_str);
-        info_list->value->name          = g_strdup(sn_tab[i].name);
-        info_list->value->vm_state_size = sn_tab[i].vm_state_size;
-        info_list->value->date_sec      = sn_tab[i].date_sec;
-        info_list->value->date_nsec     = sn_tab[i].date_nsec;
-        info_list->value->vm_clock_sec  = sn_tab[i].vm_clock_nsec / 1000000000;
-        info_list->value->vm_clock_nsec = sn_tab[i].vm_clock_nsec % 1000000000;
+        info_list = g_new0(SnapshotInfoList, 1);
+        info_list->value = info;
 
         /* XXX: waiting for the qapi to support qemu-queue.h types */
         if (!cur_item) {
-            info->snapshots = cur_item = info_list;
+            head = cur_item = info_list;
         } else {
             cur_item->next = info_list;
             cur_item = info_list;
@@ -57,20 +84,40 @@ void bdrv_collect_snapshots(BlockDriverState *bs , ImageInfo *info)
     }
 
     g_free(sn_tab);
+    *p_list = head;
+    return 0;
 }
 
-void bdrv_collect_image_info(BlockDriverState *bs,
-                             ImageInfo *info,
-                             const char *filename)
+/**
+ * bdrv_query_image_info:
+ * @bs: block device to examine
+ * @p_info: location to store image information
+ * @errp: location to store error information
+ *
+ * Store "flat" image information in @p_info.
+ *
+ * "Flat" means it does *not* query backing image information,
+ * i.e. (*pinfo)->has_backing_image will be set to false and
+ * (*pinfo)->backing_image to NULL even when the image does in fact have
+ * a backing image.
+ *
+ * @p_info will be set only on success. On error, store error in @errp.
+ */
+void bdrv_query_image_info(BlockDriverState *bs,
+                           ImageInfo **p_info,
+                           Error **errp)
 {
     uint64_t total_sectors;
-    char backing_filename[1024];
+    const char *backing_filename;
     char backing_filename2[1024];
     BlockDriverInfo bdi;
+    int ret;
+    Error *err = NULL;
+    ImageInfo *info = g_new0(ImageInfo, 1);
 
     bdrv_get_geometry(bs, &total_sectors);
 
-    info->filename        = g_strdup(filename);
+    info->filename        = g_strdup(bs->filename);
     info->format          = g_strdup(bdrv_get_format_name(bs));
     info->virtual_size    = total_sectors * 512;
     info->actual_size     = bdrv_get_allocated_file_size(bs);
@@ -87,7 +134,7 @@ void bdrv_collect_image_info(BlockDriverState *bs,
         info->dirty_flag = bdi.is_dirty;
         info->has_dirty_flag = true;
     }
-    bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
+    backing_filename = bs->backing_file;
     if (backing_filename[0] != '\0') {
         info->backing_filename = g_strdup(backing_filename);
         info->has_backing_filename = true;
@@ -105,11 +152,37 @@ void bdrv_collect_image_info(BlockDriverState *bs,
             info->has_backing_filename_format = true;
         }
     }
+
+    ret = bdrv_query_snapshot_info_list(bs, &info->snapshots, &err);
+    switch (ret) {
+    case 0:
+        if (info->snapshots) {
+            info->has_snapshots = true;
+        }
+        break;
+    /* recoverable error */
+    case -ENOMEDIUM:
+    case -ENOTSUP:
+        error_free(err);
+        break;
+    default:
+        error_propagate(errp, err);
+        qapi_free_ImageInfo(info);
+        return;
+    }
+
+    *p_info = info;
 }
 
-BlockInfo *bdrv_query_info(BlockDriverState *bs)
+/* @p_info will be set only on success. */
+void bdrv_query_info(BlockDriverState *bs,
+                     BlockInfo **p_info,
+                     Error **errp)
 {
     BlockInfo *info = g_malloc0(sizeof(*info));
+    BlockDriverState *bs0;
+    ImageInfo **p_image_info;
+    Error *local_err = NULL;
     info->device = g_strdup(bs->device_name);
     info->type = g_strdup("unknown");
     info->locked = bdrv_dev_is_medium_locked(bs);
@@ -163,8 +236,30 @@ BlockInfo *bdrv_query_info(BlockDriverState *bs)
             info->inserted->iops_wr =
                            bs->io_limits.iops[BLOCK_IO_LIMIT_WRITE];
         }
+
+        bs0 = bs;
+        p_image_info = &info->inserted->image;
+        while (1) {
+            bdrv_query_image_info(bs0, p_image_info, &local_err);
+            if (error_is_set(&local_err)) {
+                error_propagate(errp, local_err);
+                goto err;
+            }
+            if (bs0->drv && bs0->backing_hd) {
+                bs0 = bs0->backing_hd;
+                (*p_image_info)->has_backing_image = true;
+                p_image_info = &((*p_image_info)->backing_image);
+            } else {
+                break;
+            }
+        }
     }
-    return info;
+
+    *p_info = info;
+    return;
+
+ err:
+    qapi_free_BlockInfo(info);
 }
 
 BlockStats *bdrv_query_stats(const BlockDriverState *bs)
@@ -201,16 +296,25 @@ BlockInfoList *qmp_query_block(Error **errp)
 {
     BlockInfoList *head = NULL, **p_next = &head;
     BlockDriverState *bs = NULL;
+    Error *local_err = NULL;
 
      while ((bs = bdrv_next(bs))) {
         BlockInfoList *info = g_malloc0(sizeof(*info));
-        info->value = bdrv_query_info(bs);
+        bdrv_query_info(bs, &info->value, &local_err);
+        if (error_is_set(&local_err)) {
+            error_propagate(errp, local_err);
+            goto err;
+        }
 
         *p_next = info;
         p_next = &info->next;
     }
 
     return head;
+
+ err:
+    qapi_free_BlockInfoList(head);
+    return NULL;
 }
 
 BlockStatsList *qmp_query_blockstats(Error **errp)
