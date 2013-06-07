@@ -180,7 +180,7 @@ static inline int c6_to_8(int v)
 void vga_common_init(VGACommonState *s, Object *obj);
 void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
               MemoryRegion *address_space_io, bool init_vga_ports);
-MemoryRegion *vga_init_io(VGACommonState *s,
+MemoryRegion *vga_init_io(VGACommonState *s, Object *obj,
                           const MemoryRegionPortio **vga_ports,
                           const MemoryRegionPortio **vbe_ports);
 void vga_common_reset(VGACommonState *s);

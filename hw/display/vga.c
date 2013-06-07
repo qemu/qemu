@@ -2333,7 +2333,7 @@ static const MemoryRegionPortio vbe_portio_list[] = {
 };
 
 /* Used by both ISA and PCI */
-MemoryRegion *vga_init_io(VGACommonState *s,
+MemoryRegion *vga_init_io(VGACommonState *s, Object *obj,
                           const MemoryRegionPortio **vga_ports,
                           const MemoryRegionPortio **vbe_ports)
 {
@@ -2343,7 +2343,7 @@ MemoryRegion *vga_init_io(VGACommonState *s,
     *vbe_ports = vbe_portio_list;
 
     vga_mem = g_malloc(sizeof(*vga_mem));
-    memory_region_init_io(vga_mem, NULL, &vga_mem_ops, s,
+    memory_region_init_io(vga_mem, obj, &vga_mem_ops, s,
                           "vga-lowmem", 0x20000);
     memory_region_set_flush_coalesced(vga_mem);
 
@@ -2364,7 +2364,7 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
 
     s->legacy_address_space = address_space;
 
-    vga_io_memory = vga_init_io(s, &vga_ports, &vbe_ports);
+    vga_io_memory = vga_init_io(s, obj, &vga_ports, &vbe_ports);
     memory_region_add_subregion_overlap(address_space,
                                         isa_mem_base + 0x000a0000,
                                         vga_io_memory,
