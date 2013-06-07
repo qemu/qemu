@@ -2073,17 +2073,17 @@ static int vmxnet3_pci_init(PCIDevice *pci_dev)
 
     VMW_CBPRN("Starting init...");
 
-    memory_region_init_io(&s->bar0, NULL, &b0_ops, s,
+    memory_region_init_io(&s->bar0, OBJECT(s), &b0_ops, s,
                           "vmxnet3-b0", VMXNET3_PT_REG_SIZE);
     pci_register_bar(pci_dev, VMXNET3_BAR0_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
 
-    memory_region_init_io(&s->bar1, NULL, &b1_ops, s,
+    memory_region_init_io(&s->bar1, OBJECT(s), &b1_ops, s,
                           "vmxnet3-b1", VMXNET3_VD_REG_SIZE);
     pci_register_bar(pci_dev, VMXNET3_BAR1_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar1);
 
-    memory_region_init(&s->msix_bar, NULL, "vmxnet3-msix-bar",
+    memory_region_init(&s->msix_bar, OBJECT(s), "vmxnet3-msix-bar",
                        VMXNET3_MSIX_BAR_SIZE);
     pci_register_bar(pci_dev, VMXNET3_MSIX_BAR_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->msix_bar);

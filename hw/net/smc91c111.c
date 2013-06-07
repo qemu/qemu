@@ -747,7 +747,7 @@ static NetClientInfo net_smc91c111_info = {
 static int smc91c111_init1(SysBusDevice *dev)
 {
     smc91c111_state *s = FROM_SYSBUS(smc91c111_state, dev);
-    memory_region_init_io(&s->mmio, NULL, &smc91c111_mem_ops, s,
+    memory_region_init_io(&s->mmio, OBJECT(s), &smc91c111_mem_ops, s,
                           "smc91c111-mmio", 16);
     sysbus_init_mmio(dev, &s->mmio);
     sysbus_init_irq(dev, &s->irq);

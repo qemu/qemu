@@ -3486,8 +3486,10 @@ static int pci_rtl8139_init(PCIDevice *dev)
      * list bit in status register, and offset 0xdc seems unused. */
     pci_conf[PCI_CAPABILITY_LIST] = 0xdc;
 
-    memory_region_init_io(&s->bar_io, NULL, &rtl8139_io_ops, s, "rtl8139", 0x100);
-    memory_region_init_io(&s->bar_mem, NULL, &rtl8139_mmio_ops, s, "rtl8139", 0x100);
+    memory_region_init_io(&s->bar_io, OBJECT(s), &rtl8139_io_ops, s,
+                          "rtl8139", 0x100);
+    memory_region_init_io(&s->bar_mem, OBJECT(s), &rtl8139_mmio_ops, s,
+                          "rtl8139", 0x100);
     pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->bar_io);
     pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar_mem);
 

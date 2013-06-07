@@ -221,8 +221,8 @@ static int xilinx_ethlite_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     s->rxbuf = 0;
 
-    memory_region_init_io(&s->mmio, NULL, &eth_ops, s, "xlnx.xps-ethernetlite",
-                                                                    R_MAX * 4);
+    memory_region_init_io(&s->mmio, OBJECT(s), &eth_ops, s,
+                          "xlnx.xps-ethernetlite", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
