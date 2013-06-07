@@ -300,7 +300,7 @@ static int milkymist_ac97_init(SysBusDevice *dev)
     s->voice_out = AUD_open_out(&s->card, s->voice_out,
             "mm_ac97.out", s, ac97_out_cb, &as);
 
-    memory_region_init_io(&s->regs_region, NULL, &ac97_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(s), &ac97_mmio_ops, s,
             "milkymist-ac97", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 

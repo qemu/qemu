@@ -124,8 +124,8 @@ static int bitband_init(SysBusDevice *dev)
 {
     BitBandState *s = FROM_SYSBUS(BitBandState, dev);
 
-    memory_region_init_io(&s->iomem, NULL, &bitband_ops, &s->base, "bitband",
-                          0x02000000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &bitband_ops, &s->base,
+                          "bitband", 0x02000000);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }

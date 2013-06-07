@@ -249,10 +249,10 @@ static int integratorcm_init(SysBusDevice *dev)
     }
     memcpy(integrator_spd + 73, "QEMU-MEMORY", 11);
     s->cm_init = 0x00000112;
-    memory_region_init_ram(&s->flash, NULL, "integrator.flash", 0x100000);
+    memory_region_init_ram(&s->flash, OBJECT(s), "integrator.flash", 0x100000);
     vmstate_register_ram_global(&s->flash);
 
-    memory_region_init_io(&s->iomem, NULL, &integratorcm_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &integratorcm_ops, s,
                           "integratorcm", 0x00800000);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -374,7 +374,8 @@ static int icp_pic_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, icp_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_fiq);
-    memory_region_init_io(&s->iomem, NULL, &icp_pic_ops, s, "icp-pic", 0x00800000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &icp_pic_ops, s,
+                          "icp-pic", 0x00800000);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }

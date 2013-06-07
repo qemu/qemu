@@ -173,7 +173,8 @@ static int strongarm_pic_initfn(SysBusDevice *dev)
     StrongARMPICState *s = FROM_SYSBUS(StrongARMPICState, dev);
 
     qdev_init_gpio_in(&dev->qdev, strongarm_pic_set_irq, SA_PIC_SRCS);
-    memory_region_init_io(&s->iomem, NULL, &strongarm_pic_ops, s, "pic", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_pic_ops, s,
+                          "pic", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     sysbus_init_irq(dev, &s->fiq);
@@ -383,7 +384,8 @@ static int strongarm_rtc_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->rtc_irq);
     sysbus_init_irq(dev, &s->rtc_hz_irq);
 
-    memory_region_init_io(&s->iomem, NULL, &strongarm_rtc_ops, s, "rtc", 0x10000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_rtc_ops, s,
+                          "rtc", 0x10000);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
@@ -637,7 +639,8 @@ static int strongarm_gpio_initfn(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, strongarm_gpio_set, 28);
     qdev_init_gpio_out(&dev->qdev, s->handler, 28);
 
-    memory_region_init_io(&s->iomem, NULL, &strongarm_gpio_ops, s, "gpio", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_gpio_ops, s,
+                          "gpio", 0x1000);
 
     sysbus_init_mmio(dev, &s->iomem);
     for (i = 0; i < 11; i++) {
@@ -808,7 +811,8 @@ static int strongarm_ppc_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, strongarm_ppc_set, 22);
     qdev_init_gpio_out(&dev->qdev, s->handler, 22);
 
-    memory_region_init_io(&s->iomem, NULL, &strongarm_ppc_ops, s, "ppc", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_ppc_ops, s,
+                          "ppc", 0x1000);
 
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -1204,7 +1208,8 @@ static int strongarm_uart_init(SysBusDevice *dev)
 {
     StrongARMUARTState *s = FROM_SYSBUS(StrongARMUARTState, dev);
 
-    memory_region_init_io(&s->iomem, NULL, &strongarm_uart_ops, s, "uart", 0x10000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_uart_ops, s,
+                          "uart", 0x10000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
@@ -1496,7 +1501,8 @@ static int strongarm_ssp_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->iomem, NULL, &strongarm_ssp_ops, s, "ssp", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &strongarm_ssp_ops, s,
+                          "ssp", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
 
     s->bus = ssi_create_bus(&dev->qdev, "ssi");

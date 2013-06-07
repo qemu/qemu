@@ -1135,7 +1135,7 @@ static int intel_hda_init(PCIDevice *pci)
     /* HDCTL off 0x40 bit 0 selects signaling mode (1-HDA, 0 - Ac97) 18.1.19 */
     conf[0x40] = 0x01;
 
-    memory_region_init_io(&d->mmio, NULL, &intel_hda_mmio_ops, d,
+    memory_region_init_io(&d->mmio, OBJECT(d), &intel_hda_mmio_ops, d,
                           "intel-hda", 0x4000);
     pci_register_bar(&d->pci, 0, 0, &d->mmio);
     if (d->msi) {

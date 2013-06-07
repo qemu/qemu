@@ -149,8 +149,8 @@ static int highbank_regs_init(SysBusDevice *dev)
     HighbankRegsState *s = FROM_SYSBUS(HighbankRegsState, dev);
 
     s->iomem = g_new(MemoryRegion, 1);
-    memory_region_init_io(s->iomem, NULL, &hb_mem_ops, s->regs, "highbank_regs",
-                          0x1000);
+    memory_region_init_io(s->iomem, OBJECT(s), &hb_mem_ops, s->regs,
+                          "highbank_regs", 0x1000);
     sysbus_init_mmio(dev, s->iomem);
 
     return 0;
