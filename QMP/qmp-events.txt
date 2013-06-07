@@ -203,7 +203,8 @@ Emitted when the guest changes the RTC time.
 
 Data:
 
-- "offset": delta against the host UTC in seconds (json-number)
+- "offset": Offset between base RTC clock (as specified by -rtc base), and
+new RTC clock value (json-number)
 
 Example:
 
