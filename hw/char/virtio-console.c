@@ -126,14 +126,16 @@ static void chr_event(void *opaque, int event)
     }
 }
 
-static int virtconsole_initfn(VirtIOSerialPort *port)
+static void virtconsole_realize(DeviceState *dev, Error **errp)
 {
-    VirtConsole *vcon = VIRTIO_CONSOLE(port);
-    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
+    VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
+    VirtConsole *vcon = VIRTIO_CONSOLE(dev);
+    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(dev);
 
     if (port->id == 0 && !k->is_console) {
-        error_report("Port number 0 on virtio-serial devices reserved for virtconsole devices for backward compatibility.");
-        return -1;
+        error_setg(errp, "Port number 0 on virtio-serial devices reserved "
+                   "for virtconsole devices for backward compatibility.");
+        return;
     }
 
     if (vcon->chr) {
@@ -141,19 +143,15 @@ static int virtconsole_initfn(VirtIOSerialPort *port)
         qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read, chr_event,
                               vcon);
     }
-
-    return 0;
 }
 
-static int virtconsole_exitfn(VirtIOSerialPort *port)
+static void virtconsole_unrealize(DeviceState *dev, Error **errp)
 {
-    VirtConsole *vcon = VIRTIO_CONSOLE(port);
+    VirtConsole *vcon = VIRTIO_CONSOLE(dev);
 
     if (vcon->watch) {
         g_source_remove(vcon->watch);
     }
-
-    return 0;
 }
 
 static Property virtconsole_properties[] = {
@@ -167,8 +165,8 @@ static void virtconsole_class_init(ObjectClass *klass, void *data)
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
 
     k->is_console = true;
-    k->init = virtconsole_initfn;
-    k->exit = virtconsole_exitfn;
+    k->realize = virtconsole_realize;
+    k->unrealize = virtconsole_unrealize;
     k->have_data = flush_buf;
     k->set_guest_connected = set_guest_connected;
     dc->props = virtconsole_properties;
@@ -191,8 +189,8 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
 
-    k->init = virtconsole_initfn;
-    k->exit = virtconsole_exitfn;
+    k->realize = virtconsole_realize;
+    k->unrealize = virtconsole_unrealize;
     k->have_data = flush_buf;
     k->set_guest_connected = set_guest_connected;
     dc->props = virtserialport_properties;
