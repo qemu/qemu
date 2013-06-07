@@ -479,6 +479,20 @@ typedef struct {
 #define HWCAP_SPARC_V9		16
 #define HWCAP_SPARC_ULTRA3	32
 
+/* Bits present in AT_HWCAP for s390.  */
+
+#define HWCAP_S390_ESAN3        1
+#define HWCAP_S390_ZARCH        2
+#define HWCAP_S390_STFLE        4
+#define HWCAP_S390_MSA          8
+#define HWCAP_S390_LDISP        16
+#define HWCAP_S390_EIMM         32
+#define HWCAP_S390_DFP          64
+#define HWCAP_S390_HPAGE        128
+#define HWCAP_S390_ETF3EH       256
+#define HWCAP_S390_HIGH_GPRS    512
+#define HWCAP_S390_TE           1024
+
 /*
  * 68k ELF relocation types
  */
