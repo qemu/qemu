@@ -411,6 +411,31 @@ typedef struct {
 #define R_SPARC_5		44
 #define R_SPARC_6		45
 
+/* Bits present in AT_HWCAP for ARM.  */
+
+#define HWCAP_ARM_SWP           (1 << 0)
+#define HWCAP_ARM_HALF          (1 << 1)
+#define HWCAP_ARM_THUMB         (1 << 2)
+#define HWCAP_ARM_26BIT         (1 << 3)
+#define HWCAP_ARM_FAST_MULT     (1 << 4)
+#define HWCAP_ARM_FPA           (1 << 5)
+#define HWCAP_ARM_VFP           (1 << 6)
+#define HWCAP_ARM_EDSP          (1 << 7)
+#define HWCAP_ARM_JAVA          (1 << 8)
+#define HWCAP_ARM_IWMMXT        (1 << 9)
+#define HWCAP_ARM_CRUNCH        (1 << 10)
+#define HWCAP_ARM_THUMBEE       (1 << 11)
+#define HWCAP_ARM_NEON          (1 << 12)
+#define HWCAP_ARM_VFPv3         (1 << 13)
+#define HWCAP_ARM_VFPv3D16      (1 << 14)       /* also set for VFPv4-D16 */
+#define HWCAP_ARM_TLS           (1 << 15)
+#define HWCAP_ARM_VFPv4         (1 << 16)
+#define HWCAP_ARM_IDIVA         (1 << 17)
+#define HWCAP_ARM_IDIVT         (1 << 18)
+#define HWCAP_IDIV              (HWCAP_IDIVA | HWCAP_IDIVT)
+#define HWCAP_VFPD32            (1 << 19)       /* set if VFP has 32 regs */
+#define HWCAP_LPAE              (1 << 20)
+
 /* Bits present in AT_HWCAP for PowerPC.  */
 
 #define PPC_FEATURE_32                  0x80000000

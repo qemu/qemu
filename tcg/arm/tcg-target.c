@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "elf.h"
 #include "tcg-be-ldst.h"
 
 /* The __ARM_ARCH define is provided by gcc 4.8.  Construct it otherwise.  */
@@ -57,9 +58,6 @@ static int arm_arch = __ARM_ARCH;
 
 #ifndef use_idiv_instructions
 bool use_idiv_instructions;
-#endif
-#ifdef CONFIG_GETAUXVAL
-# include <sys/auxv.h>
 #endif
 
 #ifndef NDEBUG
@@ -2036,22 +2034,20 @@ static const TCGTargetOpDef arm_op_defs[] = {
 
 static void tcg_target_init(TCGContext *s)
 {
-#if defined(CONFIG_GETAUXVAL)
     /* Only probe for the platform and capabilities if we havn't already
        determined maximum values at compile time.  */
-# if !defined(use_idiv_instructions)
+#ifndef use_idiv_instructions
     {
-        unsigned long hwcap = getauxval(AT_HWCAP);
+        unsigned long hwcap = qemu_getauxval(AT_HWCAP);
         use_idiv_instructions = (hwcap & HWCAP_ARM_IDIVA) != 0;
     }
-# endif
+#endif
     if (__ARM_ARCH < 7) {
-        const char *pl = (const char *)getauxval(AT_PLATFORM);
+        const char *pl = (const char *)qemu_getauxval(AT_PLATFORM);
         if (pl != NULL && pl[0] == 'v' && pl[1] >= '4' && pl[1] <= '9') {
             arm_arch = pl[1] - '0';
         }
     }
-#endif /* GETAUXVAL */
 
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
