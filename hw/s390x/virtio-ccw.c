@@ -803,6 +803,8 @@ static void virtio_ccw_reset(DeviceState *d)
 
     virtio_reset(dev->vdev);
     css_reset_sch(dev->sch);
+    dev->indicators = 0;
+    dev->indicators2 = 0;
 }
 
 /**************** Virtio-ccw Bus Device Descriptions *******************/
