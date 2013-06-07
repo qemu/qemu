@@ -95,7 +95,7 @@ static void icc_bridge_init(Object *obj)
     /* Do not change order of registering regions,
      * APIC must be first registered region, board maps it by 0 index
      */
-    memory_region_init(&s->apic_container, NULL, "icc-apic-container",
+    memory_region_init(&s->apic_container, obj, "icc-apic-container",
                        APIC_SPACE_SIZE);
     sysbus_init_mmio(sb, &s->apic_container);
     s->icc_bus.apic_address_space = &s->apic_container;

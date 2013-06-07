@@ -70,7 +70,7 @@ static int empty_slot_init1(SysBusDevice *dev)
 {
     EmptySlot *s = FROM_SYSBUS(EmptySlot, dev);
 
-    memory_region_init_io(&s->iomem, NULL, &empty_slot_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &empty_slot_ops, s,
                           "empty-slot", s->size);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;

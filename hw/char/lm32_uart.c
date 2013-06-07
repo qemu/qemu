@@ -250,7 +250,8 @@ static int lm32_uart_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->iomem, NULL, &uart_ops, s, "uart", R_MAX * 4);
+    memory_region_init_io(&s->iomem, OBJECT(s), &uart_ops, s,
+                          "uart", R_MAX * 4);
     sysbus_init_mmio(dev, &s->iomem);
 
     s->chr = qemu_char_get_next_serial();

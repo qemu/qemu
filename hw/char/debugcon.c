@@ -103,7 +103,7 @@ static void debugcon_isa_realizefn(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    memory_region_init_io(&s->io, NULL, &debugcon_ops, s,
+    memory_region_init_io(&s->io, OBJECT(dev), &debugcon_ops, s,
                           TYPE_ISA_DEBUGCON_DEVICE, 1);
     memory_region_add_subregion(isa_address_space_io(d),
                                 isa->iobase, &s->io);
