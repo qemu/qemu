@@ -148,7 +148,8 @@ static int pci_std_vga_initfn(PCIDevice *dev)
 
     /* vga + console init */
     vga_common_init(s);
-    vga_init(s, pci_address_space(dev), pci_address_space_io(dev), true);
+    vga_init(s, OBJECT(dev), pci_address_space(dev), pci_address_space_io(dev),
+             true);
 
     s->con = graphic_console_init(DEVICE(dev), s->hw_ops, s);
 

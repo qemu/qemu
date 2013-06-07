@@ -2350,7 +2350,7 @@ MemoryRegion *vga_init_io(VGACommonState *s,
     return vga_mem;
 }
 
-void vga_init(VGACommonState *s, MemoryRegion *address_space,
+void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
               MemoryRegion *address_space_io, bool init_vga_ports)
 {
     MemoryRegion *vga_io_memory;
