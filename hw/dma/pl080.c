@@ -359,7 +359,7 @@ static int pl08x_init(SysBusDevice *dev, int nchannels)
 {
     pl080_state *s = FROM_SYSBUS(pl080_state, dev);
 
-    memory_region_init_io(&s->iomem, NULL, &pl080_ops, s, "pl080", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &pl080_ops, s, "pl080", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     s->nchannels = nchannels;

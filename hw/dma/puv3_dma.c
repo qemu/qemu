@@ -80,7 +80,7 @@ static int puv3_dma_init(SysBusDevice *dev)
         s->reg_CFG[i] = 0x0;
     }
 
-    memory_region_init_io(&s->iomem, NULL, &puv3_dma_ops, s, "puv3_dma",
+    memory_region_init_io(&s->iomem, OBJECT(s), &puv3_dma_ops, s, "puv3_dma",
             PUV3_REGS_OFFSET);
     sysbus_init_mmio(dev, &s->iomem);
 

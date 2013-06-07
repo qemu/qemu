@@ -2967,7 +2967,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
 
      /* setup PCI */
 
-    memory_region_init(&s->pci_bar, NULL, "cirrus-pci-bar0", 0x2000000);
+    memory_region_init(&s->pci_bar, OBJECT(dev), "cirrus-pci-bar0", 0x2000000);
 
     /* XXX: add byte swapping apertures */
     memory_region_add_subregion(&s->pci_bar, 0, &s->cirrus_linear_io);
