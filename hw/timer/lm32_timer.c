@@ -180,7 +180,8 @@ static int lm32_timer_init(SysBusDevice *dev)
     s->ptimer = ptimer_init(s->bh);
     ptimer_set_freq(s->ptimer, s->freq_hz);
 
-    memory_region_init_io(&s->iomem, NULL, &timer_ops, s, "timer", R_MAX * 4);
+    memory_region_init_io(&s->iomem, OBJECT(s), &timer_ops, s,
+                          "timer", R_MAX * 4);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;

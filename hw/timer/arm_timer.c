@@ -284,7 +284,8 @@ static int sp804_init(SysBusDevice *dev)
     s->timer[1] = arm_timer_init(s->freq1);
     s->timer[0]->irq = qi[0];
     s->timer[1]->irq = qi[1];
-    memory_region_init_io(&s->iomem, NULL, &sp804_ops, s, "sp804", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &sp804_ops, s,
+                          "sp804", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     vmstate_register(&dev->qdev, -1, &vmstate_sp804, s);
     return 0;
@@ -347,7 +348,8 @@ static int icp_pit_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->timer[1]->irq);
     sysbus_init_irq(dev, &s->timer[2]->irq);
 
-    memory_region_init_io(&s->iomem, NULL, &icp_pit_ops, s, "icp_pit", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(s), &icp_pit_ops, s,
+                          "icp_pit", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */

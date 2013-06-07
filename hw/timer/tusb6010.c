@@ -779,8 +779,8 @@ static int tusb6010_init(SysBusDevice *dev)
     TUSBState *s = FROM_SYSBUS(TUSBState, dev);
     s->otg_timer = qemu_new_timer_ns(vm_clock, tusb_otg_tick, s);
     s->pwr_timer = qemu_new_timer_ns(vm_clock, tusb_power_tick, s);
-    memory_region_init_io(&s->iomem[1], NULL, &tusb_async_ops, s, "tusb-async",
-                          UINT32_MAX);
+    memory_region_init_io(&s->iomem[1], OBJECT(s), &tusb_async_ops, s,
+                          "tusb-async", UINT32_MAX);
     sysbus_init_mmio(dev, &s->iomem[0]);
     sysbus_init_mmio(dev, &s->iomem[1]);
     sysbus_init_irq(dev, &s->irq);

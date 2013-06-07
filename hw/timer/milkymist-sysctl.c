@@ -280,7 +280,7 @@ static int milkymist_sysctl_init(SysBusDevice *dev)
     ptimer_set_freq(s->ptimer0, s->freq_hz);
     ptimer_set_freq(s->ptimer1, s->freq_hz);
 
-    memory_region_init_io(&s->regs_region, NULL, &sysctl_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(s), &sysctl_mmio_ops, s,
             "milkymist-sysctl", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 

@@ -559,8 +559,8 @@ static int exynos4210_rtc_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->alm_irq);
     sysbus_init_irq(dev, &s->tick_irq);
 
-    memory_region_init_io(&s->iomem, NULL, &exynos4210_rtc_ops, s, "exynos4210-rtc",
-            EXYNOS4210_RTC_REG_MEM_SIZE);
+    memory_region_init_io(&s->iomem, OBJECT(s), &exynos4210_rtc_ops, s,
+                          "exynos4210-rtc", EXYNOS4210_RTC_REG_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
