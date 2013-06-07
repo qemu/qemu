@@ -139,7 +139,7 @@ static void lx60_net_init(MemoryRegion *address_space,
             sysbus_mmio_get_region(s, 1));
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "open_eth.ram", 16384);
+    memory_region_init_ram(ram, OBJECT(s), "open_eth.ram", 16384);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space, buffers, ram);
 }

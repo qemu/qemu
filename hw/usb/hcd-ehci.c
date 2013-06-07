@@ -2553,12 +2553,12 @@ void usb_ehci_init(EHCIState *s, DeviceState *dev)
     QTAILQ_INIT(&s->pqueues);
     usb_packet_init(&s->ipacket);
 
-    memory_region_init(&s->mem, NULL, "ehci", MMIO_SIZE);
-    memory_region_init_io(&s->mem_caps, NULL, &ehci_mmio_caps_ops, s,
+    memory_region_init(&s->mem, OBJECT(dev), "ehci", MMIO_SIZE);
+    memory_region_init_io(&s->mem_caps, OBJECT(dev), &ehci_mmio_caps_ops, s,
                           "capabilities", CAPA_SIZE);
-    memory_region_init_io(&s->mem_opreg, NULL, &ehci_mmio_opreg_ops, s,
+    memory_region_init_io(&s->mem_opreg, OBJECT(dev), &ehci_mmio_opreg_ops, s,
                           "operational", s->portscbase);
-    memory_region_init_io(&s->mem_ports, NULL, &ehci_mmio_port_ops, s,
+    memory_region_init_io(&s->mem_ports, OBJECT(dev), &ehci_mmio_port_ops, s,
                           "ports", 4 * s->portnr);
 
     memory_region_add_subregion(&s->mem, s->capsbase, &s->mem_caps);
