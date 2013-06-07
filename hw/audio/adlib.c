@@ -349,7 +349,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
 
     adlib_portio_list[1].offset = s->port;
     adlib_portio_list[2].offset = s->port + 8;
-    portio_list_init (port_list, adlib_portio_list, s, "adlib");
+    portio_list_init (port_list, OBJECT(s), adlib_portio_list, s, "adlib");
     portio_list_add (port_list, isa_address_space_io(&s->parent_obj), 0);
 }
 

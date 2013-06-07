@@ -112,7 +112,7 @@ static void wdt_ib700_realize(DeviceState *dev, Error **errp)
 
     s->timer = qemu_new_timer_ns(vm_clock, ib700_timer_expired, s);
 
-    portio_list_init(port_list, wdt_portio_list, s, "ib700");
+    portio_list_init(port_list, OBJECT(s), wdt_portio_list, s, "ib700");
     portio_list_add(port_list, isa_address_space_io(&s->parent_obj), 0);
 }
 

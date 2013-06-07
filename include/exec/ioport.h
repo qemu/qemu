@@ -25,6 +25,7 @@
 #define IOPORT_H
 
 #include "qemu-common.h"
+#include "qom/object.h"
 #include "exec/memory.h"
 
 typedef uint32_t pio_addr_t;
@@ -53,6 +54,7 @@ uint32_t cpu_inl(pio_addr_t addr);
 
 typedef struct PortioList {
     const struct MemoryRegionPortio *ports;
+    Object *owner;
     struct MemoryRegion *address_space;
     unsigned nr;
     struct MemoryRegion **regions;
@@ -60,7 +62,7 @@ typedef struct PortioList {
     const char *name;
 } PortioList;
 
-void portio_list_init(PortioList *piolist,
+void portio_list_init(PortioList *piolist, Object *owner,
                       const struct MemoryRegionPortio *callbacks,
                       void *opaque, const char *name);
 void portio_list_destroy(PortioList *piolist);

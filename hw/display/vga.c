@@ -2372,11 +2372,11 @@ void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
                                         1);
     memory_region_set_coalescing(vga_io_memory);
     if (init_vga_ports) {
-        portio_list_init(vga_port_list, vga_ports, s, "vga");
+        portio_list_init(vga_port_list, obj, vga_ports, s, "vga");
         portio_list_add(vga_port_list, address_space_io, 0x3b0);
     }
     if (vbe_ports) {
-        portio_list_init(vbe_port_list, vbe_ports, s, "vbe");
+        portio_list_init(vbe_port_list, obj, vbe_ports, s, "vbe");
         portio_list_add(vbe_port_list, address_space_io, 0x1ce);
     }
 }

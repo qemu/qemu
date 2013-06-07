@@ -2070,7 +2070,8 @@ static int qxl_init_primary(PCIDevice *dev)
     vga_common_init(vga, OBJECT(dev));
     vga_init(vga, OBJECT(dev),
              pci_address_space(dev), pci_address_space_io(dev), false);
-    portio_list_init(qxl_vga_port_list, qxl_vga_portio_list, vga, "vga");
+    portio_list_init(qxl_vga_port_list, OBJECT(dev), qxl_vga_portio_list,
+                     vga, "vga");
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
 
     vga->con = graphic_console_init(DEVICE(dev), &qxl_ops, qxl);

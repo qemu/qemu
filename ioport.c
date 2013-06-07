@@ -106,6 +106,7 @@ uint32_t cpu_inl(pio_addr_t addr)
 }
 
 void portio_list_init(PortioList *piolist,
+                      Object *owner,
                       const MemoryRegionPortio *callbacks,
                       void *opaque, const char *name)
 {
@@ -120,6 +121,7 @@ void portio_list_init(PortioList *piolist,
     piolist->regions = g_new0(MemoryRegion *, n);
     piolist->address_space = NULL;
     piolist->opaque = opaque;
+    piolist->owner = owner;
     piolist->name = name;
 }
 
@@ -211,8 +213,8 @@ static void portio_list_add_1(PortioList *piolist,
      * Use an alias so that the callback is called with an absolute address,
      * rather than an offset relative to to start + off_low.
      */
-    memory_region_init_io(&mrpio->mr, NULL, &portio_ops, mrpio, piolist->name,
-                          off_high - off_low);
+    memory_region_init_io(&mrpio->mr, piolist->owner, &portio_ops, mrpio,
+                          piolist->name, off_high - off_low);
     memory_region_add_subregion(piolist->address_space,
                                 start + off_low, &mrpio->mr);
     piolist->regions[piolist->nr] = &mrpio->mr;

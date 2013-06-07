@@ -443,7 +443,7 @@ static int vt82c686b_initfn(PCIDevice *d)
        }
     }
 
-    memory_region_init_io(&vt82c->superio, NULL, &superio_ops,
+    memory_region_init_io(&vt82c->superio, OBJECT(d), &superio_ops,
                           &vt82c->superio_conf, "superio", 2);
     memory_region_set_enabled(&vt82c->superio, false);
     /* The floppy also uses 0x3f0 and 0x3f1.
