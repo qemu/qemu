@@ -127,7 +127,7 @@ static int milkymist_hpdmc_init(SysBusDevice *dev)
 {
     MilkymistHpdmcState *s = FROM_SYSBUS(typeof(*s), dev);
 
-    memory_region_init_io(&s->regs_region, NULL, &hpdmc_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(dev), &hpdmc_mmio_ops, s,
             "milkymist-hpdmc", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 

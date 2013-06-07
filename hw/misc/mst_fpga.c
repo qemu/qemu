@@ -208,7 +208,7 @@ static int mst_fpga_init(SysBusDevice *dev)
 	/* alloc the external 16 irqs */
 	qdev_init_gpio_in(&dev->qdev, mst_fpga_set_irq, MST_NUM_IRQS);
 
-	memory_region_init_io(&s->iomem, NULL, &mst_fpga_ops, s,
+	memory_region_init_io(&s->iomem, OBJECT(s), &mst_fpga_ops, s,
 			    "fpga", 0x00100000);
 	sysbus_init_mmio(dev, &s->iomem);
 	return 0;

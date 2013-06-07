@@ -497,7 +497,7 @@ static int milkymist_pfpu_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->regs_region, NULL, &pfpu_mmio_ops, s,
+    memory_region_init_io(&s->regs_region, OBJECT(dev), &pfpu_mmio_ops, s,
             "milkymist-pfpu", MICROCODE_END * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 

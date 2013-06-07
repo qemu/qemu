@@ -412,7 +412,7 @@ static int apc_init1(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->cpu_halt);
 
     /* Power management (APC) XXX: not a Slavio device */
-    memory_region_init_io(&s->iomem, NULL, &apc_mem_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &apc_mem_ops, s,
                           "apc", MISC_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
@@ -427,39 +427,39 @@ static int slavio_misc_init1(SysBusDevice *dev)
 
     /* 8 bit registers */
     /* Slavio control */
-    memory_region_init_io(&s->cfg_iomem, NULL, &slavio_cfg_mem_ops, s,
+    memory_region_init_io(&s->cfg_iomem, OBJECT(s), &slavio_cfg_mem_ops, s,
                           "configuration", MISC_SIZE);
     sysbus_init_mmio(dev, &s->cfg_iomem);
 
     /* Diagnostics */
-    memory_region_init_io(&s->diag_iomem, NULL, &slavio_diag_mem_ops, s,
+    memory_region_init_io(&s->diag_iomem, OBJECT(s), &slavio_diag_mem_ops, s,
                           "diagnostic", MISC_SIZE);
     sysbus_init_mmio(dev, &s->diag_iomem);
 
     /* Modem control */
-    memory_region_init_io(&s->mdm_iomem, NULL, &slavio_mdm_mem_ops, s,
+    memory_region_init_io(&s->mdm_iomem, OBJECT(s), &slavio_mdm_mem_ops, s,
                           "modem", MISC_SIZE);
     sysbus_init_mmio(dev, &s->mdm_iomem);
 
     /* 16 bit registers */
     /* ss600mp diag LEDs */
-    memory_region_init_io(&s->led_iomem, NULL, &slavio_led_mem_ops, s,
+    memory_region_init_io(&s->led_iomem, OBJECT(s), &slavio_led_mem_ops, s,
                           "leds", MISC_SIZE);
     sysbus_init_mmio(dev, &s->led_iomem);
 
     /* 32 bit registers */
     /* System control */
-    memory_region_init_io(&s->sysctrl_iomem, NULL, &slavio_sysctrl_mem_ops, s,
+    memory_region_init_io(&s->sysctrl_iomem, OBJECT(s), &slavio_sysctrl_mem_ops, s,
                           "system-control", MISC_SIZE);
     sysbus_init_mmio(dev, &s->sysctrl_iomem);
 
     /* AUX 1 (Misc System Functions) */
-    memory_region_init_io(&s->aux1_iomem, NULL, &slavio_aux1_mem_ops, s,
+    memory_region_init_io(&s->aux1_iomem, OBJECT(s), &slavio_aux1_mem_ops, s,
                           "misc-system-functions", MISC_SIZE);
     sysbus_init_mmio(dev, &s->aux1_iomem);
 
     /* AUX 2 (Software Powerdown Control) */
-    memory_region_init_io(&s->aux2_iomem, NULL, &slavio_aux2_mem_ops, s,
+    memory_region_init_io(&s->aux2_iomem, OBJECT(s), &slavio_aux2_mem_ops, s,
                           "software-powerdown-control", MISC_SIZE);
     sysbus_init_mmio(dev, &s->aux2_iomem);
 

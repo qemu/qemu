@@ -157,7 +157,8 @@ static int l2x0_priv_init(SysBusDevice *dev)
 {
     l2x0_state *s = FROM_SYSBUS(l2x0_state, dev);
 
-    memory_region_init_io(&s->iomem, NULL, &l2x0_mem_ops, s, "l2x0_cc", 0x1000);
+    memory_region_init_io(&s->iomem, OBJECT(dev), &l2x0_mem_ops, s,
+                          "l2x0_cc", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
