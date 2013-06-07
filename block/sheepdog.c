@@ -2063,7 +2063,7 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     if (snapid) {
         tag[0] = 0;
     } else {
-        pstrcpy(tag, sizeof(tag), s->name);
+        pstrcpy(tag, sizeof(tag), snapshot_id);
     }
 
     ret = reload_inode(s, snapid, tag);
