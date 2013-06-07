@@ -198,7 +198,8 @@ static void vga_update_memory_access(VGACommonState *s)
         }
         base += isa_mem_base;
         region = g_malloc(sizeof(*region));
-        memory_region_init_alias(region, NULL, "vga.chain4", &s->vram, offset, size);
+        memory_region_init_alias(region, memory_region_owner(&s->vram),
+                                 "vga.chain4", &s->vram, offset, size);
         memory_region_add_subregion_overlap(s->legacy_address_space, base,
                                             region, 2);
         s->chain4_alias = region;
