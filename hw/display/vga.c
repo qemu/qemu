@@ -2256,7 +2256,7 @@ static const GraphicHwOps vga_ops = {
     .text_update = vga_update_text,
 };
 
-void vga_common_init(VGACommonState *s)
+void vga_common_init(VGACommonState *s, Object *obj)
 {
     int i, j, v, b;
 
@@ -2292,7 +2292,7 @@ void vga_common_init(VGACommonState *s)
     s->vram_size_mb = s->vram_size >> 20;
 
     s->is_vbe_vmstate = 1;
-    memory_region_init_ram(&s->vram, NULL, "vga.vram", s->vram_size);
+    memory_region_init_ram(&s->vram, obj, "vga.vram", s->vram_size);
     vmstate_register_ram_global(&s->vram);
     xen_register_framebuffer(&s->vram);
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
