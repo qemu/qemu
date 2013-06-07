@@ -1095,7 +1095,7 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
         dev = pcidev ? &pcidev->qdev : NULL;
     } else if (isa_bus) {
         ISADevice *isadev = isa_vga_init(isa_bus);
-        dev = isadev ? &isadev->qdev : NULL;
+        dev = isadev ? DEVICE(isadev) : NULL;
     }
     return dev;
 }
@@ -1182,7 +1182,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         }
         if (hpet) {
             /* connect PIT to output control line of the HPET */
-            qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(&pit->qdev, 0));
+            qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(DEVICE(pit), 0));
         }
         pcspk_init(isa_bus, pit);
     }
@@ -1210,8 +1210,9 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         vmmouse = NULL;
     }
     if (vmmouse) {
-        qdev_prop_set_ptr(&vmmouse->qdev, "ps2_mouse", i8042);
-        qdev_init_nofail(&vmmouse->qdev);
+        DeviceState *dev = DEVICE(vmmouse);
+        qdev_prop_set_ptr(dev, "ps2_mouse", i8042);
+        qdev_init_nofail(dev);
     }
     port92 = isa_create_simple(isa_bus, "port92");
     port92_init(port92, &a20_line[1]);

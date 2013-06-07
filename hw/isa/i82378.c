@@ -201,7 +201,7 @@ static void i82378_init(DeviceState *dev, I82378State *s)
 
     /* 2 82C37 (dma) */
     isa = isa_create_simple(isabus, "i82374");
-    qdev_connect_gpio_out(&isa->qdev, 0, s->out[1]);
+    qdev_connect_gpio_out(DEVICE(isa), 0, s->out[1]);
 
     /* timer */
     isa_create_simple(isabus, "mc146818rtc");

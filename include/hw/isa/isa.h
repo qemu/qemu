@@ -34,7 +34,10 @@ struct ISABus {
 };
 
 struct ISADevice {
-    DeviceState qdev;
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
+
     uint32_t isairq[2];
     int nirqs;
     int ioport_id;

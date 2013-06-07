@@ -80,16 +80,18 @@ static void pic_common_realize(DeviceState *dev, Error **errp)
 
 ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
 
-    dev = isa_create(bus, name);
-    qdev_prop_set_uint32(&dev->qdev, "iobase", master ? 0x20 : 0xa0);
-    qdev_prop_set_uint32(&dev->qdev, "elcr_addr", master ? 0x4d0 : 0x4d1);
-    qdev_prop_set_uint8(&dev->qdev, "elcr_mask", master ? 0xf8 : 0xde);
-    qdev_prop_set_bit(&dev->qdev, "master", master);
-    qdev_init_nofail(&dev->qdev);
+    isadev = isa_create(bus, name);
+    dev = DEVICE(isadev);
+    qdev_prop_set_uint32(dev, "iobase", master ? 0x20 : 0xa0);
+    qdev_prop_set_uint32(dev, "elcr_addr", master ? 0x4d0 : 0x4d1);
+    qdev_prop_set_uint8(dev, "elcr_mask", master ? 0xf8 : 0xde);
+    qdev_prop_set_bit(dev, "master", master);
+    qdev_init_nofail(dev);
 
-    return dev;
+    return isadev;
 }
 
 static const VMStateDescription vmstate_pic_common = {

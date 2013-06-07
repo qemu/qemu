@@ -156,7 +156,7 @@ ISADevice *isa_create_simple(ISABus *bus, const char *name)
     ISADevice *dev;
 
     dev = isa_create(bus, name);
-    qdev_init_nofail(&dev->qdev);
+    qdev_init_nofail(DEVICE(dev));
     return dev;
 }
 
@@ -240,7 +240,7 @@ static void isabus_register_types(void)
 
 static char *isabus_get_fw_dev_path(DeviceState *dev)
 {
-    ISADevice *d = (ISADevice*)dev;
+    ISADevice *d = ISA_DEVICE(dev);
     char path[40];
     int off;
 

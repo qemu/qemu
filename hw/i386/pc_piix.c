@@ -199,7 +199,7 @@ static void pc_init1(MemoryRegion *system_memory,
             dev = isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i],
                                ide_irq[i],
                                hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
-            idebus[i] = qdev_get_child_bus(&dev->qdev, "ide.0");
+            idebus[i] = qdev_get_child_bus(DEVICE(dev), "ide.0");
         }
     }
 
