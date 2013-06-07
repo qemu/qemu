@@ -1029,7 +1029,7 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid)
         return -1;
     }
 #ifdef TARGET_I386
-    smbios_add_field(1, offsetof(struct smbios_type_1, uuid), 16, uuid);
+    smbios_add_field(1, offsetof(struct smbios_type_1, uuid), uuid, 16);
 #endif
     return 0;
 }

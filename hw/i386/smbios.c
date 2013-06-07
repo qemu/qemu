@@ -99,7 +99,7 @@ static void smbios_check_collision(int type, int entry)
     }
 }
 
-void smbios_add_field(int type, int offset, int len, void *data)
+void smbios_add_field(int type, int offset, const void *data, size_t len)
 {
     struct smbios_field *field;
 
@@ -130,21 +130,23 @@ static void smbios_build_type_0_fields(const char *t)
 
     if (get_param_value(buf, sizeof(buf), "vendor", t))
         smbios_add_field(0, offsetof(struct smbios_type_0, vendor_str),
-                         strlen(buf) + 1, buf);
+                         buf, strlen(buf) + 1);
     if (get_param_value(buf, sizeof(buf), "version", t))
         smbios_add_field(0, offsetof(struct smbios_type_0, bios_version_str),
-                         strlen(buf) + 1, buf);
+                         buf, strlen(buf) + 1);
     if (get_param_value(buf, sizeof(buf), "date", t))
         smbios_add_field(0, offsetof(struct smbios_type_0,
                                      bios_release_date_str),
-                                     strlen(buf) + 1, buf);
+                         buf, strlen(buf) + 1);
     if (get_param_value(buf, sizeof(buf), "release", t)) {
         int major, minor;
         sscanf(buf, "%d.%d", &major, &minor);
         smbios_add_field(0, offsetof(struct smbios_type_0,
-                                     system_bios_major_release), 1, &major);
+                                     system_bios_major_release),
+                         &major, 1);
         smbios_add_field(0, offsetof(struct smbios_type_0,
-                                     system_bios_minor_release), 1, &minor);
+                                     system_bios_minor_release),
+                         &minor, 1);
     }
 }
 
@@ -154,16 +156,16 @@ static void smbios_build_type_1_fields(const char *t)
 
     if (get_param_value(buf, sizeof(buf), "manufacturer", t))
         smbios_add_field(1, offsetof(struct smbios_type_1, manufacturer_str),
-                         strlen(buf) + 1, buf);
+                         buf, strlen(buf) + 1);
     if (get_param_value(buf, sizeof(buf), "product", t))
         smbios_add_field(1, offsetof(struct smbios_type_1, product_name_str),
-                         strlen(buf) + 1, buf);
+                         buf, strlen(buf) + 1);
     if (get_param_value(buf, sizeof(buf), "version", t))
         smbios_add_field(1, offsetof(struct smbios_type_1, version_str),
-                         strlen(buf) + 1, buf);
+                         buf, strlen(buf) + 1);
     if (get_param_value(buf, sizeof(buf), "serial", t))
         smbios_add_field(1, offsetof(struct smbios_type_1, serial_number_str),
-                         strlen(buf) + 1, buf);
+                         buf, strlen(buf) + 1);
     if (get_param_value(buf, sizeof(buf), "uuid", t)) {
         if (qemu_uuid_parse(buf, qemu_uuid) != 0) {
             error_report("Invalid UUID");
@@ -172,10 +174,10 @@ static void smbios_build_type_1_fields(const char *t)
     }
     if (get_param_value(buf, sizeof(buf), "sku", t))
         smbios_add_field(1, offsetof(struct smbios_type_1, sku_number_str),
-                         strlen(buf) + 1, buf);
+                         buf, strlen(buf) + 1);
     if (get_param_value(buf, sizeof(buf), "family", t))
         smbios_add_field(1, offsetof(struct smbios_type_1, family_str),
-                         strlen(buf) + 1, buf);
+                         buf, strlen(buf) + 1);
 }
 
 int smbios_entry_add(const char *t)
