@@ -777,7 +777,7 @@ int css_do_tsch(SubchDev *sch, IRB *target_irb)
             (p->chars & PMCW_CHARS_MASK_CSENSE)) {
             irb.scsw.flags |= SCSW_FLAGS_MASK_ESWF | SCSW_FLAGS_MASK_ECTL;
             memcpy(irb.ecw, sch->sense_data, sizeof(sch->sense_data));
-            irb.esw[1] = 0x02000000 | (sizeof(sch->sense_data) << 8);
+            irb.esw[1] = 0x01000000 | (sizeof(sch->sense_data) << 8);
         }
     }
     /* Store the irb to the guest. */
