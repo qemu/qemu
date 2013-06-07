@@ -1700,7 +1700,7 @@ static int pci_qdev_init(DeviceState *qdev)
         pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
     }
 
-    bus = FROM_QBUS(PCIBus, qdev_get_parent_bus(qdev));
+    bus = PCI_BUS(qdev_get_parent_bus(qdev));
     pci_dev = do_pci_register_device(pci_dev, bus,
                                      object_get_typename(OBJECT(qdev)),
                                      pci_dev->devfn);
