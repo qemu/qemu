@@ -514,8 +514,9 @@ static void axidma_write(void *opaque, hwaddr addr,
             break;
     }
     if (sid == 1 && d->notify) {
-        d->notify(d->notify_opaque);
+        StreamCanPushNotifyFn notifytmp = d->notify;
         d->notify = NULL;
+        notifytmp(d->notify_opaque);
     }
     stream_update_irq(s);
 }
