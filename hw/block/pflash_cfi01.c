@@ -579,7 +579,7 @@ static int pflash_cfi01_init(SysBusDevice *dev)
 #endif
 
     memory_region_init_rom_device(
-        &pfl->mem, NULL,
+        &pfl->mem, OBJECT(dev),
         pfl->be ? &pflash_cfi01_ops_be : &pflash_cfi01_ops_le, pfl,
         pfl->name, total_len);
     vmstate_register_ram(&pfl->mem, DEVICE(pfl));

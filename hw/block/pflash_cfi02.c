@@ -100,11 +100,11 @@ static void pflash_setup_mappings(pflash_t *pfl)
     unsigned i;
     hwaddr size = memory_region_size(&pfl->orig_mem);
 
-    memory_region_init(&pfl->mem, NULL, "pflash", pfl->mappings * size);
+    memory_region_init(&pfl->mem, OBJECT(pfl), "pflash", pfl->mappings * size);
     pfl->mem_mappings = g_new(MemoryRegion, pfl->mappings);
     for (i = 0; i < pfl->mappings; ++i) {
-        memory_region_init_alias(&pfl->mem_mappings[i], NULL, "pflash-alias",
-                                 &pfl->orig_mem, 0, size);
+        memory_region_init_alias(&pfl->mem_mappings[i], OBJECT(pfl),
+                                 "pflash-alias", &pfl->orig_mem, 0, size);
         memory_region_add_subregion(&pfl->mem, i * size, &pfl->mem_mappings[i]);
     }
 }
@@ -600,7 +600,7 @@ static int pflash_cfi02_init(SysBusDevice *dev)
         return NULL;
 #endif
 
-    memory_region_init_rom_device(&pfl->orig_mem, NULL, pfl->be ?
+    memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl), pfl->be ?
                                   &pflash_cfi02_ops_be : &pflash_cfi02_ops_le,
                                   pfl, pfl->name, chip_len);
     vmstate_register_ram(&pfl->orig_mem, DEVICE(pfl));
