@@ -13,6 +13,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "hw/i386/smbios.h"
 #include "hw/loader.h"
@@ -48,8 +49,7 @@ static int smbios_type4_count = 0;
 static void smbios_validate_table(void)
 {
     if (smbios_type4_count && smbios_type4_count != smp_cpus) {
-         fprintf(stderr,
-                 "Number of SMBIOS Type 4 tables must match cpu count.\n");
+        error_report("Number of SMBIOS Type 4 tables must match cpu count");
         exit(1);
     }
 }
@@ -82,16 +82,16 @@ static void smbios_check_collision(int type, int entry)
         if (entry == SMBIOS_TABLE_ENTRY && header->type == SMBIOS_FIELD_ENTRY) {
             struct smbios_field *field = (void *)header;
             if (type == field->type) {
-                fprintf(stderr, "SMBIOS type %d field already defined, "
-                                "cannot add table\n", type);
+                error_report("SMBIOS type %d field already defined, "
+                             "cannot add table", type);
                 exit(1);
             }
         } else if (entry == SMBIOS_FIELD_ENTRY &&
                    header->type == SMBIOS_TABLE_ENTRY) {
             struct smbios_structure_header *table = (void *)(header + 1);
             if (type == table->type) {
-                fprintf(stderr, "SMBIOS type %d table already defined, "
-                                "cannot add field\n", type);
+                error_report("SMBIOS type %d table already defined, "
+                             "cannot add field", type);
                 exit(1);
             }
         }
@@ -166,7 +166,7 @@ static void smbios_build_type_1_fields(const char *t)
                          strlen(buf) + 1, buf);
     if (get_param_value(buf, sizeof(buf), "uuid", t)) {
         if (qemu_uuid_parse(buf, qemu_uuid) != 0) {
-            fprintf(stderr, "Invalid SMBIOS UUID string\n");
+            error_report("Invalid UUID");
             exit(1);
         }
     }
@@ -188,7 +188,7 @@ int smbios_entry_add(const char *t)
         int size = get_image_size(buf);
 
         if (size == -1 || size < sizeof(struct smbios_structure_header)) {
-            fprintf(stderr, "Cannot read smbios file %s\n", buf);
+            error_report("Cannot read SMBIOS file %s", buf);
             exit(1);
         }
 
@@ -204,7 +204,7 @@ int smbios_entry_add(const char *t)
         table->header.length = cpu_to_le16(sizeof(*table) + size);
 
         if (load_image(buf, table->data) != size) {
-            fprintf(stderr, "Failed to load smbios file %s", buf);
+            error_report("Failed to load SMBIOS file %s", buf);
             exit(1);
         }
 
@@ -230,12 +230,12 @@ int smbios_entry_add(const char *t)
             smbios_build_type_1_fields(t);
             return 0;
         default:
-            fprintf(stderr, "Don't know how to build fields for SMBIOS type "
-                    "%ld\n", type);
+            error_report("Don't know how to build fields for SMBIOS type %ld",
+                         type);
             exit(1);
         }
     }
 
-    fprintf(stderr, "smbios: must specify type= or file=\n");
+    error_report("Must specify type= or file=");
     return -1;
 }
