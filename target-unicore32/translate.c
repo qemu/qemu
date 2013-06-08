@@ -1933,7 +1933,6 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
                        invalidate this TB.  */
                     dc->pc += 2; /* FIXME */
                     goto done_generating;
-                    break;
                 }
             }
         }

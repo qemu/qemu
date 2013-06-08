@@ -477,7 +477,7 @@ DriveInfo *drive_init(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             error_printf("\n");
             return NULL;
         }
-        drv = bdrv_find_whitelisted_format(buf);
+        drv = bdrv_find_whitelisted_format(buf, ro);
         if (!drv) {
             error_report("'%s' invalid format", buf);
             return NULL;
@@ -1096,7 +1096,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
     }
 
     if (format) {
-        drv = bdrv_find_whitelisted_format(format);
+        drv = bdrv_find_whitelisted_format(format, bs->read_only);
         if (!drv) {
             error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
             return;
@@ -1180,6 +1180,10 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
      */
     if (bdrv_get_attached_dev(bs)) {
         bdrv_make_anon(bs);
+
+        /* Further I/O must not pause the guest */
+        bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,
+                          BLOCKDEV_ON_ERROR_REPORT);
     } else {
         drive_uninit(drive_get_by_blockdev(bs));
     }

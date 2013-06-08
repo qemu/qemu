@@ -733,7 +733,7 @@ int rom_load_all(void)
     return 0;
 }
 
-void rom_set_fw(void *f)
+void rom_set_fw(FWCfgState *f)
 {
     fw_cfg = f;
 }

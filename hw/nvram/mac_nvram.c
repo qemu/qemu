@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "hw/sparc/firmware_abi.h"
+#include "hw/nvram/openbios_firmware_abi.h"
 #include "sysemu/sysemu.h"
 #include "hw/ppc/mac.h"
 

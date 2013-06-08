@@ -780,11 +780,13 @@ static int blk_connect(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     int pers, index, qflags;
+    bool readonly = true;
 
     /* read-only ? */
     qflags = BDRV_O_CACHE_WB | BDRV_O_NATIVE_AIO;
     if (strcmp(blkdev->mode, "w") == 0) {
         qflags |= BDRV_O_RDWR;
+        readonly = false;
     }
 
     /* init qemu block driver */
@@ -795,8 +797,10 @@ static int blk_connect(struct XenDevice *xendev)
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
         blkdev->bs = bdrv_new(blkdev->dev);
         if (blkdev->bs) {
-            if (bdrv_open(blkdev->bs, blkdev->filename, NULL, qflags,
-                        bdrv_find_whitelisted_format(blkdev->fileproto)) != 0) {
+            BlockDriver *drv = bdrv_find_whitelisted_format(blkdev->fileproto,
+                                                           readonly);
+            if (bdrv_open(blkdev->bs,
+                          blkdev->filename, NULL, qflags, drv) != 0) {
                 bdrv_delete(blkdev->bs);
                 blkdev->bs = NULL;
             }

@@ -32,7 +32,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/sparc/firmware_abi.h"
+#include "hw/nvram/openbios_firmware_abi.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "hw/ide.h"
@@ -818,7 +818,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qemu_irq *ivec_irqs, *pbm_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
 
     /* init CPUs */
     cpu = cpu_devinit(cpu_model, hwdef);

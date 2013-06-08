@@ -1,7 +1,7 @@
 QA output created by 054
 
 creating too large image (1 EB)
-qemu-img: The image size is too large for file format 'qcow2'
+qemu-img: The image size is too large for file format 'qcow2' (try using a larger cluster size)
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1152921504606846976 
 
 creating too large image (1 EB) using qcow2.py

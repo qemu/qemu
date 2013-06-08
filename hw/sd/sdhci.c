@@ -260,6 +260,7 @@ static void sdhci_send_command(SDHCIState *s)
     sdhci_update_irq(s);
 
     if (s->blksize && (s->cmdreg & SDHC_CMD_DATA_PRESENT)) {
+        s->data_count = 0;
         sdhci_do_data_transfer(s);
     }
 }
@@ -404,15 +405,14 @@ static void sdhci_write_block_to_card(SDHCIState *s)
 
     /* Next data can be written through BUFFER DATORT register */
     s->prnsts |= SDHC_SPACE_AVAILABLE;
-    if (s->norintstsen & SDHC_NISEN_WBUFRDY) {
-        s->norintsts |= SDHC_NIS_WBUFRDY;
-    }
 
     /* Finish transfer if that was the last block of data */
     if ((s->trnmod & SDHC_TRNS_MULTI) == 0 ||
             ((s->trnmod & SDHC_TRNS_MULTI) &&
             (s->trnmod & SDHC_TRNS_BLK_CNT_EN) && (s->blkcnt == 0))) {
         SDHCI_GET_CLASS(s)->end_data_transfer(s);
+    } else if (s->norintstsen & SDHC_NISEN_WBUFRDY) {
+        s->norintsts |= SDHC_NIS_WBUFRDY;
     }
 
     /* Generate Block Gap Event if requested and if not the last block */
@@ -730,6 +730,15 @@ static void sdhci_do_adma(SDHCIState *s)
             break;
         }
 
+        if (dscr.attr & SDHC_ADMA_ATTR_INT) {
+            DPRINT_L1("ADMA interrupt: admasysaddr=0x%lx\n", s->admasysaddr);
+            if (s->norintstsen & SDHC_NISEN_DMA) {
+                s->norintsts |= SDHC_NIS_DMA;
+            }
+
+            sdhci_update_irq(s);
+        }
+
         /* ADMA transfer terminates if blkcnt == 0 or by END attribute */
         if (((s->trnmod & SDHC_TRNS_BLK_CNT_EN) &&
                     (s->blkcnt == 0)) || (dscr.attr & SDHC_ADMA_ATTR_END)) {
@@ -752,15 +761,6 @@ static void sdhci_do_adma(SDHCIState *s)
             return;
         }
 
-        if (dscr.attr & SDHC_ADMA_ATTR_INT) {
-            DPRINT_L1("ADMA interrupt: admasysaddr=0x%lx\n", s->admasysaddr);
-            if (s->norintstsen & SDHC_NISEN_DMA) {
-                s->norintsts |= SDHC_NIS_DMA;
-            }
-
-            sdhci_update_irq(s);
-            return;
-        }
     }
 
     /* we have unfinished business - reschedule to continue ADMA */
@@ -773,7 +773,6 @@ static void sdhci_do_adma(SDHCIState *s)
 static void sdhci_data_transfer(SDHCIState *s)
 {
     SDHCIClass *k = SDHCI_GET_CLASS(s);
-    s->data_count = 0;
 
     if (s->trnmod & SDHC_TRNS_DMA) {
         switch (SDHC_DMA_TYPE(s->hostctl)) {
@@ -881,7 +880,8 @@ static uint32_t sdhci_read(SDHCIState *s, unsigned int offset, unsigned size)
     case  SDHC_BDATA:
         if (sdhci_buff_access_is_sequential(s, offset - SDHC_BDATA)) {
             ret = SDHCI_GET_CLASS(s)->bdata_read(s, size);
-            DPRINT_L2("read %ub: addr[0x%04x] -> %u\n", size, offset, ret);
+            DPRINT_L2("read %ub: addr[0x%04x] -> %u(0x%x)\n", size, offset,
+                      ret, ret);
             return ret;
         }
         break;

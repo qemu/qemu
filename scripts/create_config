@@ -34,8 +34,15 @@ case $line in
     done
     echo ""
     ;;
- CONFIG_BDRV_WHITELIST=*)
-    echo "#define CONFIG_BDRV_WHITELIST \\"
+ CONFIG_BDRV_RW_WHITELIST=*)
+    echo "#define CONFIG_BDRV_RW_WHITELIST\\"
+    for drv in ${line#*=}; do
+      echo "    \"${drv}\",\\"
+    done
+    echo "    NULL"
+    ;;
+ CONFIG_BDRV_RO_WHITELIST=*)
+    echo "#define CONFIG_BDRV_RO_WHITELIST\\"
     for drv in ${line#*=}; do
       echo "    \"${drv}\",\\"
     done

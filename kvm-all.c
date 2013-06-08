@@ -206,7 +206,8 @@ static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
     if (s->migration_log) {
         mem.flags |= KVM_MEM_LOG_DIRTY_PAGES;
     }
-    if (mem.flags & KVM_MEM_READONLY) {
+
+    if (slot->memory_size && mem.flags & KVM_MEM_READONLY) {
         /* Set the slot size to 0 before setting the slot to the desired
          * value. This is needed based on KVM commit 75d61fbc. */
         mem.memory_size = 0;

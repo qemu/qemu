@@ -124,7 +124,7 @@ static void mb_add_mod(MultibootState *s,
     s->mb_mods_count++;
 }
 
-int load_multiboot(void *fw_cfg,
+int load_multiboot(FWCfgState *fw_cfg,
                    FILE *f,
                    const char *kernel_filename,
                    const char *initrd_filename,

@@ -377,7 +377,7 @@ static void gd_cursor_define(DisplayChangeListener *dcl,
                                         pixbuf, c->hot_x, c->hot_y);
     gdk_window_set_cursor(gtk_widget_get_window(s->drawing_area), cursor);
     g_object_unref(pixbuf);
-    g_object_unref(cursor);
+    gdk_cursor_unref(cursor);
 }
 
 static void gd_switch(DisplayChangeListener *dcl,
@@ -885,9 +885,11 @@ static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
         s->free_scale = TRUE;
     } else {
         s->free_scale = FALSE;
+        s->scale_x = 1.0;
+        s->scale_y = 1.0;
+        gd_update_windowsize(s);
     }
 
-    gd_update_windowsize(s);
     gd_update_full_redraw(s);
 }
 

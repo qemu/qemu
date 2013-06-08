@@ -180,6 +180,7 @@ char *pstrcat(char *buf, int buf_size, const char *s);
 int strstart(const char *str, const char *val, const char **ptr);
 int stristart(const char *str, const char *val, const char **ptr);
 int qemu_strnlen(const char *s, int max_len);
+char *qemu_strsep(char **input, const char *delim);
 time_t mktimegm(struct tm *tm);
 int qemu_fls(int i);
 int qemu_fdatasync(int fd);
@@ -197,6 +198,8 @@ int parse_uint_full(const char *s, unsigned long long *value, int base);
  * A-Z, as strtosz() will use qemu_toupper() on the given argument
  * prior to comparison.
  */
+#define STRTOSZ_DEFSUFFIX_EB	'E'
+#define STRTOSZ_DEFSUFFIX_PB	'P'
 #define STRTOSZ_DEFSUFFIX_TB	'T'
 #define STRTOSZ_DEFSUFFIX_GB	'G'
 #define STRTOSZ_DEFSUFFIX_MB	'M'

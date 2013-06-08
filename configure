@@ -123,7 +123,8 @@ interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_prefix=""
 audio_drv_list=""
-block_drv_whitelist=""
+block_drv_rw_whitelist=""
+block_drv_ro_whitelist=""
 host_cc="cc"
 libs_softmmu=""
 libs_tools=""
@@ -572,7 +573,7 @@ Haiku)
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
-  QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers $QEMU_INCLUDES"
+  QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$(pwd)/linux-headers $QEMU_INCLUDES"
 ;;
 esac
 
@@ -739,7 +740,9 @@ for opt do
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
-  --block-drv-whitelist=*) block_drv_whitelist=`echo "$optarg" | sed -e 's/,/ /g'`
+  --block-drv-rw-whitelist=*|--block-drv-whitelist=*) block_drv_rw_whitelist=`echo "$optarg" | sed -e 's/,/ /g'`
+  ;;
+  --block-drv-ro-whitelist=*) block_drv_ro_whitelist=`echo "$optarg" | sed -e 's/,/ /g'`
   ;;
   --enable-debug-tcg) debug_tcg="yes"
   ;;
@@ -1009,77 +1012,21 @@ EXTRA_CFLAGS="$CPU_CFLAGS $EXTRA_CFLAGS"
 
 default_target_list=""
 
-# these targets are portable
-if [ "$softmmu" = "yes" ] ; then
-    default_target_list="\
-i386-softmmu \
-x86_64-softmmu \
-alpha-softmmu \
-arm-softmmu \
-cris-softmmu \
-lm32-softmmu \
-m68k-softmmu \
-microblaze-softmmu \
-microblazeel-softmmu \
-mips-softmmu \
-mipsel-softmmu \
-mips64-softmmu \
-mips64el-softmmu \
-moxie-softmmu \
-or32-softmmu \
-ppc-softmmu \
-ppcemb-softmmu \
-ppc64-softmmu \
-sh4-softmmu \
-sh4eb-softmmu \
-sparc-softmmu \
-sparc64-softmmu \
-s390x-softmmu \
-xtensa-softmmu \
-xtensaeb-softmmu \
-unicore32-softmmu \
-"
+mak_wilds=""
+
+if [ "$softmmu" = "yes" ]; then
+    mak_wilds="${mak_wilds} $source_path/default-configs/*-softmmu.mak"
 fi
-# the following are Linux specific
-if [ "$linux_user" = "yes" ] ; then
-    default_target_list="${default_target_list}\
-i386-linux-user \
-x86_64-linux-user \
-alpha-linux-user \
-arm-linux-user \
-armeb-linux-user \
-cris-linux-user \
-m68k-linux-user \
-microblaze-linux-user \
-microblazeel-linux-user \
-mips-linux-user \
-mipsel-linux-user \
-mips64-linux-user \
-mips64el-linux-user \
-mipsn32-linux-user \
-mipsn32el-linux-user \
-or32-linux-user \
-ppc-linux-user \
-ppc64-linux-user \
-ppc64abi32-linux-user \
-sh4-linux-user \
-sh4eb-linux-user \
-sparc-linux-user \
-sparc64-linux-user \
-sparc32plus-linux-user \
-unicore32-linux-user \
-s390x-linux-user \
-"
+if [ "$linux_user" = "yes" ]; then
+    mak_wilds="${mak_wilds} $source_path/default-configs/*-linux-user.mak"
 fi
-# the following are BSD specific
-if [ "$bsd_user" = "yes" ] ; then
-    default_target_list="${default_target_list}\
-i386-bsd-user \
-x86_64-bsd-user \
-sparc-bsd-user \
-sparc64-bsd-user \
-"
+if [ "$bsd_user" = "yes" ]; then
+    mak_wilds="${mak_wilds} $source_path/default-configs/*-bsd-user.mak"
 fi
+
+for config in $mak_wilds; do
+    default_target_list="${default_target_list} $(basename "$config" .mak)"
+done
 
 if test x"$show_help" = x"yes" ; then
 cat << EOF
@@ -1140,7 +1087,12 @@ echo "  --disable-cocoa          disable Cocoa (Mac OS X only)"
 echo "  --enable-cocoa           enable Cocoa (default on Mac OS X)"
 echo "  --audio-drv-list=LIST    set audio drivers list:"
 echo "                           Available drivers: $audio_possible_drivers"
-echo "  --block-drv-whitelist=L  set block driver whitelist"
+echo "  --block-drv-whitelist=L  Same as --block-drv-rw-whitelist=L"
+echo "  --block-drv-rw-whitelist=L"
+echo "                           set block driver read-write whitelist"
+echo "                           (affects only QEMU, not qemu-img)"
+echo "  --block-drv-ro-whitelist=L"
+echo "                           set block driver read-only whitelist"
 echo "                           (affects only QEMU, not qemu-img)"
 echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-xen            disable xen backend driver support"
@@ -1435,6 +1387,19 @@ if test -z "${target_list+xxx}" ; then
 else
     target_list=`echo "$target_list" | sed -e 's/,/ /g'`
 fi
+
+# Check that we recognised the target name; this allows a more
+# friendly error message than if we let it fall through.
+for target in $target_list; do
+    case " $default_target_list " in
+        *" $target "*)
+            ;;
+        *)
+            error_exit "Unknown target name '$target'"
+            ;;
+    esac
+done
+
 # see if system emulation was really requested
 case " $target_list " in
   *"-softmmu "*) softmmu=yes
@@ -2195,13 +2160,12 @@ fi
 
 ##########################################
 # curses probe
-if test "$mingw32" = "yes" ; then
-    curses_list="-lpdcurses"
-else
-    curses_list="-lncurses:-lcurses:$($pkg_config --libs ncurses 2>/dev/null)"
-fi
-
 if test "$curses" != "no" ; then
+  if test "$mingw32" = "yes" ; then
+    curses_list="-lpdcurses"
+  else
+    curses_list="$($pkg_config --libs ncurses 2>/dev/null):-lncurses:-lcurses"
+  fi
   curses_found=no
   cat > $TMPC << EOF
 #include <curses.h>
@@ -2233,14 +2197,12 @@ fi
 
 ##########################################
 # curl probe
-
-if $pkg_config libcurl --modversion >/dev/null 2>&1; then
-  curlconfig="$pkg_config libcurl"
-else
-  curlconfig=curl-config
-fi
-
 if test "$curl" != "no" ; then
+  if $pkg_config libcurl --modversion >/dev/null 2>&1; then
+    curlconfig="$pkg_config libcurl"
+  else
+    curlconfig=curl-config
+  fi
   cat > $TMPC << EOF
 #include <curl/curl.h>
 int main(void) { curl_easy_init(); curl_multi_setopt(0, 0, 0); return 0; }
@@ -3575,7 +3537,8 @@ echo "curses support    $curses"
 echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
-echo "Block whitelist   $block_drv_whitelist"
+echo "Block whitelist (rw) $block_drv_rw_whitelist"
+echo "Block whitelist (ro) $block_drv_ro_whitelist"
 echo "Mixer emulation   $mixemu"
 echo "VirtFS support    $virtfs"
 echo "VNC support       $vnc"
@@ -3758,7 +3721,8 @@ fi
 if test "$audio_win_int" = "yes" ; then
   echo "CONFIG_AUDIO_WIN_INT=y" >> $config_host_mak
 fi
-echo "CONFIG_BDRV_WHITELIST=$block_drv_whitelist" >> $config_host_mak
+echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
+echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
 if test "$mixemu" = "yes" ; then
   echo "CONFIG_MIXEMU=y" >> $config_host_mak
 fi
@@ -4160,16 +4124,7 @@ if test "$gcov" = "yes" ; then
 fi
 
 # generate list of library paths for linker script
-
 $ld --verbose -v 2> /dev/null | grep SEARCH_DIR > ${config_host_ld}
-
-if test -f ${config_host_ld}~ ; then
-  if cmp -s $config_host_ld ${config_host_ld}~ ; then
-    mv ${config_host_ld}~ $config_host_ld
-  else
-    rm ${config_host_ld}~
-  fi
-fi
 
 # use included Linux headers
 if test "$linux" = "yes" ; then

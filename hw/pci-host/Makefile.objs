@@ -5,7 +5,6 @@ common-obj-$(CONFIG_PREP_PCI) += prep.o
 common-obj-$(CONFIG_GRACKLE_PCI) += grackle.o
 # NewWorld PowerMac
 common-obj-$(CONFIG_UNIN_PCI) += uninorth.o
-common-obj-$(CONFIG_DEC_PCI) += dec.o
 # PowerPC E500 boards
 common-obj-$(CONFIG_PPCE500_PCI) += ppce500.o
 

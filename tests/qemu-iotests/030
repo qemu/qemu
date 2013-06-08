@@ -22,49 +22,16 @@ import time
 import os
 import iotests
 from iotests import qemu_img, qemu_io
-import struct
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 mid_img = os.path.join(iotests.test_dir, 'mid.img')
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
-class ImageStreamingTestCase(iotests.QMPTestCase):
-    '''Abstract base class for image streaming test cases'''
-
-    def assert_no_active_streams(self):
-        result = self.vm.qmp('query-block-jobs')
-        self.assert_qmp(result, 'return', [])
-
-    def cancel_and_wait(self, drive='drive0'):
-        '''Cancel a block job and wait for it to finish'''
-        result = self.vm.qmp('block-job-cancel', device=drive)
-        self.assert_qmp(result, 'return', {})
-
-        cancelled = False
-        while not cancelled:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_CANCELLED':
-                    self.assert_qmp(event, 'data/type', 'stream')
-                    self.assert_qmp(event, 'data/device', drive)
-                    cancelled = True
-
-        self.assert_no_active_streams()
-
-    def create_image(self, name, size):
-        file = open(name, 'w')
-        i = 0
-        while i < size:
-            sector = struct.pack('>l504xl', i / 512, i / 512)
-            file.write(sector)
-            i = i + 512
-        file.close()
-
-
-class TestSingleDrive(ImageStreamingTestCase):
+class TestSingleDrive(iotests.QMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
 
     def setUp(self):
-        self.create_image(backing_img, TestSingleDrive.image_len)
+        iotests.create_image(backing_img, TestSingleDrive.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
@@ -77,7 +44,7 @@ class TestSingleDrive(ImageStreamingTestCase):
         os.remove(backing_img)
 
     def test_stream(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
@@ -92,7 +59,7 @@ class TestSingleDrive(ImageStreamingTestCase):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
         self.assertEqual(qemu_io('-c', 'map', backing_img),
@@ -100,7 +67,7 @@ class TestSingleDrive(ImageStreamingTestCase):
                          'image file map does not match backing file after streaming')
 
     def test_stream_pause(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
@@ -129,7 +96,7 @@ class TestSingleDrive(ImageStreamingTestCase):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
         self.assertEqual(qemu_io('-c', 'map', backing_img),
@@ -137,7 +104,7 @@ class TestSingleDrive(ImageStreamingTestCase):
                          'image file map does not match backing file after streaming')
 
     def test_stream_partial(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', base=mid_img)
         self.assert_qmp(result, 'return', {})
@@ -152,7 +119,7 @@ class TestSingleDrive(ImageStreamingTestCase):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
         self.assertEqual(qemu_io('-c', 'map', mid_img),
@@ -164,12 +131,12 @@ class TestSingleDrive(ImageStreamingTestCase):
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
 
 
-class TestSmallerBackingFile(ImageStreamingTestCase):
+class TestSmallerBackingFile(iotests.QMPTestCase):
     backing_len = 1 * 1024 * 1024 # MB
     image_len = 2 * backing_len
 
     def setUp(self):
-        self.create_image(backing_img, self.backing_len)
+        iotests.create_image(backing_img, self.backing_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img, str(self.image_len))
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
@@ -177,7 +144,7 @@ class TestSmallerBackingFile(ImageStreamingTestCase):
     # If this hangs, then you are missing a fix to complete streaming when the
     # end of the backing file is reached.
     def test_stream(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
@@ -192,10 +159,10 @@ class TestSmallerBackingFile(ImageStreamingTestCase):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-class TestErrors(ImageStreamingTestCase):
+class TestErrors(iotests.QMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     # this should match STREAM_BUFFER_SIZE/512 in block/stream.c
@@ -227,7 +194,7 @@ new_state = "1"
 class TestEIO(TestErrors):
     def setUp(self):
         self.blkdebug_file = backing_img + ".blkdebug"
-        self.create_image(backing_img, TestErrors.image_len)
+        iotests.create_image(backing_img, TestErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "read_aio", 5)
         qemu_img('create', '-f', iotests.imgfmt,
                  '-o', 'backing_file=blkdebug:%s:%s,backing_fmt=raw'
@@ -243,7 +210,7 @@ class TestEIO(TestErrors):
         os.remove(self.blkdebug_file)
 
     def test_report(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
@@ -265,11 +232,11 @@ class TestEIO(TestErrors):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
     def test_ignore(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', on_error='ignore')
         self.assert_qmp(result, 'return', {})
@@ -293,11 +260,11 @@ class TestEIO(TestErrors):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
     def test_stop(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', on_error='stop')
         self.assert_qmp(result, 'return', {})
@@ -331,11 +298,11 @@ class TestEIO(TestErrors):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
     def test_enospc(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', on_error='enospc')
         self.assert_qmp(result, 'return', {})
@@ -357,13 +324,13 @@ class TestEIO(TestErrors):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
 class TestENOSPC(TestErrors):
     def setUp(self):
         self.blkdebug_file = backing_img + ".blkdebug"
-        self.create_image(backing_img, TestErrors.image_len)
+        iotests.create_image(backing_img, TestErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "read_aio", 28)
         qemu_img('create', '-f', iotests.imgfmt,
                  '-o', 'backing_file=blkdebug:%s:%s,backing_fmt=raw'
@@ -379,7 +346,7 @@ class TestENOSPC(TestErrors):
         os.remove(self.blkdebug_file)
 
     def test_enospc(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', on_error='enospc')
         self.assert_qmp(result, 'return', {})
@@ -413,10 +380,10 @@ class TestENOSPC(TestErrors):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-class TestStreamStop(ImageStreamingTestCase):
+class TestStreamStop(iotests.QMPTestCase):
     image_len = 8 * 1024 * 1024 * 1024 # GB
 
     def setUp(self):
@@ -431,7 +398,7 @@ class TestStreamStop(ImageStreamingTestCase):
         os.remove(backing_img)
 
     def test_stream_stop(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
@@ -442,7 +409,7 @@ class TestStreamStop(ImageStreamingTestCase):
 
         self.cancel_and_wait()
 
-class TestSetSpeed(ImageStreamingTestCase):
+class TestSetSpeed(iotests.QMPTestCase):
     image_len = 80 * 1024 * 1024 # MB
 
     def setUp(self):
@@ -459,7 +426,7 @@ class TestSetSpeed(ImageStreamingTestCase):
     # This is a short performance test which is not run by default.
     # Invoke "IMGFMT=qed ./030 TestSetSpeed.perf_test_throughput"
     def perf_test_throughput(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
@@ -477,10 +444,10 @@ class TestSetSpeed(ImageStreamingTestCase):
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
     def test_set_speed(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
@@ -511,12 +478,12 @@ class TestSetSpeed(ImageStreamingTestCase):
         self.cancel_and_wait()
 
     def test_set_speed_invalid(self):
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', speed=-1)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-        self.assert_no_active_streams()
+        self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})

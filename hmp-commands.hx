@@ -185,6 +185,8 @@ Remove host block device.  The result is that guest generated IO is no longer
 submitted against the host device underlying the disk.  Once a drive has
 been deleted, the QEMU Block layer returns -EIO which results in IO
 errors in the guest for applications that are reading/writing to the device.
+These errors are always reported to the guest, regardless of the drive's error
+actions (drive options rerror, werror).
 ETEXI
 
     {
@@ -1547,6 +1549,22 @@ STEXI
 @findex chardev_remove
 
 Removes the chardev @var{id}.
+
+ETEXI
+
+    {
+        .name       = "qemu-io",
+        .args_type  = "device:B,command:s",
+        .params     = "[device] \"[command]\"",
+        .help       = "run a qemu-io command on a block device",
+        .mhandler.cmd = hmp_qemu_io,
+    },
+
+STEXI
+@item qemu-io @var{device} @var{command}
+@findex qemu-io
+
+Executes a qemu-io command on the given block device.
 
 ETEXI
 
