@@ -917,8 +917,8 @@ DEF("spice", HAS_ARG, QEMU_OPTION_spice,
     "       [,jpeg-wan-compression=[auto|never|always]]\n"
     "       [,zlib-glz-wan-compression=[auto|never|always]]\n"
     "       [,streaming-video=[off|all|filter]][,disable-copy-paste]\n"
-    "       [,agent-mouse=[on|off]][,playback-compression=[on|off]]\n"
-    "       [,seamless-migration=[on|off]]\n"
+    "       [,disable-agent-file-xfer][,agent-mouse=[on|off]]\n"
+    "       [,playback-compression=[on|off]][,seamless-migration=[on|off]]\n"
     "   enable spice\n"
     "   at least one of {port, tls-port} is mandatory\n",
     QEMU_ARCH_ALL)
@@ -960,6 +960,9 @@ Allow client connects without authentication.
 
 @item disable-copy-paste
 Disable copy paste between the client and the guest.
+
+@item disable-agent-file-xfer
+Disable spice-vdagent based file-xfer between the client and the guest.
 
 @item tls-port=<nr>
 Set the TCP port spice is listening on for encrypted channels.
