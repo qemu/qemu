@@ -575,7 +575,7 @@ static void enet_write(void *opaque, hwaddr addr,
             break;
 
         case R_MC:
-             value &= ((1 < 7) - 1);
+             value &= ((1 << 7) - 1);
 
              /* Enable the MII.  */
              if (value & MC_EN) {
