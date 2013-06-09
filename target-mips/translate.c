@@ -15988,10 +15988,12 @@ void cpu_state_reset(CPUMIPSState *env)
     if (env->CP0_Config3 & (1 << CP0C3_DSPP)) {
         env->CP0_Status |= (1 << CP0St_MX);
     }
-    /* Enable 64-bit FPU if the target cpu supports it.  */
+# if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
+    /* Enable 64-bit FPU if the target CPU supports it.  */
     if (env->active_fpu.fcr0 & (1 << FCR0_F64)) {
         env->CP0_Status |= (1 << CP0St_FR);
     }
+# endif
 #else
     if (env->hflags & MIPS_HFLAG_BMASK) {
         /* If the exception was raised from a delay slot,
