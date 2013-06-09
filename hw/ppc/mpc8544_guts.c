@@ -51,8 +51,14 @@
 #define MPC8544_GUTS_ADDR_SRDS2CR1    0xF10
 #define MPC8544_GUTS_ADDR_SRDS2CR3    0xF18
 
+#define TYPE_MPC8544_GUTS "mpc8544-guts"
+#define MPC8544_GUTS(obj) OBJECT_CHECK(GutsState, (obj), TYPE_MPC8544_GUTS)
+
 struct GutsState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
 };
 
@@ -110,9 +116,7 @@ static const MemoryRegionOps mpc8544_guts_ops = {
 
 static int mpc8544_guts_initfn(SysBusDevice *dev)
 {
-    GutsState *s;
-
-    s = FROM_SYSBUS(GutsState, SYS_BUS_DEVICE(dev));
+    GutsState *s = MPC8544_GUTS(dev);
 
     memory_region_init_io(&s->iomem, &mpc8544_guts_ops, s,
                           "mpc8544.guts", MPC8544_GUTS_MMIO_SIZE);
@@ -129,7 +133,7 @@ static void mpc8544_guts_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mpc8544_guts_info = {
-    .name          = "mpc8544-guts",
+    .name          = TYPE_MPC8544_GUTS,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GutsState),
     .class_init    = mpc8544_guts_class_init,
