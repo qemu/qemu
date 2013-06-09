@@ -49,7 +49,11 @@ Name "QEMU"
 OutFile "${OUTFILE}"
 
 ; The default installation directory.
+!ifdef W64
+InstallDir $PROGRAMFILES64\qemu
+!else
 InstallDir $PROGRAMFILES\qemu
+!endif
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
@@ -110,12 +114,15 @@ Section "${PRODUCT} (required)"
 
     File "${BINDIR}\*.bmp"
     File "${BINDIR}\*.bin"
-    File "${BINDIR}\*.dll"
     File "${BINDIR}\*.dtb"
     File "${BINDIR}\*.rom"
     File "${BINDIR}\openbios-*"
 
     File /r "${BINDIR}\keymaps"
+
+!ifdef W64
+    SetRegView 64
+!endif
 
     ; Write the installation path into the registry
     WriteRegStr HKLM SOFTWARE\${PRODUCT} "Install_Dir" "$INSTDIR"
@@ -144,6 +151,13 @@ Section "Other System Emulations" SectionOther
     File "${BINDIR}\qemu-system-*.exe"
 SectionEnd
 
+!ifdef DLLDIR
+Section "Libraries (DLL)" SectionDll
+    SetOutPath "$INSTDIR"
+    File "${DLLDIR}\*.dll"
+SectionEnd
+!endif
+
 !ifdef CONFIG_DOCUMENTATION
 Section "Documentation" SectionDoc
     SetOutPath "$INSTDIR"
@@ -167,6 +181,9 @@ SectionEnd
 
 Section "Uninstall"
     ; Remove registry keys
+!ifdef W64
+    SetRegView 64
+!endif
     DeleteRegKey HKLM "${UNINST_KEY}"
     DeleteRegKey HKLM SOFTWARE\${PRODUCT}
 
@@ -210,6 +227,7 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionI386}  "PC system emulation (i386)."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionOther} "Additional system emulations."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionTools} "Tools."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SectionDll}   "Runtime Libraries (DLL)."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionDoc}   "Documentation."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionMenu}  "Menu entries."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END

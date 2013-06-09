@@ -449,32 +449,30 @@ qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 ifdef CONFIG_INSTALLER
 ifdef CONFIG_WIN32
 
-DLLS =
-ifdef CONFIG_SDL
-DLLS += $(shell which SDL.dll 2>/dev/null)
-endif
-ifdef CONFIG_CURL
-DLLS += $(shell which curl.dll 2>/dev/null)
-endif
-ifdef CONFIG_CURSES
-DLLS += $(shell which libpdcurses.dll 2>/dev/null)
-endif
-DLLS += $(shell which libz-1.dll 2>/dev/null)
-DLLS += $(shell which libssp-0.dll 2>/dev/null)
-
 INSTALLER = qemu-$(VERSION)$(EXESUF)
+
+nsisflags = -V2 -NOCD
+
+ifeq ($(ARCH),x86_64)
+# 64 bit executables
+DLL_PATH = $(SRC_PATH)/dll/w64
+nsisflags += -DW64
+else
+# 32 bit executables
+DLL_PATH = $(SRC_PATH)/dll/w32
+endif
 
 .PHONY: installer
 installer: $(INSTALLER)
 $(INSTALLER): $(SRC_PATH)/qemu.nsi
 	rm -fr /tmp/qemu-nsis
 	make install prefix=/tmp/qemu-nsis
-	cp -a $(DLLS) /tmp/qemu-nsis
-	makensis -NOCD \
+	makensis $(nsisflags) \
 		$(if $(BUILD_DOCS),-DCONFIG_DOCUMENTATION="y") \
 		-DBINDIR="/tmp/qemu-nsis" \
+		-DDLLDIR="$(DLL_PATH)" \
 		-DSRCDIR="$(SRC_PATH)" \
-		-V2 $(SRC_PATH)/qemu.nsi
+		$(SRC_PATH)/qemu.nsi
 	rm -fr /tmp/qemu-nsis
 
 endif # CONFIG_WIN
