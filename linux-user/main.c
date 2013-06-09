@@ -120,7 +120,7 @@ void fork_end(int child)
     if (child) {
         /* Child processes created by fork() only have a single thread.
            Discard information about the parent threads.  */
-        first_cpu = ENV_GET_CPU(thread_env);
+        first_cpu = thread_cpu;
         first_cpu->next_cpu = NULL;
         pending_cpus = 0;
         pthread_mutex_init(&exclusive_lock, NULL);
@@ -128,7 +128,7 @@ void fork_end(int child)
         pthread_cond_init(&exclusive_cond, NULL);
         pthread_cond_init(&exclusive_resume, NULL);
         pthread_mutex_init(&tcg_ctx.tb_ctx.tb_lock, NULL);
-        gdbserver_fork(thread_env);
+        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
     } else {
         pthread_mutex_unlock(&exclusive_lock);
         pthread_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
@@ -232,7 +232,7 @@ void fork_start(void)
 void fork_end(int child)
 {
     if (child) {
-        gdbserver_fork(thread_env);
+        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
     }
 }
 
@@ -3150,7 +3150,7 @@ void cpu_loop(CPUS390XState *env)
 
 #endif /* TARGET_S390X */
 
-THREAD CPUArchState *thread_env;
+THREAD CPUState *thread_cpu;
 
 void task_settid(TaskState *ts)
 {
@@ -3640,7 +3640,7 @@ int main(int argc, char **argv, char **envp)
     cpu_reset(ENV_GET_CPU(env));
 #endif
 
-    thread_env = env;
+    thread_cpu = ENV_GET_CPU(env);
 
     if (getenv("QEMU_STRACE")) {
         do_strace = 1;

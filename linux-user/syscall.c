@@ -4171,8 +4171,8 @@ static void *clone_func(void *arg)
 
     env = info->env;
     cpu = ENV_GET_CPU(env);
-    thread_env = env;
-    ts = (TaskState *)thread_env->opaque;
+    thread_cpu = cpu;
+    ts = (TaskState *)env->opaque;
     info->tid = gettid();
     cpu->host_tid = info->tid;
     task_settid(ts);
@@ -5079,7 +5079,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
                           NULL, NULL, 0);
             }
-            thread_env = NULL;
+            thread_cpu = NULL;
             object_unref(OBJECT(ENV_GET_CPU(cpu_env)));
             g_free(ts);
             pthread_exit(NULL);
