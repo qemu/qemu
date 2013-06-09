@@ -92,7 +92,7 @@ void fork_start(void)
 void fork_end(int child)
 {
     if (child) {
-        gdbserver_fork(thread_env);
+        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
     }
 }
 
@@ -713,7 +713,7 @@ static void usage(void)
     exit(1);
 }
 
-THREAD CPUArchState *thread_env;
+THREAD CPUState *thread_cpu;
 
 /* Assumes contents are already zeroed.  */
 void init_task_state(TaskState *ts)
@@ -915,7 +915,7 @@ int main(int argc, char **argv)
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
     cpu_reset(ENV_GET_CPU(env));
 #endif
-    thread_env = env;
+    thread_cpu = ENV_GET_CPU(env);
 
     if (getenv("QEMU_STRACE")) {
         do_strace = 1;
