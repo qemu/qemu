@@ -114,29 +114,21 @@ static const MemoryRegionOps mpc8544_guts_ops = {
     },
 };
 
-static int mpc8544_guts_initfn(SysBusDevice *dev)
+static void mpc8544_guts_initfn(Object *obj)
 {
-    GutsState *s = MPC8544_GUTS(dev);
+    SysBusDevice *d = SYS_BUS_DEVICE(obj);
+    GutsState *s = MPC8544_GUTS(obj);
 
     memory_region_init_io(&s->iomem, &mpc8544_guts_ops, s,
                           "mpc8544.guts", MPC8544_GUTS_MMIO_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
-
-    return 0;
-}
-
-static void mpc8544_guts_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = mpc8544_guts_initfn;
+    sysbus_init_mmio(d, &s->iomem);
 }
 
 static const TypeInfo mpc8544_guts_info = {
     .name          = TYPE_MPC8544_GUTS,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GutsState),
-    .class_init    = mpc8544_guts_class_init,
+    .instance_init = mpc8544_guts_initfn,
 };
 
 static void mpc8544_guts_register_types(void)
