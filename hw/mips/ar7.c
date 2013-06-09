@@ -62,7 +62,7 @@
 #include "hw/boards.h"
 #include "hw/mips/mips.h"
 #include "net/net.h"
-#include "pci/pci.h"
+#include "hw/pci/pci.h"
 
 #include "sysemu/char.h"        /* qemu_chr_fe_printf */
 #include "sysemu/sysemu.h"      /* serial_hds */
