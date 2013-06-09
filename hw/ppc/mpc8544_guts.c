@@ -115,7 +115,7 @@ static int mpc8544_guts_initfn(SysBusDevice *dev)
     s = FROM_SYSBUS(GutsState, SYS_BUS_DEVICE(dev));
 
     memory_region_init_io(&s->iomem, &mpc8544_guts_ops, s,
-                          "mpc6544.guts", MPC8544_GUTS_MMIO_SIZE);
+                          "mpc8544.guts", MPC8544_GUTS_MMIO_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
