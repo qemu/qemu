@@ -59,7 +59,7 @@ bool cpu_paging_enabled(const CPUState *cpu)
 
 static bool cpu_common_get_paging_enabled(const CPUState *cpu)
 {
-    return true;
+    return false;
 }
 
 void cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
