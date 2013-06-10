@@ -1435,7 +1435,7 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_cursor_define = gd_cursor_define,
 };
 
-void gtk_display_init(DisplayState *ds)
+void gtk_display_init(DisplayState *ds, bool full_screen)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     char *filename;
@@ -1510,6 +1510,10 @@ void gtk_display_init(DisplayState *ds)
     gtk_container_add(GTK_CONTAINER(s->window), s->vbox);
 
     gtk_widget_show_all(s->window);
+
+    if (full_screen) {
+        gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+    }
 
     register_displaychangelistener(&s->dcl);
 

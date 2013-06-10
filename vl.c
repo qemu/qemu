@@ -4348,7 +4348,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 #if defined(CONFIG_GTK)
     case DT_GTK:
-        gtk_display_init(ds);
+        gtk_display_init(ds, full_screen);
         break;
 #endif
     default:
