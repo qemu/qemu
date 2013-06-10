@@ -12,7 +12,7 @@ struct qemu_cache_conf {
 
 extern struct qemu_cache_conf qemu_cache_conf;
 
-void qemu_cache_utils_init(char **envp);
+void qemu_cache_utils_init(void);
 
 /* mildly adjusted code from tcg-dyngen.c */
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
@@ -38,7 +38,7 @@ static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 }
 
 #else
-#define qemu_cache_utils_init(envp) do { (void) (envp); } while (0)
+#define qemu_cache_utils_init() do { } while (0)
 #endif
 
 #endif /* QEMU_CACHE_UTILS_H */

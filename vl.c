@@ -2895,7 +2895,7 @@ int main(int argc, char **argv, char **envp)
     rtc_clock = QEMU_CLOCK_HOST;
 
     qemu_init_auxval(envp);
-    qemu_cache_utils_init(envp);
+    qemu_cache_utils_init();
 
     QLIST_INIT (&vm_change_state_head);
     os_setup_early_signal_handling();
