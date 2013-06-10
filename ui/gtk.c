@@ -1119,6 +1119,8 @@ static CharDriverState *gd_vc_handler(ChardevVC *unused)
 
     chr = g_malloc0(sizeof(*chr));
     chr->chr_write = gd_vc_chr_write;
+    /* defer OPENED events until our vc is fully initialized */
+    chr->explicit_be_open = true;
 
     vcs[nb_vcs++] = chr;
 
@@ -1469,7 +1471,7 @@ void gtk_display_init(DisplayState *ds)
 
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook), s->drawing_area, gtk_label_new("VGA"));
 
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "qemu-icon.bmp");
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "qemu_logo_no_text.svg");
     if (filename) {
         GError *error = NULL;
         GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(filename, &error);

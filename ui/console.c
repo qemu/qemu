@@ -1788,6 +1788,10 @@ static CharDriverState *text_console_init(ChardevVC *vc)
     s->chr = chr;
     chr->opaque = s;
     chr->chr_set_echo = text_console_set_echo;
+    /* console/chardev init sometimes completes elsewhere in a 2nd
+     * stage, so defer OPENED events until they are fully initialized
+     */
+    chr->explicit_be_open = true;
 
     if (display_state) {
         text_console_do_init(chr, display_state);

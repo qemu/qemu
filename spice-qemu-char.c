@@ -255,6 +255,7 @@ static CharDriverState *chr_open(const char *subtype)
     chr->chr_add_watch = spice_chr_add_watch;
     chr->chr_close = spice_chr_close;
     chr->chr_set_fe_open = spice_chr_set_fe_open;
+    chr->explicit_be_open = true;
 
     QLIST_INSERT_HEAD(&spice_chars, s, next);
 
