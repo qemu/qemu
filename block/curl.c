@@ -406,6 +406,12 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags)
 
     static int inited = 0;
 
+    if (flags & BDRV_O_RDWR) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "curl block device does not support writes");
+        return -EROFS;
+    }
+
     opts = qemu_opts_create_nofail(&runtime_opts);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (error_is_set(&local_err)) {
