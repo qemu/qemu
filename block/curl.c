@@ -452,8 +452,6 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags)
     if (curl_easy_perform(state->curl))
         goto out;
     curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &d);
-    curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION, (void *)curl_read_cb);
-    curl_easy_setopt(state->curl, CURLOPT_NOBODY, 0);
     if (d)
         s->len = (size_t)d;
     else if(!s->len)
