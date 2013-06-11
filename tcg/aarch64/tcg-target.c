@@ -315,6 +315,17 @@ static inline void tcg_out_ldst_9(TCGContext *s,
     tcg_out32(s, op_data << 24 | mod << 20 | off << 12 | rn << 5 | rd);
 }
 
+/* tcg_out_ldst_12 expects a scaled unsigned immediate offset */
+static inline void tcg_out_ldst_12(TCGContext *s,
+                                   enum aarch64_ldst_op_data op_data,
+                                   enum aarch64_ldst_op_type op_type,
+                                   TCGReg rd, TCGReg rn,
+                                   tcg_target_ulong scaled_uimm)
+{
+    tcg_out32(s, (op_data | 1) << 24
+              | op_type << 20 | scaled_uimm << 10 | rn << 5 | rd);
+}
+
 static inline void tcg_out_movr(TCGContext *s, int ext, TCGReg rd, TCGReg src)
 {
     /* register to register move using MOV (shifted register with no shift) */
@@ -374,10 +385,25 @@ static inline void tcg_out_ldst(TCGContext *s, enum aarch64_ldst_op_data data,
 {
     if (offset >= -256 && offset < 256) {
         tcg_out_ldst_9(s, data, type, rd, rn, offset);
-    } else {
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP, offset);
-        tcg_out_ldst_r(s, data, type, rd, rn, TCG_REG_TMP);
+        return;
     }
+
+    if (offset >= 256) {
+        /* if the offset is naturally aligned and in range,
+           then we can use the scaled uimm12 encoding */
+        unsigned int s_bits = data >> 6;
+        if (!(offset & ((1 << s_bits) - 1))) {
+            tcg_target_ulong scaled_uimm = offset >> s_bits;
+            if (scaled_uimm <= 0xfff) {
+                tcg_out_ldst_12(s, data, type, rd, rn, scaled_uimm);
+                return;
+            }
+        }
+    }
+
+    /* worst-case scenario, move offset to temp register, use reg offset */
+    tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP, offset);
+    tcg_out_ldst_r(s, data, type, rd, rn, TCG_REG_TMP);
 }
 
 /* mov alias implemented with add immediate, useful to move to/from SP */
