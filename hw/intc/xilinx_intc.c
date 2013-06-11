@@ -49,11 +49,19 @@ struct xlx_pic
 
     /* Runtime control registers.  */
     uint32_t regs[R_MAX];
+    /* state of the interrupt input pins */
+    uint32_t irq_pin_state;
 };
 
 static void update_irq(struct xlx_pic *p)
 {
     uint32_t i;
+
+    /* level triggered interrupt */
+    if (p->regs[R_MER] & 2) {
+        p->regs[R_ISR] |= p->irq_pin_state & ~p->c_kind_of_intr;
+    }
+
     /* Update the pending register.  */
     p->regs[R_IPR] = p->regs[R_ISR] & p->regs[R_IER];
 
@@ -135,7 +143,13 @@ static void irq_handler(void *opaque, int irq, int level)
         return;
     }
 
-    p->regs[R_ISR] |= (level << irq);
+    /* edge triggered interrupt */
+    if (p->c_kind_of_intr & (1 << irq) && p->regs[R_MER] & 2) {
+        p->regs[R_ISR] |= (level << irq);
+    }
+
+    p->irq_pin_state &= ~(1 << irq);
+    p->irq_pin_state |= level << irq;
     update_irq(p);
 }
 
