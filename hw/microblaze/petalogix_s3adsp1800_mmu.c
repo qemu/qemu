@@ -97,7 +97,7 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
                           1, 0x89, 0x18, 0x0000, 0x0, 1);
 
     cpu_irq = microblaze_pic_init_cpu(env);
-    dev = xilinx_intc_create(INTC_BASEADDR, cpu_irq[0], 2);
+    dev = xilinx_intc_create(INTC_BASEADDR, cpu_irq[0], 0xA);
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(dev, i);
     }
