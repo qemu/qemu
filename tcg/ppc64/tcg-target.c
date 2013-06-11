@@ -308,7 +308,8 @@ static int tcg_target_const_match (tcg_target_long val,
 
 #define OPCD(opc) ((opc)<<26)
 #define XO19(opc) (OPCD(19)|((opc)<<1))
-#define XO30(opc) (OPCD(30)|((opc)<<2))
+#define MD30(opc) (OPCD(30)|((opc)<<2))
+#define MDS30(opc) (OPCD(30)|((opc)<<1))
 #define XO31(opc) (OPCD(31)|((opc)<<1))
 #define XO58(opc) (OPCD(58)|(opc))
 #define XO62(opc) (OPCD(62)|(opc))
@@ -354,10 +355,10 @@ static int tcg_target_const_match (tcg_target_long val,
 #define RLWINM OPCD( 21)
 #define RLWNM  OPCD( 23)
 
-#define RLDICL XO30(  0)
-#define RLDICR XO30(  1)
-#define RLDIMI XO30(  3)
-#define RLDCL  XO30(  8)
+#define RLDICL MD30(  0)
+#define RLDICR MD30(  1)
+#define RLDIMI MD30(  3)
+#define RLDCL  MDS30( 8)
 
 #define BCLR   XO19( 16)
 #define BCCTR  XO19(528)
