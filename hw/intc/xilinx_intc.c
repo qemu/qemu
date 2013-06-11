@@ -135,13 +135,7 @@ static void irq_handler(void *opaque, int irq, int level)
         return;
     }
 
-    /* Update source flops. Don't clear unless level triggered.
-       Edge triggered interrupts only go away when explicitely acked to
-       the interrupt controller.  */
-    if (!(p->c_kind_of_intr & (1 << irq)) || level) {
-        p->regs[R_ISR] &= ~(1 << irq);
-        p->regs[R_ISR] |= (level << irq);
-    }
+    p->regs[R_ISR] |= (level << irq);
     update_irq(p);
 }
 
