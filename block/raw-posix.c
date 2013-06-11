@@ -1350,6 +1350,7 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags)
                 qemu_close(fd);
             }
             filename = bsdPath;
+            qdict_put(options, "filename", qstring_from_str(filename));
         }
 
         if ( mediaIterator )
