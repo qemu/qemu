@@ -674,6 +674,24 @@ static inline void tcg_out_rev16(TCGContext *s, int ext, TCGReg rd, TCGReg rm)
     tcg_out32(s, base | rm << 5 | rd);
 }
 
+static inline void tcg_out_sxt(TCGContext *s, int ext, int s_bits,
+                               TCGReg rd, TCGReg rn)
+{
+    /* using ALIASes SXTB 0x13001c00, SXTH 0x13003c00, SXTW 0x93407c00
+       of SBFM Xd, Xn, #0, #7|15|31 */
+    int bits = 8 * (1 << s_bits) - 1;
+    tcg_out_sbfm(s, ext, rd, rn, 0, bits);
+}
+
+static inline void tcg_out_uxt(TCGContext *s, int s_bits,
+                               TCGReg rd, TCGReg rn)
+{
+    /* using ALIASes UXTB 0x53001c00, UXTH 0x53003c00
+       of UBFM Wd, Wn, #0, #7|15 */
+    int bits = 8 * (1 << s_bits) - 1;
+    tcg_out_ubfm(s, 0, rd, rn, 0, bits);
+}
+
 #ifdef CONFIG_SOFTMMU
 #include "exec/softmmu_defs.h"
 
@@ -721,8 +739,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     tcg_out_callr(s, TCG_REG_TMP);
 
     if (opc & 0x04) { /* sign extend */
-        unsigned int bits = 8 * (1 << s_bits) - 1;
-        tcg_out_sbfm(s, 1, data_reg, TCG_REG_X0, 0, bits); /* 7|15|31 */
+        tcg_out_sxt(s, 1, s_bits, data_reg, TCG_REG_X0);
     } else {
         tcg_out_movr(s, 1, data_reg, TCG_REG_X0);
     }
@@ -1037,6 +1054,31 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_rev16(s, 0, args[0], args[1]);
         break;
 
+    case INDEX_op_ext8s_i64:
+        ext = 1; /* fall through */
+    case INDEX_op_ext8s_i32:
+        tcg_out_sxt(s, ext, 0, args[0], args[1]);
+        break;
+    case INDEX_op_ext16s_i64:
+        ext = 1; /* fall through */
+    case INDEX_op_ext16s_i32:
+        tcg_out_sxt(s, ext, 1, args[0], args[1]);
+        break;
+    case INDEX_op_ext32s_i64:
+        tcg_out_sxt(s, 1, 2, args[0], args[1]);
+        break;
+    case INDEX_op_ext8u_i64:
+    case INDEX_op_ext8u_i32:
+        tcg_out_uxt(s, 0, args[0], args[1]);
+        break;
+    case INDEX_op_ext16u_i64:
+    case INDEX_op_ext16u_i32:
+        tcg_out_uxt(s, 1, args[0], args[1]);
+        break;
+    case INDEX_op_ext32u_i64:
+        tcg_out_movr(s, 0, args[0], args[1]);
+        break;
+
     default:
         tcg_abort(); /* opcode not implemented */
     }
@@ -1124,6 +1166,18 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_bswap16_i64, { "r", "r" } },
     { INDEX_op_bswap32_i64, { "r", "r" } },
     { INDEX_op_bswap64_i64, { "r", "r" } },
+
+    { INDEX_op_ext8s_i32, { "r", "r" } },
+    { INDEX_op_ext16s_i32, { "r", "r" } },
+    { INDEX_op_ext8u_i32, { "r", "r" } },
+    { INDEX_op_ext16u_i32, { "r", "r" } },
+
+    { INDEX_op_ext8s_i64, { "r", "r" } },
+    { INDEX_op_ext16s_i64, { "r", "r" } },
+    { INDEX_op_ext32s_i64, { "r", "r" } },
+    { INDEX_op_ext8u_i64, { "r", "r" } },
+    { INDEX_op_ext16u_i64, { "r", "r" } },
+    { INDEX_op_ext32u_i64, { "r", "r" } },
 
     { -1 },
 };
