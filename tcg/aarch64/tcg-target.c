@@ -186,11 +186,14 @@ enum aarch64_ldst_op_type { /* type of operation */
 };
 
 enum aarch64_arith_opc {
-    ARITH_ADD = 0x0b,
-    ARITH_SUB = 0x4b,
     ARITH_AND = 0x0a,
+    ARITH_ADD = 0x0b,
     ARITH_OR = 0x2a,
-    ARITH_XOR = 0x4a
+    ARITH_ADDS = 0x2b,
+    ARITH_XOR = 0x4a,
+    ARITH_SUB = 0x4b,
+    ARITH_ANDS = 0x6a,
+    ARITH_SUBS = 0x6b,
 };
 
 enum aarch64_srr_opc {
@@ -394,12 +397,20 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
 }
 
 static inline void tcg_out_arith(TCGContext *s, enum aarch64_arith_opc opc,
-                                 int ext, TCGReg rd, TCGReg rn, TCGReg rm)
+                                 int ext, TCGReg rd, TCGReg rn, TCGReg rm,
+                                 int shift_imm)
 {
     /* Using shifted register arithmetic operations */
-    /* if extended registry operation (64bit) just OR with 0x80 << 24 */
-    unsigned int base = ext ? (0x80 | opc) << 24 : opc << 24;
-    tcg_out32(s, base | rm << 16 | rn << 5 | rd);
+    /* if extended register operation (64bit) just OR with 0x80 << 24 */
+    unsigned int shift, base = ext ? (0x80 | opc) << 24 : opc << 24;
+    if (shift_imm == 0) {
+        shift = 0;
+    } else if (shift_imm > 0) {
+        shift = shift_imm << 10 | 1 << 22;
+    } else /* (shift_imm < 0) */ {
+        shift = (-shift_imm) << 10;
+    }
+    tcg_out32(s, base | rm << 16 | shift | rn << 5 | rd);
 }
 
 static inline void tcg_out_mul(TCGContext *s, int ext,
@@ -482,11 +493,11 @@ static inline void tcg_out_rotl(TCGContext *s, int ext,
     tcg_out_extr(s, ext, rd, rn, rn, bits - (m & max));
 }
 
-static inline void tcg_out_cmp(TCGContext *s, int ext, TCGReg rn, TCGReg rm)
+static inline void tcg_out_cmp(TCGContext *s, int ext, TCGReg rn, TCGReg rm,
+                               int shift_imm)
 {
     /* Using CMP alias SUBS wzr, Wn, Wm */
-    unsigned int base = ext ? 0xeb00001f : 0x6b00001f;
-    tcg_out32(s, base | rm << 16 | rn << 5);
+    tcg_out_arith(s, ARITH_SUBS, ext, TCG_REG_XZR, rn, rm, shift_imm);
 }
 
 static inline void tcg_out_cset(TCGContext *s, int ext, TCGReg rd, TCGCond c)
@@ -830,31 +841,31 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_add_i64:
         ext = 1; /* fall through */
     case INDEX_op_add_i32:
-        tcg_out_arith(s, ARITH_ADD, ext, args[0], args[1], args[2]);
+        tcg_out_arith(s, ARITH_ADD, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_sub_i64:
         ext = 1; /* fall through */
     case INDEX_op_sub_i32:
-        tcg_out_arith(s, ARITH_SUB, ext, args[0], args[1], args[2]);
+        tcg_out_arith(s, ARITH_SUB, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_and_i64:
         ext = 1; /* fall through */
     case INDEX_op_and_i32:
-        tcg_out_arith(s, ARITH_AND, ext, args[0], args[1], args[2]);
+        tcg_out_arith(s, ARITH_AND, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_or_i64:
         ext = 1; /* fall through */
     case INDEX_op_or_i32:
-        tcg_out_arith(s, ARITH_OR, ext, args[0], args[1], args[2]);
+        tcg_out_arith(s, ARITH_OR, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_xor_i64:
         ext = 1; /* fall through */
     case INDEX_op_xor_i32:
-        tcg_out_arith(s, ARITH_XOR, ext, args[0], args[1], args[2]);
+        tcg_out_arith(s, ARITH_XOR, ext, args[0], args[1], args[2], 0);
         break;
 
     case INDEX_op_mul_i64:
@@ -909,7 +920,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (const_args[2]) {    /* ROR / EXTR Wd, Wm, Wm, 32 - m */
             tcg_out_rotl(s, ext, args[0], args[1], args[2]);
         } else {
-            tcg_out_arith(s, ARITH_SUB, 0, TCG_REG_TMP, TCG_REG_XZR, args[2]);
+            tcg_out_arith(s, ARITH_SUB, 0,
+                          TCG_REG_TMP, TCG_REG_XZR, args[2], 0);
             tcg_out_shiftrot_reg(s, SRR_ROR, ext,
                                  args[0], args[1], TCG_REG_TMP);
         }
@@ -918,14 +930,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_brcond_i64:
         ext = 1; /* fall through */
     case INDEX_op_brcond_i32: /* CMP 0, 1, cond(2), label 3 */
-        tcg_out_cmp(s, ext, args[0], args[1]);
+        tcg_out_cmp(s, ext, args[0], args[1], 0);
         tcg_out_goto_label_cond(s, args[2], args[3]);
         break;
 
     case INDEX_op_setcond_i64:
         ext = 1; /* fall through */
     case INDEX_op_setcond_i32:
-        tcg_out_cmp(s, ext, args[1], args[2]);
+        tcg_out_cmp(s, ext, args[1], args[2], 0);
         tcg_out_cset(s, 0, args[0], args[3]);
         break;
 
