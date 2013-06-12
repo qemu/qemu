@@ -2557,29 +2557,6 @@ EOF
   fi
 fi
 
-#
-# Check for xxxat() functions when we are building linux-user
-# emulator.  This is done because older glibc versions don't
-# have syscall stubs for these implemented.
-#
-atfile=no
-cat > $TMPC << EOF
-#define _ATFILE_SOURCE
-#include <sys/types.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-int
-main(void)
-{
-	/* try to unlink nonexisting file */
-	return (unlinkat(AT_FDCWD, "nonexistent_file", 0));
-}
-EOF
-if compile_prog "" "" ; then
-  atfile=yes
-fi
-
 # Check for inotify functions when we are building linux-user
 # emulator.  This is done because older glibc versions don't
 # have syscall stubs for these implemented.  In that case we
@@ -3721,9 +3698,6 @@ if test "$cocoa" = "yes" ; then
 fi
 if test "$curses" = "yes" ; then
   echo "CONFIG_CURSES=y" >> $config_host_mak
-fi
-if test "$atfile" = "yes" ; then
-  echo "CONFIG_ATFILE=y" >> $config_host_mak
 fi
 if test "$utimens" = "yes" ; then
   echo "CONFIG_UTIMENSAT=y" >> $config_host_mak
