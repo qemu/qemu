@@ -580,6 +580,40 @@ static inline void tcg_out_call(TCGContext *s, tcg_target_long target)
     }
 }
 
+/* encode a logical immediate, mapping user parameter
+   M=set bits pattern length to S=M-1 */
+static inline unsigned int
+aarch64_limm(unsigned int m, unsigned int r)
+{
+    assert(m > 0);
+    return r << 16 | (m - 1) << 10;
+}
+
+/* test a register against an immediate bit pattern made of
+   M set bits rotated right by R.
+   Examples:
+   to test a 32/64 reg against 0x00000007, pass M = 3,  R = 0.
+   to test a 32/64 reg against 0x000000ff, pass M = 8,  R = 0.
+   to test a 32bit reg against 0xff000000, pass M = 8,  R = 8.
+   to test a 32bit reg against 0xff0000ff, pass M = 16, R = 8.
+ */
+static inline void tcg_out_tst(TCGContext *s, int ext, TCGReg rn,
+                               unsigned int m, unsigned int r)
+{
+    /* using TST alias of ANDS XZR, Xn,#bimm64 0x7200001f */
+    unsigned int base = ext ? 0xf240001f : 0x7200001f;
+    tcg_out32(s, base | aarch64_limm(m, r) | rn << 5);
+}
+
+/* and a register with a bit pattern, similarly to TST, no flags change */
+static inline void tcg_out_andi(TCGContext *s, int ext, TCGReg rd, TCGReg rn,
+                                unsigned int m, unsigned int r)
+{
+    /* using AND 0x12000000 */
+    unsigned int base = ext ? 0x92400000 : 0x12000000;
+    tcg_out32(s, base | aarch64_limm(m, r) | rn << 5 | rd);
+}
+
 static inline void tcg_out_ret(TCGContext *s)
 {
     /* emit RET { LR } */
