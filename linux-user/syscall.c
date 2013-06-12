@@ -223,8 +223,11 @@ static int gettid(void) {
     return -ENOSYS;
 }
 #endif
+#ifdef __NR_getdents
 _syscall3(int, sys_getdents, uint, fd, struct linux_dirent *, dirp, uint, count);
-#if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
+#endif
+#if !defined(__NR_getdents) || \
+    (defined(TARGET_NR_getdents64) && defined(__NR_getdents64))
 _syscall3(int, sys_getdents64, uint, fd, struct linux_dirent64 *, dirp, uint, count);
 #endif
 #if defined(TARGET_NR__llseek) && defined(__NR_llseek)
@@ -7123,6 +7126,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_getdents:
+#ifdef __NR_getdents
 #if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64
         {
             struct target_dirent *target_dirp;
@@ -7191,6 +7195,61 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     de = (struct linux_dirent *)((char *)de + reclen);
                     len -= reclen;
                 }
+            }
+            unlock_user(dirp, arg2, ret);
+        }
+#endif
+#else
+        /* Implement getdents in terms of getdents64 */
+        {
+            struct linux_dirent64 *dirp;
+            abi_long count = arg3;
+
+            dirp = lock_user(VERIFY_WRITE, arg2, count, 0);
+            if (!dirp) {
+                goto efault;
+            }
+            ret = get_errno(sys_getdents64(arg1, dirp, count));
+            if (!is_error(ret)) {
+                /* Convert the dirent64 structs to target dirent.  We do this
+                 * in-place, since we can guarantee that a target_dirent is no
+                 * larger than a dirent64; however this means we have to be
+                 * careful to read everything before writing in the new format.
+                 */
+                struct linux_dirent64 *de;
+                struct target_dirent *tde;
+                int len = ret;
+                int tlen = 0;
+
+                de = dirp;
+                tde = (struct target_dirent *)dirp;
+                while (len > 0) {
+                    int namelen, treclen;
+                    int reclen = de->d_reclen;
+                    uint64_t ino = de->d_ino;
+                    int64_t off = de->d_off;
+                    uint8_t type = de->d_type;
+
+                    namelen = strlen(de->d_name);
+                    treclen = offsetof(struct target_dirent, d_name)
+                        + namelen + 2;
+                    treclen = QEMU_ALIGN_UP(treclen, sizeof(abi_long));
+
+                    memmove(tde->d_name, de->d_name, namelen + 1);
+                    tde->d_ino = tswapal(ino);
+                    tde->d_off = tswapal(off);
+                    tde->d_reclen = tswap16(treclen);
+                    /* The target_dirent type is in what was formerly a padding
+                     * byte at the end of the structure:
+                     */
+                    *(((char *)tde) + treclen - 1) = type;
+
+                    de = (struct linux_dirent64 *)((char *)de + reclen);
+                    tde = (struct target_dirent *)((char *)tde + treclen);
+                    len -= reclen;
+                    tlen += treclen;
+                }
+                ret = tlen;
             }
             unlock_user(dirp, arg2, ret);
         }
