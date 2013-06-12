@@ -24,7 +24,8 @@
 
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "slirp/slirp.h"
+#include "qemu/sockets.h"	// struct in_addr needed for libslirp.h
+#include "slirp/libslirp.h"
 #include "qemu/main-loop.h"
 #include "block/aio.h"
 
