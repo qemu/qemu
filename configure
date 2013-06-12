@@ -386,6 +386,8 @@ elif check_define __s390__ ; then
   fi
 elif check_define __arm__ ; then
   cpu="arm"
+elif check_define __aarch64__ ; then
+  cpu="aarch64"
 elif check_define __hppa__ ; then
   cpu="hppa"
 else
@@ -407,6 +409,9 @@ case "$cpu" in
   ;;
   armv*b|armv*l|arm)
     cpu="arm"
+  ;;
+  aarch64)
+    cpu="aarch64"
   ;;
   hppa|parisc|parisc64)
     cpu="hppa"
@@ -4059,6 +4064,9 @@ if test "$linux" = "yes" ; then
     ;;
   s390x)
     linux_arch=s390
+    ;;
+  aarch64)
+    linux_arch=arm64
     ;;
   *)
     # For most CPUs the kernel architecture name and QEMU CPU name match.
