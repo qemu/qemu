@@ -10,3 +10,9 @@
  *
  */
 #include "qemu-common.h"
+#include "hw/ppc/openpic.h"
+
+int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs)
+{
+    return -EINVAL;
+}

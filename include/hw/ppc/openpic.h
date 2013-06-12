@@ -24,6 +24,6 @@ enum {
 #define OPENPIC_MAX_IRQ     (OPENPIC_MAX_SRC + OPENPIC_MAX_IPI + \
                              OPENPIC_MAX_TMR)
 
-DeviceState *kvm_openpic_create(BusState *bus, int model);
+int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs);
 
 #endif /* __OPENPIC_H__ */
