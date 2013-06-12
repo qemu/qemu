@@ -205,6 +205,7 @@ struct USBDevice {
     DeviceState qdev;
     USBPort *port;
     char *port_path;
+    char *serial;
     void *opaque;
     uint32_t flags;
 

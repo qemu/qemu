@@ -58,7 +58,6 @@ typedef struct {
     USBPacket *packet;
     /* usb-storage only */
     BlockConf conf;
-    char *serial;
     uint32_t removable;
 } MSDState;
 
@@ -602,7 +601,7 @@ static int usb_msd_initfn_storage(USBDevice *dev)
         return -1;
     }
 
-    blkconf_serial(&s->conf, &s->serial);
+    blkconf_serial(&s->conf, &dev->serial);
 
     /*
      * Hack alert: this pretends to be a block device, but it's really
@@ -616,16 +615,11 @@ static int usb_msd_initfn_storage(USBDevice *dev)
     bdrv_detach_dev(bs, &s->dev.qdev);
     s->conf.bs = NULL;
 
-    if (s->serial) {
-        usb_desc_set_string(dev, STR_SERIALNUMBER, s->serial);
-    } else {
-        usb_desc_create_serial(dev);
-    }
-
+    usb_desc_create_serial(dev);
     usb_desc_init(dev);
     scsi_bus_new(&s->bus, &s->dev.qdev, &usb_msd_scsi_info_storage, NULL);
     scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0, !!s->removable,
-                                            s->conf.bootindex, s->serial);
+                                            s->conf.bootindex, dev->serial);
     if (!scsi_dev) {
         return -1;
     }
@@ -734,7 +728,6 @@ static const VMStateDescription vmstate_usb_msd = {
 
 static Property msd_properties[] = {
     DEFINE_BLOCK_PROPERTIES(MSDState, conf),
-    DEFINE_PROP_STRING("serial", MSDState, serial),
     DEFINE_PROP_BIT("removable", MSDState, removable, 0, false),
     DEFINE_PROP_END_OF_LIST(),
 };

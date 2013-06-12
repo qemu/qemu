@@ -566,6 +566,12 @@ void usb_desc_create_serial(USBDevice *dev)
     char *path;
     int dst;
 
+    if (dev->serial) {
+        /* 'serial' usb bus property has priority if present */
+        usb_desc_set_string(dev, index, dev->serial);
+        return;
+    }
+
     assert(index != 0 && desc->str[index] != NULL);
     dst = snprintf(serial, sizeof(serial), "%s", desc->str[index]);
     path = qdev_get_dev_path(hcd);
