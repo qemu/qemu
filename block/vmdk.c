@@ -722,27 +722,40 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
                                int64_t desc_offset)
 {
     int ret;
-    char buf[2048];
+    char *buf = NULL;
     char ct[128];
     BDRVVmdkState *s = bs->opaque;
+    int64_t size;
 
-    ret = bdrv_pread(bs->file, desc_offset, buf, sizeof(buf));
-    if (ret < 0) {
-        return ret;
+    size = bdrv_getlength(bs->file);
+    if (size < 0) {
+        return -EINVAL;
     }
-    buf[2047] = '\0';
+
+    size = MIN(size, 1 << 20);  /* avoid unbounded allocation */
+    buf = g_malloc0(size + 1);
+
+    ret = bdrv_pread(bs->file, desc_offset, buf, size);
+    if (ret < 0) {
+        goto exit;
+    }
     if (vmdk_parse_description(buf, "createType", ct, sizeof(ct))) {
-        return -EMEDIUMTYPE;
+        ret = -EMEDIUMTYPE;
+        goto exit;
     }
     if (strcmp(ct, "monolithicFlat") &&
         strcmp(ct, "twoGbMaxExtentSparse") &&
         strcmp(ct, "twoGbMaxExtentFlat")) {
         fprintf(stderr,
                 "VMDK: Not supported image type \"%s\""".\n", ct);
-        return -ENOTSUP;
+        ret = -ENOTSUP;
+        goto exit;
     }
     s->desc_offset = 0;
-    return vmdk_parse_extents(buf, bs, bs->file->filename);
+    ret = vmdk_parse_extents(buf, bs, bs->file->filename);
+exit:
+    g_free(buf);
+    return ret;
 }
 
 static int vmdk_open(BlockDriverState *bs, QDict *options, int flags)
