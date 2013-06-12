@@ -895,6 +895,7 @@ static int usb_host_initfn(USBDevice *udev)
     USBHostDevice *s = USB_HOST_DEVICE(udev);
 
     loglevel = s->loglevel;
+    udev->flags |= (1 << USB_DEV_FLAG_IS_HOST);
     udev->auto_attach = 0;
     QTAILQ_INIT(&s->requests);
     QTAILQ_INIT(&s->isorings);
