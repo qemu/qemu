@@ -660,6 +660,20 @@ static inline void tcg_out_goto_label_cond(TCGContext *s,
     }
 }
 
+static inline void tcg_out_rev(TCGContext *s, int ext, TCGReg rd, TCGReg rm)
+{
+    /* using REV 0x5ac00800 */
+    unsigned int base = ext ? 0xdac00c00 : 0x5ac00800;
+    tcg_out32(s, base | rm << 5 | rd);
+}
+
+static inline void tcg_out_rev16(TCGContext *s, int ext, TCGReg rd, TCGReg rm)
+{
+    /* using REV16 0x5ac00400 */
+    unsigned int base = ext ? 0xdac00400 : 0x5ac00400;
+    tcg_out32(s, base | rm << 5 | rd);
+}
+
 #ifdef CONFIG_SOFTMMU
 #include "exec/softmmu_defs.h"
 
@@ -1012,6 +1026,17 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args, 3);
         break;
 
+    case INDEX_op_bswap64_i64:
+        ext = 1; /* fall through */
+    case INDEX_op_bswap32_i64:
+    case INDEX_op_bswap32_i32:
+        tcg_out_rev(s, ext, args[0], args[1]);
+        break;
+    case INDEX_op_bswap16_i64:
+    case INDEX_op_bswap16_i32:
+        tcg_out_rev16(s, 0, args[0], args[1]);
+        break;
+
     default:
         tcg_abort(); /* opcode not implemented */
     }
@@ -1093,6 +1118,13 @@ static const TCGTargetOpDef aarch64_op_defs[] = {
     { INDEX_op_qemu_st16, { "l", "l" } },
     { INDEX_op_qemu_st32, { "l", "l" } },
     { INDEX_op_qemu_st64, { "l", "l" } },
+
+    { INDEX_op_bswap16_i32, { "r", "r" } },
+    { INDEX_op_bswap32_i32, { "r", "r" } },
+    { INDEX_op_bswap16_i64, { "r", "r" } },
+    { INDEX_op_bswap32_i64, { "r", "r" } },
+    { INDEX_op_bswap64_i64, { "r", "r" } },
+
     { -1 },
 };
 
