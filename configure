@@ -4424,7 +4424,7 @@ fi
 
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   case "$ARCH" in
-  alpha | s390x)
+  alpha | s390x | aarch64)
     # The default placement of the application is fine.
     ;;
   *)

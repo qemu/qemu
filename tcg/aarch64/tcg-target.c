@@ -24,10 +24,16 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif /* NDEBUG */
 
+#ifdef TARGET_WORDS_BIGENDIAN
+ #define TCG_LDST_BSWAP 1
+#else
+ #define TCG_LDST_BSWAP 0
+#endif
+
 static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_X20, TCG_REG_X21, TCG_REG_X22, TCG_REG_X23,
     TCG_REG_X24, TCG_REG_X25, TCG_REG_X26, TCG_REG_X27,
-    TCG_REG_X28,
+    TCG_REG_X28, /* we will reserve this for GUEST_BASE if configured */
 
     TCG_REG_X9, TCG_REG_X10, TCG_REG_X11, TCG_REG_X12,
     TCG_REG_X13, TCG_REG_X14, TCG_REG_X15,
@@ -50,6 +56,14 @@ static const int tcg_target_call_oarg_regs[1] = {
 };
 
 #define TCG_REG_TMP TCG_REG_X8
+
+#ifndef CONFIG_SOFTMMU
+# if defined(CONFIG_USE_GUEST_BASE)
+# define TCG_REG_GUEST_BASE TCG_REG_X28
+# else
+# define TCG_REG_GUEST_BASE TCG_REG_XZR
+# endif
+#endif
 
 static inline void reloc_pc26(void *code_ptr, tcg_target_long target)
 {
@@ -713,6 +727,94 @@ static const void * const qemu_st_helpers[4] = {
     helper_stq_mmu,
 };
 
+#else /* !CONFIG_SOFTMMU */
+
+static void tcg_out_qemu_ld_direct(TCGContext *s, int opc, TCGReg data_r,
+                                   TCGReg addr_r, TCGReg off_r)
+{
+    switch (opc) {
+    case 0:
+        tcg_out_ldst_r(s, LDST_8, LDST_LD, data_r, addr_r, off_r);
+        break;
+    case 0 | 4:
+        tcg_out_ldst_r(s, LDST_8, LDST_LD_S_X, data_r, addr_r, off_r);
+        break;
+    case 1:
+        tcg_out_ldst_r(s, LDST_16, LDST_LD, data_r, addr_r, off_r);
+        if (TCG_LDST_BSWAP) {
+            tcg_out_rev16(s, 0, data_r, data_r);
+        }
+        break;
+    case 1 | 4:
+        if (TCG_LDST_BSWAP) {
+            tcg_out_ldst_r(s, LDST_16, LDST_LD, data_r, addr_r, off_r);
+            tcg_out_rev16(s, 0, data_r, data_r);
+            tcg_out_sxt(s, 1, 1, data_r, data_r);
+        } else {
+            tcg_out_ldst_r(s, LDST_16, LDST_LD_S_X, data_r, addr_r, off_r);
+        }
+        break;
+    case 2:
+        tcg_out_ldst_r(s, LDST_32, LDST_LD, data_r, addr_r, off_r);
+        if (TCG_LDST_BSWAP) {
+            tcg_out_rev(s, 0, data_r, data_r);
+        }
+        break;
+    case 2 | 4:
+        if (TCG_LDST_BSWAP) {
+            tcg_out_ldst_r(s, LDST_32, LDST_LD, data_r, addr_r, off_r);
+            tcg_out_rev(s, 0, data_r, data_r);
+            tcg_out_sxt(s, 1, 2, data_r, data_r);
+        } else {
+            tcg_out_ldst_r(s, LDST_32, LDST_LD_S_X, data_r, addr_r, off_r);
+        }
+        break;
+    case 3:
+        tcg_out_ldst_r(s, LDST_64, LDST_LD, data_r, addr_r, off_r);
+        if (TCG_LDST_BSWAP) {
+            tcg_out_rev(s, 1, data_r, data_r);
+        }
+        break;
+    default:
+        tcg_abort();
+    }
+}
+
+static void tcg_out_qemu_st_direct(TCGContext *s, int opc, TCGReg data_r,
+                                   TCGReg addr_r, TCGReg off_r)
+{
+    switch (opc) {
+    case 0:
+        tcg_out_ldst_r(s, LDST_8, LDST_ST, data_r, addr_r, off_r);
+        break;
+    case 1:
+        if (TCG_LDST_BSWAP) {
+            tcg_out_rev16(s, 0, TCG_REG_TMP, data_r);
+            tcg_out_ldst_r(s, LDST_16, LDST_ST, TCG_REG_TMP, addr_r, off_r);
+        } else {
+            tcg_out_ldst_r(s, LDST_16, LDST_ST, data_r, addr_r, off_r);
+        }
+        break;
+    case 2:
+        if (TCG_LDST_BSWAP) {
+            tcg_out_rev(s, 0, TCG_REG_TMP, data_r);
+            tcg_out_ldst_r(s, LDST_32, LDST_ST, TCG_REG_TMP, addr_r, off_r);
+        } else {
+            tcg_out_ldst_r(s, LDST_32, LDST_ST, data_r, addr_r, off_r);
+        }
+        break;
+    case 3:
+        if (TCG_LDST_BSWAP) {
+            tcg_out_rev(s, 1, TCG_REG_TMP, data_r);
+            tcg_out_ldst_r(s, LDST_64, LDST_ST, TCG_REG_TMP, addr_r, off_r);
+        } else {
+            tcg_out_ldst_r(s, LDST_64, LDST_ST, data_r, addr_r, off_r);
+        }
+        break;
+    default:
+        tcg_abort();
+    }
+}
 #endif /* CONFIG_SOFTMMU */
 
 static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
@@ -745,8 +847,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     }
 
 #else /* !CONFIG_SOFTMMU */
-    tcg_abort(); /* TODO */
-#endif
+    tcg_out_qemu_ld_direct(s, opc, data_reg, addr_reg,
+                           GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR);
+#endif /* CONFIG_SOFTMMU */
 }
 
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
@@ -774,8 +877,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     tcg_out_callr(s, TCG_REG_TMP);
 
 #else /* !CONFIG_SOFTMMU */
-    tcg_abort(); /* TODO */
-#endif
+    tcg_out_qemu_st_direct(s, opc, data_reg, addr_reg,
+                           GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR);
+#endif /* CONFIG_SOFTMMU */
 }
 
 static uint8_t *tb_ret_addr;
@@ -1269,6 +1373,13 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* inform TCG about how to find TCG locals with register, offset, size */
     tcg_set_frame(s, TCG_REG_SP, TCG_STATIC_CALL_ARGS_SIZE,
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
+
+#if defined(CONFIG_USE_GUEST_BASE)
+    if (GUEST_BASE) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, GUEST_BASE);
+        tcg_regset_set_reg(s->reserved_regs, TCG_REG_GUEST_BASE);
+    }
+#endif
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
     tcg_out_gotor(s, tcg_target_call_iarg_regs[1]);
