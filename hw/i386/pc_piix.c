@@ -622,6 +622,18 @@ static QEMUMachine pc_machine_v0_13 = {
             .driver   = "virtio-serial-pci",\
             .property = "vectors",\
             .value    = stringify(0),\
+        },{\
+            .driver   = "usb-mouse",\
+            .property = "serial",\
+            .value    = "1",\
+        },{\
+            .driver   = "usb-tablet",\
+            .property = "serial",\
+            .value    = "1",\
+        },{\
+            .driver   = "usb-kbd",\
+            .property = "serial",\
+            .value    = "1",\
         }
 
 static QEMUMachine pc_machine_v0_12 = {
