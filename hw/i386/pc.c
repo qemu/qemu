@@ -266,7 +266,7 @@ static int boot_device2nibble(char boot_device)
     return 0;
 }
 
-static int set_boot_dev(ISADevice *s, const char *boot_device, int fd_bootchk)
+static int set_boot_dev(ISADevice *s, const char *boot_device)
 {
 #define PC_MAX_BOOT_DEVICES 3
     int nbds, bds[3] = { 0, };
@@ -292,7 +292,7 @@ static int set_boot_dev(ISADevice *s, const char *boot_device, int fd_bootchk)
 
 static int pc_boot_set(void *opaque, const char *boot_device)
 {
-    return set_boot_dev(opaque, boot_device, 0);
+    return set_boot_dev(opaque, boot_device);
 }
 
 typedef struct pc_cmos_init_late_arg {
@@ -407,8 +407,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     cpu_hotplug_cb.cpu_added_notifier.notify = rtc_notify_cpu_added;
     qemu_register_cpu_added_notifier(&cpu_hotplug_cb.cpu_added_notifier);
 
-    /* set boot devices, and disable floppy signature check if requested */
-    if (set_boot_dev(s, boot_device, fd_bootchk)) {
+    if (set_boot_dev(s, boot_device)) {
         exit(1);
     }
 
