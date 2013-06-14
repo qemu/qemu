@@ -793,7 +793,7 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     pflash_t *fl;
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *bios, *bios_alias = g_new(MemoryRegion, 1);
+    MemoryRegion *bios, *bios_copy = g_new(MemoryRegion, 1);
     target_long bios_size = FLASH_SIZE;
     int64_t kernel_entry;
     PCIBus *pci_bus;
@@ -933,14 +933,23 @@ void mips_malta_init(QEMUMachineInitArgs *args)
 #endif
     }
 
-    /* Map the BIOS at a 2nd physical location, as on the real board. */
-    memory_region_init_alias(bios_alias, NULL, "bios.1fc", bios, 0, BIOS_SIZE);
-    memory_region_add_subregion(system_memory, RESET_ADDRESS, bios_alias);
+    /*
+     * Map the BIOS at a 2nd physical location, as on the real board.
+     * Copy it so that we can patch in the MIPS revision, which cannot be
+     * handled by an overlapping region as the resulting ROM code subpage
+     * regions are not executable.
+     */
+    memory_region_init_ram(bios_copy, NULL, "bios.1fc", BIOS_SIZE);
+    if (!rom_copy(memory_region_get_ram_ptr(bios_copy),
+                  FLASH_ADDRESS, bios_size)) {
+        memcpy(memory_region_get_ram_ptr(bios_copy),
+               memory_region_get_ram_ptr(bios), bios_size);
+    }
+    memory_region_set_readonly(bios_copy, true);
+    memory_region_add_subregion(system_memory, RESET_ADDRESS, bios_copy);
 
-    /* Board ID = 0x420 (Malta Board with CoreLV)
-       XXX: theoretically 0x1e000010 should map to flash and 0x1fc00010 should
-       map to the board ID. */
-    stl_p(memory_region_get_ram_ptr(bios) + 0x10, 0x00000420);
+    /* Board ID = 0x420 (Malta Board with CoreLV) */
+    stl_p(memory_region_get_ram_ptr(bios_copy) + 0x10, 0x00000420);
 
     /* Init internal devices */
     cpu_mips_irq_init_cpu(env);
