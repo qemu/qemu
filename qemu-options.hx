@@ -1268,9 +1268,8 @@ DEF("no-fd-bootchk", 0, QEMU_OPTION_no_fd_bootchk,
 STEXI
 @item -no-fd-bootchk
 @findex -no-fd-bootchk
-Disable boot signature checking for floppy disks in Bochs BIOS. It may
+Disable boot signature checking for floppy disks in BIOS. May
 be needed to boot from old floppy disks.
-TODO: check reference to Bochs BIOS.
 ETEXI
 
 DEF("no-acpi", 0, QEMU_OPTION_no_acpi,
