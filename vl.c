@@ -1149,12 +1149,12 @@ void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
     boot_set_opaque = opaque;
 }
 
-int qemu_boot_set(const char *boot_devices)
+int qemu_boot_set(const char *boot_order)
 {
     if (!boot_set_handler) {
         return -EINVAL;
     }
-    return boot_set_handler(boot_set_opaque, boot_devices);
+    return boot_set_handler(boot_set_opaque, boot_order);
 }
 
 static void validate_bootdevices(const char *devices)
@@ -1185,9 +1185,9 @@ static void validate_bootdevices(const char *devices)
     }
 }
 
-static void restore_boot_devices(void *opaque)
+static void restore_boot_order(void *opaque)
 {
-    char *standard_boot_devices = opaque;
+    char *normal_boot_order = opaque;
     static int first = 1;
 
     /* Restore boot order and remove ourselves after the first boot */
@@ -1196,10 +1196,10 @@ static void restore_boot_devices(void *opaque)
         return;
     }
 
-    qemu_boot_set(standard_boot_devices);
+    qemu_boot_set(normal_boot_order);
 
-    qemu_unregister_reset(restore_boot_devices, standard_boot_devices);
-    g_free(standard_boot_devices);
+    qemu_unregister_reset(restore_boot_order, normal_boot_order);
+    g_free(normal_boot_order);
 }
 
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
@@ -4093,7 +4093,7 @@ int main(int argc, char **argv, char **envp)
             validate_bootdevices(once);
             normal_boot_order = g_strdup(boot_order);
             boot_order = once;
-            qemu_register_reset(restore_boot_devices, normal_boot_order);
+            qemu_register_reset(restore_boot_order, normal_boot_order);
         }
 
         boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
