@@ -389,7 +389,7 @@ static int xen_remove_from_physmap(XenIOState *state,
     if (state->log_for_dirtybit == physmap) {
         state->log_for_dirtybit = NULL;
     }
-    free(physmap);
+    g_free(physmap);
 
     return 0;
 }
@@ -1030,7 +1030,7 @@ static void xen_read_physmap(XenIOState *state)
                 xen_domid, entries[i]);
         value = xs_read(state->xenstore, 0, path, &len);
         if (value == NULL) {
-            free(physmap);
+            g_free(physmap);
             continue;
         }
         physmap->start_addr = strtoull(value, NULL, 16);
@@ -1041,7 +1041,7 @@ static void xen_read_physmap(XenIOState *state)
                 xen_domid, entries[i]);
         value = xs_read(state->xenstore, 0, path, &len);
         if (value == NULL) {
-            free(physmap);
+            g_free(physmap);
             continue;
         }
         physmap->size = strtoull(value, NULL, 16);
@@ -1069,12 +1069,14 @@ int xen_hvm_init(void)
     state->xce_handle = xen_xc_evtchn_open(NULL, 0);
     if (state->xce_handle == XC_HANDLER_INITIAL_VALUE) {
         perror("xen: event channel open");
+        g_free(state);
         return -errno;
     }
 
     state->xenstore = xs_daemon_open();
     if (state->xenstore == NULL) {
         perror("xen: xenstore open");
+        g_free(state);
         return -errno;
     }
 

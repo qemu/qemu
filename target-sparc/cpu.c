@@ -614,7 +614,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
     return 0;
 
  error:
-    free(s);
+    g_free(s);
     return -1;
 }
 

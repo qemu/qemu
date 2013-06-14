@@ -92,8 +92,6 @@
 #define UART_FCR_RFR        0x02    /* RCVR Fifo Reset */
 #define UART_FCR_FE         0x01    /* FIFO Enable */
 
-#define XMIT_FIFO           0
-#define RECV_FIFO           1
 #define MAX_XMIT_RETRY      4
 
 #ifdef DEBUG_SERIAL
@@ -106,50 +104,14 @@ do {} while (0)
 
 static void serial_receive1(void *opaque, const uint8_t *buf, int size);
 
-static void fifo_clear(SerialState *s, int fifo)
+static inline void recv_fifo_put(SerialState *s, uint8_t chr)
 {
-    SerialFIFO *f = (fifo) ? &s->recv_fifo : &s->xmit_fifo;
-    memset(f->data, 0, UART_FIFO_LENGTH);
-    f->count = 0;
-    f->head = 0;
-    f->tail = 0;
-}
-
-static int fifo_put(SerialState *s, int fifo, uint8_t chr)
-{
-    SerialFIFO *f = (fifo) ? &s->recv_fifo : &s->xmit_fifo;
-
     /* Receive overruns do not overwrite FIFO contents. */
-    if (fifo == XMIT_FIFO || f->count < UART_FIFO_LENGTH) {
-
-        f->data[f->head++] = chr;
-
-        if (f->head == UART_FIFO_LENGTH)
-            f->head = 0;
-    }
-
-    if (f->count < UART_FIFO_LENGTH)
-        f->count++;
-    else if (fifo == RECV_FIFO)
+    if (!fifo8_is_full(&s->recv_fifo)) {
+        fifo8_push(&s->recv_fifo, chr);
+    } else {
         s->lsr |= UART_LSR_OE;
-
-    return 1;
-}
-
-static uint8_t fifo_get(SerialState *s, int fifo)
-{
-    SerialFIFO *f = (fifo) ? &s->recv_fifo : &s->xmit_fifo;
-    uint8_t c;
-
-    if(f->count == 0)
-        return 0;
-
-    c = f->data[f->tail++];
-    if (f->tail == UART_FIFO_LENGTH)
-        f->tail = 0;
-    f->count--;
-
-    return c;
+    }
 }
 
 static void serial_update_irq(SerialState *s)
@@ -165,7 +127,7 @@ static void serial_update_irq(SerialState *s)
         tmp_iir = UART_IIR_CTI;
     } else if ((s->ier & UART_IER_RDI) && (s->lsr & UART_LSR_DR) &&
                (!(s->fcr & UART_FCR_FE) ||
-                s->recv_fifo.count >= s->recv_fifo.itl)) {
+                s->recv_fifo.num >= s->recv_fifo_itl)) {
         tmp_iir = UART_IIR_RDI;
     } else if ((s->ier & UART_IER_THRI) && s->thr_ipending) {
         tmp_iir = UART_IIR_THRI;
@@ -262,9 +224,11 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
 
     if (s->tsr_retry <= 0) {
         if (s->fcr & UART_FCR_FE) {
-            s->tsr = fifo_get(s,XMIT_FIFO);
-            if (!s->xmit_fifo.count)
+            s->tsr = fifo8_is_full(&s->xmit_fifo) ?
+                        0 : fifo8_pop(&s->xmit_fifo);
+            if (!s->xmit_fifo.num) {
                 s->lsr |= UART_LSR_THRE;
+            }
         } else if ((s->lsr & UART_LSR_THRE)) {
             return FALSE;
         } else {
@@ -316,16 +280,16 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         } else {
             s->thr = (uint8_t) val;
             if(s->fcr & UART_FCR_FE) {
-                fifo_put(s, XMIT_FIFO, s->thr);
-                s->thr_ipending = 0;
+                /* xmit overruns overwrite data, so make space if needed */
+                if (fifo8_is_full(&s->xmit_fifo)) {
+                    fifo8_pop(&s->xmit_fifo);
+                }
+                fifo8_push(&s->xmit_fifo, s->thr);
                 s->lsr &= ~UART_LSR_TEMT;
-                s->lsr &= ~UART_LSR_THRE;
-                serial_update_irq(s);
-            } else {
-                s->thr_ipending = 0;
-                s->lsr &= ~UART_LSR_THRE;
-                serial_update_irq(s);
             }
+            s->thr_ipending = 0;
+            s->lsr &= ~UART_LSR_THRE;
+            serial_update_irq(s);
             serial_xmit(NULL, G_IO_OUT, s);
         }
         break;
@@ -367,28 +331,28 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         if (val & UART_FCR_RFR) {
             qemu_del_timer(s->fifo_timeout_timer);
             s->timeout_ipending=0;
-            fifo_clear(s,RECV_FIFO);
+            fifo8_reset(&s->recv_fifo);
         }
 
         if (val & UART_FCR_XFR) {
-            fifo_clear(s,XMIT_FIFO);
+            fifo8_reset(&s->xmit_fifo);
         }
 
         if (val & UART_FCR_FE) {
             s->iir |= UART_IIR_FE;
-            /* Set RECV_FIFO trigger Level */
+            /* Set recv_fifo trigger Level */
             switch (val & 0xC0) {
             case UART_FCR_ITL_1:
-                s->recv_fifo.itl = 1;
+                s->recv_fifo_itl = 1;
                 break;
             case UART_FCR_ITL_2:
-                s->recv_fifo.itl = 4;
+                s->recv_fifo_itl = 4;
                 break;
             case UART_FCR_ITL_3:
-                s->recv_fifo.itl = 8;
+                s->recv_fifo_itl = 8;
                 break;
             case UART_FCR_ITL_4:
-                s->recv_fifo.itl = 14;
+                s->recv_fifo_itl = 14;
                 break;
             }
         } else
@@ -460,11 +424,13 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
             ret = s->divider & 0xff;
         } else {
             if(s->fcr & UART_FCR_FE) {
-                ret = fifo_get(s,RECV_FIFO);
-                if (s->recv_fifo.count == 0)
+                ret = fifo8_is_full(&s->recv_fifo) ?
+                            0 : fifo8_pop(&s->recv_fifo);
+                if (s->recv_fifo.num == 0) {
                     s->lsr &= ~(UART_LSR_DR | UART_LSR_BI);
-                else
+                } else {
                     qemu_mod_timer(s->fifo_timeout_timer, qemu_get_clock_ns (vm_clock) + s->char_transmit_time * 4);
+                }
                 s->timeout_ipending = 0;
             } else {
                 ret = s->rbr;
@@ -534,15 +500,21 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
 static int serial_can_receive(SerialState *s)
 {
     if(s->fcr & UART_FCR_FE) {
-        if(s->recv_fifo.count < UART_FIFO_LENGTH)
-        /* Advertise (fifo.itl - fifo.count) bytes when count < ITL, and 1 if above. If UART_FIFO_LENGTH - fifo.count is
-        advertised the effect will be to almost always fill the fifo completely before the guest has a chance to respond,
-        effectively overriding the ITL that the guest has set. */
-             return (s->recv_fifo.count <= s->recv_fifo.itl) ? s->recv_fifo.itl - s->recv_fifo.count : 1;
-        else
-             return 0;
+        if (s->recv_fifo.num < UART_FIFO_LENGTH) {
+            /*
+             * Advertise (fifo.itl - fifo.count) bytes when count < ITL, and 1
+             * if above. If UART_FIFO_LENGTH - fifo.count is advertised the
+             * effect will be to almost always fill the fifo completely before
+             * the guest has a chance to respond, effectively overriding the ITL
+             * that the guest has set.
+             */
+            return (s->recv_fifo.num <= s->recv_fifo_itl) ?
+                        s->recv_fifo_itl - s->recv_fifo.num : 1;
+        } else {
+            return 0;
+        }
     } else {
-    return !(s->lsr & UART_LSR_DR);
+        return !(s->lsr & UART_LSR_DR);
     }
 }
 
@@ -550,7 +522,7 @@ static void serial_receive_break(SerialState *s)
 {
     s->rbr = 0;
     /* When the LSR_DR is set a null byte is pushed into the fifo */
-    fifo_put(s, RECV_FIFO, '\0');
+    recv_fifo_put(s, '\0');
     s->lsr |= UART_LSR_BI | UART_LSR_DR;
     serial_update_irq(s);
 }
@@ -558,7 +530,7 @@ static void serial_receive_break(SerialState *s)
 /* There's data in recv_fifo and s->rbr has not been read for 4 char transmit times */
 static void fifo_timeout_int (void *opaque) {
     SerialState *s = opaque;
-    if (s->recv_fifo.count) {
+    if (s->recv_fifo.num) {
         s->timeout_ipending = 1;
         serial_update_irq(s);
     }
@@ -580,7 +552,7 @@ static void serial_receive1(void *opaque, const uint8_t *buf, int size)
     if(s->fcr & UART_FCR_FE) {
         int i;
         for (i = 0; i < size; i++) {
-            fifo_put(s, RECV_FIFO, buf[i]);
+            recv_fifo_put(s, buf[i]);
         }
         s->lsr |= UART_LSR_DR;
         /* call the timeout receive callback in 4 char transmit time */
@@ -660,8 +632,8 @@ static void serial_reset(void *opaque)
     s->char_transmit_time = (get_ticks_per_sec() / 9600) * 10;
     s->poll_msl = 0;
 
-    fifo_clear(s,RECV_FIFO);
-    fifo_clear(s,XMIT_FIFO);
+    fifo8_reset(&s->recv_fifo);
+    fifo8_reset(&s->xmit_fifo);
 
     s->last_xmit_ts = qemu_get_clock_ns(vm_clock);
 
@@ -684,6 +656,8 @@ void serial_init_core(SerialState *s)
 
     qemu_chr_add_handlers(s->chr, serial_can_receive1, serial_receive1,
                           serial_event, s);
+    fifo8_create(&s->recv_fifo, UART_FIFO_LENGTH);
+    fifo8_create(&s->xmit_fifo, UART_FIFO_LENGTH);
 }
 
 void serial_exit_core(SerialState *s)

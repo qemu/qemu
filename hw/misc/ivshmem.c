@@ -735,6 +735,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
 
         if (s->shmobj == NULL) {
             fprintf(stderr, "Must specify 'chardev' or 'shm' to ivshmem\n");
+            exit(1);
         }
 
         IVSHMEM_DPRINTF("using shm_open (shm object = %s)\n", s->shmobj);
