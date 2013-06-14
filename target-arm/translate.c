@@ -6752,7 +6752,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
             tcg_gen_qemu_ld32u(tmp, addr, 0);
             tcg_gen_addi_i32(addr, addr, 4);
             tmp2 = tcg_temp_new_i32();
-            tcg_gen_qemu_ld32u(tmp, addr, 0);
+            tcg_gen_qemu_ld32u(tmp2, addr, 0);
             if (insn & (1 << 21)) {
                 /* Base writeback.  */
                 switch (i) {
