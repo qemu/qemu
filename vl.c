@@ -2841,7 +2841,7 @@ int main(int argc, char **argv, char **envp)
     const char *icount_option = NULL;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
-    char boot_devices[33] = "";
+    const char *boot_order = NULL;
     DisplayState *ds;
     int cyls, heads, secs, translation;
     QemuOpts *hda_opts = NULL, *opts, *machine_opts;
@@ -3131,31 +3131,9 @@ int main(int argc, char **argv, char **envp)
                 drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
                 break;
             case QEMU_OPTION_boot:
-                {
-                    char *standard_boot_devices;
-                    const char *order, *once;
-
-                    opts = qemu_opts_parse(qemu_find_opts("boot-opts"),
-                                           optarg, 1);
-                    if (!opts) {
-                        exit(1);
-                    }
-
-                    order = qemu_opt_get(opts, "order");
-                    if (order) {
-                        validate_bootdevices(order);
-                        pstrcpy(boot_devices, sizeof(boot_devices), order);
-                    }
-
-                    once = qemu_opt_get(opts, "once");
-                    if (once) {
-                        validate_bootdevices(once);
-                        standard_boot_devices = g_strdup(boot_devices);
-                        pstrcpy(boot_devices, sizeof(boot_devices), once);
-                        qemu_register_reset(restore_boot_devices,
-                                            standard_boot_devices);
-                    }
-                    boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
+                opts = qemu_opts_parse(qemu_find_opts("boot-opts"), optarg, 1);
+                if (!opts) {
+                    exit(1);
                 }
                 break;
             case QEMU_OPTION_fda:
@@ -4096,6 +4074,31 @@ int main(int argc, char **argv, char **envp)
         kernel_filename = initrd_filename = kernel_cmdline = NULL;
     }
 
+    if (!boot_order) {
+        boot_order = machine->boot_order;
+    }
+    opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
+    if (opts) {
+        char *normal_boot_order;
+        const char *order, *once;
+
+        order = qemu_opt_get(opts, "order");
+        if (order) {
+            validate_bootdevices(order);
+            boot_order = order;
+        }
+
+        once = qemu_opt_get(opts, "once");
+        if (once) {
+            validate_bootdevices(once);
+            normal_boot_order = g_strdup(boot_order);
+            boot_order = once;
+            qemu_register_reset(restore_boot_devices, normal_boot_order);
+        }
+
+        boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
+    }
+
     if (!kernel_cmdline) {
         kernel_cmdline = "";
     }
@@ -4260,9 +4263,7 @@ int main(int argc, char **argv, char **envp)
     qdev_machine_init();
 
     QEMUMachineInitArgs args = { .ram_size = ram_size,
-                                 .boot_device = (boot_devices[0] == '\0') ?
-                                                machine->boot_order :
-                                                boot_devices,
+                                 .boot_device = boot_order,
                                  .kernel_filename = kernel_filename,
                                  .kernel_cmdline = kernel_cmdline,
                                  .initrd_filename = initrd_filename,
