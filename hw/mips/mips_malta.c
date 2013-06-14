@@ -978,7 +978,7 @@ void mips_malta_init(QEMUMachineInitArgs *args)
             if (!addr) {
                 addr = memory_region_get_ram_ptr(bios);
             }
-            end = (void *)addr + bios_size;
+            end = (void *)addr + MIN(bios_size, 0x3e0000);
             while (addr < end) {
                 bswap32s(addr);
                 addr++;
