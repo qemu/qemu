@@ -47,6 +47,7 @@
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 #include "hw/sysbus.h"             /* SysBusDevice */
+#include "qemu/host-utils.h"
 
 //#define DEBUG_BOARD_INIT
 
@@ -150,10 +151,10 @@ typedef struct _eeprom24c0x_t eeprom24c0x_t;
 
 static eeprom24c0x_t eeprom = {
     .contents = {
-        /* 00000000: */ 0x80,0x08,0x04,0x0D,0x0A,0x01,0x40,0x00,
+        /* 00000000: */ 0x80,0x08,0xFF,0x0D,0x0A,0xFF,0x40,0x00,
         /* 00000008: */ 0x01,0x75,0x54,0x00,0x82,0x08,0x00,0x01,
-        /* 00000010: */ 0x8F,0x04,0x02,0x01,0x01,0x00,0x0E,0x00,
-        /* 00000018: */ 0x00,0x00,0x00,0x14,0x0F,0x14,0x2D,0x40,
+        /* 00000010: */ 0x8F,0x04,0x02,0x01,0x01,0x00,0x00,0x00,
+        /* 00000018: */ 0x00,0x00,0x00,0x14,0x0F,0x14,0x2D,0xFF,
         /* 00000020: */ 0x15,0x08,0x15,0x08,0x00,0x00,0x00,0x00,
         /* 00000028: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
         /* 00000030: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -168,6 +169,56 @@ static eeprom24c0x_t eeprom = {
         /* 00000078: */ 0x00,0x00,0x00,0x00,0x00,0x00,0x64,0xF4,
     },
 };
+
+static void eeprom_generate(eeprom24c0x_t *eeprom, ram_addr_t ram_size)
+{
+    enum { SDR = 0x4, DDR2 = 0x8 } type;
+    uint8_t *spd = eeprom->contents;
+    uint8_t nbanks = 0;
+    uint16_t density = 0;
+    int i;
+
+    /* work in terms of MB */
+    ram_size >>= 20;
+
+    while ((ram_size >= 4) && (nbanks <= 2)) {
+        int sz_log2 = MIN(31 - clz32(ram_size), 14);
+        nbanks++;
+        density |= 1 << (sz_log2 - 2);
+        ram_size -= 1 << sz_log2;
+    }
+
+    /* split to 2 banks if possible */
+    if ((nbanks == 1) && (density > 1)) {
+        nbanks++;
+        density >>= 1;
+    }
+
+    if (density & 0xff00) {
+        density = (density & 0xe0) | ((density >> 8) & 0x1f);
+        type = DDR2;
+    } else if (!(density & 0x1f)) {
+        type = DDR2;
+    } else {
+        type = SDR;
+    }
+
+    if (ram_size) {
+        fprintf(stderr, "Warning: SPD cannot represent final %dMB"
+                " of SDRAM\n", (int)ram_size);
+    }
+
+    /* fill in SPD memory information */
+    spd[2] = type;
+    spd[5] = nbanks;
+    spd[31] = density;
+
+    /* checksum */
+    spd[63] = 0;
+    for (i = 0; i < 63; i++) {
+        spd[63] += spd[i];
+    }
+}
 
 static uint8_t eeprom24c0x_read(void)
 {
@@ -861,6 +912,9 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     memory_region_init_ram(ram, NULL, "mips_malta.ram", ram_size);
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(system_memory, 0, ram);
+
+    /* generate SPD EEPROM data */
+    eeprom_generate(&eeprom, ram_size);
 
 #ifdef TARGET_WORDS_BIGENDIAN
     be = 1;
