@@ -434,9 +434,10 @@ static QemuOptsList qemu_machine_opts = {
 
 static QemuOptsList qemu_boot_opts = {
     .name = "boot-opts",
+    .implied_opt_name = "order",
+    .merge_lists = true,
     .head = QTAILQ_HEAD_INITIALIZER(qemu_boot_opts.head),
     .desc = {
-        /* the three names below are not used now */
         {
             .name = "order",
             .type = QEMU_OPT_STRING,
@@ -445,8 +446,7 @@ static QemuOptsList qemu_boot_opts = {
             .type = QEMU_OPT_STRING,
         }, {
             .name = "menu",
-            .type = QEMU_OPT_STRING,
-        /* following are really used */
+            .type = QEMU_OPT_BOOL,
         }, {
             .name = "splash",
             .type = QEMU_OPT_STRING,
@@ -1157,7 +1157,7 @@ int qemu_boot_set(const char *boot_devices)
     return boot_set_handler(boot_set_opaque, boot_devices);
 }
 
-static void validate_bootdevices(char *devices)
+static void validate_bootdevices(const char *devices)
 {
     /* We just do some generic consistency checks */
     const char *p;
@@ -3132,70 +3132,30 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_boot:
                 {
-                    static const char * const params[] = {
-                        "order", "once", "menu",
-                        "splash", "splash-time",
-                        "reboot-timeout", "strict", NULL
-                    };
-                    char buf[sizeof(boot_devices)];
                     char *standard_boot_devices;
-                    int legacy = 0;
+                    const char *order, *once;
 
-                    if (!strchr(optarg, '=')) {
-                        legacy = 1;
-                        pstrcpy(buf, sizeof(buf), optarg);
-                    } else if (check_params(buf, sizeof(buf), params, optarg) < 0) {
-                        fprintf(stderr,
-                                "qemu: unknown boot parameter '%s' in '%s'\n",
-                                buf, optarg);
+                    opts = qemu_opts_parse(qemu_find_opts("boot-opts"),
+                                           optarg, 1);
+                    if (!opts) {
                         exit(1);
                     }
 
-                    if (legacy ||
-                        get_param_value(buf, sizeof(buf), "order", optarg)) {
-                        validate_bootdevices(buf);
-                        pstrcpy(boot_devices, sizeof(boot_devices), buf);
+                    order = qemu_opt_get(opts, "order");
+                    if (order) {
+                        validate_bootdevices(order);
+                        pstrcpy(boot_devices, sizeof(boot_devices), order);
                     }
-                    if (!legacy) {
-                        if (get_param_value(buf, sizeof(buf),
-                                            "once", optarg)) {
-                            validate_bootdevices(buf);
-                            standard_boot_devices = g_strdup(boot_devices);
-                            pstrcpy(boot_devices, sizeof(boot_devices), buf);
-                            qemu_register_reset(restore_boot_devices,
-                                                standard_boot_devices);
-                        }
-                        if (get_param_value(buf, sizeof(buf),
-                                            "menu", optarg)) {
-                            if (!strcmp(buf, "on")) {
-                                boot_menu = 1;
-                            } else if (!strcmp(buf, "off")) {
-                                boot_menu = 0;
-                            } else {
-                                fprintf(stderr,
-                                        "qemu: invalid option value '%s'\n",
-                                        buf);
-                                exit(1);
-                            }
-                        }
-                        if (get_param_value(buf, sizeof(buf),
-                                            "strict", optarg)) {
-                            if (!strcmp(buf, "on")) {
-                                boot_strict = true;
-                            } else if (!strcmp(buf, "off")) {
-                                boot_strict = false;
-                            } else {
-                                fprintf(stderr,
-                                        "qemu: invalid option value '%s'\n",
-                                        buf);
-                                exit(1);
-                            }
-                        }
-                        if (!qemu_opts_parse(qemu_find_opts("boot-opts"),
-                                             optarg, 0)) {
-                            exit(1);
-                        }
+
+                    once = qemu_opt_get(opts, "once");
+                    if (once) {
+                        validate_bootdevices(once);
+                        standard_boot_devices = g_strdup(boot_devices);
+                        pstrcpy(boot_devices, sizeof(boot_devices), once);
+                        qemu_register_reset(restore_boot_devices,
+                                            standard_boot_devices);
                     }
+                    boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
                 }
                 break;
             case QEMU_OPTION_fda:
