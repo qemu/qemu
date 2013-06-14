@@ -22,6 +22,8 @@ typedef struct AddressSpace AddressSpace;
 typedef struct MemoryRegion MemoryRegion;
 typedef struct MemoryRegionSection MemoryRegionSection;
 
+typedef struct MemoryMappingList MemoryMappingList;
+
 typedef struct NICInfo NICInfo;
 typedef struct HCIInfo HCIInfo;
 typedef struct AudioState AudioState;

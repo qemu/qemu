@@ -2,6 +2,7 @@ stub-obj-y += arch-query-cpu-def.o
 stub-obj-y += clock-warp.o
 stub-obj-y += cpu-get-clock.o
 stub-obj-y += cpu-get-icount.o
+stub-obj-y += dump.o
 stub-obj-y += fdset-add-fd.o
 stub-obj-y += fdset-find-fd.o
 stub-obj-y += fdset-get-fd.o

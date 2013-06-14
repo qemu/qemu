@@ -16,14 +16,6 @@
 #include "qapi/qmp/qerror.h"
 #include "qmp-commands.h"
 
-/* we need this function in hmp.c */
-void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
-                           int64_t begin, bool has_length, int64_t length,
-                           Error **errp)
-{
-    error_set(errp, QERR_UNSUPPORTED);
-}
-
 int cpu_get_dump_info(ArchDumpInfo *info)
 {
     return -1;

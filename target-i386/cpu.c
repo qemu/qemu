@@ -221,7 +221,7 @@ X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
 
 const char *get_register_name_32(unsigned int reg)
 {
-    if (reg > CPU_NB_REGS32) {
+    if (reg >= CPU_NB_REGS32) {
         return NULL;
     }
     return x86_reg_info_32[reg].name;
@@ -669,10 +669,10 @@ static x86_def_t builtin_x86_defs[] = {
     },
     {
         .name = "Conroe",
-        .level = 2,
+        .level = 4,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 6,
-        .model = 2,
+        .model = 15,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
@@ -691,10 +691,10 @@ static x86_def_t builtin_x86_defs[] = {
     },
     {
         .name = "Penryn",
-        .level = 2,
+        .level = 4,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 6,
-        .model = 2,
+        .model = 23,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
@@ -714,10 +714,10 @@ static x86_def_t builtin_x86_defs[] = {
     },
     {
         .name = "Nehalem",
-        .level = 2,
+        .level = 4,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 6,
-        .model = 2,
+        .model = 26,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
@@ -2505,6 +2505,13 @@ static int64_t x86_cpu_get_arch_id(CPUState *cs)
     return env->cpuid_apic_id;
 }
 
+static bool x86_cpu_get_paging_enabled(const CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+
+    return cpu->env.cr[0] & CR0_PG_MASK;
+}
+
 static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 {
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
@@ -2519,15 +2526,16 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->reset = x86_cpu_reset;
 
     cc->do_interrupt = x86_cpu_do_interrupt;
+    cc->get_arch_id = x86_cpu_get_arch_id;
+    cc->get_paging_enabled = x86_cpu_get_paging_enabled;
 #ifndef CONFIG_USER_ONLY
+    cc->get_memory_mapping = x86_cpu_get_memory_mapping;
     cc->write_elf64_note = x86_cpu_write_elf64_note;
     cc->write_elf64_qemunote = x86_cpu_write_elf64_qemunote;
     cc->write_elf32_note = x86_cpu_write_elf32_note;
     cc->write_elf32_qemunote = x86_cpu_write_elf32_qemunote;
 #endif
     cpu_class_set_vmsd(cc, &vmstate_x86_cpu);
-
-    cc->get_arch_id = x86_cpu_get_arch_id;
 }
 
 static const TypeInfo x86_cpu_type_info = {
