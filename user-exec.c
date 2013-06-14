@@ -448,6 +448,21 @@ int cpu_signal_handler(int host_signum, void *pinfo,
                              &uc->uc_sigmask, puc);
 }
 
+#elif defined(__aarch64__)
+
+int cpu_signal_handler(int host_signum, void *pinfo,
+                       void *puc)
+{
+    siginfo_t *info = pinfo;
+    struct ucontext *uc = puc;
+    uint64_t pc;
+    int is_write = 0; /* XXX how to determine? */
+
+    pc = uc->uc_mcontext.pc;
+    return handle_cpu_signal(pc, (uint64_t)info->si_addr,
+                             is_write, &uc->uc_sigmask, puc);
+}
+
 #elif defined(__mc68000)
 
 int cpu_signal_handler(int host_signum, void *pinfo,

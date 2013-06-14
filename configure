@@ -386,6 +386,8 @@ elif check_define __s390__ ; then
   fi
 elif check_define __arm__ ; then
   cpu="arm"
+elif check_define __aarch64__ ; then
+  cpu="aarch64"
 elif check_define __hppa__ ; then
   cpu="hppa"
 else
@@ -407,6 +409,9 @@ case "$cpu" in
   ;;
   armv*b|armv*l|arm)
     cpu="arm"
+  ;;
+  aarch64)
+    cpu="aarch64"
   ;;
   hppa|parisc|parisc64)
     cpu="hppa"
@@ -2557,29 +2562,6 @@ EOF
   fi
 fi
 
-#
-# Check for xxxat() functions when we are building linux-user
-# emulator.  This is done because older glibc versions don't
-# have syscall stubs for these implemented.
-#
-atfile=no
-cat > $TMPC << EOF
-#define _ATFILE_SOURCE
-#include <sys/types.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-int
-main(void)
-{
-	/* try to unlink nonexisting file */
-	return (unlinkat(AT_FDCWD, "nonexistent_file", 0));
-}
-EOF
-if compile_prog "" "" ; then
-  atfile=yes
-fi
-
 # Check for inotify functions when we are building linux-user
 # emulator.  This is done because older glibc versions don't
 # have syscall stubs for these implemented.  In that case we
@@ -3722,9 +3704,6 @@ fi
 if test "$curses" = "yes" ; then
   echo "CONFIG_CURSES=y" >> $config_host_mak
 fi
-if test "$atfile" = "yes" ; then
-  echo "CONFIG_ATFILE=y" >> $config_host_mak
-fi
 if test "$utimens" = "yes" ; then
   echo "CONFIG_UTIMENSAT=y" >> $config_host_mak
 fi
@@ -4085,6 +4064,9 @@ if test "$linux" = "yes" ; then
     ;;
   s390x)
     linux_arch=s390
+    ;;
+  aarch64)
+    linux_arch=arm64
     ;;
   *)
     # For most CPUs the kernel architecture name and QEMU CPU name match.
@@ -4450,7 +4432,7 @@ fi
 
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   case "$ARCH" in
-  alpha | s390x)
+  alpha | s390x | aarch64)
     # The default placement of the application is fine.
     ;;
   *)

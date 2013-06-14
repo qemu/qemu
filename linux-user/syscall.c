@@ -181,29 +181,14 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 
 
 #define __NR_sys_uname __NR_uname
-#define __NR_sys_faccessat __NR_faccessat
-#define __NR_sys_fchmodat __NR_fchmodat
-#define __NR_sys_fchownat __NR_fchownat
-#define __NR_sys_fstatat64 __NR_fstatat64
-#define __NR_sys_futimesat __NR_futimesat
 #define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
 #define __NR_sys_getpriority __NR_getpriority
-#define __NR_sys_linkat __NR_linkat
-#define __NR_sys_mkdirat __NR_mkdirat
-#define __NR_sys_mknodat __NR_mknodat
-#define __NR_sys_newfstatat __NR_newfstatat
-#define __NR_sys_openat __NR_openat
-#define __NR_sys_readlinkat __NR_readlinkat
-#define __NR_sys_renameat __NR_renameat
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
-#define __NR_sys_symlinkat __NR_symlinkat
 #define __NR_sys_syslog __NR_syslog
 #define __NR_sys_tgkill __NR_tgkill
 #define __NR_sys_tkill __NR_tkill
-#define __NR_sys_unlinkat __NR_unlinkat
-#define __NR_sys_utimensat __NR_utimensat
 #define __NR_sys_futex __NR_futex
 #define __NR_sys_inotify_init __NR_inotify_init
 #define __NR_sys_inotify_add_watch __NR_inotify_add_watch
@@ -223,8 +208,11 @@ static int gettid(void) {
     return -ENOSYS;
 }
 #endif
+#ifdef __NR_getdents
 _syscall3(int, sys_getdents, uint, fd, struct linux_dirent *, dirp, uint, count);
-#if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
+#endif
+#if !defined(__NR_getdents) || \
+    (defined(TARGET_NR_getdents64) && defined(__NR_getdents64))
 _syscall3(int, sys_getdents64, uint, fd, struct linux_dirent64 *, dirp, uint, count);
 #endif
 #if defined(TARGET_NR__llseek) && defined(__NR_llseek)
@@ -336,72 +324,6 @@ static int sys_getcwd1(char *buf, size_t size)
   return strlen(buf)+1;
 }
 
-#ifdef CONFIG_ATFILE
-/*
- * Host system seems to have atfile syscall stubs available.  We
- * now enable them one by one as specified by target syscall_nr.h.
- */
-
-#ifdef TARGET_NR_faccessat
-static int sys_faccessat(int dirfd, const char *pathname, int mode)
-{
-  return (faccessat(dirfd, pathname, mode, 0));
-}
-#endif
-#ifdef TARGET_NR_fchmodat
-static int sys_fchmodat(int dirfd, const char *pathname, mode_t mode)
-{
-  return (fchmodat(dirfd, pathname, mode, 0));
-}
-#endif
-#if defined(TARGET_NR_fchownat)
-static int sys_fchownat(int dirfd, const char *pathname, uid_t owner,
-    gid_t group, int flags)
-{
-  return (fchownat(dirfd, pathname, owner, group, flags));
-}
-#endif
-#ifdef __NR_fstatat64
-static int sys_fstatat64(int dirfd, const char *pathname, struct stat *buf,
-    int flags)
-{
-  return (fstatat(dirfd, pathname, buf, flags));
-}
-#endif
-#ifdef __NR_newfstatat
-static int sys_newfstatat(int dirfd, const char *pathname, struct stat *buf,
-    int flags)
-{
-  return (fstatat(dirfd, pathname, buf, flags));
-}
-#endif
-#ifdef TARGET_NR_futimesat
-static int sys_futimesat(int dirfd, const char *pathname,
-    const struct timeval times[2])
-{
-  return (futimesat(dirfd, pathname, times));
-}
-#endif
-#ifdef TARGET_NR_linkat
-static int sys_linkat(int olddirfd, const char *oldpath,
-    int newdirfd, const char *newpath, int flags)
-{
-  return (linkat(olddirfd, oldpath, newdirfd, newpath, flags));
-}
-#endif
-#ifdef TARGET_NR_mkdirat
-static int sys_mkdirat(int dirfd, const char *pathname, mode_t mode)
-{
-  return (mkdirat(dirfd, pathname, mode));
-}
-#endif
-#ifdef TARGET_NR_mknodat
-static int sys_mknodat(int dirfd, const char *pathname, mode_t mode,
-    dev_t dev)
-{
-  return (mknodat(dirfd, pathname, mode, dev));
-}
-#endif
 #ifdef TARGET_NR_openat
 static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
 {
@@ -415,91 +337,6 @@ static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
   return (openat(dirfd, pathname, flags));
 }
 #endif
-#ifdef TARGET_NR_readlinkat
-static int sys_readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz)
-{
-  return (readlinkat(dirfd, pathname, buf, bufsiz));
-}
-#endif
-#ifdef TARGET_NR_renameat
-static int sys_renameat(int olddirfd, const char *oldpath,
-    int newdirfd, const char *newpath)
-{
-  return (renameat(olddirfd, oldpath, newdirfd, newpath));
-}
-#endif
-#ifdef TARGET_NR_symlinkat
-static int sys_symlinkat(const char *oldpath, int newdirfd, const char *newpath)
-{
-  return (symlinkat(oldpath, newdirfd, newpath));
-}
-#endif
-#ifdef TARGET_NR_unlinkat
-static int sys_unlinkat(int dirfd, const char *pathname, int flags)
-{
-  return (unlinkat(dirfd, pathname, flags));
-}
-#endif
-#else /* !CONFIG_ATFILE */
-
-/*
- * Try direct syscalls instead
- */
-#if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
-_syscall3(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode)
-#endif
-#if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
-_syscall3(int,sys_fchmodat,int,dirfd,const char *,pathname, mode_t,mode)
-#endif
-#if defined(TARGET_NR_fchownat) && defined(__NR_fchownat)
-_syscall5(int,sys_fchownat,int,dirfd,const char *,pathname,
-          uid_t,owner,gid_t,group,int,flags)
-#endif
-#if (defined(TARGET_NR_fstatat64) || defined(TARGET_NR_newfstatat)) && \
-        defined(__NR_fstatat64)
-_syscall4(int,sys_fstatat64,int,dirfd,const char *,pathname,
-          struct stat *,buf,int,flags)
-#endif
-#if defined(TARGET_NR_futimesat) && defined(__NR_futimesat)
-_syscall3(int,sys_futimesat,int,dirfd,const char *,pathname,
-         const struct timeval *,times)
-#endif
-#if (defined(TARGET_NR_newfstatat) || defined(TARGET_NR_fstatat64) ) && \
-        defined(__NR_newfstatat)
-_syscall4(int,sys_newfstatat,int,dirfd,const char *,pathname,
-          struct stat *,buf,int,flags)
-#endif
-#if defined(TARGET_NR_linkat) && defined(__NR_linkat)
-_syscall5(int,sys_linkat,int,olddirfd,const char *,oldpath,
-      int,newdirfd,const char *,newpath,int,flags)
-#endif
-#if defined(TARGET_NR_mkdirat) && defined(__NR_mkdirat)
-_syscall3(int,sys_mkdirat,int,dirfd,const char *,pathname,mode_t,mode)
-#endif
-#if defined(TARGET_NR_mknodat) && defined(__NR_mknodat)
-_syscall4(int,sys_mknodat,int,dirfd,const char *,pathname,
-          mode_t,mode,dev_t,dev)
-#endif
-#if defined(TARGET_NR_openat) && defined(__NR_openat)
-_syscall4(int,sys_openat,int,dirfd,const char *,pathname,int,flags,mode_t,mode)
-#endif
-#if defined(TARGET_NR_readlinkat) && defined(__NR_readlinkat)
-_syscall4(int,sys_readlinkat,int,dirfd,const char *,pathname,
-          char *,buf,size_t,bufsize)
-#endif
-#if defined(TARGET_NR_renameat) && defined(__NR_renameat)
-_syscall4(int,sys_renameat,int,olddirfd,const char *,oldpath,
-          int,newdirfd,const char *,newpath)
-#endif
-#if defined(TARGET_NR_symlinkat) && defined(__NR_symlinkat)
-_syscall3(int,sys_symlinkat,const char *,oldpath,
-          int,newdirfd,const char *,newpath)
-#endif
-#if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
-_syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
-#endif
-
-#endif /* CONFIG_ATFILE */
 
 #ifdef CONFIG_UTIMENSAT
 static int sys_utimensat(int dirfd, const char *pathname,
@@ -5342,7 +5179,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(p, arg1, 0);
         }
         break;
-#if defined(TARGET_NR_linkat) && defined(__NR_linkat)
+#if defined(TARGET_NR_linkat)
     case TARGET_NR_linkat:
         {
             void * p2 = NULL;
@@ -5353,7 +5190,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (!p || !p2)
                 ret = -TARGET_EFAULT;
             else
-                ret = get_errno(sys_linkat(arg1, p, arg3, p2, arg5));
+                ret = get_errno(linkat(arg1, p, arg3, p2, arg5));
             unlock_user(p, arg2, 0);
             unlock_user(p2, arg4, 0);
         }
@@ -5365,11 +5202,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(unlink(p));
         unlock_user(p, arg1, 0);
         break;
-#if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
+#if defined(TARGET_NR_unlinkat)
     case TARGET_NR_unlinkat:
         if (!(p = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(sys_unlinkat(arg1, p, arg3));
+        ret = get_errno(unlinkat(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
 #endif
@@ -5487,11 +5324,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(mknod(p, arg2, arg3));
         unlock_user(p, arg1, 0);
         break;
-#if defined(TARGET_NR_mknodat) && defined(__NR_mknodat)
+#if defined(TARGET_NR_mknodat)
     case TARGET_NR_mknodat:
         if (!(p = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(sys_mknodat(arg1, p, arg3, arg4));
+        ret = get_errno(mknodat(arg1, p, arg3, arg4));
         unlock_user(p, arg2, 0);
         break;
 #endif
@@ -5622,7 +5459,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(p, arg1, 0);
         }
         break;
-#if defined(TARGET_NR_futimesat) && defined(__NR_futimesat)
+#if defined(TARGET_NR_futimesat)
     case TARGET_NR_futimesat:
         {
             struct timeval *tvp, tv[2];
@@ -5637,7 +5474,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             if (!(p = lock_user_string(arg2)))
                 goto efault;
-            ret = get_errno(sys_futimesat(arg1, path(p), tvp));
+            ret = get_errno(futimesat(arg1, path(p), tvp));
             unlock_user(p, arg2, 0);
         }
         break;
@@ -5660,7 +5497,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_faccessat:
         if (!(p = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(sys_faccessat(arg1, p, arg3));
+        ret = get_errno(faccessat(arg1, p, arg3, 0));
         unlock_user(p, arg2, 0);
         break;
 #endif
@@ -5693,7 +5530,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(p, arg1, 0);
         }
         break;
-#if defined(TARGET_NR_renameat) && defined(__NR_renameat)
+#if defined(TARGET_NR_renameat)
     case TARGET_NR_renameat:
         {
             void *p2;
@@ -5702,7 +5539,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (!p || !p2)
                 ret = -TARGET_EFAULT;
             else
-                ret = get_errno(sys_renameat(arg1, p, arg3, p2));
+                ret = get_errno(renameat(arg1, p, arg3, p2));
             unlock_user(p2, arg4, 0);
             unlock_user(p, arg2, 0);
         }
@@ -5714,11 +5551,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(mkdir(p, arg2));
         unlock_user(p, arg1, 0);
         break;
-#if defined(TARGET_NR_mkdirat) && defined(__NR_mkdirat)
+#if defined(TARGET_NR_mkdirat)
     case TARGET_NR_mkdirat:
         if (!(p = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(sys_mkdirat(arg1, p, arg3));
+        ret = get_errno(mkdirat(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
 #endif
@@ -6404,7 +6241,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(p, arg1, 0);
         }
         break;
-#if defined(TARGET_NR_symlinkat) && defined(__NR_symlinkat)
+#if defined(TARGET_NR_symlinkat)
     case TARGET_NR_symlinkat:
         {
             void *p2;
@@ -6413,7 +6250,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (!p || !p2)
                 ret = -TARGET_EFAULT;
             else
-                ret = get_errno(sys_symlinkat(p, arg2, p2));
+                ret = get_errno(symlinkat(p, arg2, p2));
             unlock_user(p2, arg3, 0);
             unlock_user(p, arg1, 0);
         }
@@ -6444,7 +6281,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(p, arg1, 0);
         }
         break;
-#if defined(TARGET_NR_readlinkat) && defined(__NR_readlinkat)
+#if defined(TARGET_NR_readlinkat)
     case TARGET_NR_readlinkat:
         {
             void *p2;
@@ -6453,7 +6290,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (!p || !p2)
         	ret = -TARGET_EFAULT;
             else
-                ret = get_errno(sys_readlinkat(arg1, path(p), p2, arg4));
+                ret = get_errno(readlinkat(arg1, path(p), p2, arg4));
             unlock_user(p2, arg3, ret);
             unlock_user(p, arg2, 0);
         }
@@ -6588,11 +6425,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_fchmod:
         ret = get_errno(fchmod(arg1, arg2));
         break;
-#if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
+#if defined(TARGET_NR_fchmodat)
     case TARGET_NR_fchmodat:
         if (!(p = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(sys_fchmodat(arg1, p, arg3));
+        ret = get_errno(fchmodat(arg1, p, arg3, 0));
         unlock_user(p, arg2, 0);
         break;
 #endif
@@ -7123,6 +6960,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_getdents:
+#ifdef __NR_getdents
 #if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64
         {
             struct target_dirent *target_dirp;
@@ -7191,6 +7029,61 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     de = (struct linux_dirent *)((char *)de + reclen);
                     len -= reclen;
                 }
+            }
+            unlock_user(dirp, arg2, ret);
+        }
+#endif
+#else
+        /* Implement getdents in terms of getdents64 */
+        {
+            struct linux_dirent64 *dirp;
+            abi_long count = arg3;
+
+            dirp = lock_user(VERIFY_WRITE, arg2, count, 0);
+            if (!dirp) {
+                goto efault;
+            }
+            ret = get_errno(sys_getdents64(arg1, dirp, count));
+            if (!is_error(ret)) {
+                /* Convert the dirent64 structs to target dirent.  We do this
+                 * in-place, since we can guarantee that a target_dirent is no
+                 * larger than a dirent64; however this means we have to be
+                 * careful to read everything before writing in the new format.
+                 */
+                struct linux_dirent64 *de;
+                struct target_dirent *tde;
+                int len = ret;
+                int tlen = 0;
+
+                de = dirp;
+                tde = (struct target_dirent *)dirp;
+                while (len > 0) {
+                    int namelen, treclen;
+                    int reclen = de->d_reclen;
+                    uint64_t ino = de->d_ino;
+                    int64_t off = de->d_off;
+                    uint8_t type = de->d_type;
+
+                    namelen = strlen(de->d_name);
+                    treclen = offsetof(struct target_dirent, d_name)
+                        + namelen + 2;
+                    treclen = QEMU_ALIGN_UP(treclen, sizeof(abi_long));
+
+                    memmove(tde->d_name, de->d_name, namelen + 1);
+                    tde->d_ino = tswapal(ino);
+                    tde->d_off = tswapal(off);
+                    tde->d_reclen = tswap16(treclen);
+                    /* The target_dirent type is in what was formerly a padding
+                     * byte at the end of the structure:
+                     */
+                    *(((char *)tde) + treclen - 1) = type;
+
+                    de = (struct linux_dirent64 *)((char *)de + reclen);
+                    tde = (struct target_dirent *)((char *)tde + treclen);
+                    len -= reclen;
+                    tlen += treclen;
+                }
+                ret = tlen;
             }
             unlock_user(dirp, arg2, ret);
         }
@@ -7680,8 +7573,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = host_to_target_stat64(cpu_env, arg2, &st);
         break;
 #endif
-#if (defined(TARGET_NR_fstatat64) || defined(TARGET_NR_newfstatat)) && \
-        (defined(__NR_fstatat64) || defined(__NR_newfstatat))
+#if (defined(TARGET_NR_fstatat64) || defined(TARGET_NR_newfstatat))
 #ifdef TARGET_NR_fstatat64
     case TARGET_NR_fstatat64:
 #endif
@@ -7690,11 +7582,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
         if (!(p = lock_user_string(arg2)))
             goto efault;
-#ifdef __NR_fstatat64
-        ret = get_errno(sys_fstatat64(arg1, path(p), &st, arg4));
-#else
-        ret = get_errno(sys_newfstatat(arg1, path(p), &st, arg4));
-#endif
+        ret = get_errno(fstatat(arg1, path(p), &st, arg4));
         if (!is_error(ret))
             ret = host_to_target_stat64(cpu_env, arg3, &st);
         break;
@@ -7776,11 +7664,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_fchown:
         ret = get_errno(fchown(arg1, low2highuid(arg2), low2highgid(arg3)));
         break;
-#if defined(TARGET_NR_fchownat) && defined(__NR_fchownat)
+#if defined(TARGET_NR_fchownat)
     case TARGET_NR_fchownat:
         if (!(p = lock_user_string(arg2))) 
             goto efault;
-        ret = get_errno(sys_fchownat(arg1, p, low2highuid(arg3), low2highgid(arg4), arg5));
+        ret = get_errno(fchownat(arg1, p, low2highuid(arg3),
+                                 low2highgid(arg4), arg5));
         unlock_user(p, arg2, 0);
         break;
 #endif

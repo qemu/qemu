@@ -128,7 +128,7 @@ static inline void tlb_flush(CPUArchState *env, int flush_global)
 
 #if defined(__arm__) || defined(_ARCH_PPC) \
     || defined(__x86_64__) || defined(__i386__) \
-    || defined(__sparc__) \
+    || defined(__sparc__) || defined(__aarch64__) \
     || defined(CONFIG_TCG_INTERPRETER)
 #define USE_DIRECT_JUMP
 #endif
@@ -230,6 +230,9 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
     /* no need to flush icache explicitly */
 }
+#elif defined(__aarch64__)
+void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
+#define tb_set_jmp_target1 aarch64_tb_set_jmp_target
 #elif defined(__arm__)
 static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {

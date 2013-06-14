@@ -767,6 +767,12 @@ M: qemu-devel@nongnu.org
 S: Maintained
 F: tcg/
 
+AArch64 target
+M: Claudio Fontana <claudio.fontana@huawei.com>
+M: Claudio Fontana <claudio.fontana@gmail.com>
+S: Maintained
+F: tcg/aarch64/
+
 ARM target
 M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
