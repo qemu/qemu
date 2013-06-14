@@ -920,8 +920,11 @@ void mips_malta_init(QEMUMachineInitArgs *args)
            a neat trick which allows bi-endian firmware. */
 #ifndef TARGET_WORDS_BIGENDIAN
         {
-            uint32_t *addr = memory_region_get_ram_ptr(bios);
-            uint32_t *end = addr + bios_size;
+            uint32_t *end, *addr = rom_ptr(FLASH_ADDRESS);
+            if (!addr) {
+                addr = memory_region_get_ram_ptr(bios);
+            }
+            end = (void *)addr + bios_size;
             while (addr < end) {
                 bswap32s(addr);
                 addr++;
