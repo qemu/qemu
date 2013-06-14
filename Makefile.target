@@ -15,14 +15,14 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/include
 
 ifdef CONFIG_USER_ONLY
 # user emulator name
-QEMU_PROG=qemu-$(TARGET_ARCH2)
+QEMU_PROG=qemu-$(TARGET_NAME)
 else
 # system emulator name
 ifneq (,$(findstring -mwindows,$(libs_softmmu)))
 # Terminate program name with a 'w' because the linker builds a windows executable.
-QEMU_PROGW=qemu-system-$(TARGET_ARCH2)w$(EXESUF)
+QEMU_PROGW=qemu-system-$(TARGET_NAME)w$(EXESUF)
 endif # windows executable
-QEMU_PROG=qemu-system-$(TARGET_ARCH2)$(EXESUF)
+QEMU_PROG=qemu-system-$(TARGET_NAME)$(EXESUF)
 endif
 
 PROGS=$(QEMU_PROG)

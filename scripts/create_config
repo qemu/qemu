@@ -94,7 +94,7 @@ case $line in
  TARGET_ABI_DIR=*)
     # do nothing
     ;;
- TARGET_ARCH2=*)
+ TARGET_NAME=*)
     # do nothing
     ;;
  TARGET_DIRS=*)
