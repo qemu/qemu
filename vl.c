@@ -199,9 +199,7 @@ static int rtc_date_offset = -1; /* -1 means no change */
 QEMUClock *rtc_clock;
 int vga_interface_type = VGA_NONE;
 static int full_screen = 0;
-#ifdef CONFIG_SDL
 static int no_frame = 0;
-#endif
 int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
