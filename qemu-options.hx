@@ -2539,9 +2539,9 @@ Like -monitor but opens in 'control' mode.
 ETEXI
 
 DEF("mon", HAS_ARG, QEMU_OPTION_mon, \
-    "-mon chardev=[name][,mode=readline|control][,default]\n", QEMU_ARCH_ALL)
+    "-mon [chardev=]name[,mode=readline|control][,default]\n", QEMU_ARCH_ALL)
 STEXI
-@item -mon chardev=[name][,mode=readline|control][,default]
+@item -mon [chardev=]name[,mode=readline|control][,default]
 @findex -mon
 Setup monitor on chardev @var{name}.
 ETEXI
