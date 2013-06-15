@@ -66,7 +66,7 @@ i2c_bus *i2c_init_bus(DeviceState *parent, const char *name)
 {
     i2c_bus *bus;
 
-    bus = FROM_QBUS(i2c_bus, qbus_create(TYPE_I2C_BUS, parent, name));
+    bus = I2C_BUS(qbus_create(TYPE_I2C_BUS, parent, name));
     vmstate_register(NULL, -1, &vmstate_i2c_bus, bus);
     return bus;
 }
@@ -183,7 +183,7 @@ static int i2c_slave_post_load(void *opaque, int version_id)
 {
     I2CSlave *dev = opaque;
     i2c_bus *bus;
-    bus = FROM_QBUS(i2c_bus, qdev_get_parent_bus(&dev->qdev));
+    bus = I2C_BUS(qdev_get_parent_bus(DEVICE(dev)));
     if (bus->saved_address == dev->address) {
         bus->current_dev = dev;
     }

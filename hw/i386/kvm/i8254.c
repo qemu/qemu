@@ -32,12 +32,25 @@
 
 #define CALIBRATION_ROUNDS   3
 
+#define KVM_PIT(obj) OBJECT_CHECK(KVMPITState, (obj), TYPE_KVM_I8254)
+#define KVM_PIT_CLASS(class) \
+    OBJECT_CLASS_CHECK(KVMPITClass, (class), TYPE_KVM_I8254)
+#define KVM_PIT_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(KVMPITClass, (obj), TYPE_KVM_I8254)
+
 typedef struct KVMPITState {
-    PITCommonState pit;
+    PITCommonState parent_obj;
+
     LostTickPolicy lost_tick_policy;
     bool vm_stopped;
     int64_t kernel_clock_offset;
 } KVMPITState;
+
+typedef struct KVMPITClass {
+    PITCommonClass parent_class;
+
+    DeviceRealize parent_realize;
+} KVMPITClass;
 
 static int64_t abs64(int64_t v)
 {
@@ -70,7 +83,7 @@ static void kvm_pit_update_clock_offset(KVMPITState *s)
 
 static void kvm_pit_get(PITCommonState *pit)
 {
-    KVMPITState *s = DO_UPCAST(KVMPITState, pit, pit);
+    KVMPITState *s = KVM_PIT(pit);
     struct kvm_pit_state2 kpit;
     struct kvm_pit_channel_state *kchan;
     struct PITChannelState *sc;
@@ -124,7 +137,7 @@ static void kvm_pit_get(PITCommonState *pit)
 
 static void kvm_pit_put(PITCommonState *pit)
 {
-    KVMPITState *s = DO_UPCAST(KVMPITState, pit, pit);
+    KVMPITState *s = KVM_PIT(pit);
     struct kvm_pit_state2 kpit;
     struct kvm_pit_channel_state *kchan;
     struct PITChannelState *sc;
@@ -200,7 +213,7 @@ static void kvm_pit_get_channel_info(PITCommonState *s, PITChannelState *sc,
 
 static void kvm_pit_reset(DeviceState *dev)
 {
-    PITCommonState *s = DO_UPCAST(PITCommonState, dev.qdev, dev);
+    PITCommonState *s = PIT_COMMON(dev);
 
     pit_reset_common(s);
 
@@ -229,14 +242,16 @@ static void kvm_pit_vm_state_change(void *opaque, int running,
         s->vm_stopped = false;
     } else {
         kvm_pit_update_clock_offset(s);
-        kvm_pit_get(&s->pit);
+        kvm_pit_get(PIT_COMMON(s));
         s->vm_stopped = true;
     }
 }
 
-static int kvm_pit_initfn(PITCommonState *pit)
+static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
 {
-    KVMPITState *s = DO_UPCAST(KVMPITState, pit, pit);
+    PITCommonState *pit = PIT_COMMON(dev);
+    KVMPITClass *kpc = KVM_PIT_GET_CLASS(dev);
+    KVMPITState *s = KVM_PIT(pit);
     struct kvm_pit_config config = {
         .flags = 0,
     };
@@ -248,9 +263,9 @@ static int kvm_pit_initfn(PITCommonState *pit)
         ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_PIT);
     }
     if (ret < 0) {
-        fprintf(stderr, "Create kernel PIC irqchip failed: %s\n",
-                strerror(ret));
-        return ret;
+        error_setg(errp, "Create kernel PIC irqchip failed: %s",
+                   strerror(ret));
+        return;
     }
     switch (s->lost_tick_policy) {
     case LOST_TICK_DELAY:
@@ -261,28 +276,29 @@ static int kvm_pit_initfn(PITCommonState *pit)
 
             ret = kvm_vm_ioctl(kvm_state, KVM_REINJECT_CONTROL, &control);
             if (ret < 0) {
-                fprintf(stderr,
-                        "Can't disable in-kernel PIT reinjection: %s\n",
-                        strerror(ret));
-                return ret;
+                error_setg(errp,
+                           "Can't disable in-kernel PIT reinjection: %s",
+                           strerror(ret));
+                return;
             }
         }
         break;
     default:
-        return -EINVAL;
+        error_setg(errp, "Lost tick policy not supported.");
+        return;
     }
 
     memory_region_init_reservation(&pit->ioports, "kvm-pit", 4);
 
-    qdev_init_gpio_in(&pit->dev.qdev, kvm_pit_irq_control, 1);
+    qdev_init_gpio_in(dev, kvm_pit_irq_control, 1);
 
     qemu_add_vm_change_state_handler(kvm_pit_vm_state_change, s);
 
-    return 0;
+    kpc->parent_realize(dev, errp);
 }
 
 static Property kvm_pit_properties[] = {
-    DEFINE_PROP_HEX32("iobase", KVMPITState, pit.iobase,  -1),
+    DEFINE_PROP_HEX32("iobase", PITCommonState, iobase,  -1),
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", KVMPITState,
                                lost_tick_policy, LOST_TICK_DELAY),
     DEFINE_PROP_END_OF_LIST(),
@@ -290,10 +306,12 @@ static Property kvm_pit_properties[] = {
 
 static void kvm_pit_class_init(ObjectClass *klass, void *data)
 {
+    KVMPITClass *kpc = KVM_PIT_CLASS(klass);
     PITCommonClass *k = PIT_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = kvm_pit_initfn;
+    kpc->parent_realize = dc->realize;
+    dc->realize = kvm_pit_realizefn;
     k->set_channel_gate = kvm_pit_set_gate;
     k->get_channel_info = kvm_pit_get_channel_info;
     k->pre_save = kvm_pit_get;
@@ -303,10 +321,11 @@ static void kvm_pit_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo kvm_pit_info = {
-    .name          = "kvm-pit",
+    .name          = TYPE_KVM_I8254,
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(KVMPITState),
     .class_init = kvm_pit_class_init,
+    .class_size = sizeof(KVMPITClass),
 };
 
 static void kvm_pit_register(void)

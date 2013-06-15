@@ -137,25 +137,25 @@ static const MemoryRegionOps vmport_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int vmport_initfn(ISADevice *dev)
+static void vmport_realizefn(DeviceState *dev, Error **errp)
 {
+    ISADevice *isadev = ISA_DEVICE(dev);
     VMPortState *s = VMPORT(dev);
 
     memory_region_init_io(&s->io, &vmport_ops, s, "vmport", 1);
-    isa_register_ioport(dev, &s->io, 0x5658);
+    isa_register_ioport(isadev, &s->io, 0x5658);
 
     port_state = s;
     /* Register some generic port commands */
     vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, NULL);
     vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
-    return 0;
 }
 
 static void vmport_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = vmport_initfn;
+
+    dc->realize = vmport_realizefn;
     dc->no_user = 1;
 }
 

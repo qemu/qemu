@@ -98,7 +98,7 @@ static uint32_t i82374_read_descriptor(void *opaque, uint32_t nport)
     return val;
 }
 
-static void i82374_init(I82374State *s)
+static void i82374_realize(I82374State *s, Error **errp)
 {
     DMA_init(1, &s->out);
     memset(s->commands, 0, sizeof(s->commands));
@@ -124,7 +124,7 @@ static const VMStateDescription vmstate_isa_i82374 = {
     },
 };
 
-static int i82374_isa_init(ISADevice *dev)
+static void i82374_isa_realize(DeviceState *dev, Error **errp)
 {
     ISAi82374State *isa = I82374(dev);
     I82374State *s = &isa->state;
@@ -135,11 +135,9 @@ static int i82374_isa_init(ISADevice *dev)
     register_ioport_write(isa->iobase + 0x20, 0x20, 1, i82374_write_descriptor, s);
     register_ioport_read(isa->iobase + 0x20, 0x20, 1, i82374_read_descriptor, s);
 
-    i82374_init(s);
+    i82374_realize(s, errp);
 
-    qdev_init_gpio_out(&dev->qdev, &s->out, 1);
-
-    return 0;
+    qdev_init_gpio_out(dev, &s->out, 1);
 }
 
 static Property i82374_properties[] = {
@@ -149,10 +147,9 @@ static Property i82374_properties[] = {
 
 static void i82374_class_init(ObjectClass *klass, void *data)
 {
-    ISADeviceClass *k = ISA_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     
-    k->init  = i82374_isa_init;
+    dc->realize = i82374_isa_realize;
     dc->vmsd = &vmstate_isa_i82374;
     dc->props = i82374_properties;
 }

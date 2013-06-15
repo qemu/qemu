@@ -103,7 +103,7 @@ SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
 {
     BusState *bus;
     bus = qbus_create(TYPE_SSI_BUS, parent, name);
-    return FROM_QBUS(SSIBus, bus);
+    return SSI_BUS(bus);
 }
 
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val)

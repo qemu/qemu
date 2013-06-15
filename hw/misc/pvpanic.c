@@ -86,14 +86,21 @@ static const MemoryRegionOps pvpanic_ops = {
     },
 };
 
-static int pvpanic_isa_initfn(ISADevice *dev)
+static void pvpanic_isa_initfn(Object *obj)
 {
+    PVPanicState *s = ISA_PVPANIC_DEVICE(obj);
+
+    memory_region_init_io(&s->io, &pvpanic_ops, s, "pvpanic", 1);
+}
+
+static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
+{
+    ISADevice *d = ISA_DEVICE(dev);
     PVPanicState *s = ISA_PVPANIC_DEVICE(dev);
     static bool port_configured;
     FWCfgState *fw_cfg;
 
-    memory_region_init_io(&s->io, &pvpanic_ops, s, "pvpanic", 1);
-    isa_register_ioport(dev, &s->io, s->ioport);
+    isa_register_ioport(d, &s->io, s->ioport);
 
     if (!port_configured) {
         fw_cfg = fw_cfg_find();
@@ -104,8 +111,6 @@ static int pvpanic_isa_initfn(ISADevice *dev)
             port_configured = true;
         }
     }
-
-    return 0;
 }
 
 int pvpanic_init(ISABus *bus)
@@ -122,9 +127,8 @@ static Property pvpanic_isa_properties[] = {
 static void pvpanic_isa_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
 
-    ic->init = pvpanic_isa_initfn;
+    dc->realize = pvpanic_isa_realizefn;
     dc->no_user = 1;
     dc->props = pvpanic_isa_properties;
 }
@@ -133,6 +137,7 @@ static TypeInfo pvpanic_isa_info = {
     .name          = TYPE_ISA_PVPANIC_DEVICE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PVPanicState),
+    .instance_init = pvpanic_isa_initfn,
     .class_init    = pvpanic_isa_class_init,
 };
 

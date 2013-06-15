@@ -163,16 +163,21 @@ static const MemoryRegionOps pcspk_io_ops = {
     },
 };
 
-static int pcspk_initfn(ISADevice *dev)
+static void pcspk_initfn(Object *obj)
 {
-    PCSpkState *s = PC_SPEAKER(dev);
+    PCSpkState *s = PC_SPEAKER(obj);
 
     memory_region_init_io(&s->ioport, &pcspk_io_ops, s, "elcr", 1);
-    isa_register_ioport(dev, &s->ioport, s->iobase);
+}
+
+static void pcspk_realizefn(DeviceState *dev, Error **errp)
+{
+    ISADevice *isadev = ISA_DEVICE(dev);
+    PCSpkState *s = PC_SPEAKER(dev);
+
+    isa_register_ioport(isadev, &s->ioport, s->iobase);
 
     pcspk_state = s;
-
-    return 0;
 }
 
 static Property pcspk_properties[] = {
@@ -184,9 +189,8 @@ static Property pcspk_properties[] = {
 static void pcspk_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
 
-    ic->init = pcspk_initfn;
+    dc->realize = pcspk_realizefn;
     dc->no_user = 1;
     dc->props = pcspk_properties;
 }
@@ -195,6 +199,7 @@ static const TypeInfo pcspk_info = {
     .name           = TYPE_PC_SPEAKER,
     .parent         = TYPE_ISA_DEVICE,
     .instance_size  = sizeof(PCSpkState),
+    .instance_init  = pcspk_initfn,
     .class_init     = pcspk_class_initfn,
 };
 

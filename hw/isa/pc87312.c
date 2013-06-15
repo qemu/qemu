@@ -264,7 +264,7 @@ static void pc87312_reset(DeviceState *d)
     pc87312_soft_reset(s);
 }
 
-static int pc87312_init(ISADevice *dev)
+static void pc87312_realize(DeviceState *dev, Error **errp)
 {
     PC87312State *s;
     DeviceState *d;
@@ -276,9 +276,10 @@ static int pc87312_init(ISADevice *dev)
     int i;
 
     s = PC87312(dev);
-    bus = isa_bus_from_device(dev);
+    isa = ISA_DEVICE(dev);
+    bus = isa_bus_from_device(isa);
+    isa_register_ioport(isa, &s->io, s->iobase);
     pc87312_hard_reset(s);
-    isa_register_ioport(dev, &s->io, s->iobase);
 
     if (is_parallel_enabled(s)) {
         chr = parallel_hds[0];
@@ -345,8 +346,6 @@ static int pc87312_init(ISADevice *dev)
         s->ide.dev = isa;
         trace_pc87312_info_ide(get_ide_iobase(s));
     }
-
-    return 0;
 }
 
 static void pc87312_initfn(Object *obj)
@@ -378,9 +377,8 @@ static Property pc87312_properties[] = {
 static void pc87312_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
 
-    ic->init = pc87312_init;
+    dc->realize = pc87312_realize;
     dc->reset = pc87312_reset;
     dc->vmsd = &vmstate_pc87312;
     dc->props = pc87312_properties;

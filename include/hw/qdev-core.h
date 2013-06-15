@@ -261,8 +261,6 @@ void qbus_reset_all_fn(void *opaque);
 
 void qbus_free(BusState *bus);
 
-#define FROM_QBUS(type, dev) DO_UPCAST(type, qbus, dev)
-
 /* This should go away once we get rid of the NULL bus hack */
 BusState *sysbus_get_default(void);
 

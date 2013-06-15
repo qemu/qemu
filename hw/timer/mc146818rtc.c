@@ -814,8 +814,9 @@ static void rtc_get_date(Object *obj, Visitor *v, void *opaque,
     visit_end_struct(v, errp);
 }
 
-static int rtc_initfn(ISADevice *dev)
+static void rtc_realizefn(DeviceState *dev, Error **errp)
 {
+    ISADevice *isadev = ISA_DEVICE(dev);
     RTCState *s = MC146818_RTC(dev);
     int base = 0x70;
 
@@ -836,7 +837,7 @@ static int rtc_initfn(ISADevice *dev)
         s->base_year = 0;
     }
 
-    rtc_set_date_from_host(dev);
+    rtc_set_date_from_host(isadev);
 
 #ifdef TARGET_I386
     switch (s->lost_tick_policy) {
@@ -847,7 +848,8 @@ static int rtc_initfn(ISADevice *dev)
     case LOST_TICK_DISCARD:
         break;
     default:
-        return -EINVAL;
+        error_setg(errp, "Invalid lost tick policy.");
+        return;
     }
 #endif
 
@@ -862,15 +864,13 @@ static int rtc_initfn(ISADevice *dev)
     qemu_register_suspend_notifier(&s->suspend_notifier);
 
     memory_region_init_io(&s->io, &cmos_ops, s, "rtc", 2);
-    isa_register_ioport(dev, &s->io, base);
+    isa_register_ioport(isadev, &s->io, base);
 
-    qdev_set_legacy_instance_id(&dev->qdev, base, 3);
+    qdev_set_legacy_instance_id(dev, base, 3);
     qemu_register_reset(rtc_reset, s);
 
     object_property_add(OBJECT(s), "date", "struct tm",
                         rtc_get_date, NULL, NULL, s, NULL);
-
-    return 0;
 }
 
 ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
@@ -902,8 +902,8 @@ static Property mc146818rtc_properties[] = {
 static void rtc_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = rtc_initfn;
+
+    dc->realize = rtc_realizefn;
     dc->no_user = 1;
     dc->vmsd = &vmstate_rtc;
     dc->props = mc146818rtc_properties;

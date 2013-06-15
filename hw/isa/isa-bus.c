@@ -55,7 +55,7 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io)
         qdev_init_nofail(dev);
     }
 
-    isabus = FROM_QBUS(ISABus, qbus_create(TYPE_ISA_BUS, dev, NULL));
+    isabus = ISA_BUS(qbus_create(TYPE_ISA_BUS, dev, NULL));
     isabus->address_space_io = address_space_io;
     return isabus;
 }
@@ -76,7 +76,7 @@ void isa_bus_irqs(ISABus *bus, qemu_irq *irqs)
  */
 qemu_irq isa_get_irq(ISADevice *dev, int isairq)
 {
-    assert(!dev || DO_UPCAST(ISABus, qbus, dev->qdev.parent_bus) == isabus);
+    assert(!dev || ISA_BUS(qdev_get_parent_bus(DEVICE(dev))) == isabus);
     if (isairq < 0 || isairq > 15) {
         hw_error("isa irq %d invalid", isairq);
     }
@@ -119,18 +119,6 @@ void isa_register_portio_list(ISADevice *dev, uint16_t start,
     portio_list_add(piolist, isabus->address_space_io, start);
 }
 
-static int isa_qdev_init(DeviceState *qdev)
-{
-    ISADevice *dev = ISA_DEVICE(qdev);
-    ISADeviceClass *klass = ISA_DEVICE_GET_CLASS(dev);
-
-    if (klass->init) {
-        return klass->init(dev);
-    }
-
-    return 0;
-}
-
 static void isa_device_init(Object *obj)
 {
     ISADevice *dev = ISA_DEVICE(obj);
@@ -147,7 +135,7 @@ ISADevice *isa_create(ISABus *bus, const char *name)
         hw_error("Tried to create isa device %s with no isa bus present.",
                  name);
     }
-    dev = qdev_create(&bus->qbus, name);
+    dev = qdev_create(BUS(bus), name);
     return ISA_DEVICE(dev);
 }
 
@@ -159,7 +147,7 @@ ISADevice *isa_try_create(ISABus *bus, const char *name)
         hw_error("Tried to create isa device %s with no isa bus present.",
                  name);
     }
-    dev = qdev_try_create(&bus->qbus, name);
+    dev = qdev_try_create(BUS(bus), name);
     return ISA_DEVICE(dev);
 }
 
@@ -168,7 +156,7 @@ ISADevice *isa_create_simple(ISABus *bus, const char *name)
     ISADevice *dev;
 
     dev = isa_create(bus, name);
-    qdev_init_nofail(&dev->qdev);
+    qdev_init_nofail(DEVICE(dev));
     return dev;
 }
 
@@ -230,7 +218,6 @@ static const TypeInfo isabus_bridge_info = {
 static void isa_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->init = isa_qdev_init;
     k->bus_type = TYPE_ISA_BUS;
 }
 
@@ -253,7 +240,7 @@ static void isabus_register_types(void)
 
 static char *isabus_get_fw_dev_path(DeviceState *dev)
 {
-    ISADevice *d = (ISADevice*)dev;
+    ISADevice *d = ISA_DEVICE(dev);
     char path[40];
     int off;
 

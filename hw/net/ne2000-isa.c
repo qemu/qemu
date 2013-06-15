@@ -66,24 +66,23 @@ static const VMStateDescription vmstate_isa_ne2000 = {
     }
 };
 
-static int isa_ne2000_initfn(ISADevice *dev)
+static void isa_ne2000_realizefn(DeviceState *dev, Error **errp)
 {
+    ISADevice *isadev = ISA_DEVICE(dev);
     ISANE2000State *isa = ISA_NE2000(dev);
     NE2000State *s = &isa->ne2000;
 
     ne2000_setup_io(s, 0x20);
-    isa_register_ioport(dev, &s->io, isa->iobase);
+    isa_register_ioport(isadev, &s->io, isa->iobase);
 
-    isa_init_irq(dev, &s->irq, isa->isairq);
+    isa_init_irq(isadev, &s->irq, isa->isairq);
 
     qemu_macaddr_default_if_unset(&s->c.macaddr);
     ne2000_reset(s);
 
     s->nic = qemu_new_nic(&net_ne2000_isa_info, &s->c,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
-
-    return 0;
 }
 
 static Property ne2000_isa_properties[] = {
@@ -96,8 +95,8 @@ static Property ne2000_isa_properties[] = {
 static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = isa_ne2000_initfn;
+
+    dc->realize = isa_ne2000_realizefn;
     dc->props = ne2000_isa_properties;
 }
 

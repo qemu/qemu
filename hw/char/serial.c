@@ -642,11 +642,11 @@ static void serial_reset(void *opaque)
     qemu_irq_lower(s->irq);
 }
 
-void serial_init_core(SerialState *s)
+void serial_realize_core(SerialState *s, Error **errp)
 {
     if (!s->chr) {
-        fprintf(stderr, "Can't create serial device, empty char device\n");
-	exit(1);
+        error_setg(errp, "Can't create serial device, empty char device");
+        return;
     }
 
     s->modem_status_poll = qemu_new_timer_ns(vm_clock, (QEMUTimerCB *) serial_update_msl, s);
@@ -687,13 +687,19 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
                          CharDriverState *chr, MemoryRegion *system_io)
 {
     SerialState *s;
+    Error *err = NULL;
 
     s = g_malloc0(sizeof(SerialState));
 
     s->irq = irq;
     s->baudbase = baudbase;
     s->chr = chr;
-    serial_init_core(s);
+    serial_realize_core(s, &err);
+    if (err != NULL) {
+        fprintf(stderr, "%s\n", error_get_pretty(err));
+        error_free(err);
+        exit(1);
+    }
 
     vmstate_register(NULL, base, &vmstate_serial, s);
 
@@ -743,6 +749,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
                             CharDriverState *chr, enum device_endian end)
 {
     SerialState *s;
+    Error *err = NULL;
 
     s = g_malloc0(sizeof(SerialState));
 
@@ -751,7 +758,12 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     s->baudbase = baudbase;
     s->chr = chr;
 
-    serial_init_core(s);
+    serial_realize_core(s, &err);
+    if (err != NULL) {
+        fprintf(stderr, "%s\n", error_get_pretty(err));
+        error_free(err);
+        exit(1);
+    }
     vmstate_register(NULL, base, &vmstate_serial, s);
 
     memory_region_init_io(&s->io, &serial_mm_ops[end], s,

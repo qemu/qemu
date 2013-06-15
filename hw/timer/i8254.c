@@ -35,6 +35,15 @@
 #define RW_STATE_WORD0 3
 #define RW_STATE_WORD1 4
 
+#define PIT_CLASS(class) OBJECT_CLASS_CHECK(PITClass, (class), TYPE_I8254)
+#define PIT_GET_CLASS(obj) OBJECT_GET_CLASS(PITClass, (obj), TYPE_I8254)
+
+typedef struct PITClass {
+    PITCommonClass parent_class;
+
+    DeviceRealize parent_realize;
+} PITClass;
+
 static void pit_irq_timer_update(PITChannelState *s, int64_t current_time);
 
 static int pit_get_count(PITChannelState *s)
@@ -265,7 +274,7 @@ static void pit_irq_timer(void *opaque)
 
 static void pit_reset(DeviceState *dev)
 {
-    PITCommonState *pit = DO_UPCAST(PITCommonState, dev.qdev, dev);
+    PITCommonState *pit = PIT_COMMON(dev);
     PITChannelState *s;
 
     pit_reset_common(pit);
@@ -313,20 +322,22 @@ static void pit_post_load(PITCommonState *s)
     }
 }
 
-static int pit_initfn(PITCommonState *pit)
+static void pit_realizefn(DeviceState *dev, Error **err)
 {
+    PITCommonState *pit = PIT_COMMON(dev);
+    PITClass *pc = PIT_GET_CLASS(dev);
     PITChannelState *s;
 
     s = &pit->channels[0];
     /* the timer 0 is connected to an IRQ */
     s->irq_timer = qemu_new_timer_ns(vm_clock, pit_irq_timer, s);
-    qdev_init_gpio_out(&pit->dev.qdev, &s->irq, 1);
+    qdev_init_gpio_out(dev, &s->irq, 1);
 
     memory_region_init_io(&pit->ioports, &pit_ioport_ops, pit, "pit", 4);
 
-    qdev_init_gpio_in(&pit->dev.qdev, pit_irq_control, 1);
+    qdev_init_gpio_in(dev, pit_irq_control, 1);
 
-    return 0;
+    pc->parent_realize(dev, err);
 }
 
 static Property pit_properties[] = {
@@ -336,10 +347,12 @@ static Property pit_properties[] = {
 
 static void pit_class_initfn(ObjectClass *klass, void *data)
 {
+    PITClass *pc = PIT_CLASS(klass);
     PITCommonClass *k = PIT_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = pit_initfn;
+    pc->parent_realize = dc->realize;
+    dc->realize = pit_realizefn;
     k->set_channel_gate = pit_set_channel_gate;
     k->get_channel_info = pit_get_channel_info_common;
     k->post_load = pit_post_load;
@@ -348,10 +361,11 @@ static void pit_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pit_info = {
-    .name          = "isa-pit",
+    .name          = TYPE_I8254,
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(PITCommonState),
     .class_init    = pit_class_initfn,
+    .class_size    = sizeof(PITClass),
 };
 
 static void pit_register_types(void)
