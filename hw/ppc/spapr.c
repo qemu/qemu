@@ -971,6 +971,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
 static QEMUMachine spapr_machine = {
     .name = "pseries",
     .desc = "pSeries Logical Partition (PAPR compliant)",
+    .is_default = 1,
     .init = ppc_spapr_init,
     .reset = ppc_spapr_reset,
     .block_default_type = IF_SCSI,

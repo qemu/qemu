@@ -458,9 +458,6 @@ static QEMUMachine core99_machine = {
     .desc = "Mac99 based PowerMAC",
     .init = ppc_core99_init,
     .max_cpus = MAX_CPUS,
-#ifdef TARGET_PPC64
-    .is_default = 1,
-#endif
     DEFAULT_MACHINE_OPTIONS,
 };
 
