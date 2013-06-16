@@ -90,17 +90,13 @@ static int nss_emul_init;
 /*
  * allocate the set of arrays for certs, cert_len, key
  */
-static PRBool
+static void
 vcard_emul_alloc_arrays(unsigned char ***certsp, int **cert_lenp,
                         VCardKey ***keysp, int cert_count)
 {
-    *certsp = NULL;
-    *cert_lenp = NULL;
-    *keysp = NULL;
     *certsp = (unsigned char **)g_malloc(sizeof(unsigned char *)*cert_count);
     *cert_lenp = (int *)g_malloc(sizeof(int)*cert_count);
     *keysp = (VCardKey **)g_malloc(sizeof(VCardKey *)*cert_count);
-    return PR_TRUE;
 }
 
 /*
@@ -601,7 +597,6 @@ vcard_emul_mirror_card(VReader *vreader)
     int *cert_len;
     VCardKey **keys;
     PK11SlotInfo *slot;
-    PRBool ret;
     VCard *card;
 
     slot = vcard_emul_reader_get_slot(vreader);
@@ -627,10 +622,7 @@ vcard_emul_mirror_card(VReader *vreader)
     }
 
     /* allocate the arrays */
-    ret = vcard_emul_alloc_arrays(&certs, &cert_len, &keys, cert_count);
-    if (ret == PR_FALSE) {
-        return NULL;
-    }
+    vcard_emul_alloc_arrays(&certs, &cert_len, &keys, cert_count);
 
     /* fill in the arrays */
     cert_count = 0;
@@ -878,7 +870,7 @@ VCardEmulError
 vcard_emul_init(const VCardEmulOptions *options)
 {
     SECStatus rv;
-    PRBool ret, has_readers = PR_FALSE;
+    PRBool has_readers = PR_FALSE;
     VReader *vreader;
     VReaderEmul *vreader_emul;
     SECMODListLock *module_lock;
@@ -944,11 +936,9 @@ vcard_emul_init(const VCardEmulOptions *options)
         vreader_add_reader(vreader);
         cert_count = options->vreader[i].cert_count;
 
-        ret = vcard_emul_alloc_arrays(&certs, &cert_len, &keys,
-                                      options->vreader[i].cert_count);
-        if (ret == PR_FALSE) {
-            continue;
-        }
+        vcard_emul_alloc_arrays(&certs, &cert_len, &keys,
+                                options->vreader[i].cert_count);
+
         cert_count = 0;
         for (j = 0; j < options->vreader[i].cert_count; j++) {
             /* we should have a better way of identifying certs than by
