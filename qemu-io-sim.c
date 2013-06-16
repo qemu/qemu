@@ -19,7 +19,7 @@
 #include "block/blksim.h"
 
 void fvd_init_prefetch (BlockDriverState * bs);
-static void sim_start_prefetch (void)
+static void sim_start_prefetch(BlockDriverState *bs)
 {
     if (!bs->drv->format_name || !strncmp (bs->drv->format_name, "fvd", 3)) {
         printf ("This image does not support prefetching.\n");
@@ -39,7 +39,7 @@ static void sim_help (void)
             " sim prefetch\t\tstart prefetching\n");
 }
 
-static int sim_f (int argc, char **argv)
+static int sim_f(BlockDriverState *bs, int argc, char **argv)
 {
     int ret = 0;
 
@@ -54,7 +54,7 @@ static int sim_f (int argc, char **argv)
     if (strcmp (argv[1], "enable") == 0) {
         if (bs) {
             printf ("Please close the image first. \"sim enable\" must be done before the\n"
-                    "image is openned so that the image is openned with simulation support.\n");
+                    "image is opened so that the image is opened with simulation support.\n");
         }
         else {
             enable_block_sim(1/*print*/, 0 /*no random time*/);
@@ -77,7 +77,7 @@ static int sim_f (int argc, char **argv)
         sim_list_tasks ();
     }
     else if (strcmp (argv[1], "prefetch") == 0) {
-        sim_start_prefetch ();
+        sim_start_prefetch(bs);
     }
     else if (strcmp (argv[1], "all") == 0) {
         sim_set_disk_io_return_code (ret);
