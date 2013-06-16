@@ -193,7 +193,7 @@ static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)
 void pc_system_firmware_init(MemoryRegion *rom_memory);
 
 /* pvpanic.c */
-int pvpanic_init(ISABus *bus);
+void pvpanic_init(ISABus *bus);
 
 /* e820 types */
 #define E820_RAM        1
