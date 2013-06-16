@@ -23,6 +23,7 @@
  */
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
+#include "hw/ppc/ppc_e500.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/timer/m48t59.h"
