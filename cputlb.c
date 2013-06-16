@@ -262,8 +262,8 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
 
 #if defined(DEBUG_TLB)
     printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x" TARGET_FMT_plx
-           " prot=%x idx=%d pd=0x%08lx\n",
-           vaddr, paddr, prot, mmu_idx, pd);
+           " prot=%x idx=%d\n",
+           vaddr, paddr, prot, mmu_idx);
 #endif
 
     address = vaddr;

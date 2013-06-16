@@ -339,6 +339,6 @@ int index_from_keycode(int code);
 
 /* gtk.c */
 void early_gtk_display_init(void);
-void gtk_display_init(DisplayState *ds);
+void gtk_display_init(DisplayState *ds, bool full_screen);
 
 #endif

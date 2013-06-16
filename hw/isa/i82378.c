@@ -168,7 +168,7 @@ static void i82378_request_pic_irq(void *opaque, int irq, int level)
 
 static void i82378_init(DeviceState *dev, I82378State *s)
 {
-    ISABus *isabus = DO_UPCAST(ISABus, qbus, qdev_get_child_bus(dev, "isa.0"));
+    ISABus *isabus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
     ISADevice *pit;
     ISADevice *isa;
     qemu_irq *out0_irq;
@@ -201,7 +201,7 @@ static void i82378_init(DeviceState *dev, I82378State *s)
 
     /* 2 82C37 (dma) */
     isa = isa_create_simple(isabus, "i82374");
-    qdev_connect_gpio_out(&isa->qdev, 0, s->out[1]);
+    qdev_connect_gpio_out(DEVICE(isa), 0, s->out[1]);
 
     /* timer */
     isa_create_simple(isabus, "mc146818rtc");

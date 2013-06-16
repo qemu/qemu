@@ -1777,12 +1777,12 @@ static int xen_pt_config_reg_init(XenPCIPassthroughState *s,
         rc = reg->init(s, reg_entry->reg,
                        reg_grp->base_offset + reg->offset, &data);
         if (rc < 0) {
-            free(reg_entry);
+            g_free(reg_entry);
             return rc;
         }
         if (data == XEN_PT_INVALID_REG) {
             /* free unused BAR register entry */
-            free(reg_entry);
+            g_free(reg_entry);
             return 0;
         }
         /* set register value */

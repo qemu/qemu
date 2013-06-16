@@ -50,6 +50,33 @@ bool cpu_exists(int64_t id)
     return data.found;
 }
 
+bool cpu_paging_enabled(const CPUState *cpu)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return cc->get_paging_enabled(cpu);
+}
+
+static bool cpu_common_get_paging_enabled(const CPUState *cpu)
+{
+    return false;
+}
+
+void cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
+                            Error **errp)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return cc->get_memory_mapping(cpu, list, errp);
+}
+
+static void cpu_common_get_memory_mapping(CPUState *cpu,
+                                          MemoryMappingList *list,
+                                          Error **errp)
+{
+    error_setg(errp, "Obtaining memory mappings is unsupported on this CPU.");
+}
+
 /* CPU hot-plug notifiers */
 static NotifierList cpu_added_notifiers =
     NOTIFIER_LIST_INITIALIZER(cpu_add_notifiers);
@@ -176,6 +203,8 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     k->class_by_name = cpu_common_class_by_name;
     k->reset = cpu_common_reset;
     k->get_arch_id = cpu_common_get_arch_id;
+    k->get_paging_enabled = cpu_common_get_paging_enabled;
+    k->get_memory_mapping = cpu_common_get_memory_mapping;
     k->write_elf32_qemunote = cpu_common_write_elf32_qemunote;
     k->write_elf32_note = cpu_common_write_elf32_note;
     k->write_elf64_qemunote = cpu_common_write_elf64_qemunote;

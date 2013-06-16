@@ -491,3 +491,7 @@ void kvm_arch_remove_all_hw_breakpoints(void)
 {
     qemu_log_mask(LOG_UNIMP, "%s: not implemented\n", __func__);
 }
+
+void kvm_arch_init_irq_routing(KVMState *s)
+{
+}

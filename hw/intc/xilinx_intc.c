@@ -66,11 +66,7 @@ static void update_irq(struct xlx_pic *p)
         i = ~0;
 
     p->regs[R_IVR] = i;
-    if ((p->regs[R_MER] & 1) && p->regs[R_IPR]) {
-        qemu_irq_raise(p->parent_irq);
-    } else {
-        qemu_irq_lower(p->parent_irq);
-    }
+    qemu_set_irq(p->parent_irq, (p->regs[R_MER] & 1) && p->regs[R_IPR]);
 }
 
 static uint64_t

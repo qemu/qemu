@@ -166,22 +166,14 @@ void pit_reset_common(PITCommonState *pit)
     }
 }
 
-static int pit_init_common(ISADevice *dev)
+static void pit_common_realize(DeviceState *dev, Error **errp)
 {
+    ISADevice *isadev = ISA_DEVICE(dev);
     PITCommonState *pit = PIT_COMMON(dev);
-    PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
-    int ret;
 
-    ret = c->init(pit);
-    if (ret < 0) {
-        return ret;
-    }
+    isa_register_ioport(isadev, &pit->ioports, pit->iobase);
 
-    isa_register_ioport(dev, &pit->ioports, pit->iobase);
-
-    qdev_set_legacy_instance_id(&dev->qdev, pit->iobase, 2);
-
-    return 0;
+    qdev_set_legacy_instance_id(dev, pit->iobase, 2);
 }
 
 static const VMStateDescription vmstate_pit_channel = {
@@ -286,10 +278,9 @@ static const VMStateDescription vmstate_pit_common = {
 
 static void pit_common_class_init(ObjectClass *klass, void *data)
 {
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    ic->init = pit_init_common;
+    dc->realize = pit_common_realize;
     dc->vmsd = &vmstate_pit_common;
     dc->no_user = 1;
 }

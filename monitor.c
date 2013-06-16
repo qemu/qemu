@@ -2013,7 +2013,6 @@ static void do_acl_remove(Monitor *mon, const QDict *qdict)
 static void do_inject_mce(Monitor *mon, const QDict *qdict)
 {
     X86CPU *cpu;
-    CPUX86State *cenv;
     CPUState *cs;
     int cpu_index = qdict_get_int(qdict, "cpu_index");
     int bank = qdict_get_int(qdict, "bank");
@@ -2026,14 +2025,11 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
     if (qdict_get_try_bool(qdict, "broadcast", 0)) {
         flags |= MCE_INJECT_BROADCAST;
     }
-    for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
-        cpu = x86_env_get_cpu(cenv);
-        cs = CPU(cpu);
-        if (cs->cpu_index == cpu_index) {
-            cpu_x86_inject_mce(mon, cpu, bank, status, mcg_status, addr, misc,
-                               flags);
-            break;
-        }
+    cs = qemu_get_cpu(cpu_index);
+    if (cs != NULL) {
+        cpu = X86_CPU(cs);
+        cpu_x86_inject_mce(mon, cpu, bank, status, mcg_status, addr, misc,
+                           flags);
     }
 }
 #endif

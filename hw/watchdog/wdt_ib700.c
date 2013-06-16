@@ -97,7 +97,7 @@ static const VMStateDescription vmstate_ib700 = {
     }
 };
 
-static int wdt_ib700_init(ISADevice *dev)
+static void wdt_ib700_realize(DeviceState *dev, Error **errp)
 {
     IB700State *s = IB700(dev);
 
@@ -106,8 +106,6 @@ static int wdt_ib700_init(ISADevice *dev)
     s->timer = qemu_new_timer_ns(vm_clock, ib700_timer_expired, s);
     register_ioport_write(0x441, 2, 1, ib700_write_disable_reg, s);
     register_ioport_write(0x443, 2, 1, ib700_write_enable_reg, s);
-
-    return 0;
 }
 
 static void wdt_ib700_reset(DeviceState *dev)
@@ -127,8 +125,8 @@ static WatchdogTimerModel model = {
 static void wdt_ib700_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = wdt_ib700_init;
+
+    dc->realize = wdt_ib700_realize;
     dc->reset = wdt_ib700_reset;
     dc->vmsd = &vmstate_ib700;
 }

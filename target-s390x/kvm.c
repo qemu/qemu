@@ -928,3 +928,7 @@ void kvm_s390_enable_css_support(S390CPU *cpu)
     r = kvm_vcpu_ioctl(CPU(cpu), KVM_ENABLE_CAP, &cap);
     assert(r == 0);
 }
+
+void kvm_arch_init_irq_routing(KVMState *s)
+{
+}

@@ -455,7 +455,10 @@ static void test_flush(void)
     data = inb(IDE_BASE + reg_device);
     g_assert_cmpint(data & DEV, ==, 0);
 
-    data = inb(IDE_BASE + reg_status);
+    do {
+        data = inb(IDE_BASE + reg_status);
+    } while (data & BSY);
+
     assert_bit_set(data, DRDY);
     assert_bit_clear(data, BSY | DF | ERR | DRQ);
 

@@ -87,7 +87,7 @@ static int check_exception(CPUX86State *env, int intno, int *error_code)
 /*
  * Signal an interruption. It is executed in the main CPU loop.
  * is_int is TRUE if coming from the int instruction. next_eip is the
- * EIP value AFTER the interrupt instruction. It is only relevant if
+ * env->eip value AFTER the interrupt instruction. It is only relevant if
  * is_int is TRUE.
  */
 static void QEMU_NORETURN raise_interrupt2(CPUX86State *env, int intno,

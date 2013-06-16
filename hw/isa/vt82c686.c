@@ -450,7 +450,7 @@ ISABus *vt82c686b_init(PCIBus *bus, int devfn)
 
     d = pci_create_simple_multifunction(bus, devfn, true, "VT82C686B");
 
-    return DO_UPCAST(ISABus, qbus, qdev_get_child_bus(&d->qdev, "isa.0"));
+    return ISA_BUS(qdev_get_child_bus(DEVICE(d), "isa.0"));
 }
 
 static void via_class_init(ObjectClass *klass, void *data)

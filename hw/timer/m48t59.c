@@ -691,7 +691,7 @@ M48t59State *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
     return s;
 }
 
-static void m48t59_init_common(M48t59State *s)
+static void m48t59_realize_common(M48t59State *s, Error **errp)
 {
     s->buffer = g_malloc0(s->size);
     if (s->model == 59) {
@@ -703,27 +703,31 @@ static void m48t59_init_common(M48t59State *s)
     vmstate_register(NULL, -1, &vmstate_m48t59, s);
 }
 
-static int m48t59_init_isa1(ISADevice *dev)
+static void m48t59_isa_realize(DeviceState *dev, Error **errp)
 {
+    ISADevice *isadev = ISA_DEVICE(dev);
     M48t59ISAState *d = ISA_M48T59(dev);
     M48t59State *s = &d->state;
 
-    isa_init_irq(dev, &s->IRQ, 8);
-    m48t59_init_common(s);
-
-    return 0;
+    isa_init_irq(isadev, &s->IRQ, 8);
+    m48t59_realize_common(s, errp);
 }
 
 static int m48t59_init1(SysBusDevice *dev)
 {
     M48t59SysBusState *d = FROM_SYSBUS(M48t59SysBusState, dev);
     M48t59State *s = &d->state;
+    Error *err = NULL;
 
     sysbus_init_irq(dev, &s->IRQ);
 
     memory_region_init_io(&s->iomem, &nvram_ops, s, "m48t59.nvram", s->size);
     sysbus_init_mmio(dev, &s->iomem);
-    m48t59_init_common(s);
+    m48t59_realize_common(s, &err);
+    if (err != NULL) {
+        error_free(err);
+        return -1;
+    }
 
     return 0;
 }
@@ -738,8 +742,8 @@ static Property m48t59_isa_properties[] = {
 static void m48t59_isa_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = m48t59_init_isa1;
+
+    dc->realize = m48t59_isa_realize;
     dc->no_user = 1;
     dc->reset = m48t59_reset_isa;
     dc->props = m48t59_isa_properties;

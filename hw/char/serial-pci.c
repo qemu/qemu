@@ -27,6 +27,7 @@
 
 #include "hw/char/serial.h"
 #include "hw/pci/pci.h"
+#include "qapi/qmp/qerror.h"
 
 #define PCI_SERIAL_MAX_PORTS 4
 
@@ -49,9 +50,15 @@ static int serial_pci_init(PCIDevice *dev)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     SerialState *s = &pci->state;
+    Error *err = NULL;
 
     s->baudbase = 115200;
-    serial_init_core(s);
+    serial_realize_core(s, &err);
+    if (err != NULL) {
+        qerror_report_err(err);
+        error_free(err);
+        return -1;
+    }
 
     pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
     s->irq = pci->dev.irq[0];
@@ -80,6 +87,7 @@ static int multi_serial_pci_init(PCIDevice *dev)
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
     SerialState *s;
+    Error *err = NULL;
     int i;
 
     switch (pc->device_id) {
@@ -102,7 +110,12 @@ static int multi_serial_pci_init(PCIDevice *dev)
     for (i = 0; i < pci->ports; i++) {
         s = pci->state + i;
         s->baudbase = 115200;
-        serial_init_core(s);
+        serial_realize_core(s, &err);
+        if (err != NULL) {
+            qerror_report_err(err);
+            error_free(err);
+            return -1;
+        }
         s->irq = pci->irqs[i];
         pci->name[i] = g_strdup_printf("uart #%d", i+1);
         memory_region_init_io(&s->io, &serial_io_ops, s, pci->name[i], 8);

@@ -14,15 +14,17 @@
 /* parallel.c */
 static inline bool parallel_init(ISABus *bus, int index, CharDriverState *chr)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
 
-    dev = isa_try_create(bus, "isa-parallel");
-    if (!dev) {
+    isadev = isa_try_create(bus, "isa-parallel");
+    if (!isadev) {
         return false;
     }
-    qdev_prop_set_uint32(&dev->qdev, "index", index);
-    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
-    if (qdev_init(&dev->qdev) < 0) {
+    dev = DEVICE(isadev);
+    qdev_prop_set_uint32(dev, "index", index);
+    qdev_prop_set_chr(dev, "chardev", chr);
+    if (qdev_init(dev) < 0) {
         return false;
     }
     return true;
@@ -155,18 +157,20 @@ int isa_vga_mm_init(hwaddr vram_base,
 /* ne2000.c */
 static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
 
     qemu_check_nic_model(nd, "ne2k_isa");
 
-    dev = isa_try_create(bus, "ne2k_isa");
-    if (!dev) {
+    isadev = isa_try_create(bus, "ne2k_isa");
+    if (!isadev) {
         return false;
     }
-    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
-    qdev_prop_set_uint32(&dev->qdev, "irq",    irq);
-    qdev_set_nic_properties(&dev->qdev, nd);
-    qdev_init_nofail(&dev->qdev);
+    dev = DEVICE(isadev);
+    qdev_prop_set_uint32(dev, "iobase", base);
+    qdev_prop_set_uint32(dev, "irq",    irq);
+    qdev_set_nic_properties(dev, nd);
+    qdev_init_nofail(dev);
     return true;
 }
 
@@ -185,7 +189,35 @@ int pvpanic_init(ISABus *bus);
 
 int e820_add_entry(uint64_t, uint64_t, uint32_t);
 
+#define PC_COMPAT_1_5 \
+        {\
+            .driver   = "Conroe-" TYPE_X86_CPU,\
+            .property = "model",\
+            .value    = stringify(2),\
+        },{\
+            .driver   = "Conroe-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(2),\
+        },{\
+            .driver   = "Penryn-" TYPE_X86_CPU,\
+            .property = "model",\
+            .value    = stringify(2),\
+        },{\
+            .driver   = "Penryn-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(2),\
+        },{\
+            .driver   = "Nehalem-" TYPE_X86_CPU,\
+            .property = "model",\
+            .value    = stringify(2),\
+        },{\
+            .driver   = "Nehalem-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(2),\
+        }
+
 #define PC_COMPAT_1_4 \
+        PC_COMPAT_1_5, \
         {\
             .driver   = "scsi-hd",\
             .property = "discard_granularity",\

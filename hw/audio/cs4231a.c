@@ -56,6 +56,9 @@ static struct {
 #define CS_REGS 16
 #define CS_DREGS 32
 
+#define TYPE_CS4231A "cs4231a"
+#define CS4231A(obj) OBJECT_CHECK (CSState, (obj), TYPE_CS4231A)
+
 typedef struct CSState {
     ISADevice dev;
     QEMUSoundCard card;
@@ -208,9 +211,9 @@ static int16_t ALawDecompressTable[256] =
       944,   912,  1008,   976,   816,   784,   880,   848
 };
 
-static void cs_reset (void *opaque)
+static void cs4231a_reset (DeviceState *dev)
 {
-    CSState *s = opaque;
+    CSState *s = CS4231A (dev);
 
     s->regs[Index_Address] = 0x40;
     s->regs[Index_Data]    = 0x00;
@@ -641,27 +644,30 @@ static const MemoryRegionOps cs_ioport_ops = {
     }
 };
 
-static int cs4231a_initfn (ISADevice *dev)
+static void cs4231a_initfn (Object *obj)
 {
-    CSState *s = DO_UPCAST (CSState, dev, dev);
-
-    isa_init_irq (dev, &s->pic, s->irq);
+    CSState *s = CS4231A (obj);
 
     memory_region_init_io (&s->ioports, &cs_ioport_ops, s, "cs4231a", 4);
-    isa_register_ioport (dev, &s->ioports, s->port);
+}
+
+static void cs4231a_realizefn (DeviceState *dev, Error **errp)
+{
+    ISADevice *d = ISA_DEVICE (dev);
+    CSState *s = CS4231A (dev);
+
+    isa_init_irq (d, &s->pic, s->irq);
+
+    isa_register_ioport (d, &s->ioports, s->port);
 
     DMA_register_channel (s->dma, cs_dma_read, s);
 
-    qemu_register_reset (cs_reset, s);
-    cs_reset (s);
-
     AUD_register_card ("cs4231a", &s->card);
-    return 0;
 }
 
 static int cs4231a_init (ISABus *bus)
 {
-    isa_create_simple (bus, "cs4231a");
+    isa_create_simple (bus, TYPE_CS4231A);
     return 0;
 }
 
@@ -675,17 +681,19 @@ static Property cs4231a_properties[] = {
 static void cs4231a_class_initfn (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS (klass);
-    ic->init = cs4231a_initfn;
+
+    dc->realize = cs4231a_realizefn;
+    dc->reset = cs4231a_reset;
     dc->desc = "Crystal Semiconductor CS4231A";
     dc->vmsd = &vmstate_cs4231a;
     dc->props = cs4231a_properties;
 }
 
 static const TypeInfo cs4231a_info = {
-    .name          = "cs4231a",
+    .name          = TYPE_CS4231A,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (CSState),
+    .instance_init = cs4231a_initfn,
     .class_init    = cs4231a_class_initfn,
 };
 

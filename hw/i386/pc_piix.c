@@ -199,7 +199,7 @@ static void pc_init1(MemoryRegion *system_memory,
             dev = isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i],
                                ide_irq[i],
                                hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
-            idebus[i] = qdev_get_child_bus(&dev->qdev, "ide.0");
+            idebus[i] = qdev_get_child_bus(DEVICE(dev), "ide.0");
         }
     }
 
@@ -327,14 +327,27 @@ static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
 }
 #endif
 
-static QEMUMachine pc_i440fx_machine_v1_5 = {
-    .name = "pc-i440fx-1.5",
+static QEMUMachine pc_i440fx_machine_v1_6 = {
+    .name = "pc-i440fx-1.6",
     .alias = "pc",
     .desc = "Standard PC (i440FX + PIIX, 1996)",
     .init = pc_init_pci,
     .hot_add_cpu = pc_hot_add_cpu,
     .max_cpus = 255,
     .is_default = 1,
+    DEFAULT_MACHINE_OPTIONS,
+};
+
+static QEMUMachine pc_i440fx_machine_v1_5 = {
+    .name = "pc-i440fx-1.5",
+    .desc = "Standard PC (i440FX + PIIX, 1996)",
+    .init = pc_init_pci,
+    .hot_add_cpu = pc_hot_add_cpu,
+    .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_5,
+        { /* end of list */ }
+    },
     DEFAULT_MACHINE_OPTIONS,
 };
 
@@ -735,6 +748,7 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
+    qemu_register_machine(&pc_i440fx_machine_v1_6);
     qemu_register_machine(&pc_i440fx_machine_v1_5);
     qemu_register_machine(&pc_i440fx_machine_v1_4);
     qemu_register_machine(&pc_machine_v1_3);

@@ -189,6 +189,11 @@ struct IntelHDAState {
     uint32_t msi;
 };
 
+#define TYPE_INTEL_HDA_GENERIC "intel-hda-generic"
+
+#define INTEL_HDA(obj) \
+    OBJECT_CHECK(IntelHDAState, (obj), TYPE_INTEL_HDA_GENERIC)
+
 struct IntelHDAReg {
     const char *name;      /* register name */
     uint32_t   size;       /* size in bytes */
@@ -498,7 +503,7 @@ static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool runn
 static void intel_hda_set_g_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
     if ((d->g_ctl & ICH6_GCTL_RESET) == 0) {
-        intel_hda_reset(&d->pci.qdev);
+        intel_hda_reset(DEVICE(d));
     }
 }
 
@@ -1102,7 +1107,7 @@ static const MemoryRegionOps intel_hda_mmio_ops = {
 static void intel_hda_reset(DeviceState *dev)
 {
     BusChild *kid;
-    IntelHDAState *d = DO_UPCAST(IntelHDAState, pci.qdev, dev);
+    IntelHDAState *d = INTEL_HDA(dev);
     HDACodecDevice *cdev;
 
     intel_hda_regs_reset(d);
@@ -1120,7 +1125,7 @@ static void intel_hda_reset(DeviceState *dev)
 
 static int intel_hda_init(PCIDevice *pci)
 {
-    IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
+    IntelHDAState *d = INTEL_HDA(pci);
     uint8_t *conf = d->pci.config;
 
     d->name = object_get_typename(OBJECT(d));
@@ -1137,7 +1142,7 @@ static int intel_hda_init(PCIDevice *pci)
         msi_init(&d->pci, 0x50, 1, true, false);
     }
 
-    hda_codec_bus_init(&d->pci.qdev, &d->codecs,
+    hda_codec_bus_init(DEVICE(pci), &d->codecs,
                        intel_hda_response, intel_hda_xfer);
 
     return 0;
@@ -1145,7 +1150,7 @@ static int intel_hda_init(PCIDevice *pci)
 
 static void intel_hda_exit(PCIDevice *pci)
 {
-    IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
+    IntelHDAState *d = INTEL_HDA(pci);
 
     msi_uninit(&d->pci);
     memory_region_destroy(&d->mmio);
@@ -1232,7 +1237,7 @@ static Property intel_hda_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void intel_hda_class_init_common(ObjectClass *klass)
+static void intel_hda_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1251,7 +1256,6 @@ static void intel_hda_class_init_ich6(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    intel_hda_class_init_common(klass);
     k->device_id = 0x2668;
     k->revision = 1;
     dc->desc = "Intel HD Audio Controller (ich6)";
@@ -1262,23 +1266,28 @@ static void intel_hda_class_init_ich9(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    intel_hda_class_init_common(klass);
     k->device_id = 0x293e;
     k->revision = 3;
     dc->desc = "Intel HD Audio Controller (ich9)";
 }
 
-static const TypeInfo intel_hda_info_ich6 = {
-    .name          = "intel-hda",
+static const TypeInfo intel_hda_info = {
+    .name          = TYPE_INTEL_HDA_GENERIC,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IntelHDAState),
+    .class_init    = intel_hda_class_init,
+    .abstract      = true,
+};
+
+static const TypeInfo intel_hda_info_ich6 = {
+    .name          = "intel-hda",
+    .parent        = TYPE_INTEL_HDA_GENERIC,
     .class_init    = intel_hda_class_init_ich6,
 };
 
 static const TypeInfo intel_hda_info_ich9 = {
     .name          = "ich9-intel-hda",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(IntelHDAState),
+    .parent        = TYPE_INTEL_HDA_GENERIC,
     .class_init    = intel_hda_class_init_ich9,
 };
 
@@ -1306,12 +1315,12 @@ static const TypeInfo hda_codec_device_type_info = {
  */
 static int intel_hda_and_codec_init(PCIBus *bus)
 {
-    PCIDevice *controller;
+    DeviceState *controller;
     BusState *hdabus;
     DeviceState *codec;
 
-    controller = pci_create_simple(bus, -1, "intel-hda");
-    hdabus = QLIST_FIRST(&controller->qdev.child_bus);
+    controller = DEVICE(pci_create_simple(bus, -1, "intel-hda"));
+    hdabus = QLIST_FIRST(&controller->child_bus);
     codec = qdev_create(hdabus, "hda-duplex");
     qdev_init_nofail(codec);
     return 0;
@@ -1320,6 +1329,7 @@ static int intel_hda_and_codec_init(PCIBus *bus)
 static void intel_hda_register_types(void)
 {
     type_register_static(&hda_codec_bus_info);
+    type_register_static(&intel_hda_info);
     type_register_static(&intel_hda_info_ich6);
     type_register_static(&intel_hda_info_ich9);
     type_register_static(&hda_codec_device_type_info);

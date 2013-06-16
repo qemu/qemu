@@ -1160,8 +1160,7 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
     GIOChannel *chan;
     GtkWidget *scrolled_window;
     GtkAdjustment *vadjustment;
-    int master_fd, slave_fd, ret;
-    struct termios tty;
+    int master_fd, slave_fd;
 
     snprintf(buffer, sizeof(buffer), "vc%d", index);
     snprintf(path, sizeof(path), "<QEMU>/View/VC%d", index);
@@ -1181,13 +1180,8 @@ static GSList *gd_vc_init(GtkDisplayState *s, VirtualConsole *vc, int index, GSL
 
     vc->terminal = vte_terminal_new();
 
-    ret = openpty(&master_fd, &slave_fd, NULL, NULL, NULL);
-    g_assert(ret != -1);
-
-    /* Set raw attributes on the pty. */
-    tcgetattr(slave_fd, &tty);
-    cfmakeraw(&tty);
-    tcsetattr(slave_fd, TCSAFLUSH, &tty);
+    master_fd = qemu_openpty_raw(&slave_fd, NULL);
+    g_assert(master_fd != -1);
 
 #if VTE_CHECK_VERSION(0, 26, 0)
     pty = vte_pty_new_foreign(master_fd, NULL);
@@ -1435,7 +1429,7 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_cursor_define = gd_cursor_define,
 };
 
-void gtk_display_init(DisplayState *ds)
+void gtk_display_init(DisplayState *ds, bool full_screen)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     char *filename;
@@ -1510,6 +1504,10 @@ void gtk_display_init(DisplayState *ds)
     gtk_container_add(GTK_CONTAINER(s->window), s->vbox);
 
     gtk_widget_show_all(s->window);
+
+    if (full_screen) {
+        gtk_menu_item_activate(GTK_MENU_ITEM(s->full_screen_item));
+    }
 
     register_displaychangelistener(&s->dcl);
 

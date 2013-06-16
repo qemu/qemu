@@ -522,23 +522,29 @@ static const MemoryRegionOps port92_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int port92_initfn(ISADevice *dev)
+static void port92_initfn(Object *obj)
 {
-    Port92State *s = PORT92(dev);
+    Port92State *s = PORT92(obj);
 
     memory_region_init_io(&s->io, &port92_ops, s, "port92", 1);
-    isa_register_ioport(dev, &s->io, 0x92);
 
     s->outport = 0;
-    return 0;
+}
+
+static void port92_realizefn(DeviceState *dev, Error **errp)
+{
+    ISADevice *isadev = ISA_DEVICE(dev);
+    Port92State *s = PORT92(dev);
+
+    isa_register_ioport(isadev, &s->io, 0x92);
 }
 
 static void port92_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = port92_initfn;
+
     dc->no_user = 1;
+    dc->realize = port92_realizefn;
     dc->reset = port92_reset;
     dc->vmsd = &vmstate_port92_isa;
 }
@@ -547,6 +553,7 @@ static const TypeInfo port92_info = {
     .name          = TYPE_PORT92,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(Port92State),
+    .instance_init = port92_initfn,
     .class_init    = port92_class_initfn,
 };
 
@@ -927,6 +934,11 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
     DeviceState *icc_bridge;
     int64_t apic_id = x86_cpu_apic_id_from_index(id);
 
+    if (id < 0) {
+        error_setg(errp, "Invalid CPU id: %" PRIi64, id);
+        return;
+    }
+
     if (cpu_exists(apic_id)) {
         error_setg(errp, "Unable to add CPU: %" PRIi64
                    ", it already exists", id);
@@ -1088,7 +1100,7 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
         dev = pcidev ? &pcidev->qdev : NULL;
     } else if (isa_bus) {
         ISADevice *isadev = isa_vga_init(isa_bus);
-        dev = isadev ? &isadev->qdev : NULL;
+        dev = isadev ? DEVICE(isadev) : NULL;
     }
     return dev;
 }
@@ -1175,7 +1187,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         }
         if (hpet) {
             /* connect PIT to output control line of the HPET */
-            qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(&pit->qdev, 0));
+            qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(DEVICE(pit), 0));
         }
         pcspk_init(isa_bus, pit);
     }
@@ -1203,8 +1215,9 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         vmmouse = NULL;
     }
     if (vmmouse) {
-        qdev_prop_set_ptr(&vmmouse->qdev, "ps2_mouse", i8042);
-        qdev_init_nofail(&vmmouse->qdev);
+        DeviceState *dev = DEVICE(vmmouse);
+        qdev_prop_set_ptr(dev, "ps2_mouse", i8042);
+        qdev_init_nofail(dev);
     }
     port92 = isa_create_simple(isa_bus, "port92");
     port92_init(port92, &a20_line[1]);

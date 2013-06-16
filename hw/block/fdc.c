@@ -2022,22 +2022,24 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
 
 ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
 
-    dev = isa_try_create(bus, TYPE_ISA_FDC);
-    if (!dev) {
+    isadev = isa_try_create(bus, TYPE_ISA_FDC);
+    if (!isadev) {
         return NULL;
     }
+    dev = DEVICE(isadev);
 
     if (fds[0]) {
-        qdev_prop_set_drive_nofail(&dev->qdev, "driveA", fds[0]->bdrv);
+        qdev_prop_set_drive_nofail(dev, "driveA", fds[0]->bdrv);
     }
     if (fds[1]) {
-        qdev_prop_set_drive_nofail(&dev->qdev, "driveB", fds[1]->bdrv);
+        qdev_prop_set_drive_nofail(dev, "driveB", fds[1]->bdrv);
     }
-    qdev_init_nofail(&dev->qdev);
+    qdev_init_nofail(dev);
 
-    return dev;
+    return isadev;
 }
 
 void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
@@ -2117,24 +2119,28 @@ static const MemoryRegionPortio fdc_portio_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
-static int isabus_fdc_init1(ISADevice *dev)
+static void isabus_fdc_realize(DeviceState *dev, Error **errp)
 {
+    ISADevice *isadev = ISA_DEVICE(dev);
     FDCtrlISABus *isa = ISA_FDC(dev);
     FDCtrl *fdctrl = &isa->state;
     int ret;
 
-    isa_register_portio_list(dev, isa->iobase, fdc_portio_list, fdctrl, "fdc");
+    isa_register_portio_list(isadev, isa->iobase, fdc_portio_list, fdctrl,
+                             "fdc");
 
-    isa_init_irq(dev, &fdctrl->irq, isa->irq);
+    isa_init_irq(isadev, &fdctrl->irq, isa->irq);
     fdctrl->dma_chann = isa->dma;
 
-    qdev_set_legacy_instance_id(&dev->qdev, isa->iobase, 2);
+    qdev_set_legacy_instance_id(dev, isa->iobase, 2);
     ret = fdctrl_init_common(fdctrl);
+    if (ret < 0) {
+        error_setg(errp, "Floppy init failed.");
+        return;
+    }
 
-    add_boot_device_path(isa->bootindexA, &dev->qdev, "/floppy@0");
-    add_boot_device_path(isa->bootindexB, &dev->qdev, "/floppy@1");
-
-    return ret;
+    add_boot_device_path(isa->bootindexA, dev, "/floppy@0");
+    add_boot_device_path(isa->bootindexB, dev, "/floppy@1");
 }
 
 static int sysbus_fdc_init1(SysBusDevice *dev)
@@ -2203,8 +2209,8 @@ static Property isa_fdc_properties[] = {
 static void isabus_fdc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = isabus_fdc_init1;
+
+    dc->realize = isabus_fdc_realize;
     dc->fw_name = "fdc";
     dc->no_user = 1;
     dc->reset = fdctrl_external_reset_isa;

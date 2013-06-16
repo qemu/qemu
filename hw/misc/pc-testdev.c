@@ -142,9 +142,10 @@ static const MemoryRegionOps test_iomem_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int init_test_device(ISADevice *isa)
+static void testdev_realizefn(DeviceState *d, Error **errp)
 {
-    PCTestdev *dev = TESTDEV(isa);
+    ISADevice *isa = ISA_DEVICE(d);
+    PCTestdev *dev = TESTDEV(d);
     MemoryRegion *mem = isa_address_space(isa);
     MemoryRegion *io = isa_address_space_io(isa);
 
@@ -161,15 +162,13 @@ static int init_test_device(ISADevice *isa)
     memory_region_add_subregion(io,  0xe4,       &dev->flush);
     memory_region_add_subregion(io,  0x2000,     &dev->irq);
     memory_region_add_subregion(mem, 0xff000000, &dev->iomem);
-
-    return 0;
 }
 
 static void testdev_class_init(ObjectClass *klass, void *data)
 {
-    ISADeviceClass *k = ISA_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = init_test_device;
+    dc->realize = testdev_realizefn;
 }
 
 static const TypeInfo testdev_info = {

@@ -44,9 +44,10 @@ static const int isa_serial_irq[MAX_SERIAL_PORTS] = {
     4, 3, 4, 3
 };
 
-static int serial_isa_initfn(ISADevice *dev)
+static void serial_isa_realizefn(DeviceState *dev, Error **errp)
 {
     static int index;
+    ISADevice *isadev = ISA_DEVICE(dev);
     ISASerialState *isa = ISA_SERIAL(dev);
     SerialState *s = &isa->state;
 
@@ -54,7 +55,9 @@ static int serial_isa_initfn(ISADevice *dev)
         isa->index = index;
     }
     if (isa->index >= MAX_SERIAL_PORTS) {
-        return -1;
+        error_setg(errp, "Max. supported number of ISA serial ports is %d.",
+                   MAX_SERIAL_PORTS);
+        return;
     }
     if (isa->iobase == -1) {
         isa->iobase = isa_serial_io[isa->index];
@@ -65,13 +68,12 @@ static int serial_isa_initfn(ISADevice *dev)
     index++;
 
     s->baudbase = 115200;
-    isa_init_irq(dev, &s->irq, isa->isairq);
-    serial_init_core(s);
-    qdev_set_legacy_instance_id(&dev->qdev, isa->iobase, 3);
+    isa_init_irq(isadev, &s->irq, isa->isairq);
+    serial_realize_core(s, errp);
+    qdev_set_legacy_instance_id(dev, isa->iobase, 3);
 
     memory_region_init_io(&s->io, &serial_io_ops, s, "serial", 8);
-    isa_register_ioport(dev, &s->io, isa->iobase);
-    return 0;
+    isa_register_ioport(isadev, &s->io, isa->iobase);
 }
 
 static const VMStateDescription vmstate_isa_serial = {
@@ -96,8 +98,8 @@ static Property serial_isa_properties[] = {
 static void serial_isa_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = serial_isa_initfn;
+
+    dc->realize = serial_isa_realizefn;
     dc->vmsd = &vmstate_isa_serial;
     dc->props = serial_isa_properties;
 }
@@ -118,15 +120,17 @@ type_init(serial_register_types)
 
 bool serial_isa_init(ISABus *bus, int index, CharDriverState *chr)
 {
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
 
-    dev = isa_try_create(bus, TYPE_ISA_SERIAL);
-    if (!dev) {
+    isadev = isa_try_create(bus, TYPE_ISA_SERIAL);
+    if (!isadev) {
         return false;
     }
-    qdev_prop_set_uint32(&dev->qdev, "index", index);
-    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
-    if (qdev_init(&dev->qdev) < 0) {
+    dev = DEVICE(isadev);
+    qdev_prop_set_uint32(dev, "index", index);
+    qdev_prop_set_chr(dev, "chardev", chr);
+    if (qdev_init(dev) < 0) {
         return false;
     }
     return true;

@@ -2,6 +2,9 @@
 #define QEMU_LOG_H
 
 #include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include "qemu/compiler.h"
 #ifdef NEED_CPU_H
 #include "disas/disas.h"
 #endif

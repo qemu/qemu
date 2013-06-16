@@ -283,21 +283,21 @@ static void Adlib_fini (AdlibState *s)
     AUD_remove_card (&s->card);
 }
 
-static int Adlib_initfn (ISADevice *dev)
+static void adlib_realizefn (DeviceState *dev, Error **errp)
 {
     AdlibState *s = ADLIB(dev);
     struct audsettings as;
 
     if (glob_adlib) {
-        dolog ("Cannot create more than 1 adlib device\n");
-        return -1;
+        error_setg (errp, "Cannot create more than 1 adlib device");
+        return;
     }
     glob_adlib = s;
 
 #ifdef HAS_YMF262
     if (YMF262Init (1, 14318180, s->freq)) {
-        dolog ("YMF262Init %d failed\n", s->freq);
-        return -1;
+        error_setg (errp, "YMF262Init %d failed", s->freq);
+        return;
     }
     else {
         YMF262SetTimerHandler (0, timer_handler, 0);
@@ -306,8 +306,8 @@ static int Adlib_initfn (ISADevice *dev)
 #else
     s->opl = OPLCreate (OPL_TYPE_YM3812, 3579545, s->freq);
     if (!s->opl) {
-        dolog ("OPLCreate %d failed\n", s->freq);
-        return -1;
+        error_setg (errp, "OPLCreate %d failed", s->freq);
+        return;
     }
     else {
         OPLSetTimerHandler (s->opl, timer_handler, 0);
@@ -332,7 +332,8 @@ static int Adlib_initfn (ISADevice *dev)
         );
     if (!s->voice) {
         Adlib_fini (s);
-        return -1;
+        error_setg (errp, "Initializing audio voice failed");
+        return;
     }
 
     s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
@@ -346,8 +347,6 @@ static int Adlib_initfn (ISADevice *dev)
 
     register_ioport_read (s->port + 8, 2, 1, adlib_read, s);
     register_ioport_write (s->port + 8, 2, 1, adlib_write, s);
-
-    return 0;
 }
 
 static Property adlib_properties[] = {
@@ -359,8 +358,8 @@ static Property adlib_properties[] = {
 static void adlib_class_initfn (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS (klass);
-    ic->init = Adlib_initfn;
+
+    dc->realize = adlib_realizefn;
     dc->desc = ADLIB_DESC;
     dc->props = adlib_properties;
 }

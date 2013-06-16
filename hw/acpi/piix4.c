@@ -518,7 +518,7 @@ static uint64_t gpe_readb(void *opaque, hwaddr addr, unsigned width)
     PIIX4PMState *s = opaque;
     uint32_t val = acpi_gpe_ioport_readb(&s->ar, addr);
 
-    PIIX4_DPRINTF("gpe read %x == %x\n", addr, val);
+    PIIX4_DPRINTF("gpe read %" HWADDR_PRIx " == %" PRIu32 "\n", addr, val);
     return val;
 }
 
@@ -530,7 +530,7 @@ static void gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
     acpi_gpe_ioport_writeb(&s->ar, addr, val);
     pm_update_sci(s);
 
-    PIIX4_DPRINTF("gpe write %x <== %d\n", addr, val);
+    PIIX4_DPRINTF("gpe write %" HWADDR_PRIx " <== %" PRIu64 "\n", addr, val);
 }
 
 static const MemoryRegionOps piix4_gpe_ops = {
@@ -553,15 +553,15 @@ static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
         /* Manufacture an "up" value to cause a device check on any hotplug
          * slot with a device.  Extra device checks are harmless. */
         val = s->pci0_slot_device_present & s->pci0_hotplug_enable;
-        PIIX4_DPRINTF("pci_up_read %x\n", val);
+        PIIX4_DPRINTF("pci_up_read %" PRIu32 "\n", val);
         break;
     case PCI_DOWN_BASE - PCI_HOTPLUG_ADDR:
         val = s->pci0_status.down;
-        PIIX4_DPRINTF("pci_down_read %x\n", val);
+        PIIX4_DPRINTF("pci_down_read %" PRIu32 "\n", val);
         break;
     case PCI_EJ_BASE - PCI_HOTPLUG_ADDR:
         /* No feature defined yet */
-        PIIX4_DPRINTF("pci_features_read %x\n", val);
+        PIIX4_DPRINTF("pci_features_read %" PRIu32 "\n", val);
         break;
     case PCI_RMV_BASE - PCI_HOTPLUG_ADDR:
         val = s->pci0_hotplug_enable;
@@ -579,7 +579,7 @@ static void pci_write(void *opaque, hwaddr addr, uint64_t data,
     switch (addr) {
     case PCI_EJ_BASE - PCI_HOTPLUG_ADDR:
         acpi_piix_eject_slot(opaque, (uint32_t)data);
-        PIIX4_DPRINTF("pciej write %" HWADDR_PRIx " <== % " PRIu64 "\n",
+        PIIX4_DPRINTF("pciej write %" HWADDR_PRIx " <== %" PRIu64 "\n",
                       addr, data);
         break;
     default:
