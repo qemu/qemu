@@ -479,7 +479,7 @@ static const QEMUFileOps socket_write_ops = {
 
 QEMUFile *qemu_fopen_socket(int fd, const char *mode)
 {
-    QEMUFileSocket *s = g_malloc0(sizeof(QEMUFileSocket));
+    QEMUFileSocket *s;
 
     if (mode == NULL ||
         (mode[0] != 'r' && mode[0] != 'w') ||
@@ -488,6 +488,7 @@ QEMUFile *qemu_fopen_socket(int fd, const char *mode)
         return NULL;
     }
 
+    s = g_malloc0(sizeof(QEMUFileSocket));
     s->fd = fd;
     if (mode[0] == 'w') {
         qemu_set_block(s->fd);
