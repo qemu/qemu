@@ -31,8 +31,14 @@
 #include "sysemu/kvm.h"
 #include "qemu/log.h"
 
+#define KVM_OPENPIC(obj) \
+    OBJECT_CHECK(KVMOpenPICState, (obj), TYPE_KVM_OPENPIC)
+
 typedef struct KVMOpenPICState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion mem;
     MemoryListener mem_listener;
     uint32_t fd;
@@ -145,16 +151,26 @@ static void kvm_openpic_region_del(MemoryListener *listener,
     }
 }
 
-static int kvm_openpic_init(SysBusDevice *dev)
+static void kvm_openpic_init(Object *obj)
 {
+    KVMOpenPICState *opp = KVM_OPENPIC(obj);
+
+    memory_region_init_io(&opp->mem, &kvm_openpic_mem_ops, opp,
+                          "kvm-openpic", 0x40000);
+}
+
+static void kvm_openpic_realize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *d = SYS_BUS_DEVICE(dev);
+    KVMOpenPICState *opp = KVM_OPENPIC(dev);
     KVMState *s = kvm_state;
-    KVMOpenPICState *opp = FROM_SYSBUS(typeof(*opp), dev);
     int kvm_openpic_model;
     struct kvm_create_device cd = {0};
     int ret, i;
 
     if (!kvm_check_extension(s, KVM_CAP_DEVICE_CTRL)) {
-        return -EINVAL;
+        error_setg(errp, "Kernel is lacking Device Control API");
+        return;
     }
 
     switch (opp->model) {
@@ -167,23 +183,21 @@ static int kvm_openpic_init(SysBusDevice *dev)
         break;
 
     default:
-        return -EINVAL;
+        error_setg(errp, "Unsupported OpenPIC model %" PRIu32, opp->model);
+        return;
     }
 
     cd.type = kvm_openpic_model;
     ret = kvm_vm_ioctl(s, KVM_CREATE_DEVICE, &cd);
     if (ret < 0) {
-        qemu_log_mask(LOG_UNIMP, "%s: can't create device %d: %s\n",
-                      __func__, cd.type, strerror(errno));
-        return -EINVAL;
+        error_setg(errp, "Can't create device %d: %s",
+                   cd.type, strerror(errno));
+        return;
     }
     opp->fd = cd.fd;
 
-    memory_region_init_io(&opp->mem, &kvm_openpic_mem_ops, opp,
-                          "kvm-openpic", 0x40000);
-
-    sysbus_init_mmio(dev, &opp->mem);
-    qdev_init_gpio_in(&dev->qdev, kvm_openpic_set_irq, OPENPIC_MAX_IRQ);
+    sysbus_init_mmio(d, &opp->mem);
+    qdev_init_gpio_in(dev, kvm_openpic_set_irq, OPENPIC_MAX_IRQ);
 
     opp->mem_listener.region_add = kvm_openpic_region_add;
     opp->mem_listener.region_add = kvm_openpic_region_del;
@@ -205,13 +219,11 @@ static int kvm_openpic_init(SysBusDevice *dev)
     kvm_gsi_routing_allowed = true;
 
     kvm_irqchip_commit_routes(s);
-
-    return 0;
 }
 
 int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs)
 {
-    KVMOpenPICState *opp = FROM_SYSBUS(typeof(*opp), SYS_BUS_DEVICE(d));
+    KVMOpenPICState *opp = KVM_OPENPIC(d);
     struct kvm_enable_cap encap = {};
 
     encap.cap = KVM_CAP_IRQ_MPIC;
@@ -227,20 +239,20 @@ static Property kvm_openpic_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void kvm_openpic_class_init(ObjectClass *klass, void *data)
+static void kvm_openpic_class_init(ObjectClass *oc, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
-    k->init = kvm_openpic_init;
+    dc->realize = kvm_openpic_realize;
     dc->props = kvm_openpic_properties;
     dc->reset = kvm_openpic_reset;
 }
 
 static const TypeInfo kvm_openpic_info = {
-    .name          = "kvm-openpic",
+    .name          = TYPE_KVM_OPENPIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(KVMOpenPICState),
+    .instance_init = kvm_openpic_init,
     .class_init    = kvm_openpic_class_init,
 };
 

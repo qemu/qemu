@@ -504,7 +504,7 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
     CPUState *cs;
     int r;
 
-    dev = qdev_create(NULL, "kvm-openpic");
+    dev = qdev_create(NULL, TYPE_KVM_OPENPIC);
     qdev_prop_set_uint32(dev, "model", params->mpic_version);
 
     r = qdev_init(dev);
