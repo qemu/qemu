@@ -670,10 +670,6 @@ int cpu_exec(CPUArchState *env)
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
             } /* for(;;) */
-        } else {
-            /* Reload env after longjmp - the compiler may have smashed all
-             * local variables as longjmp is marked 'noreturn'. */
-            env = cpu_single_env;
         }
     } /* for(;;) */
 
