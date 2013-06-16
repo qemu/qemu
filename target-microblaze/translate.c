@@ -1777,7 +1777,7 @@ gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
 #if !SIM_COMPAT
         qemu_log("--------------\n");
-        log_cpu_state(env, 0);
+        log_cpu_state(CPU(cpu), 0);
 #endif
     }
 

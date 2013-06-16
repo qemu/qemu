@@ -48,7 +48,7 @@ void do_smm_enter(X86CPU *cpu)
     int i, offset;
 
     qemu_log_mask(CPU_LOG_INT, "SMM: enter\n");
-    log_cpu_state_mask(CPU_LOG_INT, env, CPU_DUMP_CCOP);
+    log_cpu_state_mask(CPU_LOG_INT, CPU(cpu), CPU_DUMP_CCOP);
 
     env->hflags |= HF_SMM_MASK;
     cpu_smm_update(env);
@@ -180,6 +180,7 @@ void do_smm_enter(X86CPU *cpu)
 
 void helper_rsm(CPUX86State *env)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     target_ulong sm_state;
     int i, offset;
     uint32_t val;
@@ -296,7 +297,7 @@ void helper_rsm(CPUX86State *env)
     cpu_smm_update(env);
 
     qemu_log_mask(CPU_LOG_INT, "SMM: after RSM\n");
-    log_cpu_state_mask(CPU_LOG_INT, env, CPU_DUMP_CCOP);
+    log_cpu_state_mask(CPU_LOG_INT, CPU(cpu), CPU_DUMP_CCOP);
 }
 
 #endif /* !CONFIG_USER_ONLY */

@@ -28,7 +28,7 @@
 
 #ifdef DEBUG_MMU
 #  define LOG_MMU(...) qemu_log(__VA_ARGS__)
-#  define LOG_MMU_STATE(env) log_cpu_state((env), 0)
+#  define LOG_MMU_STATE(env) log_cpu_state(CPU(ppc_env_get_cpu(env)), 0)
 #else
 #  define LOG_MMU(...) do { } while (0)
 #  define LOG_MMU_STATE(...) do { } while (0)

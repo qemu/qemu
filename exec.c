@@ -617,7 +617,7 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...)
         qemu_log("qemu: fatal: ");
         qemu_log_vprintf(fmt, ap2);
         qemu_log("\n");
-        log_cpu_state(env, CPU_DUMP_FPU | CPU_DUMP_CCOP);
+        log_cpu_state(cpu, CPU_DUMP_FPU | CPU_DUMP_CCOP);
         qemu_log_flush();
         qemu_log_close();
     }

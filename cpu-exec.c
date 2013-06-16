@@ -577,15 +577,15 @@ int cpu_exec(CPUArchState *env)
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
                     /* restore flags in standard format */
 #if defined(TARGET_I386)
-                    log_cpu_state(env, CPU_DUMP_CCOP);
+                    log_cpu_state(cpu, CPU_DUMP_CCOP);
 #elif defined(TARGET_M68K)
                     cpu_m68k_flush_flags(env, env->cc_op);
                     env->cc_op = CC_OP_FLAGS;
                     env->sr = (env->sr & 0xffe0)
                               | env->cc_dest | (env->cc_x << 4);
-                    log_cpu_state(env, 0);
+                    log_cpu_state(cpu, 0);
 #else
-                    log_cpu_state(env, 0);
+                    log_cpu_state(cpu, 0);
 #endif
                 }
 #endif /* DEBUG_DISAS */

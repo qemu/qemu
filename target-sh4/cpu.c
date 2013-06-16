@@ -33,7 +33,7 @@ static void superh_cpu_reset(CPUState *s)
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(env, 0);
+        log_cpu_state(s, 0);
     }
 
     scc->parent_reset(s);

@@ -1302,11 +1302,12 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
 
 #define EXCP_DUMP(env, fmt, ...)                                        \
 do {                                                                    \
+    CPUState *cs = ENV_GET_CPU(env);                                    \
     fprintf(stderr, fmt , ## __VA_ARGS__);                              \
-    cpu_dump_state(ENV_GET_CPU(env), stderr, fprintf, 0);               \
+    cpu_dump_state(cs, stderr, fprintf, 0);                             \
     qemu_log(fmt, ## __VA_ARGS__);                                      \
     if (qemu_log_enabled()) {                                           \
-        log_cpu_state(env, 0);                                          \
+        log_cpu_state(cs, 0);                                           \
     }                                                                   \
 } while (0)
 
