@@ -65,11 +65,6 @@ static void s390_cpu_reset(CPUState *s)
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(s, 0);
-    }
-
     s390_del_running_cpu(cpu);
 
     scc->parent_reset(s);

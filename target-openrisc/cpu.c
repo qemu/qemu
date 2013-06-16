@@ -26,11 +26,6 @@ static void openrisc_cpu_reset(CPUState *s)
     OpenRISCCPU *cpu = OPENRISC_CPU(s);
     OpenRISCCPUClass *occ = OPENRISC_CPU_GET_CLASS(cpu);
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(s, 0);
-    }
-
     occ->parent_reset(s);
 
     memset(&cpu->env, 0, offsetof(CPUOpenRISCState, breakpoints));

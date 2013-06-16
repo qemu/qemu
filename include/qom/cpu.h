@@ -53,6 +53,7 @@ typedef void (*CPUUnassignedAccess)(CPUState *cpu, hwaddr addr,
  * @class_by_name: Callback to map -cpu command line model name to an
  * instantiatable CPU type.
  * @reset: Callback to reset the #CPUState to its initial state.
+ * @reset_dump_flags: #CPUDumpFlags to use for reset logging.
  * @do_interrupt: Callback for interrupt handling.
  * @do_unassigned_access: Callback for unassigned access handling.
  * @dump_state: Callback for dumping state.
@@ -72,6 +73,7 @@ typedef struct CPUClass {
     ObjectClass *(*class_by_name)(const char *cpu_model);
 
     void (*reset)(CPUState *cpu);
+    int reset_dump_flags;
     void (*do_interrupt)(CPUState *cpu);
     CPUUnassignedAccess do_unassigned_access;
     void (*dump_state)(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,

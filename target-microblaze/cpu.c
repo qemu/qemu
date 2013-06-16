@@ -33,11 +33,6 @@ static void mb_cpu_reset(CPUState *s)
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(cpu);
     CPUMBState *env = &cpu->env;
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
-        log_cpu_state(s, 0);
-    }
-
     mcc->parent_reset(s);
 
     memset(env, 0, offsetof(CPUMBState, breakpoints));

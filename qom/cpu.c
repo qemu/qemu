@@ -22,6 +22,7 @@
 #include "qom/cpu.h"
 #include "sysemu/kvm.h"
 #include "qemu/notify.h"
+#include "qemu/log.h"
 #include "sysemu/sysemu.h"
 
 typedef struct CPUExistsArgs {
@@ -187,6 +188,13 @@ void cpu_reset(CPUState *cpu)
 
 static void cpu_common_reset(CPUState *cpu)
 {
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", cpu->cpu_index);
+        log_cpu_state(cpu, cc->reset_dump_flags);
+    }
+
     cpu->exit_request = 0;
     cpu->interrupt_request = 0;
     cpu->current_tb = NULL;
