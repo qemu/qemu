@@ -225,7 +225,7 @@ probes:
     scripts/tracetool --dtrace --stap \
                       --binary path/to/qemu-binary \
                       --target-type system \
-                      --target-arch x86_64 \
+                      --target-name x86_64 \
                       <trace-events >qemu.stp
 
 == Trace event properties ==

@@ -123,7 +123,7 @@ static struct defconfig_file {
     bool userconfig;
 } default_config_files[] = {
     { CONFIG_QEMU_CONFDIR "/qemu.conf",                   true },
-    { CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf", true },
+    { CONFIG_QEMU_CONFDIR "/target-" TARGET_NAME ".conf", true },
     { NULL }, /* end of list */
 };
 
@@ -1093,7 +1093,7 @@ TargetInfo *qmp_query_target(Error **errp)
 {
     TargetInfo *info = g_malloc0(sizeof(*info));
 
-    info->arch = TARGET_TYPE;
+    info->arch = g_strdup(TARGET_NAME);
 
     return info;
 }
