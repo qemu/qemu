@@ -308,7 +308,8 @@ static int tcg_target_const_match (tcg_target_long val,
 
 #define OPCD(opc) ((opc)<<26)
 #define XO19(opc) (OPCD(19)|((opc)<<1))
-#define XO30(opc) (OPCD(30)|((opc)<<2))
+#define MD30(opc) (OPCD(30)|((opc)<<2))
+#define MDS30(opc) (OPCD(30)|((opc)<<1))
 #define XO31(opc) (OPCD(31)|((opc)<<1))
 #define XO58(opc) (OPCD(58)|(opc))
 #define XO62(opc) (OPCD(62)|(opc))
@@ -354,10 +355,10 @@ static int tcg_target_const_match (tcg_target_long val,
 #define RLWINM OPCD( 21)
 #define RLWNM  OPCD( 23)
 
-#define RLDICL XO30(  0)
-#define RLDICR XO30(  1)
-#define RLDIMI XO30(  3)
-#define RLDCL  XO30(  8)
+#define RLDICL MD30(  0)
+#define RLDICR MD30(  1)
+#define RLDIMI MD30(  3)
+#define RLDCL  MDS30( 8)
 
 #define BCLR   XO19( 16)
 #define BCCTR  XO19(528)
@@ -1661,7 +1662,7 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
             tcg_out_rlw(s, RLWINM, args[0], args[1], 32 - args[2], 0, 31);
         } else {
             tcg_out32(s, SUBFIC | TAI(0, args[2], 32));
-            tcg_out32(s, RLWNM | SAB(args[1], args[0], args[2])
+            tcg_out32(s, RLWNM | SAB(args[1], args[0], 0)
                          | MB(0) | ME(31));
         }
         break;
@@ -1922,8 +1923,6 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
 
         if (a0 == 0) {
             tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
-            /* Revert the source rotate that we performed above.  */
-            tcg_out_rld(s, RLDICL, a1, a1, 32, 0);
         }
         break;
 
@@ -1960,18 +1959,18 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
            environment.  So in 64-bit mode it's always carry-out of bit 63.
            The fallback code using deposit works just as well for 32-bit.  */
         a0 = args[0], a1 = args[1];
-        if (a0 == args[4] || (!const_args[5] && a0 == args[5])) {
+        if (a0 == args[3] || (!const_args[5] && a0 == args[5])) {
             a0 = TCG_REG_R0;
         }
-        if (const_args[3]) {
-            tcg_out32(s, ADDIC | TAI(a0, args[2], args[3]));
+        if (const_args[4]) {
+            tcg_out32(s, ADDIC | TAI(a0, args[2], args[4]));
         } else {
-            tcg_out32(s, ADDC | TAB(a0, args[2], args[3]));
+            tcg_out32(s, ADDC | TAB(a0, args[2], args[4]));
         }
         if (const_args[5]) {
-            tcg_out32(s, (args[5] ? ADDME : ADDZE) | RT(a1) | RA(args[4]));
+            tcg_out32(s, (args[5] ? ADDME : ADDZE) | RT(a1) | RA(args[3]));
         } else {
-            tcg_out32(s, ADDE | TAB(a1, args[4], args[5]));
+            tcg_out32(s, ADDE | TAB(a1, args[3], args[5]));
         }
         if (a0 != args[0]) {
             tcg_out_mov(s, TCG_TYPE_I64, args[0], a0);
@@ -2149,7 +2148,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
     { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
 
-    { INDEX_op_add2_i64, { "r", "r", "r", "rI", "r", "rZM" } },
+    { INDEX_op_add2_i64, { "r", "r", "r", "r", "rI", "rZM" } },
     { INDEX_op_sub2_i64, { "r", "r", "rI", "r", "rZM", "r" } },
     { INDEX_op_muls2_i64, { "r", "r", "r", "r" } },
     { INDEX_op_mulu2_i64, { "r", "r", "r", "r" } },
