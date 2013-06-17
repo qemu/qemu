@@ -93,6 +93,26 @@ struct subchannel_id {
         __u32 sch_no : 16;
 } __attribute__ ((packed, aligned(4)));
 
+struct chsc_header {
+    __u16 length;
+    __u16 code;
+} __attribute__((packed));
+
+struct chsc_area_sda {
+    struct chsc_header request;
+    __u8 reserved1:4;
+    __u8 format:4;
+    __u8 reserved2;
+    __u16 operation_code;
+    __u32 reserved3;
+    __u32 reserved4;
+    __u32 operation_data_area[252];
+    struct chsc_header response;
+    __u32 reserved5:4;
+    __u32 format2:4;
+    __u32 reserved6:24;
+} __attribute__((packed));
+
 /*
  * TPI info structure
  */
