@@ -609,6 +609,11 @@ S: Supported
 F: hw/char/virtio-serial-bus.c
 F: hw/char/virtio-console.c
 
+nvme
+M: Keith Busch <keith.busch@intel.com>
+S: Supported
+F: hw/block/nvme*
+
 Xilinx EDK
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>

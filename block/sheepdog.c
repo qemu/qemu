@@ -2063,7 +2063,7 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     if (snapid) {
         tag[0] = 0;
     } else {
-        pstrcpy(tag, sizeof(tag), s->name);
+        pstrcpy(tag, sizeof(tag), snapshot_id);
     }
 
     ret = reload_inode(s, snapid, tag);
@@ -2071,13 +2071,10 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         goto out;
     }
 
-    if (!s->inode.vm_state_size) {
-        error_report("Invalid snapshot");
-        ret = -ENOENT;
+    ret = sd_create_branch(s);
+    if (ret) {
         goto out;
     }
-
-    s->is_snapshot = true;
 
     g_free(old_s);
 
@@ -2196,8 +2193,9 @@ static int do_load_save_vmstate(BDRVSheepdogState *s, uint8_t *data,
     int fd, ret = 0, remaining = size;
     unsigned int data_len;
     uint64_t vmstate_oid;
-    uint32_t vdi_index;
     uint64_t offset;
+    uint32_t vdi_index;
+    uint32_t vdi_id = load ? s->inode.parent_vdi_id : s->inode.vdi_id;
 
     fd = connect_to_sdog(s);
     if (fd < 0) {
@@ -2210,7 +2208,7 @@ static int do_load_save_vmstate(BDRVSheepdogState *s, uint8_t *data,
 
         data_len = MIN(remaining, SD_DATA_OBJ_SIZE - offset);
 
-        vmstate_oid = vid_to_vmstate_oid(s->inode.vdi_id, vdi_index);
+        vmstate_oid = vid_to_vmstate_oid(vdi_id, vdi_index);
 
         create = (offset == 0);
         if (load) {
