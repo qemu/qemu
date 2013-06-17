@@ -512,7 +512,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
         char backing_filename[PATH_MAX];
         bdrv_get_full_backing_filename(s->target, backing_filename,
                                        sizeof(backing_filename));
-        error_set(errp, QERR_OPEN_FILE_FAILED, backing_filename);
+        error_setg_file_open(errp, -ret, backing_filename);
         return;
     }
     if (!s->synced) {

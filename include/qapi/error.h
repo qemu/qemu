@@ -45,6 +45,11 @@ void error_set_errno(Error **err, int os_error, ErrorClass err_class, const char
     error_set_errno(err, os_error, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
 
 /**
+ * Helper for open() errors
+ */
+void error_setg_file_open(Error **errp, int os_errno, const char *filename);
+
+/**
  * Returns true if an indirect pointer to an error is pointing to a valid
  * error object.
  */

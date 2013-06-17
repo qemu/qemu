@@ -1291,8 +1291,8 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
             if (local_err != NULL) {
                 error_propagate(errp, local_err);
             } else {
-                error_set(errp, QERR_OPEN_FILE_FAILED,
-                          reopen_state->bs->filename);
+                error_setg(errp, "failed while preparing to reopen image '%s'",
+                           reopen_state->bs->filename);
             }
             goto error;
         }

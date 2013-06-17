@@ -177,9 +177,6 @@ void assert_no_error(Error *err);
 #define QERR_NOT_SUPPORTED \
     ERROR_CLASS_GENERIC_ERROR, "Not supported"
 
-#define QERR_OPEN_FILE_FAILED \
-    ERROR_CLASS_GENERIC_ERROR, "Could not open '%s'"
-
 #define QERR_PERMISSION_DENIED \
     ERROR_CLASS_GENERIC_ERROR, "Insufficient permission to perform this operation"
 

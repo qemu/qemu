@@ -899,7 +899,7 @@ static void external_snapshot_prepare(BlkTransactionStates *common,
     ret = bdrv_open(states->new_bs, new_image_file, NULL,
                     flags | BDRV_O_NO_BACKING, drv);
     if (ret != 0) {
-        error_set(errp, QERR_OPEN_FILE_FAILED, new_image_file);
+        error_setg_file_open(errp, -ret, new_image_file);
     }
 }
 
@@ -1062,8 +1062,11 @@ static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
                                     int bdrv_flags, BlockDriver *drv,
                                     const char *password, Error **errp)
 {
-    if (bdrv_open(bs, filename, NULL, bdrv_flags, drv) < 0) {
-        error_set(errp, QERR_OPEN_FILE_FAILED, filename);
+    int ret;
+
+    ret = bdrv_open(bs, filename, NULL, bdrv_flags, drv);
+    if (ret < 0) {
+        error_setg_file_open(errp, -ret, filename);
         return;
     }
 
@@ -1483,7 +1486,7 @@ void qmp_drive_mirror(const char *device, const char *target,
 
     if (ret < 0) {
         bdrv_delete(target_bs);
-        error_set(errp, QERR_OPEN_FILE_FAILED, target);
+        error_setg_file_open(errp, -ret, target);
         return;
     }
 
