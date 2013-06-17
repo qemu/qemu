@@ -330,7 +330,7 @@ static int cpu_common_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_cpu_common = {
+const VMStateDescription vmstate_cpu_common = {
     .name = "cpu_common",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -342,8 +342,7 @@ static const VMStateDescription vmstate_cpu_common = {
         VMSTATE_END_OF_LIST()
     }
 };
-#else
-#define vmstate_cpu_common vmstate_dummy
+
 #endif
 
 CPUState *qemu_get_cpu(int index)

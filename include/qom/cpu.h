@@ -378,4 +378,18 @@ void cpu_reset_interrupt(CPUState *cpu, int mask);
  */
 void cpu_resume(CPUState *cpu);
 
+#ifdef CONFIG_SOFTMMU
+extern const struct VMStateDescription vmstate_cpu_common;
+#else
+#define vmstate_cpu_common vmstate_dummy
+#endif
+
+#define VMSTATE_CPU() {                                                     \
+    .name = "parent_obj",                                                   \
+    .size = sizeof(CPUState),                                               \
+    .vmsd = &vmstate_cpu_common,                                            \
+    .flags = VMS_STRUCT,                                                    \
+    .offset = 0,                                                            \
+}
+
 #endif
