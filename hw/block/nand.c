@@ -298,10 +298,8 @@ static void nand_command(NANDFlashState *s)
 
     case NAND_CMD_BLOCKERASE2:
         s->addr &= (1ull << s->addrlen * 8) - 1;
-        if (nand_flash_ids[s->chip_id].options & NAND_SAMSUNG_LP)
-            s->addr <<= 16;
-        else
-            s->addr <<= 8;
+        s->addr <<= nand_flash_ids[s->chip_id].options & NAND_SAMSUNG_LP ?
+                                                                    16 : 8;
 
         if (s->wp) {
             s->blk_erase(s);
@@ -464,10 +462,11 @@ void nand_setpins(DeviceState *dev, uint8_t cle, uint8_t ale,
     s->ce = ce;
     s->wp = wp;
     s->gnd = gnd;
-    if (wp)
+    if (wp) {
         s->status |= NAND_IOSTATUS_UNPROTCT;
-    else
+    } else {
         s->status &= ~NAND_IOSTATUS_UNPROTCT;
+    }
 }
 
 void nand_getpins(DeviceState *dev, int *rb)
@@ -489,13 +488,12 @@ void nand_setio(DeviceState *dev, uint32_t value)
                 return;
             }
         }
-        if (value == NAND_CMD_READ0)
+        if (value == NAND_CMD_READ0) {
             s->offset = 0;
-	else if (value == NAND_CMD_READ1) {
+        } else if (value == NAND_CMD_READ1) {
             s->offset = 0x100;
             value = NAND_CMD_READ0;
-        }
-	else if (value == NAND_CMD_READ2) {
+        } else if (value == NAND_CMD_READ2) {
             s->offset = 1 << s->page_shift;
             value = NAND_CMD_READ0;
         }
@@ -508,8 +506,9 @@ void nand_setio(DeviceState *dev, uint32_t value)
                 s->cmd == NAND_CMD_BLOCKERASE2 ||
                 s->cmd == NAND_CMD_NOSERIALREAD2 ||
                 s->cmd == NAND_CMD_RANDOMREAD2 ||
-                s->cmd == NAND_CMD_RESET)
+                s->cmd == NAND_CMD_RESET) {
             nand_command(s);
+        }
 
         if (s->cmd != NAND_CMD_RANDOMREAD2) {
             s->addrlen = 0;
@@ -596,8 +595,9 @@ uint32_t nand_getio(DeviceState *dev)
             s->iolen = (1 << s->page_shift) + (1 << s->oob_shift) - offset;
     }
 
-    if (s->ce || s->iolen <= 0)
+    if (s->ce || s->iolen <= 0) {
         return 0;
+    }
 
     for (offset = s->buswidth; offset--;) {
         x |= s->ioaddr[offset] << (offset << 3);
@@ -696,8 +696,9 @@ static void glue(nand_blk_erase_, PAGE_SIZE)(NANDFlashState *s)
     uint8_t iobuf[0x200] = { [0 ... 0x1ff] = 0xff, };
     addr = s->addr & ~((1 << (ADDR_SHIFT + s->erase_shift)) - 1);
 
-    if (PAGE(addr) >= s->pages)
+    if (PAGE(addr) >= s->pages) {
         return;
+    }
 
     if (!s->bdrv) {
         memset(s->storage + PAGE_START(addr),
@@ -725,11 +726,12 @@ static void glue(nand_blk_erase_, PAGE_SIZE)(NANDFlashState *s)
         memset(iobuf, 0xff, 0x200);
         i = (addr & ~0x1ff) + 0x200;
         for (addr += ((PAGE_SIZE + OOB_SIZE) << s->erase_shift) - 0x200;
-                        i < addr; i += 0x200)
+                        i < addr; i += 0x200) {
             if (bdrv_write(s->bdrv, i >> 9, iobuf, 1) < 0) {
                 printf("%s: write error in sector %" PRIu64 "\n",
                        __func__, i >> 9);
             }
+        }
 
         page = i >> 9;
         if (bdrv_read(s->bdrv, page, iobuf, 1) < 0) {
@@ -745,8 +747,9 @@ static void glue(nand_blk_erase_, PAGE_SIZE)(NANDFlashState *s)
 static void glue(nand_blk_load_, PAGE_SIZE)(NANDFlashState *s,
                 uint64_t addr, int offset)
 {
-    if (PAGE(addr) >= s->pages)
+    if (PAGE(addr) >= s->pages) {
         return;
+    }
 
     if (s->bdrv) {
         if (s->mem_oob) {
