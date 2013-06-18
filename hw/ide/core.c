@@ -1004,6 +1004,21 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+static bool cmd_data_set_management(IDEState *s, uint8_t cmd)
+{
+    switch (s->feature) {
+    case DSM_TRIM:
+        if (s->bs) {
+            ide_sector_start_dma(s, IDE_DMA_TRIM);
+            return false;
+        }
+        break;
+    }
+
+    ide_abort_command(s);
+    return true;
+}
+
 #define HD_OK (1u << IDE_HD)
 #define CD_OK (1u << IDE_CD)
 #define CFA_OK (1u << IDE_CFATA)
@@ -1021,7 +1036,7 @@ static const struct {
 } ide_cmd_table[0x100] = {
     /* NOP not implemented, mandatory for CD */
     [CFA_REQ_EXT_ERROR_CODE]      = { NULL, CFA_OK },
-    [WIN_DSM]                     = { NULL, ALL_OK },
+    [WIN_DSM]                     = { cmd_data_set_management, ALL_OK },
     [WIN_DEVICE_RESET]            = { NULL, CD_OK },
     [WIN_RECAL]                   = { NULL, HD_CFA_OK },
     [WIN_READ]                    = { NULL, ALL_OK },
@@ -1129,18 +1144,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    case WIN_DSM:
-        switch (s->feature) {
-        case DSM_TRIM:
-            if (!s->bs) {
-                goto abort_cmd;
-            }
-            ide_sector_start_dma(s, IDE_DMA_TRIM);
-            break;
-        default:
-            goto abort_cmd;
-        }
-        break;
     case WIN_IDENTIFY:
         if (s->bs && s->drive_kind != IDE_CD) {
             if (s->drive_kind != IDE_CFATA)
