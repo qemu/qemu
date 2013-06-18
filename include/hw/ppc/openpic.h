@@ -4,6 +4,8 @@
 #include "qemu-common.h"
 #include "hw/qdev.h"
 
+#define TYPE_OPENPIC "openpic"
+
 /* OpenPIC have 5 outputs per CPU connected and one IRQ out single output */
 enum {
     OPENPIC_OUTPUT_INT = 0, /* IRQ                       */

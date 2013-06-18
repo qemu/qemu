@@ -251,8 +251,13 @@ typedef struct IRQDest {
     uint32_t outputs_active[OPENPIC_OUTPUT_NB];
 } IRQDest;
 
+#define OPENPIC(obj) OBJECT_CHECK(OpenPICState, (obj), TYPE_OPENPIC)
+
 typedef struct OpenPICState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion mem;
 
     /* Behavior control */
@@ -533,7 +538,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 
 static void openpic_reset(DeviceState *d)
 {
-    OpenPICState *opp = FROM_SYSBUS(typeof(*opp), SYS_BUS_DEVICE(d));
+    OpenPICState *opp = OPENPIC(d);
     int i;
 
     opp->gcr = GCR_RESET;
@@ -699,7 +704,7 @@ static void openpic_gcr_write(OpenPICState *opp, uint64_t val)
     bool mpic_proxy = false;
 
     if (val & GCR_RESET) {
-        openpic_reset(&opp->busdev.qdev);
+        openpic_reset(DEVICE(opp));
         return;
     }
 
@@ -1524,7 +1529,7 @@ static void map_list(OpenPICState *opp, const MemReg *list, int *count)
 
 static int openpic_init(SysBusDevice *dev)
 {
-    OpenPICState *opp = FROM_SYSBUS(typeof (*opp), dev);
+    OpenPICState *opp = OPENPIC(dev);
     int i, j;
     int list_count = 0;
     static const MemReg list_le[] = {
@@ -1617,7 +1622,7 @@ static int openpic_init(SysBusDevice *dev)
         }
     }
 
-    register_savevm(&opp->busdev.qdev, "openpic", 0, 2,
+    register_savevm(DEVICE(opp), "openpic", 0, 2,
                     openpic_save, openpic_load, opp);
 
     sysbus_init_mmio(dev, &opp->mem);
@@ -1643,7 +1648,7 @@ static void openpic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo openpic_info = {
-    .name          = "openpic",
+    .name          = TYPE_OPENPIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OpenPICState),
     .class_init    = openpic_class_init,

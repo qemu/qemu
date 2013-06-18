@@ -479,7 +479,7 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500Params *params,
     SysBusDevice *s;
     int i, j, k;
 
-    dev = qdev_create(NULL, "openpic");
+    dev = qdev_create(NULL, TYPE_OPENPIC);
     qdev_prop_set_uint32(dev, "model", params->mpic_version);
     qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
 
