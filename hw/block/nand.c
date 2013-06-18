@@ -367,7 +367,7 @@ static const VMStateDescription vmstate_nand = {
     }
 };
 
-static int nand_device_init(SysBusDevice *dev)
+static void nand_realize(DeviceState *dev, Error **errp)
 {
     int pagesize;
     NANDFlashState *s = NAND(dev);
@@ -393,16 +393,17 @@ static int nand_device_init(SysBusDevice *dev)
         nand_init_2048(s);
         break;
     default:
-        error_report("Unsupported NAND block size");
-        return -1;
+        error_setg(errp, "Unsupported NAND block size %#x\n",
+                   1 << s->page_shift);
+        return;
     }
 
     pagesize = 1 << s->oob_shift;
     s->mem_oob = 1;
     if (s->bdrv) {
         if (bdrv_is_read_only(s->bdrv)) {
-            error_report("Can't use a read-only drive");
-            return -1;
+            error_setg(errp, "Can't use a read-only drive");
+            return;
         }
         if (bdrv_getlength(s->bdrv) >=
                 (s->pages << s->page_shift) + (s->pages << s->oob_shift)) {
@@ -418,8 +419,6 @@ static int nand_device_init(SysBusDevice *dev)
     }
     /* Give s->ioaddr a sane value in case we save state before it is used. */
     s->ioaddr = s->io;
-
-    return 0;
 }
 
 static Property nand_properties[] = {
@@ -432,9 +431,8 @@ static Property nand_properties[] = {
 static void nand_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = nand_device_init;
+    dc->realize = nand_realize;
     dc->reset = nand_reset;
     dc->vmsd = &vmstate_nand;
     dc->props = nand_properties;
