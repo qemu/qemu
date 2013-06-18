@@ -1349,6 +1349,95 @@ static bool cmd_packet(IDEState *s, uint8_t cmd)
     return false;
 }
 
+
+/*** CF-ATA commands ***/
+
+static bool cmd_cfa_req_ext_error_code(IDEState *s, uint8_t cmd)
+{
+    s->error = 0x09;    /* miscellaneous error */
+    s->status = READY_STAT | SEEK_STAT;
+    ide_set_irq(s->bus);
+
+    return false;
+}
+
+static bool cmd_cfa_erase_sectors(IDEState *s, uint8_t cmd)
+{
+    /* WIN_SECURITY_FREEZE_LOCK has the same ID as CFA_WEAR_LEVEL and is
+     * required for Windows 8 to work with AHCI */
+
+    if (cmd == CFA_WEAR_LEVEL) {
+        s->nsector = 0;
+    }
+
+    if (cmd == CFA_ERASE_SECTORS) {
+        s->media_changed = 1;
+    }
+
+    return true;
+}
+
+static bool cmd_cfa_translate_sector(IDEState *s, uint8_t cmd)
+{
+    s->status = READY_STAT | SEEK_STAT;
+
+    memset(s->io_buffer, 0, 0x200);
+    s->io_buffer[0x00] = s->hcyl;                   /* Cyl MSB */
+    s->io_buffer[0x01] = s->lcyl;                   /* Cyl LSB */
+    s->io_buffer[0x02] = s->select;                 /* Head */
+    s->io_buffer[0x03] = s->sector;                 /* Sector */
+    s->io_buffer[0x04] = ide_get_sector(s) >> 16;   /* LBA MSB */
+    s->io_buffer[0x05] = ide_get_sector(s) >> 8;    /* LBA */
+    s->io_buffer[0x06] = ide_get_sector(s) >> 0;    /* LBA LSB */
+    s->io_buffer[0x13] = 0x00;                      /* Erase flag */
+    s->io_buffer[0x18] = 0x00;                      /* Hot count */
+    s->io_buffer[0x19] = 0x00;                      /* Hot count */
+    s->io_buffer[0x1a] = 0x01;                      /* Hot count */
+
+    ide_transfer_start(s, s->io_buffer, 0x200, ide_transfer_stop);
+    ide_set_irq(s->bus);
+
+    return false;
+}
+
+static bool cmd_cfa_access_metadata_storage(IDEState *s, uint8_t cmd)
+{
+    switch (s->feature) {
+    case 0x02:  /* Inquiry Metadata Storage */
+        ide_cfata_metadata_inquiry(s);
+        break;
+    case 0x03:  /* Read Metadata Storage */
+        ide_cfata_metadata_read(s);
+        break;
+    case 0x04:  /* Write Metadata Storage */
+        ide_cfata_metadata_write(s);
+        break;
+    default:
+        ide_abort_command(s);
+        return true;
+    }
+
+    ide_transfer_start(s, s->io_buffer, 0x200, ide_transfer_stop);
+    s->status = 0x00; /* NOTE: READY is _not_ set */
+    ide_set_irq(s->bus);
+
+    return false;
+}
+
+static bool cmd_ibm_sense_condition(IDEState *s, uint8_t cmd)
+{
+    switch (s->feature) {
+    case 0x01:  /* sense temperature in device */
+        s->nsector = 0x50;      /* +20 C */
+        break;
+    default:
+        ide_abort_command(s);
+        return true;
+    }
+
+    return true;
+}
+
 #define HD_OK (1u << IDE_HD)
 #define CD_OK (1u << IDE_CD)
 #define CFA_OK (1u << IDE_CFATA)
@@ -1365,7 +1454,7 @@ static const struct {
     int flags;
 } ide_cmd_table[0x100] = {
     /* NOP not implemented, mandatory for CD */
-    [CFA_REQ_EXT_ERROR_CODE]      = { NULL, CFA_OK },
+    [CFA_REQ_EXT_ERROR_CODE]      = { cmd_cfa_req_ext_error_code, CFA_OK },
     [WIN_DSM]                     = { cmd_data_set_management, ALL_OK },
     [WIN_DEVICE_RESET]            = { cmd_device_reset, CD_OK },
     [WIN_RECAL]                   = { cmd_nop, HD_CFA_OK | SET_DSC},
@@ -1386,7 +1475,7 @@ static const struct {
     [WIN_VERIFY_ONCE]             = { cmd_verify, HD_CFA_OK | SET_DSC },
     [WIN_VERIFY_EXT]              = { cmd_verify, HD_CFA_OK | SET_DSC },
     [WIN_SEEK]                    = { cmd_seek, HD_CFA_OK | SET_DSC },
-    [CFA_TRANSLATE_SECTOR]        = { NULL, CFA_OK },
+    [CFA_TRANSLATE_SECTOR]        = { cmd_cfa_translate_sector, CFA_OK },
     [WIN_DIAGNOSE]                = { cmd_exec_dev_diagnostic, ALL_OK },
     [WIN_SPECIFY]                 = { cmd_nop, HD_CFA_OK | SET_DSC },
     [WIN_STANDBYNOW2]             = { cmd_nop, ALL_OK },
@@ -1398,8 +1487,8 @@ static const struct {
     [WIN_PACKETCMD]               = { cmd_packet, CD_OK },
     [WIN_PIDENTIFY]               = { cmd_identify_packet, CD_OK },
     [WIN_SMART]                   = { NULL, HD_CFA_OK },
-    [CFA_ACCESS_METADATA_STORAGE] = { NULL, CFA_OK },
-    [CFA_ERASE_SECTORS]           = { NULL, CFA_OK },
+    [CFA_ACCESS_METADATA_STORAGE] = { cmd_cfa_access_metadata_storage, CFA_OK },
+    [CFA_ERASE_SECTORS]           = { cmd_cfa_erase_sectors, CFA_OK | SET_DSC },
     [WIN_MULTREAD]                = { cmd_read_multiple, HD_CFA_OK },
     [WIN_MULTWRITE]               = { cmd_write_multiple, HD_CFA_OK },
     [WIN_SETMULT]                 = { cmd_set_multiple_mode, HD_CFA_OK | SET_DSC },
@@ -1418,8 +1507,8 @@ static const struct {
     [WIN_FLUSH_CACHE_EXT]         = { cmd_flush_cache, HD_CFA_OK },
     [WIN_IDENTIFY]                = { cmd_identify, ALL_OK },
     [WIN_SETFEATURES]             = { cmd_set_features, ALL_OK | SET_DSC },
-    [IBM_SENSE_CONDITION]         = { NULL, CFA_OK },
-    [CFA_WEAR_LEVEL]              = { NULL, HD_CFA_OK },
+    [IBM_SENSE_CONDITION]         = { cmd_ibm_sense_condition, CFA_OK | SET_DSC },
+    [CFA_WEAR_LEVEL]              = { cmd_cfa_erase_sectors, HD_CFA_OK | SET_DSC },
     [WIN_READ_NATIVE_MAX]         = { cmd_read_native_max, ALL_OK | SET_DSC },
 };
 
@@ -1472,75 +1561,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    /* CF-ATA commands */
-    case CFA_REQ_EXT_ERROR_CODE:
-        s->error = 0x09;    /* miscellaneous error */
-        s->status = READY_STAT | SEEK_STAT;
-        ide_set_irq(s->bus);
-        break;
-    case CFA_ERASE_SECTORS:
-    case CFA_WEAR_LEVEL:
-#if 0
-    /* This one has the same ID as CFA_WEAR_LEVEL and is required for
-       Windows 8 to work with AHCI */
-    case WIN_SECURITY_FREEZE_LOCK:
-#endif
-        if (val == CFA_WEAR_LEVEL)
-            s->nsector = 0;
-        if (val == CFA_ERASE_SECTORS)
-            s->media_changed = 1;
-        s->error = 0x00;
-        s->status = READY_STAT | SEEK_STAT;
-        ide_set_irq(s->bus);
-        break;
-    case CFA_TRANSLATE_SECTOR:
-        s->error = 0x00;
-        s->status = READY_STAT | SEEK_STAT;
-        memset(s->io_buffer, 0, 0x200);
-        s->io_buffer[0x00] = s->hcyl;			/* Cyl MSB */
-        s->io_buffer[0x01] = s->lcyl;			/* Cyl LSB */
-        s->io_buffer[0x02] = s->select;			/* Head */
-        s->io_buffer[0x03] = s->sector;			/* Sector */
-        s->io_buffer[0x04] = ide_get_sector(s) >> 16;	/* LBA MSB */
-        s->io_buffer[0x05] = ide_get_sector(s) >> 8;	/* LBA */
-        s->io_buffer[0x06] = ide_get_sector(s) >> 0;	/* LBA LSB */
-        s->io_buffer[0x13] = 0x00;				/* Erase flag */
-        s->io_buffer[0x18] = 0x00;				/* Hot count */
-        s->io_buffer[0x19] = 0x00;				/* Hot count */
-        s->io_buffer[0x1a] = 0x01;				/* Hot count */
-        ide_transfer_start(s, s->io_buffer, 0x200, ide_transfer_stop);
-        ide_set_irq(s->bus);
-        break;
-    case CFA_ACCESS_METADATA_STORAGE:
-        switch (s->feature) {
-        case 0x02:	/* Inquiry Metadata Storage */
-            ide_cfata_metadata_inquiry(s);
-            break;
-        case 0x03:	/* Read Metadata Storage */
-            ide_cfata_metadata_read(s);
-            break;
-        case 0x04:	/* Write Metadata Storage */
-            ide_cfata_metadata_write(s);
-            break;
-        default:
-            goto abort_cmd;
-        }
-        ide_transfer_start(s, s->io_buffer, 0x200, ide_transfer_stop);
-        s->status = 0x00; /* NOTE: READY is _not_ set */
-        ide_set_irq(s->bus);
-        break;
-    case IBM_SENSE_CONDITION:
-        switch (s->feature) {
-        case 0x01:  /* sense temperature in device */
-            s->nsector = 0x50;      /* +20 C */
-            break;
-        default:
-            goto abort_cmd;
-        }
-        s->status = READY_STAT | SEEK_STAT;
-        ide_set_irq(s->bus);
-        break;
-
     case WIN_SMART:
 	if (s->hcyl != 0xc2 || s->lcyl != 0x4f)
 		goto abort_cmd;
