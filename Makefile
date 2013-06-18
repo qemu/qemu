@@ -452,7 +452,7 @@ qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 ifdef CONFIG_INSTALLER
 ifdef CONFIG_WIN32
 
-INSTALLER = qemu-$(VERSION)$(EXESUF)
+INSTALLER = qemu-setup-$(VERSION)$(EXESUF)
 
 nsisflags = -V2 -NOCD
 
@@ -467,16 +467,29 @@ endif
 
 .PHONY: installer
 installer: $(INSTALLER)
+
+INSTDIR=/tmp/qemu-nsis
+
 $(INSTALLER): $(SRC_PATH)/qemu.nsi
-	rm -fr /tmp/qemu-nsis
-	make install prefix=/tmp/qemu-nsis
+	make install prefix=${INSTDIR}
+	(cd ${INSTDIR}; \
+	 for i in qemu-system-*.exe; do \
+	   arch=$${i%.exe}; \
+	   arch=$${arch#qemu-system-}; \
+	   echo Section \"$$arch\" Section_$$arch; \
+	   echo SetOutPath \"\$$INSTDIR\"; \
+	   echo File \"\$${BINDIR}\\$$i\"; \
+	   echo SectionEnd; \
+	 done \
+	) >${INSTDIR}/system-emulations.nsh
 	makensis $(nsisflags) \
 		$(if $(BUILD_DOCS),-DCONFIG_DOCUMENTATION="y") \
-		-DBINDIR="/tmp/qemu-nsis" \
+		-DBINDIR="${INSTDIR}" \
 		-DDLLDIR="$(DLL_PATH)" \
 		-DSRCDIR="$(SRC_PATH)" \
+		-DOUTFILE="$(INSTALLER)" \
 		$(SRC_PATH)/qemu.nsi
-	rm -fr /tmp/qemu-nsis
+	rm -r ${INSTDIR}
 
 endif # CONFIG_WIN
 endif # CONFIG_INSTALLER

@@ -40,6 +40,9 @@
 !define CONFIG_DOCUMENTATION
 !endif
 
+; Use maximum compression.
+SetCompressor /SOLID lzma
+
 !include "MUI2.nsh"
 
 ; The name of the installer.
@@ -64,11 +67,11 @@ RequestExecutionLevel admin
 
 ;--------------------------------
 ; Interface Settings.
-; !define MUI_HEADERIMAGE "qemu-install.bmp"
+;!define MUI_HEADERIMAGE "qemu-nsis.bmp"
 ; !define MUI_SPECIALBITMAP "qemu.bmp"
-!define MUI_ICON "${SRCDIR}\pc-bios\qemu-icon.ico"
-!define MUI_UNICON "${SRCDIR}\pc-bios\qemu-icon.ico"
-; !define MUI_WELCOMEFINISHPAGE_BITMAP "qemu.bmp"
+!define MUI_ICON "${SRCDIR}\pc-bios\qemu-nsis.ico"
+!define MUI_UNICON "${SRCDIR}\pc-bios\qemu-nsis.ico"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "${SRCDIR}\pc-bios\qemu-nsis.bmp"
 ; !define MUI_HEADERIMAGE_BITMAP "qemu-install.bmp"
 ; !define MUI_HEADERIMAGE_UNBITMAP "qemu-uninstall.bmp"
 ; !define MUI_COMPONENTSPAGE_SMALLDESC
@@ -141,15 +144,11 @@ Section "Tools" SectionTools
     File "${BINDIR}\qemu-io.exe"
 SectionEnd
 
-Section "PC (i386) System Emulation" SectionI386
-    SetOutPath "$INSTDIR"
-    File "${BINDIR}\qemu-system-i386.exe"
-SectionEnd
+SectionGroup "System Emulations" SectionSystem
 
-Section "Other System Emulations" SectionOther
-    SetOutPath "$INSTDIR"
-    File "${BINDIR}\qemu-system-*.exe"
-SectionEnd
+!include "${BINDIR}\system-emulations.nsh"
+
+SectionGroupEnd
 
 !ifdef DLLDIR
 Section "Libraries (DLL)" SectionDll
@@ -224,8 +223,11 @@ SectionEnd
 
 ; Descriptions (mouse-over).
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-    !insertmacro MUI_DESCRIPTION_TEXT ${SectionI386}  "PC system emulation (i386)."
-    !insertmacro MUI_DESCRIPTION_TEXT ${SectionOther} "Additional system emulations."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SectionSystem}  "System emulation."
+    !insertmacro MUI_DESCRIPTION_TEXT ${Section_alpha}  "Alpha system emulation."
+    !insertmacro MUI_DESCRIPTION_TEXT ${Section_alphaw} "Alpha system emulation (GUI)."
+    !insertmacro MUI_DESCRIPTION_TEXT ${Section_i386}   "PC i386 system emulation."
+    !insertmacro MUI_DESCRIPTION_TEXT ${Section_i386w}  "PC i386 system emulation (GUI)."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionTools} "Tools."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionDll}   "Runtime Libraries (DLL)."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionDoc}   "Documentation."
@@ -238,4 +240,3 @@ SectionEnd
 Function .onInit
     !insertmacro MUI_LANGDLL_DISPLAY
 FunctionEnd
-
