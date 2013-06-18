@@ -1527,8 +1527,16 @@ static void map_list(OpenPICState *opp, const MemReg *list, int *count)
     }
 }
 
-static int openpic_init(SysBusDevice *dev)
+static void openpic_init(Object *obj)
 {
+    OpenPICState *opp = OPENPIC(obj);
+
+    memory_region_init(&opp->mem, "openpic", 0x40000);
+}
+
+static void openpic_realize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *d = SYS_BUS_DEVICE(dev);
     OpenPICState *opp = OPENPIC(dev);
     int i, j;
     int list_count = 0;
@@ -1561,8 +1569,6 @@ static int openpic_init(SysBusDevice *dev)
                 OPENPIC_SUMMARY_REG_START, OPENPIC_SUMMARY_REG_SIZE},
         {NULL}
     };
-
-    memory_region_init(&opp->mem, "openpic", 0x40000);
 
     switch (opp->model) {
     case OPENPIC_MODEL_FSL_MPIC_20:
@@ -1606,9 +1612,9 @@ static int openpic_init(SysBusDevice *dev)
         opp->brr1 = -1;
         opp->mpic_mode_mask = GCR_MODE_MIXED;
 
-        /* Only UP supported today */
         if (opp->nb_cpus != 1) {
-            return -EINVAL;
+            error_setg(errp, "Only UP supported today");
+            return;
         }
 
         map_list(opp, list_le, &list_count);
@@ -1618,17 +1624,15 @@ static int openpic_init(SysBusDevice *dev)
     for (i = 0; i < opp->nb_cpus; i++) {
         opp->dst[i].irqs = g_new(qemu_irq, OPENPIC_OUTPUT_NB);
         for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
-            sysbus_init_irq(dev, &opp->dst[i].irqs[j]);
+            sysbus_init_irq(d, &opp->dst[i].irqs[j]);
         }
     }
 
-    register_savevm(DEVICE(opp), "openpic", 0, 2,
+    register_savevm(dev, "openpic", 0, 2,
                     openpic_save, openpic_load, opp);
 
-    sysbus_init_mmio(dev, &opp->mem);
-    qdev_init_gpio_in(&dev->qdev, openpic_set_irq, opp->max_irq);
-
-    return 0;
+    sysbus_init_mmio(d, &opp->mem);
+    qdev_init_gpio_in(dev, openpic_set_irq, opp->max_irq);
 }
 
 static Property openpic_properties[] = {
@@ -1637,12 +1641,11 @@ static Property openpic_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void openpic_class_init(ObjectClass *klass, void *data)
+static void openpic_class_init(ObjectClass *oc, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
-    k->init = openpic_init;
+    dc->realize = openpic_realize;
     dc->props = openpic_properties;
     dc->reset = openpic_reset;
 }
@@ -1651,6 +1654,7 @@ static const TypeInfo openpic_info = {
     .name          = TYPE_OPENPIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OpenPICState),
+    .instance_init = openpic_init,
     .class_init    = openpic_class_init,
 };
 
