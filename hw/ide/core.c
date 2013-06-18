@@ -1110,6 +1110,48 @@ static bool cmd_write_multiple(IDEState *s, uint8_t cmd)
     return false;
 }
 
+static bool cmd_read_pio(IDEState *s, uint8_t cmd)
+{
+    bool lba48 = (cmd == WIN_READ_EXT);
+
+    if (s->drive_kind == IDE_CD) {
+        ide_set_signature(s); /* odd, but ATA4 8.27.5.2 requires it */
+        ide_abort_command(s);
+        return true;
+    }
+
+    if (!s->bs) {
+        ide_abort_command(s);
+        return true;
+    }
+
+    ide_cmd_lba48_transform(s, lba48);
+    s->req_nb_sectors = 1;
+    ide_sector_read(s);
+
+    return false;
+}
+
+static bool cmd_write_pio(IDEState *s, uint8_t cmd)
+{
+    bool lba48 = (cmd == WIN_WRITE_EXT);
+
+    if (!s->bs) {
+        ide_abort_command(s);
+        return true;
+    }
+
+    ide_cmd_lba48_transform(s, lba48);
+
+    s->req_nb_sectors = 1;
+    s->status = SEEK_STAT | READY_STAT;
+    ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
+
+    s->media_changed = 1;
+
+    return false;
+}
+
 #define HD_OK (1u << IDE_HD)
 #define CD_OK (1u << IDE_CD)
 #define CFA_OK (1u << IDE_CFATA)
@@ -1130,19 +1172,19 @@ static const struct {
     [WIN_DSM]                     = { cmd_data_set_management, ALL_OK },
     [WIN_DEVICE_RESET]            = { NULL, CD_OK },
     [WIN_RECAL]                   = { cmd_nop, HD_CFA_OK | SET_DSC},
-    [WIN_READ]                    = { NULL, ALL_OK },
-    [WIN_READ_ONCE]               = { NULL, ALL_OK },
-    [WIN_READ_EXT]                = { NULL, HD_CFA_OK },
+    [WIN_READ]                    = { cmd_read_pio, ALL_OK },
+    [WIN_READ_ONCE]               = { cmd_read_pio, ALL_OK },
+    [WIN_READ_EXT]                = { cmd_read_pio, HD_CFA_OK },
     [WIN_READDMA_EXT]             = { NULL, HD_CFA_OK },
     [WIN_READ_NATIVE_MAX_EXT]     = { NULL, HD_CFA_OK },
     [WIN_MULTREAD_EXT]            = { cmd_read_multiple, HD_CFA_OK },
-    [WIN_WRITE]                   = { NULL, HD_CFA_OK },
-    [WIN_WRITE_ONCE]              = { NULL, HD_CFA_OK },
-    [WIN_WRITE_EXT]               = { NULL, HD_CFA_OK },
+    [WIN_WRITE]                   = { cmd_write_pio, HD_CFA_OK },
+    [WIN_WRITE_ONCE]              = { cmd_write_pio, HD_CFA_OK },
+    [WIN_WRITE_EXT]               = { cmd_write_pio, HD_CFA_OK },
     [WIN_WRITEDMA_EXT]            = { NULL, HD_CFA_OK },
-    [CFA_WRITE_SECT_WO_ERASE]     = { NULL, CFA_OK },
+    [CFA_WRITE_SECT_WO_ERASE]     = { cmd_write_pio, CFA_OK },
     [WIN_MULTWRITE_EXT]           = { cmd_write_multiple, HD_CFA_OK },
-    [WIN_WRITE_VERIFY]            = { NULL, HD_CFA_OK },
+    [WIN_WRITE_VERIFY]            = { cmd_write_pio, HD_CFA_OK },
     [WIN_VERIFY]                  = { cmd_verify, HD_CFA_OK | SET_DSC },
     [WIN_VERIFY_ONCE]             = { cmd_verify, HD_CFA_OK | SET_DSC },
     [WIN_VERIFY_EXT]              = { cmd_verify, HD_CFA_OK | SET_DSC },
@@ -1235,41 +1277,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    case WIN_READ_EXT:
-        lba48 = 1;
-        /* fall through */
-    case WIN_READ:
-    case WIN_READ_ONCE:
-        if (s->drive_kind == IDE_CD) {
-            ide_set_signature(s); /* odd, but ATA4 8.27.5.2 requires it */
-            goto abort_cmd;
-        }
-        if (!s->bs) {
-            goto abort_cmd;
-        }
-	ide_cmd_lba48_transform(s, lba48);
-        s->req_nb_sectors = 1;
-        ide_sector_read(s);
-        break;
-
-    case WIN_WRITE_EXT:
-        lba48 = 1;
-        /* fall through */
-    case WIN_WRITE:
-    case WIN_WRITE_ONCE:
-    case CFA_WRITE_SECT_WO_ERASE:
-    case WIN_WRITE_VERIFY:
-        if (!s->bs) {
-            goto abort_cmd;
-        }
-	ide_cmd_lba48_transform(s, lba48);
-        s->error = 0;
-        s->status = SEEK_STAT | READY_STAT;
-        s->req_nb_sectors = 1;
-        ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
-        s->media_changed = 1;
-        break;
-
     case WIN_READDMA_EXT:
         lba48 = 1;
         /* fall through */
