@@ -82,6 +82,11 @@ struct NANDFlashState {
     uint32_t ioaddr_vmstate;
 };
 
+#define TYPE_NAND "nand"
+
+#define NAND(obj) \
+    OBJECT_CHECK(NANDFlashState, (obj), TYPE_NAND)
+
 static void mem_and(uint8_t *dest, const uint8_t *src, size_t n)
 {
     /* Like memcpy() but we logical-AND the data into the destination */
@@ -224,7 +229,7 @@ static const struct {
 
 static void nand_reset(DeviceState *dev)
 {
-    NANDFlashState *s = FROM_SYSBUS(NANDFlashState, SYS_BUS_DEVICE(dev));
+    NANDFlashState *s = NAND(dev);
     s->cmd = NAND_CMD_READ0;
     s->addr = 0;
     s->addrlen = 0;
@@ -279,7 +284,7 @@ static void nand_command(NANDFlashState *s)
         break;
 
     case NAND_CMD_RESET:
-        nand_reset(&s->busdev.qdev);
+        nand_reset(DEVICE(s));
         break;
 
     case NAND_CMD_PAGEPROGRAM1:
@@ -319,14 +324,14 @@ static void nand_command(NANDFlashState *s)
 
 static void nand_pre_save(void *opaque)
 {
-    NANDFlashState *s = opaque;
+    NANDFlashState *s = NAND(opaque);
 
     s->ioaddr_vmstate = s->ioaddr - s->io;
 }
 
 static int nand_post_load(void *opaque, int version_id)
 {
-    NANDFlashState *s = opaque;
+    NANDFlashState *s = NAND(opaque);
 
     if (s->ioaddr_vmstate > sizeof(s->io)) {
         return -EINVAL;
@@ -365,7 +370,7 @@ static const VMStateDescription vmstate_nand = {
 static int nand_device_init(SysBusDevice *dev)
 {
     int pagesize;
-    NANDFlashState *s = FROM_SYSBUS(NANDFlashState, dev);
+    NANDFlashState *s = NAND(dev);
 
     s->buswidth = nand_flash_ids[s->chip_id].width >> 3;
     s->size = nand_flash_ids[s->chip_id].size << 20;
@@ -436,7 +441,7 @@ static void nand_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo nand_info = {
-    .name          = "nand",
+    .name          = TYPE_NAND,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(NANDFlashState),
     .class_init    = nand_class_init,
@@ -456,7 +461,8 @@ static void nand_register_types(void)
 void nand_setpins(DeviceState *dev, uint8_t cle, uint8_t ale,
                   uint8_t ce, uint8_t wp, uint8_t gnd)
 {
-    NANDFlashState *s = (NANDFlashState *) dev;
+    NANDFlashState *s = NAND(dev);
+
     s->cle = cle;
     s->ale = ale;
     s->ce = ce;
@@ -477,7 +483,8 @@ void nand_getpins(DeviceState *dev, int *rb)
 void nand_setio(DeviceState *dev, uint32_t value)
 {
     int i;
-    NANDFlashState *s = (NANDFlashState *) dev;
+    NANDFlashState *s = NAND(dev);
+
     if (!s->ce && s->cle) {
         if (nand_flash_ids[s->chip_id].options & NAND_SAMSUNG_LP) {
             if (s->cmd == NAND_CMD_READ0 && value == NAND_CMD_LPREAD2)
@@ -581,7 +588,7 @@ uint32_t nand_getio(DeviceState *dev)
 {
     int offset;
     uint32_t x = 0;
-    NANDFlashState *s = (NANDFlashState *) dev;
+    NANDFlashState *s = NAND(dev);
 
     /* Allow sequential reading */
     if (!s->iolen && s->cmd == NAND_CMD_READ0) {
