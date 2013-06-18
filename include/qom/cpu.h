@@ -239,6 +239,27 @@ static inline void cpu_class_set_vmsd(CPUClass *cc,
 #endif
 
 /**
+ * device_class_set_vmsd:
+ * @dc: Device class
+ * @value: Value to set. Unused for %CONFIG_USER_ONLY.
+ *
+ * Sets #VMStateDescription for @dc.
+ *
+ * The @value argument is intentionally discarded for the non-softmmu targets
+ * to avoid linker errors or excessive preprocessor usage. If this behavior
+ * is undesired, you should assign #DeviceClass.vmsd directly instead.
+ */
+#ifndef CONFIG_USER_ONLY
+static inline void device_class_set_vmsd(DeviceClass *dc,
+                                         const struct VMStateDescription *value)
+{
+    dc->vmsd = value;
+}
+#else
+#define device_class_set_vmsd(dc, value) ((dc)->vmsd = NULL)
+#endif
+
+/**
  * qemu_cpu_has_work:
  * @cpu: The vCPU to check.
  *
