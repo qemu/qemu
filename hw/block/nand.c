@@ -21,7 +21,7 @@
 # include "hw/hw.h"
 # include "hw/block/flash.h"
 # include "sysemu/blockdev.h"
-# include "hw/sysbus.h"
+#include "hw/qdev.h"
 #include "qemu/error-report.h"
 
 # define NAND_CMD_READ0		0x00
@@ -54,7 +54,8 @@
 
 typedef struct NANDFlashState NANDFlashState;
 struct NANDFlashState {
-    SysBusDevice busdev;
+    DeviceState parent_obj;
+
     uint8_t manf_id, chip_id;
     uint8_t buswidth; /* in BYTES */
     int size, pages;
@@ -440,7 +441,7 @@ static void nand_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo nand_info = {
     .name          = TYPE_NAND,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(NANDFlashState),
     .class_init    = nand_class_init,
 };
