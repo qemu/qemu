@@ -531,14 +531,14 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
 #ifdef CONFIG_QOM_CAST_DEBUG
     int i;
 
-    for (i = 0; i < OBJECT_CLASS_CAST_CACHE; i++) {
+    for (i = 0; class && i < OBJECT_CLASS_CAST_CACHE; i++) {
         if (class->cast_cache[i] == typename) {
             ret = class;
             goto out;
         }
     }
 #else
-    if (!class->interfaces) {
+    if (!class || !class->interfaces) {
         return class;
     }
 #endif
@@ -551,7 +551,7 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
     }
 
 #ifdef CONFIG_QOM_CAST_DEBUG
-    if (ret == class) {
+    if (class && ret == class) {
         for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
             class->cast_cache[i - 1] = class->cast_cache[i];
         }
