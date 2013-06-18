@@ -1184,6 +1184,22 @@ static bool cmd_write_dma(IDEState *s, uint8_t cmd)
     return false;
 }
 
+static bool cmd_read_native_max(IDEState *s, uint8_t cmd)
+{
+    bool lba48 = (cmd == WIN_READ_NATIVE_MAX_EXT);
+
+    /* Refuse if no sectors are addressable (e.g. medium not inserted) */
+    if (s->nb_sectors == 0) {
+        ide_abort_command(s);
+        return true;
+    }
+
+    ide_cmd_lba48_transform(s, lba48);
+    ide_set_sector(s, s->nb_sectors - 1);
+
+    return true;
+}
+
 #define HD_OK (1u << IDE_HD)
 #define CD_OK (1u << IDE_CD)
 #define CFA_OK (1u << IDE_CFATA)
@@ -1208,7 +1224,7 @@ static const struct {
     [WIN_READ_ONCE]               = { cmd_read_pio, ALL_OK },
     [WIN_READ_EXT]                = { cmd_read_pio, HD_CFA_OK },
     [WIN_READDMA_EXT]             = { cmd_read_dma, HD_CFA_OK },
-    [WIN_READ_NATIVE_MAX_EXT]     = { NULL, HD_CFA_OK },
+    [WIN_READ_NATIVE_MAX_EXT]     = { cmd_read_native_max, HD_CFA_OK | SET_DSC },
     [WIN_MULTREAD_EXT]            = { cmd_read_multiple, HD_CFA_OK },
     [WIN_WRITE]                   = { cmd_write_pio, HD_CFA_OK },
     [WIN_WRITE_ONCE]              = { cmd_write_pio, HD_CFA_OK },
@@ -1255,7 +1271,7 @@ static const struct {
     [WIN_SETFEATURES]             = { NULL, ALL_OK },
     [IBM_SENSE_CONDITION]         = { NULL, CFA_OK },
     [CFA_WEAR_LEVEL]              = { NULL, HD_CFA_OK },
-    [WIN_READ_NATIVE_MAX]         = { NULL, ALL_OK },
+    [WIN_READ_NATIVE_MAX]         = { cmd_read_native_max, ALL_OK | SET_DSC },
 };
 
 static bool ide_cmd_permitted(IDEState *s, uint32_t cmd)
@@ -1269,7 +1285,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     uint16_t *identify_data;
     IDEState *s;
     int n;
-    int lba48 = 0;
 
 #if defined(DEBUG_IDE)
     printf("ide: CMD=%02x\n", val);
@@ -1309,20 +1324,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    case WIN_READ_NATIVE_MAX_EXT:
-        lba48 = 1;
-        /* fall through */
-    case WIN_READ_NATIVE_MAX:
-        /* Refuse if no sectors are addressable (e.g. medium not inserted) */
-        if (s->nb_sectors == 0) {
-            goto abort_cmd;
-        }
-	ide_cmd_lba48_transform(s, lba48);
-        ide_set_sector(s, s->nb_sectors - 1);
-        s->status = READY_STAT | SEEK_STAT;
-        ide_set_irq(s->bus);
-        break;
-
     case WIN_CHECKPOWERMODE1:
     case WIN_CHECKPOWERMODE2:
         s->error = 0;
