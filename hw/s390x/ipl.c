@@ -154,17 +154,19 @@ static void s390_ipl_reset(DeviceState *dev)
     env->psw.mask = IPL_PSW_MASK;
 
     if (!ipl->kernel) {
-        /* booting firmware, tell what device to boot from */
+        /* Tell firmware, if there is a preferred boot device */
+        env->regs[7] = -1;
         DeviceState *dev_st = get_boot_device(0);
-        VirtioCcwDevice *ccw_dev = (VirtioCcwDevice *) object_dynamic_cast(
-                OBJECT(&(dev_st->parent_obj)), "virtio-blk-ccw");
+        if (dev_st) {
+            VirtioCcwDevice *ccw_dev = (VirtioCcwDevice *) object_dynamic_cast(
+                OBJECT(qdev_get_parent_bus(dev_st)->parent),
+                TYPE_VIRTIO_CCW_DEVICE);
 
-        if (ccw_dev) {
-            env->regs[7] = ccw_dev->sch->cssid << 24 |
-                           ccw_dev->sch->ssid << 16 |
-                           ccw_dev->sch->devno;
-        } else {
-            env->regs[7] = -1;
+            if (ccw_dev) {
+                env->regs[7] = ccw_dev->sch->cssid << 24 |
+                               ccw_dev->sch->ssid << 16 |
+                               ccw_dev->sch->devno;
+            }
         }
     }
 
