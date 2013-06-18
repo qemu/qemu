@@ -1019,6 +1019,28 @@ static bool cmd_data_set_management(IDEState *s, uint8_t cmd)
     return true;
 }
 
+static bool cmd_identify(IDEState *s, uint8_t cmd)
+{
+    if (s->bs && s->drive_kind != IDE_CD) {
+        if (s->drive_kind != IDE_CFATA) {
+            ide_identify(s);
+        } else {
+            ide_cfata_identify(s);
+        }
+        s->status = READY_STAT | SEEK_STAT;
+        ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
+        ide_set_irq(s->bus);
+        return false;
+    } else {
+        if (s->drive_kind == IDE_CD) {
+            ide_set_signature(s);
+        }
+        ide_abort_command(s);
+    }
+
+    return true;
+}
+
 #define HD_OK (1u << IDE_HD)
 #define CD_OK (1u << IDE_CD)
 #define CFA_OK (1u << IDE_CFATA)
@@ -1086,7 +1108,7 @@ static const struct {
     [WIN_SLEEPNOW1]               = { NULL, ALL_OK },
     [WIN_FLUSH_CACHE]             = { NULL, ALL_OK },
     [WIN_FLUSH_CACHE_EXT]         = { NULL, HD_CFA_OK },
-    [WIN_IDENTIFY]                = { NULL, ALL_OK },
+    [WIN_IDENTIFY]                = { cmd_identify, ALL_OK },
     [WIN_SETFEATURES]             = { NULL, ALL_OK },
     [IBM_SENSE_CONDITION]         = { NULL, CFA_OK },
     [CFA_WEAR_LEVEL]              = { NULL, HD_CFA_OK },
@@ -1144,22 +1166,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    case WIN_IDENTIFY:
-        if (s->bs && s->drive_kind != IDE_CD) {
-            if (s->drive_kind != IDE_CFATA)
-                ide_identify(s);
-            else
-                ide_cfata_identify(s);
-            s->status = READY_STAT | SEEK_STAT;
-            ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
-        } else {
-            if (s->drive_kind == IDE_CD) {
-                ide_set_signature(s);
-            }
-            ide_abort_command(s);
-        }
-        ide_set_irq(s->bus);
-        break;
     case WIN_SPECIFY:
     case WIN_RECAL:
         s->error = 0;
