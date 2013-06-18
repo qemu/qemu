@@ -1190,6 +1190,12 @@ static bool cmd_flush_cache(IDEState *s, uint8_t cmd)
     return false;
 }
 
+static bool cmd_seek(IDEState *s, uint8_t cmd)
+{
+    /* XXX: Check that seek is within bounds */
+    return true;
+}
+
 static bool cmd_read_native_max(IDEState *s, uint8_t cmd)
 {
     bool lba48 = (cmd == WIN_READ_NATIVE_MAX_EXT);
@@ -1322,7 +1328,7 @@ static const struct {
     [WIN_VERIFY]                  = { cmd_verify, HD_CFA_OK | SET_DSC },
     [WIN_VERIFY_ONCE]             = { cmd_verify, HD_CFA_OK | SET_DSC },
     [WIN_VERIFY_EXT]              = { cmd_verify, HD_CFA_OK | SET_DSC },
-    [WIN_SEEK]                    = { NULL, HD_CFA_OK },
+    [WIN_SEEK]                    = { cmd_seek, HD_CFA_OK | SET_DSC },
     [CFA_TRANSLATE_SECTOR]        = { NULL, CFA_OK },
     [WIN_DIAGNOSE]                = { NULL, ALL_OK },
     [WIN_SPECIFY]                 = { cmd_nop, HD_CFA_OK | SET_DSC },
@@ -1409,11 +1415,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    case WIN_SEEK:
-        /* XXX: Check that seek is within bounds */
-        s->status = READY_STAT | SEEK_STAT;
-        ide_set_irq(s->bus);
-        break;
         /* ATAPI commands */
     case WIN_PIDENTIFY:
         ide_atapi_identify(s);
