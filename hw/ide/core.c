@@ -1004,6 +1004,11 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+static bool cmd_nop(IDEState *s, uint8_t cmd)
+{
+    return true;
+}
+
 static bool cmd_data_set_management(IDEState *s, uint8_t cmd)
 {
     switch (s->feature) {
@@ -1060,7 +1065,7 @@ static const struct {
     [CFA_REQ_EXT_ERROR_CODE]      = { NULL, CFA_OK },
     [WIN_DSM]                     = { cmd_data_set_management, ALL_OK },
     [WIN_DEVICE_RESET]            = { NULL, CD_OK },
-    [WIN_RECAL]                   = { NULL, HD_CFA_OK },
+    [WIN_RECAL]                   = { cmd_nop, HD_CFA_OK | SET_DSC},
     [WIN_READ]                    = { NULL, ALL_OK },
     [WIN_READ_ONCE]               = { NULL, ALL_OK },
     [WIN_READ_EXT]                = { NULL, HD_CFA_OK },
@@ -1080,13 +1085,13 @@ static const struct {
     [WIN_SEEK]                    = { NULL, HD_CFA_OK },
     [CFA_TRANSLATE_SECTOR]        = { NULL, CFA_OK },
     [WIN_DIAGNOSE]                = { NULL, ALL_OK },
-    [WIN_SPECIFY]                 = { NULL, HD_CFA_OK },
-    [WIN_STANDBYNOW2]             = { NULL, ALL_OK },
-    [WIN_IDLEIMMEDIATE2]          = { NULL, ALL_OK },
-    [WIN_STANDBY2]                = { NULL, ALL_OK },
-    [WIN_SETIDLE2]                = { NULL, ALL_OK },
+    [WIN_SPECIFY]                 = { cmd_nop, HD_CFA_OK | SET_DSC },
+    [WIN_STANDBYNOW2]             = { cmd_nop, ALL_OK },
+    [WIN_IDLEIMMEDIATE2]          = { cmd_nop, ALL_OK },
+    [WIN_STANDBY2]                = { cmd_nop, ALL_OK },
+    [WIN_SETIDLE2]                = { cmd_nop, ALL_OK },
     [WIN_CHECKPOWERMODE2]         = { NULL, ALL_OK },
-    [WIN_SLEEPNOW2]               = { NULL, ALL_OK },
+    [WIN_SLEEPNOW2]               = { cmd_nop, ALL_OK },
     [WIN_PACKETCMD]               = { NULL, CD_OK },
     [WIN_PIDENTIFY]               = { NULL, CD_OK },
     [WIN_SMART]                   = { NULL, HD_CFA_OK },
@@ -1100,12 +1105,12 @@ static const struct {
     [WIN_WRITEDMA]                = { NULL, HD_CFA_OK },
     [WIN_WRITEDMA_ONCE]           = { NULL, HD_CFA_OK },
     [CFA_WRITE_MULTI_WO_ERASE]    = { NULL, CFA_OK },
-    [WIN_STANDBYNOW1]             = { NULL, ALL_OK },
-    [WIN_IDLEIMMEDIATE]           = { NULL, ALL_OK },
-    [WIN_STANDBY]                 = { NULL, ALL_OK },
-    [WIN_SETIDLE1]                = { NULL, ALL_OK },
+    [WIN_STANDBYNOW1]             = { cmd_nop, ALL_OK },
+    [WIN_IDLEIMMEDIATE]           = { cmd_nop, ALL_OK },
+    [WIN_STANDBY]                 = { cmd_nop, ALL_OK },
+    [WIN_SETIDLE1]                = { cmd_nop, ALL_OK },
     [WIN_CHECKPOWERMODE1]         = { NULL, ALL_OK },
-    [WIN_SLEEPNOW1]               = { NULL, ALL_OK },
+    [WIN_SLEEPNOW1]               = { cmd_nop, ALL_OK },
     [WIN_FLUSH_CACHE]             = { NULL, ALL_OK },
     [WIN_FLUSH_CACHE_EXT]         = { NULL, HD_CFA_OK },
     [WIN_IDENTIFY]                = { cmd_identify, ALL_OK },
@@ -1166,12 +1171,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    case WIN_SPECIFY:
-    case WIN_RECAL:
-        s->error = 0;
-        s->status = READY_STAT | SEEK_STAT;
-        ide_set_irq(s->bus);
-        break;
     case WIN_SETMULT:
         if (s->drive_kind == IDE_CFATA && s->nsector == 0) {
             /* Disable Read and Write Multiple */
@@ -1390,19 +1389,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     case WIN_FLUSH_CACHE:
     case WIN_FLUSH_CACHE_EXT:
         ide_flush_cache(s);
-        break;
-    case WIN_STANDBY:
-    case WIN_STANDBY2:
-    case WIN_STANDBYNOW1:
-    case WIN_STANDBYNOW2:
-    case WIN_IDLEIMMEDIATE:
-    case WIN_IDLEIMMEDIATE2:
-    case WIN_SETIDLE1:
-    case WIN_SETIDLE2:
-    case WIN_SLEEPNOW1:
-    case WIN_SLEEPNOW2:
-        s->status = READY_STAT;
-        ide_set_irq(s->bus);
         break;
     case WIN_SEEK:
         /* XXX: Check that seek is within bounds */
