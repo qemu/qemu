@@ -1010,71 +1010,78 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #define HD_CFA_OK (HD_OK | CFA_OK)
 #define ALL_OK (HD_OK | CD_OK | CFA_OK)
 
+/* Set the Disk Seek Completed status bit during completion */
+#define SET_DSC (1u << 8)
+
 /* See ACS-2 T13/2015-D Table B.2 Command codes */
-static const uint8_t ide_cmd_table[0x100] = {
+static const struct {
+    /* Returns true if the completion code should be run */
+    bool (*handler)(IDEState *s, uint8_t cmd);
+    int flags;
+} ide_cmd_table[0x100] = {
     /* NOP not implemented, mandatory for CD */
-    [CFA_REQ_EXT_ERROR_CODE]            = CFA_OK,
-    [WIN_DSM]                           = ALL_OK,
-    [WIN_DEVICE_RESET]                  = CD_OK,
-    [WIN_RECAL]                         = HD_CFA_OK,
-    [WIN_READ]                          = ALL_OK,
-    [WIN_READ_ONCE]                     = ALL_OK,
-    [WIN_READ_EXT]                      = HD_CFA_OK,
-    [WIN_READDMA_EXT]                   = HD_CFA_OK,
-    [WIN_READ_NATIVE_MAX_EXT]           = HD_CFA_OK,
-    [WIN_MULTREAD_EXT]                  = HD_CFA_OK,
-    [WIN_WRITE]                         = HD_CFA_OK,
-    [WIN_WRITE_ONCE]                    = HD_CFA_OK,
-    [WIN_WRITE_EXT]                     = HD_CFA_OK,
-    [WIN_WRITEDMA_EXT]                  = HD_CFA_OK,
-    [CFA_WRITE_SECT_WO_ERASE]           = CFA_OK,
-    [WIN_MULTWRITE_EXT]                 = HD_CFA_OK,
-    [WIN_WRITE_VERIFY]                  = HD_CFA_OK,
-    [WIN_VERIFY]                        = HD_CFA_OK,
-    [WIN_VERIFY_ONCE]                   = HD_CFA_OK,
-    [WIN_VERIFY_EXT]                    = HD_CFA_OK,
-    [WIN_SEEK]                          = HD_CFA_OK,
-    [CFA_TRANSLATE_SECTOR]              = CFA_OK,
-    [WIN_DIAGNOSE]                      = ALL_OK,
-    [WIN_SPECIFY]                       = HD_CFA_OK,
-    [WIN_STANDBYNOW2]                   = ALL_OK,
-    [WIN_IDLEIMMEDIATE2]                = ALL_OK,
-    [WIN_STANDBY2]                      = ALL_OK,
-    [WIN_SETIDLE2]                      = ALL_OK,
-    [WIN_CHECKPOWERMODE2]               = ALL_OK,
-    [WIN_SLEEPNOW2]                     = ALL_OK,
-    [WIN_PACKETCMD]                     = CD_OK,
-    [WIN_PIDENTIFY]                     = CD_OK,
-    [WIN_SMART]                         = HD_CFA_OK,
-    [CFA_ACCESS_METADATA_STORAGE]       = CFA_OK,
-    [CFA_ERASE_SECTORS]                 = CFA_OK,
-    [WIN_MULTREAD]                      = HD_CFA_OK,
-    [WIN_MULTWRITE]                     = HD_CFA_OK,
-    [WIN_SETMULT]                       = HD_CFA_OK,
-    [WIN_READDMA]                       = HD_CFA_OK,
-    [WIN_READDMA_ONCE]                  = HD_CFA_OK,
-    [WIN_WRITEDMA]                      = HD_CFA_OK,
-    [WIN_WRITEDMA_ONCE]                 = HD_CFA_OK,
-    [CFA_WRITE_MULTI_WO_ERASE]          = CFA_OK,
-    [WIN_STANDBYNOW1]                   = ALL_OK,
-    [WIN_IDLEIMMEDIATE]                 = ALL_OK,
-    [WIN_STANDBY]                       = ALL_OK,
-    [WIN_SETIDLE1]                      = ALL_OK,
-    [WIN_CHECKPOWERMODE1]               = ALL_OK,
-    [WIN_SLEEPNOW1]                     = ALL_OK,
-    [WIN_FLUSH_CACHE]                   = ALL_OK,
-    [WIN_FLUSH_CACHE_EXT]               = HD_CFA_OK,
-    [WIN_IDENTIFY]                      = ALL_OK,
-    [WIN_SETFEATURES]                   = ALL_OK,
-    [IBM_SENSE_CONDITION]               = CFA_OK,
-    [CFA_WEAR_LEVEL]                    = HD_CFA_OK,
-    [WIN_READ_NATIVE_MAX]               = ALL_OK,
+    [CFA_REQ_EXT_ERROR_CODE]      = { NULL, CFA_OK },
+    [WIN_DSM]                     = { NULL, ALL_OK },
+    [WIN_DEVICE_RESET]            = { NULL, CD_OK },
+    [WIN_RECAL]                   = { NULL, HD_CFA_OK },
+    [WIN_READ]                    = { NULL, ALL_OK },
+    [WIN_READ_ONCE]               = { NULL, ALL_OK },
+    [WIN_READ_EXT]                = { NULL, HD_CFA_OK },
+    [WIN_READDMA_EXT]             = { NULL, HD_CFA_OK },
+    [WIN_READ_NATIVE_MAX_EXT]     = { NULL, HD_CFA_OK },
+    [WIN_MULTREAD_EXT]            = { NULL, HD_CFA_OK },
+    [WIN_WRITE]                   = { NULL, HD_CFA_OK },
+    [WIN_WRITE_ONCE]              = { NULL, HD_CFA_OK },
+    [WIN_WRITE_EXT]               = { NULL, HD_CFA_OK },
+    [WIN_WRITEDMA_EXT]            = { NULL, HD_CFA_OK },
+    [CFA_WRITE_SECT_WO_ERASE]     = { NULL, CFA_OK },
+    [WIN_MULTWRITE_EXT]           = { NULL, HD_CFA_OK },
+    [WIN_WRITE_VERIFY]            = { NULL, HD_CFA_OK },
+    [WIN_VERIFY]                  = { NULL, HD_CFA_OK },
+    [WIN_VERIFY_ONCE]             = { NULL, HD_CFA_OK },
+    [WIN_VERIFY_EXT]              = { NULL, HD_CFA_OK },
+    [WIN_SEEK]                    = { NULL, HD_CFA_OK },
+    [CFA_TRANSLATE_SECTOR]        = { NULL, CFA_OK },
+    [WIN_DIAGNOSE]                = { NULL, ALL_OK },
+    [WIN_SPECIFY]                 = { NULL, HD_CFA_OK },
+    [WIN_STANDBYNOW2]             = { NULL, ALL_OK },
+    [WIN_IDLEIMMEDIATE2]          = { NULL, ALL_OK },
+    [WIN_STANDBY2]                = { NULL, ALL_OK },
+    [WIN_SETIDLE2]                = { NULL, ALL_OK },
+    [WIN_CHECKPOWERMODE2]         = { NULL, ALL_OK },
+    [WIN_SLEEPNOW2]               = { NULL, ALL_OK },
+    [WIN_PACKETCMD]               = { NULL, CD_OK },
+    [WIN_PIDENTIFY]               = { NULL, CD_OK },
+    [WIN_SMART]                   = { NULL, HD_CFA_OK },
+    [CFA_ACCESS_METADATA_STORAGE] = { NULL, CFA_OK },
+    [CFA_ERASE_SECTORS]           = { NULL, CFA_OK },
+    [WIN_MULTREAD]                = { NULL, HD_CFA_OK },
+    [WIN_MULTWRITE]               = { NULL, HD_CFA_OK },
+    [WIN_SETMULT]                 = { NULL, HD_CFA_OK },
+    [WIN_READDMA]                 = { NULL, HD_CFA_OK },
+    [WIN_READDMA_ONCE]            = { NULL, HD_CFA_OK },
+    [WIN_WRITEDMA]                = { NULL, HD_CFA_OK },
+    [WIN_WRITEDMA_ONCE]           = { NULL, HD_CFA_OK },
+    [CFA_WRITE_MULTI_WO_ERASE]    = { NULL, CFA_OK },
+    [WIN_STANDBYNOW1]             = { NULL, ALL_OK },
+    [WIN_IDLEIMMEDIATE]           = { NULL, ALL_OK },
+    [WIN_STANDBY]                 = { NULL, ALL_OK },
+    [WIN_SETIDLE1]                = { NULL, ALL_OK },
+    [WIN_CHECKPOWERMODE1]         = { NULL, ALL_OK },
+    [WIN_SLEEPNOW1]               = { NULL, ALL_OK },
+    [WIN_FLUSH_CACHE]             = { NULL, ALL_OK },
+    [WIN_FLUSH_CACHE_EXT]         = { NULL, HD_CFA_OK },
+    [WIN_IDENTIFY]                = { NULL, ALL_OK },
+    [WIN_SETFEATURES]             = { NULL, ALL_OK },
+    [IBM_SENSE_CONDITION]         = { NULL, CFA_OK },
+    [CFA_WEAR_LEVEL]              = { NULL, HD_CFA_OK },
+    [WIN_READ_NATIVE_MAX]         = { NULL, ALL_OK },
 };
 
 static bool ide_cmd_permitted(IDEState *s, uint32_t cmd)
 {
     return cmd < ARRAY_SIZE(ide_cmd_table)
-        && (ide_cmd_table[cmd] & (1u << s->drive_kind));
+        && (ide_cmd_table[cmd].flags & (1u << s->drive_kind));
 }
 
 void ide_exec_cmd(IDEBus *bus, uint32_t val)
@@ -1098,6 +1105,27 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 
     if (!ide_cmd_permitted(s, val)) {
         goto abort_cmd;
+    }
+
+    if (ide_cmd_table[val].handler != NULL) {
+        bool complete;
+
+        s->status = READY_STAT | BUSY_STAT;
+        s->error = 0;
+
+        complete = ide_cmd_table[val].handler(s, val);
+        if (complete) {
+            s->status &= ~BUSY_STAT;
+            assert(!!s->error == !!(s->status & ERR_STAT));
+
+            if ((ide_cmd_table[val].flags & SET_DSC) && !s->error) {
+                s->status |= SEEK_STAT;
+            }
+
+            ide_set_irq(s->bus);
+        }
+
+        return;
     }
 
     switch(val) {
