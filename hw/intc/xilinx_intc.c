@@ -49,11 +49,19 @@ struct xlx_pic
 
     /* Runtime control registers.  */
     uint32_t regs[R_MAX];
+    /* state of the interrupt input pins */
+    uint32_t irq_pin_state;
 };
 
 static void update_irq(struct xlx_pic *p)
 {
     uint32_t i;
+
+    /* level triggered interrupt */
+    if (p->regs[R_MER] & 2) {
+        p->regs[R_ISR] |= p->irq_pin_state & ~p->c_kind_of_intr;
+    }
+
     /* Update the pending register.  */
     p->regs[R_IPR] = p->regs[R_ISR] & p->regs[R_IER];
 
@@ -108,6 +116,11 @@ pic_write(void *opaque, hwaddr addr,
         case R_CIE:
             p->regs[R_IER] &= ~value; /* Atomic clear ie.  */
             break;
+        case R_ISR:
+            if ((p->regs[R_MER] & 2)) {
+                break;
+            }
+            /* fallthrough */
         default:
             if (addr < ARRAY_SIZE(p->regs))
                 p->regs[addr] = value;
@@ -130,18 +143,13 @@ static void irq_handler(void *opaque, int irq, int level)
 {
     struct xlx_pic *p = opaque;
 
-    if (!(p->regs[R_MER] & 2)) {
-        qemu_irq_lower(p->parent_irq);
-        return;
-    }
-
-    /* Update source flops. Don't clear unless level triggered.
-       Edge triggered interrupts only go away when explicitely acked to
-       the interrupt controller.  */
-    if (!(p->c_kind_of_intr & (1 << irq)) || level) {
-        p->regs[R_ISR] &= ~(1 << irq);
+    /* edge triggered interrupt */
+    if (p->c_kind_of_intr & (1 << irq) && p->regs[R_MER] & 2) {
         p->regs[R_ISR] |= (level << irq);
     }
+
+    p->irq_pin_state &= ~(1 << irq);
+    p->irq_pin_state |= level << irq;
     update_irq(p);
 }
 

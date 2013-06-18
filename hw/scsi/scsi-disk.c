@@ -61,8 +61,9 @@ typedef struct SCSIDiskReq {
     BlockAcctCookie acct;
 } SCSIDiskReq;
 
-#define SCSI_DISK_F_REMOVABLE   0
-#define SCSI_DISK_F_DPOFUA      1
+#define SCSI_DISK_F_REMOVABLE             0
+#define SCSI_DISK_F_DPOFUA                1
+#define SCSI_DISK_F_NO_REMOVABLE_DEVOPS   2
 
 struct SCSIDiskState
 {
@@ -1984,6 +1985,9 @@ static void scsi_disk_reset(DeviceState *dev)
         nb_sectors--;
     }
     s->qdev.max_lba = nb_sectors;
+    /* reset tray statuses */
+    s->tray_locked = 0;
+    s->tray_open = 0;
 }
 
 static void scsi_destroy(SCSIDevice *dev)
@@ -2107,7 +2111,8 @@ static int scsi_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (s->features & (1 << SCSI_DISK_F_REMOVABLE)) {
+    if ((s->features & (1 << SCSI_DISK_F_REMOVABLE)) &&
+            !(s->features & (1 << SCSI_DISK_F_NO_REMOVABLE_DEVOPS))) {
         bdrv_set_dev_ops(s->qdev.conf.bs, &scsi_disk_removable_block_ops, s);
     } else {
         bdrv_set_dev_ops(s->qdev.conf.bs, &scsi_disk_block_ops, s);
@@ -2319,6 +2324,12 @@ static int scsi_block_initfn(SCSIDevice *dev)
     } else {
         s->qdev.blocksize = 512;
     }
+
+    /* Makes the scsi-block device not removable by using HMP and QMP eject
+     * command.
+     */
+    s->features |= (1 << SCSI_DISK_F_NO_REMOVABLE_DEVOPS);
+
     return scsi_initfn(&s->qdev);
 }
 

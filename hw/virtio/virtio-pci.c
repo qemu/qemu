@@ -1455,7 +1455,7 @@ static int virtio_rng_pci_init(VirtIOPCIProxy *vpci_dev)
     }
 
     object_property_set_link(OBJECT(vrng),
-                             OBJECT(vrng->vdev.conf.default_backend), "rng",
+                             OBJECT(vrng->vdev.conf.rng), "rng",
                              NULL);
 
     return 0;

@@ -744,7 +744,7 @@ static int virtio_ccw_rng_init(VirtioCcwDevice *ccw_dev)
     }
 
     object_property_set_link(OBJECT(dev),
-                             OBJECT(dev->vdev.conf.default_backend), "rng",
+                             OBJECT(dev->vdev.conf.rng), "rng",
                              NULL);
 
     return virtio_ccw_device_init(ccw_dev, VIRTIO_DEVICE(vdev));

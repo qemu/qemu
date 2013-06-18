@@ -374,9 +374,22 @@ static const MemoryRegionOps i6300esb_ops = {
 
 static const VMStateDescription vmstate_i6300esb = {
     .name = "i6300esb_wdt",
-    .version_id = sizeof(I6300State),
-    .minimum_version_id = sizeof(I6300State),
-    .minimum_version_id_old = sizeof(I6300State),
+    /* With this VMSD's introduction, version_id/minimum_version_id were
+     * erroneously set to sizeof(I6300State), causing a somewhat random
+     * version_id to be set for every build. This eventually broke
+     * migration.
+     *
+     * To correct this without breaking old->new migration for older versions
+     * of QEMU, we've set version_id to a value high enough to exceed all past
+     * values of sizeof(I6300State) across various build environments, and have
+     * reset minimum_version_id_old/minimum_version_id to 1, since this VMSD
+     * has never changed and thus can accept all past versions.
+     *
+     * For future changes we can treat these values as we normally would.
+     */
+    .version_id = 10000,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, I6300State),
         VMSTATE_INT32(reboot_enabled, I6300State),
