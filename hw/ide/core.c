@@ -1292,6 +1292,63 @@ abort_cmd:
     return true;
 }
 
+
+/*** ATAPI commands ***/
+
+static bool cmd_identify_packet(IDEState *s, uint8_t cmd)
+{
+    ide_atapi_identify(s);
+    s->status = READY_STAT | SEEK_STAT;
+    ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
+    ide_set_irq(s->bus);
+    return false;
+}
+
+static bool cmd_exec_dev_diagnostic(IDEState *s, uint8_t cmd)
+{
+    ide_set_signature(s);
+
+    if (s->drive_kind == IDE_CD) {
+        s->status = 0; /* ATAPI spec (v6) section 9.10 defines packet
+                        * devices to return a clear status register
+                        * with READY_STAT *not* set. */
+    } else {
+        s->status = READY_STAT | SEEK_STAT;
+        /* The bits of the error register are not as usual for this command!
+         * They are part of the regular output (this is why ERR_STAT isn't set)
+         * Device 0 passed, Device 1 passed or not present. */
+        s->error = 0x01;
+        ide_set_irq(s->bus);
+    }
+
+    return false;
+}
+
+static bool cmd_device_reset(IDEState *s, uint8_t cmd)
+{
+    ide_set_signature(s);
+    s->status = 0x00; /* NOTE: READY is _not_ set */
+    s->error = 0x01;
+
+    return false;
+}
+
+static bool cmd_packet(IDEState *s, uint8_t cmd)
+{
+    /* overlapping commands not supported */
+    if (s->feature & 0x02) {
+        ide_abort_command(s);
+        return true;
+    }
+
+    s->status = READY_STAT | SEEK_STAT;
+    s->atapi_dma = s->feature & 1;
+    s->nsector = 1;
+    ide_transfer_start(s, s->io_buffer, ATAPI_PACKET_SIZE,
+                       ide_atapi_cmd);
+    return false;
+}
+
 #define HD_OK (1u << IDE_HD)
 #define CD_OK (1u << IDE_CD)
 #define CFA_OK (1u << IDE_CFATA)
@@ -1310,7 +1367,7 @@ static const struct {
     /* NOP not implemented, mandatory for CD */
     [CFA_REQ_EXT_ERROR_CODE]      = { NULL, CFA_OK },
     [WIN_DSM]                     = { cmd_data_set_management, ALL_OK },
-    [WIN_DEVICE_RESET]            = { NULL, CD_OK },
+    [WIN_DEVICE_RESET]            = { cmd_device_reset, CD_OK },
     [WIN_RECAL]                   = { cmd_nop, HD_CFA_OK | SET_DSC},
     [WIN_READ]                    = { cmd_read_pio, ALL_OK },
     [WIN_READ_ONCE]               = { cmd_read_pio, ALL_OK },
@@ -1330,7 +1387,7 @@ static const struct {
     [WIN_VERIFY_EXT]              = { cmd_verify, HD_CFA_OK | SET_DSC },
     [WIN_SEEK]                    = { cmd_seek, HD_CFA_OK | SET_DSC },
     [CFA_TRANSLATE_SECTOR]        = { NULL, CFA_OK },
-    [WIN_DIAGNOSE]                = { NULL, ALL_OK },
+    [WIN_DIAGNOSE]                = { cmd_exec_dev_diagnostic, ALL_OK },
     [WIN_SPECIFY]                 = { cmd_nop, HD_CFA_OK | SET_DSC },
     [WIN_STANDBYNOW2]             = { cmd_nop, ALL_OK },
     [WIN_IDLEIMMEDIATE2]          = { cmd_nop, ALL_OK },
@@ -1338,8 +1395,8 @@ static const struct {
     [WIN_SETIDLE2]                = { cmd_nop, ALL_OK },
     [WIN_CHECKPOWERMODE2]         = { cmd_check_power_mode, ALL_OK | SET_DSC },
     [WIN_SLEEPNOW2]               = { cmd_nop, ALL_OK },
-    [WIN_PACKETCMD]               = { NULL, CD_OK },
-    [WIN_PIDENTIFY]               = { NULL, CD_OK },
+    [WIN_PACKETCMD]               = { cmd_packet, CD_OK },
+    [WIN_PIDENTIFY]               = { cmd_identify_packet, CD_OK },
     [WIN_SMART]                   = { NULL, HD_CFA_OK },
     [CFA_ACCESS_METADATA_STORAGE] = { NULL, CFA_OK },
     [CFA_ERASE_SECTORS]           = { NULL, CFA_OK },
@@ -1415,41 +1472,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-        /* ATAPI commands */
-    case WIN_PIDENTIFY:
-        ide_atapi_identify(s);
-        s->status = READY_STAT | SEEK_STAT;
-        ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
-        ide_set_irq(s->bus);
-        break;
-    case WIN_DIAGNOSE:
-        ide_set_signature(s);
-        if (s->drive_kind == IDE_CD)
-            s->status = 0; /* ATAPI spec (v6) section 9.10 defines packet
-                            * devices to return a clear status register
-                            * with READY_STAT *not* set. */
-        else
-            s->status = READY_STAT | SEEK_STAT;
-        s->error = 0x01; /* Device 0 passed, Device 1 passed or not
-                          * present.
-                          */
-        ide_set_irq(s->bus);
-        break;
-    case WIN_DEVICE_RESET:
-        ide_set_signature(s);
-        s->status = 0x00; /* NOTE: READY is _not_ set */
-        s->error = 0x01;
-        break;
-    case WIN_PACKETCMD:
-        /* overlapping commands not supported */
-        if (s->feature & 0x02)
-            goto abort_cmd;
-        s->status = READY_STAT | SEEK_STAT;
-        s->atapi_dma = s->feature & 1;
-        s->nsector = 1;
-        ide_transfer_start(s, s->io_buffer, ATAPI_PACKET_SIZE,
-                           ide_atapi_cmd);
-        break;
     /* CF-ATA commands */
     case CFA_REQ_EXT_ERROR_CODE:
         s->error = 0x09;    /* miscellaneous error */
