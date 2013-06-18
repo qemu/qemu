@@ -1184,6 +1184,12 @@ static bool cmd_write_dma(IDEState *s, uint8_t cmd)
     return false;
 }
 
+static bool cmd_flush_cache(IDEState *s, uint8_t cmd)
+{
+    ide_flush_cache(s);
+    return false;
+}
+
 static bool cmd_read_native_max(IDEState *s, uint8_t cmd)
 {
     bool lba48 = (cmd == WIN_READ_NATIVE_MAX_EXT);
@@ -1345,8 +1351,8 @@ static const struct {
     [WIN_SETIDLE1]                = { cmd_nop, ALL_OK },
     [WIN_CHECKPOWERMODE1]         = { cmd_check_power_mode, ALL_OK | SET_DSC },
     [WIN_SLEEPNOW1]               = { cmd_nop, ALL_OK },
-    [WIN_FLUSH_CACHE]             = { NULL, ALL_OK },
-    [WIN_FLUSH_CACHE_EXT]         = { NULL, HD_CFA_OK },
+    [WIN_FLUSH_CACHE]             = { cmd_flush_cache, ALL_OK },
+    [WIN_FLUSH_CACHE_EXT]         = { cmd_flush_cache, HD_CFA_OK },
     [WIN_IDENTIFY]                = { cmd_identify, ALL_OK },
     [WIN_SETFEATURES]             = { cmd_set_features, ALL_OK | SET_DSC },
     [IBM_SENSE_CONDITION]         = { NULL, CFA_OK },
@@ -1403,10 +1409,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    case WIN_FLUSH_CACHE:
-    case WIN_FLUSH_CACHE_EXT:
-        ide_flush_cache(s);
-        break;
     case WIN_SEEK:
         /* XXX: Check that seek is within bounds */
         s->status = READY_STAT | SEEK_STAT;
