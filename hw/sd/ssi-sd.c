@@ -245,7 +245,7 @@ static int ssi_sd_init(SSISlave *dev)
 
     s->mode = SSI_SD_CMD;
     dinfo = drive_get_next(IF_SD);
-    s->sd = sd_init(dinfo ? dinfo->bdrv : NULL, 1);
+    s->sd = sd_init(dinfo ? dinfo->bdrv : NULL, true);
     register_savevm(&dev->qdev, "ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
     return 0;
 }

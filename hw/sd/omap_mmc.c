@@ -592,7 +592,7 @@ struct omap_mmc_s *omap_mmc_init(hwaddr base,
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     /* Instantiate the storage */
-    s->card = sd_init(bd, 0);
+    s->card = sd_init(bd, false);
 
     return s;
 }
@@ -617,7 +617,7 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
     omap_l4_attach(ta, 0, &s->iomem);
 
     /* Instantiate the storage */
-    s->card = sd_init(bd, 0);
+    s->card = sd_init(bd, false);
 
     s->cdet = qemu_allocate_irqs(omap_mmc_cover_cb, s, 1)[0];
     sd_set_cb(s->card, NULL, s->cdet);
