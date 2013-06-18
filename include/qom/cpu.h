@@ -226,7 +226,7 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
  *
  * The @value argument is intentionally discarded for the non-softmmu targets
  * to avoid linker errors or excessive preprocessor usage. If this behavior
- * is undesired, you should assign #CPUState.vmsd directly instead.
+ * is undesired, you should assign #CPUClass.vmsd directly instead.
  */
 #ifndef CONFIG_USER_ONLY
 static inline void cpu_class_set_vmsd(CPUClass *cc,
