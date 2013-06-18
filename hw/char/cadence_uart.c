@@ -297,9 +297,7 @@ static void uart_write_tx_fifo(UartState *s, const uint8_t *buf, int size)
         return;
     }
 
-    while (size) {
-        size -= qemu_chr_fe_write(s->chr, buf, size);
-    }
+    qemu_chr_fe_write_all(s->chr, buf, size);
 }
 
 static void uart_receive(void *opaque, const uint8_t *buf, int size)
