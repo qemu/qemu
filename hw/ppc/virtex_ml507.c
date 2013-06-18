@@ -141,7 +141,6 @@ static int xilinx_load_device_tree(hwaddr addr,
 {
     char *path;
     int fdt_size;
-#ifdef CONFIG_FDT
     void *fdt;
     int r;
 
@@ -162,23 +161,6 @@ static int xilinx_load_device_tree(hwaddr addr,
     if (r < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
     cpu_physical_memory_write(addr, fdt, fdt_size);
-#else
-    /* We lack libfdt so we cannot manipulate the fdt. Just pass on the blob
-       to the kernel.  */
-    fdt_size = load_image_targphys("ppc.dtb", addr, 0x10000);
-    if (fdt_size < 0) {
-        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
-        if (path) {
-            fdt_size = load_image_targphys(path, addr, 0x10000);
-            g_free(path);
-        }
-    }
-
-    if (kernel_cmdline) {
-        fprintf(stderr,
-                "Warning: missing libfdt, cannot pass cmdline to kernel!\n");
-    }
-#endif
     return fdt_size;
 }
 

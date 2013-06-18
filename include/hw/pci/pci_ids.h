@@ -19,6 +19,7 @@
 #define PCI_CLASS_STORAGE_IDE            0x0101
 #define PCI_CLASS_STORAGE_RAID           0x0104
 #define PCI_CLASS_STORAGE_SATA           0x0106
+#define PCI_CLASS_STORAGE_EXPRESS        0x0108
 #define PCI_CLASS_STORAGE_OTHER          0x0180
 
 #define PCI_CLASS_NETWORK_ETHERNET       0x0200

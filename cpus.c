@@ -1282,7 +1282,7 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
 
     f = fopen(filename, "wb");
     if (!f) {
-        error_set(errp, QERR_OPEN_FILE_FAILED, filename);
+        error_setg_file_open(errp, errno, filename);
         return;
     }
 
@@ -1312,7 +1312,7 @@ void qmp_pmemsave(int64_t addr, int64_t size, const char *filename,
 
     f = fopen(filename, "wb");
     if (!f) {
-        error_set(errp, QERR_OPEN_FILE_FAILED, filename);
+        error_setg_file_open(errp, errno, filename);
         return;
     }
 

@@ -3013,22 +3013,6 @@
 { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
 
 ##
-# @TargetType
-#
-# Target CPU emulation type
-#
-# These parameters correspond to the softmmu binary CPU name that is currently
-# running.
-#
-# Since: 1.2.0
-##
-{ 'enum': 'TargetType',
-  'data': [ 'alpha', 'arm', 'cris', 'i386', 'lm32', 'm68k', 'microblazeel',
-            'microblaze', 'mips64el', 'mips64', 'mipsel', 'mips', 'moxie',
-            'or32', 'ppc64', 'ppcemb', 'ppc', 's390x', 'sh4eb', 'sh4',
-            'sparc64', 'sparc', 'unicore32', 'x86_64', 'xtensaeb', 'xtensa' ] }
-
-##
 # @TargetInfo:
 #
 # Information describing the QEMU target.
@@ -3038,7 +3022,7 @@
 # Since: 1.2.0
 ##
 { 'type': 'TargetInfo',
-  'data': { 'arch': 'TargetType' } }
+  'data': { 'arch': 'str' } }
 
 ##
 # @query-target:

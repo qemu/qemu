@@ -71,6 +71,11 @@ void error_set_errno(Error **errp, int os_errno, ErrorClass err_class,
     *errp = err;
 }
 
+void error_setg_file_open(Error **errp, int os_errno, const char *filename)
+{
+    error_setg_errno(errp, os_errno, "Could not open '%s'", filename);
+}
+
 Error *error_copy(const Error *err)
 {
     Error *err_new;
