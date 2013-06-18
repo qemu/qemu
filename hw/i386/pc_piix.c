@@ -270,38 +270,28 @@ static void pc_init_pci_1_5(QEMUMachineInitArgs *args)
 
 static void pc_init_pci_1_4(QEMUMachineInitArgs *args)
 {
-    has_pci_info = false;
     has_pvpanic = false;
     x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    pc_init_pci(args);
+    pc_init_pci_1_5(args);
 }
 
 static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
 {
-    has_pci_info = false;
     enable_compat_apic_id_mode();
-    has_pvpanic = false;
-    pc_init_pci(args);
+    pc_init_pci_1_4(args);
 }
 
 /* PC machine init function for pc-1.1 to pc-1.2 */
 static void pc_init_pci_1_2(QEMUMachineInitArgs *args)
 {
-    has_pci_info = false;
     disable_kvm_pv_eoi();
-    enable_compat_apic_id_mode();
-    has_pvpanic = false;
-    pc_init_pci(args);
+    pc_init_pci_1_3(args);
 }
 
 /* PC machine init function for pc-0.14 to pc-1.0 */
 static void pc_init_pci_1_0(QEMUMachineInitArgs *args)
 {
-    has_pci_info = false;
-    disable_kvm_pv_eoi();
-    enable_compat_apic_id_mode();
-    has_pvpanic = false;
-    pc_init_pci(args);
+    pc_init_pci_1_2(args);
 }
 
 /* PC init function for pc-0.10 to pc-0.13, and reused by xenfv */
