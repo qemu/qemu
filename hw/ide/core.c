@@ -1694,6 +1694,7 @@ static bool ide_cmd_permitted(IDEState *s, uint32_t cmd)
 void ide_exec_cmd(IDEBus *bus, uint32_t val)
 {
     IDEState *s;
+    bool complete;
 
 #if defined(DEBUG_IDE)
     printf("ide: CMD=%02x\n", val);
@@ -1708,37 +1709,24 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         return;
 
     if (!ide_cmd_permitted(s, val)) {
-        goto abort_cmd;
-    }
-
-    if (ide_cmd_table[val].handler != NULL) {
-        bool complete;
-
-        s->status = READY_STAT | BUSY_STAT;
-        s->error = 0;
-
-        complete = ide_cmd_table[val].handler(s, val);
-        if (complete) {
-            s->status &= ~BUSY_STAT;
-            assert(!!s->error == !!(s->status & ERR_STAT));
-
-            if ((ide_cmd_table[val].flags & SET_DSC) && !s->error) {
-                s->status |= SEEK_STAT;
-            }
-
-            ide_set_irq(s->bus);
-        }
-
+        ide_abort_command(s);
+        ide_set_irq(s->bus);
         return;
     }
 
-    switch(val) {
-    default:
-        /* should not be reachable */
-    abort_cmd:
-        ide_abort_command(s);
+    s->status = READY_STAT | BUSY_STAT;
+    s->error = 0;
+
+    complete = ide_cmd_table[val].handler(s, val);
+    if (complete) {
+        s->status &= ~BUSY_STAT;
+        assert(!!s->error == !!(s->status & ERR_STAT));
+
+        if ((ide_cmd_table[val].flags & SET_DSC) && !s->error) {
+            s->status |= SEEK_STAT;
+        }
+
         ide_set_irq(s->bus);
-        break;
     }
 }
 
