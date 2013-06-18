@@ -24,7 +24,6 @@
 
 #include "monitor/monitor.h"
 #include "qemu/sockets.h"
-#include "qemu-common.h" /* for qemu_isdigit */
 #include "qemu/main-loop.h"
 
 #ifndef AI_ADDRCONFIG
@@ -511,18 +510,14 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
             goto fail;
         }
         addr->ipv6 = addr->has_ipv6 = true;
-    } else if (qemu_isdigit(str[0])) {
-        /* IPv4 addr */
-        if (2 != sscanf(str, "%64[0-9.]:%32[^,]%n", host, port, &pos)) {
-            error_setg(errp, "error parsing IPv4 address '%s'", str);
-            goto fail;
-        }
-        addr->ipv4 = addr->has_ipv4 = true;
     } else {
-        /* hostname */
+        /* hostname or IPv4 addr */
         if (2 != sscanf(str, "%64[^:]:%32[^,]%n", host, port, &pos)) {
             error_setg(errp, "error parsing address '%s'", str);
             goto fail;
+        }
+        if (host[strspn(host, "0123456789.")] == '\0') {
+            addr->ipv4 = addr->has_ipv4 = true;
         }
     }
 
