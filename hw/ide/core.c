@@ -1056,6 +1056,60 @@ static bool cmd_verify(IDEState *s, uint8_t cmd)
     return true;
 }
 
+static bool cmd_set_multiple_mode(IDEState *s, uint8_t cmd)
+{
+    if (s->drive_kind == IDE_CFATA && s->nsector == 0) {
+        /* Disable Read and Write Multiple */
+        s->mult_sectors = 0;
+    } else if ((s->nsector & 0xff) != 0 &&
+        ((s->nsector & 0xff) > MAX_MULT_SECTORS ||
+         (s->nsector & (s->nsector - 1)) != 0)) {
+        ide_abort_command(s);
+    } else {
+        s->mult_sectors = s->nsector & 0xff;
+    }
+
+    return true;
+}
+
+static bool cmd_read_multiple(IDEState *s, uint8_t cmd)
+{
+    bool lba48 = (cmd == WIN_MULTREAD_EXT);
+
+    if (!s->bs || !s->mult_sectors) {
+        ide_abort_command(s);
+        return true;
+    }
+
+    ide_cmd_lba48_transform(s, lba48);
+    s->req_nb_sectors = s->mult_sectors;
+    ide_sector_read(s);
+    return false;
+}
+
+static bool cmd_write_multiple(IDEState *s, uint8_t cmd)
+{
+    bool lba48 = (cmd == WIN_MULTWRITE_EXT);
+    int n;
+
+    if (!s->bs || !s->mult_sectors) {
+        ide_abort_command(s);
+        return true;
+    }
+
+    ide_cmd_lba48_transform(s, lba48);
+
+    s->req_nb_sectors = s->mult_sectors;
+    n = MIN(s->nsector, s->req_nb_sectors);
+
+    s->status = SEEK_STAT | READY_STAT;
+    ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
+
+    s->media_changed = 1;
+
+    return false;
+}
+
 #define HD_OK (1u << IDE_HD)
 #define CD_OK (1u << IDE_CD)
 #define CFA_OK (1u << IDE_CFATA)
@@ -1081,13 +1135,13 @@ static const struct {
     [WIN_READ_EXT]                = { NULL, HD_CFA_OK },
     [WIN_READDMA_EXT]             = { NULL, HD_CFA_OK },
     [WIN_READ_NATIVE_MAX_EXT]     = { NULL, HD_CFA_OK },
-    [WIN_MULTREAD_EXT]            = { NULL, HD_CFA_OK },
+    [WIN_MULTREAD_EXT]            = { cmd_read_multiple, HD_CFA_OK },
     [WIN_WRITE]                   = { NULL, HD_CFA_OK },
     [WIN_WRITE_ONCE]              = { NULL, HD_CFA_OK },
     [WIN_WRITE_EXT]               = { NULL, HD_CFA_OK },
     [WIN_WRITEDMA_EXT]            = { NULL, HD_CFA_OK },
     [CFA_WRITE_SECT_WO_ERASE]     = { NULL, CFA_OK },
-    [WIN_MULTWRITE_EXT]           = { NULL, HD_CFA_OK },
+    [WIN_MULTWRITE_EXT]           = { cmd_write_multiple, HD_CFA_OK },
     [WIN_WRITE_VERIFY]            = { NULL, HD_CFA_OK },
     [WIN_VERIFY]                  = { cmd_verify, HD_CFA_OK | SET_DSC },
     [WIN_VERIFY_ONCE]             = { cmd_verify, HD_CFA_OK | SET_DSC },
@@ -1107,14 +1161,14 @@ static const struct {
     [WIN_SMART]                   = { NULL, HD_CFA_OK },
     [CFA_ACCESS_METADATA_STORAGE] = { NULL, CFA_OK },
     [CFA_ERASE_SECTORS]           = { NULL, CFA_OK },
-    [WIN_MULTREAD]                = { NULL, HD_CFA_OK },
-    [WIN_MULTWRITE]               = { NULL, HD_CFA_OK },
-    [WIN_SETMULT]                 = { NULL, HD_CFA_OK },
+    [WIN_MULTREAD]                = { cmd_read_multiple, HD_CFA_OK },
+    [WIN_MULTWRITE]               = { cmd_write_multiple, HD_CFA_OK },
+    [WIN_SETMULT]                 = { cmd_set_multiple_mode, HD_CFA_OK | SET_DSC },
     [WIN_READDMA]                 = { NULL, HD_CFA_OK },
     [WIN_READDMA_ONCE]            = { NULL, HD_CFA_OK },
     [WIN_WRITEDMA]                = { NULL, HD_CFA_OK },
     [WIN_WRITEDMA_ONCE]           = { NULL, HD_CFA_OK },
-    [CFA_WRITE_MULTI_WO_ERASE]    = { NULL, CFA_OK },
+    [CFA_WRITE_MULTI_WO_ERASE]    = { cmd_write_multiple, CFA_OK },
     [WIN_STANDBYNOW1]             = { cmd_nop, ALL_OK },
     [WIN_IDLEIMMEDIATE]           = { cmd_nop, ALL_OK },
     [WIN_STANDBY]                 = { cmd_nop, ALL_OK },
@@ -1181,22 +1235,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    case WIN_SETMULT:
-        if (s->drive_kind == IDE_CFATA && s->nsector == 0) {
-            /* Disable Read and Write Multiple */
-            s->mult_sectors = 0;
-            s->status = READY_STAT | SEEK_STAT;
-        } else if ((s->nsector & 0xff) != 0 &&
-            ((s->nsector & 0xff) > MAX_MULT_SECTORS ||
-             (s->nsector & (s->nsector - 1)) != 0)) {
-            ide_abort_command(s);
-        } else {
-            s->mult_sectors = s->nsector & 0xff;
-            s->status = READY_STAT | SEEK_STAT;
-        }
-        ide_set_irq(s->bus);
-        break;
-
     case WIN_READ_EXT:
         lba48 = 1;
         /* fall through */
@@ -1229,43 +1267,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         s->status = SEEK_STAT | READY_STAT;
         s->req_nb_sectors = 1;
         ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
-        s->media_changed = 1;
-        break;
-
-    case WIN_MULTREAD_EXT:
-        lba48 = 1;
-        /* fall through */
-    case WIN_MULTREAD:
-        if (!s->bs) {
-            goto abort_cmd;
-        }
-        if (!s->mult_sectors) {
-            goto abort_cmd;
-        }
-	ide_cmd_lba48_transform(s, lba48);
-        s->req_nb_sectors = s->mult_sectors;
-        ide_sector_read(s);
-        break;
-
-    case WIN_MULTWRITE_EXT:
-        lba48 = 1;
-        /* fall through */
-    case WIN_MULTWRITE:
-    case CFA_WRITE_MULTI_WO_ERASE:
-        if (!s->bs) {
-            goto abort_cmd;
-        }
-        if (!s->mult_sectors) {
-            goto abort_cmd;
-        }
-	ide_cmd_lba48_transform(s, lba48);
-        s->error = 0;
-        s->status = SEEK_STAT | READY_STAT;
-        s->req_nb_sectors = s->mult_sectors;
-        n = s->nsector;
-        if (n > s->req_nb_sectors)
-            n = s->req_nb_sectors;
-        ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
         s->media_changed = 1;
         break;
 
