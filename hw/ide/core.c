@@ -1200,6 +1200,12 @@ static bool cmd_read_native_max(IDEState *s, uint8_t cmd)
     return true;
 }
 
+static bool cmd_check_power_mode(IDEState *s, uint8_t cmd)
+{
+    s->nsector = 0xff; /* device active or idle */
+    return true;
+}
+
 #define HD_OK (1u << IDE_HD)
 #define CD_OK (1u << IDE_CD)
 #define CFA_OK (1u << IDE_CFATA)
@@ -1244,7 +1250,7 @@ static const struct {
     [WIN_IDLEIMMEDIATE2]          = { cmd_nop, ALL_OK },
     [WIN_STANDBY2]                = { cmd_nop, ALL_OK },
     [WIN_SETIDLE2]                = { cmd_nop, ALL_OK },
-    [WIN_CHECKPOWERMODE2]         = { NULL, ALL_OK },
+    [WIN_CHECKPOWERMODE2]         = { cmd_check_power_mode, ALL_OK | SET_DSC },
     [WIN_SLEEPNOW2]               = { cmd_nop, ALL_OK },
     [WIN_PACKETCMD]               = { NULL, CD_OK },
     [WIN_PIDENTIFY]               = { NULL, CD_OK },
@@ -1263,7 +1269,7 @@ static const struct {
     [WIN_IDLEIMMEDIATE]           = { cmd_nop, ALL_OK },
     [WIN_STANDBY]                 = { cmd_nop, ALL_OK },
     [WIN_SETIDLE1]                = { cmd_nop, ALL_OK },
-    [WIN_CHECKPOWERMODE1]         = { NULL, ALL_OK },
+    [WIN_CHECKPOWERMODE1]         = { cmd_check_power_mode, ALL_OK | SET_DSC },
     [WIN_SLEEPNOW1]               = { cmd_nop, ALL_OK },
     [WIN_FLUSH_CACHE]             = { NULL, ALL_OK },
     [WIN_FLUSH_CACHE_EXT]         = { NULL, HD_CFA_OK },
@@ -1324,13 +1330,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 
     switch(val) {
-    case WIN_CHECKPOWERMODE1:
-    case WIN_CHECKPOWERMODE2:
-        s->error = 0;
-        s->nsector = 0xff; /* device active or idle */
-        s->status = READY_STAT | SEEK_STAT;
-        ide_set_irq(s->bus);
-        break;
     case WIN_SETFEATURES:
         if (!s->bs)
             goto abort_cmd;
