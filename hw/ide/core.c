@@ -1046,6 +1046,16 @@ static bool cmd_identify(IDEState *s, uint8_t cmd)
     return true;
 }
 
+static bool cmd_verify(IDEState *s, uint8_t cmd)
+{
+    bool lba48 = (cmd == WIN_VERIFY_EXT);
+
+    /* do sector number check ? */
+    ide_cmd_lba48_transform(s, lba48);
+
+    return true;
+}
+
 #define HD_OK (1u << IDE_HD)
 #define CD_OK (1u << IDE_CD)
 #define CFA_OK (1u << IDE_CFATA)
@@ -1079,9 +1089,9 @@ static const struct {
     [CFA_WRITE_SECT_WO_ERASE]     = { NULL, CFA_OK },
     [WIN_MULTWRITE_EXT]           = { NULL, HD_CFA_OK },
     [WIN_WRITE_VERIFY]            = { NULL, HD_CFA_OK },
-    [WIN_VERIFY]                  = { NULL, HD_CFA_OK },
-    [WIN_VERIFY_ONCE]             = { NULL, HD_CFA_OK },
-    [WIN_VERIFY_EXT]              = { NULL, HD_CFA_OK },
+    [WIN_VERIFY]                  = { cmd_verify, HD_CFA_OK | SET_DSC },
+    [WIN_VERIFY_ONCE]             = { cmd_verify, HD_CFA_OK | SET_DSC },
+    [WIN_VERIFY_EXT]              = { cmd_verify, HD_CFA_OK | SET_DSC },
     [WIN_SEEK]                    = { NULL, HD_CFA_OK },
     [CFA_TRANSLATE_SECTOR]        = { NULL, CFA_OK },
     [WIN_DIAGNOSE]                = { NULL, ALL_OK },
@@ -1184,17 +1194,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
             s->mult_sectors = s->nsector & 0xff;
             s->status = READY_STAT | SEEK_STAT;
         }
-        ide_set_irq(s->bus);
-        break;
-
-    case WIN_VERIFY_EXT:
-        lba48 = 1;
-        /* fall through */
-    case WIN_VERIFY:
-    case WIN_VERIFY_ONCE:
-        /* do sector number check ? */
-	ide_cmd_lba48_transform(s, lba48);
-        s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
         break;
 
