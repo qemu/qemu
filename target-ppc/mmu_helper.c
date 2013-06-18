@@ -1431,7 +1431,15 @@ hwaddr cpu_get_phys_page_debug(CPUPPCState *env, target_ulong addr)
     }
 
     if (unlikely(get_physical_address(env, &ctx, addr, 0, ACCESS_INT) != 0)) {
-        return -1;
+
+        /* Some MMUs have separate TLBs for code and data. If we only try an
+         * ACCESS_INT, we may not be able to read instructions mapped by code
+         * TLBs, so we also try a ACCESS_CODE.
+         */
+        if (unlikely(get_physical_address(env, &ctx, addr, 0,
+                                          ACCESS_CODE) != 0)) {
+            return -1;
+        }
     }
 
     return ctx.raddr & TARGET_PAGE_MASK;
