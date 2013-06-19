@@ -391,7 +391,7 @@
 #
 # Since: 1.4
 ##
-{ 'enum': 'DataFormat'
+{ 'enum': 'DataFormat',
   'data': [ 'utf8', 'base64' ] }
 
 ##
@@ -1595,7 +1595,7 @@
 #
 # Since: 1.1
 ##
-{ 'enum': 'NewImageMode'
+{ 'enum': 'NewImageMode',
   'data': [ 'existing', 'absolute-paths' ] }
 
 ##
