@@ -55,8 +55,6 @@ int get_next_param_value(char *buf, int buf_size,
                          const char *tag, const char **pstr);
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);
-int check_params(char *buf, int buf_size,
-                 const char * const *params, const char *str);
 
 
 /*

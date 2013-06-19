@@ -441,9 +441,10 @@ static QemuOptsList qemu_machine_opts = {
 
 static QemuOptsList qemu_boot_opts = {
     .name = "boot-opts",
+    .implied_opt_name = "order",
+    .merge_lists = true,
     .head = QTAILQ_HEAD_INITIALIZER(qemu_boot_opts.head),
     .desc = {
-        /* the three names below are not used now */
         {
             .name = "order",
             .type = QEMU_OPT_STRING,
@@ -452,8 +453,7 @@ static QemuOptsList qemu_boot_opts = {
             .type = QEMU_OPT_STRING,
         }, {
             .name = "menu",
-            .type = QEMU_OPT_STRING,
-        /* following are really used */
+            .type = QEMU_OPT_BOOL,
         }, {
             .name = "splash",
             .type = QEMU_OPT_STRING,
@@ -1156,15 +1156,15 @@ void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
     boot_set_opaque = opaque;
 }
 
-int qemu_boot_set(const char *boot_devices)
+int qemu_boot_set(const char *boot_order)
 {
     if (!boot_set_handler) {
         return -EINVAL;
     }
-    return boot_set_handler(boot_set_opaque, boot_devices);
+    return boot_set_handler(boot_set_opaque, boot_order);
 }
 
-static void validate_bootdevices(char *devices)
+static void validate_bootdevices(const char *devices)
 {
     /* We just do some generic consistency checks */
     const char *p;
@@ -1192,9 +1192,9 @@ static void validate_bootdevices(char *devices)
     }
 }
 
-static void restore_boot_devices(void *opaque)
+static void restore_boot_order(void *opaque)
 {
-    char *standard_boot_devices = opaque;
+    char *normal_boot_order = opaque;
     static int first = 1;
 
     /* Restore boot order and remove ourselves after the first boot */
@@ -1203,10 +1203,10 @@ static void restore_boot_devices(void *opaque)
         return;
     }
 
-    qemu_boot_set(standard_boot_devices);
+    qemu_boot_set(normal_boot_order);
 
-    qemu_unregister_reset(restore_boot_devices, standard_boot_devices);
-    g_free(standard_boot_devices);
+    qemu_unregister_reset(restore_boot_order, normal_boot_order);
+    g_free(normal_boot_order);
 }
 
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
@@ -2884,7 +2884,7 @@ int main(int argc, char **argv, char **envp)
     const char *icount_option = NULL;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
-    char boot_devices[33] = "";
+    const char *boot_order = NULL;
     DisplayState *ds;
     int cyls, heads, secs, translation;
     QemuOpts *hda_opts = NULL, *opts, *machine_opts;
@@ -3182,71 +3182,9 @@ int main(int argc, char **argv, char **envp)
                 drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
                 break;
             case QEMU_OPTION_boot:
-                {
-                    static const char * const params[] = {
-                        "order", "once", "menu",
-                        "splash", "splash-time",
-                        "reboot-timeout", "strict", NULL
-                    };
-                    char buf[sizeof(boot_devices)];
-                    char *standard_boot_devices;
-                    int legacy = 0;
-
-                    if (!strchr(optarg, '=')) {
-                        legacy = 1;
-                        pstrcpy(buf, sizeof(buf), optarg);
-                    } else if (check_params(buf, sizeof(buf), params, optarg) < 0) {
-                        fprintf(stderr,
-                                "qemu: unknown boot parameter '%s' in '%s'\n",
-                                buf, optarg);
-                        exit(1);
-                    }
-
-                    if (legacy ||
-                        get_param_value(buf, sizeof(buf), "order", optarg)) {
-                        validate_bootdevices(buf);
-                        pstrcpy(boot_devices, sizeof(boot_devices), buf);
-                    }
-                    if (!legacy) {
-                        if (get_param_value(buf, sizeof(buf),
-                                            "once", optarg)) {
-                            validate_bootdevices(buf);
-                            standard_boot_devices = g_strdup(boot_devices);
-                            pstrcpy(boot_devices, sizeof(boot_devices), buf);
-                            qemu_register_reset(restore_boot_devices,
-                                                standard_boot_devices);
-                        }
-                        if (get_param_value(buf, sizeof(buf),
-                                            "menu", optarg)) {
-                            if (!strcmp(buf, "on")) {
-                                boot_menu = 1;
-                            } else if (!strcmp(buf, "off")) {
-                                boot_menu = 0;
-                            } else {
-                                fprintf(stderr,
-                                        "qemu: invalid option value '%s'\n",
-                                        buf);
-                                exit(1);
-                            }
-                        }
-                        if (get_param_value(buf, sizeof(buf),
-                                            "strict", optarg)) {
-                            if (!strcmp(buf, "on")) {
-                                boot_strict = true;
-                            } else if (!strcmp(buf, "off")) {
-                                boot_strict = false;
-                            } else {
-                                fprintf(stderr,
-                                        "qemu: invalid option value '%s'\n",
-                                        buf);
-                                exit(1);
-                            }
-                        }
-                        if (!qemu_opts_parse(qemu_find_opts("boot-opts"),
-                                             optarg, 0)) {
-                            exit(1);
-                        }
-                    }
+                opts = qemu_opts_parse(qemu_find_opts("boot-opts"), optarg, 1);
+                if (!opts) {
+                    exit(1);
                 }
                 break;
             case QEMU_OPTION_fda:
@@ -4190,6 +4128,31 @@ int main(int argc, char **argv, char **envp)
         kernel_filename = initrd_filename = kernel_cmdline = NULL;
     }
 
+    if (!boot_order) {
+        boot_order = machine->boot_order;
+    }
+    opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
+    if (opts) {
+        char *normal_boot_order;
+        const char *order, *once;
+
+        order = qemu_opt_get(opts, "order");
+        if (order) {
+            validate_bootdevices(order);
+            boot_order = order;
+        }
+
+        once = qemu_opt_get(opts, "once");
+        if (once) {
+            validate_bootdevices(once);
+            normal_boot_order = g_strdup(boot_order);
+            boot_order = once;
+            qemu_register_reset(restore_boot_order, normal_boot_order);
+        }
+
+        boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
+    }
+
     if (!kernel_cmdline) {
         kernel_cmdline = "";
     }
@@ -4354,9 +4317,7 @@ int main(int argc, char **argv, char **envp)
     qdev_machine_init();
 
     QEMUMachineInitArgs args = { .ram_size = ram_size,
-                                 .boot_device = (boot_devices[0] == '\0') ?
-                                                machine->boot_order :
-                                                boot_devices,
+                                 .boot_device = boot_order,
                                  .kernel_filename = kernel_filename,
                                  .kernel_cmdline = kernel_cmdline,
                                  .initrd_filename = initrd_filename,
