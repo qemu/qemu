@@ -72,6 +72,7 @@
 #define PRIV_XSCH                       0x76
 #define PRIV_SQBS                       0x8a
 #define PRIV_EQBS                       0x9c
+#define DIAG_IPL                        0x308
 #define DIAG_KVM_HYPERCALL              0x500
 #define DIAG_KVM_BREAKPOINT             0x501
 
@@ -578,11 +579,24 @@ static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
     return 0;
 }
 
+static void kvm_handle_diag_308(S390CPU *cpu, struct kvm_run *run)
+{
+    uint64_t r1, r3;
+
+    cpu_synchronize_state(CPU(cpu));
+    r1 = (run->s390_sieic.ipa & 0x00f0) >> 8;
+    r3 = run->s390_sieic.ipa & 0x000f;
+    handle_diag_308(&cpu->env, r1, r3);
+}
+
 static int handle_diag(S390CPU *cpu, struct kvm_run *run, int ipb_code)
 {
     int r = 0;
 
     switch (ipb_code) {
+    case DIAG_IPL:
+        kvm_handle_diag_308(cpu, run);
+        break;
     case DIAG_KVM_HYPERCALL:
         r = handle_hypercall(cpu, run);
         break;

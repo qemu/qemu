@@ -1047,6 +1047,9 @@ uint32_t set_cc_nz_f64(float64 v);
 uint32_t set_cc_nz_f128(float128 v);
 
 /* misc_helper.c */
+#ifndef CONFIG_USER_ONLY
+void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3);
+#endif
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr);

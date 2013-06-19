@@ -179,6 +179,46 @@ uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
     return r;
 }
 
+#ifndef CONFIG_USER_ONLY
+#define DIAG_308_RC_NO_CONF         0x0102
+#define DIAG_308_RC_INVALID         0x0402
+void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
+{
+    uint64_t addr =  env->regs[r1];
+    uint64_t subcode = env->regs[r3];
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        program_interrupt(env, PGM_PRIVILEGED, ILEN_LATER_INC);
+        return;
+    }
+
+    if ((subcode & ~0x0ffffULL) || (subcode > 6)) {
+        program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
+        return;
+    }
+
+    switch (subcode) {
+    case 5:
+        if ((r1 & 1) || (addr & 0x0fffULL)) {
+            program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
+            return;
+        }
+        env->regs[r1+1] = DIAG_308_RC_INVALID;
+        return;
+    case 6:
+        if ((r1 & 1) || (addr & 0x0fffULL)) {
+            program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
+            return;
+        }
+        env->regs[r1+1] = DIAG_308_RC_NO_CONF;
+        return;
+    default:
+        hw_error("Unhandled diag308 subcode %" PRIx64, subcode);
+        break;
+    }
+}
+#endif
+
 /* DIAG */
 uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
                       uint64_t code)
