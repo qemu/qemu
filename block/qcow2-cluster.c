@@ -1377,18 +1377,25 @@ int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
 
     nb_clusters = size_to_clusters(s, end_offset - offset);
 
+    s->cache_discards = true;
+
     /* Each L2 table is handled by its own loop iteration */
     while (nb_clusters > 0) {
         ret = discard_single_l2(bs, offset, nb_clusters);
         if (ret < 0) {
-            return ret;
+            goto fail;
         }
 
         nb_clusters -= ret;
         offset += (ret * s->cluster_size);
     }
 
-    return 0;
+    ret = 0;
+fail:
+    s->cache_discards = false;
+    qcow2_process_discards(bs, ret);
+
+    return ret;
 }
 
 /*
@@ -1450,15 +1457,22 @@ int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors)
     /* Each L2 table is handled by its own loop iteration */
     nb_clusters = size_to_clusters(s, nb_sectors << BDRV_SECTOR_BITS);
 
+    s->cache_discards = true;
+
     while (nb_clusters > 0) {
         ret = zero_single_l2(bs, offset, nb_clusters);
         if (ret < 0) {
-            return ret;
+            goto fail;
         }
 
         nb_clusters -= ret;
         offset += (ret * s->cluster_size);
     }
 
-    return 0;
+    ret = 0;
+fail:
+    s->cache_discards = false;
+    qcow2_process_discards(bs, ret);
+
+    return ret;
 }

@@ -420,6 +420,74 @@ fail_block:
     return ret;
 }
 
+void qcow2_process_discards(BlockDriverState *bs, int ret)
+{
+    BDRVQcowState *s = bs->opaque;
+    Qcow2DiscardRegion *d, *next;
+
+    QTAILQ_FOREACH_SAFE(d, &s->discards, next, next) {
+        QTAILQ_REMOVE(&s->discards, d, next);
+
+        /* Discard is optional, ignore the return value */
+        if (ret >= 0) {
+            bdrv_discard(bs->file,
+                         d->offset >> BDRV_SECTOR_BITS,
+                         d->bytes >> BDRV_SECTOR_BITS);
+        }
+
+        g_free(d);
+    }
+}
+
+static void update_refcount_discard(BlockDriverState *bs,
+                                    uint64_t offset, uint64_t length)
+{
+    BDRVQcowState *s = bs->opaque;
+    Qcow2DiscardRegion *d, *p, *next;
+
+    QTAILQ_FOREACH(d, &s->discards, next) {
+        uint64_t new_start = MIN(offset, d->offset);
+        uint64_t new_end = MAX(offset + length, d->offset + d->bytes);
+
+        if (new_end - new_start <= length + d->bytes) {
+            /* There can't be any overlap, areas ending up here have no
+             * references any more and therefore shouldn't get freed another
+             * time. */
+            assert(d->bytes + length == new_end - new_start);
+            d->offset = new_start;
+            d->bytes = new_end - new_start;
+            goto found;
+        }
+    }
+
+    d = g_malloc(sizeof(*d));
+    *d = (Qcow2DiscardRegion) {
+        .bs     = bs,
+        .offset = offset,
+        .bytes  = length,
+    };
+    QTAILQ_INSERT_TAIL(&s->discards, d, next);
+
+found:
+    /* Merge discard requests if they are adjacent now */
+    QTAILQ_FOREACH_SAFE(p, &s->discards, next, next) {
+        if (p == d
+            || p->offset > d->offset + d->bytes
+            || d->offset > p->offset + p->bytes)
+        {
+            continue;
+        }
+
+        /* Still no overlap possible */
+        assert(p->offset == d->offset + d->bytes
+            || d->offset == p->offset + p->bytes);
+
+        QTAILQ_REMOVE(&s->discards, p, next);
+        d->offset = MIN(d->offset, p->offset);
+        d->bytes += p->bytes;
+    }
+}
+
 /* XXX: cache several refcount block clusters ? */
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
     int64_t offset, int64_t length, int addend, enum qcow2_discard_type type)
@@ -488,15 +556,18 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
             s->free_cluster_index = cluster_index;
         }
         refcount_block[block_index] = cpu_to_be16(refcount);
+
         if (refcount == 0 && s->discard_passthrough[type]) {
-            /* Try discarding, ignore errors */
-            /* FIXME Doing this cluster by cluster will be painfully slow */
-            bdrv_discard(bs->file, cluster_offset, 1);
+            update_refcount_discard(bs, cluster_offset, s->cluster_size);
         }
     }
 
     ret = 0;
 fail:
+    if (!s->cache_discards) {
+        qcow2_process_discards(bs, ret);
+    }
+
     /* Write last changed block to disk */
     if (refcount_block) {
         int wret;
@@ -755,6 +826,8 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     l1_table = NULL;
     l1_size2 = l1_size * sizeof(uint64_t);
 
+    s->cache_discards = true;
+
     /* WARNING: qcow2_snapshot_goto relies on this function not using the
      * l1_table_offset when it is the current s->l1_table_offset! Be careful
      * when changing this! */
@@ -866,6 +939,9 @@ fail:
     if (l2_table) {
         qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
     }
+
+    s->cache_discards = false;
+    qcow2_process_discards(bs, ret);
 
     /* Update L1 only if it isn't deleted anyway (addend = -1) */
     if (ret == 0 && addend >= 0 && l1_modified) {

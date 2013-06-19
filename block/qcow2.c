@@ -486,6 +486,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
     }
 
     QLIST_INIT(&s->cluster_allocs);
+    QTAILQ_INIT(&s->discards);
 
     /* read qcow2 extensions */
     if (qcow2_read_extensions(bs, header.header_length, ext_end, NULL)) {

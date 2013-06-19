@@ -147,6 +147,13 @@ typedef struct Qcow2Feature {
     char    name[46];
 } QEMU_PACKED Qcow2Feature;
 
+typedef struct Qcow2DiscardRegion {
+    BlockDriverState *bs;
+    uint64_t offset;
+    uint64_t bytes;
+    QTAILQ_ENTRY(Qcow2DiscardRegion) next;
+} Qcow2DiscardRegion;
+
 typedef struct BDRVQcowState {
     int cluster_bits;
     int cluster_size;
@@ -199,6 +206,8 @@ typedef struct BDRVQcowState {
     size_t unknown_header_fields_size;
     void* unknown_header_fields;
     QLIST_HEAD(, Qcow2UnknownHeaderExtension) unknown_header_ext;
+    QTAILQ_HEAD (, Qcow2DiscardRegion) discards;
+    bool cache_discards;
 } BDRVQcowState;
 
 /* XXX: use std qcow open function ? */
@@ -373,6 +382,8 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
 
 int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                           BdrvCheckMode fix);
+
+void qcow2_process_discards(BlockDriverState *bs, int ret);
 
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
