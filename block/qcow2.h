@@ -60,6 +60,9 @@
 
 
 #define QCOW2_OPT_LAZY_REFCOUNTS "lazy_refcounts"
+#define QCOW2_OPT_DISCARD_REQUEST "pass_discard_request"
+#define QCOW2_OPT_DISCARD_SNAPSHOT "pass_discard_snapshot"
+#define QCOW2_OPT_DISCARD_OTHER "pass_discard_other"
 
 typedef struct QCowHeader {
     uint32_t magic;
@@ -186,6 +189,8 @@ typedef struct BDRVQcowState {
     int flags;
     int qcow_version;
     bool use_lazy_refcounts;
+
+    bool discard_passthrough[QCOW2_DISCARD_MAX];
 
     uint64_t incompatible_features;
     uint64_t compatible_features;

@@ -295,6 +295,22 @@ static QemuOptsList qcow2_runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Postpone refcount updates",
         },
+        {
+            .name = QCOW2_OPT_DISCARD_REQUEST,
+            .type = QEMU_OPT_BOOL,
+            .help = "Pass guest discard requests to the layer below",
+        },
+        {
+            .name = QCOW2_OPT_DISCARD_SNAPSHOT,
+            .type = QEMU_OPT_BOOL,
+            .help = "Generate discard requests when snapshot related space "
+                    "is freed",
+        },
+        {
+            .name = QCOW2_OPT_DISCARD_OTHER,
+            .type = QEMU_OPT_BOOL,
+            .help = "Generate discard requests when other clusters are freed",
+        },
         { /* end of list */ }
     },
 };
@@ -531,6 +547,16 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags)
 
     s->use_lazy_refcounts = qemu_opt_get_bool(opts, QCOW2_OPT_LAZY_REFCOUNTS,
         (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS));
+
+    s->discard_passthrough[QCOW2_DISCARD_NEVER] = false;
+    s->discard_passthrough[QCOW2_DISCARD_ALWAYS] = true;
+    s->discard_passthrough[QCOW2_DISCARD_REQUEST] =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_REQUEST,
+                          flags & BDRV_O_UNMAP);
+    s->discard_passthrough[QCOW2_DISCARD_SNAPSHOT] =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_SNAPSHOT, true);
+    s->discard_passthrough[QCOW2_DISCARD_OTHER] =
+        qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
 
     qemu_opts_del(opts);
 

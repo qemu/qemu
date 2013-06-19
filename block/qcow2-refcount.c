@@ -488,6 +488,11 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
             s->free_cluster_index = cluster_index;
         }
         refcount_block[block_index] = cpu_to_be16(refcount);
+        if (refcount == 0 && s->discard_passthrough[type]) {
+            /* Try discarding, ignore errors */
+            /* FIXME Doing this cluster by cluster will be painfully slow */
+            bdrv_discard(bs->file, cluster_offset, 1);
+        }
     }
 
     ret = 0;
