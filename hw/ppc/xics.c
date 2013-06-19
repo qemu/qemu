@@ -400,7 +400,8 @@ static target_ulong h_eoi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static void rtas_set_xive(sPAPREnvironment *spapr, uint32_t token,
+static void rtas_set_xive(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                          uint32_t token,
                           uint32_t nargs, target_ulong args,
                           uint32_t nret, target_ulong rets)
 {
@@ -427,7 +428,8 @@ static void rtas_set_xive(sPAPREnvironment *spapr, uint32_t token,
     rtas_st(rets, 0, 0); /* Success */
 }
 
-static void rtas_get_xive(sPAPREnvironment *spapr, uint32_t token,
+static void rtas_get_xive(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                          uint32_t token,
                           uint32_t nargs, target_ulong args,
                           uint32_t nret, target_ulong rets)
 {
@@ -451,7 +453,8 @@ static void rtas_get_xive(sPAPREnvironment *spapr, uint32_t token,
     rtas_st(rets, 2, ics->irqs[nr - ics->offset].priority);
 }
 
-static void rtas_int_off(sPAPREnvironment *spapr, uint32_t token,
+static void rtas_int_off(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                         uint32_t token,
                          uint32_t nargs, target_ulong args,
                          uint32_t nret, target_ulong rets)
 {
@@ -476,7 +479,8 @@ static void rtas_int_off(sPAPREnvironment *spapr, uint32_t token,
     rtas_st(rets, 0, 0); /* Success */
 }
 
-static void rtas_int_on(sPAPREnvironment *spapr, uint32_t token,
+static void rtas_int_on(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                        uint32_t token,
                         uint32_t nargs, target_ulong args,
                         uint32_t nret, target_ulong rets)
 {

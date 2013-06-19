@@ -119,7 +119,7 @@ static void finish_read_pci_config(sPAPREnvironment *spapr, uint64_t buid,
     rtas_st(rets, 1, val);
 }
 
-static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
+static void rtas_ibm_read_pci_config(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                      uint32_t token, uint32_t nargs,
                                      target_ulong args,
                                      uint32_t nret, target_ulong rets)
@@ -139,7 +139,7 @@ static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
     finish_read_pci_config(spapr, buid, addr, size, rets);
 }
 
-static void rtas_read_pci_config(sPAPREnvironment *spapr,
+static void rtas_read_pci_config(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
@@ -185,7 +185,7 @@ static void finish_write_pci_config(sPAPREnvironment *spapr, uint64_t buid,
     rtas_st(rets, 0, 0);
 }
 
-static void rtas_ibm_write_pci_config(sPAPREnvironment *spapr,
+static void rtas_ibm_write_pci_config(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                       uint32_t token, uint32_t nargs,
                                       target_ulong args,
                                       uint32_t nret, target_ulong rets)
@@ -206,7 +206,7 @@ static void rtas_ibm_write_pci_config(sPAPREnvironment *spapr,
     finish_write_pci_config(spapr, buid, addr, size, val, rets);
 }
 
-static void rtas_write_pci_config(sPAPREnvironment *spapr,
+static void rtas_write_pci_config(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                   uint32_t token, uint32_t nargs,
                                   target_ulong args,
                                   uint32_t nret, target_ulong rets)
@@ -277,7 +277,7 @@ static void spapr_msi_setmsg(PCIDevice *pdev, hwaddr addr,
     }
 }
 
-static void rtas_ibm_change_msi(sPAPREnvironment *spapr,
+static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                 uint32_t token, uint32_t nargs,
                                 target_ulong args, uint32_t nret,
                                 target_ulong rets)
@@ -374,7 +374,8 @@ static void rtas_ibm_change_msi(sPAPREnvironment *spapr,
     trace_spapr_pci_rtas_ibm_change_msi(func, req_num);
 }
 
-static void rtas_ibm_query_interrupt_source_number(sPAPREnvironment *spapr,
+static void rtas_ibm_query_interrupt_source_number(PowerPCCPU *cpu,
+                                                   sPAPREnvironment *spapr,
                                                    uint32_t token,
                                                    uint32_t nargs,
                                                    target_ulong args,
