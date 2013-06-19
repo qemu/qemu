@@ -1196,7 +1196,8 @@ static int preallocate(BlockDriverState *bs)
 
         ret = qcow2_alloc_cluster_link_l2(bs, meta);
         if (ret < 0) {
-            qcow2_free_any_clusters(bs, meta->alloc_offset, meta->nb_clusters);
+            qcow2_free_any_clusters(bs, meta->alloc_offset, meta->nb_clusters,
+                                    QCOW2_DISCARD_NEVER);
             return ret;
         }
 

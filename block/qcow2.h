@@ -129,6 +129,15 @@ enum {
     QCOW2_COMPAT_FEAT_MASK            = QCOW2_COMPAT_LAZY_REFCOUNTS,
 };
 
+enum qcow2_discard_type {
+    QCOW2_DISCARD_NEVER = 0,
+    QCOW2_DISCARD_ALWAYS,
+    QCOW2_DISCARD_REQUEST,
+    QCOW2_DISCARD_SNAPSHOT,
+    QCOW2_DISCARD_OTHER,
+    QCOW2_DISCARD_MAX
+};
+
 typedef struct Qcow2Feature {
     uint8_t type;
     uint8_t bit;
@@ -349,9 +358,10 @@ int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
     int nb_clusters);
 int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size);
 void qcow2_free_clusters(BlockDriverState *bs,
-    int64_t offset, int64_t size);
-void qcow2_free_any_clusters(BlockDriverState *bs,
-    uint64_t cluster_offset, int nb_clusters);
+                          int64_t offset, int64_t size,
+                          enum qcow2_discard_type type);
+void qcow2_free_any_clusters(BlockDriverState *bs, uint64_t l2_entry,
+                             int nb_clusters, enum qcow2_discard_type type);
 
 int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     int64_t l1_table_offset, int l1_size, int addend);
