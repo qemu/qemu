@@ -17,6 +17,7 @@
 #ifndef LIBQTEST_H
 #define LIBQTEST_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>
@@ -316,6 +317,17 @@ static inline QTestState *qtest_start(const char *args)
 {
     global_qtest = qtest_init(args);
     return global_qtest;
+}
+
+/**
+ * qtest_end:
+ *
+ * Shut down the QEMU process started by qtest_start().
+ */
+static inline void qtest_end(void)
+{
+    qtest_quit(global_qtest);
+    global_qtest = NULL;
 }
 
 /**

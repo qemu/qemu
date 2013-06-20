@@ -556,7 +556,7 @@ int main(int argc, char **argv)
     ret = g_test_run();
 
     /* Cleanup */
-    qtest_quit(global_qtest);
+    qtest_end();
     unlink(test_image);
 
     return ret;
