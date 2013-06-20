@@ -65,7 +65,7 @@ int graphic_depth = 8;
 #else
 int graphic_width = 800;
 int graphic_height = 600;
-int graphic_depth = 15;
+int graphic_depth = 32;
 #endif
 
 
