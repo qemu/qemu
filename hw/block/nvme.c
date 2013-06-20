@@ -85,7 +85,7 @@ static uint16_t nvme_map_prp(QEMUSGList *qsg, uint64_t prp1, uint64_t prp2,
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    qemu_sglist_init(qsg, num_prps, pci_dma_context(&n->parent_obj));
+    pci_dma_sglist_init(qsg, &n->parent_obj, num_prps);
     qemu_sglist_add(qsg, prp1, trans_len);
     len -= trans_len;
     if (len) {

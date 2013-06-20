@@ -1939,6 +1939,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
     void *vaddr;
     int ret;
 
+    assert(!memory_region_is_iommu(section->mr));
+
     if (vfio_listener_skipped_section(section)) {
         DPRINTF("SKIPPING region_add %"HWADDR_PRIx" - %"PRIx64"\n",
                 section->offset_within_address_space,
@@ -1953,7 +1955,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     }
 
     iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
-    end = (section->offset_within_address_space + section->size) &
+    end = (section->offset_within_address_space + int128_get64(section->size)) &
           TARGET_PAGE_MASK;
 
     if (iova >= end) {
@@ -1997,7 +1999,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
     }
 
     iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
-    end = (section->offset_within_address_space + section->size) &
+    end = (section->offset_within_address_space + int128_get64(section->size)) &
           TARGET_PAGE_MASK;
 
     if (iova >= end) {

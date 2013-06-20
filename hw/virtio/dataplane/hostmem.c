@@ -90,7 +90,7 @@ static void hostmem_append_new_region(HostMem *hostmem,
     hostmem->new_regions[num] = (HostMemRegion){
         .host_addr = ram_ptr + section->offset_within_region,
         .guest_addr = section->offset_within_address_space,
-        .size = section->size,
+        .size = int128_get64(section->size),
         .readonly = section->readonly,
     };
     hostmem->num_new_regions++;

@@ -232,7 +232,7 @@ static int megasas_map_sgl(MegasasState *s, MegasasCmd *cmd, union mfi_sgl *sgl)
                                          MEGASAS_MAX_SGE);
         return iov_count;
     }
-    qemu_sglist_init(&cmd->qsg, iov_count, pci_dma_context(&s->dev));
+    pci_dma_sglist_init(&cmd->qsg, &s->dev, iov_count);
     for (i = 0; i < iov_count; i++) {
         dma_addr_t iov_pa, iov_size_p;
 
@@ -628,7 +628,7 @@ static int megasas_map_dcmd(MegasasState *s, MegasasCmd *cmd)
     }
     iov_pa = megasas_sgl_get_addr(cmd, &cmd->frame->dcmd.sgl);
     iov_size = megasas_sgl_get_len(cmd, &cmd->frame->dcmd.sgl);
-    qemu_sglist_init(&cmd->qsg, 1, pci_dma_context(&s->dev));
+    pci_dma_sglist_init(&cmd->qsg, &s->dev, 1);
     qemu_sglist_add(&cmd->qsg, iov_pa, iov_size);
     cmd->iov_size = iov_size;
     return cmd->iov_size;

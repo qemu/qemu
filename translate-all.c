@@ -1355,15 +1355,15 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
 void tb_invalidate_phys_addr(hwaddr addr)
 {
     ram_addr_t ram_addr;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     hwaddr l = 1;
 
-    section = address_space_translate(&address_space_memory, addr, &addr, &l, false);
-    if (!(memory_region_is_ram(section->mr)
-          || memory_region_is_romd(section->mr))) {
+    mr = address_space_translate(&address_space_memory, addr, &addr, &l, false);
+    if (!(memory_region_is_ram(mr)
+          || memory_region_is_romd(mr))) {
         return;
     }
-    ram_addr = (memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK)
+    ram_addr = (memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK)
         + addr;
     tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
 }

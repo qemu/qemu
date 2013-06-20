@@ -786,6 +786,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     PCIConfigReadFunc *config_read = pc->config_read;
     PCIConfigWriteFunc *config_write = pc->config_write;
+    AddressSpace *dma_as;
 
     if (devfn < 0) {
         for(devfn = bus->devfn_min ; devfn < ARRAY_SIZE(bus->devices);
@@ -801,21 +802,21 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                      PCI_SLOT(devfn), PCI_FUNC(devfn), name, bus->devices[devfn]->name);
         return NULL;
     }
+
     pci_dev->bus = bus;
-    if (bus->dma_context_fn) {
-        pci_dev->dma = bus->dma_context_fn(bus, bus->dma_context_opaque, devfn);
+    if (bus->iommu_fn) {
+        dma_as = bus->iommu_fn(bus, bus->iommu_opaque, devfn);
     } else {
-        /* FIXME: Make dma_context_fn use MemoryRegions instead, so this path is
-         * taken unconditionally */
         /* FIXME: inherit memory region from bus creator */
-        memory_region_init_alias(&pci_dev->bus_master_enable_region, "bus master",
-                                 get_system_memory(), 0,
-                                 memory_region_size(get_system_memory()));
-        memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
-        address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region);
-        pci_dev->dma = g_new(DMAContext, 1);
-        dma_context_init(pci_dev->dma, &pci_dev->bus_master_as, NULL, NULL, NULL);
+        dma_as = &address_space_memory;
     }
+
+    memory_region_init_alias(&pci_dev->bus_master_enable_region, "bus master",
+                             dma_as->root, 0, memory_region_size(dma_as->root));
+    memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
+    address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region,
+                       name);
+
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     pci_dev->irq_state = 0;
@@ -869,12 +870,8 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
     pci_dev->bus->devices[pci_dev->devfn] = NULL;
     pci_config_free(pci_dev);
 
-    if (!pci_dev->bus->dma_context_fn) {
-        address_space_destroy(&pci_dev->bus_master_as);
-        memory_region_destroy(&pci_dev->bus_master_enable_region);
-        g_free(pci_dev->dma);
-        pci_dev->dma = NULL;
-    }
+    address_space_destroy(&pci_dev->bus_master_as);
+    memory_region_destroy(&pci_dev->bus_master_enable_region);
 }
 
 static void pci_unregister_io_regions(PCIDevice *pci_dev)
@@ -2231,10 +2228,10 @@ static void pci_device_class_init(ObjectClass *klass, void *data)
     k->props = pci_props;
 }
 
-void pci_setup_iommu(PCIBus *bus, PCIDMAContextFunc fn, void *opaque)
+void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
 {
-    bus->dma_context_fn = fn;
-    bus->dma_context_opaque = opaque;
+    bus->iommu_fn = fn;
+    bus->iommu_opaque = opaque;
 }
 
 static const TypeInfo pci_device_type_info = {

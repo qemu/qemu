@@ -342,17 +342,19 @@ typedef struct sPAPRTCE {
 
 #define RTAS_ERROR_LOG_MAX      2048
 
+typedef struct sPAPRTCETable sPAPRTCETable;
 
 void spapr_iommu_init(void);
 void spapr_events_init(sPAPREnvironment *spapr);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
-DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size);
-void spapr_tce_free(DMAContext *dma);
-void spapr_tce_reset(DMAContext *dma);
-void spapr_tce_set_bypass(DMAContext *dma, bool bypass);
+sPAPRTCETable *spapr_tce_new_table(uint32_t liobn, size_t window_size);
+MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
+void spapr_tce_free(sPAPRTCETable *tcet);
+void spapr_tce_reset(sPAPRTCETable *tcet);
+void spapr_tce_set_bypass(sPAPRTCETable *tcet, bool bypass);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
                  uint32_t liobn, uint64_t window, uint32_t size);
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
-                      DMAContext *dma);
+                      sPAPRTCETable *tcet);
 
 #endif /* !defined (__HW_SPAPR_H__) */

@@ -63,10 +63,9 @@ static MemoryRegion *system_io;
 
 AddressSpace address_space_io;
 AddressSpace address_space_memory;
-DMAContext dma_context_memory;
 
 MemoryRegion io_mem_rom, io_mem_notdirty;
-static MemoryRegion io_mem_unassigned, io_mem_subpage_ram;
+static MemoryRegion io_mem_unassigned;
 
 #endif
 
@@ -80,6 +79,31 @@ DEFINE_TLS(CPUArchState *,cpu_single_env);
 int use_icount;
 
 #if !defined(CONFIG_USER_ONLY)
+
+typedef struct PhysPageEntry PhysPageEntry;
+
+struct PhysPageEntry {
+    uint16_t is_leaf : 1;
+     /* index into phys_sections (is_leaf) or phys_map_nodes (!is_leaf) */
+    uint16_t ptr : 15;
+};
+
+struct AddressSpaceDispatch {
+    /* This is a multi-level map on the physical address space.
+     * The bottom level has pointers to MemoryRegionSections.
+     */
+    PhysPageEntry phys_map;
+    MemoryListener listener;
+    AddressSpace *as;
+};
+
+#define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
+typedef struct subpage_t {
+    MemoryRegion iomem;
+    AddressSpace *as;
+    hwaddr base;
+    uint16_t sub_section[TARGET_PAGE_SIZE];
+} subpage_t;
 
 static MemoryRegionSection *phys_sections;
 static unsigned phys_sections_nb, phys_sections_nb_alloc;
@@ -203,14 +227,29 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
         && mr != &io_mem_watch;
 }
 
-MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
-                                             hwaddr *xlat, hwaddr *plen,
-                                             bool is_write)
+static MemoryRegionSection *address_space_lookup_region(AddressSpace *as,
+                                                        hwaddr addr,
+                                                        bool resolve_subpage)
+{
+    MemoryRegionSection *section;
+    subpage_t *subpage;
+
+    section = phys_page_find(as->dispatch, addr >> TARGET_PAGE_BITS);
+    if (resolve_subpage && section->mr->subpage) {
+        subpage = container_of(section->mr, subpage_t, iomem);
+        section = &phys_sections[subpage->sub_section[SUBPAGE_IDX(addr)]];
+    }
+    return section;
+}
+
+static MemoryRegionSection *
+address_space_translate_internal(AddressSpace *as, hwaddr addr, hwaddr *xlat,
+                                 hwaddr *plen, bool resolve_subpage)
 {
     MemoryRegionSection *section;
     Int128 diff;
 
-    section = phys_page_find(as->dispatch, addr >> TARGET_PAGE_BITS);
+    section = address_space_lookup_region(as, addr, resolve_subpage);
     /* Compute offset within MemoryRegionSection */
     addr -= section->offset_within_address_space;
 
@@ -218,7 +257,52 @@ MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
     *xlat = addr + section->offset_within_region;
 
     diff = int128_sub(section->mr->size, int128_make64(addr));
-    *plen = MIN(int128_get64(diff), *plen);
+    *plen = int128_get64(int128_min(diff, int128_make64(*plen)));
+    return section;
+}
+
+MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
+                                      hwaddr *xlat, hwaddr *plen,
+                                      bool is_write)
+{
+    IOMMUTLBEntry iotlb;
+    MemoryRegionSection *section;
+    MemoryRegion *mr;
+    hwaddr len = *plen;
+
+    for (;;) {
+        section = address_space_translate_internal(as, addr, &addr, plen, true);
+        mr = section->mr;
+
+        if (!mr->iommu_ops) {
+            break;
+        }
+
+        iotlb = mr->iommu_ops->translate(mr, addr);
+        addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
+                | (addr & iotlb.addr_mask));
+        len = MIN(len, (addr | iotlb.addr_mask) - addr + 1);
+        if (!(iotlb.perm & (1 << is_write))) {
+            mr = &io_mem_unassigned;
+            break;
+        }
+
+        as = iotlb.target_as;
+    }
+
+    *plen = len;
+    *xlat = addr;
+    return mr;
+}
+
+MemoryRegionSection *
+address_space_translate_for_iotlb(AddressSpace *as, hwaddr addr, hwaddr *xlat,
+                                  hwaddr *plen)
+{
+    MemoryRegionSection *section;
+    section = address_space_translate_internal(as, addr, xlat, plen, false);
+
+    assert(!section->mr->iommu_ops);
     return section;
 }
 #endif
@@ -675,16 +759,9 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
 
 #if !defined(CONFIG_USER_ONLY)
 
-#define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
-typedef struct subpage_t {
-    MemoryRegion iomem;
-    hwaddr base;
-    uint16_t sub_section[TARGET_PAGE_SIZE];
-} subpage_t;
-
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
-static subpage_t *subpage_init(hwaddr base);
+static subpage_t *subpage_init(AddressSpace *as, hwaddr base);
 static void destroy_page_desc(uint16_t section_index)
 {
     MemoryRegionSection *section = &phys_sections[section_index];
@@ -754,14 +831,14 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
     MemoryRegionSection *existing = phys_page_find(d, base >> TARGET_PAGE_BITS);
     MemoryRegionSection subsection = {
         .offset_within_address_space = base,
-        .size = TARGET_PAGE_SIZE,
+        .size = int128_make64(TARGET_PAGE_SIZE),
     };
     hwaddr start, end;
 
     assert(existing->mr->subpage || existing->mr == &io_mem_unassigned);
 
     if (!(existing->mr->subpage)) {
-        subpage = subpage_init(base);
+        subpage = subpage_init(d->as, base);
         subsection.mr = &subpage->iomem;
         phys_page_set(d, base >> TARGET_PAGE_BITS, 1,
                       phys_section_add(&subsection));
@@ -769,67 +846,52 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
         subpage = container_of(existing->mr, subpage_t, iomem);
     }
     start = section->offset_within_address_space & ~TARGET_PAGE_MASK;
-    end = start + section->size - 1;
+    end = start + int128_get64(section->size) - 1;
     subpage_register(subpage, start, end, phys_section_add(section));
 }
 
 
-static void register_multipage(AddressSpaceDispatch *d, MemoryRegionSection *section)
+static void register_multipage(AddressSpaceDispatch *d,
+                               MemoryRegionSection *section)
 {
     hwaddr start_addr = section->offset_within_address_space;
-    ram_addr_t size = section->size;
-    hwaddr addr;
     uint16_t section_index = phys_section_add(section);
+    uint64_t num_pages = int128_get64(int128_rshift(section->size,
+                                                    TARGET_PAGE_BITS));
 
-    assert(size);
-
-    addr = start_addr;
-    phys_page_set(d, addr >> TARGET_PAGE_BITS, size >> TARGET_PAGE_BITS,
-                  section_index);
-}
-
-QEMU_BUILD_BUG_ON(TARGET_PHYS_ADDR_SPACE_BITS > MAX_PHYS_ADDR_SPACE_BITS)
-
-static MemoryRegionSection limit(MemoryRegionSection section)
-{
-    section.size = MIN(section.offset_within_address_space + section.size,
-                       MAX_PHYS_ADDR + 1)
-                   - section.offset_within_address_space;
-
-    return section;
+    assert(num_pages);
+    phys_page_set(d, start_addr >> TARGET_PAGE_BITS, num_pages, section_index);
 }
 
 static void mem_add(MemoryListener *listener, MemoryRegionSection *section)
 {
     AddressSpaceDispatch *d = container_of(listener, AddressSpaceDispatch, listener);
-    MemoryRegionSection now = limit(*section), remain = limit(*section);
+    MemoryRegionSection now = *section, remain = *section;
+    Int128 page_size = int128_make64(TARGET_PAGE_SIZE);
 
-    if ((now.offset_within_address_space & ~TARGET_PAGE_MASK)
-        || (now.size < TARGET_PAGE_SIZE)) {
-        now.size = MIN(TARGET_PAGE_ALIGN(now.offset_within_address_space)
-                       - now.offset_within_address_space,
-                       now.size);
+    if (now.offset_within_address_space & ~TARGET_PAGE_MASK) {
+        uint64_t left = TARGET_PAGE_ALIGN(now.offset_within_address_space)
+                       - now.offset_within_address_space;
+
+        now.size = int128_min(int128_make64(left), now.size);
         register_subpage(d, &now);
-        remain.size -= now.size;
-        remain.offset_within_address_space += now.size;
-        remain.offset_within_region += now.size;
+    } else {
+        now.size = int128_zero();
     }
-    while (remain.size >= TARGET_PAGE_SIZE) {
+    while (int128_ne(remain.size, now.size)) {
+        remain.size = int128_sub(remain.size, now.size);
+        remain.offset_within_address_space += int128_get64(now.size);
+        remain.offset_within_region += int128_get64(now.size);
         now = remain;
-        if (remain.offset_within_region & ~TARGET_PAGE_MASK) {
-            now.size = TARGET_PAGE_SIZE;
+        if (int128_lt(remain.size, page_size)) {
+            register_subpage(d, &now);
+        } else if (remain.offset_within_region & ~TARGET_PAGE_MASK) {
+            now.size = page_size;
             register_subpage(d, &now);
         } else {
-            now.size &= TARGET_PAGE_MASK;
+            now.size = int128_and(now.size, int128_neg(page_size));
             register_multipage(d, &now);
         }
-        remain.size -= now.size;
-        remain.offset_within_address_space += now.size;
-        remain.offset_within_region += now.size;
-    }
-    now = remain;
-    if (now.size) {
-        register_subpage(d, &now);
     }
 }
 
@@ -1524,98 +1586,70 @@ static const MemoryRegionOps watch_mem_ops = {
 static uint64_t subpage_read(void *opaque, hwaddr addr,
                              unsigned len)
 {
-    subpage_t *mmio = opaque;
-    unsigned int idx = SUBPAGE_IDX(addr);
-    uint64_t val;
+    subpage_t *subpage = opaque;
+    uint8_t buf[4];
 
-    MemoryRegionSection *section;
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d\n", __func__,
-           mmio, len, addr, idx);
+    printf("%s: subpage %p len %d addr " TARGET_FMT_plx "\n", __func__,
+           subpage, len, addr);
 #endif
-
-    section = &phys_sections[mmio->sub_section[idx]];
-    addr += mmio->base;
-    addr -= section->offset_within_address_space;
-    addr += section->offset_within_region;
-    io_mem_read(section->mr, addr, &val, len);
-    return val;
+    address_space_read(subpage->as, addr + subpage->base, buf, len);
+    switch (len) {
+    case 1:
+        return ldub_p(buf);
+    case 2:
+        return lduw_p(buf);
+    case 4:
+        return ldl_p(buf);
+    default:
+        abort();
+    }
 }
 
 static void subpage_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned len)
 {
-    subpage_t *mmio = opaque;
-    unsigned int idx = SUBPAGE_IDX(addr);
-    MemoryRegionSection *section;
+    subpage_t *subpage = opaque;
+    uint8_t buf[4];
+
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p len %d addr " TARGET_FMT_plx
-           " idx %d value %"PRIx64"\n",
-           __func__, mmio, len, addr, idx, value);
+           " value %"PRIx64"\n",
+           __func__, subpage, len, addr, value);
 #endif
-
-    section = &phys_sections[mmio->sub_section[idx]];
-    addr += mmio->base;
-    addr -= section->offset_within_address_space;
-    addr += section->offset_within_region;
-    io_mem_write(section->mr, addr, value, len);
+    switch (len) {
+    case 1:
+        stb_p(buf, value);
+        break;
+    case 2:
+        stw_p(buf, value);
+        break;
+    case 4:
+        stl_p(buf, value);
+        break;
+    default:
+        abort();
+    }
+    address_space_write(subpage->as, addr + subpage->base, buf, len);
 }
 
 static bool subpage_accepts(void *opaque, hwaddr addr,
                             unsigned size, bool is_write)
 {
-    subpage_t *mmio = opaque;
-    unsigned int idx = SUBPAGE_IDX(addr);
-    MemoryRegionSection *section;
+    subpage_t *subpage = opaque;
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p %c len %d addr " TARGET_FMT_plx
-           " idx %d\n", __func__, mmio,
-           is_write ? 'w' : 'r', len, addr, idx);
+    printf("%s: subpage %p %c len %d addr " TARGET_FMT_plx "\n",
+           __func__, subpage, is_write ? 'w' : 'r', len, addr);
 #endif
 
-    section = &phys_sections[mmio->sub_section[idx]];
-    addr += mmio->base;
-    addr -= section->offset_within_address_space;
-    addr += section->offset_within_region;
-    return memory_region_access_valid(section->mr, addr, size, is_write);
+    return address_space_access_valid(subpage->as, addr + subpage->base,
+                                      size, is_write);
 }
 
 static const MemoryRegionOps subpage_ops = {
     .read = subpage_read,
     .write = subpage_write,
     .valid.accepts = subpage_accepts,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
-static uint64_t subpage_ram_read(void *opaque, hwaddr addr,
-                                 unsigned size)
-{
-    ram_addr_t raddr = addr;
-    void *ptr = qemu_get_ram_ptr(raddr);
-    switch (size) {
-    case 1: return ldub_p(ptr);
-    case 2: return lduw_p(ptr);
-    case 4: return ldl_p(ptr);
-    default: abort();
-    }
-}
-
-static void subpage_ram_write(void *opaque, hwaddr addr,
-                              uint64_t value, unsigned size)
-{
-    ram_addr_t raddr = addr;
-    void *ptr = qemu_get_ram_ptr(raddr);
-    switch (size) {
-    case 1: return stb_p(ptr, value);
-    case 2: return stw_p(ptr, value);
-    case 4: return stl_p(ptr, value);
-    default: abort();
-    }
-}
-
-static const MemoryRegionOps subpage_ram_ops = {
-    .read = subpage_ram_read,
-    .write = subpage_ram_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -1632,11 +1666,6 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     printf("%s: %p start %08x end %08x idx %08x eidx %08x mem %ld\n", __func__,
            mmio, start, end, idx, eidx, memory);
 #endif
-    if (memory_region_is_ram(phys_sections[section].mr)) {
-        MemoryRegionSection new_section = phys_sections[section];
-        new_section.mr = &io_mem_subpage_ram;
-        section = phys_section_add(&new_section);
-    }
     for (; idx <= eidx; idx++) {
         mmio->sub_section[idx] = section;
     }
@@ -1644,12 +1673,13 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     return 0;
 }
 
-static subpage_t *subpage_init(hwaddr base)
+static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
 {
     subpage_t *mmio;
 
     mmio = g_malloc0(sizeof(subpage_t));
 
+    mmio->as = as;
     mmio->base = base;
     memory_region_init_io(&mmio->iomem, &subpage_ops, mmio,
                           "subpage", TARGET_PAGE_SIZE);
@@ -1669,7 +1699,7 @@ static uint16_t dummy_section(MemoryRegion *mr)
         .mr = mr,
         .offset_within_address_space = 0,
         .offset_within_region = 0,
-        .size = UINT64_MAX,
+        .size = int128_2_64(),
     };
 
     return phys_section_add(&section);
@@ -1687,8 +1717,6 @@ static void io_mem_init(void)
                           "unassigned", UINT64_MAX);
     memory_region_init_io(&io_mem_notdirty, &notdirty_mem_ops, NULL,
                           "notdirty", UINT64_MAX);
-    memory_region_init_io(&io_mem_subpage_ram, &subpage_ram_ops, NULL,
-                          "subpage-ram", UINT64_MAX);
     memory_region_init_io(&io_mem_watch, &watch_mem_ops, NULL,
                           "watch", UINT64_MAX);
 }
@@ -1740,14 +1768,16 @@ static void io_region_add(MemoryListener *listener,
     mrio->mr = section->mr;
     mrio->offset = section->offset_within_region;
     iorange_init(&mrio->iorange, &memory_region_iorange_ops,
-                 section->offset_within_address_space, section->size);
+                 section->offset_within_address_space,
+                 int128_get64(section->size));
     ioport_register(&mrio->iorange);
 }
 
 static void io_region_del(MemoryListener *listener,
                           MemoryRegionSection *section)
 {
-    isa_unassign_ioport(section->offset_within_address_space, section->size);
+    isa_unassign_ioport(section->offset_within_address_space,
+                        int128_get64(section->size));
 }
 
 static MemoryListener core_memory_listener = {
@@ -1778,6 +1808,7 @@ void address_space_init_dispatch(AddressSpace *as)
         .region_nop = mem_add,
         .priority = 0,
     };
+    d->as = as;
     as->dispatch = d;
     memory_listener_register(&d->listener, as);
 }
@@ -1796,20 +1827,15 @@ static void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));
     memory_region_init(system_memory, "system", INT64_MAX);
-    address_space_init(&address_space_memory, system_memory);
-    address_space_memory.name = "memory";
+    address_space_init(&address_space_memory, system_memory, "memory");
 
     system_io = g_malloc(sizeof(*system_io));
     memory_region_init(system_io, "io", 65536);
-    address_space_init(&address_space_io, system_io);
-    address_space_io.name = "I/O";
+    address_space_init(&address_space_io, system_io, "I/O");
 
     memory_listener_register(&core_memory_listener, &address_space_memory);
     memory_listener_register(&io_memory_listener, &address_space_io);
     memory_listener_register(&tcg_memory_listener, &address_space_memory);
-
-    dma_context_init(&dma_context_memory, &address_space_memory,
-                     NULL, NULL, NULL);
 }
 
 MemoryRegion *get_system_memory(void)
@@ -1891,12 +1917,12 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
     return false;
 }
 
-static inline int memory_access_size(int l, hwaddr addr)
+static inline int memory_access_size(MemoryRegion *mr, int l, hwaddr addr)
 {
-    if (l >= 4 && ((addr & 3) == 0)) {
+    if (l >= 4 && (((addr & 3) == 0 || mr->ops->impl.unaligned))) {
         return 4;
     }
-    if (l >= 2 && ((addr & 1) == 0)) {
+    if (l >= 2 && (((addr & 1) == 0) || mr->ops->impl.unaligned)) {
         return 2;
     }
     return 1;
@@ -1909,58 +1935,58 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
     uint8_t *ptr;
     uint64_t val;
     hwaddr addr1;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     bool error = false;
 
     while (len > 0) {
         l = len;
-        section = address_space_translate(as, addr, &addr1, &l, is_write);
+        mr = address_space_translate(as, addr, &addr1, &l, is_write);
 
         if (is_write) {
-            if (!memory_access_is_direct(section->mr, is_write)) {
-                l = memory_access_size(l, addr1);
+            if (!memory_access_is_direct(mr, is_write)) {
+                l = memory_access_size(mr, l, addr1);
                 /* XXX: could force cpu_single_env to NULL to avoid
                    potential bugs */
                 if (l == 4) {
                     /* 32 bit write access */
                     val = ldl_p(buf);
-                    error |= io_mem_write(section->mr, addr1, val, 4);
+                    error |= io_mem_write(mr, addr1, val, 4);
                 } else if (l == 2) {
                     /* 16 bit write access */
                     val = lduw_p(buf);
-                    error |= io_mem_write(section->mr, addr1, val, 2);
+                    error |= io_mem_write(mr, addr1, val, 2);
                 } else {
                     /* 8 bit write access */
                     val = ldub_p(buf);
-                    error |= io_mem_write(section->mr, addr1, val, 1);
+                    error |= io_mem_write(mr, addr1, val, 1);
                 }
             } else {
-                addr1 += memory_region_get_ram_addr(section->mr);
+                addr1 += memory_region_get_ram_addr(mr);
                 /* RAM case */
                 ptr = qemu_get_ram_ptr(addr1);
                 memcpy(ptr, buf, l);
                 invalidate_and_set_dirty(addr1, l);
             }
         } else {
-            if (!memory_access_is_direct(section->mr, is_write)) {
+            if (!memory_access_is_direct(mr, is_write)) {
                 /* I/O case */
-                l = memory_access_size(l, addr1);
+                l = memory_access_size(mr, l, addr1);
                 if (l == 4) {
                     /* 32 bit read access */
-                    error |= io_mem_read(section->mr, addr1, &val, 4);
+                    error |= io_mem_read(mr, addr1, &val, 4);
                     stl_p(buf, val);
                 } else if (l == 2) {
                     /* 16 bit read access */
-                    error |= io_mem_read(section->mr, addr1, &val, 2);
+                    error |= io_mem_read(mr, addr1, &val, 2);
                     stw_p(buf, val);
                 } else {
                     /* 8 bit read access */
-                    error |= io_mem_read(section->mr, addr1, &val, 1);
+                    error |= io_mem_read(mr, addr1, &val, 1);
                     stb_p(buf, val);
                 }
             } else {
                 /* RAM case */
-                ptr = qemu_get_ram_ptr(section->mr->ram_addr + addr1);
+                ptr = qemu_get_ram_ptr(mr->ram_addr + addr1);
                 memcpy(buf, ptr, l);
             }
         }
@@ -1997,18 +2023,18 @@ void cpu_physical_memory_write_rom(hwaddr addr,
     hwaddr l;
     uint8_t *ptr;
     hwaddr addr1;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
 
     while (len > 0) {
         l = len;
-        section = address_space_translate(&address_space_memory,
-                                          addr, &addr1, &l, true);
+        mr = address_space_translate(&address_space_memory,
+                                     addr, &addr1, &l, true);
 
-        if (!(memory_region_is_ram(section->mr) ||
-              memory_region_is_romd(section->mr))) {
+        if (!(memory_region_is_ram(mr) ||
+              memory_region_is_romd(mr))) {
             /* do nothing */
         } else {
-            addr1 += memory_region_get_ram_addr(section->mr);
+            addr1 += memory_region_get_ram_addr(mr);
             /* ROM/RAM case */
             ptr = qemu_get_ram_ptr(addr1);
             memcpy(ptr, buf, l);
@@ -2068,15 +2094,15 @@ static void cpu_notify_map_clients(void)
 
 bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_write)
 {
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     hwaddr l, xlat;
 
     while (len > 0) {
         l = len;
-        section = address_space_translate(as, addr, &xlat, &l, is_write);
-        if (!memory_access_is_direct(section->mr, is_write)) {
-            l = memory_access_size(l, addr);
-            if (!memory_region_access_valid(section->mr, xlat, l, is_write)) {
+        mr = address_space_translate(as, addr, &xlat, &l, is_write);
+        if (!memory_access_is_direct(mr, is_write)) {
+            l = memory_access_size(mr, l, addr);
+            if (!memory_region_access_valid(mr, xlat, l, is_write)) {
                 return false;
             }
         }
@@ -2102,16 +2128,16 @@ void *address_space_map(AddressSpace *as,
     hwaddr len = *plen;
     hwaddr todo = 0;
     hwaddr l, xlat;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     ram_addr_t raddr = RAM_ADDR_MAX;
     ram_addr_t rlen;
     void *ret;
 
     while (len > 0) {
         l = len;
-        section = address_space_translate(as, addr, &xlat, &l, is_write);
+        mr = address_space_translate(as, addr, &xlat, &l, is_write);
 
-        if (!memory_access_is_direct(section->mr, is_write)) {
+        if (!memory_access_is_direct(mr, is_write)) {
             if (todo || bounce.buffer) {
                 break;
             }
@@ -2126,9 +2152,9 @@ void *address_space_map(AddressSpace *as,
             return bounce.buffer;
         }
         if (!todo) {
-            raddr = memory_region_get_ram_addr(section->mr) + xlat;
+            raddr = memory_region_get_ram_addr(mr) + xlat;
         } else {
-            if (memory_region_get_ram_addr(section->mr) + xlat != raddr + todo) {
+            if (memory_region_get_ram_addr(mr) + xlat != raddr + todo) {
                 break;
             }
         }
@@ -2195,15 +2221,15 @@ static inline uint32_t ldl_phys_internal(hwaddr addr,
 {
     uint8_t *ptr;
     uint64_t val;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     hwaddr l = 4;
     hwaddr addr1;
 
-    section = address_space_translate(&address_space_memory, addr, &addr1, &l,
-                                      false);
-    if (l < 4 || !memory_access_is_direct(section->mr, false)) {
+    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+                                 false);
+    if (l < 4 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
-        io_mem_read(section->mr, addr1, &val, 4);
+        io_mem_read(mr, addr1, &val, 4);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -2215,7 +2241,7 @@ static inline uint32_t ldl_phys_internal(hwaddr addr,
 #endif
     } else {
         /* RAM case */
-        ptr = qemu_get_ram_ptr((memory_region_get_ram_addr(section->mr)
+        ptr = qemu_get_ram_ptr((memory_region_get_ram_addr(mr)
                                 & TARGET_PAGE_MASK)
                                + addr1);
         switch (endian) {
@@ -2254,15 +2280,15 @@ static inline uint64_t ldq_phys_internal(hwaddr addr,
 {
     uint8_t *ptr;
     uint64_t val;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     hwaddr l = 8;
     hwaddr addr1;
 
-    section = address_space_translate(&address_space_memory, addr, &addr1, &l,
-                                      false);
-    if (l < 8 || !memory_access_is_direct(section->mr, false)) {
+    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+                                 false);
+    if (l < 8 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
-        io_mem_read(section->mr, addr1, &val, 8);
+        io_mem_read(mr, addr1, &val, 8);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap64(val);
@@ -2274,7 +2300,7 @@ static inline uint64_t ldq_phys_internal(hwaddr addr,
 #endif
     } else {
         /* RAM case */
-        ptr = qemu_get_ram_ptr((memory_region_get_ram_addr(section->mr)
+        ptr = qemu_get_ram_ptr((memory_region_get_ram_addr(mr)
                                 & TARGET_PAGE_MASK)
                                + addr1);
         switch (endian) {
@@ -2321,15 +2347,15 @@ static inline uint32_t lduw_phys_internal(hwaddr addr,
 {
     uint8_t *ptr;
     uint64_t val;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     hwaddr l = 2;
     hwaddr addr1;
 
-    section = address_space_translate(&address_space_memory, addr, &addr1, &l,
-                                      false);
-    if (l < 2 || !memory_access_is_direct(section->mr, false)) {
+    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+                                 false);
+    if (l < 2 || !memory_access_is_direct(mr, false)) {
         /* I/O case */
-        io_mem_read(section->mr, addr1, &val, 2);
+        io_mem_read(mr, addr1, &val, 2);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);
@@ -2341,7 +2367,7 @@ static inline uint32_t lduw_phys_internal(hwaddr addr,
 #endif
     } else {
         /* RAM case */
-        ptr = qemu_get_ram_ptr((memory_region_get_ram_addr(section->mr)
+        ptr = qemu_get_ram_ptr((memory_region_get_ram_addr(mr)
                                 & TARGET_PAGE_MASK)
                                + addr1);
         switch (endian) {
@@ -2380,16 +2406,16 @@ uint32_t lduw_be_phys(hwaddr addr)
 void stl_phys_notdirty(hwaddr addr, uint32_t val)
 {
     uint8_t *ptr;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     hwaddr l = 4;
     hwaddr addr1;
 
-    section = address_space_translate(&address_space_memory, addr, &addr1, &l,
-                                      true);
-    if (l < 4 || !memory_access_is_direct(section->mr, true)) {
-        io_mem_write(section->mr, addr1, val, 4);
+    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+                                 true);
+    if (l < 4 || !memory_access_is_direct(mr, true)) {
+        io_mem_write(mr, addr1, val, 4);
     } else {
-        addr1 += memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK;
+        addr1 += memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK;
         ptr = qemu_get_ram_ptr(addr1);
         stl_p(ptr, val);
 
@@ -2410,13 +2436,13 @@ static inline void stl_phys_internal(hwaddr addr, uint32_t val,
                                      enum device_endian endian)
 {
     uint8_t *ptr;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     hwaddr l = 4;
     hwaddr addr1;
 
-    section = address_space_translate(&address_space_memory, addr, &addr1, &l,
-                                      true);
-    if (l < 4 || !memory_access_is_direct(section->mr, true)) {
+    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+                                 true);
+    if (l < 4 || !memory_access_is_direct(mr, true)) {
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -2426,10 +2452,10 @@ static inline void stl_phys_internal(hwaddr addr, uint32_t val,
             val = bswap32(val);
         }
 #endif
-        io_mem_write(section->mr, addr1, val, 4);
+        io_mem_write(mr, addr1, val, 4);
     } else {
         /* RAM case */
-        addr1 += memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK;
+        addr1 += memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK;
         ptr = qemu_get_ram_ptr(addr1);
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
@@ -2473,13 +2499,13 @@ static inline void stw_phys_internal(hwaddr addr, uint32_t val,
                                      enum device_endian endian)
 {
     uint8_t *ptr;
-    MemoryRegionSection *section;
+    MemoryRegion *mr;
     hwaddr l = 2;
     hwaddr addr1;
 
-    section = address_space_translate(&address_space_memory, addr, &addr1, &l,
-                                      true);
-    if (l < 2 || !memory_access_is_direct(section->mr, true)) {
+    mr = address_space_translate(&address_space_memory, addr, &addr1, &l,
+                                 true);
+    if (l < 2 || !memory_access_is_direct(mr, true)) {
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);
@@ -2489,10 +2515,10 @@ static inline void stw_phys_internal(hwaddr addr, uint32_t val,
             val = bswap16(val);
         }
 #endif
-        io_mem_write(section->mr, addr1, val, 2);
+        io_mem_write(mr, addr1, val, 2);
     } else {
         /* RAM case */
-        addr1 += memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK;
+        addr1 += memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK;
         ptr = qemu_get_ram_ptr(addr1);
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
@@ -2594,13 +2620,13 @@ bool virtio_is_big_endian(void)
 #ifndef CONFIG_USER_ONLY
 bool cpu_physical_memory_is_io(hwaddr phys_addr)
 {
-    MemoryRegionSection *section;
+    MemoryRegion*mr;
     hwaddr l = 1;
 
-    section = address_space_translate(&address_space_memory,
-                                      phys_addr, &phys_addr, &l, false);
+    mr = address_space_translate(&address_space_memory,
+                                 phys_addr, &phys_addr, &l, false);
 
-    return !(memory_region_is_ram(section->mr) ||
-             memory_region_is_romd(section->mr));
+    return !(memory_region_is_ram(mr) ||
+             memory_region_is_romd(mr));
 }
 #endif

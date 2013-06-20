@@ -197,7 +197,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
             /* FIXME: remove get_system_memory(), but how? */
             section = memory_region_find(get_system_memory(), pa, 1);
-            if (!section.size || !memory_region_is_ram(section.mr))
+            if (!int128_nz(section.size) || !memory_region_is_ram(section.mr))
                 continue;
 
             /* Using memory_region_get_ram_ptr is bending the rules a bit, but

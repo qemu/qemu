@@ -12,11 +12,11 @@
 
 #include <stdio.h>
 #include "exec/memory.h"
+#include "exec/address-spaces.h"
 #include "hw/hw.h"
 #include "block/block.h"
 #include "sysemu/kvm.h"
 
-typedef struct DMAContext DMAContext;
 typedef struct ScatterGatherEntry ScatterGatherEntry;
 
 typedef enum {
@@ -29,7 +29,7 @@ struct QEMUSGList {
     int nsg;
     int nalloc;
     size_t size;
-    DMAContext *dma;
+    AddressSpace *as;
 };
 
 #ifndef CONFIG_USER_ONLY
@@ -46,34 +46,7 @@ typedef uint64_t dma_addr_t;
 #define DMA_ADDR_BITS 64
 #define DMA_ADDR_FMT "%" PRIx64
 
-typedef int DMATranslateFunc(DMAContext *dma,
-                             dma_addr_t addr,
-                             hwaddr *paddr,
-                             hwaddr *len,
-                             DMADirection dir);
-typedef void* DMAMapFunc(DMAContext *dma,
-                         dma_addr_t addr,
-                         dma_addr_t *len,
-                         DMADirection dir);
-typedef void DMAUnmapFunc(DMAContext *dma,
-                          void *buffer,
-                          dma_addr_t len,
-                          DMADirection dir,
-                          dma_addr_t access_len);
-
-struct DMAContext {
-    AddressSpace *as;
-    DMATranslateFunc *translate;
-    DMAMapFunc *map;
-    DMAUnmapFunc *unmap;
-};
-
-/* A global DMA context corresponding to the address_space_memory
- * AddressSpace, for sysbus devices which do DMA.
- */
-extern DMAContext dma_context_memory;
-
-static inline void dma_barrier(DMAContext *dma, DMADirection dir)
+static inline void dma_barrier(AddressSpace *as, DMADirection dir)
 {
     /*
      * This is called before DMA read and write operations
@@ -98,144 +71,108 @@ static inline void dma_barrier(DMAContext *dma, DMADirection dir)
     }
 }
 
-static inline bool dma_has_iommu(DMAContext *dma)
-{
-    return dma && dma->translate;
-}
-
 /* Checks that the given range of addresses is valid for DMA.  This is
  * useful for certain cases, but usually you should just use
  * dma_memory_{read,write}() and check for errors */
-bool iommu_dma_memory_valid(DMAContext *dma, dma_addr_t addr, dma_addr_t len,
-                            DMADirection dir);
-static inline bool dma_memory_valid(DMAContext *dma,
+static inline bool dma_memory_valid(AddressSpace *as,
                                     dma_addr_t addr, dma_addr_t len,
                                     DMADirection dir)
 {
-    if (!dma_has_iommu(dma)) {
-        return address_space_access_valid(dma->as, addr, len,
-                                          dir == DMA_DIRECTION_FROM_DEVICE);
-    } else {
-        return iommu_dma_memory_valid(dma, addr, len, dir);
-    }
+    return address_space_access_valid(as, addr, len,
+                                      dir == DMA_DIRECTION_FROM_DEVICE);
 }
 
-int iommu_dma_memory_rw(DMAContext *dma, dma_addr_t addr,
-                        void *buf, dma_addr_t len, DMADirection dir);
-static inline int dma_memory_rw_relaxed(DMAContext *dma, dma_addr_t addr,
+static inline int dma_memory_rw_relaxed(AddressSpace *as, dma_addr_t addr,
                                         void *buf, dma_addr_t len,
                                         DMADirection dir)
 {
-    if (!dma_has_iommu(dma)) {
-        /* Fast-path for no IOMMU */
-        address_space_rw(dma->as, addr, buf, len, dir == DMA_DIRECTION_FROM_DEVICE);
-        return 0;
-    } else {
-        return iommu_dma_memory_rw(dma, addr, buf, len, dir);
-    }
+    return address_space_rw(as, addr, buf, len, dir == DMA_DIRECTION_FROM_DEVICE);
 }
 
-static inline int dma_memory_read_relaxed(DMAContext *dma, dma_addr_t addr,
+static inline int dma_memory_read_relaxed(AddressSpace *as, dma_addr_t addr,
                                           void *buf, dma_addr_t len)
 {
-    return dma_memory_rw_relaxed(dma, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
+    return dma_memory_rw_relaxed(as, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
 }
 
-static inline int dma_memory_write_relaxed(DMAContext *dma, dma_addr_t addr,
+static inline int dma_memory_write_relaxed(AddressSpace *as, dma_addr_t addr,
                                            const void *buf, dma_addr_t len)
 {
-    return dma_memory_rw_relaxed(dma, addr, (void *)buf, len,
+    return dma_memory_rw_relaxed(as, addr, (void *)buf, len,
                                  DMA_DIRECTION_FROM_DEVICE);
 }
 
-static inline int dma_memory_rw(DMAContext *dma, dma_addr_t addr,
+static inline int dma_memory_rw(AddressSpace *as, dma_addr_t addr,
                                 void *buf, dma_addr_t len,
                                 DMADirection dir)
 {
-    dma_barrier(dma, dir);
+    dma_barrier(as, dir);
 
-    return dma_memory_rw_relaxed(dma, addr, buf, len, dir);
+    return dma_memory_rw_relaxed(as, addr, buf, len, dir);
 }
 
-static inline int dma_memory_read(DMAContext *dma, dma_addr_t addr,
+static inline int dma_memory_read(AddressSpace *as, dma_addr_t addr,
                                   void *buf, dma_addr_t len)
 {
-    return dma_memory_rw(dma, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
+    return dma_memory_rw(as, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
 }
 
-static inline int dma_memory_write(DMAContext *dma, dma_addr_t addr,
+static inline int dma_memory_write(AddressSpace *as, dma_addr_t addr,
                                    const void *buf, dma_addr_t len)
 {
-    return dma_memory_rw(dma, addr, (void *)buf, len,
+    return dma_memory_rw(as, addr, (void *)buf, len,
                          DMA_DIRECTION_FROM_DEVICE);
 }
 
-int iommu_dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c,
-			 dma_addr_t len);
+int dma_memory_set(AddressSpace *as, dma_addr_t addr, uint8_t c, dma_addr_t len);
 
-int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len);
-
-void *iommu_dma_memory_map(DMAContext *dma,
-                           dma_addr_t addr, dma_addr_t *len,
-                           DMADirection dir);
-static inline void *dma_memory_map(DMAContext *dma,
+static inline void *dma_memory_map(AddressSpace *as,
                                    dma_addr_t addr, dma_addr_t *len,
                                    DMADirection dir)
 {
-    if (!dma_has_iommu(dma)) {
-        hwaddr xlen = *len;
-        void *p;
+    hwaddr xlen = *len;
+    void *p;
 
-        p = address_space_map(dma->as, addr, &xlen, dir == DMA_DIRECTION_FROM_DEVICE);
-        *len = xlen;
-        return p;
-    } else {
-        return iommu_dma_memory_map(dma, addr, len, dir);
-    }
+    p = address_space_map(as, addr, &xlen, dir == DMA_DIRECTION_FROM_DEVICE);
+    *len = xlen;
+    return p;
 }
 
-void iommu_dma_memory_unmap(DMAContext *dma,
-                            void *buffer, dma_addr_t len,
-                            DMADirection dir, dma_addr_t access_len);
-static inline void dma_memory_unmap(DMAContext *dma,
+static inline void dma_memory_unmap(AddressSpace *as,
                                     void *buffer, dma_addr_t len,
                                     DMADirection dir, dma_addr_t access_len)
 {
-    if (!dma_has_iommu(dma)) {
-        address_space_unmap(dma->as, buffer, (hwaddr)len,
-                            dir == DMA_DIRECTION_FROM_DEVICE, access_len);
-    } else {
-        iommu_dma_memory_unmap(dma, buffer, len, dir, access_len);
-    }
+    address_space_unmap(as, buffer, (hwaddr)len,
+                        dir == DMA_DIRECTION_FROM_DEVICE, access_len);
 }
 
 #define DEFINE_LDST_DMA(_lname, _sname, _bits, _end) \
-    static inline uint##_bits##_t ld##_lname##_##_end##_dma(DMAContext *dma, \
+    static inline uint##_bits##_t ld##_lname##_##_end##_dma(AddressSpace *as, \
                                                             dma_addr_t addr) \
     {                                                                   \
         uint##_bits##_t val;                                            \
-        dma_memory_read(dma, addr, &val, (_bits) / 8);                  \
+        dma_memory_read(as, addr, &val, (_bits) / 8);                   \
         return _end##_bits##_to_cpu(val);                               \
     }                                                                   \
-    static inline void st##_sname##_##_end##_dma(DMAContext *dma,       \
+    static inline void st##_sname##_##_end##_dma(AddressSpace *as,      \
                                                  dma_addr_t addr,       \
                                                  uint##_bits##_t val)   \
     {                                                                   \
         val = cpu_to_##_end##_bits(val);                                \
-        dma_memory_write(dma, addr, &val, (_bits) / 8);                 \
+        dma_memory_write(as, addr, &val, (_bits) / 8);                  \
     }
 
-static inline uint8_t ldub_dma(DMAContext *dma, dma_addr_t addr)
+static inline uint8_t ldub_dma(AddressSpace *as, dma_addr_t addr)
 {
     uint8_t val;
 
-    dma_memory_read(dma, addr, &val, 1);
+    dma_memory_read(as, addr, &val, 1);
     return val;
 }
 
-static inline void stb_dma(DMAContext *dma, dma_addr_t addr, uint8_t val)
+static inline void stb_dma(AddressSpace *as, dma_addr_t addr, uint8_t val)
 {
-    dma_memory_write(dma, addr, &val, 1);
+    dma_memory_write(as, addr, &val, 1);
 }
 
 DEFINE_LDST_DMA(uw, w, 16, le);
@@ -247,15 +184,12 @@ DEFINE_LDST_DMA(q, q, 64, be);
 
 #undef DEFINE_LDST_DMA
 
-void dma_context_init(DMAContext *dma, AddressSpace *as, DMATranslateFunc translate,
-                      DMAMapFunc map, DMAUnmapFunc unmap);
-
 struct ScatterGatherEntry {
     dma_addr_t base;
     dma_addr_t len;
 };
 
-void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint, DMAContext *dma);
+void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint, AddressSpace *as);
 void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
 #endif

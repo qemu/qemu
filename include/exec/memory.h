@@ -25,6 +25,7 @@
 #include "exec/iorange.h"
 #include "exec/ioport.h"
 #include "qemu/int128.h"
+#include "qemu/notify.h"
 
 #define MAX_PHYS_ADDR_SPACE_BITS 62
 #define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
@@ -51,6 +52,24 @@ struct MemoryRegionIORange {
     IORange iorange;
     MemoryRegion *mr;
     hwaddr offset;
+};
+
+typedef struct IOMMUTLBEntry IOMMUTLBEntry;
+
+/* See address_space_translate: bit 0 is read, bit 1 is write.  */
+typedef enum {
+    IOMMU_NONE = 0,
+    IOMMU_RO   = 1,
+    IOMMU_WO   = 2,
+    IOMMU_RW   = 3,
+} IOMMUAccessFlags;
+
+struct IOMMUTLBEntry {
+    AddressSpace    *target_as;
+    hwaddr           iova;
+    hwaddr           translated_addr;
+    hwaddr           addr_mask;  /* 0xfff = 4k translation */
+    IOMMUAccessFlags perm;
 };
 
 /*
@@ -115,12 +134,20 @@ struct MemoryRegionOps {
     const MemoryRegionMmio old_mmio;
 };
 
+typedef struct MemoryRegionIOMMUOps MemoryRegionIOMMUOps;
+
+struct MemoryRegionIOMMUOps {
+    /* Return a TLB entry that contains a given address. */
+    IOMMUTLBEntry (*translate)(MemoryRegion *iommu, hwaddr addr);
+};
+
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
 typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
 
 struct MemoryRegion {
     /* All fields are private - violators will be prosecuted */
     const MemoryRegionOps *ops;
+    const MemoryRegionIOMMUOps *iommu_ops;
     void *opaque;
     MemoryRegion *parent;
     Int128 size;
@@ -147,6 +174,7 @@ struct MemoryRegion {
     uint8_t dirty_log_mask;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+    NotifierList iommu_notify;
 };
 
 struct MemoryRegionPortio {
@@ -164,7 +192,7 @@ struct MemoryRegionPortio {
  */
 struct AddressSpace {
     /* All fields are private. */
-    const char *name;
+    char *name;
     MemoryRegion *root;
     struct FlatView *current_map;
     int ioeventfd_nb;
@@ -188,7 +216,7 @@ struct MemoryRegionSection {
     MemoryRegion *mr;
     AddressSpace *address_space;
     hwaddr offset_within_region;
-    uint64_t size;
+    Int128 size;
     hwaddr offset_within_address_space;
     bool readonly;
 };
@@ -332,6 +360,24 @@ void memory_region_init_rom_device(MemoryRegion *mr,
 void memory_region_init_reservation(MemoryRegion *mr,
                                     const char *name,
                                     uint64_t size);
+
+/**
+ * memory_region_init_iommu: Initialize a memory region that translates
+ * addresses
+ *
+ * An IOMMU region translates addresses and forwards accesses to a target
+ * memory region.
+ *
+ * @mr: the #MemoryRegion to be initialized
+ * @ops: a function that translates addresses into the @target region
+ * @name: used for debugging; not visible to the user or ABI
+ * @size: size of the region.
+ */
+void memory_region_init_iommu(MemoryRegion *mr,
+                              const MemoryRegionIOMMUOps *ops,
+                              const char *name,
+                              uint64_t size);
+
 /**
  * memory_region_destroy: Destroy a memory region and reclaim all resources.
  *
@@ -369,6 +415,45 @@ static inline bool memory_region_is_romd(MemoryRegion *mr)
 {
     return mr->rom_device && mr->romd_mode;
 }
+
+/**
+ * memory_region_is_iommu: check whether a memory region is an iommu
+ *
+ * Returns %true is a memory region is an iommu.
+ *
+ * @mr: the memory region being queried
+ */
+bool memory_region_is_iommu(MemoryRegion *mr);
+
+/**
+ * memory_region_notify_iommu: notify a change in an IOMMU translation entry.
+ *
+ * @mr: the memory region that was changed
+ * @entry: the new entry in the IOMMU translation table.  The entry
+ *         replaces all old entries for the same virtual I/O address range.
+ *         Deleted entries have .@perm == 0.
+ */
+void memory_region_notify_iommu(MemoryRegion *mr,
+                                IOMMUTLBEntry entry);
+
+/**
+ * memory_region_register_iommu_notifier: register a notifier for changes to
+ * IOMMU translation entries.
+ *
+ * @mr: the memory region to observe
+ * @n: the notifier to be added; the notifier receives a pointer to an
+ *     #IOMMUTLBEntry as the opaque value; the pointer ceases to be
+ *     valid on exit from the notifier.
+ */
+void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n);
+
+/**
+ * memory_region_unregister_iommu_notifier: unregister a notifier for
+ * changes to IOMMU translation entries.
+ *
+ * @n: the notifier to be removed.
+ */
+void memory_region_unregister_iommu_notifier(Notifier *n);
 
 /**
  * memory_region_name: get a memory region's name
@@ -807,8 +892,10 @@ void mtree_info(fprintf_function mon_printf, void *f);
  *
  * @as: an uninitialized #AddressSpace
  * @root: a #MemoryRegion that routes addesses for the address space
+ * @name: an address space name.  The name is only used for debugging
+ *        output.
  */
-void address_space_init(AddressSpace *as, MemoryRegion *root);
+void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name);
 
 
 /**
@@ -825,7 +912,8 @@ void address_space_destroy(AddressSpace *as);
 /**
  * address_space_rw: read from or write to an address space.
  *
- * Return true if the operation hit any unassigned memory.
+ * Return true if the operation hit any unassigned memory or encountered an
+ * IOMMU fault.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
@@ -838,7 +926,8 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
 /**
  * address_space_write: write to address space.
  *
- * Return true if the operation hit any unassigned memory.
+ * Return true if the operation hit any unassigned memory or encountered an
+ * IOMMU fault.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
@@ -850,7 +939,8 @@ bool address_space_write(AddressSpace *as, hwaddr addr,
 /**
  * address_space_read: read from an address space.
  *
- * Return true if the operation hit any unassigned memory.
+ * Return true if the operation hit any unassigned memory or encountered an
+ * IOMMU fault.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
@@ -859,7 +949,7 @@ bool address_space_write(AddressSpace *as, hwaddr addr,
 bool address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
 
 /* address_space_translate: translate an address range into an address space
- * into a MemoryRegionSection and an address range into that section
+ * into a MemoryRegion and an address range into that section
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
@@ -868,14 +958,16 @@ bool address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
  * @len: pointer to length
  * @is_write: indicates the transfer direction
  */
-MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
-                                             hwaddr *xlat, hwaddr *len,
-                                             bool is_write);
+MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
+                                      hwaddr *xlat, hwaddr *len,
+                                      bool is_write);
 
 /* address_space_access_valid: check for validity of accessing an address
  * space range
  *
- * Check whether memory is assigned to the given address space range.
+ * Check whether memory is assigned to the given address space range, and
+ * access is permitted by any IOMMU regions that are active for the address
+ * space.
  *
  * For now, addr and len should be aligned to a page size.  This limitation
  * will be lifted in the future.
