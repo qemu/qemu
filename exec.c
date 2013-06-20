@@ -218,7 +218,7 @@ MemoryRegionSection *address_space_translate(AddressSpace *as, hwaddr addr,
     *xlat = addr + section->offset_within_region;
 
     diff = int128_sub(section->mr->size, int128_make64(addr));
-    *plen = MIN(int128_get64(diff), *plen);
+    *plen = int128_get64(int128_min(diff, int128_make64(*plen)));
     return section;
 }
 #endif
