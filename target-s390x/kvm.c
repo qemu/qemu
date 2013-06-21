@@ -607,9 +607,10 @@ static int handle_priv(S390CPU *cpu, struct kvm_run *run,
     return r;
 }
 
-static int handle_hypercall(CPUS390XState *env, struct kvm_run *run)
+static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(cpu);
+    CPUS390XState *env = &cpu->env;
 
     kvm_s390_get_registers_partial(cs);
     cs->kvm_vcpu_dirty = true;
@@ -618,13 +619,13 @@ static int handle_hypercall(CPUS390XState *env, struct kvm_run *run)
     return 0;
 }
 
-static int handle_diag(CPUS390XState *env, struct kvm_run *run, int ipb_code)
+static int handle_diag(S390CPU *cpu, struct kvm_run *run, int ipb_code)
 {
     int r = 0;
 
     switch (ipb_code) {
         case DIAG_KVM_HYPERCALL:
-            r = handle_hypercall(env, run);
+            r = handle_hypercall(cpu, run);
             break;
         case DIAG_KVM_BREAKPOINT:
             sleep(10);
@@ -735,7 +736,6 @@ out:
 
 static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
 {
-    CPUS390XState *env = &cpu->env;
     unsigned int ipa0 = (run->s390_sieic.ipa & 0xff00);
     uint8_t ipa1 = run->s390_sieic.ipa & 0x00ff;
     int ipb_code = (run->s390_sieic.ipb & 0x0fff0000) >> 16;
@@ -749,7 +749,7 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
         r = handle_priv(cpu, run, ipa0 >> 8, ipa1);
         break;
     case IPA0_DIAG:
-        r = handle_diag(env, run, ipb_code);
+        r = handle_diag(cpu, run, ipb_code);
         break;
     case IPA0_SIGP:
         r = handle_sigp(cpu, run, ipa1);
