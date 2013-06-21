@@ -5219,9 +5219,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     }
 }
 
-static inline void gen_intermediate_code_internal(TranslationBlock * tb,
-                                                  int spc, CPUSPARCState *env)
+static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
+                                                  TranslationBlock *tb,
+                                                  bool spc)
 {
+    CPUSPARCState *env = &cpu->env;
     target_ulong pc_start, last_pc;
     uint16_t *gen_opc_end;
     DisasContext dc1, *dc = &dc1;
@@ -5347,12 +5349,12 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
 
 void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
 {
-    gen_intermediate_code_internal(tb, 0, env);
+    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUSPARCState * env, TranslationBlock * tb)
 {
-    gen_intermediate_code_internal(tb, 1, env);
+    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, true);
 }
 
 void gen_intermediate_code_init(CPUSPARCState *env)
