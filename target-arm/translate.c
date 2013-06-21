@@ -9796,10 +9796,11 @@ undef:
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'. If search_pc is TRUE, also generate PC
    information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(CPUARMState *env,
+static inline void gen_intermediate_code_internal(ARMCPU *cpu,
                                                   TranslationBlock *tb,
-                                                  int search_pc)
+                                                  bool search_pc)
 {
+    CPUARMState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     CPUBreakpoint *bp;
     uint16_t *gen_opc_end;
@@ -10072,12 +10073,12 @@ done_generating:
 
 void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(arm_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUARMState *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(arm_env_get_cpu(env), tb, true);
 }
 
 static const char *cpu_mode_names[16] = {
