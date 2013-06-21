@@ -157,6 +157,10 @@ int ioinst_handle_msch(CPUS390XState *env, uint64_t reg1, uint32_t ipb)
     }
     trace_ioinst_sch_id("msch", cssid, ssid, schid);
     addr = decode_basedisp_s(env, ipb);
+    if (addr & 3) {
+        program_interrupt(env, PGM_SPECIFICATION, 2);
+        return -EIO;
+    }
     schib = s390_cpu_physical_memory_map(env, addr, &len, 0);
     if (!schib || len != sizeof(*schib)) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
@@ -228,6 +232,10 @@ int ioinst_handle_ssch(CPUS390XState *env, uint64_t reg1, uint32_t ipb)
     }
     trace_ioinst_sch_id("ssch", cssid, ssid, schid);
     addr = decode_basedisp_s(env, ipb);
+    if (addr & 3) {
+        program_interrupt(env, PGM_SPECIFICATION, 2);
+        return -EIO;
+    }
     orig_orb = s390_cpu_physical_memory_map(env, addr, &len, 0);
     if (!orig_orb || len != sizeof(*orig_orb)) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
@@ -272,6 +280,10 @@ int ioinst_handle_stcrw(CPUS390XState *env, uint32_t ipb)
     hwaddr len = sizeof(*crw);
 
     addr = decode_basedisp_s(env, ipb);
+    if (addr & 3) {
+        program_interrupt(env, PGM_SPECIFICATION, 2);
+        return -EIO;
+    }
     crw = s390_cpu_physical_memory_map(env, addr, &len, 1);
     if (!crw || len != sizeof(*crw)) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
@@ -300,6 +312,10 @@ int ioinst_handle_stsch(CPUS390XState *env, uint64_t reg1, uint32_t ipb)
     }
     trace_ioinst_sch_id("stsch", cssid, ssid, schid);
     addr = decode_basedisp_s(env, ipb);
+    if (addr & 3) {
+        program_interrupt(env, PGM_SPECIFICATION, 2);
+        return -EIO;
+    }
     schib = s390_cpu_physical_memory_map(env, addr, &len, 1);
     if (!schib || len != sizeof(*schib)) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
@@ -345,6 +361,10 @@ int ioinst_handle_tsch(CPUS390XState *env, uint64_t reg1, uint32_t ipb)
     }
     trace_ioinst_sch_id("tsch", cssid, ssid, schid);
     addr = decode_basedisp_s(env, ipb);
+    if (addr & 3) {
+        program_interrupt(env, PGM_SPECIFICATION, 2);
+        return -EIO;
+    }
     irb = s390_cpu_physical_memory_map(env, addr, &len, 1);
     if (!irb || len != sizeof(*irb)) {
         program_interrupt(env, PGM_SPECIFICATION, 2);
@@ -625,6 +645,11 @@ int ioinst_handle_tpi(CPUS390XState *env, uint32_t ipb)
 
     trace_ioinst("tpi");
     addr = decode_basedisp_s(env, ipb);
+    if (addr & 3) {
+        program_interrupt(env, PGM_SPECIFICATION, 2);
+        return -EIO;
+    }
+
     lowcore = addr ? 0 : 1;
     len = lowcore ? 8 /* two words */ : 12 /* three words */;
     orig_len = len;
