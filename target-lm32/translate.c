@@ -1012,9 +1012,10 @@ static void check_breakpoint(CPULM32State *env, DisasContext *dc)
 
 /* generate intermediate code for basic block 'tb'.  */
 static inline
-void gen_intermediate_code_internal(CPULM32State *env,
-                                    TranslationBlock *tb, int search_pc)
+void gen_intermediate_code_internal(LM32CPU *cpu,
+                                    TranslationBlock *tb, bool search_pc)
 {
+    CPULM32State *env = &cpu->env;
     struct DisasContext ctx, *dc = &ctx;
     uint16_t *gen_opc_end;
     uint32_t pc_start;
@@ -1134,12 +1135,12 @@ void gen_intermediate_code_internal(CPULM32State *env,
 
 void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(lm32_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPULM32State *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(lm32_env_get_cpu(env), tb, true);
 }
 
 void lm32_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
