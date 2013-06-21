@@ -1846,9 +1846,10 @@ static void decode_opc(DisasContext * ctx)
 }
 
 static inline void
-gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
-                               int search_pc)
+gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUSH4State *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
     static uint16_t *gen_opc_end;
@@ -1969,12 +1970,12 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
 
 void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(sh_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUSH4State * env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(sh_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUSH4State *env, TranslationBlock *tb, int pc_pos)
