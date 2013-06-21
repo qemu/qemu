@@ -688,7 +688,7 @@ int ioinst_handle_schm(CPUS390XState *env, uint64_t reg1, uint64_t reg2,
     update = SCHM_REG1_UPD(reg1);
     dct = SCHM_REG1_DCT(reg1);
 
-    if (update && (reg2 & 0x0000000000000fff)) {
+    if (update && (reg2 & 0x000000000000001f)) {
         program_interrupt(env, PGM_OPERAND, 2);
         return -EIO;
     }
