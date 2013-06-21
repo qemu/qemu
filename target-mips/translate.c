@@ -15543,6 +15543,7 @@ static inline void
 gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
                                bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     CPUMIPSState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
@@ -15561,7 +15562,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
-    ctx.singlestep_enabled = env->singlestep_enabled;
+    ctx.singlestep_enabled = cs->singlestep_enabled;
     ctx.insn_flags = env->insn_flags;
     ctx.tb = tb;
     ctx.bstate = BS_NONE;
@@ -15637,8 +15638,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
            This is what GDB expects and is consistent with what the
            hardware does (e.g. if a delay slot instruction faults, the
            reported PC is the PC of the branch).  */
-        if (env->singlestep_enabled && (ctx.hflags & MIPS_HFLAG_BMASK) == 0)
+        if (cs->singlestep_enabled && (ctx.hflags & MIPS_HFLAG_BMASK) == 0) {
             break;
+        }
 
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
             break;
@@ -15653,9 +15655,10 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         if (singlestep)
             break;
     }
-    if (tb->cflags & CF_LAST_IO)
+    if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
-    if (env->singlestep_enabled && ctx.bstate != BS_BRANCH) {
+    }
+    if (cs->singlestep_enabled && ctx.bstate != BS_BRANCH) {
         save_cpu_state(&ctx, ctx.bstate == BS_NONE);
         gen_helper_0e0i(raise_exception, EXCP_DEBUG);
     } else {

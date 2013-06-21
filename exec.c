@@ -588,11 +588,13 @@ void cpu_breakpoint_remove_all(CPUArchState *env, int mask)
 void cpu_single_step(CPUArchState *env, int enabled)
 {
 #if defined(TARGET_HAS_ICE)
-    if (env->singlestep_enabled != enabled) {
-        env->singlestep_enabled = enabled;
-        if (kvm_enabled())
+    CPUState *cpu = ENV_GET_CPU(env);
+
+    if (cpu->singlestep_enabled != enabled) {
+        cpu->singlestep_enabled = enabled;
+        if (kvm_enabled()) {
             kvm_update_guest_debug(env, 0);
-        else {
+        } else {
             /* must flush all the translated code to avoid inconsistencies */
             /* XXX: only flush what is necessary */
             tb_flush(env);

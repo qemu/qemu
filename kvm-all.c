@@ -1890,7 +1890,7 @@ int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
 
     data.dbg.control = reinject_trap;
 
-    if (env->singlestep_enabled) {
+    if (cpu->singlestep_enabled) {
         data.dbg.control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP;
     }
     kvm_arch_update_guest_debug(cpu, &data.dbg);

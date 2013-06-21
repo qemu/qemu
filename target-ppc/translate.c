@@ -9730,6 +9730,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
                                                   TranslationBlock *tb,
                                                   bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
@@ -9770,8 +9771,9 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
         ctx.singlestep_enabled = 0;
     if ((env->flags & POWERPC_FLAG_BE) && msr_be)
         ctx.singlestep_enabled |= CPU_BRANCH_STEP;
-    if (unlikely(env->singlestep_enabled))
+    if (unlikely(cs->singlestep_enabled)) {
         ctx.singlestep_enabled |= GDBSTUB_SINGLE_STEP;
+    }
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;
@@ -9873,7 +9875,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
                      ctx.exception != POWERPC_EXCP_BRANCH)) {
             gen_exception(ctxp, POWERPC_EXCP_TRACE);
         } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
-                            (env->singlestep_enabled) ||
+                            (cs->singlestep_enabled) ||
                             singlestep ||
                             num_insns >= max_insns)) {
             /* if we reach a page boundary or are single stepping, stop
@@ -9887,7 +9889,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     if (ctx.exception == POWERPC_EXCP_NONE) {
         gen_goto_tb(&ctx, 0, ctx.nip);
     } else if (ctx.exception != POWERPC_EXCP_BRANCH) {
-        if (unlikely(env->singlestep_enabled)) {
+        if (unlikely(cs->singlestep_enabled)) {
             gen_debug_exception(ctxp);
         }
         /* Generate the return instruction */

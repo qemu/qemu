@@ -1594,6 +1594,7 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
 
 static int kvm_guest_debug_workarounds(X86CPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     int ret = 0;
     unsigned long reinject_trap = 0;
@@ -1616,7 +1617,7 @@ static int kvm_guest_debug_workarounds(X86CPU *cpu)
      * reinject them via SET_GUEST_DEBUG.
      */
     if (reinject_trap ||
-        (!kvm_has_robust_singlestep() && env->singlestep_enabled)) {
+        (!kvm_has_robust_singlestep() && cs->singlestep_enabled)) {
         ret = kvm_update_guest_debug(env, reinject_trap);
     }
     return ret;
@@ -2042,13 +2043,14 @@ static CPUWatchpoint hw_watchpoint;
 static int kvm_handle_debug(X86CPU *cpu,
                             struct kvm_debug_exit_arch *arch_info)
 {
+    CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     int ret = 0;
     int n;
 
     if (arch_info->exception == 1) {
         if (arch_info->dr6 & (1 << 14)) {
-            if (env->singlestep_enabled) {
+            if (cs->singlestep_enabled) {
                 ret = EXCP_DEBUG;
             }
         } else {

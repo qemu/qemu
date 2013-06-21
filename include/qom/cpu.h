@@ -133,6 +133,7 @@ struct kvm_run;
  * @stopped: Indicates the CPU has been artificially stopped.
  * @tcg_exit_req: Set to force TCG to stop executing linked TBs for this
  *           CPU and return to its top level loop.
+ * @singlestep_enabled: Flags for single-stepping.
  * @env_ptr: Pointer to subclass-specific CPUArchState field.
  * @current_tb: Currently executing TB.
  * @next_cpu: Next CPU sharing TB cache.
@@ -165,6 +166,7 @@ struct CPUState {
     volatile sig_atomic_t exit_request;
     volatile sig_atomic_t tcg_exit_req;
     uint32_t interrupt_request;
+    int singlestep_enabled;
 
     void *env_ptr; /* CPUArchState */
     struct TranslationBlock *current_tb;

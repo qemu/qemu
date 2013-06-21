@@ -824,6 +824,7 @@ static inline void
 gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
                                bool search_pc)
 {
+    CPUState *cs = CPU(cpu);
     DisasContext ctx;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
@@ -871,7 +872,7 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
         ctx.pc += decode_opc(cpu, &ctx);
         num_insns++;
 
-        if (env->singlestep_enabled) {
+        if (cs->singlestep_enabled) {
             break;
         }
 
@@ -880,7 +881,7 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
         }
     } while (ctx.bstate == BS_NONE && tcg_ctx.gen_opc_ptr < gen_opc_end);
 
-    if (env->singlestep_enabled) {
+    if (cs->singlestep_enabled) {
         tcg_gen_movi_tl(cpu_pc, ctx.pc);
         gen_helper_debug(cpu_env);
     } else {

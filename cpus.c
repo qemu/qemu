@@ -1186,7 +1186,7 @@ static void tcg_exec_all(void)
         CPUArchState *env = cpu->env_ptr;
 
         qemu_clock_enable(vm_clock,
-                          (env->singlestep_enabled & SSTEP_NOTIMER) == 0);
+                          (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
         if (cpu_can_run(cpu)) {
             r = tcg_cpu_exec(env);
