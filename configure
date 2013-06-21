@@ -3329,6 +3329,7 @@ __uint128_t b;
 int main (void) {
   a = a + b;
   b = a * b;
+  a = a * a;
   return 0;
 }
 EOF
