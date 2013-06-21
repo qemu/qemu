@@ -3375,10 +3375,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     return ret;
 }
 
-static inline void gen_intermediate_code_internal(CPUAlphaState *env,
+static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
                                                   TranslationBlock *tb,
-                                                  int search_pc)
+                                                  bool search_pc)
 {
+    CPUAlphaState *env = &cpu->env;
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
     uint32_t insn;
@@ -3502,12 +3503,12 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
 
 void gen_intermediate_code (CPUAlphaState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(alpha_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUAlphaState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(alpha_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUAlphaState *env, TranslationBlock *tb, int pc_pos)
