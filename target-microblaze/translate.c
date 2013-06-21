@@ -1738,9 +1738,10 @@ static void check_breakpoint(CPUMBState *env, DisasContext *dc)
 
 /* generate intermediate code for basic block 'tb'.  */
 static inline void
-gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
-                               int search_pc)
+gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUMBState *env = &cpu->env;
     uint16_t *gen_opc_end;
     uint32_t pc_start;
     int j, lj;
@@ -1941,12 +1942,12 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
 
 void gen_intermediate_code (CPUMBState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(mb_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUMBState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(mb_env_get_cpu(env), tb, true);
 }
 
 void mb_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
