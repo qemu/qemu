@@ -2971,9 +2971,10 @@ static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 
 /* generate intermediate code for basic block 'tb'.  */
 static inline void
-gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
-                               int search_pc)
+gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
+                               bool search_pc)
 {
+    CPUM68KState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
@@ -3096,12 +3097,12 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
 
 void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(m68k_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc(CPUM68KState *env, TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(m68k_env_get_cpu(env), tb, true);
 }
 
 void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
