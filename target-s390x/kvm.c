@@ -469,7 +469,7 @@ static int kvm_handle_css_inst(S390CPU *cpu, struct kvm_run *run,
     int r = 0;
     int no_cc = 0;
     CPUS390XState *env = &cpu->env;
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = CPU(cpu);
 
     if (ipa0 != 0xb2) {
         /* Not handled for now. */
