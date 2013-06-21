@@ -4736,10 +4736,11 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
     return ret;
 }
 
-static inline void gen_intermediate_code_internal(CPUS390XState *env,
+static inline void gen_intermediate_code_internal(S390CPU *cpu,
                                                   TranslationBlock *tb,
-                                                  int search_pc)
+                                                  bool search_pc)
 {
+    CPUS390XState *env = &cpu->env;
     DisasContext dc;
     target_ulong pc_start;
     uint64_t next_page_start;
@@ -4872,12 +4873,12 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
 
 void gen_intermediate_code (CPUS390XState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(s390_env_get_cpu(env), tb, false);
 }
 
 void gen_intermediate_code_pc (CPUS390XState *env, struct TranslationBlock *tb)
 {
-    gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(s390_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUS390XState *env, TranslationBlock *tb, int pc_pos)
