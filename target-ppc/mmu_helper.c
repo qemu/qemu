@@ -2890,7 +2890,7 @@ void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
 void tlb_fill(CPUPPCState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = CPU(ppc_env_get_cpu(env));
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     int ret;
 
