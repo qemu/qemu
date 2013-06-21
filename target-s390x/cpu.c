@@ -58,6 +58,13 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 }
 #endif
 
+static void s390_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    S390CPU *cpu = S390_CPU(cs);
+
+    cpu->env.psw.addr = value;
+}
+
 /* CPUClass::reset() */
 static void s390_cpu_reset(CPUState *s)
 {
@@ -165,6 +172,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->do_interrupt = s390_cpu_do_interrupt;
     cc->dump_state = s390_cpu_dump_state;
+    cc->set_pc = s390_cpu_set_pc;
     dc->vmsd = &vmstate_s390_cpu;
 }
 

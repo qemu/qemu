@@ -22,6 +22,19 @@
 #include "qemu-common.h"
 
 
+static void mips_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
+    env->active_tc.PC = value & ~(target_ulong)1;
+    if (value & 1) {
+        env->hflags |= MIPS_HFLAG_M16;
+    } else {
+        env->hflags &= ~(MIPS_HFLAG_M16);
+    }
+}
+
 /* CPUClass::reset() */
 static void mips_cpu_reset(CPUState *s)
 {
@@ -76,6 +89,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->do_interrupt = mips_cpu_do_interrupt;
     cc->dump_state = mips_cpu_dump_state;
     cpu_class_set_do_unassigned_access(cc, mips_cpu_unassigned_access);
+    cc->set_pc = mips_cpu_set_pc;
 }
 
 static const TypeInfo mips_cpu_type_info = {

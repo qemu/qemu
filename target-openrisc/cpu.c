@@ -20,6 +20,13 @@
 #include "cpu.h"
 #include "qemu-common.h"
 
+static void openrisc_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
 /* CPUClass::reset() */
 static void openrisc_cpu_reset(CPUState *s)
 {
@@ -146,6 +153,7 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = openrisc_cpu_class_by_name;
     cc->do_interrupt = openrisc_cpu_do_interrupt;
     cc->dump_state = openrisc_cpu_dump_state;
+    cc->set_pc = openrisc_cpu_set_pc;
     device_class_set_vmsd(dc, &vmstate_openrisc_cpu);
 }
 

@@ -2506,6 +2506,13 @@ static bool x86_cpu_get_paging_enabled(const CPUState *cs)
     return cpu->env.cr[0] & CR0_PG_MASK;
 }
 
+static void x86_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    X86CPU *cpu = X86_CPU(cs);
+
+    cpu->env.eip = value;
+}
+
 static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 {
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
@@ -2522,6 +2529,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     cc->do_interrupt = x86_cpu_do_interrupt;
     cc->dump_state = x86_cpu_dump_state;
+    cc->set_pc = x86_cpu_set_pc;
     cc->get_arch_id = x86_cpu_get_arch_id;
     cc->get_paging_enabled = x86_cpu_get_paging_enabled;
 #ifndef CONFIG_USER_ONLY

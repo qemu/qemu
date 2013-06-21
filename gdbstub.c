@@ -2042,40 +2042,13 @@ static void gdb_breakpoint_remove_all(void)
 
 static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 {
-    cpu_synchronize_state(ENV_GET_CPU(s->c_cpu));
-#if defined(TARGET_I386)
-    s->c_cpu->eip = pc;
-#elif defined (TARGET_PPC)
-    s->c_cpu->nip = pc;
-#elif defined (TARGET_SPARC)
-    s->c_cpu->pc = pc;
-    s->c_cpu->npc = pc + 4;
-#elif defined (TARGET_ARM)
-    s->c_cpu->regs[15] = pc;
-#elif defined (TARGET_SH4)
-    s->c_cpu->pc = pc;
-#elif defined (TARGET_MIPS)
-    s->c_cpu->active_tc.PC = pc & ~(target_ulong)1;
-    if (pc & 1) {
-        s->c_cpu->hflags |= MIPS_HFLAG_M16;
-    } else {
-        s->c_cpu->hflags &= ~(MIPS_HFLAG_M16);
+    CPUState *cpu = ENV_GET_CPU(s->c_cpu);
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    cpu_synchronize_state(cpu);
+    if (cc->set_pc) {
+        cc->set_pc(cpu, pc);
     }
-#elif defined (TARGET_MICROBLAZE)
-    s->c_cpu->sregs[SR_PC] = pc;
-#elif defined(TARGET_OPENRISC)
-    s->c_cpu->pc = pc;
-#elif defined (TARGET_CRIS)
-    s->c_cpu->pc = pc;
-#elif defined (TARGET_ALPHA)
-    s->c_cpu->pc = pc;
-#elif defined (TARGET_S390X)
-    s->c_cpu->psw.addr = pc;
-#elif defined (TARGET_LM32)
-    s->c_cpu->pc = pc;
-#elif defined(TARGET_XTENSA)
-    s->c_cpu->pc = pc;
-#endif
 }
 
 static CPUArchState *find_cpu(uint32_t thread_id)

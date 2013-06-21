@@ -73,6 +73,7 @@ typedef void (*CPUUnassignedAccess)(CPUState *cpu, hwaddr addr,
  * @get_arch_id: Callback for getting architecture-dependent CPU ID.
  * @get_paging_enabled: Callback for inquiring whether paging is enabled.
  * @get_memory_mapping: Callback for obtaining the memory mappings.
+ * @set_pc: Callback for setting the Program Counter register.
  * @vmsd: State description for migration.
  *
  * Represents a CPU family or model.
@@ -96,6 +97,7 @@ typedef struct CPUClass {
     bool (*get_paging_enabled)(const CPUState *cpu);
     void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
                                Error **errp);
+    void (*set_pc)(CPUState *cpu, vaddr value);
 
     const struct VMStateDescription *vmsd;
     int (*write_elf64_note)(WriteCoreDumpFunction f, CPUState *cpu,
