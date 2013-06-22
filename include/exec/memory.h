@@ -24,7 +24,6 @@
 #include "exec/hwaddr.h"
 #endif
 #include "qemu/queue.h"
-#include "exec/iorange.h"
 #include "exec/ioport.h"
 #include "qemu/int128.h"
 #include "qemu/notify.h"
@@ -46,14 +45,6 @@ typedef struct MemoryRegionMmio MemoryRegionMmio;
 struct MemoryRegionMmio {
     CPUReadMemoryFunc *read[3];
     CPUWriteMemoryFunc *write[3];
-};
-
-/* Internal use; thunks between old-style IORange and MemoryRegions. */
-typedef struct MemoryRegionIORange MemoryRegionIORange;
-struct MemoryRegionIORange {
-    IORange iorange;
-    MemoryRegion *mr;
-    hwaddr offset;
 };
 
 typedef struct IOMMUTLBEntry IOMMUTLBEntry;

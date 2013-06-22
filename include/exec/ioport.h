@@ -25,7 +25,6 @@
 #define IOPORT_H
 
 #include "qemu-common.h"
-#include "exec/iorange.h"
 
 typedef uint32_t pio_addr_t;
 #define FMT_pioaddr     PRIx32
@@ -36,10 +35,6 @@ typedef uint32_t pio_addr_t;
 /* These should really be in isa.h, but are here to make pc.h happy.  */
 typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
-typedef void (IOPortDestructor)(void *opaque);
-
-void ioport_register(IORange *iorange);
-void isa_unassign_ioport(pio_addr_t start, int length);
 
 void cpu_outb(pio_addr_t addr, uint8_t val);
 void cpu_outw(pio_addr_t addr, uint16_t val);
