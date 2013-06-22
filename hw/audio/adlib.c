@@ -283,9 +283,17 @@ static void Adlib_fini (AdlibState *s)
     AUD_remove_card (&s->card);
 }
 
+static MemoryRegionPortio adlib_portio_list[] = {
+    { 0x388, 4, 1, .read = adlib_read, .write = adlib_write, },
+    { 0, 4, 1, .read = adlib_read, .write = adlib_write, },
+    { 0, 2, 1, .read = adlib_read, .write = adlib_write, },
+    PORTIO_END_OF_LIST(),
+};
+
 static void adlib_realizefn (DeviceState *dev, Error **errp)
 {
     AdlibState *s = ADLIB(dev);
+    PortioList *port_list = g_new(PortioList, 1);
     struct audsettings as;
 
     if (glob_adlib) {
@@ -339,14 +347,10 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
     s->mixbuf = g_malloc0 (s->samples << SHIFT);
 
-    register_ioport_read (0x388, 4, 1, adlib_read, s);
-    register_ioport_write (0x388, 4, 1, adlib_write, s);
-
-    register_ioport_read (s->port, 4, 1, adlib_read, s);
-    register_ioport_write (s->port, 4, 1, adlib_write, s);
-
-    register_ioport_read (s->port + 8, 2, 1, adlib_read, s);
-    register_ioport_write (s->port + 8, 2, 1, adlib_write, s);
+    adlib_portio_list[1].offset = s->port;
+    adlib_portio_list[2].offset = s->port + 8;
+    portio_list_init (port_list, adlib_portio_list, s, "adlib");
+    portio_list_add (port_list, isa_address_space_io(&s->parent_obj), 0);
 }
 
 static Property adlib_properties[] = {
