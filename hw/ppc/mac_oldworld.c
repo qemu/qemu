@@ -333,6 +333,8 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     } else {
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, get_ticks_per_sec());
     }
+    /* Mac OS X requires a "known good" clock-frequency value; pass it one. */
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_CLOCKFREQ, 266000000);
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
