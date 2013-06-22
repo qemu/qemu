@@ -1227,7 +1227,7 @@
 /***************************************************************************/
 /* PowerPC CPU aliases                                                     */
 
-const PowerPCCPUAlias ppc_cpu_aliases[] = {
+PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "403", "403GC" },
     { "405", "405D4" },
     { "405CR", "405CRc" },
