@@ -43,13 +43,13 @@ typedef struct VMPortState
     ISADevice parent_obj;
 
     MemoryRegion io;
-    IOPortReadFunc *func[VMPORT_ENTRIES];
+    VMPortReadFunc *func[VMPORT_ENTRIES];
     void *opaque[VMPORT_ENTRIES];
 } VMPortState;
 
 static VMPortState *port_state;
 
-void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque)
+void vmport_register(unsigned char command, VMPortReadFunc *func, void *opaque)
 {
     if (command >= VMPORT_ENTRIES)
         return;
