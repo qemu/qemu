@@ -262,9 +262,13 @@ static void platform_fixed_ioport_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps platform_fixed_io_ops = {
     .read = platform_fixed_ioport_read,
     .write = platform_fixed_ioport_write,
+    .valid = {
+        .unaligned = true,
+    },
     .impl = {
         .min_access_size = 1,
         .max_access_size = 4,
+        .unaligned = true,
     },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
