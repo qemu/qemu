@@ -24,7 +24,6 @@
 #include "exec/hwaddr.h"
 #endif
 #include "qemu/queue.h"
-#include "exec/ioport.h"
 #include "qemu/int128.h"
 #include "qemu/notify.h"
 
@@ -32,7 +31,6 @@
 #define MAX_PHYS_ADDR            (((hwaddr)1 << MAX_PHYS_ADDR_SPACE_BITS) - 1)
 
 typedef struct MemoryRegionOps MemoryRegionOps;
-typedef struct MemoryRegionPortio MemoryRegionPortio;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
 
 /* Must match *_DIRTY_FLAGS in cpu-all.h.  To be replaced with dynamic
@@ -165,17 +163,6 @@ struct MemoryRegion {
     MemoryRegionIoeventfd *ioeventfds;
     NotifierList iommu_notify;
 };
-
-struct MemoryRegionPortio {
-    uint32_t offset;
-    uint32_t len;
-    unsigned size;
-    IOPortReadFunc *read;
-    IOPortWriteFunc *write;
-    uint32_t base; /* private field */
-};
-
-#define PORTIO_END_OF_LIST() { }
 
 /**
  * AddressSpace: describes a mapping of addresses to #MemoryRegion objects

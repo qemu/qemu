@@ -25,6 +25,7 @@
 #define IOPORT_H
 
 #include "qemu-common.h"
+#include "exec/memory.h"
 
 typedef uint32_t pio_addr_t;
 #define FMT_pioaddr     PRIx32
@@ -32,9 +33,16 @@ typedef uint32_t pio_addr_t;
 #define MAX_IOPORTS     (64 * 1024)
 #define IOPORTS_MASK    (MAX_IOPORTS - 1)
 
-/* These should really be in isa.h, but are here to make pc.h happy.  */
-typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
-typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
+typedef struct MemoryRegionPortio {
+    uint32_t offset;
+    uint32_t len;
+    unsigned size;
+    uint32_t (*read)(void *opaque, uint32_t address);
+    void (*write)(void *opaque, uint32_t address, uint32_t data);
+    uint32_t base; /* private field */
+} MemoryRegionPortio;
+
+#define PORTIO_END_OF_LIST() { }
 
 void cpu_outb(pio_addr_t addr, uint8_t val);
 void cpu_outw(pio_addr_t addr, uint16_t val);
@@ -42,9 +50,6 @@ void cpu_outl(pio_addr_t addr, uint32_t val);
 uint8_t cpu_inb(pio_addr_t addr);
 uint16_t cpu_inw(pio_addr_t addr);
 uint32_t cpu_inl(pio_addr_t addr);
-
-struct MemoryRegion;
-struct MemoryRegionPortio;
 
 typedef struct PortioList {
     const struct MemoryRegionPortio *ports;
