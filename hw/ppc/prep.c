@@ -434,6 +434,16 @@ static void ppc_prep_reset(void *opaque)
     cpu->env.nip = 0xfffffffc;
 }
 
+static const MemoryRegionPortio prep_portio_list[] = {
+    /* System control ports */
+    { 0x0092, 1, 1, .read = PREP_io_800_readb, .write = PREP_io_800_writeb, },
+    { 0x0800, 0x52, 1,
+      .read = PREP_io_800_readb, .write = PREP_io_800_writeb, },
+    /* Special port to get debug messages from Open-Firmware */
+    { 0x0F00, 4, 1, .write = PPC_debug_write, },
+    PORTIO_END_OF_LIST(),
+};
+
 /* PowerPC PREP hardware initialisation */
 static void ppc_prep_init(QEMUMachineInitArgs *args)
 {
@@ -450,6 +460,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     nvram_t nvram;
     M48t59State *m48t59;
     MemoryRegion *PPC_io_memory = g_new(MemoryRegion, 1);
+    PortioList *port_list = g_new(PortioList, 1);
 #if 0
     MemoryRegion *xcsr = g_new(MemoryRegion, 1);
 #endif
@@ -641,11 +652,10 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     isa_create_simple(isa_bus, "i8042");
 
     sysctrl->reset_irq = first_cpu->irq_inputs[PPC6xx_INPUT_HRESET];
-    /* System control ports */
-    register_ioport_read(0x0092, 0x01, 1, &PREP_io_800_readb, sysctrl);
-    register_ioport_write(0x0092, 0x01, 1, &PREP_io_800_writeb, sysctrl);
-    register_ioport_read(0x0800, 0x52, 1, &PREP_io_800_readb, sysctrl);
-    register_ioport_write(0x0800, 0x52, 1, &PREP_io_800_writeb, sysctrl);
+
+    portio_list_init(port_list, prep_portio_list, sysctrl, "prep");
+    portio_list_add(port_list, get_system_io(), 0x0);
+
     /* PowerPC control and status register group */
 #if 0
     memory_region_init_io(xcsr, &PPC_XCSR_ops, NULL, "ppc-xcsr", 0x1000);
@@ -672,9 +682,6 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
                          /* XXX: need an option to load a NVRAM image */
                          0,
                          graphic_width, graphic_height, graphic_depth);
-
-    /* Special port to get debug messages from Open-Firmware */
-    register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
 }
 
 static QEMUMachine prep_machine = {
