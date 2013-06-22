@@ -63,7 +63,7 @@ static int usb_ehci_pci_initfn(PCIDevice *dev)
     s->caps[0x09] = 0x68;        /* EECP */
 
     s->irq = dev->irq[3];
-    s->dma = pci_dma_context(dev);
+    s->as = pci_get_address_space(dev);
 
     s->capsbase = 0x00;
     s->opregbase = 0x20;
@@ -86,7 +86,7 @@ static void usb_ehci_pci_write_config(PCIDevice *dev, uint32_t addr,
         return;
     }
     busmaster = pci_get_word(dev->config + PCI_COMMAND) & PCI_COMMAND_MASTER;
-    i->ehci.dma = busmaster ? pci_dma_context(dev) : NULL;
+    i->ehci.as = busmaster ? pci_get_address_space(dev) : &address_space_memory;
 }
 
 static Property ehci_pci_properties[] = {

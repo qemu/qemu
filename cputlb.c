@@ -256,8 +256,8 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     }
 
     sz = size;
-    section = address_space_translate(&address_space_memory, paddr, &xlat, &sz,
-                                      false);
+    section = address_space_translate_for_iotlb(&address_space_memory, paddr,
+                                                &xlat, &sz);
     assert(sz >= TARGET_PAGE_SIZE);
 
 #if defined(DEBUG_TLB)

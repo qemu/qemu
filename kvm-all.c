@@ -329,7 +329,7 @@ static void kvm_log_start(MemoryListener *listener,
     int r;
 
     r = kvm_dirty_pages_log_change(section->offset_within_address_space,
-                                   section->size, true);
+                                   int128_get64(section->size), true);
     if (r < 0) {
         abort();
     }
@@ -341,7 +341,7 @@ static void kvm_log_stop(MemoryListener *listener,
     int r;
 
     r = kvm_dirty_pages_log_change(section->offset_within_address_space,
-                                   section->size, false);
+                                   int128_get64(section->size), false);
     if (r < 0) {
         abort();
     }
@@ -379,7 +379,8 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
     unsigned int i, j;
     unsigned long page_number, c;
     hwaddr addr, addr1;
-    unsigned int len = ((section->size / getpagesize()) + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
+    unsigned int pages = int128_get64(section->size) / getpagesize();
+    unsigned int len = (pages + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
     unsigned long hpratio = getpagesize() / TARGET_PAGE_SIZE;
 
     /*
@@ -422,7 +423,7 @@ static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
     KVMSlot *mem;
     int ret = 0;
     hwaddr start_addr = section->offset_within_address_space;
-    hwaddr end_addr = start_addr + section->size;
+    hwaddr end_addr = start_addr + int128_get64(section->size);
 
     d.dirty_bitmap = NULL;
     while (start_addr < end_addr) {
@@ -634,7 +635,7 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     bool writeable = !mr->readonly && !mr->rom_device;
     bool readonly_flag = mr->readonly || memory_region_is_romd(mr);
     hwaddr start_addr = section->offset_within_address_space;
-    ram_addr_t size = section->size;
+    ram_addr_t size = int128_get64(section->size);
     void *ram = NULL;
     unsigned delta;
 
@@ -832,7 +833,8 @@ static void kvm_mem_ioeventfd_add(MemoryListener *listener,
     int r;
 
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
-                               data, true, section->size, match_data);
+                               data, true, int128_get64(section->size),
+                               match_data);
     if (r < 0) {
         abort();
     }
@@ -847,7 +849,8 @@ static void kvm_mem_ioeventfd_del(MemoryListener *listener,
     int r;
 
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
-                               data, false, section->size, match_data);
+                               data, false, int128_get64(section->size),
+                               match_data);
     if (r < 0) {
         abort();
     }
@@ -862,7 +865,8 @@ static void kvm_io_ioeventfd_add(MemoryListener *listener,
     int r;
 
     r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
-                              data, true, section->size, match_data);
+                              data, true, int128_get64(section->size),
+                              match_data);
     if (r < 0) {
         abort();
     }
@@ -878,7 +882,8 @@ static void kvm_io_ioeventfd_del(MemoryListener *listener,
     int r;
 
     r = kvm_set_ioeventfd_pio(fd, section->offset_within_address_space,
-                              data, false, section->size, match_data);
+                              data, false, int128_get64(section->size),
+                              match_data);
     if (r < 0) {
         abort();
     }

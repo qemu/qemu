@@ -81,7 +81,7 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
         return 0;
     }
     start_addr = section->offset_within_address_space;
-    end_addr = range_get_last(start_addr, section->size);
+    end_addr = range_get_last(start_addr, int128_get64(section->size));
     start_addr = MAX(first, start_addr);
     end_addr = MIN(last, end_addr);
 
@@ -379,7 +379,7 @@ static void vhost_set_memory(MemoryListener *listener,
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
     hwaddr start_addr = section->offset_within_address_space;
-    ram_addr_t size = section->size;
+    ram_addr_t size = int128_get64(section->size);
     bool log_dirty = memory_region_is_logging(section->mr);
     int s = offsetof(struct vhost_memory, regions) +
         (dev->mem->nregions + 1) * sizeof dev->mem->regions[0];

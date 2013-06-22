@@ -446,7 +446,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
 {
     int i;
 
-    if (!ehci->dma) {
+    if (!ehci->as) {
         ehci_raise_irq(ehci, USBSTS_HSE);
         ehci->usbcmd &= ~USBCMD_RUNSTOP;
         trace_usb_ehci_dma_error();
@@ -454,7 +454,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
     }
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        dma_memory_read(ehci->dma, addr, buf, sizeof(*buf));
+        dma_memory_read(ehci->as, addr, buf, sizeof(*buf));
         *buf = le32_to_cpu(*buf);
     }
 
@@ -467,7 +467,7 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
 {
     int i;
 
-    if (!ehci->dma) {
+    if (!ehci->as) {
         ehci_raise_irq(ehci, USBSTS_HSE);
         ehci->usbcmd &= ~USBCMD_RUNSTOP;
         trace_usb_ehci_dma_error();
@@ -476,7 +476,7 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         uint32_t tmp = cpu_to_le32(*buf);
-        dma_memory_write(ehci->dma, addr, &tmp, sizeof(tmp));
+        dma_memory_write(ehci->as, addr, &tmp, sizeof(tmp));
     }
 
     return num;
@@ -1245,7 +1245,7 @@ static int ehci_init_transfer(EHCIPacket *p)
     cpage  = get_field(p->qtd.token, QTD_TOKEN_CPAGE);
     bytes  = get_field(p->qtd.token, QTD_TOKEN_TBYTES);
     offset = p->qtd.bufptr[0] & ~QTD_BUFPTR_MASK;
-    qemu_sglist_init(&p->sgl, 5, p->queue->ehci->dma);
+    qemu_sglist_init(&p->sgl, 5, p->queue->ehci->as);
 
     while (bytes > 0) {
         if (cpage > 4) {
@@ -1484,7 +1484,7 @@ static int ehci_process_itd(EHCIState *ehci,
                 return -1;
             }
 
-            qemu_sglist_init(&ehci->isgl, 2, ehci->dma);
+            qemu_sglist_init(&ehci->isgl, 2, ehci->as);
             if (off + len > 4096) {
                 /* transfer crosses page border */
                 uint32_t len2 = off + len - 4096;

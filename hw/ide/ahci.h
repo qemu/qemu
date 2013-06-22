@@ -297,7 +297,7 @@ typedef struct AHCIState {
     uint32_t idp_index;     /* Current IDP index */
     int32_t ports;
     qemu_irq irq;
-    DMAContext *dma;
+    AddressSpace *as;
 } AHCIState;
 
 typedef struct AHCIPCIState {
@@ -338,7 +338,7 @@ typedef struct NCQFrame {
     uint8_t reserved10;
 } QEMU_PACKED NCQFrame;
 
-void ahci_init(AHCIState *s, DeviceState *qdev, DMAContext *dma, int ports);
+void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports);
 void ahci_uninit(AHCIState *s);
 
 void ahci_reset(AHCIState *s);

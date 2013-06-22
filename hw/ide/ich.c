@@ -104,7 +104,7 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     uint8_t *sata_cap;
     d = DO_UPCAST(struct AHCIPCIState, card, dev);
 
-    ahci_init(&d->ahci, &dev->qdev, pci_dma_context(dev), 6);
+    ahci_init(&d->ahci, &dev->qdev, pci_get_address_space(dev), 6);
 
     pci_config_set_prog_interface(d->card.config, AHCI_PROGMODE_MAJOR_REV_1);
 

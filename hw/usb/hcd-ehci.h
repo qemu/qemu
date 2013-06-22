@@ -261,7 +261,7 @@ struct EHCIState {
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
-    DMAContext *dma;
+    AddressSpace *as;
     MemoryRegion mem_caps;
     MemoryRegion mem_opreg;
     MemoryRegion mem_ports;

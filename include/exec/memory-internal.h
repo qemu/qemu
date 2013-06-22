@@ -22,23 +22,8 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen/xen.h"
 
-typedef struct PhysPageEntry PhysPageEntry;
-
-struct PhysPageEntry {
-    uint16_t is_leaf : 1;
-     /* index into phys_sections (is_leaf) or phys_map_nodes (!is_leaf) */
-    uint16_t ptr : 15;
-};
 
 typedef struct AddressSpaceDispatch AddressSpaceDispatch;
-
-struct AddressSpaceDispatch {
-    /* This is a multi-level map on the physical address space.
-     * The bottom level has pointers to MemoryRegionSections.
-     */
-    PhysPageEntry phys_map;
-    MemoryListener listener;
-};
 
 void address_space_init_dispatch(AddressSpace *as);
 void address_space_destroy_dispatch(AddressSpace *as);

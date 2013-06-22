@@ -506,12 +506,11 @@ static const MemoryRegionOps spapr_msi_ops = {
 /*
  * PHB PCI device
  */
-static DMAContext *spapr_pci_dma_context_fn(PCIBus *bus, void *opaque,
-                                            int devfn)
+static AddressSpace *spapr_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
     sPAPRPHBState *phb = opaque;
 
-    return phb->dma;
+    return &phb->iommu_as;
 }
 
 static int spapr_phb_init(SysBusDevice *s)
@@ -646,12 +645,15 @@ static int spapr_phb_init(SysBusDevice *s)
 
     sphb->dma_window_start = 0;
     sphb->dma_window_size = 0x40000000;
-    sphb->dma = spapr_tce_new_dma_context(sphb->dma_liobn, sphb->dma_window_size);
-    if (!sphb->dma) {
+    sphb->tcet = spapr_tce_new_table(sphb->dma_liobn, sphb->dma_window_size);
+    if (!sphb->tcet) {
         fprintf(stderr, "Unable to create TCE table for %s\n", sphb->dtbusname);
         return -1;
     }
-    pci_setup_iommu(bus, spapr_pci_dma_context_fn, sphb);
+    address_space_init(&sphb->iommu_as, spapr_tce_get_iommu(sphb->tcet),
+                       sphb->dtbusname);
+
+    pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
 
     QLIST_INSERT_HEAD(&spapr->phbs, sphb, list);
 
@@ -676,7 +678,7 @@ static void spapr_phb_reset(DeviceState *qdev)
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
 
     /* Reset the IOMMU state */
-    spapr_tce_reset(sphb->dma);
+    spapr_tce_reset(sphb->tcet);
 }
 
 static Property spapr_phb_properties[] = {

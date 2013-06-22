@@ -212,19 +212,19 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         return -1;
     }
 
-    if (vdhcp_start && !inet_aton(vdhcp_start, &dhcp)) {
-        return -1;
-    }
-    if ((dhcp.s_addr & mask.s_addr) != net.s_addr ||
-        dhcp.s_addr == host.s_addr || dhcp.s_addr == dns.s_addr) {
-        return -1;
-    }
-
     if (vnameserver && !inet_aton(vnameserver, &dns)) {
         return -1;
     }
     if ((dns.s_addr & mask.s_addr) != net.s_addr ||
         dns.s_addr == host.s_addr) {
+        return -1;
+    }
+
+    if (vdhcp_start && !inet_aton(vdhcp_start, &dhcp)) {
+        return -1;
+    }
+    if ((dhcp.s_addr & mask.s_addr) != net.s_addr ||
+        dhcp.s_addr == host.s_addr || dhcp.s_addr == dns.s_addr) {
         return -1;
     }
 

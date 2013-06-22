@@ -242,7 +242,6 @@ struct PCIDevice {
     PCIIORegion io_regions[PCI_NUM_REGIONS];
     AddressSpace bus_master_as;
     MemoryRegion bus_master_enable_region;
-    DMAContext *dma;
 
     /* do not access the following fields */
     PCIConfigReadFunc *config_read;
@@ -401,9 +400,9 @@ int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
 
 void pci_device_deassert_intx(PCIDevice *dev);
 
-typedef DMAContext *(*PCIDMAContextFunc)(PCIBus *, void *, int);
+typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 
-void pci_setup_iommu(PCIBus *bus, PCIDMAContextFunc fn, void *opaque);
+void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
@@ -639,15 +638,15 @@ static inline uint32_t pci_config_size(const PCIDevice *d)
 }
 
 /* DMA access functions */
-static inline DMAContext *pci_dma_context(PCIDevice *dev)
+static inline AddressSpace *pci_get_address_space(PCIDevice *dev)
 {
-    return dev->dma;
+    return &dev->bus_master_as;
 }
 
 static inline int pci_dma_rw(PCIDevice *dev, dma_addr_t addr,
                              void *buf, dma_addr_t len, DMADirection dir)
 {
-    dma_memory_rw(pci_dma_context(dev), addr, buf, len, dir);
+    dma_memory_rw(pci_get_address_space(dev), addr, buf, len, dir);
     return 0;
 }
 
@@ -667,12 +666,12 @@ static inline int pci_dma_write(PCIDevice *dev, dma_addr_t addr,
     static inline uint##_bits##_t ld##_l##_pci_dma(PCIDevice *dev,      \
                                                    dma_addr_t addr)     \
     {                                                                   \
-        return ld##_l##_dma(pci_dma_context(dev), addr);                \
+        return ld##_l##_dma(pci_get_address_space(dev), addr);          \
     }                                                                   \
     static inline void st##_s##_pci_dma(PCIDevice *dev,                 \
                                         dma_addr_t addr, uint##_bits##_t val) \
     {                                                                   \
-        st##_s##_dma(pci_dma_context(dev), addr, val);                  \
+        st##_s##_dma(pci_get_address_space(dev), addr, val);            \
     }
 
 PCI_DMA_DEFINE_LDST(ub, b, 8);
@@ -690,20 +689,20 @@ static inline void *pci_dma_map(PCIDevice *dev, dma_addr_t addr,
 {
     void *buf;
 
-    buf = dma_memory_map(pci_dma_context(dev), addr, plen, dir);
+    buf = dma_memory_map(pci_get_address_space(dev), addr, plen, dir);
     return buf;
 }
 
 static inline void pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len,
                                  DMADirection dir, dma_addr_t access_len)
 {
-    dma_memory_unmap(pci_dma_context(dev), buffer, len, dir, access_len);
+    dma_memory_unmap(pci_get_address_space(dev), buffer, len, dir, access_len);
 }
 
 static inline void pci_dma_sglist_init(QEMUSGList *qsg, PCIDevice *dev,
                                        int alloc_hint)
 {
-    qemu_sglist_init(qsg, alloc_hint, pci_dma_context(dev));
+    qemu_sglist_init(qsg, alloc_hint, pci_get_address_space(dev));
 }
 
 extern const VMStateDescription vmstate_pci_device;

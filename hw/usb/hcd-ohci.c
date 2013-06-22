@@ -62,7 +62,7 @@ typedef struct {
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
-    DMAContext *dma;
+    AddressSpace *as;
     int num_ports;
     const char *name;
 
@@ -508,7 +508,7 @@ static inline int get_dwords(OHCIState *ohci,
     addr += ohci->localmem_base;
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        dma_memory_read(ohci->dma, addr, buf, sizeof(*buf));
+        dma_memory_read(ohci->as, addr, buf, sizeof(*buf));
         *buf = le32_to_cpu(*buf);
     }
 
@@ -525,7 +525,7 @@ static inline int put_dwords(OHCIState *ohci,
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         uint32_t tmp = cpu_to_le32(*buf);
-        dma_memory_write(ohci->dma, addr, &tmp, sizeof(tmp));
+        dma_memory_write(ohci->as, addr, &tmp, sizeof(tmp));
     }
 
     return 1;
@@ -540,7 +540,7 @@ static inline int get_words(OHCIState *ohci,
     addr += ohci->localmem_base;
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        dma_memory_read(ohci->dma, addr, buf, sizeof(*buf));
+        dma_memory_read(ohci->as, addr, buf, sizeof(*buf));
         *buf = le16_to_cpu(*buf);
     }
 
@@ -557,7 +557,7 @@ static inline int put_words(OHCIState *ohci,
 
     for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         uint16_t tmp = cpu_to_le16(*buf);
-        dma_memory_write(ohci->dma, addr, &tmp, sizeof(tmp));
+        dma_memory_write(ohci->as, addr, &tmp, sizeof(tmp));
     }
 
     return 1;
@@ -585,7 +585,7 @@ static inline int ohci_read_iso_td(OHCIState *ohci,
 static inline int ohci_read_hcca(OHCIState *ohci,
                                  dma_addr_t addr, struct ohci_hcca *hcca)
 {
-    dma_memory_read(ohci->dma, addr + ohci->localmem_base, hcca, sizeof(*hcca));
+    dma_memory_read(ohci->as, addr + ohci->localmem_base, hcca, sizeof(*hcca));
     return 1;
 }
 
@@ -617,7 +617,7 @@ static inline int ohci_put_iso_td(OHCIState *ohci,
 static inline int ohci_put_hcca(OHCIState *ohci,
                                 dma_addr_t addr, struct ohci_hcca *hcca)
 {
-    dma_memory_write(ohci->dma,
+    dma_memory_write(ohci->as,
                      addr + ohci->localmem_base + HCCA_WRITEBACK_OFFSET,
                      (char *)hcca + HCCA_WRITEBACK_OFFSET,
                      HCCA_WRITEBACK_SIZE);
@@ -634,12 +634,12 @@ static void ohci_copy_td(OHCIState *ohci, struct ohci_td *td,
     n = 0x1000 - (ptr & 0xfff);
     if (n > len)
         n = len;
-    dma_memory_rw(ohci->dma, ptr + ohci->localmem_base, buf, n, dir);
+    dma_memory_rw(ohci->as, ptr + ohci->localmem_base, buf, n, dir);
     if (n == len)
         return;
     ptr = td->be & ~0xfffu;
     buf += n;
-    dma_memory_rw(ohci->dma, ptr + ohci->localmem_base, buf, len - n, dir);
+    dma_memory_rw(ohci->as, ptr + ohci->localmem_base, buf, len - n, dir);
 }
 
 /* Read/Write the contents of an ISO TD from/to main memory.  */
@@ -653,12 +653,12 @@ static void ohci_copy_iso_td(OHCIState *ohci,
     n = 0x1000 - (ptr & 0xfff);
     if (n > len)
         n = len;
-    dma_memory_rw(ohci->dma, ptr + ohci->localmem_base, buf, n, dir);
+    dma_memory_rw(ohci->as, ptr + ohci->localmem_base, buf, n, dir);
     if (n == len)
         return;
     ptr = end_addr & ~0xfffu;
     buf += n;
-    dma_memory_rw(ohci->dma, ptr + ohci->localmem_base, buf, len - n, dir);
+    dma_memory_rw(ohci->as, ptr + ohci->localmem_base, buf, len - n, dir);
 }
 
 static void ohci_process_lists(OHCIState *ohci, int completion);
@@ -1788,11 +1788,11 @@ static USBBusOps ohci_bus_ops = {
 static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
                          int num_ports, dma_addr_t localmem_base,
                          char *masterbus, uint32_t firstport,
-                         DMAContext *dma)
+                         AddressSpace *as)
 {
     int i;
 
-    ohci->dma = dma;
+    ohci->as = as;
 
     if (usb_frame_time == 0) {
 #ifdef OHCI_TIME_WARP
@@ -1859,7 +1859,7 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
 
     if (usb_ohci_init(&ohci->state, &dev->qdev, ohci->num_ports, 0,
                       ohci->masterbus, ohci->firstport,
-                      pci_dma_context(dev)) != 0) {
+                      pci_get_address_space(dev)) != 0) {
         return -1;
     }
     ohci->state.irq = ohci->pci_dev.irq[0];
@@ -1882,7 +1882,7 @@ static int ohci_init_pxa(SysBusDevice *dev)
 
     /* Cannot fail as we pass NULL for masterbus */
     usb_ohci_init(&s->ohci, &dev->qdev, s->num_ports, s->dma_offset, NULL, 0,
-                  &dma_context_memory);
+                  &address_space_memory);
     sysbus_init_irq(dev, &s->ohci.irq);
     sysbus_init_mmio(dev, &s->ohci.mem);
 

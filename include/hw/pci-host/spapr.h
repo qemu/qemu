@@ -49,7 +49,8 @@ typedef struct sPAPRPHBState {
     uint32_t dma_liobn;
     uint64_t dma_window_start;
     uint64_t dma_window_size;
-    DMAContext *dma;
+    sPAPRTCETable *tcet;
+    AddressSpace iommu_as;
 
     struct {
         uint32_t irq;

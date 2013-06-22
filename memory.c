@@ -150,7 +150,7 @@ static bool memory_listener_match(MemoryListener *listener,
         .mr = (fr)->mr,                                                 \
         .address_space = (as),                                          \
         .offset_within_region = (fr)->offset_in_region,                 \
-        .size = int128_get64((fr)->addr.size),                          \
+        .size = (fr)->addr.size,                                        \
         .offset_within_address_space = int128_get64((fr)->addr.start),  \
         .readonly = (fr)->readonly,                                     \
               }))
@@ -280,7 +280,7 @@ static bool can_merge(FlatRange *r1, FlatRange *r2)
         && r1->readonly == r2->readonly;
 }
 
-/* Attempt to simplify a view by merging ajacent ranges */
+/* Attempt to simplify a view by merging adjacent ranges */
 static void flatview_simplify(FlatView *view)
 {
     unsigned i, j;
@@ -554,6 +554,11 @@ static void render_memory_region(FlatView *view,
     base = clip.start;
     remain = clip.size;
 
+    fr.mr = mr;
+    fr.dirty_log_mask = mr->dirty_log_mask;
+    fr.romd_mode = mr->romd_mode;
+    fr.readonly = readonly;
+
     /* Render the region itself into any gaps left by the current view. */
     for (i = 0; i < view->nr && int128_nz(remain); ++i) {
         if (int128_ge(base, addrrange_end(view->ranges[i].addr))) {
@@ -562,12 +567,8 @@ static void render_memory_region(FlatView *view,
         if (int128_lt(base, view->ranges[i].addr.start)) {
             now = int128_min(remain,
                              int128_sub(view->ranges[i].addr.start, base));
-            fr.mr = mr;
             fr.offset_in_region = offset_in_region;
             fr.addr = addrrange_make(base, now);
-            fr.dirty_log_mask = mr->dirty_log_mask;
-            fr.romd_mode = mr->romd_mode;
-            fr.readonly = readonly;
             flatview_insert(view, i, &fr);
             ++i;
             int128_addto(&base, now);
@@ -582,12 +583,8 @@ static void render_memory_region(FlatView *view,
         int128_subfrom(&remain, now);
     }
     if (int128_nz(remain)) {
-        fr.mr = mr;
         fr.offset_in_region = offset_in_region;
         fr.addr = addrrange_make(base, remain);
-        fr.dirty_log_mask = mr->dirty_log_mask;
-        fr.romd_mode = mr->romd_mode;
-        fr.readonly = readonly;
         flatview_insert(view, i, &fr);
     }
 }
@@ -632,7 +629,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
             section = (MemoryRegionSection) {
                 .address_space = as,
                 .offset_within_address_space = int128_get64(fd->addr.start),
-                .size = int128_get64(fd->addr.size),
+                .size = fd->addr.size,
             };
             MEMORY_LISTENER_CALL(eventfd_del, Forward, &section,
                                  fd->match_data, fd->data, fd->e);
@@ -645,7 +642,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
             section = (MemoryRegionSection) {
                 .address_space = as,
                 .offset_within_address_space = int128_get64(fd->addr.start),
-                .size = int128_get64(fd->addr.size),
+                .size = fd->addr.size,
             };
             MEMORY_LISTENER_CALL(eventfd_add, Reverse, &section,
                                  fd->match_data, fd->data, fd->e);
@@ -717,7 +714,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
                 || int128_lt(frold->addr.start, frnew->addr.start)
                 || (int128_eq(frold->addr.start, frnew->addr.start)
                     && !flatrange_equal(frold, frnew)))) {
-            /* In old, but (not in new, or in new but attributes changed). */
+            /* In old but not in new, or in both but attributes changed. */
 
             if (!adding) {
                 MEMORY_LISTENER_UPDATE_REGION(frold, as, Reverse, region_del);
@@ -725,7 +722,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             ++iold;
         } else if (frold && frnew && flatrange_equal(frold, frnew)) {
-            /* In both (logging may have changed) */
+            /* In both and unchanged (except logging may have changed) */
 
             if (adding) {
                 MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_nop);
@@ -822,6 +819,7 @@ void memory_region_init(MemoryRegion *mr,
 {
     mr->ops = &unassigned_mem_ops;
     mr->opaque = NULL;
+    mr->iommu_ops = NULL;
     mr->parent = NULL;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
@@ -1106,6 +1104,17 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->ram_addr = qemu_ram_alloc(size, mr);
 }
 
+void memory_region_init_iommu(MemoryRegion *mr,
+                              const MemoryRegionIOMMUOps *ops,
+                              const char *name,
+                              uint64_t size)
+{
+    memory_region_init(mr, name, size);
+    mr->iommu_ops = ops,
+    mr->terminates = true;  /* then re-forwards */
+    notifier_list_init(&mr->iommu_notify);
+}
+
 void memory_region_init_reservation(MemoryRegion *mr,
                                     const char *name,
                                     uint64_t size)
@@ -1149,6 +1158,28 @@ bool memory_region_is_logging(MemoryRegion *mr)
 bool memory_region_is_rom(MemoryRegion *mr)
 {
     return mr->ram && mr->readonly;
+}
+
+bool memory_region_is_iommu(MemoryRegion *mr)
+{
+    return mr->iommu_ops;
+}
+
+void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n)
+{
+    notifier_list_add(&mr->iommu_notify, n);
+}
+
+void memory_region_unregister_iommu_notifier(Notifier *n)
+{
+    notifier_remove(n);
+}
+
+void memory_region_notify_iommu(MemoryRegion *mr,
+                                IOMMUTLBEntry entry)
+{
+    assert(memory_region_is_iommu(mr));
+    notifier_list_notify(&mr->iommu_notify, &entry);
 }
 
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
@@ -1258,7 +1289,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
             section = (MemoryRegionSection) {
                 .address_space = as,
                 .offset_within_address_space = int128_get64(fr->addr.start),
-                .size = int128_get64(fr->addr.size),
+                .size = fr->addr.size,
             };
 
             MEMORY_LISTENER_CALL(coalesced_mmio_del, Reverse, &section,
@@ -1549,7 +1580,7 @@ static FlatRange *address_space_lookup(AddressSpace *as, AddrRange addr)
 MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size)
 {
-    MemoryRegionSection ret = { .mr = NULL, .size = 0 };
+    MemoryRegionSection ret = { .mr = NULL };
     MemoryRegion *root;
     AddressSpace *as;
     AddrRange range;
@@ -1579,7 +1610,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     ret.offset_within_region = fr->offset_in_region;
     ret.offset_within_region += int128_get64(int128_sub(range.start,
                                                         fr->addr.start));
-    ret.size = int128_get64(range.size);
+    ret.size = range.size;
     ret.offset_within_address_space = int128_get64(range.start);
     ret.readonly = fr->readonly;
     return ret;
@@ -1627,7 +1658,7 @@ static void listener_add_address_space(MemoryListener *listener,
             .mr = fr->mr,
             .address_space = as,
             .offset_within_region = fr->offset_in_region,
-            .size = int128_get64(fr->addr.size),
+            .size = fr->addr.size,
             .offset_within_address_space = int128_get64(fr->addr.start),
             .readonly = fr->readonly,
         };
@@ -1666,7 +1697,7 @@ void memory_listener_unregister(MemoryListener *listener)
     QTAILQ_REMOVE(&memory_listeners, listener, link);
 }
 
-void address_space_init(AddressSpace *as, MemoryRegion *root)
+void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
     memory_region_transaction_begin();
     as->root = root;
@@ -1675,7 +1706,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root)
     as->ioeventfd_nb = 0;
     as->ioeventfds = NULL;
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
-    as->name = NULL;
+    as->name = g_strdup(name ? name : "anonymous");
     address_space_init_dispatch(as);
     memory_region_update_pending |= root->enabled;
     memory_region_transaction_commit();
@@ -1690,6 +1721,7 @@ void address_space_destroy(AddressSpace *as)
     QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
     address_space_destroy_dispatch(as);
     flatview_destroy(as->current_map);
+    g_free(as->name);
     g_free(as->current_map);
     g_free(as->ioeventfds);
 }
@@ -1755,7 +1787,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    "-" TARGET_FMT_plx "\n",
                    base + mr->addr,
                    base + mr->addr
-                   + (hwaddr)int128_get64(mr->size) - 1,
+                   + (hwaddr)int128_get64(int128_sub(mr->size, int128_make64(1))),
                    mr->priority,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
@@ -1770,7 +1802,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %c%c): %s\n",
                    base + mr->addr,
                    base + mr->addr
-                   + (hwaddr)int128_get64(mr->size) - 1,
+                   + (hwaddr)int128_get64(int128_sub(mr->size, int128_make64(1))),
                    mr->priority,
                    mr->romd_mode ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->romd_mode) ? 'W'
@@ -1816,9 +1848,6 @@ void mtree_info(fprintf_function mon_printf, void *f)
     QTAILQ_INIT(&ml_head);
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        if (!as->name) {
-            continue;
-        }
         mon_printf(f, "%s\n", as->name);
         mtree_print_mr(mon_printf, f, as->root, 0, 0, &ml_head);
     }
