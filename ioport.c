@@ -273,13 +273,6 @@ void isa_unassign_ioport(pio_addr_t start, int length)
     }
 }
 
-bool isa_is_ioport_assigned(pio_addr_t start)
-{
-    return (ioport_read_table[0][start] || ioport_write_table[0][start] ||
-	    ioport_read_table[1][start] || ioport_write_table[1][start] ||
-	    ioport_read_table[2][start] || ioport_write_table[2][start]);
-}
-
 /***********************************************************/
 
 void cpu_outb(pio_addr_t addr, uint8_t val)

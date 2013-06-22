@@ -383,14 +383,15 @@ static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
 static void piix4_pm_machine_ready(Notifier *n, void *opaque)
 {
     PIIX4PMState *s = container_of(n, PIIX4PMState, machine_ready);
+    MemoryRegion *io_as = pci_address_space_io(&s->dev);
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
-    pci_conf[0x5f] = (isa_is_ioport_assigned(0x378) ? 0x80 : 0) | 0x10;
+    pci_conf[0x5f] = 0x10 |
+        (memory_region_find(io_as, 0x378, 1).mr ? 0x80 : 0);
     pci_conf[0x63] = 0x60;
-    pci_conf[0x67] = (isa_is_ioport_assigned(0x3f8) ? 0x08 : 0) |
-	(isa_is_ioport_assigned(0x2f8) ? 0x90 : 0);
-
+    pci_conf[0x67] = (memory_region_find(io_as, 0x3f8, 1).mr ? 0x08 : 0) |
+        (memory_region_find(io_as, 0x2f8, 1).mr ? 0x90 : 0);
 }
 
 static int piix4_pm_initfn(PCIDevice *dev)

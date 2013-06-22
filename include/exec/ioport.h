@@ -40,7 +40,6 @@ typedef void (IOPortDestructor)(void *opaque);
 
 void ioport_register(IORange *iorange);
 void isa_unassign_ioport(pio_addr_t start, int length);
-bool isa_is_ioport_assigned(pio_addr_t start);
 
 void cpu_outb(pio_addr_t addr, uint8_t val);
 void cpu_outw(pio_addr_t addr, uint16_t val);
