@@ -1241,6 +1241,10 @@ static const MemoryRegionOps vmsvga_io_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = true,
+    },
+    .impl = {
+        .unaligned = true,
     },
 };
 
