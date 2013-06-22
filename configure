@@ -3445,6 +3445,36 @@ if test "$cpu" = "s390x" ; then
   roms="$roms s390-ccw"
 fi
 
+# Probe for the need for relocating the user-only binary.
+if test "$pie" = "no" ; then
+  textseg_addr=
+  case "$cpu" in
+    arm | hppa | i386 | m68k | ppc | ppc64 | s390* | sparc | sparc64 | x86_64)
+      textseg_addr=0x60000000
+      ;;
+    mips)
+      textseg_addr=0x400000
+      ;;
+  esac
+  if [ -n "$textseg_addr" ]; then
+    cat > $TMPC <<EOF
+    int main(void) { return 0; }
+EOF
+    textseg_ldflags="-Wl,-Ttext-segment=$textseg_addr"
+    if ! compile_prog "" "$textseg_ldflags"; then
+      # In case ld does not support -Ttext-segment, edit the default linker
+      # script via sed to set the .text start addr.  This is needed on FreeBSD
+      # at least.
+      $ld --verbose | sed \
+        -e '1,/==================================================/d' \
+        -e '/==================================================/,$d' \
+        -e "s/[.] = [0-9a-fx]* [+] SIZEOF_HEADERS/. = $textseg_addr + SIZEOF_HEADERS/" \
+        -e "s/__executable_start = [0-9a-fx]*/__executable_start = $textseg_addr/" > config-host.ld
+      textseg_ldflags="-Wl,-T../config-host.ld"
+    fi
+  fi
+fi
+
 # add pixman flags after all config tests are done
 QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags $fdt_cflags"
 libs_softmmu="$libs_softmmu $pixman_libs"
@@ -4073,9 +4103,6 @@ if test "$gcov" = "yes" ; then
   echo "GCOV=$gcov_tool" >> $config_host_mak
 fi
 
-# generate list of library paths for linker script
-$ld --verbose -v 2> /dev/null | grep SEARCH_DIR > config-host.ld
-
 # use included Linux headers
 if test "$linux" = "yes" ; then
   mkdir -p linux-headers
@@ -4438,21 +4465,8 @@ if test "$gprof" = "yes" ; then
   fi
 fi
 
-if test "$ARCH" = "tci"; then
-  linker_script=""
-else
-  linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/ldscripts/\$(ARCH).ld"
-fi
-
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
-  case "$ARCH" in
-  alpha | s390x | aarch64)
-    # The default placement of the application is fine.
-    ;;
-  *)
-    ldflags="$linker_script $ldflags"
-    ;;
-  esac
+  ldflags="$ldflags $textseg_ldflags"
 fi
 
 echo "LDFLAGS+=$ldflags" >> $config_target_mak
