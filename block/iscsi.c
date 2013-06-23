@@ -32,6 +32,7 @@
 #include "block/block_int.h"
 #include "trace.h"
 #include "block/scsi.h"
+#include "qemu/iov.h"
 
 #include <iscsi/iscsi.h>
 #include <iscsi/scsi-lowlevel.h>
@@ -651,6 +652,9 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
 {
     IscsiAIOCB *acb = opaque;
 
+    g_free(acb->buf);
+    acb->buf = NULL;
+
     if (acb->canceled != 0) {
         return;
     }
@@ -727,14 +731,30 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     memcpy(&acb->task->cdb[0], acb->ioh->cmdp, acb->ioh->cmd_len);
     acb->task->expxferlen = acb->ioh->dxfer_len;
 
+    data.size = 0;
     if (acb->task->xfer_dir == SCSI_XFER_WRITE) {
-        data.data = acb->ioh->dxferp;
-        data.size = acb->ioh->dxfer_len;
+        if (acb->ioh->iovec_count == 0) {
+            data.data = acb->ioh->dxferp;
+            data.size = acb->ioh->dxfer_len;
+        } else {
+#if defined(LIBISCSI_FEATURE_IOVECTOR)
+            scsi_task_set_iov_out(acb->task,
+                                 (struct scsi_iovec *) acb->ioh->dxferp,
+                                 acb->ioh->iovec_count);
+#else
+            struct iovec *iov = (struct iovec *)acb->ioh->dxferp;
+
+            acb->buf = g_malloc(acb->ioh->dxfer_len);
+            data.data = acb->buf;
+            data.size = iov_to_buf(iov, acb->ioh->iovec_count, 0,
+                                   acb->buf, acb->ioh->dxfer_len);
+#endif
+        }
     }
+
     if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
                                  iscsi_aio_ioctl_cb,
-                                 (acb->task->xfer_dir == SCSI_XFER_WRITE) ?
-                                     &data : NULL,
+                                 (data.size > 0) ? &data : NULL,
                                  acb) != 0) {
         scsi_free_scsi_task(acb->task);
         qemu_aio_release(acb);
@@ -743,9 +763,26 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
 
     /* tell libiscsi to read straight into the buffer we got from ioctl */
     if (acb->task->xfer_dir == SCSI_XFER_READ) {
-        scsi_task_add_data_in_buffer(acb->task,
-                                     acb->ioh->dxfer_len,
-                                     acb->ioh->dxferp);
+        if (acb->ioh->iovec_count == 0) {
+            scsi_task_add_data_in_buffer(acb->task,
+                                         acb->ioh->dxfer_len,
+                                         acb->ioh->dxferp);
+        } else {
+#if defined(LIBISCSI_FEATURE_IOVECTOR)
+            scsi_task_set_iov_in(acb->task,
+                                 (struct scsi_iovec *) acb->ioh->dxferp,
+                                 acb->ioh->iovec_count);
+#else
+            int i;
+            for (i = 0; i < acb->ioh->iovec_count; i++) {
+                struct iovec *iov = (struct iovec *)acb->ioh->dxferp;
+
+                scsi_task_add_data_in_buffer(acb->task,
+                    iov[i].iov_len,
+                    iov[i].iov_base);
+            }
+#endif
+        }
     }
 
     iscsi_set_events(iscsilun);
