@@ -89,17 +89,14 @@ run_multiboot:
 
 	/* Initialize multiboot mmap structs using int 0x15(e820) */
 	xor		%ebx, %ebx
-	/* mmap start after first size */
-	movl		$4, %edi
+	/* Start storing mmap data at %es:0 */
+	xor		%edi, %edi
 
 mmap_loop:
+	/* The multiboot entry size has offset -4, so leave some space */
+	add		$4, %di
 	/* entry size (mmap struct) & max buffer size (int15) */
 	movl		$20, %ecx
-	/* store entry size */
-	/* old as(1) doesn't like this insn so emit the bytes instead:
-	movl		%ecx, %es:-4(%edi)
-	*/
-	.dc.b		0x26,0x67,0x66,0x89,0x4f,0xfc
 	/* e820 */
 	movl		$0x0000e820, %eax
 	/* 'SMAP' magic */
@@ -107,21 +104,23 @@ mmap_loop:
 	int		$0x15
 
 mmap_check_entry:
-	/* last entry? then we're done */
+	/* Error or last entry already done? */
 	jb		mmap_done
-	and		%bx, %bx
-	jz		mmap_done
-	/* valid entry, so let's loop on */
 
 mmap_store_entry:
-	/* %ax = entry_number * 24 */
-	mov		$24, %ax
-	mul		%bx
-	mov		%ax, %di
+	/* store entry size */
+	/* old as(1) doesn't like this insn so emit the bytes instead:
+	movl		%ecx, %es:-4(%edi)
+	*/
+	.dc.b		0x26,0x67,0x66,0x89,0x4f,0xfc
+
+	/* %edi += entry_size, store as mbs_mmap_length */
+	add		%ecx, %edi
 	movw		%di, %fs:0x2c
-	/* %di = 4 + (entry_number * 24) */
-	add		$4, %di
-	jmp		mmap_loop
+
+	/* Continuation value 0 means last entry */
+	test		%ebx, %ebx
+	jnz		mmap_loop
 
 mmap_done:
 real_to_prot:
