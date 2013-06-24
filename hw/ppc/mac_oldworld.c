@@ -268,20 +268,19 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     macio = pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO);
     dev = DEVICE(macio);
     qdev_connect_gpio_out(dev, 0, pic[0x12]); /* CUDA */
-    qdev_connect_gpio_out(dev, 1, pic[0x0D]); /* IDE */
-    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 1, pic[0x0D]); /* IDE-0 */
+    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE-0 DMA */
+    qdev_connect_gpio_out(dev, 3, pic[0x0E]); /* IDE-1 */
+    qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE-1 DMA */
     macio_init(macio, pic_mem, escc_bar);
 
-    /* First IDE channel is a MAC IDE on the MacIO bus */
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
-                                                        "ide"));
+                                                        "ide[0]"));
     macio_ide_init_drives(macio_ide, hd);
 
-    /* Second IDE channel is a CMD646 on the PCI bus */
-    hd[0] = hd[MAX_IDE_DEVS];
-    hd[1] = hd[MAX_IDE_DEVS + 1];
-    hd[3] = hd[2] = NULL;
-    pci_cmd646_ide_init(pci_bus, hd, 0);
+    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
+                                                        "ide[1]"));
+    macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
     dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
     adb_bus = qdev_get_child_bus(dev, "adb.0");

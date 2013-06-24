@@ -363,7 +363,7 @@ static void macio_ide_register_types(void)
     type_register_static(&macio_ide_type_info);
 }
 
-/* hd_table must contain 4 block drivers */
+/* hd_table must contain 2 block drivers */
 void macio_ide_init_drives(MACIOIDEState *s, DriveInfo **hd_table)
 {
     int i;

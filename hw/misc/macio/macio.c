@@ -52,10 +52,10 @@ typedef struct OldWorldMacIOState {
     MacIOState parent_obj;
     /*< public >*/
 
-    qemu_irq irqs[3];
+    qemu_irq irqs[5];
 
     MacIONVRAMState nvram;
-    MACIOIDEState ide;
+    MACIOIDEState ide[2];
 } OldWorldMacIOState;
 
 #define NEWWORLD_MACIO(obj) \
@@ -147,18 +147,32 @@ static int macio_common_initfn(PCIDevice *d)
     return 0;
 }
 
+static int macio_initfn_ide(MacIOState *s, MACIOIDEState *ide, qemu_irq irq0,
+                            qemu_irq irq1, int dmaid)
+{
+    SysBusDevice *sysbus_dev;
+
+    sysbus_dev = SYS_BUS_DEVICE(ide);
+    sysbus_connect_irq(sysbus_dev, 0, irq0);
+    sysbus_connect_irq(sysbus_dev, 1, irq1);
+    macio_ide_register_dma(ide, s->dbdma, dmaid);
+    return qdev_init(DEVICE(ide));
+}
+
 static int macio_oldworld_initfn(PCIDevice *d)
 {
     MacIOState *s = MACIO(d);
     OldWorldMacIOState *os = OLDWORLD_MACIO(d);
     SysBusDevice *sysbus_dev;
+    int i;
+    int cur_irq = 0;
     int ret = macio_common_initfn(d);
     if (ret < 0) {
         return ret;
     }
 
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
-    sysbus_connect_irq(sysbus_dev, 0, os->irqs[0]);
+    sysbus_connect_irq(sysbus_dev, 0, os->irqs[cur_irq++]);
 
     ret = qdev_init(DEVICE(&os->nvram));
     if (ret < 0) {
@@ -174,16 +188,31 @@ static int macio_oldworld_initfn(PCIDevice *d)
         memory_region_add_subregion(&s->bar, 0x00000, s->pic_mem);
     }
 
-    sysbus_dev = SYS_BUS_DEVICE(&os->ide);
-    sysbus_connect_irq(sysbus_dev, 0, os->irqs[1]);
-    sysbus_connect_irq(sysbus_dev, 1, os->irqs[2]);
-    macio_ide_register_dma(&os->ide, s->dbdma, 0x16);
-    ret = qdev_init(DEVICE(&os->ide));
-    if (ret < 0) {
-        return ret;
+    /* IDE buses */
+    for (i = 0; i < ARRAY_SIZE(os->ide); i++) {
+        qemu_irq irq0 = os->irqs[cur_irq++];
+        qemu_irq irq1 = os->irqs[cur_irq++];
+
+        ret = macio_initfn_ide(s, &os->ide[i], irq0, irq1, 0x16 + (i * 4));
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     return 0;
+}
+
+static void macio_init_ide(MacIOState *s, MACIOIDEState *ide, int index)
+{
+    gchar *name;
+
+    object_initialize(ide, TYPE_MACIO_IDE);
+    qdev_set_parent_bus(DEVICE(ide), sysbus_get_default());
+    memory_region_add_subregion(&s->bar, 0x1f000 + ((index + 1) * 0x1000),
+                                &ide->mem);
+    name = g_strdup_printf("ide[%i]", index);
+    object_property_add_child(OBJECT(s), name, OBJECT(ide), NULL);
+    g_free(name);
 }
 
 static void macio_oldworld_init(Object *obj)
@@ -191,6 +220,7 @@ static void macio_oldworld_init(Object *obj)
     MacIOState *s = MACIO(obj);
     OldWorldMacIOState *os = OLDWORLD_MACIO(obj);
     DeviceState *dev;
+    int i;
 
     qdev_init_gpio_out(DEVICE(obj), os->irqs, ARRAY_SIZE(os->irqs));
 
@@ -199,10 +229,9 @@ static void macio_oldworld_init(Object *obj)
     qdev_prop_set_uint32(dev, "size", 0x2000);
     qdev_prop_set_uint32(dev, "it_shift", 4);
 
-    object_initialize(&os->ide, TYPE_MACIO_IDE);
-    qdev_set_parent_bus(DEVICE(&os->ide), sysbus_get_default());
-    memory_region_add_subregion(&s->bar, 0x1f000 + (1 * 0x1000), &os->ide.mem);
-    object_property_add_child(obj, "ide", OBJECT(&os->ide), NULL);
+    for (i = 0; i < 2; i++) {
+        macio_init_ide(s, &os->ide[i], i);
+    }
 }
 
 static int macio_newworld_initfn(PCIDevice *d)
@@ -210,35 +239,30 @@ static int macio_newworld_initfn(PCIDevice *d)
     MacIOState *s = MACIO(d);
     NewWorldMacIOState *ns = NEWWORLD_MACIO(d);
     SysBusDevice *sysbus_dev;
+    int i;
+    int cur_irq = 0;
     int ret = macio_common_initfn(d);
     if (ret < 0) {
         return ret;
     }
 
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
-    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[0]);
+    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[cur_irq++]);
 
     if (s->pic_mem) {
         /* OpenPIC */
         memory_region_add_subregion(&s->bar, 0x40000, s->pic_mem);
     }
 
-    sysbus_dev = SYS_BUS_DEVICE(&ns->ide[0]);
-    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[1]);
-    sysbus_connect_irq(sysbus_dev, 1, ns->irqs[2]);
-    macio_ide_register_dma(&ns->ide[0], s->dbdma, 0x16);
-    ret = qdev_init(DEVICE(&ns->ide[0]));
-    if (ret < 0) {
-        return ret;
-    }
+    /* IDE buses */
+    for (i = 0; i < ARRAY_SIZE(ns->ide); i++) {
+        qemu_irq irq0 = ns->irqs[cur_irq++];
+        qemu_irq irq1 = ns->irqs[cur_irq++];
 
-    sysbus_dev = SYS_BUS_DEVICE(&ns->ide[1]);
-    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[3]);
-    sysbus_connect_irq(sysbus_dev, 1, ns->irqs[4]);
-    macio_ide_register_dma(&ns->ide[1], s->dbdma, 0x1a);
-    ret = qdev_init(DEVICE(&ns->ide[1]));
-    if (ret < 0) {
-        return ret;
+        ret = macio_initfn_ide(s, &ns->ide[i], irq0, irq1, 0x16 + (i * 4));
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     return 0;
@@ -249,18 +273,11 @@ static void macio_newworld_init(Object *obj)
     MacIOState *s = MACIO(obj);
     NewWorldMacIOState *ns = NEWWORLD_MACIO(obj);
     int i;
-    gchar *name;
 
     qdev_init_gpio_out(DEVICE(obj), ns->irqs, ARRAY_SIZE(ns->irqs));
 
     for (i = 0; i < 2; i++) {
-        object_initialize(&ns->ide[i], TYPE_MACIO_IDE);
-        qdev_set_parent_bus(DEVICE(&ns->ide[i]), sysbus_get_default());
-        memory_region_add_subregion(&s->bar, 0x1f000 + ((i + 1) * 0x1000),
-                                    &ns->ide[i].mem);
-        name = g_strdup_printf("ide[%i]", i);
-        object_property_add_child(obj, name, OBJECT(&ns->ide[i]), NULL);
-        g_free(name);
+        macio_init_ide(s, &ns->ide[i], i);
     }
 }
 
