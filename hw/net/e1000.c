@@ -138,6 +138,11 @@ typedef struct E1000State_st {
     uint32_t compat_flags;
 } E1000State;
 
+#define TYPE_E1000 "e1000"
+
+#define E1000(obj) \
+    OBJECT_CHECK(E1000State, (obj), TYPE_E1000)
+
 #define	defreg(x)	x = (E1000_##x>>2)
 enum {
     defreg(CTRL),	defreg(EECD),	defreg(EERD),	defreg(GPRC),
@@ -1298,7 +1303,7 @@ e1000_cleanup(NetClientState *nc)
 static void
 pci_e1000_uninit(PCIDevice *dev)
 {
-    E1000State *d = DO_UPCAST(E1000State, dev, dev);
+    E1000State *d = E1000(dev);
 
     qemu_del_timer(d->autoneg_timer);
     qemu_free_timer(d->autoneg_timer);
@@ -1318,7 +1323,8 @@ static NetClientInfo net_e1000_info = {
 
 static int pci_e1000_init(PCIDevice *pci_dev)
 {
-    E1000State *d = DO_UPCAST(E1000State, dev, pci_dev);
+    DeviceState *dev = DEVICE(pci_dev);
+    E1000State *d = E1000(pci_dev);
     uint8_t *pci_conf;
     uint16_t checksum = 0;
     int i;
@@ -1349,11 +1355,11 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     d->eeprom_data[EEPROM_CHECKSUM_REG] = checksum;
 
     d->nic = qemu_new_nic(&net_e1000_info, &d->conf,
-                          object_get_typename(OBJECT(d)), d->dev.qdev.id, d);
+                          object_get_typename(OBJECT(d)), dev->id, d);
 
     qemu_format_nic_info_str(qemu_get_queue(d->nic), macaddr);
 
-    add_boot_device_path(d->conf.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
+    add_boot_device_path(d->conf.bootindex, dev, "/ethernet-phy@0");
 
     d->autoneg_timer = qemu_new_timer_ms(vm_clock, e1000_autoneg_timer, d);
 
@@ -1362,7 +1368,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
 static void qdev_e1000_reset(DeviceState *dev)
 {
-    E1000State *d = DO_UPCAST(E1000State, dev.qdev, dev);
+    E1000State *d = E1000(dev);
     e1000_reset(d);
 }
 
@@ -1392,7 +1398,7 @@ static void e1000_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo e1000_info = {
-    .name          = "e1000",
+    .name          = TYPE_E1000,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(E1000State),
     .class_init    = e1000_class_init,
