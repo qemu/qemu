@@ -448,9 +448,10 @@ static uint64_t spapr_io_read(void *opaque, hwaddr addr,
     case 2:
         return cpu_inw(addr);
     case 4:
+    default:
+        assert(size == 4);
         return cpu_inl(addr);
     }
-    assert(0);
 }
 
 static void spapr_io_write(void *opaque, hwaddr addr,
