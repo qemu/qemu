@@ -69,7 +69,7 @@ static MemoryRegion io_mem_unassigned;
 
 #endif
 
-CPUState *first_cpu;
+struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
 /* current CPU in the current thread. It is only valid inside
    cpu_exec() */
 DEFINE_TLS(CPUState *, current_cpu);
@@ -351,26 +351,23 @@ const VMStateDescription vmstate_cpu_common = {
 
 CPUState *qemu_get_cpu(int index)
 {
-    CPUState *cpu = first_cpu;
+    CPUState *cpu;
 
-    while (cpu) {
+    CPU_FOREACH(cpu) {
         if (cpu->cpu_index == index) {
-            break;
+            return cpu;
         }
-        cpu = cpu->next_cpu;
     }
 
-    return cpu;
+    return NULL;
 }
 
 void qemu_for_each_cpu(void (*func)(CPUState *cpu, void *data), void *data)
 {
     CPUState *cpu;
 
-    cpu = first_cpu;
-    while (cpu) {
+    CPU_FOREACH(cpu) {
         func(cpu, data);
-        cpu = cpu->next_cpu;
     }
 }
 
@@ -378,17 +375,14 @@ void cpu_exec_init(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    CPUState **pcpu;
+    CPUState *some_cpu;
     int cpu_index;
 
 #if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
 #endif
-    cpu->next_cpu = NULL;
-    pcpu = &first_cpu;
     cpu_index = 0;
-    while (*pcpu != NULL) {
-        pcpu = &(*pcpu)->next_cpu;
+    CPU_FOREACH(some_cpu) {
         cpu_index++;
     }
     cpu->cpu_index = cpu_index;
@@ -398,7 +392,7 @@ void cpu_exec_init(CPUArchState *env)
 #ifndef CONFIG_USER_ONLY
     cpu->thread_id = qemu_get_thread_id();
 #endif
-    *pcpu = cpu;
+    QTAILQ_INSERT_TAIL(&cpus, cpu, node);
 #if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
 #endif
@@ -1762,7 +1756,7 @@ static void tcg_commit(MemoryListener *listener)
     /* since each CPU stores ram addresses in its TLB cache, we must
        reset the modified entries */
     /* XXX: slow ! */
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         CPUArchState *env = cpu->env_ptr;
 
         tlb_flush(env, 1);

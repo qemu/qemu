@@ -679,7 +679,7 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
         switch (mflags) {
         case H_SET_MODE_ENDIAN_BIG:
-            for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+            CPU_FOREACH(cs) {
                 PowerPCCPU *cp = POWERPC_CPU(cs);
                 CPUPPCState *env = &cp->env;
                 env->spr[SPR_LPCR] &= ~LPCR_ILE;
@@ -688,7 +688,7 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPREnvironment *spapr,
             break;
 
         case H_SET_MODE_ENDIAN_LITTLE:
-            for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+            CPU_FOREACH(cs) {
                 PowerPCCPU *cp = POWERPC_CPU(cs);
                 CPUPPCState *env = &cp->env;
                 env->spr[SPR_LPCR] |= LPCR_ILE;

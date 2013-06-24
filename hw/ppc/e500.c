@@ -540,7 +540,7 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
         return NULL;
     }
 
-    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+    CPU_FOREACH(cs) {
         if (kvm_openpic_connect_vcpu(dev, cs)) {
             fprintf(stderr, "%s: failed to connect vcpu to irqchip\n",
                     __func__);

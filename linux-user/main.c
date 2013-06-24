@@ -117,10 +117,14 @@ void fork_end(int child)
 {
     mmap_fork_end(child);
     if (child) {
+        CPUState *cpu, *next_cpu;
         /* Child processes created by fork() only have a single thread.
            Discard information about the parent threads.  */
-        first_cpu = thread_cpu;
-        first_cpu->next_cpu = NULL;
+        CPU_FOREACH_SAFE(cpu, next_cpu) {
+            if (cpu != thread_cpu) {
+                QTAILQ_REMOVE(&cpus, thread_cpu, node);
+            }
+        }
         pending_cpus = 0;
         pthread_mutex_init(&exclusive_lock, NULL);
         pthread_mutex_init(&cpu_list_mutex, NULL);
@@ -154,7 +158,7 @@ static inline void start_exclusive(void)
 
     pending_cpus = 1;
     /* Make all other cpus stop executing.  */
-    for (other_cpu = first_cpu; other_cpu; other_cpu = other_cpu->next_cpu) {
+    CPU_FOREACH(other_cpu) {
         if (other_cpu->running) {
             pending_cpus++;
             cpu_exit(other_cpu);

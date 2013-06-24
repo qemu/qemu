@@ -23,6 +23,7 @@
 #include <signal.h>
 #include "hw/qdev-core.h"
 #include "exec/hwaddr.h"
+#include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qemu/tls.h"
 #include "qemu/typedefs.h"
@@ -190,7 +191,7 @@ struct CPUState {
     struct GDBRegisterState *gdb_regs;
     int gdb_num_regs;
     int gdb_num_g_regs;
-    CPUState *next_cpu;
+    QTAILQ_ENTRY(CPUState) node;
 
     int kvm_fd;
     bool kvm_vcpu_dirty;
@@ -202,7 +203,13 @@ struct CPUState {
     uint32_t halted; /* used by alpha, cris, ppc TCG */
 };
 
-extern CPUState *first_cpu;
+QTAILQ_HEAD(CPUTailQ, CPUState);
+extern struct CPUTailQ cpus;
+#define CPU_NEXT(cpu) QTAILQ_NEXT(cpu, node)
+#define CPU_FOREACH(cpu) QTAILQ_FOREACH(cpu, &cpus, node)
+#define CPU_FOREACH_SAFE(cpu, next_cpu) \
+    QTAILQ_FOREACH_SAFE(cpu, &cpus, node, next_cpu)
+#define first_cpu QTAILQ_FIRST(&cpus)
 
 DECLARE_TLS(CPUState *, current_cpu);
 #define current_cpu tls_var(current_cpu)

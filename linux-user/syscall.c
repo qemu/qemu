@@ -5113,25 +5113,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
            Do thread termination if we have more then one thread.  */
         /* FIXME: This probably breaks if a signal arrives.  We should probably
            be disabling signals.  */
-        if (first_cpu->next_cpu) {
+        if (CPU_NEXT(first_cpu)) {
             TaskState *ts;
-            CPUState **lastp;
-            CPUState *p;
 
             cpu_list_lock();
-            lastp = &first_cpu;
-            p = first_cpu;
-            while (p && p != cpu) {
-                lastp = &p->next_cpu;
-                p = p->next_cpu;
-            }
-            /* If we didn't find the CPU for this thread then something is
-               horribly wrong.  */
-            if (!p) {
-                abort();
-            }
             /* Remove the CPU from the list.  */
-            *lastp = p->next_cpu;
+            QTAILQ_REMOVE(&cpus, cpu, node);
             cpu_list_unlock();
             ts = ((CPUArchState *)cpu_env)->opaque;
             if (ts->child_tidptr) {

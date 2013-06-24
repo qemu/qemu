@@ -187,7 +187,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 
     assert(spapr->cpu_model);
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         uint32_t associativity[] = {cpu_to_be32(0x5),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
@@ -351,7 +351,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     /* This is needed during FDT finalization */
     spapr->cpu_model = g_strdup(modelname);
 
-    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+    CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         CPUPPCState *env = &cpu->env;
         PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);

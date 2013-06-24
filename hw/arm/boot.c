@@ -468,7 +468,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     }
     info->is_linux = is_linux;
 
-    for (; cs; cs = cs->next_cpu) {
+    for (; cs; cs = CPU_NEXT(cs)) {
         cpu = ARM_CPU(cs);
         cpu->env.boot_info = info;
         qemu_register_reset(do_cpu_reset, cpu);

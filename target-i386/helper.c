@@ -1231,8 +1231,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
         params.mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV;
         params.addr = 0;
         params.misc = 0;
-        for (other_cs = first_cpu; other_cs != NULL;
-             other_cs = other_cs->next_cpu) {
+        CPU_FOREACH(other_cs) {
             if (other_cs == cs) {
                 continue;
             }
