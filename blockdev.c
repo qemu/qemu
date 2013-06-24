@@ -818,7 +818,6 @@ typedef struct ExternalSnapshotStates {
 static void external_snapshot_prepare(BlkTransactionStates *common,
                                       Error **errp)
 {
-    BlockDriver *proto_drv;
     BlockDriver *drv;
     int flags, ret;
     Error *local_err = NULL;
@@ -873,12 +872,6 @@ static void external_snapshot_prepare(BlkTransactionStates *common,
     }
 
     flags = states->old_bs->open_flags;
-
-    proto_drv = bdrv_find_protocol(new_image_file);
-    if (!proto_drv) {
-        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
-        return;
-    }
 
     /* create new image w/backing file */
     if (mode != NEW_IMAGE_MODE_EXISTING) {
@@ -1375,7 +1368,6 @@ void qmp_drive_mirror(const char *device, const char *target,
 {
     BlockDriverState *bs;
     BlockDriverState *source, *target_bs;
-    BlockDriver *proto_drv;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
     int flags;
@@ -1443,12 +1435,6 @@ void qmp_drive_mirror(const char *device, const char *target,
         sync = MIRROR_SYNC_MODE_FULL;
     }
 
-    proto_drv = bdrv_find_protocol(target);
-    if (!proto_drv) {
-        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
-        return;
-    }
-
     bdrv_get_geometry(bs, &size);
     size *= 512;
     if (sync == MIRROR_SYNC_MODE_FULL && mode != NEW_IMAGE_MODE_EXISTING) {
@@ -1483,7 +1469,6 @@ void qmp_drive_mirror(const char *device, const char *target,
      */
     target_bs = bdrv_new("");
     ret = bdrv_open(target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv);
-
     if (ret < 0) {
         bdrv_delete(target_bs);
         error_setg_file_open(errp, -ret, target);
