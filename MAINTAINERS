@@ -303,11 +303,7 @@ Axis Dev88
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/cris/axis_dev88.c
-
-etraxfs
-M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
-S: Maintained
-F: hw/cris/etraxfs.c
+F: hw/*/etraxfs_*.c
 
 LM32 Machines
 -------------
@@ -343,7 +339,7 @@ MicroBlaze Machines
 petalogix_s3adsp1800
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
-F: hw/microblaze/petalogix_s3adsp1800.c
+F: hw/microblaze/petalogix_s3adsp1800_mmu.c
 
 petalogix_ml605
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
@@ -407,8 +403,8 @@ M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/mac_newworld.c
-F: hw/pci/devices/host-uninorth.c
-F: hw/pci/devices/host-dec.[hc]
+F: hw/pci-host/uninorth.c
+F: hw/pci-bridge/dec.[hc]
 F: hw/misc/macio/
 
 Old World
@@ -416,7 +412,7 @@ M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/mac_oldworld.c
-F: hw/pci/devices/host-grackle.c
+F: hw/pci-host/grackle.c
 F: hw/misc/macio/
 
 PReP
@@ -424,7 +420,7 @@ M: Andreas Färber <andreas.faerber@web.de>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/prep.c
-F: hw/pci/devices/host-prep.[hc]
+F: hw/pci-host/prep.[hc]
 F: hw/isa/pc87312.[hc]
 
 sPAPR
@@ -441,19 +437,19 @@ virtex_ml507
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
-F: hw/pci/virtex_ml507.c
+F: hw/ppc/virtex_ml507.c
 
 SH4 Machines
 ------------
 R2D
 M: Magnus Damm <magnus.damm@gmail.com>
 S: Maintained
-F: hw/sh/r2d.c
+F: hw/sh4/r2d.c
 
 Shix
 M: Magnus Damm <magnus.damm@gmail.com>
 S: Orphan
-F: hw/sh/shix.c
+F: hw/sh4/shix.c
 
 SPARC Machines
 --------------
@@ -478,7 +474,7 @@ S390 Machines
 S390 Virtio
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
-F: hw/s390/s390-*.c
+F: hw/s390x/s390-*.c
 
 S390 Virtio-ccw
 M: Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -547,7 +543,7 @@ M: Alexander Graf <agraf@suse.de>
 M: Scott Wood <scottwood@freescale.com>
 L: qemu-ppc@nongnu.org
 S: Supported
-F: hw/ppc/e500_*
+F: hw/ppc/e500*
 
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -575,7 +571,7 @@ F: hw/usb/*
 VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
 S: Supported
-F: hw/pci/vfio.c
+F: hw/misc/vfio.c
 
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
@@ -649,7 +645,7 @@ CPU
 M: Andreas Färber <afaerber@suse.de>
 S: Supported
 F: qom/cpu.c
-F: include/qemu/cpu.h
+F: include/qom/cpu.h
 F: target-i386/cpu.c
 
 ICC Bus
@@ -662,7 +658,7 @@ Device Tree
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
-F: device-tree.[ch]
+F: device_tree.[ch]
 
 GDB stub
 M: qemu-devel@nongnu.org
@@ -673,7 +669,7 @@ F: gdb-xml/
 SPICE
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Supported
-F: ui/qemu-spice.h
+F: include/ui/qemu-spice.h
 F: ui/spice-*.c
 F: audio/spiceaudio.c
 F: hw/display/qxl*
