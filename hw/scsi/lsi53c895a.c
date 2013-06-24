@@ -275,6 +275,11 @@ typedef struct {
     uint32_t script_ram[2048];
 } LSIState;
 
+#define TYPE_LSI53C895A "lsi53c895a"
+
+#define LSI53C895A(obj) \
+    OBJECT_CHECK(LSIState, (obj), TYPE_LSI53C895A)
+
 static inline int lsi_irq_on_rsl(LSIState *s)
 {
     return (s->sien0 & LSI_SIST0_RSL) && (s->scid & LSI_SCID_RRE);
@@ -653,7 +658,7 @@ static void lsi_request_free(LSIState *s, lsi_request *p)
 
 static void lsi_request_cancelled(SCSIRequest *req)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    LSIState *s = LSI53C895A(req->bus->qbus.parent);
     lsi_request *p = req->hba_private;
 
     req->hba_private = NULL;
@@ -692,7 +697,7 @@ static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
  /* Callback to indicate that the SCSI layer has completed a command.  */
 static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    LSIState *s = LSI53C895A(req->bus->qbus.parent);
     int out;
 
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
@@ -717,7 +722,7 @@ static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid
  /* Callback to indicate that the SCSI layer has completed a transfer.  */
 static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    LSIState *s = LSI53C895A(req->bus->qbus.parent);
     int out;
 
     assert(req->hba_private);
@@ -1726,7 +1731,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             lsi_execute_script(s);
         }
         if (val & LSI_ISTAT0_SRST) {
-            qdev_reset_all(&s->dev.qdev);
+            qdev_reset_all(DEVICE(s));
         }
         break;
     case 0x16: /* MBOX0 */
@@ -1960,7 +1965,7 @@ static const MemoryRegionOps lsi_io_ops = {
 
 static void lsi_scsi_reset(DeviceState *dev)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, dev);
+    LSIState *s = LSI53C895A(dev);
 
     lsi_soft_reset(s);
 }
@@ -2061,7 +2066,7 @@ static const VMStateDescription vmstate_lsi_scsi = {
 
 static void lsi_scsi_uninit(PCIDevice *d)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev, d);
+    LSIState *s = LSI53C895A(d);
 
     memory_region_destroy(&s->mmio_io);
     memory_region_destroy(&s->ram_io);
@@ -2080,7 +2085,8 @@ static const struct SCSIBusInfo lsi_scsi_info = {
 
 static int lsi_scsi_init(PCIDevice *dev)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev, dev);
+    LSIState *s = LSI53C895A(dev);
+    DeviceState *d = DEVICE(dev);
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
@@ -2102,8 +2108,8 @@ static int lsi_scsi_init(PCIDevice *dev)
     pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
-    scsi_bus_new(&s->bus, &dev->qdev, &lsi_scsi_info, NULL);
-    if (!dev->qdev.hotplugged) {
+    scsi_bus_new(&s->bus, d, &lsi_scsi_info, NULL);
+    if (!d->hotplugged) {
         return scsi_bus_legacy_handle_cmdline(&s->bus);
     }
     return 0;
@@ -2125,7 +2131,7 @@ static void lsi_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo lsi_info = {
-    .name          = "lsi53c895a",
+    .name          = TYPE_LSI53C895A,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(LSIState),
     .class_init    = lsi_class_init,
