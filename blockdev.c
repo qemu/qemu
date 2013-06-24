@@ -919,12 +919,61 @@ static void external_snapshot_abort(BlkTransactionState *common)
     }
 }
 
+typedef struct DriveBackupState {
+    BlkTransactionState common;
+    BlockDriverState *bs;
+    BlockJob *job;
+} DriveBackupState;
+
+static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
+{
+    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    DriveBackup *backup;
+    Error *local_err = NULL;
+
+    assert(common->action->kind == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
+    backup = common->action->drive_backup;
+
+    qmp_drive_backup(backup->device, backup->target,
+                     backup->has_format, backup->format,
+                     backup->has_mode, backup->mode,
+                     backup->has_speed, backup->speed,
+                     backup->has_on_source_error, backup->on_source_error,
+                     backup->has_on_target_error, backup->on_target_error,
+                     &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        state->bs = NULL;
+        state->job = NULL;
+        return;
+    }
+
+    state->bs = bdrv_find(backup->device);
+    state->job = state->bs->job;
+}
+
+static void drive_backup_abort(BlkTransactionState *common)
+{
+    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    BlockDriverState *bs = state->bs;
+
+    /* Only cancel if it's the job we started */
+    if (bs && bs->job && bs->job == state->job) {
+        block_job_cancel_sync(bs->job);
+    }
+}
+
 static const BdrvActionOps actions[] = {
     [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
         .instance_size = sizeof(ExternalSnapshotState),
         .prepare  = external_snapshot_prepare,
         .commit   = external_snapshot_commit,
         .abort = external_snapshot_abort,
+    },
+    [TRANSACTION_ACTION_KIND_DRIVE_BACKUP] = {
+        .instance_size = sizeof(DriveBackupState),
+        .prepare = drive_backup_prepare,
+        .abort = drive_backup_abort,
     },
 };
 
