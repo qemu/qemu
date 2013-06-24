@@ -871,7 +871,6 @@ SocketAddress *socket_parse(const char *str, Error **errp)
         }
     } else {
         addr->kind = SOCKET_ADDRESS_KIND_INET;
-        addr->inet = g_new(InetSocketAddress, 1);
         addr->inet = inet_parse(str, errp);
         if (addr->inet == NULL) {
             goto fail;
