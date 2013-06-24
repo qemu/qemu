@@ -48,6 +48,10 @@
 #define IVSHMEM_DPRINTF(fmt, ...)
 #endif
 
+#define TYPE_IVSHMEM "ivshmem"
+#define IVSHMEM(obj) \
+    OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM)
+
 typedef struct Peer {
     int nb_eventfds;
     EventNotifier *eventfds;
@@ -341,7 +345,7 @@ static void create_shared_memory_BAR(IVShmemState *s, int fd) {
 
     memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s), "ivshmem.bar2",
                                s->ivshmem_size, ptr);
-    vmstate_register_ram(&s->ivshmem, &s->dev.qdev);
+    vmstate_register_ram(&s->ivshmem, DEVICE(s));
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
     /* region for shared memory */
@@ -469,7 +473,7 @@ static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
                                                             incoming_fd, 0);
         memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s),
                                    "ivshmem.bar2", s->ivshmem_size, map_ptr);
-        vmstate_register_ram(&s->ivshmem, &s->dev.qdev);
+        vmstate_register_ram(&s->ivshmem, DEVICE(s));
 
         IVSHMEM_DPRINTF("guest h/w addr = %" PRIu64 ", size = %" PRIu64 "\n",
                          s->ivshmem_offset, s->ivshmem_size);
@@ -534,7 +538,7 @@ static void ivshmem_use_msix(IVShmemState * s)
 
 static void ivshmem_reset(DeviceState *d)
 {
-    IVShmemState *s = DO_UPCAST(IVShmemState, dev.qdev, d);
+    IVShmemState *s = IVSHMEM(d);
 
     s->intrstatus = 0;
     ivshmem_use_msix(s);
@@ -639,7 +643,7 @@ static void ivshmem_write_config(PCIDevice *pci_dev, uint32_t address,
 
 static int pci_ivshmem_init(PCIDevice *dev)
 {
-    IVShmemState *s = DO_UPCAST(IVShmemState, dev, dev);
+    IVShmemState *s = IVSHMEM(dev);
     uint8_t *pci_conf;
 
     if (s->sizearg == NULL)
@@ -648,7 +652,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
         s->ivshmem_size = ivshmem_get_size(s);
     }
 
-    register_savevm(&s->dev.qdev, "ivshmem", 0, 0, ivshmem_save, ivshmem_load,
+    register_savevm(DEVICE(dev), "ivshmem", 0, 0, ivshmem_save, ivshmem_load,
                                                                         dev);
 
     /* IRQFD requires MSI */
@@ -771,7 +775,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
 
 static void pci_ivshmem_uninit(PCIDevice *dev)
 {
-    IVShmemState *s = DO_UPCAST(IVShmemState, dev, dev);
+    IVShmemState *s = IVSHMEM(dev);
 
     if (s->migration_blocker) {
         migrate_del_blocker(s->migration_blocker);
@@ -780,10 +784,10 @@ static void pci_ivshmem_uninit(PCIDevice *dev)
 
     memory_region_destroy(&s->ivshmem_mmio);
     memory_region_del_subregion(&s->bar, &s->ivshmem);
-    vmstate_unregister_ram(&s->ivshmem, &s->dev.qdev);
+    vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
     memory_region_destroy(&s->ivshmem);
     memory_region_destroy(&s->bar);
-    unregister_savevm(&dev->qdev, "ivshmem", s);
+    unregister_savevm(DEVICE(dev), "ivshmem", s);
 }
 
 static Property ivshmem_properties[] = {
@@ -813,7 +817,7 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ivshmem_info = {
-    .name          = "ivshmem",
+    .name          = TYPE_IVSHMEM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IVShmemState),
     .class_init    = ivshmem_class_init,
