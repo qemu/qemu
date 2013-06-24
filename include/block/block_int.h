@@ -399,4 +399,23 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp);
 
+/*
+ * backup_start:
+ * @bs: Block device to operate on.
+ * @target: Block device to write to.
+ * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
+ * @on_source_error: The action to take upon error reading from the source.
+ * @on_target_error: The action to take upon error writing to the target.
+ * @cb: Completion function for the job.
+ * @opaque: Opaque pointer value passed to @cb.
+ *
+ * Start a backup operation on @bs.  Clusters in @bs are written to @target
+ * until the job is cancelled or manually completed.
+ */
+void backup_start(BlockDriverState *bs, BlockDriverState *target,
+                  int64_t speed, BlockdevOnError on_source_error,
+                  BlockdevOnError on_target_error,
+                  BlockDriverCompletionFunc *cb, void *opaque,
+                  Error **errp);
+
 #endif /* BLOCK_INT_H */
