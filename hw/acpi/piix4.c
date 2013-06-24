@@ -96,6 +96,11 @@ typedef struct PIIX4PMState {
     Notifier cpu_added_notifier;
 } PIIX4PMState;
 
+#define TYPE_PIIX4_PM "PIIX4_PM"
+
+#define PIIX4_PM(obj) \
+    OBJECT_CHECK(PIIX4PMState, (obj), TYPE_PIIX4_PM)
+
 static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                            PCIBus *bus, PIIX4PMState *s);
 
@@ -300,7 +305,7 @@ static const VMStateDescription vmstate_acpi = {
 static void acpi_piix_eject_slot(PIIX4PMState *s, unsigned slots)
 {
     BusChild *kid, *next;
-    BusState *bus = qdev_get_parent_bus(&s->dev.qdev);
+    BusState *bus = qdev_get_parent_bus(DEVICE(s));
     int slot = ffs(slots) - 1;
     bool slot_free = true;
 
@@ -326,8 +331,7 @@ static void acpi_piix_eject_slot(PIIX4PMState *s, unsigned slots)
 
 static void piix4_update_hotplug(PIIX4PMState *s)
 {
-    PCIDevice *dev = &s->dev;
-    BusState *bus = qdev_get_parent_bus(&dev->qdev);
+    BusState *bus = qdev_get_parent_bus(DEVICE(s));
     BusChild *kid, *next;
 
     /* Execute any pending removes during reset */
@@ -396,7 +400,7 @@ static void piix4_pm_machine_ready(Notifier *n, void *opaque)
 
 static int piix4_pm_initfn(PCIDevice *dev)
 {
-    PIIX4PMState *s = DO_UPCAST(PIIX4PMState, dev, dev);
+    PIIX4PMState *s = PIIX4_PM(dev);
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
@@ -419,7 +423,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     pci_conf[0x90] = s->smb_io_base | 1;
     pci_conf[0x91] = s->smb_io_base >> 8;
     pci_conf[0xd2] = 0x09;
-    pm_smbus_init(&s->dev.qdev, &s->smb);
+    pm_smbus_init(DEVICE(dev), &s->smb);
     memory_region_set_enabled(&s->smb.io, pci_conf[0xd2] & 1);
     memory_region_add_subregion(pci_address_space_io(dev),
                                 s->smb_io_base, &s->smb.io);
@@ -450,18 +454,18 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                        qemu_irq sci_irq, qemu_irq smi_irq,
                        int kvm_enabled, FWCfgState *fw_cfg)
 {
-    PCIDevice *dev;
+    DeviceState *dev;
     PIIX4PMState *s;
 
-    dev = pci_create(bus, devfn, "PIIX4_PM");
-    qdev_prop_set_uint32(&dev->qdev, "smb_io_base", smb_io_base);
+    dev = DEVICE(pci_create(bus, devfn, TYPE_PIIX4_PM));
+    qdev_prop_set_uint32(dev, "smb_io_base", smb_io_base);
 
-    s = DO_UPCAST(PIIX4PMState, dev, dev);
+    s = PIIX4_PM(dev);
     s->irq = sci_irq;
     s->smi_irq = smi_irq;
     s->kvm_enabled = kvm_enabled;
 
-    qdev_init_nofail(&dev->qdev);
+    qdev_init_nofail(dev);
 
     if (fw_cfg) {
         uint8_t suspend[6] = {128, 0, 0, 129, 128, 128};
@@ -501,7 +505,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo piix4_pm_info = {
-    .name          = "PIIX4_PM",
+    .name          = TYPE_PIIX4_PM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX4PMState),
     .class_init    = piix4_pm_class_init,
@@ -679,7 +683,7 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                           "acpi-pci-hotplug", PCI_HOTPLUG_SIZE);
     memory_region_add_subregion(parent, PCI_HOTPLUG_ADDR,
                                 &s->io_pci);
-    pci_bus_hotplug(bus, piix4_device_hotplug, &s->dev.qdev);
+    pci_bus_hotplug(bus, piix4_device_hotplug, DEVICE(s));
 
     qemu_for_each_cpu(piix4_init_cpu_status, &s->gpe_cpu);
     memory_region_init_io(&s->io_cpu, OBJECT(s), &cpu_hotplug_ops, s,
@@ -705,8 +709,7 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
 				PCIHotplugState state)
 {
     int slot = PCI_SLOT(dev->devfn);
-    PIIX4PMState *s = DO_UPCAST(PIIX4PMState, dev,
-                                PCI_DEVICE(qdev));
+    PIIX4PMState *s = PIIX4_PM(qdev);
 
     /* Don't send event when device is enabled during qemu machine creation:
      * it is present on boot, no hotplug event is necessary. We do send an
