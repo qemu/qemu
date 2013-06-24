@@ -305,6 +305,7 @@ BlockDriverState *bdrv_new(const char *device_name)
     }
     bdrv_iostatus_disable(bs);
     notifier_list_init(&bs->close_notifiers);
+    notifier_with_return_list_init(&bs->before_write_notifiers);
 
     return bs;
 }
@@ -1840,16 +1841,6 @@ int bdrv_commit_all(void)
     return 0;
 }
 
-struct BdrvTrackedRequest {
-    BlockDriverState *bs;
-    int64_t sector_num;
-    int nb_sectors;
-    bool is_write;
-    QLIST_ENTRY(BdrvTrackedRequest) list;
-    Coroutine *co; /* owner, used for deadlock detection */
-    CoQueue wait_queue; /* coroutines blocked on this request */
-};
-
 /**
  * Remove an active request from the tracked requests list
  *
@@ -2620,7 +2611,11 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
 
     tracked_request_begin(&req, bs, sector_num, nb_sectors, true);
 
-    if (flags & BDRV_REQ_ZERO_WRITE) {
+    ret = notifier_with_return_list_notify(&bs->before_write_notifiers, &req);
+
+    if (ret < 0) {
+        /* Do nothing, write notifier decided to fail this request */
+    } else if (flags & BDRV_REQ_ZERO_WRITE) {
         ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors);
     } else {
         ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
@@ -4580,4 +4575,10 @@ AioContext *bdrv_get_aio_context(BlockDriverState *bs)
 {
     /* Currently BlockDriverState always uses the main loop AioContext */
     return qemu_get_aio_context();
+}
+
+void bdrv_add_before_write_notifier(BlockDriverState *bs,
+                                    NotifierWithReturn *notifier)
+{
+    notifier_with_return_list_add(&bs->before_write_notifiers, notifier);
 }
