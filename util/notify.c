@@ -39,3 +39,33 @@ void notifier_list_notify(NotifierList *list, void *data)
         notifier->notify(notifier, data);
     }
 }
+
+void notifier_with_return_list_init(NotifierWithReturnList *list)
+{
+    QLIST_INIT(&list->notifiers);
+}
+
+void notifier_with_return_list_add(NotifierWithReturnList *list,
+                                   NotifierWithReturn *notifier)
+{
+    QLIST_INSERT_HEAD(&list->notifiers, notifier, node);
+}
+
+void notifier_with_return_remove(NotifierWithReturn *notifier)
+{
+    QLIST_REMOVE(notifier, node);
+}
+
+int notifier_with_return_list_notify(NotifierWithReturnList *list, void *data)
+{
+    NotifierWithReturn *notifier, *next;
+    int ret = 0;
+
+    QLIST_FOREACH_SAFE(notifier, &list->notifiers, node, next) {
+        ret = notifier->notify(notifier, data);
+        if (ret != 0) {
+            break;
+        }
+    }
+    return ret;
+}
