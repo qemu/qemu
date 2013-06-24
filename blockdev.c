@@ -1371,7 +1371,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
     int flags;
-    uint64_t size;
+    int64_t size;
     int ret;
 
     if (!has_speed) {
@@ -1435,8 +1435,12 @@ void qmp_drive_mirror(const char *device, const char *target,
         sync = MIRROR_SYNC_MODE_FULL;
     }
 
-    bdrv_get_geometry(bs, &size);
-    size *= 512;
+    size = bdrv_getlength(bs);
+    if (size < 0) {
+        error_setg_errno(errp, -size, "bdrv_getlength failed");
+        return;
+    }
+
     if (sync == MIRROR_SYNC_MODE_FULL && mode != NEW_IMAGE_MODE_EXISTING) {
         /* create new image w/o backing file */
         assert(format && drv);
