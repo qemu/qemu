@@ -848,9 +848,9 @@ int unix_nonblocking_connect(const char *path,
 
 SocketAddress *socket_parse(const char *str, Error **errp)
 {
-    SocketAddress *addr = NULL;
+    SocketAddress *addr;
 
-    addr = g_new(SocketAddress, 1);
+    addr = g_new0(SocketAddress, 1);
     if (strstart(str, "unix:", NULL)) {
         if (str[5] == '\0') {
             error_setg(errp, "invalid Unix socket address");
