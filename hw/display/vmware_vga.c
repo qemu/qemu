@@ -81,6 +81,11 @@ struct vmsvga_state_s {
     int redraw_fifo_first, redraw_fifo_last;
 };
 
+#define TYPE_VMWARE_SVGA "vmware-svga"
+
+#define VMWARE_SVGA(obj) \
+    OBJECT_CHECK(struct pci_vmsvga_state_s, (obj), TYPE_VMWARE_SVGA)
+
 struct pci_vmsvga_state_s {
     PCIDevice card;
     struct vmsvga_state_s chip;
@@ -1092,8 +1097,7 @@ static void vmsvga_update_display(void *opaque)
 
 static void vmsvga_reset(DeviceState *dev)
 {
-    struct pci_vmsvga_state_s *pci =
-        DO_UPCAST(struct pci_vmsvga_state_s, card.qdev, dev);
+    struct pci_vmsvga_state_s *pci = VMWARE_SVGA(dev);
     struct vmsvga_state_s *s = &pci->chip;
 
     s->index = 0;
@@ -1250,8 +1254,7 @@ static const MemoryRegionOps vmsvga_io_ops = {
 
 static int pci_vmsvga_initfn(PCIDevice *dev)
 {
-    struct pci_vmsvga_state_s *s =
-        DO_UPCAST(struct pci_vmsvga_state_s, card, dev);
+    struct pci_vmsvga_state_s *s = VMWARE_SVGA(dev);
 
     s->card.config[PCI_CACHE_LINE_SIZE] = 0x08;         /* Cache line size */
     s->card.config[PCI_LATENCY_TIMER] = 0x40;           /* Latency timer */
@@ -1303,7 +1306,7 @@ static void vmsvga_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo vmsvga_info = {
-    .name          = "vmware-svga",
+    .name          = TYPE_VMWARE_SVGA,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(struct pci_vmsvga_state_s),
     .class_init    = vmsvga_class_init,
