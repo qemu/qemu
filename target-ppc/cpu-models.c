@@ -792,17 +792,15 @@
     POWERPC_DEF_SVR("MPC8572E", "MPC8572E",
                     CPU_POWERPC_MPC8572E,     POWERPC_SVR_8572E,     e500v2)
     /* e600 family                                                           */
-    POWERPC_DEF("e600",          CPU_POWERPC_e600,                   7400,
+    POWERPC_DEF("e600",          CPU_POWERPC_e600,                   e600,
                 "PowerPC e600 core")
     /* PowerPC e600 microcontrollers                                         */
-#if defined(TODO)
     POWERPC_DEF_SVR("MPC8610", "MPC8610",
-                    CPU_POWERPC_MPC8610,      POWERPC_SVR_8610,      7400)
-#endif
+                    CPU_POWERPC_MPC8610,      POWERPC_SVR_8610,      e600)
     POWERPC_DEF_SVR("MPC8641", "MPC8641",
-                    CPU_POWERPC_MPC8641,      POWERPC_SVR_8641,      7400)
+                    CPU_POWERPC_MPC8641,      POWERPC_SVR_8641,      e600)
     POWERPC_DEF_SVR("MPC8641D", "MPC8641D",
-                    CPU_POWERPC_MPC8641D,     POWERPC_SVR_8641D,     7400)
+                    CPU_POWERPC_MPC8641D,     POWERPC_SVR_8641D,     e600)
     /* 32 bits "classic" PowerPC                                             */
     /* PowerPC 6xx family                                                    */
     POWERPC_DEF("601_v0",        CPU_POWERPC_601_v0,                 601,

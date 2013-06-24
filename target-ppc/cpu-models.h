@@ -732,9 +732,7 @@ enum {
     POWERPC_SVR_8568E              = 0x807D0011 | POWERPC_SVR_E500,
     POWERPC_SVR_8572               = 0x80E00010 | POWERPC_SVR_E500,
     POWERPC_SVR_8572E              = 0x80E80010 | POWERPC_SVR_E500,
-#if 0
-    POWERPC_SVR_8610               = xxx,
-#endif
+    POWERPC_SVR_8610               = 0x80A00011,
     POWERPC_SVR_8641               = 0x80900021,
     POWERPC_SVR_8641D              = 0x80900121,
 };
