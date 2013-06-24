@@ -62,6 +62,10 @@ typedef struct PCIXenPlatformState {
     int log_buffer_off;
 } PCIXenPlatformState;
 
+#define TYPE_XEN_PLATFORM "xen-platform"
+#define XEN_PLATFORM(obj) \
+    OBJECT_CHECK(PCIXenPlatformState, (obj), TYPE_XEN_PLATFORM)
+
 #define XEN_PLATFORM_IOPORT 0x10
 
 /* Send bytes to syslog */
@@ -88,7 +92,7 @@ static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_NETWORK_ETHERNET
             && strcmp(d->name, "xen-pci-passthrough") != 0) {
-        qdev_free(&d->qdev);
+        qdev_free(DEVICE(d));
     }
 }
 
@@ -103,7 +107,7 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_STORAGE_IDE
             && strcmp(d->name, "xen-pci-passthrough") != 0) {
-        qdev_unplug(&(d->qdev), NULL);
+        qdev_unplug(DEVICE(d), NULL);
     }
 }
 
@@ -376,7 +380,7 @@ static const VMStateDescription vmstate_xen_platform = {
 
 static int xen_platform_initfn(PCIDevice *dev)
 {
-    PCIXenPlatformState *d = DO_UPCAST(PCIXenPlatformState, pci_dev, dev);
+    PCIXenPlatformState *d = XEN_PLATFORM(dev);
     uint8_t *pci_conf;
 
     pci_conf = d->pci_dev.config;
@@ -402,7 +406,7 @@ static int xen_platform_initfn(PCIDevice *dev)
 
 static void platform_reset(DeviceState *dev)
 {
-    PCIXenPlatformState *s = DO_UPCAST(PCIXenPlatformState, pci_dev.qdev, dev);
+    PCIXenPlatformState *s = XEN_PLATFORM(dev);
 
     platform_fixed_ioport_reset(s);
 }
@@ -425,7 +429,7 @@ static void xen_platform_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xen_platform_info = {
-    .name          = "xen-platform",
+    .name          = TYPE_XEN_PLATFORM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIXenPlatformState),
     .class_init    = xen_platform_class_init,
