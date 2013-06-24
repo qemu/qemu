@@ -3120,7 +3120,7 @@ typedef struct CharDriver {
     /* old, pre qapi */
     CharDriverState *(*open)(QemuOpts *opts);
     /* new, qapi-based */
-    int kind;
+    ChardevBackendKind kind;
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 } CharDriver;
 
@@ -3137,7 +3137,7 @@ void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *)
     backends = g_slist_append(backends, s);
 }
 
-void register_char_driver_qapi(const char *name, int kind,
+void register_char_driver_qapi(const char *name, ChardevBackendKind kind,
         void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp))
 {
     CharDriver *s;
