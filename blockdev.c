@@ -963,6 +963,16 @@ static void drive_backup_abort(BlkTransactionState *common)
     }
 }
 
+static void abort_prepare(BlkTransactionState *common, Error **errp)
+{
+    error_setg(errp, "Transaction aborted using Abort action");
+}
+
+static void abort_commit(BlkTransactionState *common)
+{
+    assert(false); /* this action never succeeds */
+}
+
 static const BdrvActionOps actions[] = {
     [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
         .instance_size = sizeof(ExternalSnapshotState),
@@ -974,6 +984,11 @@ static const BdrvActionOps actions[] = {
         .instance_size = sizeof(DriveBackupState),
         .prepare = drive_backup_prepare,
         .abort = drive_backup_abort,
+    },
+    [TRANSACTION_ACTION_KIND_ABORT] = {
+        .instance_size = sizeof(BlkTransactionState),
+        .prepare = abort_prepare,
+        .commit = abort_commit,
     },
 };
 
