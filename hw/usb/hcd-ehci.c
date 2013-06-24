@@ -995,7 +995,7 @@ static uint64_t ehci_port_read(void *ptr, hwaddr addr,
     uint32_t val;
 
     val = s->portsc[addr >> 2];
-    trace_usb_ehci_portsc_read(addr + PORTSC_BEGIN, addr >> 2, val);
+    trace_usb_ehci_portsc_read(addr + s->portscbase, addr >> 2, val);
     return val;
 }
 
@@ -1036,7 +1036,7 @@ static void ehci_port_write(void *ptr, hwaddr addr,
     uint32_t old = *portsc;
     USBDevice *dev = s->ports[port].dev;
 
-    trace_usb_ehci_portsc_write(addr + PORTSC_BEGIN, addr >> 2, val);
+    trace_usb_ehci_portsc_write(addr + s->portscbase, addr >> 2, val);
 
     /* Clear rwc bits */
     *portsc &= ~(val & PORTSC_RWC_MASK);
@@ -1069,7 +1069,7 @@ static void ehci_port_write(void *ptr, hwaddr addr,
 
     *portsc &= ~PORTSC_RO_MASK;
     *portsc |= val;
-    trace_usb_ehci_portsc_change(addr + PORTSC_BEGIN, addr >> 2, *portsc, old);
+    trace_usb_ehci_portsc_change(addr + s->portscbase, addr >> 2, *portsc, old);
 }
 
 static void ehci_opreg_write(void *ptr, hwaddr addr,
@@ -2508,25 +2508,18 @@ const VMStateDescription vmstate_ehci = {
     }
 };
 
-void usb_ehci_initfn(EHCIState *s, DeviceState *dev)
+void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
 {
     int i;
 
-    /* 2.2 host controller interface version */
-    s->caps[0x00] = (uint8_t)(s->opregbase - s->capsbase);
-    s->caps[0x01] = 0x00;
-    s->caps[0x02] = 0x00;
-    s->caps[0x03] = 0x01;        /* HC version */
-    s->caps[0x04] = NB_PORTS;    /* Number of downstream ports */
-    s->caps[0x05] = 0x00;        /* No companion ports at present */
-    s->caps[0x06] = 0x00;
-    s->caps[0x07] = 0x00;
-    s->caps[0x08] = 0x80;        /* We can cache whole frame, no 64-bit */
-    s->caps[0x0a] = 0x00;
-    s->caps[0x0b] = 0x00;
+    if (s->portnr > NB_PORTS) {
+        error_setg(errp, "Too many ports! Max. port number is %d.",
+                   NB_PORTS);
+        return;
+    }
 
     usb_bus_new(&s->bus, &ehci_bus_ops, dev);
-    for(i = 0; i < NB_PORTS; i++) {
+    for (i = 0; i < s->portnr; i++) {
         usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
                           USB_SPEED_MASK_HIGH);
         s->ports[i].dev = 0;
@@ -2534,24 +2527,41 @@ void usb_ehci_initfn(EHCIState *s, DeviceState *dev)
 
     s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
     s->async_bh = qemu_bh_new(ehci_frame_timer, s);
-    QTAILQ_INIT(&s->aqueues);
-    QTAILQ_INIT(&s->pqueues);
-    usb_packet_init(&s->ipacket);
 
     qemu_register_reset(ehci_reset, s);
     qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
+}
+
+void usb_ehci_init(EHCIState *s, DeviceState *dev)
+{
+    /* 2.2 host controller interface version */
+    s->caps[0x00] = (uint8_t)(s->opregbase - s->capsbase);
+    s->caps[0x01] = 0x00;
+    s->caps[0x02] = 0x00;
+    s->caps[0x03] = 0x01;        /* HC version */
+    s->caps[0x04] = s->portnr;   /* Number of downstream ports */
+    s->caps[0x05] = 0x00;        /* No companion ports at present */
+    s->caps[0x06] = 0x00;
+    s->caps[0x07] = 0x00;
+    s->caps[0x08] = 0x80;        /* We can cache whole frame, no 64-bit */
+    s->caps[0x0a] = 0x00;
+    s->caps[0x0b] = 0x00;
+
+    QTAILQ_INIT(&s->aqueues);
+    QTAILQ_INIT(&s->pqueues);
+    usb_packet_init(&s->ipacket);
 
     memory_region_init(&s->mem, "ehci", MMIO_SIZE);
     memory_region_init_io(&s->mem_caps, &ehci_mmio_caps_ops, s,
                           "capabilities", CAPA_SIZE);
     memory_region_init_io(&s->mem_opreg, &ehci_mmio_opreg_ops, s,
-                          "operational", PORTSC_BEGIN);
+                          "operational", s->portscbase);
     memory_region_init_io(&s->mem_ports, &ehci_mmio_port_ops, s,
-                          "ports", PORTSC_END - PORTSC_BEGIN);
+                          "ports", 4 * s->portnr);
 
     memory_region_add_subregion(&s->mem, s->capsbase, &s->mem_caps);
     memory_region_add_subregion(&s->mem, s->opregbase, &s->mem_opreg);
-    memory_region_add_subregion(&s->mem, s->opregbase + PORTSC_BEGIN,
+    memory_region_add_subregion(&s->mem, s->opregbase + s->portscbase,
                                 &s->mem_ports);
 }
 

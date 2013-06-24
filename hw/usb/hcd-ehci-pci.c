@@ -60,18 +60,28 @@ static int usb_ehci_pci_initfn(PCIDevice *dev)
     pci_conf[0x6e] = 0x00;
     pci_conf[0x6f] = 0xc0;  /* USBLEFCTLSTS */
 
-    s->caps[0x09] = 0x68;        /* EECP */
-
     s->irq = dev->irq[3];
     s->as = pci_get_address_space(dev);
 
-    s->capsbase = 0x00;
-    s->opregbase = 0x20;
-
-    usb_ehci_initfn(s, DEVICE(dev));
+    usb_ehci_realize(s, DEVICE(dev), NULL);
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
     return 0;
+}
+
+static void usb_ehci_pci_init(Object *obj)
+{
+    EHCIPCIState *i = PCI_EHCI(obj);
+    EHCIState *s = &i->ehci;
+
+    s->caps[0x09] = 0x68;        /* EECP */
+
+    s->capsbase = 0x00;
+    s->opregbase = 0x20;
+    s->portscbase = 0x44;
+    s->portnr = NB_PORTS;
+
+    usb_ehci_init(s, DEVICE(obj));
 }
 
 static void usb_ehci_pci_write_config(PCIDevice *dev, uint32_t addr,
@@ -122,6 +132,7 @@ static const TypeInfo ehci_pci_type_info = {
     .name = TYPE_PCI_EHCI,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(EHCIPCIState),
+    .instance_init = usb_ehci_pci_init,
     .abstract = true,
     .class_init = ehci_class_init,
 };

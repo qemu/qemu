@@ -13,6 +13,7 @@ static int usb_qdev_exit(DeviceState *qdev);
 
 static Property usb_props[] = {
     DEFINE_PROP_STRING("port", USBDevice, port_path),
+    DEFINE_PROP_STRING("serial", USBDevice, serial),
     DEFINE_PROP_BIT("full-path", USBDevice, flags,
                     USB_DEV_FLAG_FULL_PATH, true),
     DEFINE_PROP_END_OF_LIST()

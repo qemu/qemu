@@ -241,7 +241,11 @@ static int usb_host_get_port(libusb_device *dev, char *port, size_t len)
     size_t off;
     int rc, i;
 
+#if LIBUSBX_API_VERSION >= 0x01000102
+    rc = libusb_get_port_numbers(dev, path, 7);
+#else
     rc = libusb_get_port_path(ctx, dev, path, 7);
+#endif
     if (rc < 0) {
         return 0;
     }
@@ -891,6 +895,7 @@ static int usb_host_initfn(USBDevice *udev)
     USBHostDevice *s = USB_HOST_DEVICE(udev);
 
     loglevel = s->loglevel;
+    udev->flags |= (1 << USB_DEV_FLAG_IS_HOST);
     udev->auto_attach = 0;
     QTAILQ_INIT(&s->requests);
     QTAILQ_INIT(&s->isorings);
