@@ -446,6 +446,9 @@ static QemuOptsList qemu_spice_opts = {
             .name = "disable-copy-paste",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "disable-agent-file-xfer",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "sasl",
             .type = QEMU_OPT_BOOL,
         },{
@@ -737,6 +740,16 @@ void qemu_spice_init(void)
 
     if (qemu_opt_get_bool(opts, "disable-copy-paste", 0)) {
         spice_server_set_agent_copypaste(spice_server, false);
+    }
+
+    if (qemu_opt_get_bool(opts, "disable-agent-file-xfer", 0)) {
+#if SPICE_SERVER_VERSION >= 0x000c04
+        spice_server_set_agent_file_xfer(spice_server, false);
+#else
+        error_report("this qemu build does not support the "
+                     "\"disable-agent-file-xfer\" option");
+        exit(1);
+#endif
     }
 
     compression = SPICE_IMAGE_COMPRESS_AUTO_GLZ;
