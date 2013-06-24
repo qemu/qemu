@@ -1045,7 +1045,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
     extract_subqdict(options, &file_options, "file.");
 
     ret = bdrv_file_open(&file, filename, file_options,
-                         bdrv_open_flags(bs, flags));
+                         bdrv_open_flags(bs, flags | BDRV_O_UNMAP));
     if (ret < 0) {
         goto fail;
     }

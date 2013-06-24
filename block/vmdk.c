@@ -561,6 +561,15 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
         header = footer.header;
     }
 
+    if (le32_to_cpu(header.version) >= 3) {
+        char buf[64];
+        snprintf(buf, sizeof(buf), "VMDK version %d",
+                 le32_to_cpu(header.version));
+        qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+                bs->device_name, "vmdk", buf);
+        return -ENOTSUP;
+    }
+
     l1_entry_sectors = le32_to_cpu(header.num_gtes_per_gte)
                         * le64_to_cpu(header.granularity);
     if (l1_entry_sectors == 0) {
