@@ -548,6 +548,7 @@ static int get_real_id(const char *devpath, const char *idname, uint16_t *val)
     if (fscanf(f, "%li\n", &id) == 1) {
         *val = id;
     } else {
+        fclose(f);
         return -1;
     }
     fclose(f);

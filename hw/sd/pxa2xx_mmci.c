@@ -538,7 +538,7 @@ PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     /* Instantiate the actual storage */
-    s->card = sd_init(bd, 0);
+    s->card = sd_init(bd, false);
 
     register_savevm(NULL, "pxa2xx_mmci", 0, 0,
                     pxa2xx_mmci_save, pxa2xx_mmci_load, s);

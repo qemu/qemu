@@ -2679,19 +2679,12 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
     CharDriverState *chr = NULL;
     Error *local_err = NULL;
     int fd = -1;
-    int is_listen;
-    int is_waitconnect;
-    int do_nodelay;
-    int is_unix;
-    int is_telnet;
 
-    is_listen      = qemu_opt_get_bool(opts, "server", 0);
-    is_waitconnect = qemu_opt_get_bool(opts, "wait", 1);
-    is_telnet      = qemu_opt_get_bool(opts, "telnet", 0);
-    do_nodelay     = !qemu_opt_get_bool(opts, "delay", 1);
-    is_unix        = qemu_opt_get(opts, "path") != NULL;
-    if (!is_listen)
-        is_waitconnect = 0;
+    bool is_listen      = qemu_opt_get_bool(opts, "server", false);
+    bool is_waitconnect = is_listen && qemu_opt_get_bool(opts, "wait", true);
+    bool is_telnet      = qemu_opt_get_bool(opts, "telnet", false);
+    bool do_nodelay     = !qemu_opt_get_bool(opts, "delay", true);
+    bool is_unix        = qemu_opt_get(opts, "path") != NULL;
 
     if (is_unix) {
         if (is_listen) {

@@ -2529,7 +2529,7 @@ EOF
     fdt_libs="-L\$(BUILD_DIR)/dtc/libfdt $fdt_libs"
   elif test "$fdt" = "yes" ; then
     # have neither and want - prompt for system/submodule install
-    error_exit "ERROR: DTC not present. Your options:" \
+    error_exit "DTC not present. Your options:" \
         "  (1) Preferred: Install the DTC devel package" \
         "  (2) Fetch the DTC submodule, using:" \
         "      git submodule update --init dtc"
@@ -3329,6 +3329,7 @@ __uint128_t b;
 int main (void) {
   a = a + b;
   b = a * b;
+  a = a * a;
   return 0;
 }
 EOF

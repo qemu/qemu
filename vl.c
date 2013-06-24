@@ -3472,12 +3472,11 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_no_quit:
                 no_quit = 1;
                 break;
-#ifdef CONFIG_SDL
             case QEMU_OPTION_sdl:
+#ifdef CONFIG_SDL
                 display_type = DT_SDL;
                 break;
 #else
-            case QEMU_OPTION_sdl:
                 fprintf(stderr, "SDL support is disabled\n");
                 exit(1);
 #endif

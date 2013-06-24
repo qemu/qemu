@@ -128,7 +128,7 @@ static void help(void)
     exit(1);
 }
 
-static int qprintf(bool quiet, const char *fmt, ...)
+static int GCC_FMT_ATTR(2, 3) qprintf(bool quiet, const char *fmt, ...)
 {
     int ret = 0;
     if (!quiet) {
