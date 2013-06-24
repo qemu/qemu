@@ -482,6 +482,11 @@ struct XHCIState {
     XHCIRing cmd_ring;
 };
 
+#define TYPE_XHCI "nec-usb-xhci"
+
+#define XHCI(obj) \
+    OBJECT_CHECK(XHCIState, (obj), TYPE_XHCI)
+
 typedef struct XHCIEvRingSeg {
     uint32_t addr_low;
     uint32_t addr_high;
@@ -2681,7 +2686,7 @@ static void xhci_port_reset(XHCIPort *port)
 
 static void xhci_reset(DeviceState *dev)
 {
-    XHCIState *xhci = DO_UPCAST(XHCIState, pci_dev.qdev, dev);
+    XHCIState *xhci = XHCI(dev);
     int i;
 
     trace_usb_xhci_reset();
@@ -2926,6 +2931,7 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
                             uint64_t val, unsigned size)
 {
     XHCIState *xhci = ptr;
+    DeviceState *d = DEVICE(ptr);
 
     trace_usb_xhci_oper_write(reg, val);
 
@@ -2939,7 +2945,7 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
         xhci->usbcmd = val & 0xc0f;
         xhci_mfwrap_update(xhci);
         if (val & USBCMD_HCRST) {
-            xhci_reset(&xhci->pci_dev.qdev);
+            xhci_reset(d);
         }
         xhci_intx_update(xhci);
         break;
@@ -3265,8 +3271,9 @@ static USBBusOps xhci_bus_ops = {
     .wakeup_endpoint = xhci_wakeup_endpoint,
 };
 
-static void usb_xhci_init(XHCIState *xhci, DeviceState *dev)
+static void usb_xhci_init(XHCIState *xhci)
 {
+    DeviceState *dev = DEVICE(xhci);
     XHCIPort *port;
     int i, usbports, speedmask;
 
@@ -3281,7 +3288,7 @@ static void usb_xhci_init(XHCIState *xhci, DeviceState *dev)
     usbports = MAX(xhci->numports_2, xhci->numports_3);
     xhci->numports = xhci->numports_2 + xhci->numports_3;
 
-    usb_bus_new(&xhci->bus, &xhci_bus_ops, &xhci->pci_dev.qdev);
+    usb_bus_new(&xhci->bus, &xhci_bus_ops, dev);
 
     for (i = 0; i < usbports; i++) {
         speedmask = 0;
@@ -3313,14 +3320,14 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
 {
     int i, ret;
 
-    XHCIState *xhci = DO_UPCAST(XHCIState, pci_dev, dev);
+    XHCIState *xhci = XHCI(dev);
 
     xhci->pci_dev.config[PCI_CLASS_PROG] = 0x30;    /* xHCI */
     xhci->pci_dev.config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
     xhci->pci_dev.config[PCI_CACHE_LINE_SIZE] = 0x10;
     xhci->pci_dev.config[0x60] = 0x30; /* release number */
 
-    usb_xhci_init(xhci, &dev->qdev);
+    usb_xhci_init(xhci);
 
     if (xhci->numintrs > MAXINTRS) {
         xhci->numintrs = MAXINTRS;
@@ -3581,7 +3588,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xhci_info = {
-    .name          = "nec-usb-xhci",
+    .name          = TYPE_XHCI,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XHCIState),
     .class_init    = xhci_class_init,
