@@ -616,7 +616,7 @@
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
-  'data': ['xbzrle', 'x-rdma-pin-all'] }
+  'data': ['xbzrle', 'x-rdma-pin-all', 'auto-converge'] }
 
 ##
 # @MigrationCapabilityStatus
