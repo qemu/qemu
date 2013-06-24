@@ -92,7 +92,7 @@ static const VMStateDescription vmstate_ich9_ahci = {
 
 static void pci_ich9_reset(DeviceState *dev)
 {
-    struct AHCIPCIState *d = DO_UPCAST(struct AHCIPCIState, card.qdev, dev);
+    AHCIPCIState *d = ICH_AHCI(dev);
 
     ahci_reset(&d->ahci);
 }
@@ -102,9 +102,9 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     struct AHCIPCIState *d;
     int sata_cap_offset;
     uint8_t *sata_cap;
-    d = DO_UPCAST(struct AHCIPCIState, card, dev);
+    d = ICH_AHCI(dev);
 
-    ahci_init(&d->ahci, &dev->qdev, pci_get_address_space(dev), 6);
+    ahci_init(&d->ahci, DEVICE(dev), pci_get_address_space(dev), 6);
 
     pci_config_set_prog_interface(d->card.config, AHCI_PROGMODE_MAJOR_REV_1);
 
@@ -141,7 +141,7 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
 static void pci_ich9_uninit(PCIDevice *dev)
 {
     struct AHCIPCIState *d;
-    d = DO_UPCAST(struct AHCIPCIState, card, dev);
+    d = ICH_AHCI(dev);
 
     msi_uninit(dev);
     ahci_uninit(&d->ahci);
@@ -163,7 +163,7 @@ static void ich_ahci_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ich_ahci_info = {
-    .name          = "ich9-ahci",
+    .name          = TYPE_ICH9_AHCI,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AHCIPCIState),
     .class_init    = ich_ahci_class_init,
