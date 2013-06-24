@@ -31,6 +31,9 @@
 
 #define TYPE_AM53C974_DEVICE "am53c974"
 
+#define PCI_ESP(obj) \
+    OBJECT_CHECK(PCIESPState, (obj), TYPE_AM53C974_DEVICE)
+
 #define DMA_CMD   0x0
 #define DMA_STC   0x1
 #define DMA_SPA   0x2
@@ -288,7 +291,7 @@ static const MemoryRegionOps esp_pci_io_ops = {
 
 static void esp_pci_hard_reset(DeviceState *dev)
 {
-    PCIESPState *pci = DO_UPCAST(PCIESPState, dev.qdev, dev);
+    PCIESPState *pci = PCI_ESP(dev);
     esp_hard_reset(&pci->esp);
     pci->dma_regs[DMA_CMD] &= ~(DMA_CMD_DIR | DMA_CMD_INTE_D | DMA_CMD_INTE_P
                               | DMA_CMD_MDL | DMA_CMD_DIAG | DMA_CMD_MASK);
@@ -336,7 +339,8 @@ static const struct SCSIBusInfo esp_pci_scsi_info = {
 
 static int esp_pci_scsi_init(PCIDevice *dev)
 {
-    PCIESPState *pci = DO_UPCAST(PCIESPState, dev, dev);
+    PCIESPState *pci = PCI_ESP(dev);
+    DeviceState *d = DEVICE(dev);
     ESPState *s = &pci->esp;
     uint8_t *pci_conf;
 
@@ -355,8 +359,8 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
     s->irq = pci->dev.irq[0];
 
-    scsi_bus_new(&s->bus, &dev->qdev, &esp_pci_scsi_info, NULL);
-    if (!dev->qdev.hotplugged) {
+    scsi_bus_new(&s->bus, d, &esp_pci_scsi_info, NULL);
+    if (!d->hotplugged) {
         return scsi_bus_legacy_handle_cmdline(&s->bus);
     }
     return 0;
@@ -364,7 +368,7 @@ static int esp_pci_scsi_init(PCIDevice *dev)
 
 static void esp_pci_scsi_uninit(PCIDevice *d)
 {
-    PCIESPState *pci = DO_UPCAST(PCIESPState, dev, d);
+    PCIESPState *pci = PCI_ESP(d);
 
     memory_region_destroy(&pci->io);
 }
