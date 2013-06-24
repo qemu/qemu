@@ -585,10 +585,10 @@ void cpu_breakpoint_remove_all(CPUArchState *env, int mask)
 
 /* enable or disable single step mode. EXCP_DEBUG is returned by the
    CPU loop after each instruction */
-void cpu_single_step(CPUArchState *env, int enabled)
+void cpu_single_step(CPUState *cpu, int enabled)
 {
 #if defined(TARGET_HAS_ICE)
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
 
     if (cpu->singlestep_enabled != enabled) {
         cpu->singlestep_enabled = enabled;

@@ -2154,7 +2154,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                     s->c_cpu = env;
                 }
                 if (res == 's') {
-                    cpu_single_step(s->c_cpu, sstep_flags);
+                    cpu_single_step(ENV_GET_CPU(s->c_cpu), sstep_flags);
                 }
                 s->signal = res_signal;
                 gdb_continue(s);
@@ -2182,7 +2182,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             addr = strtoull(p, (char **)&p, 16);
             gdb_set_cpu_pc(s, addr);
         }
-        cpu_single_step(s->c_cpu, sstep_flags);
+        cpu_single_step(ENV_GET_CPU(s->c_cpu), sstep_flags);
         gdb_continue(s);
 	return RS_IDLE;
     case 'F':
@@ -2570,7 +2570,7 @@ send_packet:
     put_packet(s, buf);
 
     /* disable single step if it was enabled */
-    cpu_single_step(env, 0);
+    cpu_single_step(cpu, 0);
 }
 #endif
 
@@ -2763,6 +2763,7 @@ gdb_queuesig (void)
 int
 gdb_handlesig(CPUArchState *env, int sig)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     GDBState *s;
     char buf[256];
     int n;
@@ -2773,7 +2774,7 @@ gdb_handlesig(CPUArchState *env, int sig)
     }
 
     /* disable single step if it was enabled */
-    cpu_single_step(env, 0);
+    cpu_single_step(cpu, 0);
     tb_flush(env);
 
     if (sig != 0) {

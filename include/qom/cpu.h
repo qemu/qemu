@@ -510,6 +510,19 @@ void cpu_resume(CPUState *cpu);
  */
 void qemu_init_vcpu(CPUState *cpu);
 
+#define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
+#define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
+#define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
+
+/**
+ * cpu_single_step:
+ * @cpu: CPU to the flags for.
+ * @enabled: Flags to enable.
+ *
+ * Enables or disables single-stepping for @cpu.
+ */
+void cpu_single_step(CPUState *cpu, int enabled);
+
 #ifdef CONFIG_SOFTMMU
 extern const struct VMStateDescription vmstate_cpu_common;
 #else

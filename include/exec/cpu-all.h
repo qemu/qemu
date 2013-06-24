@@ -428,12 +428,6 @@ int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr,
 void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint);
 void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
 
-#define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
-#define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
-#define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
-
-void cpu_single_step(CPUArchState *env, int enabled);
-
 #if !defined(CONFIG_USER_ONLY)
 
 /* Return the physical page corresponding to a virtual one. Use it
