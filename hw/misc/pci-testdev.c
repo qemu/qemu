@@ -83,6 +83,11 @@ typedef struct PCITestDevState {
     int current;
 } PCITestDevState;
 
+#define TYPE_PCI_TEST_DEV "pci-testdev"
+
+#define PCI_TEST_DEV(obj) \
+    OBJECT_CHECK(PCITestDevState, (obj), TYPE_PCI_TEST_DEV)
+
 #define IOTEST_IS_MEM(i) (strcmp(IOTEST_TYPE(i), "portio"))
 #define IOTEST_REGION(d, i) (IOTEST_IS_MEM(i) ?  &(d)->mmio : &(d)->portio)
 #define IOTEST_SIZE(i) (IOTEST_IS_MEM(i) ? IOTEST_MEMSIZE : IOTEST_IOSIZE)
@@ -227,7 +232,7 @@ static const MemoryRegionOps pci_testdev_pio_ops = {
 
 static int pci_testdev_init(PCIDevice *pci_dev)
 {
-    PCITestDevState *d = DO_UPCAST(PCITestDevState, dev, pci_dev);
+    PCITestDevState *d = PCI_TEST_DEV(pci_dev);
     uint8_t *pci_conf;
     char *name;
     int r, i;
@@ -274,7 +279,7 @@ static int pci_testdev_init(PCIDevice *pci_dev)
 static void
 pci_testdev_uninit(PCIDevice *dev)
 {
-    PCITestDevState *d = DO_UPCAST(PCITestDevState, dev, dev);
+    PCITestDevState *d = PCI_TEST_DEV(dev);
     int i;
 
     pci_testdev_reset(d);
@@ -291,7 +296,7 @@ pci_testdev_uninit(PCIDevice *dev)
 
 static void qdev_pci_testdev_reset(DeviceState *dev)
 {
-    PCITestDevState *d = DO_UPCAST(PCITestDevState, dev.qdev, dev);
+    PCITestDevState *d = PCI_TEST_DEV(dev);
     pci_testdev_reset(d);
 }
 
@@ -311,7 +316,7 @@ static void pci_testdev_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pci_testdev_info = {
-    .name          = "pci-testdev",
+    .name          = TYPE_PCI_TEST_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCITestDevState),
     .class_init    = pci_testdev_class_init,
