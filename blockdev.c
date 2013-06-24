@@ -789,7 +789,7 @@ typedef struct BdrvActionOps {
     size_t instance_size;
     /* Prepare the work, must NOT be NULL. */
     void (*prepare)(BlkTransactionState *common, Error **errp);
-    /* Commit the changes, must NOT be NULL. */
+    /* Commit the changes, can be NULL. */
     void (*commit)(BlkTransactionState *common);
     /* Abort the changes on fail, can be NULL. */
     void (*abort)(BlkTransactionState *common);
@@ -969,7 +969,9 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
     }
 
     QSIMPLEQ_FOREACH(state, &snap_bdrv_states, entry) {
-        state->ops->commit(state);
+        if (state->ops->commit) {
+            state->ops->commit(state);
+        }
     }
 
     /* success */
