@@ -92,6 +92,11 @@ static inline GCC_FMT_ATTR(1, 2) int DPRINTF(const char *fmt, ...)
 }
 #endif
 
+#define TYPE_RTL8139 "rtl8139"
+
+#define RTL8139(obj) \
+     OBJECT_CHECK(RTL8139State, (obj), TYPE_RTL8139)
+
 /* Symbolic offsets to registers. */
 enum RTL8139_registers {
     MAC0 = 0,        /* Ethernet hardware address. */
@@ -1197,7 +1202,7 @@ static void rtl8139_reset_rxring(RTL8139State *s, uint32_t bufferSize)
 
 static void rtl8139_reset(DeviceState *d)
 {
-    RTL8139State *s = container_of(d, RTL8139State, dev.qdev);
+    RTL8139State *s = RTL8139(d);
     int i;
 
     /* restore MAC address */
@@ -1364,6 +1369,8 @@ static const VMStateDescription vmstate_tally_counters = {
 
 static void rtl8139_ChipCmd_write(RTL8139State *s, uint32_t val)
 {
+    DeviceState *d = DEVICE(s);
+
     val &= 0xff;
 
     DPRINTF("ChipCmd write val=0x%08x\n", val);
@@ -1371,7 +1378,7 @@ static void rtl8139_ChipCmd_write(RTL8139State *s, uint32_t val)
     if (val & CmdReset)
     {
         DPRINTF("ChipCmd reset\n");
-        rtl8139_reset(&s->dev.qdev);
+        rtl8139_reset(d);
     }
     if (val & CmdRxEnb)
     {
@@ -1525,6 +1532,8 @@ static uint32_t rtl8139_BasicModeStatus_read(RTL8139State *s)
 
 static void rtl8139_Cfg9346_write(RTL8139State *s, uint32_t val)
 {
+    DeviceState *d = DEVICE(s);
+
     val &= 0xff;
 
     DPRINTF("Cfg9346 write val=0x%02x\n", val);
@@ -1544,7 +1553,7 @@ static void rtl8139_Cfg9346_write(RTL8139State *s, uint32_t val)
     } else if (opmode == 0x40) {
         /* Reset.  */
         val = 0;
-        rtl8139_reset(&s->dev.qdev);
+        rtl8139_reset(d);
     }
 
     s->Cfg9346 = val;
@@ -3439,7 +3448,7 @@ static void rtl8139_cleanup(NetClientState *nc)
 
 static void pci_rtl8139_uninit(PCIDevice *dev)
 {
-    RTL8139State *s = DO_UPCAST(RTL8139State, dev, dev);
+    RTL8139State *s = RTL8139(dev);
 
     memory_region_destroy(&s->bar_io);
     memory_region_destroy(&s->bar_mem);
@@ -3477,7 +3486,8 @@ static NetClientInfo net_rtl8139_info = {
 
 static int pci_rtl8139_init(PCIDevice *dev)
 {
-    RTL8139State * s = DO_UPCAST(RTL8139State, dev, dev);
+    RTL8139State *s = RTL8139(dev);
+    DeviceState *d = DEVICE(dev);
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
@@ -3507,7 +3517,7 @@ static int pci_rtl8139_init(PCIDevice *dev)
     s->eeprom.contents[9] = s->conf.macaddr.a[4] | s->conf.macaddr.a[5] << 8;
 
     s->nic = qemu_new_nic(&net_rtl8139_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), d->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     s->cplus_txbuffer = NULL;
@@ -3518,7 +3528,7 @@ static int pci_rtl8139_init(PCIDevice *dev)
     s->timer = qemu_new_timer_ns(vm_clock, rtl8139_timer, s);
     rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
 
-    add_boot_device_path(s->conf.bootindex, &dev->qdev, "/ethernet-phy@0");
+    add_boot_device_path(s->conf.bootindex, d, "/ethernet-phy@0");
 
     return 0;
 }
@@ -3546,7 +3556,7 @@ static void rtl8139_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo rtl8139_info = {
-    .name          = "rtl8139",
+    .name          = TYPE_RTL8139,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(RTL8139State),
     .class_init    = rtl8139_class_init,
