@@ -108,6 +108,11 @@ typedef struct MegasasState {
     SCSIBus bus;
 } MegasasState;
 
+#define TYPE_MEGASAS "megasas"
+
+#define MEGASAS(obj) \
+    OBJECT_CHECK(MegasasState, (obj), TYPE_MEGASAS)
+
 #define MEGASAS_INTR_DISABLED_MASK 0xFFFFFFFF
 
 static bool megasas_intr_enabled(MegasasState *s)
@@ -2039,7 +2044,7 @@ static void megasas_soft_reset(MegasasState *s)
 
 static void megasas_scsi_reset(DeviceState *dev)
 {
-    MegasasState *s = DO_UPCAST(MegasasState, dev.qdev, dev);
+    MegasasState *s = MEGASAS(dev);
 
     megasas_soft_reset(s);
 }
@@ -2064,7 +2069,7 @@ static const VMStateDescription vmstate_megasas = {
 
 static void megasas_scsi_uninit(PCIDevice *d)
 {
-    MegasasState *s = DO_UPCAST(MegasasState, dev, d);
+    MegasasState *s = MEGASAS(d);
 
 #ifdef USE_MSIX
     msix_uninit(&s->dev, &s->mmio_io);
@@ -2087,7 +2092,7 @@ static const struct SCSIBusInfo megasas_scsi_info = {
 
 static int megasas_scsi_init(PCIDevice *dev)
 {
-    MegasasState *s = DO_UPCAST(MegasasState, dev, dev);
+    MegasasState *s = MEGASAS(dev);
     uint8_t *pci_conf;
     int i, bar_type;
 
@@ -2158,7 +2163,7 @@ static int megasas_scsi_init(PCIDevice *dev)
         s->frames[i].state = s;
     }
 
-    scsi_bus_new(&s->bus, &dev->qdev, &megasas_scsi_info, NULL);
+    scsi_bus_new(&s->bus, DEVICE(dev), &megasas_scsi_info, NULL);
     scsi_bus_legacy_handle_cmdline(&s->bus);
     return 0;
 }
@@ -2198,7 +2203,7 @@ static void megasas_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo megasas_info = {
-    .name  = "megasas",
+    .name  = TYPE_MEGASAS,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MegasasState),
     .class_init = megasas_class_init,
