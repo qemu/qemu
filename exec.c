@@ -1752,37 +1752,11 @@ static void core_log_global_stop(MemoryListener *listener)
     cpu_physical_memory_set_dirty_tracking(0);
 }
 
-static void io_region_add(MemoryListener *listener,
-                          MemoryRegionSection *section)
-{
-    MemoryRegionIORange *mrio = g_new(MemoryRegionIORange, 1);
-
-    mrio->mr = section->mr;
-    mrio->offset = section->offset_within_region;
-    iorange_init(&mrio->iorange, &memory_region_iorange_ops,
-                 section->offset_within_address_space,
-                 int128_get64(section->size));
-    ioport_register(&mrio->iorange);
-}
-
-static void io_region_del(MemoryListener *listener,
-                          MemoryRegionSection *section)
-{
-    isa_unassign_ioport(section->offset_within_address_space,
-                        int128_get64(section->size));
-}
-
 static MemoryListener core_memory_listener = {
     .begin = core_begin,
     .log_global_start = core_log_global_start,
     .log_global_stop = core_log_global_stop,
     .priority = 1,
-};
-
-static MemoryListener io_memory_listener = {
-    .region_add = io_region_add,
-    .region_del = io_region_del,
-    .priority = 0,
 };
 
 static MemoryListener tcg_memory_listener = {
@@ -1826,7 +1800,6 @@ static void memory_map_init(void)
     address_space_init(&address_space_io, system_io, "I/O");
 
     memory_listener_register(&core_memory_listener, &address_space_memory);
-    memory_listener_register(&io_memory_listener, &address_space_io);
     memory_listener_register(&tcg_memory_listener, &address_space_memory);
 }
 

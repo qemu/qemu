@@ -56,7 +56,6 @@ typedef struct PortioList {
     struct MemoryRegion *address_space;
     unsigned nr;
     struct MemoryRegion **regions;
-    struct MemoryRegion **aliases;
     void *opaque;
     const char *name;
 } PortioList;
