@@ -104,6 +104,9 @@ int graphic_depth = 32;
 #endif
 
 const uint32_t arch_type = QEMU_ARCH;
+static bool mig_throttle_on;
+static int dirty_rate_high_cnt;
+static void check_guest_throttling(void);
 
 /***********************************************************/
 /* ram save/restore */
@@ -378,8 +381,14 @@ static void migration_bitmap_sync(void)
     uint64_t num_dirty_pages_init = migration_dirty_pages;
     MigrationState *s = migrate_get_current();
     static int64_t start_time;
+    static int64_t bytes_xfer_prev;
     static int64_t num_dirty_pages_period;
     int64_t end_time;
+    int64_t bytes_xfer_now;
+
+    if (!bytes_xfer_prev) {
+        bytes_xfer_prev = ram_bytes_transferred();
+    }
 
     if (!start_time) {
         start_time = qemu_get_clock_ms(rt_clock);
@@ -404,6 +413,25 @@ static void migration_bitmap_sync(void)
 
     /* more than 1 second = 1000 millisecons */
     if (end_time > start_time + 1000) {
+        if (migrate_auto_converge()) {
+            /* The following detection logic can be refined later. For now:
+               Check to see if the dirtied bytes is 50% more than the approx.
+               amount of bytes that just got transferred since the last time we
+               were in this routine. If that happens >N times (for now N==4)
+               we turn on the throttle down logic */
+            bytes_xfer_now = ram_bytes_transferred();
+            if (s->dirty_pages_rate &&
+               (num_dirty_pages_period * TARGET_PAGE_SIZE >
+                   (bytes_xfer_now - bytes_xfer_prev)/2) &&
+               (dirty_rate_high_cnt++ > 4)) {
+                    trace_migration_throttle();
+                    mig_throttle_on = true;
+                    dirty_rate_high_cnt = 0;
+             }
+             bytes_xfer_prev = bytes_xfer_now;
+        } else {
+             mig_throttle_on = false;
+        }
         s->dirty_pages_rate = num_dirty_pages_period * 1000
             / (end_time - start_time);
         s->dirty_bytes_rate = s->dirty_pages_rate * TARGET_PAGE_SIZE;
@@ -573,6 +601,8 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     migration_bitmap = bitmap_new(ram_pages);
     bitmap_set(migration_bitmap, 0, ram_pages);
     migration_dirty_pages = ram_pages;
+    mig_throttle_on = false;
+    dirty_rate_high_cnt = 0;
 
     if (migrate_use_xbzrle()) {
         XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
@@ -635,6 +665,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         }
         total_sent += bytes_sent;
         acct_info.iterations++;
+        check_guest_throttling();
         /* we want to check in the 1st loop, just in case it was the 1st time
            and we had to sync the dirty bitmap.
            qemu_get_clock_ns() is a bit expensive, so we only check each some
@@ -1109,4 +1140,54 @@ TargetInfo *qmp_query_target(Error **errp)
     info->arch = g_strdup(TARGET_NAME);
 
     return info;
+}
+
+/* Stub function that's gets run on the vcpu when its brought out of the
+   VM to run inside qemu via async_run_on_cpu()*/
+static void mig_sleep_cpu(void *opq)
+{
+    qemu_mutex_unlock_iothread();
+    g_usleep(30*1000);
+    qemu_mutex_lock_iothread();
+}
+
+/* To reduce the dirty rate explicitly disallow the VCPUs from spending
+   much time in the VM. The migration thread will try to catchup.
+   Workload will experience a performance drop.
+*/
+static void mig_throttle_cpu_down(CPUState *cpu, void *data)
+{
+    async_run_on_cpu(cpu, mig_sleep_cpu, NULL);
+}
+
+static void mig_throttle_guest_down(void)
+{
+    qemu_mutex_lock_iothread();
+    qemu_for_each_cpu(mig_throttle_cpu_down, NULL);
+    qemu_mutex_unlock_iothread();
+}
+
+static void check_guest_throttling(void)
+{
+    static int64_t t0;
+    int64_t        t1;
+
+    if (!mig_throttle_on) {
+        return;
+    }
+
+    if (!t0)  {
+        t0 = qemu_get_clock_ns(rt_clock);
+        return;
+    }
+
+    t1 = qemu_get_clock_ns(rt_clock);
+
+    /* If it has been more than 40 ms since the last time the guest
+     * was throttled then do it again.
+     */
+    if (40 < (t1-t0)/1000000) {
+        mig_throttle_guest_down();
+        t0 = t1;
+    }
 }
