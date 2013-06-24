@@ -2771,7 +2771,8 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     }
 }
 
-static void vnc_connect(VncDisplay *vd, int csock, int skipauth, bool websocket)
+static void vnc_connect(VncDisplay *vd, int csock,
+                        bool skipauth, bool websocket)
 {
     VncState *vs = g_malloc0(sizeof(VncState));
     int i;
@@ -2883,19 +2884,19 @@ static void vnc_listen_read(void *opaque, bool websocket)
     }
 
     if (csock != -1) {
-        vnc_connect(vs, csock, 0, websocket);
+        vnc_connect(vs, csock, false, websocket);
     }
 }
 
 static void vnc_listen_regular_read(void *opaque)
 {
-    vnc_listen_read(opaque, 0);
+    vnc_listen_read(opaque, false);
 }
 
 #ifdef CONFIG_VNC_WS
 static void vnc_listen_websocket_read(void *opaque)
 {
-    vnc_listen_read(opaque, 1);
+    vnc_listen_read(opaque, true);
 }
 #endif /* CONFIG_VNC_WS */
 
@@ -3283,7 +3284,7 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
         if (csock < 0) {
             goto fail;
         }
-        vnc_connect(vs, csock, 0, 0);
+        vnc_connect(vs, csock, false, false);
     } else {
         /* listen for connects */
         char *dpy;
@@ -3341,9 +3342,9 @@ fail:
 #endif /* CONFIG_VNC_WS */
 }
 
-void vnc_display_add_client(DisplayState *ds, int csock, int skipauth)
+void vnc_display_add_client(DisplayState *ds, int csock, bool skipauth)
 {
     VncDisplay *vs = vnc_display;
 
-    vnc_connect(vs, csock, skipauth, 0);
+    vnc_connect(vs, csock, skipauth, false);
 }

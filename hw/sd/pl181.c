@@ -485,7 +485,7 @@ static int pl181_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq[1]);
     qdev_init_gpio_out(&s->busdev.qdev, s->cardstatus, 2);
     dinfo = drive_get_next(IF_SD);
-    s->card = sd_init(dinfo ? dinfo->bdrv : NULL, 0);
+    s->card = sd_init(dinfo ? dinfo->bdrv : NULL, false);
     return 0;
 }
 

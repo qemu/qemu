@@ -560,6 +560,9 @@ static int usb_hid_initfn(USBDevice *dev, int kind)
 {
     USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
 
+    if (dev->serial) {
+        usb_desc_set_string(dev, STR_SERIALNUMBER, dev->serial);
+    }
     usb_desc_init(dev);
     us->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     hid_init(&us->hid, kind, usb_hid_changed);
