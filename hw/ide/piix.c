@@ -135,7 +135,7 @@ static void pci_piix_init_ports(PCIIDEState *d) {
     int i;
 
     for (i = 0; i < 2; i++) {
-        ide_bus_new(&d->bus[i], &d->dev.qdev, i, 2);
+        ide_bus_new(&d->bus[i], DEVICE(d), i, 2);
         ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
                         port_info[i].iobase2);
         ide_init2(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
@@ -159,7 +159,7 @@ static int pci_piix_ide_initfn(PCIDevice *dev)
     bmdma_setup_bar(d);
     pci_register_bar(&d->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
-    vmstate_register(&d->dev.qdev, 0, &vmstate_ide_pci, d);
+    vmstate_register(DEVICE(dev), 0, &vmstate_ide_pci, d);
 
     pci_piix_init_ports(d);
 
@@ -173,7 +173,7 @@ static int pci_piix3_xen_ide_unplug(DeviceState *dev)
     DriveInfo *di;
     int i = 0;
 
-    pci_dev = DO_UPCAST(PCIDevice, qdev, dev);
+    pci_dev = PCI_DEVICE(dev);
     pci_ide = DO_UPCAST(PCIIDEState, dev, pci_dev);
 
     for (; i < 3; i++) {
@@ -188,7 +188,7 @@ static int pci_piix3_xen_ide_unplug(DeviceState *dev)
             drive_put_ref(di);
         }
     }
-    qdev_reset_all(&(pci_ide->dev.qdev));
+    qdev_reset_all(DEVICE(dev));
     return 0;
 }
 
