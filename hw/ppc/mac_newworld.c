@@ -87,6 +87,9 @@ static void unin_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     UNIN_DPRINTF("write addr " TARGET_FMT_plx " val %"PRIx64"\n", addr, value);
+    if (addr == 0x0) {
+        *(int*)opaque = value;
+    }
 }
 
 static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
@@ -94,6 +97,11 @@ static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
     uint32_t value;
 
     value = 0;
+    switch (addr) {
+    case 0:
+        value = *(int*)opaque;
+    }
+
     UNIN_DPRINTF("readl addr " TARGET_FMT_plx " val %x\n", addr, value);
 
     return value;
@@ -162,6 +170,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     int machine_arch;
     SysBusDevice *s;
     DeviceState *dev;
+    int *token = g_new(int, 1);
 
     linux_boot = (kernel_filename != NULL);
 
@@ -279,8 +288,8 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     /* Register 8 MB of ISA IO space */
     isa_mmio_init(0xf2000000, 0x00800000);
 
-    /* UniN init */
-    memory_region_init_io(unin_memory, &unin_ops, NULL, "unin", 0x1000);
+    /* UniN init: XXX should be a real device */
+    memory_region_init_io(unin_memory, &unin_ops, token, "unin", 0x1000);
     memory_region_add_subregion(get_system_memory(), 0xf8000000, unin_memory);
 
     openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
