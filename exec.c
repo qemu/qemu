@@ -754,17 +754,6 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
 static subpage_t *subpage_init(AddressSpace *as, hwaddr base);
-static void destroy_page_desc(uint16_t section_index)
-{
-    MemoryRegionSection *section = &phys_sections[section_index];
-    MemoryRegion *mr = section->mr;
-
-    if (mr->subpage) {
-        subpage_t *subpage = container_of(mr, subpage_t, iomem);
-        memory_region_destroy(&subpage->iomem);
-        g_free(subpage);
-    }
-}
 
 static void destroy_l2_mapping(PhysPageEntry *lp, unsigned level)
 {
@@ -779,8 +768,6 @@ static void destroy_l2_mapping(PhysPageEntry *lp, unsigned level)
     for (i = 0; i < L2_SIZE; ++i) {
         if (!p[i].is_leaf) {
             destroy_l2_mapping(&p[i], level - 1);
-        } else {
-            destroy_page_desc(p[i].ptr);
         }
     }
     lp->is_leaf = 0;
@@ -810,9 +797,21 @@ static uint16_t phys_section_add(MemoryRegionSection *section)
     return phys_sections_nb++;
 }
 
+static void phys_section_destroy(MemoryRegion *mr)
+{
+    if (mr->subpage) {
+        subpage_t *subpage = container_of(mr, subpage_t, iomem);
+        memory_region_destroy(&subpage->iomem);
+        g_free(subpage);
+    }
+}
+
 static void phys_sections_clear(void)
 {
-    phys_sections_nb = 0;
+    while (phys_sections_nb > 0) {
+        MemoryRegionSection *section = &phys_sections[--phys_sections_nb];
+        phys_section_destroy(section->mr);
+    }
 }
 
 static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *section)
