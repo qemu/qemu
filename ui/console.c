@@ -1580,6 +1580,8 @@ static DisplayState *get_alloc_displaystate(void)
  */
 DisplayState *init_displaystate(void)
 {
+    Error *local_err = NULL;
+    gchar *name;
     int i;
 
     if (!display_state) {
@@ -1591,6 +1593,14 @@ DisplayState *init_displaystate(void)
             consoles[i]->ds == NULL) {
             text_console_do_init(consoles[i]->chr, display_state);
         }
+
+        /* Hook up into the qom tree here (not in new_console()), once
+         * all QemuConsoles are created and the order / numbering
+         * doesn't change any more */
+        name = g_strdup_printf("console[%d]", i);
+        object_property_add_child(container_get(object_get_root(), "/backend"),
+                                  name, OBJECT(consoles[i]), &local_err);
+        g_free(name);
     }
 
     return display_state;
