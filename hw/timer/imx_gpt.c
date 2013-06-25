@@ -27,7 +27,7 @@
 #define DEBUG_TIMER 0
 #if DEBUG_TIMER
 
-static char const *imx_timerg_reg_name(uint32_t reg)
+static char const *imx_gpt_reg_name(uint32_t reg)
 {
     switch (reg) {
     case 0:
@@ -67,12 +67,14 @@ static char const *imx_timerg_reg_name(uint32_t reg)
  */
 #define DEBUG_IMPLEMENTATION 1
 #if DEBUG_IMPLEMENTATION
-#  define IPRINTF(fmt, args...)                                         \
+#  define IPRINTF(fmt, args...) \
           do { fprintf(stderr, "%s: " fmt, __func__, ##args); } while (0)
 #else
 #  define IPRINTF(fmt, args...) do {} while (0)
 #endif
 
+#define IMX_GPT(obj) \
+        OBJECT_CHECK(IMXGPTState, (obj), TYPE_IMX_GPT)
 /*
  * GPT : General purpose timer
  *
@@ -137,33 +139,33 @@ typedef struct {
     uint32_t freq;
 
     qemu_irq irq;
-} IMXTimerGState;
+} IMXGPTState;
 
-static const VMStateDescription vmstate_imx_timerg = {
+static const VMStateDescription vmstate_imx_timer_gpt = {
     .name = TYPE_IMX_GPT,
     .version_id = 3,
     .minimum_version_id = 3,
     .minimum_version_id_old = 3,
     .fields      = (VMStateField[]) {
-        VMSTATE_UINT32(cr, IMXTimerGState),
-        VMSTATE_UINT32(pr, IMXTimerGState),
-        VMSTATE_UINT32(sr, IMXTimerGState),
-        VMSTATE_UINT32(ir, IMXTimerGState),
-        VMSTATE_UINT32(ocr1, IMXTimerGState),
-        VMSTATE_UINT32(ocr2, IMXTimerGState),
-        VMSTATE_UINT32(ocr3, IMXTimerGState),
-        VMSTATE_UINT32(icr1, IMXTimerGState),
-        VMSTATE_UINT32(icr2, IMXTimerGState),
-        VMSTATE_UINT32(cnt, IMXTimerGState),
-        VMSTATE_UINT32(next_timeout, IMXTimerGState),
-        VMSTATE_UINT32(next_int, IMXTimerGState),
-        VMSTATE_UINT32(freq, IMXTimerGState),
-        VMSTATE_PTIMER(timer, IMXTimerGState),
+        VMSTATE_UINT32(cr, IMXGPTState),
+        VMSTATE_UINT32(pr, IMXGPTState),
+        VMSTATE_UINT32(sr, IMXGPTState),
+        VMSTATE_UINT32(ir, IMXGPTState),
+        VMSTATE_UINT32(ocr1, IMXGPTState),
+        VMSTATE_UINT32(ocr2, IMXGPTState),
+        VMSTATE_UINT32(ocr3, IMXGPTState),
+        VMSTATE_UINT32(icr1, IMXGPTState),
+        VMSTATE_UINT32(icr2, IMXGPTState),
+        VMSTATE_UINT32(cnt, IMXGPTState),
+        VMSTATE_UINT32(next_timeout, IMXGPTState),
+        VMSTATE_UINT32(next_int, IMXGPTState),
+        VMSTATE_UINT32(freq, IMXGPTState),
+        VMSTATE_PTIMER(timer, IMXGPTState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static const IMXClk imx_timerg_clocks[] = {
+static const IMXClk imx_gpt_clocks[] = {
     NOCLK,    /* 000 No clock source */
     IPG,      /* 001 ipg_clk, 532MHz*/
     IPG,      /* 010 ipg_clk_highfreq */
@@ -174,10 +176,10 @@ static const IMXClk imx_timerg_clocks[] = {
     NOCLK,    /* 111 not defined */
 };
 
-static void imx_timerg_set_freq(IMXTimerGState *s)
+static void imx_gpt_set_freq(IMXGPTState *s)
 {
     uint32_t clksrc = extract32(s->cr, GPT_CR_CLKSRC_SHIFT, 3);
-    uint32_t freq = imx_clock_frequency(s->ccm, imx_timerg_clocks[clksrc])
+    uint32_t freq = imx_clock_frequency(s->ccm, imx_gpt_clocks[clksrc])
                                                 / (1 + s->pr);
     s->freq = freq;
 
@@ -188,7 +190,7 @@ static void imx_timerg_set_freq(IMXTimerGState *s)
     }
 }
 
-static void imx_timerg_update(IMXTimerGState *s)
+static void imx_gpt_update_int(IMXGPTState *s)
 {
     if ((s->sr & s->ir) && (s->cr & GPT_CR_EN)) {
         qemu_irq_raise(s->irq);
@@ -197,14 +199,14 @@ static void imx_timerg_update(IMXTimerGState *s)
     }
 }
 
-static uint32_t imx_timerg_update_counts(IMXTimerGState *s)
+static uint32_t imx_gpt_update_count(IMXGPTState *s)
 {
     s->cnt = s->next_timeout - (uint32_t)ptimer_get_count(s->timer);
 
     return s->cnt;
 }
 
-static inline uint32_t imx_timerg_find_limit(uint32_t count, uint32_t reg,
+static inline uint32_t imx_gpt_find_limit(uint32_t count, uint32_t reg,
                                              uint32_t timeout)
 {
     if ((count < reg) && (timeout > reg)) {
@@ -214,7 +216,7 @@ static inline uint32_t imx_timerg_find_limit(uint32_t count, uint32_t reg,
     return timeout;
 }
 
-static void imx_timerg_compute_next_timeout(IMXTimerGState *s, bool event)
+static void imx_gpt_compute_next_timeout(IMXGPTState *s, bool event)
 {
     uint32_t timeout = TIMER_MAX;
     uint32_t count = 0;
@@ -233,24 +235,24 @@ static void imx_timerg_compute_next_timeout(IMXTimerGState *s, bool event)
              * if we are in free running mode and we have not reached
              * the TIMER_MAX limit, then update the count
              */
-            count = imx_timerg_update_counts(s);
+            count = imx_gpt_update_count(s);
         }
     } else {
         /* not a timer event, then just update the count */
 
-        count = imx_timerg_update_counts(s);
+        count = imx_gpt_update_count(s);
     }
 
     /* now, find the next timeout related to count */
 
     if (s->ir & GPT_IR_OF1IE) {
-        timeout = imx_timerg_find_limit(count, s->ocr1, timeout);
+        timeout = imx_gpt_find_limit(count, s->ocr1, timeout);
     }
     if (s->ir & GPT_IR_OF2IE) {
-        timeout = imx_timerg_find_limit(count, s->ocr2, timeout);
+        timeout = imx_gpt_find_limit(count, s->ocr2, timeout);
     }
     if (s->ir & GPT_IR_OF3IE) {
-        timeout = imx_timerg_find_limit(count, s->ocr3, timeout);
+        timeout = imx_gpt_find_limit(count, s->ocr3, timeout);
     }
 
     /* find the next set of interrupts to raise for next timer event */
@@ -270,7 +272,7 @@ static void imx_timerg_compute_next_timeout(IMXTimerGState *s, bool event)
     }
 
     /* the new range to count down from */
-    limit = timeout - imx_timerg_update_counts(s);
+    limit = timeout - imx_gpt_update_count(s);
 
     if (limit < 0) {
         /*
@@ -280,9 +282,9 @@ static void imx_timerg_compute_next_timeout(IMXTimerGState *s, bool event)
          */
         s->sr |= s->next_int;
 
-        imx_timerg_compute_next_timeout(s, event);
+        imx_gpt_compute_next_timeout(s, event);
 
-        imx_timerg_update(s);
+        imx_gpt_update_int(s);
     } else {
         /* New timeout value */
         s->next_timeout = timeout;
@@ -292,10 +294,9 @@ static void imx_timerg_compute_next_timeout(IMXTimerGState *s, bool event)
     }
 }
 
-static uint64_t imx_timerg_read(void *opaque, hwaddr offset,
-                                unsigned size)
+static uint64_t imx_gpt_read(void *opaque, hwaddr offset, unsigned size)
 {
-    IMXTimerGState *s = (IMXTimerGState *)opaque;
+    IMXGPTState *s = IMX_GPT(opaque);
     uint32_t reg_value = 0;
     uint32_t reg = offset >> 2;
 
@@ -339,7 +340,7 @@ static uint64_t imx_timerg_read(void *opaque, hwaddr offset,
         break;
 
     case 9: /* cnt */
-        imx_timerg_update_counts(s);
+        imx_gpt_update_count(s);
         reg_value = s->cnt;
         break;
 
@@ -348,14 +349,14 @@ static uint64_t imx_timerg_read(void *opaque, hwaddr offset,
         break;
     }
 
-    DPRINTF("(%s) = 0x%08x\n", imx_timerg_reg_name(reg), reg_value);
+    DPRINTF("(%s) = 0x%08x\n", imx_gpt_reg_name(reg), reg_value);
 
     return reg_value;
 }
 
-static void imx_timerg_reset(DeviceState *dev)
+static void imx_gpt_reset(DeviceState *dev)
 {
-    IMXTimerGState *s = container_of(dev, IMXTimerGState, busdev.qdev);
+    IMXGPTState *s = IMX_GPT(dev);
 
     /* stop timer */
     ptimer_stop(s->timer);
@@ -379,7 +380,7 @@ static void imx_timerg_reset(DeviceState *dev)
     s->next_int = 0;
 
     /* compute new freq */
-    imx_timerg_set_freq(s);
+    imx_gpt_set_freq(s);
 
     /* reset the limit to TIMER_MAX */
     ptimer_set_limit(s->timer, TIMER_MAX, 1);
@@ -390,14 +391,14 @@ static void imx_timerg_reset(DeviceState *dev)
     }
 }
 
-static void imx_timerg_write(void *opaque, hwaddr offset,
-                             uint64_t value, unsigned size)
+static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
+                          unsigned size)
 {
-    IMXTimerGState *s = (IMXTimerGState *)opaque;
+    IMXGPTState *s = IMX_GPT(opaque);
     uint32_t oldreg;
     uint32_t reg = offset >> 2;
 
-    DPRINTF("(%s, value = 0x%08x)\n", imx_timerg_reg_name(reg),
+    DPRINTF("(%s, value = 0x%08x)\n", imx_gpt_reg_name(reg),
             (uint32_t)value);
 
     switch (reg) {
@@ -406,17 +407,17 @@ static void imx_timerg_write(void *opaque, hwaddr offset,
         s->cr = value & ~0x7c14;
         if (s->cr & GPT_CR_SWR) { /* force reset */
             /* handle the reset */
-            imx_timerg_reset(DEVICE(s));
+            imx_gpt_reset(DEVICE(s));
         } else {
             /* set our freq, as the source might have changed */
-            imx_timerg_set_freq(s);
+            imx_gpt_set_freq(s);
 
             if ((oldreg ^ s->cr) & GPT_CR_EN) {
                 if (s->cr & GPT_CR_EN) {
                     if (s->cr & GPT_CR_ENMOD) {
                         s->next_timeout = TIMER_MAX;
                         ptimer_set_count(s->timer, TIMER_MAX);
-                        imx_timerg_compute_next_timeout(s, false);
+                        imx_gpt_compute_next_timeout(s, false);
                     }
                     ptimer_run(s->timer, 1);
                 } else {
@@ -429,19 +430,19 @@ static void imx_timerg_write(void *opaque, hwaddr offset,
 
     case 1: /* Prescaler */
         s->pr = value & 0xfff;
-        imx_timerg_set_freq(s);
+        imx_gpt_set_freq(s);
         break;
 
     case 2: /* SR */
         s->sr &= ~(value & 0x3f);
-        imx_timerg_update(s);
+        imx_gpt_update_int(s);
         break;
 
     case 3: /* IR -- interrupt register */
         s->ir = value & 0x3f;
-        imx_timerg_update(s);
+        imx_gpt_update_int(s);
 
-        imx_timerg_compute_next_timeout(s, false);
+        imx_gpt_compute_next_timeout(s, false);
 
         break;
 
@@ -455,7 +456,7 @@ static void imx_timerg_write(void *opaque, hwaddr offset,
         }
 
         /* compute the new timeout */
-        imx_timerg_compute_next_timeout(s, false);
+        imx_gpt_compute_next_timeout(s, false);
 
         break;
 
@@ -463,7 +464,7 @@ static void imx_timerg_write(void *opaque, hwaddr offset,
         s->ocr2 = value;
 
         /* compute the new timeout */
-        imx_timerg_compute_next_timeout(s, false);
+        imx_gpt_compute_next_timeout(s, false);
 
         break;
 
@@ -471,7 +472,7 @@ static void imx_timerg_write(void *opaque, hwaddr offset,
         s->ocr3 = value;
 
         /* compute the new timeout */
-        imx_timerg_compute_next_timeout(s, false);
+        imx_gpt_compute_next_timeout(s, false);
 
         break;
 
@@ -481,80 +482,76 @@ static void imx_timerg_write(void *opaque, hwaddr offset,
     }
 }
 
-static void imx_timerg_timeout(void *opaque)
+static void imx_gpt_timeout(void *opaque)
 {
-    IMXTimerGState *s = (IMXTimerGState *)opaque;
+    IMXGPTState *s = IMX_GPT(opaque);
 
     DPRINTF("\n");
 
     s->sr |= s->next_int;
     s->next_int = 0;
 
-    imx_timerg_compute_next_timeout(s, true);
+    imx_gpt_compute_next_timeout(s, true);
 
-    imx_timerg_update(s);
+    imx_gpt_update_int(s);
 
     if (s->freq && (s->cr & GPT_CR_EN)) {
         ptimer_run(s->timer, 1);
     }
 }
 
-static const MemoryRegionOps imx_timerg_ops = {
-    .read = imx_timerg_read,
-    .write = imx_timerg_write,
+static const MemoryRegionOps imx_gpt_ops = {
+    .read = imx_gpt_read,
+    .write = imx_gpt_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 
-static int imx_timerg_init(SysBusDevice *dev)
+static void imx_gpt_realize(DeviceState *dev, Error **errp)
 {
-    IMXTimerGState *s = FROM_SYSBUS(IMXTimerGState, dev);
+    IMXGPTState *s = IMX_GPT(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     QEMUBH *bh;
 
-    sysbus_init_irq(dev, &s->irq);
-    memory_region_init_io(&s->iomem, &imx_timerg_ops,
-                          s, TYPE_IMX_GPT,
+    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&s->iomem, &imx_gpt_ops, s, TYPE_IMX_GPT,
                           0x00001000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    bh = qemu_bh_new(imx_timerg_timeout, s);
+    bh = qemu_bh_new(imx_gpt_timeout, s);
     s->timer = ptimer_init(bh);
-
-    /* Hard reset resets extra bits in CR */
-    s->cr = 0;
-    return 0;
 }
 
 void imx_timerg_create(const hwaddr addr, qemu_irq irq, DeviceState *ccm)
 {
-    IMXTimerGState *pp;
+    IMXGPTState *pp;
     DeviceState *dev;
 
     dev = sysbus_create_simple(TYPE_IMX_GPT, addr, irq);
-    pp = container_of(dev, IMXTimerGState, busdev.qdev);
+    pp = IMX_GPT(dev);
     pp->ccm = ccm;
 }
 
-static void imx_timerg_class_init(ObjectClass *klass, void *data)
+static void imx_gpt_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc  = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    k->init = imx_timerg_init;
-    dc->vmsd = &vmstate_imx_timerg;
-    dc->reset = imx_timerg_reset;
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = imx_gpt_realize;
+    dc->reset = imx_gpt_reset;
+    dc->vmsd = &vmstate_imx_timer_gpt;
     dc->desc = "i.MX general timer";
 }
 
-static const TypeInfo imx_timerg_info = {
+static const TypeInfo imx_gpt_info = {
     .name = TYPE_IMX_GPT,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXTimerGState),
-    .class_init = imx_timerg_class_init,
+    .instance_size = sizeof(IMXGPTState),
+    .class_init = imx_gpt_class_init,
 };
 
-static void imx_timer_register_types(void)
+static void imx_gpt_register_types(void)
 {
-    type_register_static(&imx_timerg_info);
+    type_register_static(&imx_gpt_info);
 }
 
-type_init(imx_timer_register_types)
+type_init(imx_gpt_register_types)
