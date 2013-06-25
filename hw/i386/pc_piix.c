@@ -91,6 +91,11 @@ static void pc_init1(MemoryRegion *system_memory,
     DeviceState *icc_bridge;
     FWCfgState *fw_cfg = NULL;
 
+    if (xen_enabled() && xen_hvm_init() != 0) {
+        fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
+        exit(1);
+    }
+
     icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
     object_property_add_child(qdev_get_machine(), "icc-bridge",
                               OBJECT(icc_bridge), NULL);
@@ -102,9 +107,9 @@ static void pc_init1(MemoryRegion *system_memory,
         kvmclock_create();
     }
 
-    if (ram_size >= QEMU_BELOW_4G_RAM_END ) {
-        above_4g_mem_size = ram_size - QEMU_BELOW_4G_RAM_END;
-        below_4g_mem_size = QEMU_BELOW_4G_RAM_END;
+    if (ram_size >= 0xe0000000 ) {
+        above_4g_mem_size = ram_size - 0xe0000000;
+        below_4g_mem_size = 0xe0000000;
     } else {
         above_4g_mem_size = 0;
         below_4g_mem_size = ram_size;
@@ -174,9 +179,6 @@ static void pc_init1(MemoryRegion *system_memory,
     pc_register_ferr_irq(gsi[13]);
 
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
-    if (xen_enabled()) {
-        pci_create_simple(pci_bus, -1, "xen-platform");
-    }
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled());
@@ -320,10 +322,14 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
 #ifdef CONFIG_XEN
 static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
 {
-    if (xen_hvm_init() != 0) {
-        hw_error("xen hardware virtual machine initialisation failed");
-    }
+    PCIBus *bus;
+
     pc_init_pci(args);
+
+    bus = pci_find_root_bus(0);
+    if (bus != NULL) {
+        pci_create_simple(bus, -1, "xen-platform");
+    }
 }
 #endif
 
