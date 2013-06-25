@@ -344,17 +344,6 @@ typedef struct Reg {
         offsetof(CPUARMState, QEMUFIELD)                     \
     }
 
-#define CP15REG(CRN, CRM, OPC1, OPC2, QEMUFIELD) \
-    {                                            \
-        KVM_REG_ARM | KVM_REG_SIZE_U32 |         \
-        (15 << KVM_REG_ARM_COPROC_SHIFT) |       \
-        ((CRN) << KVM_REG_ARM_32_CRN_SHIFT) |    \
-        ((CRM) << KVM_REG_ARM_CRM_SHIFT) |       \
-        ((OPC1) << KVM_REG_ARM_OPC1_SHIFT) |     \
-        ((OPC2) << KVM_REG_ARM_32_OPC2_SHIFT),   \
-        offsetof(CPUARMState, QEMUFIELD)         \
-    }
-
 #define VFPSYSREG(R)                                       \
     {                                                      \
         KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_VFP | \
@@ -403,12 +392,6 @@ static const Reg regs[] = {
     COREREG(fiq_regs[7], banked_spsr[5]),
     /* R15 */
     COREREG(usr_regs.uregs[15], regs[15]),
-    /* A non-comprehensive set of cp15 registers.
-     * TODO: drive this from the cp_regs hashtable instead.
-     */
-    CP15REG(1, 0, 0, 0, cp15.c1_sys), /* SCTLR */
-    CP15REG(2, 0, 0, 2, cp15.c2_control), /* TTBCR */
-    CP15REG(3, 0, 0, 0, cp15.c3), /* DACR */
     /* VFP system registers */
     VFPSYSREG(FPSID),
     VFPSYSREG(MVFR1),
@@ -426,7 +409,6 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     int mode, bn;
     int ret, i;
     uint32_t cpsr, fpscr;
-    uint64_t ttbr;
 
     /* Make sure the banked regs are properly set */
     mode = env->uncached_cpsr & CPSR_M;
@@ -460,26 +442,6 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
-    /* TTBR0: cp15 crm=2 opc1=0 */
-    ttbr = ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | (15 << KVM_REG_ARM_COPROC_SHIFT) |
-        (2 << KVM_REG_ARM_CRM_SHIFT) | (0 << KVM_REG_ARM_OPC1_SHIFT);
-    r.addr = (uintptr_t)(&ttbr);
-    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-
-    /* TTBR1: cp15 crm=2 opc1=1 */
-    ttbr = ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | (15 << KVM_REG_ARM_COPROC_SHIFT) |
-        (2 << KVM_REG_ARM_CRM_SHIFT) | (1 << KVM_REG_ARM_OPC1_SHIFT);
-    r.addr = (uintptr_t)(&ttbr);
-    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-
     /* VFP registers */
     r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP;
     for (i = 0; i < 32; i++) {
@@ -496,6 +458,31 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     fpscr = vfp_get_fpscr(env);
     r.addr = (uintptr_t)&fpscr;
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
+    if (ret) {
+        return ret;
+    }
+
+    /* Note that we do not call write_cpustate_to_list()
+     * here, so we are only writing the tuple list back to
+     * KVM. This is safe because nothing can change the
+     * CPUARMState cp15 fields (in particular gdb accesses cannot)
+     * and so there are no changes to sync. In fact syncing would
+     * be wrong at this point: for a constant register where TCG and
+     * KVM disagree about its value, the preceding write_list_to_cpustate()
+     * would not have had any effect on the CPUARMState value (since the
+     * register is read-only), and a write_cpustate_to_list() here would
+     * then try to write the TCG value back into KVM -- this would either
+     * fail or incorrectly change the value the guest sees.
+     *
+     * If we ever want to allow the user to modify cp15 registers via
+     * the gdb stub, we would need to be more clever here (for instance
+     * tracking the set of registers kvm_arch_get_registers() successfully
+     * managed to update the CPUARMState with, and only allowing those
+     * to be written back up into the kernel).
+     */
+    if (!write_list_to_kvmstate(cpu)) {
+        return EINVAL;
+    }
 
     return ret;
 }
@@ -508,7 +495,6 @@ int kvm_arch_get_registers(CPUState *cs)
     int mode, bn;
     int ret, i;
     uint32_t cpsr, fpscr;
-    uint64_t ttbr;
 
     for (i = 0; i < ARRAY_SIZE(regs); i++) {
         r.id = regs[i].id;
@@ -529,28 +515,6 @@ int kvm_arch_get_registers(CPUState *cs)
     }
     cpsr_write(env, cpsr, 0xffffffff);
 
-    /* TTBR0: cp15 crm=2 opc1=0 */
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | (15 << KVM_REG_ARM_COPROC_SHIFT) |
-        (2 << KVM_REG_ARM_CRM_SHIFT) | (0 << KVM_REG_ARM_OPC1_SHIFT);
-    r.addr = (uintptr_t)(&ttbr);
-    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-    env->cp15.c2_base0_hi = ttbr >> 32;
-    env->cp15.c2_base0 = ttbr;
-
-    /* TTBR1: cp15 crm=2 opc1=1 */
-    r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | (15 << KVM_REG_ARM_COPROC_SHIFT) |
-        (2 << KVM_REG_ARM_CRM_SHIFT) | (1 << KVM_REG_ARM_OPC1_SHIFT);
-    r.addr = (uintptr_t)(&ttbr);
-    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
-    if (ret) {
-        return ret;
-    }
-    env->cp15.c2_base1_hi = ttbr >> 32;
-    env->cp15.c2_base1 = ttbr;
-
     /* Make sure the current mode regs are properly set */
     mode = env->uncached_cpsr & CPSR_M;
     bn = bank_number(mode);
@@ -562,15 +526,6 @@ int kvm_arch_get_registers(CPUState *cs)
     env->regs[13] = env->banked_r13[bn];
     env->regs[14] = env->banked_r14[bn];
     env->spsr = env->banked_spsr[bn];
-
-    /* The main GET_ONE_REG loop above set c2_control, but we need to
-     * update some extra cached precomputed values too.
-     * When this is driven from the cp_regs hashtable then this ugliness
-     * can disappear because we'll use the access function which sets
-     * these values automatically.
-     */
-    env->cp15.c2_mask = ~(0xffffffffu >> env->cp15.c2_control);
-    env->cp15.c2_base_mask = ~(0x3fffu >> env->cp15.c2_control);
 
     /* VFP registers */
     r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP;
@@ -591,6 +546,14 @@ int kvm_arch_get_registers(CPUState *cs)
         return ret;
     }
     vfp_set_fpscr(env, fpscr);
+
+    if (!write_kvmstate_to_list(cpu)) {
+        return EINVAL;
+    }
+    /* Note that it's OK to have registers which aren't in CPUState,
+     * so we can ignore a failure return here.
+     */
+    write_list_to_cpustate(cpu);
 
     return 0;
 }
