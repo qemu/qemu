@@ -456,7 +456,7 @@ static inline bool cptype_valid(int cptype)
 {
     return ((cptype & ~ARM_CP_FLAG_MASK) == 0)
         || ((cptype & ARM_CP_SPECIAL) &&
-            (cptype <= ARM_LAST_SPECIAL));
+            ((cptype & ~ARM_CP_FLAG_MASK) <= ARM_LAST_SPECIAL));
 }
 
 /* Access rights:
