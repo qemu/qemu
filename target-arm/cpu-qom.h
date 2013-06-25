@@ -72,7 +72,11 @@ typedef struct ARMCPU {
     uint64_t *cpreg_indexes;
     /* Values of the registers (cpreg_indexes[i]'s value is cpreg_values[i]) */
     uint64_t *cpreg_values;
-    /* Length of the indexes, values arrays */
+    /* When using KVM, keeps a copy of the initial state of the VCPU,
+     * so that on reset we can feed the reset values back into the kernel.
+     */
+    uint64_t *cpreg_reset_values;
+    /* Length of the indexes, values, reset_values arrays */
     int32_t cpreg_array_len;
     /* These are used only for migration: incoming data arrives in
      * these fields and is sanity checked in post_load before copying

@@ -162,6 +162,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
         goto out;
     }
 
+    /* Save a copy of the initial register values so that we can
+     * feed it back to the kernel on VCPU reset.
+     */
+    cpu->cpreg_reset_values = g_memdup(cpu->cpreg_values,
+                                       cpu->cpreg_array_len *
+                                       sizeof(cpu->cpreg_values[0]));
+
 out:
     g_free(rlp);
     return ret;
@@ -603,6 +610,15 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 
 void kvm_arch_reset_vcpu(CPUState *cs)
 {
+    /* Feed the kernel back its initial register state */
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    memmove(cpu->cpreg_values, cpu->cpreg_reset_values,
+            cpu->cpreg_array_len * sizeof(cpu->cpreg_values[0]));
+
+    if (!write_list_to_kvmstate(cpu)) {
+        abort();
+    }
 }
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cs)
