@@ -179,9 +179,6 @@ static void pc_init1(MemoryRegion *system_memory,
     pc_register_ferr_irq(gsi[13]);
 
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
-    if (xen_enabled()) {
-        pci_create_simple(pci_bus, -1, "xen-platform");
-    }
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled());
@@ -325,7 +322,14 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
 #ifdef CONFIG_XEN
 static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
 {
+    PCIBus *bus;
+
     pc_init_pci(args);
+
+    bus = pci_find_root_bus(0);
+    if (bus != NULL) {
+        pci_create_simple(bus, -1, "xen-platform");
+    }
 }
 #endif
 
