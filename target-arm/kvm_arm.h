@@ -29,4 +29,37 @@
  */
 void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid);
 
+/**
+ * write_list_to_kvmstate:
+ * @cpu: ARMCPU
+ *
+ * For each register listed in the ARMCPU cpreg_indexes list, write
+ * its value from the cpreg_values list into the kernel (via ioctl).
+ * This updates KVM's working data structures from TCG data or
+ * from incoming migration state.
+ *
+ * Returns: true if all register values were updated correctly,
+ * false if some register was unknown to the kernel or could not
+ * be written (eg constant register with the wrong value).
+ * Note that we do not stop early on failure -- we will attempt
+ * writing all registers in the list.
+ */
+bool write_list_to_kvmstate(ARMCPU *cpu);
+
+/**
+ * write_kvmstate_to_list:
+ * @cpu: ARMCPU
+ *
+ * For each register listed in the ARMCPU cpreg_indexes list, write
+ * its value from the kernel into the cpreg_values list. This is used to
+ * copy info from KVM's working data structures into TCG or
+ * for outbound migration.
+ *
+ * Returns: true if all register values were read correctly,
+ * false if some register was unknown or could not be read.
+ * Note that we do not stop early on failure -- we will attempt
+ * reading all registers in the list.
+ */
+bool write_kvmstate_to_list(ARMCPU *cpu);
+
 #endif

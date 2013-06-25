@@ -1,5 +1,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
+#include "sysemu/kvm.h"
+#include "kvm_arm.h"
 
 static bool vfp_needed(void *opaque)
 {
@@ -152,9 +154,16 @@ static void cpu_pre_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
 
-    if (!write_cpustate_to_list(cpu)) {
-        /* This should never fail. */
-        abort();
+    if (kvm_enabled()) {
+        if (!write_kvmstate_to_list(cpu)) {
+            /* This should never fail */
+            abort();
+        }
+    } else {
+        if (!write_cpustate_to_list(cpu)) {
+            /* This should never fail. */
+            abort();
+        }
     }
 
     cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
@@ -193,8 +202,19 @@ static int cpu_post_load(void *opaque, int version_id)
         v++;
     }
 
-    if (!write_list_to_cpustate(cpu)) {
-        return -1;
+    if (kvm_enabled()) {
+        if (!write_list_to_kvmstate(cpu)) {
+            return -1;
+        }
+        /* Note that it's OK for the TCG side not to know about
+         * every register in the list; KVM is authoritative if
+         * we're using it.
+         */
+        write_list_to_cpustate(cpu);
+    } else {
+        if (!write_list_to_cpustate(cpu)) {
+            return -1;
+        }
     }
 
     return 0;

@@ -50,12 +50,35 @@ unsigned long kvm_arch_vcpu_id(CPUState *cpu)
     return cpu->cpu_index;
 }
 
+static bool reg_syncs_via_tuple_list(uint64_t regidx)
+{
+    /* Return true if the regidx is a register we should synchronize
+     * via the cpreg_tuples array (ie is not a core reg we sync by
+     * hand in kvm_arch_get/put_registers())
+     */
+    switch (regidx & KVM_REG_ARM_COPROC_MASK) {
+    case KVM_REG_ARM_CORE:
+    case KVM_REG_ARM_VFP:
+        return false;
+    default:
+        return true;
+    }
+}
+
+static int compare_u64(const void *a, const void *b)
+{
+    return *(uint64_t *)a - *(uint64_t *)b;
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     struct kvm_vcpu_init init;
-    int ret;
+    int i, ret, arraylen;
     uint64_t v;
     struct kvm_one_reg r;
+    struct kvm_reg_list rl;
+    struct kvm_reg_list *rlp;
+    ARMCPU *cpu = ARM_CPU(cs);
 
     init.target = KVM_ARM_TARGET_CORTEX_A15;
     memset(init.features, 0, sizeof(init.features));
@@ -74,6 +97,73 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (ret == -ENOENT) {
         return -EINVAL;
     }
+
+    /* Populate the cpreg list based on the kernel's idea
+     * of what registers exist (and throw away the TCG-created list).
+     */
+    rl.n = 0;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_REG_LIST, &rl);
+    if (ret != -E2BIG) {
+        return ret;
+    }
+    rlp = g_malloc(sizeof(struct kvm_reg_list) + rl.n * sizeof(uint64_t));
+    rlp->n = rl.n;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_REG_LIST, rlp);
+    if (ret) {
+        goto out;
+    }
+    /* Sort the list we get back from the kernel, since cpreg_tuples
+     * must be in strictly ascending order.
+     */
+    qsort(&rlp->reg, rlp->n, sizeof(rlp->reg[0]), compare_u64);
+
+    for (i = 0, arraylen = 0; i < rlp->n; i++) {
+        if (!reg_syncs_via_tuple_list(rlp->reg[i])) {
+            continue;
+        }
+        switch (rlp->reg[i] & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U32:
+        case KVM_REG_SIZE_U64:
+            break;
+        default:
+            fprintf(stderr, "Can't handle size of register in kernel list\n");
+            ret = -EINVAL;
+            goto out;
+        }
+
+        arraylen++;
+    }
+
+    cpu->cpreg_indexes = g_renew(uint64_t, cpu->cpreg_indexes, arraylen);
+    cpu->cpreg_values = g_renew(uint64_t, cpu->cpreg_values, arraylen);
+    cpu->cpreg_vmstate_indexes = g_renew(uint64_t, cpu->cpreg_vmstate_indexes,
+                                         arraylen);
+    cpu->cpreg_vmstate_values = g_renew(uint64_t, cpu->cpreg_vmstate_values,
+                                        arraylen);
+    cpu->cpreg_array_len = arraylen;
+    cpu->cpreg_vmstate_array_len = arraylen;
+
+    for (i = 0, arraylen = 0; i < rlp->n; i++) {
+        uint64_t regidx = rlp->reg[i];
+        if (!reg_syncs_via_tuple_list(regidx)) {
+            continue;
+        }
+        cpu->cpreg_indexes[arraylen] = regidx;
+        arraylen++;
+    }
+    assert(cpu->cpreg_array_len == arraylen);
+
+    if (!write_kvmstate_to_list(cpu)) {
+        /* Shouldn't happen unless kernel is inconsistent about
+         * what registers exist.
+         */
+        fprintf(stderr, "Initial read of kernel register state failed\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+out:
+    g_free(rlp);
     return ret;
 }
 
@@ -161,6 +251,78 @@ void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid)
     kd->kda.id = devid;
     kd->kda.addr = -1;
     QSLIST_INSERT_HEAD(&kvm_devices_head, kd, entries);
+}
+
+bool write_kvmstate_to_list(ARMCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    int i;
+    bool ok = true;
+
+    for (i = 0; i < cpu->cpreg_array_len; i++) {
+        struct kvm_one_reg r;
+        uint64_t regidx = cpu->cpreg_indexes[i];
+        uint32_t v32;
+        int ret;
+
+        r.id = regidx;
+
+        switch (regidx & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U32:
+            r.addr = (uintptr_t)&v32;
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+            if (!ret) {
+                cpu->cpreg_values[i] = v32;
+            }
+            break;
+        case KVM_REG_SIZE_U64:
+            r.addr = (uintptr_t)(cpu->cpreg_values + i);
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
+            break;
+        default:
+            abort();
+        }
+        if (ret) {
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+bool write_list_to_kvmstate(ARMCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    int i;
+    bool ok = true;
+
+    for (i = 0; i < cpu->cpreg_array_len; i++) {
+        struct kvm_one_reg r;
+        uint64_t regidx = cpu->cpreg_indexes[i];
+        uint32_t v32;
+        int ret;
+
+        r.id = regidx;
+        switch (regidx & KVM_REG_SIZE_MASK) {
+        case KVM_REG_SIZE_U32:
+            v32 = cpu->cpreg_values[i];
+            r.addr = (uintptr_t)&v32;
+            break;
+        case KVM_REG_SIZE_U64:
+            r.addr = (uintptr_t)(cpu->cpreg_values + i);
+            break;
+        default:
+            abort();
+        }
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
+        if (ret) {
+            /* We might fail for "unknown register" and also for
+             * "you tried to set a register which is constant with
+             * a different value from what it actually contains".
+             */
+            ok = false;
+        }
+    }
+    return ok;
 }
 
 typedef struct Reg {
