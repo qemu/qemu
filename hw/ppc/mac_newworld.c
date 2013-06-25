@@ -152,6 +152,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     char *filename;
     qemu_irq *pic, **openpic_irqs;
     MemoryRegion *unin_memory = g_new(MemoryRegion, 1);
+    MemoryRegion *unin2_memory = g_new(MemoryRegion, 1);
     int linux_boot, i, j, k;
     MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
@@ -291,6 +292,9 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     /* UniN init: XXX should be a real device */
     memory_region_init_io(unin_memory, &unin_ops, token, "unin", 0x1000);
     memory_region_add_subregion(get_system_memory(), 0xf8000000, unin_memory);
+
+    memory_region_init_io(unin2_memory, &unin_ops, token, "unin", 0x1000);
+    memory_region_add_subregion(get_system_memory(), 0xf3000000, unin2_memory);
 
     openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     openpic_irqs[0] =
