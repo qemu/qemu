@@ -1392,6 +1392,19 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                 r2->crm = crm;
                 r2->opc1 = opc1;
                 r2->opc2 = opc2;
+                /* By convention, for wildcarded registers only the first
+                 * entry is used for migration; the others are marked as
+                 * NO_MIGRATE so we don't try to transfer the register
+                 * multiple times. Special registers (ie NOP/WFI) are
+                 * never migratable.
+                 */
+                if ((r->type & ARM_CP_SPECIAL) ||
+                    ((r->crm == CP_ANY) && crm != 0) ||
+                    ((r->opc1 == CP_ANY) && opc1 != 0) ||
+                    ((r->opc2 == CP_ANY) && opc2 != 0)) {
+                    r2->type |= ARM_CP_NO_MIGRATE;
+                }
+
                 /* Overriding of an existing definition must be explicitly
                  * requested.
                  */

@@ -434,19 +434,22 @@ void armv7m_nvic_complete_irq(void *opaque, int irq);
  * a register definition to override a previous definition for the
  * same (cp, is64, crn, crm, opc1, opc2) tuple: either the new or the
  * old must have the OVERRIDE bit set.
+ * NO_MIGRATE indicates that this register should be ignored for migration;
+ * (eg because any state is accessed via some other coprocessor register).
  */
 #define ARM_CP_SPECIAL 1
 #define ARM_CP_CONST 2
 #define ARM_CP_64BIT 4
 #define ARM_CP_SUPPRESS_TB_END 8
 #define ARM_CP_OVERRIDE 16
+#define ARM_CP_NO_MIGRATE 32
 #define ARM_CP_NOP (ARM_CP_SPECIAL | (1 << 8))
 #define ARM_CP_WFI (ARM_CP_SPECIAL | (2 << 8))
 #define ARM_LAST_SPECIAL ARM_CP_WFI
 /* Used only as a terminator for ARMCPRegInfo lists */
 #define ARM_CP_SENTINEL 0xffff
 /* Mask of only the flag bits in a type field */
-#define ARM_CP_FLAG_MASK 0x1f
+#define ARM_CP_FLAG_MASK 0x3f
 
 /* Return true if cptype is a valid type field. This is used to try to
  * catch errors where the sentinel has been accidentally left off the end
@@ -562,6 +565,19 @@ struct ARMCPRegInfo {
      * by fieldoffset.
      */
     CPWriteFn *writefn;
+    /* Function for doing a "raw" read; used when we need to copy
+     * coprocessor state to the kernel for KVM or out for
+     * migration. This only needs to be provided if there is also a
+     * readfn and it makes an access permission check.
+     */
+    CPReadFn *raw_readfn;
+    /* Function for doing a "raw" write; used when we need to copy KVM
+     * kernel coprocessor state into userspace, or for inbound
+     * migration. This only needs to be provided if there is also a
+     * writefn and it makes an access permission check or masks out
+     * "unwritable" bits or has write-one-to-clear or similar behaviour.
+     */
+    CPWriteFn *raw_writefn;
     /* Function for resetting the register. If NULL, then reset will be done
      * by writing resetvalue to the field specified in fieldoffset. If
      * fieldoffset is 0 then no reset will be done.
