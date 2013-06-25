@@ -699,9 +699,9 @@ static const MemoryRegionOps ne2000_ops = {
 /***********************************************************/
 /* PCI NE2000 definitions */
 
-void ne2000_setup_io(NE2000State *s, unsigned size)
+void ne2000_setup_io(NE2000State *s, DeviceState *dev, unsigned size)
 {
-    memory_region_init_io(&s->io, NULL, &ne2000_ops, s, "ne2000", size);
+    memory_region_init_io(&s->io, OBJECT(dev), &ne2000_ops, s, "ne2000", size);
 }
 
 static void ne2000_cleanup(NetClientState *nc)
@@ -729,7 +729,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */
 
     s = &d->ne2000;
-    ne2000_setup_io(s, 0x100);
+    ne2000_setup_io(s, DEVICE(pci_dev), 0x100);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     s->irq = d->dev.irq[0];
 

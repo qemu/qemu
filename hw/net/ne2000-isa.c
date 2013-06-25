@@ -72,7 +72,7 @@ static void isa_ne2000_realizefn(DeviceState *dev, Error **errp)
     ISANE2000State *isa = ISA_NE2000(dev);
     NE2000State *s = &isa->ne2000;
 
-    ne2000_setup_io(s, 0x20);
+    ne2000_setup_io(s, DEVICE(isadev), 0x20);
     isa_register_ioport(isadev, &s->io, isa->iobase);
 
     isa_init_irq(isadev, &s->irq, isa->isairq);
