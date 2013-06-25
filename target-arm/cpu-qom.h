@@ -62,6 +62,25 @@ typedef struct ARMCPU {
 
     /* Coprocessor information */
     GHashTable *cp_regs;
+    /* For marshalling (mostly coprocessor) register state between the
+     * kernel and QEMU (for KVM) and between two QEMUs (for migration),
+     * we use these arrays.
+     */
+    /* List of register indexes managed via these arrays; (full KVM style
+     * 64 bit indexes, not CPRegInfo 32 bit indexes)
+     */
+    uint64_t *cpreg_indexes;
+    /* Values of the registers (cpreg_indexes[i]'s value is cpreg_values[i]) */
+    uint64_t *cpreg_values;
+    /* Length of the indexes, values arrays */
+    int32_t cpreg_array_len;
+    /* These are used only for migration: incoming data arrives in
+     * these fields and is sanity checked in post_load before copying
+     * to the working data structures above.
+     */
+    uint64_t *cpreg_vmstate_indexes;
+    uint64_t *cpreg_vmstate_values;
+    int32_t cpreg_vmstate_array_len;
 
     /* The instance init functions for implementation-specific subclasses
      * set these fields to specify the implementation-dependent values of
@@ -116,6 +135,7 @@ extern const struct VMStateDescription vmstate_arm_cpu;
 #endif
 
 void register_cp_regs_for_features(ARMCPU *cpu);
+void init_cpreg_list(ARMCPU *cpu);
 
 void arm_cpu_do_interrupt(CPUState *cpu);
 void arm_v7m_cpu_do_interrupt(CPUState *cpu);

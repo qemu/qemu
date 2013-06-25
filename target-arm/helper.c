@@ -78,6 +78,180 @@ static int raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
     return 0;
 }
 
+static bool read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t *v)
+{
+    /* Raw read of a coprocessor register (as needed for migration, etc)
+     * return true on success, false if the read is impossible for some reason.
+     */
+    if (ri->type & ARM_CP_CONST) {
+        *v = ri->resetvalue;
+    } else if (ri->raw_readfn) {
+        return (ri->raw_readfn(env, ri, v) == 0);
+    } else if (ri->readfn) {
+        return (ri->readfn(env, ri, v) == 0);
+    } else {
+        if (ri->type & ARM_CP_64BIT) {
+            *v = CPREG_FIELD64(env, ri);
+        } else {
+            *v = CPREG_FIELD32(env, ri);
+        }
+    }
+    return true;
+}
+
+static bool write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
+                             int64_t v)
+{
+    /* Raw write of a coprocessor register (as needed for migration, etc).
+     * Return true on success, false if the write is impossible for some reason.
+     * Note that constant registers are treated as write-ignored; the
+     * caller should check for success by whether a readback gives the
+     * value written.
+     */
+    if (ri->type & ARM_CP_CONST) {
+        return true;
+    } else if (ri->raw_writefn) {
+        return (ri->raw_writefn(env, ri, v) == 0);
+    } else if (ri->writefn) {
+        return (ri->writefn(env, ri, v) == 0);
+    } else {
+        if (ri->type & ARM_CP_64BIT) {
+            CPREG_FIELD64(env, ri) = v;
+        } else {
+            CPREG_FIELD32(env, ri) = v;
+        }
+    }
+    return true;
+}
+
+bool write_cpustate_to_list(ARMCPU *cpu)
+{
+    /* Write the coprocessor state from cpu->env to the (index,value) list. */
+    int i;
+    bool ok = true;
+
+    for (i = 0; i < cpu->cpreg_array_len; i++) {
+        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        const ARMCPRegInfo *ri;
+        uint64_t v;
+        ri = get_arm_cp_reginfo(cpu, regidx);
+        if (!ri) {
+            ok = false;
+            continue;
+        }
+        if (ri->type & ARM_CP_NO_MIGRATE) {
+            continue;
+        }
+        if (!read_raw_cp_reg(&cpu->env, ri, &v)) {
+            ok = false;
+            continue;
+        }
+        cpu->cpreg_values[i] = v;
+    }
+    return ok;
+}
+
+bool write_list_to_cpustate(ARMCPU *cpu)
+{
+    int i;
+    bool ok = true;
+
+    for (i = 0; i < cpu->cpreg_array_len; i++) {
+        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        uint64_t v = cpu->cpreg_values[i];
+        uint64_t readback;
+        const ARMCPRegInfo *ri;
+
+        ri = get_arm_cp_reginfo(cpu, regidx);
+        if (!ri) {
+            ok = false;
+            continue;
+        }
+        if (ri->type & ARM_CP_NO_MIGRATE) {
+            continue;
+        }
+        /* Write value and confirm it reads back as written
+         * (to catch read-only registers and partially read-only
+         * registers where the incoming migration value doesn't match)
+         */
+        if (!write_raw_cp_reg(&cpu->env, ri, v) ||
+            !read_raw_cp_reg(&cpu->env, ri, &readback) ||
+            readback != v) {
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+static void add_cpreg_to_list(gpointer key, gpointer opaque)
+{
+    ARMCPU *cpu = opaque;
+    uint64_t regidx;
+    const ARMCPRegInfo *ri;
+
+    regidx = *(uint32_t *)key;
+    ri = get_arm_cp_reginfo(cpu, regidx);
+
+    if (!(ri->type & ARM_CP_NO_MIGRATE)) {
+        cpu->cpreg_indexes[cpu->cpreg_array_len] = cpreg_to_kvm_id(regidx);
+        /* The value array need not be initialized at this point */
+        cpu->cpreg_array_len++;
+    }
+}
+
+static void count_cpreg(gpointer key, gpointer opaque)
+{
+    ARMCPU *cpu = opaque;
+    uint64_t regidx;
+    const ARMCPRegInfo *ri;
+
+    regidx = *(uint32_t *)key;
+    ri = get_arm_cp_reginfo(cpu, regidx);
+
+    if (!(ri->type & ARM_CP_NO_MIGRATE)) {
+        cpu->cpreg_array_len++;
+    }
+}
+
+static gint cpreg_key_compare(gconstpointer a, gconstpointer b)
+{
+    uint32_t aidx = *(uint32_t *)a;
+    uint32_t bidx = *(uint32_t *)b;
+
+    return aidx - bidx;
+}
+
+void init_cpreg_list(ARMCPU *cpu)
+{
+    /* Initialise the cpreg_tuples[] array based on the cp_regs hash.
+     * Note that we require cpreg_tuples[] to be sorted by key ID.
+     */
+    GList *keys;
+    int arraylen;
+
+    keys = g_hash_table_get_keys(cpu->cp_regs);
+    keys = g_list_sort(keys, cpreg_key_compare);
+
+    cpu->cpreg_array_len = 0;
+
+    g_list_foreach(keys, count_cpreg, cpu);
+
+    arraylen = cpu->cpreg_array_len;
+    cpu->cpreg_indexes = g_new(uint64_t, arraylen);
+    cpu->cpreg_values = g_new(uint64_t, arraylen);
+    cpu->cpreg_vmstate_indexes = g_new(uint64_t, arraylen);
+    cpu->cpreg_vmstate_values = g_new(uint64_t, arraylen);
+    cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
+    cpu->cpreg_array_len = 0;
+
+    g_list_foreach(keys, add_cpreg_to_list, cpu);
+
+    assert(cpu->cpreg_array_len == arraylen);
+
+    g_list_free(keys);
+}
+
 static int dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     env->cp15.c3 = value;
