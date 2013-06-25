@@ -116,7 +116,7 @@ static MemoryRegionIOMMUOps spapr_iommu_ops = {
     .translate = spapr_tce_translate_iommu,
 };
 
-sPAPRTCETable *spapr_tce_new_table(uint32_t liobn, size_t window_size)
+sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn, size_t window_size)
 {
     sPAPRTCETable *tcet;
 
@@ -151,7 +151,7 @@ sPAPRTCETable *spapr_tce_new_table(uint32_t liobn, size_t window_size)
             "table @ %p, fd=%d\n", tcet, liobn, tcet->table, tcet->fd);
 #endif
 
-    memory_region_init_iommu(&tcet->iommu, NULL, &spapr_iommu_ops,
+    memory_region_init_iommu(&tcet->iommu, OBJECT(owner), &spapr_iommu_ops,
                              "iommu-spapr", UINT64_MAX);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
