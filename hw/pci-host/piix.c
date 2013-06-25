@@ -275,10 +275,10 @@ static PCIBus *i440fx_common_init(const char *device_name,
     memory_region_add_subregion_overlap(f->system_memory, 0xa0000,
                                         &f->smram_region, 1);
     memory_region_set_enabled(&f->smram_region, false);
-    init_pam(f->ram_memory, f->system_memory, f->pci_address_space,
+    init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
              &f->pam_regions[0], PAM_BIOS_BASE, PAM_BIOS_SIZE);
     for (i = 0; i < 12; ++i) {
-        init_pam(f->ram_memory, f->system_memory, f->pci_address_space,
+        init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
                  &f->pam_regions[i+1], PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE,
                  PAM_EXPAN_SIZE);
     }
