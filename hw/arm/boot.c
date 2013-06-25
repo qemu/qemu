@@ -303,6 +303,7 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
             fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
         }
     }
+    qemu_devtree_dumpdtb(fdt, size);
 
     cpu_physical_memory_write(addr, fdt, size);
 
