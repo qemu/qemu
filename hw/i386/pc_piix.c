@@ -91,6 +91,11 @@ static void pc_init1(MemoryRegion *system_memory,
     DeviceState *icc_bridge;
     FWCfgState *fw_cfg = NULL;
 
+    if (xen_enabled() && xen_hvm_init() != 0) {
+        fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
+        exit(1);
+    }
+
     icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
     object_property_add_child(qdev_get_machine(), "icc-bridge",
                               OBJECT(icc_bridge), NULL);
@@ -320,9 +325,6 @@ static void pc_init_isa(QEMUMachineInitArgs *args)
 #ifdef CONFIG_XEN
 static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
 {
-    if (xen_hvm_init() != 0) {
-        hw_error("xen hardware virtual machine initialisation failed");
-    }
     pc_init_pci(args);
 }
 #endif
