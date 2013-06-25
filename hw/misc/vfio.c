@@ -2205,7 +2205,8 @@ static void vfio_unmap_bar(VFIODevice *vdev, int nr)
     memory_region_destroy(&bar->mem);
 }
 
-static int vfio_mmap_bar(VFIOBAR *bar, MemoryRegion *mem, MemoryRegion *submem,
+static int vfio_mmap_bar(VFIODevice *vdev, VFIOBAR *bar,
+                         MemoryRegion *mem, MemoryRegion *submem,
                          void **map, size_t size, off_t offset,
                          const char *name)
 {
@@ -2230,11 +2231,11 @@ static int vfio_mmap_bar(VFIOBAR *bar, MemoryRegion *mem, MemoryRegion *submem,
             goto empty_region;
         }
 
-        memory_region_init_ram_ptr(submem, NULL, name, size, *map);
+        memory_region_init_ram_ptr(submem, OBJECT(vdev), name, size, *map);
     } else {
 empty_region:
         /* Create a zero sized sub-region to make cleanup easy. */
-        memory_region_init(submem, NULL, name, 0);
+        memory_region_init(submem, OBJECT(vdev), name, 0);
     }
 
     memory_region_add_subregion(mem, offset, submem);
@@ -2285,7 +2286,7 @@ static void vfio_map_bar(VFIODevice *vdev, int nr)
     }
 
     strncat(name, " mmap", sizeof(name) - strlen(name) - 1);
-    if (vfio_mmap_bar(bar, &bar->mem,
+    if (vfio_mmap_bar(vdev, bar, &bar->mem,
                       &bar->mmap_mem, &bar->mmap, size, 0, name)) {
         error_report("%s unsupported. Performance may be slow", name);
     }
@@ -2299,7 +2300,7 @@ static void vfio_map_bar(VFIODevice *vdev, int nr)
         size = start < bar->size ? bar->size - start : 0;
         strncat(name, " msix-hi", sizeof(name) - strlen(name) - 1);
         /* VFIOMSIXInfo contains another MemoryRegion for this mapping */
-        if (vfio_mmap_bar(bar, &bar->mem, &vdev->msix->mmap_mem,
+        if (vfio_mmap_bar(vdev, bar, &bar->mem, &vdev->msix->mmap_mem,
                           &vdev->msix->mmap, size, start, name)) {
             error_report("%s unsupported. Performance may be slow", name);
         }
