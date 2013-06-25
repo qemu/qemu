@@ -96,14 +96,14 @@ typedef struct ChannelState {
     uint8_t rx, tx;
 } ChannelState;
 
-struct SerialState {
+typedef struct ESCCState {
     SysBusDevice busdev;
     struct ChannelState chn[2];
     uint32_t it_shift;
     MemoryRegion mmio;
     uint32_t disabled;
     uint32_t frequency;
-};
+} ESCCState;
 
 #define SERIAL_CTRL 0
 #define SERIAL_DATA 1
@@ -309,7 +309,7 @@ static void escc_reset_chn(ChannelState *s)
 
 static void escc_reset(DeviceState *d)
 {
-    SerialState *s = container_of(d, SerialState, busdev.qdev);
+    ESCCState *s = container_of(d, ESCCState, busdev.qdev);
 
     escc_reset_chn(&s->chn[0]);
     escc_reset_chn(&s->chn[1]);
@@ -466,7 +466,7 @@ static void escc_update_parameters(ChannelState *s)
 static void escc_mem_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    SerialState *serial = opaque;
+    ESCCState *serial = opaque;
     ChannelState *s;
     uint32_t saddr;
     int newreg, channel;
@@ -568,7 +568,7 @@ static void escc_mem_write(void *opaque, hwaddr addr,
 static uint64_t escc_mem_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    SerialState *serial = opaque;
+    ESCCState *serial = opaque;
     ChannelState *s;
     uint32_t saddr;
     uint32_t ret;
@@ -677,7 +677,7 @@ static const VMStateDescription vmstate_escc = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_STRUCT_ARRAY(chn, SerialState, 2, 2, vmstate_escc_chn,
+        VMSTATE_STRUCT_ARRAY(chn, ESCCState, 2, 2, vmstate_escc_chn,
                              ChannelState),
         VMSTATE_END_OF_LIST()
     }
@@ -689,7 +689,7 @@ MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
 {
     DeviceState *dev;
     SysBusDevice *s;
-    SerialState *d;
+    ESCCState *d;
 
     dev = qdev_create(NULL, "escc");
     qdev_prop_set_uint32(dev, "disabled", 0);
@@ -707,7 +707,7 @@ MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
         sysbus_mmio_map(s, 0, base);
     }
 
-    d = FROM_SYSBUS(SerialState, s);
+    d = FROM_SYSBUS(ESCCState, s);
     return &d->mmio;
 }
 
@@ -869,7 +869,7 @@ void slavio_serial_ms_kbd_init(hwaddr base, qemu_irq irq,
 
 static int escc_init1(SysBusDevice *dev)
 {
-    SerialState *s = FROM_SYSBUS(SerialState, dev);
+    ESCCState *s = FROM_SYSBUS(ESCCState, dev);
     unsigned int i;
 
     s->chn[0].disabled = s->disabled;
@@ -902,13 +902,13 @@ static int escc_init1(SysBusDevice *dev)
 }
 
 static Property escc_properties[] = {
-    DEFINE_PROP_UINT32("frequency", SerialState, frequency,   0),
-    DEFINE_PROP_UINT32("it_shift",  SerialState, it_shift,    0),
-    DEFINE_PROP_UINT32("disabled",  SerialState, disabled,    0),
-    DEFINE_PROP_UINT32("chnBtype",  SerialState, chn[0].type, 0),
-    DEFINE_PROP_UINT32("chnAtype",  SerialState, chn[1].type, 0),
-    DEFINE_PROP_CHR("chrB", SerialState, chn[0].chr),
-    DEFINE_PROP_CHR("chrA", SerialState, chn[1].chr),
+    DEFINE_PROP_UINT32("frequency", ESCCState, frequency,   0),
+    DEFINE_PROP_UINT32("it_shift",  ESCCState, it_shift,    0),
+    DEFINE_PROP_UINT32("disabled",  ESCCState, disabled,    0),
+    DEFINE_PROP_UINT32("chnBtype",  ESCCState, chn[0].type, 0),
+    DEFINE_PROP_UINT32("chnAtype",  ESCCState, chn[1].type, 0),
+    DEFINE_PROP_CHR("chrB", ESCCState, chn[0].chr),
+    DEFINE_PROP_CHR("chrA", ESCCState, chn[1].chr),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -926,7 +926,7 @@ static void escc_class_init(ObjectClass *klass, void *data)
 static const TypeInfo escc_info = {
     .name          = "escc",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SerialState),
+    .instance_size = sizeof(ESCCState),
     .class_init    = escc_class_init,
 };
 
