@@ -173,7 +173,7 @@ static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
 }
 
-static BlockJobType commit_job_type = {
+static const BlockJobType commit_job_type = {
     .instance_size = sizeof(CommitBlockJob),
     .job_type      = "commit",
     .set_speed     = commit_set_speed,
