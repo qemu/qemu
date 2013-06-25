@@ -237,14 +237,14 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, binfo->dtb_filename);
     if (!filename) {
         fprintf(stderr, "Couldn't open dtb file %s\n", binfo->dtb_filename);
-        return -1;
+        goto fail;
     }
 
     fdt = load_device_tree(filename, &size);
     if (!fdt) {
         fprintf(stderr, "Couldn't open dtb file %s\n", filename);
         g_free(filename);
-        return -1;
+        goto fail;
     }
     g_free(filename);
 
@@ -252,7 +252,7 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
     scells = qemu_devtree_getprop_cell(fdt, "/", "#size-cells");
     if (acells == 0 || scells == 0) {
         fprintf(stderr, "dtb file invalid (#address-cells or #size-cells 0)\n");
-        return -1;
+        goto fail;
     }
 
     mem_reg_propsize = acells + scells;
@@ -264,7 +264,7 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
     } else if (hival != 0) {
         fprintf(stderr, "qemu: dtb file not compatible with "
                 "RAM start address > 4GB\n");
-        exit(1);
+        goto fail;
     }
     mem_reg_property[acells + scells - 1] = cpu_to_be32(binfo->ram_size);
     hival = cpu_to_be32(binfo->ram_size >> 32);
@@ -273,13 +273,14 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
     } else if (hival != 0) {
         fprintf(stderr, "qemu: dtb file not compatible with "
                 "RAM size > 4GB\n");
-        exit(1);
+        goto fail;
     }
 
     rc = qemu_devtree_setprop(fdt, "/memory", "reg", mem_reg_property,
                               mem_reg_propsize * sizeof(uint32_t));
     if (rc < 0) {
         fprintf(stderr, "couldn't set /memory/reg\n");
+        goto fail;
     }
 
     if (binfo->kernel_cmdline && *binfo->kernel_cmdline) {
@@ -287,6 +288,7 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
                                           binfo->kernel_cmdline);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/bootargs\n");
+            goto fail;
         }
     }
 
@@ -295,18 +297,27 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
                 binfo->initrd_start);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
+            goto fail;
         }
 
         rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-end",
                     binfo->initrd_start + binfo->initrd_size);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
+            goto fail;
         }
     }
+    qemu_devtree_dumpdtb(fdt, size);
 
     cpu_physical_memory_write(addr, fdt, size);
 
+    g_free(fdt);
+
     return 0;
+
+fail:
+    g_free(fdt);
+    return -1;
 }
 
 static void do_cpu_reset(void *opaque)
