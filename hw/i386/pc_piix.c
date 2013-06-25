@@ -102,9 +102,9 @@ static void pc_init1(MemoryRegion *system_memory,
         kvmclock_create();
     }
 
-    if (ram_size >= QEMU_BELOW_4G_RAM_END ) {
-        above_4g_mem_size = ram_size - QEMU_BELOW_4G_RAM_END;
-        below_4g_mem_size = QEMU_BELOW_4G_RAM_END;
+    if (ram_size >= 0xe0000000 ) {
+        above_4g_mem_size = ram_size - 0xe0000000;
+        below_4g_mem_size = 0xe0000000;
     } else {
         above_4g_mem_size = 0;
         below_4g_mem_size = ram_size;

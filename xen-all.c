@@ -161,18 +161,18 @@ static void xen_ram_init(ram_addr_t ram_size)
     ram_addr_t block_len;
 
     block_len = ram_size;
-    if (ram_size >= QEMU_BELOW_4G_RAM_END) {
+    if (ram_size >= HVM_BELOW_4G_RAM_END) {
         /* Xen does not allocate the memory continuously, and keep a hole at
-         * QEMU_BELOW_4G_RAM_END of QEMU_BELOW_4G_MMIO_LENGTH
+         * HVM_BELOW_4G_MMIO_START of HVM_BELOW_4G_MMIO_LENGTH
          */
-        block_len += QEMU_BELOW_4G_MMIO_LENGTH;
+        block_len += HVM_BELOW_4G_MMIO_LENGTH;
     }
     memory_region_init_ram(&ram_memory, "xen.ram", block_len);
     vmstate_register_ram_global(&ram_memory);
 
-    if (ram_size >= QEMU_BELOW_4G_RAM_END) {
-        above_4g_mem_size = ram_size - QEMU_BELOW_4G_RAM_END;
-        below_4g_mem_size = QEMU_BELOW_4G_RAM_END;
+    if (ram_size >= HVM_BELOW_4G_RAM_END) {
+        above_4g_mem_size = ram_size - HVM_BELOW_4G_RAM_END;
+        below_4g_mem_size = HVM_BELOW_4G_RAM_END;
     } else {
         below_4g_mem_size = ram_size;
     }
