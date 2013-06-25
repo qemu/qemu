@@ -1,5 +1,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
+#include "sysemu/kvm.h"
+#include "kvm_arm.h"
 
 static bool vfp_needed(void *opaque)
 {
@@ -148,11 +150,83 @@ static const VMStateInfo vmstate_cpsr = {
     .put = put_cpsr,
 };
 
+static void cpu_pre_save(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    if (kvm_enabled()) {
+        if (!write_kvmstate_to_list(cpu)) {
+            /* This should never fail */
+            abort();
+        }
+    } else {
+        if (!write_cpustate_to_list(cpu)) {
+            /* This should never fail. */
+            abort();
+        }
+    }
+
+    cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
+    memcpy(cpu->cpreg_vmstate_indexes, cpu->cpreg_indexes,
+           cpu->cpreg_array_len * sizeof(uint64_t));
+    memcpy(cpu->cpreg_vmstate_values, cpu->cpreg_values,
+           cpu->cpreg_array_len * sizeof(uint64_t));
+}
+
+static int cpu_post_load(void *opaque, int version_id)
+{
+    ARMCPU *cpu = opaque;
+    int i, v;
+
+    /* Update the values list from the incoming migration data.
+     * Anything in the incoming data which we don't know about is
+     * a migration failure; anything we know about but the incoming
+     * data doesn't specify retains its current (reset) value.
+     * The indexes list remains untouched -- we only inspect the
+     * incoming migration index list so we can match the values array
+     * entries with the right slots in our own values array.
+     */
+
+    for (i = 0, v = 0; i < cpu->cpreg_array_len
+             && v < cpu->cpreg_vmstate_array_len; i++) {
+        if (cpu->cpreg_vmstate_indexes[v] > cpu->cpreg_indexes[i]) {
+            /* register in our list but not incoming : skip it */
+            continue;
+        }
+        if (cpu->cpreg_vmstate_indexes[v] < cpu->cpreg_indexes[i]) {
+            /* register in their list but not ours: fail migration */
+            return -1;
+        }
+        /* matching register, copy the value over */
+        cpu->cpreg_values[i] = cpu->cpreg_vmstate_values[v];
+        v++;
+    }
+
+    if (kvm_enabled()) {
+        if (!write_list_to_kvmstate(cpu)) {
+            return -1;
+        }
+        /* Note that it's OK for the TCG side not to know about
+         * every register in the list; KVM is authoritative if
+         * we're using it.
+         */
+        write_list_to_cpustate(cpu);
+    } else {
+        if (!write_list_to_cpustate(cpu)) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 const VMStateDescription vmstate_arm_cpu = {
     .name = "cpu",
-    .version_id = 11,
-    .minimum_version_id = 11,
-    .minimum_version_id_old = 11,
+    .version_id = 12,
+    .minimum_version_id = 12,
+    .minimum_version_id_old = 12,
+    .pre_save = cpu_pre_save,
+    .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.regs, ARMCPU, 16),
         {
@@ -169,50 +243,16 @@ const VMStateDescription vmstate_arm_cpu = {
         VMSTATE_UINT32_ARRAY(env.banked_r14, ARMCPU, 6),
         VMSTATE_UINT32_ARRAY(env.usr_regs, ARMCPU, 5),
         VMSTATE_UINT32_ARRAY(env.fiq_regs, ARMCPU, 5),
-        VMSTATE_UINT32(env.cp15.c0_cpuid, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c0_cssel, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c1_sys, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c1_coproc, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c1_xscaleauxcr, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c1_scr, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c2_base0, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c2_base0_hi, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c2_base1, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c2_base1_hi, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c2_control, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c2_mask, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c2_base_mask, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c2_data, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c2_insn, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c3, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c5_insn, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c5_data, ARMCPU),
-        VMSTATE_UINT32_ARRAY(env.cp15.c6_region, ARMCPU, 8),
-        VMSTATE_UINT32(env.cp15.c6_insn, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c6_data, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c7_par, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c7_par_hi, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c9_insn, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c9_data, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c9_pmcr, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c9_pmcnten, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c9_pmovsr, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c9_pmxevtyper, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c9_pmuserenr, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c9_pminten, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c13_fcse, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c13_context, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c13_tls1, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c13_tls2, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c13_tls3, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c15_cpar, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c15_ticonfig, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c15_i_max, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c15_i_min, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c15_threadid, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c15_power_control, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c15_diagnostic, ARMCPU),
-        VMSTATE_UINT32(env.cp15.c15_power_diagnostic, ARMCPU),
+        /* The length-check must come before the arrays to avoid
+         * incoming data possibly overflowing the array.
+         */
+        VMSTATE_INT32_LE(cpreg_vmstate_array_len, ARMCPU),
+        VMSTATE_VARRAY_INT32(cpreg_vmstate_indexes, ARMCPU,
+                             cpreg_vmstate_array_len,
+                             0, vmstate_info_uint64, uint64_t),
+        VMSTATE_VARRAY_INT32(cpreg_vmstate_values, ARMCPU,
+                             cpreg_vmstate_array_len,
+                             0, vmstate_info_uint64, uint64_t),
         VMSTATE_UINT32(env.exclusive_addr, ARMCPU),
         VMSTATE_UINT32(env.exclusive_val, ARMCPU),
         VMSTATE_UINT32(env.exclusive_high, ARMCPU),

@@ -69,6 +69,11 @@ typedef struct VirtIOCCWDeviceClass {
 /* Change here if we want to support more feature bits. */
 #define VIRTIO_CCW_FEATURE_SIZE 1
 
+/* Performance improves when virtqueue kick processing is decoupled from the
+ * vcpu thread using ioeventfd for some devices. */
+#define VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT 1
+#define VIRTIO_CCW_FLAG_USE_IOEVENTFD   (1 << VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT)
+
 struct VirtioCcwDevice {
     DeviceState parent_obj;
     SubchDev *sch;
@@ -76,6 +81,9 @@ struct VirtioCcwDevice {
     char *bus_id;
     uint32_t host_features[VIRTIO_CCW_FEATURE_SIZE];
     VirtioBusState bus;
+    bool ioeventfd_started;
+    bool ioeventfd_disabled;
+    uint32_t flags;
     /* Guest provided values: */
     hwaddr indicators;
     hwaddr indicators2;

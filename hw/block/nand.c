@@ -21,7 +21,7 @@
 # include "hw/hw.h"
 # include "hw/block/flash.h"
 # include "sysemu/blockdev.h"
-# include "hw/sysbus.h"
+#include "hw/qdev.h"
 #include "qemu/error-report.h"
 
 # define NAND_CMD_READ0		0x00
@@ -54,7 +54,8 @@
 
 typedef struct NANDFlashState NANDFlashState;
 struct NANDFlashState {
-    SysBusDevice busdev;
+    DeviceState parent_obj;
+
     uint8_t manf_id, chip_id;
     uint8_t buswidth; /* in BYTES */
     int size, pages;
@@ -81,6 +82,11 @@ struct NANDFlashState {
 
     uint32_t ioaddr_vmstate;
 };
+
+#define TYPE_NAND "nand"
+
+#define NAND(obj) \
+    OBJECT_CHECK(NANDFlashState, (obj), TYPE_NAND)
 
 static void mem_and(uint8_t *dest, const uint8_t *src, size_t n)
 {
@@ -224,7 +230,7 @@ static const struct {
 
 static void nand_reset(DeviceState *dev)
 {
-    NANDFlashState *s = FROM_SYSBUS(NANDFlashState, SYS_BUS_DEVICE(dev));
+    NANDFlashState *s = NAND(dev);
     s->cmd = NAND_CMD_READ0;
     s->addr = 0;
     s->addrlen = 0;
@@ -279,7 +285,7 @@ static void nand_command(NANDFlashState *s)
         break;
 
     case NAND_CMD_RESET:
-        nand_reset(&s->busdev.qdev);
+        nand_reset(DEVICE(s));
         break;
 
     case NAND_CMD_PAGEPROGRAM1:
@@ -319,14 +325,14 @@ static void nand_command(NANDFlashState *s)
 
 static void nand_pre_save(void *opaque)
 {
-    NANDFlashState *s = opaque;
+    NANDFlashState *s = NAND(opaque);
 
     s->ioaddr_vmstate = s->ioaddr - s->io;
 }
 
 static int nand_post_load(void *opaque, int version_id)
 {
-    NANDFlashState *s = opaque;
+    NANDFlashState *s = NAND(opaque);
 
     if (s->ioaddr_vmstate > sizeof(s->io)) {
         return -EINVAL;
@@ -362,10 +368,10 @@ static const VMStateDescription vmstate_nand = {
     }
 };
 
-static int nand_device_init(SysBusDevice *dev)
+static void nand_realize(DeviceState *dev, Error **errp)
 {
     int pagesize;
-    NANDFlashState *s = FROM_SYSBUS(NANDFlashState, dev);
+    NANDFlashState *s = NAND(dev);
 
     s->buswidth = nand_flash_ids[s->chip_id].width >> 3;
     s->size = nand_flash_ids[s->chip_id].size << 20;
@@ -388,16 +394,17 @@ static int nand_device_init(SysBusDevice *dev)
         nand_init_2048(s);
         break;
     default:
-        error_report("Unsupported NAND block size");
-        return -1;
+        error_setg(errp, "Unsupported NAND block size %#x\n",
+                   1 << s->page_shift);
+        return;
     }
 
     pagesize = 1 << s->oob_shift;
     s->mem_oob = 1;
     if (s->bdrv) {
         if (bdrv_is_read_only(s->bdrv)) {
-            error_report("Can't use a read-only drive");
-            return -1;
+            error_setg(errp, "Can't use a read-only drive");
+            return;
         }
         if (bdrv_getlength(s->bdrv) >=
                 (s->pages << s->page_shift) + (s->pages << s->oob_shift)) {
@@ -413,8 +420,6 @@ static int nand_device_init(SysBusDevice *dev)
     }
     /* Give s->ioaddr a sane value in case we save state before it is used. */
     s->ioaddr = s->io;
-
-    return 0;
 }
 
 static Property nand_properties[] = {
@@ -427,17 +432,16 @@ static Property nand_properties[] = {
 static void nand_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = nand_device_init;
+    dc->realize = nand_realize;
     dc->reset = nand_reset;
     dc->vmsd = &vmstate_nand;
     dc->props = nand_properties;
 }
 
 static const TypeInfo nand_info = {
-    .name          = "nand",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .name          = TYPE_NAND,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(NANDFlashState),
     .class_init    = nand_class_init,
 };
@@ -456,7 +460,8 @@ static void nand_register_types(void)
 void nand_setpins(DeviceState *dev, uint8_t cle, uint8_t ale,
                   uint8_t ce, uint8_t wp, uint8_t gnd)
 {
-    NANDFlashState *s = (NANDFlashState *) dev;
+    NANDFlashState *s = NAND(dev);
+
     s->cle = cle;
     s->ale = ale;
     s->ce = ce;
@@ -477,7 +482,8 @@ void nand_getpins(DeviceState *dev, int *rb)
 void nand_setio(DeviceState *dev, uint32_t value)
 {
     int i;
-    NANDFlashState *s = (NANDFlashState *) dev;
+    NANDFlashState *s = NAND(dev);
+
     if (!s->ce && s->cle) {
         if (nand_flash_ids[s->chip_id].options & NAND_SAMSUNG_LP) {
             if (s->cmd == NAND_CMD_READ0 && value == NAND_CMD_LPREAD2)
@@ -581,7 +587,7 @@ uint32_t nand_getio(DeviceState *dev)
 {
     int offset;
     uint32_t x = 0;
-    NANDFlashState *s = (NANDFlashState *) dev;
+    NANDFlashState *s = NAND(dev);
 
     /* Allow sequential reading */
     if (!s->iolen && s->cmd == NAND_CMD_READ0) {

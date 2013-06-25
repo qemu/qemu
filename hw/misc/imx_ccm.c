@@ -153,7 +153,7 @@ static void update_clocks(IMXCCMState *s)
      * approach
      */
 
-    if ((s->ccmr & CCMR_PRCS) == 1) {
+    if ((s->ccmr & CCMR_PRCS) == 2) {
         s->pll_refclk_freq = CKIL_FREQ * 1024;
     } else {
         s->pll_refclk_freq = CKIH_FREQ;
