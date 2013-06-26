@@ -472,7 +472,12 @@ static void qtest_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        qemu_system_reset(false);
+        /*
+         * We used to call qemu_system_reset() here, hoping we could
+         * use the same process for multiple tests that way.  Never
+         * used.  Injects an extra reset even when it's not used, and
+         * that can mess up tests, e.g. -boot once.
+         */
         for (i = 0; i < ARRAY_SIZE(irq_levels); i++) {
             irq_levels[i] = 0;
         }
