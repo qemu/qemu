@@ -1487,45 +1487,6 @@ static int filename_decompose(const char *filename, char *path, char *prefix,
     return VMDK_OK;
 }
 
-static int relative_path(char *dest, int dest_size,
-        const char *base, const char *target)
-{
-    int i = 0;
-    int n = 0;
-    const char *p, *q;
-#ifdef _WIN32
-    const char *sep = "\\";
-#else
-    const char *sep = "/";
-#endif
-
-    if (!(dest && base && target)) {
-        return VMDK_ERROR;
-    }
-    if (path_is_absolute(target)) {
-        pstrcpy(dest, dest_size, target);
-        return VMDK_OK;
-    }
-    while (base[i] == target[i]) {
-        i++;
-    }
-    p = &base[i];
-    q = &target[i];
-    while (*p) {
-        if (*p == *sep) {
-            n++;
-        }
-        p++;
-    }
-    dest[0] = '\0';
-    for (; n; n--) {
-        pstrcat(dest, dest_size, "..");
-        pstrcat(dest, dest_size, sep);
-    }
-    pstrcat(dest, dest_size, q);
-    return VMDK_OK;
-}
-
 static int vmdk_create(const char *filename, QEMUOptionParameter *options)
 {
     int fd, idx = 0;
@@ -1625,7 +1586,6 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
         return -ENOTSUP;
     }
     if (backing_file) {
-        char parent_filename[PATH_MAX];
         BlockDriverState *bs = bdrv_new("");
         ret = bdrv_open(bs, backing_file, NULL, 0, NULL);
         if (ret != 0) {
@@ -1638,10 +1598,8 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
         }
         parent_cid = vmdk_read_cid(bs, 0);
         bdrv_delete(bs);
-        relative_path(parent_filename, sizeof(parent_filename),
-                      filename, backing_file);
         snprintf(parent_desc_line, sizeof(parent_desc_line),
-                "parentFileNameHint=\"%s\"", parent_filename);
+                "parentFileNameHint=\"%s\"", backing_file);
     }
 
     /* Create extents */
