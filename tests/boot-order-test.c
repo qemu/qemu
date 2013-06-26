@@ -173,6 +173,18 @@ static void test_sun4m_boot_order(void)
     test_boot_orders("SS-5", read_boot_order_sun4m, test_cases_fw_cfg);
 }
 
+static uint64_t read_boot_order_sun4u(void)
+{
+    QFWCFG *fw_cfg = io_fw_cfg_init(0x510);
+
+    return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
+}
+
+static void test_sun4u_boot_order(void)
+{
+    test_boot_orders("sun4u", read_boot_order_sun4u, test_cases_fw_cfg);
+}
+
 int main(int argc, char *argv[])
 {
     const char *arch = qtest_get_arch();
@@ -189,6 +201,8 @@ int main(int argc, char *argv[])
                        test_pmac_newworld_boot_order);
     } else if (strcmp(arch, "sparc") == 0) {
         qtest_add_func("boot-order/sun4m", test_sun4m_boot_order);
+    } else if (strcmp(arch, "sparc64") == 0) {
+        qtest_add_func("boot-order/sun4u", test_sun4u_boot_order);
     }
 
     return g_test_run();
