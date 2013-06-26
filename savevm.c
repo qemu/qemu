@@ -616,6 +616,65 @@ void qemu_fflush(QEMUFile *f)
     }
 }
 
+void ram_control_before_iterate(QEMUFile *f, uint64_t flags)
+{
+    int ret = 0;
+
+    if (f->ops->before_ram_iterate) {
+        ret = f->ops->before_ram_iterate(f, f->opaque, flags);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
+    }
+}
+
+void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
+{
+    int ret = 0;
+
+    if (f->ops->after_ram_iterate) {
+        ret = f->ops->after_ram_iterate(f, f->opaque, flags);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
+    }
+}
+
+void ram_control_load_hook(QEMUFile *f, uint64_t flags)
+{
+    int ret = 0;
+
+    if (f->ops->hook_ram_load) {
+        ret = f->ops->hook_ram_load(f, f->opaque, flags);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
+    } else {
+        qemu_file_set_error(f, ret);
+    }
+}
+
+size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
+                         ram_addr_t offset, size_t size, int *bytes_sent)
+{
+    if (f->ops->save_page) {
+        int ret = f->ops->save_page(f, f->opaque, block_offset,
+                                    offset, size, bytes_sent);
+
+        if (ret != RAM_SAVE_CONTROL_DELAYED) {
+            if (*bytes_sent > 0) {
+                qemu_update_position(f, *bytes_sent);
+            } else if (ret < 0) {
+                qemu_file_set_error(f, ret);
+            }
+        }
+
+        return ret;
+    }
+
+    return RAM_SAVE_CONTROL_NOT_SUPP;
+}
+
 static void qemu_fill_buffer(QEMUFile *f)
 {
     int len;
