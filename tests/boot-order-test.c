@@ -15,19 +15,15 @@
 #include "libqos/fw_cfg.h"
 #include "libqtest.h"
 
-static uint8_t read_mc146818(uint16_t port, uint8_t reg)
-{
-    outb(port, reg);
-    return inb(port + 1);
-}
+#define NO_QEMU_PROTOS
+#include "hw/nvram/fw_cfg.h"
+#undef NO_QEMU_PROTOS
 
-static uint64_t read_boot_order_pc(void)
-{
-    uint8_t b1 = read_mc146818(0x70, 0x38);
-    uint8_t b2 = read_mc146818(0x70, 0x3d);
-
-    return b1 | (b2 << 8);
-}
+typedef struct {
+    const char *args;
+    uint64_t expected_boot;
+    uint64_t expected_reboot;
+} boot_order_test;
 
 static void test_a_boot_order(const char *machine,
                               const char *test_args,
@@ -57,12 +53,6 @@ static void test_a_boot_order(const char *machine,
     g_free(args);
 }
 
-typedef struct {
-    const char *args;
-    uint64_t expected_boot;
-    uint64_t expected_reboot;
-} boot_order_test;
-
 static void test_boot_orders(const char *machine,
                              uint64_t (*read_boot_order)(void),
                              const boot_order_test *tests)
@@ -75,6 +65,20 @@ static void test_boot_orders(const char *machine,
                           tests[i].expected_boot,
                           tests[i].expected_reboot);
     }
+}
+
+static uint8_t read_mc146818(uint16_t port, uint8_t reg)
+{
+    outb(port, reg);
+    return inb(port + 1);
+}
+
+static uint64_t read_boot_order_pc(void)
+{
+    uint8_t b1 = read_mc146818(0x70, 0x38);
+    uint8_t b2 = read_mc146818(0x70, 0x3d);
+
+    return b1 | (b2 << 8);
 }
 
 static const boot_order_test test_cases_pc[] = {
@@ -107,10 +111,6 @@ static void test_pc_boot_order(void)
 {
     test_boot_orders(NULL, read_boot_order_pc, test_cases_pc);
 }
-
-#define NO_QEMU_PROTOS
-#include "hw/nvram/fw_cfg.h"
-#undef NO_QEMU_PROTOS
 
 static uint64_t read_boot_order_pmac(void)
 {
