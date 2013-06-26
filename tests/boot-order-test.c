@@ -102,6 +102,7 @@ static void test_powermac_boot_order(void)
         test_powermac_with_args(newworld, "", 'c', 'c');
         test_powermac_with_args(newworld, "-boot c", 'c', 'c');
         test_powermac_with_args(newworld, "-boot d", 'd', 'd');
+        test_powermac_with_args(newworld, "-boot once=d,order=c", 'd', 'c');
     }
 }
 
