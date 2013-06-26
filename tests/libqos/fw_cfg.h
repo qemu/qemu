@@ -20,6 +20,7 @@ typedef struct QFWCFG QFWCFG;
 
 struct QFWCFG
 {
+    uint64_t base;
     void (*select)(QFWCFG *fw_cfg, uint16_t key);
     void (*read)(QFWCFG *fw_cfg, void *data, size_t len);
 };
@@ -30,5 +31,7 @@ void qfw_cfg_get(QFWCFG *fw_cfg, uint16_t key, void *data, size_t len);
 uint16_t qfw_cfg_get_u16(QFWCFG *fw_cfg, uint16_t key);
 uint32_t qfw_cfg_get_u32(QFWCFG *fw_cfg, uint16_t key);
 uint64_t qfw_cfg_get_u64(QFWCFG *fw_cfg, uint16_t key);
+
+QFWCFG *mm_fw_cfg_init(uint64_t base);
 
 #endif
