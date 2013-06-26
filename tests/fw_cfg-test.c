@@ -14,7 +14,7 @@
 
 #include "libqtest.h"
 #include "hw/nvram/fw_cfg.h"
-#include "libqos/fw_cfg-pc.h"
+#include "libqos/fw_cfg.h"
 
 #include <string.h>
 #include <glib.h>

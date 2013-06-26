@@ -79,3 +79,29 @@ QFWCFG *mm_fw_cfg_init(uint64_t base)
 
     return fw_cfg;
 }
+
+static void io_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
+{
+    outw(fw_cfg->base, key);
+}
+
+static void io_fw_cfg_read(QFWCFG *fw_cfg, void *data, size_t len)
+{
+    uint8_t *ptr = data;
+    int i;
+
+    for (i = 0; i < len; i++) {
+        ptr[i] = inb(fw_cfg->base + 1);
+    }
+}
+
+QFWCFG *io_fw_cfg_init(uint16_t base)
+{
+    QFWCFG *fw_cfg = g_malloc0(sizeof(*fw_cfg));
+
+    fw_cfg->base = base;
+    fw_cfg->select = io_fw_cfg_select;
+    fw_cfg->read = io_fw_cfg_read;
+
+    return fw_cfg;
+}

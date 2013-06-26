@@ -33,5 +33,11 @@ uint32_t qfw_cfg_get_u32(QFWCFG *fw_cfg, uint16_t key);
 uint64_t qfw_cfg_get_u64(QFWCFG *fw_cfg, uint16_t key);
 
 QFWCFG *mm_fw_cfg_init(uint64_t base);
+QFWCFG *io_fw_cfg_init(uint16_t base);
+
+static inline QFWCFG *pc_fw_cfg_init(void)
+{
+    return io_fw_cfg_init(0x510);
+}
 
 #endif

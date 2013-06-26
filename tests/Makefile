@@ -128,7 +128,7 @@ tests/test-mul64$(EXESUF): tests/test-mul64.o libqemuutil.a
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o
 libqos-obj-y += tests/libqos/i2c.o
-libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o tests/libqos/fw_cfg-pc.o
+libqos-pc-obj-y = $(libqos-obj-y) tests/libqos/pci-pc.o
 libqos-pc-obj-y += tests/libqos/malloc-pc.o
 libqos-omap-obj-y = $(libqos-obj-y) tests/libqos/i2c-omap.o
 
