@@ -1634,6 +1634,10 @@
 # @format: #optional the format of the new destination, default is to
 #          probe if @mode is 'existing', else the format of the source
 #
+# @sync: what parts of the disk image should be copied to the destination
+#        (all the disk, only the sectors allocated in the topmost image, or
+#        only new I/O).
+#
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 #
@@ -1655,7 +1659,8 @@
 ##
 { 'type': 'DriveBackup',
   'data': { 'device': 'str', 'target': 'str', '*format': 'str',
-            '*mode': 'NewImageMode', '*speed': 'int',
+            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
+            '*speed': 'int',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 

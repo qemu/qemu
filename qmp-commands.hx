@@ -913,7 +913,7 @@ EQMP
 
     {
         .name       = "drive-backup",
-        .args_type  = "device:B,target:s,speed:i?,mode:s?,format:s?,"
+        .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
                       "on-source-error:s?,on-target-error:s?",
         .mhandler.cmd_new = qmp_marshal_input_drive_backup,
     },
@@ -939,6 +939,10 @@ Arguments:
 - "format": the format of the new destination, default is to probe if 'mode' is
             'existing', else the format of the source
             (json-string, optional)
+- "sync": what parts of the disk image should be copied to the destination;
+  possibilities include "full" for all the disk, "top" for only the sectors
+  allocated in the topmost image, or "none" to only replicate new I/O
+  (MirrorSyncMode).
 - "mode": whether and how QEMU should create a new image
           (NewImageMode, optional, default 'absolute-paths')
 - "speed": the maximum speed, in bytes per second (json-int, optional)

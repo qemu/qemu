@@ -54,7 +54,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-backup', device='drive0',
-                             target=target_img)
+                             target=target_img, sync='full')
         self.assert_qmp(result, 'return', {})
 
         event = self.cancel_and_wait()
@@ -64,7 +64,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-backup', device='drive0',
-                             target=target_img)
+                             target=target_img, sync='full')
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-job-pause', device='drive0')
@@ -89,17 +89,17 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def test_medium_not_found(self):
         result = self.vm.qmp('drive-backup', device='ide1-cd0',
-                             target=target_img)
+                             target=target_img, sync='full')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_image_not_found(self):
         result = self.vm.qmp('drive-backup', device='drive0',
-                             mode='existing', target=target_img)
+                             target=target_img, sync='full', mode='existing')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_device_not_found(self):
         result = self.vm.qmp('drive-backup', device='nonexistent',
-                             target=target_img)
+                             target=target_img, sync='full')
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
 
 class TestSetSpeed(iotests.QMPTestCase):
@@ -119,7 +119,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-backup', device='drive0',
-                             target=target_img)
+                             target=target_img, sync='full')
         self.assert_qmp(result, 'return', {})
 
         # Default speed is 0
@@ -140,7 +140,7 @@ class TestSetSpeed(iotests.QMPTestCase):
 
         # Check setting speed in drive-backup works
         result = self.vm.qmp('drive-backup', device='drive0',
-                             target=target_img, speed=4*1024*1024)
+                             target=target_img, sync='full', speed=4*1024*1024)
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('query-block-jobs')
@@ -154,13 +154,13 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-backup', device='drive0',
-                             target=target_img, speed=-1)
+                             target=target_img, sync='full', speed=-1)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-backup', device='drive0',
-                             target=target_img)
+                             target=target_img, sync='full')
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
@@ -196,7 +196,8 @@ class TestSingleTransaction(iotests.QMPTestCase):
         result = self.vm.qmp('transaction', actions=[{
                 'type': 'drive-backup',
                 'data': { 'device': 'drive0',
-                          'target': target_img },
+                          'target': target_img,
+                          'sync': 'full' },
             }
         ])
         self.assert_qmp(result, 'return', {})
@@ -210,7 +211,8 @@ class TestSingleTransaction(iotests.QMPTestCase):
         result = self.vm.qmp('transaction', actions=[{
                 'type': 'drive-backup',
                 'data': { 'device': 'drive0',
-                          'target': target_img },
+                          'target': target_img,
+                          'sync': 'full' },
             }
         ])
         self.assert_qmp(result, 'return', {})
@@ -239,7 +241,8 @@ class TestSingleTransaction(iotests.QMPTestCase):
         result = self.vm.qmp('transaction', actions=[{
                 'type': 'drive-backup',
                 'data': { 'device': 'ide1-cd0',
-                          'target': target_img },
+                          'target': target_img,
+                          'sync': 'full' },
             }
         ])
         self.assert_qmp(result, 'error/class', 'GenericError')
@@ -249,7 +252,8 @@ class TestSingleTransaction(iotests.QMPTestCase):
                 'type': 'drive-backup',
                 'data': { 'device': 'drive0',
                           'mode': 'existing',
-                          'target': target_img },
+                          'target': target_img,
+                          'sync': 'full' },
             }
         ])
         self.assert_qmp(result, 'error/class', 'GenericError')
@@ -259,7 +263,8 @@ class TestSingleTransaction(iotests.QMPTestCase):
                 'type': 'drive-backup',
                 'data': { 'device': 'nonexistent',
                           'mode': 'existing',
-                          'target': target_img },
+                          'target': target_img,
+                          'sync': 'full' },
             }
         ])
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
@@ -269,7 +274,8 @@ class TestSingleTransaction(iotests.QMPTestCase):
                 'type': 'drive-backup',
                 'data': { 'device': 'nonexistent',
                           'mode': 'existing',
-                          'target': target_img },
+                          'target': target_img,
+                          'sync': 'full' },
             }, {
                 'type': 'Abort',
                 'data': {},
