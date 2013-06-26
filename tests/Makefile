@@ -228,3 +228,4 @@ check-block: $(patsubst %,check-%, $(check-block-y))
 check: check-unit check-qtest
 
 -include $(wildcard tests/*.d)
+-include $(wildcard tests/libqos/*.d)
