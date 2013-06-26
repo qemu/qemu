@@ -589,7 +589,7 @@ static inline bool qemu_file_is_writable(QEMUFile *f)
  * If there is writev_buffer QEMUFileOps it uses it otherwise uses
  * put_buffer ops.
  */
-static void qemu_fflush(QEMUFile *f)
+void qemu_fflush(QEMUFile *f)
 {
     ssize_t ret = 0;
 
