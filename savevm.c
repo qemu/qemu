@@ -449,14 +449,23 @@ static const QEMUFileOps socket_write_ops = {
     .close =      socket_close
 };
 
-QEMUFile *qemu_fopen_socket(int fd, const char *mode)
+bool qemu_file_mode_is_not_valid(const char *mode)
 {
-    QEMUFileSocket *s;
-
     if (mode == NULL ||
         (mode[0] != 'r' && mode[0] != 'w') ||
         mode[1] != 'b' || mode[2] != 0) {
         fprintf(stderr, "qemu_fopen: Argument validity check failed\n");
+        return true;
+    }
+
+    return false;
+}
+
+QEMUFile *qemu_fopen_socket(int fd, const char *mode)
+{
+    QEMUFileSocket *s;
+
+    if (qemu_file_mode_is_not_valid(mode)) {
         return NULL;
     }
 
@@ -475,10 +484,7 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
 {
     QEMUFileStdio *s;
 
-    if (mode == NULL ||
-	(mode[0] != 'r' && mode[0] != 'w') ||
-	mode[1] != 'b' || mode[2] != 0) {
-        fprintf(stderr, "qemu_fopen: Argument validity check failed\n");
+    if (qemu_file_mode_is_not_valid(mode)) {
         return NULL;
     }
 
