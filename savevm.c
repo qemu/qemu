@@ -671,6 +671,11 @@ int qemu_get_fd(QEMUFile *f)
     return -1;
 }
 
+void qemu_update_position(QEMUFile *f, size_t size)
+{
+    f->pos += size;
+}
+
 /** Closes the file
  *
  * Returns negative error value if any error happened on previous operations or
