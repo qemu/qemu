@@ -40,6 +40,7 @@ struct MigrationState
 
     int state;
     MigrationParams params;
+    double mbps;
     int64_t total_time;
     int64_t downtime;
     int64_t expected_downtime;

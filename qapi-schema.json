@@ -513,12 +513,15 @@
 # @dirty-pages-rate: number of pages dirtied by second by the
 #        guest (since 1.3)
 #
+# @mbps: throughput in megabits/sec. (since 1.6)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
            'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
-           'normal-bytes': 'int', 'dirty-pages-rate' : 'int' } }
+           'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
+           'mbps' : 'number' } }
 
 ##
 # @XBZRLECacheStats

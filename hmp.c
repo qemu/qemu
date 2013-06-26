@@ -169,6 +169,8 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
     if (info->has_ram) {
         monitor_printf(mon, "transferred ram: %" PRIu64 " kbytes\n",
                        info->ram->transferred >> 10);
+        monitor_printf(mon, "throughput: %0.2f mbps\n",
+                       info->ram->mbps);
         monitor_printf(mon, "remaining ram: %" PRIu64 " kbytes\n",
                        info->ram->remaining >> 10);
         monitor_printf(mon, "total ram: %" PRIu64 " kbytes\n",
