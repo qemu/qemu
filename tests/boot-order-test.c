@@ -15,95 +15,126 @@
 #include "libqos/fw_cfg.h"
 #include "libqtest.h"
 
-static void test_pc_cmos_byte(int reg, int expected)
+static uint8_t read_mc146818(uint16_t port, uint8_t reg)
 {
-    int actual;
-
-    outb(0x70, reg);
-    actual = inb(0x71);
-    g_assert_cmphex(actual, ==, expected);
+    outb(port, reg);
+    return inb(port + 1);
 }
 
-static void test_pc_cmos(uint8_t boot1, uint8_t boot2)
+static uint64_t read_boot_order_pc(void)
 {
-    test_pc_cmos_byte(0x38, boot1);
-    test_pc_cmos_byte(0x3d, boot2);
+    uint8_t b1 = read_mc146818(0x70, 0x38);
+    uint8_t b2 = read_mc146818(0x70, 0x3d);
+
+    return b1 | (b2 << 8);
 }
 
-static void test_pc_with_args(const char *test_args,
-                              uint8_t boot1, uint8_t boot2,
-                              uint8_t reboot1, uint8_t reboot2)
+static void test_a_boot_order(const char *machine,
+                              const char *test_args,
+                              uint64_t (*read_boot_order)(void),
+                              uint64_t expected_boot,
+                              uint64_t expected_reboot)
 {
-    char *args = g_strdup_printf("-nodefaults -display none %s", test_args);
+    char *args;
+    uint64_t actual;
 
+    args = g_strdup_printf("-nodefaults -display none%s%s %s",
+                           machine ? " -M " : "",
+                           machine ?: "",
+                           test_args);
     qtest_start(args);
-    test_pc_cmos(boot1, boot2);
+    actual = read_boot_order();
+    g_assert_cmphex(actual, ==, expected_boot);
     qmp("{ 'execute': 'system_reset' }");
     /*
      * system_reset only requests reset.  We get a RESET event after
      * the actual reset completes.  Need to wait for that.
      */
     qmp("");                    /* HACK: wait for event */
-    test_pc_cmos(reboot1, reboot2);
-    qtest_quit(global_qtest);
-    g_free(args);
-}
-
-static void test_pc_boot_order(void)
-{
-    test_pc_with_args("", 0x30, 0x12, 0x30, 0x12);
-    test_pc_with_args("-no-fd-bootchk", 0x31, 0x12, 0x31, 0x12);
-    test_pc_with_args("-boot c", 0, 0x02, 0, 0x02);
-    test_pc_with_args("-boot nda", 0x10, 0x34, 0x10, 0x34);
-    test_pc_with_args("-boot order=", 0, 0, 0, 0);
-    test_pc_with_args("-boot order= -boot order=c", 0, 0x02, 0, 0x02);
-    test_pc_with_args("-boot once=a", 0, 0x01, 0x30, 0x12);
-    test_pc_with_args("-boot once=a -no-fd-bootchk", 0x01, 0x01, 0x31, 0x12);
-    test_pc_with_args("-boot once=a,order=c", 0, 0x01, 0, 0x02);
-    test_pc_with_args("-boot once=d -boot order=nda", 0, 0x03, 0x10, 0x34);
-    test_pc_with_args("-boot once=a -boot once=b -boot once=c",
-                      0, 0x02, 0x30, 0x12);
-}
-
-#define G3BEIGE_CFG_ADDR 0xf0000510
-#define MAC99_CFG_ADDR   0xf0000510
-
-#define NO_QEMU_PROTOS
-#include "hw/nvram/fw_cfg.h"
-#undef NO_QEMU_PROTOS
-
-static void test_powermac_with_args(bool newworld, const char *extra_args,
-                                    uint16_t expected_boot,
-                                    uint16_t expected_reboot)
-{
-    char *args = g_strdup_printf("-nodefaults -display none -machine %s %s",
-                                 newworld ? "mac99" : "g3beige", extra_args);
-    QFWCFG *fw_cfg = mm_fw_cfg_init(newworld ? MAC99_CFG_ADDR
-                                    : G3BEIGE_CFG_ADDR);
-    uint16_t actual;
-
-    qtest_start(args);
-    actual = qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
-    g_assert_cmphex(actual, ==, expected_boot);
-    qmp("{ 'execute': 'system_reset' }");
-    actual = qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
+    actual = read_boot_order();
     g_assert_cmphex(actual, ==, expected_reboot);
     qtest_quit(global_qtest);
     g_free(args);
 }
 
-static void test_powermac_boot_order(void)
+typedef struct {
+    const char *args;
+    uint64_t expected_boot;
+    uint64_t expected_reboot;
+} boot_order_test;
+
+static void test_boot_orders(const char *machine,
+                             uint64_t (*read_boot_order)(void),
+                             const boot_order_test *tests)
 {
     int i;
 
-    for (i = 0; i < 2; i++) {
-        bool newworld = (i == 1);
-
-        test_powermac_with_args(newworld, "", 'c', 'c');
-        test_powermac_with_args(newworld, "-boot c", 'c', 'c');
-        test_powermac_with_args(newworld, "-boot d", 'd', 'd');
-        test_powermac_with_args(newworld, "-boot once=d,order=c", 'd', 'c');
+    for (i = 0; tests[i].args; i++) {
+        test_a_boot_order(machine, tests[i].args,
+                          read_boot_order,
+                          tests[i].expected_boot,
+                          tests[i].expected_reboot);
     }
+}
+
+static const boot_order_test test_cases_pc[] = {
+    { "",
+      0x1230, 0x1230 },
+    { "-no-fd-bootchk",
+      0x1231, 0x1231 },
+    { "-boot c",
+      0x0200, 0x0200 },
+    { "-boot nda",
+      0x3410, 0x3410 },
+    { "-boot order=",
+      0, 0 },
+    { "-boot order= -boot order=c",
+      0x0200, 0x0200 },
+    { "-boot once=a",
+      0x0100, 0x1230 },
+    { "-boot once=a -no-fd-bootchk",
+      0x0101, 0x1231 },
+    { "-boot once=a,order=c",
+      0x0100, 0x0200 },
+    { "-boot once=d -boot order=nda",
+      0x0300, 0x3410 },
+    { "-boot once=a -boot once=b -boot once=c",
+      0x0200, 0x1230 },
+    {}
+};
+
+static void test_pc_boot_order(void)
+{
+    test_boot_orders(NULL, read_boot_order_pc, test_cases_pc);
+}
+
+#define NO_QEMU_PROTOS
+#include "hw/nvram/fw_cfg.h"
+#undef NO_QEMU_PROTOS
+
+static uint64_t read_boot_order_pmac(void)
+{
+    QFWCFG *fw_cfg = mm_fw_cfg_init(0xf0000510);
+
+    return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
+}
+
+static const boot_order_test test_cases_fw_cfg[] = {
+    { "", 'c', 'c' },
+    { "-boot c", 'c', 'c' },
+    { "-boot d", 'd', 'd' },
+    { "-boot once=d,order=c", 'd', 'c' },
+    {}
+};
+
+static void test_pmac_oldworld_boot_order(void)
+{
+    test_boot_orders("g3beige", read_boot_order_pmac, test_cases_fw_cfg);
+}
+
+static void test_pmac_newworld_boot_order(void)
+{
+    test_boot_orders("mac99", read_boot_order_pmac, test_cases_fw_cfg);
 }
 
 int main(int argc, char *argv[])
@@ -115,7 +146,10 @@ int main(int argc, char *argv[])
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qtest_add_func("boot-order/pc", test_pc_boot_order);
     } else if (strcmp(arch, "ppc") == 0 || strcmp(arch, "ppc64") == 0) {
-        qtest_add_func("boot-order/powermac", test_powermac_boot_order);
+        qtest_add_func("boot-order/pmac_oldworld",
+                       test_pmac_oldworld_boot_order);
+        qtest_add_func("boot-order/pmac_newworld",
+                       test_pmac_newworld_boot_order);
     }
 
     return g_test_run();
