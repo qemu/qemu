@@ -10,7 +10,9 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include <string.h>
 #include <glib.h>
+#include "libqos/fw_cfg.h"
 #include "libqtest.h"
 
 static void test_pc_cmos_byte(int reg, int expected)
@@ -63,11 +65,57 @@ static void test_pc_boot_order(void)
                       0, 0x02, 0x30, 0x12);
 }
 
+#define G3BEIGE_CFG_ADDR 0xf0000510
+#define MAC99_CFG_ADDR   0xf0000510
+
+#define NO_QEMU_PROTOS
+#include "hw/nvram/fw_cfg.h"
+#undef NO_QEMU_PROTOS
+
+static void test_powermac_with_args(bool newworld, const char *extra_args,
+                                    uint16_t expected_boot,
+                                    uint16_t expected_reboot)
+{
+    char *args = g_strdup_printf("-nodefaults -display none -machine %s %s",
+                                 newworld ? "mac99" : "g3beige", extra_args);
+    QFWCFG *fw_cfg = mm_fw_cfg_init(newworld ? MAC99_CFG_ADDR
+                                    : G3BEIGE_CFG_ADDR);
+    uint16_t actual;
+
+    qtest_start(args);
+    actual = qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
+    g_assert_cmphex(actual, ==, expected_boot);
+    qmp("{ 'execute': 'system_reset' }");
+    actual = qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
+    g_assert_cmphex(actual, ==, expected_reboot);
+    qtest_quit(global_qtest);
+    g_free(args);
+}
+
+static void test_powermac_boot_order(void)
+{
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        bool newworld = (i == 1);
+
+        test_powermac_with_args(newworld, "", 'c', 'c');
+        test_powermac_with_args(newworld, "-boot c", 'c', 'c');
+        test_powermac_with_args(newworld, "-boot d", 'd', 'd');
+    }
+}
+
 int main(int argc, char *argv[])
 {
+    const char *arch = qtest_get_arch();
+
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_func("boot-order/pc", test_pc_boot_order);
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        qtest_add_func("boot-order/pc", test_pc_boot_order);
+    } else if (strcmp(arch, "ppc") == 0 || strcmp(arch, "ppc64") == 0) {
+        qtest_add_func("boot-order/powermac", test_powermac_boot_order);
+    }
 
     return g_test_run();
 }
