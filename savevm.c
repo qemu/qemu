@@ -149,34 +149,6 @@ typedef struct QEMUFileSocket
     QEMUFile *file;
 } QEMUFileSocket;
 
-typedef struct {
-    Coroutine *co;
-    int fd;
-} FDYieldUntilData;
-
-static void fd_coroutine_enter(void *opaque)
-{
-    FDYieldUntilData *data = opaque;
-    qemu_set_fd_handler(data->fd, NULL, NULL, NULL);
-    qemu_coroutine_enter(data->co, NULL);
-}
-
-/**
- * Yield until a file descriptor becomes readable
- *
- * Note that this function clobbers the handlers for the file descriptor.
- */
-static void coroutine_fn yield_until_fd_readable(int fd)
-{
-    FDYieldUntilData data;
-
-    assert(qemu_in_coroutine());
-    data.co = qemu_coroutine_self();
-    data.fd = fd;
-    qemu_set_fd_handler(fd, fd_coroutine_enter, NULL, &data);
-    qemu_coroutine_yield();
-}
-
 static ssize_t socket_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
                                     int64_t pos)
 {
