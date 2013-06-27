@@ -2636,7 +2636,7 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
     va_end(va);
 #ifdef CONFIG_USER_ONLY
     put_packet(s, s->syscall_buf);
-    gdb_handlesig(s->c_cpu, 0);
+    gdb_handlesig(ENV_GET_CPU(s->c_cpu), 0);
 #else
     /* In this case wait to send the syscall packet until notification that
        the CPU has stopped.  This must be done because if the packet is sent
@@ -2765,9 +2765,9 @@ gdb_queuesig (void)
 }
 
 int
-gdb_handlesig(CPUArchState *env, int sig)
+gdb_handlesig(CPUState *cpu, int sig)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
     GDBState *s;
     char buf[256];
     int n;
