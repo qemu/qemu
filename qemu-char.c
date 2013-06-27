@@ -3115,7 +3115,7 @@ static void qemu_chr_parse_memory(QemuOpts *opts, ChardevBackend *backend,
 
     backend->memory = g_new0(ChardevMemory, 1);
 
-    val = qemu_opt_get_number(opts, "size", 0);
+    val = qemu_opt_get_size(opts, "size", 0);
     if (val != 0) {
         backend->memory->has_size = true;
         backend->memory->size = val;
