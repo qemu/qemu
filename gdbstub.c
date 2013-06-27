@@ -1866,8 +1866,9 @@ static const char *get_feature_xml(const char *p, const char **newp)
 }
 #endif
 
-static int gdb_read_register(CPUArchState *env, uint8_t *mem_buf, int reg)
+static int gdb_read_register(CPUState *cpu, uint8_t *mem_buf, int reg)
 {
+    CPUArchState *env = cpu->env_ptr;
     GDBRegisterState *r;
 
     if (reg < NUM_CORE_REGS)
@@ -1881,8 +1882,9 @@ static int gdb_read_register(CPUArchState *env, uint8_t *mem_buf, int reg)
     return 0;
 }
 
-static int gdb_write_register(CPUArchState *env, uint8_t *mem_buf, int reg)
+static int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
 {
+    CPUArchState *env = cpu->env_ptr;
     GDBRegisterState *r;
 
     if (reg < NUM_CORE_REGS)
@@ -2220,7 +2222,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         env = s->g_cpu;
         len = 0;
         for (addr = 0; addr < num_g_regs; addr++) {
-            reg_size = gdb_read_register(s->g_cpu, mem_buf + len, addr);
+            reg_size = gdb_read_register(ENV_GET_CPU(s->g_cpu),
+                                         mem_buf + len, addr);
             len += reg_size;
         }
         memtohex(buf, mem_buf, len);
@@ -2233,7 +2236,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         len = strlen(p) / 2;
         hextomem((uint8_t *)registers, p, len);
         for (addr = 0; addr < num_g_regs && len > 0; addr++) {
-            reg_size = gdb_write_register(s->g_cpu, registers, addr);
+            reg_size = gdb_write_register(ENV_GET_CPU(s->g_cpu), registers,
+                                          addr);
             len -= reg_size;
             registers += reg_size;
         }
@@ -2272,7 +2276,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         if (!gdb_has_xml)
             goto unknown_command;
         addr = strtoull(p, (char **)&p, 16);
-        reg_size = gdb_read_register(s->g_cpu, mem_buf, addr);
+        reg_size = gdb_read_register(ENV_GET_CPU(s->g_cpu), mem_buf, addr);
         if (reg_size) {
             memtohex(buf, mem_buf, reg_size);
             put_packet(s, buf);
@@ -2288,7 +2292,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             p++;
         reg_size = strlen(p) / 2;
         hextomem(mem_buf, p, reg_size);
-        gdb_write_register(s->g_cpu, mem_buf, addr);
+        gdb_write_register(ENV_GET_CPU(s->g_cpu), mem_buf, addr);
         put_packet(s, "OK");
         break;
     case 'Z':
