@@ -209,4 +209,10 @@ void qemu_co_rwlock_unlock(CoRwlock *lock);
  */
 void coroutine_fn co_sleep_ns(QEMUClock *clock, int64_t ns);
 
+/**
+ * Yield until a file descriptor becomes readable
+ *
+ * Note that this function clobbers the handlers for the file descriptor.
+ */
+void coroutine_fn yield_until_fd_readable(int fd);
 #endif /* QEMU_COROUTINE_H */

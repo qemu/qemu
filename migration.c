@@ -66,6 +66,7 @@ MigrationState *migrate_get_current(void)
         .state = MIG_STATE_SETUP,
         .bandwidth_limit = MAX_THROTTLE,
         .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
+        .mbps = -1,
     };
 
     return &current_migration;
@@ -201,6 +202,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->normal = norm_mig_pages_transferred();
         info->ram->normal_bytes = norm_mig_bytes_transferred();
         info->ram->dirty_pages_rate = s->dirty_pages_rate;
+        info->ram->mbps = s->mbps;
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -230,6 +232,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->skipped = skipped_mig_pages_transferred();
         info->ram->normal = norm_mig_pages_transferred();
         info->ram->normal_bytes = norm_mig_bytes_transferred();
+        info->ram->mbps = s->mbps;
         break;
     case MIG_STATE_ERROR:
         info->has_status = true;
@@ -473,6 +476,15 @@ void qmp_migrate_set_downtime(double value, Error **errp)
     max_downtime = (uint64_t)value;
 }
 
+bool migrate_rdma_pin_all(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_RDMA_PIN_ALL];
+}
+
 int migrate_use_xbzrle(void)
 {
     MigrationState *s;
@@ -542,6 +554,9 @@ static void *migration_thread(void *opaque)
             uint64_t time_spent = current_time - initial_time;
             double bandwidth = transferred_bytes / time_spent;
             max_size = bandwidth * migrate_max_downtime() / 1000000;
+
+            s->mbps = time_spent ? (((double) transferred_bytes * 8.0) /
+                    ((double) time_spent / 1000.0)) / 1000.0 / 1000.0 : -1;
 
             DPRINTF("transferred %" PRIu64 " time_spent %" PRIu64
                     " bandwidth %g max_size %" PRId64 "\n",

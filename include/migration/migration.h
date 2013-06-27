@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "qapi-types.h"
+#include "exec/cpu-common.h"
 
 struct MigrationParams {
     bool blk;
@@ -40,6 +41,7 @@ struct MigrationState
 
     int state;
     MigrationParams params;
+    double mbps;
     int64_t total_time;
     int64_t downtime;
     int64_t expected_downtime;
@@ -92,6 +94,8 @@ uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_transferred(void);
 uint64_t ram_bytes_total(void);
 
+void acct_update_position(QEMUFile *f, size_t size, bool zero);
+
 extern SaveVMHandlers savevm_ram_handlers;
 
 uint64_t dup_mig_bytes_transferred(void);
@@ -119,6 +123,8 @@ void migrate_add_blocker(Error *reason);
  */
 void migrate_del_blocker(Error *reason);
 
+bool migrate_rdma_pin_all(void);
+
 int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
                          uint8_t *dst, int dlen);
 int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen);
@@ -127,4 +133,23 @@ int migrate_use_xbzrle(void);
 int64_t migrate_xbzrle_cache_size(void);
 
 int64_t xbzrle_cache_resize(int64_t new_size);
+
+void ram_control_before_iterate(QEMUFile *f, uint64_t flags);
+void ram_control_after_iterate(QEMUFile *f, uint64_t flags);
+void ram_control_load_hook(QEMUFile *f, uint64_t flags);
+
+/* Whenever this is found in the data stream, the flags
+ * will be passed to ram_control_load_hook in the incoming-migration
+ * side. This lets before_ram_iterate/after_ram_iterate add
+ * transport-specific sections to the RAM migration data.
+ */
+#define RAM_SAVE_FLAG_HOOK     0x80
+
+#define RAM_SAVE_CONTROL_NOT_SUPP -1000
+#define RAM_SAVE_CONTROL_DELAYED  -2000
+
+size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
+                             ram_addr_t offset, size_t size,
+                             int *bytes_sent);
+
 #endif
