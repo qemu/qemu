@@ -289,7 +289,7 @@ enum RSState {
 typedef struct GDBState {
     CPUArchState *c_cpu; /* current CPU for step/continue ops */
     CPUArchState *g_cpu; /* current CPU for other ops */
-    CPUArchState *query_cpu; /* for q{f|s}ThreadInfo */
+    CPUState *query_cpu; /* for q{f|s}ThreadInfo */
     enum RSState state; /* parsing state */
     char line_buf[MAX_PACKET_LENGTH];
     int line_buf_index;
@@ -2401,15 +2401,14 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet(s, "QC1");
             break;
         } else if (strcmp(p,"fThreadInfo") == 0) {
-            s->query_cpu = first_cpu->env_ptr;
+            s->query_cpu = first_cpu;
             goto report_cpuinfo;
         } else if (strcmp(p,"sThreadInfo") == 0) {
         report_cpuinfo:
             if (s->query_cpu) {
-                snprintf(buf, sizeof(buf), "m%x",
-                         cpu_index(ENV_GET_CPU(s->query_cpu)));
+                snprintf(buf, sizeof(buf), "m%x", cpu_index(s->query_cpu));
                 put_packet(s, buf);
-                s->query_cpu = ENV_GET_CPU(s->query_cpu)->next_cpu->env_ptr;
+                s->query_cpu = s->query_cpu->next_cpu;
             } else
                 put_packet(s, "l");
             break;
