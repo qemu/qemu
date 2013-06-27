@@ -142,7 +142,7 @@ typedef struct {
 } IMXGPTState;
 
 static const VMStateDescription vmstate_imx_timer_gpt = {
-    .name = TYPE_IMX_GPT,
+    .name = "imx.gpt",
     .version_id = 3,
     .minimum_version_id = 3,
     .minimum_version_id_old = 3,

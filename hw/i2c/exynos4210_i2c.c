@@ -271,7 +271,7 @@ static const MemoryRegionOps exynos4210_i2c_ops = {
 };
 
 static const VMStateDescription exynos4210_i2c_vmstate = {
-    .name = TYPE_EXYNOS4_I2C,
+    .name = "exynos4210.i2c",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {

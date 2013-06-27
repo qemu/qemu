@@ -370,7 +370,7 @@ static const MemoryRegionOps imx_epit_ops = {
 };
 
 static const VMStateDescription vmstate_imx_timer_epit = {
-    .name = TYPE_IMX_EPIT,
+    .name = "imx.epit",
     .version_id = 2,
     .minimum_version_id = 2,
     .minimum_version_id_old = 2,

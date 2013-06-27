@@ -1397,7 +1397,7 @@ static VMStateDescription usb_device_vmstate = {
 };
 
 static VMStateDescription ccid_vmstate = {
-    .name = CCID_DEV_NAME,
+    .name = "usb-ccid",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ccid_post_load,
