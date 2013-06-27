@@ -1900,10 +1900,9 @@ int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
     return data.err;
 }
 
-int kvm_insert_breakpoint(CPUArchState *env, target_ulong addr,
+int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
                           target_ulong len, int type)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     struct kvm_sw_breakpoint *bp;
     int err;
 
@@ -1946,10 +1945,9 @@ int kvm_insert_breakpoint(CPUArchState *env, target_ulong addr,
     return 0;
 }
 
-int kvm_remove_breakpoint(CPUArchState *env, target_ulong addr,
+int kvm_remove_breakpoint(CPUState *cpu, target_ulong addr,
                           target_ulong len, int type)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     struct kvm_sw_breakpoint *bp;
     int err;
 
@@ -2022,13 +2020,13 @@ int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
     return -EINVAL;
 }
 
-int kvm_insert_breakpoint(CPUArchState *env, target_ulong addr,
+int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
                           target_ulong len, int type)
 {
     return -EINVAL;
 }
 
-int kvm_remove_breakpoint(CPUArchState *env, target_ulong addr,
+int kvm_remove_breakpoint(CPUState *cpu, target_ulong addr,
                           target_ulong len, int type)
 {
     return -EINVAL;
