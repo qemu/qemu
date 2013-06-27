@@ -288,8 +288,8 @@ enum RSState {
     RS_CHKSUM2,
 };
 typedef struct GDBState {
-    CPUArchState *c_cpu; /* current CPU for step/continue ops */
-    CPUArchState *g_cpu; /* current CPU for other ops */
+    CPUState *c_cpu; /* current CPU for step/continue ops */
+    CPUState *g_cpu; /* current CPU for other ops */
     CPUState *query_cpu; /* for q{f|s}ThreadInfo */
     enum RSState state; /* parsing state */
     char line_buf[MAX_PACKET_LENGTH];
@@ -1958,8 +1958,7 @@ static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
     int err = 0;
 
     if (kvm_enabled()) {
-        return kvm_insert_breakpoint(ENV_GET_CPU(gdbserver_state->c_cpu),
-                                     addr, len, type);
+        return kvm_insert_breakpoint(gdbserver_state->c_cpu, addr, len, type);
     }
 
     switch (type) {
@@ -1997,8 +1996,7 @@ static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
     int err = 0;
 
     if (kvm_enabled()) {
-        return kvm_remove_breakpoint(ENV_GET_CPU(gdbserver_state->c_cpu),
-                                     addr, len, type);
+        return kvm_remove_breakpoint(gdbserver_state->c_cpu, addr, len, type);
     }
 
     switch (type) {
@@ -2034,7 +2032,7 @@ static void gdb_breakpoint_remove_all(void)
     CPUArchState *env;
 
     if (kvm_enabled()) {
-        kvm_remove_all_breakpoints(ENV_GET_CPU(gdbserver_state->c_cpu));
+        kvm_remove_all_breakpoints(gdbserver_state->c_cpu);
         return;
     }
 
@@ -2049,7 +2047,7 @@ static void gdb_breakpoint_remove_all(void)
 
 static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 {
-    CPUState *cpu = ENV_GET_CPU(s->c_cpu);
+    CPUState *cpu = s->c_cpu;
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cpu_synchronize_state(cpu);
@@ -2058,13 +2056,13 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
     }
 }
 
-static CPUArchState *find_cpu(uint32_t thread_id)
+static CPUState *find_cpu(uint32_t thread_id)
 {
     CPUState *cpu;
 
     for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
         if (cpu_index(cpu) == thread_id) {
-            return cpu->env_ptr;
+            return cpu;
         }
     }
 
@@ -2073,7 +2071,10 @@ static CPUArchState *find_cpu(uint32_t thread_id)
 
 static int gdb_handle_packet(GDBState *s, const char *line_buf)
 {
+#ifdef TARGET_XTENSA
     CPUArchState *env;
+#endif
+    CPUState *cpu;
     const char *p;
     uint32_t thread;
     int ch, reg_size, type, res;
@@ -2091,7 +2092,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     case '?':
         /* TODO: Make this return the correct value for user-mode.  */
         snprintf(buf, sizeof(buf), "T%02xthread:%02x;", GDB_SIGNAL_TRAP,
-                 cpu_index(ENV_GET_CPU(s->c_cpu)));
+                 cpu_index(s->c_cpu));
         put_packet(s, buf);
         /* Remove all the breakpoints when this query is issued,
          * because gdb is doing and initial connect and the state
@@ -2153,15 +2154,15 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             }
             if (res) {
                 if (res_thread != -1 && res_thread != 0) {
-                    env = find_cpu(res_thread);
-                    if (env == NULL) {
+                    cpu = find_cpu(res_thread);
+                    if (cpu == NULL) {
                         put_packet(s, "E22");
                         break;
                     }
-                    s->c_cpu = env;
+                    s->c_cpu = cpu;
                 }
                 if (res == 's') {
-                    cpu_single_step(ENV_GET_CPU(s->c_cpu), sstep_flags);
+                    cpu_single_step(s->c_cpu, sstep_flags);
                 }
                 s->signal = res_signal;
                 gdb_continue(s);
@@ -2189,7 +2190,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             addr = strtoull(p, (char **)&p, 16);
             gdb_set_cpu_pc(s, addr);
         }
-        cpu_single_step(ENV_GET_CPU(s->c_cpu), sstep_flags);
+        cpu_single_step(s->c_cpu, sstep_flags);
         gdb_continue(s);
 	return RS_IDLE;
     case 'F':
@@ -2208,7 +2209,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 p++;
             type = *p;
             if (s->current_syscall_cb) {
-                s->current_syscall_cb(ENV_GET_CPU(s->c_cpu), ret, err);
+                s->current_syscall_cb(s->c_cpu, ret, err);
                 s->current_syscall_cb = NULL;
             }
             if (type == 'C') {
@@ -2219,26 +2220,28 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
         break;
     case 'g':
-        cpu_synchronize_state(ENV_GET_CPU(s->g_cpu));
-        env = s->g_cpu;
+        cpu_synchronize_state(s->g_cpu);
+#ifdef TARGET_XTENSA
+        env = s->g_cpu->env_ptr;
+#endif
         len = 0;
         for (addr = 0; addr < num_g_regs; addr++) {
-            reg_size = gdb_read_register(ENV_GET_CPU(s->g_cpu),
-                                         mem_buf + len, addr);
+            reg_size = gdb_read_register(s->g_cpu, mem_buf + len, addr);
             len += reg_size;
         }
         memtohex(buf, mem_buf, len);
         put_packet(s, buf);
         break;
     case 'G':
-        cpu_synchronize_state(ENV_GET_CPU(s->g_cpu));
-        env = s->g_cpu;
+        cpu_synchronize_state(s->g_cpu);
+#ifdef TARGET_XTENSA
+        env = s->g_cpu->env_ptr;
+#endif
         registers = mem_buf;
         len = strlen(p) / 2;
         hextomem((uint8_t *)registers, p, len);
         for (addr = 0; addr < num_g_regs && len > 0; addr++) {
-            reg_size = gdb_write_register(ENV_GET_CPU(s->g_cpu), registers,
-                                          addr);
+            reg_size = gdb_write_register(s->g_cpu, registers, addr);
             len -= reg_size;
             registers += reg_size;
         }
@@ -2249,8 +2252,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         if (*p == ',')
             p++;
         len = strtoull(p, NULL, 16);
-        if (target_memory_rw_debug(ENV_GET_CPU(s->g_cpu), addr, mem_buf, len,
-                                   false) != 0) {
+        if (target_memory_rw_debug(s->g_cpu, addr, mem_buf, len, false) != 0) {
             put_packet (s, "E14");
         } else {
             memtohex(buf, mem_buf, len);
@@ -2265,7 +2267,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         if (*p == ':')
             p++;
         hextomem(mem_buf, p, len);
-        if (target_memory_rw_debug(ENV_GET_CPU(s->g_cpu), addr, mem_buf, len,
+        if (target_memory_rw_debug(s->g_cpu, addr, mem_buf, len,
                                    true) != 0) {
             put_packet(s, "E14");
         } else {
@@ -2279,7 +2281,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         if (!gdb_has_xml)
             goto unknown_command;
         addr = strtoull(p, (char **)&p, 16);
-        reg_size = gdb_read_register(ENV_GET_CPU(s->g_cpu), mem_buf, addr);
+        reg_size = gdb_read_register(s->g_cpu, mem_buf, addr);
         if (reg_size) {
             memtohex(buf, mem_buf, reg_size);
             put_packet(s, buf);
@@ -2295,7 +2297,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             p++;
         reg_size = strlen(p) / 2;
         hextomem(mem_buf, p, reg_size);
-        gdb_write_register(ENV_GET_CPU(s->g_cpu), mem_buf, addr);
+        gdb_write_register(s->g_cpu, mem_buf, addr);
         put_packet(s, "OK");
         break;
     case 'Z':
@@ -2325,18 +2327,18 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet(s, "OK");
             break;
         }
-        env = find_cpu(thread);
-        if (env == NULL) {
+        cpu = find_cpu(thread);
+        if (cpu == NULL) {
             put_packet(s, "E22");
             break;
         }
         switch (type) {
         case 'c':
-            s->c_cpu = env;
+            s->c_cpu = cpu;
             put_packet(s, "OK");
             break;
         case 'g':
-            s->g_cpu = env;
+            s->g_cpu = cpu;
             put_packet(s, "OK");
             break;
         default:
@@ -2346,9 +2348,9 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         break;
     case 'T':
         thread = strtoull(p, (char **)&p, 16);
-        env = find_cpu(thread);
+        cpu = find_cpu(thread);
 
-        if (env != NULL) {
+        if (cpu != NULL) {
             put_packet(s, "OK");
         } else {
             put_packet(s, "E22");
@@ -2398,9 +2400,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             break;
         } else if (strncmp(p,"ThreadExtraInfo,", 16) == 0) {
             thread = strtoull(p+16, (char **)&p, 16);
-            env = find_cpu(thread);
-            if (env != NULL) {
-                CPUState *cpu = ENV_GET_CPU(env);
+            cpu = find_cpu(thread);
+            if (cpu != NULL) {
                 cpu_synchronize_state(cpu);
                 len = snprintf((char *)mem_buf, sizeof(mem_buf),
                                "CPU#%d [%s]", cpu->cpu_index,
@@ -2412,7 +2413,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
 #ifdef CONFIG_USER_ONLY
         else if (strncmp(p, "Offsets", 7) == 0) {
-            TaskState *ts = s->c_cpu->opaque;
+            CPUArchState *env = s->c_cpu->env_ptr;
+            TaskState *ts = env->opaque;
 
             snprintf(buf, sizeof(buf),
                      "Text=" TARGET_ABI_FMT_lx ";Data=" TARGET_ABI_FMT_lx
@@ -2502,18 +2504,16 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
 
 void gdb_set_stop_cpu(CPUState *cpu)
 {
-    CPUArchState *env = cpu->env_ptr;
-
-    gdbserver_state->c_cpu = env;
-    gdbserver_state->g_cpu = env;
+    gdbserver_state->c_cpu = cpu;
+    gdbserver_state->g_cpu = cpu;
 }
 
 #ifndef CONFIG_USER_ONLY
 static void gdb_vm_state_change(void *opaque, int running, RunState state)
 {
     GDBState *s = gdbserver_state;
-    CPUArchState *env = s->c_cpu;
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = s->c_cpu->env_ptr;
+    CPUState *cpu = s->c_cpu;
     char buf[256];
     const char *type;
     int ret;
@@ -2643,7 +2643,7 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
     va_end(va);
 #ifdef CONFIG_USER_ONLY
     put_packet(s, s->syscall_buf);
-    gdb_handlesig(ENV_GET_CPU(s->c_cpu), 0);
+    gdb_handlesig(s->c_cpu, 0);
 #else
     /* In this case wait to send the syscall packet until notification that
        the CPU has stopped.  This must be done because if the packet is sent
@@ -2651,7 +2651,7 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
        is still in the running state, which can cause packets to be dropped
        and state transition 'T' packets to be sent while the syscall is still
        being processed.  */
-    cpu_exit(ENV_GET_CPU(s->c_cpu));
+    cpu_exit(s->c_cpu);
 #endif
 }
 
@@ -2860,8 +2860,8 @@ static void gdb_accept(void)
     socket_set_nodelay(fd);
 
     s = g_malloc0(sizeof(GDBState));
-    s->c_cpu = first_cpu->env_ptr;
-    s->g_cpu = first_cpu->env_ptr;
+    s->c_cpu = first_cpu;
+    s->g_cpu = first_cpu;
     s->fd = fd;
     gdb_has_xml = 0;
 
@@ -3045,8 +3045,8 @@ int gdbserver_start(const char *device)
         mon_chr = s->mon_chr;
         memset(s, 0, sizeof(GDBState));
     }
-    s->c_cpu = first_cpu->env_ptr;
-    s->g_cpu = first_cpu->env_ptr;
+    s->c_cpu = first_cpu;
+    s->g_cpu = first_cpu;
     s->chr = chr;
     s->state = chr ? RS_IDLE : RS_INACTIVE;
     s->mon_chr = mon_chr;
