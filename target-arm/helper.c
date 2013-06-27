@@ -891,6 +891,8 @@ static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
 static int vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                 uint64_t value)
 {
+    int maskshift = extract32(value, 0, 3);
+
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         value &= ~((7 << 19) | (3 << 14) | (0xf << 3));
     } else {
@@ -902,8 +904,8 @@ static int vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * and the c2_mask and c2_base_mask values are meaningless.
      */
     env->cp15.c2_control = value;
-    env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> value);
-    env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> value);
+    env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> maskshift);
+    env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> maskshift);
     return 0;
 }
 
