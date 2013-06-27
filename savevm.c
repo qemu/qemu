@@ -149,34 +149,6 @@ typedef struct QEMUFileSocket
     QEMUFile *file;
 } QEMUFileSocket;
 
-typedef struct {
-    Coroutine *co;
-    int fd;
-} FDYieldUntilData;
-
-static void fd_coroutine_enter(void *opaque)
-{
-    FDYieldUntilData *data = opaque;
-    qemu_set_fd_handler(data->fd, NULL, NULL, NULL);
-    qemu_coroutine_enter(data->co, NULL);
-}
-
-/**
- * Yield until a file descriptor becomes readable
- *
- * Note that this function clobbers the handlers for the file descriptor.
- */
-static void coroutine_fn yield_until_fd_readable(int fd)
-{
-    FDYieldUntilData data;
-
-    assert(qemu_in_coroutine());
-    data.co = qemu_coroutine_self();
-    data.fd = fd;
-    qemu_set_fd_handler(fd, fd_coroutine_enter, NULL, &data);
-    qemu_coroutine_yield();
-}
-
 static ssize_t socket_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
                                     int64_t pos)
 {
@@ -477,14 +449,23 @@ static const QEMUFileOps socket_write_ops = {
     .close =      socket_close
 };
 
-QEMUFile *qemu_fopen_socket(int fd, const char *mode)
+bool qemu_file_mode_is_not_valid(const char *mode)
 {
-    QEMUFileSocket *s;
-
     if (mode == NULL ||
         (mode[0] != 'r' && mode[0] != 'w') ||
         mode[1] != 'b' || mode[2] != 0) {
         fprintf(stderr, "qemu_fopen: Argument validity check failed\n");
+        return true;
+    }
+
+    return false;
+}
+
+QEMUFile *qemu_fopen_socket(int fd, const char *mode)
+{
+    QEMUFileSocket *s;
+
+    if (qemu_file_mode_is_not_valid(mode)) {
         return NULL;
     }
 
@@ -503,10 +484,7 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
 {
     QEMUFileStdio *s;
 
-    if (mode == NULL ||
-	(mode[0] != 'r' && mode[0] != 'w') ||
-	mode[1] != 'b' || mode[2] != 0) {
-        fprintf(stderr, "qemu_fopen: Argument validity check failed\n");
+    if (qemu_file_mode_is_not_valid(mode)) {
         return NULL;
     }
 
@@ -611,7 +589,7 @@ static inline bool qemu_file_is_writable(QEMUFile *f)
  * If there is writev_buffer QEMUFileOps it uses it otherwise uses
  * put_buffer ops.
  */
-static void qemu_fflush(QEMUFile *f)
+void qemu_fflush(QEMUFile *f)
 {
     ssize_t ret = 0;
 
@@ -636,6 +614,65 @@ static void qemu_fflush(QEMUFile *f)
     if (ret < 0) {
         qemu_file_set_error(f, ret);
     }
+}
+
+void ram_control_before_iterate(QEMUFile *f, uint64_t flags)
+{
+    int ret = 0;
+
+    if (f->ops->before_ram_iterate) {
+        ret = f->ops->before_ram_iterate(f, f->opaque, flags);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
+    }
+}
+
+void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
+{
+    int ret = 0;
+
+    if (f->ops->after_ram_iterate) {
+        ret = f->ops->after_ram_iterate(f, f->opaque, flags);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
+    }
+}
+
+void ram_control_load_hook(QEMUFile *f, uint64_t flags)
+{
+    int ret = 0;
+
+    if (f->ops->hook_ram_load) {
+        ret = f->ops->hook_ram_load(f, f->opaque, flags);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
+    } else {
+        qemu_file_set_error(f, ret);
+    }
+}
+
+size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
+                         ram_addr_t offset, size_t size, int *bytes_sent)
+{
+    if (f->ops->save_page) {
+        int ret = f->ops->save_page(f, f->opaque, block_offset,
+                                    offset, size, bytes_sent);
+
+        if (ret != RAM_SAVE_CONTROL_DELAYED) {
+            if (*bytes_sent > 0) {
+                qemu_update_position(f, *bytes_sent);
+            } else if (ret < 0) {
+                qemu_file_set_error(f, ret);
+            }
+        }
+
+        return ret;
+    }
+
+    return RAM_SAVE_CONTROL_NOT_SUPP;
 }
 
 static void qemu_fill_buffer(QEMUFile *f)
@@ -669,6 +706,11 @@ int qemu_get_fd(QEMUFile *f)
         return f->ops->get_fd(f->opaque);
     }
     return -1;
+}
+
+void qemu_update_position(QEMUFile *f, size_t size)
+{
+    f->pos += size;
 }
 
 /** Closes the file
