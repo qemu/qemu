@@ -122,8 +122,10 @@ static target_ulong arm_semi_syscall_len;
 static target_ulong syscall_err;
 #endif
 
-static void arm_semi_cb(CPUARMState *env, target_ulong ret, target_ulong err)
+static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
 #ifdef CONFIG_USER_ONLY
     TaskState *ts = env->opaque;
 #endif
@@ -152,8 +154,10 @@ static void arm_semi_cb(CPUARMState *env, target_ulong ret, target_ulong err)
     }
 }
 
-static void arm_semi_flen_cb(CPUARMState *env, target_ulong ret, target_ulong err)
+static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     /* The size is always stored in big-endian order, extract
        the value. We assume the size always fit in 32 bits.  */
     uint32_t size;

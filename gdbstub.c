@@ -2205,7 +2205,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 p++;
             type = *p;
             if (s->current_syscall_cb) {
-                s->current_syscall_cb(s->c_cpu, ret, err);
+                s->current_syscall_cb(ENV_GET_CPU(s->c_cpu), ret, err);
                 s->current_syscall_cb = NULL;
             }
             if (type == 'C') {
