@@ -526,9 +526,8 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev);
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUSPARCState *env);
 
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
-int target_memory_rw_debug(CPUSPARCState *env, target_ulong addr,
-                           uint8_t *buf, int len, int is_write);
-#define TARGET_CPU_MEMORY_RW_DEBUG
+int sparc_cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
+                              uint8_t *buf, int len, bool is_write);
 #endif
 
 

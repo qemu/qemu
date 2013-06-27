@@ -353,10 +353,12 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUSPARCState *env)
  * reads (and only reads) in stack frames as if windows were flushed. We assume
  * that the sparc ABI is followed.
  */
-int target_memory_rw_debug(CPUSPARCState *env, target_ulong addr,
-                           uint8_t *buf, int len, int is_write)
+int sparc_cpu_memory_rw_debug(CPUState *cs, vaddr address,
+                              uint8_t *buf, int len, bool is_write)
 {
-    CPUState *cs = CPU(sparc_env_get_cpu(env));
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
+    target_ulong addr = address;
     int i;
     int len1;
     int cwp = env->cwp;

@@ -42,15 +42,16 @@
 #include "sysemu/kvm.h"
 #include "qemu/bitops.h"
 
-#ifndef TARGET_CPU_MEMORY_RW_DEBUG
-static inline int target_memory_rw_debug(CPUArchState *env, target_ulong addr,
-                                         uint8_t *buf, int len, int is_write)
+static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
+                                         uint8_t *buf, int len, bool is_write)
 {
-    return cpu_memory_rw_debug(ENV_GET_CPU(env), addr, buf, len, is_write);
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->memory_rw_debug) {
+        return cc->memory_rw_debug(cpu, addr, buf, len, is_write);
+    }
+    return cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
 }
-#else
-/* target_memory_rw_debug() defined in cpu.h */
-#endif
 
 enum {
     GDB_SIGNAL_0 = 0,
@@ -2248,7 +2249,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         if (*p == ',')
             p++;
         len = strtoull(p, NULL, 16);
-        if (target_memory_rw_debug(s->g_cpu, addr, mem_buf, len, 0) != 0) {
+        if (target_memory_rw_debug(ENV_GET_CPU(s->g_cpu), addr, mem_buf, len,
+                                   false) != 0) {
             put_packet (s, "E14");
         } else {
             memtohex(buf, mem_buf, len);
@@ -2263,7 +2265,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         if (*p == ':')
             p++;
         hextomem(mem_buf, p, len);
-        if (target_memory_rw_debug(s->g_cpu, addr, mem_buf, len, 1) != 0) {
+        if (target_memory_rw_debug(ENV_GET_CPU(s->g_cpu), addr, mem_buf, len,
+                                   true) != 0) {
             put_packet(s, "E14");
         } else {
             put_packet(s, "OK");

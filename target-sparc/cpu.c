@@ -782,6 +782,9 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->do_interrupt = sparc_cpu_do_interrupt;
     cc->dump_state = sparc_cpu_dump_state;
+#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+    cc->memory_rw_debug = sparc_cpu_memory_rw_debug;
+#endif
     cc->set_pc = sparc_cpu_set_pc;
     cc->synchronize_from_tb = sparc_cpu_synchronize_from_tb;
 #ifndef CONFIG_USER_ONLY
