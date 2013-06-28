@@ -1857,7 +1857,7 @@ int kvm_arch_process_async_events(CPUState *cs)
 
         cs->interrupt_request &= ~CPU_INTERRUPT_MCE;
 
-        kvm_cpu_synchronize_state(env);
+        kvm_cpu_synchronize_state(cs);
 
         if (env->exception_injected == EXCP08_DBLE) {
             /* this means triple fault */
@@ -1888,16 +1888,16 @@ int kvm_arch_process_async_events(CPUState *cs)
         cs->halted = 0;
     }
     if (cs->interrupt_request & CPU_INTERRUPT_INIT) {
-        kvm_cpu_synchronize_state(env);
+        kvm_cpu_synchronize_state(cs);
         do_cpu_init(cpu);
     }
     if (cs->interrupt_request & CPU_INTERRUPT_SIPI) {
-        kvm_cpu_synchronize_state(env);
+        kvm_cpu_synchronize_state(cs);
         do_cpu_sipi(cpu);
     }
     if (cs->interrupt_request & CPU_INTERRUPT_TPR) {
         cs->interrupt_request &= ~CPU_INTERRUPT_TPR;
-        kvm_cpu_synchronize_state(env);
+        kvm_cpu_synchronize_state(cs);
         apic_handle_tpr_access_report(env->apic_state, env->eip,
                                       env->tpr_access_type);
     }
@@ -2079,7 +2079,7 @@ static int kvm_handle_debug(X86CPU *cpu,
         ret = EXCP_DEBUG;
     }
     if (ret == 0) {
-        cpu_synchronize_state(env);
+        cpu_synchronize_state(CPU(cpu));
         assert(env->exception_injected == -1);
 
         /* pass to guest */
@@ -2184,7 +2184,7 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
-    kvm_cpu_synchronize_state(env);
+    kvm_cpu_synchronize_state(cs);
     return !(env->cr[0] & CR0_PE_MASK) ||
            ((env->segs[R_CS].selector  & 3) != 3);
 }

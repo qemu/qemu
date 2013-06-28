@@ -331,12 +331,15 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
     mr = iotlb_to_region(pd);
     if (memory_region_is_unassigned(mr)) {
-#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SPARC)
-        cpu_unassigned_access(env1, addr, 0, 1, 0, 4);
-#else
-        cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x"
-                  TARGET_FMT_lx "\n", addr);
-#endif
+        CPUState *cpu = ENV_GET_CPU(env1);
+        CPUClass *cc = CPU_GET_CLASS(cpu);
+
+        if (cc->do_unassigned_access) {
+            cc->do_unassigned_access(cpu, addr, false, true, 0, 4);
+        } else {
+            cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x"
+                      TARGET_FMT_lx "\n", addr);
+        }
     }
     p = (void *)((uintptr_t)addr + env1->tlb_table[mmu_idx][page_index].addend);
     return qemu_ram_addr_from_host_nofail(p);

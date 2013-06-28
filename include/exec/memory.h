@@ -20,7 +20,9 @@
 #include <stdbool.h>
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
+#ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
+#endif
 #include "qemu/queue.h"
 #include "exec/iorange.h"
 #include "exec/ioport.h"

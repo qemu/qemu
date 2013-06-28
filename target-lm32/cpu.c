@@ -49,8 +49,6 @@ static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)
 
     cpu_reset(CPU(cpu));
 
-    qemu_init_vcpu(&cpu->env);
-
     lcc->parent_realize(dev, errp);
 }
 
@@ -85,6 +83,7 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = lm32_cpu_reset;
 
     cc->do_interrupt = lm32_cpu_do_interrupt;
+    cc->dump_state = lm32_cpu_dump_state;
     cpu_class_set_vmsd(cc, &vmstate_lm32_cpu);
 }
 

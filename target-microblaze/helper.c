@@ -39,8 +39,10 @@ void mb_cpu_do_interrupt(CPUState *cs)
 int cpu_mb_handle_mmu_fault(CPUMBState * env, target_ulong address, int rw,
                             int mmu_idx)
 {
+    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
+
     env->exception_index = 0xaa;
-    cpu_dump_state(env, stderr, fprintf, 0);
+    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
     return 1;
 }
 

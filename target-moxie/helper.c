@@ -110,9 +110,11 @@ void moxie_cpu_do_interrupt(CPUState *env)
 int cpu_moxie_handle_mmu_fault(CPUMoxieState *env, target_ulong address,
                                int rw, int mmu_idx)
 {
+    MoxieCPU *cpu = moxie_env_get_cpu(env);
+
     env->exception_index = 0xaa;
     env->debug1 = address;
-    cpu_dump_state(env, stderr, fprintf, 0);
+    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
     return 1;
 }
 

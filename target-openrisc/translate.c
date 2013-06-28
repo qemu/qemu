@@ -1814,15 +1814,17 @@ void gen_intermediate_code_pc(CPUOpenRISCState *env,
     gen_intermediate_code_internal(openrisc_env_get_cpu(env), tb, 1);
 }
 
-void cpu_dump_state(CPUOpenRISCState *env, FILE *f,
-                    fprintf_function cpu_fprintf,
-                    int flags)
+void openrisc_cpu_dump_state(CPUState *cs, FILE *f,
+                             fprintf_function cpu_fprintf,
+                             int flags)
 {
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
+    CPUOpenRISCState *env = &cpu->env;
     int i;
-    uint32_t *regs = env->gpr;
+
     cpu_fprintf(f, "PC=%08x\n", env->pc);
     for (i = 0; i < 32; ++i) {
-        cpu_fprintf(f, "R%02d=%08x%c", i, regs[i],
+        cpu_fprintf(f, "R%02d=%08x%c", i, env->gpr[i],
                     (i % 4) == 3 ? '\n' : ' ');
     }
 }

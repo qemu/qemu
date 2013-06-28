@@ -330,7 +330,7 @@ static int cpu_common_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_cpu_common = {
+const VMStateDescription vmstate_cpu_common = {
     .name = "cpu_common",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -342,8 +342,7 @@ static const VMStateDescription vmstate_cpu_common = {
         VMSTATE_END_OF_LIST()
     }
 };
-#else
-#define vmstate_cpu_common vmstate_dummy
+
 #endif
 
 CPUState *qemu_get_cpu(int index)
@@ -599,16 +598,9 @@ void cpu_single_step(CPUArchState *env, int enabled)
 #endif
 }
 
-void cpu_exit(CPUArchState *env)
-{
-    CPUState *cpu = ENV_GET_CPU(env);
-
-    cpu->exit_request = 1;
-    cpu->tcg_exit_req = 1;
-}
-
 void cpu_abort(CPUArchState *env, const char *fmt, ...)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     va_list ap;
     va_list ap2;
 
@@ -617,7 +609,7 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...)
     fprintf(stderr, "qemu: fatal: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
-    cpu_dump_state(env, stderr, fprintf, CPU_DUMP_FPU | CPU_DUMP_CCOP);
+    cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_FPU | CPU_DUMP_CCOP);
     if (qemu_log_enabled()) {
         qemu_log("qemu: fatal: ");
         qemu_log_vprintf(fmt, ap2);

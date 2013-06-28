@@ -3,7 +3,9 @@
 
 /* CPU interfaces that are target independent.  */
 
+#ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
+#endif
 
 #ifndef NEED_CPU_H
 #include "exec/poison.h"

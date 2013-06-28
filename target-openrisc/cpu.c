@@ -67,7 +67,6 @@ static void openrisc_cpu_realizefn(DeviceState *dev, Error **errp)
     OpenRISCCPU *cpu = OPENRISC_CPU(dev);
     OpenRISCCPUClass *occ = OPENRISC_CPU_GET_CLASS(dev);
 
-    qemu_init_vcpu(&cpu->env);
     cpu_reset(CPU(cpu));
 
     occ->parent_realize(dev, errp);
@@ -149,6 +148,8 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = openrisc_cpu_class_by_name;
     cc->do_interrupt = openrisc_cpu_do_interrupt;
+    cc->dump_state = openrisc_cpu_dump_state;
+    device_class_set_vmsd(dc, &vmstate_openrisc_cpu);
 }
 
 static void cpu_register(const OpenRISCCPUInfo *info)

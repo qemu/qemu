@@ -53,9 +53,11 @@ void crisv10_cpu_do_interrupt(CPUState *cs)
 int cpu_cris_handle_mmu_fault(CPUCRISState * env, target_ulong address, int rw,
                               int mmu_idx)
 {
+    CRISCPU *cpu = cris_env_get_cpu(env);
+
     env->exception_index = 0xaa;
     env->pregs[PR_EDA] = address;
-    cpu_dump_state(env, stderr, fprintf, 0);
+    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
     return 1;
 }
 

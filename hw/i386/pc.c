@@ -1109,7 +1109,7 @@ static void cpu_request_exit(void *opaque, int irq, int level)
     CPUX86State *env = cpu_single_env;
 
     if (env && level) {
-        cpu_exit(env);
+        cpu_exit(CPU(x86_env_get_cpu(env)));
     }
 }
 

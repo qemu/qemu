@@ -147,7 +147,6 @@ static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
     m68k_cpu_init_gdb(cpu);
 
     cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
 
     mcc->parent_realize(dev, errp);
 }
@@ -187,6 +186,7 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
 
     cc->class_by_name = m68k_cpu_class_by_name;
     cc->do_interrupt = m68k_cpu_do_interrupt;
+    cc->dump_state = m68k_cpu_dump_state;
     dc->vmsd = &vmstate_m68k_cpu;
 }
 

@@ -83,10 +83,7 @@ static const UniCore32CPUInfo uc32_cpus[] = {
 
 static void uc32_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    UniCore32CPU *cpu = UNICORE32_CPU(dev);
     UniCore32CPUClass *ucc = UNICORE32_CPU_GET_CLASS(dev);
-
-    qemu_init_vcpu(&cpu->env);
 
     ucc->parent_realize(dev, errp);
 }
@@ -133,6 +130,7 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = uc32_cpu_class_by_name;
     cc->do_interrupt = uc32_cpu_do_interrupt;
+    cc->dump_state = uc32_cpu_dump_state;
     dc->vmsd = &vmstate_uc32_cpu;
 }
 

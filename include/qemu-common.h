@@ -279,8 +279,10 @@ bool tcg_enabled(void);
 void cpu_exec_init_all(void);
 
 /* CPU save/load.  */
+#ifdef CPU_SAVE_VERSION
 void cpu_save(QEMUFile *f, void *opaque);
 int cpu_load(QEMUFile *f, void *opaque, int version_id);
+#endif
 
 /* Unblock cpu */
 void qemu_cpu_kick_self(void);
@@ -292,14 +294,6 @@ struct qemu_work_item {
     void *data;
     int done;
 };
-
-#ifdef CONFIG_USER_ONLY
-static inline void qemu_init_vcpu(void *env)
-{
-}
-#else
-void qemu_init_vcpu(void *env);
-#endif
 
 
 /**

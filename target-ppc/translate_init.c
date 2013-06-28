@@ -7752,8 +7752,6 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
                                  34, "power-spe.xml", 0);
     }
 
-    qemu_init_vcpu(env);
-
     pcc->parent_realize(dev, errp);
 
 #if defined(PPC_DUMP_CPU)
@@ -8309,6 +8307,8 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = ppc_cpu_class_by_name;
     cc->do_interrupt = ppc_cpu_do_interrupt;
+    cc->dump_state = ppc_cpu_dump_state;
+    cc->dump_statistics = ppc_cpu_dump_statistics;
 }
 
 static const TypeInfo ppc_cpu_type_info = {

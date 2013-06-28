@@ -9526,15 +9526,17 @@ GEN_SPEOP_LDST(evstwwo, 0x1E, 2),
 
 /*****************************************************************************/
 /* Misc PowerPC helpers */
-void cpu_dump_state (CPUPPCState *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void ppc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                        int flags)
 {
 #define RGPL  4
 #define RFPL  4
 
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
     int i;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(cs);
 
     cpu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
                 TARGET_FMT_lx " XER " TARGET_FMT_lx "\n",
@@ -9675,14 +9677,15 @@ void cpu_dump_state (CPUPPCState *env, FILE *f, fprintf_function cpu_fprintf,
 #undef RFPL
 }
 
-void cpu_dump_statistics (CPUPPCState *env, FILE*f, fprintf_function cpu_fprintf,
-                          int flags)
+void ppc_cpu_dump_statistics(CPUState *cs, FILE*f,
+                             fprintf_function cpu_fprintf, int flags)
 {
 #if defined(DO_PPC_STATISTICS)
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
     opc_handler_t **t1, **t2, **t3, *handler;
     int op1, op2, op3;
 
-    t1 = env->opcodes;
+    t1 = cpu->env.opcodes;
     for (op1 = 0; op1 < 64; op1++) {
         handler = t1[op1];
         if (is_indirect_opcode(handler)) {

@@ -355,16 +355,6 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 
 CPUArchState *cpu_copy(CPUArchState *env);
 
-#define CPU_DUMP_CODE 0x00010000
-#define CPU_DUMP_FPU 0x00020000 /* dump FPU register state, not just integer */
-/* dump info about TCG QEMU's condition code optimization state */
-#define CPU_DUMP_CCOP 0x00040000
-
-void cpu_dump_state(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags);
-void cpu_dump_statistics(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf,
-                         int flags);
-
 void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 extern CPUArchState *first_cpu;
@@ -420,8 +410,6 @@ DECLARE_TLS(CPUArchState *,cpu_single_env);
      | CPU_INTERRUPT_TGT_EXT_2   \
      | CPU_INTERRUPT_TGT_EXT_3   \
      | CPU_INTERRUPT_TGT_EXT_4)
-
-void cpu_exit(CPUArchState *s);
 
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01

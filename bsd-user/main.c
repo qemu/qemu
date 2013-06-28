@@ -511,6 +511,7 @@ static void flush_windows(CPUSPARCState *env)
 
 void cpu_loop(CPUSPARCState *env)
 {
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     int trapnr, ret, syscall_nr;
     //target_siginfo_t info;
 
@@ -659,7 +660,7 @@ void cpu_loop(CPUSPARCState *env)
         badtrap:
 #endif
             printf ("Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             exit (1);
         }
         process_pending_signals (env);

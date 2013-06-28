@@ -71,5 +71,7 @@ static inline M68kCPU *m68k_env_get_cpu(CPUM68KState *env)
 #define ENV_OFFSET offsetof(M68kCPU, env)
 
 void m68k_cpu_do_interrupt(CPUState *cpu);
+void m68k_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                         int flags);
 
 #endif

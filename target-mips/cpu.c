@@ -48,7 +48,6 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(dev);
 
     cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
 
     mcc->parent_realize(dev, errp);
 }
@@ -80,6 +79,8 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->reset = mips_cpu_reset;
 
     cc->do_interrupt = mips_cpu_do_interrupt;
+    cc->dump_state = mips_cpu_dump_state;
+    cpu_class_set_do_unassigned_access(cc, mips_cpu_unassigned_access);
 }
 
 static const TypeInfo mips_cpu_type_info = {

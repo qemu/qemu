@@ -3427,9 +3427,11 @@ void gen_intermediate_code_pc (CPUCRISState *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_dump_state (CPUCRISState *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    CRISCPU *cpu = CRIS_CPU(cs);
+    CPUCRISState *env = &cpu->env;
     int i;
     uint32_t srs;
 

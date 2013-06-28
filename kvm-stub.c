@@ -42,7 +42,7 @@ void kvm_flush_coalesced_mmio_buffer(void)
 {
 }
 
-void kvm_cpu_synchronize_state(CPUArchState *env)
+void kvm_cpu_synchronize_state(CPUState *cpu)
 {
 }
 
@@ -54,9 +54,9 @@ void kvm_cpu_synchronize_post_init(CPUState *cpu)
 {
 }
 
-int kvm_cpu_exec(CPUArchState *env)
+int kvm_cpu_exec(CPUState *cpu)
 {
-    abort ();
+    abort();
 }
 
 int kvm_has_sync_mmu(void)
@@ -100,7 +100,7 @@ void kvm_remove_all_breakpoints(CPUArchState *current_env)
 }
 
 #ifndef _WIN32
-int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset)
+int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 {
     abort();
 }
