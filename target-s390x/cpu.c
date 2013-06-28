@@ -76,8 +76,39 @@ static void s390_cpu_load_normal(CPUState *s)
 }
 #endif
 
-/* CPUClass::reset() */
+/* S390CPUClass::cpu_reset() */
 static void s390_cpu_reset(CPUState *s)
+{
+    S390CPU *cpu = S390_CPU(s);
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
+    CPUS390XState *env = &cpu->env;
+
+    s390_del_running_cpu(cpu);
+    scc->parent_reset(s);
+#if !defined(CONFIG_USER_ONLY)
+    s->halted = 1;
+#endif
+    tlb_flush(env, 1);
+}
+
+/* S390CPUClass::initial_reset() */
+static void s390_cpu_initial_reset(CPUState *s)
+{
+    S390CPU *cpu = S390_CPU(s);
+    CPUS390XState *env = &cpu->env;
+
+    s390_cpu_reset(s);
+    /* initial reset does not touch regs,fregs and aregs */
+    memset(&env->fpc, 0, offsetof(CPUS390XState, breakpoints) -
+                         offsetof(CPUS390XState, fpc));
+
+    /* architectured initial values for CR 0 and 14 */
+    env->cregs[0] = CR0_RESET;
+    env->cregs[14] = CR14_RESET;
+}
+
+/* CPUClass:reset() */
+static void s390_cpu_full_reset(CPUState *s)
 {
     S390CPU *cpu = S390_CPU(s);
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
@@ -183,8 +214,9 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
 #if !defined(CONFIG_USER_ONLY)
     scc->load_normal = s390_cpu_load_normal;
 #endif
-    cc->reset = s390_cpu_reset;
-
+    scc->cpu_reset = s390_cpu_reset;
+    scc->initial_cpu_reset = s390_cpu_initial_reset;
+    cc->reset = s390_cpu_full_reset;
     cc->do_interrupt = s390_cpu_do_interrupt;
     cc->dump_state = s390_cpu_dump_state;
     cc->set_pc = s390_cpu_set_pc;
