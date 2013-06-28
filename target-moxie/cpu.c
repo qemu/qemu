@@ -22,6 +22,13 @@
 #include "migration/vmstate.h"
 #include "machine.h"
 
+static void moxie_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    MoxieCPU *cpu = MOXIE_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
 static void moxie_cpu_reset(CPUState *s)
 {
     MoxieCPU *cpu = MOXIE_CPU(s);
@@ -93,6 +100,7 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->do_interrupt = moxie_cpu_do_interrupt;
     cc->dump_state = moxie_cpu_dump_state;
+    cc->set_pc = moxie_cpu_set_pc;
     cpu_class_set_vmsd(cc, &vmstate_moxie_cpu);
 }
 
