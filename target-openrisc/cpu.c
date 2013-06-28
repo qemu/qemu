@@ -159,6 +159,7 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = openrisc_cpu_get_phys_page_debug;
     dc->vmsd = &vmstate_openrisc_cpu;
 #endif
+    cc->gdb_num_core_regs = 32 + 3;
 }
 
 static void cpu_register(const OpenRISCCPUInfo *info)

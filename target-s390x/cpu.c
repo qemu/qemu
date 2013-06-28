@@ -177,6 +177,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = s390_cpu_get_phys_page_debug;
 #endif
     dc->vmsd = &vmstate_s390_cpu;
+    cc->gdb_num_core_regs = S390_NUM_REGS;
 }
 
 static const TypeInfo s390_cpu_type_info = {

@@ -2549,6 +2549,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->write_elf32_qemunote = x86_cpu_write_elf32_qemunote;
     cc->vmsd = &vmstate_x86_cpu;
 #endif
+    cc->gdb_num_core_regs = CPU_NB_REGS * 2 + 25;
 }
 
 static const TypeInfo x86_cpu_type_info = {

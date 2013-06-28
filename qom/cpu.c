@@ -226,6 +226,14 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
     }
 }
 
+static void cpu_common_initfn(Object *obj)
+{
+    CPUState *cpu = CPU(obj);
+    CPUClass *cc = CPU_GET_CLASS(obj);
+
+    cpu->gdb_num_regs = cc->gdb_num_core_regs;
+}
+
 static int64_t cpu_common_get_arch_id(CPUState *cpu)
 {
     return cpu->cpu_index;
@@ -253,6 +261,7 @@ static const TypeInfo cpu_type_info = {
     .name = TYPE_CPU,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CPUState),
+    .instance_init = cpu_common_initfn,
     .abstract = true,
     .class_size = sizeof(CPUClass),
     .class_init = cpu_class_init,

@@ -194,6 +194,7 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->get_phys_page_debug = m68k_cpu_get_phys_page_debug;
 #endif
     dc->vmsd = &vmstate_m68k_cpu;
+    cc->gdb_num_core_regs = 18;
 }
 
 static void register_cpu_type(const M68kCPUInfo *info)

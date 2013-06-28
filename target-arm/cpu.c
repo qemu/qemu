@@ -828,6 +828,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = arm_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_arm_cpu;
 #endif
+    cc->gdb_num_core_regs = 26;
 }
 
 static void cpu_register(const ARMCPUInfo *info)

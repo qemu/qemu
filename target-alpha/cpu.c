@@ -276,6 +276,7 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = alpha_cpu_get_phys_page_debug;
     dc->vmsd = &vmstate_alpha_cpu;
 #endif
+    cc->gdb_num_core_regs = 67;
 }
 
 static const TypeInfo alpha_cpu_type_info = {

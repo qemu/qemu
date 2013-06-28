@@ -791,6 +791,12 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_unassigned_access = sparc_cpu_unassigned_access;
     cc->get_phys_page_debug = sparc_cpu_get_phys_page_debug;
 #endif
+
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
+    cc->gdb_num_core_regs = 86;
+#else
+    cc->gdb_num_core_regs = 72;
+#endif
 }
 
 static const TypeInfo sparc_cpu_type_info = {

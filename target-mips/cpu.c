@@ -104,6 +104,8 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->do_unassigned_access = mips_cpu_unassigned_access;
     cc->get_phys_page_debug = mips_cpu_get_phys_page_debug;
 #endif
+
+    cc->gdb_num_core_regs = 73;
 }
 
 static const TypeInfo mips_cpu_type_info = {

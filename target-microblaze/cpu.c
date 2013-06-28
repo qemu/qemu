@@ -147,6 +147,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
 #endif
     dc->vmsd = &vmstate_mb_cpu;
     dc->props = mb_properties;
+    cc->gdb_num_core_regs = 32 + 5;
 }
 
 static const TypeInfo mb_cpu_type_info = {
