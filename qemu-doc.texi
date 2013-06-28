@@ -214,7 +214,7 @@ PCI UHCI USB controller and a virtual USB hub.
 
 SMP is supported with up to 255 CPUs.
 
-QEMU uses the PC BIOS from the Bochs project and the Plex86/Bochs LGPL
+QEMU uses the PC BIOS from the Seabios project and the Plex86/Bochs LGPL
 VGA BIOS.
 
 QEMU uses YM3812 emulation by Tatsuyuki Satoh.

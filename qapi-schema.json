@@ -3288,10 +3288,11 @@
 # @addr: socket address to listen on (server=true)
 #        or connect to (server=false)
 # @server: #optional create server socket (default: true)
-# @wait: #optional wait for connect (not used for server
-#        sockets, default: false)
+# @wait: #optional wait for incoming connection on server
+#        sockets (default: false).
 # @nodelay: #optional set TCP_NODELAY socket option (default: false)
-# @telnet: #optional enable telnet protocol (default: false)
+# @telnet: #optional enable telnet protocol on server
+#          sockets (default: false)
 #
 # Since: 1.4
 ##

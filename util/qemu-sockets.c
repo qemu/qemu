@@ -848,9 +848,9 @@ int unix_nonblocking_connect(const char *path,
 
 SocketAddress *socket_parse(const char *str, Error **errp)
 {
-    SocketAddress *addr = NULL;
+    SocketAddress *addr;
 
-    addr = g_new(SocketAddress, 1);
+    addr = g_new0(SocketAddress, 1);
     if (strstart(str, "unix:", NULL)) {
         if (str[5] == '\0') {
             error_setg(errp, "invalid Unix socket address");
@@ -871,7 +871,6 @@ SocketAddress *socket_parse(const char *str, Error **errp)
         }
     } else {
         addr->kind = SOCKET_ADDRESS_KIND_INET;
-        addr->inet = g_new(InetSocketAddress, 1);
         addr->inet = inet_parse(str, errp);
         if (addr->inet == NULL) {
             goto fail;
@@ -904,7 +903,7 @@ int socket_connect(SocketAddress *addr, Error **errp,
 
     case SOCKET_ADDRESS_KIND_FD:
         fd = monitor_get_fd(cur_mon, addr->fd->str, errp);
-        if (callback) {
+        if (fd >= 0 && callback) {
             qemu_set_nonblock(fd);
             callback(fd, opaque);
         }
@@ -964,7 +963,7 @@ int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
 
     default:
         error_setg(errp, "socket type unsupported for datagram");
-        return -1;
+        fd = -1;
     }
     qemu_opts_del(opts);
     return fd;
