@@ -23,6 +23,13 @@
 #include "migration/vmstate.h"
 
 
+static void m68k_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    M68kCPU *cpu = M68K_CPU(cs);
+
+    cpu->env.pc = value;
+}
+
 static void m68k_set_feature(CPUM68KState *env, int feature)
 {
     env->features |= (1u << feature);
@@ -182,6 +189,7 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->class_by_name = m68k_cpu_class_by_name;
     cc->do_interrupt = m68k_cpu_do_interrupt;
     cc->dump_state = m68k_cpu_dump_state;
+    cc->set_pc = m68k_cpu_set_pc;
     dc->vmsd = &vmstate_m68k_cpu;
 }
 
