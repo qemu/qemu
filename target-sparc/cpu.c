@@ -731,6 +731,14 @@ static void sparc_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.npc = value + 4;
 }
 
+static void sparc_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
+{
+    SPARCCPU *cpu = SPARC_CPU(cs);
+
+    cpu->env.pc = tb->pc;
+    cpu->env.npc = tb->cs_base;
+}
+
 static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(dev);
@@ -776,6 +784,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->dump_state = sparc_cpu_dump_state;
     cpu_class_set_do_unassigned_access(cc, sparc_cpu_unassigned_access);
     cc->set_pc = sparc_cpu_set_pc;
+    cc->synchronize_from_tb = sparc_cpu_synchronize_from_tb;
 }
 
 static const TypeInfo sparc_cpu_type_info = {

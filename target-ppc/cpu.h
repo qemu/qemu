@@ -2144,11 +2144,6 @@ static inline bool cpu_has_work(CPUState *cpu)
 
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUPPCState *env, TranslationBlock *tb)
-{
-    env->nip = tb->pc;
-}
-
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
 
 #endif /* !defined (__CPU_PPC_H__) */

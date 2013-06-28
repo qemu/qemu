@@ -797,11 +797,6 @@ static inline bool cpu_has_work(CPUState *cpu)
 
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
-{
-    env->regs[15] = tb->pc;
-}
-
 /* Load an instruction and return it in the standard little-endian order */
 static inline uint32_t arm_ldl_code(CPUARMState *env, uint32_t addr,
                                     bool do_swap)

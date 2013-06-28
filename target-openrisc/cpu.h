@@ -428,9 +428,4 @@ static inline target_ulong cpu_get_pc(CPUOpenRISCState *env)
     return env->pc;
 }
 
-static inline void cpu_pc_from_tb(CPUOpenRISCState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
-
 #endif /* CPU_OPENRISC_H */

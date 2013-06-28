@@ -59,8 +59,14 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
          * counter hit zero); we must restore the guest PC to the address
          * of the start of the TB.
          */
+        CPUClass *cc = CPU_GET_CLASS(cpu);
         TranslationBlock *tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-        cpu_pc_from_tb(env, tb);
+        if (cc->synchronize_from_tb) {
+            cc->synchronize_from_tb(cpu, tb);
+        } else {
+            assert(cc->set_pc);
+            cc->set_pc(cpu, tb->pc);
+        }
     }
     if ((next_tb & TB_EXIT_MASK) == TB_EXIT_REQUESTED) {
         /* We were asked to stop executing TBs (probably a pending

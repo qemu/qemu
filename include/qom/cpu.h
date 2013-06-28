@@ -60,6 +60,8 @@ typedef void (*CPUUnassignedAccess)(CPUState *cpu, hwaddr addr,
                                     bool is_write, bool is_exec, int opaque,
                                     unsigned size);
 
+struct TranslationBlock;
+
 /**
  * CPUClass:
  * @class_by_name: Callback to map -cpu command line model name to an
@@ -74,6 +76,8 @@ typedef void (*CPUUnassignedAccess)(CPUState *cpu, hwaddr addr,
  * @get_paging_enabled: Callback for inquiring whether paging is enabled.
  * @get_memory_mapping: Callback for obtaining the memory mappings.
  * @set_pc: Callback for setting the Program Counter register.
+ * @synchronize_from_tb: Callback for synchronizing state from a TCG
+ * #TranslationBlock.
  * @vmsd: State description for migration.
  *
  * Represents a CPU family or model.
@@ -98,6 +102,7 @@ typedef struct CPUClass {
     void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
                                Error **errp);
     void (*set_pc)(CPUState *cpu, vaddr value);
+    void (*synchronize_from_tb)(CPUState *cpu, struct TranslationBlock *tb);
 
     const struct VMStateDescription *vmsd;
     int (*write_elf64_note)(WriteCoreDumpFunction f, CPUState *cpu,

@@ -1148,11 +1148,6 @@ static inline bool cpu_has_work(CPUState *cs)
 
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUX86State *env, TranslationBlock *tb)
-{
-    env->eip = tb->pc - tb->cs_base;
-}
-
 static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {

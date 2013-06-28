@@ -143,11 +143,6 @@ static inline int cpu_mmu_index(CPUMoxieState *env)
 #include "exec/cpu-all.h"
 #include "exec/exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUMoxieState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
-
 static inline void cpu_get_tb_cpu_state(CPUMoxieState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {

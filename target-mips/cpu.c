@@ -35,6 +35,16 @@ static void mips_cpu_set_pc(CPUState *cs, vaddr value)
     }
 }
 
+static void mips_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
+{
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
+    env->active_tc.PC = tb->pc;
+    env->hflags &= ~MIPS_HFLAG_BMASK;
+    env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
+}
+
 /* CPUClass::reset() */
 static void mips_cpu_reset(CPUState *s)
 {
@@ -90,6 +100,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->dump_state = mips_cpu_dump_state;
     cpu_class_set_do_unassigned_access(cc, mips_cpu_unassigned_access);
     cc->set_pc = mips_cpu_set_pc;
+    cc->synchronize_from_tb = mips_cpu_synchronize_from_tb;
 }
 
 static const TypeInfo mips_cpu_type_info = {
