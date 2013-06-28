@@ -26,7 +26,9 @@
 #ifndef QEMU_VMSTATE_H
 #define QEMU_VMSTATE_H 1
 
+#ifndef CONFIG_USER_ONLY
 #include <migration/qemu-file.h>
+#endif
 
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);

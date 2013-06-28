@@ -2635,7 +2635,6 @@ bool cpu_physical_memory_is_io(hwaddr phys_addr)
     return !(memory_region_is_ram(mr) ||
              memory_region_is_romd(mr));
 }
-#endif
 
 void qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
 {
@@ -2645,3 +2644,4 @@ void qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
         func(block->host, block->offset, block->length, opaque);
     }
 }
+#endif
