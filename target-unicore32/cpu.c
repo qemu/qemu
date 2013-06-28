@@ -16,6 +16,13 @@
 #include "qemu-common.h"
 #include "migration/vmstate.h"
 
+static void uc32_cpu_set_pc(CPUState *cs, vaddr value)
+{
+    UniCore32CPU *cpu = UNICORE32_CPU(cs);
+
+    cpu->env.regs[31] = value;
+}
+
 static inline void set_feature(CPUUniCore32State *env, int feature)
 {
     env->features |= feature;
@@ -131,6 +138,7 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = uc32_cpu_class_by_name;
     cc->do_interrupt = uc32_cpu_do_interrupt;
     cc->dump_state = uc32_cpu_dump_state;
+    cc->set_pc = uc32_cpu_set_pc;
     dc->vmsd = &vmstate_uc32_cpu;
 }
 
