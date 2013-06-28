@@ -39,6 +39,9 @@ struct DBDMA_io {
     DBDMA_end dma_end;
     /* DMA is in progress, don't start another one */
     bool processing;
+    /* unaligned last sector of a request */
+    uint8_t remainder[0x200];
+    int remainder_len;
 };
 
 /*
