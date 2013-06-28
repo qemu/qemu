@@ -57,18 +57,8 @@ class ImageMirroringTestCase(iotests.QMPTestCase):
         result = self.vm.qmp('block-job-complete', device=drive)
         self.assert_qmp(result, 'return', {})
 
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/type', 'mirror')
-                    self.assert_qmp(event, 'data/device', drive)
-                    self.assert_qmp_absent(event, 'data/error')
-                    self.assert_qmp(event, 'data/offset', self.image_len)
-                    self.assert_qmp(event, 'data/len', self.image_len)
-                    completed = True
-
-        self.assert_no_active_block_jobs()
+        event = self.wait_until_completed()
+        self.assert_qmp(event, 'data/type', 'mirror')
 
 class TestSingleDrive(ImageMirroringTestCase):
     image_len = 1 * 1024 * 1024 # MB

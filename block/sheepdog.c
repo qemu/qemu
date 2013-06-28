@@ -2401,6 +2401,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_file_open = sd_open,
     .bdrv_close     = sd_close,
     .bdrv_create    = sd_create,
+    .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_getlength = sd_getlength,
     .bdrv_truncate  = sd_truncate,
 

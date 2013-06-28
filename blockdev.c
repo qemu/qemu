@@ -780,7 +780,7 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
 
 /* New and old BlockDriverState structs for group snapshots */
 
-typedef struct BlkTransactionStates BlkTransactionStates;
+typedef struct BlkTransactionState BlkTransactionState;
 
 /* Only prepare() may fail. In a single transaction, only one of commit() or
    abort() will be called, clean() will always be called if it present. */
@@ -788,13 +788,13 @@ typedef struct BdrvActionOps {
     /* Size of state struct, in bytes. */
     size_t instance_size;
     /* Prepare the work, must NOT be NULL. */
-    void (*prepare)(BlkTransactionStates *common, Error **errp);
-    /* Commit the changes, must NOT be NULL. */
-    void (*commit)(BlkTransactionStates *common);
+    void (*prepare)(BlkTransactionState *common, Error **errp);
+    /* Commit the changes, can be NULL. */
+    void (*commit)(BlkTransactionState *common);
     /* Abort the changes on fail, can be NULL. */
-    void (*abort)(BlkTransactionStates *common);
+    void (*abort)(BlkTransactionState *common);
     /* Clean up resource in the end, can be NULL. */
-    void (*clean)(BlkTransactionStates *common);
+    void (*clean)(BlkTransactionState *common);
 } BdrvActionOps;
 
 /*
@@ -802,23 +802,22 @@ typedef struct BdrvActionOps {
  * that compiler will also arrange it to the same address with parent instance.
  * Later it will be used in free().
  */
-struct BlkTransactionStates {
+struct BlkTransactionState {
     TransactionAction *action;
     const BdrvActionOps *ops;
-    QSIMPLEQ_ENTRY(BlkTransactionStates) entry;
+    QSIMPLEQ_ENTRY(BlkTransactionState) entry;
 };
 
 /* external snapshot private data */
-typedef struct ExternalSnapshotStates {
-    BlkTransactionStates common;
+typedef struct ExternalSnapshotState {
+    BlkTransactionState common;
     BlockDriverState *old_bs;
     BlockDriverState *new_bs;
-} ExternalSnapshotStates;
+} ExternalSnapshotState;
 
-static void external_snapshot_prepare(BlkTransactionStates *common,
+static void external_snapshot_prepare(BlkTransactionState *common,
                                       Error **errp)
 {
-    BlockDriver *proto_drv;
     BlockDriver *drv;
     int flags, ret;
     Error *local_err = NULL;
@@ -826,8 +825,8 @@ static void external_snapshot_prepare(BlkTransactionStates *common,
     const char *new_image_file;
     const char *format = "qcow2";
     enum NewImageMode mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-    ExternalSnapshotStates *states =
-                             DO_UPCAST(ExternalSnapshotStates, common, common);
+    ExternalSnapshotState *state =
+                             DO_UPCAST(ExternalSnapshotState, common, common);
     TransactionAction *action = common->action;
 
     /* get parameters */
@@ -849,42 +848,36 @@ static void external_snapshot_prepare(BlkTransactionStates *common,
         return;
     }
 
-    states->old_bs = bdrv_find(device);
-    if (!states->old_bs) {
+    state->old_bs = bdrv_find(device);
+    if (!state->old_bs) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
     }
 
-    if (!bdrv_is_inserted(states->old_bs)) {
+    if (!bdrv_is_inserted(state->old_bs)) {
         error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 
-    if (bdrv_in_use(states->old_bs)) {
+    if (bdrv_in_use(state->old_bs)) {
         error_set(errp, QERR_DEVICE_IN_USE, device);
         return;
     }
 
-    if (!bdrv_is_read_only(states->old_bs)) {
-        if (bdrv_flush(states->old_bs)) {
+    if (!bdrv_is_read_only(state->old_bs)) {
+        if (bdrv_flush(state->old_bs)) {
             error_set(errp, QERR_IO_ERROR);
             return;
         }
     }
 
-    flags = states->old_bs->open_flags;
-
-    proto_drv = bdrv_find_protocol(new_image_file);
-    if (!proto_drv) {
-        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
-        return;
-    }
+    flags = state->old_bs->open_flags;
 
     /* create new image w/backing file */
     if (mode != NEW_IMAGE_MODE_EXISTING) {
         bdrv_img_create(new_image_file, format,
-                        states->old_bs->filename,
-                        states->old_bs->drv->format_name,
+                        state->old_bs->filename,
+                        state->old_bs->drv->format_name,
                         NULL, -1, flags, &local_err, false);
         if (error_is_set(&local_err)) {
             error_propagate(errp, local_err);
@@ -893,45 +886,109 @@ static void external_snapshot_prepare(BlkTransactionStates *common,
     }
 
     /* We will manually add the backing_hd field to the bs later */
-    states->new_bs = bdrv_new("");
+    state->new_bs = bdrv_new("");
     /* TODO Inherit bs->options or only take explicit options with an
      * extended QMP command? */
-    ret = bdrv_open(states->new_bs, new_image_file, NULL,
+    ret = bdrv_open(state->new_bs, new_image_file, NULL,
                     flags | BDRV_O_NO_BACKING, drv);
     if (ret != 0) {
         error_setg_file_open(errp, -ret, new_image_file);
     }
 }
 
-static void external_snapshot_commit(BlkTransactionStates *common)
+static void external_snapshot_commit(BlkTransactionState *common)
 {
-    ExternalSnapshotStates *states =
-                             DO_UPCAST(ExternalSnapshotStates, common, common);
+    ExternalSnapshotState *state =
+                             DO_UPCAST(ExternalSnapshotState, common, common);
 
-    /* This removes our old bs from the bdrv_states, and adds the new bs */
-    bdrv_append(states->new_bs, states->old_bs);
+    /* This removes our old bs and adds the new bs */
+    bdrv_append(state->new_bs, state->old_bs);
     /* We don't need (or want) to use the transactional
      * bdrv_reopen_multiple() across all the entries at once, because we
      * don't want to abort all of them if one of them fails the reopen */
-    bdrv_reopen(states->new_bs, states->new_bs->open_flags & ~BDRV_O_RDWR,
+    bdrv_reopen(state->new_bs, state->new_bs->open_flags & ~BDRV_O_RDWR,
                 NULL);
 }
 
-static void external_snapshot_abort(BlkTransactionStates *common)
+static void external_snapshot_abort(BlkTransactionState *common)
 {
-    ExternalSnapshotStates *states =
-                             DO_UPCAST(ExternalSnapshotStates, common, common);
-    if (states->new_bs) {
-        bdrv_delete(states->new_bs);
+    ExternalSnapshotState *state =
+                             DO_UPCAST(ExternalSnapshotState, common, common);
+    if (state->new_bs) {
+        bdrv_delete(state->new_bs);
     }
+}
+
+typedef struct DriveBackupState {
+    BlkTransactionState common;
+    BlockDriverState *bs;
+    BlockJob *job;
+} DriveBackupState;
+
+static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
+{
+    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    DriveBackup *backup;
+    Error *local_err = NULL;
+
+    assert(common->action->kind == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
+    backup = common->action->drive_backup;
+
+    qmp_drive_backup(backup->device, backup->target,
+                     backup->has_format, backup->format,
+                     backup->has_mode, backup->mode,
+                     backup->has_speed, backup->speed,
+                     backup->has_on_source_error, backup->on_source_error,
+                     backup->has_on_target_error, backup->on_target_error,
+                     &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        state->bs = NULL;
+        state->job = NULL;
+        return;
+    }
+
+    state->bs = bdrv_find(backup->device);
+    state->job = state->bs->job;
+}
+
+static void drive_backup_abort(BlkTransactionState *common)
+{
+    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    BlockDriverState *bs = state->bs;
+
+    /* Only cancel if it's the job we started */
+    if (bs && bs->job && bs->job == state->job) {
+        block_job_cancel_sync(bs->job);
+    }
+}
+
+static void abort_prepare(BlkTransactionState *common, Error **errp)
+{
+    error_setg(errp, "Transaction aborted using Abort action");
+}
+
+static void abort_commit(BlkTransactionState *common)
+{
+    assert(false); /* this action never succeeds */
 }
 
 static const BdrvActionOps actions[] = {
     [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
-        .instance_size = sizeof(ExternalSnapshotStates),
+        .instance_size = sizeof(ExternalSnapshotState),
         .prepare  = external_snapshot_prepare,
         .commit   = external_snapshot_commit,
         .abort = external_snapshot_abort,
+    },
+    [TRANSACTION_ACTION_KIND_DRIVE_BACKUP] = {
+        .instance_size = sizeof(DriveBackupState),
+        .prepare = drive_backup_prepare,
+        .abort = drive_backup_abort,
+    },
+    [TRANSACTION_ACTION_KIND_ABORT] = {
+        .instance_size = sizeof(BlkTransactionState),
+        .prepare = abort_prepare,
+        .commit = abort_commit,
     },
 };
 
@@ -943,10 +1000,10 @@ static const BdrvActionOps actions[] = {
 void qmp_transaction(TransactionActionList *dev_list, Error **errp)
 {
     TransactionActionList *dev_entry = dev_list;
-    BlkTransactionStates *states, *next;
+    BlkTransactionState *state, *next;
     Error *local_err = NULL;
 
-    QSIMPLEQ_HEAD(snap_bdrv_states, BlkTransactionStates) snap_bdrv_states;
+    QSIMPLEQ_HEAD(snap_bdrv_states, BlkTransactionState) snap_bdrv_states;
     QSIMPLEQ_INIT(&snap_bdrv_states);
 
     /* drain all i/o before any snapshots */
@@ -963,20 +1020,22 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
         assert(dev_info->kind < ARRAY_SIZE(actions));
 
         ops = &actions[dev_info->kind];
-        states = g_malloc0(ops->instance_size);
-        states->ops = ops;
-        states->action = dev_info;
-        QSIMPLEQ_INSERT_TAIL(&snap_bdrv_states, states, entry);
+        state = g_malloc0(ops->instance_size);
+        state->ops = ops;
+        state->action = dev_info;
+        QSIMPLEQ_INSERT_TAIL(&snap_bdrv_states, state, entry);
 
-        states->ops->prepare(states, &local_err);
+        state->ops->prepare(state, &local_err);
         if (error_is_set(&local_err)) {
             error_propagate(errp, local_err);
             goto delete_and_fail;
         }
     }
 
-    QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
-        states->ops->commit(states);
+    QSIMPLEQ_FOREACH(state, &snap_bdrv_states, entry) {
+        if (state->ops->commit) {
+            state->ops->commit(state);
+        }
     }
 
     /* success */
@@ -987,17 +1046,17 @@ delete_and_fail:
     * failure, and it is all-or-none; abandon each new bs, and keep using
     * the original bs for all images
     */
-    QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
-        if (states->ops->abort) {
-            states->ops->abort(states);
+    QSIMPLEQ_FOREACH(state, &snap_bdrv_states, entry) {
+        if (state->ops->abort) {
+            state->ops->abort(state);
         }
     }
 exit:
-    QSIMPLEQ_FOREACH_SAFE(states, &snap_bdrv_states, entry, next) {
-        if (states->ops->clean) {
-            states->ops->clean(states);
+    QSIMPLEQ_FOREACH_SAFE(state, &snap_bdrv_states, entry, next) {
+        if (state->ops->clean) {
+            state->ops->clean(state);
         }
-        g_free(states);
+        g_free(state);
     }
 }
 
@@ -1360,6 +1419,103 @@ void qmp_block_commit(const char *device,
     drive_get_ref(drive_get_by_blockdev(bs));
 }
 
+void qmp_drive_backup(const char *device, const char *target,
+                      bool has_format, const char *format,
+                      bool has_mode, enum NewImageMode mode,
+                      bool has_speed, int64_t speed,
+                      bool has_on_source_error, BlockdevOnError on_source_error,
+                      bool has_on_target_error, BlockdevOnError on_target_error,
+                      Error **errp)
+{
+    BlockDriverState *bs;
+    BlockDriverState *target_bs;
+    BlockDriver *drv = NULL;
+    Error *local_err = NULL;
+    int flags;
+    int64_t size;
+    int ret;
+
+    if (!has_speed) {
+        speed = 0;
+    }
+    if (!has_on_source_error) {
+        on_source_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+    if (!has_on_target_error) {
+        on_target_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+    if (!has_mode) {
+        mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    }
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (!bdrv_is_inserted(bs)) {
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        return;
+    }
+
+    if (!has_format) {
+        format = mode == NEW_IMAGE_MODE_EXISTING ? NULL : bs->drv->format_name;
+    }
+    if (format) {
+        drv = bdrv_find_format(format);
+        if (!drv) {
+            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            return;
+        }
+    }
+
+    if (bdrv_in_use(bs)) {
+        error_set(errp, QERR_DEVICE_IN_USE, device);
+        return;
+    }
+
+    flags = bs->open_flags | BDRV_O_RDWR;
+
+    size = bdrv_getlength(bs);
+    if (size < 0) {
+        error_setg_errno(errp, -size, "bdrv_getlength failed");
+        return;
+    }
+
+    if (mode != NEW_IMAGE_MODE_EXISTING) {
+        assert(format && drv);
+        bdrv_img_create(target, format,
+                        NULL, NULL, NULL, size, flags, &local_err, false);
+    }
+
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    target_bs = bdrv_new("");
+    ret = bdrv_open(target_bs, target, NULL, flags, drv);
+    if (ret < 0) {
+        bdrv_delete(target_bs);
+        error_setg_file_open(errp, -ret, target);
+        return;
+    }
+
+    backup_start(bs, target_bs, speed, on_source_error, on_target_error,
+                 block_job_cb, bs, &local_err);
+    if (local_err != NULL) {
+        bdrv_delete(target_bs);
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* Grab a reference so hotplug does not delete the BlockDriverState from
+     * underneath us.
+     */
+    drive_get_ref(drive_get_by_blockdev(bs));
+}
+
 #define DEFAULT_MIRROR_BUF_SIZE   (10 << 20)
 
 void qmp_drive_mirror(const char *device, const char *target,
@@ -1375,11 +1531,10 @@ void qmp_drive_mirror(const char *device, const char *target,
 {
     BlockDriverState *bs;
     BlockDriverState *source, *target_bs;
-    BlockDriver *proto_drv;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
     int flags;
-    uint64_t size;
+    int64_t size;
     int ret;
 
     if (!has_speed) {
@@ -1443,14 +1598,12 @@ void qmp_drive_mirror(const char *device, const char *target,
         sync = MIRROR_SYNC_MODE_FULL;
     }
 
-    proto_drv = bdrv_find_protocol(target);
-    if (!proto_drv) {
-        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+    size = bdrv_getlength(bs);
+    if (size < 0) {
+        error_setg_errno(errp, -size, "bdrv_getlength failed");
         return;
     }
 
-    bdrv_get_geometry(bs, &size);
-    size *= 512;
     if (sync == MIRROR_SYNC_MODE_FULL && mode != NEW_IMAGE_MODE_EXISTING) {
         /* create new image w/o backing file */
         assert(format && drv);
@@ -1483,7 +1636,6 @@ void qmp_drive_mirror(const char *device, const char *target,
      */
     target_bs = bdrv_new("");
     ret = bdrv_open(target_bs, target, NULL, flags | BDRV_O_NO_BACKING, drv);
-
     if (ret < 0) {
         bdrv_delete(target_bs);
         error_setg_file_open(errp, -ret, target);

@@ -198,7 +198,7 @@ static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
 }
 
-static BlockJobType stream_job_type = {
+static const BlockJobType stream_job_type = {
     .instance_size = sizeof(StreamBlockJob),
     .job_type      = "stream",
     .set_speed     = stream_set_speed,

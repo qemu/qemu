@@ -912,6 +912,52 @@ EQMP
     },
 
     {
+        .name       = "drive-backup",
+        .args_type  = "device:B,target:s,speed:i?,mode:s?,format:s?,"
+                      "on-source-error:s?,on-target-error:s?",
+        .mhandler.cmd_new = qmp_marshal_input_drive_backup,
+    },
+
+SQMP
+drive-backup
+------------
+
+Start a point-in-time copy of a block device to a new destination.  The
+status of ongoing drive-backup operations can be checked with
+query-block-jobs where the BlockJobInfo.type field has the value 'backup'.
+The operation can be stopped before it has completed using the
+block-job-cancel command.
+
+Arguments:
+
+- "device": the name of the device which should be copied.
+            (json-string)
+- "target": the target of the new image. If the file exists, or if it is a
+            device, the existing file/device will be used as the new
+            destination.  If it does not exist, a new file will be created.
+            (json-string)
+- "format": the format of the new destination, default is to probe if 'mode' is
+            'existing', else the format of the source
+            (json-string, optional)
+- "mode": whether and how QEMU should create a new image
+          (NewImageMode, optional, default 'absolute-paths')
+- "speed": the maximum speed, in bytes per second (json-int, optional)
+- "on-source-error": the action to take on an error on the source, default
+                     'report'.  'stop' and 'enospc' can only be used
+                     if the block device supports io-status.
+                     (BlockdevOnError, optional)
+- "on-target-error": the action to take on an error on the target, default
+                     'report' (no limitations, since this applies to
+                     a different block device than device).
+                     (BlockdevOnError, optional)
+
+Example:
+-> { "execute": "drive-backup", "arguments": { "device": "drive0",
+                                               "target": "backup.img" } }
+<- { "return": {} }
+EQMP
+
+    {
         .name       = "block-job-set-speed",
         .args_type  = "device:B,speed:o",
         .mhandler.cmd_new = qmp_marshal_input_block_job_set_speed,
