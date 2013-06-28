@@ -1986,6 +1986,7 @@ void cpu_physical_memory_write_rom(hwaddr addr,
 }
 
 typedef struct {
+    MemoryRegion *mr;
     void *buffer;
     hwaddr addr;
     hwaddr len;
@@ -2083,6 +2084,9 @@ void *address_space_map(AddressSpace *as,
         bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, TARGET_PAGE_SIZE);
         bounce.addr = addr;
         bounce.len = l;
+
+        memory_region_ref(mr);
+        bounce.mr = mr;
         if (!is_write) {
             address_space_read(as, addr, bounce.buffer, l);
         }
@@ -2109,6 +2113,7 @@ void *address_space_map(AddressSpace *as,
         }
     }
 
+    memory_region_ref(mr);
     *plen = done;
     return qemu_ram_ptr_length(raddr + base, plen);
 }
@@ -2121,10 +2126,12 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
                          int is_write, hwaddr access_len)
 {
     if (buffer != bounce.buffer) {
+        MemoryRegion *mr;
+        ram_addr_t addr1;
+
+        mr = qemu_ram_addr_from_host(buffer, &addr1);
+        assert(mr != NULL);
         if (is_write) {
-            ram_addr_t addr1;
-            MemoryRegion *mr = qemu_ram_addr_from_host(buffer, &addr1);
-            assert(mr != NULL);
             while (access_len) {
                 unsigned l;
                 l = TARGET_PAGE_SIZE;
@@ -2138,6 +2145,7 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
         if (xen_enabled()) {
             xen_invalidate_map_cache_entry(buffer);
         }
+        memory_region_unref(mr);
         return;
     }
     if (is_write) {
@@ -2145,6 +2153,7 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
     }
     qemu_vfree(bounce.buffer);
     bounce.buffer = NULL;
+    memory_region_unref(bounce.mr);
     cpu_notify_map_clients();
 }
 
