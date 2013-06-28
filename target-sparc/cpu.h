@@ -690,18 +690,6 @@ static inline int cpu_pil_allowed(CPUSPARCState *env1, int pil)
 #endif
 }
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUSPARCState *env, target_ulong newsp)
-{
-    if (newsp)
-        env->regwptr[22] = newsp;
-    env->regwptr[0] = 0;
-    /* FIXME: Do we also need to clear CF?  */
-    /* XXXXX */
-    printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
-}
-#endif
-
 #include "exec/cpu-all.h"
 
 #ifdef TARGET_SPARC64

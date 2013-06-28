@@ -394,16 +394,6 @@ static inline CPUOpenRISCState *cpu_init(const char *cpu_model)
     return NULL;
 }
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUOpenRISCState *env, target_ulong newsp)
-{
-    if (newsp) {
-        env->gpr[1] = newsp;
-    }
-    env->gpr[2] = 0;
-}
-#endif
-
 #include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,

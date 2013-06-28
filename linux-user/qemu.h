@@ -16,6 +16,7 @@
 #include "exec/user/thunk.h"
 #include "syscall_defs.h"
 #include "syscall.h"
+#include "target_cpu.h"
 #include "target_signal.h"
 #include "exec/gdbstub.h"
 #include "qemu/queue.h"

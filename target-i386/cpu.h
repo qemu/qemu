@@ -1125,15 +1125,6 @@ static inline target_long lshift(target_long x, int n)
 /* translate.c */
 void optimize_flags_init(void);
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUX86State *env, target_ulong newsp)
-{
-    if (newsp)
-        env->regs[R_ESP] = newsp;
-    env->regs[R_EAX] = 0;
-}
-#endif
-
 #include "exec/cpu-all.h"
 #include "svm.h"
 
