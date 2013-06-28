@@ -2911,6 +2911,11 @@ void bdrv_flush_all(void)
     }
 }
 
+int bdrv_has_zero_init_1(BlockDriverState *bs)
+{
+    return 1;
+}
+
 int bdrv_has_zero_init(BlockDriverState *bs)
 {
     assert(bs->drv);
@@ -2919,7 +2924,8 @@ int bdrv_has_zero_init(BlockDriverState *bs)
         return bs->drv->bdrv_has_zero_init(bs);
     }
 
-    return 1;
+    /* safe default */
+    return 0;
 }
 
 typedef struct BdrvCoIsAllocatedData {
