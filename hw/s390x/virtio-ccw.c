@@ -79,8 +79,7 @@ static int virtio_ccw_set_guest2host_notifier(VirtioCcwDevice *dev, int n,
             return r;
         }
         virtio_queue_set_host_notifier_fd_handler(vq, true, set_handler);
-        r = s390_assign_subch_ioeventfd(event_notifier_get_fd(notifier), sch_id,
-                                        n, assign);
+        r = s390_assign_subch_ioeventfd(notifier, sch_id, n, assign);
         if (r < 0) {
             error_report("%s: unable to assign ioeventfd: %d", __func__, r);
             virtio_queue_set_host_notifier_fd_handler(vq, false, false);
@@ -89,8 +88,7 @@ static int virtio_ccw_set_guest2host_notifier(VirtioCcwDevice *dev, int n,
         }
     } else {
         virtio_queue_set_host_notifier_fd_handler(vq, false, false);
-        s390_assign_subch_ioeventfd(event_notifier_get_fd(notifier), sch_id,
-                                    n, assign);
+        s390_assign_subch_ioeventfd(notifier, sch_id, n, assign);
         event_notifier_cleanup(notifier);
     }
     return r;
