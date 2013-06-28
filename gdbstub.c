@@ -1906,11 +1906,10 @@ static int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
    gdb reading a CPU register, and set_reg is gdb modifying a CPU register.
  */
 
-void gdb_register_coprocessor(CPUArchState * env,
-                             gdb_reg_cb get_reg, gdb_reg_cb set_reg,
-                             int num_regs, const char *xml, int g_pos)
+void gdb_register_coprocessor(CPUState *cpu,
+                              gdb_reg_cb get_reg, gdb_reg_cb set_reg,
+                              int num_regs, const char *xml, int g_pos)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     GDBRegisterState *s;
     GDBRegisterState **p;
     static int last_reg = NUM_CORE_REGS;

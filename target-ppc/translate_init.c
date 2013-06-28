@@ -7804,8 +7804,8 @@ static int ppc_fixup_cpu(PowerPCCPU *cpu)
 
 static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    CPUState *cs = CPU(dev);
     PowerPCCPU *cpu = POWERPC_CPU(dev);
-    CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     Error *local_err = NULL;
 #if !defined(CONFIG_USER_ONLY)
@@ -7849,15 +7849,15 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     init_ppc_proc(cpu);
 
     if (pcc->insns_flags & PPC_FLOAT) {
-        gdb_register_coprocessor(env, gdb_get_float_reg, gdb_set_float_reg,
+        gdb_register_coprocessor(cs, gdb_get_float_reg, gdb_set_float_reg,
                                  33, "power-fpu.xml", 0);
     }
     if (pcc->insns_flags & PPC_ALTIVEC) {
-        gdb_register_coprocessor(env, gdb_get_avr_reg, gdb_set_avr_reg,
+        gdb_register_coprocessor(cs, gdb_get_avr_reg, gdb_set_avr_reg,
                                  34, "power-altivec.xml", 0);
     }
     if (pcc->insns_flags & PPC_SPE) {
-        gdb_register_coprocessor(env, gdb_get_spe_reg, gdb_set_spe_reg,
+        gdb_register_coprocessor(cs, gdb_get_spe_reg, gdb_set_spe_reg,
                                  34, "power-spe.xml", 0);
     }
 
@@ -7865,6 +7865,7 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
 
 #if defined(PPC_DUMP_CPU)
     {
+        CPUPPCState *env = &cpu->env;
         const char *mmu_model, *excp_model, *bus_model;
         switch (env->mmu_model) {
         case POWERPC_MMU_32B:
@@ -8016,10 +8017,10 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
             printf("                        none\n");
         printf("    Time-base/decrementer clock source: %s\n",
                env->flags & POWERPC_FLAG_RTC_CLK ? "RTC clock" : "bus clock");
+        dump_ppc_insns(env);
+        dump_ppc_sprs(env);
+        fflush(stdout);
     }
-    dump_ppc_insns(env);
-    dump_ppc_sprs(env);
-    fflush(stdout);
 #endif
 }
 

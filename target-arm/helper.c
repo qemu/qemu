@@ -1513,16 +1513,17 @@ ARMCPU *cpu_arm_init(const char *cpu_model)
 
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
 
     if (arm_feature(env, ARM_FEATURE_NEON)) {
-        gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
+        gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  51, "arm-neon.xml", 0);
     } else if (arm_feature(env, ARM_FEATURE_VFP3)) {
-        gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
+        gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  35, "arm-vfp3.xml", 0);
     } else if (arm_feature(env, ARM_FEATURE_VFP)) {
-        gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
+        gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  19, "arm-vfp.xml", 0);
     }
 }
