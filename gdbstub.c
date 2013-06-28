@@ -1840,7 +1840,7 @@ static const char *get_feature_xml(const char *p, const char **newp)
         /* Generate the XML description for this CPU.  */
         if (!target_xml[0]) {
             GDBRegisterState *r;
-            CPUArchState *env = first_cpu->env_ptr;
+            CPUState *cpu = first_cpu;
 
             snprintf(target_xml, sizeof(target_xml),
                      "<?xml version=\"1.0\"?>"
@@ -1849,7 +1849,7 @@ static const char *get_feature_xml(const char *p, const char **newp)
                      "<xi:include href=\"%s\"/>",
                      GDB_CORE_XML);
 
-            for (r = env->gdb_regs; r; r = r->next) {
+            for (r = cpu->gdb_regs; r; r = r->next) {
                 pstrcat(target_xml, sizeof(target_xml), "<xi:include href=\"");
                 pstrcat(target_xml, sizeof(target_xml), r->xml);
                 pstrcat(target_xml, sizeof(target_xml), "\"/>");
@@ -1875,7 +1875,7 @@ static int gdb_read_register(CPUState *cpu, uint8_t *mem_buf, int reg)
     if (reg < NUM_CORE_REGS)
         return cpu_gdb_read_register(env, mem_buf, reg);
 
-    for (r = env->gdb_regs; r; r = r->next) {
+    for (r = cpu->gdb_regs; r; r = r->next) {
         if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
             return r->get_reg(env, mem_buf, reg - r->base_reg);
         }
@@ -1891,7 +1891,7 @@ static int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
     if (reg < NUM_CORE_REGS)
         return cpu_gdb_write_register(env, mem_buf, reg);
 
-    for (r = env->gdb_regs; r; r = r->next) {
+    for (r = cpu->gdb_regs; r; r = r->next) {
         if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
             return r->set_reg(env, mem_buf, reg - r->base_reg);
         }
@@ -1910,11 +1910,12 @@ void gdb_register_coprocessor(CPUArchState * env,
                              gdb_reg_cb get_reg, gdb_reg_cb set_reg,
                              int num_regs, const char *xml, int g_pos)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     GDBRegisterState *s;
     GDBRegisterState **p;
     static int last_reg = NUM_CORE_REGS;
 
-    p = &env->gdb_regs;
+    p = &cpu->gdb_regs;
     while (*p) {
         /* Check for duplicates.  */
         if (strcmp((*p)->xml, xml) == 0)

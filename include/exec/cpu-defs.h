@@ -174,8 +174,6 @@ typedef struct CPUWatchpoint {
     QTAILQ_HEAD(watchpoints_head, CPUWatchpoint) watchpoints;            \
     CPUWatchpoint *watchpoint_hit;                                      \
                                                                         \
-    struct GDBRegisterState *gdb_regs;                                  \
-                                                                        \
     /* Core interrupt code */                                           \
     sigjmp_buf jmp_env;                                                 \
     int exception_index;                                                \
