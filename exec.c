@@ -2065,47 +2065,52 @@ void *address_space_map(AddressSpace *as,
                         bool is_write)
 {
     hwaddr len = *plen;
-    hwaddr todo = 0;
-    hwaddr l, xlat;
-    MemoryRegion *mr;
-    ram_addr_t raddr = RAM_ADDR_MAX;
-    ram_addr_t rlen;
-    void *ret;
+    hwaddr done = 0;
+    hwaddr l, xlat, base;
+    MemoryRegion *mr, *this_mr;
+    ram_addr_t raddr;
 
-    while (len > 0) {
-        l = len;
-        mr = address_space_translate(as, addr, &xlat, &l, is_write);
+    if (len == 0) {
+        return NULL;
+    }
 
-        if (!memory_access_is_direct(mr, is_write)) {
-            if (todo || bounce.buffer) {
-                break;
-            }
-            bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, TARGET_PAGE_SIZE);
-            bounce.addr = addr;
-            bounce.len = l;
-            if (!is_write) {
-                address_space_read(as, addr, bounce.buffer, l);
-            }
-
-            *plen = l;
-            return bounce.buffer;
+    l = len;
+    mr = address_space_translate(as, addr, &xlat, &l, is_write);
+    if (!memory_access_is_direct(mr, is_write)) {
+        if (bounce.buffer) {
+            return NULL;
         }
-        if (!todo) {
-            raddr = memory_region_get_ram_addr(mr) + xlat;
-        } else {
-            if (memory_region_get_ram_addr(mr) + xlat != raddr + todo) {
-                break;
-            }
+        bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, TARGET_PAGE_SIZE);
+        bounce.addr = addr;
+        bounce.len = l;
+        if (!is_write) {
+            address_space_read(as, addr, bounce.buffer, l);
         }
 
+        *plen = l;
+        return bounce.buffer;
+    }
+
+    base = xlat;
+    raddr = memory_region_get_ram_addr(mr);
+
+    for (;;) {
         len -= l;
         addr += l;
-        todo += l;
+        done += l;
+        if (len == 0) {
+            break;
+        }
+
+        l = len;
+        this_mr = address_space_translate(as, addr, &xlat, &l, is_write);
+        if (this_mr != mr || xlat != base + done) {
+            break;
+        }
     }
-    rlen = todo;
-    ret = qemu_ram_ptr_length(raddr, &rlen);
-    *plen = rlen;
-    return ret;
+
+    *plen = done;
+    return qemu_ram_ptr_length(raddr + base, plen);
 }
 
 /* Unmaps a memory region previously mapped by address_space_map().
