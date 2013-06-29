@@ -46,7 +46,7 @@
 static inline int target_memory_rw_debug(CPUArchState *env, target_ulong addr,
                                          uint8_t *buf, int len, int is_write)
 {
-    return cpu_memory_rw_debug(env, addr, buf, len, is_write);
+    return cpu_memory_rw_debug(ENV_GET_CPU(env), addr, buf, len, is_write);
 }
 #else
 /* target_memory_rw_debug() defined in cpu.h */

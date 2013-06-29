@@ -39,7 +39,7 @@ target_read_memory (bfd_vma memaddr,
 {
     CPUDebug *s = container_of(info, CPUDebug, info);
 
-    cpu_memory_rw_debug(s->env, memaddr, myaddr, length, 0);
+    cpu_memory_rw_debug(ENV_GET_CPU(s->env), memaddr, myaddr, length, 0);
     return 0;
 }
 
@@ -392,7 +392,7 @@ monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
     if (monitor_disas_is_physical) {
         cpu_physical_memory_read(memaddr, myaddr, length);
     } else {
-        cpu_memory_rw_debug(s->env, memaddr,myaddr, length, 0);
+        cpu_memory_rw_debug(ENV_GET_CPU(s->env), memaddr, myaddr, length, 0);
     }
     return 0;
 }

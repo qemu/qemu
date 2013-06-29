@@ -22,6 +22,7 @@
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "qemu/thread.h"
+#include "qom/cpu.h"
 
 /* some important defines:
  *
@@ -483,7 +484,7 @@ void qemu_mutex_lock_ramlist(void);
 void qemu_mutex_unlock_ramlist(void);
 #endif /* !CONFIG_USER_ONLY */
 
-int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
+int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
 
 #endif /* CPU_ALL_H */

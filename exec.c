@@ -1835,7 +1835,7 @@ MemoryRegion *get_system_io(void)
 
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)
-int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
+int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
                         uint8_t *buf, int len, int is_write)
 {
     int l, flags;
@@ -2606,7 +2606,7 @@ void stq_be_phys(hwaddr addr, uint64_t val)
 }
 
 /* virtual memory access for debug (includes writing to ROM) */
-int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
+int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
                         uint8_t *buf, int len, int is_write)
 {
     int l;
@@ -2615,7 +2615,7 @@ int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
-        phys_addr = cpu_get_phys_page_debug(ENV_GET_CPU(env), page);
+        phys_addr = cpu_get_phys_page_debug(cpu, page);
         /* if no physical page mapped, return an error */
         if (phys_addr == -1)
             return -1;

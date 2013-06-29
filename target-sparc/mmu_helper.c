@@ -356,6 +356,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUSPARCState *env)
 int target_memory_rw_debug(CPUSPARCState *env, target_ulong addr,
                            uint8_t *buf, int len, int is_write)
 {
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     int i;
     int len1;
     int cwp = env->cwp;
@@ -390,7 +391,7 @@ int target_memory_rw_debug(CPUSPARCState *env, target_ulong addr,
             /* Handle access before this window.  */
             if (addr < fp) {
                 len1 = fp - addr;
-                if (cpu_memory_rw_debug(env, addr, buf, len1, is_write) != 0) {
+                if (cpu_memory_rw_debug(cs, addr, buf, len1, is_write) != 0) {
                     return -1;
                 }
                 addr += len1;
@@ -426,7 +427,7 @@ int target_memory_rw_debug(CPUSPARCState *env, target_ulong addr,
             }
         }
     }
-    return cpu_memory_rw_debug(env, addr, buf, len, is_write);
+    return cpu_memory_rw_debug(cs, addr, buf, len, is_write);
 }
 
 #else /* !TARGET_SPARC64 */
