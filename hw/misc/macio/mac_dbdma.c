@@ -85,75 +85,75 @@
 
 /* Bits in control and status registers */
 
-#define RUN	0x8000
-#define PAUSE	0x4000
-#define FLUSH	0x2000
-#define WAKE	0x1000
-#define DEAD	0x0800
-#define ACTIVE	0x0400
-#define BT	0x0100
-#define DEVSTAT	0x00ff
+#define RUN        0x8000
+#define PAUSE      0x4000
+#define FLUSH      0x2000
+#define WAKE       0x1000
+#define DEAD       0x0800
+#define ACTIVE     0x0400
+#define BT         0x0100
+#define DEVSTAT    0x00ff
 
 /*
  * DBDMA command structure.  These fields are all little-endian!
  */
 
 typedef struct dbdma_cmd {
-    uint16_t req_count;	  /* requested byte transfer count */
-    uint16_t command;	  /* command word (has bit-fields) */
-    uint32_t phy_addr;	  /* physical data address */
-    uint32_t cmd_dep;	  /* command-dependent field */
-    uint16_t res_count;	  /* residual count after completion */
-    uint16_t xfer_status; /* transfer status */
+    uint16_t req_count;          /* requested byte transfer count */
+    uint16_t command;            /* command word (has bit-fields) */
+    uint32_t phy_addr;           /* physical data address */
+    uint32_t cmd_dep;            /* command-dependent field */
+    uint16_t res_count;          /* residual count after completion */
+    uint16_t xfer_status;        /* transfer status */
 } dbdma_cmd;
 
 /* DBDMA command values in command field */
 
 #define COMMAND_MASK    0xf000
-#define OUTPUT_MORE	0x0000	/* transfer memory data to stream */
-#define OUTPUT_LAST	0x1000	/* ditto followed by end marker */
-#define INPUT_MORE	0x2000	/* transfer stream data to memory */
-#define INPUT_LAST	0x3000	/* ditto, expect end marker */
-#define STORE_WORD	0x4000	/* write word (4 bytes) to device reg */
-#define LOAD_WORD	0x5000	/* read word (4 bytes) from device reg */
-#define DBDMA_NOP	0x6000	/* do nothing */
-#define DBDMA_STOP	0x7000	/* suspend processing */
+#define OUTPUT_MORE     0x0000        /* transfer memory data to stream */
+#define OUTPUT_LAST     0x1000        /* ditto followed by end marker */
+#define INPUT_MORE      0x2000        /* transfer stream data to memory */
+#define INPUT_LAST      0x3000        /* ditto, expect end marker */
+#define STORE_WORD      0x4000        /* write word (4 bytes) to device reg */
+#define LOAD_WORD       0x5000        /* read word (4 bytes) from device reg */
+#define DBDMA_NOP       0x6000        /* do nothing */
+#define DBDMA_STOP      0x7000        /* suspend processing */
 
 /* Key values in command field */
 
 #define KEY_MASK        0x0700
-#define KEY_STREAM0	0x0000	/* usual data stream */
-#define KEY_STREAM1	0x0100	/* control/status stream */
-#define KEY_STREAM2	0x0200	/* device-dependent stream */
-#define KEY_STREAM3	0x0300	/* device-dependent stream */
-#define KEY_STREAM4	0x0400	/* reserved */
-#define KEY_REGS	0x0500	/* device register space */
-#define KEY_SYSTEM	0x0600	/* system memory-mapped space */
-#define KEY_DEVICE	0x0700	/* device memory-mapped space */
+#define KEY_STREAM0     0x0000        /* usual data stream */
+#define KEY_STREAM1     0x0100        /* control/status stream */
+#define KEY_STREAM2     0x0200        /* device-dependent stream */
+#define KEY_STREAM3     0x0300        /* device-dependent stream */
+#define KEY_STREAM4     0x0400        /* reserved */
+#define KEY_REGS        0x0500        /* device register space */
+#define KEY_SYSTEM      0x0600        /* system memory-mapped space */
+#define KEY_DEVICE      0x0700        /* device memory-mapped space */
 
 /* Interrupt control values in command field */
 
 #define INTR_MASK       0x0030
-#define INTR_NEVER	0x0000	/* don't interrupt */
-#define INTR_IFSET	0x0010	/* intr if condition bit is 1 */
-#define INTR_IFCLR	0x0020	/* intr if condition bit is 0 */
-#define INTR_ALWAYS	0x0030	/* always interrupt */
+#define INTR_NEVER      0x0000        /* don't interrupt */
+#define INTR_IFSET      0x0010        /* intr if condition bit is 1 */
+#define INTR_IFCLR      0x0020        /* intr if condition bit is 0 */
+#define INTR_ALWAYS     0x0030        /* always interrupt */
 
 /* Branch control values in command field */
 
 #define BR_MASK         0x000c
-#define BR_NEVER	0x0000	/* don't branch */
-#define BR_IFSET	0x0004	/* branch if condition bit is 1 */
-#define BR_IFCLR	0x0008	/* branch if condition bit is 0 */
-#define BR_ALWAYS	0x000c	/* always branch */
+#define BR_NEVER        0x0000        /* don't branch */
+#define BR_IFSET        0x0004        /* branch if condition bit is 1 */
+#define BR_IFCLR        0x0008        /* branch if condition bit is 0 */
+#define BR_ALWAYS       0x000c        /* always branch */
 
 /* Wait control values in command field */
 
 #define WAIT_MASK       0x0003
-#define WAIT_NEVER	0x0000	/* don't wait */
-#define WAIT_IFSET	0x0001	/* wait if condition bit is 1 */
-#define WAIT_IFCLR	0x0002	/* wait if condition bit is 0 */
-#define WAIT_ALWAYS	0x0003	/* always wait */
+#define WAIT_NEVER      0x0000        /* don't wait */
+#define WAIT_IFSET      0x0001        /* wait if condition bit is 1 */
+#define WAIT_IFCLR      0x0002        /* wait if condition bit is 0 */
+#define WAIT_ALWAYS     0x0003        /* always wait */
 
 typedef struct DBDMA_channel {
     int channel;
@@ -558,11 +558,11 @@ static void channel_run(DBDMA_channel *ch)
     switch (cmd) {
     case DBDMA_NOP:
         nop(ch);
-	return;
+        return;
 
     case DBDMA_STOP:
         stop(ch);
-	return;
+        return;
     }
 
     key = le16_to_cpu(current->command) & 0x0700;
@@ -578,19 +578,19 @@ static void channel_run(DBDMA_channel *ch)
     switch (cmd) {
     case OUTPUT_MORE:
         start_output(ch, key, phy_addr, req_count, 0);
-	return;
+        return;
 
     case OUTPUT_LAST:
         start_output(ch, key, phy_addr, req_count, 1);
-	return;
+        return;
 
     case INPUT_MORE:
         start_input(ch, key, phy_addr, req_count, 0);
-	return;
+        return;
 
     case INPUT_LAST:
         start_input(ch, key, phy_addr, req_count, 1);
-	return;
+        return;
     }
 
     if (key < KEY_REGS) {
@@ -615,11 +615,11 @@ static void channel_run(DBDMA_channel *ch)
     switch (cmd) {
     case LOAD_WORD:
         load_word(ch, key, phy_addr, req_count);
-	return;
+        return;
 
     case STORE_WORD:
         store_word(ch, key, phy_addr, req_count);
-	return;
+        return;
     }
 }
 
@@ -720,7 +720,7 @@ static void dbdma_write(void *opaque, hwaddr addr,
 
     if (reg == DBDMA_CMDPTR_LO &&
         (ch->regs[DBDMA_STATUS] & (RUN | ACTIVE)))
-	return;
+        return;
 
     ch->regs[reg] = value;
 
