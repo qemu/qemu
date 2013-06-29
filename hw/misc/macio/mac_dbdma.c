@@ -725,11 +725,11 @@ static void dbdma_write(void *opaque, hwaddr addr,
     DBDMA_DPRINTF("channel 0x%x reg 0x%x\n",
                   (uint32_t)addr >> DBDMA_CHANNEL_SHIFT, reg);
 
-    /* cmdptr cannot be modified if channel is RUN or ACTIVE */
+    /* cmdptr cannot be modified if channel is ACTIVE */
 
-    if (reg == DBDMA_CMDPTR_LO &&
-        (ch->regs[DBDMA_STATUS] & (RUN | ACTIVE)))
+    if (reg == DBDMA_CMDPTR_LO && (ch->regs[DBDMA_STATUS] & ACTIVE)) {
         return;
+    }
 
     ch->regs[reg] = value;
 
