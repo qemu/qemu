@@ -184,7 +184,7 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
         return H_HARDWARE;
     }
 
-    assert(0);
+    g_assert_not_reached();
 }
 
 #define H_BULK_REMOVE_TYPE             0xc000000000000000ULL
