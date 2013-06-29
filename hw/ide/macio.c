@@ -55,7 +55,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
         s->packet_transfer_size -= s->io_buffer_size;
 
         s->io_buffer_index += s->io_buffer_size;
-	s->lba += s->io_buffer_index >> 11;
+        s->lba += s->io_buffer_index >> 11;
         s->io_buffer_index &= 0x7ff;
     }
 
@@ -97,7 +97,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     if (ret < 0) {
         m->aiocb = NULL;
         qemu_sglist_destroy(&s->sg);
-	ide_dma_error(s);
+        ide_dma_error(s);
         goto done;
     }
 
@@ -136,11 +136,11 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
         m->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num,
-		                 pmac_ide_transfer_cb, io);
+                                 pmac_ide_transfer_cb, io);
         break;
     case IDE_DMA_WRITE:
         m->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num,
-		                  pmac_ide_transfer_cb, io);
+                                  pmac_ide_transfer_cb, io);
         break;
     case IDE_DMA_TRIM:
         m->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
