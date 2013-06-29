@@ -884,8 +884,10 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     return 1;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUX86State *env, target_ulong addr)
+hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     target_ulong pde_addr, pte_addr;
     uint64_t pte;
     hwaddr paddr;

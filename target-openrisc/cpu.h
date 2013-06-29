@@ -349,6 +349,7 @@ int cpu_openrisc_exec(CPUOpenRISCState *s);
 void openrisc_cpu_do_interrupt(CPUState *cpu);
 void openrisc_cpu_dump_state(CPUState *cpu, FILE *f,
                              fprintf_function cpu_fprintf, int flags);
+hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 void openrisc_translate_init(void);
 int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
                                   target_ulong address,

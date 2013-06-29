@@ -78,6 +78,7 @@ struct TranslationBlock;
  * @set_pc: Callback for setting the Program Counter register.
  * @synchronize_from_tb: Callback for synchronizing state from a TCG
  * #TranslationBlock.
+ * @get_phys_page_debug: Callback for obtaining a physical address.
  * @vmsd: State description for migration.
  *
  * Represents a CPU family or model.
@@ -103,6 +104,7 @@ typedef struct CPUClass {
                                Error **errp);
     void (*set_pc)(CPUState *cpu, vaddr value);
     void (*synchronize_from_tb)(CPUState *cpu, struct TranslationBlock *tb);
+    hwaddr (*get_phys_page_debug)(CPUState *cpu, vaddr addr);
 
     const struct VMStateDescription *vmsd;
     int (*write_elf64_note)(WriteCoreDumpFunction f, CPUState *cpu,
@@ -280,6 +282,25 @@ void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
 void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                          int flags);
 
+#ifndef CONFIG_USER_ONLY
+/**
+ * cpu_get_phys_page_debug:
+ * @cpu: The CPU to obtain the physical page address for.
+ * @addr: The virtual address.
+ *
+ * Obtains the physical page corresponding to a virtual one.
+ * Use it only for debugging because no protection checks are done.
+ *
+ * Returns: Corresponding physical page address or -1 if no page found.
+ */
+static inline hwaddr cpu_get_phys_page_debug(CPUState *cpu, vaddr addr)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return cc->get_phys_page_debug(cpu, addr);
+}
+#endif
+
 /**
  * cpu_reset:
  * @cpu: The CPU whose state is to be reset.
@@ -296,59 +317,6 @@ void cpu_reset(CPUState *cpu);
  * Returns: A #CPUClass or %NULL if not matching class is found.
  */
 ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
-
-/**
- * cpu_class_set_vmsd:
- * @cc: CPU class
- * @value: Value to set. Unused for %CONFIG_USER_ONLY.
- *
- * Sets #VMStateDescription for @cc.
- *
- * The @value argument is intentionally discarded for the non-softmmu targets
- * to avoid linker errors or excessive preprocessor usage. If this behavior
- * is undesired, you should assign #CPUClass.vmsd directly instead.
- */
-#ifndef CONFIG_USER_ONLY
-static inline void cpu_class_set_vmsd(CPUClass *cc,
-                                      const struct VMStateDescription *value)
-{
-    cc->vmsd = value;
-}
-#else
-#define cpu_class_set_vmsd(cc, value) ((cc)->vmsd = NULL)
-#endif
-
-#ifndef CONFIG_USER_ONLY
-static inline void cpu_class_set_do_unassigned_access(CPUClass *cc,
-                                                      CPUUnassignedAccess value)
-{
-    cc->do_unassigned_access = value;
-}
-#else
-#define cpu_class_set_do_unassigned_access(cc, value) \
-    ((cc)->do_unassigned_access = NULL)
-#endif
-
-/**
- * device_class_set_vmsd:
- * @dc: Device class
- * @value: Value to set. Unused for %CONFIG_USER_ONLY.
- *
- * Sets #VMStateDescription for @dc.
- *
- * The @value argument is intentionally discarded for the non-softmmu targets
- * to avoid linker errors or excessive preprocessor usage. If this behavior
- * is undesired, you should assign #DeviceClass.vmsd directly instead.
- */
-#ifndef CONFIG_USER_ONLY
-static inline void device_class_set_vmsd(DeviceClass *dc,
-                                         const struct VMStateDescription *value)
-{
-    dc->vmsd = value;
-}
-#else
-#define device_class_set_vmsd(dc, value) ((dc)->vmsd = NULL)
-#endif
 
 /**
  * qemu_cpu_has_work:

@@ -98,9 +98,12 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 
     cc->do_interrupt = mips_cpu_do_interrupt;
     cc->dump_state = mips_cpu_dump_state;
-    cpu_class_set_do_unassigned_access(cc, mips_cpu_unassigned_access);
     cc->set_pc = mips_cpu_set_pc;
     cc->synchronize_from_tb = mips_cpu_synchronize_from_tb;
+#ifndef CONFIG_USER_ONLY
+    cc->do_unassigned_access = mips_cpu_unassigned_access;
+    cc->get_phys_page_debug = mips_cpu_get_phys_page_debug;
+#endif
 }
 
 static const TypeInfo mips_cpu_type_info = {

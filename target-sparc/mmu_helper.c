@@ -310,6 +310,7 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUSPARCState *env)
 {
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     target_ulong va, va1, va2;
     unsigned int n, m, o;
     hwaddr pde_ptr, pa;
@@ -322,20 +323,20 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUSPARCState *env)
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
         pde = mmu_probe(env, va, 2);
         if (pde) {
-            pa = cpu_get_phys_page_debug(env, va);
+            pa = cpu_get_phys_page_debug(cs, va);
             (*cpu_fprintf)(f, "VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_plx
                            " PDE: " TARGET_FMT_lx "\n", va, pa, pde);
             for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
                 pde = mmu_probe(env, va1, 1);
                 if (pde) {
-                    pa = cpu_get_phys_page_debug(env, va1);
+                    pa = cpu_get_phys_page_debug(cs, va1);
                     (*cpu_fprintf)(f, " VA: " TARGET_FMT_lx ", PA: "
                                    TARGET_FMT_plx " PDE: " TARGET_FMT_lx "\n",
                                    va1, pa, pde);
                     for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
                         pde = mmu_probe(env, va2, 0);
                         if (pde) {
-                            pa = cpu_get_phys_page_debug(env, va2);
+                            pa = cpu_get_phys_page_debug(cs, va2);
                             (*cpu_fprintf)(f, "  VA: " TARGET_FMT_lx ", PA: "
                                            TARGET_FMT_plx " PTE: "
                                            TARGET_FMT_lx "\n",
@@ -833,8 +834,10 @@ hwaddr cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
 }
 #endif
 
-hwaddr cpu_get_phys_page_debug(CPUSPARCState *env, target_ulong addr)
+hwaddr sparc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
     hwaddr phys_addr;
     int mmu_idx = cpu_mmu_index(env);
     MemoryRegionSection section;

@@ -139,6 +139,9 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_interrupt = uc32_cpu_do_interrupt;
     cc->dump_state = uc32_cpu_dump_state;
     cc->set_pc = uc32_cpu_set_pc;
+#ifndef CONFIG_USER_ONLY
+    cc->get_phys_page_debug = uc32_cpu_get_phys_page_debug;
+#endif
     dc->vmsd = &vmstate_uc32_cpu;
 }
 

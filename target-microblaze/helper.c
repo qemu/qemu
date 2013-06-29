@@ -265,8 +265,10 @@ void mb_cpu_do_interrupt(CPUState *cs)
     }
 }
 
-hwaddr cpu_get_phys_page_debug(CPUMBState * env, target_ulong addr)
+hwaddr mb_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    CPUMBState *env = &cpu->env;
     target_ulong vaddr, paddr = 0;
     struct microblaze_mmu_lookup lu;
     unsigned int hit;

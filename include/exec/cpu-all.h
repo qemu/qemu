@@ -430,11 +430,6 @@ void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
 
 #if !defined(CONFIG_USER_ONLY)
 
-/* Return the physical page corresponding to a virtual one. Use it
-   only for debugging because no protection checks are done. Return -1
-   if no page found. */
-hwaddr cpu_get_phys_page_debug(CPUArchState *env, target_ulong addr);
-
 /* memory API */
 
 extern ram_addr_t ram_size;

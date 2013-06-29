@@ -415,14 +415,14 @@ void cpu_exec_init(CPUArchState *env)
 
 #if defined(TARGET_HAS_ICE)
 #if defined(CONFIG_USER_ONLY)
-static void breakpoint_invalidate(CPUArchState *env, target_ulong pc)
+static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
     tb_invalidate_phys_page_range(pc, pc + 1, 0);
 }
 #else
-static void breakpoint_invalidate(CPUArchState *env, target_ulong pc)
+static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
-    tb_invalidate_phys_addr(cpu_get_phys_page_debug(env, pc) |
+    tb_invalidate_phys_addr(cpu_get_phys_page_debug(cpu, pc) |
             (pc & ~TARGET_PAGE_MASK));
 }
 #endif
@@ -525,15 +525,17 @@ int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
     bp->flags = flags;
 
     /* keep all GDB-injected breakpoints in front */
-    if (flags & BP_GDB)
+    if (flags & BP_GDB) {
         QTAILQ_INSERT_HEAD(&env->breakpoints, bp, entry);
-    else
+    } else {
         QTAILQ_INSERT_TAIL(&env->breakpoints, bp, entry);
+    }
 
-    breakpoint_invalidate(env, pc);
+    breakpoint_invalidate(ENV_GET_CPU(env), pc);
 
-    if (breakpoint)
+    if (breakpoint) {
         *breakpoint = bp;
+    }
     return 0;
 #else
     return -ENOSYS;
@@ -564,7 +566,7 @@ void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint)
 #if defined(TARGET_HAS_ICE)
     QTAILQ_REMOVE(&env->breakpoints, breakpoint, entry);
 
-    breakpoint_invalidate(env, breakpoint->pc);
+    breakpoint_invalidate(ENV_GET_CPU(env), breakpoint->pc);
 
     g_free(breakpoint);
 #endif
@@ -2613,7 +2615,7 @@ int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
-        phys_addr = cpu_get_phys_page_debug(env, page);
+        phys_addr = cpu_get_phys_page_debug(ENV_GET_CPU(env), page);
         /* if no physical page mapped, return an error */
         if (phys_addr == -1)
             return -1;

@@ -140,8 +140,11 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->do_interrupt = mb_cpu_do_interrupt;
     cc->dump_state = mb_cpu_dump_state;
-    cpu_class_set_do_unassigned_access(cc, mb_cpu_unassigned_access);
     cc->set_pc = mb_cpu_set_pc;
+#ifndef CONFIG_USER_ONLY
+    cc->do_unassigned_access = mb_cpu_unassigned_access;
+    cc->get_phys_page_debug = mb_cpu_get_phys_page_debug;
+#endif
     dc->vmsd = &vmstate_mb_cpu;
     dc->props = mb_properties;
 }

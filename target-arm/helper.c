@@ -2762,17 +2762,19 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
     return 1;
 }
 
-hwaddr cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
+hwaddr arm_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
     int ret;
 
-    ret = get_phys_addr(env, addr, 0, 0, &phys_addr, &prot, &page_size);
+    ret = get_phys_addr(&cpu->env, addr, 0, 0, &phys_addr, &prot, &page_size);
 
-    if (ret != 0)
+    if (ret != 0) {
         return -1;
+    }
 
     return phys_addr;
 }

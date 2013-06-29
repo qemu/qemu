@@ -79,4 +79,6 @@ void crisv10_cpu_do_interrupt(CPUState *cpu);
 void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                          int flags);
 
+hwaddr cris_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+
 #endif
