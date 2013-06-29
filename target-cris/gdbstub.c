@@ -17,6 +17,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 
 static int
 read_register_crisv10(CPUCRISState *env, uint8_t *mem_buf, int n)
@@ -48,8 +51,10 @@ read_register_crisv10(CPUCRISState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_gdb_read_register(CPUCRISState *env, uint8_t *mem_buf, int n)
+int cris_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    CRISCPU *cpu = CRIS_CPU(cs);
+    CPUCRISState *env = &cpu->env;
     uint8_t srs;
 
     if (env->pregs[PR_VR] < 32) {
@@ -85,8 +90,10 @@ static int cpu_gdb_read_register(CPUCRISState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_gdb_write_register(CPUCRISState *env, uint8_t *mem_buf, int n)
+int cris_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    CRISCPU *cpu = CRIS_CPU(cs);
+    CPUCRISState *env = &cpu->env;
     uint32_t tmp;
 
     if (n > 49) {

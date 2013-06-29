@@ -81,4 +81,7 @@ void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 
 hwaddr cris_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 
+int cris_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int cris_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+
 #endif

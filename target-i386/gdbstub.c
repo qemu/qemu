@@ -17,6 +17,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 
 #ifdef TARGET_X86_64
 static const int gpr_map[16] = {
@@ -35,8 +38,11 @@ static const int gpr_map32[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 #define IDX_XMM_REGS    (IDX_FP_REGS + 16)
 #define IDX_MXCSR_REG   (IDX_XMM_REGS + CPU_NB_REGS)
 
-static int cpu_gdb_read_register(CPUX86State *env, uint8_t *mem_buf, int n)
+int x86_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
     if (n < CPU_NB_REGS) {
         if (TARGET_LONG_BITS == 64 && env->hflags & HF_CS64_MASK) {
             return gdb_get_reg64(mem_buf, env->regs[gpr_map[n]]);
@@ -108,8 +114,9 @@ static int cpu_gdb_read_register(CPUX86State *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_x86_gdb_load_seg(CPUX86State *env, int sreg, uint8_t *mem_buf)
+static int x86_cpu_gdb_load_seg(X86CPU *cpu, int sreg, uint8_t *mem_buf)
 {
+    CPUX86State *env = &cpu->env;
     uint16_t selector = ldl_p(mem_buf);
 
     if (selector != env->segs[sreg].selector) {
@@ -135,8 +142,10 @@ static int cpu_x86_gdb_load_seg(CPUX86State *env, int sreg, uint8_t *mem_buf)
     return 4;
 }
 
-static int cpu_gdb_write_register(CPUX86State *env, uint8_t *mem_buf, int n)
+int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     uint32_t tmp;
 
     if (n < CPU_NB_REGS) {
@@ -179,17 +188,17 @@ static int cpu_gdb_write_register(CPUX86State *env, uint8_t *mem_buf, int n)
             return 4;
 
         case IDX_SEG_REGS:
-            return cpu_x86_gdb_load_seg(env, R_CS, mem_buf);
+            return x86_cpu_gdb_load_seg(cpu, R_CS, mem_buf);
         case IDX_SEG_REGS + 1:
-            return cpu_x86_gdb_load_seg(env, R_SS, mem_buf);
+            return x86_cpu_gdb_load_seg(cpu, R_SS, mem_buf);
         case IDX_SEG_REGS + 2:
-            return cpu_x86_gdb_load_seg(env, R_DS, mem_buf);
+            return x86_cpu_gdb_load_seg(cpu, R_DS, mem_buf);
         case IDX_SEG_REGS + 3:
-            return cpu_x86_gdb_load_seg(env, R_ES, mem_buf);
+            return x86_cpu_gdb_load_seg(cpu, R_ES, mem_buf);
         case IDX_SEG_REGS + 4:
-            return cpu_x86_gdb_load_seg(env, R_FS, mem_buf);
+            return x86_cpu_gdb_load_seg(cpu, R_FS, mem_buf);
         case IDX_SEG_REGS + 5:
-            return cpu_x86_gdb_load_seg(env, R_GS, mem_buf);
+            return x86_cpu_gdb_load_seg(cpu, R_GS, mem_buf);
 
         case IDX_FP_REGS + 8:
             env->fpuc = ldl_p(mem_buf);

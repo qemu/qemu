@@ -787,6 +787,8 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 #endif
     cc->set_pc = sparc_cpu_set_pc;
     cc->synchronize_from_tb = sparc_cpu_synchronize_from_tb;
+    cc->gdb_read_register = sparc_cpu_gdb_read_register;
+    cc->gdb_write_register = sparc_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
     cc->do_unassigned_access = sparc_cpu_unassigned_access;
     cc->get_phys_page_debug = sparc_cpu_get_phys_page_debug;

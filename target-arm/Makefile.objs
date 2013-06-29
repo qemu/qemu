@@ -4,3 +4,4 @@ obj-$(CONFIG_KVM) += kvm.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-y += translate.o op_helper.o helper.o cpu.o
 obj-y += neon_helper.o iwmmxt_helper.o
+obj-y += gdbstub.o

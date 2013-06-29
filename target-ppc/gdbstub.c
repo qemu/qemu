@@ -17,6 +17,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 
 /* Old gdb always expects FP registers.  Newer (xml-aware) gdb only
  * expects whatever the target description contains.  Due to a
@@ -25,8 +28,11 @@
  * FP regs zero size when talking to a newer gdb.
  */
 
-static int cpu_gdb_read_register(CPUPPCState *env, uint8_t *mem_buf, int n)
+int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
     if (n < 32) {
         /* gprs */
         return gdb_get_regl(mem_buf, env->gpr[n]);
@@ -70,8 +76,11 @@ static int cpu_gdb_read_register(CPUPPCState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_gdb_write_register(CPUPPCState *env, uint8_t *mem_buf, int n)
+int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
     if (n < 32) {
         /* gprs */
         env->gpr[n] = ldtul_p(mem_buf);

@@ -75,5 +75,7 @@ void mb_cpu_do_interrupt(CPUState *cs);
 void mb_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                        int flags);
 hwaddr mb_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+int mb_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
+int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 #endif

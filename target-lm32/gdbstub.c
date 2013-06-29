@@ -17,10 +17,16 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 #include "hw/lm32/lm32_pic.h"
 
-static int cpu_gdb_read_register(CPULM32State *env, uint8_t *mem_buf, int n)
+int lm32_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    LM32CPU *cpu = LM32_CPU(cs);
+    CPULM32State *env = &cpu->env;
+
     if (n < 32) {
         return gdb_get_reg32(mem_buf, env->regs[n]);
     } else {
@@ -45,10 +51,11 @@ static int cpu_gdb_read_register(CPULM32State *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_gdb_write_register(CPULM32State *env, uint8_t *mem_buf, int n)
+int lm32_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
-    LM32CPU *cpu = lm32_env_get_cpu(env);
-    CPUClass *cc = CPU_GET_CLASS(cpu);
+    LM32CPU *cpu = LM32_CPU(cs);
+    CPUClass *cc = CPU_GET_CLASS(cs);
+    CPULM32State *env = &cpu->env;
     uint32_t tmp;
 
     if (n > cc->gdb_num_core_regs) {

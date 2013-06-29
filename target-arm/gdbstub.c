@@ -17,6 +17,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 
 /* Old gdb always expect FPA registers.  Newer (xml-aware) gdb only expect
    whatever the target description contains.  Due to a historical mishap
@@ -24,8 +27,11 @@
    We hack round this by giving the FPA regs zero size when talking to a
    newer gdb.  */
 
-static int cpu_gdb_read_register(CPUARMState *env, uint8_t *mem_buf, int n)
+int arm_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
     if (n < 16) {
         /* Core integer register.  */
         return gdb_get_reg32(mem_buf, env->regs[n]);
@@ -53,8 +59,10 @@ static int cpu_gdb_read_register(CPUARMState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_gdb_write_register(CPUARMState *env, uint8_t *mem_buf, int n)
+int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     uint32_t tmp;
 
     tmp = ldl_p(mem_buf);

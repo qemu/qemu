@@ -17,9 +17,15 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
+#include "qemu/bitops.h"
 
-static int cpu_gdb_read_register(CPUS390XState *env, uint8_t *mem_buf, int n)
+int s390_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     uint64_t val;
     int cc_op;
 
@@ -43,8 +49,10 @@ static int cpu_gdb_read_register(CPUS390XState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_gdb_write_register(CPUS390XState *env, uint8_t *mem_buf, int n)
+int s390_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     target_ulong tmpl;
     uint32_t tmp32;
     int r = 8;

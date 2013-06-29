@@ -17,12 +17,18 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 
 /* Hint: Use "set architecture sh4" in GDB to see fpu registers */
 /* FIXME: We should use XML for this.  */
 
-static int cpu_gdb_read_register(CPUSH4State *env, uint8_t *mem_buf, int n)
+int superh_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    CPUSH4State *env = &cpu->env;
+
     switch (n) {
     case 0 ... 7:
         if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
@@ -70,8 +76,11 @@ static int cpu_gdb_read_register(CPUSH4State *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_gdb_write_register(CPUSH4State *env, uint8_t *mem_buf, int n)
+int superh_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    CPUSH4State *env = &cpu->env;
+
     switch (n) {
     case 0 ... 7:
         if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {

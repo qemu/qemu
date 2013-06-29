@@ -17,6 +17,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 
 #ifdef TARGET_ABI32
 #define gdb_get_rega(buf, val) gdb_get_reg32(buf, val)
@@ -24,8 +27,11 @@
 #define gdb_get_rega(buf, val) gdb_get_regl(buf, val)
 #endif
 
-static int cpu_gdb_read_register(CPUSPARCState *env, uint8_t *mem_buf, int n)
+int sparc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
+
     if (n < 8) {
         /* g0..g7 */
         return gdb_get_rega(mem_buf, env->gregs[n]);
@@ -98,8 +104,10 @@ static int cpu_gdb_read_register(CPUSPARCState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_gdb_write_register(CPUSPARCState *env, uint8_t *mem_buf, int n)
+int sparc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
 #if defined(TARGET_ABI32)
     abi_ulong tmp;
 

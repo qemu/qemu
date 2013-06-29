@@ -17,9 +17,14 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 
-static int cpu_gdb_read_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
+int xtensa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
     const XtensaGdbReg *reg = env->config->gdb_regmap.reg + n;
 
     if (n < 0 || n >= env->config->gdb_regmap.num_regs) {
@@ -55,8 +60,10 @@ static int cpu_gdb_read_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
     }
 }
 
-static int cpu_gdb_write_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
+int xtensa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
     uint32_t tmp;
     const XtensaGdbReg *reg = env->config->gdb_regmap.reg + n;
 

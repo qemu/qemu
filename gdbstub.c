@@ -40,7 +40,6 @@
 #include "cpu.h"
 #include "qemu/sockets.h"
 #include "sysemu/kvm.h"
-#include "qemu/bitops.h"
 
 static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
                                          uint8_t *buf, int len, bool is_write)
@@ -316,10 +315,7 @@ static int sstep_flags = SSTEP_ENABLE|SSTEP_NOIRQ|SSTEP_NOTIMER;
 
 static GDBState *gdbserver_state;
 
-/* This is an ugly hack to cope with both new and old gdb.
-   If gdb sends qXfer:features:read then assume we're talking to a newish
-   gdb that understands target descriptions.  */
-static int gdb_has_xml;
+bool gdb_has_xml;
 
 #ifdef CONFIG_USER_ONLY
 /* XXX: This is not thread safe.  Do we care?  */
@@ -489,11 +485,7 @@ static int put_packet(GDBState *s, const char *buf)
     return put_packet_binary(s, buf, strlen(buf));
 }
 
-#if defined(TARGET_I386)
-
-#include "target-i386/gdbstub.c"
-
-#elif defined (TARGET_PPC)
+#if defined(TARGET_PPC)
 
 #if defined (TARGET_PPC64)
 #define GDB_CORE_XML "power64-core.xml"
@@ -501,71 +493,13 @@ static int put_packet(GDBState *s, const char *buf)
 #define GDB_CORE_XML "power-core.xml"
 #endif
 
-#include "target-ppc/gdbstub.c"
-
-#elif defined (TARGET_SPARC)
-
-#include "target-sparc/gdbstub.c"
-
 #elif defined (TARGET_ARM)
 
 #define GDB_CORE_XML "arm-core.xml"
 
-#include "target-arm/gdbstub.c"
-
 #elif defined (TARGET_M68K)
 
 #define GDB_CORE_XML "cf-core.xml"
-
-#include "target-m68k/gdbstub.c"
-
-#elif defined (TARGET_MIPS)
-
-#include "target-mips/gdbstub.c"
-
-#elif defined(TARGET_OPENRISC)
-
-#include "target-openrisc/gdbstub.c"
-
-#elif defined (TARGET_SH4)
-
-#include "target-sh4/gdbstub.c"
-
-#elif defined (TARGET_MICROBLAZE)
-
-#include "target-microblaze/gdbstub.c"
-
-#elif defined (TARGET_CRIS)
-
-#include "target-cris/gdbstub.c"
-
-#elif defined (TARGET_ALPHA)
-
-#include "target-alpha/gdbstub.c"
-
-#elif defined (TARGET_S390X)
-
-#include "target-s390x/gdbstub.c"
-
-#elif defined (TARGET_LM32)
-
-#include "target-lm32/gdbstub.c"
-
-#elif defined(TARGET_XTENSA)
-
-#include "target-xtensa/gdbstub.c"
-
-#else
-
-static int cpu_gdb_read_register(CPUArchState *env, uint8_t *mem_buf, int n)
-{
-    return 0;
-}
-
-static int cpu_gdb_write_register(CPUArchState *env, uint8_t *mem_buf, int n)
-{
-    return 0;
-}
 
 #endif
 
@@ -642,7 +576,7 @@ static int gdb_read_register(CPUState *cpu, uint8_t *mem_buf, int reg)
     GDBRegisterState *r;
 
     if (reg < cc->gdb_num_core_regs) {
-        return cpu_gdb_read_register(env, mem_buf, reg);
+        return cc->gdb_read_register(cpu, mem_buf, reg);
     }
 
     for (r = cpu->gdb_regs; r; r = r->next) {
@@ -660,7 +594,7 @@ static int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
     GDBRegisterState *r;
 
     if (reg < cc->gdb_num_core_regs) {
-        return cpu_gdb_write_register(env, mem_buf, reg);
+        return cc->gdb_write_register(cpu, mem_buf, reg);
     }
 
     for (r = cpu->gdb_regs; r; r = r->next) {
@@ -1212,7 +1146,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             const char *xml;
             target_ulong total_len;
 
-            gdb_has_xml = 1;
+            gdb_has_xml = true;
             p += 19;
             xml = get_feature_xml(p, &p);
             if (!xml) {
@@ -1621,7 +1555,7 @@ static void gdb_accept(void)
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
     s->fd = fd;
-    gdb_has_xml = 0;
+    gdb_has_xml = false;
 
     gdbserver_state = s;
 
@@ -1707,7 +1641,7 @@ static void gdb_chr_event(void *opaque, int event)
     switch (event) {
     case CHR_EVENT_OPENED:
         vm_stop(RUN_STATE_PAUSED);
-        gdb_has_xml = 0;
+        gdb_has_xml = false;
         break;
     default:
         break;

@@ -271,6 +271,8 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_interrupt = alpha_cpu_do_interrupt;
     cc->dump_state = alpha_cpu_dump_state;
     cc->set_pc = alpha_cpu_set_pc;
+    cc->gdb_read_register = alpha_cpu_gdb_read_register;
+    cc->gdb_write_register = alpha_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
     cc->do_unassigned_access = alpha_cpu_unassigned_access;
     cc->get_phys_page_debug = alpha_cpu_get_phys_page_debug;

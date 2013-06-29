@@ -87,6 +87,8 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_interrupt = lm32_cpu_do_interrupt;
     cc->dump_state = lm32_cpu_dump_state;
     cc->set_pc = lm32_cpu_set_pc;
+    cc->gdb_read_register = lm32_cpu_gdb_read_register;
+    cc->gdb_write_register = lm32_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
     cc->get_phys_page_debug = lm32_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_lm32_cpu;

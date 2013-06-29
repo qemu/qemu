@@ -17,9 +17,15 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 
-static int cpu_gdb_read_register(CPUMIPSState *env, uint8_t *mem_buf, int n)
+int mips_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
     if (n < 32) {
         return gdb_get_regl(mem_buf, env->active_tc.gpr[n]);
     }
@@ -78,8 +84,10 @@ static unsigned int ieee_rm[] = {
     set_float_rounding_mode(ieee_rm[env->active_fpu.fcr31 & 3], \
                             &env->active_fpu.fp_status)
 
-static int cpu_gdb_write_register(CPUMIPSState *env, uint8_t *mem_buf, int n)
+int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
     target_ulong tmp;
 
     tmp = ldtul_p(mem_buf);

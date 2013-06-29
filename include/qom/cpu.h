@@ -80,6 +80,8 @@ struct TranslationBlock;
  * @synchronize_from_tb: Callback for synchronizing state from a TCG
  * #TranslationBlock.
  * @get_phys_page_debug: Callback for obtaining a physical address.
+ * @gdb_read_register: Callback for letting GDB read a register.
+ * @gdb_write_register: Callback for letting GDB write a register.
  * @vmsd: State description for migration.
  * @gdb_num_core_regs: Number of core registers accessible to GDB.
  *
@@ -109,6 +111,8 @@ typedef struct CPUClass {
     void (*set_pc)(CPUState *cpu, vaddr value);
     void (*synchronize_from_tb)(CPUState *cpu, struct TranslationBlock *tb);
     hwaddr (*get_phys_page_debug)(CPUState *cpu, vaddr addr);
+    int (*gdb_read_register)(CPUState *cpu, uint8_t *buf, int reg);
+    int (*gdb_write_register)(CPUState *cpu, uint8_t *buf, int reg);
 
     int (*write_elf64_note)(WriteCoreDumpFunction f, CPUState *cpu,
                             int cpuid, void *opaque);

@@ -17,9 +17,15 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "config.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
 
-static int cpu_gdb_read_register(CPUM68KState *env, uint8_t *mem_buf, int n)
+int m68k_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+
     if (n < 8) {
         /* D0-D7 */
         return gdb_get_reg32(mem_buf, env->dregs[n]);
@@ -39,8 +45,10 @@ static int cpu_gdb_read_register(CPUM68KState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int cpu_gdb_write_register(CPUM68KState *env, uint8_t *mem_buf, int n)
+int m68k_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
     uint32_t tmp;
 
     tmp = ldl_p(mem_buf);
