@@ -894,9 +894,10 @@ static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
                 addr, qemu_sprint_backtrace(buffer, sizeof(buffer)));
     }
     //~ vm_stop(0);
-#if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
-    cpu_unassigned_access(cpu_single_env, addr, 0, 0, 0, size);
-#endif
+    if (cpu_single_env != NULL) {
+        cpu_unassigned_access(ENV_GET_CPU(cpu_single_env),
+                              addr, false, false, 0, size);
+    }
     return 0;
 }
 
@@ -905,12 +906,14 @@ static void unassigned_mem_write(void *opaque, hwaddr addr,
 {
     if (trace_unassigned) {
         char buffer[256];
-        fprintf(stderr, "Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64" %s\n",
+        fprintf(stderr, "Unassigned mem write " TARGET_FMT_plx
+                " = 0x%" PRIx64 " %s\n",
                 addr, val, qemu_sprint_backtrace(buffer, sizeof(buffer)));
     }
-#if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
-    cpu_unassigned_access(cpu_single_env, addr, 1, 0, 0, size);
-#endif
+    if (cpu_single_env != NULL) {
+        cpu_unassigned_access(ENV_GET_CPU(cpu_single_env),
+                              addr, true, false, 0, size);
+    }
 }
 
 static bool unassigned_mem_accepts(void *opaque, hwaddr addr,

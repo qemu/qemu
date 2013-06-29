@@ -101,5 +101,9 @@ static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
 PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr);
 
 void ppc_cpu_do_interrupt(CPUState *cpu);
+void ppc_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                        int flags);
+void ppc_cpu_dump_statistics(CPUState *cpu, FILE *f,
+                             fprintf_function cpu_fprintf, int flags);
 
 #endif

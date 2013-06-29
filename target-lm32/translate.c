@@ -1141,9 +1141,11 @@ void gen_intermediate_code_pc(CPULM32State *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_dump_state(CPULM32State *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void lm32_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    LM32CPU *cpu = LM32_CPU(cs);
+    CPULM32State *env = &cpu->env;
     int i;
 
     if (!env || !f) {

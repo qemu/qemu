@@ -184,7 +184,7 @@ static void rtas_start_cpu(sPAPREnvironment *spapr,
         /* This will make sure qemu state is up to date with kvm, and
          * mark it dirty so our changes get flushed back before the
          * new cpu enters */
-        kvm_cpu_synchronize_state(env);
+        kvm_cpu_synchronize_state(cs);
 
         env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
         env->nip = start;

@@ -18,8 +18,8 @@
  * <http://www.gnu.org/licenses/gpl-2.0.html>
  */
 
-#include "qom/cpu.h"
 #include "qemu-common.h"
+#include "qom/cpu.h"
 #include "sysemu/kvm.h"
 #include "qemu/notify.h"
 #include "sysemu/sysemu.h"
@@ -91,6 +91,12 @@ void cpu_reset_interrupt(CPUState *cpu, int mask)
     cpu->interrupt_request &= ~mask;
 }
 
+void cpu_exit(CPUState *cpu)
+{
+    cpu->exit_request = 1;
+    cpu->tcg_exit_req = 1;
+}
+
 int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                              void *opaque)
 {
@@ -150,6 +156,26 @@ static int cpu_common_write_elf64_note(WriteCoreDumpFunction f,
 }
 
 
+void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                    int flags)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->dump_state) {
+        cc->dump_state(cpu, f, cpu_fprintf, flags);
+    }
+}
+
+void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->dump_statistics) {
+        cc->dump_statistics(cpu, f, cpu_fprintf, flags);
+    }
+}
+
 void cpu_reset(CPUState *cpu)
 {
     CPUClass *klass = CPU_GET_CLASS(cpu);
@@ -182,6 +208,8 @@ static ObjectClass *cpu_common_class_by_name(const char *cpu_model)
 static void cpu_common_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cpu = CPU(dev);
+
+    qemu_init_vcpu(cpu);
 
     if (dev->hotplugged) {
         cpu_synchronize_post_init(cpu);

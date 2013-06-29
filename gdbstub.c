@@ -2033,7 +2033,7 @@ static void gdb_breakpoint_remove_all(void)
 
 static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 {
-    cpu_synchronize_state(s->c_cpu);
+    cpu_synchronize_state(ENV_GET_CPU(s->c_cpu));
 #if defined(TARGET_I386)
     s->c_cpu->eip = pc;
 #elif defined (TARGET_PPC)
@@ -2071,17 +2071,13 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 
 static CPUArchState *find_cpu(uint32_t thread_id)
 {
-    CPUArchState *env;
     CPUState *cpu;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu = ENV_GET_CPU(env);
-        if (cpu_index(cpu) == thread_id) {
-            return env;
-        }
+    cpu = qemu_get_cpu(thread_id);
+    if (cpu == NULL) {
+        return NULL;
     }
-
-    return NULL;
+    return cpu->env_ptr;
 }
 
 static int gdb_handle_packet(GDBState *s, const char *line_buf)
@@ -2232,7 +2228,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
         break;
     case 'g':
-        cpu_synchronize_state(s->g_cpu);
+        cpu_synchronize_state(ENV_GET_CPU(s->g_cpu));
         env = s->g_cpu;
         len = 0;
         for (addr = 0; addr < num_g_regs; addr++) {
@@ -2243,7 +2239,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         put_packet(s, buf);
         break;
     case 'G':
-        cpu_synchronize_state(s->g_cpu);
+        cpu_synchronize_state(ENV_GET_CPU(s->g_cpu));
         env = s->g_cpu;
         registers = mem_buf;
         len = strlen(p) / 2;
@@ -2411,7 +2407,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             env = find_cpu(thread);
             if (env != NULL) {
                 CPUState *cpu = ENV_GET_CPU(env);
-                cpu_synchronize_state(env);
+                cpu_synchronize_state(cpu);
                 len = snprintf((char *)mem_buf, sizeof(mem_buf),
                                "CPU#%d [%s]", cpu->cpu_index,
                                cpu->halted ? "halted " : "running");
@@ -2510,8 +2506,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     return RS_IDLE;
 }
 
-void gdb_set_stop_cpu(CPUArchState *env)
+void gdb_set_stop_cpu(CPUState *cpu)
 {
+    CPUArchState *env = cpu->env_ptr;
+
     gdbserver_state->c_cpu = env;
     gdbserver_state->g_cpu = env;
 }
@@ -2659,7 +2657,7 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
        is still in the running state, which can cause packets to be dropped
        and state transition 'T' packets to be sent while the syscall is still
        being processed.  */
-    cpu_exit(s->c_cpu);
+    cpu_exit(ENV_GET_CPU(s->c_cpu));
 #endif
 }
 

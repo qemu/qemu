@@ -102,7 +102,6 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     S390CPU *cpu = S390_CPU(dev);
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
 
-    qemu_init_vcpu(&cpu->env);
     cpu_reset(CPU(cpu));
 
     scc->parent_realize(dev, errp);
@@ -170,6 +169,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = s390_cpu_reset;
 
     cc->do_interrupt = s390_cpu_do_interrupt;
+    cc->dump_state = s390_cpu_dump_state;
     dc->vmsd = &vmstate_s390_cpu;
 }
 

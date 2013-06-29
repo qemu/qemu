@@ -179,15 +179,16 @@ done:
 #define DUMP_CODE_BYTES_TOTAL    50
 #define DUMP_CODE_BYTES_BACKWARD 20
 
-void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf,
-                    int flags)
+void x86_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                        int flags)
 {
-    CPUState *cs = CPU(x86_env_get_cpu(env));
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     int eflags, i, nb;
     char cc_op_name[32];
     static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(cs);
 
     eflags = cpu_compute_eflags(env);
 #ifdef TARGET_X86_64
@@ -1116,7 +1117,7 @@ static void do_inject_x86_mce(void *data)
     CPUState *cpu = CPU(params->cpu);
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
 
-    cpu_synchronize_state(cenv);
+    cpu_synchronize_state(cpu);
 
     /*
      * If there is an MCE exception being processed, ignore this SRAO MCE

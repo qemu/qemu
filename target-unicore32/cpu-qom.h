@@ -61,5 +61,7 @@ static inline UniCore32CPU *uc32_env_get_cpu(CPUUniCore32State *env)
 #define ENV_OFFSET offsetof(UniCore32CPU, env)
 
 void uc32_cpu_do_interrupt(CPUState *cpu);
+void uc32_cpu_dump_state(CPUState *cpu, FILE *f,
+                         fprintf_function cpu_fprintf, int flags);
 
 #endif

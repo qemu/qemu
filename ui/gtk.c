@@ -147,6 +147,7 @@ typedef struct GtkDisplayState
     GtkWidget *notebook;
     GtkWidget *drawing_area;
     cairo_surface_t *surface;
+    pixman_image_t *convert;
     DisplayChangeListener dcl;
     DisplaySurface *ds;
     int button_mask;
@@ -303,6 +304,11 @@ static void gd_update(DisplayChangeListener *dcl,
 
     DPRINTF("update(x=%d, y=%d, w=%d, h=%d)\n", x, y, w, h);
 
+    if (s->convert) {
+        pixman_image_composite(PIXMAN_OP_SRC, s->ds->image, NULL, s->convert,
+                               x, y, 0, 0, x, y, w, h);
+    }
+
     x1 = floor(x * s->scale_x);
     y1 = floor(y * s->scale_y);
 
@@ -388,9 +394,7 @@ static void gd_switch(DisplayChangeListener *dcl,
                       DisplaySurface *surface)
 {
     GtkDisplayState *s = container_of(dcl, GtkDisplayState, dcl);
-    cairo_format_t kind;
     bool resized = true;
-    int stride;
 
     DPRINTF("resize(width=%d, height=%d)\n",
             surface_width(surface), surface_height(surface));
@@ -405,29 +409,42 @@ static void gd_switch(DisplayChangeListener *dcl,
         resized = false;
     }
     s->ds = surface;
-    switch (surface_bits_per_pixel(surface)) {
-    case 8:
-        kind = CAIRO_FORMAT_A8;
-        break;
-    case 16:
-        kind = CAIRO_FORMAT_RGB16_565;
-        break;
-    case 32:
-        kind = CAIRO_FORMAT_RGB24;
-        break;
-    default:
-        g_assert_not_reached();
-        break;
+
+    if (s->convert) {
+        pixman_image_unref(s->convert);
+        s->convert = NULL;
     }
 
-    stride = cairo_format_stride_for_width(kind, surface_width(surface));
-    g_assert(surface_stride(surface) == stride);
-
-    s->surface = cairo_image_surface_create_for_data(surface_data(surface),
-                                                     kind,
-                                                     surface_width(surface),
-                                                     surface_height(surface),
-                                                     surface_stride(surface));
+    if (surface->format == PIXMAN_x8r8g8b8) {
+        /*
+         * PIXMAN_x8r8g8b8 == CAIRO_FORMAT_RGB24
+         *
+         * No need to convert, use surface directly.  Should be the
+         * common case as this is qemu_default_pixelformat(32) too.
+         */
+        s->surface = cairo_image_surface_create_for_data
+            (surface_data(surface),
+             CAIRO_FORMAT_RGB24,
+             surface_width(surface),
+             surface_height(surface),
+             surface_stride(surface));
+    } else {
+        /* Must convert surface, use pixman to do it. */
+        s->convert = pixman_image_create_bits(PIXMAN_x8r8g8b8,
+                                              surface_width(surface),
+                                              surface_height(surface),
+                                              NULL, 0);
+        s->surface = cairo_image_surface_create_for_data
+            ((void *)pixman_image_get_data(s->convert),
+             CAIRO_FORMAT_RGB24,
+             pixman_image_get_width(s->convert),
+             pixman_image_get_height(s->convert),
+             pixman_image_get_stride(s->convert));
+        pixman_image_composite(PIXMAN_OP_SRC, s->ds->image, NULL, s->convert,
+                               0, 0, 0, 0, 0, 0,
+                               pixman_image_get_width(s->convert),
+                               pixman_image_get_height(s->convert));
+    }
 
     if (resized) {
         gd_update_windowsize(s);

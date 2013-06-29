@@ -76,5 +76,7 @@ extern const struct VMStateDescription vmstate_lm32_cpu;
 #endif
 
 void lm32_cpu_do_interrupt(CPUState *cpu);
+void lm32_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                         int flags);
 
 #endif

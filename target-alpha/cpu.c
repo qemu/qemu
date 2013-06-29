@@ -21,14 +21,12 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "migration/vmstate.h"
 
 
 static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    AlphaCPU *cpu = ALPHA_CPU(dev);
     AlphaCPUClass *acc = ALPHA_CPU_GET_CLASS(dev);
-
-    qemu_init_vcpu(&cpu->env);
 
     acc->parent_realize(dev, errp);
 }
@@ -264,6 +262,9 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = alpha_cpu_class_by_name;
     cc->do_interrupt = alpha_cpu_do_interrupt;
+    cc->dump_state = alpha_cpu_dump_state;
+    cpu_class_set_do_unassigned_access(cc, alpha_cpu_unassigned_access);
+    device_class_set_vmsd(dc, &vmstate_alpha_cpu);
 }
 
 static const TypeInfo alpha_cpu_type_info = {

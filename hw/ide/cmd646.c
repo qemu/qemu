@@ -154,7 +154,7 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr,
         break;
     }
 #ifdef DEBUG_IDE
-    printf("bmdma: readb 0x%02x : 0x%02x\n", addr, val);
+    printf("bmdma: readb " TARGET_FMT_plx " : 0x%02x\n", addr, val);
 #endif
     return val;
 }
@@ -170,7 +170,7 @@ static void bmdma_write(void *opaque, hwaddr addr,
     }
 
 #ifdef DEBUG_IDE
-    printf("bmdma: writeb 0x%02x : 0x%02x\n", addr, val);
+    printf("bmdma: writeb " TARGET_FMT_plx " : 0x%" PRIx64 "\n", addr, val);
 #endif
     switch(addr & 3) {
     case 0:

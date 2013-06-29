@@ -129,7 +129,7 @@ static void do_inject_external_nmi(void *data)
     uint32_t lvt;
     int ret;
 
-    cpu_synchronize_state(&s->cpu->env);
+    cpu_synchronize_state(cpu);
 
     lvt = s->lvt[APIC_LVT_LINT1];
     if (!(lvt & APIC_LVT_MASKED) && ((lvt >> 8) & 7) == APIC_DM_NMI) {

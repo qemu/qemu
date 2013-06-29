@@ -75,7 +75,7 @@ void GCC_FMT_ATTR(2, 3) qemu_log_mask(int mask, const char *fmt, ...);
 static inline void log_cpu_state(CPUArchState *env1, int flags)
 {
     if (qemu_log_enabled()) {
-        cpu_dump_state(env1, qemu_logfile, fprintf, flags);
+        cpu_dump_state(ENV_GET_CPU(env1), qemu_logfile, fprintf, flags);
     }
 }
 

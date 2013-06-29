@@ -147,9 +147,9 @@ int kvm_has_gsi_routing(void);
 int kvm_has_intx_set_mask(void);
 
 int kvm_init_vcpu(CPUState *cpu);
+int kvm_cpu_exec(CPUState *cpu);
 
 #ifdef NEED_CPU_H
-int kvm_cpu_exec(CPUArchState *env);
 
 #if !defined(CONFIG_USER_ONLY)
 void *kvm_ram_alloc(ram_addr_t size);
@@ -166,7 +166,7 @@ int kvm_remove_breakpoint(CPUArchState *current_env, target_ulong addr,
 void kvm_remove_all_breakpoints(CPUArchState *current_env);
 int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap);
 #ifndef _WIN32
-int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset);
+int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset);
 #endif
 
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
@@ -259,14 +259,14 @@ int kvm_check_extension(KVMState *s, unsigned int extension);
 
 uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
                                       uint32_t index, int reg);
-void kvm_cpu_synchronize_state(CPUArchState *env);
+void kvm_cpu_synchronize_state(CPUState *cpu);
 
 /* generic hooks - to be moved/refactored once there are more users */
 
-static inline void cpu_synchronize_state(CPUArchState *env)
+static inline void cpu_synchronize_state(CPUState *cpu)
 {
     if (kvm_enabled()) {
-        kvm_cpu_synchronize_state(env);
+        kvm_cpu_synchronize_state(cpu);
     }
 }
 

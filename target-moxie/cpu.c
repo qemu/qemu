@@ -44,12 +44,11 @@ static void moxie_cpu_reset(CPUState *s)
 static void moxie_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     MoxieCPU *cpu = MOXIE_CPU(dev);
-    MoxieCPUClass *occ = MOXIE_CPU_GET_CLASS(dev);
+    MoxieCPUClass *mcc = MOXIE_CPU_GET_CLASS(dev);
 
-    qemu_init_vcpu(&cpu->env);
     cpu_reset(CPU(cpu));
 
-    occ->parent_realize(dev, errp);
+    mcc->parent_realize(dev, errp);
 }
 
 static void moxie_cpu_initfn(Object *obj)
@@ -97,8 +96,9 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = moxie_cpu_class_by_name;
 
-    cpu_class_set_vmsd(cc, &vmstate_moxie_cpu);
     cc->do_interrupt = moxie_cpu_do_interrupt;
+    cc->dump_state = moxie_cpu_dump_state;
+    cpu_class_set_vmsd(cc, &vmstate_moxie_cpu);
 }
 
 static void moxielite_initfn(Object *obj)

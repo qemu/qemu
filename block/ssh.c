@@ -716,6 +716,21 @@ static void ssh_close(BlockDriverState *bs)
     ssh_state_free(s);
 }
 
+static int ssh_has_zero_init(BlockDriverState *bs)
+{
+    BDRVSSHState *s = bs->opaque;
+    /* Assume false, unless we can positively prove it's true. */
+    int has_zero_init = 0;
+
+    if (s->attrs.flags & LIBSSH2_SFTP_ATTR_PERMISSIONS) {
+        if (s->attrs.permissions & LIBSSH2_SFTP_S_IFREG) {
+            has_zero_init = 1;
+        }
+    }
+
+    return has_zero_init;
+}
+
 static void restart_coroutine(void *opaque)
 {
     Coroutine *co = opaque;
@@ -1037,6 +1052,7 @@ static BlockDriver bdrv_ssh = {
     .bdrv_file_open               = ssh_file_open,
     .bdrv_create                  = ssh_create,
     .bdrv_close                   = ssh_close,
+    .bdrv_has_zero_init           = ssh_has_zero_init,
     .bdrv_co_readv                = ssh_co_readv,
     .bdrv_co_writev               = ssh_co_writev,
     .bdrv_getlength               = ssh_getlength,

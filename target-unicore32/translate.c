@@ -2113,9 +2113,11 @@ static void cpu_dump_state_ucf64(CPUUniCore32State *env, FILE *f,
 #define cpu_dump_state_ucf64(env, file, pr, flags)      do { } while (0)
 #endif
 
-void cpu_dump_state(CPUUniCore32State *env, FILE *f,
-        fprintf_function cpu_fprintf, int flags)
+void uc32_cpu_dump_state(CPUState *cs, FILE *f,
+                         fprintf_function cpu_fprintf, int flags)
 {
+    UniCore32CPU *cpu = UNICORE32_CPU(cs);
+    CPUUniCore32State *env = &cpu->env;
     int i;
     uint32_t psr;
 

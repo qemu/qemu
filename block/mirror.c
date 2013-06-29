@@ -524,7 +524,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
     block_job_resume(job);
 }
 
-static BlockJobType mirror_job_type = {
+static const BlockJobType mirror_job_type = {
     .instance_size = sizeof(MirrorBlockJob),
     .job_type      = "mirror",
     .set_speed     = mirror_set_speed,

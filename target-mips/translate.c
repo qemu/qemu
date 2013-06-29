@@ -15780,9 +15780,11 @@ cpu_mips_check_sign_extensions (CPUMIPSState *env, FILE *f,
 }
 #endif
 
-void cpu_dump_state (CPUMIPSState *env, FILE *f, fprintf_function cpu_fprintf,
-                     int flags)
+void mips_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
+                         int flags)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
     int i;
 
     cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx

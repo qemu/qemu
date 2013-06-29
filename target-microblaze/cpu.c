@@ -92,7 +92,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
 
     cpu_reset(CPU(cpu));
-    qemu_init_vcpu(&cpu->env);
 
     mcc->parent_realize(dev, errp);
 }
@@ -138,8 +137,9 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = mb_cpu_reset;
 
     cc->do_interrupt = mb_cpu_do_interrupt;
+    cc->dump_state = mb_cpu_dump_state;
+    cpu_class_set_do_unassigned_access(cc, mb_cpu_unassigned_access);
     dc->vmsd = &vmstate_mb_cpu;
-
     dc->props = mb_properties;
 }
 

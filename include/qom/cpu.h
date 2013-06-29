@@ -22,6 +22,7 @@
 
 #include <signal.h>
 #include "hw/qdev-core.h"
+#include "exec/hwaddr.h"
 #include "qemu/thread.h"
 #include "qemu/typedefs.h"
 
@@ -42,12 +43,19 @@ typedef int (*WriteCoreDumpFunction)(void *buf, size_t size, void *opaque);
 
 typedef struct CPUState CPUState;
 
+typedef void (*CPUUnassignedAccess)(CPUState *cpu, hwaddr addr,
+                                    bool is_write, bool is_exec, int opaque,
+                                    unsigned size);
+
 /**
  * CPUClass:
  * @class_by_name: Callback to map -cpu command line model name to an
  * instantiatable CPU type.
  * @reset: Callback to reset the #CPUState to its initial state.
  * @do_interrupt: Callback for interrupt handling.
+ * @do_unassigned_access: Callback for unassigned access handling.
+ * @dump_state: Callback for dumping state.
+ * @dump_statistics: Callback for dumping statistics.
  * @get_arch_id: Callback for getting architecture-dependent CPU ID.
  * @get_paging_enabled: Callback for inquiring whether paging is enabled.
  * @get_memory_mapping: Callback for obtaining the memory mappings.
@@ -64,6 +72,11 @@ typedef struct CPUClass {
 
     void (*reset)(CPUState *cpu);
     void (*do_interrupt)(CPUState *cpu);
+    CPUUnassignedAccess do_unassigned_access;
+    void (*dump_state)(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                       int flags);
+    void (*dump_statistics)(CPUState *cpu, FILE *f,
+                            fprintf_function cpu_fprintf, int flags);
     int64_t (*get_arch_id)(CPUState *cpu);
     bool (*get_paging_enabled)(const CPUState *cpu);
     void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
@@ -201,6 +214,42 @@ int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                              void *opaque);
 
 /**
+ * CPUDumpFlags:
+ * @CPU_DUMP_CODE:
+ * @CPU_DUMP_FPU: dump FPU register state, not just integer
+ * @CPU_DUMP_CCOP: dump info about TCG QEMU's condition code optimization state
+ */
+enum CPUDumpFlags {
+    CPU_DUMP_CODE = 0x00010000,
+    CPU_DUMP_FPU  = 0x00020000,
+    CPU_DUMP_CCOP = 0x00040000,
+};
+
+/**
+ * cpu_dump_state:
+ * @cpu: The CPU whose state is to be dumped.
+ * @f: File to dump to.
+ * @cpu_fprintf: Function to dump with.
+ * @flags: Flags what to dump.
+ *
+ * Dumps CPU state.
+ */
+void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                    int flags);
+
+/**
+ * cpu_dump_statistics:
+ * @cpu: The CPU whose state is to be dumped.
+ * @f: File to dump to.
+ * @cpu_fprintf: Function to dump with.
+ * @flags: Flags what to dump.
+ *
+ * Dumps CPU statistics.
+ */
+void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                         int flags);
+
+/**
  * cpu_reset:
  * @cpu: The CPU whose state is to be reset.
  */
@@ -226,7 +275,7 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
  *
  * The @value argument is intentionally discarded for the non-softmmu targets
  * to avoid linker errors or excessive preprocessor usage. If this behavior
- * is undesired, you should assign #CPUState.vmsd directly instead.
+ * is undesired, you should assign #CPUClass.vmsd directly instead.
  */
 #ifndef CONFIG_USER_ONLY
 static inline void cpu_class_set_vmsd(CPUClass *cc,
@@ -236,6 +285,38 @@ static inline void cpu_class_set_vmsd(CPUClass *cc,
 }
 #else
 #define cpu_class_set_vmsd(cc, value) ((cc)->vmsd = NULL)
+#endif
+
+#ifndef CONFIG_USER_ONLY
+static inline void cpu_class_set_do_unassigned_access(CPUClass *cc,
+                                                      CPUUnassignedAccess value)
+{
+    cc->do_unassigned_access = value;
+}
+#else
+#define cpu_class_set_do_unassigned_access(cc, value) \
+    ((cc)->do_unassigned_access = NULL)
+#endif
+
+/**
+ * device_class_set_vmsd:
+ * @dc: Device class
+ * @value: Value to set. Unused for %CONFIG_USER_ONLY.
+ *
+ * Sets #VMStateDescription for @dc.
+ *
+ * The @value argument is intentionally discarded for the non-softmmu targets
+ * to avoid linker errors or excessive preprocessor usage. If this behavior
+ * is undesired, you should assign #DeviceClass.vmsd directly instead.
+ */
+#ifndef CONFIG_USER_ONLY
+static inline void device_class_set_vmsd(DeviceClass *dc,
+                                         const struct VMStateDescription *value)
+{
+    dc->vmsd = value;
+}
+#else
+#define device_class_set_vmsd(dc, value) ((dc)->vmsd = NULL)
 #endif
 
 /**
@@ -340,6 +421,21 @@ void cpu_interrupt(CPUState *cpu, int mask);
 
 #endif /* USER_ONLY */
 
+#ifndef CONFIG_USER_ONLY
+
+static inline void cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                                         bool is_write, bool is_exec,
+                                         int opaque, unsigned size)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->do_unassigned_access) {
+        cc->do_unassigned_access(cpu, addr, is_write, is_exec, opaque, size);
+    }
+}
+
+#endif
+
 /**
  * cpu_reset_interrupt:
  * @cpu: The CPU to clear the interrupt on.
@@ -350,11 +446,41 @@ void cpu_interrupt(CPUState *cpu, int mask);
 void cpu_reset_interrupt(CPUState *cpu, int mask);
 
 /**
+ * cpu_exit:
+ * @cpu: The CPU to exit.
+ *
+ * Requests the CPU @cpu to exit execution.
+ */
+void cpu_exit(CPUState *cpu);
+
+/**
  * cpu_resume:
  * @cpu: The CPU to resume.
  *
  * Resumes CPU, i.e. puts CPU into runnable state.
  */
 void cpu_resume(CPUState *cpu);
+
+/**
+ * qemu_init_vcpu:
+ * @cpu: The vCPU to initialize.
+ *
+ * Initializes a vCPU.
+ */
+void qemu_init_vcpu(CPUState *cpu);
+
+#ifdef CONFIG_SOFTMMU
+extern const struct VMStateDescription vmstate_cpu_common;
+#else
+#define vmstate_cpu_common vmstate_dummy
+#endif
+
+#define VMSTATE_CPU() {                                                     \
+    .name = "parent_obj",                                                   \
+    .size = sizeof(CPUState),                                               \
+    .vmsd = &vmstate_cpu_common,                                            \
+    .flags = VMS_STRUCT,                                                    \
+    .offset = 0,                                                            \
+}
 
 #endif

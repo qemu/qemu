@@ -78,7 +78,7 @@ void dump_slb(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
     int i;
     uint64_t slbe, slbv;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(CPU(ppc_env_get_cpu(env)));
 
     cpu_fprintf(f, "SLB\tESID\t\t\tVSID\n");
     for (i = 0; i < env->slb_nr; i++) {

@@ -158,7 +158,7 @@ static inline void start_exclusive(void)
         other_cpu = ENV_GET_CPU(other);
         if (other_cpu->running) {
             pending_cpus++;
-            cpu_exit(other);
+            cpu_exit(other_cpu);
         }
     }
     if (pending_cpus > 1) {
@@ -939,7 +939,7 @@ void cpu_loop(CPUARMState *env)
         error:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
                     trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             abort();
         }
         process_pending_signals(env);
@@ -1023,7 +1023,7 @@ void cpu_loop(CPUUniCore32State *env)
 
 error:
     fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n", trapnr);
-    cpu_dump_state(env, stderr, fprintf, 0);
+    cpu_dump_state(cs, stderr, fprintf, 0);
     abort();
 }
 #endif
@@ -1153,6 +1153,7 @@ static void flush_windows(CPUSPARCState *env)
 
 void cpu_loop (CPUSPARCState *env)
 {
+    CPUState *cs = CPU(sparc_env_get_cpu(env));
     int trapnr;
     abi_long ret;
     target_siginfo_t info;
@@ -1284,7 +1285,7 @@ void cpu_loop (CPUSPARCState *env)
             break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             exit (1);
         }
         process_pending_signals (env);
@@ -1342,7 +1343,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
 #define EXCP_DUMP(env, fmt, ...)                                        \
 do {                                                                    \
     fprintf(stderr, fmt , ## __VA_ARGS__);                              \
-    cpu_dump_state(env, stderr, fprintf, 0);                            \
+    cpu_dump_state(ENV_GET_CPU(env), stderr, fprintf, 0);               \
     qemu_log(fmt, ## __VA_ARGS__);                                      \
     if (qemu_log_enabled()) {                                           \
         log_cpu_state(env, 0);                                          \
@@ -2429,7 +2430,7 @@ done_syscall:
 error:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
                     trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             abort();
         }
         process_pending_signals(env);
@@ -2441,6 +2442,7 @@ error:
 
 void cpu_loop(CPUOpenRISCState *env)
 {
+    CPUState *cs = CPU(openrisc_env_get_cpu(env));
     int trapnr, gdbsig;
 
     for (;;) {
@@ -2458,7 +2460,7 @@ void cpu_loop(CPUOpenRISCState *env)
             break;
         case EXCP_DPF:
         case EXCP_IPF:
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             gdbsig = TARGET_SIGSEGV;
             break;
         case EXCP_TICK:
@@ -2507,7 +2509,7 @@ void cpu_loop(CPUOpenRISCState *env)
         default:
             qemu_log("\nqemu: unhandled CPU exception %#x - aborting\n",
                      trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             gdbsig = TARGET_SIGILL;
             break;
         }
@@ -2527,6 +2529,7 @@ void cpu_loop(CPUOpenRISCState *env)
 #ifdef TARGET_SH4
 void cpu_loop(CPUSH4State *env)
 {
+    CPUState *cs = CPU(sh_env_get_cpu(env));
     int trapnr, ret;
     target_siginfo_t info;
 
@@ -2575,7 +2578,7 @@ void cpu_loop(CPUSH4State *env)
 
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             exit (1);
         }
         process_pending_signals (env);
@@ -2586,6 +2589,7 @@ void cpu_loop(CPUSH4State *env)
 #ifdef TARGET_CRIS
 void cpu_loop(CPUCRISState *env)
 {
+    CPUState *cs = CPU(cris_env_get_cpu(env));
     int trapnr, ret;
     target_siginfo_t info;
 
@@ -2633,7 +2637,7 @@ void cpu_loop(CPUCRISState *env)
             break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             exit (1);
         }
         process_pending_signals (env);
@@ -2644,6 +2648,7 @@ void cpu_loop(CPUCRISState *env)
 #ifdef TARGET_MICROBLAZE
 void cpu_loop(CPUMBState *env)
 {
+    CPUState *cs = CPU(mb_env_get_cpu(env));
     int trapnr, ret;
     target_siginfo_t info;
 
@@ -2711,7 +2716,7 @@ void cpu_loop(CPUMBState *env)
                 default:
                     printf ("Unhandled hw-exception: 0x%x\n",
                             env->sregs[SR_ESR] & ESR_EC_MASK);
-                    cpu_dump_state(env, stderr, fprintf, 0);
+                    cpu_dump_state(cs, stderr, fprintf, 0);
                     exit (1);
                     break;
             }
@@ -2732,7 +2737,7 @@ void cpu_loop(CPUMBState *env)
             break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             exit (1);
         }
         process_pending_signals (env);
@@ -2744,6 +2749,7 @@ void cpu_loop(CPUMBState *env)
 
 void cpu_loop(CPUM68KState *env)
 {
+    CPUState *cs = CPU(m68k_env_get_cpu(env));
     int trapnr;
     unsigned int n;
     target_siginfo_t info;
@@ -2825,7 +2831,7 @@ void cpu_loop(CPUM68KState *env)
         default:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
                     trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             abort();
         }
         process_pending_signals(env);
@@ -2881,6 +2887,7 @@ static void do_store_exclusive(CPUAlphaState *env, int reg, int quad)
 
 void cpu_loop(CPUAlphaState *env)
 {
+    CPUState *cs = CPU(alpha_env_get_cpu(env));
     int trapnr;
     target_siginfo_t info;
     abi_long sysret;
@@ -3055,7 +3062,7 @@ void cpu_loop(CPUAlphaState *env)
             break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             exit (1);
         }
         process_pending_signals (env);
@@ -3066,6 +3073,7 @@ void cpu_loop(CPUAlphaState *env)
 #ifdef TARGET_S390X
 void cpu_loop(CPUS390XState *env)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     int trapnr, n, sig;
     target_siginfo_t info;
     target_ulong addr;
@@ -3156,7 +3164,7 @@ void cpu_loop(CPUS390XState *env)
 
             default:
                 fprintf(stderr, "Unhandled program exception: %#x\n", n);
-                cpu_dump_state(env, stderr, fprintf, 0);
+                cpu_dump_state(cs, stderr, fprintf, 0);
                 exit(1);
             }
             break;
@@ -3173,7 +3181,7 @@ void cpu_loop(CPUS390XState *env)
 
         default:
             fprintf(stderr, "Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, fprintf, 0);
             exit(1);
         }
         process_pending_signals (env);

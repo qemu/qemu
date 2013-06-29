@@ -450,7 +450,7 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
     uint64_t code;
     int r = 0;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(CPU(cpu));
     sccb = env->regs[ipbh0 & 0xf];
     code = env->regs[(ipbh0 & 0xf0) >> 4];
 
@@ -656,16 +656,17 @@ static int s390_store_status(CPUS390XState *env, uint32_t parameter)
 
 static int s390_cpu_initial_reset(S390CPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
     CPUS390XState *env = &cpu->env;
     int i;
 
     s390_del_running_cpu(cpu);
-    if (kvm_vcpu_ioctl(CPU(cpu), KVM_S390_INITIAL_RESET, NULL) < 0) {
+    if (kvm_vcpu_ioctl(cs, KVM_S390_INITIAL_RESET, NULL) < 0) {
         perror("cannot init reset vcpu");
     }
 
     /* Manually zero out all registers */
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(cs);
     for (i = 0; i < 16; i++) {
         env->regs[i] = 0;
     }
@@ -685,7 +686,7 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     S390CPU *target_cpu;
     CPUS390XState *target_env;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(CPU(cpu));
 
     /* get order code */
     order_code = run->s390_sieic.ipb >> 28;

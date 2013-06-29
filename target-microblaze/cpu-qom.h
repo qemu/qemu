@@ -72,5 +72,7 @@ static inline MicroBlazeCPU *mb_env_get_cpu(CPUMBState *env)
 #define ENV_OFFSET offsetof(MicroBlazeCPU, env)
 
 void mb_cpu_do_interrupt(CPUState *cs);
+void mb_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
+                       int flags);
 
 #endif

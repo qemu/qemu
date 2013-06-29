@@ -786,6 +786,18 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     return ret;
 }
 
+static int vpc_has_zero_init(BlockDriverState *bs)
+{
+    BDRVVPCState *s = bs->opaque;
+    struct vhd_footer *footer =  (struct vhd_footer *) s->footer_buf;
+
+    if (cpu_to_be32(footer->type) == VHD_FIXED) {
+        return bdrv_has_zero_init(bs->file);
+    } else {
+        return 1;
+    }
+}
+
 static void vpc_close(BlockDriverState *bs)
 {
     BDRVVPCState *s = bs->opaque;
@@ -818,16 +830,17 @@ static BlockDriver bdrv_vpc = {
     .format_name    = "vpc",
     .instance_size  = sizeof(BDRVVPCState),
 
-    .bdrv_probe     = vpc_probe,
-    .bdrv_open      = vpc_open,
-    .bdrv_close     = vpc_close,
-    .bdrv_reopen_prepare = vpc_reopen_prepare,
-    .bdrv_create    = vpc_create,
+    .bdrv_probe             = vpc_probe,
+    .bdrv_open              = vpc_open,
+    .bdrv_close             = vpc_close,
+    .bdrv_reopen_prepare    = vpc_reopen_prepare,
+    .bdrv_create            = vpc_create,
 
     .bdrv_read              = vpc_co_read,
     .bdrv_write             = vpc_co_write,
 
-    .create_options = vpc_create_options,
+    .create_options         = vpc_create_options,
+    .bdrv_has_zero_init     = vpc_has_zero_init,
 };
 
 static void bdrv_vpc_init(void)
