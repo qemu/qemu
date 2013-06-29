@@ -30,6 +30,22 @@
 
 #include <hw/ide/internal.h>
 
+/* debug MACIO */
+// #define DEBUG_MACIO
+
+#ifdef DEBUG_MACIO
+static const int debug_macio = 1;
+#else
+static const int debug_macio = 0;
+#endif
+
+#define MACIO_DPRINTF(fmt, ...) do { \
+        if (debug_macio) { \
+            printf(fmt , ## __VA_ARGS__); \
+        } \
+    } while (0)
+
+
 /***********************************************************/
 /* MacIO based PowerPC IDE */
 
@@ -48,6 +64,8 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
         goto done;
     }
 
+    MACIO_DPRINTF("io_buffer_size = %#x\n", s->io_buffer_size);
+
     if (s->io_buffer_size > 0) {
         m->aiocb = NULL;
         qemu_sglist_destroy(&s->sg);
@@ -59,14 +77,19 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
         s->io_buffer_index &= 0x7ff;
     }
 
-    if (s->packet_transfer_size <= 0)
+    if (s->packet_transfer_size <= 0) {
+        MACIO_DPRINTF("end of transfer\n");
         ide_atapi_cmd_ok(s);
+    }
 
     if (io->len == 0) {
+        MACIO_DPRINTF("end of DMA\n");
         goto done;
     }
 
     /* launch next transfer */
+
+    MACIO_DPRINTF("io->len = %#x\n", io->len);
 
     s->io_buffer_size = io->len;
 
@@ -76,12 +99,17 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     io->addr += io->len;
     io->len = 0;
 
+    MACIO_DPRINTF("sector_num=%d size=%d, cmd_cmd=%d\n",
+                  (s->lba << 2) + (s->io_buffer_index >> 9),
+                  s->packet_transfer_size, s->dma_cmd);
+
     m->aiocb = dma_bdrv_read(s->bs, &s->sg,
                              (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9),
                              pmac_ide_atapi_transfer_cb, io);
     return;
 
 done:
+    MACIO_DPRINTF("done DMA\n");
     bdrv_acct_done(s->bs, &s->acct);
     io->dma_end(opaque);
 }
@@ -95,6 +123,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     int64_t sector_num;
 
     if (ret < 0) {
+        MACIO_DPRINTF("DMA error\n");
         m->aiocb = NULL;
         qemu_sglist_destroy(&s->sg);
         ide_dma_error(s);
@@ -102,6 +131,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     }
 
     sector_num = ide_get_sector(s);
+    MACIO_DPRINTF("io_buffer_size = %#x\n", s->io_buffer_size);
     if (s->io_buffer_size > 0) {
         m->aiocb = NULL;
         qemu_sglist_destroy(&s->sg);
@@ -111,14 +141,14 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
         s->nsector -= n;
     }
 
-    /* end of transfer ? */
     if (s->nsector == 0) {
+        MACIO_DPRINTF("end of transfer\n");
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
     }
 
-    /* end of DMA ? */
     if (io->len == 0) {
+        MACIO_DPRINTF("end of DMA\n");
         goto done;
     }
 
@@ -127,11 +157,16 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     s->io_buffer_index = 0;
     s->io_buffer_size = io->len;
 
+    MACIO_DPRINTF("io->len = %#x\n", io->len);
+
     qemu_sglist_init(&s->sg, DEVICE(m), io->len / MACIO_PAGE_SIZE + 1,
                      &address_space_memory);
     qemu_sglist_add(&s->sg, io->addr, io->len);
     io->addr += io->len;
     io->len = 0;
+
+    MACIO_DPRINTF("sector_num=%" PRId64 " n=%d, nsector=%d, cmd_cmd=%d\n",
+                  sector_num, n, s->nsector, s->dma_cmd);
 
     switch (s->dma_cmd) {
     case IDE_DMA_READ:
@@ -161,6 +196,8 @@ static void pmac_ide_transfer(DBDMA_io *io)
 {
     MACIOIDEState *m = io->opaque;
     IDEState *s = idebus_active_if(&m->bus);
+
+    MACIO_DPRINTF("\n");
 
     s->io_buffer_size = 0;
     if (s->drive_kind == IDE_CD) {

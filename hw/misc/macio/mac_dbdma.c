@@ -224,7 +224,7 @@ static void conditional_interrupt(DBDMA_channel *ch)
     uint32_t status;
     int cond;
 
-    DBDMA_DPRINTF("conditional_interrupt\n");
+    DBDMA_DPRINTF("%s\n", __func__);
 
     intr = le16_to_cpu(current->command) & INTR_MASK;
 
@@ -233,6 +233,7 @@ static void conditional_interrupt(DBDMA_channel *ch)
         return;
     case INTR_ALWAYS: /* always interrupt */
         qemu_irq_raise(ch->irq);
+        DBDMA_DPRINTF("%s: raise\n", __func__);
         return;
     }
 
@@ -245,12 +246,16 @@ static void conditional_interrupt(DBDMA_channel *ch)
 
     switch(intr) {
     case INTR_IFSET:  /* intr if condition bit is 1 */
-        if (cond)
+        if (cond) {
             qemu_irq_raise(ch->irq);
+            DBDMA_DPRINTF("%s: raise\n", __func__);
+        }
         return;
     case INTR_IFCLR:  /* intr if condition bit is 0 */
-        if (!cond)
+        if (!cond) {
             qemu_irq_raise(ch->irq);
+            DBDMA_DPRINTF("%s: raise\n", __func__);
+        }
         return;
     }
 }
@@ -368,6 +373,8 @@ static void dbdma_end(DBDMA_io *io)
     DBDMA_channel *ch = io->channel;
     dbdma_cmd *current = &ch->current;
 
+    DBDMA_DPRINTF("%s\n", __func__);
+
     if (conditional_wait(ch))
         goto wait;
 
@@ -422,6 +429,7 @@ static void start_input(DBDMA_channel *ch, int key, uint32_t addr,
      * are not implemented in the mac-io chip
      */
 
+    DBDMA_DPRINTF("addr 0x%x key 0x%x\n", addr, key);
     if (!addr || key > KEY_STREAM3) {
         kill_channel(ch);
         return;
