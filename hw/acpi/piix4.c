@@ -64,7 +64,9 @@ typedef struct CPUStatus {
 } CPUStatus;
 
 typedef struct PIIX4PMState {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
 
     MemoryRegion io;
     MemoryRegion io_gpe;
@@ -135,11 +137,12 @@ static void pm_tmr_timer(ACPIREGS *ar)
 static void apm_ctrl_changed(uint32_t val, void *arg)
 {
     PIIX4PMState *s = arg;
+    PCIDevice *d = PCI_DEVICE(s);
 
     /* ACPI specs 3.0, 4.7.2.5 */
     acpi_pm1_cnt_update(&s->ar, val == ACPI_ENABLE, val == ACPI_DISABLE);
 
-    if (s->dev.config[0x5b] & (1 << 1)) {
+    if (d->config[0x5b] & (1 << 1)) {
         if (s->smi_irq) {
             qemu_irq_raise(s->smi_irq);
         }
@@ -148,24 +151,27 @@ static void apm_ctrl_changed(uint32_t val, void *arg)
 
 static void pm_io_space_update(PIIX4PMState *s)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     uint32_t pm_io_base;
 
-    pm_io_base = le32_to_cpu(*(uint32_t *)(s->dev.config + 0x40));
+    pm_io_base = le32_to_cpu(*(uint32_t *)(d->config + 0x40));
     pm_io_base &= 0xffc0;
 
     memory_region_transaction_begin();
-    memory_region_set_enabled(&s->io, s->dev.config[0x80] & 1);
+    memory_region_set_enabled(&s->io, d->config[0x80] & 1);
     memory_region_set_address(&s->io, pm_io_base);
     memory_region_transaction_commit();
 }
 
 static void smbus_io_space_update(PIIX4PMState *s)
 {
-    s->smb_io_base = le32_to_cpu(*(uint32_t *)(s->dev.config + 0x90));
+    PCIDevice *d = PCI_DEVICE(s);
+
+    s->smb_io_base = le32_to_cpu(*(uint32_t *)(d->config + 0x90));
     s->smb_io_base &= 0xffc0;
 
     memory_region_transaction_begin();
-    memory_region_set_enabled(&s->smb.io, s->dev.config[0xd2] & 1);
+    memory_region_set_enabled(&s->smb.io, d->config[0xd2] & 1);
     memory_region_set_address(&s->smb.io, s->smb_io_base);
     memory_region_transaction_commit();
 }
@@ -244,7 +250,7 @@ static int acpi_load_old(QEMUFile *f, void *opaque, int version_id)
     int ret, i;
     uint16_t temp;
 
-    ret = pci_device_load(&s->dev, f);
+    ret = pci_device_load(PCI_DEVICE(s), f);
     if (ret < 0) {
         return ret;
     }
@@ -288,7 +294,7 @@ static const VMStateDescription vmstate_acpi = {
     .load_state_old = acpi_load_old,
     .post_load = vmstate_acpi_post_load,
     .fields      = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(dev, PIIX4PMState),
+        VMSTATE_PCI_DEVICE(parent_obj, PIIX4PMState),
         VMSTATE_UINT16(ar.pm1.evt.sts, PIIX4PMState),
         VMSTATE_UINT16(ar.pm1.evt.en, PIIX4PMState),
         VMSTATE_UINT16(ar.pm1.cnt.cnt, PIIX4PMState),
@@ -359,7 +365,8 @@ static void piix4_update_hotplug(PIIX4PMState *s)
 static void piix4_reset(void *opaque)
 {
     PIIX4PMState *s = opaque;
-    uint8_t *pci_conf = s->dev.config;
+    PCIDevice *d = PCI_DEVICE(s);
+    uint8_t *pci_conf = d->config;
 
     pci_conf[0x58] = 0;
     pci_conf[0x59] = 0;
@@ -387,10 +394,11 @@ static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
 static void piix4_pm_machine_ready(Notifier *n, void *opaque)
 {
     PIIX4PMState *s = container_of(n, PIIX4PMState, machine_ready);
-    MemoryRegion *io_as = pci_address_space_io(&s->dev);
+    PCIDevice *d = PCI_DEVICE(s);
+    MemoryRegion *io_as = pci_address_space_io(d);
     uint8_t *pci_conf;
 
-    pci_conf = s->dev.config;
+    pci_conf = d->config;
     pci_conf[0x5f] = 0x10 |
         (memory_region_present(io_as, 0x378) ? 0x80 : 0);
     pci_conf[0x63] = 0x60;
@@ -403,7 +411,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     PIIX4PMState *s = PIIX4_PM(dev);
     uint8_t *pci_conf;
 
-    pci_conf = s->dev.config;
+    pci_conf = dev->config;
     pci_conf[0x06] = 0x80;
     pci_conf[0x07] = 0x02;
     pci_conf[0x09] = 0x00;
