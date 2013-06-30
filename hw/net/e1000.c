@@ -85,7 +85,10 @@ enum {
 };
 
 typedef struct E1000State_st {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     NICState *nic;
     NICConf conf;
     MemoryRegion mmio;
@@ -245,6 +248,8 @@ static const uint32_t mac_reg_init[] = {
 static void
 set_interrupt_cause(E1000State *s, int index, uint32_t val)
 {
+    PCIDevice *d = PCI_DEVICE(s);
+
     if (val && (E1000_DEVID >= E1000_DEV_ID_82547EI_MOBILE)) {
         /* Only for 8257x */
         val |= E1000_ICR_INT_ASSERTED;
@@ -261,7 +266,7 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
      */
     s->mac_reg[ICS] = val;
 
-    qemu_set_irq(s->dev.irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
+    qemu_set_irq(d->irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
 }
 
 static void
@@ -558,6 +563,7 @@ xmit_seg(E1000State *s)
 static void
 process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     uint32_t txd_lower = le32_to_cpu(dp->lower.data);
     uint32_t dtype = txd_lower & (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D);
     unsigned int split_size = txd_lower & 0xffff, bytes, sz, op;
@@ -615,7 +621,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
                 bytes = msh - tp->size;
 
             bytes = MIN(sizeof(tp->data) - tp->size, bytes);
-            pci_dma_read(&s->dev, addr, tp->data + tp->size, bytes);
+            pci_dma_read(d, addr, tp->data + tp->size, bytes);
             sz = tp->size + bytes;
             if (sz >= tp->hdr_len && tp->size < tp->hdr_len) {
                 memmove(tp->header, tp->data, tp->hdr_len);
@@ -633,7 +639,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         DBGOUT(TXERR, "TCP segmentation error\n");
     } else {
         split_size = MIN(sizeof(tp->data) - tp->size, split_size);
-        pci_dma_read(&s->dev, addr, tp->data + tp->size, split_size);
+        pci_dma_read(d, addr, tp->data + tp->size, split_size);
         tp->size += split_size;
     }
 
@@ -652,6 +658,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 static uint32_t
 txdesc_writeback(E1000State *s, dma_addr_t base, struct e1000_tx_desc *dp)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     uint32_t txd_upper, txd_lower = le32_to_cpu(dp->lower.data);
 
     if (!(txd_lower & (E1000_TXD_CMD_RS|E1000_TXD_CMD_RPS)))
@@ -659,7 +666,7 @@ txdesc_writeback(E1000State *s, dma_addr_t base, struct e1000_tx_desc *dp)
     txd_upper = (le32_to_cpu(dp->upper.data) | E1000_TXD_STAT_DD) &
                 ~(E1000_TXD_STAT_EC | E1000_TXD_STAT_LC | E1000_TXD_STAT_TU);
     dp->upper.data = cpu_to_le32(txd_upper);
-    pci_dma_write(&s->dev, base + ((char *)&dp->upper - (char *)dp),
+    pci_dma_write(d, base + ((char *)&dp->upper - (char *)dp),
                   &dp->upper, sizeof(dp->upper));
     return E1000_ICR_TXDW;
 }
@@ -675,6 +682,7 @@ static uint64_t tx_desc_base(E1000State *s)
 static void
 start_xmit(E1000State *s)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     dma_addr_t base;
     struct e1000_tx_desc desc;
     uint32_t tdh_start = s->mac_reg[TDH], cause = E1000_ICS_TXQE;
@@ -687,7 +695,7 @@ start_xmit(E1000State *s)
     while (s->mac_reg[TDH] != s->mac_reg[TDT]) {
         base = tx_desc_base(s) +
                sizeof(struct e1000_tx_desc) * s->mac_reg[TDH];
-        pci_dma_read(&s->dev, base, &desc, sizeof(desc));
+        pci_dma_read(d, base, &desc, sizeof(desc));
 
         DBGOUT(TX, "index %d: %p : %x %x\n", s->mac_reg[TDH],
                (void *)(intptr_t)desc.buffer_addr, desc.lower.data,
@@ -820,6 +828,7 @@ static ssize_t
 e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     E1000State *s = qemu_get_nic_opaque(nc);
+    PCIDevice *d = PCI_DEVICE(s);
     struct e1000_rx_desc desc;
     dma_addr_t base;
     unsigned int n, rdt;
@@ -879,7 +888,7 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
             desc_size = s->rxbuf_size;
         }
         base = rx_desc_base(s) + sizeof(desc) * s->mac_reg[RDH];
-        pci_dma_read(&s->dev, base, &desc, sizeof(desc));
+        pci_dma_read(d, base, &desc, sizeof(desc));
         desc.special = vlan_special;
         desc.status |= (vlan_status | E1000_RXD_STAT_DD);
         if (desc.buffer_addr) {
@@ -888,7 +897,7 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
                 if (copy_size > s->rxbuf_size) {
                     copy_size = s->rxbuf_size;
                 }
-                pci_dma_write(&s->dev, le64_to_cpu(desc.buffer_addr),
+                pci_dma_write(d, le64_to_cpu(desc.buffer_addr),
                               buf + desc_offset + vlan_offset, copy_size);
             }
             desc_offset += desc_size;
@@ -903,7 +912,7 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         } else { // as per intel docs; skip descriptors with null buf addr
             DBGOUT(RX, "Null RX descriptor!!\n");
         }
-        pci_dma_write(&s->dev, base, &desc, sizeof(desc));
+        pci_dma_write(d, base, &desc, sizeof(desc));
 
         if (++s->mac_reg[RDH] * sizeof(desc) >= s->mac_reg[RDLEN])
             s->mac_reg[RDH] = 0;
@@ -1189,7 +1198,7 @@ static const VMStateDescription vmstate_e1000 = {
     .pre_save = e1000_pre_save,
     .post_load = e1000_post_load,
     .fields      = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(dev, E1000State),
+        VMSTATE_PCI_DEVICE(parent_obj, E1000State),
         VMSTATE_UNUSED_TEST(is_version_1, 4), /* was instance id */
         VMSTATE_UNUSED(4), /* Was mmio_base.  */
         VMSTATE_UINT32(rxbuf_size, E1000State),
@@ -1330,7 +1339,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     int i;
     uint8_t *macaddr;
 
-    pci_conf = d->dev.config;
+    pci_conf = pci_dev->config;
 
     /* TODO: RST# value should be 0, PCI spec 6.2.4 */
     pci_conf[PCI_CACHE_LINE_SIZE] = 0x10;
@@ -1339,9 +1348,9 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     e1000_mmio_setup(d);
 
-    pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
+    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
-    pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->io);
+    pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->io);
 
     memmove(d->eeprom_data, e1000_eeprom_template,
         sizeof e1000_eeprom_template);
