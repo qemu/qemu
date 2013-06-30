@@ -67,24 +67,30 @@ static void a15mp_priv_initfn(Object *obj)
     qdev_prop_set_uint32(gicdev, "revision", 2);
 }
 
-static int a15mp_priv_init(SysBusDevice *dev)
+static void a15mp_priv_realize(DeviceState *dev, Error **errp)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A15MPPrivState *s = A15MPCORE_PRIV(dev);
     DeviceState *gicdev;
     SysBusDevice *busdev;
     int i;
+    Error *err = NULL;
 
     gicdev = DEVICE(&s->gic);
     qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
-    qdev_init_nofail(gicdev);
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
     busdev = SYS_BUS_DEVICE(&s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(dev, busdev);
+    sysbus_pass_irq(sbd, busdev);
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(DEVICE(dev), a15mp_priv_set_irq, s->num_irq - 32);
+    qdev_init_gpio_in(dev, a15mp_priv_set_irq, s->num_irq - 32);
 
     /* Wire the outputs from each CPU's generic timer to the
      * appropriate GIC PPI inputs
@@ -114,8 +120,6 @@ static int a15mp_priv_init(SysBusDevice *dev)
                                 sysbus_mmio_get_region(busdev, 0));
     memory_region_add_subregion(&s->container, 0x2000,
                                 sysbus_mmio_get_region(busdev, 1));
-
-    return 0;
 }
 
 static Property a15mp_priv_properties[] = {
@@ -133,8 +137,8 @@ static Property a15mp_priv_properties[] = {
 static void a15mp_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    k->init = a15mp_priv_init;
+
+    dc->realize = a15mp_priv_realize;
     dc->props = a15mp_priv_properties;
     /* We currently have no savable state */
 }
