@@ -8,29 +8,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw/sysbus.h"
-#include "hw/intc/arm_gic.h"
-#include "hw/misc/a9scu.h"
-#include "hw/timer/arm_mptimer.h"
-
-#define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
-#define A9MPCORE_PRIV(obj) \
-    OBJECT_CHECK(A9MPPrivState, (obj), TYPE_A9MPCORE_PRIV)
-
-typedef struct A9MPPrivState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    uint32_t num_cpu;
-    MemoryRegion container;
-    uint32_t num_irq;
-
-    GICState gic;
-    A9SCUState scu;
-    ARMMPTimerState mptimer;
-    ARMMPTimerState wdt;
-} A9MPPrivState;
+#include "hw/cpu/a9mpcore.h"
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)
 {
