@@ -154,6 +154,7 @@ typedef struct DBDMA_channel {
 typedef struct {
     MemoryRegion mem;
     DBDMA_channel channels[DBDMA_CHANNELS];
+    QEMUBH *bh;
 } DBDMAState;
 
 /* Externally callable functions */

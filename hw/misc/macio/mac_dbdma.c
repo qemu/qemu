@@ -54,6 +54,11 @@
 /*
  */
 
+static DBDMAState *dbdma_from_ch(DBDMA_channel *ch)
+{
+    return container_of(ch, DBDMAState, channels[ch->channel]);
+}
+
 #ifdef DEBUG_DBDMA
 static void dump_dbdma_cmd(dbdma_cmd *cmd)
 {
@@ -248,7 +253,6 @@ static void conditional_branch(DBDMA_channel *ch)
     }
 }
 
-static QEMUBH *dbdma_bh;
 static void channel_run(DBDMA_channel *ch);
 
 static void dbdma_end(DBDMA_io *io)
@@ -365,7 +369,7 @@ static void load_word(DBDMA_channel *ch, int key, uint32_t addr,
     next(ch);
 
 wait:
-    qemu_bh_schedule(dbdma_bh);
+    DBDMA_kick(dbdma_from_ch(ch));
 }
 
 static void store_word(DBDMA_channel *ch, int key, uint32_t addr,
@@ -403,7 +407,7 @@ static void store_word(DBDMA_channel *ch, int key, uint32_t addr,
     next(ch);
 
 wait:
-    qemu_bh_schedule(dbdma_bh);
+    DBDMA_kick(dbdma_from_ch(ch));
 }
 
 static void nop(DBDMA_channel *ch)
@@ -420,7 +424,7 @@ static void nop(DBDMA_channel *ch)
     conditional_branch(ch);
 
 wait:
-    qemu_bh_schedule(dbdma_bh);
+    DBDMA_kick(dbdma_from_ch(ch));
 }
 
 static void stop(DBDMA_channel *ch)
@@ -538,7 +542,7 @@ static void DBDMA_run_bh(void *opaque)
 
 void DBDMA_kick(DBDMAState *dbdma)
 {
-    qemu_bh_schedule(dbdma_bh);
+    qemu_bh_schedule(dbdma->bh);
 }
 
 void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
@@ -594,10 +598,12 @@ dbdma_control_write(DBDMA_channel *ch)
 
     ch->regs[DBDMA_STATUS] = status;
 
-    if (status & ACTIVE)
-        qemu_bh_schedule(dbdma_bh);
-    if ((status & FLUSH) && ch->flush)
+    if (status & ACTIVE) {
+        DBDMA_kick(dbdma_from_ch(ch));
+    }
+    if ((status & FLUSH) && ch->flush) {
         ch->flush(&ch->io);
+    }
 }
 
 static void dbdma_write(void *opaque, hwaddr addr,
@@ -750,7 +756,7 @@ void* DBDMA_init (MemoryRegion **dbdma_mem)
     vmstate_register(NULL, -1, &vmstate_dbdma, s);
     qemu_register_reset(dbdma_reset, s);
 
-    dbdma_bh = qemu_bh_new(DBDMA_run_bh, s);
+    s->bh = qemu_bh_new(DBDMA_run_bh, s);
 
     return s;
 }
