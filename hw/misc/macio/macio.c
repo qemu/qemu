@@ -234,11 +234,39 @@ static void macio_oldworld_init(Object *obj)
     }
 }
 
+static void timer_write(void *opaque, hwaddr addr, uint64_t value,
+                       unsigned size)
+{
+}
+
+static uint64_t timer_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint32_t value = 0;
+
+    switch (addr) {
+    case 0x38:
+        value = qemu_get_clock_ns(vm_clock);
+        break;
+    case 0x3c:
+        value = qemu_get_clock_ns(vm_clock) >> 32;
+        break;
+    }
+
+    return value;
+}
+
+static const MemoryRegionOps timer_ops = {
+    .read = timer_read,
+    .write = timer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static int macio_newworld_initfn(PCIDevice *d)
 {
     MacIOState *s = MACIO(d);
     NewWorldMacIOState *ns = NEWWORLD_MACIO(d);
     SysBusDevice *sysbus_dev;
+    MemoryRegion *timer_memory = g_new(MemoryRegion, 1);
     int i;
     int cur_irq = 0;
     int ret = macio_common_initfn(d);
@@ -264,6 +292,11 @@ static int macio_newworld_initfn(PCIDevice *d)
             return ret;
         }
     }
+
+    /* Timer */
+    memory_region_init_io(timer_memory, OBJECT(s), &timer_ops, NULL, "timer",
+                          0x1000);
+    memory_region_add_subregion(&s->bar, 0x15000, timer_memory);
 
     return 0;
 }
