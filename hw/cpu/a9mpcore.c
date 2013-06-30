@@ -11,6 +11,7 @@
 #include "hw/sysbus.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/misc/a9scu.h"
+#include "hw/timer/arm_mptimer.h"
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
 #define A9MPCORE_PRIV(obj) \
@@ -23,12 +24,12 @@ typedef struct A9MPPrivState {
 
     uint32_t num_cpu;
     MemoryRegion container;
-    DeviceState *mptimer;
-    DeviceState *wdt;
     uint32_t num_irq;
 
     GICState gic;
     A9SCUState scu;
+    ARMMPTimerState mptimer;
+    ARMMPTimerState wdt;
 } A9MPPrivState;
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)
@@ -50,12 +51,18 @@ static void a9mp_priv_initfn(Object *obj)
 
     object_initialize(&s->scu, sizeof(s->scu), TYPE_A9_SCU);
     qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
+
+    object_initialize(&s->mptimer, sizeof(s->mptimer), TYPE_ARM_MPTIMER);
+    qdev_set_parent_bus(DEVICE(&s->mptimer), sysbus_get_default());
+
+    object_initialize(&s->wdt, sizeof(s->wdt), TYPE_ARM_MPTIMER);
+    qdev_set_parent_bus(DEVICE(&s->wdt), sysbus_get_default());
 }
 
 static int a9mp_priv_init(SysBusDevice *dev)
 {
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
-    DeviceState *gicdev, *scudev;
+    DeviceState *gicdev, *scudev, *mptimerdev, *wdtdev;
     SysBusDevice *timerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
     int i;
 
@@ -76,15 +83,15 @@ static int a9mp_priv_init(SysBusDevice *dev)
     qdev_init_nofail(scudev);
     scubusdev = SYS_BUS_DEVICE(&s->scu);
 
-    s->mptimer = qdev_create(NULL, "arm_mptimer");
-    qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
-    qdev_init_nofail(s->mptimer);
-    timerbusdev = SYS_BUS_DEVICE(s->mptimer);
+    mptimerdev = DEVICE(&s->mptimer);
+    qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
+    qdev_init_nofail(mptimerdev);
+    timerbusdev = SYS_BUS_DEVICE(&s->mptimer);
 
-    s->wdt = qdev_create(NULL, "arm_mptimer");
-    qdev_prop_set_uint32(s->wdt, "num-cpu", s->num_cpu);
-    qdev_init_nofail(s->wdt);
-    wdtbusdev = SYS_BUS_DEVICE(s->wdt);
+    wdtdev = DEVICE(&s->wdt);
+    qdev_prop_set_uint32(wdtdev, "num-cpu", s->num_cpu);
+    qdev_init_nofail(wdtdev);
+    wdtbusdev = SYS_BUS_DEVICE(&s->wdt);
 
     /* Memory map (addresses are offsets from PERIPHBASE):
      *  0x0000-0x00ff -- Snoop Control Unit

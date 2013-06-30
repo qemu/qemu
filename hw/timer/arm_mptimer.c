@@ -19,41 +19,13 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw/sysbus.h"
+#include "hw/timer/arm_mptimer.h"
 #include "qemu/timer.h"
 #include "qom/cpu.h"
 
 /* This device implements the per-cpu private timer and watchdog block
  * which is used in both the ARM11MPCore and Cortex-A9MP.
  */
-
-#define MAX_CPUS 4
-
-/* State of a single timer or watchdog block */
-typedef struct {
-    uint32_t count;
-    uint32_t load;
-    uint32_t control;
-    uint32_t status;
-    int64_t tick;
-    QEMUTimer *timer;
-    qemu_irq irq;
-    MemoryRegion iomem;
-} TimerBlock;
-
-#define TYPE_ARM_MPTIMER "arm_mptimer"
-#define ARM_MPTIMER(obj) \
-    OBJECT_CHECK(ARMMPTimerState, (obj), TYPE_ARM_MPTIMER)
-
-typedef struct {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    uint32_t num_cpu;
-    TimerBlock timerblock[MAX_CPUS];
-    MemoryRegion iomem;
-} ARMMPTimerState;
 
 static inline int get_current_cpu(ARMMPTimerState *s)
 {
@@ -240,8 +212,9 @@ static void arm_mptimer_realize(DeviceState *dev, Error **errp)
     ARMMPTimerState *s = ARM_MPTIMER(dev);
     int i;
 
-    if (s->num_cpu < 1 || s->num_cpu > MAX_CPUS) {
-        hw_error("%s: num-cpu must be between 1 and %d\n", __func__, MAX_CPUS);
+    if (s->num_cpu < 1 || s->num_cpu > ARM_MPTIMER_MAX_CPUS) {
+        hw_error("%s: num-cpu must be between 1 and %d\n",
+                 __func__, ARM_MPTIMER_MAX_CPUS);
     }
     /* We implement one timer block per CPU, and expose multiple MMIO regions:
      *  * region 0 is "timer for this core"
