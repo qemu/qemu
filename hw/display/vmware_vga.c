@@ -87,7 +87,10 @@ struct vmsvga_state_s {
     OBJECT_CHECK(struct pci_vmsvga_state_s, (obj), TYPE_VMWARE_SVGA)
 
 struct pci_vmsvga_state_s {
-    PCIDevice card;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     struct vmsvga_state_s chip;
     MemoryRegion io_bar;
 };
@@ -792,7 +795,7 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
     case SVGA_REG_FB_START: {
         struct pci_vmsvga_state_s *pci_vmsvga
             = container_of(s, struct pci_vmsvga_state_s, chip);
-        ret = pci_get_bar_addr(&pci_vmsvga->card, 1);
+        ret = pci_get_bar_addr(PCI_DEVICE(pci_vmsvga), 1);
         break;
     }
 
@@ -828,7 +831,7 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
     case SVGA_REG_MEM_START: {
         struct pci_vmsvga_state_s *pci_vmsvga
             = container_of(s, struct pci_vmsvga_state_s, chip);
-        ret = pci_get_bar_addr(&pci_vmsvga->card, 2);
+        ret = pci_get_bar_addr(PCI_DEVICE(pci_vmsvga), 2);
         break;
     }
 
@@ -1176,7 +1179,7 @@ static const VMStateDescription vmstate_vmware_vga = {
     .minimum_version_id = 0,
     .minimum_version_id_old = 0,
     .fields      = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(card, struct pci_vmsvga_state_s),
+        VMSTATE_PCI_DEVICE(parent_obj, struct pci_vmsvga_state_s),
         VMSTATE_STRUCT(chip, struct pci_vmsvga_state_s, 0,
                        vmstate_vmware_vga_internal, struct vmsvga_state_s),
         VMSTATE_END_OF_LIST()
@@ -1256,21 +1259,21 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 {
     struct pci_vmsvga_state_s *s = VMWARE_SVGA(dev);
 
-    s->card.config[PCI_CACHE_LINE_SIZE] = 0x08;         /* Cache line size */
-    s->card.config[PCI_LATENCY_TIMER] = 0x40;           /* Latency timer */
-    s->card.config[PCI_INTERRUPT_LINE] = 0xff;          /* End */
+    dev->config[PCI_CACHE_LINE_SIZE] = 0x08;
+    dev->config[PCI_LATENCY_TIMER] = 0x40;
+    dev->config[PCI_INTERRUPT_LINE] = 0xff;          /* End */
 
     memory_region_init_io(&s->io_bar, NULL, &vmsvga_io_ops, &s->chip,
                           "vmsvga-io", 0x10);
     memory_region_set_flush_coalesced(&s->io_bar);
-    pci_register_bar(&s->card, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
 
     vmsvga_init(DEVICE(dev), &s->chip,
                 pci_address_space(dev), pci_address_space_io(dev));
 
-    pci_register_bar(&s->card, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,
                      &s->chip.vga.vram);
-    pci_register_bar(&s->card, 2, PCI_BASE_ADDRESS_MEM_PREFETCH,
+    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_MEM_PREFETCH,
                      &s->chip.fifo_ram);
 
     if (!dev->rom_bar) {
