@@ -225,8 +225,18 @@ static void arm_mptimer_reset(DeviceState *dev)
     }
 }
 
-static int arm_mptimer_init(SysBusDevice *dev)
+static void arm_mptimer_init(Object *obj)
 {
+    ARMMPTimerState *s = ARM_MPTIMER(obj);
+
+    memory_region_init_io(&s->iomem, obj, &arm_thistimer_ops, s,
+                          "arm_mptimer_timer", 0x20);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+}
+
+static void arm_mptimer_realize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     ARMMPTimerState *s = ARM_MPTIMER(dev);
     int i;
 
@@ -243,19 +253,14 @@ static int arm_mptimer_init(SysBusDevice *dev)
      *  * timer for core 1
      * and so on.
      */
-    memory_region_init_io(&s->iomem, OBJECT(s), &arm_thistimer_ops, s,
-                          "arm_mptimer_timer", 0x20);
-    sysbus_init_mmio(dev, &s->iomem);
     for (i = 0; i < s->num_cpu; i++) {
         TimerBlock *tb = &s->timerblock[i];
         tb->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, timerblock_tick, tb);
-        sysbus_init_irq(dev, &tb->irq);
+        sysbus_init_irq(sbd, &tb->irq);
         memory_region_init_io(&tb->iomem, OBJECT(s), &timerblock_ops, tb,
                               "arm_mptimer_timerblock", 0x20);
-        sysbus_init_mmio(dev, &tb->iomem);
+        sysbus_init_mmio(sbd, &tb->iomem);
     }
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_timerblock = {
@@ -292,9 +297,8 @@ static Property arm_mptimer_properties[] = {
 static void arm_mptimer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
-    sbc->init = arm_mptimer_init;
+    dc->realize = arm_mptimer_realize;
     dc->vmsd = &vmstate_arm_mptimer;
     dc->reset = arm_mptimer_reset;
     dc->no_user = 1;
@@ -305,6 +309,7 @@ static const TypeInfo arm_mptimer_info = {
     .name          = TYPE_ARM_MPTIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARMMPTimerState),
+    .instance_init = arm_mptimer_init,
     .class_init    = arm_mptimer_class_init,
 };
 
