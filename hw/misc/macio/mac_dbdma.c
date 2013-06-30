@@ -536,6 +536,11 @@ static void DBDMA_run_bh(void *opaque)
     DBDMA_run(s);
 }
 
+void DBDMA_kick(DBDMAState *dbdma)
+{
+    qemu_bh_schedule(dbdma_bh);
+}
+
 void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
                             DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque)
