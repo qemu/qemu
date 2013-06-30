@@ -10,8 +10,15 @@
 
 #include "hw/sysbus.h"
 
+#define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
+#define A9MPCORE_PRIV(obj) \
+    OBJECT_CHECK(A9MPPrivState, (obj), TYPE_A9MPCORE_PRIV)
+
 typedef struct A9MPPrivState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     uint32_t num_cpu;
     MemoryRegion container;
     DeviceState *mptimer;
@@ -29,7 +36,7 @@ static void a9mp_priv_set_irq(void *opaque, int irq, int level)
 
 static int a9mp_priv_init(SysBusDevice *dev)
 {
-    A9MPPrivState *s = FROM_SYSBUS(A9MPPrivState, dev);
+    A9MPPrivState *s = A9MPCORE_PRIV(dev);
     SysBusDevice *timerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
     int i;
 
@@ -43,7 +50,7 @@ static int a9mp_priv_init(SysBusDevice *dev)
     sysbus_pass_irq(dev, gicbusdev);
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(&s->busdev.qdev, a9mp_priv_set_irq, s->num_irq - 32);
+    qdev_init_gpio_in(DEVICE(dev), a9mp_priv_set_irq, s->num_irq - 32);
 
     s->scu = qdev_create(NULL, "a9-scu");
     qdev_prop_set_uint32(s->scu, "num-cpu", s->num_cpu);
@@ -124,7 +131,7 @@ static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo a9mp_priv_info = {
-    .name          = "a9mpcore_priv",
+    .name          = TYPE_A9MPCORE_PRIV,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(A9MPPrivState),
     .class_init    = a9mp_priv_class_init,
