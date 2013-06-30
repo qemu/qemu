@@ -59,38 +59,56 @@ static void a9mp_priv_initfn(Object *obj)
     qdev_set_parent_bus(DEVICE(&s->wdt), sysbus_get_default());
 }
 
-static int a9mp_priv_init(SysBusDevice *dev)
+static void a9mp_priv_realize(DeviceState *dev, Error **errp)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
     DeviceState *gicdev, *scudev, *mptimerdev, *wdtdev;
     SysBusDevice *timerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
+    Error *err = NULL;
     int i;
 
     gicdev = DEVICE(&s->gic);
     qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
-    qdev_init_nofail(gicdev);
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
     gicbusdev = SYS_BUS_DEVICE(&s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
-    sysbus_pass_irq(dev, gicbusdev);
+    sysbus_pass_irq(sbd, gicbusdev);
 
     /* Pass through inbound GPIO lines to the GIC */
-    qdev_init_gpio_in(DEVICE(dev), a9mp_priv_set_irq, s->num_irq - 32);
+    qdev_init_gpio_in(dev, a9mp_priv_set_irq, s->num_irq - 32);
 
     scudev = DEVICE(&s->scu);
     qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
-    qdev_init_nofail(scudev);
+    object_property_set_bool(OBJECT(&s->scu), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
     scubusdev = SYS_BUS_DEVICE(&s->scu);
 
     mptimerdev = DEVICE(&s->mptimer);
     qdev_prop_set_uint32(mptimerdev, "num-cpu", s->num_cpu);
-    qdev_init_nofail(mptimerdev);
+    object_property_set_bool(OBJECT(&s->mptimer), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
     timerbusdev = SYS_BUS_DEVICE(&s->mptimer);
 
     wdtdev = DEVICE(&s->wdt);
     qdev_prop_set_uint32(wdtdev, "num-cpu", s->num_cpu);
-    qdev_init_nofail(wdtdev);
+    object_property_set_bool(OBJECT(&s->wdt), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
     wdtbusdev = SYS_BUS_DEVICE(&s->wdt);
 
     /* Memory map (addresses are offsets from PERIPHBASE):
@@ -129,7 +147,6 @@ static int a9mp_priv_init(SysBusDevice *dev)
         sysbus_connect_irq(wdtbusdev, i,
                            qdev_get_gpio_in(gicdev, ppibase + 30));
     }
-    return 0;
 }
 
 static Property a9mp_priv_properties[] = {
@@ -147,9 +164,8 @@ static Property a9mp_priv_properties[] = {
 static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = a9mp_priv_init;
+    dc->realize = a9mp_priv_realize;
     dc->props = a9mp_priv_properties;
 }
 
