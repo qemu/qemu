@@ -13,7 +13,10 @@
 /* A9MP private memory region.  */
 
 typedef struct A9SCUState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t control;
     uint32_t status;
@@ -114,12 +117,12 @@ static void a9_scu_reset(DeviceState *dev)
     s->control = 0;
 }
 
-static void a9_scu_realize(DeviceState *dev, Error ** errp)
+static void a9_scu_init(Object *obj)
 {
-    A9SCUState *s = A9_SCU(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    A9SCUState *s = A9_SCU(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &a9_scu_ops, s,
+    memory_region_init_io(&s->iomem, obj, &a9_scu_ops, s,
                           "a9-scu", 0x100);
     sysbus_init_mmio(sbd, &s->iomem);
 }
@@ -144,7 +147,6 @@ static void a9_scu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = a9_scu_realize;
     dc->props = a9_scu_properties;
     dc->vmsd = &vmstate_a9_scu;
     dc->reset = a9_scu_reset;
@@ -154,6 +156,7 @@ static const TypeInfo a9_scu_info = {
     .name          = TYPE_A9_SCU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(A9SCUState),
+    .instance_init = a9_scu_init,
     .class_init    = a9_scu_class_init,
 };
 
