@@ -34,6 +34,14 @@ static void a9mp_priv_set_irq(void *opaque, int irq, int level)
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
+static void a9mp_priv_initfn(Object *obj)
+{
+    A9MPPrivState *s = A9MPCORE_PRIV(obj);
+
+    memory_region_init(&s->container, obj, "a9mp-priv-container", 0x2000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->container);
+}
+
 static int a9mp_priv_init(SysBusDevice *dev)
 {
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
@@ -78,7 +86,6 @@ static int a9mp_priv_init(SysBusDevice *dev)
      *
      * We should implement the global timer but don't currently do so.
      */
-    memory_region_init(&s->container, OBJECT(s), "a9mp-priv-container", 0x2000);
     memory_region_add_subregion(&s->container, 0,
                                 sysbus_mmio_get_region(scubusdev, 0));
     /* GIC CPU interface */
@@ -93,8 +100,6 @@ static int a9mp_priv_init(SysBusDevice *dev)
                                 sysbus_mmio_get_region(wdtbusdev, 0));
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(gicbusdev, 0));
-
-    sysbus_init_mmio(dev, &s->container);
 
     /* Wire up the interrupt from each watchdog and timer.
      * For each core the timer is PPI 29 and the watchdog PPI 30.
@@ -134,6 +139,7 @@ static const TypeInfo a9mp_priv_info = {
     .name          = TYPE_A9MPCORE_PRIV,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(A9MPPrivState),
+    .instance_init = a9mp_priv_initfn,
     .class_init    = a9mp_priv_class_init,
 };
 
