@@ -9,6 +9,7 @@
  */
 
 #include "hw/sysbus.h"
+#include "hw/intc/arm_gic.h"
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
 #define A9MPCORE_PRIV(obj) \
@@ -23,15 +24,17 @@ typedef struct A9MPPrivState {
     MemoryRegion container;
     DeviceState *mptimer;
     DeviceState *wdt;
-    DeviceState *gic;
     DeviceState *scu;
     uint32_t num_irq;
+
+    GICState gic;
 } A9MPPrivState;
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)
 {
     A9MPPrivState *s = (A9MPPrivState *)opaque;
-    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
+
+    qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
 }
 
 static void a9mp_priv_initfn(Object *obj)
@@ -40,19 +43,23 @@ static void a9mp_priv_initfn(Object *obj)
 
     memory_region_init(&s->container, obj, "a9mp-priv-container", 0x2000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->container);
+
+    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 }
 
 static int a9mp_priv_init(SysBusDevice *dev)
 {
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
+    DeviceState *gicdev;
     SysBusDevice *timerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
     int i;
 
-    s->gic = qdev_create(NULL, "arm_gic");
-    qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
-    qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
-    qdev_init_nofail(s->gic);
-    gicbusdev = SYS_BUS_DEVICE(s->gic);
+    gicdev = DEVICE(&s->gic);
+    qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
+    qdev_init_nofail(gicdev);
+    gicbusdev = SYS_BUS_DEVICE(&s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
     sysbus_pass_irq(dev, gicbusdev);
@@ -107,9 +114,9 @@ static int a9mp_priv_init(SysBusDevice *dev)
     for (i = 0; i < s->num_cpu; i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
         sysbus_connect_irq(timerbusdev, i,
-                           qdev_get_gpio_in(s->gic, ppibase + 29));
+                           qdev_get_gpio_in(gicdev, ppibase + 29));
         sysbus_connect_irq(wdtbusdev, i,
-                           qdev_get_gpio_in(s->gic, ppibase + 30));
+                           qdev_get_gpio_in(gicdev, ppibase + 30));
     }
     return 0;
 }
