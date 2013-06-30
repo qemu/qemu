@@ -41,8 +41,15 @@ typedef struct {
     MemoryRegion iomem;
 } TimerBlock;
 
+#define TYPE_ARM_MPTIMER "arm_mptimer"
+#define ARM_MPTIMER(obj) \
+    OBJECT_CHECK(ARMMPTimerState, (obj), TYPE_ARM_MPTIMER)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     uint32_t num_cpu;
     TimerBlock timerblock[MAX_CPUS];
     MemoryRegion iomem;
@@ -210,9 +217,9 @@ static void timerblock_reset(TimerBlock *tb)
 
 static void arm_mptimer_reset(DeviceState *dev)
 {
-    ARMMPTimerState *s =
-        FROM_SYSBUS(ARMMPTimerState, SYS_BUS_DEVICE(dev));
+    ARMMPTimerState *s = ARM_MPTIMER(dev);
     int i;
+
     for (i = 0; i < ARRAY_SIZE(s->timerblock); i++) {
         timerblock_reset(&s->timerblock[i]);
     }
@@ -220,8 +227,9 @@ static void arm_mptimer_reset(DeviceState *dev)
 
 static int arm_mptimer_init(SysBusDevice *dev)
 {
-    ARMMPTimerState *s = FROM_SYSBUS(ARMMPTimerState, dev);
+    ARMMPTimerState *s = ARM_MPTIMER(dev);
     int i;
+
     if (s->num_cpu < 1 || s->num_cpu > MAX_CPUS) {
         hw_error("%s: num-cpu must be between 1 and %d\n", __func__, MAX_CPUS);
     }
@@ -294,7 +302,7 @@ static void arm_mptimer_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo arm_mptimer_info = {
-    .name          = "arm_mptimer",
+    .name          = TYPE_ARM_MPTIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARMMPTimerState),
     .class_init    = arm_mptimer_class_init,
