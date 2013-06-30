@@ -10,6 +10,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/intc/arm_gic.h"
+#include "hw/misc/a9scu.h"
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
 #define A9MPCORE_PRIV(obj) \
@@ -24,10 +25,10 @@ typedef struct A9MPPrivState {
     MemoryRegion container;
     DeviceState *mptimer;
     DeviceState *wdt;
-    DeviceState *scu;
     uint32_t num_irq;
 
     GICState gic;
+    A9SCUState scu;
 } A9MPPrivState;
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)
@@ -46,12 +47,15 @@ static void a9mp_priv_initfn(Object *obj)
 
     object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
     qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
+
+    object_initialize(&s->scu, sizeof(s->scu), TYPE_A9_SCU);
+    qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
 }
 
 static int a9mp_priv_init(SysBusDevice *dev)
 {
     A9MPPrivState *s = A9MPCORE_PRIV(dev);
-    DeviceState *gicdev;
+    DeviceState *gicdev, *scudev;
     SysBusDevice *timerbusdev, *wdtbusdev, *gicbusdev, *scubusdev;
     int i;
 
@@ -67,10 +71,10 @@ static int a9mp_priv_init(SysBusDevice *dev)
     /* Pass through inbound GPIO lines to the GIC */
     qdev_init_gpio_in(DEVICE(dev), a9mp_priv_set_irq, s->num_irq - 32);
 
-    s->scu = qdev_create(NULL, "a9-scu");
-    qdev_prop_set_uint32(s->scu, "num-cpu", s->num_cpu);
-    qdev_init_nofail(s->scu);
-    scubusdev = SYS_BUS_DEVICE(s->scu);
+    scudev = DEVICE(&s->scu);
+    qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
+    qdev_init_nofail(scudev);
+    scubusdev = SYS_BUS_DEVICE(&s->scu);
 
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);

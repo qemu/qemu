@@ -8,23 +8,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "hw/sysbus.h"
-
-/* A9MP private memory region.  */
-
-typedef struct A9SCUState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    MemoryRegion iomem;
-    uint32_t control;
-    uint32_t status;
-    uint32_t num_cpu;
-} A9SCUState;
-
-#define TYPE_A9_SCU "a9-scu"
-#define A9_SCU(obj) OBJECT_CHECK(A9SCUState, (obj), TYPE_A9_SCU)
+#include "hw/misc/a9scu.h"
 
 static uint64_t a9_scu_read(void *opaque, hwaddr offset,
                             unsigned size)
