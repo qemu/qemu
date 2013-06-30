@@ -37,6 +37,8 @@ struct DBDMA_io {
     int is_last;
     int is_dma_out;
     DBDMA_end dma_end;
+    /* DMA is in progress, don't start another one */
+    bool processing;
 };
 
 /*
@@ -148,7 +150,6 @@ typedef struct DBDMA_channel {
     DBDMA_rw rw;
     DBDMA_flush flush;
     dbdma_cmd current;
-    int processing;
 } DBDMA_channel;
 
 typedef struct {
