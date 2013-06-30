@@ -443,7 +443,10 @@ typedef struct XHCIInterrupter {
 } XHCIInterrupter;
 
 struct XHCIState {
-    PCIDevice pci_dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
@@ -659,7 +662,7 @@ static inline void xhci_dma_read_u32s(XHCIState *xhci, dma_addr_t addr,
 
     assert((len % sizeof(uint32_t)) == 0);
 
-    pci_dma_read(&xhci->pci_dev, addr, buf, len);
+    pci_dma_read(PCI_DEVICE(xhci), addr, buf, len);
 
     for (i = 0; i < (len / sizeof(uint32_t)); i++) {
         buf[i] = le32_to_cpu(buf[i]);
@@ -677,7 +680,7 @@ static inline void xhci_dma_write_u32s(XHCIState *xhci, dma_addr_t addr,
     for (i = 0; i < (len / sizeof(uint32_t)); i++) {
         tmp[i] = cpu_to_le32(buf[i]);
     }
-    pci_dma_write(&xhci->pci_dev, addr, tmp, len);
+    pci_dma_write(PCI_DEVICE(xhci), addr, tmp, len);
 }
 
 static XHCIPort *xhci_lookup_port(XHCIState *xhci, struct USBPort *uport)
@@ -704,10 +707,11 @@ static XHCIPort *xhci_lookup_port(XHCIState *xhci, struct USBPort *uport)
 
 static void xhci_intx_update(XHCIState *xhci)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(xhci);
     int level = 0;
 
-    if (msix_enabled(&xhci->pci_dev) ||
-        msi_enabled(&xhci->pci_dev)) {
+    if (msix_enabled(pci_dev) ||
+        msi_enabled(pci_dev)) {
         return;
     }
 
@@ -723,9 +727,10 @@ static void xhci_intx_update(XHCIState *xhci)
 
 static void xhci_msix_update(XHCIState *xhci, int v)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(xhci);
     bool enabled;
 
-    if (!msix_enabled(&xhci->pci_dev)) {
+    if (!msix_enabled(pci_dev)) {
         return;
     }
 
@@ -736,17 +741,19 @@ static void xhci_msix_update(XHCIState *xhci, int v)
 
     if (enabled) {
         trace_usb_xhci_irq_msix_use(v);
-        msix_vector_use(&xhci->pci_dev, v);
+        msix_vector_use(pci_dev, v);
         xhci->intr[v].msix_used = true;
     } else {
         trace_usb_xhci_irq_msix_unuse(v);
-        msix_vector_unuse(&xhci->pci_dev, v);
+        msix_vector_unuse(pci_dev, v);
         xhci->intr[v].msix_used = false;
     }
 }
 
 static void xhci_intr_raise(XHCIState *xhci, int v)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(xhci);
+
     xhci->intr[v].erdp_low |= ERDP_EHB;
     xhci->intr[v].iman |= IMAN_IP;
     xhci->usbsts |= USBSTS_EINT;
@@ -759,15 +766,15 @@ static void xhci_intr_raise(XHCIState *xhci, int v)
         return;
     }
 
-    if (msix_enabled(&xhci->pci_dev)) {
+    if (msix_enabled(pci_dev)) {
         trace_usb_xhci_irq_msix(v);
-        msix_notify(&xhci->pci_dev, v);
+        msix_notify(pci_dev, v);
         return;
     }
 
-    if (msi_enabled(&xhci->pci_dev)) {
+    if (msi_enabled(pci_dev)) {
         trace_usb_xhci_irq_msi(v);
-        msi_notify(&xhci->pci_dev, v);
+        msi_notify(pci_dev, v);
         return;
     }
 
@@ -790,6 +797,7 @@ static void xhci_die(XHCIState *xhci)
 
 static void xhci_write_event(XHCIState *xhci, XHCIEvent *event, int v)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(xhci);
     XHCIInterrupter *intr = &xhci->intr[v];
     XHCITRB ev_trb;
     dma_addr_t addr;
@@ -808,7 +816,7 @@ static void xhci_write_event(XHCIState *xhci, XHCIEvent *event, int v)
                                ev_trb.status, ev_trb.control);
 
     addr = intr->er_start + TRB_SIZE*intr->er_ep_idx;
-    pci_dma_write(&xhci->pci_dev, addr, &ev_trb, TRB_SIZE);
+    pci_dma_write(pci_dev, addr, &ev_trb, TRB_SIZE);
 
     intr->er_ep_idx++;
     if (intr->er_ep_idx >= intr->er_size) {
@@ -955,9 +963,11 @@ static void xhci_ring_init(XHCIState *xhci, XHCIRing *ring,
 static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
                                dma_addr_t *addr)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(xhci);
+
     while (1) {
         TRBType type;
-        pci_dma_read(&xhci->pci_dev, ring->dequeue, trb, TRB_SIZE);
+        pci_dma_read(pci_dev, ring->dequeue, trb, TRB_SIZE);
         trb->addr = ring->dequeue;
         trb->ccs = ring->ccs;
         le64_to_cpus(&trb->parameter);
@@ -990,6 +1000,7 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
 
 static int xhci_ring_chain_length(XHCIState *xhci, const XHCIRing *ring)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(xhci);
     XHCITRB trb;
     int length = 0;
     dma_addr_t dequeue = ring->dequeue;
@@ -999,7 +1010,7 @@ static int xhci_ring_chain_length(XHCIState *xhci, const XHCIRing *ring)
 
     while (1) {
         TRBType type;
-        pci_dma_read(&xhci->pci_dev, dequeue, &trb, TRB_SIZE);
+        pci_dma_read(pci_dev, dequeue, &trb, TRB_SIZE);
         le64_to_cpus(&trb.parameter);
         le32_to_cpus(&trb.status);
         le32_to_cpus(&trb.control);
@@ -1051,7 +1062,7 @@ static void xhci_er_reset(XHCIState *xhci, int v)
         return;
     }
     dma_addr_t erstba = xhci_addr64(intr->erstba_low, intr->erstba_high);
-    pci_dma_read(&xhci->pci_dev, erstba, &seg, sizeof(seg));
+    pci_dma_read(PCI_DEVICE(xhci), erstba, &seg, sizeof(seg));
     le32_to_cpus(&seg.addr_low);
     le32_to_cpus(&seg.addr_high);
     le32_to_cpus(&seg.size);
@@ -1526,7 +1537,7 @@ static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
     int i;
 
     xfer->int_req = false;
-    pci_dma_sglist_init(&xfer->sgl, &xhci->pci_dev, xfer->trb_count);
+    pci_dma_sglist_init(&xfer->sgl, PCI_DEVICE(xhci), xfer->trb_count);
     for (i = 0; i < xfer->trb_count; i++) {
         XHCITRB *trb = &xfer->trbs[i];
         dma_addr_t addr;
@@ -2111,7 +2122,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     assert(slotid >= 1 && slotid <= xhci->numslots);
 
     dcbaap = xhci_addr64(xhci->dcbaap_low, xhci->dcbaap_high);
-    poctx = ldq_le_pci_dma(&xhci->pci_dev, dcbaap + 8*slotid);
+    poctx = ldq_le_pci_dma(PCI_DEVICE(xhci), dcbaap + 8 * slotid);
     ictx = xhci_mask64(pictx);
     octx = xhci_mask64(poctx);
 
@@ -2432,7 +2443,7 @@ static TRBCCode xhci_get_port_bandwidth(XHCIState *xhci, uint64_t pctx)
     /* TODO: actually implement real values here */
     bw_ctx[0] = 0;
     memset(&bw_ctx[1], 80, xhci->numports); /* 80% */
-    pci_dma_write(&xhci->pci_dev, ctx, bw_ctx, sizeof(bw_ctx));
+    pci_dma_write(PCI_DEVICE(xhci), ctx, bw_ctx, sizeof(bw_ctx));
 
     return CC_SUCCESS;
 }
@@ -2455,11 +2466,12 @@ static uint32_t xhci_nec_challenge(uint32_t hi, uint32_t lo)
 
 static void xhci_via_challenge(XHCIState *xhci, uint64_t addr)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(xhci);
     uint32_t buf[8];
     uint32_t obuf[8];
     dma_addr_t paddr = xhci_mask64(addr);
 
-    pci_dma_read(&xhci->pci_dev, paddr, &buf, 32);
+    pci_dma_read(pci_dev, paddr, &buf, 32);
 
     memcpy(obuf, buf, sizeof(obuf));
 
@@ -2475,7 +2487,7 @@ static void xhci_via_challenge(XHCIState *xhci, uint64_t addr)
         obuf[7] = obuf[2] ^ obuf[3] ^ 0x65866593;
     }
 
-    pci_dma_write(&xhci->pci_dev, paddr, &obuf, 32);
+    pci_dma_write(pci_dev, paddr, &obuf, 32);
 }
 
 static void xhci_process_commands(XHCIState *xhci)
@@ -3322,10 +3334,10 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
 
     XHCIState *xhci = XHCI(dev);
 
-    xhci->pci_dev.config[PCI_CLASS_PROG] = 0x30;    /* xHCI */
-    xhci->pci_dev.config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
-    xhci->pci_dev.config[PCI_CACHE_LINE_SIZE] = 0x10;
-    xhci->pci_dev.config[0x60] = 0x30; /* release number */
+    dev->config[PCI_CLASS_PROG] = 0x30;    /* xHCI */
+    dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
+    dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
+    dev->config[0x60] = 0x30; /* release number */
 
     usb_xhci_init(xhci);
 
@@ -3347,7 +3359,7 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
 
     xhci->mfwrap_timer = qemu_new_timer_ns(vm_clock, xhci_mfwrap_timer, xhci);
 
-    xhci->irq = xhci->pci_dev.irq[0];
+    xhci->irq = dev->irq[0];
 
     memory_region_init(&xhci->mem, OBJECT(xhci), "xhci", LEN_REGS);
     memory_region_init_io(&xhci->mem_cap, OBJECT(xhci), &xhci_cap_ops, xhci,
@@ -3373,18 +3385,18 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
         memory_region_add_subregion(&xhci->mem, offset, &port->mem);
     }
 
-    pci_register_bar(&xhci->pci_dev, 0,
+    pci_register_bar(dev, 0,
                      PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64,
                      &xhci->mem);
 
-    ret = pcie_endpoint_cap_init(&xhci->pci_dev, 0xa0);
+    ret = pcie_endpoint_cap_init(dev, 0xa0);
     assert(ret >= 0);
 
     if (xhci->flags & (1 << XHCI_FLAG_USE_MSI)) {
-        msi_init(&xhci->pci_dev, 0x70, xhci->numintrs, true, false);
+        msi_init(dev, 0x70, xhci->numintrs, true, false);
     }
     if (xhci->flags & (1 << XHCI_FLAG_USE_MSI_X)) {
-        msix_init(&xhci->pci_dev, xhci->numintrs,
+        msix_init(dev, xhci->numintrs,
                   &xhci->mem, 0, OFF_MSIX_TABLE,
                   &xhci->mem, 0, OFF_MSIX_PBA,
                   0x90);
@@ -3396,6 +3408,7 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
 static int usb_xhci_post_load(void *opaque, int version_id)
 {
     XHCIState *xhci = opaque;
+    PCIDevice *pci_dev = PCI_DEVICE(xhci);
     XHCISlot *slot;
     XHCIEPContext *epctx;
     dma_addr_t dcbaap, pctx;
@@ -3411,7 +3424,7 @@ static int usb_xhci_post_load(void *opaque, int version_id)
             continue;
         }
         slot->ctx =
-            xhci_mask64(ldq_le_pci_dma(&xhci->pci_dev, dcbaap + 8*slotid));
+            xhci_mask64(ldq_le_pci_dma(pci_dev, dcbaap + 8 * slotid));
         xhci_dma_read_u32s(xhci, slot->ctx, slot_ctx, sizeof(slot_ctx));
         slot->uport = xhci_lookup_uport(xhci, slot_ctx);
         assert(slot->uport && slot->uport->dev);
@@ -3436,9 +3449,9 @@ static int usb_xhci_post_load(void *opaque, int version_id)
 
     for (intr = 0; intr < xhci->numintrs; intr++) {
         if (xhci->intr[intr].msix_used) {
-            msix_vector_use(&xhci->pci_dev, intr);
+            msix_vector_use(pci_dev, intr);
         } else {
-            msix_vector_unuse(&xhci->pci_dev, intr);
+            msix_vector_unuse(pci_dev, intr);
         }
     }
 
@@ -3531,8 +3544,8 @@ static const VMStateDescription vmstate_xhci = {
     .version_id = 1,
     .post_load = usb_xhci_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_PCIE_DEVICE(pci_dev, XHCIState),
-        VMSTATE_MSIX(pci_dev, XHCIState),
+        VMSTATE_PCIE_DEVICE(parent_obj, XHCIState),
+        VMSTATE_MSIX(parent_obj, XHCIState),
 
         VMSTATE_STRUCT_VARRAY_UINT32(ports, XHCIState, numports, 1,
                                      vmstate_xhci_port, XHCIPort),
