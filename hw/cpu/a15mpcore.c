@@ -18,27 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw/sysbus.h"
+#include "hw/cpu/a15mpcore.h"
 #include "sysemu/kvm.h"
-#include "hw/intc/arm_gic.h"
-
-/* A15MP private memory region.  */
-
-#define TYPE_A15MPCORE_PRIV "a15mpcore_priv"
-#define A15MPCORE_PRIV(obj) \
-    OBJECT_CHECK(A15MPPrivState, (obj), TYPE_A15MPCORE_PRIV)
-
-typedef struct A15MPPrivState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    uint32_t num_cpu;
-    uint32_t num_irq;
-    MemoryRegion container;
-
-    GICState gic;
-} A15MPPrivState;
 
 static void a15mp_priv_set_irq(void *opaque, int irq, int level)
 {
