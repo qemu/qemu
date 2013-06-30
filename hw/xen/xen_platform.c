@@ -49,7 +49,10 @@
 #define PFFLAG_ROM_LOCK 1 /* Sets whether ROM memory area is RW or RO */
 
 typedef struct PCIXenPlatformState {
-    PCIDevice  pci_dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion fixed_io;
     MemoryRegion bar;
     MemoryRegion mmio_bar;
@@ -121,7 +124,8 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
     PCIXenPlatformState *s = opaque;
 
     switch (addr) {
-    case 0:
+    case 0: {
+        PCIDevice *pci_dev = PCI_DEVICE(s);
         /* Unplug devices.  Value is a bitmask of which devices to
            unplug, with bit 0 the IDE devices, bit 1 the network
            devices, and bit 2 the non-primary-master IDE devices. */
@@ -129,16 +133,17 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
             DPRINTF("unplug disks\n");
             bdrv_drain_all();
             bdrv_flush_all();
-            pci_unplug_disks(s->pci_dev.bus);
+            pci_unplug_disks(pci_dev->bus);
         }
         if (val & UNPLUG_ALL_NICS) {
             DPRINTF("unplug nics\n");
-            pci_unplug_nics(s->pci_dev.bus);
+            pci_unplug_nics(pci_dev->bus);
         }
         if (val & UNPLUG_AUX_IDE_DISKS) {
             DPRINTF("unplug auxiliary disks not supported\n");
         }
         break;
+    }
     case 2:
         switch (val) {
         case 1:
@@ -372,7 +377,7 @@ static const VMStateDescription vmstate_xen_platform = {
     .minimum_version_id_old = 4,
     .post_load = xen_platform_post_load,
     .fields = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(pci_dev, PCIXenPlatformState),
+        VMSTATE_PCI_DEVICE(parent_obj, PCIXenPlatformState),
         VMSTATE_UINT8(flags, PCIXenPlatformState),
         VMSTATE_END_OF_LIST()
     }
@@ -383,7 +388,7 @@ static int xen_platform_initfn(PCIDevice *dev)
     PCIXenPlatformState *d = XEN_PLATFORM(dev);
     uint8_t *pci_conf;
 
-    pci_conf = d->pci_dev.config;
+    pci_conf = dev->config;
 
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
 
@@ -392,11 +397,11 @@ static int xen_platform_initfn(PCIDevice *dev)
     pci_conf[PCI_INTERRUPT_PIN] = 1;
 
     platform_ioport_bar_setup(d);
-    pci_register_bar(&d->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->bar);
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->bar);
 
     /* reserve 16MB mmio address for share memory*/
     platform_mmio_setup(d);
-    pci_register_bar(&d->pci_dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,
                      &d->mmio_bar);
 
     platform_fixed_ioport_init(d);
