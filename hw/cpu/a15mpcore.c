@@ -44,6 +44,15 @@ static void a15mp_priv_set_irq(void *opaque, int irq, int level)
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
+static void a15mp_priv_initfn(Object *obj)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    A15MPPrivState *s = A15MPCORE_PRIV(obj);
+
+    memory_region_init(&s->container, obj, "a15mp-priv-container", 0x8000);
+    sysbus_init_mmio(sbd, &s->container);
+}
+
 static int a15mp_priv_init(SysBusDevice *dev)
 {
     A15MPPrivState *s = A15MPCORE_PRIV(dev);
@@ -92,14 +101,11 @@ static int a15mp_priv_init(SysBusDevice *dev)
      *  0x5000-0x5fff -- GIC virtual interface control (not modelled)
      *  0x6000-0x7fff -- GIC virtual CPU interface (not modelled)
      */
-    memory_region_init(&s->container, OBJECT(s),
-                       "a15mp-priv-container", 0x8000);
     memory_region_add_subregion(&s->container, 0x1000,
                                 sysbus_mmio_get_region(busdev, 0));
     memory_region_add_subregion(&s->container, 0x2000,
                                 sysbus_mmio_get_region(busdev, 1));
 
-    sysbus_init_mmio(dev, &s->container);
     return 0;
 }
 
@@ -128,6 +134,7 @@ static const TypeInfo a15mp_priv_info = {
     .name  = TYPE_A15MPCORE_PRIV,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(A15MPPrivState),
+    .instance_init = a15mp_priv_initfn,
     .class_init = a15mp_priv_class_init,
 };
 
