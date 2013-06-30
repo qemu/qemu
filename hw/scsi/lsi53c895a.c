@@ -184,7 +184,10 @@ typedef struct lsi_request {
 } lsi_request;
 
 typedef struct {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion mmio_io;
     MemoryRegion ram_io;
     MemoryRegion io_io;
@@ -387,7 +390,7 @@ static inline uint32_t read_dword(LSIState *s, uint32_t addr)
 {
     uint32_t buf;
 
-    pci_dma_read(&s->dev, addr, &buf, 4);
+    pci_dma_read(PCI_DEVICE(s), addr, &buf, 4);
     return cpu_to_le32(buf);
 }
 
@@ -398,6 +401,7 @@ static void lsi_stop_script(LSIState *s)
 
 static void lsi_update_irq(LSIState *s)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     int level;
     static int last_level;
     lsi_request *p;
@@ -429,7 +433,7 @@ static void lsi_update_irq(LSIState *s)
                 level, s->dstat, s->sist1, s->sist0);
         last_level = level;
     }
-    qemu_set_irq(s->dev.irq[0], level);
+    qemu_set_irq(d->irq[0], level);
 
     if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
         DPRINTF("Handled IRQs & disconnected, looking for pending "
@@ -525,6 +529,7 @@ static void lsi_bad_selection(LSIState *s, uint32_t id)
 /* Initiate a SCSI layer data transfer.  */
 static void lsi_do_dma(LSIState *s, int out)
 {
+    PCIDevice *pci_dev;
     uint32_t count;
     dma_addr_t addr;
     SCSIDevice *dev;
@@ -536,6 +541,7 @@ static void lsi_do_dma(LSIState *s, int out)
         return;
     }
 
+    pci_dev = PCI_DEVICE(s);
     dev = s->current->req->dev;
     assert(dev);
 
@@ -561,9 +567,9 @@ static void lsi_do_dma(LSIState *s, int out)
     }
     /* ??? Set SFBR to first data byte.  */
     if (out) {
-        pci_dma_read(&s->dev, addr, s->current->dma_buf, count);
+        pci_dma_read(pci_dev, addr, s->current->dma_buf, count);
     } else {
-        pci_dma_write(&s->dev, addr, s->current->dma_buf, count);
+        pci_dma_write(pci_dev, addr, s->current->dma_buf, count);
     }
     s->current->dma_len -= count;
     if (s->current->dma_len == 0) {
@@ -758,7 +764,7 @@ static void lsi_do_command(LSIState *s)
     DPRINTF("Send command len=%d\n", s->dbc);
     if (s->dbc > 16)
         s->dbc = 16;
-    pci_dma_read(&s->dev, s->dnad, buf, s->dbc);
+    pci_dma_read(PCI_DEVICE(s), s->dnad, buf, s->dbc);
     s->sfbr = buf[0];
     s->command_complete = 0;
 
@@ -809,7 +815,7 @@ static void lsi_do_status(LSIState *s)
     s->dbc = 1;
     status = s->status;
     s->sfbr = status;
-    pci_dma_write(&s->dev, s->dnad, &status, 1);
+    pci_dma_write(PCI_DEVICE(s), s->dnad, &status, 1);
     lsi_set_phase(s, PHASE_MI);
     s->msg_action = 1;
     lsi_add_msg_byte(s, 0); /* COMMAND COMPLETE */
@@ -823,7 +829,7 @@ static void lsi_do_msgin(LSIState *s)
     len = s->msg_len;
     if (len > s->dbc)
         len = s->dbc;
-    pci_dma_write(&s->dev, s->dnad, s->msg, len);
+    pci_dma_write(PCI_DEVICE(s), s->dnad, s->msg, len);
     /* Linux drivers rely on the last byte being in the SIDL.  */
     s->sidl = s->msg[len - 1];
     s->msg_len -= len;
@@ -855,7 +861,7 @@ static void lsi_do_msgin(LSIState *s)
 static uint8_t lsi_get_msgbyte(LSIState *s)
 {
     uint8_t data;
-    pci_dma_read(&s->dev, s->dnad, &data, 1);
+    pci_dma_read(PCI_DEVICE(s), s->dnad, &data, 1);
     s->dnad++;
     s->dbc--;
     return data;
@@ -1001,14 +1007,15 @@ static inline int32_t sxt24(int32_t n)
 #define LSI_BUF_SIZE 4096
 static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     int n;
     uint8_t buf[LSI_BUF_SIZE];
 
     DPRINTF("memcpy dest 0x%08x src 0x%08x count %d\n", dest, src, count);
     while (count) {
         n = (count > LSI_BUF_SIZE) ? LSI_BUF_SIZE : count;
-        pci_dma_read(&s->dev, src, buf, n);
-        pci_dma_write(&s->dev, dest, buf, n);
+        pci_dma_read(d, src, buf, n);
+        pci_dma_write(d, dest, buf, n);
         src += n;
         dest += n;
         count -= n;
@@ -1034,6 +1041,7 @@ static void lsi_wait_reselect(LSIState *s)
 
 static void lsi_execute_script(LSIState *s)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(s);
     uint32_t insn;
     uint32_t addr, addr_high;
     int opcode;
@@ -1076,7 +1084,7 @@ again:
 
             /* 32-bit Table indirect */
             offset = sxt24(addr);
-            pci_dma_read(&s->dev, s->dsa + offset, buf, 8);
+            pci_dma_read(pci_dev, s->dsa + offset, buf, 8);
             /* byte count is stored in bits 0:23 only */
             s->dbc = cpu_to_le32(buf[0]) & 0xffffff;
             s->rbc = s->dbc;
@@ -1435,7 +1443,7 @@ again:
             n = (insn & 7);
             reg = (insn >> 16) & 0xff;
             if (insn & (1 << 24)) {
-                pci_dma_read(&s->dev, addr, data, n);
+                pci_dma_read(pci_dev, addr, data, n);
                 DPRINTF("Load reg 0x%x size %d addr 0x%08x = %08x\n", reg, n,
                         addr, *(int *)data);
                 for (i = 0; i < n; i++) {
@@ -1446,7 +1454,7 @@ again:
                 for (i = 0; i < n; i++) {
                     data[i] = lsi_reg_readb(s, reg + i);
                 }
-                pci_dma_write(&s->dev, addr, data, n);
+                pci_dma_write(pci_dev, addr, data, n);
             }
         }
     }
@@ -1988,7 +1996,7 @@ static const VMStateDescription vmstate_lsi_scsi = {
     .minimum_version_id_old = 0,
     .pre_save = lsi_pre_save,
     .fields      = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(dev, LSIState),
+        VMSTATE_PCI_DEVICE(parent_obj, LSIState),
 
         VMSTATE_INT32(carry, LSIState),
         VMSTATE_INT32(status, LSIState),
@@ -2089,7 +2097,7 @@ static int lsi_scsi_init(PCIDevice *dev)
     DeviceState *d = DEVICE(dev);
     uint8_t *pci_conf;
 
-    pci_conf = s->dev.config;
+    pci_conf = dev->config;
 
     /* PCI latency timer = 255 */
     pci_conf[PCI_LATENCY_TIMER] = 0xff;
@@ -2103,9 +2111,9 @@ static int lsi_scsi_init(PCIDevice *dev)
     memory_region_init_io(&s->io_io, OBJECT(s), &lsi_io_ops, s,
                           "lsi-io", 256);
 
-    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
-    pci_register_bar(&s->dev, 1, 0, &s->mmio_io);
-    pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
+    pci_register_bar(dev, 1, 0, &s->mmio_io);
+    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
     scsi_bus_new(&s->bus, d, &lsi_scsi_info, NULL);
