@@ -60,7 +60,10 @@
 #define SBAC_STATUS 0x1000
 
 typedef struct PCIESPState {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion io;
     uint32_t dma_regs[8];
     uint32_t sbac;
@@ -260,7 +263,7 @@ static void esp_pci_dma_memory_rw(PCIESPState *pci, uint8_t *buf, int len,
         len = pci->dma_regs[DMA_WBC];
     }
 
-    pci_dma_rw(&pci->dev, addr, buf, len, dir);
+    pci_dma_rw(PCI_DEVICE(pci), addr, buf, len, dir);
 
     /* update status registers */
     pci->dma_regs[DMA_WBC] -= len;
@@ -309,7 +312,7 @@ static const VMStateDescription vmstate_esp_pci_scsi = {
     .minimum_version_id = 0,
     .minimum_version_id_old = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, PCIESPState),
+        VMSTATE_PCI_DEVICE(parent_obj, PCIESPState),
         VMSTATE_BUFFER_UNSAFE(dma_regs, PCIESPState, 0, 8 * sizeof(uint32_t)),
         VMSTATE_STRUCT(esp, PCIESPState, 0, vmstate_esp, ESPState),
         VMSTATE_END_OF_LIST()
@@ -344,7 +347,7 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     ESPState *s = &pci->esp;
     uint8_t *pci_conf;
 
-    pci_conf = pci->dev.config;
+    pci_conf = dev->config;
 
     /* Interrupt pin A */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
@@ -356,8 +359,8 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     memory_region_init_io(&pci->io, OBJECT(pci), &esp_pci_io_ops, pci,
                           "esp-io", 0x80);
 
-    pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
-    s->irq = pci->dev.irq[0];
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
+    s->irq = dev->irq[0];
 
     scsi_bus_new(&s->bus, d, &esp_pci_scsi_info, NULL);
     if (!d->hotplugged) {
