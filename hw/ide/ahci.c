@@ -117,12 +117,13 @@ static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
 
 static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
 {
-    struct AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    PCIDevice *pci_dev = PCI_DEVICE(d);
 
     DPRINTF(0, "raise irq\n");
 
-    if (msi_enabled(&d->card)) {
-        msi_notify(&d->card, 0);
+    if (msi_enabled(pci_dev)) {
+        msi_notify(pci_dev, 0);
     } else {
         qemu_irq_raise(s->irq);
     }
@@ -130,11 +131,11 @@ static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
 
 static void ahci_irq_lower(AHCIState *s, AHCIDevice *dev)
 {
-    struct AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
+    AHCIPCIState *d = container_of(s, AHCIPCIState, ahci);
 
     DPRINTF(0, "lower irq\n");
 
-    if (!msi_enabled(&d->card)) {
+    if (!msi_enabled(PCI_DEVICE(d))) {
         qemu_irq_lower(s->irq);
     }
 }

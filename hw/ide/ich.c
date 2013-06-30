@@ -84,7 +84,7 @@ static const VMStateDescription vmstate_ich9_ahci = {
     .unmigratable = 1, /* Still buggy under I/O load */
     .version_id = 1,
     .fields = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(card, AHCIPCIState),
+        VMSTATE_PCI_DEVICE(parent_obj, AHCIPCIState),
         VMSTATE_AHCI(ahci, AHCIPCIState),
         VMSTATE_END_OF_LIST()
     },
@@ -106,30 +106,30 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
 
     ahci_init(&d->ahci, DEVICE(dev), pci_get_address_space(dev), 6);
 
-    pci_config_set_prog_interface(d->card.config, AHCI_PROGMODE_MAJOR_REV_1);
+    pci_config_set_prog_interface(dev->config, AHCI_PROGMODE_MAJOR_REV_1);
 
-    d->card.config[PCI_CACHE_LINE_SIZE] = 0x08;  /* Cache line size */
-    d->card.config[PCI_LATENCY_TIMER]   = 0x00;  /* Latency timer */
-    pci_config_set_interrupt_pin(d->card.config, 1);
+    dev->config[PCI_CACHE_LINE_SIZE] = 0x08;  /* Cache line size */
+    dev->config[PCI_LATENCY_TIMER]   = 0x00;  /* Latency timer */
+    pci_config_set_interrupt_pin(dev->config, 1);
 
     /* XXX Software should program this register */
-    d->card.config[0x90]   = 1 << 6; /* Address Map Register - AHCI mode */
+    dev->config[0x90]   = 1 << 6; /* Address Map Register - AHCI mode */
 
     msi_init(dev, 0x50, 1, true, false);
-    d->ahci.irq = d->card.irq[0];
+    d->ahci.irq = dev->irq[0];
 
-    pci_register_bar(&d->card, ICH9_IDP_BAR, PCI_BASE_ADDRESS_SPACE_IO,
+    pci_register_bar(dev, ICH9_IDP_BAR, PCI_BASE_ADDRESS_SPACE_IO,
                      &d->ahci.idp);
-    pci_register_bar(&d->card, ICH9_MEM_BAR, PCI_BASE_ADDRESS_SPACE_MEMORY,
+    pci_register_bar(dev, ICH9_MEM_BAR, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &d->ahci.mem);
 
-    sata_cap_offset = pci_add_capability(&d->card, PCI_CAP_ID_SATA,
+    sata_cap_offset = pci_add_capability(dev, PCI_CAP_ID_SATA,
                                          ICH9_SATA_CAP_OFFSET, SATA_CAP_SIZE);
     if (sata_cap_offset < 0) {
         return sata_cap_offset;
     }
 
-    sata_cap = d->card.config + sata_cap_offset;
+    sata_cap = dev->config + sata_cap_offset;
     pci_set_word(sata_cap + SATA_CAP_REV, 0x10);
     pci_set_long(sata_cap + SATA_CAP_BAR,
                  (ICH9_IDP_BAR + 0x4) | (ICH9_IDP_INDEX_LOG2 << 4));
