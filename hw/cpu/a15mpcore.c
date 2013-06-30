@@ -20,6 +20,7 @@
 
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
+#include "hw/intc/arm_gic.h"
 
 /* A15MP private memory region.  */
 
@@ -35,41 +36,49 @@ typedef struct A15MPPrivState {
     uint32_t num_cpu;
     uint32_t num_irq;
     MemoryRegion container;
-    DeviceState *gic;
+
+    GICState gic;
 } A15MPPrivState;
 
 static void a15mp_priv_set_irq(void *opaque, int irq, int level)
 {
     A15MPPrivState *s = (A15MPPrivState *)opaque;
-    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
+
+    qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
 }
 
 static void a15mp_priv_initfn(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     A15MPPrivState *s = A15MPCORE_PRIV(obj);
-
-    memory_region_init(&s->container, obj, "a15mp-priv-container", 0x8000);
-    sysbus_init_mmio(sbd, &s->container);
-}
-
-static int a15mp_priv_init(SysBusDevice *dev)
-{
-    A15MPPrivState *s = A15MPCORE_PRIV(dev);
-    SysBusDevice *busdev;
+    DeviceState *gicdev;
     const char *gictype = "arm_gic";
-    int i;
 
     if (kvm_irqchip_in_kernel()) {
         gictype = "kvm-arm-gic";
     }
 
-    s->gic = qdev_create(NULL, gictype);
-    qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
-    qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
-    qdev_prop_set_uint32(s->gic, "revision", 2);
-    qdev_init_nofail(s->gic);
-    busdev = SYS_BUS_DEVICE(s->gic);
+    memory_region_init(&s->container, obj, "a15mp-priv-container", 0x8000);
+    sysbus_init_mmio(sbd, &s->container);
+
+    object_initialize(&s->gic, sizeof(s->gic), gictype);
+    gicdev = DEVICE(&s->gic);
+    qdev_set_parent_bus(gicdev, sysbus_get_default());
+    qdev_prop_set_uint32(gicdev, "revision", 2);
+}
+
+static int a15mp_priv_init(SysBusDevice *dev)
+{
+    A15MPPrivState *s = A15MPCORE_PRIV(dev);
+    DeviceState *gicdev;
+    SysBusDevice *busdev;
+    int i;
+
+    gicdev = DEVICE(&s->gic);
+    qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
+    qdev_init_nofail(gicdev);
+    busdev = SYS_BUS_DEVICE(&s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
     sysbus_pass_irq(dev, busdev);
@@ -87,10 +96,10 @@ static int a15mp_priv_init(SysBusDevice *dev)
          * since a real A15 always has TrustZone but QEMU doesn't.
          */
         qdev_connect_gpio_out(cpudev, 0,
-                              qdev_get_gpio_in(s->gic, ppibase + 30));
+                              qdev_get_gpio_in(gicdev, ppibase + 30));
         /* virtual timer */
         qdev_connect_gpio_out(cpudev, 1,
-                              qdev_get_gpio_in(s->gic, ppibase + 27));
+                              qdev_get_gpio_in(gicdev, ppibase + 27));
     }
 
     /* Memory map (addresses are offsets from PERIPHBASE):
