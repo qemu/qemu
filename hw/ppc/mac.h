@@ -133,6 +133,7 @@ typedef struct MACIOIDEState {
     BlockDriverAIOCB *aiocb;
     IDEDMA dma;
     void *dbdma;
+    bool dma_active;
 } MACIOIDEState;
 
 void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);
