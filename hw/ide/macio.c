@@ -87,7 +87,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
         s->io_buffer_index &= 0x7ff;
     }
 
-    s->io_buffer_size = io->len;
+    s->io_buffer_size = MIN(io->len, s->packet_transfer_size);
 
     MACIO_DPRINTF("remainder: %d io->len: %d size: %d\n", io->remainder_len,
                   io->len, s->packet_transfer_size);
@@ -253,7 +253,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     /* launch next transfer */
 
     s->io_buffer_index = 0;
-    s->io_buffer_size = io->len;
+    s->io_buffer_size = MIN(io->len, s->nsector * 512);
 
     /* handle unaligned accesses first, get them over with and only do the
        remaining bulk transfer using our async DMA helpers */
