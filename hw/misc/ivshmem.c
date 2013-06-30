@@ -63,7 +63,10 @@ typedef struct EventfdEntry {
 } EventfdEntry;
 
 typedef struct IVShmemState {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     uint32_t intrmask;
     uint32_t intrstatus;
     uint32_t doorbell;
@@ -120,6 +123,7 @@ static inline bool is_power_of_two(uint64_t x) {
 /* accessing registers - based on rtl8139 */
 static void ivshmem_update_irq(IVShmemState *s, int val)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     int isr;
     isr = (s->intrstatus & s->intrmask) & 0xffffffff;
 
@@ -129,7 +133,7 @@ static void ivshmem_update_irq(IVShmemState *s, int val)
            isr ? 1 : 0, s->intrstatus, s->intrmask);
     }
 
-    qemu_set_irq(s->dev.irq[0], (isr != 0));
+    qemu_set_irq(d->irq[0], (isr != 0));
 }
 
 static void ivshmem_IntrMask_write(IVShmemState *s, uint32_t val)
@@ -300,7 +304,7 @@ static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *
 
     /* if MSI is supported we need multiple interrupts */
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        s->eventfd_table[vector].pdev = &s->dev;
+        s->eventfd_table[vector].pdev = PCI_DEVICE(s);
         s->eventfd_table[vector].vector = vector;
 
         qemu_chr_add_handlers(chr, ivshmem_can_receive, fake_irqfd,
@@ -349,7 +353,7 @@ static void create_shared_memory_BAR(IVShmemState *s, int fd) {
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
     /* region for shared memory */
-    pci_register_bar(&s->dev, 2, s->ivshmem_attr, &s->bar);
+    pci_register_bar(PCI_DEVICE(s), 2, s->ivshmem_attr, &s->bar);
 }
 
 static void ivshmem_add_eventfd(IVShmemState *s, int posn, int i)
@@ -525,14 +529,15 @@ static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
  * we just enable all vectors on init and after reset. */
 static void ivshmem_use_msix(IVShmemState * s)
 {
+    PCIDevice *d = PCI_DEVICE(s);
     int i;
 
-    if (!msix_present(&s->dev)) {
+    if (!msix_present(d)) {
         return;
     }
 
     for (i = 0; i < s->vectors; i++) {
-        msix_vector_use(&s->dev, i);
+        msix_vector_use(d, i);
     }
 }
 
@@ -573,7 +578,7 @@ static uint64_t ivshmem_get_size(IVShmemState * s) {
 
 static void ivshmem_setup_msi(IVShmemState * s)
 {
-    if (msix_init_exclusive_bar(&s->dev, s->vectors, 1)) {
+    if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1)) {
         IVSHMEM_DPRINTF("msix initialization failed\n");
         exit(1);
     }
@@ -589,12 +594,13 @@ static void ivshmem_setup_msi(IVShmemState * s)
 static void ivshmem_save(QEMUFile* f, void *opaque)
 {
     IVShmemState *proxy = opaque;
+    PCIDevice *pci_dev = PCI_DEVICE(proxy);
 
     IVSHMEM_DPRINTF("ivshmem_save\n");
-    pci_device_save(&proxy->dev, f);
+    pci_device_save(pci_dev, f);
 
     if (ivshmem_has_feature(proxy, IVSHMEM_MSI)) {
-        msix_save(&proxy->dev, f);
+        msix_save(pci_dev, f);
     } else {
         qemu_put_be32(f, proxy->intrstatus);
         qemu_put_be32(f, proxy->intrmask);
@@ -607,6 +613,7 @@ static int ivshmem_load(QEMUFile* f, void *opaque, int version_id)
     IVSHMEM_DPRINTF("ivshmem_load\n");
 
     IVShmemState *proxy = opaque;
+    PCIDevice *pci_dev = PCI_DEVICE(proxy);
     int ret;
 
     if (version_id > 0) {
@@ -618,13 +625,13 @@ static int ivshmem_load(QEMUFile* f, void *opaque, int version_id)
         return -EINVAL;
     }
 
-    ret = pci_device_load(&proxy->dev, f);
+    ret = pci_device_load(pci_dev, f);
     if (ret) {
         return ret;
     }
 
     if (ivshmem_has_feature(proxy, IVSHMEM_MSI)) {
-        msix_load(&proxy->dev, f);
+        msix_load(pci_dev, f);
 	ivshmem_use_msix(proxy);
     } else {
         proxy->intrstatus = qemu_get_be32(f);
@@ -682,7 +689,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
         migrate_add_blocker(s->migration_blocker);
     }
 
-    pci_conf = s->dev.config;
+    pci_conf = dev->config;
     pci_conf[PCI_COMMAND] = PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
 
     pci_config_set_interrupt_pin(pci_conf, 1);
@@ -693,7 +700,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
                           "ivshmem-mmio", IVSHMEM_REG_BAR_SIZE);
 
     /* region for registers*/
-    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &s->ivshmem_mmio);
 
     memory_region_init(&s->bar, OBJECT(s), "ivshmem-bar2-container", s->ivshmem_size);
@@ -727,7 +734,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
         /* allocate/initialize space for interrupt handling */
         s->peers = g_malloc0(s->nb_peers * sizeof(Peer));
 
-        pci_register_bar(&s->dev, 2, s->ivshmem_attr, &s->bar);
+        pci_register_bar(dev, 2, s->ivshmem_attr, &s->bar);
 
         s->eventfd_chr = g_malloc0(s->vectors * sizeof(CharDriverState *));
 
@@ -768,7 +775,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
 
     }
 
-    s->dev.config_write = ivshmem_write_config;
+    dev->config_write = ivshmem_write_config;
 
     return 0;
 }
