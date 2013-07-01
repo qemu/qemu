@@ -578,8 +578,14 @@ const VMStateDescription vmstate_esp = {
     }
 };
 
+#define TYPE_ESP "esp"
+#define ESP(obj) OBJECT_CHECK(SysBusESPState, (obj), TYPE_ESP)
+
 typedef struct {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint32_t it_shift;
     ESPState esp;
@@ -623,8 +629,8 @@ void esp_init(hwaddr espaddr, int it_shift,
     SysBusESPState *sysbus;
     ESPState *esp;
 
-    dev = qdev_create(NULL, "esp");
-    sysbus = DO_UPCAST(SysBusESPState, busdev.qdev, dev);
+    dev = qdev_create(NULL, TYPE_ESP);
+    sysbus = ESP(dev);
     esp = &sysbus->esp;
     esp->dma_memory_read = dma_memory_read;
     esp->dma_memory_write = dma_memory_write;
@@ -652,8 +658,7 @@ static const struct SCSIBusInfo esp_scsi_info = {
 
 static void sysbus_esp_gpio_demux(void *opaque, int irq, int level)
 {
-    DeviceState *d = opaque;
-    SysBusESPState *sysbus = container_of(d, SysBusESPState, busdev.qdev);
+    SysBusESPState *sysbus = ESP(opaque);
     ESPState *s = &sysbus->esp;
 
     switch (irq) {
@@ -668,7 +673,7 @@ static void sysbus_esp_gpio_demux(void *opaque, int irq, int level)
 
 static int sysbus_esp_init(SysBusDevice *dev)
 {
-    SysBusESPState *sysbus = FROM_SYSBUS(SysBusESPState, dev);
+    SysBusESPState *sysbus = ESP(dev);
     ESPState *s = &sysbus->esp;
 
     sysbus_init_irq(dev, &s->irq);
@@ -687,7 +692,7 @@ static int sysbus_esp_init(SysBusDevice *dev)
 
 static void sysbus_esp_hard_reset(DeviceState *dev)
 {
-    SysBusESPState *sysbus = DO_UPCAST(SysBusESPState, busdev.qdev, dev);
+    SysBusESPState *sysbus = ESP(dev);
     esp_hard_reset(&sysbus->esp);
 }
 
@@ -713,7 +718,7 @@ static void sysbus_esp_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sysbus_esp_info = {
-    .name          = "esp",
+    .name          = TYPE_ESP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusESPState),
     .class_init    = sysbus_esp_class_init,
