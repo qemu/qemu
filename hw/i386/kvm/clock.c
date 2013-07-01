@@ -22,8 +22,14 @@
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 
+#define TYPE_KVM_CLOCK "kvmclock"
+#define KVM_CLOCK(obj) OBJECT_CHECK(KVMClockState, (obj), TYPE_KVM_CLOCK)
+
 typedef struct KVMClockState {
+    /*< private >*/
     SysBusDevice busdev;
+    /*< public >*/
+
     uint64_t clock;
     bool clock_valid;
 } KVMClockState;
@@ -87,7 +93,7 @@ static void kvmclock_vm_state_change(void *opaque, int running,
 
 static int kvmclock_init(SysBusDevice *dev)
 {
-    KVMClockState *s = FROM_SYSBUS(KVMClockState, dev);
+    KVMClockState *s = KVM_CLOCK(dev);
 
     qemu_add_vm_change_state_handler(kvmclock_vm_state_change, s);
     return 0;
@@ -115,7 +121,7 @@ static void kvmclock_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo kvmclock_info = {
-    .name          = "kvmclock",
+    .name          = TYPE_KVM_CLOCK,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(KVMClockState),
     .class_init    = kvmclock_class_init,
@@ -129,7 +135,7 @@ void kvmclock_create(void)
     if (kvm_enabled() &&
         cpu->env.features[FEAT_KVM] & ((1ULL << KVM_FEATURE_CLOCKSOURCE) |
                                        (1ULL << KVM_FEATURE_CLOCKSOURCE2))) {
-        sysbus_create_simple("kvmclock", -1, NULL);
+        sysbus_create_simple(TYPE_KVM_CLOCK, -1, NULL);
     }
 }
 
