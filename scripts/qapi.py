@@ -78,10 +78,8 @@ def parse(tokens):
 def evaluate(string):
     return parse(map(lambda x: x, tokenize(string)))[0]
 
-def parse_schema(fp):
-    exprs = []
+def get_expr(fp):
     expr = ''
-    expr_eval = None
 
     for line in fp:
         if line.startswith('#') or line == '\n':
@@ -90,18 +88,20 @@ def parse_schema(fp):
         if line.startswith(' '):
             expr += line
         elif expr:
-            expr_eval = evaluate(expr)
-            if expr_eval.has_key('enum'):
-                add_enum(expr_eval['enum'])
-            elif expr_eval.has_key('union'):
-                add_enum('%sKind' % expr_eval['union'])
-            exprs.append(expr_eval)
+            yield expr
             expr = line
         else:
             expr += line
 
     if expr:
+        yield expr
+
+def parse_schema(fp):
+    exprs = []
+
+    for expr in get_expr(fp):
         expr_eval = evaluate(expr)
+
         if expr_eval.has_key('enum'):
             add_enum(expr_eval['enum'])
         elif expr_eval.has_key('union'):
