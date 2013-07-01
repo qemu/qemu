@@ -1314,14 +1314,15 @@ static void sysbus_ahci_reset(DeviceState *dev)
     ahci_reset(&s->ahci);
 }
 
-static int sysbus_ahci_init(SysBusDevice *dev)
+static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     SysbusAHCIState *s = SYSBUS_AHCI(dev);
-    ahci_init(&s->ahci, DEVICE(dev), NULL, s->num_ports);
 
-    sysbus_init_mmio(dev, &s->ahci.mem);
-    sysbus_init_irq(dev, &s->ahci.irq);
-    return 0;
+    ahci_init(&s->ahci, dev, NULL, s->num_ports);
+
+    sysbus_init_mmio(sbd, &s->ahci.mem);
+    sysbus_init_irq(sbd, &s->ahci.irq);
 }
 
 static Property sysbus_ahci_properties[] = {
@@ -1331,10 +1332,9 @@ static Property sysbus_ahci_properties[] = {
 
 static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    sbc->init = sysbus_ahci_init;
+    dc->realize = sysbus_ahci_realize;
     dc->vmsd = &vmstate_sysbus_ahci;
     dc->props = sysbus_ahci_properties;
     dc->reset = sysbus_ahci_reset;
