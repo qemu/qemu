@@ -38,7 +38,6 @@
 typedef struct DisasContext DisasContext;
 struct DisasContext {
     struct TranslationBlock *tb;
-    CPUAlphaState *env;
     uint64_t pc;
     int mem_idx;
 
@@ -46,6 +45,9 @@ struct DisasContext {
     int tb_rm;
     /* Current flush-to-zero setting for this TB.  */
     int tb_ftz;
+
+    /* implver value for this CPU.  */
+    int implver;
 
     bool singlestep_enabled;
 };
@@ -2250,8 +2252,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x6C:
             /* IMPLVER */
-            if (rc != 31)
-                tcg_gen_movi_i64(cpu_ir[rc], ctx->env->implver);
+            if (rc != 31) {
+                tcg_gen_movi_i64(cpu_ir[rc], ctx->implver);
+            }
             break;
         default:
             goto invalid_opc;
@@ -3400,9 +3403,9 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     ctx.tb = tb;
-    ctx.env = env;
     ctx.pc = pc_start;
     ctx.mem_idx = cpu_mmu_index(env);
+    ctx.implver = env->implver;
     ctx.singlestep_enabled = env->singlestep_enabled;
 
     /* ??? Every TB begins with unset rounding mode, to be initialized on
