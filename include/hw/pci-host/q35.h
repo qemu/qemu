@@ -43,7 +43,10 @@
      OBJECT_CHECK(MCHPCIState, (obj), TYPE_MCH_PCI_DEVICE)
 
 typedef struct MCHPCIState {
-    PCIDevice d;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion *ram_memory;
     MemoryRegion *pci_address_space;
     MemoryRegion *system_memory;
@@ -59,7 +62,10 @@ typedef struct MCHPCIState {
 } MCHPCIState;
 
 typedef struct Q35PCIHost {
-    PCIExpressHost host;
+    /*< private >*/
+    PCIExpressHost parent_obj;
+    /*< public >*/
+
     MCHPCIState mch;
 } Q35PCIHost;
 

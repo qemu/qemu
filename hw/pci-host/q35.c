@@ -36,28 +36,26 @@
 
 static int q35_host_init(SysBusDevice *dev)
 {
-    PCIBus *b;
-    PCIHostState *pci = FROM_SYSBUS(PCIHostState, dev);
-    Q35PCIHost *s = Q35_HOST_DEVICE(&dev->qdev);
+    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    Q35PCIHost *s = Q35_HOST_DEVICE(dev);
 
     memory_region_init_io(&pci->conf_mem, OBJECT(pci), &pci_host_conf_le_ops, pci,
                           "pci-conf-idx", 4);
     sysbus_add_io(dev, MCH_HOST_BRIDGE_CONFIG_ADDR, &pci->conf_mem);
-    sysbus_init_ioports(&pci->busdev, MCH_HOST_BRIDGE_CONFIG_ADDR, 4);
+    sysbus_init_ioports(dev, MCH_HOST_BRIDGE_CONFIG_ADDR, 4);
 
     memory_region_init_io(&pci->data_mem, OBJECT(pci), &pci_host_data_le_ops, pci,
                           "pci-conf-data", 4);
     sysbus_add_io(dev, MCH_HOST_BRIDGE_CONFIG_DATA, &pci->data_mem);
-    sysbus_init_ioports(&pci->busdev, MCH_HOST_BRIDGE_CONFIG_DATA, 4);
+    sysbus_init_ioports(dev, MCH_HOST_BRIDGE_CONFIG_DATA, 4);
 
-    if (pcie_host_init(&s->host) < 0) {
+    if (pcie_host_init(PCIE_HOST_BRIDGE(s)) < 0) {
         return -1;
     }
-    b = pci_bus_new(&s->host.pci.busdev.qdev, "pcie.0",
-                    s->mch.pci_address_space, s->mch.address_space_io,
-                    0, TYPE_PCIE_BUS);
-    s->host.pci.bus = b;
-    qdev_set_parent_bus(DEVICE(&s->mch), BUS(b));
+    pci->bus = pci_bus_new(DEVICE(s), "pcie.0",
+                           s->mch.pci_address_space, s->mch.address_space_io,
+                           0, TYPE_PCIE_BUS);
+    qdev_set_parent_bus(DEVICE(&s->mch), BUS(pci->bus));
     qdev_init_nofail(DEVICE(&s->mch));
 
     return 0;
@@ -71,7 +69,7 @@ static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
 }
 
 static Property mch_props[] = {
-    DEFINE_PROP_UINT64("MCFG", Q35PCIHost, host.base_addr,
+    DEFINE_PROP_UINT64("MCFG", Q35PCIHost, parent_obj.base_addr,
                         MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -113,10 +111,9 @@ static const TypeInfo q35_host_info = {
 /* PCIe MMCFG */
 static void mch_update_pciexbar(MCHPCIState *mch)
 {
-    PCIDevice *pci_dev = &mch->d;
-    BusState *bus = qdev_get_parent_bus(&pci_dev->qdev);
-    DeviceState *qdev = bus->parent;
-    Q35PCIHost *s = Q35_HOST_DEVICE(qdev);
+    PCIDevice *pci_dev = PCI_DEVICE(mch);
+    BusState *bus = qdev_get_parent_bus(DEVICE(mch));
+    PCIExpressHost *pehb = PCIE_HOST_BRIDGE(bus->parent);
 
     uint64_t pciexbar;
     int enable;
@@ -148,18 +145,19 @@ static void mch_update_pciexbar(MCHPCIState *mch)
         break;
     }
     addr = pciexbar & addr_mask;
-    pcie_host_mmcfg_update(&s->host, enable, addr, length);
+    pcie_host_mmcfg_update(pehb, enable, addr, length);
 }
 
 /* PAM */
 static void mch_update_pam(MCHPCIState *mch)
 {
+    PCIDevice *pd = PCI_DEVICE(mch);
     int i;
 
     memory_region_transaction_begin();
     for (i = 0; i < 13; i++) {
         pam_update(&mch->pam_regions[i], i,
-                   mch->d.config[MCH_HOST_BRIDGE_PAM0 + ((i + 1) / 2)]);
+                   pd->config[MCH_HOST_BRIDGE_PAM0 + ((i + 1) / 2)]);
     }
     memory_region_transaction_commit();
 }
@@ -167,8 +165,10 @@ static void mch_update_pam(MCHPCIState *mch)
 /* SMRAM */
 static void mch_update_smram(MCHPCIState *mch)
 {
+    PCIDevice *pd = PCI_DEVICE(mch);
+
     memory_region_transaction_begin();
-    smram_update(&mch->smram_region, mch->d.config[MCH_HOST_BRDIGE_SMRAM],
+    smram_update(&mch->smram_region, pd->config[MCH_HOST_BRDIGE_SMRAM],
                     mch->smm_enabled);
     memory_region_transaction_commit();
 }
@@ -176,9 +176,10 @@ static void mch_update_smram(MCHPCIState *mch)
 static void mch_set_smm(int smm, void *arg)
 {
     MCHPCIState *mch = arg;
+    PCIDevice *pd = PCI_DEVICE(mch);
 
     memory_region_transaction_begin();
-    smram_set_smm(&mch->smm_enabled, smm, mch->d.config[MCH_HOST_BRDIGE_SMRAM],
+    smram_set_smm(&mch->smm_enabled, smm, pd->config[MCH_HOST_BRDIGE_SMRAM],
                     &mch->smram_region);
     memory_region_transaction_commit();
 }
@@ -228,7 +229,7 @@ static const VMStateDescription vmstate_mch = {
     .minimum_version_id_old = 1,
     .post_load = mch_post_load,
     .fields = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(d, MCHPCIState),
+        VMSTATE_PCI_DEVICE(parent_obj, MCHPCIState),
         VMSTATE_UINT8(smm_enabled, MCHPCIState),
         VMSTATE_END_OF_LIST()
     }
