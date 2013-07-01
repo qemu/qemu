@@ -1433,39 +1433,27 @@ feature_not_found() {
       "configure was not able to find it"
 }
 
-if test -z "$cross_prefix" ; then
-
 # ---
 # big/little endian test
 cat > $TMPC << EOF
-#include <inttypes.h>
-int main(void) {
-        volatile uint32_t i=0x01234567;
-        return (*((uint8_t*)(&i))) == 0x67;
+short big_endian[] = { 0x4269, 0x4765, 0x4e64, 0x4961, 0x4e00, 0, };
+short little_endian[] = { 0x694c, 0x7454, 0x654c, 0x6e45, 0x6944, 0x6e41, 0, };
+extern int foo(short *, short *);
+int main(int argc, char *argv[]) {
+    return foo(big_endian, little_endian);
 }
 EOF
 
-if compile_prog "" "" ; then
-$TMPE && bigendian="yes"
-else
-echo big/little test failed
-fi
-
-else
-
-# if cross compiling, cannot launch a program, so make a static guess
-case "$cpu" in
-  arm)
-    # ARM can be either way; ask the compiler which one we are
-    if check_define __ARMEB__; then
-      bigendian=yes
+if compile_object ; then
+    if grep -q BiGeNdIaN $TMPO ; then
+        bigendian="yes"
+    elif grep -q LiTtLeEnDiAn $TMPO ; then
+        bigendian="no"
+    else
+        echo big/little test failed
     fi
-  ;;
-  hppa|m68k|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64)
-    bigendian=yes
-  ;;
-esac
-
+else
+    echo big/little test failed
 fi
 
 ##########################################
