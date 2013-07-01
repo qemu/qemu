@@ -42,6 +42,7 @@
 extern bool kvm_allowed;
 extern bool kvm_kernel_irqchip;
 extern bool kvm_async_interrupts_allowed;
+extern bool kvm_halt_in_kernel_allowed;
 extern bool kvm_irqfds_allowed;
 extern bool kvm_msi_via_irqfd_allowed;
 extern bool kvm_gsi_routing_allowed;
@@ -71,6 +72,14 @@ extern bool kvm_readonly_mem_allowed;
  * (where the vcpu must be stopped at a suitable point first).
  */
 #define kvm_async_interrupts_enabled() (kvm_async_interrupts_allowed)
+
+/**
+ * kvm_halt_in_kernel
+ *
+ * Returns: true if halted cpus should still get a KVM_RUN ioctl to run
+ * inside of kernel space. This only works if MP state is implemented.
+ */
+#define kvm_halt_in_kernel() (kvm_halt_in_kernel_allowed)
 
 /**
  * kvm_irqfds_enabled:
@@ -110,6 +119,7 @@ extern bool kvm_readonly_mem_allowed;
 #define kvm_enabled()           (0)
 #define kvm_irqchip_in_kernel() (false)
 #define kvm_async_interrupts_enabled() (false)
+#define kvm_halt_in_kernel() (false)
 #define kvm_irqfds_enabled() (false)
 #define kvm_msi_via_irqfd_enabled() (false)
 #define kvm_gsi_routing_allowed() (false)
@@ -220,6 +230,7 @@ int kvm_set_irq(KVMState *s, int irq, int level);
 int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg);
 
 void kvm_irqchip_add_irq_route(KVMState *s, int gsi, int irqchip, int pin);
+void kvm_irqchip_commit_routes(KVMState *s);
 
 void kvm_put_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
 void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
@@ -302,4 +313,5 @@ int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n, int virq);
 int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq);
 void kvm_pc_gsi_handler(void *opaque, int n, int level);
 void kvm_pc_setup_irq_routing(bool pci_enabled);
+void kvm_init_irq_routing(KVMState *s);
 #endif

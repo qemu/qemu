@@ -525,7 +525,7 @@ static target_ulong h_rtas(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     uint32_t nargs = ldl_be_phys(rtas_r3 + 4);
     uint32_t nret = ldl_be_phys(rtas_r3 + 8);
 
-    return spapr_rtas_call(spapr, token, nargs, rtas_r3 + 12,
+    return spapr_rtas_call(cpu, spapr, token, nargs, rtas_r3 + 12,
                            nret, rtas_r3 + 12 + 4*nargs);
 }
 

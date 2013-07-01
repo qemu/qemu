@@ -886,6 +886,8 @@ struct ppc_segment_page_sizes {
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
 
+#define PPC_CPU_OPCODES_LEN 0x40
+
 struct CPUPPCState {
     /* First are the most commonly used resources
      * during translated code execution
@@ -1039,7 +1041,7 @@ struct CPUPPCState {
 
     /* Those resources are used only during code translation */
     /* opcode handlers */
-    opc_handler_t *opcodes[0x40];
+    opc_handler_t *opcodes[PPC_CPU_OPCODES_LEN];
 
     /* Those resources are used only in QEMU core */
     target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */

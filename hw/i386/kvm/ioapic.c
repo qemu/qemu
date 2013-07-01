@@ -40,6 +40,7 @@ void kvm_pc_setup_irq_routing(bool pci_enabled)
                 }
             }
         }
+        kvm_irqchip_commit_routes(s);
     }
 }
 

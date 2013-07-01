@@ -69,12 +69,59 @@ typedef struct NewWorldMacIOState {
     MACIOIDEState ide[2];
 } NewWorldMacIOState;
 
+/*
+ * The mac-io has two interfaces to the ESCC. One is called "escc-legacy",
+ * while the other one is the normal, current ESCC interface.
+ *
+ * The magic below creates memory aliases to spawn the escc-legacy device
+ * purely by rerouting the respective registers to our escc region. This
+ * works because the only difference between the two memory regions is the
+ * register layout, not their semantics.
+ *
+ * Reference: ftp://ftp.software.ibm.com/rs6000/technology/spec/chrp/inwork/CHRP_IORef_1.0.pdf
+ */
+static void macio_escc_legacy_setup(MacIOState *macio_state)
+{
+    MemoryRegion *escc_legacy = g_new(MemoryRegion, 1);
+    MemoryRegion *bar = &macio_state->bar;
+    int i;
+    static const int maps[] = {
+        0x00, 0x00,
+        0x02, 0x20,
+        0x04, 0x10,
+        0x06, 0x30,
+        0x08, 0x40,
+        0x0A, 0x50,
+        0x60, 0x60,
+        0x70, 0x70,
+        0x80, 0x70,
+        0x90, 0x80,
+        0xA0, 0x90,
+        0xB0, 0xA0,
+        0xC0, 0xB0,
+        0xD0, 0xC0,
+        0xE0, 0xD0,
+        0xF0, 0xE0,
+    };
+
+    memory_region_init(escc_legacy, "escc-legacy", 256);
+    for (i = 0; i < ARRAY_SIZE(maps); i += 2) {
+        MemoryRegion *port = g_new(MemoryRegion, 1);
+        memory_region_init_alias(port, "escc-legacy-port", macio_state->escc_mem,
+                                 maps[i+1], 0x2);
+        memory_region_add_subregion(escc_legacy, maps[i], port);
+    }
+
+    memory_region_add_subregion(bar, 0x12000, escc_legacy);
+}
+
 static void macio_bar_setup(MacIOState *macio_state)
 {
     MemoryRegion *bar = &macio_state->bar;
 
     if (macio_state->escc_mem) {
         memory_region_add_subregion(bar, 0x13000, macio_state->escc_mem);
+        macio_escc_legacy_setup(macio_state);
     }
 }
 
