@@ -2151,39 +2151,58 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
     add_boot_device_path(isa->bootindexB, dev, "/floppy@1");
 }
 
-static int sysbus_fdc_init1(SysBusDevice *dev)
+static void sysbus_fdc_initfn(Object *obj)
 {
-    FDCtrlSysBus *sys = SYSBUS_FDC(dev);
+    FDCtrlSysBus *sys = SYSBUS_FDC(obj);
     FDCtrl *fdctrl = &sys->state;
-    int ret;
 
-    memory_region_init_io(&fdctrl->iomem, OBJECT(sys), &fdctrl_mem_ops, fdctrl,
+    memory_region_init_io(&fdctrl->iomem, obj, &fdctrl_mem_ops, fdctrl,
                           "fdc", 0x08);
-    sysbus_init_mmio(dev, &fdctrl->iomem);
-    sysbus_init_irq(dev, &fdctrl->irq);
-    qdev_init_gpio_in(DEVICE(dev), fdctrl_handle_tc, 1);
-    fdctrl->dma_chann = -1;
-
-    qdev_set_legacy_instance_id(DEVICE(dev), 0 /* io */, 2); /* FIXME */
-    ret = fdctrl_init_common(fdctrl);
-
-    return ret;
 }
 
-static int sun4m_fdc_init1(SysBusDevice *dev)
+static void sysbus_fdc_realize(DeviceState *dev, Error **errp)
 {
     FDCtrlSysBus *sys = SYSBUS_FDC(dev);
     FDCtrl *fdctrl = &sys->state;
+    SysBusDevice *b = SYS_BUS_DEVICE(dev);
 
-    memory_region_init_io(&fdctrl->iomem, OBJECT(dev), &fdctrl_mem_strict_ops,
+    sysbus_init_mmio(b, &fdctrl->iomem);
+    sysbus_init_irq(b, &fdctrl->irq);
+    qdev_init_gpio_in(dev, fdctrl_handle_tc, 1);
+    fdctrl->dma_chann = -1;
+
+    qdev_set_legacy_instance_id(dev, 0 /* io */, 2); /* FIXME */
+    if (fdctrl_init_common(fdctrl) < 0) {
+        error_setg(errp, "Floppy init failed.");
+        return;
+    }
+}
+
+static void sun4m_fdc_initfn(Object *obj)
+{
+    FDCtrlSysBus *sys = SYSBUS_FDC(obj);
+    FDCtrl *fdctrl = &sys->state;
+
+    memory_region_init_io(&fdctrl->iomem, obj, &fdctrl_mem_strict_ops,
                           fdctrl, "fdctrl", 0x08);
-    sysbus_init_mmio(dev, &fdctrl->iomem);
-    sysbus_init_irq(dev, &fdctrl->irq);
-    qdev_init_gpio_in(DEVICE(dev), fdctrl_handle_tc, 1);
+}
+
+static void sun4m_fdc_realize(DeviceState *dev, Error **errp)
+{
+    FDCtrlSysBus *sys = SYSBUS_FDC(dev);
+    FDCtrl *fdctrl = &sys->state;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    sysbus_init_mmio(sbd, &fdctrl->iomem);
+    sysbus_init_irq(sbd, &fdctrl->irq);
+    qdev_init_gpio_in(dev, fdctrl_handle_tc, 1);
 
     fdctrl->sun4m = 1;
-    qdev_set_legacy_instance_id(DEVICE(dev), 0 /* io */, 2); /* FIXME */
-    return fdctrl_init_common(fdctrl);
+    qdev_set_legacy_instance_id(dev, 0 /* io */, 2); /* FIXME */
+    if (fdctrl_init_common(fdctrl) < 0) {
+        error_setg(errp, "Floppy init failed.");
+        return;
+    }
 }
 
 FDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
@@ -2254,9 +2273,8 @@ static Property sysbus_fdc_properties[] = {
 static void sysbus_fdc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = sysbus_fdc_init1;
+    dc->realize = sysbus_fdc_realize;
     dc->reset = fdctrl_external_reset_sysbus;
     dc->vmsd = &vmstate_sysbus_fdc;
     dc->props = sysbus_fdc_properties;
@@ -2266,6 +2284,7 @@ static const TypeInfo sysbus_fdc_info = {
     .name          = TYPE_SYSBUS_FDC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FDCtrlSysBus),
+    .instance_init = sysbus_fdc_initfn,
     .class_init    = sysbus_fdc_class_init,
 };
 
@@ -2277,9 +2296,8 @@ static Property sun4m_fdc_properties[] = {
 static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = sun4m_fdc_init1;
+    dc->realize = sun4m_fdc_realize;
     dc->reset = fdctrl_external_reset_sysbus;
     dc->vmsd = &vmstate_sysbus_fdc;
     dc->props = sun4m_fdc_properties;
@@ -2289,6 +2307,7 @@ static const TypeInfo sun4m_fdc_info = {
     .name          = "SUNW,fdtwo",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FDCtrlSysBus),
+    .instance_init = sun4m_fdc_initfn,
     .class_init    = sun4m_fdc_class_init,
 };
 
