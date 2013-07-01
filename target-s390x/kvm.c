@@ -934,12 +934,13 @@ void kvm_arch_init_irq_routing(KVMState *s)
 {
 }
 
-int kvm_s390_assign_subch_ioeventfd(int fd, uint32_t sch, int vq, bool assign)
+int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
+                                    int vq, bool assign)
 {
     struct kvm_ioeventfd kick = {
         .flags = KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY |
         KVM_IOEVENTFD_FLAG_DATAMATCH,
-        .fd = fd,
+        .fd = event_notifier_get_fd(notifier),
         .datamatch = vq,
         .addr = sch,
         .len = 8,
