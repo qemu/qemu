@@ -1724,6 +1724,23 @@ static int64_t vmdk_get_allocated_file_size(BlockDriverState *bs)
     return ret;
 }
 
+static int vmdk_has_zero_init(BlockDriverState *bs)
+{
+    int i;
+    BDRVVmdkState *s = bs->opaque;
+
+    /* If has a flat extent and its underlying storage doesn't have zero init,
+     * return 0. */
+    for (i = 0; i < s->num_extents; i++) {
+        if (s->extents[i].flat) {
+            if (!bdrv_has_zero_init(s->extents[i].file)) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 static QEMUOptionParameter vmdk_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
@@ -1762,21 +1779,22 @@ static QEMUOptionParameter vmdk_create_options[] = {
 };
 
 static BlockDriver bdrv_vmdk = {
-    .format_name    = "vmdk",
-    .instance_size  = sizeof(BDRVVmdkState),
-    .bdrv_probe     = vmdk_probe,
-    .bdrv_open      = vmdk_open,
-    .bdrv_reopen_prepare = vmdk_reopen_prepare,
-    .bdrv_read      = vmdk_co_read,
-    .bdrv_write     = vmdk_co_write,
-    .bdrv_co_write_zeroes = vmdk_co_write_zeroes,
-    .bdrv_close     = vmdk_close,
-    .bdrv_create    = vmdk_create,
-    .bdrv_co_flush_to_disk  = vmdk_co_flush,
-    .bdrv_co_is_allocated   = vmdk_co_is_allocated,
-    .bdrv_get_allocated_file_size  = vmdk_get_allocated_file_size,
+    .format_name                  = "vmdk",
+    .instance_size                = sizeof(BDRVVmdkState),
+    .bdrv_probe                   = vmdk_probe,
+    .bdrv_open                    = vmdk_open,
+    .bdrv_reopen_prepare          = vmdk_reopen_prepare,
+    .bdrv_read                    = vmdk_co_read,
+    .bdrv_write                   = vmdk_co_write,
+    .bdrv_co_write_zeroes         = vmdk_co_write_zeroes,
+    .bdrv_close                   = vmdk_close,
+    .bdrv_create                  = vmdk_create,
+    .bdrv_co_flush_to_disk        = vmdk_co_flush,
+    .bdrv_co_is_allocated         = vmdk_co_is_allocated,
+    .bdrv_get_allocated_file_size = vmdk_get_allocated_file_size,
+    .bdrv_has_zero_init           = vmdk_has_zero_init,
 
-    .create_options = vmdk_create_options,
+    .create_options               = vmdk_create_options,
 };
 
 static void bdrv_vmdk_init(void)
