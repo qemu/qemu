@@ -106,11 +106,18 @@ def parse_schema(fp):
             add_enum(expr_eval['enum'])
         elif expr_eval.has_key('union'):
             add_enum('%sKind' % expr_eval['union'])
+        elif expr_eval.has_key('type'):
+            add_struct(expr_eval)
         exprs.append(expr_eval)
 
     return exprs
 
 def parse_args(typeinfo):
+    if isinstance(typeinfo, basestring):
+        struct = find_struct(typeinfo)
+        assert struct != None
+        typeinfo = struct['data']
+
     for member in typeinfo:
         argname = member
         argentry = typeinfo[member]
@@ -180,6 +187,18 @@ def type_name(name):
     return name
 
 enum_types = []
+struct_types = []
+
+def add_struct(definition):
+    global struct_types
+    struct_types.append(definition)
+
+def find_struct(name):
+    global struct_types
+    for struct in struct_types:
+        if struct['type'] == name:
+            return struct
+    return None
 
 def add_enum(name):
     global enum_types
