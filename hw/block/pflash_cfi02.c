@@ -55,8 +55,14 @@ do {                                                       \
 
 #define PFLASH_LAZY_ROMD_THRESHOLD 42
 
+#define TYPE_CFI_PFLASH02 "cfi.pflash02"
+#define CFI_PFLASH02(obj) OBJECT_CHECK(pflash_t, (obj), TYPE_CFI_PFLASH02)
+
 struct pflash_t {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     BlockDriverState *bs;
     uint32_t sector_len;
     uint32_t nb_blocs;
@@ -588,7 +594,7 @@ static const MemoryRegionOps pflash_cfi02_ops_le = {
 
 static int pflash_cfi02_init(SysBusDevice *dev)
 {
-    pflash_t *pfl = FROM_SYSBUS(typeof(*pfl), dev);
+    pflash_t *pfl = CFI_PFLASH02(dev);
     uint32_t chip_len;
     int ret;
 
@@ -737,7 +743,7 @@ static void pflash_cfi02_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pflash_cfi02_info = {
-    .name           = "cfi.pflash02",
+    .name           = TYPE_CFI_PFLASH02,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(struct pflash_t),
     .class_init     = pflash_cfi02_class_init,
@@ -760,10 +766,7 @@ pflash_t *pflash_cfi02_register(hwaddr base,
                                 uint16_t unlock_addr0, uint16_t unlock_addr1,
                                 int be)
 {
-    DeviceState *dev = qdev_create(NULL, "cfi.pflash02");
-    SysBusDevice *busdev = SYS_BUS_DEVICE(dev);
-    pflash_t *pfl = (pflash_t *)object_dynamic_cast(OBJECT(dev),
-                                                    "cfi.pflash02");
+    DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH02);
 
     if (bs && qdev_prop_set_drive(dev, "drive", bs)) {
         abort();
@@ -782,6 +785,6 @@ pflash_t *pflash_cfi02_register(hwaddr base,
     qdev_prop_set_string(dev, "name", name);
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(busdev, 0, base);
-    return pfl;
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    return CFI_PFLASH02(dev);
 }
