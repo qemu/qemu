@@ -1705,31 +1705,36 @@ static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     free(vec);
 }
 
+static inline void target_to_host_sock_type(int *type)
+{
+    int host_type = 0;
+    int target_type = *type;
+
+    switch (target_type & TARGET_SOCK_TYPE_MASK) {
+    case TARGET_SOCK_DGRAM:
+        host_type = SOCK_DGRAM;
+        break;
+    case TARGET_SOCK_STREAM:
+        host_type = SOCK_STREAM;
+        break;
+    default:
+        host_type = target_type & TARGET_SOCK_TYPE_MASK;
+        break;
+    }
+    if (target_type & TARGET_SOCK_CLOEXEC) {
+        host_type |= SOCK_CLOEXEC;
+    }
+    if (target_type & TARGET_SOCK_NONBLOCK) {
+        host_type |= SOCK_NONBLOCK;
+    }
+    *type = host_type;
+}
+
 /* do_socket() Must return target values and target errnos. */
 static abi_long do_socket(int domain, int type, int protocol)
 {
-#if defined(TARGET_MIPS)
-    switch(type) {
-    case TARGET_SOCK_DGRAM:
-        type = SOCK_DGRAM;
-        break;
-    case TARGET_SOCK_STREAM:
-        type = SOCK_STREAM;
-        break;
-    case TARGET_SOCK_RAW:
-        type = SOCK_RAW;
-        break;
-    case TARGET_SOCK_RDM:
-        type = SOCK_RDM;
-        break;
-    case TARGET_SOCK_SEQPACKET:
-        type = SOCK_SEQPACKET;
-        break;
-    case TARGET_SOCK_PACKET:
-        type = SOCK_PACKET;
-        break;
-    }
-#endif
+    target_to_host_sock_type(&type);
+
     if (domain == PF_NETLINK)
         return -EAFNOSUPPORT; /* do not NETLINK socket connections possible */
     return get_errno(socket(domain, type, protocol));
@@ -1961,6 +1966,8 @@ static abi_long do_socketpair(int domain, int type, int protocol,
 {
     int tab[2];
     abi_long ret;
+
+    target_to_host_sock_type(&type);
 
     ret = get_errno(socketpair(domain, type, protocol, tab));
     if (!is_error(ret)) {
