@@ -50,7 +50,7 @@ static inline void vring_set_broken(Vring *vring)
 }
 
 bool vring_setup(Vring *vring, VirtIODevice *vdev, int n);
-void vring_teardown(Vring *vring);
+void vring_teardown(Vring *vring, VirtIODevice *vdev, int n);
 void vring_disable_notification(VirtIODevice *vdev, Vring *vring);
 bool vring_enable_notification(VirtIODevice *vdev, Vring *vring);
 bool vring_should_notify(VirtIODevice *vdev, Vring *vring);
