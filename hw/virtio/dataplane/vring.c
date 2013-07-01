@@ -39,8 +39,8 @@ bool vring_setup(Vring *vring, VirtIODevice *vdev, int n)
 
     vring_init(&vring->vr, virtio_queue_get_num(vdev, n), vring_ptr, 4096);
 
-    vring->last_avail_idx = 0;
-    vring->last_used_idx = 0;
+    vring->last_avail_idx = virtio_queue_get_last_avail_idx(vdev, n);
+    vring->last_used_idx = vring->vr.used->idx;
     vring->signalled_used = 0;
     vring->signalled_used_valid = false;
 
@@ -49,8 +49,10 @@ bool vring_setup(Vring *vring, VirtIODevice *vdev, int n)
     return true;
 }
 
-void vring_teardown(Vring *vring)
+void vring_teardown(Vring *vring, VirtIODevice *vdev, int n)
 {
+    virtio_queue_set_last_avail_idx(vdev, n, vring->last_avail_idx);
+
     hostmem_finalize(&vring->hostmem);
 }
 
