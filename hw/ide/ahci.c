@@ -1286,8 +1286,14 @@ const VMStateDescription vmstate_ahci = {
     },
 };
 
+#define TYPE_SYSBUS_AHCI "sysbus-ahci"
+#define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
+
 typedef struct SysbusAHCIState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     AHCIState ahci;
     uint32_t num_ports;
 } SysbusAHCIState;
@@ -1303,15 +1309,15 @@ static const VMStateDescription vmstate_sysbus_ahci = {
 
 static void sysbus_ahci_reset(DeviceState *dev)
 {
-    SysbusAHCIState *s = DO_UPCAST(SysbusAHCIState, busdev.qdev, dev);
+    SysbusAHCIState *s = SYSBUS_AHCI(dev);
 
     ahci_reset(&s->ahci);
 }
 
 static int sysbus_ahci_init(SysBusDevice *dev)
 {
-    SysbusAHCIState *s = FROM_SYSBUS(SysbusAHCIState, dev);
-    ahci_init(&s->ahci, &dev->qdev, NULL, s->num_ports);
+    SysbusAHCIState *s = SYSBUS_AHCI(dev);
+    ahci_init(&s->ahci, DEVICE(dev), NULL, s->num_ports);
 
     sysbus_init_mmio(dev, &s->ahci.mem);
     sysbus_init_irq(dev, &s->ahci.irq);
@@ -1335,7 +1341,7 @@ static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sysbus_ahci_info = {
-    .name          = "sysbus-ahci",
+    .name          = TYPE_SYSBUS_AHCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysbusAHCIState),
     .class_init    = sysbus_ahci_class_init,
