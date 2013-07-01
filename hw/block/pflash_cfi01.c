@@ -60,8 +60,14 @@ do {                                                        \
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
+#define TYPE_CFI_PFLASH01 "cfi.pflash01"
+#define CFI_PFLASH01(obj) OBJECT_CHECK(pflash_t, (obj), TYPE_CFI_PFLASH01)
+
 struct pflash_t {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     BlockDriverState *bs;
     uint32_t nb_blocs;
     uint64_t sector_len;
@@ -565,7 +571,7 @@ static const MemoryRegionOps pflash_cfi01_ops_le = {
 
 static int pflash_cfi01_init(SysBusDevice *dev)
 {
-    pflash_t *pfl = FROM_SYSBUS(typeof(*pfl), dev);
+    pflash_t *pfl = CFI_PFLASH01(dev);
     uint64_t total_len;
     int ret;
 
@@ -720,7 +726,7 @@ static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
 
 
 static const TypeInfo pflash_cfi01_info = {
-    .name           = "cfi.pflash01",
+    .name           = TYPE_CFI_PFLASH01,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(struct pflash_t),
     .class_init     = pflash_cfi01_class_init,
@@ -741,10 +747,7 @@ pflash_t *pflash_cfi01_register(hwaddr base,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3, int be)
 {
-    DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
-    SysBusDevice *busdev = SYS_BUS_DEVICE(dev);
-    pflash_t *pfl = (pflash_t *)object_dynamic_cast(OBJECT(dev),
-                                                    "cfi.pflash01");
+    DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH01);
 
     if (bs && qdev_prop_set_drive(dev, "drive", bs)) {
         abort();
@@ -760,8 +763,8 @@ pflash_t *pflash_cfi01_register(hwaddr base,
     qdev_prop_set_string(dev, "name", name);
     qdev_init_nofail(dev);
 
-    sysbus_mmio_map(busdev, 0, base);
-    return pfl;
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    return CFI_PFLASH01(dev);
 }
 
 MemoryRegion *pflash_cfi01_get_memory(pflash_t *fl)
