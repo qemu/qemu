@@ -222,15 +222,23 @@ static gint cpreg_key_compare(gconstpointer a, gconstpointer b)
     return aidx - bidx;
 }
 
+static void cpreg_make_keylist(gpointer key, gpointer value, gpointer udata)
+{
+    GList **plist = udata;
+
+    *plist = g_list_prepend(*plist, key);
+}
+
 void init_cpreg_list(ARMCPU *cpu)
 {
     /* Initialise the cpreg_tuples[] array based on the cp_regs hash.
      * Note that we require cpreg_tuples[] to be sorted by key ID.
      */
-    GList *keys;
+    GList *keys = NULL;
     int arraylen;
 
-    keys = g_hash_table_get_keys(cpu->cp_regs);
+    g_hash_table_foreach(cpu->cp_regs, cpreg_make_keylist, &keys);
+
     keys = g_list_sort(keys, cpreg_key_compare);
 
     cpu->cpreg_array_len = 0;
