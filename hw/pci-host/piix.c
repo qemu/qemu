@@ -203,21 +203,26 @@ static const VMStateDescription vmstate_i440fx = {
     }
 };
 
-static int i440fx_pcihost_initfn(SysBusDevice *dev)
+static void i440fx_pcihost_initfn(Object *obj)
+{
+    PCIHostState *s = PCI_HOST_BRIDGE(obj);
+
+    memory_region_init_io(&s->conf_mem, obj, &pci_host_conf_le_ops, s,
+                          "pci-conf-idx", 4);
+    memory_region_init_io(&s->data_mem, obj, &pci_host_data_le_ops, s,
+                          "pci-conf-data", 4);
+}
+
+static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *s = PCI_HOST_BRIDGE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    memory_region_init_io(&s->conf_mem, OBJECT(dev), &pci_host_conf_le_ops, s,
-                          "pci-conf-idx", 4);
-    sysbus_add_io(dev, 0xcf8, &s->conf_mem);
-    sysbus_init_ioports(&s->busdev, 0xcf8, 4);
+    sysbus_add_io(sbd, 0xcf8, &s->conf_mem);
+    sysbus_init_ioports(sbd, 0xcf8, 4);
 
-    memory_region_init_io(&s->data_mem, OBJECT(dev), &pci_host_data_le_ops, s,
-                          "pci-conf-data", 4);
-    sysbus_add_io(dev, 0xcfc, &s->data_mem);
-    sysbus_init_ioports(&s->busdev, 0xcfc, 4);
-
-    return 0;
+    sysbus_add_io(sbd, 0xcfc, &s->data_mem);
+    sysbus_init_ioports(sbd, 0xcfc, 4);
 }
 
 static int i440fx_initfn(PCIDevice *dev)
@@ -647,11 +652,10 @@ static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
 static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
 
     hc->root_bus_path = i440fx_pcihost_root_bus_path;
-    k->init = i440fx_pcihost_initfn;
+    dc->realize = i440fx_pcihost_realize;
     dc->fw_name = "pci";
     dc->no_user = 1;
 }
@@ -660,6 +664,7 @@ static const TypeInfo i440fx_pcihost_info = {
     .name          = "i440FX-pcihost",
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(I440FXState),
+    .instance_init = i440fx_pcihost_initfn,
     .class_init    = i440fx_pcihost_class_init,
 };
 
