@@ -87,7 +87,10 @@ typedef struct PIIX3State {
     OBJECT_CHECK(PCII440FXState, (obj), TYPE_I440FX_PCI_DEVICE)
 
 struct PCII440FXState {
-    PCIDevice dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion *system_memory;
     MemoryRegion *pci_address_space;
     MemoryRegion *ram_memory;
@@ -121,22 +124,24 @@ static int pci_slot_get_pirq(PCIDevice *pci_dev, int pci_intx)
 static void i440fx_update_memory_mappings(PCII440FXState *d)
 {
     int i;
+    PCIDevice *pd = PCI_DEVICE(d);
 
     memory_region_transaction_begin();
     for (i = 0; i < 13; i++) {
         pam_update(&d->pam_regions[i], i,
-                   d->dev.config[I440FX_PAM + ((i + 1) / 2)]);
+                   pd->config[I440FX_PAM + ((i + 1) / 2)]);
     }
-    smram_update(&d->smram_region, d->dev.config[I440FX_SMRAM], d->smm_enabled);
+    smram_update(&d->smram_region, pd->config[I440FX_SMRAM], d->smm_enabled);
     memory_region_transaction_commit();
 }
 
 static void i440fx_set_smm(int val, void *arg)
 {
     PCII440FXState *d = arg;
+    PCIDevice *pd = PCI_DEVICE(d);
 
     memory_region_transaction_begin();
-    smram_set_smm(&d->smm_enabled, val, d->dev.config[I440FX_SMRAM],
+    smram_set_smm(&d->smm_enabled, val, pd->config[I440FX_SMRAM],
                   &d->smram_region);
     memory_region_transaction_commit();
 }
@@ -158,9 +163,10 @@ static void i440fx_write_config(PCIDevice *dev,
 static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
 {
     PCII440FXState *d = opaque;
+    PCIDevice *pd = PCI_DEVICE(d);
     int ret, i;
 
-    ret = pci_device_load(&d->dev, f);
+    ret = pci_device_load(pd, f);
     if (ret < 0)
         return ret;
     i440fx_update_memory_mappings(d);
@@ -191,7 +197,7 @@ static const VMStateDescription vmstate_i440fx = {
     .load_state_old = i440fx_load_old,
     .post_load = i440fx_post_load,
     .fields      = (VMStateField []) {
-        VMSTATE_PCI_DEVICE(dev, PCII440FXState),
+        VMSTATE_PCI_DEVICE(parent_obj, PCII440FXState),
         VMSTATE_UINT8(smm_enabled, PCII440FXState),
         VMSTATE_END_OF_LIST()
     }
@@ -218,7 +224,7 @@ static int i440fx_initfn(PCIDevice *dev)
 {
     PCII440FXState *d = I440FX_PCI_DEVICE(dev);
 
-    d->dev.config[I440FX_SMRAM] = 0x02;
+    dev->config[I440FX_SMRAM] = 0x02;
 
     cpu_smm_register(&i440fx_set_smm, d);
     return 0;
@@ -305,9 +311,10 @@ static PCIBus *i440fx_common_init(const char *device_name,
     *piix3_devfn = piix3->dev.devfn;
 
     ram_size = ram_size / 8 / 1024 / 1024;
-    if (ram_size > 255)
+    if (ram_size > 255) {
         ram_size = 255;
-    (*pi440fx_state)->dev.config[0x57]=ram_size;
+    }
+    d->config[0x57] = ram_size;
 
     i440fx_update_memory_mappings(f);
 
