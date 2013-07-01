@@ -42,6 +42,9 @@
 
 #define HPET_MSI_SUPPORT        0
 
+#define TYPE_HPET "hpet"
+#define HPET(obj) OBJECT_CHECK(HPETState, (obj), TYPE_HPET)
+
 struct HPETState;
 typedef struct HPETTimer {  /* timers */
     uint8_t tn;             /*timer number*/
@@ -59,7 +62,10 @@ typedef struct HPETTimer {  /* timers */
 } HPETTimer;
 
 typedef struct HPETState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion iomem;
     uint64_t hpet_offset;
     qemu_irq irqs[HPET_NUM_IRQ_ROUTES];
@@ -634,7 +640,8 @@ static const MemoryRegionOps hpet_ram_ops = {
 
 static void hpet_reset(DeviceState *d)
 {
-    HPETState *s = FROM_SYSBUS(HPETState, SYS_BUS_DEVICE(d));
+    HPETState *s = HPET(d);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(d);
     int i;
 
     for (i = 0; i < s->num_timers; i++) {
@@ -657,7 +664,7 @@ static void hpet_reset(DeviceState *d)
     s->hpet_offset = 0ULL;
     s->config = 0ULL;
     hpet_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
-    hpet_cfg.hpet[s->hpet_id].address = SYS_BUS_DEVICE(d)->mmio[0].addr;
+    hpet_cfg.hpet[s->hpet_id].address = sbd->mmio[0].addr;
 
     /* to document that the RTC lowers its output on reset as well */
     s->rtc_irq_level = 0;
@@ -665,7 +672,7 @@ static void hpet_reset(DeviceState *d)
 
 static void hpet_handle_legacy_irq(void *opaque, int n, int level)
 {
-    HPETState *s = FROM_SYSBUS(HPETState, opaque);
+    HPETState *s = HPET(opaque);
 
     if (n == HPET_LEGACY_PIT_INT) {
         if (!hpet_in_legacy_mode(s)) {
@@ -681,7 +688,7 @@ static void hpet_handle_legacy_irq(void *opaque, int n, int level)
 
 static int hpet_init(SysBusDevice *dev)
 {
-    HPETState *s = FROM_SYSBUS(HPETState, dev);
+    HPETState *s = HPET(dev);
     int i;
     HPETTimer *timer;
 
@@ -746,7 +753,7 @@ static void hpet_device_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo hpet_device_info = {
-    .name          = "hpet",
+    .name          = TYPE_HPET,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(HPETState),
     .class_init    = hpet_device_class_init,
