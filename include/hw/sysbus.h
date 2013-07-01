@@ -23,8 +23,20 @@ typedef struct SysBusDevice SysBusDevice;
 #define SYS_BUS_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(SysBusDeviceClass, (obj), TYPE_SYS_BUS_DEVICE)
 
+/**
+ * SysBusDeviceClass:
+ * @init: Callback function invoked when the #DeviceState.realized property
+ * is changed to %true. Deprecated, new types inheriting directly from
+ * TYPE_SYS_BUS_DEVICE should use #DeviceClass.realize instead, new leaf
+ * types should consult their respective parent type.
+ *
+ * SysBusDeviceClass is not overriding #DeviceClass.realize, so derived
+ * classes overriding it are not required to invoke its implementation.
+ */
 typedef struct SysBusDeviceClass {
+    /*< private >*/
     DeviceClass parent_class;
+    /*< public >*/
 
     int (*init)(SysBusDevice *dev);
 } SysBusDeviceClass;
