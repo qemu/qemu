@@ -569,7 +569,7 @@ static const MemoryRegionOps pflash_cfi01_ops_le = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int pflash_cfi01_init(SysBusDevice *dev)
+static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 {
     pflash_t *pfl = CFI_PFLASH01(dev);
     uint64_t total_len;
@@ -590,7 +590,7 @@ static int pflash_cfi01_init(SysBusDevice *dev)
         pfl->name, total_len);
     vmstate_register_ram(&pfl->mem, DEVICE(pfl));
     pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
-    sysbus_init_mmio(dev, &pfl->mem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
     if (pfl->bs) {
         /* read the initial flash content */
@@ -599,7 +599,8 @@ static int pflash_cfi01_init(SysBusDevice *dev)
         if (ret < 0) {
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
             memory_region_destroy(&pfl->mem);
-            return 1;
+            error_setg(errp, "failed to read the initial flash content");
+            return;
         }
     }
 
@@ -696,8 +697,6 @@ static int pflash_cfi01_init(SysBusDevice *dev)
     pfl->cfi_table[0x3c] = 0x00;
 
     pfl->cfi_table[0x3f] = 0x01; /* Number of protection fields */
-
-    return 0;
 }
 
 static Property pflash_cfi01_properties[] = {
@@ -717,9 +716,8 @@ static Property pflash_cfi01_properties[] = {
 static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pflash_cfi01_init;
+    dc->realize = pflash_cfi01_realize;
     dc->props = pflash_cfi01_properties;
     dc->vmsd = &vmstate_pflash;
 }
