@@ -46,6 +46,8 @@ struct DisasContext {
     int tb_rm;
     /* Current flush-to-zero setting for this TB.  */
     int tb_ftz;
+
+    bool singlestep_enabled;
 };
 
 /* Return values from translate_one, indicating the state of the TB.
@@ -380,7 +382,7 @@ static int use_goto_tb(DisasContext *ctx, uint64_t dest)
     /* Check for the dest on the same page as the start of the TB.  We
        also want to suppress goto_tb in the case of single-steping and IO.  */
     return (((ctx->tb->pc ^ dest) & TARGET_PAGE_MASK) == 0
-            && !ctx->env->singlestep_enabled
+            && !ctx->singlestep_enabled
             && !(ctx->tb->cflags & CF_LAST_IO));
 }
 
@@ -3401,6 +3403,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     ctx.env = env;
     ctx.pc = pc_start;
     ctx.mem_idx = cpu_mmu_index(env);
+    ctx.singlestep_enabled = env->singlestep_enabled;
 
     /* ??? Every TB begins with unset rounding mode, to be initialized on
        the first fp insn of the TB.  Alternately we could define a proper
@@ -3457,7 +3460,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
                 || tcg_ctx.gen_opc_ptr >= gen_opc_end
                 || num_insns >= max_insns
                 || singlestep
-                || env->singlestep_enabled)) {
+                || ctx.singlestep_enabled)) {
             ret = EXIT_PC_STALE;
         }
     } while (ret == NO_EXIT);
@@ -3474,7 +3477,7 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
         /* FALLTHRU */
     case EXIT_PC_UPDATED:
-        if (env->singlestep_enabled) {
+        if (ctx.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG, 0);
         } else {
             tcg_gen_exit_tb(0);
