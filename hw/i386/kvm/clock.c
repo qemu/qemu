@@ -91,12 +91,11 @@ static void kvmclock_vm_state_change(void *opaque, int running,
     }
 }
 
-static int kvmclock_init(SysBusDevice *dev)
+static void kvmclock_realize(DeviceState *dev, Error **errp)
 {
     KVMClockState *s = KVM_CLOCK(dev);
 
     qemu_add_vm_change_state_handler(kvmclock_vm_state_change, s);
-    return 0;
 }
 
 static const VMStateDescription kvmclock_vmsd = {
@@ -113,9 +112,8 @@ static const VMStateDescription kvmclock_vmsd = {
 static void kvmclock_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = kvmclock_init;
+    dc->realize = kvmclock_realize;
     dc->no_user = 1;
     dc->vmsd = &kvmclock_vmsd;
 }
