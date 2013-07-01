@@ -34,31 +34,27 @@
  * Q35 host
  */
 
-static int q35_host_init(SysBusDevice *dev)
+static void q35_host_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     Q35PCIHost *s = Q35_HOST_DEVICE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    memory_region_init_io(&pci->conf_mem, OBJECT(pci), &pci_host_conf_le_ops, pci,
-                          "pci-conf-idx", 4);
-    sysbus_add_io(dev, MCH_HOST_BRIDGE_CONFIG_ADDR, &pci->conf_mem);
-    sysbus_init_ioports(dev, MCH_HOST_BRIDGE_CONFIG_ADDR, 4);
+    sysbus_add_io(sbd, MCH_HOST_BRIDGE_CONFIG_ADDR, &pci->conf_mem);
+    sysbus_init_ioports(sbd, MCH_HOST_BRIDGE_CONFIG_ADDR, 4);
 
-    memory_region_init_io(&pci->data_mem, OBJECT(pci), &pci_host_data_le_ops, pci,
-                          "pci-conf-data", 4);
-    sysbus_add_io(dev, MCH_HOST_BRIDGE_CONFIG_DATA, &pci->data_mem);
-    sysbus_init_ioports(dev, MCH_HOST_BRIDGE_CONFIG_DATA, 4);
+    sysbus_add_io(sbd, MCH_HOST_BRIDGE_CONFIG_DATA, &pci->data_mem);
+    sysbus_init_ioports(sbd, MCH_HOST_BRIDGE_CONFIG_DATA, 4);
 
     if (pcie_host_init(PCIE_HOST_BRIDGE(s)) < 0) {
-        return -1;
+        error_setg(errp, "failed to initialize pcie host");
+        return;
     }
     pci->bus = pci_bus_new(DEVICE(s), "pcie.0",
                            s->mch.pci_address_space, s->mch.address_space_io,
                            0, TYPE_PCIE_BUS);
     qdev_set_parent_bus(DEVICE(&s->mch), BUS(pci->bus));
     qdev_init_nofail(DEVICE(&s->mch));
-
-    return 0;
 }
 
 static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
@@ -77,11 +73,10 @@ static Property mch_props[] = {
 static void q35_host_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
 
     hc->root_bus_path = q35_host_root_bus_path;
-    k->init = q35_host_init;
+    dc->realize = q35_host_realize;
     dc->props = mch_props;
     dc->fw_name = "pci";
 }
@@ -89,6 +84,12 @@ static void q35_host_class_init(ObjectClass *klass, void *data)
 static void q35_host_initfn(Object *obj)
 {
     Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
+
+    memory_region_init_io(&phb->conf_mem, obj, &pci_host_conf_le_ops, phb,
+                          "pci-conf-idx", 4);
+    memory_region_init_io(&phb->data_mem, obj, &pci_host_data_le_ops, phb,
+                          "pci-conf-data", 4);
 
     object_initialize(&s->mch, TYPE_MCH_PCI_DEVICE);
     object_property_add_child(OBJECT(s), "mch", OBJECT(&s->mch), NULL);
