@@ -35,6 +35,7 @@
 #define TYPE_FW_CFG "fw_cfg"
 #define FW_CFG_NAME "fw_cfg"
 #define FW_CFG_PATH "/machine/" FW_CFG_NAME
+#define FW_CFG(obj) OBJECT_CHECK(FWCfgState, (obj), TYPE_FW_CFG)
 
 typedef struct FWCfgEntry {
     uint32_t len;
@@ -44,7 +45,10 @@ typedef struct FWCfgEntry {
 } FWCfgEntry;
 
 struct FWCfgState {
-    SysBusDevice busdev;
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
     MemoryRegion ctl_iomem, data_iomem, comb_iomem;
     uint32_t ctl_iobase, data_iobase;
     FWCfgEntry entries[2][FW_CFG_MAX_ENTRY];
@@ -326,7 +330,7 @@ static const MemoryRegionOps fw_cfg_comb_mem_ops = {
 
 static void fw_cfg_reset(DeviceState *d)
 {
-    FWCfgState *s = DO_UPCAST(FWCfgState, busdev.qdev, d);
+    FWCfgState *s = FW_CFG(d);
 
     fw_cfg_select(s, 0);
 }
@@ -489,12 +493,12 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     SysBusDevice *d;
     FWCfgState *s;
 
-    dev = qdev_create(NULL, "fw_cfg");
+    dev = qdev_create(NULL, TYPE_FW_CFG);
     qdev_prop_set_uint32(dev, "ctl_iobase", ctl_port);
     qdev_prop_set_uint32(dev, "data_iobase", data_port);
     d = SYS_BUS_DEVICE(dev);
 
-    s = DO_UPCAST(FWCfgState, busdev.qdev, dev);
+    s = FW_CFG(dev);
 
     assert(!object_resolve_path(FW_CFG_PATH, NULL));
 
@@ -524,7 +528,7 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 
 static int fw_cfg_init1(SysBusDevice *dev)
 {
-    FWCfgState *s = FROM_SYSBUS(FWCfgState, dev);
+    FWCfgState *s = FW_CFG(dev);
 
     memory_region_init_io(&s->ctl_iomem, OBJECT(s), &fw_cfg_ctl_mem_ops, s,
                           "fwcfg.ctl", FW_CFG_SIZE);
@@ -557,8 +561,7 @@ static Property fw_cfg_properties[] = {
 
 FWCfgState *fw_cfg_find(void)
 {
-    return OBJECT_CHECK(FWCfgState, object_resolve_path(FW_CFG_PATH, NULL),
-                        TYPE_FW_CFG);
+    return FW_CFG(object_resolve_path(FW_CFG_PATH, NULL));
 }
 
 static void fw_cfg_class_init(ObjectClass *klass, void *data)
