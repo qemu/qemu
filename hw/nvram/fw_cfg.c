@@ -526,31 +526,38 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     return s;
 }
 
-static int fw_cfg_init1(SysBusDevice *dev)
+static void fw_cfg_initfn(Object *obj)
 {
-    FWCfgState *s = FW_CFG(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    FWCfgState *s = FW_CFG(obj);
 
     memory_region_init_io(&s->ctl_iomem, OBJECT(s), &fw_cfg_ctl_mem_ops, s,
                           "fwcfg.ctl", FW_CFG_SIZE);
-    sysbus_init_mmio(dev, &s->ctl_iomem);
+    sysbus_init_mmio(sbd, &s->ctl_iomem);
     memory_region_init_io(&s->data_iomem, OBJECT(s), &fw_cfg_data_mem_ops, s,
                           "fwcfg.data", FW_CFG_DATA_SIZE);
-    sysbus_init_mmio(dev, &s->data_iomem);
+    sysbus_init_mmio(sbd, &s->data_iomem);
     /* In case ctl and data overlap: */
     memory_region_init_io(&s->comb_iomem, OBJECT(s), &fw_cfg_comb_mem_ops, s,
                           "fwcfg", FW_CFG_SIZE);
+}
+
+static void fw_cfg_realize(DeviceState *dev, Error **errp)
+{
+    FWCfgState *s = FW_CFG(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
 
     if (s->ctl_iobase + 1 == s->data_iobase) {
-        sysbus_add_io(dev, s->ctl_iobase, &s->comb_iomem);
+        sysbus_add_io(sbd, s->ctl_iobase, &s->comb_iomem);
     } else {
         if (s->ctl_iobase) {
-            sysbus_add_io(dev, s->ctl_iobase, &s->ctl_iomem);
+            sysbus_add_io(sbd, s->ctl_iobase, &s->ctl_iomem);
         }
         if (s->data_iobase) {
-            sysbus_add_io(dev, s->data_iobase, &s->data_iomem);
+            sysbus_add_io(sbd, s->data_iobase, &s->data_iomem);
         }
     }
-    return 0;
 }
 
 static Property fw_cfg_properties[] = {
@@ -567,9 +574,8 @@ FWCfgState *fw_cfg_find(void)
 static void fw_cfg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = fw_cfg_init1;
+    dc->realize = fw_cfg_realize;
     dc->no_user = 1;
     dc->reset = fw_cfg_reset;
     dc->vmsd = &vmstate_fw_cfg;
@@ -580,6 +586,7 @@ static const TypeInfo fw_cfg_info = {
     .name          = TYPE_FW_CFG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FWCfgState),
+    .instance_init = fw_cfg_initfn,
     .class_init    = fw_cfg_class_init,
 };
 
