@@ -1888,17 +1888,16 @@ typedef struct {
     dma_addr_t dma_offset;
 } OHCISysBusState;
 
-static int ohci_init_pxa(SysBusDevice *dev)
+static void ohci_realize_pxa(DeviceState *dev, Error **errp)
 {
     OHCISysBusState *s = SYSBUS_OHCI(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     /* Cannot fail as we pass NULL for masterbus */
-    usb_ohci_init(&s->ohci, DEVICE(dev), s->num_ports, s->dma_offset, NULL, 0,
+    usb_ohci_init(&s->ohci, dev, s->num_ports, s->dma_offset, NULL, 0,
                   &address_space_memory);
-    sysbus_init_irq(dev, &s->ohci.irq);
-    sysbus_init_mmio(dev, &s->ohci.mem);
-
-    return 0;
+    sysbus_init_irq(sbd, &s->ohci.irq);
+    sysbus_init_mmio(sbd, &s->ohci.mem);
 }
 
 static Property ohci_pci_properties[] = {
@@ -1938,9 +1937,8 @@ static Property ohci_sysbus_properties[] = {
 static void ohci_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
-    sbc->init = ohci_init_pxa;
+    dc->realize = ohci_realize_pxa;
     dc->desc = "OHCI USB Controller";
     dc->props = ohci_sysbus_properties;
 }
