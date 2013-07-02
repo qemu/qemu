@@ -1358,11 +1358,12 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
 
 void bdrv_close(BlockDriverState *bs)
 {
-    bdrv_flush(bs);
     if (bs->job) {
         block_job_cancel_sync(bs->job);
     }
-    bdrv_drain_all();
+    bdrv_drain_all(); /* complete I/O */
+    bdrv_flush(bs);
+    bdrv_drain_all(); /* in case flush left pending I/O */
     notifier_list_notify(&bs->close_notifiers, bs);
 
     if (bs->drv) {
