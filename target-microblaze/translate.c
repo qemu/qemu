@@ -1737,7 +1737,7 @@ static void check_breakpoint(CPUMBState *env, DisasContext *dc)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static void
+static inline void
 gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
                                int search_pc)
 {
