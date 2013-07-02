@@ -693,7 +693,7 @@ out:
     return 0;
 }
 
-static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
+static void handle_instruction(S390CPU *cpu, struct kvm_run *run)
 {
     unsigned int ipa0 = (run->s390_sieic.ipa & 0xff00);
     uint8_t ipa1 = run->s390_sieic.ipa & 0x00ff;
@@ -719,7 +719,6 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
     if (r < 0) {
         enter_pgmcheck(cpu, 0x0001);
     }
-    return 0;
 }
 
 static bool is_special_wait_psw(CPUState *cs)
@@ -739,7 +738,7 @@ static int handle_intercept(S390CPU *cpu)
             (long)cs->kvm_run->psw_addr);
     switch (icpt_code) {
         case ICPT_INSTRUCTION:
-            r = handle_instruction(cpu, run);
+            handle_instruction(cpu, run);
             break;
         case ICPT_WAITPSW:
             /* disabled wait, since enabled wait is handled in kernel */
