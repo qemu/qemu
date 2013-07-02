@@ -151,7 +151,13 @@ void visit_type_%(name)s(Visitor *m, %(name)s * obj, const char *name, Error **e
 ''',
                  name=name)
 
-def generate_visit_union(name, members):
+def generate_visit_union(expr):
+
+    name = expr['union']
+    members = expr['data']
+
+    base = expr.get('base')
+
     ret = generate_visit_enum('%sKind' % name, members.keys())
 
     ret += mcgen('''
@@ -164,14 +170,28 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
         visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
         if (!err) {
             if (obj && *obj) {
-                visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
-                if (!err) {
-                    switch ((*obj)->kind) {
 ''',
                  name=name)
 
+
     push_indent()
     push_indent()
+    push_indent()
+
+    if base:
+        struct = find_struct(base)
+        push_indent()
+        ret += generate_visit_struct_fields("", struct['data'])
+        pop_indent()
+
+    pop_indent()
+    ret += mcgen('''
+        visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
+        if (!err) {
+            switch ((*obj)->kind) {
+''',
+                 name=name)
+
     for key in members:
         ret += mcgen('''
             case %(abbrev)s_KIND_%(enum)s:
@@ -368,7 +388,7 @@ for expr in exprs:
         ret = generate_declaration(expr['type'], expr['data'])
         fdecl.write(ret)
     elif expr.has_key('union'):
-        ret = generate_visit_union(expr['union'], expr['data'])
+        ret = generate_visit_union(expr)
         ret += generate_visit_list(expr['union'], expr['data'])
         fdef.write(ret)
 
