@@ -625,38 +625,6 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...)
     abort();
 }
 
-CPUArchState *cpu_copy(CPUArchState *env)
-{
-    CPUArchState *new_env = cpu_init(env->cpu_model_str);
-#if defined(TARGET_HAS_ICE)
-    CPUBreakpoint *bp;
-    CPUWatchpoint *wp;
-#endif
-
-    /* Reset non arch specific state */
-    cpu_reset(ENV_GET_CPU(new_env));
-
-    /* Copy arch specific state into the new CPU */
-    memcpy(new_env, env, sizeof(CPUArchState));
-
-    /* Clone all break/watchpoints.
-       Note: Once we support ptrace with hw-debug register access, make sure
-       BP_CPU break/watchpoints are handled correctly on clone. */
-    QTAILQ_INIT(&env->breakpoints);
-    QTAILQ_INIT(&env->watchpoints);
-#if defined(TARGET_HAS_ICE)
-    QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
-        cpu_breakpoint_insert(new_env, bp->pc, bp->flags, NULL);
-    }
-    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
-        cpu_watchpoint_insert(new_env, wp->vaddr, (~wp->len_mask) + 1,
-                              wp->flags, NULL);
-    }
-#endif
-
-    return new_env;
-}
-
 #if !defined(CONFIG_USER_ONLY)
 static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t end,
                                       uintptr_t length)
