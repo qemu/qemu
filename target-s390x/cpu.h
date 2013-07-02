@@ -148,6 +148,7 @@ typedef struct CPUS390XState {
 } CPUS390XState;
 
 #include "cpu-qom.h"
+#include <sysemu/kvm.h>
 
 /* distinguish between 24 bit and 31 bit addressing */
 #define HIGH_ORDER_BIT 0x80000000
@@ -692,6 +693,14 @@ static inline const char *cc_name(int cc_op)
     return cc_names[cc_op];
 }
 
+static inline void setcc(S390CPU *cpu, uint64_t cc)
+{
+    CPUS390XState *env = &cpu->env;
+
+    env->psw.mask &= ~(3ull << 44);
+    env->psw.mask |= (cc & 3) << 44;
+}
+
 typedef struct LowCore
 {
     /* prefix area: defined by architecture */
@@ -1057,8 +1066,6 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3);
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr);
-
-#include <sysemu/kvm.h>
 
 #ifdef CONFIG_KVM
 void kvm_s390_io_interrupt(S390CPU *cpu, uint16_t subchannel_id,

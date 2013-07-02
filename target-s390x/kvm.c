@@ -418,18 +418,6 @@ static void enter_pgmcheck(S390CPU *cpu, uint16_t code)
     kvm_s390_interrupt(cpu, KVM_S390_PROGRAM_INT, code);
 }
 
-static inline void setcc(S390CPU *cpu, uint64_t cc)
-{
-    CPUS390XState *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
-
-    cs->kvm_run->psw_mask &= ~(3ull << 44);
-    cs->kvm_run->psw_mask |= (cc & 3) << 44;
-
-    env->psw.mask &= ~(3ul << 44);
-    env->psw.mask |= (cc & 3) << 44;
-}
-
 static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
                                  uint16_t ipbh0)
 {
