@@ -837,6 +837,18 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
 /**
+ * memory_region_present: translate an address/size relative to a
+ * MemoryRegion into a #MemoryRegionSection.
+ *
+ * Answer whether a #MemoryRegion within @parent covers the address
+ * @addr.
+ *
+ * @parent: a MemoryRegion within which @addr is a relative address
+ * @addr: the area within @parent to be searched
+ */
+bool memory_region_present(MemoryRegion *parent, hwaddr addr);
+
+/**
  * memory_region_find: translate an address/size relative to a
  * MemoryRegion into a #MemoryRegionSection.
  *

@@ -1478,6 +1478,15 @@ static FlatRange *address_space_lookup(AddressSpace *as, AddrRange addr)
                    sizeof(FlatRange), cmp_flatrange_addr);
 }
 
+bool memory_region_present(MemoryRegion *parent, hwaddr addr)
+{
+    MemoryRegion *mr = memory_region_find(parent, addr, 1).mr;
+    if (!mr) {
+        return false;
+    }
+    return true;
+}
+
 MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size)
 {

@@ -388,10 +388,10 @@ static void piix4_pm_machine_ready(Notifier *n, void *opaque)
 
     pci_conf = s->dev.config;
     pci_conf[0x5f] = 0x10 |
-        (memory_region_find(io_as, 0x378, 1).mr ? 0x80 : 0);
+        (memory_region_present(io_as, 0x378) ? 0x80 : 0);
     pci_conf[0x63] = 0x60;
-    pci_conf[0x67] = (memory_region_find(io_as, 0x3f8, 1).mr ? 0x08 : 0) |
-        (memory_region_find(io_as, 0x2f8, 1).mr ? 0x90 : 0);
+    pci_conf[0x67] = (memory_region_present(io_as, 0x3f8) ? 0x08 : 0) |
+        (memory_region_present(io_as, 0x2f8) ? 0x90 : 0);
 }
 
 static int piix4_pm_initfn(PCIDevice *dev)

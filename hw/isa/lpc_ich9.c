@@ -481,19 +481,19 @@ static void ich9_lpc_machine_ready(Notifier *n, void *opaque)
     uint8_t *pci_conf;
 
     pci_conf = s->d.config;
-    if (memory_region_find(io_as, 0x3f8, 1).mr) {
+    if (memory_region_present(io_as, 0x3f8)) {
         /* com1 */
         pci_conf[0x82] |= 0x01;
     }
-    if (memory_region_find(io_as, 0x2f8, 1).mr) {
+    if (memory_region_present(io_as, 0x2f8)) {
         /* com2 */
         pci_conf[0x82] |= 0x02;
     }
-    if (memory_region_find(io_as, 0x378, 1).mr) {
+    if (memory_region_present(io_as, 0x378)) {
         /* lpt */
         pci_conf[0x82] |= 0x04;
     }
-    if (memory_region_find(io_as, 0x3f0, 1).mr) {
+    if (memory_region_present(io_as, 0x3f0)) {
         /* floppy */
         pci_conf[0x82] |= 0x08;
     }
