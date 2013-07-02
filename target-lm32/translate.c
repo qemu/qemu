@@ -1011,8 +1011,9 @@ static void check_breakpoint(CPULM32State *env, DisasContext *dc)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static void gen_intermediate_code_internal(CPULM32State *env,
-        TranslationBlock *tb, int search_pc)
+static inline
+void gen_intermediate_code_internal(CPULM32State *env,
+                                    TranslationBlock *tb, int search_pc)
 {
     struct DisasContext ctx, *dc = &ctx;
     uint16_t *gen_opc_end;
