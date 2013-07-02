@@ -17,34 +17,9 @@ import os
 import getopt
 import errno
 
-def generate_visit_struct_body(field_prefix, name, members):
-    ret = mcgen('''
-if (!error_is_set(errp)) {
-''')
-    push_indent()
+def generate_visit_struct_fields(field_prefix, members):
+    ret = ''
 
-    if len(field_prefix):
-        field_prefix = field_prefix + "."
-        ret += mcgen('''
-Error **errp = &err; /* from outer scope */
-Error *err = NULL;
-visit_start_struct(m, NULL, "", "%(name)s", 0, &err);
-''',
-                name=name)
-    else:
-        ret += mcgen('''
-Error *err = NULL;
-visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
-''',
-                name=name)
-
-    ret += mcgen('''
-if (!err) {
-    if (!obj || *obj) {
-''')
-
-    push_indent()
-    push_indent()
     for argname, argentry, optional, structured in parse_args(members):
         if optional:
             ret += mcgen('''
@@ -72,9 +47,40 @@ visit_type_%(type)s(m, obj ? &(*obj)->%(c_prefix)s%(c_name)s : NULL, "%(name)s",
 visit_end_optional(m, &err);
 ''')
 
+    return ret
+
+
+def generate_visit_struct_body(field_prefix, name, members):
+    ret = mcgen('''
+if (!error_is_set(errp)) {
+''')
+    push_indent()
+
+    if len(field_prefix):
+        field_prefix = field_prefix + "."
+        ret += mcgen('''
+Error **errp = &err; /* from outer scope */
+Error *err = NULL;
+visit_start_struct(m, NULL, "", "%(name)s", 0, &err);
+''',
+                name=name)
+    else:
+        ret += mcgen('''
+Error *err = NULL;
+visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+''',
+                name=name)
+
+    ret += mcgen('''
+if (!err) {
+    if (!obj || *obj) {
+''')
+    push_indent()
+    push_indent()
+
+    ret += generate_visit_struct_fields(field_prefix, members)
     pop_indent()
     ret += mcgen('''
-
     error_propagate(errp, err);
     err = NULL;
 }
