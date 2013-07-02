@@ -64,11 +64,13 @@ typedef struct PortioList {
     struct MemoryRegion **regions;
     void *opaque;
     const char *name;
+    bool flush_coalesced_mmio;
 } PortioList;
 
 void portio_list_init(PortioList *piolist, Object *owner,
                       const struct MemoryRegionPortio *callbacks,
                       void *opaque, const char *name);
+void portio_list_set_flush_coalesced(PortioList *piolist);
 void portio_list_destroy(PortioList *piolist);
 void portio_list_add(PortioList *piolist,
                      struct MemoryRegion *address_space,
