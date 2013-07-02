@@ -1899,7 +1899,6 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
                        Error **errp)
 {
     X86CPU *cpu = NULL;
-    CPUX86State *env;
     gchar **model_pieces;
     char *name, *features;
     char *typename;
@@ -1922,8 +1921,6 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     qdev_set_parent_bus(DEVICE(cpu), qdev_get_child_bus(icc_bridge, "icc"));
     object_unref(OBJECT(cpu));
 #endif
-    env = &cpu->env;
-    env->cpu_model_str = cpu_model;
 
     cpu_x86_register(cpu, name, &error);
     if (error) {

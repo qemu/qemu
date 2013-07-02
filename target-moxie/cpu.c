@@ -138,7 +138,6 @@ MoxieCPU *cpu_moxie_init(const char *cpu_model)
         return NULL;
     }
     cpu = MOXIE_CPU(object_new(object_class_get_name(oc)));
-    cpu->env.cpu_model_str = cpu_model;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 

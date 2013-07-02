@@ -42,7 +42,7 @@ const char *filename;
 const char *argv0;
 int gdbstub_port;
 envlist_t *envlist;
-const char *cpu_model;
+static const char *cpu_model;
 unsigned long mmap_min_addr;
 #if defined(CONFIG_USE_GUEST_BASE)
 unsigned long guest_base;
@@ -3287,7 +3287,7 @@ void init_task_state(TaskState *ts)
 
 CPUArchState *cpu_copy(CPUArchState *env)
 {
-    CPUArchState *new_env = cpu_init(env->cpu_model_str);
+    CPUArchState *new_env = cpu_init(cpu_model);
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
     CPUWatchpoint *wp;
