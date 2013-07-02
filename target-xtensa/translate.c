@@ -2875,8 +2875,9 @@ static void gen_ibreak_check(CPUXtensaState *env, DisasContext *dc)
     }
 }
 
-static void gen_intermediate_code_internal(
-        CPUXtensaState *env, TranslationBlock *tb, int search_pc)
+static inline
+void gen_intermediate_code_internal(CPUXtensaState *env,
+                                    TranslationBlock *tb, int search_pc)
 {
     DisasContext dc;
     int insn_count = 0;
