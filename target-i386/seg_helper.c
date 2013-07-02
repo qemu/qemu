@@ -30,11 +30,11 @@
 
 #ifdef DEBUG_PCALL
 # define LOG_PCALL(...) qemu_log_mask(CPU_LOG_PCALL, ## __VA_ARGS__)
-# define LOG_PCALL_STATE(env)                                  \
-    log_cpu_state_mask(CPU_LOG_PCALL, CPU(x86_env_get_cpu(env)), CPU_DUMP_CCOP)
+# define LOG_PCALL_STATE(cpu)                                  \
+    log_cpu_state_mask(CPU_LOG_PCALL, (cpu), CPU_DUMP_CCOP)
 #else
 # define LOG_PCALL(...) do { } while (0)
-# define LOG_PCALL_STATE(env) do { } while (0)
+# define LOG_PCALL_STATE(cpu) do { } while (0)
 #endif
 
 /* return non zero if error */
@@ -1686,7 +1686,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
 
     next_eip = env->eip + next_eip_addend;
     LOG_PCALL("lcall %04x:%08x s=%d\n", new_cs, (uint32_t)new_eip, shift);
-    LOG_PCALL_STATE(env);
+    LOG_PCALL_STATE(CPU(x86_env_get_cpu(env)));
     if ((new_cs & 0xfffc) == 0) {
         raise_exception_err(env, EXCP0D_GPF, 0);
     }
@@ -2020,7 +2020,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
     }
     LOG_PCALL("lret new %04x:" TARGET_FMT_lx " s=%d addend=0x%x\n",
               new_cs, new_eip, shift, addend);
-    LOG_PCALL_STATE(env);
+    LOG_PCALL_STATE(CPU(x86_env_get_cpu(env)));
     if ((new_cs & 0xfffc) == 0) {
         raise_exception_err(env, EXCP0D_GPF, new_cs & 0xfffc);
     }
