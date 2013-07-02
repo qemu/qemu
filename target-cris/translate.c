@@ -3161,7 +3161,7 @@ static void check_breakpoint(CPUCRISState *env, DisasContext *dc)
  */
 
 /* generate intermediate code for basic block 'tb'.  */
-static void
+static inline void
 gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
                                int search_pc)
 {
