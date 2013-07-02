@@ -339,6 +339,7 @@ static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
 }
 #endif
 
+#ifdef TARGET_NR_utimensat
 #ifdef CONFIG_UTIMENSAT
 static int sys_utimensat(int dirfd, const char *pathname,
     const struct timespec times[2], int flags)
@@ -348,12 +349,19 @@ static int sys_utimensat(int dirfd, const char *pathname,
     else
         return utimensat(dirfd, pathname, times, flags);
 }
-#else
-#if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
+#elif defined(__NR_utimensat)
+#define __NR_sys_utimensat __NR_utimensat
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
           const struct timespec *,tsp,int,flags)
+#else
+static int sys_utimensat(int dirfd, const char *pathname,
+                         const struct timespec times[2], int flags)
+{
+    errno = ENOSYS;
+    return -1;
+}
 #endif
-#endif /* CONFIG_UTIMENSAT  */
+#endif /* TARGET_NR_utimensat */
 
 #ifdef CONFIG_INOTIFY
 #include <sys/inotify.h>
@@ -8627,7 +8635,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         goto unimplemented_nowarn;
 #endif
 
-#if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
+#if defined(TARGET_NR_utimensat)
     case TARGET_NR_utimensat:
         {
             struct timespec *tsp, ts[2];
