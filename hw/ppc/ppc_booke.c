@@ -131,17 +131,33 @@ static void booke_update_fixed_timer(CPUPPCState         *env,
                                      struct QEMUTimer *timer)
 {
     ppc_tb_t *tb_env = env->tb_env;
-    uint64_t lapse;
+    uint64_t delta_tick, ticks = 0;
     uint64_t tb;
-    uint64_t period = 1 << (target_bit + 1);
+    uint64_t period;
     uint64_t now;
 
     now = qemu_get_clock_ns(vm_clock);
     tb  = cpu_ppc_get_tb(tb_env, now, tb_env->tb_offset);
+    period = 1ULL << target_bit;
+    delta_tick = period - (tb & (period - 1));
 
-    lapse = period - ((tb - (1 << target_bit)) & (period - 1));
+    /* the timer triggers only when the selected bit toggles from 0 to 1 */
+    if (tb & period) {
+        ticks = period;
+    }
 
-    *next = now + muldiv64(lapse, get_ticks_per_sec(), tb_env->tb_freq);
+    if (ticks + delta_tick < ticks) {
+        /* Overflow, so assume the biggest number we can express. */
+        ticks = UINT64_MAX;
+    } else {
+        ticks += delta_tick;
+    }
+
+    *next = now + muldiv64(ticks, get_ticks_per_sec(), tb_env->tb_freq);
+    if ((*next < now) || (*next > INT64_MAX)) {
+        /* Overflow, so assume the biggest number the qemu timer supports. */
+        *next = INT64_MAX;
+    }
 
     /* XXX: If expire time is now. We can't run the callback because we don't
      * have access to it. So we just set the timer one nanosecond later.

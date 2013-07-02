@@ -38,7 +38,7 @@
 #define TOKEN_BASE      0x2000
 #define TOKEN_MAX       0x100
 
-static void rtas_display_character(sPAPREnvironment *spapr,
+static void rtas_display_character(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                    uint32_t token, uint32_t nargs,
                                    target_ulong args,
                                    uint32_t nret, target_ulong rets)
@@ -54,7 +54,7 @@ static void rtas_display_character(sPAPREnvironment *spapr,
     }
 }
 
-static void rtas_get_time_of_day(sPAPREnvironment *spapr,
+static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
@@ -78,7 +78,7 @@ static void rtas_get_time_of_day(sPAPREnvironment *spapr,
     rtas_st(rets, 7, 0); /* we don't do nanoseconds */
 }
 
-static void rtas_set_time_of_day(sPAPREnvironment *spapr,
+static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
@@ -99,7 +99,7 @@ static void rtas_set_time_of_day(sPAPREnvironment *spapr,
     rtas_st(rets, 0, 0); /* Success */
 }
 
-static void rtas_power_off(sPAPREnvironment *spapr,
+static void rtas_power_off(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            uint32_t token, uint32_t nargs, target_ulong args,
                            uint32_t nret, target_ulong rets)
 {
@@ -111,7 +111,7 @@ static void rtas_power_off(sPAPREnvironment *spapr,
     rtas_st(rets, 0, 0);
 }
 
-static void rtas_system_reboot(sPAPREnvironment *spapr,
+static void rtas_system_reboot(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                uint32_t token, uint32_t nargs,
                                target_ulong args,
                                uint32_t nret, target_ulong rets)
@@ -124,7 +124,8 @@ static void rtas_system_reboot(sPAPREnvironment *spapr,
     rtas_st(rets, 0, 0);
 }
 
-static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
+static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
+                                         sPAPREnvironment *spapr,
                                          uint32_t token, uint32_t nargs,
                                          target_ulong args,
                                          uint32_t nret, target_ulong rets)
@@ -154,7 +155,7 @@ static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
     rtas_st(rets, 0, -3);
 }
 
-static void rtas_start_cpu(sPAPREnvironment *spapr,
+static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPREnvironment *spapr,
                            uint32_t token, uint32_t nargs,
                            target_ulong args,
                            uint32_t nret, target_ulong rets)
@@ -208,7 +209,7 @@ static struct rtas_call {
 
 struct rtas_call *rtas_next = rtas_table;
 
-target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
+target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                              uint32_t token, uint32_t nargs, target_ulong args,
                              uint32_t nret, target_ulong rets)
 {
@@ -217,7 +218,7 @@ target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
         struct rtas_call *call = rtas_table + (token - TOKEN_BASE);
 
         if (call->fn) {
-            call->fn(spapr, token, nargs, args, nret, rets);
+            call->fn(cpu, spapr, token, nargs, args, nret, rets);
             return H_SUCCESS;
         }
     }
@@ -227,7 +228,7 @@ target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
      * machines) without looking it up in the device tree.  This
      * special case makes this work */
     if (token == 0xa) {
-        rtas_display_character(spapr, 0xa, nargs, args, nret, rets);
+        rtas_display_character(cpu, spapr, 0xa, nargs, args, nret, rets);
         return H_SUCCESS;
     }
 

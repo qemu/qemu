@@ -670,7 +670,8 @@ static void spapr_cpu_reset(void *opaque)
     env->external_htab = spapr->htab;
     env->htab_base = -1;
     env->htab_mask = HTAB_SIZE(spapr) - 1;
-    env->spr[SPR_SDR1] = (target_ulong)spapr->htab |
+    // TODO: can next assignment to target_ulong loose significant bits?
+    env->spr[SPR_SDR1] = (uintptr_t)spapr->htab |
         (spapr->htab_shift - 18);
 }
 
@@ -971,6 +972,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
 static QEMUMachine spapr_machine = {
     .name = "pseries",
     .desc = "pSeries Logical Partition (PAPR compliant)",
+    .is_default = 1,
     .init = ppc_spapr_init,
     .reset = ppc_spapr_reset,
     .block_default_type = IF_SCSI,

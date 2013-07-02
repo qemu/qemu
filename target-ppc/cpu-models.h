@@ -31,9 +31,10 @@
 typedef struct PowerPCCPUAlias {
     const char *alias;
     const char *model;
+    ObjectClass *oc;
 } PowerPCCPUAlias;
 
-extern const PowerPCCPUAlias ppc_cpu_aliases[];
+extern PowerPCCPUAlias ppc_cpu_aliases[];
 
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC                                    */

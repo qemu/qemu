@@ -20,4 +20,5 @@ obj-$(CONFIG_GRLIB) += grlib_irqmp.o
 obj-$(CONFIG_IOAPIC) += ioapic.o
 obj-$(CONFIG_OMAP) += omap_intc.o
 obj-$(CONFIG_OPENPIC) += openpic.o
+obj-$(CONFIG_OPENPIC_KVM) += openpic_kvm.o
 obj-$(CONFIG_SH4) += sh_intc.o

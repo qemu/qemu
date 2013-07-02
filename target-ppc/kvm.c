@@ -791,6 +791,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     for (i = 0;i < 32; i++)
         regs.gpr[i] = env->gpr[i];
 
+    regs.cr = 0;
+    for (i = 0; i < 8; i++) {
+        regs.cr |= (env->crf[i] & 15) << (4 * (7 - i));
+    }
+
     ret = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
     if (ret < 0)
         return ret;

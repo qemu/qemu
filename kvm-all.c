@@ -107,6 +107,7 @@ struct KVMState
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
 bool kvm_async_interrupts_allowed;
+bool kvm_halt_in_kernel_allowed;
 bool kvm_irqfds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
@@ -953,7 +954,7 @@ static void clear_gsi(KVMState *s, unsigned int gsi)
     s->used_gsi_bitmap[gsi / 32] &= ~(1U << (gsi % 32));
 }
 
-static void kvm_init_irq_routing(KVMState *s)
+void kvm_init_irq_routing(KVMState *s)
 {
     int gsi_count, i;
 
@@ -984,7 +985,7 @@ static void kvm_init_irq_routing(KVMState *s)
     kvm_arch_init_irq_routing(s);
 }
 
-static void kvm_irqchip_commit_routes(KVMState *s)
+void kvm_irqchip_commit_routes(KVMState *s)
 {
     int ret;
 
@@ -1018,8 +1019,6 @@ static void kvm_add_routing_entry(KVMState *s,
     new->u = entry->u;
 
     set_gsi(s, entry->gsi);
-
-    kvm_irqchip_commit_routes(s);
 }
 
 static int kvm_update_routing_entry(KVMState *s,
@@ -1130,7 +1129,7 @@ static KVMMSIRoute *kvm_lookup_msi_route(KVMState *s, MSIMessage msg)
     QTAILQ_FOREACH(route, &s->msi_hashtab[hash], entry) {
         if (route->kroute.u.msi.address_lo == (uint32_t)msg.address &&
             route->kroute.u.msi.address_hi == (msg.address >> 32) &&
-            route->kroute.u.msi.data == msg.data) {
+            route->kroute.u.msi.data == le32_to_cpu(msg.data)) {
             return route;
         }
     }
@@ -1145,7 +1144,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
     if (s->direct_msi) {
         msi.address_lo = (uint32_t)msg.address;
         msi.address_hi = msg.address >> 32;
-        msi.data = msg.data;
+        msi.data = le32_to_cpu(msg.data);
         msi.flags = 0;
         memset(msi.pad, 0, sizeof(msi.pad));
 
@@ -1167,9 +1166,10 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
         route->kroute.flags = 0;
         route->kroute.u.msi.address_lo = (uint32_t)msg.address;
         route->kroute.u.msi.address_hi = msg.address >> 32;
-        route->kroute.u.msi.data = msg.data;
+        route->kroute.u.msi.data = le32_to_cpu(msg.data);
 
         kvm_add_routing_entry(s, &route->kroute);
+        kvm_irqchip_commit_routes(s);
 
         QTAILQ_INSERT_TAIL(&s->msi_hashtab[kvm_hash_msi(msg.data)], route,
                            entry);
@@ -1199,9 +1199,10 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     kroute.flags = 0;
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
-    kroute.u.msi.data = msg.data;
+    kroute.u.msi.data = le32_to_cpu(msg.data);
 
     kvm_add_routing_entry(s, &kroute);
+    kvm_irqchip_commit_routes(s);
 
     return virq;
 }
@@ -1219,7 +1220,7 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
     kroute.flags = 0;
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
-    kroute.u.msi.data = msg.data;
+    kroute.u.msi.data = le32_to_cpu(msg.data);
 
     return kvm_update_routing_entry(s, &kroute);
 }
@@ -1241,7 +1242,7 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
 
 #else /* !KVM_CAP_IRQ_ROUTING */
 
-static void kvm_init_irq_routing(KVMState *s)
+void kvm_init_irq_routing(KVMState *s)
 {
 }
 
@@ -1303,6 +1304,7 @@ static int kvm_irqchip_create(KVMState *s)
      * interrupt delivery (though the reverse is not necessarily true)
      */
     kvm_async_interrupts_allowed = true;
+    kvm_halt_in_kernel_allowed = true;
 
     kvm_init_irq_routing(s);
 

@@ -321,7 +321,8 @@ static void spapr_vio_quiesce_one(VIOsPAPRDevice *dev)
     free_crq(dev);
 }
 
-static void rtas_set_tce_bypass(sPAPREnvironment *spapr, uint32_t token,
+static void rtas_set_tce_bypass(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                                uint32_t token,
                                 uint32_t nargs, target_ulong args,
                                 uint32_t nret, target_ulong rets)
 {
@@ -351,7 +352,8 @@ static void rtas_set_tce_bypass(sPAPREnvironment *spapr, uint32_t token,
     rtas_st(rets, 0, 0);
 }
 
-static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
+static void rtas_quiesce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+                         uint32_t token,
                          uint32_t nargs, target_ulong args,
                          uint32_t nret, target_ulong rets)
 {
