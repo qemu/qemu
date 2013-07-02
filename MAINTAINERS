@@ -104,6 +104,12 @@ M: Anthony Green <green@moxielogic.com>
 S: Maintained
 F: target-moxie/
 
+OpenRISC
+M: Jia Liu <proljc@gmail.com>
+S: Maintained
+F: target-openrisc/
+F: hw/openrisc/
+
 PowerPC
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
@@ -367,6 +373,13 @@ R4000
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
 F: hw/mips/mips_r4k.c
+
+OpenRISC Machines
+-----------------
+or1k-sim
+M: Jia Liu <proljc@gmail.com>
+S: Maintained
+F: hw/openrisc/openrisc_sim.c
 
 PowerPC Machines
 ----------------
