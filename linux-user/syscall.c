@@ -4973,6 +4973,30 @@ static int open_self_auxv(void *cpu_env, int fd)
     return 0;
 }
 
+static int is_proc_myself(const char *filename, const char *entry)
+{
+    if (!strncmp(filename, "/proc/", strlen("/proc/"))) {
+        filename += strlen("/proc/");
+        if (!strncmp(filename, "self/", strlen("self/"))) {
+            filename += strlen("self/");
+        } else if (*filename >= '1' && *filename <= '9') {
+            char myself[80];
+            snprintf(myself, sizeof(myself), "%d/", getpid());
+            if (!strncmp(filename, myself, strlen(myself))) {
+                filename += strlen(myself);
+            } else {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+        if (!strcmp(filename, entry)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
 {
     struct fake_open {
@@ -4981,15 +5005,14 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
     };
     const struct fake_open *fake_open;
     static const struct fake_open fakes[] = {
-        { "/proc/self/maps", open_self_maps },
-        { "/proc/self/stat", open_self_stat },
-        { "/proc/self/auxv", open_self_auxv },
+        { "maps", open_self_maps },
+        { "stat", open_self_stat },
+        { "auxv", open_self_auxv },
         { NULL, NULL }
     };
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
-        if (!strncmp(pathname, fake_open->filename,
-                     strlen(fake_open->filename))) {
+        if (is_proc_myself(pathname, fake_open->filename)) {
             break;
         }
     }
@@ -6262,20 +6285,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
     case TARGET_NR_readlink:
         {
-            void *p2, *temp;
+            void *p2;
             p = lock_user_string(arg1);
             p2 = lock_user(VERIFY_WRITE, arg2, arg3, 0);
-            if (!p || !p2)
+            if (!p || !p2) {
                 ret = -TARGET_EFAULT;
-            else {
-                if (strncmp((const char *)p, "/proc/self/exe", 14) == 0) {
-                    char real[PATH_MAX];
-                    temp = realpath(exec_path,real);
-                    ret = (temp==NULL) ? get_errno(-1) : strlen(real) ;
-                    snprintf((char *)p2, arg3, "%s", real);
-                    }
-                else
-                    ret = get_errno(readlink(path(p), p2, arg3));
+            } else if (is_proc_myself((const char *)p, "exe")) {
+                char real[PATH_MAX], *temp;
+                temp = realpath(exec_path, real);
+                ret = temp == NULL ? get_errno(-1) : strlen(real) ;
+                snprintf((char *)p2, arg3, "%s", real);
+            } else {
+                ret = get_errno(readlink(path(p), p2, arg3));
             }
             unlock_user(p2, arg2, ret);
             unlock_user(p, arg1, 0);
@@ -6287,10 +6308,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             void *p2;
             p  = lock_user_string(arg2);
             p2 = lock_user(VERIFY_WRITE, arg3, arg4, 0);
-            if (!p || !p2)
-        	ret = -TARGET_EFAULT;
-            else
+            if (!p || !p2) {
+                ret = -TARGET_EFAULT;
+            } else if (is_proc_myself((const char *)p, "exe")) {
+                char real[PATH_MAX], *temp;
+                temp = realpath(exec_path, real);
+                ret = temp == NULL ? get_errno(-1) : strlen(real) ;
+                snprintf((char *)p2, arg4, "%s", real);
+            } else {
                 ret = get_errno(readlinkat(arg1, path(p), p2, arg4));
+            }
             unlock_user(p2, arg3, ret);
             unlock_user(p, arg2, 0);
         }
