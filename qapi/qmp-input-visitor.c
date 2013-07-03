@@ -144,6 +144,18 @@ static void qmp_input_end_struct(Visitor *v, Error **errp)
     qmp_input_pop(qiv, errp);
 }
 
+static void qmp_input_start_implicit_struct(Visitor *v, void **obj,
+                                            size_t size, Error **errp)
+{
+    if (obj) {
+        *obj = g_malloc0(size);
+    }
+}
+
+static void qmp_input_end_implicit_struct(Visitor *v, Error **errp)
+{
+}
+
 static void qmp_input_start_list(Visitor *v, const char *name, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -293,6 +305,8 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
 
     v->visitor.start_struct = qmp_input_start_struct;
     v->visitor.end_struct = qmp_input_end_struct;
+    v->visitor.start_implicit_struct = qmp_input_start_implicit_struct;
+    v->visitor.end_implicit_struct = qmp_input_end_implicit_struct;
     v->visitor.start_list = qmp_input_start_list;
     v->visitor.next_list = qmp_input_next_list;
     v->visitor.end_list = qmp_input_end_list;

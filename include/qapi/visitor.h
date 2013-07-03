@@ -33,6 +33,9 @@ void visit_end_handle(Visitor *v, Error **errp);
 void visit_start_struct(Visitor *v, void **obj, const char *kind,
                         const char *name, size_t size, Error **errp);
 void visit_end_struct(Visitor *v, Error **errp);
+void visit_start_implicit_struct(Visitor *v, void **obj, size_t size,
+                                 Error **errp);
+void visit_end_implicit_struct(Visitor *v, Error **errp);
 void visit_start_list(Visitor *v, const char *name, Error **errp);
 GenericList *visit_next_list(Visitor *v, GenericList **list, Error **errp);
 void visit_end_list(Visitor *v, Error **errp);

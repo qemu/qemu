@@ -22,6 +22,10 @@ struct Visitor
                          const char *name, size_t size, Error **errp);
     void (*end_struct)(Visitor *v, Error **errp);
 
+    void (*start_implicit_struct)(Visitor *v, void **obj, size_t size,
+                                  Error **errp);
+    void (*end_implicit_struct)(Visitor *v, Error **errp);
+
     void (*start_list)(Visitor *v, const char *name, Error **errp);
     GenericList *(*next_list)(Visitor *v, GenericList **list, Error **errp);
     void (*end_list)(Visitor *v, Error **errp);
